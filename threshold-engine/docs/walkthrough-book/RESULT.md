@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**1493 of 1493 reads as expected.**
+**1514 of 1514 reads as expected.**
 
 No differences.
 
@@ -31,7 +31,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 |---|---|---|---|
 | ok | Summary!I6 | 4.009514461690263 | 4.009514461690263 |
 | ok | Summary!J6 | Pick a source | Pick a source |
-| ok | Summary!G6 | 3.9545852353018254 | 3.954585235301825 |
+| ok | Summary!G6 | 3.9545852353018254 | 3.9545852353018254 |
 | ok | Summary!H6 | Pick a source | Pick a source |
 | ok | Summary!D6 | 3.7557700716206863 | 3.755770071620686 |
 | ok | Summary!E6 | Pick a source | Pick a source |
@@ -43,13 +43,13 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!E7 | Pick a source | Pick a source |
 | ok | Summary!I8 | 1.369877603605913 | 1.369877603605913 |
 | ok | Summary!J8 | Pick a source | Pick a source |
-| ok | Summary!G8 | 1.3341908238105804 | 1.33419082381058 |
+| ok | Summary!G8 | 1.3341908238105804 | 1.3341908238105804 |
 | ok | Summary!H8 | Pick a source | Pick a source |
 | ok | Summary!D8 | 0.9203649082818812 | 0.9203649082818812 |
 | ok | Summary!E8 | Pick a source | Pick a source |
 | ok | Summary!I9 | 1.3597572332361343 | 1.359757233236134 |
 | ok | Summary!J9 | Pick a source | Pick a source |
-| ok | Summary!G9 | 1.3752942515968747 | 1.375294251596875 |
+| ok | Summary!G9 | 1.3752942515968747 | 1.3752942515968747 |
 | ok | Summary!H9 | Pick a source | Pick a source |
 | ok | Summary!D9 | 1.0086456886494444 | 1.008645688649444 |
 | ok | Summary!E9 | Pick a source | Pick a source |
@@ -61,25 +61,25 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!E10 | Pick a source | Pick a source |
 | ok | Summary!I11 | 2.810916225966142 | 2.810916225966142 |
 | ok | Summary!J11 | Pick a source | Pick a source |
-| ok | Summary!G11 | 2.7167019777414856 | 2.716701977741486 |
+| ok | Summary!G11 | 2.7167019777414856 | 2.7167019777414856 |
 | ok | Summary!H11 | Pick a source | Pick a source |
 | ok | Summary!D11 | 2.6198238917146655 | 2.619823891714665 |
 | ok | Summary!E11 | Pick a source | Pick a source |
 | ok | Summary!I12 | 1.441038622360229 | 1.441038622360229 |
 | ok | Summary!J12 | Pick a source | Pick a source |
-| ok | Summary!G12 | 1.3825111539309054 | 1.382511153930905 |
+| ok | Summary!G12 | 1.3825111539309054 | 1.3825111539309054 |
 | ok | Summary!H12 | Pick a source | Pick a source |
 | ok | Summary!D12 | 1.699458983432784 | 1.699458983432784 |
 | ok | Summary!E12 | Pick a source | Pick a source |
 | ok | Summary!I13 | 0.0034023275592908768 | 0.003402327559290877 |
 | ok | Summary!J13 | Pick a source | Pick a source |
-| ok | Summary!G13 | -0.0024265883136588345 | -0.002426588313658835 |
+| ok | Summary!G13 | -0.0024265883136588345 | -0.0024265883136588345 |
 | ok | Summary!H13 | Pick a source | Pick a source |
 | ok | Summary!D13 | -0.014683811346124514 | -0.01468381134612451 |
 | ok | Summary!E13 | Pick a source | Pick a source |
 | ok | Summary!I14 | 0.01680541154576976 | 0.01680541154576976 |
 | ok | Summary!J14 | Pick a source | Pick a source |
-| ok | Summary!G14 | 0.014506762667246017 | 0.01450676266724602 |
+| ok | Summary!G14 | 0.014506762667246017 | 0.014506762667246017 |
 | ok | Summary!H14 | Pick a source | Pick a source |
 | ok | Summary!D14 | 0.00901829163851567 | 0.00901829163851567 |
 | ok | Summary!E14 | Pick a source | Pick a source |
@@ -103,7 +103,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!E17 | Pick a source | Pick a source |
 | ok | Summary!I18 | 2.0007594723761 | 2.0007594723761 |
 | ok | Summary!J18 | Pick a source | Pick a source |
-| ok | Summary!G18 | 2.0955527508957776 | 2.095552750895778 |
+| ok | Summary!G18 | 2.0955527508957776 | 2.0955527508957776 |
 | ok | Summary!H18 | Pick a source | Pick a source |
 | ok | Summary!D18 | 0.7710023745011505 | 0.7710023745011505 |
 | ok | Summary!E18 | Pick a source | Pick a source |
@@ -121,7 +121,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!E20 | Pick a source | Pick a source |
 | ok | Summary!I21 | 0.08750898529165822 | 0.08750898529165822 |
 | ok | Summary!J21 | Pick a source | Pick a source |
-| ok | Summary!G21 | 0.10262904527785062 | 0.1026290452778506 |
+| ok | Summary!G21 | 0.10262904527785062 | 0.10262904527785062 |
 | ok | Summary!H21 | Pick a source | Pick a source |
 | ok | Summary!D21 | 0.07719012006354721 | 0.07719012006354721 |
 | ok | Summary!E21 | Pick a source | Pick a source |
@@ -139,7 +139,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!E23 | Pick a source | Pick a source |
 | ok | Summary!I24 | 1.451503633202392 | 1.451503633202392 |
 | ok | Summary!J24 | Pick a source | Pick a source |
-| ok | Summary!G24 | 2.2209814576008475 | 2.220981457600848 |
+| ok | Summary!G24 | 2.2209814576008475 | 2.2209814576008475 |
 | ok | Summary!H24 | Pick a source | Pick a source |
 | ok | Summary!D24 | 1.8537532811982647 | 1.853753281198265 |
 | ok | Summary!E24 | Pick a source | Pick a source |
@@ -151,7 +151,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!E25 | Pick a source | Pick a source |
 | ok | Summary!I26 | 1.5056357404232898 | 1.50563574042329 |
 | ok | Summary!J26 | Pick a source | Pick a source |
-| ok | Summary!G26 | 2.2669335496630945 | 2.266933549663094 |
+| ok | Summary!G26 | 2.2669335496630945 | 2.2669335496630945 |
 | ok | Summary!H26 | Pick a source | Pick a source |
 | ok | Summary!D26 | 1.9244803844932874 | 1.924480384493287 |
 | ok | Summary!E26 | Pick a source | Pick a source |
@@ -163,7 +163,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!O6 | Pick a source | Pick a source |
 | ok | Summary!S7 | 2.0372465877364028 | 2.037246587736403 |
 | ok | Summary!T7 | Pick a source | Pick a source |
-| ok | Summary!Q7 | 2.0194451522005985 | 2.019445152200599 |
+| ok | Summary!Q7 | 2.0194451522005985 | 2.0194451522005985 |
 | ok | Summary!R7 | Pick a source | Pick a source |
 | ok | Summary!N7 | 1.269580994403605 | 1.269580994403605 |
 | ok | Summary!O7 | Pick a source | Pick a source |
@@ -175,7 +175,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!O8 | Pick a source | Pick a source |
 | ok | Summary!S9 | 0.18427413737016327 | 0.1842741373701633 |
 | ok | Summary!T9 | Pick a source | Pick a source |
-| ok | Summary!Q9 | 0.14276586877115047 | 0.1427658687711505 |
+| ok | Summary!Q9 | 0.14276586877115047 | 0.14276586877115047 |
 | ok | Summary!R9 | Pick a source | Pick a source |
 | ok | Summary!N9 | 0.47005694520492464 | 0.4700569452049246 |
 | ok | Summary!O9 | Pick a source | Pick a source |
@@ -187,7 +187,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!O10 | Pick a source | Pick a source |
 | ok | Summary!S11 | 1.3686242482397901 | 1.36862424823979 |
 | ok | Summary!T11 | Pick a source | Pick a source |
-| ok | Summary!Q11 | 1.3571863925490586 | 1.357186392549059 |
+| ok | Summary!Q11 | 1.3571863925490586 | 1.3571863925490586 |
 | ok | Summary!R11 | Pick a source | Pick a source |
 | ok | Summary!N11 | 1.1951131262624375 | 1.195113126262437 |
 | ok | Summary!O11 | Pick a source | Pick a source |
@@ -205,19 +205,19 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!O13 | Pick a source | Pick a source |
 | ok | Summary!S14 | 1.7254849919194866 | 1.725484991919487 |
 | ok | Summary!T14 | Pick a source | Pick a source |
-| ok | Summary!Q14 | 1.5906160217009966 | 1.590616021700997 |
+| ok | Summary!Q14 | 1.5906160217009966 | 1.5906160217009966 |
 | ok | Summary!R14 | Pick a source | Pick a source |
 | ok | Summary!N14 | 0.7781330896908787 | 0.7781330896908787 |
 | ok | Summary!O14 | Pick a source | Pick a source |
 | ok | Summary!S15 | 2.1170273837661813 | 2.117027383766181 |
 | ok | Summary!T15 | Pick a source | Pick a source |
-| ok | Summary!Q15 | 1.9632802207272166 | 1.963280220727217 |
+| ok | Summary!Q15 | 1.9632802207272166 | 1.9632802207272166 |
 | ok | Summary!R15 | Pick a source | Pick a source |
 | ok | Summary!N15 | 0.4854368932038835 | 0.4854368932038835 |
 | ok | Summary!O15 | Pick a source | Pick a source |
 | ok | Summary!S16 | 0.017704651456628466 | 0.01770465145662847 |
 | ok | Summary!T16 | Pick a source | Pick a source |
-| ok | Summary!Q16 | 0.022395815868242422 | 0.02239581586824242 |
+| ok | Summary!Q16 | 0.022395815868242422 | 0.022395815868242422 |
 | ok | Summary!R16 | Pick a source | Pick a source |
 | ok | Summary!N16 | 0.0369703594161898 | 0.0369703594161898 |
 | ok | Summary!O16 | Pick a source | Pick a source |
@@ -229,7 +229,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Summary!O17 | Pick a source | Pick a source |
 | ok | Summary!S18 | 2.776582631971007 | 2.776582631971007 |
 | ok | Summary!T18 | Pick a source | Pick a source |
-| ok | Summary!Q18 | 2.4917029147144873 | 2.491702914714487 |
+| ok | Summary!Q18 | 2.4917029147144873 | 2.4917029147144873 |
 | ok | Summary!R18 | Pick a source | Pick a source |
 | ok | Summary!N18 | 1.1187552240725263 | 1.118755224072526 |
 | ok | Summary!O18 | Pick a source | Pick a source |
@@ -252,14 +252,14 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!R5 | Moderate | Moderate |
 | ok | Lines by source!S5 |  |  |
 | ok | Lines by source!E6 | 3.6309091634405473 | 3.6309091634405473 |
-| ok | Lines by source!F6 | 1.0331756339975655 | 1.033175633997567 |
-| ok | Lines by source!G6 | 10.346442383612649 | 10.34644238361265 |
+| ok | Lines by source!F6 | 1.0331756339975655 | 1.0331756339975655 |
+| ok | Lines by source!G6 | 10.346442383612649 | 10.346442383612649 |
 | ok | Lines by source!L6 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M6 | 3.9545852353018254 | 3.954585235301825 |
-| ok | Lines by source!H6 | 2.5977335294429817 | 2.59773352944298 |
-| ok | Lines by source!I6 | 3.1143213464417645 | 3.1143213464417636 |
-| ok | Lines by source!J6 | 4.14749698043933 | 4.147496980439331 |
-| ok | Lines by source!K6 | 6.033257977157906 | 6.0332579771579065 |
+| ok | Lines by source!M6 | 3.9545852353018254 | 3.9545852353018254 |
+| ok | Lines by source!H6 | 2.5977335294429817 | 2.5977335294429817 |
+| ok | Lines by source!I6 | 3.1143213464417645 | 3.1143213464417645 |
+| ok | Lines by source!J6 | 4.14749698043933 | 4.14749698043933 |
+| ok | Lines by source!K6 | 6.033257977157906 | 6.033257977157906 |
 | ok | Lines by source!Q6 | 3 | 3 |
 | ok | Lines by source!R6 | Moderate | Moderate |
 | ok | Lines by source!S6 |  |  |
@@ -320,9 +320,9 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!S11 |  |  |
 | ok | Lines by source!E12 | 1.361585946989873 | 1.361585946989873 |
 | ok | Lines by source!F12 | 0.2480271403972293 | 0.2480271403972293 |
-| ok | Lines by source!G12 | 3.2686089856800993 | 3.268608985680099 |
+| ok | Lines by source!G12 | 3.2686089856800993 | 3.2686089856800993 |
 | ok | Lines by source!L12 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M12 | 1.3341908238105804 | 1.33419082381058 |
+| ok | Lines by source!M12 | 1.3341908238105804 | 1.3341908238105804 |
 | ok | Lines by source!H12 | 1.1135588065926436 | 1.1135588065926436 |
 | ok | Lines by source!I12 | 1.2375723767912583 | 1.2375723767912583 |
 | ok | Lines by source!J12 | 1.4855995171884877 | 1.4855995171884877 |
@@ -354,15 +354,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q14 | 3 | 3 |
 | ok | Lines by source!R14 | Moderate | Moderate |
 | ok | Lines by source!S14 |  |  |
-| ok | Lines by source!E15 | 1.2643618319521448 | 1.2643618319521446 |
-| ok | Lines by source!F15 | 0.19524869873385414 | 0.1952486987338538 |
-| ok | Lines by source!G15 | 2.9200379551697373 | 2.920037955169737 |
+| ok | Lines by source!E15 | 1.2643618319521448 | 1.2643618319521448 |
+| ok | Lines by source!F15 | 0.19524869873385414 | 0.19524869873385414 |
+| ok | Lines by source!G15 | 2.9200379551697373 | 2.9200379551697373 |
 | ok | Lines by source!L15 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M15 | 1.3752942515968747 | 1.375294251596875 |
-| ok | Lines by source!H15 | 1.0691131332182906 | 1.0691131332182908 |
+| ok | Lines by source!M15 | 1.3752942515968747 | 1.3752942515968747 |
+| ok | Lines by source!H15 | 1.0691131332182906 | 1.0691131332182906 |
 | ok | Lines by source!I15 | 1.1667374825852177 | 1.1667374825852177 |
-| ok | Lines by source!J15 | 1.361986181319072 | 1.3619861813190715 |
-| ok | Lines by source!K15 | 2.206324717929771 | 2.20632471792977 |
+| ok | Lines by source!J15 | 1.361986181319072 | 1.361986181319072 |
+| ok | Lines by source!K15 | 2.206324717929771 | 2.206324717929771 |
 | ok | Lines by source!Q15 | 4 | 4 |
 | ok | Lines by source!R15 | Moderate-High | Moderate-High |
 | ok | Lines by source!S15 |  |  |
@@ -390,15 +390,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q17 | 1 | 1 |
 | ok | Lines by source!R17 | Low | Low |
 | ok | Lines by source!S17 |  |  |
-| ok | Lines by source!E18 | 0.03869371824098213 | 0.03869371824098214 |
+| ok | Lines by source!E18 | 0.03869371824098213 | 0.03869371824098213 |
 | ok | Lines by source!F18 | 0.016309807391292293 | 0.016309807391292293 |
-| ok | Lines by source!G18 | 1.1988194225041855 | 1.198819422504185 |
+| ok | Lines by source!G18 | 1.1988194225041855 | 1.1988194225041855 |
 | ok | Lines by source!L18 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M18 | 0.007216902334030721 | 0.007216902334030721 |
-| ok | Lines by source!H18 | 0.02238391084968984 | 0.022383910849689846 |
-| ok | Lines by source!I18 | 0.030538814545335986 | 0.030538814545335993 |
+| ok | Lines by source!H18 | 0.02238391084968984 | 0.02238391084968984 |
+| ok | Lines by source!I18 | 0.030538814545335986 | 0.030538814545335986 |
 | ok | Lines by source!J18 | 0.04684862193662828 | 0.04684862193662828 |
-| ok | Lines by source!K18 | 0.14753123968182763 | 0.14753123968182766 |
+| ok | Lines by source!K18 | 0.14753123968182763 | 0.14753123968182763 |
 | ok | Lines by source!Q18 | 1 | 1 |
 | ok | Lines by source!R18 | Low | Low |
 | ok | Lines by source!S18 |  |  |
@@ -427,14 +427,14 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!R20 | Moderate | Moderate |
 | ok | Lines by source!S20 |  |  |
 | ok | Lines by source!E21 | 2.6882025856762084 | 2.6882025856762084 |
-| ok | Lines by source!F21 | 0.48981283003768394 | 0.4898128300376838 |
+| ok | Lines by source!F21 | 0.48981283003768394 | 0.48981283003768394 |
 | ok | Lines by source!G21 | 7.215140763440455 | 7.215140763440455 |
 | ok | Lines by source!L21 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M21 | 2.7167019777414856 | 2.716701977741486 |
-| ok | Lines by source!H21 | 2.1983897556385243 | 2.198389755638525 |
+| ok | Lines by source!M21 | 2.7167019777414856 | 2.7167019777414856 |
+| ok | Lines by source!H21 | 2.1983897556385243 | 2.1983897556385243 |
 | ok | Lines by source!I21 | 2.4432961706573666 | 2.4432961706573666 |
 | ok | Lines by source!J21 | 2.93310900069505 | 2.93310900069505 |
-| ok | Lines by source!K21 | 4.790886629332917 | 4.790886629332919 |
+| ok | Lines by source!K21 | 4.790886629332917 | 4.790886629332917 |
 | ok | Lines by source!Q21 | 3 | 3 |
 | ok | Lines by source!R21 | Moderate | Moderate |
 | ok | Lines by source!S21 |  |  |
@@ -462,15 +462,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q23 | 3 | 3 |
 | ok | Lines by source!R23 | Moderate | Moderate |
 | ok | Lines by source!S23 |  |  |
-| ok | Lines by source!E24 | 1.3422365424202862 | 1.342236542420286 |
-| ok | Lines by source!F24 | 0.2621007314463733 | 0.26210073144637397 |
+| ok | Lines by source!E24 | 1.3422365424202862 | 1.3422365424202862 |
+| ok | Lines by source!F24 | 0.2621007314463733 | 0.2621007314463733 |
 | ok | Lines by source!G24 | 4.117719220352539 | 4.117719220352539 |
 | ok | Lines by source!L24 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M24 | 1.3825111539309054 | 1.382511153930905 |
-| ok | Lines by source!H24 | 1.080135810973913 | 1.080135810973912 |
-| ok | Lines by source!I24 | 1.2111861766970995 | 1.211186176697099 |
+| ok | Lines by source!M24 | 1.3825111539309054 | 1.3825111539309054 |
+| ok | Lines by source!H24 | 1.080135810973913 | 1.080135810973913 |
+| ok | Lines by source!I24 | 1.2111861766970995 | 1.2111861766970995 |
 | ok | Lines by source!J24 | 1.473286908143473 | 1.473286908143473 |
-| ok | Lines by source!K24 | 2.4430957218082887 | 2.4430957218082865 |
+| ok | Lines by source!K24 | 2.4430957218082887 | 2.4430957218082887 |
 | ok | Lines by source!Q24 | 3 | 3 |
 | ok | Lines by source!R24 | Moderate | Moderate |
 | ok | Lines by source!S24 |  |  |
@@ -494,13 +494,13 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q26 |  |  |
 | ok | Lines by source!S26 | Refused: Moderate-Low would begin at or below zero | Refused: Moderate-Low would begin at or below zero |
 | ok | Lines by source!E27 | 0.05769147832318315 | 0.05769147832318315 |
-| ok | Lines by source!F27 | 0.05080303494815244 | 0.050803034948152415 |
-| ok | Lines by source!G27 | 1.8226688527762305 | 1.82266885277623 |
+| ok | Lines by source!F27 | 0.05080303494815244 | 0.05080303494815244 |
+| ok | Lines by source!G27 | 1.8226688527762305 | 1.8226688527762305 |
 | ok | Lines by source!L27 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M27 | -0.0024265883136588345 | -0.002426588313658835 |
-| ok | Lines by source!H27 | 0.006888443375030709 | 0.006888443375030737 |
-| ok | Lines by source!I27 | 0.03228996084910693 | 0.032289960849106944 |
-| ok | Lines by source!J27 | 0.08309299579725937 | 0.08309299579725936 |
+| ok | Lines by source!M27 | -0.0024265883136588345 | -0.0024265883136588345 |
+| ok | Lines by source!H27 | 0.006888443375030709 | 0.006888443375030709 |
+| ok | Lines by source!I27 | 0.03228996084910693 | 0.03228996084910693 |
+| ok | Lines by source!J27 | 0.08309299579725937 | 0.08309299579725937 |
 | ok | Lines by source!K27 | 0.31440084395176326 | 0.31440084395176326 |
 | ok | Lines by source!Q27 | 1 | 1 |
 | ok | Lines by source!R27 | Low | Low |
@@ -530,12 +530,12 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!R29 | Low | Low |
 | ok | Lines by source!S29 |  |  |
 | ok | Lines by source!E30 | 0.10067437602246657 | 0.10067437602246657 |
-| ok | Lines by source!F30 | 0.07408555923561358 | 0.07408555923561362 |
-| ok | Lines by source!G30 | 1.8627989100886482 | 1.862798910088648 |
+| ok | Lines by source!F30 | 0.07408555923561358 | 0.07408555923561358 |
+| ok | Lines by source!G30 | 1.8627989100886482 | 1.8627989100886482 |
 | ok | Lines by source!L30 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M30 | 0.014506762667246017 | 0.01450676266724602 |
-| ok | Lines by source!H30 | 0.026588816786852987 | 0.026588816786852945 |
-| ok | Lines by source!I30 | 0.06363159640465978 | 0.06363159640465976 |
+| ok | Lines by source!M30 | 0.014506762667246017 | 0.014506762667246017 |
+| ok | Lines by source!H30 | 0.026588816786852987 | 0.026588816786852987 |
+| ok | Lines by source!I30 | 0.06363159640465978 | 0.06363159640465978 |
 | ok | Lines by source!J30 | 0.13771715564027337 | 0.13771715564027337 |
 | ok | Lines by source!K30 | 0.401637147442684 | 0.401637147442684 |
 | ok | Lines by source!Q30 | 1 | 1 |
@@ -565,7 +565,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q32 | 1 | 1 |
 | ok | Lines by source!R32 | Low | Low |
 | ok | Lines by source!S32 |  |  |
-| ok | Lines by source!E33 | 1.586167224183462 | 1.5861672241834621 |
+| ok | Lines by source!E33 | 1.586167224183462 | 1.586167224183462 |
 | ok | Lines by source!F33 | 0.2693480146722256 | 0.2693480146722256 |
 | ok | Lines by source!G33 | 4.650784621533351 | 4.650784621533351 |
 | ok | Lines by source!L33 | 2026Q2 | 2026Q2 |
@@ -597,14 +597,14 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!R35 | Low | Low |
 | ok | Lines by source!S35 |  |  |
 | ok | Lines by source!E36 | 1.7634852859560215 | 1.7634852859560215 |
-| ok | Lines by source!F36 | 0.7394856489633126 | 0.7394856489633103 |
-| ok | Lines by source!G36 | 10.851519932921951 | 10.85151993292195 |
+| ok | Lines by source!F36 | 0.7394856489633126 | 0.7394856489633126 |
+| ok | Lines by source!G36 | 10.851519932921951 | 10.851519932921951 |
 | ok | Lines by source!L36 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M36 | 0.701161908282818 | 0.701161908282818 |
-| ok | Lines by source!H36 | 1.023999636992709 | 1.0239996369927113 |
-| ok | Lines by source!I36 | 1.3937424614743652 | 1.3937424614743663 |
-| ok | Lines by source!J36 | 2.1332281104376776 | 2.1332281104376767 |
-| ok | Lines by source!K36 | 6.076269650678316 | 6.076269650678314 |
+| ok | Lines by source!H36 | 1.023999636992709 | 1.023999636992709 |
+| ok | Lines by source!I36 | 1.3937424614743652 | 1.3937424614743652 |
+| ok | Lines by source!J36 | 2.1332281104376776 | 2.1332281104376776 |
+| ok | Lines by source!K36 | 6.076269650678316 | 6.076269650678316 |
 | ok | Lines by source!Q36 | 1 | 1 |
 | ok | Lines by source!R36 | Low | Low |
 | ok | Lines by source!S36 |  |  |
@@ -632,15 +632,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q38 | 1 | 1 |
 | ok | Lines by source!R38 | Low | Low |
 | ok | Lines by source!S38 |  |  |
-| ok | Lines by source!E39 | 1.2615157982740963 | 1.2615157982740965 |
-| ok | Lines by source!F39 | 0.505980360917241 | 0.5059803609172407 |
+| ok | Lines by source!E39 | 1.2615157982740963 | 1.2615157982740963 |
+| ok | Lines by source!F39 | 0.505980360917241 | 0.505980360917241 |
 | ok | Lines by source!G39 | 6.601784134356333 | 6.601784134356333 |
 | ok | Lines by source!L39 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M39 | 0.799356429758733 | 0.799356429758733 |
-| ok | Lines by source!H39 | 0.7555354373568554 | 0.7555354373568558 |
-| ok | Lines by source!I39 | 1.0085256178154758 | 1.0085256178154762 |
+| ok | Lines by source!H39 | 0.7555354373568554 | 0.7555354373568554 |
+| ok | Lines by source!I39 | 1.0085256178154758 | 1.0085256178154758 |
 | ok | Lines by source!J39 | 1.5145059787327169 | 1.5145059787327169 |
-| ok | Lines by source!K39 | 3.2059297379301746 | 3.205929737930176 |
+| ok | Lines by source!K39 | 3.2059297379301746 | 3.2059297379301746 |
 | ok | Lines by source!Q39 | 2 | 2 |
 | ok | Lines by source!R39 | Moderate-Low | Moderate-Low |
 | ok | Lines by source!S39 |  |  |
@@ -664,14 +664,14 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!R41 | Low | Low |
 | ok | Lines by source!S41 |  |  |
 | ok | Lines by source!E42 | 4.900570186933169 | 4.900570186933169 |
-| ok | Lines by source!F42 | 1.3359968247987575 | 1.3359968247987521 |
+| ok | Lines by source!F42 | 1.3359968247987575 | 1.3359968247987575 |
 | ok | Lines by source!G42 | 21.76565414731995 | 21.76565414731995 |
 | ok | Lines by source!L42 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M42 | 2.0955527508957776 | 2.095552750895778 |
-| ok | Lines by source!H42 | 3.564573362134411 | 3.5645733621344164 |
-| ok | Lines by source!I42 | 4.23257177453379 | 4.232571774533793 |
-| ok | Lines by source!J42 | 5.568568599332547 | 5.5685685993325444 |
-| ok | Lines by source!K42 | 15.288124017780383 | 15.28812401778038 |
+| ok | Lines by source!M42 | 2.0955527508957776 | 2.0955527508957776 |
+| ok | Lines by source!H42 | 3.564573362134411 | 3.564573362134411 |
+| ok | Lines by source!I42 | 4.23257177453379 | 4.23257177453379 |
+| ok | Lines by source!J42 | 5.568568599332547 | 5.568568599332547 |
+| ok | Lines by source!K42 | 15.288124017780383 | 15.288124017780383 |
 | ok | Lines by source!Q42 | 1 | 1 |
 | ok | Lines by source!R42 | Low | Low |
 | ok | Lines by source!S42 |  |  |
@@ -694,15 +694,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q44 | 1 | 1 |
 | ok | Lines by source!R44 | Low | Low |
 | ok | Lines by source!S44 |  |  |
-| ok | Lines by source!E45 | 3.150917070645634 | 3.150917070645635 |
-| ok | Lines by source!F45 | 1.3163337498095506 | 1.3163337498095546 |
+| ok | Lines by source!E45 | 3.150917070645634 | 3.150917070645634 |
+| ok | Lines by source!F45 | 1.3163337498095506 | 1.3163337498095506 |
 | ok | Lines by source!G45 | 17.45330406727828 | 17.45330406727828 |
 | ok | Lines by source!L45 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M45 | 1.500518338041551 | 1.500518338041551 |
-| ok | Lines by source!H45 | 1.8345833208360833 | 1.8345833208360802 |
-| ok | Lines by source!I45 | 2.4927501957408587 | 2.4927501957408573 |
-| ok | Lines by source!J45 | 3.8090839455504093 | 3.8090839455504124 |
-| ok | Lines by source!K45 | 9.63401439041635 | 9.634014390416356 |
+| ok | Lines by source!H45 | 1.8345833208360833 | 1.8345833208360833 |
+| ok | Lines by source!I45 | 2.4927501957408587 | 2.4927501957408587 |
+| ok | Lines by source!J45 | 3.8090839455504093 | 3.8090839455504093 |
+| ok | Lines by source!K45 | 9.63401439041635 | 9.63401439041635 |
 | ok | Lines by source!Q45 | 1 | 1 |
 | ok | Lines by source!R45 | Low | Low |
 | ok | Lines by source!S45 |  |  |
@@ -725,15 +725,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q47 | 1 | 1 |
 | ok | Lines by source!R47 | Low | Low |
 | ok | Lines by source!S47 |  |  |
-| ok | Lines by source!E48 | 0.2745045861276751 | 0.27450458612767514 |
-| ok | Lines by source!F48 | 0.1866739163257934 | 0.18667391632579342 |
-| ok | Lines by source!G48 | 3.4581925317375726 | 3.458192531737573 |
+| ok | Lines by source!E48 | 0.2745045861276751 | 0.2745045861276751 |
+| ok | Lines by source!F48 | 0.1866739163257934 | 0.1866739163257934 |
+| ok | Lines by source!G48 | 3.4581925317375726 | 3.4581925317375726 |
 | ok | Lines by source!L48 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M48 | -0.06631193529668558 | -0.06631193529668558 |
-| ok | Lines by source!H48 | 0.0878306698018817 | 0.08783066980188173 |
-| ok | Lines by source!I48 | 0.1811676279647784 | 0.18116762796477842 |
-| ok | Lines by source!J48 | 0.3678415442905718 | 0.36784154429057186 |
-| ok | Lines by source!K48 | 1.7227177132768419 | 1.722717713276842 |
+| ok | Lines by source!H48 | 0.0878306698018817 | 0.0878306698018817 |
+| ok | Lines by source!I48 | 0.1811676279647784 | 0.1811676279647784 |
+| ok | Lines by source!J48 | 0.3678415442905718 | 0.3678415442905718 |
+| ok | Lines by source!K48 | 1.7227177132768419 | 1.7227177132768419 |
 | ok | Lines by source!Q48 | 1 | 1 |
 | ok | Lines by source!R48 | Low | Low |
 | ok | Lines by source!S48 |  |  |
@@ -763,9 +763,9 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!S50 |  |  |
 | ok | Lines by source!E51 | 0.541311420007059 | 0.541311420007059 |
 | ok | Lines by source!F51 | 0.11057098555547462 | 0.11057098555547462 |
-| ok | Lines by source!G51 | 3.5621147284413457 | 3.562114728441346 |
+| ok | Lines by source!G51 | 3.5621147284413457 | 3.5621147284413457 |
 | ok | Lines by source!L51 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M51 | 0.10262904527785062 | 0.1026290452778506 |
+| ok | Lines by source!M51 | 0.10262904527785062 | 0.10262904527785062 |
 | ok | Lines by source!H51 | 0.4307404344515844 | 0.4307404344515844 |
 | ok | Lines by source!I51 | 0.4860259272293217 | 0.4860259272293217 |
 | ok | Lines by source!J51 | 0.5965969127847963 | 0.5965969127847963 |
@@ -799,7 +799,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!S53 |  |  |
 | ok | Lines by source!E54 | 0.7581386743467546 | 0.7581386743467546 |
 | ok | Lines by source!F54 | 0.12768589719572593 | 0.12768589719572593 |
-| ok | Lines by source!G54 | 1.8539966336909295 | 1.853996633690929 |
+| ok | Lines by source!G54 | 1.8539966336909295 | 1.8539966336909295 |
 | ok | Lines by source!L54 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M54 | 0.5326480276667482 | 0.5326480276667482 |
 | ok | Lines by source!H54 | 0.6304527771510287 | 0.6304527771510287 |
@@ -823,8 +823,8 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!M56 | 0.05413210722089782 | 0.05413210722089782 |
 | ok | Lines by source!Q56 |  |  |
 | ok | Lines by source!S56 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
-| ok | Lines by source!E57 | 0.2496168290498928 | 0.24961682904989277 |
-| ok | Lines by source!F57 | 0.03939189363278762 | 0.0393918936327877 |
+| ok | Lines by source!E57 | 0.2496168290498928 | 0.2496168290498928 |
+| ok | Lines by source!F57 | 0.03939189363278762 | 0.03939189363278762 |
 | ok | Lines by source!G57 | 0.7134754600637128 | 0.7134754600637128 |
 | ok | Lines by source!L57 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M57 | 0.04595209206224703 | 0.04595209206224703 |
@@ -845,10 +845,10 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q59 |  |  |
 | ok | Lines by source!S59 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E60 | 2.5448967792923494 | 2.5448967792923494 |
-| ok | Lines by source!F60 | 0.25863156807742665 | 0.2586315680774263 |
-| ok | Lines by source!G60 | 3.1676116100567104 | 3.16761161005671 |
+| ok | Lines by source!F60 | 0.25863156807742665 | 0.25863156807742665 |
+| ok | Lines by source!G60 | 3.1676116100567104 | 3.1676116100567104 |
 | ok | Lines by source!L60 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M60 | 2.2209814576008475 | 2.220981457600848 |
+| ok | Lines by source!M60 | 2.2209814576008475 | 2.2209814576008475 |
 | ok | Lines by source!Q60 |  |  |
 | ok | Lines by source!S60 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E61 | 1.7411276888155705 | 1.7411276888155705 |
@@ -865,7 +865,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!M62 | 2.0260676497771692 | 2.026067649777169 |
 | ok | Lines by source!Q62 |  |  |
 | ok | Lines by source!S62 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
-| ok | Lines by source!E63 | 3.40426809133817 | 3.404268091338171 |
+| ok | Lines by source!E63 | 3.40426809133817 | 3.40426809133817 |
 | ok | Lines by source!F63 | 0.3354352756256615 | 0.3354352756256615 |
 | ok | Lines by source!G63 | 4.6688415940912 | 4.6688415940912 |
 | ok | Lines by source!L63 | 2026Q2 | 2026Q2 |
@@ -887,10 +887,10 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q65 |  |  |
 | ok | Lines by source!S65 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E66 | 2.629462610956206 | 2.629462610956206 |
-| ok | Lines by source!F66 | 0.2941146451256141 | 0.29411464512561375 |
+| ok | Lines by source!F66 | 0.2941146451256141 | 0.2941146451256141 |
 | ok | Lines by source!G66 | 3.580637882435159 | 3.580637882435159 |
 | ok | Lines by source!L66 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M66 | 2.2669335496630945 | 2.266933549663094 |
+| ok | Lines by source!M66 | 2.2669335496630945 | 2.2669335496630945 |
 | ok | Lines by source!Q66 |  |  |
 | ok | Lines by source!S66 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E67 | 1.8568061014226394 | 1.856806101422639 |
@@ -912,15 +912,15 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q68 | 4 | 4 |
 | ok | Lines by source!R68 | Moderate-High | Moderate-High |
 | ok | Lines by source!S68 |  |  |
-| ok | Lines by source!E69 | 1.0903375330450853 | 1.090337533045085 |
-| ok | Lines by source!F69 | 0.26535646656268286 | 0.2653564665626832 |
-| ok | Lines by source!G69 | 2.1096039782489724 | 2.109603978248972 |
+| ok | Lines by source!E69 | 1.0903375330450853 | 1.0903375330450853 |
+| ok | Lines by source!F69 | 0.26535646656268286 | 0.26535646656268286 |
+| ok | Lines by source!G69 | 2.1096039782489724 | 2.1096039782489724 |
 | ok | Lines by source!L69 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M69 | 1.550392085338516 | 1.550392085338516 |
-| ok | Lines by source!H69 | 0.8249810664824024 | 0.8249810664824019 |
-| ok | Lines by source!I69 | 0.9576592997637439 | 0.9576592997637434 |
+| ok | Lines by source!H69 | 0.8249810664824024 | 0.8249810664824024 |
+| ok | Lines by source!I69 | 0.9576592997637439 | 0.9576592997637439 |
 | ok | Lines by source!J69 | 1.2230157663264267 | 1.2230157663264267 |
-| ok | Lines by source!K69 | 1.829281853856854 | 1.8292818538568547 |
+| ok | Lines by source!K69 | 1.829281853856854 | 1.829281853856854 |
 | ok | Lines by source!Q69 | 4 | 4 |
 | ok | Lines by source!R69 | Moderate-High | Moderate-High |
 | ok | Lines by source!S69 |  |  |
@@ -944,14 +944,14 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!R71 | Moderate-High | Moderate-High |
 | ok | Lines by source!S71 |  |  |
 | ok | Lines by source!E72 | 1.408595073366724 | 1.408595073366724 |
-| ok | Lines by source!F72 | 0.38283663497286924 | 0.38283663497287124 |
+| ok | Lines by source!F72 | 0.38283663497286924 | 0.38283663497286924 |
 | ok | Lines by source!G72 | 2.729182420135111 | 2.729182420135111 |
 | ok | Lines by source!L72 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M72 | 2.0194451522005985 | 2.019445152200599 |
-| ok | Lines by source!H72 | 1.0257584383938547 | 1.025758438393853 |
-| ok | Lines by source!I72 | 1.2171767558802895 | 1.2171767558802884 |
-| ok | Lines by source!J72 | 1.6000133908531586 | 1.6000133908531597 |
-| ok | Lines by source!K72 | 2.4232587134610246 | 2.4232587134610264 |
+| ok | Lines by source!M72 | 2.0194451522005985 | 2.0194451522005985 |
+| ok | Lines by source!H72 | 1.0257584383938547 | 1.0257584383938547 |
+| ok | Lines by source!I72 | 1.2171767558802895 | 1.2171767558802895 |
+| ok | Lines by source!J72 | 1.6000133908531586 | 1.6000133908531586 |
+| ok | Lines by source!K72 | 2.4232587134610246 | 2.4232587134610246 |
 | ok | Lines by source!Q72 | 4 | 4 |
 | ok | Lines by source!R72 | Moderate-High | Moderate-High |
 | ok | Lines by source!S72 |  |  |
@@ -974,9 +974,9 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q74 | 3 | 3 |
 | ok | Lines by source!R74 | Moderate | Moderate |
 | ok | Lines by source!S74 |  |  |
-| ok | Lines by source!E75 | 1.0831133244591462 | 1.083113324459146 |
-| ok | Lines by source!F75 | 0.2007984015323891 | 0.20079840153238876 |
-| ok | Lines by source!G75 | 2.4228391210042792 | 2.422839121004279 |
+| ok | Lines by source!E75 | 1.0831133244591462 | 1.0831133244591462 |
+| ok | Lines by source!F75 | 0.2007984015323891 | 0.2007984015323891 |
+| ok | Lines by source!G75 | 2.4228391210042792 | 2.4228391210042792 |
 | ok | Lines by source!L75 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M75 | 0.951295071676428 | 0.951295071676428 |
 | ok | Lines by source!Q75 |  |  |
@@ -1002,9 +1002,9 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!S77 |  |  |
 | ok | Lines by source!E78 | 0.5403526578880691 | 0.5403526578880691 |
 | ok | Lines by source!F78 | 0.21185782762414027 | 0.21185782762414027 |
-| ok | Lines by source!G78 | 1.5706376982148618 | 1.570637698214862 |
+| ok | Lines by source!G78 | 1.5706376982148618 | 1.5706376982148618 |
 | ok | Lines by source!L78 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M78 | 0.14276586877115047 | 0.1427658687711505 |
+| ok | Lines by source!M78 | 0.14276586877115047 | 0.14276586877115047 |
 | ok | Lines by source!H78 | 0.3284948302639288 | 0.3284948302639288 |
 | ok | Lines by source!I78 | 0.43442374407599893 | 0.43442374407599893 |
 | ok | Lines by source!J78 | 0.6462815717001392 | 0.6462815717001392 |
@@ -1053,10 +1053,10 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q83 |  |  |
 | ok | Lines by source!S83 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E84 | 1.969600888238622 | 1.969600888238622 |
-| ok | Lines by source!F84 | 0.41598014311214526 | 0.41598014311214426 |
+| ok | Lines by source!F84 | 0.41598014311214526 | 0.41598014311214526 |
 | ok | Lines by source!G84 | 4.04789574586689 | 4.04789574586689 |
 | ok | Lines by source!L84 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M84 | 1.3571863925490586 | 1.357186392549059 |
+| ok | Lines by source!M84 | 1.3571863925490586 | 1.3571863925490586 |
 | ok | Lines by source!Q84 |  |  |
 | ok | Lines by source!S84 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E85 | 2.363365832333134 | 2.363365832333134 |
@@ -1080,7 +1080,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!S86 |  |  |
 | ok | Lines by source!E87 | 0.8432414625650378 | 0.8432414625650378 |
 | ok | Lines by source!F87 | 0.24041097733051625 | 0.24041097733051625 |
-| ok | Lines by source!G87 | 1.9539669108763122 | 1.953966910876312 |
+| ok | Lines by source!G87 | 1.9539669108763122 | 1.9539669108763122 |
 | ok | Lines by source!L87 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M87 | 0.4058913208726307 | 0.4058913208726307 |
 | ok | Lines by source!Q87 |  |  |
@@ -1100,8 +1100,8 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q89 |  |  |
 | ok | Lines by source!S89 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E90 | 0.707080533527564 | 0.707080533527564 |
-| ok | Lines by source!F90 | 0.1930127531951151 | 0.19301275319511502 |
-| ok | Lines by source!G90 | 1.0470816731822656 | 1.047081673182266 |
+| ok | Lines by source!F90 | 0.1930127531951151 | 0.1930127531951151 |
+| ok | Lines by source!G90 | 1.0470816731822656 | 1.0470816731822656 |
 | ok | Lines by source!L90 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M90 | 0.8774784779654787 | 0.8774784779654787 |
 | ok | Lines by source!Q90 |  |  |
@@ -1122,9 +1122,9 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!S92 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E93 | 1.211344101661908 | 1.211344101661908 |
 | ok | Lines by source!F93 | 0.1623845657969841 | 0.1623845657969841 |
-| ok | Lines by source!G93 | 1.7582619631903902 | 1.75826196319039 |
+| ok | Lines by source!G93 | 1.7582619631903902 | 1.7582619631903902 |
 | ok | Lines by source!L93 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M93 | 1.5906160217009966 | 1.590616021700997 |
+| ok | Lines by source!M93 | 1.5906160217009966 | 1.5906160217009966 |
 | ok | Lines by source!Q93 |  |  |
 | ok | Lines by source!S93 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E94 | 0.5815013952222147 | 0.5815013952222147 |
@@ -1142,10 +1142,10 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q95 |  |  |
 | ok | Lines by source!S95 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E96 | 1.905985475946889 | 1.905985475946889 |
-| ok | Lines by source!F96 | 0.21784465951368195 | 0.2178446595136818 |
-| ok | Lines by source!G96 | 2.6859186092098177 | 2.685918609209818 |
+| ok | Lines by source!F96 | 0.21784465951368195 | 0.21784465951368195 |
+| ok | Lines by source!G96 | 2.6859186092098177 | 2.6859186092098177 |
 | ok | Lines by source!L96 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M96 | 1.9632802207272166 | 1.963280220727217 |
+| ok | Lines by source!M96 | 1.9632802207272166 | 1.9632802207272166 |
 | ok | Lines by source!Q96 |  |  |
 | ok | Lines by source!S96 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E97 | 0.4785223101474425 | 0.4785223101474425 |
@@ -1172,14 +1172,14 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q98 | 1 | 1 |
 | ok | Lines by source!R98 | Low | Low |
 | ok | Lines by source!S98 |  |  |
-| ok | Lines by source!E99 | 0.04312774790944599 | 0.043127747909445985 |
-| ok | Lines by source!F99 | 0.012642907463903948 | 0.012642907463903943 |
-| ok | Lines by source!G99 | 0.11604645717639248 | 0.1160464571763925 |
+| ok | Lines by source!E99 | 0.04312774790944599 | 0.04312774790944599 |
+| ok | Lines by source!F99 | 0.012642907463903948 | 0.012642907463903948 |
+| ok | Lines by source!G99 | 0.11604645717639248 | 0.11604645717639248 |
 | ok | Lines by source!L99 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M99 | 0.022395815868242422 | 0.02239581586824242 |
-| ok | Lines by source!H99 | 0.030484840445542043 | 0.03048484044554204 |
+| ok | Lines by source!M99 | 0.022395815868242422 | 0.022395815868242422 |
+| ok | Lines by source!H99 | 0.030484840445542043 | 0.030484840445542043 |
 | ok | Lines by source!I99 | 0.036806294177494016 | 0.036806294177494016 |
-| ok | Lines by source!J99 | 0.04944920164139797 | 0.049449201641397954 |
+| ok | Lines by source!J99 | 0.04944920164139797 | 0.04944920164139797 |
 | ok | Lines by source!K99 | 0.0863493973653762 | 0.0863493973653762 |
 | ok | Lines by source!Q99 | 1 | 1 |
 | ok | Lines by source!R99 | Low | Low |
@@ -1225,10 +1225,10 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q104 |  |  |
 | ok | Lines by source!S104 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E105 | 2.285682077388838 | 2.285682077388838 |
-| ok | Lines by source!F105 | 0.285879492444018 | 0.28587949244401833 |
-| ok | Lines by source!G105 | 3.2306919898445274 | 3.230691989844527 |
+| ok | Lines by source!F105 | 0.285879492444018 | 0.285879492444018 |
+| ok | Lines by source!G105 | 3.2306919898445274 | 3.2306919898445274 |
 | ok | Lines by source!L105 | 2026Q2 | 2026Q2 |
-| ok | Lines by source!M105 | 2.4917029147144873 | 2.491702914714487 |
+| ok | Lines by source!M105 | 2.4917029147144873 | 2.4917029147144873 |
 | ok | Lines by source!Q105 |  |  |
 | ok | Lines by source!S105 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E106 | 0.7716850728955458 | 0.7716850728955458 |
@@ -1251,7 +1251,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q107 |  |  |
 | ok | Lines by source!S107 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 | ok | Lines by source!E108 | 0.35963015461079606 | 0.35963015461079606 |
-| ok | Lines by source!F108 | 0.06009246575154623 | 0.060092465751546274 |
+| ok | Lines by source!F108 | 0.06009246575154623 | 0.06009246575154623 |
 | ok | Lines by source!G108 | 0.5695080383696894 | 0.5695080383696894 |
 | ok | Lines by source!L108 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M108 | 0.5284226939872708 | 0.5284226939872708 |
@@ -1288,11 +1288,11 @@ One row shows; the lines are KeyBank's own; every source is rated on them, besid
 | ok | Decide!Q70 | 0.6498546849136658 | 0.6498546849136658 |
 | ok | Decide!M59 | 1 Low | 1 Low |
 | ok | Decide!N59 | 0.007216902334030721 | 0.007216902334030721 |
-| ok | Decide!M71 | 0.02238391084968984 | 0.022383910849689846 |
-| ok | Decide!N71 | 0.030538814545335986 | 0.030538814545335993 |
+| ok | Decide!M71 | 0.02238391084968984 | 0.02238391084968984 |
+| ok | Decide!N71 | 0.030538814545335986 | 0.030538814545335986 |
 | ok | Decide!O71 | 0.04684862193662828 | 0.04684862193662828 |
-| ok | Decide!P71 | 0.14753123968182763 | 0.14753123968182766 |
-| ok | Decide!Q71 | 1.1988194225041855 | 1.198819422504185 |
+| ok | Decide!P71 | 0.14753123968182763 | 0.14753123968182763 |
+| ok | Decide!Q71 | 1.1988194225041855 | 1.1988194225041855 |
 | ok | Decide!M60 | 5 High | 5 High |
 | ok | Decide!N60 | 0.6908132947833397 | 0.6908132947833397 |
 | ok | Decide!M72 | 0.18736760919622197 | 0.18736760919622203 |
@@ -1353,15 +1353,15 @@ High's line moves for every source of the row; Thresholds and Summary follow.
 | ok | Lines by source!Q17 | 1 | 1 |
 | ok | Lines by source!R17 | Low | Low |
 | ok | Lines by source!S17 |  |  |
-| ok | Lines by source!E18 | 0.03869371824098213 | 0.03869371824098214 |
+| ok | Lines by source!E18 | 0.03869371824098213 | 0.03869371824098213 |
 | ok | Lines by source!F18 | 0.016309807391292293 | 0.016309807391292293 |
-| ok | Lines by source!G18 | 1.1988194225041855 | 1.198819422504185 |
+| ok | Lines by source!G18 | 1.1988194225041855 | 1.1988194225041855 |
 | ok | Lines by source!L18 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M18 | 0.007216902334030721 | 0.007216902334030721 |
-| ok | Lines by source!H18 | 0.02238391084968984 | 0.022383910849689846 |
-| ok | Lines by source!I18 | 0.030538814545335986 | 0.030538814545335993 |
+| ok | Lines by source!H18 | 0.02238391084968984 | 0.02238391084968984 |
+| ok | Lines by source!I18 | 0.030538814545335986 | 0.030538814545335986 |
 | ok | Lines by source!J18 | 0.04684862193662828 | 0.04684862193662828 |
-| ok | Lines by source!K18 | 0.19106624825816584 | 0.19106624825816587 |
+| ok | Lines by source!K18 | 0.19106624825816584 | 0.19106624825816584 |
 | ok | Lines by source!Q18 | 1 | 1 |
 | ok | Lines by source!R18 | Low | Low |
 | ok | Lines by source!S18 |  |  |
@@ -1493,7 +1493,7 @@ KeyBank's life-to-date history (15 quarters) rated on the lines the industry's l
 | ok | Decide!M59 | No rating | No rating |
 | ok | Decide!N59 | 0.8774784779654787 | 0.8774784779654787 |
 | ok | Decide!M71 | Refused | Refused |
-| ok | Decide!Q71 | 1.0470816731822656 | 1.047081673182266 |
+| ok | Decide!Q71 | 1.0470816731822656 | 1.0470816731822656 |
 | ok | Decide!M60 | No rating | No rating |
 | ok | Decide!N60 | 0.09593421653723161 | 0.09593421653723161 |
 | ok | Decide!M72 | Refused | Refused |
@@ -1528,7 +1528,7 @@ Refused, with what to type.
 | ok | Thresholds!Q12 | Refused | Refused |
 | ok | Thresholds!P12 | 0.0034023275592908768 | 0.003402327559290877 |
 | ok | Thresholds!O12 | Refused | Refused |
-| ok | Thresholds!N12 | -0.0024265883136588345 | -0.002426588313658835 |
+| ok | Thresholds!N12 | -0.0024265883136588345 | -0.0024265883136588345 |
 | ok | Thresholds!M12 | Refused | Refused |
 | ok | Thresholds!L12 | -0.014683811346124514 | -0.01468381134612451 |
 | ok | Lines by source!E26 | 0.05926778269446801 | 0.05926778269446801 |
@@ -1575,3 +1575,45 @@ Every decision, pick and setting typed is still there, and the lines with them.
 | ok | Thresholds!N9 | 0.007216902334030721 | 0.007216902334030721 |
 | ok | Thresholds!M9 | 5 High | 5 High |
 | ok | Thresholds!L9 | 0.6908132947833397 | 0.6908132947833397 |
+
+## B11 · On Peers, set Banks in the pack to Regionals only: 6 of 6
+
+Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over the 10 regionals: the latest values below are their composite.
+
+| | Cell | Expected | Excel |
+|---|---|---|---|
+| ok | Lines by source!L6 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M6 | 3.787247638881625 | 3.787247638881625 |
+| ok | Lines by source!L69 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M69 | 1.4198154778682879 | 1.4198154778682879 |
+| ok | Lines by source!L24 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M24 | 1.143434987871377 | 1.143434987871377 |
+
+## B12 · Set Banks in the pack back to Every peer, and JPMorgan's cell to No: 6 of 6
+
+The peer group is every peer but JPMorgan.
+
+| | Cell | Expected | Excel |
+|---|---|---|---|
+| ok | Lines by source!L6 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M6 | 4.252592915239804 | 4.252592915239804 |
+| ok | Lines by source!L69 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M69 | 1.7016297268673766 | 1.7016297268673766 |
+| ok | Lines by source!L24 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M24 | 1.5238862704282101 | 1.5238862704282101 |
+
+## B13 · Set JPMorgan's cell back to Pack: 9 of 9
+
+The peer group is every peer again: each latest value is the series file's own.
+
+| | Cell | Expected | Excel |
+|---|---|---|---|
+| ok | Lines by source!L6 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M6 | 3.9545852353018254 | 3.9545852353018254 |
+| ok | Lines by source!L69 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M69 | 1.550392085338516 | 1.550392085338516 |
+| ok | Lines by source!L24 | 2026Q2 | 2026Q2 |
+| ok | Lines by source!M24 | 1.3825111539309054 | 1.3825111539309054 |
+| ok | Lines by source!M6 | 3.9545852353018254 | 3.9545852353018254 |
+| ok | Lines by source!M69 | 1.550392085338516 | 1.550392085338516 |
+| ok | Lines by source!M24 | 1.3825111539309054 | 1.3825111539309054 |

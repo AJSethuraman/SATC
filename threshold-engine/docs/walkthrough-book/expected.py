@@ -340,6 +340,89 @@ steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file ag
                         {"special": "slicers", "expect": {NAMES[0]: MN[0], NAMES[1]: MN[1]}}]
                        + lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5), "picture": []})
 
+# ---- B11 to B13: the peer group follows the banks in the pack on Peers ----
+# (the firm, 15 Oct 2026: "this tab needs to adjust with peers and i need a
+# faster way to select and de-select peers"). The expected composites are
+# summed here, in Python, from the per-bank rows the build wrote to Peers data
+# and Peers delinquency data (facts per bank and quarter, values, not
+# formulas), over the banks the step leaves in the pack; the workbook's live
+# formulas must land on the same numbers.
+from openpyxl import load_workbook                                   # noqa: E402
+from threshold_engine.peers import peers_workbook as PW              # noqa: E402
+from threshold_engine.peers import roster as RO                      # noqa: E402
+
+BUILT = HERE / "out" / "consumer-credit.xlsx"
+roster = RO.load(bk["peers"]["roster"])
+peers_ = RO.peers(roster)
+MB = bk["peers"]["min_banks"]
+_wb = load_workbook(BUILT, read_only=True)
+CO_ROWS = [r for r in _wb["Peers data"].iter_rows(min_row=2, values_only=True)]
+DQ_ROWS = [r for r in _wb["Peers delinquency data"].iter_rows(min_row=2, values_only=True)]
+LIVE = [("Credit card", "Net charge-offs", "net"), ("Other consumer", "Net charge-offs", "net"),
+        ("Credit card", "90+ days past due incl. nonaccrual", "90+ incl. nonaccrual")]
+
+
+def peer_label(product, measure):
+    return next(lbl for lbl in LABELS if PARTS[lbl][0] == product and PARTS[lbl][1] == measure
+                and PARTS[lbl][2] == PEER_SRC)
+
+
+PEER_SRC = next(s_ for s_ in THIRD if s_.startswith("Peer group"))
+
+
+def composite(product, kind, q, certs):
+    if kind in ("net", "gross"):
+        rows = [r for r in CO_ROWS if r[0] == product and r[3] == q and r[2] in certs and r[9] is True]
+        if len(rows) < MB:
+            return None
+        g, rc, b = (sum(r[i] for r in rows) for i in (4, 5, 6))
+        return 100 * ((g - rc) if kind == "net" else g) / b
+    rows = [r for r in DQ_ROWS if r[0] == product and r[1] == kind and r[4] == q and r[3] in certs and r[8] is True]
+    if len(rows) < MB:
+        return None
+    return 100 * sum(r[5] for r in rows) / sum(r[6] for r in rows)
+
+
+def latest_live(product, measure, kind, certs):
+    """The latest quarter the series had a value in, with a composite over
+    ``certs``, and that value: what Lines by source must then show."""
+    for pt in reversed(PTS[peer_label(product, measure)]):
+        v = composite(product, kind, quarter(pt.date), certs)
+        if v is not None:
+            return quarter(pt.date), v
+    return "", ""
+
+
+def live_reads(certs):
+    out = []
+    for product, measure, kind in LIVE:
+        q, v = latest_live(product, measure, kind, certs)
+        r = 5 + LABELS.index(peer_label(product, measure))
+        out += [{"sheet": LBS, "cell": "L%d" % r, "expect": q}, {"sheet": LBS, "cell": "M%d" % r, "expect": v}]
+    return out
+
+
+every = {b["cert"] for b in peers_}
+regionals = {b["cert"] for b in peers_ if b["regional"]}
+jpm = next(j for j, b in enumerate(peers_) if b["short"] == "JPMorgan")
+PACK_CELL, JPM_CELL = PW.picker_cell("pack"), PW.include_cell(jpm)
+steps.append({"id": "B11", "what": "On Peers, set Banks in the pack to Regionals only",
+              "shows": "Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over "
+                       "the %d regionals: the latest values below are their composite" % len(regionals),
+              "actions": [{"type": "cell", "sheet": "Peers", "cell": PACK_CELL, "value": PW.PACK_PICKS[1]}],
+              "reads": live_reads(regionals), "picture": []})
+steps.append({"id": "B12", "what": "Set Banks in the pack back to Every peer, and JPMorgan's cell to No",
+              "shows": "The peer group is every peer but JPMorgan",
+              "actions": [{"type": "cell", "sheet": "Peers", "cell": PACK_CELL, "value": PW.PACK_PICKS[0]},
+                          {"type": "cell", "sheet": "Peers", "cell": JPM_CELL, "value": PW.NO}],
+              "reads": live_reads(every - {peers_[jpm]["cert"]}), "picture": []})
+steps.append({"id": "B13", "what": "Set JPMorgan's cell back to Pack",
+              "shows": "The peer group is every peer again: each latest value is the series file's own",
+              "actions": [{"type": "cell", "sheet": "Peers", "cell": JPM_CELL, "value": PW.FOLLOW}],
+              "reads": live_reads(every) + [
+                  {"sheet": LBS, "cell": "M%d" % (5 + LABELS.index(peer_label(pr, me))),
+                   "expect": PTS[peer_label(pr, me)][-1].value} for pr, me, _ in LIVE], "picture": []})
+
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")
 lines = ["# Expected answers: the book walkthrough", "",

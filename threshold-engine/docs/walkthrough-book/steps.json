@@ -7734,6 +7734,165 @@
     }
    ],
    "picture": []
+  },
+  {
+   "id": "B11",
+   "what": "On Peers, set Banks in the pack to Regionals only",
+   "shows": "Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over the 10 regionals: the latest values below are their composite",
+   "actions": [
+    {
+     "type": "cell",
+     "sheet": "Peers",
+     "cell": "L5",
+     "value": "Regionals only"
+    }
+   ],
+   "reads": [
+    {
+     "sheet": "Lines by source",
+     "cell": "L6",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M6",
+     "expect": 3.787247638881625
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L69",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M69",
+     "expect": 1.4198154778682879
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L24",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M24",
+     "expect": 1.143434987871377
+    }
+   ],
+   "picture": []
+  },
+  {
+   "id": "B12",
+   "what": "Set Banks in the pack back to Every peer, and JPMorgan's cell to No",
+   "shows": "The peer group is every peer but JPMorgan",
+   "actions": [
+    {
+     "type": "cell",
+     "sheet": "Peers",
+     "cell": "L5",
+     "value": "Every peer"
+    },
+    {
+     "type": "cell",
+     "sheet": "Peers",
+     "cell": "B9",
+     "value": "No"
+    }
+   ],
+   "reads": [
+    {
+     "sheet": "Lines by source",
+     "cell": "L6",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M6",
+     "expect": 4.252592915239804
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L69",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M69",
+     "expect": 1.7016297268673766
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L24",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M24",
+     "expect": 1.5238862704282101
+    }
+   ],
+   "picture": []
+  },
+  {
+   "id": "B13",
+   "what": "Set JPMorgan's cell back to Pack",
+   "shows": "The peer group is every peer again: each latest value is the series file's own",
+   "actions": [
+    {
+     "type": "cell",
+     "sheet": "Peers",
+     "cell": "B9",
+     "value": "Pack"
+    }
+   ],
+   "reads": [
+    {
+     "sheet": "Lines by source",
+     "cell": "L6",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M6",
+     "expect": 3.9545852353018254
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L69",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M69",
+     "expect": 1.550392085338516
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L24",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M24",
+     "expect": 1.3825111539309054
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M6",
+     "expect": 3.9545852353018254
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M69",
+     "expect": 1.550392085338516
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M24",
+     "expect": 1.3825111539309054
+    }
+   ],
+   "picture": []
   }
  ]
 }

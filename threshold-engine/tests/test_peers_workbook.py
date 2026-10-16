@@ -687,7 +687,9 @@ def test_the_row_check_can_fail():
 
 def test_the_yellow_cells_refuse_what_the_build_would(all_peers):
     """The counts refuse anything but a whole number of at least 1, as the
-    build does; every picker is a list; a Yes/No cell takes Yes or No."""
+    build does; every picker is a list; a bank's cell takes Pack (follow
+    Banks in the pack), Yes or No, and starts as Pack; Banks in the pack takes
+    one of its four picks and starts as the build's pack."""
     p, info, _ = all_peers
     ws = load_workbook(p)["Peers"]
     dvs = ws.data_validations.dataValidation
@@ -700,7 +702,9 @@ def test_the_yellow_cells_refuse_what_the_build_would(all_peers):
     lists = {str(r): dv.formula1 for dv in dvs if dv.type == "list" for r in dv.sqref.ranges}
     assert lists[PRODUCT].startswith("=Workings!") and lists[RATE] == '"Net,Gross"'
     assert lists[WINDOW].startswith("=Workings!") and lists[cells["rank_by"]] == '"gross,net"'
-    assert all(lists[c] == '"Yes,No"' for c in info["layout"]["include"].values())
+    assert all(lists[c] == '"Pack,Yes,No"' and ws[c].value == "Pack" for c in info["layout"]["include"].values())
+    pack = info["layout"]["pickers"]["pack"]
+    assert lists[pack] == '"%s"' % ",".join(PW.PACK_PICKS) and ws[pack].value == "Every peer"
     assert ws[DQ_MEASURE].value == "not built" and DQ_MEASURE not in lists
     assert ws[WINDOW].value == "Last 48 quarters"
 
@@ -968,6 +972,10 @@ def test_delinquency_data_tab_holds_the_module_rows(dlq, dl_data, roster):
                 for k, want in enumerate(books[b["cert"]]):
                     got = list(rows[at + k])
                     assert got[:5] == [product, measure, b["short"], b["cert"], want["q"]]
+                    # The last column is whether the bank is in the pack now: a live switch for a
+                    # peer (what Decide's peer group sums over), FALSE for KeyBank.
+                    assert got[-1] is False if b["short"] == "KeyBank" else got[-1].endswith('="Yes"')
+                    got = got[:-1]
                     assert got[5:] == pytest.approx([want["numerator"], want["balance"], want["rate"],
                                                      want["kept"], want["why"], want["avg4"],
                                                      want["avg4"] is not None, want["why_avg4"],

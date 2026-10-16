@@ -67,3 +67,21 @@ Refused, with what to type.
 Every decision, pick and setting typed is still there, and the lines with them.
 
 30 reads.
+
+## B11 · On Peers, set Banks in the pack to Regionals only
+
+Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over the 10 regionals: the latest values below are their composite.
+
+6 reads.
+
+## B12 · Set Banks in the pack back to Every peer, and JPMorgan's cell to No
+
+The peer group is every peer but JPMorgan.
+
+6 reads.
+
+## B13 · Set JPMorgan's cell back to Pack
+
+The peer group is every peer again: each latest value is the series file's own.
+
+9 reads.

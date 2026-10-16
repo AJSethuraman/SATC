@@ -122,6 +122,11 @@ PACKS = ("all", "regionals")
 SOURCES = ("FDIC BankFind financials: https://api.fdic.gov/banks/financials",
            "FDIC BankFind structure changes: https://api.fdic.gov/banks/history")
 YES, NO = "Yes", "No"
+#: A bank's cell under its name: follow Banks in the pack, or set it.
+FOLLOW = "Pack"
+#: Banks in the pack: who is in when a bank's cell reads Pack (the analyst,
+#: 15 Oct 2026: "i need a faster way to select and de-select peers").
+PACK_PICKS = ("Every peer", "Regionals only", "Large banks only", "None")
 #: The charge-off rate picker. Lagged and Mix are net by definition and say so.
 RATES = ("Net", "Gross")
 #: What the charts show; no figure depends on it (docs/design/round-2/README.md, Peers).
@@ -152,7 +157,8 @@ LEFT, RIGHT = (2, 8), (10, 16)
 #: Each picker: (key, label, column) of its yellow cell on R_PICK. One cell each, never merged.
 PICKERS = (("product", "Product", 2), ("rate", "Charge-off rate", 3), ("peer_a", "Peer A", 4),
            ("peer_b", "Peer B", 5), ("window", "Charts show", 6),
-           ("dq_measure", "Delinquency measure", 10), ("dq_basis", "Delinquency basis", 11))
+           ("dq_measure", "Delinquency measure", 10), ("dq_basis", "Delinquency basis", 11),
+           ("pack", "Banks in the pack", 12))
 R_TITLE, R_SUB, R_LABEL, R_PICK, R_RESOLVED = 1, 2, 4, 5, 6
 R_BANKS = 8                       # bank names; their Yes/No on the row below
 #: The columns a bank's name and Yes/No sit in: the two panels, never the gutter.
@@ -823,7 +829,7 @@ def _strip(ws, row, cells):
         ws.row_dimensions[r].height = h
 
 
-def _delinquency_data(dd, dq: dict, roster: List[dict]) -> int:
+def _delinquency_data(dd, dq: dict, roster: List[dict], in_pack_now: dict) -> int:
     """DelinquencyData: one row per product, measure (``delinquency.MEASURES``
     order), bank (roster order) and quarter-end, in that order: the live
     formulas find a row by position, so the order is load-bearing. Each row is
@@ -834,14 +840,15 @@ def _delinquency_data(dd, dq: dict, roster: List[dict]) -> int:
     _ref_header(dd, 1, ["Product", "Measure", "Bank", "Certificate", "Quarter-end", "Numerator ($000)",
                         "Balance ($000)", "Quarter-end rate (%)", "Kept", "Why not kept",
                         "Four-quarter average (%)", "Four-quarter average kept", "Why no four-quarter average",
-                        "Left out of the composite's four-quarter average (jump)"], right_from=5)
+                        "Left out of the composite's four-quarter average (jump)", "In the pack now"],
+                right_from=5)
     for p in products:
         for m in D.MEASURES:
             for b in roster:
                 for r in books[p][m][b["cert"]]:
                     dd.append([p, m, b["short"], b["cert"], r["q"], r["numerator"], r["balance"], r["rate"],
                                r["kept"], r["why"], r["avg4"], r["avg4"] is not None, r["why_avg4"],
-                               (r["why_avg4"] or "").startswith(D.LEFT_OUT)])
+                               (r["why_avg4"] or "").startswith(D.LEFT_OUT), in_pack_now[b["cert"]]])
     n = len(products) * len(D.MEASURES) * len(roster) * len(dq["grid"])
     for row in dd.iter_rows(min_row=2, max_row=n + 1, min_col=6, max_col=11):
         for c in row:
@@ -849,7 +856,7 @@ def _delinquency_data(dd, dq: dict, roster: List[dict]) -> int:
                 c.number_format = "#,##0"
             elif c.column in (8, 11):
                 c.number_format = "0.00"
-    for c_, w in zip("ABCDEFGHIJKLMN", (14, 20, 16, 13, 12, 14, 16, 14, 8, 40, 16, 16, 60, 18)):
+    for c_, w in zip("ABCDEFGHIJKLMNO", (14, 20, 16, 13, 12, 14, 16, 14, 8, 40, 16, 16, 60, 18, 12)):
         dd.column_dimensions[c_].width = w
     K.freeze_below(dd, 1)
     return n
@@ -1207,11 +1214,16 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     # ---- Data: one row per product, bank (roster order) and quarter ----
     # The live formulas find a row by position: product block, then bank
     # block, then quarter, so the order here is load-bearing.
+    # Whether each row's bank is in the pack now: what the Decide tab's peer
+    # group sums over (book.py). The switches are Workings' first scalars,
+    # one per peer in roster order (asserted where they are written).
+    in_pack_now = {b["cert"]: False if b is me else '=%s$B$%d="%s"' % (WK, peer_i.index(i) + 1, YES)
+                   for i, b in enumerate(roster)}
     _ref_header(da, 1, ["Product", "Bank", "Certificate", "Quarter", "Gross charge-offs, TTM ($000)",
                         "Recoveries, TTM ($000)", "Average balance ($000)", "Gross rate (%)",
                         "Net rate (%)", "Kept", "Why not kept", "Book index, as reported (base = 100)",
                         "Book index, without acquisitions (base = 100)", "Quarter-end balance ($000)",
-                        "Combined with"], right_from=4)
+                        "Combined with", "In the pack now"], right_from=4)
     inside_by = {b["cert"]: members_by_quarter(data, combined[b["cert"]]) for b in roster
                  if combined.get(b["cert"])}
     for p in products:
@@ -1230,14 +1242,14 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                            r["avg_balance"], r["gross_rate"], r["net_rate"], r["kept"], r["why"],
                            x["reported"] if x else None, x["organic"] if x else None, at_end.get(r["quarter"]),
                            "; ".join("certificate %s, absorbed %s" % (c_, label(u)) for c_, u in inside)
-                           or None])
+                           or None, in_pack_now[b["cert"]]])
     nrow = 1 + len(products) * NB * Q
     for row in da.iter_rows(min_row=2, max_row=nrow, min_col=5, max_col=14):
         for c in row:
             if c.column in (10, 11):
                 continue
             c.number_format = "#,##0" if c.column <= 7 or c.column == 14 else "0.00" if c.column <= 9 else "0.0"
-    for col, w in zip("ABCDEFGHIJKLMNO", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14, 16, 60)):
+    for col, w in zip("ABCDEFGHIJKLMNOP", (16, 16, 11, 9, 14, 14, 16, 10, 10, 8, 44, 14, 14, 16, 60, 12)):
         da.column_dimensions[col].width = w
     K.freeze_below(da, 1)
 
@@ -1268,7 +1280,6 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     PICK = {key: pe_abs(picker_cell(key)) for key, _, _ in PICKERS}
     SET = {key: pe_abs(setting_cell(key, NP)) for key, *_ in SETTINGS}
-    INC = [pe_abs(include_cell(j)) for j in range(NP)]
     mb = SET["min_banks"]
 
     S, S_PE = {}, {}
@@ -1281,6 +1292,17 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         S_PE[key] = WK + S[key]
         return S[key]
 
+    # In the pack, per peer: its cell on Peers reads Pack (follow Banks in the
+    # pack), Yes or No. Every view reads these, never the cells themselves.
+    INC = []
+    for j, b in enumerate(peers):
+        cell, pk = pe_abs(include_cell(j)), PICK["pack"]
+        member = ['%s="%s"' % (pk, PACK_PICKS[0]),
+                  '%s="%s"' % (pk, PACK_PICKS[1] if b["regional"] else PACK_PICKS[2])]
+        INC.append(WK + scalar("in_%d" % j, "In the pack: %s" % b["short"],
+                               '=IF(OR({c}="{f}",{c}=""),IF(OR({m}),"{y}","{n}"),{c})'.format(
+                                   c=cell, f=FOLLOW, m=",".join(member), y=YES, n=NO)))
+        assert INC[-1] == "%s$B$%d" % (WK, j + 1), "the switches must be Workings' first scalars"
     scalar("co_p", "Charge-off product number (0: not built)",
            "=IFERROR(MATCH(%s,%s,0),0)" % (PICK["product"], lists["co_products"]))
     scalar("net", "Net picked", '=%s="Net"' % PICK["rate"])
@@ -1591,7 +1613,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             DD=DD, dq_sel=S["dq_sel"], dq_p=S["dq_p"], dq_b=S["dq_b"], inc=INC, a_name=S["a_name"],
             b_name=S["b_name"], a_no=S["a_no"], b_no=S["b_no"], mb=mb))
         DLR = len(dq["grid"]) + 1
-        d_rows = _delinquency_data(dd, dq, roster)
+        d_rows = _delinquency_data(dd, dq, roster, in_pack_now)
     else:
         dl = None
         for ws in (dd,):
@@ -1718,12 +1740,14 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     starts = {"product": product, "rate": rank_by.capitalize(), "peer_a": peer_a, "peer_b": peer_b,
               "window": START_WINDOW, "dq_measure": dq["measure"] if dq else "not built",
-              "dq_basis": dq["basis"] if dq else "not built"}
+              "dq_basis": dq["basis"] if dq else "not built",
+              "pack": PACK_PICKS[0] if pack == "all" else PACK_PICKS[1]}
     choices = {"product": "=" + lists_pe["products"], "rate": '"%s"' % ",".join(RATES),
                "peer_a": "=" + lists_pe["picks"], "peer_b": "=" + lists_pe["picks"],
                "window": "=" + lists_pe["windows"],
                "dq_measure": "=" + lists_pe["dq_measures"] if dq else None,
-               "dq_basis": "=" + lists_pe["bases"] if dq else None}
+               "dq_basis": "=" + lists_pe["bases"] if dq else None,
+               "pack": '"%s"' % ",".join(PACK_PICKS)}
     for key, text, col in PICKERS:
         lab = pe.cell(R_LABEL, col, text)
         lab.font = F_LAB
@@ -1753,8 +1777,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     # Which banks are in the pack: a Yes/No under each peer's name, no slicer,
     # so no row is ever hidden.
-    yes_no = DataValidation(type="list", formula1='"%s,%s"' % (YES, NO), allow_blank=False, showErrorMessage=True,
-                            errorTitle="In the pack", error="Yes or No.")
+    yes_no = DataValidation(type="list", formula1='"%s,%s,%s"' % (FOLLOW, YES, NO), allow_blank=False,
+                            showErrorMessage=True, errorTitle="In the pack",
+                            error="Pack (follow Banks in the pack), Yes or No.")
     pe.add_data_validation(yes_no)
     for ch in range(lay["chunks"]):
         pe.row_dimensions[R_BANKS + 2 * ch].height = HEIGHTS["names"]
@@ -1765,12 +1790,16 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         name = pe.cell(c.row - 1, c.column, b["short"])
         name.font = Font(name="Arial", size=9, bold=True, color=K.INK)
         name.alignment = Alignment(wrap_text=True, horizontal="center", vertical="bottom")
-        c.value = YES if b["cert"] in in_pack else NO
+        c.value = FOLLOW
         _yellow(c, "center")
         yes_no.add(cell)
-        # A bank switched off reads in slate; the cell stays an input.
-        pe.conditional_formatting.add(cell, FormulaRule(formula=['%s="%s"' % (cell, NO)],
-                                                        font=Font(color=K.SLATE)))
+        # A bank out of the pack, however it got there, reads in slate on a
+        # gray cell, its name struck through; the cell stays an input.
+        out_ = ['%s="%s"' % (INC[j], NO)]
+        pe.conditional_formatting.add(cell, FormulaRule(formula=out_, font=Font(color=K.SLATE),
+                                                        fill=K.solid(K.MIST)))
+        pe.conditional_formatting.add(name.coordinate, FormulaRule(formula=out_, font=Font(color=K.SLATE,
+                                                                                           strike=True)))
     rs = lay["settings"]
     counts = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="1", allow_blank=False,
                             showErrorMessage=True, errorTitle="A whole number of at least 1",
@@ -1791,9 +1820,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             w.alignment = Alignment(vertical="center")
     pe.row_dimensions[rs].height = HEIGHTS["settings"]
     _merged(pe, lay["best_worst"], FIRST_COL, LAST_COL, (
-        '="Best in pack: "&{b}&". Worst in pack: "&{w}&". Only banks switched on are ranked; Peer A and Peer B '
-        'are drawn whether switched on or not. The pack started as {start}."').format(
-            b=S_PE["best"], w=S_PE["worst"], start="every peer" if pack == "all" else "the regionals only"),
+        '="Best in pack: "&{b}&". Worst in pack: "&{w}&". A bank whose cell reads Pack follows Banks in the pack; '
+        'Yes or No sets it. Only banks in the pack are ranked; Peer A and Peer B are drawn either way."').format(
+            b=S_PE["best"], w=S_PE["worst"]),
         NOTE, wrap=False)
     pe.row_dimensions[lay["best_worst"]].height = HEIGHTS["best_worst"]
     pe.row_dimensions[lay["best_worst"] + 1].height = HEIGHTS["gap"]

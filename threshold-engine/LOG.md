@@ -1484,3 +1484,29 @@ tie it out"*.
 - The whole tool also ships as one file with a window
   (`tools/make_app.py`, `app.py`), and the complete suite was run once:
   1,138 passed before this tab was added.
+
+## 15 October 2026, evening: the peer group follows the pack, and a faster pack
+
+The analyst, on Decide: *"this tab needs to adjust with peers and i need a
+faster way to select and de-select peers"*.
+
+- **Banks in the pack**, a new picker on Peers: every peer, regionals only,
+  large banks only (the five the roster does not mark regional), none. Each
+  bank's cell reads **Pack** (follow it), Yes or No (override); a bank out of
+  the pack is gray with its name struck through. Every view reads one
+  switch per peer on Workings, so nothing else changed.
+- **The Peer group series are live** (`book._live_peer_group`): each
+  quarter a series had a value, its Data cell sums Peers data (or Peers
+  delinquency data) over the banks kept that quarter and in the pack now,
+  needing the banks the Peers tab asks for; its latest value and quarter on
+  Lines by source follow. Decide, Thresholds and Summary follow from there.
+  Evidence, Backtest and Decide's "What the history suggests" stay as built.
+  The source keeps its name, "Peer group (15 banks)".
+- Walkthrough, three new steps (B11 to B13): Regionals only, every peer but
+  JPMorgan, then as built; the expected composites are summed in Python from
+  the per-bank rows. **1,514 of 1,514** reads as expected in Excel 16; slicer
+  check PASS. Credit card net, peer group latest: 3.95% as built, 3.79%
+  regionals only, 4.25% without JPMorgan.
+- Tests: the peers files, test_book, test_peer_loan_classes, test_app: 126
+  passed before two tests were updated to the new switch values and the new
+  delinquency data column; those two then passed.

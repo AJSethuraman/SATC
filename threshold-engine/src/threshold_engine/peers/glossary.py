@@ -11,13 +11,21 @@ check that every term here is on its Glossary tab.
 PEER_TERMS = [
     ("Pack",
      "The peers a comparison is made against. KeyBank is never in its own pack.",
-     "The peers switched on (Yes) under In the pack on the Peers tab. It starts as every peer or the "
-     "regionals only, as the build was told, and changes as those cells are changed."),
+     "The peers in the pack under In the pack on the Peers tab: each bank's cell reads Pack (follow Banks in "
+     "the pack), Yes or No. It changes as those cells and Banks in the pack are changed."),
+    ("Banks in the pack",
+     "Who is in the pack for every bank whose cell reads Pack: every peer, the regionals only, the large banks "
+     "only, or none.",
+     "Regionals are the peers the roster marks regional; the large banks are the others (JPMorgan, Wells "
+     "Fargo, Bank of America, Citi and Capital One). A bank set to Yes or No ignores it."),
     ("In the pack",
-     "Whether a peer is in the pack: Yes or No, under its name at the top of the Peers tab.",
+     "Whether a peer is in the pack: under its name at the top of the Peers tab, Pack (follow Banks in the "
+     "pack), Yes or No. A bank out of the pack shows gray, its name struck through.",
      "Every view with a pack in it recalculates when one changes: the charge-off and delinquency composites "
      "and bands, the rank tables, the charge-off rate over the pack composite, the book index pack median, the "
-     "lagged pack total, the normalization pack composite, best and worst in pack, and the headline numbers."),
+     "lagged pack total, the normalization pack composite, best and worst in pack, the headline numbers, and "
+     "the Peer group series on Decide, Thresholds and Summary (summed from Peers data and Peers delinquency "
+     "data over the banks in the pack now; the Evidence and Backtest tabs stay as built)."),
     ("Chart shows",
      "How much history the charts draw: every quarter, or the last 48 or 20.",
      "Only the picture. Each chart starts at the first quarter any of its lines has, within that many quarters "

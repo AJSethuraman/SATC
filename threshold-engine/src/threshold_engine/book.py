@@ -80,6 +80,82 @@ PEER_TAB_NAMES = {"Peers": "Peers", "Workings": "Peers workings", "Glossary": "G
                   "Data": "Peers data", "DelinquencyData": "Peers delinquency data", "Run": "Run"}
 
 
+def _live_peer_group(wb, series, info, say) -> int:
+    """Make the peer group series follow the banks in the pack on the Peers
+    tab (the analyst, 15 Oct 2026: "this tab needs to adjust with peers").
+
+    A peer group series is a pack composite the peers build wrote at build
+    time with the pack as it started. Here its Data column becomes live: each
+    quarter it had a value, the same composite is summed from Peers data (or
+    Peers delinquency data) over the banks kept that quarter and in the pack
+    now, needing at least the banks the Peers tab asks for, and blank below
+    that. With the pack as built, every value equals the file's. Its latest
+    value and quarter on Lines by source become live too. Which composite a
+    series is comes from its file's name, as the peers build wrote it.
+    Returns the number of series made live."""
+    import re
+    from openpyxl.utils import get_column_letter as L
+    from .peers import delinquency as D
+    from .peers.run import slug
+    from .peers.peers_workbook import _quoted
+
+    sheets = dict(zip(("Peers", "Data", "DelinquencyData"), (PEER_TAB_NAMES[k] for k in
+                                                              ("Peers", "Data", "DelinquencyData"))))
+    pe, pd_, dd = (_quoted(sheets[k]) + "!" for k in ("Peers", "Data", "DelinquencyData"))
+    mb = pe + "$%s$%s" % re.fullmatch(r"([A-Z]+)(\d+)", info["layout"]["settings_cells"]["min_banks"]).groups()
+    products, Q = info["products"], len(info["quarters"])
+    NB = info["data_rows"] // (len(products) * Q)
+    blocks = {("co", slug(p_)): (2 + i * NB * Q, 1 + (i + 1) * NB * Q) for i, p_ in enumerate(products)}
+    dq = info.get("delinquency")
+    if dq:
+        NM, Qd = len(D.MEASURES), len(dq["quarters"])
+        for i, p_ in enumerate(dq["products"]):
+            for j, m in enumerate(D.MEASURES):
+                a = 2 + (i * NM + j) * NB * Qd
+                blocks[("dq", slug(p_), slug(m))] = (a, a + NB * Qd - 1)
+    data = wb["Data"]
+    head = {data.cell(1, c).value: c for c in range(1, data.max_column + 1)}
+    last = data.max_row
+    while last > 1 and data.cell(last, 1).value is None:
+        last -= 1
+    lbs = wb["Lines by source"] if "Lines by source" in wb.sheetnames else None
+    made = 0
+    for label, path in series:
+        m = re.fullmatch(r"(.+)_pack-composite_(net|gross|delinquency-(.+)_quarter-end)", Path(path).stem)
+        if not m or label not in head:
+            continue
+        col = head[label]
+        if m.group(3) is None:
+            a, z = blocks[("co", m.group(1))]
+            rng = lambda c_: "%s$%s$%d:$%s$%d" % (pd_, c_, a, c_, z)                       # noqa: E731
+            crit = lambda r: "%s,$A%d,%s,TRUE,%s,TRUE" % (rng("D"), r, rng("J"), rng("P"))  # noqa: E731
+            num = (lambda r: "SUMIFS(%s,%s)-SUMIFS(%s,%s)" % (rng("E"), crit(r), rng("F"), crit(r))) \
+                if m.group(2) == "net" else (lambda r: "SUMIFS(%s,%s)" % (rng("E"), crit(r)))
+            den = lambda r: "SUMIFS(%s,%s)" % (rng("G"), crit(r))                           # noqa: E731
+        else:
+            key = ("dq", m.group(1), m.group(3))
+            if key not in blocks:
+                continue
+            a, z = blocks[key]
+            rng = lambda c_: "%s$%s$%d:$%s$%d" % (dd, c_, a, c_, z)                       # noqa: E731
+            crit = lambda r: "%s,$A%d,%s,TRUE,%s,TRUE" % (rng("E"), r, rng("I"), rng("O"))  # noqa: E731
+            num = lambda r: "SUMIFS(%s,%s)" % (rng("F"), crit(r))                           # noqa: E731
+            den = lambda r: "SUMIFS(%s,%s)" % (rng("G"), crit(r))                           # noqa: E731
+        for r in range(2, last + 1):
+            if isinstance(data.cell(r, col).value, (int, float)):
+                data.cell(r, col).value = '=IF(COUNTIFS(%s)>=%s,100*(%s)/%s,"")' % (crit(r), mb, num(r), den(r))
+        if lbs is not None:
+            c_, rows_ = L(col), "Data!$%s$2:$%s$%d" % (L(col), L(col), last)
+            hit = "MATCH(9.99E+307,%s)" % rows_
+            for r in range(1, lbs.max_row + 1):
+                if lbs.cell(r, 1).value == label:
+                    lbs["L%d" % r] = '=IFERROR(INDEX(Data!$A$2:$A$%d,%s),"")' % (last, hit)
+                    lbs["M%d" % r] = '=IFERROR(INDEX(%s,%s),"")' % (rows_, hit)
+        made += 1
+    say("peer group: %d series follow the banks in the pack on Peers" % made)
+    return made
+
+
 class BookError(ValueError):
     """A book that cannot be built from, with every problem found."""
 
@@ -357,10 +433,11 @@ def build(book_path, out, say=print) -> dict:
     out = Path(out)
     host = Workbook()
     blank = host.active
-    peer_tabs = None
+    peer_tabs = peer_info = None
     if bk["peers"] is not None:
         from .peers import run as peers_run
-        peer_tabs = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say, **bk["peers"])["info"]["sheets"]
+        peer_info = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say, **bk["peers"])["info"]
+        peer_tabs = peer_info["sheets"]
         missing = [(lbl, p) for lbl, p in bk["series"] if not p.exists()]
         if missing:
             raise BookError("\n".join("the file for %r was not written by the peers build either: %s" % m
@@ -376,6 +453,8 @@ def build(book_path, out, say=print) -> dict:
         known = [wb[t] for t in order if t in wb.sheetnames]
         wb._sheets = known + [ws for ws in wb._sheets if ws not in known]
         wb.active = wb.sheetnames.index("Summary")
+        if peer_info is not None:
+            _live_peer_group(wb, series, peer_info, say)
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
