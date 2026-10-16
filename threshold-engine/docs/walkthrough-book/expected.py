@@ -90,6 +90,31 @@ def own(lbl, window=None, hw=None, ls=None, z=None, rule=None):
     return row
 
 
+def fits_reads(lbl, window=None, hw=None, ls=None, z=None):
+    """What fits the history the lines are set from, on Decide, beside each
+    setting: the ranges from the series' own median, yearly move, spread and
+    worst kept (scale.py), worded and rounded as the cells word them."""
+    from decimal import ROUND_HALF_UP, Decimal
+    hw = W["moderate_halfwidth"] if hw is None else hw
+    ls = W["low_step"] if ls is None else ls
+    z = W["high_z"] if z is None else z
+    kept = [None if window and window[0] <= quarter(p.date) <= window[1] else p.value for p in PTS[lbl]]
+    ref = scale(kept, W["direction"], hw, ls, z, W["floor_at_zero"])
+    med, mv, sp, wo = ref["median"], ref["typical_yearly_move"], ref["spread_of_levels"], ref["worst"]
+    t = lambda x: str(Decimal(repr(x)).quantize(Decimal("0.01"), ROUND_HALF_UP))      # noqa: E731
+    say = lambda ok: "It fits." if ok else "It does not fit."                        # noqa: E731
+    floor = W["floor_at_zero"] and W["direction"] == "higher_is_worse"
+    sg = 1 if W["direction"] == "higher_is_worse" else -1
+    zmin, zmax, lsmax = hw * mv / sp, sg * (wo - med) / sp, med / mv
+    texts = ["Fits below %s, where Moderate-Low begins. %s" % (t(ls), say(hw < ls)),
+             "Fits above %s%s. %s" % (t(hw), ", and below %s so line 2 stays above zero" % t(lsmax) if floor else "",
+                                     say(ls > hw and (not floor or ls < lsmax))),
+             "Fits above %s (High beyond Moderate-High) and up to %s (some quarter kept can rate High). %s"
+             % (t(zmin), t(zmax), say(zmin < z <= zmax)),
+             "Either fits."]
+    return [{"sheet": "Decide", "cell": "L%d" % (DL["settings"] + 1 + i), "expect": x} for i, x in enumerate(texts)]
+
+
 #: own() keys its answers by the plain layout's letters; Lines by source lays
 #: the table out as decide_tab.TH_BOOK, so each is read by meaning.
 PLAIN_TO_BOOK = {DT.TH_PLAIN[k]: DT.TH_BOOK[k] for k in DT.TH_PLAIN}
@@ -234,7 +259,8 @@ steps.append({"id": "B3", "what": "On Decide, click Credit card and Nonaccrual, 
                         {"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}]
                        + [{"sheet": "Decide", "cell": "M%d" % (DL["ratings_first"] + 1 + j), "expect": lines3[c]}
                           for j, c in enumerate("EFGH")]
-                       + decide_reads(CN, lines3, others3) + row_reads(CN, LEAD, lines3) + lbs_reads(kb, lines3),
+                       + decide_reads(CN, lines3, others3) + row_reads(CN, LEAD, lines3) + lbs_reads(kb, lines3)
+                       + fits_reads(kb),
               "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b3-decide.png"},
                           {"sheet": "Thresholds", "range": "A1:%s%d" % (TL["cols"]["check"], 5 + len(PAIRS)),
                            "file": "b3-thresholds.png"}]})
@@ -247,7 +273,8 @@ steps.append({"id": "B4", "what": "Type 3.5 under How rare High is (z), in the y
               "actions": [typed(CN, "How rare High is (z)", 3.5)],
               "reads": row_reads(CN, LEAD, lines4) + [lr for s, lbl in BY[CN].items()
                                                      for lr in lbs_reads(lbl, own(lbl, z=3.5))]
-                       + [{"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r), "expect": on_lines(kb, lines4)[1]}],
+                       + [{"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r), "expect": on_lines(kb, lines4)[1]}]
+                       + fits_reads(kb, z=3.5),
               "picture": []})
 
 # ---- B5: leave out what the evidence suggests, from the history picked ----

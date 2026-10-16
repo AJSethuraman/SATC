@@ -924,6 +924,39 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(r, 2, name).font = F_BOLD
         ws.cell(r, 5, said).font = F_BODY
         _rule(ws, r, 2, 17, HAIR)
+    # What fits the history the lines are set from: every setting's range at
+    # once, from the same median, yearly move, spread and worst quarter the
+    # lines use (the analyst, 15 Oct 2026: "adjusting those widths should
+    # somehow work in such a way that it would bring the others into an
+    # acceptable range"). Nothing is changed for the analyst; each line says
+    # whether the setting typed fits. The ranges are the Check's own rules:
+    # Moderate-Low further out than Moderate, line 2 above zero (when the
+    # floor is at zero), High beyond Moderate-High and within the worst kept.
+    ws.cell(se, 12, "What fits the history the lines are set from").font = F_HEAD
+    hw_, ls_, z_ = shown("Width of Moderate"), shown("Moderate-Low begins"), shown("How rare High is (z)")
+    med, mv, sp, wo = th_("median"), th_("move"), th_("spread"), th_("worst")
+    sg = "" if higher else "-"
+    zmax = "{sg}({w}-{m})/{s}".format(sg=sg, w=wo, m=med, s=sp)
+    zmin = "{h}*{v}/{s}".format(h=hw_, v=mv, s=sp)
+    lsmax = "{m}/{v}".format(m=med, v=mv)
+    floor_ok = "AND(%s,%s)" % ("TRUE" if (floor_at_zero and higher) else "FALSE", "TRUE")
+    say_ = lambda ok: 'IF({ok},"It fits.","It does not fit.")'.format(ok=ok)        # noqa: E731
+    need = '"Pick a %s under %s to see what fits."' % (p2.lower(), LINES_FROM)
+    fits = (
+        '"Fits below "&TEXT({ls},"0.00")&", where Moderate-Low begins. "&{say}'
+        .format(ls=ls_, say=say_("%s<%s" % (hw_, ls_))),
+        ('"Fits above "&TEXT({hw},"0.00")&IF({fl},", and below "&TEXT({mx},"0.00")&" so line 2 stays above zero",'
+         '"")&". "&{say}').format(hw=hw_, fl=floor_ok, mx=lsmax,
+                                  say=say_("AND({ls}>{hw},OR(NOT({fl}),{ls}<{mx}))".format(
+                                      ls=ls_, hw=hw_, fl=floor_ok, mx=lsmax))),
+        ('"Fits above "&TEXT({mn},"0.00")&" (High beyond Moderate-High) and up to "&TEXT({mx},"0.00")&'
+         '" (some quarter kept can rate High). "&{say}').format(
+            mn=zmin, mx=zmax, say=say_("AND({z}>{mn},{z}<={mx})".format(z=z_, mn=zmin, mx=zmax))),
+        '"Either fits."')
+    for i, f in enumerate(fits):
+        c_ = ws.cell(se + 1 + i, 12, '=IF(NOT({one}),"",IF(NOT({h}),{need},IFERROR({f},"")))'.format(
+            one=ONE, h=HAS, need=need, f=f))
+        c_.font = F_BODY
     nt = lay_d["notes"]
     ws.cell(nt, 2, "The solid line is the %s the lines are set from. A dashed line is another %s switched on under "
                    "On chart, in the color of its name. A gray stretch is a period left out of the history the lines "

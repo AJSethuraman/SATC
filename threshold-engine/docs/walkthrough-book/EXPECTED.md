@@ -18,13 +18,13 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 
 One row shows; the lines are KeyBank's own; every source is rated on them, beside what its own history would give.
 
-52 reads.
+56 reads.
 
 ## B4 · Type 3.5 under How rare High is (z), in the yellow row
 
 High's line moves for every source of the row; Thresholds and Summary follow.
 
-48 reads.
+52 reads.
 
 ## B5 · Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason
 

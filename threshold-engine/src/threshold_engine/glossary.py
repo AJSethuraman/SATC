@@ -75,6 +75,14 @@ TERMS = [
      "Stress: a level far enough from normal, on the worse side, to count as unusual for this series.",
      "From the median plus the High z times the spread of levels. It is the same robust z the evidence uses to "
      "call a level unusual, so High and stress mean one thing."),
+    ("What fits the history the lines are set from",
+     "On Decide, beside each setting: the range in which it fits the history of the source picked under Lines "
+     "set from, and whether the setting typed does. Nothing is changed for you.",
+     "Width of Moderate fits below Moderate-Low begins. Moderate-Low begins fits above the width and, for a "
+     "rate floored at zero, below the median kept / the typical yearly move, so line 2 stays above zero. How "
+     "rare High is (z) fits above the width x the typical yearly move / the spread of levels (High beyond "
+     "Moderate-High) and up to (the worst kept - the median kept) / the spread of levels (some quarter kept "
+     "can rate High). These are the Check's own rules."),
     ("How rare High is (z)",
      "How many spreads of levels above the median High starts. The same number means the same rarity on "
      "every series.",

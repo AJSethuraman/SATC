@@ -1510,3 +1510,20 @@ faster way to select and de-select peers"*.
 - Tests: the peers files, test_book, test_peer_loan_classes, test_app: 126
   passed before two tests were updated to the new switch values and the new
   delinquency data column; those two then passed.
+
+## 15 October 2026, late: What fits the history the lines are set from
+
+The analyst: *"i feel like adjusting those widths should somehow work in such
+a way that it would bring the others into an acceptable range"*, then, on the
+proposal to show every setting's range at once, *"okay your idea works"*.
+
+- Decide, beside "What each setting does when you raise it": for the source
+  picked, the range in which each setting fits that history and whether the
+  setting typed does. Width of Moderate below Moderate-Low begins;
+  Moderate-Low above the width and (floored at zero) below median / yearly
+  move; How rare High is above width x move / spread and up to (worst -
+  median) / spread. The Check's own rules; nothing is changed for the
+  analyst, so each line keeps one meaning.
+- Walkthrough: 8 new reads of the panel's text (B3, B4) against the ranges
+  computed in Python from scale.py; **1,522 of 1,522** in Excel 16, slicer
+  check PASS. test_decide and test_book: 47 passed.

@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**1514 of 1514 reads as expected.**
+**1522 of 1522 reads as expected.**
 
 No differences.
 
@@ -1265,7 +1265,7 @@ Every series' latest value, and Pick a source where its rating goes: 105 series,
 | ok | Lines by source!Q109 |  |  |
 | ok | Lines by source!S109 | Refused: High would begin beyond the worst quarter kept | Refused: High would begin beyond the worst quarter kept |
 
-## B3 · On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from: 52 of 52
+## B3 · On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from: 56 of 56
 
 One row shows; the lines are KeyBank's own; every source is rated on them, beside what its own history would give.
 
@@ -1323,8 +1323,12 @@ One row shows; the lines are KeyBank's own; every source is rated on them, besid
 | ok | Lines by source!Q19 | 5 | 5 |
 | ok | Lines by source!R19 | High | High |
 | ok | Lines by source!S19 |  |  |
+| ok | Decide!L81 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
+| ok | Decide!L82 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
+| ok | Decide!L83 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
+| ok | Decide!L84 | Either fits. | Either fits. |
 
-## B4 · Type 3.5 under How rare High is (z), in the yellow row: 48 of 48
+## B4 · Type 3.5 under How rare High is (z), in the yellow row: 52 of 52
 
 High's line moves for every source of the row; Thresholds and Summary follow.
 
@@ -1378,6 +1382,10 @@ High's line moves for every source of the row; Thresholds and Summary follow.
 | ok | Lines by source!R19 | Moderate-High | Moderate-High |
 | ok | Lines by source!S19 |  |  |
 | ok | Summary!E10 | 4 Moderate-High | 4 Moderate-High |
+| ok | Decide!L81 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
+| ok | Decide!L82 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
+| ok | Decide!L83 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
+| ok | Decide!L84 | Either fits. | Either fits. |
 
 ## B5 · Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason: 38 of 38
 

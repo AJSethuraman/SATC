@@ -6561,6 +6561,26 @@
      "sheet": "Lines by source",
      "cell": "S19",
      "expect": ""
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L81",
+     "expect": "Fits below 1.00, where Moderate-Low begins. It fits."
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L82",
+     "expect": "Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits."
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L83",
+     "expect": "Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate High). It fits."
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L84",
+     "expect": "Either fits."
     }
    ],
    "picture": [
@@ -6828,6 +6848,26 @@
      "sheet": "Summary",
      "cell": "E10",
      "expect": "4 Moderate-High"
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L81",
+     "expect": "Fits below 1.00, where Moderate-Low begins. It fits."
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L82",
+     "expect": "Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits."
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L83",
+     "expect": "Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate High). It fits."
+    },
+    {
+     "sheet": "Decide",
+     "cell": "L84",
+     "expect": "Either fits."
     }
    ],
    "picture": []
