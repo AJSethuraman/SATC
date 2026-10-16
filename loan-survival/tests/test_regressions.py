@@ -161,3 +161,62 @@ def test_xls_without_its_reader_says_what_to_do(monkeypatch, tmp_path):
     f.write_bytes(b"x")
     with pytest.raises(ls.UserError, match="xlsx"):
         ls.load(f)
+
+
+# ---- fourth Codex review of PR 445 (reviewed 0f83681)
+
+def test_snapshot_rows_with_no_loan_id_are_listed_not_dropped():
+    rows = [dict(loan_id=l, month_end=m, dpd=0) for l in ("L1", None)
+            for m in pd.date_range("2024-01-31", periods=3, freq="ME")]
+    sheets, used, dropped = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd"), pd.Timestamp("2024-03-31"))
+    assert used == 2 and dropped == 3
+    assert "no loan id" in sheets["Excluded"]["exclusion_reason"].iloc[0].lower()
+
+
+def _two_loans_with_a_charge_off_after_as_of():
+    cols = "[columns]\nloan_id = loan_id\norig_date = orig_date\nchargeoff_date = chargeoff_date\nfirst_90_date = first_90_date\ndpd_asof = dpd_asof\n"
+    st = ls.Settings(cols)
+    df = pd.DataFrame({
+        "loan_id": ["A", "B", "C"], "orig_date": pd.to_datetime(["2022-01-01"] * 3),
+        "first_90_date": pd.to_datetime(["2023-01-31"] * 3),
+        # A: charged off in the window. B: charged off AFTER as-of (not observable yet). C: after the window but before as-of
+        "chargeoff_date": pd.to_datetime(["2023-03-31", "2025-01-31", "2024-06-30"]), "dpd_asof": [0, 0, 0]})
+    return st, df, pd.Timestamp("2024-12-31")
+
+
+def test_charge_off_after_as_of_is_not_reported_as_an_event():
+    st, df, as_of = _two_loans_with_a_charge_off_after_as_of()
+    _, tbl, _, _ = ls.bad_event_check(df, st, as_of)
+    got = dict(zip(tbl.iloc[:, 0], tbl["loans"]))
+    assert got.get("charged off after the window", 0) == 1       # C only; B had not happened by as-of
+    assert got.get("cured (current at as-of)", 0) == 1            # B read as not charged off
+
+
+def test_standalone_charge_off_after_as_of_is_not_reported_as_an_event():
+    st, df, as_of = _two_loans_with_a_charge_off_after_as_of()
+    df = df.rename(columns={"first_90_date": "first_90_date"}).assign(payoff_date=pd.NaT)
+    sheets, _, _ = do.loan_mode(df.copy(), _args(), as_of)
+    got = dict(zip(sheets["Outcomes"].iloc[:, 0], sheets["Outcomes"]["loans"]))
+    assert got.get("charged off, but after the window", 0) == 1 and got.get("cured (current at as-of)", 0) == 1
+
+
+def test_model_column_names_may_contain_spaces():
+    import loan_survival_gui as g
+    df = pd.DataFrame({"Credit Score": [650.0, 700.0], "Has Flag": ["Y", "N"]})
+    X, labels = ls.model_terms(df, "Credit Score per -50, Has Flag")
+    assert X.iloc[0, 0] == 650 / -50 and X.iloc[1, 1] == 0
+    assert g.split_model("Credit Score per -50, Has Flag") == [("Credit Score", "50", "lower"), ("Has Flag", "", "higher")]
+    assert g.model_term("Credit Score", "50", "lower") == "Credit Score per -50"
+
+
+def test_all_missing_revenue_total_is_blank_not_zero():
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv")
+    raw.loc[pd.to_datetime(raw.orig_date).dt.year == 2025, "net_revenue"] = np.nan
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "b.csv"
+        raw.to_csv(p, index=False)
+        r = ls.run(p, (ROOT / "sample" / "settings_example.ini").read_text(), Path(tmp) / "o.xlsx")
+    t = r["tests"]
+    g25 = t[(t.comparison == "origination year") & (t.group.astype(str) == "2025")].iloc[0]
+    assert pd.isna(g25["net_revenue_total"]) and pd.isna(g25["net_revenue_per_1000"])

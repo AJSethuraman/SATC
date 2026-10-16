@@ -194,7 +194,7 @@ def model_columns(df: pd.DataFrame) -> list[str]:
     out = []
     for c in df.columns:
         s = df[c].dropna()
-        if not len(s):
+        if not len(s) or "," in str(c):  # a comma would split the factor list
             continue
         if pd.api.types.is_numeric_dtype(s) or set(s.astype(str).str.strip().str.upper().unique()) <= _YN:
             out.append(c)
@@ -228,11 +228,11 @@ def split_model(model: str) -> list[tuple[str, str, str]]:
     """'fico per -50, flag' -> [('fico','50','lower'), ('flag','','higher')]."""
     out = []
     for term in [t.strip() for t in model.split(",") if t.strip()]:
-        p = term.split()
-        if len(p) == 3 and p[1].lower() == "per":
-            out.append((p[0], p[2].lstrip("-"), "lower" if p[2].startswith("-") else "higher"))
+        col, scale = ls.parse_model_term(term)
+        if scale == 1.0 and not re.search(r"\s+per\s+", term, flags=re.IGNORECASE):
+            out.append((col, "", "higher"))
         else:
-            out.append((term, "", "higher"))
+            out.append((col, f"{abs(scale):g}", "lower" if scale < 0 else "higher"))
     return out
 
 

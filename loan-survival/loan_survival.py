@@ -34,6 +34,7 @@ import configparser
 import hashlib
 import io
 import math
+import re
 import sys
 import tempfile
 from datetime import datetime
@@ -360,7 +361,7 @@ def bad_event_check(df: pd.DataFrame, st: Settings, as_of: pd.Timestamp):
     other = ~co_in & ~pif_in
     out = pd.Series("", index=pop.index, dtype=object)
     out[co_in], out[pif_in] = "charged off", "paid off"
-    later = other & pop[coc].notna()
+    later = other & pop[coc].notna() & (pop[coc] <= as_of)  # a charge-off after as-of has not happened yet
     out[later] = "charged off after the window"
     rest = other & ~later
     if dpdc:
@@ -495,7 +496,7 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
                 row["logrank_p"] = p
                 if nr:
                     rev = pd.to_numeric(pop.loc[m, nr], errors="coerce")
-                    row["net_revenue_total"] = rev.sum()
+                    row["net_revenue_total"] = rev.sum(min_count=1)  # all blank stays blank, not 0
                     row["net_revenue_per_loan"] = rev.mean()
                     if amt:
                         a = pd.to_numeric(pop.loc[m, amt], errors="coerce")
@@ -515,15 +516,19 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
     return res, (pd.concat(curves, ignore_index=True) if curves else pd.DataFrame()), charts
 
 
+def parse_model_term(term: str) -> tuple[str, float]:
+    """'Credit Score per -50' -> ('Credit Score', -50.0); no 'per N' at the end -> scale 1. Column names may hold spaces."""
+    m = re.match(r"^(.*?)\s+per\s+(-?\d+(?:\.\d+)?)$", term.strip(), flags=re.IGNORECASE)
+    return (m.group(1).strip(), float(m.group(2))) if m else (term.strip(), 1.0)
+
+
 def model_terms(df: pd.DataFrame, spec: str):
     """'fico per -50, income_gt_sales' -> design columns. 'per k' rescales: HR is per k units (negative = per k lower)."""
     cols, labels, bad = {}, [], []
     for term in [t.strip() for t in spec.split(",") if t.strip()]:
-        parts = term.split()
-        col = parts[0]
+        col, scale = parse_model_term(term)
         if col not in df.columns:
             raise UserError(f"Model variable '{col}' not found in file.")
-        scale = float(parts[2]) if len(parts) == 3 and parts[1].lower() == "per" else 1.0
         v = df[col]
         if not pd.api.types.is_numeric_dtype(v):
             as_number = pd.to_numeric(v, errors="coerce")

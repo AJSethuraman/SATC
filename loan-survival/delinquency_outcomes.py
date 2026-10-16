@@ -104,12 +104,10 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
         outcome[other & (dpd < 30)] = "cured (current at as-of)"
         outcome[other & (dpd >= 30)] = "still delinquent at as-of"
         outcome[other & dpd.isna()] = "not charged off (status unknown)"
-        if (other & (p_co > end)).any():
-            note = "charged off, but after the window"
-            outcome[other & p_co.notna() & (p_co > end)] = note
-    else:
-        outcome[other & p_co.notna()] = "charged off, but after the window"
-        outcome[other & p_co.isna()] = "not charged off (cured or still delinquent)"
+    later = other & p_co.notna() & (p_co > end) & (p_co <= as_of)  # a charge-off after as-of has not happened yet
+    outcome[later] = "charged off, but after the window"
+    if not has_dpd:
+        outcome[other & ~later] = "not charged off (cured or still delinquent)"
 
     n = len(pop)
     counts = outcome.value_counts()
@@ -167,6 +165,11 @@ def bucket(dpd: pd.Series) -> pd.Series:
 
 def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     need(df, [a.id_col, a.month_col, a.dpd_col])
+    ids = df[a.id_col]
+    no_id = ids.isna() | (ids.astype(str).str.strip() == "")  # groupby would silently drop these
+    no_id_rows = df[no_id].copy()
+    no_id_rows.insert(0, "exclusion_reason", "no loan id")
+    df = df[~no_id].copy()
     parsed = pd.to_datetime(df[a.month_col], errors="coerce")
     # a month we cannot read cannot be placed in the chain, and dropping just that row would make the month before it
     # look like the loan left the file; so every row of such a loan is set aside and listed
@@ -211,9 +214,11 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
         print(f"\n{len(dropped):,} transition(s) left out because a month's DPD was blank or not a number (see Excluded).")
     if len(unplaced):
         print(f"\n{len(unplaced):,} row(s) left out because a loan has a month_end that is blank or not a date (see Excluded).")
-    if len(dropped) or len(unplaced):
-        sheets["Excluded"] = pd.concat([unplaced, dropped.drop(columns=["ym", "next_state"], errors="ignore")], ignore_index=True)
-    return sheets, len(pairs), len(dropped) + len(unplaced)
+    if len(no_id_rows):
+        print(f"\n{len(no_id_rows):,} row(s) left out because the loan id is blank (see Excluded).")
+    if len(dropped) or len(unplaced) or len(no_id_rows):
+        sheets["Excluded"] = pd.concat([no_id_rows, unplaced, dropped.drop(columns=["ym", "next_state"], errors="ignore")], ignore_index=True)
+    return sheets, len(pairs), len(dropped) + len(unplaced) + len(no_id_rows)
 
 
 # ----------------------------------------------------------------------------- main
