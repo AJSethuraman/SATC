@@ -243,6 +243,9 @@ def build(out, result, pull):
             elif items[key].position:
                 c = ws.cell(row, 6, "change only")
                 c.font, c.alignment = F_NOTE, CENTER
+            if not chg and "change" not in readings_of(items[key], s["change_for"]):
+                c = ws.cell(row, 9, "level only")      # not asked for by the settings: not a failure
+                c.font, c.alignment = F_NOTE, CENTER
             if chg:
                 c = ws.cell(row, 8, chg["value"])
                 c.number_format = "+#,##0.0#%;-#,##0.0#%;0%" if items[key].change_in == "percent" else \
@@ -405,6 +408,12 @@ def build(out, result, pull):
                 c = ws.cell(row + 1, col, "change only")
                 c.font = F_NOTE
                 note(ws, row + 2, col, "Change only: " + item.position + ".", col + 4)
+            elif reading not in readings_of(item, s["change_for"]):
+                # Not a failure: the firm's settings rate the change only of the series they list.
+                c = ws.cell(row + 1, col, "level only")
+                c.font = F_NOTE
+                note(ws, row + 2, col, "Not asked for: the firm's settings rate this series on its level only.",
+                     col + 4)
             else:
                 note(ws, row + 2, col, "Not rated: see the Not rated tab.", col + 4)
         ws.row_dimensions[row + 1].height = 21

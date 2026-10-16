@@ -189,3 +189,17 @@ def test_a_series_tab_prints_its_ratings_and_charts_not_its_whole_history(book):
     _, _, wb = book
     for name in [TAB[k] for _, keys in TOPICS for k in keys]:
         assert wb[name].print_area and wb[name].print_area.startswith("'%s'!$A$1:$L$" % name), name
+
+
+def test_a_change_the_settings_did_not_ask_for_is_not_called_a_failure(cache, tmp_path):  # noqa: F811
+    # Codex on #436: with change_for listing only some series, the others have no
+    # change rating by design, and their tabs said "Not rated: see the Not rated tab",
+    # a tab that says nothing about them.
+    out, result, wb = _build(cache, tmp_path / "level.xlsx", change_for=[])
+    assert not any(x["key"] == "unemployment" and x["reading"] == "change" for x in result["not_rated"])
+    tab = _text(wb["Unemployment"])
+    assert "Not asked for: the firm's settings rate this series on its level only." in tab
+    assert "Not rated: see the Not rated tab" not in tab
+    ws = wb["Ratings"]
+    row = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "Unemployment rate")
+    assert ws.cell(row, 9).value == "level only"
