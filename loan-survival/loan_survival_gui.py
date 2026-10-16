@@ -301,7 +301,7 @@ def build_settings_text(state: dict) -> str:
 
 def parse_settings_text(text: str) -> dict:
     """Read a saved .ini back into a state, so Load selections shows exactly what a run would use."""
-    cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"), interpolation=None)
+    cp = configparser.ConfigParser(interpolation=None)  # same rules as the engine: comments are whole lines only
     cp.optionxform = str
     cp.read_string(text)
     state = new_state()

@@ -108,3 +108,56 @@ def test_output_path_cannot_be_the_input_file(tmp_path):
     with pytest.raises(ls.UserError, match="same file"):
         ls.run(src, None, src)
     assert src.read_bytes() == before
+
+
+# ---- third Codex review of PR 445 (reviewed 17d95f0)
+
+def test_blank_loan_ids_are_not_duplicates():
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv")
+    raw.loc[:2, "loan_id"] = np.nan
+    st = ls.Settings((ROOT / "sample" / "settings_example.ini").read_text())
+    df, excluded = ls.prepare(raw, st)
+    assert len(df) == len(raw) and len(excluded) == 0
+
+
+def test_header_with_a_space_hash_survives_the_settings_file():
+    import loan_survival_gui as g
+    state = g.new_state()
+    state["cols"] = {"orig_date": "Open Date", "chargeoff_date": "CO Date", "loan_id": "Loan #"}
+    state["tests"] = [{"name": "t", "spec": {"column": "Rate ;fixed", "cutoffs": "5"}}]
+    text = g.build_settings_text(state)
+    assert ls.Settings(text).cols["loan_id"] == "Loan #" and ls.Settings(text).tests[0][1]["column"] == "Rate ;fixed"
+    assert g.parse_settings_text(text)["cols"]["loan_id"] == "Loan #"
+
+
+def test_inline_comment_after_a_number_is_refused_in_words():
+    import pytest
+    with pytest.raises(ls.UserError, match="own line"):
+        ls.Settings("[settings]\nmin_at_risk = 30   ; stop showing a month below this\n")
+
+
+def test_run_does_not_touch_files_already_in_the_output_folder(tmp_path):
+    (tmp_path / "_chart_0.png").write_bytes(b"not mine")
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv")
+    src = tmp_path / "book.csv"
+    raw.to_csv(src, index=False)
+    ls.run(src, (ROOT / "sample" / "settings_example.ini").read_text(), tmp_path / "out.xlsx")
+    assert (tmp_path / "_chart_0.png").read_bytes() == b"not mine"
+
+
+def test_model_column_with_numbers_stored_as_text_keeps_the_numbers():
+    df = pd.DataFrame({"fico": pd.Series(["650", "700", "Y"], dtype=object)})
+    X, _ = ls.model_terms(df, "fico per -50")
+    assert X.iloc[0, 0] == 650 / -50 and X.iloc[1, 0] == 700 / -50 and X.iloc[2, 0] == 1 / -50
+
+
+def test_xls_without_its_reader_says_what_to_do(monkeypatch, tmp_path):
+    import pytest
+
+    def no_xlrd(*a, **k):
+        raise ImportError("Missing optional dependency 'xlrd'")
+    monkeypatch.setattr(pd, "read_excel", no_xlrd)
+    f = tmp_path / "old.xls"
+    f.write_bytes(b"x")
+    with pytest.raises(ls.UserError, match="xlsx"):
+        ls.load(f)

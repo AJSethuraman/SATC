@@ -35,6 +35,7 @@ import hashlib
 import io
 import math
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -50,11 +51,12 @@ class UserError(Exception):
 Z95 = 1.959963984540054
 
 STARTER = """\
-; loan_survival.py settings. Lines starting with ; are comments.
+; loan_survival.py settings. Lines starting with ; are comments. A comment has to be on its own line.
 ; Every section named [test: ...] runs as its own comparison.
 
 [data]
-; as_of = 2026-09-30         ; leave commented to use the latest date in the file
+; as_of: leave commented to use the latest date in the file
+; as_of = 2026-09-30
 
 [columns]
 ; left = what the script calls it, right = YOUR column name. Delete lines you don't have.
@@ -68,13 +70,19 @@ net_revenue    = net_revenue
 amount         = amount
 
 [settings]
-bad_event          = auto      ; auto | chargeoff | earliest  (earliest = first of 90+ or charge-off)
+; bad_event: auto | chargeoff | earliest  (earliest = first of 90+ or charge-off)
+bad_event          = auto
 checkpoints        = 6,12,18,24,36
-min_at_risk        = 30        ; don't report a month once fewer loans than this remain
-dq_window          = 12        ; months after first 90+ to watch for charge-off
-proxy_min_co_share = 0.60      ; auto uses 90+ only if at least this share of 90+ loans charge off
-proxy_min_lead     = 3         ; ...and 90+ arrives at least this many months earlier (median)
-early_read_horizon = 36        ; month treated as 'eventual' in the early-read table
+; min_at_risk: don't report a month once fewer loans than this remain
+min_at_risk        = 30
+; dq_window: months after first 90+ to watch for charge-off
+dq_window          = 12
+; proxy_min_co_share: auto uses 90+ only if at least this share of 90+ loans charge off
+proxy_min_co_share = 0.60
+; proxy_min_lead: ...and 90+ arrives at least this many months earlier (median)
+proxy_min_lead     = 3
+; early_read_horizon: month treated as 'eventual' in the early-read table
+early_read_horizon = 36
 
 [test: vintage]
 group_by = year
@@ -89,7 +97,8 @@ group_by = year
 ; orig_to   = 2022-12-31
 
 ; [test: what drives losses]
-; model   = fico per -50, income_gt_sales, new_business   ; 'per -50' = hazard ratio per 50 points LOWER
+; 'per -50' = hazard ratio per 50 points LOWER
+; model   = fico per -50, income_gt_sales, new_business
 ; orig_to = 2022-12-31
 
 ; [test: income above sales]
@@ -234,7 +243,7 @@ def cox_fit(time: np.ndarray, event: np.ndarray, X: np.ndarray, iters: int = 50)
 
 class Settings:
     def __init__(self, text: str):
-        cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"), interpolation=None)  # % in a column name is literal
+        cp = configparser.ConfigParser(interpolation=None)  # % ; # in a column name are literal: comments are whole lines only
         cp.optionxform = str
         cp.read_string(text)
         self.text = text
@@ -243,12 +252,16 @@ class Settings:
         s = cp["settings"] if cp.has_section("settings") else {}
         g = lambda k, d: (s.get(k, d) if s else d)
         self.bad_event = str(g("bad_event", "auto")).strip().lower()
-        self.checkpoints = [int(x) for x in str(g("checkpoints", "6,12,18,24,36")).split(",") if x.strip()]
-        self.min_at_risk = int(g("min_at_risk", 30))
-        self.dq_window = int(g("dq_window", 12))
-        self.proxy_min_co_share = float(g("proxy_min_co_share", 0.60))
-        self.proxy_min_lead = float(g("proxy_min_lead", 3))
-        self.horizon = int(g("early_read_horizon", 36))
+        try:
+            self.checkpoints = [int(x) for x in str(g("checkpoints", "6,12,18,24,36")).split(",") if x.strip()]
+            self.min_at_risk = int(g("min_at_risk", 30))
+            self.dq_window = int(g("dq_window", 12))
+            self.proxy_min_co_share = float(g("proxy_min_co_share", 0.60))
+            self.proxy_min_lead = float(g("proxy_min_lead", 3))
+            self.horizon = int(g("early_read_horizon", 36))
+        except ValueError as e:
+            raise UserError(f"A setting that should be a number is not ({e}). Comments must be on their own line, "
+                            "not after a value.") from None
         self.tests = []
         for sec in cp.sections():
             if sec.lower().startswith("test:"):
@@ -263,7 +276,13 @@ class Settings:
 # ============================================================================ data
 
 def load(path: Path) -> pd.DataFrame:
-    return pd.read_excel(path) if path.suffix.lower() in (".xlsx", ".xlsm", ".xls") else pd.read_csv(path)
+    if path.suffix.lower() in (".xlsx", ".xlsm", ".xls"):
+        try:
+            return pd.read_excel(path)
+        except ImportError as e:  # an old .xls needs the extra xlrd package, which this tool does not require
+            raise UserError(f"This Excel file needs a reader that is not installed ({e}). "
+                            "Open it in Excel and save as .xlsx or .csv, then try again.") from None
+    return pd.read_csv(path)
 
 
 def prepare(raw: pd.DataFrame, st: Settings):
@@ -295,7 +314,9 @@ def prepare(raw: pd.DataFrame, st: Settings):
             df[c] = parsed
             drop(bad, f"unparseable date in {c}")
     if st.col("loan_id"):
-        drop(df[st.col("loan_id")].duplicated(keep="first"), "duplicate loan id")
+        ids = df[st.col("loan_id")]
+        has_id = ids.notna() & (ids.astype(str).str.strip() != "")  # a blank id is missing, not a repeat
+        drop(ids.duplicated(keep="first") & has_id, "duplicate loan id")
     o = st.col("orig_date")
     drop(df[o].isna(), "missing origination date")
     for key in ("chargeoff_date", "first_90_date", "payoff_date"):
@@ -505,8 +526,9 @@ def model_terms(df: pd.DataFrame, spec: str):
         scale = float(parts[2]) if len(parts) == 3 and parts[1].lower() == "per" else 1.0
         v = df[col]
         if not pd.api.types.is_numeric_dtype(v):
-            v = v.astype(str).str.strip().str.upper().map({"Y": 1, "YES": 1, "TRUE": 1, "1": 1,
-                                                          "N": 0, "NO": 0, "FALSE": 0, "0": 0})
+            as_number = pd.to_numeric(v, errors="coerce")
+            as_flag = v.astype(str).str.strip().str.upper().map({"Y": 1, "YES": 1, "TRUE": 1, "N": 0, "NO": 0, "FALSE": 0})
+            v = as_number.where(as_number.notna(), as_flag)
         v = pd.to_numeric(v, errors="coerce") / scale
         if scale == 1:
             lab = col
@@ -702,7 +724,8 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     models = run_models(loans, st, [x for x in tests if "model" in x[1]])
 
     out = Path(out_path) if out_path else input_path.with_name(input_path.stem + "_survival.xlsx")
-    pngs = draw_charts(charts, st, out.parent)
+    chart_dir = tempfile.TemporaryDirectory()
+    pngs = draw_charts(charts, st, Path(chart_dir.name))
 
     import openpyxl
     versions = {"pandas": pd.__version__, "numpy": np.__version__, "openpyxl": openpyxl.__version__}
@@ -725,9 +748,10 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     sheets = {"ReadMe": pd.DataFrame(README, columns=["sheet / column", "meaning"]),
               "BadEvent": measures, "BadEventOutcomes": outcomes, "EarlyRead": er, "Tests": res,
               "Models": models if len(models) else None, "Curves": curves, "Excluded": excluded, "RunLog": pd.DataFrame(log, columns=["item", "value"])}
-    write_xlsx(out, sheets, pngs)
-    for p in pngs:
-        p.unlink(missing_ok=True)
+    try:
+        write_xlsx(out, sheets, pngs)
+    finally:
+        chart_dir.cleanup()
     return dict(out=out, as_of=as_of, rows_read=len(raw), rows_used=len(loans), rows_excluded=len(excluded),
                 bad_event=bad_desc, verdict=verdict, tests=res)
 
