@@ -1527,3 +1527,99 @@ proposal to show every setting's range at once, *"okay your idea works"*.
 - Walkthrough: 8 new reads of the panel's text (B3, B4) against the ranges
   computed in Python from scale.py; **1,522 of 1,522** in Excel 16, slicer
   check PASS. test_decide and test_book: 47 passed.
+
+## 16 October 2026, reporting changes marked on every series they touch
+
+The firm, on the commercial proposal's question 13: *"Definitely mark
+reporting changes."* Every change to the Call Report's definitions or forms
+is labelled on every series it touches, in the quarter it took effect, a
+change spread over several quarters included, the consumer book too.
+Built on `commercial-build`, from `threshold-engine-book` (draft PR #442).
+
+- **The registry**, `config/reporting-changes.json`, read and checked by
+  `reporting_changes.py`: one entry per change, every key required (first
+  and last quarter it took effect, the tool's products and measures it
+  touches, the Call Report items for commercial later, one sentence of what
+  changed, its sources with their addresses, and a link to a definition
+  note that already says it). A malformed entry is refused by name, every
+  problem at once, as the book refuses. Twelve changes, each marked verified
+  in `docs/commercial-2026-10/research-breaks.md` or `research-fdic.md` (on
+  main), and each citing its primary source, not those files. Six touch the
+  consumer products: loans classified as trading (2008Q1, all five);
+  FAS 166 and 167 (2010Q1, card and other consumer); auto split out of other
+  consumer (2011Q1, from the FDIC's own LNAUTO definition); CECL (2020Q1);
+  COVID-19 deferrals not reported as past due (2020Q2, the past-due measures,
+  not nonaccrual); and the NDFI and margin-loan revision (2024Q4 to 2025Q2,
+  other consumer, best efforts until 30 June 2025).
+- **Not duplicated:** the card securitization label before 2010 was already
+  in every card series (`books.DEFINITIONS`), and the auto split in every
+  other consumer series. Those two entries link to that note ("The note above
+  that says ... describes this change") with the source, and the registry is
+  refused if the note stops saying it.
+- **The series notes.** `peers build` takes `--reporting-changes FILE`
+  (required; the window's Peers step has the field; the book's new required
+  key `reporting_changes`, null only for a book with no Call Report series).
+  Every file it writes carries a `# reporting-change:` line for each change
+  touching its product and measure within its quarters, so Sources shows it
+  as "Reporting change". The Run tab names the file, the count and its
+  SHA-256.
+- **The table.** The book's workbook has a **Reporting changes** tab after
+  Sources, on the reference-tab template: the registry's own words on what it
+  leaves out, then one row per change (Change, Took effect, Products touched,
+  Measures touched, Call Report items, What changed, Source document). Every
+  heading, the tab and "Reporting change" have Glossary entries, with a test.
+- **The charts.** Carried as one more series of the kind each chart already
+  has, no new machinery. Decide: a diamond along the top of the rating zones
+  in each quarter a change took effect for the row shown, read from its
+  series files' notes, within the window. Peers: a diamond on the pack
+  composite, charge-offs (product and rate picked) and delinquency (product
+  and measure picked), in the legend as "Reporting change". No diamond where
+  the composite has no rate (the test data's other consumer composite is
+  blank in 2011Q1, so the auto split shows no diamond there).
+
+**Left out of the registry, and why** (also in its `_what`): the proposed
+2025 modification-reporting change (final notice not found, NOT CHECKED);
+FAS 141(R) in 2009 (an accounting change the agencies declined to add to
+the report); the 2018 FFIEC 031 scope rule (names no loan category, which
+roster banks switched was not checked); ASC 842 in 2019 (no loan item
+changed); the 2020 drawdowns and PPP (not reporting changes; question 15 is
+open). The 2013Q2 consolidated real estate breakdown is labelled on the
+commercial items only: the record names construction, multifamily, nonfarm
+and farmland, not 1-4 family.
+
+**Proof.** Each test file run on its own (a Python 3.13 environment with
+`openpyxl` and `formulas`): `test_reporting_changes.py` (new) 40 passed: the
+registry in the repository, 18 malformed entries refused by name, every
+problem listed at once, the notes on an affected and an unaffected series
+(other consumer carries the NDFI revision, card does not; 30-89 carries the
+deferrals, nonaccrual does not), a spread change touching a series that
+holds any of its quarters, the link instead of a repeat, Sources, Decide's
+marker recalculated (2020Q1 in the last 48 quarters, 2010Q1 too on every
+quarter, nothing on two rows shown or on mortgage), the book's key and tab.
+`test_peers_workbook.py` 66 passed (the Peers markers recalculated, card net
+2008Q1, 2010Q1 and 2020Q1 where the composite has a rate; card 90+ accruing
+2020Q1 and 2020Q2, nonaccrual 2020Q1 only). `test_peers_cli.py` 125 passed,
+1 skipped, 2 failed: `test_the_regionals_pack_and_no_exemption` and
+`test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out` fail the same
+on `threshold-engine-book` as it stands (checked in a clean worktree), from
+the 15 Oct pack picker, not this work. `test_peers_into.py` and
+`test_peers_dashboard.py` 39 passed (the series files byte for byte the same
+under the old and new peer workbook builders). `test_decide.py` 31 and
+`test_workbook.py` 71 passed. `test_book.py`, `test_app.py`,
+`test_launcher.py`, `test_peers_books.py` 184 passed, 4 skipped (Windows and
+window-only). `test_internal_tab.py` and `test_peer_loan_classes.py` 25
+passed; two internal-tab book tests failed before this work too (their test
+book lacked `loan_classes`), fixed with the new key.
+
+- **Got wrong, corrected:** a test first assumed the other consumer
+  composite has a rate in 2011Q1; in the test data it does not, so there is
+  no diamond to draw, and the test now says so.
+
+**Not done.** Not opened in Excel, and the walkthrough was not re-run: the
+diamonds, the tab's layout and the Sources rows are proved by the tests and
+`formulas`, not seen. The book was not built against the real FDIC cache
+(none on this machine), so no consumer series file from real data was read.
+The window's new field was not opened (no display here; the three window
+tests skip). The complete suite was not run in one go. The Peers chart notes
+do not mention the diamond: each note has one 140-character line and it is
+full; the legend and the Glossary carry it.
