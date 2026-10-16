@@ -3534,6 +3534,42 @@ changed in the code.
     skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
     test, with DISPLAY unset; every entry's old string occurs once (707).
 
+- **The VOICE pass on the other tabs, proposed (14 Oct 2026).** The firm: *"spawn an agent whose sole job is to scan for
+  rewording opportunities. Do not change key terms though we are keeping them. Key terms are things like pocket, RANR,
+  GCO, better at, worse at"*. One agent scanned every tab but the audit workbook and the Glossary (134 proposals), a
+  second checked each against the code and the firm's decisions (38 corrected, none dropped), and a third read them
+  against the firm's new canon voice (PR #439; 7 revised, none worse than what is there now). The page the firm marks:
+  https://claude.ai/artifact/H1B5AikussADwR3az7Fphq (its database holds the marks). Nothing is built until marked.
+  - **Found on the way:** the Glossary's RANR line (*"Risk-adjusted net revenue … interest, fees and interchange, less
+    rewards and charge-offs"*) and its GCO line (*"before any recoveries"*) were written by a session on 2 Oct and
+    contradict or go beyond the firm's own definition (26 Sep: *"RANR is profit after losses — interest income + fees −
+    cost of funds − losses"*). Item G on the page.
+  - **Where canon's voice and PocketBook's disagree, the firm's answers (14 Oct 2026):** a "Note:" saying what a result
+    does not mean (proposal 114 cuts *"That is not proof there is none."*): *"keep this as we have it"*, so PocketBook's
+    no-self-protective-sentences rule holds. Acronyms spelled out on first use: *"Add this"*. Both are in
+    `pocketbook/VOICE.md`.
+  - **The firm's answers on the page (14 Oct 2026):** S, American spelling: yes, everywhere, tab names included. G:
+    *"Ranr is risk adjusted net revenue. The audience knows what they mean they don't need to be spelled out like
+    'this is what we keep'"*: RANR is spelled out on first use, and key terms get their full name rather than an
+    everyday gloss, so the GCO line makes no claim about recoveries. 69 read from the same answer: the tab says only
+    that RANR is below zero, *"lost money outright"* goes. All in `pocketbook/VOICE.md`.
+  - **Proposal 3, the launcher's term lines** (asked for on 27 Sep, decision F): the firm, 14 Oct 2026, *"Drop the
+    lines"*. They are removed, not reworded. **Still open:** the marks on the rest.
+- **Docket, 14 Oct 2026 (open items only):** https://claude.ai/artifact/FDbirziK1xDwiH6cfPMRAM, answers in its database
+  (collection `decisions`). Asks: 1, build the wording pass with every unmarked proposal as Use it; 2, the bank's loan
+  count against Start here's; 3, any Excel "repaired" message; 4, accept the eleven older "for the firm to confirm"
+  notes as built. **Next (silence approves):** build the wording pass on #440 once item 1 is answered; until then,
+  reproduce or retract the Summary vintage chart's "breaks past about 42 years".
+  - **Answered the same day:** 1, *"Yes, build them all"*: every unmarked proposal is built as Use it. 2, *"Figure out
+    after we are ready to ship"*: the loan-count check waits for the next kit that goes to the bank. 3 (Excel) not
+    answered; it stays open. 4, *"Yes, they stand"*: the eleven older notes are accepted as built and come off the list.
+  - **Built (PR #440):** phase 1 (a73663ce) is the 134 rewordings plus the Glossary's GCO and RANR lines, with the launcher's
+    term lines removed. Phase 2 (2ba818d7) is American spelling, with Summary's old "Grey rows under" label still read.
+    Phase 3 (843b16d7) spells out GCO, RANR and AUC on each tab's first sentence that uses them. An independent review
+    found nothing that had to be fixed. Its two should-fix items, the launcher's "56 grids" (56 views) and the README's
+    removed term lines, plus the 0.67 option's "at most two-thirds", are fixed in 89dccd2c. Planted bugs: two added, two
+    repointed and one retired (F, whose code is gone); all caught.
+
 - **Fixed, 14 Oct 2026: Summary's vintage chart lost points past 41 origination years** (branch
   `claude/pocketbook-vintage-years`, PR #441; HANDOFF.md open item *"The Summary vintage chart breaks past about 42
   distinct origination years"*). Reproduced first on synthetic books: with a Charge-off date marked (17 Summary

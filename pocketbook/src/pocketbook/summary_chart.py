@@ -173,7 +173,11 @@ def _put(flat: list, y: int, ny: int, keys: list[str], vals: dict) -> None:
 # --------------------------------------------------------------------------
 # The workbook's part
 
-GREY_LABEL = "Grey rows under"
+GREY_LABEL = "Gray rows under"
+#: the label as a workbook written before 14 Oct 2026 carries it, in British spelling (the firm, 14 Oct 2026:
+#: American spelling, workbook names included). The number beside it is read back before a Run rewrites Summary, so
+#: an older workbook's typed number is found by either label
+GREY_LABELS = (GREY_LABEL, "Grey rows under")
 GREY_DEFAULT = 50
 GREY_AFTER = "loans"
 #: where the number sits: row 2, between the title band and the note, in the first data column (C2)
@@ -198,8 +202,8 @@ def note_words(res) -> str:
     v = getattr(res, "vintage", None)
     if v is None or v.said is not None:
         return v.said if v is not None else SAY_NO_DATE
-    return ("Under the table: one row against the rest of the book and the whole book, by the year each loan was made "
-            f"({res.config.origination_date}).")
+    return ("The chart under the table compares one row with the rest of the book and the whole book, by the year each "
+            f"loan was made ({res.config.origination_date}).")
 
 
 def grey_input(ws, left: int) -> str:
@@ -224,7 +228,7 @@ def typed_grey(wb) -> float | None:
         return None
     ws = wb[SUMMARY]
     for c in ws[GREY_ROW]:
-        if c.value == GREY_LABEL:
+        if c.value in GREY_LABELS:
             v = ws.cell(row=GREY_ROW, column=c.column + 1).value
             return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
     return None
@@ -237,7 +241,7 @@ def keep_grey(wb, v: float | None) -> None:
         return
     ws = wb[SUMMARY]
     for c in ws[GREY_ROW]:
-        if c.value == GREY_LABEL:
+        if c.value in GREY_LABELS:
             ws.cell(row=GREY_ROW, column=c.column + 1).value = v
             return
 
@@ -309,14 +313,14 @@ def write(ws, res, choices, views, *, got: dict, left: int, last: int, hid: int,
     heads = [SUMMARY_HEADS[k][0] for k in keys]
     kinds = [SUMMARY_HEADS[k][1] for k in keys]
     scales = [100 if k in PER_CENT else 1 for k in kinds]
-    words = (f"Pick a measure and one row of the column above. Its line is that row's loans; {REST_LINE} is every "
-             f"other loan; the dashed grey line is all of them. Each point is the loans made that year ({oc}): the "
-             f"same figure as the table above, on those loans only. A share is of that year's loans. × book is still "
-             f"against the whole book. Loans with no readable date are left out. A rate or a share is drawn in per "
-             f"cent.")
+    words = (f"Pick a measure and one row of the column above. That row's loans form one line, {REST_LINE} covers "
+             f"every other loan, and the dashed gray line covers all loans. Each point is the figure from the table "
+             f"above, calculated on the loans made that year ({oc}) only. A share is of that year's loans, and × book "
+             f"is still measured against the whole book. Loans with no readable date are excluded. Rates and shares "
+             f"are plotted as percentages.")
     if few is not None:
         words += (f" A point with fewer loans than the {few:,} in Fewest loans in a pocket on Control is left off its "
-                  f"line; the table under the chart shows it in grey.")
+                  f"line; the table under the chart shows it in gray.")
     ws.merge_cells(start_row=top + 1, start_column=left, end_row=top + 1, end_column=last)
     _cell(ws, top + 1, left, words, size=9, color=house.SLATE, h="left", wrap=True)
     ws.row_dimensions[top + 1].height = 14 * 3 + 3
