@@ -29,8 +29,17 @@ own folder, so a book and its files can be copied to another machine whole.
                            "measures": {internal measure: the book's measure it is},
                            "call_report_source": the source holding the bank's Call Report series},
       "loan_classes": null or {"file": the loan classes file (config/peer-loan-classes.json),
-                               "cache": the folder 'peers classes-pull' fetched the filings into}
+                               "cache": the folder 'peers classes-pull' fetched the filings into},
+      "reporting_changes": null or the registry of Call Report changes (config/reporting-changes.json)
     }
+
+``reporting_changes`` (the firm, 16 Oct 2026: "Definitely mark reporting
+changes."): the registry is checked as ``reporting_changes.load`` checks it,
+given to the peers build (every series file it writes notes each change
+touching it, and the Peers charts mark the quarters), and written out whole
+on the Reporting changes tab. Decide's chart marks the quarters a series'
+own notes name. Null states the book's series are not Call Report series; a
+book with a peers section reads the Call Report and must name it.
 
 With an internal section, run on site only: the file is checked as the
 ``internal check`` command checks it; each product's composite (and, when
@@ -61,13 +70,14 @@ from .series import LABEL_RULE, label_ok
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
 TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
-            "loan_classes")
+            "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
 LOAN_CLASSES_KEYS = ("file", "cache")
 LINES_FROM_KEYS = ("part", "start")
 #: The internal section: the file (docs/INTERNAL-IMPORT.md) and the judgments made about it.
 INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
-#: 'peers build' settings, by the keyword ``peers.run.build`` takes; paths among them.
+#: 'peers build' settings, by the keyword ``peers.run.build`` takes; paths among them. The one
+#: it takes that is not here, reporting_changes, is the book's own key, given to it.
 PEERS_KEYS = ("cache", "roster", "series_dir", "first", "last", "products", "mergers", "absorptions",
               "extra_acquisitions", "industry_combined", "jump", "acquisition_share", "min_book", "exempt_self",
               "pro_forma", "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
@@ -285,13 +295,29 @@ def load(path) -> dict:
             if not loan_classes["file"].exists():
                 problems.append("loan_classes: the file %s does not exist" % loan_classes["file"])
     lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
+    reporting = raw["reporting_changes"]
+    changes = None
+    if reporting is None:
+        if peers is not None:
+            problems.append("reporting_changes: the peers build reads the Call Report, so name the registry of its "
+                            "changes (config/reporting-changes.json); null is for a book with no Call Report series")
+    elif not isinstance(reporting, str) or not reporting.strip():
+        problems.append("reporting_changes must be null or the registry's file, not %r" % (reporting,))
+        reporting = None
+    else:
+        from . import reporting_changes as RC
+        reporting = resolve(reporting)
+        try:
+            changes = RC.load(reporting)
+        except RC.RegistryError as e:
+            problems.extend("reporting_changes: %s" % p for p in str(e).splitlines())
     if problems:
         raise BookError("\n".join(problems))
     wbk = dict(raw["workbook"])
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
     return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
-            "loan_classes": loan_classes,
+            "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from}}
 
@@ -436,7 +462,8 @@ def build(book_path, out, say=print) -> dict:
     peer_tabs = peer_info = None
     if bk["peers"] is not None:
         from .peers import run as peers_run
-        peer_info = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say, **bk["peers"])["info"]
+        peer_info = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say,
+                                    reporting_changes=bk["reporting_changes"], **bk["peers"])["info"]
         peer_tabs = peer_info["sheets"]
         missing = [(lbl, p) for lbl, p in bk["series"] if not p.exists()]
         if missing:
@@ -448,7 +475,7 @@ def build(book_path, out, say=print) -> dict:
             wb.remove(blank)
         order = ["Decide", "Summary", "Peers", "Peer loan classes", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
                  "Backtest",
-                 "Glossary", "Sources", "Run", "Data", "Peers data", "Peers delinquency data", "Internal data",
+                 "Glossary", "Sources", "Reporting changes", "Run", "Data", "Peers data", "Peers delinquency data", "Internal data",
                  "SynthesisData", "Assess", "Chart", "Peers workings"]
         known = [wb[t] for t in order if t in wb.sheetnames]
         wb._sheets = known + [ws for ws in wb._sheets if ws not in known]
@@ -488,6 +515,12 @@ def build(book_path, out, say=print) -> dict:
         ws.sheet_properties.tabColor = "0A0908"
         LC.write(ws, spec, bk["loan_classes"]["cache"])
         say("loan classes: %d banks, from their %s filings" % (len(spec["banks"]), spec["quarter"]))
+
+    if bk["changes"] is not None:
+        from . import reporting_changes as RC
+        ws = host.create_sheet(RC.TAB)
+        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name)
+        say("reporting changes: %d, from %s" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
 
     info = WB.build(out, series, decide=decide, into=host, before_save=tidy, **bk["workbook"])
     if peer_tabs:

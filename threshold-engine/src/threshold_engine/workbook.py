@@ -42,6 +42,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from . import assess_tab as AT
 from . import keybank_style as K
 from . import decide_tab as DT
+from . import reporting_changes as RC
 from . import summary_tab as SU
 from . import synthesis_tab as ST
 from .backtest import backtest
@@ -1022,7 +1023,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         settings = {lbl: (moderate_halfwidth, low_step, high_z, on_the_line) for lbl in labels}
         dec = DT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], settings=settings,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
-                       lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero)
+                       lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero,
+                       changes={s["label"]: RC.quarters_in_notes(read_notes(s["path"])) for s in loaded},
+                       quarters=grid)
         # Decide is where the bank types and looks, so Assess (whose cells
         # Decide feeds) and Chart (every series on one scale, 95 switches)
         # are kept for their workings but hidden (the firm, 14 Oct 2026: "doesnt

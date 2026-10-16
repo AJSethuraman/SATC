@@ -41,6 +41,7 @@ changes in the workbook; every measure and basis is built and written.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import math
 import os
@@ -51,6 +52,7 @@ from typing import Callable, Dict, List, Optional, Sequence
 from . import books, fdic, peers_workbook
 from . import delinquency as D
 from . import roster as R
+from .. import reporting_changes as RC
 
 #: The workbook's pickers start here; every measure and basis is built.
 START_MEASURE = next(iter(D.MEASURES))
@@ -382,7 +384,7 @@ def left_out_note(left_out, tail, names):
 def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_book, exempt_self,
                         min_banks, source, every, out_dir, acquired, acquisition_share):
     """Per product, measure and basis, the pack composite, the bank itself and
-    the industry, as ``(path, rows, note, product, left_out)``: the delinquency
+    the industry, as ``(path, rows, note, product, measure, left_out)``: the delinquency
     CSVs. ``left_out`` is ``{YYYYQn: [cert]}`` for a pack composite's
     four-quarter average and None for every other file.
 
@@ -445,7 +447,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                                  for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
-                                 D.values(rows, basis), note, p, left_out))
+                                 D.values(rows, basis), note, p, m, left_out))
     return made
 
 
@@ -532,7 +534,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
           pack: str, min_banks: int, rank_by: str,
           last_n: int, min_obs: int, base_quarter: str, index_min_book: float,
           lagged_years: Sequence[int], lag_years: int, normalisation_years: Sequence[int],
-          mix_base_year: int, delinquency: bool, say: Callable[[str], None] = print,
+          mix_base_year: int, delinquency: bool, reporting_changes, say: Callable[[str], None] = print,
           into=None, names: Optional[Dict[str, str]] = None) -> dict:
     """Read the cache, write the peer workbook and the series CSVs.
 
@@ -555,6 +557,14 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     the cache was pulled without them), draws the delinquency view, and writes
     per product, measure and basis the pack composite, the bank and the
     industry; False draws tabs that say it was not built and writes none.
+
+    ``reporting_changes`` is the registry of Call Report changes
+    (``config/reporting-changes.json``, ``reporting_changes.py``): every
+    series file carries a ``reporting-change`` note for each change that
+    touches its product and measure within its quarters (the firm, 16 Oct
+    2026: "Definitely mark reporting changes."), and the Peers charts mark the
+    quarters each took effect. A registry that is not there or not well formed
+    is refused, by entry, before anything is read.
 
     Every stated setting is checked before anything is read or written, and
     two series that would land in the same file are refused then too. The
@@ -582,6 +592,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     quarters: not written)."""
     s = dict(locals())
     products = _check_build(s)
+    if reporting_changes is None or isinstance(reporting_changes, bool):
+        raise ValueError("--reporting-changes must name the registry of Call Report changes "
+                         "(config/reporting-changes.json), not %r" % (reporting_changes,))
+    try:
+        changes = RC.load(reporting_changes)
+    except RC.RegistryError as e:
+        raise ValueError("--reporting-changes: %s" % e) from None
     if into is None:
         _check_out(out, roster=roster, mergers=mergers, absorptions=absorptions)
     elif out is not None:
@@ -690,6 +707,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
                     words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
             note += [books.DEFINITIONS[n] for n in words_p.split(" plus ") if n in books.DEFINITIONS]
+            if tail:
+                note += RC.note_lines(changes, words_p.split(" plus "), RC.charge_off_measure(kind),
+                                      tail[0][0], tail[-1][0], note)
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
                            series_note(note, tail, before, after), before, after, None))
     # Each peer's own book, for the synthesis's peer percentiles: banks/ keeps
@@ -702,17 +722,21 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                 note = ["%s, %s charge-off rate, trailing four quarters, %%." % (p, kind),
                         "%s (certificate %s), its own book, a peer." % (b["short"], b["cert"]),
                         source, rule, repeat_note] + ([books.DEFINITIONS[p]] if p in books.DEFINITIONS else [])
+                if tail:
+                    note += RC.note_lines(changes, [p], RC.charge_off_measure(kind), tail[0][0], tail[-1][0], note)
                 series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
                                series_note(note, tail, before, after), before, after, ("banks", p)))
     dq_spec = None
     if delinquency:
         labels = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
-        for path, rows, note, p, left_out in _delinquency_series(
+        for path, rows, note, p, m, left_out in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
                 min_banks, source, every, out_dir, acquired, acquisition_share):
             tail, before, after = unbroken_tail(rows)
             if left_out is not None and tail:
                 note = note + [left_out_note(left_out, tail, labels)]
+            if tail:
+                note = note + RC.note_lines(changes, [p], m, tail[0][0], tail[-1][0], note)
             series.append((path, tail, series_note(note, tail, before, after), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
                        exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
@@ -736,10 +760,12 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             lagged_years=lagged_years, lag_years=lag_years,
             normalisation_years=normalisation_years, mix_base_year=mix_base_year,
             industry=ind, delinquency=dq_spec, acquired=acquired_co, cache_dir=cache, mergers_file=mergers,
-            combined=members,
+            combined=members, changes=changes,
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
-                        dt.date.today().isoformat())] + pro_forma_lines(pro_forma, combo, names_),
+                        dt.date.today().isoformat())] + pro_forma_lines(pro_forma, combo, names_)
+            + ["Reporting changes: %s, %d changes, SHA-256 %s; each series file notes those touching it"
+               % (reporting_changes, len(changes), hashlib.sha256(Path(reporting_changes).read_bytes()).hexdigest())],
             into=into, names=names)
         moves = [(part_out, out)] if out is not None else []
         for path, tail, lines, _, _, _ in series:

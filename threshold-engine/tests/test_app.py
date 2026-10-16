@@ -36,9 +36,12 @@ def test_prepare_writes_the_book_with_the_folders_own_paths(tmp_path):
     assert raw["peers"]["absorptions"] == str(cache / "absorptions.json")
     assert raw["peers"]["roster"] == "peers.json" and raw["internal"] is None
     assert raw["loan_classes"] == {"file": "peer-loan-classes.json", "cache": str(tmp_path / "SEC filings")}
+    assert raw["reporting_changes"] == "reporting-changes.json"
+    assert (tmp_path / "Book" / "reporting-changes.json").read_bytes() == \
+        (ROOT / "config" / "reporting-changes.json").read_bytes()
     # Every other setting is the book's own, unchanged.
     for k in shipped:
-        if k not in ("peers", "internal", "loan_classes"):
+        if k not in ("peers", "internal", "loan_classes", "reporting_changes"):
             assert raw[k] == shipped[k], k
     for k in shipped["peers"]:
         if k not in ("cache", "mergers", "absorptions", "roster", "last"):

@@ -20,6 +20,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.utils import column_index_from_string, get_column_letter
 
 from conftest import DATA, as_earlier_build, ROOT
+from threshold_engine import reporting_changes as RC
 from threshold_engine.peers import roster as R
 from threshold_engine.peers import delinquency as D
 from threshold_engine.peers import peers_workbook as PW
@@ -32,6 +33,7 @@ from threshold_engine.profile import percentile
 formulas = pytest.importorskip("formulas", reason="the formulas engine recalculates the workbook")
 
 PEERS = DATA / "peers"
+CHANGES = RC.load(ROOT / "config" / "reporting-changes.json")
 FOUR = ("Credit card", "Mortgage", "Home equity", "Other consumer")
 TWO = ("Credit card", "Mortgage")
 KEYBANK, JPMORGAN, FIFTH_THIRD = "17534", "628", "6672"
@@ -93,7 +95,7 @@ def MERGERS():
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              delinquency=None, acquired=NONE_ACQUIRED, combined={}, **RANK)
+              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -625,7 +627,10 @@ def test_one_dashboard_a_hidden_workings_and_charts_over_named_ranges(all_peers)
     assert "<upDownBars>" not in groups[2]
     sers = re.findall(r"<ser>.*?</ser>", groups[2])
     lines = [re.search(r"<val><numRef><f>Peers!([a-z_0-9]+)</f>", s_).group(1) for s_ in sers]
-    assert lines == ["co_c", "co_ind", "co_a", "co_b", "co_k", "co_mark"]
+    # Then the reporting change marker (16 Oct 2026): a 7 pt INK diamond, no line, kept in the legend.
+    assert lines == ["co_c", "co_ind", "co_a", "co_b", "co_k", "co_mark", "co_chg"]
+    assert '<symbol val="diamond" /><size val="7" />' in sers[6] and "<a:ln><a:noFill" in sers[6]
+    assert "Workings!$%s$1" % info["charge_offs"]["helpers"]["chg"] in sers[6]
     style = {n: (re.search(r'<a:ln w="(\d+)"', s_), re.search(r'<a:srgbClr val="([0-9A-F]{6})"', s_),
                  re.search(r'<a:prstDash val="(\w+)"', s_)) for n, s_ in zip(lines, sers)}
     got = {n: (int(w.group(1)) if w else None, c.group(1) if c else None, d.group(1) if d else None)
@@ -993,7 +998,7 @@ def test_the_delinquency_chart_and_pickers(dlq):
     groups = re.findall(r"<lineChart>.*?</lineChart>", xml)
     assert len(groups) == 3 and all("<upDownBars>" in g for g in groups[:2])
     assert re.findall(r"<val><numRef><f>Peers!(dl_[a-z0-9]+)</f>", groups[2]) == ["dl_c", "dl_a", "dl_bb", "dl_k",
-                                                                                  "dl_mark"]
+                                                                                  "dl_mark", "dl_chg"]
     ws = load_workbook(p)["Peers"]
     lists = {str(r) for dv in ws.data_validations.dataValidation if dv.type == "list" for r in dv.sqref.ranges}
     assert {DQ_MEASURE, DQ_BASIS, PRODUCT} <= lists
@@ -1090,3 +1095,70 @@ def test_delinquency_refuses_a_field_that_was_not_pulled(tmp_path, recent, roste
     with pytest.raises(ValueError, match="None .not built. or a dict"):
         make(tmp_path / "x.xlsx", recent, roster, "all", products=("Credit card",), delinquency=[dl_data])
     assert not (tmp_path / "x.xlsx").exists()
+
+
+# --- reporting changes on the charts (the firm, 16 Oct 2026: "Definitely mark reporting changes.") ----------
+
+def test_the_charge_off_chart_marks_each_quarter_a_reporting_change_took_effect(all_peers, regionals_gross):
+    """Card, net (as built): a diamond on the pack composite in 2008Q1, 2010Q1
+    and 2020Q1 (the changes touching card net charge-offs in the registry,
+    config/reporting-changes.json), #N/A in every other quarter, and none
+    where the composite has no rate. Other consumer, gross (typed): the
+    2011Q1 auto split and the three quarters of the 2024Q4 to 2025Q2
+    revision as well. Each flag column is the registry's, per product and rate."""
+    _, info, vals = all_peers
+    grid = info["charge_offs"]["quarters"]
+
+    def marked(vs):
+        comp, chg = wcol(vs, info, "charge_offs", "c"), wcol(vs, info, "charge_offs", "chg")
+        for q, c_, m_ in zip(grid, comp, chg):
+            assert num(m_) is None or num(m_) == num(c_), q
+        return [q for q, m_ in zip(grid, chg) if num(m_) is not None]
+
+    def want(product, measure):
+        took = PW.change_quarters(CHANGES, product, measure)
+        comp = wcol(vals_, info, "charge_offs", "c")
+        return [q for q, c_ in zip(grid, comp) if q in took and num(c_) is not None]
+
+    vals_ = vals
+    assert PW.change_quarters(CHANGES, "Credit card", "net charge-offs") == {"2008Q1", "2010Q1", "2020Q1"}
+    assert marked(vals) == want("Credit card", "net charge-offs") and "2020Q1" in marked(vals)
+    vals_ = regionals_gross
+    oc = want("Other consumer", "gross charge-offs")
+    assert {"2024Q4", "2025Q1", "2025Q2", "2010Q1"} <= set(oc)   # FAS 166 and 167 touch other consumer too
+    assert marked(regionals_gross) == oc
+    # The 2011Q1 auto split touches other consumer, but this pack has no
+    # composite rate that quarter, so there is nothing to put a diamond on.
+    assert "2011Q1" in PW.change_quarters(CHANGES, "Other consumer", "gross charge-offs") and "2011Q1" not in oc
+    assert num(wcol(regionals_gross, info, "charge_offs", "c")[grid.index("2011Q1")]) is None
+
+
+def test_the_delinquency_chart_marks_the_measure_picked(dlq, tmp_path):
+    """Card, 90+ accruing (as built): 2020Q1 (CECL) and 2020Q2 (COVID-19
+    deferrals not reported as past due); nonaccrual (typed): 2020Q1 only,
+    since the deferral relief is about past due, not nonaccrual."""
+    p, info, vals = dlq
+    grid = info["delinquency"]["quarters"]
+
+    def marked(vs):
+        comp, chg = wcol(vs, info, "delinquency", "c"), wcol(vs, info, "delinquency", "chg")
+        for q, c_, m_ in zip(grid, comp, chg):
+            assert num(m_) is None or num(m_) == num(c_), q
+        return [q for q, m_ in zip(grid, chg) if num(m_) is not None]
+
+    assert marked(vals) == ["2020Q1", "2020Q2"]
+    assert marked(typed(p, tmp_path / "na.xlsx", {DQ_MEASURE: "nonaccrual"})) == ["2020Q1"]
+
+
+def test_no_reporting_changes_stated_marks_nothing(tmp_path, recent, roster):
+    """changes=[] states there are none: the marker column is #N/A throughout."""
+    p = tmp_path / "none.xlsx"
+    info = make(p, recent, roster, "all", products=("Credit card",), changes=[])
+    vals = recalc(p)
+    assert all(num(v) is None for v in wcol(vals, info, "charge_offs", "chg"))
+    with pytest.raises(TypeError, match="changes"):
+        kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
+                  lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
+                  delinquency=None, acquired=NONE_ACQUIRED, combined={}, **RANK)
+        build_peers_workbook(tmp_path / "x.xlsx", recent, roster, ("Credit card",), JUMP, MIN_BOOK, "all",
+                             MERGERS(), EXTRAS, "2019Q4", **kw)

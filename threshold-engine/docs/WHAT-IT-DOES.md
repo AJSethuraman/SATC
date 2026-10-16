@@ -254,6 +254,24 @@ quarter, and DelinquencyData marks them in its last column. The Glossary's
 **Left out, and why** rows list every reason a number is kept out, one row
 each, and where each is recorded.
 
+## Reporting changes (`reporting_changes.py`, `config/reporting-changes.json`)
+
+The firm, 16 Oct 2026: *"Definitely mark reporting changes."* Every change
+to the Call Report's definitions or forms is labelled on every series it
+touches, in the quarter it took effect.
+
+| Part | What it does |
+|---|---|
+| The registry | One entry per change: first and last quarter it took effect (2024Q4 to 2025Q2 for the NDFI and margin-loan revision, reported on a best-efforts basis), the products and measures it touches, the Call Report items (for commercial later), one sentence of what changed, and its sources with their addresses. Twelve changes, each marked verified in `docs/commercial-2026-10/` (on main). Every key required; a malformed entry is refused by name, every problem at once |
+| `peers build --reporting-changes FILE` | Required. Every series file gets a `# reporting-change:` note for each change touching its product and measure within its quarters, so the Sources tab shows it. A change the product's own definition note already says (securitized cards before 2010, auto inside other consumer until 2011) points to that note instead of saying it twice. The Peers charts (charge-offs, delinquency) draw a diamond on the pack composite in each quarter one took effect for the product and measure picked |
+| The book's `reporting_changes` key | Required: the registry, or null for a book with no Call Report series (refused with a peers section). Given to the peers build, and written whole on the **Reporting changes** tab (after Sources), each heading in the Glossary. Decide's chart draws a diamond along the top of the zones in each quarter a change took effect for the row shown, read from its series files' notes |
+
+**What proves it:** `tests/test_reporting_changes.py` (the registry and each
+refusal, the notes on affected and unaffected series, Sources, Decide's marker
+recalculated with `formulas`, the tab); `tests/test_peers_cli.py` (the notes
+on the files `peers build` writes); `tests/test_peers_workbook.py` (the Peers
+markers recalculated). Not opened in Excel.
+
 ## Templates for internal data (`templates.py`, command `template`)
 
 Internal measures are run on site; nothing internal comes back. Seven

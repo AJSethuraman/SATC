@@ -29,6 +29,7 @@ PEERS = DATA / "peers"
 ROSTER = ROOT / "config" / "peers.json"
 MERGERS = PEERS / "mergers_roster.json"
 ABSORPTIONS = PEERS / "absorptions_none.json"
+CHANGES = ROOT / "config" / "reporting-changes.json"
 
 
 @pytest.fixture(autouse=True)
@@ -64,7 +65,8 @@ def peers_filled(tmp_path, **over) -> PeerForm:
     vals = dict(cache=str(tmp_path / "cache"), roster=str(ROSTER), first="2006Q1", last="2026Q2",
                 products=["Credit card"], delinquency="no", mergers_pull="no", mergers_since="", refresh="no",
                 out=str(tmp_path / "peers.xlsx"), series_dir=str(tmp_path / "series"),
-                mergers_file=str(MERGERS), absorptions_file=str(ABSORPTIONS), extra_acquisitions="6672=2022Q2", industry_combined="none",
+                mergers_file=str(MERGERS), absorptions_file=str(ABSORPTIONS), reporting_changes=str(CHANGES),
+                extra_acquisitions="6672=2022Q2", industry_combined="none",
                 jump="0.25", acquisition_share="0.05", min_book="1000000", exempt_self="yes", pro_forma="no", pack="all", min_banks="5", rank_by="net",
                 last_n="20", min_obs="12", base_quarter="2019Q4", index_min_book="500000",
                 lagged_years="2019 2025", lag_years="2", normalisation_years="2019 2025", mix_base_year="2019")
@@ -333,7 +335,7 @@ def test_the_rail_counts_what_each_step_still_wants_peers_included(tmp_path):
     s = launcher.steps(Form(), PeerForm())
     assert [x.name for x in s] == ["Series", "Measure", "Settings", "Build", "Peers"]
     assert [x.mark for x in s] == ["todo"] * 5
-    assert [x.sub for x in s] == ["1 to fill in", "5 to fill in", "7 to fill in", "1 to fill in", "30 to fill in"]
+    assert [x.sub for x in s] == ["1 to fill in", "5 to fill in", "7 to fill in", "1 to fill in", "31 to fill in"]
     s = launcher.steps(filled(tmp_path), peers_filled(tmp_path))
     assert [x.mark for x in s] == ["done"] * 5 and s[4].sub == "Complete"
     s = launcher.steps(filled(tmp_path), peers_filled(tmp_path, jump=""))
@@ -453,10 +455,11 @@ def test_every_peer_field_starts_empty():
 def test_an_empty_peer_form_names_every_field_and_pull_and_build_are_refused():
     f = PeerForm()
     pull, build = launcher.peer_problems(f, "pull"), launcher.peer_problems(f, "build")
-    assert len(pull) == 7 and len(build) == 28 and len(launcher.peer_problems(f, "both")) == 30
+    assert len(pull) == 7 and len(build) == 29 and len(launcher.peer_problems(f, "both")) == 31
     said = "\n".join(build)
     for flag in ("--cache", "--roster", "--first", "--last", "--products", "--delinquency", "--series-dir",
-                 "--mergers", "--absorptions", "--extra-acquisitions", "--industry-combined", "--jump",
+                 "--mergers", "--absorptions", "--reporting-changes", "--extra-acquisitions", "--industry-combined",
+                 "--jump",
                  "--acquisition-share", "--min-book",
                  "--exempt-self", "--pro-forma", "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs",
                  "--base-quarter", "--index-min-book", "--lagged-years", "--lag-years",
@@ -485,7 +488,7 @@ def test_a_complete_peer_form_becomes_runs_arguments_exactly(tmp_path):
         exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
         base_quarter="2019Q4",
         index_min_book=500000.0, lagged_years=[2019, 2025], lag_years=2, normalisation_years=[2019, 2025],
-        mix_base_year=2019, delinquency=False)
+        mix_base_year=2019, delinquency=False, reporting_changes=CHANGES)
 
 
 def test_the_arguments_are_exactly_what_run_takes_so_the_window_cannot_drift(tmp_path):
@@ -938,7 +941,8 @@ def test_the_window_presses_through_the_peers_step_with_a_fake_pull(tmp_path, op
         assert w["peer_status"].cget("text") == "Pull finished."
         assert "82 fetched" in w["peer_result"].cget("text")
 
-        for k in ("roster", "out", "series_dir", "mergers_file", "absorptions_file", "extra_acquisitions",
+        for k in ("roster", "out", "series_dir", "mergers_file", "absorptions_file", "reporting_changes",
+                  "extra_acquisitions",
                   "industry_combined", "jump", "acquisition_share", "min_book", "min_banks", "last_n", "min_obs", "base_quarter", "index_min_book",
                   "lagged_years", "lag_years", "normalisation_years", "mix_base_year"):
             w["peer_var_" + k].set(getattr(f, k))
@@ -977,7 +981,8 @@ def test_the_peers_window_is_never_left_jammed_and_its_status_line_moves(tmp_pat
         w = launcher.window(root)
         w["show"]("Peers")
         f = peers_filled(tmp_path)
-        for k in ("cache", "first", "last", "roster", "out", "series_dir", "mergers_file", "absorptions_file", "extra_acquisitions", "acquisition_share",
+        for k in ("cache", "first", "last", "roster", "out", "series_dir", "mergers_file", "absorptions_file",
+                  "reporting_changes", "extra_acquisitions", "acquisition_share",
                   "industry_combined", "jump", "min_book", "min_banks", "last_n", "min_obs", "base_quarter",
                   "index_min_book", "lagged_years", "lag_years", "normalisation_years", "mix_base_year",
                   "delinquency", "mergers_pull", "refresh", "exempt_self", "pro_forma", "pack", "rank_by"):

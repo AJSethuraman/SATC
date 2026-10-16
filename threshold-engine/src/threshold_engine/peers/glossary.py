@@ -321,4 +321,13 @@ PEER_TERMS = [
      "The count of included peers with a rate on the basis picked. On the four-quarter average a bank needs "
      "four consecutive quarter-ends kept and no jump, so this can be fewer than the composite's count; the "
      "band is blank while it is under what the Peers tab asks for."),
+    ("Reporting change (on the charts)",
+     "A change to the Call Report's definitions or forms, such as the move of margin loans out of other consumer "
+     "from December 2024. A diamond on the pack composite marks each quarter one took effect for the product and "
+     "measure shown.",
+     "From the registry of reporting changes the build is given (config/reporting-changes.json): a quarter is "
+     "marked when a change touching the product, on the charge-off rate or delinquency measure picked, took "
+     "effect in it; a change reported over several quarters marks each of them. No diamond where the composite "
+     "has no rate. Every series file the build writes names the changes touching it in its notes, with the "
+     "source."),
 ]

@@ -448,7 +448,8 @@ def write_book(folder, ser, internal):
     book = {"workbook": {k: (list(x) if isinstance(x, tuple) else x) for k, x in SETTINGS.items()},
             "parts": NAMES, "lines_from": {"part": NAMES[2], "start": None},
             "series": [dict(zip(NAMES, lbl.split(" - ")), file=str(p)) for lbl, p in ser],
-            "not_in_book": [], "compare": None, "notes": [], "peers": None, "internal": internal}
+            "not_in_book": [], "compare": None, "notes": [], "peers": None, "internal": internal,
+            "loan_classes": None, "reporting_changes": None}
     p = folder / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")
     return p

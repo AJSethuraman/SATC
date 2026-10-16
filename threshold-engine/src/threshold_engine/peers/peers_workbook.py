@@ -108,6 +108,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from .. import VERSION
 from .. import keybank_style as K
+from .. import reporting_changes as RC
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
@@ -657,10 +658,12 @@ class _Chart:
             setattr(lc.upDownBars, which, ChartLines(spPr=gp))
         self.groups.append(lc)
 
-    def lines(self, specs, last=None):
+    def lines(self, specs, last=None, marks=None):
         """``specs``: (f, label, colour, width in points, dash or None). ``last``:
         (f, colour), a series holding only the last point drawn, shown as a
-        6 pt circle and left out of the legend."""
+        6 pt circle and left out of the legend. ``marks``: (f, label), a
+        series holding a value only in the quarters a reporting change took
+        effect, drawn as a 7 pt INK diamond with no line, and in the legend."""
         lc = LineChart()
         for f, lbl, colour, width, dash in specs:
             s_ = self._series(f, lbl)
@@ -677,6 +680,14 @@ class _Chart:
             s_.marker.graphicalProperties = GraphicalProperties(solidFill=colour)
             s_.marker.graphicalProperties.line.solidFill = colour
             self.hide.append(s_.idx)
+            lc.series.append(s_)
+        if marks is not None:
+            f, lbl = marks
+            s_ = self._series(f, lbl)
+            s_.graphicalProperties.line.noFill = True
+            s_.marker = Marker(symbol="diamond", size=7)
+            s_.marker.graphicalProperties = GraphicalProperties(solidFill=K.INK)
+            s_.marker.graphicalProperties.line.solidFill = K.INK
             lc.series.append(s_)
         self.groups.append(lc)
 
@@ -862,7 +873,14 @@ def _delinquency_data(dd, dq: dict, roster: List[dict], in_pack_now: dict) -> in
     return n
 
 
-def _delinquency_block(wk, dq: dict, roster: List[dict], me: dict, peers: List[dict], start: int, x: dict):
+def change_quarters(changes: Sequence[dict], product: str, measure: str) -> set:
+    """The quarters a reporting change touching ``product`` on ``measure`` took effect."""
+    return {q for c in changes if product in c["products"] and measure in c["measures"]
+            for q in RC.quarters(c["first"], c["last"])}
+
+
+def _delinquency_block(wk, dq: dict, roster: List[dict], me: dict, peers: List[dict], start: int, x: dict,
+                       changes: Sequence[dict]):
     """The delinquency view's live helpers on Workings, one row per quarter-end
     from row 2, driven by the Peers tab's product, delinquency measure and
     basis, Yes/No cells, Peer A and B and banks needed (``x`` holds those
@@ -881,7 +899,9 @@ def _delinquency_block(wk, dq: dict, roster: List[dict], me: dict, peers: List[d
       each has the banks needed (``composite_delinquency``);
     - the band: PERCENTILE of the values of the peers switched on, #N/A below
       the banks needed (``band_delinquency``);
-    - KeyBank, Peer A and Peer B: their values on the basis."""
+    - KeyBank, Peer A and Peer B: their values on the basis;
+    - the quarters a reporting change touching each product and measure took
+      effect (values), and the marker drawn on the composite for those picked."""
     products, grid = dq["products"], dq["grid"]
     NB, NP, DQ, NM = len(roster), len(peers), len(grid), len(D.MEASURES)
     bidx = {b["cert"]: i for i, b in enumerate(roster)}
@@ -918,6 +938,10 @@ def _delinquency_block(wk, dq: dict, roster: List[dict], me: dict, peers: List[d
     bl.add("drawn", heads=["Row drawn"])
     bl.add("ub", NB, ["%s balance ($bn)" % b["short"] for b in roster])
     bl.add("mark", heads=["%s, last point drawn" % me["short"]])
+    bl.add("chgf", len(products) * NM, ["Reporting change took effect, %s, %s" % (m, p) for p in products
+                                        for m in D.MEASURES])
+    bl.add("chg", heads=["Reporting change"])
+    took = [change_quarters(changes, p, m) for p in products for m in D.MEASURES]
     mb = x["mb"]
     follows = D._consecutive(grid)
     me_i = bidx[me["cert"]]
@@ -968,6 +992,10 @@ def _delinquency_block(wk, dq: dict, roster: List[dict], me: dict, peers: List[d
             wk.cell(r, bl.col[name], "=IFERROR(INDEX({row},{n}),NA())".format(row=bl.across("uv", r), n=num))
         wk.cell(r, bl.col["drawn"], '=IF(OR(%s),%d,"")' % (",".join(
             "ISNUMBER(%s)" % bl.at(n_, r) for n_ in ("c", "k", "a", "bb", "p10")), r))
+        for j, qs in enumerate(took):
+            wk.cell(r, bl.col["chgf"] + j, 1 if q in qs else None)
+        wk.cell(r, bl.col["chg"], "=IF({p}>0,IF(CHOOSE({s},{f})=1,{c},NA()),NA())".format(
+            p=prod, s=sel, f=",".join(bl.at("chgf", r, j) for j in range(len(took))), c=bl.at("c", r)))
     return bl
 
 
@@ -1001,6 +1029,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          delinquency: Optional[dict],
                          acquired: Dict[str, Dict[str, Sequence[str]]],
                          combined: Dict[str, Sequence[Tuple[str, str]]],
+                         changes: Sequence[dict],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
                          product: Optional[str] = None,
@@ -1020,6 +1049,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     - ``combined``: ``{cert: [(absorbed, until)]}``, pro forma
       (``books.combination``): the banks whose charge-offs and balances are
       added to each bank's own. ``{}`` states none: every bank as filed;
+    - ``changes``: the reporting changes (``reporting_changes.load``); the
+      charge-off and delinquency charts mark, on the pack composite, each
+      quarter a change touching the product and measure shown took effect.
+      ``[]`` states none;
     - ``pack``: 'all' or 'regionals', the peers whose Yes/No starts Yes;
     - ``min_banks``: how many kept banks a composite or band needs (a live
       cell on Peers, starting here);
@@ -1400,6 +1433,11 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     NPROD = len(products)
     mix_idx = ["%s" % S["mix_pick"]] + ["(%d+(%d>=%s))" % (j, j, S["mix_pick"]) for j in range(1, NPROD)]
     co.add("mix", NPROD, ["=INDEX(%s,%s)" % (lists["co_products"], x_) for x_ in mix_idx])
+    # The quarters a reporting change took effect, per product and rate
+    # (values), and the marker drawn on the pack composite for those picked.
+    co.add("chgf", 2 * len(products), ["Reporting change took effect, %s, %s" % (kind, p_)
+                                       for p_ in products for kind in ("net", "gross")])
+    co.add("chg", heads=["Reporting change"])
     for k, q in enumerate(grid):
         r = 2 + k
         wk.cell(r, co.col["q"], q)
@@ -1457,6 +1495,13 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             wk.cell(r, co.col[name], "=IF(AND(ISNUMBER({x}),ISNUMBER({c})),IF({c}<>0,{x}/{c},NA()),NA())"
                     .format(x=x_, c=c_))
         wk.cell(r, co.col["one"], 1)
+        for pi, p_ in enumerate(products):
+            for j, kind in enumerate(("net", "gross")):
+                took = change_quarters(changes, p_, RC.charge_off_measure(kind))
+                wk.cell(r, co.col["chgf"] + 2 * pi + j, 1 if q in took else None)
+        flag = lambda j: ",".join(co.at("chgf", r, 2 * pi + j) for pi in range(len(products)))  # noqa: E731
+        wk.cell(r, co.col["chg"], "=IF({p}>0,IF(IF({n},CHOOSE({p},{fn}),CHOOSE({p},{fg}))=1,{c},NA()),NA())".format(
+            p=co_p, n=net, fn=flag(0), fg=flag(1), c=co.at("c", r)))
     LR = Q + 1                                   # the latest quarter's row
 
     # The ranking block, now the window columns are placed.
@@ -1611,7 +1656,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     if dq:
         dl = _delinquency_block(wk, dq, roster, me, peers, pb.next + 1, dict(
             DD=DD, dq_sel=S["dq_sel"], dq_p=S["dq_p"], dq_b=S["dq_b"], inc=INC, a_name=S["a_name"],
-            b_name=S["b_name"], a_no=S["a_no"], b_no=S["b_no"], mb=mb))
+            b_name=S["b_name"], a_no=S["a_no"], b_no=S["b_no"], mb=mb), changes)
         DLR = len(dq["grid"]) + 1
         d_rows = _delinquency_data(dd, dq, roster, in_pack_now)
     else:
@@ -1853,7 +1898,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
               (named("co", co, "a"), label_ref(co, "a")) + STYLE["a"],
               (named("co", co, "b"), label_ref(co, "b")) + STYLE["b"],
               (named("co", co, "k"), label_ref(co, "k")) + STYLE["self"]],
-             last=(named("co", co, "mark"), K.KEY_RED))
+             last=(named("co", co, "mark"), K.KEY_RED),
+             marks=(named("co", co, "chg"), label_ref(co, "chg")))
     charts.append((ch.finish("0.0", 8, COL_PX * 7, CHART_ROWS * HEIGHTS["chart"] / 0.75),
                    "%s%d" % (L(LEFT[0]), lay["chart1"])))
     _note(pe, lay["note1"], LEFT, NOTE_ROWS["note1"], words=t.words, text=(
@@ -1885,7 +1931,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                   (named("dl", dl, "a"), label_ref(dl, "a")) + STYLE["a"],
                   (named("dl", dl, "bb"), label_ref(dl, "bb")) + STYLE["b"],
                   (named("dl", dl, "k"), label_ref(dl, "k")) + STYLE["self"]],
-                 last=(named("dl", dl, "mark"), K.KEY_RED))
+                 last=(named("dl", dl, "mark"), K.KEY_RED),
+                 marks=(named("dl", dl, "chg"), label_ref(dl, "chg")))
         charts.append((ch.finish("0.00", 8, COL_PX * 7, CHART_ROWS * HEIGHTS["chart"] / 0.75),
                        "%s%d" % (L(RIGHT[0]), lay["chart1"])))
         _note(pe, lay["note1"], RIGHT, NOTE_ROWS["note1"], words=t.words, text=(
