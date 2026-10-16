@@ -153,5 +153,16 @@ else:
         check("window: engine error shown in words", "not found" in app.status.get("1.0", "end") and "Traceback" not in app.status.get("1.0", "end"))
         root.destroy()
 
+        # File -> Load selections BEFORE choosing the data file, then choose the file: nothing may be reset
+        root = g.main([])
+        app = root.app
+        app.apply_state(g.parse_settings_text(example))
+        app.load_file(book)
+        st_now = app.get_state()
+        check("window: selections loaded first survive choosing the file",
+              len(st_now["tests"]) == 5 and st_now["cols"] == g.parse_settings_text(example)["cols"] and st_now["as_of"] == "2026-09-30",
+              f"{len(st_now['tests'])} tests")
+        root.destroy()
+
 print("\nALL PASSED" if not FAIL else f"\nFAILED: {FAIL}")
 sys.exit(1 if FAIL else 0)

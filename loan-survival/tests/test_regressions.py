@@ -78,3 +78,33 @@ def test_snapshot_transitions_used_matches_the_matrix_denominator():
     counts = sheets["RollCounts"].drop(columns="from (this month)")
     assert used == int(counts.to_numpy().sum()) == 2
     assert dropped == 2 and "Excluded" in sheets
+
+
+# ---- second Codex review of PR 445 (reviewed 23a0e90)
+
+def test_snapshot_unreadable_month_is_listed_and_does_not_fake_a_loan_leaving():
+    rows = []
+    for loan, months in (("L1", ["2024-01-31", "garbage", "2024-03-31"]), ("L2", ["2024-01-31", "2024-02-29", "2024-03-31"])):
+        for m in months:
+            rows.append(dict(loan_id=loan, month_end=m, dpd=0))
+    sheets, used, dropped = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd"), pd.Timestamp("2024-03-31"))
+    counts = sheets["RollCounts"].drop(columns="from (this month)")
+    assert "Left file (no status)" not in counts.columns or int(counts["Left file (no status)"].sum()) == 0
+    assert used == int(counts.to_numpy().sum()) == 2          # only L2's two transitions
+    assert set(sheets["Excluded"]["loan_id"]) == {"L1"} and dropped == 3  # all three of L1's rows, with the reason
+
+
+def test_column_names_with_a_percent_sign_survive_the_settings_file():
+    text = "[columns]\norig_date = Open %\nchargeoff_date = CO date\n\n[test: util]\ncolumn = Utilization %\ncutoffs = 50\n"
+    st = ls.Settings(text)
+    assert st.cols["orig_date"] == "Open %" and st.tests[0][1]["column"] == "Utilization %"
+
+
+def test_output_path_cannot_be_the_input_file(tmp_path):
+    import pytest
+    src = tmp_path / "loans.xlsx"
+    pd.read_csv(ROOT / "sample" / "fake_book.csv").to_excel(src, index=False)
+    before = src.read_bytes()
+    with pytest.raises(ls.UserError, match="same file"):
+        ls.run(src, None, src)
+    assert src.read_bytes() == before

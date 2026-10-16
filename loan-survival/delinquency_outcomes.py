@@ -167,7 +167,14 @@ def bucket(dpd: pd.Series) -> pd.Series:
 
 def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     need(df, [a.id_col, a.month_col, a.dpd_col])
-    df[a.month_col] = pd.to_datetime(df[a.month_col], errors="coerce")
+    parsed = pd.to_datetime(df[a.month_col], errors="coerce")
+    # a month we cannot read cannot be placed in the chain, and dropping just that row would make the month before it
+    # look like the loan left the file; so every row of such a loan is set aside and listed
+    cannot_place = df[a.id_col].isin(df.loc[parsed.isna(), a.id_col])
+    unplaced = df[cannot_place].copy()
+    unplaced.insert(0, "exclusion_reason", "a month_end for this loan is blank or not a readable date")
+    df = df[~cannot_place].copy()
+    df[a.month_col] = parsed[~cannot_place]
     df = df[df[a.month_col] <= as_of].copy()
     df["state"] = bucket(pd.to_numeric(df[a.dpd_col], errors="coerce"))
     # keep a month with no usable DPD in the chain as "Unknown", so its neighbours are not mistaken for a loan leaving the file
@@ -201,9 +208,12 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     sheets = {"RollRates": rates.reset_index(), "RollCounts": counts.reset_index()}
     if len(dropped):
         dropped.insert(0, "exclusion_reason", "DPD blank or not a number in this month or the next")
-        sheets["Excluded"] = dropped.drop(columns=["ym", "next_state"], errors="ignore")
         print(f"\n{len(dropped):,} transition(s) left out because a month's DPD was blank or not a number (see Excluded).")
-    return sheets, len(pairs), len(dropped)
+    if len(unplaced):
+        print(f"\n{len(unplaced):,} row(s) left out because a loan has a month_end that is blank or not a date (see Excluded).")
+    if len(dropped) or len(unplaced):
+        sheets["Excluded"] = pd.concat([unplaced, dropped.drop(columns=["ym", "next_state"], errors="ignore")], ignore_index=True)
+    return sheets, len(pairs), len(dropped) + len(unplaced)
 
 
 # ----------------------------------------------------------------------------- main
@@ -265,6 +275,9 @@ def main(argv=None):
     date_cols = [c for c in [a.first90_col, a.co_col, a.pif_col, a.month_col] if c in raw.columns]
     as_of = pd.Timestamp(a.as_of) if a.as_of else max(pd.to_datetime(raw[c], errors="coerce").max() for c in date_cols)
 
+    out_check = a.out or a.input.with_name(a.input.stem + "_delinquency.xlsx")
+    if out_check.resolve() == a.input.resolve():
+        sys.exit("The workbook would be saved over the input file itself. Pick a different --out.")
     sheets, used, excl = (snapshot_mode if mode == "snapshot" else loan_mode)(raw.copy(), a, as_of)
 
     out = a.out or a.input.with_name(a.input.stem + "_delinquency.xlsx")

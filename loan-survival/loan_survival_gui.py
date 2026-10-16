@@ -301,7 +301,7 @@ def build_settings_text(state: dict) -> str:
 
 def parse_settings_text(text: str) -> dict:
     """Read a saved .ini back into a state, so Load selections shows exactly what a run would use."""
-    cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
+    cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"), interpolation=None)
     cp.optionxform = str
     cp.read_string(text)
     state = new_state()
@@ -545,6 +545,7 @@ def main(argv=None) -> None:
             self.last_out: Path | None = None
             self._asof_auto = ""
             self._busy = False
+            self._selections_loaded = False  # File > Load selections was used: choosing a file must not reset them
             self.v_asof = tk.StringVar()
             self.v_cols = {role: tk.StringVar() for role, _l, _r in ROLES}
             self.v_set = {k: tk.StringVar(value=v) for k, v in DEFAULT_SETTINGS.items()}
@@ -727,7 +728,8 @@ def main(argv=None) -> None:
             if p:
                 self.load_file(Path(p))
 
-        def load_file(self, path: Path, keep_state: bool = False) -> bool:
+        def load_file(self, path: Path, keep_state: bool | None = None) -> bool:
+            keep_state = self._selections_loaded if keep_state is None else keep_state
             try:
                 df = ls.load(path)
             except Exception as e:  # noqa: BLE001 - shown to the person in plain words
@@ -755,6 +757,10 @@ def main(argv=None) -> None:
             for role in self.v_cols:
                 self.on_map(role, refresh_asof=False)
             self.refresh_asof()
+            if keep_state:
+                missing = [v.get() for v in self.v_cols.values() if v.get() and v.get() not in df.columns]
+                if missing:
+                    messagebox.showwarning("Loan survival", "These saved columns are not in this file: " + ", ".join(missing))
             return True
 
         def set_cols(self, cols: dict):
@@ -801,6 +807,7 @@ def main(argv=None) -> None:
             self.refresh_tests()
             for role in self.v_cols:
                 self.on_map(role, refresh_asof=False)
+            self._selections_loaded = True
 
         def save_selections(self):
             p = filedialog.asksaveasfilename(defaultextension=".ini", filetypes=[("Settings", "*.ini")], initialfile="loan_survival_settings.ini")

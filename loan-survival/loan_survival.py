@@ -234,7 +234,7 @@ def cox_fit(time: np.ndarray, event: np.ndarray, X: np.ndarray, iters: int = 50)
 
 class Settings:
     def __init__(self, text: str):
-        cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
+        cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"), interpolation=None)  # % in a column name is literal
         cp.optionxform = str
         cp.read_string(text)
         self.text = text
@@ -658,6 +658,8 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     Raises UserError for anything the person running it can fix.
     """
     input_path = Path(input_path)
+    if out_path and Path(out_path).resolve() == input_path.resolve():
+        raise UserError("The workbook would be saved over the loan file itself (same file). Pick a different name for the output.")
     st_text = STARTER if settings_text is None else settings_text
     st = Settings(st_text)
     raw = load(input_path)
