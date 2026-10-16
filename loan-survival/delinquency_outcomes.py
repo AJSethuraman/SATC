@@ -60,14 +60,22 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     need(df, [a.id_col, a.first90_col, a.co_col])
     has_pif = a.pif_col in df.columns
     has_dpd = a.dpd_col in df.columns
+    excluded, rows = [], []
     for c in [a.first90_col, a.co_col] + ([a.pif_col] if has_pif else []):
-        df[c] = pd.to_datetime(df[c], errors="coerce")
+        parsed = pd.to_datetime(df[c], errors="coerce")
+        # a blank date means "never happened"; a date we cannot read must not be mistaken for that
+        unreadable = df[c].notna() & (df[c].astype(str).str.strip() != "") & parsed.isna()
+        if unreadable.any():
+            x = df[unreadable].copy()
+            x.insert(0, "exclusion_reason", f"unparseable date in {c}")
+            excluded.append(x)
+            df, parsed = df[~unreadable], parsed[~unreadable]
+        df[c] = parsed
     f90, co = df[a.first90_col], df[a.co_col]
     pif = df[a.pif_col] if has_pif else pd.Series(pd.NaT, index=df.index)
 
-    excluded, rows = [], []
     co_any = co.notna() & (co <= as_of)
-    co_without_90 = int((co_any & f90.isna()).sum())
+    co_without_90 = int((co_any & (f90.isna() | (f90 > co))).sum())  # no 90+ date, or one recorded after the charge-off
     co_total = int(co_any.sum())
 
     pop = df[f90.notna() & (f90 <= as_of)].copy()
@@ -162,6 +170,8 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     df[a.month_col] = pd.to_datetime(df[a.month_col], errors="coerce")
     df = df[df[a.month_col] <= as_of].copy()
     df["state"] = bucket(pd.to_numeric(df[a.dpd_col], errors="coerce"))
+    # keep a month with no usable DPD in the chain as "Unknown", so its neighbours are not mistaken for a loan leaving the file
+    df.loc[~df["state"].isin(BUCKETS), "state"] = "Unknown"
     if a.status_col and a.status_col in df.columns:
         s = df[a.status_col].astype(str).str.strip().str.upper()
         df.loc[s.isin(a.co_values), "state"] = "Charged off"
@@ -178,13 +188,22 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
 
     order_from = BUCKETS
     order_to = BUCKETS + ["Charged off", "Paid off", "Left file (no status)"]
+    # a blank or non-numeric DPD has no bucket; leave those transitions out of the count AND the matrix, and list them
+    usable = pairs["state"].isin(order_from) & pairs["next_state"].isin(order_to)
+    dropped = pairs[~usable].copy()
+    pairs = pairs[usable]
     counts = pd.crosstab(pairs["state"], pairs["next_state"]).reindex(index=order_from, columns=order_to, fill_value=0)
     counts = counts.loc[:, (counts.sum() > 0) | counts.columns.isin(order_to[:-1])]
     rates = counts.div(counts.sum(axis=1).replace(0, np.nan), axis=0)
     counts.index.name = rates.index.name = "from (this month)"
     print("Month-to-month roll rates (row = this month, column = next month):")
     print(rates.to_string(float_format=lambda v: f"{v:.1%}"))
-    return {"RollRates": rates.reset_index(), "RollCounts": counts.reset_index()}, len(pairs), 0
+    sheets = {"RollRates": rates.reset_index(), "RollCounts": counts.reset_index()}
+    if len(dropped):
+        dropped.insert(0, "exclusion_reason", "DPD blank or not a number in this month or the next")
+        sheets["Excluded"] = dropped.drop(columns=["ym", "next_state"], errors="ignore")
+        print(f"\n{len(dropped):,} transition(s) left out because a month's DPD was blank or not a number (see Excluded).")
+    return sheets, len(pairs), len(dropped)
 
 
 # ----------------------------------------------------------------------------- main

@@ -478,7 +478,8 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
                     row["net_revenue_per_loan"] = rev.mean()
                     if amt:
                         a = pd.to_numeric(pop.loc[m, amt], errors="coerce")
-                        row["net_revenue_per_1000"] = rev.sum() / a.sum() * 1000 if a.sum() else np.nan
+                        both = rev.notna() & a.notna()  # same loans top and bottom
+                        row["net_revenue_per_1000"] = rev[both].sum() / a[both].sum() * 1000 if a[both].sum() else np.nan
                 rows.append(row)
                 km.insert(0, "group", lab)
                 km.insert(0, "comparison", comp)
