@@ -11,7 +11,8 @@ Public data only. Nothing here is the bank's.
 | `research-fdic.md` | Every FDIC field probed (197), its definition and first and last dates, and the breaks visible in the data |
 | `research-public.md` | The Fed release, SLOOS, SNC, FR Y-9C, macro series and paid sources, each checked against the publisher, with URLs |
 | `research-sec.md` | What the 16 holding companies tag about commercial credit quality in their 2026 Q2 10-Q XBRL, and `edgar-crit-class-tracker` run against them |
-| `research-breaks.md` | Definition changes, reclassifications and acquisitions since 2006 |
+| `research-breaks.md` | Definition changes, reclassifications and acquisitions since 2006, each with its primary source (Federal Register, FDIC, Fed, SEC 8-K, FDIC history) |
+| `breaks-jumps.tsv` | Every bank-quarter since 2006 where a commercial category moved more than 25% (book at least $1bn on one side): 302 rows, with the merger or reporting change that explains it, or UNEXPLAINED (87) |
 | `research-scripts/` | The research agents' scripts. Those that call SEC read the contact from the `SEC_USER_AGENT` environment variable, as SEC requires one; it is never stored |
 
 The rates here are **as filed**: none of the tool's merger, jump or

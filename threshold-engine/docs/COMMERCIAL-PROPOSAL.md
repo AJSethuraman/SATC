@@ -23,18 +23,18 @@ leading signals rated only on the bank's own data.**
   - **Construction and land.**
 
   Together these are $54.5bn of KeyBank's $111.8bn book at 30 Jun 2026.
-  **NDFI** ($21.4bn at KeyBank) has no public loss or delinquency fields at
-  all. Show it only as a balance and share, never as a rated rate. Farmland,
-  agricultural loans and leases ($0.9bn combined at KeyBank, excluding leases'
-  $2.0bn) can come later at no extra data cost: their fields exist and are
-  confirmed.
+  **NDFI** ($21.4bn at KeyBank) has no loss or delinquency fields in the FDIC
+  API. The Call Report form has carried NDFI past due and nonaccrual only since
+  2024Q4. Show it as a balance and share, not a rated rate. Farmland and
+  agricultural loans ($0.9bn at KeyBank) and leases ($2.0bn) can come later at
+  no extra data cost: their fields exist and are confirmed.
 - **Rated measures:**
   - **Nonaccrual rate, for every segment.** It is the measure the commercial
     data supports best:
     - industry history from 1991Q1;
     - the 1991 and 2009–10 stress periods are in it;
-    - the median is above zero in every segment, so the zero refusals do not
-      fire.
+    - in all four segments the median is above zero, for the industry and for
+      KeyBank, so the zero refusals do not fire.
 
     It is live now: **KeyBank's multifamily nonaccrual rate was 3.94% at
     2026Q2**, its highest since 2011Q4, against an industry median of 0.47%
@@ -58,8 +58,8 @@ leading signals rated only on the bank's own data.**
   - **Rating migration.**
   - **Utilization.**
 
-  These lead charge-offs and the public data cannot rate them: there is no
-  public C&I commitments field, and the peers' criticized definitions differ.
+  These lead charge-offs, and the public data cannot rate them. The FDIC API
+  has no C&I commitments field, and the peers' criticized definitions differ.
   Design the import now, as the consumer one was.
 - **Sources:**
   - **The FDIC Call Report**, through the pull that already exists. Every field
@@ -79,6 +79,21 @@ leading signals rated only on the bank's own data.**
   small beside its card book. Both are weak commercial comparators; whether to
   keep them is the firm's call (§5, question 5).
 
+**Found on the way, for the consumer book.** The same December 2024 revision
+moved margin loans out of other consumer (RC-C 6.d). The consumer workbook's
+other consumer balance (6.b + 6.d) steps down at:
+- Bank of America in 2024Q4 ($44.4bn to $10.2bn);
+- PNC in 2024Q4;
+- JPMorgan in 2025Q1;
+- Wells Fargo in 2025Q2.
+
+Each fall is more than 25% (Bank of America −77%, JPMorgan −45%, PNC −35%,
+Wells Fargo −27%), so the jump rule should leave out the windows holding
+them. That was not checked in the built workbook. After the step, each rate
+is over a different book. The bank disclosures were not checked either; the
+timing fits the revision's best-efforts window. The consumer workbook should
+label it.
+
 ---
 
 ## 2. The data table
@@ -88,7 +103,7 @@ with every URL are in `docs/commercial-2026-10/research-*.md`.
 
 | Source | Holds for commercial | History | Frequency | Basis | Cost | Breaks | Checked? |
 |---|---|---|---|---|---|---|---|
-| **FDIC Call Report** (api.fdic.gov) | By segment: balance, charge-offs, recoveries, 30–89, 90+ and nonaccrual for construction (1-4 family vs other from 2007Q1), multifamily, nonfarm nonres (owner-occupied vs other from 2007Q1), farmland, C&I (non-U.S. addressees separately), agricultural, depository institutions, all other loans, leases. NDFI is a balance only. RC-L unused commitments: total, CRE, "all other" | Balances 1984Q1; RE charge-offs 1990Q1 (KeyBank 1991Q1); 30–89 2001Q1 | Quarterly | Bank charter. Quarter-end stock; charge-offs year to date (quarterly fields also exist) | Free | 2007Q1 splits; NDFI 2010Q1; Dec 2024 NDFI reclassification; depository charge-offs end 2016Q4 (§3 Q4) | Yes. 197 fields probed, each against the FDIC's definitions file and a live query |
+| **FDIC Call Report** (api.fdic.gov) | By segment: balance, charge-offs, recoveries, 30–89, 90+ and nonaccrual for construction (1-4 family vs other from 2007Q1), multifamily, nonfarm nonres (owner-occupied vs other from 2007Q1), farmland, C&I (non-U.S. addressees separately), agricultural, depository institutions, all other loans, leases. NDFI is a balance only. RC-L unused commitments: total, CRE, "all other". **On the form but not in the API:** leases retail vs commercial (2007Q1); C&I and financial-institution commitments (2010Q1); NDFI split five ways, NDFI past due and nonaccrual (2024Q4). Those would need the FFIEC's bulk Call Report files (not checked) | Balances 1984Q1; RE charge-offs 1990Q1 (KeyBank 1991Q1); 30–89 2001Q1 | Quarterly | Bank charter. Quarter-end stock; charge-offs year to date (quarterly fields also exist) | Free | 2007Q1 splits; NDFI 2010Q1; Dec 2024 NDFI reclassification; depository charge-offs end 2016Q4 (§3 Q4) | Yes. 197 fields probed, each against the FDIC's definitions file and a live query |
 | **Fed charge-off and delinquency release** | C&I, CRE excluding farmland (one line: construction, multifamily and nonfarm nonres together), farmland, agricultural, leases. **No property-type split, no construction, no NDFI** | Charge-offs: C&I 1985Q1, CRE 1991Q1. Delinquency: C&I 1987Q1, CRE 1991Q1 | Quarterly | All insured commercial banks, from the Call Report. SA and NSA; all banks, 100 largest, others. Net charge-offs annualized over average loans; delinquency is 30+ plus nonaccrual | Free (XML zip; FRED CSV) | Small banks' C&I partly imputed before 2001; method revised June 2001; FAS 159 in 2008Q1 | Yes. 10 FRED IDs pulled; 4 guessed IDs do not exist |
 | **SEC 10-Q / 10-K XBRL** (credit quality indicators) | Amortized cost by internal rating, by class and vintage | Not measured (§6) | Quarterly | Holding company; amortized cost | Free (User-Agent required) | Each bank names its own classes and members; the concept for totals differs at 4 of 16 | Yes, 16 of 16 latest 10-Qs (2026 Q2) |
 | **SLOOS** | C&I standards and demand (large/middle vs small firms), spreads. CRE: one series 1990–2013, then construction, nonfarm nonres and multifamily from 2013Q4 | C&I from 1990Q2 | Quarterly | Net percentage of respondents; NSA; qualitative. July 2026 had 56 domestic respondents (target up to 80) | Free | CRE split at 2013Q4 | Yes |
@@ -182,9 +197,12 @@ What it says, measure by measure:
      quarters beside it as context, with each bank's own words.
 7. **Migration.** Internal only; no public source. Rate it on internal history
    if the bank has it through 2009–10. Otherwise show it, unrated.
-8. **Utilization.** There is no public C&I or commercial-line commitment field:
-   RC-L puts commercial lines in "all other" (KeyBank: $60.9bn of $78.3bn
-   unused). Internal only.
+8. **Utilization.** The FDIC API has no C&I commitment field: it puts commercial
+   lines in "all other" (KeyBank: $60.9bn of $78.3bn unused). The Call Report
+   form has split C&I commitments out since 2010Q1 (74 FR 68314). A public
+   utilization rate (C&I balance over balance plus unused C&I commitments) is
+   therefore possible from the FFIEC's bulk files, which were not checked.
+   Internal first; public as a later addition.
 9. **Concentration.** Show only, from the Call Report:
    - CRE over capital, as `credit-suite` already computes it (`CRECONR`);
    - NDFI share;
@@ -208,8 +226,8 @@ The public data sets the floor, and peers' 10-Qs cannot go finer than it:
 | Construction | Yes; 1-4 family vs other from 2007Q1 | 6 of 16 as its own class |
 | Multifamily | Yes | 1 of 16, partly (JPMorgan) |
 | Office | **No** | **0 of 16 in XBRL**; printed in text at 12, office criticized at 4 |
-| NDFI | Balance only, from 2010Q1 | Not checked as a class |
-| Leases | Yes, but **no commercial vs consumer split** | 5 of 16 as their own class |
+| NDFI | In the API, balance only, from 2010Q1 (the form adds a five-way split, past due and nonaccrual from 2024Q4) | Not checked as a class |
+| Leases | In the API, **no commercial vs consumer split** (the form has one since 2007Q1) | 5 of 16 as their own class |
 
 Recommendation: the four segments in §1, with nonfarm split into
 owner-occupied and other wherever the source has it. **Office is the split
@@ -241,7 +259,85 @@ way the consumer Peer loan classes tab reads student loans.
 
 ### Q4. Which breaks?
 
-BREAKS-PENDING
+Every item below was read in a primary source: a Federal Register notice, an
+FDIC or Fed publication, an SEC 8-K, or the FDIC's structure history. The
+exception is anything marked *not checked*. The full tables, with sources and
+what each event does to each category, are in
+`commercial-2026-10/research-breaks.md`. Its "Handling" column is blank for the
+firm; what is written here is my proposal.
+
+**Reporting and definition changes**
+
+| Quarter | Event | Categories | Proposed handling |
+|---|---|---|---|
+| 2007Q1 | Construction split 1-4 family / other; nonfarm split owner-occupied / other (RC-C, RC-N, RI-B); real estate commitments split; leases split retail / commercial (71 FR 8649) | Construction, nonfarm, leases | Totals are continuous, so rate the totals throughout and the splits from 2007Q1. **The industry's splits are incomplete until 2008Q1**: about 2,400–3,000 small filers report 0/0 in 2007. Savings banks filing the TFR never report the owner-occupied split, until TFR filing ended in 2011. Label both |
+| 2008Q1 | Loans a bank classifies as trading leave RC-C | All, syndicated C&I most | Label; its size was not measured |
+| 2009Q1 | "Secured by real estate" means collateral worth more than 50% of principal at origination; new loans only (74 FR 5028) | Real estate vs C&I | Label; it is gradual by construction, and no single quarter breaks |
+| 2010Q1 | NDFI becomes RC-C 9.a, split out of "other loans" (**not** out of C&I). RC-L "other" commitments split into C&I, financial institutions and all other (74 FR 68314). FAS 166/167: "most non-consumer loan categories were not affected" (FDIC) | All other loans, RC-L | Label. The industry's C&I still fell $34.3bn that quarter; the cause was not traced |
+| 2011Q1 | Construction loans stay in construction after completion while repayment depends on a sale (76 FR 5253) | Construction | Label |
+| 2013Q2 | The largest 031 filers report the real estate breakdown for the whole bank, not only domestic offices | Real estate, 031 filers | Whether the FDIC fields moved: not checked. Check for the roster banks before building |
+| 2018Q2 | Every bank of $100bn or more files the 031 | Field availability | Which roster banks switched: not checked. The tie-out resolver must handle both forms |
+| 2020Q1 | CECL: the purchased-credit-impaired nonaccrual exception is not carried over to PCD loans | Nonaccrual at acquirers | Label; a nonaccrual step is possible at banks holding acquired books |
+| 2020Q1 | Revolving-line drawdowns: industry C&I +$339.4bn (15.4%) | C&I | Not a definition change, but it trips the 25% jump at several roster banks (JPMorgan C&I +31%). Let the rule leave those windows out |
+| 2020Q2 | **PPP**: $482.2bn of PPP loans, reported in C&I | C&I | Trips the jump (First Citizens +80%, Zions +37%). PPP loans also sit in the C&I denominator through 2021 and lower its rates. Leave out where the rule fires; label 2020Q2–2021Q4 |
+| 2020Q2 on | CARES Act deferrals not reported as past due | Past due | Label 2020–21 on past-due series |
+| 2023Q1 / 2024Q2 | Troubled-debt-restructuring accounting ends | Memoranda only | None needed |
+| **2024Q4–2025Q2** | **NDFI and margin-loan revision** (31 Dec 2024; best efforts until 30 Jun 2025, so the break is **spread over three quarters**). Broker-dealer and fund loans move into NDFI; every securities-based margin loan moves to "loans for purchasing or carrying securities", out of C&I and out of other consumer (6.d). New on the form: NDFI split five ways (banks over $10bn), **NDFI past due and nonaccrual (RC-N Memo 9)**, RC-L NDFI commitments | C&I, NDFI, all other loans, other consumer, RC-L | KeyBank C&I −29% (2024Q4) and Citizens −32% trip the jump; U.S. Bank's C&I steps down in 2025Q1 and PNC's in 2025Q2. Label all three quarters on every C&I series, and let the rule leave out what it catches. **None of the new NDFI items is in the FDIC API** (checked against both definitions files) |
+
+On the brief's lesson 4:
+- **The FDIC's data shows the $56bn.** Industry "other revolving credit plans"
+  (RC-C 6.b) fell $55.7bn from 2024Q3 to 2024Q4.
+- **No published source gives a figure for that move.** The $56bn in the
+  agencies' notice is a different number: the level of NDFI loans in March
+  2010, when the line was created (88 FR 89491). The Fed's H.8 estimates $41.2bn
+  out of "credit cards and other revolving plans" in the week of 1 Jan 2025.
+- **What touched consumer was the margin-loan part of the revision, not
+  NDFI.** The FDIC's description says margin loans to individuals came out of
+  other consumer (6.d). It does not mention 6.b, and no source found names the
+  6.b move: it is seen in the data, not explained.
+
+**Acquisitions into the roster since 2006**
+
+- **Already in the record.** The repository's merger record, pulled live from
+  FDIC history and re-pulled today, matches the test fixture for all 16
+  certificates. Every bank-to-bank deal is in it, among them:
+  - Wells/Wachovia 2010Q1;
+  - PNC/National City 2009Q4, RBC 2012Q1, BBVA 2021Q4 and FirstBank 2026Q2;
+  - Truist/SunTrust 2019Q4;
+  - U.S. Bank/MUFG Union 2023Q2;
+  - KeyBank/First Niagara 2016Q4 (**80% of KeyBank's CRE**);
+  - Fifth Third/MB 2019Q2 and **Comerica 2026Q1** (107% of its CRE);
+  - Huntington/FirstMerit 2016Q3, TCF 2021Q2, Veritex 2025Q4 and
+    **Cadence 2026Q1**;
+  - M&T/People's United 2022Q2;
+  - Citizens/Investors 2022Q2 (multifamily +994%);
+  - First Citizens/CIT 2022Q1 and SVB 2023Q1;
+  - JPMorgan/First Republic 2023Q2.
+
+  **Handling:** combine pro forma, as for consumer. Commercial books make the
+  pro forma matter more than consumer did: several targets were as large as
+  the acquirer's own commercial book (SunTrust 132% of Truist's C&I; National
+  City 130% of PNC's CRE).
+- **Not in the record:**
+
+  | Deal | Quarter | Why the record misses it | What it does | Proposed handling |
+  |---|---|---|---|---|
+  | JPMorgan / Washington Mutual Bank | 2008Q3 | A failure with no FDIC history row naming JPMorgan; only WaMu's savings bank ($20.6bn) is recorded | The 5% rule sees 4.3%; pro forma cannot be built | Leave out JPMorgan's windows across 2008Q3, with the reason |
+  | M&T / Wilmington Trust | 2011Q2 | Recorded as a branch purchase (code 712) | M&T construction +19%, nonfarm +16%: under both rules, so two books mix | Leave out, with the reason; add a stated-acquisitions list to the record for deals the FDIC codes as branch purchases |
+  | Wells Fargo / GE Capital commercial lending and leasing | 2016Q1 | An asset purchase, with no bank charter | $26.7bn of C&I and leases; leases +56% trip the jump, C&I +14% slips past both rules | Leave out, with the reason |
+  | Capital One / GE Healthcare Financial Services | 2015Q4 | Asset purchase | Nonfarm +49%, C&I +21% | Leave out, with the reason |
+  | Huntington / Macquarie Equipment Finance | 2015Q1 (close date not checked) | Asset purchase | Leases +53% | Leave out, with the reason |
+
+  So the 25% and 5% rules, built for consumer, **miss commercial asset
+  purchases**. Propose a stated list of acquisitions by bank, quarter and
+  source (an 8-K), read by the build like the FDIC record.
+- **Unexplained moves.** A scan found 302 bank-quarters where a commercial
+  category moved more than 25%. 87 of them are explained neither by a
+  recorded merger nor by a reporting change: `breaks-jumps.tsv`, causes not
+  checked (for example Truist leases −49% in 2022Q1, First Citizens C&I −40%
+  in 2012Q4). Loans to depository institutions swing at every large bank,
+  which is one more reason to leave that category out. No commercial loan sale
+  was found with a primary source.
 
 ### Q5. How is each figure tied out?
 
@@ -266,8 +362,8 @@ Lines by source, Internal**, and the reference tabs. On those:
 
 - **Segments × measures:** 4 × 2 rated (net charge-off and nonaccrual) = 8 rows
   on Decide.
-- **Shown measures:** 90+, 30–89 and the combined measures on the Peers tab,
-  as consumer shows delinquency.
+- **Shown measures:** 90+, 30–89, 90+ including nonaccrual and 30+ including
+  nonaccrual on the Peers tab, as consumer shows delinquency.
 - **Sources:** industry, peer group and KeyBank, as now. Construction,
   multifamily and nonfarm net charge-off rows start with **Lines set from:
   Industry** suggested and still blank, because the firm picks.
@@ -298,8 +394,8 @@ segments, every column stated, refused when not whole, no identifiers):
 - **The reconciliation:** filed less named exclusions against internal, per
   segment. The import also has to ask which Call Report line each internal
   segment maps to, because a bank's commercial segments rarely match RC-C
-  (NDFI moved in and out of C&I twice, and owner-occupied CRE may sit in C&I
-  internally).
+  (KeyBank's C&I lost $12.0bn to NDFI in 2024Q4, and owner-occupied CRE may sit
+  in C&I internally).
 
 ---
 
@@ -327,22 +423,25 @@ segments, every column stated, refused when not whole, no identifiers):
    - **What happens:**
      - KeyBank's C&I fell from $41.9bn to $29.9bn in 2024Q4 as $12.0bn moved
        to NDFI: a 28.6% drop.
-     - The industry's C&I fell $128.5bn that quarter. In 2010Q1, the quarter
-       NDFI first appeared as its own line, the industry's C&I fell $34.3bn.
+     - The industry's C&I fell $128.5bn that quarter, and the revision was
+       spread over 2024Q4–2025Q2.
+     - 2020 added two non-definitional jumps to C&I: revolver drawdowns
+       (+15.4% for the industry) and PPP ($482.2bn).
    - **What already copes:** the 25% jump rule leaves out KeyBank's four
-     windows across 2024Q4. The industry's move (−5.0%) does not trip it.
+     windows across 2024Q4. The industry's C&I moved −5.0%, well under 25%.
    - **Propose:**
-     - label both quarters on every C&I series;
+     - label 2024Q4–2025Q2 and 2020Q1–2021Q4 on every C&I series;
      - leave the four windows out where the rule fires;
      - do not combine C&I and "all other loans" to bridge the break. In 2024Q4
        "all other loans" excluding NDFI also rose $161.9bn, in the same quarter
        that other consumer loans fell $81.5bn.
 5. **Blended lines.**
    - **What happens:**
-     - Nonfarm nonres mixes owner-occupied (a C&I-like credit) with investor
-       CRE until 2007Q1.
+     - Nonfarm nonres mixes owner-occupied (repaid from the occupant's
+       business) with investor CRE until 2007Q1.
      - No public source splits office.
-     - Leases mix consumer (auto) and commercial with no split.
+     - In the FDIC API, leases mix consumer and commercial; the form splits
+       them from 2007Q1.
    - **Propose:** rate owner-occupied and other separately from 2007Q1 (the
      industry from 2008Q1), and the total before that. Leave leases out of v1.
      Office comes from internal data, and for peers from quoted text.
@@ -402,7 +501,8 @@ Each question can be answered in one line. Each recommendation is mine.
 | 10 | Rate SLOOS standards? | A leading measure on Decide | Shown as context only | **No (context only)** |
 | 11 | Build commercial as its own book file, not more rows in the consumer book? | Two workbooks, one command | One larger workbook | **Own book** |
 | 12 | What minimum book size, per segment, keeps a bank-quarter in? | Your figure | 0, as for consumer peers | **Your number; I have no basis to propose one** |
-| 13 | How is a C&I series labeled across 2010Q1 and 2024Q4 (the NDFI moves)? | Labeled, windows left out where the 25% rule fires | Restated, which is impossible: no NDFI history by sub-item | **Labeled** |
+| 13 | Label C&I across 2020Q1–2021Q4 (drawdowns, PPP) and 2024Q4–2025Q2 (the NDFI and margin-loan revision), leaving out the windows the 25% rule catches? | Labeled; windows left out where the rule fires | Restated, which is impossible: the moved loans have no history of their own | **Yes** |
+| 14 | Add a stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each with its 8-K, read by the build like the FDIC record? | Those windows are left out with a reason | They stay in, with two books mixed | **Yes** |
 
 ---
 
@@ -411,11 +511,19 @@ Each question can be answered in one line. Each recommendation is mine.
 1. **How far back peers' criticized tagging goes.** Only the latest 10-Q per
    bank was read. Until the history is counted, the claim that it cannot rate
    High is a reasoned expectation, not a finding.
-2. **The full breaks list against FFIEC revision notices.** The causes of the
-   2010Q1 and 2024Q4 reclassifications are read from the data and the agencies'
-   notices as quoted in §3 Q4; see the status column there.
-3. **NDFI charge-offs and past dues.** They are not in the FDIC API. Whether the
-   Call Report form itself carries them after Dec 2024 was not checked.
+2. **The FFIEC supplemental instructions:** ffiec.gov refused access, so where
+   PPP loans are reported was read from the FDIC's profile, not the
+   instructions. Also not checked:
+   - FIL-84-2024 (page not found);
+   - whether the 2025 proposal on modification reporting was finalized;
+   - three holding-company close dates (Wells/Wachovia, PNC/National City,
+     BofA/LaSalle);
+   - the causes of the 87 unexplained moves;
+   - what moved the industry's C&I in 2010Q1.
+3. **NDFI in the FFIEC bulk files.** The form carries NDFI past due and nonaccrual
+   from 2024Q4 (RC-N Memo 9), C&I commitments from 2010Q1 and the lease split
+   from 2007Q1, none of them in the FDIC API. The FFIEC bulk download was not
+   reached, and whether RI-B has an NDFI charge-off line was not checked.
 4. **Where depository-institution charge-offs went after 2016Q4.**
 5. **The stress table in §3 Q1 with the tool's own rules** (pro forma mergers,
    the jump rule, repeated year to date). It is computed as filed and is
