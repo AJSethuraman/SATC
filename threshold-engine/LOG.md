@@ -740,6 +740,96 @@ command needs min-history + horizon = 13. Checked both ways and fixed on
 #432: a nine-quarter file builds with `--min-history 5`.
 
 Suite: 783 passed (28 min).
+
+## 13 October 2026, the redesign, the readability pass and a docket
+
+- **Redesign** from the Claude Design hand-off (docs/design/): Assess is
+  one tab with the list of periods left out, your settings, scenarios and
+  the chart; reference tabs restyled; a **Sources** tab that prints what
+  each file says about itself and marks a missing key "Not stated in the
+  file", never filling it in.
+- **Readability pass** for a reader who did not build it: "product"
+  became "series", the 1-5 result a "rating", plain Check and status
+  wording, number formats that fit the measure. Two wrong headings fixed
+  (Backtest's "quarters" over rating columns; Sources asking a score for
+  a numerator). The backtest note had dropped "and including it"; restored.
+- **Suite:** 788 passed, 9 failed of 797 on the first run, all nine tests
+  expecting the old tab order or wording; fixed, the nine rerun green.
+  Walkthrough in Excel: 433 of 433.
+- **The firm turned the tool purpose-built** (13 Oct): industry, peers and
+  KeyBank's filed figures; charge-offs and delinquency; generic pieces
+  removed. Mortgage stays first-lien only ("we have hardly any junior
+  liens"). Other consumer shown two ways side by side: blended, where
+  every source meets, and split on KeyBank's own data. Comparability
+  report: 30 of 30 fields matched to KeyBank's 30 June 2026 Call Report.
+- **Docket** published with seven open decisions (other consumer balance,
+  FDIC industry series, the seven gaps, one internal import, auto scope,
+  total vs peer median, merge order).
+- **Next** (silence approves only this): merge #432, #434 and this branch in
+  order, then start the purpose-built data layer with whatever the docket
+  approves.
+
+### The firm's answers to the docket (13 Oct 2026)
+
+| Decision | Answer | Their words |
+|---|---|---|
+| Other consumer balance = 6.b + 6.d | Yes, fix it | "fix it but what can we get from the LOC info then - at least balances compared to PLs or something? commitments?" |
+| FDIC for every industry series | Yes, FDIC for all | Fed kept as a cross-check |
+| The seven comparability gaps | Yes, all seven | "this has to be well-documented and tied out" |
+| One import for internal data | Yes, one import | "i need this to be able to accept like-data - so internal data i will give the tool in a form it wants. so let's discuss the structure of what we have i cannot give you real numbers" |
+| Auto | Set thresholds | "we have auto in the bank it's just direct" |
+| Industry figure | Both: total and peer median | |
+| Merge order | Merge as is, purpose-built on top | |
+
+Found while reading them back, from KeyBank's 30 June 2026 filing:
+- Lines of credit: public data gives the balance only (RC-C 6.b, about
+  268,825). Unused commitments are filed for home equity lines (RC-L 1.a,
+  7,581,816) and credit cards (1.b, 5,750,823) but not for other consumer
+  lines, which fall into "all other" with commercial (1.e). So the public
+  LOC view is balance and its share against installment (6.d), not usage.
+- Auto: the filing's auto loans (RC-C 6.c) are 62,212 ($000). If KeyBank's
+  direct auto book is larger than that, part of it is filed elsewhere, and
+  that goes into the "which entity / which line" check.
+
+### The goal, in the firm's words (13 Oct 2026)
+
+"i still want the first part to exist. so i want to get an industry
+perspective, competitive perspective, and internal. all of this to somehow
+synthesize reasonable thresholds." Also: internal metrics "may exclude
+certain things because they were not credit related", so the internal-to-
+filed check is a reconciliation (filed, less named exclusions, against
+internal; only the unexplained remainder flagged against a tolerance the
+firm sets), not an equality. How the three perspectives combine is open.
+
+### The comparability tie-out, and the firm's answers (14 Oct 2026)
+
+A separate session tied out the seven gaps: 147 figures against documents
+the firm does not control, 131 TIED, 13 DIFFERS, 3 COULD NOT
+(docs/tie-out/comparability-2026-10/ on its own branch). It found a defect in
+the tool: the industry series counts an absorbed affiliate's year-to-date
+charge-offs twice in the merger quarter (six card quarters, $74m to $4.8bn;
+the industry card rate up to 0.71 pts high for four quarters). The firm's
+answers:
+
+- **A. Card industry series and the 2010Q1 securitization break:** "Label".
+  Keep 2006-2010Q3, marked "excludes securitized cards".
+- **B. Home equity:** internal lines and loans as separate segments. Lines
+  check against RC-C 1.c.(1); loans plus mortgage against 1.c.(2)(a) +
+  (b). Peer comparison stays first-lien. The firm: "We have some second
+  liens but mostly first"; "Loans were just discontinued". Internal figures
+  to look for at 30 Jun 2026: lines about $2,930m, loans about $2,478m,
+  second-lien loans at most $276m (all junior liens at the bank). The
+  $2,478m is inferred by elimination, not published.
+- **C. Acquisition leave-out:** 5% ("good on the merger thing"): leave out
+  the four quarters after any quarter whose recorded acquisitions together
+  add 5% or more to a product's book. A required setting; 5% is the firm's.
+- To build: the merger double-count fix (tested against the FDIC's QBP
+  totals), the peer median, cross-bank delinquency on 90+ and 30+ including
+  nonaccrual only, mortgage compared on nonaccrual and charge-offs (not 90+
+  accruing, because of rebooked GNMA), a run-off flag for shrinking books,
+  and the import's two named exclusions (education loans in discontinued
+  operations; residential loans held for sale).
+
 ## 13 October 2026, Codex on #432's fix
 
 Two P2, both real:
@@ -768,3 +858,326 @@ Three P2, all real:
   every reading in it, so the headline cannot overstate what Excel checked.
 - **The walkthrough's build command wrote the workbook where the runner does
   not look**; it now writes to docs/walkthrough/out/.
+
+## 14 October 2026, mergers: counted once, and the 5% rule
+
+The comparability tie-out's gap 5, built.
+
+- **The double count.** When a bank absorbs another under the same parent,
+  the Call Report has the survivor report the combined year to date, so
+  year-to-date differencing counted the absorbed bank's earlier quarters
+  twice. `books.repeated_ytd` reads, from the filings, the absorbed bank's
+  last year-to-date wherever both banks filed the quarter before with the
+  same parent (RSSDHCR, now pulled every quarter), and `without_repeats`
+  takes it off the survivor for the rest of that year. Every series reads
+  the corrected data: the banks, the pack, the industry.
+- **Checked against the FDIC's own totals** (the Quarterly Banking Profile
+  figures the tie-out quoted), industry card charge-offs, $m, on a fresh
+  pull of every filer 2006Q1 to 2026Q2:
+
+  | Quarter | Before | After | QBP | After less QBP |
+  |---|---|---|---|---|
+  | 2006Q4 | 6,622.1 | 3,664.0 | 3,664.0 | 0.0 |
+  | 2010Q2 | 20,508.3 | 20,434.1 | 20,434.1 | 0.0 |
+  | 2011Q3 | 15,584.4 | 10,738.1 | 10,738.1 | 0.0 |
+  | 2014Q4 | 9,133.8 | 6,478.8 | 6,479.6 | -0.8 |
+  | 2019Q2 | 11,458.7 | 10,603.1 | 10,603.1 | 0.0 |
+  | 2022Q4 | 10,380.3 | 7,679.6 | 7,688.2 | -8.6 |
+
+  "Before" reproduces the tie-out's figures exactly. The 2022Q4 gap is the
+  tie-out's own: Capital One (USA)'s last year-to-date was 2,700.6, the
+  survivor repeated 2,692.0. The fix also moved 35 other card quarters,
+  2007Q3 by 184.0 and 2009Q3-Q4 by 175.3 the largest; those were **not**
+  checked against the QBP, whose figures for them were not in hand.
+- **The acquisition share, 5% (the firm's).** A required setting,
+  `--acquisition-share`: a quarter whose recorded acquisitions, added
+  together, brought in at least that share of a product's book leaves out
+  the bank's four TTM windows holding it, and blanks delinquency's
+  four-quarter average as the jump does. On the roster, 2006-2026: 152
+  acquisition quarters at 5%, 84 of which the 25% jump also caught, 68 only
+  this rule (the tie-out counted 60 on a stricter test of material).
+- **Found while building:** FDIC history leaves CERT blank on a failure's
+  row; the absorbed bank is OUT_CERT on every row, so that is read.
+- `peers pull --mergers` now also writes `absorptions.json` (who took in
+  whom); `peers build` requires `--absorptions` and `--acquisition-share`.
+  A cache pulled before today has no RSSDHCR: build refuses, naming the
+  banks, only where an absorption needs it. Pull again with refresh.
+- **Then, same day:** a **pack median** series beside the pack composite
+  (charge-offs and every delinquency measure and basis): the middle bank,
+  each counted once whatever its size, as the firm chose "both" over a total
+  alone. Every delinquency file now carries the tie-out's comparability
+  findings in its notes (nonaccrual is partly policy; mortgage past-due
+  includes rebooked GNMA), so the Sources tab says it. KeyBank's own series
+  state the book's path over nine quarters (balance at both ends, quarters
+  it fell): facts, no line drawn for "run-off". Full suite before these:
+  825 passed; the peers CLI and combination tests after: 142 passed.
+
+## 14 October 2026, the purpose-built data layer: other consumer, FDIC industry, QBP, synthesis
+
+The firm, 14 Oct: "Build until you cannot." The approved items, in order.
+
+- **Other consumer divides by RC-C 6.b + 6.d** (approved 13 Oct, "Yes, fix
+  it"). Its charge-offs (RI-B 5.c) and past-due lines (RC-N 5.c) include
+  other revolving credit plans; the balance now does too (LNCONOTH +
+  LNCONRP; KeyBank 30 Jun 2026: 4,200,208 + 268,825 = 4,469,033, confirmed
+  live on the FDIC API). The FDIC data has no 6.b before 2001Q1 (industry sum
+  0 in 2000Q4, $24.7bn in 2001Q1); every other consumer series says so. The
+  industry other consumer net rate is 0.246 points lower on average than the
+  earlier as-filed file, 2006-2026 (this fix and the merger fixes together). The QBP's "Other Loans to Individuals" (6.b + 6.c + 6.d)
+  equals ours in 80 of 82 quarters.
+- **The industry series are the FDIC's** (approved 13 Oct, "FDIC for all").
+  `data/industry/`: 62 files, every filer 2006-2026, all five products,
+  charge-offs and delinquency, from a fresh pull of 14 Oct. README points
+  the workbook at them. Card quarters before 2010 are labelled as excluding
+  securitized cards (the firm's "Label"). `compare` puts two series side by
+  side by calendar quarter: the FDIC card series against the Fed's, 79
+  quarters, mean difference 0.000 points, largest 0.229 (2011Q3).
+- **Every industry quarter against the FDIC's own totals** (the QBP time
+  series, 2Q 2026). A separate agent checked card; it found two defects
+  beyond the merger double count:
+  - A bank bought by a new holding company can restart its year to date
+    (push-down accounting); differencing read a negative flow. National
+    City under PNC, 2008Q4: -$94.6m. Now `books.restarted`: a year-to-date
+    that falls while the parent changes is the quarter's flow. Card: 75 of
+    82 quarters within $0.05m (70 with the absorption fix alone, 52 before
+    either); total gap $14,683m -> $151m -> $14m. The rule overshoots in two
+    small cases (2011Q2 +$0.7m, 2015Q3 +$0.1m); 2022Q4 -$8.7m and 2018Q4
+    +$4.4m remain (one unexplained, one an absorption across parents).
+  - The FDIC record names Capital One N.A. as absorbing 34191 in 2007Q3; the
+    book went to its sister, Capital One Bank (USA). The industry total is
+    right; no drawn number moves (those windows are already left out).
+  - All products (`check_all.py`): card, auto and other consumer tie;
+    home equity and mortgage tie outside 2008Q3-Q4 (balances 0.4-0.65%
+    larger, cause not identified) and small pre-2012 mortgage recovery
+    differences (up to 4.3% of a quarter's net charge-offs). Recorded in
+    `docs/tie-out/industry-qbp-2026-10-14/`.
+- **The synthesis** (`synthesize`, `synthesis.py`): for one product and
+  measure, internal, industry and peers each propose the four lines; the
+  firm names which source leads each line (`--leads`, no default). Industry
+  is translated by the median internal/industry ratio (or not, the firm's
+  choice); peers are the stated percentiles of each peer's median, carried
+  by internal/filed. A calm history places lines 2-4 and refuses line 5,
+  saying so, which is the gap the industry fills. Run on public card data
+  with KeyBank's filed series standing in for internal (mechanics only, not
+  a recommendation): internal lines 2.657 / 3.016 / 3.735 and no High;
+  industry's High, translated, 5.625. `peers build` now writes each peer's
+  own series to `banks/` for it.
+- **Built in parallel:** the internal import, by a separate agent on its
+  own branch (`threshold-engine-internal-import`), to INTERNAL-IMPORT.md.
+- **The FDIC industry files in the workbook** (README's command, all five
+  products, opened in Excel 16): every tab recalculates with no formula
+  error. Under the card settings applied to every product, card, home
+  equity and other consumer rate (3, 1, 4 at 2026Q2); mortgage is refused
+  ("Moderate-Low would begin at or below zero") and auto too ("High would
+  begin beyond the worst quarter kept": auto's own line starts in 2011, so
+  its history holds no crisis). Each refusal says what would clear it; the
+  settings per product are the firm's.
+
+## 14 October 2026, the internal import, built
+
+`docs/INTERNAL-IMPORT.md` was a draft with nothing built. It is now
+`internal.py` and the `internal` command: `template`, `check`, `series`,
+`pull` and `reconcile`. Made-up figures only in the repository; nothing has
+been run on KeyBank's data.
+
+- **The file** is as agreed: one row per quarter, product and segment, any
+  two of gross, net and recoveries (the third worked out; three that
+  disagree are refused, compared exactly as written, so no tolerance is
+  assumed), past due cumulative and not above the balance, one
+  `# segment-NAME:` description per segment the rows use. Auto is a
+  product of its own (the firm: "we have auto in the bank it's just
+  direct"). Every problem is listed at once, each with its line.
+- **Decided here, for the firm to overrule:**
+  - Exclusions are a separate file, not a section: different columns,
+    public sources, their own `--exclusions`.
+  - Each exclusion names its `segment` and its `measure` (balance, gross or
+    net charge-offs), two columns beyond the agreed four: home equity's
+    two segments meet different public lines, and a balance left out says
+    nothing about its charge-offs.
+  - Charge-offs are reconciled for every comparison, not only card and
+    other consumer: each RI-B line used covers the same loans as its RC-C
+    balance line (1.c.(1), 1.c.(2)(a) and (b), 5.a, 5.b, 5.c).
+  - The remainder's share is of the internal figure. An internal figure of
+    0 is within only when the remainder is 0.
+  - A blank filed field is "not filed", so that row is not measured, never
+    counted as 0. Before 2011Q1 auto (6.c) was not filed separately, so
+    other consumer and auto are not measured before then.
+  - Further columns hold numbers or nothing; a column named like an
+    identifier is refused. The file holds totals by segment.
+  - `reconcile` takes `--roster` (the filer is the roster's `self` bank),
+    and `internal pull` exists because a peers cache has no junior-lien
+    fields (LNRERSF2, DRRERSF2, CRRERSF2): reconcile reads a cache of its
+    own and says, row by row, when a field was not pulled.
+- **Checked against a real cache:** `internal pull` fetched 2026Q1-Q2 from
+  the live FDIC API with every field it names. A stand-in built from
+  KeyBank's own public figures (scratch only, never committed) reconciled
+  to a remainder of 0 on all 36 rows at tolerance 0. The 2026Q2 lines the
+  doc quotes hold: LNRELOC 2,929,570, LNRERSF2 276,020; other consumer
+  268,825 + 62,212 + 4,200,208 = 4,531,245.
+- **Handled the same day, after the merge:** where KeyBank absorbed a bank
+  under the same parent, its filing repeats that bank's year to date.
+  Reconcile now takes it off as the public series do (`internal pull`
+  writes `absorptions.json`; `books.repeated_ytd_fields`), and reads a year
+  to date that restarted under a new parent as the quarter's own. The one in
+  range: First Niagara (16004) into KeyBank, 2016Q4, which the industry
+  build lists among the repeats it took off. No run-off note on the
+  internal series yet.
+- `tests/test_internal.py`: 86 passed. Full suite: 914 passed, 0 failed
+  (49 minutes).
+
+## 14 October 2026, an independent review of the day's code (Codex still over its limit)
+
+Codex has been over its usage limit since #432. In its place, four review
+agents, one angle each (arithmetic, the no-default rule, input edges, tests
+that would not catch a bug), each followed by an agent told to refute what
+it found by running the code. 30 raised, 30 reproduced. Fixed:
+
+- **The absorption fix kept subtracting after a restart.** A bank that
+  absorbed an affiliate and was then sold, the same year, read a negative
+  flow (-15 for 25). `without_repeats` now stops at the first quarter the
+  survivor's year to date restarted, and takes nothing off when it
+  restarted in the merger quarter itself.
+- **A restart was decided field by field.** Push-down accounting restarts
+  every year to date together; one filing could be read as restarted for
+  charge-offs and differenced for recoveries. Now one decision per filing
+  (parent changed, and any year-to-date field fell), for the public series
+  and internal reconcile alike. With both fixes the card industry series
+  ties to the QBP in 76 of 82 quarters, total gap $5.6m (from $14.3m);
+  2022Q4's -$8.7m, unexplained this morning, closed.
+- **`peers build` now requires each filer's parent (RSSDHCR)** in the cache:
+  without it the restart rule was off without a word. A cache pulled
+  before today is refused and says to pull again with refresh. The three
+  peers fixtures gained RSSDHCR from the public API (blank only for Zions
+  from 2018Q3, when its holding company merged into the bank).
+- **Synthesis:** a line 2 at or below zero is refused under the floor
+  (scale.py checks it after High, so it never got to); every series is
+  checked as the workbook checks it (real dates, no gap, no repeat); peers
+  without `--filed`, and a peer named twice, are refused by name.
+  `compare` refuses a date that is not a calendar date.
+- **Internal import:** `internal pull` records absorptions back to the
+  earliest quarter in its cache, so a later short pull drops none; two
+  segments whose series files would share a name are refused.
+- **Notes:** the composite's four-quarter average names each bank's own
+  reason (the jump or the acquisition share), and its rule line names the
+  share; other consumer delinquency says no rate is written before 2001Q1
+  and names LNCONRP as the line not filed. Per-peer files for a bank no
+  longer drawn are removed with the build's other files.
+- **Tests that would not have caught a bug** (pack median, per-peer
+  values, the build's absorption and acquisition wiring, the composite's
+  acquisition left-outs, synthesis lower-is-worse, guards in
+  `repeated_ytd_fields` and `acquired_quarters`): 14 tests by a separate
+  agent, each proved by applying the finding's mutation to a scratch copy
+  and watching that test fail; none needed the code changed. Its
+  window-restriction peer had a gap, which synthesis now refuses; made
+  unbroken, and the mutation still fails it.
+- **Then:** every internal series states its book's path (the four-quarter
+  average balance over the last nine windows, and in how many it fell), as
+  KeyBank's public series do: home equity loans were "just discontinued", so
+  a rate can rise as the book shrinks. Facts only; no run-off line drawn.
+
+## 14 October 2026, the synthesis in the workbook
+
+The firm agreed the synthesis goes on Assess: *where each colour starts*.
+Built on branch `threshold-engine-synthesis-tab` (from `e401c5be`), in
+`synthesis_tab.py`; `synthesis.py` stays the arithmetic and the reference.
+
+- **What it is.** `workbook --synthesis "LABEL=industry:FILE;filed:FILE;
+  peers:FOLDER-OR-PATTERN"` adds a red **Synthesis** tab beside Thresholds:
+  per series, the four lines from internal, industry and peers side by side,
+  which one each line is taken from, the chosen lines, the latest quarter
+  rated on them, the competitive check and a Check; its series on
+  **SynthesisData**. Every number is a live formula on Your settings on
+  Assess. On Assess, under What each setting does, *Where each colour starts*
+  shows the series in B5 with a link to the tab. Without a synthesis flag the
+  command and the workbook are unchanged (the existing tests pass as they
+  were).
+- **Choices, none defaulted.** Per series `--translation`, `--leads`, and
+  `--peer-percentiles` when it has peers; each starts its yellow cell. Stated
+  per series, not one set for all: a lead chosen for cards, whose industry
+  history holds 2008, was not chosen for a series whose does not. A series
+  given `--synthesis` without one of them, or one of them without
+  `--synthesis`, is refused by name.
+- **Decided while building, to be confirmed.** (1) The internal lines are
+  Thresholds' lines, so periods left out on Assess move them; the
+  translations and the peer window use every quarter the internal series
+  holds, as `synthesis.py` does. (2) The industry, filed and peer series are
+  smoothed as the measure says, like the internal one. (3) Each peer is named
+  by its file (`credit-card_bank-of-america_net`); nothing is read out of the
+  file to name it.
+- **Refusals in the Check, in synthesis.py's words:** a line taken from a
+  view without it, lines out of order (the pair and their values), peers
+  without KeyBank's filed series, percentiles that are not four numbers 0-100
+  or do not rise, a lead or translation typed outside its list.
+- **Proof.** `tests/test_workbook_synthesis.py`: recalculated with `formulas`,
+  every candidate, chosen line, rating and Check equal to
+  `synthesis.synthesize` on the same inputs (all internal but High from the
+  industry; peers leading lines; translation none; percentiles and Your
+  settings changed in the workbook; a period left out; lower is worse;
+  smoothing; a latest value exactly on a chosen line under worse and better;
+  each refusal), plus the command's refusals. 42 tests. Nine hand-made
+  faults in `synthesis_tab.py` (percentile not flipped when lower is worse,
+  peer and filed medians over every quarter, order check blind to direction,
+  a line-5 refusal dropping lines 2-4, translation none ignored, percentiles
+  allowed to tie, on-the-line ignored, synthesis series left unsmoothed):
+  all nine turn a test red. The on-the-line fault survived the first round;
+  the test for a value exactly on a line was added for it. Full suite on
+  this branch: 889 passed, none failed or skipped (53 min).
+- **Opened in Excel 16** on public files: KeyBank's filed card series
+  standing in for internal (and as filed, so peers are carried by exactly
+  1.000), the FDIC industry card series, and the 11 peers `peers build` wrote
+  to `banks/`; leads internal x3 and High from industry, median ratio,
+  percentiles 20/40/75/95 (stand-in choices for the mechanics, not a
+  recommendation). Excel's numbers equal `synthesize`'s: internal 2.657 /
+  3.016 / 3.735 and no High; industry 2.749 / 3.116 / 3.850 / 5.625 (x 0.922
+  over 34 quarters); peers 3.464 / 3.795 / 3.985 / 4.921; 2026Q2 rated 4;
+  KeyBank's filed median 3.376%, worse than 2 of 11 peers. No #VALUE!,
+  #REF!, #DIV/0!, #NUM! or #NAME? on any tab; 67 #N/A on Assess, all in its
+  hidden chart helpers (the NA() that keeps a chart from drawing a point),
+  none visible. Changing line 4 to peers and High's z to 2.0 moved the chosen
+  lines and the rating (4 to 3); taking High from internal showed the
+  refusal on the tab and on Assess.
+- **Not done:** the window (`Thresholds.pyw`) does not offer the synthesis
+  inputs yet; the command line does.
+- **Merged after the review, and brought into line with it:** the tab's
+  internal and industry candidates now refuse a line 2 at or below zero
+  under the floor when High cannot be drawn (as `synthesis.py` does since
+  the review), and peers without KeyBank's filed series are refused before
+  anything is drawn, in `synthesize`'s words. Two tests hold each to
+  `synthesize` on the same inputs.
+
+## 14 October 2026, the merges, and one workbook for the meeting
+
+**Merges.** Codex stayed over its usage limit. Asked whether the independent
+agent review was enough to merge #432, #434 and #438 (the PocketBook rule of
+3 Oct), the firm: *"Yes"*. Merged in the agreed order. Before #432 merged, its
+walkthrough page was fixed: the expected build line had a carriage return
+where `\r` was meant (`outehearsal.xlsx`), and the file had become CRLF.
+Merging #432 into #434 and #438 conflicted in LOG.md, the tests and the
+checklist PDF (kept both sides; PDF re-rendered); in #438 also in
+`workbook.py`, where Assess is now built by `assess_tab.py`. #432's warning
+when a line falls below the fixed axis moved to B7:L7, the row over the
+chart. Suites on the merged trees: #432's workbook, template and CLI tests
+186 passed; #434 785 passed; #438 1,012 passed.
+
+**The meeting workbook.** The firm: *"I have a meeting tomorrow send me a ran
+workbook to see if I want to use it"*, *"All data that we have so far"*, then
+*"i did not want a bunch of workbooks i wanted one workbook with a lot of
+good info"*. Sent one: `Consumer credit thresholds.xlsx`, 95 series (five
+products by seven measures: net and gross charge-offs, trailing twelve
+months; 30-89, 90+ accruing, nonaccrual, 30+ and 90+ including nonaccrual,
+quarter-end), each from the industry (every filer), the 15-peer pack
+composite and KeyBank; with the `peers build` tabs copied in as "Peers ...".
+Card's settings throughout (0.5 / 1.0 / 2.5, worse, 41 quarters), stated as
+card's, not a decision for the rest. 42 of 95 refused, card in none.
+KeyBank's charge-offs are not in it: 34 quarters since the First Niagara
+break, 45 needed. Calculated in Excel 16, 0 visible errors on 20 tabs; the
+60 series also built as separate workbooks match them exactly. The copied
+peers tabs left an external link to `peers.xlsx` that nothing used; broken,
+and all 698,135 cells compared equal before and after.
+
+- **Found while building it:** a workbook of 36 or more series failed (the
+  Chart tab's title ran into its helpers at column AN). Fixed; test added.
+- **Got wrong, corrected:** a first note said 28 of 60 refused in the
+  separate workbooks; it was 27 (KeyBank 14, not 15). An Excel process was
+  force-closed during the run; any workbook the firm had open in Excel then
+  closed unsaved.

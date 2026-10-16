@@ -201,7 +201,7 @@ def departures(work: Sequence[Point], lengths=BRIDGE_LENGTHS, rounds=ROUNDS):
             break
         same_length = sorted((x for x in free if x[1][3] == w), key=lambda x: x[1][0],
                              reverse=mean > 0)
-        found.append({"direction": "above the path" if mean > 0 else "below the path",
+        found.append({"direction": "worse than trend" if mean > 0 else "better than trend",
                       "first": work[st + 1].date, "last": work[en - 1].date,
                       "bridge_from": work[st].date, "bridge_to": work[en].date,
                       "length": w, "mean_departure": mean, "robust_z": z,

@@ -29,3 +29,12 @@ def quarters(values, first_year=2000):
 
 #: The workbook's scale at the settings agreed for cards (7 Oct 2026).
 SCALE = dict(halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse")
+
+
+def as_earlier_build(data):
+    """Roster data as the 6 Oct 2026 build read it. That build divided other
+    consumer by RC-C 6.d alone; the balance is now 6.b + 6.d (LNCONRP +
+    LNCONOTH, books.PRODUCTS). The acceptance numbers it produced are
+    reproduced on this copy, which has 6.b at 0; the data itself is not
+    changed."""
+    return {q: [dict(r, LNCONRP=0) if "LNCONRP" in r else r for r in rows] for q, rows in data.items()}

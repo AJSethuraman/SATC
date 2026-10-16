@@ -73,7 +73,7 @@ from .. import keybank_style as K
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, normalisation, organic_index, mix_factor
 from . import delinquency as D
-from .books import PRODUCTS, _fields, bank_book, composite, label, quarter_end
+from .books import PRODUCTS, _fields, bank_book, composite, label, quarter_end, raw_fields
 from .glossary import PEER_TERMS
 
 INPUT = PatternFill("solid", fgColor="FFF2CC")
@@ -81,8 +81,8 @@ SELF_FILL = PatternFill("solid", fgColor=K.ALERT_FG)
 NOTE = Font(name="Arial", size=9, italic=True, color=K.SLATE)
 WORST, BEST = "Worst in pack", "Best in pack"
 PACKS = ("all", "regionals")
-SOURCES = ("FDIC BankFind financials: https://banks.data.fdic.gov/api/financials",
-           "FDIC BankFind structure changes: https://banks.data.fdic.gov/api/history")
+SOURCES = ("FDIC BankFind financials: https://api.fdic.gov/banks/financials",
+           "FDIC BankFind structure changes: https://api.fdic.gov/banks/history")
 
 # Pack tab layout.
 P_PRODUCT, P_A, P_B, P_KIND, P_LASTN, P_MINOBS, P_MINBANKS = (4, 5, 6, 7, 8, 9, 10)
@@ -99,7 +99,7 @@ D_PRODUCT, D_MEASURE, D_BASIS = 4, 5, 6
 D_CHART = 11                      # the chart's top row
 D_TABLE = 38                      # the visible table's header row, under the chart
 #: What ``delinquency`` must name when the tabs are built; nothing is defaulted.
-D_KEYS = ("data", "products", "jump", "min_book", "exempt_self", "measure", "basis")
+D_KEYS = ("data", "products", "jump", "min_book", "exempt_self", "acquired", "measure", "basis")
 NOT_BUILT = ("Delinquency was not built for this workbook: the build was told not to "
              "(delinquency=None, or --delinquency no).")
 
@@ -245,6 +245,9 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
     for name in ("jump", "min_book"):
         if isinstance(spec[name], bool) or not isinstance(spec[name], (int, float)):
             raise ValueError("delinquency %s must be a number, not %r" % (name, spec[name]))
+    if not isinstance(spec["acquired"], dict) or any(p not in spec["acquired"] for p in products):
+        raise ValueError("delinquency acquired must be {product: {cert: [quarter-ends]}} for every "
+                         "product, not %r" % (spec["acquired"],))
     data = spec["data"]
     if not isinstance(data, dict):
         raise ValueError("delinquency data must be {REPDTE: [rows]} as fdic.pull returns it, not a %s"
@@ -256,13 +259,14 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
         raise ValueError("delinquency data has no rows (no filer) in %d quarter(s), first %s: a quarter-end "
                          "nobody filed cannot be drawn; pull it again or leave it out" % (len(empty), empty[0]))
     for p in products:
-        for f in D.FIELDS[p]:
+        for f in D.fields_for([p]):
             lacking = [q for q in sorted(data) if not any(f in row for row in data[q])]
             if lacking:
                 raise ValueError("delinquency for %s needs %s, which the data does not carry in %d quarter(s), "
                                  "first %s: pull it with the delinquency fields" % (p, f, len(lacking), lacking[0]))
     books = {p: {m: {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, spec["jump"], spec["min_book"],
-                                                   spec["exempt_self"] and b is me)
+                                                   spec["exempt_self"] and b is me,
+                                                   acquired=spec["acquired"][p].get(b["cert"], []))
                      for b in roster} for m in D.MEASURES} for p in products}
     grid = [r["q"] for r in books[products[0]][spec["measure"]][me["cert"]]]
     return dict(spec, products=products, books=books, grid=grid)
@@ -319,7 +323,7 @@ def _delinquency_tabs(de, dd, dq: dict, roster: List[dict], me: dict, peers: Lis
                 for r in books[p][m][b["cert"]]:
                     dd.append([p, m, b["short"], b["cert"], r["q"], r["numerator"], r["balance"], r["rate"],
                                r["kept"], r["why"], r["avg4"], r["avg4"] is not None, r["why_avg4"],
-                               (r["why_avg4"] or "").startswith(D.WHY_JUMP_PREFIX)])
+                               (r["why_avg4"] or "").startswith(D.LEFT_OUT)])
     nrow = 1 + len(products) * NM * NB * DQ
     for row in dd.iter_rows(min_row=2, max_row=nrow, min_col=6, max_col=11):
         for c in row:
@@ -523,6 +527,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          normalisation_years: Sequence[int], mix_base_year: int,
                          industry: Optional[Dict[str, List[dict]]],
                          delinquency: Optional[dict],
+                         acquired: Dict[str, Dict[str, Sequence[str]]],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
                          product: Optional[str] = None) -> dict:
@@ -533,6 +538,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     - ``jump``, ``min_book`` ($000) and ``exempt_self``: the rules of
       ``books.bank_book``; ``exempt_self`` lifts the minimum for KeyBank;
+    - ``acquired``: ``{product: {cert: [YYYYMMDD]}}``, the quarters whose
+      recorded acquisitions brought in at least the acquisition share
+      (``books.acquired_quarters``), for every product built; the delinquency
+      spec carries the same under its ``acquired`` key;
     - ``pack``: 'all' or 'regionals', the peers Include starts TRUE for;
     - ``min_banks``: how many kept banks a composite or band needs (a live
       cell on Pack, starting here);
@@ -594,7 +603,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     # A field absent from a quarter's every row would be read as 0 for every
     # bank: an empty book, not a missing one. fdic.pull refuses the same.
     for p in products:
-        for f in _fields(p):
+        for f in raw_fields(_fields(p)):
             lacking = [q for q in sorted(data) if not any(f in row for row in data[q])]
             if lacking:
                 raise ValueError("%s needs %s, which the data does not carry in %d quarter(s), first %s: "
@@ -613,7 +622,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     dq = _check_delinquency(delinquency, roster, me)
 
     books = {p: {b["cert"]: bank_book(data, b["cert"], p, jump, min_book,
-                                      exempt_min_book=exempt_self and b is me)
+                                      exempt_min_book=exempt_self and b is me,
+                                      acquired=acquired[p].get(b["cert"], []))
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
     for p in products:

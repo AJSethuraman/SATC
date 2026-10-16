@@ -24,7 +24,7 @@
    "title": "Build the four-product workbook and open it",
    "how": "Run the build command (section 1), then open the file in Excel.",
    "product": "Credit card",
-   "note": "Sheets, in order: Thresholds, Assess, Chart, Evidence, Backtest, Glossary, Data, Run. The Glossary count was 33 when first written, from WHAT-IT-DOES.md; the first run found 35, and the document was out of date (two terms added since 6 Oct). Corrected here and there.",
+   "note": "Sheets, in order: Assess, Thresholds, Chart, Evidence, Backtest, Sources, Glossary, Data, Run. The Glossary count was 33 when first written, from WHAT-IT-DOES.md; the first run found 35, and the document was out of date (two terms added since 6 Oct). Corrected here and there.",
    "actions": [],
    "reads": [
     {
@@ -81,7 +81,7 @@
     },
     {
      "sheet": "Assess",
-     "range": "A40:K61",
+     "range": "M16:U38",
      "file": "w1-assess-inputs.png"
     }
    ]
@@ -340,100 +340,100 @@
   {
    "id": "W3.1",
    "title": "Assess: pick Credit card",
-   "how": "On Assess, pick Credit card in B4. Typed on Assess: B4 Credit card.",
+   "how": "On Assess, pick Credit card in B4. Typed on Assess: B5 Credit card.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "B4",
+     "cell": "B5",
      "value": "Credit card"
     }
    ],
    "reads": [
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": ""
+     "cell": "B6",
+     "expected": "Check: OK. Every setting is valid and every period left out is complete."
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 36
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 24
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 41
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 53
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 9
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 36
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 24
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 41
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 53
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 9
     },
     {
      "sheet": "Assess",
-     "cell": "C9",
+     "cell": "O11",
      "expected": 3.2114958000000002
     },
     {
      "sheet": "Assess",
-     "cell": "C12",
+     "cell": "O14",
      "expected": 6.683745
     },
     {
      "sheet": "Assess",
-     "cell": "U3",
+     "cell": "AI3",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "U2",
+     "cell": "AI2",
      "expected": 11.259
     },
     {
      "sheet": "Assess",
-     "cell": "V2",
+     "cell": "AJ2",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "P2",
+     "cell": "AD2",
      "expected": 3.2114958000000002
     }
    ],
@@ -448,100 +448,100 @@
   {
    "id": "W3.2",
    "title": "Assess: pick Mortgage",
-   "how": "On Assess, pick Mortgage in B4. Typed on Assess: B4 Mortgage.",
+   "how": "On Assess, pick Mortgage in B4. Typed on Assess: B5 Mortgage.",
    "product": "Mortgage",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "B4",
+     "cell": "B5",
      "value": "Mortgage"
     }
    ],
    "reads": [
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": ""
+     "cell": "B6",
+     "expected": "Check: OK. Every setting is valid and every period left out is complete."
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 36
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 20
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 24
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 35
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 24
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 36
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 20
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 24
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 35
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 24
     },
     {
      "sheet": "Assess",
-     "cell": "C9",
+     "cell": "O11",
      "expected": 0.0641786
     },
     {
      "sheet": "Assess",
-     "cell": "C12",
+     "cell": "O14",
      "expected": 0.5000629999999999
     },
     {
      "sheet": "Assess",
-     "cell": "U3",
+     "cell": "AI3",
      "expected": -0.037
     },
     {
      "sheet": "Assess",
-     "cell": "U2",
+     "cell": "AI2",
      "expected": 2.6921600000000003
     },
     {
      "sheet": "Assess",
-     "cell": "V2",
+     "cell": "AJ2",
      "expected": -0.037
     },
     {
      "sheet": "Assess",
-     "cell": "P2",
+     "cell": "AD2",
      "expected": 0.10117860000000001
     }
    ],
@@ -550,100 +550,100 @@
   {
    "id": "W3.3",
    "title": "Assess: pick Home equity",
-   "how": "On Assess, pick Home equity in B4. Typed on Assess: B4 Home equity.",
+   "how": "On Assess, pick Home equity in B4. Typed on Assess: B5 Home equity.",
    "product": "Home equity",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "B4",
+     "cell": "B5",
      "value": "Home equity"
     }
    ],
    "reads": [
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": ""
+     "cell": "B6",
+     "expected": "Check: OK. Every setting is valid and every period left out is complete."
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 34
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 9
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 45
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 21
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 26
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 34
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 9
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 45
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 21
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 26
     },
     {
      "sheet": "Assess",
-     "cell": "C9",
+     "cell": "O11",
      "expected": 0.08691707999999998
     },
     {
      "sheet": "Assess",
-     "cell": "C12",
+     "cell": "O14",
      "expected": 0.6847013999999999
     },
     {
      "sheet": "Assess",
-     "cell": "U3",
+     "cell": "AI3",
      "expected": -0.1815
     },
     {
      "sheet": "Assess",
-     "cell": "U2",
+     "cell": "AI2",
      "expected": 3.40518
     },
     {
      "sheet": "Assess",
-     "cell": "V2",
+     "cell": "AJ2",
      "expected": -0.1815
     },
     {
      "sheet": "Assess",
-     "cell": "P2",
+     "cell": "AD2",
      "expected": 0.26841708
     }
    ],
@@ -658,100 +658,100 @@
   {
    "id": "W3.4",
    "title": "Assess: pick Other consumer",
-   "how": "On Assess, pick Other consumer in B4. Typed on Assess: B4 Other consumer.",
+   "how": "On Assess, pick Other consumer in B4. Typed on Assess: B5 Other consumer.",
    "product": "Other consumer",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "B4",
+     "cell": "B5",
      "value": "Other consumer"
     }
    ],
    "reads": [
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": ""
+     "cell": "B6",
+     "expected": "Check: OK. Every setting is valid and every period left out is complete."
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 26
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 35
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 34
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 15
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 26
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 35
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 34
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     },
     {
      "sheet": "Assess",
-     "cell": "C9",
+     "cell": "O11",
      "expected": 0.9945899800000001
     },
     {
      "sheet": "Assess",
-     "cell": "C12",
+     "cell": "O14",
      "expected": 2.221738
     },
     {
      "sheet": "Assess",
-     "cell": "U3",
+     "cell": "AI3",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "U2",
+     "cell": "AI2",
      "expected": 3.6019080000000003
     },
     {
      "sheet": "Assess",
-     "cell": "V2",
+     "cell": "AJ2",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "P2",
+     "cell": "AD2",
      "expected": 0.9945899800000001
     }
    ],
@@ -760,28 +760,28 @@
   {
    "id": "W4",
    "title": "Leave out the financial crisis on Credit card",
-   "how": "Settings row 6: B6 2007Q4, C6 2012Q4, D6 'financial crisis'. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis.",
+   "how": "Settings row 6: B6 2007Q4, C6 2012Q4, D6 'financial crisis'. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     }
    ],
@@ -848,52 +848,52 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 20
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 31
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 32
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 55
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 20
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 31
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 34
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 63
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     }
    ],
@@ -902,48 +902,48 @@
   {
    "id": "W5",
    "title": "Add the second leave-out: the pandemic (the rehearsal settings)",
-   "how": "Also E6 2021Q3, F6 2023Q1, G6 'pandemic forbearance'. Expected to equal LOG.md, 7 Oct: 3.171 / 3.464 / 4.050 / 5.981, and 25 / 22 / 29 / 55 / 4 quarters kept. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance.",
+   "how": "Also E6 2021Q3, F6 2023Q1, G6 'pandemic forbearance'. Expected to equal LOG.md, 7 Oct: 3.171 / 3.464 / 4.050 / 5.981, and 25 / 22 / 29 / 55 / 4 quarters kept. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis; N27 Credit card; O27 2021Q3; P27 2023Q1; Q27 pandemic forbearance.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     },
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2023Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "pandemic forbearance"
     }
    ],
@@ -1010,147 +1010,147 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 22
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 29
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 55
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 32
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 22
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 31
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 63
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     },
     {
      "sheet": "Run",
-     "cell": "B15",
+     "cell": "A21",
      "expected": "Credit card"
     },
     {
      "sheet": "Run",
-     "cell": "C15",
+     "cell": "B21",
      "expected": "2007Q4"
     },
     {
      "sheet": "Run",
-     "cell": "D15",
+     "cell": "C21",
      "expected": "2012Q4"
     },
     {
      "sheet": "Run",
-     "cell": "E15",
+     "cell": "D21",
      "expected": "financial crisis"
     },
     {
      "sheet": "Run",
-     "cell": "F15",
+     "cell": "E21",
      "expected": "Left out: 21 quarters"
     },
     {
      "sheet": "Run",
-     "cell": "B16",
+     "cell": "A22",
      "expected": "Credit card"
     },
     {
      "sheet": "Run",
-     "cell": "C16",
+     "cell": "B22",
      "expected": "2021Q3"
     },
     {
      "sheet": "Run",
-     "cell": "D16",
+     "cell": "C22",
      "expected": "2023Q1"
     },
     {
      "sheet": "Run",
-     "cell": "E16",
+     "cell": "D22",
      "expected": "pandemic forbearance"
     },
     {
      "sheet": "Run",
-     "cell": "F16",
+     "cell": "E22",
      "expected": "Left out: 7 quarters"
     },
     {
      "sheet": "Assess",
-     "cell": "H42",
+     "cell": "T26",
      "expected": "Left out: 21 quarters"
     },
     {
      "sheet": "Assess",
-     "cell": "B78",
+     "cell": "C42",
      "expected": 3.171373000000001
     },
     {
      "sheet": "Assess",
-     "cell": "C78",
+     "cell": "D42",
      "expected": 3.4641865000000003
     },
     {
      "sheet": "Assess",
-     "cell": "D78",
+     "cell": "E42",
      "expected": 4.0498135
     },
     {
      "sheet": "Assess",
-     "cell": "E78",
+     "cell": "F42",
      "expected": 5.9809
     },
     {
      "sheet": "Assess",
-     "cell": "B79",
+     "cell": "C43",
      "expected": 3.2114958000000002
     },
     {
      "sheet": "Assess",
-     "cell": "C79",
+     "cell": "D43",
      "expected": 3.5947479
     },
     {
      "sheet": "Assess",
-     "cell": "D79",
+     "cell": "E43",
      "expected": 4.3612521
     },
     {
      "sheet": "Assess",
-     "cell": "E79",
+     "cell": "F43",
      "expected": 6.683745
     }
    ],
@@ -1167,7 +1167,7 @@
     },
     {
      "sheet": "Assess",
-     "range": "A1:H13",
+     "range": "M8:U15",
      "file": "w5-assess-counts.png"
     }
    ]
@@ -1175,63 +1175,63 @@
   {
    "id": "W6",
    "title": "Moderate's half-width 0.5 to 0.75 (H6)",
-   "how": "From the rehearsal settings, change Moderate's half-width 0.5 to 0.75. The dial row for 0.75 on Assess must say the same. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0.75; C58 1.0; D58 2.5.",
+   "how": "From the rehearsal settings, change Moderate's half-width 0.5 to 0.75. The dial row for 0.75 on Assess must say the same. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis; N27 Credit card; O27 2021Q3; P27 2023Q1; Q27 pandemic forbearance; O19 0.75; P19 1.0; Q19 2.5.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     },
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2023Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "pandemic forbearance"
     },
     {
      "sheet": "Assess",
-     "cell": "B58",
+     "cell": "O19",
      "value": 0.75
     },
     {
      "sheet": "Assess",
-     "cell": "C58",
+     "cell": "P19",
      "value": 1.0
     },
     {
      "sheet": "Assess",
-     "cell": "D58",
+     "cell": "Q19",
      "value": 2.5
     }
    ],
@@ -1298,97 +1298,97 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 12
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 51
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 32
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 12
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 47
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 57
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     },
     {
      "sheet": "Assess",
-     "cell": "B135",
+     "cell": "C76",
      "expected": 3.171373000000001
     },
     {
      "sheet": "Assess",
-     "cell": "C135",
+     "cell": "D76",
      "expected": 3.3177797500000006
     },
     {
      "sheet": "Assess",
-     "cell": "D135",
+     "cell": "E76",
      "expected": 4.19622025
     },
     {
      "sheet": "Assess",
-     "cell": "E135",
+     "cell": "F76",
      "expected": 5.9809
     },
     {
      "sheet": "Assess",
-     "cell": "F135",
+     "cell": "G76",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "G135",
+     "cell": "H76",
      "expected": 12
     },
     {
      "sheet": "Assess",
-     "cell": "H135",
+     "cell": "I76",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "I135",
+     "cell": "J76",
      "expected": 51
     },
     {
      "sheet": "Assess",
-     "cell": "J135",
+     "cell": "K76",
      "expected": 4
     }
    ],
@@ -1397,63 +1397,63 @@
   {
    "id": "W7",
    "title": "Moderate-Low step 1.0 to 1.5 (I6)",
-   "how": "From the rehearsal settings, change Moderate-Low step 1.0 to 1.5. The dial row for 1.5 on Assess must say the same. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0.5; C58 1.5; D58 2.5.",
+   "how": "From the rehearsal settings, change Moderate-Low step 1.0 to 1.5. The dial row for 1.5 on Assess must say the same. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis; N27 Credit card; O27 2021Q3; P27 2023Q1; Q27 pandemic forbearance; O19 0.5; P19 1.5; Q19 2.5.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     },
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2023Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "pandemic forbearance"
     },
     {
      "sheet": "Assess",
-     "cell": "B58",
+     "cell": "O19",
      "value": 0.5
     },
     {
      "sheet": "Assess",
-     "cell": "C58",
+     "cell": "P19",
      "value": 1.5
     },
     {
      "sheet": "Assess",
-     "cell": "D58",
+     "cell": "Q19",
      "value": 2.5
     }
    ],
@@ -1520,97 +1520,97 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 29
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 55
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 11
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 31
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 63
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     },
     {
      "sheet": "Assess",
-     "cell": "B143",
+     "cell": "C84",
      "expected": 2.878559500000001
     },
     {
      "sheet": "Assess",
-     "cell": "C143",
+     "cell": "D84",
      "expected": 3.4641865000000003
     },
     {
      "sheet": "Assess",
-     "cell": "D143",
+     "cell": "E84",
      "expected": 4.0498135
     },
     {
      "sheet": "Assess",
-     "cell": "E143",
+     "cell": "F84",
      "expected": 5.9809
     },
     {
      "sheet": "Assess",
-     "cell": "F143",
+     "cell": "G84",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G143",
+     "cell": "H84",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "H143",
+     "cell": "I84",
      "expected": 29
     },
     {
      "sheet": "Assess",
-     "cell": "I143",
+     "cell": "J84",
      "expected": 55
     },
     {
      "sheet": "Assess",
-     "cell": "J143",
+     "cell": "K84",
      "expected": 4
     }
    ],
@@ -1619,63 +1619,63 @@
   {
    "id": "W8",
    "title": "High's z 2.5 to 3.0 (J6)",
-   "how": "From the rehearsal settings, change High's z 2.5 to 3.0. The dial row for 3 on Assess must say the same. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0.5; C58 1.0; D58 3.0.",
+   "how": "From the rehearsal settings, change High's z 2.5 to 3.0. The dial row for 3 on Assess must say the same. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis; N27 Credit card; O27 2021Q3; P27 2023Q1; Q27 pandemic forbearance; O19 0.5; P19 1.0; Q19 3.0.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     },
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2023Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "pandemic forbearance"
     },
     {
      "sheet": "Assess",
-     "cell": "B58",
+     "cell": "O19",
      "value": 0.5
     },
     {
      "sheet": "Assess",
-     "cell": "C58",
+     "cell": "P19",
      "value": 1.0
     },
     {
      "sheet": "Assess",
-     "cell": "D58",
+     "cell": "Q19",
      "value": 3.0
     }
    ],
@@ -1742,97 +1742,97 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 22
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 29
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 57
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 2
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 32
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 22
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 31
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 66
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 12
     },
     {
      "sheet": "Assess",
-     "cell": "B127",
+     "cell": "C68",
      "expected": 3.171373000000001
     },
     {
      "sheet": "Assess",
-     "cell": "C127",
+     "cell": "D68",
      "expected": 3.4641865000000003
     },
     {
      "sheet": "Assess",
-     "cell": "D127",
+     "cell": "E68",
      "expected": 4.0498135
     },
     {
      "sheet": "Assess",
-     "cell": "E127",
+     "cell": "F68",
      "expected": 6.42568
     },
     {
      "sheet": "Assess",
-     "cell": "F127",
+     "cell": "G68",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "G127",
+     "cell": "H68",
      "expected": 22
     },
     {
      "sheet": "Assess",
-     "cell": "H127",
+     "cell": "I68",
      "expected": 29
     },
     {
      "sheet": "Assess",
-     "cell": "I127",
+     "cell": "J68",
      "expected": 57
     },
     {
      "sheet": "Assess",
-     "cell": "J127",
+     "cell": "K68",
      "expected": 2
     }
    ],
@@ -1841,58 +1841,58 @@
   {
    "id": "W9a",
    "title": "On the line takes the worse score (half-width 0)",
-   "how": "From the rehearsal settings, H6 0 and K6 'worse'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0; E58 worse.",
+   "how": "From the rehearsal settings, H6 0 and K6 'worse'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis; N27 Credit card; O27 2021Q3; P27 2023Q1; Q27 pandemic forbearance; O19 0; R19 worse.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     },
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2023Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "pandemic forbearance"
     },
     {
      "sheet": "Assess",
-     "cell": "B58",
+     "cell": "O19",
      "value": 0
     },
     {
      "sheet": "Assess",
-     "cell": "E58",
+     "cell": "R19",
      "value": "worse"
     }
    ],
@@ -1959,52 +1959,52 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 42
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 64
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 32
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 42
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 74
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     }
    ],
@@ -2013,58 +2013,58 @@
   {
    "id": "W9b",
    "title": "On the line takes the better score (half-width 0)",
-   "how": "From the rehearsal settings, H6 0 and K6 'better'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score. Typed on Assess: A42 Credit card; B42 2007Q4; C42 2012Q4; D42 financial crisis; A43 Credit card; B43 2021Q3; C43 2023Q1; D43 pandemic forbearance; B58 0; E58 better.",
+   "how": "From the rehearsal settings, H6 0 and K6 'better'. The median kept (3.757) is a quarter cards actually had, so it sits on two lines and the rule decides its score. Typed on Assess: N26 Credit card; O26 2007Q4; P26 2012Q4; Q26 financial crisis; N27 Credit card; O27 2021Q3; P27 2023Q1; Q27 pandemic forbearance; O19 0; R19 better.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2007Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "financial crisis"
     },
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2023Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "pandemic forbearance"
     },
     {
      "sheet": "Assess",
-     "cell": "B58",
+     "cell": "O19",
      "value": 0
     },
     {
      "sheet": "Assess",
-     "cell": "E58",
+     "cell": "R19",
      "value": "better"
     }
    ],
@@ -2131,52 +2131,52 @@
     },
     {
      "sheet": "Assess",
-     "cell": "E8",
+     "cell": "Q10",
      "expected": 25
     },
     {
      "sheet": "Assess",
-     "cell": "E9",
+     "cell": "Q11",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "E10",
+     "cell": "Q12",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "E11",
+     "cell": "Q13",
      "expected": 63
     },
     {
      "sheet": "Assess",
-     "cell": "E12",
+     "cell": "Q14",
      "expected": 4
     },
     {
      "sheet": "Assess",
-     "cell": "G8",
+     "cell": "S10",
      "expected": 32
     },
     {
      "sheet": "Assess",
-     "cell": "G9",
+     "cell": "S11",
      "expected": 43
     },
     {
      "sheet": "Assess",
-     "cell": "G10",
+     "cell": "S12",
      "expected": 0
     },
     {
      "sheet": "Assess",
-     "cell": "G11",
+     "cell": "S13",
      "expected": 73
     },
     {
      "sheet": "Assess",
-     "cell": "G12",
+     "cell": "S14",
      "expected": 15
     }
    ],
@@ -2185,18 +2185,18 @@
   {
    "id": "W10.1",
    "title": "Refused: a leave-out with a start and nothing else",
-   "how": "Type Assess!A42 Credit card; Assess!B42 2008Q1; read the Check column and Assess.",
+   "how": "Type Assess!N26 Credit card; Assess!O26 2008Q1; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2008Q1"
     }
    ],
@@ -2213,13 +2213,15 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: a period left out for this product is not whole; its Status on Assess says what is missing"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: a period left out for this product is not whole; its Status on Assess says what is missing. To fix: "
+     }
     },
     {
      "sheet": "Assess",
-     "cell": "H42",
-     "expected": "Pick a first and a last quarter from the list"
+     "cell": "T26",
+     "expected": "Missing: To, reason (Credit card refused)"
     }
    ],
    "picture": []
@@ -2227,28 +2229,28 @@
   {
    "id": "W10.2",
    "title": "Refused: a second leave-out in reverse order",
-   "how": "Type Assess!A43 Credit card; Assess!B43 2021Q1; Assess!C43 2020Q1; Assess!D43 x; read the Check column and Assess.",
+   "how": "Type Assess!N27 Credit card; Assess!O27 2021Q1; Assess!P27 2020Q1; Assess!Q27 x; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A43",
+     "cell": "N27",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B43",
+     "cell": "O27",
      "value": "2021Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "C43",
+     "cell": "P27",
      "value": "2020Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "D43",
+     "cell": "Q27",
      "value": "x"
     }
    ],
@@ -2265,13 +2267,15 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: a period left out for this product is not whole; its Status on Assess says what is missing"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: a period left out for this product is not whole; its Status on Assess says what is missing. To fix: "
+     }
     },
     {
      "sheet": "Assess",
-     "cell": "H43",
-     "expected": "The first quarter must come before the last"
+     "cell": "T27",
+     "expected": "From is after To (Credit card refused)"
     }
    ],
    "picture": []
@@ -2279,23 +2283,23 @@
   {
    "id": "W10.3",
    "title": "Refused: a leave-out with no reason",
-   "how": "Type Assess!A42 Credit card; Assess!B42 2008Q1; Assess!C42 2012Q4; read the Check column and Assess.",
+   "how": "Type Assess!N26 Credit card; Assess!O26 2008Q1; Assess!P26 2012Q4; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "2008Q1"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2012Q4"
     }
    ],
@@ -2312,13 +2316,15 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: a period left out for this product is not whole; its Status on Assess says what is missing"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: a period left out for this product is not whole; its Status on Assess says what is missing. To fix: "
+     }
     },
     {
      "sheet": "Assess",
-     "cell": "H42",
-     "expected": "Say why"
+     "cell": "T26",
+     "expected": "Missing: reason (Credit card refused)"
     }
    ],
    "picture": []
@@ -2326,13 +2332,13 @@
   {
    "id": "W10.4",
    "title": "Refused: a half-width below 0",
-   "how": "Type Assess!B58 -0.1; read the Check column and Assess.",
+   "how": "Type Assess!O19 -0.1; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "B58",
+     "cell": "O19",
      "value": -0.1
     }
    ],
@@ -2349,8 +2355,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: Moderate's half-width must be 0 or more"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: Moderate's half-width must be 0 or more. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2358,13 +2366,13 @@
   {
    "id": "W10.5",
    "title": "Refused: a z of 0",
-   "how": "Type Assess!D58 0; read the Check column and Assess.",
+   "how": "Type Assess!Q19 0; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "D58",
+     "cell": "Q19",
      "value": 0
     }
    ],
@@ -2381,8 +2389,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: High's z must be above 0"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: High's z must be above 0. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2390,13 +2400,13 @@
   {
    "id": "W10.6",
    "title": "Refused: a step typed as text",
-   "how": "Type Assess!C58 one; read the Check column and Assess.",
+   "how": "Type Assess!P19 one; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "C58",
+     "cell": "P19",
      "value": "one"
     }
    ],
@@ -2413,8 +2423,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: Moderate-Low's step must be a number"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: Moderate-Low's step must be a number. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2422,28 +2434,28 @@
   {
    "id": "W10.7",
    "title": "Refused: too little history kept",
-   "how": "Type Assess!A42 Credit card; Assess!B42 1985Q4; Assess!C42 2025Q2; Assess!D42 test; read the Check column and Assess.",
+   "how": "Type Assess!N26 Credit card; Assess!O26 1985Q4; Assess!P26 2025Q2; Assess!Q26 test; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A42",
+     "cell": "N26",
      "value": "Credit card"
     },
     {
      "sheet": "Assess",
-     "cell": "B42",
+     "cell": "O26",
      "value": "1985Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C42",
+     "cell": "P26",
      "value": "2025Q2"
     },
     {
      "sheet": "Assess",
-     "cell": "D42",
+     "cell": "Q26",
      "value": "test"
     }
    ],
@@ -2460,8 +2472,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: too little history kept for a typical yearly move"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: too little history kept for a typical yearly move. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2469,33 +2483,33 @@
   {
    "id": "W10.8",
    "title": "Refused: the median at or below zero (Mortgage, keeping 2011Q4 to 2026Q2)",
-   "how": "Type Assess!A44 Mortgage; Assess!B44 1985Q4; Assess!C44 2011Q3; Assess!D44 test; Assess!B4 Mortgage; read the Check column and Assess.",
+   "how": "Type Assess!N28 Mortgage; Assess!O28 1985Q4; Assess!P28 2011Q3; Assess!Q28 test; Assess!B5 Mortgage; read the Check column and Assess.",
    "product": "Mortgage",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "A44",
+     "cell": "N28",
      "value": "Mortgage"
     },
     {
      "sheet": "Assess",
-     "cell": "B44",
+     "cell": "O28",
      "value": "1985Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "C44",
+     "cell": "P28",
      "value": "2011Q3"
     },
     {
      "sheet": "Assess",
-     "cell": "D44",
+     "cell": "Q28",
      "value": "test"
     },
     {
      "sheet": "Assess",
-     "cell": "B4",
+     "cell": "B5",
      "value": "Mortgage"
     }
    ],
@@ -2512,8 +2526,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: the median is at or below zero"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: the median is at or below zero. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2521,13 +2537,13 @@
   {
    "id": "W10.9",
    "title": "Refused: Moderate-Low inside Moderate",
-   "how": "Type Assess!C58 0.4; read the Check column and Assess.",
+   "how": "Type Assess!P19 0.4; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "C58",
+     "cell": "P19",
      "value": 0.4
     }
    ],
@@ -2544,8 +2560,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: Moderate-Low must begin further from the median than Moderate"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: Moderate-Low must begin further from the median than Moderate. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2553,13 +2571,13 @@
   {
    "id": "W10.10",
    "title": "Refused: High inside Moderate-High (z 0.3)",
-   "how": "Type Assess!D58 0.3; read the Check column and Assess.",
+   "how": "Type Assess!Q19 0.3; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "D58",
+     "cell": "Q19",
      "value": 0.3
     }
    ],
@@ -2576,8 +2594,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: High must begin beyond Moderate-High's line"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: High must begin beyond Moderate-High's line. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2585,13 +2605,13 @@
   {
    "id": "W10.11",
    "title": "Refused: High beyond the worst quarter kept (z 8)",
-   "how": "Type Assess!D58 8; read the Check column and Assess.",
+   "how": "Type Assess!Q19 8; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "D58",
+     "cell": "Q19",
      "value": 8
     }
    ],
@@ -2608,8 +2628,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: High would begin beyond the worst quarter kept"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: High would begin beyond the worst quarter kept. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2617,13 +2639,13 @@
   {
    "id": "W10.12",
    "title": "Refused: Moderate-Low at or below zero (step 6)",
-   "how": "Type Assess!C58 6; read the Check column and Assess.",
+   "how": "Type Assess!P19 6; read the Check column and Assess.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Assess",
-     "cell": "C58",
+     "cell": "P19",
      "value": 6
     }
    ],
@@ -2640,8 +2662,10 @@
     },
     {
      "sheet": "Assess",
-     "cell": "B5",
-     "expected": "Refused: Moderate-Low would begin at or below zero"
+     "cell": "B6",
+     "expected": {
+      "startswith": "Refused: Moderate-Low would begin at or below zero. To fix: "
+     }
     }
    ],
    "picture": []
@@ -2656,109 +2680,109 @@
    "reads": [
     {
      "sheet": "Run",
-     "cell": "C9",
-     "expected": "8291d7d2b4ef971230fcf7271d2e49ed4b16a52f65612b1512d094cb3c69b1d0"
-    },
-    {
-     "sheet": "Run",
-     "cell": "C10",
-     "expected": "fc768d8777b5e4c553c080fe590559c058a6de1cb6e127d90d56172b9bfedbb9"
-    },
-    {
-     "sheet": "Run",
-     "cell": "C11",
-     "expected": "393d5193027113ebb2383ea7e9be86cb8426ef69625acffd6012bef6a9557e09"
-    },
-    {
-     "sheet": "Run",
-     "cell": "C12",
-     "expected": "0a46094231be4b0829b260adcf354cc89d8e7a37cf7e505fb2e75e9b7b52e6ae"
-    },
-    {
-     "sheet": "Run",
-     "cell": "D9",
-     "expected": 163
-    },
-    {
-     "sheet": "Run",
-     "cell": "D10",
-     "expected": 139
-    },
-    {
-     "sheet": "Run",
-     "cell": "D11",
-     "expected": 135
-    },
-    {
-     "sheet": "Run",
-     "cell": "D12",
-     "expected": 135
+     "cell": "F14",
+     "expected": "617ca0f7acd3553528d1518a82bbe01aa3f57ac5cf718d8227a43d7bf0accf41"
     },
     {
      "sheet": "Run",
      "cell": "F15",
-     "expected": ""
+     "expected": "3fee84fcae1b6f00558588562b7d9f22eb037311844ef92764e284e63f147da8"
     },
     {
      "sheet": "Run",
      "cell": "F16",
-     "expected": ""
+     "expected": "98fd572eb6a6f1de2a9e656a1ad7e20d2025803e2505078bcdac1f8b930579b6"
     },
     {
      "sheet": "Run",
      "cell": "F17",
+     "expected": "94addbb42332f1e869a62c837c45e5702c160cd54a66fb247f395d7fc22ec1e8"
+    },
+    {
+     "sheet": "Run",
+     "cell": "C14",
+     "expected": 163
+    },
+    {
+     "sheet": "Run",
+     "cell": "C15",
+     "expected": 139
+    },
+    {
+     "sheet": "Run",
+     "cell": "C16",
+     "expected": 135
+    },
+    {
+     "sheet": "Run",
+     "cell": "C17",
+     "expected": 135
+    },
+    {
+     "sheet": "Run",
+     "cell": "E21",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F18",
+     "cell": "E22",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F19",
+     "cell": "E23",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F20",
+     "cell": "E24",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F21",
+     "cell": "E25",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F22",
+     "cell": "E26",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F23",
+     "cell": "E27",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F24",
+     "cell": "E28",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F25",
+     "cell": "E29",
      "expected": ""
     },
     {
      "sheet": "Run",
-     "cell": "F26",
+     "cell": "E30",
+     "expected": ""
+    },
+    {
+     "sheet": "Run",
+     "cell": "E31",
+     "expected": ""
+    },
+    {
+     "sheet": "Run",
+     "cell": "E32",
      "expected": ""
     }
    ],
    "picture": [
     {
      "sheet": "Run",
-     "range": "A1:F18",
+     "range": "A1:F40",
      "file": "w11-run.png"
     }
    ]
@@ -2766,25 +2790,25 @@
   {
    "id": "W12",
    "title": "Chart: switch Mortgage off",
-   "how": "Chart B3: FALSE. Mortgage's column is #N/A (nothing drawn). Typed on Assess: B3 False.",
+   "how": "Chart B3: FALSE. Mortgage's column is #N/A (nothing drawn). Typed on Assess: C5 False.",
    "product": "Credit card",
    "note": "",
    "actions": [
     {
      "sheet": "Chart",
-     "cell": "B3",
+     "cell": "C5",
      "value": false
     }
    ],
    "reads": [
     {
      "sheet": "Chart",
-     "cell": "F2",
+     "cell": "AP2",
      "expected": "#N/A"
     },
     {
      "sheet": "=",
-     "cell": "ISNUMBER(Chart!E2)",
+     "cell": "ISNUMBER(Chart!AO2)",
      "expected": true
     }
    ],
@@ -2846,17 +2870,17 @@
     },
     {
      "sheet": "Backtest",
-     "cell": "B6",
+     "cell": "C6",
      "expected": 0.8042041179989389
     },
     {
      "sheet": "Backtest",
-     "cell": "C6",
+     "cell": "D6",
      "expected": -0.18380473354549715
     },
     {
      "sheet": "Backtest",
-     "cell": "I6",
+     "cell": "J6",
      "expected": 119
     }
    ],

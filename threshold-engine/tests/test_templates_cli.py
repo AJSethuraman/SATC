@@ -94,7 +94,7 @@ def test_each_template_written_filled_checked_and_built(tmp_path, capsys, key):
                "--unit", t.unit, "--direction", t.direction] + MEASURE)
     assert rc == 0, capsys.readouterr().err
     assert "Synthetic, 24 quarters" in capsys.readouterr().out
-    assert load_workbook(book).sheetnames[0] == "Thresholds"
+    assert load_workbook(book).sheetnames[:2] == ["Assess", "Thresholds"]
 
 
 def test_write_will_not_overwrite_a_filled_template(tmp_path, capsys):

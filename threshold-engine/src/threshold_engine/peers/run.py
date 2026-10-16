@@ -64,7 +64,7 @@ def slug(text: str) -> str:
 
 def charge_off_fields(products: Sequence[str]) -> List[str]:
     """The balance, charge-off and recovery fields of the products named."""
-    return [f for p in products for f in books.PRODUCTS[p]]
+    return books.raw_fields(f for p in products for f in books.PRODUCTS[p])
 
 
 def _products(products) -> List[str]:
@@ -161,6 +161,29 @@ def load_mergers(path):
     return mergers
 
 
+def load_absorptions(path):
+    """``[{acquirer, absorbed, quarter}]`` from the file 'peers pull --mergers'
+    writes beside the merger record, every row checked here, so a bad file is
+    refused by name rather than failing later."""
+    try:
+        links = json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
+    if not isinstance(links, list):
+        raise ValueError("%s must hold [{acquirer, absorbed, quarter}]" % path)
+    for ln in links:
+        ok = (isinstance(ln, dict) and set(ln) == {"acquirer", "absorbed", "quarter"}
+              and all(isinstance(ln[k], str) and ln[k].isdigit() for k in ("acquirer", "absorbed")))
+        if ok:
+            try:
+                books.quarter_end(ln["quarter"])
+            except ValueError:
+                ok = False
+        if not ok:
+            raise ValueError("%s: %r is not {acquirer, absorbed, quarter}" % (path, ln))
+    return links
+
+
 def extras(items, roster, quarters):
     """``{cert: [YYYYQn]}`` from --extra-acquisitions. A certificate not on the
     roster, or a quarter outside the data read, is refused: a typo there would
@@ -209,7 +232,10 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
     """Fetch the quarters not already cached (every one with ``refresh``);
     with ``delinquency``, the delinquency fields of the products too; with
     ``mergers_since`` (YYYY-MM-DD, or None for no merger record), the merger
-    record into ``cache/mergers.json``.
+    record into ``cache/mergers.json`` and who absorbed whom into
+    ``cache/absorptions.json``. Every quarter carries each filer's parent
+    (``books.PARENT``), which says whether an absorption was under common
+    control.
 
     Everything stated is checked before the first request, so a typo in the
     mergers date never costs a whole pull before the refusal. A quarter
@@ -217,14 +243,15 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
     is refused by ``fdic.pull`` with that reason, never read as zeros.
 
     Returns ``{quarters, fetched, already, filers, fields, mergers,
-    acquirers}``; ``mergers`` is the file written, or None."""
+    acquirers, absorptions}``; ``mergers`` and ``absorptions`` are the files
+    written, or None."""
     _yes_no("--delinquency", delinquency)
     _yes_no("--refresh", refresh)
     products = _products(products)
     quarters = fdic.quarter_ends(first, last)
     if mergers_since:
         fdic.quarter_end(mergers_since)                     # refuses anything but YYYY-MM-DD
-    fields = charge_off_fields(products)
+    fields = charge_off_fields(products) + [books.PARENT]
     if delinquency:
         fields += [f for f in D.fields_for(products) if f not in fields]
     cache = Path(cache)
@@ -237,15 +264,21 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
         say("With the delinquency and nonaccrual fields of %s" % ", ".join(products))
     filers = len(data[quarters[-1]])
     say("Filers in %s: %d" % (last, filers))
-    path, acquirers = None, None
+    path, acquirers, links_path = None, None, None
     if mergers_since:
-        m = fdic.pull_mergers(mergers_since)
+        rows = fdic.history(mergers_since)
+        m = fdic.classify(rows)
         path = cache / "mergers.json"
         path.write_text(json.dumps(m, indent=1, sort_keys=True), encoding="utf-8")
         acquirers = len(m)
         say("Wrote %s: %d acquirers since %s" % (path, acquirers, mergers_since))
+        links = fdic.absorptions(rows)
+        links_path = cache / "absorptions.json"
+        links_path.write_text(json.dumps(links, indent=1), encoding="utf-8")
+        say("Wrote %s: %d absorptions since %s (who took in whom)"
+            % (links_path, len(links), mergers_since))
     return dict(quarters=quarters, fetched=fetched, already=len(quarters) - fetched, filers=filers,
-                fields=fields, mergers=path, acquirers=acquirers)
+                fields=fields, mergers=path, acquirers=acquirers, absorptions=links_path)
 
 
 # ---------------------------------------------------------------- build
@@ -253,7 +286,8 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
 def _check_build(s):
     """Refuse a stated setting outside its range, before anything is read."""
     for flag, key, low in (("--jump", "jump", 0), ("--min-book", "min_book", 0),
-                           ("--index-min-book", "index_min_book", 0)):
+                           ("--index-min-book", "index_min_book", 0),
+                           ("--acquisition-share", "acquisition_share", 0)):
         at_least(flag, s[key], low)
     for flag, key, low in (("--min-banks", "min_banks", 1), ("--last-n", "last_n", 1),
                            ("--min-obs", "min_obs", 1), ("--lag-years", "lag_years", 0)):
@@ -294,26 +328,34 @@ def quarter_runs(labels):
 
 def left_out_note(left_out, tail, names):
     """The note line on a pack composite's four-quarter average naming, over
-    the quarters written (``tail``), the banks left out of it because the jump
-    blanked their own four-quarter average. ``left_out`` is ``{YYYYQn: [cert]}``
-    (``composite_delinquency``'s ``avg4_left_out``), ``names`` ``{cert: label}``.
-    Written either way, so what was left out is never hidden."""
+    the quarters written (``tail``), the banks left out of it and why: their
+    own four-quarter average was blanked by the jump or by the acquisition
+    share. ``left_out`` is ``{YYYYQn: [(cert, reason)]}``, the reason "the
+    jump" or "the acquisition share" (``composite_delinquency``'s
+    ``avg4_left_out`` with each bank's own ``why_avg4``), ``names`` ``{cert:
+    label}``. Written either way, so what was left out is never hidden."""
     written = {q for q, _ in tail}
     by_bank = {}
-    for q, certs in left_out.items():
+    for q, items in left_out.items():
         if q in written:
-            for c in certs:
-                by_bank.setdefault(c, []).append(q)
+            for c, why in items:
+                by_bank.setdefault((why, c), []).append(q)
     if not by_bank:
-        return "No bank was left out of this average by the jump in the quarters written."
-    return ("Left out of this average because the jump blanked their own four-quarter average (the "
-            "book moved by more than the jump, usually an acquisition): %s."
-            % "; ".join("%s %s" % (names.get(c, c), quarter_runs(sorted(qs)))
-                        for c, qs in by_bank.items()))
+        return ("No bank was left out of this average by the jump or the acquisition share in the "
+                "quarters written.")
+    parts_ = []
+    for why in ("the jump", "the acquisition share"):
+        banks = [(c, qs) for (w, c), qs in by_bank.items() if w == why]
+        if banks:
+            parts_.append("blanked by %s (%s): %s" % (
+                why, "the book moved by more than the jump" if why == "the jump" else
+                "recorded acquisitions brought in at least that share of the book",
+                "; ".join("%s %s" % (names.get(c, c), quarter_runs(sorted(qs))) for c, qs in banks)))
+    return "Left out of this average because their own four-quarter average was " + "; and ".join(parts_) + "."
 
 
 def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_book, exempt_self,
-                        min_banks, source, every, out_dir):
+                        min_banks, source, every, out_dir, acquired, acquisition_share):
     """Per product, measure and basis, the pack composite, the bank itself and
     the industry, as ``(path, rows, note, product, left_out)``: the delinquency
     CSVs. ``left_out`` is ``{YYYYQn: [cert]}`` for a pack composite's
@@ -327,25 +369,36 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
     book = "{:,.0f}".format(min_book)
     rule = ("Rules: minimum book %s ($000), read against the quarter-end balance%s; the jump %g "
             "blanks a four-quarter average when the book moved by more than that in any of its last "
-            "three quarters, and never a quarter-end rate, which is one filing's; at least %d banks "
-            "in a composite." % (book, exempt, jump, min_banks))
+            "three quarters, and so does an acquisition bringing in %g of the book or more, never a "
+            "quarter-end rate, which is one filing's; at least %d banks in a composite."
+            % (book, exempt, jump, acquisition_share, min_banks))
     comp_rule = ("Rules: minimum book %s ($000), read against each bank's quarter-end balance%s; at "
                  "least %d banks in a composite. The jump %g never touches a quarter-end rate, which is "
                  "one filing per bank; the four-quarter average is the mean of four composite "
                  "quarter-end rates, each without the banks whose own four-quarter average the jump "
-                 "blanked that quarter." % (book, exempt, min_banks, jump))
+                 "or the acquisition share (%g) blanked that quarter." % (book, exempt, min_banks, jump,
+                                                                          acquisition_share))
     certs = [b["cert"] for b in pack]
     made = []
     for p in products:
         balance = D.FIELDS[p][0]
+        balance = "(%s)" % " + ".join(books.parts(balance)) if "+" in balance else balance
         for m in D.MEASURES:
             nums = " + ".join(D._numerator_fields(p, m))
             banks_ = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, jump, min_book,
-                                                    exempt_self and b is me) for b in roster}
+                                                    exempt_self and b is me,
+                                                    acquired=acquired[p].get(b["cert"], []))
+                      for b in roster}
             comp = D.composite_delinquency(banks_, certs, min_banks)
+            mid = {b_: D.band_delinquency(banks_, certs, b_, (50,), min_banks=min_banks) for b_ in D.BASES}
+            median = [{"q": a["q"], D.BASES["quarter-end"]: a["p50"],
+                       D.BASES["four-quarter average"]: f["p50"]}
+                      for a, f in zip(mid["quarter-end"], mid["four-quarter average"])]
             for who, words, ruled, rows in (
                     ("pack-composite", "pack composite (%s): kept banks' numerators summed over their "
                      "balances summed" % pack_words, comp_rule, comp),
+                    ("pack-median", "pack median (%s): the middle bank's rate, each bank counted once "
+                     "whatever its size, under each bank's own rules" % pack_words, rule, median),
                     (slug(me["short"]), "%s (certificate %s), its own book" % (me["short"], me["cert"]),
                      rule, banks_[me["cert"]]),
                     ("industry", "industry: " + every, None, D.industry_delinquency(data, p, m))):
@@ -358,7 +411,13 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                             "Amounts are $ thousands at quarter-end, as filed; a field not filed is "
                             "never read as 0.",
                             words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
-                    left_out = ({r["q"]: r["avg4_left_out"] for r in comp}
+                    note += D.comparability(p, m)
+                    said = D.DEFINITIONS.get(p, books.DEFINITIONS.get(p))
+                    note += [said] if said else []
+                    own = {c: {x["q"]: x["why_avg4"] or "" for x in banks_[c]} for c in certs}
+                    left_out = ({r["q"]: [(c, "the jump" if own[c].get(r["q"], "").startswith(D.WHY_JUMP_PREFIX)
+                                           else "the acquisition share") for c in r["avg4_left_out"]]
+                                 for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
                                  D.values(rows, basis), note, p, left_out))
@@ -427,7 +486,7 @@ def _commit(moves, removals, say):
     return gone
 
 
-def _check_out(out, *, roster, mergers) -> None:
+def _check_out(out, *, roster, mergers, absorptions=None) -> None:
     """Refuse a workbook path that would replace a file the build reads,
     before anything is read or written. It must be a .xlsx file: the series
     are .csv and the cache .json, so it can never be one of them, and it must
@@ -435,21 +494,28 @@ def _check_out(out, *, roster, mergers) -> None:
     out = Path(out)
     if out.suffix.lower() != ".xlsx":
         raise ValueError("the peer workbook must be written to a .xlsx file, not %s" % out.name)
-    for name, path in (("the roster", roster), ("the merger record", mergers)):
+    for name, path in (("the roster", roster), ("the merger record", mergers),
+                       ("the absorptions", absorptions)):
         if path is not None and out.resolve() == Path(path).resolve():
             raise ValueError("the peer workbook would be written over %s, %s; write it elsewhere"
                              % (name, Path(path).name))
 
 
 def build(out, *, cache, roster, series_dir, first: str, last: str, products: Sequence[str],
-          mergers, extra_acquisitions: Sequence[str], industry_combined: Sequence[str],
-          jump: float, min_book: float, exempt_self: bool, pack: str, min_banks: int, rank_by: str,
+          mergers, absorptions, extra_acquisitions: Sequence[str], industry_combined: Sequence[str],
+          jump: float, acquisition_share: float, min_book: float, exempt_self: bool, pack: str, min_banks: int, rank_by: str,
           last_n: int, min_obs: int, base_quarter: str, index_min_book: float,
           lagged_years: Sequence[int], lag_years: int, normalisation_years: Sequence[int],
           mix_base_year: int, delinquency: bool, say: Callable[[str], None] = print) -> dict:
     """Read the cache, write the peer workbook and the series CSVs.
 
-    ``mergers`` is the file 'peers pull --mergers' writes; ``extra_acquisitions``
+    ``mergers`` and ``absorptions`` are the files 'peers pull --mergers'
+    writes. ``acquisition_share`` (0.05 = 5%) is the share of a product's
+    book an acquisition quarter must bring in for the windows holding it to
+    be left out (``books.acquired_quarters``), the firm's judgement. In a
+    survivor's merger quarter under common control, the absorbed bank's
+    year-to-date is taken off the survivor's (``books.repeated_ytd``), for
+    every series, the industry's included. ``extra_acquisitions``
     is ``CERT=YYYYQn`` items and ``industry_combined`` ``PRODUCT+PRODUCT``
     items, each an empty list to state there are none. ``delinquency`` True
     pulls the delinquency fields out of the cache too (refused, by field, if
@@ -473,12 +539,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     written, left out before, left out after)`` (0 quarters: not written)."""
     s = dict(locals())
     products = _check_build(s)
-    _check_out(out, roster=roster, mergers=mergers)
+    _check_out(out, roster=roster, mergers=mergers, absorptions=absorptions)
     quarters = fdic.quarter_ends(first, last)
     roster_ = R.load(roster)
     me = R.self_bank(roster_)
     pack_ = R.peers(roster_) if pack == "all" else R.regionals(roster_)
     mergers_ = load_mergers(mergers)
+    links_ = load_absorptions(absorptions)
     extras_ = extras(extra_acquisitions, roster_, quarters)
     combined_ = combined(industry_combined)
 
@@ -491,31 +558,63 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
 
     def no_fetch(url):
         raise ValueError("build reads the cache only and never fetches")
-    fields = charge_off_fields(list(products) + [p for c in combined_ for p in c])
+    flow_products = list(products) + [p for c in combined_ for p in c if p not in products]
+    # The parent (books.PARENT) is required: every flow reads it to tell a
+    # year to date restarted under a new owner (books.restarted), and without
+    # it that rule would be off without a word. A cache pulled without it is
+    # refused by fdic.pull, which says to pull again with refresh.
+    fields = charge_off_fields(flow_products) + [books.PARENT]
     if delinquency:
         fields += [f for f in D.fields_for(products) if f not in fields]
     data = fdic.pull(quarters, fields, cache, fetch=no_fetch)
+    repeats = books.repeated_ytd(data, links_, flow_products)
+    data = books.without_repeats(data, repeats)
+    acquired = {p: books.acquired_quarters(data, links_, p, acquisition_share) for p in products}
+    merged = sorted({(r["acquirer"], r["quarter"]) for r in repeats})
+    names_ = {b["cert"]: b["short"] for b in roster_}
+    on_roster = [(c, q) for c, q in merged if c in names_]
+    repeat_note = ("Absorptions under common control: the absorbed bank's year-to-date charge-offs and "
+                   "recoveries, which the survivor's filing repeats, are taken off the survivor's for the "
+                   "rest of that year. %s" % (
+                       "None in these quarters." if not merged else
+                       "%d survivor-quarters across every filer (each in %s); on the roster: %s."
+                       % (len(merged), Path(absorptions).name,
+                          ", ".join("%s in %s" % (names_[c], books.label(q)) for c, q in on_roster)
+                          if on_roster else "none")))
 
     filers = len(data[quarters[-1]])
     ind = {p: books.industry(data, p) for p in products}
-    rule = ("Rules: jump %g, minimum book %s ($000)%s, at least %d banks in a composite."
-            % (jump, "{:,.0f}".format(min_book),
-               ", %s exempt" % me["short"] if exempt_self else "", min_banks))
+    rule = ("Rules: jump %g, acquisition share %g, minimum book %s ($000)%s, at least %d banks in a "
+            "composite." % (jump, acquisition_share, "{:,.0f}".format(min_book),
+                            ", %s exempt" % me["short"] if exempt_self else "", min_banks))
     source = "Source: FDIC BankFind financials, %s to %s, from the cache %s." % (first, last, cache)
     every = "every filer in the cache (%d in %s), no jump or minimum rule" % (filers, last)
     out_dir = Path(series_dir)
     pack_words = "all %d peers" % len(pack_) if pack == "all" else "%d regionals" % len(pack_)
 
     made = []                   # (product words, file slug, who, words, rules apply?, rows)
+    peer_books = {}
     for p in products:
         bks = {b["cert"]: books.bank_book(data, b["cert"], p, jump, min_book,
-                                          exempt_min_book=exempt_self and b is me) for b in roster_}
+                                          exempt_min_book=exempt_self and b is me,
+                                          acquired=acquired[p].get(b["cert"], [])) for b in roster_}
+        peer_books[p] = bks
         comp = books.composite(bks, [b["cert"] for b in pack_], min_banks)
+        mids = {k: books.band(bks, [b["cert"] for b in pack_], k, (50,), min_banks=min_banks)
+                for k in ("gross", "net")}
+        median = [{"quarter": g["quarter"], "gross_rate": g["p50"], "net_rate": n["p50"]}
+                  for g, n in zip(mids["gross"], mids["net"])]
         made += [
             (p, slug(p), "pack-composite",
              "pack composite (%s): kept flows over kept average balances" % pack_words, True, comp),
+            (p, slug(p), "pack-median",
+             "pack median (%s): the middle bank's kept rate, each bank counted once whatever its "
+             "size" % pack_words, True, median),
             (p, slug(p), slug(me["short"]),
-             "%s (certificate %s), its own book" % (me["short"], me["cert"]), True, bks[me["cert"]]),
+             "%s (certificate %s), its own book. %s" % (me["short"], me["cert"],
+                                                       books.balance_path(bks[me["cert"]], 9) or
+                                                       "Book: fewer than nine quarters held, so its path "
+                                                       "is not stated"), True, bks[me["cert"]]),
             (p, slug(p), "industry", "industry: " + every, False, ind[p]),
         ]
     for names in combined_:
@@ -528,21 +627,35 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         for kind in ("gross", "net"):
             tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
-                    words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else [])
+                    words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
+            note += [books.DEFINITIONS[n] for n in words_p.split(" plus ") if n in books.DEFINITIONS]
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
                            series_note(note, tail, before, after), before, after, None))
+    # Each peer's own book, for the synthesis's peer percentiles: banks/ keeps
+    # them apart from the pack, KeyBank and industry files beside it.
+    for p in products:
+        for b in R.peers(roster_):
+            rows = peer_books[p][b["cert"]]
+            for kind in ("gross", "net"):
+                tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+                note = ["%s, %s charge-off rate, trailing four quarters, %%." % (p, kind),
+                        "%s (certificate %s), its own book, a peer." % (b["short"], b["cert"]),
+                        source, rule, repeat_note] + ([books.DEFINITIONS[p]] if p in books.DEFINITIONS else [])
+                series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
+                               series_note(note, tail, before, after), before, after, ("banks", p)))
     dq_spec = None
     if delinquency:
         names = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
         for path, rows, note, p, left_out in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
-                min_banks, source, every, out_dir):
+                min_banks, source, every, out_dir, acquired, acquisition_share):
             tail, before, after = unbroken_tail(rows)
             if left_out is not None and tail:
                 note = note + [left_out_note(left_out, tail, names)]
             series.append((path, tail, series_note(note, tail, before, after), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
-                       exempt_self=exempt_self, measure=START_MEASURE, basis=START_BASIS)
+                       exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
+                       basis=START_BASIS)
 
     paths = [str(path).lower() for path, *_ in series]
     twice = sorted({p for p in paths if paths.count(p) > 1})
@@ -561,7 +674,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             last_n=last_n, min_obs=min_obs, index_min_book=index_min_book,
             lagged_years=lagged_years, lag_years=lag_years,
             normalisation_years=normalisation_years, mix_base_year=mix_base_year,
-            industry=ind, delinquency=dq_spec, cache_dir=cache, mergers_file=mergers,
+            industry=ind, delinquency=dq_spec, acquired=acquired, cache_dir=cache, mergers_file=mergers,
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
                         dt.date.today().isoformat())])
@@ -572,7 +685,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                 parts.append(part)
                 books.write_series(tail, part, lines)
                 moves.append((part, path))
-        gone = _commit(moves, [path for path, tail, *_ in series if not tail], say)
+        # A peer's file from an earlier run whose bank this run does not draw
+        # (it left the roster, or its short name changed) is removed too, so
+        # the synthesis is never fed a bank that is no longer a peer.
+        planned = {str(path).lower() for path, *_ in series}
+        stale = [f for f in sorted((out_dir / "banks").glob("*.csv"))
+                 if f.name.split("_")[0] in {slug(p) for p in products} and str(f).lower() not in planned]
+        gone = _commit(moves, [path for path, tail, *_ in series if not tail] + stale, say)
         parts = []
     finally:
         for f in parts + [part_out]:
@@ -593,13 +712,17 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         if group is not None:
             written[group][0] += 1
             written[group][2] += bool(before)
-            if not after:
+            if not after or isinstance(group, tuple):
                 continue        # 150 files: counted below; what each leaves out is in its notes
         say("Wrote %s: %d quarters%s%s"
             % (path, len(tail), ", %d earlier left out at a break" % len(before) if before else "",
                ", ends %s: %d later quarter%s with no value"
                % (tail[-1][0], len(after), "" if len(after) == 1 else "s") if after else ""))
     for p, (n, of, broke) in written.items():
+        if isinstance(p, tuple):
+            say("Each peer's own book, %s: %d of %d series written to %s"
+                % (p[1], n, of, out_dir / "banks"))
+            continue
         say("Delinquency, %s: %d of %d series written to %s%s"
             % (p, n, of, out_dir, "; %d start after a break (a four-quarter average always does), "
                "the quarters left out named in each file's notes" % broke if broke else ""))
