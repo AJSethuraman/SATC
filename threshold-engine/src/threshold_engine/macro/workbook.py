@@ -109,6 +109,7 @@ def build(out, result, pull):
     from openpyxl.drawing.text import CharacterProperties, Paragraph, ParagraphProperties
     from openpyxl.styles import Alignment, Border, Font, Side
     from openpyxl.utils import get_column_letter as L
+    from openpyxl.worksheet.pagebreak import Break
 
     from .. import VERSION
     from .. import keybank_style as K
@@ -185,7 +186,7 @@ def build(out, result, pull):
 
     # -- Ratings ----------------------------------------------------------
     ws = sheet("Ratings", first=True)
-    widths(ws, [2.71, 46, 11, 12, 16, 12, 12, 16, 12, 11, 34, 90])
+    widths(ws, [2.71, 46, 11, 12, 30, 16, 12, 12, 16, 12, 12, 90])
     row = K.light_title(ws, 1, 11, "Economic conditions",
                         "Public data, pulled %s. Each series against its own history: 1 Low to 5 High."
                         % vintage, first_col=2)
@@ -194,8 +195,8 @@ def build(out, result, pull):
     ws.cell(row, 2, "Readings at each rating, national series").font = F_LABEL
     short = {5: "5 High", 4: "4 Mod-High", 3: "3 Moderate", 2: "2 Mod-Low", 1: "1 Low"}
     for i, k in enumerate((5, 4, 3, 2, 1)):
-        chip(ws, row, 5 + i, k).value = short[k]
-        c = ws.cell(row + 1, 5 + i, sum(1 for r in every if r["rating"] == k))
+        chip(ws, row, 6 + i, k).value = short[k]
+        c = ws.cell(row + 1, 6 + i, sum(1 for r in every if r["rating"] == k))
         c.font, c.alignment = Font(name="Calibri", size=14, bold=True, color=K.INK_TEXT), CENTER
     ws.row_dimensions[row + 1].height = 21
     sahm_x = next(iter(result["alongside"]), None)
@@ -212,14 +213,14 @@ def build(out, result, pull):
                      % (months, cut[0], cut[1], cut[2], cut[3]), 12)
     ws.row_dimensions[row].height = 30
     row += 2
-    cols = ["Series", "Latest", "Value", "Level", "Level percentile", "Change over %d months" % months,
-            "Change", "Change percentile", "History from", "Unit", "What stands out"]
+    cols = ["Series", "Latest", "Value", "Unit", "Level", "Level percentile", "Change over %d months" % months,
+            "Change", "Change percentile", "History from", "What stands out"]
     for topic, keys in TOPICS:
         row = K.quiet_section(ws, row, topic, 11, first_col=2)
         row = K.canvas_header(ws, row, cols, first_col=2, right_from=None)
-        for j in (5, 8):
+        for j in (6, 9, 11):
             ws.cell(row - 1, j).alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
-        for j in (3, 4, 6, 7, 9, 10):
+        for j in (3, 4, 7, 8, 10):
             ws.cell(row - 1, j).alignment = Alignment(wrap_text=True, vertical="center", horizontal="right")
         ranked = sorted(keys, key=lambda k: (-(standout(k) or {"rating": 0})["rating"], items[k].title))
         for key in ranked:
@@ -227,32 +228,34 @@ def build(out, result, pull):
             lvl, chg, top = got.get("position"), got.get("change"), standout(key)
             link(ws.cell(row, 2), TAB[key], items[key].title)
             first = lvl or chg
-            if first:
-                ws.cell(row, 3, _date(first["date"])).number_format = "yyyy-mm-dd"
-                ws.cell(row, 3).font = F_DATA
-            ws.cell(row, 11, items[key].unit).font = F_NOTE
+            ws.cell(row, 5, items[key].unit).font = F_NOTE
+            pts = pull.points(items[key])
+            now = next(((d, v) for d, v in reversed(pts) if v is not None), None) if not isinstance(pts, str) else None
+            if now:                     # the latest value, rated on its level or not
+                c = ws.cell(row, 3, _date(now[0]))
+                c.number_format, c.font = "yyyy-mm-dd", F_DATA
+                c = ws.cell(row, 4, now[1])
+                c.number_format, c.font = value_format(now[1]), F_DATA
             if lvl:
-                c = ws.cell(row, 4, lvl["value"])
-                c.number_format, c.font = value_format(lvl["value"]), F_DATA
-                chip(ws, row, 5, lvl["rating"])
-                c = ws.cell(row, 6, lvl["percentile"] / 100)
+                chip(ws, row, 6, lvl["rating"])
+                c = ws.cell(row, 7, lvl["percentile"] / 100)
                 c.number_format, c.font = "0.0%", F_DATA
             elif items[key].position:
-                c = ws.cell(row, 5, "change only")
+                c = ws.cell(row, 6, "change only")
                 c.font, c.alignment = F_NOTE, CENTER
             if chg:
-                c = ws.cell(row, 7, chg["value"])
+                c = ws.cell(row, 8, chg["value"])
                 c.number_format = "+#,##0.0#%;-#,##0.0#%;0%" if items[key].change_in == "percent" else \
                     "+#,##0.0#;-#,##0.0#;0"
                 if items[key].change_in == "percent":
                     c.value = chg["value"] / 100
                 c.font = F_DATA
-                chip(ws, row, 8, chg["rating"])
-                c = ws.cell(row, 9, chg["percentile"] / 100)
+                chip(ws, row, 9, chg["rating"])
+                c = ws.cell(row, 10, chg["percentile"] / 100)
                 c.number_format, c.font = "0.0%", F_DATA
             if first:
-                c = ws.cell(row, 10, _date(first["history_from"]))
-                c.number_format, c.font = "yyyy-mm", F_DATA
+                c = ws.cell(row, 11, _date(first["history_from"]))
+                c.number_format, c.font, c.alignment = "yyyy-mm", F_DATA, CENTER
             if top:
                 c = ws.cell(row, 12, top["sentence"])
                 c.font, c.alignment = F_NOTE, WRAP
@@ -351,7 +354,7 @@ def build(out, result, pull):
             ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
             ax.txPr = text()
         n = last - first + 1
-        area.x_axis.number_format = "yyyy"
+        area.x_axis.number_format = "yyyy-mm" if frequency == "quarterly" else "yyyy"
         area.x_axis.tickLblSkip = area.x_axis.tickMarkSkip = max(1, n // 8)
         area.x_axis.tickLblPos = "low"
         area.y_axis.scaling.min, area.y_axis.scaling.max = r["axis"]
@@ -399,9 +402,11 @@ def build(out, result, pull):
                 d.number_format, d.font = "yyyy-mm-dd", F_NOTE
                 note(ws, row + 2, col, r["sentence"], col + 4)
             elif reading == "position" and item.position:
-                note(ws, row + 1, col, "Change only: " + item.position + ".", col + 4)
+                c = ws.cell(row + 1, col, "change only")
+                c.font = F_NOTE
+                note(ws, row + 2, col, "Change only: " + item.position + ".", col + 4)
             else:
-                note(ws, row + 1, col, "Not rated: see the Not rated tab.", col + 4)
+                note(ws, row + 2, col, "Not rated: see the Not rated tab.", col + 4)
         ws.row_dimensions[row + 1].height = 21
         ws.row_dimensions[row + 2].height = 58
         row += 4
@@ -440,18 +445,15 @@ def build(out, result, pull):
                 col += 2
             K.hairlines(ws, row, 2, 2 + len(head_cols) - 1)
             row += 1
-        side = {"position": None, "change": None}
-        for reading in ("position", "change"):
-            if reading in mine:
-                side[reading] = "at or above" if mine[reading]["direction"] == HIGHER else "at or below"
-        note(ws, row, 2, "From: in this history, the least extreme reading that took the rating. Readings %s it "
-                         "took that rating or higher." % " / ".join(sorted({v for v in side.values() if v})), 11)
+        note(ws, row, 2, "From: the least extreme reading (or change) in this history that took the rating; every "
+                         "one further in the direction of stress took that rating or higher.", 11)
         row += 2
 
         # the history, on the right: Date, Value, Change, Note; hidden helper columns for the bands
         points = pull.points(item)
         if isinstance(points, str):
             ws.cell(row, 2, points).font = F_NOTE
+            ws.print_area = "A1:L%d" % row
             continue
         chg = dict(changes(points, months, item.frequency, item.change_in))
         top = row          # beside the first chart, below the tall rows at the top
@@ -495,7 +497,8 @@ def build(out, result, pull):
                 ws.cell(rr, helper, base)
                 for j, h in enumerate(heights):
                     ws.cell(rr, helper + 1 + j, h)
-            ws.cell(latest_row, helper + 6, ws.cell(latest_row, data_col).value)
+            # Rounded here: LibreOffice ignores a label's own number format.
+            ws.cell(latest_row, helper + 6, round(ws.cell(latest_row, data_col).value, 2))
             for j in range(7):
                 ws.column_dimensions[L(helper + j)].hidden = True
             chart = banded_chart(ws, ("Level against its history" if reading == "position" else
@@ -507,7 +510,9 @@ def build(out, result, pull):
             row += 18
             helper += 7
 
-        if key == "unemployment" and s["show_sahm"]:
+        sahm_drawn = key == "unemployment" and s["show_sahm"]
+        if sahm_drawn:
+            ws.row_breaks.append(Break(id=row - 1))     # printed, the chart starts a page whole
             sv = dict(sahm(points))
             K.canvas_header(ws, top, ["Sahm reading", "Trigger"], first_col=18, right_from=0)
             for i, d in enumerate(dates):
@@ -538,6 +543,8 @@ def build(out, result, pull):
             ws.add_chart(sc, "B%d" % row)
             row += 18
 
+        if not sahm_drawn:
+            ws.row_breaks.append(Break(id=row - 1))
         row = K.quiet_section(ws, row, "What it is", 11, first_col=2)
         facts = []
         if source:
@@ -567,6 +574,8 @@ def build(out, result, pull):
             c.font, c.alignment = F_DATA, WRAP
             ws.row_dimensions[row].height = 15 * (1 + len(v) // 120)
             row += 1
+        # Printed, a tab is its ratings, charts and facts; its history stays on screen.
+        ws.print_area = "A1:L%d" % row
 
     # -- State data ---------------------------------------------------------
     ws = sheet("State data")

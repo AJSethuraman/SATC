@@ -53,7 +53,7 @@ def test_the_ratings_sheet_rates_every_national_series_under_its_topic(book):
     _, result, wb = book
     ws = wb["Ratings"]
     series_rows = [c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.hyperlink]
-    chips = [ws.cell(r, j).value for r in series_rows for j in (5, 8)
+    chips = [ws.cell(r, j).value for r in series_rows for j in (6, 9)
              if re.match(r"[1-5] (Low|Moderate|High)", str(ws.cell(r, j).value))]
     national = [r for r in result["ratings"] if not r["key"].startswith("unemployment_")]
     assert len(chips) == len(national)                  # one chip per rated reading
@@ -63,10 +63,10 @@ def test_the_ratings_sheet_rates_every_national_series_under_its_topic(book):
     # the fixture's record unemployment rate is rated 5, and its row links to its tab
     link = next(c for row in ws.iter_rows(min_col=2, max_col=2) for c in row if c.value == "Unemployment rate")
     assert link.hyperlink.location == "'Unemployment'!A1" or link.hyperlink.target.endswith("'Unemployment'!A1")
-    assert ws.cell(link.row, 5).value == "5 High"
+    assert ws.cell(link.row, 6).value == "5 High"
     # the counts at the top are of national readings only, one per rating
-    top = next(c.row for col in ws.iter_cols(min_col=5, max_col=5) for c in col if c.value == "5 High")
-    counts = [ws.cell(top + 1, j).value for j in range(5, 10)]
+    top = next(c.row for col in ws.iter_cols(min_col=6, max_col=6) for c in col if c.value == "5 High")
+    counts = [ws.cell(top + 1, j).value for j in range(6, 11)]
     assert sum(counts) == len(national)
     assert counts == [sum(1 for r in national if r["rating"] == k) for k in (5, 4, 3, 2, 1)]
 
@@ -162,3 +162,30 @@ def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
     assert all(s.title in rows for s in SERIES)
     assert len(rows["Unemployment rate"][8]) == 64     # SHA-256 of the file the rating read
     assert rows["Initial jobless claims"][7] == "not in this pull"
+
+
+def test_a_series_rated_on_its_change_only_still_shows_its_latest_value(book):
+    # Walk, 16 Oct 2026 (W6): gasoline read "change only" and never said $4.33 a gallon.
+    _, _, wb = book
+    ws = wb["Ratings"]
+    row = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "Consumer prices, all items")
+    assert ws.cell(row, 6).value == "change only"
+    assert isinstance(ws.cell(row, 4).value, float) and ws.cell(row, 5).value.startswith("index")
+
+
+def test_the_latest_point_on_a_chart_is_labelled_rounded(book):
+    # Walk (W7): the label printed 41.4897092453; LibreOffice ignores a label's own format.
+    _, _, wb = book
+    ws = wb["Prices"]
+    hidden = [c for c in range(20, 40) if ws.column_dimensions[openpyxl.utils.get_column_letter(c)].hidden]
+    latest = [ws.cell(r, c).value for c in hidden for r in range(1, ws.max_row + 1)
+              if ws.cell(r, c).value is not None and isinstance(ws.cell(r, c).value, float)
+              and ws.cell(r - 1, c).value in (None, "Latest") and ws.cell(r + 1, c).value is None]
+    assert latest and all(round(v, 2) == v for v in latest)
+
+
+def test_a_series_tab_prints_its_ratings_and_charts_not_its_whole_history(book):
+    # Walk (W14): the workbook printed 856 pages, about 800 of them data.
+    _, _, wb = book
+    for name in [TAB[k] for _, keys in TOPICS for k in keys]:
+        assert wb[name].print_area and wb[name].print_area.startswith("'%s'!$A$1:$L$" % name), name

@@ -97,3 +97,31 @@ def test_fred_is_asked_without_a_user_agent_and_the_fed_with_one(monkeypatch):
     P.fetch("https://www.federalreserve.gov/econres/notes/feds-notes/ebp_csv.csv")
     assert seen["fred.stlouisfed.org"] is None
     assert seen["www.federalreserve.gov"].startswith("Mozilla/5.0")
+
+
+def test_a_second_pull_the_same_day_gets_its_own_folder(tmp_path):
+    # Walk, 16 Oct 2026 (W4): the second pull of a day replaced the first, so a
+    # workbook made from the morning named a folder that no longer held its data.
+    f, _ = _fake()
+    first = P.pull(tmp_path, keys=["unemployment"], today="2026-10-16", fetcher=f)
+    before = (tmp_path / "2026-10-16" / "manifest.json").read_text()
+    second = P.pull(tmp_path, keys=["unemployment"], today="2026-10-16", fetcher=f)
+    assert (first["pulled"], second["pulled"]) == ("2026-10-16", "2026-10-16-2")
+    assert (tmp_path / "2026-10-16" / "manifest.json").read_text() == before
+    assert P.latest(tmp_path).name == "2026-10-16-2"
+    for _ in range(8):
+        P.pull(tmp_path, keys=["unemployment"], today="2026-10-16", fetcher=f)
+    assert P.latest(tmp_path).name == "2026-10-16-10"        # not -9, which sorts after it as text
+    assert P.load(tmp_path, "unemployment")[1] == "2026-10-16-10"
+
+
+def test_list_says_where_the_firms_directions_are_and_that_inputs_are_not_rated(capsys):
+    # Walk (W2, W3): list printed "firm sets direction" after the firm had set
+    # them, and said the same of two series that are never rated.
+    from threshold_engine.macro.__main__ import main
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "firm sets direction" not in out
+    assert out.count("the firm's settings") == 9
+    assert all("input, not rated" in line for line in out.splitlines()
+               if line.strip().startswith(("income_per_person", "treasury_10y")))

@@ -5,7 +5,9 @@
 
 Each pull is its own folder, named for the day it ran, so a rating can always
 say which release of the data it was made from; nothing earlier is
-overwritten. The manifest records, per file, the address, when it was fetched,
+overwritten. A second pull on the same day goes to CACHE/<day>-2, a third to
+<day>-3: a workbook made from the morning's pull still names a folder that
+holds what it read. The manifest records, per file, the address, when it was fetched,
 its size and SHA-256, and, per series, how many observations it holds, the
 first and last, and every missing one.
 
@@ -17,6 +19,7 @@ import datetime
 import hashlib
 import json
 import pathlib
+import re
 import urllib.parse
 import urllib.request
 
@@ -58,8 +61,10 @@ def summarise(points):
 def pull(cache, keys=None, today=None, fetcher=fetch):
     """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest."""
     today = today or datetime.date.today().isoformat()
-    folder = pathlib.Path(cache) / today
-    folder.mkdir(parents=True, exist_ok=True)
+    folder, n = pathlib.Path(cache) / today, 2
+    while folder.exists():                  # never write into an earlier pull, even today's
+        folder, n = pathlib.Path(cache) / ("%s-%d" % (today, n)), n + 1
+    folder.mkdir(parents=True)
     wanted = [s for s in SERIES if keys is None or s.key in keys]
     if keys:
         unknown = sorted(set(keys) - {s.key for s in SERIES})
@@ -88,16 +93,24 @@ def pull(cache, keys=None, today=None, fetcher=fetch):
             series_out[s.key] = {"file": name, "error": "could not read: %s" % e}
             continue
         series_out[s.key] = dict(file=name, **summarise(points))
-    manifest = {"pulled": today, "files": files, "series": series_out,
+    manifest = {"pulled": folder.name, "files": files, "series": series_out,
                 "failed": sorted(k for k, v in series_out.items() if "error" in v)}
     (folder / "manifest.json").write_text(json.dumps(manifest, indent=1), "utf-8")
     return manifest
 
 
+VINTAGE = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:-(\d+))?$")
+
+
 def latest(cache):
-    """The newest pull folder under CACHE, or None."""
-    folders = sorted(p for p in pathlib.Path(cache).glob("????-??-??") if (p / "manifest.json").exists())
-    return folders[-1] if folders else None
+    """The newest pull folder under CACHE, or None: the latest day, and on that
+    day the latest pull (2026-10-16-10 after 2026-10-16-9)."""
+    found = []
+    for p in pathlib.Path(cache).glob("????-??-??*"):
+        m = VINTAGE.match(p.name)
+        if m and (p / "manifest.json").exists():
+            found.append(((m.group(1), int(m.group(2) or 1)), p))
+    return max(found)[1] if found else None
 
 
 def load(cache, key, vintage=None):

@@ -18,6 +18,14 @@ from .rate import Pull, rate_all
 from .settings import Refused, load as load_settings, write_template
 
 
+def direction(s):
+    """Which way is worse, as list shows it. Where the research leaves it open
+    the answer is the firm's, in the settings file, not in the catalog."""
+    if not s.rated:
+        return "input, not rated"
+    return s.stress or "the firm's settings"
+
+
 def cmd_list(_):
     rated = [s for s in SERIES if s.rated]
     print("%d series in the catalog (%d rated, %d inputs to a derived reading)\n"
@@ -26,13 +34,13 @@ def cmd_list(_):
         if s.key.startswith("unemployment_") and s.key != "unemployment_ak":
             continue
         name = "Unemployment rate by state (51: AK ... WY)" if s.key == "unemployment_ak" else s.title
-        print("  %-26s %-10s %-9s from %-10s %-18s %s" % (
+        print("  %-26s %-10s %-9s from %-10s %-24s %s" % (
             "unemployment_<state>" if s.key == "unemployment_ak" else s.key, s.group, s.frequency, s.starts,
-            s.stress or "firm sets direction", name))
+            direction(s), name))
     print("\nDerived from two of the above:")
     for d in DERIVED:
-        print("  %-26s %-10s %-9s %-29s %s" % (d.key, d.group, d.frequency, d.stress or "firm sets direction",
-                                              d.title))
+        print("  %-26s %-10s %-9s from %-10s %-24s %s" % (d.key, d.group, d.frequency, "(inputs)",
+                                                          direction(d), d.title))
     print("\nIn the ready-to-rate group but not read yet:")
     for what, why in NOT_YET:
         print("  %s: %s" % (what, why))
