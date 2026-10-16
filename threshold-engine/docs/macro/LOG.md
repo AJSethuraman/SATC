@@ -431,3 +431,18 @@ pull) to a 1. This is not an error, and it shows why every pull is kept:
 The firm also asked: *"Make it nice walk out and tie it out. Look at the
 original repo you were given for inspiration - the threshold engine"*, and
 *"do not notify me of non events"*.
+
+## 16 October 2026, made nice, walked
+
+**Made nice.** The workbook now follows the threshold workbook's design (`TOOL.md`): light titles, the
+five rating colours as chips and as bands behind every chart, series under five topics, a tab per series
+with where each rating starts, a glossary and a run tab. Opening it found two chart faults before it was
+committed: no bands at all (they live in hidden columns, which a chart skips unless told), then bands
+drawn over the line. Both are pinned by a test.
+
+**Walked** (`walkthrough/`): the monthly refresh, as the analyst does it, from a clean install to the last
+tab; 16 steps, every one screenshotted. Against 73 passing tests the walk found 13 things; the tests had
+caught none. Eleven are fixed, each with a test that a deliberate break makes fail (78 tests now). Open:
+W1, `work/` is not ignored by git (a line in `threshold-engine/.gitignore`, outside the paths this work
+may write); W12, no side-by-side what-if (a proposal). The procedure is one 20-page PDF with the
+screenshots in it, from the second walk, after the fixes: `walkthrough/refresh-2026-10-16/`.
