@@ -151,7 +151,34 @@ else:
         app.tests = [{"name": "bad", "spec": {"column": "nope", "cutoffs": "1"}}]
         app.start_run(wait=True)
         check("window: engine error shown in words", "not found" in app.status.get("1.0", "end") and "Traceback" not in app.status.get("1.0", "end"))
-        root.destroy()
+        root.app.close()
+
+        # a run must keep going if the window is closed, so the worker is not a daemon thread
+        root = g.main([str(book)])
+        app = root.app
+        app.apply_state(g.parse_settings_text(example))
+        app.v_out.set(str(Path(tmp) / "bg.xlsx"))
+        app.start_run()
+        worker = app._worker
+        check("window: the run's worker thread is not a daemon", worker is not None and worker.daemon is False)
+        worker.join()
+        root.app.close()
+
+        # closing the window in the middle of a run: the workbook must still be written whole, and the process must not abort
+        root = g.main([str(book)])
+        app = root.app
+        app.apply_state(g.parse_settings_text(example))
+        app.v_out.set(str(Path(tmp) / "closed_mid_run.xlsx"))
+        app.start_run()
+        worker = app._worker
+        app.close()
+        worker.join()
+        mid = Path(tmp) / "closed_mid_run.xlsx"
+        ok_book = False
+        if mid.exists():
+            import openpyxl
+            ok_book = "Tests" in openpyxl.load_workbook(mid).sheetnames
+        check("window: closing mid-run still leaves a whole workbook", ok_book)
 
         # File -> Load selections BEFORE choosing the data file, then choose the file: nothing may be reset
         root = g.main([])
@@ -162,7 +189,7 @@ else:
         check("window: selections loaded first survive choosing the file",
               len(st_now["tests"]) == 5 and st_now["cols"] == g.parse_settings_text(example)["cols"] and st_now["as_of"] == "2026-09-30",
               f"{len(st_now['tests'])} tests")
-        root.destroy()
+        root.app.close()
 
 print("\nALL PASSED" if not FAIL else f"\nFAILED: {FAIL}")
 sys.exit(1 if FAIL else 0)

@@ -34,6 +34,7 @@ import configparser
 import hashlib
 import io
 import math
+import os
 import re
 import sys
 import tempfile
@@ -822,9 +823,14 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     sheets = {"ReadMe": pd.DataFrame(README, columns=["sheet / column", "meaning"]),
               "BadEvent": measures, "BadEventOutcomes": outcomes, "EarlyRead": er, "Tests": res,
               "Models": models if len(models) else None, "Curves": curves, "Excluded": excluded, "RunLog": pd.DataFrame(log, columns=["item", "value"])}
+    # write beside the target and swap in at the end, so a run that is cut short never leaves a half-written report
+    # or destroys the one already there
+    part = out.with_name(f"{out.stem}.part-{os.getpid()}{out.suffix}")
     try:
-        write_xlsx(out, sheets, pngs)
+        write_xlsx(part, sheets, pngs)
+        os.replace(part, out)
     finally:
+        part.unlink(missing_ok=True)
         chart_dir.cleanup()
     return dict(out=out, as_of=as_of, rows_read=len(raw), rows_used=len(loans), rows_excluded=len(excluded),
                 bad_event=bad_desc, verdict=verdict, tests=res)

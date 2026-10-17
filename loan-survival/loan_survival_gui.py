@@ -551,6 +551,7 @@ def main(argv=None) -> None:
             self.last_out: Path | None = None
             self._asof_auto = ""
             self._busy = False
+            self._worker: threading.Thread | None = None
             self._selections_loaded = False  # File > Load selections was used: choosing a file must not reset them
             self.v_asof = tk.StringVar()
             self.v_cols = {role: tk.StringVar() for role, _l, _r in ROLES}
@@ -563,9 +564,10 @@ def main(argv=None) -> None:
             fm.add_command(label="Save selections...", command=self.save_selections)
             fm.add_command(label="Load selections...", command=self.load_selections)
             fm.add_separator()
-            fm.add_command(label="Quit", command=root.destroy)
+            fm.add_command(label="Quit", command=self.close)
             menu.add_cascade(label="File", menu=fm)
             root.config(menu=menu)
+            root.protocol("WM_DELETE_WINDOW", self.close)
 
             self.nb = ttk.Notebook(root)
             self.nb.pack(fill="both", expand=True, padx=8, pady=8)
@@ -580,6 +582,20 @@ def main(argv=None) -> None:
             self.build_settings()
             self.build_tests()
             self.build_run()
+
+        def close(self):
+            """Close the window. A run in progress keeps going until the workbook is written, so every Tk object is freed
+            here, on the main thread; if a worker thread freed one, Tcl would abort the whole process."""
+            import gc
+            root = self.root
+            try:
+                root.destroy()
+            except tk.TclError:
+                pass
+            root.app = None
+            self.__dict__.clear()
+            del root
+            gc.collect()
 
         # ---- tab 1
         def build_data(self):
@@ -863,13 +879,17 @@ def main(argv=None) -> None:
             self.say("Running...", clear=True)
             box: dict = {}
 
+            src = self.path  # plain values only: if the window closes mid-run, the worker must not be the one to free Tk objects
+
             def work():
                 try:
-                    box["r"] = ls.run(self.path, text, out, settings_label="(chosen in loan_survival_gui.py)")
+                    box["r"] = ls.run(src, text, out, settings_label="(chosen in loan_survival_gui.py)")
                 except BaseException as e:  # noqa: BLE001 - everything is turned into words for the screen
                     box["e"] = e
 
-            th = threading.Thread(target=work, daemon=True)
+            # not a daemon: closing the window must not cut the workbook off mid-write; the process waits for it
+            th = threading.Thread(target=work, daemon=False)
+            self._worker = th
             th.start()
 
             def poll():

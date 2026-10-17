@@ -437,3 +437,33 @@ def test_snapshot_last_month_survives_a_loan_set_aside_for_duplicate_rows():
     sheets, _, _ = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd"), pd.Timestamp("2024-03-31"))
     counts = sheets["RollCounts"].set_index("from (this month)")
     assert counts.loc["Current", "Left file (no status)"] == 2
+
+
+# ---- tenth Codex review of PR 445 (reviewed 03e685b)
+
+def test_snapshot_last_month_counts_a_row_that_has_no_loan_id():
+    rows = [dict(loan_id="L1", month_end=m, dpd=0) for m in ("2024-01-31", "2024-02-29")]
+    rows += [dict(loan_id="L2", month_end=m, dpd=0) for m in ("2024-01-31", "2024-02-29")]
+    rows += [dict(loan_id=None, month_end="2024-03-31", dpd=0)]       # the only March row has no id
+    sheets, _, _ = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd"), pd.Timestamp("2024-03-31"))
+    counts = sheets["RollCounts"].set_index("from (this month)")
+    assert counts.loc["Current", "Left file (no status)"] == 2        # L1 and L2 stopped in February; the extract runs to March
+
+
+def test_a_failed_write_leaves_the_existing_workbook_untouched(tmp_path, monkeypatch):
+    import pytest
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv")
+    src, out = tmp_path / "book.csv", tmp_path / "report.xlsx"
+    raw.to_csv(src, index=False)
+    out.write_bytes(b"last month's report")
+
+    real = ls.write_xlsx
+
+    def dies_halfway(path, sheets, pngs):
+        real(path, {k: v for k, v in list(sheets.items())[:2]}, pngs)
+        raise RuntimeError("closed mid-write")
+    monkeypatch.setattr(ls, "write_xlsx", dies_halfway)
+    with pytest.raises(RuntimeError):
+        ls.run(src, (ROOT / "sample" / "settings_example.ini").read_text(), out)
+    assert out.read_bytes() == b"last month's report"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["book.csv", "report.xlsx"]   # no half-written leftovers

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -188,6 +189,10 @@ def bucket(dpd: pd.Series) -> pd.Series:
 
 def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     need(df, [a.id_col, a.month_col, a.dpd_col])
+    # the extract's last month, from every row with a readable month, before any row or loan is set aside
+    _m = pd.to_datetime(df[a.month_col], errors="coerce", format="mixed")
+    _m = _m[_m <= as_of]
+    last_month = (_m.dt.year * 12 + _m.dt.month).max()
     ids = df[a.id_col]
     no_id = ids.isna() | (ids.astype(str).str.strip() == "")  # groupby would silently drop these
     no_id_rows = df[no_id].copy()
@@ -215,7 +220,6 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     twice_rows = df[df[a.id_col].isin(df.loc[twice, a.id_col])].copy()
     twice_rows.insert(0, "exclusion_reason", "the loan has two rows for the same month")
     twice_rows = twice_rows.drop(columns=["ym", "state"])
-    last_month = df["ym"].max()  # the extract's last month, taken before any loan is set aside
     df = df[~df[a.id_col].isin(df.loc[twice, a.id_col])]
     df = df.sort_values([a.id_col, "ym"])
 
@@ -334,7 +338,12 @@ def main(argv=None):
         log += [("buckets (DPD)", "Current 0-29, 30-59, 60-89, 90-119, 120+"),
                 ("status col", a.status_col or "(none)"), ("charge-off values", ", ".join(a.co_values)),
                 ("paid-off values", ", ".join(a.pif_values))]
-    write(out, sheets, pd.DataFrame(log, columns=["item", "value"]))
+    part = out.with_name(f"{out.stem}.part-{os.getpid()}{out.suffix}")  # swap in at the end; never leave a half-written report
+    try:
+        write(part, sheets, pd.DataFrame(log, columns=["item", "value"]))
+        os.replace(part, out)
+    finally:
+        part.unlink(missing_ok=True)
     print(f"\nWrote {out}")
 
 
