@@ -346,3 +346,43 @@ def test_text_from_the_source_that_looks_like_a_formula_stays_text_in_the_workbo
     assert cells and all(c.data_type == "s" for c in cells)
     for sheet in openpyxl.load_workbook(out).worksheets:
         assert not [c for row in sheet.iter_rows() for c in row if c.data_type == "f"], sheet.title
+
+
+# ---- eighth Codex review of PR 445 (reviewed 2956769)
+
+def test_two_snapshot_rows_for_one_loan_and_month_are_refused_not_picked_between():
+    def run(order):
+        rows = [dict(loan_id="L1", month_end="2024-01-31", dpd=0), dict(loan_id="L1", month_end="2024-01-31", dpd=130),
+                dict(loan_id="L1", month_end="2024-02-29", dpd=0), dict(loan_id="L2", month_end="2024-01-31", dpd=0),
+                dict(loan_id="L2", month_end="2024-02-29", dpd=0)]
+        df = pd.DataFrame([rows[i] for i in order])
+        return do.snapshot_mode(df, _args(dpd_col="dpd"), pd.Timestamp("2024-02-29"))
+    a, used_a, ex_a = run([0, 1, 2, 3, 4])
+    b, used_b, ex_b = run([1, 0, 2, 3, 4])
+    assert a["RollCounts"].equals(b["RollCounts"]) and used_a == used_b == 1     # same answer whichever row came first
+    assert set(a["Excluded"]["loan_id"]) == {"L1"} and "same month" in a["Excluded"]["exclusion_reason"].iloc[0]
+
+
+def _charge_off_after_payoff_frame():
+    st = ls.Settings("[columns]\nloan_id = loan_id\norig_date = orig_date\nchargeoff_date = chargeoff_date\n"
+                     "first_90_date = first_90_date\npayoff_date = payoff_date\ndpd_asof = dpd_asof\n")
+    df = pd.DataFrame({
+        "loan_id": ["A", "B"], "orig_date": pd.to_datetime(["2022-01-01"] * 2),
+        "first_90_date": pd.to_datetime(["2023-01-31"] * 2),
+        "chargeoff_date": pd.to_datetime(["2023-03-31", "2023-06-30"]),
+        "payoff_date": pd.to_datetime([None, "2023-04-30"]),       # B: paid off in April, 'charged off' in June
+        "dpd_asof": [0, 0]})
+    return st, df
+
+
+def test_charge_off_dated_after_payoff_is_left_out_of_the_outcome_audit():
+    st, df = _charge_off_after_payoff_frame()
+    measures, tbl, _, _ = ls.bad_event_check(df, st, pd.Timestamp("2026-09-30"))
+    assert int(measures.set_index("measure").loc["loans that first hit 90+ with enough time to resolve", "value"]) == 1
+    assert dict(zip(tbl.iloc[:, 0], tbl["loans"])) == {"charged off": 1}
+
+
+def test_standalone_charge_off_dated_after_payoff_is_excluded():
+    st, df = _charge_off_after_payoff_frame()
+    sheets, used, excl = do.loan_mode(df.copy(), _args(), pd.Timestamp("2026-09-30"))
+    assert used == 1 and "charge-off date after payoff" in sheets["Excluded"]["exclusion_reason"].iloc[0]

@@ -106,6 +106,11 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
         x.insert(0, "exclusion_reason", "payoff date before first 90+ date")
         excluded.append(x)
         pop = pop[~bad_pif]
+        bad_co_pif = pop[a.co_col].notna() & pop[a.pif_col].notna() & (pop[a.co_col] > pop[a.pif_col])
+        x = pop[bad_co_pif].copy()
+        x.insert(0, "exclusion_reason", "charge-off date after payoff date")
+        excluded.append(x)
+        pop = pop[~bad_co_pif]
 
     end = pop[a.first90_col] + pd.DateOffset(months=a.window)
     p_co, p_pif = pop[a.co_col], (pop[a.pif_col] if has_pif else pd.Series(pd.NaT, index=pop.index))
@@ -203,7 +208,13 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
         df.loc[s.isin(a.co_values), "state"] = "Charged off"
         df.loc[s.isin(a.pif_values), "state"] = "Paid off"
     df["ym"] = df[a.month_col].dt.year * 12 + df[a.month_col].dt.month
-    df = df.sort_values([a.id_col, "ym"]).drop_duplicates([a.id_col, "ym"], keep="last")
+    # two rows for one loan and month cannot be told apart, and picking one would depend on file order; set the loan aside
+    twice = df.duplicated([a.id_col, "ym"], keep=False)
+    twice_rows = df[df[a.id_col].isin(df.loc[twice, a.id_col])].copy()
+    twice_rows.insert(0, "exclusion_reason", "the loan has two rows for the same month")
+    twice_rows = twice_rows.drop(columns=["ym", "state"])
+    df = df[~df[a.id_col].isin(df.loc[twice, a.id_col])]
+    df = df.sort_values([a.id_col, "ym"])
 
     nxt = df.groupby(a.id_col)[["ym", "state"]].shift(-1)
     df["next_state"] = np.where(nxt["ym"] == df["ym"] + 1, nxt["state"], None)
@@ -230,6 +241,9 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
         print(f"\n{len(dropped):,} transition(s) left out because a month's DPD was blank or not a number (see Excluded).")
     if len(unplaced):
         print(f"\n{len(unplaced):,} row(s) left out because a loan has a month_end that is blank or not a date (see Excluded).")
+    unplaced = pd.concat([unplaced, twice_rows], ignore_index=True) if len(twice_rows) else unplaced
+    if len(twice_rows):
+        print(f"\n{len(twice_rows):,} row(s) left out because a loan has two rows for the same month (see Excluded).")
     if len(no_id_rows):
         print(f"\n{len(no_id_rows):,} row(s) left out because the loan id is blank (see Excluded).")
     if len(dropped) or len(unplaced) or len(no_id_rows):

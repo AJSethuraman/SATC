@@ -384,6 +384,7 @@ def bad_event_check(df: pd.DataFrame, st: Settings, as_of: pd.Timestamp):
     pop = pop[~(pop[coc] < pop[f90c]).fillna(False)]
     if pifc:  # a payoff before the first 90+ is an inconsistent row, left out like a charge-off before it
         pop = pop[~(pop[pifc] < pop[f90c]).fillna(False)]
+        pop = pop[~(pop[coc] > pop[pifc]).fillna(False)]  # a charge-off dated after the payoff cannot also have happened
     end = pop[f90c] + pd.DateOffset(months=st.dq_window)
     co_in = pop[coc].notna() & (pop[coc] <= end)
     p_pif = pif.loc[pop.index]
