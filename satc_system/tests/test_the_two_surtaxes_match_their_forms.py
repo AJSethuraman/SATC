@@ -118,7 +118,9 @@ def test_neither_threshold_is_inflation_indexed(tables):
     """IRC 1411(b) and 3101(b)(2) fix these in statute. If a future crosswalk
     year indexes them, that is a change to the law and not a table refresh —
     this test is where somebody finds out."""
-    for year in (2024, 2025):
+    # 2024 dropped out of this loop on 17 Oct 2026: its table lacks the
+    # parameters the estimator now reads, so it is no longer offered.
+    for year in (2025, 2026):
         got, _ = load_tax_tables(year)
         assert got.niit_threshold("single") == Decimal("200000"), year
         assert got.additional_medicare_threshold("single") == Decimal("200000"), year

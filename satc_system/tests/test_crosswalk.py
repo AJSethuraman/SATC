@@ -39,16 +39,16 @@ def test_versioning_resolves_different_year_values():
     assert lib.resolve(2025, "US").value("standard_deduction")["single"] == 15750
 
 
-def test_tcja_sunset_fixture_flags_gaps_not_guesses():
+def test_2026_holds_enacted_law_and_its_one_gap_stays_a_gap():
+    """2026.yaml was a TCJA-sunset fixture until 17 October 2026 and now holds
+    the law as enacted (Rev. Proc. 2025-32). What it still does not hold is
+    recorded as pending rather than guessed -- the property the old fixture
+    existed to test."""
     us26 = _lib().resolve(2026, "US")
-    # The sunset fixture must NOT invent a 2026 standard deduction.
-    assert us26.param("standard_deduction").is_pending
-    # QBI deduction sunsets -> recorded as a gap, not a number.
-    assert us26.param("qbi_threshold").is_gap
-    # But published COLA items (401k) are in force.
+    assert us26.value("standard_deduction")["single"] == 16100
     assert us26.value("retirement_401k_elective_deferral") == 24500
-    # Several gaps should be reported.
-    assert len(us26.gaps()) >= 5
+    assert us26.param("mileage_business").is_pending
+    assert [p.name for p in us26.gaps()] == ["mileage_business"]
 
 
 def test_missing_year_returns_pending_param():

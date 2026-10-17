@@ -40,7 +40,8 @@ from satc.ingest.readers.paystub import (
     LABEL_PAY_FREQUENCY,
     LABEL_RETIREMENT_CURRENT,
 )
-from satc.withholding import EstimatorInput, available_years, estimate, paystub_from_fields
+from satc.withholding import (EstimatorInput, TaxYearNotOnFile, available_years, estimate,
+                              paystub_from_fields, staleness)
 from satc.withholding.audit_tape import build_audit_tape
 
 bp = Blueprint("withholding", __name__)
@@ -101,18 +102,31 @@ _HH_KEY = "wh_household"       # household-level fields (filing status, other in
 
 _JOB_KEYS = ("name", "pay_frequency", "gross_pay_per_period",
              "federal_tax_withheld_per_period", "retirement_pretax_per_period",
-             "ytd_taxable_wages", "ytd_federal_tax_withheld", "pay_periods_remaining")
+             "ytd_taxable_wages", "ytd_federal_tax_withheld", "pay_periods_remaining", "owner")
 
-_BLANK_JOB = {"pay_frequency": "biweekly", **{k: "" for k in _JOB_KEYS if k != "pay_frequency"}}
+_BLANK_JOB = {"pay_frequency": "biweekly", "owner": "you",
+              **{k: "" for k in _JOB_KEYS if k not in ("pay_frequency", "owner")}}
 
-_HH_KEYS = ("filing_status", "tax_year", "interest", "ordinary_dividends",
-            "qualified_dividends", "long_term_capital_gains", "short_term_capital_gains",
-            "self_employment_net", "itemized_total", "extra_standard_deductions",
-            "child_tax_credit", "other_nonrefundable_credits", "estimated_tax_payments",
-            "target_refund", "prior_year_tax", "prior_year_agi")
-
+# Each household field, grouped by the section of EstimatorInput it feeds. A
+# blank box sends nothing, so the engine sees "not told" and says what it
+# assumed instead -- the screen never turns a blank into a zero on its own.
 _OTHER_INCOME_KEYS = ("interest", "ordinary_dividends", "qualified_dividends",
-                      "long_term_capital_gains", "short_term_capital_gains", "self_employment_net")
+                      "long_term_capital_gains", "short_term_capital_gains", "self_employment_net",
+                      "taxable_retirement_distributions", "taxable_social_security",
+                      "unemployment", "other_taxable_income")
+_ADJUSTMENT_KEYS = ("traditional_ira_deduction", "hsa_deduction", "student_loan_interest",
+                    "other_adjustments")
+_ITEMIZED_KEYS = ("medical_expenses", "state_local_income_or_sales_tax", "property_taxes",
+                  "mortgage_interest", "charitable_cash", "charitable_noncash", "other_itemized")
+_HOUSEHOLD_KEYS = ("taxpayer_65_or_older", "spouse_65_or_older", "blind_count",
+                   "children_under_17", "other_dependents", "eitc_children")
+_SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_overtime", "car_loan_interest")
+
+_HH_KEYS = ("filing_status", "tax_year", "itemized_total", "extra_standard_deductions",
+            "child_tax_credit", "other_nonrefundable_credits", "estimated_tax_payments",
+            "target_refund", "prior_year_tax", "prior_year_agi",
+            *_OTHER_INCOME_KEYS, *_ADJUSTMENT_KEYS, *_ITEMIZED_KEYS, *_HOUSEHOLD_KEYS,
+            *_SCHEDULE_1A_KEYS)
 
 
 def _clean_num(raw) -> str | None:
@@ -182,6 +196,7 @@ def _job_from_read(read) -> dict:
         "ytd_taxable_wages": _str(stub.ytd_taxable_wages),
         "ytd_federal_tax_withheld": _str(stub.ytd_federal_tax_withheld),
         "pay_periods_remaining": "" if stub.pay_periods_remaining is None else str(stub.pay_periods_remaining),
+        "owner": "you",
     }
 
 
@@ -202,23 +217,36 @@ def _estimator_input(jobs: list[dict], hh: dict) -> EstimatorInput:
             paystub["pay_periods_remaining"] = int(float(remaining))
         if (job.get("name") or "").strip():
             paystub["name"] = job["name"].strip()
+        if job.get("owner") in ("you", "spouse"):
+            paystub["owner"] = job["owner"]
         if i == adjust:
             paystub["adjust_withholding"] = True
         job_inputs.append(paystub)
     if not job_inputs:
         job_inputs = [{"pay_frequency": "biweekly"}]
 
-    data: dict = {"filing_status": hh.get("filing_status", "single"), "jobs": job_inputs}
+    data: dict = {"jobs": job_inputs}
+    if (hh.get("filing_status") or "").strip():
+        data["filing_status"] = hh["filing_status"].strip()
     year = _clean_num(hh.get("tax_year"))
     if year is not None:
         data["tax_year"] = int(float(year))
 
-    other_income = {k: _clean_num(hh.get(k)) for k in _OTHER_INCOME_KEYS}
-    other_income = {k: v for k, v in other_income.items() if v is not None}
-    if other_income:
-        data["other_income"] = other_income
+    def section(keys) -> dict:
+        found = {k: _clean_num(hh.get(k)) for k in keys}
+        return {k: v for k, v in found.items() if v is not None}
 
-    deductions: dict = {}
+    for name, keys in (("other_income", _OTHER_INCOME_KEYS), ("adjustments", _ADJUSTMENT_KEYS),
+                       ("schedule_1a", _SCHEDULE_1A_KEYS)):
+        found = section(keys)
+        if found:
+            data[name] = found
+    household = {k: (hh.get(k) or "").strip() for k in _HOUSEHOLD_KEYS}
+    household = {k: v for k, v in household.items() if v}
+    if household:
+        data["household"] = household
+
+    deductions: dict = section(_ITEMIZED_KEYS)
     itemized = _clean_num(hh.get("itemized_total"))
     if itemized is not None:
         deductions["itemized_total"] = itemized
@@ -278,6 +306,7 @@ def _render(*, result=None, teach=None, teach_layout=None, notes=None):
         teach=teach,
         teach_layout=teach_layout,
         prefill_notes=notes or [],
+        stale=staleness(),
     )
 
 
@@ -392,6 +421,8 @@ def withholding():
     _sync(request.form)
     try:
         result = estimate(_estimator_input(_jobs(), _household()))
+    except TaxYearNotOnFile as exc:
+        return _render(notes=[str(exc)])
     except Exception as exc:  # noqa: BLE001 - surface bad input as a message, not a 500
         return _render(notes=[f"Couldn’t run the estimate: {exc}"])
     return _render(result=result)

@@ -53,9 +53,12 @@ reports it can't reach the app, stop and tell the user to start it
      **balance** — a refund or an amount owed.
    - The recommended **additional per-paycheck withholding (W-4 line 4c)** and
      how many pay periods that assumes remain.
-   - Any `notes` the estimator returned (e.g. a tax-year fallback to 2025).
-   - State your assumptions explicitly (year, periods remaining, anything you
-     defaulted or read from a paystub).
+   - The result's `headline` first, then every `checks` entry with level
+     `act`, then the `assumptions` list as returned — the estimator records
+     what it filled in itself, so report those rather than inventing your own.
+   - Any `notes` the estimator returned.
+   - A year that is not on file comes back as an error. Do not retry with a
+     different year; say which year is missing.
 
 ## Honesty rules
 - Show parsed paystub figures before trusting them; never silently accept a

@@ -27,15 +27,15 @@ parameters:
   # LOOKS current is more dangerous than one that is obviously stale.
   #
   # This is a list of strings on purpose -- prose the preparer reads, not codes.
+  #
+  # SHRUNK ON 17 October 2026 when the six it used to name were modelled: tips,
+  # overtime, car loan interest, the senior deduction (Schedule 1-A), the
+  # $40,000 SALT cap (Schedule A line 5e) and the $2,200 child tax credit
+  # (Schedule 8812). What is left is what the estimator still cannot see.
   obbba_not_modeled:
     value:
-      - "the deduction for qualified tips"
-      - "the deduction for qualified overtime"
-      - "the deduction for car loan interest"
-      - "the enhanced deduction for seniors (65+)"
-      - "the higher SALT cap ($40,000, up from $10,000)"
-      - "the higher child tax credit ($2,200, up from $2,000)"
-    citation: "P.L. 119-21 (OBBBA); IRS, 'How to update withholding to account for tax law changes for 2025'"
+      - "the occupation and eligibility tests behind the tips and overtime deductions (the estimator takes the qualifying amount as given)"
+    citation: "P.L. 119-21 (OBBBA); Schedule 1-A (Form 1040) 2025, Parts II and III cautions"
 
   filing_statuses:
     value: [single, mfj, mfs, hoh, qss]
@@ -179,18 +179,147 @@ parameters:
     citation: "IRC sec. 168(k)(6); cf. P.L. 119-21"
 
   salt_deduction_cap:
+    # RECONCILED 17 October 2026. OBBBA raised the cap FOR 2025 ITSELF; the
+    # $10,000 this file held was the pre-OBBBA figure. The Schedule A
+    # instructions' State and Local Tax Deduction Worksheet is what the engine
+    # follows: cap less 30% of MAGI over the threshold, never below the floor,
+    # and half of the result for married filing separately.
+    value: 40000
+    unit: usd
+    citation: "IRC sec. 164(b)(7)(A)(i) as added by P.L. 119-21 sec. 70120; Schedule A (Form 1040) 2025 line 5e"
+    supersedes:
+      value: 10000
+      citation: "IRC sec. 164(b)(6) (TCJA)"
+  salt_phasedown_threshold:
+    value: 500000
+    unit: usd
+    citation: "IRC sec. 164(b)(7)(B)(ii)(I); 2025 Instructions for Schedule A, SALT worksheet line 5 ($250,000 MFS)"
+  salt_phasedown_rate:
+    value: 0.30
+    unit: ratio
+    citation: "IRC sec. 164(b)(7)(B)(i); 2025 Instructions for Schedule A, SALT worksheet line 7"
+  salt_floor:
     value: 10000
     unit: usd
-    status: scheduled_reversion
-    pending_reason: >
-      $10,000 under TCJA through 2025; OBBBA raised the SALT cap for later years.
-      Verify against enacted law.
-    citation: "IRC sec. 164(b)(6); cf. P.L. 119-21"
+    citation: "IRC sec. 164(b)(7)(B)(iii); 2025 Instructions for Schedule A, SALT worksheet line 9"
+  medical_agi_floor:
+    value: 0.075
+    unit: ratio
+    citation: "IRC sec. 213(a); Schedule A (Form 1040) 2025 line 3"
+  capital_loss_limit:
+    value: {mfs: 1500, other: 3000}
+    unit: usd
+    citation: "IRC sec. 1211(b); Schedule D (Form 1040) line 21"
 
   ctc_per_child:
-    value: 2000
+    # RECONCILED 17 October 2026: $2,200 for 2025 itself (OBBBA sec. 70104),
+    # as printed on the 2025 Schedule 8812 line 5.
+    value: 2200
     unit: usd
-    citation: "IRC sec. 24(h) (TCJA, last scheduled year)"
+    citation: "IRC sec. 24(h)(2) as amended by P.L. 119-21 sec. 70104; Schedule 8812 (Form 1040) 2025 line 5"
+    supersedes:
+      value: 2000
+      citation: "IRC sec. 24(h) (TCJA)"
+  odc_per_dependent:
+    value: 500
+    unit: usd
+    citation: "IRC sec. 24(h)(4); Schedule 8812 (Form 1040) 2025 line 7"
+  ctc_phaseout_rate_per_1000:
+    value: 50
+    unit: usd
+    citation: "IRC sec. 24(b)(1); Schedule 8812 (Form 1040) 2025 lines 10-11 (5% of the excess, rounded UP to the next $1,000)"
+  actc_earned_income_floor:
+    value: 2500
+    unit: usd
+    citation: "IRC sec. 24(d)(1)(B)(i); Schedule 8812 (Form 1040) 2025 line 19"
+  actc_earned_income_rate:
+    value: 0.15
+    unit: ratio
+    citation: "IRC sec. 24(d)(1)(B)(i); Schedule 8812 (Form 1040) 2025 line 20"
+
+  # ── Schedule 1-A (new for 2025): below-the-line deductions, line 13b ──────
+  # Statutory and not inflation-indexed, 2025 through 2028. Every figure is
+  # printed on the 2025 Schedule 1-A, which is the citation the engine follows.
+  tips_deduction_max:
+    value: 25000
+    unit: usd
+    citation: "IRC sec. 224(b)(1); Schedule 1-A (Form 1040) 2025 line 7"
+  overtime_deduction_max:
+    value: {mfj: 25000, other: 12500}
+    unit: usd
+    citation: "IRC sec. 225(b)(1); Schedule 1-A (Form 1040) 2025 line 15"
+  tips_overtime_phaseout_start:
+    value: {mfj: 300000, other: 150000}
+    unit: usd
+    citation: "IRC secs. 224(b)(2), 225(b)(2); Schedule 1-A (Form 1040) 2025 lines 9 and 17"
+  tips_overtime_phaseout_per_1000:
+    value: 100
+    unit: usd
+    citation: "Schedule 1-A (Form 1040) 2025 lines 11-12 and 19-20 (whole $1,000s, rounded DOWN)"
+  car_loan_interest_max:
+    value: 10000
+    unit: usd
+    citation: "IRC sec. 163(h)(4)(C)(i); Schedule 1-A (Form 1040) 2025 line 24"
+  car_loan_phaseout_start:
+    value: {mfj: 200000, other: 100000}
+    unit: usd
+    citation: "IRC sec. 163(h)(4)(C)(ii); Schedule 1-A (Form 1040) 2025 line 26"
+  car_loan_phaseout_per_1000:
+    value: 200
+    unit: usd
+    citation: "Schedule 1-A (Form 1040) 2025 lines 28-29 ($1,000s, rounded UP)"
+  senior_deduction_amount:
+    value: 6000
+    unit: usd
+    citation: "IRC sec. 151(f)(1); Schedule 1-A (Form 1040) 2025 line 35"
+  senior_deduction_phaseout_start:
+    value: {mfj: 150000, other: 75000}
+    unit: usd
+    citation: "IRC sec. 151(f)(2); Schedule 1-A (Form 1040) 2025 line 32"
+  senior_deduction_phaseout_rate:
+    value: 0.06
+    unit: ratio
+    citation: "IRC sec. 151(f)(2); Schedule 1-A (Form 1040) 2025 line 34"
+
+  # ── Earned income credit, as published: the estimator derives the phase-in
+  #    and phase-out rates from these four columns rather than carrying them.
+  eitc_earned_income_amount:
+    value: {c0: 8490, c1: 12730, c2: 17880, c3: 17880}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.06(1)"
+  eitc_threshold_phaseout:
+    value:
+      mfj: {c0: 17730, c1: 30470, c2: 30470, c3: 30470}
+      other: {c0: 10620, c1: 23350, c2: 23350, c3: 23350}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.06(1)"
+  eitc_completed_phaseout:
+    value:
+      mfj: {c0: 26214, c1: 57554, c2: 64430, c3: 68675}
+      other: {c0: 19104, c1: 50434, c2: 57310, c3: 61555}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.06(1)"
+  eitc_investment_income_limit:
+    value: 11950
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.06(2)"
+
+  qbi_rate:
+    value: 0.20
+    unit: ratio
+    citation: "IRC sec. 199A(a); Form 8995 line 5"
+
+  est_tax_due_dates:
+    value: ["2025-04-15", "2025-06-16", "2025-09-15", "2026-01-15"]
+    citation: "Form 1040-ES (2025), Payment Due Dates"
+  underpayment_penalty_floor:
+    value: 1000
+    unit: usd
+    citation: "IRC sec. 6654(e)(1); Pub. 505 ch. 4 (no penalty if you owe less than $1,000)"
+  addl_medicare_employer_withholding_threshold:
+    value: 200000
+    unit: usd
+    citation: "IRC sec. 3102(f)(1); Form 8959 instructions (employers withhold on wages over $200,000 regardless of filing status)"
   ctc_refundable_max:
     value: 1700
     unit: usd

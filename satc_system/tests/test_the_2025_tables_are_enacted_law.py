@@ -176,9 +176,11 @@ def test_the_estimate_says_what_it_does_not_model():
     """"Fix the three, flag the rest" — the flag half.
 
     OBBBA also created deductions for tips, overtime, car loan interest and
-    seniors, raised the SALT cap and changed the child tax credit. None are
-    modelled. A half-reconciled table that LOOKS current is worse than one that
-    is obviously stale, so the estimate says so on the screen.
+    seniors, raised the SALT cap and changed the child tax credit. On 6 Sep 2026
+    none were modelled and this test held all six to the note. On 17 Oct 2026
+    all six were modelled; what is still declared is the one thing the engine
+    cannot see -- whether tips and overtime QUALIFY. The declaration is what
+    this test protects, not the length of the list.
     """
     result = estimate(EstimatorInput.from_dict({
         "filing_status": "single", "tax_year": 2025,
@@ -186,10 +188,9 @@ def test_the_estimate_says_what_it_does_not_model():
                     "pay_periods_remaining": 1},
     }))
     said = " ".join(result.notes)
-    assert "NOT modelled" in said
-    for provision in ("tips", "overtime", "car loan interest", "seniors", "SALT"):
+    assert "Not modelled for 2025" in said
+    for provision in ("tips", "overtime"):
         assert provision in said, provision
-    assert "too high" in said, "the note does not say which way the error runs"
 
 
 def test_the_gap_is_read_from_the_dated_table_not_hardcoded():
@@ -224,4 +225,4 @@ def test_the_note_reaches_the_withholding_screen(tmp_path, monkeypatch):
 
     assert "$15,750" in body, "the screen still shows the superseded deduction"
     assert "13,449" in body
-    assert "NOT modelled" in body
+    assert "Not modelled for 2025" in body

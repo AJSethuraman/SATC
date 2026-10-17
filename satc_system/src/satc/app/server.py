@@ -345,21 +345,33 @@ def create_app() -> Flask:
         # so it can never drift from what the estimator actually validates.
         from typing import get_args
 
+        from satc.withholding import available_years, staleness
         from satc.withholding.models import FilingStatus, PayFrequency
 
+        years = available_years()
         return {
             "filing_statuses": list(get_args(FilingStatus)),
             "pay_frequencies": list(get_args(PayFrequency)),
-            "default_tax_year": 2025,
+            # Read from the tables on file, not written here: this said 2025
+            # as a literal while the 2026 table was being added.
+            "default_tax_year": years[-1],
+            "tax_years": years,
+            "tables_need_updating": staleness(),
             "fields": {
-                "filing_status": "required; one of filing_statuses",
-                "tax_year": "optional; defaults to the current published year. "
-                "2026 is a not-yet-published fixture that falls back to 2025 with a note.",
+                "filing_status": "optional; one of filing_statuses. Missing = Single, "
+                "reported in the result's assumptions",
+                "tax_year": "optional; one of tax_years (missing = default_tax_year). A year "
+                "not on file is refused with an error -- never run on another year's figures.",
+                "household": "optional dict: taxpayer_65_or_older, spouse_65_or_older, "
+                "blind_count, children_under_17, other_dependents, eitc_children",
+                "schedule_1a": "optional dict: qualified_tips, qualified_overtime, car_loan_interest",
                 "jobs": "list, one entry per job (taxpayer + spouse / second jobs). Each job: "
                 "pay_frequency, gross_pay_per_period, federal_tax_withheld_per_period, "
                 "ytd_taxable_wages, ytd_federal_tax_withheld, pay_periods_remaining (optional).",
                 "other_income": "optional dict (interest, dividends, self-employment, etc.)",
-                "deductions": "optional dict (standard vs. itemized)",
+                "deductions": "optional dict: itemized parts (mortgage_interest, property_taxes, "
+                "state_local_income_or_sales_tax, charitable_cash, charitable_noncash, "
+                "medical_expenses, other_itemized) or itemized_total; none = standard",
                 "prior_year_tax": "optional; enables safe-harbor guidance",
             },
         }

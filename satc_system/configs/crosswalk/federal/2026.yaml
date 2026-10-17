@@ -1,139 +1,377 @@
 meta:
   tax_year: 2026
   jurisdiction: US
-  source_label: "TCJA sunset (P.L. 115-97 sec. 11001 et seq.); IRS COLA notices"
-  retrieved: "2026-06-17"
-  status: scheduled_reversion
+  source_label: "IRS Rev. Proc. 2025-32; P.L. 119-21 (OBBBA); Form 1040-ES (2026)"
+  retrieved: "2026-10-17"
+  status: in_force
   notes: >
-    VERSIONING TEST FIXTURE. This file models the *scheduled* expiration of the
-    2017 Tax Cuts and Jobs Act individual provisions after 2025 (the sunset the
-    practice must be able to version against). It deliberately mixes three states:
-    in_force published COLA items, scheduled_reversion items that change under the
-    sunset, and pending gaps where an indexed amount is not yet published.
-    IMPORTANT: P.L. 119-21 (OBBBA, July 2025) modified or made permanent many of
-    these provisions. Treat every scheduled_reversion / pending value as a GAP to
-    reconcile against enacted law before relying on it.
+    Federal parameters for tax year 2026, as ENACTED. Built 17 October 2026 from
+    Rev. Proc. 2025-32 (the 2026 inflation adjustments, which already apply
+    OBBBA), the 2026 Form 1040-ES and the statute where a figure is fixed by law
+    rather than indexed.
+
+    THIS FILE REPLACES A TEST FIXTURE. Until 17 October 2026 it modelled the TCJA
+    sunset as scheduled in 2017 -- a $1,000 child credit, the old rate schedule,
+    no standard deduction figure -- and the withholding estimator, finding it
+    unusable, quietly ran every 2026 estimate on the 2025 table with a note. That
+    is the failure the firm named when asking for the estimator: "checks to
+    ensure we don't accidentally use it without updating it for the right year".
+    A year is now offered only when every figure the engine reads is here and in
+    force (`satc.withholding.tax_data.REQUIRED`), and the engine refuses any
+    other year rather than borrowing one.
+
+    ADDING 2027: copy this file, replace every figure from the 2027 revenue
+    procedure (normally released in October or November 2026) and the 2027 Form
+    1040-ES, and run `test_every_year_the_estimator_offers_is_complete.py`. Until
+    that file exists the estimator will not run 2027, and from 1 January 2027 the
+    suite goes red to say so.
 
 parameters:
+  obbba_not_modeled:
+    value:
+      - "the occupation and eligibility tests behind the tips and overtime deductions (the estimator takes the qualifying amount as given)"
+      - "the 2026 limit on itemized deductions for the 37% bracket"
+    citation: "P.L. 119-21 (OBBBA); Form 1040-ES (2026), What's New ('Limit on itemized deductions')"
+
   filing_statuses:
     value: [single, mfj, mfs, hoh, qss]
     citation: "IRC sec. 1; Form 1040"
 
   standard_deduction:
-    value: null
+    value: {single: 16100, mfj: 32200, mfs: 16100, hoh: 24150, qss: 32200}
     unit: usd
-    status: pending
-    pending_reason: >
-      TCJA roughly doubled the standard deduction through 2025. Absent extension it
-      reverts to the pre-TCJA (~half) amount, inflation-indexed — exact 2026 figure
-      not modeled here. Reconcile to enacted law (OBBBA made the higher amount
-      permanent).
-    citation: "IRC sec. 63(c); TCJA sec. 11021"
+    citation: "Rev. Proc. 2025-32, sec. 4.14(1); Form 1040-ES (2026)"
+  additional_std_deduction_age_or_blind:
+    value: {unmarried: 2050, married_per_spouse: 1650}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.14(3); IRC sec. 63(f)"
 
   personal_exemption:
-    value: null
+    value: 0
     unit: usd
-    status: scheduled_reversion
-    pending_reason: >
-      Personal/dependent exemption returns after 2025 (~$5,300 indexed). Exact 2026
-      indexed amount pending. OBBBA retained the $0 exemption — verify.
-    citation: "IRC sec. 151; TCJA sec. 11041 (suspension expires after 2025)"
+    citation: "IRC sec. 151(d)(5) as amended by P.L. 119-21 sec. 70103 (made permanent)"
 
-  brackets_rate_schedule:
-    value: [0.10, 0.15, 0.25, 0.28, 0.33, 0.35, 0.396]
-    status: scheduled_reversion
-    pending_reason: >
-      Statutory rate schedule reverts from TCJA (10/12/22/24/32/35/37) to pre-TCJA
-      (10/15/25/28/33/35/39.6) after 2025; indexed bracket thresholds pending.
-      OBBBA made the TCJA schedule permanent — verify.
-    citation: "IRC sec. 1; TCJA sec. 11001"
+  # Rev. Proc. 2025-32 sec. 4.01, Tables 1-4. Each table also prints the tax at
+  # the top of every band ("$2,480 plus 12%..."); the enacted-law test checks
+  # these thresholds against those printed amounts, so a mistyped threshold
+  # cannot pass.
+  brackets_single:
+    value:
+      - {rate: 0.10, up_to: 12400}
+      - {rate: 0.12, up_to: 50400}
+      - {rate: 0.22, up_to: 105700}
+      - {rate: 0.24, up_to: 201775}
+      - {rate: 0.32, up_to: 256225}
+      - {rate: 0.35, up_to: 640600}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2025-32, sec. 4.01, Table 3"
+  brackets_mfj:
+    value:
+      - {rate: 0.10, up_to: 24800}
+      - {rate: 0.12, up_to: 100800}
+      - {rate: 0.22, up_to: 211400}
+      - {rate: 0.24, up_to: 403550}
+      - {rate: 0.32, up_to: 512450}
+      - {rate: 0.35, up_to: 768700}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2025-32, sec. 4.01, Table 1"
+  brackets_mfs:
+    value:
+      - {rate: 0.10, up_to: 12400}
+      - {rate: 0.12, up_to: 50400}
+      - {rate: 0.22, up_to: 105700}
+      - {rate: 0.24, up_to: 201775}
+      - {rate: 0.32, up_to: 256225}
+      - {rate: 0.35, up_to: 384350}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2025-32, sec. 4.01, Table 4"
+  brackets_hoh:
+    value:
+      - {rate: 0.10, up_to: 17700}
+      - {rate: 0.12, up_to: 67450}
+      - {rate: 0.22, up_to: 105700}
+      - {rate: 0.24, up_to: 201750}
+      - {rate: 0.32, up_to: 256200}
+      - {rate: 0.35, up_to: 640600}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2025-32, sec. 4.01, Table 2"
 
-  qbi_threshold:
-    value: null
-    status: scheduled_reversion
-    pending_reason: >
-      The sec. 199A qualified business income deduction SUNSETS after 2025 — no QBI
-      deduction absent extension. OBBBA made sec. 199A permanent — verify.
-    citation: "IRC sec. 199A(i) (termination after 2025)"
-
-  salt_deduction_cap:
-    value: null
+  ltcg_0_pct_max:
+    value: {single: 49450, mfj: 98900, mfs: 49450, hoh: 66200}
     unit: usd
-    status: scheduled_reversion
-    pending_reason: >
-      The $10,000 SALT cap expires after 2025 (uncapped absent extension). OBBBA set
-      a higher cap with phase-down — verify enacted amount.
-    citation: "IRC sec. 164(b)(6) (applies through 2025)"
-
-  ctc_per_child:
-    value: 1000
+    citation: "Rev. Proc. 2025-32, sec. 4.03"
+  ltcg_15_pct_max:
+    value: {single: 545500, mfj: 613700, mfs: 306850, hoh: 579600}
     unit: usd
-    status: scheduled_reversion
-    pending_reason: >
-      Child tax credit reverts from $2,000 to $1,000 after 2025 with lower phaseout
-      thresholds and no $1,700 ACTC. OBBBA modified the CTC — verify.
-    citation: "IRC sec. 24; TCJA sec. 11022 (applies through 2025)"
-
-  bonus_depreciation_pct:
+    citation: "Rev. Proc. 2025-32, sec. 4.03"
+  ltcg_rate_0:
+    value: 0.00
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(B); Rev. Proc. 2025-32 sec. 4.03 ('maximum zero rate amounts')"
+  ltcg_rate_15:
+    value: 0.15
+    unit: ratio
+    citation: "IRC sec. 1(h)(1)(C); Rev. Proc. 2025-32 sec. 4.03 ('maximum 15 percent rate amounts')"
+  ltcg_rate_20:
     value: 0.20
     unit: ratio
-    status: scheduled_reversion
-    pending_reason: >
-      Scheduled 20% under the IRC sec. 168(k)(6) phase-down for 2026; OBBBA restored
-      100% — verify which applies.
-    citation: "IRC sec. 168(k)(6)"
+    citation: "IRC sec. 1(h)(1)(D) — the residual rate above the 15% breakpoint"
+
+  qbi_threshold:
+    value: {single: 201750, mfj: 403500, mfs: 201775, hoh: 201750, qss: 403500}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.26; IRC sec. 199A(e)(2) (made permanent by P.L. 119-21 sec. 70105)"
+  qbi_rate:
+    value: 0.20
+    unit: ratio
+    citation: "IRC sec. 199A(a); Form 8995 line 5"
+  qbi_minimum_deduction:
+    value: 400
+    unit: usd
+    citation: "IRC sec. 199A(i) as added by P.L. 119-21 sec. 70105; Form 1040-ES (2026), What's New ('Changes to QBID')"
+  qbi_minimum_qbi:
+    value: 1000
+    unit: usd
+    citation: "IRC sec. 199A(i); Form 1040-ES (2026), What's New ('a minimum of $1,000 in total qualified business income from an active trade or business')"
 
   sec179_limit:
-    value: null
+    value: 2560000
     unit: usd
-    status: pending
-    pending_reason: "2026 inflation-indexed sec. 179 limit not yet published in this build."
-    citation: "IRC sec. 179(b)"
+    citation: "Rev. Proc. 2025-32, sec. 4.24"
+  sec179_phaseout_threshold:
+    value: 4090000
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.24"
 
   amt_exemption:
-    value: null
-    status: scheduled_reversion
-    pending_reason: >
-      AMT exemption and phaseout thresholds drop substantially after 2025 as the
-      TCJA amounts expire; 2026 indexed figures pending.
-    citation: "IRC sec. 55(d); TCJA sec. 12003"
+    value: {single: 90100, mfj: 140200, mfs: 70100, hoh: 90100}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.10"
+
+  salt_deduction_cap:
+    value: 40400
+    unit: usd
+    citation: "IRC sec. 164(b)(7)(A)(ii) as added by P.L. 119-21 sec. 70120"
+  salt_phasedown_threshold:
+    value: 505000
+    unit: usd
+    citation: "IRC sec. 164(b)(7)(B)(ii)(II) (half for married filing separately)"
+  salt_phasedown_rate:
+    value: 0.30
+    unit: ratio
+    citation: "IRC sec. 164(b)(7)(B)(i)"
+  salt_floor:
+    value: 10000
+    unit: usd
+    citation: "IRC sec. 164(b)(7)(B)(iii)"
+  medical_agi_floor:
+    value: 0.075
+    unit: ratio
+    citation: "IRC sec. 213(a)"
+  capital_loss_limit:
+    value: {mfs: 1500, other: 3000}
+    unit: usd
+    citation: "IRC sec. 1211(b)"
+
+  # New for 2026 (P.L. 119-21 sec. 70424 and 70425), from the 2026 Form 1040-ES.
+  charity_nonitemizer_max:
+    value: {mfj: 2000, other: 1000}
+    unit: usd
+    citation: "IRC sec. 170(p); Form 1040-ES (2026), What's New ('Charitable contribution deductions for non-itemizers')"
+  charity_itemized_floor_pct:
+    value: 0.005
+    unit: ratio
+    citation: "IRC sec. 170(b)(1)(I); Form 1040-ES (2026), What's New ('Charitable deduction floor for itemized deductions')"
+
+  ctc_per_child:
+    value: 2200
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.05(1)"
+  ctc_refundable_max:
+    value: 1700
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.05(2); Form 1040-ES (2026)"
+  ctc_phaseout_threshold:
+    value: {unmarried: 200000, mfj: 400000}
+    unit: usd
+    citation: "IRC sec. 24(h)(3) (not indexed; made permanent by P.L. 119-21 sec. 70104)"
+  odc_per_dependent:
+    value: 500
+    unit: usd
+    citation: "IRC sec. 24(h)(4)"
+  ctc_phaseout_rate_per_1000:
+    value: 50
+    unit: usd
+    citation: "IRC sec. 24(b)(1) (5% of the excess, rounded UP to the next $1,000)"
+  actc_earned_income_floor:
+    value: 2500
+    unit: usd
+    citation: "IRC sec. 24(d)(1)(B)(i)"
+  actc_earned_income_rate:
+    value: 0.15
+    unit: ratio
+    citation: "IRC sec. 24(d)(1)(B)(i)"
+
+  # Schedule 1-A amounts are fixed by statute for 2025 through 2028.
+  tips_deduction_max:
+    value: 25000
+    unit: usd
+    citation: "IRC sec. 224(b)(1)"
+  overtime_deduction_max:
+    value: {mfj: 25000, other: 12500}
+    unit: usd
+    citation: "IRC sec. 225(b)(1)"
+  tips_overtime_phaseout_start:
+    value: {mfj: 300000, other: 150000}
+    unit: usd
+    citation: "IRC secs. 224(b)(2), 225(b)(2)"
+  tips_overtime_phaseout_per_1000:
+    value: 100
+    unit: usd
+    citation: "IRC secs. 224(b)(2), 225(b)(2) ($100 for each $1,000)"
+  car_loan_interest_max:
+    value: 10000
+    unit: usd
+    citation: "IRC sec. 163(h)(4)(C)(i)"
+  car_loan_phaseout_start:
+    value: {mfj: 200000, other: 100000}
+    unit: usd
+    citation: "IRC sec. 163(h)(4)(C)(ii)"
+  car_loan_phaseout_per_1000:
+    value: 200
+    unit: usd
+    citation: "IRC sec. 163(h)(4)(C)(ii) ($200 for each $1,000 or fraction)"
+  senior_deduction_amount:
+    value: 6000
+    unit: usd
+    citation: "IRC sec. 151(f)(1)"
+  senior_deduction_phaseout_start:
+    value: {mfj: 150000, other: 75000}
+    unit: usd
+    citation: "IRC sec. 151(f)(2)"
+  senior_deduction_phaseout_rate:
+    value: 0.06
+    unit: ratio
+    citation: "IRC sec. 151(f)(2)"
+
+  eitc_max_credit:
+    value: {c0: 664, c1: 4427, c2: 7316, c3: 8231}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.06(1)"
+  eitc_earned_income_amount:
+    value: {c0: 8680, c1: 13020, c2: 18290, c3: 18290}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.06(1)"
+  eitc_threshold_phaseout:
+    value:
+      mfj: {c0: 18140, c1: 31160, c2: 31160, c3: 31160}
+      other: {c0: 10860, c1: 23890, c2: 23890, c3: 23890}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.06(1)"
+  eitc_completed_phaseout:
+    value:
+      mfj: {c0: 26820, c1: 58863, c2: 65899, c3: 70244}
+      other: {c0: 19540, c1: 51593, c2: 58629, c3: 62974}
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.06(1)"
+  eitc_investment_income_limit:
+    value: 12200
+    unit: usd
+    citation: "Rev. Proc. 2025-32, sec. 4.06(2)"
 
   retirement_401k_elective_deferral:
     value: 24500
     unit: usd
-    status: in_force
     citation: "IRS news release (2026 COLA): 401(k) limit increases to $24,500 for 2026"
   retirement_401k_catchup_50:
     value: 8000
     unit: usd
-    status: in_force
     citation: "IRS 2026 COLA"
   ira_contribution_limit:
     value: 7500
     unit: usd
-    status: in_force
     citation: "IRS news release (2026 COLA): IRA limit increases to $7,500 for 2026"
   ira_catchup_50:
     value: 1100
     unit: usd
-    status: in_force
     citation: "IRS 2026 COLA"
 
   ss_wage_base:
-    value: null
+    value: 184500
     unit: usd
-    status: pending
-    pending_reason: "2026 SSA contribution & benefit base not recorded in this build; verify with SSA."
-    citation: "SSA Contribution and Benefit Base"
+    citation: "Form 1040-ES (2026), What's New ('Social security tax'); Pub. 15 (2026)"
+  se_tax_rate:
+    value: 0.153
+    unit: ratio
+    citation: "IRC sec. 1401"
+  se_net_earnings_factor:
+    value: 0.9235
+    unit: ratio
+    citation: "IRC sec. 1402(a)(12)"
+  se_social_security_rate:
+    value: 0.124
+    unit: ratio
+    citation: "IRC sec. 1401(a)"
+  se_medicare_rate:
+    value: 0.029
+    unit: ratio
+    citation: "IRC sec. 1401(b)"
+  se_minimum_net_earnings:
+    value: 400
+    unit: usd
+    citation: "IRC sec. 1402(b)(2); Schedule SE (Form 1040) Part I, line 4c"
+  addl_medicare_threshold:
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    unit: usd
+    citation: "IRC sec. 3101(b)(2) (statutory, not indexed)"
+  addl_medicare_rate:
+    value: 0.009
+    unit: ratio
+    citation: "IRC sec. 3101(b)(2)"
+  addl_medicare_employer_withholding_threshold:
+    value: 200000
+    unit: usd
+    citation: "IRC sec. 3102(f)(1)"
+  niit_rate:
+    value: 0.038
+    unit: ratio
+    citation: "IRC sec. 1411(a)"
+  niit_threshold:
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    unit: usd
+    citation: "IRC sec. 1411(b) (statutory, not indexed)"
+
+  est_tax_safe_harbor_pct_prior:
+    value: 1.00
+    unit: ratio
+    citation: "IRC sec. 6654(d)(1)(B)"
+  est_tax_safe_harbor_pct_prior_high_agi:
+    value: 1.10
+    unit: ratio
+    citation: "IRC sec. 6654(d)(1)(C)"
+  est_tax_high_agi_threshold:
+    value: 150000
+    unit: usd
+    citation: "IRC sec. 6654(d)(1)(C)"
+  est_tax_high_agi_threshold_mfs:
+    value: 75000
+    unit: usd
+    citation: "IRC sec. 6654(d)(1)(C)"
+  est_tax_safe_harbor_pct_current:
+    value: 0.90
+    unit: ratio
+    citation: "IRC sec. 6654(d)(1)(B)(i)"
+  est_tax_due_dates:
+    value: ["2026-04-15", "2026-06-15", "2026-09-15", "2027-01-15"]
+    citation: "Form 1040-ES (2026), Payment Due Dates"
+  underpayment_penalty_floor:
+    value: 1000
+    unit: usd
+    citation: "IRC sec. 6654(e)(1)"
 
   mileage_business:
     value: null
     unit: usd_per_mile
     status: pending
-    pending_reason: "2026 standard mileage rate not yet issued at build time."
+    pending_reason: "The 2026 standard mileage rate was not read from its IRS notice when this file was built. The estimator does not use it."
     citation: "IRS annual mileage notice"
-
-  est_tax_high_agi_threshold:
-    value: 150000
-    unit: usd
-    citation: "IRC sec. 6654(d)(1)(C)"
