@@ -110,8 +110,9 @@ def test_the_old_result_tabs_are_gone_and_the_four_new_ones_sit_in_order(ran):
     names = wb.sheetnames
     assert not set(results.OLD_TABS) & set(names)
     visible = [ws.title for ws in wb.worksheets if ws.sheet_state == "visible"]
-    assert visible == ["Start here", "Glossary", "Control", "Columns", "Look", results.POCKETS, results.PCK, results.GRIDS,
-                       results.SUMMARY, results.SPLIT, "Record"]
+    # Line size right after RANR vs GCOs (the firm, 17 Oct 2026)
+    assert visible == ["Start here", "Glossary", "Control", "Columns", "Look", results.POCKETS, results.PCK, results.LINE,
+                       results.GRIDS, results.SUMMARY, results.SPLIT, "Record"]
     for t in results.TABS:
         assert wb[t].sheet_properties.tabColor.rgb.endswith(house.INK), t
         assert wb[t].sheet_view.showGridLines is False, t
@@ -162,7 +163,7 @@ def test_pockets_has_worse_and_material_as_two_columns_and_no_test_column(ran):
     head = tabs.heads(ws, tabs.header_row(ws, results.K_NUM, "#"), results.K_NUM, results.K_HOLDS)
     assert head[:4] == ["#", "Band", "Segment", None]                   # the half is blank on the two-way view
     assert head[4:13] == ["Loans", "This pocket", "Rest of band", "× rest of band", "Bad loans above share",
-                          "Worse?", "How often by chance", "Material?", "Could have caught"]
+                          "Worse?", "Significant at 95%?", "Material?", "Could have caught"]
     assert "Test" not in head and not any("luck" in str(h).lower() for h in head)
 
 

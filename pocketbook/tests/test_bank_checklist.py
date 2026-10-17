@@ -17,7 +17,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from pocketbook import book, choices as ch, control, deps, results, synth
+from pocketbook import book, choices as ch, control, deps, live, results, synth
 
 ROOT = Path(__file__).resolve().parents[1]
 MD = ROOT / "docs" / "BANK-MACHINE-CHECKLIST.md"
@@ -147,6 +147,12 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     assert ctl["B15"].value == "How much worse than its comparison a pocket must be"
     assert _listed(wb, lists["C15"])[0] == PICK["worse_at"] and _listed(wb, lists["C15"])[-1] == "2 times"
     assert len(_listed(wb, lists["C15"])) == 4
+    # Significant at N%? follows How sure (the firm, 17 Oct 2026; tests/test_significant_at_2026_10_17.py)
+    said("Pick **99% sure** in C18")
+    assert ctl["B18"].value == "How sure a difference must be before it counts" and \
+        "99% sure" in _listed(wb, lists["C18"])
+    said("**Significant at 95%?** now reads **Significant at 99%?**")
+    assert any(c.value == live.SIG_HEAD_FORMULA for row in wb["Pockets"].iter_rows() for c in row)
     said("type `0.9` in D15")
     d15 = lists["D15"]
     assert (d15.type, d15.operator, d15.formula1, d15.errorTitle) == ("decimal", "between", "1.01", "Out of range")
@@ -159,7 +165,8 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     assert ctl["H23"].value == "Status" and "Waiting for a Run" in ctl["H24"].value
 
     for tab, cells, sizes in (("Pockets", ("C18", "D18", "E18"), (5, 2, 3)), (results.PCK, ("B16",), (4,)),
-                              ("Grids", ("B13", "F13"), (8, 6)), ("Split", ("B15", "B26"), (4, 5))):
+                              (results.LINE, ("B17", "D17"), (4, 3)),
+                              ("Grids", ("B13", "F13"), (8, 8)), ("Split", ("B15", "B26"), (4, 5))):
         lv = _lists(wb[tab])
         for cell, n in zip(cells, sizes):
             assert len(_listed(wb, lv[cell])) == n, (tab, cell)
@@ -167,9 +174,15 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     # the five measures, named as the firm named them (30 Sep 2026), on every list the checklist says holds them
     five = ["Bad loans", "Bad dollars", "GCOs ($)", "RANR", "RANR + GCOs"]
     said("Measure (5: " + ", ".join(five) + ")")
-    said("the 5 measures (" + ", ".join(five) + "), then Loan size")
+    # and Line size's two figures that need no dates, shown and not compared (17 Oct 2026)
+    lines = list(results.LINE_HEADS[5:7])
+    said("the 5 measures (" + ", ".join(five) + "), then Loan size, " + " and ".join(lines))
     assert _listed(wb, _lists(wb["Pockets"])["C18"]) == five
-    assert _listed(wb, _lists(wb["Grids"])["F13"]) == five + ["Loan size"]
+    assert _listed(wb, _lists(wb["Grids"])["F13"]) == five + ["Loan size"] + lines
+    said("Line size B17 and D17")
+    assert _listed(wb, _lists(wb[results.LINE])["B17"])[0] == "FICO x CHANNEL"
+    assert _listed(wb, _lists(wb[results.LINE])["D17"]) == list(results.LINE_SHOW)
+    said("Show (" + ", ".join(results.LINE_SHOW) + ")")
     assert _listed(wb, _lists(wb["Split"])["B26"]) == five
     assert "Worse and material" in _listed(wb, _lists(wb["Pockets"])["E18"])
     assert "FICO x ASSET_CLASS" in _listed(wb, _lists(wb["Grids"])["B13"])
@@ -193,9 +206,12 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     terms = [r[0] for r in wb[glossary.SHEET].iter_rows(min_col=glossary.TERM, max_col=glossary.TERM,
                                                        values_only=True) if r[0]]
     n = len(glossary.rows(None))
-    said(f"It lists {n} terms, one a row ({n - 1} when the book has no charge-off date column)")
+    # the terms only a book with a charge-off date column shows: Months to charge-off, and the line-size terms built
+    # on it (17 Oct 2026)
+    co_only = n - len(glossary.rows({"co_date": False}))
+    said(f"It lists {n} terms, one a row ({n - co_only} when the book has no charge-off date column)")
     # this book has no charge-off date column, so the Run's Glossary leaves Months to charge-off out
-    assert "Months to charge-off" not in terms and len(terms[terms.index("Term") + 1:]) == n - 1
+    assert "Months to charge-off" not in terms and len(terms[terms.index("Term") + 1:]) == n - co_only
     said(f"*{glossary.SHEET}: every term, with an example* opens it")
     assert any(c.value == f"{glossary.SHEET}: every term, with an example" and c.hyperlink
                for row in wb["Start here"].iter_rows() for c in row)

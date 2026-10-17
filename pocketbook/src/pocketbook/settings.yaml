@@ -460,6 +460,117 @@ groups:
               The chance of even one pocket reading significant with no real difference is held to 5% at 95%.
               This is the strictest of the three.
 
+  # The firm, 17 Oct 2026: "we give assignments that are too high to these people", shown in a view of its own "so
+  # it isn't all in one spot and too much for a user", when an indicator trips. Each line is live (the Line size tab
+  # reads it by name, live.py), and opens on its starting line, marked suggested, as the firm decided ("Starting
+  # lines are suggestions, marked as suggested, like Worse at today"):
+  #
+  # starts: true   the option the row opens on, as a method setting opens on its recommendation; its label says
+  #                (suggested) itself, so nothing is appended to it
+  # added:         the day the row was added. A Control tab set up before then has no such row, and the Run reads
+  #                the starting option rather than refusing, so an older workbook still Runs (control.read_control)
+  #
+  # The rows sit in a block of their own under the launcher's, so no row above them moves.
+  - title: Line size
+    settings:
+      - key: line_big
+        question: "Big line: Line × book at or above"
+        takes_effect: live
+        only_when: {run_kind: bleed}
+        added: 17 Oct 2026
+        override: a multiple, such as 1.4
+        valid: {min: 0.01, max: 100}
+        options:
+          - value: 1.25
+            label: 1.25 times (suggested)
+            starts: true
+            explains: A pocket's average line at 1.25 times the whole book's or more trips Big line.
+          - value: 1.5
+            label: 1.5 times
+            explains: Only pockets whose average line is one and a half times the book's or more.
+          - value: 2.0
+            label: 2 times
+            explains: Only pockets whose average line is double the book's or more.
+
+      - key: line_bad_bigger
+        question: "Bad got bigger lines: line on bad loans ÷ line on good loans at or above"
+        takes_effect: live
+        only_when: {run_kind: bleed}
+        added: 17 Oct 2026
+        override: a multiple, such as 1.4
+        valid: {min: 0.01, max: 100}
+        options:
+          - value: 1.25
+            label: 1.25 times (suggested)
+            starts: true
+            explains: >-
+              Bad loans averaging 1.25 times the line of the pocket's good loans or more trip Bad got bigger
+              lines, and the pocket is tripped.
+          - value: 1.1
+            label: 1.1 times
+            explains: Bad loans averaging 1.1 times the line of good loans or more.
+          - value: 1.5
+            label: 1.5 times
+            explains: Bad loans averaging one and a half times the line of good loans or more.
+
+      - key: line_lost
+        question: "Lost the whole line: share of line lost on bad loans at or above"
+        takes_effect: live
+        only_when: {run_kind: bleed}
+        added: 17 Oct 2026
+        override: a share, such as 0.8 for 80%
+        valid: {min: 0.01, max: 5}
+        options:
+          - value: 0.8
+            label: 80% of the line (suggested)
+            starts: true
+            explains: GCOs on the pocket's bad loans at 80% of their booked dollars or more trip Lost the whole line.
+          - value: 0.6
+            label: 60% of the line
+            explains: GCOs on bad loans at 60% of their booked dollars or more.
+          - value: 0.9
+            label: 90% of the line
+            explains: GCOs on bad loans at 90% of their booked dollars or more.
+
+      - key: line_sooner
+        question: "Big lines fail sooner: line-weighted months ÷ straight months at or below"
+        takes_effect: live
+        only_when: {run_kind: bleed}
+        added: 17 Oct 2026
+        override: a multiple, such as 0.85
+        valid: {min: 0.01, max: 2}
+        options:
+          - value: 0.9
+            label: 0.9 times (suggested)
+            starts: true
+            explains: >-
+              Line-weighted months at 0.9 times the straight average or less trip Big lines fail sooner. Only with
+              a column marked Charge-off date.
+          - value: 0.8
+            label: 0.8 times
+            explains: Weighted months at 0.8 times the straight average or less.
+          - value: 0.95
+            label: 0.95 times
+            explains: Weighted months at 0.95 times the straight average or less.
+
+      - key: line_worse_on
+        question: Tripped by being worse on
+        takes_effect: live
+        only_when: {run_kind: bleed}
+        added: 17 Oct 2026
+        override: null
+        options:
+          - value: either
+            label: Either (suggested)
+            starts: true
+            explains: A pocket is tripped when Worse? reads Yes on Bad loans or on GCOs ($).
+          - value: bad
+            label: Bad loans
+            explains: A pocket is tripped when Worse? reads Yes on Bad loans.
+          - value: gco
+            label: GCOs
+            explains: A pocket is tripped when Worse? reads Yes on GCOs ($).
+
 # What a column can mean, and how `pocketbook init` recognises it. The firm, 25 Sep
 # 2026: "it should suggest all columns, and maybe we can teach it along the way
 # ... it can record the original column used so it can try to suggest it in the

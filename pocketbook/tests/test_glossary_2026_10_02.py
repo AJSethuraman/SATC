@@ -17,14 +17,35 @@ from conftest import TEST_SHUFFLES
 from pocketbook import book, choices as ch, glossary, house, perm, synth
 from test_book import _answer
 
-#: every term, in the firm's order (2 Oct 2026)
+#: every term, in the firm's order (2 Oct 2026), with the custom terms of 17 Oct 2026 placed beside the ones they
+#: belong with (the firm: "our custom terms - like bad / good loans, these i do want in the glossary";
+#: tests/test_glossary_terms_2026_10_17.py): Good loan after Bad loan, Together's readings together, and the rest
 TERMS = ["Booked / Booked $", "Avg line / Line × book", "GCOs ($)", "RANR", "RANR + GCOs", "Rate (GCOs ÷ Booked, RANR ÷ Booked)",
-         "Points (pts)", "× book / × rest of book", "Rest of book / rest of band", "Bad loan", "Band", "Segment",
-         "Pocket", "Grid", "Filter / Only loans where", "Origination year", "Vintage", "Worse and material",
-         "Borderline",
+         "Points (pts)", "× book / × rest of book", "Rest of book / rest of band", "Judged against", "Bad loan",
+         "Good loan", "Bad loans / Bad loans % / Bad loans ÷ Loans", "Bad dollars / Bad dollars ÷ Booked",
+         "Loan size", "Band", "Segment", "Pocket", "Two-way / Split by", "Grid", "Filter / Only loans where",
+         "Origination year", "Vintage", "Across the bottom / Lines by / Panels by",
+         "Excess / Bad loans above share / Dollars above share / Dollars short of band / Dollars short of book",
+         "Worse and material", "Worse? (Yes / Not sure / Too few losses / No)", "Material? / Material at",
+         "Show (All / Worse and material / Worse or not sure)", "How sure / Significant at N%?",
+         "Significant at N%? (Yes / Borderline / No)", "Borderline",
+         "Too few losses to test / Nothing to compare with / Not losing more",
          "Shuffle test / p-value", "Fewest loans in a pocket", "Worse at / Better at",
-         "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off", "Odd values",
-         "(marked missing) / (blank)"]
+         "Profit line (How far profit must move before it counts as more or less)",
+         "Holds (column) fixed? / Mixed with (column)", "Could have caught", "Together", "Priced for it",
+         "Net drain", "Strong", "Safe but idle", "Earns less, not from losses", "Losing more, profit holding",
+         "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off",
+         # the Line size tab's terms (the firm, 17 Oct 2026), one a row
+         "Line on bad loans ÷ line on good loans", "Share of line lost on bad loans",
+         "Months to charge-off weighted by line", "Line-weighted ÷ straight", "Signals", "Big line",
+         "Bad got bigger lines", "Lost the whole line", "Big lines fail sooner", "Tripped by",
+         "Show on Line size (Pockets where something tripped / 2 or more signals / All pockets)",
+         "Odd values", "Treat as (Real / Missing)", "(marked missing) / (blank)", "Changes now / Needs a Run",
+         "Comes to", "Worked out from the loans", "Last Run used / Status", "Lines in use now", "Gray rows under",
+         "Found on / Held back", "Pre-spec", "Holds up? / Still holds?"]
+#: the terms a book without a charge-off date column never shows
+CO_ONLY = ("Months to charge-off", "Months to charge-off weighted by line", "Line-weighted ÷ straight",
+           "Big lines fail sooner")
 #: the contract-desk words website/copy.spec.py refuses on every page (CLAUDE.md, client-facing copy)
 CONTRACT_WORDS = ["governs", "governed by", "constitutes", "in accordance with", "pursuant", "herein", "thereof",
                   "aforementioned", "accompanies", "at our discretion", "in the event that", "utilize", "commence",
@@ -98,11 +119,12 @@ def test_the_glossary_sits_right_after_start_here_after_set_up_a_run_and_set_up_
 
 
 def test_every_glossary_term_is_there_once_in_the_firms_order(books):
-    """Before a Run every term shows. After it, Months to charge-off shows only for a book with a charge-off date
-    column, and this book has none: a Run that never works out the measure doesn't define it."""
+    """Before a Run every term shows. After it, Months to charge-off and the line-size terms built on it show only
+    for a book with a charge-off date column, and this book has none: a Run that never works out the measure doesn't
+    define it."""
     for when in ("set_up", "run"):
         got = list(_rows(books[when]))
-        want = TERMS if when == "set_up" else [t for t in TERMS if t != "Months to charge-off"]
+        want = TERMS if when == "set_up" else [t for t in TERMS if t not in CO_ONLY]
         assert got == want, when
         for term, (means, example) in _rows(books[when]).items():
             assert means and example, (when, term)
@@ -128,7 +150,8 @@ def test_glossary_ranr_and_gco_examples_tie_to_the_extract(books):
     assert f"This book booked ${want['booked']:,.0f} over" in rows["Booked / Booked $"][1]
     note = [c.value for row in books["run"][glossary.SHEET].iter_rows(max_col=3) for c in row]
     assert any(isinstance(v, str)
-               and v.startswith("The examples use this book's figures for the whole book, from the last Run")
+               and v.startswith("Examples naming this book, the last Run or one of its pockets use this book's figures "
+                                "from the last Run")
                for v in note)
 
 
