@@ -278,6 +278,44 @@ def test_a_different_change_horizon_draws_no_dashed_lines_on_the_change(cache, t
     ws = wb["Unemployment"]
     assert any(ws.cell(r, 34).value == "What if: 2 from" for r in range(1, 80))      # the level's lines
     assert not any(ws.cell(r, 38).value for r in range(1, ws.max_row + 1))         # none for the change
+    # Codex on #452: the What if tab named the 6-month change and showed its value beside a rating of the
+    # 12-month one. Each side is its own change, so the row names both and shows neither as shared.
+    wi = wb["What if"]
+    rows = [r for r in range(1, wi.max_row + 1) if str(wi.cell(r, 3).value).startswith("Change over")]
+    assert rows
+    for r in rows:
+        assert wi.cell(r, 3).value == "Change over 6 months; what if: over 12 months"
+        assert wi.cell(r, 4).value is None and wi.cell(r, 5).value is None
+    assert any(wi.cell(r, 3).value == "Level" and wi.cell(r, 5).value is not None for r in range(1, wi.max_row + 1))
+    # and the series' own table gives the what-if's starting points under its own horizon's name
+    assert "What if: change over 12 months from" in _text(ws)
+
+
+def test_a_reading_only_the_what_if_rates_still_shows_where_its_ratings_start(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the table was built from this run's ratings alone, so it dropped the what-if's.
+    from threshold_engine.macro.settings import template as T
+    directions = {k: {r: LOWER for r in v} for k, v in T()["directions"]["answer"].items()}
+    directions["cpi"]["change"] = "not rated"
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"directions": directions}, {})
+    row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
+    assert row["a"] is None and row["b"]
+    ws = wb["Prices"]
+    head = next(cl for row_ in ws.iter_rows() for cl in row_ if cl.value == "What if: change from")
+    want = [row["b"]["lines"][str(k)] for k in range(2, 6)]
+    got = [ws.cell(head.row + k, head.column).value for k in range(2, 6)]
+    assert got == [pytest.approx(w / 100) if w is not None else "not reached" for w in want]   # in percent
+
+
+def test_a_series_in_neither_run_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811
+    # Codex on #452: an unpulled state read "not in this pull" and "same rating" on one row.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    st = wb["States"]
+    tx = next(cl.row for col in st.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == "TX")
+    assert st.cell(tx, 3).value == "not in this pull" and st.cell(tx, 11).value == "not rated under either"
+    rt = wb["Ratings"]
+    claims = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
+                  if cl.value == "Initial jobless claims")
+    assert rt.cell(claims, 13).value == "not rated under either"
 
 
 def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # noqa: F811

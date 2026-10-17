@@ -158,9 +158,11 @@ def build(out, result, pull, whatif=None):
     national = [k for _, keys in TOPICS for k in keys]
     topic_of = {k: t for t, keys in TOPICS for k in keys}
     wrows = {}
+    b_months = None
     if whatif:
         for x in whatif["rows"]:
             wrows.setdefault(x["key"], {})[x["reading"]] = x
+        b_months = next(x["b"] for x in whatif["settings"] if x["name"] == "change_months")
 
     F_DATA = Font(name="Calibri", size=10, color=K.INK_TEXT)
     F_BOLD = Font(name="Calibri", size=10, bold=True, color=K.INK_TEXT)
@@ -444,7 +446,8 @@ def build(out, result, pull, whatif=None):
             if whatif:
                 mine = list(wrows.get(key, {}).values())
                 words = move_text(mine, months)
-                put(ws, row, 13, words or "same rating", font=moved_font(mine) if words else F_NOTE)
+                put(ws, row, 13, words or ("same rating" if mine else "not rated under either"),
+                    font=moved_font(mine) if words else F_NOTE)
             for j in range(2, last + 1):
                 c = ws.cell(row, j)
                 c.alignment = Alignment(vertical="center", wrap_text=j in (12, 13), horizontal=c.alignment.horizontal)
@@ -614,12 +617,17 @@ def build(out, result, pull, whatif=None):
             item = items[x["key"]]
             name = item.title
             link(ws.cell(rr, 2), "States" if x["key"] in state_keys else TAB[x["key"]], name)
-            put(ws, rr, 3, reading_name(x["reading"], months), font=F_NOTE)
-            one = x["a"] or x["b"]
-            put(ws, rr, 4, _date(one["date"]), "yyyy-mm-dd")
-            v, fmt = change_value(item, one["value"]) if x["reading"] == "change" else (one["value"],
-                                                                                      value_format(one["value"]))
-            put(ws, rr, 5, v, fmt)
+            if x["same_measure"]:
+                put(ws, rr, 3, reading_name(x["reading"], months), font=F_NOTE)
+                one = x["a"] or x["b"]
+                put(ws, rr, 4, _date(one["date"]), "yyyy-mm-dd")
+                v, fmt = change_value(item, one["value"]) if x["reading"] == "change" else (
+                    one["value"], value_format(one["value"]))
+                put(ws, rr, 5, v, fmt)
+            else:
+                # Two different changes: each side's rating is of its own, so neither value is shown as shared.
+                put(ws, rr, 3, "Change over %d months; what if: over %s" % (months, b_months), font=F_NOTE,
+                    align=Alignment(vertical="center", wrap_text=True))
             for col, got in ((6, x["a"]), (10, x["b"])):
                 if got:
                     chip(ws, rr, col, got["rating"], short=True)
@@ -634,7 +642,7 @@ def build(out, result, pull, whatif=None):
                     font=F_UP if x["move"] > 0 else F_DOWN, align=CENTER)
             elif x["move"] == 0:
                 put(ws, rr, 14, "same", font=F_NOTE, align=CENTER)
-            ws.row_dimensions[rr].height = 18
+            ws.row_dimensions[rr].height = 18 if x["same_measure"] else 28
             rule(ws, rr, 2, last)
 
         def ordered(rows_):
@@ -733,7 +741,8 @@ def build(out, result, pull, whatif=None):
         if whatif:
             mine = list(wrows.get(key, {}).values())
             words = move_text(mine, months)
-            put(ws, row, 11, words or "same rating", font=moved_font(mine) if words else F_NOTE)
+            put(ws, row, 11, words or ("same rating" if mine else "not rated under either"),
+                font=moved_font(mine) if words else F_NOTE)
         rule(ws, row, 2, last)
         row += 1
     ws.freeze_panes = ws.cell(head + 1, 3)
@@ -876,7 +885,8 @@ def build(out, result, pull, whatif=None):
                 if w["b"]:
                     b = w["b"]
                     chip(ws, row + 3, col + 1, b["rating"], short=True)
-                    noun = "readings" if reading == "position" else "changes"
+                    noun = "readings" if reading == "position" else "changes" if w["same_measure"] else \
+                        "changes over %s" % b_months
                     if w["move"] is None:
                         words = "Rated under the what-if only."
                     elif w["move"] == 0:
@@ -916,36 +926,44 @@ def build(out, result, pull, whatif=None):
 
         # where each rating starts, and how many readings took it
         row = section(ws, row, "Where each rating starts", 12)
+        def sides(reading):
+            """This run's rating of the reading and the what-if's, either of them None when that run did not
+            rate it. Codex on #452: a reading only the what-if rates still shows where its ratings start."""
+            w = wrows.get(key, {}).get(reading)
+            return mine.get(reading), (w["b"] if w else None)
+
         head_cols = ["Rating"]
         for reading in ("position", "change"):
-            if reading in mine:
-                noun = "Level" if reading == "position" else "Change"
+            r, b = sides(reading)
+            noun = "Level" if reading == "position" else "Change"
+            if r:
                 head_cols += ["%s from" % noun, "Readings" if reading == "position" else "Changes"]
-                if reading in drawn:
-                    head_cols.append("What if: %s from" % noun.lower())
+            if b:
+                head_cols.append("What if: %s from" % (noun.lower() if reading == "position" or
+                                                       wrows[key][reading]["same_measure"] else
+                                                       "change over %s" % b_months))
         row = sub_header(ws, row, head_cols, right=tuple(range(1, len(head_cols))))
         for k in range(1, 6):
             chip(ws, row, 2, k)
             col = 3
             for reading in ("position", "change"):
-                r = mine.get(reading)
-                if not r:
-                    continue
                 pct = reading == "change" and item.change_in == "percent"
-                sets = [r["lines"]] + ([wrows[key][reading]["b"]["lines"]] if reading in drawn else [])
-                for n_set, edges in enumerate(sets):
+                for side_, got in zip("ab", sides(reading)):
+                    if not got:
+                        continue
+                    edge = got["lines"][str(k)] if k > 1 else None
                     if k == 1:
-                        put(ws, row, col, "below 2" if r["direction"] == HIGHER else "above 2", font=F_NOTE,
-                            align=Alignment(horizontal="right"))
-                    elif edges[str(k)] is None:
-                        put(ws, row, col, "not reached", font=F_NOTE, align=Alignment(horizontal="right"))
+                        put(ws, row, col, "below 2" if got["direction"] == HIGHER else "above 2", font=F_NOTE,
+                            align=Alignment(horizontal="right", vertical="center"))
+                    elif edge is None:
+                        put(ws, row, col, "not reached", font=F_NOTE,
+                            align=Alignment(horizontal="right", vertical="center"))
                     else:
-                        edge = edges[str(k)]
                         put(ws, row, col, edge / 100 if pct else edge, "#,##0.0#%" if pct else value_format(edge),
-                            F_DATA if n_set == 0 else F_BOLD)
+                            F_DATA if side_ == "a" else F_BOLD)
                     col += 1
-                    if n_set == 0:
-                        put(ws, row, col, r["counts"][str(k)], "#,##0")
+                    if side_ == "a":
+                        put(ws, row, col, got["counts"][str(k)], "#,##0")
                         col += 1
             rule(ws, row, 2, 2 + len(head_cols) - 1)
             row += 1

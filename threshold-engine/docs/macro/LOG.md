@@ -525,3 +525,17 @@ all passing. Eight deliberate breaks each made a test fail:
 The runs used `PYTHONDONTWRITEBYTECODE=1`, the lesson of 16 Oct.
 
 **Still open:** W1, `work/` is not ignored by git (`threshold-engine/.gitignore` is outside these paths).
+
+**Codex on #452: three findings, each real, each fixed with a test.** Each test was shown to fail with the
+old code put back.
+- **A reading only the what-if rates** dropped its starting points from the series' table. The table was
+  built from this run's ratings alone. It now takes every reading either run rates.
+- **A change over a different horizon** was shown on the What if tab with the baseline's horizon and value,
+  beside a rating of the what-if's own change. The row now names both horizons and shows neither value as
+  shared. The series' table names the what-if's horizon too.
+- **A series in neither run** (not in the pull) read "same rating" beside "not in this pull". It now reads
+  "not rated under either".
+
+None of the three arises in the example: all 85 series are in that pull, both settings count the change
+over the same 12 months, and every reading is rated under both. The example is rebuilt from the fixed code;
+its printout is unchanged. The macro suite is now 93, all passing.
