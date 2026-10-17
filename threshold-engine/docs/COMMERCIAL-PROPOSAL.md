@@ -500,7 +500,12 @@ segments, every column stated, refused when not whole, no identifiers):
 
 Each question can be answered in one line. Each recommendation is mine.
 
-**Answered so far.** Question 13, by the firm on 16 Oct 2026: *"Definitely
+**Answered 17 Oct, on the docket form** (a page with an answer box per question; the answers were read back from it):
+- **Agreed with the recommendation:** questions 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16 and 17.
+- **On question 0 the firm added:** *"ok fine but it means 2 agents are working on the same project"*. Two sessions now build in threshold-engine, the consumer one and this one, so the commercial work goes in through pull requests against `threshold-engine-book` and reads LOG.md first.
+- **Question 4 is still open:** *"need a visual example"* (median against the dollar-weighted total).
+
+**Answered earlier.** Question 13, by the firm on 16 Oct 2026: *"Definitely
 mark reporting changes."* This came after a discussion of why banks' C&I
 differs even on the Call Report: there is one definition, but loans are
 classified by collateral and borrower, with judgement at the edges.
@@ -517,23 +522,24 @@ classified by collateral and borrower, with judgement at the edges.
 
 | # | Question | If yes | If no | Recommend |
 |---|---|---|---|---|
-| 1 | Start with four segments (C&I, nonfarm nonres split owner-occupied and other, multifamily, construction)? | 8 rated rows; farmland, agricultural loans and leases later | Name the others to add; each is a field list away | **Yes** |
-| 2 | Rate CRE net charge-offs on lines set from the industry's 1991–2026 history? | KeyBank and peers rated on industry lines; the pull goes back to 1991Q1 | Leave CRE charge-offs shown and unrated | **Yes** |
-| 3 | Lead CRE with the nonaccrual rate rather than net charge-offs? | Nonaccrual is the first CRE row on Decide | Charge-offs first, nonaccrual second | **Yes** |
-| 4 | Rest peer lines on the median, with the dollar composite beside it? | Each bank counted once | The big five set peer lines | **Yes** |
-| 5 | Keep the same 15 peers for commercial? | One roster; Citi, Capital One and First Citizens labeled as weak comparators | A commercial roster by book mix, to be chosen and checked | **Yes, for v1** |
-| 6 | Pull commercial history from 1991Q1, not 2006Q1 as for consumer? | The early-1990s CRE losses are in it; splits still start 2007Q1 | 2006 on, like consumer; CRE High rests on 2009–10 alone | **Yes** |
-| 7 | Rate criticized and classified on internal history only, and show peers' figures as context? | No peer lines for criticized | Peer lines from mixed definitions (3 shapes across 15) | **Yes** |
-| 8 | Read peers' commercial classes in threshold-engine on the `classes.py` pattern, instead of fixing `edgar-crit-class-tracker`? | One reader, tied out the consumer way | Repair the tracker first, then reuse it | **Yes** |
-| 9 | Buy any paid data for v1? | Name the source; I report what it adds before purchase | Public data only | **No** |
-| 10 | Rate SLOOS standards? | A leading measure on Decide | Shown as context only | **No (context only)** |
-| 11 | Build commercial as its own book file, not more rows in the consumer book? | Two workbooks, one command | One larger workbook | **Own book** |
-| 12 | What minimum book size, per segment, keeps a bank-quarter in? | Your figure | 0, as for consumer peers | **Your number; I have no basis to propose one** |
+| 0 | Keep the commercial work inside threshold-engine, as a second book? | One tool, shared method, rules and tests | A separate project, copied to start | **Yes; answered 17 Oct: agreed**, with the firm's note: "ok fine but it means 2 agents are working on the same project" |
+| 1 | Start with four segments (C&I, nonfarm nonres split owner-occupied and other, multifamily, construction)? | 8 rated rows; farmland, agricultural loans and leases later | Name the others to add; each is a field list away | **Yes**; **answered 17 Oct: agreed** |
+| 2 | Rate CRE net charge-offs on lines set from the industry's 1991–2026 history? | KeyBank and peers rated on industry lines; the pull goes back to 1991Q1 | Leave CRE charge-offs shown and unrated | **Yes**; **answered 17 Oct: agreed** |
+| 3 | Lead CRE with the nonaccrual rate rather than net charge-offs? | Nonaccrual is the first CRE row on Decide | Charge-offs first, nonaccrual second | **Yes**; **answered 17 Oct: agreed** |
+| 4 | Rest peer lines on the median, with the dollar composite beside it? | Each bank counted once | The big five set peer lines | **Yes**; **open: the firm asked for a visual example (17 Oct)** |
+| 5 | Keep the same 15 peers for commercial? | One roster; Citi, Capital One and First Citizens labeled as weak comparators | A commercial roster by book mix, to be chosen and checked | **Yes, for v1**; **answered 17 Oct: agreed** |
+| 6 | Pull commercial history from 1991Q1, not 2006Q1 as for consumer? | The early-1990s CRE losses are in it; splits still start 2007Q1 | 2006 on, like consumer; CRE High rests on 2009–10 alone | **Yes**; **answered 17 Oct: agreed** |
+| 7 | Rate criticized and classified on internal history only, and show peers' figures as context? | No peer lines for criticized | Peer lines from mixed definitions (3 shapes across 15) | **Yes**; **answered 17 Oct: agreed** |
+| 8 | Read peers' commercial classes in threshold-engine on the `classes.py` pattern, instead of fixing `edgar-crit-class-tracker`? | One reader, tied out the consumer way | Repair the tracker first, then reuse it | **Yes**; **answered 17 Oct: agreed** |
+| 9 | Buy any paid data for v1? | Name the source; I report what it adds before purchase | Public data only | **No**; **answered 17 Oct: agreed** |
+| 10 | Rate SLOOS standards? | A leading measure on Decide | Shown as context only | **No (context only)**; **answered 17 Oct: agreed** |
+| 11 | Build commercial as its own book file, not more rows in the consumer book? | Two workbooks, one command | One larger workbook | **Own book**; **answered 17 Oct: agreed** |
+| 12 | What minimum book size, per segment, keeps a bank-quarter in? | Your figure | 0, as for consumer peers | **Your number; I have no basis to propose one**; **answered 17 Oct: agreed** |
 | 13 | Label every reporting change (§3 Q4: the definition and form changes, among them the NDFI and margin-loan revision of 2024Q4–2025Q2) on the series it touches? | Labeled in the quarter it took effect | Unlabeled | **Answered, 16 Oct 2026: yes** |
-| 14 | Add a stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each with its 8-K, read by the build like the FDIC record? | Those windows are left out with a reason | They stay in, with two books mixed | **Yes** |
-| 15 | Also label 2020Q1–2021Q4 on C&I (revolver drawdowns and PPP: not definition changes, but they move the book), and leave out the windows the 25% rule catches across both periods? | Labeled; windows left out where the rule fires | Unlabeled; the rule alone decides what is left out | **Yes** |
-| 16 | When a labeled reporting change trips the 25% jump (KeyBank's C&I in 2024Q4, the NDFI move), keep the series going across it instead of starting it after the gap? | KeyBank's C&I charge-off history runs 2006 on, with the change labeled and its windows left out. This changes how every series is written, consumer included: today each starts after its last left-out window | The series starts at 2026Q1 (2 quarters), as the tool does now | **Yes** |
-| 17 | How are the FDIC history codes 213 ("Merger - Assisted", 3 rows, May 1990) and 225 ("Partial Purchase & Assumption - Without Assistance", 1991) classified? | As acquisitions, like the codes already classified | Left out of the record, with the reason | **Your call: they block any peer build before 2005 (the 1991–2005 quarters were pulled once, 17 Oct, into a scratch cache)** |
+| 14 | Add a stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each with its 8-K, read by the build like the FDIC record? | Those windows are left out with a reason | They stay in, with two books mixed | **Yes**; **answered 17 Oct: agreed** |
+| 15 | Also label 2020Q1–2021Q4 on C&I (revolver drawdowns and PPP: not definition changes, but they move the book), and leave out the windows the 25% rule catches across both periods? | Labeled; windows left out where the rule fires | Unlabeled; the rule alone decides what is left out | **Yes**; **answered 17 Oct: agreed** |
+| 16 | When a labeled reporting change trips the 25% jump (KeyBank's C&I in 2024Q4, the NDFI move), keep the series going across it instead of starting it after the gap? | KeyBank's C&I charge-off history runs 2006 on, with the change labeled and its windows left out. This changes how every series is written, consumer included: today each starts after its last left-out window | The series starts at 2026Q1 (2 quarters), as the tool does now | **Yes**; **answered 17 Oct: agreed** |
+| 17 | How are the FDIC history codes 213 ("Merger - Assisted", 3 rows, May 1990) and 225 ("Partial Purchase & Assumption - Without Assistance", 1991) classified? | As acquisitions, like the codes already classified | Left out of the record, with the reason | **Your call: they block any peer build before 2005 (the 1991–2005 quarters were pulled once, 17 Oct, into a scratch cache)**; **answered 17 Oct: agreed** |
 
 ---
 
