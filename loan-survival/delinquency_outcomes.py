@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""
+delinquency_outcomes.py - Is 90+ days past due a good early stand-in for charge-off?
+
+Two modes, chosen by the columns in the file:
+
+LOAN mode (one row per loan) - "what happened after a loan first hit 90+?"
+    loan_id          [required]
+    first_90_date    date the loan first hit 90+ DPD; blank if never   [required]
+    chargeoff_date   blank if not charged off                           [required]
+    payoff_date      blank if not paid off                              [optional]
+    dpd_asof         days past due at the as-of date                    [optional; splits cured vs still delinquent]
+
+SNAPSHOT mode (one row per loan per month-end) - month-to-month roll-rate matrix
+    loan_id, month_end, dpd                                             [required]
+    status           optional; values listed in --co-values / --pif-values mark charge-off / paid off
+
+Usage:
+    python delinquency_outcomes.py loans.xlsx --as-of 2026-09-30
+    python delinquency_outcomes.py snapshots.csv --mode snapshot --status-col status --co-values CO,CHGOFF
+    python delinquency_outcomes.py loans.csv --window 12 --proxy-min-co-share 0.6 --proxy-min-lead 3
+
+Output: <input>_delinquency.xlsx (Outcomes / Verdict / Excluded / RunLog, or RollRates / RollCounts / RunLog).
+
+The verdict thresholds are YOUR policy choices, set by flags and printed in the RunLog.
+The defaults are starting points, not standards.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+VERSION = "1.0"
+
+
+def load(p: Path) -> pd.DataFrame:
+    if p.suffix.lower() in (".xlsx", ".xlsm", ".xls"):
+        try:
+            return pd.read_excel(p)
+        except ImportError as e:  # an old .xls needs the extra xlrd package
+            sys.exit(f"This Excel file needs a reader that is not installed ({e}). Open it in Excel and save as .xlsx or .csv, then try again.")
+    return pd.read_csv(p)
+
+
+def months_between(start: pd.Series, end: pd.Series) -> pd.Series:
+    m = (end.dt.year - start.dt.year) * 12 + (end.dt.month - start.dt.month)
+    return m - (end.dt.day < start.dt.day).astype(int)
+
+
+def need(df, cols):
+    missing = [c for c in cols if c and c not in df.columns]
+    if missing:
+        sys.exit(f"Missing column(s): {missing}. Columns found: {list(df.columns)}")
+
+
+# ----------------------------------------------------------------------------- loan mode
+
+def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
+    need(df, [a.id_col, a.first90_col, a.co_col])
+    has_pif = a.pif_col in df.columns
+    has_dpd = a.dpd_col in df.columns
+    excluded, rows = [], []
+    for c in [a.first90_col, a.co_col] + ([a.pif_col] if has_pif else []):
+        parsed = pd.to_datetime(df[c], errors="coerce", format="mixed")  # each value read on its own
+        # a blank date means "never happened"; a date we cannot read must not be mistaken for that
+        unreadable = df[c].notna() & (df[c].astype(str).str.strip() != "") & parsed.isna()
+        if unreadable.any():
+            x = df[unreadable].copy()
+            x.insert(0, "exclusion_reason", f"unparseable date in {c}")
+            excluded.append(x)
+            df, parsed = df[~unreadable], parsed[~unreadable]
+        df[c] = parsed
+    f90, co = df[a.first90_col], df[a.co_col]
+    pif = df[a.pif_col] if has_pif else pd.Series(pd.NaT, index=df.index)
+
+    if a.id_col in df.columns:  # one row per loan: a repeated id would count the same loan twice
+        ids = df[a.id_col]
+        has_id = ids.notna() & (ids.astype(str).str.strip() != "")
+        for bad, why in ((~has_id, "no loan id"), (ids.duplicated(keep="first") & has_id, "duplicate loan id")):
+            bad = bad.reindex(df.index, fill_value=False)
+            if bad.any():
+                x = df[bad].copy()
+                x.insert(0, "exclusion_reason", why)
+                excluded.append(x)
+                df, f90, co, pif = df[~bad], f90[~bad], co[~bad], pif[~bad]
+                ids = df[a.id_col]
+                has_id = ids.notna() & (ids.astype(str).str.strip() != "")
+    if has_pif:  # a charge-off dated after the payoff cannot also have happened; left out of every figure, not just the outcomes
+        bad_co_pif = co.notna() & pif.notna() & (co > pif)
+        if bad_co_pif.any():
+            x = df[bad_co_pif].copy()
+            x.insert(0, "exclusion_reason", "charge-off date after payoff date")
+            excluded.append(x)
+            df, f90, co, pif = df[~bad_co_pif], f90[~bad_co_pif], co[~bad_co_pif], pif[~bad_co_pif]
+    co_any = co.notna() & (co <= as_of)
+    co_without_90 = int((co_any & (f90.isna() | (f90 > co))).sum())  # no 90+ date, or one recorded after the charge-off
+    co_total = int(co_any.sum())
+
+    pop = df[f90.notna() & (f90 <= as_of)].copy()
+    cutoff = as_of - pd.DateOffset(months=a.window)
+    too_recent = pop[a.first90_col] > cutoff
+    x = pop[too_recent].copy()
+    x.insert(0, "exclusion_reason", f"first 90+ less than {a.window} months before as-of (not enough time to resolve)")
+    excluded.append(x)
+    pop = pop[~too_recent]
+    bad_order = pop[a.co_col].notna() & (pop[a.co_col] < pop[a.first90_col])
+    x = pop[bad_order].copy()
+    x.insert(0, "exclusion_reason", "charge-off date before first 90+ date")
+    excluded.append(x)
+    pop = pop[~bad_order]
+    if has_pif:
+        bad_pif = pop[a.pif_col].notna() & (pop[a.pif_col] < pop[a.first90_col])
+        x = pop[bad_pif].copy()
+        x.insert(0, "exclusion_reason", "payoff date before first 90+ date")
+        excluded.append(x)
+        pop = pop[~bad_pif]
+
+    end = pop[a.first90_col] + pd.DateOffset(months=a.window)
+    p_co, p_pif = pop[a.co_col], (pop[a.pif_col] if has_pif else pd.Series(pd.NaT, index=pop.index))
+    co_in = p_co.notna() & (p_co <= end)
+    pif_in = ~co_in & p_pif.notna() & (p_pif <= end)
+    other = ~co_in & ~pif_in
+    outcome = pd.Series("", index=pop.index)
+    outcome[co_in] = "charged off"
+    outcome[pif_in] = "paid off"
+    if has_dpd:
+        dpd = pd.to_numeric(pop[a.dpd_col], errors="coerce")
+        outcome[other & (dpd < 30)] = "cured (current at as-of)"
+        outcome[other & (dpd >= 30)] = "still delinquent at as-of"
+        outcome[other & dpd.isna()] = "not charged off (status unknown)"
+    later = other & p_co.notna() & (p_co > end) & (p_co <= as_of)  # a charge-off after as-of has not happened yet
+    outcome[later] = "charged off, but after the window"
+    if not has_dpd:
+        outcome[other & ~later] = "not charged off (cured or still delinquent)"
+
+    n = len(pop)
+    counts = outcome.value_counts()
+    tbl = pd.DataFrame({"outcome_within_window": counts.index, "loans": counts.values})
+    tbl["share"] = tbl["loans"] / n if n else np.nan
+
+    lead = months_between(pop.loc[co_in, a.first90_col], pop.loc[co_in, a.co_col])
+    co_share = co_in.sum() / n if n else np.nan
+    med_lead = float(lead.median()) if len(lead) else np.nan
+    skip_share = co_without_90 / co_total if co_total else np.nan
+
+    good_proxy = (co_share >= a.proxy_min_co_share) and (med_lead >= a.proxy_min_lead)
+    if not n:
+        verdict = "No loans hit 90+ early enough to evaluate."
+    elif good_proxy:
+        verdict = ("USE 90+ as the bad event: most 90+ loans charge off, and 90+ arrives months earlier.")
+    elif co_share >= a.proxy_min_co_share:
+        verdict = ("90+ predicts charge-off well, but the lead time is short. Either event works; charge-off is simpler.")
+    else:
+        verdict = (f"USE CHARGE-OFF (or '90+ and not cured within N months'): fewer than "
+                   f"{a.proxy_min_co_share:.0%} of 90+ loans charge off within {a.window} months.")
+    if co_total and skip_share >= a.skip_warn:
+        verdict += (f" WARNING: {skip_share:.0%} of charge-offs never hit 90+ first, so 90+ alone misses them. "
+                    f"Use 'earliest of 90+ or charge-off' as the bad event.")
+
+    verdict_tbl = pd.DataFrame([
+        ("loans that first hit 90+ (with enough time to resolve)", n),
+        (f"share charged off within {a.window} months", co_share),
+        ("median months from first 90+ to charge-off", med_lead),
+        ("25th / 75th percentile months to charge-off",
+         f"{lead.quantile(.25):.0f} / {lead.quantile(.75):.0f}" if len(lead) else ""),
+        ("charge-offs (all time) that never hit 90+ first", co_without_90),
+        ("as a share of all charge-offs", skip_share),
+        ("rule: min share charged off to use 90+", a.proxy_min_co_share),
+        ("rule: min median lead (months) to use 90+", a.proxy_min_lead),
+        ("VERDICT", verdict),
+    ], columns=["measure", "value"])
+
+    lead_dist = lead.value_counts().sort_index().rename_axis("months_first90_to_chargeoff").reset_index(name="loans")
+    excl = pd.concat(excluded) if excluded else pd.DataFrame()
+    print(tbl.to_string(index=False, float_format=lambda v: f"{v:.1%}"))
+    print("\n" + verdict)
+    return {"Verdict": verdict_tbl, "Outcomes": tbl, "LeadTime": lead_dist, "Excluded": excl}, n, len(excl)
+
+
+# ----------------------------------------------------------------------------- snapshot mode
+
+BUCKETS = ["Current", "30-59", "60-89", "90-119", "120+"]
+
+
+def bucket(dpd: pd.Series) -> pd.Series:
+    b = pd.cut(dpd, [-np.inf, 29, 59, 89, 119, np.inf], labels=BUCKETS)
+    return b.astype(str)
+
+
+def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
+    need(df, [a.id_col, a.month_col, a.dpd_col])
+    # the extract's last month, from every row with a readable month, before any row or loan is set aside
+    _m = pd.to_datetime(df[a.month_col], errors="coerce", format="mixed")
+    _m = _m[_m <= as_of]
+    last_month = (_m.dt.year * 12 + _m.dt.month).max()
+    ids = df[a.id_col]
+    no_id = ids.isna() | (ids.astype(str).str.strip() == "")  # groupby would silently drop these
+    no_id_rows = df[no_id].copy()
+    no_id_rows.insert(0, "exclusion_reason", "no loan id")
+    df = df[~no_id].copy()
+    parsed = pd.to_datetime(df[a.month_col], errors="coerce", format="mixed")
+    # a month we cannot read cannot be placed in the chain, and dropping just that row would make the month before it
+    # look like the loan left the file; so every row of such a loan is set aside and listed
+    cannot_place = df[a.id_col].isin(df.loc[parsed.isna(), a.id_col])
+    unplaced = df[cannot_place].copy()
+    unplaced.insert(0, "exclusion_reason", "a month_end for this loan is blank or not a readable date")
+    df = df[~cannot_place].copy()
+    df[a.month_col] = parsed[~cannot_place]
+    df = df[df[a.month_col] <= as_of].copy()
+    df["state"] = bucket(pd.to_numeric(df[a.dpd_col], errors="coerce"))
+    # keep a month with no usable DPD in the chain as "Unknown", so its neighbours are not mistaken for a loan leaving the file
+    df.loc[~df["state"].isin(BUCKETS), "state"] = "Unknown"
+    if a.status_col and a.status_col in df.columns:
+        s = df[a.status_col].astype(str).str.strip().str.upper()
+        df.loc[s.isin(a.co_values), "state"] = "Charged off"
+        df.loc[s.isin(a.pif_values), "state"] = "Paid off"
+    df["ym"] = df[a.month_col].dt.year * 12 + df[a.month_col].dt.month
+    # two rows for one loan and month cannot be told apart, and picking one would depend on file order; set the loan aside
+    twice = df.duplicated([a.id_col, "ym"], keep=False)
+    twice_rows = df[df[a.id_col].isin(df.loc[twice, a.id_col])].copy()
+    twice_rows.insert(0, "exclusion_reason", "the loan has two rows for the same month")
+    twice_rows = twice_rows.drop(columns=["ym", "state"])
+    df = df[~df[a.id_col].isin(df.loc[twice, a.id_col])]
+    df = df.sort_values([a.id_col, "ym"])
+    # a loan cannot have records after it was charged off or paid off; set the whole loan aside rather than let impossible transitions in
+    first_terminal = df[df["state"].isin(["Charged off", "Paid off"])].groupby(a.id_col)["ym"].min()
+    after_terminal = df["ym"] > df[a.id_col].map(first_terminal)
+    after_rows = df[df[a.id_col].isin(df.loc[after_terminal, a.id_col])].drop(columns=["ym", "state"]).copy()
+    after_rows.insert(0, "exclusion_reason", "the loan has records after it was charged off or paid off")
+    df = df[~df[a.id_col].isin(df.loc[after_terminal, a.id_col])]
+
+    nxt = df.groupby(a.id_col)[["ym", "state"]].shift(-1)
+    df["next_state"] = np.where(nxt["ym"] == df["ym"] + 1, nxt["state"], None)
+    # a month missing in the middle is not an exit: the loan comes back later. Set those rows aside and list them;
+    # "Left file" is only for a loan with no later record at all.
+    terminal = df["state"].isin(["Charged off", "Paid off"])
+    interior_gap = nxt["ym"].notna() & (nxt["ym"] != df["ym"] + 1) & ~terminal
+    gap_rows = df[interior_gap].drop(columns=["ym", "state", "next_state"]).copy()
+    gap_rows.insert(0, "exclusion_reason", "a month is missing after this row (the loan has a later record)")
+    gone = df["next_state"].isna() & ~interior_gap & (df["ym"] < last_month) & ~terminal
+    df.loc[gone, "next_state"] = "Left file (no status)"
+    pairs = df[df["next_state"].notna() & ~terminal]
+
+    order_from = BUCKETS
+    order_to = BUCKETS + ["Charged off", "Paid off", "Left file (no status)"]
+    # a blank or non-numeric DPD has no bucket; leave those transitions out of the count AND the matrix, and list them
+    usable = pairs["state"].isin(order_from) & pairs["next_state"].isin(order_to)
+    dropped = pairs[~usable].copy()
+    pairs = pairs[usable]
+    counts = pd.crosstab(pairs["state"], pairs["next_state"]).reindex(index=order_from, columns=order_to, fill_value=0)
+    counts = counts.loc[:, (counts.sum() > 0) | counts.columns.isin(order_to[:-1])]
+    rates = counts.div(counts.sum(axis=1).replace(0, np.nan), axis=0)
+    counts.index.name = rates.index.name = "from (this month)"
+    print("Month-to-month roll rates (row = this month, column = next month):")
+    print(rates.to_string(float_format=lambda v: f"{v:.1%}"))
+    sheets = {"RollRates": rates.reset_index(), "RollCounts": counts.reset_index()}
+    if len(dropped):
+        dropped.insert(0, "exclusion_reason", "DPD blank or not a number in this month or the next")
+        print(f"\n{len(dropped):,} transition(s) left out because a month's DPD was blank or not a number (see Excluded).")
+    if len(unplaced):
+        print(f"\n{len(unplaced):,} row(s) left out because a loan has a month_end that is blank or not a date (see Excluded).")
+    unplaced = pd.concat([unplaced, twice_rows], ignore_index=True) if len(twice_rows) else unplaced
+    if len(after_rows):
+        print(f"\n{len(after_rows):,} row(s) left out because a loan has records after it was charged off or paid off (see Excluded).")
+        unplaced = pd.concat([unplaced, after_rows], ignore_index=True)
+    if len(gap_rows):
+        print(f"\n{len(gap_rows):,} row(s) left out because the loan has no record for the next month but comes back later (see Excluded).")
+        unplaced = pd.concat([unplaced, gap_rows], ignore_index=True)
+    if len(twice_rows):
+        print(f"\n{len(twice_rows):,} row(s) left out because a loan has two rows for the same month (see Excluded).")
+    if len(no_id_rows):
+        print(f"\n{len(no_id_rows):,} row(s) left out because the loan id is blank (see Excluded).")
+    if len(dropped) or len(unplaced) or len(no_id_rows):
+        sheets["Excluded"] = pd.concat([no_id_rows, unplaced, dropped.drop(columns=["ym", "next_state"], errors="ignore")], ignore_index=True)
+    return sheets, len(pairs), len(dropped) + len(unplaced) + len(no_id_rows)
+
+
+# ----------------------------------------------------------------------------- main
+
+def write(out: Path, sheets: dict, runlog: pd.DataFrame):
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+    with pd.ExcelWriter(out, engine="openpyxl") as xw:
+        for name, d in {**sheets, "RunLog": runlog}.items():
+            (d if len(d.columns) else pd.DataFrame({"note": ["none"]})).to_excel(xw, sheet_name=name, index=False)
+        for ws in xw.book.worksheets:
+            for row in ws.iter_rows():  # text from the source that starts with '=' must stay text, never become a formula
+                for c in row:
+                    if c.data_type == "f":
+                        c.data_type = "s"
+        for ws in xw.book.worksheets:
+            ws.freeze_panes = "B2"
+            for c in ws[1]:
+                c.font = Font(bold=True)
+            for col in ws.columns:
+                head = str(col[0].value or "")
+                w = max([len(head)] + [len(str(c.value)) for c in col[1:60] if c.value is not None]) + 2
+                ws.column_dimensions[get_column_letter(col[0].column)].width = min(max(w, 10), 70)
+                if ws.title == "RollRates" and col[0].column > 1 or head == "share":
+                    for c in col[1:]:
+                        c.number_format = "0.0%"
+        if "Verdict" in xw.book.sheetnames:
+            ws = xw.book["Verdict"]
+            for r in range(2, ws.max_row + 1):
+                v = ws.cell(r, 2).value
+                if isinstance(v, float) and 0 <= v <= 1 and "share" in str(ws.cell(r, 1).value):
+                    ws.cell(r, 2).number_format = "0.0%"
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("input", type=Path)
+    p.add_argument("--mode", choices=["auto", "loan", "snapshot"], default="auto")
+    p.add_argument("--as-of", help="YYYY-MM-DD (default: latest date in the data)")
+    p.add_argument("--id-col", default="loan_id")
+    p.add_argument("--first90-col", default="first_90_date")
+    p.add_argument("--co-col", default="chargeoff_date")
+    p.add_argument("--pif-col", default="payoff_date")
+    p.add_argument("--dpd-col", default="dpd_asof", help="loan mode: DPD at as-of; snapshot mode: DPD each month")
+    p.add_argument("--month-col", default="month_end")
+    p.add_argument("--status-col", default="")
+    p.add_argument("--co-values", default="CO,CHGOFF,CHARGED OFF")
+    p.add_argument("--pif-values", default="PIF,PAID,PAID OFF")
+    p.add_argument("--window", type=int, default=12, help="months after first 90+ to watch for charge-off")
+    p.add_argument("--proxy-min-co-share", type=float, default=0.60)
+    p.add_argument("--proxy-min-lead", type=float, default=3)
+    p.add_argument("--skip-warn", type=float, default=0.20, help="warn if this share of charge-offs never hit 90+")
+    p.add_argument("--out", type=Path)
+    a = p.parse_args(argv)
+    a.co_values = [v.strip().upper() for v in a.co_values.split(",")]
+    a.pif_values = [v.strip().upper() for v in a.pif_values.split(",")]
+
+    raw = load(a.input)
+    mode = a.mode
+    if mode == "auto":
+        mode = "snapshot" if a.month_col in raw.columns else "loan"
+    if mode == "snapshot" and a.dpd_col == "dpd_asof" and "dpd" in raw.columns:
+        a.dpd_col = "dpd"
+    date_cols = [c for c in [a.first90_col, a.co_col, a.pif_col, a.month_col] if c in raw.columns]
+    as_of = pd.Timestamp(a.as_of) if a.as_of else max(pd.to_datetime(raw[c], errors="coerce", format="mixed").max() for c in date_cols)
+
+    out_check = a.out or a.input.with_name(a.input.stem + "_delinquency.xlsx")
+    if out_check.resolve() == a.input.resolve():
+        sys.exit("The workbook would be saved over the input file itself. Pick a different --out.")
+    sheets, used, excl = (snapshot_mode if mode == "snapshot" else loan_mode)(raw.copy(), a, as_of)
+
+    out = a.out or a.input.with_name(a.input.stem + "_delinquency.xlsx")
+    log = [("script", f"delinquency_outcomes.py v{VERSION}"), ("run_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+           ("input_file", str(a.input.resolve())), ("input_sha256", hashlib.sha256(a.input.read_bytes()).hexdigest()),
+           ("mode", mode), ("as_of", f"{as_of:%Y-%m-%d}"), ("rows_read", len(raw)),
+           ("rows_used" if mode == "loan" else "month-to-month transitions used", used), ("rows_excluded", excl)]
+    if mode == "loan":
+        log += [("window_months", a.window), ("rule: min share charged off", a.proxy_min_co_share),
+                ("rule: min median lead months", a.proxy_min_lead), ("rule: skip warning share", a.skip_warn)]
+    else:
+        log += [("buckets (DPD)", "Current 0-29, 30-59, 60-89, 90-119, 120+"),
+                ("status col", a.status_col or "(none)"), ("charge-off values", ", ".join(a.co_values)),
+                ("paid-off values", ", ".join(a.pif_values))]
+    part = out.with_name(f"{out.stem}.part-{os.getpid()}{out.suffix}")  # swap in at the end; never leave a half-written report
+    try:
+        write(part, sheets, pd.DataFrame(log, columns=["item", "value"]))
+        os.replace(part, out)
+    finally:
+        part.unlink(missing_ok=True)
+    print(f"\nWrote {out}")
+
+
+if __name__ == "__main__":
+    main()
