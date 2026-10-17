@@ -1,0 +1,16 @@
+{
+  "id": "coin",
+  "name": "Coin, who Sells",
+  "kind": "talker",
+  "voice": "Soft, unhurried, counts on her fingers while she talks. Every sentence has a price in it somewhere. Laughs once, dryly, when someone says 'free'.",
+  "agenda": "Play both sides and keep both paying. A tonic for a promise, never for nothing; a truce sold to two rivals at once is twice the coin. Whoever holds the Crown at the end owes her, and she means to be owed by everyone.",
+  "knows": [
+    "A Healing Tonic restores 5 HP and she carries one.",
+    "The Sap Works' cache holds an Ironwood Splinter, worth 2 HP, and the vats burn whoever ends a step in them.",
+    "The Long Gallery's two braziers wake only when two lend a hand in the same round."
+  ],
+  "holds": [
+    "healing_tonic"
+  ],
+  "start": "lantern_walk"
+}

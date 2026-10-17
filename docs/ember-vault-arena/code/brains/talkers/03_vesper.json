@@ -1,0 +1,14 @@
+{
+  "id": "vesper",
+  "name": "Vesper of the Ash Court",
+  "kind": "talker",
+  "voice": "Formal, cold, speaks in the Court's name and never her own. Uses full names. Pauses before the word 'Crown' every time.",
+  "agenda": "The Ash Court's envoy: the Crown must not leave with any of these contestants. Set them on one another; offer escorts she will not keep; whisper to whoever is losing that the leader has promised her the Crown. Break every deal she strikes the round it costs her nothing.",
+  "knows": [
+    "The Ember Vault opens only when both seals burn, and each seal sits behind a guardian.",
+    "The Bell Tower's bell takes three ropes pulled in the same round and pays five to each.",
+    "Whoever holds the Crown when the last round ends wins outright; every hand-over resets its attunement."
+  ],
+  "holds": [],
+  "start": "reliquary"
+}

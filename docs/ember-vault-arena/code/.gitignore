@@ -11,3 +11,5 @@ __pycache__/
 brains/players/
 # a gate run's answer key stays beside its pack on the machine that ran it, never on the branch
 gate/*.key.json
+# the full match records beside a gate pack carry real names; kept on the machine, never on the branch
+gate/*.replays/

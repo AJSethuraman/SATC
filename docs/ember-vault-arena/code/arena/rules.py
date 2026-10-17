@@ -22,159 +22,82 @@ output of ``enumerate_legal_actions(observation)``.  There is exactly one rules
 implementation and no second predicate that can drift from what the agent saw.
 """
 
+import hashlib
 from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
-from . import combat, grid, items, memory, scoring
-from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION
+from . import combat, deals, grid, items, memory, scoring, world
+from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION, TALKER_ACTIONS, TALKER_STATS
 
 
 # ---------------------------------------------------------------------------
 # map
 # ---------------------------------------------------------------------------
 
-ROOM_ORDER: tuple[str, ...] = (
-    "threshold",
-    "ironwood_gate",
-    "ossuary_gate",
-    "vault",
-    "egress",
-)
-
-ROOMS: dict[str, dict[str, Any]] = {
-    "threshold": {
-        "name": "The Threshold",
-        "description": "Rain hammers the outer stair; two gates wait inland.",
-        "neighbors": ["ironwood_gate", "ossuary_gate"],
-        "kind": "start",
-        "seal_id": None,
-        "cache_id": None,
-        "guardian_id": None,
-    },
-    "ironwood_gate": {
-        "name": "The Ironwood Gate",
-        "description": "Living timber grown through the arch, wet with sap.",
-        "neighbors": ["threshold", "vault"],
-        "kind": "gate",
-        "seal_id": "ironwood_seal",
-        "cache_id": "ironwood_cache",
-        "guardian_id": "ironwood_guardian",
-    },
-    "ossuary_gate": {
-        "name": "The Ossuary Gate",
-        "description": "A stacked-bone arch that clicks when anyone breathes.",
-        "neighbors": ["threshold", "vault"],
-        "kind": "gate",
-        "seal_id": "ossuary_seal",
-        "cache_id": "ossuary_cache",
-        "guardian_id": "ossuary_guardian",
-    },
-    "vault": {
-        "name": "The Ember Vault",
-        "description": "The Crown burns inside its Warden.",
-        "neighbors": ["egress", "ironwood_gate", "ossuary_gate"],
-        "kind": "vault",
-        "seal_id": None,
-        "cache_id": None,
-        "guardian_id": "crown_warden",
-    },
-    "egress": {
-        "name": "The Moonlit Egress",
-        "description": "Open sky. Leaving here with an attuned Crown ends the match.",
-        "neighbors": ["vault"],
-        "kind": "egress",
-        "seal_id": None,
-        "cache_id": None,
-        "guardian_id": None,
-    },
-}
-
-SEAL_ROOMS: tuple[str, ...] = ("ironwood_gate", "ossuary_gate")
-START_ROOM = "threshold"
-VAULT_ROOM = "vault"
-EGRESS_ROOM = "egress"
-CONTRACTION_REFUGE = "vault"  # force-move destination, a constant not an adjacency
+# The Ember Vault is drawn once, in world.py (PRD §5.2): rooms, adjacency,
+# grids, props, caches, floor items, monsters, reactions, the schedule and the
+# board layout. Everything here is a view of that registry.
+ROOM_ORDER: tuple[str, ...] = world.ROOM_ORDER
+ROOMS: dict[str, dict[str, Any]] = world.room_records()
+SEAL_ROOMS: tuple[str, ...] = world.SEAL_ROOMS
+START_ROOM = world.START_ROOM
+VAULT_ROOM = world.VAULT_ROOM
+EGRESS_ROOM = world.EGRESS_ROOM
+CONTRACTION_REFUGE = world.CONTRACTION_REFUGE  # force-move destination, a constant not an adjacency
 
 CROWN_ITEM_ID = items.CROWN_ID
-CROWN_ESCAPE_ATTUNEMENT = 2
-DEFAULT_MAX_ROUNDS = 12
+DEFAULT_MAX_ROUNDS = 48  # four acts of twelve (PRD §5.1); the only place the match length lives
 STARTING_TOKEN_BUDGET = 10_000_000  # no cap in v1 (firm, 11 Sep 2026); the ledger measures
 
-# Acts. Total functions over any positive round, so a short or long match never
-# raises — later contraction entries simply never fire.
-ACT_I_LAST_ROUND = 4
-ACT_II_LAST_ROUND = 7
+# Acts (PRD §5.1): forty-eight rounds in four acts of twelve, I rounds 1–12,
+# II 13–24, III 25–36, IV 37–48. Total functions over any positive round, so a
+# short or long match never raises — later contraction entries simply never
+# fire. These constants and the schedule below are the only statement of the
+# match shape; tests read them rather than repeating them. The act names are
+# the session's, from July's spec and code, and the firm can rename them.
+ROUNDS_PER_ACT = 12
+ACT_I_LAST_ROUND = 12
+ACT_II_LAST_ROUND = 24
+ACT_III_LAST_ROUND = 36
 ACT_NAMES: dict[int, str] = {
     1: "Act I — The Gates",
     2: "Act II — The Long Knife",
-    3: "Act III — The Contraction",
+    3: "Act III — The Crown Run",
+    4: "Act IV — The Contraction",
 }
+CONTRACTION_ACT = 4  # "Contraction belongs to act IV only" (PRD §5.4)
+# The Vault opens only in the last act (PRD §5.4, "one convergent terminal
+# objective in act IV"; built 19 Sep 2026 after the simulator showed the
+# Warden dead before act IV in every match): both seals lit is the key, the
+# last act is the hour. Until then the seals are armed and the gate waits.
+VAULT_OPENS_ACT = 4
 
-# Ordered, absolute round numbers. One room per round; vault and egress never
-# seal.
-CONTRACTION_SCHEDULE: tuple[tuple[int, str], ...] = (
-    (9, "threshold"),
-    (10, "ironwood_gate"),
-    (11, "ossuary_gate"),
-)
+# The schedule is drawn with the map (world.CONTRACTION_SCHEDULE): ordered,
+# absolute round numbers, every one inside act IV and before the last round;
+# a round may seal more than one room; the Vault, the Egress and the Parapet
+# never seal. The act is proven by a test here, the rest by world.validate.
+CONTRACTION_SCHEDULE: tuple[tuple[int, str], ...] = world.CONTRACTION_SCHEDULE
 
-MONSTER_TEMPLATES: dict[str, dict[str, Any]] = {
-    "ironwood_guardian": {
-        "id": "ironwood_guardian",
-        "name": "Ironwood Guardian",
-        "kind": "guardian",
-        "room": "ironwood_gate",
-        "tile": [2, 1],
-        "reach": 1,
-        "max_hp": 12,
-        "hp": 12,
-        "power": 3,
-        "armor": 1,
-        "guard": 0,
-        "death_cause": None,
-        "defeated_by": None,
-        "collateral_taken": 0,
-    },
-    "ossuary_guardian": {
-        "id": "ossuary_guardian",
-        "name": "Ossuary Guardian",
-        "kind": "guardian",
-        "room": "ossuary_gate",
-        "tile": [2, 1],
-        "reach": 1,
-        "max_hp": 12,
-        "hp": 12,
-        "power": 3,
-        "armor": 0,
-        "guard": 0,
-        "death_cause": None,
-        "defeated_by": None,
-        "collateral_taken": 0,
-    },
-    "crown_warden": {
-        "id": "crown_warden",
-        "name": "Crown Warden",
-        "kind": "warden",
-        "room": "vault",
-        "tile": [3, 2],
-        "reach": 2,
-        "max_hp": 20,
-        "hp": 20,
-        "power": 4,
-        "armor": 2,
-        "guard": 0,
-        "death_cause": None,
-        "defeated_by": None,
-        "collateral_taken": 0,
-    },
-}
+MONSTER_TEMPLATES: dict[str, dict[str, Any]] = world.monster_templates()
 
-CACHE_CONTENTS: dict[str, str] = {
-    "ironwood_gate": "veteran_blade",
-    "ossuary_gate": "healing_tonic",
-}
+SITES: dict[str, dict[str, Any]] = world.SITES  # cooperative objective sites (PRD §5.3)
 
-OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.2"
+CACHE_CONTENTS: dict[str, str] = dict(world.CACHES)
+
+
+def seeded_loot(seed: int) -> dict[str, str]:
+    """PRD §5.2: the seed places loot within its declared sites. The map's
+    caches are the sites and what the map put in them is the pool; the seed
+    deals the pool over the sites, so the same seed always deals the same,
+    every site still holds something, and no cache ever holds anything the
+    map did not declare. A hash of the seed and the room, not the match
+    RNG, so the deal consumes no die."""
+    sites = sorted(CACHE_CONTENTS)
+    pool = sorted(CACHE_CONTENTS.values())
+    order = sorted(sites, key=lambda room: hashlib.sha256(f"loot:{int(seed)}:{room}".encode("utf-8")).hexdigest())
+    return dict(zip(order, pool))
+
+OBSERVATION_SCHEMA_VERSION = "ember-vault-obs-0.3"
 LEGALITY_VERSION = "ember-vault-legality-0.2"
 
 
@@ -190,15 +113,19 @@ def new_match_state(
 ) -> dict[str, Any]:
     agents: dict[str, Any] = {}
     for seat_index, manifest in enumerate(manifests):
-        stats = BUILDS[manifest.build]
+        talker = getattr(manifest, "kind", "character") == "talker"
+        stats = TALKER_STATS if talker else BUILDS[manifest.build]
+        start_room = manifest.start if talker and manifest.start in ROOMS else START_ROOM
         agents[manifest.id] = {
             "id": manifest.id,
             "name": manifest.name,
             "build": manifest.build,
-            "room": START_ROOM,
+            "kind": "talker" if talker else "character",
+            "room": start_room,
             # Tactical position. Seat order fixes the opening formation, so the
-            # same roster always starts identically.
-            "tile": list(grid.spawn_tile(START_ROOM, seat_index)),
+            # same roster always starts identically. A talker starts where its
+            # manifest says, on a free tile there (resolved below).
+            "tile": list(grid.spawn_tile(start_room, seat_index)),
             "move_range": grid.move_range(stats["speed"]),
             "reach": grid.reach_for_build(manifest.build),
             "hp": stats["max_hp"],
@@ -208,7 +135,8 @@ def new_match_state(
             "speed": stats["speed"],
             "search": stats["search"],
             "guard": 0,
-            "inventory": [],  # ALWAYS sorted (P2)
+            # ALWAYS sorted (P2); a talker starts with what its manifest says it holds
+            "inventory": sorted(i for i in getattr(manifest, "holds", ()) if items.is_known_item(i)) if talker else [],
             "status": "active",
             "score": 0,
             "score_breakdown": {},
@@ -228,6 +156,22 @@ def new_match_state(
             "crown_takes": 0,
             "eliminated_round": None,
         }
+    # Two bodies never share a tile: a talker whose seat tile is taken in its
+    # start room takes the next free spawn tile there, then any free floor.
+    taken = set()
+    for agent in agents.values():
+        key = (agent["room"], tuple(agent["tile"]))
+        if agent["kind"] == "talker" and key in taken:
+            g = grid.grid_for(agent["room"])
+            blocked = grid.blocked_tiles(agent["room"])
+            candidates = list(g["spawn"]) + [(x, y) for x in range(g["w"]) for y in range(g["h"])]
+            for t in candidates:
+                t = tuple(t)
+                if t not in blocked and (agent["room"], t) not in taken:
+                    agent["tile"] = list(t)
+                    key = (agent["room"], t)
+                    break
+        taken.add(key)
     return {
         "ruleset_version": RULESET_VERSION,
         "seed": int(seed),
@@ -240,7 +184,7 @@ def new_match_state(
         "rooms": deepcopy(ROOMS),  # STATIC forever (P1)
         "monsters": deepcopy(MONSTER_TEMPLATES),
         "agents": agents,
-        "floor_items": {room_id: [] for room_id in ROOM_ORDER},
+        "floor_items": {room_id: sorted(world.FLOOR_ITEMS.get(room_id, [])) for room_id in ROOM_ORDER},
         # TRI-STATE, not bool: "inactive" | "active" | "voided". Contraction can
         # remove a gate room before its seal was ever activated; "voided" records
         # that the seal can never be lit and scores nothing. It does NOT satisfy
@@ -254,12 +198,12 @@ def new_match_state(
         },
         "caches": {
             room_id: {
-                "item_id": CACHE_CONTENTS[room_id],
+                "item_id": item_id,  # dealt by the seed within the declared sites (PRD §5.2)
                 "found": False,
                 "found_by": None,
                 "found_round": None,
             }
-            for room_id in SEAL_ROOMS
+            for room_id, item_id in sorted(seeded_loot(seed).items())
         },
         "crown": {
             "status": "locked",  # locked|floor|carried|escaped
@@ -282,6 +226,14 @@ def new_match_state(
         "collateral_damage": {"total": 0, "by_source": {}, "by_victim": {}},
         "room_reaction_uses": {room_id: 0 for room_id in ROOM_ORDER},
         "recent_speech": [],
+        # PRD §5.19–21: every offer and every struck deal, in the state hash.
+        "deals": deals.new_ledger(),
+        # PRD §5.3: the cooperative sites; ``hands`` is this round's lending,
+        # ``last_attempt`` what the previous try looked like, for the digest.
+        "sites": {
+            sid: {"status": "waiting", "hands": {}, "done_round": None, "done_by": [], "last_attempt": None}
+            for sid in sorted(SITES)
+        },
     }
 
 
@@ -330,23 +282,27 @@ def act_for_round(round_no: int) -> int:
         return 1
     if round_no <= ACT_II_LAST_ROUND:
         return 2
-    return 3
+    if round_no <= ACT_III_LAST_ROUND:
+        return 3
+    return 4
 
 
 def act_name(act: int) -> str:
     return ACT_NAMES.get(act, f"Act {act}")
 
 
+def sealing_rooms_for_round(round_no: int) -> list[str]:
+    """Every room whose end-of-round seal falls on this round, in schedule order."""
+    return [room_id for scheduled_round, room_id in CONTRACTION_SCHEDULE if scheduled_round == round_no]
+
+
 def sealing_room_for_round(round_no: int) -> str | None:
-    for scheduled_round, room_id in CONTRACTION_SCHEDULE:
-        if scheduled_round == round_no:
-            return room_id
-    return None
+    rooms = sealing_rooms_for_round(round_no)
+    return rooms[0] if rooms else None
 
 
 def contracting_rooms_for_round(round_no: int) -> list[str]:
-    room_id = sealing_room_for_round(round_no)
-    return [room_id] if room_id else []
+    return sealing_rooms_for_round(round_no)
 
 
 def seal_round_for_room(room: str) -> int | None:
@@ -385,8 +341,21 @@ def vault_open(state: Mapping[str, Any]) -> bool:
     Referee RELOCATION is a separate concern and deliberately not routed through
     this predicate: contraction still force-moves survivors into the vault, and
     those events are flagged ``gate_bypassed``.
+
+    Since ruleset 0.5 the gate also waits for the last act (``VAULT_OPENS_ACT``):
+    both seals lit before then arm it, and it opens when act IV begins.
     """
+    return seals_lit(state) and act_for_round(max(1, state.get("round", 1))) >= VAULT_OPENS_ACT
+
+
+def seals_lit(state: Mapping[str, Any]) -> bool:
+    """Every seal ACTIVE: the key to the Vault, whatever the hour."""
     return all(status == "active" for status in state["seals"].values())
+
+
+def vault_opens_at_round() -> int:
+    """The first round of the act the Vault opens in."""
+    return ACT_III_LAST_ROUND + 1 if VAULT_OPENS_ACT == 4 else ROUNDS_PER_ACT * (VAULT_OPENS_ACT - 1) + 1
 
 
 def gate_permanently_closed(state: Mapping[str, Any]) -> bool:
@@ -408,7 +377,7 @@ def crown_carrier(state: Mapping[str, Any]) -> str | None:
 
 
 def rounds_remaining(state: Mapping[str, Any]) -> int:
-    """INCLUSIVE of the current round: 12 at round 1, 1 at round 12.
+    """INCLUSIVE of the current round: ``max_rounds`` at round 1, 1 at the last.
 
     The convention is republished in the observation so a model never has to
     guess it.
@@ -449,27 +418,11 @@ def living_bodies_in(state: Mapping[str, Any], room: str) -> list[dict[str, Any]
     return sorted(bodies, key=lambda body: body["id"])
 
 
-def escape_gate_ok(state: Mapping[str, Any], agent_id: str) -> bool:
-    agent = state["agents"][agent_id]
-    crown = state["crown"]
-    return (
-        agent["status"] == "active"
-        and agent["room"] == VAULT_ROOM
-        and crown["status"] == "carried"
-        and crown["carrier_id"] == agent_id
-        and CROWN_ITEM_ID in agent["inventory"]
-        and crown["attunement_rounds"] >= CROWN_ESCAPE_ATTUNEMENT
-        and not is_sealed(state, EGRESS_ROOM)
-    )
-
-
 def move_allowed(state: Mapping[str, Any], agent_id: str, destination: str) -> bool:
     agent = state["agents"][agent_id]
     if destination not in open_neighbors(state, agent["room"]):
         return False
     if destination == VAULT_ROOM and not vault_open(state):
-        return False
-    if destination == EGRESS_ROOM and not escape_gate_ok(state, agent_id):
         return False
     return True
 
@@ -491,6 +444,23 @@ def seal_activation_allowed(state: Mapping[str, Any], agent_id: str) -> bool:
         and room in SEAL_ROOMS
         and state["seals"][room] == "inactive"
         and not room_has_living_monster(state, room)
+    )
+
+
+def site_hand_allowed(state: Mapping[str, Any], agent_id: str, hand: str) -> bool:
+    """A hand may be lent at a site in the agent's room while the site waits
+    and no monster holds the room; the same hand twice in a round is stale at
+    resolution, never illegal at the freeze."""
+    agent = state["agents"][agent_id]
+    sid = world.site_of_hand(hand)
+    if sid is None or SITES[sid]["room"] != agent["room"]:
+        return False
+    site = state.get("sites", {}).get(sid)
+    return (
+        agent["status"] == "active"
+        and site is not None
+        and site["status"] == "waiting"
+        and not room_has_living_monster(state, agent["room"])
     )
 
 
@@ -565,18 +535,6 @@ def crown_to_floor(state: dict[str, Any], room: str) -> dict[str, Any]:
         "crown.status": [before_status, "floor"],
         "crown.carrier_id": [before_carrier, None],
         "crown.attunement_rounds": [before_attunement, 0],
-    }
-
-
-def crown_extract(state: dict[str, Any], agent_id: str) -> dict[str, Any]:
-    crown = state["crown"]
-    before_status = crown["status"]
-    crown["status"] = "escaped"
-    crown["room"] = None
-    crown["carrier_id"] = agent_id
-    return {
-        "crown.status": [before_status, "escaped"],
-        "winner_agent_id": [state.get("winner_agent_id"), agent_id],
     }
 
 
@@ -784,25 +742,10 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
     # action, arriving at the destination's doorway. Gating transit on reaching
     # the door first was tried and abandoned -- a Vanguard (move range 1) needed
     # three turns to cross a gate room to the vault door, which is crippling
-    # inside twelve rounds. Range governs WITHIN-room movement, where the
+    # inside July's twelve rounds. Range governs WITHIN-room movement, where the
     # tactical decisions actually live.
     for destination in room.get("neighbors", []):
         if destination == VAULT_ROOM and not public.get("vault_open"):
-            continue
-        if destination == EGRESS_ROOM:
-            if crown.get("carrier_id") != me["id"]:
-                continue
-            if crown.get("attunement_rounds", 0) < crown.get(
-                "attunement_required", CROWN_ESCAPE_ATTUNEMENT
-            ):
-                continue
-            entries.append(
-                _entry(
-                    "move",
-                    "move to egress — ESCAPE AND WIN",
-                    destination=destination,
-                )
-            )
             continue
         entries.append(
             _entry(
@@ -833,7 +776,7 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
     if public.get("agent_attacks_allowed"):
         for other in observation.get("visible_agents", []):
             if other.get("status") != "active":
-                continue
+                continue  # a talker too, from act II (PRD §5.8): its death pays nothing and is public
             if not _within(other.get("tile"), my_reach):
                 continue
             entries.append(
@@ -874,21 +817,36 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
             _entry("use", f"use {item_id} ({items.item_name(item_id)})", item=item_id)
         )
     # give: any carried item except the Crown, to any living character in the
-    # room. The Crown changes hands by being taken, never handed over (it would
-    # otherwise be a transfer that resets attunement, which M3 decides).
+    # room. The Crown too, since deals opened (18 Sep 2026, PRD §5.19 and §10
+    # "the deal path"): handing it over is a transfer that resets attunement
+    # and scores nothing for either hand, so a share_item deal for the Crown
+    # can be kept and not only broken. Reversible by the firm.
     for view in me.get("inventory", []):
         item_id = view["id"]
-        if item_id == CROWN_ITEM_ID:
-            continue
         for other in observation.get("visible_agents", []):
             if other.get("status") != "active":
                 continue
+            if item_id == CROWN_ITEM_ID and other.get("kind") == "talker":
+                continue  # a talker cannot carry the Crown (PRD §5.25)
             entries.append(
                 _entry(
                     "give",
                     f"give {item_id} ({items.item_name(item_id)}) to {other['id']} ({other['name']})",
                     target=other["id"],
                     item=item_id,
+                )
+            )
+
+    # A cooperative site (PRD §5.3): one entry per hand while the site waits.
+    for site in room.get("sites", []):
+        if site.get("status") != "waiting" or monsters:
+            continue
+        for hand in site["hands"]:
+            entries.append(
+                _entry(
+                    "interact",
+                    f"interact {hand} (lend a hand at {site['name']}: {site['needs']} hands in one round, +{site['points']} each)",
+                    target=hand,
                 )
             )
 
@@ -908,6 +866,11 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
         entries.append(_entry("rest", "rest (+2 HP, once per match)"))
 
     entries.sort(key=_entry_sort_key)
+    # A talker's legal set is move, give and guard (PRD §5.25): it speaks,
+    # whispers, offers and accepts through the slots, never fights, searches,
+    # lights, lends a hand or takes.
+    if me.get("kind") == "talker":
+        entries = [e for e in entries if e["action"] in TALKER_ACTIONS]
     return entries
 
 
@@ -979,7 +942,8 @@ def visible_observation(
         "room": _build_room(state, agent),
         "visible_agents": _build_visible_agents(state, agent),
         "visible_monsters": _build_visible_monsters(state, agent),
-        "secret_objective": scoring.objective_progress(state, agent_id, objective),
+        # a talker has no aim to score (PRD §5.25)
+        "secret_objective": scoring.objective_progress(state, agent_id, objective) if agent.get("kind", "character") == "character" else None,
         "episodic_memory": memory.project_episodic_memory(
             event_log, agent_id, state.get("round", 0)
         ),
@@ -988,6 +952,8 @@ def visible_observation(
                       "reads": [dict(r) for r in agent["note"].get("reads", [])]},
         "recent_speech": _build_recent_speech(state, agent),
         "whispers_seen": _build_whispers_seen(state, agent),
+        "deals": deals.digest(state, agent_id),
+        "standings": _build_standings(state),
         "score_breakdown": scoring.score_breakdown_view(state, agent_id),
     }
     observation["legal_actions"] = enumerate_legal_actions(observation)
@@ -1010,7 +976,9 @@ def _build_public_state(state: Mapping[str, Any]) -> dict[str, Any]:
         "act_name": act_name(act),
         "agent_attacks_allowed": act >= 2,
         "seals": dict(state["seals"]),
+        "seals_lit": seals_lit(state),
         "vault_open": vault_open(state),
+        "vault_opens_at_round": vault_opens_at_round(),
         "vault_gate_permanently_closed": gate_permanently_closed(state),
         "warden_alive": state["monsters"]["crown_warden"]["hp"] > 0,
         "crown": {
@@ -1018,9 +986,32 @@ def _build_public_state(state: Mapping[str, Any]) -> dict[str, Any]:
             "carrier_id": crown["carrier_id"],
             "room": crown["room"],
             "attunement_rounds": crown["attunement_rounds"],
-            "attunement_required": CROWN_ESCAPE_ATTUNEMENT,
         },
     }
+
+
+def _build_standings(state: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Everyone, by score (PRD §5.5 and §5.22: standings are public in every
+    digest). Totals, status and who carries the Crown; never a breakdown, an
+    aim, a note or a room."""
+    crown = state.get("crown", {})
+    rows = sorted(
+        (a for a in state["agents"].values() if a.get("kind", "character") == "character"),
+        key=lambda a: (-int(a.get("score", 0)), a["id"]),
+    )
+    return [
+        {
+            "rank": i + 1,
+            "id": a["id"],
+            "name": a["name"],
+            "build": a["build"],
+            "status": a["status"],
+            "score": int(a.get("score", 0)),
+            "carrying_crown": crown.get("status") == "carried" and crown.get("carrier_id") == a["id"],
+            "eliminated_round": a.get("eliminated_round"),
+        }
+        for i, a in enumerate(rows)
+    ]
 
 
 def _build_map(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, Any]:
@@ -1041,6 +1032,9 @@ def _build_map(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, 
                 "seals_at_end_of_round": seal_round_for_room(room_id),
                 "has_seal": room_id in SEAL_ROOMS,
                 "seal_status": state["seals"].get(room_id),
+                # a cache is part of the map; whether it has been found is public
+                "has_cache": room_id in state["caches"],
+                "cache_found": state["caches"][room_id]["found"] if room_id in state["caches"] else None,
                 "guardian_id": state["rooms"][room_id]["guardian_id"],
                 "visited": room_id in visited,
             }
@@ -1079,6 +1073,7 @@ def _build_self(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "id": agent["id"],
         "name": agent["name"],
         "build": agent["build"],
+        "kind": agent.get("kind", "character"),
         "room": agent["room"],
         "status": agent["status"],
         # Tactical position and the two ranges derived from the build.
@@ -1140,9 +1135,32 @@ def _build_room(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "seals_at_end_of_round": seal_round_for_room(room_id),
         "seal": seal,
         "cache": cache,
+        "sites": _build_sites(state, room_id),
         "floor_items": items.describe_items(list(state["floor_items"][room_id])),
         "grid": _build_grid(state, agent),
     }
+
+
+def _build_sites(state: Mapping[str, Any], room_id: str) -> list[dict[str, Any]]:
+    """The cooperative sites in this room (PRD §5.3): what each needs, what it
+    pays, whether it is done, and what the last try looked like. This round's
+    hands are not shown: everyone decides blind."""
+    out = []
+    for sid in world.sites_in(room_id):
+        site = SITES[sid]
+        rec = state.get("sites", {}).get(sid) or {}
+        out.append({
+            "id": sid,
+            "name": site["name"],
+            "hands": list(site["hands"]),
+            "needs": len(site["hands"]),
+            "points": site["points"],
+            "status": rec.get("status", "waiting"),
+            "done_by": list(rec.get("done_by", [])),
+            "done_round": rec.get("done_round"),
+            "last_attempt": deepcopy(rec.get("last_attempt")),
+        })
+    return out
 
 
 def _build_grid(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, Any]:
@@ -1204,6 +1222,7 @@ def _build_visible_agents(
                 "id": other["id"],
                 "name": other["name"],
                 "build": other["build"],
+                "kind": other.get("kind", "character"),
                 "status": other["status"],
                 "tile": list(other.get("tile") or []),
                 "reach": other.get("reach", 1),

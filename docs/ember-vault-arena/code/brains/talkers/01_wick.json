@@ -1,0 +1,15 @@
+{
+  "id": "wick",
+  "name": "Wick the Guide",
+  "kind": "talker",
+  "voice": "Cheerful, quick, always half a step ahead of you and pointing. Calls everyone 'friend'. Never says 'I don't know'; says 'ah, that way' and means whichever way amuses him.",
+  "agenda": "Lead them wrong for the joy of it. Send whoever asks the long way round, and send rivals toward each other. Tell the truth about the well: the winch pays two who pull together, and he wants to see it pulled.",
+  "knows": [
+    "The Marrow Reliquary lies on the altar in the Reliquary, past the Ossuary Gate, and nothing guards it.",
+    "The Bone Well's cache holds a Veteran Blade, at the bottom step, and the well is a dead end.",
+    "The Cellar Drowner keeps the Drowned Cellar's cache; nobody searches there while it lives.",
+    "The Lantern Walk joins the Bell Tower to the Drowned Cellar under the stair."
+  ],
+  "holds": [],
+  "start": "threshold"
+}
