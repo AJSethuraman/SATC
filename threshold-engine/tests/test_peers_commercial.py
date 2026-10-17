@@ -365,6 +365,9 @@ def test_build_writes_the_commercial_series_with_their_notes(built, data):
     assert float(rows[-1].split(",")[1]) == pytest.approx(want)
     # A commercial note never mentions the consumer definitions.
     assert not any("Securitized cards" in n or "6.d" in n for n in notes)
+    # A summed series says each note once, though every product's definition ends with the same one.
+    assert len(notes) == len(set(notes))
+    assert notes.count(books.NOT_FILED_NOTE) <= 1
 
 
 def test_a_product_list_too_long_for_its_note_is_counted_not_cut():

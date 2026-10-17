@@ -1673,8 +1673,9 @@ settings. On `commercial-build`.
   comparison are in `docs/commercial-2026-10/stress-tool-rules.md`, every
   command written out.
 
-**What it found.** Industry within 0.03 points of the as-filed table in
-every segment; the C&I gap is the 17 no-flow filers' balances (checked:
+**What it found.** Industry within 0.034 points of the as-filed table in
+every segment (0.03 or less on every figure but C&I nonaccrual's worst quarter;
+corrected 17 Oct, the first wording said 0.03 throughout); the C&I gap is the 17 no-flow filers' balances (checked:
 3.1664% with them is the as-filed 3.166%). KeyBank nonaccrual unchanged.
 KeyBank's C&I charge-off series as the workbook would read it is **two
 quarters**: the December 2024 NDFI move (28.6% of its C&I) trips the 25%
@@ -1776,3 +1777,22 @@ passed, run with `OPENPYXL_LXML=False`. Before the expectations were
 updated, three tests failed: the registry's product list and mortgage's
 notes, which this change moves on purpose, and the same lxml chart-XML
 difference. The complete suite was not run.
+
+**The review's minor findings, 17 Oct.** Five of the six were fixed, each with
+a test:
+- The registry refuses a line break of any kind (`\r`, U+2028 as well as `\n`)
+  in a name, a sentence or a citation, since a series note is split into
+  lines.
+- A source's address must start `https://`, as its refusal already said.
+- A folder or a file that is not UTF-8, named as the registry, is refused
+  by name instead of crashing.
+- A summed industry series says each definition note once.
+- The stress table's "within 0.03 points" is corrected to 0.034: C&I
+  nonaccrual's worst quarter differs by that much.
+
+Left as found: the 2008Q1 completion of the owner-occupied split is not a
+registry entry. The FDIC's own LNRENROW definition records it, but it is a
+coverage change in the 2007 filings, not a revision, and the split series
+already say so in their notes. `test_reporting_changes.py` and
+`test_peers_commercial.py`: 67 passed. The new duplicate-note assertion was
+not run against the code before its fix.

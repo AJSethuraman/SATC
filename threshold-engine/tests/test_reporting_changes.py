@@ -141,6 +141,11 @@ def changed(**over):
                         "names none"),
     (dict(what_changed=""), "what_changed must be one plain sentence on one line"),
     (dict(what_changed="Two\nlines."), "what_changed must be one plain sentence on one line"),
+    (dict(what_changed="Two\rlines."), "what_changed must be one plain sentence on one line"),
+    (dict(what_changed="Two\u2028lines."), "what_changed must be one plain sentence on one line"),
+    (dict(name="A\nchange"), "name must be a short name on one line"),
+    (dict(sources=[{"citation": "A\nnotice", "url": "https://example.org"}]), "citation must name the document, on one line"),
+    (dict(sources=[{"citation": "A notice", "url": "http://example.org"}]), "change 1 (A change), source 1: url must be"),
     (dict(sources=[]), "sources must list at least one source"),
     (dict(sources=[{"citation": "A notice", "url": "example.org"}]), "change 1 (A change), source 1: url must be"),
     (dict(sources=[{"citation": "A notice"}]), "change 1 (A change), source 1 is missing 'url'"),
@@ -183,6 +188,11 @@ def test_a_missing_or_broken_file_is_refused(tmp_path):
     (tmp_path / "bad.json").write_text("{", encoding="utf-8")
     with pytest.raises(RC.RegistryError, match="bad.json is not valid JSON"):
         RC.load(tmp_path / "bad.json")
+    with pytest.raises(RC.RegistryError, match="cannot be read"):
+        RC.load(tmp_path)                                   # a folder, not a file
+    (tmp_path / "latin.json").write_bytes(b'{"_what": "\xe9"}')
+    with pytest.raises(RC.RegistryError, match="is not a UTF-8 text file"):
+        RC.load(tmp_path / "latin.json")
 
 
 # ---- the note lines on a series ----------------------------------------------------------------------

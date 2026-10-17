@@ -72,7 +72,9 @@ gap. Largest z = (worst − median) ÷ spread of levels, `scale.level_spread`.
 
 What differs, and what was checked as the cause:
 
-1. **Industry, every segment: within 0.03 points of as filed.** The tool
+1. **Industry, every segment: within 0.034 points of as filed** (0.03 or
+   less on every figure but the C&I nonaccrual worst quarter, 3.1998% against
+   3.166%, which item 1's own check explains). The tool
    leaves out a filer whose charge-off or nonaccrual field is blank (not
    filed), with its balance; as filed, the API's sums kept 17 or 18 such
    filers' balances in the denominator. **Checked** for C&I: 2009Q3

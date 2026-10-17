@@ -128,6 +128,12 @@ def _names(where, key, got, allowed, problems) -> List[str]:
     return got
 
 
+def _one_line(text) -> bool:
+    """True when ``text`` holds no line break of any kind (\\n, \\r, U+2028 ...):
+    a series note is split into lines, so a break would cut the entry in two."""
+    return isinstance(text, str) and text.splitlines() == [text]
+
+
 def check(raw, name: str = "the registry") -> List[dict]:
     """The registry's entries, checked; ``RegistryError`` listing every
     problem, each naming its entry, when anything is wrong."""
@@ -148,8 +154,8 @@ def check(raw, name: str = "the registry") -> List[dict]:
         if not _keys(where, c, KEYS, problems):
             continue
         before = len(problems)
-        if not (isinstance(c["name"], str) and c["name"].strip()):
-            problems.append("%s: name must be a short name" % where)
+        if not (isinstance(c["name"], str) and c["name"].strip()) or not _one_line(c["name"]):
+            problems.append("%s: name must be a short name on one line" % where)
         elif c["name"].strip().casefold() in seen:
             problems.append("%s: the name is used twice" % where)
         else:
@@ -174,7 +180,7 @@ def check(raw, name: str = "the registry") -> List[dict]:
             problems.append("%s: it touches no product and no Call Report item, so it would label nothing"
                             % where)
         w = c["what_changed"]
-        if not (isinstance(w, str) and w.strip()) or "\n" in str(w):
+        if not (isinstance(w, str) and w.strip()) or not _one_line(w):
             problems.append("%s: what_changed must be one plain sentence on one line" % where)
         srcs = c["sources"]
         if not (isinstance(srcs, list) and srcs):
@@ -184,9 +190,9 @@ def check(raw, name: str = "the registry") -> List[dict]:
                 sw = "%s, source %d" % (where, j)
                 if not _keys(sw, s, SOURCE_KEYS, problems):
                     continue
-                if not (isinstance(s["citation"], str) and s["citation"].strip()):
-                    problems.append("%s: citation must name the document" % sw)
-                if not (isinstance(s["url"], str) and re.fullmatch(r"https?://\S+", s["url"])):
+                if not (isinstance(s["citation"], str) and s["citation"].strip()) or not _one_line(s["citation"]):
+                    problems.append("%s: citation must name the document, on one line" % sw)
+                if not (isinstance(s["url"], str) and re.fullmatch(r"https://\S+", s["url"])):
                     problems.append("%s: url must be the document's address, starting https://, not %r"
                                     % (sw, s["url"]))
         al = c["already_labelled"]
@@ -218,6 +224,10 @@ def load(path) -> List[dict]:
         raise RegistryError("the reporting changes file %s does not exist" % path) from None
     except json.JSONDecodeError as e:
         raise RegistryError("%s is not valid JSON: %s" % (path.name, e)) from None
+    except UnicodeDecodeError:
+        raise RegistryError("%s is not a UTF-8 text file" % path) from None
+    except OSError as e:
+        raise RegistryError("the reporting changes file %s cannot be read: %s" % (path, e.strerror or e)) from None
     return check(raw, path.name)
 
 

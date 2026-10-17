@@ -718,7 +718,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
                     words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
-            note += [books.DEFINITIONS[n] for n in words_p.split(" plus ") if n in books.DEFINITIONS]
+            note += [d for d in dict.fromkeys(books.DEFINITIONS[n] for n in words_p.split(" plus ")
+                                                   if n in books.DEFINITIONS) if d not in note]
             if tail:
                 note += RC.note_lines(changes, words_p.split(" plus "), RC.charge_off_measure(kind),
                                       tail[0][0], tail[-1][0], note)
