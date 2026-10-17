@@ -791,7 +791,8 @@ def main(argv=None) -> None:
     class ExampleBox(tk.Canvas):
         """A drawn example of what the chosen comparison produces, named with the person's own columns. Not their data."""
         W, H = 340, 330
-        SHADES = ("SLATE", "KEY_RED", "DISABLED", "CRIMSON", "STONE")
+        SHADES = ("SLATE", "KEY_RED", "DISABLED", "INK", "STONE")
+        DASHES = (None, None, None, (6, 3), (2, 3))      # a fourth and fifth series differ by dash as well as colour
 
         def __init__(self, master):
             # white with a thin border, so it sits on the page as a panel instead of a block of colour
@@ -836,10 +837,10 @@ def main(argv=None) -> None:
                 for m in range(0, 37, 3):
                     frac = 1 - math.exp(-rate * m)
                     pts += [left + (right - left) * m / 36, bottom - (bottom - top) * min(frac * 1.6, 1) * 0.95]
-                self.create_line(*pts, fill=C[self.SHADES[i % 5]], width=2, smooth=True)
+                self.create_line(*pts, fill=C[self.SHADES[i % 5]], width=2, smooth=True, dash=self.DASHES[i % 5])
             for i, lab in enumerate(labels[:5]):
                 y = bottom + 34 + 20 * i
-                self.create_line(left, y, left + 22, y, fill=C[self.SHADES[i % 5]], width=3)
+                self.create_line(left, y, left + 22, y, fill=C[self.SHADES[i % 5]], width=2, dash=self.DASHES[i % 5])
                 self.create_text(left + 30, y, text=self._cut(lab), anchor="w", fill=C["INK"], font=FONT["sub"])
 
     class TestWizard(tk.Toplevel):
