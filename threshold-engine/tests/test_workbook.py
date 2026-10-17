@@ -190,10 +190,10 @@ def test_every_series_is_on_one_quarterly_calendar(built):
 def test_the_run_tab_fingerprints_every_file(built):
     p, _, _ = built
     run = load_workbook(p)["Run"]
-    rows = {r[0].value: r for r in run.iter_rows(min_row=4)
-            if r[0].value and len(str(r[5].value or "")) == 64}         # the hash goes last, in F
+    rows = {r[1].value: r for r in run.iter_rows(min_row=4)
+            if r[1].value and len(str(r[6].value or "")) == 64}         # the hash goes last, in G
     for label, path in SERIES:
-        assert rows[label][5].value == hashlib.sha256(path.read_bytes()).hexdigest()
+        assert rows[label][6].value == hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_mixed_duplicate_or_impossible_inputs_are_refused(tmp_path):
@@ -304,7 +304,7 @@ def test_every_heading_is_defined_in_the_glossary(built):
 def test_the_glossary_tab_carries_every_term(built):
     p, _, _ = built
     gl = load_workbook(p)["Glossary"]
-    on_tab = [r[0].value for r in gl.iter_rows(min_row=5) if r[0].value]
+    on_tab = [r[1].value for r in gl.iter_rows(min_row=5) if r[1].value]          # A is the margin
     assert on_tab == [t for t, _, _ in TERMS]
     assert all(m and c for _, m, c in TERMS)
 
@@ -412,8 +412,8 @@ def test_a_smoothed_workbook_builds_its_live_lines_from_the_smoothed_series(tmp_
         assert got[0] == pytest.approx(ref["median"]) and got[3:7] == pytest.approx(ref["bounds"])
         assert vals["THRESHOLDS!J%d" % r] == pytest.approx(sm[-1].value)
         assert got[7] == score(sm[-1].value, ref["bounds"], "higher_is_worse", "worse", True)
-    run = [r for r in load_workbook(p)["Run"].iter_rows(values_only=True) if r and r[0] == "Smoothing"]
-    assert run and "trailing mean over 4 quarters" in run[0][1]
+    run = [r for r in load_workbook(p)["Run"].iter_rows(values_only=True) if r and r[1] == "Smoothing"]
+    assert run and "trailing mean over 4 quarters" in run[0][2]
 
 
 def test_a_lower_is_worse_workbook_shades_five_bands_of_positive_width(tmp_path):
@@ -804,7 +804,7 @@ def test_the_sources_tab_prints_what_each_file_says_about_itself(built):
     from threshold_engine.series import read_notes
     p, _, _ = built
     ws = load_workbook(p)["Sources"]
-    cells = {(ws.cell(r, 1).value, ws.cell(r, 2).value) for r in range(1, ws.max_row + 1)}
+    cells = {(ws.cell(r, 2).value, ws.cell(r, 3).value) for r in range(1, ws.max_row + 1)}
     for label, path in SERIES:
         notes = dict(read_notes(path))
         assert ("Measure", notes["measure"]) in cells and ("Source", notes["source"]) in cells
@@ -824,7 +824,7 @@ def test_a_file_that_says_nothing_about_itself_is_marked_not_filled_in(tmp_path)
           floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
           percentiles=(50,), horizon=4, min_history=41)
     ws = load_workbook(p)["Sources"]
-    marked = [ws.cell(r, 1).value for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Not stated in the file"]
+    marked = [ws.cell(r, 2).value for r in range(1, ws.max_row + 1) if ws.cell(r, 3).value == "Not stated in the file"]
     assert len(marked) == len(CORE_NOTES)
 
 

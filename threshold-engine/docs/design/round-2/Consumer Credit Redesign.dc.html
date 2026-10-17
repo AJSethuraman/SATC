@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #F4F1EC; }
+a { color: #CC0000; text-decoration: none; }
+a:hover { color: #960019; text-decoration: underline; }
+select, input { font: inherit; color: inherit; }
+</style>
+</helmet>
+<div style="background:#F4F1EC;font-family:'Hanken Grotesk',sans-serif;color:#16130F;padding:56px 64px 140px;width:2520px;">
+
+<div style="display:flex;align-items:flex-end;gap:48px;border-bottom:1px solid #DAD4CA;padding-bottom:28px;">
+  <div style="flex:1;">
+    <div style="font:700 13px Archivo;letter-spacing:.08em;text-transform:uppercase;color:#CC0000;">Consumer credit workbook · design round 2</div>
+    <div style="font:800 46px/1.05 Archivo;margin-top:10px;">One screen for each job</div>
+    <div style="font-size:18px;line-height:1.5;color:#57534B;margin-top:12px;max-width:1240px;text-wrap:pretty;">Every visible tab drawn as Excel 16 draws it at 100% zoom on a 1920 × 1080 screen with the ribbon open, cell for cell. The dashed red line is the fold. The mock runs on the workbook's own Data and Peers data tabs: click a slicer button or type in a yellow cell, and the lines, Check, Summary and Thresholds all follow.</div>
+  </div>
+  <div style="display:flex;gap:18px;font:600 15px 'Hanken Grotesk';">
+    <a href="#tabs">Tab set</a><a href="#decide">Decide</a><a href="#summary">Summary</a><a href="#peers">Peers</a><a href="#thresholds">Thresholds</a><a href="#internal">Internal</a><a href="#reference">Reference</a><a href="#tokens">Tokens</a><a href="#cuts">Cuts</a>
+  </div>
+</div>
+
+<section id="tabs" style="padding-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:48px;">
+  <div>
+    <div style="font:800 26px Archivo;margin-bottom:14px;">What I would change in the tab set</div>
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:16px;line-height:1.5;text-wrap:pretty;">
+      <div><b>Seven peer tabs become one Peers dashboard.</b> Peers, Peers delinquency, balances, pack, lagged, normalisation and mix all answer one question: how does KeyBank compare? One tab, with seven filter cells and a row of Yes/No "In the pack" cells at the top; charge-offs and delinquency sit side by side. Peers pack stays as the hidden workings it already is.</div>
+      <div><b>Peers glossary and Peers run fold into Glossary and Run.</b> Each gets its own section heading, so a term has one place to look it up.</div>
+      <div><b>The tabs sit in three groups, marked by tab colour:</b> work tabs (ink), reference tabs (stone), then data tabs (mist). Decide opens first.</div>
+      <div><b>Decide's slicers become rows of buttons.</b> This takes 220 px back, so the chart and its numbers move above the fold.</div>
+    </div>
+  </div>
+  <div>
+    <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#57534B;margin-bottom:10px;">Before · 22 tabs (2 hidden)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;font:12px 'Segoe UI',Arial,sans-serif;margin-bottom:24px;">
+      <sc-for list="{{ tabsBefore }}" as="t" hint-placeholder-count="22"><span style="padding:4px 8px;background:#fff;border:1px solid #D4D4D4;color:{{ t.c }};text-decoration:{{ t.d }};">{{ t.t }}</span></sc-for>
+    </div>
+    <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#57534B;margin-bottom:10px;">After · 14 visible tabs, in this order</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;font:12px 'Segoe UI',Arial,sans-serif;">
+      <sc-for list="{{ tabsAfter }}" as="t" hint-placeholder-count="12"><span style="padding:4px 10px;background:#fff;border:1px solid #D4D4D4;border-bottom:3px solid {{ t.c }};">{{ t.t }}</span></sc-for>
+    </div>
+    <div style="font-size:14px;color:#57534B;margin-top:10px;">Still hidden: Assess, Chart and Peers pack (workings). A struck-through name is folded into another tab.</div>
+  </div>
+</section>
+
+<section id="decide" style="padding-top:56px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;"><div style="font:800 26px Archivo;">Decide</div><div style="font-size:15px;color:#57534B;">Opens here. Pick a series with the buttons, then type in the yellow row. Try Auto · Net charge-offs · KeyBank to see a refusal.</div></div>
+<div style="display:flex;gap:40px;align-items:flex-start;">
+<div style="width:1920px;background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);flex-shrink:0;">
+  <div style="height:32px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">consumer-credit.xlsx · Excel</div>
+  <div style="height:92px;background:#F4F1EC;border-bottom:1px solid #E4DFD5;padding:6px 16px;display:flex;gap:22px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;"><span>File</span><span style="color:#16130F;border-bottom:2px solid #57534B;height:20px;">Home</span><span>Insert</span><span>Page Layout</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span></div>
+  <div style="height:26px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:13px 'Segoe UI',Arial,sans-serif;"><div style="width:90px;padding:0 8px;border-right:1px solid #E4DFD5;">E{{ selRow }}</div><div style="padding:0 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div><div style="padding:0 12px;">{{ cur.decision }}</div></div>
+  <div style="position:relative;">
+    <div style="display:flex;height:20px;background:#F3F2F1;border-bottom:1px solid #D4D4D4;font:12px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <div style="width:36px;border-right:1px solid #D4D4D4;"></div>
+      <div style="display:grid;grid-template-columns:16px 120px 150px 130px 130px 84px 84px 84px 74px 80px 80px 200px 220px 110px 100px 100px 106px;">
+        <sc-for list="{{ lettersD }}" as="c" hint-placeholder-count="17"><div style="display:flex;align-items:center;justify-content:center;border-right:1px solid #E1E1E1;">{{ c }}</div></sc-for>
+      </div>
+    </div>
+    <div style="display:flex;">
+      <div style="width:36px;display:grid;grid-template-rows:34px 20px 8px 26px 26px 26px 8px 36px 46px 10px 40px 34px 10px 22px repeat(18,22px) 10px 22px repeat(3,22px) 10px 22px repeat(4,22px) 10px 22px 22px;background:#F3F2F1;border-right:1px solid #D4D4D4;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+        <sc-for list="{{ dRows }}" as="n" hint-placeholder-count="46"><div style="display:flex;align-items:center;justify-content:center;border-bottom:1px solid #E1E1E1;overflow:hidden;">{{ n }}</div></sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:16px 120px 150px 130px 130px 84px 84px 84px 74px 80px 80px 200px 220px 110px 100px 100px 106px;grid-template-rows:34px 20px 8px 26px 26px 26px 8px 36px 46px 10px 40px 34px 10px 22px repeat(18,22px) 10px 22px repeat(3,22px) 10px 22px repeat(4,22px) 10px 22px 22px;font:14.67px Calibri,Carlito,sans-serif;color:#16130F;">
+
+        <div style="grid-column:2/12;grid-row:1;display:flex;align-items:flex-end;padding-left:2px;font:700 21.33px Arial,sans-serif;color:#0A0908;">Decide · one series at a time</div>
+        <div style="grid-column:12/18;grid-row:1;display:flex;align-items:flex-end;justify-content:flex-end;padding-right:6px;font:700 16px Arial,sans-serif;color:#0A0908;">{{ decidedText }}</div>
+        <div style="grid-column:2/18;grid-row:2;display:flex;align-items:center;padding-left:2px;color:#57534B;border-bottom:2px solid #CC0000;white-space:nowrap;">Pick a product, a measure and a source. Type in the yellow cells; everything below follows. Save the file (Ctrl+S) to keep your decisions.</div>
+
+        <div style="grid-column:2/5;grid-row:4/7;margin:2px 6px 0 0;border:1px solid #B9B4AC;background:#fff;display:flex;flex-direction:column;">
+          <div style="height:20px;padding:0 6px;display:flex;align-items:center;font:700 12px 'Segoe UI',Arial,sans-serif;color:#16130F;">Product</div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:2px 5px 5px;">
+            <sc-for list="{{ pBtns }}" as="b" hint-placeholder-count="5"><div onClick="{{ b.on }}" style="display:flex;align-items:center;padding:0 6px;font:12px 'Segoe UI',Arial,sans-serif;background:{{ b.bg }};color:{{ b.fg }};border:1px solid {{ b.bd }};cursor:pointer;white-space:nowrap;overflow:hidden;">{{ b.t }}</div></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:5/13;grid-row:4/7;margin:2px 6px 0 0;border:1px solid #B9B4AC;background:#fff;display:flex;flex-direction:column;">
+          <div style="height:20px;padding:0 6px;display:flex;align-items:center;font:700 12px 'Segoe UI',Arial,sans-serif;">Measure</div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:2px 5px 5px;">
+            <sc-for list="{{ mBtns }}" as="b" hint-placeholder-count="7"><div onClick="{{ b.on }}" style="display:flex;align-items:center;padding:0 6px;font:12px 'Segoe UI',Arial,sans-serif;background:{{ b.bg }};color:{{ b.fg }};border:1px solid {{ b.bd }};cursor:pointer;white-space:nowrap;overflow:hidden;">{{ b.t }}</div></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:13/18;grid-row:4/7;margin:2px 4px 0 0;border:1px solid #B9B4AC;background:#fff;display:flex;flex-direction:column;">
+          <div style="height:20px;padding:0 6px;display:flex;align-items:center;font:700 12px 'Segoe UI',Arial,sans-serif;">Source</div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:24px;gap:3px;padding:2px 5px 5px;">
+            <sc-for list="{{ sBtns }}" as="b" hint-placeholder-count="3"><div onClick="{{ b.on }}" style="display:flex;align-items:center;padding:0 6px;font:12px 'Segoe UI',Arial,sans-serif;background:{{ b.bg }};color:{{ b.fg }};border:1px solid {{ b.bd }};cursor:pointer;white-space:nowrap;overflow:hidden;">{{ b.t }}</div></sc-for>
+          </div>
+          <div style="padding:0 7px 4px;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;">One button in each box picks one series.</div>
+        </div>
+
+        <div style="grid-column:2/3;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Product</div>
+        <div style="grid-column:3/4;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Measure</div>
+        <div style="grid-column:4/5;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Source</div>
+        <div style="grid-column:5/6;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Decision</div>
+        <div style="grid-column:6/7;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 6px;border-right:1px solid #3A3733;">Width of Moderate</div>
+        <div style="grid-column:7/8;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 6px;border-right:1px solid #3A3733;">Moderate-Low begins</div>
+        <div style="grid-column:8/9;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;justify-content:flex-end;text-align:right;padding:0 6px;border-right:1px solid #3A3733;">How rare High (z)</div>
+        <div style="grid-column:9/10;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">On a line, rate it</div>
+        <div style="grid-column:10/11;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Leave out from</div>
+        <div style="grid-column:11/12;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Leave out to</div>
+        <div style="grid-column:12/13;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Why left out</div>
+        <div style="grid-column:13/14;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;border-right:1px solid #3A3733;">Note</div>
+        <div style="grid-column:14/15;grid-row:8;background:#0A0908;color:#fff;font:700 12px/1.15 Arial,sans-serif;display:flex;align-items:center;padding:0 6px;">Check</div>
+
+        <div style="grid-column:2/3;grid-row:9;display:flex;align-items:center;padding:0 6px;color:#57534B;border-bottom:1px solid #B9B4AC;line-height:1.15;">{{ sel.p }}</div>
+        <div style="grid-column:3/4;grid-row:9;display:flex;align-items:center;padding:0 6px;color:#57534B;border-bottom:1px solid #B9B4AC;line-height:1.15;">{{ sel.m }}</div>
+        <div style="grid-column:4/5;grid-row:9;display:flex;align-items:center;padding:0 6px;color:#57534B;border-bottom:1px solid #B9B4AC;line-height:1.15;">{{ sel.s }}</div>
+        <div style="grid-column:5/6;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ on.decision }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ O.dec }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:6/7;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ cur.w }}" onChange="{{ on.w }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+        <div style="grid-column:7/8;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ cur.a }}" onChange="{{ on.a }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+        <div style="grid-column:8/9;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ cur.z }}" onChange="{{ on.z }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+        <div style="grid-column:9/10;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ on.line }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ O.line }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:10/11;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ on.from }}" style="width:100%;height:100%;border:0;background:transparent;font:14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ O.from }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:11/12;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ on.to }}" style="width:100%;height:100%;border:0;background:transparent;font:14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ O.to }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:12/13;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ cur.why }}" onChange="{{ on.why }}" placeholder="" style="width:100%;height:100%;border:0;background:transparent;padding:0 6px;font:14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+        <div style="grid-column:13/14;grid-row:9;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ cur.note }}" onChange="{{ on.note }}" style="width:100%;height:100%;border:0;background:transparent;padding:0 6px;font:14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+        <sc-if value="{{ c.ok }}" hint-placeholder-val="{{ true }}">
+          <div style="grid-column:14/15;grid-row:9;display:flex;align-items:center;padding:0 6px;color:#57534B;border-bottom:1px solid #B9B4AC;">OK</div>
+        </sc-if>
+        <sc-if value="{{ c.bad }}" hint-placeholder-val="{{ false }}">
+          <div style="grid-column:14/15;grid-row:9;display:flex;align-items:center;padding:0 6px;background:#F4F1EC;color:#960019;font-weight:700;line-height:1.1;border-bottom:1px solid #B9B4AC;">Refused: see the fix below</div>
+        </sc-if>
+
+        <div style="grid-column:2/9;grid-row:11;display:flex;align-items:center;padding-left:2px;font:700 18.67px Arial,sans-serif;color:#0A0908;white-space:nowrap;">{{ head.title }}</div>
+        <div style="grid-column:9/12;grid-row:11;display:flex;align-items:center;padding:0 10px;margin:4px 0;font:700 16px Arial,sans-serif;background:{{ head.bg }};color:{{ head.fg }};">{{ head.chip }}</div>
+        <div style="grid-column:12/18;grid-row:11;display:flex;align-items:center;padding-left:12px;color:#57534B;">{{ head.diff }}</div>
+
+        <sc-if value="{{ c.ok }}" hint-placeholder-val="{{ true }}">
+          <div style="grid-column:2/18;grid-row:12;display:flex;align-items:center;gap:10px;padding:0 10px;background:#F4F1EC;border-top:1px solid #E4DFD5;border-bottom:1px solid #E4DFD5;font:700 16px Arial,sans-serif;color:#0A0908;">Check: OK, your settings fit this series.</div>
+        </sc-if>
+        <sc-if value="{{ c.bad }}" hint-placeholder-val="{{ false }}">
+          <div style="grid-column:2/18;grid-row:12;display:flex;align-items:center;gap:10px;padding:0 10px;background:#F8E3E1;border-top:1px solid #960019;border-bottom:1px solid #960019;white-space:nowrap;overflow:hidden;">
+            <span style="font:700 16px Arial,sans-serif;color:#960019;">Refused: {{ c.reason }}</span>
+            <span style="font:700 16px Arial,sans-serif;color:#0A0908;">To fix: {{ c.fix }}</span>
+          </div>
+        </sc-if>
+
+        <div style="grid-column:2/12;grid-row:14;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;">{{ chartTitle }}</div>
+        <div style="grid-column:2/12;grid-row:15/33;">{{ dChart }}</div>
+        <div style="grid-column:12/18;grid-row:14;display:flex;align-items:flex-end;padding:0 2px 3px 12px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Where each rating begins</div>
+
+        <div style="grid-column:12/18;grid-row:15/33;display:flex;flex-direction:column;padding-left:12px;font-variant-numeric:tabular-nums;">
+          <div style="height:22px;display:grid;grid-template-columns:188px 220px 110px 100px 100px 106px;align-items:center;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #B9B4AC;"><div style="padding:0 6px;">Rating</div><div style="padding:0 6px;text-align:right;">Begins at ({{ unit }})</div><div style="padding:0 6px;text-align:right;">Quarters kept</div><div style="padding:0 6px;text-align:right;">Share</div><div style="padding:0 6px;">Latest</div><div></div></div>
+          <sc-for list="{{ rTable }}" as="r" hint-placeholder-count="5">
+            <div style="height:22px;display:grid;grid-template-columns:188px 220px 110px 100px 100px 106px;align-items:center;border-bottom:1px solid #E4DFD5;">
+              <div style="height:100%;display:flex;align-items:center;padding:0 6px;font-weight:700;background:{{ r.bg }};">{{ r.name }}</div>
+              <div style="padding:0 6px;text-align:right;font-weight:700;">{{ r.begins }}</div>
+              <div style="padding:0 6px;text-align:right;">{{ r.cnt }}</div>
+              <div style="padding:0 6px;text-align:right;">{{ r.share }}</div>
+              <div style="padding:0 6px;font-weight:700;">{{ r.mark }}</div><div></div>
+            </div>
+          </sc-for>
+          <div style="height:22px;"></div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Same product and measure, every source</div>
+          <div style="height:22px;display:grid;grid-template-columns:188px 220px 110px 100px 100px 106px;align-items:center;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #B9B4AC;"><div style="padding:0 6px;">Source (line colour)</div><div style="padding:0 6px;">Rating</div><div style="padding:0 6px;text-align:right;">Latest</div><div style="padding:0 6px;grid-column:4/6;">Decision</div><div style="padding:0 6px;">On chart</div></div>
+          <sc-for list="{{ srcRows }}" as="r" hint-placeholder-count="3">
+            <div style="height:22px;display:grid;grid-template-columns:188px 220px 110px 100px 100px 106px;align-items:center;border-bottom:1px solid #E4DFD5;">
+              <div style="padding:0 6px;font-weight:700;color:{{ r.color }};white-space:nowrap;">{{ r.lineMark }} {{ r.name }}</div>
+              <div style="height:100%;display:flex;align-items:center;padding:0 6px;font-weight:700;background:{{ r.bg }};color:{{ r.fg }};">{{ r.chip }}</div>
+              <div style="padding:0 6px;text-align:right;">{{ r.latest }}</div>
+              <div style="padding:0 6px;grid-column:4/6;white-space:nowrap;">{{ r.decision }}</div>
+              <sc-if value="{{ r.picked }}" hint-placeholder-val="{{ false }}"><div style="padding:0 6px;color:#57534B;">Picked</div></sc-if>
+              <sc-if value="{{ r.notPicked }}" hint-placeholder-val="{{ true }}"><div style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ r.toggle }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ r.opts }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div></sc-if>
+            </div>
+          </sc-for>
+          <div style="height:22px;display:grid;grid-template-columns:188px 220px 1fr;align-items:center;">
+            <div style="padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;">Chart shows</div>
+            <div style="height:100%;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ onWin }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ O.win }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+            <div style="padding:0 8px;color:#57534B;font-size:13.33px;white-space:nowrap;">The picture only: the lines use every quarter kept.</div>
+          </div>
+          <div style="height:22px;"></div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #B9B4AC;">What the lines rest on: this series' own history, quarters kept</div>
+          <div style="height:22px;display:grid;grid-template-columns:188px 220px 1fr;align-items:center;border-bottom:1px solid #E4DFD5;"><div style="padding:0 6px;">Median kept</div><div style="padding:0 6px;text-align:right;font-weight:700;">{{ c.mT }}</div><div style="padding:0 8px;color:#57534B;">{{ c.nT }}</div></div>
+          <div style="height:22px;display:grid;grid-template-columns:188px 220px 1fr;align-items:center;border-bottom:1px solid #E4DFD5;"><div style="padding:0 6px;">Typical yearly move</div><div style="padding:0 6px;text-align:right;font-weight:700;">{{ c.moveT }}</div><div style="padding:0 8px;color:#57534B;">sets Moderate-Low and Moderate</div></div>
+          <div style="height:22px;display:grid;grid-template-columns:188px 220px 1fr;align-items:center;border-bottom:1px solid #E4DFD5;"><div style="padding:0 6px;">Worst quarter kept</div><div style="padding:0 6px;text-align:right;font-weight:700;">{{ c.mxT }}</div><div style="padding:0 8px;color:#57534B;">in {{ c.mq }}; High must begin at or below it</div></div>
+        </div>
+
+        <div style="grid-column:2/18;grid-row:34;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">What the history suggests: keep every period, or leave one out?</div>
+        <div style="grid-column:2/4;grid-row:35;display:flex;align-items:center;padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #E4DFD5;">Suggested</div>
+        <div style="grid-column:4/18;grid-row:35;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;color:#57534B;font-style:italic;">Same formula as today (from Evidence), moved here unchanged</div>
+        <div style="grid-column:2/4;grid-row:36;display:flex;align-items:center;padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #E4DFD5;">Unusual stretches</div>
+        <div style="grid-column:4/18;grid-row:36;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;color:#57534B;font-style:italic;">Same formula as today, unchanged</div>
+        <div style="grid-column:2/4;grid-row:37;display:flex;align-items:center;padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #E4DFD5;">Left out now</div>
+        <div style="grid-column:4/18;grid-row:37;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;">{{ c.leftText }}</div>
+
+        <div style="grid-column:2/18;grid-row:39;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">What each setting does when you raise it</div>
+        <div style="grid-column:2/5;grid-row:40;display:flex;align-items:center;padding:0 6px;font-weight:700;border-bottom:1px solid #E4DFD5;">Width of Moderate</div><div style="grid-column:5/18;grid-row:40;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;">More quarters rate 3 Moderate.</div>
+        <div style="grid-column:2/5;grid-row:41;display:flex;align-items:center;padding:0 6px;font-weight:700;border-bottom:1px solid #E4DFD5;">Moderate-Low begins</div><div style="grid-column:5/18;grid-row:41;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;">Fewer quarters rate 1 Low.</div>
+        <div style="grid-column:2/5;grid-row:42;display:flex;align-items:center;padding:0 6px;font-weight:700;border-bottom:1px solid #E4DFD5;">How rare High (z)</div><div style="grid-column:5/18;grid-row:42;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;">Fewer quarters rate 5 High. 2.5 is rare; 3.5 is the usual line for an outlier.</div>
+        <div style="grid-column:2/5;grid-row:43;display:flex;align-items:center;padding:0 6px;font-weight:700;border-bottom:1px solid #E4DFD5;">On a line, rate it</div><div style="grid-column:5/18;grid-row:43;display:flex;align-items:center;padding:0 6px;border-bottom:1px solid #E4DFD5;">Worse: a value exactly on a line takes the worse rating.</div>
+        <div style="grid-column:2/18;grid-row:45;display:flex;align-items:center;padding:0 2px;color:#57534B;font-size:13.33px;">Reading the chart: the solid line is the series picked; a dashed line is another source switched on, in the colour of its name. A grey stretch is a period left out: it still shows, but does not set the lines.</div>
+        <div style="grid-column:2/18;grid-row:46;display:flex;align-items:center;padding:0 2px;color:#57534B;font-size:13.33px;">Shading from the bottom: 1 Low to 5 High. The chart starts at the first quarter any line has, within what Chart shows. Every term is defined in Glossary.</div>
+      </div>
+    </div>
+    <sc-if value="{{ showFold }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:0;right:0;top:780px;border-top:2px dashed #CC0000;pointer-events:none;"><span style="position:absolute;right:8px;top:-22px;font:700 12px 'Hanken Grotesk';color:#CC0000;background:#fff;padding:2px 6px;">Fold · 1920 × 1080 at 100%</span></div></sc-if>
+  </div>
+  <div style="height:26px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;align-items:stretch;padding-left:60px;font:12px 'Segoe UI',Arial,sans-serif;color:#16130F;">
+    <sc-for list="{{ tabsD }}" as="t" hint-placeholder-count="12"><div style="display:flex;align-items:center;padding:0 12px;background:{{ t.bg }};font-weight:{{ t.fw }};border-right:1px solid #D4D4D4;border-bottom:3px solid {{ t.c }};">{{ t.t }}</div></sc-for>
+  </div>
+</div>
+<div style="width:460px;display:flex;flex-direction:column;gap:18px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+  <div style="font:800 18px Archivo;">What changed, and what the reader can do now</div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">1</b><div><b>Slicers become rows of buttons</b> (Product 3 × 2, Measure 4 × 2, Source 3 × 1). They took 300 px before; now 78. Before, the pickers alone filled most of the first screen. Now the pickers, the yellow row, the headline, the Check and the chart are all on screen without scrolling.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">2</b><div><b>The table's filter buttons are off</b> (Table Design › Filter Button). The slicers still filter. Before, the arrows covered the header words ("Width of Moderat"). Now each header reads in full.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">3</b><div><b>The Check cell says only OK or Refused.</b> The full reason and its fix sit in a band right under the headline, with the To fix part in black. Before, a four-line refusal was squeezed into one cell and cut off. Now it is the widest line on the screen and says what to type.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">4</b><div><b>Refused is crimson text on canvas, never a red fill.</b> A red fill means 5 High. Refused means the settings don't fit, not that the series is bad, so it reads as "needs your attention", not as an alarm.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">5</b><div><b>The chart sits beside its numbers:</b> where each rating begins, how many kept quarters fall in each rating, and which rating holds the latest quarter. Change a setting and the lines, counts and shading move together, in one glance.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">6</b><div><b>The sources table is also the chart's key.</b> Each name is in its line colour, with its On chart switch beside it. Before, the overlays needed a paragraph to decode. Labels at the chart's right edge name each rating's line.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">7</b><div><b>The explanations go below the fold, one line each.</b> The full wording lives in Glossary (every heading still has an entry there).</div></div>
+  <div style="padding:14px 16px;background:#fff;border:1px solid #E4DFD5;font-size:14px;"><b>Constraint kept.</b> The yellow row is still a table row filtered by the slicers. Rows 10 to 113 hold the other 104 series and are hidden by that filter, so the row numbers jump from 9 to 114 for the first series. Everything that must always show sits above row 8 or below row 113.</div>
+</div>
+</div>
+</section>
+
+<section id="summary" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;"><div style="font:800 26px Archivo;">Summary</div><div style="font-size:15px;color:#57534B;">Follows everything set on Decide above.</div></div>
+<div style="display:flex;gap:40px;align-items:flex-start;">
+<div style="width:1920px;background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);flex-shrink:0;">
+  <div style="height:32px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">consumer-credit.xlsx · Excel</div>
+  <div style="height:92px;background:#F4F1EC;border-bottom:1px solid #E4DFD5;padding:6px 16px;display:flex;gap:22px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;"><span>File</span><span style="color:#16130F;border-bottom:2px solid #57534B;height:20px;">Home</span><span>Insert</span><span>Page Layout</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span></div>
+  <div style="height:26px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:13px 'Segoe UI',Arial,sans-serif;"><div style="width:90px;padding:0 8px;border-right:1px solid #E4DFD5;">E6</div><div style="padding:0 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div><div style="padding:0 12px;font-family:Consolas,monospace;font-size:12.5px;">=Thresholds!M7</div></div>
+  <div style="position:relative;font:17.33px Calibri,Carlito,sans-serif;color:#16130F;">
+    <div style="display:flex;height:20px;background:#F3F2F1;border-bottom:1px solid #D4D4D4;font:12px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <div style="width:36px;border-right:1px solid #D4D4D4;"></div>
+      <div style="display:grid;grid-template-columns:16px 124px 212px 62px 130px 58px 52px 110px 52px 110px 24px 124px 212px 62px 130px 58px 52px 110px 52px 110px 24px;">
+        <sc-for list="{{ lettersS }}" as="c" hint-placeholder-count="21"><div style="display:flex;align-items:center;justify-content:center;border-right:1px solid #E1E1E1;">{{ c }}</div></sc-for>
+      </div>
+    </div>
+    <div style="display:flex;height:34px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">1</div>
+      <div style="flex:1;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 0 18px;"><span style="font:700 21.33px Arial,sans-serif;color:#0A0908;">Consumer credit · where each series stands, {{ lastQ }}</span><span style="font:700 16px Arial,sans-serif;">{{ sumCount }}</span></div></div>
+    <div style="display:flex;height:20px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">2</div>
+      <div style="width:1844px;margin-left:16px;display:flex;align-items:center;padding-left:2px;font-size:14.67px;color:#57534B;border-bottom:2px solid #CC0000;">Each rating compares the latest quarter with the series' own history: 1 Low to 5 High. Charge-offs are trailing twelve months; delinquency is at quarter-end. Live: follows every setting and decision on Decide.</div></div>
+    <div style="display:flex;height:8px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:9px 'Segoe UI';color:#57534B;display:flex;align-items:center;justify-content:center;">3</div></div>
+    <div style="display:flex;height:22px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">4</div>
+      <div style="display:grid;grid-template-columns:16px 124px 212px 62px 130px 58px 52px 110px 52px 110px 24px 124px 212px 62px 130px 58px 52px 110px 52px 110px;font:700 13.33px Arial,sans-serif;">
+        <div></div><div style="grid-column:2/4;"></div><div style="grid-column:4/6;background:#0A0908;color:#fff;display:flex;align-items:center;padding:0 6px;border-top:3px solid #CC0000;">KeyBank</div><div style="background:#0A0908;color:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;border-top:3px solid #CC0000;font-size:12px;">vs Peer</div><div style="grid-column:7/9;background:#57534B;color:#fff;display:flex;align-items:center;padding:0 6px;border-top:3px solid #57534B;">Peer group (15 banks)</div><div style="grid-column:9/11;background:#57534B;color:#fff;display:flex;align-items:center;padding:0 6px;border-top:3px solid #57534B;border-left:1px solid #7A766F;">Industry (every bank)</div>
+        <div></div><div style="grid-column:12/14;"></div><div style="grid-column:14/16;background:#0A0908;color:#fff;display:flex;align-items:center;padding:0 6px;border-top:3px solid #CC0000;">KeyBank</div><div style="background:#0A0908;color:#fff;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;border-top:3px solid #CC0000;font-size:12px;">vs Peer</div><div style="grid-column:17/19;background:#57534B;color:#fff;display:flex;align-items:center;padding:0 6px;border-top:3px solid #57534B;">Peer group (15 banks)</div><div style="grid-column:19/21;background:#57534B;color:#fff;display:flex;align-items:center;padding:0 6px;border-top:3px solid #57534B;border-left:1px solid #7A766F;">Industry (every bank)</div>
+      </div></div>
+    <div style="display:flex;height:22px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">5</div>
+      <div style="display:grid;grid-template-columns:16px 124px 212px 62px 130px 58px 52px 110px 52px 110px 24px 124px 212px 62px 130px 58px 52px 110px 52px 110px;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:2px solid #0A0908;">
+        <div></div><div style="padding:0 6px;display:flex;align-items:center;">Product</div><div style="padding:0 6px;display:flex;align-items:center;">Measure</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Latest</div><div style="padding:0 6px;display:flex;align-items:center;">Rating</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">points</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Latest</div><div style="padding:0 6px;display:flex;align-items:center;">Rating</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Latest</div><div style="padding:0 6px;display:flex;align-items:center;">Rating</div>
+        <div></div><div style="padding:0 6px;display:flex;align-items:center;">Product</div><div style="padding:0 6px;display:flex;align-items:center;">Measure</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Latest</div><div style="padding:0 6px;display:flex;align-items:center;">Rating</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">points</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Latest</div><div style="padding:0 6px;display:flex;align-items:center;">Rating</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Latest</div><div style="padding:0 6px;display:flex;align-items:center;">Rating</div>
+      </div></div>
+    <sc-for list="{{ sRows }}" as="r" hint-placeholder-count="21">
+      <div style="display:flex;height:26px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">{{ r.n }}</div>
+        <div style="display:grid;grid-template-columns:16px 124px 212px 62px 130px 58px 52px 110px 52px 110px 24px 910px;font-variant-numeric:tabular-nums;">
+          <div></div>
+          <div style="padding:0 6px;display:flex;align-items:center;font-weight:700;font-size:16px;border-top:{{ r.L.bt }};white-space:nowrap;">{{ r.L.prod }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-top:{{ r.L.bt }};white-space:nowrap;font-size:14.67px;">{{ r.L.meas }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-weight:700;border-top:{{ r.L.bt }};">{{ r.L.kl }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;font-weight:700;background:{{ r.L.kb.bg }};color:{{ r.L.kb.fg }};border-top:{{ r.L.bt }};white-space:nowrap;">{{ r.L.kb.t }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;color:#57534B;font-size:14.67px;border-top:{{ r.L.bt }};border-right:1px solid #B9B4AC;">{{ r.L.diff }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-size:14.67px;color:#57534B;border-top:{{ r.L.bt }};">{{ r.L.pl }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;font-size:14.67px;background:{{ r.L.pb.bg }};color:{{ r.L.pb.fg }};border-top:{{ r.L.bt }};white-space:nowrap;">{{ r.L.pb.t }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-size:14.67px;color:#57534B;border-top:{{ r.L.bt }};">{{ r.L.il }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;font-size:14.67px;background:{{ r.L.ib.bg }};color:{{ r.L.ib.fg }};border-top:{{ r.L.bt }};white-space:nowrap;">{{ r.L.ib.t }}</div>
+          <div></div>
+          <sc-if value="{{ r.R.data }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:124px 212px 62px 130px 58px 52px 110px 52px 110px;">
+              <div style="padding:0 6px;display:flex;align-items:center;font-weight:700;font-size:16px;border-top:{{ r.R.bt }};white-space:nowrap;">{{ r.R.prod }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;border-top:{{ r.R.bt }};white-space:nowrap;font-size:14.67px;">{{ r.R.meas }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-weight:700;border-top:{{ r.R.bt }};">{{ r.R.kl }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;font-weight:700;background:{{ r.R.kb.bg }};color:{{ r.R.kb.fg }};border-top:{{ r.R.bt }};white-space:nowrap;">{{ r.R.kb.t }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;color:#57534B;font-size:14.67px;border-top:{{ r.R.bt }};border-right:1px solid #B9B4AC;">{{ r.R.diff }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-size:14.67px;color:#57534B;border-top:{{ r.R.bt }};">{{ r.R.pl }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;font-size:14.67px;background:{{ r.R.pb.bg }};color:{{ r.R.pb.fg }};border-top:{{ r.R.bt }};white-space:nowrap;">{{ r.R.pb.t }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-size:14.67px;color:#57534B;border-top:{{ r.R.bt }};">{{ r.R.il }}</div>
+              <div style="padding:0 6px;display:flex;align-items:center;font-size:14.67px;background:{{ r.R.ib.bg }};color:{{ r.R.ib.fg }};border-top:{{ r.R.bt }};white-space:nowrap;">{{ r.R.ib.t }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ r.R.head }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:flex-end;padding:0 4px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">{{ r.R.t }}</div></sc-if>
+          <sc-if value="{{ r.R.line }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:376px 170px 1fr;align-items:center;border-bottom:1px solid #E4DFD5;"><div style="padding:0 6px;white-space:nowrap;font-size:14.67px;overflow:hidden;text-overflow:ellipsis;">{{ r.R.a }}</div><div style="height:100%;display:flex;align-items:center;padding:0 6px;font-weight:700;background:{{ r.R.bg }};color:{{ r.R.fg }};">{{ r.R.b }}</div><div style="padding:0 8px;color:#57534B;font-size:14.67px;white-space:nowrap;">{{ r.R.c }}</div></div></sc-if>
+        </div>
+      </div>
+    </sc-for>
+    <div style="display:flex;height:10px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;font:9px 'Segoe UI';color:#57534B;display:flex;align-items:center;justify-content:center;">27</div><div style="width:1844px;margin-left:16px;border-top:2px solid #0A0908;"></div></div>
+    <div style="display:flex;height:22px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">28</div><div style="padding-left:18px;display:flex;align-items:center;font-size:14.67px;color:#57534B;">Rating: where the latest quarter falls against that series' own history, under its settings on Decide. Points: KeyBank's latest minus Peer group's.</div></div>
+    <div style="display:flex;height:22px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">29</div><div style="padding-left:18px;display:flex;align-items:center;font-size:14.67px;color:#57534B;">Refused: those settings do not fit that series. Its Check on Decide says why and what to change. Nothing is filled in instead.</div></div>
+    <sc-if value="{{ showFold }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:0;right:0;top:780px;border-top:2px dashed #CC0000;pointer-events:none;"><span style="position:absolute;right:8px;top:-22px;font:700 12px 'Hanken Grotesk';color:#CC0000;background:#fff;padding:2px 6px;">Fold</span></div></sc-if>
+  </div>
+  <div style="height:26px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;align-items:stretch;padding-left:60px;font:12px 'Segoe UI',Arial,sans-serif;">
+    <sc-for list="{{ tabsS }}" as="t" hint-placeholder-count="12"><div style="display:flex;align-items:center;padding:0 12px;background:{{ t.bg }};font-weight:{{ t.fw }};border-right:1px solid #D4D4D4;border-bottom:3px solid {{ t.c }};">{{ t.t }}</div></sc-for>
+  </div>
+</div>
+<div style="width:460px;display:flex;flex-direction:column;gap:18px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+  <div style="font:800 18px Archivo;">What changed, and what the reader can do now</div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">1</b><div><b>Two panels side by side</b>: Credit card, Mortgage and Home equity on the left; Other consumer and Auto on the right. All 35 rows fit above the fold at Calibri 13 on 26 px rows. Before it was 11 pt and ran below the fold. Now it can be read from across a meeting table.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">2</b><div><b>KeyBank comes first</b>: ink header with a red top rule, bold, at the larger size. Peer group and Industry follow at 11 pt on slate. The eye lands on the bank first.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">3</b><div><b>Ratings 1 to 3 are pale; 4 and 5 are strong.</b> The cells worth a conversation stand out before anything else.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">4</b><div><b>"Needs your attention"</b> lists the bank's 4s and 5s and counts its refusals, so the meeting starts there. It is formulas only: SORTBY and FILTER over Thresholds (Excel 16 / 365). On Excel 2016 without dynamic arrays, use five INDEX/SMALL rows instead.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">5</b><div><b>Each product's name shows once</b>, on the first row of its block, with a black rule above it.</div></div>
+</div>
+</div>
+</section>
+
+<section id="peers" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;"><div style="font:800 26px Archivo;">Peers</div><div style="font-size:15px;color:#57534B;">One tab in place of seven. Charge-offs and delinquency side by side, both following the same yellow cells.</div></div>
+<div style="display:flex;gap:40px;align-items:flex-start;">
+<div style="width:1920px;background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);flex-shrink:0;">
+  <div style="height:32px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">consumer-credit.xlsx · Excel</div>
+  <div style="height:92px;background:#F4F1EC;border-bottom:1px solid #E4DFD5;padding:6px 16px;display:flex;gap:22px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;"><span>File</span><span style="color:#16130F;border-bottom:2px solid #57534B;height:20px;">Home</span><span>Insert</span><span>Page Layout</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span></div>
+  <div style="height:26px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:13px 'Segoe UI',Arial,sans-serif;"><div style="width:90px;padding:0 8px;border-right:1px solid #E4DFD5;">B5</div><div style="padding:0 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div><div style="padding:0 12px;">{{ pk.prod }}</div></div>
+  <div style="position:relative;">
+    <div style="display:flex;height:20px;background:#F3F2F1;border-bottom:1px solid #D4D4D4;font:12px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <div style="width:36px;border-right:1px solid #D4D4D4;"></div>
+      <div style="display:grid;grid-template-columns:16px repeat(7,130px) 24px repeat(7,130px) 8px;"><sc-for list="{{ lettersP }}" as="c" hint-placeholder-count="17"><div style="display:flex;align-items:center;justify-content:center;border-right:1px solid #E1E1E1;">{{ c }}</div></sc-for></div>
+    </div>
+    <div style="display:flex;">
+      <div style="width:36px;display:grid;grid-template-rows:34px 20px 8px 18px 26px 16px 8px 30px 24px 26px 18px 10px 22px 18px 26px 16px repeat(16,22px) 18px 10px 22px repeat(17,20px) 10px 22px repeat(8,20px) 10px 22px;background:#F3F2F1;border-right:1px solid #D4D4D4;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;"><sc-for list="{{ pRowsN }}" as="n" hint-placeholder-count="64"><div style="display:flex;align-items:center;justify-content:center;border-bottom:1px solid #E1E1E1;overflow:hidden;">{{ n }}</div></sc-for></div>
+      <div style="display:grid;grid-template-columns:16px repeat(7,130px) 24px repeat(7,130px) 8px;grid-template-rows:34px 20px 8px 18px 26px 16px 8px 30px 24px 26px 18px 10px 22px 18px 26px 16px repeat(16,22px) 18px 10px 22px repeat(17,20px) 10px 22px repeat(8,20px) 10px 22px;font:14.67px Calibri,Carlito,sans-serif;color:#16130F;">
+        <div style="grid-column:2/12;grid-row:1;display:flex;align-items:flex-end;padding-left:2px;font:700 21.33px Arial,sans-serif;color:#0A0908;">Peers · KeyBank against its pack</div>
+        <div style="grid-column:12/17;grid-row:1;display:flex;align-items:flex-end;justify-content:flex-end;padding-right:6px;font:700 14.67px Arial,sans-serif;color:#57534B;"><span>Latest quarter {{ pk.lastQ }}</span></div>
+        <div style="grid-column:2/17;grid-row:2;display:flex;align-items:center;padding-left:2px;color:#57534B;border-bottom:2px solid #CC0000;white-space:nowrap;">Pick in the yellow cells; every number and chart on this tab follows them. From public FDIC Call Reports; Glossary says how each figure is worked out.</div>
+        <div style="grid-column:2/3;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Product</div><div style="grid-column:3/4;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Charge-off rate</div><div style="grid-column:4/5;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Peer A</div><div style="grid-column:5/6;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Peer B</div><div style="grid-column:6/7;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Charts show</div><div style="grid-column:10/11;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Delinquency measure</div><div style="grid-column:11/12;grid-row:4;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:flex-end;padding:0 6px;white-space:nowrap;">Delinquency basis</div>
+        <div style="grid-column:2/3;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onProd }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.prod }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div><div style="grid-column:3/4;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onCo }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.co }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div><div style="grid-column:4/5;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onA }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.a }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div><div style="grid-column:5/6;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onB }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.b }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div><div style="grid-column:6/7;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onWin }}" style="width:100%;height:100%;border:0;background:transparent;font:700 13.33px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.win }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div><div style="grid-column:10/11;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onDm }}" style="width:100%;height:100%;border:0;background:transparent;font:700 13.33px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.dm }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div><div style="grid-column:11/12;grid-row:5;margin-right:4px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onDb }}" style="width:100%;height:100%;border:0;background:transparent;font:700 13.33px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.db }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:4/5;grid-row:6;padding:0 6px;font-size:12px;color:#57534B;white-space:nowrap;"><span>Drawn: {{ pk.A }}</span></div>
+        <div style="grid-column:5/6;grid-row:6;padding:0 6px;font-size:12px;color:#57534B;white-space:nowrap;"><span>Drawn: {{ pk.B }}</span></div>
+        <div style="grid-column:2/17;grid-row:8/10;display:grid;grid-template-columns:140px repeat(15,1fr);grid-template-rows:30px 24px;">
+          <div style="display:flex;align-items:flex-end;padding:0 6px 2px;font:700 12px Arial,sans-serif;color:#57534B;">Bank</div>
+          <sc-for list="{{ pk.packCells }}" as="c" hint-placeholder-count="15"><div style="display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:0 2px 2px;font:700 12px/1.1 Arial,sans-serif;color:#0A0908;">{{ c.b }}</div></sc-for>
+          <div style="display:flex;align-items:center;padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;">In the pack</div>
+          <sc-for list="{{ pk.packCells }}" as="c" hint-placeholder-count="15"><div style="margin-right:3px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ c.on }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;text-align:center;outline:none;cursor:pointer;"><sc-for list="{{ c.opts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div></sc-for>
+        </div>
+        <div style="grid-column:2/17;grid-row:10;display:flex;align-items:center;gap:8px;padding:0 6px;white-space:nowrap;">Best and worst: ranked on the <span style="display:inline-flex;width:90px;height:22px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ pk.onRk }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ pk.O.rk }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></span> rate's mean over the last <span style="display:inline-flex;width:56px;height:22px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ pk.n }}" onChange="{{ pk.onN }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></span> quarters, if kept in at least <span style="display:inline-flex;width:56px;height:22px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ pk.k }}" onChange="{{ pk.onK }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></span> <span style="margin-left:24px;">Banks a composite or band needs</span> <span style="display:inline-flex;width:56px;height:22px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ pk.need }}" onChange="{{ pk.onNeed }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></span></div>
+        <div style="grid-column:2/17;grid-row:11;display:flex;align-items:center;padding:0 6px;color:#57534B;font-size:13.33px;white-space:nowrap;">{{ pk.bestTxt }}</div>
+        <div style="grid-column:2/9;grid-row:13;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;">{{ pk.coTitle }}</div><div style="grid-column:10/17;grid-row:13;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;">{{ pk.dqTitle }}</div>
+        <div style="grid-column:2/9;grid-row:14/17;background:#F4F1EC;display:grid;grid-template-columns:repeat(4,1fr);"><sc-for list="{{ pk.coK }}" as="k" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;padding:0 10px;"><div style="height:18px;display:flex;align-items:flex-end;font:700 12px Arial,sans-serif;color:#57534B;text-transform:uppercase;letter-spacing:.02em;">{{ k.l }}</div><div style="height:26px;display:flex;align-items:center;font:700 21.33px Arial,sans-serif;color:#0A0908;font-variant-numeric:tabular-nums;">{{ k.v }}</div><div style="height:16px;font-size:12px;color:#57534B;white-space:nowrap;">{{ k.s }}</div></div></sc-for></div><div style="grid-column:10/17;grid-row:14/17;background:#F4F1EC;display:grid;grid-template-columns:repeat(4,1fr);"><sc-for list="{{ pk.dqK }}" as="k" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;padding:0 10px;"><div style="height:18px;display:flex;align-items:flex-end;font:700 12px Arial,sans-serif;color:#57534B;text-transform:uppercase;letter-spacing:.02em;">{{ k.l }}</div><div style="height:26px;display:flex;align-items:center;font:700 21.33px Arial,sans-serif;color:#0A0908;font-variant-numeric:tabular-nums;">{{ k.v }}</div><div style="height:16px;font-size:12px;color:#57534B;white-space:nowrap;">{{ k.s }}</div></div></sc-for></div>
+        <div style="grid-column:2/9;grid-row:17/33;">{{ pChart }}</div>
+        <div style="grid-column:10/17;grid-row:17/33;">{{ dChart2 }}</div>
+        <div style="grid-column:2/9;grid-row:33;display:flex;align-items:center;padding:0 2px;color:#57534B;font-size:13.33px;white-space:nowrap;">Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on and kept; none where fewer than the banks needed are kept.</div>
+        <div style="grid-column:10/17;grid-row:33;display:flex;align-items:center;padding:0 2px;color:#57534B;font-size:13.33px;white-space:nowrap;">Shaded as on the left. A gap: no rate that quarter-end (Peers delinquency data says why).</div>
+        <div style="grid-column:2/9;grid-row:35;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;"><span>Where each bank stands on charge-offs, {{ pk.lastQ }} · 1 = the lowest rate</span></div><div style="grid-column:10/17;grid-row:35;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;"><span>Where each bank stands on delinquency, {{ pk.lastQ }}</span></div>
+        <div style="grid-column:2/9;grid-row:36/53;display:flex;flex-direction:column;font-variant-numeric:tabular-nums;">
+          <div style="height:20px;display:grid;grid-template-columns:60px 210px 110px 120px 120px 130px 80px 80px;align-items:center;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #B9B4AC;"><div style="padding:0 6px;text-align:right;">Rank</div><div style="padding:0 6px;">Bank</div><div style="padding:0 6px;text-align:right;">Rate (%)</div><div style="padding:0 6px;text-align:right;">vs composite</div><div style="padding:0 6px;text-align:right;">4-qtr change</div><div style="padding:0 6px;text-align:right;">Balance ($bn)</div><div style="padding:0 6px;">In pack</div><div></div></div>
+          <sc-for list="{{ pk.coR }}" as="r" hint-placeholder-count="16"><div style="height:20px;display:grid;grid-template-columns:60px 210px 110px 120px 120px 130px 80px 80px;align-items:center;border-bottom:1px solid #EFEBE4;background:{{ r.bg }};font-weight:{{ r.fw }};color:{{ r.fg }};"><div style="padding:0 6px;text-align:right;">{{ r.rank }}</div><div style="padding:0 6px;white-space:nowrap;">{{ r.name }}</div><div style="padding:0 6px;text-align:right;">{{ r.rate }}</div><div style="padding:0 6px;text-align:right;">{{ r.vs }}</div><div style="padding:0 6px;text-align:right;">{{ r.ch }}</div><div style="padding:0 6px;text-align:right;">{{ r.bal }}</div><div style="padding:0 6px;">{{ r.inp }}</div><div></div></div></sc-for>
+        </div><div style="grid-column:10/17;grid-row:36/53;display:flex;flex-direction:column;font-variant-numeric:tabular-nums;">
+          <div style="height:20px;display:grid;grid-template-columns:60px 210px 110px 120px 120px 130px 80px 80px;align-items:center;font:700 12px Arial,sans-serif;color:#57534B;border-bottom:1px solid #B9B4AC;"><div style="padding:0 6px;text-align:right;">Rank</div><div style="padding:0 6px;">Bank</div><div style="padding:0 6px;text-align:right;">Rate (%)</div><div style="padding:0 6px;text-align:right;">vs composite</div><div style="padding:0 6px;text-align:right;">4-qtr change</div><div style="padding:0 6px;text-align:right;">Balance ($bn)</div><div style="padding:0 6px;">In pack</div><div></div></div>
+          <sc-for list="{{ pk.dqR }}" as="r" hint-placeholder-count="16"><div style="height:20px;display:grid;grid-template-columns:60px 210px 110px 120px 120px 130px 80px 80px;align-items:center;border-bottom:1px solid #EFEBE4;background:{{ r.bg }};font-weight:{{ r.fw }};color:{{ r.fg }};"><div style="padding:0 6px;text-align:right;">{{ r.rank }}</div><div style="padding:0 6px;white-space:nowrap;">{{ r.name }}</div><div style="padding:0 6px;text-align:right;">{{ r.rate }}</div><div style="padding:0 6px;text-align:right;">{{ r.vs }}</div><div style="padding:0 6px;text-align:right;">{{ r.ch }}</div><div style="padding:0 6px;text-align:right;">{{ r.bal }}</div><div style="padding:0 6px;">{{ r.inp }}</div><div></div></div></sc-for>
+        </div>
+        <div style="grid-column:2/5;grid-row:54;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;">Book size: average balance ($bn)</div>
+        <div style="grid-column:2/5;grid-row:55/63;">{{ pBook }}</div>
+        <div style="grid-column:5/9;grid-row:54;display:flex;align-items:flex-end;padding:0 2px 3px 12px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;">Charge-off rate ÷ pack composite (1 = the composite)</div>
+        <div style="grid-column:5/9;grid-row:55/63;padding-left:12px;">{{ pRel }}</div>
+        <div style="grid-column:10/17;grid-row:54;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;"><span>KeyBank's consumer book: share by product ({{ pk.prod }} in red)</span></div>
+        <div style="grid-column:10/17;grid-row:55/63;">{{ pMix }}</div>
+        <div style="grid-column:2/17;grid-row:64;display:flex;align-items:center;padding:0 2px;color:#57534B;font-size:13.33px;">Below these, the lagged view (the rate against balance growth eight quarters earlier), drawn the same way and following the same cells.</div>
+      </div>
+    </div>
+    <sc-if value="{{ showFold }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:0;right:0;top:780px;border-top:2px dashed #CC0000;pointer-events:none;"><span style="position:absolute;right:8px;top:-22px;font:700 12px 'Hanken Grotesk';color:#CC0000;background:#fff;padding:2px 6px;">Fold</span></div></sc-if>
+  </div>
+  <div style="height:26px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;align-items:stretch;padding-left:60px;font:12px 'Segoe UI',Arial,sans-serif;">
+    <sc-for list="{{ tabsP }}" as="t" hint-placeholder-count="14"><div style="display:flex;align-items:center;padding:0 12px;background:{{ t.bg }};font-weight:{{ t.fw }};border-right:1px solid #D4D4D4;border-bottom:3px solid {{ t.c }};">{{ t.t }}</div></sc-for>
+  </div>
+</div>
+<div style="width:460px;display:flex;flex-direction:column;gap:18px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+  <div style="font:800 18px Archivo;">What changed, and what the reader can do now</div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">1</b><div><b>Two charts at once.</b> Charge-offs on the left and delinquency on the right, the same width and the same window. Did losses follow delinquency? That is one glance, with nothing to flip to.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">2</b><div><b>A strip of four numbers over each chart</b>: KeyBank, the pack composite, KeyBank's rank and Industry (or banks with a rate). The answer comes before the picture.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">3</b><div><b>Two bands, not 15 lines.</b> The middle 80% is light and the middle 50% darker, with the balance-weighted composite in ink. Only KeyBank is red.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">4</b><div><b>Peer A and B can be "Worst in pack" or "Best in pack"</b>, ranked by a rule the analyst can read and change in row 10. The bank actually drawn shows under each pick.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">5</b><div><b>"In the pack" is a row of Yes/No cells</b>, not a slicer. No rows get hidden, so the earlier constraint is gone, and the choice is visible on screen.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">6</b><div><b>Rank tables for both measures, then book size, the ratio to the composite and the mix</b>, all below the fold and all following the same cells.</div></div>
+</div>
+</div>
+</section>
+
+<section id="thresholds" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;"><div style="font:800 26px Archivo;">Thresholds</div><div style="font-size:15px;color:#57534B;">All 105 series. Row 4 and columns A to D are frozen.</div></div>
+<div style="display:flex;gap:40px;align-items:flex-start;">
+<div style="width:1920px;background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);flex-shrink:0;">
+  <div style="height:32px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">consumer-credit.xlsx · Excel</div>
+  <div style="height:92px;background:#F4F1EC;border-bottom:1px solid #E4DFD5;padding:6px 16px;display:flex;gap:22px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;"><span>File</span><span style="color:#16130F;border-bottom:2px solid #57534B;height:20px;">Home</span><span>Insert</span><span>Page Layout</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span></div>
+  <div style="height:26px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:13px 'Segoe UI',Arial,sans-serif;"><div style="width:90px;padding:0 8px;border-right:1px solid #E4DFD5;">E5</div><div style="padding:0 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div><div style="padding:0 12px;font-family:Consolas,monospace;font-size:12.5px;">=Assess!H9</div></div>
+  <div style="position:relative;font:14.67px Calibri,Carlito,sans-serif;color:#16130F;">
+    <div style="display:flex;height:20px;background:#F3F2F1;border-bottom:1px solid #D4D4D4;font:12px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <div style="width:36px;border-right:1px solid #D4D4D4;"></div>
+      <div style="display:grid;grid-template-columns:16px 120px 200px 140px 84px 84px 84px 84px 84px 84px 84px 76px 76px 140px 120px 392px;">
+        <sc-for list="{{ lettersT }}" as="c" hint-placeholder-count="16"><div style="display:flex;align-items:center;justify-content:center;border-right:1px solid #E1E1E1;">{{ c }}</div></sc-for>
+      </div>
+    </div>
+    <div style="display:flex;height:34px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">1</div><div style="padding-left:18px;display:flex;align-items:flex-end;font:700 21.33px Arial,sans-serif;color:#0A0908;">Thresholds · every series' lines, latest value and decision</div></div>
+    <div style="display:flex;height:20px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">2</div><div style="width:1852px;margin-left:16px;display:flex;align-items:center;padding-left:2px;color:#57534B;border-bottom:2px solid #CC0000;">Live: follows every setting and decision on Decide. Filter by product, measure or source with the header arrows.</div></div>
+    <div style="display:flex;height:22px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">3</div>
+      <div style="display:grid;grid-template-columns:16px 120px 200px 140px 84px 84px 84px 84px 84px 84px 84px 76px 76px 140px 120px 392px;font:700 12px Arial,sans-serif;color:#0A0908;align-items:end;">
+        <div></div><div style="grid-column:2/5;padding:0 6px 3px;">Series</div><div style="grid-column:5/8;padding:0 6px 3px;border-bottom:2px solid #57534B;">What the lines rest on</div><div style="grid-column:8/12;padding:0 6px 3px;border-bottom:2px solid #57534B;margin-left:6px;">Each rating begins at</div><div style="grid-column:12/15;padding:0 6px 3px;border-bottom:2px solid #CC0000;margin-left:6px;">Latest quarter</div><div style="grid-column:15/17;padding:0 6px 3px;border-bottom:2px solid #57534B;margin-left:6px;">Your decision</div>
+      </div></div>
+    <div style="display:flex;height:34px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">4</div>
+      <div style="display:grid;grid-template-columns:16px 120px 200px 140px 84px 84px 84px 84px 84px 84px 84px 76px 76px 140px 120px 392px;font:700 12px/1.15 Arial,sans-serif;color:#fff;">
+        <div style="background:#fff;"></div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Product</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Measure</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Source</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">Median kept</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">Typical yearly move</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">Worst kept</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">2 Moderate-Low</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">3 Moderate</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">4 Moderate-High</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;">5 High</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Quarter</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;justify-content:flex-end;">Value</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Rating</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Decision</div><div style="background:#0A0908;padding:0 6px;display:flex;align-items:center;">Check</div>
+      </div></div>
+    <sc-for list="{{ tRows }}" as="r" hint-placeholder-count="30">
+      <div style="display:flex;height:20px;"><div style="width:36px;background:#F3F2F1;border-right:1px solid #D4D4D4;border-bottom:1px solid #E1E1E1;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:center;">{{ r.n }}</div>
+        <div style="display:grid;grid-template-columns:16px 120px 200px 140px 84px 84px 84px 84px 84px 84px 84px 76px 76px 140px 120px 392px;align-items:stretch;font-variant-numeric:tabular-nums;">
+          <div></div>
+          <div style="padding:0 6px;display:flex;align-items:center;font-weight:700;border-top:{{ r.bt }};white-space:nowrap;">{{ r.prod }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-top:{{ r.mt }};white-space:nowrap;">{{ r.meas }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-top:{{ r.mt }};white-space:nowrap;color:{{ r.sc }};">{{ r.src }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.m }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.move }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.mx }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.l2 }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.l3 }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.l4 }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-top:{{ r.mt }};">{{ r.l5 }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;color:#57534B;border-top:{{ r.mt }};">{{ r.lq }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-weight:700;border-top:{{ r.mt }};">{{ r.lv }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;font-weight:700;background:{{ r.chip.bg }};color:{{ r.chip.fg }};border-top:{{ r.mt }};white-space:nowrap;">{{ r.chip.t }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-top:{{ r.mt }};white-space:nowrap;font-weight:{{ r.dw }};">{{ r.dec }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-top:{{ r.mt }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ r.cc }};font-size:13.33px;font-weight:{{ r.cw }};">{{ r.check }}</div>
+        </div>
+      </div>
+    </sc-for>
+    <sc-if value="{{ showFold }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:0;right:0;top:780px;border-top:2px dashed #CC0000;pointer-events:none;"><span style="position:absolute;right:8px;top:-22px;font:700 12px 'Hanken Grotesk';color:#CC0000;background:#fff;padding:2px 6px;">Fold</span></div></sc-if>
+  </div>
+  <div style="height:26px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;align-items:stretch;padding-left:60px;font:12px 'Segoe UI',Arial,sans-serif;">
+    <sc-for list="{{ tabsT }}" as="t" hint-placeholder-count="12"><div style="display:flex;align-items:center;padding:0 12px;background:{{ t.bg }};font-weight:{{ t.fw }};border-right:1px solid #D4D4D4;border-bottom:3px solid {{ t.c }};">{{ t.t }}</div></sc-for>
+  </div>
+</div>
+<div style="width:460px;display:flex;flex-direction:column;gap:18px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+  <div style="font:800 18px Archivo;">What changed, and what the reader can do now</div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">1</b><div><b>"Series" splits into Product, Measure and Source columns.</b> Before, a single long name could not be filtered or sorted. Now "every KeyBank series" or "every Nonaccrual" is one filter away.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">2</b><div><b>Grouped headers</b> (what the lines rest on, where each rating begins, latest quarter, your decision) let the eye skip to the part it needs.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">3</b><div><b>A Decision column</b> makes this tab the record of what was decided, for review or audit.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">4</b><div><b>Blocks without stripes</b>: a black rule starts each product, a mist rule each measure. Repeated product names are hidden by conditional formatting (white font), so filters still work.</div></div>
+</div>
+</div>
+</section>
+
+<section id="internal" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;"><div style="font:800 26px Archivo;">Internal</div><div style="font-size:15px;color:#57534B;">The last step: run the bank's own CRR data against the outside series, to see how far each one can be trusted to set lines.</div></div>
+<div style="display:flex;gap:40px;align-items:flex-start;">
+<div style="width:1920px;display:flex;flex-direction:column;gap:28px;flex-shrink:0;">
+<div style="width:1920px;background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);">
+  <div style="height:32px;background:#E4DFD5;display:flex;align-items:center;justify-content:center;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">consumer-credit.xlsx · Excel</div>
+  <div style="height:92px;background:#F4F1EC;border-bottom:1px solid #E4DFD5;padding:6px 16px;display:flex;gap:22px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;"><span>File</span><span style="color:#16130F;border-bottom:2px solid #57534B;height:20px;">Home</span><span>Insert</span><span>Page Layout</span><span>Formulas</span><span>Data</span><span>Review</span><span>View</span></div>
+  <div style="height:26px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;font:13px 'Segoe UI',Arial,sans-serif;"><div style="width:90px;padding:0 8px;border-right:1px solid #E4DFD5;">C6</div><div style="padding:0 12px;color:#9A958C;font-style:italic;border-right:1px solid #E4DFD5;">fx</div><div style="padding:0 12px;">Credit card</div></div>
+  <div style="position:relative;">
+    <div style="display:flex;height:20px;background:#F3F2F1;border-bottom:1px solid #D4D4D4;font:12px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+      <div style="width:36px;border-right:1px solid #D4D4D4;"></div>
+      <div style="display:grid;grid-template-columns:16px 150px 190px 20px 150px 250px 20px 110px 110px 110px 20px 170px 100px 100px 100px 100px 152px;">
+        <sc-for list="{{ lettersI }}" as="c" hint-placeholder-count="17"><div style="display:flex;align-items:center;justify-content:center;border-right:1px solid #E1E1E1;">{{ c }}</div></sc-for>
+      </div>
+    </div>
+    <div style="display:flex;">
+      <div style="width:36px;display:grid;grid-template-rows:34px 20px 8px 22px 20px repeat(7,22px) 10px 22px 22px repeat(16,22px) 10px 22px 22px repeat(35,20px);background:#F3F2F1;border-right:1px solid #D4D4D4;font:11px 'Segoe UI',Arial,sans-serif;color:#57534B;">
+        <sc-for list="{{ iRowsN }}" as="n" hint-placeholder-count="69"><div style="display:flex;align-items:center;justify-content:center;border-bottom:1px solid #E1E1E1;overflow:hidden;">{{ n }}</div></sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:16px 150px 190px 20px 150px 250px 20px 110px 110px 110px 20px 170px 100px 100px 100px 100px 152px;grid-template-rows:34px 20px 8px 22px 20px repeat(7,22px) 10px 22px 22px repeat(16,22px) 10px 22px 22px repeat(35,20px);font:14.67px Calibri,Carlito,sans-serif;color:#16130F;font-variant-numeric:tabular-nums;">
+        <div style="grid-column:2/11;grid-row:1;display:flex;align-items:flex-end;padding-left:2px;font:700 21.33px Arial,sans-serif;color:#0A0908;">Internal · how far can the outside data be trusted?</div>
+        <div style="grid-column:12/18;grid-row:1;display:flex;align-items:flex-end;justify-content:flex-end;padding-right:6px;font:700 14.67px Arial,sans-serif;color:#57534B;"><span>{{ iCount }} rows on Internal data</span></div>
+        <div style="grid-column:2/18;grid-row:2;display:flex;align-items:center;padding-left:2px;color:#57534B;border-bottom:2px solid #CC0000;white-space:nowrap;">Paste the bank's own data on the Internal data tab, then tell the workbook once what each of your names means. Every view below follows.</div>
+
+        <div style="grid-column:2/4;grid-row:4;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">1 · Your products are</div>
+        <div style="grid-column:5/7;grid-row:4;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">2 · Your measures are</div>
+        <div style="grid-column:8/11;grid-row:4;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">3 · What counts as reliable</div>
+        <div style="grid-column:12/18;grid-row:4;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">4 · Quarters loaded, per series (click one to look at it)</div>
+
+        <div style="grid-column:2/4;grid-row:5/13;display:grid;grid-template-columns:150px 190px;grid-template-rows:20px repeat(7,22px);">
+          <div style="padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:center;border-bottom:1px solid #B9B4AC;">In your file</div><div style="padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:center;border-bottom:1px solid #B9B4AC;">Is the workbook's</div>
+          <sc-for list="{{ mapPR }}" as="r" hint-placeholder-count="7">
+            <div style="padding:0 6px;display:flex;align-items:center;font-family:Consolas,monospace;font-size:13px;border-bottom:1px solid #E4DFD5;white-space:nowrap;overflow:hidden;">{{ r.n }}</div>
+            <sc-if value="{{ r.has }}" hint-placeholder-val="{{ false }}"><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ r.on }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ r.opts }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div></sc-if>
+            <sc-if value="{{ r.none }}" hint-placeholder-val="{{ true }}"><div style="border-bottom:1px solid #E4DFD5;"></div></sc-if>
+          </sc-for>
+        </div>
+        <div style="grid-column:5/7;grid-row:5/13;display:grid;grid-template-columns:150px 250px;grid-template-rows:20px repeat(7,22px);">
+          <div style="padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:center;border-bottom:1px solid #B9B4AC;">In your file</div><div style="padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:center;border-bottom:1px solid #B9B4AC;">Is the workbook's</div>
+          <sc-for list="{{ mapMR }}" as="r" hint-placeholder-count="7">
+            <div style="padding:0 6px;display:flex;align-items:center;font-family:Consolas,monospace;font-size:13px;border-bottom:1px solid #E4DFD5;white-space:nowrap;overflow:hidden;">{{ r.n }}</div>
+            <sc-if value="{{ r.has }}" hint-placeholder-val="{{ false }}"><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ r.on }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ r.opts }}" as="o" hint-placeholder-count="1"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div></sc-if>
+            <sc-if value="{{ r.none }}" hint-placeholder-val="{{ true }}"><div style="border-bottom:1px solid #E4DFD5;"></div></sc-if>
+          </sc-for>
+        </div>
+        <div style="grid-column:8/11;grid-row:5/13;display:grid;grid-template-columns:220px 110px;grid-template-rows:20px repeat(7,22px);">
+          <div style="grid-column:1/3;"></div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;">Quarters both have, at least</div><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ thr.ov }}" onChange="{{ onThrOv }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;">Ratings that agree, at least (%)</div><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ thr.ag }}" onChange="{{ onThrAg }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;">Change correlation, at least</div><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ thr.cc }}" onChange="{{ onThrCc }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;">Units, where the file says none</div><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ onUnit }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ unitOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+          <div style="grid-column:1/3;"></div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;">Rows on Internal data</div><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-weight:700;border-bottom:1px solid #E4DFD5;">{{ iCount }}</div>
+          <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;">Rows not mapped</div>
+          <sc-if value="{{ iUnmBad }}" hint-placeholder-val="{{ false }}"><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-weight:700;color:#960019;background:#F4F1EC;border-bottom:1px solid #E4DFD5;">{{ iUnm }}</div></sc-if>
+          <sc-if value="{{ iUnmOk }}" hint-placeholder-val="{{ true }}"><div style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;font-weight:700;border-bottom:1px solid #E4DFD5;">0</div></sc-if>
+        </div>
+        <div style="grid-column:12/18;grid-row:5/13;display:grid;grid-template-columns:170px repeat(5,100px) 52px;grid-template-rows:20px repeat(7,22px);">
+          <div style="border-bottom:1px solid #B9B4AC;"></div>
+          <sc-for list="{{ prodList }}" as="p" hint-placeholder-count="5"><div style="padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;display:flex;align-items:center;justify-content:flex-end;border-bottom:1px solid #B9B4AC;white-space:nowrap;">{{ p }}</div></sc-for>
+          <div style="border-bottom:1px solid #B9B4AC;"></div>
+          <sc-for list="{{ cov }}" as="r" hint-placeholder-count="7">
+            <div style="padding:0 6px;display:flex;align-items:center;border-bottom:1px solid #E4DFD5;white-space:nowrap;">{{ r.t }}</div>
+            <sc-for list="{{ r.cells }}" as="x" hint-placeholder-count="5"><div onClick="{{ x.on }}" style="padding:0 6px;display:flex;align-items:center;justify-content:flex-end;border-bottom:1px solid #fff;border-right:1px solid #fff;background:{{ x.bg }};color:{{ x.fg }};cursor:pointer;font-weight:700;">{{ x.t }}</div></sc-for>
+            <div></div>
+          </sc-for>
+        </div>
+
+        <div style="grid-column:2/11;grid-row:14;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;white-space:nowrap;overflow:hidden;">{{ iTitle }}</div>
+        <div style="grid-column:2/3;grid-row:15;margin:2px 4px 0 0;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ onIPp }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ ipO.p }}" as="o" hint-placeholder-count="5"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:3/4;grid-row:15;margin:2px 4px 0 0;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ onIPm }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ ipO.m }}" as="o" hint-placeholder-count="7"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:5/6;grid-row:15;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font:700 12px Arial,sans-serif;color:#57534B;">Shade with lines from</div>
+        <div style="grid-column:6/7;grid-row:15;margin-top:2px;background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><select onChange="{{ onIPls }}" style="width:100%;height:100%;border:0;background:transparent;font:700 14.67px Calibri,Carlito,sans-serif;padding:0 4px;outline:none;cursor:pointer;"><sc-for list="{{ ipO.ls }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.t }}</option></sc-for></select></div>
+        <div style="grid-column:8/11;grid-row:15;display:flex;align-items:center;padding:0 6px;color:#57534B;font-size:13.33px;white-space:nowrap;">Lines and settings come from Decide.</div>
+        <sc-if value="{{ iHas }}" hint-placeholder-val="{{ true }}"><div style="grid-column:2/11;grid-row:16/32;">{{ iChart }}</div></sc-if>
+        <sc-if value="{{ iNone }}" hint-placeholder-val="{{ false }}"><div style="grid-column:2/11;grid-row:16/32;margin:8px 0;border:1px dashed #B9B4AC;background:#F4F1EC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;"><div style="font:700 16px Arial,sans-serif;">No internal data yet</div><div style="color:#57534B;">Paste it on the Internal data tab: one row per quarter, product and measure. Columns are listed under the paste area.</div></div></sc-if>
+
+        <div style="grid-column:12/18;grid-row:14;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">How reliable is each outside source here?</div>
+        <div style="grid-column:12/18;grid-row:15/32;display:flex;flex-direction:column;">
+          <div style="height:22px;display:grid;grid-template-columns:270px 100px 100px 100px 152px;align-items:center;font:700 12px Arial,sans-serif;border-bottom:1px solid #B9B4AC;"><div style="padding:0 6px;color:#57534B;">Internal against</div><div style="padding:0 6px;text-align:right;color:#57534B;">Industry</div><div style="padding:0 6px;text-align:right;color:#0A0908;">Peer group</div><div style="padding:0 6px;text-align:right;color:#CC0000;">KeyBank</div><div style="padding:0 6px;color:#57534B;">Good looks like</div></div>
+          <sc-for list="{{ relT }}" as="r" hint-placeholder-count="6">
+            <div style="height:22px;display:grid;grid-template-columns:270px 100px 100px 100px 152px;align-items:center;border-bottom:1px solid #E4DFD5;"><div style="padding:0 6px;white-space:nowrap;">{{ r.t }}</div><sc-for list="{{ r.a }}" as="x" hint-placeholder-count="3"><div style="padding:0 6px;text-align:right;font-weight:700;">{{ x }}</div></sc-for><div style="padding:0 6px;color:#57534B;font-size:13.33px;white-space:nowrap;">{{ r.good }}</div></div>
+          </sc-for>
+          <div style="height:44px;display:grid;grid-template-columns:270px 100px 100px 100px 152px;align-items:stretch;border-bottom:2px solid #0A0908;"><div style="padding:0 6px;display:flex;align-items:center;font:700 12px Arial,sans-serif;color:#0A0908;">Verdict</div><sc-for list="{{ verd }}" as="x" hint-placeholder-count="3"><div style="padding:2px 6px;display:flex;align-items:center;justify-content:flex-end;text-align:right;font:700 12px/1.15 Arial,sans-serif;background:{{ x.bg }};color:{{ x.fg }};border-right:1px solid #fff;">{{ x.t }}</div></sc-for><div></div></div>
+          <div style="height:22px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">If your file has CRR grades: the lowest grade in each rating</div>
+          <sc-for list="{{ gr }}" as="g" hint-placeholder-count="5">
+            <div style="height:22px;display:grid;grid-template-columns:270px 100px 1fr;align-items:stretch;border-bottom:1px solid #E4DFD5;"><div style="padding:0 6px;display:flex;align-items:center;font-weight:700;background:{{ g.bg }};">{{ g.name }}</div><div style="background:#FFF2CC;box-shadow:inset 0 0 0 1px #D6B656;"><input value="{{ g.v }}" onChange="{{ g.on }}" style="width:100%;height:100%;border:0;background:transparent;text-align:right;padding:0 6px;font:700 14.67px Calibri,Carlito,sans-serif;outline:none;"></div><div></div></div>
+          </sc-for>
+          <div style="height:44px;display:flex;align-items:center;padding:0 6px;font-weight:700;line-height:1.25;text-wrap:pretty;">{{ gradeAg }}</div>
+        </div>
+
+        <div style="grid-column:2/18;grid-row:33;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;">Every product and measure you loaded: ratings that agree with internal, and the source to trust</div>
+        <div style="grid-column:2/18;grid-row:34/70;display:flex;flex-direction:column;">
+          <sc-if value="{{ iNoRows }}" hint-placeholder-val="{{ false }}"><div style="height:20px;padding:0 6px;color:#57534B;font-style:italic;">Nothing loaded yet.</div></sc-if>
+          <sc-for list="{{ allR }}" as="r" hint-placeholder-count="35">
+            <div style="height:20px;display:grid;grid-template-columns:150px 190px 20px 150px 250px 20px 110px 110px 110px 20px 170px 452px;align-items:center;border-bottom:1px solid #EFEBE4;">
+              <div style="padding:0 6px;font-weight:700;">{{ r.p }}</div><div style="padding:0 6px;grid-column:2/5;white-space:nowrap;">{{ r.m }}</div><div style="padding:0 6px;text-align:right;color:#57534B;">{{ r.n }}</div><div></div>
+              <sc-for list="{{ r.ag }}" as="x" hint-placeholder-count="3"><div style="padding:0 6px;text-align:right;">{{ x }}</div></sc-for><div></div>
+              <div style="padding:0 6px;white-space:nowrap;font-weight:700;">{{ r.best }}</div>
+              <div style="height:100%;display:flex;align-items:center;padding:0 6px;font:700 12px Arial,sans-serif;background:{{ r.v.bg }};color:{{ r.v.fg }};width:220px;">{{ r.v.t }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showFold }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;left:0;right:0;top:780px;border-top:2px dashed #CC0000;pointer-events:none;"><span style="position:absolute;right:8px;top:-22px;font:700 12px 'Hanken Grotesk';color:#CC0000;background:#fff;padding:2px 6px;">Fold</span></div></sc-if>
+  </div>
+  <div style="height:26px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;align-items:stretch;padding-left:60px;font:12px 'Segoe UI',Arial,sans-serif;">
+    <sc-for list="{{ tabsI }}" as="t" hint-placeholder-count="14"><div style="display:flex;align-items:center;padding:0 12px;background:{{ t.bg }};font-weight:{{ t.fw }};border-right:1px solid #D4D4D4;border-bottom:3px solid {{ t.c }};">{{ t.t }}</div></sc-for>
+  </div>
+</div>
+
+<div style="background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;font:14.67px Calibri,Carlito,sans-serif;">
+  <div style="height:28px;background:#E4DFD5;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;"><span>Internal data tab · the slot · an Excel table named InternalData, starting at A4; paste below its last row and it grows</span><span style="display:flex;gap:8px;"><span onClick="{{ loadSample }}" style="cursor:pointer;padding:2px 10px;background:#fff;border:1px solid #B9B4AC;color:#16130F;">Mock only: load sample</span><span onClick="{{ clearPaste }}" style="cursor:pointer;padding:2px 10px;background:#fff;border:1px solid #B9B4AC;color:#16130F;">Mock only: clear</span></span></div>
+  <div style="padding:6px 0 18px 52px;">
+    <div style="height:34px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;color:#0A0908;">Internal data</div>
+    <div style="height:20px;width:1820px;display:flex;align-items:center;color:#57534B;border-bottom:2px solid #CC0000;">The bank's own series, one row per quarter, product and measure. Paste values only. Names can be your own; map them once on Internal.</div>
+    <sc-if value="{{ isSample }}" hint-placeholder-val="{{ true }}"><div style="margin-top:10px;width:1820px;padding:6px 10px;background:#F8E3E1;color:#960019;font:700 13.33px Arial,sans-serif;">SAMPLE ROWS. These are made up for this mock from KeyBank's Call Report series, so the Internal tab has something to show. They are not internal data.</div></sc-if>
+    <div style="margin-top:10px;width:1820px;display:grid;grid-template-columns:90px 160px 170px 110px 90px 90px 110px 1000px;font:700 12px/1.15 Arial,sans-serif;color:#fff;">
+      <div style="background:#0A0908;padding:5px 6px;">Quarter</div><div style="background:#0A0908;padding:5px 6px;">Product</div><div style="background:#0A0908;padding:5px 6px;">Measure</div><div style="background:#0A0908;padding:5px 6px;text-align:right;">Value</div><div style="background:#0A0908;padding:5px 6px;">Units</div><div style="background:#0A0908;padding:5px 6px;text-align:right;">CRR grade</div><div style="background:#0A0908;padding:5px 6px;">System</div><div style="background:#57534B;padding:5px 6px;">Read as (formulas, not typed): product · measure, from the mapping on Internal</div>
+    </div>
+    <sc-for list="{{ prev }}" as="r" hint-placeholder-count="12"><div style="width:1820px;display:grid;grid-template-columns:90px 160px 170px 110px 90px 90px 110px 1000px;border-bottom:1px solid #E4DFD5;font-variant-numeric:tabular-nums;">
+      <div style="padding:2px 6px;background:#FFF2CC;">{{ r.rq }}</div><div style="padding:2px 6px;background:#FFF2CC;">{{ r.p }}</div><div style="padding:2px 6px;background:#FFF2CC;">{{ r.m }}</div><div style="padding:2px 6px;background:#FFF2CC;text-align:right;">{{ r.v }}</div><div style="padding:2px 6px;background:#FFF2CC;">{{ r.u }}</div><div style="padding:2px 6px;background:#FFF2CC;text-align:right;">{{ r.g }}</div><div style="padding:2px 6px;background:#FFF2CC;">{{ r.sy }}</div><div style="padding:2px 6px;color:#57534B;">{{ r.mp }} · {{ r.mm }}</div>
+    </div></sc-for>
+    <div style="width:1820px;padding:4px 6px;color:#57534B;font-style:italic;">… {{ iCount }} rows in all.</div>
+    <div style="margin-top:14px;width:1820px;display:grid;grid-template-columns:1fr 520px;gap:24px;">
+      <div><div style="font:700 12px Arial,sans-serif;color:#57534B;margin-bottom:4px;">Mock only: paste CSV or tab-separated rows here (header row first) to try the mapping</div><textarea value="{{ ipaste }}" onChange="{{ onPaste }}" spellcheck="false" style="width:100%;height:150px;border:1px solid #D6B656;background:#FFF2CC;font:12px Consolas,monospace;padding:6px;resize:vertical;outline:none;"></textarea></div>
+      <div style="font-size:13.33px;line-height:1.45;color:#16130F;"><div style="font:700 12px Arial,sans-serif;color:#57534B;margin-bottom:4px;">Columns, in any order (matched by header)</div><b>Quarter</b>: 2024Q1, 2024 Q1 or a quarter-end date. <b>Product</b>, <b>Measure</b>: your own names. <b>Value</b>: the rate. <b>Units</b>: percent, decimal or bps (blank means the default on Internal). <b>CRR grade</b> (optional): the grade for that quarter. <b>System</b>, <b>Note</b> (optional): kept as is.</div>
+    </div>
+  </div>
+</div>
+</div>
+<div style="width:460px;display:flex;flex-direction:column;gap:18px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+  <div style="font:800 18px Archivo;">What this adds, and why</div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">1</b><div><b>A slot that takes the data as it comes.</b> Internal data is an Excel table in the bank's own names and units. Nothing has to be renamed before it is pasted, and no macro reads it: every view is formulas over that table.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">2</b><div><b>Map each name once.</b> Every product and measure name found in the file gets a yellow dropdown (a UNIQUE list over the table). Rows that are not mapped are counted in crimson, so nothing drops out unseen.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">3</b><div><b>Coverage at a glance.</b> A 7 × 5 grid shows how many quarters each series has. It turns green once there are enough to judge.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">4</b><div><b>The test that matters: do the ratings agree?</b> The internal value and each outside source are rated on that source's own lines from Decide. If they get the same rating in most quarters, and move together, the outside series is a fair stand-in for setting lines. Correlation and gap back that up.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">5</b><div><b>A verdict the analyst sets.</b> The three yellow cells in step 3 define "reliable", so the call stays theirs and can be read off the sheet.</div></div>
+  <div style="display:flex;gap:12px;"><b style="color:#CC0000;font:800 15px Archivo;">6</b><div><b>CRR grades, if they are there.</b> Map the grades onto the 1 to 5 ratings, and the workbook says how often the bank's own grades agree with the proposed lines.</div></div>
+  <div style="padding:14px 16px;background:#fff;border:1px solid #E4DFD5;font-size:14px;"><b>Assumption to confirm.</b> "Internal CRR data" is read here as the bank's own quarterly rates per consumer product, with an optional CRR grade per quarter. If it is loan-level instead, the slot stays the same but needs a roll-up step (a pivot or SUMIFS by quarter) before this tab.</div>
+  <div style="padding:14px 16px;background:#fff;border:1px solid #E4DFD5;font-size:14px;"><b>Constraint kept.</b> The pickers are plain dropdown cells, not slicers, so filtering never hides rows on this tab. The mapping dropdowns are data validation over UNIQUE spill ranges.</div>
+</div>
+</div>
+</section>
+
+<section id="reference" style="padding-top:64px;">
+<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;"><div style="font:800 26px Archivo;">Reference tabs</div><div style="font-size:15px;color:#57534B;">One quiet template for Evidence, Backtest, Sources, Glossary, Run, Data and the peer data tabs.</div></div>
+<div style="display:flex;gap:40px;align-items:flex-start;">
+<div style="width:1920px;display:flex;flex-direction:column;gap:28px;flex-shrink:0;">
+  <div style="background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);font:14.67px Calibri,Carlito,sans-serif;">
+    <div style="height:28px;background:#E4DFD5;display:flex;align-items:center;padding:0 14px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">Glossary · columns B 220 px (30.7) · C 640 px (90.7) · D 640 px (90.7), wrap on · freeze at B5</div>
+    <div style="padding:6px 0 18px 52px;">
+      <div style="height:34px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;color:#0A0908;">Glossary</div>
+      <div style="height:20px;width:1500px;display:flex;align-items:center;color:#57534B;border-bottom:2px solid #CC0000;">What each term means, and exactly how the workbook calculates it.</div>
+      <div style="height:12px;"></div>
+      <div style="width:1500px;display:grid;grid-template-columns:220px 640px 640px;font:700 12px Arial,sans-serif;color:#0A0908;background:#E4DFD5;border-bottom:1px solid #B9B4AC;height:24px;align-items:center;"><div style="padding:0 6px;">Term</div><div style="padding:0 6px;">What it means</div><div style="padding:0 6px;">How it is calculated</div></div>
+      <sc-for list="{{ gloss }}" as="g" hint-placeholder-count="8"><div style="width:1500px;display:grid;grid-template-columns:220px 640px 640px;border-bottom:1px solid #E4DFD5;line-height:1.3;"><div style="padding:4px 6px;font-weight:700;">{{ g.t }}</div><div style="padding:4px 6px;text-wrap:pretty;">{{ g.m }}</div><div style="padding:4px 6px;color:#57534B;text-wrap:pretty;">{{ g.h }}</div></div></sc-for>
+      <div style="height:30px;width:1500px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:2px solid #0A0908;margin-top:10px;">Peers terms (was the Peers glossary tab)</div>
+      <div style="width:1500px;padding:4px 6px;color:#57534B;font-style:italic;">The same three columns, continued below.</div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #B9B4AC;border-radius:6px;overflow:hidden;font:14.67px Calibri,Carlito,sans-serif;">
+    <div style="height:28px;background:#E4DFD5;display:flex;align-items:center;padding:0 14px;font:13px 'Segoe UI',Arial,sans-serif;color:#57534B;">Evidence · one block per series, two tables side by side under one series heading · numbers 0.00, z 0.0</div>
+    <div style="padding:6px 0 18px 52px;font-variant-numeric:tabular-nums;">
+      <div style="height:34px;display:flex;align-items:flex-end;font:700 18.67px Arial,sans-serif;color:#0A0908;">Evidence for each judgement</div>
+      <div style="height:20px;width:1820px;display:flex;align-items:center;color:#57534B;border-bottom:2px solid #CC0000;">How unusual each stretch is: worse than the median, and away from trend. Read by Decide's "What the history suggests".</div>
+      <div style="height:14px;"></div>
+      <div style="height:24px;width:1820px;display:flex;align-items:flex-end;padding:0 2px 3px;font:700 14.67px Arial,sans-serif;color:#0A0908;border-bottom:1px solid #0A0908;">Credit card · Net charge-offs · Industry (every bank)</div>
+      <div style="display:grid;grid-template-columns:76px 76px 64px 76px 64px 90px 250px 30px 90px 76px 120px 110px 64px 120px 80px;width:1820px;">
+        <div style="grid-column:1/8;font:700 12px Arial,sans-serif;color:#57534B;padding:4px 6px 2px;">Spells worse than the median</div><div></div><div style="grid-column:9/16;font:700 12px Arial,sans-serif;color:#57534B;padding:4px 6px 2px;">Temporary departures from trend</div>
+        <sc-for list="{{ evHead }}" as="h" hint-placeholder-count="15"><div style="background:{{ h.bg }};font:700 11px/1.15 Arial,sans-serif;color:#0A0908;padding:4px 6px;border-bottom:1px solid #B9B4AC;text-align:{{ h.al }};display:flex;align-items:flex-end;justify-content:{{ h.jc }};">{{ h.t }}</div></sc-for>
+        <sc-for list="{{ evCells }}" as="h" hint-placeholder-count="45"><div style="padding:3px 6px;border-bottom:1px solid #E4DFD5;text-align:{{ h.al }};white-space:nowrap;overflow:hidden;color:{{ h.c }};">{{ h.t }}</div></sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="width:460px;display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+  <div style="font:800 18px Archivo;">One template, every reference tab</div>
+  <div><b>Row 1</b> title (Arial 14 bold ink, 25.5 pt row). <b>Row 2</b> one-line purpose (Calibri 11 slate, red rule below). <b>Row 4</b> header: mist fill, Arial 9 bold ink, stone rule below. Freeze panes under the header and after the label column.</div>
+  <div><b>Body</b> Calibri 11 on 15 pt rows, hairline mist rules between rows, no fills, no stripes. Numbers right-aligned in 0.00. Wrap is on only in text columns.</div>
+  <div><b>Series blocks</b> (Evidence, Backtest, Sources) start with an Arial 11 bold heading over an ink rule, and leave one blank row between blocks.</div>
+  <div style="font:800 15px Archivo;margin-top:6px;">Per tab</div>
+  <sc-for list="{{ refTabs }}" as="r" hint-placeholder-count="7"><div style="display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:14px;border-top:1px solid #DAD4CA;padding-top:8px;"><b>{{ r.t }}</b><div>{{ r.d }}</div></div></sc-for>
+</div>
+</div>
+</section>
+
+<section id="tokens" style="padding-top:64px;">
+<div style="font:800 26px Archivo;margin-bottom:6px;">Token sheet</div>
+<div style="font-size:15px;color:#57534B;margin-bottom:22px;">For keybank_style.py and each tab's layout(). Widths in Excel character units (Calibri 11: units = (px − 5) ÷ 7); heights in points (px × 0.75).</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:36px;align-items:start;">
+  <div>
+    <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#CC0000;margin-bottom:8px;">Colours</div>
+    <sc-for list="{{ tokColors }}" as="t" hint-placeholder-count="20"><div style="display:grid;grid-template-columns:28px 120px 80px 1fr;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #DAD4CA;font-size:14px;"><div style="width:28px;height:20px;background:{{ t.hex }};border:1px solid #B9B4AC;"></div><b>{{ t.n }}</b><span style="font-family:Consolas,monospace;">{{ t.hex }}</span><span style="color:#57534B;">{{ t.u }}</span></div></sc-for>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:30px;">
+    <div>
+      <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#CC0000;margin-bottom:8px;">Type</div>
+      <sc-for list="{{ tokType }}" as="t" hint-placeholder-count="10"><div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #DAD4CA;font-size:14px;"><b>{{ t.n }}</b><span>{{ t.v }}</span></div></sc-for>
+    </div>
+    <div>
+      <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#CC0000;margin-bottom:8px;">Number formats</div>
+      <sc-for list="{{ tokFmt }}" as="t" hint-placeholder-count="8"><div style="display:grid;grid-template-columns:150px 170px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #DAD4CA;font-size:14px;"><b>{{ t.n }}</b><span style="font-family:Consolas,monospace;">{{ t.f }}</span><span style="color:#57534B;">{{ t.e }}</span></div></sc-for>
+    </div>
+    <div>
+      <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#CC0000;margin-bottom:8px;">Conditional formatting</div>
+      <sc-for list="{{ tokCF }}" as="t" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #DAD4CA;font-size:14px;"><b>{{ t.n }}</b><span>{{ t.v }}</span></div></sc-for>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:30px;">
+    <div>
+      <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#CC0000;margin-bottom:8px;">Decide grid: columns · rows</div>
+      <sc-for list="{{ tokGrid }}" as="t" hint-placeholder-count="14"><div style="display:grid;grid-template-columns:110px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #DAD4CA;font-size:14px;"><b>{{ t.n }}</b><span>{{ t.v }}</span></div></sc-for>
+    </div>
+    <div>
+      <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#CC0000;margin-bottom:8px;">Slicers and charts</div>
+      <sc-for list="{{ tokChart }}" as="t" hint-placeholder-count="12"><div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #DAD4CA;font-size:14px;"><b>{{ t.n }}</b><span>{{ t.v }}</span></div></sc-for>
+    </div>
+  </div>
+</div>
+</section>
+
+<section id="cuts" style="padding-top:64px;max-width:1500px;">
+<div style="font:800 26px Archivo;margin-bottom:16px;">What I would cut, and why</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 48px;font-size:16px;line-height:1.5;text-wrap:pretty;">
+  <div><b>Six peer tabs</b> (Peers delinquency, balances, pack as a visible tab, lagged, normalisation, mix). Their views live on the one Peers dashboard and follow its filters. Nothing to flip to.</div>
+  <div><b>Peers glossary and Peers run as tabs.</b> They become sections of Glossary and Run, so there is one place to look up a term.</div>
+  <div><b>The paragraphs under Decide's chart and settings.</b> Each becomes a one-line note below the fold; the full text is already in Glossary.</div>
+  <div><b>The header filter arrows on Decide's table.</b> The slicers do the filtering, and the arrows covered the header words.</div>
+  <div><b>Gridlines on Decide's chart.</b> The rating shading and the labels at the right edge already give the scale; gridlines under opaque shading never show anyway.</div>
+  <div><b>Repeated product names</b> on Summary and Thresholds. They are hidden by formatting, not deleted, so filters and formulas are untouched.</div>
+  <div><b>Kept on purpose:</b> the "Every quarter" chart option, the "On a line" setting, and the Decision column in the sources table. Each answers a question the analyst asks.</div>
+  <div><b>Open question:</b> the lagged peer view. It is kept below the fold. If the analyst does not use it, it is the next thing to cut.</div>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;palette&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Proposed&quot;,&quot;Tonight&quot;],&quot;default&quot;:&quot;Proposed&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showFold&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const P=['Credit card','Mortgage','Home equity','Other consumer','Auto'];
+const M=['Net charge-offs','Gross charge-offs','30-89 days past due','90+ days past due and accruing','Nonaccrual','30+ days past due incl. nonaccrual','90+ days past due incl. nonaccrual'];
+const S=['Industry (every bank)','Peer group (15 banks)','KeyBank'];
+const SC={'Industry (every bank)':'#57534B','Peer group (15 banks)':'#0A0908','KeyBank':'#CC0000'};
+const NAMES=['','1 Low','2 Moderate-Low','3 Moderate','4 Moderate-High','5 High'];
+const PALS={Proposed:{cell:['','#E3EEDB','#EEF2D9','#FCEFC7','#F6C9A0','#E79A9A'],zone:['','#E9F1E3','#F2F5E3','#FCF3D6','#FAE0CA','#F4CBCB']},Tonight:{cell:['','#D9EAD3','#EBF1DE','#FCE8B2','#F8CBAD','#E6A0A0'],zone:['','#D9EAD3','#EBF1DE','#FCE8B2','#F8CBAD','#E6A0A0']}};
+const DEF={decision:'Not decided',w:'0.5',a:'1',z:'2.5',line:'worse',from:'',to:'',why:'',note:''};
+const op0=(list,v)=>list.map(x=>{const val=typeof x==='string'?x:x[0],t=typeof x==='string'?x:x[1];return{v:val,t,sel:val===v};});
+const KEY=(p,m,s)=>p+' - '+m+' - '+s;
+const med=a=>{const b=[...a].sort((x,y)=>x-y),n=b.length;return n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2;};
+const f2=x=>x==null||!isFinite(x)?'':(Math.abs(x)<0.005?0:x).toFixed(2);
+const sg=x=>x==null||!isFinite(x)?'':(x>=0.005?'+':'')+f2(x);
+const fl2=x=>Math.floor(x*100-1e-9)/100, ce2=x=>Math.ceil(x*100+1e-9)/100;
+const pct=(arr,p)=>{const a=[...arr].sort((x,y)=>x-y);if(!a.length)return null;const i=(a.length-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return a[lo]+(a[hi]-a[lo])*(i-lo);};
+const ord=n=>n+(n%100>=11&&n%100<=13?'th':['th','st','nd','rd'][n%10]||'th');
+const letters=n=>Array.from({length:n},(_,i)=>String.fromCharCode(65+i));
+function nice(lo,hi,n){if(!(hi>lo))hi=lo+1;const st0=(hi-lo)/n,mag=Math.pow(10,Math.floor(Math.log10(st0))),r=st0/mag;const st=(r<1.5?1:r<3?2:r<7?5:10)*mag;const a=Math.floor(lo/st+1e-9)*st,b=Math.ceil(hi/st-1e-9)*st;const t=[];for(let v=a;v<=b+st/2;v+=st)t.push(+v.toFixed(10));return{a,b,t};}
+function chart(o){
+  const h=React.createElement,W=o.w,H=o.h,ml=o.ml||46,mr=o.mr||14,mt=o.legend?26:10,mb=24;
+  const n=o.labels.length,pw=W-ml-mr,ph=H-mt-mb;const vals=[];
+  o.lines.forEach(l=>l.vals.forEach(v=>v!=null&&isFinite(v)&&vals.push(v)));
+  (o.bands||[]).forEach(b=>{if(b.fit){[b.lo,b.hi].forEach(arr=>Array.isArray(arr)&&arr.forEach(v=>v!=null&&isFinite(v)&&vals.push(v)));}});
+  (o.extra||[]).forEach(v=>isFinite(v)&&vals.push(v));
+  let lo=Math.min(...vals),hi=Math.max(...vals);if(!vals.length){lo=0;hi=1;}
+  if(o.floor0&&lo>=0)lo=0;const pad=(hi-lo)*0.05||0.05;const nn=nice(o.floor0&&lo===0?0:lo-pad,hi+pad,o.ticks||5);
+  const X=i=>ml+(n<=1?0:i*pw/(n-1)),Y=v=>mt+ph-(Math.max(nn.a,Math.min(nn.b,v))-nn.a)/(nn.b-nn.a)*ph;
+  const g=(arr,i)=>Array.isArray(arr)?arr[i]:arr;const els=[];
+  (o.bands||[]).forEach((b,bi)=>{let seg=[];const flush=()=>{if(seg.length>1){const top=seg.map(i=>X(i)+','+Y(g(b.hi,i))).join(' ');const bot=seg.slice().reverse().map(i=>X(i)+','+Y(g(b.lo,i))).join(' ');els.push(h('polygon',{key:'b'+bi+'_'+seg[0],points:top+' '+bot,fill:b.color,stroke:'none'}));}seg=[];};
+    for(let i=0;i<n;i++){const a=g(b.lo,i),c=g(b.hi,i);if(a==null||c==null||isNaN(a)||isNaN(c))flush();else seg.push(i);}flush();});
+  if(o.grid)nn.t.forEach(t=>els.push(h('line',{key:'g'+t,x1:ml,x2:ml+pw,y1:Y(t),y2:Y(t),stroke:'#E4DFD5',strokeWidth:0.75})));
+  nn.t.forEach(t=>els.push(h('text',{key:'gt'+t,x:ml-6,y:Y(t)+4,textAnchor:'end',fontSize:12,fill:'#57534B'},o.fmt?o.fmt(t):t)));
+  if(nn.a<0&&nn.b>0)els.push(h('line',{key:'z0',x1:ml,x2:ml+pw,y1:Y(0),y2:Y(0),stroke:'#57534B',strokeWidth:0.75}));
+  els.push(h('line',{key:'xa',x1:ml,x2:ml+pw,y1:mt+ph,y2:mt+ph,stroke:'#B9B4AC',strokeWidth:0.75}));
+  (o.refs||[]).forEach((r,ri)=>els.push(h('line',{key:'r'+ri,x1:ml,x2:ml+pw,y1:Y(r.y),y2:Y(r.y),stroke:r.color,strokeWidth:1,strokeDasharray:'4 3'})));
+  const tick=o.tick||4;for(let i=n-1;i>=0;i-=tick)els.push(h('text',{key:'x'+i,x:X(i),y:H-6,textAnchor:'middle',fontSize:12,fill:'#57534B'},o.labels[i]));
+  const DA={dash:'7 4',sysDot:'2 3',sysDash:'4 3'};
+  o.lines.forEach((l,li)=>{let d='',pen=false;l.vals.forEach((v,i)=>{if(v==null||!isFinite(v)){pen=false;return;}d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);pen=true;});
+    els.push(h('path',{key:'l'+li,d,fill:'none',stroke:l.color,strokeWidth:l.w||1.5,strokeDasharray:DA[l.dash]||null,strokeLinejoin:'round'}));
+    if(l.endDot){let j=l.vals.length-1;while(j>=0&&l.vals[j]==null)j--;if(j>=0)els.push(h('circle',{key:'d'+li,cx:X(j),cy:Y(l.vals[j]),r:3.5,fill:l.color}));}});
+  (o.rlabels||[]).forEach((r,ri)=>{if(r.y>=nn.a&&r.y<=nn.b)els.push(h('text',{key:'rl'+ri,x:ml+pw+6,y:Y(r.y)+4,fontSize:12,fill:'#57534B'},r.t));});
+  if(o.legend){let x=ml;o.lines.filter(l=>l.name).forEach((l,li)=>{els.push(h('line',{key:'lg'+li,x1:x,x2:x+24,y1:10,y2:10,stroke:l.color,strokeWidth:l.w||1.5,strokeDasharray:DA[l.dash]||null}));els.push(h('text',{key:'lt'+li,x:x+30,y:14,fontSize:12,fill:'#16130F'},l.name));x+=40+l.name.length*6.6;});}
+  return h('svg',{width:W,height:H,viewBox:'0 0 '+W+' '+H,style:{display:'block',fontFamily:'Calibri,Carlito,sans-serif'}},els);
+}
+const INT='#2F5D50';
+const guessP=n=>{const s=(n||'').toLowerCase();return /card/.test(s)?'Credit card':/heloc|home ?eq/.test(s)?'Home equity':/mtg|mortg|resi/.test(s)?'Mortgage':/auto|vehic/.test(s)?'Auto':/oth|other|cons/.test(s)?'Other consumer':'';};
+const guessM=n=>{const s=(n||'').toLowerCase();return /incl/.test(s)&&/30/.test(s)?'30+ days past due incl. nonaccrual':/incl/.test(s)&&/90/.test(s)?'90+ days past due incl. nonaccrual':/90/.test(s)?'90+ days past due and accruing':/30.?89/.test(s)?'30-89 days past due':/non.?acc/.test(s)?'Nonaccrual':/net|nco/.test(s)?'Net charge-offs':/gross|gco/.test(s)?'Gross charge-offs':'';};
+const normQ=s=>{s=(s||'').trim();let m=s.match(/^(\d{4})\s*-?\s*Q([1-4])$/i);if(m)return m[1]+'Q'+m[2];m=s.match(/^(\d{4})-(\d{1,2})-\d{1,2}$/);if(m)return m[1]+'Q'+Math.ceil(+m[2]/3);m=s.match(/^(\d{1,2})\/\d{1,2}\/(\d{4})$/);if(m)return m[2]+'Q'+Math.ceil(+m[1]/3);return '';};
+function parseInternal(t){const L=(t||'').trim().split(/\r?\n/).filter(x=>x.trim());if(L.length<2)return{rows:[],cols:[]};const sp=L[0].includes('\t')?'\t':',';const H=L[0].split(sp).map(x=>x.trim().toLowerCase());
+  const f=re=>H.findIndex(h=>re.test(h));const ix={q:f(/quarter|period|date/),p:f(/product|portfolio/),m:f(/measure|metric/),v:f(/value|rate/),u:f(/unit/),g:f(/crr|grade/),sy:f(/system|source/),n:f(/note/)};
+  const rows=L.slice(1).map(l=>{const c=l.split(sp).map(x=>x.trim());const g=k=>ix[k]>=0?c[ix[k]]:'';return{q:normQ(g('q')),rq:g('q'),p:g('p'),m:g('m'),v:parseFloat(g('v')),u:g('u'),g:parseFloat(g('g')),sy:g('sy'),n:g('n')};});return{rows,ix};}
+const corr=(a,b)=>{const n=a.length;if(n<3)return NaN;const ma=a.reduce((s,x)=>s+x,0)/n,mb=b.reduce((s,x)=>s+x,0)/n;let c=0,va=0,vb=0;for(let i=0;i<n;i++){c+=(a[i]-ma)*(b[i]-mb);va+=(a[i]-ma)**2;vb+=(b[i]-mb)**2;}return c/Math.sqrt(va*vb);};
+const ICODE={'Credit card':'CARD','Mortgage':'RES MTG','Home equity':'HELOC','Other consumer':'OTH CONS','Auto':'AUTO INDIRECT'};
+const MCODE={'Net charge-offs':'NCO RATE TTM','Gross charge-offs':'GCO RATE TTM','30-89 days past due':'DPD30_89','90+ days past due and accruing':'DPD90_ACCR','Nonaccrual':'NONACCRUAL','30+ days past due incl. nonaccrual':'DPD30_INCL_NA','90+ days past due incl. nonaccrual':'DPD90_INCL_NA'};
+class Component extends DCLogic {
+  state={D:null,PD:null,G:null,sel:{p:'Credit card',m:'Nonaccrual',s:'KeyBank'},rows:{},on:{},win:'48',pp:'Credit card',pa:'Worst in pack',pb:'Best in pack',pwin:'48',out:{},pco:'Net',pdm:'30-89',pdb:'quarter-end',prk:'net',pn:'8',pk:'6',pneed:'5',ipaste:'',imapP:{},imapM:{},ithr:{ov:'12',ag:'70',cc:'0.6',unit:'percent'},igr:['1','3','5','7','9'],ipick:{p:'Credit card',m:'Net charge-offs',ls:'KeyBank'}};
+  componentDidMount(){
+    Promise.all(['data/series.json','data/peers.json','data/glossary.json'].map(u=>fetch(u).then(r=>r.json()))).then(([D,PD,G])=>{
+      this.setState({D,PD,G},()=>{this.sample=this.makeSample();this.setState({ipaste:this.sample});});});
+  }
+  makeSample(){const D=this.state.D;this._c={};const out=['Quarter,Product,Measure,Value,Units,CRR grade,System'];const s0=D.q.indexOf('2012Q1');
+    P.forEach((p,pi)=>M.forEach((m,mi)=>{const c=this.calc(KEY(p,m,'KeyBank'));const v=c.v;for(let i=s0;i<v.length;i++){if(v[i]==null)continue;let x=v[i]*(1+0.14*Math.sin(i*0.55+pi+mi))+0.04*(v[i]||0.2)*Math.cos(i*1.7+mi*2);
+      const g=c.ok?Math.min(10,Math.max(1,2*c.rate(x)-1+((i+mi)%3===0?1:0))):'';const dec=p==='Auto';out.push([D.q[i],ICODE[p],MCODE[m],dec?(x/100).toFixed(6):x.toFixed(4),dec?'decimal':'percent',g,'Sample']. join(','));}}));return out.join('\n');}
+  calc(k){
+    if(this._c[k])return this._c[k];const D=this.state.D;const st={...DEF,...(this.state.rows[k]||{})};const v=D.s[k],q=D.q;
+    const w=parseFloat(st.w),a=parseFloat(st.a),z=parseFloat(st.z);
+    const lo=st.from&&st.to?(st.from<=st.to?[st.from,st.to]:[st.to,st.from]):null;
+    const keep=v.map((x,i)=>x!=null&&!(lo&&q[i]>=lo[0]&&q[i]<=lo[1]));const xs=v.filter((x,i)=>keep[i]);
+    const ch=[];for(let i=4;i<v.length;i++)if(keep[i]&&keep[i-4])ch.push(v[i]-v[i-4]);
+    const m=xs.length?med(xs):NaN,mc=ch.length?med(ch):0,move=ch.length?1.4826*med(ch.map(c=>Math.abs(c-mc))):NaN,s=xs.length?1.4826*med(xs.map(x=>Math.abs(x-m))):NaN;
+    let mx=-Infinity,mq='';v.forEach((x,i)=>{if(keep[i]&&x>mx){mx=x;mq=q[i];}});
+    const L=[null,null,m-a*move,m-w*move,m+w*move,m+z*s];
+    let li=v.length-1;while(li>=0&&v[li]==null)li--;const latest=v[li],lq=q[li];
+    let reason='',fix='';
+    if([w,a,z].some(x=>!isFinite(x))){reason='a setting is blank or not a number.';fix='Type a number in each of the three settings.';}
+    else if(xs.length<12){reason='only '+xs.length+' quarters are kept; the lines need at least 12.';fix=lo?'Put back the period left out, or shorten it.':'This series is too short to set lines from its own history.';}
+    else if(!(move>0)||!(s>0)){reason='the series barely moves, so its lines would sit on top of each other.';fix='Use another source for this product and measure.';}
+    else if(w>=a){reason='Moderate would begin below Moderate-Low.';fix='Lower Width of Moderate below '+a+', or raise Moderate-Low begins above '+w+'.';}
+    else if(L[5]>mx){reason='High would begin beyond the worst quarter kept.';fix='Lower How rare High to '+f2(fl2((mx-m)/s))+' or less'+(lo?', or put back a period that went higher':'')+'.';}
+    else if(L[5]<=L[4]){reason='High would begin inside Moderate-High.';fix='Raise How rare High to '+f2(ce2(w*move/s))+' or more.';}
+    else if(L[2]<=0){reason='Moderate-Low would begin at or below zero.';fix='Lower Moderate-Low begins to '+f2(fl2(m/move))+' or less.';}
+    const ok=!reason,worse=st.line!=='better';
+    const rate=x=>{let r=1;for(let j=2;j<=5;j++)if(worse?x>=L[j]:x>L[j])r=j;return r;};
+    const rating=ok&&latest!=null?rate(latest):0;const cnt=[0,0,0,0,0,0];if(ok)v.forEach((x,i)=>{if(keep[i])cnt[rate(x)]++;});
+    return this._c[k]={k,st,v,keep,m,move,s,mx,mq,L,latest,lq,ok,reason,fix,rating,cnt,n:xs.length,lo,rate};
+  }
+  chip(c,pal){return c.ok?{t:NAMES[c.rating],bg:pal.cell[c.rating],fg:'#0A0908'}:{t:'Refused',bg:'#F4F1EC',fg:'#960019'};}
+  tabs(active){const T=[['Decide','#0A0908'],['Summary','#0A0908'],['Peers','#0A0908'],['Thresholds','#0A0908'],['Internal','#0A0908'],['Evidence','#B9B4AC'],['Backtest','#B9B4AC'],['Glossary','#B9B4AC'],['Sources','#B9B4AC'],['Run','#B9B4AC'],['Data','#E4DFD5'],['Peers data','#E4DFD5'],['Peers delinquency data','#E4DFD5'],['Internal data','#E4DFD5']];
+    return T.map(([t,c])=>({t,c,bg:t===active?'#fff':'#F3F2F1',fw:t===active?700:400}));}
+  renderVals(){
+    const pal=PALS[this.props.palette==='Tonight'?'Tonight':'Proposed'];const showFold=this.props.showFold??true;
+    const base={showFold,lettersD:letters(17),lettersS:letters(21),lettersP:letters(17),lettersT:letters(16),
+      tabsD:this.tabs('Decide'),tabsS:this.tabs('Summary'),tabsP:this.tabs('Peers'),tabsT:this.tabs('Thresholds'),
+      tabsBefore:['Summary','Decide','Thresholds','Peers','Peers delinquency','Peers balances','Peers pack','Peers lagged','Peers normalisation','Peers mix','Evidence','Backtest','Sources','Glossary','Peers glossary','Run','Peers run','Data','Peers data','Peers delinquency data'].map(t=>({t,c:/^Peers (delinquency|balances|pack|lagged|normalisation|mix|glossary|run)$/.test(t)?'#9A958C':'#16130F',d:/^Peers (delinquency|balances|pack|lagged|normalisation|mix|glossary|run)$/.test(t)?'line-through':'none'})),
+      tabsAfter:this.tabs('').map(t=>({t:t.t,c:t.c})),prodList:P,...this.tokens(pal)};
+    const D=this.state.D;if(!D||!this.state.PD)return base;this._c={};
+    const {sel}=this.state;const key=KEY(sel.p,sel.m,sel.s);const c=this.calc(key);
+    const set=(f)=>e=>{const v=e.target.value;this.setState(s=>({rows:{...s.rows,[key]:{...DEF,...s.rows[key],[f]:v}}}));};
+    const on={};Object.keys(DEF).forEach(f=>on[f]=set(f));
+    const btn=(list,cur,f)=>list.map(t=>({t,bg:t===cur?'#0A0908':'#fff',fg:t===cur?'#fff':'#16130F',bd:t===cur?'#0A0908':'#B9B4AC',on:()=>this.setState(s=>({sel:{...s.sel,[f]:t}}))}));
+    const idx=P.indexOf(sel.p)*21+M.indexOf(sel.m)*3+S.indexOf(sel.s);const selRow=9+idx;
+    const dRows=[1,2,3,4,5,6,7,8,selRow];for(let r=114;r<=150;r++)dRows.push(r);
+    const allKeys=[];P.forEach(p=>M.forEach(m=>S.forEach(s=>allKeys.push(KEY(p,m,s)))));
+    let acc=0,rej=0;allKeys.forEach(k=>{const d=(this.state.rows[k]||{}).decision;if(d==='Accept these lines')acc++;if(d==='Reject')rej++;});
+    const kbk=this.calc(KEY(sel.p,sel.m,'KeyBank')),pgk=this.calc(KEY(sel.p,sel.m,'Peer group (15 banks)'));const dd=kbk.latest-pgk.latest;
+    const head={title:sel.s+', '+sel.m.charAt(0).toLowerCase()+sel.m.slice(1)+', '+sel.p.toLowerCase()+': '+f2(c.latest)+'% in '+c.lq,
+      chip:c.ok?NAMES[c.rating]:'No rating: see the Check',bg:c.ok?pal.cell[c.rating]:'#F4F1EC',fg:c.ok?'#0A0908':'#960019',
+      diff:'KeyBank is '+f2(Math.abs(dd))+' points '+(dd>=0?'higher':'lower')+' than Peer group (15 banks).'};
+    const rTable=[1,2,3,4,5].map(r=>({name:NAMES[r],bg:pal.cell[r],begins:r===1?'the bottom':f2(c.L[r]),cnt:c.ok?c.cnt[r]:'',share:c.ok&&c.n?Math.round(c.cnt[r]/c.n*100)+'%':'',mark:c.ok&&c.rating===r?'◀ '+c.lq:''}));
+    const srcRows=S.map(s=>{const cc=this.calc(KEY(sel.p,sel.m,s));const ch=this.chip(cc,pal);return {name:s,color:SC[s],lineMark:s===sel.s?'━':'╍',latest:f2(cc.latest),chip:ch.t,bg:ch.bg,fg:ch.fg,decision:cc.st.decision,picked:s===sel.s,notPicked:s!==sel.s,on:this.state.on[s]?'Yes':'No',toggle:e=>{const v=e.target.value==='Yes';this.setState(st=>({on:{...st.on,[s]:v}}));}};});
+    const N=+this.state.win,q=D.q;const shown=[sel.s,...S.filter(s=>s!==sel.s&&this.state.on[s])];
+    let st0=Math.max(0,q.length-N);const firstAny=Math.min(...shown.map(s=>D.s[KEY(sel.p,sel.m,s)].findIndex(x=>x!=null)).filter(i=>i>=0));st0=Math.max(st0,firstAny);
+    const labels=q.slice(st0);const cut=a=>a.slice(st0);
+    const lines=[];shown.slice(1).forEach(s=>lines.push({vals:cut(D.s[KEY(sel.p,sel.m,s)]),color:SC[s],w:1.5,dash:'dash',name:s}));
+    lines.push({vals:cut(c.v.map((x,i)=>c.keep[i]?x:null)),color:SC[sel.s],w:2.5,name:sel.s+' (picked)'});
+    if(c.lo)lines.push({vals:cut(c.v.map((x,i)=>x!=null&&!c.keep[i]||(c.keep[i]&&(!c.keep[i-1]&&c.v[i-1]!=null||!c.keep[i+1]&&c.v[i+1]!=null))?x:null)),color:'#B9B4AC',w:2.5,name:'left out'});
+    lines.forEach(l=>{if(l.name==='left out')return;});
+    const L=c.L;const vis=[];lines.forEach(l=>l.vals.forEach(v=>v!=null&&vis.push(v)));const vmax=Math.max(...vis),vmin=Math.min(...vis);
+    const extra=[L[2],L[3],L[4]].filter(isFinite);if(isFinite(L[5])&&L[5]<=vmax+(vmax-vmin)*0.6)extra.push(L[5]);
+    const lw=c.L.every((x,i)=>i<2||isFinite(x));
+    const bands=lw?[[-Infinity,L[2]],[L[2],L[3]],[L[3],L[4]],[L[4],L[5]],[L[5],Infinity]].map((b,i)=>({lo:b[0],hi:b[1],color:pal.zone[i+1]})):[];
+    const tick=labels.length<=24?2:labels.length<=52?4:labels.length<=84?8:12;
+    const dChart=chart({w:1016,h:396,labels,bands,lines,extra,tick,mr:110,fmt:t=>t.toFixed(2),legend:true,
+      rlabels:lw?[2,3,4,5].map(r=>({y:L[r],t:NAMES[r].split(' ')[0]+' from '+f2(L[r])})):[]});
+    const winName={20:'last 20 quarters',48:'last 48 quarters',80:'last 80 quarters',999:'every quarter'}[N];
+    const cur=c.st;
+    const cx={...c,bad:!c.ok,mT:f2(c.m),moveT:f2(c.move),mxT:f2(c.mx),nT:c.n+' quarters kept of '+c.v.filter(x=>x!=null).length,
+      leftText:c.lo?('Left out '+c.lo[0]+' to '+c.lo[1]+(cur.why?': '+cur.why:'')+'. Still drawn on the chart in grey; not used to set the lines.'):'Nothing left out: every quarter is kept. To leave a period out, type its first and last quarter and why in the yellow row.'};
+
+    // Summary
+    const cell=(p,m,first)=>{const k=this.calc(KEY(p,m,'KeyBank')),pg=this.calc(KEY(p,m,'Peer group (15 banks)')),ind=this.calc(KEY(p,m,'Industry (every bank)'));
+      return {prod:first?p:'',meas:m,kl:f2(k.latest),kb:this.chip(k,pal),diff:sg(k.latest-pg.latest),pl:f2(pg.latest),pb:this.chip(pg,pal),il:f2(ind.latest),ib:this.chip(ind,pal),bt:first?'1px solid #0A0908':'1px solid #EFEBE4',data:true};};
+    const kbAll=[];P.forEach(p=>M.forEach(m=>kbAll.push({p,m,c:this.calc(KEY(p,m,'KeyBank'))})));
+    const hot=kbAll.filter(x=>x.c.ok&&x.c.rating>=4).sort((a,b)=>b.c.rating-a.c.rating||b.c.latest-a.c.latest);const refN=kbAll.filter(x=>!x.c.ok).length;
+    const attn=[{head:true,t:'Needs your attention · KeyBank'}];
+    hot.slice(0,4).forEach(x=>attn.push({line:true,a:x.p+' · '+x.m,b:NAMES[x.c.rating],bg:pal.cell[x.c.rating],fg:'#0A0908',c:f2(x.c.latest)+'% in '+x.c.lq}));
+    if(hot.length>4)attn.push({line:true,a:'and '+(hot.length-4)+' more rated 4 or 5',b:'',bg:'#fff',fg:'#0A0908',c:''});
+    attn.push({line:true,a:refN+' of 35 KeyBank series',b:'Refused',bg:'#F4F1EC',fg:'#960019',c:'Each Check on Decide says what to change'});
+    const sRows=[];for(let i=0;i<21;i++){const Lc=cell(P[Math.floor(i/7)],M[i%7],i%7===0);let R;
+      if(i<14)R=cell(P[3+Math.floor(i/7)],M[i%7],i%7===0);else if(i===14)R={};else R=attn[i-15]||{};sRows.push({n:6+i,L:Lc,R});}
+    const sumCount='KeyBank: '+hot.length+' rated 4 or 5 · '+refN+' refused';
+
+    // Thresholds
+    const tRows=allKeys.map((k,i)=>{const cc=this.calc(k);const [p,m,s]=k.split(' - ');const fp=i%21===0,fm=i%3===0;const ch=this.chip(cc,pal);
+      return {n:5+i,prod:fp?p:'',meas:fm?m:'',src:s,sc:s==='KeyBank'?'#CC0000':'#16130F',m:f2(cc.m),move:f2(cc.move),mx:f2(cc.mx),l2:f2(cc.L[2]),l3:f2(cc.L[3]),l4:f2(cc.L[4]),l5:f2(cc.L[5]),lq:cc.lq,lv:f2(cc.latest),chip:ch,
+        dec:cc.st.decision,dw:cc.st.decision==='Not decided'?400:700,check:cc.ok?'OK':'Refused: '+cc.reason+' To fix: '+cc.fix,cc:cc.ok?'#57534B':'#960019',
+        bt:fp?'1px solid #0A0908':fm?'1px solid #E4DFD5':'1px solid transparent',mt:fp?'1px solid #0A0908':fm?'1px solid #E4DFD5':'1px solid transparent'};});
+
+    // Peers
+    const PD=this.state.PD,pp=this.state.pp,pq=PD.q;const banks=Object.keys(PD.co[pp]);const peers=banks.filter(b=>b!=='KeyBank');
+    const out=this.state.out;const inPack=peers.filter(b=>!out[b]);const PN=+this.state.pwin,ps=Math.max(0,pq.length-PN);const plab=pq.slice(ps),last=plab.length-1,lq=plab[last];
+    const coJ=this.state.pco==='Gross'?1:0;const dqP=PD.dq[pp]||{};const dmL=Object.keys(dqP);const dm=dqP[this.state.pdm]?this.state.pdm:dmL[0];const dJ=this.state.pdb==='four-quarter average'?1:0;
+    const coF=b=>(PD.co[pp][b]||[]).map(x=>x?x[coJ]:null),cbF=b=>(PD.co[pp][b]||[]).map(x=>x?x[2]:null);
+    const dqF=b=>((dqP[dm]||{})[b]||[]).map(x=>x?x[dJ]:null),dbF=b=>((dqP[dm]||{})[b]||[]).map(x=>x?x[2]:null);
+    const need=parseInt(this.state.pneed)||5,nQ=parseInt(this.state.pn)||8,minK=parseInt(this.state.pk)||6,rkJ=this.state.prk==='gross'?1:0;
+    const sc=inPack.map(b=>{const v=(PD.co[pp][b]||[]).slice(-nQ).map(x=>x?x[rkJ]:null).filter(x=>x!=null);return{b,n:v.length,m:v.length?v.reduce((s,x)=>s+x,0)/v.length:null};}).filter(x=>x.n>=minK);
+    const best=(sc.slice().sort((x,y)=>x.m-y.m)[0]||{}).b,worst=(sc.slice().sort((x,y)=>y.m-x.m)[0]||{}).b;
+    const res=v=>v==='Best in pack'?best:v==='Worst in pack'?worst:v;const A=res(this.state.pa),B=res(this.state.pb);
+    const stats=(vf,bf)=>{const V={},W={};[...inPack].forEach(b=>{V[b]=vf(b).slice(ps);W[b]=bf(b).slice(ps);});const o={p10:[],p25:[],p75:[],p90:[],comp:[],n:[]};
+      plab.forEach((_,i)=>{const bs=inPack.filter(b=>V[b][i]!=null);const vs=bs.map(b=>V[b][i]);const ok=vs.length>=need;o.n.push(vs.length);
+        ['p10','p25','p75','p90'].forEach(k=>o[k].push(ok?pct(vs,{p10:.1,p25:.25,p75:.75,p90:.9}[k]):null));
+        let sw=0,sv=0;bs.forEach(b=>{const w=W[b][i];if(w){sw+=w;sv+=w*V[b][i];}});o.comp.push(ok&&sw?sv/sw:null);});return o;};
+    const coS=stats(coF,cbF),dqS=stats(dqF,dbF);const ptick=plab.length<=24?2:plab.length<=52?8:16;
+    const pcut=a=>a.slice(ps);const di={};D.q.forEach((x,i)=>di[x]=i);
+    const indRaw=D.s[KEY(pp,coJ?'Gross charge-offs':'Net charge-offs','Industry (every bank)')];const ind=plab.map(x=>di[x]!=null?indRaw[di[x]]:null);
+    const bandsOf=s=>[{lo:s.p10,hi:s.p90,color:'#E4DFD5',fit:true},{lo:s.p25,hi:s.p75,color:'#CFC8BC'}];
+    const pChart=chart({w:910,h:352,labels:plab,bands:bandsOf(coS),grid:true,floor0:true,tick:ptick,fmt:t=>t.toFixed(1),legend:true,ml:40,
+      lines:[{vals:coS.comp,color:'#0A0908',w:2,name:'Pack composite'},{vals:ind,color:'#8C877E',w:1.5,name:'Industry'},{vals:pcut(coF(A)),color:'#57534B',w:1.5,dash:'dash',name:'Peer A: '+A},{vals:pcut(coF(B)),color:'#57534B',w:1.5,dash:'sysDot',name:'Peer B: '+B},{vals:pcut(coF('KeyBank')),color:'#CC0000',w:2.5,name:'KeyBank',endDot:true}]});
+    const dChart2=chart({w:910,h:352,labels:plab,bands:bandsOf(dqS),grid:true,floor0:true,tick:ptick,fmt:t=>t.toFixed(2),legend:true,ml:44,
+      lines:[{vals:dqS.comp,color:'#0A0908',w:2,name:'Pack composite'},{vals:pcut(dqF(A)),color:'#57534B',w:1.5,dash:'dash',name:'Peer A: '+A},{vals:pcut(dqF(B)),color:'#57534B',w:1.5,dash:'sysDot',name:'Peer B: '+B},{vals:pcut(dqF('KeyBank')),color:'#CC0000',w:2.5,name:'KeyBank',endDot:true}]});
+    const rankOf=(vf,bf,comp)=>{const r=[...inPack,'KeyBank'].map(b=>{const v=pcut(vf(b)),w=pcut(bf(b));return{b,v:v[last],v4:v[last-4],bl:w[last]};}).filter(x=>x.v!=null).sort((x,y)=>x.v-y.v);
+      return r.map((x,i)=>({rank:i+1,name:x.b+(x.b===A?'  · Peer A':x.b===B?'  · Peer B':''),rate:f2(x.v),vs:sg(x.v-comp),ch:sg(x.v-x.v4),bal:x.bl==null?'':(x.bl/1000).toFixed(1),inp:x.b==='KeyBank'?'—':'Yes',bg:x.b==='KeyBank'?'#F4F1EC':'#fff',fw:x.b==='KeyBank'?700:400,fg:x.b==='KeyBank'?'#CC0000':'#16130F',isK:x.b==='KeyBank'}));};
+    const coR=rankOf(coF,cbF,coS.comp[last]),dqR=rankOf(dqF,dbF,dqS.comp[last]);const kc=coR.find(x=>x.isK),kd=dqR.find(x=>x.isK);
+    const coK=[{l:'KeyBank',v:kc?kc.rate:'—',s:'in '+lq},{l:'Pack composite',v:f2(coS.comp[last]),s:coS.n[last]+' banks in, '+lq},{l:"KeyBank's rank",v:kc?kc.rank+' of '+coR.length:'—',s:'1 = the lowest rate'},{l:'Industry',v:f2(ind[last]),s:'every filer, '+lq}];
+    const dqK=[{l:'KeyBank',v:kd?kd.rate:'—',s:'at '+lq},{l:'Pack composite',v:f2(dqS.comp[last]),s:dqS.n[last]+' banks in, '+lq},{l:"KeyBank's rank",v:kd?kd.rank+' of '+dqR.length:'—',s:'1 = the lowest rate'},{l:'Banks with a rate',v:String(dqS.n[last]),s:'switched on, '+lq}];
+    const bal=b=>pcut(cbF(b)).map(x=>x==null?null:x/1000);
+    const pBook=chart({w:390,h:160,labels:plab,lines:[{vals:bal('KeyBank'),color:'#CC0000',w:2},{vals:bal(A),color:'#57534B',w:1.25,dash:'dash'},{vals:bal(B),color:'#57534B',w:1.25,dash:'sysDot'}],grid:true,floor0:true,tick:ptick*2,fmt:t=>t.toFixed(0),ml:36});
+    const relOf=b=>pcut(coF(b)).map((v,i)=>v!=null&&coS.comp[i]?v/coS.comp[i]:null);
+    const pRel=chart({w:508,h:160,labels:plab,refs:[{y:1,color:'#8C877E'}],lines:[{vals:relOf('KeyBank'),color:'#CC0000',w:2},{vals:relOf(A),color:'#57534B',w:1.25,dash:'dash'},{vals:relOf(B),color:'#57534B',w:1.25,dash:'sysDot'}],grid:true,tick:ptick*2,fmt:t=>t.toFixed(1),ml:36,extra:[1]});
+    const tot=plab.map((_,i)=>P.reduce((s,p)=>{const x=(PD.co[p].KeyBank||[])[ps+i];return s+(x&&x[2]?x[2]:0);},0));
+    const order=[pp,...P.filter(p=>p!==pp)];const greys=['#57534B','#8C877E','#B9B4AC','#DAD4CA'];let cum=plab.map(()=>0);const mixB=[];
+    order.forEach((p,j)=>{const lo=cum.slice();const hi=cum.map((c0,i)=>{const x=(PD.co[p].KeyBank||[])[ps+i];return tot[i]?c0+(x&&x[2]?x[2]:0)/tot[i]*100:null;});mixB.push({lo:lo.map((v,i)=>tot[i]?v:null),hi,color:j===0?'#CC0000':greys[j-1]});cum=hi.map(v=>v||0);});
+    const pMix=chart({w:910,h:160,labels:plab,bands:mixB,lines:[],extra:[0,100],tick:ptick*2,fmt:t=>t.toFixed(0)+'%',ml:44});
+    const winTxt={20:'last 20 quarters',48:'last 48 quarters',999:'every quarter'}[PN];
+    const pk={prod:pp,lastQ:lq,A,B,coK,dqK,coR,dqR,
+      coTitle:'Charge-offs: '+pp.toLowerCase()+', '+this.state.pco.toLowerCase()+' rate, trailing four quarters (%)',
+      dqTitle:'Delinquency: '+pp.toLowerCase()+', '+dm+', '+(dJ?'four-quarter average':'quarter-end')+' (%)',
+      bestTxt:'Best in pack: '+(best||'none')+'. Worst in pack: '+(worst||'none')+'. Only banks switched on are ranked; Peer A and B are drawn either way.',
+      packCells:peers.map(b=>({b,opts:[{v:'Yes',t:'Yes',sel:!out[b]},{v:'No',t:'No',sel:!!out[b]}],on:e=>{const v=e.target.value==='No';this.setState(s=>({out:{...s.out,[b]:v}}));}})),
+      onProd:e=>this.setState({pp:e.target.value}),onA:e=>this.setState({pa:e.target.value}),onB:e=>this.setState({pb:e.target.value}),onWin:e=>this.setState({pwin:e.target.value}),
+      onCo:e=>this.setState({pco:e.target.value}),onDm:e=>this.setState({pdm:e.target.value}),onDb:e=>this.setState({pdb:e.target.value}),onRk:e=>this.setState({prk:e.target.value}),
+      onN:e=>this.setState({pn:e.target.value}),onK:e=>this.setState({pk:e.target.value}),onNeed:e=>this.setState({pneed:e.target.value}),n:this.state.pn,k:this.state.pk,need:this.state.pneed,
+      winTxt};
+    const peerOpts=['Worst in pack','Best in pack',...peers];
+    pk.O={prod:op0(P,pp),co:op0(['Net','Gross'],this.state.pco),a:op0(peerOpts,this.state.pa),b:op0(peerOpts,this.state.pb),win:op0([['20','Last 20 quarters'],['48','Last 48 quarters'],['999','Every quarter']],this.state.pwin),dm:op0(dmL,dm),db:op0(['quarter-end','four-quarter average'],this.state.pdb),rk:op0(['net','gross'],this.state.prk)};
+    const pRowsN=Array.from({length:64},(_,i)=>i+1);
+    const gloss=(this.state.G||[]).map(r=>({t:r[0],m:r[1],h:r[2]}));
+
+    const op=(list,v)=>list.map(x=>{const val=typeof x==='string'?x:x[0],t=typeof x==='string'?x:x[1];return{v:val,t,sel:val===v};});
+    const O={dec:op(['Not decided','Accept these lines','Reject'],cur.decision),line:op(['worse','better'],cur.line),from:op(['',...q],cur.from),to:op(['',...q],cur.to),
+      win:op([['20','Last 20 quarters'],['48','Last 48 quarters'],['80','Last 80 quarters'],['999','Every quarter']],this.state.win)};
+    srcRows.forEach(r=>r.opts=op(['No','Yes'],r.on));
+    tRows.forEach(r=>{if(r.check!=='OK'){const k=allKeys[r.n-5];r.check='To fix: '+this.calc(k).fix;}r.cw=r.check==='OK'?400:700;});
+    const IN=this.internal(pal,op);
+    return {...base,...IN,O,sel,cur,on,c:cx,head,selRow,dRows,qOpts:['',...q],pBtns:btn(P,sel.p,'p'),mBtns:btn(M,sel.m,'m'),sBtns:btn(S,sel.s,'s'),
+      decidedText:'Decided: '+(acc+rej)+' of 105 · accepted '+acc+' · rejected '+rej,unit:'%',rTable,srcRows,win:this.state.win,onWin:e=>this.setState({win:e.target.value}),
+      chartTitle:'The history over the five rating zones · '+winName,dChart,lastQ:c.lq,sRows,sumCount,tRows,pk,pChart,dChart2,pBook,pRel,pMix,pRowsN,gloss};
+  }
+  internal(pal,op){
+    const D=this.state.D,q=D.q,st=this.state;const IT=st.ipaste||'';const parsed=parseInternal(IT);
+    const thr={ov:parseFloat(st.ithr.ov)||12,ag:parseFloat(st.ithr.ag)||70,cc:parseFloat(st.ithr.cc)||0.6,unit:st.ithr.unit||'percent'};
+    const iP=[...new Set(parsed.rows.map(r=>r.p).filter(Boolean))],iM=[...new Set(parsed.rows.map(r=>r.m).filter(Boolean))];
+    const mapP=n=>st.imapP[n]??guessP(n),mapM=n=>st.imapM[n]??guessM(n);
+    const qi={};q.forEach((x,i)=>qi[x]=i);const IS={},IG={};let unm=0;
+    parsed.rows.forEach(r=>{const p=mapP(r.p),m=mapM(r.m),i=qi[r.q];if(!p||!m||i==null||!isFinite(r.v)){unm++;return;}const pm=p+' - '+m;const u=(r.u||thr.unit).toLowerCase();const f=/dec/.test(u)?100:/bp|basis/.test(u)?0.01:1;
+      (IS[pm]??=Array(q.length).fill(null))[i]=r.v*f;if(isFinite(r.g))(IG[pm]??=Array(q.length).fill(null))[i]=r.g;});
+    const low=st.igr.map(x=>parseFloat(x));const g2r=g=>{let r=1;for(let j=2;j<=5;j++)if(isFinite(low[j-1])&&g>=low[j-1])r=j;return r;};
+    const VC={'Reliable for setting lines':{bg:'#E1EAE6',fg:'#1E4637'},'Use with care':{bg:pal.cell[3],fg:'#0A0908'},'Not reliable':{bg:'#F4F1EC',fg:'#960019'},'Too few quarters':{bg:'#fff',fg:'#57534B'},'Its lines are refused':{bg:'#F4F1EC',fg:'#960019'}};
+    const rel=(p,m,s)=>{const iv=IS[p+' - '+m];if(!iv)return null;const cs=this.calc(KEY(p,m,s)),ev=cs.v;const ix=[];for(let i=0;i<q.length;i++)if(iv[i]!=null&&ev[i]!=null)ix.push(i);
+      const lev=corr(ix.map(i=>iv[i]),ix.map(i=>ev[i]));const c4=ix.filter(i=>iv[i-4]!=null&&ev[i-4]!=null);const chc=corr(c4.map(i=>iv[i]-iv[i-4]),c4.map(i=>ev[i]-ev[i-4]));
+      const gap=ix.length?ix.reduce((a,i)=>a+iv[i]-ev[i],0)/ix.length:NaN;let ag=NaN,w1=NaN;if(cs.ok&&ix.length){ag=ix.filter(i=>cs.rate(iv[i])===cs.rate(ev[i])).length/ix.length*100;w1=ix.filter(i=>Math.abs(cs.rate(iv[i])-cs.rate(ev[i]))<=1).length/ix.length*100;}
+      const verdict=ix.length<thr.ov?'Too few quarters':!cs.ok?'Its lines are refused':ag>=thr.ag&&chc>=thr.cc?'Reliable for setting lines':ag>=thr.ag*0.75?'Use with care':'Not reliable';
+      return{n:ix.length,lev,chc,gap,ag,w1,verdict,vc:VC[verdict]};};
+    const ip=st.ipick,has=Object.keys(IS).length>0,pmk=ip.p+' - '+ip.m,iv=IS[pmk];
+    const relRows=S.map(s=>rel(ip.p,ip.m,s));const pc=x=>isFinite(x)?Math.round(x)+'%':'—',c2=x=>isFinite(x)?x.toFixed(2):'—';
+    const metric=(t,fn,good)=>({t,a:relRows.map(r=>r?fn(r):'—'),good});
+    const relT=[metric('Quarters both have',r=>r.n,'at least '+thr.ov),metric('Level correlation',r=>c2(r.lev),'near 1'),metric('Change correlation (4 quarters)',r=>c2(r.chc),'at least '+thr.cc.toFixed(2)),metric('Average gap (internal − source)',r=>isFinite(r.gap)?sg(r.gap):'—','near 0 (points)'),metric('Ratings that agree',r=>pc(r.ag),'at least '+thr.ag+'%'),metric('Within one rating',r=>pc(r.w1),'near 100%')];
+    const verd=relRows.map(r=>r?{t:r.verdict,...r.vc}:{t:'No internal data',bg:'#fff',fg:'#57534B'});
+    let iChart=null,iTitle='Internal against the outside data';
+    const ls=ip.ls,lc=this.calc(KEY(ip.p,ip.m,ls));
+    if(iv){let f0=iv.findIndex(x=>x!=null);f0=Math.max(f0,q.length-48);const cut=a=>a.slice(f0);const labels=q.slice(f0);const L=lc.L;const lw=lc.ok;
+      const bands=lw?[[-Infinity,L[2]],[L[2],L[3]],[L[3],L[4]],[L[4],L[5]],[L[5],Infinity]].map((b,i)=>({lo:b[0],hi:b[1],color:pal.zone[i+1]})):[];
+      const lines=S.map(s=>({vals:cut(D.s[KEY(ip.p,ip.m,s)]),color:SC[s],w:1.5,dash:s==='KeyBank'?'dash':s==='Peer group (15 banks)'?'sysDash':'sysDot',name:s==='KeyBank'?'KeyBank (Call Report)':s}));
+      lines.push({vals:cut(iv),color:INT,w:2.5,name:'Internal (your data)'});
+      const vis=[];lines.forEach(l=>l.vals.forEach(v=>v!=null&&vis.push(v)));const vmax=Math.max(...vis),vmin=Math.min(...vis);const extra=lw?[L[2],L[3],L[4]].concat(L[5]<=vmax+(vmax-vmin)*0.6?[L[5]]:[]):[];
+      iChart=chart({w:1110,h:352,labels,bands,lines,extra,tick:labels.length<=24?2:4,mr:110,fmt:t=>t.toFixed(2),legend:true,rlabels:lw?[2,3,4,5].map(r=>({y:L[r],t:NAMES[r].split(' ')[0]+' from '+f2(L[r])})):[]});
+      iTitle=ip.p+' · '+ip.m+': internal against the outside data · shading from '+ls+"'s lines";}
+    const ig=IG[pmk];let gradeAg='';if(ig&&iv&&lc.ok){const ix=[];for(let i=0;i<q.length;i++)if(ig[i]!=null&&iv[i]!=null)ix.push(i);if(ix.length)gradeAg='Your CRR grades agree with the rating from '+ls+"'s lines in "+Math.round(ix.filter(i=>g2r(ig[i])===lc.rate(iv[i])).length/ix.length*100)+'% of '+ix.length+' quarters.';}
+    else if(!ig)gradeAg='No CRR grades for this series.';else if(!lc.ok)gradeAg="The lines from "+ls+" are refused; fix them on Decide first.";
+    const pad=(arr,n)=>{const a=arr.slice(0,n);while(a.length<n)a.push({blank:true});return a;};
+    const mapPR=pad(iP.map(n=>({n,has:true,opts:op(['',...P],mapP(n)),on:e=>{const v=e.target.value;this.setState(s=>({imapP:{...s.imapP,[n]:v}}));}})),7);
+    const mapMR=pad(iM.map(n=>({n,has:true,opts:op(['',...M],mapM(n)),on:e=>{const v=e.target.value;this.setState(s=>({imapM:{...s.imapM,[n]:v}}));}})),7);
+    mapPR.forEach(r=>r.none=!r.has);mapMR.forEach(r=>r.none=!r.has);
+    const MS=['Net charge-offs','Gross charge-offs','30-89 days','90+ accruing','Nonaccrual','30+ incl. nonaccrual','90+ incl. nonaccrual'];
+    const cov=M.map((m,mi)=>({t:MS[mi],cells:P.map(p=>{const a=IS[p+' - '+m];const n=a?a.filter(x=>x!=null).length:0;const sel=p===ip.p&&m===ip.m;return{t:n?n:'—',bg:sel?INT:n>=thr.ov?'#E1EAE6':'#fff',fg:sel?'#fff':n?'#16130F':'#9A958C',on:()=>this.setState(s=>({ipick:{...s.ipick,p,m}}))};})}));
+    const allRows=[];P.forEach(p=>M.forEach(m=>{const a=IS[p+' - '+m];if(!a)return;const rs=S.map(s=>rel(p,m,s));const best=rs.map((r,i)=>({r,i})).filter(x=>x.r&&isFinite(x.r.ag)).sort((x,y)=>y.r.ag-x.r.ag)[0];
+      allRows.push({p,m,n:a.filter(x=>x!=null).length,ag:rs.map(r=>r?pc(r.ag):'—'),best:best?S[best.i]:'None: every line is refused',v:best?{t:best.r.verdict,...best.r.vc}:{t:'—',bg:'#fff',fg:'#57534B'}});}));
+    const allR=pad(allRows,35).map((r,i)=>({...r,rn:35+i,show:!r.blank,first:i===0&&!allRows.length}));
+    const prev=parsed.rows.slice(0,12).map(r=>({...r,v:isFinite(r.v)?r.v:'',g:isFinite(r.g)?r.g:'',mp:mapP(r.p)||'not mapped',mm:mapM(r.m)||'not mapped'}));
+    const iRowsN=Array.from({length:69},(_,i)=>i+1);
+    return {iHas:has,iNone:!has,iChart,iTitle,relT,verd,gradeAg,mapPR,mapMR,cov,allR,iNoRows:!allRows.length,prev,iRowsN,lettersI:letters(17),tabsI:this.tabs('Internal'),
+      ipaste:IT,isSample:IT===this.sample&&!!IT,onPaste:e=>this.setState({ipaste:e.target.value}),loadSample:()=>this.setState({ipaste:this.sample}),clearPaste:()=>this.setState({ipaste:''}),
+      iCount:parsed.rows.length,iUnm:unm,iUnmBad:unm>0,iUnmOk:!unm,thr:st.ithr,onThr:k=>e=>{const v=e.target.value;this.setState(s=>({ithr:{...s.ithr,[k]:v}}));},
+      onThrOv:e=>this.setState({ithr:{...st.ithr,ov:e.target.value}}),onThrAg:e=>this.setState({ithr:{...st.ithr,ag:e.target.value}}),onThrCc:e=>this.setState({ithr:{...st.ithr,cc:e.target.value}}),
+      unitOpts:op(['percent','decimal','bps'],thr.unit),onUnit:e=>this.setState({ithr:{...st.ithr,unit:e.target.value}}),
+      gr:[1,2,3,4,5].map(r=>({name:NAMES[r],bg:pal.cell[r],v:st.igr[r-1],on:e=>{const v=e.target.value;this.setState(s=>{const g=[...s.igr];g[r-1]=v;return{igr:g};});}})),
+      ipO:{p:op(P,ip.p),m:op(M,ip.m),ls:op(S,ls)},onIP:k=>e=>{const v=e.target.value;this.setState(s=>({ipick:{...s.ipick,[k]:v}}));},
+      onIPp:e=>this.setState({ipick:{...ip,p:e.target.value}}),onIPm:e=>this.setState({ipick:{...ip,m:e.target.value}}),onIPls:e=>this.setState({ipick:{...ip,ls:e.target.value}})};
+  }
+  tokens(pal){
+    const H=(t,al)=>({t,al:al||'left',jc:al==='right'?'flex-end':'flex-start',bg:'#E4DFD5'});
+    const evHead=[H('Spell from'),H('Peak quarter'),H('Peak','right'),H('Peak ÷ median','right'),H('Robust z','right'),H('Years per spell this bad','right'),H('Note'),{t:'',al:'left',jc:'flex-start',bg:'#fff'},H('First quarter'),H('Last quarter'),H('Worse or better'),H('Average distance from trend','right'),H('Robust z','right'),H('Rank among windows'),H('Window (quarters)','right')];
+    const rows=[['2007Q2','2010Q2','10.33','2.73','12.1','19.75','','','2009Q3','2011Q1','worse than trend','2.22','6.6','1 of 71','8'],['2019Q2','2020Q2','3.89','1.03','0.1','6.58','','','2021Q3','2023Q1','better than trend','-0.73','-2.0','1 of 44','8'],['2024Q1','2025Q1','4.63','1.23','1.0','9.88','still under way at the last observation','','2017Q1','2018Q3','worse than trend','0.12','0.5','1 of 15','8']];
+    const right=new Set([2,3,4,5,11,12,14]);const evCells=[];rows.forEach(r=>r.forEach((t,i)=>evCells.push({t,al:right.has(i)?'right':'left',c:i===6?'#57534B':'#16130F'})));
+    return {evHead,evCells,
+      refTabs:[{t:'Evidence',d:'Series blocks; the two tables sit side by side under one heading. Freeze at B4.'},{t:'Backtest',d:'One row per series; Product, Measure and Source split as on Thresholds; correlation 0.00 with a stone-to-ink colour scale, no red.'},{t:'Sources',d:'Series blocks: File in bold, then its notes, wrapped at 120 characters (column C, 120 units).'},{t:'Glossary',d:'Three columns; Peers terms as a second section under a heading.'},{t:'Run',d:'Key and value, with "This build" first; Peers run as a second section.'},{t:'Data',d:'Quarter in column A, frozen; one series per column, 0.0000; headers wrap to three lines (45 pt row).'},{t:'Peers data',d:'An Excel table with banded rows off; $000 as #,##0; rates as 0.00; Kept as 1/blank.'}],
+      tokColors:[{n:'INK',hex:'#0A0908',u:'Titles, header fill, Peer group line, picked slicer button'},{n:'INK_TEXT',hex:'#16130F',u:'Body text'},{n:'SLATE',hex:'#57534B',u:'Secondary text; Industry line; Peer B'},{n:'STONE',hex:'#B9B4AC',u:'Borders, slicer edge, left-out stretch'},{n:'MIST',hex:'#E4DFD5',u:'Hairlines, reference headers, pack band'},{n:'CANVAS',hex:'#F4F1EC',u:'Refused fill, OK band, KeyBank row'},{n:'PAPER',hex:'#FFFFFF',u:'Sheet'},{n:'KEY_RED',hex:'#CC0000',u:'KeyBank line, title rule, KeyBank header top rule'},{n:'CRIMSON',hex:'#960019',u:'Refused text and band rule'},{n:'INPUT',hex:'#FFF2CC',u:'Every input cell, nothing else'},{n:'INPUT_EDGE (new)',hex:'#D6B656',u:'Thin border on input cells'},{n:'REFUSE_BAND (new)',hex:'#F8E3E1',u:'Decide Check band when refused'},{n:'R1 cell',hex:pal.cell[1],u:'1 Low'},{n:'R2 cell',hex:pal.cell[2],u:'2 Moderate-Low'},{n:'R3 cell',hex:pal.cell[3],u:'3 Moderate'},{n:'R4 cell',hex:pal.cell[4],u:'4 Moderate-High'},{n:'R5 cell',hex:pal.cell[5],u:'5 High'},{n:'Z1–Z5 chart',hex:pal.zone[3],u:'Chart zones, a step lighter than cells: '+pal.zone.slice(1).join(' ')},{n:'MEDIAN (new)',hex:'#8C877E',u:'Pack median line'}],
+      tokType:[{n:'Title',v:'Arial 16 bold INK; row 1 = 25.5 pt'},{n:'Subtitle',v:'Calibri 11 SLATE; medium KEY_RED bottom border; 15 pt'},{n:'Section heading',v:'Arial 11 bold INK; medium INK bottom border'},{n:'Table header',v:'Arial 9 bold PAPER on INK, wrap, vertical centre'},{n:'Label',v:'Arial 9 bold SLATE'},{n:'Body',v:'Calibri 11 INK_TEXT'},{n:'Input',v:'Calibri 11 bold (numbers, picks); regular for text'},{n:'Headline',v:'Arial 14 bold INK; rating chip Arial 12 bold'},{n:'Check band',v:'Arial 12 bold; "Refused: …" CRIMSON, "To fix: …" INK'},{n:'Summary',v:'Calibri 13 (KeyBank bold), Calibri 11 for peer and industry'},{n:'Note',v:'Calibri 10 SLATE'}],
+      tokFmt:[{n:'Rates, lines',f:'0.00',e:'0.69 (label says %)'},{n:'Difference',f:'+0.00;-0.00;0.00',e:'+0.68'},{n:'Settings',f:'0.0#',e:'0.5 · 2.5'},{n:'Share',f:'0%',e:'31%'},{n:'Counts',f:'0',e:'17'},{n:'Balance $bn',f:'#,##0.0',e:'12.4'},{n:'Ratio to median',f:'0.00"×"',e:'1.06×'},{n:'Quarter',f:'@ (text)',e:'2026Q2'}],
+      tokCF:[{n:'Rating cells',v:'Formula rules =$X=1 … =$X=5 → fill R1 … R5, font INK; stop if true'},{n:'Refused',v:'="Refused" (or LEFT 7) → fill CANVAS, font CRIMSON bold; thin border E0B4B4'},{n:'Check band',v:'=LEFT($B$116,7)="Refused" → fill REFUSE_BAND, top and bottom borders CRIMSON'},{n:'Decision',v:'"Accept these lines" → bold INK; "Reject" → bold SLATE'},{n:'Repeated names',v:'=B7=B6 → font PAPER (hidden, still filterable)'},{n:'Peers rank',v:'=$K12="KeyBank" → fill CANVAS, font KEY_RED bold'}],
+      tokGrid:[{n:'A',v:'16 px · 1.57 · gutter'},{n:'B · C · D',v:'120 / 150 / 130 px · 16.43 / 20.71 / 17.86 · Product, Measure, Source'},{n:'E',v:'130 px · 17.86 · Decision'},{n:'F · G · H',v:'84 px · 11.29 · the three settings'},{n:'I',v:'74 px · 9.86 · On a line'},{n:'J · K',v:'80 px · 10.71 · Leave out from, to'},{n:'L · M',v:'200 / 220 px · 27.86 / 30.71 · Why, Note'},{n:'N',v:'110 px · 15.00 · Check status'},{n:'O · P · Q',v:'100 / 100 / 106 px · 13.57 / 13.57 / 14.43'},{n:'Rows 1–3',v:'25.5 · 15 · 6 pt'},{n:'Rows 4–6',v:'19.5 pt each; the slicers float over B4:Q6'},{n:'Row 8 · 9–113',v:'27 pt header · 34.5 pt per series row'},{n:'Rows 115 · 116',v:'30 pt headline · 25.5 pt Check band'},{n:'Rows 118–136',v:'16.5 pt; chart over B119:K136 (1016 × 396 px)'}],
+      tokChart:[{n:'Slicer style',v:'SlicerStyleOther2; columns Product 3, Measure 4, Source 3 (Decide only); button height 0.25 in; caption on'},{n:'Decide zones',v:'Stacked area: transparent base at the axis floor, then 5 bands Z1–Z5, no border, gap 0'},{n:'Picked line',v:'2.5 pt solid in its source colour, no markers, smooth off'},{n:'Other sources',v:'1.5 pt dash (prstDash "dash") in source colour'},{n:'Left out',v:'2.5 pt STONE, a separate series that has values only in the period'},{n:'Line labels',v:'4 hidden series at the 2–5 lines; data label on the last point, position right, Calibri 9 SLATE: "4 from 0.33"'},{n:'Axes',v:'Y 0.00, auto min and max over the OFFSET range; X tick label skip 2 / 4 / 8 / 12 for 20 / 48 / 80 / every quarter; Calibri 9 SLATE; axis line STONE 0.75 pt'},{n:'Gridlines',v:'Decide: none. Peers: major Y only, MIST 0.5 pt'},{n:'Key',v:'Legend at the top; delete the zone and helper entries so only lines show'},{n:'Peers main',v:'Band: base p10 with no fill, plus p90 − p10 in MIST; median 1.25 pt; Peer A INK dash; Peer B SLATE sysDot; KeyBank KEY_RED 2.5 pt with a 6 pt circle marker on the last point'},{n:'Small charts',v:'Lines 2 / 1.25 pt; ratio chart has a dashed MEDIAN reference line at 1; the mix chart is a 100% stacked area, the picked product in KEY_RED and the rest stone greys'},{n:'Chart frame',v:'No border, no fill on the plot area; Calibri 9 everywhere'}]};
+  }
+}
+</script>
+</body>
+</html>

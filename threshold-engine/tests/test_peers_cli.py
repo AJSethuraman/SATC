@@ -33,11 +33,11 @@ BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "
          "--products"] + FOUR + [
     "--mergers", str(PEERS / "mergers_roster.json"),
     "--absorptions", str(PEERS / "absorptions_none.json"), "--extra-acquisitions", "6672=2022Q2",
-    "--industry-combined", "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "1000000", "--exempt-self", "yes", "--pack", "all",
+    "--industry-combined", "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "1000000", "--exempt-self", "yes", "--pro-forma", "no", "--pack", "all",
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
     "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
-    "--delinquency", "no"]
+    "--delinquency", "no", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json")]
 
 MEASURE = ["--name", "Net charge-offs", "--unit", "%", "--direction", "higher_is_worse",
            "--frequency", "quarterly", "--smoothing", "1", "--floor-at-zero", "yes",
@@ -86,7 +86,7 @@ def built(tmp_path_factory, data):
 def test_build_writes_the_workbook_and_six_series_per_product(built):
     assert built["rc"] == 0
     wb = load_workbook(built["out"])
-    assert wb.sheetnames[:2] == ["Pack", "Peers"] and "Run" in wb.sheetnames
+    assert wb.sheetnames == list(peers_workbook.TABS) and wb["Workings"].sheet_state == "hidden"
     names = sorted(p.name for p in built["series"].glob("*.csv"))
     assert len(names) == 4 * 8
     for slug in ("credit-card", "mortgage", "home-equity", "other-consumer"):
@@ -107,6 +107,57 @@ def test_each_peers_own_book_is_written_to_banks_with_its_notes(built):
     assert any("JPMorgan (certificate 628), its own book, a peer." in n for n in notes)
     assert any("Absorptions under common control" in n and "None in these quarters." in n for n in notes)
     assert any("6.b, other revolving credit plans" in n for n in notes)
+
+
+def test_every_series_notes_the_reporting_changes_touching_it(built):
+    """The firm, 16 Oct 2026: "Definitely mark reporting changes." Each file
+    `peers build` writes carries a reporting-change note for every change in
+    config/reporting-changes.json that touches its product and measure within
+    its quarters; the others are not there. Other consumer: the NDFI and
+    margin-loan revision over its three quarters, and the 2011 auto split
+    linked to the file's own note rather than said again; credit card: no
+    NDFI, and FAS 166 and 167 linked to its Securitized cards note; a peer's
+    own book the same as the pack's."""
+    from threshold_engine import reporting_changes as RC
+    changes = RC.load(ROOT / "config" / "reporting-changes.json")
+
+    def notes(name):
+        return [l[2:] for l in (built["series"] / name).read_text(encoding="utf-8").splitlines()
+                if l.startswith("# reporting-change: ")]
+
+    def head(lines):
+        return [l.split(". ")[0] for l in lines]
+    oc = notes("other-consumer_industry_net.csv")
+    assert head(oc) == ["reporting-change: 2008Q1, Loans classified as trading",
+                        "reporting-change: 2010Q1, Securitizations back on the books (FAS 166 and 167)",
+                        "reporting-change: 2011Q1, Auto loans get their own line",
+                        "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans",
+                        "reporting-change: 2024Q4 to 2025Q2, NDFI and margin-loan revision"]
+    assert 'The note above that says "Auto was inside 6.d until 2011Q1" describes this change.' in oc[2]
+    ndfi = next(c for c in changes if c["name"] == "NDFI and margin-loan revision")
+    assert oc[4].endswith("%s Source: %s." % (ndfi["what_changed"], RC.cited(ndfi)))
+    card = notes("credit-card_industry_net.csv")
+    assert not any("NDFI" in l for l in card)
+    assert head(card) == ["reporting-change: 2008Q1, Loans classified as trading",
+                          "reporting-change: 2010Q1, Securitizations back on the books (FAS 166 and 167)",
+                          "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans"]
+    assert 'The note above that says "Securitized cards" describes this change.' in card[1]
+    assert sum("Securitized cards: before 2010" in l
+               for l in (built["series"] / "credit-card_industry_net.csv").read_text(encoding="utf-8").splitlines()) == 1
+    mortgage = notes("mortgage_industry_net.csv")
+    assert head(mortgage) == ["reporting-change: 2008Q1, Loans classified as trading",
+                              "reporting-change: 2013Q2, Real estate breakdown for the whole bank",
+                              "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans"]
+    assert notes("banks/other-consumer_jpmorgan_net.csv")[-1] == oc[-1]
+    # Within its quarters only: a file starting after a break carries only the changes from its first quarter.
+    for name in sorted(p.name for p in built["series"].glob("*.csv")):
+        lines = (built["series"] / name).read_text(encoding="utf-8").splitlines()
+        dates = [l[:10] for l in lines if l[:1].isdigit()]
+        first, last = (quarter_end(d) for d in (dates[0], dates[-1]))
+        for l in lines:
+            if l.startswith("# reporting-change: "):
+                took = RC.quarters_in_notes([("reporting-change", l[len("# reporting-change: "):])])
+                assert any(first <= quarter_end(q) <= last for q in took), (name, l[:40])
 
 
 def test_a_cache_without_the_parent_is_refused_by_build(data, tmp_path, monkeypatch, capsys):
@@ -251,10 +302,10 @@ def test_a_badly_formed_declared_acquisition_is_refused(built, tmp_path, capsys)
 #: Every flag `peers build` takes. Each is a judgement or a location, and none has a default.
 BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--products", "--mergers",
                "--absorptions", "--extra-acquisitions", "--industry-combined", "--jump",
-               "--acquisition-share", "--min-book", "--exempt-self",
+               "--acquisition-share", "--min-book", "--exempt-self", "--pro-forma",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
-               "--mix-base-year", "--delinquency"]
+               "--mix-base-year", "--delinquency", "--reporting-changes"]
 
 
 def without(args, flag):
@@ -438,11 +489,11 @@ def test_every_stated_setting_reaches_the_workbook(built, tmp_path, monkeypatch,
     assert out.exists() and not (tmp_path / "p.part.xlsx").exists()
 
 
-def test_a_declared_acquisition_reaches_the_balances_tab(built):
-    """Fifth Third's Dividend Finance (2022Q2) is listed as declared."""
-    ba = load_workbook(built["out"])["Balances"]
-    cells = [str(c.value) for row in ba.iter_rows() for c in row if c.value is not None]
-    assert any("2022Q2 (declared)" in c for c in cells)
+def test_a_declared_acquisition_reaches_the_run_tab(built):
+    """Fifth Third's Dividend Finance (2022Q2) is listed as declared among its
+    acquisition quarters, which the book index takes out."""
+    rows = {r[1]: r[1:] for r in load_workbook(built["out"])["Run"].iter_rows(values_only=True) if r and r[1]}
+    assert "2022Q2 (declared)" in rows["Fifth Third"][1]
 
 
 def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
@@ -467,9 +518,16 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     assert [d for d, _ in rows] == [d for d, v in kept if v is not None][-len(rows):]
     assert len(rows) < 30                     # exempt, the card series runs 2018Q1 to 2026Q2 (34)
     assert not any("exempt" in n for n in notes)
-    pk = load_workbook(out)["Pack"]
-    include = {str(r[1].value): r[3].value for r in pk.iter_rows(min_row=1) if str(r[1].value).isdigit()}
-    assert {c for c, v in include.items() if v is True} == set(regionals)
+    pe = load_workbook(out)["Peers"]
+    peers_ = R.peers(roster)
+    assert [pe.cell(pe[peers_workbook.include_cell(j)].row - 1, pe[peers_workbook.include_cell(j)].column).value
+            for j in range(len(peers_))] == [b["short"] for b in peers_]
+    # Every bank follows Banks in the pack, which starts on Regionals only, so
+    # the banks in are the regionals (JPMorgan starts off).
+    assert {pe[peers_workbook.include_cell(j)].value for j in range(len(peers_))} == {peers_workbook.FOLLOW}
+    assert pe[peers_workbook.picker_cell("pack")].value == peers_workbook.PACK_PICKS[1]
+    on = {b["cert"] for b in peers_ if b["regional"]}
+    assert on == set(regionals) and not peers_[0]["regional"]
 
 
 def test_a_series_that_ends_early_says_so(built, data, tmp_path, capsys):
@@ -736,7 +794,8 @@ def test_delinquency_yes_writes_every_product_measure_basis_and_series(dq_built)
     assert dq == want and len(dq) == 200
     assert len(names - dq) == 5 * 4 * 2
     wb = load_workbook(dq_built["out"])
-    assert "Delinquency" in wb.sheetnames and "DelinquencyData" in wb.sheetnames
+    assert wb["DelinquencyData"]["A1"].value == "Product"                 # built, not the not-built line
+    assert "dl_c" in wb["Peers"].defined_names
 
 
 def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
@@ -840,8 +899,10 @@ def test_delinquency_no_writes_none_and_the_tab_says_so(dq_cache, tmp_path, caps
     rc, out, series = build_into(tmp_path, cache, args)
     assert rc == 0, capsys.readouterr().err
     assert not list(series.glob("*_delinquency-*")) and len(list(series.glob("*.csv"))) == 8
-    cells = [str(c.value) for row in load_workbook(out)["Delinquency"].iter_rows() for c in row if c.value]
-    assert any(peers_workbook.NOT_BUILT in c for c in cells)
+    wb = load_workbook(out)
+    for tab in ("Peers", "DelinquencyData"):
+        cells = [str(c.value) for row in wb[tab].iter_rows() for c in row if c.value]
+        assert any(peers_workbook.NOT_BUILT in c for c in cells), tab
 
 
 def test_delinquency_yes_over_a_cache_pulled_without_it_is_refused(built, tmp_path, capsys):
@@ -909,20 +970,25 @@ def test_build_and_pull_are_peers_run(monkeypatch):
     assert a == ("o.xlsx",)
     assert k["delinquency"] is False and k["exempt_self"] is True and k["jump"] == 0.25
     assert k["extra_acquisitions"] == ["6672=2022Q2"] and k["industry_combined"] == []
-    assert set(k) == params - {"out", "say"}
+    # into and names say where the tabs go (another workbook, under other
+    # titles), as say does for lines: not settings, and not on the command line.
+    assert set(k) == params - {"out", "say", "into", "names"}
     assert kp == dict(cache="c", first="2026Q1", last="2026Q2", products=["Auto"], delinquency=True,
                       mergers_since="2005-10-01", refresh=False)
 
 
 def test_the_shared_body_defaults_nothing_but_where_lines_go():
     """Every setting of run.build and run.pull is required: the window cannot
-    fall back on a value nobody stated."""
+    fall back on a value nobody stated. What is defaulted says only where the
+    output goes: say, where lines go, and on build into and names, where the
+    peer tabs go (their own file unless a workbook is given), each None."""
     import inspect
     from threshold_engine.peers import run
-    for fn in (run.build, run.pull):
-        defaulted = [n for n, p in inspect.signature(fn).parameters.items()
-                     if p.default is not inspect.Parameter.empty]
-        assert defaulted == ["say"], fn.__name__
+    for fn, where in ((run.build, ["say", "into", "names"]), (run.pull, ["say"])):
+        params = inspect.signature(fn).parameters
+        defaulted = [n for n, p in params.items() if p.default is not inspect.Parameter.empty]
+        assert defaulted == where, fn.__name__
+        assert all(params[n].default is None for n in where if n != "say"), fn.__name__
 
 
 @pytest.mark.parametrize("key,value,says", [
@@ -930,6 +996,7 @@ def test_the_shared_body_defaults_nothing_but_where_lines_go():
     ("rank_by", "both", "--rank-by must be gross or net"),
     ("delinquency", "yes", "--delinquency must be stated, yes or no"),
     ("exempt_self", None, "--exempt-self must be stated"),
+    ("pro_forma", None, "--pro-forma must be stated"),
     ("min_banks", 2.5, "--min-banks must be a whole number"),
     ("jump", "0.25", "--jump must be a number"),
     ("products", ["Card"], "--products takes"),
@@ -944,9 +1011,10 @@ def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, va
                   first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
                   absorptions=PEERS / "absorptions_none.json", acquisition_share=0.05,
                   extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1e6,
-                  exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+                  exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
-                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
+                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
+                  reporting_changes=ROOT / "config" / "reporting-changes.json")
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
@@ -1150,9 +1218,10 @@ def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, sa
                   first="2006Q1", last="2026Q2", products=FOUR, mergers=PEERS / "mergers_roster.json",
                   absorptions=PEERS / "absorptions_none.json", acquisition_share=0.05,
                   extra_acquisitions=[], industry_combined=[], jump=0.25, min_book=1e6,
-                  exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+                  exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
-                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
+                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
+                  reporting_changes=ROOT / "config" / "reporting-changes.json")
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
@@ -1348,7 +1417,15 @@ MERGER_BUILD = [("--roster", None), ("--first", ["2018Q1"]), ("--last", ["2021Q4
 
 @pytest.fixture(scope="module")
 def merger_built(tmp_path_factory):
-    base = tmp_path_factory.mktemp("merger_build")
+    return merger_build(tmp_path_factory.mktemp("merger_build"), "no")
+
+
+@pytest.fixture(scope="module")
+def merger_built_pro_forma(tmp_path_factory):
+    return merger_build(tmp_path_factory.mktemp("merger_build_pro_forma"), "yes")
+
+
+def merger_build(base, pro_forma):
     cache = base / "cache"
     cache.mkdir()
     for q, rows in merger_cache().items():
@@ -1360,7 +1437,7 @@ def merger_built(tmp_path_factory):
                                 {"acquirer": "1", "absorbed": "300", "quarter": "2020-06-30"}])}
     for path, doc in files.values():
         path.write_text(json.dumps(doc), encoding="utf-8")
-    args = BUILD
+    args = with_value(BUILD, "--pro-forma", pro_forma)
     for flag, values in MERGER_BUILD:
         args = with_value(args, flag, *(values if values is not None else [str(files[flag][0])]))
     mp = pytest.MonkeyPatch()
@@ -1392,6 +1469,39 @@ def test_a_merger_quarter_counts_the_affiliates_year_to_date_once(merger_built):
     line = next(n for n in notes if n.startswith("Absorptions under common control"))
     assert "1 survivor-quarter" in line and "absorptions.json" in line
     assert "on the roster: KeyBank in 2019Q3." in line
+
+
+def test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out(merger_built_pro_forma):
+    """--pro-forma yes, the firm's choice (15 Oct 2026: "Pro forma (Recommended)").
+    P1 with its target: 5,000 + 500 every quarter, 50 + 10 charged off and
+    5 + 1 recovered, the target's from its own filings until P1's own filing
+    holds both. The book never moves, so no window is left out, and every
+    rate is 100 x 240 / 5,500 gross and 100 x 216 / 5,500 net. KeyBank with
+    its affiliate: 10,300, 106 and 11 every quarter, the affiliate's first
+    half counted once. The Data tab names who is added in each row."""
+    from threshold_engine.peers.books import WHY_ACQUIRED
+    built = merger_built_pro_forma
+    assert built["rc"] == 0
+    s = built["series"]
+    for who, g, r, bal in (("p1", 240, 24, 5500), ("keybank", 424, 44, 10300)):
+        for kind, num in (("gross", g), ("net", g - r)):
+            path = s / (("banks/credit-card_%s_%s.csv" if who == "p1" else "credit-card_%s_%s.csv") % (who, kind))
+            notes, rows = read_csv(path)
+            assert rows[0][0] == "2019-03-31" and len(rows) == 12, (who, kind)   # every TTM quarter
+            assert all(v == pytest.approx(100 * num / bal, abs=1e-12) for _, v in rows), (who, kind)
+            assert any("pro forma (each bank with the banks it absorbed)" in n for n in notes)
+    wb = load_workbook(built["out"])
+    da = wb["Data"]
+    head = [c.value for c in da[1]]
+    assert head[13:] == ["Quarter-end balance ($000)", "Combined with", "In the pack now"]
+    got = {(r[1], r[3]): (r[9], r[10], r[13], r[14]) for r in da.iter_rows(min_row=2, values_only=True)}
+    assert all(w != WHY_ACQUIRED for _, w, _, _ in got.values())
+    assert got["P1", "2020Q1"] == (True, None, 5500, "certificate 300, absorbed 2020Q2")
+    assert got["P1", "2021Q1"] == (True, None, 5500, None)                 # the target last filed 2020Q1
+    assert got["KeyBank", "2019Q4"][3] == "certificate 200, absorbed 2019Q3"
+    run = [str(c) for r in wb["Run"].iter_rows(values_only=True) for c in r if c]
+    assert any(x.startswith("Pro forma: yes.") for x in run)
+    assert any(x.startswith("Pro forma, P1: 1 bank added in: certificate 300 to 2020Q2") for x in run)
 
 
 def test_an_acquisition_at_the_share_leaves_its_windows_out(merger_built):

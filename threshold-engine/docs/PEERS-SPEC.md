@@ -171,30 +171,78 @@ Definitions, each a pure function over `books` and `data` output.
 ### `peers_workbook.py`: the peer workbook (Excel, PocketBook conventions)
 Written with openpyxl and `keybank_style` like `workbook.py`. The choices are
 live cells and the results are formulas wherever practical.
-- **Pack** (red tab): every roster peer with an Include cell (TRUE/FALSE,
-  starting from a required argument: all peers or regionals), its regional
-  flag, a product picker, and two picker cells (Peer A and Peer B), each taking
-  any peer, "Worst in pack" or "Best in pack".
-- **Peers:** for the picked product, gross and net charts. The pack band
-  (10th–90th and 25th–75th, live from the included peers through helper cells
-  holding the value or blank), the live pack composite (included flows over
-  included balances), KeyBank, Peer A and Peer B, and a caption naming who
-  best and worst resolved to.
-- **Balances:** balance index as reported and without acquisitions for every
-  bank (values from `analyses`), KeyBank highlighted, and the acquisition
-  quarters listed.
-- **Lagged, Normalisation, Mix:** tables of values from `analyses`.
-- **Data:** per bank, product and quarter: gross, recoveries, average balance,
-  rates, kept, why.
-- **Run:** sources, pull dates, the cache fingerprints, roster, and the rules
-  (jump, minimum book) as stated.
-- **Glossary:** this workbook's terms (structural move, pack, composite, band,
-  lagged rate, organic index, own factor). Add them as `PEER_TERMS` in a new
-  `peers/glossary.py`. **Do not edit `glossary.py`.**
+- **Peers** (ink tab), a dashboard, since 14 Oct 2026 (it replaced the Pack,
+  Peers, Delinquency, Balances, Lagged, Normalisation and Mix tabs), laid out
+  since 15 Oct 2026 to Claude Design's round 2 (`docs/design/round-2/README.md`,
+  "Peers"): column A 16 px, B-H 130 px (the charge-off panel), the gutter I
+  24 px, J-P 130 px (the delinquency panel), Q 8 px. Row 5 holds one yellow
+  cell per filter, never merged: B product, C the charge-off rate (net or
+  gross), D Peer A and E Peer B (Worst in pack, Best in pack or any peer; row 6
+  names the bank drawn), F what the charts show (the last 20 or 48 quarters,
+  or every quarter; only the picture), J the delinquency measure, K its basis.
+  Rows 8 and 9: each peer's name over its Yes/No (starting from a required
+  argument: all peers or regionals). The design draws fifteen across B:P,
+  which Excel's columns cannot hold (the gutter is 24 px); fourteen fit, so
+  each further fourteen take two more rows and move everything below down by
+  two (the public roster's fifteenth, Zions, sits in rows 10 and 11). Then the
+  ranking rule as a sentence with its yellow cells, and the best and worst it
+  finds. Each panel: a title, a strip of four numbers on canvas (KeyBank, the
+  pack composite, KeyBank's rank, and the industry or the banks with a rate),
+  and a 910 x 352 px chart (the band, 10th-90th in MIST and 25th-75th in
+  BAND_DARK, drawn as up-down bars because an area cannot leave a gap; the
+  pack composite INK 2 pt; the industry MEDIAN 1.5 pt, charge-offs only; Peer
+  A SLATE dash and Peer B SLATE dot, 1.5 pt; KeyBank KEY_RED 2.5 pt with a
+  6 pt circle on its last point drawn; legend at the top; Y gridlines MIST
+  0.5 pt). Below the fold: where each bank stands (a rank table per panel: the
+  banks switched on with a rate at the latest quarter, and KeyBank, by rate,
+  with the distance from the composite, the change over four quarters, the
+  balance and Peer A and B marked; KeyBank's row CANVAS and KEY_RED); book
+  size ($bn, KeyBank, Peer A and B); the charge-off rate over the pack
+  composite with a dashed line at 1; KeyBank's book by product (100% stacked
+  area, the product picked first, in KEY_RED); then the lagged rate (kept, the
+  firm, 15 Oct 2026), normalization, the mix against the industry (with Peer
+  A's and B's own factor) and the book index (KeyBank, Peer A, Peer B and the
+  pack median). Every view follows the same cells. The charts read OFFSET
+  names, so each draws only the quarters picked and its axis fits them.
+- **Workings** (hidden): the live helpers, and the per-year values the
+  lagged and mix views pick from by product.
+- **Data** (mist): per bank, product and quarter: gross, recoveries, average
+  balance, rates, kept, why, and the book index from the base (as reported
+  and without acquisitions). **DelinquencyData** (mist) likewise per measure.
+- **Run** (stone): sources, pull dates, the cache fingerprints, roster, and
+  the rules (jump, minimum book) as stated.
+- **Glossary** (stone): this workbook's terms (structural move, pack,
+  composite, band, lagged rate, organic index, own factor, the rank tables,
+  book size and the rest), `PEER_TERMS` in `peers/glossary.py`. **Do not edit
+  `glossary.py`.**
 - **Tests:** recalculated with `formulas` (as `tests/test_workbook.py` does).
   The live composite equals `books.composite` for the all-peers and regionals
-  packs; flipping one Include changes it to `books.composite` without that
-  bank; the band equals `books.band`.
+  packs; switching one bank off changes every pack figure, and the rank
+  table, to the module's without that bank; the band equals `books.band`.
+  `tests/test_peers_dashboard.py` holds every view against the
+  one-tab-per-view builder (642ff55f).
+- **Into another workbook** (added 14 Oct 2026, so the thresholds workbook and
+  the peers are one file built by Python alone, with no Excel at build time):
+  `build_peers_workbook(None, ..., into=wb, names={tab: title})`, and the same
+  two options on `peers.run.build`. The tabs go after `wb`'s own and nothing
+  is saved; the caller saves and runs `na_as_gap(path, info["sheets"])`, which
+  leaves the host's charts alone. `names` titles every tab in `TABS`. Since 15
+  Oct 2026 the Glossary and Run titles name the host's own tabs (`FOLDED`):
+  the peer glossary ("Peers terms") and run record ("Peers: ...") are written
+  into them as second sections after their content, at once if the host has
+  the tab, else when the host is saved (the book builds the peers before its
+  own Glossary and Run); `info["folded"]` names them. Any other title the host
+  already has is refused (its Data would otherwise be read by the peers'
+  formulas). Formulas name tabs only through `_Tabs`, and `foreign_refs`
+  stops the build if any reference on a peer tab names another tab. Proved by
+  `tests/test_peers_into.py`: into a host with its own Data, Glossary and Run
+  every peer cell recalculates to its standalone value, the folded sections
+  carry the standalone Glossary's and Run's rows, and the series CSVs `peers
+  build` writes are byte for byte the ones the builder it replaced wrote
+  (`tests/data/peers/peers_workbook_96ee5f2f.py`). Earlier pins, the
+  standalone file part for part as at d1e353a1 and the CSVs against the
+  one-tab-per-view builder, were each retired when the standalone output was
+  changed on purpose (14 and 15 Oct 2026).
 
 ### `cli.py` additions (the integration step, after the modules)
 - `threshold-engine peers pull --cache DIR --first 2006Q1 --last 2026Q2`
