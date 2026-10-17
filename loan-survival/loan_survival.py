@@ -563,7 +563,7 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
     if len(res):
         res["reading"] = np.select(
             [res["logrank_p"].isna(), res["logrank_p"] < 0.05],
-            ["not testable (fewer than two groups, no bad events, or the groups were never observed over the same months)", "groups differ (p < 0.05)"],
+            ["not testable (fewer than two groups, or no bad event happened while more than one group was still being followed)", "groups differ (p < 0.05)"],
             "difference could be chance (p >= 0.05)")
     return res, (pd.concat(curves, ignore_index=True) if curves else pd.DataFrame()), charts
 

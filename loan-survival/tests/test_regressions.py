@@ -264,7 +264,8 @@ def test_a_comparison_that_could_not_be_tested_says_so():
         r = ls.run(p, text, Path(tmp) / "o.xlsx")
     t = r["tests"]
     assert len(t) == 1 and pd.isna(t["logrank_p"].iloc[0]) and "not testable" in t["reading"].iloc[0]
-    assert "same months" in t["reading"].iloc[0]                      # the reason also covers groups that never overlap in time
+    assert "never observed over the same months" not in t["reading"].iloc[0]
+    assert "no bad event happened while more than one group was still being followed" in t["reading"].iloc[0]
 
 
 def test_excluded_sheet_shows_the_unreadable_text_not_a_blank():
