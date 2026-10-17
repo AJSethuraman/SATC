@@ -1,0 +1,39 @@
+1. FHFA all-transactions index below its level a year before: 20 quarters; 19 in 2007Q4-2012Q2; the others: 1982Q3
+
+2. Unemployment's four-quarter change against each loss measure's, together (same year)
+   Credit card, Net charge-offs                   from 2007Q4 to 2026Q2: 62 quarters, r +0.70, effective sample about 3.5
+   Credit card, Net charge-offs                   from 2012Q1 to 2026Q2: 45 quarters, r +0.60, effective sample about 1.9
+                                                  one change a year, ending Q1: 16 years, r +0.68; ending Q2: 16 years, r +0.62; ending Q3: 15 years, r +0.71; ending Q4: 15 years, r +0.79
+   Credit card, 30-89 days past due               from 2007Q4 to 2026Q2: 62 quarters, r +0.49, effective sample about 5.5
+   Credit card, 30-89 days past due               from 2012Q1 to 2026Q2: 45 quarters, r +0.48, effective sample about 3.6
+                                                  one change a year, ending Q1: 16 years, r +0.51; ending Q2: 16 years, r +0.52; ending Q3: 15 years, r +0.53; ending Q4: 15 years, r +0.40
+   Mortgage, 30+ days past due incl. nonaccrual   from 2007Q4 to 2026Q2: 62 quarters, r +0.92, effective sample about 2.8
+   Mortgage, 30+ days past due incl. nonaccrual   from 2012Q1 to 2026Q2: 45 quarters, r +0.80, effective sample about 2.1
+                                                  one change a year, ending Q1: 16 years, r +0.94; ending Q2: 16 years, r +0.87; ending Q3: 15 years, r +0.92; ending Q4: 15 years, r +0.94
+   Auto, 30+ days past due incl. nonaccrual       from 2012Q1 to 2026Q2: 45 quarters, r +0.20, effective sample about 5.8
+                                                  one change a year, ending Q1: 12 years, r +0.14; ending Q2: 12 years, r +0.23; ending Q3: 11 years, r +0.16; ending Q4: 10 years, r +0.35
+
+3. How a Stable band of +/-0.5 and +/-1 typical yearly moves sorts 2007Q4-2026Q2
+   Unemployment                       +/-0.5 (typical move 0.692): 29 decreasing, 22 stable, 12 increasing in 2 episodes: 2007Q4-2010Q1, 2024Q2-2024Q3
+   Unemployment                       +/-1.0 (typical move 0.692): 15 decreasing, 40 stable, 8 increasing in 1 episodes: 2008Q2-2010Q1
+   Initial jobless claims             +/-0.5 (typical move 2.73e+04): 36 decreasing, 18 stable, 11 increasing in 3 episodes: 2007Q4-2009Q3, 2023Q2-2023Q3, 2024Q4-2024Q4
+   Initial jobless claims             +/-1.0 (typical move 2.73e+04): 22 decreasing, 36 stable, 7 increasing in 1 episodes: 2008Q1-2009Q3
+   Credit card, Net charge-offs       +/-0.5 (typical move 0.826): 15 decreasing, 24 stable, 24 increasing in 3 episodes: 2007Q4-2010Q3, 2017Q2-2017Q4, 2023Q1-2025Q1
+   Credit card, Net charge-offs       +/-1.0 (typical move 0.826): 10 decreasing, 36 stable, 17 increasing in 2 episodes: 2008Q2-2010Q3, 2023Q2-2024Q4
+   Credit card, 30-89 days past due   +/-0.5 (typical move 0.188): 19 decreasing, 27 stable, 17 increasing in 3 episodes: 2007Q4-2009Q3, 2016Q4-2017Q3, 2023Q1-2024Q2
+   Credit card, 30-89 days past due   +/-1.0 (typical move 0.188): 12 decreasing, 39 stable, 12 increasing in 2 episodes: 2007Q4-2009Q3, 2023Q1-2024Q1
+
+4. The longer public series, unemployment together with net charge-offs
+   Credit card (Federal Reserve, all banks) 1986Q4-2026Q2: 146 quarters, r +0.67; rising-unemployment episodes: 1990Q3-1992Q3, 2001Q2-2003Q3, 2007Q4-2010Q2, 2024Q1-2025Q1
+                                            without 1990Q3-1992Q3 and the year after: r +0.67
+                                            without 2001Q2-2003Q3 and the year after: r +0.66
+                                            without 2007Q4-2010Q2 and the year after: r +0.54
+                                            without 2024Q1-2025Q1 and the year after: r +0.67
+   Other consumer (FDIC, as filed)          1993Q4-2026Q2: 118 quarters, r +0.72; rising-unemployment episodes: 2001Q2-2003Q3, 2007Q4-2010Q2, 2024Q1-2025Q1
+                                            without 2001Q2-2003Q3 and the year after: r +0.73
+                                            without 2007Q4-2010Q2 and the year after: r +0.63
+                                            without 2024Q1-2025Q1 and the year after: r +0.72
+   Home equity (FDIC)                       1993Q4-2026Q2: 118 quarters, r +0.76; rising-unemployment episodes: 2001Q2-2003Q3, 2007Q4-2010Q2, 2024Q1-2025Q1
+                                            without 2001Q2-2003Q3 and the year after: r +0.81
+                                            without 2007Q4-2010Q2 and the year after: r +0.51
+                                            without 2024Q1-2025Q1 and the year after: r +0.77

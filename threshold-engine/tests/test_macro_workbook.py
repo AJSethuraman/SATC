@@ -121,7 +121,7 @@ def test_every_number_is_a_value_not_a_formula(book):
 def test_the_run_sheet_shows_the_answers_the_run_used(book):
     _, _, wb = book
     ws = wb["Run"]
-    got = {ws.cell(r, 1).value: ws.cell(r, 2).value for r in range(1, ws.max_row + 1)}
+    got = {ws.cell(r, 2).value: ws.cell(r, 3).value for r in range(1, ws.max_row + 1)}
     assert got["Where ratings 2 to 5 start"].startswith("40, 60, 80, 97")
     assert got["Sahm reading shown"] == "no" and got["History each reading is measured against"] == "the last 20 years"
     assert got["From the pull of"] == "2026-10-15"
@@ -147,7 +147,7 @@ def test_states_have_their_own_sheet_and_stay_off_the_national_one(book):
 
 def test_the_glossary_explains_every_term_a_reader_meets(book):
     _, _, wb = book
-    terms = {wb["Glossary"].cell(r, 1).value for r in range(1, wb["Glossary"].max_row + 1)}
+    terms = {wb["Glossary"].cell(r, 2).value for r in range(1, wb["Glossary"].max_row + 1)}
     for needed in ("Level", "Change over 6 months", "Percentile", "Rating", "From", "History from",
                    "At this rating since", "What stands out", "Change only", "Sahm reading", "No value published"):
         assert needed in terms, needed
@@ -158,10 +158,28 @@ def test_the_glossary_explains_every_term_a_reader_meets(book):
 def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
     _, _, wb = book
     ws = wb["Sources"]
-    rows = {ws.cell(r, 1).value: [ws.cell(r, j).value for j in range(1, 10)] for r in range(1, ws.max_row + 1)}
+    rows = {ws.cell(r, 2).value: [ws.cell(r, j).value for j in range(2, 11)] for r in range(1, ws.max_row + 1)}
     assert all(s.title in rows for s in SERIES)
     assert len(rows["Unemployment rate"][8]) == 64     # SHA-256 of the file the rating read
     assert rows["Initial jobless claims"][7] == "not in this pull"
+
+
+def test_the_fingerprint_is_of_the_bytes_rated_not_of_the_file_when_the_workbook_is_built(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a file changed between the rating and the build was hashed as it was at the build, so
+    # the Sources tab named data the ratings never used.
+    import hashlib
+    pull = R.Pull(cache)
+    result = R.rate_all(cache, check(answered(show_sahm=False)), pull=pull)
+    path = pull.folder / "fred-UNRATE.csv"
+    rated = hashlib.sha256(path.read_bytes()).hexdigest()
+    with open(path, "a") as fh:
+        fh.write("2026-10-01,2.0\n")                     # after the rating, before the workbook
+    wb = openpyxl.load_workbook(build(tmp_path / "macro.xlsx", result, pull))
+    ws = wb["Sources"]
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
+    assert ws.cell(row, 10).value == rated and ws.cell(row, 11).value is None
+    facts = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert facts["Files changed since the pull"] == "none"
 
 
 def test_a_series_rated_on_its_change_only_still_shows_its_latest_value(book):
@@ -203,3 +221,313 @@ def test_a_change_the_settings_did_not_ask_for_is_not_called_a_failure(cache, tm
     ws = wb["Ratings"]
     row = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "Unemployment rate")
     assert ws.cell(row, 9).value == "level only"
+
+
+# --- What if (W12) -------------------------------------------------------------------------------------------
+
+def _whatif(cache, path, a=None, b=None):  # noqa: F811
+    from threshold_engine.macro.compare import compare
+    pull = R.Pull(cache)
+    ra = R.rate_all(cache, check(answered(**(a or {}))), pull=pull)
+    rb = R.rate_all(cache, check(answered(**(b or {}))), pull=pull)
+    c = compare(ra, rb, "settings.json", "what-if.json")
+    out = build(path, ra, pull, whatif=c)
+    return out, c, openpyxl.load_workbook(out)
+
+
+def test_the_what_if_tab_sets_every_national_reading_side_by_side(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    assert wb.sheetnames[:3] == ["Ratings", "What if", "States"]
+    ws = wb["What if"]
+    text = _text(ws)
+    assert "History each reading is measured against" in text and "the last 3 years" in text
+    # every national reading rated under both (the partial pull leaves the rest rated under neither)
+    national = [x for x in c["rows"] if not x["key"].startswith("unemployment_") and x["a"] and x["b"]]
+    # the grid: the rating as you have it down the side, the what-if across, every national reading once
+    corner = next(cl for row in ws.iter_rows() for cl in row if cl.value == "AS YOU HAVE IT")
+    grid = [[ws.cell(corner.row + k, corner.column + j).value or 0 for j in range(1, 6)] for k in range(1, 6)]
+    assert sum(map(sum, grid)) == len(national)
+    for x in national:
+        assert grid[x["a"]["rating"] - 1][x["b"]["rating"] - 1] >= 1
+    # every national reading that moves is listed, linked to its tab, with both chips and the move
+    moved = [x for x in national if x["move"]]
+    assert moved
+    for x in moved:
+        cell = next(cl for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
+                    if cl.value == x["title"] and ws.cell(cl.row, 14).value not in (None, "same"))
+        assert cell.hyperlink is not None
+        assert ws.cell(cell.row, 14).value == ("▲ %d" if x["move"] > 0 else "▼ %d") % abs(x["move"])
+        assert ws.cell(cell.row, 6).value[0] == str(x["a"]["rating"])
+        assert ws.cell(cell.row, 10).value[0] == str(x["b"]["rating"])
+    # the readings at the same rating are listed too, folded away, so the count can be checked
+    same = [x for x in national if x["move"] == 0]
+    folded = [r for r in range(1, ws.max_row + 1) if ws.cell(r, 14).value == "same"]
+    assert len(folded) == len(same) and all(ws.row_dimensions[r].hidden for r in folded)
+    # Ratings says which readings move, beside each series
+    rt = wb["Ratings"]
+    for x in moved:
+        row = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == x["title"])
+        assert "%d → %d" % (x["a"]["rating"], x["b"]["rating"]) in rt.cell(row, 13).value
+
+
+def test_the_dashed_lines_are_the_what_ifs_cut_offs_over_the_years_its_history_covers(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    ws = wb["Unemployment"]
+    row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "position")
+    head = next(cl for col in ws.iter_cols(min_col=34, max_col=34) for cl in col if cl.value == "What if: 2 from")
+    for j, k in enumerate(range(2, 6)):
+        col = 34 + j
+        assert ws.column_dimensions[openpyxl.utils.get_column_letter(col)].hidden
+        filled = [(ws.cell(r, 14).value, ws.cell(r, col).value) for r in range(head.row + 1, ws.max_row + 1)
+                  if ws.cell(r, col).value is not None]
+        if row["b"]["lines"][str(k)] is None:
+            assert not filled
+            continue
+        assert filled and {v for _, v in filled} == {row["b"]["lines"][str(k)]}
+        assert min(d for d, _ in filled).isoformat()[:10] == row["b"]["history_from"][:10]
+    with zipfile.ZipFile(out) as z:
+        charts = [z.read(n) for n in z.namelist() if n.startswith("xl/charts/chart")]
+    assert any(ch.count(b'prstDash val="dash"') == 4 for ch in charts)
+
+
+def test_a_different_change_horizon_draws_no_dashed_lines_on_the_change(cache, tmp_path):  # noqa: F811
+    # Six months against twelve is a different measure: its lines would sit on the wrong scale.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_months": 6}, {"change_months": 12})
+    assert all(not x["same_measure"] for x in c["rows"] if x["reading"] == "change")
+    ws = wb["Unemployment"]
+    assert any(ws.cell(r, 34).value == "What if: 2 from" for r in range(1, 80))      # the level's lines
+    assert not any(ws.cell(r, 38).value for r in range(1, ws.max_row + 1))         # none for the change
+    # Codex on #452: the What if tab named the 6-month change and showed its value beside a rating of the
+    # 12-month one. Each side is its own change, so the row names both and shows neither as shared.
+    wi = wb["What if"]
+    rows = [r for r in range(1, wi.max_row + 1) if str(wi.cell(r, 3).value).startswith("Change over")]
+    assert rows
+    for r in rows:
+        assert wi.cell(r, 3).value == "Change over 6 months; what if: over 12 months"
+        assert wi.cell(r, 4).value is None and wi.cell(r, 5).value is None
+    assert any(wi.cell(r, 3).value == "Level" and wi.cell(r, 5).value is not None for r in range(1, wi.max_row + 1))
+    # and the series' own table gives the what-if's starting points under its own horizon's name
+    assert "What if: change over 12 months from" in _text(ws)
+    # and Ratings says whose horizon a moved change is
+    moved = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
+    assert moved["move"]
+    rt = wb["Ratings"]
+    row = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
+               if cl.value == "Consumer prices, all items")
+    assert "(what if: over 12 months)" in rt.cell(row, 13).value
+
+
+def test_a_reading_only_the_what_if_rates_still_shows_where_its_ratings_start(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the table was built from this run's ratings alone, so it dropped the what-if's.
+    from threshold_engine.macro.settings import template as T
+    directions = {k: {r: LOWER for r in v} for k, v in T()["directions"]["answer"].items()}
+    directions["cpi"]["change"] = "not rated"
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"directions": directions}, {})
+    row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
+    assert row["a"] is None and row["b"]
+    ws = wb["Prices"]
+    head = next(cl for row_ in ws.iter_rows() for cl in row_ if cl.value == "What if: change from")
+    want = [row["b"]["lines"][str(k)] for k in range(2, 6)]
+    got = [ws.cell(head.row + k, head.column).value for k in range(2, 6)]
+    assert got == [pytest.approx(w / 100) if w is not None else "not reached" for w in want]   # in percent
+
+
+def test_a_series_in_neither_run_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811
+    # Codex on #452: an unpulled state read "not in this pull" and "same rating" on one row.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    st = wb["States"]
+    tx = next(cl.row for col in st.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == "TX")
+    assert st.cell(tx, 3).value == "not in this pull" and st.cell(tx, 11).value == "not rated under either"
+    rt = wb["Ratings"]
+    claims = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
+                  if cl.value == "Initial jobless claims")
+    assert rt.cell(claims, 13).value == "not rated under either"
+
+
+
+def test_a_reading_neither_run_rates_has_its_own_rows_with_each_runs_reason(cache, tmp_path):  # noqa: F811
+    # Codex on #452: one only the what-if asked for, and could not rate, had no row on the What if tab.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": []}, {})
+    neither = [x for x in c["rows"] if x["a"] is None and x["b"] is None]
+    ws = wb["What if"]
+    head = next(cl.row for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Rated under neither set of settings"))
+    assert ws.cell(head, 2).value == "Rated under neither set of settings (%d)" % len(neither)
+    texts = [(ws.cell(r, 6).value, ws.cell(r, 10).value) for r in range(head + 1, head + 2 + len(neither) + 1)]
+    assert ("Not rated: not asked for by these settings",
+            next(t for _, t in texts if t and "not in the pull" in t)) in texts
+    tiles = [ws.cell(4, col).value for col in range(2, 15)]
+    assert c["totals"]["only_a"] + c["totals"]["only_b"] in tiles     # the one-set tile does not count them
+
+
+def test_a_change_neither_run_rates_is_labelled_with_the_horizon_that_asked_for_it(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the What if tab gave it both horizons, though only the what-if asked for it.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": [], "change_months": 6}, {"change_months": 12})
+    ws = wb["What if"]
+    head = next(cl.row for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Rated under neither set of settings"))
+    labels = {ws.cell(r, 3).value for r in range(head + 1, ws.max_row + 1)
+              if ws.cell(r, 6).value == "Not rated: not asked for by these settings"}
+    assert labels == {"Change (what if: over 12 months)"}
+
+
+
+def test_a_reading_only_the_what_if_asked_for_and_could_not_rate_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811,E501
+    # Codex on #452: the level held, the what-if's change could not be counted (400 months is longer than the
+    # history), and the Ratings cell read "same rating"; the What if tab said every reading took the same rating.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": []}, {"change_months": 400})
+    row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "change")
+    assert row["a"] is None and row["b"] is None and row["why_a"] == "not asked for by these settings"
+    assert next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "position")["move"] == 0
+    rt = wb["Ratings"]
+    r = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == "Unemployment rate")
+    assert rt.cell(r, 13).value == "Change (what if: over 400 months): not rated under the what-if"
+    assert "None: every national reading rated under both takes the same rating." in _text(wb["What if"])
+    assert "every national reading takes the same rating under both" not in _text(wb["What if"])
+
+def test_a_file_gone_before_the_rating_has_no_fingerprint_as_read(tmp_path):
+    # Codex on #452: a file deleted after the pull kept the manifest's fingerprint under "SHA-256 as read".
+    from threshold_engine.macro import pull as P
+    from test_macro_rate import _fetcher
+    P.pull(tmp_path, keys=["unemployment", "cpi"], today="2026-10-17", fetcher=_fetcher())
+    pull = R.Pull(tmp_path)
+    (pull.folder / "fred-UNRATE.csv").unlink()
+    result = R.rate_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    wb = openpyxl.load_workbook(build(tmp_path / "b.xlsx", result, pull))
+    ws = wb["Sources"]
+    rows = {ws.cell(r, 2).value: r for r in range(1, ws.max_row + 1)}
+    u, cpi = rows["Unemployment rate"], rows["Consumer prices, all items"]
+    assert ws.cell(u, 10).value is None and ws.cell(u, 11).value == "not read: missing from the pull folder"
+    assert len(ws.cell(cpi, 10).value) == 64 and ws.cell(cpi, 11).value is None
+    run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert run["Files fetched and not read"] == "1: see Sources" and run["Files changed since the pull"] == "none"
+
+def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    ws = wb["Run"]
+    got = {ws.cell(r, 2).value: (ws.cell(r, 3).value, ws.cell(r, 4).value) for r in range(1, ws.max_row + 1)}
+    assert got["History each reading is measured against"] == ("full history", "the last 3 years")
+    assert got["What-if file"][0] == "what-if.json" and got["Settings file"][0] == "settings.json"
+    terms = {wb["Glossary"].cell(r, 2).value for r in range(1, wb["Glossary"].max_row + 1)}
+    assert {"As you have it", "What if", "Move", "Dashed lines"} <= terms
+
+
+def _holds_together_in_excel(out):
+    """What LibreOffice forgives and Excel does not, as far as it can be checked here: every axis a chart
+    names is one the chart has, every axis crosses one it has, and no cell holds rich-text runs (which no
+    workbook the firm opens in Excel uses; plain strings are inline in every openpyxl file)."""
+    with zipfile.ZipFile(out) as z:
+        charts = 0
+        for n in z.namelist():
+            if n.startswith("xl/charts/chart"):
+                charts += 1
+                x = z.read(n).decode()
+                defined = re.findall(r'<(?:catAx|valAx|dateAx|serAx)><axId val="(\d+)"/>', x)
+                assert defined and len(defined) == len(set(defined)), (n, defined)
+                crosses = set(re.findall(r'<crossAx val="(\d+)"/>', x))
+                named = set(re.findall(r'<axId val="(\d+)"/>', x))
+                assert crosses <= set(defined) and named <= set(defined), (n, defined, crosses)
+                # every series carries its own categories: without them Excel places a line at 1, 2, 3 ... on
+                # a date axis, in 1900 (Fable's review of #452, not checked in Excel)
+                for ser in re.findall(r"<ser>.*?</ser>", x, re.S):
+                    assert "<cat>" in ser, (n, ser[:200])
+            elif n.startswith("xl/worksheets/sheet"):
+                assert b"<is><r>" not in z.read(n), n
+        return charts
+
+
+def test_every_chart_crosses_axes_it_has_so_excel_can_open_it(book, cache, tmp_path):  # noqa: F811
+    # The firm, 17 Oct 2026: Excel said the example "is corrupt and cannot be opened". Every banded chart's
+    # value axis crossed axis 10 after the date axis (500) replaced it; LibreOffice drew them all anyway,
+    # and the file passed the ISO schemas and the Open XML SDK. This is the check that would have failed.
+    assert _holds_together_in_excel(book[0]) > 0
+    out, _, _ = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    assert _holds_together_in_excel(out) > 0
+    shown, _, _ = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)
+    assert _holds_together_in_excel(shown) > 0
+
+
+def test_a_change_only_the_what_if_rates_over_another_horizon_says_that_horizon(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the summary named the what-if's horizon for a change that moved, not for one only the
+    # what-if rates, so a 12-month rating read as one of the 6-month change beside it.
+    from threshold_engine.macro.settings import template as T
+    directions = {k: {r: LOWER for r in v} for k, v in T()["directions"]["answer"].items()}
+    directions["cpi"]["change"] = "not rated"
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"directions": directions, "change_months": 6},
+                         {"change_months": 12})
+    row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
+    assert row["a"] is None and row["b"] and not row["same_measure"]
+    rt = wb["Ratings"]
+    r = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
+             if cl.value == "Consumer prices, all items")
+    assert rt.cell(r, 13).value == "Change (what if: over 12 months): rated under the what-if only"
+    assert "changes over 12 months since" in _text(wb["Prices"])
+    # and the What if tab's row names the what-if's horizon only (Codex on #452: it named both)
+    wi = wb["What if"]
+    head = next(cl.row for col in wi.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Rated under one set of settings only"))
+    cpi = next(rr for rr in range(head, wi.max_row + 1) if wi.cell(rr, 2).value == "Consumer prices, all items")
+    assert wi.cell(cpi, 3).value == "Change (what if: over 12 months)"
+
+
+def test_a_workbook_drawn_from_other_bytes_than_the_rating_read_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: rate_all with its own Pull, a file replaced, then build with a new Pull, published the new
+    # file's fingerprint beside ratings made from the old one.
+    from threshold_engine.macro.settings import Refused
+    result = R.rate_all(cache, check(answered(show_sahm=False)))         # its own Pull, kept inside
+    path = R.Pull(cache).folder / "fred-UNRATE.csv"
+    with open(path, "a") as fh:
+        fh.write("2026-10-01,2.0\n")
+    with pytest.raises(Refused, match="fred-UNRATE.csv from other bytes than the rating read"):
+        build(tmp_path / "macro.xlsx", result, R.Pull(cache))
+
+
+def test_a_workbook_from_a_new_pull_of_unchanged_files_publishes_the_ratings_fingerprints(cache, tmp_path):  # noqa: F811
+    result = R.rate_all(cache, check(answered(show_sahm=False)))
+    wb = openpyxl.load_workbook(build(tmp_path / "macro.xlsx", result, R.Pull(cache)))
+    ws = wb["Sources"]
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
+    assert ws.cell(row, 10).value == result["read_sha"]["fred-UNRATE.csv"]
+
+
+def test_a_workbook_whose_pull_lacks_a_file_the_rating_read_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a file gone before the workbook's Pull read it passed the check, its old fingerprint shown.
+    from threshold_engine.macro.settings import Refused
+    result = R.rate_all(cache, check(answered(show_sahm=False)))
+    (R.Pull(cache).folder / "fred-CPIAUCSL.csv").unlink()
+    with pytest.raises(Refused, match="fred-CPIAUCSL.csv from other bytes than the rating read"):
+        build(tmp_path / "macro.xlsx", result, R.Pull(cache))
+
+
+def test_a_what_if_not_compared_against_this_rating_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a what-if from an earlier reading of the pull, or against other settings, was accepted.
+    from threshold_engine.macro.compare import compare
+    from threshold_engine.macro.settings import Refused
+    pull = R.Pull(cache)
+    ra = R.rate_all(cache, check(answered()), pull=pull)
+    rb = R.rate_all(cache, check(answered(history={"years": 3})), pull=pull)
+    c = compare(ra, rb, "settings.json", "what-if.json")
+    other = R.rate_all(cache, check(answered(cutoffs=[50, 75, 90, 95])), pull=pull)
+    with pytest.raises(Refused, match="not compared against this rating"):
+        build(tmp_path / "a.xlsx", other, pull, whatif=c)              # other settings as you have it
+    with open(pull.folder / "fred-UNRATE.csv", "a") as fh:
+        fh.write("2026-10-01,2.0\n")
+    fresh = R.Pull(cache)
+    now = R.rate_all(cache, check(answered()), pull=fresh)
+    with pytest.raises(Refused, match="not compared against this rating"):
+        build(tmp_path / "b.xlsx", now, fresh, whatif=c)               # an earlier reading of the pull
+    assert build(tmp_path / "c.xlsx", ra, pull, whatif=c)              # the rating it was made from
+    with pytest.raises(Refused, match="not compared against this rating"):
+        build(tmp_path / "d.xlsx", ra, pull, whatif=dict(c, vintage="2026-10-14"))   # another pull's name
+
+
+def test_a_rating_built_with_the_pull_of_another_day_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the workbook names result["vintage"] as its pull; a Pull of another day with the same bytes
+    # would make that provenance false.
+    import shutil
+    from threshold_engine.macro.settings import Refused
+    pull = R.Pull(cache)
+    result = R.rate_all(cache, check(answered(show_sahm=False)), pull=pull)
+    shutil.copytree(pull.folder, pull.folder.parent / "2026-10-16")
+    with pytest.raises(Refused, match="the rating is of the pull of 2026-10-15 and the Pull given is of 2026-10-16"):
+        build(tmp_path / "macro.xlsx", result, R.Pull(cache, "2026-10-16"))

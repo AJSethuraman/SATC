@@ -204,6 +204,17 @@ def check(raw):
     for k in sorted(set(given) - open_keys):
         why = "its direction is stated by the research" if k in rated_keys else "not a series the tool rates"
         problems.append("directions: %s: %s" % (k, why))
+    # An answer for a reading a series never carries is named, as every other stray answer is (Fable on #452:
+    # a direction for CPI's level, never rated, or for a misspelt reading, passed in silence).
+    carried = {}
+    for k, r in open_readings("all"):
+        carried.setdefault(k, set()).add(r)
+    for k in sorted(set(given) & open_keys):
+        if isinstance(given[k], dict):
+            for r in sorted(set(given[k]) - carried.get(k, set())):
+                problems.append("directions: %s %s: %s" % (
+                    k, r, "rated on its change only, so this answer is never read" if r == "position" else
+                    "not a reading: \"position\" (its level) or \"change\""))
     directions = {}
     # Until change_for is answered, every open reading is asked for, so one
     # refusal names every gap rather than revealing them one answer at a time.

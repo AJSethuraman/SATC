@@ -45,15 +45,25 @@ chosen by the firm on 15 Oct 2026.
     - where each rating starts, in the series' own units.
 - **The workbook the teams read.** `rate --workbook OUT.xlsx` writes it from
   the same run, so it cannot exist without the firm's settings. Every number
-  in it is a value, not a formula. It follows the threshold workbook's design
-  (Claude Design's hand-off, in `keybank_style.py`): titles on paper, canvas
-  headers, and the same five rating colours, as chips in the tables and as
-  shaded bands behind every chart. Its tabs:
+  in it is a value, not a formula.
+  - **Its look is PocketBook's** (17 Oct 2026, the firm: *"take inspiration
+    from pocketbook for UI look and feel"*): a dark title band with the red
+    rule under it, one "How this tab works" note per tab that folds away,
+    tiles for the headline figures, dark section bands, and tabs coloured for
+    what they hold (results dark, the record grey).
+  - **Its charts are Claude Design's**, from the threshold workbook's
+    hand-off (`docs/design/HANDOFF.md`, in `keybank_style.py`): the five
+    rating colours shaded behind every history, the history in ink, the
+    latest reading ringed and labelled. A what-if's cut-offs are dashed
+    lines, as that workbook draws "what happens if". The years along the
+    bottom are a date axis, one label every 1, 2, 5 or 10 years.
+  - Its tabs:
   - **Ratings:** every national series under five topics (jobs; prices and
     insurance; housing and household credit; business and the economy;
     markets and financial conditions). Each row gives the series' level and
     change, each rated, and the sentence behind the higher rating. A series'
     name opens its tab.
+  - **What if:** only with `--compare`; see below.
   - **States:** unemployment by state, level and change, worst first.
   - **One tab per series:** both ratings with what drove them; where each
     rating starts and how many readings in its history took it; its history
@@ -75,11 +85,43 @@ python -m threshold_engine.macro pull --cache work/macro-cache
 python -m threshold_engine.macro show --cache work/macro-cache unemployment
 python -m threshold_engine.macro settings-template work/macro-settings.json
 python -m threshold_engine.macro rate --cache work/macro-cache --settings work/macro-settings.json --workbook work/economic-conditions.xlsx
+python -m threshold_engine.macro rate --cache work/macro-cache --settings docs/macro/settings.json --compare docs/macro/what-if-30-years.json --workbook work/what-if.xlsx
 ```
 
 `rate` prints every rating, highest first; `--json` gives the full record, and
 `--vintage 2026-10-15` rates an earlier pull. Until every answer is filled in,
 it prints `REFUSED:` with each missing answer named, and exits 2.
+
+## What if: two sets of settings side by side (17 Oct 2026)
+
+The walk found it (W12): asking what changes if each reading is measured
+against the last 30 years took a script written by hand. The firm, 17 Oct
+2026, to building it: *"i set yes"*.
+
+- **`rate --compare WHAT-IF.json`** rates the same pull a second time, with a
+  second settings file. It prints what differs between the two files, the
+  totals, and every reading whose rating moves, with both percentiles and
+  both histories.
+- **Both files must be complete.** A what-if with a gap refuses, naming its
+  file and the gap, exactly as the firm's own does. Neither file is changed,
+  and nothing is chosen: the tool reports, the firm decides.
+- **With `--workbook`**, the workbook gains:
+  - a **What if** tab, second: what differs, a grid of each national
+    reading's rating as you have it against its rating under the what-if,
+    the counts at each rating drawn side by side, every reading that moves
+    (national, then states), and the readings at the same rating, folded away
+    so the count can be checked;
+  - a **What if** column on Ratings and States, saying which readings move;
+  - on each series' tab, the what-if rating beside each rating, where its
+    ratings start, and its cut-offs drawn as dashed lines over the years its
+    history covers. A change over a different number of months is a
+    different measure, so it is not drawn on the same chart.
+- **The example** (`examples/`): the firm's settings against
+  `what-if-30-years.json`, the same answers with history set to the last 30
+  years. From the pull of 17 Oct 2026, 13 of 158 readings move: 11 up, 2
+  down. Seven are national, as the walk's hand-written script found on 16
+  Oct, including the mortgage rate's level, from 2 to 4 (52.5% of 2,899
+  weeks since 1971; 91.4% of 1,566 since 1996).
 
 ## How each series is read
 
@@ -136,7 +178,7 @@ reverse for any series.
 
 - **Walked:** `walkthrough/refresh-2026-10-16/PROCEDURE-refresh-2026-10-16.pdf` is the monthly refresh,
   step by step with screenshots. `walkthrough/WALKTHROUGH-DEFECTS.md` lists what the walk found (13, against
-  73 passing tests that caught none; 11 fixed, 2 open).
+  73 passing tests that caught none; 12 fixed, W12 built on 17 Oct; W1 open).
 - **Tied out:** `tie-out/gasoline-change-2026-10-16/TIE-OUT-gasoline-change-2026-10-16.pdf` traces the Ratings
   tab's top reading, gasoline's change over a year, +41.49%, rated 4, from the cell to EIA's own table and
   history file, worked again by hand and by spreadsheet formula. It ties three more of the tab's figures to
