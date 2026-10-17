@@ -146,6 +146,7 @@ def test_every_series_notes_the_reporting_changes_touching_it(built):
                for l in (built["series"] / "credit-card_industry_net.csv").read_text(encoding="utf-8").splitlines()) == 1
     mortgage = notes("mortgage_industry_net.csv")
     assert head(mortgage) == ["reporting-change: 2008Q1, Loans classified as trading",
+                              "reporting-change: 2013Q2, Real estate breakdown for the whole bank",
                               "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans"]
     assert notes("banks/other-consumer_jpmorgan_net.csv")[-1] == oc[-1]
     # Within its quarters only: a file starting after a break carries only the changes from its first quarter.

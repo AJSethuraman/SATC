@@ -55,11 +55,17 @@ def test_the_registry_in_the_repository_loads_and_holds_the_consumer_changes():
         "Securitizations back on the books (FAS 166 and 167)": ("2010Q1", ["Credit card", "Other consumer"]),
         "Construction loans after completion": ("2011Q1", real_estate),
         "Auto loans get their own line": ("2011Q1", ["Other consumer", "Auto"]),
-        "Real estate breakdown for the whole bank": ("2013Q2", real_estate),
+        "Real estate breakdown for the whole bank": ("2013Q2", ["Mortgage", "Home equity"] + real_estate),
         "CECL: purchased credit-deteriorated loans": ("2020Q1", five + six),
         "COVID-19 deferrals not reported as past due": ("2020Q2", five + six),
         "NDFI and margin-loan revision": ("2024Q4 to 2025Q2", ["Other consumer", "C&I"]),
     }
+    # 78 FR 30922: "the nine-category breakdown of loans secured by real estate for the
+    # consolidated institution" - the 1-4 family lines (mortgage, home equity) are three of
+    # the nine, so the change is on them too, not on the commercial items only.
+    whole = by_name("Real estate breakdown for the whole bank")
+    assert "nine-category" in whole["call_report_items"][0] and "1-4 family" in whole["call_report_items"][0]
+    assert "1-4 family included" in whole["what_changed"]
     # Its own source says the 2010 NDFI line came out of other loans, not C&I.
     assert by_name("NDFI loans split out of other loans")["products"] == []
     # The nonfarm splits begin with the 2007 change, which their own note says.
@@ -184,8 +190,10 @@ def test_a_missing_or_broken_file_is_refused(tmp_path):
 def test_an_affected_series_carries_the_change_and_an_unaffected_one_does_not():
     """Other consumer, net, 2020Q1 to 2026Q2: CECL and the NDFI revision,
     spread over its three quarters, each with its sources. Credit card over
-    the same quarters: CECL only. Mortgage delinquency 30-89: CECL and the
-    deferrals; nonaccrual: CECL only."""
+    the same quarters: CECL only. Mortgage delinquency 30-89 from 2006Q1:
+    trading, the 2013Q2 real estate breakdown (1-4 family is three of its
+    nine categories), CECL and the deferrals; nonaccrual: the same without
+    the deferrals."""
     oc = RC.note_lines(CHANGES, ["Other consumer"], "net charge-offs", "2020Q1", "2026Q2", [])
     assert oc == [
         "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans. %s Source: %s."
@@ -201,9 +209,10 @@ def test_an_affected_series_carries_the_change_and_an_unaffected_one_does_not():
     assert [ln.split(",")[0] for ln in card] == ["reporting-change: 2020Q1"]
     assert not any("NDFI" in ln for ln in card)
     assert [ln[:24] for ln in RC.note_lines(CHANGES, ["Mortgage"], "30-89", "2006Q1", "2026Q2", [])] == [
-        "reporting-change: 2008Q1", "reporting-change: 2020Q1", "reporting-change: 2020Q2"]
+        "reporting-change: 2008Q1", "reporting-change: 2013Q2", "reporting-change: 2020Q1",
+        "reporting-change: 2020Q2"]
     assert [ln[:24] for ln in RC.note_lines(CHANGES, ["Mortgage"], "nonaccrual", "2006Q1", "2026Q2", [])] == [
-        "reporting-change: 2008Q1", "reporting-change: 2020Q1"]
+        "reporting-change: 2008Q1", "reporting-change: 2013Q2", "reporting-change: 2020Q1"]
 
 
 def test_a_spread_change_touches_a_series_that_holds_any_of_its_quarters():

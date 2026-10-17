@@ -153,14 +153,14 @@
       "name": "Real estate breakdown for the whole bank",
       "first": "2013Q2",
       "last": "2013Q2",
-      "products": ["Construction", "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
-                   "Other nonfarm nonresidential"],
+      "products": ["Mortgage", "Home equity", "Construction", "Multifamily", "Nonfarm nonresidential",
+                   "Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"],
       "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [
-        "RC-C 1, FFIEC 031: the real estate breakdown for the consolidated bank (construction, multifamily, nonfarm nonresidential, farmland)"
+        "RC-C 1, FFIEC 031: the nine-category breakdown of loans secured by real estate for the consolidated bank (construction, farmland, 1-4 family: revolving 1.c(1), closed-end first liens 1.c(2)(a) and junior liens 1.c(2)(b), multifamily, nonfarm nonresidential)"
       ],
-      "what_changed": "Large and highly complex institutions began reporting the real estate breakdown for the whole bank, not only domestic offices; whether the FDIC's fields moved with it was not checked.",
+      "what_changed": "Large and highly complex institutions began reporting the nine-category real estate breakdown, 1-4 family included, for the whole bank, not only domestic offices; whether the FDIC's fields moved with it was not checked.",
       "sources": [
         {
           "citation": "78 FR 30922 (23 May 2013)",
