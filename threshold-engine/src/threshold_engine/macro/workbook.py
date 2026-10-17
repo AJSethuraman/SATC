@@ -28,6 +28,7 @@ the threshold workbook draws "what happens if".
     Sources      every file: address, licence, when fetched, SHA-256
 """
 import datetime
+import hashlib
 import math
 
 from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
@@ -91,7 +92,10 @@ def nice_axis(low, high):
     raw = span / 5
     mag = 10 ** math.floor(math.log10(raw))
     step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
-    return math.floor(low / step) * step, math.ceil(high / step) * step, step
+    lo, hi = math.floor(low / step) * step, math.ceil(high / step) * step
+    if hi <= lo:        # every reading the same, on a step: an axis of no height (Fable on #452)
+        lo, hi = lo - step, hi + step
+    return lo, hi, step
 
 
 def band_heights(lines, direction, low, high):
@@ -117,8 +121,10 @@ def move_text(rows, months):
     parts = []
     for r in rows:
         # every branch, moved or one-sided: Codex on #452 found the one-sided one left out
+        # The horizon named is that of a rating the cell reports: the what-if's when the what-if rated it,
+        # none when only these settings did (Fable on #452, the fourth branch of the same fault).
         what = "Level" if r["reading"] == "position" else "Change"
-        when_ = "" if r["same_measure"] else " (what if: over %d months)" % months[1]
+        when_ = "" if r["same_measure"] or not r["b"] else " (what if: over %d months)" % months[1]
         if r["move"]:
             parts.append("%s %d → %d%s" % (what, r["a"]["rating"], r["b"]["rating"], when_))
         elif r["move"] is None:
@@ -783,7 +789,8 @@ def build(out, result, pull, whatif=None):
         area.grouping = "stacked"
         area.add_data(Reference(ws, min_col=helper_col, max_col=helper_col + 5, min_row=first - 1, max_row=last),
                       titles_from_data=True)
-        area.set_categories(Reference(ws, min_col=14, min_row=first, max_row=last))
+        cats = Reference(ws, min_col=14, min_row=first, max_row=last)
+        area.set_categories(cats)
         area.series[0].graphicalProperties.noFill = True
         area.series[0].graphicalProperties.line.noFill = True
         for i, s_ in enumerate(area.series[1:]):
@@ -791,6 +798,9 @@ def build(out, result, pull, whatif=None):
             s_.graphicalProperties.line.noFill = True
         line = LineChart()
         line.add_data(Reference(ws, min_col=data_col, min_row=first - 1, max_row=last), titles_from_data=True)
+        # Every series carries its own dates. Without them Excel places a line on 1, 2, 3 ... of a date axis,
+        # 1900, while LibreOffice borrows the area's (Fable's report on #452, not checked in Excel).
+        line.set_categories(cats)
         hist = line.series[0]
         hist.graphicalProperties.line = ln(K.INK, 2.0)
         hist.marker.symbol = "none"
@@ -800,12 +810,14 @@ def build(out, result, pull, whatif=None):
             dashed = LineChart()
             dashed.add_data(Reference(ws, min_col=dashed_col, max_col=dashed_col + 3, min_row=first - 1,
                                       max_row=last), titles_from_data=True)
+            dashed.set_categories(cats)
             for s_, colour in zip(dashed.series, K.LINES):
                 s_.graphicalProperties.line = ln(colour, 1.25, "dash")
                 s_.marker.symbol = "none"
                 s_.smooth = False
         latest = LineChart()
         latest.add_data(Reference(ws, min_col=helper_col + 6, min_row=first - 1, max_row=last), titles_from_data=True)
+        latest.set_categories(cats)
         pt = latest.series[0]
         pt.graphicalProperties.line.noFill = True
         pt.marker.symbol = "circle"
@@ -982,8 +994,10 @@ def build(out, result, pull, whatif=None):
 
         # the history, on the right: Date, Value, Change, Note; hidden helper columns for the bands
         points = pull.points(item)
-        if isinstance(points, str):
-            put(ws, row, 2, points, font=F_NOTE)
+        if isinstance(points, str) or not any(v is not None for _, v in points):
+            # Nothing to draw: said, not drawn (Fable on #452: a file of headers only crashed the Sahm chart).
+            put(ws, row, 2, points if isinstance(points, str) else
+                "The pull of %s holds no values for this series." % vintage, font=F_NOTE)
             ws.print_area = "A1:L%d" % row
             continue
         chg = dict(changes(points, months, item.frequency, item.change_in))
@@ -1172,9 +1186,20 @@ def build(out, result, pull, whatif=None):
     last = 5 if whatif else 4
     title_band(ws, "Run", "What went into this workbook.", last, record=True)
     row = 3
+    # The fingerprint of each file as the rating read it, not as the manifest recorded it at the pull (Fable
+    # on #452: a file changed after the pull was rated as changed and published with the old fingerprint).
+    from .pull import file_name
+    files = pull.manifest.get("files", {})
+    read_sha = {}
+    for name in sorted({file_name(x) for x in SERIES}):
+        path = pull.folder / name
+        if path.exists():
+            read_sha[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    changed = [n for n, h in read_sha.items() if files.get(n, {}).get("sha256") not in (None, h)]
     facts = [("Built", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
              ("From the pull of", vintage), ("Tool", "threshold-engine %s, economic conditions" % VERSION),
-             ("Readings rated", len(result["ratings"])), ("Readings not rated", len(result["not_rated"]))]
+             ("Readings rated", len(result["ratings"])), ("Readings not rated", len(result["not_rated"])),
+             ("Files changed since the pull", "%d: see Sources" % len(changed) if changed else "none")]
     if whatif:
         facts += [("Settings file", whatif["a"]), ("What-if file", whatif["b"])]
     for k, v in facts:
@@ -1201,25 +1226,28 @@ def build(out, result, pull, whatif=None):
 
     # -- Sources ------------------------------------------------------------
     ws = sheet("Sources")
-    widths(ws, [44, 36, 30, 34, 13, 28, 60, 26, 66])
-    title_band(ws, "Sources", "Every file the pull fetched, as fetched.", 10, record=True)
+    widths(ws, [44, 36, 30, 34, 13, 28, 60, 26, 66, 44])
+    title_band(ws, "Sources", "Every file the pull fetched, and its fingerprint as the rating read it.", 11,
+               record=True)
     row = sub_header(ws, 3, ["Series", "Publisher", "Id at the source", "Licence", "First reading", "File", "Address",
-                             "Fetched", "SHA-256"], height=18)
-    from .pull import file_name
-    files = pull.manifest.get("files", {})
+                             "Fetched", "SHA-256 as read", "Since the pull"], height=18)
     for x in SERIES:
         name = file_name(x)
         f = files.get(name, {})
         for j, v in enumerate((x.title, x.publisher, x.source_id, x.licence, x.starts, name, f.get("url", ""),
-                               f.get("fetched_at", f.get("error", "not in this pull")), f.get("sha256", "")), 2):
+                               f.get("fetched_at", f.get("error", "not in this pull")),
+                               read_sha.get(name, f.get("sha256", ""))), 2):
             put(ws, row, j, v)
         ws.cell(row, 10).font = Font(name="Consolas", size=9, color=K.SLATE)
-        rule(ws, row, 2, 10)
+        if name in changed:
+            put(ws, row, 11, "changed after the pull, which recorded %s…" % f["sha256"][:16],
+                font=Font(name="Calibri", size=10, bold=True, color=K.CRIMSON))
+        rule(ws, row, 2, 11)
         row += 1
     for d in DERIVED:
         put(ws, row, 2, d.title)
         put(ws, row, 3, "made from " + " and ".join(BY_KEY[k].title for k in d.inputs))
-        rule(ws, row, 2, 10)
+        rule(ws, row, 2, 11)
         row += 1
     ws.freeze_panes = ws.cell(4, 3)
 

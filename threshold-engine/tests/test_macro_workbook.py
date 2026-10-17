@@ -350,6 +350,10 @@ def _holds_together_in_excel(out):
                 crosses = set(re.findall(r'<crossAx val="(\d+)"/>', x))
                 named = set(re.findall(r'<axId val="(\d+)"/>', x))
                 assert crosses <= set(defined) and named <= set(defined), (n, defined, crosses)
+                # every series carries its own categories: without them Excel places a line at 1, 2, 3 ... on
+                # a date axis, in 1900 (Fable's review of #452, not checked in Excel)
+                for ser in re.findall(r"<ser>.*?</ser>", x, re.S):
+                    assert "<cat>" in ser, (n, ser[:200])
             elif n.startswith("xl/worksheets/sheet"):
                 assert b"<is><r>" not in z.read(n), n
         return charts

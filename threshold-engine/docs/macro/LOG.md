@@ -584,3 +584,42 @@ what-if's horizon for a change that moved, but not for a change only one side ra
 the what-if's percentile there too. One test, which fails with either old line put back. This does not
 change the example (every reading there is rated under both, over one horizon), so the file the firm is
 opening in Excel stands. The macro suite is now 96.
+
+**A blank-context review by Fable (17 Oct 2026).** The firm asked for a thorough review by a model with no
+context. The canon adversarial pass was handed to a new session on `claude-fable-5-1`; its record showed
+that model configured and serving throughout. It wrote tests only and changed no code. It delivered on its
+own branch, `fable/macro-adversarial`, with draft PR #453 marked "do not merge". It touched only its two
+files.
+
+- **Its denominator:** 46 hypotheses, 25 run, 9 failing tests (11 cases), 16 held, 21 judged by reading
+  only.
+- **Taken back by hand.** canon's intake script reads only `canon/findings/`, by design, so the test file
+  and report were copied out with `git show`, read, and run against this branch. All 11 cases failed.
+- **All nine judged real, and fixed:**
+  1. A download the pull could not read stopped every rating with `BadZipFile`. It is now not rated, with
+     the pull's own reason.
+  2. The Sources tab copied each fingerprint from the manifest. It now hashes the file as the rating read
+     it, and a file changed after the pull is flagged there and counted on the Run tab.
+  3. A series with no rows crashed the workbook when the Sahm chart was on. The tab now says the pull holds
+     no values.
+  4. A fourth branch of the horizon labels. A change rated as you have it only was labelled with the
+     what-if's horizon. Now only a rating the cell reports names its horizon.
+  5. A direction for a reading a series never carries (CPI's level, or a misspelt reading) passed in
+     silence. It is now refused by name.
+  6. A refused pull left an empty folder for the day. Keys are now checked before anything is written.
+  7. "No changes readings in the pull." The reason is now a sentence and names the cause: no reading has
+     one that far before it, or none falls in the last N years.
+  8. A history of one value gave a chart axis of no height. The axis now spans a step either side.
+  9. `pull mortgage_spread` said "not in the catalog". It now pulls the two series the reading is made
+     from.
+- **Also fixed,** from its *not checked* list: the history, latest-point and dashed-line series carried no
+  dates of their own. On a date axis Excel would place them at 1, 2, 3 and so on, in 1900. Every series now
+  carries its dates, and the Excel-structure test checks every series in every chart.
+- **Its tests** are now `tests/test_macro_review_fable.py`, failing before the fixes and passing after.
+  Three deliberate breaks of the new fixes each fail a test. The macro suite is 107.
+- **Its observations** are for the firm, not bugs. On the bands, it asks whether, when the firm's own
+  history is a window, the bands behind a chart should be shaded only over that window, as the what-if's
+  dashed lines are. That question is put to the firm. The rest are wording: the glossary names only one
+  horizon, and "not answered" is used for an answer in the wrong place.
+- **The rebuilt example** passes the chart test (58 charts, every series dated), the ISO schemas (0 errors)
+  and the Open XML SDK (font-order notes only). Its printout is unchanged.

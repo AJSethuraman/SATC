@@ -24,7 +24,7 @@ import urllib.parse
 import urllib.request
 
 from . import sources
-from .catalog import SERIES
+from .catalog import DERIVED_BY_KEY, SERIES
 
 USER_AGENT = "Mozilla/5.0 (compatible; threshold-engine macro pull; public data)"
 
@@ -61,16 +61,21 @@ def summarise(points):
 def pull(cache, keys=None, today=None, fetcher=fetch):
     """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest."""
     today = today or datetime.date.today().isoformat()
+    if keys:
+        # A reading made from two series pulls those two (Fable on #452: `pull mortgage_spread` said "not in
+        # the catalog", pointing at `list`, which lists it).
+        keys = [k for key in keys for k in (DERIVED_BY_KEY[key].inputs if key in DERIVED_BY_KEY else [key])]
+        unknown = sorted(set(keys) - {s.key for s in SERIES})
+        if unknown:
+            # Refused before anything is written: a refused pull used to leave an empty folder for the day,
+            # so the day's real pull went to "-2" (Fable on #452).
+            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
+                             % ", ".join(unknown))
     folder, n = pathlib.Path(cache) / today, 2
     while folder.exists():                  # never write into an earlier pull, even today's
         folder, n = pathlib.Path(cache) / ("%s-%d" % (today, n)), n + 1
     folder.mkdir(parents=True)
     wanted = [s for s in SERIES if keys is None or s.key in keys]
-    if keys:
-        unknown = sorted(set(keys) - {s.key for s in SERIES})
-        if unknown:
-            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
-                             % ", ".join(unknown))
     files, series_out = {}, {}
     for s in wanted:
         name = file_name(s)

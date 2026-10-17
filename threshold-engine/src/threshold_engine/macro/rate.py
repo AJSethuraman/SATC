@@ -190,7 +190,15 @@ def rate_reading(item, reading, points, settings, direction):
         dated = changes(points, settings["change_months"], item.frequency, item.change_in)
     window = in_window(dated, settings["history"])
     if not window:
-        return None, "no %s readings in the pull" % ("changes" if reading == "change" else "values")
+        # Said as the cause, in a sentence (Fable on #452: "no changes readings in the pull", for a quarterly
+        # series whose pull held every quarter and whose horizon no change could land on).
+        if dated:
+            return None, "none of its %s falls in the last %d years" % (
+                "values" if reading == "position" else "changes", settings["history"]["years"])
+        if reading == "position":
+            return None, "the pull holds no values for it"
+        return None, "no change over %d months can be counted: no reading has one that far before it" % (
+            settings["change_months"])
     ordered = sorted(v for _, v in window)
     cut, line = settings["cutoffs"], settings["on_the_line"]
 
@@ -256,11 +264,19 @@ class Pull:
 
     def _get(self, key):
         if key not in self._loaded:
+            recorded = self.manifest.get("series", {}).get(key, {}).get("error")
+            if recorded:
+                # The pull already recorded that it could not fetch or read this one: not rated, with its
+                # reason. Reading it again raised what nothing caught (Fable on #452: an HTML page where
+                # FHFA's zip belonged stopped every rating with BadZipFile).
+                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, recorded)
+                return self._loaded[key]
             try:
                 self._loaded[key] = P.load(self.cache, key, self.vintage)[0]
-            except (SystemExit, ValueError, OSError) as e:
-                why = self.manifest.get("series", {}).get(key, {}).get("error") or str(e)
-                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, why)
+            except SystemExit as e:
+                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, e)
+            except Exception as e:  # a file that no longer reads: recorded as the pull records one
+                self._loaded[key] = "not in the pull of %s (could not read: %s)" % (self.vintage, e)
         return self._loaded[key]
 
     def points(self, item):
