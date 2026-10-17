@@ -86,6 +86,11 @@ jobs:
           # path runs in CI (canon S14: unreachable code is unchecked); its refusal without it is tested too.
           - project: pocketbook
             install: pip install -e ".[test,scout]"
+          # Loan Survival: Kaplan-Meier loan-group comparisons for credit review, with a tkinter front
+          # door. validate.py checks the math against SciPy and statsmodels; gui_check.py drives the real
+          # window under xvfb and compares its workbook to the command line's. A SKIP fails in CI.
+          - project: loan-survival
+            install: pip install pytest pandas numpy openpyxl scipy statsmodels matplotlib
     defaults:
       run:
         working-directory: ${{ matrix.project }}
@@ -109,6 +114,10 @@ jobs:
       - name: LibreOffice, to calculate the workbook's formulas
         if: matrix.project == 'pocketbook'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc
+
+      - name: Xvfb, so the Loan Survival window can be opened and checked
+        if: matrix.project == 'loan-survival'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb python3-tk
 
       - name: Run tests
         run: pytest -q
