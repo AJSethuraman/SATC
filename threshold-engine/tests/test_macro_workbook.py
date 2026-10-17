@@ -517,3 +517,17 @@ def test_a_what_if_not_compared_against_this_rating_is_refused(cache, tmp_path):
     with pytest.raises(Refused, match="not compared against this rating"):
         build(tmp_path / "b.xlsx", now, fresh, whatif=c)               # an earlier reading of the pull
     assert build(tmp_path / "c.xlsx", ra, pull, whatif=c)              # the rating it was made from
+    with pytest.raises(Refused, match="not compared against this rating"):
+        build(tmp_path / "d.xlsx", ra, pull, whatif=dict(c, vintage="2026-10-14"))   # another pull's name
+
+
+def test_a_rating_built_with_the_pull_of_another_day_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the workbook names result["vintage"] as its pull; a Pull of another day with the same bytes
+    # would make that provenance false.
+    import shutil
+    from threshold_engine.macro.settings import Refused
+    pull = R.Pull(cache)
+    result = R.rate_all(cache, check(answered(show_sahm=False)), pull=pull)
+    shutil.copytree(pull.folder, pull.folder.parent / "2026-10-16")
+    with pytest.raises(Refused, match="the rating is of the pull of 2026-10-15 and the Pull given is of 2026-10-16"):
+        build(tmp_path / "macro.xlsx", result, R.Pull(cache, "2026-10-16"))

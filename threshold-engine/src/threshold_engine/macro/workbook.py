@@ -158,9 +158,13 @@ def build(out, result, pull, whatif=None):
     what-if made from other bytes, or against other settings than this
     rating's, is refused: every input is checked against one reading of the
     pull (Codex on #452)."""
-    if whatif and (whatif["read_sha"] != result["read_sha"] or whatif["baseline"] != result["settings"]):
-        raise Refused("the what-if was not compared against this rating (other bytes of the pull, or other "
-                      "settings as you have it). Compare this rating and build from the same Pull.")
+    if result["vintage"] != pull.vintage:
+        raise Refused("the rating is of the pull of %s and the Pull given is of %s: build from the Pull the "
+                      "rating used." % (result["vintage"], pull.vintage))
+    if whatif and (whatif["vintage"] != result["vintage"] or whatif["read_sha"] != result["read_sha"]
+                   or whatif["baseline"] != result["settings"]):
+        raise Refused("the what-if was not compared against this rating (another pull, other bytes of it, or "
+                      "other settings as you have it). Compare this rating and build from the same Pull.")
     from openpyxl import Workbook
     from openpyxl.chart import AreaChart, BarChart, LineChart, Reference
     from openpyxl.chart.label import DataLabelList

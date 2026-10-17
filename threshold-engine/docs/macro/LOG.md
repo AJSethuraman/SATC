@@ -699,6 +699,12 @@ files.
   checked against one reading of the pull. The new test covers both mismatches and the matching case, and
   fails without the check. The macro suite is 121. The real build passes, and its printout is unchanged.
 
+- **Codex: the pull's name is checked as well as its bytes.** A what-if from another vintage whose files
+  happened to hash the same passed the check, and the What if tab would have named the wrong pull. `build`
+  now refuses a what-if of another vintage. For the same reason it refuses a `Pull` of another day than
+  the rating's, since the workbook names the rating's vintage as its source. Both checks fail their tests
+  when removed. The macro suite is 122. The real build passes, and its printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests
