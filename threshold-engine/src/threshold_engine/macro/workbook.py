@@ -33,7 +33,7 @@ import math
 from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
 from .compare import CALLED, NOT_ASKED, plain, row_label, when
 from .rate import changes, sahm
-from .settings import QUESTIONS, readings_of
+from .settings import QUESTIONS, Refused, readings_of
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
 SHORT = {1: "1 Low", 2: "2 Mod-Low", 3: "3 Moderate", 4: "4 Mod-High", 5: "5 High"}
@@ -1217,7 +1217,15 @@ def build(out, result, pull, whatif=None):
     # and not as the file is when the workbook is built (Codex on #452: the ratings come from the bytes read).
     from .pull import file_name
     files = pull.manifest.get("files", {})
-    read_sha = pull.read_sha
+    # The ratings' own fingerprints come first: a workbook drawn from other bytes than the rating read
+    # would publish one version's ratings beside another's history, so it is refused (Codex on #452: rate_all
+    # with its own Pull, then build with a new one, after a file changed in between).
+    rated = result["read_sha"]
+    other = sorted(n for n, h in pull.read_sha.items() if n in rated and rated[n] != h)
+    if other:
+        raise Refused("the workbook would draw %s from other bytes than the rating read: the file changed "
+                      "between the two. Build the workbook from the Pull the rating used." % ", ".join(other))
+    read_sha = dict(pull.read_sha, **rated)
     changed = [n for n, h in read_sha.items() if files.get(n, {}).get("sha256") not in (None, h)]
     # A file the pull fetched and the rating never read (gone, unreadable, or one the pull could not read)
     # has no fingerprint as read: it is said so, not given the manifest's (Codex on #452).

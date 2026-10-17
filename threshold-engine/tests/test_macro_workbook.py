@@ -468,3 +468,23 @@ def test_a_change_only_the_what_if_rates_over_another_horizon_says_that_horizon(
                 if str(cl.value).startswith("Rated under one set of settings only"))
     cpi = next(rr for rr in range(head, wi.max_row + 1) if wi.cell(rr, 2).value == "Consumer prices, all items")
     assert wi.cell(cpi, 3).value == "Change (what if: over 12 months)"
+
+
+def test_a_workbook_drawn_from_other_bytes_than_the_rating_read_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: rate_all with its own Pull, a file replaced, then build with a new Pull, published the new
+    # file's fingerprint beside ratings made from the old one.
+    from threshold_engine.macro.settings import Refused
+    result = R.rate_all(cache, check(answered(show_sahm=False)))         # its own Pull, kept inside
+    path = R.Pull(cache).folder / "fred-UNRATE.csv"
+    with open(path, "a") as fh:
+        fh.write("2026-10-01,2.0\n")
+    with pytest.raises(Refused, match="fred-UNRATE.csv from other bytes than the rating read"):
+        build(tmp_path / "macro.xlsx", result, R.Pull(cache))
+
+
+def test_a_workbook_from_a_new_pull_of_unchanged_files_publishes_the_ratings_fingerprints(cache, tmp_path):  # noqa: F811
+    result = R.rate_all(cache, check(answered(show_sahm=False)))
+    wb = openpyxl.load_workbook(build(tmp_path / "macro.xlsx", result, R.Pull(cache)))
+    ws = wb["Sources"]
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
+    assert ws.cell(row, 10).value == result["read_sha"]["fred-UNRATE.csv"]

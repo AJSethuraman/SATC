@@ -324,5 +324,7 @@ def rate_all(cache, settings, vintage=None, pull=None):
                             "the 12 months before; Sahm's published trigger is 0.50). Shown, not rated."
                             % (_when(d, "monthly"), v)})
     shown = dict(settings, directions=[[k, r, v] for (k, r), v in sorted(settings["directions"].items())])
+    # The fingerprint of every file as this run read it, kept with the ratings it produced, so a workbook built
+    # from another Pull can be checked against it (Codex on #452).
     return {"vintage": pull.vintage, "settings": shown, "ratings": ratings, "not_rated": not_rated,
-            "alongside": alongside}
+            "alongside": alongside, "read_sha": dict(pull.read_sha)}

@@ -674,6 +674,14 @@ files.
   stays true when some readings were rated under neither. A new test fails with either fault put back.
   The macro suite is 116, and the real comparison's printout is unchanged.
 
+- **Codex: the rating's fingerprints travel with its ratings.** A library caller can let `rate_all` make
+  its own `Pull` and then hand `build` a new one. A file replaced in between would be fingerprinted as the
+  new bytes beside ratings made from the old ones. `rate_all` now returns `read_sha`, the fingerprint of
+  every file as it read it. `build` publishes those, and refuses when its own `Pull` read any file as
+  different bytes, naming the file. The command line always uses one `Pull`, so it is unaffected. Two new
+  tests: the refusal, which fails without the check, and the unchanged case. The macro suite is 118, and
+  the real comparison's printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests
