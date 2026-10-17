@@ -23,6 +23,7 @@ like one.
 import bisect
 import calendar
 import datetime
+import hashlib
 import json
 import pathlib
 
@@ -251,8 +252,8 @@ class Pull:
     """One pull folder: its manifest, and each series' points read once.
 
     ``points`` gives a list of (date, value), or a string saying why there is
-    none (the series failed or is not in this pull). ``read_sha`` holds the
-    SHA-256 of each file's bytes as they were read, by file name."""
+    none (the series failed or is not in this pull). Each file is read once;
+    ``read_sha`` gives the SHA-256 of each file's bytes as they were read."""
 
     def __init__(self, cache, vintage=None):
         folder = pathlib.Path(cache) / vintage if vintage else P.latest(cache)
@@ -261,7 +262,7 @@ class Pull:
                           % ("named %s " % vintage if vintage else "", cache, cache))
         self.cache, self.folder, self.vintage = cache, folder, folder.name
         self.manifest = json.loads((folder / "manifest.json").read_text("utf-8"))
-        self._loaded, self.read_sha = {}, {}
+        self._loaded, self._bytes = {}, {}
 
     def _get(self, key):
         if key not in self._loaded:
@@ -273,12 +274,16 @@ class Pull:
                 self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, recorded)
                 return self._loaded[key]
             try:
-                self._loaded[key] = P.load(self.cache, key, self.vintage, seen=self.read_sha)[0]
+                self._loaded[key] = P.load(self.cache, key, self.vintage, read=self._bytes)[0]
             except SystemExit as e:
                 self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, e)
             except Exception as e:  # a file that no longer reads: recorded as the pull records one
                 self._loaded[key] = "not in the pull of %s (could not read: %s)" % (self.vintage, e)
         return self._loaded[key]
+
+    @property
+    def read_sha(self):
+        return {name: hashlib.sha256(data).hexdigest() for name, data in self._bytes.items()}
 
     def points(self, item):
         if item.key in DERIVED_BY_KEY:

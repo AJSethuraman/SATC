@@ -628,3 +628,9 @@ files.
   rated. The pull now records the SHA-256 of the exact bytes it parses, as it reads them, and the tab uses
   that. A new test changes a file after the rating and before the build. It fails against the second read
   and passes now. The macro suite is 108.
+- **Codex, again.** FHFA's zip holds three series and the Fed's file holds three more. Each was read once
+  per series, so a file replaced part way through a run could mix two versions and publish the last one's
+  fingerprint. `Pull` now reads each file once and parses every series it holds from those bytes.
+  `read_sha` is the fingerprint of those bytes. A new test replaces the Fed's file between two of its series.
+  It fails when the file is read again and passes now. The macro suite is 109. The real comparison's printout
+  is unchanged.

@@ -220,3 +220,18 @@ def test_an_earlier_pull_can_be_rated_by_name(cache):
     s = check(answered())
     assert R.rate_all(cache, s)["vintage"] == "2026-10-16"
     assert R.rate_all(cache, s, vintage="2026-10-15")["vintage"] == "2026-10-15"
+
+
+def test_a_file_several_series_share_is_read_once_and_its_fingerprint_is_of_those_bytes(tmp_path):
+    # Codex on #452: the Fed's file holds three series and was read once for each. A file replaced part way
+    # through a run mixed two versions, and the run published only the last one's fingerprint.
+    import hashlib
+    from test_macro_pull import _fake
+    P.pull(tmp_path, keys=["gz_spread", "excess_bond_premium"], today="2026-10-17", fetcher=_fake()[0])
+    pull = R.Pull(tmp_path)
+    path = pull.folder / "fed_ebp.csv"
+    first = path.read_bytes()
+    assert pull._get("gz_spread")[-1] == ("2026-08-01", 1.0)
+    path.write_bytes(b"date,gz_spread,ebp,est_prob\n2026-09-01,9,9.9,0.9\n")     # replaced part way through
+    assert pull._get("excess_bond_premium")[-1] == ("2026-08-01", 0.1)         # from the bytes read first
+    assert pull.read_sha == {"fed_ebp.csv": hashlib.sha256(first).hexdigest()}

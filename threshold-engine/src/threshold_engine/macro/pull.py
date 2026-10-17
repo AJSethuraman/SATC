@@ -118,18 +118,22 @@ def latest(cache):
     return max(found)[1] if found else None
 
 
-def load(cache, key, vintage=None, seen=None):
+def load(cache, key, vintage=None, read=None):
     """One series' points from a pull: the newest, or the folder named ``vintage``.
 
-    ``seen``, when given, records the SHA-256 of the bytes read, by file name: the fingerprint of what was
-    rated, not of the file as it is later (Codex on #452)."""
+    ``read``, when given, keeps the bytes of each file read, by file name. A file is then read once, and every
+    series it holds (FHFA's three, the Fed's three) is parsed from those same bytes, whose fingerprint is the
+    one a run can publish as what it read (Codex on #452)."""
     from .catalog import BY_KEY
     s = BY_KEY[key]
     folder = pathlib.Path(cache) / vintage if vintage else latest(cache)
-    if folder is None or not (folder / file_name(s)).exists():
+    name = file_name(s)
+    if read is not None and name in read:
+        return sources.read(s, read[name]), folder.name
+    if folder is None or not (folder / name).exists():
         raise SystemExit("no pull of %s under %s: run python -m threshold_engine.macro pull --cache %s"
                          % (key, cache, cache))
-    data = (folder / file_name(s)).read_bytes()
-    if seen is not None:
-        seen[file_name(s)] = hashlib.sha256(data).hexdigest()
+    data = (folder / name).read_bytes()
+    if read is not None:
+        read[name] = data
     return sources.read(s, data), folder.name
