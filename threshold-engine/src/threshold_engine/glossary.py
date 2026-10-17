@@ -355,5 +355,47 @@ TERMS = [
      "How KeyBank's filed figures compare with each peer's, as a count. It does not say how bad is bad enough.",
      "KeyBank's filed median over the quarters the internal series holds, and how many peers' medians over "
      "the same quarters are better than it (below it, or above it when lower is worse)."),
+    # Reporting changes (the firm, 16 Oct 2026: "Definitely mark reporting
+    # changes."), laid out as Left out, and why is: what it is, then where each
+    # one is recorded.
+    ("Reporting change",
+     "A change to the Call Report's definitions or forms that moves a series without any change in risk, such "
+     "as margin loans moved out of other consumer from December 2024. Labelled on every series it touches, in "
+     "the quarter it took effect.",
+     "Listed once, with its source, on the Reporting changes tab. Each series file the peers build writes "
+     "carries a Reporting change line for every change touching its product and measure within its quarters, "
+     "shown on Sources; a change a product's own note already describes points to that note instead. "
+     "Decide's chart marks the quarters with a diamond along the top, for any source of the row shown; the "
+     "Peers charts mark them on the pack composite."),
+    ("Reporting changes",
+     "The tab listing every reporting change this workbook labels, one row each.",
+     "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "
+     "source are in it; what was left out, and why, is said at the top of the tab."),
+    ("Change",
+     "On Reporting changes: the change's short name.",
+     "As the registry states it."),
+    ("Took effect",
+     "On Reporting changes: the quarter the change took effect, or the first and last when banks could report "
+     "it over several quarters.",
+     "As the registry states it: the December 2024 revision runs 2024Q4 to 2025Q2 because banks could report "
+     "it on a best-efforts basis until 30 June 2025."),
+    ("Products touched",
+     "On Reporting changes: the products whose series the change moves, consumer and commercial.",
+     "As the registry states it. None of the products means it touches only lines no product is built from, "
+     "such as other loans or the memoranda."),
+    ("Measures touched",
+     "On Reporting changes: which charge-off and delinquency measures of those products it moves.",
+     "As the registry states it: net or gross charge-offs, or a delinquency measure (30-89, 90+ accruing, "
+     "nonaccrual, 90+ incl. nonaccrual, 30+ incl. nonaccrual)."),
+    ("Call Report items",
+     "On Reporting changes: the Call Report lines the change touches, kept for the commercial categories.",
+     "As the registry states it, by schedule and item where the source gives the item (RC-C 4: C&I)."),
+    ("What changed",
+     "On Reporting changes: what the change did, in one sentence.",
+     "As the registry states it, from the source."),
+    ("Source document",
+     "On Reporting changes: where the change was read, with its address.",
+     "As the registry states it: a Federal Register notice, an FDIC publication or the FDIC's own data "
+     "definitions."),
 ]
 

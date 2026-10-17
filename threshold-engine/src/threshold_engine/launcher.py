@@ -52,7 +52,10 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 # books.py is plain Python (no openpyxl), so the product names come from the
 # one place the peer build reads them, and the window still opens without
 # openpyxl. peers/run.py does import openpyxl, so it is loaded only on a press.
-from .peers.books import PRODUCTS as _PEER_PRODUCTS
+# The window offers the consumer products only (CONSUMER): the commercial ones
+# (16 Oct 2026) are on the command line, and the window gets them once its
+# Peers step has been opened with them on screen.
+from .peers.books import CONSUMER as _PEER_PRODUCTS
 from .series import LABEL_RULE, label_ok
 
 TITLE = "Thresholds"
@@ -421,7 +424,7 @@ def open_workbook(path: Path) -> str:
 # setting again before it reads anything, and what it refuses comes back here
 # as words too.
 
-#: The products the peer build knows, in its order (peers/books.py).
+#: The consumer products the peer build knows, in its order (peers/books.py).
 PEER_PRODUCTS = tuple(_PEER_PRODUCTS)
 PEER_DELINQUENCY = (("yes", "Yes: also delinquency and nonaccrual, by product"),
                     ("no", "No: charge-offs only"))
@@ -464,6 +467,7 @@ class PeerForm:
     series_dir: str = ""
     mergers_file: str = ""         # {cert: [quarter-end dates]}, as Pull writes it
     absorptions_file: str = ""     # who absorbed whom, as Pull writes it
+    reporting_changes: str = ""    # the registry of Call Report changes
     extra_acquisitions: str = ""   # CERT=YYYYQn ..., or none
     industry_combined: str = ""    # PRODUCT+PRODUCT; ..., or none
     jump: str = ""
@@ -586,7 +590,7 @@ def _combined_ok(item: str) -> bool:
 _PULL = ("cache_pull", "first", "last", "products", "delinquency", "mergers_pull", "mergers_since",
          "refresh")
 _BUILD = ("cache_build", "roster", "first", "last", "products", "delinquency", "out", "series_dir",
-          "mergers_file", "absorptions_file", "extra_acquisitions", "industry_combined", "jump",
+          "mergers_file", "absorptions_file", "reporting_changes", "extra_acquisitions", "industry_combined", "jump",
           "acquisition_share", "min_book", "exempt_self", "pro_forma",
           "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
           "lagged_years", "lag_years", "normalisation_years", "mix_base_year")
@@ -665,6 +669,8 @@ def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
     put("mergers_file", lambda o: _peer_path(pf.mergers_file, "the merger file (--mergers)", o, "file", True))
     put("absorptions_file", lambda o: _peer_path(pf.absorptions_file, "the absorptions file (--absorptions)",
                                                  o, "file", True))
+    put("reporting_changes", lambda o: _peer_path(pf.reporting_changes,
+                                                  "the reporting changes file (--reporting-changes)", o, "file", True))
     put("extra_acquisitions", lambda o: _peer_list(
         pf.extra_acquisitions, "the extra acquisitions (--extra-acquisitions)", o,
         lambda t: t.replace(",", " ").replace(";", " ").split(), _EXTRA.fullmatch, "CERT=YYYYQn items"))
@@ -742,7 +748,7 @@ def peer_arguments(pf: PeerForm, action: str) -> dict:
                 base_quarter=v["base_quarter"], index_min_book=v["index_min_book"],
                 lagged_years=v["lagged_years"], lag_years=v["lag_years"],
                 normalisation_years=v["normalisation_years"], mix_base_year=v["mix_base_year"],
-                delinquency=yes("delinquency"))
+                delinquency=yes("delinquency"), reporting_changes=v["reporting_changes"])
 
 
 def peer_refusal(busy: Optional[str], action: str) -> Optional[str]:
@@ -1185,6 +1191,9 @@ def window(root) -> dict:
                   "writes it.", browse="file")
         peer_text(body, "Absorptions file (--absorptions)", "absorptions_file", "Who absorbed whom, as "
                   "Pull writes it beside the merger file (absorptions.json).", browse="file")
+        peer_text(body, "Reporting changes file (--reporting-changes)", "reporting_changes", "The registry of "
+                  "Call Report changes, e.g. config/reporting-changes.json: each series notes the ones touching "
+                  "it.", browse="file")
         peer_text(body, "Extra acquisitions (--extra-acquisitions)", "extra_acquisitions",
                   "Acquisitions the FDIC record does not show, as CERT=YYYYQn separated by spaces; "
                   "write none if there are none.")

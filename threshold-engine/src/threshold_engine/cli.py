@@ -262,6 +262,9 @@ def _peers_parser(sub):
                    help="yes: also the delinquency view on the Peers tab, DelinquencyData and, per product, measure "
                         "and basis, the "
                         "delinquency CSVs, under the rules below (the cache must hold the fields)")
+    w.add_argument("--reporting-changes", required=True, metavar="FILE",
+                   help="the registry of Call Report changes (config/reporting-changes.json): each series file "
+                        "notes every change touching it, and the charts mark the quarters")
     w.add_argument("--industry-combined", required=True, nargs="*", metavar="PRODUCT+PRODUCT",
                    help="industry series for products summed together, e.g. \"Other consumer+Auto\"; "
                         "give the flag with nothing after it to state there are none")
@@ -325,7 +328,7 @@ def _peers_build(a):
               base_quarter=a.base_quarter, index_min_book=a.index_min_book,
               lagged_years=a.lagged_years, lag_years=a.lag_years,
               normalisation_years=a.normalisation_years, mix_base_year=a.mix_base_year,
-              delinquency=a.delinquency)
+              delinquency=a.delinquency, reporting_changes=a.reporting_changes)
     return 0
 
 

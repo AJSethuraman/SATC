@@ -37,7 +37,8 @@ ROOT = Path(__file__).resolve().parents[2]
 BUNDLE = (("consumer-public.json", ROOT / "books" / "consumer-public.json"),
           ("consumer-public-series.csv", ROOT / "books" / "consumer-public-series.csv"),
           ("peers.json", ROOT / "config" / "peers.json"),
-          ("peer-loan-classes.json", ROOT / "config" / "peer-loan-classes.json"))
+          ("peer-loan-classes.json", ROOT / "config" / "peer-loan-classes.json"),
+          ("reporting-changes.json", ROOT / "config" / "reporting-changes.json"))
 QUARTER = re.compile(r"^(19|20)\d\dQ[1-4]$")
 MERGERS_SINCE = "2005-01-01"
 INTERNAL_SOURCE = "KeyBank internal"
@@ -87,6 +88,8 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
                         absorptions=str(cache / "absorptions.json"), roster="peers.json", last=quarter)
     if raw.get("loan_classes") is not None:
         raw["loan_classes"] = {"file": "peer-loan-classes.json", "cache": str(folder / SEC)}
+    if raw.get("reporting_changes") is not None:
+        raw["reporting_changes"] = "reporting-changes.json"
     raw["internal"] = None if not internal else {
         "file": str(Path(internal).resolve()), "source": INTERNAL_SOURCE, "segments": bool(segments),
         "measures": dict(INTERNAL_MEASURES), "call_report_source": "KeyBank"}
