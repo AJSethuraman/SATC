@@ -4,12 +4,15 @@
     pull --cache DIR [KEY ...]   download into DIR/<today>/, keeping every earlier pull
     show --cache DIR KEY         one series as read from the newest pull (or --vintage)
     settings-template OUT.json   the firm's settings, every answer empty, to fill in
-    rate --cache DIR --settings FILE [--workbook OUT.xlsx]
+    rate --cache DIR --settings FILE [--compare WHAT-IF.json] [--workbook OUT.xlsx]
                                  every rating from the newest pull (or --vintage);
-                                 refuses, naming each gap, until every answer is in
+                                 refuses, naming each gap, until every answer is in.
+                                 --compare rates the same pull with a second settings
+                                 file and reports every reading whose rating differs
 """
 import argparse
 import json
+import pathlib
 import sys
 
 from .catalog import BY_KEY, DERIVED, NOT_YET, SERIES
@@ -72,13 +75,28 @@ def cmd_settings_template(a):
 
 def cmd_rate(a):
     settings = load_settings(a.settings)
+    other = None
+    if a.compare:
+        try:
+            other = load_settings(a.compare)
+        except Refused as e:
+            raise Refused("the what-if settings in %s: %s" % (a.compare, e))
     p = Pull(a.cache, a.vintage)
     result = rate_all(a.cache, settings, pull=p)
+    whatif = None
+    if other is not None:
+        from .compare import compare
+        whatif = compare(result, rate_all(a.cache, other, pull=p), pathlib.Path(a.settings).name,
+                         pathlib.Path(a.compare).name)
     if a.workbook:
         from .workbook import build
-        print("wrote %s" % build(a.workbook, result, p), file=sys.stderr)
+        print("wrote %s" % build(a.workbook, result, p, whatif=whatif), file=sys.stderr)
     if a.json:
-        print(json.dumps(result, indent=1))
+        print(json.dumps(dict(result, compare=whatif) if whatif else result, indent=1))
+        return 0
+    if whatif:
+        from .compare import lines
+        print("\n".join(lines(whatif, result["settings"]["change_months"])))
         return 0
     s = result["settings"]
     print("Ratings from the pull of %s. History: %s. Change over %d months. Cut-offs for 2 to 5: %s "
@@ -117,6 +135,8 @@ def main(argv=None):
     pr.add_argument("--vintage")
     pr.add_argument("--json", action="store_true")
     pr.add_argument("--workbook", metavar="OUT.xlsx", help="also write the workbook the teams read")
+    pr.add_argument("--compare", metavar="WHAT-IF.json",
+                    help="a second settings file: rate the same pull with it and show what changes")
     a = p.parse_args(argv)
     commands = {"list": cmd_list, "pull": cmd_pull, "show": cmd_show,
                 "settings-template": cmd_settings_template, "rate": cmd_rate}

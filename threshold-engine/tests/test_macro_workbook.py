@@ -121,7 +121,7 @@ def test_every_number_is_a_value_not_a_formula(book):
 def test_the_run_sheet_shows_the_answers_the_run_used(book):
     _, _, wb = book
     ws = wb["Run"]
-    got = {ws.cell(r, 1).value: ws.cell(r, 2).value for r in range(1, ws.max_row + 1)}
+    got = {ws.cell(r, 2).value: ws.cell(r, 3).value for r in range(1, ws.max_row + 1)}
     assert got["Where ratings 2 to 5 start"].startswith("40, 60, 80, 97")
     assert got["Sahm reading shown"] == "no" and got["History each reading is measured against"] == "the last 20 years"
     assert got["From the pull of"] == "2026-10-15"
@@ -147,7 +147,7 @@ def test_states_have_their_own_sheet_and_stay_off_the_national_one(book):
 
 def test_the_glossary_explains_every_term_a_reader_meets(book):
     _, _, wb = book
-    terms = {wb["Glossary"].cell(r, 1).value for r in range(1, wb["Glossary"].max_row + 1)}
+    terms = {wb["Glossary"].cell(r, 2).value for r in range(1, wb["Glossary"].max_row + 1)}
     for needed in ("Level", "Change over 6 months", "Percentile", "Rating", "From", "History from",
                    "At this rating since", "What stands out", "Change only", "Sahm reading", "No value published"):
         assert needed in terms, needed
@@ -158,7 +158,7 @@ def test_the_glossary_explains_every_term_a_reader_meets(book):
 def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
     _, _, wb = book
     ws = wb["Sources"]
-    rows = {ws.cell(r, 1).value: [ws.cell(r, j).value for j in range(1, 10)] for r in range(1, ws.max_row + 1)}
+    rows = {ws.cell(r, 2).value: [ws.cell(r, j).value for j in range(2, 11)] for r in range(1, ws.max_row + 1)}
     assert all(s.title in rows for s in SERIES)
     assert len(rows["Unemployment rate"][8]) == 64     # SHA-256 of the file the rating read
     assert rows["Initial jobless claims"][7] == "not in this pull"
@@ -203,3 +203,88 @@ def test_a_change_the_settings_did_not_ask_for_is_not_called_a_failure(cache, tm
     ws = wb["Ratings"]
     row = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "Unemployment rate")
     assert ws.cell(row, 9).value == "level only"
+
+
+# --- What if (W12) -------------------------------------------------------------------------------------------
+
+def _whatif(cache, path, a=None, b=None):  # noqa: F811
+    from threshold_engine.macro.compare import compare
+    pull = R.Pull(cache)
+    ra = R.rate_all(cache, check(answered(**(a or {}))), pull=pull)
+    rb = R.rate_all(cache, check(answered(**(b or {}))), pull=pull)
+    c = compare(ra, rb, "settings.json", "what-if.json")
+    out = build(path, ra, pull, whatif=c)
+    return out, c, openpyxl.load_workbook(out)
+
+
+def test_the_what_if_tab_sets_every_national_reading_side_by_side(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    assert wb.sheetnames[:3] == ["Ratings", "What if", "States"]
+    ws = wb["What if"]
+    text = _text(ws)
+    assert "History each reading is measured against" in text and "the last 3 years" in text
+    national = [x for x in c["rows"] if not x["key"].startswith("unemployment_")]
+    # the grid: the rating as you have it down the side, the what-if across, every national reading once
+    corner = next(cl for row in ws.iter_rows() for cl in row if cl.value == "AS YOU HAVE IT")
+    grid = [[ws.cell(corner.row + k, corner.column + j).value or 0 for j in range(1, 6)] for k in range(1, 6)]
+    assert sum(map(sum, grid)) == len(national)
+    for x in national:
+        assert grid[x["a"]["rating"] - 1][x["b"]["rating"] - 1] >= 1
+    # every national reading that moves is listed, linked to its tab, with both chips and the move
+    moved = [x for x in national if x["move"]]
+    assert moved
+    for x in moved:
+        cell = next(cl for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
+                    if cl.value == x["title"] and ws.cell(cl.row, 14).value not in (None, "same"))
+        assert cell.hyperlink is not None
+        assert ws.cell(cell.row, 14).value == ("▲ %d" if x["move"] > 0 else "▼ %d") % abs(x["move"])
+        assert ws.cell(cell.row, 6).value[0] == str(x["a"]["rating"])
+        assert ws.cell(cell.row, 10).value[0] == str(x["b"]["rating"])
+    # the readings at the same rating are listed too, folded away, so the count can be checked
+    same = [x for x in national if x["move"] == 0]
+    folded = [r for r in range(1, ws.max_row + 1) if ws.cell(r, 14).value == "same"]
+    assert len(folded) == len(same) and all(ws.row_dimensions[r].hidden for r in folded)
+    # Ratings says which readings move, beside each series
+    rt = wb["Ratings"]
+    for x in moved:
+        row = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == x["title"])
+        assert "%d → %d" % (x["a"]["rating"], x["b"]["rating"]) in rt.cell(row, 13).value
+
+
+def test_the_dashed_lines_are_the_what_ifs_cut_offs_over_the_years_its_history_covers(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    ws = wb["Unemployment"]
+    row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "position")
+    head = next(cl for col in ws.iter_cols(min_col=34, max_col=34) for cl in col if cl.value == "What if: 2 from")
+    for j, k in enumerate(range(2, 6)):
+        col = 34 + j
+        assert ws.column_dimensions[openpyxl.utils.get_column_letter(col)].hidden
+        filled = [(ws.cell(r, 14).value, ws.cell(r, col).value) for r in range(head.row + 1, ws.max_row + 1)
+                  if ws.cell(r, col).value is not None]
+        if row["b"]["lines"][str(k)] is None:
+            assert not filled
+            continue
+        assert filled and {v for _, v in filled} == {row["b"]["lines"][str(k)]}
+        assert min(d for d, _ in filled).isoformat()[:10] == row["b"]["history_from"][:10]
+    with zipfile.ZipFile(out) as z:
+        charts = [z.read(n) for n in z.namelist() if n.startswith("xl/charts/chart")]
+    assert any(ch.count(b'prstDash val="dash"') == 4 for ch in charts)
+
+
+def test_a_different_change_horizon_draws_no_dashed_lines_on_the_change(cache, tmp_path):  # noqa: F811
+    # Six months against twelve is a different measure: its lines would sit on the wrong scale.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_months": 6}, {"change_months": 12})
+    assert all(not x["same_measure"] for x in c["rows"] if x["reading"] == "change")
+    ws = wb["Unemployment"]
+    assert any(ws.cell(r, 34).value == "What if: 2 from" for r in range(1, 80))      # the level's lines
+    assert not any(ws.cell(r, 38).value for r in range(1, ws.max_row + 1))         # none for the change
+
+
+def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    ws = wb["Run"]
+    got = {ws.cell(r, 2).value: (ws.cell(r, 3).value, ws.cell(r, 4).value) for r in range(1, ws.max_row + 1)}
+    assert got["History each reading is measured against"] == ("full history", "the last 3 years")
+    assert got["What-if file"][0] == "what-if.json" and got["Settings file"][0] == "settings.json"
+    terms = {wb["Glossary"].cell(r, 2).value for r in range(1, wb["Glossary"].max_row + 1)}
+    assert {"As you have it", "What if", "Move", "Dashed lines"} <= terms

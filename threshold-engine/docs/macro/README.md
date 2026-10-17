@@ -13,6 +13,8 @@ scripts and data behind it, are kept below for the record. Public data only.
 | `TOOL.md` | The economic conditions tool: what works, how each series is read, what was checked, what waits on the firm |
 | `settings-template.json` | The tool's settings, every answer empty, with a recommendation beside each |
 | `settings.json` | The firm's answers (16 Oct 2026: the recommendations) |
+| `what-if-30-years.json` | An example what-if, not the firm's settings: theirs with history set to the last 30 years |
+| `examples/` | The workbook from the pull of 17 Oct 2026 with that what-if, its printout, and four screenshots |
 | `walkthrough/` | The walk of the monthly refresh: the procedure as one PDF, and the defects it found |
 | `tie-out/gasoline-change-2026-10-16/` | The workbook's top reading tied to EIA, with three more tied to BLS, FRED and FHFA, as one PDF |
 | `LOG.md` | This work's log (kept apart from the main LOG.md) |

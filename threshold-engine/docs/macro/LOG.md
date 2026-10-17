@@ -470,3 +470,58 @@ same second, at the same size: "firm sets direction" and "the firm's settings" a
 Python judged its cached bytecode of the broken version still current. With the caches cleared, all 78
 pass. A deliberate-break run should not write bytecode at all (`PYTHONDONTWRITEBYTECODE=1`), or should
 clear it when it puts the file back.
+
+## 17 October 2026, the what-if (W12), and the workbook in PocketBook's look
+
+The firm, on W12: *"i set yes"*, and *"i want to see an example workbook after this, take inspiration from
+pocketbook for UI look and feel / workbook output"*, *"also the engine threshold you originate from has
+graphs and charting designed by claude design"*.
+
+**Built: `rate --compare WHAT-IF.json`** (`macro/compare.py`). It rates the same pull with a second
+settings file and reports every reading under both: the rating, the percentile, where the history starts
+and how many readings it holds, and the move between them. Both files must be complete. A what-if with a
+gap refuses, naming its file and the gap. Neither file is changed and nothing is chosen.
+
+**The workbook, in PocketBook's anatomy** (`pocketbook/src/pocketbook/house.py`, its redesign of 26 Sep):
+- a dark title band with the red rule under it;
+- one "How this tab works" note per tab, which folds away;
+- tiles for the headline figures, and dark section bands;
+- tabs coloured for what they hold: results dark, the record grey.
+
+The helpers are written in `macro/workbook.py`, not copied: `credit-suite`'s conformance check fails any
+whole-file copy of a style module. **The charts stay Claude Design's** (the threshold hand-off): the bands
+shaded behind the history, the history in ink, the latest point ringed. The what-if's cut-offs are dashed,
+as that workbook draws "what happens if". With `--compare`, the workbook gains a What if tab (what differs,
+the grid of ratings, the counts drawn, every reading that moves, and the unchanged ones folded away), a
+What if column on Ratings and States, and on each series' tab the what-if rating and its starting points.
+
+**The example** (`examples/`), from a fresh pull of 17 Oct 2026 (85 of 85 series): the firm's settings
+against `what-if-30-years.json`. 158 readings were rated under both: 145 at the same rating, 11 higher, 2
+lower. Seven are national, the same seven the walk's hand-written script found the day before.
+
+**Opened before it was called done.** Every tab was rendered through LibreOffice and read page by page.
+- **Charts split across printed pages:** the panels at the top had grown. Each tab's charts now start a
+  page.
+- **Crowded year labels:** LibreOffice printed nearly every year along the bottom (1971 1973 1974 1976...).
+  It was in the 16 Oct workbook too; nobody had flagged it. On a text axis LibreOffice ignores the label
+  skip. The axis is now a date axis with a step of 1, 2, 5 or 10 years, at most ten labels. Every layer of
+  a chart shares that one axis.
+- **Cells sat on different lines** in one row (bottom against centre). Every cell is now centred in its row.
+
+**Principles.** It rests on *propose never dispose*: two runs are set side by side, and neither is
+preferred. It also rests on *refuse rather than default*: an incomplete what-if refuses. It strains none.
+
+**Tests.** 12 new: 8 in `test_macro_compare.py` and 4 in `test_macro_workbook.py`. The macro suite is 91,
+all passing. Eight deliberate breaks each made a test fail:
+- the move's sign;
+- the reason a reading is missing taken from the wrong side;
+- the refusal's file name dropped;
+- dashed lines drawn before the what-if's history;
+- a change over a different horizon drawn as comparable;
+- the grid transposed;
+- the unchanged rows not folded;
+- the Run tab showing one file's answers twice.
+
+The runs used `PYTHONDONTWRITEBYTECODE=1`, the lesson of 16 Oct.
+
+**Still open:** W1, `work/` is not ignored by git (`threshold-engine/.gitignore` is outside these paths).
