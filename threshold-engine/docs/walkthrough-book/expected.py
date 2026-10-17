@@ -215,7 +215,7 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
               "actions": [], "reads": [
                   {"special": "active", "expect": "Summary"},
                   {"special": "sheets", "expect": ["Decide", "Summary", "Peers", "Peer loan classes", "Thresholds", LBS, "Internal",
-                                                   "Evidence", "Backtest", "Glossary", "Sources", "Run", "Data",
+                                                   "Evidence", "Backtest", "Glossary", "Sources", "Reporting changes", "Run", "Data",
                                                    "Peers data", "Peers delinquency data", "Internal data", "Assess",
                                                    "Chart", "Peers workings"]},
                   {"special": "slicers", "expect": {NAMES[0]: first[0], NAMES[1]: first[1]}},

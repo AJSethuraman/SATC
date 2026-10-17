@@ -1,6 +1,6 @@
 # Expected answers: the book walkthrough
 
-From `book.json` and the series files the build wrote, through `scale.py`. 105 series, 35 products and measures.
+From `book.json` and the series files the build wrote, through `scale.py`. 147 series, 49 products and measures.
 
 ## B1 · Open the workbook as built
 
@@ -10,9 +10,9 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 
 ## B2 · Read Summary, and every source's own lines on Lines by source
 
-Every series' latest value, and Pick a source where its rating goes: 105 series, each with its own lines on Lines by source.
+Every series' latest value, and Pick a source where its rating goes: 147 series, each with its own lines on Lines by source.
 
-1235 reads.
+1773 reads.
 
 ## B3 · On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from
 

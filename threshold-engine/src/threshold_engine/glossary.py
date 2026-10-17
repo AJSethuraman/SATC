@@ -367,7 +367,7 @@ TERMS = [
     # one is recorded.
     ("Reporting change",
      "A change to the Call Report's definitions or forms that moves a series without any change in risk, such "
-     "as margin loans moved out of other consumer from December 2024. Labelled on every series it touches, in "
+     "as margin loans moved out of other consumer from December 2024. Labeled on every series it touches, in "
      "the quarter it took effect.",
      "Listed once, with its source, on the Reporting changes tab. Each series file the peers build writes "
      "carries a Reporting change line for every change touching its product and measure within its quarters, "

@@ -164,7 +164,7 @@ _SPLIT = ("{what} is RC-C {item} ({field}), first filed 2007Q1: before it every 
           "nonfarm nonresidential loans filed both parts of the split as 0 ($20.1bn to $27.0bn of those loans; "
           "the FDIC's definition of LNRENROW: before March 2008 a memoranda item for filers that met specific "
           "criteria); from 2008Q1 none did. The industry series counts them as filed, so in 2007, and in its "
-          "four-quarter windows holding a 2007 quarter (through 2008Q3), it leaves those loans out: labelled, "
+          "four-quarter windows holding a 2007 quarter (through 2008Q3), it leaves those loans out: labeled, "
           "not dropped. Savings institutions filing the TFR (CALLFORM 100) never filed the split (838 filers, "
           "$64.1bn of nonfarm nonresidential loans at 2007Q1; the FDIC: \"not available for TFR Reporters\"): "
           "blank for 655 filers at 2011Q4 and 17 from 2012Q1.")

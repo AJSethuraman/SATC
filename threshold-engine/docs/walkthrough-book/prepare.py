@@ -33,5 +33,6 @@ book["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"), abso
 # The SEC filings for the Peer loan classes tab: the cache 'peers classes-pull' filled.
 book["loan_classes"] = {"file": str(ROOT / "config" / "peer-loan-classes.json"),
                         "cache": str(Path(sys.argv[2]).resolve())}
+book["reporting_changes"] = str(ROOT / "config" / "reporting-changes.json")
 (out / "book.json").write_text(json.dumps(book, indent=2) + "\n", encoding="utf-8")
 print("wrote %s: %d series, cache %s" % (out / "book.json", len(rows), cache))
