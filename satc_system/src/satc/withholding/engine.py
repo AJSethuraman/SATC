@@ -192,7 +192,7 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
         projected_wages + oi.interest + oi.ordinary_dividends
         + oi.taxable_retirement_distributions + oi.taxable_social_security
         + capital_in_income + oi.self_employment_net + oi.unemployment
-        + oi.other_taxable_income + oi.spouse_taxable_wages)
+        + oi.rental_and_passive_income + oi.other_taxable_income + oi.spouse_taxable_wages)
 
     adj = inp.adjustments
     adjustments_total = (adj.traditional_ira_deduction + adj.hsa_deduction
@@ -233,7 +233,8 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
     income_tax_before_credits = ordinary_tax + cap_gains_tax
 
     add_medicare = _additional_medicare_tax(ctx, projected_wages)
-    ctx.investment_income = _nonneg(oi.interest + oi.ordinary_dividends + _nonneg(net_capital))
+    ctx.investment_income = _nonneg(oi.interest + oi.ordinary_dividends + _nonneg(net_capital)
+                                    + _nonneg(oi.rental_and_passive_income))
     niit = _net_investment_income_tax(ctx, agi)
 
     # -- credits ---------------------------------------------------------------
@@ -290,13 +291,14 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
     # actually applies. Tied to Form 8960 on 7 September 2026: the lesser-of
     # rule, the 3.8% rate and the thresholds agree with the form; the SCOPE of
     # "net investment income" does not (no rents, royalties, annuities or
-    # passive business income; no deductions against it).
+    # passive business income; no deductions against it). Rents, royalties
+    # and passive K-1 income have had their own field since PR #451.
     if niit > ZERO:
         notes.append(
-            "Net investment income here counts interest, dividends and capital gains only. "
-            "Rents, royalties, annuities and passive business income are NOT included, so a "
-            "landlord's figure is too low; deductions against investment income are not "
-            "modelled either, so somebody with investment interest expense is too high. "
+            "Net investment income here counts interest, dividends, capital gains and the "
+            "rents, royalties and passive income entered. Annuities are NOT included, so "
+            "somebody with a nonqualified annuity is too low; deductions against investment "
+            "income are not modelled, so somebody with investment interest expense is too high. "
             "The threshold test uses AGI, which equals MAGI unless foreign earned income is "
             "excluded.")
 
@@ -449,6 +451,17 @@ def _child_tax_credit(ctx: _Context, agi: Decimal, tax_room: Decimal,
     return used, min(line17, line20)
 
 
+def _childless_age_ok(ctx: _Context) -> bool:
+    """With no qualifying child, the taxpayer -- or the spouse, on a joint
+    return -- must be 25 through 64 at the end of the year. An age not given
+    is assumed in range, and that is said in the assumptions."""
+    hh = ctx.inp.household
+    people = [(hh.taxpayer_under_25, hh.taxpayer_65_or_older)]
+    if ctx.status == "married_jointly":
+        people.append((hh.spouse_under_25, hh.spouse_65_or_older))
+    return any(not under and not over for under, over in people)
+
+
 def _earned_income_credit(ctx: _Context, agi: Decimal, earned: Decimal) -> Decimal:
     """IRC sec. 32 from the revenue procedure's table.
 
@@ -468,8 +481,8 @@ def _earned_income_credit(ctx: _Context, agi: Decimal, earned: Decimal) -> Decim
         ctx.eitc_ineligible_reason = (f"investment income over {_usd(t.eitc_investment_income_limit)}")
         return ZERO
     kids = hh.eitc_children if hh.eitc_children is not None else (hh.children_under_17 or 0)
-    if kids == 0 and hh.taxpayer_65_or_older:
-        ctx.eitc_ineligible_reason = "no qualifying children and 65 or older"
+    if kids == 0 and not _childless_age_ok(ctx):
+        ctx.eitc_ineligible_reason = "no qualifying children and nobody on the return aged 25 to 64"
         return ZERO
     row = t.eitc_row(ctx.status, kids)
     phase_in = row["max_credit"] / row["earned_income_amount"]
@@ -620,6 +633,31 @@ def _payroll_credits(ctx: _Context, projections: list[_JobProjection]) -> tuple[
     return addl, excess
 
 
+def _installment_plan(ctx: _Context, required: Decimal, withholding: Decimal,
+                      estimated_paid: Decimal) -> list[tuple[str, Decimal]]:
+    """The 1040-ES payments still due, each bringing the total up to date.
+
+    Form 1040-ES: a quarter of the required annual payment is due by each
+    date, cumulatively. Withholding counts as paid evenly through the year
+    (IRC sec. 6654(g)(1)); estimated payments already made count from the
+    start. A date already passed is not spread over the dates left -- it is
+    owed now, so it goes into the next payment. Spreading it left somebody
+    starting in August a quarter short until January (Codex review, PR #451).
+    """
+    dates = ctx.tables.est_tax_due_dates
+    plan: list[tuple[str, Decimal]] = []
+    paid_in_plan = ZERO
+    for k, d in enumerate(dates, start=1):
+        if date.fromisoformat(d) < ctx.today:
+            continue
+        due_by_now = _nonneg((required - withholding) * k / len(dates) - estimated_paid)
+        payment = _money(_nonneg(due_by_now - paid_in_plan))
+        paid_in_plan += payment
+        if payment > ZERO:
+            plan.append((d, payment))
+    return plan
+
+
 def _build_recommendation(ctx: _Context, breakdown: TaxBreakdown) -> WithholdingRecommendation:
     inp, tables = ctx.inp, ctx.tables
     projections = [_project_job(job) for job in inp.jobs]
@@ -668,11 +706,8 @@ def _build_recommendation(ctx: _Context, breakdown: TaxBreakdown) -> Withholding
     shortfall = _nonneg(required - projected_total_payments)
     penalty_risk = (liability - withholding_total >= tables.underpayment_penalty_floor
                     and shortfall > ZERO)
-    remaining_dates = [d for d in tables.est_tax_due_dates if date.fromisoformat(d) >= ctx.today]
-    plan: list[tuple[str, Decimal]] = []
-    if penalty_risk and remaining_dates:
-        each = _money(shortfall / len(remaining_dates))
-        plan = [(d, each) for d in remaining_dates]
+    plan = _installment_plan(ctx, required, withholding_total,
+                             inp.other_payments.estimated_tax_payments) if penalty_risk else []
 
     job_breakdown = [
         JobProjection(
@@ -779,6 +814,13 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
     if hh.eitc_children is None and kids > 0 and eitc_reachable:
         add("Earned income credit", "The children under 17 are the qualifying children",
             "Children under 19, or under 24 and a student, also count for this credit.")
+    eitc_kids = hh.eitc_children if hh.eitc_children is not None else kids
+    joint = status == "married_jointly"
+    if (eitc_kids == 0 and eitc_reachable and not ctx.eitc_ineligible_reason
+            and (hh.taxpayer_under_25 is None or (joint and hh.spouse_under_25 is None))):
+        add("Earned income credit", "Somebody on the return is 25 or older",
+            "With no qualifying child the credit needs somebody aged 25 to 64. "
+            "If everyone is under 25, it is zero.")
     if inp.prior_year_tax is None:
         add("Last year's tax", "Not given, so only the 90%-of-this-year test was run",
             "Enter last year's total tax (Form 1040 line 24) -- paying that much "

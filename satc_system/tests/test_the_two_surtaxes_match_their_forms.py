@@ -227,7 +227,7 @@ def test_the_estimate_says_what_its_investment_income_leaves_out():
     open, and the omission runs in BOTH directions — so the note has to say
     which client is too high and which is too low."""
     said = " ".join(_estimate(wages=300000, interest=50000).notes)
-    assert "Rents, royalties" in said
+    assert "Annuities are NOT included" in said
     assert "too low" in said and "too high" in said
     assert "MAGI" in said
 
@@ -235,7 +235,7 @@ def test_the_estimate_says_what_its_investment_income_leaves_out():
 def test_the_note_is_absent_when_the_tax_does_not_apply():
     """A caveat printed on every estimate is a caveat nobody reads."""
     said = " ".join(_estimate(wages=80000).notes)
-    assert "Rents, royalties" not in said
+    assert "Annuities are NOT included" not in said
 
 
 # ── the denominator ───────────────────────────────────────────────────────────

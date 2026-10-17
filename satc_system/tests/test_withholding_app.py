@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 
 import pytest
 
@@ -215,3 +216,23 @@ def test_from_client_prefills_filing_status(monkeypatch):
     assert resp.status_code == 200
     assert b"Prefilled filing status" in resp.data
     assert b"Head of household" in resp.data        # mapped HOH label
+
+
+def test_the_age_and_rent_fields_reach_the_estimate(client):
+    """Codex review, PR #451: the under-25 and rental fields are on the form,
+    so walk them through it. Single, wages 15,000, 2025, no children: 313.94
+    of earned income credit at 25 or older; none under 25; none with 12,000
+    of rent, which is over the 11,950 investment-income limit."""
+    def post(**extra):
+        return client.post("/withholding", data={
+            "filing_status": "single", "tax_year": "2025",
+            "j0_name": "Case", "j0_pay_frequency": "annual",
+            "j0_gross_pay_per_period": "15000", "j0_federal_tax_withheld_per_period": "0",
+            "j0_retirement_pretax_per_period": "0", "j0_pay_periods_remaining": "1",
+            "children_under_17": "0", **extra}).get_data(as_text=True)
+    row = re.compile(r"Earned income credit</td>\s*<td class=\"num\">\(\$314\)")  # whole dollars
+    assert row.search(post(taxpayer_under_25="no"))
+    assert not row.search(post(taxpayer_under_25="yes"))
+    assert not row.search(post(taxpayer_under_25="no", rental_and_passive_income="12000"))
+    assert 'name="rental_and_passive_income"' in post()
+    assert 'name="spouse_under_25"' in post()

@@ -207,6 +207,40 @@ def test_earned_income_credit_from_the_revenue_procedure_columns():
     assert r.breakdown.earned_income_credit == D("5751.51")
 
 
+def test_rents_and_passive_income_count_as_investment_income_for_the_credit():
+    # HOH, three children, wages 20,000, net rent 12,000, 2025. Investment
+    # income 12,000 is over the 11,950 limit (Rev. Proc. 2024-40 2.06(2);
+    # Pub. 596 counts passive income), so no credit. Codex review, PR #451.
+    r = _run(wages=20000, status="head_of_household", household={"children_under_17": 3},
+             other_income={"rental_and_passive_income": 12000})
+    assert r.breakdown.earned_income_credit == ZERO_
+    assert r.breakdown.total_income == D("32000.00")
+
+
+def test_childless_credit_needs_somebody_aged_25_to_64():
+    # Single, no children, wages 15,000, 2025. Phase-in caps at 649; phase-out
+    # 649 / (19,104 - 10,620) x (15,000 - 10,620) = 335.06; credit 313.94.
+    told = _run(wages=15000, household={"taxpayer_under_25": False, "children_under_17": 0})
+    assert told.breakdown.earned_income_credit == D("313.94")
+    assert not any("25" in a.assumed for a in told.assumptions)
+    # Under 25: IRC sec. 32(c)(1)(A)(ii)(II) -- no credit. Codex review, PR #451.
+    young = _run(wages=15000, household={"taxpayer_under_25": True, "children_under_17": 0})
+    assert young.breakdown.earned_income_credit == ZERO_
+    # Not told: assumed in range, and said so.
+    blank = _run(wages=15000, household={"children_under_17": 0})
+    assert blank.breakdown.earned_income_credit == D("313.94")
+    assert any(a.topic == "Earned income credit" and "25" in a.assumed for a in blank.assumptions)
+
+
+def test_childless_joint_return_qualifies_on_either_spouse():
+    young_pair = {"taxpayer_under_25": True, "spouse_under_25": True, "children_under_17": 0}
+    assert _run(wages=15000, status="married_jointly",
+                household=young_pair).breakdown.earned_income_credit == ZERO_
+    one_older = dict(young_pair, spouse_under_25=False)
+    assert _run(wages=15000, status="married_jointly",
+                household=one_older).breakdown.earned_income_credit > ZERO_
+
+
 def test_no_earned_income_credit_married_filing_separately():
     r = _run(wages=15000, status="married_separately", household={"children_under_17": 1})
     assert r.breakdown.earned_income_credit == ZERO_
@@ -280,9 +314,22 @@ def test_penalty_risk_lays_out_the_estimated_payments_still_due():
     assert rec.required_annual_payment_basis == "100% of last year's tax"
     assert rec.penalty_risk
     # 15 Sep 2026 and 15 Jan 2027 are still ahead on 1 Aug 2026 (Form 1040-ES 2026).
-    assert rec.estimated_payments_remaining == [("2026-09-15", D("1000.00")), ("2027-01-15", D("1000.00"))]
+    # A quarter (500) was due by each date, cumulatively, so April's and June's
+    # are overdue and go into September: 1,500 then 500. (First written as
+    # 1,000 + 1,000 -- spreading the missed quarters left the taxpayer 500
+    # short from September to January. Codex review, PR #451.)
+    assert rec.estimated_payments_remaining == [("2026-09-15", D("1500.00")), ("2027-01-15", D("500.00"))]
     assert any(c.level == "act" and "penalty" in c.title.lower() for c in r.checks)
     assert "penalty" in r.headline
+
+
+def test_estimated_payments_already_made_count_toward_the_next_date():
+    # As above, but 600 already paid. Due by 15 Sep: 3 x 500 = 1,500, less the
+    # 600 = 900. Due by 15 Jan: 2,000 - 600 - 900 = 500.
+    r = _run(year=2026, other_income={"self_employment_net": 60000}, prior_year_tax=2000,
+             prior_year_agi=50000, today=date(2026, 8, 1), other_payments={"estimated_tax_payments": 600})
+    assert r.recommendation.estimated_payments_remaining == [
+        ("2026-09-15", D("900.00")), ("2027-01-15", D("500.00"))]
 
 
 def test_no_penalty_when_less_than_a_thousand_is_owed():

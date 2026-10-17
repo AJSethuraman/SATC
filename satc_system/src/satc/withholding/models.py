@@ -98,6 +98,10 @@ class OtherIncome:
     long_term_capital_gains: Decimal = ZERO
     self_employment_net: Decimal = ZERO
     unemployment: Decimal = ZERO
+    #: Net rents, royalties and passive K-1 income (Schedule E). Kept apart
+    #: from other_taxable_income because it is investment income for the
+    #: earned income credit (Pub. 596) and for the 3.8% tax (Form 8960 line 4a).
+    rental_and_passive_income: Decimal = ZERO
     other_taxable_income: Decimal = ZERO
     spouse_taxable_wages: Decimal = ZERO
     spouse_federal_tax_withheld: Decimal = ZERO
@@ -114,6 +118,10 @@ class Household:
 
     taxpayer_65_or_older: bool | None = None
     spouse_65_or_older: bool | None = None
+    #: Only asked for the earned income credit with no qualifying child, which
+    #: needs somebody on the return aged 25 through 64 (IRC sec. 32(c)(1)(A)(ii)(II)).
+    taxpayer_under_25: bool | None = None
+    spouse_under_25: bool | None = None
     blind_count: int = 0
     children_under_17: int | None = None
     other_dependents: int | None = None
@@ -351,6 +359,8 @@ def _build_household(data: dict[str, Any]) -> Household:
     return Household(
         taxpayer_65_or_older=_opt_bool(data.get("taxpayer_65_or_older")),
         spouse_65_or_older=_opt_bool(data.get("spouse_65_or_older")),
+        taxpayer_under_25=_opt_bool(data.get("taxpayer_under_25")),
+        spouse_under_25=_opt_bool(data.get("spouse_under_25")),
         blind_count=_opt_int(data.get("blind_count")) or 0,
         children_under_17=_opt_int(data.get("children_under_17")),
         other_dependents=_opt_int(data.get("other_dependents")),

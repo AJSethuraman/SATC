@@ -158,6 +158,8 @@
           </select></p>
         {{ yesno('taxpayer_65_or_older', 'Taxpayer 65 or older by Dec 31') }}
         {{ yesno('spouse_65_or_older', 'Spouse 65 or older (joint return)') }}
+        {{ yesno('taxpayer_under_25', 'Taxpayer under 25 by Dec 31') }}
+        {{ yesno('spouse_under_25', 'Spouse under 25 (joint return)') }}
         {{ field('children_under_17', 'Children under 17', 'blank = none') }}
         {{ field('other_dependents', 'Other dependents', 'older children, parents') }}
         {{ field('eitc_children', 'Children for the earned income credit', 'blank = the under-17 count') }}
@@ -179,7 +181,8 @@
         {{ field('taxable_retirement_distributions', 'Taxable IRA / pension') }}
         {{ field('taxable_social_security', 'Taxable Social Security') }}
         {{ field('unemployment', 'Unemployment') }}
-        {{ field('other_taxable_income', 'Other taxable income', 'rents, K-1s, gambling') }}
+        {{ field('rental_and_passive_income', 'Rents, royalties, passive K-1s', 'net, from Schedule E') }}
+        {{ field('other_taxable_income', 'Other taxable income', 'gambling, prizes, jury pay') }}
       </div>
       <h3>Adjustments</h3>
       <div class="grid2">
