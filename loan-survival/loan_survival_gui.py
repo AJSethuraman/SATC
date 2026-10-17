@@ -913,7 +913,7 @@ def main(argv=None) -> None:
                 self.row("Date (YYYY-MM-DD)", make)
             elif k == "flag":
                 self.flag_form(self.var_a, self.var_op, self.var_b, self.on_flag)
-                self.lbl_range = label(b, "", "small", fg="SLATE", wrap=True)
+                self.lbl_range = label(b, "", "small", fg="SLATE")
                 self.lbl_range.pack(anchor="w", pady=(0, GAP))
                 self.on_flag()
             elif k in ("cutoffs", "category"):
