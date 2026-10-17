@@ -3695,6 +3695,49 @@ changed in the code.
     on Line size and Summary, and the note says Grids' own average can differ. A cleared *Tripped by being worse
     on* made the switch #N/A and emptied the tab; it now reads as Either. Grids' line measures are tied to the CSV
     inner cell and margins. 3 tests and 3 planted bugs added.
+- **Built, 17 Oct 2026: the Glossary's custom terms, luck as the other side of confidence, and Significant at
+  N%?** (branch `claude/pocketbook-glossary-terms`, on the Line size branch). Three asks from the firm the same day:
+  - *"our custom terms - like bad / good loans, these i do want in the glossary along with our key terms as fairly
+    plain language and simple explanations to walk a user through what it means. keep my voice in mind"*. Every
+    word PocketBook coined or uses in its own sense was read off the tabs' code and a built synthetic workbook. The
+    Glossary goes from 37 terms to 73 (69 without a charge-off date): 36 added, each beside the term it belongs with
+    (Good loan after Bad loan; Judged against after the two comparisons; Bad loans, Bad dollars and Loan size after
+    them; Two-way / Split by after Pocket; Compare's dropdowns after Vintage; Excess, Worse? with its four readings,
+    Material? / Material at, Show, How sure / Significant at N%?, its readings, the reasons it gives instead of a
+    p-value, the profit line, Holds fixed / Mixed with and Could have caught among the verdicts; Together and its
+    six readings; Line size's Show; Treat as; then Control's words, Gray rows under, and the new-variable test's
+    Found on / Held back, Pre-spec and Holds up? / Still holds?). Three rewritten: GCOs ($), which said only "Gross
+    charge-off dollars."; Borderline, whose example was a Worse? cell, which has printed the word alone since 5 Oct;
+    and Tripped by, now walked through. After a Run, 23 of the new examples use the book's own figures
+    (Good loan, Bad loans % and Bad dollars ÷ Booked tie to the CSV in a test); the rest stay generic and never say
+    "This book". canon's voice check: 0 tells in 195 strings.
+  - *"also luck is seriously only a term we will understand, make sure it's clear that luck is basically the other
+    side of confidence"*. No tab, Control label, launcher message or Record line says luck (the 26 Sep test still
+    guards that). It survives where a reader can meet it only as a setting's value: `revenue_line: luck` in the
+    what-ran YAML and the cube-file refusal that names that value; both left as identifiers. `docs/statistics.md`
+    now pairs confidence with the p-value, and the Glossary's *How sure / Significant at N%?* says it: at 95% sure a
+    gap is significant when its p-value is under 5%, a gap that large arising by chance less than 1 in 20 times.
+  - *"i don't like how often by chance or could be chance as much as luck at this point. or another sort of
+    standard term, i just think could be chance is too vague for a typical user"*, with the layout they chose
+    (*Significant at 95%?*: *Yes (p = 0.09%)*, *Borderline (p = 4.8%)*, *No (p = 23%)*, *Too few losses to test*,
+    *Not losing more*). **This supersedes the 5 Oct 2026 "How often by chance" decision (its "1 in X", Could be
+    chance and Too close to call) and the 26 Sep 2026 note that the p-value is never luck** (the p-value keeps its
+    name; the column is now named for the test it answers). The heading follows How sure live. The p-value is the
+    one "1 in X" was built from, after the allowance for many tests, and the note says so. It prints two decimals
+    under 1%, one under 10%, none from 10%, and *p < 0.01%* below 0.01%; one rounding onto the line it sits under or
+    over takes up to two more decimals (4.98%, not 5.0%, beside *Significant at 95%?*). The other reasons are kept.
+    RANR vs GCOs', Split's and Start here's *· borderline (p 0.048)* are unchanged: they sit on other tabs, beside a
+    verdict rather than in a column of p-values, and moving them is the firm's call.
+  - Tests: `tests/test_glossary_terms_2026_10_17.py` (15) and `tests/test_significant_at_2026_10_17.py` (26), both
+    written first (12 of 15 and 26 of 26 failed on the code before). The guard reads every verdict word, reading,
+    Show and Measure option and Together reading from the constants the tabs print, so a reading added without a
+    Glossary row fails it; a control proves it can. One Yes pocket is tied by hand: its z test from its own counts
+    and Benjamini-Hochberg worked out in the test, against the engine, `_pockets` and the tab. Moved deliberately: the
+    Glossary's term list, the bank checklist's count (37/33 to 73/69, plus a C18 step for the heading; HTML and PDF
+    rebuilt) and 8 tests pinned to How often by chance. Planted bugs: 21 added and 7 repointed, 28 of 28 caught.
+    Full suite in 4 shards with no display, Line size's review fixes merged in: 1,207 passed, 1 failed, 15 skipped;
+    the failure (`test_generic`: two made-up examples named the synthetic book's columns) was fixed and its file
+    rerun green.
 
 ## 7 · Standing rules for new items
 

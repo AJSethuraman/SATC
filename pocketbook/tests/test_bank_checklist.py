@@ -17,7 +17,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from pocketbook import book, choices as ch, control, deps, results, synth
+from pocketbook import book, choices as ch, control, deps, live, results, synth
 
 ROOT = Path(__file__).resolve().parents[1]
 MD = ROOT / "docs" / "BANK-MACHINE-CHECKLIST.md"
@@ -147,6 +147,12 @@ def test_every_cell_the_checklist_names_holds_what_it_says(tmp_path):
     assert ctl["B15"].value == "How much worse than its comparison a pocket must be"
     assert _listed(wb, lists["C15"])[0] == PICK["worse_at"] and _listed(wb, lists["C15"])[-1] == "2 times"
     assert len(_listed(wb, lists["C15"])) == 4
+    # Significant at N%? follows How sure (the firm, 17 Oct 2026; tests/test_significant_at_2026_10_17.py)
+    said("Pick **99% sure** in C18")
+    assert ctl["B18"].value == "How sure a difference must be before it counts" and \
+        "99% sure" in _listed(wb, lists["C18"])
+    said("**Significant at 95%?** now reads **Significant at 99%?**")
+    assert any(c.value == live.SIG_HEAD_FORMULA for row in wb["Pockets"].iter_rows() for c in row)
     said("type `0.9` in D15")
     d15 = lists["D15"]
     assert (d15.type, d15.operator, d15.formula1, d15.errorTitle) == ("decimal", "between", "1.01", "Out of range")

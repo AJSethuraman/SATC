@@ -17,18 +17,33 @@ from conftest import TEST_SHUFFLES
 from pocketbook import book, choices as ch, glossary, house, perm, synth
 from test_book import _answer
 
-#: every term, in the firm's order (2 Oct 2026)
+#: every term, in the firm's order (2 Oct 2026), with the custom terms of 17 Oct 2026 placed beside the ones they
+#: belong with (the firm: "our custom terms - like bad / good loans, these i do want in the glossary";
+#: tests/test_glossary_terms_2026_10_17.py): Good loan after Bad loan, Together's readings together, and the rest
 TERMS = ["Booked / Booked $", "Avg line / Line × book", "GCOs ($)", "RANR", "RANR + GCOs", "Rate (GCOs ÷ Booked, RANR ÷ Booked)",
-         "Points (pts)", "× book / × rest of book", "Rest of book / rest of band", "Bad loan", "Band", "Segment",
-         "Pocket", "Grid", "Filter / Only loans where", "Origination year", "Vintage", "Worse and material",
-         "Borderline",
+         "Points (pts)", "× book / × rest of book", "Rest of book / rest of band", "Judged against", "Bad loan",
+         "Good loan", "Bad loans / Bad loans % / Bad loans ÷ Loans", "Bad dollars / Bad dollars ÷ Booked",
+         "Loan size", "Band", "Segment", "Pocket", "Two-way / Split by", "Grid", "Filter / Only loans where",
+         "Origination year", "Vintage", "Across the bottom / Lines by / Panels by",
+         "Excess / Bad loans above share / Dollars above share / Dollars short of band / Dollars short of book",
+         "Worse and material", "Worse? (Yes / Not sure / Too few losses / No)", "Material? / Material at",
+         "Show (All / Worse and material / Worse or not sure)", "How sure / Significant at N%?",
+         "Significant at N%? (Yes / Borderline / No)", "Borderline",
+         "Too few losses to test / Too few loans to test / Nothing to compare with",
          "Shuffle test / p-value", "Fewest loans in a pocket", "Worse at / Better at",
+         "Profit line (How far profit must move before it counts as more or less)",
+         "Not losing more / Under the Worse at line / Within the profit line",
+         "Holds (column) fixed? / Mixed with (column)", "Could have caught", "Together", "Priced for it",
+         "Net drain", "Strong", "Safe but idle", "Earns less, not from losses", "Losing more, profit holding",
          "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off",
          # the Line size tab's terms (the firm, 17 Oct 2026), one a row
          "Line on bad loans ÷ line on good loans", "Share of line lost on bad loans",
          "Months to charge-off weighted by line", "Line-weighted ÷ straight", "Signals", "Big line",
          "Bad got bigger lines", "Lost the whole line", "Big lines fail sooner", "Tripped by",
-         "Odd values", "(marked missing) / (blank)"]
+         "Show on Line size (Pockets where something tripped / 2 or more signals / All pockets)",
+         "Odd values", "Treat as (Real / Missing)", "(marked missing) / (blank)", "Changes now / Needs a Run",
+         "Comes to", "Worked out from the loans", "Last Run used / Status", "Lines in use now", "Gray rows under",
+         "Found on / Held back", "Pre-spec", "Holds up? / Still holds?"]
 #: the terms a book without a charge-off date column never shows
 CO_ONLY = ("Months to charge-off", "Months to charge-off weighted by line", "Line-weighted ÷ straight",
            "Big lines fail sooner")
