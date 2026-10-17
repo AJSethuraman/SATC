@@ -371,6 +371,20 @@ def test_a_change_neither_run_rates_is_labelled_with_the_horizon_that_asked_for_
     assert labels == {"Change (what if: over 12 months)"}
 
 
+
+def test_a_reading_only_the_what_if_asked_for_and_could_not_rate_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811,E501
+    # Codex on #452: the level held, the what-if's change could not be counted (400 months is longer than the
+    # history), and the Ratings cell read "same rating"; the What if tab said every reading took the same rating.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": []}, {"change_months": 400})
+    row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "change")
+    assert row["a"] is None and row["b"] is None and row["why_a"] == "not asked for by these settings"
+    assert next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "position")["move"] == 0
+    rt = wb["Ratings"]
+    r = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == "Unemployment rate")
+    assert rt.cell(r, 13).value == "Change (what if: over 400 months): not rated under the what-if"
+    assert "None: every national reading rated under both takes the same rating." in _text(wb["What if"])
+    assert "every national reading takes the same rating under both" not in _text(wb["What if"])
+
 def test_a_file_gone_before_the_rating_has_no_fingerprint_as_read(tmp_path):
     # Codex on #452: a file deleted after the pull kept the manifest's fingerprint under "SHA-256 as read".
     from threshold_engine.macro import pull as P

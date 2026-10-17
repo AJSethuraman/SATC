@@ -31,7 +31,7 @@ import datetime
 import math
 
 from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
-from .compare import CALLED, plain, row_label, when
+from .compare import CALLED, NOT_ASKED, plain, row_label, when
 from .rate import changes, sahm
 from .settings import QUESTIONS, readings_of
 
@@ -115,22 +115,38 @@ def band_heights(lines, direction, low, high):
 
 
 def move_text(rows, months):
-    """A series' readings that change rating under the what-if, as a Ratings or States cell says it.
-    ``months`` is each side's horizon; a change counted over different months says the what-if's."""
+    """How a series' readings stand under the what-if, as a Ratings or States cell says it, from every one
+    of its comparison rows: each reading that moves, is rated on one side only, or is not rated where its
+    settings asked for it says so; one at the same rating says nothing. Empty when there is nothing to say,
+    and the caller writes "same rating" or "not rated under either" (Codex on #452: a row left out of the
+    cell let a failed reading read as the same rating). ``months`` is each side's horizon; a change counted
+    over different months names the what-if's when the what-if is the side reported."""
+    if all(not (r["a"] or r["b"]) and r["why_a"] != NOT_ASKED and r["why_b"] != NOT_ASKED for r in rows):
+        return ""                         # none, or every reading asked for under both and rated under neither
     parts = []
     for r in rows:
-        if not (r["a"] or r["b"]):
-            continue                      # rated under neither: the cell's fallback says so
-        # every branch, moved or one-sided: Codex on #452 found the one-sided one left out
-        # The horizon named is that of a rating the cell reports: the what-if's when the what-if rated it,
-        # none when only these settings did (Fable on #452, the fourth branch of the same fault).
         what = "Level" if r["reading"] == "position" else "Change"
-        when_ = "" if r["same_measure"] or not r["b"] else " (what if: over %d months)" % months[1]
-        if r["move"]:
-            parts.append("%s %d → %d%s" % (what, r["a"]["rating"], r["b"]["rating"], when_))
-        elif r["move"] is None:
-            parts.append("%s%s: rated %s only" % (what, when_, "as you have it" if r["a"] else "under the what-if"))
+        if r["a"] or r["b"]:
+            # The horizon named is that of a rating the cell reports: the what-if's when the what-if rated it,
+            # none when only these settings did (Fable on #452, the fourth branch of the same fault).
+            when_ = "" if r["same_measure"] or not r["b"] else " (what if: over %d months)" % months[1]
+            if r["move"]:
+                parts.append("%s %d → %d%s" % (what, r["a"]["rating"], r["b"]["rating"], when_))
+            elif r["move"] is None:
+                parts.append("%s%s: rated %s only" % (what, when_, "as you have it" if r["a"] else
+                                                      "under the what-if"))
+        else:
+            asked_a, asked_b = r["why_a"] != NOT_ASKED, r["why_b"] != NOT_ASKED
+            when_ = "" if r["same_measure"] or not asked_b else " (what if: over %d months)" % months[1]
+            parts.append("%s%s: not rated %s" % (what, when_, "under either" if asked_a and asked_b else
+                                                 "as you have it" if asked_a else "under the what-if"))
     return "; ".join(parts)
+
+
+def summary_text(rows, months):
+    """The whole Ratings or States cell for a series: what moved or failed, else whether it held."""
+    return move_text(rows, months) or ("same rating" if any(r["move"] == 0 for r in rows) else
+                                       "not rated under either")
 
 
 def build(out, result, pull, whatif=None):
@@ -458,10 +474,9 @@ def build(out, result, pull, whatif=None):
             if not got:
                 put(ws, row, 12, "Not rated: see the Not rated tab", font=F_NOTE)
             if whatif:
-                mine = [x for x in wrows.get(key, {}).values() if x["a"] or x["b"]]
-                words = move_text(mine, whatif["months"])
-                put(ws, row, 13, words or ("same rating" if mine else "not rated under either"),
-                    font=moved_font(mine) if words else F_NOTE)
+                mine = list(wrows.get(key, {}).values())
+                put(ws, row, 13, summary_text(mine, whatif["months"]),
+                    font=moved_font(mine) if move_text(mine, whatif["months"]) else F_NOTE)
             for j in range(2, last + 1):
                 c = ws.cell(row, j)
                 c.alignment = Alignment(vertical="center", wrap_text=j in (12, 13), horizontal=c.alignment.horizontal)
@@ -670,7 +685,7 @@ def build(out, result, pull, whatif=None):
         row = section(ws, row, "National readings that change rating (%d)" % len(changed), last)
         row = groups(row)
         if not changed:
-            put(ws, row, 2, "None: every national reading takes the same rating under both.", font=F_BOLD)
+            put(ws, row, 2, "None: every national reading rated under both takes the same rating.", font=F_BOLD)
             row += 1
         topic = None
         for x in changed:
@@ -688,7 +703,7 @@ def build(out, result, pull, whatif=None):
             len(st_changed), sum(1 for x in sts if x["move"] is not None)), last)
         row = groups(row)
         if not st_changed:
-            put(ws, row, 2, "None: every state reading takes the same rating under both.", font=F_BOLD)
+            put(ws, row, 2, "None: every state reading rated under both takes the same rating.", font=F_BOLD)
             row += 1
         for x in st_changed:
             reading_row(row, x)
@@ -764,10 +779,9 @@ def build(out, result, pull, whatif=None):
         if not got:
             put(ws, row, 3, "not in this pull", font=F_NOTE)
         if whatif:
-            mine = [x for x in wrows.get(key, {}).values() if x["a"] or x["b"]]
-            words = move_text(mine, whatif["months"])
-            put(ws, row, 11, words or ("same rating" if mine else "not rated under either"),
-                font=moved_font(mine) if words else F_NOTE)
+            mine = list(wrows.get(key, {}).values())
+            put(ws, row, 11, summary_text(mine, whatif["months"]),
+                font=moved_font(mine) if move_text(mine, whatif["months"]) else F_NOTE)
         rule(ws, row, 2, last)
         row += 1
     ws.freeze_panes = ws.cell(head + 1, 3)

@@ -664,6 +664,16 @@ files.
     printout is unchanged. The example workbook predates the new Run line and is otherwise the same,
     since its pull read every file.
 
+- **Codex: the summaries follow the rows they summarise.** Two findings, one cause: the Ratings and States
+  cells, and the What if tab's "None" lines, were built from only some of a series' rows. In one case the
+  level held and the what-if's change could not be counted, and the cell read "same rating". `move_text`
+  now reads every row. A reading that moves, is rated on one side only, or is not rated where its settings
+  asked for it says so ("Change (what if: over 400 months): not rated under the what-if"), and one at the
+  same rating says nothing. "Same rating" is written only when nothing else is said and some reading held.
+  The "None" lines now say "every national (state) reading rated under both takes the same rating", which
+  stays true when some readings were rated under neither. A new test fails with either fault put back.
+  The macro suite is 116, and the real comparison's printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests
