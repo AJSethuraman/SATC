@@ -380,3 +380,133 @@ def test_a_product_list_too_long_for_its_note_is_counted_not_cut():
     assert six == ("No delinquency was built for this product. 6 products were built; the product picker "
                    "lists them.")
     assert len(six) <= NOTE_CHARS and len(_not_built("charge-offs were", list(PRODUCTS))) <= NOTE_CHARS
+
+
+# ---------------------------------------------------------------- review findings, 17 Oct 2026
+
+def _ci(q, cert, bal, ytd, rec, parent="9"):
+    """One C&I filing; None leaves a field blank, which is not filed."""
+    return {"CERT": cert, "REPDTE": q, "LNCI": bal, "DRCI": ytd, "CRCI": rec, books.PARENT: parent}
+
+
+SIX = ["20200331", "20200630", "20200930", "20201231", "20210331", "20210630"]
+
+
+def test_the_first_window_is_not_marked_not_filed_by_the_last_quarter():
+    """The not-filed test of window i reads quarters i-5 to i. For the first
+    window (i = 4) i-5 is before the data, and read as index -1 it was the
+    LAST quarter: a blank only in 2021Q2 dropped the 2021Q1 window, whose
+    quarters 2020Q1 to 2021Q1 are all filed."""
+    data = {q: [_ci(q, 1, 100000, 10 * (k % 4 + 1), 0)] for k, q in enumerate(SIX)}
+    data[SIX[-1]] = [_ci(SIX[-1], 1, 100000, None, 0)]
+    rows = by_q(bank_book(data, "1", "C&I", 0.25, 0, acquired=()))
+    assert rows["2021Q1"]["why"] is None and rows["2021Q1"]["kept"], rows["2021Q1"]
+    assert rows["2021Q1"]["gross_rate"] == pytest.approx(100 * 40 / 100000)
+    assert rows["2021Q2"]["why"] == WHY_NOT_FILED
+
+
+def test_avg_balance_is_not_a_zero_for_a_bank_that_never_filed_the_split(data):
+    """Read as 0, the TFR filer's split balance went to Data column G, which
+    the balance charts read, as a book of 0."""
+    rows = bank_book(data, TFR, OO, 0.25, 0, acquired=())
+    assert rows and all(r["why"] == WHY_NOT_FILED for r in rows)
+    assert [(r["quarter"], r["avg_balance"]) for r in rows if r["avg_balance"] is not None] == []
+    # The book's path is then not stated, and the line says why, not "fewer quarters held".
+    assert books.balance_path(rows, 2) == ("Book: no four-quarter average balance in 2008Q1, 2008Q2 (a field "
+                                           "of the product not filed), so its path over the last 2 quarters "
+                                           "is not stated")
+
+
+def test_avg_balance_does_not_average_a_blank_quarter_in_as_zero(data):
+    """KeyBank's 2007Q3 window holds 2006Q4, when the split was not filed:
+    three filed balances over four is no balance at all. A window whose own
+    four quarters are filed keeps its average even when a quarter only the
+    jump test reads (i-5, i-4) was blank: 2007Q4 is 2007Q1 to 2007Q4."""
+    rows = by_q(bank_book(data, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=()))
+    assert row(data, "20061231", KEYBANK)["LNRENROW"] is None
+    assert rows["2007Q3"]["why"] == WHY_NOT_FILED and rows["2007Q3"]["avg_balance"] is None
+    four = ("20070331", "20070630", "20070930", "20071231")
+    assert rows["2007Q4"]["why"] == WHY_NOT_FILED
+    assert rows["2007Q4"]["avg_balance"] == pytest.approx(sum(row(data, q, KEYBANK)["LNRENROW"] for q in four) / 4)
+    # A consumer product's blank is still 0, so nothing changes there.
+    assert all(r["avg_balance"] is not None for r in bank_book(data, KEYBANK, "Credit card", 10.0, 0,
+                                                               exempt_min_book=True, acquired=()))
+
+
+def test_the_workbook_writes_no_average_balance_where_the_window_is_not_filed(built):
+    from openpyxl import load_workbook
+    ws = load_workbook(built["out"])["Data"]
+    head = [c.value for c in ws[1]]
+    col = head.index("Average balance ($000)")
+    hits = [r for r in ws.iter_rows(min_row=2, values_only=True)
+            if any(v == "17534" or v == 17534 for v in r) and OO in r and "2007Q3" in r]
+    assert hits, "KeyBank owner-occupied 2007Q3 is not on the Data tab"
+    assert all(r[col] is None for r in hits), [(r[col], r[head.index("why") if "why" in head else -1]) for r in hits]
+
+
+def test_a_summed_industry_is_not_written_where_one_of_its_products_was_not_filed(data):
+    """C&I plus the owner-occupied split: no filer filed the split in 2006,
+    so a window holding a 2006 quarter is C&I alone for part of it and must
+    not be written under the two names."""
+    alone = {r["quarter"] for r in industry(data, OO)}
+    both = {r["quarter"] for r in industry(data, "C&I", [OO])}
+    assert sorted(both - alone) == []
+    assert both == alone == {"2007Q4", "2008Q1", "2008Q2"}
+
+
+def test_the_industry_leaves_a_balance_out_where_its_flow_is_out():
+    """Bank 2 left C&I blank in 2007Q1, so its 2007Q2 flow (measured from
+    the blank) is out of the industry; its 2007Q2 balance must be out too,
+    or the rate is 60 / 1750 rather than 60 / 1500."""
+    qs = ["20070331", "20070630", "20070930", "20071231"]
+    data = {}
+    for k, q in enumerate(qs):
+        ytd = 10 * (k + 1)
+        data[q] = [_ci(q, 1, 1000, ytd, 0),
+                   _ci(q, 2, None, None, None) if k == 0 else _ci(q, 2, 1000, ytd, 0)]
+    ind = by_q(industry(data, "C&I"))
+    assert ind["2007Q4"]["gross"] == pytest.approx(10 + 10 + 20 + 20)
+    assert ind["2007Q4"]["avg_balance"] == pytest.approx((1000 + 1000 + 2000 + 2000) / 4)
+    assert ind["2007Q4"]["gross_rate"] == pytest.approx(4.0)
+    # The same quarters as consumer figures (a blank is 0) are unchanged.
+    card = {q: [{"CERT": r["CERT"], "REPDTE": q, "LNCRCD": r["LNCI"], "DRCRCD": r["DRCI"], "CRCRCD": r["CRCI"],
+                 books.PARENT: "9"} for r in rows] for q, rows in data.items()}
+    c = by_q(industry(card, "Credit card"))
+    assert c["2007Q4"]["avg_balance"] == pytest.approx((1000 + 2000 + 2000 + 2000) / 4)
+
+
+def test_an_absorbed_book_not_filed_is_not_read_as_no_book():
+    """Bank 2 never filed the split (its nonfarm total is 5,000 against bank
+    1's split of 1,000), so its share of bank 1's split is unknown: the
+    acquisition is not read as bringing in nothing."""
+    q0, q1 = "20071231", "20080331"
+
+    def r(q, cert, ow, nr):
+        return {"CERT": cert, "REPDTE": q, "LNRENROW": ow, "DRRENROW": None if ow is None else 0,
+                "CRRENROW": None if ow is None else 0, "LNRENRES": nr, books.PARENT: str(cert)}
+    data = {q0: [r(q0, 1, 1000, 2000), r(q0, 2, None, 5000)], q1: [r(q1, 1, 1100, 7000)]}
+    links = [{"acquirer": "1", "absorbed": "2", "quarter": "2008Q1"}]
+    assert books.acquired_quarters(data, links, OO, 0.05) == {"1": [q1]}
+    assert books.acquired_quarters(data, links, NFNR, 0.05) == {"1": [q1]}      # 5,000 of 2,000, measured
+    # A consumer blank is still 0: an absorbed bank with no card book brings in none.
+    card = {q: [{"CERT": x["CERT"], "REPDTE": q, "LNCRCD": None if x["CERT"] == 2 else 1000,
+                 books.PARENT: "1"} for x in rows] for q, rows in data.items()}
+    assert books.acquired_quarters(card, links, "Credit card", 0.05) == {}
+
+
+def test_the_industry_note_counts_the_filers_in_the_series(built, data):
+    """The CALLFORM 2 filer files no C&I charge-off field, so it is in no
+    C&I industry series: the note must not say every filer is."""
+    s = built["series"]
+    notes, _ = notes_and_rows(s / "c-i_industry_net.csv")
+    assert any("4 of the 5 filers in the cache in 2008Q2" in n for n in notes), notes
+    assert not any("every filer in the cache (5 in 2008Q2)" in n for n in notes)
+    assert books.industry_filers(data, ["C&I"], "20080630") == 4
+    notes, _ = notes_and_rows(s / "c-i_industry_delinquency-nonaccrual_quarter-end.csv")
+    assert any("4 of the 5 filers in the cache in 2008Q2" in n for n in notes), notes
+    # The split: JPMorgan, KeyBank and Graystone.
+    notes, _ = notes_and_rows(s / "owner-occupied-nonfarm-nonresidential_industry_net.csv")
+    assert any("3 of the 5 filers in the cache in 2008Q2" in n for n in notes), notes
+    # The CRE sum: every filer but the CALLFORM 2 one files the total.
+    notes, _ = notes_and_rows(s / "construction-multifamily-nonfarm-nonresidential_industry_net.csv")
+    assert any("4 of the 5 filers in the cache in 2008Q2" in n for n in notes), notes

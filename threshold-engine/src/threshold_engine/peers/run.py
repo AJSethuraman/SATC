@@ -386,7 +386,8 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
     """Per product, measure and basis, the pack composite, the bank itself and
     the industry, as ``(path, rows, note, product, measure, left_out)``: the delinquency
     CSVs. ``left_out`` is ``{YYYYQn: [cert]}`` for a pack composite's
-    four-quarter average and None for every other file.
+    four-quarter average and None for every other file. ``every`` words
+    the industry from how many filers its last quarter counts (``banks``).
 
     The rules note says what each series was built under, and no more. The
     jump blanks a bank's own four-quarter average, and a bank so blanked is
@@ -421,6 +422,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
             median = [{"q": a["q"], D.BASES["quarter-end"]: a["p50"],
                        D.BASES["four-quarter average"]: f["p50"]}
                       for a, f in zip(mid["quarter-end"], mid["four-quarter average"])]
+            ind = D.industry_delinquency(data, p, m)
             for who, words, ruled, rows in (
                     ("pack-composite", "pack composite (%s): kept banks' numerators summed over their "
                      "balances summed" % pack_words, comp_rule, comp),
@@ -428,7 +430,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                      "whatever its size, under each bank's own rules" % pack_words, rule, median),
                     (slug(me["short"]), "%s (certificate %s), its own book" % (me["short"], me["cert"]),
                      rule, banks_[me["cert"]]),
-                    ("industry", "industry: " + every, None, D.industry_delinquency(data, p, m))):
+                    ("industry", "industry: " + every(ind[-1]["banks"] if ind else 0), None, ind)):
                 for basis in D.BASES:
                     how = ("quarter-end rate: 100 x %s / %s, both from the same filing" % (nums, balance)
                            if basis == "quarter-end" else
@@ -665,7 +667,15 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                 "pro forma (each bank with the banks it absorbed)" if pro_forma
                                 else "each bank as filed"))
     source = "Source: FDIC BankFind financials, %s to %s, from the cache %s." % (first, last, cache)
-    every = "every filer in the cache (%d in %s), no jump or minimum rule" % (filers, last)
+
+    def every(n):
+        """The industry's denominator, ``n`` of the filers in the last
+        quarter: a commercial series leaves out a filer that left a field
+        blank (books.NOT_FILED_NOTE), so it is not always every filer."""
+        if n == filers:
+            return "every filer in the cache (%d in %s), no jump or minimum rule" % (filers, last)
+        return ("%d of the %d filers in the cache in %s, the others leaving a field it needs blank (not "
+                "filed), no jump or minimum rule" % (n, filers, last))
     out_dir = Path(series_dir)
     pack_words = "all %d peers" % len(pack_) if pack == "all" else "%d regionals" % len(pack_)
 
@@ -693,11 +703,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                                        books.balance_path(bks[me["cert"]], 9) or
                                                        "Book: fewer than nine quarters held, so its path "
                                                        "is not stated"), True, bks[me["cert"]]),
-            (p, slug(p), "industry", "industry: " + every, False, ind[p]),
+            (p, slug(p), "industry", "industry: " + every(books.industry_filers(data, [p], quarters[-1])),
+             False, ind[p]),
         ]
     for summed in combined_:
         made.append((" plus ".join(summed), slug(" ".join(summed)), "industry",
-                     "industry, %s summed: %s" % (" and ".join(summed), every), False,
+                     "industry, %s summed: %s" % (" and ".join(summed),
+                                                  every(books.industry_filers(data, summed, quarters[-1]))), False,
                      books.industry(data, summed[0], summed[1:])))
 
     series = []                 # (path, tail, note lines, left out before, left out after, group)

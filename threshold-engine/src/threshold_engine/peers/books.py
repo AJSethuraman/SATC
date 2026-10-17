@@ -481,7 +481,11 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     (``WHY_NOT_FILED``) when, in any quarter its jump test reads (i-5 to i:
     the move into i-4 is measured from i-5), the bank or a bank added pro
     forma filed but left a field of the product blank: a blank is not a 0,
-    so neither the jump nor the TTM can be measured over it.
+    so neither the jump nor the TTM can be measured over it. Quarters before
+    the first in the data are not read (for the first window, i-5 is one).
+    Where one of the window's own four quarters (i-3 to i) is not filed,
+    ``avg_balance`` is None too: the balance is not known, and three filed
+    balances over four, or a 0, would be a figure nobody filed.
 
     ``acquired`` is this bank's quarter-ends (``YYYYMMDD``) in which recorded
     acquisitions brought in at least the acquisition share of its book
@@ -506,14 +510,14 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     out = []
     for i in range(4, len(flows)):
         win = range(i - 3, i + 1)
-        avg = sum(bal[k] for k in win) / 4
+        avg = None if any(blank[k] for k in win) else sum(bal[k] for k in win) / 4
         unbroken = all(follows[k] for k in win)
         complete = unbroken and all(flows[k][1] is not None for k in win)
         g = sum(flows[k][1] for k in win) if complete else None
         rc = sum(flows[k][2] for k in win) if complete else None
         if not unbroken:
             why = WHY_MISSING
-        elif any(blank[k] for k in range(i - 5, i + 1)):
+        elif any(blank[k] for k in range(max(0, i - 5), i + 1)):
             why = WHY_NOT_FILED
         elif any(moved[k] for k in range(i - 4, i + 1)):
             why = WHY_JUMP
@@ -668,8 +672,13 @@ def acquired_quarters(data: Dict[str, list], links: Sequence[dict], product: str
     and quarter, not bank by bank: eleven absorptions each under 5% can be
     16.5% together (PNC, 2007Q3, mortgage). An acquirer with no book the
     quarter before takes any book in as a whole one. An absorbed bank with no
-    filing in the data cannot be measured and is skipped. ``share`` is the
-    firm's judgement, required, and refused below 0."""
+    filing in the data cannot be measured and is skipped. An absorbed bank
+    whose last filing leaves a commercial product's balance blank
+    (``filed_amount``: not filed) brought in a book nobody filed: it is not
+    read as no book, so the quarter is listed, since its share cannot be
+    shown to be under ``share`` (for the owner-occupied split, every savings
+    institution on the TFR, which never filed it). ``share`` is the firm's
+    judgement, required, and refused below 0."""
     _at_least("share", share, 0)
     ln = _fields(product)[0]
     qs, snap = _by_cert(data)
@@ -683,11 +692,16 @@ def acquired_quarters(data: Dict[str, list], links: Sequence[dict], product: str
         a_prev = snap[before[-1]].get(acq)
         base = _num(a_prev, ln) if a_prev else 0.0
         brought = 0.0
+        unknown = False
         for b in absorbed:
             last = next((snap[p][b] for p in reversed(before) if b in snap[p]), None)
             if last is not None:
-                brought += _num(last, ln)
-        if brought > 0 and (base <= 0 or brought / base >= share):
+                amount = filed_amount(last, ln)
+                if amount is None:
+                    unknown = True
+                else:
+                    brought += amount
+        if unknown or (brought > 0 and (base <= 0 or brought / base >= share)):
             out.setdefault(acq, []).append(q)
     return out
 
@@ -775,6 +789,32 @@ def best_worst(books: Dict[str, List[dict]], certs: Sequence, kind: str,
     return best, worst
 
 
+def _counted(qs, snap, follows, i, cols) -> Dict[str, List[Tuple[str, str, str]]]:
+    """Per filer in quarter ``qs[i]``, the field names of the products in
+    ``cols`` whose figures are in the industry's sums that quarter: each
+    product it filed (``not_filed``), less, where the quarter's flow is
+    measured from the quarter before (not a Q1, and that quarter-end is in
+    the data), any it filed there as blank: that flow is out, so its balance
+    is out too. A filer absent the quarter before keeps its balance, as the
+    earlier build counted it."""
+    q = qs[i]
+    prev = snap[qs[i - 1]] if i and follows[i] and q[4:6] != "03" else {}
+    return {c: [f for p, f in cols if not not_filed(r, p) and not (c in prev and not_filed(prev[c], p))]
+            for c, r in snap[q].items()}
+
+
+def industry_filers(data: Dict[str, list], products: Sequence[str], quarter: str) -> int:
+    """How many filers in ``quarter`` (``YYYYMMDD``, in ``data``) have figures
+    of at least one of ``products`` in ``industry``'s sums that quarter: for
+    a consumer product every filer, for a commercial one each that filed it
+    (``_counted``). The denominator a series note states."""
+    cols = [(p, _fields(p)) for p in dict.fromkeys(products)]
+    qs, snap = _by_cert(data)
+    if quarter not in snap:
+        raise ValueError("%r is not a quarter in the data" % (quarter,))
+    return sum(1 for fs in _counted(qs, snap, _contiguous(qs), qs.index(quarter), cols).values() if fs)
+
+
 def industry(data: Dict[str, list], product: str,
              products: Optional[Sequence[str]] = None) -> List[dict]:
     """Per TTM quarter, the aggregate of every bank in ``data``:
@@ -795,10 +835,13 @@ def industry(data: Dict[str, list], product: str,
 
     For a commercial product, a filer that left a field of it blank
     (``not_filed``) is left out of that quarter's balance and flow, and out
-    of the next quarter's flow, which is measured from it; a quarter in which
-    no filer filed any of the products has no flow, like a quarter with no
-    filer at all, so a product filed from 2007Q1 starts there and not as
-    years of zeros."""
+    of the next quarter's flow, which is measured from it, and so out of that
+    quarter's balance too: the denominator holds the banks whose flows are in
+    the numerator (``_counted``). A quarter in which no filer filed one of
+    the products has no flow, like a quarter with no filer at all, so a
+    product filed from 2007Q1 starts there and not as years of zeros, and a
+    sum of products starts where every one of them is filed, never as one of
+    them alone under the names of all."""
     names = []
     for p in [product] + list(products or ()):
         if p not in names:
@@ -807,30 +850,25 @@ def industry(data: Dict[str, list], product: str,
     qs, snap = _by_cert(data)
     follows = _contiguous(qs)
 
-    def amount(row, which):
-        return sum(_num(row, c[which]) for p, c in cols if not not_filed(row, p))
-
-    def moved(row, prev, which):
-        return sum(flow(row, prev, c[which]) for p, c in cols
-                   if not not_filed(row, p) and not not_filed(prev, p))
-
     def filed(rows):
-        return any(not not_filed(r, p) for r in rows for p, _ in cols)
+        rows = list(rows)
+        return all(any(not not_filed(r, p) for r in rows) for p, _ in cols)
 
     flows, bals = [], []
     for i, q in enumerate(qs):
         cur = snap[q]
-        bals.append(sum(amount(r, 0) for r in cur.values()))
+        counted = _counted(qs, snap, follows, i, cols)
+        bals.append(sum(_num(cur[c], f[0]) for c, fs in counted.items() for f in fs))
         if not cur or not filed(cur.values()):
             g = rc = None
         elif q[4:6] == "03":
-            g = sum(amount(r, 1) for r in cur.values())
-            rc = sum(amount(r, 2) for r in cur.values())
+            g = sum(_num(cur[c], f[1]) for c, fs in counted.items() for f in fs)
+            rc = sum(_num(cur[c], f[2]) for c, fs in counted.items() for f in fs)
         elif follows[i] and snap[qs[i - 1]] and filed(snap[qs[i - 1]].values()):
             prev = snap[qs[i - 1]]
             both = [c for c in cur if c in prev]
-            g = sum(moved(cur[c], prev[c], 1) for c in both)
-            rc = sum(moved(cur[c], prev[c], 2) for c in both)
+            g = sum(flow(cur[c], prev[c], f[1]) for c in both for f in counted[c])
+            rc = sum(flow(cur[c], prev[c], f[2]) for c in both for f in counted[c])
         else:
             g = rc = None
         flows.append((g, rc))
@@ -857,11 +895,17 @@ def balance_path(rows: Sequence[dict], quarters: int) -> Optional[str]:
     average balance at both ends, the change, and in how many of the
     quarters it fell. None when fewer quarters are held. It states the path
     and draws no line for what counts as a shrinking book: a rate rising
-    while the balance falls may be the balance, not the risk."""
+    while the balance falls may be the balance, not the risk. Where a
+    window among them has no average balance (a commercial field not filed,
+    ``bank_book``), the path is not stated, and the line says why."""
     _at_least("quarters", quarters, 2)
     if len(rows) < quarters:
         return None
     last = rows[-quarters:]
+    gaps = [r["quarter"] for r in last if r["avg_balance"] is None]
+    if gaps:
+        return ("Book: no four-quarter average balance in %s (a field of the product not filed), so its "
+                "path over the last %d quarters is not stated" % (", ".join(gaps), quarters))
     a, b = last[0]["avg_balance"], last[-1]["avg_balance"]
     fell = sum(1 for x, y in zip(last, last[1:]) if y["avg_balance"] < x["avg_balance"])
     change = "%+.1f%%" % (100 * (b / a - 1)) if a > 0 else "from none"

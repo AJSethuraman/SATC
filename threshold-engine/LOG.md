@@ -1709,3 +1709,70 @@ nothing was changed. The peer workbook and the series were not opened in
 Excel. The peer dashboard still says "consumer book" in two places. The
 window does not offer the commercial products. The industry delinquency
 effect of the 2007 zero-filed split was not measured.
+
+## 17 October 2026, review fixes to the commercial data layer
+
+A review of the branch raised eight findings. Each was reproduced before it
+was fixed, and each fix has a test in `test_peers_commercial.py` that failed
+before the fix (8 new tests, all red first, for the reason the finding gave).
+
+- **First window marked not filed by the last quarter** (raised twice).
+  `bank_book`'s not-filed test read `range(i - 5, i + 1)`. For the first window
+  that range starts at -1, which Python reads as the last quarter. Now
+  `max(0, i - 5)`.
+- **A 0 where the balance is not filed.** A window with a not-filed quarter
+  among its own four now has no `avg_balance`. Before, a bank that never
+  filed the split showed 0, and KeyBank's owner-occupied 2007Q3 showed three
+  filed balances divided by four (3,244,472) in the Data tab's column G,
+  which the balance charts read. A window where only the quarters the jump
+  test reads (i-5, i-4) are blank keeps its average. `balance_path` now
+  says when an average is missing, rather than failing.
+- **A summed industry written where one of its products was not filed.**
+  `industry` now gives a quarter a flow only if every product in the sum has
+  a filer. Before, any one product was enough. On the real cache (2005Q1 to
+  2026Q2), C&I plus owner-occupied lost the eight windows 2005Q4 to 2007Q3,
+  which had been C&I alone. The CRE sum is unchanged.
+- **Balance kept where the flow was dropped.** In the quarter after a filer
+  left a field blank, its flow was out of the industry but its balance was
+  in. Now both are out (`_counted`). On the real cache this moves 20
+  owner-occupied and 20 other nonfarm windows by at most 0.0010 and 0.0018
+  points. C&I, construction, multifamily and nonfarm are unchanged. **Not
+  changed:** a filer missing from the previous quarter altogether still has
+  its balance counted and its flow left out. That is the earlier build's rule
+  for every product, consumer included, and it was not part of the finding.
+- **An absorbed book that was not filed was read as no book.**
+  `acquired_quarters` now lists the quarter when an absorbed bank's last
+  filing leaves the commercial balance blank, because its share cannot be
+  shown to be under the threshold. The window's reason still reads "an
+  acquisition brought in at least the acquisition share". For these
+  quarters that is stronger than what is known. A separate label would need
+  a new argument through `bank_book` and delinquency, and was not added.
+- **Wrong denominator in the industry notes.** A commercial industry note
+  said "every filer in the cache (4313 in 2026Q2)", but 17 of those file no
+  flow field. Charge-off notes now count the filers whose figures are in
+  the sums (`industry_filers`). Delinquency notes use the industry's own
+  `banks`. On the real cache that is 4,296 of 4,313 for all six commercial
+  products and the CRE sum. Where every filer counts, the wording is
+  unchanged.
+- **2013Q2 real estate breakdown too narrow.** 78 FR 30922 was fetched again
+  today. It says "the nine-category breakdown of loans secured by real
+  estate for the consolidated institution". Three of the nine are 1-4 family
+  (1.c(1), 1.c(2)(a), 1.c(2)(b), recorded in `docs/INTERNAL-IMPORT.md`), so
+  the entry now also labels mortgage and home equity. The 16 Oct entry above
+  ("labelled on the commercial items only ... not 1-4 family") read the
+  research table's category column and not its event text. It was wrong,
+  and it is left in place as written. Whether the FDIC's fields moved is NOT
+  CHECKED, for the 1-4 family lines as for the others.
+
+**Proof.** Each file run on its own (uv, Python 3.13, openpyxl 3.1.5,
+formulas): peers commercial 22, peers books 54, combinations 36, delinquency
+39, analyses 33, peers into 30, peers dashboard 9: all passed. `test_peers_cli.py`:
+125 passed, 1 skipped and 2 failed. The two failures are the same two that
+fail on the commit before these fixes; this was checked today in a detached
+worktree, since removed. Peers workbook: 66 passed, after re-running two
+chart-XML tests with `OPENPYXL_LXML=False`. This machine has lxml, which
+writes `<x/>` where the tests expect `<x />`. Reporting changes: 40
+passed, run with `OPENPYXL_LXML=False`. Before the expectations were
+updated, three tests failed: the registry's product list and mortgage's
+notes, which this change moves on purpose, and the same lxml chart-XML
+difference. The complete suite was not run.
