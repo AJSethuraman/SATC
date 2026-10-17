@@ -317,8 +317,12 @@ def prepare(raw: pd.DataFrame, st: Settings):
         if c:
             parsed = to_dates(df[c])
             bad = df[c].notna() & (df[c].astype(str).str.strip() != "") & parsed.isna()
+            original = df[c].copy()
             df[c] = parsed
+            n_before = len(excluded)
             drop(bad, f"unparseable date in {c}")
+            if len(excluded) > n_before:  # show what was written in the cell, not an empty date
+                excluded[-1][c] = original.loc[excluded[-1].index].astype(object)
     if st.col("loan_id"):
         ids = df[st.col("loan_id")]
         has_id = ids.notna() & (ids.astype(str).str.strip() != "")  # a blank id is missing, not a repeat

@@ -264,3 +264,11 @@ def test_a_comparison_that_could_not_be_tested_says_so():
         r = ls.run(p, text, Path(tmp) / "o.xlsx")
     t = r["tests"]
     assert len(t) == 1 and pd.isna(t["logrank_p"].iloc[0]) and "not testable" in t["reading"].iloc[0]
+
+
+def test_excluded_sheet_shows_the_unreadable_text_not_a_blank():
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv", dtype=str)
+    raw.loc[3, "orig_date"] = "TBD"
+    st = ls.Settings((ROOT / "sample" / "settings_example.ini").read_text())
+    _, excluded = ls.prepare(raw, st)
+    assert list(excluded["orig_date"]) == ["TBD"] and "unparseable" in excluded["exclusion_reason"].iloc[0]
