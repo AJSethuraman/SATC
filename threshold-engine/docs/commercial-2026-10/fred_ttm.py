@@ -31,6 +31,9 @@ def main(src, out):
             raise SystemExit("%s: %s does not follow %s by one quarter" % (src, b, a))
     kept = [(d, sum(v for _, v in vals[i - 3:i + 1]) / 4) for i, (d, _) in enumerate(vals)
             if i >= 3 and all(v is not None for _, v in vals[i - 3:i + 1])]
+    if not kept:
+        raise SystemExit("%s: no four consecutive quarters are all there, so there is no four-quarter mean to write"
+                         % src)
     with open(out, "w", encoding="utf-8", newline="") as fh:
         fh.write("# measure: Federal Reserve series %s (FRED), the mean of four quarterly annualized net charge-off "
                  "rates\n" % sid)
