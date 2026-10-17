@@ -531,3 +531,17 @@ def test_a_rating_built_with_the_pull_of_another_day_is_refused(cache, tmp_path)
     shutil.copytree(pull.folder, pull.folder.parent / "2026-10-16")
     with pytest.raises(Refused, match="the rating is of the pull of 2026-10-15 and the Pull given is of 2026-10-16"):
         build(tmp_path / "macro.xlsx", result, R.Pull(cache, "2026-10-16"))
+
+
+def test_a_settings_file_named_like_a_formula_is_written_as_text(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a what-if file named "=b.json" went into the Run tab as a formula.
+    from threshold_engine.macro.compare import compare
+    pull = R.Pull(cache)
+    ra = R.rate_all(cache, check(answered()), pull=pull)
+    rb = R.rate_all(cache, check(answered(history={"years": 3})), pull=pull)
+    out = build(tmp_path / "w.xlsx", ra, pull, whatif=compare(ra, rb, "=a.json", "=SUM(1,2)"))
+    with zipfile.ZipFile(out) as z:
+        sheets = [n for n in z.namelist() if n.startswith("xl/worksheets/sheet")]
+        assert not [n for n in sheets if "<f>" in z.read(n).decode("utf-8")]
+    run = openpyxl.load_workbook(out)["Run"]
+    assert "=SUM(1,2)" in {c.value for row in run.iter_rows() for c in row}

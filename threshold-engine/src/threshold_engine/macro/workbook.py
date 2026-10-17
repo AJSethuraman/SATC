@@ -1309,6 +1309,13 @@ def build(out, result, pull, whatif=None):
         row += 1
     ws.freeze_panes = ws.cell(4, 3)
 
+    # Values only, whatever wrote them: a text beginning with "=" (a settings file named "=x.json", say) is kept
+    # as text and never stored as a formula (Codex on #452).
+    # Only the cells that exist: walking every row would add an empty one to the file wherever a row has none.
+    for sheet_ in wb.worksheets:
+        for c in sheet_._cells.values():
+            if c.data_type == "f":
+                c.data_type = "s"
     wb.save(out)
     return out
 

@@ -711,6 +711,14 @@ files.
   rebuilt file has 0 errors against the ISO schemas (136 parts). The Open XML SDK gives the same font-order
   notes as before and nothing else. The printout is unchanged.
 
+- **Codex: values only, whatever wrote them.** A what-if file named "=b.json" went into the Run tab as a
+  formula, because openpyxl stores any text that begins with "=" as one. The workbook holds no formulas by
+  design. So before saving, `build` now keeps every such cell as text: one guard for every caller, not an
+  escape on one cell. It walks only the cells that exist. A first version walked every row, and that added
+  an empty row element to every sheet, which would have changed the file the firm is checking in Excel.
+  Built from the 17 Oct pull, the workbook differs from the committed example only in its timestamps. The
+  new test fails without the guard. The macro suite is 123.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests
