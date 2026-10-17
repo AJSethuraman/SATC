@@ -1061,25 +1061,39 @@ def main(argv=None) -> None:
             self.wrap(f, "Tell the tool which column is which. Click a box and type part of a name to find it, or press the arrow "
                          "for the whole list (A to Z). The tool remembers the names you pick, so the next file is guessed better.").pack(anchor="w")
             self.pickers, self.lbl_dates = {}, {}
+            canvas = tk.Canvas(f, highlightthickness=0, borderwidth=0)
+            bar = ttk.Scrollbar(f, orient="vertical", command=canvas.yview)
+            canvas.configure(yscrollcommand=bar.set)
+            bar.pack(side="right", fill="y")
+            canvas.pack(side="left", fill="both", expand=True)
+            inner = ttk.Frame(canvas)
+            win = canvas.create_window((0, 0), window=inner, anchor="nw")
+            inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+            canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
+            for seq, d in (("<MouseWheel>", None), ("<Button-4>", -1), ("<Button-5>", 1)):
+                canvas.bind_all(seq, lambda e, d=d: canvas.yview_scroll(d if d else int(-e.delta / 120), "units") if canvas.winfo_ismapped() else None)
+            self.cols_canvas = canvas
 
             def section(title, roles, hint):
-                box = ttk.LabelFrame(f, text=title, padding=12)
-                box.pack(fill="x", pady=(12, 0))
+                box = ttk.LabelFrame(inner, text=title, padding=12)
+                box.pack(fill="x", pady=(12, 0), padx=(0, 8))
                 if hint:
-                    self.wrap(box, hint, foreground=MUTED).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 6))
-                for i, role in enumerate(roles, start=1):
+                    self.wrap(box, hint, foreground=MUTED).pack(anchor="w", pady=(0, 6))
+                for role in roles:
                     label = dict((r, l) for r, l, _q in ROLES)[role]
-                    ttk.Label(box, text=label).grid(row=i * 2 - 1, column=0, sticky="nw", pady=(6, 0), padx=(0, 12))
-                    pk = ColumnPicker(box, self.v_cols[role], on_change=lambda r=role: self.on_map(r), optional=role not in REQUIRED_ROLES, width=34)
-                    pk.grid(row=i * 2 - 1, column=1, sticky="w", pady=(6, 0))
+                    row = ttk.Frame(box)
+                    row.pack(fill="x", pady=(8, 0))
+                    ttk.Label(row, text=label, width=24).grid(row=0, column=0, sticky="nw", padx=(0, 12))
+                    pk = ColumnPicker(row, self.v_cols[role], on_change=lambda r=role: self.on_map(r), optional=role not in REQUIRED_ROLES, width=34)
+                    pk.grid(row=0, column=1, sticky="w")
                     self.pickers[role] = pk
-                    lb = self.wrap(box, "", foreground=MUTED)
-                    lb.grid(row=i * 2, column=1, columnspan=2, sticky="w")
+                    ttk.Label(row, text=ROLE_HELP[role], foreground=MUTED, wraplength=640, justify="left").grid(row=1, column=1, sticky="w")
+                    lb = self.wrap(row, "", foreground=MUTED)
+                    lb.grid(row=2, column=1, sticky="w")
                     self.lbl_dates[role] = lb
-                    help_ = ttk.Label(box, text=ROLE_HELP[role], foreground=MUTED, wraplength=380, justify="left")
-                    help_.grid(row=i * 2 - 1, column=2, sticky="w", padx=14, pady=(6, 0))
             section("Required", REQUIRED_ROLES, "These two are all the tool needs. Everything else only adds detail.")
             section("Optional: leave blank if you do not have them", [r for r, _l, q in ROLES if r not in REQUIRED_ROLES], "")
+            f = inner
             ttk.Button(f, text="Guess from names again", command=self.reguess).pack(anchor="w", pady=(12, 0))
 
         # ---- tab 3
@@ -1123,9 +1137,17 @@ def main(argv=None) -> None:
             for c, text, w in (("name", "Name", 240), ("plain", "What it does", 760)):
                 self.tt.heading(c, text=text)
                 self.tt.column(c, width=w)
+            self.tt.column("plain", stretch=True)
             self.tt.pack(fill="both", expand=True)
             self.tt.bind("<Double-1>", lambda _e: self.edit_test())
-            self.lbl_empty = ttk.Label(f, text="No comparisons yet.", foreground=MUTED)
+            self.tt.bind("<<TreeviewSelect>>", lambda _e: self.show_full())
+            self.lbl_full = self.wrap(f, "Click a comparison to read all of it here.", foreground=MUTED)
+            self.lbl_full.pack(anchor="w", fill="x", pady=(8, 0))
+
+        def show_full(self):
+            i = self.sel_index()
+            if hasattr(self, "lbl_full") and i is not None and i < len(self.tests):
+                self.lbl_full.config(text=describe_test(self.tests[i]["spec"]))
 
         def refresh_tests(self):
             self.tt.delete(*self.tt.get_children())
