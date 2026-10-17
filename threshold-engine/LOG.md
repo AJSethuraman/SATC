@@ -1623,3 +1623,89 @@ The window's new field was not opened (no display here; the three window
 tests skip). The complete suite was not run in one go. The Peers chart notes
 do not mention the diamond: each note has one 140-character line and it is
 full; the legend and the Glossary carry it.
+
+## 16 October 2026, evening: the commercial data layer
+
+The data every answer to the commercial proposal's open decisions needs, and
+nothing that depends on them: no commercial book file, no segment choice, no
+settings. On `commercial-build`.
+
+- **Six commercial products** that `peers pull` and `peers build` know,
+  beside the consumer five (`books.COMMERCIAL`, `delinquency.FIELDS`): C&I
+  (LNCI; DRCI, CRCI year to date; P3CI, P9CI, NACI), construction
+  (LNRECONS ...), multifamily (LNREMULT ...), nonfarm nonresidential
+  (LNRENRES ...) and its owner-occupied (LNRENROW ...) and other (LNRENROT
+  ...) splits. Every field is one `docs/commercial-2026-10/research-fdic.md`
+  (on main) confirmed; the first-filed quarters are in `delinquency.py`.
+  Built exactly as the consumer products are: year-to-date differencing,
+  the repeated year-to-date and push-down fixes, the jump, the acquisition
+  share, pro forma.
+- **A blank commercial field is not filed, never 0.** The consumer products
+  keep the earlier build's reading (blank = 0), which their tie-outs
+  reproduce; commercial has no earlier build. A bank-quarter with a blank
+  field is out of the bank's book, with its own reason ("a field of the
+  product is not filed (blank) in this window", read over the quarters the
+  jump test reads, i-5 to i) and out of the industry. Read as 0, the splits'
+  2006 quarters would have been a book of 0, 2007Q1 a "jump", and the
+  industry would have written windows over balances of 0.
+- **The 2007 splits: labelled, not started at 2008Q1.** The code's own
+  pattern is the label (card before 2010, other consumer before 2001), so
+  every split series says: 2,925 to 3,044 filers filed the split as 0 and 0
+  in 2007 ($20.1bn to $27.0bn of nonfarm loans), none from 2008Q1, so the
+  industry in 2007 and its windows through 2008Q3 leave those loans out; TFR
+  filers never filed it (838, $64.1bn at 2007Q1; 655 blank at 2011Q4, 17
+  from 2012Q1). Measured on the cache, call forms read from the API.
+- **17 filers on CALLFORM 2** (names of foreign banks) file balances and no
+  charge-off, past-due or nonaccrual field in any quarter since 2006
+  ($77.6bn of C&I at 2026Q2): in no commercial series, said on each.
+- **The reporting-change registry** names the commercial products its
+  entries' own Call Report items touch (none for the 2010 NDFI line, which
+  its source says came out of other loans, not C&I); the 2007Q1 split change
+  links to the splits' "first filed 2007Q1" note.
+- **Fixed on the way:** the peer workbook refused a build of the six (its
+  one-line not-built note listed every product and did not fit); it now
+  counts them when the names do not fit. The window and the internal import
+  keep the consumer five.
+- **Run for real** (cache outside the repository): pull 2006Q1-2026Q2 with
+  `--delinquency yes --mergers 2005-01-01`; build with the consumer book's
+  rule settings, stated as the consumer book's, from 2006Q1 and from 2005Q1
+  (KeyBank's 2006Q4 window needs 2005Q4). The stress table and the Fed
+  comparison are in `docs/commercial-2026-10/stress-tool-rules.md`, every
+  command written out.
+
+**What it found.** Industry within 0.03 points of the as-filed table in
+every segment; the C&I gap is the 17 no-flow filers' balances (checked:
+3.1664% with them is the as-filed 3.166%). KeyBank nonaccrual unchanged.
+KeyBank's C&I charge-off series as the workbook would read it is **two
+quarters**: the December 2024 NDFI move (28.6% of its C&I) trips the 25%
+jump for 2024Q4-2025Q4. Over every kept quarter its largest z is 16.4 (2006Q4
+on) and 3.0 (2014Q1 on), against 13.0 and 4.1 as filed. Multifamily's z is
+still in the hundreds. FDIC against the Fed's four-quarter means, 2006Q4 on:
+C&I mean +0.030, largest 0.178 (2010Q1); CRE mean -0.013, largest 0.094
+(2009Q4).
+
+**Proof.** `test_peers_commercial.py` (new): 14 passed, on a fixture taken
+from the real pull (KeyBank, JPMorgan, a TFR filer, a CALLFORM 2 filer, a
+filer that filed the split as 0, 2006Q3-2008Q2), the rates checked against
+arithmetic on the fixture, with the consumer reading shown to give the wrong
+reason. Each file run on its own: peers books 54, delinquency 39, analyses
+33, fdic 45, combinations 36, roster 23, loan classes 6, internal 92,
+reporting changes 40, peers workbook 66, peers into 30, peers dashboard 9,
+internal tab 19, book 16, app 4: all passed. `test_peers_cli.py` 125 passed,
+1 skipped, 2 failed: the same two that fail on the commit before this work
+(checked again today in a detached worktree of 32ce97e4, since removed).
+Also run, after the change: launcher 110 passed, 4 skipped (the window; the
+product test now says it offers the consumer five), compare 6, workbook 71,
+decide 31, synthesis 22, templates 77, workbook synthesis 44. The complete
+suite was not run in one go.
+
+**Not done.** No build before 2005: the 1991Q1-2005Q4 quarters were pulled
+(the pull needed nothing new), but the merger record since 1990 is refused on
+four rows with change codes 213 ("Merger - Assisted") and 225 ("Partial
+Purchase & Assumption - Without Assistance"), which are on neither of
+`fdic.py`'s lists; what they mean is the firm's call. Whether the jump should
+read the December 2024 NDFI move as a book move is the firm's call too;
+nothing was changed. The peer workbook and the series were not opened in
+Excel. The peer dashboard still says "consumer book" in two places. The
+window does not offer the commercial products. The industry delinquency
+effect of the 2007 zero-filed split was not measured.
