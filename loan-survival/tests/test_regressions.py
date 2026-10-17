@@ -386,3 +386,54 @@ def test_standalone_charge_off_dated_after_payoff_is_excluded():
     st, df = _charge_off_after_payoff_frame()
     sheets, used, excl = do.loan_mode(df.copy(), _args(), pd.Timestamp("2026-09-30"))
     assert used == 1 and "charge-off date after payoff" in sheets["Excluded"]["exclusion_reason"].iloc[0]
+
+
+# ---- ninth Codex review of PR 445 (reviewed 254e21a)
+
+def _skip_totals_frame():
+    st = ls.Settings("[columns]\nloan_id = loan_id\norig_date = orig_date\nchargeoff_date = chargeoff_date\n"
+                     "first_90_date = first_90_date\npayoff_date = payoff_date\ndpd_asof = dpd_asof\n")
+    df = pd.DataFrame({
+        "loan_id": ["A", "B"], "orig_date": pd.to_datetime(["2022-01-01"] * 2),
+        "first_90_date": pd.to_datetime(["2023-01-31", None]),
+        "chargeoff_date": pd.to_datetime(["2023-03-31", "2023-06-30"]),
+        "payoff_date": pd.to_datetime([None, "2023-04-30"]),       # B: no 90+ date, and a charge-off dated after its payoff
+        "dpd_asof": [0, 0]})
+    return st, df
+
+
+def test_charge_off_after_payoff_does_not_count_toward_the_skipped_90_share():
+    st, df = _skip_totals_frame()
+    measures, _, _, _ = ls.bad_event_check(df, st, pd.Timestamp("2026-09-30"))
+    m = measures.set_index("measure")["value"]
+    assert float(m["as a share of all charge-offs"]) == 0.0 and int(m["charge-offs that never hit 90+ first"]) == 0
+
+
+def test_standalone_charge_off_after_payoff_does_not_count_toward_the_skipped_90_share():
+    st, df = _skip_totals_frame()
+    sheets, used, excl = do.loan_mode(df.copy(), _args(), pd.Timestamp("2026-09-30"))
+    m = sheets["Verdict"].set_index("measure")["value"]
+    assert float(m["as a share of all charge-offs"]) == 0.0 and excl == 1
+
+
+def test_a_vintage_with_no_bad_loans_stays_in_the_early_read():
+    st = ls.Settings("[columns]\norig_date = orig_date\nchargeoff_date = x\n")
+    n = 100
+    df = pd.DataFrame({"orig_date": pd.to_datetime(["2021-06-01"] * n + ["2022-06-01"] * n),
+                       "_time": [40] * n + [40] * n, "_event": [0] * n + [1] * 10 + [0] * 90})
+    er = ls.early_read(df, st, df["orig_date"].dt.year)
+    assert list(er["vintage"]) == ["2021", "2022", "all seasoned vintages"]
+    assert er.loc[0, "cum_bad_m36"] == 0.0 and er["loans"].iloc[-1] == 2 * n
+    assert er.filter(like="share_of").iloc[0].isna().all()           # timing ratio is undefined when there are no bads
+    all_good = ls.early_read(df.assign(_event=0), st, df["orig_date"].dt.year)
+    assert len(all_good) == 3
+
+
+def test_snapshot_last_month_survives_a_loan_set_aside_for_duplicate_rows():
+    rows = [dict(loan_id="L1", month_end=m, dpd=0) for m in ("2024-01-31", "2024-02-29")]
+    rows += [dict(loan_id="Z", month_end=m, dpd=0) for m in ("2024-01-31", "2024-02-29", "2024-03-31", "2024-03-31")]
+    rows += [dict(loan_id="L2", month_end=m, dpd=0) for m in ("2024-01-31", "2024-02-29")]
+    # March is only in loan Z, which is set aside for its duplicate row. The extract still runs to March, so L1 and L2 stopped early.
+    sheets, _, _ = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd"), pd.Timestamp("2024-03-31"))
+    counts = sheets["RollCounts"].set_index("from (this month)")
+    assert counts.loc["Current", "Left file (no status)"] == 2

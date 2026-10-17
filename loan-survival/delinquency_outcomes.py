@@ -84,6 +84,13 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
             df = df[~dup]
             f90, co = f90[~dup], co[~dup]
             pif = pif[~dup]
+    if has_pif:  # a charge-off dated after the payoff cannot also have happened; left out of every figure, not just the outcomes
+        bad_co_pif = co.notna() & pif.notna() & (co > pif)
+        if bad_co_pif.any():
+            x = df[bad_co_pif].copy()
+            x.insert(0, "exclusion_reason", "charge-off date after payoff date")
+            excluded.append(x)
+            df, f90, co, pif = df[~bad_co_pif], f90[~bad_co_pif], co[~bad_co_pif], pif[~bad_co_pif]
     co_any = co.notna() & (co <= as_of)
     co_without_90 = int((co_any & (f90.isna() | (f90 > co))).sum())  # no 90+ date, or one recorded after the charge-off
     co_total = int(co_any.sum())
@@ -106,11 +113,6 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
         x.insert(0, "exclusion_reason", "payoff date before first 90+ date")
         excluded.append(x)
         pop = pop[~bad_pif]
-        bad_co_pif = pop[a.co_col].notna() & pop[a.pif_col].notna() & (pop[a.co_col] > pop[a.pif_col])
-        x = pop[bad_co_pif].copy()
-        x.insert(0, "exclusion_reason", "charge-off date after payoff date")
-        excluded.append(x)
-        pop = pop[~bad_co_pif]
 
     end = pop[a.first90_col] + pd.DateOffset(months=a.window)
     p_co, p_pif = pop[a.co_col], (pop[a.pif_col] if has_pif else pd.Series(pd.NaT, index=pop.index))
@@ -213,12 +215,12 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     twice_rows = df[df[a.id_col].isin(df.loc[twice, a.id_col])].copy()
     twice_rows.insert(0, "exclusion_reason", "the loan has two rows for the same month")
     twice_rows = twice_rows.drop(columns=["ym", "state"])
+    last_month = df["ym"].max()  # the extract's last month, taken before any loan is set aside
     df = df[~df[a.id_col].isin(df.loc[twice, a.id_col])]
     df = df.sort_values([a.id_col, "ym"])
 
     nxt = df.groupby(a.id_col)[["ym", "state"]].shift(-1)
     df["next_state"] = np.where(nxt["ym"] == df["ym"] + 1, nxt["state"], None)
-    last_month = df["ym"].max()
     gone = df["next_state"].isna() & (df["ym"] < last_month) & ~df["state"].isin(["Charged off", "Paid off"])
     df.loc[gone, "next_state"] = "Left file (no status)"
     pairs = df[df["next_state"].notna() & ~df["state"].isin(["Charged off", "Paid off"])]

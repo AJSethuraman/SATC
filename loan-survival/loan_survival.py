@@ -375,6 +375,8 @@ def bad_event_check(df: pd.DataFrame, st: Settings, as_of: pd.Timestamp):
     f90c, coc, pifc, dpdc = st.col("first_90_date"), st.col("chargeoff_date"), st.col("payoff_date"), st.col("dpd_asof")
     if not f90c:
         return None, None, False, "No first_90_date column mapped; using charge-off as the bad event."
+    if pifc:  # a charge-off dated after the payoff cannot also have happened; left out of every figure below, not just the audit
+        df = df[~(df[coc] > df[pifc]).fillna(False)]
     f90, co = df[f90c], df[coc]
     pif = df[pifc] if pifc else pd.Series(pd.NaT, index=df.index)
     co_any = co.notna() & (co <= as_of)
@@ -438,6 +440,11 @@ def bad_event_check(df: pd.DataFrame, st: Settings, as_of: pd.Timestamp):
 
 # ============================================================================ 2. early read
 
+def _share_seen(early: float, final: float) -> float:
+    """Share of the horizon's bad rate already seen early. Undefined (blank) when there are no bads to share."""
+    return early / final if final and not np.isnan(final) else float("nan")
+
+
 def early_read(df: pd.DataFrame, st: Settings, year_col: pd.Series) -> pd.DataFrame:
     H, rows = st.horizon, []
     pooled = []
@@ -445,12 +452,12 @@ def early_read(df: pd.DataFrame, st: Settings, year_col: pd.Series) -> pd.DataFr
         sub = df[year_col == y]
         km = kaplan_meier(sub["_time"].to_numpy(), sub["_event"].to_numpy())
         final = cum_bad_at(km, H, st.min_at_risk)
-        if not final or np.isnan(final):
+        if np.isnan(final):  # too few loans still observed at the horizon; 0.0 is a real answer (no bad loans)
             continue
         pooled.append(sub)
         row = {"vintage": str(y), "loans": len(sub), f"cum_bad_m{H}": final}
         for m in [c for c in st.checkpoints if c < H]:
-            row[f"share_of_m{H}_bads_seen_by_m{m}"] = cum_bad_at(km, m, st.min_at_risk) / final
+            row[f"share_of_m{H}_bads_seen_by_m{m}"] = _share_seen(cum_bad_at(km, m, st.min_at_risk), final)
         rows.append(row)
     if pooled:
         p = pd.concat(pooled)
@@ -458,7 +465,7 @@ def early_read(df: pd.DataFrame, st: Settings, year_col: pd.Series) -> pd.DataFr
         final = cum_bad_at(km, H, st.min_at_risk)
         row = {"vintage": "all seasoned vintages", "loans": len(p), f"cum_bad_m{H}": final}
         for m in [c for c in st.checkpoints if c < H]:
-            row[f"share_of_m{H}_bads_seen_by_m{m}"] = cum_bad_at(km, m, st.min_at_risk) / final
+            row[f"share_of_m{H}_bads_seen_by_m{m}"] = _share_seen(cum_bad_at(km, m, st.min_at_risk), final)
         rows.append(row)
     return pd.DataFrame(rows)
 
