@@ -145,7 +145,7 @@ def remember_columns(headers: list[str], cols: dict[str, str], path: Path = MEMO
 
 def date_problems(series: pd.Series) -> tuple[int, int, int]:
     """(values that won't read as a date, filled values, blank values)."""
-    parsed = pd.to_datetime(series, errors="coerce")
+    parsed = ls.to_dates(series)
     filled = series.notna() & (series.astype(str).str.strip() != "")
     return int((filled & parsed.isna()).sum()), int(filled.sum()), int((~filled).sum())
 
@@ -162,7 +162,7 @@ def latest_date(df: pd.DataFrame, cols: dict[str, str]) -> pd.Timestamp | None:
     for role in DATE_ROLES:
         h = cols.get(role)
         if h and h in df.columns:
-            m = pd.to_datetime(df[h], errors="coerce").max()
+            m = ls.to_dates(df[h]).max()
             if pd.notna(m) and (best is None or m > best):
                 best = m
     return best
@@ -187,16 +187,17 @@ def category_columns(df: pd.DataFrame, limit: int = 15) -> list[str]:
     return [c for c in df.columns if 2 <= df[c].astype(str).where(df[c].notna(), "(blank)").nunique() <= limit]
 
 
-_YN = {"Y", "YES", "TRUE", "1", "N", "NO", "FALSE", "0"}
-
-
 def model_columns(df: pd.DataFrame) -> list[str]:
+    """Columns the engine can use as model factors, judged by the engine's own reading (numbers, even as text, or Y/N)."""
     out = []
     for c in df.columns:
         s = df[c].dropna()
         if not len(s) or "," in str(c):  # a comma would split the factor list
             continue
-        if pd.api.types.is_numeric_dtype(s) or set(s.astype(str).str.strip().str.upper().unique()) <= _YN:
+        if re.search(r"\s+per\s+-?\d+(\.\d+)?$", str(c), flags=re.IGNORECASE):  # would read as the 'per N' step
+            continue
+        v = ls.model_values(s)
+        if v.notna().mean() >= 0.5 and v.nunique() > 1:  # the engine leaves out loans with no usable value
             out.append(c)
     return out
 
@@ -211,6 +212,11 @@ def spec_kind(spec: dict) -> str:
     if "cutoffs" in spec:
         return "cutoffs"
     return "category"
+
+
+def model_has_column(terms: list[str], col: str) -> bool:
+    """Is this column already one of the model terms? Compares the full column name, which may hold spaces."""
+    return any(ls.parse_model_term(t)[0] == col for t in terms)
 
 
 def model_term(col: str, scale: str, direction: str) -> str:
@@ -462,7 +468,7 @@ def main(argv=None) -> None:
             except ValueError as e:
                 self.msg.config(text=str(e) if "positive" in str(e) else "The step must be a number, like 50.")
                 return
-            if any(x.split()[0] == self.var_a.get() for x in self.terms):
+            if model_has_column(self.terms, self.var_a.get()):
                 self.msg.config(text="That factor is already in the list.")
                 return
             self.msg.config(text="")

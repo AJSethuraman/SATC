@@ -62,7 +62,7 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     has_dpd = a.dpd_col in df.columns
     excluded, rows = [], []
     for c in [a.first90_col, a.co_col] + ([a.pif_col] if has_pif else []):
-        parsed = pd.to_datetime(df[c], errors="coerce")
+        parsed = pd.to_datetime(df[c], errors="coerce", format="mixed")  # each value read on its own
         # a blank date means "never happened"; a date we cannot read must not be mistaken for that
         unreadable = df[c].notna() & (df[c].astype(str).str.strip() != "") & parsed.isna()
         if unreadable.any():
@@ -170,7 +170,7 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     no_id_rows = df[no_id].copy()
     no_id_rows.insert(0, "exclusion_reason", "no loan id")
     df = df[~no_id].copy()
-    parsed = pd.to_datetime(df[a.month_col], errors="coerce")
+    parsed = pd.to_datetime(df[a.month_col], errors="coerce", format="mixed")
     # a month we cannot read cannot be placed in the chain, and dropping just that row would make the month before it
     # look like the loan left the file; so every row of such a loan is set aside and listed
     cannot_place = df[a.id_col].isin(df.loc[parsed.isna(), a.id_col])
@@ -278,7 +278,7 @@ def main(argv=None):
     if mode == "snapshot" and a.dpd_col == "dpd_asof" and "dpd" in raw.columns:
         a.dpd_col = "dpd"
     date_cols = [c for c in [a.first90_col, a.co_col, a.pif_col, a.month_col] if c in raw.columns]
-    as_of = pd.Timestamp(a.as_of) if a.as_of else max(pd.to_datetime(raw[c], errors="coerce").max() for c in date_cols)
+    as_of = pd.Timestamp(a.as_of) if a.as_of else max(pd.to_datetime(raw[c], errors="coerce", format="mixed").max() for c in date_cols)
 
     out_check = a.out or a.input.with_name(a.input.stem + "_delinquency.xlsx")
     if out_check.resolve() == a.input.resolve():

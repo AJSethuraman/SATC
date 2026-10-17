@@ -220,3 +220,47 @@ def test_all_missing_revenue_total_is_blank_not_zero():
     t = r["tests"]
     g25 = t[(t.comparison == "origination year") & (t.group.astype(str) == "2025")].iloc[0]
     assert pd.isna(g25["net_revenue_total"]) and pd.isna(g25["net_revenue_per_1000"])
+
+
+# ---- fifth Codex review of PR 445 (reviewed 9e93bf1)
+
+def test_model_columns_offered_by_the_gui_match_what_the_engine_can_use():
+    import loan_survival_gui as g
+    df = pd.DataFrame({"Score": pd.Series(["650", "700", "N/A", "720", "680"] * 4, dtype=object),
+                       "Revenue per 100": [1.5, 2.5, 3.5, 4.5, 5.5] * 4, "Plain": [1.5, 2.5, 3.5, 4.5, 5.5] * 4,
+                       "Words": ["a", "b", "c", "d", "e"] * 4})
+    offered = g.model_columns(df)
+    assert "Score" in offered and "Plain" in offered
+    assert "Revenue per 100" not in offered and "Words" not in offered
+
+
+def test_dates_in_mixed_formats_are_all_read():
+    s = pd.Series(["2024-01-31", "02/28/2024", "March 5, 2024", None])
+    import loan_survival_gui as g
+    assert g.date_problems(s) == (0, 3, 1)
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv", dtype=str)
+    raw.loc[0, "orig_date"] = "02/28/2022"
+    st = ls.Settings((ROOT / "sample" / "settings_example.ini").read_text())
+    df, excluded = ls.prepare(raw, st)
+    assert len(excluded) == 0 and df.loc[0, "orig_date"] == pd.Timestamp("2022-02-28")
+
+
+def test_the_same_factor_twice_is_refused_and_found_by_full_name():
+    import pytest
+    import loan_survival_gui as g
+    df = pd.DataFrame({"fico": [1.0, 2.0]})
+    with pytest.raises(ls.UserError, match="twice"):
+        ls.model_terms(df, "fico per -50, fico")
+    assert g.model_has_column(["Credit Score per -50"], "Credit Score") and not g.model_has_column(["Credit Score per -50"], "Credit")
+
+
+def test_a_comparison_that_could_not_be_tested_says_so():
+    import tempfile
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv")
+    text = "[columns]\nloan_id=loan_id\norig_date=orig_date\nchargeoff_date=chargeoff_date\n\n[test: one year only]\ngroup_by = year\norig_from = 2023-01-01\norig_to = 2023-12-31\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "b.csv"
+        raw.to_csv(p, index=False)
+        r = ls.run(p, text, Path(tmp) / "o.xlsx")
+    t = r["tests"]
+    assert len(t) == 1 and pd.isna(t["logrank_p"].iloc[0]) and "not testable" in t["reading"].iloc[0]

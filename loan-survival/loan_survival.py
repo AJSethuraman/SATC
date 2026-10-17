@@ -150,6 +150,11 @@ def chi2_sf(x: float, df: int) -> float:
         return _gammaincc(df / 2.0, x / 2.0)
 
 
+def to_dates(series: pd.Series) -> pd.Series:
+    """Read each value as its own date, so 2024-01-31 and 02/28/2024 in one column both work (slashes are month first)."""
+    return pd.to_datetime(series, errors="coerce", format="mixed")
+
+
 def months_between(start: pd.Series, end: pd.Series) -> pd.Series:
     """Whole calendar months (opened 3/15, observed to 4/14 = 0 months)."""
     m = (end.dt.year - start.dt.year) * 12 + (end.dt.month - start.dt.month)
@@ -310,7 +315,7 @@ def prepare(raw: pd.DataFrame, st: Settings):
     for key in ("orig_date", "chargeoff_date", "first_90_date", "payoff_date"):
         c = st.col(key)
         if c:
-            parsed = pd.to_datetime(df[c], errors="coerce")
+            parsed = to_dates(df[c])
             bad = df[c].notna() & (df[c].astype(str).str.strip() != "") & parsed.isna()
             df[c] = parsed
             drop(bad, f"unparseable date in {c}")
@@ -511,9 +516,20 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
             charts.append((f"{name} | {comp}", chart_groups))
     res = pd.DataFrame(rows)
     if len(res):
-        res["reading"] = np.where(res["logrank_p"] < 0.05, "groups differ (p < 0.05)",
-                                  "difference could be chance (p >= 0.05)")
+        res["reading"] = np.select(
+            [res["logrank_p"].isna(), res["logrank_p"] < 0.05],
+            ["not testable (fewer than two groups, or no bad events)", "groups differ (p < 0.05)"],
+            "difference could be chance (p >= 0.05)")
     return res, (pd.concat(curves, ignore_index=True) if curves else pd.DataFrame()), charts
+
+
+def model_values(v: pd.Series) -> pd.Series:
+    """A model column as numbers: numbers stay numbers (even as text), Y/N/yes/no/true/false become 1/0, the rest is missing."""
+    if pd.api.types.is_numeric_dtype(v):
+        return pd.to_numeric(v, errors="coerce")
+    as_number = pd.to_numeric(v, errors="coerce")
+    as_flag = v.astype(str).str.strip().str.upper().map({"Y": 1, "YES": 1, "TRUE": 1, "N": 0, "NO": 0, "FALSE": 0})
+    return as_number.where(as_number.notna(), as_flag)
 
 
 def parse_model_term(term: str) -> tuple[str, float]:
@@ -524,17 +540,15 @@ def parse_model_term(term: str) -> tuple[str, float]:
 
 def model_terms(df: pd.DataFrame, spec: str):
     """'fico per -50, income_gt_sales' -> design columns. 'per k' rescales: HR is per k units (negative = per k lower)."""
-    cols, labels, bad = {}, [], []
+    cols, labels, bad, seen = {}, [], [], set()
     for term in [t.strip() for t in spec.split(",") if t.strip()]:
         col, scale = parse_model_term(term)
         if col not in df.columns:
             raise UserError(f"Model variable '{col}' not found in file.")
-        v = df[col]
-        if not pd.api.types.is_numeric_dtype(v):
-            as_number = pd.to_numeric(v, errors="coerce")
-            as_flag = v.astype(str).str.strip().str.upper().map({"Y": 1, "YES": 1, "TRUE": 1, "N": 0, "NO": 0, "FALSE": 0})
-            v = as_number.where(as_number.notna(), as_flag)
-        v = pd.to_numeric(v, errors="coerce") / scale
+        if col in seen:
+            raise UserError(f"'{col}' is listed twice in the model. Use each factor once.")
+        seen.add(col)
+        v = model_values(df[col]) / scale
         if scale == 1:
             lab = col
         else:
