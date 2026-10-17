@@ -153,9 +153,39 @@ def chi2_sf(x: float, df: int) -> float:
         return _gammaincc(df / 2.0, x / 2.0)
 
 
+EXCEL_SERIALS = (20000, 70000)  # 1954 to 2091 as an Excel day number; a number outside this is not read as a date
+_SLASH = re.compile(r"^\s*(\d{1,2})/(\d{1,2})/\d{2,4}")
+
+
 def to_dates(series: pd.Series) -> pd.Series:
-    """Read each value as its own date, so 2024-01-31 and 02/28/2024 in one column both work (slashes are month first)."""
-    return pd.to_datetime(series, errors="coerce", format="mixed")
+    """Read each value as its own date, so 2024-01-31 and 02/28/2024 in one column both work.
+    Slashes are month first, unless the column holds one that can only be day first (25/02/2024): then the whole column
+    is day first. A column with both kinds is refused. A number inside the Excel day-number range is that date; any
+    other number is left unread (the caller reports it, with the number shown)."""
+    if pd.api.types.is_datetime64_any_dtype(series):
+        return series
+    out = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
+    is_num = series.map(lambda v: isinstance(v, (int, float, np.integer, np.floating))
+                        and not isinstance(v, (bool, np.bool_)) and v == v)
+    num = series[is_num].astype(float)
+    serial = num[(num >= EXCEL_SERIALS[0]) & (num <= EXCEL_SERIALS[1])]
+    if len(serial):
+        out.loc[serial.index] = pd.Timestamp("1899-12-30") + pd.to_timedelta(serial, unit="D")
+    text = series[~is_num & series.notna()]
+    if len(text):
+        m = text.map(lambda v: _SLASH.match(v) if isinstance(v, str) else None)
+        slash = m.notna()
+        first = m[slash].map(lambda x: int(x.group(1)))
+        second = m[slash].map(lambda x: int(x.group(2)))
+        day_first, month_first = bool((first > 12).any()), bool((second > 12).any())
+        if day_first and month_first:
+            raise UserError(f"The column '{series.name}' has dates written day first (like 25/02/2024) and month first "
+                            "(like 02/25/2024). Make them one way in the file, then run again.")
+        if slash.any():
+            out.loc[text[slash].index] = pd.to_datetime(text[slash], errors="coerce", format="mixed", dayfirst=day_first)
+        if (~slash).any():
+            out.loc[text[~slash].index] = pd.to_datetime(text[~slash], errors="coerce", format="mixed")
+    return out
 
 
 def months_between(start: pd.Series, end: pd.Series) -> pd.Series:
@@ -178,8 +208,7 @@ def kaplan_meier(time: np.ndarray, event: np.ndarray) -> pd.DataFrame:
         if 0 < surv < 1 and math.isfinite(gw):
             se = math.sqrt(gw) / abs(math.log(surv))
             lo, hi = surv ** math.exp(Z95 * se), surv ** math.exp(-Z95 * se)
-        elif surv == 1:
-            lo = hi = 1.0
+        # surv == 1 (no bad yet): the range is undefined there, so it is left blank rather than 0% to 0%
         rows.append(dict(month_on_book=t, at_risk=n, bads=d, censored=c,
                          cum_bad_rate=1 - surv, cum_bad_lo95=1 - hi, cum_bad_hi95=1 - lo))
     return pd.DataFrame(rows)
@@ -273,13 +302,47 @@ def cox_fit(time: np.ndarray, event: np.ndarray, X: np.ndarray, iters: int = 50)
 
 # ============================================================================ settings
 
+_KEYS = {"data": {"as_of"},
+         "columns": set(_COLUMN_KEYS),
+         "settings": {"bad_event", "checkpoints", "min_at_risk", "dq_window", "proxy_min_co_share", "proxy_min_lead",
+                      "early_read_horizon"}}
+_TEST_KEYS = {"group_by", "split_date", "column", "cutoffs", "model", "orig_from", "orig_to", "where"}
+
+
+def _date_setting(value: str, what: str) -> pd.Timestamp:
+    try:
+        d = pd.Timestamp(value)
+    except (ValueError, TypeError):
+        d = pd.NaT
+    if pd.isna(d):
+        raise UserError(f"{what} is '{value}', which is not a date. Write it like 2024-01-31.")
+    return d
+
+
 class Settings:
     def __init__(self, text: str):
         cp = configparser.ConfigParser(interpolation=None)  # % ; # in a column name are literal: comments are whole lines only
         cp.optionxform = str
-        cp.read_string(text)
+        try:
+            cp.read_string(text)
+        except configparser.DuplicateSectionError as e:
+            raise UserError(f"Two sections are named [{e.section}]. Give each comparison its own name.") from None
+        except configparser.DuplicateOptionError as e:
+            raise UserError(f"'{e.option}' is written twice in [{e.section}]. Keep one.") from None
+        except configparser.Error as e:
+            raise UserError(f"The settings could not be read: {e.message}") from None
+        for sec in cp.sections():
+            known = _TEST_KEYS if sec.lower().startswith("test:") else _KEYS.get(sec)
+            if known is None:
+                raise UserError(f"The settings have a section [{sec}] that this tool does not use. "
+                                "Sections are [data], [columns], [settings] and [test: name].")
+            for key in cp[sec]:
+                if key not in known:
+                    raise UserError(f"'{key}' in [{sec}] is not a setting this tool knows. Known here: {', '.join(sorted(known))}.")
         self.text = text
         self.as_of = cp.get("data", "as_of", fallback="").strip() or None
+        if self.as_of:
+            self.as_of = f"{_date_setting(self.as_of, 'The as-of date'):%Y-%m-%d}"
         self.cols = {k: v.strip() for k, v in cp["columns"].items()} if cp.has_section("columns") else {}
         s = cp["settings"] if cp.has_section("settings") else {}
         g = lambda k, d: (s.get(k, d) if s else d)
@@ -297,7 +360,23 @@ class Settings:
         self.tests = []
         for sec in cp.sections():
             if sec.lower().startswith("test:"):
-                self.tests.append((sec.split(":", 1)[1].strip(), {k: v.strip() for k, v in cp[sec].items()}))
+                tname, spec = sec.split(":", 1)[1].strip(), {k: v.strip() for k, v in cp[sec].items()}
+                for k in ("orig_from", "orig_to"):
+                    if spec.get(k):
+                        _date_setting(spec[k], f"{k} in [test: {tname}]")
+                if "split_date" in spec:
+                    parts = [x.strip() for x in spec["split_date"].split(",")]
+                    days = [_date_setting(x, f"A split date in [test: {tname}]") for x in parts]
+                    if len(set(days)) != len(days):
+                        raise UserError(f"[test: {tname}] gives the same split date twice ({spec['split_date']}).")
+                if "cutoffs" in spec:
+                    for x in spec["cutoffs"].split(","):
+                        try:
+                            float(x)
+                        except ValueError:
+                            raise UserError(f"cutoffs in [test: {tname}] is '{spec['cutoffs']}'; each one has to be a number "
+                                            "(like 640,660,680).") from None
+                self.tests.append((tname, spec))
         if self.bad_event not in ("auto", "chargeoff", "earliest"):
             raise UserError(f"bad_event must be auto, chargeoff or earliest (got '{self.bad_event}')")
 
@@ -314,7 +393,23 @@ def load(path: Path) -> pd.DataFrame:
         except ImportError as e:  # an old .xls needs the extra xlrd package, which this tool does not require
             raise UserError(f"This Excel file needs a reader that is not installed ({e}). "
                             "Open it in Excel and save as .xlsx or .csv, then try again.") from None
-    return pd.read_csv(path)
+    for enc in ("utf-8-sig", "cp1252"):  # Excel on Windows saves CSV as cp1252
+        try:
+            df = pd.read_csv(path, encoding=enc)
+        except UnicodeDecodeError:
+            continue
+        except pd.errors.EmptyDataError:
+            raise UserError("The loan file is empty (it has no header row).") from None
+        df.attrs["encoding"] = enc
+        return df
+    raise UserError("The loan file's text is not UTF-8 or Windows-1252. Open it in Excel and save as .xlsx or .csv.")
+
+
+def _tag_excluded(x: pd.DataFrame, reason: str) -> None:
+    """Put the reason first. A file column that is already called exclusion_reason keeps its data under another name."""
+    if "exclusion_reason" in x.columns:
+        x.rename(columns={"exclusion_reason": "exclusion_reason (from file)"}, inplace=True)
+    x.insert(0, "exclusion_reason", reason)
 
 
 def prepare(raw: pd.DataFrame, st: Settings):
@@ -327,7 +422,7 @@ def prepare(raw: pd.DataFrame, st: Settings):
         mask = mask.fillna(False) if hasattr(mask, "fillna") else mask
         if mask.any():
             x = df[mask].copy()
-            x.insert(0, "exclusion_reason", reason)
+            _tag_excluded(x, reason)
             excluded.append(x)
             df = df[~mask]
 
@@ -357,6 +452,14 @@ def prepare(raw: pd.DataFrame, st: Settings):
     if st.col("loan_id"):
         ids = df[st.col("loan_id")]
         has_id = ids.notna() & (ids.astype(str).str.strip() != "")  # a blank id is missing, not a repeat
+        mapped = [v for k, v in st.cols.items() if k != "loan_id"]
+        several = df[has_id & ids.duplicated(keep=False)]
+        if len(several):  # copies that agree are one loan; copies that disagree are a file problem, not a coin toss
+            differ = several.groupby(st.col("loan_id"))[mapped].nunique(dropna=False).gt(1).any(axis=1)
+            if differ.any():
+                bad_ids = [str(i) for i in differ[differ].index[:5]]
+                raise UserError(f"{int(differ.sum())} loan id(s) appear more than once with different values "
+                                f"(for example {', '.join(bad_ids)}). Correct the file so each loan has one row.")
         drop(ids.duplicated(keep="first") & has_id, "duplicate loan id")
     o = st.col("orig_date")
     drop(df[o].isna(), "missing origination date")
@@ -364,6 +467,8 @@ def prepare(raw: pd.DataFrame, st: Settings):
         c = st.col(key)
         if c:
             drop(df[c] < df[o], f"{c} before origination")
+    if st.col("payoff_date"):  # a charge-off after the loan was paid off cannot both have happened
+        drop(df[st.col("chargeoff_date")] > df[st.col("payoff_date")], f"{st.col('chargeoff_date')} after payoff")
     excl = pd.concat(excluded) if excluded else pd.DataFrame(columns=["exclusion_reason"])
     return df, excl
 
@@ -527,7 +632,7 @@ def limit_loans(pop: pd.DataFrame, spec: dict, o: str) -> pd.DataFrame:
     if spec.get("orig_from"):
         pop = pop[pop[o] >= pd.Timestamp(spec["orig_from"])]
     if spec.get("orig_to"):
-        pop = pop[pop[o] <= pd.Timestamp(spec["orig_to"])]
+        pop = pop[pop[o].dt.normalize() <= pd.Timestamp(spec["orig_to"])]  # the whole last day counts, whatever the time on it
     for cond in [c.strip() for c in spec.get("where", "").split(";") if c.strip()]:
         flag = derived_flag(pop, cond)
         if flag is None:
@@ -562,6 +667,9 @@ def group_series(df: pd.DataFrame, spec: dict, st: Settings) -> list[tuple[str, 
         raise UserError(f"Test column '{col}' not found in file.")
     if "cutoffs" in spec:
         x = pd.to_numeric(values, errors="coerce")
+        if values.notna().any() and x.notna().sum() == 0:
+            raise UserError(f"Column '{col}' is not numeric, so cutoffs cannot be used on it. "
+                            "Use it as a category (leave cutoffs out) or pick a numeric column.")
         out = []
         for c in [float(v) for v in spec["cutoffs"].split(",")]:
             lab = f"{c:g}"
@@ -575,6 +683,14 @@ def group_series(df: pd.DataFrame, spec: dict, st: Settings) -> list[tuple[str, 
     return [(f"{col}", col + " = " + g)]
 
 
+def money(v: pd.Series) -> pd.Series:
+    """Numbers as numbers; '$1,234.00', '1 234' and '(50.00)' (a negative) are read too. Anything else is blank."""
+    if pd.api.types.is_numeric_dtype(v):
+        return pd.to_numeric(v, errors="coerce")
+    t = v.astype(str).str.strip().str.replace(r"^\((.*)\)$", r"-\1", regex=True).str.replace(r"[$,\s]", "", regex=True)
+    return pd.to_numeric(t.where(v.notna()), errors="coerce")
+
+
 def run_tests(df: pd.DataFrame, st: Settings, tests: list):
     rows, curves, charts = [], [], []
     o = st.col("orig_date")
@@ -582,9 +698,15 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
     for name, spec in tests:
         pop = limit_loans(df, spec, o)
         window = f"{spec.get('orig_from', 'start')} to {spec.get('orig_to', 'as-of')}" + (f"; {spec['where']}" if spec.get("where") else "")
+        if not len(pop):  # a comparison that ran and found no loans still shows, so it is not mistaken for one never asked
+            rows.append({"test": name, "comparison": "", "orig_window": window, "group": "(no loans matched)", "loans": 0,
+                         "_note": "no loans matched this window and these conditions"})
+            continue
         for comp, g in group_series(pop, spec, st):
             t, e, gv = pop["_time"].to_numpy(), pop["_event"].to_numpy(), g.to_numpy()
-            stat, dof, p = logrank(t, e, gv)
+            missing_lab = f"{spec['column']} missing" if "cutoffs" in spec else None
+            kept = gv != missing_lab  # the p-value compares the groups that have a value; blank ones are shown, not tested
+            stat, dof, p = logrank(t[kept], e[kept], gv[kept])
             chart_groups = {}
             for lab in sorted(pd.unique(gv)):
                 m = gv == lab
@@ -593,13 +715,18 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
                        "loans": int(m.sum()), "pct_of_tested": m.mean(), "bads_to_date": int(e[m].sum())}
                 for cp in st.checkpoints:
                     row[f"cum_bad_m{cp}"] = cum_bad_at(km, cp, st.min_at_risk)
-                row["logrank_p"] = p
+                row["logrank_p"] = np.nan if lab == missing_lab else p
+                if lab == missing_lab:
+                    row["_note"] = "left out of the comparison (no value in the column)"
                 if nr:
-                    rev = pd.to_numeric(pop.loc[m, nr], errors="coerce")
+                    rev = money(pop.loc[m, nr])
+                    shown = pop.loc[m, nr]
                     row["net_revenue_total"] = rev.sum(min_count=1)  # all blank stays blank, not 0
                     row["net_revenue_per_loan"] = rev.mean()
+                    row["loans_with_revenue"] = int(rev.notna().sum())  # per_loan is total / this, not total / loans
+                    row["revenue_unreadable"] = int((shown.notna() & (shown.astype(str).str.strip() != "") & rev.isna()).sum())
                     if amt:
-                        a = pd.to_numeric(pop.loc[m, amt], errors="coerce")
+                        a = money(pop.loc[m, amt])
                         both = rev.notna() & a.notna()  # same loans top and bottom
                         row["net_revenue_per_1000"] = rev[both].sum() / a[both].sum() * 1000 if a[both].sum() else np.nan
                 rows.append(row)
@@ -615,6 +742,10 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
             [res["logrank_p"].isna(), res["logrank_p"] < 0.05],
             ["not testable (fewer than two groups, or no bad event happened while more than one group was still being followed)", "groups differ (p < 0.05)"],
             "difference could be chance (p >= 0.05)")
+        if "_note" in res:
+            noted = res["_note"].notna()
+            res.loc[noted, "reading"] = res.loc[noted, "_note"]
+            res = res.drop(columns="_note")
     return res, (pd.concat(curves, ignore_index=True) if curves else pd.DataFrame()), charts
 
 
@@ -630,7 +761,10 @@ def model_values(v: pd.Series) -> pd.Series:
 def parse_model_term(term: str) -> tuple[str, float]:
     """'Credit Score per -50' -> ('Credit Score', -50.0); no 'per N' at the end -> scale 1. Column names may hold spaces."""
     m = re.match(r"^(.*?)\s+per\s+(-?\d+(?:\.\d+)?)$", term.strip(), flags=re.IGNORECASE)
-    return (m.group(1).strip(), float(m.group(2))) if m else (term.strip(), 1.0)
+    scale = float(m.group(2)) if m else 1.0
+    if scale == 0:
+        raise UserError(f"'{term.strip()}': the scale after 'per' cannot be 0.")
+    return (m.group(1).strip() if m else term.strip(), scale)
 
 
 def model_terms(df: pd.DataFrame, spec: str):
@@ -671,9 +805,11 @@ def run_models(df: pd.DataFrame, st: Settings, tests: list) -> pd.DataFrame:
                 return cox_fit(t, e, Xm)
             except NotEstimable:
                 return None
-        alone = {lab: fit(X[:, [i]]) for i, lab in enumerate(labels)}
-        multi = len(labels) > 1
-        together = fit(X) if multi else None
+        same = [bool(np.ptp(X[:, i]) == 0) for i in range(len(labels))]  # a factor with one value cannot be estimated
+        live = [i for i in range(len(labels)) if not same[i]]
+        alone = {lab: (None if same[i] else fit(X[:, [i]])) for i, lab in enumerate(labels)}
+        multi = len(live) > 1
+        together = fit(X[:, live]) if multi else None
         nan = float("nan")
         for i, lab in enumerate(labels):
             a = alone[lab]
@@ -684,13 +820,16 @@ def run_models(df: pd.DataFrame, st: Settings, tests: list) -> pd.DataFrame:
                 b1, s1, p1 = (x[0] for x in a)
                 row.update({"HR_alone": math.exp(b1), "HR_alone_low95": math.exp(b1 - Z95 * s1),
                             "HR_alone_high95": math.exp(b1 + Z95 * s1), "p_alone": p1})
-            if multi and together is None:
+            if multi and (together is None or same[i]):
                 row.update({"HR_together": nan, "HR_together_low95": nan, "HR_together_high95": nan, "p_together": nan})
             elif multi:
-                b2, s2, p2 = together[0][i], together[1][i], together[2][i]
+                j = live.index(i)
+                b2, s2, p2 = together[0][j], together[1][j], together[2][j]
                 row.update({"HR_together": math.exp(b2), "HR_together_low95": math.exp(b2 - Z95 * s2),
                             "HR_together_high95": math.exp(b2 + Z95 * s2), "p_together": p2})
-            if a is None:
+            if same[i]:
+                reading = "not estimable (this factor has one value for every loan, so it cannot be compared)"
+            elif a is None:
                 reading = "not estimable (the fit did not settle; this factor may separate bad loans perfectly, or there are too few bads)"
             elif multi and together is None:
                 reading = "not estimable together with the others (the fit did not settle; two factors may say the same thing)"
@@ -749,6 +888,7 @@ README = [
     ("EarlyRead", "From fully seasoned vintages: share of eventual bads already seen by each month. High share at month 12 = a 12-month comparison of young cohorts is meaningful."),
     ("Tests", "One row per group per comparison. cum_bad_mN = share of the group that went bad within N months on book. Blank = too few loans still being watched at that month."),
     ("logrank_p", "Chance the curves differ this much if the groups truly performed the same. Below 0.05 is the usual bar."),
+    ("loans_with_revenue / revenue_unreadable", "net_revenue_per_loan = total / loans_with_revenue. revenue_unreadable counts cells that hold something that is not a number."),
     ("net_revenue_*", "Only meaningful on seasoned loans (set orig_to). Compare per_1000 across groups, not totals, when group sizes differ."),
     ("Models", "Several factors at once. HR = how much the factor multiplies the monthly chance of going bad (1.0 = no effect, 2.0 = double). 'Alone' vs 'together': if a factor's HR shrinks toward 1.0 once the others are in, it was mostly standing in for them."),
     ("Curves", "Month-by-month detail behind every group, with 95% ranges."),
@@ -820,6 +960,15 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     st_text = STARTER if settings_text is None else settings_text
     st = Settings(st_text)
     raw = load(input_path)
+    if not len(raw):
+        raise UserError("The loan file has a header row and no loans.")
+    trimmed = [c for c in raw.columns if str(c) != str(c).strip()]
+    if trimmed:  # 'orig_date ' and 'orig_date' are one column to a person; settings are trimmed the same way
+        names = [str(c).strip() for c in raw.columns]
+        dup = sorted({n for n in names if names.count(n) > 1})
+        if dup:
+            raise UserError(f"Two columns have the same name once spaces are trimmed: {dup}. Rename one in the file.")
+        raw.columns = names
     if settings_text is None:
         st.cols = {k: v for k, v in st.cols.items() if v in raw.columns}
         # the log must show the mappings really used, so a copied log runs again as it is
@@ -830,11 +979,23 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
 
     df, excluded = prepare(raw, st)
     date_cols = [st.col(k) for k in ("orig_date", "chargeoff_date", "first_90_date", "payoff_date") if st.col(k)]
-    as_of = pd.Timestamp(st.as_of) if st.as_of else max(df[c].max() for c in date_cols)
+    if not len(df):
+        raise UserError("No loans are left after the exclusions (see the reasons in the Excluded sheet of a run that does not stop).")
+    if st.as_of:
+        as_of = pd.Timestamp(st.as_of)
+    else:
+        latest = {c: df[c].max() for c in date_cols}
+        col = max(latest, key=lambda c: latest[c] if pd.notna(latest[c]) else pd.Timestamp.min)
+        as_of = latest[col]
+        if pd.isna(as_of):
+            raise UserError("No dates could be read in the date columns.")
+        if as_of > pd.Timestamp.today().normalize():
+            raise UserError(f"The latest date in the file is {as_of:%Y-%m-%d} (column {col}), which is after today. "
+                            "Fix that date, or set the as-of date by hand.")
     late = df[st.col("orig_date")] > as_of
     if late.any():
         x = df[late].copy()
-        x.insert(0, "exclusion_reason", "originated after as-of")
+        _tag_excluded(x, "originated after as-of")
         excluded = pd.concat([excluded, x])
         df = df[~late]
 
@@ -878,7 +1039,9 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     log = [("script", f"loan_survival.py v{VERSION}"), ("run_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
            ("input_file", str(input_path.resolve())), ("input_sha256", hashlib.sha256(input_path.read_bytes()).hexdigest()),
            ("settings_file", settings_label or "(built-in defaults)"),
-           ("as_of", f"{as_of:%Y-%m-%d}"), ("rows_read", len(raw)), ("rows_used", len(loans)),
+           ("as_of", f"{as_of:%Y-%m-%d}"), *([("file encoding", raw.attrs["encoding"])] if raw.attrs.get("encoding") == "cp1252" else []),
+           *([("column names trimmed of spaces", ", ".join(repr(c) for c in trimmed))] if trimmed else []),
+           ("rows_read", len(raw)), ("rows_used", len(loans)),
            ("rows_excluded", len(excluded)), *[(f"excluded: {k}", v) for k, v in reasons.items()],
            ("bad event used", bad_desc), ("time unit", "whole calendar months on book; censored at payoff or as-of"),
            ("method", "Kaplan-Meier, 95% log(-log) Greenwood ranges, log-rank test"),

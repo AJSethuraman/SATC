@@ -33,6 +33,24 @@ The window states none of these. It shows labels, counts and refusals only.
 **Data.** One row per loan, CSV or Excel. The as-of date starts as the latest date found in the date columns; anything dated
 after it is treated as not yet happened.
 
+**Dates.** Excel day numbers (like 45292) are read as the date they are; any other number in a date column is left out as
+unreadable, with the number shown on the Excluded sheet. A column of slash dates is month first unless it holds one that can
+only be day first (25/02/2024); then all of it is day first. A column with both is refused. A latest date in the file that is
+after today stops the run until the date is fixed or the as-of date is set by hand.
+
+**Rows left out.** Listed on the Excluded sheet with the reason: unreadable date, duplicate loan id, no origination date, a
+date before origination, a charge-off after payoff. Rows sharing a loan id that disagree on a mapped column stop the run.
+
+**Settings.** A key or section the tool does not know, a date or cutoff that cannot be read, a repeated section or split date:
+the run stops and names it. Column names are read with spaces trimmed. An unreadable-as-UTF-8 CSV is read as Windows-1252, and the
+RunLog says so.
+
+**Cutoffs.** The p-value compares the groups that have a value; the "missing" group is shown and not tested. Cutoffs on a column
+with no numbers are refused.
+
+**Revenue.** `$1,234.00` and `(50.00)` are read. `loans_with_revenue` is what `net_revenue_per_loan` divides by;
+`revenue_unreadable` counts cells with something in them that is not a number.
+
 **Columns.** Required: origination date and charge-off date (blank when the loan has not charged off). Optional:
 
 | Column | Used for |

@@ -1,13 +1,14 @@
-"""Adversarial findings against loan_survival.py, 17 Oct 2026. Every test here FAILS against the engine as it stands.
+"""Adversarial findings against loan_survival.py, 17 Oct 2026, written by a second model and then fixed one by one.
+All of these failed against the engine before the fixes and pass now.
 
 Each test asserts the behaviour the project's own rules call for (CLAUDE.md non-negotiables, the design decisions in
-the brief) and was run and watched fail. No source was changed. Ordered by rank:
+the brief) and was run and watched fail. Ordered by rank:
 
     1. a figure is wrong, or a refusal is missing       (test names start with test_r1_)
     2. misleading or unauditable                         (test_r2_)
     3. robustness                                        (test_r3_)
 
-Run from loan-survival/:  python -m pytest -q findings/test_findings.py
+Run from loan-survival/:  python -m pytest -q tests/test_adversarial_fixes.py
 """
 import sys
 from pathlib import Path
@@ -270,7 +271,7 @@ def test_r3_orig_to_includes_a_loan_opened_on_that_day_with_a_time_of_day(tmp_pa
     here (months_between ignores the time). Confidence: medium."""
     raw = _book().astype({"orig_date": "object"})
     raw.loc[0, "orig_date"] = "2022-12-31 09:00:00"
-    want = int((pd.to_datetime(_book()["orig_date"]) <= "2022-12-31").sum()) + 1  # loan 0 opened in 2021, now moved to 2022-12-31
+    want = int((pd.to_datetime(_book()["orig_date"]) <= "2022-12-31").sum())  # loan 0 was inside the window and still is
     r, _ = _run(tmp_path, raw, COLS + CO_ONLY + "\n[test: v]\ngroup_by = year\norig_to = 2022-12-31\n")
     assert int(r["tests"]["loans"].sum()) == want
 
