@@ -1848,6 +1848,19 @@ muts = [
   "        return Outcome(False, book, [str(exc)])",
   "        return _refused(wb, book, [str(exc)], Outcome(False, book, [str(exc)]))",
   "past_its_most_rows"),
+ # 17 Oct 2026: RANR vs GCOs puts Avg line and Line × book beside Booked, as RANR ÷ Booked sits beside RANR
+ # (tests/test_avg_line_beside_booked_2026_10_17.py), each caught from the workbook as written
+ ("RANR vs GCOs' Avg line back at the end of the gross block", RS,
+  "(C_BAND, C_SEG, C_LOANS, C_BOOK, C_AVG, C_AVGX, C_GCO, C_RANR, C_RATE, C_PAID,",
+  "(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_AVG, C_AVGX, C_PAID,", "beside_booked"),
+ ("RANR vs GCOs' headings in the old order over the new columns", RS,
+  "GROSS_HEADS[0], *AVG_HEADS, *GROSS_HEADS[1:],", "*GROSS_HEADS, *AVG_HEADS,", "beside_booked"),
+ ("RANR vs GCOs' gross heading stopping at Line × book", RS,
+  '((C_BOOK, C_RATE, "Gross · this pocket alone"),', '((C_BOOK, C_AVGX, "Gross · this pocket alone"),',
+  "beside_booked"),
+ ("RANR vs GCOs' Avg line cells in two conditional formats", RS,
+  'cf(ws, f"{col(C_BAND)}{first}:{col(C_BOOK)}{end}", [], line_on)',
+  'cf(ws, f"{col(C_BAND)}{first}:{col(C_GCO)}{end}", [], line_on)', "one_conditional_format_range"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

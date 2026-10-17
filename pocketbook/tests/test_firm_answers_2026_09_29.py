@@ -2049,8 +2049,8 @@ def test_pck_gross_every_pockets_booked_gco_ranr_and_rate_are_the_loan_files_for
     for grid, ws in gross_book["calc"].items():
         rows = tabs.pck(ws)
         head = tabs.header_row(ws, results.C_TOG, "Together")
-        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCOs", "RANR",
-                                                                         "RANR ÷ Booked"]
+        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "Avg line", "Line × book",
+                                                                         "GCOs", "RANR", "RANR ÷ Booked"]
         assert ws.cell(row=head - 1, column=results.C_BOOK).value == "Gross · this pocket alone"
         want = _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))
         assert len(rows) > 10, grid

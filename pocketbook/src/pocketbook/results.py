@@ -738,8 +738,10 @@ SIDES = (("contribution_rate", PLAIN["contribution_rate"]), ("gco_rate", "GCOs")
 # the gross block (the firm, 30 Sep 2026): the pocket's own booked, GCO and RANR dollars and RANR per booked dollar,
 # right after Loans, so what the pocket did on its own reads before how it compares with the rest
 # each side's Rest (the firm, 30 Sep 2026): the rest's own rate, the rate its gap is measured against
-# the firm, 2 Oct 2026: the gross block ends on each pocket's Avg line (booked dollars per loan) and that × the book's
-(C_BAND, C_SEG, C_LOANS, C_BOOK, C_GCO, C_RANR, C_RATE, C_AVG, C_AVGX, C_PAID, C_PAID_D, C_PAID_R, C_COST, C_COST_D,
+# the firm, 2 Oct 2026: each pocket's Avg line (booked dollars per loan) and that × the book's, in the gross block;
+# beside Booked, the way RANR ÷ Booked sits beside RANR (the firm, 17 Oct 2026: "avg line and line x book and such
+# belong in the same relative place")
+(C_BAND, C_SEG, C_LOANS, C_BOOK, C_AVG, C_AVGX, C_GCO, C_RANR, C_RATE, C_PAID, C_PAID_D, C_PAID_R, C_COST, C_COST_D,
  C_COST_R, C_KEPT, C_KEPT_D, C_KEPT_R, C_TOG) = range(2, 21)
 #: each side's columns, first to last: its gap, its dollars, the rest's rate
 BLOCKS = ((C_PAID, C_PAID_D, C_PAID_R), (C_COST, C_COST_D, C_COST_R), (C_KEPT, C_KEPT_D, C_KEPT_R))
@@ -1056,7 +1058,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     ws.merge_cells(start_row=s, start_column=C_LOANS, end_row=s, end_column=C_KEPT_R)
     _cell(ws, s, C_LOANS, f"={pick(NEG, 1)}", bold=True, size=10, color=SLATE, h="left", indent=1)
     cf(ws, f"{col(C_LOANS)}{s}", [(f'N(${col(C_H_UN)}${s})>0', None, Font(color=CRIMSON, bold=True), None)])
-    for a, b_, words in ((C_BOOK, C_AVGX, "Gross · this pocket alone"),
+    for a, b_, words in ((C_BOOK, C_RATE, "Gross · this pocket alone"),
                          (C_PAID, C_PAID_R, f'="{SIDES[0][1]} · gap vs rest of "&IF({J},"band","book")'),
                          (C_COST, C_COST_R, f'="{SIDES[1][1]} · × rest of "&IF({J},"band","book")'),
                          (C_KEPT, C_KEPT_R, f'="{SIDES[2][1]} · gap vs rest of "&IF({J},"band","book")'),
@@ -1065,7 +1067,8 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         _cell(ws, h, a, words, bold=True, size=9, name="Arial")
         for c in range(a, b_ + 1):
             ws.cell(row=h, column=c).border = Border(bottom=Side(style="medium", color=INK))
-    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", *GROSS_HEADS, *AVG_HEADS, "Gap pts", "Dollars", REST_HEAD,
+    house.header(ws, h + 1, C_BAND, ["Band", "Segment", "Loans", GROSS_HEADS[0], *AVG_HEADS, *GROSS_HEADS[1:],
+                                     "Gap pts", "Dollars", REST_HEAD,
                                      f'=IF({J},"{REST_TIMES[1]}","{REST_TIMES[0]}")', "Dollars", REST_HEAD,
                                      "Gap pts", "Dollars", REST_HEAD, "Together"],
                  centre_from=2)
@@ -1139,7 +1142,8 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     cf(ws, f"{col(C_TOG)}{first}:{col(C_TOG)}{end}",
        [(f'OR({T}="{GOOD_TOGETHER[0]}",{T}="{GOOD_TOGETHER[1]}")', None, Font(color=POSITIVE, bold=True), None),
         (f'{T}="{BAD_TOGETHER[0]}"', None, Font(color=CRIMSON, bold=True), None)], line_on)
-    cf(ws, f"{col(C_BAND)}{first}:{col(C_GCO)}{end}", [], line_on)
+    cf(ws, f"{col(C_BAND)}{first}:{col(C_BOOK)}{end}", [], line_on)
+    cf(ws, f"{col(C_GCO)}{first}:{col(C_GCO)}{end}", [], line_on)
     AX = f"${col(C_AVGX)}{first}"
     cf(ws, f"{col(C_AVG)}{first}:{col(C_AVGX)}{end}",
        [(f"AND(ISNUMBER({AX}),{AX}>={lim})", colour, None, None) for lim, colour in SIZE_STEPS], line_on)
