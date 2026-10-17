@@ -705,6 +705,12 @@ files.
   the rating's, since the workbook names the rating's vintage as its source. Both checks fail their tests
   when removed. The macro suite is 122. The real build passes, and its printout is unchanged.
 
+- **The example rebuilt from the final code.** Against the copy the firm is opening in Excel, only two
+  parts differ: the file's timestamp and the Run tab, which gains "Files fetched and not read: none". All
+  58 chart parts are byte-for-byte the same, so an Excel check of either copy holds for the charts. The
+  rebuilt file has 0 errors against the ISO schemas (136 parts). The Open XML SDK gives the same font-order
+  notes as before and nothing else. The printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests
