@@ -85,6 +85,8 @@ DOCUMENTS = {
     "disengagement-letter": ("SATC Disengagement Letter.html",                "Disengagement"),
     "ccorp-letter":         ("SATC Engagement Letter - C Corporation.html",  "C Corporation Engagement Letter"),
     "records-release":      ("SATC Records Release Authorization.html",     "Records Release"),
+    # An EMAIL, not a PDF letter: `reissue` merges it into an unsent .eml.
+    "reissue-email":        ("SATC Re-issue Email.html",                     "Re-issue Email"),
 }
 
 def opening_package(record: dict) -> list[str]:
@@ -122,6 +124,8 @@ STAGE = {
     # Travels WITH the engagement letter, to any client who had a
     # previous accountant. Opening-stage for that reason.
     "records-release": "opening",
+    # Sent when a return changes after delivery.
+    "reissue-email": "delivery",
 }
 
 # Which opening document an engagement actually uses, by return type. The rest
@@ -552,6 +556,43 @@ def cmd_package(args) -> int:
         print(f"      {message.summary()}")
         print(f"      Open it, read it, press send. Nothing has gone "
               f"anywhere.\n")
+    return 0
+
+
+def cmd_reissue(args) -> int:
+    """A return changed after it went out -> the re-issue email, as an unsent .eml.
+
+    Compares the earlier results summary with the new one, decides from the
+    figures whether the IRS needs a new signature, and writes a draft with To
+    left blank and nothing attached: the preparer attaches the revised returns
+    and sends it. Nothing here sends anything.
+    """
+    import reissue
+
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        record = build_record(engagements.load(args.engagement, store))
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+    spec = json.loads(Path(args.changes).read_text(encoding="utf-8"))
+    try:
+        fields = reissue.build(record, spec)
+        subject, html, plain = reissue.render(fields)
+    except (reissue.ReissueError, merge.MergeError) as exc:
+        print(f"No email written: {exc}")
+        return 1
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(reissue.to_eml(subject, html, plain,
+                                   sender=f"{record.get('PreparerName', '')} <{record.get('PreparerEmail', '')}>"))
+    signing = ("a new signature IS needed" if fields["ResignBoth"] or fields["ResignOne"]
+               else "no new signature needed")
+    print(f"Re-issue email for {args.engagement}: {subject}")
+    print(f"    {len(fields['ResultChanges'])} result change(s), "
+          f"{len(fields['OtherChanges'])} other change(s); {signing} (IRS Pub 1345)")
+    print(f"    {out}")
+    print("    Unsent, To blank, nothing attached -- attach the revised returns and send it yourself.")
     return 0
 
 
@@ -2933,6 +2974,15 @@ def build_parser() -> argparse.ArgumentParser:
     iv.add_argument("--variance-note",
                     help="required when the bill exceeds the estimate")
     iv.set_defaults(fn=cmd_invoice)
+
+    ri = sub.add_parser("reissue", help="a return changed after delivery -> the re-issue email (.eml)")
+    ri.add_argument("--engagement", required=True)
+    ri.add_argument("--store")
+    ri.add_argument("--changes", required=True,
+                    help="JSON: the earlier and new results, and why each changed "
+                         "(see samples/reissue-changes.json)")
+    ri.add_argument("--out", required=True, help="where to write the .eml")
+    ri.set_defaults(fn=cmd_reissue)
 
     la = sub.add_parser("ladder", help="are the packages sensible against the prices?")
     la.add_argument("--form", default="1040")

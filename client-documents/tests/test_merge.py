@@ -236,6 +236,7 @@ LATER_DOCUMENTS = {
     "delivery letter": ("SATC Tax Return Delivery Letter.html", "delivery-letter.json"),
     "extension notice": ("SATC Extension Notice.html", "extension-notice.json"),
     "disengagement letter": ("SATC Disengagement Letter.html", "disengagement-letter.json"),
+    "re-issue email": ("SATC Re-issue Email.html", "reissue-email.json"),
 }
 
 
