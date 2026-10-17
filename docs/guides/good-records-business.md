@@ -2,6 +2,9 @@
 
 A business return starts from books that match the bank statements.
 
+Every deadline below moves to the next working day when it lands on a
+Saturday, Sunday or federal holiday.
+
 ---
 
 ## 01 · One account for the business, one for you
@@ -54,7 +57,7 @@ rather than after.
   the first year the car is used for the business. A leased car stays on that
   method for the whole lease, renewals included.
 - **Home office.** The square footage of the room and of the house, plus the
-  year's bills for the house &mdash; utilities and insurance to start with. What
+  year's bills for the house — utilities and insurance to start with. What
   counts here shifts, so send more than you think we need and ask us if you are
   unsure.
 - **Meals.** A receipt does not carry who was there or why. Write it on the
@@ -77,8 +80,7 @@ rather than after.
 ## 06 · If it is a partnership or a corporation
 
 - The return is due March 15 for a calendar year, and the owners' K-1s are due
-  on that date too. If March 15 is a weekend or a holiday it moves to the next
-  working day.
+  on that date too.
 - So the company's books decide when its owners can file, not just when the
   company can.
 - Past a certain size the return carries a balance sheet, which means year-end
@@ -87,11 +89,13 @@ rather than after.
   insurance, that amount belongs in your W-2 wages. Fixing it after the W-2 has
   gone out means reissuing forms.
 
-<!-- [CONFIRM: nothing here touches what an owner pays themselves. Setting or
-     reviewing officer compensation sits outside the engagement in
-     fee-schedule.yaml (`assumed.officer_compensation`), so the guide stays
-     silent on it. Confirm that silence is what the firm wants on a public
-     page, given an S corp owner searching this topic is exactly who finds it. -->
+<!-- ANSWERED 7 Sep 2026: the silence stays HERE, and the S-corp guide breaks it.
+     The firm chose one bullet, on entity-choice.md section 05 only, pointing at
+     the price page. This page keeps saying nothing about what an owner pays
+     themselves — two guides carrying the same sentence is one guide split in
+     half, and tenets.spec.py fails on any run of prose shared between them. The
+     reader who searches this topic is sent on by the "Also here" link to
+     "What people mean by 'S corp'", which is where the bullet is. -->
 
 ---
 
@@ -116,4 +120,4 @@ first.
 
 ---
 
-This is general information, not advice about a particular business.
+This is general information, not advice about a particular return or business.

@@ -69,7 +69,14 @@ def render_body(md: str) -> tuple[str, str, str]:
     # line above its call to action, not below. Matched as its own line
     # wherever it sits -- the sentence is distinctive enough that this cannot
     # take anything else with it.
-    md = re.sub(r"^This is general information,? not advice about a particular [a-z]+\.?\s*$",
+    #
+    # The alternation keeps the single-noun forms matching. The firm settled
+    # this sentence on 7 September 2026 and it is now one sentence on all three
+    # pages, but a draft still carrying "...a particular business." from before
+    # that must not have it printed twice; this strip is the thing that would
+    # let it through.
+    md = re.sub(r"^This is general information,? not advice about a particular "
+                r"(?:return or business|[a-z]+)\.?\s*$",
                 "", md, flags=re.M)
     lines = md.split("\n")
 
@@ -191,7 +198,7 @@ SHELL = """<!doctype html>
     <a class="btn" href="../#intake">Tell us about your situation</a>
   </section>
 
-  <p class="fine">This is general information, not advice about a particular {noun}.</p>
+  <p class="fine">This is general information, not advice about a particular return or business.</p>
 
   <nav class="also">
     <span class="lab">Also here</span>
@@ -340,12 +347,11 @@ def build() -> dict[str, str]:
         also = "\n    ".join(
             '<a href="{}">{}</a>'.format(s, html.escape(t))
             for s, t, _l, _b, _d in rendered if s != slug)
-        noun = "business" if slug in ("business-records.html", "s-corp.html") else "return"
         files[slug] = SHELL.format(
             title=html.escape(title),
             title_esc=html.escape(title).replace('"', "&quot;"),
             desc=html.escape(desc, quote=True),
-            slug=slug, lede=lede, body=body, also=also, noun=noun)
+            slug=slug, lede=lede, body=body, also=also)
     return files
 
 
