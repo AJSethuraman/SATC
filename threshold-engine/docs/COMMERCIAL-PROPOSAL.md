@@ -189,19 +189,32 @@ What it says, measure by measure:
      - 8 tag special mention and substandard separately;
      - 4 tag criticized split accrual and nonaccrual;
      - 3 tag pass and criticized only.
-   - **History not measured.** How many quarters each bank has tagged was not
-     checked (§6). If it starts with the credit-quality disclosures banks began
-     around 2011 (ASU 2010-20; its dates not checked), it holds no 2009
-     stress.
+   - **History measured (17 Oct).** Every 10-Q and 10-K instance from 2009Q1
+     to 2026Q2 was read: 1,071 instances.
+     - **0 of 16** tag commercial loans by internal grade in their own filing
+       before the 2010 10-K.
+     - **11 of 16** tag them at 2010Q4, and 15 of 16 before 2013.
+     - Once a bank starts, none has a gap.
+     - **6 of 16 change their categories** along the way: KeyCorp moved from
+       rating buckets to pass/criticized in 2016Q1, and PNC from SM/substandard
+       to pass/criticized in 2018Q4.
+     - Only JPMorgan, Regions and KeyCorp carry tagged comparatives back to
+       2009-12-31.
+
+     So the peers' public criticized history holds no 2009 stress
+     (`commercial-2026-10/research-crit-history.md`).
    - **Recommend:** rate it on the bank's internal history. Show peers' latest
      quarters beside it as context, with each bank's own words.
 7. **Migration.** Internal only; no public source. Rate it on internal history
    if the bank has it through 2009–10. Otherwise show it, unrated.
 8. **Utilization.** The FDIC API has no C&I commitment field: it puts commercial
    lines in "all other" (KeyBank: $60.9bn of $78.3bn unused). The Call Report
-   form has split C&I commitments out since 2010Q1 (74 FR 68314). A public
-   utilization rate (C&I balance over balance plus unused C&I commitments) is
-   therefore possible from the FFIEC's bulk files, which were not checked.
+   form has split C&I commitments out since 2010Q1 (74 FR 68314), as
+   `RCFDJ457`/`RCONJ457`. The FFIEC's bulk Call Report download can be
+   scripted and holds it for every filer, 2010Q1 on. KeyBank at 30 Jun 2026:
+   $40,550,339 thousand, tied to its filed report
+   (`commercial-2026-10/research-ffiec.md`). So a public utilization rate (C&I
+   balance over balance plus unused C&I commitments) can be built from 2010Q1.
    Internal first; public as a later addition.
 9. **Concentration.** Show only, from the Call Report:
    - CRE over capital, as `credit-suite` already computes it (`CRECONR`);
@@ -519,31 +532,48 @@ classified by collateral and borrower, with judgement at the edges.
 | 13 | Label every reporting change (§3 Q4: the definition and form changes, among them the NDFI and margin-loan revision of 2024Q4–2025Q2) on the series it touches? | Labeled in the quarter it took effect | Unlabeled | **Answered, 16 Oct 2026: yes** |
 | 14 | Add a stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each with its 8-K, read by the build like the FDIC record? | Those windows are left out with a reason | They stay in, with two books mixed | **Yes** |
 | 15 | Also label 2020Q1–2021Q4 on C&I (revolver drawdowns and PPP: not definition changes, but they move the book), and leave out the windows the 25% rule catches across both periods? | Labeled; windows left out where the rule fires | Unlabeled; the rule alone decides what is left out | **Yes** |
+| 16 | When a labeled reporting change trips the 25% jump (KeyBank's C&I in 2024Q4, the NDFI move), keep the series going across it instead of starting it after the gap? | KeyBank's C&I charge-off history runs 2006 on, with the change labeled and its windows left out. This changes how every series is written, consumer included: today each starts after its last left-out window | The series starts at 2026Q1 (2 quarters), as the tool does now | **Yes** |
+| 17 | How are the FDIC history codes 213 ("Merger - Assisted", 3 rows, May 1990) and 225 ("Partial Purchase & Assumption - Without Assistance", 1991) classified? | As acquisitions, like the codes already classified | Left out of the record, with the reason | **Your call: they block any peer build before 2005 (the 1991–2005 quarters were pulled once, 17 Oct, into a scratch cache)** |
 
 ---
 
 ## 6. What I did not check
 
-1. **How far back peers' criticized tagging goes.** Only the latest 10-Q per
-   bank was read. Until the history is counted, the claim that it cannot rate
-   High is a reasoned expectation, not a finding.
-2. **The FFIEC supplemental instructions:** ffiec.gov refused access, so where
-   PPP loans are reported was read from the FDIC's profile, not the
-   instructions. Also not checked:
+1. ~~How far back peers' criticized tagging goes.~~ **Checked 17 Oct**: no
+   peer tags it in its own filing before 2010Q4 (§3 Q1, measure 6).
+2. **The FFIEC instructions.** ffiec.gov still refuses scripts. The FDIC's
+   copy of the same instruction book was read on 17 Oct and quoted
+   (`commercial-2026-10/research-ffiec.md`), covering the C&I definition and
+   its 11 exclusions, the >50% real estate test, NDFI, RC-L and RC-N.
+   - On PPP, the instructions say only "the appropriate loan category in
+     Schedule RC-C, Part I", so PPP in C&I remains a reading, not a quotation.
+
+   Also not checked:
    - FIL-84-2024 (page not found);
    - whether the 2025 proposal on modification reporting was finalized;
    - three holding-company close dates (Wells/Wachovia, PNC/National City,
      BofA/LaSalle);
    - the causes of the 87 unexplained moves;
    - what moved the industry's C&I in 2010Q1.
-3. **NDFI in the FFIEC bulk files.** The form carries NDFI past due and nonaccrual
-   from 2024Q4 (RC-N Memo 9), C&I commitments from 2010Q1 and the lease split
-   from 2007Q1, none of them in the FDIC API. The FFIEC bulk download was not
-   reached, and whether RI-B has an NDFI charge-off line was not checked.
+3. ~~NDFI in the FFIEC bulk files.~~ **Checked 17 Oct.** The CDR bulk download
+   is scriptable, 2001Q1–2026Q2; seven quarters were downloaded. Each of the
+   following matched KeyBank's filed report at 30 Jun 2026:
+   - NDFI past due and nonaccrual: `PV23`–`PV25`, from 2024Q4.
+   - C&I commitments: `J457`, from 2010Q1.
+   - The lease split: `F162`/`F163`, from 2007Q1.
+
+   **RI-B has no NDFI charge-off line.** NDFI charge-offs sit in "all other
+   loans" (item 7), mixed with other loans, so a public NDFI loss rate cannot
+   be built.
 4. **Where depository-institution charge-offs went after 2016Q4.**
-5. **The stress table in §3 Q1 with the tool's own rules** (pro forma mergers,
-   the jump rule, repeated year to date). It is computed as filed and is
-   indicative.
+5. ~~The stress table with the tool's own rules.~~ **Done 17 Oct** on
+   `threshold-engine-book` (PR #446,
+   `docs/commercial-2026-10/stress-tool-rules.md`).
+   - Industry: within 0.034 points of the as-filed table.
+   - KeyBank nonaccrual: unchanged.
+   - KeyBank's C&I charge-off series, as the workbook would read it, holds
+     only 2 quarters: the 2024Q4 NDFI move trips the 25% jump (§5,
+     question 16).
 6. **The Fed and FDIC difference** (up to 0.114 points, C&I, since 2006): the
    cause was not traced.
 7. **Administrative past dues in commercial 30–89:** their size.
@@ -554,10 +584,12 @@ classified by collateral and borrower, with judgement at the edges.
     reached; their descriptions are second-hand.
 11. **Holding company against bank for the 10 regionals:** not searched beyond
     one principal bank each.
-12. **Whether KeyBank files the FFIEC 031 or 041** for the C&I tie-out: not
-    checked; the resolver handles both.
+12. ~~Whether KeyBank files the FFIEC 031 or 041.~~ **Checked 17 Oct**: the 031, in
+    every quarter since 1984Q1. At 2026Q2, 15 of 16 roster banks file the 031;
+    Zions files the 041 (since 2017Q1).
 13. **Inline XBRL against the extracted instance** for the 10-Q counts: counted
     from instances only.
-14. **The tool's industry merger corrections on commercial series.** The
-    absorbed-bank repeat and push-down fixes were proven on card against the
-    QBP. They have not been run on commercial categories.
+14. **The tool's industry merger corrections on commercial series.** They now
+    run on the commercial products (PR #446), and the industry series match
+    the as-filed ones within 0.034 points. They have not been checked against
+    the QBP for commercial categories, as they were for card.
