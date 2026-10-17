@@ -682,6 +682,16 @@ files.
   tests: the refusal, which fails without the check, and the unchanged case. The macro suite is 118, and
   the real comparison's printout is unchanged.
 
+- **Codex: one pull is one set of bytes, not one folder name.** Two more findings in this family, so the
+  rule changed at its root:
+  - `build` now reads every file the rating could have read and compares the two sets of fingerprints
+    whole. A file changed, gone or new since the rating is refused by name.
+  - `compare` refuses two runs whose fingerprints differ anywhere, not only two runs of different
+    vintages, because otherwise a file changed between the runs would show as a move the settings did
+    not make.
+  - Two new tests fail with the old checks. The macro suite is 120. The real build passes the check and
+    the printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests

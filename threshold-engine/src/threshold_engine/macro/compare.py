@@ -80,6 +80,12 @@ def compare(a, b, label_a, label_b):
     if a["vintage"] != b["vintage"]:
         raise ValueError("the two runs read different pulls (%s, %s); compare runs of one pull"
                          % (a["vintage"], b["vintage"]))
+    # One pull is one set of bytes, not one folder name: a file changed between the two runs would show as a
+    # move the settings did not make (Codex on #452).
+    differ = sorted(n for n in set(a["read_sha"]) | set(b["read_sha"]) if a["read_sha"].get(n) != b["read_sha"].get(n))
+    if differ:
+        raise ValueError("the two runs read different bytes of the pull of %s (%s: changed, gone or new between "
+                         "them); compare two runs of one reading of it" % (a["vintage"], ", ".join(differ)))
     ra = {(r["key"], r["reading"]): r for r in a["ratings"]}
     rb = {(r["key"], r["reading"]): r for r in b["ratings"]}
     why_a = {(x["key"], x["reading"]): x["why"] for x in a["not_rated"]}

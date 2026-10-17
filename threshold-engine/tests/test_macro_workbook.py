@@ -488,3 +488,12 @@ def test_a_workbook_from_a_new_pull_of_unchanged_files_publishes_the_ratings_fin
     ws = wb["Sources"]
     row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
     assert ws.cell(row, 10).value == result["read_sha"]["fred-UNRATE.csv"]
+
+
+def test_a_workbook_whose_pull_lacks_a_file_the_rating_read_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a file gone before the workbook's Pull read it passed the check, its old fingerprint shown.
+    from threshold_engine.macro.settings import Refused
+    result = R.rate_all(cache, check(answered(show_sahm=False)))
+    (R.Pull(cache).folder / "fred-CPIAUCSL.csv").unlink()
+    with pytest.raises(Refused, match="fred-CPIAUCSL.csv from other bytes than the rating read"):
+        build(tmp_path / "macro.xlsx", result, R.Pull(cache))

@@ -1220,12 +1220,16 @@ def build(out, result, pull, whatif=None):
     # The ratings' own fingerprints come first: a workbook drawn from other bytes than the rating read
     # would publish one version's ratings beside another's history, so it is refused (Codex on #452: rate_all
     # with its own Pull, then build with a new one, after a file changed in between).
+    # Every file the rating could have read is read here too, so the two are compared whole: a file changed,
+    # gone or new since the rating is a mismatch (Codex on #452, twice).
+    for item in RATED:
+        pull.points(item)
     rated = result["read_sha"]
-    other = sorted(n for n, h in pull.read_sha.items() if n in rated and rated[n] != h)
+    other = sorted(n for n in set(rated) | set(pull.read_sha) if rated.get(n) != pull.read_sha.get(n))
     if other:
-        raise Refused("the workbook would draw %s from other bytes than the rating read: the file changed "
-                      "between the two. Build the workbook from the Pull the rating used." % ", ".join(other))
-    read_sha = dict(pull.read_sha, **rated)
+        raise Refused("the workbook would draw %s from other bytes than the rating read: changed, gone or new "
+                      "since the rating. Build the workbook from the Pull the rating used." % ", ".join(other))
+    read_sha = rated
     changed = [n for n, h in read_sha.items() if files.get(n, {}).get("sha256") not in (None, h)]
     # A file the pull fetched and the rating never read (gone, unreadable, or one the pull could not read)
     # has no fingerprint as read: it is said so, not given the manifest's (Codex on #452).

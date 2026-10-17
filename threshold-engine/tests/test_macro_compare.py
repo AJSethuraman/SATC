@@ -178,3 +178,13 @@ def test_a_change_neither_run_rates_names_the_horizon_of_the_settings_that_asked
     for x in asked_b:
         line = next(r for r in out if r.startswith("  ..") and x["title"] + ", change" in r)
         assert "change (what if: over 12 months)" in line and "6 months" not in line, line
+
+
+def test_two_runs_that_read_different_bytes_of_one_pull_are_not_compared(cache):  # noqa: F811
+    # Codex on #452: the same settings, a file changed between the runs, and moves the settings did not make.
+    ra = R.rate_all(cache, check(answered()))
+    with open(R.Pull(cache).folder / "fred-UNRATE.csv", "a") as fh:
+        fh.write("2026-10-01,2.0\n")
+    rb = R.rate_all(cache, check(answered()))
+    with pytest.raises(ValueError, match="different bytes of the pull of 2026-10-15 \\(fred-UNRATE.csv"):
+        compare(ra, rb, "a.json", "b.json")
