@@ -129,6 +129,11 @@ check("describe: vintage", g.describe_test({"group_by": "year"}) == "Survival by
 check("describe: cutoffs", g.describe_test({"column": "score", "cutoffs": "1,2"}) == "Survival below / at or above score cutoffs 1, 2")
 check("describe: model with a window", g.describe_test({"model": "fico per -50, flag", "orig_to": "2023-09-30"}) ==
       "Hazard ratio, alone and together: fico per 50 lower, flag; loans opened up to 2023-09-30", g.describe_test({"model": "fico per -50, flag", "orig_to": "2023-09-30"}))
+check("example labels: flag uses the person's own choices", g.example_labels("flag", "fico", ">=", "700") == ["fico >= 700 = Yes", "fico >= 700 = No"])
+check("example labels: split", g.example_labels("split", "2024-01-01") == ["Before 2024-01-01", "2024-01-01 on"])
+check("example labels: cutoffs use the first cutoff", g.example_labels("cutoffs", "FICO", cuts="640, 660") == ["FICO below 640", "FICO 640+"])
+check("example labels: nothing chosen yet still names something", g.example_labels("category") == ["Value A", "Value B"] and g.example_labels("vintage") == ["Earlier year", "Later year"])
+check("example labels: vintage uses the years", g.example_labels("vintage", years=[2021, 2022, 2023]) == ["2021", "2022", "2023"])
 check("flag text", g.flag_text("fico", ">=", " 700 ") == "fico >= 700")
 check("flag parse: column against column", g.parse_flag("net_revenue > amount", raw.columns) == ("net_revenue", ">", "amount"))
 check("flag parse: against a number", g.parse_flag("fico >= 700", raw.columns) == ("fico", ">=", "700"))

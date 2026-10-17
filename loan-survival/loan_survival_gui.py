@@ -335,6 +335,26 @@ def flag_counts(df: pd.DataFrame, text: str) -> dict[str, int] | None:
     return {"Yes": int(n.get("Yes", 0)), "No": int(n.get("No", 0)), "blank": int(values.isna().sum())}
 
 
+def example_labels(kind: str, a: str = "", op: str = ">", b: str = "", cuts: str = "", years=(), values=(), terms=()) -> list[str]:
+    """The names on the example box's curves or bars: the person's own columns and choices where they have made them."""
+    if kind == "vintage":
+        return [str(y) for y in years[:4]] or ["Earlier year", "Later year"]
+    if kind == "split":
+        d = [x.strip() for x in a.split(",") if x.strip()]
+        d = d[0] if d else "date"
+        return [f"Before {d}", f"{d} on"]
+    if kind == "cutoffs":
+        c = [x.strip() for x in cuts.split(",") if x.strip()]
+        col, c = a or "Column", (c[0] if c else "cutoff")
+        return [f"{col} below {c}", f"{col} {c}+"]
+    if kind == "flag":
+        f = flag_text(a or "Column", op, b or "value")
+        return [f"{f} = Yes", f"{f} = No"]
+    if kind == "category":
+        return [str(v) for v in values[:4]] or ["Value A", "Value B"]
+    return list(terms)[:5] or ["Column A", "Column B"]
+
+
 def default_test_name(kind: str, spec: dict) -> str:
     if kind == "flag":
         return spec["column"]
@@ -768,6 +788,53 @@ def main(argv=None) -> None:
             else:
                 self.query.set(self.var.get())
 
+    class ExampleBox(tk.Canvas):
+        """A drawn example of what the chosen comparison produces, named with the person's own columns. Not their data."""
+        W, H = 340, 330
+        SHADES = ("INK", "KEY_RED", "SLATE", "STONE", "CRIMSON")
+
+        def __init__(self, master):
+            super().__init__(master, width=self.W, height=self.H, bg=C["CANVAS"], highlightthickness=0, bd=0)
+
+        @staticmethod
+        def _cut(text: str, n: int = 34) -> str:
+            return text if len(text) <= n else text[:n - 1] + "…"
+
+        def show(self, kind: str, labels: list[str]):
+            self.delete("all")
+            self.create_text(self.W - 12, 14, text="Example, not your data", anchor="e", fill=C["SLATE"], font=FONT["sub"])
+            left, right, top = 46, self.W - 16, 40
+            rows = max(len(labels), 2)
+            bottom = self.H - 40 - 20 * rows
+            self.create_line(left, top, left, bottom, fill=C["INK"], width=1.5)
+            self.create_line(left, bottom, right, bottom, fill=C["INK"], width=1.5)
+            if kind == "model":
+                self.create_text(12, 14, text="Hazard ratio", anchor="w", fill=C["SLATE"], font=FONT["sub"])
+                self.create_text((left + right) // 2, bottom + 16, text="1.0 = no effect", fill=C["SLATE"], font=FONT["sub"])
+                one = left + (right - left) * 0.4
+                self.create_line(one, top, one, bottom, fill=C["STONE"], dash=(4, 3))
+                gap = (bottom - top) / max(len(labels), 1)
+                for i, lab in enumerate(labels):
+                    hr = (1.8, 0.7, 1.3, 1.1, 2.2)[i % 5]
+                    y = top + gap * (i + 0.5)
+                    x = left + (right - left) * 0.4 * hr
+                    self.create_rectangle(min(one, x), y - 9, max(one, x), y + 9, fill=C[self.SHADES[i % 5]], outline="")
+                    self.create_text(left + 6, y - 16, text=self._cut(lab, 40), anchor="w", fill=C["INK"], font=FONT["sub"])
+                return
+            self.create_text(12, 14, text="Cumulative bad", anchor="w", fill=C["SLATE"], font=FONT["sub"])
+            self.create_text((left + right) // 2, bottom + 16, text="Months on book", fill=C["SLATE"], font=FONT["sub"])
+            for i, lab in enumerate(labels[:5]):
+                rate = (0.016, 0.027, 0.011, 0.021, 0.014)[i % 5]   # in no order: the example says nothing about which group does worse
+                pts = []
+                for m in range(0, 37, 3):
+                    frac = 1 - math.exp(-rate * m)
+                    pts += [left + (right - left) * m / 36, bottom - (bottom - top) * min(frac * 1.6, 1) * 0.95]
+                self.create_line(*pts, fill=C[self.SHADES[i % 5]], width=2.5, smooth=True)
+            for i, lab in enumerate(labels[:5]):
+                y = bottom + 34 + 20 * i
+                self.create_line(left, y, left + 22, y, fill=C[self.SHADES[i % 5]], width=3)
+                self.create_text(left + 30, y, text=self._cut(lab), anchor="w", fill=C["INK"], font=FONT["sub"])
+
     class TestWizard(tk.Toplevel):
         """Add or edit one comparison in three steps. Result is {'name':..., 'spec': {...}} in self.result, or None."""
 
@@ -826,22 +893,24 @@ def main(argv=None) -> None:
             self.summary.pack(side="bottom", anchor="w", fill="x", pady=(GAP, 0))
             self.body = tk.Frame(outer, bg=C["PAPER"])
             self.body.pack(fill="both", expand=True)
+            self.example = ExampleBox(self.body)
+            self.example.pack(side="right", anchor="n", padx=(PAD, 0))
             self.btn_back = Button(bt, "Back", self.back)
             self.btn_back.pack(side="left")
             self.btn_next = Button(bt, "Next", self.next, "primary")
             self.btn_next.pack(side="right")
             Button(bt, "Cancel", self.destroy).pack(side="right", padx=(0, GAP // 2))
-            self.minsize(720, 620)
+            self.minsize(1040, 640)
             self.show_step()
             self.grab_set()
             self.wait_visibility()
 
         # ---- navigation
         def show_step(self):
-            for w in self.body.winfo_children():
-                w.destroy()
+            if getattr(self, "block", None) is not None and self.block.winfo_exists():
+                self.block.destroy()
             self.block = tk.Frame(self.body, bg=C["PAPER"])
-            self.block.pack(anchor="n")       # the form is one block, centred; what is inside lines up on the left
+            self.block.pack(side="left", anchor="n")       # the form is one block; what is inside lines up on the left
             self.lbl_step.config(text=f"{self.step + 1} of 3")
             self.lbl_head.config(text=self.STEPS[self.step])
             self.btn_back.config(state="normal" if self.step else "disabled")
@@ -1144,6 +1213,21 @@ def main(argv=None) -> None:
                 return
             spec, err = self.build_spec(1 if self.step < 2 else 2)
             self.summary.config(text="" if err else describe_test(spec))
+            self.refresh_example()
+
+        def refresh_example(self):
+            k, df = self.kind.get(), self.app.df
+            years, values = [], []
+            if df is not None:
+                o = self.app.v_cols["orig_date"].get()
+                if o and o in df.columns:
+                    years = sorted(pd.to_datetime(df[o], errors="coerce", format="mixed").dt.year.dropna().astype(int).unique())[:4]
+                col = self.var_a.get()
+                if k == "category" and col in df.columns:
+                    values = list(df[col].dropna().astype(str).value_counts().index[:4])
+            terms = [split_model(t)[0][0] for t in self.terms] if self.terms else []
+            self.example.show(k, example_labels(k, self.var_a.get(), self.var_op.get(), self.var_b.get(), self.var_b.get(),
+                                                years, values, terms))
 
     class App:
         def __init__(self, root):
@@ -1438,8 +1522,8 @@ def main(argv=None) -> None:
             holder.pack(fill="both", expand=True)
             self.tt = ttk.Treeview(holder, columns=("name", "what"), show="headings", height=10)
             for c, text, w in (("name", "Name", 220), ("what", "Comparison", 640)):
-                self.tt.heading(c, text=text, anchor="w")
-                self.tt.column(c, width=w, anchor="w")
+                self.tt.heading(c, text=text, anchor="center")
+                self.tt.column(c, width=w, anchor="center")
             self.tt.column("what", stretch=True)
             self.tt.pack(fill="both", expand=True)
             self.tt.bind("<Double-1>", lambda _e: self.edit_test())
@@ -1558,8 +1642,8 @@ def main(argv=None) -> None:
             self.tree["columns"] = heads
             cw = max(8, int(px(15) * 0.62))
             for c, w in zip(heads, widths):
-                self.tree.heading(c, text=c, anchor="w")
-                self.tree.column(c, width=w * cw, stretch=False, anchor="w")
+                self.tree.heading(c, text=c, anchor="center")
+                self.tree.column(c, width=w * cw, minwidth=w * cw, stretch=True, anchor="center")
             for r in rows:
                 self.tree.insert("", "end", values=r)
             for pk in self.pickers.values():
