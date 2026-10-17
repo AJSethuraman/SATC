@@ -250,7 +250,7 @@ A conviction is examined at the moment it bites, which is the only moment anyone
 has the context to judge it.
 
 **`Fires on`** is what makes selection deterministic: the subjects that bring a
-conviction into play. Code narrows to candidates; the judgement of whether a
+conviction into play. Code narrows to candidates; the judgment of whether a
 candidate is really a contradiction is made in the open, by a person reading.
 """
 
