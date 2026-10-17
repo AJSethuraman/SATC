@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-loan_survival_gui.py - Pop-ups for loan_survival.py. Pick the file, pick the columns, add tests, run.
+loan_survival_gui.py - the window for loan_survival.py: data, columns, settings, comparisons, run.
 
 The GUI does one thing: it writes the same .ini text the command line reads and hands it to
 loan_survival.run(). There is no second engine, and the RunLog records exactly what was chosen.
@@ -8,7 +8,7 @@ loan_survival.run(). There is no second engine, and the RunLog records exactly w
     pythonw loan_survival_gui.py                 # start empty
     pythonw loan_survival_gui.py "C:\\path\\loans.xlsx"   # what the right-click menu passes as %1
 
-Standard library tkinter plus the engine's own dependencies (pandas, numpy, openpyxl). Nothing leaves the machine.
+Standard library tkinter plus the engine's own dependencies (pandas, numpy, openpyxl).
 
 Everything above the "window" line is plain functions with no tkinter in them, so tests/gui_check.py
 can prove the settings it writes without opening a window.
@@ -47,17 +47,6 @@ ROLES = [
 DATE_ROLES = ("orig_date", "chargeoff_date", "first_90_date", "payoff_date")
 REQUIRED_ROLES = ("orig_date", "chargeoff_date")
 
-# What each optional column buys you, in the words the Columns tab shows next to it.
-ROLE_HELP = {
-    "orig_date": "The date the loan was opened. Loans are compared at the same month after this date.",
-    "chargeoff_date": "The date the loan went bad (charged off). Leave a loan's cell blank if it never did.",
-    "first_90_date": "Lets the tool check whether 90+ days late is a good early warning for a charge-off.",
-    "payoff_date": "Stops following a loan once it is paid off, so paid-off loans are not counted as good forever.",
-    "dpd_asof": "Days late today. Splits loans that recovered from loans that are still late.",
-    "net_revenue": "With the loan amount, shows revenue per $1,000 lent for each group.",
-    "amount": "With net revenue, shows revenue per $1,000 lent for each group.",
-    "loan_id": "Lets the tool spot a loan that appears twice.",
-}
 DEFAULT_TEXT_SIZE = 12
 
 ALIASES = {
@@ -78,14 +67,9 @@ ALIASES = {
 }
 
 BAD_EVENT_CHOICES = [
-    ("auto", "Let the tool decide",
-     "Uses 90+ days past due as the early warning if most 90+ loans end up charged off and it comes well "
-     "before the charge-off. Otherwise it counts charge-offs only. The run says which it picked."),
-    ("chargeoff", "Charge-off only",
-     "A loan is bad only when it is charged off. Slowest to show problems, but nothing to argue about."),
-    ("earliest", "First 90+ or charge-off",
-     "A loan is bad the first time it is 90+ days past due or charged off, whichever comes first. "
-     "Needs the first-90+ date column."),
+    ("auto", "Auto"),
+    ("chargeoff", "Charge-off"),
+    ("earliest", "First 90+ or charge-off"),
 ]
 
 DEFAULT_SETTINGS = {
@@ -98,36 +82,32 @@ DEFAULT_SETTINGS = {
     "early_read_horizon": "36",
 }
 ADVANCED = [
-    ("min_at_risk", "Stop showing a month once fewer loans than this are still observed"),
-    ("dq_window", "Months after first 90+ to watch for a charge-off"),
-    ("proxy_min_co_share", "Auto uses 90+ only if at least this share of 90+ loans charge off (0 to 1)"),
-    ("proxy_min_lead", "...and 90+ comes at least this many months earlier (median)"),
-    ("early_read_horizon", "Month treated as 'eventual' in the early-read table"),
+    ("min_at_risk", "Minimum loans at risk"),
+    ("dq_window", "Months after first 90+ to watch"),
+    ("proxy_min_co_share", "Minimum charge-off share of 90+ loans (Auto)"),
+    ("proxy_min_lead", "Minimum lead in months, median (Auto)"),
+    ("early_read_horizon", "Early-read horizon (months)"),
 ]
 
 TEST_KINDS = [
-    ("vintage", "Vintage (compare origination years)"),
+    ("vintage", "Vintage (origination year)"),
     ("split", "Before / after a date"),
-    ("cutoffs", "Cutoffs (backtest a rule on a number)"),
-    ("category", "Flag or category (each value)"),
-    ("model", "Several factors at once (Cox model)"),
+    ("cutoffs", "Cutoffs on a number"),
+    ("flag", "One column against another (flag)"),
+    ("category", "Each value of a column"),
+    ("model", "Several columns together (Cox model)"),
 ]
 KIND_LABEL = dict(TEST_KINDS)
-
-# Step 1 of "Add a comparison": the question first, the method second.
-KIND_QUESTIONS = [
-    ("vintage", "Did newer loans do better or worse than older ones?",
-     "Groups loans by the year they were opened and compares them month by month after opening."),
-    ("split", "Did loans opened after a certain date do better or worse?",
-     "Good for checking a policy or underwriting change. You pick the date."),
-    ("cutoffs", "Would a cutoff on a number have caught the bad loans?",
-     "Pick a column of numbers (a score, a ratio, an amount) and try cutoffs. Shows how much worse the flagged loans did, "
-     "and how many flagged loans were fine."),
-    ("category", "Do loans with different values in one column perform differently?",
-     "Pick a column with only a few values, like yes/no or a product type."),
-    ("model", "Which columns matter most when you look at them together?",
-     "Pick several columns. For each one, the tool shows how much it adds once the others are counted."),
-]
+# what a comparison produces, one line each, shown under its name in the guide
+KIND_OUTPUT = {
+    "vintage": "Survival by origination year, compared at the same month on book.",
+    "split": "Survival of loans opened before against after a date.",
+    "cutoffs": "Survival of loans below against at or above each cutoff on a numeric column.",
+    "flag": "Survival where a column is greater than, less than or equal to another column or a number: Yes against No.",
+    "category": "Survival for each value of a column.",
+    "model": "Hazard ratio for each column alone and together (Cox).",
+}
+OPERATORS = (">", ">=", "<", "<=", "==", "!=")
 
 
 # ============================================================================ pure helpers (no window)
@@ -235,8 +215,8 @@ def date_problems(series: pd.Series) -> tuple[int, int, int]:
 def date_problem_text(series: pd.Series) -> str:
     bad, filled, blank = date_problems(series)
     if bad:
-        return f"{bad:,} of {filled:,} filled values won't read as dates; those loans are left out of the run"
-    return f"All {filled:,} filled values read as dates ({blank:,} blank)"
+        return f"{bad:,} of {filled:,} filled values are not dates (those loans are excluded)"
+    return f"{filled:,} filled values read as dates, {blank:,} blank"
 
 
 def latest_date(df: pd.DataFrame, cols: dict[str, str]) -> pd.Timestamp | None:
@@ -328,7 +308,56 @@ def split_model(model: str) -> list[tuple[str, str, str]]:
     return out
 
 
+def flag_text(left: str, op: str, right: str) -> str:
+    """('Income', '>', 'Sales') -> 'Income > Sales', the name the engine works the flag out from."""
+    return f"{left.strip()} {op} {right.strip()}"
+
+
+def parse_flag(text: str, columns) -> tuple[str, str, str] | None:
+    """'Income > Sales' -> ('Income', '>', 'Sales') when the left side is a column; None otherwise."""
+    cols = set(columns)
+    for op in sorted(OPERATORS, key=len, reverse=True):
+        at = text.find(op)
+        while at >= 0:
+            left, right = text[:at].strip(), text[at + len(op):].strip()
+            if left in cols and right:
+                return left, op, right
+            at = text.find(op, at + 1)
+    return None
+
+
+def flag_counts(df: pd.DataFrame, text: str) -> dict[str, int] | None:
+    """Yes, No and blank loans for a flag, worked out by the engine's own rule. None when the text is not a flag."""
+    values = ls.column_values(df, text)
+    if values is None:
+        return None
+    n = values.value_counts(dropna=False)
+    return {"Yes": int(n.get("Yes", 0)), "No": int(n.get("No", 0)), "blank": int(values.isna().sum())}
+
+
+def example_labels(kind: str, a: str = "", op: str = ">", b: str = "", cuts: str = "", years=(), values=(), terms=()) -> list[str]:
+    """The names on the example box's curves or bars: the person's own columns and choices where they have made them."""
+    if kind == "vintage":
+        return [str(y) for y in years[:4]] or ["Earlier year", "Later year"]
+    if kind == "split":
+        d = [x.strip() for x in a.split(",") if x.strip()]
+        d = d[0] if d else "date"
+        return [f"Before {d}", f"{d} on"]
+    if kind == "cutoffs":
+        c = [x.strip() for x in cuts.split(",") if x.strip()]
+        col, c = a or "Column", (c[0] if c else "cutoff")
+        return [f"{col} below {c}", f"{col} {c}+"]
+    if kind == "flag":
+        f = flag_text(a or "Column", op, b or "value")
+        return [f"{f} = Yes", f"{f} = No"]
+    if kind == "category":
+        return [str(v) for v in values[:4]] or ["Value A", "Value B"]
+    return list(terms)[:5] or ["Column A", "Column B"]
+
+
 def default_test_name(kind: str, spec: dict) -> str:
+    if kind == "flag":
+        return spec["column"]
     if kind == "vintage":
         return "vintage"
     if kind == "split":
@@ -343,31 +372,35 @@ def default_test_name(kind: str, spec: dict) -> str:
 def describe_window(spec: dict) -> str:
     f, t = spec.get("orig_from"), spec.get("orig_to")
     if f and t:
-        return f"loans opened from {f} to {t}"
-    if t:
-        return f"loans opened up to {t}"
-    if f:
-        return f"loans opened from {f}"
-    return "all loans"
+        text = f"loans opened from {f} to {t}"
+    elif t:
+        text = f"loans opened up to {t}"
+    elif f:
+        text = f"loans opened from {f}"
+    else:
+        text = "all loans"
+    if spec.get("where"):
+        text = ("loans" if text == "all loans" else text) + f" where {spec['where']}"
+    return text
 
 
 def describe_test(spec: dict) -> str:
-    """One plain sentence for a comparison, shown in the list and in the wizard."""
+    """What a comparison produces, in a line, for the list and the guide."""
     kind = spec_kind(spec)
     if kind == "vintage":
-        core = "Compare loans by the year they were opened"
+        core = "Survival by origination year"
     elif kind == "split":
         dates = [d.strip() for d in spec["split_date"].split(",") if d.strip()]
-        core = f"Compare loans opened before and after {' and '.join(dates)}"
+        core = "Survival before / after " + " and ".join(dates)
     elif kind == "cutoffs":
-        core = (f"Try cutoffs of {spec['cutoffs'].replace(',', ', ')} on {spec['column']}: "
-                "loans below each cutoff against loans at or above it")
+        core = f"Survival below / at or above {spec['column']} cutoffs {spec['cutoffs'].replace(',', ', ')}"
     elif kind == "category":
-        core = f"Compare loans by their value in {spec['column']}"
+        core = f"Survival for each value of {spec['column']}"
     else:
-        words = [f"{c} (per {sc} {d})" if sc else c for c, sc, d in split_model(spec["model"])]
-        core = "Show how much each of these matters, with the others counted: " + ", ".join(words)
-    return f"{core}. Uses {describe_window(spec)}."
+        words = [f"{c} per {sc} {d}" if sc else c for c, sc, d in split_model(spec["model"])]
+        core = "Hazard ratio, alone and together: " + ", ".join(words)
+    window = describe_window(spec)
+    return core if window == "all loans" else f"{core}; {window}"
 
 
 def unique_name(name: str, taken: list[str]) -> str:
@@ -463,7 +496,7 @@ def plain_error(exc: BaseException) -> str:
         return "A date could not be read. Check the as-of date is written like 2026-09-30."
     if isinstance(exc, KeyError):
         return f"A column the run needed was not found: {exc}. Check the Columns tab."
-    return f"The run stopped unexpectedly ({type(exc).__name__}: {exc}). Nothing was written. Send this line to whoever maintains the tool."
+    return f"The run stopped unexpectedly ({type(exc).__name__}: {exc}). Nothing was written."
 
 
 def default_out_path(input_path: Path) -> Path:
@@ -480,28 +513,153 @@ def open_path(path: Path) -> None:
 
 
 # ============================================================================ the window
+#
+# One look throughout, the same as PocketBook's launcher: Ink and Key Red on white, Arial, a rail of numbered steps on the
+# left, each page laid out the same way (title, a rule, content in a centred column, Back and Next in the bottom corners).
+# The guide for a comparison follows the same skeleton. Nothing on a page explains itself; the rules are in README.md.
+
+PALETTE = {"INK": "#0A0908", "KEY_RED": "#CC0000", "CRIMSON": "#960019", "PAPER": "#FFFFFF", "CANVAS": "#F4F1EC",
+           "MIST": "#E4DFD5", "STONE": "#B9B4AC", "SLATE": "#57534B", "DISABLED": "#9A958C", "RULE": "#EFEBE4"}
+PAGES = (("data", "Data"), ("cols", "Columns"), ("set", "Settings"), ("tests", "Comparisons"), ("run", "Run"))
+COLUMN_WIDTH = 900          # the centred column's widest
+PAD = 24                    # the one spacing unit pages and the guide are built from
+GAP = 12
+LABEL_CHARS = 30            # the label column on every form
+
+
+def window_size(screen_w: int, screen_h: int) -> tuple[int, int]:
+    """The first size: as much of the screen as leaves room for the taskbar, 960 x 640 at the least and 1280 x 900 at the most."""
+    return max(960, min(1280, screen_w - 120)), max(640, min(900, screen_h - 140))
+
 
 def main(argv=None) -> None:
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
     from tkinter import font as tkfont
 
-    MUTED = "#555555"
+    C = PALETTE
+    root = tk.Tk()
+    ui = {"size": int(load_memory().get("text_size", DEFAULT_TEXT_SIZE))}
+    BASE = {"title": (20, "bold"), "h2": (20, "bold"), "app": (17, "bold"), "body": (15, "normal"),
+            "bold": (15, "bold"), "small": (14, "normal"), "sub": (13, "normal"), "head": (13, "bold"),
+            "step": (15, "bold")}
+    FONT = {k: tkfont.Font(root=root, family="Arial", size=-v[0], weight=v[1]) for k, v in BASE.items()}
 
-    class ColumnPicker(ttk.Frame):
+    def px(base: int) -> int:
+        return max(9, round(base * ui["size"] / 12))
+
+    def fit_fonts():
+        for k, f in FONT.items():
+            f.configure(size=-px(BASE[k][0]))
+
+    class Button(tk.Canvas):
+        """Rounded, 30 px high: primary is Key Red, secondary is white with a Stone border, disabled is Mist."""
+
+        def __init__(self, master, text, command, kind="secondary"):
+            self._text, self._cmd, self._kind = text, command, kind
+            super().__init__(master, height=34, width=FONT["bold"].measure(text) + 32, highlightthickness=0, bd=0,
+                             bg=master.cget("bg"), cursor="hand2")
+            self.bind("<Button-1>", lambda e: self.invoke())
+            self._draw()
+
+        def invoke(self):
+            if str(self.cget("state")) != "disabled" and self._cmd:
+                return self._cmd()
+
+        def configure(self, cnf=None, **kw):
+            if "text" in kw:
+                self._text = kw.pop("text")
+                kw["width"] = FONT["bold"].measure(self._text) + 32
+            got = super().configure(cnf, **kw)
+            self._draw()
+            return got
+
+        config = configure
+
+        def cget(self, key):
+            return self._text if key == "text" else super().cget(key)
+
+        def _draw(self):
+            if not hasattr(self, "_kind"):
+                return
+            self.delete("all")
+            w, h = int(super().cget("width")), int(super().cget("height"))
+            off = str(super().cget("state")) == "disabled"
+            fill, line, fg = ((C["MIST"], C["MIST"], C["DISABLED"]) if off else
+                              (C["KEY_RED"], C["KEY_RED"], C["PAPER"]) if self._kind == "primary" else
+                              (C["PAPER"], C["STONE"], C["INK"]))
+            r = 6
+            x1, y1, x2, y2 = 1, 1, w - 2, h - 2
+            pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2, x2 - r, y2, x1 + r, y2, x1, y2,
+                   x1, y2 - r, x1, y1 + r, x1, y1]
+            self.create_polygon(pts, smooth=True, fill=fill, outline=line)
+            self.create_text(w // 2, h // 2, text=self._text, fill=fg, font=FONT["bold"])
+
+    def label(master, text="", font="body", fg="INK", bg=None, wrap=False, **kw):
+        lab = tk.Label(master, text=text, font=FONT[font], fg=C[fg], bg=bg or master.cget("bg"), anchor="w",
+                       justify="left", **kw)
+        if wrap:
+            lab.bind("<Configure>", lambda e: lab.configure(wraplength=max(e.width - 4, 160)))
+        return lab
+
+    def field(master, var, width=14):
+        return tk.Entry(master, textvariable=var, font=FONT["body"], width=width, relief="solid", bd=1, fg=C["INK"],
+                        bg=C["PAPER"], insertbackground=C["INK"], highlightthickness=0)
+
+    def rule(master, color="MIST"):
+        return tk.Frame(master, bg=C[color], height=1)
+
+    class Radio(tk.Frame):
+        """A radio button, Ink when on: drawn, not the platform's, so it reads the same everywhere."""
+
+        def __init__(self, master, text, var, value, command=None):
+            super().__init__(master, bg=master.cget("bg"), cursor="hand2")
+            self.var, self.value, self.command, self.enabled = var, value, command, True
+            self.dot = tk.Canvas(self, width=20, height=20, highlightthickness=0, bd=0, bg=master.cget("bg"))
+            self.dot.pack(side="left")
+            self.text = label(self, text, "body", bg=master.cget("bg"))
+            self.text.pack(side="left", padx=(6, 0))
+            for w in (self, self.dot, self.text):
+                w.bind("<Button-1>", self._click)
+            self._trace = var.trace_add("write", lambda *_: self.paint())
+            self.paint()
+
+        def _click(self, _e):
+            if self.enabled:
+                self.var.set(self.value)
+                if self.command:
+                    self.command()
+
+        def set_enabled(self, on: bool):
+            self.enabled = on
+            self.text.configure(fg=C["INK"] if on else C["DISABLED"])
+            self.paint()
+
+        def paint(self):
+            try:
+                self.dot.delete("all")
+            except tk.TclError:
+                return
+            on = self.var.get() == self.value
+            col = C["STONE"] if not self.enabled else (C["INK"] if on else C["STONE"])
+            self.dot.create_oval(3, 3, 17, 17, outline=col, width=1.5, fill=col if on else C["PAPER"])
+            if on:
+                self.dot.create_oval(7, 7, 13, 13, fill=C["PAPER"], outline="")
+
+    class ColumnPicker(tk.Frame):
         """A column chooser you can type into. The list is alphabetical and narrows as you type; click a name or press
         Enter to pick it. An optional picker has an x to clear it."""
 
-        def __init__(self, master, var, on_change=None, optional=False, width=34):
-            super().__init__(master)
-            self.var, self.on_change, self.optional = var, on_change, optional
+        def __init__(self, master, var, on_change=None, optional=False, width=34, allow_text=False):
+            super().__init__(master, bg=master.cget("bg"))
+            self.var, self.on_change, self.optional, self.allow_text = var, on_change, optional, allow_text
             self.values: list[str] = []
             self.query = tk.StringVar(value=var.get())
-            self.entry = ttk.Entry(self, textvariable=self.query, width=width)
-            self.entry.pack(side="left", fill="x", expand=True)
-            ttk.Button(self, text="▾", width=3, command=self.toggle).pack(side="left", padx=(2, 0))
+            self.entry = field(self, self.query, width)
+            self.entry.pack(side="left", fill="x", expand=True, ipady=4)
+            self._chip("▾", self.toggle)
             if optional:
-                ttk.Button(self, text="✕", width=3, command=self.clear).pack(side="left", padx=(2, 0))
+                self._chip("✕", self.clear)
             self.popup = None
             self.lb = None
             self._typing = False
@@ -510,6 +668,11 @@ def main(argv=None) -> None:
                             ("<Button-1>", lambda _e: self.show_popup())):
                 self.entry.bind(seq, fn)
             var.trace_add("write", self._sync)
+
+        def _chip(self, text, command):
+            chip = tk.Label(self, text=text, font=FONT["bold"], fg=C["SLATE"], bg=C["CANVAS"], padx=10, cursor="hand2")
+            chip.pack(side="left", fill="y", padx=(4, 0))
+            chip.bind("<Button-1>", lambda _e: command())
 
         def set_values(self, values):
             self.values = sorted_headers(values)
@@ -542,11 +705,10 @@ def main(argv=None) -> None:
             if self.popup is None:
                 self.popup = tk.Toplevel(self)
                 self.popup.overrideredirect(True)
-                self.lb = tk.Listbox(self.popup, exportselection=False, activestyle="dotbox")
-                sb = ttk.Scrollbar(self.popup, command=self.lb.yview)
-                self.lb.configure(yscrollcommand=sb.set)
+                self.lb = tk.Listbox(self.popup, exportselection=False, activestyle="none", font=FONT["body"], relief="solid",
+                                     bd=1, highlightthickness=0, selectbackground=C["INK"], selectforeground=C["PAPER"],
+                                     bg=C["PAPER"], fg=C["INK"])
                 self.lb.pack(side="left", fill="both", expand=True)
-                sb.pack(side="left", fill="y")
                 self.lb.bind("<ButtonRelease-1>", lambda _e: self._pick_selected())
             self.lb.delete(0, "end")
             for v in items:
@@ -616,6 +778,13 @@ def main(argv=None) -> None:
             if not text and self.optional:
                 self.commit("")
                 return
+            if self.allow_text:
+                try:
+                    float(text)
+                    self.commit(text)       # a number typed in place of a column
+                    return
+                except ValueError:
+                    pass
             exact = [v for v in self.values if v.lower() == text.lower()]
             found = exact or (self.matches(text) if len(self.matches(text)) == 1 else [])
             if found:
@@ -623,16 +792,71 @@ def main(argv=None) -> None:
             else:
                 self.query.set(self.var.get())
 
-    class TestWizard(tk.Toplevel):
-        """Add or edit one comparison in three steps: the question, the details, which loans. Result is
-        {'name':..., 'spec': {...}} in self.result, or None."""
+    class ExampleBox(tk.Canvas):
+        """A drawn example of what the chosen comparison produces, named with the person's own columns. Not their data."""
+        W, H = 340, 330
+        SHADES = ("SLATE", "KEY_RED", "DISABLED", "INK", "STONE")
+        DASHES = (None, None, None, (6, 3), (2, 3))      # a fourth and fifth series differ by dash as well as colour
 
-        STEPS = ("What do you want to find out?", "Fill in the details", "Which loans, and what to call it")
+        def __init__(self, master):
+            # white with a thin border, so it sits on the page as a panel instead of a block of colour
+            super().__init__(master, width=self.W, height=self.H, bg=C["PAPER"], highlightthickness=1,
+                             highlightbackground=C["STONE"], highlightcolor=C["STONE"], bd=0)
+
+        @staticmethod
+        def _cut(text: str, n: int = 34) -> str:
+            return text if len(text) <= n else text[:n - 1] + "…"
+
+        def show(self, kind: str, labels: list[str]):
+            self.delete("all")
+            self.create_rectangle(1, 1, self.W - 1, 28, fill=C["CANVAS"], outline="")
+            self.create_text(self.W - 12, 15, text="Example, not your data", anchor="e", fill=C["SLATE"], font=FONT["sub"])
+            left, right, top = 46, self.W - 18, 46
+            rows = max(len(labels), 2)
+            bottom = self.H - 40 - 20 * rows
+            for k in range(1, 4):
+                if kind != "model":
+                    y = bottom - (bottom - top) * k / 4
+                    self.create_line(left, y, right, y, fill=C["RULE"])
+            self.create_line(left, top, left, bottom, fill=C["STONE"])
+            self.create_line(left, bottom, right, bottom, fill=C["STONE"])
+            if kind == "model":
+                self.create_text(12, 15, text="Hazard ratio", anchor="w", fill=C["INK"], font=FONT["sub"])
+                self.create_text((left + right) // 2, bottom + 16, text="1.0 = no effect", fill=C["SLATE"], font=FONT["sub"])
+                one = left + (right - left) * 0.4
+                self.create_line(one, top, one, bottom, fill=C["DISABLED"], dash=(4, 3))
+                gap = (bottom - top) / max(len(labels), 1)
+                for i, lab in enumerate(labels):
+                    hr = (1.8, 0.7, 1.3, 1.1, 2.2)[i % 5]
+                    y = top + gap * (i + 0.5)
+                    x = left + (right - left) * 0.4 * hr
+                    self.create_rectangle(min(one, x), y - 9, max(one, x), y + 9, fill=C[self.SHADES[i % 5]], outline="")
+                    self.create_text(left + 6, y - 16, text=self._cut(lab, 40), anchor="w", fill=C["INK"], font=FONT["sub"])
+                return
+            self.create_text(12, 15, text="Cumulative bad", anchor="w", fill=C["INK"], font=FONT["sub"])
+            self.create_text((left + right) // 2, bottom + 16, text="Months on book", fill=C["SLATE"], font=FONT["sub"])
+            for i, lab in enumerate(labels[:5]):
+                rate = (0.016, 0.027, 0.011, 0.021, 0.014)[i % 5]   # in no order: the example says nothing about which group does worse
+                pts = []
+                for m in range(0, 37, 3):
+                    frac = 1 - math.exp(-rate * m)
+                    pts += [left + (right - left) * m / 36, bottom - (bottom - top) * min(frac * 1.6, 1) * 0.95]
+                self.create_line(*pts, fill=C[self.SHADES[i % 5]], width=2, smooth=True, dash=self.DASHES[i % 5])
+            for i, lab in enumerate(labels[:5]):
+                y = bottom + 34 + 20 * i
+                self.create_line(left, y, left + 22, y, fill=C[self.SHADES[i % 5]], width=2, dash=self.DASHES[i % 5])
+                self.create_text(left + 30, y, text=self._cut(lab), anchor="w", fill=C["INK"], font=FONT["sub"])
+
+    class TestWizard(tk.Toplevel):
+        """Add or edit one comparison in three steps. Result is {'name':..., 'spec': {...}} in self.result, or None."""
+
+        STEPS = ("Comparison", "Details", "Loans")
 
         def __init__(self, app, existing=None, taken=()):
             super().__init__(app.root)
             self.app, self.result, self.taken, self.step = app, None, list(taken), 0
-            self.title("Add a comparison")
+            self.title("Add a comparison" if not existing else "Edit a comparison")
+            self.configure(bg=C["PAPER"])
             self.transient(app.root)
             df = app.df
             self.num_cols = sorted_headers(numeric_columns(df)) if df is not None else []
@@ -647,6 +871,10 @@ def main(argv=None) -> None:
             self.orig_from = tk.StringVar(value=spec.get("orig_from", ""))
             self.orig_to = tk.StringVar(value=spec.get("orig_to", ""))
             self.window_choice = tk.StringVar(value="dates" if (spec.get("orig_from") or spec.get("orig_to")) else "")
+            self.var_op = tk.StringVar(value=">")
+            self.conds: list[str] = [c.strip() for c in spec.get("where", "").split(";") if c.strip()]   # "FICO >= 660", ...
+            self.band_col, self.band_from, self.band_to = tk.StringVar(), tk.StringVar(), tk.StringVar()
+            self.fl_a, self.fl_op, self.fl_b = tk.StringVar(), tk.StringVar(value=">"), tk.StringVar()   # the flag builder in the model step
             self.terms: list[str] = []
             if existing:
                 k = spec_kind(spec)
@@ -655,40 +883,52 @@ def main(argv=None) -> None:
                 elif k in ("cutoffs", "category"):
                     self.var_a.set(spec["column"])
                     self.var_b.set(spec.get("cutoffs", ""))
+                    flag = parse_flag(spec["column"], df.columns) if (k == "category" and df is not None and spec["column"] not in df.columns) else None
+                    if flag:
+                        self.kind.set("flag")
+                        self.var_a.set(flag[0])
+                        self.var_op.set(flag[1])
+                        self.var_b.set(flag[2])
                 elif k == "model":
                     self.terms = [model_term(*t) for t in split_model(spec["model"])]
 
-            outer = ttk.Frame(self, padding=16)
+            outer = tk.Frame(self, bg=C["PAPER"], padx=PAD, pady=PAD)
             outer.pack(fill="both", expand=True)
-            self.lbl_step = ttk.Label(outer, font=("", app.text_size, "bold"))
-            self.lbl_step.pack(anchor="w")
-            self.lbl_head = ttk.Label(outer, font=("", app.text_size + 2, "bold"))
-            self.lbl_head.pack(anchor="w", pady=(2, 10))
-            self.body = ttk.Frame(outer)
+            self.lbl_step = label(outer, "", "small", fg="SLATE")
+            self.lbl_step.pack()
+            self.lbl_head = label(outer, "", "h2")
+            self.lbl_head.pack(pady=(2, GAP))
+            rule(outer).pack(fill="x", pady=(0, GAP))
+            bt = tk.Frame(outer, bg=C["PAPER"])
+            bt.pack(side="bottom", fill="x", pady=(GAP, 0))
+            self.msg = label(outer, "", "small", fg="CRIMSON", wrap=True)
+            self.msg.pack(side="bottom", anchor="w", fill="x", pady=(GAP // 2, 0))
+            self.summary = label(outer, "", "small", fg="SLATE", wrap=True)
+            self.summary.pack(side="bottom", anchor="w", fill="x", pady=(GAP, 0))
+            self.body = tk.Frame(outer, bg=C["PAPER"])
             self.body.pack(fill="both", expand=True)
-            self.summary = ttk.Label(outer, wraplength=640, justify="left", foreground=MUTED)
-            self.summary.pack(anchor="w", pady=(10, 0), fill="x")
-            self.msg = ttk.Label(outer, foreground="#a00", wraplength=640, justify="left")
-            self.msg.pack(anchor="w", pady=(6, 0), fill="x")
-            bt = ttk.Frame(outer)
-            bt.pack(fill="x", pady=(12, 0))
-            self.btn_back = ttk.Button(bt, text="← Back", command=self.back)
+            self.example = ExampleBox(self.body)
+            self.example.pack(side="right", anchor="n", padx=(PAD, 0))
+            self.btn_back = Button(bt, "Back", self.back)
             self.btn_back.pack(side="left")
-            ttk.Button(bt, text="Cancel", command=self.destroy).pack(side="right")
-            self.btn_next = ttk.Button(bt, text="Next →", command=self.next)
-            self.btn_next.pack(side="right", padx=8)
+            self.btn_next = Button(bt, "Next", self.next, "primary")
+            self.btn_next.pack(side="right")
+            Button(bt, "Cancel", self.destroy).pack(side="right", padx=(0, GAP // 2))
+            self.minsize(1040, 700)
             self.show_step()
             self.grab_set()
             self.wait_visibility()
 
         # ---- navigation
         def show_step(self):
-            for w in self.body.winfo_children():
-                w.destroy()
-            self.lbl_step.config(text=f"Step {self.step + 1} of 3")
+            if getattr(self, "block", None) is not None and self.block.winfo_exists():
+                self.block.destroy()
+            self.block = tk.Frame(self.body, bg=C["PAPER"])
+            self.block.pack(side="left", anchor="n")       # the form is one block; what is inside lines up on the left
+            self.lbl_step.config(text=f"{self.step + 1} of 3")
             self.lbl_head.config(text=self.STEPS[self.step])
-            self.btn_back.state(["!disabled"] if self.step else ["disabled"])
-            self.btn_next.config(text="Add this comparison" if self.step == 2 else "Next →")
+            self.btn_back.config(state="normal" if self.step else "disabled")
+            self.btn_next.config(text="Add" if self.step == 2 else "Next")
             self.msg.config(text="")
             (self.build_question, self.build_details, self.build_loans)[self.step]()
             self.update_summary()
@@ -711,7 +951,7 @@ def main(argv=None) -> None:
             if self.step < 2:
                 self.step += 1
                 if self.step == 2 and not self.window_choice.get():
-                    self.window_choice.set("seasoned" if self.kind.get() in ("cutoffs", "category", "model") and self.app.v_asof.get().strip() else "all")
+                    self.window_choice.set("seasoned" if self.kind.get() in ("cutoffs", "flag", "category", "model") and self.app.v_asof.get().strip() else "all")
                 self.show_step()
             else:
                 self.finish()
@@ -726,68 +966,137 @@ def main(argv=None) -> None:
             self.result = {"name": unique_name(self.name.get().strip() or default_test_name(k, spec), taken), "spec": spec}
             self.destroy()
 
-        # ---- step 1: the question
-        def build_question(self):
-            for key, question, help_ in KIND_QUESTIONS:
-                ttk.Radiobutton(self.body, text=question, value=key, variable=self.kind, command=self.update_summary).pack(anchor="w", pady=(8, 0))
-                ttk.Label(self.body, text=help_, wraplength=620, justify="left", foreground=MUTED).pack(anchor="w", padx=26)
+        def row(self, text, widget_factory):
+            """One form row: the label in the fixed label column, the control beside it. Every form is built from these."""
+            r = tk.Frame(self.block, bg=C["PAPER"])
+            r.pack(anchor="w", pady=(0, GAP))
+            lab = label(r, text, "body", fg="SLATE")
+            lab.configure(width=26)
+            lab.pack(side="left", anchor="n", pady=4)
+            w = widget_factory(r)
+            w.pack(side="left", fill="x", expand=True, anchor="w")
+            return r
 
-        # ---- step 2: the details for that question
+        # ---- step 1
+        def build_question(self):
+            for key, text in TEST_KINDS:
+                Radio(self.block, text, self.kind, key, self.update_summary).pack(anchor="w")
+                label(self.block, KIND_OUTPUT[key], "small", fg="SLATE").pack(anchor="w", padx=(26, 0), pady=(0, GAP))
+
+        # ---- step 2
         def build_details(self):
-            k, b = self.kind.get(), self.body
-            note = lambda t: ttk.Label(b, text=t, wraplength=620, justify="left", foreground=MUTED)
+            k, b = self.kind.get(), self.block
             if k == "vintage":
-                ttk.Label(b, text="Nothing to fill in.", font=("", self.app.text_size, "bold")).pack(anchor="w")
-                note("Loans are grouped by the year they were opened. Each year is followed month by month after opening, "
-                     "so a young group is never compared with an old one at a later age.").pack(anchor="w", pady=4)
+                label(b, "Grouped by origination year.", "body", fg="SLATE").pack(anchor="w")
             elif k == "split":
-                ttk.Label(b, text="On what date did things change?").pack(anchor="w")
-                e = ttk.Entry(b, textvariable=self.var_a, width=34)
-                e.pack(anchor="w", pady=4)
-                e.bind("<KeyRelease>", lambda _e: self.update_summary())
-                note("Write it like 2024-01-01. To check more than one change, put dates side by side with a comma.").pack(anchor="w")
-            elif k == "cutoffs":
-                ttk.Label(b, text="Which column of numbers?").pack(anchor="w")
-                self.picker = ColumnPicker(b, self.var_a, on_change=self.on_column, width=36)
-                self.picker.set_values(self.num_cols)
-                self.picker.pack(anchor="w", pady=4)
-                self.lbl_range = note("")
-                self.lbl_range.pack(anchor="w")
-                ttk.Label(b, text="Which cutoffs do you want to try?").pack(anchor="w", pady=(10, 0))
-                e = ttk.Entry(b, textvariable=self.var_b, width=34)
-                e.pack(anchor="w", pady=4)
-                e.bind("<KeyRelease>", lambda _e: self.update_summary())
-                note("Separate cutoffs with commas, like 10, 20, 30. Each one splits loans into 'below' and 'at or above', "
-                     "and the tool shows how each side performed.").pack(anchor="w")
-                self.on_column()
-            elif k == "category":
-                ttk.Label(b, text="Which column?").pack(anchor="w")
-                self.picker = ColumnPicker(b, self.var_a, on_change=self.on_column, width=36)
-                self.picker.set_values(self.cat_cols)
-                self.picker.pack(anchor="w", pady=4)
-                self.lbl_range = note("")
-                self.lbl_range.pack(anchor="w")
-                note("Only columns with 15 different values or fewer are listed.").pack(anchor="w", pady=(6, 0))
+                def make(r):
+                    e = field(r, self.var_a, 26)
+                    e.bind("<KeyRelease>", lambda _e: self.update_summary())
+                    return e
+                self.row("Date (YYYY-MM-DD)", make)
+            elif k == "flag":
+                self.flag_form(self.var_a, self.var_op, self.var_b, self.on_flag)
+                self.lbl_range = label(b, "", "small", fg="SLATE")
+                self.lbl_range.pack(anchor="w", pady=(0, GAP))
+                self.on_flag()
+            elif k in ("cutoffs", "category"):
+                def make_pick(r):
+                    self.picker = ColumnPicker(r, self.var_a, on_change=self.on_column, width=34)
+                    self.picker.set_values(self.num_cols if k == "cutoffs" else self.cat_cols)
+                    return self.picker
+                self.row("Column", make_pick)
+                self.lbl_range = label(b, "", "small", fg="SLATE", wrap=True)
+                self.lbl_range.pack(anchor="w", fill="x", pady=(0, GAP))
+                if k == "cutoffs":
+                    def make(r):
+                        e = field(r, self.var_b, 26)
+                        e.bind("<KeyRelease>", lambda _e: self.update_summary())
+                        return e
+                    self.row("Cutoffs (comma separated)", make)
                 self.on_column()
             else:
-                ttk.Label(b, text="Add the columns you want to look at, one at a time.").pack(anchor="w")
-                row = ttk.Frame(b)
-                row.pack(anchor="w", pady=6)
-                self.picker = ColumnPicker(row, self.var_a, width=28)
-                self.picker.set_values(self.mod_cols)
-                self.picker.grid(row=0, column=0, columnspan=4, sticky="w")
-                ttk.Label(row, text="Measure the effect per").grid(row=1, column=0, sticky="w", pady=(6, 0))
-                ttk.Entry(row, textvariable=self.var_scale, width=8).grid(row=1, column=1, padx=4, pady=(6, 0))
-                ttk.Combobox(row, textvariable=self.var_dir, values=["lower", "higher"], state="readonly", width=8).grid(row=1, column=2, pady=(6, 0))
-                ttk.Button(row, text="Add this column", command=self.add_term).grid(row=1, column=3, padx=8, pady=(6, 0))
-                note("Leave the 'per' box empty for a yes/no column. For a number, say how big a change to measure: "
-                     "'per 50 lower' shows the effect of a value 50 lower, 'per 10 higher' the effect of a value 10 higher.").pack(anchor="w")
-                ttk.Label(b, text="Columns in this comparison:").pack(anchor="w", pady=(10, 2))
-                self.lb = tk.Listbox(b, height=5, width=56)
-                self.lb.pack(anchor="w")
+                def make_pick(r):
+                    self.picker = ColumnPicker(r, self.var_a, width=28)
+                    self.picker.set_values(self.mod_cols)
+                    return self.picker
+                self.row("Column", make_pick)
+
+                def make_per(r):
+                    f = tk.Frame(r, bg=C["PAPER"])
+                    field(f, self.var_scale, 8).pack(side="left", ipady=4)
+                    Radio(f, "lower", self.var_dir, "lower").pack(side="left", padx=(GAP, 0))
+                    Radio(f, "higher", self.var_dir, "higher").pack(side="left", padx=(GAP, 0))
+                    Button(f, "Add", self.add_term).pack(side="left", padx=(GAP, 0))
+                    return f
+                self.row("Per", make_per)
+                label(b, "Flag", "bold").pack(anchor="w", pady=(GAP // 2, GAP))
+                self.flag_form(self.fl_a, self.fl_op, self.fl_b, self.on_model_flag)
+                self.lbl_flag = label(b, "", "small", fg="SLATE")
+                self.lbl_flag.pack(anchor="w", pady=(0, GAP // 2))
+                Button(b, "Add flag", self.add_flag_term).pack(anchor="w", pady=(0, GAP))
+                self.lb = tk.Listbox(b, height=4, font=FONT["body"], relief="solid", bd=1, highlightthickness=0,
+                                     selectbackground=C["INK"], selectforeground=C["PAPER"], activestyle="none")
+                self.lb.pack(fill="x")
                 for t in self.terms:
                     self.lb.insert("end", t)
-                ttk.Button(b, text="Remove the selected column", command=self.del_term).pack(anchor="w", pady=4)
+                Button(b, "Remove", self.del_term).pack(anchor="w", pady=(GAP, 0))
+
+        def flag_form(self, a, op, right, command):
+            """Column, operator, then a column or a number: the three rows a flag is built from."""
+            def make_a(r):
+                pk = ColumnPicker(r, a, on_change=command, width=30)
+                pk.set_values(self.num_cols)
+                return pk
+            self.row("Column", make_a)
+
+            def make_op(r):
+                f = tk.Frame(r, bg=C["PAPER"])
+                for o in OPERATORS:
+                    Radio(f, o, op, o, command).pack(side="left", padx=(0, GAP))
+                return f
+            self.row("Is", make_op)
+
+            def make_b(r):
+                pk = ColumnPicker(r, right, on_change=command, width=30, allow_text=True)
+                pk.set_values(self.num_cols)
+                return pk
+            self.row("Against (column or number)", make_b)
+
+        def _flag_said(self, a, op, right) -> str:
+            df = self.app.df
+            if df is None or not a.get() or not right.get().strip():
+                return ""
+            c = flag_counts(df, flag_text(a.get(), op.get(), right.get()))
+            return f"Yes {c['Yes']:,}, No {c['No']:,}, blank {c['blank']:,}" if c else "Needs a numeric column against a numeric column or a number."
+
+        def on_flag(self):
+            if hasattr(self, "lbl_range") and self.lbl_range.winfo_exists():
+                self.lbl_range.config(text=self._flag_said(self.var_a, self.var_op, self.var_b))
+            self.update_summary()
+
+        def on_model_flag(self):
+            if hasattr(self, "lbl_flag") and self.lbl_flag.winfo_exists():
+                self.lbl_flag.config(text=self._flag_said(self.fl_a, self.fl_op, self.fl_b))
+
+        def add_flag_term(self):
+            a, c = self.fl_a.get(), self.fl_b.get().strip()
+            if not a or not c:
+                self.msg.config(text="Pick a column and what to compare it against.")
+                return
+            text = flag_text(a, self.fl_op.get(), c)
+            if self.app.df is not None and flag_counts(self.app.df, text) is None:
+                self.msg.config(text="Needs a numeric column against a numeric column or a number.")
+                return
+            if text in self.terms:
+                self.msg.config(text="That flag is already added.")
+                return
+            self.msg.config(text="")
+            self.terms.append(text)
+            self.lb.insert("end", text)
+            for v in (self.fl_a, self.fl_b):
+                v.set("")
+            self.lbl_flag.config(text="")
+            self.update_summary()
 
         def on_column(self):
             col = self.var_a.get()
@@ -798,24 +1107,23 @@ def main(argv=None) -> None:
                 if self.kind.get() == "cutoffs":
                     v = pd.to_numeric(df[col], errors="coerce").dropna()
                     if len(v):
-                        text = f"Values in {col} run from {v.min():g} to {v.max():g}; the middle value is {v.median():g}."
+                        text = f"{v.min():g} to {v.max():g}, median {v.median():g}"
                 else:
-                    vals = sorted(df[col].dropna().astype(str).unique())[:15]
-                    text = "Values found: " + ", ".join(vals)
+                    text = "Values: " + ", ".join(sorted(df[col].dropna().astype(str).unique())[:15])
             self.lbl_range.config(text=text)
             self.update_summary()
 
         def add_term(self):
             if not self.var_a.get():
-                self.msg.config(text="Pick a column first.")
+                self.msg.config(text="Pick a column.")
                 return
             try:
                 t = model_term(self.var_a.get(), self.var_scale.get(), self.var_dir.get())
             except ValueError as e:
-                self.msg.config(text=str(e) if "positive" in str(e) else "The size of change must be a number, like 50.")
+                self.msg.config(text=str(e) if "positive" in str(e) else "Per must be a number.")
                 return
             if model_has_column(self.terms, self.var_a.get()):
-                self.msg.config(text="That column is already in the list.")
+                self.msg.config(text="That column is already added.")
                 return
             self.msg.config(text="")
             self.terms.append(t)
@@ -830,9 +1138,9 @@ def main(argv=None) -> None:
                 del self.terms[i]
             self.update_summary()
 
-        # ---- step 3: which loans, and a name
+        # ---- step 3
         def build_loans(self):
-            b = self.body
+            b = self.block
             horizon = self.app.v_set["early_read_horizon"].get()
             seasoned_to = ""
             try:
@@ -841,35 +1149,84 @@ def main(argv=None) -> None:
             except (ValueError, TypeError):
                 pass
             self.seasoned_to = seasoned_to
-            ttk.Radiobutton(b, text="All loans", value="all", variable=self.window_choice, command=self.update_summary).pack(anchor="w", pady=(4, 0))
-            ttk.Label(b, text="Includes loans opened recently, which have not had time to go bad yet.",
-                      foreground=MUTED, wraplength=620, justify="left").pack(anchor="w", padx=26)
-            rb = ttk.Radiobutton(b, text=f"Only loans old enough to judge (opened by {seasoned_to or '...'})  — recommended for cutoffs and columns",
-                                 value="seasoned", variable=self.window_choice, command=self.update_summary)
-            rb.pack(anchor="w", pady=(8, 0))
-            if not seasoned_to:
-                rb.state(["disabled"])
-            ttk.Label(b, text=f"Every loan in this group has had at least {horizon} months to go bad, so recent loans do not make a rule look better than it is.",
-                      foreground=MUTED, wraplength=620, justify="left").pack(anchor="w", padx=26)
-            ttk.Radiobutton(b, text="I'll choose the dates", value="dates", variable=self.window_choice, command=self.update_summary).pack(anchor="w", pady=(8, 0))
-            row = ttk.Frame(b)
-            row.pack(anchor="w", padx=26, pady=4)
-            ttk.Label(row, text="Opened from").grid(row=0, column=0)
-            e1 = ttk.Entry(row, textvariable=self.orig_from, width=12)
-            e1.grid(row=0, column=1, padx=6)
-            ttk.Label(row, text="to").grid(row=0, column=2)
-            e2 = ttk.Entry(row, textvariable=self.orig_to, width=12)
-            e2.grid(row=0, column=3, padx=6)
-            ttk.Label(row, text="like 2023-12-31, either one can be left empty", foreground=MUTED).grid(row=0, column=4)
+            Radio(b, "All loans", self.window_choice, "all", self.update_summary).pack(anchor="w", pady=(0, GAP))
+            seasoned = Radio(b, f"Seasoned: opened by {seasoned_to}" if seasoned_to else "Seasoned", self.window_choice,
+                             "seasoned", self.update_summary)
+            seasoned.pack(anchor="w", pady=(0, GAP))
+            seasoned.set_enabled(bool(seasoned_to))
+            dates = tk.Frame(b, bg=C["PAPER"])
+            dates.pack(anchor="w", pady=(0, GAP))
+            Radio(dates, "Opened from", self.window_choice, "dates", self.update_summary).pack(side="left")
+            e1 = field(dates, self.orig_from, 12)
+            e1.pack(side="left", padx=(GAP, 6), ipady=4)
+            label(dates, "to", "body", fg="SLATE").pack(side="left")
+            e2 = field(dates, self.orig_to, 12)
+            e2.pack(side="left", padx=(6, 0), ipady=4)
             for e in (e1, e2):
                 e.bind("<KeyRelease>", lambda _e: (self.window_choice.set("dates"), self.update_summary()))
-            ttk.Label(b, text="Name this comparison (optional)").pack(anchor="w", pady=(14, 0))
-            ttk.Entry(b, textvariable=self.name, width=44).pack(anchor="w", pady=4)
-            ttk.Label(b, text="Leave it empty and the tool picks a name.", foreground=MUTED).pack(anchor="w")
+            label(b, "Only loans where", "bold").pack(anchor="w", pady=(GAP // 2, GAP))
+
+            def make_band(r):
+                f = tk.Frame(r, bg=C["PAPER"])
+                pk = ColumnPicker(f, self.band_col, width=22)
+                pk.set_values(self.num_cols)
+                pk.pack(side="left")
+                label(f, "from", "body", fg="SLATE").pack(side="left", padx=(GAP, 6))
+                field(f, self.band_from, 7).pack(side="left", ipady=4)
+                label(f, "to", "body", fg="SLATE").pack(side="left", padx=(GAP, 6))
+                field(f, self.band_to, 7).pack(side="left", ipady=4)
+                Button(f, "Add", self.add_band).pack(side="left", padx=(GAP, 0))
+                return f
+            self.row("Column", make_band)
+            self.lb_conds = tk.Listbox(b, height=3, font=FONT["body"], relief="solid", bd=1, highlightthickness=0,
+                                       selectbackground=C["INK"], selectforeground=C["PAPER"], activestyle="none")
+            self.lb_conds.pack(fill="x")
+            for c in self.conds:
+                self.lb_conds.insert("end", c)
+            Button(b, "Remove", self.del_band).pack(anchor="w", pady=(GAP // 2, GAP))
+            self.row("Name", lambda r: field(r, self.name, 40))
+
+        def add_band(self):
+            col = self.band_col.get()
+            if not col:
+                self.msg.config(text="Pick a column.")
+                return
+            added = []
+            for op, var in ((">=", self.band_from), ("<=", self.band_to)):
+                v = var.get().strip()
+                if not v:
+                    continue
+                try:
+                    v = f"{float(v):g}"
+                except ValueError:
+                    self.msg.config(text="From and to must be numbers.")
+                    return
+                text = flag_text(col, op, v)
+                if self.app.df is not None and flag_counts(self.app.df, text) is None:
+                    self.msg.config(text="Needs a numeric column.")
+                    return
+                added.append(text)
+            if not added:
+                self.msg.config(text="Enter a from, a to, or both.")
+                return
+            self.msg.config(text="")
+            for text in added:
+                if text not in self.conds:
+                    self.conds.append(text)
+                    self.lb_conds.insert("end", text)
+            for v in (self.band_col, self.band_from, self.band_to):
+                v.set("")
+            self.update_summary()
+
+        def del_band(self):
+            for i in reversed(self.lb_conds.curselection()):
+                self.lb_conds.delete(i)
+                del self.conds[i]
+            self.update_summary()
 
         # ---- what the choices add up to
         def build_spec(self, upto: int):
-            """(spec, error). Checks each step up to `upto`; the error is a sentence for the person."""
+            """(spec, error). Checks each step up to `upto`."""
             k = self.kind.get()
             spec: dict = {}
             if upto >= 1:
@@ -882,7 +1239,7 @@ def main(argv=None) -> None:
                     except (ValueError, TypeError):
                         cuts = []
                     if not cuts:
-                        return spec, "Write the date like 2024-01-01."
+                        return spec, "Enter a date as YYYY-MM-DD."
                     spec["split_date"] = ", ".join(cuts)
                 elif k == "cutoffs":
                     try:
@@ -890,8 +1247,16 @@ def main(argv=None) -> None:
                     except ValueError:
                         cuts = []
                     if not self.var_a.get() or not cuts:
-                        return spec, "Pick a column of numbers and write at least one cutoff, like 10, 20."
+                        return spec, "Pick a column and enter at least one cutoff."
                     spec["column"], spec["cutoffs"] = self.var_a.get(), self.var_b.get().replace(" ", "")
+                elif k == "flag":
+                    a, c = self.var_a.get(), self.var_b.get().strip()
+                    if not a or not c:
+                        return spec, "Pick a column and what to compare it against."
+                    text = flag_text(a, self.var_op.get(), c)
+                    if self.app.df is not None and flag_counts(self.app.df, text) is None:
+                        return spec, "Needs a numeric column against a numeric column or a number."
+                    spec["column"] = text
                 elif k == "category":
                     if not self.var_a.get():
                         return spec, "Pick a column."
@@ -911,25 +1276,40 @@ def main(argv=None) -> None:
                             try:
                                 pd.Timestamp(v)
                             except (ValueError, TypeError):
-                                return spec, f"'{v}' is not a date. Write it like 2023-12-31."
+                                return spec, f"'{v}' is not a date. Use YYYY-MM-DD."
                             spec[key] = v
+                if self.conds:
+                    spec["where"] = "; ".join(self.conds)
             return spec, ""
 
         def update_summary(self):
             if not self.summary.winfo_exists():
                 return
             spec, err = self.build_spec(1 if self.step < 2 else 2)
-            if err:
-                self.summary.config(text="In plain words: (fill in the details above to see it)")
-            else:
-                self.summary.config(text="In plain words: " + describe_test(spec))
+            self.summary.config(text="" if err else describe_test(spec))
+            self.refresh_example()
+
+        def refresh_example(self):
+            k, df = self.kind.get(), self.app.df
+            years, values = [], []
+            if df is not None:
+                o = self.app.v_cols["orig_date"].get()
+                if o and o in df.columns:
+                    years = sorted(pd.to_datetime(df[o], errors="coerce", format="mixed").dt.year.dropna().astype(int).unique())[:4]
+                col = self.var_a.get()
+                if k == "category" and col in df.columns:
+                    values = list(df[col].dropna().astype(str).value_counts().index[:4])
+            terms = [split_model(t)[0][0] for t in self.terms] if self.terms else []
+            self.example.show(k, example_labels(k, self.var_a.get(), self.var_op.get(), self.var_b.get(), self.var_b.get(),
+                                                years, values, terms))
 
     class App:
         def __init__(self, root):
             self.root = root
-            root.title("Loan survival")
-            root.geometry("1180x800")
+            root.title("Loan Survival")
+            root.geometry("{}x{}".format(*window_size(root.winfo_screenwidth(), root.winfo_screenheight())))
             root.minsize(900, 620)
+            root.configure(bg=C["PAPER"])
             self.df: pd.DataFrame | None = None
             self.path: Path | None = None
             self.tests: list[dict] = []
@@ -937,17 +1317,17 @@ def main(argv=None) -> None:
             self._asof_auto = ""
             self._busy = False
             self._worker: threading.Thread | None = None
-            self._wrappers: list = []
             self._selections_loaded = False  # File > Load selections was used: choosing a file must not reset them
+            self._ran = False
+            self.current = "data"
+            self._visited = {"data"}
             self.v_asof = tk.StringVar()
             self.v_cols = {role: tk.StringVar() for role, _l, _r in ROLES}
             self.v_set = {k: tk.StringVar(value=v) for k, v in DEFAULT_SETTINGS.items()}
-            self.v_file = tk.StringVar(value="No file chosen yet")
+            self.v_file = tk.StringVar(value="")
             self.style = ttk.Style(root)
-            if sys.platform.startswith("linux"):
-                self.style.theme_use("clam")
-            self.text_size = int(load_memory().get("text_size", DEFAULT_TEXT_SIZE))
-            self.apply_text_size(self.text_size, save=False)
+            self.style.theme_use("clam")
+            self.text_size = ui["size"]
 
             menu = tk.Menu(root)
             fm = tk.Menu(menu, tearoff=0)
@@ -958,7 +1338,7 @@ def main(argv=None) -> None:
             fm.add_command(label="Quit", command=self.close)
             menu.add_cascade(label="File", menu=fm)
             vm = tk.Menu(menu, tearoff=0)
-            vm.add_command(label="Bigger text   Ctrl +", command=lambda: self.apply_text_size(self.text_size + 1))
+            vm.add_command(label="Larger text   Ctrl +", command=lambda: self.apply_text_size(self.text_size + 1))
             vm.add_command(label="Smaller text   Ctrl -", command=lambda: self.apply_text_size(self.text_size - 1))
             vm.add_command(label="Reset text size   Ctrl 0", command=lambda: self.apply_text_size(DEFAULT_TEXT_SIZE))
             menu.add_cascade(label="View", menu=vm)
@@ -968,55 +1348,130 @@ def main(argv=None) -> None:
                 root.bind(seq, lambda _e, d=delta: self.apply_text_size(self.text_size + d))
             root.bind("<Control-0>", lambda _e: self.apply_text_size(DEFAULT_TEXT_SIZE))
 
-            self.nb = ttk.Notebook(root)
-            self.nb.pack(fill="both", expand=True, padx=10, pady=10)
-            self.tab_data, self.tab_cols = ttk.Frame(self.nb, padding=14), ttk.Frame(self.nb, padding=14)
-            self.tab_set, self.tab_tests = ttk.Frame(self.nb, padding=14), ttk.Frame(self.nb, padding=14)
-            self.tab_run = ttk.Frame(self.nb, padding=14)
-            for t, label in ((self.tab_data, "1  Data"), (self.tab_cols, "2  Columns"), (self.tab_set, "3  Settings"),
-                             (self.tab_tests, "4  Comparisons"), (self.tab_run, "5  Run")):
-                self.nb.add(t, text=label)
+            body = tk.Frame(root, bg=C["PAPER"])
+            body.pack(fill="both", expand=True)
+            self.rail = tk.Frame(body, bg=C["CANVAS"], width=230)
+            self.rail.pack(side="left", fill="y")
+            self.rail.pack_propagate(False)
+            tk.Frame(body, bg=C["MIST"], width=1).pack(side="left", fill="y")
+            self.stage = tk.Frame(body, bg=C["PAPER"])
+            self.stage.pack(side="left", fill="both", expand=True)
+            self.pages = {key: tk.Frame(self.stage, bg=C["PAPER"]) for key, _ in PAGES}
             self.build_data()
             self.build_cols()
             self.build_settings()
             self.build_tests()
             self.build_run()
-            self.nb.bind("<<NotebookTabChanged>>", lambda _e: self.update_ready())
-            root.bind("<Configure>", self._rewrap, add="+")
+            self.stage.bind("<Configure>", self._layout)
+            self.apply_text_size(self.text_size, save=False)
+            self.go("data")
 
-        # ---- look and feel
-        def apply_text_size(self, size: int, save: bool = True):
-            size = max(9, min(24, int(size)))
-            self.text_size = size
-            for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont", "TkCaptionFont", "TkTooltipFont", "TkFixedFont"):
-                try:
-                    tkfont.nametofont(name).configure(size=size)
-                except tk.TclError:
-                    pass
-            self.style.configure("Treeview", rowheight=int(size * 2.2))
-            self.style.configure("Treeview.Heading", font=("", size, "bold"))
-            self.style.configure("TNotebook.Tab", padding=(size, size // 3))
-            if save:
-                remember_text_size(size)
-            self._rewrap()
-
-        def wrap(self, parent, text="", **kw):
-            """A label whose lines re-wrap to the window width."""
-            lb = ttk.Label(parent, text=text, justify="left", **kw)
-            self._wrappers.append(lb)
-            return lb
-
-        def _rewrap(self, _e=None):
+        # ---- the frame
+        def _layout(self, _e=None):
             try:
-                width = max(360, self.root.winfo_width() - 120)
-                for lb in self._wrappers:
-                    if lb.winfo_exists():
-                        lb.configure(wraplength=width)
+                width = min(COLUMN_WIDTH, max(420, self.stage.winfo_width() - 2 * PAD))
+                self.pages[self.current].place_configure(width=width)   # only the page on show: placing a hidden one would show it
             except tk.TclError:
                 pass
 
-        def next_button(self, parent, text, target):
-            ttk.Button(parent, text=text, command=lambda: self.nb.select(target)).pack(side="bottom", anchor="e", pady=(10, 0))
+        def apply_text_size(self, size: int, save: bool = True):
+            size = max(9, min(24, int(size)))
+            self.text_size = ui["size"] = size
+            fit_fonts()
+            self.style.configure("Treeview", rowheight=int(px(15) * 1.9), font=FONT["body"], background=C["PAPER"],
+                                 fieldbackground=C["PAPER"], foreground=C["INK"], bordercolor=C["MIST"], borderwidth=1)
+            self.style.configure("Treeview.Heading", font=FONT["head"], background=C["INK"], foreground=C["PAPER"],
+                                 relief="flat", padding=(8, 6))
+            self.style.map("Treeview", background=[("selected", C["MIST"])], foreground=[("selected", C["INK"])])
+            self.style.map("Treeview.Heading", background=[("active", C["INK"])])
+            self.style.configure("Vertical.TScrollbar", background=C["MIST"], troughcolor=C["CANVAS"], bordercolor=C["CANVAS"],
+                                 arrowcolor=C["SLATE"])
+            self.style.configure("Horizontal.TScrollbar", background=C["MIST"], troughcolor=C["CANVAS"], bordercolor=C["CANVAS"],
+                                 arrowcolor=C["SLATE"])
+            if save:
+                remember_text_size(size)
+
+        def go(self, key: str):
+            for k, f in self.pages.items():
+                f.place_forget() if k != key else f.place(relx=0.5, rely=0, anchor="n", relheight=1,
+                                                        width=min(COLUMN_WIDTH, max(420, self.stage.winfo_width() - 2 * PAD)))
+            self.current = key
+            self._visited.add(key)
+            self.refresh_rail()
+            if key == "run":
+                self.update_ready()
+
+        def sub(self, key: str) -> tuple[str, str]:
+            """(mark, the line under the step's name) for the rail."""
+            if key == "data":
+                return ("done", f"{len(self.df):,} loans") if self.df is not None else ("todo", "")
+            if key == "cols":
+                n = sum(1 for v in self.v_cols.values() if v.get())
+                ok = all(self.v_cols[r].get() for r in REQUIRED_ROLES)
+                return ("done" if ok else "todo", f"{n} set" if n else "")
+            if key == "set":
+                label_ = dict((k, lbl) for k, lbl, *_ in BAD_EVENT_CHOICES).get(self.v_set["bad_event"].get(), "")
+                return ("done" if "set" in self._visited else "todo", label_)
+            if key == "tests":
+                n = len(self.tests)
+                return ("done" if n else "todo", f"{n} added" if n else "")
+            if self.path is None:
+                return "todo", ""
+            return ("done", "Done") if self._ran else ("todo", "")
+
+        def refresh_rail(self):
+            for w in self.rail.winfo_children():
+                w.destroy()
+            label(self.rail, "Loan Survival", "app", bg=C["CANVAS"]).pack(anchor="w", padx=PAD - 6, pady=(PAD, 6))
+            tk.Frame(self.rail, bg=C["KEY_RED"], height=3, width=170).pack(anchor="w", padx=PAD - 6, pady=(0, PAD))
+            for i, (key, name) in enumerate(PAGES):
+                mark, said = self.sub(key)
+                current = key == self.current
+                row = tk.Frame(self.rail, bg=C["CANVAS"], cursor="hand2")
+                row.pack(anchor="w", fill="x", padx=PAD - 8, pady=6)
+                m = tk.Canvas(row, width=26, height=26, highlightthickness=0, bd=0, bg=C["CANVAS"])
+                m.pack(side="left", anchor="n")
+                if current:
+                    m.create_oval(1, 1, 25, 25, fill=C["KEY_RED"], outline=C["KEY_RED"])
+                    m.create_text(13, 14, text=str(i + 1), fill=C["PAPER"], font=FONT["head"])
+                elif mark == "done":
+                    m.create_oval(1, 1, 25, 25, fill=C["INK"], outline=C["INK"])
+                    m.create_text(13, 14, text="✓", fill=C["PAPER"], font=FONT["head"])
+                else:
+                    m.create_oval(2, 2, 24, 24, outline=C["STONE"], width=1.5)
+                    m.create_text(13, 14, text=str(i + 1), fill=C["STONE"], font=FONT["head"])
+                words = tk.Frame(row, bg=C["CANVAS"], cursor="hand2")
+                words.pack(side="left", padx=(10, 0))
+                name_l = label(words, name, "step", fg="INK" if current or mark == "done" else "STONE", bg=C["CANVAS"])
+                name_l.pack(anchor="w")
+                parts = [row, m, words, name_l]
+                if said:
+                    sub_l = label(words, said, "sub", fg="SLATE", bg=C["CANVAS"])
+                    sub_l.pack(anchor="w")
+                    parts.append(sub_l)
+                for w in parts:
+                    w.bind("<Button-1>", lambda _e, k=key: self.go(k))
+                    w.configure(cursor="hand2")
+
+        def skeleton(self, key: str, title: str, back: str | None, forward: tuple[str, str, object] | None):
+            """The one page layout: title, a rule, the content, and Back and Next in the bottom corners."""
+            f = self.pages[key]
+            f.configure(padx=0, pady=PAD)
+            label(f, title, "title").pack()
+            rule(f).pack(fill="x", pady=(GAP, PAD))
+            foot = tk.Frame(f, bg=C["PAPER"])
+            foot.pack(side="bottom", fill="x", pady=(GAP, 0))
+            if back:
+                Button(foot, "Back", lambda: self.go(back)).pack(side="left")
+            if forward:
+                text, kind, cmd = forward
+                btn = Button(foot, text, cmd, kind)
+                btn.pack(side="right")
+            else:
+                btn = None
+            content = tk.Frame(f, bg=C["PAPER"])
+            content.pack(fill="both", expand=True)
+            return content, foot, btn
 
         def close(self):
             """Close the window. A run in progress keeps going until the workbook is written, so every Tk object is freed
@@ -1032,25 +1487,23 @@ def main(argv=None) -> None:
             del root
             gc.collect()
 
-        # ---- tab 1
+        # ---- Data
         def build_data(self):
-            f = self.tab_data
-            self.next_button(f, "Next: Columns →", self.tab_cols)
-            self.wrap(f, "Choose the file with one row per loan (Excel or CSV). Nothing leaves this computer.").pack(anchor="w")
-            row = ttk.Frame(f)
-            row.pack(fill="x", pady=8)
-            ttk.Button(row, text="Choose file...", command=self.pick_file).pack(side="left")
-            self.wrap(row, textvariable=self.v_file).pack(side="left", padx=10, fill="x", expand=True)
-            self.lbl_rows = ttk.Label(f, text="")
-            self.lbl_rows.pack(anchor="w", pady=(0, 6))
-            r2 = ttk.Frame(f)
-            r2.pack(anchor="w", fill="x")
-            ttk.Label(r2, text="As-of date").pack(side="left")
-            ttk.Entry(r2, textvariable=self.v_asof, width=14).pack(side="left", padx=8)
-            self.wrap(r2, "Anything dated after this is treated as not yet happened. It starts as the latest date in your file.",
-                      foreground=MUTED).pack(side="left", fill="x", expand=True)
-            holder = ttk.Frame(f)
-            holder.pack(fill="both", expand=True, pady=(10, 0))
+            f, _foot, _btn = self.skeleton("data", "Data", None, ("Next", "primary", lambda: self.go("cols")))
+            top = tk.Frame(f, bg=C["PAPER"])
+            top.pack(anchor="n")
+            Button(top, "Choose file...", self.pick_file, "primary").pack(side="left")
+            path = label(top, "", "body", fg="SLATE", textvariable=self.v_file)
+            path.configure(wraplength=560)
+            path.pack(side="left", padx=(GAP, 0))
+            self.lbl_rows = label(f, "", "body", fg="SLATE")
+            self.lbl_rows.pack(pady=(GAP, 0))
+            r2 = tk.Frame(f, bg=C["PAPER"])
+            r2.pack(anchor="n", pady=(GAP, GAP))
+            label(r2, "As-of date", "body", fg="SLATE").pack(side="left")
+            field(r2, self.v_asof, 14).pack(side="left", padx=(GAP, 0), ipady=4)
+            holder = tk.Frame(f, bg=C["PAPER"])
+            holder.pack(fill="both", expand=True)
             self.tree = ttk.Treeview(holder, show="headings", height=10)
             sx = ttk.Scrollbar(holder, orient="horizontal", command=self.tree.xview)
             sy = ttk.Scrollbar(holder, orient="vertical", command=self.tree.yview)
@@ -1059,105 +1512,101 @@ def main(argv=None) -> None:
             sy.pack(side="right", fill="y")
             self.tree.pack(side="left", fill="both", expand=True)
 
-        # ---- tab 2
+        # ---- Columns
         def build_cols(self):
-            f = self.tab_cols
-            self.next_button(f, "Next: Settings →", self.tab_set)
-            self.wrap(f, "Tell the tool which column is which. Click a box and type part of a name to find it, or press the arrow "
-                         "for the whole list (A to Z). The tool remembers the names you pick, so the next file is guessed better.").pack(anchor="w")
+            f, foot, _btn = self.skeleton("cols", "Columns", "data", ("Next", "primary", lambda: self.go("set")))
+            Button(foot, "Guess again", self.reguess).pack(side="left", padx=(GAP, 0))
             self.pickers, self.lbl_dates = {}, {}
-            canvas = tk.Canvas(f, highlightthickness=0, borderwidth=0)
-            bar = ttk.Scrollbar(f, orient="vertical", command=canvas.yview)
+            holder = tk.Frame(f, bg=C["PAPER"])
+            holder.pack(fill="both", expand=True)
+            canvas = tk.Canvas(holder, highlightthickness=0, borderwidth=0, bg=C["PAPER"])
+            bar = ttk.Scrollbar(holder, orient="vertical", command=canvas.yview)
             canvas.configure(yscrollcommand=bar.set)
             bar.pack(side="right", fill="y")
             canvas.pack(side="left", fill="both", expand=True)
-            inner = ttk.Frame(canvas)
+            inner = tk.Frame(canvas, bg=C["PAPER"])
             win = canvas.create_window((0, 0), window=inner, anchor="nw")
             inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
             canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
-            for seq, d in (("<MouseWheel>", None), ("<Button-4>", -1), ("<Button-5>", 1)):
-                canvas.bind_all(seq, lambda e, d=d: canvas.yview_scroll(d if d else int(-e.delta / 120), "units") if canvas.winfo_ismapped() else None)
+
+            def wheel(e):
+                canvas.yview_scroll(-1 if (e.num == 4 or getattr(e, "delta", 0) > 0) else 1, "units")
+            canvas.bind("<Enter>", lambda _e: [canvas.bind_all(s, wheel) for s in ("<MouseWheel>", "<Button-4>", "<Button-5>")])
+            canvas.bind("<Leave>", lambda _e: [canvas.unbind_all(s) for s in ("<MouseWheel>", "<Button-4>", "<Button-5>")])
             self.cols_canvas = canvas
 
-            def section(title, roles, hint):
-                box = ttk.LabelFrame(inner, text=title, padding=12)
-                box.pack(fill="x", pady=(12, 0), padx=(0, 8))
-                if hint:
-                    self.wrap(box, hint, foreground=MUTED).pack(anchor="w", pady=(0, 6))
+            block = tk.Frame(inner, bg=C["PAPER"])
+            block.pack(anchor="n")
+
+            def section(title, roles, first):
+                label(block, title, "bold").pack(anchor="w", pady=(0 if first else PAD, GAP // 2))
+                rule(block).pack(fill="x", pady=(0, GAP))
                 for role in roles:
-                    label = dict((r, l) for r, l, _q in ROLES)[role]
-                    row = ttk.Frame(box)
-                    row.pack(fill="x", pady=(8, 0))
-                    ttk.Label(row, text=label, width=24).grid(row=0, column=0, sticky="nw", padx=(0, 12))
+                    text = dict((r, l) for r, l, _q in ROLES)[role]
+                    row = tk.Frame(block, bg=C["PAPER"])
+                    row.pack(anchor="w", pady=(0, GAP))
+                    lab = label(row, text, "body", fg="SLATE")
+                    lab.configure(width=LABEL_CHARS // 2 + 4)
+                    lab.grid(row=0, column=0, sticky="nw", pady=4, padx=(0, GAP))
                     pk = ColumnPicker(row, self.v_cols[role], on_change=lambda r=role: self.on_map(r), optional=role not in REQUIRED_ROLES, width=34)
                     pk.grid(row=0, column=1, sticky="w")
                     self.pickers[role] = pk
-                    ttk.Label(row, text=ROLE_HELP[role], foreground=MUTED, wraplength=640, justify="left").grid(row=1, column=1, sticky="w")
-                    lb = self.wrap(row, "", foreground=MUTED)
-                    lb.grid(row=2, column=1, sticky="w")
+                    lb = label(row, "", "small", fg="SLATE")
+                    lb.grid(row=1, column=1, sticky="w", pady=(2, 0))
                     self.lbl_dates[role] = lb
-            section("Required", REQUIRED_ROLES, "These two are all the tool needs. Everything else only adds detail.")
-            section("Optional: leave blank if you do not have them", [r for r, _l, q in ROLES if r not in REQUIRED_ROLES], "")
-            f = inner
-            ttk.Button(f, text="Guess from names again", command=self.reguess).pack(anchor="w", pady=(12, 0))
+            section("Required", REQUIRED_ROLES, True)
+            section("Optional", [r for r, _l, q in ROLES if r not in REQUIRED_ROLES], False)
 
-        # ---- tab 3
+        # ---- Settings
         def build_settings(self):
-            f = self.tab_set
-            self.next_button(f, "Next: Comparisons →", self.tab_tests)
-            ttk.Label(f, text="What counts as a bad loan?", font=("", self.text_size + 1, "bold")).pack(anchor="w")
-            for key, label, expl in BAD_EVENT_CHOICES:
-                ttk.Radiobutton(f, text=label, value=key, variable=self.v_set["bad_event"]).pack(anchor="w", pady=(10, 0))
-                self.wrap(f, expl, foreground=MUTED).pack(anchor="w", padx=28)
-            r = ttk.Frame(f)
-            r.pack(anchor="w", pady=16)
-            ttk.Label(r, text="Months on book to report").pack(side="left")
-            ttk.Entry(r, textvariable=self.v_set["checkpoints"], width=22).pack(side="left", padx=8)
-            self.wrap(r, "separate with commas", foreground=MUTED).pack(side="left")
+            f, _foot, _btn = self.skeleton("set", "Settings", "cols", ("Next", "primary", lambda: self.go("tests")))
+            f = tk.Frame(f, bg=C["PAPER"])
+            f.pack(anchor="n")
+            label(f, "Bad event", "bold").pack(anchor="w", pady=(0, GAP))
+            for key, text, *_ in BAD_EVENT_CHOICES:
+                Radio(f, text, self.v_set["bad_event"], key, self.refresh_rail).pack(anchor="w", pady=(0, GAP))
+            r = tk.Frame(f, bg=C["PAPER"])
+            r.pack(anchor="w", pady=(GAP, GAP))
+            lab = label(r, "Checkpoints (months on book)", "body", fg="SLATE")
+            lab.pack(side="left")
+            field(r, self.v_set["checkpoints"], 22).pack(side="left", padx=(GAP, 0), ipady=4)
             self.adv_open = tk.BooleanVar(value=False)
-            ttk.Checkbutton(f, text="Advanced (policy thresholds)", variable=self.adv_open, command=self.toggle_adv,
-                            style="Toolbutton").pack(anchor="w")
-            self.adv = ttk.Frame(f, padding=(24, 8))
-            for i, (key, label) in enumerate(ADVANCED):
-                ttk.Entry(self.adv, textvariable=self.v_set[key], width=8).grid(row=i, column=0, pady=3)
-                ttk.Label(self.adv, text=label).grid(row=i, column=1, sticky="w", padx=10)
+            self.adv_toggle = label(f, "Advanced  ▸", "bold", fg="SLATE")
+            self.adv_toggle.pack(anchor="w", pady=(GAP, GAP))
+            self.adv_toggle.configure(cursor="hand2")
+            self.adv_toggle.bind("<Button-1>", lambda _e: (self.adv_open.set(not self.adv_open.get()), self.toggle_adv()))
+            self.adv = tk.Frame(f, bg=C["PAPER"])
+            for i, (key, text) in enumerate(ADVANCED):
+                field(self.adv, self.v_set[key], 8).grid(row=i, column=0, pady=4, ipady=4, sticky="w")
+                label(self.adv, text, "body", fg="SLATE").grid(row=i, column=1, sticky="w", padx=GAP)
 
         def toggle_adv(self):
+            self.adv_toggle.config(text="Advanced  ▾" if self.adv_open.get() else "Advanced  ▸")
             self.adv.pack(anchor="w") if self.adv_open.get() else self.adv.pack_forget()
 
-        # ---- tab 4
+        # ---- Comparisons
         def build_tests(self):
-            f = self.tab_tests
-            self.next_button(f, "Next: Run →", self.tab_run)
-            self.wrap(f, "A comparison asks one question about your loans. Press Add and the tool walks you through it, step by step. "
-                         "With none added, the run compares loans by the year they were opened.").pack(anchor="w")
-            row = ttk.Frame(f)
-            row.pack(anchor="w", pady=10)
-            ttk.Button(row, text="Add a comparison...", command=self.add_test).pack(side="left", padx=(0, 8))
+            f, _foot, _btn = self.skeleton("tests", "Comparisons", "set", ("Next", "primary", lambda: self.go("run")))
+            row = tk.Frame(f, bg=C["PAPER"])
+            row.pack(anchor="n", pady=(0, GAP))
+            Button(row, "Add", self.add_test, "primary").pack(side="left", padx=(0, GAP // 2))
             for text, cmd in (("Edit", self.edit_test), ("Copy", self.dup_test), ("Remove", self.del_test)):
-                ttk.Button(row, text=text, command=cmd).pack(side="left", padx=(0, 8))
-            holder = ttk.Frame(f)
+                Button(row, text, cmd).pack(side="left", padx=(0, GAP // 2))
+            holder = tk.Frame(f, bg=C["PAPER"])
             holder.pack(fill="both", expand=True)
-            self.tt = ttk.Treeview(holder, columns=("name", "plain"), show="headings", height=10)
-            for c, text, w in (("name", "Name", 240), ("plain", "What it does", 760)):
-                self.tt.heading(c, text=text)
-                self.tt.column(c, width=w)
-            self.tt.column("plain", stretch=True)
+            self.tt = ttk.Treeview(holder, columns=("name", "what"), show="headings", height=10)
+            for c, text, w in (("name", "Name", 220), ("what", "Comparison", 640)):
+                self.tt.heading(c, text=text, anchor="center")
+                self.tt.column(c, width=w, anchor="center")
+            self.tt.column("what", stretch=True)
             self.tt.pack(fill="both", expand=True)
             self.tt.bind("<Double-1>", lambda _e: self.edit_test())
-            self.tt.bind("<<TreeviewSelect>>", lambda _e: self.show_full())
-            self.lbl_full = self.wrap(f, "Click a comparison to read all of it here.", foreground=MUTED)
-            self.lbl_full.pack(anchor="w", fill="x", pady=(8, 0))
-
-        def show_full(self):
-            i = self.sel_index()
-            if hasattr(self, "lbl_full") and i is not None and i < len(self.tests):
-                self.lbl_full.config(text=describe_test(self.tests[i]["spec"]))
 
         def refresh_tests(self):
             self.tt.delete(*self.tt.get_children())
             for i, t in enumerate(self.tests):
                 self.tt.insert("", "end", iid=str(i), values=(t["name"], describe_test(t["spec"])))
+            self.refresh_rail()
 
         def sel_index(self):
             s = self.tt.selection()
@@ -1168,7 +1617,7 @@ def main(argv=None) -> None:
 
         def add_test(self):
             if self.df is None:
-                messagebox.showinfo("Loan survival", "Choose a data file first (tab 1).")
+                messagebox.showinfo("Loan Survival", "Choose a data file first.")
                 return
             d = self.new_wizard()
             self.root.wait_window(d)
@@ -1179,7 +1628,6 @@ def main(argv=None) -> None:
         def edit_test(self):
             i = self.sel_index()
             if i is None:
-                messagebox.showinfo("Loan survival", "Click a comparison in the list first.")
                 return
             d = self.new_wizard(existing=self.tests[i])
             self.root.wait_window(d)
@@ -1201,41 +1649,43 @@ def main(argv=None) -> None:
                 del self.tests[i]
                 self.refresh_tests()
 
-        # ---- tab 5
+        # ---- Run
         def build_run(self):
-            f = self.tab_run
-            self.lbl_ready = self.wrap(f, "", font=("", self.text_size, "bold"))
-            self.lbl_ready.pack(anchor="w")
-            ttk.Label(f, text="The workbook will be saved as").pack(anchor="w", pady=(12, 0))
+            f, foot, self.btn_run = self.skeleton("run", "Run", "tests", ("Run", "primary", self.start_run))
+            self.lbl_ready = label(f, "", "bold", wrap=True)
+            self.lbl_ready.configure(anchor="center", justify="center")
+            self.lbl_ready.pack(fill="x")
+            r = tk.Frame(f, bg=C["PAPER"])
+            r.pack(fill="x", pady=(GAP, GAP))
+            label(r, "Save as", "body", fg="SLATE").pack(side="left")
             self.v_out = tk.StringVar()
-            r = ttk.Frame(f)
-            r.pack(fill="x")
-            ttk.Entry(r, textvariable=self.v_out).pack(side="left", fill="x", expand=True)
-            ttk.Button(r, text="Change...", command=self.pick_out).pack(side="left", padx=6)
-            self.btn_run = ttk.Button(f, text="Run", command=self.start_run)
-            self.btn_run.pack(anchor="w", pady=12)
-            self.status = tk.Text(f, height=12, wrap="word", state="disabled")
+            field(r, self.v_out, 20).pack(side="left", fill="x", expand=True, padx=(GAP, GAP), ipady=4)
+            Button(r, "Change...", self.pick_out).pack(side="left")
+            self.status = tk.Text(f, height=10, wrap="word", state="disabled", font=FONT["body"], relief="solid", bd=1,
+                                  highlightthickness=0, bg=C["PAPER"], fg=C["INK"], padx=10, pady=8)
             self.status.pack(fill="both", expand=True)
-            r2 = ttk.Frame(f)
-            r2.pack(anchor="w", pady=10)
-            self.btn_open = ttk.Button(r2, text="Open workbook", command=lambda: open_path(self.last_out), state="disabled")
-            self.btn_open.pack(side="left", padx=(0, 8))
-            self.btn_folder = ttk.Button(r2, text="Open folder", command=lambda: open_path(self.last_out.parent), state="disabled")
+            r2 = tk.Frame(f, bg=C["PAPER"])
+            r2.pack(anchor="n", pady=(GAP, 0))
+            self.btn_open = Button(r2, "Open workbook", lambda: open_path(self.last_out))
+            self.btn_open.config(state="disabled")
+            self.btn_open.pack(side="left", padx=(0, GAP // 2))
+            self.btn_folder = Button(r2, "Open folder", lambda: open_path(self.last_out.parent))
+            self.btn_folder.config(state="disabled")
             self.btn_folder.pack(side="left")
 
         def ready_text(self) -> str:
             if self.path is None:
-                return "Not ready: choose a data file on the Data tab."
+                return "Choose a data file."
             state = self.get_state()
             problems = validate_state(state)
             if problems:
-                return "Not ready yet:\n- " + "\n- ".join(problems)
+                return "Not ready:\n- " + "\n- ".join(problems)
             n = len(state["tests"])
-            return (f"Ready. {len(self.df):,} loans, as of {state['as_of'] or 'the latest date in the file'}, "
-                    f"{n} comparison{'s' if n != 1 else ''}" + ("" if n else " (the run will compare loans by the year they were opened)") + ".")
+            return (f"Ready: {len(self.df):,} loans, as of {state['as_of'] or 'the latest date in the file'}, "
+                    + (f"{n} comparison{'s' if n != 1 else ''}." if n else "no comparisons added (vintage by default)."))
 
         def update_ready(self):
-            if hasattr(self, "lbl_ready") and self.nb.select() == str(self.tab_run):
+            if hasattr(self, "lbl_ready") and self.current == "run":
                 self.lbl_ready.config(text=self.ready_text())
 
         def say(self, text: str, clear: bool = False):
@@ -1256,18 +1706,18 @@ def main(argv=None) -> None:
             try:
                 df = ls.load(path)
             except Exception as e:  # noqa: BLE001 - shown to the person in plain words
-                messagebox.showerror("Loan survival", plain_error(e))
+                messagebox.showerror("Loan Survival", plain_error(e))
                 return False
             self.path, self.df = path, df
             self.v_file.set(str(path))
-            self.lbl_rows.config(text=f"{len(df):,} rows, {len(df.columns)} columns. The first rows are below.")
+            self.lbl_rows.config(text=f"{len(df):,} rows, {len(df.columns)} columns")
             heads, rows, widths = preview_rows(df)
             self.tree.delete(*self.tree.get_children())
             self.tree["columns"] = heads
-            cw = max(8, int(self.text_size * 0.9))
+            cw = max(8, int(px(15) * 0.62))
             for c, w in zip(heads, widths):
-                self.tree.heading(c, text=c)
-                self.tree.column(c, width=w * cw, stretch=False)
+                self.tree.heading(c, text=c, anchor="center")
+                self.tree.column(c, width=w * cw, minwidth=w * cw, stretch=True, anchor="center")
             for r in rows:
                 self.tree.insert("", "end", values=r)
             for pk in self.pickers.values():
@@ -1283,10 +1733,12 @@ def main(argv=None) -> None:
             for role in self.v_cols:
                 self.on_map(role, refresh_asof=False)
             self.refresh_asof()
+            self._ran = False
+            self.refresh_rail()
             if keep_state:
                 missing = [v.get() for v in self.v_cols.values() if v.get() and v.get() not in df.columns]
                 if missing:
-                    messagebox.showwarning("Loan survival", "These saved columns are not in this file: " + ", ".join(missing))
+                    messagebox.showwarning("Loan Survival", "Not in this file: " + ", ".join(missing))
             return True
 
         def set_cols(self, cols: dict):
@@ -1306,6 +1758,7 @@ def main(argv=None) -> None:
                 self.lbl_dates[role].config(text=date_problem_text(self.df[h]) if (h and self.df is not None and h in self.df.columns) else "")
             if refresh_asof:
                 self.refresh_asof()
+            self.refresh_rail()
 
         def refresh_asof(self):
             if self.df is None:
@@ -1348,13 +1801,13 @@ def main(argv=None) -> None:
             try:
                 state = parse_settings_text(Path(p).read_text())
             except (configparser.Error, OSError) as e:
-                messagebox.showerror("Loan survival", f"That settings file could not be read: {e}")
+                messagebox.showerror("Loan Survival", f"Could not read the settings file: {e}")
                 return
             self.apply_state(state)
             if self.df is not None:
                 missing = [v for v in state["cols"].values() if v not in self.df.columns]
                 if missing:
-                    messagebox.showwarning("Loan survival", "These saved columns are not in the current file: " + ", ".join(missing))
+                    messagebox.showwarning("Loan Survival", "Not in the current file: " + ", ".join(missing))
 
         # ---- run
         def pick_out(self):
@@ -1365,14 +1818,14 @@ def main(argv=None) -> None:
         def start_run(self, wait: bool = False):
             if self._busy:
                 return
-            self.nb.select(self.tab_run)
+            self.go("run")
             if self.path is None:
-                self.say("Choose a data file first (tab 1).", clear=True)
+                self.say("Choose a data file first.", clear=True)
                 return
             state = self.get_state()
             problems = validate_state(state)
             if problems:
-                self.say("Not ready to run:\n- " + "\n- ".join(problems), clear=True)
+                self.say("Not ready:\n- " + "\n- ".join(problems), clear=True)
                 return
             text = build_settings_text(state)
             out = Path(self.v_out.get() or default_out_path(self.path))
@@ -1417,13 +1870,14 @@ def main(argv=None) -> None:
                 return
             r = box["r"]
             self.last_out = r["out"]
-            lines = [f"Done. {r['out']}", "", f"As-of {r['as_of']:%Y-%m-%d}. Rows used {r['rows_used']:,} of {r['rows_read']:,}; left out {r['rows_excluded']:,} (listed on the Excluded sheet).",
+            self._ran = True
+            lines = [f"Done. {r['out']}", "", f"As-of {r['as_of']:%Y-%m-%d}. Rows used {r['rows_used']:,} of {r['rows_read']:,}; excluded {r['rows_excluded']:,} (Excluded sheet).",
                      f"Bad event used: {r['bad_event']}", f"{r['verdict']}"]
             self.say("\n".join(lines), clear=True)
             self.btn_open.config(state="normal")
             self.btn_folder.config(state="normal")
+            self.refresh_rail()
 
-    root = tk.Tk()
     app = App(root)
     argv = sys.argv[1:] if argv is None else argv
     if argv:
