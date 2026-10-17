@@ -634,3 +634,31 @@ files.
   `read_sha` is the fingerprint of those bytes. A new test replaces the Fed's file between two of its series.
   It fails when the file is read again and passes now. The macro suite is 109. The real comparison's printout
   is unchanged.
+
+## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
+
+The brief proposes a second book, built alongside the Macrobook, that tests
+which public indicators move with Book 1's consumer loss measures. It asked
+for a written plan and objections before anything is built. Both are in
+`consumer-drivers/PLAN.md`. Nothing is built yet.
+
+- **Checked from the reviewer's points.** Confirmed: the weekly mortgage-rate
+  leeway (104 of 2,899 readings), which the Glossary does not describe;
+  latest-vintage data; quarterly series to 2026 Q2; the October 2025 blank,
+  which will leave each monthly change a month older than its level once
+  October 2026 is published; the firm's used-car direction; and the FHFA
+  index's 20 falls, 19 of them in 2007 Q4-2012 Q2. Half right: every national
+  tab states which way is worse, but none cites the research.
+- **The first-pass figures, re-derived** (`consumer-drivers/checks.py`, output
+  beside it). Card charge-offs and card 30-89 reproduce. Mortgage 30+ does not
+  (0.92 / 0.80 against 0.88 / 0.60), and auto's sign differs (+0.20 against
+  -0.15). The definitions move these figures by 0.1 to 0.4, so the plan fixes
+  them in settings before the first run.
+- **The main objection.** 2006-2026 holds one downturn. The effective sample
+  of four-quarter changes is about 2 to 6, and unemployment rises in two runs
+  under a ±0.5 band. The repository's longer public charge-off series (the
+  Fed's card rate from 1985 Q4; FDIC home equity and other consumer from
+  1992 Q4) give four or five runs. On the card series the link holds without
+  2007-10 (+0.54). The plan recommends testing on both, labelled.
+- **Waiting on the firm:** 17 decisions, listed in the plan, and a note for
+  Book 1's agent asking for the left-out quarters as a file.
