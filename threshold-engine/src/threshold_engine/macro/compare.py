@@ -136,12 +136,19 @@ def reading_label(reading, months):
 
 
 def row_label(r, months):
-    """A comparison row's reading, naming only the horizons of the ratings it holds: a change rated as you
-    have it only is over your months, one rated under the what-if only over the what-if's (Codex on #452:
-    the printout named the what-if's horizon beside a rating only the other side made)."""
-    if r["reading"] != "position" and months[0] != months[1] and bool(r["a"]) != bool(r["b"]):
-        return "change over %d months" % months[0] if r["a"] else "change (what if: over %d months)" % months[1]
-    return reading_label(r["reading"], months)
+    """A comparison row's reading, naming the horizon of each side the row speaks for: the sides that rated
+    it, or, when neither did, the sides whose settings asked for it. So a change rated as you have it only
+    is over your months, and one only the what-if asked for is over the what-if's (Codex on #452, twice:
+    the label named a horizon whose side made no rating, then one whose settings never asked)."""
+    if r["reading"] == "position" or months[0] == months[1]:
+        return reading_label(r["reading"], months)
+    if r["a"] or r["b"]:
+        sides = bool(r["a"]), bool(r["b"])
+    else:
+        sides = r["why_a"] != NOT_ASKED, r["why_b"] != NOT_ASKED
+    if all(sides):
+        return reading_label("change", months)
+    return "change over %d months" % months[0] if sides[0] else "change (what if: over %d months)" % months[1]
 
 
 def lines(c):

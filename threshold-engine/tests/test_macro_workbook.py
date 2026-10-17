@@ -359,6 +359,35 @@ def test_a_reading_neither_run_rates_has_its_own_rows_with_each_runs_reason(cach
     tiles = [ws.cell(4, col).value for col in range(2, 15)]
     assert c["totals"]["only_a"] + c["totals"]["only_b"] in tiles     # the one-set tile does not count them
 
+
+def test_a_change_neither_run_rates_is_labelled_with_the_horizon_that_asked_for_it(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the What if tab gave it both horizons, though only the what-if asked for it.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": [], "change_months": 6}, {"change_months": 12})
+    ws = wb["What if"]
+    head = next(cl.row for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Rated under neither set of settings"))
+    labels = {ws.cell(r, 3).value for r in range(head + 1, ws.max_row + 1)
+              if ws.cell(r, 6).value == "Not rated: not asked for by these settings"}
+    assert labels == {"Change (what if: over 12 months)"}
+
+
+def test_a_file_gone_before_the_rating_has_no_fingerprint_as_read(tmp_path):
+    # Codex on #452: a file deleted after the pull kept the manifest's fingerprint under "SHA-256 as read".
+    from threshold_engine.macro import pull as P
+    from test_macro_rate import _fetcher
+    P.pull(tmp_path, keys=["unemployment", "cpi"], today="2026-10-17", fetcher=_fetcher())
+    pull = R.Pull(tmp_path)
+    (pull.folder / "fred-UNRATE.csv").unlink()
+    result = R.rate_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    wb = openpyxl.load_workbook(build(tmp_path / "b.xlsx", result, pull))
+    ws = wb["Sources"]
+    rows = {ws.cell(r, 2).value: r for r in range(1, ws.max_row + 1)}
+    u, cpi = rows["Unemployment rate"], rows["Consumer prices, all items"]
+    assert ws.cell(u, 10).value is None and ws.cell(u, 11).value == "not read: missing from the pull folder"
+    assert len(ws.cell(cpi, 10).value) == 64 and ws.cell(cpi, 11).value is None
+    run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert run["Files fetched and not read"] == "1: see Sources" and run["Files changed since the pull"] == "none"
+
 def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     ws = wb["Run"]

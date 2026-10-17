@@ -1205,10 +1205,21 @@ def build(out, result, pull, whatif=None):
     files = pull.manifest.get("files", {})
     read_sha = pull.read_sha
     changed = [n for n, h in read_sha.items() if files.get(n, {}).get("sha256") not in (None, h)]
+    # A file the pull fetched and the rating never read (gone, unreadable, or one the pull could not read)
+    # has no fingerprint as read: it is said so, not given the manifest's (Codex on #452).
+    unread = {}
+    for name in sorted({file_name(x) for x in SERIES}):
+        if files.get(name, {}).get("sha256") and name not in read_sha:
+            errs = [v["error"] for v in pull.manifest.get("series", {}).values()
+                    if v.get("file") == name and v.get("error")]
+            unread[name] = ("not read: the pull could not read it (%s)" % errs[0] if errs else
+                            "not read: missing from the pull folder" if not (pull.folder / name).exists() else
+                            "not read: it could not be read when rated")
     facts = [("Built", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
              ("From the pull of", vintage), ("Tool", "threshold-engine %s, economic conditions" % VERSION),
              ("Readings rated", len(result["ratings"])), ("Readings not rated", len(result["not_rated"])),
-             ("Files changed since the pull", "%d: see Sources" % len(changed) if changed else "none")]
+             ("Files changed since the pull", "%d: see Sources" % len(changed) if changed else "none"),
+             ("Files fetched and not read", "%d: see Sources" % len(unread) if unread else "none")]
     if whatif:
         facts += [("Settings file", whatif["a"]), ("What-if file", whatif["b"])]
     for k, v in facts:
@@ -1245,12 +1256,14 @@ def build(out, result, pull, whatif=None):
         f = files.get(name, {})
         for j, v in enumerate((x.title, x.publisher, x.source_id, x.licence, x.starts, name, f.get("url", ""),
                                f.get("fetched_at", f.get("error", "not in this pull")),
-                               read_sha.get(name, f.get("sha256", ""))), 2):
+                               read_sha.get(name, "")), 2):
             put(ws, row, j, v)
         ws.cell(row, 10).font = Font(name="Consolas", size=9, color=K.SLATE)
         if name in changed:
             put(ws, row, 11, "changed after the pull, which recorded %s…" % f["sha256"][:16],
                 font=Font(name="Calibri", size=10, bold=True, color=K.CRIMSON))
+        elif name in unread:
+            put(ws, row, 11, unread[name], font=Font(name="Calibri", size=10, bold=True, color=K.CRIMSON))
         rule(ws, row, 2, 11)
         row += 1
     for d in DERIVED:

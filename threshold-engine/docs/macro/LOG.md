@@ -652,6 +652,18 @@ files.
   one-sided workbook test. Both fail with the two-sided label put back. The macro suite is 112, and the
   real comparison's printout is unchanged.
 
+- **Codex: two more findings, fixed at the cause.**
+  - **Horizon labels.** A change neither run rated was still labelled with both horizons, though only the
+    what-if had asked for it. That was the sixth label branch. `row_label` now has one rule: name the
+    horizon of each side the row speaks for, meaning the sides that rated it or, when neither did, the
+    sides whose settings asked for it. The printout and the What if tab both use it.
+  - **Files not read.** A file fetched by the pull but gone, or unreadable, by the time of the rating
+    kept the manifest's fingerprint under "SHA-256 as read". Its cell is now blank, "Since the pull" says
+    why it was not read, and the Run tab counts it ("Files fetched and not read").
+  - Three new tests fail with either fault put back. The macro suite is 115. The real comparison's
+    printout is unchanged. The example workbook predates the new Run line and is otherwise the same,
+    since its pull read every file.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests

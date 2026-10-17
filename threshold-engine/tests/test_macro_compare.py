@@ -166,3 +166,15 @@ def test_a_change_rated_on_one_side_only_is_printed_with_that_sides_horizon_only
         c = compare(*_runs(cache, a, b), "a.json", "b.json")
         line = next(x for x in lines(c) if x.startswith("  ..") and "Consumer prices, all items," in x)
         assert said in line and unsaid not in line, line
+
+
+def test_a_change_neither_run_rates_names_the_horizon_of_the_settings_that_asked_for_it(cache):  # noqa: F811
+    # Codex on #452: a change only the what-if asked for, and could not rate, was labelled with both horizons.
+    c = compare(*_runs(cache, {"change_for": [], "change_months": 6}, {"change_months": 12}), "a.json", "b.json")
+    asked_b = [x for x in c["rows"] if x["a"] is None and x["b"] is None and x["reading"] == "change"
+               and x["why_a"] == "not asked for by these settings"]
+    assert asked_b
+    out = lines(c)
+    for x in asked_b:
+        line = next(r for r in out if r.startswith("  ..") and x["title"] + ", change" in r)
+        assert "change (what if: over 12 months)" in line and "6 months" not in line, line
