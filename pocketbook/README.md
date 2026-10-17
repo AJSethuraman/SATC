@@ -265,8 +265,9 @@ After that, the whole routine is:
      add up to. Booked is the booked dollars under RANR (a loan with no
      readable RANR is left out of both), so RANR ÷ Booked is RANR's own rate. Every
      figure is worked out in the Run; the dollars show in thousands only when
-     the whole book's booked would not fit the column, as on Grids. The block ends
-     on each pocket's **Avg line** and **× book**, as on Summary (2 Oct 2026), in
+     the whole book's booked would not fit the column, as on Grids. Each pocket's
+     **Avg line** and **× book** sit right after Booked, as RANR ÷ Booked sits
+     after RANR (2 Oct 2026; moved beside Booked 17 Oct 2026), in
      Loan size's one neutral hue, darker the bigger the line against the book's,
      never red or green; the totals carry them too (Whole book 1.00×).
    - **Grids:** a Grid and a Measure dropdown, and four blocks one under

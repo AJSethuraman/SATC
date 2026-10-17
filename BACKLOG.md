@@ -3642,6 +3642,17 @@ changed in the code.
     `_views`. None exceeds 701 at the default Text columns limit (50), or at 100 with a split. Control allows up to
     1,000; above about 700 values, or about 100 with a split, those columns would show blank too. Found by reading,
     not run.
+- **Built, 17 Oct 2026: RANR vs GCOs puts Avg line beside Booked** (branch
+  `claude/pocketbook-avg-line-beside-booked`). The firm: *"i want avg line and booked metrics to be closer together
+  the same way RANR and RANR/booked is, like avg line and line x book and such belong in the same relative place"*.
+  The gross block read Booked, GCOs, RANR, RANR ÷ Booked, Avg line, Line × book; it now reads Booked, Avg line, Line ×
+  book, GCOs, RANR, RANR ÷ Booked, under the one "Gross · this pocket alone" heading. Each cell still picks its own
+  `_views` entry by column, so the figures, the totals under the table and a sort are as before. Summary already read
+  Booked $, Avg line, Line × book, % of booked (the shape of its GCO and RANR columns) and is unchanged; the audit
+  workbook proves Avg line in its own step and is unchanged.
+  - Tests: 2 in `tests/test_avg_line_beside_booked_2026_10_17.py` (the headings and the group heading; every gross
+    cell in exactly one conditional-format range, which LibreOffice needs), and the three tests that pinned the old
+    order moved. Planted bugs: 4 added, 4 caught, with no display.
 
 ## 7 · Standing rules for new items
 
