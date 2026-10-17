@@ -505,3 +505,34 @@ def test_runlog_records_the_mappings_that_were_really_used(tmp_path):
     logged = ls.Settings(text[start:])
     assert set(logged.cols) == {"loan_id", "orig_date", "chargeoff_date"}   # not first_90_date, net_revenue and the rest
     ls.run(src, text[start:], tmp_path / "again.xlsx")                        # and the logged text can be run again as it is
+
+
+# ---- twelfth Codex review of PR 445 (reviewed 15be01f)
+
+def test_two_model_factors_with_the_same_output_name_are_refused():
+    import pytest
+    df = pd.DataFrame({"score": [1.0, 2.0], "score (per 2 higher)": [3.0, 4.0]})
+    with pytest.raises(ls.UserError, match="same name"):
+        ls.model_terms(df, "score per 2, score (per 2 higher)")
+
+
+def test_standalone_xls_without_its_reader_says_what_to_do(monkeypatch, tmp_path):
+    import pytest
+
+    def no_xlrd(*a, **k):
+        raise ImportError("Missing optional dependency 'xlrd'")
+    monkeypatch.setattr(pd, "read_excel", no_xlrd)
+    f = tmp_path / "old.xls"
+    f.write_bytes(b"x")
+    with pytest.raises(SystemExit, match="xlsx"):
+        do.load(f)
+
+
+def test_records_after_a_terminal_status_set_the_loan_aside():
+    rows = [dict(loan_id="L1", month_end=m, dpd=d, status=s) for m, d, s in
+            (("2024-01-31", 0, "OPEN"), ("2024-02-29", 0, "CO"), ("2024-03-31", 0, "OPEN"), ("2024-04-30", 0, "OPEN"))]
+    rows += [dict(loan_id="L2", month_end=m, dpd=0, status="OPEN") for m in ("2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30")]
+    sheets, used, excl = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd", status_col="status"), pd.Timestamp("2024-04-30"))
+    assert used == 3                                           # L2's three transitions only
+    ex = sheets["Excluded"]
+    assert set(ex["loan_id"]) == {"L1"} and "after" in ex["exclusion_reason"].iloc[0] and excl == 4

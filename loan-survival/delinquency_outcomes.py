@@ -41,7 +41,12 @@ VERSION = "1.0"
 
 
 def load(p: Path) -> pd.DataFrame:
-    return pd.read_excel(p) if p.suffix.lower() in (".xlsx", ".xlsm", ".xls") else pd.read_csv(p)
+    if p.suffix.lower() in (".xlsx", ".xlsm", ".xls"):
+        try:
+            return pd.read_excel(p)
+        except ImportError as e:  # an old .xls needs the extra xlrd package
+            sys.exit(f"This Excel file needs a reader that is not installed ({e}). Open it in Excel and save as .xlsx or .csv, then try again.")
+    return pd.read_csv(p)
 
 
 def months_between(start: pd.Series, end: pd.Series) -> pd.Series:
@@ -222,6 +227,12 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     twice_rows = twice_rows.drop(columns=["ym", "state"])
     df = df[~df[a.id_col].isin(df.loc[twice, a.id_col])]
     df = df.sort_values([a.id_col, "ym"])
+    # a loan cannot have records after it was charged off or paid off; set the whole loan aside rather than let impossible transitions in
+    first_terminal = df[df["state"].isin(["Charged off", "Paid off"])].groupby(a.id_col)["ym"].min()
+    after_terminal = df["ym"] > df[a.id_col].map(first_terminal)
+    after_rows = df[df[a.id_col].isin(df.loc[after_terminal, a.id_col])].drop(columns=["ym", "state"]).copy()
+    after_rows.insert(0, "exclusion_reason", "the loan has records after it was charged off or paid off")
+    df = df[~df[a.id_col].isin(df.loc[after_terminal, a.id_col])]
 
     nxt = df.groupby(a.id_col)[["ym", "state"]].shift(-1)
     df["next_state"] = np.where(nxt["ym"] == df["ym"] + 1, nxt["state"], None)
@@ -254,6 +265,9 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     if len(unplaced):
         print(f"\n{len(unplaced):,} row(s) left out because a loan has a month_end that is blank or not a date (see Excluded).")
     unplaced = pd.concat([unplaced, twice_rows], ignore_index=True) if len(twice_rows) else unplaced
+    if len(after_rows):
+        print(f"\n{len(after_rows):,} row(s) left out because a loan has records after it was charged off or paid off (see Excluded).")
+        unplaced = pd.concat([unplaced, after_rows], ignore_index=True)
     if len(gap_rows):
         print(f"\n{len(gap_rows):,} row(s) left out because the loan has no record for the next month but comes back later (see Excluded).")
         unplaced = pd.concat([unplaced, gap_rows], ignore_index=True)

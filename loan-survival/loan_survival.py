@@ -594,6 +594,8 @@ def model_terms(df: pd.DataFrame, spec: str):
             lab = col
         else:
             lab = f"{col} (per {abs(scale):g} {'lower' if scale < 0 else 'higher'})"
+        if lab in cols:
+            raise UserError(f"Two model factors would have the same name in the output ('{lab}'). Rename one of the columns.")
         cols[lab] = v
         labels.append(lab)
     return pd.DataFrame(cols, index=df.index), labels
