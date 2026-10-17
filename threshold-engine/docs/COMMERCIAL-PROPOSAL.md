@@ -501,9 +501,9 @@ segments, every column stated, refused when not whole, no identifiers):
 Each question can be answered in one line. Each recommendation is mine.
 
 **Answered 17 Oct, on the docket form** (a page with an answer box per question; the answers were read back from it):
-- **Agreed with the recommendation:** questions 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16 and 17.
+- **Agreed with the recommendation:** every open question, 0 to 17 (13 was answered on 16 Oct).
 - **On question 0 the firm added:** *"ok fine but it means 2 agents are working on the same project"*. Two sessions now build in threshold-engine, the consumer one and this one, so the commercial work goes in through pull requests against `threshold-engine-book` and reads LOG.md first.
-- **Question 4 is still open:** *"need a visual example"* (median against the dollar-weighted total).
+- **Question 4, after a visual example:** the firm asked for one (*"need a visual example"*), saw the median against the dollar-weighted total for multifamily and C&I, and agreed: peer lines rest on the median, with the total beside it.
 
 **Answered earlier.** Question 13, by the firm on 16 Oct 2026: *"Definitely
 mark reporting changes."* This came after a discussion of why banks' C&I
@@ -527,7 +527,7 @@ classified by collateral and borrower, with judgement at the edges.
 | 1 | Start with four segments (C&I, nonfarm nonres split owner-occupied and other, multifamily, construction)? | 8 rated rows; farmland, agricultural loans and leases later | Name the others to add; each is a field list away | **Yes**; **answered 17 Oct: agreed** |
 | 2 | Rate CRE net charge-offs on lines set from the industry's 1991–2026 history? | KeyBank and peers rated on industry lines; the pull goes back to 1991Q1 | Leave CRE charge-offs shown and unrated | **Yes**; **answered 17 Oct: agreed** |
 | 3 | Lead CRE with the nonaccrual rate rather than net charge-offs? | Nonaccrual is the first CRE row on Decide | Charge-offs first, nonaccrual second | **Yes**; **answered 17 Oct: agreed** |
-| 4 | Rest peer lines on the median, with the dollar composite beside it? | Each bank counted once | The big five set peer lines | **Yes**; **open: the firm asked for a visual example (17 Oct)** |
+| 4 | Rest peer lines on the median, with the dollar composite beside it? | Each bank counted once | The big five set peer lines | **Yes**; **answered 17 Oct: agreed**, after the firm asked for and saw a visual example (median against total for multifamily and C&I, and each bank's share of peer C&I) |
 | 5 | Keep the same 15 peers for commercial? | One roster; Citi, Capital One and First Citizens labeled as weak comparators | A commercial roster by book mix, to be chosen and checked | **Yes, for v1**; **answered 17 Oct: agreed** |
 | 6 | Pull commercial history from 1991Q1, not 2006Q1 as for consumer? | The early-1990s CRE losses are in it; splits still start 2007Q1 | 2006 on, like consumer; CRE High rests on 2009–10 alone | **Yes**; **answered 17 Oct: agreed** |
 | 7 | Rate criticized and classified on internal history only, and show peers' figures as context? | No peer lines for criticized | Peer lines from mixed definitions (3 shapes across 15) | **Yes**; **answered 17 Oct: agreed** |
