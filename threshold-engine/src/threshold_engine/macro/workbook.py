@@ -133,8 +133,6 @@ def build(out, result, pull, whatif=None):
     the same pull; with it the workbook gains the What if tab, a column for it
     on Ratings and States, and dashed lines on every chart it applies to."""
     from openpyxl import Workbook
-    from openpyxl.cell.rich_text import CellRichText, TextBlock
-    from openpyxl.cell.text import InlineFont
     from openpyxl.chart import AreaChart, BarChart, LineChart, Reference
     from openpyxl.chart.label import DataLabelList
     from openpyxl.chart.legend import Legend
@@ -218,12 +216,19 @@ def build(out, result, pull, whatif=None):
             c = ws.cell(1, col)
             c.fill = K.solid(fill)
             c.border = Border(bottom=side("thick", rule))
-        c = ws.cell(1, 2)
-        c.value = CellRichText(TextBlock(InlineFont(rFont="Arial", b=True, sz=16, color=K.PAPER), title),
-                               TextBlock(InlineFont(rFont="Arial", sz=10, color=K.MIST if record else K.STONE),
-                                         "      " + sub))
+        c = ws.cell(1, 2, title)
         c.font = Font(name="Arial", bold=True, size=16, color=K.PAPER)
         c.alignment = MIDDLE
+        # The subtitle is its own cell, in the first column past the title (Arial 16 bold runs about 1.9 width
+        # units a character), as PocketBook writes it. Not rich text in one cell: no workbook the firm opens in
+        # Excel uses that, and the firm's Excel refused this one (17 Oct 2026).
+        need, col, used = len(title) * 1.9 + 3, 2, 0
+        while used < need and col < last:
+            used += ws.column_dimensions[L(col)].width or 9
+            col += 1
+        s_ = ws.cell(1, col, sub)
+        s_.font = Font(name="Arial", size=10, color=K.MIST if record else K.STONE)
+        s_.alignment = MIDDLE
         ws.row_dimensions[1].height = 30
         ws.sheet_properties.tabColor = K.STONE if record else K.INK
 
@@ -813,8 +818,11 @@ def build(out, result, pull, whatif=None):
         pt.dLbls.txPr = text(9, K.INK_TEXT, True)
         area.x_axis = years_axis([ws.cell(first, 14).value.isoformat(), ws.cell(last, 14).value.isoformat()],
                                  frequency)
-        for chart_ in (line, latest) + ((dashed,) if dashed else ()):
+        for chart_ in (area, line, latest) + ((dashed,) if dashed else ()):
             chart_.x_axis = area.x_axis           # one axis for every layer, or the lines drift off the bands
+            # and the value axis crosses that axis: left at its default (10, an axis this chart does not have),
+            # Excel refused the whole file (17 Oct 2026); LibreOffice drew it anyway
+            chart_.y_axis.crossAx = area.x_axis.axId
         ax = area.y_axis
         ax.delete = False
         ax.majorGridlines = None
@@ -1063,6 +1071,7 @@ def build(out, result, pull, whatif=None):
                 s_.marker.symbol = "none"
                 s_.smooth = False
             sc.x_axis = years_axis(dates, "monthly")
+            sc.y_axis.crossAx = sc.x_axis.axId
             sc.y_axis.delete = False
             sc.y_axis.majorGridlines = None
             sc.y_axis.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))

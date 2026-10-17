@@ -550,3 +550,30 @@ What if column on Ratings and States now says whose horizon a moved change is.
 
 Two tests fail with the old labels put back. The example's printout is unchanged, since both its settings
 count over 12 months. The macro suite is now 94.
+
+**Excel refused the example (the firm, 17 Oct 2026).** Opening `economic-conditions-what-if-2026-10-17.xlsx`,
+Excel said it found a problem with some content, and after trying to recover: "The file is corrupt and
+cannot be opened."
+
+- **The cause:** every banded chart's value axis crossed axis 10, and the chart had no axis 10. The date
+  axis (500) had replaced the text axis, and the value axis was left at its default. So were the Sahm
+  chart's. The fix had been written about two hours earlier. It sat in the same command as a clean-up the
+  safety check refused, so it never ran, and only the rebuild was run again. Nobody read the file back.
+- **Why nothing caught it:**
+  - LibreOffice drew every chart anyway.
+  - The file passed the ISO/IEC 29500 schemas, since each element is valid on its own.
+  - It also passed Microsoft's Open XML SDK validator (installed for this, .NET 8, `DocumentFormat.OpenXml`
+    3.1). The SDK's only notes are on font element order, and a PocketBook workbook the firm uses in Excel
+    gets the same notes.
+- **The fix:** every layer's value axis crosses the date axis.
+  `test_every_chart_crosses_axes_it_has_so_excel_can_open_it` opens every chart in three workbooks (plain,
+  with a what-if, with the Sahm chart). It fails if an axis names or crosses one the chart does not have,
+  and it does fail with either fix taken out.
+- **Rich text removed:** the tab titles were rich text in one cell. No workbook the firm opens in Excel uses
+  that, so the subtitle is now a cell of its own, as PocketBook writes it. The test also fails on any
+  rich-text cell.
+- **Still unverified in Excel itself:** there is no Excel here. The rebuilt example passes all three
+  checks: the chart test, the ISO schemas (0 errors) and the Open XML SDK (font-order notes only). The firm
+  opening it is the remaining check.
+- **Lesson:** after a refused command, re-read the file before rebuilding from it. A refusal stops the whole
+  command, including the edits in it.

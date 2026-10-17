@@ -333,3 +333,34 @@ def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # 
     assert got["What-if file"][0] == "what-if.json" and got["Settings file"][0] == "settings.json"
     terms = {wb["Glossary"].cell(r, 2).value for r in range(1, wb["Glossary"].max_row + 1)}
     assert {"As you have it", "What if", "Move", "Dashed lines"} <= terms
+
+
+def _holds_together_in_excel(out):
+    """What LibreOffice forgives and Excel does not, as far as it can be checked here: every axis a chart
+    names is one the chart has, every axis crosses one it has, and no cell holds rich-text runs (which no
+    workbook the firm opens in Excel uses; plain strings are inline in every openpyxl file)."""
+    with zipfile.ZipFile(out) as z:
+        charts = 0
+        for n in z.namelist():
+            if n.startswith("xl/charts/chart"):
+                charts += 1
+                x = z.read(n).decode()
+                defined = re.findall(r'<(?:catAx|valAx|dateAx|serAx)><axId val="(\d+)"/>', x)
+                assert defined and len(defined) == len(set(defined)), (n, defined)
+                crosses = set(re.findall(r'<crossAx val="(\d+)"/>', x))
+                named = set(re.findall(r'<axId val="(\d+)"/>', x))
+                assert crosses <= set(defined) and named <= set(defined), (n, defined, crosses)
+            elif n.startswith("xl/worksheets/sheet"):
+                assert b"<is><r>" not in z.read(n), n
+        return charts
+
+
+def test_every_chart_crosses_axes_it_has_so_excel_can_open_it(book, cache, tmp_path):  # noqa: F811
+    # The firm, 17 Oct 2026: Excel said the example "is corrupt and cannot be opened". Every banded chart's
+    # value axis crossed axis 10 after the date axis (500) replaced it; LibreOffice drew them all anyway,
+    # and the file passed the ISO schemas and the Open XML SDK. This is the check that would have failed.
+    assert _holds_together_in_excel(book[0]) > 0
+    out, _, _ = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    assert _holds_together_in_excel(out) > 0
+    shown, _, _ = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)
+    assert _holds_together_in_excel(shown) > 0
