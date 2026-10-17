@@ -329,3 +329,20 @@ def test_standalone_payoff_before_first_90_is_excluded():
     st, df = _payoff_before_90_frame()
     sheets, used, excl = do.loan_mode(df.copy(), _args(), pd.Timestamp("2026-09-30"))
     assert used == 1 and "payoff date before first 90+" in sheets["Excluded"]["exclusion_reason"].iloc[0]
+
+
+# ---- seventh Codex review of PR 445 (reviewed 2bfc980)
+
+def test_text_from_the_source_that_looks_like_a_formula_stays_text_in_the_workbook(tmp_path):
+    import openpyxl
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv", dtype=str)
+    raw.loc[3, "orig_date"] = "=TODAY()"
+    src = tmp_path / "book.csv"
+    raw.to_csv(src, index=False)
+    out = tmp_path / "o.xlsx"
+    ls.run(src, (ROOT / "sample" / "settings_example.ini").read_text(), out)
+    ws = openpyxl.load_workbook(out)["Excluded"]
+    cells = [c for row in ws.iter_rows() for c in row if c.value == "=TODAY()"]
+    assert cells and all(c.data_type == "s" for c in cells)
+    for sheet in openpyxl.load_workbook(out).worksheets:
+        assert not [c for row in sheet.iter_rows() for c in row if c.data_type == "f"], sheet.title

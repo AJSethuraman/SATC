@@ -701,6 +701,11 @@ def write_xlsx(out: Path, sheets: dict, chart_pngs: list[Path]):
             for i, p in enumerate(chart_pngs):
                 ws.add_image(Image(str(p)), f"A{1 + i * 24}")
         for ws in xw.book.worksheets:
+            for row in ws.iter_rows():  # text from the source that starts with '=' must stay text, never become a formula
+                for c in row:
+                    if c.data_type == "f":
+                        c.data_type = "s"
+        for ws in xw.book.worksheets:
             if ws.title == "Charts":
                 continue
             ws.freeze_panes = "A2" if ws.title in ("ReadMe", "RunLog", "BadEvent") else "E2"

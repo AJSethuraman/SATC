@@ -246,6 +246,11 @@ def write(out: Path, sheets: dict, runlog: pd.DataFrame):
         for name, d in {**sheets, "RunLog": runlog}.items():
             (d if len(d.columns) else pd.DataFrame({"note": ["none"]})).to_excel(xw, sheet_name=name, index=False)
         for ws in xw.book.worksheets:
+            for row in ws.iter_rows():  # text from the source that starts with '=' must stay text, never become a formula
+                for c in row:
+                    if c.data_type == "f":
+                        c.data_type = "s"
+        for ws in xw.book.worksheets:
             ws.freeze_panes = "B2"
             for c in ws[1]:
                 c.font = Font(bold=True)
