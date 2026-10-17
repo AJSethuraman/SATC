@@ -3361,13 +3361,13 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
         # the words the tabs use, defined once (docs/statistics.md, conventions; NEXT-GOAL 3.1)
         rows.append(("p-value", live.text("The probability of a gap at least this large if there were no real "
                                           "difference, after the allowance for many tests. A p-value below ",
-                                          ('TEXT(significance_bar,"0%")',), " is significant, at ",
-                                          ('TEXT(confidence,"0%")',), " confidence. Two-sided tests are used, so a "
+                                          (live.BAR_PCT,), " is significant, at ",
+                                          (live.CONF_PCT,), " confidence. Two-sided tests are used, so a "
                                           "gap in either direction counts.")))
         if dollar_rates:
             rows.append(("Borderline", live.text(
                 "A verdict is borderline when the p-value that decides it comes from the shuffle test and is "
-                f"within {stats.BORDERLINE_SE:g} standard errors of the ", ('TEXT(significance_bar,"0%")',),
+                f"within {stats.BORDERLINE_SE:g} standard errors of the ", (live.BAR_PCT,),
                 " threshold, on either side. The standard error is the square root of p (1 - p) / shuffles, "
                 "multiplied by the factor the allowance for many tests applied to the p-value. The tabs add "
                 "\"borderline (p 0.048)\" to the verdict; the verdict's color, order and counts are unchanged. The "
@@ -3375,7 +3375,7 @@ def _record_rows(wb, res, src: Path, record_name: str = "") -> dict[str, list]:
         rows.append(("Standard error", live.text("The typical distance between a rate calculated from this many "
                                                  "loans and its true value. A gap of ",
                                                  ('TEXT(NORMSINV(1-(1-confidence)/2),"0.00")',),
-                                                 " standard errors is the threshold at ", ('TEXT(confidence,"0%")',),
+                                                 " standard errors is the threshold at ", (live.CONF_PCT,),
                                                  " confidence.")))
     if b is not None and b.many_tests != "none":
         rows.append(("The allowance for many tests covers",

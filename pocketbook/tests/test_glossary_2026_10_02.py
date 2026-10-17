@@ -29,10 +29,9 @@ TERMS = ["Booked / Booked $", "Avg line / Line × book", "GCOs ($)", "RANR", "RA
          "Worse and material", "Worse? (Yes / Not sure / Too few losses / No)", "Material? / Material at",
          "Show (All / Worse and material / Worse or not sure)", "How sure / Significant at N%?",
          "Significant at N%? (Yes / Borderline / No)", "Borderline",
-         "Too few losses to test / Too few loans to test / Nothing to compare with",
+         "Too few losses to test / Nothing to compare with / Not losing more",
          "Shuffle test / p-value", "Fewest loans in a pocket", "Worse at / Better at",
          "Profit line (How far profit must move before it counts as more or less)",
-         "Not losing more / Under the Worse at line / Within the profit line",
          "Holds (column) fixed? / Mixed with (column)", "Could have caught", "Together", "Priced for it",
          "Net drain", "Strong", "Safe but idle", "Earns less, not from losses", "Losing more, profit holding",
          "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off",
@@ -151,7 +150,8 @@ def test_glossary_ranr_and_gco_examples_tie_to_the_extract(books):
     assert f"This book booked ${want['booked']:,.0f} over" in rows["Booked / Booked $"][1]
     note = [c.value for row in books["run"][glossary.SHEET].iter_rows(max_col=3) for c in row]
     assert any(isinstance(v, str)
-               and v.startswith("The examples use this book's figures for the whole book, from the last Run")
+               and v.startswith("Examples naming this book, the last Run or one of its pockets use this book's figures "
+                                "from the last Run")
                for v in note)
 
 

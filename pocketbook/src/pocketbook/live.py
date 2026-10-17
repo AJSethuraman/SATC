@@ -569,84 +569,98 @@ def said_formula(word: str, ptext: str) -> str:
 #: Significant at N%? (the firm, 17 Oct 2026, replacing How often by chance of 5 Oct 2026: "i don't like how often by
 #: chance or could be chance as much as luck at this point. or another sort of standard term, i just think could be
 #: chance is too vague for a typical user"; the layout they chose: "Yes (p = 0.09%)", "Borderline (p = 4.8%)",
-#: "No (p = 23%)", "Too few losses to test", "Not losing more"). A pocket that loses more than its comparison gets
-#: Yes, Borderline or No with the p-value that decides, after the allowance for many tests; every other pocket gets
-#: the reason it has no test to read
+#: "No (p = 23%)", "Too few losses to test", "Not losing more"). The column answers its own question and nothing
+#: else (the review of 17 Oct 2026): every pocket with a p-value reads Yes or No by that p-value alone, or Borderline
+#: when a shuffled p-value is within BORDERLINE_SE of its standard errors of the line; whether the pocket is worse is
+#: Worse?'s to say. Only a pocket with no p-value gets a reason instead
 SIG_YES, SIG_BORDER, SIG_NO = "Yes", "Borderline", "No"
 NO_REST = "Nothing to compare with"
-FEW_LOSSES, FEW_LOANS, NOT_MORE = "Too few losses to test", "Too few loans to test", "Not losing more"
-UNDER_WORSE, UNDER_PROFIT = "Under the Worse at line", "Within the profit line"
+FEW_LOSSES, NOT_MORE = "Too few losses to test", "Not losing more"
+#: every reading sig_said can give, for the Glossary's guard: the words, and the three that carry a p-value
+SIG_READINGS = (SIG_YES, SIG_BORDER, SIG_NO, FEW_LOSSES, NO_REST, NOT_MORE)
 #: under this a p-value prints as "p < 0.01%"
 RAREST = 0.0001
+#: the confidence and its line, 1 - confidence, as percentages in _live's words ("95%", "97.5%", "0.1%")
+_PCT = 'IF(ROUND({x}*100,9)=ROUND({x}*100,0),TEXT({x}*100,"0"),TEXT({x}*100,"0.0"))&"%"'
+CONF_PCT = "(" + _PCT.format(x="confidence") + ")"
+BAR_PCT = "(" + _PCT.format(x=BAR) + ")"
 #: the column's heading, the confidence on Control filled in live
 SIG_HEAD = "Significant at {}?"
-SIG_HEAD_FORMULA = '="Significant at "&TEXT(confidence,"0%")&"?"'
+SIG_HEAD_FORMULA = f'="Significant at "&{CONF_PCT}&"?"'
+
+
+def pct_words(x: float) -> str:
+    """A share as _live words it: 0.95 is "95%", 0.975 "97.5%", 0.001 "0.1%"."""
+    return sure_words(x)[:-len(" sure")]
 
 
 def _half_up(v: float, d: int) -> Decimal:
-    """v to d decimals, a half rounded away from zero, as Excel's ROUND and FIXED do."""
-    return Decimal(repr(v)).quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
+    """v to d decimals, a half rounded away from zero, on the binary double itself, as LibreOffice's ROUND and FIXED
+    do: 0.00145 x 100 is 0.144999... in binary, so it is 0.14."""
+    return Decimal(v).quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
 
 
 def p_words(p: float, bar: float) -> str:
     """A p-value as Significant at N%? prints it: two decimals under 1% ("p = 0.09%"), one under 10%
-    ("p = 4.8%"), none from 10% ("p = 23%"), each as it rounds, and "p < 0.01%" under 0.01%. Where that rounds onto the bar (`bar`,
-    1 - confidence) without being it, up to two more decimals, so a p-value of 4.96% never reads as the 5% it is
-    under."""
+    ("p = 4.8%"), none from 10% ("p = 23%"), each as it rounds, and "p < 0.01%" under 0.01%. A p-value that rounds
+    onto the line (`bar`, 1 - confidence) without being it takes up to two more decimals ("p = 4.98%"), and one
+    still on it then says which side it is ("p < 10%"), so a p-value is never printed as the line it is under."""
     if p < RAREST:
         return "p < 0.01%"
     v, line = p * 100, bar * 100
     d = 2 if _half_up(v, 2) < 1 else 1 if _half_up(v, 1) < 10 else 0
-    for _ in range(2):
-        if p != bar and _half_up(v, d) == _half_up(line, d):
-            d += 1
+    if p != bar:
+        for _ in range(2):
+            if _half_up(v, d) == _half_up(line, d):
+                d += 1
+        if _half_up(v, d) == _half_up(line, d):
+            return f"p {'<' if p < bar else '>'} {pct_words(bar)}"
     return f"p = {_half_up(v, d)}%"
 
 
 def p_words_formula(p: str) -> str:
-    """p_words as a formula, against the live bar."""
+    """p_words as a formula, against the live line."""
     d = f"IF(ROUND({p}*100,2)<1,2,IF(ROUND({p}*100,1)<10,1,0))"
     on = lambda k: f"ROUND({p}*100,{d}+{k})=ROUND({BAR}*100,{d}+{k})"          # noqa: E731
     more = f"IF({p}={BAR},0,IF({on(0)},IF({on(1)},2,1),0))"
-    return f'IF({p}<{RAREST!r},"p < 0.01%","p = "&FIXED({p}*100,{d}+{more},TRUE)&"%")'
+    still = f"AND({p}<>{BAR},{on(0)},{on(1)},{on(2)})"
+    return (f'IF({p}<{RAREST!r},"p < 0.01%",IF({still},IF({p}<{BAR},"p < ","p > ")&{BAR_PCT},'
+            f'"p = "&FIXED({p}*100,{d}+{more},TRUE)&"%"))')
 
 
-def sig_with_p(word: str, p: float | None, bar: float) -> str:
-    """ "Yes (p = 0.09%)": a reading with the p-value that decides it, or the word alone with no p-value."""
-    return f"{word} ({p_words(p, bar)})" if p is not None else word
+def sig_with_p(word: str, p: float, bar: float) -> str:
+    """ "Yes (p = 0.09%)": a reading with the p-value that decides it."""
+    return f"{word} ({p_words(p, bar)})"
 
 
-def sig_said(word: str | None, gap: float | None, p: float | None, border: str | None, profit: bool, bar: float,
-             profit_kind: str = "test") -> str:
-    """Significant at N%?, in Python: the reading (engine's word), the gap that decides (a multiple, or points
-    for profit), the p-value that decides, Worse?'s borderline words and the bar (1 - confidence)."""
-    if word in (engine.FEW, engine.THIN):
-        return FEW_LOSSES if word == engine.FEW else FEW_LOANS
+def sig_said(word: str | None, gap: float | None, p: float | None, near: bool, profit: bool, bar: float) -> str:
+    """Significant at N%?, in Python: from the engine's word, the gap that decides (a multiple, or points for
+    profit), the p-value that decides, whether that p-value is a shuffled one within BORDERLINE_SE of its standard
+    errors of the line (`near`), and the line (1 - confidence). Yes when the p-value is under the line, No when it is
+    not, Borderline when it is that near. A pocket without a p-value: too few losses to test, nothing to compare
+    with, or, losing no more than the rest, not losing more."""
+    if word == engine.FEW:
+        return FEW_LOSSES
     if gap is None:
         return NO_REST
-    if border:
+    if p is None:
+        # on Pockets every rate with a comparison is tested unless it has too few losses (engine.FEW); the median
+        # comparison's engine.THIN never reaches the tab. Kept for a rate whose test was not run
+        more = gap < 0 if profit else gap > 1
+        return FEW_LOSSES if more else NOT_MORE
+    if near:
         return sig_with_p(SIG_BORDER, p, bar)
-    if word == engine.WORSE:
-        return sig_with_p(SIG_YES, p, bar)
-    if word == engine.UNSURE_WORSE:
-        return sig_with_p(SIG_NO, p, bar)
-    more = gap < 0 if profit else gap > 1
-    if word == engine.IN_LINE and more:
-        if profit and profit_kind == "test":
-            return sig_with_p(SIG_NO, p, bar)
-        return UNDER_PROFIT if profit else UNDER_WORSE
-    return NOT_MORE
+    return sig_with_p(SIG_YES if p < bar else SIG_NO, p, bar)
 
 
-def sig_words(f: str, gap: str, p: str, wbtxt: str, profit: bool) -> str:
-    """sig_said as a formula, from _pockets' flag, gap, p-value and Worse?'s borderline words."""
+def sig_words(f: str, gap: str, p: str, se: str, profit: bool) -> str:
+    """sig_said as a formula, from _pockets' flag, gap, p-value and that p-value's shuffle standard error."""
     more = f"{gap}<0" if profit else f"{gap}>1"
-    with_p = lambda w: f'IF(ISNUMBER({p}),{q(w + " (")}&{p_words_formula(p)}&")",{q(w)})'     # noqa: E731
-    under = (f'IF(profit_kind="test",{with_p(SIG_NO)},{q(UNDER_PROFIT)})' if profit else q(UNDER_WORSE))
-    return (f'IF({f}={q(engine.FEW)},{q(FEW_LOSSES)},IF({f}={q(engine.THIN)},{q(FEW_LOANS)},'
-            f'IF({gap}="",{q(NO_REST)},IF({wbtxt}<>"",{with_p(SIG_BORDER)},'
-            f'IF({f}={q(engine.WORSE)},{with_p(SIG_YES)},IF({f}={q(engine.UNSURE_WORSE)},{with_p(SIG_NO)},'
-            f'IF(AND({f}={q(engine.IN_LINE)},{more}),{under},{q(NOT_MORE)})))))))')
+    near = f"IF(ISNUMBER({se}),ABS({p}-{BAR})<={stats.BORDERLINE_SE!r}*{se},FALSE)"   # AND would read both
+    with_p = lambda w: f'{q(w + " (")}&{p_words_formula(p)}&")"'                  # noqa: E731
+    return (f'IF({f}={q(engine.FEW)},{q(FEW_LOSSES)},IF({gap}="",{q(NO_REST)},'
+            f'IF(NOT(ISNUMBER({p})),IF({more},{q(FEW_LOSSES)},{q(NOT_MORE)}),'
+            f'IF({near},{with_p(SIG_BORDER)},IF({sig(p)},{with_p(SIG_YES)},{with_p(SIG_NO)})))))')
 
 
 def base_word(cell: str) -> str:
@@ -758,8 +772,8 @@ def _write_pockets(wb, res, lv: Live) -> None:
                         ws.cell(row=r, column=cc, value="=" + border_text(R(P_FLAG), R(P_GAP), R(P_P), se,
                                                                            m.in_points, only))
                     ws.cell(row=r, column=P_WORSE_SAID, value="=" + said_formula(R(P_WORSE), R(P_WBTXT)))
-                    ws.cell(row=r, column=P_SIG, value="=" + sig_words(R(P_FLAG), R(P_GAP), R(P_P),
-                                                                          R(P_WBTXT), m.in_points))
+                    ws.cell(row=r, column=P_SIG, value="=" + sig_words(R(P_FLAG), R(P_GAP), R(P_P), se,
+                                                                          m.in_points))
                     ws.cell(row=r, column=P_MAT, value=(
                         f'=IF({R(P_MATERIAL)}="yes",{q(YES)},IF({R(P_MATERIAL)}="","",{q(NO)}))'))
                     lv.rows[(kind, id(g), bl, dl, m.name)] = r

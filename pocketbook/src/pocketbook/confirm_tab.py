@@ -185,8 +185,8 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
     how = confirmatory.allowance(res)
     after = "" if how == "none" else ", after the allowance for testing many at once (below)"
     out.append(("p-value", live.text("The probability of a gap at least this large if the group were no different "
-                                     f"from {ref}{after}. A p-value below ", ('TEXT(significance_bar,"0%")',),
-                                     " is significant, at ", ('TEXT(confidence,"0%")',),
+                                     f"from {ref}{after}. A p-value below ", (live.BAR_PCT,),
+                                     " is significant, at ", (live.CONF_PCT,),
                                      " confidence. The test is two-sided, so a gap in either direction counts.")))
     out.append(("Many at once", confirmatory.allowance_words(res, tests)))
     out.append(("Holds up?", "Yes when the gap on the held-back loans is significant and on the same side of 1 as on "
@@ -233,7 +233,7 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
                                      f"a whole rather than pocket by pocket, with the lift: the group's bad rate "
                                      f"divided by the holdout's."))
     gaps = [s.mh_gap for x in tests for s in (x.development, x.holdout) if s.mh_gap is not None]
-    out.append(("The range", live.text("The ", ('TEXT(confidence,"0%")',), " confidence interval for the odds "
+    out.append(("The range", live.text("The ", (live.CONF_PCT,), " confidence interval for the odds "
                                        "ratio: the log odds ratio plus and minus the confidence level's critical "
                                        "value times its standard error. It is each group's own interval, before the "
                                        "allowance."
@@ -353,7 +353,7 @@ def _together(ws, res, st, r: int, helper_rows: list) -> tuple[int, int | None]:
         r = _line(ws, r, "Not fitted", f"The candidates couldn't be fitted together: {j.problem}.")
         return r + 1, None
     raw = j.allowance == "none"
-    rng_head = live.text("Range (", ('TEXT(confidence,"0%")',), " sure)")
+    rng_head = live.text("Range (", (live.CONF_PCT,), " sure)")
     heads = list(JOINT_HEADS)
     heads[J_RANGE - FIRST] = rng_head
     heads[J_PADD - FIRST] = "Adds: p-value" if raw else "Adds: p, allowed"
@@ -729,7 +729,7 @@ def _matters(ws, t, views, r: int) -> int:
         f = (f'=IF(AND({live.sig(g)},{live.sig(tr)}),{_q(f"{lead} the bad rate differs across the groups, and {way} steadily as {t.column} rises.")},'
              f'IF({live.sig(g)},{_q(f"{lead} the bad rate differs across the groups, but not in one direction: higher in some groups, lower in others.")},'
              f'IF({live.sig(tr)},{_q(f"{lead} the groups taken all at once do not differ significantly, but the bad rate {way} steadily as {t.column} rises (the trend test).")},'
-             f'{_q(f"{lead} no difference across the groups is significant at ")}&TEXT(confidence,"0%")&{_q(" confidence.")})))')
+             f'{_q(f"{lead} no difference across the groups is significant at ")}&{live.CONF_PCT}&{_q(" confidence.")})))')
         r = _line(ws, r, "What it found", _empty(side, lead) or f, chars=150)
         r += 1
     return r
@@ -742,7 +742,7 @@ def _odds(ws, t, views, r: int, helper_rows: list) -> int:
     K = len(t.groups)
     _cell(ws, r, FIRST, f"How much more often does each group go bad than {ref}?", bold=True, h="left", size=11)
     r += 1
-    rng_head = live.text("Range (", ('TEXT(confidence,"0%")',), " sure)")
+    rng_head = live.text("Range (", (live.CONF_PCT,), " sure)")
     held = _held_words(t.strata)
     heads = [f"Group of {t.column}", None, None, None, "Loans", "Bad loans", "Bad rate", "Odds ratio", "p-value",
              rng_head]
@@ -805,7 +805,7 @@ def _odds(ws, t, views, r: int, helper_rows: list) -> int:
                 pieces.append(f'IF({live.sig(p)},{said}&{rng},"")')
             h = _helper(ws, r, "&".join(pieces) if pieces else '""')
             tail = ", with the pockets held fixed." if which == "held" else "."
-            f = (f'=IF({h}="",{_q(f"{lead_} no group differs from {ref} at ")}&TEXT(confidence,"0%")&'
+            f = (f'=IF({h}="",{_q(f"{lead_} no group differs from {ref} at ")}&{live.CONF_PCT}&'
                  f'{_q(" sure" + tail)},{_q(lead_ + " ")}&MID({h},3,2000)&{_q(tail)})')
             src = plain if which == "plain" else side
             r = _line(ws, r, "What it found", _empty(src, lead_) or f, chars=60 + 80 * (K - 1))

@@ -771,7 +771,7 @@ def test_a_pocket_under_fewest_loans_is_tested_and_says_how(tmp_path):
     assert "Test" not in tabs.heads(ws, tabs.header_row(ws, results.K_NUM, "#"))
     rows = [x for x in tabs.pockets(ws) if x["worse"] != live.TOO_FEW]
     small, big = [x for x in rows if x["loans"] < 230], [x for x in rows if x["loans"] >= 230]
-    assert small and all(x["chance"] not in (None, live.FEW_LOSSES, live.FEW_LOANS) for x in small) and big
+    assert small and all(x["chance"] not in (None, live.FEW_LOSSES) for x in small) and big
     tests = {(r[live.P_LOANS - 1] < 230): r[live.P_TEST_BOOK - 1]
              for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST, values_only=True)
              if r[live.P_MEASURE - 1] == "outcome_loans" and r[live.P_TEST_BOOK - 1]}

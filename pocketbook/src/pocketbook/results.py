@@ -366,7 +366,7 @@ def _fit(ws) -> None:
 #: parts: said at the end of the note's p-value item (Together's, on RANR vs GCOs), so no row of the tab moves.
 #: Only a run with a dollar rate says it: nothing else is shuffled, so nothing else can be borderline
 BORDER_WORDS = (f" Borderline: the shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard errors of the ",
-                ('TEXT(significance_bar,"0%")',), " threshold, on either side.")
+                (live.BAR_PCT,), " threshold, on either side.")
 
 
 def _allowance(b) -> str:
@@ -518,23 +518,25 @@ def _pockets_note(res) -> list[tuple[str, str]]:
         ("Worse?", live.text(
             "Yes: at least ", ('TEXT(worse_at,"0.00")',), "x the rest",
             " (for RANR and RANR + GCOs, short of it" + (" by the profit line on Control)" if profit else ")")
-            if profit else "", ", with a p-value under ", ('TEXT(significance_bar,"0%")',),
+            if profit else "", ", with a p-value under ", (live.BAR_PCT,),
             ". Not sure: the gap is there, but the p-value isn't under it. Too few losses: fewer than ",
-            f"{b.min_events:,} (a setting for the next Run), so not tested. No: anything else.")),
+            f"{b.min_events:,} (a setting for the next Run), so not tested. No: anything else, such as a pocket "
+            f"under the Worse at line or one not losing more.")),
         (SIG_HEAD, live.text(
-            "For a pocket that loses more than the rest, whether the gap is significant at the confidence set in "
-            "How sure on Control: Yes when the p-value is under ", ('TEXT(significance_bar,"0%")',),
-            ", No when it is not, each with its p-value. "
-            f"The p-value allows for testing many pockets at once ({_allowance(b)}, across one grid and one "
-            f"measure), so the pocket's raw p-value is smaller still. Bad loans use the z test, or the exact test for "
-            f"a pocket under {b.min_units:,} loans."
+            "This column says whether each pocket's gap against the rest is significant at the confidence set in How "
+            "sure on Control. "
+            "Yes means its p-value is under ", (live.BAR_PCT,), ", and No that it is not; each shows the p-value. "
+            + ("Control sets no allowance for testing many pockets at once, so each p-value is the pocket's own."
+               if b.many_tests == "none" else
+               f"The p-value allows for testing many pockets at once ({_allowance(b)}, across one grid and one "
+               f"measure), so the pocket's raw p-value is no larger.")
+            + f" Bad loans use the z test, or the exact test for a pocket under {b.min_units:,} loans."
             + (f" For the dollar measures, the loans are shuffled {b.shuffles:,} times (within the band when the "
                f"comparison is the rest of its band), and the p-value is the share of shuffles with a gap at least "
-               f"as large. Borderline: the shuffled p-value is within {stats.BORDERLINE_SE:g} standard errors of "
-               f"the threshold, on either side." if dollar_rates else ""),
-            f" Every other pocket shows why there is no test to read: {live.FEW_LOSSES} or {live.FEW_LOANS}; "
-            f"{live.NO_REST} (the rest has no losses); {live.UNDER_WORSE}"
-            + (f" or {live.UNDER_PROFIT}" if profit else "") + f"; {live.NOT_MORE}"
+               f"as large. Borderline means the shuffled p-value is within {stats.BORDERLINE_SE:g} standard errors "
+               f"of the threshold, on either side." if dollar_rates else ""),
+            f" A pocket with no p-value shows why: {live.FEW_LOSSES}; {live.NO_REST} (the rest has no losses); "
+            f"{live.NOT_MORE} (no test was run, and it loses no more than the rest)"
             + (f"; {MIXED}{pt[0]} (see Holds {pt[0]} fixed?)" if sf and pt else "") + ".")),
         ("Material?", "Yes when the excess reaches the materiality line on Control (the Material at tile, in the "
                       "measure's own unit). It is assessed separately from Worse?, so a pocket can be material "
@@ -557,11 +559,11 @@ def _pockets_note(res) -> list[tuple[str, str]]:
 
 #: Pockets' p-value column (the firm, 17 Oct 2026: "i don't like how often by chance or could be chance as much as
 #: luck at this point. or another sort of standard term"; it was How often by chance, "1 in X", from 5 Oct 2026):
-#: Yes, Borderline or No with the p-value, else the reason there is no test to read (live.sig_said). The heading
+#: Yes, Borderline or No by the p-value alone, else the reason there is no p-value (live.sig_said). The heading
 #: follows How sure on Control live: SIG_HEAD is the formula, live.SIG_HEAD the words it makes
 SIG_HEAD = live.SIG_HEAD_FORMULA
 #: the widest reading it prints with a p-value, for its width
-SIG_WIDEST = f"{live.SIG_BORDER} (p = 0.375%)"
+SIG_WIDEST = f"{live.SIG_BORDER} (p = 0.0996%)"            # at 99.9% sure, a p-value just under the 0.1% line
 #: a split pocket whose grid doesn't hold the partner fixed: the gap may be the partner's, so no number
 MIXED = "Mixed with "
 
@@ -614,8 +616,8 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
               K_LOANS: 9, K_THIS: 11, K_REST: 12, K_GAP: 14, K_EX: 22,
               # the widest word Worse? can print: borderline is said in Significant at N%? (17 Oct 2026)
               K_WORSE: house.fit([live.TOO_FEW, "Worse?"], floor=11, cap=36),
-              K_P: house.fit([live.SIG_HEAD.format("95%"), live.FEW_LOSSES, live.NO_REST, SIG_WIDEST,
-                              live.UNDER_WORSE] + ([MIXED + pt[0]] if pt else []), floor=11, cap=36),
+              K_P: house.fit([live.SIG_HEAD.format("97.5%"), live.FEW_LOSSES, live.NO_REST, SIG_WIDEST,
+                              live.NOT_MORE] + ([MIXED + pt[0]] if pt else []), floor=11, cap=36),
               K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
               K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
                                  floor=12, cap=LABELS_CAP, pad=3)}
@@ -1013,7 +1015,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
         ("Shading", live.text(
             "Pink: worse and significant. Green: better and significant. No shading: the gap is not significant (the "
             "p-value is not under ",
-            ('TEXT(significance_bar,"0%")',), "), or the pocket has too few losses to test. GCOs count at ",
+            (live.BAR_PCT,), "), or the pocket has too few losses to test. GCOs count at ",
             ('TEXT(worse_at,"0.00")',), "x or ", ('TEXT(better_at,"0.00")',), "x; RANR and RANR + GCOs ",
             ('IF(profit_kind="test","when the pocket\'s own test finds the gap significant",IF(profit_kind="points","at "&TEXT(profit_line*100,'
              '"0.00")&" points either way","at a gap of $"&TEXT(profit_line,"#,##0")))',), ".")),
@@ -2658,7 +2660,7 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
                              "RANR is 0.30 points higher as a share of its booked dollars." if profit else "")),
         ("Value vs rest, all", live.text(
             "The value's actual total compared with its total at the rest's rates, summed over every pocket, with "
-            "its range at ", ('TEXT(confidence,"0%")',), " confidence. For Bad loans only, the odds ratios are also "
+            "its range at ", (live.CONF_PCT,), " confidence. For Bad loans only, the odds ratios are also "
             "pooled (Mantel-Haenszel) and given a p-value (Cochran-Mantel-Haenszel). Cochran's Q tests whether the "
             "gap is the same size in every pocket.")),
         ("Do the values differ?", "For Bad loans, one test of every value at once, pooled over the grid's pockets "
@@ -2670,7 +2672,7 @@ def _value_note(res, sf: str, b, dollar_rates: bool, profit: bool) -> list[tuple
                                   "rate."),
         ("p-value", live.text(
             "The probability of a gap at least this large if the value were no different from the rest. A p-value "
-            "under ", ('TEXT(significance_bar,"0%")',), " is significant and shown in bold. Bad loans use the gap "
+            "under ", (live.BAR_PCT,), " is significant and shown in bold. Bad loans use the gap "
             "in standard errors"
             + (f"; a dollar measure reshuffles the loans at random within their pocket {b.shuffles:,} times"
                if dollar_rates else "")
@@ -2805,13 +2807,13 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                            "RANR is 0.30 points higher as a share of its booked dollars." if profit else "")),
         ("High vs low, all", live.text(
             "The high halves' actual total compared with their total at the low halves' rates, summed over every "
-            "pocket, with its range at ", ('TEXT(confidence,"0%")',), " confidence. For Bad loans only, the odds "
+            "pocket, with its range at ", (live.CONF_PCT,), " confidence. For Bad loans only, the odds "
             "ratios are also pooled (Mantel-Haenszel, a standard way to combine pockets without mixing their "
             "loans) and given a p-value (Cochran-Mantel-Haenszel). Cochran's Q tests whether the gap is the same "
             "size in every pocket.")),
         ("p-value", live.text(
             "The probability of a gap at least this large if the two halves were no different. A p-value under ",
-            ('TEXT(significance_bar,"0%")',), " is significant and shown in bold. Bad loans use the gap in standard "
+            (live.BAR_PCT,), " is significant and shown in bold. Bad loans use the gap in standard "
             "errors"
             + (f"; a dollar measure reassigns the loans to the two halves at random within their pocket "
                f"{b.shuffles:,} times" if dollar_rates else "")
@@ -2892,7 +2894,7 @@ def write_split(wb, res, choices: Choices, views: Views, stamp: str) -> None:
     z = "NORMSINV(1-(1-confidence)/2)"
     house.header(ws, h, 2, ["Measure", "Pockets", "Worse than the rest in" if by_value else "High half worse in",
                             "Value vs rest, all" if by_value else "High vs low, all",
-                            f'="Range ("&TEXT(confidence,"0%")&" sure)"', "p-value", "As odds", "p-value, as odds"],
+                            f'="Range ("&{live.CONF_PCT}&" sure)"', "p-value", "As odds", "p-value, as odds"],
                  centre_from=1)
     # S1: the summary's headings wrap, to the lines the longest needs at its column's width
     for c in range(2, 10):

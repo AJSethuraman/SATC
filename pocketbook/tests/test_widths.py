@@ -313,8 +313,10 @@ def test_worse_and_together_fit_the_borderline_flag(runs, kind):
     fits the widest it can print."""
     from pocketbook import live, stats
     wb = runs[kind]["wb"]
-    widest = max(len(w) for w in (live.sig_with_p(live.SIG_BORDER, 0.0375, 0.05), live.FEW_LOSSES, live.NO_REST,
-                                  live.UNDER_WORSE, live.sig_with_p(live.SIG_NO, 0.0037, 0.05)))
+    # the widest at 99.9% sure: a p-value just under the 0.1% line takes two more decimals (the review, 17 Oct 2026)
+    widest = max(len(w) for w in (live.sig_with_p(live.SIG_BORDER, 0.000996, 0.001), live.FEW_LOSSES, live.NO_REST,
+                                  live.NOT_MORE, live.sig_with_p(live.SIG_NO, 0.0037, 0.05)))
+    assert widest == len("Borderline (p = 0.0996%)") == len(results.SIG_WIDEST)
     assert _width(wb[results.POCKETS], results.K_P) >= widest
     assert _width(wb[results.POCKETS], results.K_WORSE) >= len(live.TOO_FEW)
     longest = max(len(f"{t} · {stats.borderline_words(0.048, 0.95)}") for t in results.TOGETHER.values())

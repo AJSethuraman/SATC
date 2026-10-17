@@ -60,13 +60,16 @@ def sig_book(tmp_path_factory):
     return {"b": out.book, "res": got["res"], "adjust": got["adjust"], "calc": calculated_book(out.book), "dir": d}
 
 
-def _with_confidence(src, out, label: str):
-    """A copy of the workbook with How sure on Control set to `label` ("99%")."""
+def _with_confidence(src, out, label: str | None = None, own: float | None = None):
+    """A copy of the workbook with How sure on Control set to `label` ("99%"), or typed under Or your own."""
     shutil.copy(src, out)
     wb = load_workbook(out)
     for r in wb[control.SHEET].iter_rows(min_row=control.FIRST_ROW):
         if r[control.KEY_COL - 1].value == "confidence":
-            r[control.CHOOSE_COL - 1].value = label
+            if label:
+                r[control.CHOOSE_COL - 1].value = label
+            if own is not None:
+                r[control.OWN_COL - 1].value = own
     wb.save(out)
     return out
 
@@ -99,24 +102,40 @@ def test_the_heading_follows_how_sure_on_control(sig_book, tmp_path):
     assert yes and all(_p_of(y) < 0.01 for y in yes), yes
 
 
+@pytest.mark.parametrize("own, sure, line", [(0.975, "97.5%", "2.5%"), (0.999, "99.9%", "0.1%")])
+def test_a_typed_how_sure_reads_as_typed_in_the_heading_and_the_note(sig_book, tmp_path, own, sure, line):
+    """How sure takes a typed value from 0.5 to 0.999. The heading and the note word it as _live does: 97.5%, never
+    98%; and its line 2.5%, never 3%."""
+    ws = tabs.calculated(_with_confidence(sig_book["b"], tmp_path / f"{own}.xlsx", own=own), results.POCKETS)
+    assert _head(ws) == f"Significant at {sure}?"
+    top = next(c.row for row in ws.iter_rows(max_row=40) for c in row if c.value == "How this tab works")
+    note = {ws.cell(row=r, column=results.K_BAND).value: ws.cell(row=r, column=results.K_BAND + 1).value
+            for r in range(top + 1, top + 12)}
+    assert f"Yes means its p-value is under {line}," in note[f"Significant at {sure}?"]
+    assert live.pct_words(own) == sure and live.pct_words(round(1 - own, 12)) == line
+
+
 # --------------------------------------------------------------------------
 # the three readings
 
 
 def _p_of(said: str) -> float:
     """The p-value a reading prints, as a share: "Yes (p = 0.37%)" is 0.0037; "p < 0.01%" reads as 0."""
-    m = re.fullmatch(r"(?:Yes|Borderline|No) \(p (?:= ([\d.]+)|< 0\.01)%\)", said)
+    m = re.fullmatch(r"(?:Yes|Borderline|No) \(p (?:= ([\d.]+)|[<>] [\d.]+)%\)", said)
     assert m, said
     return float(m.group(1)) / 100 if m.group(1) else 0.0
 
 
 @pytest.mark.parametrize("word, gap, p, border, said", [
-    (engine.WORSE, 1.6, 0.0009, None, "Yes (p = 0.09%)"),
-    (engine.WORSE, 1.6, 0.0037, None, "Yes (p = 0.37%)"),
-    (engine.WORSE, 1.6, 0.048, "0.048", "Borderline (p = 4.8%)"),
-    (engine.UNSURE_WORSE, 1.6, 0.052, "0.052", "Borderline (p = 5.2%)"),
-    (engine.UNSURE_WORSE, 1.6, 0.23, None, "No (p = 23%)"),
-    (engine.WORSE, 1.6, 0.00004, None, "Yes (p < 0.01%)"),
+    (engine.WORSE, 1.6, 0.0009, False, "Yes (p = 0.09%)"),
+    (engine.WORSE, 1.6, 0.0037, False, "Yes (p = 0.37%)"),
+    (engine.WORSE, 1.6, 0.048, True, "Borderline (p = 4.8%)"),
+    (engine.UNSURE_WORSE, 1.6, 0.052, True, "Borderline (p = 5.2%)"),
+    (engine.UNSURE_WORSE, 1.6, 0.23, False, "No (p = 23%)"),
+    (engine.WORSE, 1.6, 0.00004, False, "Yes (p < 0.01%)"),
+    # the column answers its own question (the review, 17 Oct 2026): under the Worse at line but significant is Yes
+    (engine.IN_LINE, 1.15, 0.00001, False, "Yes (p < 0.01%)"),
+    (engine.BETTER, 0.6, 0.002, False, "Yes (p = 0.20%)"),
 ])
 def test_yes_borderline_and_no_carry_the_p_value(word, gap, p, border, said):
     assert live.sig_said(word, gap, p, border, False, bar=0.05) == said
@@ -126,7 +145,7 @@ def test_the_tab_prints_only_the_new_readings_and_never_the_old(sig_book):
     """Every row on Pockets, for every measure, reads Yes, Borderline or No with a p-value, or one of the reasons
     kept from How often by chance. Nothing a reader sees says 1 in X, Could be chance, Too close to call or How often
     by chance."""
-    kept = {live.FEW_LOSSES, live.FEW_LOANS, live.NO_REST, live.UNDER_WORSE, live.UNDER_PROFIT, live.NOT_MORE}
+    kept = {live.FEW_LOSSES, live.NO_REST, live.NOT_MORE}
     seen = set()
     for measure in [results.plain(m) for m in results.rates(sig_book["res"])]:
         ws = tabs.calculated(tabs.choose(sig_book["b"], sig_book["dir"] / f"m-{len(seen)}-{measure[:3]}.xlsx",
@@ -142,10 +161,22 @@ def test_the_tab_prints_only_the_new_readings_and_never_the_old(sig_book):
             seen.add(word)
             # Yes is a p-value under the bar and No one at or over it; Borderline may be either side
             if word == live.SIG_YES:
-                assert x["worse"] == "Yes" and _p_of(said) < 0.05, x
+                assert _p_of(said) < 0.05, x
             elif word == live.SIG_NO:
                 assert _p_of(said) >= 0.05, x
+            if x["worse"] == "Yes":
+                assert word in (live.SIG_YES, live.SIG_BORDER), x
     assert {live.SIG_YES, live.SIG_NO} <= seen, seen
+    # every pocket with a p-value is answered with it; only one without a p-value gets a reason
+    pk = sig_book["calc"][live.POCKETS]
+    for r in range(live.P_FIRST, pk.max_row + 1):
+        p, said = pk.cell(row=r, column=live.P_P).value, pk.cell(row=r, column=live.P_SIG).value
+        if pk.cell(row=r, column=live.P_MEASURE).value in (None, ""):
+            continue
+        if isinstance(p, float | int) and not isinstance(p, bool):
+            assert said.startswith(("Yes (p ", "No (p ", "Borderline (p ")), (r, p, said)
+        else:
+            assert said in kept, (r, said)
     wb = sig_book["calc"]
     text = " ".join(str(c.value) for ws in wb.worksheets if ws.sheet_state == "visible" for row in ws.iter_rows()
                     for c in row if isinstance(c.value, str))
@@ -166,6 +197,12 @@ def test_the_tab_prints_only_the_new_readings_and_never_the_old(sig_book):
     # a p-value that would round onto the bar it is under, or over, takes one more decimal
     (0.0498, 0.05, "p = 4.98%"), (0.0503, 0.05, "p = 5.03%"), (0.05, 0.05, "p = 5.0%"),
     (0.0099, 0.01, "p = 0.99%"), (0.00999, 0.01, "p = 0.999%"), (0.0101, 0.01, "p = 1.01%"),
+    # LibreOffice rounds the binary double: 0.00145 x 100 is 0.14499...
+    (0.00145, 0.05, "p = 0.14%"),
+    # just under the line at 90%, 95% and 97.5% sure, and past two extra decimals it says which side
+    (0.0999, 0.1, "p = 9.99%"), (0.09996, 0.1, "p < 10%"), (0.10004, 0.1, "p > 10%"),
+    (0.0499996, 0.05, "p < 5%"), (0.02499, 0.025, "p = 2.499%"), (0.024996, 0.025, "p < 2.5%"),
+    (0.000996, 0.001, "p = 0.0996%"),
 ])
 def test_the_p_value_is_a_percentage_at_the_firms_precision(p, bar, said):
     assert live.p_words(p, bar) == said
@@ -175,8 +212,9 @@ def test_the_p_format_formula_matches_python_in_a_spreadsheet(tmp_path):
     """p_words_formula, calculated by LibreOffice, against p_words, at two bars."""
     from recalc import recalc
     ps = [0.0009, 0.0037, 0.048, 0.23, 0.0001, 0.0000999, 0.0, 0.00995, 0.0996, 1.0, 0.0498, 0.0503, 0.05, 0.0099,
-          0.012345, 0.000151, 0.4567, 0.00999, 0.0101]
-    for bar in (0.05, 0.01):
+          0.012345, 0.000151, 0.4567, 0.00999, 0.0101, 0.00145, 0.0999, 0.09996, 0.10004, 0.0499996, 0.02499,
+          0.024996, 0.000996]
+    for bar in (0.05, 0.01, 0.1, 0.025, 0.001):
         wb = Workbook()
         ws = wb.active
         ws["D1"] = bar
@@ -247,3 +285,43 @@ def test_a_yes_pocket_prints_the_p_value_that_decides_tied_by_hand(sig_book):
     names = {b.name: b.field for b in res.config.bands}
     rows = [x for x in tabs.pockets(ws) if x["band"] == f"{names[g.band]} {bl}" and str(dl) in str(x["seg"])]
     assert [x["chance"] for x in rows] == [want], rows
+
+
+@pytest.mark.parametrize("many, claims", [("none", False), ("bh", True), ("bonferroni", True)])
+def test_the_note_claims_an_allowance_only_when_control_sets_one(sig_book, many, claims):
+    """With No allowance on Control, the note says each p-value is the pocket's own; with one, that the raw p-value
+    is no larger (never "smaller still": a pocket's allowed p-value can equal its raw one)."""
+    import dataclasses
+    res = sig_book["res"]
+    b = dataclasses.replace(res.config.benchmark, many_tests=many)
+    got = dict(results._pockets_note(dataclasses.replace(res, config=dataclasses.replace(res.config, benchmark=b))))
+    note = got[results.SIG_HEAD][1:]                     # the live.text formula, words and all
+    assert ("allows for testing many pockets at once" in note) is claims
+    assert ("no allowance for testing many pockets at once" in note) is not claims
+    assert "smaller still" not in note and ("raw p-value is no larger" in note) is claims
+
+
+def test_the_reading_formula_matches_python_over_every_combination(tmp_path):
+    """sig_words, calculated by LibreOffice, against sig_said over every engine word, gap, p-value and standard error,
+    for a loss and for profit, including the combinations no Run here happens to produce (a pocket that loses more
+    with no p-value)."""
+    import itertools
+    from recalc import recalc
+    from pocketbook import stats
+    combos = list(itertools.product(engine.READINGS + ("",), (None, 1.6, 1.1, 0.8, -0.002, 0.002),
+                                    (None, 0.0004, 0.049, 0.3), (None, 0.001), (False, True)))
+    wb = Workbook()
+    ws = wb.active
+    ws["Z1"] = 0.05
+    wb.defined_names[live.BAR] = DefinedName(live.BAR, attr_text=f"'{ws.title}'!$Z$1")
+    for i, (word, gap, p, se, profit) in enumerate(combos, start=1):
+        for c, v in enumerate((word, gap if gap is not None else "", p if p is not None else "",
+                               se if se is not None else ""), start=1):
+            ws.cell(row=i, column=c, value=v)
+        ws.cell(row=i, column=5, value="=" + live.sig_words(f"A{i}", f"B{i}", f"C{i}", f"D{i}", profit))
+    wb.save(tmp_path / "sig.xlsx")
+    calc = recalc(tmp_path / "sig.xlsx", tmp_path / "out").active
+    for i, (word, gap, p, se, profit) in enumerate(combos, start=1):
+        near = stats.borderline(p, se, 0.95)
+        want = live.sig_said(word or None, gap, p, near, profit, 0.05)
+        assert calc.cell(row=i, column=5).value == want, (word, gap, p, se, profit)

@@ -3700,7 +3700,7 @@ changed in the code.
   - *"our custom terms - like bad / good loans, these i do want in the glossary along with our key terms as fairly
     plain language and simple explanations to walk a user through what it means. keep my voice in mind"*. Every
     word PocketBook coined or uses in its own sense was read off the tabs' code and a built synthetic workbook. The
-    Glossary goes from 37 terms to 73 (69 without a charge-off date): 36 added, each beside the term it belongs with
+    Glossary goes from 37 terms to 72 (68 without a charge-off date): 35 added, each beside the term it belongs with
     (Good loan after Bad loan; Judged against after the two comparisons; Bad loans, Bad dollars and Loan size after
     them; Two-way / Split by after Pocket; Compare's dropdowns after Vintage; Excess, Worse? with its four readings,
     Material? / Material at, Show, How sure / Significant at N%?, its readings, the reasons it gives instead of a
@@ -3733,11 +3733,32 @@ changed in the code.
     Show and Measure option and Together reading from the constants the tabs print, so a reading added without a
     Glossary row fails it; a control proves it can. One Yes pocket is tied by hand: its z test from its own counts
     and Benjamini-Hochberg worked out in the test, against the engine, `_pockets` and the tab. Moved deliberately: the
-    Glossary's term list, the bank checklist's count (37/33 to 73/69, plus a C18 step for the heading; HTML and PDF
+    Glossary's term list, the bank checklist's count (37/33 to 72/68, plus a C18 step for the heading; HTML and PDF
     rebuilt) and 8 tests pinned to How often by chance. Planted bugs: 21 added and 7 repointed, 28 of 28 caught.
     Full suite in 4 shards with no display, Line size's review fixes merged in: 1,207 passed, 1 failed, 15 skipped;
     the failure (`test_generic`: two made-up examples named the synthetic book's columns) was fixed and its file
     rerun green.
+  - Review fixes (17 Oct 2026, PR #455). Significant at N%? now answers its own question: every pocket with a
+    p-value reads Yes, No or Borderline by that p-value alone (Borderline for any shuffled p-value within 2 of its
+    standard errors of the line); only a pocket with no p-value gets a reason (Too few losses to test, Nothing to
+    compare with, Not losing more, Mixed with FICO). Under the Worse at line and Not losing more are Worse?'s to say.
+    On the example book's 405 `_pockets` rows, 234 changed: Not losing more to No 170, to Yes 22 and to Borderline
+    3; Under the Worse at line to No 39 (before: Yes 32, Borderline 4, No 98, Not losing more 195, Under the Worse
+    at line 39, Too few losses 29, Nothing to compare with 8; after: Yes 54, Borderline 7, No 307, Too few losses
+    29, Nothing to compare with 8). How sure is worded as `_live` words it everywhere a tab says it (97.5%, never
+    98%; its line 2.5%), the heading included. A p-value still on the line after two extra decimals says which side
+    ("p < 10%"), and Python rounds the binary double as LibreOffice does (0.00145 is 0.14%). The Pockets note and
+    the Glossary claim no allowance when Control sets none. The Glossary restores the condition the p-value rests on
+    and says what the allowance holds; the profit line and Together say a side must pass its line and be
+    significant; Borderline's example follows How sure; made-up examples use made-up names (Column A), a split Run
+    names its own split and partner, and the note says which examples are the book's. The guard now enumerates
+    Significant at N%?'s and Worse?'s readings from `live.sig_said` and `live.worse_of` over `engine.READINGS`.
+    Tests: `test_significant_at_2026_10_17.py` 26 to 42 (a typed 97.5% and 99.9%, the note with and without an
+    allowance, the formula against `sig_said` over every combination in LibreOffice, the line at 90%, 95% and 97.5%),
+    `test_glossary_terms_2026_10_17.py` 15 to 22; the Glossary is 72 terms (68 without a charge-off date). Planted
+    bugs: 19 added, 9 repointed, 1 retired with the reading it planted into; all 46 that touch these lines caught.
+    Full suite in 4 shards: 1,229 passed, 1 failed, 15 skipped; the failure was the bank checklist read before its
+    count was moved to 72, rerun green. canon's voice check: 0 tells in 190 strings.
 
 ## 7 · Standing rules for new items
 

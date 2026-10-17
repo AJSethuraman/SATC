@@ -58,6 +58,8 @@ REASON_LABEL = {"blank": BLANK_LABEL, "not a number": NOT_NUMBER_LABEL, "missing
 WORSE, BETTER, IN_LINE = "worse", "better", "in line"
 UNSURE_WORSE, UNSURE_BETTER = "worse, not significant", "better, not significant"
 THIN, FEW = "too few loans to test", "too few losses to test"
+#: every word a comparison can get, for the tests that enumerate what the tabs print from it
+READINGS = (WORSE, BETTER, IN_LINE, UNSURE_WORSE, UNSURE_BETTER, THIN, FEW)
 UNSURE = UNSURE_WORSE
 #: the name the Run's shuffle seed is made from (perm.seed_of): fixed, so the same extract deals the same shuffles every
 #: time. The audit workbook names it, and deals one pocket's shuffles again from it (audit.py)

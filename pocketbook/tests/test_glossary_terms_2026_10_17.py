@@ -20,7 +20,7 @@ import pytest
 from openpyxl import load_workbook
 
 from conftest import TEST_SHUFFLES
-from pocketbook import book, choices as ch, glossary, live, perm, results, synth
+from pocketbook import book, choices as ch, engine, glossary, live, perm, results, synth
 from test_book import _answer
 
 #: the rows added on 17 Oct 2026, in the order the Glossary shows them
@@ -31,9 +31,8 @@ NEW = ["Judged against", "Good loan", "Bad loans / Bad loans % / Bad loans ÷ Lo
        "Worse? (Yes / Not sure / Too few losses / No)", "Material? / Material at",
        "Show (All / Worse and material / Worse or not sure)", "How sure / Significant at N%?",
        "Significant at N%? (Yes / Borderline / No)",
-       "Too few losses to test / Too few loans to test / Nothing to compare with",
+       "Too few losses to test / Nothing to compare with / Not losing more",
        "Profit line (How far profit must move before it counts as more or less)",
-       "Not losing more / Under the Worse at line / Within the profit line",
        "Holds (column) fixed? / Mixed with (column)", "Could have caught", "Together", "Priced for it", "Net drain",
        "Strong", "Safe but idle", "Earns less, not from losses", "Losing more, profit holding",
        "Show on Line size (Pockets where something tripped / 2 or more signals / All pockets)",
@@ -65,15 +64,26 @@ def named(word: str, terms: list[str]) -> list[str]:
             or (word.endswith(" ") and any(x.startswith(word.strip()) for x in parts(t)))]
 
 
+def _sig_readings() -> list[str]:
+    """Every reading Significant at N%? can print, from live.sig_said itself: every engine word, with and without a
+    gap and a p-value, near the line or not, for a loss and for profit. A p-value's reading is its word."""
+    out = set()
+    for word in engine.READINGS + (None,):
+        for gap in (None, 1.6, 1.1, 0.8, -0.002, 0.002):
+            for p in (None, 0.001, 0.3):
+                for near in (False, True):
+                    for profit in (False, True):
+                        out.add(live.sig_said(word, gap, p, near, profit, 0.05).split(" (p ")[0])
+    return sorted(out)
+
+
 def _readings() -> dict[str, list[str]]:
     """Everything the workbook can print as a verdict, a reading, a Show or Measure option or a Together reading,
-    from the constants the tabs print."""
+    from the functions and constants the tabs print it with."""
     split_by = results.split_label(SimpleNamespace(config=SimpleNamespace(split=("X", "own_median"))))
     return {
-        "Worse?": [live.YES, live.NOT_SURE, live.TOO_FEW, live.NO],
-        "Significant at N%?": [live.SIG_HEAD.format("N%"), live.SIG_YES, live.SIG_BORDER, live.SIG_NO,
-                               live.FEW_LOSSES, live.FEW_LOANS, live.NO_REST, live.NOT_MORE, live.UNDER_WORSE,
-                               live.UNDER_PROFIT, results.MIXED],
+        "Worse?": sorted({live.worse_of(w) for w in engine.READINGS} - {""}),
+        "Significant at N%?": [live.SIG_HEAD.format("N%"), results.MIXED] + _sig_readings(),
         "Show": list(results.SHOW) + list(results.LINE_SHOW),
         "Measure": list(results.PLAIN.values()) + [results.SIZE_NAME, results.CO_MONTHS_NAME]
                    + [x[1] for x in results.LINE_MEASURES],
@@ -103,10 +113,13 @@ def test_each_verdict_rows_term_names_all_its_readings():
     assert set(_readings()["Worse?"]) <= set(parts(worse)), worse
     sig = next(t for t in rows if t.startswith(live.SIG_HEAD.format("N%") + " ("))
     assert {live.SIG_YES, live.SIG_BORDER, live.SIG_NO} <= set(parts(sig)), sig
+    assert set(_sig_readings()) == set(live.SIG_READINGS)
     assert all(r in rows["Tripped by"][0] for r in results.TRIPPED_BY)
     # the pairing the firm asked for: How sure and the p-value in one row, 95% to 5% to 1 in 20
     pair = rows[f"How sure / {live.SIG_HEAD.format('N%')}"][0]
     assert "95% sure" in pair and "under 5%" in pair and "1 in 20" in pair
+    # the condition the p-value rests on, and that the printed one is after the allowance (the review, 17 Oct 2026)
+    assert "if the pocket were no different from the rest" in pair and "allowance" in pair
 
 
 def test_the_guard_fails_on_a_reading_with_no_row(monkeypatch):
@@ -207,3 +220,57 @@ def test_the_significant_rows_name_pockets_with_the_readings_pockets_prints(book
     said = re.findall(r"(.+?) read ((?:Yes|Borderline|No) \(p [=<] [\d.]+%\)) on (GCOs \(\$\)|Bad loans)\.", ex)
     assert said, ex
     assert said[0][1].startswith("Yes")
+
+
+def test_the_allowance_is_worded_as_control_set_it():
+    """With no allowance for many tests, no row claims one; with Benjamini-Hochberg, the row says what it holds."""
+    def text(mt):
+        rows = {t: m for t, m, _ in glossary.rows({"many_tests": mt, "co_date": True})}
+        return " ".join(m for t, m in rows.items() if t.startswith(("How sure", live.SIG_HEAD.format("N%"))))
+    assert "no allowance" in text("none") and "after the allowance" not in text("none")
+    assert "share of false finds near the line" in text("bh")
+    assert "chance of any false find" in text("bonferroni")
+
+
+@pytest.mark.parametrize("conf", [0.9, 0.95, 0.975, 0.999])
+def test_the_confidence_examples_follow_how_sure(conf):
+    """At any How sure, Borderline's example is under its own line, and the readings say the line as _live does."""
+    rows = {t: (m, e) for t, m, e in glossary.rows({"confidence": conf, "co_date": True})}
+    bar = round(1 - conf, 12)
+    ex = rows["Borderline"][1]
+    m = re.search(r"borderline \(p ([\d.]+)\) has a p-value under the ([\d.]+)% threshold", ex)
+    assert m and float(m.group(1)) < bar and m.group(2) + "%" == live.pct_words(bar), ex
+
+
+def test_made_up_examples_use_made_up_names_after_a_run(books):
+    """After a Run, an example that is not the book's names no column of this book, only made-up ones such as
+    Column A, and the note says which examples are the book's."""
+    import csv as csv_
+    with open(books["extract"], newline="", encoding="utf-8") as fh:
+        columns = next(csv_.reader(fh))
+    after = _rows(books["run"])
+    for t in set(NEW) - set(FROM_THE_BOOK):
+        ex = after[t][1]
+        assert not [c for c in columns if re.search(rf"\b{re.escape(c)}\b", ex)], (t, ex)
+        assert not re.search(r"\b(SCORE|SOURCE|Direct|UTILIZATION|BALANCE|INCOME_TO_SALES)\b", ex), (t, ex)
+    note = [c.value for row in books["run"][glossary.SHEET].iter_rows(max_col=3) for c in row]
+    assert any(isinstance(v, str) and v.startswith("Examples naming this book, the last Run or one of its pockets")
+               and "made-up names such as Column A" in v for v in note)
+
+
+def test_a_split_run_names_its_own_split_and_partner(tmp_path, monkeypatch):
+    """Where the Run knows the names, the example uses them: the split column, the column it moves with, and a grid
+    that does not hold that column fixed."""
+    monkeypatch.setattr(perm, "SHUFFLES", TEST_SHUFFLES)
+    out = book.set_up(synth.write_extract(tmp_path, n=3000),
+                      choices=ch.Choices(run_kind=ch.BLEED, bands=("FICO", "ORIG_BAL"), segments=("CHANNEL",),
+                                         split="REV_DEBT"))
+    assert out.ok, out.lines
+    _answer(out.book)
+    assert book.run(out.book).ok
+    rows = _rows(load_workbook(out.book))
+    assert rows["Two-way / Split by"][1].startswith("This book is split by REV_DEBT: each pocket is halved at its "
+                                                    "own median REV_DEBT")
+    holds = rows["Holds (column) fixed? / Mixed with (column)"][1]
+    assert re.fullmatch(r"REV_DEBT moves with FICO \(correlation [+-][\d.]+\), so a split pocket in ORIG_BAL x "
+                        r"CHANNEL / REV_DEBT reads No: may be mostly FICO, and Mixed with FICO\.", holds), holds

@@ -24,7 +24,8 @@ HEADS = ("Term", "What it means", "Example")
 WIDTHS = {1: 2, TERM: 24, MEANS: 62, EXAMPLE: 62}
 #: the note's line, before and after the first Run
 MADE_UP = "The examples are illustrative until the first Run. Each Run replaces them with this book's own figures."
-FROM_RUN = "The examples use this book's figures for the whole book, from the last Run ({stamp})."
+FROM_RUN = ("Examples naming this book, the last Run or one of its pockets use this book's figures from the last Run "
+            "({stamp}). The others are illustrations, with made-up names such as Column A.")
 #: the generic book before the first Run (the firm's own example: "the book keeps $4.45 per $100 booked")
 GENERIC = {"booked": 40_000_000, "gco": 880_000, "ranr": 1_780_000, "contrib": 2_660_000, "loans": 3_000,
            "bad": 312, "bad_den": 3_000}
@@ -79,8 +80,17 @@ def figures(res, names: dict[str, str]) -> dict:
             kind, v = b.materiality
             if kind == "share":
                 out["material_share"] = v
+    if b is not None:
+        out["many_tests"] = b.many_tests
     if res.config.split:
         out["split"] = {"col": res.config.split[0], "median": res.config.split[1] == "own_median"}
+        from .book import _holds_partner, _partner
+        pt = _partner(res) if getattr(res, "split_moves_with", None) else None
+        loose = next((g for g in getattr(res, "three_way", []) if _holds_partner(res, g) is False), None) if pt \
+            else None
+        if pt and loose is not None:
+            out["split"].update(partner=pt[0], r=pt[1], loose=f"{names.get(loose.band, loose.band)} x "
+                                                            f"{names.get(loose.dimension, loose.dimension)}")
     grids = [g for g in getattr(res, "grids", []) if g.band in names and g.dimension in names]
     if grids:
         g = grids[0]
@@ -161,7 +171,7 @@ def _profit_of(b) -> str | float:
 def _verdicts(res, grids, label) -> dict:
     """Significant at N%? and Together as the last Run read them on the two-way grids: a pocket for each of Yes,
     Borderline and No (GCOs ($) first, then Bad loans), and each Together reading's count and first pocket."""
-    from . import live, results
+    from . import engine, live, results, stats
     out: dict = {}
     b = res.config.benchmark
     if b is None:
@@ -176,9 +186,12 @@ def _verdicts(res, grids, label) -> dict:
                     continue
                 gap = s.vs_band if s.by_band else s.vs_rest
                 p = s.p_band if s.by_band else s.p_book
-                said = live.sig_said(s.flag, gap, p, s.worse_borderline, False, bar)
+                se = s.se_band if s.by_band else s.se_book
+                near = p is not None and se is not None and stats.borderline(p, se, b.confidence)
+                said = live.sig_said(s.flag, gap, p, near, False, bar)
                 word = said.split(" (p ")[0]
-                if " (p " in said and word not in sig:
+                # Yes is shown on a pocket that is also worse, so Worse?'s example can name the same one
+                if " (p " in said and word not in sig and (word != live.SIG_YES or s.flag == engine.WORSE):
                     sig[word] = {**label(g, b_, d), "said": said, "measure": results.PLAIN[m],
                                  "gap": gap, "p_said": live.p_words(p, bar)}
     if sig:
@@ -272,7 +285,7 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 "its band. The Judged against setting on Control determines which.",
                 f"For {_pocket(p)}, the rest of band is every other {p['band']} loan. The rest of book is every "
                 f"other loan in the book." if p else
-                "For SCORE 620 - 679 / Direct, the rest of band is every other SCORE 620 - 679 loan."))
+                "For Column A 620 - 679 / B1, the rest of band is every other Column A 620 - 679 loan."))
     jd = f.get("judged") if run else None
     out.append(("Judged against",
                 "The Control setting that picks each pocket's comparison: The rest of its band or The rest of the book. "
@@ -280,7 +293,7 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 "against the rest of the book.",
                 f"At the last Run, Judged against was {jd}. A change on Control updates every verdict on the result "
                 f"tabs immediately." if jd else
-                "With The rest of its band, SCORE 620 - 679 / Direct is compared with every other SCORE 620 - 679 "
+                "With The rest of its band, Column A 620 - 679 / B1 is compared with every other Column A 620 - 679 "
                 "loan."))
     out.append(("Bad loan",
                 "A loan flagged as bad in the outcome column, according to the Yes means setting on Columns.",
@@ -319,14 +332,14 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out.append(("Band",
                 "A range of values in a numeric column. Band edges on Columns set where each band starts; a column "
                 "with few distinct values gets one band per value.",
-                f"{p['band']} is one band of {p['band_col']}." if p else "SCORE 620 - 679 is one band of SCORE."))
+                f"{p['band']} is one band of {p['band_col']}." if p else "Column A 620 - 679 is one band of Column A."))
     out.append(("Segment",
                 "A single value of a category column, such as one channel.",
-                f"{p['seg']} is one segment of {p['seg_col']}." if p else "Direct is one segment of SOURCE."))
+                f"{p['seg']} is one segment of {p['seg_col']}." if p else "B1 is one segment of Column B."))
     out.append(("Pocket",
                 "The loans that fall in both one band of a numeric column and one segment of a category column.",
                 f"{_pocket(p)} contains the {p['loans']:,} loans in {p['band']} that are also in {p['seg']}." if p
-                else "SCORE 620 - 679 / Direct contains the loans in SCORE 620 - 679 that are also in Direct."))
+                else "Column A 620 - 679 / B1 contains the loans in Column A 620 - 679 that are also in B1."))
     sp = f.get("split") if run else None
     out.append(("Two-way / Split by",
                 "The Pockets dropdown on Pockets. Two-way lists each band crossed with each segment. Split by lists "
@@ -336,14 +349,14 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                  f"Split tab compares the high half with the low." if sp["median"] else
                  f"This book is split by {sp['col']}: each pocket is cut by each value of {sp['col']}, and each part "
                  f"is tested like any other pocket.") if sp else
-                "Split by UTILIZATION halves SCORE 620 - 679 / Direct at its own median UTILIZATION, and each half "
+                "Split by Column C halves Column A 620 - 679 / B1 at its own median Column C, and each half "
                 "is tested like any other pocket."))
     gr = f.get("grid") if run else None
     out.append(("Grid",
                 "Every band of one column crossed with every segment of another, giving one pocket for each "
                 "combination that has loans.",
                 f"{gr['name']} has {gr['bands']} bands by {gr['segments']} segments, for {gr['pockets']} pockets."
-                if gr else "SCORE x SOURCE has 5 bands by 3 segments, for 15 pockets."))
+                if gr else "Column A x Column B has 5 bands by 3 segments, for 15 pockets."))
     fl = f.get("filter") if run else None
     out.append(("Filter / Only loans where",
                 "Restricts Grids and Summary to the loans with one value of the Filter by column. Up to three "
@@ -353,7 +366,7 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                  if fl["picked"] else
                  f"Choose {fl['col']} as Filter by in the launcher, then select {fl['value']} to see the grid for "
                  f"those loans alone.") if fl else
-                "Choose SOURCE as Filter by in the launcher, then select Direct to see the grid for Direct loans "
+                "Choose Column B as Filter by in the launcher, then select B1 to see the grid for B1 loans "
                 "alone."))
     yrs = f.get("years") if run else None
     out.append(("Origination year",
@@ -368,7 +381,7 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 "the book and the whole book, with a point for each year.",
                 f"Selecting a row on Summary draws three lines, with one point per year from {yrs[0]} to {yrs[1]}."
                 if yrs else
-                "Selecting SCORE 620 - 679 on Summary draws its line, the rest of the book's and the whole book's, "
+                "Selecting Column A 620 - 679 on Summary draws its line, the rest of the book's and the whole book's, "
                 "from 2021 to 2024."))
     out.append(("Across the bottom / Lines by / Panels by",
                 "The Compare tab's dropdowns. Across the bottom sets the horizontal axis: a band column's bands, or a "
@@ -377,8 +390,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 (f"With {gr['name'].split(' x ')[0]} across the bottom and Lines by {fl['col']}, each value of "
                  f"{fl['col']} is one line across the {gr['name'].split(' x ')[0]} bands.")
                 if fl and fl["picked"] and gr else
-                "With SCORE across the bottom and Lines by SOURCE, each SOURCE value is one line across the SCORE "
-                "bands."))
+                "With Column A across the bottom and Lines by Column B, each Column B value is one line across the "
+                "Column A bands."))
     p = f.get("gco_pocket") if run else None
     out.append(("Excess / Bad loans above share / Dollars above share / Dollars short of band / Dollars short of book",
                 "The pocket's losses above what it would have lost at the rest's rate, in bad loans for Bad loans and "
@@ -400,10 +413,19 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     sig = (f.get("sig") or {}) if run else {}
     w = f.get("worse_at") if run else None
     yes = sig.get(live.SIG_YES)
+    mt = f.get("many_tests") if run else None
+    allowance = ("Control sets no allowance for testing many pockets at once, so the p-value printed is the pocket's "
+                 "own." if mt == "none" else
+                 "The p-value printed is after the allowance for testing many pockets at once, which holds the share "
+                 "of false finds near the line." if mt == "bh" else
+                 "The p-value printed is after the allowance for testing many pockets at once, which holds the "
+                 "chance of any false find to the line." if mt == "bonferroni" else
+                 "The p-value printed is after any allowance for testing many pockets at once set on Control.")
     out.append((f"Worse? ({live.YES} / {live.NOT_SURE} / {live.TOO_FEW} / {live.NO})",
                 "Yes means the pocket's rate is at least Worse at times the rest's, and the gap is significant at How "
                 "sure. Not sure means the gap passes Worse at but is not significant. Too few losses means fewer "
-                "losses than the fewest set on Control, so it is not tested. No covers every other pocket.",
+                "losses than the fewest set on Control, so it is not tested. No covers every other pocket, such as "
+                "one under the Worse at line or one not losing more.",
                 f"{yes['band']} / {yes['seg']} is {yes['gap']:.2f}× the rest on {yes['measure']}, with "
                 f"{yes['p_said']}, so its Worse? reads Yes." if yes and yes.get("gap") else
                 "At Worse at 1.25×, a pocket at 1.60× the rest with p = 0.37% reads Yes; at 1.60× with p = 23% it "
@@ -428,17 +450,18 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     # the firm, 17 Oct 2026: luck "is basically the other side of confidence", then Significant at N%?
     out.append((f"How sure / {live.SIG_HEAD.format('N%')}",
                 f"How sure, on Control, is the confidence level, and {live.SIG_HEAD.format('N%')} on Pockets reads "
-                f"each pocket against it. At 95% sure, a gap is significant when its p-value is under 5%: a gap that "
-                f"large would arise by chance less than 1 in 20 times.",
-                f"At the last Run, How sure was {conf:.0%}, so the line was a p-value of {bar:.0%}, 1 in "
-                f"{round(1 / bar):,}. {yes['band']} / {yes['seg']} read {yes['said']} on {yes['measure']}."
-                if yes else
+                f"each pocket against it. At 95% sure, a gap is significant when its p-value is under 5%. A gap that "
+                f"large would then arise by chance less than 1 in 20 times if the pocket were no different from the "
+                f"rest. {allowance}",
+                f"At the last Run, How sure was {live.pct_words(conf)}, so the line was a p-value of "
+                f"{live.pct_words(bar)}, 1 in {1 / bar:,.0f}. {yes['band']} / {yes['seg']} read {yes['said']} on "
+                f"{yes['measure']}." if yes else
                 "At 95% sure the line is a p-value of 5%, 1 in 20, so a pocket at p = 0.37% reads Yes (p = 0.37%)."))
     no, near = sig.get(live.SIG_NO), sig.get(live.SIG_BORDER)
     out.append((f"{live.SIG_HEAD.format('N%')} ({live.SIG_YES} / {live.SIG_BORDER} / {live.SIG_NO})",
-                f"Yes means the p-value is under the line How sure sets, and No that it is at or above it. Borderline "
-                f"means a shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard errors of that line, on "
-                f"either side. Each shows the p-value after the allowance for testing many pockets at once.",
+                f"Yes means the pocket's p-value is under the line How sure sets, and No that it is at or above it, "
+                f"whether or not the pocket is worse. Borderline means a shuffle test's p-value is within "
+                f"{stats.BORDERLINE_SE:g} standard errors of that line, on either side. {allowance}",
                 " ".join(f"{x['band']} / {x['seg']} read {x['said']} on {x['measure']}." for x in (yes, near, no) if x)
                 if run and (yes or near or no) else
                 "At 95% sure, p = 0.37% reads Yes (p = 0.37%) and p = 23% reads No (p = 23%). A shuffled p = 4.8% can "
@@ -447,13 +470,13 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"The shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard errors of the threshold on "
                 f"Control, on either side. Pockets reads {live.SIG_BORDER} in {live.SIG_HEAD.format('N%')}; RANR vs "
                 f"GCOs, Split and Start here show the flag beside the verdict.",
-                f"A Together cell reading Net drain · {stats.borderline_words(0.048, conf)} has a p-value under the "
-                f"{1 - conf:.0%} threshold and within {stats.BORDERLINE_SE:g} standard errors of it."))
+                f"A Together cell reading Net drain · {stats.borderline_words(bar * 0.9, conf)} has a p-value under "
+                f"the {live.pct_words(bar)} threshold and within {stats.BORDERLINE_SE:g} standard errors of it."))
     me = f.get("min_events") if run else None
-    out.append((f"{live.FEW_LOSSES} / {live.FEW_LOANS} / {live.NO_REST}",
-                f"Readings in {live.SIG_HEAD.format('N%')} for a pocket with no test to read. {live.FEW_LOSSES} means "
-                f"fewer losses than the fewest set on Control. {live.FEW_LOANS} means a comparison with no test, in a "
-                f"pocket under Fewest loans in a pocket. {live.NO_REST} means the rest has no losses.",
+    out.append((f"{live.FEW_LOSSES} / {live.NO_REST} / {live.NOT_MORE}",
+                f"Readings in {live.SIG_HEAD.format('N%')} for a pocket with no p-value. {live.FEW_LOSSES} means "
+                f"fewer losses than the fewest set on Control. {live.NO_REST} means the rest has no losses. "
+                f"{live.NOT_MORE} means no test was run and the pocket loses no more than the rest.",
                 f"At the last Run the fewest losses was {me:,}, so a pocket with {me - 1:,} bad loans reads "
                 f"{live.FEW_LOSSES}." if isinstance(me, int) and me > 1 else
                 f"With the fewest losses at 10, a pocket with 9 bad loans reads {live.FEW_LOSSES}."))
@@ -483,44 +506,40 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     pl = f.get("profit") if run else None
     out.append(("Profit line (How far profit must move before it counts as more or less)",
                 "How far RANR or RANR + GCOs must fall short of, or run ahead of, the rest to count as less or more. "
-                "Each pocket's own test counts a gap only when significant; a line in points or dollars counts any "
-                "gap past it.",
+                "With each pocket's own test, a gap counts when it is significant. With a line in points or dollars, "
+                "a gap past it counts only when it is also significant; otherwise it is labeled not significant.",
                 (f"At the last Run the profit line was each pocket's own test, so a RANR gap counted only when "
-                 f"significant at {conf:.0%} sure." if pl == "test" else
-                 "At the last Run the profit line was the materiality line, so a RANR shortfall counted when it "
-                 "reached that dollar line." if pl == "materiality" else
+                 f"significant at {live.sure_words(conf)}." if pl == "test" else
+                 "At the last Run the profit line was the materiality line, so a significant RANR shortfall counted "
+                 "when it reached that dollar line." if pl == "materiality" else
                  f"At the last Run the profit line was {float(pl):.2f} points, so a pocket {float(pl) + 0.1:.2f} pts "
-                 f"short of the rest counted as less.") if pl is not None else
-                "With 0.25 points either way, a pocket at -0.30 pts against the rest counts as less."))
-    wa = w or 1.25
-    out.append((f"{live.NOT_MORE} / {live.UNDER_WORSE} / {live.UNDER_PROFIT}",
-                f"Readings in {live.SIG_HEAD.format('N%')} for a pocket with no shortfall to test. {live.NOT_MORE} "
-                f"means its rate is at or below the rest's. {live.UNDER_WORSE} means it loses more, but by less than "
-                f"Worse at. {live.UNDER_PROFIT} means RANR falls short by less than the profit line.",
-                f"With Worse at {wa:.2f}× at the last Run, a pocket at {1 + (wa - 1) / 2:.2f}× the rest reads "
-                f"{live.UNDER_WORSE}, and one at 0.90× reads {live.NOT_MORE}." if w else
-                f"With Worse at 1.25×, a pocket at 1.10× the rest reads {live.UNDER_WORSE}, and one at 0.90× reads "
-                f"{live.NOT_MORE}."))
+                 f"short of the rest, and significant, counted as less.") if pl is not None else
+                "With 0.25 points either way, a pocket at -0.30 pts against the rest, and significant, counts as "
+                "less."))
     from .results import MIXED
     out.append((f"Holds (column) fixed? / {MIXED}(column)",
                 f"These apply to split pockets only. Holds (column) fixed? reads No when the grid does not hold fixed "
                 f"the column the split moves with, so the gap may reflect that column. "
                 f"{live.SIG_HEAD.format('N%')} then reads {MIXED}(column).",
-                f"UTILIZATION moves with SCORE, so a split pocket in BALANCE x SOURCE reads No: may be mostly SCORE, "
-                f"and {MIXED}SCORE."))
+                f"{sp['col']} moves with {sp['partner']} (correlation {sp['r']:+.2f}), so a split pocket in "
+                f"{sp['loose']} reads No: may be mostly {sp['partner']}, and {MIXED}{sp['partner']}."
+                if sp and sp.get("loose") else
+                f"Column C moves with Column A, so a split pocket in Column D x Column B reads No: may be mostly "
+                f"Column A, and {MIXED}Column A."))
     p = f.get("gco_pocket") if run else None
     pw = g.get("power", 0.8)
     out.append(("Could have caught",
-                f"The smallest gap a pocket of its size would detect {pw:.0%} of the time, at the confidence the last "
-                f"Run used. It is a multiple of the rest's rate, or points for RANR and RANR + GCOs.",
+                f"The smallest gap a pocket of its size would detect {live.pct_words(pw)} of the time, at the "
+                f"confidence the last Run used. It is a multiple of the rest's rate, or points for RANR and RANR + GCOs.",
                 f"{_pocket(p)}, with {p['loans']:,} loans, could have caught a gap of {p['caught']:.2f}× on Bad "
                 f"loans." if p and "caught" in p else
                 f"A pocket of 400 loans that could have caught 1.45× on Bad loans would detect a gap that large "
-                f"{pw:.0%} of the time."))
+                f"{live.pct_words(pw)} of the time."))
     tg = f.get("together") if run else None
     out.append(("Together",
-                "RANR vs GCOs' reading of a pocket's GCOs and RANR at once, against the rest. Each side counts as more "
-                "or less only when its gap is significant; otherwise it is about the same.",
+                "RANR vs GCOs' reading of a pocket's GCOs and RANR at once, against the rest. A side counts as more "
+                "or less only when it passes Worse at or Better at (for RANR, the profit line) and is significant. "
+                "A side that does not is about the same.",
                 f"At the last Run, {sum(x['n'] for x in tg['readings'].values()):,} of {tg['pockets']:,} pockets on "
                 f"RANR vs GCOs had a Together reading." if tg else
                 "A pocket with significantly more GCOs and significantly less RANR than the rest reads Net drain."))
@@ -570,7 +589,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out.append(("Odd values",
                 "Values that may be codes rather than genuine numbers, such as one value far more frequent than any "
                 "other, or negative values in a mostly positive column.",
-                f"A score of -9999 on many loans is shown as an odd value. Missing under Treat as on Columns places "
+                f"A value of -9999 in Column A on many loans is shown as an odd value. Missing under Treat as on "
+                f"Columns places "
                 f"those loans in {engine.MISSING_RULE_LABEL}."))
     from .book import TREAT
     mi = f.get("missing") if run else None
@@ -578,14 +598,15 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"The answer on Columns to each odd value. {TREAT[0]} uses the value as recorded. {TREAT[1]} treats it "
                 f"as blank, so its loans are placed in {engine.MISSING_RULE_LABEL} and still counted.",
                 f"At the last Run, {mi['loans']:,} loans in {mi['col']} were answered {TREAT[1]}." if mi else
-                f"Answering {TREAT[1]} for a score of -9999 places those loans in SCORE {engine.MISSING_RULE_LABEL}."))
+                f"Answering {TREAT[1]} for a value of -9999 places those loans in Column A {engine.MISSING_RULE_LABEL}."))
     mi = f.get("missing") if run else None
     out.append((f"{engine.MISSING_RULE_LABEL} / {engine.BLANK_LABEL}",
                 f"Where a loan is placed when it cannot be assigned to a band. {engine.BLANK_LABEL} means the cell "
                 f"was empty, and {engine.MISSING_RULE_LABEL} means its value was set to Missing on Columns.",
                 f"{mi['loans']:,} loans are in {mi['col']} {engine.MISSING_RULE_LABEL} because their value was set "
                 f"to Missing. They are still counted." if mi else
-                f"A score of -9999 set to Missing is placed in SCORE {engine.MISSING_RULE_LABEL} rather than a band, "
+                f"A value of -9999 in Column A set to Missing is placed in Column A {engine.MISSING_RULE_LABEL} rather "
+                f"than a band, "
                 f"and is still counted."))
     out.append(("Changes now / Needs a Run",
                 "The two blocks on Control. An answer under Changes now updates every reading, dollar figure, color "
@@ -601,8 +622,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out.append(("Worked out from the loans",
                 "The value Set up and each Run calculate from this extract for fewest loans, Worse at and Better at, "
                 "shown beside the setting. It is never entered as your answer.",
-                "Beside a Worse at answer of 1.25 times, Worked out from the loans reads suggested: 1.34x, from this "
-                "extract at the last Run."))
+                "A Worse at answer of 1.25 times can sit beside a worked-out value of 1.34x, and the answer stays "
+                "1.25 times."))
     out.append(("Last Run used / Status",
                 "Last Run used shows each answer on Control as the last Run used it. Status, in the Needs a Run block, "
                 "says whether the answer now differs from it.",
@@ -612,7 +633,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out.append(("Lines in use now",
                 "The tiles at the top of Pockets, RANR vs GCOs, Line size and Split. They show Worse at, Better at, "
                 "How sure, Material at and Judged against, read live from Control.",
-                f"At the last Run they read Worse at {w:.2f}×, Better at {f['better_at']:.2f}×, How sure {conf:.0%} "
+                f"At the last Run they read Worse at {w:.2f}×, Better at {f['better_at']:.2f}×, How sure "
+                f"{live.pct_words(conf)} "
                 f"and Judged against {jd}." if w and f.get("better_at") and jd else
                 "The tiles read Worse at 1.25×, Better at 0.80×, How sure 95% and Judged against The rest of its "
                 "band."))
@@ -624,12 +646,12 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     out.append(("Found on / Held back",
                 "In a test of a new variable, the loans are cut at the date set on Control. Loans made before it are "
                 "where the candidates and their groups are found; only the result on the held-back loans counts.",
-                "With the date at 2024-11-01, the 5,641 loans made before it find the candidates and the 2,359 made "
-                "on or after it are held back."))
+                "With the date at 1 Jan 2024, loans made before it find the candidates and loans made on or after "
+                "it are held back."))
     out.append(("Pre-spec",
                 "The shortlist file a test of a new variable confirms: each candidate column, its groups and its "
                 "reference group, written before the held-back loans are read. Record names the file.",
-                "A pre-spec naming INCOME_TO_SALES in 6 groups, with 0.25 - 0.49 as the reference, is confirmed on the "
+                "A pre-spec naming Column E in 6 groups, with 0.25 - 0.49 as the reference, is confirmed on the "
                 "held-back loans."))
     out.append(("Holds up? / Still holds?",
                 "Holds up? reads Yes when the gap on the held-back loans is significant and on the same side of 1 as "
