@@ -345,7 +345,7 @@ def line_rows(ln: dict | None, co: bool) -> list[tuple[str, str, str]]:
             "The average line of the loans that went bad divided by the average line of those that did not. Only "
             "loans with a booked amount count.",
             f"This book's bad loans averaged a line of {_usd(ln['bad'])} and its good loans {_usd(ln['good'])}, "
-            f"which is {ln['x']:.2f}×." if ln else
+            f"which is {ln['x']:.2f}×." if ln and ln.get("x") is not None else
             "Bad loans averaging a $6,250 line, against $5,000 for good loans, show 1.25×."),
            ("Share of line lost on bad loans",
             "GCOs on the bad loans divided by their booked dollars, over the bad loans with both amounts.",
@@ -359,7 +359,7 @@ def line_rows(ln: dict | None, co: bool) -> list[tuple[str, str, str]]:
                  "A $10,000 loan charged off at 6 months and a $30,000 loan at 18 months average 15 months weighted "
                  "by line, and 12 months straight."),
                 ("Line-weighted ÷ straight",
-                 "Months to charge-off weighted by line divided by the straight average months to charge-off.",
+                 "Months to charge-off weighted by line divided by the straight average over the same loans.",
                  "15 months weighted by line against 12 months straight is 1.25×.")]
     n = 4 if co else 3
     out.append(("Signals",

@@ -3690,6 +3690,11 @@ changed in the code.
     pinned the tab list, Control's blocks, Summary's columns, Grids' measures and the Glossary's terms were moved to
     the new shape; the literal-names test no longer reads "Charge-off date", a column's meaning, as the old measure
     name. Full suite in 4 shards with no display: 1,173 passed, 15 skipped. Planted bugs: 21 added, 21 caught.
+  - Review fixes (17 Oct 2026): Line-weighted ÷ straight divided weighted months (loans with a booked amount) by
+    the straight average over every charged-off loan; both are now over the same loans (`LineSize.co_months`),
+    on Line size and Summary, and the note says Grids' own average can differ. A cleared *Tripped by being worse
+    on* made the switch #N/A and emptied the tab; it now reads as Either. Grids' line measures are tied to the CSV
+    inner cell and margins. 3 tests and 3 planted bugs added.
 
 ## 7 · Standing rules for new items
 

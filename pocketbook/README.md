@@ -291,14 +291,18 @@ After that, the whole routine is:
      0.90×; only with a Charge-off date, and otherwise the count is out of 3).
      **Tripped by** says why a pocket counts: *Worse on bad loans* or *Worse on
      GCOs* (Worse? reads Yes on Pockets, as the switch *Tripped by being worse
-     on* picks: Bad loans, GCOs or Either), or *Bad got bigger lines*. A
+     on* picks: Bad loans, GCOs or Either; a blank switch reads as Either), or
+     *Bad got bigger lines*. A
      **Show** dropdown picks *Pockets where something tripped* (the default),
      *2 or more signals* or *All pockets*, by formula from the hidden `_lines`,
      as Pockets' Show does. Rows are sorted by Line on bad loans ÷ line on good
      loans, highest first, as of the last Run; each ratio is red past its line,
-     and nothing else is judged. Summary carries the four figures beside Avg
-     line and the months, and Grids offers the first two as Measures, shown and
-     not compared.
+     and nothing else is judged. Both months averages count the same loans
+     (a charge-off date and a booked amount), so the straight one can differ
+     from Grids' Months to charge-off (avg), which counts every charged-off
+     loan. Summary carries the two figures that need no dates after % of
+     booked and the two months figures after the median months, and Grids
+     offers the first two as Measures, shown and not compared.
    - **Grids:** a Grid and a Measure dropdown, and four blocks one under
      another from the left column (the firm, 30 Sep 2026: side by side, a
      narrow grid left a blank middle): the rate,

@@ -1334,7 +1334,7 @@ def line_rows(res, g) -> list[dict]:
     rows = []
     for (bl, dl), c in g.inner():
         rows.append({"band": bl, "seg": dl, "units": c.rows, **avg_of(g, (bl, dl), res.book_size),
-                     **engine.line_vs(getattr(g, "lines", {}) or {}, (bl, dl), c)})
+                     **engine.line_vs(getattr(g, "lines", {}) or {}, (bl, dl))})
     rows.sort(key=lambda x: (x["bad_vs_good"] is None, -(x["bad_vs_good"] or 0.0), bands.get(x["band"], len(bands)),
                              segs.get(x["seg"], len(segs))))
     return rows
@@ -1372,7 +1372,7 @@ def _line_note(res, co: bool) -> list[tuple[str, str]]:
         sig += (f" {SIGNALS[3][0]}: line-weighted ÷ straight at or below ", ('TEXT(line_sooner,"0.00")',), "×.")
     sig += (f" Signals counts the signals tripped, out of {4 if co else 3}, and names them.",)
     items = [
-        ("Line", "Line is the booked amount, the committed line at origination. Every figure here counts only loans "
+        ("Line", "Line is the booked amount, the committed line. Every figure here counts only loans "
                  "with a booked amount. Avg line is booked dollars per loan, and Line × book divides it by the whole "
                  "book's Avg line."),
         ("Bad and good loans", "Line on bad loans ÷ line on good loans is the average line of the pocket's loans "
@@ -1384,15 +1384,16 @@ def _line_note(res, co: bool) -> list[tuple[str, str]]:
     ]
     if co:
         items.append(("Months", f"Months to charge-off (straight avg) is the average over the pocket's loans with a "
-                                f"{res.config.chargeoff_date}, as on Grids. Weighted by line, each loan's months count "
-                                f"in proportion to its booked amount: Σ(months × booked) ÷ Σ booked. Line-weighted ÷ "
-                                f"straight divides the first by the second."))
+                                f"{res.config.chargeoff_date} and a booked amount. Weighted by line, each of those "
+                                f"loans' months count in proportion to its booked amount: Σ(months × booked) ÷ Σ "
+                                f"booked. Line-weighted ÷ straight divides the first by the second. Grids' Months to "
+                                f"charge-off (avg) also counts loans without a booked amount, so it can differ."))
     items += [
         ("Signals", live.text(*sig)),
         ("Tripped by", live.text(
             f"{TRIPPED_BY[0]} and {TRIPPED_BY[1]}: Worse? reads Yes on Pockets for Bad loans or for GCOs ($), at the "
-            f"lines on Control. Tripped by being worse on, on Control, selects which count; it is currently ",
-            ('IF(line_worse_on="bad","Bad loans",IF(line_worse_on="gco","GCOs","either"))',),
+            f"lines on Control. The Control setting Tripped by being worse on selects which count; it is currently ",
+            ('IF(line_worse_on="bad","Bad loans",IF(line_worse_on="gco","GCOs","Either"))',),
             f". {TRIPPED_BY[2]} counts when its signal is tripped. A pocket is tripped when any of these applies.")),
         ("Show and order", f"Show selects {LINE_SHOW[0].lower()}, pockets with {LINE_SHOW[1]}, or {LINE_SHOW[2].lower()}"
                            f". Rows are sorted by Line on bad loans ÷ line on good loans, highest first, as of the "
@@ -1812,7 +1813,7 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms, f
     for k, _name, fig, kind, _need in line_measures(res):
         lines = getattr(g, "lines", {}) or {}
         for i, bl in enumerate(rows_, start=1):
-            vals = [engine.line_vs(lines, (bl, d), g.cells.get((bl, d)))[fig] for d in cols_]
+            vals = [engine.line_vs(lines, (bl, d))[fig] for d in cols_]
             views.put(f"{key}|{k}|rate|{i}", vals)
             seen(vals, "x" if kind == "amtx" else "pct")
         views.put(f"{key}|{k}|meta", [kind, 1, None, None, few])
@@ -2558,7 +2559,8 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
                                              f"{res.config.chargeoff_date}. "
                                              + CO_MONTHS_SAID + " Blank: no loan in the row charged off."
                                              + (f" {LINE_HEADS[8]} counts each loan's months in proportion to its "
-                                                f"booked amount, and {LINE_HEADS[9]} divides it by the average."
+                                                f"booked amount, and {LINE_HEADS[9]} divides it by the plain average "
+                                                f"over the same loans, those with a booked amount."
                                                 if "co_line" in keys else "")))
     left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
                                   if n in SUMMARY_NEEDS and k not in keys))   # months to charge-off: optional

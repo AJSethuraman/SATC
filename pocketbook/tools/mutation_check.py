@@ -1922,6 +1922,17 @@ muts = [
  ("The Glossary without the line-size terms", GL,
   '    out += line_rows(f.get("line") if run else None, not run or f.get("co_date", True))', "    out += []",
   "line_size and glossary"),
+ # the review of Line size, 17 Oct 2026
+ ("Line size's straight months over loans with no booked amount too", E,
+  "        if b is None:\n            out.append(None)\n            continue",
+  "        if b is None:\n            out.append((None, 0.0, None, months[i] if months is not None else None))"
+  "\n            continue", "line_size and by_hand"),
+ ("Line size's blank switch emptying the tab", L,
+  """            f = f'=IFERROR({opt(key, c)},"{start}")' if c else last""",
+  """            f = f'=IFERROR({opt(key, c)},NA())' if c else last""", "line_size and blank_switch"),
+ ("Line size's margins left out of Grids' line measures", E,
+  "    if margins:\n        for (b, d), x in list(out.items()):",
+  "    if False:\n        for (b, d), x in list(out.items()):", "line_size and grids_measures"),
 ]
 LIMIT = 600                  # seconds one planted bug's tests may take
 

@@ -159,14 +159,16 @@ def _small():
         L0  line 1,000  bad   GCO   900  charged off 3 months after it was made
         L1  line 3,000  bad   GCO 1,500  charged off after 1 month
         L2  line 2,000  good
-        L3  no line     bad   GCO   500  charged off after 6 months: out of every line figure, in the straight months
+        L3  no line     bad   GCO   500  charged off after 6 months: out of every line figure, the straight months
+                                         too (they are over the same loans as the weighted), but in Grids' own
         L4  line 4,000  good
         L5  line 1,000  bad   GCO "#N/A": in the bad loans' line, out of the share lost (no GCO amount)
 
     Line on bad ÷ good: (1,000 + 3,000 + 1,000) / 3 over (2,000 + 4,000) / 2 = 1,666.67 / 3,000 = 0.5556.
     Share of line lost: (900 + 1,500) / (1,000 + 3,000) = 0.6000.
-    Weighted months: (3 × 1,000 + 1 × 3,000) / 4,000 = 1.5000; straight: (3 + 1 + 6) / 3 = 3.3333.
-    Line-weighted ÷ straight: 1.5 / 3.3333 = 0.4500.
+    Weighted months: (3 × 1,000 + 1 × 3,000) / 4,000 = 1.5000; straight, over the same two loans: (3 + 1) / 2 = 2.0.
+    Line-weighted ÷ straight: 1.5 / 2.0 = 0.7500. Grids' and Summary's own average, every charged-off loan:
+    (3 + 1 + 6) / 3 = 3.3333.
     Channel B, at score 700, is there so the grid has a second pocket: one good and one bad loan, each line 500."""
     from conftest import cube, table
     made = "2024-01-15"
@@ -184,22 +186,26 @@ def _small():
 
 
 WANT_A = {"bad_vs_good": (5000 / 3) / 3000, "lost_share": 2400 / 4000, "co_weighted": 6000 / 4000,
-          "co_straight": 10 / 3, "co_ratio": (6000 / 4000) / (10 / 3)}
+          "co_straight": 4 / 2, "co_ratio": (6000 / 4000) / (4 / 2)}
 
 
 def test_line_size_figures_by_hand_on_a_small_book():
     res = _small()
     g = res.grids[0]
     key = next(k for k, _ in g.inner() if k[1] == "A")
-    got = engine.line_vs(g.lines, key, g.cells[key])
+    got = engine.line_vs(g.lines, key)
     for k, want in WANT_A.items():
         assert got[k] == pytest.approx(want, rel=1e-12), k
+    assert got["co_ratio"] == pytest.approx(0.75, rel=1e-12)
+    # Grids' own months average stays every charged-off loan's, L3 included
+    assert g.cells[key].medians[engine.CO_MONTHS].mean == pytest.approx(10 / 3, rel=1e-12)
     # Summary's row for channel A is the same pocket, and carries the four figures
     rows = dict(engine.summary_rows(res, "chan"))
     assert rows["A"]["line_bad_x"] == pytest.approx(WANT_A["bad_vs_good"], rel=1e-12)
     assert rows["A"]["line_lost"] == pytest.approx(WANT_A["lost_share"], rel=1e-12)
     assert rows["A"]["co_line"] == pytest.approx(WANT_A["co_weighted"], rel=1e-12)
     assert rows["A"]["co_line_x"] == pytest.approx(WANT_A["co_ratio"], rel=1e-12)
+    assert rows["A"]["co_avg"] == pytest.approx(10 / 3, rel=1e-12)          # Summary's own, unchanged
     # All is every loan, never an average of the rows: bad lines 1,000 + 3,000 + 1,000 + 500 over 4, good 2,000 +
     # 4,000 + 500 over 3
     assert rows["All"]["line_bad_x"] == pytest.approx((5500 / 4) / (6500 / 3), rel=1e-12)
@@ -213,7 +219,7 @@ def test_line_size_figures_are_blank_where_there_is_nothing_to_divide_by():
     assert x.bad_vs_good is None and x.lost_share is None and x.weighted_months is None
     y = engine.LineSize(good_loans=2, good_booked=100.0)
     assert y.bad_vs_good is None and y.lost_share is None
-    assert engine.line_vs({}, ("a", "b"), None) == {"bad_vs_good": None, "lost_share": None, "co_straight": None,
+    assert engine.line_vs({}, ("a", "b")) == {"bad_vs_good": None, "lost_share": None, "co_straight": None,
                                                     "co_weighted": None, "co_ratio": None}
 
 
@@ -258,9 +264,9 @@ def _by_hand(rows: list[dict]) -> dict:
     good = [_num(r["ORIG_BAL"]) for r in rows if r["BAD_FLAG"] == "0" and _num(r["ORIG_BAL"]) is not None]
     lost = [(_num(r["GCO_AMT"]), _num(r["ORIG_BAL"])) for r in rows if r["BAD_FLAG"] == "1"
             and _num(r["ORIG_BAL"]) is not None and _num(r["GCO_AMT"]) is not None]
-    mo = [_months(r) for r in rows if _months(r) is not None]
     wt = [(_months(r), _num(r["ORIG_BAL"])) for r in rows if _months(r) is not None
           and _num(r["ORIG_BAL"]) is not None]
+    mo = [m for m, _ in wt]                 # the straight average over the same loans as the weighted
     out = {"bad_vs_good": (sum(bad) / len(bad)) / (sum(good) / len(good)) if bad and good else None,
            "lost_share": sum(g for g, _ in lost) / sum(b for _, b in lost) if lost else None,
            "co_straight": sum(mo) / len(mo) if mo else None,
@@ -295,6 +301,52 @@ def test_line_size_figures_tie_to_the_loan_file_and_sort_highest_first(made, tmp
     # a band holds loans either side of the plant's scores)
     top = shown[0]
     assert top["seg"] == synth.BIG_LINES[0] and top["bad_vs_good"] >= START["line_bad_bigger"]
+
+
+def _view_rows(path) -> dict:
+    """Every _views row by its key, the key left off."""
+    return {r[0]: list(r[1:]) for r in load_workbook(path)[results.VIEWS].iter_rows(values_only=True)
+            if isinstance(r[0], str)}
+
+
+def test_line_size_grids_measures_tie_to_the_loan_file_inner_and_margins(made):
+    """Grids' two line-size Measures, as the Run put them on _views (G|<grid>|line_bad_x|rate|i): an inner pocket,
+    its band's All, its segment's All and the grid's All, against the CSV by hand. The margins are every loan of the
+    band, segment or grid, never an average of the cells."""
+    b = made["co"]
+    v = _view_rows(b)
+    rows_, cols_ = v[f"G|{GRID}|rows"], v[f"G|{GRID}|cols"]
+    rows_ = [x for x in rows_ if x is not None]
+    cols_ = [x for x in cols_ if x is not None]
+    labels = [x for x in rows_ if " - " in str(x)]
+    loans = _csv(b)
+    band, seg = labels[1], cols_[0]
+    for key, fig in (("line_bad_x", "bad_vs_good"), ("line_lost", "lost_share")):
+        for bl, d in ((band, seg), (band, "All"), ("All", seg), ("All", "All")):
+            i, j = rows_.index(bl) + 1, cols_.index(d)
+            mine = [r for r in loans if (bl == "All" or _band(r["FICO"], labels) == bl)
+                    and (d == "All" or r["CHANNEL"] == d)]
+            got = v[f"G|{GRID}|{key}|rate|{i}"][j]
+            assert got == pytest.approx(_by_hand(mine)[fig], rel=1e-9), (key, bl, d)
+
+
+def test_line_size_a_blank_switch_reads_as_either(made, tmp_path):
+    """Control's Tripped by being worse on cleared: the tab reads it as Either, its starting answer, rather than
+    every Tripped by, Shown now and count going to #N/A and the tab going blank."""
+    need_soffice()
+    b = made["co"]
+    blank = _control(b, tmp_path / "blank.xlsx", pick={"line_worse_on": None})
+    ws = load_workbook(blank)[control.SHEET]
+    assert ws.cell(row=control.row_of(ws, "line_worse_on"), column=control.CHOOSE_COL).value is None
+    rows = _shown(blank, tmp_path / "blank-all.xlsx", show=SHOW[2])
+    either = _shown(b, tmp_path / "either-all.xlsx", show=SHOW[2])
+    assert rows and [(x["band"], x["seg"], x["tripped"]) for x in rows] == \
+        [(x["band"], x["seg"], x["tripped"]) for x in either]
+    calc = tabs.calculated(tabs.choose(blank, tmp_path / "blank-cap.xlsx", TAB, show=SHOW[0]), TAB)
+    cap = [c.value for row in calc.iter_rows() for c in row if isinstance(c.value, str) and " tripped · " in c.value]
+    assert cap and cap[0].endswith(f"{sum(1 for x in either if x['tripped'])} shown"), cap
+    tile = [c.value for row in calc.iter_rows(max_row=20) for c in row if c.value == "Either"]
+    assert tile                                         # the lines in use say what is used
 
 
 # --------------------------------------------------------------------------
