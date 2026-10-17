@@ -105,6 +105,8 @@ def compare(a, b, label_a, label_b):
             totals["only_a" if x else "only_b"] += 1
         rows.append(row)
     return {"vintage": a["vintage"], "a": label_a, "b": label_b,
+            # each side's horizon: a change counted over different months is named with both wherever it is shown
+            "months": [a["settings"]["change_months"], b["settings"]["change_months"]],
             "settings": settings_rows(a["settings"], b["settings"]), "rows": rows, "matrix": matrix,
             "totals": totals}
 
@@ -115,7 +117,16 @@ def when(d):
     return "%s %s" % (calendar.month_abbr[int(d[5:7])], d[:4])
 
 
-def lines(c, months):
+def reading_label(reading, months):
+    """A reading's name with each side's horizon: one horizon when both count the change the same way, both
+    when they differ, since then each side's rating is of a different change (Codex on #452)."""
+    if reading == "position":
+        return "level"
+    a, b = months
+    return "change over %d months" % a if a == b else "change over %d months; what if: over %d months" % (a, b)
+
+
+def lines(c):
     """The comparison as the terminal prints it: what differs, then each reading that moves."""
     out = ["What if: %s against %s, both from the pull of %s." % (c["b"], c["a"], c["vintage"]), ""]
     differ = [s for s in c["settings"] if s["differs"]]
@@ -128,7 +139,7 @@ def lines(c, months):
                 "it only, %d under the what-if only." % (t["compared"], t["same"], t["higher"], t["lower"],
                                                          t["only_a"], t["only_b"]), ""]
     for r in sorted(c["rows"], key=lambda r: (-(abs(r["move"]) if r["move"] else 0), ORDER.get(r["key"], 0))):
-        name = "%s, %s" % (r["title"], "level" if r["reading"] == "position" else "change over %d months" % months)
+        name = "%s, %s" % (r["title"], reading_label(r["reading"], c["months"]))
         if r["move"]:
             a, b = r["a"], r["b"]
             out.append("  %+d  %-60s %d -> %d  (%.1f%% of %s since %s -> %.1f%% of %s since %s)" % (

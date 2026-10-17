@@ -48,7 +48,7 @@ def test_the_same_settings_twice_differ_nowhere(cache):  # noqa: F811
     c = compare(ra, rb, "a.json", "b.json")
     assert not any(s["differs"] for s in c["settings"])
     assert all(x["move"] == 0 for x in c["rows"]) and c["totals"]["same"] == c["totals"]["compared"]
-    assert "the same answers, so every rating is the same" in "\n".join(lines(c, 6))
+    assert "the same answers, so every rating is the same" in "\n".join(lines(c))
 
 
 def test_a_reading_one_side_did_not_ask_for_says_so_rather_than_failing(cache):  # noqa: F811
@@ -73,7 +73,7 @@ def test_runs_of_two_different_pulls_are_not_compared(cache):  # noqa: F811
 def test_the_printout_names_each_reading_that_moves_with_both_percentiles(cache):  # noqa: F811
     ra, rb = _runs(cache, {"history": "full"}, {"history": {"years": 3}})
     c = compare(ra, rb, "settings.json", "what-if.json")
-    out = "\n".join(lines(c, 6))
+    out = "\n".join(lines(c))
     assert "History each reading is measured against: full history -> the last 3 years" in out
     moved = [x for x in c["rows"] if x["move"]]
     for x in moved:
@@ -117,3 +117,17 @@ def test_a_reading_the_what_if_does_not_rate_gives_the_what_ifs_own_reason(cache
     row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
     assert row["b"] is None and row["move"] is None
     assert row["why_missing"] == "the firm chose not to rate it"
+
+
+def test_a_change_over_a_different_horizon_is_printed_with_both_horizons(cache):  # noqa: F811
+    # Codex on #452: the printout named a 12-month rating "change over 6 months".
+    ra, rb = _runs(cache, {"change_months": 6}, {"change_months": 12})
+    c = compare(ra, rb, "a.json", "b.json")
+    assert c["months"] == [6, 12]
+    out = lines(c)
+    moved = [x for x in c["rows"] if x["move"] and x["reading"] == "change"]
+    assert moved                                    # CPI's change moves in the fixture
+    for x in moved:
+        row = next(line for line in out if x["title"] + "," in line)
+        assert "change over 6 months; what if: over 12 months" in row
+    assert not any("change over 6 months " in line and "what if" not in line for line in out)

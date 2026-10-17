@@ -96,7 +96,7 @@ def cmd_rate(a):
         return 0
     if whatif:
         from .compare import lines
-        print("\n".join(lines(whatif, result["settings"]["change_months"])))
+        print("\n".join(lines(whatif)))
         return 0
     s = result["settings"]
     print("Ratings from the pull of %s. History: %s. Change over %d months. Cut-offs for 2 to 5: %s "

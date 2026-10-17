@@ -539,3 +539,14 @@ old code put back.
 None of the three arises in the example: all 85 series are in that pull, both settings count the change
 over the same 12 months, and every reading is rated under both. The example is rebuilt from the fixed code;
 its printout is unchanged. The macro suite is now 93, all passing.
+
+**Codex's second review: the same horizon fault in the printout.** `rate --compare` still labelled a moved
+change with the baseline's horizon only, so a 12-month rating could print as a "change over 6 months".
+
+The cause was one level down. The comparison did not record each side's horizon, so every place that names
+a change had to work it out again, and one did not. The comparison now records both (`months`), and one
+function names a reading from them (`compare.reading_label`). The printout and the What if tab use it. The
+What if column on Ratings and States now says whose horizon a moved change is.
+
+Two tests fail with the old labels put back. The example's printout is unchanged, since both its settings
+count over 12 months. The macro suite is now 94.

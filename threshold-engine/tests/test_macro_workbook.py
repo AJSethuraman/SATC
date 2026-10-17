@@ -289,6 +289,13 @@ def test_a_different_change_horizon_draws_no_dashed_lines_on_the_change(cache, t
     assert any(wi.cell(r, 3).value == "Level" and wi.cell(r, 5).value is not None for r in range(1, wi.max_row + 1))
     # and the series' own table gives the what-if's starting points under its own horizon's name
     assert "What if: change over 12 months from" in _text(ws)
+    # and Ratings says whose horizon a moved change is
+    moved = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
+    assert moved["move"]
+    rt = wb["Ratings"]
+    row = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
+               if cl.value == "Consumer prices, all items")
+    assert "(what if: over 12 months)" in rt.cell(row, 13).value
 
 
 def test_a_reading_only_the_what_if_rates_still_shows_where_its_ratings_start(cache, tmp_path):  # noqa: F811

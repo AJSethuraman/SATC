@@ -31,7 +31,7 @@ import datetime
 import math
 
 from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
-from .compare import CALLED, plain, when
+from .compare import CALLED, plain, reading_label, when
 from .rate import changes, sahm
 from .settings import QUESTIONS, readings_of
 
@@ -112,12 +112,14 @@ def band_heights(lines, direction, low, high):
 
 
 def move_text(rows, months):
-    """A series' readings that change rating under the what-if, as a Ratings or States cell says it."""
+    """A series' readings that change rating under the what-if, as a Ratings or States cell says it.
+    ``months`` is each side's horizon; a change counted over different months says the what-if's."""
     parts = []
     for r in rows:
         if r["move"]:
-            parts.append("%s %d → %d" % ("Level" if r["reading"] == "position" else "Change", r["a"]["rating"],
-                                         r["b"]["rating"]))
+            when_ = "" if r["same_measure"] else " (what if: over %d months)" % months[1]
+            parts.append("%s %d → %d%s" % ("Level" if r["reading"] == "position" else "Change", r["a"]["rating"],
+                                           r["b"]["rating"], when_))
         elif r["move"] is None:
             parts.append("%s: rated %s only" % ("Level" if r["reading"] == "position" else "Change",
                                                "as you have it" if r["a"] else "under the what-if"))
@@ -162,7 +164,7 @@ def build(out, result, pull, whatif=None):
     if whatif:
         for x in whatif["rows"]:
             wrows.setdefault(x["key"], {})[x["reading"]] = x
-        b_months = next(x["b"] for x in whatif["settings"] if x["name"] == "change_months")
+        b_months = "%d months" % whatif["months"][1]
 
     F_DATA = Font(name="Calibri", size=10, color=K.INK_TEXT)
     F_BOLD = Font(name="Calibri", size=10, bold=True, color=K.INK_TEXT)
@@ -445,7 +447,7 @@ def build(out, result, pull, whatif=None):
                 put(ws, row, 12, "Not rated: see the Not rated tab", font=F_NOTE)
             if whatif:
                 mine = list(wrows.get(key, {}).values())
-                words = move_text(mine, months)
+                words = move_text(mine, whatif["months"])
                 put(ws, row, 13, words or ("same rating" if mine else "not rated under either"),
                     font=moved_font(mine) if words else F_NOTE)
             for j in range(2, last + 1):
@@ -626,7 +628,7 @@ def build(out, result, pull, whatif=None):
                 put(ws, rr, 5, v, fmt)
             else:
                 # Two different changes: each side's rating is of its own, so neither value is shown as shared.
-                put(ws, rr, 3, "Change over %d months; what if: over %s" % (months, b_months), font=F_NOTE,
+                put(ws, rr, 3, reading_label("change", whatif["months"]).capitalize(), font=F_NOTE,
                     align=Alignment(vertical="center", wrap_text=True))
             for col, got in ((6, x["a"]), (10, x["b"])):
                 if got:
@@ -740,7 +742,7 @@ def build(out, result, pull, whatif=None):
             put(ws, row, 3, "not in this pull", font=F_NOTE)
         if whatif:
             mine = list(wrows.get(key, {}).values())
-            words = move_text(mine, months)
+            words = move_text(mine, whatif["months"])
             put(ws, row, 11, words or ("same rating" if mine else "not rated under either"),
                 font=moved_font(mine) if words else F_NOTE)
         rule(ws, row, 2, last)
