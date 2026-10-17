@@ -497,3 +497,23 @@ def test_a_workbook_whose_pull_lacks_a_file_the_rating_read_is_refused(cache, tm
     (R.Pull(cache).folder / "fred-CPIAUCSL.csv").unlink()
     with pytest.raises(Refused, match="fred-CPIAUCSL.csv from other bytes than the rating read"):
         build(tmp_path / "macro.xlsx", result, R.Pull(cache))
+
+
+def test_a_what_if_not_compared_against_this_rating_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a what-if from an earlier reading of the pull, or against other settings, was accepted.
+    from threshold_engine.macro.compare import compare
+    from threshold_engine.macro.settings import Refused
+    pull = R.Pull(cache)
+    ra = R.rate_all(cache, check(answered()), pull=pull)
+    rb = R.rate_all(cache, check(answered(history={"years": 3})), pull=pull)
+    c = compare(ra, rb, "settings.json", "what-if.json")
+    other = R.rate_all(cache, check(answered(cutoffs=[50, 75, 90, 95])), pull=pull)
+    with pytest.raises(Refused, match="not compared against this rating"):
+        build(tmp_path / "a.xlsx", other, pull, whatif=c)              # other settings as you have it
+    with open(pull.folder / "fred-UNRATE.csv", "a") as fh:
+        fh.write("2026-10-01,2.0\n")
+    fresh = R.Pull(cache)
+    now = R.rate_all(cache, check(answered()), pull=fresh)
+    with pytest.raises(Refused, match="not compared against this rating"):
+        build(tmp_path / "b.xlsx", now, fresh, whatif=c)               # an earlier reading of the pull
+    assert build(tmp_path / "c.xlsx", ra, pull, whatif=c)              # the rating it was made from

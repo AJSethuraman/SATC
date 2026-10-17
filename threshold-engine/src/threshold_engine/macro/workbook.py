@@ -154,7 +154,13 @@ def build(out, result, pull, whatif=None):
 
     ``whatif`` is ``compare.compare``'s result for a second set of settings on
     the same pull; with it the workbook gains the What if tab, a column for it
-    on Ratings and States, and dashed lines on every chart it applies to."""
+    on Ratings and States, and dashed lines on every chart it applies to. A
+    what-if made from other bytes, or against other settings than this
+    rating's, is refused: every input is checked against one reading of the
+    pull (Codex on #452)."""
+    if whatif and (whatif["read_sha"] != result["read_sha"] or whatif["baseline"] != result["settings"]):
+        raise Refused("the what-if was not compared against this rating (other bytes of the pull, or other "
+                      "settings as you have it). Compare this rating and build from the same Pull.")
     from openpyxl import Workbook
     from openpyxl.chart import AreaChart, BarChart, LineChart, Reference
     from openpyxl.chart.label import DataLabelList

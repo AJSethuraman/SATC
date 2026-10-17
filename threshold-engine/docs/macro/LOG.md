@@ -692,6 +692,13 @@ files.
   - Two new tests fail with the old checks. The macro suite is 120. The real build passes the check and
     the printout is unchanged.
 
+- **Codex: the what-if is checked against the rating too.** A what-if made from an earlier reading of the
+  pull, or against other baseline settings, was accepted by `build`. The comparison now carries the
+  fingerprints and baseline settings it was made from, and `build` refuses one that does not match the
+  rating. That closes this family: every input `build` takes (the rating, the what-if and the `Pull`) is now
+  checked against one reading of the pull. The new test covers both mismatches and the matching case, and
+  fails without the check. The macro suite is 121. The real build passes, and its printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests

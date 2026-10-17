@@ -120,6 +120,8 @@ def compare(a, b, label_a, label_b):
             totals["neither"] += 1
         rows.append(row)
     return {"vintage": a["vintage"], "a": label_a, "b": label_b,
+            # what the comparison was made from, so a workbook can check it is this rating's (Codex on #452)
+            "read_sha": a["read_sha"], "baseline": a["settings"],
             # each side's horizon: a change counted over different months is named with both wherever it is shown
             "months": [a["settings"]["change_months"], b["settings"]["change_months"]],
             "settings": settings_rows(a["settings"], b["settings"]), "rows": rows, "matrix": matrix,
