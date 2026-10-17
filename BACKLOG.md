@@ -3688,7 +3688,8 @@ changed in the code.
     CSV; the Show dropdown's three choices, each signal at its line and a hair past it, and the switch, after a
     LibreOffice recalculation; out of 3 without a charge-off date; an older workbook without the rows). Tests that
     pinned the tab list, Control's blocks, Summary's columns, Grids' measures and the Glossary's terms were moved to
-    the new shape. Planted bugs: 21 added.
+    the new shape; the literal-names test no longer reads "Charge-off date", a column's meaning, as the old measure
+    name. Full suite in 4 shards with no display: 1,173 passed, 15 skipped. Planted bugs: 21 added, 21 caught.
 
 ## 7 · Standing rules for new items
 
