@@ -1796,3 +1796,40 @@ coverage change in the 2007 filings, not a revision, and the split series
 already say so in their notes. `test_reporting_changes.py` and
 `test_peers_commercial.py`: 67 passed. The new duplicate-note assertion was
 not run against the code before its fix.
+
+## 17 Oct 2026, question 17: FDIC history codes 213 and 225 placed
+
+The firm answered the commercial proposal's open questions on 17 Oct 2026,
+each "agreed with the recommendation" on the docket form
+(`docs/COMMERCIAL-PROPOSAL.md` on main, section 5). Built on
+`commercial-round2`, from `threshold-engine-book` (draft PR #442) at 4d92d7a9.
+
+- **Question 17, 17 Oct 2026, agreed with the recommendation:** *"How are the
+  FDIC history codes 213 ("Merger - Assisted", 3 rows, May 1990) and 225
+  ("Partial Purchase & Assumption - Without Assistance", 1991) classified?"*
+  The answer: *"agreed, so 213 is an acquisition and 225 is not"*.
+- **In code.** `peers/fdic.py`: 213 joins `ACQUISITIONS`, like 211; 225 joins
+  `NOT_AN_ACQUISITION`, like 712. A code on neither list is still refused by
+  name (`unrecognised`), so the next unplaced code stops the pull the same way.
+- **Counted live today** (`api.fdic.gov/banks/history`, filtered by code):
+  213 has 332 rows in all, 3 of them since 1990-01-01 (4, 11 and 25 May 1990;
+  acquirers 33097, 33057, 33110); 225 has 1 row (9 Oct 1991, acquirer 15689).
+  None of the four acquirers is on the roster (`config/peers.json`, 16 banks),
+  so no roster bank's windows move because of this answer.
+- **The merger record since 1990** in the commercial cache (pulled earlier
+  today by the interrupted run, with these two codes placed): 5,946
+  acquirers, 16,362 absorptions. It was not re-pulled for this entry.
+- **Proof.** `tests/test_peers_fdic.py`: the allowlist test now names 213 and
+  225, and a new test runs the three kinds (213, 225, 712) through
+  `unrecognised`, `classify`, `absorptions` and `pull_mergers`. Run at this
+  commit alone, in a clean worktree (uv venv, Python 3.13, openpyxl 3.1.5,
+  formulas, `OPENPYXL_LXML=False`): `test_peers_fdic.py` 46 passed. With 213
+  taken back off the list, the two tests above fail (checked, then put back).
+  Every test file importing `fdic`: `test_peers_fdic`, `test_internal`,
+  `test_launcher`, `test_peers_cli`, `test_peers_combinations`,
+  `test_peers_commercial`, `test_peers_delinquency`, `test_reporting_changes`.
+  Together: 515 passed, 5 skipped and 2 failed. The two are
+  `test_peers_cli.py`'s `test_the_regionals_pack_and_no_exemption` and
+  `test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out`, the two
+  this log already records failing on `threshold-engine-book` before this
+  work (the 15 Oct pack picker). The rest of the suite was not run.

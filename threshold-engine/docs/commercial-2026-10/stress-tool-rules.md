@@ -137,6 +137,9 @@ number for number.
 - **No build from 1991**: COULD NOT, the merger record since 1990 refused
   on codes 213 and 225 (above). The industry's early-1990s CRE losses, which
   the proposal leans on, are therefore not under the tool's rules yet.
+  *Update, 17 Oct 2026:* the firm placed both codes (question 17: 213 an
+  acquisition, 225 not), so the merger record since 1990 is no longer
+  refused on them (LOG.md, 17 Oct 2026, question 17).
 - The registry's reporting-change notes on the commercial series were read
   in the series files; the workbook built from them was not opened in Excel.
 - The peer workbook from these builds was not opened. Its dashboard text

@@ -251,6 +251,13 @@ def pull(quarters: Sequence[str], fields: Union[str, Sequence[str]],
 #: acquisition for this purpose. Codes and wording are the FDIC's own.
 ACQUISITIONS: Dict[int, str] = {
     211: "Failure - Whole Institution",
+    # Added 17 Oct 2026, the firm's answer to the commercial proposal's
+    # question 17 ("agreed with the recommendation" on the docket form): an
+    # assisted merger is classified as an acquisition, like 211. The merger
+    # record since 1990 was refused on three of these rows (May 1990), so no
+    # peer build before 2005 could run. Marking it can only leave a quarter
+    # out of a window; it never adds a number.
+    213: "Merger - Assisted",
     # Added 12 Oct 2026, after this module's own refusal caught it live (two
     # rows, 2008, neither acquirer on the roster). A failed bank's business
     # was split between several buyers, so each buyer's next filing carries a
@@ -268,6 +275,12 @@ ACQUISITIONS: Dict[int, str] = {
 #: Events that name an acquirer but do NOT bring a whole bank onto the filing.
 NOT_AN_ACQUISITION: Dict[int, str] = {
     712: "a branch purchase -- some offices changed hands, not a bank",
+    # Added 17 Oct 2026, the firm's answer to question 17: classified as not
+    # an acquisition, like 712. The FDIC's own words for the code are
+    # "Partial Purchase & Assumption - Without Assistance": part of a bank
+    # changed hands, not a whole bank (one row, 1991, in the record since 1990).
+    225: "a partial purchase and assumption without assistance -- part of a bank "
+         "changed hands, not a whole bank",
     810: "the mirror entry the FDIC writes against the acquirer for an "
          "absorption, consolidation or merger already counted above",
     811: "the mirror entry for an FDIC-assisted merger already counted above",
