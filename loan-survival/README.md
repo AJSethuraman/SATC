@@ -59,6 +59,11 @@ A flag is written in the settings file as the column name, for example `column =
 `model = fico >= 700, new_business`; a column in the file with exactly that name is used instead. With no comparison added,
 the run compares vintages.
 
+**Only loans where** limits a comparison to loans meeting one or more conditions, for example a FICO band. In the settings file:
+`where = fico >= 660; fico <= 699`. A condition is a column against a column or a number, as in a flag. A loan blank in a
+conditioned column is left out. The Tests sheet shows the conditions in its `orig_window` column. The origination window and the
+conditions both apply.
+
 **Seasoned** restricts a comparison to loans opened at least the early-read horizon (months, under Advanced) before the as-of
 date. It is the default for cutoffs, each value and the Cox model.
 

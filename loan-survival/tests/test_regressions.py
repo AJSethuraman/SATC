@@ -633,3 +633,45 @@ def test_a_flag_on_a_missing_or_text_column_is_refused_in_words():
             assert False, bad
         except ls.UserError as e:
             assert "not found" in str(e), str(e)
+
+
+# ---- a comparison limited to some loans by a column, e.g. a FICO band (the firm, 17 Oct 2026: "FICO X - X")
+
+def test_a_comparison_can_be_limited_to_a_fico_band():
+    raw = pd.read_csv(_BOOK)
+    r, _ = _run_book(raw, "\n[test: band]\ngroup_by = year\nwhere = fico >= 660; fico <= 699\n")
+    want = int(((raw["fico"] >= 660) & (raw["fico"] <= 699)).sum())
+    assert int(r["tests"]["loans"].sum()) == want and want > 0
+    assert "fico >= 660" in r["tests"]["orig_window"].iloc[0] and "fico <= 699" in r["tests"]["orig_window"].iloc[0]
+
+
+def test_a_band_and_an_origination_window_both_apply():
+    raw = pd.read_csv(_BOOK)
+    raw["_o"] = pd.to_datetime(raw["orig_date"])
+    r, _ = _run_book(raw.drop(columns="_o"), "\n[test: both]\ngroup_by = year\norig_from = 2022-01-01\nwhere = fico >= 700\n")
+    want = int(((raw["_o"] >= "2022-01-01") & (raw["fico"] >= 700)).sum())
+    assert int(r["tests"]["loans"].sum()) == want
+
+
+def test_a_loan_blank_in_the_banded_column_is_left_out_of_the_band():
+    raw = pd.read_csv(_BOOK)
+    raw.loc[raw.index[:7], "fico"] = np.nan
+    r, _ = _run_book(raw, "\n[test: band]\ngroup_by = year\nwhere = fico >= 0\n")
+    assert int(r["tests"]["loans"].sum()) == len(raw) - 7
+
+
+def test_the_band_applies_to_a_model_too():
+    raw = pd.read_csv(_BOOK)
+    _, s = _run_book(raw, "\n[test: m]\nmodel = new_business\nwhere = fico >= 700\n")
+    _, s_all = _run_book(raw, "\n[test: m]\nmodel = new_business\n")
+    assert s["Models"]["loans"].iloc[0] == int((raw["fico"] >= 700).sum()) < s_all["Models"]["loans"].iloc[0]
+
+
+def test_a_filter_that_is_not_a_comparison_is_refused_in_words():
+    raw = pd.read_csv(_BOOK)
+    for bad in ("fico", "nope >= 5", "fico between 600 and 700"):
+        try:
+            _run_book(raw, f"\n[test: t]\ngroup_by = year\nwhere = {bad}\n")
+            assert False, bad
+        except ls.UserError as e:
+            assert "Filter" in str(e) and "fico >= 660" in str(e), str(e)

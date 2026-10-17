@@ -488,11 +488,16 @@ COMPARISONS = (">=", "<=", "!=", "==", ">", "<")
 
 
 def column_values(df: pd.DataFrame, name: str):
-    """A test or model column by name. A column with exactly that name wins. Otherwise 'A > B' is a flag worked out here:
-    Yes or No, with A a column and B a column or a number (>, >=, <, <=, ==, !=), blank where either side is blank.
+    """A test or model column by name. A column with exactly that name wins; otherwise 'A > B' is a flag (derived_flag).
     Returns None when the name is neither."""
     if name in df.columns:
         return df[name]
+    return derived_flag(df, name)
+
+
+def derived_flag(df: pd.DataFrame, name: str):
+    """'A > B' as Yes or No, with A a column and B a column or a number (>, >=, <, <=, ==, !=), blank where either side
+    is blank. None when the text is not such a comparison."""
     for op in COMPARISONS:
         at = name.find(op)
         while at >= 0:
@@ -514,6 +519,22 @@ def column_values(df: pd.DataFrame, name: str):
                     return flag
             at = name.find(op, at + 1)
     return None
+
+
+def limit_loans(pop: pd.DataFrame, spec: dict, o: str) -> pd.DataFrame:
+    """The loans a comparison covers: its origination window, then every 'where' condition (written 'A >= 660; A <= 699').
+    A loan blank in a conditioned column is left out."""
+    if spec.get("orig_from"):
+        pop = pop[pop[o] >= pd.Timestamp(spec["orig_from"])]
+    if spec.get("orig_to"):
+        pop = pop[pop[o] <= pd.Timestamp(spec["orig_to"])]
+    for cond in [c.strip() for c in spec.get("where", "").split(";") if c.strip()]:
+        flag = derived_flag(pop, cond)
+        if flag is None:
+            raise UserError(f"Filter '{cond}' is not a comparison between a column and a column or a number. "
+                            "Write it like: fico >= 660; fico <= 699")
+        pop = pop[flag == "Yes"]
+    return pop
 
 
 def group_series(df: pd.DataFrame, spec: dict, st: Settings) -> list[tuple[str, pd.Series]]:
@@ -559,12 +580,8 @@ def run_tests(df: pd.DataFrame, st: Settings, tests: list):
     o = st.col("orig_date")
     nr, amt = st.col("net_revenue"), st.col("amount")
     for name, spec in tests:
-        pop = df
-        if spec.get("orig_from"):
-            pop = pop[pop[o] >= pd.Timestamp(spec["orig_from"])]
-        if spec.get("orig_to"):
-            pop = pop[pop[o] <= pd.Timestamp(spec["orig_to"])]
-        window = f"{spec.get('orig_from', 'start')} to {spec.get('orig_to', 'as-of')}"
+        pop = limit_loans(df, spec, o)
+        window = f"{spec.get('orig_from', 'start')} to {spec.get('orig_to', 'as-of')}" + (f"; {spec['where']}" if spec.get("where") else "")
         for comp, g in group_series(pop, spec, st):
             t, e, gv = pop["_time"].to_numpy(), pop["_event"].to_numpy(), g.to_numpy()
             stat, dof, p = logrank(t, e, gv)
@@ -642,11 +659,7 @@ def model_terms(df: pd.DataFrame, spec: str):
 def run_models(df: pd.DataFrame, st: Settings, tests: list) -> pd.DataFrame:
     o, rows = st.col("orig_date"), []
     for name, spec in tests:
-        pop = df
-        if spec.get("orig_from"):
-            pop = pop[pop[o] >= pd.Timestamp(spec["orig_from"])]
-        if spec.get("orig_to"):
-            pop = pop[pop[o] <= pd.Timestamp(spec["orig_to"])]
+        pop = limit_loans(df, spec, o)
         X, labels = model_terms(pop, spec["model"])
         ok = X.notna().all(axis=1)
         dropped = int((~ok).sum())

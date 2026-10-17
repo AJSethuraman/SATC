@@ -372,12 +372,16 @@ def default_test_name(kind: str, spec: dict) -> str:
 def describe_window(spec: dict) -> str:
     f, t = spec.get("orig_from"), spec.get("orig_to")
     if f and t:
-        return f"loans opened from {f} to {t}"
-    if t:
-        return f"loans opened up to {t}"
-    if f:
-        return f"loans opened from {f}"
-    return "all loans"
+        text = f"loans opened from {f} to {t}"
+    elif t:
+        text = f"loans opened up to {t}"
+    elif f:
+        text = f"loans opened from {f}"
+    else:
+        text = "all loans"
+    if spec.get("where"):
+        text = ("loans" if text == "all loans" else text) + f" where {spec['where']}"
+    return text
 
 
 def describe_test(spec: dict) -> str:
@@ -868,6 +872,8 @@ def main(argv=None) -> None:
             self.orig_to = tk.StringVar(value=spec.get("orig_to", ""))
             self.window_choice = tk.StringVar(value="dates" if (spec.get("orig_from") or spec.get("orig_to")) else "")
             self.var_op = tk.StringVar(value=">")
+            self.conds: list[str] = [c.strip() for c in spec.get("where", "").split(";") if c.strip()]   # "FICO >= 660", ...
+            self.band_col, self.band_from, self.band_to = tk.StringVar(), tk.StringVar(), tk.StringVar()
             self.fl_a, self.fl_op, self.fl_b = tk.StringVar(), tk.StringVar(value=">"), tk.StringVar()   # the flag builder in the model step
             self.terms: list[str] = []
             if existing:
@@ -908,7 +914,7 @@ def main(argv=None) -> None:
             self.btn_next = Button(bt, "Next", self.next, "primary")
             self.btn_next.pack(side="right")
             Button(bt, "Cancel", self.destroy).pack(side="right", padx=(0, GAP // 2))
-            self.minsize(1040, 640)
+            self.minsize(1040, 700)
             self.show_step()
             self.grab_set()
             self.wait_visibility()
@@ -1158,7 +1164,65 @@ def main(argv=None) -> None:
             e2.pack(side="left", padx=(6, 0), ipady=4)
             for e in (e1, e2):
                 e.bind("<KeyRelease>", lambda _e: (self.window_choice.set("dates"), self.update_summary()))
+            label(b, "Only loans where", "bold").pack(anchor="w", pady=(GAP // 2, GAP))
+
+            def make_band(r):
+                f = tk.Frame(r, bg=C["PAPER"])
+                pk = ColumnPicker(f, self.band_col, width=22)
+                pk.set_values(self.num_cols)
+                pk.pack(side="left")
+                label(f, "from", "body", fg="SLATE").pack(side="left", padx=(GAP, 6))
+                field(f, self.band_from, 7).pack(side="left", ipady=4)
+                label(f, "to", "body", fg="SLATE").pack(side="left", padx=(GAP, 6))
+                field(f, self.band_to, 7).pack(side="left", ipady=4)
+                Button(f, "Add", self.add_band).pack(side="left", padx=(GAP, 0))
+                return f
+            self.row("Column", make_band)
+            self.lb_conds = tk.Listbox(b, height=3, font=FONT["body"], relief="solid", bd=1, highlightthickness=0,
+                                       selectbackground=C["INK"], selectforeground=C["PAPER"], activestyle="none")
+            self.lb_conds.pack(fill="x")
+            for c in self.conds:
+                self.lb_conds.insert("end", c)
+            Button(b, "Remove", self.del_band).pack(anchor="w", pady=(GAP // 2, GAP))
             self.row("Name", lambda r: field(r, self.name, 40))
+
+        def add_band(self):
+            col = self.band_col.get()
+            if not col:
+                self.msg.config(text="Pick a column.")
+                return
+            added = []
+            for op, var in ((">=", self.band_from), ("<=", self.band_to)):
+                v = var.get().strip()
+                if not v:
+                    continue
+                try:
+                    v = f"{float(v):g}"
+                except ValueError:
+                    self.msg.config(text="From and to must be numbers.")
+                    return
+                text = flag_text(col, op, v)
+                if self.app.df is not None and flag_counts(self.app.df, text) is None:
+                    self.msg.config(text="Needs a numeric column.")
+                    return
+                added.append(text)
+            if not added:
+                self.msg.config(text="Enter a from, a to, or both.")
+                return
+            self.msg.config(text="")
+            for text in added:
+                if text not in self.conds:
+                    self.conds.append(text)
+                    self.lb_conds.insert("end", text)
+            for v in (self.band_col, self.band_from, self.band_to):
+                v.set("")
+            self.update_summary()
+
+        def del_band(self):
+            for i in reversed(self.lb_conds.curselection()):
+                self.lb_conds.delete(i)
+                del self.conds[i]
+            self.update_summary()
 
         # ---- what the choices add up to
         def build_spec(self, upto: int):
@@ -1214,6 +1278,8 @@ def main(argv=None) -> None:
                             except (ValueError, TypeError):
                                 return spec, f"'{v}' is not a date. Use YYYY-MM-DD."
                             spec[key] = v
+                if self.conds:
+                    spec["where"] = "; ".join(self.conds)
             return spec, ""
 
         def update_summary(self):

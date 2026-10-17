@@ -236,13 +236,28 @@ else:
         w.fl_a.set("income_gt_sales"); w.fl_b.set("5"); w.add_flag_term()
         check("wizard: a model flag on a text column is refused", len(w.terms) == 1 and "numeric" in w.msg.cget("text"), w.msg.cget("text"))
         w.destroy()
+        w = app.new_wizard(); w.kind.set("vintage"); w.next(); w.next()
+        w.band_col.set("fico"); w.band_from.set("660"); w.band_to.set("699.0"); w.add_band()
+        check("wizard: a band adds both its conditions", w.conds == ["fico >= 660", "fico <= 699"], str(w.conds))
+        w.window_choice.set("all"); w.name.set("vintage in a band"); w.next(); r9 = w.result
+        check("wizard: the band is written as a where", r9 and r9["spec"].get("where") == "fico >= 660; fico <= 699", str(r9))
+        check("wizard: describe says which loans", g.describe_test(r9["spec"]) == "Survival by origination year; loans where fico >= 660; fico <= 699", g.describe_test(r9["spec"]))
+        w = app.new_wizard(); w.kind.set("vintage"); w.next(); w.next()
+        w.band_col.set("income_gt_sales"); w.band_from.set("1"); w.add_band()
+        check("wizard: a band on a text column is refused", not w.conds and "numeric" in w.msg.cget("text"), w.msg.cget("text"))
+        w.band_col.set("fico"); w.band_from.set("abc"); w.add_band()
+        check("wizard: a band that is not a number is refused", not w.conds and "numbers" in w.msg.cget("text"), w.msg.cget("text"))
+        w.destroy()
+        w = app.new_wizard(existing=r9)
+        check("wizard: editing keeps the saved band", w.conds == ["fico >= 660", "fico <= 699"], str(w.conds))
+        w.destroy()
         w = app.new_wizard(); w.kind.set("cutoffs"); w.next()
         w.next()
         check("wizard: stays on the step and says why when incomplete", w.step == 1 and "cutoff" in w.msg.cget("text"), w.msg.cget("text"))
         w.destroy()
         # the whole set the wizard built runs in the engine
         r8 = {"name": "flag model", "spec": {"model": "fico >= 700, new_business", "orig_to": "2023-09-30"}}
-        app.tests = [r for r in (r1, r2, r3, r4, r5, r6, r7, r8) if r]
+        app.tests = [r for r in (r1, r2, r3, r4, r5, r6, r7, r8, r9) if r]
         app.v_out.set(str(Path(tmp) / "wiz.xlsx"))
         app.start_run(wait=True)
         check("wizard-built comparisons run", (Path(tmp) / "wiz.xlsx").exists(), app.status.get("1.0", "end")[:200])
