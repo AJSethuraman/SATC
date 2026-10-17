@@ -536,3 +536,31 @@ def test_records_after_a_terminal_status_set_the_loan_aside():
     assert used == 3                                           # L2's three transitions only
     ex = sheets["Excluded"]
     assert set(ex["loan_id"]) == {"L1"} and "after" in ex["exclusion_reason"].iloc[0] and excl == 4
+
+
+# ---- thirteenth Codex review of PR 445 (reviewed adc4d5c)
+
+def test_log_rank_with_no_overlap_between_groups_is_untestable_not_p_of_one():
+    t = np.r_[np.full(30, 1), np.full(30, 10)]
+    e = np.r_[np.zeros(30, int), np.ones(30, int)]          # A is censored at month 1; B's events come at month 10
+    g = np.r_[np.full(30, "A"), np.full(30, "B")]
+    stat, dof, p = ls.logrank(t, e, g)
+    assert np.isnan(p) and dof == 0
+
+
+def test_log_rank_degrees_of_freedom_follow_the_rank_of_the_covariance():
+    rng = np.random.default_rng(5)
+    n = 200
+    t = np.r_[rng.integers(2, 30, n), rng.integers(2, 30, n), np.full(n, 1)]   # C is only ever observed at month 1
+    e = np.r_[(rng.random(n) < .5).astype(int), (rng.random(n) < .5).astype(int), np.zeros(n, int)]
+    g = np.r_[np.full(n, "A"), np.full(n, "B"), np.full(n, "C")]
+    stat, dof, p = ls.logrank(t, e, g)
+    assert dof == 1 and not np.isnan(p)                      # three labels, but only one testable difference
+
+
+def test_standalone_loan_mode_leaves_out_rows_with_no_loan_id():
+    df = pd.DataFrame({
+        "loan_id": [None, "B", "C"], "first_90_date": ["2024-01-31"] * 3,
+        "chargeoff_date": ["2024-05-31", None, None], "payoff_date": [None] * 3, "dpd_asof": [0, 0, 0]})
+    sheets, used, excl = do.loan_mode(df, _args(), AS_OF)
+    assert used == 2 and excl == 1 and "no loan id" in sheets["Excluded"]["exclusion_reason"].iloc[0]

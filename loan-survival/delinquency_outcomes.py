@@ -82,14 +82,16 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
 
     if a.id_col in df.columns:  # one row per loan: a repeated id would count the same loan twice
         ids = df[a.id_col]
-        dup = ids.duplicated(keep="first") & ids.notna() & (ids.astype(str).str.strip() != "")
-        if dup.any():
-            x = df[dup].copy()
-            x.insert(0, "exclusion_reason", "duplicate loan id")
-            excluded.append(x)
-            df = df[~dup]
-            f90, co = f90[~dup], co[~dup]
-            pif = pif[~dup]
+        has_id = ids.notna() & (ids.astype(str).str.strip() != "")
+        for bad, why in ((~has_id, "no loan id"), (ids.duplicated(keep="first") & has_id, "duplicate loan id")):
+            bad = bad.reindex(df.index, fill_value=False)
+            if bad.any():
+                x = df[bad].copy()
+                x.insert(0, "exclusion_reason", why)
+                excluded.append(x)
+                df, f90, co, pif = df[~bad], f90[~bad], co[~bad], pif[~bad]
+                ids = df[a.id_col]
+                has_id = ids.notna() & (ids.astype(str).str.strip() != "")
     if has_pif:  # a charge-off dated after the payoff cannot also have happened; left out of every figure, not just the outcomes
         bad_co_pif = co.notna() & pif.notna() & (co > pif)
         if bad_co_pif.any():

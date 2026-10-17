@@ -210,8 +210,12 @@ def logrank(time: np.ndarray, event: np.ndarray, group: np.ndarray) -> tuple[flo
             p = ng / n
             V += d * (n - d) / (n - 1) * (np.diag(p) - np.outer(p, p))
     diff = (O - E)[:-1]
-    stat = float(diff @ np.linalg.pinv(V[:-1, :-1]) @ diff)
-    return stat, k - 1, chi2_sf(stat, k - 1)
+    V2 = V[:-1, :-1]
+    rank = int(np.linalg.matrix_rank(V2))  # how many differences can really be tested; 0 when the groups never overlap
+    if rank == 0:
+        return np.nan, 0, np.nan
+    stat = float(diff @ np.linalg.pinv(V2) @ diff)
+    return stat, rank, chi2_sf(stat, rank)
 
 
 class NotEstimable(Exception):
