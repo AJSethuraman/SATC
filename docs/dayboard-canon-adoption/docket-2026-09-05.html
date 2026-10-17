@@ -1,0 +1,949 @@
+<title>Dayboard Docket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+
+<style>
+  /* Palette read verbatim from /home/user/dayboard/app/palettes.css — the
+     project's own "Kitchen paper" tokens. Light is the bare :root. */
+  :root {
+    --bar:        #102f49;
+    --bar-deep:   #0a263d;
+    --ground:     #f5f0e6;
+    --paper:      #fffdf8;
+    --ink:        #243129;
+    --muted:      #687269;
+    --faint:      #a49a89;
+    --border:     #ddd5c7;
+    --border-lt:  #e7e0d2;
+    --action:     #3c8d87;
+    --action-ink: #1d5b57;
+    --alert:      #c66e4e;
+    --alert-ink:  #8f4227;
+    --chore:      #526b4a;
+    --stack:      #efe8db;
+
+    --shadow: 0 1px 2px rgba(36, 49, 41, .06), 0 6px 18px -12px rgba(16, 47, 73, .22);
+    --radius: 10px;
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bar:        #cfe0ee;
+      --bar-deep:   #9fbdd6;
+      --ground:     #0e1a20;
+      --paper:      #16242c;
+      --ink:        #e8e4d9;
+      --muted:      #a2b0ac;
+      --faint:      #77827f;
+      --border:     #2b3d46;
+      --border-lt:  #223138;
+      --action:     #59b3ac;
+      --action-ink: #8fd3cd;
+      --alert:      #e08e6c;
+      --alert-ink:  #f0b295;
+      --chore:      #8fae84;
+      --stack:      #1d2f38;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bar:        #cfe0ee;
+    --bar-deep:   #9fbdd6;
+    --ground:     #0e1a20;
+    --paper:      #16242c;
+    --ink:        #e8e4d9;
+    --muted:      #a2b0ac;
+    --faint:      #77827f;
+    --border:     #2b3d46;
+    --border-lt:  #223138;
+    --action:     #59b3ac;
+    --action-ink: #8fd3cd;
+    --alert:      #e08e6c;
+    --alert-ink:  #f0b295;
+    --chore:      #8fae84;
+    --stack:      #1d2f38;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px -12px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 16.5px;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  h1, h2, h3, .eyebrow, .pill, button {
+    font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  code, kbd, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ── masthead ─────────────────────────────────────────────── */
+  header.masthead {
+    padding: 44px 0 26px;
+    border-bottom: 2px solid var(--bar);
+  }
+  .kicker {
+    font-family: Archivo, sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(30px, 5.2vw, 42px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.08;
+    margin: 0 0 12px;
+    color: var(--bar);
+    text-wrap: balance;
+  }
+  .standfirst {
+    margin: 0;
+    max-width: var(--measure);
+    color: var(--muted);
+    font-size: 17px;
+  }
+  .runline {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    font-size: 13.5px;
+    color: var(--faint);
+  }
+  .runline b { color: var(--muted); font-weight: 600; }
+
+  /* ── progress rail ────────────────────────────────────────── */
+  .progress {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--ground);
+    border-bottom: 1px solid var(--border);
+    padding: 11px 0 10px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .progress-count {
+    font-family: Archivo, sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--bar);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .track {
+    flex: 1 1 160px;
+    height: 6px;
+    background: var(--border-lt);
+    border-radius: 99px;
+    overflow: hidden;
+    min-width: 120px;
+  }
+  .track > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--action);
+    border-radius: 99px;
+    transition: width .35s ease;
+  }
+  .savestate {
+    font-size: 12.5px;
+    color: var(--faint);
+    white-space: nowrap;
+  }
+  .savestate[data-state="saving"] { color: var(--muted); }
+  .savestate[data-state="saved"]  { color: var(--action-ink); }
+  .savestate[data-state="local"]  { color: var(--alert-ink); }
+
+  /* ── sections ─────────────────────────────────────────────── */
+  section { margin: 0 0 52px; }
+  h2 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--bar);
+    margin: 0 0 6px;
+  }
+  .section-note {
+    margin: 0 0 22px;
+    color: var(--muted);
+    font-size: 15px;
+    max-width: var(--measure);
+  }
+
+  /* ── decision cards ───────────────────────────────────────── */
+  .cards { display: flex; flex-direction: column; gap: 20px; }
+
+  article.decision {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 24px 20px;
+  }
+  article.decision.answered {
+    border-color: var(--action);
+    box-shadow: none;
+  }
+  article.decision.gate {
+    border-left: 4px solid var(--alert);
+  }
+
+  .d-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .tag {
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: var(--stack);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .tag.blocks { background: transparent; color: var(--alert-ink); border-color: var(--alert); }
+  .tag.done   { background: transparent; color: var(--action-ink); border-color: var(--action); }
+
+  h3 {
+    font-size: 20.5px;
+    font-weight: 600;
+    letter-spacing: -.012em;
+    line-height: 1.28;
+    margin: 2px 0 12px;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  .context { margin: 0 0 16px; max-width: var(--measure); }
+  .context p { margin: 0 0 10px; }
+  .context p:last-child { margin-bottom: 0; }
+
+  .outcomes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1px;
+    background: var(--border-lt);
+    border: 1px solid var(--border-lt);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .outcome { background: var(--paper); padding: 13px 15px; }
+  .outcome .lab {
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: block;
+    margin-bottom: 5px;
+  }
+  .outcome p { margin: 0; font-size: 15px; color: var(--ink); }
+
+  .rec {
+    border-left: 3px solid var(--action);
+    background: color-mix(in srgb, var(--action) 7%, transparent);
+    padding: 11px 15px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 18px;
+  }
+  .rec .lab {
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--action-ink);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .rec p { margin: 0; font-size: 15.5px; }
+
+  .answer-lab {
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .picks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  button.pick {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+    line-height: 1.3;
+  }
+  button.pick:hover { border-color: var(--action); color: var(--action-ink); }
+  button.pick:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+  button.pick[aria-pressed="true"] {
+    background: var(--action);
+    border-color: var(--action);
+    color: #fffdf8;
+  }
+  :root[data-theme="dark"] button.pick[aria-pressed="true"],
+  :root:not([data-theme="light"]) button.pick[aria-pressed="true"] { color: #0e1a20; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) button.pick[aria-pressed="true"] { color: #fffdf8; }
+  }
+  button.pick.recommended::after {
+    content: "recommended";
+    font-size: 9.5px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--action-ink);
+    margin-left: 7px;
+  }
+  button.pick[aria-pressed="true"].recommended::after { color: inherit; opacity: .8; }
+
+  textarea {
+    width: 100%;
+    min-height: 62px;
+    resize: vertical;
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 15.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--ground);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 12px;
+  }
+  textarea:focus-visible { outline: 2px solid var(--action); outline-offset: 1px; border-color: var(--action); }
+  textarea::placeholder { color: var(--faint); }
+
+  /* ── plain sections (not cards) ───────────────────────────── */
+  table.figures {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+  .scroller { overflow-x: auto; }
+  table.figures th, table.figures td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--border-lt);
+    vertical-align: top;
+  }
+  table.figures th {
+    font-family: Archivo, sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    white-space: nowrap;
+  }
+  table.figures td.num {
+    font-family: "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  .ok   { color: var(--action-ink); font-weight: 600; }
+  .warn { color: var(--alert-ink); font-weight: 600; }
+
+  ul.plain { margin: 0; padding-left: 1.15em; max-width: var(--measure); }
+  ul.plain li { margin-bottom: 9px; }
+  ul.plain li::marker { color: var(--faint); }
+
+  ol.steps { margin: 0; padding-left: 1.3em; max-width: var(--measure); }
+  ol.steps li { margin-bottom: 8px; }
+
+  pre {
+    background: var(--bar-deep);
+    color: #e8e4d9;
+    padding: 11px 14px;
+    border-radius: 7px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin: 10px 0;
+  }
+  :root:not([data-theme="light"]) pre { border: 1px solid var(--border); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) pre { background: #081419; color: #d7e3e0; }
+  }
+  :root[data-theme="dark"] pre { background: #081419; color: #d7e3e0; }
+  pre code { background: none; padding: 0; color: inherit; }
+
+  code {
+    background: var(--stack);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: .89em;
+  }
+
+  .jargon {
+    border-left: 3px solid var(--border);
+    padding-left: 14px;
+    margin: 12px 0;
+    max-width: var(--measure);
+  }
+  .jargon dt {
+    font-family: Archivo, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--bar);
+    margin-bottom: 2px;
+  }
+  .jargon dd { margin: 0 0 12px; color: var(--muted); font-size: 15px; }
+  .jargon dd:last-child { margin-bottom: 0; }
+
+  .wrong {
+    border: 1px solid var(--alert);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    background: color-mix(in srgb, var(--alert) 5%, transparent);
+  }
+  .wrong ol { margin: 0; padding-left: 1.25em; max-width: var(--measure); }
+  .wrong li { margin-bottom: 11px; }
+  .wrong li:last-child { margin-bottom: 0; }
+  .wrong li::marker { color: var(--alert); font-weight: 700; }
+
+  footer.foot {
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    color: var(--faint);
+    font-size: 13.5px;
+    max-width: var(--measure);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">Canon docket · Dayboard</p>
+    <h1>What is waiting on you</h1>
+    <p class="standfirst">Twelve decisions from a session that read Dayboard's history and asked what rules it already proves. Nothing has been written to the record. Answer here — the boxes save as you type, and I read them back.</p>
+    <div class="runline">
+      <span><b>Read:</b> 5 September 2026</span>
+      <span><b>Repository:</b> <span class="mono">AJSethuraman/Dayboard</span> @ <span class="mono">666602b</span></span>
+      <span><b>Tests:</b> <span class="ok">223 passed, 0 skipped</span></span>
+    </div>
+  </header>
+
+  <div class="progress">
+    <span class="progress-count"><span id="answered">0</span> of 12 answered</span>
+    <span class="track"><i id="bar"></i></span>
+    <span class="savestate" id="savestate" data-state="idle">Not saving yet</span>
+  </div>
+
+  <section>
+    <h2>Waiting on you</h2>
+    <p class="section-note">Each one is answerable in a line by somebody who was not here. The first is a gate — its answer changes two others.</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section>
+    <h2>What changed</h2>
+    <p class="section-note">Nothing landed in Dayboard this session. No commits, no pull requests, no edits to the record. These are the figures behind everything above, measured rather than remembered.</p>
+
+    <div class="scroller">
+      <table class="figures">
+        <thead>
+          <tr><th>What</th><th>Figure</th><th>How it was got</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Whole verify pipeline</td>
+            <td class="num ok">exit 0</td>
+            <td><code>npm run verify</code> — lint, typecheck, unit, build, worker — run at the top of this docket</td>
+          </tr>
+          <tr>
+            <td>Unit tests</td>
+            <td class="num">213 passed · 0 skipped</td>
+            <td>11 files under <code>app/lib/</code>, Vitest</td>
+          </tr>
+          <tr>
+            <td>Worker tests</td>
+            <td class="num">10 passed · 0 skipped</td>
+            <td><code>node --test tests/*.test.mjs</code> against the built artifact</td>
+          </tr>
+          <tr>
+            <td>Commits in Dayboard</td>
+            <td class="num">55 on main · 95 all refs</td>
+            <td>33 authored by Claude, 62 attributed to you</td>
+          </tr>
+          <tr>
+            <td>Your words found in the repo</td>
+            <td class="num warn">0</td>
+            <td>Of your 62 commits, 56 have an empty body and 6 carry agent-written pull-request text. <code>git blame</code> gives you 22 lines of README — 21 blank and one code fence</td>
+          </tr>
+          <tr>
+            <td>Tests <span class="mono">adopt.py</span> can see</td>
+            <td class="num warn">4 of 15</td>
+            <td>Its filename pattern misses <code>.test.ts</code>; one of the 4 it catches is a helper, not a test</td>
+          </tr>
+          <tr>
+            <td>Commits pairing a test with source</td>
+            <td class="num">18, reported as 4</td>
+            <td>Consequence of the line above — understated 4.5×</td>
+          </tr>
+          <tr>
+            <td>Edits to <span class="mono">docs/DESIGN-BRIEF.md</span></td>
+            <td class="num warn">1, ever</td>
+            <td>Against 20 edits to <code>CLAUDE.md</code> over the same period</td>
+          </tr>
+          <tr>
+            <td>Open pull requests · open issues</td>
+            <td class="num">0 · 0</td>
+            <td>All 8 pull requests closed; last merge 26 August</td>
+          </tr>
+          <tr>
+            <td>Days since main last moved</td>
+            <td class="num">10</td>
+            <td><span class="mono">666602b</span>, 26 August</td>
+          </tr>
+          <tr>
+            <td>Stale remote branches</td>
+            <td class="num">6</td>
+            <td>Five <code>agent/</code> and <code>codex/</code> branches plus the familiarization branch, all merged or closed</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>What I did not check</h2>
+    <p class="section-note">A clean result is a finding. A silent gap is not.</p>
+    <ul class="plain">
+      <li><b>I never opened the board.</b> No deploy, no dev server, no browser. Nothing above rests on the product actually working — only on its tests passing and its source saying what it says.</li>
+      <li><b>There is no running log in Dayboard.</b> A docket is supposed to read <code>LOG.md</code> first; this repository has none, so everything here comes from git, the test run, and GitHub.</li>
+      <li><b>I did not open all six tenet citations myself.</b> I verified the <span class="mono">adopt.py</span> defect, the design brief's edit count and every authorship claim by running them. The six commit diffs behind D-2 to D-7 I took on the reading agent's word.</li>
+      <li><b>No Cloudflare, Google or Azure console.</b> Named in <code>docs/DEPLOY.md</code>, not reachable from here — so I cannot see whether the board is actually serving anyone.</li>
+      <li><b>Roughly 1.2 MB of code diffs went unread.</b> The commit messages were read in full; the changes they describe were sampled.</li>
+      <li><b>Nothing in the SATC repository was re-checked</b> after this session turned to Dayboard.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What I got wrong</h2>
+    <p class="section-note">This is the part that tells you how much to trust the rest.</p>
+    <div class="wrong">
+      <ol>
+        <li><b>I spent the first half of this session in the wrong repository.</b> I read "dayboard" as a topic inside SATC and built a full test baseline there — 1,479 tests, two harness runs, a real defect in <code>exercise.py</code> — before you told me Dayboard was its own repo. That SATC work is real and is written up, but it was not what you asked for.</li>
+        <li><b>I told you a test suite was running when it was not.</b> <code>pytest</code> was not installed; my command reported success because I captured the exit code of <code>tail</code> rather than of the thing I was running. Exactly the failure canon's first tenet describes, committed by my own harness.</li>
+        <li><b>I reported a live constraint violation that had already been fixed.</b> I said three-way overlaps rendered 36px controls under a 44px floor. They do not — <code>app/lib/day-layout.ts</code> collapses overlapping groups and never goes below 96px. I had read the design brief instead of the source. That mistake is the reason D-11 exists.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Answers save to this page as you type and are readable from any device you open it on. When you have answered, tell me and I will read them back, write them into the log, and take anything that turns out to be a belief rather than a task to <span class="mono">bassy</span> as a conviction — which still needs a separate yes.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DECISIONS = [
+    {
+      id: "d1-in-use",
+      area: "Permission",
+      gate: true,
+      q: "Is the board in daily use in the kitchen yet?",
+      context: [
+        "Dayboard's <code>main</code> branch is a publish path: <code>.github/workflows/deploy.yml</code> fires on every push to it and ships straight to the wall tablet. The branch is not protected, so nothing stands between a merge and the screen.",
+        "<code>CLAUDE.md</code> line 385 grants agents permission to merge their own work, and states its own expiry: <i>\"While the board is not yet in daily use, merge your own work… Revisit this the moment the household starts actually using the board.\"</i> Nobody has revisited it.",
+        "This also collides with something you recorded on 4 September — <b>C5</b>, that the control is the publish path rather than the word \"main\". C5 says <code>Applies: SATC repositories</code>, and Dayboard is not one. I am not resolving that; you are."
+      ],
+      either: [
+        ["If yes", "The permission has already lapsed by its own terms. Agents open pull requests and stop merging them; you press the button. I would also protect <code>main</code>."],
+        ["If no", "Everything stands as written, and the question comes back the first week the household relies on it."]
+      ],
+      rec: "Treat it as in use unless you are certain it is not. A wrong \"no\" costs a real person a real day in a kitchen; a wrong \"yes\" costs you one button press per change.",
+      picks: ["Yes — in daily use", "No — still not relied on", "Somewhere in between"],
+      recPick: 0
+    },
+    {
+      id: "d2-tenet-d1",
+      area: "Tenet D1",
+      q: "Adopt: empty, broken, and not-yet-loaded must never look alike?",
+      context: [
+        "Cited to <span class=\"mono\">c7153f0</span>, which introduced the eight-week rail. Its own words: <i>\"A week with nothing in it is stated in words rather than omitted — an omitted week reads as a week the board failed to load, and those are the two things that must never look alike.\"</i> It ships a named constant for the empty case.",
+        "Corroborated twice: <span class=\"mono\">bd7dd5d</span> deleted a mock layer that painted 21 invented events on every first load, and <span class=\"mono\">d4b7173</span> fixed a week grid that <i>\"quietly stopped at Saturday\"</i> without looking broken."
+      ],
+      either: [
+        ["Adopt as a tenet", "Canon gains a 36th rule, about a reader being misled."],
+        ["Adopt as evidence", "Attaches to the existing S11 (\"absence leaves no token\") instead — same law, seen from the other side."]
+      ],
+      rec: "Evidence under S11, not a new tenet. You believe the simplest answer is likely the best, and extending a rule you already hold beats adding one beside it.",
+      picks: ["Adopt as a tenet", "Attach as evidence to S11", "Decline"],
+      recPick: 1
+    },
+    {
+      id: "d3-tenet-d2",
+      area: "Tenet D2",
+      q: "Adopt: an outcome nobody could see was not reported?",
+      context: [
+        "Cited to <span class=\"mono\">7486635</span>, the last commit on main. Its comment: <i>\"the banner vanished after about 80ms. The whole OAuth flow therefore reported its outcome — including 'this provider isn't set up on this server' — in a flash too short to read, which is indistinguishable from a button that does nothing.\"</i>",
+        "The same commit found a provider with no credentials still rendering as a live, clickable link. Corroborated by <span class=\"mono\">100932d</span>, where six distinct sign-in outcomes all redirected to a page that read none of them."
+      ],
+      either: [
+        ["Adopt", "A rule that a message too brief to read is not a message, wherever software reports to a person."],
+        ["Decline", "Stays a Dayboard rule in its own CLAUDE.md, where it already lives."]
+      ],
+      rec: "Adopt. The strongest citation in the set — a real incident, a measured number, and it generalises past a kitchen wall without straining.",
+      picks: ["Adopt", "Attach as evidence", "Decline"],
+      recPick: 0
+    },
+    {
+      id: "d4-tenet-d3",
+      area: "Tenet D3",
+      q: "Adopt: when the design asks for a fact the system does not hold, say less — never fill the gap?",
+      context: [
+        "Cited to <span class=\"mono\">b951b3e</span>. From the module it introduced: <i>\"The design's copy leans on facts Dayboard does not hold… there is no presence data; a sunset-to-sunrise dim window needs the household's location, and there is no location. Where that happens this module says something it can prove instead, or says nothing. Never invent the difference.\"</i>",
+        "What might be new here is <b>where the pressure came from</b> — an approved design document, not a defaulting bug. \"The spec asked for it\" is the excuse this would refuse."
+      ],
+      either: [
+        ["Adopt", "A 36th rule, aimed specifically at specs that ask for data you do not have."],
+        ["Adopt as evidence", "Attaches to your existing \"never invent a value\" principle, which already covers the substance."]
+      ],
+      rec: "Evidence, not a new tenet. \"Never invent a value\" already says this; what is genuinely new is only the source of the pressure, and that fits inside the existing rule as a citation.",
+      picks: ["Adopt as a tenet", "Attach as evidence", "Decline"],
+      recPick: 1
+    },
+    {
+      id: "d5-tenet-d4",
+      area: "Tenet D4",
+      q: "Adopt: nothing unattended may wait for a person, and nothing self-healing may try twice?",
+      context: [
+        "Cited to <span class=\"mono\">37cc472</span> and <span class=\"mono\">ac84576</span>. The board recovers from errors on its own because <i>\"on a wall display nobody is there to\"</i> tap Try Again — and the self-reload is capped at exactly one attempt per served build, held in browser storage so the count survives the reload it guards.",
+        "The commit's reason for the cap: <i>\"a wall tablet stuck in a loop is worse than one running last week's build.\"</i>"
+      ],
+      either: [
+        ["Adopt", "Both clauses enter the record. The second — a self-heal must be bounded — travels well beyond wall displays."],
+        ["Decline", "It is the most Dayboard-shaped rule in the set; the practice's software always has somebody in front of it."]
+      ],
+      rec: "Adopt. The first clause is situational, but an unbounded retry loop is a hazard in anything that runs without a person, and you are building more of those.",
+      picks: ["Adopt", "Attach as evidence", "Decline"],
+      recPick: 0
+    },
+    {
+      id: "d6-tenet-d5",
+      area: "Tenet D5",
+      q: "Adopt: a name something outside your control has recorded is data, not a detail?",
+      context: [
+        "Cited to <span class=\"mono\">4b230f9</span>. A database <b>migration</b> — a numbered file that changes the shape of stored data, applied in order and remembered by name — was regenerated during development, so its filename changed. The live database had already written the old name into its own ledger, and the next deploy failed before deploying.",
+        "The file's <i>contents</i> were fine. Only its name had been recorded somewhere outside the repository. Recovery needed a hand-written one-off script."
+      ],
+      either: [
+        ["Adopt", "A rule that once an external system writes down an identifier, that identifier is part of your interface."],
+        ["Decline", "Stays local, where CLAUDE.md already says migrations are additive from here."]
+      ],
+      rec: "Adopt. It cost a failed production deploy and a hand-written recovery, and the same trap sits under every schema, queue and file-naming convention you will build.",
+      picks: ["Adopt", "Attach as evidence", "Decline"],
+      recPick: 0
+    },
+    {
+      id: "d7-tenet-d6",
+      area: "Tenet D6",
+      q: "Adopt: a document not touched by the commit that changed the behaviour is stale by default?",
+      context: [
+        "The evidence is arithmetic. <code>docs/DESIGN-BRIEF.md</code> has been edited <b>once, ever</b>. <code>CLAUDE.md</code> was edited <b>20 times</b> over the same period, because each change carried its own rule.",
+        "Four of the brief's seven \"ideas genuinely wanted\" were built the same day it was written. It also describes six sidebar destinations where the code says five, and carries a colour palette the code has since superseded.",
+        "This is the rule that caught me out today — I read the brief instead of the source and reported a bug that had been fixed."
+      ],
+      either: [
+        ["Adopt", "Cite commits and code; treat any document's claim about what exists as a claim about the day it was written."],
+        ["Decline", "Risk: it reads as licence to stop maintaining documents, which is the opposite of the point."]
+      ],
+      rec: "Adopt. It is the only one in this set that has already cost something inside this session, and the fix it implies — cite the commit, not the document — is free.",
+      picks: ["Adopt", "Attach as evidence", "Decline"],
+      recPick: 0
+    },
+    {
+      id: "d8-evidence",
+      area: "Evidence",
+      q: "Attach six pieces of Dayboard evidence to tenets canon already holds?",
+      context: [
+        "Cheaper than new rules and probably the larger part of what this repository proves. Proposed for <b>S28</b> (don't call it delivered because tests pass — six commits verify in a real browser with measured pixel numbers), <b>S6</b> (two lists that must agree will not), <b>S14</b> (unreachable code is unchecked code), <b>S15</b> (a test must be able to fail for its stated reason), and <b>S4</b> (a tool that overstates what is broken destroys belief in it).",
+        "A sixth, for <b>S1</b>, is a looser fit: a deploy that ran 26 <code>CREATE TABLE IF NOT EXISTS</code> statements would report success while doing nothing at all."
+      ],
+      either: [
+        ["Accept all six", "Canon's existing tenets gain citations from a second codebase, which is what makes them portable."],
+        ["Accept five", "Everything but the S1 one, which the reading agent itself flagged as a stretch."]
+      ],
+      rec: "Accept five, leave S1. The other five are exact; S1 is about artifacts and their consumers, and this is about a mechanism that can only ever add — close, but not the same law.",
+      picks: ["Accept all six", "Accept five, drop S1", "None"],
+      recPick: 1
+    },
+    {
+      id: "d9-adopt-py",
+      area: "Canon bug",
+      q: "Fix the one line in adopt.py that hides JavaScript tests?",
+      context: [
+        "<span class=\"mono\">adopt.py</span> decides which commits changed a test by matching filenames. Its pattern catches <code>_test.js</code> and <code>.spec.js</code> but not <code>.test.ts</code> — the convention Vitest and Jest use, and the one this repo uses.",
+        "Run against Dayboard it sees <b>4 of 15</b> test files, and one of those four is a helper rather than a test. Every JavaScript or TypeScript repository canon is ever pointed at will be misread the same way."
+      ],
+      either: [
+        ["Fix it", "One line in the canon repository, via a pull request. Re-running adoption then reads 18 commits instead of 4."],
+        ["Leave it", "Adoption keeps under-reporting its own strongest signal, silently."]
+      ],
+      rec: "Fix it. It is one line, it is canon's bug rather than Dayboard's, and it makes every future adoption honest. The steps are on the reply next to this docket.",
+      picks: ["Fix it — open a PR", "Fix it later", "Leave it"],
+      recPick: 0
+    },
+    {
+      id: "d10-brief",
+      area: "Documents",
+      q: "What happens to the stale design brief?",
+      context: [
+        "<code>docs/DESIGN-BRIEF.md</code> is the document you would hand a designer or an agent, and four of its seven open questions are already built. Left alone it will keep generating work that is already done.",
+        "Updating it is the obvious answer and the one D-7 argues against: a document that is not changed by the commit that changes the behaviour goes stale again, so an update buys a few weeks."
+      ],
+      either: [
+        ["Update it", "Accurate today. Stale again by the next design commit unless something enforces it."],
+        ["Date-stamp it", "One line at the top saying it describes 26 August. Honest permanently, costs nothing, and stops it being read as current."]
+      ],
+      rec: "Date-stamp it. Cheaper, it stays true, and it keeps the brief useful as the record of what was being asked at the time — which is what it actually is.",
+      picks: ["Date-stamp it as a snapshot", "Update it fully", "Leave it"],
+      recPick: 0
+    },
+    {
+      id: "d11-corpus",
+      area: "Canon",
+      q: "Should Dayboard keep a record of your own words?",
+      context: [
+        "The mining run found <b>nothing of yours</b> in this repository. Not one passage. Your 62 commits carry no typed words, and the prose is all agent-written — including comments posted from your GitHub account.",
+        "Canon's convictions for the accounting practice exist only because somebody pulled 173 turns out of session transcripts before the container holding them was wiped. Dayboard's sessions were wiped without that, and this one will be too."
+      ],
+      either: [
+        ["Start capturing", "A file in the repo that each session appends your own words to. Slow to fill; the only way a Dayboard conviction ever exists."],
+        ["Accept none", "Dayboard is governed by tenets read from its commits, and holds no convictions. A legitimate answer for a personal project."]
+      ],
+      rec: "Start capturing, cheaply — one file, appended at the end of a session, no ceremony. Your answers on this page are already the first entries worth keeping.",
+      picks: ["Start capturing my words", "Accept none — tenets only", "Decide later"],
+      recPick: 0
+    },
+    {
+      id: "d12-register",
+      area: "Canon",
+      q: "Add Dayboard's identity card to canon's register?",
+      context: [
+        "A four-line card so a session arriving cold knows where it is: what the project is, who it is for, the stack, and where it lives. It passed canon's drift guard first time — no counts, no status words, nothing that goes quietly false in a week.",
+        "It names <b>C2</b> and <b>C5</b> as the convictions that apply, which is what makes D-1 above a live question rather than a hypothetical."
+      ],
+      either: [
+        ["Add it", "Dayboard joins the register; future sessions in it start from a known description."],
+        ["Leave it out", "Dayboard stays outside canon's register and each session works it out again."]
+      ],
+      rec: "Add it. It is four lines, it is already drafted and drift-checked, and it is the thing that makes the next session's first ten minutes unnecessary.",
+      picks: ["Add it to the register", "Not yet", "Leave it out"],
+      recPick: 0
+    }
+  ];
+
+  var state = {};
+  var db = null;
+  var timers = {};
+
+  function el(tag, cls, html) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function setSave(mode, text) {
+    var s = document.getElementById("savestate");
+    s.setAttribute("data-state", mode);
+    s.textContent = text;
+  }
+
+  function countAnswered() {
+    var n = 0;
+    DECISIONS.forEach(function (d) {
+      var v = state[d.id];
+      if (v && ((v.choice != null && v.choice !== "") || (v.note && v.note.trim() !== ""))) n++;
+    });
+    document.getElementById("answered").textContent = String(n);
+    document.getElementById("bar").style.width = Math.round((n / DECISIONS.length) * 100) + "%";
+    DECISIONS.forEach(function (d) {
+      var card = document.getElementById("card-" + d.id);
+      if (!card) return;
+      var v = state[d.id];
+      var done = !!(v && ((v.choice != null && v.choice !== "") || (v.note && v.note.trim() !== "")));
+      card.classList.toggle("answered", done);
+      var badge = card.querySelector(".tag.done");
+      if (badge) badge.hidden = !done;
+    });
+  }
+
+  function paint(d) {
+    var v = state[d.id] || {};
+    var card = document.getElementById("card-" + d.id);
+    if (!card) return;
+    Array.prototype.forEach.call(card.querySelectorAll("button.pick"), function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.value === v.choice));
+    });
+    var ta = card.querySelector("textarea");
+    if (ta && document.activeElement !== ta) ta.value = v.note || "";
+  }
+
+  function persist(id) {
+    if (!db) { setSave("local", "Saved on this device only"); return; }
+    clearTimeout(timers[id]);
+    timers[id] = setTimeout(function () {
+      setSave("saving", "Saving…");
+      db.doc("decisions/" + id).set({
+        choice: state[id].choice || "",
+        note: state[id].note || "",
+        updatedAt: new Date().toISOString()
+      }).then(function () {
+        setSave("saved", "Saved");
+      }).catch(function (e) {
+        setSave("local", "Not saved — " + (e && e.code ? e.code : "error"));
+      });
+    }, 500);
+  }
+
+  function choose(d, value) {
+    state[d.id] = state[d.id] || {};
+    state[d.id].choice = (state[d.id].choice === value) ? "" : value;
+    paint(d);
+    countAnswered();
+    persist(d.id);
+  }
+
+  function note(d, text) {
+    state[d.id] = state[d.id] || {};
+    state[d.id].note = text;
+    countAnswered();
+    persist(d.id);
+  }
+
+  function build() {
+    var host = document.getElementById("cards");
+    DECISIONS.forEach(function (d, i) {
+      var card = el("article", "decision" + (d.gate ? " gate" : ""));
+      card.id = "card-" + d.id;
+
+      var head = el("div", "d-head");
+      head.appendChild(el("span", "eyebrow", "D-" + (i + 1) + " · " + d.area));
+      if (d.gate) head.appendChild(el("span", "tag blocks", "Answer first"));
+      var done = el("span", "tag done", "Answered");
+      done.hidden = true;
+      head.appendChild(done);
+      card.appendChild(head);
+
+      card.appendChild(el("h3", null, d.q));
+
+      var ctx = el("div", "context");
+      d.context.forEach(function (p) { ctx.appendChild(el("p", null, p)); });
+      card.appendChild(ctx);
+
+      var outs = el("div", "outcomes");
+      d.either.forEach(function (pair) {
+        var o = el("div", "outcome");
+        o.appendChild(el("span", "lab", pair[0]));
+        o.appendChild(el("p", null, pair[1]));
+        outs.appendChild(o);
+      });
+      card.appendChild(outs);
+
+      var rec = el("div", "rec");
+      rec.appendChild(el("span", "lab", "What I would do"));
+      rec.appendChild(el("p", null, d.rec));
+      card.appendChild(rec);
+
+      card.appendChild(el("span", "answer-lab", "Your answer"));
+
+      var picks = el("div", "picks");
+      d.picks.forEach(function (p, pi) {
+        var b = el("button", "pick" + (pi === d.recPick ? " recommended" : ""), p);
+        b.type = "button";
+        b.dataset.value = p;
+        b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", function () { choose(d, p); });
+        picks.appendChild(b);
+      });
+      card.appendChild(picks);
+
+      var ta = document.createElement("textarea");
+      ta.placeholder = "Or answer in your own words — this is the part worth keeping.";
+      ta.setAttribute("aria-label", "Your answer to " + d.q);
+      ta.addEventListener("input", function () { note(d, ta.value); });
+      card.appendChild(ta);
+
+      host.appendChild(card);
+    });
+    countAnswered();
+  }
+
+  build();
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("db").then(function (handle) {
+      if (!handle) { setSave("local", "Saved on this device only"); return; }
+      db = handle;
+      setSave("idle", "Ready");
+      DECISIONS.forEach(function (d) {
+        db.doc("decisions/" + d.id).onSnapshot(function (snap) {
+          if (!snap.exists) return;
+          var data = snap.data() || {};
+          state[d.id] = { choice: data.choice || "", note: data.note || "" };
+          paint(d);
+          countAnswered();
+        }, function () { /* listener died; local state stands */ });
+      });
+    }).catch(function () {
+      setSave("local", "Saved on this device only");
+    });
+  } else {
+    setSave("local", "Saved on this device only");
+  }
+})();
+</script>
