@@ -778,9 +778,10 @@ def _set_up(extract: str | Path, book: str | Path | None = None, memory_path: st
 
 
 def _answer_row(r) -> bool:
-    """A Control row a person answers (Block A or B), not a band, a heading or a launcher row."""
+    """A Control row a person answers (Block A or B, or the Line size block), not a band, a heading or a launcher
+    row."""
     key = r[control.KEY_COL - 1].value
-    return isinstance(key, str) and key in control.NOW_KEYS + control.RUN_KEYS
+    return isinstance(key, str) and key in control.NOW_KEYS + control.RUN_KEYS + control.LINE_KEYS
 
 
 #: Meanings a person may have confirmed before they were taken out (config.REMOVED), in the words Columns used.
@@ -1308,6 +1309,7 @@ TAB_GROUPS = [
     ("You answer", "KEY_RED", [("Control", "the professional calls"), ("Columns", "meanings, odd values, memory"),
                                ("Look", "the distribution of each band and split column")]),
     ("Results", "INK", [(results.POCKETS, "every pocket, worse first"), (results.PCK, "GCOs against RANR"),
+                        (results.LINE, "average lines, bad loans against good, the signals tripped"),
                         (results.GRIDS, "one grid at a time, with how common each group is"),
                         (results.SUMMARY, "one band column's figures, untested"),
                         (results.COMPARE, "each filter value as a line across the bands"), (results.SPLIT, "each pocket split"),
@@ -2923,6 +2925,9 @@ def _used_words(res) -> dict[str, str]:
             continue
         key = s.key
         words = by_q.get(s.question)
+        if words is None and key in control.LINE_KEYS and key in used:
+            # the line-size lines (17 Oct 2026) judge nothing the engine works out: what Control held at the Run
+            words = dict(control.describe({key: used[key]})).get(s.question)
         if words is None and key in ("band_count", "band_cut") and key in used:
             words = dict(control.describe({key: used[key]})).get(s.question)
         if key == "revenue_line" and profit_line(res):
@@ -3453,6 +3458,16 @@ def _settings_rows(wb, res) -> list[tuple]:
     on_control = live._control_rows(wb, res)
     for s in settings:
         r = control.row_of(ws, s.key)
+        if s.key in control.LINE_KEYS and control.asked(s, used) and s.key in lv.line_rows:
+            # the line-size lines, live (17 Oct 2026): their words on _live, now and at the Run; a Control tab set up
+            # before the rows were added used the starting lines, said as the Run used them
+            x = lv.line_rows[s.key]
+            if r is None:
+                out.append((s.question, words.get(s.key), words.get(s.key), None))
+            else:
+                out.append((s.question, f"={L}!$E${x}", live.line_words(s.key, used.get(s.key)),
+                            f"=IF({L}!$E${x}<>{L}!$F${x},1,0)"))
+            continue
         if r is None or not control.asked(s, used):
             continue
         if s.key in live_row and s.key in on_control:

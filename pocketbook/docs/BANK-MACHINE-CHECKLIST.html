@@ -392,7 +392,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <li>Set <strong>Within</strong> to <em>Workbook</em> and <strong>Look in</strong> to <em>Values</em>.</li>
 <li>Type each of these in <strong>Find what</strong> and press <strong>Find All</strong>: <code>#NAME</code>, <code>#REF!</code>, <code>#VALUE!</code>, <code>#DIV/0!</code>, <code>#N/A</code>, <code>#NUM!</code>, <code>#SPILL!</code>.</li>
 </ol>
-<p>☐ Each one says <em>Excel cannot find the data you're searching for</em>. On LibreOffice, all eleven tabs you can see are clear.</p>
+<p>☐ Each one says <em>Excel cannot find the data you're searching for</em>. On LibreOffice, all twelve tabs you can see are clear.</p>
 <p>The hidden tabs <code>_look</code> and <code>_chart</code> hold <code>#N/A</code> on purpose: it tells a chart to leave a gap. If Find lists cells on those two only, that's expected. <strong>Check this:</strong> whether Excel's Find looks inside hidden tabs at all.</p>
 <p>☐ Clicking in a result cell may show <code>=@</code> in the formula bar. Excel adds the <code>@</code> to formulas written by other programs. It's expected if the value in the cell is right.</p>
 <h3>4.3 The dropdowns</h3>
@@ -418,8 +418,12 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <td>the 4 grids, from FICO x CHANNEL</td>
 </tr>
 <tr>
+<td>Line size B17 and D17</td>
+<td>the 4 grids, from FICO x CHANNEL; Show (Pockets where something tripped, 2 or more signals, All pockets)</td>
+</tr>
+<tr>
 <td>Grids B13 and F13</td>
-<td>8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size</td>
+<td>8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size, Line on bad loans ÷ line on good loans and Share of line lost on bad loans</td>
 </tr>
 <tr>
 <td>Split B15 and B26</td>
@@ -471,7 +475,7 @@ py -c &quot;import sys; sys.path.insert(0, 'src'); from pocketbook import synth;
 <p>☐ <strong>Split</strong> and <strong>Grids:</strong> the shaded tables have their colors (pink worse, green better, deeper for bigger gaps).</p>
 <p><strong>Check this</strong> for all three: every chart has only been seen in LibreOffice.</p>
 <h3>4.10 The Glossary</h3>
-<p>☐ <strong>Glossary</strong> is the second tab, after Start here. It lists 27 terms, one a row (26 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.</p>
+<p>☐ <strong>Glossary</strong> is the second tab, after Start here. It lists 37 terms, one a row (33 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.</p>
 <p>☐ On Start here, under <strong>The tabs</strong>, <em>Glossary: every term, with an example</em> opens it.</p>
 <p>Save and close the workbook when done.</p>
 <hr />

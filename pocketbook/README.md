@@ -134,7 +134,7 @@ After that, the whole routine is:
    launcher (with a pink line naming each one); after a Run it shows what the
    Run found and the five largest pockets that are worse and material now,
    picked live from Control's lines.
-   - **Control:** three blocks. *Changes now* (solid boxes) holds the lines the
+   - **Control:** four blocks. *Changes now* (solid boxes) holds the lines the
      result tabs read by formula: worse at, better at, the profit line, how
      sure, materiality and what a pocket is judged against; *Comes to* shows
      what an answer amounts to (worse at and better at as a multiple, from Set
@@ -146,7 +146,12 @@ After that, the whole routine is:
      and nothing is picked for you. Beside fewest loans, worse at and better
      at, the value worked out from this extract ("suggested: 69, from this
      extract"). On the right, what each materiality level keeps, live. A test
-     of a new variable isn't asked the profit line.
+     of a new variable isn't asked the profit line. Last, under the launcher's
+     block, *Line size* (17 Oct 2026): the four lines of the Line size tab and
+     the switch *Tripped by being worse on*, live as Changes now's are, each
+     opening on the firm's starting line marked *(suggested)*. A workbook set
+     up before these rows existed still Runs, on the starting lines, and the
+     next Set up writes them.
      One question more, *Treat values ≤ -99,000,000 as missing in every
      column?* (the firm, 30 Sep 2026: *"I can guarantee you that they are the
      bureau missing codes"*). Yes makes every value at or below -99,000,000
@@ -270,6 +275,30 @@ After that, the whole routine is:
      after RANR (2 Oct 2026; moved beside Booked 17 Oct 2026), in
      Loan size's one neutral hue, darker the bigger the line against the book's,
      never red or green; the totals carry them too (Whole book 1.00×).
+   - **Line size** (17 Oct 2026, the firm: *"we give assignments that are too
+     high to these people"*, in a view of its own *"so it isn't all in one spot
+     and too much for a user"*), right after RANR vs GCOs: one grid at a time,
+     each pocket's **Avg line**, **Line × book**, **Line on bad loans ÷ line on
+     good loans** (the average line of its bad loans over its good loans'),
+     **Share of line lost on bad loans** (GCOs over booked, bad loans with both
+     amounts), and with a Charge-off date the **Months to charge-off** straight,
+     **weighted by line** (Σ months × booked ÷ Σ booked) and **Line-weighted ÷
+     straight**; every figure counts only loans with a booked amount, as Avg
+     line does. **Signals** counts the four ratios past their lines on Control
+     and names them ("2 of 4: Bad got bigger lines, Big lines fail sooner"):
+     *Big line* (Line × book at or above 1.25×), *Bad got bigger lines* (1.25×),
+     *Lost the whole line* (80%) and *Big lines fail sooner* (at or below
+     0.90×; only with a Charge-off date, and otherwise the count is out of 3).
+     **Tripped by** says why a pocket counts: *Worse on bad loans* or *Worse on
+     GCOs* (Worse? reads Yes on Pockets, as the switch *Tripped by being worse
+     on* picks: Bad loans, GCOs or Either), or *Bad got bigger lines*. A
+     **Show** dropdown picks *Pockets where something tripped* (the default),
+     *2 or more signals* or *All pockets*, by formula from the hidden `_lines`,
+     as Pockets' Show does. Rows are sorted by Line on bad loans ÷ line on good
+     loans, highest first, as of the last Run; each ratio is red past its line,
+     and nothing else is judged. Summary carries the four figures beside Avg
+     line and the months, and Grids offers the first two as Measures, shown and
+     not compared.
    - **Grids:** a Grid and a Measure dropdown, and four blocks one under
      another from the left column (the firm, 30 Sep 2026: side by side, a
      narrow grid left a blank middle): the rate,

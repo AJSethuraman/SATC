@@ -606,6 +606,117 @@ class Size:
 
 
 @dataclass
+class LineSize:
+    """The line-size figures of one cell (the firm, 17 Oct 2026: "we give assignments that are too high to these
+    people"): line is the booked amount, and every figure counts only loans with one, as Avg line does. Sums only,
+    so a margin is its cells added up (merged). A description, never tested.
+
+    bad_* and good_*: the loans with an outcome of 1 and of 0, and their booked dollars. lost_*: the bad loans with a
+    GCO amount, their GCO dollars and booked dollars (the GCO rate's own top and bottom). co_*: the loans with months
+    to charge-off, their booked dollars, and Σ(months × booked)."""
+    bad_loans: int = 0
+    bad_booked: float = 0.0
+    good_loans: int = 0
+    good_booked: float = 0.0
+    lost_loans: int = 0
+    lost_gco: float = 0.0
+    lost_booked: float = 0.0
+    co_loans: int = 0
+    co_booked: float = 0.0
+    co_weighted: float = 0.0
+
+    def merge(self, other: "LineSize") -> "LineSize":
+        for f in self.__dataclass_fields__:
+            setattr(self, f, getattr(self, f) + getattr(other, f))
+        return self
+
+    @property
+    def bad_vs_good(self) -> float | None:
+        """Line on bad loans ÷ line on good loans: the average line of bad loans over that of good loans; None when
+        either group is empty."""
+        if not self.bad_loans or not self.good_loans or not self.good_booked:
+            return None
+        return (self.bad_booked / self.bad_loans) / (self.good_booked / self.good_loans)
+
+    @property
+    def lost_share(self) -> float | None:
+        """Share of line lost on bad loans: Σ GCO ÷ Σ booked over the bad loans with both; None when there are none."""
+        return self.lost_gco / self.lost_booked if self.lost_loans and self.lost_booked else None
+
+    @property
+    def weighted_months(self) -> float | None:
+        """Months to charge-off weighted by line: Σ(months × booked) ÷ Σ booked; None with no such loan."""
+        return self.co_weighted / self.co_booked if self.co_loans and self.co_booked else None
+
+
+def line_parts(booked, per_row) -> list[tuple | None]:
+    """Each loan's part in LineSize, worked out once for every grid: None for a loan with no booked amount (left out
+    of every line figure), else (outcome, booked, GCO and its booked for a bad loan with a GCO amount, months to
+    charge-off). The outcome is the Bad loans rate's top (1.0 bad, 0.0 good, None unread); the GCO pair is the GCO
+    rate's own (num, den), so a loan missing either amount is out of the share lost as it is out of the GCO rate."""
+    outcome, gco, months = (per_row.get(k) for k in ("outcome_loans", "gco_rate", CO_MONTHS))
+    out: list[tuple | None] = []
+    for i, b in enumerate(booked):
+        if b is None:
+            out.append(None)
+            continue
+        o = outcome[i] if outcome is not None else None
+        bad = None if o is None else o[0] == 1.0
+        g = gco[i] if gco is not None and bad else None
+        out.append((bad, b, g, months[i] if months is not None else None))
+    return out
+
+
+def _line_add(x: LineSize, part: tuple) -> None:
+    bad, b, g, mo = part
+    if bad is True:
+        x.bad_loans += 1
+        x.bad_booked += b
+        if g is not None:
+            x.lost_loans += 1
+            x.lost_gco += g[0]
+            x.lost_booked += g[1]
+    elif bad is False:
+        x.good_loans += 1
+        x.good_booked += b
+    if mo is not None:
+        x.co_loans += 1
+        x.co_booked += b
+        x.co_weighted += mo * b
+
+
+def line_sizes(keys, parts, margins: bool = True) -> dict:
+    """Each cell's LineSize: `keys` each loan's (band, segment) (or a Summary row's label, with `margins` False),
+    `parts` line_parts. With margins, each band's and segment's and the whole grid's are their cells merged."""
+    out: dict = {}
+    for k, p in zip(keys, parts):
+        if p is None:
+            continue
+        x = out.get(k)
+        if x is None:
+            x = out[k] = LineSize()
+        _line_add(x, p)
+    if margins:
+        for (b, d), x in list(out.items()):
+            for m in ((b, ALL), (ALL, d), (ALL, ALL)):
+                out.setdefault(m, LineSize()).merge(x)
+    return out
+
+
+def line_vs(lines: dict, key, c: "Cell | None") -> dict:
+    """One cell's line figures by name, as Line size, Summary and Grids show them: the four figures, None where
+    there is nothing to divide by. `c` is the cell, for the straight average months to charge-off."""
+    x = lines.get(key) if lines else None
+    co = c.medians.get(CO_MONTHS) if c is not None else None
+    straight = co.mean if co is not None and co.values else None
+    weighted = x.weighted_months if x is not None else None
+    return {"bad_vs_good": x.bad_vs_good if x is not None else None,
+            "lost_share": x.lost_share if x is not None else None,
+            "co_straight": straight, "co_weighted": weighted,
+            "co_ratio": weighted / straight if weighted is not None and straight else None}
+
+
+@dataclass
 class Summary:
     """One band column on its own, for the Summary tab (the firm, 30 Sep 2026: "bands of FICO on the left and straight
     up unit counts, loan amounts, % of units, % of loan amounts, charged off dollars, ratio"): each band's cell, added
@@ -619,6 +730,8 @@ class Summary:
     booked: dict[str, float] = field(default_factory=dict)     # empty without a booked amount
     # the loans under those dollars, each row's (a loan with no booked amount is left out of both): Avg line's bottom
     booked_loans: dict[str, int] = field(default_factory=dict)
+    # each row's LineSize, ALL included (the firm, 17 Oct 2026); empty without a booked amount
+    lines: dict[str, "LineSize"] = field(default_factory=dict)
 
 
 ALL = "All"
@@ -663,6 +776,8 @@ class Grid:
     filtered: dict[str, "Grid"] = field(default_factory=dict, repr=False)
     # what each cell booked, margins included (Size); empty without a booked amount
     sizes: dict[tuple[str, str], Size] = field(default_factory=dict, repr=False)
+    # each cell's line-size figures, margins included (LineSize, the firm, 17 Oct 2026); empty without a booked amount
+    lines: dict[tuple[str, str], LineSize] = field(default_factory=dict, repr=False)
 
     def cell(self, band_label: str, dim_label: str) -> Cell:
         return self.cells[(band_label, dim_label)]
@@ -698,6 +813,7 @@ class Result:
     table: Table | None = None                  # the extract as the run read it, new columns included
     bleed: bool = True                          # False: a test of a new variable, which builds no grid (OC-42)
     book_size: Size | None = None               # what the whole book booked, per loan (Grids' Loan size)
+    book_lines: LineSize | None = None          # the whole book's line-size figures (the Glossary's examples)
     filter_values: list[str] = field(default_factory=list)  # the Filter by column's values, in order (Grids)
     filter_values2: list[str] = field(default_factory=list)  # Filter 2's values, in order
     filter_values3: list[str] = field(default_factory=list)  # Filter 3's values, in order (the firm, 1 Oct 2026)
@@ -1384,11 +1500,15 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
     booked = None
     if bleed and config.booked and config.booked in table.columns:
         booked = [classify_number(raw, rules.get(config.booked))[0] for raw in col(config.booked)]
-    book_size = None
+    book_size = book_lines = parts = None
     if booked is not None:
         book_size = loan_sizes([(ALL, ALL)] * n, booked).get((ALL, ALL), Size())
+        # Line size (the firm, 17 Oct 2026): each loan's part worked out once, then added up grid by grid
+        parts = line_parts(booked, per_row)
+        book_lines = line_sizes([ALL] * n, parts, margins=False).get(ALL, LineSize())
         for g, _, keys in built:
             g.sizes = loan_sizes(keys, booked)
+            g.lines = line_sizes(keys, parts)
     values: list[str] = []
     values2: list[str] = _order(filter_vals2) if filter_vals2 is not None else []
     values3: list[str] = _order(filter_vals3) if filter_vals3 is not None else []
@@ -1417,6 +1537,7 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
                 _judge(fg, config, measures, min_units, materiality_line)
                 if booked is not None:
                     fg.sizes = loan_sizes(sub, [booked[i] for i in idx])
+                    fg.lines = line_sizes(sub, [parts[i] for i in idx])
                 g.filtered[v] = fg
     timing.mark("Building the grids")
     summaries: dict[tuple, Summary] = {}
@@ -1445,6 +1566,11 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
             part = summaries[(d.name, *v)] = _summary(d.name, measures, per_row, dims[d.name], booked, whole.labels,
                                                       rows_of[v])
             _tie_summary(part, part.cells[ALL], measures)
+    if parts is not None:
+        # each Summary row's line-size figures (the firm, 17 Oct 2026), over the row's own loans, every view
+        for (name, *v), s in summaries.items():
+            labels_of = bands[name] if name in bands else dims[name]
+            s.lines = summary_lines(s, labels_of, range(n) if v == [None, None, None] else rows_of[tuple(v)], parts)
     vintage = None
     if bleed:
         from . import summary_chart                     # Summary's vintage chart, worked out here like Summary itself
@@ -1462,7 +1588,7 @@ def run(config: Config, table: Table, progress=None, pairs: set[tuple[str, str]]
                   band_edges=band_edges, loans_needed=needed, min_units=min_units,
                   materiality_line=materiality_line, three_way=three_way,
                   split_moves_with=moves_with, dates=dates, derived=derived, table=table, bleed=bleed,
-                  book_size=book_size, filter_values=values, filter_values2=values2,
+                  book_size=book_size, book_lines=book_lines, filter_values=values, filter_values2=values2,
                   filter_values3=values3, summaries=summaries,
                   value_bands=value_bands, once=once, vintage=vintage, per_row=per_row,
                   row_labels={**dims, **bands})
@@ -1511,6 +1637,18 @@ def _summary(band: str, measures, per_row, labels_of, booked, order, idx) -> Sum
     return Summary(band=band, labels=labels + [ALL], cells=out, booked=dollars, booked_loans=under)
 
 
+def summary_lines(s: Summary, labels_of, idx, parts) -> dict[str, LineSize]:
+    """A Summary's rows' LineSize, over the same loans as the rows (`idx`, `labels_of` each loan's row), ALL their
+    sum (the firm, 17 Oct 2026)."""
+    idx = list(idx)
+    lines = line_sizes([labels_of[i] for i in idx], [parts[i] for i in idx], margins=False)
+    lines[ALL] = LineSize()
+    for lab in s.labels:
+        if lab != ALL:
+            lines[ALL].merge(lines.setdefault(lab, LineSize()))
+    return lines
+
+
 def _tie_summary(s: Summary, want: Cell, measures) -> None:
     """Summary's bands, added up, against `want` (the book's totals, accumulated in their own pass, for the whole
     book): the loans, and each rate's loans, top and bottom. Raises TieOutError, as a grid that doesn't add up does."""
@@ -1537,20 +1675,32 @@ def _tie_summary(s: Summary, want: Cell, measures) -> None:
 #: Summary's columns, in the firm's order (30 Sep 2026), each with what it needs: None, the booked amount (BOOKED) or
 #: the rate it is taken from. A column whose source this Run has not got is left off, and the tab says so
 BOOKED = "booked"
+#: the line-size columns' needs (the firm, 17 Oct 2026): a booked amount and the outcome; and the GCO amount, or months
+#: to charge-off
+LINE_BAD, LINE_LOST, LINE_CO = "booked+outcome", "booked+outcome+gco", "booked+co_months"
+LINE_NEEDS = {LINE_BAD: ("outcome_loans",), LINE_LOST: ("outcome_loans", "gco_rate"), LINE_CO: (CO_MONTHS,)}
 SUMMARY_COLUMNS = (("loans", None), ("loans_share", None), ("bad", "outcome_loans"), ("bad_rate", "outcome_loans"),
                    # the firm, 2 Oct 2026: booked dollars per loan, and that over the whole book's, beside Booked
-                   ("booked", BOOKED), ("avg_line", BOOKED), ("avg_line_x", BOOKED), ("booked_share", BOOKED), ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
+                   ("booked", BOOKED), ("avg_line", BOOKED), ("avg_line_x", BOOKED), ("booked_share", BOOKED),
+                   # the firm, 17 Oct 2026: the line-size figures, closing the booked block, so Booked $, Avg line,
+                   # Line × book, % of booked keep the shape the GCO and RANR blocks have
+                   ("line_bad_x", LINE_BAD), ("line_lost", LINE_LOST),
+                   ("gco", "gco_rate"), ("gco_rate", "gco_rate"),
                    ("gco_x", "gco_rate"), ("gco_share", "gco_rate"), ("ranr", "ranr_rate"),
                    ("ranr_rate", "ranr_rate"), ("ranr_share", "ranr_rate"),
-                   # the firm, 1 Oct 2026: months to charge-off, among the row's charged-off loans
-                   ("co_avg", CO_MONTHS), ("co_median", CO_MONTHS))
+                   # the firm, 1 Oct 2026: months to charge-off, among the row's charged-off loans; and weighted by
+                   # line beside them, and that over the straight average (the firm, 17 Oct 2026)
+                   ("co_avg", CO_MONTHS), ("co_median", CO_MONTHS), ("co_line", LINE_CO), ("co_line_x", LINE_CO))
+#: the line-size columns: Summary's vintage chart leaves them off (summary_chart.vintage)
+LINE_COLUMNS = tuple(k for k, need in SUMMARY_COLUMNS if need in LINE_NEEDS)
 
 
 def summary_columns(res) -> list[str]:
     """The Summary columns this Run can fill, in order."""
     have = {m.name for m in res.measures}
     booked = any(s.booked for s in res.summaries.values())
-    return [k for k, need in SUMMARY_COLUMNS if need is None or (need == BOOKED and booked) or need in have]
+    return [k for k, need in SUMMARY_COLUMNS if need is None or (need == BOOKED and booked) or need in have
+            or (need in LINE_NEEDS and booked and set(LINE_NEEDS[need]) <= have)]
 
 
 def summary_rows(res, band: str, value: str | None = None,
@@ -1565,7 +1715,7 @@ def summary_rows(res, band: str, value: str | None = None,
     dollars over its loans with a booked amount (the firm, 2 Oct 2026: "booked dollar averages"), and its x book that
     over the whole book's Avg line, filter or none; blank where the row has no such loan. Months to charge-off, when
     the Run has it, is the average and the median over the row's loans that charged off (chargeoff_months), blank
-    where none did."""
+    where none did. The line-size columns are line_vs's figures for the row (the firm, 17 Oct 2026)."""
     s = res.summaries[(band, value, value2, value3)]
     keys = summary_columns(res)
     whole = res.total.rates.get("gco_rate")
@@ -1597,6 +1747,9 @@ def summary_rows(res, band: str, value: str | None = None,
         if CO_MONTHS in c.medians:
             co = c.medians[CO_MONTHS]
             row.update(co_avg=co.mean if co.values else None, co_median=co.median if co.values else None)
+        lv = line_vs(getattr(s, "lines", None) or {}, lab, c)
+        row.update(line_bad_x=lv["bad_vs_good"], line_lost=lv["lost_share"], co_line=lv["co_weighted"],
+                   co_line_x=lv["co_ratio"])
         out.append((lab, {k: row.get(k) for k in keys}))
     return out
 

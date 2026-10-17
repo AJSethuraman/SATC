@@ -272,7 +272,7 @@ Do these on the practice workbook, `%USERPROFILE%\PocketBook\practice\Consumer b
 2. Set **Within** to *Workbook* and **Look in** to *Values*.
 3. Type each of these in **Find what** and press **Find All**: `#NAME`, `#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NUM!`, `#SPILL!`.
 
-☐ Each one says *Excel cannot find the data you're searching for*. On LibreOffice, all eleven tabs you can see are clear.
+☐ Each one says *Excel cannot find the data you're searching for*. On LibreOffice, all twelve tabs you can see are clear.
 
 The hidden tabs `_look` and `_chart` hold `#N/A` on purpose: it tells a chart to leave a gap. If Find lists cells on those two only, that's expected. **Check this:** whether Excel's Find looks inside hidden tabs at all.
 
@@ -287,7 +287,8 @@ Click each cell. A small arrow should appear beside it; press it.
 | Control C15 | 4 choices, from *The smallest significant gap in a typical pocket (suggested)* to *2 times* |
 | Pockets C18, D18, E18 | Measure (5: Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs); Pockets (Two-way, Split by REV_DEBT); Show (All, Worse and material, Worse or not sure) |
 | RANR vs GCOs B16 | the 4 grids, from FICO x CHANNEL |
-| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size |
+| Line size B17 and D17 | the 4 grids, from FICO x CHANNEL; Show (Pockets where something tripped, 2 or more signals, All pockets) |
+| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size, Line on bad loans ÷ line on good loans and Share of line lost on bad loans |
 | Split B15 and B26 | the 4 grids; the 5 measures |
 | Look C20 | 10, 20, 50 |
 
@@ -371,7 +372,7 @@ Each tab opens with **How this tab works**.
 
 ### 4.10 The Glossary
 
-☐ **Glossary** is the second tab, after Start here. It lists 27 terms, one a row (26 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
+☐ **Glossary** is the second tab, after Start here. It lists 37 terms, one a row (33 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
 
 ☐ On Start here, under **The tabs**, *Glossary: every term, with an example* opens it.
 

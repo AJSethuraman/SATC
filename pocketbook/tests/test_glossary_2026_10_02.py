@@ -23,8 +23,15 @@ TERMS = ["Booked / Booked $", "Avg line / Line × book", "GCOs ($)", "RANR", "RA
          "Pocket", "Grid", "Filter / Only loans where", "Origination year", "Vintage", "Worse and material",
          "Borderline",
          "Shuffle test / p-value", "Fewest loans in a pocket", "Worse at / Better at",
-         "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off", "Odd values",
-         "(marked missing) / (blank)"]
+         "Dollars above their share (each loan once)", "Lifetime-to-date", "Months to charge-off",
+         # the Line size tab's terms (the firm, 17 Oct 2026), one a row
+         "Line on bad loans ÷ line on good loans", "Share of line lost on bad loans",
+         "Months to charge-off weighted by line", "Line-weighted ÷ straight", "Signals", "Big line",
+         "Bad got bigger lines", "Lost the whole line", "Big lines fail sooner", "Tripped by",
+         "Odd values", "(marked missing) / (blank)"]
+#: the terms a book without a charge-off date column never shows
+CO_ONLY = ("Months to charge-off", "Months to charge-off weighted by line", "Line-weighted ÷ straight",
+           "Big lines fail sooner")
 #: the contract-desk words website/copy.spec.py refuses on every page (CLAUDE.md, client-facing copy)
 CONTRACT_WORDS = ["governs", "governed by", "constitutes", "in accordance with", "pursuant", "herein", "thereof",
                   "aforementioned", "accompanies", "at our discretion", "in the event that", "utilize", "commence",
@@ -98,11 +105,12 @@ def test_the_glossary_sits_right_after_start_here_after_set_up_a_run_and_set_up_
 
 
 def test_every_glossary_term_is_there_once_in_the_firms_order(books):
-    """Before a Run every term shows. After it, Months to charge-off shows only for a book with a charge-off date
-    column, and this book has none: a Run that never works out the measure doesn't define it."""
+    """Before a Run every term shows. After it, Months to charge-off and the line-size terms built on it show only
+    for a book with a charge-off date column, and this book has none: a Run that never works out the measure doesn't
+    define it."""
     for when in ("set_up", "run"):
         got = list(_rows(books[when]))
-        want = TERMS if when == "set_up" else [t for t in TERMS if t != "Months to charge-off"]
+        want = TERMS if when == "set_up" else [t for t in TERMS if t not in CO_ONLY]
         assert got == want, when
         for term, (means, example) in _rows(books[when]).items():
             assert means and example, (when, term)
