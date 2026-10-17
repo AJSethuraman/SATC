@@ -211,11 +211,17 @@ def logrank(time: np.ndarray, event: np.ndarray, group: np.ndarray) -> tuple[flo
     return stat, k - 1, chi2_sf(stat, k - 1)
 
 
+class NotEstimable(Exception):
+    """The Cox fit did not settle (a factor that separates bad from not bad perfectly, factors that duplicate each other, too few bads)."""
+
+
 def cox_fit(time: np.ndarray, event: np.ndarray, X: np.ndarray, iters: int = 50):
-    """Cox proportional hazards, Efron ties, Newton-Raphson. Returns (beta, se, pvalues)."""
+    """Cox proportional hazards, Efron ties, Newton-Raphson. Returns (beta, se, pvalues).
+    Raises NotEstimable instead of returning a number from a fit that did not settle."""
     n, k = X.shape
     beta = np.zeros(k)
     times = np.unique(time[event == 1])
+    settled = False
     for _ in range(iters):
         eta = X @ beta
         eta -= eta.max()
@@ -236,11 +242,24 @@ def cox_fit(time: np.ndarray, event: np.ndarray, X: np.ndarray, iters: int = 50)
                 m = s1 / s0
                 grad -= m
                 hess -= s2 / s0 - np.outer(m, m)
-        step = np.linalg.solve(hess, grad)
+        try:
+            step = np.linalg.solve(hess, grad)
+        except np.linalg.LinAlgError:
+            raise NotEstimable("singular") from None
         beta -= step
+        if not np.all(np.isfinite(beta)):
+            raise NotEstimable("not finite")
         if np.max(np.abs(step)) < 1e-9:
+            settled = True
             break
-    se = np.sqrt(np.diag(np.linalg.inv(-hess)))
+    if not settled:
+        raise NotEstimable("did not settle in %d steps" % iters)
+    try:
+        se = np.sqrt(np.diag(np.linalg.inv(-hess)))
+    except np.linalg.LinAlgError:
+        raise NotEstimable("singular") from None
+    if not (np.all(np.isfinite(se)) and np.all(se > 0)) or np.max(np.abs(beta)) > 20:  # exp(20) is a ratio of 500 million
+        raise NotEstimable("extreme or undefined estimate")
     p = np.array([chi2_sf((b / s) ** 2, 1) for b, s in zip(beta, se)])
     return beta, se, p
 
@@ -363,6 +382,8 @@ def bad_event_check(df: pd.DataFrame, st: Settings, as_of: pd.Timestamp):
 
     pop = df[f90.notna() & (f90 <= as_of - pd.DateOffset(months=st.dq_window))]
     pop = pop[~(pop[coc] < pop[f90c]).fillna(False)]
+    if pifc:  # a payoff before the first 90+ is an inconsistent row, left out like a charge-off before it
+        pop = pop[~(pop[pifc] < pop[f90c]).fillna(False)]
     end = pop[f90c] + pd.DateOffset(months=st.dq_window)
     co_in = pop[coc].notna() & (pop[coc] <= end)
     p_pif = pif.loc[pop.index]
@@ -576,18 +597,35 @@ def run_models(df: pd.DataFrame, st: Settings, tests: list) -> pd.DataFrame:
         if ok.sum() == 0 or pop.loc[ok, "_event"].sum() == 0:
             raise UserError(f"Model test '{name}': no usable rows (check the variables are numeric or Y/N, and that the window has bads).")
         X, t, e = X[ok].to_numpy(float), pop.loc[ok, "_time"].to_numpy(), pop.loc[ok, "_event"].to_numpy()
-        alone = {lab: cox_fit(t, e, X[:, [i]]) for i, lab in enumerate(labels)}
-        together = cox_fit(t, e, X) if len(labels) > 1 else None
+        def fit(Xm):
+            try:
+                return cox_fit(t, e, Xm)
+            except NotEstimable:
+                return None
+        alone = {lab: fit(X[:, [i]]) for i, lab in enumerate(labels)}
+        multi = len(labels) > 1
+        together = fit(X) if multi else None
+        nan = float("nan")
         for i, lab in enumerate(labels):
-            b1, s1, p1 = (x[0] for x in alone[lab])
-            row = {"test": name, "variable": lab, "loans": int(ok.sum()), "rows_dropped_missing": dropped,
-                   "bads": int(e.sum()), "HR_alone": math.exp(b1),
-                   "HR_alone_low95": math.exp(b1 - Z95 * s1), "HR_alone_high95": math.exp(b1 + Z95 * s1),
-                   "p_alone": p1}
-            if together is not None:
+            a = alone[lab]
+            row = {"test": name, "variable": lab, "loans": int(ok.sum()), "rows_dropped_missing": dropped, "bads": int(e.sum())}
+            if a is None:
+                row.update({"HR_alone": nan, "HR_alone_low95": nan, "HR_alone_high95": nan, "p_alone": nan})
+            else:
+                b1, s1, p1 = (x[0] for x in a)
+                row.update({"HR_alone": math.exp(b1), "HR_alone_low95": math.exp(b1 - Z95 * s1),
+                            "HR_alone_high95": math.exp(b1 + Z95 * s1), "p_alone": p1})
+            if multi and together is None:
+                row.update({"HR_together": nan, "HR_together_low95": nan, "HR_together_high95": nan, "p_together": nan})
+            elif multi:
                 b2, s2, p2 = together[0][i], together[1][i], together[2][i]
                 row.update({"HR_together": math.exp(b2), "HR_together_low95": math.exp(b2 - Z95 * s2),
                             "HR_together_high95": math.exp(b2 + Z95 * s2), "p_together": p2})
+            if a is None:
+                reading = "not estimable (the fit did not settle; this factor may separate bad loans perfectly, or there are too few bads)"
+            elif multi and together is None:
+                reading = "not estimable together with the others (the fit did not settle; two factors may say the same thing)"
+            elif multi:
                 lo, hi = row["HR_together_low95"], row["HR_together_high95"]
                 if p2 < 0.05:
                     reading = "adds information beyond the others"

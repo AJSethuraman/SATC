@@ -74,6 +74,16 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     f90, co = df[a.first90_col], df[a.co_col]
     pif = df[a.pif_col] if has_pif else pd.Series(pd.NaT, index=df.index)
 
+    if a.id_col in df.columns:  # one row per loan: a repeated id would count the same loan twice
+        ids = df[a.id_col]
+        dup = ids.duplicated(keep="first") & ids.notna() & (ids.astype(str).str.strip() != "")
+        if dup.any():
+            x = df[dup].copy()
+            x.insert(0, "exclusion_reason", "duplicate loan id")
+            excluded.append(x)
+            df = df[~dup]
+            f90, co = f90[~dup], co[~dup]
+            pif = pif[~dup]
     co_any = co.notna() & (co <= as_of)
     co_without_90 = int((co_any & (f90.isna() | (f90 > co))).sum())  # no 90+ date, or one recorded after the charge-off
     co_total = int(co_any.sum())
@@ -90,6 +100,12 @@ def loan_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     x.insert(0, "exclusion_reason", "charge-off date before first 90+ date")
     excluded.append(x)
     pop = pop[~bad_order]
+    if has_pif:
+        bad_pif = pop[a.pif_col].notna() & (pop[a.pif_col] < pop[a.first90_col])
+        x = pop[bad_pif].copy()
+        x.insert(0, "exclusion_reason", "payoff date before first 90+ date")
+        excluded.append(x)
+        pop = pop[~bad_pif]
 
     end = pop[a.first90_col] + pd.DateOffset(months=a.window)
     p_co, p_pif = pop[a.co_col], (pop[a.pif_col] if has_pif else pd.Series(pd.NaT, index=pop.index))

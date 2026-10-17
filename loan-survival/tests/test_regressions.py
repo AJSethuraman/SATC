@@ -272,3 +272,60 @@ def test_excluded_sheet_shows_the_unreadable_text_not_a_blank():
     st = ls.Settings((ROOT / "sample" / "settings_example.ini").read_text())
     _, excluded = ls.prepare(raw, st)
     assert list(excluded["orig_date"]) == ["TBD"] and "unparseable" in excluded["exclusion_reason"].iloc[0]
+
+
+# ---- sixth Codex review of PR 445 (reviewed 7dbf378)
+
+def test_standalone_loan_mode_leaves_out_repeated_loan_ids():
+    df = pd.DataFrame({
+        "loan_id": ["A", "A", "B"], "first_90_date": ["2024-01-31"] * 3,
+        "chargeoff_date": ["2024-05-31", "2024-05-31", None], "payoff_date": [None] * 3, "dpd_asof": [0, 0, 0]})
+    sheets, used, excl = do.loan_mode(df, _args(), AS_OF)
+    assert used == 2 and excl == 1
+    assert "duplicate loan id" in sheets["Excluded"]["exclusion_reason"].iloc[0]
+
+
+def test_cox_fit_that_cannot_settle_says_so_instead_of_reporting_a_number():
+    import pytest
+    rng = np.random.default_rng(3)
+    t = rng.integers(1, 30, 400)
+    e = (rng.random(400) < 0.4).astype(int)
+    with pytest.raises(ls.NotEstimable):
+        ls.cox_fit(t, e, e[:, None].astype(float))            # a factor that perfectly separates bad from not bad
+
+
+def test_model_sheet_marks_an_unestimable_factor_not_a_real_looking_ratio():
+    rng = np.random.default_rng(3)
+    n = 400
+    df = pd.DataFrame({"orig_date": pd.Timestamp("2022-01-01"), "_time": rng.integers(1, 30, n),
+                       "_event": (rng.random(n) < 0.4).astype(int), "noise": rng.normal(size=n)})
+    df["sep"] = df["_event"]
+    st = ls.Settings("[columns]\norig_date = orig_date\nchargeoff_date = x\n")
+    out = ls.run_models(df, st, [("m", {"model": "noise, sep"})])
+    row = out.set_index("variable")
+    assert row.loc["sep", "reading"].startswith("not estimable") and pd.isna(row.loc["sep", "HR_alone"])
+    assert not pd.isna(row.loc["noise", "HR_alone"])
+
+
+def _payoff_before_90_frame():
+    st = ls.Settings("[columns]\nloan_id = loan_id\norig_date = orig_date\nchargeoff_date = chargeoff_date\n"
+                     "first_90_date = first_90_date\npayoff_date = payoff_date\ndpd_asof = dpd_asof\n")
+    df = pd.DataFrame({
+        "loan_id": ["A", "B"], "orig_date": pd.to_datetime(["2022-01-01"] * 2),
+        "first_90_date": pd.to_datetime(["2023-01-31"] * 2), "chargeoff_date": pd.to_datetime(["2023-03-31", None]),
+        "payoff_date": pd.to_datetime([None, "2022-12-31"]),       # B was 'paid off' before it was ever 90+: inconsistent
+        "dpd_asof": [0, 0]})
+    return st, df
+
+
+def test_payoff_before_first_90_is_left_out_of_the_outcome_audit():
+    st, df = _payoff_before_90_frame()
+    measures, tbl, _, _ = ls.bad_event_check(df, st, pd.Timestamp("2026-09-30"))
+    assert int(measures.set_index("measure").loc["loans that first hit 90+ with enough time to resolve", "value"]) == 1
+    assert "paid off" not in set(tbl.iloc[:, 0])
+
+
+def test_standalone_payoff_before_first_90_is_excluded():
+    st, df = _payoff_before_90_frame()
+    sheets, used, excl = do.loan_mode(df.copy(), _args(), pd.Timestamp("2026-09-30"))
+    assert used == 1 and "payoff date before first 90+" in sheets["Excluded"]["exclusion_reason"].iloc[0]
