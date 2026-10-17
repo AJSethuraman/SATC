@@ -173,8 +173,8 @@ def sources_of(labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]]) ->
 def layout(n: int, n_third: int, compare: bool) -> dict:
     """Where everything sits on Decide for n rows (products × measures) and
     n_third sources: one place for the builder, the tests and the walkthrough.
-    For the book (35 rows, three sources) the headline is row 45, the Check
-    46, the section headings 48 and the chart 49 to 66."""
+    For the book (49 rows, three sources) the headline is row 59, the Check
+    60, the section headings 62 and the chart 63 to 80."""
     first, last = HDR + 1, HDR + n
     head = last + 2
     sec = head + 3

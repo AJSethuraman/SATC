@@ -215,6 +215,20 @@ def _peer_products():
     return list(PRODUCTS)
 
 
+def _peer_product(text):
+    """A product, or a combined one: "All consumer", or two or more joined by
+    " + " (books.members)."""
+    from .peers.books import members
+    try:
+        members(text)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e))
+    return text
+
+
+_PRODUCTS_HELP = "%s; \"All consumer\"; or two or more joined by \" + \", e.g. \"Credit card + Other consumer\""
+
+
 def _peers_parser(sub):
     """``peers pull`` and ``peers build``: docs/PEERS-SPEC.md, "cli.py additions"."""
     pe = sub.add_parser("peers", help="KeyBank against its peers, from public FDIC Call Reports")
@@ -224,8 +238,8 @@ def _peers_parser(sub):
     pu.add_argument("--cache", required=True, metavar="DIR")
     pu.add_argument("--first", required=True, metavar="YYYYQn")
     pu.add_argument("--last", required=True, metavar="YYYYQn")
-    pu.add_argument("--products", required=True, nargs="+", choices=_peer_products(),
-                    metavar="PRODUCT", help="whose fields to pull: %s" % ", ".join(_peer_products()))
+    pu.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
+                    help="whose fields to pull: " + _PRODUCTS_HELP % ", ".join(_peer_products()))
     pu.add_argument("--mergers", metavar="SINCE",
                     help="also pull the merger record from this date (YYYY-MM-DD) into DIR/mergers.json")
     pu.add_argument("--delinquency", required=True, type=_yes_no, metavar="yes|no",
@@ -250,7 +264,8 @@ def _peers_parser(sub):
     w = bu.add_argument_group("what to read, all required")
     w.add_argument("--first", required=True, metavar="YYYYQn")
     w.add_argument("--last", required=True, metavar="YYYYQn")
-    w.add_argument("--products", required=True, nargs="+", choices=_peer_products(), metavar="PRODUCT")
+    w.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
+                   help=_PRODUCTS_HELP % ", ".join(_peer_products()))
     w.add_argument("--mergers", required=True, metavar="FILE",
                    help="{cert: [quarter-end dates]}, as 'peers pull --mergers' writes it")
     w.add_argument("--absorptions", required=True, metavar="FILE",

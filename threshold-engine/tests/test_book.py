@@ -131,12 +131,14 @@ def test_peers_settings_must_be_complete(tmp_path):
 
 
 def test_the_public_book_in_the_repository_loads():
-    """books/consumer-public.json: 105 series, KeyBank's charge-offs life to date,
+    """books/consumer-public.json: 147 series (five products and two combined
+    ones, All consumer and Credit card + Other consumer), KeyBank's charge-offs life to date,
     the peers build stated in full. Its series files are written by the peers
     build, so only the book itself is checked here."""
     p = Path(__file__).resolve().parents[1] / "books" / "consumer-public.json"
     bk = BK.load(p)
-    assert len(bk["series"]) == 105                    # KeyBank's charge-offs too: life to date
+    assert len(bk["series"]) == 147                    # KeyBank's charge-offs too: life to date
+    assert {v[0] for v in bk["decide"]["parts"].values()} >= {"All consumer", "Credit card + Other consumer"}
     assert bk["decide"]["lines_from"] is None           # every row's source is the bank's to pick
     assert bk["decide"]["absent"] == []
     assert bk["peers"]["series_dir"] == p.parent / "out" / "series"

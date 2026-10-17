@@ -98,7 +98,7 @@ import math
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..profile import percentile
-from .books import _at_least, _by_cert, _contiguous, label, parts, quarter_end, raw_fields
+from .books import _at_least, _by_cert, _contiguous, label, members, parts, quarter_end, raw_fields
 
 #: Product -> (balance, 30-89 days past due, 90+ days still accruing,
 #: nonaccrual) field names. All quarter-end, $ thousands.
@@ -157,9 +157,16 @@ def fields_for(products: Iterable[str]) -> List[str]:
 
 
 def _fields(product: str) -> Tuple[str, str, str, str]:
-    if product not in FIELDS:
-        raise ValueError("product must be one of %s, not %r" % (sorted(FIELDS), product))
-    return FIELDS[product]
+    """(balance, P3, P9, NA) fields; a combined product's are its parts'
+    joined by "+" (``books.members``), and a sum with one part not filed is
+    not filed (``_filed``)."""
+    names = members(product)
+    return tuple("+".join(FIELDS[n][k] for n in names) for k in range(4))
+
+
+#: Said of every combined product's delinquency.
+COMBINED = ("A combined product's delinquency is written only for quarters in which every part's fields "
+            "were filed: auto's past-due and nonaccrual fields begin in 2011Q1.")
 
 
 def _numerator_fields(product: str, measure: str) -> List[str]:
@@ -465,7 +472,7 @@ def comparability(product: str, measure: str) -> List[str]:
     lines = []
     if measure in ("90+ accruing", "nonaccrual"):
         lines.append(POLICY)
-    if product == "Mortgage" and "p9" in MEASURES[measure]:
+    if "Mortgage" in members(product) and "p9" in MEASURES[measure]:
         lines.append(GUARANTEED)
     return lines
 

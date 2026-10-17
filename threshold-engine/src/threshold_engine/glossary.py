@@ -12,6 +12,13 @@ TERMS = [
     ("Product",
      "The first of the three parts that name a series, such as Credit card.",
      "Taken from the book's series list. A series' label is its product, measure and source joined by ' - '."),
+    ("Combined product",
+     "A product made of others: All consumer (credit card, mortgage, home equity, other consumer and auto), "
+     "or two or more joined by ' + ', such as Credit card + Other consumer.",
+     "Each bank's balances, charge-offs, recoveries and past-due amounts for the parts are added together "
+     "before the rate is taken, so the rate is dollar-weighted, and the jump, acquisition and minimum book "
+     "rules are applied to the combined book. Its delinquency is written only for quarters in which every "
+     "part's fields were filed (auto's begin in 2011Q1)."),
     ("Measure",
      "The second of the three parts that name a series: the rate measured, such as Net charge-offs.",
      "Taken from the book's series list, as for Product."),

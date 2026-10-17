@@ -3,12 +3,14 @@
 The workbook sets one set of lines for each consumer credit product and
 measure, where it moves from rating 1 Low to 5 High, and records the decision
 on each. It covers five products (credit card, mortgage, home equity, other
-consumer, auto) and seven measures (net and gross charge-offs, and five
-delinquency measures): 35 sets of lines. Each is set from the history of one
-of three sources, picked for that product and measure: the industry (every
-bank that files a Call Report), a 15-bank peer group, or KeyBank's own Call
-Report. All three are rated on the lines picked. That is 105 series, all public
-FDIC Call Report data.
+consumer, auto), two combined ones (All consumer, the five added together,
+and Credit card + Other consumer), and seven measures (net and gross
+charge-offs, and five delinquency measures): 49 sets of lines. A combined
+product adds its parts' dollars together before the rate is taken. Each set
+of lines is set from the history of one of three sources, picked for that
+product and measure: the industry (every bank that files a Call Report), a
+15-bank peer group, or KeyBank's own Call Report. All three are rated on the
+lines picked. That is 147 series, all public FDIC Call Report data.
 
 ## Opening it
 

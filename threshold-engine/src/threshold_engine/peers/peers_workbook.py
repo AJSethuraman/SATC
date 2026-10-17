@@ -111,7 +111,8 @@ from .. import keybank_style as K
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
-from .books import PRODUCTS, _fields, bank_book, combined_flows, label, members_by_quarter, quarter_end, raw_fields
+from .books import (PRODUCTS, _fields, bank_book, combined_flows, is_product, label, members_by_quarter, quarter_end,
+                    raw_fields)
 from .glossary import PEER_TERMS
 
 INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
@@ -479,7 +480,7 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
             x for x in ("missing: " + ", ".join(missing) if missing else "",
                         "not known: " + ", ".join(unknown) if unknown else "") if x)))
     products = list(spec["products"]) if not isinstance(spec["products"], str) else [spec["products"]]
-    if not products or any(p not in D.FIELDS for p in products) or len(set(products)) != len(products):
+    if not products or not all(is_product(p) for p in products) or len(set(products)) != len(products):
         raise ValueError("delinquency products must be distinct names from %s, not %r"
                          % (list(D.FIELDS), spec["products"]))
     if not isinstance(spec["measure"], str) or spec["measure"] not in D.MEASURES:
@@ -1098,7 +1099,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     if rank_by not in ("gross", "net"):
         raise ValueError("rank_by must be 'gross' or 'net', not %r" % (rank_by,))
     products = list(products)
-    if not products or any(p not in PRODUCTS for p in products) or len(set(products)) != len(products):
+    if not products or not all(is_product(p) for p in products) or len(set(products)) != len(products):
         raise ValueError("products must be distinct names from %s, not %r" % (sorted(PRODUCTS), products))
     if len(normalisation_years) != 2:
         raise ValueError("normalisation_years is (base year, end year)")
@@ -1328,7 +1329,14 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         scalar("dq_m", "Delinquency measure number", "=MATCH(%s,%s,0)" % (PICK["dq_measure"], lists["dq_measures"]))
         scalar("dq_b", "Delinquency basis number", "=MATCH(%s,%s,0)" % (PICK["dq_basis"], lists["bases"]))
         scalar("dq_sel", "Delinquency product and measure", "=(%s-1)*%d+%s" % (S["dq_p"], NM, S["dq_m"]))
-    scalar("mix_pick", "Product drawn first in the mix", "=IF(%s=0,1,%s)" % (S["co_p"], S["co_p"]))
+    # The share by product draws only the products that are not combined: a
+    # combined one would count its parts twice. Its first is the product
+    # picked, or the first one when a combined product is picked.
+    base_i = [pi for pi, p in enumerate(products) if p in PRODUCTS]
+    base_at = [base_i.index(pi) + 1 if pi in base_i else 1 for pi in range(len(products))]
+    scalar("mix_pick", "Product drawn first in the mix", "=IF(%s=0,1,CHOOSE(%s,%s))"
+           % (S["co_p"], S["co_p"], ",".join(str(x) for x in base_at)))
+    base_names = ",".join('"%s"' % products[pi] for pi in base_i)
     co_p, net = S["co_p"], S["net"]
 
     def pick(dcol, bi, k):
@@ -1397,17 +1405,17 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                     ("s50", "Pack median"), ("s75", "75th ($bn)"), ("s90", "90th ($bn)")):
         co.add(name, heads=[h])
     co.add("smark", heads=["%s, last balance drawn" % me["short"]])
-    NPROD = len(products)
+    NPROD = len(base_i)
     mix_idx = ["%s" % S["mix_pick"]] + ["(%d+(%d>=%s))" % (j, j, S["mix_pick"]) for j in range(1, NPROD)]
-    co.add("mix", NPROD, ["=INDEX(%s,%s)" % (lists["co_products"], x_) for x_ in mix_idx])
+    co.add("mix", NPROD, ["=CHOOSE(%s,%s)" % (x_, base_names) for x_ in mix_idx])
     for k, q in enumerate(grid):
         r = 2 + k
         wk.cell(r, co.col["q"], q)
         for i in range(NB):
-            cells = ["%s$G$%d" % (DA, drow(pi, i, k)) for pi in range(NPROD)]
+            cells = ["%s$G$%d" % (DA, drow(pi, i, k)) for pi in range(len(products))]
             wk.cell(r, co.col["ub"] + i, "=%s/1000000" % pick_number(cells, "NA()"))
         for j, x_ in enumerate(mix_idx):
-            cells = ",".join("%s$G$%d" % (DA, drow(pi, me_i, k)) for pi in range(NPROD))
+            cells = ",".join("%s$G$%d" % (DA, drow(pi, me_i, k)) for pi in base_i)
             wk.cell(r, co.col["mix"] + j, "=IF(ISNUMBER(CHOOSE({i},{c})),CHOOSE({i},{c}),0)".format(i=x_, c=cells))
         wk.cell(r, co.col["inwin"], "=%d>=%d-%s" % (k, Q, SET["last_n"]))
         for j in range(NB):
@@ -1859,8 +1867,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     _note(pe, lay["note1"], LEFT, NOTE_ROWS["note1"], words=t.words, text=(
         "Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on and kept, in quarters "
         "with at least the banks needed."),
-        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product. The products built are: %s."
-        % ", ".join(products))
+        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product.")
 
     if dl is not None:
         _section(pe, v1, *RIGHT, '="Delinquency: "&LOWER({p})&", "&{m}&", "&{b}&" (%)"'.format(
@@ -1891,8 +1898,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         _note(pe, lay["note1"], RIGHT, NOTE_ROWS["note1"], words=t.words, text=(
             "Shaded as on the left. A gap is a quarter-end with no rate; the DelinquencyData tab gives the "
             "reason."),
-            cond="%s=0" % S_PE["dq_p"], alt="No delinquency was built for this product. The products built are: "
-            "%s." % ", ".join(dq["products"]))
+            cond="%s=0" % S_PE["dq_p"], alt="No delinquency was built for this product.")
     else:
         _section(pe, v1, *RIGHT, "Delinquency")
         _merged(pe, tl, *RIGHT, NOT_BUILT, F_BOLD, wrap=False)
@@ -1979,8 +1985,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     _note(pe, lay["size_note"], LEFT, NOTE_ROWS["size_note"], words=t.words, text=(
         "Shaded: the middle 80% (light) and middle 50% (dark) of the banks switched on with a balance. The scale "
         "is logarithmic: each gridline is ten times the one below, so a $1bn book and a $200bn book both show."),
-        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product. The products built are: %s."
-        % ", ".join(products))
+        cond="%s=0" % S_PE["co_p"], alt="No charge-offs were built for this product.")
     _note(pe, lay["size_tiles"], RIGHT, NOTE_ROWS["size_right"], words=t.words, text=(
         "Each bank switched on with a balance, and %s. Share is of the balances listed. 4-quarter change is "
         "against the bank's own balance four quarters earlier." % me["short"]))
@@ -2022,7 +2027,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     sm, sc = lay["small"], lay["small_chart"]
     _section(pe, sm, *LEFT, "Charge-off rate ÷ pack composite (1 = the composite)")
     _section(pe, sm, *RIGHT, '="{me}\'s consumer book: share by product ("&{p}&" in red)"'.format(
-        me=me["short"], p="INDEX(%s,%s)" % (lists_pe["co_products"], S_PE["mix_pick"])))
+        me=me["short"], p="CHOOSE(%s,%s)" % (S_PE["mix_pick"], ",".join(
+            '"%s"' % p_ for p_ in products if p_ in PRODUCTS))))
     small_h = SMALL_ROWS * HEIGHTS["small"] / 0.75
     ch = _Chart(named("co", co, "q"))
     ch.lines([(named("co", co, "rk"), label_ref(co, "rk")) + STYLE["small_self"],
@@ -2033,7 +2039,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     charts.append((ch.finish("0.0", 16, COL_PX * 7, small_h), "B%d" % sc))
     area = AreaChart(grouping="percentStacked")
     cats = named("co", co, "q")
-    for j in range(len(products)):
+    for j in range(co.width["mix"]):
         s_ = Series(val=_values(named("co", co, "mix", j, nm="co_mix%d" % (j + 1))),
                     tx=label_ref(co, "mix", j))
         s_.cat = AxDataSource(strRef=StrRef(f=cats))

@@ -471,8 +471,12 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     peers_ = R.peers(roster)
     assert [pe.cell(pe[peers_workbook.include_cell(j)].row - 1, pe[peers_workbook.include_cell(j)].column).value
             for j in range(len(peers_))] == [b["short"] for b in peers_]
-    on = {b["cert"] for j, b in enumerate(peers_) if pe[peers_workbook.include_cell(j)].value == "Yes"}
-    assert on == set(regionals) and pe[peers_workbook.include_cell(0)].value == "No"   # JPMorgan starts off
+    # Every bank follows Banks in the pack, which starts on Regionals only, so
+    # the banks in are the regionals (JPMorgan starts off).
+    assert {pe[peers_workbook.include_cell(j)].value for j in range(len(peers_))} == {peers_workbook.FOLLOW}
+    assert pe[peers_workbook.picker_cell("pack")].value == peers_workbook.PACK_PICKS[1]
+    on = {b["cert"] for b in peers_ if b["regional"]}
+    assert on == set(regionals) and not peers_[0]["regional"]
 
 
 def test_a_series_that_ends_early_says_so(built, data, tmp_path, capsys):
@@ -1436,7 +1440,7 @@ def test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out(merger_built_p
     wb = load_workbook(built["out"])
     da = wb["Data"]
     head = [c.value for c in da[1]]
-    assert head[13:] == ["Quarter-end balance ($000)", "Combined with"]
+    assert head[13:] == ["Quarter-end balance ($000)", "Combined with", "In the pack now"]
     got = {(r[1], r[3]): (r[9], r[10], r[13], r[14]) for r in da.iter_rows(min_row=2, values_only=True)}
     assert all(w != WHY_ACQUIRED for _, w, _, _ in got.values())
     assert got["P1", "2020Q1"] == (True, None, 5500, "certificate 300, absorbed 2020Q2")

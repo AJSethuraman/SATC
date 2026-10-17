@@ -8,8 +8,23 @@ reference tabs. No Excel is needed to build it, and nothing in the book has a
 default: a missing setting is refused, by name.
 
 `consumer-public.json` is the consumer credit workbook on public FDIC data:
-5 products × 7 measures (net and gross charge-offs, five delinquency
-measures) from the industry, the 15-bank peer group and KeyBank: 105 series.
+7 products × 7 measures (net and gross charge-offs, five delinquency
+measures) from the industry, the 15-bank peer group and KeyBank: 147 series.
+The products are the five Call Report products and two combined ones:
+**All consumer** (all five added together) and **Credit card + Other
+consumer**.
+
+**Combining products.** A combined product adds its parts' balances,
+charge-offs, recoveries and past-due amounts together, bank by bank, before
+the rate is taken, so its rate is dollar-weighted, and the jump, acquisition
+and minimum book rules run on the combined book. To add one, name it under
+`peers.products` in the book as two or more products joined by ` + `
+(`"Mortgage + Home equity"`), or `"All consumer"`, and add its 21 rows to the
+series list (copy Auto's, change the product and the file's first word, as
+`peers build` names it: `mortgage-plus-home-equity_...`). The Call Report has
+no unsecured line: other consumer also holds student loans and boats and RVs
+(Peer loan classes says what each peer's holds). A combined product's
+delinquency starts where every part's does (auto's in 2011Q1).
 A KeyBank series shorter than the others keeps its lines; only its Backtest
 row says it was not tested.
 `consumer-public-series.csv` is its series list; open it in Excel to see or

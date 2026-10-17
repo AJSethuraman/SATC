@@ -64,15 +64,16 @@ def slug(text: str) -> str:
 
 def charge_off_fields(products: Sequence[str]) -> List[str]:
     """The balance, charge-off and recovery fields of the products named."""
-    return books.raw_fields(f for p in products for f in books.PRODUCTS[p])
+    return books.raw_fields(f for p in products for f in books._fields(p))
 
 
 def _products(products) -> List[str]:
-    """Distinct product names from ``books.PRODUCTS``, at least one."""
+    """Distinct product names, at least one: from ``books.PRODUCTS``, or
+    combined (``books.members``)."""
     names = [products] if isinstance(products, str) else list(products or [])
-    if not names or len(set(names)) != len(names) or any(p not in books.PRODUCTS for p in names):
-        raise ValueError("--products takes one or more distinct products from %s, not %r"
-                         % (", ".join(books.PRODUCTS), products))
+    if not names or len(set(names)) != len(names) or not all(books.is_product(p) for p in names):
+        raise ValueError("--products takes one or more distinct products from %s, %r, or two or more "
+                         "joined by %r, not %r" % (", ".join(books.PRODUCTS), books.ALL, books.JOIN, products))
     return names
 
 
@@ -406,10 +407,10 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
     certs = [b["cert"] for b in pack]
     made = []
     for p in products:
-        balance = D.FIELDS[p][0]
+        balance = D._fields(p)[0]
         balance = "(%s)" % " + ".join(books.parts(balance)) if "+" in balance else balance
         for m in D.MEASURES:
-            nums = " + ".join(D._numerator_fields(p, m))
+            nums = " + ".join(f for n in D._numerator_fields(p, m) for f in books.parts(n))
             banks_ = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, jump, min_book,
                                                     exempt_self and b is me,
                                                     acquired=acquired[p].get(b["cert"], []))
@@ -437,8 +438,11 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                             "never read as 0.",
                             words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
                     note += D.comparability(p, m)
-                    said = D.DEFINITIONS.get(p, books.DEFINITIONS.get(p))
-                    note += [said] if said else []
+                    if p not in books.PRODUCTS:
+                        note += books.definitions(p)[:1] + [D.COMBINED]
+                    for n in books.members(p):
+                        said = D.DEFINITIONS.get(n, books.DEFINITIONS.get(n))
+                        note += [said] if said else []
                     own = {c: {x["q"]: x["why_avg4"] or "" for x in banks_[c]} for c in certs}
                     left_out = ({r["q"]: [(c, "the jump" if own[c].get(r["q"], "").startswith(D.WHY_JUMP_PREFIX)
                                            else "the acquisition share") for c in r["avg4_left_out"]]
@@ -689,7 +693,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
                     words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
-            note += [books.DEFINITIONS[n] for n in words_p.split(" plus ") if n in books.DEFINITIONS]
+            note += ([d for n in words_p.split(" plus ") for d in books.definitions(n)]
+                     if " plus " in words_p else books.definitions(words_p))
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
                            series_note(note, tail, before, after), before, after, None))
     # Each peer's own book, for the synthesis's peer percentiles: banks/ keeps
@@ -701,7 +706,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                 tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
                 note = ["%s, %s charge-off rate, trailing four quarters, %%." % (p, kind),
                         "%s (certificate %s), its own book, a peer." % (b["short"], b["cert"]),
-                        source, rule, repeat_note] + ([books.DEFINITIONS[p]] if p in books.DEFINITIONS else [])
+                        source, rule, repeat_note] + books.definitions(p)
                 series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
                                series_note(note, tail, before, after), before, after, ("banks", p)))
     dq_spec = None

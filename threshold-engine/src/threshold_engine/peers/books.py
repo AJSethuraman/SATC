@@ -58,6 +58,52 @@ PRODUCTS = {
     "Auto": ("LNAUTO", "DRAUTO", "CRAUTO"),
 }
 
+#: A combined product: ``ALL`` (every product above) or two or more of them
+#: joined by ``JOIN`` ("Credit card + Other consumer"). Its balance,
+#: charge-offs and recoveries are its parts' filed fields added together
+#: before any rate is taken, so its rate is dollar-weighted and every rule
+#: (the jump, acquisitions, pro forma, the minimum book) runs on the combined
+#: book (the analyst, 17 Oct 2026: "can we do a composite of all loans as a
+#: top line to select from? ... maybe i want to see unsecured loans + credit
+#: cards or something").
+ALL = "All consumer"
+JOIN = " + "
+
+
+def members(product) -> List[str]:
+    """The products ``product`` is made of: itself, every product for
+    ``ALL``, or the names joined by ``JOIN``. Anything else is refused."""
+    if isinstance(product, str):
+        if product in PRODUCTS:
+            return [product]
+        if product == ALL:
+            return list(PRODUCTS)
+        names = product.split(JOIN)
+        if len(names) >= 2 and len(set(names)) == len(names) and all(n in PRODUCTS for n in names):
+            return names
+    raise ValueError("product must be one of %s, %r, or two or more of them joined by %r, not %r"
+                     % (", ".join(PRODUCTS), ALL, JOIN, product))
+
+
+def is_product(product) -> bool:
+    """True for a product ``members`` reads, combined or not."""
+    try:
+        members(product)
+    except ValueError:
+        return False
+    return True
+
+
+def definitions(product) -> List[str]:
+    """What a product's notes must say about its definition: for a combined
+    product, what it adds together, then each part's own definition."""
+    names = members(product)
+    said = [] if product in PRODUCTS else [
+        "%s: %s added together, balances, charge-offs and recoveries field by field, before the rate is "
+        "taken, so the rate is dollar-weighted and the jump, acquisition and minimum book rules are applied "
+        "to the combined book." % (product, ", ".join(names))]
+    return said + [DEFINITIONS[n] for n in names if n in DEFINITIONS]
+
 #: What a product's series notes must say about its definition. Stated in
 #: every file built for the product, so the Sources tab carries it.
 DEFINITIONS = {
@@ -133,9 +179,10 @@ def raw_fields(names: Iterable[str]) -> List[str]:
 
 
 def _fields(product: str) -> Tuple[str, str, str]:
-    if product not in PRODUCTS:
-        raise ValueError("product must be one of %s, not %r" % (sorted(PRODUCTS), product))
-    return PRODUCTS[product]
+    """(balance, gross charge-offs, recoveries) fields; a combined product's
+    are its parts' joined by "+" (``members``)."""
+    names = members(product)
+    return tuple("+".join(PRODUCTS[n][k] for n in names) for k in range(3))
 
 
 def _num(row: dict, field: str) -> float:

@@ -1527,3 +1527,33 @@ proposal to show every setting's range at once, *"okay your idea works"*.
 - Walkthrough: 8 new reads of the panel's text (B3, B4) against the ranges
   computed in Python from scale.py; **1,522 of 1,522** in Excel 16, slicer
   check PASS. test_decide and test_book: 47 passed.
+
+## 17 October 2026: combined products, All consumer and Credit card + Other consumer
+
+The analyst: *"can we do a composite of all loans as a top line to select
+from? sure, it will only represent what the entire book looks like but who
+else even looks like that? in fact it would be sort of cool to be able to
+somehow combine 2 things to look at ... maybe i want to see unsecured loans +
+credit cards or something"*.
+
+- **A combined product** is `"All consumer"` (the five) or two or more
+  products joined by `" + "` (`books.members`). Its filed fields are its
+  parts' added together before any rate is taken (`books._fields`,
+  `delinquency._fields`), so the rate is dollar-weighted and the jump,
+  acquisition, pro forma and minimum book rules run on the combined book.
+  Every series, the Peers tab, Decide and the live peer group take it as a
+  product. Only KeyBank's share by product on Peers draws the five alone: a
+  combined one would count its parts twice.
+- **The Call Report has no unsecured line.** Other consumer also holds
+  student loans and boats and RVs, so the second product is named for what
+  it is, Credit card + Other consumer. Its peer composite starts 2011Q2.
+- A combined delinquency is written only where every part's fields were
+  filed: All consumer's from 2011Q1, when auto's begin.
+- **KeyBank's own All consumer history runs unbroken from 2007Q1** (78
+  quarters, worst 1.77% at 2010Q1), the first KeyBank series in the book
+  whose history holds the crisis. At the agreed settings the lines fit: High
+  from 1.16%; 2026Q2 is 0.28% (rank 3 of 16 on Peers).
+- Book: 147 series (49 sets of lines), built in 790s. Walkthrough **2,060 of
+  2,060** reads as expected in Excel 16; slicer check PASS. The three Peers
+  notes that listed every product built now say only that none was built:
+  with seven names, two of them ran out of room.

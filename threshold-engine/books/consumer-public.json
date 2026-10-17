@@ -52,7 +52,9 @@
       "Mortgage",
       "Home equity",
       "Other consumer",
-      "Auto"
+      "Auto",
+      "All consumer",
+      "Credit card + Other consumer"
     ],
     "mergers": "ind_cache/mergers.json",
     "absorptions": "ind_cache/absorptions.json",
