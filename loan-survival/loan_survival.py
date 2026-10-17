@@ -484,6 +484,38 @@ def early_read(df: pd.DataFrame, st: Settings, year_col: pd.Series) -> pd.DataFr
 
 # ============================================================================ 3/4. tests + economics
 
+COMPARISONS = (">=", "<=", "!=", "==", ">", "<")
+
+
+def column_values(df: pd.DataFrame, name: str):
+    """A test or model column by name. A column with exactly that name wins. Otherwise 'A > B' is a flag worked out here:
+    Yes or No, with A a column and B a column or a number (>, >=, <, <=, ==, !=), blank where either side is blank.
+    Returns None when the name is neither."""
+    if name in df.columns:
+        return df[name]
+    for op in COMPARISONS:
+        at = name.find(op)
+        while at >= 0:
+            left, right = name[:at].strip(), name[at + len(op):].strip()
+            if left in df.columns:
+                a = pd.to_numeric(df[left], errors="coerce")
+                b = None
+                if right in df.columns:
+                    b = pd.to_numeric(df[right], errors="coerce")
+                else:
+                    try:
+                        b = pd.Series(float(right), index=df.index)
+                    except ValueError:
+                        pass
+                if b is not None and a.notna().any() and b.notna().any():
+                    hit = {">": a > b, ">=": a >= b, "<": a < b, "<=": a <= b, "==": a == b, "!=": a != b}[op]
+                    flag = pd.Series(np.where(hit, "Yes", "No"), index=df.index, dtype=object)
+                    flag[a.isna() | b.isna()] = np.nan
+                    return flag
+            at = name.find(op, at + 1)
+    return None
+
+
 def group_series(df: pd.DataFrame, spec: dict, st: Settings) -> list[tuple[str, pd.Series]]:
     """Returns a list of (comparison label, group labels) for one test definition."""
     o = st.col("orig_date")
@@ -504,10 +536,11 @@ def group_series(df: pd.DataFrame, spec: dict, st: Settings) -> list[tuple[str, 
     col = spec.get("column")
     if not col:
         raise UserError(f"Test needs group_by = year, split_date, or column: {spec}")
-    if col not in df.columns:
+    values = column_values(df, col)
+    if values is None:
         raise UserError(f"Test column '{col}' not found in file.")
     if "cutoffs" in spec:
-        x = pd.to_numeric(df[col], errors="coerce")
+        x = pd.to_numeric(values, errors="coerce")
         out = []
         for c in [float(v) for v in spec["cutoffs"].split(",")]:
             lab = f"{c:g}"
@@ -515,7 +548,7 @@ def group_series(df: pd.DataFrame, spec: dict, st: Settings) -> list[tuple[str, 
             g[x.isna()] = f"{col} missing"
             out.append((f"{col} cutoff {lab}", g))
         return out
-    g = df[col].astype(str).where(df[col].notna(), "(blank)")
+    g = values.astype(str).where(values.notna(), "(blank)")
     if g.nunique() > 15:
         raise UserError(f"Column '{col}' has {g.nunique()} values. Use cutoffs = ... for numeric columns.")
     return [(f"{col}", col + " = " + g)]
@@ -588,12 +621,13 @@ def model_terms(df: pd.DataFrame, spec: str):
     cols, labels, bad, seen = {}, [], [], set()
     for term in [t.strip() for t in spec.split(",") if t.strip()]:
         col, scale = parse_model_term(term)
-        if col not in df.columns:
+        values = column_values(df, col)
+        if values is None:
             raise UserError(f"Model variable '{col}' not found in file.")
         if col in seen:
             raise UserError(f"'{col}' is listed twice in the model. Use each factor once.")
         seen.add(col)
-        v = model_values(df[col]) / scale
+        v = model_values(values) / scale
         if scale == 1:
             lab = col
         else:

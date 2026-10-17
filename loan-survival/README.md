@@ -52,9 +52,12 @@ median lead is at least the minimum number of months, otherwise Charge-off. Both
 which one it used.
 
 **Comparisons.** Vintage groups by origination year. Before / after splits at one or more dates. Cutoffs backtests a rule on a
-numeric column (below each cutoff against at or above). Each value compares the values of a column with 15 distinct values or
-fewer. Cox model reports each factor alone and together as a hazard ratio; *per N lower / higher* sets the unit of a number.
-With no comparison added, the run compares vintages.
+numeric column (below each cutoff against at or above). Flag compares loans where one numeric column is `>`, `>=`, `<`, `<=`,
+`==` or `!=` another numeric column or a number, Yes against No; a loan blank on either side is blank. Each value compares the
+values of a column with 15 distinct values or fewer. Cox model reports each factor alone and together as a hazard ratio, and takes the same flags as a factor; *per N lower / higher* sets the unit of a number.
+A flag is written in the settings file as the column name, for example `column = amount >= 50000` or
+`model = fico >= 700, new_business`; a column in the file with exactly that name is used instead. With no comparison added,
+the run compares vintages.
 
 **Seasoned** restricts a comparison to loans opened at least the early-read horizon (months, under Advanced) before the as-of
 date. It is the default for cutoffs, each value and the Cox model.

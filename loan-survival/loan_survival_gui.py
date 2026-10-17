@@ -93,10 +93,21 @@ TEST_KINDS = [
     ("vintage", "Vintage (origination year)"),
     ("split", "Before / after a date"),
     ("cutoffs", "Cutoffs on a number"),
+    ("flag", "One column against another (flag)"),
     ("category", "Each value of a column"),
     ("model", "Several columns together (Cox model)"),
 ]
 KIND_LABEL = dict(TEST_KINDS)
+# what a comparison produces, one line each, shown under its name in the guide
+KIND_OUTPUT = {
+    "vintage": "Survival by origination year, compared at the same month on book.",
+    "split": "Survival of loans opened before against after a date.",
+    "cutoffs": "Survival of loans below against at or above each cutoff on a numeric column.",
+    "flag": "Survival where a column is greater than, less than or equal to another column or a number: Yes against No.",
+    "category": "Survival for each value of a column.",
+    "model": "Hazard ratio for each column alone and together (Cox).",
+}
+OPERATORS = (">", ">=", "<", "<=", "==", "!=")
 
 
 # ============================================================================ pure helpers (no window)
@@ -297,7 +308,36 @@ def split_model(model: str) -> list[tuple[str, str, str]]:
     return out
 
 
+def flag_text(left: str, op: str, right: str) -> str:
+    """('Income', '>', 'Sales') -> 'Income > Sales', the name the engine works the flag out from."""
+    return f"{left.strip()} {op} {right.strip()}"
+
+
+def parse_flag(text: str, columns) -> tuple[str, str, str] | None:
+    """'Income > Sales' -> ('Income', '>', 'Sales') when the left side is a column; None otherwise."""
+    cols = set(columns)
+    for op in sorted(OPERATORS, key=len, reverse=True):
+        at = text.find(op)
+        while at >= 0:
+            left, right = text[:at].strip(), text[at + len(op):].strip()
+            if left in cols and right:
+                return left, op, right
+            at = text.find(op, at + 1)
+    return None
+
+
+def flag_counts(df: pd.DataFrame, text: str) -> dict[str, int] | None:
+    """Yes, No and blank loans for a flag, worked out by the engine's own rule. None when the text is not a flag."""
+    values = ls.column_values(df, text)
+    if values is None:
+        return None
+    n = values.value_counts(dropna=False)
+    return {"Yes": int(n.get("Yes", 0)), "No": int(n.get("No", 0)), "blank": int(values.isna().sum())}
+
+
 def default_test_name(kind: str, spec: dict) -> str:
+    if kind == "flag":
+        return spec["column"]
     if kind == "vintage":
         return "vintage"
     if kind == "split":
@@ -321,20 +361,20 @@ def describe_window(spec: dict) -> str:
 
 
 def describe_test(spec: dict) -> str:
-    """A comparison in a line, for the list and the guide."""
+    """What a comparison produces, in a line, for the list and the guide."""
     kind = spec_kind(spec)
     if kind == "vintage":
-        core = "Vintage, by origination year"
+        core = "Survival by origination year"
     elif kind == "split":
         dates = [d.strip() for d in spec["split_date"].split(",") if d.strip()]
-        core = "Before / after " + " and ".join(dates)
+        core = "Survival before / after " + " and ".join(dates)
     elif kind == "cutoffs":
-        core = f"{spec['column']}: cutoffs {spec['cutoffs'].replace(',', ', ')}"
+        core = f"Survival below / at or above {spec['column']} cutoffs {spec['cutoffs'].replace(',', ', ')}"
     elif kind == "category":
-        core = f"{spec['column']}: each value"
+        core = f"Survival for each value of {spec['column']}"
     else:
         words = [f"{c} per {sc} {d}" if sc else c for c, sc, d in split_model(spec["model"])]
-        core = "Cox model: " + ", ".join(words)
+        core = "Hazard ratio, alone and together: " + ", ".join(words)
     window = describe_window(spec)
     return core if window == "all loans" else f"{core}; {window}"
 
@@ -586,9 +626,9 @@ def main(argv=None) -> None:
         """A column chooser you can type into. The list is alphabetical and narrows as you type; click a name or press
         Enter to pick it. An optional picker has an x to clear it."""
 
-        def __init__(self, master, var, on_change=None, optional=False, width=34):
+        def __init__(self, master, var, on_change=None, optional=False, width=34, allow_text=False):
             super().__init__(master, bg=master.cget("bg"))
-            self.var, self.on_change, self.optional = var, on_change, optional
+            self.var, self.on_change, self.optional, self.allow_text = var, on_change, optional, allow_text
             self.values: list[str] = []
             self.query = tk.StringVar(value=var.get())
             self.entry = field(self, self.query, width)
@@ -714,6 +754,13 @@ def main(argv=None) -> None:
             if not text and self.optional:
                 self.commit("")
                 return
+            if self.allow_text:
+                try:
+                    float(text)
+                    self.commit(text)       # a number typed in place of a column
+                    return
+                except ValueError:
+                    pass
             exact = [v for v in self.values if v.lower() == text.lower()]
             found = exact or (self.matches(text) if len(self.matches(text)) == 1 else [])
             if found:
@@ -745,6 +792,8 @@ def main(argv=None) -> None:
             self.orig_from = tk.StringVar(value=spec.get("orig_from", ""))
             self.orig_to = tk.StringVar(value=spec.get("orig_to", ""))
             self.window_choice = tk.StringVar(value="dates" if (spec.get("orig_from") or spec.get("orig_to")) else "")
+            self.var_op = tk.StringVar(value=">")
+            self.fl_a, self.fl_op, self.fl_b = tk.StringVar(), tk.StringVar(value=">"), tk.StringVar()   # the flag builder in the model step
             self.terms: list[str] = []
             if existing:
                 k = spec_kind(spec)
@@ -753,15 +802,21 @@ def main(argv=None) -> None:
                 elif k in ("cutoffs", "category"):
                     self.var_a.set(spec["column"])
                     self.var_b.set(spec.get("cutoffs", ""))
+                    flag = parse_flag(spec["column"], df.columns) if (k == "category" and df is not None and spec["column"] not in df.columns) else None
+                    if flag:
+                        self.kind.set("flag")
+                        self.var_a.set(flag[0])
+                        self.var_op.set(flag[1])
+                        self.var_b.set(flag[2])
                 elif k == "model":
                     self.terms = [model_term(*t) for t in split_model(spec["model"])]
 
             outer = tk.Frame(self, bg=C["PAPER"], padx=PAD, pady=PAD)
             outer.pack(fill="both", expand=True)
             self.lbl_step = label(outer, "", "small", fg="SLATE")
-            self.lbl_step.pack(anchor="w")
+            self.lbl_step.pack()
             self.lbl_head = label(outer, "", "h2")
-            self.lbl_head.pack(anchor="w", pady=(2, GAP))
+            self.lbl_head.pack(pady=(2, GAP))
             rule(outer).pack(fill="x", pady=(0, GAP))
             bt = tk.Frame(outer, bg=C["PAPER"])
             bt.pack(side="bottom", fill="x", pady=(GAP, 0))
@@ -776,7 +831,7 @@ def main(argv=None) -> None:
             self.btn_next = Button(bt, "Next", self.next, "primary")
             self.btn_next.pack(side="right")
             Button(bt, "Cancel", self.destroy).pack(side="right", padx=(0, GAP // 2))
-            self.minsize(640, 460)
+            self.minsize(720, 620)
             self.show_step()
             self.grab_set()
             self.wait_visibility()
@@ -785,6 +840,8 @@ def main(argv=None) -> None:
         def show_step(self):
             for w in self.body.winfo_children():
                 w.destroy()
+            self.block = tk.Frame(self.body, bg=C["PAPER"])
+            self.block.pack(anchor="n")       # the form is one block, centred; what is inside lines up on the left
             self.lbl_step.config(text=f"{self.step + 1} of 3")
             self.lbl_head.config(text=self.STEPS[self.step])
             self.btn_back.config(state="normal" if self.step else "disabled")
@@ -811,7 +868,7 @@ def main(argv=None) -> None:
             if self.step < 2:
                 self.step += 1
                 if self.step == 2 and not self.window_choice.get():
-                    self.window_choice.set("seasoned" if self.kind.get() in ("cutoffs", "category", "model") and self.app.v_asof.get().strip() else "all")
+                    self.window_choice.set("seasoned" if self.kind.get() in ("cutoffs", "flag", "category", "model") and self.app.v_asof.get().strip() else "all")
                 self.show_step()
             else:
                 self.finish()
@@ -828,8 +885,8 @@ def main(argv=None) -> None:
 
         def row(self, text, widget_factory):
             """One form row: the label in the fixed label column, the control beside it. Every form is built from these."""
-            r = tk.Frame(self.body, bg=C["PAPER"])
-            r.pack(fill="x", pady=(0, GAP))
+            r = tk.Frame(self.block, bg=C["PAPER"])
+            r.pack(anchor="w", pady=(0, GAP))
             lab = label(r, text, "body", fg="SLATE")
             lab.configure(width=26)
             lab.pack(side="left", anchor="n", pady=4)
@@ -840,11 +897,12 @@ def main(argv=None) -> None:
         # ---- step 1
         def build_question(self):
             for key, text in TEST_KINDS:
-                Radio(self.body, text, self.kind, key, self.update_summary).pack(anchor="w", pady=(0, GAP))
+                Radio(self.block, text, self.kind, key, self.update_summary).pack(anchor="w")
+                label(self.block, KIND_OUTPUT[key], "small", fg="SLATE").pack(anchor="w", padx=(26, 0), pady=(0, GAP))
 
         # ---- step 2
         def build_details(self):
-            k, b = self.kind.get(), self.body
+            k, b = self.kind.get(), self.block
             if k == "vintage":
                 label(b, "Grouped by origination year.", "body", fg="SLATE").pack(anchor="w")
             elif k == "split":
@@ -853,6 +911,11 @@ def main(argv=None) -> None:
                     e.bind("<KeyRelease>", lambda _e: self.update_summary())
                     return e
                 self.row("Date (YYYY-MM-DD)", make)
+            elif k == "flag":
+                self.flag_form(self.var_a, self.var_op, self.var_b, self.on_flag)
+                self.lbl_range = label(b, "", "small", fg="SLATE", wrap=True)
+                self.lbl_range.pack(anchor="w", pady=(0, GAP))
+                self.on_flag()
             elif k in ("cutoffs", "category"):
                 def make_pick(r):
                     self.picker = ColumnPicker(r, self.var_a, on_change=self.on_column, width=34)
@@ -883,12 +946,74 @@ def main(argv=None) -> None:
                     Button(f, "Add", self.add_term).pack(side="left", padx=(GAP, 0))
                     return f
                 self.row("Per", make_per)
-                self.lb = tk.Listbox(b, height=5, font=FONT["body"], relief="solid", bd=1, highlightthickness=0,
+                label(b, "Flag", "bold").pack(anchor="w", pady=(GAP // 2, GAP))
+                self.flag_form(self.fl_a, self.fl_op, self.fl_b, self.on_model_flag)
+                self.lbl_flag = label(b, "", "small", fg="SLATE")
+                self.lbl_flag.pack(anchor="w", pady=(0, GAP // 2))
+                Button(b, "Add flag", self.add_flag_term).pack(anchor="w", pady=(0, GAP))
+                self.lb = tk.Listbox(b, height=4, font=FONT["body"], relief="solid", bd=1, highlightthickness=0,
                                      selectbackground=C["INK"], selectforeground=C["PAPER"], activestyle="none")
                 self.lb.pack(fill="x")
                 for t in self.terms:
                     self.lb.insert("end", t)
                 Button(b, "Remove", self.del_term).pack(anchor="w", pady=(GAP, 0))
+
+        def flag_form(self, a, op, right, command):
+            """Column, operator, then a column or a number: the three rows a flag is built from."""
+            def make_a(r):
+                pk = ColumnPicker(r, a, on_change=command, width=30)
+                pk.set_values(self.num_cols)
+                return pk
+            self.row("Column", make_a)
+
+            def make_op(r):
+                f = tk.Frame(r, bg=C["PAPER"])
+                for o in OPERATORS:
+                    Radio(f, o, op, o, command).pack(side="left", padx=(0, GAP))
+                return f
+            self.row("Is", make_op)
+
+            def make_b(r):
+                pk = ColumnPicker(r, right, on_change=command, width=30, allow_text=True)
+                pk.set_values(self.num_cols)
+                return pk
+            self.row("Against (column or number)", make_b)
+
+        def _flag_said(self, a, op, right) -> str:
+            df = self.app.df
+            if df is None or not a.get() or not right.get().strip():
+                return ""
+            c = flag_counts(df, flag_text(a.get(), op.get(), right.get()))
+            return f"Yes {c['Yes']:,}, No {c['No']:,}, blank {c['blank']:,}" if c else "Needs a numeric column against a numeric column or a number."
+
+        def on_flag(self):
+            if hasattr(self, "lbl_range") and self.lbl_range.winfo_exists():
+                self.lbl_range.config(text=self._flag_said(self.var_a, self.var_op, self.var_b))
+            self.update_summary()
+
+        def on_model_flag(self):
+            if hasattr(self, "lbl_flag") and self.lbl_flag.winfo_exists():
+                self.lbl_flag.config(text=self._flag_said(self.fl_a, self.fl_op, self.fl_b))
+
+        def add_flag_term(self):
+            a, c = self.fl_a.get(), self.fl_b.get().strip()
+            if not a or not c:
+                self.msg.config(text="Pick a column and what to compare it against.")
+                return
+            text = flag_text(a, self.fl_op.get(), c)
+            if self.app.df is not None and flag_counts(self.app.df, text) is None:
+                self.msg.config(text="Needs a numeric column against a numeric column or a number.")
+                return
+            if text in self.terms:
+                self.msg.config(text="That flag is already added.")
+                return
+            self.msg.config(text="")
+            self.terms.append(text)
+            self.lb.insert("end", text)
+            for v in (self.fl_a, self.fl_b):
+                v.set("")
+            self.lbl_flag.config(text="")
+            self.update_summary()
 
         def on_column(self):
             col = self.var_a.get()
@@ -932,7 +1057,7 @@ def main(argv=None) -> None:
 
         # ---- step 3
         def build_loans(self):
-            b = self.body
+            b = self.block
             horizon = self.app.v_set["early_read_horizon"].get()
             seasoned_to = ""
             try:
@@ -983,6 +1108,14 @@ def main(argv=None) -> None:
                     if not self.var_a.get() or not cuts:
                         return spec, "Pick a column and enter at least one cutoff."
                     spec["column"], spec["cutoffs"] = self.var_a.get(), self.var_b.get().replace(" ", "")
+                elif k == "flag":
+                    a, c = self.var_a.get(), self.var_b.get().strip()
+                    if not a or not c:
+                        return spec, "Pick a column and what to compare it against."
+                    text = flag_text(a, self.var_op.get(), c)
+                    if self.app.df is not None and flag_counts(self.app.df, text) is None:
+                        return spec, "Needs a numeric column against a numeric column or a number."
+                    spec["column"] = text
                 elif k == "category":
                     if not self.var_a.get():
                         return spec, "Pick a column."
@@ -1166,7 +1299,7 @@ def main(argv=None) -> None:
             """The one page layout: title, a rule, the content, and Back and Next in the bottom corners."""
             f = self.pages[key]
             f.configure(padx=0, pady=PAD)
-            label(f, title, "title").pack(anchor="w")
+            label(f, title, "title").pack()
             rule(f).pack(fill="x", pady=(GAP, PAD))
             foot = tk.Frame(f, bg=C["PAPER"])
             foot.pack(side="bottom", fill="x", pady=(GAP, 0))
@@ -1200,13 +1333,15 @@ def main(argv=None) -> None:
         def build_data(self):
             f, _foot, _btn = self.skeleton("data", "Data", None, ("Next", "primary", lambda: self.go("cols")))
             top = tk.Frame(f, bg=C["PAPER"])
-            top.pack(fill="x")
+            top.pack(anchor="n")
             Button(top, "Choose file...", self.pick_file, "primary").pack(side="left")
-            label(top, "", "body", fg="SLATE", textvariable=self.v_file, wrap=True).pack(side="left", padx=(GAP, 0), fill="x", expand=True)
+            path = label(top, "", "body", fg="SLATE", textvariable=self.v_file)
+            path.configure(wraplength=560)
+            path.pack(side="left", padx=(GAP, 0))
             self.lbl_rows = label(f, "", "body", fg="SLATE")
-            self.lbl_rows.pack(anchor="w", pady=(GAP, 0))
+            self.lbl_rows.pack(pady=(GAP, 0))
             r2 = tk.Frame(f, bg=C["PAPER"])
-            r2.pack(anchor="w", pady=(GAP, GAP))
+            r2.pack(anchor="n", pady=(GAP, GAP))
             label(r2, "As-of date", "body", fg="SLATE").pack(side="left")
             field(r2, self.v_asof, 14).pack(side="left", padx=(GAP, 0), ipady=4)
             holder = tk.Frame(f, bg=C["PAPER"])
@@ -1242,13 +1377,16 @@ def main(argv=None) -> None:
             canvas.bind("<Leave>", lambda _e: [canvas.unbind_all(s) for s in ("<MouseWheel>", "<Button-4>", "<Button-5>")])
             self.cols_canvas = canvas
 
+            block = tk.Frame(inner, bg=C["PAPER"])
+            block.pack(anchor="n")
+
             def section(title, roles, first):
-                label(inner, title, "bold").pack(anchor="w", pady=(0 if first else PAD, GAP // 2))
-                rule(inner).pack(fill="x", pady=(0, GAP))
+                label(block, title, "bold").pack(anchor="w", pady=(0 if first else PAD, GAP // 2))
+                rule(block).pack(fill="x", pady=(0, GAP))
                 for role in roles:
                     text = dict((r, l) for r, l, _q in ROLES)[role]
-                    row = tk.Frame(inner, bg=C["PAPER"])
-                    row.pack(fill="x", pady=(0, GAP))
+                    row = tk.Frame(block, bg=C["PAPER"])
+                    row.pack(anchor="w", pady=(0, GAP))
                     lab = label(row, text, "body", fg="SLATE")
                     lab.configure(width=LABEL_CHARS // 2 + 4)
                     lab.grid(row=0, column=0, sticky="nw", pady=4, padx=(0, GAP))
@@ -1264,6 +1402,8 @@ def main(argv=None) -> None:
         # ---- Settings
         def build_settings(self):
             f, _foot, _btn = self.skeleton("set", "Settings", "cols", ("Next", "primary", lambda: self.go("tests")))
+            f = tk.Frame(f, bg=C["PAPER"])
+            f.pack(anchor="n")
             label(f, "Bad event", "bold").pack(anchor="w", pady=(0, GAP))
             for key, text, *_ in BAD_EVENT_CHOICES:
                 Radio(f, text, self.v_set["bad_event"], key, self.refresh_rail).pack(anchor="w", pady=(0, GAP))
@@ -1290,14 +1430,14 @@ def main(argv=None) -> None:
         def build_tests(self):
             f, _foot, _btn = self.skeleton("tests", "Comparisons", "set", ("Next", "primary", lambda: self.go("run")))
             row = tk.Frame(f, bg=C["PAPER"])
-            row.pack(anchor="w", pady=(0, GAP))
+            row.pack(anchor="n", pady=(0, GAP))
             Button(row, "Add", self.add_test, "primary").pack(side="left", padx=(0, GAP // 2))
             for text, cmd in (("Edit", self.edit_test), ("Copy", self.dup_test), ("Remove", self.del_test)):
                 Button(row, text, cmd).pack(side="left", padx=(0, GAP // 2))
             holder = tk.Frame(f, bg=C["PAPER"])
             holder.pack(fill="both", expand=True)
             self.tt = ttk.Treeview(holder, columns=("name", "what"), show="headings", height=10)
-            for c, text, w in (("name", "Name", 240), ("what", "Comparison", 600)):
+            for c, text, w in (("name", "Name", 220), ("what", "Comparison", 640)):
                 self.tt.heading(c, text=text, anchor="w")
                 self.tt.column(c, width=w, anchor="w")
             self.tt.column("what", stretch=True)
@@ -1355,7 +1495,8 @@ def main(argv=None) -> None:
         def build_run(self):
             f, foot, self.btn_run = self.skeleton("run", "Run", "tests", ("Run", "primary", self.start_run))
             self.lbl_ready = label(f, "", "bold", wrap=True)
-            self.lbl_ready.pack(anchor="w", fill="x")
+            self.lbl_ready.configure(anchor="center", justify="center")
+            self.lbl_ready.pack(fill="x")
             r = tk.Frame(f, bg=C["PAPER"])
             r.pack(fill="x", pady=(GAP, GAP))
             label(r, "Save as", "body", fg="SLATE").pack(side="left")
@@ -1366,7 +1507,7 @@ def main(argv=None) -> None:
                                   highlightthickness=0, bg=C["PAPER"], fg=C["INK"], padx=10, pady=8)
             self.status.pack(fill="both", expand=True)
             r2 = tk.Frame(f, bg=C["PAPER"])
-            r2.pack(anchor="w", pady=(GAP, 0))
+            r2.pack(anchor="n", pady=(GAP, 0))
             self.btn_open = Button(r2, "Open workbook", lambda: open_path(self.last_out))
             self.btn_open.config(state="disabled")
             self.btn_open.pack(side="left", padx=(0, GAP // 2))
