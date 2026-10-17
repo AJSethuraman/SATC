@@ -504,7 +504,8 @@ def test_split_rows_say_what_their_grid_holds_fixed(tmp_path):
     rows = tabs.pockets(ws)
     assert rows[0]["band"].startswith("FICO") and rows[0]["holds"] == "Yes"
     assert any(x["band"].startswith("ORIG_BAL") and x["holds"] == "No: may be mostly FICO" for x in rows)
-    # How often by chance (5 Oct 2026): no number where the gap may be the partner's, and it says so
+    # Significant at N%? (17 Oct 2026; How often by chance from 5 Oct): no p-value where the gap may be the
+    # partner's, and it says so
     assert all(x["chance"] == "Mixed with FICO" for x in rows if str(x["holds"]).startswith("No:"))
     assert all(x["chance"] != "Mixed with FICO" for x in rows if x["holds"] == "Yes")
     held = [x["holds"] == "Yes" for x in rows]

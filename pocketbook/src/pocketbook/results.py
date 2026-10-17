@@ -521,22 +521,20 @@ def _pockets_note(res) -> list[tuple[str, str]]:
             if profit else "", ", with a p-value under ", ('TEXT(significance_bar,"0%")',),
             ". Not sure: the gap is there, but the p-value isn't under it. Too few losses: fewer than ",
             f"{b.min_events:,} (a setting for the next Run), so not tested. No: anything else.")),
-        (CHANCE_HEAD, live.text(
-            "For a Yes pocket, how often a gap this large would arise by chance if the pocket were no different "
-            "from the rest; 1 in 400 is a p-value of 0.25%. The figure allows for testing many pockets at once "
-            f"({_allowance(b)}, across one grid and one measure), so the pocket's raw p-value, before that "
-            f"allowance, is smaller still. Bad loans use the z test, or the exact test for a pocket under "
-            f"{b.min_units:,} loans."
+        (SIG_HEAD, live.text(
+            "For a pocket that loses more than the rest, whether the gap is significant at the confidence set in "
+            "How sure on Control: Yes when the p-value is under ", ('TEXT(significance_bar,"0%")',),
+            ", No when it is not, each with its p-value. "
+            f"The p-value allows for testing many pockets at once ({_allowance(b)}, across one grid and one "
+            f"measure), so the pocket's raw p-value is smaller still. Bad loans use the z test, or the exact test for "
+            f"a pocket under {b.min_units:,} loans."
             + (f" For the dollar measures, the loans are shuffled {b.shuffles:,} times (within the band when the "
-               f"comparison is the rest of its band), and the figure is how often a gap as large occurred."
-               if dollar_rates else ""),
-            " Every other pocket shows why there is no number: Could be chance (the p-value is not under ",
-            ('TEXT(significance_bar,"0%")',), ")"
-            + (f"; Too close to call (the shuffled p-value is within {stats.BORDERLINE_SE:g} standard errors of "
-               f"the threshold, on either side)" if dollar_rates else "")
-            + f"; {live.FEW_LOSSES} or {live.FEW_LOANS}; {live.NO_REST} (the rest has no losses); "
-              f"{live.UNDER_WORSE}" + (f" or {live.UNDER_PROFIT}" if profit else "")
-            + f"; {live.NOT_MORE}"
+               f"comparison is the rest of its band), and the p-value is the share of shuffles with a gap at least "
+               f"as large. Borderline: the shuffled p-value is within {stats.BORDERLINE_SE:g} standard errors of "
+               f"the threshold, on either side." if dollar_rates else ""),
+            f" Every other pocket shows why there is no test to read: {live.FEW_LOSSES} or {live.FEW_LOANS}; "
+            f"{live.NO_REST} (the rest has no losses); {live.UNDER_WORSE}"
+            + (f" or {live.UNDER_PROFIT}" if profit else "") + f"; {live.NOT_MORE}"
             + (f"; {MIXED}{pt[0]} (see Holds {pt[0]} fixed?)" if sf and pt else "") + ".")),
         ("Material?", "Yes when the excess reaches the materiality line on Control (the Material at tile, in the "
                       "measure's own unit). It is assessed separately from Worse?, so a pocket can be material "
@@ -557,9 +555,13 @@ def _pockets_note(res) -> list[tuple[str, str]]:
     return items
 
 
-#: Pockets' p-value column, in words (the firm, 5 Oct 2026: "the p value stuff is not simple for a laymen's user"):
-#: "1 in X" for a Yes pocket, else the reason there is no number to rely on (live.chance_said)
-CHANCE_HEAD = "How often by chance"
+#: Pockets' p-value column (the firm, 17 Oct 2026: "i don't like how often by chance or could be chance as much as
+#: luck at this point. or another sort of standard term"; it was How often by chance, "1 in X", from 5 Oct 2026):
+#: Yes, Borderline or No with the p-value, else the reason there is no test to read (live.sig_said). The heading
+#: follows How sure on Control live: SIG_HEAD is the formula, live.SIG_HEAD the words it makes
+SIG_HEAD = live.SIG_HEAD_FORMULA
+#: the widest reading it prints with a p-value, for its width
+SIG_WIDEST = f"{live.SIG_BORDER} (p = 0.375%)"
 #: a split pocket whose grid doesn't hold the partner fixed: the gap may be the partner's, so no number
 MIXED = "Mixed with "
 
@@ -610,9 +612,9 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
               K_SEG: max(lw["seg"], house.fit(kinds_, floor=0, cap=LABELS_CAP, pad=3)),
               K_HALF: max(lw["half"], house.fit(SHOW, floor=0, cap=LABELS_CAP, pad=3)),
               K_LOANS: 9, K_THIS: 11, K_REST: 12, K_GAP: 14, K_EX: 22,
-              # the widest word Worse? can print: borderline is said in How often by chance (5 Oct 2026)
+              # the widest word Worse? can print: borderline is said in Significant at N%? (17 Oct 2026)
               K_WORSE: house.fit([live.TOO_FEW, "Worse?"], floor=11, cap=36),
-              K_P: house.fit([CHANCE_HEAD, live.FEW_LOSSES, live.NO_REST, "Rarer than 1 in 10,000",
+              K_P: house.fit([live.SIG_HEAD.format("95%"), live.FEW_LOSSES, live.NO_REST, SIG_WIDEST,
                               live.UNDER_WORSE] + ([MIXED + pt[0]] if pt else []), floor=11, cap=36),
               K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
               K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
@@ -671,7 +673,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
              K_GAP: f'=IF({pts},"Gap in pts",IF({J},"× rest of band","× rest of book"))',
              K_EX: f'=IF({loans},"Bad loans above share",IF({pts},IF({J},"Dollars short of band","Dollars short of '
                    f'book"),"Dollars above share"))',
-             K_WORSE: "Worse?", K_P: CHANCE_HEAD, K_MAT: "Material?", K_CAUGHT: "Could have caught"}
+             K_WORSE: "Worse?", K_P: SIG_HEAD, K_MAT: "Material?", K_CAUGHT: "Could have caught"}
     pt = bk._partner(res) if res.config.split else None
     heads[K_HOLDS] = (f'=IF({sel["kind"]}="{TWO_WAY}","","Holds {pt[0]} fixed?")' if pt else "")
     house.header(ws, h, K_NUM, [heads[c] for c in range(K_NUM, K_HOLDS + 1)], centre_from=K_LOANS - K_NUM)
@@ -686,8 +688,8 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
         lst = lambda c: f'IF({I}="","",IF(INDEX({Lr(c)},{I})="","",INDEX({Lr(c)},{I})))'     # noqa: E731
 
         def chance(R, I):
-            """How often by chance, and for a split pocket whose grid doesn't hold the partner fixed, why not."""
-            words = at(live.P_CHANCE, R)
+            """Significant at N%?, and for a split pocket whose grid doesn't hold the partner fixed, why not."""
+            words = at(live.P_SIG, R)
             if not pt:
                 return words
             return f'IF(LEFT({lst(L_HOLDS)},3)="No:",{live.q(MIXED + pt[0])},{words})'
@@ -695,7 +697,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
                 K_HALF: f"={lst(L_HALF)}", K_LOANS: f"={lst(L_LOANS)}", K_THIS: f"={at(live.P_RATE, R)}",
                 K_REST: f"={at(live.P_REST, R)}",
                 K_GAP: f'=IF({at(live.P_GAP, R)}="","",{at(live.P_GAP, R)}*IF({pts},100,1))',
-                # Worse? as a word; a borderline one reads "Too close to call" in How often by chance
+                # Worse? as a word; a borderline one reads "Borderline (p = 4.8%)" in Significant at N%?
                 K_EX: f"={at(live.P_DOLLARS, R)}", K_WORSE: f"={at(live.P_WORSE, R)}", K_P: f"={chance(R, I)}",
                 K_MAT: f"={lst(L_MAT)}", K_CAUGHT: f"={lst(L_CAUGHT)}", K_HOLDS: f"={lst(L_HOLDS)}"}
         fmts = {K_LOANS: "#,##0", K_THIS: "0.00%", K_REST: "0.00%", K_GAP: X_FMT, K_EX: "#,##0",
@@ -1009,7 +1011,7 @@ def write_pck(wb, res, choices: Choices, views: Views, stamp: str) -> None:
                                ". A pocket that is the only one in its band is compared with the rest of the book. "
                                "Rest is the comparison group's own rate, against which each gap is measured.")),
         ("Shading", live.text(
-            "Pink: worse and significant. Green: better and significant. No shading: the gap could be chance (the "
+            "Pink: worse and significant. Green: better and significant. No shading: the gap is not significant (the "
             "p-value is not under ",
             ('TEXT(significance_bar,"0%")',), "), or the pocket has too few losses to test. GCOs count at ",
             ('TEXT(worse_at,"0.00")',), "x or ", ('TEXT(better_at,"0.00")',), "x; RANR and RANR + GCOs ",

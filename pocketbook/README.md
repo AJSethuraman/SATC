@@ -239,7 +239,11 @@ After that, the whole routine is:
      "N worse and material · N worse · N shown". Each row: the pocket, its
      loans, its rate and the rest's, the gap, the excess, **Worse?** (Yes, Not
      sure, No, Too few losses) and **Material?** (Yes, No) in separate columns,
-     the p-value, and the smallest gap a pocket its size could have caught.
+     **Significant at 95%?** (the heading follows How sure on Control: *Yes (p =
+     0.37%)*, *Borderline (p = 4.8%)* or *No (p = 23%)*, the p-value after the
+     allowance for many tests, or the reason there is none to read, such as *Too
+     few losses to test*; the firm, 17 Oct 2026), and the smallest gap a pocket
+     its size could have caught.
      Control's *Judged against* picks the rest: every other loan in its band,
      or every other loan in the book, for the gap and the dollars alike
      (OC-44). The worse pockets come first, largest dollars first; the order
@@ -548,8 +552,8 @@ but flag it somehow"*, and they chose the word). A dollar rate's p-value comes
 from shuffling, so another run could land it a little differently. When the
 p-value that decides a verdict is a shuffled one within 2 of its own standard
 errors of the bar, either side, the verdict says so: *Net drain · borderline
-(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets' Worse?,
-RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
+(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets as
+*Borderline (p = 4.8%)* in Significant at 95%?, and on RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
 and tile, the Run's *Worst for* line and Record, which states the rule and
 counts them. The color, order and counts stay the verdict's. A z test's or an
 exact test's p-value is the same on every run, so Bad loans are never
