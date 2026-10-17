@@ -73,6 +73,26 @@ parameter with no citation **fails to load**; it does not become folklore.
 
 *Enforced:* `rules_for_jurisdiction`; `load_rules` rejects a sourceless rule.
 
+## 5a · A planning estimate may assume a fact about the taxpayer — out loud — and never a fact about the law
+
+The withholding estimator strains §5 on purpose. The firm, 17 October 2026:
+*"maybe we won't have certain info and it has to make an assumption as to maybe
+standard deduction instead of itemized"*. An estimate that refused every blank
+would never run, so it fills in what it was not told — Single, the standard
+deduction, nobody 65 or older, no dependents — and returns each fill-in as an
+`Assumption` naming what was assumed and what changes if it is wrong. That is §2's
+`assumed_default`, said on the screen instead of buried.
+
+The line it does not cross is the law. A tax year without a complete, cited table
+**raises**; it is never run on another year's figures. That fallback existed until
+the same day and is exactly what the firm asked to be stopped: *"checks to ensure we
+don't accidentally use it without updating it for the right year"*. A misspelt
+filing status is also refused: a typo is not the same as "not told".
+
+*Enforced:* `test_the_estimator_assumes_out_loud.py` (blanks become named
+assumptions; a given answer is not listed; a year not on file raises; the suite goes
+red on 1 January until the new year's table exists — `test_the_current_year_is_on_file`).
+
 ## 6 · The model proposes; the engine disposes
 
 The model never computes a number that matters and never writes state directly.

@@ -57,7 +57,7 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
     wb = Workbook()
     ws = wb.active
     ws.title = "Withholding Estimate"
-    S.paper_canvas(ws, max_col=_LAST_COL, max_row=120)
+    S.paper_canvas(ws, max_col=_LAST_COL, max_row=200)
     K.set_widths(ws, {"A": 44, "B": 2, "C": 16, "D": 2, "E": 56})
     K.page_setup(ws, "Withholding Estimate", orientation="portrait")
 
@@ -71,6 +71,9 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
     K.write(ws, 3, 1, _FILING_LABEL.get(result.filing_status, result.filing_status),
             S.SUBTITLE)
     row = 5
+    if result.headline:
+        row = K.note_row(ws, row, result.headline, _LAST_COL)
+        row += 1
 
     # -- inputs -----------------------------------------------------------
     row = K.section_header(ws, row, "Inputs", _LAST_COL)
@@ -115,6 +118,21 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
                      style=S.COMPUTED_BOLD)
     row = _money_row(ws, row, "Deduction used", b.deduction_used,
                      basis=f"{b.deduction_kind} deduction")
+    if b.itemized_computed is not None:
+        row = _money_row(ws, row, "Schedule A as computed", b.itemized_computed,
+                         basis=f"against a standard deduction of ${b.standard_computed:,.0f}")
+    for label, value, basis in (
+        ("Tips deduction", b.tips_deduction, "Schedule 1-A Part II"),
+        ("Overtime deduction", b.overtime_deduction, "Schedule 1-A Part III"),
+        ("Car loan interest deduction", b.car_loan_deduction, "Schedule 1-A Part IV"),
+        ("Senior deduction", b.senior_deduction, "Schedule 1-A Part V"),
+        ("QBI deduction", b.qbi_deduction, "Form 8995"),
+    ):
+        if value:
+            row = _money_row(ws, row, label, value, basis=basis)
+    if b.capital_loss_carryover:
+        row = _money_row(ws, row, "Capital loss carried to next year", b.capital_loss_carryover,
+                         basis="Schedule D line 21 limit")
     row = _money_row(ws, row, "Taxable income", b.taxable_income, style=S.COMPUTED_BOLD)
     row = _money_row(ws, row, "Ordinary income tax", b.ordinary_income_tax)
     row = _money_row(ws, row, "Capital-gains / qualified-dividend tax", b.capital_gains_tax)
@@ -123,8 +141,13 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
     row = _money_row(ws, row, "Self-employment tax", b.self_employment_tax)
     row = _money_row(ws, row, "Additional Medicare tax", b.additional_medicare_tax)
     row = _money_row(ws, row, "Net investment income tax", b.net_investment_income_tax)
-    row = _money_row(ws, row, "Nonrefundable credits", b.nonrefundable_credits)
-    row = _money_row(ws, row, "Refundable credits", b.refundable_credits)
+    row = _money_row(ws, row, "Nonrefundable credits", b.nonrefundable_credits,
+                     basis=(f"of which child and dependent ${b.child_and_dependent_credit:,.2f}"
+                            if b.child_and_dependent_credit else ""))
+    row = _money_row(ws, row, "Refundable credits", b.refundable_credits,
+                     basis=(f"additional child tax credit ${b.additional_child_tax_credit:,.2f}; "
+                            f"earned income credit ${b.earned_income_credit:,.2f}"
+                            if (b.additional_child_tax_credit or b.earned_income_credit) else ""))
     row = _money_row(ws, row, "Total tax liability", b.total_tax_liability,
                      style=S.COMPUTED_BOLD)
     row = _money_row(ws, row, "Marginal rate", b.marginal_rate, fmt=NF.PCT2)
@@ -136,7 +159,10 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
     row = _money_row(ws, row, "Withholding to date (all jobs)", rec.ytd_withholding)
     row = _money_row(ws, row, "Projected withholding at current rate",
                      rec.projected_withholding_current_rate)
-    row = _money_row(ws, row, "Other payments", rec.other_payments_total)
+    row = _money_row(ws, row, "Other payments", rec.other_payments_total,
+                     basis=(f"includes Additional Medicare withheld ${rec.additional_medicare_withheld:,.2f}, "
+                            f"excess Social Security ${rec.excess_social_security_credit:,.2f}"
+                            if (rec.additional_medicare_withheld or rec.excess_social_security_credit) else ""))
     row = _money_row(ws, row, "Projected total payments", rec.projected_total_payments)
     row = _money_row(ws, row, "Projected balance (+refund / -due)", rec.projected_balance,
                      style=S.COMPUTED_BOLD)
@@ -154,6 +180,25 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
                          rec.safe_harbor_additional_per_period)
     row = _text_row(ws, row, "Over-withholding vs. target?",
                     "Yes — reduce" if rec.is_over_withholding else "No — on/under target")
+    if rec.required_annual_payment is not None:
+        row = _money_row(ws, row, "Required to avoid the penalty", rec.required_annual_payment,
+                         basis=rec.required_annual_payment_basis)
+        row = _text_row(ws, row, "Underpayment penalty likely?", "Yes" if rec.penalty_risk else "No")
+    for due, amount in rec.estimated_payments_remaining:
+        row = _money_row(ws, row, f"Estimated payment due {due}", amount, basis="Form 1040-ES")
+
+    # -- what it assumed, and what it noticed ----------------------------
+    if result.assumptions:
+        row += 1
+        row = K.section_header(ws, row, "Assumed (not given)", _LAST_COL)
+        for a in result.assumptions:
+            row = _text_row(ws, row, a.topic, a.assumed, basis=a.if_wrong)
+    if result.checks:
+        row += 1
+        row = K.section_header(ws, row, "Checks", _LAST_COL)
+        level = {"act": "Do something", "review": "Check this", "info": "Good to know"}
+        for c in result.checks:
+            row = _text_row(ws, row, c.title, level.get(c.level, c.level), basis=c.detail)
 
     # -- cited tax-law basis ---------------------------------------------
     row += 1
@@ -174,6 +219,14 @@ def build_audit_tape(result: EstimateResult, inp: EstimatorInput) -> Workbook:
         ("Self-employment tax rate", "se_social_security_rate"),
         ("Additional Medicare tax rate", "addl_medicare_rate"),
         ("Estimated-tax safe harbor", "est_tax_safe_harbor_pct_current"),
+        ("SALT cap", "salt_deduction_cap"),
+        ("Child tax credit", "ctc_per_child"),
+        ("Tips deduction cap", "tips_deduction_max"),
+        ("Overtime deduction cap", "overtime_deduction_max"),
+        ("Car loan interest cap", "car_loan_interest_max"),
+        ("Senior deduction", "senior_deduction_amount"),
+        ("Earned income credit table", "eitc_max_credit"),
+        ("Estimated-tax due dates", "est_tax_due_dates"),
     ):
         citation = cw.param(param).citation
         if citation:
