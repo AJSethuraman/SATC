@@ -728,7 +728,8 @@ for a written plan and objections before anything is built. Both are in
   of four-quarter changes is about 2 to 6, and unemployment rises in two runs
   under a ±0.5 band. The repository's longer public charge-off series (the
   Fed's card rate from 1985 Q4; FDIC home equity and other consumer from
-  1992 Q4) give four or five runs. On the card series the link holds without
-  2007-10 (+0.54). The plan recommends testing on both, labelled.
+  1992 Q4) give three or four episodes (first written as four or five, before a one-quarter gap was merged
+  as the plan's own rule says; Codex on #452). On the card series the link holds without 2007-10 (+0.54).
+  The plan recommends testing on both, labelled.
 - **Waiting on the firm:** 17 decisions, listed in the plan, and a note for
   Book 1's agent asking for the left-out quarters as a file.

@@ -76,13 +76,15 @@ def typical(changes):
 
 
 def runs(ts, test):
+    """Episodes: runs of quarters where ``test`` holds, as (first, last). A gap of one quarter is merged, as
+    the plan's episode rule says (2001Q2-2002Q4 and 2003Q2-Q3 are one episode)."""
     out = []
     for t in ts:
         if test(t):
-            if out and shift(out[-1][-1], 1) == t:
-                out[-1].append(t)
+            if out and shift(out[-1][1], 1) == t or out and shift(out[-1][1], 2) == t:
+                out[-1][1] = t
             else:
-                out.append([t])
+                out.append([t, t])
     return out
 
 
@@ -131,9 +133,9 @@ def main(pull):
         tm = typical([s[t] for t in ts])
         for band in (0.5, 1.0):
             up = runs(ts, lambda t: s[t] > band * tm)
-            n_up = sum(map(len, up))
+            n_up = sum(1 for t in ts if s[t] > band * tm)
             n_dn = sum(1 for t in ts if s[t] < -band * tm)
-            print("   %-34s +/-%.1f (typical move %.3g): %d decreasing, %d stable, %d increasing in %d runs: %s"
+            print("   %-34s +/-%.1f (typical move %.3g): %d decreasing, %d stable, %d increasing in %d episodes: %s"
                   % (name, band, tm, n_dn, len(ts) - n_up - n_dn, n_up, len(up),
                      ", ".join("%s-%s" % (r[0], r[-1]) for r in up)))
 
@@ -145,7 +147,7 @@ def main(pull):
         ts = sorted(t for t in y if t in u and t >= start and not left_out(t))
         tm = typical([u[t] for t in ts])
         eps = runs(ts, lambda t: u[t] > 0.5 * tm)
-        print("   %-40s %s-%s: %d quarters, r %+.2f; rising-unemployment runs: %s"
+        print("   %-40s %s-%s: %d quarters, r %+.2f; rising-unemployment episodes: %s"
               % (name, ts[0], ts[-1], len(ts), corr([u[t] for t in ts], [y[t] for t in ts]),
                  ", ".join("%s-%s" % (e[0], e[-1]) for e in eps)))
         for e in eps:

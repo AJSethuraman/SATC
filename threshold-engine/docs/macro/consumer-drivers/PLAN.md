@@ -14,7 +14,7 @@ and Book 1's own series files. Five changes to the brief matter most:
    2008-10. The "effective sample" is the number of independent observations
    the overlapping changes are worth, and it comes out at about 2 to 6.
    Public loss series back to 1985 and 1992 already sit in the repository, and
-   they give four or five episodes of rising unemployment instead of one or
+   they give three or four episodes of rising unemployment instead of one or
    two. **I recommend testing on both:** Book 1's files, so the figures tie
    out, and the longer series, labelled as a different source.
 2. **"Drivers" claims a cause the data cannot show.** With one or two
@@ -75,18 +75,22 @@ book prints them.
 ## Objections, most consequential first
 
 **1. One downturn.** Under a Stable band of ±0.5 typical moves, unemployment
-rises in two runs in 2007-2026: 2007 Q4 to 2010 Q1, and 2024 Q2 to Q3. Under
-±1 it rises in one. "Excluding 2008-10" leaves almost nothing that moved. I
+rises in two episodes in 2007-2026: 2007 Q4 to 2010 Q1, and 2024 Q2 to Q3.
+Under ±1 it rises in one. "Excluding 2008-10" leaves almost nothing that moved. I
 expect most pairs to read Untestable on Book 1's history. That is honest, but
 it is not what the brief expects. The longer series change that:
 
 - **Credit card:** the Fed's charge-off rate from 1985 Q4 (`tests/data/cards_nco_ttm.csv`)
-  holds five runs of rising unemployment: 1990-92, 2001-02, 2003, 2007-10 and
+  holds four episodes of rising unemployment: 1990-92, 2001-03, 2007-10 and
   2024-25. The together correlation is +0.67, and it stays +0.54 with 2007-10
   and the year after taken out.
 - **Home equity and other consumer:** the FDIC's every-filer charge-offs from
-  1992 Q4 hold four runs. Taking out 2007-10 moves them from +0.76 to +0.51
-  and from +0.72 to +0.63.
+  1992 Q4 hold three: 2001-03, 2007-10 and 2024-25. Taking out 2007-10 moves
+  them from +0.76 to +0.51 and from +0.72 to +0.63.
+
+Episodes here follow the rule in objection 7, with a one-quarter gap merged.
+An earlier draft of this plan counted 2001-02 and 2003 as two, and said five
+and four (Codex on #452).
 
 For cards, 2008-10 also straddles a break. Before 2010, securitized cards were
 off banks' books. Book 1 labels those quarters and measured the step in the
@@ -168,7 +172,7 @@ change that ends in 2025 Q4 or 2026 Q4. The alternative is FRED's Sahm rule:
 average the months that were published, and mark the quarter "2 of 3 months".
 
 **10. The Stable band.** ±0.5 typical moves gives unemployment 12 rising
-quarters in two runs. ±1 gives 8 in one, which leaves the event view a single
+quarters in two episodes. ±1 gives 8 in one, which leaves the event view a single
 episode. 0.5 is also Book 1's Moderate half-width. I'd keep ±0.5. The typical
 move depends on the window: 0.69 points over 2007-2026, and 0.54 over
 1986-2026. The book should print the one each state uses.
@@ -213,8 +217,8 @@ LibreOffice draw hatching differently.
 | # | Pair | Keep? | Likely on Book 1's history | On the longer series |
 |---|---|---|---|---|
 | 1 | Unemployment, card early delinquency (+) | Keep | Two episodes; testable | Delinquency before 2006 not checked |
-| 2 | Unemployment, card net charge-offs (+) | Keep | Two episodes; 2024's is small | Five runs; holds without 2007-10 (+0.54) |
-| 3 | Initial claims, card early delinquency (+) | Keep | Three runs at ±0.5 (2023-24 are short) | Not checked |
+| 2 | Unemployment, card net charge-offs (+) | Keep | Two episodes; 2024's is small | Four episodes; holds without 2007-10 (+0.54) |
+| 3 | Initial claims, card early delinquency (+) | Keep | Three episodes at ±0.5 (2023-24 are short) | Not checked |
 | 4 | Gasoline, card and auto early delinquency (+) | Keep, low | The swings are 2008, 2014-15 (no delinquency move) and 2022, when delinquency was rising from its pandemic low anyway. Auto is Untestable | |
 | 5 | Core CPI, card early delinquency (+) | Keep, low | Core CPI moved only in 2021-23, alongside the same post-pandemic rise. One confounded episode | |
 | 6 | Revolving credit growth, card charge-offs later (+) | Keep, with its own longer lead | Growth also enlarges the balance a rate is divided by, so it can lower the rate first | |
