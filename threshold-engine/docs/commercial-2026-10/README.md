@@ -13,6 +13,8 @@ Public data only. Nothing here is the bank's.
 | `research-sec.md` | What the 16 holding companies tag about commercial credit quality in their 2026 Q2 10-Q XBRL, and `edgar-crit-class-tracker` run against them |
 | `research-breaks.md` | Definition changes, reclassifications and acquisitions since 2006, each with its primary source (Federal Register, FDIC, Fed, SEC 8-K, FDIC history) |
 | `breaks-jumps.tsv` | Every bank-quarter since 2006 where a commercial category moved more than 25% (book at least $1bn on one side): 302 rows, with the merger or reporting change that explains it, or UNEXPLAINED (87) |
+| `research-ffiec.md` | The FFIEC instructions quoted from the FDIC's copy (C&I and its exclusions, the >50% real estate test, NDFI, RC-L, RC-N, RI-B), the CDR bulk download and the MDRM codes not in the FDIC API, tied to KeyBank's filed report, and which form each roster bank files (17 Oct) |
+| `research-crit-history.md` | How far back each of the 16 holding companies tags commercial loans by internal grade: every 10-Q and 10-K instance 2009Q1–2026Q2 (17 Oct) |
 | `research-scripts/` | The research agents' scripts. Those that call SEC read the contact from the `SEC_USER_AGENT` environment variable, as SEC requires one; it is never stored |
 
 The rates here are **as filed**: none of the tool's merger, jump or
