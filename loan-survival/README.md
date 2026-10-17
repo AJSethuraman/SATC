@@ -15,7 +15,7 @@ python loan_survival.py sample/fake_book.csv --settings sample/settings_example.
 pythonw loan_survival_gui.py "C:\path\loans.xlsx"                                      # pop-ups; path optional
 ```
 
-The window has five tabs: Data, Columns, Settings, Tests, Run. It writes the same
+The window has five steps: Data, Columns, Settings, Comparisons, Run. It writes the same
 settings text the command line reads and calls `loan_survival.run()`, so the RunLog
 in the workbook records exactly what was chosen. File → Save selections writes that
 text to an `.ini` so a run can be repeated exactly.
@@ -25,6 +25,41 @@ Right-click menu: pass the file as the first argument, for example
 on the work machine is not known yet.
 
 Needs pandas, numpy, openpyxl and tkinter. scipy and matplotlib are optional.
+
+## Rules the window follows
+
+The window states none of these. It shows labels, counts and refusals only.
+
+**Data.** One row per loan, CSV or Excel. The as-of date starts as the latest date found in the date columns; anything dated
+after it is treated as not yet happened.
+
+**Columns.** Required: origination date and charge-off date (blank when the loan has not charged off). Optional:
+
+| Column | Used for |
+|---|---|
+| First 90+ days past due date | The bad-event check, and the First 90+ or charge-off definition |
+| Payoff date | A loan stops being followed at payoff |
+| Days past due at as-of | Splits recovered loans from loans still late |
+| Net revenue, Loan amount | Net revenue per $1,000 lent, by group |
+| Loan ID | Duplicate loans |
+
+A date that cannot be read excludes the loan, and the loan is listed on the Excluded sheet. Each pick is saved to
+`loan_survival_gui_memory.json` beside the program; the names picked are tried first on the next file. A column cannot fill two roles.
+
+**Bad event.** *Charge-off*: a loan is bad when it charges off. *First 90+ or charge-off*: bad at whichever comes first;
+needs the first 90+ date. *Auto*: First 90+ or charge-off when at least the minimum share of 90+ loans charge off and the
+median lead is at least the minimum number of months, otherwise Charge-off. Both minimums are under Advanced; the run says
+which one it used.
+
+**Comparisons.** Vintage groups by origination year. Before / after splits at one or more dates. Cutoffs backtests a rule on a
+numeric column (below each cutoff against at or above). Each value compares the values of a column with 15 distinct values or
+fewer. Cox model reports each factor alone and together as a hazard ratio; *per N lower / higher* sets the unit of a number.
+With no comparison added, the run compares vintages.
+
+**Seasoned** restricts a comparison to loans opened at least the early-read horizon (months, under Advanced) before the as-of
+date. It is the default for cutoffs, each value and the Cox model.
+
+**Text size.** View menu, Ctrl + and Ctrl -. The size is remembered.
 
 ## Check it
 

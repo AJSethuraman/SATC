@@ -125,8 +125,10 @@ check("empty query shows everything", g.filter_matches(["a", "b"], "  ") == ["a"
 hd, rows, widths = g.preview_rows(pd.DataFrame({"a_very_long_column_name": ["x"], "d": [pd.Timestamp("2024-01-05 13:00")]}))
 check("preview: column wide enough for its header, dates have no time",
       widths[0] >= len("a_very_long_column_name") and rows[0][1] == "2024-01-05", str(widths))
-check("describe: vintage", g.describe_test({"group_by": "year"}).startswith("Compare loans by the year they were opened"))
-check("describe: cutoffs says in words", "loans below each cutoff against loans at or above" in g.describe_test({"column": "score", "cutoffs": "1,2"}))
+check("describe: vintage", g.describe_test({"group_by": "year"}) == "Vintage, by origination year")
+check("describe: cutoffs", g.describe_test({"column": "score", "cutoffs": "1,2"}) == "score: cutoffs 1, 2")
+check("describe: model with a window", g.describe_test({"model": "fico per -50, flag", "orig_to": "2023-09-30"}) ==
+      "Cox model: fico per 50 lower, flag; loans opened up to 2023-09-30", g.describe_test({"model": "fico per -50, flag", "orig_to": "2023-09-30"}))
 check("describe: window", g.describe_window({"orig_to": "2023-09-30"}) == "loans opened up to 2023-09-30")
 import ast
 _tree = ast.parse(Path(g.__file__).read_text())
@@ -223,7 +225,7 @@ else:
         app.apply_text_size(16, save=False)
         check("window: text size changes", app.text_size == 16)
         app.apply_state(g.parse_settings_text(example))
-        check("window: ready line says ready", app.ready_text().startswith("Ready."), app.ready_text())
+        check("window: ready line says ready", app.ready_text().startswith("Ready:"), app.ready_text())
 
         # an unready window says what to do instead of running
         app.v_cols["orig_date"].set("")
