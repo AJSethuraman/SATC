@@ -1,0 +1,108 @@
+{
+  "qwen3:8b (Forge)": {
+    "counts": {
+      "wrongly_absorbed": 0,
+      "correct": 0,
+      "wrong_caught": 4,
+      "escalated": 0
+    },
+    "gave_up": 0,
+    "results": [
+      {
+        "problem": "CB1",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.446-1(a)(4)(i)', which is real authority but not what this question turns on ('IRS Pub. 583 (12/2024), \"Reconciling the checking account\"')",
+        "escalated_by": ""
+      },
+      {
+        "problem": "CB2",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.446-1(a)(4)(i)', which is real authority but not what this question turns on ('IRS Pub. 583 (12/2024), \"Reconciling the checking account\"')",
+        "escalated_by": ""
+      },
+      {
+        "problem": "CB3",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.446-1(a)(4)(i)', which is real authority but not what this question turns on ('IRS Pub. 583 (12/2024), \"Reconciling the checking account\"')",
+        "escalated_by": ""
+      },
+      {
+        "problem": "CB4",
+        "outcome": "wrong_caught",
+        "reason": "citation_does_not_support",
+        "detail": "cited '26 CFR 1.446-1(a)(4)(i)', which is real authority but not what this question turns on ('IRS Pub. 583 (12/2024), \"Reconciling the checking account\"')",
+        "escalated_by": ""
+      }
+    ],
+    "diagnostic": {
+      "answered": 4,
+      "position_matched": 0,
+      "citation_matched": 0,
+      "citation_within_governing_rule": 0,
+      "citation_off_index": 0,
+      "escalated_by_desk": 0,
+      "escalated_by_engine": 0,
+      "gave_up": 0
+    },
+    "queued": {
+      "filed": 4,
+      "near_miss": 4
+    }
+  },
+  "frontier": {
+    "counts": {
+      "wrongly_absorbed": 0,
+      "correct": 0,
+      "wrong_caught": 0,
+      "escalated": 4
+    },
+    "gave_up": 0,
+    "results": [
+      {
+        "problem": "CB1",
+        "outcome": "escalated",
+        "reason": "authority_permits_choice",
+        "detail": "IRS Publication 583 (12/2024) \u2014 Starting a Business and Keeping Records is secondary authority, which is somebody's reading rather than the rule; this is a position for the firm",
+        "escalated_by": "engine"
+      },
+      {
+        "problem": "CB2",
+        "outcome": "escalated",
+        "reason": "authority_permits_choice",
+        "detail": "IRS Publication 583 (12/2024) \u2014 Starting a Business and Keeping Records is secondary authority, which is somebody's reading rather than the rule; this is a position for the firm",
+        "escalated_by": "engine"
+      },
+      {
+        "problem": "CB3",
+        "outcome": "escalated",
+        "reason": "authority_permits_choice",
+        "detail": "IRS Publication 583 (12/2024) \u2014 Starting a Business and Keeping Records is secondary authority, which is somebody's reading rather than the rule; this is a position for the firm",
+        "escalated_by": "engine"
+      },
+      {
+        "problem": "CB4",
+        "outcome": "escalated",
+        "reason": "authority_permits_choice",
+        "detail": "IRS Publication 583 (12/2024) \u2014 Starting a Business and Keeping Records is secondary authority, which is somebody's reading rather than the rule; this is a position for the firm",
+        "escalated_by": "engine"
+      }
+    ],
+    "diagnostic": {
+      "answered": 4,
+      "position_matched": 4,
+      "citation_matched": 4,
+      "citation_within_governing_rule": 0,
+      "citation_off_index": 0,
+      "escalated_by_desk": 0,
+      "escalated_by_engine": 4,
+      "gave_up": 0
+    },
+    "queued": {
+      "filed": 4,
+      "near_miss": 0
+    }
+  }
+}
