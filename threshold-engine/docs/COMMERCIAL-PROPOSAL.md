@@ -517,8 +517,9 @@ classified by collateral and borrower, with judgement at the edges.
 - **The consumer book.** Its other consumer step in 2024Q4–2025Q2 falls under
   the same answer.
 - **What it does not cover.** The 2020 drawdowns and PPP are not reporting
-  changes. They stay open as question 15, together with leaving out the
-  windows the 25% rule catches.
+  changes, so they were asked separately as question 15, together with
+  leaving out the windows the 25% rule catches. The firm agreed to both on
+  17 Oct.
 
 | # | Question | If yes | If no | Recommend |
 |---|---|---|---|---|
@@ -534,12 +535,12 @@ classified by collateral and borrower, with judgement at the edges.
 | 9 | Buy any paid data for v1? | Name the source; I report what it adds before purchase | Public data only | **No**; **answered 17 Oct: agreed** |
 | 10 | Rate SLOOS standards? | A leading measure on Decide | Shown as context only | **No (context only)**; **answered 17 Oct: agreed** |
 | 11 | Build commercial as its own book file, not more rows in the consumer book? | Two workbooks, one command | One larger workbook | **Own book**; **answered 17 Oct: agreed** |
-| 12 | What minimum book size, per segment, keeps a bank-quarter in? | Your figure | 0, as for consumer peers | **Your number; I have no basis to propose one**; **answered 17 Oct: agreed** |
+| 12 | What minimum book size, per segment, keeps a bank-quarter in? | Your figure | 0, as for consumer peers | **0, the same as consumer** (the docket's recommendation: it matches the 15 Oct ruling of no $1bn minimum for peers if KeyBank is not held to one, and KeyBank's four segments are all $2.9bn or more); **answered 17 Oct: agreed, so the minimum book is 0** |
 | 13 | Label every reporting change (§3 Q4: the definition and form changes, among them the NDFI and margin-loan revision of 2024Q4–2025Q2) on the series it touches? | Labeled in the quarter it took effect | Unlabeled | **Answered, 16 Oct 2026: yes** |
 | 14 | Add a stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each with its 8-K, read by the build like the FDIC record? | Those windows are left out with a reason | They stay in, with two books mixed | **Yes**; **answered 17 Oct: agreed** |
 | 15 | Also label 2020Q1–2021Q4 on C&I (revolver drawdowns and PPP: not definition changes, but they move the book), and leave out the windows the 25% rule catches across both periods? | Labeled; windows left out where the rule fires | Unlabeled; the rule alone decides what is left out | **Yes**; **answered 17 Oct: agreed** |
 | 16 | When a labeled reporting change trips the 25% jump (KeyBank's C&I in 2024Q4, the NDFI move), keep the series going across it instead of starting it after the gap? | KeyBank's C&I charge-off history runs 2006 on, with the change labeled and its windows left out. This changes how every series is written, consumer included: today each starts after its last left-out window | The series starts at 2026Q1 (2 quarters), as the tool does now | **Yes**; **answered 17 Oct: agreed** |
-| 17 | How are the FDIC history codes 213 ("Merger - Assisted", 3 rows, May 1990) and 225 ("Partial Purchase & Assumption - Without Assistance", 1991) classified? | As acquisitions, like the codes already classified | Left out of the record, with the reason | **Your call: they block any peer build before 2005 (the 1991–2005 quarters were pulled once, 17 Oct, into a scratch cache)**; **answered 17 Oct: agreed** |
+| 17 | How are the FDIC history codes 213 ("Merger - Assisted", 3 rows, May 1990) and 225 ("Partial Purchase & Assumption - Without Assistance", 1991) classified? | 213 counts as an acquisition, as a failed bank taken over by another (211) already does | 225 is not counted, as branch purchases (712) are not | **213 as an acquisition, 225 not** (the docket's recommendation: whole-bank takeovers count, partial purchases do not; 4 records, all 1990–91; until classified, the tool refuses history before 2005); **answered 17 Oct: agreed, so 213 is an acquisition and 225 is not** |
 
 ---
 
