@@ -791,10 +791,12 @@ def main(argv=None) -> None:
     class ExampleBox(tk.Canvas):
         """A drawn example of what the chosen comparison produces, named with the person's own columns. Not their data."""
         W, H = 340, 330
-        SHADES = ("INK", "KEY_RED", "SLATE", "STONE", "CRIMSON")
+        SHADES = ("SLATE", "KEY_RED", "DISABLED", "CRIMSON", "STONE")
 
         def __init__(self, master):
-            super().__init__(master, width=self.W, height=self.H, bg=C["CANVAS"], highlightthickness=0, bd=0)
+            # white with a thin border, so it sits on the page as a panel instead of a block of colour
+            super().__init__(master, width=self.W, height=self.H, bg=C["PAPER"], highlightthickness=1,
+                             highlightbackground=C["STONE"], highlightcolor=C["STONE"], bd=0)
 
         @staticmethod
         def _cut(text: str, n: int = 34) -> str:
@@ -802,17 +804,22 @@ def main(argv=None) -> None:
 
         def show(self, kind: str, labels: list[str]):
             self.delete("all")
-            self.create_text(self.W - 12, 14, text="Example, not your data", anchor="e", fill=C["SLATE"], font=FONT["sub"])
-            left, right, top = 46, self.W - 16, 40
+            self.create_rectangle(1, 1, self.W - 1, 28, fill=C["CANVAS"], outline="")
+            self.create_text(self.W - 12, 15, text="Example, not your data", anchor="e", fill=C["SLATE"], font=FONT["sub"])
+            left, right, top = 46, self.W - 18, 46
             rows = max(len(labels), 2)
             bottom = self.H - 40 - 20 * rows
-            self.create_line(left, top, left, bottom, fill=C["INK"], width=1.5)
-            self.create_line(left, bottom, right, bottom, fill=C["INK"], width=1.5)
+            for k in range(1, 4):
+                if kind != "model":
+                    y = bottom - (bottom - top) * k / 4
+                    self.create_line(left, y, right, y, fill=C["RULE"])
+            self.create_line(left, top, left, bottom, fill=C["STONE"])
+            self.create_line(left, bottom, right, bottom, fill=C["STONE"])
             if kind == "model":
-                self.create_text(12, 14, text="Hazard ratio", anchor="w", fill=C["SLATE"], font=FONT["sub"])
+                self.create_text(12, 15, text="Hazard ratio", anchor="w", fill=C["INK"], font=FONT["sub"])
                 self.create_text((left + right) // 2, bottom + 16, text="1.0 = no effect", fill=C["SLATE"], font=FONT["sub"])
                 one = left + (right - left) * 0.4
-                self.create_line(one, top, one, bottom, fill=C["STONE"], dash=(4, 3))
+                self.create_line(one, top, one, bottom, fill=C["DISABLED"], dash=(4, 3))
                 gap = (bottom - top) / max(len(labels), 1)
                 for i, lab in enumerate(labels):
                     hr = (1.8, 0.7, 1.3, 1.1, 2.2)[i % 5]
@@ -821,7 +828,7 @@ def main(argv=None) -> None:
                     self.create_rectangle(min(one, x), y - 9, max(one, x), y + 9, fill=C[self.SHADES[i % 5]], outline="")
                     self.create_text(left + 6, y - 16, text=self._cut(lab, 40), anchor="w", fill=C["INK"], font=FONT["sub"])
                 return
-            self.create_text(12, 14, text="Cumulative bad", anchor="w", fill=C["SLATE"], font=FONT["sub"])
+            self.create_text(12, 15, text="Cumulative bad", anchor="w", fill=C["INK"], font=FONT["sub"])
             self.create_text((left + right) // 2, bottom + 16, text="Months on book", fill=C["SLATE"], font=FONT["sub"])
             for i, lab in enumerate(labels[:5]):
                 rate = (0.016, 0.027, 0.011, 0.021, 0.014)[i % 5]   # in no order: the example says nothing about which group does worse
@@ -829,7 +836,7 @@ def main(argv=None) -> None:
                 for m in range(0, 37, 3):
                     frac = 1 - math.exp(-rate * m)
                     pts += [left + (right - left) * m / 36, bottom - (bottom - top) * min(frac * 1.6, 1) * 0.95]
-                self.create_line(*pts, fill=C[self.SHADES[i % 5]], width=2.5, smooth=True)
+                self.create_line(*pts, fill=C[self.SHADES[i % 5]], width=2, smooth=True)
             for i, lab in enumerate(labels[:5]):
                 y = bottom + 34 + 20 * i
                 self.create_line(left, y, left + 22, y, fill=C[self.SHADES[i % 5]], width=3)
