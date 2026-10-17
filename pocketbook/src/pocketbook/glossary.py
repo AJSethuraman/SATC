@@ -541,8 +541,9 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
         word = TOGETHER[key]
         got = (tg or {}).get("readings", {}).get(word)
         out.append((word, f"The pocket has {means}.",
-                    (f"At the last Run, {got['n']:,} {'pocket' if got['n'] == 1 else 'pockets'} read {word}, "
-                     f"among them {got['band']} / {got['seg']}." if got else f"At the last Run, no pocket read {word}.")
+                    (f"At the last Run, one pocket read {word}: {got['band']} / {got['seg']}." if got and got["n"] == 1
+                     else f"At the last Run, {got['n']:,} pockets read {word}, among them {got['band']} / "
+                          f"{got['seg']}." if got else f"At the last Run, no pocket read {word}.")
                     if tg else f"A pocket {gen}, reads {word}."))
     o = f.get("once") if run else None
     out.append(("Dollars above their share (each loan once)",
