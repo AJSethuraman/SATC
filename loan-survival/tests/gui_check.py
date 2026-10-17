@@ -60,6 +60,16 @@ check("engine reads GUI text as the example's settings", same)
 # ---- A4 model terms
 check("model term lower", g.model_term("fico", "50", "lower") == "fico per -50")
 check("model term higher", g.model_term("age", "10", "higher") == "age per 10")
+check("model term: odd number spellings are written the way the engine reads them",
+      [g.model_term("s", v, "lower") for v in ("1e2", ".5", "50.", "+50")] == ["s per -100", "s per -0.5", "s per -50", "s per -50"],
+      str([g.model_term("s", v, "lower") for v in ("1e2", ".5", "50.", "+50")]))
+check("model term: the engine finds the column in what the GUI wrote", ls.parse_model_term(g.model_term("score", "1e2", "lower")) == ("score", -100.0))
+for _bad in ("nan", "inf", "-5", "0", "abc", "1e-12"):
+    try:
+        g.model_term("s", _bad, "lower")
+        check(f"model term refuses {_bad!r}", False)
+    except ValueError:
+        check(f"model term refuses {_bad!r}", True)
 check("model term plain", g.model_term("flag", "", "lower") == "flag")
 check("model split round trip", g.split_model("fico per -50, flag, age per 10") ==
       [("fico", "50", "lower"), ("flag", "", "higher"), ("age", "10", "higher")])
@@ -262,6 +272,18 @@ else:
         check("window: selections loaded first survive choosing the file",
               len(st_now["tests"]) == 5 and st_now["cols"] == g.parse_settings_text(example)["cols"] and st_now["as_of"] == "2026-09-30",
               f"{len(st_now['tests'])} tests")
+        root.app.close()
+
+        # Load selections with a blank as-of AFTER a file is open: the automatic date must come back
+        root = g.main([str(book)])
+        app = root.app
+        st_blank = g.parse_settings_text(example)
+        st_blank["as_of"] = ""
+        app.apply_state(st_blank)
+        check("window: loading selections with no as-of restores the file's latest date", app.v_asof.get() == "2026-09-30", app.v_asof.get())
+        w = app.new_wizard(); w.kind.set("cutoffs"); w.next(); w.var_a.set("fico"); w.var_b.set("640"); w.next()
+        check("window: ...so the wizard offers loans old enough to judge", getattr(w, "seasoned_to", "") != "", getattr(w, "seasoned_to", ""))
+        w.destroy()
         root.app.close()
 
 print("\nALL PASSED" if not FAIL else f"\nFAILED: {FAIL}")

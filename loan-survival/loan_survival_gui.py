@@ -18,6 +18,7 @@ from __future__ import annotations
 import configparser
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -306,9 +307,13 @@ def model_term(col: str, scale: str, direction: str) -> str:
     if not scale:
         return col
     n = float(scale)
-    if n <= 0:
+    if not math.isfinite(n) or n <= 0:
         raise ValueError("The step must be a positive number.")
-    return f"{col} per {'-' if direction == 'lower' else ''}{scale}"
+    plain = f"{n:.10f}".rstrip("0").rstrip(".")
+    if plain in ("", "0"):
+        raise ValueError("The step must be a positive number.")
+    # the engine reads plain decimals only: not 1e2, .5, 50. or +50
+    return f"{col} per {'-' if direction == 'lower' else ''}{plain}"
 
 
 def split_model(model: str) -> list[tuple[str, str, str]]:
@@ -1328,6 +1333,7 @@ def main(argv=None) -> None:
             self.refresh_tests()
             for role in self.v_cols:
                 self.on_map(role, refresh_asof=False)
+            self.refresh_asof()   # a blank as-of in the saved choices means "the file's latest date"
             self._selections_loaded = True
 
         def save_selections(self):
