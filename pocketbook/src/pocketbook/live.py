@@ -414,7 +414,9 @@ def _write_lines(wb, ws, res, lv: Live, top: int, cells, own_set, opt) -> None:
         last = used.get(key, start)
         c, d = cells(key)
         if key == "line_worse_on":
-            f = f'=IFERROR({opt(key, c)},NA())' if c else last
+            # a blank (or unlisted) switch reads as Either, its starting answer: the tab never empties over it (the
+            # review of 17 Oct 2026: a cleared C56 made every Tripped by #N/A and the tab blank, All pockets too)
+            f = f'=IFERROR({opt(key, c)},"{start}")' if c else last
             words = f'IF(C{r}="bad","Bad loans",IF(C{r}="gco","GCOs","Either"))'
         else:
             f = f"=IF({own_set(d)},{d},IFERROR({opt(key, c)},IF(ISNUMBER({c}),{c},VALUE({c}))))" if c else last

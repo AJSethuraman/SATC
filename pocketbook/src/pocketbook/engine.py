@@ -613,7 +613,8 @@ class LineSize:
 
     bad_* and good_*: the loans with an outcome of 1 and of 0, and their booked dollars. lost_*: the bad loans with a
     GCO amount, their GCO dollars and booked dollars (the GCO rate's own top and bottom). co_*: the loans with months
-    to charge-off, their booked dollars, and Σ(months × booked)."""
+    to charge-off, their booked dollars, Σ months and Σ(months × booked): the straight and the weighted average over
+    the same loans (the review of 17 Oct 2026: the straight one had covered loans with no booked amount too)."""
     bad_loans: int = 0
     bad_booked: float = 0.0
     good_loans: int = 0
@@ -623,6 +624,7 @@ class LineSize:
     lost_booked: float = 0.0
     co_loans: int = 0
     co_booked: float = 0.0
+    co_months: float = 0.0
     co_weighted: float = 0.0
 
     def merge(self, other: "LineSize") -> "LineSize":
@@ -642,6 +644,11 @@ class LineSize:
     def lost_share(self) -> float | None:
         """Share of line lost on bad loans: Σ GCO ÷ Σ booked over the bad loans with both; None when there are none."""
         return self.lost_gco / self.lost_booked if self.lost_loans and self.lost_booked else None
+
+    @property
+    def straight_months(self) -> float | None:
+        """Months to charge-off (straight avg), over the loans weighted_months counts: Σ months ÷ their count."""
+        return self.co_months / self.co_loans if self.co_loans else None
 
     @property
     def weighted_months(self) -> float | None:
@@ -682,6 +689,7 @@ def _line_add(x: LineSize, part: tuple) -> None:
     if mo is not None:
         x.co_loans += 1
         x.co_booked += b
+        x.co_months += mo
         x.co_weighted += mo * b
 
 
@@ -703,12 +711,13 @@ def line_sizes(keys, parts, margins: bool = True) -> dict:
     return out
 
 
-def line_vs(lines: dict, key, c: "Cell | None") -> dict:
+def line_vs(lines: dict, key) -> dict:
     """One cell's line figures by name, as Line size, Summary and Grids show them: the four figures, None where
-    there is nothing to divide by. `c` is the cell, for the straight average months to charge-off."""
+    there is nothing to divide by. Both months averages are over the loans with months to charge-off and a booked
+    amount, so Line-weighted ÷ straight compares like with like; Grids' and Summary's own months average every
+    charged-off loan, and can differ."""
     x = lines.get(key) if lines else None
-    co = c.medians.get(CO_MONTHS) if c is not None else None
-    straight = co.mean if co is not None and co.values else None
+    straight = x.straight_months if x is not None else None
     weighted = x.weighted_months if x is not None else None
     return {"bad_vs_good": x.bad_vs_good if x is not None else None,
             "lost_share": x.lost_share if x is not None else None,
@@ -1747,7 +1756,7 @@ def summary_rows(res, band: str, value: str | None = None,
         if CO_MONTHS in c.medians:
             co = c.medians[CO_MONTHS]
             row.update(co_avg=co.mean if co.values else None, co_median=co.median if co.values else None)
-        lv = line_vs(getattr(s, "lines", None) or {}, lab, c)
+        lv = line_vs(getattr(s, "lines", None) or {}, lab)
         row.update(line_bad_x=lv["bad_vs_good"], line_lost=lv["lost_share"], co_line=lv["co_weighted"],
                    co_line_x=lv["co_ratio"])
         out.append((lab, {k: row.get(k) for k in keys}))
