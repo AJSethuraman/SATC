@@ -4,6 +4,8 @@
                       Where it bleeds and Three-way)
     RANR vs GCOs      each pocket's RANR + GCOs, GCOs and RANR, one grid at a time, and GCOs and RANR read
                       together (it replaces Losses vs revenue; "Paid, cost, kept" until 30 Sep 2026)
+    Line size         each pocket's average line, its bad loans' lines against its good loans', and the signals that
+                      trip at the lines on Control, one grid at a time (17 Oct 2026)
     Grids             one grid and one measure at a time, in four blocks: the rate, against the book, against
                       the rest of its band, and the loans; then how common each group is (it absorbs Prevalence)
     Split             each pocket halved at its own median: the summary, and the two grids side by side
@@ -22,6 +24,8 @@ SORT, FILTER or LET, so Excel 2016 and LibreOffice 24.2 both calculate it:
                from _pockets), whether the dropdowns show it now, and a running count of those shown. The k-th
                row shown is the first whose running count reaches k
     _views     every other number these tabs show, one keyed row each ("G|FICO x CHANNEL|gco_rate|book|2")
+    _lines     Line size's rows in the last Run's order, as _list is Pockets': each pocket's _views row, its signals
+               and Tripped by (live), whether the dropdowns show it now, and the running count
 
 Live (OC-40): Worse?, Material?, the dollars, the gaps, Together and every colour that depends on them are
 formulas over _pockets, so they follow Control. The order of the rows, the smallest gap a pocket could have
@@ -51,21 +55,23 @@ from .choices import NO_DATE, ORIG_YEAR
 from .config import PROFIT
 
 POCKETS, PCK, GRIDS, SUMMARY, SPLIT = "Pockets", "RANR vs GCOs", "Grids", "Summary", "Split"
+#: Line size (the firm, 17 Oct 2026), right after RANR vs GCOs
+LINE = "Line size"
 #: the tab RANR vs GCOs was called until 30 Sep 2026 (the firm: "I want to use the terms I gave you out of the box
 #: so it can be understood by insiders"); a Run takes it off a workbook written before
 OLD_PCK = "Paid, cost, kept"
 #: Summary sits after Grids: both show one table at a time, picked by dropdown, as of the last Run, and Summary is the
 #: same band column's figures without the segments across
-TABS = (POCKETS, PCK, GRIDS, SUMMARY, SPLIT)
+TABS = (POCKETS, PCK, LINE, GRIDS, SUMMARY, SPLIT)
 #: Compare (the firm, 30 Sep 2026: "can we make it so they can be visually compared in a graph?"): the filters'
 #: values as lines, after Summary. Written only when the launcher picked a Filter by, so it isn't in TABS, which
 #: every bleed Run writes; SHOWN_TABS is every result tab in the order they sit
 COMPARE = "Compare"
-SHOWN_TABS = (POCKETS, PCK, GRIDS, SUMMARY, COMPARE, SPLIT)
+SHOWN_TABS = (POCKETS, PCK, LINE, GRIDS, SUMMARY, COMPARE, SPLIT)
 #: the tabs these replace; a workbook written before phase 3 has them, and a Run takes them off
 OLD_TABS = ("Where it bleeds", "Three-way", "Losses vs revenue", "Prevalence", OLD_PCK)
 CHOICES, LIST, VIEWS = "_choices", "_list", "_views"
-HIDDEN = (CHOICES, LIST, VIEWS)
+HIDDEN = (CHOICES, LIST, VIEWS, "_lines")      # _lines: Line size's rows (LINES)
 
 #: the measures in the analyst's words, in the Measure dropdown's order. The dollar three are the firm's own terms
 #: since 30 Sep 2026 ("let's rename this list of stuff for a couple things and be more literal - Charge-offs = GCOs
@@ -1285,6 +1291,291 @@ def _labels(pos: str):
 
 
 # --------------------------------------------------------------------------
+# Line size (the firm, 17 Oct 2026: "we give assignments that are too high to these people", in a view of its own "so
+# it isn't all in one spot and too much for a user", shown when an indicator trips)
+
+
+#: the four signals in the firm's literal names, each (name, its ratio's key on line_rows, its line's name on _live,
+#: how it trips against the line). Big lines fail sooner exists only with a column marked Charge-off date
+SIGNALS = (("Big line", "avg_x", "line_big", ">="),
+           ("Bad got bigger lines", "bad_vs_good", "line_bad_bigger", ">="),
+           ("Lost the whole line", "lost_share", "line_lost", ">="),
+           ("Big lines fail sooner", "co_ratio", "line_sooner", "<="))
+#: Tripped by's words: Worse? reads Yes on Bad loans, or on GCOs ($), as the switch on Control picks; or Bad got
+#: bigger lines passes its line
+TRIPPED_BY = ("Worse on bad loans", "Worse on GCOs", SIGNALS[1][0])
+#: the Show dropdown: tripped (the default), 2 or more signals, or every pocket
+LINE_SHOW = ("Pockets where something tripped", "2 or more signals", "All pockets")
+LINE_HEADS = ("Band", "Segment", "Loans", "Avg line", "Line × book", "Line on bad loans ÷ line on good loans",
+              "Share of line lost on bad loans", "Months to charge-off (straight avg)",
+              "Months to charge-off weighted by line", "Line-weighted ÷ straight", "Signals", "Tripped by")
+(Y_BAND, Y_SEG, Y_LOANS, Y_AVG, Y_AVGX, Y_BADX, Y_LOST, Y_MO, Y_MOW, Y_MOX, Y_SIG, Y_TRIP) = range(2, 14)
+#: the months columns, left off (hidden) without a column marked Charge-off date
+Y_MONTHS = (Y_MO, Y_MOW, Y_MOX)
+#: each ratio cell's signal, for its shading: red when it passes its line, and nothing else judged
+Y_SIGNAL = {Y_AVGX: SIGNALS[0], Y_BADX: SIGNALS[1], Y_LOST: SIGNALS[2], Y_MOX: SIGNALS[3]}
+Y_I, Y_V = Y_TRIP + 2, Y_TRIP + 3          # hidden: the row on _lines, and the pocket's _views row
+#: a pocket's row on _views ("L|<grid>|<k>"), in this order: the figures the Run worked out
+LINE_VIEW = ("band", "seg", "units", "avg", "avg_x", "bad_vs_good", "lost_share", "co_straight", "co_weighted",
+             "co_ratio")
+LINES = "_lines"
+#: _lines, one row per pocket of every grid in the tab's order: the grid, the pocket's _views row and its _pockets rows
+#: on Bad loans and GCOs ($) (values), then the formulas that read the lines and the switch on Control
+(N_GRID, N_RANK, N_VIEW, N_PBAD, N_PGCO, N_AVGX, N_BADX, N_LOST, N_MOX, N_S1, N_S2, N_S3, N_S4, N_COUNT, N_SIGS,
+ N_WBAD, N_WGCO, N_TRIP, N_TRIPPED, N_SHOWN, N_CUM) = range(1, 22)
+#: the switch's values (settings.yaml line_worse_on)
+WORSE_ON = {"bad": ("either", "bad"), "gco": ("either", "gco")}
+
+
+def line_rows(res, g) -> list[dict]:
+    """One grid's pockets for Line size, in the tab's order: by Line on bad loans ÷ line on good loans, highest first,
+    a pocket without one last; ties, and those without, in the grid's own order (band, then segment)."""
+    bands, segs = {b: i for i, b in enumerate(g.band_labels)}, {d: i for i, d in enumerate(g.dim_labels)}
+    rows = []
+    for (bl, dl), c in g.inner():
+        rows.append({"band": bl, "seg": dl, "units": c.rows, **avg_of(g, (bl, dl), res.book_size),
+                     **engine.line_vs(getattr(g, "lines", {}) or {}, (bl, dl))})
+    rows.sort(key=lambda x: (x["bad_vs_good"] is None, -(x["bad_vs_good"] or 0.0), bands.get(x["band"], len(bands)),
+                             segs.get(x["seg"], len(segs))))
+    return rows
+
+
+def signals_of(x: dict, lines: dict, co: bool) -> list[str]:
+    """The signals a row trips at `lines` (each line's value by its name on _live), in Python: the formula's side of
+    the tab, for the tests."""
+    out = []
+    for name, key, line, how in SIGNALS[:4 if co else 3]:
+        v = x.get(key)
+        if v is not None and (v >= lines[line] if how == ">=" else v <= lines[line]):
+            out.append(name)
+    return out
+
+
+def tripped_by(worse_bad: bool, worse_gco: bool, signals: list[str], worse_on: str) -> list[str]:
+    """Tripped by, in Python: Worse on bad loans and Worse on GCOs as the switch picks, and Bad got bigger lines."""
+    out = []
+    if worse_bad and worse_on in WORSE_ON["bad"]:
+        out.append(TRIPPED_BY[0])
+    if worse_gco and worse_on in WORSE_ON["gco"]:
+        out.append(TRIPPED_BY[1])
+    if TRIPPED_BY[2] in signals:
+        out.append(TRIPPED_BY[2])
+    return out
+
+
+def _line_note(res, co: bool) -> list[tuple[str, str]]:
+    sig = (f"Each signal compares one ratio with its line on Control. {SIGNALS[0][0]}: Line × book at or above ",
+           ('TEXT(line_big,"0.00")',), f"×. {SIGNALS[1][0]}: line on bad loans ÷ line on good loans at or above ",
+           ('TEXT(line_bad_bigger,"0.00")',), f"×. {SIGNALS[2][0]}: share of line lost on bad loans at or above ",
+           ('TEXT(line_lost,"0%")',), ".")
+    if co:
+        sig += (f" {SIGNALS[3][0]}: line-weighted ÷ straight at or below ", ('TEXT(line_sooner,"0.00")',), "×.")
+    sig += (f" Signals counts the signals tripped, out of {4 if co else 3}, and names them.",)
+    items = [
+        ("Line", "Line is the booked amount, the committed line. Every figure here counts only loans "
+                 "with a booked amount. Avg line is booked dollars per loan, and Line × book divides it by the whole "
+                 "book's Avg line."),
+        ("Bad and good loans", "Line on bad loans ÷ line on good loans is the average line of the pocket's loans "
+                               "with an outcome of 1, divided by that of its loans with an outcome of 0. It is "
+                               "blank when either group is empty."),
+        ("Share of line lost", "Share of line lost on bad loans is gross charge-offs (GCOs) on the pocket's bad "
+                               "loans divided by their booked dollars, over bad loans with both amounts. It is blank "
+                               "when there are none."),
+    ]
+    if co:
+        items.append(("Months", f"Months to charge-off (straight avg) is the average over the pocket's loans with a "
+                                f"{res.config.chargeoff_date} and a booked amount. Weighted by line, each of those "
+                                f"loans' months count in proportion to its booked amount: Σ(months × booked) ÷ Σ "
+                                f"booked. Line-weighted ÷ straight divides the first by the second. Grids' Months to "
+                                f"charge-off (avg) also counts loans without a booked amount, so it can differ."))
+    items += [
+        ("Signals", live.text(*sig)),
+        ("Tripped by", live.text(
+            f"{TRIPPED_BY[0]} and {TRIPPED_BY[1]}: Worse? reads Yes on Pockets for Bad loans or for GCOs ($), at the "
+            f"lines on Control. The Control setting Tripped by being worse on selects which count; it is currently ",
+            ('IF(line_worse_on="bad","Bad loans",IF(line_worse_on="gco","GCOs","Either"))',),
+            f". {TRIPPED_BY[2]} counts when its signal is tripped. A pocket is tripped when any of these applies.")),
+        ("Show and order", f"Show selects {LINE_SHOW[0].lower()}, pockets with {LINE_SHOW[1]}, or {LINE_SHOW[2].lower()}"
+                           f". Rows are sorted by Line on bad loans ÷ line on good loans, highest first, as of the "
+                           f"last Run. A change on Control updates the signals, Tripped by, the rows shown and the "
+                           f"shading immediately."),
+        ("Shading", "A ratio is red when it passes its line. No other cell is shaded."),
+    ]
+    if not co:
+        items.append(("Not shown", f"This Run has no column marked Charge-off date, so the months columns and "
+                                   f"{SIGNALS[3][0]} are left off, and Signals is out of 3."))
+    return items
+
+
+def write_lines(wb, res, choices: Choices, views: Views, stamp: str) -> None:
+    """Line size: one grid at a time, each pocket's line figures as of the last Run, its signals and Tripped by live
+    over the lines and the switch on Control, and a Show dropdown that picks the rows by formula from _lines, as
+    Pockets' Show picks from _list."""
+    from . import book as bk
+    ws = wb.create_sheet(LINE)
+    lv = live.ensure(wb, res)
+    names = bk._names(res)
+    lw = label_widths(res)
+    co = any(m.name == engine.CO_MONTHS for m in res.measures)
+    n_sig = 4 if co else 3
+    grids = res.grids
+    gnames = [f"{names[g.band]} x {names[g.dimension]}" for g in grids]
+    listed = [line_rows(res, g) for g in grids]
+    has = {m.name for m in res.measures}
+    # every possible Signals and Tripped by, for their widths
+    longest_sig = f"{n_sig} of {n_sig}: " + ", ".join(x[0] for x in SIGNALS[:n_sig])
+    shown = {Y_AVG: [f"${x['avg']:,.0f}" for rows in listed for x in rows if x["avg"] is not None],
+             Y_MOW: [f"{x['co_weighted']:.1f}" for rows in listed for x in rows if x["co_weighted"] is not None]}
+    widths = {1: 2, Y_BAND: max(lw["band_only"], house.fit(["live from Control"], floor=0, cap=32, pad=3)),
+              Y_SEG: lw["seg_raw"], Y_LOANS: 9,
+              Y_AVG: house.fit([LINE_HEADS[3]] + shown[Y_AVG], floor=DATA_FLOOR, cap=DATA_CAP),
+              Y_AVGX: 12, Y_BADX: 18, Y_LOST: 18, Y_MO: 16, Y_MOW: 16, Y_MOX: 16,
+              Y_SIG: house.fit([longest_sig], floor=24, cap=90, pad=3),
+              Y_TRIP: house.fit([", ".join(TRIPPED_BY)], floor=24, cap=60, pad=3), Y_TRIP + 1: 3}
+    _widths(ws, widths)
+    if not co:
+        for c in Y_MONTHS:
+            ws.column_dimensions[col(c)].hidden = True
+    house.title_band(ws, LINE, "Each pocket's average line, the lines on its bad loans against its good loans, and "
+                               "the signals that trip at the lines on Control.", Y_BAND, Y_TRIP, tab=house.TAB_RESULT)
+    r = house.method_note(ws, 3, Y_BAND, Y_TRIP, _line_note(res, co))
+    # the lines in use now, live from Control (the redesign's Global rule 1.3), and what stays as of the last Run
+    _cell(ws, r, Y_BAND, "LINES IN USE NOW", bold=True, size=8, color=SLATE, h="left", name="Arial")
+    _cell(ws, r + 1, Y_BAND, "live from Control", size=8, color=SLATE, h="left")
+    tiles = [((Y_SEG, Y_SEG), "Worse at", "=worse_at", X_FMT),
+             ((Y_LOANS, Y_AVG), "Tripped by being worse on",
+              '=IFERROR(IF(line_worse_on="bad","Bad loans",IF(line_worse_on="gco","GCOs","Either")),"")', None),
+             ((Y_AVGX, Y_AVGX), f"{SIGNALS[0][0]} at", "=line_big", X_FMT),
+             ((Y_BADX, Y_BADX), f"{SIGNALS[1][0]} at", "=line_bad_bigger", X_FMT),
+             ((Y_LOST, Y_LOST), f"{SIGNALS[2][0]} at", "=line_lost", "0%")]
+    if co:
+        tiles.append(((Y_MO, Y_MOW), f"{SIGNALS[3][0]} at", "=line_sooner", X_FMT))
+    for (a, b_), label, f, fmt in tiles:
+        house.tile(ws, r, a, b_, label, f, fmt)
+    ws.merge_cells(start_row=r, start_column=Y_SIG, end_row=r, end_column=Y_TRIP)
+    _cell(ws, r, Y_SIG, f"The rows, their figures and their order are from the last Run, {stamp}.", size=9,
+          color=SLATE, h="left", indent=1)
+    ws.merge_cells(start_row=r + 1, start_column=Y_SIG, end_row=r + 1, end_column=Y_TRIP)
+    waits = f'COUNTIF(Status,"{house.WAITING}")'          # as lines_in_use says it
+    _cell(ws, r + 1, Y_SIG, f'=IFERROR(IF({waits}=0,"","↻ "&{waits}&IF({waits}=1," Control change waits for a '
+                            f'Run."," Control changes wait for a Run.")),"")', bold=True, size=9, color=CRIMSON,
+          h="left", indent=1)
+    r += 3
+    g_rng, _ = choices.add(f"{LINE}: Grid", gnames)
+    show_rng, _ = choices.add(f"{LINE}: Show", list(LINE_SHOW))
+    s = r + 1
+    G = f"'{LINE}'!" + dropdown(ws, s, Y_BAND, "Grid", g_rng, gnames[0] if gnames else "")
+    ws.merge_cells(start_row=s, start_column=Y_BAND, end_row=s, end_column=Y_SEG)
+    SH = f"'{LINE}'!" + dropdown(ws, s, Y_LOANS, "Show", show_rng, LINE_SHOW[0])
+    ws.merge_cells(start_row=s, start_column=Y_LOANS, end_row=s, end_column=Y_AVGX)
+    # the rows, every grid's: the figures on _views, the live verdicts on _lines
+    if LINES in wb.sheetnames:
+        del wb[LINES]
+    ls = wb.create_sheet(LINES)
+    ls.sheet_state = "hidden"
+    heads = {N_GRID: "Grid", N_RANK: "Order (last Run)", N_VIEW: "_views row", N_PBAD: "_pockets row, Bad loans",
+             N_PGCO: "_pockets row, GCOs ($)", N_AVGX: "Line × book", N_BADX: LINE_HEADS[5], N_LOST: LINE_HEADS[6],
+             N_MOX: LINE_HEADS[9], N_S1: SIGNALS[0][0], N_S2: SIGNALS[1][0], N_S3: SIGNALS[2][0],
+             N_S4: SIGNALS[3][0], N_COUNT: "Signals tripped", N_SIGS: "Signals", N_WBAD: "Worse on bad loans (live)",
+             N_WGCO: "Worse on GCOs (live)", N_TRIP: "Tripped by", N_TRIPPED: "Tripped (1: yes)",
+             N_SHOWN: "Shown now (1: yes)", N_CUM: "Shown so far"}
+    for c, h in heads.items():
+        ls.cell(row=1, column=c, value=h).font = Font(bold=True)
+    sig_cols = (N_S1, N_S2, N_S3, N_S4)
+    fig_cols = {"avg_x": N_AVGX, "bad_vs_good": N_BADX, "lost_share": N_LOST, "co_ratio": N_MOX}
+    lr = 2
+    most = 1
+    for g, gname, rows in zip(grids, gnames, listed):
+        most = max(most, len(rows))
+        for k, x in enumerate(rows, start=1):
+            vrow = views.put(f"L|{gname}|{k}", [x[f] for f in LINE_VIEW])
+            A = lambda c: f"${col(c)}{lr}"                                    # noqa: E731
+            prow = {m: lv.rows.get(("grids", id(g), x["band"], x["seg"], m)) for m in ("outcome_loans", "gco_rate")}
+            for c, v in ((N_GRID, gname), (N_RANK, k), (N_VIEW, vrow), (N_PBAD, prow["outcome_loans"]),
+                         (N_PGCO, prow["gco_rate"])):
+                if v is not None:
+                    ls.cell(row=lr, column=c, value=v)
+            for key, c in fig_cols.items():
+                ls.cell(row=lr, column=c, value=f"={pick(A(N_VIEW), LINE_VIEW.index(key) + 1)}")
+            for j, ((name, key, line, how), c) in enumerate(zip(SIGNALS, sig_cols)):
+                fc = A(fig_cols[key])
+                ls.cell(row=lr, column=c, value=(f"=IF(AND(ISNUMBER({fc}),{fc}{how}{line}),1,0)"
+                                                 if j < n_sig else 0))
+            ls.cell(row=lr, column=N_COUNT, value="=" + "+".join(A(c) for c in sig_cols))
+            names_ = "&".join(f'IF({A(c)}=1,", {name}","")' for (name, *_), c in zip(SIGNALS[:n_sig], sig_cols))
+            ls.cell(row=lr, column=N_SIGS, value=(f'={A(N_COUNT)}&" of {n_sig}"&IF({A(N_COUNT)}>0,": "&'
+                                                  f'MID({names_},3,999),"")'))
+            for c, m, pc in ((N_WBAD, "outcome_loans", N_PBAD), (N_WGCO, "gco_rate", N_PGCO)):
+                ls.cell(row=lr, column=c, value=f'=IF({at(live.P_WORSE, A(pc))}="{live.YES}",1,0)' if m in has else 0)
+            on = lambda vals: "OR(" + ",".join(f'line_worse_on="{v}"' for v in vals) + ")"     # noqa: E731
+            ls.cell(row=lr, column=N_TRIP, value=(
+                f'=MID(IF(AND({on(WORSE_ON["bad"])},{A(N_WBAD)}=1),", {TRIPPED_BY[0]}","")'
+                f'&IF(AND({on(WORSE_ON["gco"])},{A(N_WGCO)}=1),", {TRIPPED_BY[1]}","")'
+                f'&IF({A(N_S2)}=1,", {TRIPPED_BY[2]}",""),3,999)'))
+            ls.cell(row=lr, column=N_TRIPPED, value=f'=IF({A(N_TRIP)}<>"",1,0)')
+            ls.cell(row=lr, column=N_SHOWN, value=(
+                f'=IF(AND({A(N_GRID)}={G},OR({SH}="{LINE_SHOW[2]}",AND({SH}="{LINE_SHOW[0]}",{A(N_TRIPPED)}=1),'
+                f'AND({SH}="{LINE_SHOW[1]}",{A(N_COUNT)}>=2))),1,0)'))
+            ls.cell(row=lr, column=N_CUM, value=f"={A(N_SHOWN)}" if lr == 2 else f"=${col(N_CUM)}{lr - 1}+{A(N_SHOWN)}")
+            lr += 1
+    last = max(lr - 1, 2)
+    Lr = lambda c: f"'{LINES}'!${col(c)}$2:${col(c)}${last}"                # noqa: E731
+    cap = ws.cell(row=s, column=Y_BADX, value=(
+        f'=IFERROR(COUNTIFS({Lr(N_GRID)},{G},{Lr(N_TRIPPED)},1)&" tripped · "&COUNTIFS({Lr(N_GRID)},{G},'
+        f'{Lr(N_COUNT)},">=2")&" with 2 or more signals · "&SUM({Lr(N_SHOWN)})&" shown","")'))
+    cap.font = Font(name="Calibri", size=10, color=SLATE)
+    cap.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.merge_cells(start_row=s, start_column=Y_BADX, end_row=s, end_column=Y_SIG)
+    # the table
+    h = s + 2
+    # the months columns are hidden without a Charge-off date, and their headings left blank, so nothing names a
+    # figure this Run cannot work out
+    shown_heads = [t if co or c not in Y_MONTHS else "" for c, t in zip(range(Y_BAND, Y_TRIP + 1), LINE_HEADS)]
+    house.header(ws, h, Y_BAND, shown_heads, centre_from=2)
+    lines = max(house.lines_at(t, widths[c] - 2) for c, t in zip(range(Y_BAND, Y_TRIP + 1), LINE_HEADS))
+    for c in range(Y_BAND, Y_TRIP + 1):
+        ws.cell(row=h, column=c).alignment = Alignment(horizontal="left" if c in (Y_BAND, Y_SEG, Y_SIG, Y_TRIP)
+                                                       else "center", vertical="center", wrap_text=True)
+    ws.row_dimensions[h].height = HEAD_LINE * lines + 4
+    first = h + 1
+    fmts = {Y_LOANS: "#,##0", Y_AVG: AVG_FMT, Y_AVGX: X_FMT, Y_BADX: X_FMT, Y_LOST: "0.0%", Y_MO: "0.0",
+            Y_MOW: "0.0", Y_MOX: X_FMT}
+    for k in range(1, most + 1):
+        rr = first + k - 1
+        I, V = f"${col(Y_I)}{rr}", f"${col(Y_V)}{rr}"
+        ws.cell(row=rr, column=Y_I, value=f'=IFERROR(MATCH({k},{Lr(N_CUM)},0),"")')
+        ws.cell(row=rr, column=Y_V, value=f'=IF({I}="","",INDEX({Lr(N_VIEW)},{I}))')
+        lst = lambda c: f'=IF({I}="","",IF(INDEX({Lr(c)},{I})="","",INDEX({Lr(c)},{I})))'     # noqa: E731
+        vals = {c: f"={pick(V, j)}" for j, c in enumerate(range(Y_BAND, Y_MOX + 1), start=1)}
+        vals.update({Y_SIG: lst(N_SIGS), Y_TRIP: lst(N_TRIP)})
+        for c, v in vals.items():
+            left = c in (Y_BAND, Y_SEG, Y_SIG, Y_TRIP)
+            _cell(ws, rr, c, v, h="left" if left else "center", fmt=fmts.get(c), indent=1 if left else 0)
+        ws.row_dimensions[rr].height = 16
+    end = first + most - 1
+    # the shading: each ratio red when it passes its line, one range a column (see cf); every other cell only the
+    # row's divider. Big lines fail sooner's column is plain without a Charge-off date (and hidden)
+    line_on = f'${col(Y_BAND)}{first}<>""'
+    red = (ALERT, Font(color=CRIMSON, bold=True))
+    judged = [c for c in Y_SIGNAL if co or c != Y_MOX]
+    for c in judged:
+        name, _, line, how = Y_SIGNAL[c]
+        x = f"${col(c)}{first}"
+        cf(ws, f"{col(c)}{first}:{col(c)}{end}", [(f"AND(ISNUMBER({x}),{x}{how}{line})", *red, None)], line_on)
+    plain_ = [c for c in range(Y_BAND, Y_TRIP + 1) if c not in judged]
+    runs, start = [], plain_[0]
+    for a, b_ in zip(plain_, plain_[1:] + [None]):
+        if b_ != a + 1:
+            runs.append((start, a))
+            start = b_
+    for a, b_ in runs:
+        cf(ws, f"{col(a)}{first}:{col(b_)}{end}", [], line_on)
+    _hide(ws, Y_I, Y_V)
+    ws.freeze_panes = f"A{first}"
+    _fit(ws)
+
+
+# --------------------------------------------------------------------------
 # Grids
 
 
@@ -1311,6 +1602,23 @@ SIZE, SIZE_NAME = "loan_size", "Loan size"
 SIZE_HEAD = "Average booked per loan"
 SIZE_STEPS = ((2.0, STONE), (1.5, "CFCAC2"), (1.25, MIST), (1.1, house.ROW_RULE))
 SIZE_FMT = '"$"#,##0'
+#: Grids' line-size measures (the firm, 17 Oct 2026: shown and not compared, like Months to charge-off): each key,
+#: its name in the Measure dropdown (Line size's heading), its figure (engine.line_vs), its kind on the Rate block
+#: ("amtx" a multiple, "amtp" a share: both shown, like "amt") and the measures it needs beside a booked amount
+LINE_MEASURES = (("line_bad_x", LINE_HEADS[5], "bad_vs_good", "amtx", ("outcome_loans",)),
+                 ("line_lost", LINE_HEADS[6], "lost_share", "amtp", ("outcome_loans", "gco_rate")))
+
+
+def line_measures(res) -> list[tuple]:
+    """The line-size measures this Run can show on Grids: a booked amount, and what each needs."""
+    have = {m.name for m in res.measures}
+    sized = getattr(res, "book_size", None) is not None and res.book_size.loans > 0
+    return [x for x in LINE_MEASURES if sized and set(x[4]) <= have]
+
+
+def shown_kind(kind: str) -> str:
+    """A Rate-block kind that is shown and never compared ("amt", "amtx", "amtp"), as a formula's test over its cell."""
+    return f'LEFT({kind},3)="amt"'
 #: Grids' "Only loans where" (the firm, 29 Sep 2026): the option that filters nothing, and a filtered view's key;
 #: AND is Filter 2's part of it (the firm, 30 Sep 2026: two filters, "independently and in conjunction with each
 #: other"): "|where 2023" is Filter 1 alone, "|and Y" Filter 2 alone, "|where 2023|and Y" both; AND3 is Filter 3's
@@ -1502,6 +1810,13 @@ def _grid_view(res, views: Views, key: str, g, whole, names, rows_, cols_, ms, f
                 views.put(f"{key}|{SIZE}|{what}|{i}", [x[j] for x in got])
                 seen([x[j] for x in got], "usd" if what in ("rate", "median") else "x")
         views.put(f"{key}|{SIZE}|meta", ["size", 1, None, res.book_size.average, few])
+    for k, _name, fig, kind, _need in line_measures(res):
+        lines = getattr(g, "lines", {}) or {}
+        for i, bl in enumerate(rows_, start=1):
+            vals = [engine.line_vs(lines, (bl, d))[fig] for d in cols_]
+            views.put(f"{key}|{k}|rate|{i}", vals)
+            seen(vals, "x" if kind == "amtx" else "pct")
+        views.put(f"{key}|{k}|meta", [kind, 1, None, None, few])
     for sm in shows:
         k = f"show_{sm.name}"
         for i, bl in enumerate(rows_, start=1):
@@ -1533,7 +1848,12 @@ SAY = {"outcome_loans": ("{these}: {r} went bad.", "{x}× the bad-loan rate of {
        SIZE: ("{these} averaged {r} booked, median {med}.", "{x}× the average loan of {against}."),
        # months to charge-off (the firm, 1 Oct 2026): an average over the loans that charged off, never compared
        engine.CO_MONTHS: ("{these}: those that charged off did so an average of {r} months after origination.",
-                          "Not compared: this figure is shown, not tested.")}
+                          "Not compared: this figure is shown, not tested."),
+       # the line-size measures (the firm, 17 Oct 2026), shown and never compared
+       "line_bad_x": ("{these}: the average line of the bad loans was {r} that of the good loans.",
+                      "Not compared: this figure is shown, not tested."),
+       "line_lost": ("{these}: GCOs on the bad loans came to {r} of their booked dollars.",
+                     "Not compared: this figure is shown, not tested.")}
 SAY_KIND = {"x": ("{these}: {measure} is {r}.", "{x}× the rate of {against}."),
             "pts": ("{these}: {measure} is {r}.", "{pts} points {more} than {against}."),
             "amt": ("{these}: {measure} is {r}.", "Not compared: this figure is shown, not tested.")}
@@ -1648,6 +1968,13 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                                         "multiple of the book's and of the rest of the band's. It is descriptive, "
                                         "so it has no red or green; shading is darker the larger the loans are "
                                         "relative to the book's.")
+    lms = line_measures(res)
+    if lms:
+        # and the line-size measures (the firm, 17 Oct 2026), inside Rate for the same reason
+        note[0] = ("Rate", note[0][1] + f" {LINE_HEADS[5]}: the average line of the pocket's bad loans divided by "
+                                        f"that of its good loans."
+                   + (f" {LINE_HEADS[6]}: GCOs on the pocket's bad loans divided by their booked dollars." if
+                      len(lms) > 1 else "") + " As on the Line size tab, shown and not compared.")
     note += [
         ("Only loans where", f"Pick a value of {sf} to show the grid on those loans only"
                              + (f"; pick values of {sf2} and {sf3} as well to show the loans with all of them"
@@ -1664,11 +1991,12 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
                      "tab is as of the last Run; no line on Control changes it."),
     ]
     r = house.method_note(ws, 3, 2, last, note)
-    m_opts = ([plain(m) for m in ms] + ([SIZE_NAME] if sized else [])
+    m_opts = ([plain(m) for m in ms] + ([SIZE_NAME] if sized else []) + [x[1] for x in lms]
               + [CO_MONTHS_NAME if sm.name == engine.CO_MONTHS
                  else f"{'Average' if sm.show == 'average' else 'Median'} {sm.value} per pocket" for sm in shows])
-    m_keys = [m.name for m in ms] + ([SIZE] if sized else []) + [f"show_{sm.name}" for sm in shows]
-    says = ([say_for(m.name, heat_kind(m)) for m in ms] + ([SAY[SIZE]] if sized else [])
+    m_keys = ([m.name for m in ms] + ([SIZE] if sized else []) + [x[0] for x in lms]
+              + [f"show_{sm.name}" for sm in shows])
+    says = ([say_for(m.name, heat_kind(m)) for m in ms] + ([SAY[SIZE]] if sized else []) + [SAY[x[0]] for x in lms]
             + [say_for(sm.name if sm.name == engine.CO_MONTHS else "", "amt") for sm in shows])
     # the Rate block's heading, literal, beside each option: what is divided by what (the firm, 30 Sep 2026)
     heads = ([RATE_HEAD.get(m.name, plain(m)) for m in ms] + ([SIZE_HEAD] if sized else [])
@@ -1781,7 +2109,8 @@ def write_grids(wb, res, choices: Choices, views: Views) -> None:
         cf(ws, f"{col(c0)}{t + 2}:{col(c0)}{t + 1 + nr}", [], line_on)
         rules = []
         if what == "rate":
-            rules = [(f'{KIND}="amt"', None, None, "#,##0.00"), (f'{KIND}="size"', None, None, SIZE_FMT)]
+            rules = [(f'{KIND}="amt"', None, None, "#,##0.00"), (f'{KIND}="amtx"', None, None, X_FMT),
+                     (f'{KIND}="size"', None, None, SIZE_FMT)]
         if heated:
             # a cell under the fewest loans: its number in grey, no colour (the firm, 29 Sep 2026); its loans are
             # the Loans block's cell in the same place
@@ -1882,7 +2211,7 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
     def gap(v: str, against: str, blank: str) -> str:
         said = sub(GT, x=f'TEXT({v},"0.00")', pts=f'TEXT(ABS({v}),"0.00")', more=f'IF({v}<0,"less","more")',
                    against=against)
-        return f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF(ISNUMBER({v}),{said},IF({KIND}="amt",{GT},{blank})))'
+        return f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF(ISNUMBER({v}),{said},IF({shown_kind(KIND)},{GT},{blank})))'
 
     few = fill_in(SAY_FEW, min=MIN)
     not_ = live.q(SAY_NOT)
@@ -1905,14 +2234,15 @@ def _one_cell(ws, r: int, left: int, last: int, nr: int, nc: int, at_: dict, x: 
         (None, f'IF({none},{live.q(SAY_PICK)},{R}&" · "&{C}&", "&{M}&{where})'),
         ("Rate", f'IF({none},"",IF(NOT(ISNUMBER({LV})),{live.q(SAY_EMPTY)},IF({RV}="",{live.q(SAY_NORATE)},'
                  + sub(RT, these=f'IF({one},"This one loan","These "&{n}&" loans")', their=f'IF({one},"its","their")',
-                       r=f'IF({KIND}="amt",TEXT({RV},"#,##0.00"),IF({KIND}="size",TEXT({RV},"$#,##0"),'
-                         f'TEXT({RV},"0.00%")))', measure=M, med=f'TEXT({MD},"$#,##0")') + ")))"),
+                       r=f'IF({KIND}="amt",TEXT({RV},"#,##0.00"),IF({KIND}="amtx",TEXT({RV},"0.00")&"×",'
+                         f'IF({KIND}="size",TEXT({RV},"$#,##0"),'
+                         f'TEXT({RV},"0.00%"))))', measure=M, med=f'TEXT({MD},"$#,##0")') + ")))"),
         ("vs the book", gap(BV, live.q(SAY_BOOK), f'IF({untested},{not_},{few})')),
         ("vs rest of band", gap(NV, band_against,
                                 f'IF({OTH}<1,{fill_in(SAY_ALONE, row=R)},IF({untested},{not_},{few}))')),
         ("Loans", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",'
                   + fill_in(SAY_LOANS, loans=loans_, row=R, m=f'TEXT({MV},"#,##0")') + ")"),
-        ("The color", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF({KIND}="amt","No color: this figure is not '
+        ("The color", f'IF(OR({none},NOT(ISNUMBER({LV}))),"",IF({shown_kind(KIND)},"No color: this figure is not '
                        f'compared.",IF({GR},' + fill_in(SAY_GREY, loans=loans_, min=f'TEXT({FEW},"#,##0")')
                        + f',IF({KIND}="size",{live.q(SAY_SIZE)},'
                        + fill_in(SAY_COLOUR, book=shade_of(BV, KIND, BOUND), band=shade_of(NV, KIND, BOUND)) + "))))"),
@@ -2096,6 +2426,9 @@ SUMMARY_HEADS = {"loans": ("Loans", "n"), "loans_share": ("% of loans", "share")
                  # the firm, 2 Oct 2026: "booked dollar averages so more easily demonstrate how line assignments
                  # look in pockets"
                  "avg_line": ("Avg line", "avg"), "avg_line_x": ("Line × book", "x"),
+                 # the firm, 17 Oct 2026: the Line size tab's figures, beside Avg line and the months
+                 "line_bad_x": (LINE_HEADS[5], "x"), "line_lost": (LINE_HEADS[6], "pct"),
+                 "co_line": (LINE_HEADS[8], "mo"), "co_line_x": (LINE_HEADS[9], "x"),
                  "booked_share": ("% of booked", "share"), "gco": ("GCOs ($)", "usd"),
                  "gco_rate": ("GCOs ÷ Booked", "pct"), "gco_x": ("× book", "x"),
                  "gco_share": ("% of GCOs", "share"), "ranr": ("RANR $", "usd"),
@@ -2205,6 +2538,12 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
         note.append(("Avg line", "The row's average committed line: booked dollars per loan. Line × book beside it "
                                  "divides that by the whole book's average line, whether or not a filter is "
                                  "applied."))
+    if "line_bad_x" in keys:
+        note.append(("Bad and good lines", f"{LINE_HEADS[5]}: the average line of the row's bad loans divided by "
+                                           f"that of its good loans."
+                     + (f" {LINE_HEADS[6]}: GCOs on the row's bad loans divided by their booked dollars, over bad "
+                        f"loans with both amounts." if "line_lost" in keys else "")
+                     + " As on the Line size tab; blank where there is nothing to divide by."))
     if "gco" in keys:
         note.append(("GCOs ($)", f"The row's {gco}. GCOs ÷ Booked divides that by the row's booked dollars, as Grids "
                                  f"shows it for GCOs ($). A loan missing either amount is excluded from both."))
@@ -2218,7 +2557,11 @@ def write_summary(wb, res, choices: Choices, views: Views) -> None:
         note.append(("Months to charge-off", f"The average and median months from {res.config.origination_date} to "
                                              f"{res.config.chargeoff_date}, among the row's loans with a "
                                              f"{res.config.chargeoff_date}. "
-                                             + CO_MONTHS_SAID + " Blank: no loan in the row charged off."))
+                                             + CO_MONTHS_SAID + " Blank: no loan in the row charged off."
+                                             + (f" {LINE_HEADS[8]} counts each loan's months in proportion to its "
+                                                f"booked amount, and {LINE_HEADS[9]} divides it by the plain average "
+                                                f"over the same loans, those with a booked amount."
+                                                if "co_line" in keys else "")))
     left_off = list(dict.fromkeys(SUMMARY_NEEDS[n] for k, n in engine.SUMMARY_COLUMNS
                                   if n in SUMMARY_NEEDS and k not in keys))   # months to charge-off: optional
     if left_off:
@@ -2684,6 +3027,11 @@ def write(wb, res, stamp: str) -> None:
         # a test of a new variable run without GCO and RANR has nothing to put on it, so there is no tab
         mark("Writing Paid cost kept")
         write_pck(wb, res, choices, views, stamp)
+    if res.config.benchmark is not None and res.book_size is not None and res.book_size.loans \
+            and "outcome_loans" in have:
+        # Line size (the firm, 17 Oct 2026): needs the booked amount, the line, and the outcome, bad against good
+        mark("Writing Line size")
+        write_lines(wb, res, choices, views, stamp)
     mark("Writing Grids")
     write_grids(wb, res, choices, views)
     mark("Writing Summary")

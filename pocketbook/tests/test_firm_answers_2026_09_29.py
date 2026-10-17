@@ -2191,9 +2191,11 @@ def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(
 # They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
 
 SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
+#: Line size's two figures that need no dates close the booked block (the firm, 17 Oct 2026)
+LINE_BAD, LINE_LOST = "Line on bad loans ÷ line on good loans", "Share of line lost on bad loans"
 SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "Avg line", "Line × book",
-                 "% of booked", "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked",
-                 "% of RANR"]
+                 "% of booked", LINE_BAD, LINE_LOST, "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $",
+                 "RANR ÷ Booked", "% of RANR"]
 SHARES = ("% of loans", "% of booked", "% of GCOs", "% of RANR")
 SPECIAL = ("(blank)", "(not a number)", "(marked missing)")
 
@@ -2273,9 +2275,16 @@ def _road2(rows, field, labels, whole_rows, label_of=None) -> dict:
         k = [(a, c) for a, c in k if a is not None and c is not None]
         gco, gden = sum(a for a, _ in g), sum(c for _, c in g)
         ranr, rden = sum(a for a, _ in k), sum(c for _, c in k)
+        # Line size's figures: lines of the bad loans against the good, and GCOs on the bad over their lines
+        bl = [f(r["ORIG_BAL"]) for r in rs if r["BAD_FLAG"] == "1" and f(r["ORIG_BAL"]) is not None]
+        gl = [f(r["ORIG_BAL"]) for r in rs if r["BAD_FLAG"] == "0" and f(r["ORIG_BAL"]) is not None]
+        lost = [(f(r["GCO_AMT"]), f(r["ORIG_BAL"])) for r in rs if r["BAD_FLAG"] == "1"]
+        lost = [(a, c) for a, c in lost if a is not None and c is not None]
         return {"Loans": len(rs), "Bad loans": bad, "Bad loans %": bad / len(read) if read else None,
                 "Booked $": booked, "GCOs ($)": gco, "GCOs ÷ Booked": gco / gden if gden else None,
-                "RANR $": ranr, "RANR ÷ Booked": ranr / rden if rden else None}
+                "RANR $": ranr, "RANR ÷ Booked": ranr / rden if rden else None,
+                LINE_BAD: (sum(bl) / len(bl)) / (sum(gl) / len(gl)) if bl and gl else None,
+                LINE_LOST: sum(a for a, _ in lost) / sum(c for _, c in lost) if lost else None}
 
     by: dict = {}
     for r in rows:

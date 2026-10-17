@@ -174,6 +174,7 @@ class Live:
     last: dict = field(default_factory=dict)          # words for what the last Run used, by _live row
     last_sentence: str = ""
     kind_of: dict = field(default_factory=dict)       # id(grid) -> "grids" | "three-way"
+    line_rows: dict = field(default_factory=dict)     # a line-size setting's key -> its _live row (17 Oct 2026)
 
     def ref(self, kind: str, grid, band, seg, measure: str, column: int) -> str | None:
         r = self.rows.get((kind, id(grid), band, seg, measure))
@@ -218,7 +219,7 @@ def _options(res) -> list[tuple[str, str, str, object]]:
     sug = getattr(res, "suggested", None) or {}
     out = []
     for s in control.load_settings():
-        if s.key not in LIVE_KEYS:
+        if s.key not in LIVE_KEYS + control.LINE_KEYS:
             continue
         for o in s.options:
             v, kind = o.value, ""
@@ -242,9 +243,10 @@ def _control_rows(wb, res=None) -> dict[str, int]:
     used = getattr(res, "control_used", None) or {}
     # a setting this run wasn't asked (settings.yaml only_when: the profit line, the better line and what a pocket
     # is judged against, on a test of a new variable) reads by what the run used, never a blank cell
-    skip = {s.key for s in control.load_settings() if s.key in LIVE_KEYS and used.get("run_kind") is not None
+    keys = LIVE_KEYS + control.LINE_KEYS            # and the line-size lines (17 Oct 2026)
+    skip = {s.key for s in control.load_settings() if s.key in keys and used.get("run_kind") is not None
             and not control.asked(s, used)}
-    return {k: control.row_of(ws, k) for k in LIVE_KEYS if k not in skip and control.row_of(ws, k)}
+    return {k: control.row_of(ws, k) for k in keys if k not in skip and control.row_of(ws, k)}
 
 
 def _write_live(wb, res, lv: Live) -> None:
@@ -378,11 +380,54 @@ def _write_live(wb, res, lv: Live) -> None:
     ws.cell(row=L_LINES - 1, column=7, value="Rate (key)").font = Font(bold=True)
     wb.defined_names["line_keys"] = DefinedName("line_keys", attr_text=f"'{LIVE_SHEET}'!$G${L_LINES}:$G${r + 5}")
     wb.defined_names["line_values"] = DefinedName("line_values", attr_text=f"'{LIVE_SHEET}'!$C${L_LINES}:$C${r + 5}")
+    _write_lines(wb, ws, res, lv, r + 8, cells, own_set, opt)
     ws.column_dimensions["B"].width = 60
     ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 22
     ws.column_dimensions["E"].width = 40
     ws.column_dimensions["K"].width = 50
+
+
+#: the switch's words, by its value (settings.yaml line_worse_on)
+WORSE_ON_WORDS = {"either": "Either", "bad": "Bad loans", "gco": "GCOs"}
+
+
+def line_words(key: str, v) -> str | None:
+    """A line-size setting's value in _live's words, the same formats as its formula: "1.25×", "80%", "Either"."""
+    if v is None:
+        return None
+    if key == "line_worse_on":
+        return WORSE_ON_WORDS.get(v, str(v))
+    return f"{v * 100:.0f}%" if key == "line_lost" else f"{v:.2f}×"
+
+
+def _write_lines(wb, ws, res, lv: Live, top: int, cells, own_set, opt) -> None:
+    """The line-size lines (the firm, 17 Oct 2026), each by name for the Line size tab: line_big, line_bad_bigger,
+    line_lost, line_sooner and line_worse_on. Each reads Control as the lines above do; a Control tab set up before
+    the rows were added has none, and the line is the one the Run used, the starting line (control.read_control)."""
+    settings = {s.key: s for s in control.load_settings() if s.key in control.LINE_KEYS}
+    used = getattr(res, "control_used", None) or {}
+    ws.cell(row=top - 1, column=2, value="The line-size lines (the Line size tab)").font = Font(bold=True)
+    for i, key in enumerate(k for k in control.LINE_KEYS if k in settings):
+        s, r = settings[key], top + i
+        start = s.start().value if s.start() is not None else None
+        last = used.get(key, start)
+        c, d = cells(key)
+        if key == "line_worse_on":
+            # a blank (or unlisted) switch reads as Either, its starting answer: the tab never empties over it (the
+            # review of 17 Oct 2026: a cleared C56 made every Tripped by #N/A and the tab blank, All pockets too)
+            f = f'=IFERROR({opt(key, c)},"{start}")' if c else last
+            words = f'IF(C{r}="bad","Bad loans",IF(C{r}="gco","GCOs","Either"))'
+        else:
+            f = f"=IF({own_set(d)},{d},IFERROR({opt(key, c)},IF(ISNUMBER({c}),{c},VALUE({c}))))" if c else last
+            words = f'TEXT(C{r},"0%")' if key == "line_lost" else f'TEXT(C{r},"0.00")&"×"'
+        ws.cell(row=r, column=2, value=s.question)
+        ws.cell(row=r, column=3, value=f)
+        ws.cell(row=r, column=4, value=last)
+        ws.cell(row=r, column=5, value=f'=IFERROR({words},"no usable answer on Control")')
+        ws.cell(row=r, column=6, value=line_words(key, last))
+        wb.defined_names[key] = DefinedName(key, attr_text=f"'{LIVE_SHEET}'!$C${r}")
+        lv.line_rows[key] = r
 
 
 def _last(res, gco_total: float) -> dict:

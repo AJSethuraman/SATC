@@ -122,6 +122,13 @@ def figures(res, names: dict[str, str]) -> dict:
     if dates is not None and getattr(dates.first, "year", None) and getattr(dates.last, "year", None):
         out["years"] = [dates.first.year, dates.last.year]
     out["co_date"] = bool(getattr(res.config, "chargeoff_date", None))
+    # the line-size figures, the whole book's (the firm, 17 Oct 2026)
+    x = getattr(res, "book_lines", None)
+    if x is not None and x.bad_loans and x.good_loans:
+        out["line"] = {"bad": x.bad_booked / x.bad_loans, "good": x.good_booked / x.good_loans,
+                       "x": x.bad_vs_good}
+        if x.lost_share is not None:
+            out["line"].update(lost=x.lost_share, lost_gco=x.lost_gco, lost_booked=x.lost_booked)
     return out
 
 
@@ -305,6 +312,8 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                     "charge-off date, ignoring the day of the month.",
                     "A loan originated on 15 Jan 2023 and charged off on 3 Mar 2024 counts 14 months. 31 Jan to 1 "
                     "Feb counts as 1 month."))
+    # the line-size terms (the firm, 17 Oct 2026), one a row, the Line size tab's literal names
+    out += line_rows(f.get("line") if run else None, not run or f.get("co_date", True))
     out.append(("Odd values",
                 "Values that may be codes rather than genuine numbers, such as one value far more frequent than any "
                 "other, or negative values in a mostly positive column.",
@@ -318,6 +327,64 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"to Missing. They are still counted." if mi else
                 f"A score of -9999 set to Missing is placed in SCORE {engine.MISSING_RULE_LABEL} rather than a band, "
                 f"and is still counted."))
+    return out
+
+
+def _start(key: str) -> str:
+    """A line-size line's starting value on Control, as the tab shows it: "1.25×", "80%"."""
+    from . import control, live
+    s = next(x for x in control.load_settings() if x.key == key)
+    return live.line_words(key, s.start().value)
+
+
+def line_rows(ln: dict | None, co: bool) -> list[tuple[str, str, str]]:
+    """The Line size tab's terms: its figures, its signals and Tripped by. `ln` is the whole book's figures from the
+    last Run, or None; `co`, whether the book has a charge-off date, without which three of them are never shown."""
+    from .results import SIGNALS, TRIPPED_BY
+    out = [("Line on bad loans ÷ line on good loans",
+            "The average line of the loans that went bad divided by the average line of those that did not. Only "
+            "loans with a booked amount count.",
+            f"This book's bad loans averaged a line of {_usd(ln['bad'])} and its good loans {_usd(ln['good'])}, "
+            f"which is {ln['x']:.2f}×." if ln and ln.get("x") is not None else
+            "Bad loans averaging a $6,250 line, against $5,000 for good loans, show 1.25×."),
+           ("Share of line lost on bad loans",
+            "GCOs on the bad loans divided by their booked dollars, over the bad loans with both amounts.",
+            f"This book's bad loans charged off {_usd(ln['lost_gco'])} of {_usd(ln['lost_booked'])} booked, "
+            f"{ln['lost']:.1%} of the line." if ln and "lost" in ln else
+            "Bad loans that booked $1,000,000 and charged off $800,000 lost 80.0% of the line.")]
+    if co:
+        out += [("Months to charge-off weighted by line",
+                 "The average months to charge-off with each loan counted in proportion to its booked amount: "
+                 "Σ(months × booked) ÷ Σ booked.",
+                 "A $10,000 loan charged off at 6 months and a $30,000 loan at 18 months average 15 months weighted "
+                 "by line, and 12 months straight."),
+                ("Line-weighted ÷ straight",
+                 "Months to charge-off weighted by line divided by the straight average over the same loans.",
+                 "15 months weighted by line against 12 months straight is 1.25×.")]
+    n = 4 if co else 3
+    out.append(("Signals",
+                f"The line-size ratios a pocket passes, each against its line on Control, counted out of {n} and "
+                f"named on the Line size tab.",
+                f"2 of {n}: {SIGNALS[0][0]}, {SIGNALS[2][0]} means two of the ratios passed their lines."))
+    out.append((SIGNALS[0][0], f"Line × book at or above its line on Control, which starts at {_start('line_big')}.",
+                f"A pocket averaging $6,500 in a book averaging $5,000 is at 1.30× and trips {SIGNALS[0][0]} at "
+                f"1.25×."))
+    out.append((SIGNALS[1][0], f"Line on bad loans ÷ line on good loans at or above its line on Control, which "
+                               f"starts at {_start('line_bad_bigger')}. It also trips the pocket.",
+                f"Bad loans averaging $7,000 against $5,000 for good loans are at 1.40× and trip {SIGNALS[1][0]} at "
+                f"1.25×."))
+    out.append((SIGNALS[2][0], f"Share of line lost on bad loans at or above its line on Control, which starts at "
+                               f"{_start('line_lost')}.",
+                f"Bad loans that lost 85.0% of their line trip {SIGNALS[2][0]} at 80%."))
+    if co:
+        out.append((SIGNALS[3][0], f"Line-weighted ÷ straight at or below its line on Control, which starts at "
+                                   f"{_start('line_sooner')}.",
+                    f"14 months weighted by line against 16 months straight is 0.88× and trips {SIGNALS[3][0]} at "
+                    f"0.90×."))
+    out.append(("Tripped by",
+                f"Why a pocket is tripped on Line size: {TRIPPED_BY[0]} or {TRIPPED_BY[1]}, as the switch on Control "
+                f"selects, or {TRIPPED_BY[2]}.",
+                f"A pocket whose Worse? reads Yes on GCOs ($), with the switch on Either, reads {TRIPPED_BY[1]}."))
     return out
 
 

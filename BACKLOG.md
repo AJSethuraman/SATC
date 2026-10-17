@@ -3653,6 +3653,48 @@ changed in the code.
   - Tests: 2 in `tests/test_avg_line_beside_booked_2026_10_17.py` (the headings and the group heading; every gross
     cell in exactly one conditional-format range, which LibreOffice needs), and the three tests that pinned the old
     order moved. Planted bugs: 4 added, 4 caught, with no display.
+- **Built, 17 Oct 2026: Line size, a tab of its own** (branch `claude/pocketbook-line-size`, on #450). The firm wants
+  to show that *"we give assignments that are too high to these people"*, in a separate view *"so it isn't all in one
+  spot and too much for a user"*, shown when an indicator trips. Their decisions: literal names; the trip line
+  editable on Control, starting at 1.25×; "worse" for tripping on a switch, Bad loans / GCOs / Either, starting on
+  Either; the four ratios that point in a risk direction counted as Signals; starting lines are suggestions, marked
+  as suggested, like Worse at today; and *"let's just look at an example after"*.
+  - **The tab**, right after RANR vs GCOs, in the house style (title band, How this tab works, the lines in use):
+    one grid at a time, and a Show dropdown (*Pockets where something tripped*, the default; *2 or more signals*;
+    *All pockets*) that picks the rows by formula from the hidden `_lines`, as Pockets' Show picks from `_list`.
+    Columns: Band, Segment, Loans, Avg line, Line × book, Line on bad loans ÷ line on good loans, Share of line lost
+    on bad loans, Months to charge-off (straight avg), Months to charge-off weighted by line, Line-weighted ÷
+    straight, Signals ("2 of 4: Bad got bigger lines, Big lines fail sooner") and Tripped by (Worse on bad loans,
+    Worse on GCOs, Bad got bigger lines). Sorted by Line on bad loans ÷ line on good loans, highest first. Each ratio
+    is red past its line; nothing else is judged; each cell sits in one conditional-format range.
+  - **The figures**, worked out in the Run (`engine.LineSize`, `engine.line_vs`) and kept on `_views` (`L|<grid>|k`):
+    every one counts only loans with a booked amount, Avg line's rule. Line on bad ÷ good: the average line of bad
+    loans over that of good loans. Share of line lost: Σ GCO ÷ Σ booked over bad loans with both (the GCO rate's own
+    top and bottom). Weighted months: Σ(months × booked) ÷ Σ booked over loans with months to charge-off; and that
+    over the straight average. Without a Charge-off date the months columns are hidden and Signals counts out of 3.
+  - **Control**: the four lines and the switch sit in a fourth block, *Line size*, under the launcher's, live as
+    Changes now's are (named `line_big`, `line_bad_bigger`, `line_lost`, `line_sooner`, `line_worse_on` on `_live`).
+    Under the launcher's block, not inside Changes now, so no row above them moves: the bank checklist sends the
+    analyst to Control C15, C19, C24 and H24. Each opens on its starting line, its label marked *(suggested)*
+    (settings.yaml `starts: true`). A workbook set up before the rows existed still Runs on the starting lines
+    (settings.yaml `added`; `control.read_control`), Record says them, and the next Set up writes the rows.
+  - **Also**: Summary carries the two figures that need no dates after % of booked (so Booked $, Avg line, Line ×
+    book, % of booked keep the shape the GCO and RANR blocks have) and the two months figures after the median
+    months; its vintage chart leaves the four off. Grids offers the first two as Measures, shown and not compared.
+    The Glossary has a line per new term (37 terms, 33 without a charge-off date); Start here lists the tab; Record
+    keeps the five settings. The synthetic book has an optional plant, `synth.add_big_lines` (bigger, wholly lost
+    lines on one pocket's bad loans), off by default, so the practice book is unchanged.
+  - Tests: 13 in `tests/test_line_size_2026_10_17.py` (the figures by hand on eight loans; the figures against the
+    CSV; the Show dropdown's three choices, each signal at its line and a hair past it, and the switch, after a
+    LibreOffice recalculation; out of 3 without a charge-off date; an older workbook without the rows). Tests that
+    pinned the tab list, Control's blocks, Summary's columns, Grids' measures and the Glossary's terms were moved to
+    the new shape; the literal-names test no longer reads "Charge-off date", a column's meaning, as the old measure
+    name. Full suite in 4 shards with no display: 1,173 passed, 15 skipped. Planted bugs: 21 added, 21 caught.
+  - Review fixes (17 Oct 2026): Line-weighted ÷ straight divided weighted months (loans with a booked amount) by
+    the straight average over every charged-off loan; both are now over the same loans (`LineSize.co_months`),
+    on Line size and Summary, and the note says Grids' own average can differ. A cleared *Tripped by being worse
+    on* made the switch #N/A and emptied the tab; it now reads as Either. Grids' line measures are tied to the CSV
+    inner cell and margins. 3 tests and 3 planted bugs added.
 
 ## 7 · Standing rules for new items
 
