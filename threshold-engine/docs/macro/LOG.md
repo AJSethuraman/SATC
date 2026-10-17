@@ -623,3 +623,8 @@ files.
   horizon, and "not answered" is used for an answer in the wrong place.
 - **The rebuilt example** passes the chart test (58 charts, every series dated), the ISO schemas (0 errors)
   and the Open XML SDK (font-order notes only). Its printout is unchanged.
+- **Codex, on the fix for 2.** The Sources tab hashed each file again when the workbook was built. A file
+  changed between the rating and the build would be fingerprinted as it was at the build, not as it was
+  rated. The pull now records the SHA-256 of the exact bytes it parses, as it reads them, and the tab uses
+  that. A new test changes a file after the rating and before the build. It fails against the second read
+  and passes now. The macro suite is 108.

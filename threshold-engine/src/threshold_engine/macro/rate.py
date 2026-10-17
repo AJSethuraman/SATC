@@ -251,7 +251,8 @@ class Pull:
     """One pull folder: its manifest, and each series' points read once.
 
     ``points`` gives a list of (date, value), or a string saying why there is
-    none (the series failed or is not in this pull)."""
+    none (the series failed or is not in this pull). ``read_sha`` holds the
+    SHA-256 of each file's bytes as they were read, by file name."""
 
     def __init__(self, cache, vintage=None):
         folder = pathlib.Path(cache) / vintage if vintage else P.latest(cache)
@@ -260,7 +261,7 @@ class Pull:
                           % ("named %s " % vintage if vintage else "", cache, cache))
         self.cache, self.folder, self.vintage = cache, folder, folder.name
         self.manifest = json.loads((folder / "manifest.json").read_text("utf-8"))
-        self._loaded = {}
+        self._loaded, self.read_sha = {}, {}
 
     def _get(self, key):
         if key not in self._loaded:
@@ -272,7 +273,7 @@ class Pull:
                 self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, recorded)
                 return self._loaded[key]
             try:
-                self._loaded[key] = P.load(self.cache, key, self.vintage)[0]
+                self._loaded[key] = P.load(self.cache, key, self.vintage, seen=self.read_sha)[0]
             except SystemExit as e:
                 self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, e)
             except Exception as e:  # a file that no longer reads: recorded as the pull records one

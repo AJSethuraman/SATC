@@ -164,6 +164,24 @@ def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
     assert rows["Initial jobless claims"][7] == "not in this pull"
 
 
+def test_the_fingerprint_is_of_the_bytes_rated_not_of_the_file_when_the_workbook_is_built(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a file changed between the rating and the build was hashed as it was at the build, so
+    # the Sources tab named data the ratings never used.
+    import hashlib
+    pull = R.Pull(cache)
+    result = R.rate_all(cache, check(answered(show_sahm=False)), pull=pull)
+    path = pull.folder / "fred-UNRATE.csv"
+    rated = hashlib.sha256(path.read_bytes()).hexdigest()
+    with open(path, "a") as fh:
+        fh.write("2026-10-01,2.0\n")                     # after the rating, before the workbook
+    wb = openpyxl.load_workbook(build(tmp_path / "macro.xlsx", result, pull))
+    ws = wb["Sources"]
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
+    assert ws.cell(row, 10).value == rated and ws.cell(row, 11).value is None
+    facts = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert facts["Files changed since the pull"] == "none"
+
+
 def test_a_series_rated_on_its_change_only_still_shows_its_latest_value(book):
     # Walk, 16 Oct 2026 (W6): gasoline read "change only" and never said $4.33 a gallon.
     _, _, wb = book

@@ -28,7 +28,6 @@ the threshold workbook draws "what happens if".
     Sources      every file: address, licence, when fetched, SHA-256
 """
 import datetime
-import hashlib
 import math
 
 from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
@@ -1186,15 +1185,12 @@ def build(out, result, pull, whatif=None):
     last = 5 if whatif else 4
     title_band(ws, "Run", "What went into this workbook.", last, record=True)
     row = 3
-    # The fingerprint of each file as the rating read it, not as the manifest recorded it at the pull (Fable
-    # on #452: a file changed after the pull was rated as changed and published with the old fingerprint).
+    # The fingerprint of each file's bytes as the rating read them, not as the manifest recorded it at the pull
+    # (Fable on #452: a file changed after the pull was rated as changed and published with the old fingerprint),
+    # and not as the file is when the workbook is built (Codex on #452: the ratings come from the bytes read).
     from .pull import file_name
     files = pull.manifest.get("files", {})
-    read_sha = {}
-    for name in sorted({file_name(x) for x in SERIES}):
-        path = pull.folder / name
-        if path.exists():
-            read_sha[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    read_sha = pull.read_sha
     changed = [n for n, h in read_sha.items() if files.get(n, {}).get("sha256") not in (None, h)]
     facts = [("Built", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
              ("From the pull of", vintage), ("Tool", "threshold-engine %s, economic conditions" % VERSION),

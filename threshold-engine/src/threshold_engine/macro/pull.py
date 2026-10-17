@@ -118,12 +118,18 @@ def latest(cache):
     return max(found)[1] if found else None
 
 
-def load(cache, key, vintage=None):
-    """One series' points from a pull: the newest, or the folder named ``vintage``."""
+def load(cache, key, vintage=None, seen=None):
+    """One series' points from a pull: the newest, or the folder named ``vintage``.
+
+    ``seen``, when given, records the SHA-256 of the bytes read, by file name: the fingerprint of what was
+    rated, not of the file as it is later (Codex on #452)."""
     from .catalog import BY_KEY
     s = BY_KEY[key]
     folder = pathlib.Path(cache) / vintage if vintage else latest(cache)
     if folder is None or not (folder / file_name(s)).exists():
         raise SystemExit("no pull of %s under %s: run python -m threshold_engine.macro pull --cache %s"
                          % (key, cache, cache))
-    return sources.read(s, (folder / file_name(s)).read_bytes()), folder.name
+    data = (folder / file_name(s)).read_bytes()
+    if seen is not None:
+        seen[file_name(s)] = hashlib.sha256(data).hexdigest()
+    return sources.read(s, data), folder.name
