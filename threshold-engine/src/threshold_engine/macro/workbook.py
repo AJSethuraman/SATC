@@ -31,7 +31,7 @@ import datetime
 import math
 
 from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
-from .compare import CALLED, plain, reading_label, when
+from .compare import CALLED, plain, row_label, when
 from .rate import changes, sahm
 from .settings import QUESTIONS, readings_of
 
@@ -642,7 +642,7 @@ def build(out, result, pull, whatif=None):
                     put(ws, rr, 5, v, fmt)
             else:
                 # Two different changes: each side's rating is of its own, so neither value is shown as shared.
-                put(ws, rr, 3, reading_label("change", whatif["months"]).capitalize(), font=F_NOTE,
+                put(ws, rr, 3, row_label(x, whatif["months"]).capitalize(), font=F_NOTE,
                     align=Alignment(vertical="center", wrap_text=True))
             for col, got, why in ((6, x["a"], x["why_a"]), (10, x["b"], x["why_b"])):
                 if got:

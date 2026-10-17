@@ -644,6 +644,14 @@ files.
   Four older tests assumed every row was rated by one run at least, and are narrowed to those rows. The
   macro suite is 111. The real comparison has no such reading, and its printout is unchanged.
 
+- **Codex, a fifth branch of the horizon labels.** A change rated on one side only was printed under
+  both horizons. "Change over 6 months; what if: over 12 months ... rated as you have it only" names a
+  horizon under which nothing was rated. The What if tab's one-sided rows had the same label. One function,
+  `compare.row_label`, now names only the horizons of the ratings a row holds, and both places use it.
+  A new printout test covers both one-sided cases, and the What if tab check is added to the existing
+  one-sided workbook test. Both fail with the two-sided label put back. The macro suite is 112, and the
+  real comparison's printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests

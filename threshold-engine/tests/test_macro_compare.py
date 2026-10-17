@@ -151,3 +151,18 @@ def test_a_reading_neither_run_rates_is_reported_with_each_runs_reason(cache):  
            "the pull" in out
     assert c["totals"]["only_a"] + c["totals"]["only_b"] == sum(1 for x in c["rows"] if (x["a"] is None) !=
                                                                 (x["b"] is None))
+
+
+def test_a_change_rated_on_one_side_only_is_printed_with_that_sides_horizon_only(cache):  # noqa: F811
+    # Codex on #452: "change over 6 months; what if: over 12 months ... rated as you have it only" named the
+    # horizon of a side that made no rating.
+    from threshold_engine.macro.settings import template as T
+    off = {k: {r: "lower is worse" for r in v} for k, v in T()["directions"]["answer"].items()}
+    off["cpi"]["change"] = "not rated"
+    for a, b, said, unsaid in (({"change_months": 6}, {"change_months": 12, "directions": off},
+                                "change over 6 months", "12 months"),
+                               ({"change_months": 6, "directions": off}, {"change_months": 12},
+                                "change (what if: over 12 months)", "6 months")):
+        c = compare(*_runs(cache, a, b), "a.json", "b.json")
+        line = next(x for x in lines(c) if x.startswith("  ..") and "Consumer prices, all items," in x)
+        assert said in line and unsaid not in line, line

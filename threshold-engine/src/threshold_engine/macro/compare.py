@@ -135,6 +135,15 @@ def reading_label(reading, months):
     return "change over %d months" % a if a == b else "change over %d months; what if: over %d months" % (a, b)
 
 
+def row_label(r, months):
+    """A comparison row's reading, naming only the horizons of the ratings it holds: a change rated as you
+    have it only is over your months, one rated under the what-if only over the what-if's (Codex on #452:
+    the printout named the what-if's horizon beside a rating only the other side made)."""
+    if r["reading"] != "position" and months[0] != months[1] and bool(r["a"]) != bool(r["b"]):
+        return "change over %d months" % months[0] if r["a"] else "change (what if: over %d months)" % months[1]
+    return reading_label(r["reading"], months)
+
+
 def lines(c):
     """The comparison as the terminal prints it: what differs, then each reading that moves."""
     out = ["What if: %s against %s, both from the pull of %s." % (c["b"], c["a"], c["vintage"]), ""]
@@ -149,7 +158,7 @@ def lines(c):
                                                            t["only_a"], t["only_b"], " %d under neither." %
                                                            t["neither"] if t["neither"] else ""), ""]
     for r in sorted(c["rows"], key=lambda r: (-(abs(r["move"]) if r["move"] else 0), ORDER.get(r["key"], 0))):
-        name = "%s, %s" % (r["title"], reading_label(r["reading"], c["months"]))
+        name = "%s, %s" % (r["title"], row_label(r, c["months"]))
         if r["move"]:
             a, b = r["a"], r["b"]
             out.append("  %+d  %-60s %d -> %d  (%.1f%% of %s since %s -> %.1f%% of %s since %s)" % (

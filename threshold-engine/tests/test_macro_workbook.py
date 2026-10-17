@@ -419,3 +419,9 @@ def test_a_change_only_the_what_if_rates_over_another_horizon_says_that_horizon(
              if cl.value == "Consumer prices, all items")
     assert rt.cell(r, 13).value == "Change (what if: over 12 months): rated under the what-if only"
     assert "changes over 12 months since" in _text(wb["Prices"])
+    # and the What if tab's row names the what-if's horizon only (Codex on #452: it named both)
+    wi = wb["What if"]
+    head = next(cl.row for col in wi.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Rated under one set of settings only"))
+    cpi = next(rr for rr in range(head, wi.max_row + 1) if wi.cell(rr, 2).value == "Consumer prices, all items")
+    assert wi.cell(cpi, 3).value == "Change (what if: over 12 months)"
