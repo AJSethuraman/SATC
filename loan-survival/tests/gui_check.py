@@ -8,6 +8,7 @@ Part B (runs if tkinter and a display exist, e.g. `xvfb-run python tests/gui_che
 
 Prints ALL PASSED or the failures. Part B reports SKIP, not PASS, when it could not run.
 """
+import gc
 import os
 import subprocess
 import sys
@@ -97,9 +98,35 @@ check("permission error is explained", "Excel" in g.plain_error(PermissionError(
 with tempfile.TemporaryDirectory() as tmp:
     mem = Path(tmp) / "m.json"
     g.remember_columns(["a", "b"], {"orig_date": "a"}, mem)
-    check("memory remembers by header signature", g.load_memory(mem).get(g.header_signature(["b", "a"])) == {"orig_date": "a"})
+    check("memory remembers by header signature", g.load_memory(mem)["files"].get(g.header_signature(["b", "a"])) == {"orig_date": "a"})
+    g.remember_columns(["Booked On", "x"], {"orig_date": "Booked On"}, mem)
+    learned = g.load_memory(mem)["aliases"]
+    check("a picked column name is guessed next time", g.auto_match(["Booked On", "zzz"], learned).get("orig_date") == "Booked On")
+    check("...and was not guessed before", "orig_date" not in g.auto_match(["Booked On", "zzz"]))
+    g.remember_text_size(16, mem)
+    check("text size is remembered", g.load_memory(mem)["text_size"] == 16 and g.load_memory(Path(tmp) / "none.json")["text_size"] == g.DEFAULT_TEXT_SIZE)
     g.remember_columns(["a"], {}, Path(tmp) / "no" / "such" / "dir.json")
     check("memory failure is silent", True)
+
+# ---- A11b typeable alphabetical pickers, readable previews, plain-words comparisons
+check("headers sorted ignoring case", g.sorted_headers(["b", "A", "c"]) == ["A", "b", "c"])
+check("typing narrows: starts first then contains", g.filter_matches(["x_fico", "fico", "amount"], "fic") == ["fico", "x_fico"])
+check("empty query shows everything", g.filter_matches(["a", "b"], "  ") == ["a", "b"])
+hd, rows, widths = g.preview_rows(pd.DataFrame({"a_very_long_column_name": ["x"], "d": [pd.Timestamp("2024-01-05 13:00")]}))
+check("preview: column wide enough for its header, dates have no time",
+      widths[0] >= len("a_very_long_column_name") and rows[0][1] == "2024-01-05", str(widths))
+check("describe: vintage", g.describe_test({"group_by": "year"}).startswith("Compare loans by the year they were opened"))
+check("describe: cutoffs says in words", "loans below each cutoff against loans at or above" in g.describe_test({"column": "score", "cutoffs": "1,2"}))
+check("describe: window", g.describe_window({"orig_to": "2023-09-30"}) == "loans opened up to 2023-09-30")
+import ast
+_tree = ast.parse(Path(g.__file__).read_text())
+_doc = {id(n.body[0].value) for n in ast.walk(_tree) if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef))
+        and n.body and isinstance(n.body[0], ast.Expr) and isinstance(getattr(n.body[0], "value", None), ast.Constant)}
+_aliases = {id(n) for n in ast.walk(next(x for x in _tree.body if isinstance(x, (ast.Assign, ast.AnnAssign)) and "ALIASES" in ast.dump(x)[:80]))}
+_hits = [n.value for n in ast.walk(_tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)
+         and id(n) not in _doc and id(n) not in _aliases and ("fico" in n.value.lower() or "income" in n.value.lower())]
+check("no hard-coded FICO/income wording in window text", not _hits, str(_hits))
+check("only the two dates are required", [r for r, _l, req in g.ROLES if req] == ["orig_date", "chargeoff_date"])
 
 # ---- A12 a bad test the GUI can build is refused by the engine in words, not a traceback
 try:
@@ -141,6 +168,52 @@ else:
             check(f"GUI {sheet} sheet == CLI {sheet} sheet", a.equals(b) and len(a) > 0, f"{len(a)} rows")
         log = pd.read_excel(gui_out, sheet_name="RunLog")
         check("RunLog records the settings the GUI used", "[test: what drives losses]" in "\n".join(log["value"].fillna("").astype(str)))
+
+        # the guided wizard builds each kind of comparison the engine accepts
+        def drive(kind, fill):
+            w = app.new_wizard()
+            w.kind.set(kind)
+            w.next()
+            fill(w)
+            w.next()
+            w.next()
+            res = w.result
+            del w
+            gc.collect()
+            return res
+
+        app.apply_state(g.parse_settings_text(example))
+        r1 = drive("vintage", lambda w: None)
+        check("wizard: vintage", r1 and r1["spec"] == {"group_by": "year"}, str(r1))
+        r2 = drive("split", lambda w: w.var_a.set("2024-01-01"))
+        check("wizard: before/after", r2 and r2["spec"]["split_date"] == "2024-01-01", str(r2))
+        r3 = drive("cutoffs", lambda w: (w.var_a.set("fico"), w.var_b.set("640, 660")))
+        check("wizard: cutoffs default to seasoned loans", r3 and r3["spec"]["column"] == "fico" and r3["spec"]["cutoffs"] == "640,660"
+              and "orig_to" in r3["spec"], str(r3))
+        r4 = drive("category", lambda w: w.var_a.set("income_gt_sales"))
+        check("wizard: category", r4 and r4["spec"]["column"] == "income_gt_sales", str(r4))
+        def model_fill(w):
+            w.var_a.set("fico"); w.var_scale.set("50"); w.var_dir.set("lower"); w.add_term()
+        r5 = drive("model", model_fill)
+        check("wizard: model term", r5 and r5["spec"]["model"] == "fico per -50", str(r5))
+        w = app.new_wizard(); w.kind.set("cutoffs"); w.next()
+        w.next()
+        check("wizard: stays on the step and says why when incomplete", w.step == 1 and "cutoff" in w.msg.cget("text"), w.msg.cget("text"))
+        w.destroy()
+        # the whole set the wizard built runs in the engine
+        app.tests = [r for r in (r1, r2, r3, r4, r5) if r]
+        app.v_out.set(str(Path(tmp) / "wiz.xlsx"))
+        app.start_run(wait=True)
+        check("wizard-built comparisons run", (Path(tmp) / "wiz.xlsx").exists(), app.status.get("1.0", "end")[:200])
+        # typeable picker
+        pk = app.pickers["orig_date"]
+        pk.query.set("orig")
+        check("picker: typing narrows the list", pk.matches() and all("orig" in m.lower() for m in pk.matches()), str(pk.matches()))
+        # text size
+        app.apply_text_size(16, save=False)
+        check("window: text size changes", app.text_size == 16)
+        app.apply_state(g.parse_settings_text(example))
+        check("window: ready line says ready", app.ready_text().startswith("Ready."), app.ready_text())
 
         # an unready window says what to do instead of running
         app.v_cols["orig_date"].set("")
