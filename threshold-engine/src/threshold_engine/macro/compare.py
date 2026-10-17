@@ -16,6 +16,8 @@ against. Which settings to keep is the firm's call.
 from .catalog import RATED
 
 ORDER = {item.key: i for i, item in enumerate(RATED)}
+ITEMS = {item.key: item for item in RATED}
+NOT_ASKED = "not asked for by these settings"
 
 #: Each setting, as the workbook and the printout name it.
 CALLED = {"cutoffs": "Where ratings 2 to 5 start", "on_the_line": "A reading exactly on a cut-off",
@@ -72,7 +74,9 @@ def compare(a, b, label_a, label_b):
     rating against rating, and the totals. A row's ``move`` is the what-if
     rating minus the rating as set: above zero rates higher (worse), below
     zero lower. A reading rated in one run only says why it is missing from
-    the other, in that run's own words."""
+    the other, in that run's own words. A reading either run asked for and
+    neither rated is a row too, with each run's reason (Codex on #452: one only
+    the what-if asked for, and could not rate, was left out altogether)."""
     if a["vintage"] != b["vintage"]:
         raise ValueError("the two runs read different pulls (%s, %s); compare runs of one pull"
                          % (a["vintage"], b["vintage"]))
@@ -83,12 +87,16 @@ def compare(a, b, label_a, label_b):
     same_change = a["settings"]["change_months"] == b["settings"]["change_months"]
     rows = []
     matrix = [[0] * 5 for _ in range(5)]
-    totals = {"compared": 0, "same": 0, "higher": 0, "lower": 0, "only_a": 0, "only_b": 0}
-    for key, reading in sorted(set(ra) | set(rb), key=lambda kr: (ORDER.get(kr[0], 0), kr[1] != "position")):
+    totals = {"compared": 0, "same": 0, "higher": 0, "lower": 0, "only_a": 0, "only_b": 0, "neither": 0}
+    keys = set(ra) | set(rb) | set(why_a) | set(why_b)
+    for key, reading in sorted(keys, key=lambda kr: (ORDER.get(kr[0], 0), kr[1] != "position")):
         x, y = ra.get((key, reading)), rb.get((key, reading))
-        first = x or y
+        first = x or y or {"title": ITEMS[key].title, "group": ITEMS[key].group}
         row = {"key": key, "title": first["title"], "group": first["group"], "reading": reading,
                "a": _side(x) if x else None, "b": _side(y) if y else None,
+               # each run's reason where it has no rating: its own words, or not asked for
+               "why_a": None if x else why_a.get((key, reading), NOT_ASKED),
+               "why_b": None if y else why_b.get((key, reading), NOT_ASKED),
                # A change over a different number of months is a different measure, so its lines are not
                # comparable on one chart; its ratings still are, each against its own history.
                "same_measure": reading == "position" or same_change}
@@ -97,12 +105,13 @@ def compare(a, b, label_a, label_b):
             matrix[x["rating"] - 1][y["rating"] - 1] += 1
             totals["compared"] += 1
             totals["same" if row["move"] == 0 else "higher" if row["move"] > 0 else "lower"] += 1
+        elif x or y:
+            row["move"] = None
+            row["why_missing"] = row["why_b"] if x else row["why_a"]
+            totals["only_a" if x else "only_b"] += 1
         else:
             row["move"] = None
-            missing = why_b.get((key, reading), "not asked for by these settings") if x else \
-                why_a.get((key, reading), "not asked for by these settings")
-            row["why_missing"] = missing
-            totals["only_a" if x else "only_b"] += 1
+            totals["neither"] += 1
         rows.append(row)
     return {"vintage": a["vintage"], "a": label_a, "b": label_b,
             # each side's horizon: a change counted over different months is named with both wherever it is shown
@@ -136,8 +145,9 @@ def lines(c):
         out.append("  %s: %s -> %s" % (s["setting"], s["a"], s["b"]))
     t = c["totals"]
     out += ["", "%d readings rated under both: %d at the same rating, %d higher, %d lower. %d rated as you have "
-                "it only, %d under the what-if only." % (t["compared"], t["same"], t["higher"], t["lower"],
-                                                         t["only_a"], t["only_b"]), ""]
+                "it only, %d under the what-if only.%s" % (t["compared"], t["same"], t["higher"], t["lower"],
+                                                           t["only_a"], t["only_b"], " %d under neither." %
+                                                           t["neither"] if t["neither"] else ""), ""]
     for r in sorted(c["rows"], key=lambda r: (-(abs(r["move"]) if r["move"] else 0), ORDER.get(r["key"], 0))):
         name = "%s, %s" % (r["title"], reading_label(r["reading"], c["months"]))
         if r["move"]:
@@ -145,7 +155,10 @@ def lines(c):
             out.append("  %+d  %-60s %d -> %d  (%.1f%% of %s since %s -> %.1f%% of %s since %s)" % (
                 r["move"], name, a["rating"], b["rating"], a["percentile"], "{:,}".format(a["readings"]),
                 when(a["history_from"]), b["percentile"], "{:,}".format(b["readings"]), when(b["history_from"])))
-        elif r["move"] is None:
+        elif r["move"] is None and (r["a"] or r["b"]):
             side = "as you have it" if r["a"] else "under the what-if"
             out.append("  ..  %-60s rated %s only; the other: %s" % (name, side, r["why_missing"]))
+        elif r["move"] is None:
+            out.append("  ..  %-60s not rated under either: as you have it, %s; under the what-if, %s"
+                       % (name, r["why_a"], r["why_b"]))
     return out

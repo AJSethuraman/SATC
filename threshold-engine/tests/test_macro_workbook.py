@@ -241,7 +241,8 @@ def test_the_what_if_tab_sets_every_national_reading_side_by_side(cache, tmp_pat
     ws = wb["What if"]
     text = _text(ws)
     assert "History each reading is measured against" in text and "the last 3 years" in text
-    national = [x for x in c["rows"] if not x["key"].startswith("unemployment_")]
+    # every national reading rated under both (the partial pull leaves the rest rated under neither)
+    national = [x for x in c["rows"] if not x["key"].startswith("unemployment_") and x["a"] and x["b"]]
     # the grid: the rating as you have it down the side, the what-if across, every national reading once
     corner = next(cl for row in ws.iter_rows() for cl in row if cl.value == "AS YOU HAVE IT")
     grid = [[ws.cell(corner.row + k, corner.column + j).value or 0 for j in range(1, 6)] for k in range(1, 6)]
@@ -342,6 +343,21 @@ def test_a_series_in_neither_run_is_not_called_the_same_rating(cache, tmp_path):
                   if cl.value == "Initial jobless claims")
     assert rt.cell(claims, 13).value == "not rated under either"
 
+
+
+def test_a_reading_neither_run_rates_has_its_own_rows_with_each_runs_reason(cache, tmp_path):  # noqa: F811
+    # Codex on #452: one only the what-if asked for, and could not rate, had no row on the What if tab.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": []}, {})
+    neither = [x for x in c["rows"] if x["a"] is None and x["b"] is None]
+    ws = wb["What if"]
+    head = next(cl.row for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Rated under neither set of settings"))
+    assert ws.cell(head, 2).value == "Rated under neither set of settings (%d)" % len(neither)
+    texts = [(ws.cell(r, 6).value, ws.cell(r, 10).value) for r in range(head + 1, head + 2 + len(neither) + 1)]
+    assert ("Not rated: not asked for by these settings",
+            next(t for _, t in texts if t and "not in the pull" in t)) in texts
+    tiles = [ws.cell(4, col).value for col in range(2, 15)]
+    assert c["totals"]["only_a"] + c["totals"]["only_b"] in tiles     # the one-set tile does not count them
 
 def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})

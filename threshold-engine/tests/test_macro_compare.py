@@ -29,17 +29,18 @@ def test_every_reading_is_reported_with_both_ratings_and_the_move_between_them(c
     assert (differ["a"], differ["b"]) == ("full history", "the last 3 years")
     a = {(r["key"], r["reading"]): r for r in ra["ratings"]}
     b = {(r["key"], r["reading"]): r for r in rb["ratings"]}
-    assert {(x["key"], x["reading"]) for x in c["rows"]} == set(a) | set(b)
-    for x in c["rows"]:
+    rated = [x for x in c["rows"] if x["a"] or x["b"]]       # the rest: rated under neither (a partial pull)
+    assert {(x["key"], x["reading"]) for x in rated} == set(a) | set(b)
+    for x in rated:
         k = (x["key"], x["reading"])
         assert x["a"]["rating"] == a[k]["rating"] and x["b"]["rating"] == b[k]["rating"]
         assert x["move"] == b[k]["rating"] - a[k]["rating"]          # above zero: higher under the what-if
         assert x["a"]["history_from"] < x["b"]["history_from"]       # three years is shorter than the full history
     t = c["totals"]
-    assert t["compared"] == len(c["rows"]) == sum(map(sum, c["matrix"]))
+    assert t["compared"] == len(rated) == sum(map(sum, c["matrix"]))
     assert t["same"] + t["higher"] + t["lower"] == t["compared"]
-    assert any(x["move"] for x in c["rows"])                         # the fixture moves at least one reading
-    for x in c["rows"]:
+    assert any(x["move"] for x in rated)                             # the fixture moves at least one reading
+    for x in rated:
         assert c["matrix"][x["a"]["rating"] - 1][x["b"]["rating"] - 1] >= 1
 
 
@@ -47,14 +48,14 @@ def test_the_same_settings_twice_differ_nowhere(cache):  # noqa: F811
     ra, rb = _runs(cache)
     c = compare(ra, rb, "a.json", "b.json")
     assert not any(s["differs"] for s in c["settings"])
-    assert all(x["move"] == 0 for x in c["rows"]) and c["totals"]["same"] == c["totals"]["compared"]
+    assert all(x["move"] == 0 for x in c["rows"] if x["a"]) and c["totals"]["same"] == c["totals"]["compared"]
     assert "the same answers, so every rating is the same" in "\n".join(lines(c))
 
 
 def test_a_reading_one_side_did_not_ask_for_says_so_rather_than_failing(cache):  # noqa: F811
     ra, rb = _runs(cache, {}, {"change_for": []})
     c = compare(ra, rb, "a.json", "b.json")
-    only = [x for x in c["rows"] if x["move"] is None]
+    only = [x for x in c["rows"] if x["move"] is None and (x["a"] or x["b"])]
     assert only and all(x["reading"] == "change" and x["b"] is None for x in only)
     assert {x["why_missing"] for x in only} == {"not asked for by these settings"}
     assert c["totals"]["only_a"] == len(only) and c["totals"]["only_b"] == 0
@@ -131,3 +132,22 @@ def test_a_change_over_a_different_horizon_is_printed_with_both_horizons(cache):
         row = next(line for line in out if x["title"] + "," in line)
         assert "change over 6 months; what if: over 12 months" in row
     assert not any("change over 6 months " in line and "what if" not in line for line in out)
+
+
+def test_a_reading_neither_run_rates_is_reported_with_each_runs_reason(cache):  # noqa: F811
+    # Codex on #452: a change only the what-if asked for, of a series not in the pull, was left out entirely.
+    ra, rb = _runs(cache, {"change_for": []}, {})
+    c = compare(ra, rb, "a.json", "b.json")
+    rated = {(x["key"], x["reading"]) for x in ra["ratings"] + rb["ratings"]}
+    asked = {(x["key"], x["reading"]) for x in ra["not_rated"] + rb["not_rated"]}
+    neither = [x for x in c["rows"] if x["a"] is None and x["b"] is None]
+    assert {(x["key"], x["reading"]) for x in neither} == asked - rated
+    whatif_only = [x for x in neither if x["why_a"] == "not asked for by these settings"]
+    assert whatif_only and all(x["reading"] == "change" and "not in the pull" in x["why_b"] for x in whatif_only)
+    assert c["totals"]["neither"] == len(neither) and all(x["move"] is None for x in neither)
+    out = "\n".join(lines(c))
+    assert "%d under neither." % len(neither) in out
+    assert "not rated under either: as you have it, not asked for by these settings; under the what-if, not in " \
+           "the pull" in out
+    assert c["totals"]["only_a"] + c["totals"]["only_b"] == sum(1 for x in c["rows"] if (x["a"] is None) !=
+                                                                (x["b"] is None))

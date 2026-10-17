@@ -119,6 +119,8 @@ def move_text(rows, months):
     ``months`` is each side's horizon; a change counted over different months says the what-if's."""
     parts = []
     for r in rows:
+        if not (r["a"] or r["b"]):
+            continue                      # rated under neither: the cell's fallback says so
         # every branch, moved or one-sided: Codex on #452 found the one-sided one left out
         # The horizon named is that of a rating the cell reports: the what-if's when the what-if rated it,
         # none when only these settings did (Fable on #452, the fourth branch of the same fault).
@@ -456,7 +458,7 @@ def build(out, result, pull, whatif=None):
             if not got:
                 put(ws, row, 12, "Not rated: see the Not rated tab", font=F_NOTE)
             if whatif:
-                mine = list(wrows.get(key, {}).values())
+                mine = [x for x in wrows.get(key, {}).values() if x["a"] or x["b"]]
                 words = move_text(mine, whatif["months"])
                 put(ws, row, 13, words or ("same rating" if mine else "not rated under either"),
                     font=moved_font(mine) if words else F_NOTE)
@@ -486,7 +488,8 @@ def build(out, result, pull, whatif=None):
         tile(ws, 3, 6, 7, "Rated lower", sum(1 for x in both if x["move"] < 0))
         tile(ws, 3, 8, 10, "State readings that change", "%d of %d" % (
             sum(1 for x in sts if x["move"]), sum(1 for x in sts if x["move"] is not None)))
-        tile(ws, 3, 11, 14, "Rated under one set only", sum(1 for x in whatif["rows"] if x["move"] is None))
+        tile(ws, 3, 11, 14, "Rated under one set only", sum(1 for x in whatif["rows"] if x["move"] is None
+                                                             and (x["a"] or x["b"])))
         row = method_note(ws, 6, last, [
             ("What it is", "Every reading rated twice from the same pull: with the settings in %s (as you have it) "
                            "and with those in %s (what if). Nothing but the settings differs." % (
@@ -629,18 +632,19 @@ def build(out, result, pull, whatif=None):
             item = items[x["key"]]
             name = item.title
             link(ws.cell(rr, 2), "States" if x["key"] in state_keys else TAB[x["key"]], name)
+            one = x["a"] or x["b"]                # None when rated under neither: no latest value to show
             if x["same_measure"]:
                 put(ws, rr, 3, reading_name(x["reading"], months), font=F_NOTE)
-                one = x["a"] or x["b"]
-                put(ws, rr, 4, _date(one["date"]), "yyyy-mm-dd")
-                v, fmt = change_value(item, one["value"]) if x["reading"] == "change" else (
-                    one["value"], value_format(one["value"]))
-                put(ws, rr, 5, v, fmt)
+                if one:
+                    put(ws, rr, 4, _date(one["date"]), "yyyy-mm-dd")
+                    v, fmt = change_value(item, one["value"]) if x["reading"] == "change" else (
+                        one["value"], value_format(one["value"]))
+                    put(ws, rr, 5, v, fmt)
             else:
                 # Two different changes: each side's rating is of its own, so neither value is shown as shared.
                 put(ws, rr, 3, reading_label("change", whatif["months"]).capitalize(), font=F_NOTE,
                     align=Alignment(vertical="center", wrap_text=True))
-            for col, got in ((6, x["a"]), (10, x["b"])):
+            for col, got, why in ((6, x["a"], x["why_a"]), (10, x["b"], x["why_b"])):
                 if got:
                     chip(ws, rr, col, got["rating"], short=True)
                     put(ws, rr, col + 1, got["percentile"] / 100, "0.0%")
@@ -648,7 +652,7 @@ def build(out, result, pull, whatif=None):
                     put(ws, rr, col + 3, got["readings"], "#,##0")
                 else:
                     ws.merge_cells(start_row=rr, start_column=col, end_row=rr, end_column=col + 3)
-                    put(ws, rr, col, "Not rated: " + x["why_missing"], font=F_NOTE, align=WRAP)
+                    put(ws, rr, col, "Not rated: " + why, font=F_NOTE, align=WRAP)
             if x["move"]:
                 put(ws, rr, 14, ("▲ %d" if x["move"] > 0 else "▼ %d") % abs(x["move"]),
                     font=F_UP if x["move"] > 0 else F_DOWN, align=CENTER)
@@ -690,11 +694,20 @@ def build(out, result, pull, whatif=None):
             reading_row(row, x)
             row += 1
         row += 1
-        one_side = [x for x in whatif["rows"] if x["move"] is None]
+        one_side = [x for x in whatif["rows"] if x["move"] is None and (x["a"] or x["b"])]
         if one_side:
             row = section(ws, row, "Rated under one set of settings only (%d)" % len(one_side), last)
             row = groups(row)
             for x in ordered(one_side):
+                reading_row(row, x)
+                row += 1
+            row += 1
+        # Asked for by either and rated by neither, each with its run's reason (Codex on #452).
+        neither = [x for x in whatif["rows"] if not (x["a"] or x["b"])]
+        if neither:
+            row = section(ws, row, "Rated under neither set of settings (%d)" % len(neither), last)
+            row = groups(row)
+            for x in ordered(neither):
                 reading_row(row, x)
                 row += 1
             row += 1
@@ -751,7 +764,7 @@ def build(out, result, pull, whatif=None):
         if not got:
             put(ws, row, 3, "not in this pull", font=F_NOTE)
         if whatif:
-            mine = list(wrows.get(key, {}).values())
+            mine = [x for x in wrows.get(key, {}).values() if x["a"] or x["b"]]
             words = move_text(mine, whatif["months"])
             put(ws, row, 11, words or ("same rating" if mine else "not rated under either"),
                 font=moved_font(mine) if words else F_NOTE)
@@ -923,7 +936,7 @@ def build(out, result, pull, whatif=None):
                     note(ws, row + 3, col + 2, words, end, F_UP if (w["move"] or 0) > 0 else F_DOWN if
                          (w["move"] or 0) < 0 else F_DATA)
                 else:
-                    note(ws, row + 3, col + 1, "Not rated under the what-if: %s." % w["why_missing"], end)
+                    note(ws, row + 3, col + 1, "Not rated under the what-if: %s." % w["why_b"], end)
         ws.row_dimensions[row].height = 16
         ws.row_dimensions[row + 1].height = 24
         said = [mine[rd]["sentence"] for rd in mine] + ["Change only: " + (item.position or "")]

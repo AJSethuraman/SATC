@@ -635,6 +635,15 @@ files.
   It fails when the file is read again and passes now. The macro suite is 109. The real comparison's printout
   is unchanged.
 
+- **Codex, a third time.** The comparison built its rows from the two runs' ratings only. A reading
+  either run asked for and neither could rate had no row: for example, a change only the what-if asked
+  for, of a series missing from the pull. The printout and the What if tab never reported it. Each such
+  reading is now a row with each run's own reason. The printout counts them ("N under neither") and
+  lists them, and the What if tab gives them a section of their own. Ratings and States still read "not
+  rated under either", and the one-set tile does not count them. Two new tests fail without the fix.
+  Four older tests assumed every row was rated by one run at least, and are narrowed to those rows. The
+  macro suite is 111. The real comparison has no such reading, and its printout is unchanged.
+
 ## 17 Oct 2026: Book 2 (consumer drivers), the plan before building
 
 The brief proposes a second book, built alongside the Macrobook, that tests
