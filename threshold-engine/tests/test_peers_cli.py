@@ -37,7 +37,7 @@ BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
     "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
-    "--delinquency", "no"]
+    "--delinquency", "no", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json")]
 
 MEASURE = ["--name", "Net charge-offs", "--unit", "%", "--direction", "higher_is_worse",
            "--frequency", "quarterly", "--smoothing", "1", "--floor-at-zero", "yes",
@@ -107,6 +107,57 @@ def test_each_peers_own_book_is_written_to_banks_with_its_notes(built):
     assert any("JPMorgan (certificate 628), its own book, a peer." in n for n in notes)
     assert any("Absorptions under common control" in n and "None in these quarters." in n for n in notes)
     assert any("6.b, other revolving credit plans" in n for n in notes)
+
+
+def test_every_series_notes_the_reporting_changes_touching_it(built):
+    """The firm, 16 Oct 2026: "Definitely mark reporting changes." Each file
+    `peers build` writes carries a reporting-change note for every change in
+    config/reporting-changes.json that touches its product and measure within
+    its quarters; the others are not there. Other consumer: the NDFI and
+    margin-loan revision over its three quarters, and the 2011 auto split
+    linked to the file's own note rather than said again; credit card: no
+    NDFI, and FAS 166 and 167 linked to its Securitized cards note; a peer's
+    own book the same as the pack's."""
+    from threshold_engine import reporting_changes as RC
+    changes = RC.load(ROOT / "config" / "reporting-changes.json")
+
+    def notes(name):
+        return [l[2:] for l in (built["series"] / name).read_text(encoding="utf-8").splitlines()
+                if l.startswith("# reporting-change: ")]
+
+    def head(lines):
+        return [l.split(". ")[0] for l in lines]
+    oc = notes("other-consumer_industry_net.csv")
+    assert head(oc) == ["reporting-change: 2008Q1, Loans classified as trading",
+                        "reporting-change: 2010Q1, Securitizations back on the books (FAS 166 and 167)",
+                        "reporting-change: 2011Q1, Auto loans get their own line",
+                        "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans",
+                        "reporting-change: 2024Q4 to 2025Q2, NDFI and margin-loan revision"]
+    assert 'The note above that says "Auto was inside 6.d until 2011Q1" describes this change.' in oc[2]
+    ndfi = next(c for c in changes if c["name"] == "NDFI and margin-loan revision")
+    assert oc[4].endswith("%s Source: %s." % (ndfi["what_changed"], RC.cited(ndfi)))
+    card = notes("credit-card_industry_net.csv")
+    assert not any("NDFI" in l for l in card)
+    assert head(card) == ["reporting-change: 2008Q1, Loans classified as trading",
+                          "reporting-change: 2010Q1, Securitizations back on the books (FAS 166 and 167)",
+                          "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans"]
+    assert 'The note above that says "Securitized cards" describes this change.' in card[1]
+    assert sum("Securitized cards: before 2010" in l
+               for l in (built["series"] / "credit-card_industry_net.csv").read_text(encoding="utf-8").splitlines()) == 1
+    mortgage = notes("mortgage_industry_net.csv")
+    assert head(mortgage) == ["reporting-change: 2008Q1, Loans classified as trading",
+                              "reporting-change: 2013Q2, Real estate breakdown for the whole bank",
+                              "reporting-change: 2020Q1, CECL: purchased credit-deteriorated loans"]
+    assert notes("banks/other-consumer_jpmorgan_net.csv")[-1] == oc[-1]
+    # Within its quarters only: a file starting after a break carries only the changes from its first quarter.
+    for name in sorted(p.name for p in built["series"].glob("*.csv")):
+        lines = (built["series"] / name).read_text(encoding="utf-8").splitlines()
+        dates = [l[:10] for l in lines if l[:1].isdigit()]
+        first, last = (quarter_end(d) for d in (dates[0], dates[-1]))
+        for l in lines:
+            if l.startswith("# reporting-change: "):
+                took = RC.quarters_in_notes([("reporting-change", l[len("# reporting-change: "):])])
+                assert any(first <= quarter_end(q) <= last for q in took), (name, l[:40])
 
 
 def test_a_cache_without_the_parent_is_refused_by_build(data, tmp_path, monkeypatch, capsys):
@@ -254,7 +305,7 @@ BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--pr
                "--acquisition-share", "--min-book", "--exempt-self", "--pro-forma",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
-               "--mix-base-year", "--delinquency"]
+               "--mix-base-year", "--delinquency", "--reporting-changes"]
 
 
 def without(args, flag):
@@ -962,7 +1013,8 @@ def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, va
                   extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1e6,
                   exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
-                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
+                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
+                  reporting_changes=ROOT / "config" / "reporting-changes.json")
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
@@ -1168,7 +1220,8 @@ def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, sa
                   extra_acquisitions=[], industry_combined=[], jump=0.25, min_book=1e6,
                   exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
-                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False)
+                  normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
+                  reporting_changes=ROOT / "config" / "reporting-changes.json")
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)

@@ -92,5 +92,6 @@
   "loan_classes": {
     "file": "../config/peer-loan-classes.json",
     "cache": "sec_cache"
-  }
+  },
+  "reporting_changes": "../config/reporting-changes.json"
 }

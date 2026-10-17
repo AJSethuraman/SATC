@@ -29,7 +29,7 @@ the lines picked, as Thresholds rates it.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from openpyxl.chart import AreaChart, LineChart
 from openpyxl.chart.data_source import AxDataSource, NumDataSource, NumRef, StrRef
@@ -232,7 +232,7 @@ def _q(s: str) -> str:
 def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], part_names: Sequence[str],
           settings: Dict[str, Tuple[float, float, float, str]], lay: dict, n_quarters: int,
           absent: Sequence[dict], compare: Optional[Tuple[str, str]], lines_from: Optional[str],
-          unit: str = "", higher: bool = True, floor_at_zero: bool = True) -> dict:
+          changes: Dict[str, Set[str]], quarters: Sequence[str], unit: str = "", higher: bool = True, floor_at_zero: bool = True) -> dict:
     """Add the Decide tab to ``wb`` (which already holds Assess, the per-series
     table titled Thresholds, and Data for ``labels``) and point Assess's typed
     cells at it.
@@ -245,8 +245,12 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     values of the third part to set side by side, or None; ``lines_from``:
     the source every row's Lines set from starts as, or None for blank;
     ``higher``, ``floor_at_zero``: the measure's direction and floor, as the
-    lines rate with them. Returns where things are, for the slicers, the
-    Thresholds tab and tests."""
+    lines rate with them. ``changes``: each label's quarters a reporting
+    change took effect in, as its file's notes name them
+    (``reporting_changes.quarters_in_notes``; an empty set for none), and
+    ``quarters`` the Data tab's quarters, in order: the chart marks them, along the top of the rating zones, for the row shown
+    (any of its sources' quarters). Returns where things are, for the
+    slicers, the Thresholds tab and tests."""
     validate(part_names)
     check_start(lines_from, labels, parts)
     asx = wb["Assess"]
@@ -556,6 +560,18 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for key, head in (("num", "drawn and shown, numbers only"), ("low", "drawn and shown, lowest"),
                       ("any", "drawn"), ("fit", "first, count, last, label every"), ("ft", "floor, top")):
         col(key, head)
+    # The quarters a reporting change took effect, per row of the table (any
+    # of its sources' files names it), and the marker for the row shown.
+    if len(quarters) != n_quarters:
+        raise ValueError("quarters must be the Data tab's %d quarters, not %d" % (n_quarters, len(quarters)))
+    missing = [lbl for lbl in labels if lbl not in changes]
+    if missing:
+        raise ValueError("changes must give every series its reporting change quarters (an empty set for none); "
+                         "missing for %s" % ", ".join(missing))
+    took = [set().union(*(changes[lbl] for lbl in by_pair[pr].values())) for pr in pairs]
+    for i, pr in enumerate(pairs):
+        col("chg%d" % i, "Reporting change took effect: %s - %s" % pr)
+    col("chg", "Reporting change")
     cl = {k: L(v) for k, v in cols_.items()}
     FIT, FIT_N, FIT_LAST, SKIP = ("$%s$%d" % (cl["fit"], r) for r in (2, 3, 4, 5))
     FLOOR, TOPV = "$%s$2" % cl["ft"], "$%s$3" % cl["ft"]
@@ -611,6 +627,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                     .format(r=r, l=FIT_LAST, ok=lines_ok, x=LN[j], f=FLOOR, t=TOPV))
         any_ = ",".join("ISNUMBER(%s%d)" % (c_, r) for c_ in [cl["raw"]] + over_cols)
         ws.cell(r, cols_["any"], '=IF(OR(%s),%d,"")' % (any_, r))
+        q_r = quarters[r - 2]
+        for i, qs in enumerate(took):
+            ws.cell(r, cols_["chg%d" % i], 1 if q_r in qs else None)
+        ws.cell(r, cols_["chg"], '=IF(AND({one},{w}),IF(INDEX(${a}{r}:${b}{r},MATCH(1,{sh},0))=1,{top},NA()),NA())'
+                .format(one=ONE, w=inwin, a=cl["chg0"], b=cl["chg%d" % (len(pairs) - 1)], r=r, sh=SHOWN, top=TOPV))
     for j in range(4):
         ws.cell(1, cols_["lab%d" % j], '=IF(ISNUMBER({x}),"{k} from "&TEXT({x},"0.00"),"")'.format(x=LN[j], k=j + 2))
     anyr = rng_("any")
@@ -666,7 +687,17 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         s_.dLbls = DataLabelList(showSerName=True, showVal=False, showLegendKey=False, showCatName=False,
                                  showPercent=False, showLeaderLines=False, dLblPos="r", txPr=_text(9, K.SLATE))
         labs.append(s_)
-    for s_ in over + [left] + picks + labs:
+    # A diamond along the top of the zones in each quarter a reporting change
+    # took effect for the row shown (the firm, 16 Oct 2026: "Definitely mark
+    # reporting changes.").
+    mark = series("chg", "dq_change", "Reporting change")
+    mark.graphicalProperties.line.noFill = True
+    mark.marker.symbol = "diamond"
+    mark.marker.size = 7
+    from openpyxl.chart.shapes import GraphicalProperties as _GP
+    mark.marker.graphicalProperties = _GP(solidFill=K.INK)
+    mark.marker.graphicalProperties.line.solidFill = K.INK
+    for s_ in over + [left] + picks + labs + [mark]:
         s_.idx = s_.order = idx
         idx += 1
         line.series.append(s_)
@@ -964,8 +995,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             ).font = F_NOTE
     ws.cell(nt + 1, 2, "The settings apply to every %s's history: the lines picked, and what each %s's own history "
                        "would give. The shading runs from 1 Low to 5 High. The chart starts at the first quarter any "
-                       "line has, within the window set under Chart shows. Every term is defined on the Glossary tab."
-            % (p2.lower(), p2.lower())).font = F_NOTE
+                       "line has, within the window set under Chart shows.%s Every term is defined on the Glossary tab."
+            % (p2.lower(), p2.lower(), " A diamond along the top marks a quarter in which a reporting change took "
+               "effect (Reporting changes tab)." if any(took) else "")).font = F_NOTE
 
     for c in range(H, nxt[0]):
         ws.column_dimensions[L(c)].hidden = True

@@ -91,8 +91,9 @@ from .peers import books
 from .peers.books import label, parts, quarter_end, raw_fields
 from .templates import PLACEHOLDER, _LINES
 
-#: The products a row may name: the tool's five (``books.PRODUCTS``).
-PRODUCTS = tuple(books.PRODUCTS)
+#: The products a row may name: the tool's five consumer products
+#: (``books.CONSUMER``). The commercial ones have no internal template yet.
+PRODUCTS = tuple(books.CONSUMER)
 ALL = "All"
 
 FLOWS = ("gross_charge_offs", "net_charge_offs", "recoveries")

@@ -1528,6 +1528,275 @@ proposal to show every setting's range at once, *"okay your idea works"*.
   computed in Python from scale.py; **1,522 of 1,522** in Excel 16, slicer
   check PASS. test_decide and test_book: 47 passed.
 
+## 16 October 2026, reporting changes marked on every series they touch
+
+The firm, on the commercial proposal's question 13: *"Definitely mark
+reporting changes."* Every change to the Call Report's definitions or forms
+is labelled on every series it touches, in the quarter it took effect, a
+change spread over several quarters included, the consumer book too.
+Built on `commercial-build`, from `threshold-engine-book` (draft PR #442).
+
+- **The registry**, `config/reporting-changes.json`, read and checked by
+  `reporting_changes.py`: one entry per change, every key required (first
+  and last quarter it took effect, the tool's products and measures it
+  touches, the Call Report items for commercial later, one sentence of what
+  changed, its sources with their addresses, and a link to a definition
+  note that already says it). A malformed entry is refused by name, every
+  problem at once, as the book refuses. Twelve changes, each marked verified
+  in `docs/commercial-2026-10/research-breaks.md` or `research-fdic.md` (on
+  main), and each citing its primary source, not those files. Six touch the
+  consumer products: loans classified as trading (2008Q1, all five);
+  FAS 166 and 167 (2010Q1, card and other consumer); auto split out of other
+  consumer (2011Q1, from the FDIC's own LNAUTO definition); CECL (2020Q1);
+  COVID-19 deferrals not reported as past due (2020Q2, the past-due measures,
+  not nonaccrual); and the NDFI and margin-loan revision (2024Q4 to 2025Q2,
+  other consumer, best efforts until 30 June 2025).
+- **Not duplicated:** the card securitization label before 2010 was already
+  in every card series (`books.DEFINITIONS`), and the auto split in every
+  other consumer series. Those two entries link to that note ("The note above
+  that says ... describes this change") with the source, and the registry is
+  refused if the note stops saying it.
+- **The series notes.** `peers build` takes `--reporting-changes FILE`
+  (required; the window's Peers step has the field; the book's new required
+  key `reporting_changes`, null only for a book with no Call Report series).
+  Every file it writes carries a `# reporting-change:` line for each change
+  touching its product and measure within its quarters, so Sources shows it
+  as "Reporting change". The Run tab names the file, the count and its
+  SHA-256.
+- **The table.** The book's workbook has a **Reporting changes** tab after
+  Sources, on the reference-tab template: the registry's own words on what it
+  leaves out, then one row per change (Change, Took effect, Products touched,
+  Measures touched, Call Report items, What changed, Source document). Every
+  heading, the tab and "Reporting change" have Glossary entries, with a test.
+- **The charts.** Carried as one more series of the kind each chart already
+  has, no new machinery. Decide: a diamond along the top of the rating zones
+  in each quarter a change took effect for the row shown, read from its
+  series files' notes, within the window. Peers: a diamond on the pack
+  composite, charge-offs (product and rate picked) and delinquency (product
+  and measure picked), in the legend as "Reporting change". No diamond where
+  the composite has no rate (the test data's other consumer composite is
+  blank in 2011Q1, so the auto split shows no diamond there).
+
+**Left out of the registry, and why** (also in its `_what`): the proposed
+2025 modification-reporting change (final notice not found, NOT CHECKED);
+FAS 141(R) in 2009 (an accounting change the agencies declined to add to
+the report); the 2018 FFIEC 031 scope rule (names no loan category, which
+roster banks switched was not checked); ASC 842 in 2019 (no loan item
+changed); the 2020 drawdowns and PPP (not reporting changes; question 15 is
+open). The 2013Q2 consolidated real estate breakdown is labelled on the
+commercial items only: the record names construction, multifamily, nonfarm
+and farmland, not 1-4 family.
+
+**Proof.** Each test file run on its own (a Python 3.13 environment with
+`openpyxl` and `formulas`): `test_reporting_changes.py` (new) 40 passed: the
+registry in the repository, 18 malformed entries refused by name, every
+problem listed at once, the notes on an affected and an unaffected series
+(other consumer carries the NDFI revision, card does not; 30-89 carries the
+deferrals, nonaccrual does not), a spread change touching a series that
+holds any of its quarters, the link instead of a repeat, Sources, Decide's
+marker recalculated (2020Q1 in the last 48 quarters, 2010Q1 too on every
+quarter, nothing on two rows shown or on mortgage), the book's key and tab.
+`test_peers_workbook.py` 66 passed (the Peers markers recalculated, card net
+2008Q1, 2010Q1 and 2020Q1 where the composite has a rate; card 90+ accruing
+2020Q1 and 2020Q2, nonaccrual 2020Q1 only). `test_peers_cli.py` 125 passed,
+1 skipped, 2 failed: `test_the_regionals_pack_and_no_exemption` and
+`test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out` fail the same
+on `threshold-engine-book` as it stands (checked in a clean worktree), from
+the 15 Oct pack picker, not this work. `test_peers_into.py` and
+`test_peers_dashboard.py` 39 passed (the series files byte for byte the same
+under the old and new peer workbook builders). `test_decide.py` 31 and
+`test_workbook.py` 71 passed. `test_book.py`, `test_app.py`,
+`test_launcher.py`, `test_peers_books.py` 184 passed, 4 skipped (Windows and
+window-only). `test_internal_tab.py` and `test_peer_loan_classes.py` 25
+passed; two internal-tab book tests failed before this work too (their test
+book lacked `loan_classes`), fixed with the new key.
+
+- **Got wrong, corrected:** a test first assumed the other consumer
+  composite has a rate in 2011Q1; in the test data it does not, so there is
+  no diamond to draw, and the test now says so.
+
+**Not done.** Not opened in Excel, and the walkthrough was not re-run: the
+diamonds, the tab's layout and the Sources rows are proved by the tests and
+`formulas`, not seen. The book was not built against the real FDIC cache
+(none on this machine), so no consumer series file from real data was read.
+The window's new field was not opened (no display here; the three window
+tests skip). The complete suite was not run in one go. The Peers chart notes
+do not mention the diamond: each note has one 140-character line and it is
+full; the legend and the Glossary carry it.
+
+## 16 October 2026, evening: the commercial data layer
+
+The data every answer to the commercial proposal's open decisions needs, and
+nothing that depends on them: no commercial book file, no segment choice, no
+settings. On `commercial-build`.
+
+- **Six commercial products** that `peers pull` and `peers build` know,
+  beside the consumer five (`books.COMMERCIAL`, `delinquency.FIELDS`): C&I
+  (LNCI; DRCI, CRCI year to date; P3CI, P9CI, NACI), construction
+  (LNRECONS ...), multifamily (LNREMULT ...), nonfarm nonresidential
+  (LNRENRES ...) and its owner-occupied (LNRENROW ...) and other (LNRENROT
+  ...) splits. Every field is one `docs/commercial-2026-10/research-fdic.md`
+  (on main) confirmed; the first-filed quarters are in `delinquency.py`.
+  Built exactly as the consumer products are: year-to-date differencing,
+  the repeated year-to-date and push-down fixes, the jump, the acquisition
+  share, pro forma.
+- **A blank commercial field is not filed, never 0.** The consumer products
+  keep the earlier build's reading (blank = 0), which their tie-outs
+  reproduce; commercial has no earlier build. A bank-quarter with a blank
+  field is out of the bank's book, with its own reason ("a field of the
+  product is not filed (blank) in this window", read over the quarters the
+  jump test reads, i-5 to i) and out of the industry. Read as 0, the splits'
+  2006 quarters would have been a book of 0, 2007Q1 a "jump", and the
+  industry would have written windows over balances of 0.
+- **The 2007 splits: labelled, not started at 2008Q1.** The code's own
+  pattern is the label (card before 2010, other consumer before 2001), so
+  every split series says: 2,925 to 3,044 filers filed the split as 0 and 0
+  in 2007 ($20.1bn to $27.0bn of nonfarm loans), none from 2008Q1, so the
+  industry in 2007 and its windows through 2008Q3 leave those loans out; TFR
+  filers never filed it (838, $64.1bn at 2007Q1; 655 blank at 2011Q4, 17
+  from 2012Q1). Measured on the cache, call forms read from the API.
+- **17 filers on CALLFORM 2** (names of foreign banks) file balances and no
+  charge-off, past-due or nonaccrual field in any quarter since 2006
+  ($77.6bn of C&I at 2026Q2): in no commercial series, said on each.
+- **The reporting-change registry** names the commercial products its
+  entries' own Call Report items touch (none for the 2010 NDFI line, which
+  its source says came out of other loans, not C&I); the 2007Q1 split change
+  links to the splits' "first filed 2007Q1" note.
+- **Fixed on the way:** the peer workbook refused a build of the six (its
+  one-line not-built note listed every product and did not fit); it now
+  counts them when the names do not fit. The window and the internal import
+  keep the consumer five.
+- **Run for real** (cache outside the repository): pull 2006Q1-2026Q2 with
+  `--delinquency yes --mergers 2005-01-01`; build with the consumer book's
+  rule settings, stated as the consumer book's, from 2006Q1 and from 2005Q1
+  (KeyBank's 2006Q4 window needs 2005Q4). The stress table and the Fed
+  comparison are in `docs/commercial-2026-10/stress-tool-rules.md`, every
+  command written out.
+
+**What it found.** Industry within 0.034 points of the as-filed table in
+every segment (0.03 or less on every figure but C&I nonaccrual's worst quarter;
+corrected 17 Oct, the first wording said 0.03 throughout); the C&I gap is the 17 no-flow filers' balances (checked:
+3.1664% with them is the as-filed 3.166%). KeyBank nonaccrual unchanged.
+KeyBank's C&I charge-off series as the workbook would read it is **two
+quarters**: the December 2024 NDFI move (28.6% of its C&I) trips the 25%
+jump for 2024Q4-2025Q4. Over every kept quarter its largest z is 16.4 (2006Q4
+on) and 3.0 (2014Q1 on), against 13.0 and 4.1 as filed. Multifamily's z is
+still in the hundreds. FDIC against the Fed's four-quarter means, 2006Q4 on:
+C&I mean +0.030, largest 0.178 (2010Q1); CRE mean -0.013, largest 0.094
+(2009Q4).
+
+**Proof.** `test_peers_commercial.py` (new): 14 passed, on a fixture taken
+from the real pull (KeyBank, JPMorgan, a TFR filer, a CALLFORM 2 filer, a
+filer that filed the split as 0, 2006Q3-2008Q2), the rates checked against
+arithmetic on the fixture, with the consumer reading shown to give the wrong
+reason. Each file run on its own: peers books 54, delinquency 39, analyses
+33, fdic 45, combinations 36, roster 23, loan classes 6, internal 92,
+reporting changes 40, peers workbook 66, peers into 30, peers dashboard 9,
+internal tab 19, book 16, app 4: all passed. `test_peers_cli.py` 125 passed,
+1 skipped, 2 failed: the same two that fail on the commit before this work
+(checked again today in a detached worktree of 32ce97e4, since removed).
+Also run, after the change: launcher 110 passed, 4 skipped (the window; the
+product test now says it offers the consumer five), compare 6, workbook 71,
+decide 31, synthesis 22, templates 77, workbook synthesis 44. The complete
+suite was not run in one go.
+
+**Not done.** No build before 2005: the 1991Q1-2005Q4 quarters were pulled
+(the pull needed nothing new), but the merger record since 1990 is refused on
+four rows with change codes 213 ("Merger - Assisted") and 225 ("Partial
+Purchase & Assumption - Without Assistance"), which are on neither of
+`fdic.py`'s lists; what they mean is the firm's call. Whether the jump should
+read the December 2024 NDFI move as a book move is the firm's call too;
+nothing was changed. The peer workbook and the series were not opened in
+Excel. The peer dashboard still says "consumer book" in two places. The
+window does not offer the commercial products. The industry delinquency
+effect of the 2007 zero-filed split was not measured.
+
+## 17 October 2026, review fixes to the commercial data layer
+
+A review of the branch raised eight findings. Each was reproduced before it
+was fixed, and each fix has a test in `test_peers_commercial.py` that failed
+before the fix (8 new tests, all red first, for the reason the finding gave).
+
+- **First window marked not filed by the last quarter** (raised twice).
+  `bank_book`'s not-filed test read `range(i - 5, i + 1)`. For the first window
+  that range starts at -1, which Python reads as the last quarter. Now
+  `max(0, i - 5)`.
+- **A 0 where the balance is not filed.** A window with a not-filed quarter
+  among its own four now has no `avg_balance`. Before, a bank that never
+  filed the split showed 0, and KeyBank's owner-occupied 2007Q3 showed three
+  filed balances divided by four (3,244,472) in the Data tab's column G,
+  which the balance charts read. A window where only the quarters the jump
+  test reads (i-5, i-4) are blank keeps its average. `balance_path` now
+  says when an average is missing, rather than failing.
+- **A summed industry written where one of its products was not filed.**
+  `industry` now gives a quarter a flow only if every product in the sum has
+  a filer. Before, any one product was enough. On the real cache (2005Q1 to
+  2026Q2), C&I plus owner-occupied lost the eight windows 2005Q4 to 2007Q3,
+  which had been C&I alone. The CRE sum is unchanged.
+- **Balance kept where the flow was dropped.** In the quarter after a filer
+  left a field blank, its flow was out of the industry but its balance was
+  in. Now both are out (`_counted`). On the real cache this moves 20
+  owner-occupied and 20 other nonfarm windows by at most 0.0010 and 0.0018
+  points. C&I, construction, multifamily and nonfarm are unchanged. **Not
+  changed:** a filer missing from the previous quarter altogether still has
+  its balance counted and its flow left out. That is the earlier build's rule
+  for every product, consumer included, and it was not part of the finding.
+- **An absorbed book that was not filed was read as no book.**
+  `acquired_quarters` now lists the quarter when an absorbed bank's last
+  filing leaves the commercial balance blank, because its share cannot be
+  shown to be under the threshold. The window's reason still reads "an
+  acquisition brought in at least the acquisition share". For these
+  quarters that is stronger than what is known. A separate label would need
+  a new argument through `bank_book` and delinquency, and was not added.
+- **Wrong denominator in the industry notes.** A commercial industry note
+  said "every filer in the cache (4313 in 2026Q2)", but 17 of those file no
+  flow field. Charge-off notes now count the filers whose figures are in
+  the sums (`industry_filers`). Delinquency notes use the industry's own
+  `banks`. On the real cache that is 4,296 of 4,313 for all six commercial
+  products and the CRE sum. Where every filer counts, the wording is
+  unchanged.
+- **2013Q2 real estate breakdown too narrow.** 78 FR 30922 was fetched again
+  today. It says "the nine-category breakdown of loans secured by real
+  estate for the consolidated institution". Three of the nine are 1-4 family
+  (1.c(1), 1.c(2)(a), 1.c(2)(b), recorded in `docs/INTERNAL-IMPORT.md`), so
+  the entry now also labels mortgage and home equity. The 16 Oct entry above
+  ("labelled on the commercial items only ... not 1-4 family") read the
+  research table's category column and not its event text. It was wrong,
+  and it is left in place as written. Whether the FDIC's fields moved is NOT
+  CHECKED, for the 1-4 family lines as for the others.
+
+**Proof.** Each file run on its own (uv, Python 3.13, openpyxl 3.1.5,
+formulas): peers commercial 22, peers books 54, combinations 36, delinquency
+39, analyses 33, peers into 30, peers dashboard 9: all passed. `test_peers_cli.py`:
+125 passed, 1 skipped and 2 failed. The two failures are the same two that
+fail on the commit before these fixes; this was checked today in a detached
+worktree, since removed. Peers workbook: 66 passed, after re-running two
+chart-XML tests with `OPENPYXL_LXML=False`. This machine has lxml, which
+writes `<x/>` where the tests expect `<x />`. Reporting changes: 40
+passed, run with `OPENPYXL_LXML=False`. Before the expectations were
+updated, three tests failed: the registry's product list and mortgage's
+notes, which this change moves on purpose, and the same lxml chart-XML
+difference. The complete suite was not run.
+
+**The review's minor findings, 17 Oct.** Five of the six were fixed, each with
+a test:
+- The registry refuses a line break of any kind (`\r`, U+2028 as well as `\n`)
+  in a name, a sentence or a citation, since a series note is split into
+  lines.
+- A source's address must start `https://`, as its refusal already said.
+- A folder or a file that is not UTF-8, named as the registry, is refused
+  by name instead of crashing.
+- A summed industry series says each definition note once.
+- The stress table's "within 0.03 points" is corrected to 0.034: C&I
+  nonaccrual's worst quarter differs by that much.
+
+Left as found: the 2008Q1 completion of the owner-occupied split is not a
+registry entry. The FDIC's own LNRENROW definition records it, but it is a
+coverage change in the 2007 filings, not a revision, and the split series
+already say so in their notes. `test_reporting_changes.py` and
+`test_peers_commercial.py`: 67 passed. The new duplicate-note assertion was
+not run against the code before its fix.
+
 ## 17 October 2026: combined products, All consumer and Credit card + Other consumer
 
 The analyst: *"can we do a composite of all loans as a top line to select

@@ -20,7 +20,8 @@ def filing(q, cert="1", **amounts):
 
 
 def test_members():
-    assert books.members(books.ALL) == list(books.PRODUCTS)
+    assert books.members(books.ALL) == list(books.CONSUMER)          # the consumer five, never commercial
+    assert "C&I" not in books.members(books.ALL)
     assert books.members(CARD_OTHER) == ["Credit card", "Other consumer"]
     assert books.members("Auto") == ["Auto"]
     for bad in ("Credit card + Credit card", "Credit card + Boats", "Credit card+Auto", "credit card", "", None,

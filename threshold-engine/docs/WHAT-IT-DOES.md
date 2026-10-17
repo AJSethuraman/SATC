@@ -194,6 +194,18 @@ Public FDIC Call Report data for KeyBank and a 16-bank roster
 | `peers pull --delinquency yes` | Also the 30-89, 90+ accruing and nonaccrual fields per product. A cache pulled without them is refused by name for a delinquency build |
 | `peers build` (`books.py`, `analyses.py`, `delinquency.py`, `peers_workbook.py`, through `run.py`) | Reads the cache only. Per bank, product and quarter: TTM gross and net charge-off rates, with a window left out when the book moved more than the stated jump, when that quarter's recorded acquisitions brought in at least the stated acquisition share of the book, or when it was under the stated minimum. Where a bank absorbed another under the same parent, the absorbed bank's year-to-date, which the survivor's filing repeats, is taken off, so no dollar counts twice (the industry series included). Writes the peer workbook and, per product, `date,value` CSVs the main workbook reads: pack composite, pack median, KeyBank, industry, and each peer's own book under `banks/`. A year-to-date that restarts mid-year under a new parent (push-down accounting) is read as that quarter's flow, not differenced. Other consumer's balance is RC-C 6.b + 6.d; card quarters before 2010 are labelled as excluding securitized cards |
 
+**Products.** The consumer five (credit card, mortgage, home equity, other
+consumer, auto) and, from 16 Oct 2026, six commercial ones on the command
+line: C&I, construction, multifamily, nonfarm nonresidential, and its
+owner-occupied and other splits (`books.COMMERCIAL`, every field from
+`docs/commercial-2026-10/research-fdic.md`). They are built by the same
+rules, with one difference: a blank commercial field is not filed, never
+0, so a bank-quarter with one is left out of the bank's book (`a field of
+the product is not filed`) and of the industry, and the splits begin in
+2007Q1 rather than as years of zeros. Each commercial series' notes say what
+the product is and what the industry leaves out. The window still offers
+the consumer five only.
+
 With `--delinquency yes` it also writes, per product, measure and basis,
 the delinquency CSVs for the pack composite, KeyBank and the industry: 150
 for five products. Every rule is a required flag (`peers build --help`
@@ -253,6 +265,24 @@ row names them (`avg4_left_out`), the CSV notes list them by bank and
 quarter, and DelinquencyData marks them in its last column. The Glossary's
 **Left out, and why** rows list every reason a number is kept out, one row
 each, and where each is recorded.
+
+## Reporting changes (`reporting_changes.py`, `config/reporting-changes.json`)
+
+The firm, 16 Oct 2026: *"Definitely mark reporting changes."* Every change
+to the Call Report's definitions or forms is labelled on every series it
+touches, in the quarter it took effect.
+
+| Part | What it does |
+|---|---|
+| The registry | One entry per change: first and last quarter it took effect (2024Q4 to 2025Q2 for the NDFI and margin-loan revision, reported on a best-efforts basis), the products and measures it touches, the Call Report items (for commercial later), one sentence of what changed, and its sources with their addresses. Twelve changes, each marked verified in `docs/commercial-2026-10/` (on main). Every key required; a malformed entry is refused by name, every problem at once |
+| `peers build --reporting-changes FILE` | Required. Every series file gets a `# reporting-change:` note for each change touching its product and measure within its quarters, so the Sources tab shows it. A change the product's own definition note already says (securitized cards before 2010, auto inside other consumer until 2011) points to that note instead of saying it twice. The Peers charts (charge-offs, delinquency) draw a diamond on the pack composite in each quarter one took effect for the product and measure picked |
+| The book's `reporting_changes` key | Required: the registry, or null for a book with no Call Report series (refused with a peers section). Given to the peers build, and written whole on the **Reporting changes** tab (after Sources), each heading in the Glossary. Decide's chart draws a diamond along the top of the zones in each quarter a change took effect for the row shown, read from its series files' notes |
+
+**What proves it:** `tests/test_reporting_changes.py` (the registry and each
+refusal, the notes on affected and unaffected series, Sources, Decide's marker
+recalculated with `formulas`, the tab); `tests/test_peers_cli.py` (the notes
+on the files `peers build` writes); `tests/test_peers_workbook.py` (the Peers
+markers recalculated). Not opened in Excel.
 
 ## Templates for internal data (`templates.py`, command `template`)
 

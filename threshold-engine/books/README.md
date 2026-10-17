@@ -108,6 +108,10 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
   series' own lines) and **Assess** follow Decide; nothing is typed there.
 - The **Peers** tabs: KeyBank against the 15 banks, as `peers build` writes
   them.
+- **Reporting changes**: every change to the Call Report the workbook labels
+  (`config/reporting-changes.json`), with its source. Each series it touches
+  says so on Sources, and the charts on Decide and Peers mark the quarters
+  with a diamond.
 
 No macros: the buttons are Excel slicers, which banks allow.
 

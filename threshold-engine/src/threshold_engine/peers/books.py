@@ -4,9 +4,13 @@ Call Report rows. docs/PEERS-SPEC.md, "books.py", is the contract.
 Input is ``{REPDTE: [rows]}`` as ``fdic.pull`` returns it: one list of rows per
 quarter-end (``YYYYMMDD``), each row a dict with ``CERT``, ``REPDTE`` and the
 fields. Amounts are $ thousands. Charge-offs (``DR*``) and recoveries
-(``CR*``) are year-to-date; balances (``LN*``) are quarter-end. A field filed
-as blank counts as 0, as the earlier build counted it; a bank with no row in a
-quarter is missing, never 0.
+(``CR*``) are year-to-date; balances (``LN*``) are quarter-end. For the
+consumer products a field filed as blank counts as 0, as the earlier build
+counted it. For the commercial products (``COMMERCIAL``, 16 Oct 2026) there is
+no earlier build to reproduce, so a blank field is **not filed**, never 0, as
+``delinquency.py`` reads every field: the bank-quarter has no balance and no
+flow for that product (``NOT_FILED``, ``filed_amount``). A bank with no row in
+a quarter is missing, never 0.
 
 The rule, as ``build_peers.py`` applied it (6 Oct 2026):
 
@@ -50,7 +54,7 @@ from ..profile import percentile
 #: (RC-N 5.c) both include those plans: 6.d alone left the numerator covering
 #: more loans than the denominator (the firm, 13 Oct 2026: "Yes, fix it").
 #: KeyBank, 30 Jun 2026: 4,200,208 + 268,825 = 4,469,033.
-PRODUCTS = {
+CONSUMER = {
     "Credit card": ("LNCRCD", "DRCRCD", "CRCRCD"),
     "Mortgage": ("LNRERSFM", "DRRERSFM", "CRRERSFM"),
     "Home equity": ("LNRELOC", "DRRELOC", "CRRELOC"),
@@ -58,7 +62,35 @@ PRODUCTS = {
     "Auto": ("LNAUTO", "DRAUTO", "CRAUTO"),
 }
 
-#: A combined product: ``ALL`` (every product above) or two or more of them
+#: The commercial products, 16 Oct 2026: (balance, gross charge-offs YTD,
+#: recoveries YTD). Every name is one docs/commercial-2026-10/research-fdic.md
+#: (on main) confirmed four ways: in the FDIC's definitions files, returning
+#: values from the live API, NT = DR - CR in every KeyBank and JPMorgan
+#: quarter, and the categories adding up to LNLSGR. The DR and CR fields are
+#: year to date, as the consumer ones are; the FDIC's quarterly versions
+#: (DRCIQ and so on) are FDIC-computed and differ in merger quarters, so they
+#: are not read. The real estate items are domestic offices; C&I (LNCI) is
+#: the whole bank, U.S. and non-U.S. addressees. First quarter any filer
+#: files them: balances 1984Q1; C&I charge-offs 1984Q1; real estate
+#: charge-offs 1990Q1; the two nonfarm nonresidential splits 2007Q1.
+COMMERCIAL = {
+    "C&I": ("LNCI", "DRCI", "CRCI"),
+    "Construction": ("LNRECONS", "DRRECONS", "CRRECONS"),
+    "Multifamily": ("LNREMULT", "DRREMULT", "CRREMULT"),
+    "Nonfarm nonresidential": ("LNRENRES", "DRRENRES", "CRRENRES"),
+    "Owner-occupied nonfarm nonresidential": ("LNRENROW", "DRRENROW", "CRRENROW"),
+    "Other nonfarm nonresidential": ("LNRENROT", "DRRENROT", "CRRENROT"),
+}
+
+#: Every product the peers pull and build know: the consumer five, then the
+#: commercial six.
+PRODUCTS = {**CONSUMER, **COMMERCIAL}
+
+#: The filed fields whose blank is not filed, never 0: every commercial
+#: product's. The consumer fields keep the earlier build's reading.
+NOT_FILED = frozenset(f for names in COMMERCIAL.values() for n in names for f in n.split("+"))
+
+#: A combined product: ``ALL`` (the consumer five) or two or more of them
 #: joined by ``JOIN`` ("Credit card + Other consumer"). Its balance,
 #: charge-offs and recoveries are its parts' filed fields added together
 #: before any rate is taken, so its rate is dollar-weighted and every rule
@@ -71,13 +103,14 @@ JOIN = " + "
 
 
 def members(product) -> List[str]:
-    """The products ``product`` is made of: itself, every product for
-    ``ALL``, or the names joined by ``JOIN``. Anything else is refused."""
+    """The products ``product`` is made of: itself, the consumer five
+    (``CONSUMER``) for ``ALL``, or the names joined by ``JOIN``. Anything else
+    is refused."""
     if isinstance(product, str):
         if product in PRODUCTS:
             return [product]
         if product == ALL:
-            return list(PRODUCTS)
+            return list(CONSUMER)
         names = product.split(JOIN)
         if len(names) >= 2 and len(set(names)) == len(names) and all(n in PRODUCTS for n in names):
             return names
@@ -119,6 +152,39 @@ DEFINITIONS = {
                        "was inside 6.d until 2011Q1, when it got its own line (6.c)."),
 }
 
+#: Said on every commercial series. Measured on the peers cache pulled 16 Oct
+#: 2026 (1991Q1 to 2026Q2); the call forms and names from the FDIC API that day.
+NOT_FILED_NOTE = ("A blank field is not filed, never 0: a bank that left one blank is left out of that quarter, "
+                  "its book and the industry's alike. In every quarter from 2006, 17 or 18 filers file no "
+                  "charge-off, past-due or nonaccrual field, so they are in no commercial series: at 2026Q2, "
+                  "17 filers on CALLFORM 2 whose names are foreign banks', with $77.6bn of C&I and $8.8bn of "
+                  "nonfarm nonresidential.")
+_SPLIT = ("{what} is RC-C {item} ({field}), first filed 2007Q1: before it every filer leaves it blank, which is "
+          "not filed, so nothing is written before then. In 2007Q1 to 2007Q4, 2,925 to 3,044 filers with "
+          "nonfarm nonresidential loans filed both parts of the split as 0 ($20.1bn to $27.0bn of those loans; "
+          "the FDIC's definition of LNRENROW: before March 2008 a memoranda item for filers that met specific "
+          "criteria); from 2008Q1 none did. The industry series counts them as filed, so in 2007, and in its "
+          "four-quarter windows holding a 2007 quarter (through 2008Q3), it leaves those loans out: labelled, "
+          "not dropped. Savings institutions filing the TFR (CALLFORM 100) never filed the split (838 filers, "
+          "$64.1bn of nonfarm nonresidential loans at 2007Q1; the FDIC: \"not available for TFR Reporters\"): "
+          "blank for 655 filers at 2011Q4 and 17 from 2012Q1.")
+DEFINITIONS.update({
+    "C&I": ("C&I is RC-C 4 for the whole bank (LNCI: U.S. and non-U.S. addressees); the real estate products "
+            "are domestic offices. The FDIC's definitions say that for banks with assets under $300 million "
+            "C&I charge-offs and recoveries (DRCI, CRCI) include all other loans (NTCI's says before 2001), "
+            "and so do the past-due and nonaccrual items (P3CI, P9CI, NACI); whether that holds after 2001 "
+            "was not checked. " + NOT_FILED_NOTE),
+    "Construction": ("Construction is RC-C 1.a (LNRECONS), construction and land development, domestic "
+                     "offices, 1-4 family and other together. " + NOT_FILED_NOTE),
+    "Multifamily": "Multifamily (LNREMULT) is loans secured by 5 or more dwelling units, domestic offices. " + NOT_FILED_NOTE,
+    "Nonfarm nonresidential": ("Nonfarm nonresidential is RC-C 1.e (LNRENRES), domestic offices, owner-occupied "
+                               "and other together. " + NOT_FILED_NOTE),
+    "Owner-occupied nonfarm nonresidential": _SPLIT.format(what="Owner-occupied nonfarm nonresidential",
+                                                           item="1.e(1)", field="LNRENROW") + " " + NOT_FILED_NOTE,
+    "Other nonfarm nonresidential": _SPLIT.format(what="Other nonfarm nonresidential", item="1.e(2)",
+                                                  field="LNRENROT") + " " + NOT_FILED_NOTE,
+})
+
 WHY_JUMP = "book moved more than the jump in this window"
 WHY_ACQUIRED = "an acquisition brought in at least the acquisition share in this window"
 
@@ -127,6 +193,8 @@ WHY_ACQUIRED = "an acquisition brought in at least the acquisition share in this
 PARENT = "RSSDHCR"
 WHY_SMALL = "book under the minimum"
 WHY_MISSING = "a quarter is missing"
+#: A commercial product's field left blank by a bank that filed the quarter.
+WHY_NOT_FILED = "a field of the product is not filed (blank) in this window"
 
 _QUARTER_ENDS = ("0331", "0630", "0930", "1231")
 
@@ -200,6 +268,26 @@ def _num(row: dict, field: str) -> float:
     return x
 
 
+def _blank(value) -> bool:
+    return value is None or value == ""
+
+
+def filed_amount(row: dict, field: str) -> Optional[float]:
+    """``_num``, except that a blank ``NOT_FILED`` field (or a blank part of a
+    sum) is None: not filed. A consumer field's blank stays 0."""
+    if any(f in NOT_FILED and _blank(row.get(f)) for f in parts(field)):
+        return None
+    return _num(row, field)
+
+
+def not_filed(row: dict, product: str) -> Optional[str]:
+    """The first of ``product``'s fields this filing leaves blank where a
+    blank is not filed (``NOT_FILED``), or None. Always None for a consumer
+    product, whose blanks count as 0."""
+    return next((f for n in _fields(product) for f in parts(n)
+                 if f in NOT_FILED and _blank(row.get(f))), None)
+
+
 def _at_least(name: str, value, low) -> None:
     """Refuse a judgement setting below its floor (NaN is refused too)."""
     if isinstance(value, bool) or not value >= low:
@@ -245,7 +333,8 @@ _RESTARTED = "_restarted"
 def _ytd_fields(row: dict, prev: dict) -> List[str]:
     """The year-to-date fields (charge-offs ``DR*``, recoveries ``CR*``) both
     filings carry."""
-    return [k for k in row if k[:2] in ("DR", "CR") and k in prev]
+    return [k for k in row if k[:2] in ("DR", "CR") and k in prev
+            and not (k in NOT_FILED and (_blank(row[k]) or _blank(prev[k])))]
 
 
 def restarted(row: dict, prev: dict) -> bool:
@@ -292,6 +381,10 @@ def _flows(qs, snap, cert, product: str) -> List[tuple]:
     for i, q in enumerate(qs):
         r = snap[q].get(cert)
         p = snap[qs[i - 1]].get(cert) if i and _follows(qs[i - 1], q) else None
+        if r and not_filed(r, product):
+            r = None                    # the product not filed: no balance, no flow
+        if p and not_filed(p, product):
+            p = None                    # no year to date to measure this quarter's flow from
         bal = _num(r, ln) if r else None
         if r and q[4:6] == "03":
             out.append((q, _num(r, dr), _num(r, cr), bal))
@@ -404,6 +497,17 @@ def members_by_quarter(data: Dict[str, list], members: Sequence[Tuple[str, str]]
     return out
 
 
+def _blank_quarters(data: Dict[str, list], cert, product: str,
+                    members: Sequence[Tuple[str, str]] = ()) -> List[bool]:
+    """Per quarter-end in the data, True when the bank, or one of its
+    ``members`` up to its ``until``, filed that quarter but left a field of
+    ``product`` blank where a blank is not filed (``not_filed``)."""
+    qs, snap = _by_cert(data)
+    who = [(str(cert), None)] + [(str(b), u) for b, u in members]
+    return [any(c in snap[q] and (u is None or q <= u) and bool(not_filed(snap[q][c], product))
+                for c, u in who) for q in qs]
+
+
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
               exempt_min_book: bool = False, *, acquired: Iterable[str],
               members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
@@ -421,7 +525,15 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     acquisition, minimum, missing. Ahead of all of them, a window whose
     quarters i-4 to i are not consecutive quarter-ends in the data is missing:
     neither the jump nor a TTM can be measured across a quarter the data does
-    not hold.
+    not hold. Next, for a commercial product, a window is not filed
+    (``WHY_NOT_FILED``) when, in any quarter its jump test reads (i-5 to i:
+    the move into i-4 is measured from i-5), the bank or a bank added pro
+    forma filed but left a field of the product blank: a blank is not a 0,
+    so neither the jump nor the TTM can be measured over it. Quarters before
+    the first in the data are not read (for the first window, i-5 is one).
+    Where one of the window's own four quarters (i-3 to i) is not filed,
+    ``avg_balance`` is None too: the balance is not known, and three filed
+    balances over four, or a 0, would be a figure nobody filed.
 
     ``acquired`` is this bank's quarter-ends (``YYYYMMDD``) in which recorded
     acquisitions brought in at least the acquisition share of its book
@@ -438,6 +550,7 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     acquired = set(acquired)
     flows = combined_flows(data, cert, product, members)
     follows = _contiguous([q for q, _, _, _ in flows])
+    blank = _blank_quarters(data, cert, product, members)
     bal = [0.0 if b is None else b for _, _, _, b in flows]
     moved = [False] + [bool(a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0)
                        for a, b in zip(bal, bal[1:])]
@@ -445,13 +558,15 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     out = []
     for i in range(4, len(flows)):
         win = range(i - 3, i + 1)
-        avg = sum(bal[k] for k in win) / 4
+        avg = None if any(blank[k] for k in win) else sum(bal[k] for k in win) / 4
         unbroken = all(follows[k] for k in win)
         complete = unbroken and all(flows[k][1] is not None for k in win)
         g = sum(flows[k][1] for k in win) if complete else None
         rc = sum(flows[k][2] for k in win) if complete else None
         if not unbroken:
             why = WHY_MISSING
+        elif any(blank[k] for k in range(max(0, i - 5), i + 1)):
+            why = WHY_NOT_FILED
         elif any(moved[k] for k in range(i - 4, i + 1)):
             why = WHY_JUMP
         elif any(bought[k] for k in range(i - 3, i + 1)):
@@ -586,6 +701,8 @@ def without_repeats(data: Dict[str, list], repeats: Sequence[dict]) -> Dict[str,
             if k is None:
                 continue
             r = dict(out[q][k])
+            if rp["field"] in NOT_FILED and _blank(r.get(rp["field"])):
+                continue                    # not filed: nothing to take off
             r[rp["field"]] = _num(r, rp["field"]) - rp["amount"]
             r[_RESTARTED] = False           # raw_restart said no, for this quarter
             out[q][k] = r
@@ -603,8 +720,13 @@ def acquired_quarters(data: Dict[str, list], links: Sequence[dict], product: str
     and quarter, not bank by bank: eleven absorptions each under 5% can be
     16.5% together (PNC, 2007Q3, mortgage). An acquirer with no book the
     quarter before takes any book in as a whole one. An absorbed bank with no
-    filing in the data cannot be measured and is skipped. ``share`` is the
-    firm's judgement, required, and refused below 0."""
+    filing in the data cannot be measured and is skipped. An absorbed bank
+    whose last filing leaves a commercial product's balance blank
+    (``filed_amount``: not filed) brought in a book nobody filed: it is not
+    read as no book, so the quarter is listed, since its share cannot be
+    shown to be under ``share`` (for the owner-occupied split, every savings
+    institution on the TFR, which never filed it). ``share`` is the firm's
+    judgement, required, and refused below 0."""
     _at_least("share", share, 0)
     ln = _fields(product)[0]
     qs, snap = _by_cert(data)
@@ -618,11 +740,16 @@ def acquired_quarters(data: Dict[str, list], links: Sequence[dict], product: str
         a_prev = snap[before[-1]].get(acq)
         base = _num(a_prev, ln) if a_prev else 0.0
         brought = 0.0
+        unknown = False
         for b in absorbed:
             last = next((snap[p][b] for p in reversed(before) if b in snap[p]), None)
             if last is not None:
-                brought += _num(last, ln)
-        if brought > 0 and (base <= 0 or brought / base >= share):
+                amount = filed_amount(last, ln)
+                if amount is None:
+                    unknown = True
+                else:
+                    brought += amount
+        if unknown or (brought > 0 and (base <= 0 or brought / base >= share)):
             out.setdefault(acq, []).append(q)
     return out
 
@@ -710,6 +837,32 @@ def best_worst(books: Dict[str, List[dict]], certs: Sequence, kind: str,
     return best, worst
 
 
+def _counted(qs, snap, follows, i, cols) -> Dict[str, List[Tuple[str, str, str]]]:
+    """Per filer in quarter ``qs[i]``, the field names of the products in
+    ``cols`` whose figures are in the industry's sums that quarter: each
+    product it filed (``not_filed``), less, where the quarter's flow is
+    measured from the quarter before (not a Q1, and that quarter-end is in
+    the data), any it filed there as blank: that flow is out, so its balance
+    is out too. A filer absent the quarter before keeps its balance, as the
+    earlier build counted it."""
+    q = qs[i]
+    prev = snap[qs[i - 1]] if i and follows[i] and q[4:6] != "03" else {}
+    return {c: [f for p, f in cols if not not_filed(r, p) and not (c in prev and not_filed(prev[c], p))]
+            for c, r in snap[q].items()}
+
+
+def industry_filers(data: Dict[str, list], products: Sequence[str], quarter: str) -> int:
+    """How many filers in ``quarter`` (``YYYYMMDD``, in ``data``) have figures
+    of at least one of ``products`` in ``industry``'s sums that quarter: for
+    a consumer product every filer, for a commercial one each that filed it
+    (``_counted``). The denominator a series note states."""
+    cols = [(p, _fields(p)) for p in dict.fromkeys(products)]
+    qs, snap = _by_cert(data)
+    if quarter not in snap:
+        raise ValueError("%r is not a quarter in the data" % (quarter,))
+    return sum(1 for fs in _counted(qs, snap, _contiguous(qs), qs.index(quarter), cols).values() if fs)
+
+
 def industry(data: Dict[str, list], product: str,
              products: Optional[Sequence[str]] = None) -> List[dict]:
     """Per TTM quarter, the aggregate of every bank in ``data``:
@@ -726,35 +879,44 @@ def industry(data: Dict[str, list], product: str,
 
     A quarter with no filer at all has no flow (it is not a quarter of zero
     charge-offs), and neither has a later quarter measured from it; a window
-    that is not four consecutive quarter-ends is not written."""
+    that is not four consecutive quarter-ends is not written.
+
+    For a commercial product, a filer that left a field of it blank
+    (``not_filed``) is left out of that quarter's balance and flow, and out
+    of the next quarter's flow, which is measured from it, and so out of that
+    quarter's balance too: the denominator holds the banks whose flows are in
+    the numerator (``_counted``). A quarter in which no filer filed one of
+    the products has no flow, like a quarter with no filer at all, so a
+    product filed from 2007Q1 starts there and not as years of zeros, and a
+    sum of products starts where every one of them is filed, never as one of
+    them alone under the names of all."""
     names = []
     for p in [product] + list(products or ()):
         if p not in names:
             names.append(p)
-    cols = [_fields(p) for p in names]
+    cols = [(p, _fields(p)) for p in names]
     qs, snap = _by_cert(data)
     follows = _contiguous(qs)
 
-    def amount(row, which):
-        return sum(_num(row, c[which]) for c in cols)
-
-    def moved(row, prev, which):
-        return sum(flow(row, prev, c[which]) for c in cols)
+    def filed(rows):
+        rows = list(rows)
+        return all(any(not not_filed(r, p) for r in rows) for p, _ in cols)
 
     flows, bals = [], []
     for i, q in enumerate(qs):
         cur = snap[q]
-        bals.append(sum(amount(r, 0) for r in cur.values()))
-        if not cur:
+        counted = _counted(qs, snap, follows, i, cols)
+        bals.append(sum(_num(cur[c], f[0]) for c, fs in counted.items() for f in fs))
+        if not cur or not filed(cur.values()):
             g = rc = None
         elif q[4:6] == "03":
-            g = sum(amount(r, 1) for r in cur.values())
-            rc = sum(amount(r, 2) for r in cur.values())
-        elif follows[i] and snap[qs[i - 1]]:
+            g = sum(_num(cur[c], f[1]) for c, fs in counted.items() for f in fs)
+            rc = sum(_num(cur[c], f[2]) for c, fs in counted.items() for f in fs)
+        elif follows[i] and snap[qs[i - 1]] and filed(snap[qs[i - 1]].values()):
             prev = snap[qs[i - 1]]
             both = [c for c in cur if c in prev]
-            g = sum(moved(cur[c], prev[c], 1) for c in both)
-            rc = sum(moved(cur[c], prev[c], 2) for c in both)
+            g = sum(flow(cur[c], prev[c], f[1]) for c in both for f in counted[c])
+            rc = sum(flow(cur[c], prev[c], f[2]) for c in both for f in counted[c])
         else:
             g = rc = None
         flows.append((g, rc))
@@ -781,11 +943,17 @@ def balance_path(rows: Sequence[dict], quarters: int) -> Optional[str]:
     average balance at both ends, the change, and in how many of the
     quarters it fell. None when fewer quarters are held. It states the path
     and draws no line for what counts as a shrinking book: a rate rising
-    while the balance falls may be the balance, not the risk."""
+    while the balance falls may be the balance, not the risk. Where a
+    window among them has no average balance (a commercial field not filed,
+    ``bank_book``), the path is not stated, and the line says why."""
     _at_least("quarters", quarters, 2)
     if len(rows) < quarters:
         return None
     last = rows[-quarters:]
+    gaps = [r["quarter"] for r in last if r["avg_balance"] is None]
+    if gaps:
+        return ("Book: no four-quarter average balance in %s (a field of the product not filed), so its "
+                "path over the last %d quarters is not stated" % (", ".join(gaps), quarters))
     a, b = last[0]["avg_balance"], last[-1]["avg_balance"]
     fell = sum(1 for x, y in zip(last, last[1:]) if y["avg_balance"] < x["avg_balance"])
     change = "%+.1f%%" % (100 * (b / a - 1)) if a > 0 else "from none"
