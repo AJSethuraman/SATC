@@ -52,6 +52,8 @@ class UserError(Exception):
 
 Z95 = 1.959963984540054
 
+_COLUMN_KEYS = ("loan_id", "orig_date", "chargeoff_date", "first_90_date", "payoff_date", "dpd_asof", "net_revenue", "amount")
+
 STARTER = """\
 ; loan_survival.py settings. Lines starting with ; are comments. A comment has to be on its own line.
 ; Every section named [test: ...] runs as its own comparison.
@@ -331,6 +333,11 @@ def prepare(raw: pd.DataFrame, st: Settings):
     missing = [v for k, v in st.cols.items() if v not in df.columns]
     if missing:
         raise UserError(f"Mapped column(s) not found in file: {missing}\nColumns in file: {list(df.columns)}")
+    seen_col: dict = {}
+    for k, v in st.cols.items():  # one column standing in for two roles gives a valid-looking but wrong workbook
+        if v in seen_col:
+            raise UserError(f"The column '{v}' is mapped to both {seen_col[v]} and {k}. Each role needs its own column.")
+        seen_col[v] = k
 
     for key in ("orig_date", "chargeoff_date", "first_90_date", "payoff_date"):
         c = st.col(key)
@@ -762,6 +769,11 @@ def run(input_path: Path, settings_text: str | None = None, out_path: Path | Non
     raw = load(input_path)
     if settings_text is None:
         st.cols = {k: v for k, v in st.cols.items() if v in raw.columns}
+        # the log must show the mappings really used, so a copied log runs again as it is
+        st_text = "\n".join(
+            f"; not in this file: {line}" if re.match(r"^\s*(\w+)\s*=", line) and re.match(r"^\s*(\w+)", line).group(1) in _COLUMN_KEYS
+            and re.match(r"^\s*(\w+)", line).group(1) not in st.cols else line
+            for line in STARTER.splitlines()) + "\n"
 
     df, excluded = prepare(raw, st)
     date_cols = [st.col(k) for k in ("orig_date", "chargeoff_date", "first_90_date", "payoff_date") if st.col(k)]

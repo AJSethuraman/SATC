@@ -225,9 +225,15 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
 
     nxt = df.groupby(a.id_col)[["ym", "state"]].shift(-1)
     df["next_state"] = np.where(nxt["ym"] == df["ym"] + 1, nxt["state"], None)
-    gone = df["next_state"].isna() & (df["ym"] < last_month) & ~df["state"].isin(["Charged off", "Paid off"])
+    # a month missing in the middle is not an exit: the loan comes back later. Set those rows aside and list them;
+    # "Left file" is only for a loan with no later record at all.
+    terminal = df["state"].isin(["Charged off", "Paid off"])
+    interior_gap = nxt["ym"].notna() & (nxt["ym"] != df["ym"] + 1) & ~terminal
+    gap_rows = df[interior_gap].drop(columns=["ym", "state", "next_state"]).copy()
+    gap_rows.insert(0, "exclusion_reason", "a month is missing after this row (the loan has a later record)")
+    gone = df["next_state"].isna() & ~interior_gap & (df["ym"] < last_month) & ~terminal
     df.loc[gone, "next_state"] = "Left file (no status)"
-    pairs = df[df["next_state"].notna() & ~df["state"].isin(["Charged off", "Paid off"])]
+    pairs = df[df["next_state"].notna() & ~terminal]
 
     order_from = BUCKETS
     order_to = BUCKETS + ["Charged off", "Paid off", "Left file (no status)"]
@@ -248,6 +254,9 @@ def snapshot_mode(df: pd.DataFrame, a, as_of: pd.Timestamp):
     if len(unplaced):
         print(f"\n{len(unplaced):,} row(s) left out because a loan has a month_end that is blank or not a date (see Excluded).")
     unplaced = pd.concat([unplaced, twice_rows], ignore_index=True) if len(twice_rows) else unplaced
+    if len(gap_rows):
+        print(f"\n{len(gap_rows):,} row(s) left out because the loan has no record for the next month but comes back later (see Excluded).")
+        unplaced = pd.concat([unplaced, gap_rows], ignore_index=True)
     if len(twice_rows):
         print(f"\n{len(twice_rows):,} row(s) left out because a loan has two rows for the same month (see Excluded).")
     if len(no_id_rows):

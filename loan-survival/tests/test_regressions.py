@@ -467,3 +467,41 @@ def test_a_failed_write_leaves_the_existing_workbook_untouched(tmp_path, monkeyp
         ls.run(src, (ROOT / "sample" / "settings_example.ini").read_text(), out)
     assert out.read_bytes() == b"last month's report"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["book.csv", "report.xlsx"]   # no half-written leftovers
+
+
+# ---- eleventh Codex review of PR 445 (reviewed ffbb58c)
+
+def test_one_column_cannot_fill_two_roles():
+    import pytest
+    import loan_survival_gui as g
+    raw = pd.read_csv(ROOT / "sample" / "fake_book.csv")
+    st = ls.Settings("[columns]\norig_date = orig_date\nchargeoff_date = orig_date\n")
+    with pytest.raises(ls.UserError, match="both"):
+        ls.prepare(raw, st)
+    state = g.new_state()
+    state["cols"] = {"orig_date": "Open", "chargeoff_date": "Open"}
+    assert any("both" in p for p in g.validate_state(state))
+
+
+def test_a_missing_month_in_the_middle_is_not_an_exit():
+    rows = [dict(loan_id="L1", month_end=m, dpd=0) for m in ("2024-01-31", "2024-03-31")]            # no February
+    rows += [dict(loan_id="L2", month_end=m, dpd=0) for m in ("2024-01-31", "2024-02-29", "2024-03-31")]
+    sheets, used, excl = do.snapshot_mode(pd.DataFrame(rows), _args(dpd_col="dpd"), pd.Timestamp("2024-03-31"))
+    counts = sheets["RollCounts"].set_index("from (this month)")
+    assert "Left file (no status)" not in counts.columns or counts["Left file (no status)"].sum() == 0
+    assert used == 2
+    ex = sheets["Excluded"]
+    assert list(ex["loan_id"]) == ["L1"] and "missing" in ex["exclusion_reason"].iloc[0] and excl == 1
+
+
+def test_runlog_records_the_mappings_that_were_really_used(tmp_path):
+    src = tmp_path / "small.csv"
+    pd.read_csv(ROOT / "sample" / "fake_book.csv")[["loan_id", "orig_date", "chargeoff_date"]].to_csv(src, index=False)
+    out = tmp_path / "o.xlsx"
+    ls.run(src, None, out)
+    log = pd.read_excel(out, sheet_name="RunLog").fillna("")
+    text = "\n".join(log["value"].astype(str))
+    start = text.index("[data]")
+    logged = ls.Settings(text[start:])
+    assert set(logged.cols) == {"loan_id", "orig_date", "chargeoff_date"}   # not first_90_date, net_revenue and the rest
+    ls.run(src, text[start:], tmp_path / "again.xlsx")                        # and the logged text can be run again as it is

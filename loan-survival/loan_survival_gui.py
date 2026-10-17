@@ -272,6 +272,13 @@ def validate_state(state: dict) -> list[str]:
     for role, label, required in ROLES:
         if required and not state["cols"].get(role):
             problems.append(f"Pick the {label.lower()} column on the Columns tab.")
+    used: dict = {}
+    for role, label, _req in ROLES:
+        h = state["cols"].get(role)
+        if h and h in used:
+            problems.append(f"'{h}' is picked for both {used[h]} and {label.lower()}. Each role needs its own column.")
+        elif h:
+            used[h] = label.lower()
     if state["settings"]["bad_event"] == "earliest" and not state["cols"].get("first_90_date"):
         problems.append("'First 90+ or charge-off' needs the first 90+ date column on the Columns tab.")
     if state["as_of"]:
