@@ -3759,6 +3759,25 @@ changed in the code.
     bugs: 19 added, 9 repointed, 1 retired with the reading it planted into; all 46 that touch these lines caught.
     Full suite in 4 shards: 1,229 passed, 1 failed, 15 skipped; the failure was the bank checklist read before its
     count was moved to 72, rerun green. canon's voice check: 0 tells in 190 strings.
+  - Direction, a p-value column and an order for investigation (17 Oct 2026). The firm, on significantly better
+    pockets: direction labels, *"Yes, worse (p = 1.2%)"* and *"Yes, better (p = 0.08%)"*, Borderline and No as they
+    are, and *"this is fine but i want it sorted in a sensical manner for investigation and slicers that get added
+    would need to adapt i guess"*. **The layout changed from what the firm saw** (one cell, "Yes (p = 1.2%)"): the
+    category and the p-value now sit in two columns, so a filter or slicer on either sees few values.
+    *Significant at N%?* holds Yes, worse / Yes, better / Borderline / No / Too few losses to test / Nothing to
+    compare with / Not losing more / Mixed with (column); **p-value**, right beside it, holds the number, formatted
+    `[<0.0001]"< 0.01%";[<0.01]0.00%;0.0%`, with conditional formats for none from 10% and for a value that would
+    show as the line (more decimals, then "< 10%"); the side is the gap's against its comparison. Excel's filter
+    arrows now cover every heading on Pockets. The rows come in seven groups as of the last Run: Yes, worse;
+    Borderline losing more; No losing more; no test; No losing less; Borderline losing less; Yes, better; each by
+    its excess, largest first, so the most-better pocket is last. The old "losing more only against the other
+    comparison comes last" falls out of it (those pockets lose less against the comparison that decides); a split
+    pocket whose grid doesn't hold the partner fixed now sits in the no-test group rather than last. On the example
+    book, GCOs ($): 41 rows, groups 7 / 1 / 22 / 2 / 7 / 1 / 1; Bad loans 44, 6 / 0 / 25 / 2 / 9 / 0 / 2. The
+    Glossary gains the p-value column's row (73 terms, 69 without a charge-off date). Tests: 13 in
+    `tests/test_significant_columns_2026_10_17.py`, all failing first; the format choice is checked rule by rule in
+    LibreOffice against Python. Planted bugs: 12 added and the rest on these lines repointed, 58 of 58 caught.
+    Full suite in 4 shards: 1,241 passed, 1 failed (a heading list one column short, fixed and rerun), 15 skipped.
 
 ## 7 · Standing rules for new items
 

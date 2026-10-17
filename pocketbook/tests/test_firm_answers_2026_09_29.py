@@ -1383,13 +1383,13 @@ def test_borderline_pockets_reads_borderline_in_significant_and_worse_keeps_the_
     # (17 Oct 2026; "Too close to call" in How often by chance from 5 Oct). Since the review of 17 Oct the column
     # says Borderline for any shuffled p-value that near the line, whatever Worse? reads
     rows = tabs.pockets(ws)
-    close = {x["worse"] for x in rows if str(x["chance"]).startswith(live.SIG_BORDER + " (p ")}
+    close = {x["worse"] for x in rows if x["chance"] == live.SIG_BORDER}
     assert {"Yes", "Not sure"} <= close, close
     assert not any("borderline" in str(x["worse_said"]) or " · " in str(x["worse_said"]) for x in rows)
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
                                      measure="Bad loans"), results.POCKETS)
     rows = tabs.pockets(ws)
-    assert any(x["worse"] == "Yes" for x in rows) and not any(str(x["chance"]).startswith(live.SIG_BORDER)
+    assert any(x["worse"] == "Yes" for x in rows) and not any(x["chance"] == live.SIG_BORDER
                                                               for x in rows)
     # its colour is the word's, borderline or not: every rule on Worse? compares the word without the flag
     written = load_workbook(border_book["b"])[results.POCKETS]
@@ -2687,21 +2687,22 @@ def test_few_values_prevalence_counts_value_bands_as_the_grids_cut_them(tmp_path
 
 def test_sig_says_why_there_is_no_test_for_every_reading():
     """Since the review of 17 Oct 2026 the column answers its own question: every pocket with a p-value reads Yes, No
-    or Borderline by that p-value alone; only a pocket with no p-value gets a reason."""
+    or Borderline by that p-value alone, a Yes saying which side it is on (the firm, 17 Oct 2026); only a pocket
+    with no p-value gets a reason."""
     from pocketbook import engine, live
     said = lambda *a: live.sig_said(*a, bar=0.05)                          # noqa: E731
-    assert said(engine.WORSE, 1.6, 0.0025, False, False) == "Yes (p = 0.25%)"
-    assert said(engine.WORSE, 1.6, 0.048, True, False) == "Borderline (p = 4.8%)"
-    assert said(engine.UNSURE_WORSE, 1.6, 0.052, True, False) == "Borderline (p = 5.2%)"
-    assert said(engine.UNSURE_WORSE, 1.6, 0.2, False, False) == "No (p = 20%)"
+    assert said(engine.WORSE, 1.6, 0.0025, False, False) == live.SIG_WORSE
+    assert said(engine.WORSE, 1.6, 0.048, True, False) == live.SIG_BORDER
+    assert said(engine.UNSURE_WORSE, 1.6, 0.052, True, False) == live.SIG_BORDER
+    assert said(engine.UNSURE_WORSE, 1.6, 0.2, False, False) == live.SIG_NO
     assert said(engine.FEW, 3.0, None, False, False) == live.FEW_LOSSES
     assert said(engine.IN_LINE, None, None, False, False) == live.NO_REST
     # under the Worse at line, or not losing more: Worse? says so, and this column says whether the gap is significant
-    assert said(engine.IN_LINE, 1.1, 0.00001, False, False) == "Yes (p < 0.01%)"
-    assert said(engine.IN_LINE, 0.9, 0.3, False, False) == "No (p = 30%)"
-    assert said(engine.BETTER, 0.5, 0.001, False, False) == "Yes (p = 0.10%)"
-    assert said(engine.UNSURE_BETTER, 0.8, 0.3, False, False) == "No (p = 30%)"
-    assert said(engine.IN_LINE, -0.002, 0.3, False, True) == "No (p = 30%)"
+    assert said(engine.IN_LINE, 1.1, 0.00001, False, False) == live.SIG_WORSE
+    assert said(engine.IN_LINE, 0.9, 0.3, False, False) == live.SIG_NO
+    assert said(engine.BETTER, 0.5, 0.001, False, False) == live.SIG_BETTER
+    assert said(engine.UNSURE_BETTER, 0.8, 0.3, False, False) == live.SIG_NO
+    assert said(engine.IN_LINE, -0.002, 0.3, False, True) == live.SIG_NO
     # no p-value: not losing more, or too few losses to test
     assert said(engine.IN_LINE, 0.9, None, False, False) == live.NOT_MORE
     assert said(engine.IN_LINE, 1.2, None, False, False) == live.FEW_LOSSES
@@ -2725,8 +2726,8 @@ def test_sig_on_every_pocket_matches_the_python_reading(border_book, tmp_path):
         profit = v(live.P_MEASURE) in ("ranr_rate", "contribution_rate")
         want = live.sig_said(flag or None, num(gap), num(p), near, profit, bar=0.05)
         assert v(live.P_SIG) == want, (r, flag, gap, p, wb, v(live.P_SIG))
-        seen.add(want.split(" (p ")[0])
-    assert {live.SIG_YES, live.SIG_BORDER, live.SIG_NO, live.FEW_LOSSES} <= seen, seen
+        seen.add(want)
+    assert {live.SIG_WORSE, live.SIG_BETTER, live.SIG_BORDER, live.SIG_NO, live.FEW_LOSSES} <= seen, seen
     for measure in ("GCOs ($)", "Bad loans"):
         ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / f"{measure[:3]}.xlsx", results.POCKETS,
                                          measure=measure), results.POCKETS)
@@ -2735,8 +2736,8 @@ def test_sig_on_every_pocket_matches_the_python_reading(border_book, tmp_path):
         rows = tabs.pockets(ws)
         assert rows and all(x["chance"] for x in rows)
         for x in rows:
-            yes = str(x["chance"]).startswith(live.SIG_YES + " (p ")
+            yes = x["chance"] == live.SIG_WORSE
             if str(x["holds"] or "").startswith("No:"):
                 assert x["chance"].startswith(results.MIXED), x            # the gap may be the partner's
-            elif x["worse"] == "Yes" and not str(x["chance"]).startswith(live.SIG_BORDER):
+            elif x["worse"] == "Yes" and x["chance"] != live.SIG_BORDER:
                 assert yes, x                                               # a worse pocket is a significant one

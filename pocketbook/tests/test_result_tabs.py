@@ -162,8 +162,8 @@ def test_pockets_has_worse_and_material_as_two_columns_and_no_test_column(ran):
     ws = ran["values"][results.POCKETS]
     head = tabs.heads(ws, tabs.header_row(ws, results.K_NUM, "#"), results.K_NUM, results.K_HOLDS)
     assert head[:4] == ["#", "Band", "Segment", None]                   # the half is blank on the two-way view
-    assert head[4:13] == ["Loans", "This pocket", "Rest of band", "× rest of band", "Bad loans above share",
-                          "Worse?", "Significant at 95%?", "Material?", "Could have caught"]
+    assert head[4:14] == ["Loans", "This pocket", "Rest of band", "× rest of band", "Bad loans above share",
+                          "Worse?", "Significant at 95%?", "p-value", "Material?", "Could have caught"]
     assert "Test" not in head and not any("luck" in str(h).lower() for h in head)
 
 

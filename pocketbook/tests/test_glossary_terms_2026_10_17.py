@@ -30,7 +30,7 @@ NEW = ["Judged against", "Good loan", "Bad loans / Bad loans % / Bad loans ÷ Lo
        "Excess / Bad loans above share / Dollars above share / Dollars short of band / Dollars short of book",
        "Worse? (Yes / Not sure / Too few losses / No)", "Material? / Material at",
        "Show (All / Worse and material / Worse or not sure)", "How sure / Significant at N%?",
-       "Significant at N%? (Yes / Borderline / No)",
+       "Significant at N%? (Yes, worse / Yes, better / Borderline / No)", "p-value (the column beside Significant at N%?)",
        "Too few losses to test / Nothing to compare with / Not losing more",
        "Profit line (How far profit must move before it counts as more or less)",
        "Holds (column) fixed? / Mixed with (column)", "Could have caught", "Together", "Priced for it", "Net drain",
@@ -45,10 +45,13 @@ FROM_THE_BOOK = ["Judged against", "Good loan", "Bad loans / Bad loans % / Bad l
                  "Excess / Bad loans above share / Dollars above share / Dollars short of band / Dollars short of book",
                  "Worse? (Yes / Not sure / Too few losses / No)", "Material? / Material at",
                  "Show (All / Worse and material / Worse or not sure)", "How sure / Significant at N%?",
-                 "Significant at N%? (Yes / Borderline / No)", "Profit line (How far profit must move before it "
+                 "Significant at N%? (Yes, worse / Yes, better / Borderline / No)", "p-value (the column beside Significant at N%?)", "Profit line (How far profit must move before it "
                  "counts as more or less)", "Could have caught", "Together", "Priced for it", "Net drain", "Strong",
                  "Safe but idle", "Earns less, not from losses", "Losing more, profit holding",
                  "Treat as (Real / Missing)", "Comes to", "Lines in use now"]
+
+
+SIG_ROW = "Significant at N%? (Yes, worse / Yes, better / Borderline / No)"
 
 
 def parts(term: str) -> list[str]:
@@ -112,7 +115,7 @@ def test_each_verdict_rows_term_names_all_its_readings():
     worse = next(t for t in rows if t.startswith("Worse? ("))
     assert set(_readings()["Worse?"]) <= set(parts(worse)), worse
     sig = next(t for t in rows if t.startswith(live.SIG_HEAD.format("N%") + " ("))
-    assert {live.SIG_YES, live.SIG_BORDER, live.SIG_NO} <= set(parts(sig)), sig
+    assert {live.SIG_WORSE, live.SIG_BETTER, live.SIG_BORDER, live.SIG_NO} <= set(parts(sig)), sig
     assert set(_sig_readings()) == set(live.SIG_READINGS)
     assert all(r in rows["Tripped by"][0] for r in results.TRIPPED_BY)
     # the pairing the firm asked for: How sure and the p-value in one row, 95% to 5% to 1 in 20
@@ -214,12 +217,13 @@ def test_good_bad_and_bad_dollars_examples_tie_to_the_extract(books):
 
 
 def test_the_significant_rows_name_pockets_with_the_readings_pockets_prints(books):
-    """Significant at N%?'s example after a Run names this book's pockets, each with a reading in the tab's own
-    format, a Yes first."""
-    ex = _rows(books["run"])[f"{live.SIG_HEAD.format('N%')} ({live.SIG_YES} / {live.SIG_BORDER} / {live.SIG_NO})"][1]
-    said = re.findall(r"(.+?) read ((?:Yes|Borderline|No) \(p [=<] [\d.]+%\)) on (GCOs \(\$\)|Bad loans)\.", ex)
+    """Significant at N%?'s example after a Run names this book's pockets, each with a reading as the tab prints it
+    and its p-value, a Yes, worse first."""
+    ex = _rows(books["run"])[SIG_ROW][1]
+    said = re.findall(r"(.+?) read (Yes, worse|Yes, better|Borderline|No), with p [=<] [\d.]+%, on "
+                      r"(GCOs \(\$\)|Bad loans)\.", ex)
     assert said, ex
-    assert said[0][1].startswith("Yes")
+    assert said[0][1] == live.SIG_WORSE
 
 
 def test_the_allowance_is_worded_as_control_set_it():

@@ -568,25 +568,28 @@ def said_formula(word: str, ptext: str) -> str:
 
 #: Significant at N%? (the firm, 17 Oct 2026, replacing How often by chance of 5 Oct 2026: "i don't like how often by
 #: chance or could be chance as much as luck at this point. or another sort of standard term, i just think could be
-#: chance is too vague for a typical user"; the layout they chose: "Yes (p = 0.09%)", "Borderline (p = 4.8%)",
-#: "No (p = 23%)", "Too few losses to test", "Not losing more"). The column answers its own question and nothing
-#: else (the review of 17 Oct 2026): every pocket with a p-value reads Yes or No by that p-value alone, or Borderline
-#: when a shuffled p-value is within BORDERLINE_SE of its standard errors of the line; whether the pocket is worse is
-#: Worse?'s to say. Only a pocket with no p-value gets a reason instead
-SIG_YES, SIG_BORDER, SIG_NO = "Yes", "Borderline", "No"
+#: chance is too vague for a typical user"). The column answers its own question and nothing else (the review of 17
+#: Oct 2026): every pocket with a p-value reads by that p-value alone, Borderline when a shuffled p-value is within
+#: BORDERLINE_SE of its standard errors of the line; whether the pocket is worse is Worse?'s to say. A significant
+#: pocket says which side it is on (the firm, 17 Oct 2026: "Yes, worse (p = 1.2%)" and "Yes, better (p = 0.08%)",
+#: "i want it sorted in a sensical manner for investigation and slicers that get added would need to adapt"), and
+#: the p-value has a column of its own, a number, so a filter or a slicer over either column sees few values. Only a
+#: pocket with no p-value gets a reason instead
+SIG_WORSE, SIG_BETTER, SIG_BORDER, SIG_NO = "Yes, worse", "Yes, better", "Borderline", "No"
 NO_REST = "Nothing to compare with"
 FEW_LOSSES, NOT_MORE = "Too few losses to test", "Not losing more"
-#: every reading sig_said can give, for the Glossary's guard: the words, and the three that carry a p-value
-SIG_READINGS = (SIG_YES, SIG_BORDER, SIG_NO, FEW_LOSSES, NO_REST, NOT_MORE)
-#: under this a p-value prints as "p < 0.01%"
+#: every reading sig_said can give, for the Glossary's guard
+SIG_READINGS = (SIG_WORSE, SIG_BETTER, SIG_BORDER, SIG_NO, FEW_LOSSES, NO_REST, NOT_MORE)
+#: under this a p-value shows as "< 0.01%"
 RAREST = 0.0001
 #: the confidence and its line, 1 - confidence, as percentages in _live's words ("95%", "97.5%", "0.1%")
 _PCT = 'IF(ROUND({x}*100,9)=ROUND({x}*100,0),TEXT({x}*100,"0"),TEXT({x}*100,"0.0"))&"%"'
 CONF_PCT = "(" + _PCT.format(x="confidence") + ")"
 BAR_PCT = "(" + _PCT.format(x=BAR) + ")"
-#: the column's heading, the confidence on Control filled in live
+#: the column's heading, the confidence on Control filled in live, and the p-value's beside it
 SIG_HEAD = "Significant at {}?"
 SIG_HEAD_FORMULA = f'="Significant at "&{CONF_PCT}&"?"'
+P_HEAD = "p-value"
 
 
 def pct_words(x: float) -> str:
@@ -600,67 +603,114 @@ def _half_up(v: float, d: int) -> Decimal:
     return Decimal(v).quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
 
 
-def p_words(p: float, bar: float) -> str:
-    """A p-value as Significant at N%? prints it: two decimals under 1% ("p = 0.09%"), one under 10%
-    ("p = 4.8%"), none from 10% ("p = 23%"), each as it rounds, and "p < 0.01%" under 0.01%. A p-value that rounds
-    onto the line (`bar`, 1 - confidence) without being it takes up to two more decimals ("p = 4.98%"), and one
-    still on it then says which side it is ("p < 10%"), so a p-value is never printed as the line it is under."""
+# The p-value column holds the number and shows it as a percentage (the firm's precision, 17 Oct 2026): two decimals
+# under 1%, one under 10%, none from 10%, and "< 0.01%" under 0.01%. A p-value that would show as the line it sits
+# under or over (1 - confidence) takes up to two more decimals, then says which side it is ("< 10%"). The number
+# format carries what two conditions can (P_FMT); conditional formats carry the rest (p_rules), and p_format says,
+# in Python, which one a p-value gets
+P_FMT = '[<0.0001]"< 0.01%";[<0.01]0.00%;0.0%'
+#: the format for each tier (share decimals 4, 3 and 2), with no, one and two more decimals
+_TIER_FMTS = {4: ("0.00%", "0.000%", "0.0000%"), 3: ("0.0%", "0.00%", "0.000%"), 2: ("0%", "0.0%", "0.00%")}
+
+
+def _dd(p: float) -> int:
+    """The share decimals of p's tier: 4 under 1% (0.00%), 3 under 10% (0.0%), 2 from 10% (0%)."""
+    return 4 if p < 0.01 else 3 if p < 0.1 else 2
+
+
+def p_format(p: float, bar: float) -> str:
+    """The number format a p-value shows in, the same choice p_rules makes in the workbook."""
     if p < RAREST:
-        return "p < 0.01%"
-    v, line = p * 100, bar * 100
-    d = 2 if _half_up(v, 2) < 1 else 1 if _half_up(v, 1) < 10 else 0
-    if p != bar:
-        for _ in range(2):
-            if _half_up(v, d) == _half_up(line, d):
-                d += 1
-        if _half_up(v, d) == _half_up(line, d):
-            return f"p {'<' if p < bar else '>'} {pct_words(bar)}"
-    return f"p = {_half_up(v, d)}%"
+        return '"< 0.01%"'
+    dd = _dd(p)
+    on = lambda k: _half_up(p, dd + k) == _half_up(bar, dd + k)                    # noqa: E731
+    if p != bar and on(0):
+        if on(1):
+            if on(2):
+                whole = _half_up(bar * 100, 0) == _half_up(bar * 100, 9)
+                return f'"{"<" if p < bar else ">"} "' + ("0%" if whole else "0.0%")
+            return _TIER_FMTS[dd][2]
+        return _TIER_FMTS[dd][1]
+    return _TIER_FMTS[dd][0]
 
 
-def p_words_formula(p: str) -> str:
-    """p_words as a formula, against the live line."""
-    d = f"IF(ROUND({p}*100,2)<1,2,IF(ROUND({p}*100,1)<10,1,0))"
-    on = lambda k: f"ROUND({p}*100,{d}+{k})=ROUND({BAR}*100,{d}+{k})"          # noqa: E731
-    more = f"IF({p}={BAR},0,IF({on(0)},IF({on(1)},2,1),0))"
-    still = f"AND({p}<>{BAR},{on(0)},{on(1)},{on(2)})"
-    return (f'IF({p}<{RAREST!r},"p < 0.01%",IF({still},IF({p}<{BAR},"p < ","p > ")&{BAR_PCT},'
-            f'"p = "&FIXED({p}*100,{d}+{more},TRUE)&"%"))')
+def show_p(fmt: str, p: float) -> str:
+    """What a format from p_format shows for p: the few formats it uses, rounded as the spreadsheet rounds."""
+    if fmt.startswith('"'):
+        lead, num = fmt[1:].split('"', 1)
+        if not num:
+            return lead
+        return lead + show_p(num, p)
+    d = len(fmt.split(".")[1]) - 1 if "." in fmt else 0
+    return f"{_half_up(p * 100, d)}%"
 
 
-def sig_with_p(word: str, p: float, bar: float) -> str:
-    """ "Yes (p = 0.09%)": a reading with the p-value that decides it."""
-    return f"{word} ({p_words(p, bar)})"
+def p_words(p: float, bar: float) -> str:
+    """A p-value in words, as the Glossary quotes it: "p = 0.37%", "p < 0.01%", "p < 10%"."""
+    shown = show_p(p_format(p, bar), p)
+    return f"p {shown}" if shown.startswith(("<", ">")) else f"p = {shown}"
+
+
+def p_rules(c: str) -> list[tuple[str, str]]:
+    """p_format as conditional formats on a cell (its first cell `c`), in order: (formula, number format)."""
+    base = f"AND(ISNUMBER({c}),{c}>={RAREST!r},{c}<>{BAR})"
+    dd = f"IF({c}<0.01,4,IF({c}<0.1,3,2))"
+    on = lambda k: f"ROUND({c},{dd}+{k})=ROUND({BAR},{dd}+{k})"                  # noqa: E731
+    whole = f"ROUND({BAR}*100,0)=ROUND({BAR}*100,9)"
+    still = f"{on(0)},{on(1)},{on(2)}"
+    out = [(f"AND({base},{still},{c}<{BAR},{whole})", '"< "0%'), (f"AND({base},{still},{c}<{BAR})", '"< "0.0%'),
+           (f"AND({base},{still},{whole})", '"> "0%'), (f"AND({base},{still})", '"> "0.0%')]
+    tiers = ((f"{c}<0.01", 4), (f"{c}<0.1", 3), ("TRUE", 2))
+    for k, cond in ((2, f"{on(0)},{on(1)}"), (1, on(0))):
+        out += [(f"AND({base},{cond},{t})", _TIER_FMTS[n][k]) for t, n in tiers]
+    out.append((f"AND(ISNUMBER({c}),{c}>=0.1)", "0%"))
+    return out
 
 
 def sig_said(word: str | None, gap: float | None, p: float | None, near: bool, profit: bool, bar: float) -> str:
     """Significant at N%?, in Python: from the engine's word, the gap that decides (a multiple, or points for
     profit), the p-value that decides, whether that p-value is a shuffled one within BORDERLINE_SE of its standard
-    errors of the line (`near`), and the line (1 - confidence). Yes when the p-value is under the line, No when it is
-    not, Borderline when it is that near. A pocket without a p-value: too few losses to test, nothing to compare
-    with, or, losing no more than the rest, not losing more."""
+    errors of the line (`near`), and the line (1 - confidence). Yes, worse or Yes, better when the p-value is under
+    the line, by the side of the gap; No when it is not; Borderline when it is that near. A pocket without a p-value:
+    too few losses to test, nothing to compare with, or, losing no more than the rest, not losing more."""
     if word == engine.FEW:
         return FEW_LOSSES
     if gap is None:
         return NO_REST
+    more = gap < 0 if profit else gap > 1
     if p is None:
         # on Pockets every rate with a comparison is tested unless it has too few losses (engine.FEW); the median
         # comparison's engine.THIN never reaches the tab. Kept for a rate whose test was not run
-        more = gap < 0 if profit else gap > 1
         return FEW_LOSSES if more else NOT_MORE
     if near:
-        return sig_with_p(SIG_BORDER, p, bar)
-    return sig_with_p(SIG_YES if p < bar else SIG_NO, p, bar)
+        return SIG_BORDER
+    if p < bar:
+        return SIG_WORSE if more else SIG_BETTER
+    return SIG_NO
 
 
 def sig_words(f: str, gap: str, p: str, se: str, profit: bool) -> str:
     """sig_said as a formula, from _pockets' flag, gap, p-value and that p-value's shuffle standard error."""
     more = f"{gap}<0" if profit else f"{gap}>1"
     near = f"IF(ISNUMBER({se}),ABS({p}-{BAR})<={stats.BORDERLINE_SE!r}*{se},FALSE)"   # AND would read both
-    with_p = lambda w: f'{q(w + " (")}&{p_words_formula(p)}&")"'                  # noqa: E731
     return (f'IF({f}={q(engine.FEW)},{q(FEW_LOSSES)},IF({gap}="",{q(NO_REST)},'
             f'IF(NOT(ISNUMBER({p})),IF({more},{q(FEW_LOSSES)},{q(NOT_MORE)}),'
-            f'IF({near},{with_p(SIG_BORDER)},IF({sig(p)},{with_p(SIG_YES)},{with_p(SIG_NO)})))))')
+            f'IF({near},{q(SIG_BORDER)},IF({sig(p)},IF({more},{q(SIG_WORSE)},{q(SIG_BETTER)}),{q(SIG_NO)})))))')
+
+
+#: Pockets' order (the firm, 17 Oct 2026: "sorted in a sensical manner for investigation"), worst first: the group
+#: of a reading, by whether the pocket loses more than its comparison
+SIG_GROUPS = ((SIG_WORSE, True), (SIG_BORDER, True), (SIG_NO, True), (None, None), (SIG_NO, False),
+              (SIG_BORDER, False), (SIG_BETTER, False))
+
+
+def sig_group(reading: str, more: bool) -> int:
+    """1 to 7: Yes, worse; Borderline and No losing more; no test (any reason, Mixed with included); No and
+    Borderline losing less; Yes, better."""
+    for i, (word, side) in enumerate(SIG_GROUPS, start=1):
+        if word == reading and (side is None or side == more):
+            return i
+    return 4
 
 
 def base_word(cell: str) -> str:

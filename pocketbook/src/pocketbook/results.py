@@ -378,8 +378,9 @@ def _allowance(b) -> str:
 
 
 # the table's columns
-(K_NUM, K_BAND, K_SEG, K_HALF, K_LOANS, K_THIS, K_REST, K_GAP, K_EX, K_WORSE, K_P, K_MAT, K_CAUGHT, K_HOLDS) = \
-    range(2, 16)
+# K_PV, the p-value beside Significant at N%? (the firm, 17 Oct 2026: "slicers that get added would need to adapt")
+(K_NUM, K_BAND, K_SEG, K_HALF, K_LOANS, K_THIS, K_REST, K_GAP, K_EX, K_WORSE, K_P, K_PV, K_MAT, K_CAUGHT,
+ K_HOLDS) = range(2, 17)
 K_IDX, K_ROW = 18, 19                  # hidden: the row on _list, and the pocket's row on _pockets
 K_SEL = 21                             # hidden: the selected measure's key, and whether it reads in points or loans
 # _list's columns
@@ -410,26 +411,43 @@ def _caught(s, m) -> float | None:
     return sg if m.higher_is == "worse" else 1 / sg
 
 
+def sig_at_run(res, kind: str, g, s, m) -> tuple[str, bool]:
+    """Significant at N%? as the last Run read a pocket (live.sig_said at the Run's settings; Mixed with for a split
+    pocket whose grid doesn't hold the partner fixed), and whether the pocket loses more than its comparison."""
+    from . import book as bk
+    b = res.config.benchmark
+    gap = s.vs_band if s.by_band else s.vs_rest
+    p = s.p_band if s.by_band else s.p_book
+    se = s.se_band if s.by_band else s.se_book
+    more = gap is not None and (gap < 0 if m.in_points else gap > 1)
+    if kind != "grids" and res.config.split and bk._partner(res) is not None and not bk._holds_partner(res, g):
+        return MIXED, more
+    near = stats.borderline(p, se, b.confidence)
+    return live.sig_said(s.flag, gap, p, near, m.in_points, round(1 - b.confidence, 12)), more
+
+
 def candidates(res, kind: str, m) -> list[tuple]:
     """The pockets Pockets lists for one kind and measure, in the last Run's order: every pocket losing more than
     its share against either comparison (a change of "judged against" on Control then finds every pocket it
-    could flag). Worse pockets first, largest dollars first; then the rest by their dollars; then those losing
-    more only against the comparison that doesn't decide now. On the split view, pockets from grids that don't
-    hold the split's partner fixed come last (the fourth walk, defect 1)."""
-    from . import book as bk
+    could flag). The order is for investigation (the firm, 17 Oct 2026: "sorted in a sensical manner for
+    investigation"), in Significant at N%?'s seven groups as the Run read them (live.sig_group): Yes, worse;
+    Borderline and No losing more; no test; No and Borderline losing less; Yes, better. Within each, by the dollars
+    that decide, largest first, so in the losing-less groups the most-better pocket comes last. A pocket losing
+    more only against the comparison that doesn't decide now loses less against the one that does, so it falls in
+    the losing-less groups, as it used to come last. A split pocket whose grid doesn't hold the partner fixed reads
+    Mixed with, in the no-test group (the fourth walk, defect 1, put it last)."""
     grids = res.grids if kind == "grids" else res.three_way
     out = []
     for g in grids:
-        held = 0.0 if kind == "grids" else bk._three_way_note(res, g)[1]
         for (bl, dl), c in g.inner():
             s = c.rates[m.name]
             d = s.dollars
             other = s.excess_band if not s.by_band else s.excess_rest
             if not ((d is not None and d > 0) or (other is not None and other > 0)):
                 continue
-            losing = d is not None and d > 0
-            key = (held, 0 if s.flag == engine.WORSE and losing else 1, 0 if losing else 1,
-                   -(d if losing else (other or 0.0)))
+            said, more = sig_at_run(res, kind, g, s, m)
+            key = (live.sig_group(said, more),
+                   -(d if d is not None else (other or 0.0)))
             out.append((key, g, bl, dl, s))
     out.sort(key=lambda t: t[0])
     return [t[1:] for t in out]
@@ -486,8 +504,9 @@ def _write_list(wb, res, lv, kinds, sel: dict) -> tuple[int, dict]:
     return r - 1, most
 
 
-POCKETS_NOTE_ORDER = ("Sorted as of the last Run: worse pockets first, largest excess first, then the remaining "
-                      "pockets by excess.")
+POCKETS_NOTE_ORDER = ("Sorted as of the last Run in seven groups: Yes, worse; then Borderline and No losing more; "
+                      "then pockets with no test; then No and Borderline losing less; then Yes, better. Within each, "
+                      "the largest excess comes first, so the most-better pocket is the last row.")
 
 
 def _pockets_note(res) -> list[tuple[str, str]]:
@@ -525,7 +544,9 @@ def _pockets_note(res) -> list[tuple[str, str]]:
         (SIG_HEAD, live.text(
             "This column says whether each pocket's gap against the rest is significant at the confidence set in How "
             "sure on Control. "
-            "Yes means its p-value is under ", (live.BAR_PCT,), ", and No that it is not; each shows the p-value. "
+            "Yes, worse means its p-value is under ", (live.BAR_PCT,), " and it loses more than the rest; "
+            "Yes, better, that it loses less. No means the p-value is not under it. The p-value is in the column "
+            "beside it, as a number. "
             + ("Control sets no allowance for testing many pockets at once, so each p-value is the pocket's own."
                if b.many_tests == "none" else
                f"The p-value allows for testing many pockets at once ({_allowance(b)}, across one grid and one "
@@ -543,8 +564,9 @@ def _pockets_note(res) -> list[tuple[str, str]]:
                       "without being worse, or worse without being material."),
         ("Could have caught", f"The smallest gap a pocket of this size would detect {b.power:.0%} of the time, at "
                               f"the confidence level the last Run used."),
-        ("Order", POCKETS_NOTE_ORDER + " Pockets that lose more only against the other comparison come last, so "
-                                       "they are already listed if Judged against is changed on Control. A change "
+        ("Order", POCKETS_NOTE_ORDER + " A pocket that loses more only against the other comparison loses less "
+                                       "against this one, so it is already listed if Judged against is changed on "
+                                       "Control. A change "
                                        "on Control updates Worse?, Material?, the dollars and the colors "
                                        "immediately, but not the order. The caption counts the rows the dropdowns "
                                        "select."),
@@ -553,7 +575,8 @@ def _pockets_note(res) -> list[tuple[str, str]]:
         items.append((f"Holds {pt[0]} fixed?", f"Applies to split pockets only. {sf} moves with {pt[0]} "
                                               f"(correlation {pt[1]:+.2f}), so in a grid that does not hold "
                                               f"{pt[0]} fixed, a split pocket's gap may reflect {pt[0]} rather "
-                                              f"than {sf}. Those rows come last, in gray, with no verdict color."))
+                                              f"than {sf}. Those rows read {MIXED}{pt[0]}, sit with the pockets that "
+                                              f"have no test, and are gray, with no verdict color."))
     return items
 
 
@@ -562,8 +585,8 @@ def _pockets_note(res) -> list[tuple[str, str]]:
 #: Yes, Borderline or No by the p-value alone, else the reason there is no p-value (live.sig_said). The heading
 #: follows How sure on Control live: SIG_HEAD is the formula, live.SIG_HEAD the words it makes
 SIG_HEAD = live.SIG_HEAD_FORMULA
-#: the widest reading it prints with a p-value, for its width
-SIG_WIDEST = f"{live.SIG_BORDER} (p = 0.0996%)"            # at 99.9% sure, a p-value just under the 0.1% line
+#: the widest p-value the p-value column shows: at 99.9% sure, one just under the 0.1% line takes two more decimals
+P_WIDEST = "0.0996%"
 #: a split pocket whose grid doesn't hold the partner fixed: the gap may be the partner's, so no number
 MIXED = "Mixed with "
 
@@ -616,8 +639,9 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
               K_LOANS: 9, K_THIS: 11, K_REST: 12, K_GAP: 14, K_EX: 22,
               # the widest word Worse? can print: borderline is said in Significant at N%? (17 Oct 2026)
               K_WORSE: house.fit([live.TOO_FEW, "Worse?"], floor=11, cap=36),
-              K_P: house.fit([live.SIG_HEAD.format("97.5%"), live.FEW_LOSSES, live.NO_REST, SIG_WIDEST,
+              K_P: house.fit([live.SIG_HEAD.format("97.5%"), live.FEW_LOSSES, live.NO_REST, live.SIG_BETTER,
                               live.NOT_MORE] + ([MIXED + pt[0]] if pt else []), floor=11, cap=36),
+              K_PV: house.fit([live.P_HEAD, P_WIDEST, "< 0.01%"], floor=9, cap=16),
               K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
               K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
                                  floor=12, cap=LABELS_CAP, pad=3)}
@@ -675,7 +699,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
              K_GAP: f'=IF({pts},"Gap in pts",IF({J},"× rest of band","× rest of book"))',
              K_EX: f'=IF({loans},"Bad loans above share",IF({pts},IF({J},"Dollars short of band","Dollars short of '
                    f'book"),"Dollars above share"))',
-             K_WORSE: "Worse?", K_P: SIG_HEAD, K_MAT: "Material?", K_CAUGHT: "Could have caught"}
+             K_WORSE: "Worse?", K_P: SIG_HEAD, K_PV: live.P_HEAD, K_MAT: "Material?", K_CAUGHT: "Could have caught"}
     pt = bk._partner(res) if res.config.split else None
     heads[K_HOLDS] = (f'=IF({sel["kind"]}="{TWO_WAY}","","Holds {pt[0]} fixed?")' if pt else "")
     house.header(ws, h, K_NUM, [heads[c] for c in range(K_NUM, K_HOLDS + 1)], centre_from=K_LOANS - K_NUM)
@@ -688,6 +712,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
         ws.cell(row=rr, column=K_IDX, value=f'=IFERROR(MATCH({k},{Lr(L_CUM)},0),"")')
         ws.cell(row=rr, column=K_ROW, value=f'=IF({I}="","",INDEX({Lr(L_ROW)},{I}))')
         lst = lambda c: f'IF({I}="","",IF(INDEX({Lr(c)},{I})="","",INDEX({Lr(c)},{I})))'     # noqa: E731
+        S = f"${col(K_P)}{rr}"
 
         def chance(R, I):
             """Significant at N%?, and for a split pocket whose grid doesn't hold the partner fixed, why not."""
@@ -699,11 +724,12 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
                 K_HALF: f"={lst(L_HALF)}", K_LOANS: f"={lst(L_LOANS)}", K_THIS: f"={at(live.P_RATE, R)}",
                 K_REST: f"={at(live.P_REST, R)}",
                 K_GAP: f'=IF({at(live.P_GAP, R)}="","",{at(live.P_GAP, R)}*IF({pts},100,1))',
-                # Worse? as a word; a borderline one reads "Borderline (p = 4.8%)" in Significant at N%?
+                # Worse? as a word; a borderline one reads Borderline in Significant at N%?, its p-value beside it
                 K_EX: f"={at(live.P_DOLLARS, R)}", K_WORSE: f"={at(live.P_WORSE, R)}", K_P: f"={chance(R, I)}",
+                K_PV: f'=IF(OR(LEFT({S},5)="Yes, ",{S}="{live.SIG_BORDER}",{S}="{live.SIG_NO}"),{at(live.P_P, R)},"")',
                 K_MAT: f"={lst(L_MAT)}", K_CAUGHT: f"={lst(L_CAUGHT)}", K_HOLDS: f"={lst(L_HOLDS)}"}
         fmts = {K_LOANS: "#,##0", K_THIS: "0.00%", K_REST: "0.00%", K_GAP: X_FMT, K_EX: "#,##0",
-                K_CAUGHT: X_FMT}
+                K_CAUGHT: X_FMT, K_PV: live.P_FMT}
         for c, v in vals.items():
             _cell(ws, rr, c, v, h="left" if c in (K_BAND, K_SEG, K_HALF, K_HOLDS) else "center", fmt=fmts.get(c),
                   indent=1 if c in (K_BAND, K_SEG, K_HALF, K_HOLDS) else 0)
@@ -733,6 +759,10 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
     cf(ws, rng(K_MAT), [(loose, None, grey, None),
                         (f'${col(K_MAT)}{first}="{live.YES}"', MIST, Font(bold=True), None)], line)
     cf(ws, rng(K_HOLDS), [(loose, None, Font(color=CRIMSON, bold=True), None)], line)
+    # the p-value: a number, its precision and its guard against showing the line in conditional formats
+    cf(ws, rng(K_PV), [(f, None, None, fmt) for f, fmt in live.p_rules(f"{col(K_PV)}{first}")], line)
+    # Excel's sort and filter arrows on every heading, the p-value's included
+    ws.auto_filter.ref = f"{col(K_NUM)}{h}:{col(K_HOLDS)}{end}"
     _hide(ws, K_IDX, K_SEL)
     ws.freeze_panes = f"A{first}"
     _fit(ws)

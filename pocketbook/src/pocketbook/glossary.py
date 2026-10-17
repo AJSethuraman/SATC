@@ -188,12 +188,11 @@ def _verdicts(res, grids, label) -> dict:
                 p = s.p_band if s.by_band else s.p_book
                 se = s.se_band if s.by_band else s.se_book
                 near = p is not None and se is not None and stats.borderline(p, se, b.confidence)
-                said = live.sig_said(s.flag, gap, p, near, False, bar)
-                word = said.split(" (p ")[0]
-                # Yes is shown on a pocket that is also worse, so Worse?'s example can name the same one
-                if " (p " in said and word not in sig and (word != live.SIG_YES or s.flag == engine.WORSE):
-                    sig[word] = {**label(g, b_, d), "said": said, "measure": results.PLAIN[m],
-                                 "gap": gap, "p_said": live.p_words(p, bar)}
+                word = live.sig_said(s.flag, gap, p, near, False, bar)
+                # Yes, worse is shown on a pocket that is also worse, so Worse?'s example can name the same one
+                if p is not None and word not in sig and (word != live.SIG_WORSE or s.flag == engine.WORSE):
+                    sig[word] = {**label(g, b_, d), "said": word, "measure": results.PLAIN[m],
+                                 "gap": gap, "p": p, "p_said": live.p_words(p, bar)}
     if sig:
         out["sig"] = sig
     sides = {k for k, *_ in results.SIDES}
@@ -412,7 +411,7 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
     bar = round(1 - conf, 12)
     sig = (f.get("sig") or {}) if run else {}
     w = f.get("worse_at") if run else None
-    yes = sig.get(live.SIG_YES)
+    yes = sig.get(live.SIG_WORSE)
     mt = f.get("many_tests") if run else None
     allowance = ("Control sets no allowance for testing many pockets at once, so the p-value printed is the pocket's "
                  "own." if mt == "none" else
@@ -454,18 +453,31 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"large would then arise by chance less than 1 in 20 times if the pocket were no different from the "
                 f"rest. {allowance}",
                 f"At the last Run, How sure was {live.pct_words(conf)}, so the line was a p-value of "
-                f"{live.pct_words(bar)}, 1 in {1 / bar:,.0f}. {yes['band']} / {yes['seg']} read {yes['said']} on "
-                f"{yes['measure']}." if yes else
-                "At 95% sure the line is a p-value of 5%, 1 in 20, so a pocket at p = 0.37% reads Yes (p = 0.37%)."))
-    no, near = sig.get(live.SIG_NO), sig.get(live.SIG_BORDER)
-    out.append((f"{live.SIG_HEAD.format('N%')} ({live.SIG_YES} / {live.SIG_BORDER} / {live.SIG_NO})",
-                f"Yes means the pocket's p-value is under the line How sure sets, and No that it is at or above it, "
-                f"whether or not the pocket is worse. Borderline means a shuffle test's p-value is within "
-                f"{stats.BORDERLINE_SE:g} standard errors of that line, on either side. {allowance}",
-                " ".join(f"{x['band']} / {x['seg']} read {x['said']} on {x['measure']}." for x in (yes, near, no) if x)
-                if run and (yes or near or no) else
-                "At 95% sure, p = 0.37% reads Yes (p = 0.37%) and p = 23% reads No (p = 23%). A shuffled p = 4.8% can "
-                "read Borderline (p = 4.8%)."))
+                f"{live.pct_words(bar)}, 1 in {1 / bar:,.0f}. {yes['band']} / {yes['seg']} read {yes['said']}, with "
+                f"{yes['p_said']}, on {yes['measure']}." if yes else
+                f"At 95% sure the line is a p-value of 5%, 1 in 20, so a pocket that loses more at p = 0.37% reads "
+                f"{live.SIG_WORSE}."))
+    better, no, near = sig.get(live.SIG_BETTER), sig.get(live.SIG_NO), sig.get(live.SIG_BORDER)
+    out.append((f"{live.SIG_HEAD.format('N%')} ({live.SIG_WORSE} / {live.SIG_BETTER} / {live.SIG_BORDER} / "
+                f"{live.SIG_NO})",
+                f"{live.SIG_WORSE} means the pocket's p-value is under the line How sure sets and it loses more than "
+                f"the rest; {live.SIG_BETTER}, that it loses less. {live.SIG_NO} means the p-value is at or above the "
+                f"line. {live.SIG_BORDER} means a shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard "
+                f"errors of that line, on either side.",
+                " ".join(f"{x['band']} / {x['seg']} read {x['said']}, with {x['p_said']}, on {x['measure']}."
+                         for x in (yes, better, near, no) if x)
+                if run and (yes or better or near or no) else
+                f"At 95% sure, a pocket losing more at p = 0.37% reads {live.SIG_WORSE}, and one losing less at p = "
+                f"0.08% reads {live.SIG_BETTER}. One at p = 23% reads {live.SIG_NO}."))
+    pv = yes or better or near or no
+    out.append((f"{live.P_HEAD} (the column beside {live.SIG_HEAD.format('N%')})",
+                f"The p-value that decides the reading beside it, held as a number and shown as a percentage, so it "
+                f"sorts and filters as one. Below 0.01% it shows < 0.01%, and one that would show as the line takes "
+                f"more decimals. {allowance}",
+                f"Beside {pv['band']} / {pv['seg']}'s {pv['said']} on {pv['measure']}, the column holds "
+                f"{pv['p']:.6g}, shown as {pv['p_said'].split(' ', 1)[1].lstrip('= ')}." if run and pv else
+                f"A p-value of 0.0037 shows as {live.p_words(0.0037, 0.05)[4:]}, and at 95% sure one of 0.0498 shows "
+                f"as {live.p_words(0.0498, 0.05)[4:]} rather than as the 5% line."))
     out.append(("Borderline",
                 f"The shuffle test's p-value is within {stats.BORDERLINE_SE:g} standard errors of the threshold on "
                 f"Control, on either side. Pockets reads {live.SIG_BORDER} in {live.SIG_HEAD.format('N%')}; RANR vs "

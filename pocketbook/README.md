@@ -239,17 +239,22 @@ After that, the whole routine is:
      "N worse and material · N worse · N shown". Each row: the pocket, its
      loans, its rate and the rest's, the gap, the excess, **Worse?** (Yes, Not
      sure, No, Too few losses) and **Material?** (Yes, No) in separate columns,
-     **Significant at 95%?** (the heading follows How sure on Control: *Yes (p =
-     0.37%)*, *Borderline (p = 4.8%)* or *No (p = 23%)*, the p-value after the
-     allowance for many tests, or the reason there is none to read, such as *Too
-     few losses to test*; the firm, 17 Oct 2026), and the smallest gap a pocket
-     its size could have caught.
+     **Significant at 95%?** (the heading follows How sure on Control: *Yes,
+     worse*, *Yes, better*, *Borderline* or *No* by the p-value alone, or the
+     reason there is none to read, such as *Too few losses to test*; the firm,
+     17 Oct 2026), then the **p-value** beside it, a number shown as a percentage
+     (after the allowance for many tests), so a filter or a slicer on either
+     column sees few values, and the smallest gap a pocket its size could have
+     caught. Excel's filter arrows sit on every heading.
      Control's *Judged against* picks the rest: every other loan in its band,
      or every other loan in the book, for the gap and the dollars alike
-     (OC-44). The worse pockets come first, largest dollars first; the order
-     is the last Run's, the verdicts and dollars are live. On the split view,
-     pockets from grids that don't hold the split's partner fixed come last, in
-     gray, reading "No: may be mostly FICO".
+     (OC-44). The rows come in seven groups for investigation (the firm, 17 Oct
+     2026): Yes, worse; Borderline and No losing more; no test; No and
+     Borderline losing less; Yes, better; each by its excess, largest first, so
+     the most-better pocket is last. The order is the last Run's, the verdicts
+     and dollars are live. On the split view, pockets from grids that don't hold
+     the split's partner fixed read *Mixed with FICO*, sit with the no-test
+     group, in gray, and Holds FICO fixed? reads "No: may be mostly FICO".
    - **RANR vs GCOs** (*Paid, cost, kept* until 30 Sep 2026: the firm, *"I want to
      use the terms I gave you out of the box so it can be understood by
      insiders"*; a Run takes the old tab off a workbook written before): one grid
@@ -557,7 +562,7 @@ from shuffling, so another run could land it a little differently. When the
 p-value that decides a verdict is a shuffled one within 2 of its own standard
 errors of the bar, either side, the verdict says so: *Net drain · borderline
 (p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets as
-*Borderline (p = 4.8%)* in Significant at 95%?, and on RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
+*Borderline* in Significant at 95%?, its p-value beside it, and on RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
 and tile, the Run's *Worst for* line and Record, which states the rule and
 counts them. The color, order and counts stay the verdict's. A z test's or an
 exact test's p-value is the same on every run, so Bad loans are never

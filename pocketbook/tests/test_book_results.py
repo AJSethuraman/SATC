@@ -508,8 +508,9 @@ def test_split_rows_say_what_their_grid_holds_fixed(tmp_path):
     # partner's, and it says so
     assert all(x["chance"] == "Mixed with FICO" for x in rows if str(x["holds"]).startswith("No:"))
     assert all(x["chance"] != "Mixed with FICO" for x in rows if x["holds"] == "Yes")
-    held = [x["holds"] == "Yes" for x in rows]
-    assert held == sorted(held, reverse=True)                              # held-fixed grids first
+    # since 17 Oct 2026 a Mixed with row sits with the pockets that have no test (group 4 of 7), not last
+    groups = [live.sig_group(x["chance"], (x["excess"] or 0) > 0) for x in rows]
+    assert groups == sorted(groups) and all(g == 4 for g, x in zip(groups, rows) if str(x["holds"]).startswith("No:"))
     # no verdict colour on those rows: their first rule greys them and the verdict rules come after it
     rules = [r.formula[0] for rng in ws.formulas.conditional_formatting
              if str(rng.sqref).startswith(results.col(results.K_WORSE)) for r in sorted(rng.rules,

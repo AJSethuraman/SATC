@@ -314,7 +314,7 @@ On Control, pick **2 times** in C15.
 
 Put C15 back to *The smallest significant gap in a typical pocket (suggested)*. ☐ Start here reads 4 of 81 and $2,287,240 again.
 
-☐ Pick **99% sure** in C18 (*How sure a difference must be before it counts*). On Pockets the column **Significant at 95%?** now reads **Significant at 99%?**, without a Run, and a Yes needs a p-value under 1%. Put C18 back to *95% sure*.
+☐ Pick **99% sure** in C18 (*How sure a difference must be before it counts*). On Pockets the column **Significant at 95%?** now reads **Significant at 99%?**, without a Run, and a *Yes, worse* or *Yes, better* needs a **p-value** (the column beside it) under 1%. Put C18 back to *95% sure*.
 
 ### 4.5 A "Needs a Run" answer: the waiting banner
 
@@ -374,7 +374,7 @@ Each tab opens with **How this tab works**.
 
 ### 4.10 The Glossary
 
-☐ **Glossary** is the second tab, after Start here. It lists 72 terms, one a row (68 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
+☐ **Glossary** is the second tab, after Start here. It lists 73 terms, one a row (69 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
 
 ☐ On Start here, under **The tabs**, *Glossary: every term, with an example* opens it.
 
