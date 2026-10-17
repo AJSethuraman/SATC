@@ -116,13 +116,13 @@ def move_text(rows, months):
     ``months`` is each side's horizon; a change counted over different months says the what-if's."""
     parts = []
     for r in rows:
+        # every branch, moved or one-sided: Codex on #452 found the one-sided one left out
+        what = "Level" if r["reading"] == "position" else "Change"
+        when_ = "" if r["same_measure"] else " (what if: over %d months)" % months[1]
         if r["move"]:
-            when_ = "" if r["same_measure"] else " (what if: over %d months)" % months[1]
-            parts.append("%s %d → %d%s" % ("Level" if r["reading"] == "position" else "Change", r["a"]["rating"],
-                                           r["b"]["rating"], when_))
+            parts.append("%s %d → %d%s" % (what, r["a"]["rating"], r["b"]["rating"], when_))
         elif r["move"] is None:
-            parts.append("%s: rated %s only" % ("Level" if r["reading"] == "position" else "Change",
-                                               "as you have it" if r["a"] else "under the what-if"))
+            parts.append("%s%s: rated %s only" % (what, when_, "as you have it" if r["a"] else "under the what-if"))
     return "; ".join(parts)
 
 
@@ -898,7 +898,8 @@ def build(out, result, pull, whatif=None):
                     noun = "readings" if reading == "position" else "changes" if w["same_measure"] else \
                         "changes over %s" % b_months
                     if w["move"] is None:
-                        words = "Rated under the what-if only."
+                        words = "Rated under the what-if only: %.1f%% of %s %s since %s." % (
+                            b["percentile"], "{:,}".format(b["readings"]), noun, when(b["history_from"]))
                     elif w["move"] == 0:
                         words = "Same rating: %.1f%% of %s %s since %s." % (
                             b["percentile"], "{:,}".format(b["readings"]), noun, when(b["history_from"]))

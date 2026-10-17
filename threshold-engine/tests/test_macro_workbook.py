@@ -364,3 +364,20 @@ def test_every_chart_crosses_axes_it_has_so_excel_can_open_it(book, cache, tmp_p
     assert _holds_together_in_excel(out) > 0
     shown, _, _ = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)
     assert _holds_together_in_excel(shown) > 0
+
+
+def test_a_change_only_the_what_if_rates_over_another_horizon_says_that_horizon(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the summary named the what-if's horizon for a change that moved, not for one only the
+    # what-if rates, so a 12-month rating read as one of the 6-month change beside it.
+    from threshold_engine.macro.settings import template as T
+    directions = {k: {r: LOWER for r in v} for k, v in T()["directions"]["answer"].items()}
+    directions["cpi"]["change"] = "not rated"
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"directions": directions, "change_months": 6},
+                         {"change_months": 12})
+    row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
+    assert row["a"] is None and row["b"] and not row["same_measure"]
+    rt = wb["Ratings"]
+    r = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
+             if cl.value == "Consumer prices, all items")
+    assert rt.cell(r, 13).value == "Change (what if: over 12 months): rated under the what-if only"
+    assert "changes over 12 months since" in _text(wb["Prices"])

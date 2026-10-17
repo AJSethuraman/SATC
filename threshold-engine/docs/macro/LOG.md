@@ -577,3 +577,10 @@ cannot be opened."
   opening it is the remaining check.
 - **Lesson:** after a refused command, re-read the file before rebuilding from it. A refusal stops the whole
   command, including the edits in it.
+
+**Codex's third review: one more branch without the horizon.** The Ratings and States summaries named the
+what-if's horizon for a change that moved, but not for a change only one side rates. The series panel's
+"Rated under the what-if only" did not name it either. Both now do, in every branch, and the panel gives
+the what-if's percentile there too. One test, which fails with either old line put back. This does not
+change the example (every reading there is rated under both, over one horizon), so the file the firm is
+opening in Excel stands. The macro suite is now 96.
