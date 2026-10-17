@@ -3786,6 +3786,30 @@ research pass before a spec, no exceptions.
   IFERROR empty-cell coercion, raw_slots guard, MS-OVBA protection keys).
 - 2026-06-30..07-01 — Templates #1 (FRED) and #2 (bureau) shipped; PR #53.
 
+## 6e · Loan Survival (`loan-survival/` — handed over 16 Oct 2026, GUI built same day)
+
+Kaplan-Meier comparison of loan groups at the same month on book: vintages,
+before/after a date, backtested cutoffs, flags, and a Cox model, plus a check on
+whether 90+ days past due is a good early stand-in for charge-off. One engine
+(`loan_survival.py`), now with an importable `run()`; a tkinter front door
+(`loan_survival_gui.py`) that writes the engine's own .ini text. Credit work at a
+bank, not the practice's software; no client data. README and `CLAUDE.md` are in
+the folder.
+
+- [x] **Engine arrived with 11 validation checks** against a hand-worked example,
+      SciPy, statsmodels and plain pandas. `python tests/validate.py` — ALL PASSED
+      on arrival and after the refactor.
+- [x] **`main()` split into `run()`**, engine `sys.exit` calls became `UserError`.
+- [x] **GUI built** — five tabs, auto column match, date-parse counts, test dialogs,
+      seasoned-loans shortcut, save/load .ini. `tests/gui_check.py`: GUI's Tests and
+      Models sheets equal the CLI's on the sample, run under a real window on
+      Xvfb. Each tab was opened and looked at.
+- [ ] **Not checked:** Windows and the bank's Python (tkinter present?), the real SB
+      extract's column names, Excel opening the workbook, how the right-click menu
+      is wired, SR 11-7 status of the Cox piece.
+- [ ] Backlog from the brief: snapshot/roll-rate mode, unseasoned-economics warning,
+      dollar-weighted bad rates, cutoff chart.
+
 ## 6 - Hosted practice app (satc_system) - the "hodgepodge" build-out (AJ, 2026-07-30)
 
 The hosted app (port 5050 on the Forge) should be the practice front door:
