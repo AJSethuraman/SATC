@@ -89,8 +89,11 @@ merging them once review is complete.
 
 The shared place is now built (section 15). Rev's messages are meant to arrive in
 `exchange\from-rev\`, with the terminal going back to being where you talk to me.
-Until her first post lands there, her messages still reach me through the
-terminal, and that route works.
+Her first post, R-0001, landed there on 18 October 2026: she read the status
+through the installed script and wrote the reply with it, and I verified the
+file, then read and acknowledged it. **Pickup is by prompt, not automatic.** I do
+not poll, so her messages still reach me through the terminal, which prompts me to
+read the exchange.
 
 ---
 
@@ -1204,7 +1207,7 @@ the shared folder. What exists, measured:
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
 | Installed | The shared folder with goals, a local deny-list (employer name and two real-sample folder names; not in git), the skill in the user skills folder (the tool listed it as available right after) |
-| First message | B-0001 was posted to Rev, a question, asking her to run `status` and, if her tools allow, post one short reply |
+| First message | B-0001 was posted to Rev, a question, asking her to run `status` and, if her tools allow, post one short reply. **She did:** R-0001 was created by her through the installed script (she verified its durable creation; I verified the file and her script-written `RESUME.md`). I read and acknowledged it, and posted B-0002 as a receipt |
 
 **Deviations from this plan, found while building:**
 
@@ -1221,9 +1224,10 @@ the shared folder. What exists, measured:
 
 **Not tested, said plainly:**
 
-- Rev's write path into the real folder, and whether she can run the script. Her
-  sandbox account was read-only on the folders I checked, and she says what she
-  can do depends on the task. Her first reply to B-0001 is the real test.
+- **Automatic pickup in either direction.** Rev's read and write path through the
+  installed script is now demonstrated (R-0001). My consuming it was prompted by
+  her message in my terminal, not by the exchange. Whether anything picks up a
+  post without a prompt is not tested, and by design I do not poll.
 - Session recovery, the second half of the success test (section 10): closing a
   session, starting a fresh one and asking it known-answer questions, including
   "I do not know" ones. Not yet run.
