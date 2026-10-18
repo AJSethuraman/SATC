@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 78 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 44 deliberate breakages of guard and safety rules, 44 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 84 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 50 deliberate breakages of guard and safety rules, 50 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1348,6 +1348,25 @@ above), each fixed with a test and a mutation:
 14. **A dead poster's reservation left a permanent numbering gap** that `ack`
     could never pass. A reservation older than 60 seconds with no message is now
     treated as abandoned and its number reused; a fresh one is still respected.
+
+15. **A link with balanced parentheses could hide a query** after them
+    (`.../foo(bar)?client=...`): the link pattern stopped at the first `)`. Balanced
+    parentheses now stay inside the link.
+16. **A message the reader would refuse could be written.** Headers plus a long
+    multibyte body could exceed the 40,000-byte read limit, so posting succeeded and
+    every later load withheld the file, holding the other side's cursor. Posting now
+    checks the real byte size before writing and releases its reservation.
+17. **A re-agreement after an edit could not restore a mutual position,** because old
+    fingerprints from superseded agreements kept the proposal marked stale. Only each
+    side's latest agreement counts now.
+18. **Numbering could produce an id the reader cannot parse** after message 9999. It
+    now stops there with a clear message.
+19. **A denial-of-service hole, found by me while fixing the above.** The email and
+    link patterns rescanned a long unbroken run from every character, so 30,000
+    characters took about 8 seconds per guard pass and a hand-saved 39 KB file could
+    stall every `status` and `read`. Both patterns are now linear (0.01 seconds on
+    39,000 characters), with a timing test and two mutations that reintroduce the slow
+    patterns. My own test of the fourth-pass fixes is what exposed it: it hung.
 
 The pattern across these rounds is worth stating: a reviewer reading the guard
 keeps finding shapes it misses. The guard blocks *known shapes*, not "all

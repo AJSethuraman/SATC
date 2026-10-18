@@ -381,6 +381,60 @@ class TestCodexThirdPassOnPR458(Base):
         self.assertEqual(post(self.root, "bassy", "two")[1].strip(), "posted B-0003")
 
 
+class TestCodexFourthPassOnPR458(Base):
+    def test_a_link_with_balanced_parentheses_cannot_hide_a_query(self):
+        hidden = "[x](https://github.com/AJSethuraman/SATC/foo(bar)?client=Jane)"
+        found = ex.guard(hidden, label="t")
+        self.assertTrue(any("query string" in f.what for f in found))
+        # a parenthesis in an allowed path, with no query, is fine
+        self.assertEqual(ex.guard("see https://github.com/AJSethuraman/SATC/foo(bar)", label="t"), [])
+        self.assertEqual(ex.guard("(see https://github.com/AJSethuraman/SATC/pull/1)", label="t"), [])
+
+    def test_the_guard_is_linear_on_long_unbroken_text(self):
+        # Found while fixing this pass: the email and link patterns rescanned a long
+        # unbroken run from every character, so 30,000 characters took about 8
+        # seconds per guard pass and a hand-saved 39 KB file could stall status/read.
+        for label, text in (("x", "x" * 39000), ("a1-", "a1-" * 13000),
+                            ("dots", "a." * 19500), ("scheme-ish", "ab+" * 13000)):
+            t0 = time.time()
+            ex.guard(text, label="t")
+            self.assertLess(time.time() - t0, 1.5, label)
+
+    def test_detection_survives_the_speed_fix(self):
+        for text in ("a@b.co", "write to someone.else@example.org now",
+                     "see https://evil.example/x", "see www.evil.example", "//evil.example/p"):
+            self.assertTrue(ex.guard(text, label="t"), text)
+
+    def test_a_message_the_reader_would_refuse_is_never_written(self):
+        code, _, err = post(self.root, "bassy", "\u65e5" * 6000, about="x" * 30000)
+        self.assertEqual(code, 2)
+        self.assertIn("bytes", err)
+        self.assertEqual(list((self.root / "from-bassy").glob("B-*.md")), [])
+        self.assertEqual(list((self.root / "from-bassy").glob(".B-*")), [])  # reservation released
+
+    def test_a_reagreement_after_an_edit_restores_the_mutual_position(self):
+        post(self.root, "bassy", "Proposal: one writer per file.", kind="suggestion")
+        prop = self.root / "from-bassy" / "B-0001.md"
+        fp1 = ex.sha8(prop.read_text(encoding="utf-8"))
+        post(self.root, "rev", "I agree.", kind="agreement", proposal="B-0001#" + fp1)
+        post(self.root, "bassy", "I agree.", kind="agreement", proposal="B-0001#" + fp1)
+        prop.write_text(prop.read_text(encoding="utf-8") + "Edited.\n", encoding="utf-8")
+        self.assertIn("STALE", ex.view_agreed(self.root))
+        fp2 = ex.sha8(prop.read_text(encoding="utf-8"))
+        post(self.root, "rev", "I agree to the edited one.", kind="agreement", proposal="B-0001#" + fp2)
+        post(self.root, "bassy", "I agree to the edited one.", kind="agreement", proposal="B-0001#" + fp2)
+        out = ex.view_agreed(self.root)
+        self.assertNotIn("STALE", out)
+        self.assertIn("mutual", out)
+
+    def test_numbering_stops_before_an_id_the_reader_cannot_parse(self):
+        (self.root / "from-bassy" / "B-9999.md").write_text("x", encoding="utf-8")
+        code, _, err = post(self.root, "bassy", "one more")
+        self.assertEqual(code, 2)
+        self.assertIn("used up", err)
+        self.assertEqual([p.name for p in (self.root / "from-bassy").glob("B-*")], ["B-9999.md"])
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")
