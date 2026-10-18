@@ -95,6 +95,21 @@ class TestGuardShapes(Base):
     def test_phone_is_refused(self):
         self.assertTrue(self.refused("call " + PHONE))
 
+    def test_phone_forms_with_a_tight_bracket_are_caught(self):
+        # Codex: "(ddd)ddd-dddd" and country-prefixed forms slipped through,
+        # because the closing bracket broke the digit-run rule and the phone
+        # rule demanded a separator after it.
+        # (dotted "216.555.0142" is the form only the plain phone rule catches:
+        # the digit-run rule joins groups with spaces and dashes, not dots.)
+        for text in ("call (216)555" + "-" + "0142", "call +1 (216)555" + "-" + "0142",
+                     "call (216)555" + "0142", "call 1(216)555" + "-" + "0142",
+                     "call 216" + "." + "555" + "." + "0142"):
+            found = self.refused(text)
+            self.assertTrue(any("phone" in f.what for f in found), text)
+        # and ordinary things in brackets are not phone numbers
+        for text in ("(see section 4.9) and (A)", "version (3.12) of (112) checks"):
+            self.assertEqual(self.refused(text), [], text)
+
     def test_a_bracketed_phone_is_caught_by_the_phone_rule_itself(self):
         # "(216) 555-0142" is too short for the digit-run rule, so only the
         # phone rule can refuse it. Without this case that rule was decoration.
@@ -248,6 +263,46 @@ class TestPostRules(Base):
     def test_post_refreshes_resume_file(self):
         post(self.root, "bassy", "Body text.")
         self.assertTrue((self.root / "from-bassy" / "RESUME.md").is_file())
+
+
+class TestCodexFindingsOnPR458(Base):
+    def test_a_repeat_with_a_withdrawal_is_not_swallowed_as_a_duplicate(self):
+        post(self.root, "bassy", "Need a decision.", kind="owner-item")
+        post(self.root, "bassy", "Same words.", kind="note")
+        code, out, _ = post(self.root, "bassy", "Same words.", kind="note", withdraws="B-0001")
+        self.assertEqual(code, 0)
+        self.assertIn("posted B-0003", out)
+        self.assertIn("Owner items open: 0", run(self.root, ["owner-items"])[1])
+
+    def test_a_metadata_only_difference_is_not_a_duplicate(self):
+        post(self.root, "bassy", "Same words.", goal="G1")
+        code, out, _ = post(self.root, "bassy", "Same words.", goal="G2")
+        self.assertIn("posted B-0002", out)
+
+    def test_a_multiline_header_value_is_refused_and_nothing_is_written(self):
+        code, _, err = post(self.root, "bassy", "x", about="topic\ngoal: G9")
+        self.assertEqual(code, 2)
+        self.assertIn("one line", err)
+        self.assertEqual(list((self.root / "from-bassy").glob("B-*.md")), [])
+
+    def test_an_oversize_hand_saved_body_is_withheld(self):
+        body = "word " * 1500  # 7,500 characters
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n\n" + body,
+            encoding="utf-8")
+        shown = run(self.root, ["read", "--as", "bassy"])[1]
+        self.assertIn("WITHHELD R-0001", shown)
+        self.assertIn("size limit", shown)
+
+    def test_a_huge_file_is_withheld_without_being_read(self):
+        (self.root / "from-rev" / "R-0001.md").write_text("x" * 200000, encoding="utf-8")
+        called = []
+        real = Path.read_bytes
+        with mock.patch.object(Path, "read_bytes",
+                               lambda p: (called.append(p) or real(p))):
+            shown = run(self.root, ["read", "--as", "bassy"])[1]
+        self.assertIn("not read", shown)
+        self.assertEqual([c for c in called if c.name == "R-0001.md"], [])
 
 
 class TestReadingIsSafeAndReadOnly(Base):

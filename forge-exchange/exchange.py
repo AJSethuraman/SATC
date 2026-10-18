@@ -47,6 +47,7 @@ OTHER = {"bassy": "rev", "rev": "bassy"}
 HEADER_KEYS = ("id", "from", "kind", "re", "about", "evidence", "convictions",
                "goal", "mode", "proposal", "withdraws")
 MAX_BODY = 6000
+MAX_FILE_BYTES = 40000  # a valid message is a few KB; refuse to read more
 MIN_DIGITS = 9  # DIGITS-MARK
 FINDING_LABELS = ("Source evidence:", "Reproduction evidence:", "Expected:",
                   "Actual:", "Untested boundary:", "Owning project:")
@@ -70,7 +71,8 @@ SHAPES = (
 )
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # EMAIL-MARK
 PHONE = re.compile(
-    r"(?<!\d)(?:\+?1[-. ]?)?\(?\d{3}\)?[-. ]\d{3}[-. ]\d{4}(?!\d)")  # PHONE-MARK
+    r"(?<!\d)(?:\+?1[-. ]?)?(?:\(\d{3}\)[-. ]?\d{3}[-. ]?\d{4}"
+    r"|\d{3}[-. ]\d{3}[-. ]\d{4})(?!\d)")  # PHONE-MARK
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 DIGIT_RUN = re.compile(r"(?<![A-Za-z0-9])\d{3,}(?:[ -]\d{3,})*(?![A-Za-z0-9])")
 PROTECTED = (
@@ -391,6 +393,10 @@ def load_msg(root: Path, side: str, path: Path) -> Msg:
         msg.problems.append("a file that is a shortcut or junction")
         return msg
     try:
+        if path.stat().st_size > MAX_FILE_BYTES:  # SIZE-FILE-MARK
+            msg.ok = False
+            msg.problems.append("a file over the size limit, which was not read")
+            return msg
         raw = path.read_bytes()
         text = raw.decode("utf-8")
     except (OSError, UnicodeDecodeError):
@@ -405,6 +411,9 @@ def load_msg(root: Path, side: str, path: Path) -> Msg:
         msg.problems.append(f"a malformed header ({e})")
         return msg
     msg.header, msg.body = header, body
+    if len(body) > MAX_BODY:  # SIZE-BODY-MARK
+        msg.ok = False
+        msg.problems.append("a message body over the size limit")
     if header.get("id") != mid:
         msg.ok = False
         msg.problems.append("an id in the header that does not match the file name")
@@ -612,6 +621,9 @@ def banner(root: Path, me: str) -> str:
 # ------------------------------------------------------------------------ post
 def validate_new(root: Path, me: str, h: dict, body: str) -> None:
     problems: list[str] = []
+    for k, v in h.items():
+        if "\n" in str(v) or "\r" in str(v):  # ONELINE-MARK
+            problems.append(f"the {k} value must be one line")
     if h.get("kind") not in KINDS:
         problems.append("kind must be one of: " + ", ".join(KINDS) +
                         ". There is no kind for a request to run or send.")
@@ -680,9 +692,8 @@ def find_message(root: Path, mid: str) -> Optional[Msg]:
 
 
 def content_key(h: dict, body: str) -> str:
-    base = "|".join([h.get("kind", ""), h.get("re", ""), h.get("about", ""),
-                     h.get("proposal", ""), body.strip()])
-    return sha8(base)
+    fields = [h.get(k, "") for k in HEADER_KEYS if k not in ("id", "from")]  # KEY-FIELDS-MARK
+    return sha8("|".join(fields + [body.strip()]))
 
 
 def post(root: Path, me: str, h: dict, body: str) -> str:
