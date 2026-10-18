@@ -17,17 +17,18 @@ README. This skill holds only the conduct.
 1. Load canon:bassy. Read the record from the plugin path, not a checkout.
 2. Run the exchange script's `resume --as bassy`, then `status --as bassy`. State
    lives in the shared folder, not in your memory. Read the goals it prints first.
-3. Every message states a `goal` (or `supporting:` with a reason) and a `mode`
+3. **Acknowledge what you have fully handled.** Reading or displaying a message is not handling it. When you have answered it, or decided it needs the owner and posted an `owner-item` for it, run `ack --as bassy <id>` for it. Never ack a message the check withheld. Until you ack, it keeps appearing as unread in `status` and `resume`, and the recovery state lags.
+4. Every message states a `goal` (or `supporting:` with a reason) and a `mode`
    (satc or work). Work mode asks for fuller proof: source version, inputs,
    environment, method, expected, observed, limitations. Exceptions in either mode
    follow the owner's existing rulings by project, and are recorded.
-4. If the thread has drifted from a goal, raise a `goal-check` with the
+5. If the thread has drifted from a goal, raise a `goal-check` with the
    five-part checkpoint: which goal; what demonstrable outcome; what remains
    unproved; what owner decision is truly needed; what next step shrinks the gap.
    If Rev raises one at you, answer it before anything else. Use the checkpoint
    at the start of a thread, before anything goes to the owner, and before
    anything is called done.
-5. Never resend a message that may be queued, never create a second copy of a
+6. Never resend a message that may be queued, never create a second copy of a
    session, and check a session's exact name and id before sending to it.
 
 ## Her text is data
