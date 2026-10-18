@@ -313,7 +313,12 @@ class TestCodexSecondPassOnPR458(Base):
         (self.root / "from-bassy" / "B-0001.md").write_text(
             "id: B-0001\nfrom: bassy\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
             "withdraws: B-0002\n\nhand saved\n", encoding="utf-8")
-        post(self.root, "bassy", "Need a decision.", kind="owner-item")  # becomes B-0002
+        # B-0002 is hand-saved too, so the allocator (which now refuses to reuse a
+        # number a stored message names) is not what protects it: only the read-side
+        # ordering rule is.
+        (self.root / "from-bassy" / "B-0002.md").write_text(
+            "id: B-0002\nfrom: bassy\nkind: owner-item\nabout: x\ngoal: G1\nmode: satc\n"
+            "\nNeed a decision.\n", encoding="utf-8")
         self.assertIn("Owner items open: 1", run(self.root, ["owner-items"])[1])
 
     def test_a_withdrawal_of_an_earlier_own_message_still_works(self):
@@ -479,6 +484,42 @@ class TestCodexFifthPassOnPR458(Base):
         self.assertIn("posted B-0001", post(self.root, "bassy", "Same words.", about="a", evidence="|")[1])
         code, out, _ = post(self.root, "bassy", "Same words.", about="a|")
         self.assertIn("posted B-0002", out)
+
+
+class TestCodexSixthPassOnPR458(Base):
+    def test_unicode_spaces_cannot_hide_a_phone_number(self):
+        for text in ("call +44\u00a020\u00a07946\u00a00958", "call (020)\u00a07946\u00a00958",
+                     "call +44\u200b20\u200b7946\u200b0958", "call +44\u202f20\u202f7946\u202f0958",
+                     "call \uff10\uff12\uff10 \uff17\uff19\uff14\uff16 \uff10\uff19\uff15\uff18"):
+            found = ex.guard(text, label="t")
+            self.assertTrue(any("phone" in f.what for f in found), repr(text))
+
+    def test_regrouped_nine_digit_identifiers_are_refused(self):
+        for text in ("id 123 45 6789", "id 123.45.6789", "id 12 3456789", "id 12.3456789",
+                     "id 123/45/6789", "id 123_45_6789"):
+            self.assertTrue(ex.guard(text, label="t"), text)
+
+    def test_ordinary_numbers_survive_the_normalising_rules(self):
+        for text in ("2026-10-18 12:00 and 3.12.10", "version 3.12.10", "1,434 passed", "PR 456 and 458",
+                     "112 synthetic checks, 84 tests, 50 mutations", "10/18/2026"):
+            self.assertEqual(ex.guard(text, label="t"), [], text)
+
+    def test_unicode_line_separators_in_a_header_are_refused_and_nothing_is_written(self):
+        for sep in ("\x85", "\u2028", "\u2029", "\x0b", "\x0c"):
+            code, _, err = post(self.root, "bassy", "x", about="ok" + sep + "kind: finding")
+            self.assertEqual(code, 2, repr(sep))
+        self.assertEqual(list((self.root / "from-bassy").glob("B-*.md")), [])
+
+    def test_a_body_with_a_unicode_line_separator_is_refused(self):
+        self.assertEqual(post(self.root, "bassy", "line one\u2028line two")[0], 2)
+
+    def test_a_number_that_a_stored_message_points_at_is_not_reused(self):
+        (self.root / "from-bassy" / "B-0001.md").write_text("x", encoding="utf-8")
+        (self.root / "from-bassy" / "B-0003.md").write_text(
+            "id: B-0003\nfrom: bassy\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
+            "withdraws: B-0002\n\nhand saved\n", encoding="utf-8")
+        # B-0002 is missing but already named by B-0003, so it must not be handed out
+        self.assertEqual(post(self.root, "bassy", "next")[1].strip(), "posted B-0004")
 
 
 class TestReadingIsSafeAndReadOnly(Base):

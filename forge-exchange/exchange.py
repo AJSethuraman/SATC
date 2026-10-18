@@ -32,6 +32,7 @@ import re
 import secrets
 import sys
 import time
+import unicodedata
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -78,6 +79,12 @@ EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]++@[\w-]+(?:\.[\w-]+)+")  # EMAIL-MARK
 # A phone number is any run of digits and phone punctuation holding 10 to 15 digits
 # (the E.164 range). One general rule, so a new national format is not a new gap.
 PHONE_RUN = re.compile(r"[\d()+.\- ]{10,}")
+LOOSE_SHAPES = (
+    ("an SSN or ITIN written with other separators",
+     re.compile(r"(?<!\d)\d{3}[ ._/-]\d{2}[ ._/-]\d{4}(?!\d)")),  # LOOSE-MARK
+    ("an EIN written with other separators",
+     re.compile(r"(?<!\d)\d{2}[ ._/-]\d{7}(?!\d)")),
+)
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 DIGIT_RUN = re.compile(r"(?<![A-Za-z0-9])\d{3,}(?:[ .,/_-]\d{3,})*(?![A-Za-z0-9])")  # PUNCT-MARK
 PROTECTED = (
@@ -118,7 +125,7 @@ def iter_urls(text: str):
         pos = max(i, m.end())
 
 
-CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]")
 RUNNABLE = re.compile(
     r"(^```)|(^\s*(?:\$|PS>|>>>)\s)|"
     r"(^\s*(?:python|pip|git|curl|wget|rm|del|Remove-Item|Invoke-\w+|"
@@ -317,10 +324,31 @@ def link_allowed(host: str, path: str, allow: Sequence[str]) -> bool:
     return False
 
 
+def normalize_for_guard(text: str) -> str:
+    """Make look-alike forms of the same characters identical before scanning.
+
+    NFKC folds full-width digits and ligatures; every space-like or invisible format
+    character (non-breaking and zero-width spaces among them) becomes a plain space.
+    Newlines are kept so line numbers stay right. Each Unicode variant used to be a
+    separate gap in the digit and phone rules.
+    """
+    out = []
+    for ch in unicodedata.normalize("NFKC", text):
+        if ch in "\n\r\t":
+            out.append(ch)
+        elif unicodedata.category(ch) in ("Zs", "Cf"):
+            out.append(" ")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def guard(text: str, *, root: Optional[Path] = None,
           label: str = "text") -> list[Finding]:
     """Every problem in ``text``; an empty list means it may pass."""
     found: list[Finding] = []
+    control = bool(CONTROL.search(text) or "\r" in text.replace("\r\n", "\n"))  # CR-MARK
+    text = normalize_for_guard(text)  # NORM-MARK
     starts = [0]
     for line in text.splitlines(True):
         starts.append(starts[-1] + len(line))
@@ -333,12 +361,15 @@ def guard(text: str, *, root: Optional[Path] = None,
             n = i + 1
         return f"{label} line {n}"
 
-    if CONTROL.search(text) or "\r" in text.replace("\r\n", "\n"):  # CR-MARK
+    if control:
         found.append(Finding(label, "a control character"))
     for name, rx in SHAPES:
         for m in rx.finditer(text):
             found.append(Finding(where_of(m.start()), f"something shaped like {name}"))
     scrub = ISO_DATE.sub(lambda m: " " * len(m.group(0)), text)
+    for name, rx in LOOSE_SHAPES:
+        for m in rx.finditer(scrub):
+            found.append(Finding(where_of(m.start()), f"something shaped like {name}"))
     for m in DIGIT_RUN.finditer(scrub):
         if len(re.sub(r"\D", "", m.group(0))) >= MIN_DIGITS:
             found.append(Finding(where_of(m.start()),
@@ -671,7 +702,7 @@ def banner(root: Path, me: str) -> str:
 def validate_new(root: Path, me: str, h: dict, body: str) -> None:
     problems: list[str] = []
     for k, v in h.items():
-        if "\n" in str(v) or "\r" in str(v):  # ONELINE-MARK
+        if re.search(r"[\r\n\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]", str(v)):  # ONELINE-MARK
             problems.append(f"the {k} value must be one line")
     if h.get("kind") not in KINDS:
         problems.append("kind must be one of: " + ", ".join(KINDS) +
@@ -762,6 +793,12 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
         if content_key(m.header, m.body) == key:
             return f"not posted: identical to {m.id}, which is already there"
     taken = {m.n for m in list_messages(root, me) if MSG_NAME.match(m.path.name)}
+    for earlier in list_messages(root, me):
+        for key in ("re", "withdraws"):
+            ref = earlier.header.get(key, "")
+            mt = MSG_NAME.match(ref + ".md") if ref else None
+            if mt and mt.group(1) == PREFIX[me]:
+                taken.add(int(mt.group(2)))  # DANGLING-MARK
     n = next((i for i in range(1, max(taken | {0}) + 2) if i not in taken), 1)  # GAP-MARK
     for _ in range(200):
         if n > MAX_MESSAGE_NUMBER:  # NUMBER-MARK
