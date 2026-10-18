@@ -354,6 +354,11 @@ Decided here without the bank, and open to its veto:
   neither acquirer on the roster. A failed bank was split between buyers, so
   each buyer's next filing carries part of a bank it did not have. Marking it
   can only leave a quarter out of a window. It never adds a number.
+  *(Corrected 18 Oct 2026: false once pro forma exists. A marked row with an
+  absorbed bank is an absorption link, and under pro forma
+  `books.combination` adds the absorbed bank's figures to the acquirer's;
+  same-parent links also take repeated year-to-date figures off. See the
+  note in `peers/fdic.py`.)*
 - `min_banks` has no default. 5 reproduces the earlier build.
 
 Run end to end against the real cache. Pull: 82 quarters, 0 fetched. The live
@@ -2517,3 +2522,20 @@ industry figures were not tied out to the QBP. Nothing was opened in Excel.
   here. Slicers do not render in LibreOffice. The consumer book was not
   rebuilt. `threshold-engine-book` gained combined products after this branch
   left it; nothing here anticipates them.
+
+## 18 Oct 2026, review fixes to the commercial book, the rest
+
+A review of the commercial book found more than commits 71af58cc..ecad88d7
+fixed. The rest, one commit each:
+
+- **FDIC codes 213 and 215: what marking a code does.** The notes in
+  `peers/fdic.py` said marking a code "can only leave a quarter out of a
+  window; it never adds a number". False under pro forma: a marked row naming
+  an absorbed bank is an absorption link (`fdic.absorptions`), and
+  `books.combination` / `books.combined_flows` add the absorbed bank's
+  figures to the acquirer's. The links are also read by `books.repeated_ytd`
+  (same-parent repeated year to date taken off) and
+  `books.acquired_quarters` (windows left out). The comment now says so, and
+  the 12 Oct LOG line that said the same of 215 carries a correction. A
+  comment only; no test.
+
