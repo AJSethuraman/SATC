@@ -496,3 +496,17 @@ def test_a_workbook_with_the_loan_classes_tab_defines_its_terms_where_they_were(
             assert not set(terms) & set(LOAN_TERMS), (kind, tab)
         # Every other term is there either way.
         assert {t for t, _, _ in G.PEER_TERMS} - {"Consumer book by product"} <= set(terms)
+
+
+def test_decide_wraps_a_long_portfolio_name_and_keeps_its_column(built):
+    """'Investor CRE (non-owner-occupied)' is wider than Decide's first column
+    (16.43, the design's: widening it would move the slicers and the chart),
+    so its cell wraps, onto rows tall enough for two lines."""
+    ws = load_workbook(built["commercial"][0])["Decide"]
+    assert ws.column_dimensions["B"].width == 16.43
+    rows = [c for c in ws["B"] if c.value == "Investor CRE (non-owner-occupied)"]
+    assert len(rows) == 1
+    for c in ws["B"][8:]:
+        if c.value in KD.COMMERCIAL_NAMES.values():
+            assert c.alignment.wrap_text, c.coordinate
+            assert ws.row_dimensions[c.row].height >= 2 * 15, c.coordinate

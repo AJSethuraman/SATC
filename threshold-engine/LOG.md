@@ -2625,3 +2625,14 @@ fixed. The rest, one commit each:
     `test_commercial_book.py`, `test_peers_into.py`,
     `test_peer_loan_classes.py`, `test_book.py`, `test_peers_dashboard.py`:
     154 passed.
+- **Decide's first column: the wrap was already set.** The 18 Oct entry's
+  "Found, not fixed" said "Investor CRE (non-owner-occupied)" would be cut
+  in Decide's 16.43-wide first column. The cell already wraps: the part
+  columns have wrapped since f9c2e64d (15 Oct), on table rows 34.5 pt tall
+  (two lines). Opened in LibreOffice (a copy of the fixture build with only
+  that row shown, as a PDF): it reads "Investor CRE (non-" / "owner-occupied)",
+  whole, on two lines. Whether Excel breaks the line at the same hyphen was
+  not checked; if it does not, "(non-owner-occupied)" alone is wider than
+  the column. Nothing changed in the code; a test now holds the wrap, the
+  width and the two-line rows (`test_commercial_book.py`; with the wrap
+  taken off, it fails, checked).
