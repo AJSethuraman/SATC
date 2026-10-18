@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 61 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 31 deliberate breakages of guard and safety rules, 31 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 78 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 44 deliberate breakages of guard and safety rules, 44 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1325,3 +1325,33 @@ A third finding came from Codex and Rev's reading of PR 458 after that:
    mid-write but do not run real concurrent processes or interrupt one. The
    earlier wording ("cannot win") was too strong. Three new mutations cover the
    fix and the detection.
+
+Seven more came in two further passes of Codex's review of PR 458 (after the four
+above), each fixed with a test and a mutation:
+
+8. **A withdrawal could point at a later message,** so a hand-saved `B-0001`
+   withdrawing `B-0002` would hide the owner item `B-0002` later became. A
+   withdrawal now counts only if its target is an earlier message from the same
+   side. The new rule masked the side rule in two older tests; they were rewritten
+   so each rule is tested on its own (the mutation run exposed it).
+9. **Digit groups joined by dots, commas, slashes or underscores** escaped the
+   digit-run rule. Those separators now count; ordinary numbers still pass.
+10. **A path ending at the engagements folder** was not refused. It is now, while
+    naming the folder in prose stays fine.
+11. **A lone carriage return** could overwrite displayed text. Refused; CRLF line
+    endings stay allowed.
+12. **International phone numbers** (`+44 ...`) matched neither phone rule. A plus
+    sign followed by 9 to 15 digits is now refused; ordinary plus signs are not.
+13. **Protocol-relative and other-scheme links** bypassed the link allow-list.
+    Every scheme and `//host/...` link now goes through it; only http and https
+    can pass. A first draft broke plain https links and an older test caught it.
+14. **A dead poster's reservation left a permanent numbering gap** that `ack`
+    could never pass. A reservation older than 60 seconds with no message is now
+    treated as abandoned and its number reused; a fresh one is still respected.
+
+The pattern across these rounds is worth stating: a reviewer reading the guard
+keeps finding shapes it misses. The guard blocks *known shapes*, not "all
+identifying data" (section 5.4), and every round has been a new shape or an edge
+of an existing rule. Codex reviewing again is cheap relative to a missed shape,
+but this list will not reach "complete".
+
