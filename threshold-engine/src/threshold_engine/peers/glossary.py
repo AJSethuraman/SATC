@@ -190,29 +190,6 @@ PEER_TERMS = [
      "minus the pack composite, in percentage points. 4-quarter change is the bank's rate minus its own rate "
      "four quarters earlier, in percentage points, blank when either is missing. Balance ($bn) is the average "
      "balance on charge-offs and the quarter-end balance on delinquency. In pack marks Peer A and Peer B."),
-    ("Peer loan classes",
-     "What each peer's consumer book holds, from the holding company's own quarterly filing with the SEC: "
-     "its loan classes, and whether it holds student loans, unsecured or personal loans and lines, and loans "
-     "secured by anything other than a home or a car.",
-     "Amounts are the filing's own at amortized cost, read from its XBRL by the members named, or as printed "
-     "where the filing does not tag a class. The Call Report's other consumer line (RC-C 6.b + 6.d) mixes "
-     "these classes."),
-    ("Counted as",
-     "What a class is counted as on Peer loan classes: student, unsecured or personal, secured non-auto, mixed "
-     "other consumer, or other.",
-     "A judgment stated per class in config/peer-loan-classes.json, with the filing's words quoted. "
-     "Unsecured or personal holds classes the filing calls unsecured or personal loans, and solar energy "
-     "installation loans, which the bank's analyst ruled count as unsecured (15 Oct 2026: the panels are "
-     "little to recover). A filing that says personal without saying unsecured is said so."),
-    ("For an unsecured comparison",
-     "Whether a bank's other consumer rate on the Call Report can stand for its unsecured lending.",
-     "Clean: the filing shows the unsecured or personal slice on its own and no student loans. Mixed: other "
-     "consumer holds unsecured lending beside student, secured or undefined classes. Not comparable: secured, "
-     "securities-based or fair-value lending dominates, or the book is too small. A judgment, with why."),
-    ("How the amount was read",
-     "Whether a class's amount came from the filing's XBRL (tagged with the members named) or as printed on "
-     "the page named, because the filing does not tag that class.",
-     "Either way the tie-out checks it against the filing (docs/tie-out/peer-loan-classes-2026q2)."),
     ("Book size",
      "The average balance of each bank's book in the product picked, in $ billions: KeyBank, Peer A and "
      "Peer B as lines, the pack as its median and shaded bands, and every bank ranked by size beside it.",
@@ -341,11 +318,42 @@ PEER_TERMS = [
      "source."),
 ]
 
+#: The terms of the Peer loan classes tab (``loan_classes_tab.TITLE``), which
+#: only a book with a loan_classes section has: shown on a Glossary only when
+#: its workbook has that tab, after "Rank tables", where they always were.
+LOAN_CLASS_TAB = "Peer loan classes"
+LOAN_CLASS_TERMS = [
+    ("Peer loan classes",
+     "What each peer's consumer book holds, from the holding company's own quarterly filing with the SEC: "
+     "its loan classes, and whether it holds student loans, unsecured or personal loans and lines, and loans "
+     "secured by anything other than a home or a car.",
+     "Amounts are the filing's own at amortized cost, read from its XBRL by the members named, or as printed "
+     "where the filing does not tag a class. The Call Report's other consumer line (RC-C 6.b + 6.d) mixes "
+     "these classes."),
+    ("Counted as",
+     "What a class is counted as on Peer loan classes: student, unsecured or personal, secured non-auto, mixed "
+     "other consumer, or other.",
+     "A judgment stated per class in config/peer-loan-classes.json, with the filing's words quoted. "
+     "Unsecured or personal holds classes the filing calls unsecured or personal loans, and solar energy "
+     "installation loans, which the bank's analyst ruled count as unsecured (15 Oct 2026: the panels are "
+     "little to recover). A filing that says personal without saying unsecured is said so."),
+    ("For an unsecured comparison",
+     "Whether a bank's other consumer rate on the Call Report can stand for its unsecured lending.",
+     "Clean: the filing shows the unsecured or personal slice on its own and no student loans. Mixed: other "
+     "consumer holds unsecured lending beside student, secured or undefined classes. Not comparable: secured, "
+     "securities-based or fair-value lending dominates, or the book is too small. A judgment, with why."),
+    ("How the amount was read",
+     "Whether a class's amount came from the filing's XBRL (tagged with the members named) or as printed on "
+     "the page named, because the filing does not tag that class.",
+     "Either way the tie-out checks it against the filing (docs/tie-out/peer-loan-classes-2026q2)."),
+]
+_LOAN_CLASS_AFTER = "Rank tables"
+
 #: The share panel's term, which names the book's kind as the panel does.
 SHARE_TERM = "Consumer book by product"
 
 
-def terms_for(book_kind=None, share_note=None):
+def terms_for(book_kind=None, share_note=None, tabs=()):
     """``PEER_TERMS`` for a workbook whose book states ``book_kind``
     (``kinds.KINDS``). The share panel names the bank's book by that kind
     ("KeyBank's commercial book: share by product"), so its term does too: a
@@ -355,7 +363,13 @@ def terms_for(book_kind=None, share_note=None):
 
     ``share_note`` is the share panel's caption when the products built
     overlap (``peers_workbook.mix_caption``), added to how the term is
-    calculated; None (no product overlaps another) adds nothing."""
+    calculated; None (no product overlaps another) adds nothing.
+
+    ``tabs`` are the titles of the tabs of the workbook the terms go into.
+    The Peer loan classes terms (``LOAN_CLASS_TERMS``) are given only when it
+    has that tab: a book without it, every commercial book among them, and
+    the standalone peers build would otherwise define terms for a tab the
+    reader cannot find."""
     out = []
     for term, meaning, calc in PEER_TERMS:
         if term == SHARE_TERM:
@@ -365,4 +379,6 @@ def terms_for(book_kind=None, share_note=None):
             if share_note:
                 calc = "%s %s" % (calc, share_note)
         out.append((term, meaning, calc))
+        if term == _LOAN_CLASS_AFTER and LOAN_CLASS_TAB.casefold() in {str(t).casefold() for t in tabs}:
+            out += LOAN_CLASS_TERMS
     return out

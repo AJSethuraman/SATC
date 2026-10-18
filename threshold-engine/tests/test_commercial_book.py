@@ -454,3 +454,45 @@ def test_the_share_panel_says_how_it_is_stacked(built):
     gl = load_workbook(built["commercial"][0])["Glossary"]
     calc = {r[1].value: r[3].value for r in gl.iter_rows() if isinstance(r[1].value, str)}
     assert calc["Commercial book by portfolio"].endswith(said[0])
+
+
+# ---------------------------------------------------------------- terms only for tabs the book has
+
+LOAN_TERMS = ("Peer loan classes", "Counted as", "For an unsecured comparison", "How the amount was read")
+
+
+def test_a_book_without_the_loan_classes_tab_does_not_define_its_terms(built):
+    """Neither fixture book has a loan_classes section, so neither workbook has
+    the Peer loan classes tab, and neither Glossary defines its terms."""
+    for kind in ("commercial", "consumer"):
+        wb = load_workbook(built[kind][0])
+        assert "Peer loan classes" not in wb.sheetnames
+        terms = {r[1].value for r in wb["Glossary"].iter_rows() if isinstance(r[1].value, str)}
+        assert "Rank tables" in terms and not terms & set(LOAN_TERMS), kind
+
+
+def test_a_workbook_with_the_loan_classes_tab_defines_its_terms_where_they_were():
+    """Written into a workbook that has the tab (a consumer book with a
+    loan_classes section), the four terms follow Rank tables, as before; into
+    one without it, of either kind, they are left out."""
+    from openpyxl import Workbook
+    from threshold_engine.peers import glossary as G
+    from threshold_engine.peers import loan_classes_tab as LC
+    from threshold_engine.peers import peers_workbook as PW
+    assert G.LOAN_CLASS_TAB == LC.TITLE
+    assert [t for t, _, _ in G.LOAN_CLASS_TERMS] == list(LOAN_TERMS)
+    for kind, tab in (("consumer", True), ("consumer", False), ("commercial", False), (None, False)):
+        wb = Workbook()
+        gl = wb.active
+        gl.title = "Glossary"
+        if tab:
+            wb.create_sheet(LC.TITLE)
+        PW._write_glossary(gl, 1, 2, PW._Tabs({t: t for t in PW.TABS}), "Peers terms", kind)
+        terms = [gl.cell(r, 2).value for r in range(1, gl.max_row + 1)]
+        if tab:
+            at = terms.index("Rank tables")
+            assert terms[at + 1:at + 5] == list(LOAN_TERMS)
+        else:
+            assert not set(terms) & set(LOAN_TERMS), (kind, tab)
+        # Every other term is there either way.
+        assert {t for t, _, _ in G.PEER_TERMS} - {"Consumer book by product"} <= set(terms)

@@ -2409,7 +2409,7 @@ def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None, share_n
     _ref_header(ws, row, ["Term", "What it means", "How it is calculated"], first_col, height=15)
     row += 1
     widths = [ws.column_dimensions[L(first_col + i)].width or 13 for i in range(3)]
-    for term, meaning, calc in terms_for(book_kind, share_note):
+    for term, meaning, calc in terms_for(book_kind, share_note, ws.parent.sheetnames):
         vals = (term, t.words(meaning), t.words(calc))
         for i, v in enumerate(vals):
             c = ws.cell(row, first_col + i, v)

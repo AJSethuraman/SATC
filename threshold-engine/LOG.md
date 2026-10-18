@@ -2606,3 +2606,22 @@ fixed. The rest, one commit each:
     that commit, not this one; fixed in the next commit.
   - Not checked: how Excel draws the shorter chart and the caption; nothing
     was opened in Excel.
+- **Terms only for tabs the book has.** A commercial book's Glossary
+  defined "Peer loan classes", "Counted as", "For an unsecured comparison"
+  and "How the amount was read" (the fourth is the same tab's; the review
+  named three) for a tab it does not have. They move out of `PEER_TERMS`
+  into `glossary.LOAN_CLASS_TERMS`, and `terms_for` adds them, after "Rank
+  tables" where they always were, only when the workbook written into has
+  the Peer loan classes tab (`tabs`, the workbook's sheet names). A consumer
+  book with a loan_classes section keeps them in the same place; a book of
+  either kind without that tab, and the standalone peers build, leave them
+  out. `test_commercial_book.py`: both fixture books (no tab) leave them
+  out; `_write_glossary` into a workbook with the tab puts the four after
+  Rank tables, and into one without it (consumer, commercial, none) leaves
+  them out. With the tab check removed, 2 fail (checked). No consumer book
+  with the tab was built end to end here: its tab reads an SEC filings
+  cache this machine does not have.
+  - Run (3 workers, 16 min): `test_peers_workbook.py`,
+    `test_commercial_book.py`, `test_peers_into.py`,
+    `test_peer_loan_classes.py`, `test_book.py`, `test_peers_dashboard.py`:
+    154 passed.
