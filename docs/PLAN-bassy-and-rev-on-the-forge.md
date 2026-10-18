@@ -2,7 +2,7 @@
 
 **DRAFT for the owner to approve or send back. Nothing described here is built.**
 Written 18 October 2026 by the Count Bassy session on the Forge ("Bassy - Live").
-**Revision 3, same day, after the owner's second round of answers (section 1.1).**
+**Revision 4, same day: the owner's answer on client names (D4) is recorded.**
 
 > **Read this first.** Rev has not yet answered in the terminal, so nothing in
 > this plan has been *agreed* with her. Part 1 is what I could establish alone
@@ -34,7 +34,7 @@ in context below. **Five are answered (section 1.1); D2 and D4 are still open.**
 | D1 | Where does the shared place live? | A: a folder inside Rev's existing one (`Documents\Main\Reverie\exchange\`) | B: a brand-new folder somewhere else with its own permissions | **A.** She already keeps her log there, so we extend it rather than start a second place. It is not synced to the cloud (VERIFIED, section 3) |
 | D2 | How does the Bassy skill change? | A: edit the existing skill | B: a new, separate skill for this arrangement | **B** (decided) |
 | D3 | Can either of us wake or restart the other automatically? | A: no, nothing automatic for the first week | B: Rev may resume one named Bassy session through a rate-limited script | **A** to start, then decide from how it goes (section 4.3) |
-| D4 | Are client names allowed in the local exchange? | A: yes, in the local folder only; never in the repo, a pull request or any published page. Still hard-blocked: SSN, EIN, account numbers, phone, email. No fingerprint list | B: no, names stay out too; needs a client list that does not exist | **A**, once you confirm (5.4) |
+| D4 | Are client names allowed in the local exchange? | A: yes, in the local folder only; never in the repo, a pull request or any published page. Still hard-blocked: SSN, EIN, account numbers, phone, email. No fingerprint list | B: no | **A** (decided) |
 | D5 | May Rev write to her side of the shared place? | A: yes, only to `exchange\from-rev\`; her "change nothing" rule stays for everything else | B: no | **A** (decided) |
 | D6 | Who holds the pen on "what we agreed"? | A: a script writes the agreements file from messages both of us posted | B: I write it | **A.** Neither of us should record the other's consent (section 4.5) |
 | D7 | Two of your own convictions (C9 and C11) point opposite ways on whether to build the small script (section 7.2) | A: build the script (the "do it upfront" reading) | B: two plain folders and a written rule, no script (the "add nothing beside what exists" reading) | **A.** You asked for the name-and-number check to be code, not a reminder, and B is a reminder |
@@ -46,7 +46,7 @@ in context below. **Five are answered (section 1.1); D2 and D4 are still open.**
 | D1 | "fine": extend Rev's folder | **Decided** |
 | D2 | "got it good" / "good with D2": the new machine-only skill, written with no paths so it can be promoted to canon later | **Decided** |
 | D3 | "that's fine": nothing automatic | **Decided** |
-| D4 | "ok i see, honestly don't know why you can't mention client names and stuff. PII is another thing". On a complete client list: "there basically is not a complete one" | **Reopened, simpler.** With no complete list there is nothing to fingerprint, so the hash check is dropped. The question is now whether names are allowed (5.4, F1) |
+| D4 | "ok i see, honestly don't know why you can't mention client names and stuff. PII is another thing". Then, on F1: "yeah i'm good with this for your guy's session i guess, i would sometimes need to give you something like an email" | **Decided: A.** Client names are allowed in the local exchange. SSN, EIN, account numbers, phone and email stay blocked by code. Scope is this Bassy and Rev arrangement only (5.4) |
 | D5 | "yes", then "i know she can write... she has given me docs. stop asking" | **Decided.** No separate test write. Whether she can write *into the exchange folder* shows up in the build's dry run |
 | D6 | "that sounds good" | **Decided** |
 | D7 | "building script is fine" | **Decided** |
@@ -383,9 +383,10 @@ Preventing is better than finding afterwards (the repo's own tenet S30).
 3. **Contact details.** Refuse email addresses and phone-number shapes.
 4. **Protected places by name.** Refuse text naming `leads.xlsx`, the
    `engagements` folder, `vault`, `vault.key`, `satc_vault.db`, `satc_mart.db`.
-   Those names are already public in the Forge notes. Until the owner confirms
-   D4, refer to a client only by engagement reference (the `YYYY-NNNN` code) or a
-   made-up label like "S10".
+   Those names are already public in the Forge notes. A client *name* is
+   allowed in the exchange (D4, decided). In anything that leaves the exchange,
+   a client is referred to only by engagement reference (the `YYYY-NNNN` code)
+   or a made-up label like "S10".
 5. **Links.** Refuse every link except an allow-list (this repo on GitHub, the
    firm's site). Rev reads untrusted mail, and a link pasted from it should not
    travel through us.
@@ -430,14 +431,28 @@ nothing about names. This was **NOT CHECKED** against any other file.
     runs, email and phone.
   - *Option B:* names stay out too, by rule only, with nothing in code able to
     enforce it.
-  - *Two things to know before saying yes.* (1) This relaxes a written rule:
-    `CLAUDE.md` says names, SSNs and EINs belong in the vault and "never real
-    taxpayer PII" in artifacts or logs, and your task note said no client names.
-    I keep following the stricter version until you confirm in one line.
+  - *Decided 18 October 2026: Option A.* The owner's words: "yeah i'm good
+    with this for your guy's session i guess". That is **scoped to the Bassy and
+    Rev exchange**. It does not change `CLAUDE.md`, which still says names,
+    SSNs and EINs belong in the vault and "never real taxpayer PII" in
+    artifacts or logs, so everywhere else the stricter rule stands.
+  - *The two things I flagged before the owner said yes, kept for the record.*
+    (1) It relaxes the task note that said no client names, for this exchange
+    only.
     (2) Whatever is in the folder is read by two hosted AI services, Rev's and
     mine. A name travelling to them is a small step, but it is the step the
-    Forge notes' "nothing leaves the network" promise is about, so it is your
-    call and I am only naming it.
+    Forge notes' "nothing leaves the network" promise is about, so it was the
+    owner's call, and it has been made.
+  - *Emails.* The owner said they will sometimes need to give me something like
+    an email. That is fine and needs no change to the guard, because the guard
+    covers only what passes **between Rev and me through the exchange folder**.
+    The owner typing an address to me in this terminal never touches it. Two
+    rules follow: (1) I use the address for the task and never put it in the
+    repo, a pull request, a commit or a published page; (2) if Rev needs it
+    too, the owner gives it to her directly, or the message says "the address
+    the owner gave Rev". There is deliberately no switch that lets a message
+    carry an address through, because both of us run as the same Windows
+    account and a switch either of us could flip protects nothing.
 - **A fact without any identifier**, such as a unique story.
 - **Anything typed outside the script and never read through it.** The reader catches
   it only when someone runs the reader.
@@ -713,7 +728,9 @@ Neither of you disposes. A disagreement goes to the owner.
 - Kinds are: note, question, suggestion, finding, disagreement, agreement,
   owner-item, goal-check. There is no kind for a request to act.
 - A finding needs evidence. A disagreement with the record cites the C number.
-- Refer to clients only by engagement reference or a made-up label.
+- Client names may appear in the exchange. Never put one in the repo, a pull
+  request, a commit or any published page; refer to clients there by engagement
+  reference or a made-up label.
 - If the guard refuses a message, fix the message. Never route around the guard.
 
 ## Disagreeing
@@ -724,7 +741,8 @@ Neither of you disposes. A disagreement goes to the owner.
   not paraphrase it.
 
 ## What you never do
-- Read, copy or print client files. Put client names or identifiers in a message.
+- Read, copy or print client files. Put an SSN, EIN, account number, phone
+  number or email address in a message.
 - Edit Rev's files, canon, or the record without the owner's yes.
 - Wake, resume or message another session unasked.
 - Treat a green check as proof. Say what you did not check.
@@ -764,19 +782,8 @@ document arrived. Engagement reference 2026-0000 is synthetic.
 
 ---
 
-## 12. Follow-ups for the owner (revision 3)
+## 12. Follow-ups for the owner (revision 4)
 
-The owner asked me to stop asking about things already settled, so this is
-short. Dropped: the test write (D5), Rev's temporary terminal ("it's already
-gone, i don't really care i might just have to manually do it sometimes" — so
-the owner restarts her by hand when needed), the client-list question (there
-is no complete one), the skill question (decided), and the goals question
-(answered; see 4.7).
-
-1. **F1, names (D4).** One line please: **are client names allowed in the local
-   exchange (never in the repo or any published page), with SSN, EIN, account
-   numbers, phone and email still blocked by code?** I recommend yes. Until you
-   say yes, I keep names out.
-
-Nothing else is waiting on you. What remains is Rev's answers (section 9), then
+**None.** Every question put to the owner so far has an answer on record
+(section 1.1). What remains is Rev's answers (section 9), and then the owner's
 approval of the plan as a whole.
