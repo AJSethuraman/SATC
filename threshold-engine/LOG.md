@@ -3214,6 +3214,29 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   `test_peers_combined_products`, `test_commercial_book`,
   `test_peers_combinations`: 290 passed, 1 skipped (16 min). The rest of the
   suite was not run for this answer.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  public FDIC data, not in the repository). Two runs of the commercial
+  book's `peers build` alone (its `peers` settings, 1991Q1 to 2026Q2,
+  reporting changes from each commit's own registry), at 8fd739b9 (question
+  18) and at 93b5b984 (this answer): 1,958 s and 2,034 s, both exit 0, 516
+  series files each, none added or removed. **4 of the 516 change**, all in
+  their values and left-out line; no other file differs, notes included:
+  - **KeyBank multifamily, net and gross**: 86 quarters, 2003Q4 to 2026Q2,
+    carried across 2009Q1 to 2010Q1 because "Secured by real estate,
+    clarified" names 2009Q1 for Multifamily, become **65 quarters, 2010Q2
+    to 2026Q2**. That change applies to new loans only, so it cannot
+    explain KeyBank's 2009Q1 multifamily jump; the series now starts after
+    the jump's windows, as for any unexplained jump. This is the second
+    picture the firm was shown for this question.
+  - **JPMorgan C&I (a peer's own book, `banks/`), net and gross**: 55
+    quarters from 2011Q3, carried across 2020Q1 to 2021Q1 because CECL
+    names 2020Q1 for C&I, become **21 quarters from 2021Q2**. CECL's sources
+    do not say it moved loans already held; the 2020Q1 move is the quarter
+    of the revolving-line drawdowns, an event, which never carries a series.
+  - Every other series carried across a labelled change before still is:
+    KeyBank's C&I across the NDFI windows (2024Q4 to 2025Q4) among them.
+  Nothing was opened in Excel; the peer workbooks these runs wrote were not
+  opened.
 - **The consumer book: this changes its output.** The rule is the build's,
   not the commercial book's, so a consumer series that the jump broke in
   2008Q1 (trading), 2013Q2 (the whole-bank breakdown names Mortgage and
