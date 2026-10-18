@@ -793,7 +793,8 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
     check_not_redirected(root)
     folder = root / SIDES[me]
     folder.mkdir(parents=True, exist_ok=True)
-    h = {k: v for k, v in h.items() if v not in (None, "")}
+    h = {k: str(v).strip() for k, v in h.items() if v not in (None, "")}  # STRIP-MARK
+    h = {k: v for k, v in h.items() if v != ""}
     h["from"] = me
     validate_new(root, me, h, body)
     probe = "\n".join(f"{k}: {v}" for k, v in h.items()) + "\n\n" + body

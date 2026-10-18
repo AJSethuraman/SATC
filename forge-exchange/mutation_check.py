@@ -136,6 +136,9 @@ MUTATIONS = [
     ("stored goals are not checked on read",
      r'''if not (re.fullmatch(r"G\d+", goal) or''',
      r'''if False and not (re.fullmatch(r"G\d+", goal) or'''),
+    ("header whitespace defeats duplicate detection",
+     'h = {k: str(v).strip() for k, v in h.items() if v not in (None, "")}  # STRIP-MARK',
+     'h = {k: v for k, v in h.items() if v not in (None, "")}  # STRIP-MARK'),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]

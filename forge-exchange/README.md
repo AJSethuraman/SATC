@@ -129,7 +129,8 @@ text it found.
 - Reading never changes anything. A message that fails the check stays where it
   is and is reported; it does not advance your cursor.
 - Generated files (`RESUME.md`, `AGREED.md`) are rebuilt from scratch.
-- Posting the same words twice is not posted twice.
+- Posting the same words twice is not posted twice. (Best effort: two identical
+  posts running at the very same moment can both succeed.)
 - The script refuses to work through a shortcut or junction in the folder path.
 - `resume` lists leftover temporary files, so a session that died halfway tells
   its successor what was unfinished.

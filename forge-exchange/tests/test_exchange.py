@@ -566,6 +566,16 @@ class TestCodexSeventhPassOnPR458(Base):
             self.assertIn("DATA FROM REV", run(self.root, ["read", "--as", "bassy"])[1], goal)
 
 
+class TestCodexEighthPassOnPR458(Base):
+    def test_header_whitespace_does_not_defeat_duplicate_detection(self):
+        self.assertIn("posted B-0001", post(self.root, "bassy", "Same words.", about=" x ")[1])
+        code, out, _ = post(self.root, "bassy", "Same words.", about=" x ")
+        self.assertIn("not posted: identical to B-0001", out)
+        self.assertEqual(len(list((self.root / "from-bassy").glob("B-*.md"))), 1)
+        # and the stored header is the trimmed value
+        self.assertIn("about: x\n", (self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")

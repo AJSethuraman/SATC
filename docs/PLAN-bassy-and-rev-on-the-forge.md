@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 100 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 56 deliberate breakages of guard and safety rules, 56 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 101 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 57 deliberate breakages of guard and safety rules, 57 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1411,6 +1411,10 @@ above), each fixed with a test and a mutation:
     deliberately does not check membership in `GOALS.md`, which would orphan old
     messages whenever the owner edits their goals.
 
+30. **Header whitespace defeated duplicate detection:** `--about " x "` posted twice
+    made two messages, because the stored copy is trimmed and the first hash was not.
+    Header values are trimmed before validation, hashing and writing.
+
 ### Known limits of the guard (decided 18 October 2026)
 
 The owner decided to stop at substantive items rather than chase every format
@@ -1428,6 +1432,13 @@ limits, named so nobody reads the guard as stronger than it is:
   a plain space) but look-alike *letters* from other scripts are not folded to Latin.
 - **Names are not checked at all** (a decision, 4.4): a client name in the exchange
   is allowed, in the exchange only.
+- **Idempotency is best effort under simultaneous posts.** Two identical posts
+  running at the very same moment can both succeed (a duplicate message, not a lost
+  one). Closing it needs a posting lock with stale-lock handling, judged not worth
+  its machinery for a double post.
+- **A hand-saved message can claim to reply to a message that does not exist yet.**
+  The two sides' numbers are not ordered against each other, so the reader cannot
+  tell. The script refuses such a reply at posting; only a hand-saved file can do it.
 - **The guard sees text, not meaning.** A unique story identifies someone with no
   identifier in it.
 
