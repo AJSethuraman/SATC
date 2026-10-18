@@ -29,6 +29,7 @@ PEERS = DATA / "peers"
 ROSTER = ROOT / "config" / "peers.json"
 MERGERS = PEERS / "mergers_roster.json"
 ABSORPTIONS = PEERS / "absorptions_none.json"
+CHANGES = ROOT / "config" / "reporting-changes.json"
 
 
 @pytest.fixture(autouse=True)
@@ -64,8 +65,9 @@ def peers_filled(tmp_path, **over) -> PeerForm:
     vals = dict(cache=str(tmp_path / "cache"), roster=str(ROSTER), first="2006Q1", last="2026Q2",
                 products=["Credit card"], delinquency="no", mergers_pull="no", mergers_since="", refresh="no",
                 out=str(tmp_path / "peers.xlsx"), series_dir=str(tmp_path / "series"),
-                mergers_file=str(MERGERS), absorptions_file=str(ABSORPTIONS), extra_acquisitions="6672=2022Q2", industry_combined="none",
-                jump="0.25", acquisition_share="0.05", min_book="1000000", exempt_self="yes", pack="all", min_banks="5", rank_by="net",
+                mergers_file=str(MERGERS), absorptions_file=str(ABSORPTIONS), reporting_changes=str(CHANGES),
+                extra_acquisitions="6672=2022Q2", industry_combined="none",
+                jump="0.25", acquisition_share="0.05", min_book="1000000", exempt_self="yes", pro_forma="no", pack="all", min_banks="5", rank_by="net",
                 last_n="20", min_obs="12", base_quarter="2019Q4", index_min_book="500000",
                 lagged_years="2019 2025", lag_years="2", normalisation_years="2019 2025", mix_base_year="2019")
     vals.update(over)
@@ -333,7 +335,7 @@ def test_the_rail_counts_what_each_step_still_wants_peers_included(tmp_path):
     s = launcher.steps(Form(), PeerForm())
     assert [x.name for x in s] == ["Series", "Measure", "Settings", "Build", "Peers"]
     assert [x.mark for x in s] == ["todo"] * 5
-    assert [x.sub for x in s] == ["1 to fill in", "5 to fill in", "7 to fill in", "1 to fill in", "29 to fill in"]
+    assert [x.sub for x in s] == ["1 to fill in", "5 to fill in", "7 to fill in", "1 to fill in", "31 to fill in"]
     s = launcher.steps(filled(tmp_path), peers_filled(tmp_path))
     assert [x.mark for x in s] == ["done"] * 5 and s[4].sub == "Complete"
     s = launcher.steps(filled(tmp_path), peers_filled(tmp_path, jump=""))
@@ -383,9 +385,15 @@ def test_a_workbook_open_in_excel_is_said_so(tmp_path):
     assert not out.ok and "open in Excel" in out.lines[0]
 
 
-def test_too_little_history_for_the_backtest_comes_back_from_the_real_build(tmp_path):
-    out = launcher.run(filled(tmp_path, min_history="400"))
-    assert not out.ok and out.lines[0].startswith("The build refused:") and "min_history" in out.lines[0]
+def test_too_little_history_for_the_backtest_is_said_on_the_backtest_tab(tmp_path):
+    """Life to date (the firm, 14 Oct 2026): a series shorter than the backtest
+    needs is built; its Backtest row says it was not tested, and why."""
+    out = launcher.run(filled(tmp_path, min_history="400"), open_after=False)
+    assert out.ok, out.lines
+    from openpyxl import load_workbook
+    ws = load_workbook(out.path)["Backtest"]
+    said = [ws.cell(r, 3).value for r in range(1, ws.max_row + 1)]      # after the margin and the series
+    assert any(isinstance(v, str) and v.startswith("Not tested:") and "min_history" in v for v in said)
 
 
 def test_a_workbook_that_cannot_be_opened_from_here_says_where_it_is(tmp_path, monkeypatch):
@@ -447,12 +455,13 @@ def test_every_peer_field_starts_empty():
 def test_an_empty_peer_form_names_every_field_and_pull_and_build_are_refused():
     f = PeerForm()
     pull, build = launcher.peer_problems(f, "pull"), launcher.peer_problems(f, "build")
-    assert len(pull) == 7 and len(build) == 27 and len(launcher.peer_problems(f, "both")) == 29
+    assert len(pull) == 7 and len(build) == 29 and len(launcher.peer_problems(f, "both")) == 31
     said = "\n".join(build)
     for flag in ("--cache", "--roster", "--first", "--last", "--products", "--delinquency", "--series-dir",
-                 "--mergers", "--absorptions", "--extra-acquisitions", "--industry-combined", "--jump",
+                 "--mergers", "--absorptions", "--reporting-changes", "--extra-acquisitions", "--industry-combined",
+                 "--jump",
                  "--acquisition-share", "--min-book",
-                 "--exempt-self", "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs",
+                 "--exempt-self", "--pro-forma", "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs",
                  "--base-quarter", "--index-min-book", "--lagged-years", "--lag-years",
                  "--normalisation-years", "--mix-base-year"):
         assert flag in said, flag
@@ -476,18 +485,21 @@ def test_a_complete_peer_form_becomes_runs_arguments_exactly(tmp_path):
         out=tmp_path / "peers.xlsx", cache=tmp_path / "cache", roster=ROSTER, series_dir=tmp_path / "series",
         first="2006Q1", last="2026Q2", products=["Credit card"], mergers=MERGERS, absorptions=ABSORPTIONS, acquisition_share=0.05,
         extra_acquisitions=["6672=2022Q2"], industry_combined=[], jump=0.25, min_book=1000000.0,
-        exempt_self=True, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12, base_quarter="2019Q4",
+        exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
+        base_quarter="2019Q4",
         index_min_book=500000.0, lagged_years=[2019, 2025], lag_years=2, normalisation_years=[2019, 2025],
-        mix_base_year=2019, delinquency=False)
+        mix_base_year=2019, delinquency=False, reporting_changes=CHANGES)
 
 
 def test_the_arguments_are_exactly_what_run_takes_so_the_window_cannot_drift(tmp_path):
     """Every keyword run.pull and run.build take, say aside, and no other:
-    the same two functions `peers pull` and `peers build` call."""
+    the same two functions `peers pull` and `peers build` call. Also aside,
+    build's into and names: where the peer tabs go when another workbook
+    takes them, which the window's own peer workbook never asks for."""
     import inspect
     f = peers_filled(tmp_path)
     for action, fn in (("pull", peers_run.pull), ("build", peers_run.build)):
-        params = set(inspect.signature(fn).parameters) - {"say"}
+        params = set(inspect.signature(fn).parameters) - {"say", "into", "names"}
         assert set(launcher.peer_arguments(f, action)) == params, action
 
 
@@ -502,7 +514,7 @@ def test_the_delinquency_choice_is_stated_never_assumed(tmp_path):
 
 
 def test_each_yes_or_no_reaches_run_as_the_bank_stated_it(tmp_path):
-    for attr in ("exempt_self",):
+    for attr in ("exempt_self", "pro_forma"):
         for said, value in (("yes", True), ("no", False)):
             assert launcher.peer_arguments(peers_filled(tmp_path, **{attr: said}), "build")[attr] is value,                 (attr, said)
     for said, value in (("yes", True), ("no", False)):
@@ -565,6 +577,7 @@ def test_none_states_an_empty_list_and_blank_never_does(tmp_path):
     (dict(pack="some"), "the pack"),
     (dict(rank_by="both"), "ranked by"),
     (dict(exempt_self="true"), "--exempt-self"),
+    (dict(pro_forma="true"), "--pro-forma"),
     (dict(out="peers.csv"), ".xlsx"),
 ])
 def test_a_wrong_peer_value_is_said_in_words_and_build_refused(tmp_path, over, words):
@@ -603,7 +616,11 @@ def test_ticking_keeps_the_builds_product_order_and_refuses_an_unknown_product()
     assert f.products == ["Credit card"]
     with pytest.raises(ValueError):
         launcher.tick(f, "Boats", True)
-    assert launcher.PEER_PRODUCTS == tuple(peers_run.books.PRODUCTS)
+    # The window offers the consumer products, in the build's order; the
+    # commercial ones (16 Oct 2026) are on the command line only for now.
+    assert launcher.PEER_PRODUCTS == tuple(peers_run.books.CONSUMER)
+    with pytest.raises(ValueError):
+        launcher.tick(f, "C&I", True)
 
 
 # ---- Peers: Pull and Build call peers/run.py, and say what came back
@@ -678,7 +695,7 @@ def test_a_real_build_through_run_writes_the_peer_workbook_and_opens_it(tmp_path
     assert out.path == tmp_path / "peers.xlsx" and opened == [out.path]
     assert out.lines[0].startswith("Wrote %s: Credit card" % out.path)
     wb = load_workbook(out.path)
-    assert wb.sheetnames[:2] == ["Pack", "Peers"]
+    assert wb.sheetnames == ["Peers", "Glossary", "Run", "Data", "DelinquencyData", "Workings"]
     assert sorted(p.name for p in (tmp_path / "series").glob("*.csv")) == sorted(
         "credit-card_%s_%s.csv" % (who, kind) for who in ("pack-composite", "pack-median", "keybank", "industry")
         for kind in ("gross", "net"))
@@ -702,7 +719,8 @@ def test_build_with_delinquency_yes_writes_the_delinquency_series(tmp_path, monk
     for m in ("30-89", "90-plus-accruing", "nonaccrual", "90-plus-incl-nonaccrual", "30-plus-incl-nonaccrual"):
         assert "credit-card_industry_delinquency-%s_quarter-end.csv" % m in names, m
     assert any(x.startswith("Delinquency, Credit card:") for x in out.lines)
-    assert "Delinquency" in load_workbook(out.path).sheetnames
+    wb = load_workbook(out.path)
+    assert wb["DelinquencyData"]["A1"].value == "Product" and "dl_c" in wb["Peers"].defined_names
     assert opened == []                                      # open_after=False
 
 
@@ -927,11 +945,12 @@ def test_the_window_presses_through_the_peers_step_with_a_fake_pull(tmp_path, op
         assert w["peer_status"].cget("text") == "Pull finished."
         assert "82 fetched" in w["peer_result"].cget("text")
 
-        for k in ("roster", "out", "series_dir", "mergers_file", "absorptions_file", "extra_acquisitions",
+        for k in ("roster", "out", "series_dir", "mergers_file", "absorptions_file", "reporting_changes",
+                  "extra_acquisitions",
                   "industry_combined", "jump", "acquisition_share", "min_book", "min_banks", "last_n", "min_obs", "base_quarter", "index_min_book",
                   "lagged_years", "lag_years", "normalisation_years", "mix_base_year"):
             w["peer_var_" + k].set(getattr(f, k))
-        for k in ("exempt_self", "pack", "rank_by"):
+        for k in ("exempt_self", "pro_forma", "pack", "rank_by"):
             w["peer_var_" + k].set(getattr(f, k))
         root.update()
         assert str(w["build"].cget("state")) == "normal"
@@ -966,10 +985,11 @@ def test_the_peers_window_is_never_left_jammed_and_its_status_line_moves(tmp_pat
         w = launcher.window(root)
         w["show"]("Peers")
         f = peers_filled(tmp_path)
-        for k in ("cache", "first", "last", "roster", "out", "series_dir", "mergers_file", "absorptions_file", "extra_acquisitions", "acquisition_share",
+        for k in ("cache", "first", "last", "roster", "out", "series_dir", "mergers_file", "absorptions_file",
+                  "reporting_changes", "extra_acquisitions", "acquisition_share",
                   "industry_combined", "jump", "min_book", "min_banks", "last_n", "min_obs", "base_quarter",
                   "index_min_book", "lagged_years", "lag_years", "normalisation_years", "mix_base_year",
-                  "delinquency", "mergers_pull", "refresh", "exempt_self", "pack", "rank_by"):
+                  "delinquency", "mergers_pull", "refresh", "exempt_self", "pro_forma", "pack", "rank_by"):
             w["peer_var_" + k].set(getattr(f, k))
         w["peer_product_Credit card"].set(True)
         root.update()

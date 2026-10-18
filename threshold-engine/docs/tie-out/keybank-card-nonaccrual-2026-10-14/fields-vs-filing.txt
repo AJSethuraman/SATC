@@ -1,0 +1,6 @@
+FFIEC bulk Call Report 06/30/2026: 4296 filers (POR). FDIC API rows at 20260630: 4313 (meta total 4313, index risview_20260819185831).
+Joined on FDIC certificate number: 4295 banks.
+NACRCD against B577 (RC-N 5.a column C): 4295 equal to the dollar-thousand, 0 differ, 0 FDIC blank where filed, 0 neither has a value; total 4295
+LNCRCD against B538 (RC-C Part I 6.a): 4295 equal to the dollar-thousand, 0 differ, 0 FDIC blank where filed, 0 neither has a value; total 4295
+KeyBank (cert 17534, RSSD 280110): NACRCD 6401, RCFDB577 = 6401; LNCRCD 926589, RCFDB538 = 926589
+Differences: none.

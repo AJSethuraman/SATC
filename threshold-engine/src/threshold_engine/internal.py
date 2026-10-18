@@ -82,6 +82,7 @@ from __future__ import annotations
 
 import csv
 import re
+import dataclasses
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -91,8 +92,9 @@ from .peers import books
 from .peers.books import label, parts, quarter_end, raw_fields
 from .templates import PLACEHOLDER, _LINES
 
-#: The products a row may name: the tool's five (``books.PRODUCTS``).
-PRODUCTS = tuple(books.PRODUCTS)
+#: The products a row may name: the tool's five consumer products
+#: (``books.CONSUMER``). The commercial ones have no internal template yet.
+PRODUCTS = tuple(books.CONSUMER)
 ALL = "All"
 
 FLOWS = ("gross_charge_offs", "net_charge_offs", "recoveries")
@@ -733,6 +735,64 @@ def book_path(internal: Internal, product: str, segment: str) -> str:
                for k, r in sorted(by_q.items()) if all(i in by_q for i in range(k - 3, k + 1))]
     return books.balance_path(windows, 9) or ("Book: fewer than nine four-quarter windows held, so its path "
                                               "is not stated")
+
+
+#: The segment name the composite of summed segments is written under.
+COMPOSITE = "All segments"
+
+
+def composite_rows(internal: Internal, product: str) -> List[Row]:
+    """The product's composite, quarter by quarter: its ``All`` rows where
+    the file gives them, and otherwise every segment summed (gross, net,
+    recoveries, balance and past due alike). A quarter is in the composite
+    when any segment has a row for it; a segment that starts later or stops
+    earlier adds nothing to the quarters it does not hold. The workbook's
+    Internal tab applies the same rule in formulas (``internal_tab``)."""
+    rows = [r for r in internal.rows if r.product == product]
+    if not rows:
+        raise ValueError("the file has no rows for %s; it holds %s"
+                         % (product, ", ".join(sorted({r.product for r in internal.rows}))))
+    by_q: Dict[str, List[Row]] = {}
+    for r in rows:
+        by_q.setdefault(r.quarter, []).append(r)
+    # Quarter by quarter: the All row where the file gives one, else the
+    # segments summed. A file with All rows for part of its history and
+    # segment rows for the rest keeps every quarter (Codex on #442, 18 Oct
+    # 2026: the earlier reading dropped the segment-only quarters whenever
+    # any All row existed). Every row goes out under one segment name, so the
+    # composite reads as one series: All when every quarter had an All row.
+    seg = composite_segment(internal, product)
+    out = []
+    for q in sorted(by_q, key=qindex):
+        rs = by_q[q]
+        alls = [r for r in rs if r.segment == ALL]
+        if alls:
+            out.append(dataclasses.replace(alls[0], segment=seg))
+            continue
+
+        def tot(attr):
+            return sum((getattr(r, attr) for r in rs), Decimal(0))
+        out.append(Row(rs[0].line, q, product, seg, tot("balance"), tot("gross_charge_offs"),
+                       tot("net_charge_offs"), tot("recoveries"), None, tot("dpd_30_plus"), tot("dpd_60_plus"),
+                       tot("dpd_90_plus"), ()))
+    return out
+
+
+def composite_segment(internal: Internal, product: str) -> str:
+    """``All`` when the file gives the product's total in every quarter it
+    holds, else ``COMPOSITE`` (the segments summed where there is no total)."""
+    qs = {r.quarter for r in internal.rows if r.product == product}
+    alls = {r.quarter for r in internal.rows if r.product == product and r.segment == ALL}
+    return ALL if qs and alls == qs else COMPOSITE
+
+
+def composite_series(internal: Internal, product: str, measure: str) -> List[Tuple[str, Optional[float]]]:
+    """``series`` for the product's composite (``composite_rows``), by the
+    same public method."""
+    rows = tuple(composite_rows(internal, product))
+    seg = rows[0].segment
+    one = Internal(internal.path, internal.notes, {seg: "every segment of %s" % product}, (), rows)
+    return series(one, product, seg, measure)
 
 
 def write_all_series(internal: Internal, out_dir) -> List[dict]:
