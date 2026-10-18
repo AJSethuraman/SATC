@@ -32,8 +32,16 @@ own folder, so a book and its files can be copied to another machine whole.
                                "cache": the folder 'peers classes-pull' fetched the filings into},
       "reporting_changes": null or the registry of Call Report changes (config/reporting-changes.json),
       "floor_off": [measures whose series have no floor at zero (a gap can be negative); [] for none],
-      "large_banks": null or {"file": the Philadelphia Fed credit card balances file 'peers large-banks-pull' fetched}
+      "large_banks": null or {"file": the Philadelphia Fed credit card balances file 'peers large-banks-pull' fetched},
+      "signals": null or {"balances", "originations", "survey": the files 'peers signals-pull' fetched;
+                          "nmdb", "fico": the committed files under data/signals}
     }
+
+``signals`` (18 Oct 2026): the Signals tab, every public signal found in the
+early-warning work laid beside the book's series (``signals_tab.py``,
+``signals_data.py``). Each of its five files is named; a file that is not
+there stops the build and says which pull or folder gives it. Null builds
+the book without the tab.
 
 ``floor_off`` (17 Oct 2026, the gap measures): the workbook's ``floor_at_zero``
 says a value at or below zero is always Low, which is true of a rate and
@@ -76,6 +84,8 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
+
+from openpyxl.styles import Font
 from typing import Dict, List, Optional, Tuple
 
 from .series import LABEL_RULE, label_ok
@@ -83,7 +93,7 @@ from .series import LABEL_RULE, label_ok
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
 TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
-            "floor_off", "large_banks",
+            "floor_off", "large_banks", "signals",
             "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
 LOAN_CLASSES_KEYS = ("file", "cache")
@@ -206,6 +216,19 @@ def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> 
         w.writerow(LEFT_OUT_HEAD)
         w.writerows(rows)
     return len(rows)
+
+
+def _signals_on_run(wb, signals):
+    """A section on Run naming every source behind the Signals tab, with its file and SHA-256."""
+    ws = wb["Run"]
+    r = ws.max_row + 2
+    from . import keybank_style as K
+    r = K.quiet_section(ws, r, "Signals: the public data behind the tab", 6, first_col=2)
+    for j, h in enumerate(("Source", "File", "SHA-256")):
+        ws.cell(r, 2 + j, h).font = Font(name="Arial", size=9, bold=True, color=K.SLATE)
+    for i, (what, file, sha) in enumerate(signals["sources"]):
+        for j, v in enumerate((what, file, sha)):
+            ws.cell(r + 1 + i, 2 + j, v).font = Font(name="Calibri", size=10, color=K.INK_TEXT)
 
 
 def _left_out_on_run(wb, path: Path, n: int) -> None:
@@ -364,6 +387,15 @@ def load(path) -> dict:
         _keys("large_banks", large, ("file",), problems)
         if isinstance(large, dict) and "file" in large:
             large = {"file": resolve(large["file"])}      # a cache file: its presence is checked at build
+    signals = raw["signals"]
+    if signals is not None:
+        from . import signals_data as SD
+        _keys("signals", signals, SD.KEYS, problems)
+        if isinstance(signals, dict) and all(k in signals for k in SD.KEYS):
+            signals = {k: resolve(signals[k]) for k in SD.KEYS}
+            for k in ("nmdb", "fico"):
+                if not signals[k].exists():
+                    problems.append("signals: the file %s does not exist (data/signals holds the committed ones)" % signals[k])
     reporting = raw["reporting_changes"]
     changes = None
     if reporting is None:
@@ -387,7 +419,7 @@ def load(path) -> dict:
     wbk["percentiles"] = tuple(wbk["percentiles"])
     return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
             "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes,
-            "large_banks": large,
+            "large_banks": large, "signals": signals,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from, "floor_off": list(floor_off)}}
 
@@ -530,6 +562,7 @@ def build(book_path, out, say=print) -> dict:
     host = Workbook()
     blank = host.active
     peer_tabs = peer_info = left_out = None
+    signals = None
     if bk["peers"] is not None:
         from .peers import run as peers_run
         built = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say,
@@ -550,6 +583,24 @@ def build(book_path, out, say=print) -> dict:
         if missing:
             raise BookError("\n".join("the file for %r was not written by the peers build or the large banks file either: %s" % m
                                       for m in missing))
+        if bk["signals"] is not None:
+            # The public series behind the Signals tab: the files named, and the
+            # by-product dollars from the same cache the peers build read.
+            from . import signals_data as SD
+            from .peers import books as PB
+            from .peers import delinquency as PD
+            from .peers import fdic as PF
+            from .peers import roster as PR
+            from .peers.run import charge_off_fields
+            for k in ("balances", "originations", "survey"):
+                if not bk["signals"][k].exists():
+                    raise BookError("signals: the file %s does not exist; run 'peers signals-pull' first" % bk["signals"][k])
+            pe_ = bk["peers"]
+            five = [p for p in PB.CONSUMER if p in pe_["products"]]
+            qs_ = PF.quarter_ends(pe_["first"], pe_["last"])
+            fields_ = charge_off_fields(five) + [PB.PARENT] + [f for f in PD.fields_for(five)]
+            data_ = PF.pull(qs_, list(dict.fromkeys(fields_)), pe_["cache"], fetch=lambda u: (_ for _ in ()).throw(ValueError("build never fetches")))
+            signals = SD.load(bk["signals"], pe_["cache"], data_, PR.self_bank(PR.load(pe_["roster"]))["cert"], five, say=say)
         lo_path = Path(bk["peers"]["series_dir"]) / LEFT_OUT_FILE
         left_out = (lo_path, write_left_out(lo_path, bk["series"], bk["decide"]["parts"], built["left_out"]))
         say("left out as built: %d spans, in %s" % (left_out[1], lo_path))
@@ -557,10 +608,21 @@ def build(book_path, out, say=print) -> dict:
     def tidy(wb):
         if blank.title in wb.sheetnames and blank.max_row == 1 and blank["A1"].value is None:
             wb.remove(blank)
-        order = ["Decide", "Summary", "Peers", "Peer loan classes", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
+        if signals is not None:
+            from . import signals_tab as ST
+            from .peers import roster as R
+            ro = R.load(bk["peers"]["roster"])
+            grid_ = [wb["Data"].cell(r, 1).value for r in range(2, wb["Data"].max_row + 1) if wb["Data"].cell(r, 1).value]
+            ST.build(wb, labels=[lbl for lbl, _ in series], parts=decide["parts"], grid=grid_, signals=signals,
+                     peers=R.peers(ro), include=peer_info["layout"]["include"], peers_sheet=PEER_TAB_NAMES["Peers"],
+                     data_sheet="Data", dq_sheet=PEER_TAB_NAMES["DelinquencyData"], self_short=R.self_bank(ro)["short"],
+                     latest=grid_[-1])
+            _signals_on_run(wb, signals)
+            say("signals: the Signals tab, %d sections, %d series on Signals data" % (len(ST.SIGNALS), len(signals["series"])))
+        order = ["Decide", "Summary", "Signals", "Peers", "Peer loan classes", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
                  "Backtest",
-                 "Glossary", "Sources", "Reporting changes", "Run", "Data", "Peers data", "Peers delinquency data", "Internal data",
-                 "SynthesisData", "Assess", "Chart", "Peers workings"]
+                 "Glossary", "Sources", "Reporting changes", "Run", "Data", "Signals data", "Peers data", "Peers delinquency data", "Internal data",
+                 "SynthesisData", "Assess", "Chart", "Peers workings", "Signals workings"]
         known = [wb[t] for t in order if t in wb.sheetnames]
         wb._sheets = known + [ws for ws in wb._sheets if ws not in known]
         wb.active = wb.sheetnames.index("Summary")
@@ -572,6 +634,7 @@ def build(book_path, out, say=print) -> dict:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
     series, decide = list(bk["series"]), dict(bk["decide"])
+    signals = signals if bk["signals"] is not None and bk["peers"] is not None else None
     if bk["internal"] is not None:
         # The bank's own figures, on site: their series sit beside the
         # workbook, never in the repository, and the rows fill Internal data.

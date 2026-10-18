@@ -46,6 +46,26 @@ TERMS = [
      "billion or more in assets). A count of accounts, not dollars, across the panel: an industry reading with no "
      "KeyBank figure. The source is the file 'peers large-banks-pull' fetched, named with its SHA-256 in the "
      "series' notes and on Run."),
+    ("Signals",
+     "A tab laying every public signal found in the October 2026 early-warning work beside the book's own series, compared "
+     "against whichever product, measure and source is picked, with the banks behind each chart recorded beside it.",
+     "The picked series is looked up on Data by its label. Each signal's change over a year is set against that series' at "
+     "every lead from four quarters after to twelve ahead (CORREL); the fit table shows the lead that fits best and how well, "
+     "with and without 2020-23. The rescaled chart draws each line as (value - its normal) / its typical yearly move, the "
+     "normal being the median of the quarters in the window and the move 1.4826 x the median absolute deviation of its "
+     "yearly changes (scale.py's rule), so one grid line is one yearly move for either line; the inputs are printed under it. "
+     "Nothing on the tab is rated; the public series are on Signals data with their sources, and the formulas on Signals workings."),
+    ("Where the dollars are",
+     "For the source picked, each consumer product's balance, gross charge-offs over four quarters and 30+ incl. nonaccrual "
+     "dollars, and each product's share of the total.",
+     "KeyBank's and the industry's are summed from the Call Report at build; the peer group's are summed from Peers data and "
+     "Peers delinquency data over the banks in the pack, so they follow Banks in the pack on Peers."),
+    ("Peer group in this chart",
+     "Beside every chart on Signals that draws on the pack: each peer and its state this quarter: in; out by the book's "
+     "rules; off because unticked under Banks in the pack on Peers.",
+     "Out means the bank's own four-quarter average was blanked this quarter by the jump or the acquisition share, as Peers "
+     "delinquency data records it. A chart drawn from a survey, the Philadelphia Fed's panel or the FHFA database says whose "
+     "data it is instead: those are not the peer group."),
     ("Floor at zero",
      "Whether a value at or below zero is always 1 Low for a series. True of a rate; false of a gap between two "
      "rates.",

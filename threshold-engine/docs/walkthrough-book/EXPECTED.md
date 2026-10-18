@@ -85,3 +85,9 @@ The peer group is every peer but JPMorgan.
 The peer group is every peer again: each latest value is the series file's own.
 
 9 reads.
+
+## B14 · Open Signals
+
+The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; every peer's state is beside it; two fit tables agree with the same correlations worked out from the series, lead by lead.
+
+138 reads.
