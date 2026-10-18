@@ -2,14 +2,16 @@
 
 **DRAFT for the owner to approve or send back. Nothing described here is built.**
 Written 18 October 2026 by the Count Bassy session on the Forge ("Bassy - Live").
-**Revision 2, same day, after the owner's first answers (section 1.1).**
+**Revision 3, same day, after the owner's second round of answers (section 1.1).**
 
 > **Read this first.** Rev has not yet answered in the terminal, so nothing in
 > this plan has been *agreed* with her. Part 1 is what I could establish alone
 > and what I propose. Section 9 lists the questions she needs to answer. The
 > plan should not be approved until her answers are written into section 7.
-> Revision 2 adds two things the owner asked for: a way for Rev and me to keep
-> each other on track (4.7), and two working modes, SATC and work (4.8).
+> Revision 2 added a way for Rev and me to keep each other on track (4.7) and
+> two working modes, SATC and work (4.8). Revision 3 records the owner's goals,
+> settles D2, drops the test-write step, and reopens D4 as a simpler question:
+> are client *names* allowed in the local exchange at all (5.4).
 
 How to read this document: every technical term is shown in **bold** and then
 explained in plain words the first time it appears. Every claim carries one of
@@ -30,10 +32,10 @@ in context below. **Five are answered (section 1.1); D2 and D4 are still open.**
 | # | Question | If A | If B | I recommend |
 |---|---|---|---|---|
 | D1 | Where does the shared place live? | A: a folder inside Rev's existing one (`Documents\Main\Reverie\exchange\`) | B: a brand-new folder somewhere else with its own permissions | **A.** She already keeps her log there, so we extend it rather than start a second place. It is not synced to the cloud (VERIFIED, section 3) |
-| D2 | How does the Bassy skill change? | A: edit the existing skill | B: a new, separate skill for this arrangement | **B**, kept on this machine only. The existing skill ships to every machine and says it must not reach outside `canon/` (section 8) |
+| D2 | How does the Bassy skill change? | A: edit the existing skill | B: a new, separate skill for this arrangement | **B** (decided) |
 | D3 | Can either of us wake or restart the other automatically? | A: no, nothing automatic for the first week | B: Rev may resume one named Bassy session through a rate-limited script | **A** to start, then decide from how it goes (section 4.3) |
-| D4 | Do you want a name check, not only a number check? | A: yes, you run a one-time command that turns client names into scrambled fingerprints; the guard compares against them | B: no, we rely on numbers-only checks and a rule | **A.** Numbers-only checks cannot see a name (section 5). It needs you to run it because it reads real client data once, and I will not |
-| D5 | May Rev write to her side of the shared place? | A: yes, only to `exchange\from-rev\`; her "change nothing" rule stays for everything else | B: no, she stays read-only and you carry her notes across | **A**, after one harmless test write that she does, with your OK (section 4.1) |
+| D4 | Are client names allowed in the local exchange? | A: yes, in the local folder only; never in the repo, a pull request or any published page. Still hard-blocked: SSN, EIN, account numbers, phone, email. No fingerprint list | B: no, names stay out too; needs a client list that does not exist | **A**, once you confirm (5.4) |
+| D5 | May Rev write to her side of the shared place? | A: yes, only to `exchange\from-rev\`; her "change nothing" rule stays for everything else | B: no | **A** (decided) |
 | D6 | Who holds the pen on "what we agreed"? | A: a script writes the agreements file from messages both of us posted | B: I write it | **A.** Neither of us should record the other's consent (section 4.5) |
 | D7 | Two of your own convictions (C9 and C11) point opposite ways on whether to build the small script (section 7.2) | A: build the script (the "do it upfront" reading) | B: two plain folders and a written rule, no script (the "add nothing beside what exists" reading) | **A.** You asked for the name-and-number check to be code, not a reminder, and B is a reminder |
 
@@ -42,10 +44,10 @@ in context below. **Five are answered (section 1.1); D2 and D4 are still open.**
 | # | Answer | Status |
 |---|---|---|
 | D1 | "fine": extend Rev's folder | **Decided** |
-| D2 | "not sure... it's possible for her to communicate with a cloud version, but maybe there is purpose to doing what you said?" | **Open.** Explained and narrowed in section 8 |
+| D2 | "got it good" / "good with D2": the new machine-only skill, written with no paths so it can be promoted to canon later | **Decided** |
 | D3 | "that's fine": nothing automatic | **Decided** |
-| D4 | "from what? ... you guys have access to the Forge kind of hard to pretend you don't" | **Open.** Answered honestly in 5.4 |
-| D5 | "yes" | **Decided** (the test write still needs doing) |
+| D4 | "ok i see, honestly don't know why you can't mention client names and stuff. PII is another thing". On a complete client list: "there basically is not a complete one" | **Reopened, simpler.** With no complete list there is nothing to fingerprint, so the hash check is dropped. The question is now whether names are allowed (5.4, F1) |
+| D5 | "yes", then "i know she can write... she has given me docs. stop asking" | **Decided.** No separate test write. Whether she can write *into the exchange folder* shows up in the build's dry run |
 | D6 | "that sounds good" | **Decided** |
 | D7 | "building script is fine" | **Decided** |
 
@@ -180,8 +182,8 @@ Both of us write only by running one small script (`exchange.py post`), never
 by saving a file by hand. The script is where the checks in section 5 live.
 
 **Rev's current "change nothing" rule.** Writing into `from-rev\` is a change.
-D5 asks the owner to relax the rule for that one folder, after a harmless test
-write by Rev that proves her writes land (the open question in 2.2).
+The owner has relaxed the rule for that one folder (D5, decided). No separate
+test write: the build's dry run will show whether her writes land there.
 
 ### 4.2 What a message looks like
 
@@ -297,10 +299,25 @@ limit, even if it shows less. So the fix is not "try to remember"; it is **put
 the goals in front of both of us, by code, every time.**
 
 1. **One short goals file**, `exchange\GOALS.md`, numbered G1, G2 and so on. It
-   is the owner's, in the owner's words, and neither of us edits it. I will
-   draft a starting list from what is already on record and the owner corrects
-   it (follow-up F4). It is not recorded as a conviction; convictions still go
-   through canon.
+   is the owner's, in the owner's words, and neither of us edits it. It is not
+   recorded as a conviction; convictions still go through canon. The owner gave
+   the starting four on 18 October 2026, quoted exactly, typos kept:
+
+   > **G1.** Ensuring all in-use or in-flight software is tested, debugged, and works.
+   >
+   > **G2.** Creating and connecting processes to efficiently run SATC with deterministic automation where possible.
+   >
+   > **G3.** Create outreach plans and compile a master table of our clients with contact info and fields for tax entry
+   >
+   > **G4.** Create some sort of nice, easy to use, front-end system that essentially accepts raw inputs for tax entry into Drake which maps to the Drake EA initiative.
+   >
+   > "hopefully this makes sense" (the owner)
+
+   They make sense to me. One observation, not a challenge: G3 and G4 both
+   touch a master client table, and Rev's log says the owner authorized
+   designing a new master from the ground up. G2 (deterministic) and G1
+   (tested) are what I would hold a drifting thread against. The owner can
+   reword any of them.
 2. **`exchange.py status` and `resume` print the goals first**, then what is
    new. Every session of either of us starts by seeing them. This is the
    mechanism that works when a session is fresh and has forgotten everything.
@@ -335,7 +352,7 @@ the script, behave differently.
 | Default | The repo's rules, `DESIGN-PRINCIPLES.md` and the canon record, apply | The same rules, plus proof |
 | Exceptions | Allowed, but each must name the rule it departs from and why, and be recorded. The owner's mechanism already exists: *rulings by project*, "strike it done or uphold it once then move on" (11 September 2026) | Not allowed without the owner's explicit yes each time |
 | Claims | Tagged verified, reported, inferred or not checked, as now | Every claim that something works or is true needs `evidence:` that someone else could rerun, or must be tagged not checked. The script refuses a `finding` without evidence |
-| Data | Client data stays out (section 5) | Same, and anything from the owner's employer or its customers is also kept out. **I do not yet know what those identifiers look like; see follow-up F3** |
+| Data | Client data stays out (section 5) | The owner described work mode as "my literal job, when i am doing work for credit risk" at their employer. My default: **nothing from the employer or its customers goes in the exchange**: not its name, its customers, loan or account figures, or internal metrics. The repo already says internal metrics are run on site and only public data goes in the repository. The employer's name is kept out of this public document; the guard's deny-list for it lives in a local file, not in the repo. If work mode ever needs an employer figure in a message, the owner says so first |
 | Who decides the mode | The owner. A message with no `mode:` is refused, so neither of us can slide from one standard to the other silently | |
 
 This reuses what exists. The repo already separates the practice from the
@@ -366,8 +383,9 @@ Preventing is better than finding afterwards (the repo's own tenet S30).
 3. **Contact details.** Refuse email addresses and phone-number shapes.
 4. **Protected places by name.** Refuse text naming `leads.xlsx`, the
    `engagements` folder, `vault`, `vault.key`, `satc_vault.db`, `satc_mart.db`.
-   Those names are already public in the Forge notes. Refer to a client only by
-   engagement reference (the `YYYY-NNNN` code) or a made-up label like "S10".
+   Those names are already public in the Forge notes. Until the owner confirms
+   D4, refer to a client only by engagement reference (the `YYYY-NNNN` code) or a
+   made-up label like "S10".
 5. **Links.** Refuse every link except an allow-list (this repo on GitHub, the
    firm's site). Rev reads untrusted mail, and a link pasted from it should not
    travel through us.
@@ -399,28 +417,27 @@ nothing about names. This was **NOT CHECKED** against any other file.
 
 ### 5.4 What these checks cannot see, said plainly
 
-- **A name.** "The Smith return is late" has no digits. No pattern catches
-  every name. The rule (engagement reference only) is a reminder, which is
-  exactly what the owner asked not to rely on. **D4**, answering the owner's
-  "from what?" and "you guys have access to the Forge":
-  - *You are right that we can technically reach the data.* Section 2.3 says so.
-    The name check is not a wall. It is a **tripwire against accident**: it
-    stops a name being typed into a message by habit or copied from mail. It
-    does not stop either of us opening a file.
-  - *From what:* the firm's own client list. Where that lives is itself unclear
-    (follow-up F2); the Forge notes name the leads workbook, the data mart and
-    the identity vault, and disagree about which exist on this disk.
-  - *How it would work:* a small program reads the list **once** and writes only
-    **hashes** (one-way scrambled fingerprints that cannot be turned back into
-    names) to a file on this machine, never in the repo. The guard hashes each
-    word of a message and refuses on a match.
-  - *Who runs it:* this is the only part of the plan that reads real client
-    data, so I propose that **you** run it, from one command I write and you
-    read first, and I never see the list. If you would rather I run it, say so;
-    it is your data and your call. The cost of declining is that names are
-    caught only by the rule.
-  - *Option A:* the one-time hash command, run by you. *Option B:* no name
-    check. **I recommend A**, with the limit above stated plainly.
+- **A name.** "The Smith return is late" has no digits, so no number check
+  sees it. **D4, revised after the owner's reply:** the owner said, in effect,
+  that client names are not the worry and PII (SSN, EIN, account numbers,
+  contact details) is the separate and real one, and that there is no complete
+  client list anyway. That settles the design:
+  - *No fingerprint check.* It needed a complete client list to hash, and there
+    is none, so it would have given a false sense of cover. Dropped.
+  - *Option A (recommended):* names may appear in the **local exchange only**.
+    They never go in the repo, a pull request, a commit message, an artifact or
+    any published page; the hard blocks in 5.1 stay for SSN, EIN, long digit
+    runs, email and phone.
+  - *Option B:* names stay out too, by rule only, with nothing in code able to
+    enforce it.
+  - *Two things to know before saying yes.* (1) This relaxes a written rule:
+    `CLAUDE.md` says names, SSNs and EINs belong in the vault and "never real
+    taxpayer PII" in artifacts or logs, and your task note said no client names.
+    I keep following the stricter version until you confirm in one line.
+    (2) Whatever is in the folder is read by two hosted AI services, Rev's and
+    mine. A name travelling to them is a small step, but it is the step the
+    Forge notes' "nothing leaves the network" promise is about, so it is your
+    call and I am only naming it.
 - **A fact without any identifier**, such as a unique story.
 - **Anything typed outside the script and never read through it.** The reader catches
   it only when someone runs the reader.
@@ -563,8 +580,8 @@ Then, if the owner later wants the arrangement everywhere, the skill is already
 portable and can be proposed for canon through a normal pull request. That
 costs nothing now.
 
-**Recommendation: B.** On this machine only, with the source in the repo and a
-test that the installed copy matches. If, after some weeks, the arrangement
+**Decision: B (the owner, 18 October 2026).** On this machine only, with the
+source in the repo and a test that the installed copy matches. If, after some weeks, the arrangement
 proves useful beyond this one machine, it can be proposed for canon then, with
 the owner's yes. One loading detail: a skill is *available* without being
 *loaded*, so the Bassy-Live session prompt should name both skills.
@@ -577,8 +594,8 @@ Please answer each in a line. I will treat your answers as data and quote them
 in section 7 where we differ.
 
 1. **Writing.** How do you write files on the Forge: the app's file tool, a
-   command in your sandbox, or a step the owner approves? Can you write a small
-   test file into `exchange\from-rev\` once the owner allows it?
+   command in your sandbox, or a step the owner approves? (The owner has said
+   you can write; this is only so the build uses the route that works.)
 2. **Clicking.** Your settings enable two computer-use plug-ins. Do they work
    for you? What can you click?
 3. **Restarting.** Which exact command do you use to resume a Claude session?
@@ -598,7 +615,7 @@ in section 7 where we differ.
 
 **Built, after approval, in this order:**
 
-1. Rev's one harmless test write into `exchange\from-rev\` (needs the owner's OK; D5).
+1. The shared folder and its permissions, with the dry run (step 7) showing whether Rev's writes land there.
 2. A new top-level repo folder `forge-exchange/`: `exchange.py` (Python standard
    library only, about 200 lines) with the commands `post`, `read`, `status`,
    `resume`, `owner-items`, plus `README.md` and tests.
@@ -747,29 +764,19 @@ document arrived. Engagement reference 2026-0000 is synthetic.
 
 ---
 
-## 12. Follow-ups for the owner (revision 2)
+## 12. Follow-ups for the owner (revision 3)
 
-Short, answerable in a line each. None of them can I read from the repo.
+The owner asked me to stop asking about things already settled, so this is
+short. Dropped: the test write (D5), Rev's temporary terminal ("it's already
+gone, i don't really care i might just have to manually do it sometimes" — so
+the owner restarts her by hand when needed), the client-list question (there
+is no complete one), the skill question (decided), and the goals question
+(answered; see 4.7).
 
-1. **F1, skill (D2).** After section 8, do you want the new machine-only skill
-   (my recommendation, written so it can be promoted to canon later), or are you
-   still unsure? "Still unsure" is a fine answer; nothing depends on it until
-   the build.
-2. **F2, client list (D4).** If you want the name check: which single file or
-   database is the current client list? The Forge notes disagree about whether
-   the leads workbook is on this disk, and I was told not to look.
-3. **F3, work mode (4.8).** What does "work" cover, and what must never appear
-   in a message for it? For example: your employer's name, its customers, loan
-   or account figures, internal metrics. I will turn your answer into guard
-   rules; I should not guess, and the repo only says that internal metrics are
-   run on site and public data is what goes in the repository.
-4. **F4, goals (4.7).** Give me three to five standing goals in your own words,
-   the ones you want Rev and me reminded of every session. I will not
-   paraphrase them. Until then I will quote your recorded lines from the repo,
-   marked as a draft.
-5. **F5, Rev's two terminals.** Do you know what the "temporary" kind is called
-   (a window she opens, a background task, something else)? If she opens the
-   session there, we should write the exact command into her page of the
-   README so a fresh Rev can repeat it.
-6. **F6, the test write (D5).** Say "go" when you want Rev to do the one
-   harmless test write into `exchange\from-rev\`. I will not ask her to before.
+1. **F1, names (D4).** One line please: **are client names allowed in the local
+   exchange (never in the repo or any published page), with SSN, EIN, account
+   numbers, phone and email still blocked by code?** I recommend yes. Until you
+   say yes, I keep names out.
+
+Nothing else is waiting on you. What remains is Rev's answers (section 9), then
+approval of the plan as a whole.
