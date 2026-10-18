@@ -33,6 +33,11 @@ own folder, so a book and its files can be copied to another machine whole.
       "reporting_changes": null or the registry of Call Report changes (config/reporting-changes.json)
     }
 
+The ``peers`` section's ``stated_acquisitions`` is the file of acquisitions
+the FDIC record cannot see (config/stated-acquisitions.json; the firm, 17 Oct
+2026, the commercial proposal's question 14), or null to state that none is
+read; like every key it is required.
+
 ``reporting_changes`` (the firm, 16 Oct 2026: "Definitely mark reporting
 changes."): the registry is checked as ``reporting_changes.load`` checks it,
 given to the peers build (every series file it writes notes each change
@@ -81,8 +86,11 @@ INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
 PEERS_KEYS = ("cache", "roster", "series_dir", "first", "last", "products", "mergers", "absorptions",
               "extra_acquisitions", "industry_combined", "jump", "acquisition_share", "min_book", "exempt_self",
               "pro_forma", "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
-              "lagged_years", "lag_years", "normalisation_years", "mix_base_year", "delinquency")
+              "lagged_years", "lag_years", "normalisation_years", "mix_base_year", "delinquency",
+              "stated_acquisitions")
 PEERS_PATHS = ("cache", "roster", "series_dir", "mergers", "absorptions")
+#: Paths that may be null, stating there is none: the stated acquisitions (null: none is read).
+PEERS_PATHS_OR_NULL = ("stated_acquisitions",)
 #: The peer tabs' titles inside the book's workbook, which has its own Data, Glossary and Run.
 #: One dashboard (Peers) and its hidden Workings since 14 Oct 2026; before, one tab per view. Since
 #: 15 Oct 2026 the peer glossary and run record are sections of the book's own Glossary and Run.
@@ -281,6 +289,12 @@ def load(path) -> dict:
             peers = dict(peers)
             for k in PEERS_PATHS:
                 peers[k] = resolve(peers[k])
+            for k in PEERS_PATHS_OR_NULL:
+                if peers[k] is not None:
+                    if not isinstance(peers[k], str) or not peers[k].strip():
+                        problems.append("peers: %s must be null or a file, not %r" % (k, peers[k]))
+                    else:
+                        peers[k] = resolve(peers[k])
     # A series file that is not there is only a problem if no peers build will write it.
     if peers is None:
         for label, p in series:

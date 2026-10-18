@@ -322,6 +322,7 @@ def built(data, tmp_path_factory):
             "--mergers", str(base / "mergers.json"), "--absorptions", str(base / "absorptions.json"),
             "--extra-acquisitions", "--industry-combined", "Construction+Multifamily+Nonfarm nonresidential",
             "--delinquency", "yes", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json"),
+            "--stated-acquisitions", "none",
             "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "0", "--exempt-self", "yes",
             "--pro-forma", "yes", "--pack", "all", "--min-banks", "5", "--rank-by", "net", "--last-n", "8",
             "--min-obs", "6", "--base-quarter", "2007Q4", "--index-min-book", "1000000",

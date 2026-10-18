@@ -39,7 +39,8 @@
     "Industry: every bank filing a Call Report, added together. Peer group: the 15 banks on the Peers tab, added together. Charge-offs are trailing twelve months; delinquency is at quarter-end.",
     "Pro forma: each bank's charge-offs include those of the banks it absorbed, before each absorption (KeyBank's include First Niagara's before 2016Q4). KeyBank's charge-offs run from 2007Q1 for mortgage and home equity, 2013Q4 for credit card, 2015Q4 for other consumer and 2022Q4 for auto; each quarter before is left out with its reason on Peers data. Each series' lines rest on its own quarters (life to date), and its Backtest says where there were too few to test.",
     "Settings: the ones agreed for credit card, applied to every series as a starting point; change them on Decide.",
-    "Credit card before 2010: cards a bank had securitized were off its books, so those quarters are labeled, not dropped."
+    "Credit card before 2010: cards a bank had securitized were off its books, so those quarters are labeled, not dropped.",
+    "Stated acquisitions: none is read for this book (null). The list of acquisitions the FDIC record cannot see (config/stated-acquisitions.json) was agreed for the commercial book on 17 Oct 2026; whether it applies to the consumer book too is open."
   ],
   "peers": {
     "cache": "ind_cache",
@@ -84,7 +85,8 @@
       2025
     ],
     "mix_base_year": 2019,
-    "delinquency": true
+    "delinquency": true,
+    "stated_acquisitions": null
   },
   "internal": null,
   "loan_classes": {

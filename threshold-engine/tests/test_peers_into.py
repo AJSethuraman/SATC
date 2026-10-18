@@ -153,6 +153,7 @@ def run_build(out, cache, series, **over):
               pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12, base_quarter="2019Q4",
               index_min_book=500_000.0, lagged_years=[2019, 2025], lag_years=2, normalisation_years=[2019, 2025],
               mix_base_year=2019, delinquency=True, reporting_changes=ROOT / "config" / "reporting-changes.json",
+              stated_acquisitions=None,
               say=lambda s: None)
     kw.update(over)
     return run.build(out, **kw)
@@ -171,7 +172,7 @@ def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_pat
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
-                        lambda *a, into=None, names=None, combined=None, changes=None, **kw:
+                        lambda *a, into=None, names=None, combined=None, changes=None, stated=None, **kw:
                         OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")
     assert load_workbook(old["out"]).sheetnames == ["Peers", "Workings", "Glossary", "Data", "DelinquencyData",

@@ -140,6 +140,9 @@ DEFINITIONS.update({
 
 WHY_JUMP = "book moved more than the jump in this window"
 WHY_ACQUIRED = "an acquisition brought in at least the acquisition share in this window"
+#: A stated acquisition (``peers.stated``): one the FDIC record cannot see,
+#: listed with its filing, whose share of the book was never measured.
+WHY_STATED = "a stated acquisition the FDIC record cannot see is in this window"
 
 #: The FDIC field naming a filer's top holding company (its RSSD ID), filed
 #: each quarter. Two banks with the same one are under common control.
@@ -462,7 +465,7 @@ def _blank_quarters(data: Dict[str, list], cert, product: str,
 
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
               exempt_min_book: bool = False, *, acquired: Iterable[str],
-              members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
+              members: Sequence[Tuple[str, str]] = (), stated: Iterable[str] = ()) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
     avg_balance, kept, why}``.
@@ -474,7 +477,7 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     the bank drawn as itself. A quarter with no filing counts as a balance of
     0 in the jump and average tests, as the earlier build counted it. ``why``
     names the first reason a quarter is not kept, in the order: jump,
-    acquisition, minimum, missing. Ahead of all of them, a window whose
+    acquisition, stated acquisition, minimum, missing. Ahead of all of them, a window whose
     quarters i-4 to i are not consecutive quarter-ends in the data is missing:
     neither the jump nor a TTM can be measured across a quarter the data does
     not hold. Next, for a commercial product, a window is not filed
@@ -491,6 +494,11 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     acquisitions brought in at least the acquisition share of its book
     (:func:`acquired_quarters`). A TTM window holding one is left out: its
     flows mix two books. Required; an empty list states there are none.
+    ``stated`` is this bank's quarter-ends of stated acquisitions, the ones
+    the FDIC record cannot see (``peers.stated``; the firm, 17 Oct 2026,
+    question 14): a window holding one is left out too, right after the
+    recorded ones, with its own reason (``WHY_STATED``), since no share of
+    the book was measured. Data, like ``members``: none when not given.
 
     ``members`` (``combination``) are the banks it absorbed, added to its own
     figures quarter by quarter (``combined_flows``): pro forma. With none,
@@ -506,7 +514,11 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     bal = [0.0 if b is None else b for _, _, _, b in flows]
     moved = [False] + [bool(a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0)
                        for a, b in zip(bal, bal[1:])]
+    if isinstance(stated, str):
+        raise ValueError("stated is a list of quarter-ends, not %r" % (stated,))
+    stated = set(stated)
     bought = [q in acquired for q, _, _, _ in flows]
+    told = [q in stated for q, _, _, _ in flows]
     out = []
     for i in range(4, len(flows)):
         win = range(i - 3, i + 1)
@@ -523,6 +535,8 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
             why = WHY_JUMP
         elif any(bought[k] for k in range(i - 3, i + 1)):
             why = WHY_ACQUIRED
+        elif any(told[k] for k in range(i - 3, i + 1)):
+            why = WHY_STATED
         elif not ((avg >= min_book or exempt_min_book) and avg > 0):
             why = WHY_SMALL
         elif not complete:

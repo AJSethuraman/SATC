@@ -1047,7 +1047,8 @@ def test_glossary_lists_everything_left_out_and_why(dlq):
     assert sorted(left) == sorted([
         "Left out: an acquisition (the jump)", "Left out: a small book (the minimum book)",
         "Left out: not filed", "Left out: fewer than four quarters", "Left out: not included",
-        "Left out: too few banks", "Left out: before a gap (series files)"])
+        "Left out: too few banks", "Left out: before a gap (series files)",
+        "Left out: a stated acquisition"])                 # the firm, 17 Oct 2026, question 14
     terms = [r[0] for r in rows]
     first = terms.index("Left out, and why")
     assert set(terms[first + 1:first + 1 + len(left)]) == set(left)
@@ -1055,6 +1056,7 @@ def test_glossary_lists_everything_left_out_and_why(dlq):
     for term, where in (("an acquisition (the jump)", "Why not kept"), ("not filed", "Why not kept"),
                         ("fewer than four quarters", "Why no four-quarter average"),
                         ("not included", "Switched off (No)"), ("too few banks", "never drawn from fewer"),
+                        ("a stated acquisition", "Why not kept"),
                         ("before a gap (series files)", "note names")):
         assert where in left["Left out: " + term][2], term
 

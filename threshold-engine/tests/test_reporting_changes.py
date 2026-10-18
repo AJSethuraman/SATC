@@ -271,7 +271,8 @@ STATED = dict(cache="c", roster="r", series_dir="s", first="2020Q1", last="2021Q
               mergers="m", absorptions="a", extra_acquisitions=[], industry_combined=[], jump=0.25,
               acquisition_share=0.05, min_book=0, exempt_self=True, pro_forma=False, pack="all", min_banks=5,
               rank_by="net", last_n=4, min_obs=2, base_quarter="2020Q4", index_min_book=0, lagged_years=[2020],
-              lag_years=1, normalisation_years=[2020, 2021], mix_base_year=2020, delinquency=False)
+              lag_years=1, normalisation_years=[2020, 2021], mix_base_year=2020, delinquency=False,
+              stated_acquisitions=None)
 
 
 def test_the_peers_build_refuses_without_a_good_registry(tmp_path):

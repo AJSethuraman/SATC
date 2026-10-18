@@ -1833,3 +1833,128 @@ each "agreed with the recommendation" on the docket form
   `test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out`, the two
   this log already records failing on `threshold-engine-book` before this
   work (the 15 Oct pack picker). The rest of the suite was not run.
+
+## 17 Oct 2026, question 14: the stated acquisitions the FDIC record cannot see
+
+- **Question 14, 17 Oct 2026, agreed with the recommendation:** *"Add a
+  stated list of acquisitions the FDIC record cannot see (JPMorgan/WaMu,
+  M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital), each
+  with its 8-K, read by the build like the FDIC record?"* If yes: *"Those
+  windows are left out with a reason."*
+- **The list.** `config/stated-acquisitions.json`, read and checked by the
+  new `peers/stated.py`. Each entry has five keys, all required, none with a
+  default: the acquirer's certificate, the quarter, what happened, the
+  citation and the filing's address. A malformed entry is refused by number,
+  certificate and quarter, every problem at once; so are a missing or extra
+  key and the same deal listed twice. A certificate not on the roster is
+  refused. An entry outside the quarters read is named on Run as not read.
+- **What is in it.** Four entries, only from
+  `docs/commercial-2026-10/research-breaks.md` on main, section B, the rows
+  marked not in the record:
+
+  | Acquirer (certificate) | Quarter | Close, as the filing gives it | Filing |
+  |---|---|---|---|
+  | JPMorgan (628) | 2008Q3 | Washington Mutual's banks, from the FDIC, 25 Sep 2008 | 8-K, Item 8.01 |
+  | M&T (588) | 2011Q2 | Wilmington Trust, effective 16 May 2011 | 8-K, Item 2.01 |
+  | Wells Fargo (3511) | 2016Q1 | GE Capital's commercial loans and leases, $26.7bn, 1 Mar 2016 | 8-K, Exhibit 99.1 |
+  | Capital One (4297) | 2015Q4 | GE Capital's Healthcare Financial Services, 1 Dec 2015 | 8-K, Exhibit 99.2 |
+
+  Each filing was fetched from EDGAR today at the address in the file, and
+  each citation now quotes it word for word. The interrupted run's
+  citations had paraphrased two of them (JPMorgan's and M&T's) after a
+  colon, and called Capital One's exhibit an earnings release; its title is
+  the Financial Supplement.
+- **Left out: Huntington / Macquarie Equipment Finance.** research-breaks.md
+  records its close date as NOT CHECKED. The 8-K exhibit it cites (24 Feb
+  2015, fetched today) announces the agreement and says the purchase "is
+  anticipated to be completed by March 31, 2015"; no filing of the close was
+  read, so its quarter is not known and no entry was written. The file's
+  `_what` says so. Also not listed: the branch purchases research-breaks.md
+  measured as negligible in commercial, and Capital One / HSBC cards
+  (2012Q2, consumer), which the question does not name.
+- **How it is read.** `peers build --stated-acquisitions FILE|none`, required.
+  The window has the same field (`none` states that none is read). In a
+  book it is `peers.stated_acquisitions`, required, null or a file. The
+  consumer book states null and says so in its notes, so its build is
+  unchanged.
+- **What it does.** For the acquirer, every product's charge-off windows
+  holding the quarter are left out with their own reason, *"a stated
+  acquisition the FDIC record cannot see is in this window"*
+  (`books.WHY_STATED`). It comes right after a recorded acquisition in the
+  order of reasons, since no share of the book is measured. The four-quarter
+  delinquency average is blanked the same way (`delinquency.WHY_STATED`),
+  never a quarter-end rate, and a bank so blanked is left out of the pack's
+  average, which names it. The bank's book index reads the quarter as
+  declared, as for an extra acquisition.
+- **Where it is recorded.** Run names the file, its SHA-256, and the entries
+  inside and outside the quarters. Every series file the rules apply to,
+  charge-offs and delinquency, carries a line naming the entries in its
+  quarters with their citations. The glossary has "Left out: a stated
+  acquisition", and "Kept" names it among the reasons.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  public FDIC data, not in the repository; 2006Q1 to 2026Q2, the commercial
+  example book's rules: jump 0.25, share 0.05, minimum 0, pro forma, the
+  merger record since 2005). Measured with the build's own steps, by
+  `bank_book` and `bank_delinquency` with and without the list, not by a
+  full build:
+  - **Charge-offs.** The four acquirers, six products, four windows each:
+    96 windows hold a stated quarter. 60 now give the stated reason:
+    - 56 were kept before, two books mixed: M&T's C&I, construction,
+      multifamily and nonfarm nonresidential; Wells Fargo's six; Capital
+      One's C&I, construction, multifamily and owner-occupied;
+    - 4 (JPMorgan C&I, 2008Q3 to 2009Q2) were left out before as "a quarter
+      is missing", the last reason in the order.
+    
+    The other 36 were already left out for an earlier reason, which still
+    shows: the jump (JPMorgan construction and multifamily; Capital One
+    nonfarm nonresidential and other nonfarm), or a field not filed
+    (JPMorgan's three nonfarm series; M&T owner-occupied and other nonfarm).
+  - **Delinquency.** 235 of the 360 four-quarter averages (four banks, six
+    products, five measures, three quarters) are newly blanked: Wells Fargo
+    90, M&T 85, Capital One 60, JPMorgan none (the jump had blanked them).
+- **Proof.** `tests/test_stated_acquisitions.py`, 30 tests:
+  - the file in the repository;
+  - each refusal;
+  - `by_cert`;
+  - a stated quarter leaving out four charge-off windows and three
+    delinquency averages;
+  - a build writing the note, the Run lines and the declared index quarter;
+  - the pack's delinquency note naming the bank;
+  - `none`;
+  - the build's refusals before anything is read;
+  - the command line requiring the flag;
+  - the book key, required and null or a file;
+  - the consumer book's null.
+  
+  With the stated reason taken out of `bank_book`, two tests fail; with it
+  taken out of `bank_delinquency`, two others fail (checked, then put back).
+  Existing tests were given the new required setting, and two were updated
+  for it: the peer glossary's list of "Left out" terms, and the
+  byte-for-byte series comparison against the frozen round-1 builder, which
+  takes no `stated` keyword (none is read there, so the files are the same).
+- **Results.** Run at this commit alone, in a clean worktree (uv venv,
+  Python 3.13, openpyxl 3.1.5, formulas, `OPENPYXL_LXML=False`), every test
+  file that imports a module changed here, 24 files:
+  - `test_stated_acquisitions` 30 passed;
+  - the peers files (`cli`, `workbook`, `dashboard`, `into`, `books`,
+    `delinquency`, `roster`, `fdic`, `commercial`, `combinations`,
+    `analyses`);
+  - `test_launcher`, `test_book`, `test_cli`, `test_compare`,
+    `test_internal`, `test_internal_tab`, `test_peer_loan_classes`,
+    `test_app`, `test_reporting_changes`, `test_synthesis`,
+    `test_templates_cli`, `test_workbook_synthesis`.
+
+  In all, 958 passed, 5 skipped and 2 failed. The two are the
+  `test_peers_cli.py` failures recorded above as failing before this work.
+  The first pass also failed three tests that this commit then fixed: the
+  two updated above, and `test_reporting_changes.py`'s registry refusal,
+  which called the build without the new setting. Those files were re-run:
+  `test_reporting_changes.py` 45 passed, and the two updated tests passed.
+  The rest of the suite was not run.
+- **Not done.** Nothing was opened in Excel; none can be here. No full
+  build was run with the list: the effect above was measured with the
+  build's own functions. The window's new field was not opened (no
+  display). The commercial example book (local branch
+  `commercial-example`) does not have the new required key
+  `peers.stated_acquisitions`, so it is now refused until it states the
+  list or null. It was not rebuilt.

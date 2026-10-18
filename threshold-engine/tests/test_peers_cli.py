@@ -37,7 +37,8 @@ BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
     "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
-    "--delinquency", "no", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json")]
+    "--delinquency", "no", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json"),
+    "--stated-acquisitions", "none"]
 
 MEASURE = ["--name", "Net charge-offs", "--unit", "%", "--direction", "higher_is_worse",
            "--frequency", "quarterly", "--smoothing", "1", "--floor-at-zero", "yes",
@@ -305,7 +306,7 @@ BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--pr
                "--acquisition-share", "--min-book", "--exempt-self", "--pro-forma",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
-               "--mix-base-year", "--delinquency", "--reporting-changes"]
+               "--mix-base-year", "--delinquency", "--reporting-changes", "--stated-acquisitions"]
 
 
 def without(args, flag):
@@ -1010,7 +1011,7 @@ def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, va
                   exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
                   normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
-                  reporting_changes=ROOT / "config" / "reporting-changes.json")
+                  reporting_changes=ROOT / "config" / "reporting-changes.json", stated_acquisitions=None)
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
@@ -1217,7 +1218,7 @@ def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, sa
                   exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
                   normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
-                  reporting_changes=ROOT / "config" / "reporting-changes.json")
+                  reporting_changes=ROOT / "config" / "reporting-changes.json", stated_acquisitions=None)
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)

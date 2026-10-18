@@ -172,9 +172,12 @@ WHY_JUMP = WHY_JUMP_PREFIX + ": %s %+.1f%% against the quarter before"
 WHY_JUMP_FROM_ZERO = WHY_JUMP_PREFIX + ": %s from 0 to above 0"
 WHY_ACQUIRED_PREFIX = "an acquisition brought in at least the acquisition share in this window"
 WHY_ACQUIRED = WHY_ACQUIRED_PREFIX + ": %s"
+#: A stated acquisition (``peers.stated``): one the FDIC record cannot see.
+WHY_STATED_PREFIX = "a stated acquisition the FDIC record cannot see is in this window"
+WHY_STATED = WHY_STATED_PREFIX + ": %s"
 #: A bank whose own four-quarter average is blanked for one of these reasons
 #: is left out of the composite's four-quarter average for that quarter.
-LEFT_OUT = (WHY_JUMP_PREFIX, WHY_ACQUIRED_PREFIX)
+LEFT_OUT = (WHY_JUMP_PREFIX, WHY_ACQUIRED_PREFIX, WHY_STATED_PREFIX)
 WHY_FEWER_THAN_FOUR = "fewer than four consecutive quarter-ends in the data"
 WHY_RATE_MISSING = "a quarter-end rate in the window is None: %s (%s)"
 
@@ -250,7 +253,7 @@ def _avg4(rates: Sequence[Optional[float]], follows: Sequence[bool], i: int) -> 
 
 def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
                      jump: float, min_book: float, exempt_min_book: bool, *,
-                     acquired: Iterable[str]) -> List[dict]:
+                     acquired: Iterable[str], stated: Iterable[str] = ()) -> List[dict]:
     """One row per quarter-end in ``data``: ``{q, numerator, balance, rate,
     avg4, kept, why, why_avg4}``, ``q`` labelled ``YYYYQn``.
 
@@ -271,11 +274,19 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
     ``acquired`` is the bank's quarter-ends (``YYYYMMDD``) in which recorded
     acquisitions brought in at least the acquisition share of its book
     (``books.acquired_quarters``): one in i-2..i blanks the average like a
-    jump, never a quarter-end rate. Required; an empty list states none."""
+    jump, never a quarter-end rate. Required; an empty list states none.
+    ``stated`` is the bank's quarter-ends of stated acquisitions, the ones the
+    FDIC record cannot see (``peers.stated``; the firm, 17 Oct 2026, question
+    14): one in i-2..i blanks the average too, with its own reason, right
+    after the recorded ones. Data, like ``books.bank_book``'s: none when not
+    given."""
     _at_least("jump", jump, 0)
     if isinstance(acquired, str):
         raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
+    if isinstance(stated, str):
+        raise ValueError("stated is a list of quarter-ends, not %r" % (stated,))
     bought = {label(q) for q in acquired}
+    told = {label(q) for q in stated}
     _at_least("min_book", min_book, 0)
     if not isinstance(exempt_min_book, bool):
         raise ValueError("exempt_min_book must be True or False, not %r" % (exempt_min_book,))
@@ -325,6 +336,10 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
             hit = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in bought), None)
             if hit:
                 jumped = WHY_ACQUIRED % hit
+        if not jumped:
+            said = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in told), None)
+            if said:
+                jumped = WHY_STATED % said
         if jumped:
             row["why_avg4"] = jumped
             continue

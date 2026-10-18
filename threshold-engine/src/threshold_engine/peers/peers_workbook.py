@@ -451,7 +451,8 @@ def _acquisitions(mergers: Dict[str, Sequence[str]], extras: Dict[str, Sequence[
     return [(label(d.replace("-", "")), found[d]) for d in sorted(found)]
 
 
-def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Optional[dict]:
+def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict,
+                       stated: Optional[Dict[str, Sequence[str]]] = None) -> Optional[dict]:
     """None for no delinquency tabs; otherwise the stated settings, checked,
     with every bank's rows worked out once (``delinquency.bank_delinquency``,
     per product, measure and bank) under ``books`` and the quarter-ends under
@@ -513,7 +514,8 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
                                  "first %s: pull it with the delinquency fields" % (p, f, len(lacking), lacking[0]))
     books = {p: {m: {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, spec["jump"], spec["min_book"],
                                                    spec["exempt_self"] and b is me,
-                                                   acquired=spec["acquired"][p].get(b["cert"], []))
+                                                   acquired=spec["acquired"][p].get(b["cert"], []),
+                                                   stated=(stated or {}).get(b["cert"], []))
                      for b in roster} for m in D.MEASURES} for p in products}
     grid = [r["q"] for r in books[products[0]][spec["measure"]][me["cert"]]]
     return dict(spec, products=products, books=books, grid=grid)
@@ -1041,6 +1043,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          acquired: Dict[str, Dict[str, Sequence[str]]],
                          combined: Dict[str, Sequence[Tuple[str, str]]],
                          changes: Sequence[dict],
+                         stated: Optional[Dict[str, Sequence[str]]] = None,
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
                          product: Optional[str] = None,
@@ -1064,6 +1067,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
       charge-off and delinquency charts mark, on the pack composite, each
       quarter a change touching the product and measure shown took effect.
       ``[]`` states none;
+    - ``stated``: ``{cert: [YYYYMMDD]}``, the stated acquisitions in these
+      quarters (``peers.stated``; the firm, 17 Oct 2026): every product's
+      windows holding one are left out for that bank, with their own reason.
+      None or ``{}``: none (``peers build`` always passes what it read);
     - ``pack``: 'all' or 'regionals', the peers whose Yes/No starts Yes;
     - ``min_banks``: how many kept banks a composite or band needs (a live
       cell on Peers, starting here);
@@ -1175,14 +1182,17 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         if pick not in shorts + [WORST, BEST]:
             raise ValueError("a peer pick must be a peer's short name, %r or %r, not %r" % (WORST, BEST, pick))
     in_pack = {b["cert"] for b in (R.peers(roster) if pack == "all" else R.regionals(roster))}
-    dq = _check_delinquency(delinquency, roster, me)
+    if stated is not None and not isinstance(stated, dict):
+        raise ValueError("stated must be {cert: [YYYYMMDD]}, {} for none, not %r" % (stated,))
+    dq = _check_delinquency(delinquency, roster, me, stated)
 
     if not isinstance(combined, dict):
         raise ValueError("combined must be {cert: [(absorbed, until)]}, {} for none, not %r" % (combined,))
     books = {p: {b["cert"]: bank_book(data, b["cert"], p, jump, min_book,
                                       exempt_min_book=exempt_self and b is me,
                                       acquired=acquired[p].get(b["cert"], []),
-                                      members=combined.get(b["cert"], ()))
+                                      members=combined.get(b["cert"], ()),
+                                      stated=(stated or {}).get(b["cert"], []))
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
     for p in products:

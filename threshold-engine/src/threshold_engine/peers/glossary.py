@@ -87,10 +87,10 @@ PEER_TERMS = [
      "Whether a bank's rate for a quarter is used.",
      "TRUE when the average balance is at least the minimum book and above zero, all four quarters' flows "
      "were filed, no quarter-on-quarter move from the quarter before the four through the last was larger "
-     "than the jump, and no recorded acquisition brought in at least the acquisition share (with pro forma, "
-     "only an absorption that could not be added counts). Why says the "
-     "first reason it is not, in that order: a quarter missing from the data, the jump, an acquisition, "
-     "the minimum, a flow not filed."),
+     "than the jump, no recorded acquisition brought in at least the acquisition share (with pro forma, "
+     "only an absorption that could not be added counts), and no stated acquisition is in the window. Why "
+     "says the first reason it is not, in that order: a quarter missing from the data, the jump, an "
+     "acquisition, a stated acquisition, the minimum, a flow not filed."),
     # What is left out, and why: one row per reason, as the bank asked
     # (12 Oct 2026): "it should list what we are omitting and why".
     ("Left out, and why",
@@ -130,6 +130,13 @@ PEER_TERMS = [
      "A quarter in which fewer banks are kept than a composite or band needs.",
      "A quarter with fewer kept banks than the Peers tab asks for is blank, never drawn from fewer. The headline "
      "over each chart counts the banks in at the latest quarter; Workings counts them every quarter."),
+    ("Left out: a stated acquisition",
+     "A quarter in which a bank took in a book the FDIC record cannot see, listed with its filing.",
+     "From the stated acquisitions file the build is given (config/stated-acquisitions.json; the firm, 17 Oct "
+     "2026): a failure with no FDIC row naming the buyer, a deal the FDIC codes as a branch purchase, or an "
+     "asset purchase from a company that is not a bank. Every product's windows holding the quarter are left "
+     "out for that bank, as for a recorded acquisition, with no share measured. Recorded in Why not kept (the "
+     "Data tab, DelinquencyData) and on Run."),
     ("Left out: before a gap (series files)",
      "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
      "A series file is written from the first quarter after its last gap; its note names the quarters left "

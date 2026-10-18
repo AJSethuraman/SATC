@@ -1,0 +1,33 @@
+{
+  "_what": "Acquisitions the FDIC merger record cannot see, each with the filing that records it, read by 'peers build' beside the FDIC record (the firm, 17 Oct 2026, the commercial proposal's question 14, agreed with the recommendation). Written 17 Oct 2026 from docs/commercial-2026-10/research-breaks.md (on main), section B, the rows marked not in the record, and only the deals the agreed question names (\"JPMorgan/WaMu, M&T/Wilmington Trust, and asset purchases such as Wells/GE Capital\"), which gives four: JPMorgan and Washington Mutual Bank (a failure with no history row naming JPMorgan), M&T and Wilmington Trust (coded 712, a branch purchase), Wells Fargo and GE Capital, and Capital One and GE Healthcare Financial Services (asset purchases from a company that is not a bank). Each filing was fetched from EDGAR on 17 Oct 2026 at the address given, and each citation quotes it word for word (the apostrophe in JPMorgan's is a typographic one in the filing). Left out: Huntington and Macquarie Equipment Finance, because research-breaks.md records its close date as not checked (its 8-K exhibit of 24 Feb 2015 announces the agreement and says the purchase \"is anticipated to be completed by March 31, 2015\"; no filing of the close was read), so its quarter is not known; and the branch purchases research-breaks.md measured as negligible in commercial (Citizens and HSBC 2022Q1, KeyBank and HSBC 2012Q3, Huntington and Bank of America 2014Q3, Fifth Third and Pathward 2025Q4, Fifth Third and Mechanics 2026Q2, Zions and FirstBank 2025Q2) and Capital One and HSBC's card business 2012Q2, which the firm's answer does not name. The quarter is the Call Report quarter whose filing first holds the deal: the quarter of the close the filing gives.",
+  "acquisitions": [
+    {
+      "acquirer": "628",
+      "quarter": "2008Q3",
+      "what": "JPMorgan Chase Bank bought substantially all the assets of Washington Mutual Bank from the FDIC as receiver, 25 Sep 2008; the FDIC history records only Washington Mutual Bank FSB, $20.6 billion.",
+      "citation": "JPMorgan Chase & Co., Form 8-K, Item 8.01, date of report 25 Sep 2008: \"its recently announced acquisition of all deposits, substantially all of the assets and certain liabilities of Washington Mutual's banks from the Federal Deposit Insurance Corporation\"",
+      "url": "https://www.sec.gov/Archives/edgar/data/19617/000119312508201638/d8k.htm"
+    },
+    {
+      "acquirer": "588",
+      "quarter": "2011Q2",
+      "what": "M&T acquired Wilmington Trust Corporation, effective 16 May 2011; the FDIC history codes the bank transfer 712, a branch purchase, so the record does not count it.",
+      "citation": "M&T Bank Corporation, Form 8-K, Item 2.01 (Completion of Acquisition or Disposition of Assets): \"Effective May 16, 2011 ... Merger Sub merged with and into Wilmington Trust, with Wilmington Trust continuing as the surviving corporation and a wholly owned subsidiary of M&T\"",
+      "url": "https://www.sec.gov/Archives/edgar/data/36270/000095012311052112/l42734e8vk.htm"
+    },
+    {
+      "acquirer": "3511",
+      "quarter": "2016Q1",
+      "what": "Wells Fargo bought GE Capital's commercial lending and leasing business, $26.7 billion of commercial and industrial loans and leases, closed 1 Mar 2016; an asset purchase, with no bank charter for the FDIC to record.",
+      "citation": "Wells Fargo & Company, first quarter 2016 earnings release, 14 Apr 2016 (Form 8-K, Exhibit 99.1): \"$26.7 billion from commercial and industrial loans and leases (3/1/16 close)\"",
+      "url": "https://www.sec.gov/Archives/edgar/data/72971/000007297116001077/wfc1qer4-14x2016exx991.htm"
+    },
+    {
+      "acquirer": "4297",
+      "quarter": "2015Q4",
+      "what": "Capital One bought the Healthcare Financial Services business of General Electric Capital Corporation, completed 1 Dec 2015; an asset purchase, with no bank charter for the FDIC to record.",
+      "citation": "Capital One Financial Corporation, Financial Supplement, fourth quarter 2015 (Form 8-K, Exhibit 99.2), note 5: \"On December 1, 2015, we completed the acquisition of Healthcare Financial Services business of General Electric Capital Corporation\"",
+      "url": "https://www.sec.gov/Archives/edgar/data/927628/000092762816000126/q42015earningsrelease-ex992.htm"
+    }
+  ]
+}

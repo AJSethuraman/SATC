@@ -517,7 +517,7 @@ def test_pro_forma_is_a_stated_setting_with_no_default():
                   acquisition_share=0.05, min_book=0, exempt_self=True, pack="all", min_banks=5,
                   rank_by="net", last_n=4, min_obs=2, base_quarter="2020Q4", index_min_book=0,
                   lagged_years=[2020], lag_years=1, normalisation_years=[2020, 2021], mix_base_year=2020,
-                  delinquency=False, reporting_changes="config/reporting-changes.json")
+                  delinquency=False, reporting_changes="config/reporting-changes.json", stated_acquisitions=None)
     for value in (None, "yes", 1):
         with pytest.raises(ValueError, match="--pro-forma must be stated, yes or no"):
             run.build("p.xlsx", pro_forma=value, say=lambda line: None, **stated)
