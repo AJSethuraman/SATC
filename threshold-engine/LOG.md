@@ -1886,3 +1886,33 @@ zones come from the gap's own history or sit around zero (own history as
 built); whether other consumer's lines use the whole history or from 2023
 (whole history; the 2023 step is in the chart); whether the minimum-payment
 share is rated or context (rated, as instructed).
+
+## 18 October 2026, later: the Signals tab
+
+The analyst, on the evidence record: *"i did not want you to simply document
+the evidence we ran, i want the book to include all of the info we have
+found and be able to help show why we might not care"*; *"i do not want it
+to be comparable against only card"*; *"peers should carry throughout the
+workbook"*; *"signals include 30+ nonaccrual"*. A mock-up went three rounds
+(`docs/early-warning-2026-10/record/signals_mock.py`) and then: *"okay put
+this into production and generate a workbook for review"*.
+
+- **Signals** (`signals_tab.py`): the controls (product, measure, source,
+  shift, window; Banks in the pack followed from Peers), where the dollars
+  are, 30+ incl. nonaccrual for every product, 30+ to charge-off with the
+  gap in points (shaded, priced) and the window test, the pipeline, then one
+  section per signal: the raw series, the picked series, the two rescaled
+  and slid on one axis (one grid line = one yearly move, the inputs printed),
+  the fit table against eight fixed series and the pick, and the peer panel
+  in three states (in; out by rule; off under Banks in the pack). Every
+  pick-dependent cell is a formula, on the hidden Signals workings.
+- **Signals data** (`signals_data.py`): the public series behind it, one
+  column each on the book's calendar, with sources and SHA-256 on Run.
+  Fetched by `peers signals-pull` (Philadelphia Fed balances and
+  originations; FRED `DRTSCLCC`), committed under `data/signals` (FHFA NMDB;
+  the 10-Q FICO shares), or computed from the cache (each product's dollars
+  for KeyBank and the industry; the peer group's are summed live on the tab).
+- Dropped from the mock on the analyst's word: the roll step 30-89 to 90+
+  (the pipeline's levels carry it); the dual-axis chart with real units on
+  both axes is not possible live in Excel without macros, so the rescaled
+  chart is on one axis and the units are printed beside it.

@@ -220,10 +220,10 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                        "shows the first product and measure, no source picked and nothing decided",
               "actions": [], "reads": [
                   {"special": "active", "expect": "Summary"},
-                  {"special": "sheets", "expect": ["Decide", "Summary", "Peers", "Peer loan classes", "Thresholds", LBS, "Internal",
+                  {"special": "sheets", "expect": ["Decide", "Summary", "Signals", "Peers", "Peer loan classes", "Thresholds", LBS, "Internal",
                                                    "Evidence", "Backtest", "Glossary", "Sources", "Reporting changes", "Run", "Data",
-                                                   "Peers data", "Peers delinquency data", "Internal data", "Assess",
-                                                   "Chart", "Peers workings"]},
+                                                   "Signals data", "Peers data", "Peers delinquency data", "Internal data", "Assess",
+                                                   "Chart", "Peers workings", "Signals workings"]},
                   {"special": "slicers", "expect": {NAMES[0]: first[0], NAMES[1]: first[1]}},
                   {"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"]]},
                   {"sheet": "Decide", "cell": "L1", "expect": decided(0, 0)},
@@ -455,6 +455,120 @@ steps.append({"id": "B13", "what": "Set JPMorgan's cell back to Pack",
               "reads": live_reads(every) + [
                   {"sheet": LBS, "cell": "M%d" % (5 + LABELS.index(peer_label(pr, me))),
                    "expect": PTS[peer_label(pr, me)][-1].value} for pr, me, _ in LIVE], "picture": []})
+
+# ---------------------------------------------------------------- B14: the Signals tab, as built
+# What the tab's formulas should show with the pick as built (other consumer, 30+ incl.
+# nonaccrual, KeyBank; the window all quarters; every peer in the pack): the controls, the
+# where-the-dollars-are table from the series the build wrote on Signals data, the peer
+# panel's states from Peers delinquency data, and two fit tables worked out here from the
+# same yearly changes (CORREL over the quarters both series have, at each lead).
+from threshold_engine import signals_tab as ST                       # noqa: E402
+import math as _m                                                    # noqa: E402
+
+_sd = _wb["Signals data"]
+SD_HEAD = [c for c in next(_sd.iter_rows(min_row=1, max_row=1, values_only=True))]
+SD_ROWS = [r for r in _sd.iter_rows(min_row=2, values_only=True) if r[0]]
+GRID_Q = [r[0] for r in SD_ROWS]
+SIGNAL = {k: {r[0]: r[i] for r in SD_ROWS if r[i] is not None} for i, k in enumerate(SD_HEAD) if i and k}
+_sig = _wb["Signals"]
+SIG_ROWS = [r for r in _sig.iter_rows(min_row=1, values_only=True)]
+
+
+def _pearson(xs, ys):
+    n = len(xs)
+    if n < 2:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    sx = _m.sqrt(sum((x - mx) ** 2 for x in xs)); sy = _m.sqrt(sum((y - my) ** 2 for y in ys))
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sx * sy) if sx and sy else None
+
+
+def _change(series, pct=False):
+    out = {}
+    for i, q in enumerate(GRID_Q):
+        if i >= 4 and q in series and GRID_Q[i - 4] in series:
+            a, b_ = series[q], series[GRID_Q[i - 4]]
+            out[q] = (100 * (a / b_ - 1) if b_ else None) if pct else a - b_
+    return {q: v for q, v in out.items() if v is not None}
+
+
+def _fit(sig_change, tgt_change, excl=False):
+    """(best lead, r at it, r at it without 2020-23, overlapping quarters) as the tab's formulas read them."""
+    n_ = len(GRID_Q)
+    out_all, out_ex = {}, {}
+    for k in ST.LEADS:
+        xs, ys, xe, ye = [], [], [], []
+        for i in range(max(0, -k), n_ - max(0, k)):
+            qa, qb = GRID_Q[i], GRID_Q[i + k]
+            if qa in sig_change and qb in tgt_change:
+                xs.append(sig_change[qa]); ys.append(tgt_change[qb])
+                if not (ST.OUT_FROM <= qa <= ST.OUT_TO) and not (ST.OUT_FROM <= qb <= ST.OUT_TO):
+                    xe.append(sig_change[qa]); ye.append(tgt_change[qb])
+        r_ = _pearson(xs, ys); re_ = _pearson(xe, ye)
+        if r_ is not None:
+            out_all[k] = r_; out_ex[k] = re_
+    if not out_all:
+        return None
+    k = max(out_all, key=lambda k_: out_all[k_])
+    return k, out_all[k], out_ex.get(k), sum(1 for q in sig_change if q in tgt_change)
+
+
+def _lead_text(k):
+    return "same quarter" if k == 0 else ("%d qtrs ahead" % k if k > 0 else "%d qtrs after" % -k)
+
+
+DATA_SER = {lbl: {quarter(p_.date): p_.value for p_ in PTS[lbl]} for lbl in LABELS}
+PICKED_LBL = "Other consumer - 30+ days past due incl. nonaccrual - KeyBank"
+TARGET_LBLS = [" - ".join(t) for t in ST.FIT_TARGETS if " - ".join(t) in DATA_SER] + [PICKED_LBL]
+sig_reads = [{"sheet": "Signals", "cell": "B5", "expect": "Other consumer"},
+             {"sheet": "Signals", "cell": "C5", "expect": "30+ days past due incl. nonaccrual"},
+             {"sheet": "Signals", "cell": "D5", "expect": "KeyBank"},
+             {"sheet": "Signals", "cell": "G5", "expect": PICKED_LBL},
+             {"sheet": "Signals", "cell": "K5", "expect": "yes"},
+             {"sheet": "Signals", "cell": "O5", "expect": "%d of %d, from Peers" % (len(peers_), len(peers_))}]
+# where the dollars are: KeyBank's row for each product, from Signals data, and the shares
+_last = GRID_Q[-1]
+_rows = [i for i, r in enumerate(SIG_ROWS, start=1) if r[1] == "Product" and r[2] == "Balance ($000)"]
+if _rows:
+    r0 = _rows[0]
+    tots = {k: sum(SIGNAL.get("keybank_%s_%s" % (p.lower().replace(" ", "-"), k), {}).get(_last, 0) for p in ST.PRODUCTS) for k in ("bal", "gco4", "d30")}
+    for i, p_ in enumerate(ST.PRODUCTS):
+        slug_ = p_.lower().replace(" ", "-")
+        for j, k in enumerate(("bal", "gco4", "d30")):
+            v = SIGNAL.get("keybank_%s_%s" % (slug_, k), {}).get(_last)
+            if v is not None:
+                sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(3 + 2 * j), r0 + 1 + i), "expect": v})
+                sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(4 + 2 * j), r0 + 1 + i), "expect": v / tots[k]})
+# the peer panel beside the where-the-dollars-are table: every peer's state this quarter
+_left = {(r[0], r[2]) for r in DQ_ROWS if r[1] == ST.DQ_KEY_30 and r[4] == _last and r[13] is True}
+for j, b_ in enumerate(peers_):
+    state = ("out: its own four-quarter average was blanked this quarter by the jump or the acquisition share"
+             if ("Other consumer", b_["short"]) in _left else "in")
+    sig_reads.append({"sheet": "Signals", "cell": "U%d" % (r0 + 1 + j), "expect": state})
+    sig_reads.append({"sheet": "Signals", "cell": "T%d" % (r0 + 1 + j), "expect": b_["short"]})
+# two fit tables: the first signal's and the minimum-payment share's
+_fit_rows = [i for i, r in enumerate(SIG_ROWS, start=1) if r[1] == "How this signal fits every loss and delinquency series in the book"]
+for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
+    if key not in ("fico_keycorp", "minpay"):
+        continue
+    top = _fit_rows[si]
+    x = SIGNAL[key] if kind == "change" else _change(SIGNAL[key], pct=(key == "pv660"))
+    for j, lbl in enumerate(TARGET_LBLS):
+        f = _fit(x, _change(DATA_SER[lbl]))
+        rr = top + 2 + j
+        if f is None:
+            continue
+        k, r_all, r_ex, n_ = f
+        sig_reads += [{"sheet": "Signals", "cell": "C%d" % rr, "expect": _lead_text(k)},
+                      {"sheet": "Signals", "cell": "D%d" % rr, "expect": r_all},
+                      {"sheet": "Signals", "cell": "F%d" % rr, "expect": n_}]
+        if r_ex is not None:
+            sig_reads.append({"sheet": "Signals", "cell": "E%d" % rr, "expect": r_ex})
+steps.append({"id": "B14", "what": "Open Signals",
+              "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads "
+                       "KeyBank's Call Report by product; every peer's state is beside it; two fit tables agree with the same "
+                       "correlations worked out from the series, lead by lead",
+              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U60", "file": "b14-signals.png"}]})
 
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")
