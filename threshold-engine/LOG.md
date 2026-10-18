@@ -2085,6 +2085,9 @@ list):
 **Not done.** No review, no test, no rebuild for question 6. The early-1990s
 industry figures were not tied out to the QBP. Nothing was opened in Excel.
 
+*Superseded:* question 6 was tested and rebuilt on the reviewed code; see
+"17 Oct 2026, question 6: a peers build from 1991Q1", below.
+
 ## 17 Oct 2026, question 16: a series continues across windows left out only for a labelled change
 
 - **Question 16, 17 Oct 2026, agreed with the recommendation** on the docket
@@ -2254,3 +2257,131 @@ industry figures were not tied out to the QBP. Nothing was opened in Excel.
   name exactly, so a combined product would never continue across a gap
   until the registry names it. That was not checked, because that code is
   not on this branch.
+
+## 17 Oct 2026, question 6: a peers build from 1991Q1
+
+- **Question 6, 17 Oct 2026, agreed with the recommendation** on the docket
+  form (`docs/COMMERCIAL-PROPOSAL.md` on main, section 5): *"Pull commercial
+  history from 1991Q1, not 2006Q1 as for consumer?"* The recommendation:
+  *"The early-1990s CRE losses are in it; splits still start 2007Q1."*
+- **No code was needed beyond question 17.** What stopped a build from
+  1991Q1 was the merger record since 1990, refused on codes 213 and 225.
+  With both placed, `peers pull --mergers 1990-01-01` and `peers build
+  --first 1991Q1` run as they are.
+- **The merger record since 1990, re-pulled today** with this branch's
+  code (`fdic.history("1990-01-01")`, public): 35,742 rows (213: 3; 225: 1).
+  Classified, 5,946 acquirers and 16,362 absorptions, the same as the
+  cache's `mergers-since-1990.json` and `absorptions-since-1990.json`,
+  compared whole. So the record the build read is the one today's code
+  writes.
+- **Proof.** `tests/test_from_1991.py`, 5 tests, on public data:
+  - `tests/data/peers/keybank_ci_1991.json`: KeyBank and the four banks the
+    record says it absorbed in 1992 and 1993, 1991Q1 to 1993Q4, from the
+    commercial cache;
+  - `tests/data/peers/history_1990.json`: twelve history rows as the API
+    returned them today (the three 213 rows, the 225 row, and KeyBank's four
+    absorptions with their mirror rows);
+  - `peers pull --first 1991Q1 --mergers 1990-01-01` writes the record: the
+    three 213 acquirers marked in 1990Q2, the 225 acquirer not;
+  - with 213 taken off the list, the same pull is refused, naming the three
+    rows, and writes no record;
+  - `peers build --first 1991Q1` reads it. KeyBank's C&I runs 1992Q1 to
+    1993Q4, 8 windows, none left out: pro forma adds the absorbed banks,
+    so the 1992 steps (37% and 60% as filed) neither break it nor trip the
+    jump. Its 1992Q1 value is checked against arithmetic on the fixture.
+    The industry's first window is 1991Q4. KeyBank's nonaccrual rate, as
+    filed, runs from 1991Q1. No 30-89 series is written: 30-89 is blank
+    before 2001Q1.
+
+  **Checked by mutation**, then put back:
+  - with KeyBank's absorptions taken out of the history rows, the build
+    test fails: KeyBank's C&I is one window, 1993Q4;
+  - with 213 taken off `ACQUISITIONS` in `fdic.py`, the pull test fails and
+    the build fixture errors.
+- **Run on the real cache** (`scratchpad/cache-commercial`, public FDIC
+  data, not in the repository). At this branch's code (250d8c67; the test
+  commit after it changes no code), the commercial example book's
+  settings, with `--first 1991Q1`, the merger record and absorptions since
+  1990 (`mergers-since-1990.json`, `absorptions-since-1990.json`) and
+  `config/stated-acquisitions.json`:
+  - **Time.** 25 min 31 s. Exit 0. **Nothing was refused.**
+  - **Quarters.** 142 quarter files, 1991Q1 to 2026Q2.
+  - **Banks.** The roster's 16 (KeyBank and a pack of 15). Filers: 15,294
+    in 1991Q1, 4,313 in 2026Q2. The four stated acquisitions are all inside
+    the quarters; none is outside.
+  - **Files.** 470 series files: 290, plus 180 peers' own under `banks/`.
+    15 continue across a declared gap, as at the 2005 build (question 16).
+  - **Industry.** Every product's net charge-off series runs 1991Q4 to
+    2026Q2, 139 windows. The two nonfarm splits run 2007Q4 on, as the
+    recommendation says. Nonaccrual and 90+ run 1991Q1 on; 30-89 and 30+
+    run 2001Q1 on.
+  - **Early-1990s peaks against 2006 on**, industry net, % (not tied out
+    to the QBP). The same figures as the interrupted run's table:
+
+    | Series | Peak 1991Q4 to 1995 | Peak 2006 on |
+    |---|---|---|
+    | CRE sum | 1.858 (1993Q2) | 2.480 (2010Q2) |
+    | C&I | 2.037 (1992Q1) | 2.520 (2010Q1) |
+    | Construction | 3.249 (1993Q2) | 6.485 (2010Q1) |
+    | Multifamily | 1.449 (1993Q2) | 1.332 (2010Q2) |
+    | Nonfarm nonresidential | 1.608 (1992Q3) | 1.251 (2010Q4) |
+
+  - **The pack composites' net series** start at 1998Q4 (multifamily
+    1999Q3; the splits 2010Q4).
+  - **KeyBank's net series.** C&I, multifamily and nonfarm nonresidential
+    are written from 2003Q4; construction from 2015Q3; the splits from
+    2011Q3. The C&I and multifamily files continue across their declared
+    gaps.
+- **Why the banks' series do not reach the 1990s.** Every roster bank's C&I
+  windows 1992Q1 to 2005Q4, measured with the build's own steps
+  (`bank_book` on the same data, rules and record): 896 windows (16 banks,
+  56 each). 501 are left out as "a quarter is missing", and 10 by the jump
+  (Citizens). All 501 hold a quarter in which a pro forma member filed for
+  the first time, in a quarter other than Q1.
+
+  The rule: a member's flow in a non-Q1 quarter is its year-to-date less
+  the quarter before's. It has no quarter before, so the flow is not
+  known, and the window is missing. KeyBank has 12 such members, and they
+  account for its 32 missing windows exactly. The FDIC institutions record
+  (api.fdic.gov/banks/institutions, read today) gives each of the 12 an
+  establishment date in the quarter of its first filing: they were new
+  charters. Examples: Far West Federal Savings Bank, 7 Jun 1991; Key Bank
+  USA, 5 Sep 1995. The other banks' members were not looked up.
+
+  The rule was not changed. Whether a new charter's first year-to-date may
+  be read as its flow is put to the firm as a decision. The lines do not
+  wait on it: the recommendation rates the banks on lines set from the
+  industry's 1991 to 2026 history, and the industry series reach 1991Q4.
+- **A gap the build does not check: the record's first date.** A merger
+  record is `{cert: [quarter-ends]}` and does not say the date it was
+  pulled from. `peers build` does not check that it reaches back to
+  `--first`. Each `pull --mergers` also writes `mergers.json` over the last
+  one. A build script left in the scratchpad by the interrupted run names
+  the since-2005 files, whatever first quarter it is given.
+
+  Measured on the real cache, a 1991Q1 build reading the since-2005 record:
+  - KeyBank's C&I has 14 pro forma members instead of 122;
+  - its 1992Q1 to 1993Q3 and 1997Q2 to 1998Q2 windows are left out by the
+    jump instead;
+  - 21 of its kept windows (1993Q4 to 2005Q3) hold a quarter in which the
+    record since 1990 says KeyBank absorbed a bank. Those windows mix two
+    books, and no message says so.
+
+  The run above read the since-1990 files. `stress-tool-rules.md` now copies
+  each record under the date it starts from, names the files a 1991Q1 build
+  must read, and says its build command, run before question 14, now needs
+  `--stated-acquisitions`.
+  The guard itself (the pull records the date, and the build refuses a
+  first quarter before it) changes the merger file format that the consumer
+  window's caches also use. It is put to the firm as a decision; nothing
+  was changed for it.
+- **Results.** `tests/test_from_1991.py` 5 passed and `test_peers_fdic.py`
+  46 passed (scratch venv, Python 3.13, openpyxl 3.1.5, formulas 1.3.4).
+  No source module was changed, so no other test file imports anything
+  changed here. The rest of the suite was not run.
+- **Not done.** Nothing was opened in Excel; nothing can be opened in Excel
+  here. The early-1990s industry figures were not tied out to the QBP or
+  the Fed's series. The commercial example book (local branch
+  `commercial-example`) still says 2006Q1. It is not on this branch and was
+  not changed or rebuilt. No Thresholds workbook was built from these
+  series.
