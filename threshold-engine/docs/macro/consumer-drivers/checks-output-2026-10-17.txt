@@ -1,16 +1,16 @@
 1. FHFA all-transactions index below its level a year before: 20 quarters; 19 in 2007Q4-2012Q2; the others: 1982Q3
 
 2. Unemployment's four-quarter change against each loss measure's, together (same year)
-   Credit card, Net charge-offs                   from 2007Q4 to 2026Q2: 62 quarters, r +0.70, effective sample about 3.5
-   Credit card, Net charge-offs                   from 2012Q1 to 2026Q2: 45 quarters, r +0.60, effective sample about 1.9
+   Credit card, Net charge-offs                   from 2007Q4 to 2026Q2: 62 quarters, r +0.70, effective sample about 3.4
+   Credit card, Net charge-offs                   from 2012Q1 to 2026Q2: 45 quarters, r +0.60, effective sample about 1.8
                                                   one change a year, ending Q1: 16 years, r +0.68; ending Q2: 16 years, r +0.62; ending Q3: 15 years, r +0.71; ending Q4: 15 years, r +0.79
-   Credit card, 30-89 days past due               from 2007Q4 to 2026Q2: 62 quarters, r +0.49, effective sample about 5.5
-   Credit card, 30-89 days past due               from 2012Q1 to 2026Q2: 45 quarters, r +0.48, effective sample about 3.6
+   Credit card, 30-89 days past due               from 2007Q4 to 2026Q2: 62 quarters, r +0.49, effective sample about 5.1
+   Credit card, 30-89 days past due               from 2012Q1 to 2026Q2: 45 quarters, r +0.48, effective sample about 2.2
                                                   one change a year, ending Q1: 16 years, r +0.51; ending Q2: 16 years, r +0.52; ending Q3: 15 years, r +0.53; ending Q4: 15 years, r +0.40
    Mortgage, 30+ days past due incl. nonaccrual   from 2007Q4 to 2026Q2: 62 quarters, r +0.92, effective sample about 2.8
-   Mortgage, 30+ days past due incl. nonaccrual   from 2012Q1 to 2026Q2: 45 quarters, r +0.80, effective sample about 2.1
+   Mortgage, 30+ days past due incl. nonaccrual   from 2012Q1 to 2026Q2: 45 quarters, r +0.80, effective sample about 2.2
                                                   one change a year, ending Q1: 16 years, r +0.94; ending Q2: 16 years, r +0.87; ending Q3: 15 years, r +0.92; ending Q4: 15 years, r +0.94
-   Auto, 30+ days past due incl. nonaccrual       from 2012Q1 to 2026Q2: 45 quarters, r +0.20, effective sample about 5.8
+   Auto, 30+ days past due incl. nonaccrual       from 2012Q1 to 2026Q2: 45 quarters, r +0.20, effective sample about 3.9
                                                   one change a year, ending Q1: 12 years, r +0.14; ending Q2: 12 years, r +0.23; ending Q3: 11 years, r +0.16; ending Q4: 10 years, r +0.35
 
 3. How a Stable band of +/-0.5 and +/-1 typical yearly moves sorts 2007Q4-2026Q2

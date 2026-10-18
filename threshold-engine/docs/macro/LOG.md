@@ -739,7 +739,9 @@ for a written plan and objections before anything is built. Both are in
   -0.15). The definitions move these figures by 0.1 to 0.4, so the plan fixes
   them in settings before the first run.
 - **The main objection.** 2006-2026 holds one downturn. The effective sample
-  of four-quarter changes is about 2 to 6, and unemployment rises in two runs
+  of four-quarter changes is about 2 to 5 (first written as 2 to 6, with the
+  autocorrelation paired across the 2020-22 and 2025Q4 gaps; Codex on #452),
+  and unemployment rises in two runs
   under a ±0.5 band. The repository's longer public charge-off series (the
   Fed's card rate from 1985 Q4; FDIC home equity and other consumer from
   1992 Q4) give three or four episodes (first written as four or five, before a one-quarter gap was merged

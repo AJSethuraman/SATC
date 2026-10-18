@@ -13,7 +13,8 @@ a monthly series is averaged over the quarter, and a quarter missing a month is
 left out; a weekly one is averaged over its weeks; a change is over four
 quarters and is left out when either end falls in 2020Q1-2021Q4 (the brief's
 illustrative window, not a decision); the effective sample is n(1 - r1 r2) /
-(1 + r1 r2) from the two series' lag-1 autocorrelations (approximate).
+(1 + r1 r2) from the two series' lag-1 autocorrelations, each taken from quarters
+one apart only (approximate).
 """
 import csv
 import math
@@ -70,6 +71,14 @@ def corr(a, b):
             / math.sqrt(sum((x - ma) ** 2 for x in a) * sum((y - mb) ** 2 for y in b)))
 
 
+def lag1(s, ts):
+    """Lag-1 autocorrelation over ``ts`` from calendar-consecutive pairs only: across a gap (2019Q4 to
+    2023Q1, say) two neighbours in the list are not one quarter apart."""
+    keep = set(ts)
+    pairs = [(s[t], s[shift(t, 1)]) for t in ts if shift(t, 1) in keep]
+    return corr([p[0] for p in pairs], [p[1] for p in pairs])
+
+
 def typical(changes):
     m = st.median(changes)
     return 1.4826 * st.median(abs(c - m) for c in changes)
@@ -115,7 +124,7 @@ def main(pull):
                 continue
             shown.add(ts[0])
             a, b = [u[t] for t in ts], [y[t] for t in ts]
-            r1, r2 = corr(a[:-1], a[1:]), corr(b[:-1], b[1:])
+            r1, r2 = lag1(u, ts), lag1(y, ts)
             print("   %-46s from %s to %s: %d quarters, r %+.2f, effective sample about %.1f"
                   % (name, ts[0], ts[-1], len(ts), corr(a, b), len(ts) * (1 - r1 * r2) / (1 + r1 * r2)))
         one = []

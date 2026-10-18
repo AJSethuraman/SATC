@@ -12,7 +12,7 @@ and Book 1's own series files. Five changes to the brief matter most:
 
 1. **2006-2026 holds one downturn.** On Book 1's history, every pair rests on
    2008-10. The "effective sample" is the number of independent observations
-   the overlapping changes are worth, and it comes out at about 2 to 6.
+   the overlapping changes are worth, and it comes out at about 2 to 5.
    Public loss series back to 1985 and 1992 already sit in the repository, and
    they give three or four episodes of rising unemployment instead of one or
    two. **I recommend testing on both:** Book 1's files, so the figures tie
@@ -61,7 +61,7 @@ The decisions are at the end, each with my recommendation. The note for Book
 | Unemployment, card 30-89, overlapping | 0.49 | 0.49 | reproduces |
 | Unemployment, mortgage 30+, 2007+ / 2012+ | 0.88 / 0.60 | 0.92 / 0.80 | **does not reproduce** (mine is 30+ including nonaccrual) |
 | Unemployment, auto 30+ | -0.15 | **+0.20** | **sign differs** |
-| Effective sample, four-quarter changes | about 3-6 | 1.9-5.8 | same order |
+| Effective sample, four-quarter changes | about 3-6 | 1.8-5.1 | same order, mine lower |
 | Card net charge-offs, one change a year | 0.77 (n=17) | 0.62-0.79 | depends on which quarter ends each year |
 | Card 30-89, one change a year | about 0.30-0.33 | 0.40-0.53 | **does not reproduce** |
 | Claims, card charge-offs; mortgage 30-89 and 90+ annual; the 2008-10 turning points | | not re-derived | |
@@ -112,9 +112,13 @@ which indicators moved with each loss measure, how often, and whether they
 moved first.
 
 **3. Overlapping changes.** A four-quarter change shares three quarters with
-the next one, so 62 quarters behave like about 2 to 6 independent ones. Put the
+the next one, so 62 quarters behave like about 2 to 5 independent ones. Put the
 effective sample beside every result, as you proposed, and draw the scatter as
 a path in time order.
+
+Each series' lag-one autocorrelation is taken only from quarters one apart.
+An earlier draft paired the quarters either side of a gap (2019Q4 with 2023Q1,
+2025Q3 with 2026Q1), and said 1.9 to 5.8; auto's 5.8 is 3.9 (Codex on #452).
 
 **4. A trailing-twelve-month charge-off rate has a built-in lag.** Its
 four-quarter change compares the last four quarters with the four before, so
