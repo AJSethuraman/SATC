@@ -69,7 +69,7 @@ SIGNALS = (
     ("fico_keycorp", "Refreshed FICO", "KeyCorp: share of scored card balances with a refreshed FICO under 660, from its 10-Qs; the peers that cut at 660 beside it on Signals data", "level", "fico", "0.0"),
     ("minpay", "Paying only the minimum", "Share of active card accounts at the large banks whose payment was only the minimum due", "level", "y14", "0.0"),
     ("util90", "Stretched utilization", "Utilization of the most stretched tenth of active card accounts at the large banks (90th percentile)", "level", "y14", "0.0"),
-    ("pv660", "Purchase volume by low-score accounts", "Average purchase volume per card account scored under 660 (large banks); the fit reads its change over a year", "change", "y14", "#,##0"),
+    ("pv660", "Purchase volume by low-score accounts", "Average purchase volume per card account scored under 660 (large banks); the fit reads its change over a year, in %", "level", "y14", "#,##0"),
     ("easing", "Underwriting: banks easing card standards", "Net share of banks reporting easier card standards (Senior Loan Officer Survey); above zero, more banks eased", "change", "survey", "0.0"),
     ("score10", "Underwriting: who got new accounts", "Credit score of the weakest tenth of new card accounts (large banks); lower is looser", "level", "y14", "0"),
     ("ltv90", "Mortgage: equity", "Share of outstanding mortgages owing more than 90% of the home's value (FHFA NMDB, all lenders)", "level", "nmdb", "0.0"),
@@ -275,9 +275,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         """Columns for one series: value, change over a year, value in the
         window, change in the window, absolute deviation of that change, and
         the standardized value (its z). ``change`` 'diff' or 'pct'."""
-        c0 = take(name, 7)
+        c0 = take(name, 8)
         heads = ("value", "change over a year", "value, in the window", "change, in the window", "deviation of the change", "z",
-                 "change, without 2020-23")
+                 "change, without 2020-23", "value, without 2020-23")
         for j, h in enumerate(heads):
             wk.cell(1, c0 + j, "%s: %s" % (name, h))
         v, ch, vw, cw, dev, z = (L(c0 + j) for j in range(6))
@@ -298,6 +298,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             # the fit table's "without 2020-23" always leaves those quarters out, whatever the window control says
             wk.cell(r, c0 + 6, '=IF(OR(AND({q}>="{a}",{q}<="{b}"),NOT(ISNUMBER({c}{r}))),"",{c}{r})'
                     .format(q=QN(r), a=OUT_FROM, b=OUT_TO, c=ch, r=r))
+            wk.cell(r, c0 + 7, '=IF(OR(AND({q}>="{a}",{q}<="{b}"),NOT(ISNUMBER({v}{r}))),"",{v}{r})'
+                    .format(q=QN(r), a=OUT_FROM, b=OUT_TO, v=v, r=r))
         return c0
 
     # the picked series, looked up on Data by its label
@@ -342,7 +344,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                     pack = 'SUMIFS({dd}$F:$F,{dd}$A:$A,"{p}",{dd}$B:$B,"{m}",{dd}$E:$E,{q},{dd}$O:$O,TRUE)'.format(dd=DD, p=_q(p), m=DQ_KEY_30, q=QN(r))
                 kb_v = ('IF({s}$%s%d="","",{s}$%s%d)' % (kbc, r, kbc, r)).format(s=SDt) if kbc else '""'
                 in_v = ('IF({s}$%s%d="","",{s}$%s%d)' % (inc, r, inc, r)).format(s=SDt) if inc else '""'
-                wk.cell(r, c0 + j, '=IF({src}="{me}",{kb},IF(LEFT({src},10)="Peer group",IF({pk}=0,"",{pk}),{ind}))'
+                wk.cell(r, c0 + j, '=IF({src}="{me}",{kb},IF(LEFT({src},10)="Peer group",IF({pk}=0,"",{pk}),IF({src}="Industry (every bank)",{ind},"")))'
                         .format(src=S_, me=_q(self_short), kb=kb_v, pk=pack, ind=in_v))
     # the gap: KeyBank minus peers, card 30+ to charge-off, and its parts for the shading
     co_lbl = {s: " - ".join(("Credit card", "30+ to charge-off", s)) for s in srcs}
@@ -391,7 +393,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             n = N - abs(k)
             s_off, t_off = max(0, -k), max(0, k)
             for j, (tname, nice, lbl) in enumerate(tcols):
-                for g, (sj, tj) in enumerate(((1 if kind == "level" else 0, 1), (6 if kind == "level" else 2, 6))):
+                # a level signal's fit reads its change over a year; a change signal (the survey) its value; the
+                # "without 2020-23" fit reads the columns that always leave those quarters out (Codex on #457)
+                for g, (sj, tj) in enumerate(((1 if kind == "level" else 0, 1), (6 if kind == "level" else 7, 6))):
                     sig_first = "%s$%s$%d" % (WK, L(col[key] + sj), R0)
                     tgt_first = "%s$%s$%d" % (WK, L(col[tname] + tj), R0)
                     f = '=IFERROR(CORREL(OFFSET(%s,%d,0,%d,1),OFFSET(%s,%d,0,%d,1)),"")' % (sig_first, s_off, n, tgt_first, t_off, n)
@@ -476,6 +480,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for rr in range(row, r + 1):
         for cc in range(2, 9):
             ws.cell(rr, cc).border = Border(bottom=HAIR)
+    ws.cell(r + 1, 2, '=IF(OR({s}="{me}",LEFT({s},10)="Peer group",{s}="Industry (every bank)"),"","No Call Report dollars for "&{s}&": the table and the charts are blank for this source.")'
+            .format(s=S_, me=_q(self_short))).font = F_NOTE
+    ws.merge_cells(start_row=r + 1, start_column=2, end_row=r + 1, end_column=18)
     panel("live", P_, row)
     row = r + 2
     for j, (k, title, fmt_) in enumerate((("bal", "balances by product, $000", "#,##0"), ("gco4", "gross charge-offs by product, 4 quarters, $000", "#,##0"),

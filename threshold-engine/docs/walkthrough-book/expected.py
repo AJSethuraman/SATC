@@ -553,8 +553,6 @@ for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
         continue
     top = _fit_rows[si]
     x = SIGNAL[key] if kind == "change" else _change(SIGNAL[key], pct=(key == "pv660"))
-    if key == "pv660":
-        x = _change(SIGNAL[key], pct=True)
     for j, lbl in enumerate(TARGET_LBLS):
         f = _fit(x, _change(DATA_SER[lbl]))
         rr = top + 2 + j
