@@ -139,7 +139,9 @@ number for number.
   the proposal leans on, are therefore not under the tool's rules yet.
   *Update, 17 Oct 2026:* the firm placed both codes (question 17: 213 an
   acquisition, 225 not), so the merger record since 1990 is no longer
-  refused on them (LOG.md, 17 Oct 2026, question 17).
+  refused on them (LOG.md, 17 Oct 2026, question 17). A build from 1991Q1
+  then ran (question 6) on an interrupted run's code; its results, not
+  reviewed, are in LOG.md, 17 Oct 2026, question 6 (a partial commit).
 - The registry's reporting-change notes on the commercial series were read
   in the series files; the workbook built from them was not opened in Excel.
 - The peer workbook from these builds was not opened. Its dashboard text

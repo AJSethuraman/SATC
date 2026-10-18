@@ -2037,3 +2037,50 @@ each "agreed with the recommendation" on the docket form
   here. No real-cache build was run at this commit. The FFIEC instruction
   that places PPP loans in C&I was not read: research-breaks.md records
   that ffiec.gov returned 403.
+
+## 17 Oct 2026, question 6: PARTIAL, the interrupted run's 1991 build, kept unreviewed
+
+**A partial commit, not reviewed.** Question 6 was not in this step's scope
+(questions 15 and 16 were). The run that was cut off by a usage limit left
+its notes on question 6 in its WIP commit. They are kept here, word for
+word apart from the heading, this paragraph and the closing "Not done", and
+one note in brackets, so that they are not lost. Every figure below
+is the interrupted run's: it ran on that run's own code, before questions
+17, 14, 15 and 16 were reviewed and committed, and none of it was re-checked
+here.
+
+- **Question 6, 17 Oct 2026, agreed with the recommendation:** *"Pull
+  commercial history from 1991Q1, not 2006Q1 as for consumer?"* No code was
+  needed beyond question 17. The build was run once, from 1991Q1. Results
+  below.
+
+**Run on the real cache** (`scratchpad/cache-commercial`, public FDIC data, not
+in the repository; the commercial example book's settings, with the stated
+list):
+
+- **From 1991Q1** (question 6; the merger record since 1990). 27 min 23 s,
+  142 quarters.
+  - **Industry.** 139 windows, 1991Q4 to 2026Q2.
+  - **Early-1990s peaks against 2006 on** (net, not checked against the QBP):
+
+    | Series | Peak 1991Q4 to 1995 | Peak 2006 on |
+    |---|---|---|
+    | CRE sum | 1.858 (1993Q2) | 2.480 (2010Q2) |
+    | C&I | 2.037 (1992Q1) | 2.520 (2010Q1) |
+    | Construction | 3.249 (1993Q2) | 6.485 (2010Q1) |
+    | Multifamily | 1.449 (1993Q2) | 1.332 (2010Q2) |
+    | Nonfarm nonresidential | 1.608 (1992Q3) | 1.251 (2010Q4) |
+
+  - **The pack composites** start at 1998Q4.
+  - **KeyBank's C&I** runs from 2003Q4. 47 earlier windows are left out as
+    "a quarter is missing".
+  - **The cause.** Pro forma adds 122 banks to KeyBank. 12 of them are new
+    charters whose first filing falls mid-year, so the existing rule gives
+    that quarter no flow, and every window holding it is missing. The rule
+    was not changed. (The interrupted run's text pointed to "the decisions
+    below"; it wrote none, so none is recorded here.)
+  - **Across the 1990s C&I windows.** 553 bank-windows are missing, 35 are
+    left out by the jump, and 16 by a stated acquisition.
+
+**Not done.** No review, no test, no rebuild for question 6. The early-1990s
+industry figures were not tied out to the QBP. Nothing was opened in Excel.
