@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2258 of 2258 reads as expected.**
+**2396 of 2396 reads as expected.**
 
 No differences.
 
@@ -13,7 +13,7 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | | Cell | Expected | Excel |
 |---|---|---|---|
 | ok | active | Summary | Summary |
-| ok | sheets | ['Decide', 'Summary', 'Peers', 'Peer loan classes', 'Thresholds', 'Lines by source', 'Inte | ['Decide', 'Summary', 'Peers', 'Peer loan classes', 'Thresholds', 'Lines by source', 'Inte |
+| ok | sheets | ['Decide', 'Summary', 'Signals', 'Peers', 'Peer loan classes', 'Thresholds', 'Lines by sou | ['Decide', 'Summary', 'Signals', 'Peers', 'Peer loan classes', 'Thresholds', 'Lines by sou |
 | ok | slicers | {'Product': 'Credit card', 'Measure': 'Net charge-offs'} | {'Product': 'Credit card', 'Measure': 'Net charge-offs'} |
 | ok | visible_rows | [9] | [9] |
 | ok | Decide!L1 | Decided: 0 of 56 · accepted 0 · rejected 0 | Decided: 0 of 56 · accepted 0 · rejected 0 |
@@ -2361,3 +2361,148 @@ The peer group is every peer again: each latest value is the series file's own.
 | ok | Lines by source!M6 | 3.9545852353018254 | 3.9545852353018254 |
 | ok | Lines by source!M69 | 1.550392085338516 | 1.550392085338516 |
 | ok | Lines by source!M24 | 1.3825111539309054 | 1.3825111539309054 |
+
+## B14 · Open Signals: 138 of 138
+
+The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; every peer's state is beside it; two fit tables agree with the same correlations worked out from the series, lead by lead.
+
+| | Cell | Expected | Excel |
+|---|---|---|---|
+| ok | Signals!B5 | Other consumer | Other consumer |
+| ok | Signals!C5 | 30+ days past due incl. nonaccrual | 30+ days past due incl. nonaccrual |
+| ok | Signals!D5 | KeyBank | KeyBank |
+| ok | Signals!G5 | Other consumer - 30+ days past due incl. nonaccrual - KeyBank | Other consumer - 30+ days past due incl. nonaccrual - KeyBank |
+| ok | Signals!K5 | yes | yes |
+| ok | Signals!O5 | 15 of 15, from Peers | 15 of 15, from Peers |
+| ok | Signals!C11 | 926589 | 926589 |
+| ok | Signals!D11 | 0.03198275740963098 | 0.03198275740963098 |
+| ok | Signals!E11 | 42666 | 42666 |
+| ok | Signals!F11 | 0.39868804664723034 | 0.39868804664723034 |
+| ok | Signals!G11 | 24275 | 24275 |
+| ok | Signals!H11 | 0.07853369265261094 | 0.07853369265261094 |
+| ok | Signals!C12 | 4469033 | 4469033 |
+| ok | Signals!D12 | 0.1542560922853988 | 0.1542560922853988 |
+| ok | Signals!E12 | 59618 | 59618 |
+| ok | Signals!F12 | 0.5570942662779398 | 0.5570942662779398 |
+| ok | Signals!G12 | 53410 | 53410 |
+| ok | Signals!H12 | 0.1727902996735716 | 0.1727902996735716 |
+| ok | Signals!C13 | 2929570 | 2929570 |
+| ok | Signals!D13 | 0.10111897143667002 | 0.10111897143667002 |
+| ok | Signals!E13 | 2322 | 2322 |
+| ok | Signals!F13 | 0.021697690065037002 | 0.021697690065037002 |
+| ok | Signals!G13 | 72018 | 72018 |
+| ok | Signals!H13 | 0.23299029773247104 | 0.23299029773247104 |
+| ok | Signals!C14 | 20584113 | 20584113 |
+| ok | Signals!D14 | 0.7104948284206174 | 0.7104948284206174 |
+| ok | Signals!E14 | 1899 | 1899 |
+| ok | Signals!F14 | 0.017745010091948867 | 0.017745010091948867 |
+| ok | Signals!G14 | 158704 | 158704 |
+| ok | Signals!H14 | 0.5134340333157555 | 0.5134340333157555 |
+| ok | Signals!C15 | 62212 | 62212 |
+| ok | Signals!D15 | 0.002147350447682805 | 0.002147350447682805 |
+| ok | Signals!E15 | 511 | 511 |
+| ok | Signals!F15 | 0.0047749869178440605 | 0.0047749869178440605 |
+| ok | Signals!G15 | 696 | 696 |
+| ok | Signals!H15 | 0.0022516766255908224 | 0.0022516766255908224 |
+| ok | Signals!U11 | in | in |
+| ok | Signals!T11 | JPMorgan | JPMorgan |
+| ok | Signals!U12 | in | in |
+| ok | Signals!T12 | Wells Fargo | Wells Fargo |
+| ok | Signals!U13 | in | in |
+| ok | Signals!T13 | Bank of America | Bank of America |
+| ok | Signals!U14 | in | in |
+| ok | Signals!T14 | Citi | Citi |
+| ok | Signals!U15 | in | in |
+| ok | Signals!T15 | U.S. Bank | U.S. Bank |
+| ok | Signals!U16 | in | in |
+| ok | Signals!T16 | PNC | PNC |
+| ok | Signals!U17 | in | in |
+| ok | Signals!T17 | Truist | Truist |
+| ok | Signals!U18 | in | in |
+| ok | Signals!T18 | Capital One | Capital One |
+| ok | Signals!U19 | out: its own four-quarter average was blanked this quarter by the jump or the acquisition  | out: its own four-quarter average was blanked this quarter by the jump or the acquisition  |
+| ok | Signals!T19 | Fifth Third | Fifth Third |
+| ok | Signals!U20 | in | in |
+| ok | Signals!T20 | Huntington | Huntington |
+| ok | Signals!U21 | out: its own four-quarter average was blanked this quarter by the jump or the acquisition  | out: its own four-quarter average was blanked this quarter by the jump or the acquisition  |
+| ok | Signals!T21 | First Citizens | First Citizens |
+| ok | Signals!U22 | in | in |
+| ok | Signals!T22 | Citizens | Citizens |
+| ok | Signals!U23 | in | in |
+| ok | Signals!T23 | M&T | M&T |
+| ok | Signals!U24 | in | in |
+| ok | Signals!T24 | Regions | Regions |
+| ok | Signals!U25 | in | in |
+| ok | Signals!T25 | Zions | Zions |
+| ok | Signals!C174 | 2 qtrs ahead | 2 qtrs ahead |
+| ok | Signals!D174 | 0.8923573311318846 | 0.8923573311318843 |
+| ok | Signals!F174 | 29 | 29 |
+| ok | Signals!E174 | 0.9666015097137213 | 0.9666015097137214 |
+| ok | Signals!C175 | 2 qtrs ahead | 2 qtrs ahead |
+| ok | Signals!D175 | 0.8604408488787167 | 0.8604408488787165 |
+| ok | Signals!F175 | 29 | 29 |
+| ok | Signals!E175 | 0.8307722344365586 | 0.8307722344365583 |
+| ok | Signals!C176 | 2 qtrs ahead | 2 qtrs ahead |
+| ok | Signals!D176 | 0.8339772638856662 | 0.8339772638856662 |
+| ok | Signals!F176 | 29 | 29 |
+| ok | Signals!E176 | 0.3080802393004971 | 0.3080802393004945 |
+| ok | Signals!C177 | 1 qtrs after | 1 qtrs after |
+| ok | Signals!D177 | 0.7569587749225609 | 0.7569587749225606 |
+| ok | Signals!F177 | 29 | 29 |
+| ok | Signals!E177 | 0.34410415755063956 | 0.3441041575506396 |
+| ok | Signals!C178 | 1 qtrs after | 1 qtrs after |
+| ok | Signals!D178 | 0.9129499906596658 | 0.9129499906596653 |
+| ok | Signals!F178 | 29 | 29 |
+| ok | Signals!E178 | 0.8579660011363002 | 0.8579660011363011 |
+| ok | Signals!C179 | 4 qtrs after | 4 qtrs after |
+| ok | Signals!D179 | 0.7817046927495512 | 0.7817046927495511 |
+| ok | Signals!F179 | 29 | 29 |
+| ok | Signals!E179 | 0.618676221626357 | 0.6186762216263574 |
+| ok | Signals!C180 | 6 qtrs ahead | 6 qtrs ahead |
+| ok | Signals!D180 | 0.6812375273649898 | 0.6812375273649897 |
+| ok | Signals!F180 | 29 | 29 |
+| ok | Signals!E180 | -0.7329267796471881 | -0.7329267796471896 |
+| ok | Signals!C181 | 6 qtrs ahead | 6 qtrs ahead |
+| ok | Signals!D181 | 0.5051634081457965 | 0.5051634081457965 |
+| ok | Signals!F181 | 29 | 29 |
+| ok | Signals!E181 | -0.8785693868848957 | -0.8785693868848993 |
+| ok | Signals!C182 | 4 qtrs after | 4 qtrs after |
+| ok | Signals!D182 | 0.7817046927495512 | 0.7817046927495511 |
+| ok | Signals!F182 | 29 | 29 |
+| ok | Signals!E182 | 0.618676221626357 | 0.6186762216263574 |
+| ok | Signals!C210 | 4 qtrs ahead | 4 qtrs ahead |
+| ok | Signals!D210 | 0.8248286522101923 | 0.8248286522101921 |
+| ok | Signals!F210 | 52 | 52 |
+| ok | Signals!E210 | 0.3343361919039883 | 0.33433619190398817 |
+| ok | Signals!C211 | 2 qtrs ahead | 2 qtrs ahead |
+| ok | Signals!D211 | 0.6496075304096223 | 0.649607530409622 |
+| ok | Signals!F211 | 47 | 47 |
+| ok | Signals!E211 | 0.5483677972129555 | 0.5483677972129556 |
+| ok | Signals!C212 | 4 qtrs ahead | 4 qtrs ahead |
+| ok | Signals!D212 | 0.727205759606632 | 0.7272057596066318 |
+| ok | Signals!F212 | 52 | 52 |
+| ok | Signals!E212 | 0.42257694197164625 | 0.4225769419716454 |
+| ok | Signals!C213 | 1 qtrs ahead | 1 qtrs ahead |
+| ok | Signals!D213 | 0.7305729102024882 | 0.7305729102024879 |
+| ok | Signals!F213 | 39 | 39 |
+| ok | Signals!E213 | 0.6696662859769211 | 0.6696662859769216 |
+| ok | Signals!C214 | same quarter | same quarter |
+| ok | Signals!D214 | 0.8526871793915897 | 0.8526871793915897 |
+| ok | Signals!F214 | 52 | 52 |
+| ok | Signals!E214 | 0.5392094256518403 | 0.53920942565184 |
+| ok | Signals!C215 | 3 qtrs after | 3 qtrs after |
+| ok | Signals!D215 | 0.5082401370242108 | 0.508240137024211 |
+| ok | Signals!F215 | 52 | 52 |
+| ok | Signals!E215 | -0.39273193956532265 | -0.39273193956532243 |
+| ok | Signals!C216 | 7 qtrs ahead | 7 qtrs ahead |
+| ok | Signals!D216 | 0.31660819802914997 | 0.31660819802914997 |
+| ok | Signals!F216 | 52 | 52 |
+| ok | Signals!E216 | 0.7384681296983978 | 0.7384681296983978 |
+| ok | Signals!C217 | 7 qtrs ahead | 7 qtrs ahead |
+| ok | Signals!D217 | 0.22584854043033203 | 0.22584854043033187 |
+| ok | Signals!F217 | 52 | 52 |
+| ok | Signals!E217 | -0.06506447848812397 | -0.06506447848812379 |
+| ok | Signals!C218 | 3 qtrs after | 3 qtrs after |
+| ok | Signals!D218 | 0.5082401370242108 | 0.508240137024211 |
+| ok | Signals!F218 | 52 | 52 |
+| ok | Signals!E218 | -0.39273193956532265 | -0.39273193956532243 |

@@ -15,7 +15,11 @@ KeyBank) and KeyBank's gap to peers and to the industry on it, and for
 credit card the large banks' share paying only the minimum, and the
 industry's card, home equity and other consumer charge-offs from 1990 as
 separate series ("Industry (every bank) from 1990", under `data/industry`):
-164 series.
+164 series. The **Signals** tab lays every public signal from the October
+2026 early-warning work beside them, compared against any product, measure
+and source picked, with the banks behind each chart recorded beside it
+(`signals_tab.py`; its data on Signals data, from `peers signals-pull` and
+`data/signals`).
 The products are the five Call Report products and two combined ones:
 **All consumer** (all five added together) and **Credit card + Other
 consumer**.
@@ -88,7 +92,14 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
    python -m threshold_engine peers large-banks-pull --cache books/ind_cache --quarter 2026Q2
    ```
 
-4. Build the workbook:
+4. Pull the public files behind the Signals tab (Philadelphia Fed card
+   balances and originations; the Fed's survey series from FRED, no key):
+
+   ```
+   python -m threshold_engine peers signals-pull --cache books/ind_cache --quarter 2026Q2
+   ```
+
+5. Build the workbook:
 
    ```
    python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx

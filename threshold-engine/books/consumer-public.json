@@ -100,5 +100,12 @@
   ],
   "large_banks": {
     "file": "ind_cache/large-banks/26Q2-CreditCardBalances.csv"
+  },
+  "signals": {
+    "balances": "ind_cache/signals/26Q2-CreditCardBalances.csv",
+    "originations": "ind_cache/signals/26Q2-CreditCardOriginations.csv",
+    "survey": "ind_cache/signals/DRTSCLCC.csv",
+    "nmdb": "../data/signals/nmdb.json",
+    "fico": "../data/signals/fico-under-660.json"
   }
 }

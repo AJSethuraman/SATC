@@ -44,6 +44,8 @@ BUNDLE = (("consumer-public.json", ROOT / "books" / "consumer-public.json"),
     ("%s_industry-from-1990_%s.csv" % (slug_, kind), ROOT / "data" / "industry" / ("%s_industry-from-1990_%s.csv" % (slug_, kind)))
     for slug_ in ("credit-card", "home-equity", "other-consumer") for kind in ("net", "gross"))
 LONG_INDUSTRY = Path("data") / "industry"
+BUNDLE = BUNDLE + (("nmdb.json", ROOT / "data" / "signals" / "nmdb.json"),
+                   ("fico-under-660.json", ROOT / "data" / "signals" / "fico-under-660.json"))
 QUARTER = re.compile(r"^(19|20)\d\dQ[1-4]$")
 MERGERS_SINCE = "2005-01-01"
 INTERNAL_SOURCE = "KeyBank internal"
@@ -87,7 +89,9 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
     (folder / CACHE).mkdir(exist_ok=True)
     raw = json.loads(bundled("consumer-public.json").decode("utf-8"))
     for name, _ in BUNDLE[1:]:
-        target = (folder / LONG_INDUSTRY / name) if "_industry-from-" in name else (book_dir / name)
+        target = ((folder / LONG_INDUSTRY / name) if "_industry-from-" in name
+                  else (folder / "data" / "signals" / name) if name in ("nmdb.json", "fico-under-660.json")
+                  else (book_dir / name))
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(bundled(name))
     cache = folder / CACHE
@@ -100,6 +104,15 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
     if raw.get("large_banks") is not None:
         from .peers import large_banks as LB
         raw["large_banks"] = {"file": str(folder / CACHE / LB.FOLDER / LB.file_name(quarter))}
+    if raw.get("signals") is not None:
+        from .peers import large_banks as LB
+        from . import signals_data as SD
+        sig = folder / CACHE / SD.FOLDER
+        raw["signals"] = {"balances": str(sig / LB.file_name(quarter)),
+                          "originations": str(sig / LB.file_name(quarter).replace("Balances", "Originations")),
+                          "survey": str(sig / ("%s.csv" % SD.SURVEY)),
+                          "nmdb": str(folder / "data" / "signals" / "nmdb.json"),
+                          "fico": str(folder / "data" / "signals" / "fico-under-660.json")}
     raw["internal"] = None if not internal else {
         "file": str(Path(internal).resolve()), "source": INTERNAL_SOURCE, "segments": bool(segments),
         "measures": dict(INTERNAL_MEASURES), "call_report_source": "KeyBank"}
@@ -120,6 +133,9 @@ def pull(folder, quarter: str, say: Callable[[str], None] = print, contact: Opti
     if book.get("large_banks") is not None:
         from .peers import large_banks as LB
         LB.pull(Path(folder) / CACHE, quarter, say=say)
+    if book.get("signals") is not None:
+        from . import signals_data as SD
+        SD.pull(Path(folder) / CACHE, quarter, say=say)
     if book.get("loan_classes") is not None:
         from .peers import classes, loan_classes_tab
         tmp = Path(folder) / BOOK
