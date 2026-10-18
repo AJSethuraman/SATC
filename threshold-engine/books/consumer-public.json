@@ -1,6 +1,6 @@
 {
   "workbook": {
-    "name": "Consumer credit: charge-offs (trailing twelve months) and delinquency (quarter-end)",
+    "name": "Consumer Industry Analysis",
     "unit": "%",
     "direction": "higher_is_worse",
     "frequency": "quarterly",
@@ -93,5 +93,12 @@
     "file": "../config/peer-loan-classes.json",
     "cache": "sec_cache"
   },
-  "reporting_changes": "../config/reporting-changes.json"
+  "reporting_changes": "../config/reporting-changes.json",
+  "floor_off": [
+    "Gap to peers on 30+ to charge-off",
+    "Gap to industry on 30+ to charge-off"
+  ],
+  "large_banks": {
+    "file": "ind_cache/large-banks/26Q2-CreditCardBalances.csv"
+  }
 }

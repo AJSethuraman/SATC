@@ -146,3 +146,20 @@ Credit card + Other consumer,30+ days past due incl. nonaccrual,KeyBank,out/seri
 Credit card + Other consumer,90+ days past due incl. nonaccrual,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
 Credit card + Other consumer,90+ days past due incl. nonaccrual,Peer group (15 banks),out/series/credit-card-plus-other-consumer_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
 Credit card + Other consumer,90+ days past due incl. nonaccrual,KeyBank,out/series/credit-card-plus-other-consumer_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card,30+ to charge-off,Industry (every bank),out/series/credit-card_industry_30-plus-to-charge-off_four-quarter-average.csv
+Credit card,30+ to charge-off,Peer group (15 banks),out/series/credit-card_pack-composite_30-plus-to-charge-off_four-quarter-average.csv
+Credit card,30+ to charge-off,KeyBank,out/series/credit-card_keybank_30-plus-to-charge-off_four-quarter-average.csv
+Credit card,Gap to peers on 30+ to charge-off,KeyBank,out/series/credit-card_keybank_gap-to-peers-on-30-plus-to-charge-off_four-quarter-average.csv
+Credit card,Gap to industry on 30+ to charge-off,KeyBank,out/series/credit-card_keybank_gap-to-industry-on-30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,30+ to charge-off,Industry (every bank),out/series/other-consumer_industry_30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,30+ to charge-off,Peer group (15 banks),out/series/other-consumer_pack-composite_30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,30+ to charge-off,KeyBank,out/series/other-consumer_keybank_30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,Gap to peers on 30+ to charge-off,KeyBank,out/series/other-consumer_keybank_gap-to-peers-on-30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,Gap to industry on 30+ to charge-off,KeyBank,out/series/other-consumer_keybank_gap-to-industry-on-30-plus-to-charge-off_four-quarter-average.csv
+Credit card,Share paying only the minimum,Large banks (Philadelphia Fed),out/series/credit-card_large-banks_share-paying-only-the-minimum_quarter-end.csv
+Credit card,Net charge-offs,Industry (every bank) from 1990,../data/industry/credit-card_industry-from-1990_net.csv
+Credit card,Gross charge-offs,Industry (every bank) from 1990,../data/industry/credit-card_industry-from-1990_gross.csv
+Home equity,Net charge-offs,Industry (every bank) from 1990,../data/industry/home-equity_industry-from-1990_net.csv
+Home equity,Gross charge-offs,Industry (every bank) from 1990,../data/industry/home-equity_industry-from-1990_gross.csv
+Other consumer,Net charge-offs,Industry (every bank) from 1990,../data/industry/other-consumer_industry-from-1990_net.csv
+Other consumer,Gross charge-offs,Industry (every bank) from 1990,../data/industry/other-consumer_industry-from-1990_gross.csv

@@ -792,7 +792,17 @@ def test_delinquency_yes_writes_every_product_measure_basis_and_series(dq_built)
             for who in ("pack-composite", "pack-median", "keybank", "industry")
             for m in DQ_MEASURES.values() for b in DQ_BASES.values()}
     assert dq == want and len(dq) == 200
-    assert len(names - dq) == 5 * 4 * 2
+    # 30+ to charge-off (flows.py) rides on the delinquency fields: per product the pack composite,
+    # KeyBank and the industry on both bases, and KeyBank's gap to peers and to the industry.
+    fl = {n for n in names if "30-plus-to-charge-off" in n}
+    want_fl = {"%s_%s_30-plus-to-charge-off_%s.csv" % (p, who, b)
+               for p in ("credit-card", "mortgage", "home-equity", "other-consumer", "auto")
+               for who in ("pack-composite", "keybank", "industry") for b in DQ_BASES.values()}
+    want_fl |= {"%s_keybank_gap-to-%s-on-30-plus-to-charge-off_four-quarter-average.csv" % (p, who)
+                for p in ("credit-card", "mortgage", "home-equity", "other-consumer", "auto")
+                for who in ("peers", "industry")}
+    assert fl == want_fl and len(fl) == 40
+    assert len(names - dq - fl) == 5 * 4 * 2
     wb = load_workbook(dq_built["out"])
     assert wb["DelinquencyData"]["A1"].value == "Product"                 # built, not the not-built line
     assert "dl_c" in wb["Peers"].defined_names

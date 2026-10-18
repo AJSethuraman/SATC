@@ -47,10 +47,11 @@ import math
 import os
 import re
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from . import books, fdic, peers_workbook
 from . import delinquency as D
+from . import flows as FL
 from . import roster as R
 from .. import reporting_changes as RC
 
@@ -102,6 +103,37 @@ def unbroken_tail(rows):
     while start and rows[start - 1][1] is not None:
         start -= 1
     return rows[start:end], [q for q, _ in rows[:start]], [q for q, _ in rows[end:]]
+
+
+def break_reason(row, key: str, min_banks: int) -> str:
+    """Why ``row`` has no value under ``key`` ("net_rate", "rate", "avg4"):
+    its own stated reason where it has one (a bank's ``why``, or ``why_avg4``
+    for a four-quarter average); for a composite, the banks it had against
+    the banks needed; else "no value". ``row`` None: not in the data."""
+    if row is None:
+        return "not in the data"
+    why = row.get("why_avg4" if key == "avg4" else "why")
+    if why:
+        return why
+    if isinstance(row.get("banks"), int) and row["banks"] < min_banks:
+        return "%d banks kept, fewer than the %d needed" % (row["banks"], min_banks)
+    return "no value"
+
+
+def left_out_spans(before, after, reasons) -> List[Tuple[str, str, str]]:
+    """``(first, last, why)`` for each span ``unbroken_tail`` left out as
+    built: the quarters before the last break, and the latest quarters with no
+    value. ``reasons`` is ``{quarter: break_reason}``."""
+    spans = []
+    if before:
+        spans.append((before[0], before[-1],
+                       "before the last break: %s has no value (%s); a series is written from the first "
+                       "quarter after its last break, because the workbook refuses a gap"
+                       % (before[-1], reasons.get(before[-1], "no value"))))
+    if after:
+        spans.append((after[0], after[-1], "the latest quarters have no value: %s (%s)"
+                       % (after[0], reasons.get(after[0], "no value"))))
+    return spans
 
 
 def series_note(note, tail, before, after):
@@ -453,7 +485,54 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                                  for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
-                                 D.values(rows, basis), note, p, m, left_out))
+                                 D.values(rows, basis), note, p, m, left_out,
+                                 {r["q"]: break_reason(r, D.BASES[basis], min_banks) for r in rows}))
+    return made
+
+
+def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition_share, min_banks, source, every,
+                 out_dir, acquired):
+    """The 30+ to charge-off series files (``flows``), per product: the pack
+    composite, the bank itself and the industry, each on both bases, and the
+    bank's gap to the peer group and to the industry (four-quarter average).
+    Each is ``(path, rows, note, product, measure, reasons)``, ``reasons``
+    ``{quarter: why no value}`` for the left-out file."""
+    rule = ("Rules: each bank's own filings (not pro forma); jump %g and acquisition share %g, applied to the two "
+            "quarters after the quarter-end (a sale, purchase or acquisition there moves the charge-offs against "
+            "the stock); at least %d banks in the composite. The industry has no jump, acquisition or minimum rule."
+            % (jump, acquisition_share, min_banks))
+    certs = [b["cert"] for b in pack]
+    made = []
+    for p in products:
+        banks_ = {b["cert"]: FL.bank_flow(data, b["cert"], p, jump, acquired=acquired[p].get(b["cert"], []))
+                  for b in roster}
+        comp = FL.composite(banks_, certs, min_banks)
+        ind = FL.industry(data, p)
+        mine = banks_[me["cert"]]
+        n_ind = next((r["banks"] for r in reversed(ind) if r["kept"]), 0)
+        for who, words, rows in (
+                ("pack-composite", "pack composite (%s): the kept banks' dollars charged off summed over their "
+                                   "delinquent dollars summed" % pack_words, comp),
+                (slug(me["short"]), "%s (certificate %s), its own book" % (me["short"], me["cert"]), mine),
+                ("industry", "industry: " + every(n_ind), ind)):
+            for basis in D.BASES:
+                key = D.BASES[basis]
+                note = ["%s, %s, %s, %%." % (p, FL.MEASURE, basis), FL.DEFINITION]
+                if basis == "four-quarter average":
+                    note.append(FL.DEFINITION_AVG4)
+                note += [words[0].upper() + words[1:] + ".", source, rule] + books.definitions(p)
+                reasons = {r["q"]: (r["why_avg4"] if key == "avg4" else r["why"]) or "no value" for r in rows}
+                made.append((out_dir / ("%s_%s_%s_%s.csv" % (slug(p), who, FL.SLUG, slug(basis))),
+                             FL.values(rows, basis), note, p, FL.MEASURE, reasons))
+        for other, meas, words in ((comp, FL.GAP_PEERS, "the peer group (%s)" % pack_words),
+                                   (ind, FL.GAP_INDUSTRY, "the industry (every filer)")):
+            g = FL.gap(mine, other)
+            note = ["%s, %s, four-quarter average, percentage points." % (p, meas),
+                    FL.DEFINITION_GAP % (meas, me["short"], words, me["short"], words), FL.DEFINITION,
+                    FL.DEFINITION_AVG4, source, rule] + books.definitions(p)
+            made.append((out_dir / ("%s_%s_%s_four-quarter-average.csv" % (slug(p), slug(me["short"]), slug(meas))),
+                         FL.values(g, "four-quarter average"), note, p, meas,
+                         {r["q"]: r["why"] or "no value" for r in g}))
     return made
 
 
@@ -717,9 +796,12 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                      books.industry(data, summed[0], summed[1:])))
 
     series = []                 # (path, tail, note lines, left out before, left out after, group)
+    left_out_ = {}              # path -> [(first, last, why)], as built
     for words_p, slug_, who, words, ruled, rows in made:
         for kind in ("gross", "net"):
             tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+            left_out_[out_dir / ("%s_%s_%s.csv" % (slug_, who, kind))] = left_out_spans(
+                before, after, {r["quarter"]: break_reason(r, kind + "_rate", min_banks) for r in rows})
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
                     words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
             note += [d for d in dict.fromkeys(d for n in words_p.split(" plus ") for d in books.definitions(n))
@@ -747,10 +829,11 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     dq_spec = None
     if delinquency:
         labels = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
-        for path, rows, note, p, m, left_out in _delinquency_series(
+        for path, rows, note, p, m, left_out, reasons in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
                 min_banks, source, every, out_dir, acquired, acquisition_share):
             tail, before, after = unbroken_tail(rows)
+            left_out_[path] = left_out_spans(before, after, reasons)
             if left_out is not None and tail:
                 note = note + [left_out_note(left_out, tail, labels)]
             if tail:
@@ -759,6 +842,19 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
                        exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
                        basis=START_BASIS)
+        # 30+ to charge-off and the gaps (flows.py): the delinquency fields and
+        # the gross charge-offs of each bank's own filings. The pack composite
+        # is as built; it does not follow Banks in the pack.
+        for path, rows, note, p, m, reasons in _flow_series(
+                data, roster_, me, pack_, pack_words, products, jump, acquisition_share, min_banks, source, every,
+                out_dir, acquired):
+            tail, before, after = unbroken_tail(rows)
+            left_out_[path] = left_out_spans(before, after, reasons)
+            if tail:
+                # The changes touching what it is made of: gross charge-offs and the three delinquency fields.
+                for under in (RC.charge_off_measure("gross"), "30-89", "90+ accruing", "nonaccrual"):
+                    note = note + RC.note_lines(changes, books.members(p), under, tail[0][0], tail[-1][0], note)
+            series.append((path, tail, series_note(note, tail, before, after), before, after, ("flows", p)))
 
     paths = [str(path).lower() for path, *_ in series]
     twice = sorted({p for p in paths if paths.count(p) > 1})
@@ -827,6 +923,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                ", ends %s: %d later quarter%s with no value"
                % (tail[-1][0], len(after), "" if len(after) == 1 else "s") if after else ""))
     for p, (n, of, broke) in written.items():
+        if isinstance(p, tuple) and p[0] == "flows":
+            say("30+ to charge-off, %s: %d of %d series written to %s (the latest two quarter-ends have no "
+                "value yet; each file's notes say what is left out)" % (p[1], n, of, out_dir))
+            continue
         if isinstance(p, tuple):
             say("Each peer's own book, %s: %d of %d series written to %s"
                 % (p[1], n, of, out_dir / "banks"))
@@ -835,4 +935,6 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             % (p, n, of, out_dir, "; %d start after a break (a four-quarter average always does), "
                "the quarters left out named in each file's notes" % broke if broke else ""))
     return dict(out=out, info=info,
-                series=[(path, len(tail), before, after) for path, tail, _, before, after, _ in series])
+                series=[(path, len(tail), before, after) for path, tail, _, before, after, _ in series],
+                left_out={path: spans for path, spans in left_out_.items()
+                          if str(path).lower() in {str(p_).lower() for p_, t_, *_ in series if t_}})

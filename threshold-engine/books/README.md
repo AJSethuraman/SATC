@@ -9,7 +9,13 @@ default: a missing setting is refused, by name.
 
 `consumer-public.json` is the consumer credit workbook on public FDIC data:
 7 products × 7 measures (net and gross charge-offs, five delinquency
-measures) from the industry, the 15-bank peer group and KeyBank: 147 series.
+measures) from the industry, the 15-bank peer group and KeyBank, plus, for
+credit card and other consumer, 30+ to charge-off (industry, peer group,
+KeyBank) and KeyBank's gap to peers and to the industry on it, and for
+credit card the large banks' share paying only the minimum, and the
+industry's card, home equity and other consumer charge-offs from 1990 as
+separate series ("Industry (every bank) from 1990", under `data/industry`):
+164 series.
 The products are the five Call Report products and two combined ones:
 **All consumer** (all five added together) and **Credit card + Other
 consumer**.
@@ -74,7 +80,15 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
    python -m threshold_engine peers pull --cache books/ind_cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --delinquency yes --mergers 2005-01-01
    ```
 
-3. Build the workbook:
+3. Pull the Philadelphia Fed's large bank credit card file for the latest
+   quarter (public; one file holds every quarter since 2012Q3; it goes under
+   `books/ind_cache/large-banks`):
+
+   ```
+   python -m threshold_engine peers large-banks-pull --cache books/ind_cache --quarter 2026Q2
+   ```
+
+4. Build the workbook:
 
    ```
    python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx

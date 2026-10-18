@@ -1,7 +1,7 @@
 {
  "book": "C:\\Users\\ajish\\SATC\\threshold-engine\\docs\\walkthrough-book\\out\\book.json",
- "series": 147,
- "rows": 49,
+ "series": 164,
+ "rows": 56,
  "steps": [
   {
    "id": "B1",
@@ -55,21 +55,21 @@
     {
      "sheet": "Decide",
      "cell": "L1",
-     "expect": "Decided: 0 of 49 \u00b7 accepted 0 \u00b7 rejected 0"
+     "expect": "Decided: 0 of 56 \u00b7 accepted 0 \u00b7 rejected 0"
     },
     {
      "sheet": "Decide",
-     "cell": "B59",
+     "cell": "B66",
      "expect": "Credit card, net charge-offs: no source picked to set the lines yet"
     },
     {
      "sheet": "Decide",
-     "cell": "I59",
+     "cell": "I66",
      "expect": "No rating: see the Check"
     },
     {
      "sheet": "Decide",
-     "cell": "B60",
+     "cell": "B67",
      "expect": "Check: pick the source whose history sets the lines, under Lines set from."
     },
     {
@@ -84,7 +84,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q101",
+     "range": "A1:Q112",
      "file": "b1-decide.png"
     },
     {
@@ -97,7 +97,7 @@
   {
    "id": "B2",
    "what": "Read Summary, and every source's own lines on Lines by source",
-   "shows": "Every series' latest value, and Pick a source where its rating goes: 147 series, each with its own lines on Lines by source",
+   "shows": "Every series' latest value, and Pick a source where its rating goes: 164 series, each with its own lines on Lines by source",
    "actions": [],
    "reads": [
     {
@@ -312,128 +312,8 @@
     },
     {
      "sheet": "Summary",
-     "cell": "I13",
-     "expect": 0.0034023275592908768
-    },
-    {
-     "sheet": "Summary",
-     "cell": "J13",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "G13",
-     "expect": -0.0024265883136588345
-    },
-    {
-     "sheet": "Summary",
-     "cell": "H13",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "D13",
-     "expect": -0.014683811346124514
-    },
-    {
-     "sheet": "Summary",
-     "cell": "E13",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "I14",
-     "expect": 0.01680541154576976
-    },
-    {
-     "sheet": "Summary",
-     "cell": "J14",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "G14",
-     "expect": 0.014506762667246017
-    },
-    {
-     "sheet": "Summary",
-     "cell": "H14",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "D14",
-     "expect": 0.00901829163851567
-    },
-    {
-     "sheet": "Summary",
-     "cell": "E14",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "I15",
-     "expect": 0.6021167144740369
-    },
-    {
-     "sheet": "Summary",
-     "cell": "J15",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "G15",
-     "expect": 0.5950344128542266
-    },
-    {
-     "sheet": "Summary",
-     "cell": "H15",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "D15",
-     "expect": 0.11323781597973155
-    },
-    {
-     "sheet": "Summary",
-     "cell": "E15",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "I16",
-     "expect": 0.7090160674676405
-    },
-    {
-     "sheet": "Summary",
-     "cell": "J16",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "G16",
-     "expect": 0.701161908282818
-    },
-    {
-     "sheet": "Summary",
-     "cell": "H16",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "D16",
-     "expect": 0.07287173365206458
-    },
-    {
-     "sheet": "Summary",
-     "cell": "E16",
-     "expect": "Pick a source"
-    },
-    {
-     "sheet": "Summary",
      "cell": "I17",
-     "expect": 0.6896266904344225
+     "expect": 0.0034023275592908768
     },
     {
      "sheet": "Summary",
@@ -443,7 +323,7 @@
     {
      "sheet": "Summary",
      "cell": "G17",
-     "expect": 0.799356429758733
+     "expect": -0.0024265883136588345
     },
     {
      "sheet": "Summary",
@@ -453,7 +333,7 @@
     {
      "sheet": "Summary",
      "cell": "D17",
-     "expect": 0.5848928248693543
+     "expect": -0.014683811346124514
     },
     {
      "sheet": "Summary",
@@ -463,7 +343,7 @@
     {
      "sheet": "Summary",
      "cell": "I18",
-     "expect": 2.0007594723761
+     "expect": 0.01680541154576976
     },
     {
      "sheet": "Summary",
@@ -473,7 +353,7 @@
     {
      "sheet": "Summary",
      "cell": "G18",
-     "expect": 2.0955527508957776
+     "expect": 0.014506762667246017
     },
     {
      "sheet": "Summary",
@@ -483,7 +363,7 @@
     {
      "sheet": "Summary",
      "cell": "D18",
-     "expect": 0.7710023745011505
+     "expect": 0.00901829163851567
     },
     {
      "sheet": "Summary",
@@ -493,7 +373,7 @@
     {
      "sheet": "Summary",
      "cell": "I19",
-     "expect": 1.398642757902063
+     "expect": 0.6021167144740369
     },
     {
      "sheet": "Summary",
@@ -503,7 +383,7 @@
     {
      "sheet": "Summary",
      "cell": "G19",
-     "expect": 1.500518338041551
+     "expect": 0.5950344128542266
     },
     {
      "sheet": "Summary",
@@ -513,7 +393,7 @@
     {
      "sheet": "Summary",
      "cell": "D19",
-     "expect": 0.6577645585214189
+     "expect": 0.11323781597973155
     },
     {
      "sheet": "Summary",
@@ -523,7 +403,7 @@
     {
      "sheet": "Summary",
      "cell": "I20",
-     "expect": -0.019378006304722882
+     "expect": 0.7090160674676405
     },
     {
      "sheet": "Summary",
@@ -533,7 +413,7 @@
     {
      "sheet": "Summary",
      "cell": "G20",
-     "expect": -0.06631193529668558
+     "expect": 0.701161908282818
     },
     {
      "sheet": "Summary",
@@ -543,7 +423,7 @@
     {
      "sheet": "Summary",
      "cell": "D20",
-     "expect": 0.03257808684852553
+     "expect": 0.07287173365206458
     },
     {
      "sheet": "Summary",
@@ -553,7 +433,7 @@
     {
      "sheet": "Summary",
      "cell": "I21",
-     "expect": 0.08750898529165822
+     "expect": 0.6896266904344225
     },
     {
      "sheet": "Summary",
@@ -563,7 +443,7 @@
     {
      "sheet": "Summary",
      "cell": "G21",
-     "expect": 0.10262904527785062
+     "expect": 0.799356429758733
     },
     {
      "sheet": "Summary",
@@ -573,7 +453,7 @@
     {
      "sheet": "Summary",
      "cell": "D21",
-     "expect": 0.07719012006354721
+     "expect": 0.5848928248693543
     },
     {
      "sheet": "Summary",
@@ -583,7 +463,7 @@
     {
      "sheet": "Summary",
      "cell": "I22",
-     "expect": 0.5204319093538794
+     "expect": 2.0007594723761
     },
     {
      "sheet": "Summary",
@@ -593,7 +473,7 @@
     {
      "sheet": "Summary",
      "cell": "G22",
-     "expect": 0.5326480276667482
+     "expect": 2.0955527508957776
     },
     {
      "sheet": "Summary",
@@ -603,7 +483,7 @@
     {
      "sheet": "Summary",
      "cell": "D22",
-     "expect": 0.5338326102465549
+     "expect": 0.7710023745011505
     },
     {
      "sheet": "Summary",
@@ -613,7 +493,7 @@
     {
      "sheet": "Summary",
      "cell": "I23",
-     "expect": 0.05413210722089782
+     "expect": 1.398642757902063
     },
     {
      "sheet": "Summary",
@@ -623,7 +503,7 @@
     {
      "sheet": "Summary",
      "cell": "G23",
-     "expect": 0.04595209206224703
+     "expect": 1.500518338041551
     },
     {
      "sheet": "Summary",
@@ -633,7 +513,7 @@
     {
      "sheet": "Summary",
      "cell": "D23",
-     "expect": 0.07072710329502283
+     "expect": 0.6577645585214189
     },
     {
      "sheet": "Summary",
@@ -643,7 +523,7 @@
     {
      "sheet": "Summary",
      "cell": "I24",
-     "expect": 1.451503633202392
+     "expect": -0.019378006304722882
     },
     {
      "sheet": "Summary",
@@ -653,7 +533,7 @@
     {
      "sheet": "Summary",
      "cell": "G24",
-     "expect": 2.2209814576008475
+     "expect": -0.06631193529668558
     },
     {
      "sheet": "Summary",
@@ -663,7 +543,7 @@
     {
      "sheet": "Summary",
      "cell": "D24",
-     "expect": 1.8537532811982647
+     "expect": 0.03257808684852553
     },
     {
      "sheet": "Summary",
@@ -673,7 +553,7 @@
     {
      "sheet": "Summary",
      "cell": "I25",
-     "expect": 2.0260676497771692
+     "expect": 0.08750898529165822
     },
     {
      "sheet": "Summary",
@@ -683,7 +563,7 @@
     {
      "sheet": "Summary",
      "cell": "G25",
-     "expect": 2.799581577329843
+     "expect": 0.10262904527785062
     },
     {
      "sheet": "Summary",
@@ -693,7 +573,7 @@
     {
      "sheet": "Summary",
      "cell": "D25",
-     "expect": 2.4583129947398423
+     "expect": 0.07719012006354721
     },
     {
      "sheet": "Summary",
@@ -703,7 +583,7 @@
     {
      "sheet": "Summary",
      "cell": "I26",
-     "expect": 1.5056357404232898
+     "expect": 0.5204319093538794
     },
     {
      "sheet": "Summary",
@@ -713,7 +593,7 @@
     {
      "sheet": "Summary",
      "cell": "G26",
-     "expect": 2.2669335496630945
+     "expect": 0.5326480276667482
     },
     {
      "sheet": "Summary",
@@ -723,7 +603,7 @@
     {
      "sheet": "Summary",
      "cell": "D26",
-     "expect": 1.9244803844932874
+     "expect": 0.5338326102465549
     },
     {
      "sheet": "Summary",
@@ -733,7 +613,7 @@
     {
      "sheet": "Summary",
      "cell": "I27",
-     "expect": 1.6138446897622272
+     "expect": 0.05413210722089782
     },
     {
      "sheet": "Summary",
@@ -743,7 +623,7 @@
     {
      "sheet": "Summary",
      "cell": "G27",
-     "expect": 1.550392085338516
+     "expect": 0.04595209206224703
     },
     {
      "sheet": "Summary",
@@ -753,7 +633,7 @@
     {
      "sheet": "Summary",
      "cell": "D27",
-     "expect": 1.05873659463189
+     "expect": 0.07072710329502283
     },
     {
      "sheet": "Summary",
@@ -763,7 +643,7 @@
     {
      "sheet": "Summary",
      "cell": "I28",
-     "expect": 2.0372465877364028
+     "expect": 1.451503633202392
     },
     {
      "sheet": "Summary",
@@ -773,7 +653,7 @@
     {
      "sheet": "Summary",
      "cell": "G28",
-     "expect": 2.0194451522005985
+     "expect": 2.2209814576008475
     },
     {
      "sheet": "Summary",
@@ -783,7 +663,7 @@
     {
      "sheet": "Summary",
      "cell": "D28",
-     "expect": 1.269580994403605
+     "expect": 1.8537532811982647
     },
     {
      "sheet": "Summary",
@@ -793,7 +673,7 @@
     {
      "sheet": "Summary",
      "cell": "I29",
-     "expect": 0.9530633219641633
+     "expect": 2.0260676497771692
     },
     {
      "sheet": "Summary",
@@ -803,7 +683,7 @@
     {
      "sheet": "Summary",
      "cell": "G29",
-     "expect": 0.951295071676428
+     "expect": 2.799581577329843
     },
     {
      "sheet": "Summary",
@@ -813,7 +693,7 @@
     {
      "sheet": "Summary",
      "cell": "D29",
-     "expect": 0.6203355401492896
+     "expect": 2.4583129947398423
     },
     {
      "sheet": "Summary",
@@ -823,7 +703,7 @@
     {
      "sheet": "Summary",
      "cell": "I30",
-     "expect": 0.18427413737016327
+     "expect": 1.5056357404232898
     },
     {
      "sheet": "Summary",
@@ -833,7 +713,7 @@
     {
      "sheet": "Summary",
      "cell": "G30",
-     "expect": 0.14276586877115047
+     "expect": 2.2669335496630945
     },
     {
      "sheet": "Summary",
@@ -843,7 +723,7 @@
     {
      "sheet": "Summary",
      "cell": "D30",
-     "expect": 0.47005694520492464
+     "expect": 1.9244803844932874
     },
     {
      "sheet": "Summary",
@@ -853,7 +733,7 @@
     {
      "sheet": "Summary",
      "cell": "I31",
-     "expect": 0.23128678890546345
+     "expect": 1.6138446897622272
     },
     {
      "sheet": "Summary",
@@ -863,7 +743,7 @@
     {
      "sheet": "Summary",
      "cell": "G31",
-     "expect": 0.2631254521014802
+     "expect": 1.550392085338516
     },
     {
      "sheet": "Summary",
@@ -873,7 +753,7 @@
     {
      "sheet": "Summary",
      "cell": "D31",
-     "expect": 0.10472064090822332
+     "expect": 1.05873659463189
     },
     {
      "sheet": "Summary",
@@ -883,7 +763,7 @@
     {
      "sheet": "Summary",
      "cell": "I32",
-     "expect": 1.3686242482397901
+     "expect": 2.0372465877364028
     },
     {
      "sheet": "Summary",
@@ -893,7 +773,7 @@
     {
      "sheet": "Summary",
      "cell": "G32",
-     "expect": 1.3571863925490586
+     "expect": 2.0194451522005985
     },
     {
      "sheet": "Summary",
@@ -903,7 +783,7 @@
     {
      "sheet": "Summary",
      "cell": "D32",
-     "expect": 1.1951131262624375
+     "expect": 1.269580994403605
     },
     {
      "sheet": "Summary",
@@ -913,7 +793,7 @@
     {
      "sheet": "Summary",
      "cell": "I33",
-     "expect": 0.41556092627562674
+     "expect": 0.9530633219641633
     },
     {
      "sheet": "Summary",
@@ -923,7 +803,7 @@
     {
      "sheet": "Summary",
      "cell": "G33",
-     "expect": 0.4058913208726307
+     "expect": 0.951295071676428
     },
     {
      "sheet": "Summary",
@@ -933,7 +813,7 @@
     {
      "sheet": "Summary",
      "cell": "D33",
-     "expect": 0.574777586113148
+     "expect": 0.6203355401492896
     },
     {
      "sheet": "Summary",
@@ -942,632 +822,922 @@
     },
     {
      "sheet": "Summary",
-     "cell": "S6",
+     "cell": "I34",
+     "expect": 0.18427413737016327
+    },
+    {
+     "sheet": "Summary",
+     "cell": "J34",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "G34",
+     "expect": 0.14276586877115047
+    },
+    {
+     "sheet": "Summary",
+     "cell": "H34",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D34",
+     "expect": 0.47005694520492464
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E34",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "I35",
+     "expect": 0.23128678890546345
+    },
+    {
+     "sheet": "Summary",
+     "cell": "J35",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "G35",
+     "expect": 0.2631254521014802
+    },
+    {
+     "sheet": "Summary",
+     "cell": "H35",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D35",
+     "expect": 0.10472064090822332
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E35",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "I36",
+     "expect": 1.3686242482397901
+    },
+    {
+     "sheet": "Summary",
+     "cell": "J36",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "G36",
+     "expect": 1.3571863925490586
+    },
+    {
+     "sheet": "Summary",
+     "cell": "H36",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D36",
+     "expect": 1.1951131262624375
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E36",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "I37",
+     "expect": 0.41556092627562674
+    },
+    {
+     "sheet": "Summary",
+     "cell": "J37",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "G37",
+     "expect": 0.4058913208726307
+    },
+    {
+     "sheet": "Summary",
+     "cell": "H37",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D37",
+     "expect": 0.574777586113148
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E37",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "W6",
      "expect": 0.9878539701554716
     },
     {
      "sheet": "Summary",
-     "cell": "T6",
+     "cell": "X6",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q6",
+     "cell": "U6",
      "expect": 0.8774784779654787
     },
     {
      "sheet": "Summary",
-     "cell": "R6",
+     "cell": "V6",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N6",
+     "cell": "R6",
      "expect": 0.09593421653723161
     },
     {
      "sheet": "Summary",
-     "cell": "O6",
+     "cell": "S6",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S7",
+     "cell": "W7",
      "expect": 1.7254849919194866
     },
     {
      "sheet": "Summary",
-     "cell": "T7",
+     "cell": "X7",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q7",
+     "cell": "U7",
      "expect": 1.5906160217009966
     },
     {
      "sheet": "Summary",
-     "cell": "R7",
+     "cell": "V7",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N7",
+     "cell": "R7",
      "expect": 0.7781330896908787
     },
     {
      "sheet": "Summary",
-     "cell": "O7",
+     "cell": "S7",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S8",
+     "cell": "W8",
      "expect": 2.1170273837661813
     },
     {
      "sheet": "Summary",
-     "cell": "T8",
+     "cell": "X8",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q8",
+     "cell": "U8",
      "expect": 1.9632802207272166
     },
     {
      "sheet": "Summary",
-     "cell": "R8",
+     "cell": "V8",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N8",
+     "cell": "R8",
      "expect": 0.4854368932038835
     },
     {
      "sheet": "Summary",
-     "cell": "O8",
+     "cell": "S8",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S9",
+     "cell": "W9",
      "expect": 0.017704651456628466
     },
     {
      "sheet": "Summary",
-     "cell": "T9",
+     "cell": "X9",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q9",
+     "cell": "U9",
      "expect": 0.022395815868242422
     },
     {
      "sheet": "Summary",
-     "cell": "R9",
+     "cell": "V9",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N9",
+     "cell": "R9",
      "expect": 0.0369703594161898
     },
     {
      "sheet": "Summary",
-     "cell": "O9",
+     "cell": "S9",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S10",
+     "cell": "W10",
      "expect": 0.6418505967481973
     },
     {
      "sheet": "Summary",
-     "cell": "T10",
+     "cell": "X10",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q10",
+     "cell": "U10",
      "expect": 0.5060268781190284
     },
     {
      "sheet": "Summary",
-     "cell": "R10",
+     "cell": "V10",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N10",
+     "cell": "R10",
      "expect": 0.5963479714524529
     },
     {
      "sheet": "Summary",
-     "cell": "O10",
+     "cell": "S10",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S11",
+     "cell": "W11",
      "expect": 2.776582631971007
     },
     {
      "sheet": "Summary",
-     "cell": "T11",
+     "cell": "X11",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q11",
+     "cell": "U11",
      "expect": 2.4917029147144873
     },
     {
      "sheet": "Summary",
-     "cell": "R11",
+     "cell": "V11",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N11",
+     "cell": "R11",
      "expect": 1.1187552240725263
     },
     {
      "sheet": "Summary",
-     "cell": "O11",
+     "cell": "S11",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S12",
+     "cell": "W12",
      "expect": 0.6595552482048258
     },
     {
      "sheet": "Summary",
-     "cell": "T12",
+     "cell": "X12",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q12",
+     "cell": "U12",
      "expect": 0.5284226939872708
     },
     {
      "sheet": "Summary",
-     "cell": "R12",
+     "cell": "V12",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N12",
+     "cell": "R12",
      "expect": 0.6333183308686428
     },
     {
      "sheet": "Summary",
-     "cell": "O12",
+     "cell": "S12",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S13",
+     "cell": "W13",
      "expect": 1.174029706845404
     },
     {
      "sheet": "Summary",
-     "cell": "T13",
+     "cell": "X13",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q13",
+     "cell": "U13",
      "expect": 1.4008357178877437
     },
     {
      "sheet": "Summary",
-     "cell": "R13",
+     "cell": "V13",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N13",
+     "cell": "R13",
      "expect": 0.27753507018220386
     },
     {
      "sheet": "Summary",
-     "cell": "O13",
+     "cell": "S13",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S14",
+     "cell": "W14",
      "expect": 1.5790107692017183
     },
     {
      "sheet": "Summary",
-     "cell": "T14",
+     "cell": "X14",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q14",
+     "cell": "U14",
      "expect": 1.8900182585795187
     },
     {
      "sheet": "Summary",
-     "cell": "R14",
+     "cell": "V14",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N14",
+     "cell": "R14",
      "expect": 0.3596378648739932
     },
     {
      "sheet": "Summary",
-     "cell": "O14",
+     "cell": "S14",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S15",
+     "cell": "W15",
      "expect": 0.9714323513479108
     },
     {
      "sheet": "Summary",
-     "cell": "T15",
+     "cell": "X15",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q15",
+     "cell": "U15",
      "expect": 1.0024414376176916
     },
     {
      "sheet": "Summary",
-     "cell": "R15",
+     "cell": "V15",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N15",
+     "cell": "R15",
      "expect": 0.26060423415177053
     },
     {
      "sheet": "Summary",
-     "cell": "O15",
+     "cell": "S15",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S16",
+     "cell": "W16",
      "expect": 0.7101545779643433
     },
     {
      "sheet": "Summary",
-     "cell": "T16",
+     "cell": "X16",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q16",
+     "cell": "U16",
      "expect": 0.7677750430897722
     },
     {
      "sheet": "Summary",
-     "cell": "R16",
+     "cell": "V16",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N16",
+     "cell": "R16",
      "expect": 0.1637746480448366
     },
     {
      "sheet": "Summary",
-     "cell": "O16",
+     "cell": "S16",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S17",
+     "cell": "W17",
      "expect": 0.5541971976675089
     },
     {
      "sheet": "Summary",
-     "cell": "T17",
+     "cell": "X17",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q17",
+     "cell": "U17",
      "expect": 0.567416311135301
     },
     {
      "sheet": "Summary",
-     "cell": "R17",
+     "cell": "V17",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N17",
+     "cell": "R17",
      "expect": 0.6425414312961244
     },
     {
      "sheet": "Summary",
-     "cell": "O17",
+     "cell": "S17",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S18",
+     "cell": "W18",
      "expect": 2.235784126979763
     },
     {
      "sheet": "Summary",
-     "cell": "T18",
+     "cell": "X18",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q18",
+     "cell": "U18",
      "expect": 2.337632791842765
     },
     {
      "sheet": "Summary",
-     "cell": "R18",
+     "cell": "V18",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N18",
+     "cell": "R18",
      "expect": 1.0669203134927314
     },
     {
      "sheet": "Summary",
-     "cell": "O18",
+     "cell": "S18",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S19",
+     "cell": "W19",
      "expect": 1.2643517756318523
     },
     {
      "sheet": "Summary",
-     "cell": "T19",
+     "cell": "X19",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q19",
+     "cell": "U19",
      "expect": 1.335191354225073
     },
     {
      "sheet": "Summary",
-     "cell": "R19",
+     "cell": "V19",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N19",
+     "cell": "R19",
      "expect": 0.806316079340961
     },
     {
      "sheet": "Summary",
-     "cell": "O19",
+     "cell": "S19",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S20",
+     "cell": "W20",
      "expect": 3.4607863533841217
     },
     {
      "sheet": "Summary",
-     "cell": "T20",
+     "cell": "X20",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q20",
+     "cell": "U20",
      "expect": 3.6246728510966824
     },
     {
      "sheet": "Summary",
-     "cell": "R20",
+     "cell": "V20",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N20",
+     "cell": "R20",
      "expect": 1.5044521270246505
     },
     {
      "sheet": "Summary",
-     "cell": "O20",
+     "cell": "S20",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S21",
+     "cell": "W21",
      "expect": 4.471042669628076
     },
     {
      "sheet": "Summary",
-     "cell": "T21",
+     "cell": "X21",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q21",
+     "cell": "U21",
      "expect": 4.704928599551942
     },
     {
      "sheet": "Summary",
-     "cell": "R21",
+     "cell": "V21",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N21",
+     "cell": "R21",
      "expect": 1.8181981397616722
     },
     {
      "sheet": "Summary",
-     "cell": "O21",
+     "cell": "S21",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S22",
+     "cell": "W22",
      "expect": 1.2743910279761643
     },
     {
      "sheet": "Summary",
-     "cell": "T22",
+     "cell": "X22",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q22",
+     "cell": "U22",
      "expect": 1.2817532720019105
     },
     {
      "sheet": "Summary",
-     "cell": "R22",
+     "cell": "V22",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N22",
+     "cell": "R22",
      "expect": 0.6718595186986783
     },
     {
      "sheet": "Summary",
-     "cell": "O22",
+     "cell": "S22",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S23",
+     "cell": "W23",
      "expect": 1.090469782017345
     },
     {
      "sheet": "Summary",
-     "cell": "T23",
+     "cell": "X23",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q23",
+     "cell": "U23",
      "expect": 1.2064995586031646
     },
     {
      "sheet": "Summary",
-     "cell": "R23",
+     "cell": "V23",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N23",
+     "cell": "R23",
      "expect": 0.5625486737210279
     },
     {
      "sheet": "Summary",
-     "cell": "O23",
+     "cell": "S23",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S24",
+     "cell": "W24",
      "expect": 0.11564561938673575
     },
     {
      "sheet": "Summary",
-     "cell": "T24",
+     "cell": "X24",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q24",
+     "cell": "U24",
      "expect": 0.04226356389117069
     },
     {
      "sheet": "Summary",
-     "cell": "R24",
+     "cell": "V24",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N24",
+     "cell": "R24",
      "expect": 0.20537020569639608
     },
     {
      "sheet": "Summary",
-     "cell": "O24",
+     "cell": "S24",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S25",
+     "cell": "W25",
      "expect": 2.4805064293802452
     },
     {
      "sheet": "Summary",
-     "cell": "T25",
+     "cell": "X25",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q25",
+     "cell": "U25",
      "expect": 2.530516394496246
     },
     {
      "sheet": "Summary",
-     "cell": "R25",
+     "cell": "V25",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N25",
+     "cell": "R25",
      "expect": 1.4397783981161023
     },
     {
      "sheet": "Summary",
-     "cell": "O25",
+     "cell": "S25",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "S26",
+     "cell": "W26",
      "expect": 1.206115401404081
     },
     {
      "sheet": "Summary",
-     "cell": "T26",
+     "cell": "X26",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "Q26",
+     "cell": "U26",
      "expect": 1.2487631224943354
     },
     {
      "sheet": "Summary",
-     "cell": "R26",
+     "cell": "V26",
      "expect": "Pick a source"
     },
     {
      "sheet": "Summary",
-     "cell": "N26",
+     "cell": "R26",
      "expect": 0.767918879417424
     },
     {
      "sheet": "Summary",
-     "cell": "O26",
+     "cell": "S26",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "I13",
+     "expect": 86.75395050652514
+    },
+    {
+     "sheet": "Summary",
+     "cell": "J13",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "G13",
+     "expect": 87.93662718269165
+    },
+    {
+     "sheet": "Summary",
+     "cell": "H13",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D13",
+     "expect": 80.46011871917379
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E13",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D14",
+     "expect": -7.47650846351786
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E14",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D15",
+     "expect": -6.293831787351351
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E15",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "I38",
+     "expect": 75.39444814591982
+    },
+    {
+     "sheet": "Summary",
+     "cell": "J38",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "G38",
+     "expect": 78.30700461494897
+    },
+    {
+     "sheet": "Summary",
+     "cell": "H38",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D38",
+     "expect": 60.69541942774161
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E38",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D39",
+     "expect": -17.611585187207353
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E39",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "D40",
+     "expect": -14.699028718178212
+    },
+    {
+     "sheet": "Summary",
+     "cell": "E40",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "K16",
+     "expect": 10.15
+    },
+    {
+     "sheet": "Summary",
+     "cell": "L16",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "M6",
+     "expect": 4.009514461690263
+    },
+    {
+     "sheet": "Summary",
+     "cell": "N6",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "M7",
+     "expect": 5.194125778490533
+    },
+    {
+     "sheet": "Summary",
+     "cell": "N7",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "M24",
+     "expect": -0.019378006304722882
+    },
+    {
+     "sheet": "Summary",
+     "cell": "N24",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "M25",
+     "expect": 0.08750898529165822
+    },
+    {
+     "sheet": "Summary",
+     "cell": "N25",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "M31",
+     "expect": 1.6138446897622272
+    },
+    {
+     "sheet": "Summary",
+     "cell": "N31",
+     "expect": "Pick a source"
+    },
+    {
+     "sheet": "Summary",
+     "cell": "M32",
+     "expect": 2.0372465877364028
+    },
+    {
+     "sheet": "Summary",
+     "cell": "N32",
      "expect": "Pick a source"
     },
     {
@@ -8964,6 +9134,826 @@
      "sheet": "Lines by source",
      "cell": "S151",
      "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E152",
+     "expect": 85.39569234987228
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F152",
+     "expect": 1.8126088726501912
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G152",
+     "expect": 115.40725486972272
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L152",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M152",
+     "expect": 86.75395050652514
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H152",
+     "expect": 83.58308347722209
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I152",
+     "expect": 84.48938791354718
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J152",
+     "expect": 86.30199678619738
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K152",
+     "expect": 94.68228339961314
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q152",
+     "expect": 4
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R152",
+     "expect": "Moderate-High"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S152",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E153",
+     "expect": 85.05323222695057
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F153",
+     "expect": 3.2749995359819026
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G153",
+     "expect": 90.80456982660839
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L153",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M153",
+     "expect": 87.93662718269165
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q153",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S153",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E154",
+     "expect": 90.50312306604258
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F154",
+     "expect": 4.929037784549017
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G154",
+     "expect": 98.01402035920833
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L154",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M154",
+     "expect": 80.46011871917379
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q154",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S154",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E155",
+     "expect": 3.0953349624616706
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F155",
+     "expect": 5.724253752014427
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G155",
+     "expect": 8.997105092584604
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L155",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M155",
+     "expect": -7.47650846351786
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q155",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S155",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E156",
+     "expect": 4.747621781233882
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F156",
+     "expect": 4.790736243869452
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G156",
+     "expect": 11.582566207791047
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L156",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M156",
+     "expect": -6.293831787351351
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q156",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S156",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E157",
+     "expect": 39.043987447485875
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F157",
+     "expect": 6.47567007945139
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G157",
+     "expect": 75.39444814591982
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L157",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M157",
+     "expect": 75.39444814591982
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H157",
+     "expect": 32.568317368034485
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I157",
+     "expect": 35.80615240776018
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J157",
+     "expect": 42.28182248721157
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K157",
+     "expect": 74.48343698436494
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q157",
+     "expect": 5
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R157",
+     "expect": "High"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S157",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E158",
+     "expect": 38.27089723188468
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F158",
+     "expect": 8.35026879541986
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G158",
+     "expect": 80.99089140015627
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L158",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M158",
+     "expect": 78.30700461494897
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H158",
+     "expect": 29.920628436464824
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I158",
+     "expect": 34.09576283417475
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J158",
+     "expect": 42.446031629594614
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K158",
+     "expect": 78.74063632759871
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q158",
+     "expect": 4
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R158",
+     "expect": "Moderate-High"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S158",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E159",
+     "expect": 41.38114166069304
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F159",
+     "expect": 3.9891114096937077
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G159",
+     "expect": 61.27269242142023
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L159",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M159",
+     "expect": 60.69541942774161
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q159",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S159",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E160",
+     "expect": -11.959999248875647
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F160",
+     "expect": 12.559877171012783
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G160",
+     "expect": 19.45006895576618
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L160",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M160",
+     "expect": -17.611585187207353
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q160",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S160",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E161",
+     "expect": -5.048679499105322
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F161",
+     "expect": 7.472375391453183
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G161",
+     "expect": 7.86329008337524
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L161",
+     "expect": "2025Q4"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M161",
+     "expect": -14.699028718178212
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q161",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S161",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E162",
+     "expect": 9.5
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F162",
+     "expect": 0.45219299999999957
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G162",
+     "expect": 11.01
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L162",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M162",
+     "expect": 10.15
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q162",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S162",
+     "expect": "Refused: High would begin beyond the worst quarter kept"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E163",
+     "expect": 4.215576591869578
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F163",
+     "expect": 0.8587105567365916
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G163",
+     "expect": 10.327957313003356
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L163",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M163",
+     "expect": 4.009514461690263
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H163",
+     "expect": 3.3568660351329864
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I163",
+     "expect": 3.786221313501282
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J163",
+     "expect": 4.6449318702378735
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K163",
+     "expect": 6.954778878346481
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q163",
+     "expect": 3
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R163",
+     "expect": "Moderate"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S163",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E164",
+     "expect": 5.040919240726448
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F164",
+     "expect": 0.9112040405828625
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G164",
+     "expect": 11.261249252680265
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L164",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M164",
+     "expect": 5.194125778490533
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H164",
+     "expect": 4.129715200143586
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I164",
+     "expect": 4.585317220435017
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J164",
+     "expect": 5.49652126101788
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K164",
+     "expect": 7.982491308540245
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q164",
+     "expect": 3
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R164",
+     "expect": "Moderate"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S164",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E165",
+     "expect": 0.17472161287886812
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F165",
+     "expect": 0.10849104164753649
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G165",
+     "expect": 3.0906468540423884
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L165",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M165",
+     "expect": -0.019378006304722882
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H165",
+     "expect": 0.06623057123133162
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I165",
+     "expect": 0.12047609205509988
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J165",
+     "expect": 0.22896713370263636
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K165",
+     "expect": 0.6457844088927323
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q165",
+     "expect": 1
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R165",
+     "expect": "Low"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S165",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E166",
+     "expect": 0.242904101257147
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F166",
+     "expect": 0.0905451883389113
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G166",
+     "expect": 3.192798104447804
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L166",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M166",
+     "expect": 0.08750898529165822
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H166",
+     "expect": 0.15235891291823572
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I166",
+     "expect": 0.19763150708769137
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J166",
+     "expect": 0.2881766954266027
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K166",
+     "expect": 0.6644465471181134
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q166",
+     "expect": 1
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R166",
+     "expect": "Low"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S166",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E167",
+     "expect": 1.1141675219361389
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F167",
+     "expect": 0.2788136824149038
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G167",
+     "expect": 2.9986928936336716
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L167",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M167",
+     "expect": 1.6138446897622272
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H167",
+     "expect": 0.8353538395212351
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I167",
+     "expect": 0.974760680728687
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J167",
+     "expect": 1.2535743631435907
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K167",
+     "expect": 1.9912746088176738
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q167",
+     "expect": 4
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R167",
+     "expect": "Moderate-High"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S167",
+     "expect": ""
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "E168",
+     "expect": 1.5385651932231141
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "F168",
+     "expect": 0.3000551669728642
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "G168",
+     "expect": 3.570809928981094
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "L168",
+     "expect": "2026Q2"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "M168",
+     "expect": 2.0372465877364028
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "H168",
+     "expect": 1.23851002625025
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "I168",
+     "expect": 1.388537609736682
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "J168",
+     "expect": 1.6885927767095463
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "K168",
+     "expect": 2.6335033989487284
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "Q168",
+     "expect": 4
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "R168",
+     "expect": "Moderate-High"
+    },
+    {
+     "sheet": "Lines by source",
+     "cell": "S168",
+     "expect": ""
     }
    ],
    "picture": []
@@ -9000,142 +9990,142 @@
     },
     {
      "sheet": "Decide",
-     "cell": "B59",
+     "cell": "B66",
      "expect": "Credit card, nonaccrual: lines set from KeyBank"
     },
     {
      "sheet": "Decide",
-     "cell": "I59",
+     "cell": "I66",
      "expect": "KeyBank: 5 High"
     },
     {
      "sheet": "Decide",
-     "cell": "B60",
+     "cell": "B67",
      "expect": "Check: OK, your settings fit the history the lines are set from."
     },
     {
      "sheet": "Decide",
-     "cell": "M65",
-     "expect": 0.18736760919622197
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M66",
-     "expect": 0.23473230820721505
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M67",
-     "expect": 0.32946170622920123
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M68",
-     "expect": 0.6295871211811148
-    },
-    {
-     "sheet": "Decide",
      "cell": "M72",
-     "expect": "1 Low"
-    },
-    {
-     "sheet": "Decide",
-     "cell": "N72",
-     "expect": 0.08128138912409479
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M84",
-     "expect": 0.09647239943711843
-    },
-    {
-     "sheet": "Decide",
-     "cell": "N84",
-     "expect": 0.11161296908757563
-    },
-    {
-     "sheet": "Decide",
-     "cell": "O84",
-     "expect": 0.14189410838849006
-    },
-    {
-     "sheet": "Decide",
-     "cell": "P84",
-     "expect": 0.26956719550232344
-    },
-    {
-     "sheet": "Decide",
-     "cell": "Q84",
-     "expect": 0.6498546849136658
+     "expect": 0.18736760919622197
     },
     {
      "sheet": "Decide",
      "cell": "M73",
-     "expect": "1 Low"
-    },
-    {
-     "sheet": "Decide",
-     "cell": "N73",
-     "expect": 0.007216902334030721
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M85",
-     "expect": 0.02238391084968984
-    },
-    {
-     "sheet": "Decide",
-     "cell": "N85",
-     "expect": 0.030538814545335986
-    },
-    {
-     "sheet": "Decide",
-     "cell": "O85",
-     "expect": 0.04684862193662828
-    },
-    {
-     "sheet": "Decide",
-     "cell": "P85",
-     "expect": 0.14753123968182763
-    },
-    {
-     "sheet": "Decide",
-     "cell": "Q85",
-     "expect": 1.1988194225041855
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M74",
-     "expect": "5 High"
-    },
-    {
-     "sheet": "Decide",
-     "cell": "N74",
-     "expect": 0.6908132947833397
-    },
-    {
-     "sheet": "Decide",
-     "cell": "M86",
-     "expect": 0.18736760919622197
-    },
-    {
-     "sheet": "Decide",
-     "cell": "N86",
      "expect": 0.23473230820721505
     },
     {
      "sheet": "Decide",
-     "cell": "O86",
+     "cell": "M74",
      "expect": 0.32946170622920123
     },
     {
      "sheet": "Decide",
-     "cell": "P86",
+     "cell": "M75",
      "expect": 0.6295871211811148
     },
     {
      "sheet": "Decide",
-     "cell": "Q86",
+     "cell": "M79",
+     "expect": "1 Low"
+    },
+    {
+     "sheet": "Decide",
+     "cell": "N79",
+     "expect": 0.08128138912409479
+    },
+    {
+     "sheet": "Decide",
+     "cell": "M93",
+     "expect": 0.09647239943711843
+    },
+    {
+     "sheet": "Decide",
+     "cell": "N93",
+     "expect": 0.11161296908757563
+    },
+    {
+     "sheet": "Decide",
+     "cell": "O93",
+     "expect": 0.14189410838849006
+    },
+    {
+     "sheet": "Decide",
+     "cell": "P93",
+     "expect": 0.26956719550232344
+    },
+    {
+     "sheet": "Decide",
+     "cell": "Q93",
+     "expect": 0.6498546849136658
+    },
+    {
+     "sheet": "Decide",
+     "cell": "M80",
+     "expect": "1 Low"
+    },
+    {
+     "sheet": "Decide",
+     "cell": "N80",
+     "expect": 0.007216902334030721
+    },
+    {
+     "sheet": "Decide",
+     "cell": "M94",
+     "expect": 0.02238391084968984
+    },
+    {
+     "sheet": "Decide",
+     "cell": "N94",
+     "expect": 0.030538814545335986
+    },
+    {
+     "sheet": "Decide",
+     "cell": "O94",
+     "expect": 0.04684862193662828
+    },
+    {
+     "sheet": "Decide",
+     "cell": "P94",
+     "expect": 0.14753123968182763
+    },
+    {
+     "sheet": "Decide",
+     "cell": "Q94",
+     "expect": 1.1988194225041855
+    },
+    {
+     "sheet": "Decide",
+     "cell": "M81",
+     "expect": "5 High"
+    },
+    {
+     "sheet": "Decide",
+     "cell": "N81",
+     "expect": 0.6908132947833397
+    },
+    {
+     "sheet": "Decide",
+     "cell": "M95",
+     "expect": 0.18736760919622197
+    },
+    {
+     "sheet": "Decide",
+     "cell": "N95",
+     "expect": 0.23473230820721505
+    },
+    {
+     "sheet": "Decide",
+     "cell": "O95",
+     "expect": 0.32946170622920123
+    },
+    {
+     "sheet": "Decide",
+     "cell": "P95",
+     "expect": 0.6295871211811148
+    },
+    {
+     "sheet": "Decide",
+     "cell": "Q95",
      "expect": 1.8086714674791118
     },
     {
@@ -9255,34 +10245,34 @@
     },
     {
      "sheet": "Decide",
-     "cell": "L95",
+     "cell": "L106",
      "expect": "Fits below 1.00, where Moderate-Low begins. It fits."
     },
     {
      "sheet": "Decide",
-     "cell": "L96",
+     "cell": "L107",
      "expect": "Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits."
     },
     {
      "sheet": "Decide",
-     "cell": "L97",
+     "cell": "L108",
      "expect": "Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate High). It fits."
     },
     {
      "sheet": "Decide",
-     "cell": "L98",
+     "cell": "L109",
      "expect": "Either fits."
     }
    ],
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q101",
+     "range": "A1:Q112",
      "file": "b3-decide.png"
     },
     {
      "sheet": "Thresholds",
-     "range": "A1:S54",
+     "range": "A1:W61",
      "file": "b3-thresholds.png"
     }
    ]
@@ -9542,22 +10532,22 @@
     },
     {
      "sheet": "Decide",
-     "cell": "L95",
+     "cell": "L106",
      "expect": "Fits below 1.00, where Moderate-Low begins. It fits."
     },
     {
      "sheet": "Decide",
-     "cell": "L96",
+     "cell": "L107",
      "expect": "Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits."
     },
     {
      "sheet": "Decide",
-     "cell": "L97",
+     "cell": "L108",
      "expect": "Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate High). It fits."
     },
     {
      "sheet": "Decide",
-     "cell": "L98",
+     "cell": "L109",
      "expect": "Either fits."
     }
    ],
@@ -9590,17 +10580,17 @@
    "reads": [
     {
      "sheet": "Decide",
-     "cell": "D89",
+     "cell": "D100",
      "expect": "Leave out 2012Q3 to 2013Q4"
     },
     {
      "sheet": "Assess",
-     "cell": "N169",
+     "cell": "N186",
      "expect": "Credit card - Nonaccrual - KeyBank"
     },
     {
      "sheet": "Assess",
-     "cell": "T169",
+     "cell": "T186",
      "expect": "Left out: 6 quarters"
     },
     {
@@ -9801,7 +10791,7 @@
     },
     {
      "sheet": "Thresholds",
-     "cell": "S9",
+     "cell": "W9",
      "startswith": "To fix: Finish its row on Decide"
     },
     {
@@ -9965,11 +10955,11 @@
     {
      "sheet": "Decide",
      "cell": "L1",
-     "expect": "Decided: 1 of 49 \u00b7 accepted 1 \u00b7 rejected 0"
+     "expect": "Decided: 1 of 56 \u00b7 accepted 1 \u00b7 rejected 0"
     },
     {
      "sheet": "Thresholds",
-     "cell": "R9",
+     "cell": "V9",
      "expect": "Accept these lines"
     },
     {
@@ -10017,82 +11007,82 @@
     },
     {
      "sheet": "Decide",
-     "cell": "B59",
+     "cell": "B66",
      "expect": "Auto, net charge-offs: lines set from Industry (every bank)"
     },
     {
      "sheet": "Decide",
-     "cell": "I59",
+     "cell": "I66",
      "expect": "No rating: see the Check"
     },
     {
      "sheet": "Summary",
-     "cell": "O6",
+     "cell": "S6",
      "expect": "Refused"
     },
     {
      "sheet": "Decide",
-     "cell": "B60",
+     "cell": "B67",
      "expect": "Refused: High would begin beyond the worst quarter kept"
     },
     {
      "sheet": "Decide",
-     "cell": "M72",
+     "cell": "M79",
      "expect": "No rating"
     },
     {
      "sheet": "Decide",
-     "cell": "N72",
+     "cell": "N79",
      "expect": 0.9878539701554716
     },
     {
      "sheet": "Decide",
-     "cell": "M84",
+     "cell": "M93",
      "expect": "Refused"
     },
     {
      "sheet": "Decide",
-     "cell": "Q84",
+     "cell": "Q93",
      "expect": 1.1581294738640815
     },
     {
      "sheet": "Decide",
-     "cell": "M73",
+     "cell": "M80",
      "expect": "No rating"
     },
     {
      "sheet": "Decide",
-     "cell": "N73",
+     "cell": "N80",
      "expect": 0.8774784779654787
     },
     {
      "sheet": "Decide",
-     "cell": "M85",
+     "cell": "M94",
      "expect": "Refused"
     },
     {
      "sheet": "Decide",
-     "cell": "Q85",
+     "cell": "Q94",
      "expect": 1.0470816731822656
     },
     {
      "sheet": "Decide",
-     "cell": "M74",
+     "cell": "M81",
      "expect": "No rating"
     },
     {
      "sheet": "Decide",
-     "cell": "N74",
+     "cell": "N81",
      "expect": 0.09593421653723161
     },
     {
      "sheet": "Decide",
-     "cell": "M86",
+     "cell": "M95",
      "expect": "Refused"
     },
     {
      "sheet": "Decide",
-     "cell": "Q86",
+     "cell": "Q95",
      "expect": 0.3152509896784223
     },
     {
@@ -10154,7 +11144,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q101",
+     "range": "A1:Q112",
      "file": "b8-life-to-date.png"
     }
    ]
@@ -10184,22 +11174,22 @@
    "reads": [
     {
      "sheet": "Decide",
-     "cell": "B60",
+     "cell": "B67",
      "expect": "Refused: Moderate-Low would begin at or below zero"
     },
     {
      "sheet": "Decide",
-     "cell": "I60",
+     "cell": "I67",
      "startswith": "To fix: "
     },
     {
      "sheet": "Decide",
-     "cell": "I59",
+     "cell": "I66",
      "expect": "No rating: see the Check"
     },
     {
      "sheet": "Thresholds",
-     "cell": "S12",
+     "cell": "W12",
      "startswith": "To fix: "
     },
     {
@@ -10296,7 +11286,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q101",
+     "range": "A1:Q112",
      "file": "b9-refused.png"
     }
    ]
@@ -10339,7 +11329,7 @@
     {
      "sheet": "Decide",
      "cell": "L1",
-     "expect": "Decided: 1 of 49 \u00b7 accepted 1 \u00b7 rejected 0"
+     "expect": "Decided: 1 of 56 \u00b7 accepted 1 \u00b7 rejected 0"
     },
     {
      "special": "slicers",

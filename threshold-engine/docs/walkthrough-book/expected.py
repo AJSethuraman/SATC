@@ -54,6 +54,12 @@ DL = DT.layout(len(PAIRS), len(THIRD), COMPARE is not None)
 AL = assess_layout(N)
 TL = TT.layout(SU.layout(LABELS, PARTS, COMPARE)["sources"])
 PTS = {lbl: check(read_csv(p), "quarterly") for lbl, p in SER}
+FLOOR_OFF = set(bk["decide"]["floor_off"])
+
+
+def floor_of(lbl):
+    """The series' floor at zero: the workbook's, unless its measure has none (floor_off)."""
+    return bool(W["floor_at_zero"]) and PARTS[lbl][1] not in FLOOR_OFF
 
 
 def dcell(name, pr):
@@ -76,7 +82,7 @@ def own(lbl, window=None, hw=None, ls=None, z=None, rule=None):
     z = W["high_z"] if z is None else z
     rule = W["on_the_line"] if rule is None else rule
     kept = [None if window and window[0] <= quarter(p.date) <= window[1] else p.value for p in PTS[lbl]]
-    ref = scale(kept, W["direction"], hw, ls, z, W["floor_at_zero"])
+    ref = scale(kept, W["direction"], hw, ls, z, floor_of(lbl))
     latest = PTS[lbl][-1]
     row = {"B": ref["median"], "C": ref["typical_yearly_move"], "D": max(v for v in kept if v is not None),
            "I": quarter(latest.date), "J": latest.value, "bounds": None, "rule": rule}
@@ -85,7 +91,7 @@ def own(lbl, window=None, hw=None, ls=None, z=None, rule=None):
         return row
     row.update(zip("EFGH", ref["bounds"]))
     row["bounds"] = ref["bounds"]
-    sc = score(latest.value, ref["bounds"], W["direction"], rule, W["floor_at_zero"])
+    sc = score(latest.value, ref["bounds"], W["direction"], rule, floor_of(lbl))
     row.update({"K": sc, "L": RATINGS[sc - 1], "M": ""})
     return row
 
@@ -99,11 +105,11 @@ def fits_reads(lbl, window=None, hw=None, ls=None, z=None):
     ls = W["low_step"] if ls is None else ls
     z = W["high_z"] if z is None else z
     kept = [None if window and window[0] <= quarter(p.date) <= window[1] else p.value for p in PTS[lbl]]
-    ref = scale(kept, W["direction"], hw, ls, z, W["floor_at_zero"])
+    ref = scale(kept, W["direction"], hw, ls, z, floor_of(lbl))
     med, mv, sp, wo = ref["median"], ref["typical_yearly_move"], ref["spread_of_levels"], ref["worst"]
     t = lambda x: str(Decimal(repr(x)).quantize(Decimal("0.01"), ROUND_HALF_UP))      # noqa: E731
     say = lambda ok: "It fits." if ok else "It does not fit."                        # noqa: E731
-    floor = W["floor_at_zero"] and W["direction"] == "higher_is_worse"
+    floor = floor_of(lbl) and W["direction"] == "higher_is_worse"
     sg = 1 if W["direction"] == "higher_is_worse" else -1
     zmin, zmax, lsmax = hw * mv / sp, sg * (wo - med) / sp, med / mv
     texts = ["Fits below %s, where Moderate-Low begins. %s" % (t(ls), say(hw < ls)),
@@ -130,7 +136,7 @@ def on_lines(lbl, lines):
     """A source's latest value rated on the lines picked: (number, text)."""
     if lines["bounds"] is None:
         return "", "Refused"
-    sc = score(PTS[lbl][-1].value, lines["bounds"], W["direction"], lines["rule"], W["floor_at_zero"])
+    sc = score(PTS[lbl][-1].value, lines["bounds"], W["direction"], lines["rule"], floor_of(lbl))
     return sc, "%d %s" % (sc, RATINGS[sc - 1])
 
 

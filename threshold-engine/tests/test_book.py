@@ -32,7 +32,7 @@ def write_book(folder: Path, **over) -> Path:
                         "file": "files/mortgage_nco_ttm.csv"}],
             "not_in_book": [{"Product": "Mortgage", "Measure": "Net", "Source": "Bank", "why": "No file (a test)."}],
             "compare": ["Bank", "Industry"], "notes": ["A note."], "peers": None, "internal": None, "loan_classes": None,
-            "reporting_changes": None}
+            "reporting_changes": None, "floor_off": [], "large_banks": None}
     book.update(over)
     p = folder / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")
@@ -132,14 +132,20 @@ def test_peers_settings_must_be_complete(tmp_path):
 
 
 def test_the_public_book_in_the_repository_loads():
-    """books/consumer-public.json: 147 series (five products and two combined
+    """books/consumer-public.json: 164 series (five products and two combined
     ones, All consumer and Credit card + Other consumer), KeyBank's charge-offs life to date,
     the peers build stated in full. Its series files are written by the peers
     build, so only the book itself is checked here."""
     p = Path(__file__).resolve().parents[1] / "books" / "consumer-public.json"
     bk = BK.load(p)
-    assert len(bk["series"]) == 147                    # KeyBank's charge-offs too: life to date
+    assert len(bk["series"]) == 164                    # KeyBank's charge-offs too: life to date
+    assert sum(1 for v in bk["decide"]["parts"].values() if v[2] == "Industry (every bank) from 1990") == 6
+    assert bk["workbook"]["name"] == "Consumer Industry Analysis"
     assert {v[0] for v in bk["decide"]["parts"].values()} >= {"All consumer", "Credit card + Other consumer"}
+    assert {v[1] for v in bk["decide"]["parts"].values()} >= {"30+ to charge-off", "Share paying only the minimum",
+                                                             "Gap to peers on 30+ to charge-off"}
+    assert bk["decide"]["floor_off"] == ["Gap to peers on 30+ to charge-off", "Gap to industry on 30+ to charge-off"]
+    assert bk["large_banks"]["file"].name == "26Q2-CreditCardBalances.csv"
     assert bk["decide"]["lines_from"] is None           # every row's source is the bank's to pick
     assert bk["decide"]["absent"] == []
     assert bk["peers"]["series_dir"] == p.parent / "out" / "series"

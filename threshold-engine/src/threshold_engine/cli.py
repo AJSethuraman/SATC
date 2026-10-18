@@ -256,6 +256,24 @@ def _peers_parser(sub):
                     help="who is asking, with a contact email: SEC's fair-access policy requires it; not stored")
     cp.add_argument("--refresh", action="store_true", help="fetch again, even if held")
 
+    lb = ps.add_parser("large-banks-pull", help="the Philadelphia Fed's large bank credit card balances file for "
+                                                "one quarter (every quarter since 2012Q3 is in it) into DIR/large-banks")
+    lb.add_argument("--cache", required=True, metavar="DIR")
+    lb.add_argument("--quarter", required=True, metavar="YYYYQn")
+    lb.add_argument("--refresh", action="store_true", help="fetch again, even if held")
+
+    il = ps.add_parser("industry-long", help="the industry's net and gross charge-off series over a cache that "
+                                             "reaches before 2006, as separate series (Source 'Industry (every "
+                                             "bank) from YYYY'), from the cache only")
+    il.add_argument("out_dir", metavar="OUT_DIR")
+    il.add_argument("--cache", required=True, metavar="DIR")
+    il.add_argument("--first", required=True, metavar="YYYYQn")
+    il.add_argument("--last", required=True, metavar="YYYYQn")
+    il.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT")
+    il.add_argument("--absorptions", required=True, metavar="FILE",
+                    help="the absorptions file 'peers pull --mergers' wrote")
+    il.add_argument("--reporting-changes", required=True, metavar="FILE", help="config/reporting-changes.json")
+
     bu = ps.add_parser("build", help="the peer workbook and the series CSVs, from the cache only")
     bu.add_argument("out", help="the .xlsx to write")
     bu.add_argument("--cache", required=True, metavar="DIR")
@@ -321,6 +339,29 @@ def _peers_pull(a):
     from .peers import run
     run.pull(cache=a.cache, first=a.first, last=a.last, products=a.products,
              delinquency=a.delinquency, mergers_since=a.mergers, refresh=a.refresh)
+    return 0
+
+
+def _peers_industry_long(a):
+    """``peers industry-long``: peers.long_industry.write."""
+    from .peers import long_industry as LI
+    try:
+        LI.write(a.out_dir, cache=a.cache, first=a.first, last=a.last, products=a.products,
+                 absorptions=a.absorptions, reporting_changes=a.reporting_changes)
+    except ValueError as e:
+        print("REFUSED: %s" % e, file=sys.stderr)
+        return 2
+    return 0
+
+
+def _peers_large_banks_pull(a):
+    """``peers large-banks-pull``: peers.large_banks.pull."""
+    from .peers import large_banks as LB
+    try:
+        LB.pull(a.cache, a.quarter, refresh=a.refresh)
+    except ValueError as e:
+        print("REFUSED: %s" % e, file=sys.stderr)
+        return 2
     return 0
 
 
@@ -544,7 +585,9 @@ def main(argv=None):
             return _refused(exc)
     if a.command == "peers":
         try:
-            return {"pull": _peers_pull, "classes-pull": _peers_classes_pull}.get(a.peers_command, _peers_build)(a)
+            return {"pull": _peers_pull, "classes-pull": _peers_classes_pull,
+                    "large-banks-pull": _peers_large_banks_pull,
+                    "industry-long": _peers_industry_long}.get(a.peers_command, _peers_build)(a)
         except (ValueError, OSError, RuntimeError) as exc:
             return _refused(exc)
     if a.command == "book":

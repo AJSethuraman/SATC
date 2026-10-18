@@ -113,10 +113,10 @@ TH_PLAIN = dict(series="A", median="B", move="C", worst="D", l2="E", l3="F", l4=
 TH_BOOK = dict(series="A", product="B", measure="C", source="D", median="E", move="F", worst="G", l2="H", l3="I",
                l4="J", l5="K", quarter="L", value="M", rating_shown="N", decision="O", check="P", rating="Q",
                rating_name="R", refusal="S", fix="T", med_change="U", spread="V", med_all="W", med_change_all="X",
-               move_all="Y", spread_all="Z")
+               move_all="Y", spread_all="Z", floor="AA")
 TH = TH_BOOK
 #: The per-series table's first and last helper columns in the book: hidden.
-TH_HIDDEN = ("Q", "Z")
+TH_HIDDEN = ("Q", "AA")
 
 #: The per-series refusal for a half-typed period says to look on Assess; on Decide the cells are here.
 HERE = ('SUBSTITUTE(SUBSTITUTE({m},"its Status on Assess says what is missing","fill in Leave out from, Leave out to '
@@ -232,7 +232,8 @@ def _q(s: str) -> str:
 def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], part_names: Sequence[str],
           settings: Dict[str, Tuple[float, float, float, str]], lay: dict, n_quarters: int,
           absent: Sequence[dict], compare: Optional[Tuple[str, str]], lines_from: Optional[str],
-          changes: Dict[str, Set[str]], quarters: Sequence[str], unit: str = "", higher: bool = True, floor_at_zero: bool = True) -> dict:
+          changes: Dict[str, Set[str]], quarters: Sequence[str], unit: str = "", higher: bool = True,
+          floor_at_zero: bool = True, floor_off: Sequence[str] = ()) -> dict:
     """Add the Decide tab to ``wb`` (which already holds Assess, the per-series
     table titled Thresholds, and Data for ``labels``) and point Assess's typed
     cells at it.
@@ -437,6 +438,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.cell(9, H, '=IF(%s,%s,"")' % (HAS, th_("refusal")))
     ws.cell(10, H, '=IF(%s,%s&"","")' % (ONE, shown("On a line, rate it")))
     ws.cell(11, H, '=IFERROR(MATCH(%s&", kept",Data!$B$1:$%s$1,0),"")' % (LBL, d_kept_last))
+    # Whether the row shown has a floor at zero: its series' own flag on Lines
+    # by source (a measure in the book's floor_off has none), so a gap that is
+    # negative rates on its lines, never as 1 Low by the floor.
+    ws.cell(12, H, '=IF(%s,%s,FALSE)' % (HAS, th_("floor")))
+    FZ = "$%s$12" % hc
     lines_ok = "AND(%s,%s)" % (HAS, ",".join("ISNUMBER(%s)" % x for x in LN))
     stand = "AND(%s,%s=\"\")" % (lines_ok, REFUSAL)               # the lines picked stand
 
@@ -458,7 +464,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         x = "%s%d" % (L(H + 2), r)
         ws.cell(r, H + 3, '=IF(OR(NOT({ok}),NOT(ISNUMBER({x}))),"",IF(AND({fz},{x}<=0),1,1+IF({rule}="worse",'
                           'COUNTIF({ln},"{w}"&{x}),COUNTIF({ln},"{b}"&{x}))))'
-                .format(ok=stand, x=x, fz="TRUE" if fz else "FALSE", rule=RULE, ln=LNR, w=op_w, b=op_b))
+                .format(ok=stand, x=x, fz=FZ, rule=RULE, ln=LNR, w=op_w, b=op_b))
     LEADK = "$%s$%d" % (L(H + 3), src_rows[lead])
     LEADQ = "$%s$%d" % (L(H + 1), src_rows[lead])
 
@@ -599,7 +605,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         cmp_ = lambda op: "+".join("IF(%s%s%s,1,0)" % (ln, op, x) for ln in LN)   # noqa: E731
         ws.cell(r, cols_["rate"], '=IF(OR(NOT({ok}),{rf}<>"",NOT(ISNUMBER({x}))),"",IF({fz},IF({x}<=0,1,0),0)'
                                   '+IF(AND({fz},{x}<=0),0,1+IF({rule}="worse",{w},{b})))'
-                .format(ok=lines_ok, rf=REFUSAL, x=x, fz="TRUE" if fz else "FALSE", rule=RULE, w=cmp_(ge_w),
+                .format(ok=lines_ok, rf=REFUSAL, x=x, fz=FZ, rule=RULE, w=cmp_(ge_w),
                         b=cmp_(ge_b)))
         ws.cell(r, cols_["lo"], '=IF(AND(ISNUMBER({h}{r}),{k}{r}=""),1,0)'.format(h=cl["raw"], k=cl["kept"], r=r))
         nb = ["%s%d" % (cl["lo"], rr) for rr in (r - 1, r + 1) if 2 <= rr <= q_last]
@@ -970,7 +976,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     zmax = "{sg}({w}-{m})/{s}".format(sg=sg, w=wo, m=med, s=sp)
     zmin = "{h}*{v}/{s}".format(h=hw_, v=mv, s=sp)
     lsmax = "{m}/{v}".format(m=med, v=mv)
-    floor_ok = "AND(%s,%s)" % ("TRUE" if (floor_at_zero and higher) else "FALSE", "TRUE")
+    floor_ok = "AND(%s,TRUE)" % FZ
     say_ = lambda ok: 'IF({ok},"It fits.","It does not fit.")'.format(ok=ok)        # noqa: E731
     need = '"Pick a %s under %s to see what fits."' % (p2.lower(), LINES_FROM)
     fits = (
