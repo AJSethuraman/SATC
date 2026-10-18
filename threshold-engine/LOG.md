@@ -2563,3 +2563,15 @@ fixed. The rest, one commit each:
   real book's name, so a new test reads the Run tab's Measure line and
   Summary's title of a built workbook (and that the consumer one says
   nothing of it). Run: `test_commercial_book.py` 20 passed (22 s).
+- **Left-out runs go forwards.** `series.left_out_dates` read "2025Q4 to
+  2024Q4" as no quarter, silently; it is refused now, naming the run, as its
+  docstring said. `test_left_out.py`: two backwards runs refused, a
+  one-quarter run still read.
+- **Stated acquisitions: a key twice, and a pair twice.** `peers/stated.py`
+  refuses a key given twice in one object (`object_pairs_hook`; JSON kept
+  the last silently), and treats the same acquirer and quarter listed twice
+  as a duplicate however each is worded (before, only an identical "what"
+  sentence was), naming the entry it repeats: the build reads only the
+  pair, so two deals in one quarter go in one entry.
+  `test_stated_acquisitions.py` 33 passed with `test_left_out.py` (50 in
+  all), including the two new tests and the updated duplicate message.
