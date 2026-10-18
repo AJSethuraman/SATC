@@ -68,6 +68,12 @@ def test_the_left_out_line_round_trips_and_a_malformed_one_is_refused():
     assert left_out_dates([("note", "2024Q4. not a declaration")]) == []
     with pytest.raises(ValueError, match="must begin with its quarters"):
         left_out_dates([("left-out", "some quarters. Why.")])
+    # A run written backwards would declare nothing while looking as if it did.
+    with pytest.raises(ValueError, match="must go forwards.*'2025Q4 to 2024Q4'"):
+        left_out_dates([("left-out", "2025Q4 to 2024Q4. Why.")])
+    with pytest.raises(ValueError, match="must go forwards"):
+        left_out_dates([("left-out", "2023Q1, 2025Q2 to 2025Q1. Why.")])
+    assert left_out_dates([("left-out", "2025Q1 to 2025Q1. Why.")]) == ["2025-03-31"]
 
 
 def test_smoothing_never_averages_across_a_gap():

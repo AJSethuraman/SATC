@@ -137,7 +137,8 @@ def left_out_dates(notes: Sequence[Tuple[str, str]]) -> List[str]:
     """The quarter-end dates (ISO) the ``left-out`` lines among ``notes``
     (``read_notes``' pairs) declare, in order. A ``left-out`` line that does
     not begin with its quarters is refused: it would declare nothing while
-    looking as if it did."""
+    looking as if it did. So is a run written backwards ("2025Q4 to
+    2024Q4"), which would declare no quarter at all."""
     out: List[str] = []
     for key, text in notes:
         if key != LEFT_OUT_KEY:
@@ -148,6 +149,9 @@ def left_out_dates(notes: Sequence[Tuple[str, str]]) -> List[str]:
                              % text[:60])
         for run in m.group(1).split(", "):
             a, _, b = run.partition(" to ")
+            if b and _quarter_n(b) < _quarter_n(a):
+                raise ValueError("a left-out run must go forwards, like '2024Q4 to 2025Q4', not %r: written "
+                                 "backwards it declares no quarter" % run)
             out += [_quarter_date(n) for n in range(_quarter_n(a), _quarter_n(b or a) + 1)]
     return sorted(set(out))
 
