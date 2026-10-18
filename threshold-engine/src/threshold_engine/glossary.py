@@ -79,11 +79,12 @@ TERMS = [
      "strip and gray dots on the line, and recorded on Run."),
     ("Left out as built",
      "Quarters a series' file does not hold, written to left-out.csv beside the series files with why: those "
-     "before its last break, and its latest quarters when they have no value.",
-     "A series is written from the first quarter after its last break, because the workbook refuses a gap. "
-     "Each row names the series by Product, Measure and Source, the first and last quarter left out, and the "
-     "reason the quarter at the break has no value. The periods left out on Decide are not in it. Its "
-     "SHA-256 is on Run."),
+     "before its last break, those it continues across, and its latest quarters when they have no value.",
+     "A series is written from the first quarter after its last break, because the workbook refuses a gap it "
+     "is not told of; the quarters it continues across (see Continues across) are the one gap it is told of. "
+     "Each row names the series by Product, Measure and Source, the first and last quarter left out, and why: "
+     "the reason the quarter at the break has no value, or that the series continues across them. The periods "
+     "left out on Decide are not in it. Its SHA-256 is on Run."),
     ("Median kept",
      "The middle of the quarters kept: half were higher, half lower. The center of Moderate.",
      "MEDIAN of the quarters kept."),

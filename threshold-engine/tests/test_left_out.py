@@ -364,6 +364,11 @@ def test_the_build_reports_the_quarters_it_wrote_not_the_quarters_on_the_calenda
     assert line.startswith("Wrote %s: %d quarters, 5 left out within it, not written (left-out line)"
                            % (path, written)), line
     assert next(n for p, n, _, _ in got["series"] if p == path) == written
+    # The left-out file (the other branch's, merged 18 Oct 2026) lists the windows it continues across too.
+    assert got["left_out"][path] == [("2024Q4", "2025Q4", run.WHY_WITHIN)]
+    # Its industry series, which no reporting change bridges, has no row inside it.
+    ind = tmp_path / "series" / "c-i_industry_net.csv"
+    assert all(why != run.WHY_WITHIN for _, _, why in got["left_out"][ind])
 
 
 # ---- the left-out file: the quarters each series left out as built ----------------------------------------
@@ -377,6 +382,13 @@ def test_a_bank_rows_own_reason_is_used():
         "3 banks kept, fewer than the 5 needed"
     assert run.break_reason({"quarter": "2008Q1", "net_rate": None}, "net_rate", 5) == "no value"
     assert run.break_reason(None, "rate", 5) == "not in the data"
+
+
+def test_within_spans_are_the_runs_a_series_continues_across():
+    tail = [("2020Q1", 1.0), ("2020Q2", None), ("2020Q3", None), ("2020Q4", 2.0), ("2021Q1", None),
+            ("2021Q2", 3.0)]
+    assert run.within_spans(tail) == [("2020Q2", "2020Q3", run.WHY_WITHIN), ("2021Q1", "2021Q1", run.WHY_WITHIN)]
+    assert run.within_spans([("2020Q1", 1.0)]) == [] and run.within_spans([]) == []
 
 
 def test_spans_before_the_last_break_and_after_the_last_value():

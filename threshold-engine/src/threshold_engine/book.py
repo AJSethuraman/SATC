@@ -229,7 +229,7 @@ LEFT_OUT_HEAD = ("Product", "Measure", "Source", "first", "last", "why")
 
 def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> int:
     """Write ``path``: one row per span a book series left out as built
-    (``peers.run.left_out_spans``), in the series list's order, named by the
+    (``peers.run.left_out_spans`` and ``within_spans``), in the series list's order, named by the
     book's Product, Measure and Source. A series with nothing left out has no
     row. The periods left out on Decide are the analyst's and are not here.
     Returns the number of rows."""
@@ -239,8 +239,8 @@ def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> 
         for first, last, why in by_path.get(str(Path(p_)).lower(), []):
             rows.append(list(parts[lbl]) + [first, last, why])
     with open(path, "w", newline="", encoding="utf-8") as fh:
-        fh.write("# Quarters each series left out as built, before its last break or after its last value, "
-                 "with why. A series with nothing left out has no row.\n")
+        fh.write("# Quarters each series left out as built, before its last break, within it where it continues "
+                 "across them, or after its last value, with why. A series with nothing left out has no row.\n")
         fh.write("# The periods left out on Decide are the analyst's, typed in the saved workbook, and are not "
                  "here. Quarters are YYYYQn.\n")
         w = csv.writer(fh)

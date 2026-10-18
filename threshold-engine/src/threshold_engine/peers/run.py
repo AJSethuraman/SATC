@@ -187,6 +187,26 @@ def left_out_spans(before, after, reasons) -> List[Tuple[str, str, str]]:
     return spans
 
 
+#: The reason the left-out file gives for quarters a series continues across.
+WHY_WITHIN = ("within the series: the jump left these windows out and nothing else would have, every move that "
+              "tripped it in a quarter a reporting change names; not written, never filled, and the series "
+              "continues across them (the file's left-out line names the moves and the changes)")
+
+
+def within_spans(tail) -> List[Tuple[str, str, str]]:
+    """``(first, last, why)`` for each run of quarters with no value inside
+    ``tail`` (``unbroken_tail``'s, with a ``bridge``): the windows a series
+    continues across, for the left-out file beside ``left_out_spans``'."""
+    spans, run_ = [], []
+    for q, v in list(tail) + [(None, 0)]:
+        if v is None:
+            run_.append(q)
+        elif run_:
+            spans.append((run_[0], run_[-1], WHY_WITHIN))
+            run_ = []
+    return spans
+
+
 def series_note(note, tail, before, after, why_gap=None):
     """The note lines for a series written from ``tail``: the given note, then
     what is left out before the run and after it, and, where the run holds
@@ -1027,6 +1047,11 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                        if x not in note]
             series.append((path, tail, series_note(note, tail, before, after), before, after, ("flows", p)))
 
+    # The left-out file lists the windows a series continues across too, in
+    # order with what was left out before and after it.
+    for path, tail, *_ in series:
+        if path in left_out_ and any(v is None for _, v in tail):
+            left_out_[path] = sorted(left_out_[path] + within_spans(tail))
     paths = [str(path).lower() for path, *_ in series]
     twice = sorted({p for p in paths if paths.count(p) > 1})
     if twice:                   # combined() refuses the known cause; this is the backstop
