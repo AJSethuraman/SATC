@@ -31,6 +31,7 @@ import os
 import re
 import secrets
 import sys
+import time
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +48,7 @@ OTHER = {"bassy": "rev", "rev": "bassy"}
 HEADER_KEYS = ("id", "from", "kind", "re", "about", "evidence", "convictions",
                "goal", "mode", "proposal", "withdraws")
 MAX_BODY = 6000
+RESERVE_STALE_SECONDS = 60  # an older reservation belongs to a dead poster
 MAX_FILE_BYTES = 40000  # a valid message is a few KB; refuse to read more
 MIN_DIGITS = 9  # DIGITS-MARK
 FINDING_LABELS = ("Source evidence:", "Reproduction evidence:", "Expected:",
@@ -73,6 +75,7 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # EMAIL-MARK
 PHONE = re.compile(
     r"(?<!\d)(?:\+?1[-. ]?)?(?:\(\d{3}\)[-. ]?\d{3}[-. ]?\d{4}"
     r"|\d{3}[-. ]\d{3}[-. ]\d{4})(?!\d)")  # PHONE-MARK
+INTL_PHONE = re.compile(r"(?<![\w+])\+\d[\d ().-]{7,18}\d")  # INTL-MARK
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 DIGIT_RUN = re.compile(r"(?<![A-Za-z0-9])\d{3,}(?:[ .,/_-]\d{3,})*(?![A-Za-z0-9])")  # PUNCT-MARK
 PROTECTED = (
@@ -83,7 +86,8 @@ PROTECTED = (
     ("a path into the live data folders", re.compile(r"build[\\/]data", re.I)),
     ("a path to a database file", re.compile(r"[\\/]satc_(?:vault|mart)\.db", re.I)),
 )
-URL = re.compile(r"(?:https?://|www\.)[^\s)>\]\"'`]+", re.I)
+URL = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*://|www\.|(?<![:\w/])//(?=[\w-]+\.[A-Za-z]{2,}))"
+                 r"[^\s)>\]\"'`]+", re.I)  # URL-MARK
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 RUNNABLE = re.compile(
     r"(^```)|(^\s*(?:\$|PS>|>>>)\s)|"
@@ -247,8 +251,17 @@ def _scan_links(text: str, where_of) -> list[Finding]:
     allow = allowed_links()
     for m in URL.finditer(text):
         raw = m.group(0).rstrip(".,;:")
-        url = raw if raw.lower().startswith("http") else "https://" + raw
+        if raw.startswith("//"):
+            url = "https:" + raw
+        elif re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", raw):
+            url = raw
+        else:
+            url = "https://" + raw
         p = urllib.parse.urlsplit(url)
+        if p.scheme.lower() not in ("http", "https"):  # SCHEME-MARK
+            found.append(Finding(where_of(m.start()),
+                                 "a link that is not an http or https link"))
+            continue
         host = (p.hostname or "").lower()
         path = p.path.rstrip("/").lower()
         where = where_of(m.start())
@@ -304,6 +317,10 @@ def guard(text: str, *, root: Optional[Path] = None,
         found.append(Finding(where_of(m.start()), "an email address"))
     for m in PHONE.finditer(text):
         found.append(Finding(where_of(m.start()), "something shaped like a phone number"))
+    for m in INTL_PHONE.finditer(text):
+        if 9 <= len(re.sub(r"\D", "", m.group(0))) <= 15:
+            found.append(Finding(where_of(m.start()),
+                                 "something shaped like an international phone number"))
     for name, rx in PROTECTED:
         for m in rx.finditer(text):
             found.append(Finding(where_of(m.start()), name))
@@ -723,6 +740,14 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
         try:
             fd = os.open(reserve, os.O_CREAT | os.O_EXCL | os.O_WRONLY)  # EXCL-MARK
         except FileExistsError:
+            try:
+                age = time.time() - os.path.getmtime(reserve)
+            except OSError:
+                age = 0
+            if age > RESERVE_STALE_SECONDS and not final.exists():  # STALE-RESERVE-MARK
+                with contextlib.suppress(OSError):
+                    os.unlink(reserve)
+                continue  # retry the SAME number: a dead poster left this behind
             n += 1
             continue
         os.close(fd)

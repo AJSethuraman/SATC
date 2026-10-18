@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -341,6 +342,43 @@ class TestCodexSecondPassOnPR458(Base):
     def test_a_lone_carriage_return_is_refused_but_crlf_is_not(self):
         self.assertTrue(ex.guard("safe text\roverwrite", label="t"))
         self.assertEqual(ex.guard("line one\r\nline two", label="t"), [])
+
+
+class TestCodexThirdPassOnPR458(Base):
+    def test_international_phone_numbers_are_refused(self):
+        for text in ("call +44 20 7946 0958", "call +61 2 9374 4000", "call +33 1 23 45 67 89"):
+            found = ex.guard(text, label="t")
+            self.assertTrue(any("phone" in f.what for f in found), text)
+
+    def test_plus_signs_in_ordinary_text_are_not_phone_numbers(self):
+        for text in ("17+ tests and C++ 20", "+3 more tests", "the +1 vote", "a +12 point change"):
+            self.assertEqual(ex.guard(text, label="t"), [], text)
+
+    def test_protocol_relative_and_other_scheme_links_go_through_the_allow_list(self):
+        refused = ["[record](//evil.example/path?client=Jane)",
+                   "[record](//evil.example/path)",
+                   "see ftp://github.com/AJSethuraman/SATC",
+                   "see HTTPS://evil.example/x"]
+        for text in refused:
+            self.assertTrue(ex.guard(text, label="t"), text)
+        self.assertEqual(ex.guard("[ok](//github.com/AJSethuraman/SATC/pull/1)", label="t"), [])
+        # an ordinary code comment is not a link
+        self.assertEqual(ex.guard("x = 1  // a comment, not a link", label="t"), [])
+
+    def test_a_dead_posters_reservation_does_not_leave_a_permanent_gap(self):
+        post(self.root, "bassy", "one")
+        stale = self.root / "from-bassy" / ".B-0002.reserve"
+        stale.write_text("", encoding="utf-8")
+        old = time.time() - 3600
+        os.utime(stale, (old, old))
+        self.assertEqual(post(self.root, "bassy", "two")[1].strip(), "posted B-0002")
+        self.assertFalse(stale.exists())
+        run(self.root, ["ack", "--as", "rev", "B-0002"])  # no gap, so the cursor can pass
+
+    def test_a_live_posters_fresh_reservation_is_still_respected(self):
+        post(self.root, "bassy", "one")
+        (self.root / "from-bassy" / ".B-0002.reserve").write_text("", encoding="utf-8")
+        self.assertEqual(post(self.root, "bassy", "two")[1].strip(), "posted B-0003")
 
 
 class TestReadingIsSafeAndReadOnly(Base):
