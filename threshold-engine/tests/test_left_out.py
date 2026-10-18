@@ -371,6 +371,66 @@ def test_the_build_reports_the_quarters_it_wrote_not_the_quarters_on_the_calenda
     assert all(why != run.WHY_WITHIN for _, _, why in got["left_out"][ind])
 
 
+# ---- combined products: a change named for any of its parts ------------------------------------------------
+
+def test_a_combined_product_continues_across_a_change_named_for_any_of_its_parts(tmp_path):
+    """Credit card + Mortgage (books.members): card at 1,000 rises 60% in
+    2010Q1, when FAS 166 and 167 brought securitized cards back on the books
+    (a change the registry names for Credit card, not for Mortgage); mortgage
+    stays at 500, so the combined book moves +40% and trips the jump. The
+    combined series continues across those windows, as its files note every
+    change named for any of its parts and the Peers charts mark them
+    (peers_workbook.change_quarters): the merge of 18 Oct 2026 chose that
+    rule, recorded in LOG.md for the firm to overrule."""
+    data = {}
+    for q in [d.replace("-", "") for d in qdates(2008, 24)]:
+        qn = (int(q[4:6]) - 1) // 3 + 1
+        data[q] = [{"CERT": "17534", "REPDTE": q, "LNCRCD": 1000.0 * (1.6 if q >= "20100331" else 1),
+                    "DRCRCD": 10.0 * qn, "CRCRCD": 1.0 * qn, "LNRERSFM": 500.0, "DRRERSFM": 2.0 * qn,
+                    "CRRERSFM": 0.5 * qn, "RSSDHCR": "1"}]
+    combo, measure = "Credit card + Mortgage", "net charge-offs"
+    card, mortgage = (RC.labelled_quarters(CHANGES, p, measure) for p in ("Credit card", "Mortgage"))
+    assert run.labelled_for(CHANGES, combo, measure) == card | mortgage
+    assert "2010Q1" in card and "2010Q1" not in mortgage
+    rows = books.bank_book(data, "17534", combo, 0.25, 0, True, acquired=[], stated=())
+    windows = {"2010Q1", "2010Q2", "2010Q3", "2010Q4", "2011Q1"}
+    assert run.bridged(rows, run.labelled_for(CHANGES, combo, measure)) == windows
+    assert run.bridged(rows, mortgage) == set()          # it is the card part's change that keeps it going
+    assert run.named_for(CHANGES, combo, measure, ["2010Q1"]) == [
+        ("Securitizations back on the books (FAS 166 and 167)", ["Credit card"])]
+    run.build(tmp_path / "peers.xlsx", **build_kw(tmp_path, cache_of(tmp_path, data), "2008Q1", "2013Q4",
+                                                   ["Credit card", combo], False, "2011Q4", (2011, 2013)))
+    path = tmp_path / "series" / "credit-card-plus-mortgage_keybank_net.csv"
+    pts = read_csv(path)
+    assert pts[0].date == "2009-03-31" and pts[-1].date == "2013-12-31"
+    assert read_left_out(path) == ["2010-03-31", "2010-06-30", "2010-09-30", "2010-12-31", "2011-03-31"]
+    assert ("every move that tripped it (2010Q1) is in a quarter Securitizations back on the books (FAS 166 "
+            "and 167) names for Credit card, a part of Credit card + Mortgage, net charge-offs.") in \
+        dict(read_notes(path))["left-out"]
+    assert "reporting-change: 2010Q1, Securitizations back on the books (FAS 166 and 167)." in \
+        path.read_text(encoding="utf-8")
+
+
+def test_a_combined_product_carries_the_events_of_any_of_its_parts(tmp_path):
+    """C&I + Multifamily: the 2020 drawdowns and PPP loans are events for C&I
+    only; the combined files label them, the Multifamily files do not, and
+    neither keeps a series going (an event never does)."""
+    data = {}
+    for q in [d.replace("-", "") for d in qdates(2018, 16)]:
+        qn = (int(q[4:6]) - 1) // 3 + 1
+        data[q] = [{"CERT": "17534", "REPDTE": q, "LNCI": 1000.0, "DRCI": 5.0 * qn, "CRCI": 1.0 * qn,
+                    "LNREMULT": 800.0, "DRREMULT": 1.0 * qn, "CRREMULT": 0.2 * qn, "RSSDHCR": "1"}]
+    run.build(tmp_path / "peers.xlsx", **build_kw(tmp_path, cache_of(tmp_path, data), "2018Q1", "2021Q4",
+                                                   ["Multifamily", "C&I + Multifamily"], False, "2019Q4",
+                                                   (2019, 2021)))
+    s = tmp_path / "series"
+    both = (s / "c-i-plus-multifamily_keybank_net.csv").read_text(encoding="utf-8")
+    assert "# event: 2020Q1, Revolving-line drawdowns." in both
+    assert "# event: 2020Q2 to 2021Q4, Paycheck Protection Program loans." in both
+    assert "event:" not in (s / "multifamily_keybank_net.csv").read_text(encoding="utf-8")
+    assert read_left_out(s / "c-i-plus-multifamily_keybank_net.csv") == []
+
+
 # ---- the left-out file: the quarters each series left out as built ----------------------------------------
 
 def test_a_bank_rows_own_reason_is_used():
