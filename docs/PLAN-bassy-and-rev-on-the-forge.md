@@ -87,9 +87,10 @@ question. **D10 is confirmed** (same pop-up: "Yes, that split"). **No decision i
 open.** The owner also authorised marking this pull request and PR 458 ready and
 merging them once review is complete.
 
-Once a shared place is approved, **this terminal stops being the channel**: Rev's
-messages arrive in `exchange\from-rev\` and the terminal goes back to being where
-you talk to me.
+The shared place is now built (section 15). Rev's messages are meant to arrive in
+`exchange\from-rev\`, with the terminal going back to being where you talk to me.
+Until her first post lands there, her messages still reach me through the
+terminal, and that route works.
 
 ---
 
@@ -298,12 +299,16 @@ reviewer who sees only the preparer's summary is a rubber stamp (C7, 7.3).
 Plain version: **we ask; we are not interrupted, and nothing guarantees an
 answer while the other is inactive.**
 
-1. **During the design phase** (now): Rev and I talk through the owner, in this
-   terminal. Nothing is built and the folder does not exist.
-2. **After approval, me:** at the start of every working session and after a
-   thread ends, I run `exchange.py status`. It lists messages past my cursor,
-   goal-checks waiting for an answer, and owner items waiting.
-3. **After approval, Rev: best effort, not a guarantee.** Rev cannot promise a
+1. **Historical: the design phase.** Before the build, Rev and I talked through
+   the owner, in this terminal, and nothing was built. That phase is over.
+   Messages Rev sends straight to my terminal still reach me, and that route
+   still works, but it is no longer the only record.
+2. **Now that the exchange is built (the current workflow), me:** at the start of
+   every working session and after a thread ends, I run
+   `exchange.py status --as bassy`. It lists messages past my cursor, goal-checks
+   waiting for an answer, and owner items waiting. I do not rely on being
+   relayed through the owner.
+3. **Now, Rev: best effort, not a guarantee.** Rev cannot promise a
    local command at the start of every conversation or after every turn, nor a
    working folder watcher, and her session is not the same thing as a shell
    process. So the design must work when she does **not** run `status`: every
@@ -621,9 +626,11 @@ So the guard protects both directions, and reading stays read-only.
 
 I ran the shape checks (counts only, no values printed) over the four files Rev
 has already written, 84,843 bytes in all: **0 SSN/ITIN shapes, 0 EIN shapes, 0
-digit runs of nine or more.** That is a clean result and also the false-alarm
-denominator: the guard would not have fired on any of her existing work. It says
-nothing about names. This was **NOT CHECKED** against any other file.
+digit runs of nine or more.** That is a clean result **for those three numeric
+checks only**. It is not the guard's false-alarm cost: the complete guard as
+built (section 15) finds 17 things in the same files, mostly links off the
+allowed list, file names and protected places named in passing. It says nothing
+about names. This was **NOT CHECKED** against any other file.
 
 ### 5.4 What these checks cannot see, said plainly
 
@@ -811,7 +818,10 @@ folder on this machine. To reach it we would have to pass messages through
 something both can see, and the only such place today is GitHub, which is
 **public** (a message there is published) and slow (a pull request each time).
 So the folder-on-the-Forge design is the one that keeps the conversation
-private. A cloud session still has a use: it can load `canon:bassy` and
+off a public site. It is **local and non-public, not private**: as section 5.4
+says, anything in the folder is read by two hosted AI services (hers and mine),
+so what may go in it should be decided on that boundary. A cloud session still
+has a use: it can load `canon:bassy` and
 challenge a decision from the record, because the record travels with the
 plugin. That is the existing Bassy skill, unchanged, which is why I do not want
 channel plumbing inside it.
