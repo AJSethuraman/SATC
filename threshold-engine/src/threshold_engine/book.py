@@ -387,7 +387,8 @@ def load(path) -> dict:
     wbk = dict(raw["workbook"])
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
-    return {"kind": raw["kind"], "workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
+    return {"kind": raw["kind"], "workbook": wbk, "series": series, "peers": peers, "folder": folder,
+            "internal": internal,
             "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes, "events": events,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from, "kind": raw["kind"]}}

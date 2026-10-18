@@ -172,7 +172,8 @@ def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_pat
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
-                        lambda *a, into=None, names=None, combined=None, changes=None, stated=None, **kw:
+                        lambda *a, into=None, names=None, combined=None, changes=None, stated=None,
+                        book_kind=None, **kw:
                         OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")
     assert load_workbook(old["out"]).sheetnames == ["Peers", "Workings", "Glossary", "Data", "DelinquencyData",
