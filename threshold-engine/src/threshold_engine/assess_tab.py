@@ -153,7 +153,12 @@ def _prompt(ws, ref, title, text):
 
 
 def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, unit, moderate_halfwidth,
-          low_step, high_z, on_the_line, y_min, quarter, nf="0.000"):
+          low_step, high_z, on_the_line, y_min, quarter, nf="0.000", th_cols=None):
+    # Thresholds' columns (decide_tab.TH_PLAIN or TH_BOOK); the letters below
+    # are the plain layout's, translated through it.
+    from .decide_tab import TH_PLAIN
+    tc = th_cols or TH_PLAIN
+    plain = {v: k for k, v in TH_PLAIN.items()}
     lay = layout(n)
     sgn = "1" if higher else "-1"
     # A year label every so many years, so a short series shows its years
@@ -163,7 +168,7 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     asx.sheet_properties.tabColor = K.KEY_RED
     E = 4 + n                                             # last product row on Thresholds
     tr = "MATCH($B$5,Thresholds!$A$5:$A${e},0)".format(e=E)
-    th = lambda c_: "INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=c_, e=E, m=tr)   # noqa: E731
+    th = lambda c_: "INDEX(Thresholds!${c}$5:${c}${e},{m})".format(c=tc[plain[c_]], e=E, m=tr)   # noqa: E731
     st = lambda c_: "INDEX(${c}${a}:${c}${b},{m})".format(c=c_, a=lay["set_top"], b=lay["set_end"], m=tr)   # noqa
     online = st("R")
     HW, LS, HZ = st("O"), st("P"), st("Q")
@@ -321,7 +326,7 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
         for col, v in ((15, moderate_halfwidth), (16, low_step), (17, high_z), (18, on_the_line)):
             _input(asx.cell(rr, col, v))
         rule_list.add("R%d" % rr)
-        asx.cell(rr, 19, '=IF(Thresholds!$M${t}="","OK",Thresholds!$M${t})'.format(t=5 + k))
+        asx.cell(rr, 19, '=IF(Thresholds!${m}${t}="","OK",Thresholds!${m}${t})'.format(t=5 + k, m=tc["refusal"]))
         asx.cell(rr, 19).font = Font(name="Calibri", size=11, color=K.SLATE)
     asx.conditional_formatting.add("N{a}:N{b}".format(a=lay["set_top"], b=lay["set_end"]),
                                    FormulaRule(formula=["$N{a}=$B$5".format(a=lay["set_top"])], fill=fill(PICKED),
@@ -371,7 +376,7 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     asx.conditional_formatting.add("T{a}:U{b}".format(a=lay["lo_top"], b=lay["lo_end"]),
                                    FormulaRule(formula=['ISNUMBER(SEARCH("refused",$T{a}))'.format(a=lay["lo_top"])],
                                                fill=fill(K.ALERT_FG), font=Font(bold=True, color=K.CRIMSON)))
-    asx.cell(lay["lo_note"], 14, "Left-out quarters show as grey dots over a dark strip. To put a period back, "
+    asx.cell(lay["lo_note"], 14, "Left-out quarters show as gray dots over a dark strip. To put a period back, "
                                  "clear its yellow cells.").font = F_NOTE
 
     # ---- left: the evidence, level with the periods it argues for ----

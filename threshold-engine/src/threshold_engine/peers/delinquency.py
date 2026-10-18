@@ -15,7 +15,16 @@ Mortgage        LNRERSFM   P3RERSFM     P9RERSFM          NARERSFM
 Home equity     LNRELOC    P3RELOC      P9RELOC           NARELOC
 Other consumer  LNCONOTH   P3CONOTH     P9CONOTH          NACONOTH
 Auto            LNAUTO     P3AUTO       P9AUTO            NAAUTO
+C&I             LNCI       P3CI         P9CI              NACI
+Construction    LNRECONS   P3RECONS     P9RECONS          NARECONS
+Multifamily     LNREMULT   P3REMULT     P9REMULT          NAREMULT
+Nonfarm nonres  LNRENRES   P3RENRES     P9RENRES          NARENRES
+... owner-occ.  LNRENROW   P3RENROW     P9RENROW          NARENROW
+... other       LNRENROT   P3RENROT     P9RENROT          NARENROT
 =============== ========== ============ ================= ==========
+
+(The last three are "Nonfarm nonresidential", "Owner-occupied nonfarm
+nonresidential" and "Other nonfarm nonresidential".)
 
 First quarter each field is filed. Probed against the live API
 (``https://api.fdic.gov/banks/financials``, filter ``FIELD:[* TO *]``,
@@ -30,9 +39,24 @@ holds at all, so a field shown as 1984Q1 may have been filed earlier:
   (LNCONOTH 1984Q1). Auto was inside other consumer until it was split out.
 - Auto: P3AUTO, P9AUTO and NAAUTO 2011Q1 (LNAUTO 2011Q1).
 
+The commercial products, from docs/commercial-2026-10/research-fdic.md (on
+main), probed the same way on **16 Oct 2026** (any filer, first value):
+
+- C&I: P3CI 2001Q1; P9CI 1984Q1; NACI 1984Q1 (LNCI 1984Q1).
+- Construction: P3RECONS 2001Q1; P9RECONS 1986Q1; NARECONS 1986Q1
+  (LNRECONS 1984Q1).
+- Multifamily: P3REMULT 2001Q1; P9REMULT 1991Q1; NAREMULT 1991Q1
+  (LNREMULT 1984Q1).
+- Nonfarm nonresidential: P3RENRES 2001Q1; P9RENRES 1991Q1; NARENRES 1991Q1
+  (LNRENRES 1984Q1).
+- Owner-occupied and other nonfarm nonresidential: every field 2007Q1
+  (LNRENROW, LNRENROT 2007Q1), and never filed by savings institutions that
+  filed the TFR (the FDIC: "This item was not available for TFR Reporters").
+
 So a measure that uses the 30-89 field (``30-89`` and ``30+ incl.
 nonaccrual``) starts in 2001Q1 for cards, home equity and other consumer,
-2002Q1 for mortgage and 2011Q1 for auto. Before that the field is blank, and a
+2002Q1 for mortgage and 2011Q1 for auto, 2001Q1 for the four commercial
+totals and 2007Q1 for the two nonfarm splits. Before that the field is blank, and a
 blank field is **not filed**, never 0: the rate is None and ``why`` names the
 field. (``books.py`` counts a blank as 0 because the earlier build did; there
 is no earlier build of delinquency to reproduce, so nothing is filled in.)
@@ -98,7 +122,7 @@ import math
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..profile import percentile
-from .books import _at_least, _by_cert, _contiguous, label, parts, quarter_end, raw_fields
+from .books import _at_least, _by_cert, _contiguous, label, members, parts, quarter_end, raw_fields
 
 #: Product -> (balance, 30-89 days past due, 90+ days still accruing,
 #: nonaccrual) field names. All quarter-end, $ thousands.
@@ -108,6 +132,12 @@ FIELDS = {
     "Home equity": ("LNRELOC", "P3RELOC", "P9RELOC", "NARELOC"),
     "Other consumer": ("LNCONOTH+LNCONRP", "P3CONOTH", "P9CONOTH", "NACONOTH"),
     "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
+    "C&I": ("LNCI", "P3CI", "P9CI", "NACI"),
+    "Construction": ("LNRECONS", "P3RECONS", "P9RECONS", "NARECONS"),
+    "Multifamily": ("LNREMULT", "P3REMULT", "P9REMULT", "NAREMULT"),
+    "Nonfarm nonresidential": ("LNRENRES", "P3RENRES", "P9RENRES", "NARENRES"),
+    "Owner-occupied nonfarm nonresidential": ("LNRENROW", "P3RENROW", "P9RENROW", "NARENROW"),
+    "Other nonfarm nonresidential": ("LNRENROT", "P3RENROT", "P9RENROT", "NARENROT"),
 }
 
 #: What a product's delinquency notes must say about its definition, where
@@ -157,9 +187,16 @@ def fields_for(products: Iterable[str]) -> List[str]:
 
 
 def _fields(product: str) -> Tuple[str, str, str, str]:
-    if product not in FIELDS:
-        raise ValueError("product must be one of %s, not %r" % (sorted(FIELDS), product))
-    return FIELDS[product]
+    """(balance, P3, P9, NA) fields; a combined product's are its parts'
+    joined by "+" (``books.members``), and a sum with one part not filed is
+    not filed (``_filed``)."""
+    names = members(product)
+    return tuple("+".join(FIELDS[n][k] for n in names) for k in range(4))
+
+
+#: Said of every combined product's delinquency.
+COMBINED = ("A combined product's delinquency is written only for quarters in which every part's fields "
+            "were filed: auto's past-due and nonaccrual fields begin in 2011Q1.")
 
 
 def _numerator_fields(product: str, measure: str) -> List[str]:
@@ -465,7 +502,7 @@ def comparability(product: str, measure: str) -> List[str]:
     lines = []
     if measure in ("90+ accruing", "nonaccrual"):
         lines.append(POLICY)
-    if product == "Mortgage" and "p9" in MEASURES[measure]:
+    if "Mortgage" in members(product) and "p9" in MEASURES[measure]:
         lines.append(GUARANTEED)
     return lines
 

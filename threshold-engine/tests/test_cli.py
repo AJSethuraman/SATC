@@ -202,13 +202,13 @@ def test_the_backtest_tab_has_one_change_column_per_score(tmp_path):
     assert main(["workbook", str(out), "--series", "Credit card=%s" % CARDS] + MEASURE
                 + SCALE + ["--percentiles", "50", "75", "90", "--horizon", "4", "--min-history", "41"]) == 0
     rows = [list(r) for r in load_workbook(out)["Backtest"].iter_rows(values_only=True)]
-    i = next(k for k, r in enumerate(rows) if r[0] == "Series")
+    i = next(k for k, r in enumerate(rows) if r[1] == "Series")          # column A is the margin
     head = [c for c in rows[i] if c is not None]
     assert head == ["Series", "Weighting", "Value ahead", "Change ahead", "1", "2", "3", "4", "Quarters tested"]
-    assert rows[i - 1][2] == "Spearman: rating against" and rows[i - 1][4] == "Average change ahead, by rating"
+    assert rows[i - 1][3] == "Spearman: rating against" and rows[i - 1][5] == "Average change ahead, by rating"
     want = backtest(read_csv(CARDS), "c", "%", "higher_is_worse", "quarterly", 1, (50, 75, 90), 4, 41, True)
-    assert rows[i + 1][len(head) - 1] == want["runs"][0]["periods_tested"]
-    assert rows[i + 1][4:8] == pytest.approx([b["mean_change_ahead"] for b in want["runs"][0]["by_score"]])
+    assert rows[i + 1][len(head)] == want["runs"][0]["periods_tested"]
+    assert rows[i + 1][5:9] == pytest.approx([b["mean_change_ahead"] for b in want["runs"][0]["by_score"]])
 
 
 @pytest.mark.parametrize("command", ["profile", "evidence", "backtest"])

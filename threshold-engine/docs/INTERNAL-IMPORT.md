@@ -114,6 +114,38 @@ say so. Each file's notes give the measure, numerator, denominator and
 basis (the method), and copy the file's own as-of, source, entity, basis
 and segment description, so the Sources tab shows them.
 
+## In the workbook (added 15 Oct 2026)
+
+Every workbook with a Decide tab has two more tabs (`internal_tab.py`):
+
+- **Internal data**: the table `InternalData`, header at A4, in this file's
+  layout (columns found by header name, any order; an optional `crr_grade`).
+  It ships empty. Helper columns read each row by the rules above and name
+  the first problem in **Why not used**. A product with any row not used has
+  no composite.
+- **Internal**: the name mapping; the coverage by product; the picked
+  product, measure and segment on a chart over the zones of a chosen
+  source's lines; how reliable each outside source is for it (the verdict
+  rules are on the Glossary tab); the CRR grade check; the composite and
+  each segment with balances and shares; like for like against the Call
+  Report (the comparisons above, read from Peers data where the workbook
+  holds it); and every product and measure in one table.
+
+The **composite** is the product's `All` rows where the file gives them,
+otherwise its segments summed quarter by quarter (`internal.composite_rows`).
+The tab's formulas and `internal.py` give the same figures;
+`tests/test_internal_tab.py` proves it on made-up rows.
+
+A book can name the file (`"internal"`, a required key: `null` or `{file,
+source, segments, measures, call_report_source}`). Then `book` checks it as
+`internal check` does, writes each product's composite (and, with `segments:
+true`, each segment) as series beside the workbook for every measure the book
+maps, and fills Internal data with the file's rows. **Which workbook measure an
+internal measure is, is stated by the book, never assumed**: net and gross
+charge-offs are calculated as the public series are; whether an internal 30+
+includes nonaccrual loans is not known, so an unmapped past-due measure stays
+on the Internal tab only.
+
 ## The reconciliation
 
 Per quarter, comparison and measure (balance, gross and net charge-offs):
