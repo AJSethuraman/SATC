@@ -1,9 +1,9 @@
 # Bassy and Rev on the Forge: a working plan
 
-**DRAFT for the owner to approve or send back. Nothing described here is built.**
+**Status: the exchange this plan describes is now built (PR 458) and running in Rev's folder. The owner approved the build on 18 October 2026. This document is the design record and the reasons; section 15 says what was built and what was not tested.**
 Written 18 October 2026 by the Count Bassy session on the Forge ("Bassy - Live").
-**Revision 7, same day: D9 is decided, and the owner's approvals will be carried by Rev (D10, 4.5).**
-Revision 6 took in Rev's reply to revision 5 (section 14).
+**Revision 8, same day: D8 and D10 are decided, the exchange is built, and section 15 records how it was built.**
+Revision 7 decided D9 and D10 in principle.
 Revision 5 took in her assessment of revision 4 (section 13).
 This is a draft pull request on a **public** repository. Draft status is not a
 confidentiality or safety guarantee, so nothing private is in this document.
@@ -61,7 +61,8 @@ assessment (section 1.2). Each has both outcomes and what I would do.
 | D6 | "that sounds good" | **Decided** |
 | D7 | "building script is fine" | **Decided** |
 | D9 | "I'm fine with D9, i don't want to have to wait on you guys to decide stuff" (said directly; Rev had relayed an earlier approval of the narrow proposal) | **Decided: yes.** A short fixed list of known, public, generic component names may appear in plain prose (5.1, Appendix C) |
-| D10 | "I told Rev she will be the place i go to to approve stuff and she will carry it to you" | **Decided in principle.** Rev carries the owner's approvals to me. The rule for what that covers is in 4.5; a short list of things still needs the owner's own words |
+| D8 | Pop-up, 18 October 2026: "Adopt it (Recommended)" | **Decided**: findings of fact stated plainly with evidence, judgment calls put as questions |
+| D10 | "I told Rev she will be the place i go to to approve stuff and she will carry it to you". Then, by pop-up: "Yes, that split (Recommended)" | **Decided in principle.** Rev carries the owner's approvals to me. The rule for what that covers is in 4.5; a short list of things still needs the owner's own words |
 
 Also from the owner, now built into the plan: keep each other on track, because
 Rev forgets what is happening and needs reminding of the broad goals (4.7); Rev
@@ -80,8 +81,11 @@ and implementation record are related but not interchangeable (section 3).
 | D8 | How is Rev's review written down? Conviction C7 says a reviewer's output is "a question for the accountant to critically determine if it was the correct call". Rev and I now agree on one reading: a supported defect of fact is stated plainly, a judgment call is put as a question, and the preparer still decides. That is not a dispute between us; it is yours to adopt | A: a defect of fact is stated plainly as a `finding` with evidence; a judgment call is put as a question; the owning side still decides either way | B: everything is phrased as a question | **A.** The question form in C7 is about whether a *call* was right. Both keep the decision with the owner of the work. It is your conviction, so it is your reading (section 7.1) |
 | D9 | May a name from a short fixed list of known, public, generic system components appear in a message? Rev needs that to discuss how one part talks to another. She is explicit that she does not mean arbitrary filenames, and that adopting it is the owner's choice | A: yes, for names on that short list, in plain prose. Still blocked: any other filename, any path into the live data folders, the vault key, the leads workbook and engagements folder as paths, and any folder holding authorized real-sample material | B: keep the current block on those names | **A.** I withdraw my claim that a file's name reveals nothing: Rev is right that a filename can contain an identity. The proposal is only a short fixed list, kept in the repo for you to read; any other filename stays refused. It loosens a guard, so it is yours to say (5.1) |
 
-**Still open: D8 only** (the C7 reading). Rev and I recommend the same thing, so
-if you simply say "adopt it", that closes it.
+**D8 is decided** (the owner, by pop-up, 18 October 2026: "Adopt it"): a supported
+defect of fact is stated plainly with evidence, and a judgment call is put as a
+question. **D10 is confirmed** (same pop-up: "Yes, that split"). **No decision is
+open.** The owner also authorised marking this pull request and PR 458 ready and
+merging them once review is complete.
 
 Once a shared place is approved, **this terminal stops being the channel**: Rev's
 messages arrive in `exchange\from-rev\` and the terminal goes back to being where
@@ -1063,19 +1067,11 @@ document arrived. Engagement reference 2026-0000 is synthetic.
 
 ---
 
-## 12. Follow-ups for the owner (revision 7)
+## 12. Follow-ups for the owner (revision 8)
 
-1. **D8, C7.** Say "adopt it" to close it: a supported defect of fact stated
-   plainly with evidence, and a judgment call put as a question. Rev and I
-   recommend the same.
-2. **D10, a check on my reading.** I read "she will carry it to you" as: Rev can
-   carry approvals for reversible things inside this arrangement, and the owner
-   still says "approved" directly for the short list in 4.5 that cannot be undone
-   or leaves the machine. If you want a different line, move items between the
-   lists.
-3. **Build the exchange?** Not asked yet. Rev, after the owner's "I'm good with
-   this", took it to mean we proceed with our coordination and work through
-   priorities, not a build. I have not built anything. Say so if you want it.
+**None.** Every question put to the owner has an answer on record (section 1.1).
+Open items are about the exchange itself: Rev's first reply (section 15) and the
+success test (section 10).
 
 ---
 
@@ -1181,3 +1177,54 @@ extension) is refused unless it is on this list. Rev's reason is right: a
 filename can contain an identity. The list is a file in the repo; adding a name
 is a one-line change the owner can see in a diff, and a test fails if the guard
 and this list ever disagree.
+
+---
+
+## 15. As built (revision 8)
+
+The owner said "build the exchange" in the Bassy session on 18 October 2026. It
+is in `forge-exchange/` (PR 458), and a copy runs from the `bin` folder inside
+the shared folder. What exists, measured:
+
+| | |
+|---|---|
+| Tests | 49 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 22 deliberate breakages of guard and safety rules, 22 caught. The first run had 3 survivors; two rules were partly redundant with others (phone numbers and the vault key were also caught by the digit-run and file-extension rules) and one test never isolated its rule. The tests were tightened to check the reason for each refusal, and the check was rerun |
+| Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
+| Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
+| False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
+| Installed | The shared folder with goals, a local deny-list (employer name and two real-sample folder names; not in git), the skill in the user skills folder (the tool listed it as available right after) |
+| First message | B-0001 was posted to Rev, a question, asking her to run `status` and, if her tools allow, post one short reply |
+
+**Deviations from this plan, found while building:**
+
+1. **Filename rule narrowed.** I said any filename-shaped word not on the list is
+   refused. As built, only data-document extensions are refused (spreadsheets,
+   databases, PDFs, documents, images, archives, keys, mail files). Otherwise
+   neither of us could name `exchange.py` or `GOALS.md`.
+2. **Line anchors allowed.** A link fragment like `#L953` (a GitHub line anchor)
+   passes; any other fragment, and any query string, is refused. Rev's records
+   use line anchors heavily.
+3. **The script lives in two places** (the repo and `bin`), by design so both of
+   us run the same thing whatever happens to any checkout. A test keeps them
+   equal; refreshing `bin` is a manual copy that only Bassy does.
+
+**Not tested, said plainly:**
+
+- Rev's write path into the real folder, and whether she can run the script. Her
+  sandbox account was read-only on the folders I checked, and she says what she
+  can do depends on the task. Her first reply to B-0001 is the real test.
+- Session recovery, the second half of the success test (section 10): closing a
+  session, starting a fresh one and asking it known-answer questions, including
+  "I do not know" ones. Not yet run.
+- Whether the exchange reduces the owner's relaying. That is measured in use.
+- The pop-up and notification route for approvals is available to me in this
+  session (the owner answered three questions by pop-up). It does not reach Rev.
+- Anything on a machine other than the Forge.
+
+**How I get the owner's approval now.** For anything on the "needs the owner's own
+words" list (4.5), I ask by pop-up in this session, with both outcomes and my
+recommendation. The owner's answer is the approval and is recorded with its
+date. For things Rev carries, she posts a message quoting the owner's words and
+naming the item; I act on it only if it is reversible and inside the arrangement.
+
