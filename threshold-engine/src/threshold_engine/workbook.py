@@ -961,7 +961,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     _ref_header(gl, 4, ["Term", "What it means", "How it is calculated"], 2)
     widths_g = (30.7, 90.7, 90.7)
     from .glossary import terms_for
-    for i, (term, meaning, calc) in enumerate(terms_for(kind) if kind is not None else TERMS):
+    held = {v[1] for v in decide["parts"].values()} if decide is not None else ()
+    for i, (term, meaning, calc) in enumerate(terms_for(kind, measures=held) if kind is not None else TERMS):
         rr = 5 + i
         for col, v in enumerate((term, meaning, calc), start=2):
             c = gl.cell(rr, col, v)

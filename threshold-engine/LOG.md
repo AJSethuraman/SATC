@@ -2868,3 +2868,112 @@ and restarted with 4 workers.
   changes but not events. Its products are consumer, and the only events
   name C&I, so nothing it writes today misses one.
 - The window (`launcher.py`) was not changed for combined products.
+
+## 18 Oct 2026: the commercial book rebuilt on the merged branch, and looked at
+
+- **Built** at 83b4ce6e (the merged branch, before the fix below),
+  `python -m threshold_engine book books/commercial-public.json
+  scratchpad/commercial-public.xlsx` on the cache `cache-commercial`
+  (scratch venv, Python 3.13): **2,055 s (34 min), exit 0**, nothing refused.
+  Printed: "left out as built: 28 spans"; "reporting changes: 12, and 2
+  events"; "peer group: 12 series follow the banks in the pack on Peers";
+  "commercial names: 43587 pieces of text on 11 tabs say portfolio and the
+  portfolios' names"; "Wrote ...: 48 series, 142 quarters". The build also
+  wrote 30+ to charge-off files for the six portfolios (8 of 8 each), which
+  no series of this book reads.
+  - **KeyBank's C&I net charge-offs: 86 quarters written, 2003Q4 to
+    2026Q2**, continuing across 2024Q4 to 2025Q4 (5 windows left out within
+    it, not written; the file's left-out line and Sources C79 say the jump
+    tripped in 2024Q4, a quarter the NDFI revision names for C&I). 1992Q1 to
+    2003Q3 (47 quarters) are before the last break (2003Q3 missing). Same as
+    the 18 Oct build of e99bc5b4.
+  - KeyBank's Multifamily net charge-offs now print "86 quarters, 5 left out
+    within it" where the e99bc5b4 build printed "91 quarters". The data is
+    the same (the Data tab of both builds compared, 2008 to 2010 and 2024 to
+    2025: identical, 2009Q1 to 2010Q1 blank in both); the count is now of
+    quarters written (acbdbab9). Its 2009Q1 to 2010Q1 windows continue across
+    "Secured by real estate, clarified" (left-out.csv).
+- **Counted by LibreOffice** (24.2, through UNO: loaded, recalculated,
+  every formula cell's result read): formula cells and errors by tab, as
+  saved. Decide 4,286: 1 `#N/A` (AA3, the MATCH of the shown row's series,
+  blank because no row has a source yet; with a source typed it is a number)
+  and 2,389 `NA()` by design. Summary 201, Peers 451, Thresholds 360, Lines
+  by source 1,032, Run 252, Data 48,619, Peers data 26,496, Peers
+  delinquency data 272,640: 0. Assess 3,699: 289 `NA()` by design. Chart
+  7,861: 6,566 `NA()` by design. Peers workings 46,216: 2,837 `NA()` by
+  design, 79 `=cell` passing one on, 40 an `IF` passing on the composite's
+  `NA()` (WE, below the banks needed). With Peers set to Multifamily, Peers
+  workings 3,037 / 91 / 40 and every other tab the same. Evidence, Backtest,
+  Glossary, Sources and Reporting changes hold no formulas. LibreOffice
+  knows `SUBTOTAL`, so Decide's 3,362 `#NAME?` under `formulas` (the e99bc5b4
+  build) are not here. Nothing was opened in Excel; nothing can be opened in
+  Excel here.
+- **Rendered** Summary, Decide and Peers to PDF and PNG at 80 dpi
+  (`scratchpad/round2-png/`). Peers set to C&I (as saved) and to
+  Multifamily, typed into Peers!B5 in LibreOffice: the build has no setting
+  for the portfolio Peers opens on (it opens on the first, C&I). Decide also
+  with "Peer median (15 banks)" typed under Lines set from on the shown row
+  (C&I net charge-offs), and with every row of its table shown.
+  - **What LibreOffice cannot show.** Every chart range on Peers and Decide
+    is an `OFFSET` defined name (the window under Charts show), and
+    LibreOffice draws none of them: the as-saved pages show empty charts. A
+    render copy (not the workbook) points each chart at the rows its name
+    gives for the window as LibreOffice calculated it (Peers rows 92 to 139,
+    2014Q3 to 2026Q2; Decide rows 96 to 143), and writes Decide's area chart
+    before its line chart, because LibreOffice draws in the order written and
+    Excel always draws areas behind lines. On the Peers charts LibreOffice
+    draws every `#N/A` point at zero (a row of diamonds along zero; KeyBank's
+    C&I line dropping to 0 for 2024Q4 to 2025Q4); on Decide's chart the same
+    cells are gaps. The cells are `#N/A` (read through UNO), so the zeros are
+    LibreOffice's; how Excel joins the line across them was not checked.
+    The shaded bands on Peers (up-down bars) are not drawn; slicers are not
+    drawn.
+  - **Portfolio**, never Product, on all three tabs and in the PDF text of
+    every page rendered; no bare NDFI; no Call Report portfolio name. The
+    commercial names whole: C&I, Nonfarm nonresidential CRE, Owner-occupied
+    CRE, Investor CRE (non-owner-occupied), Multifamily, Construction.
+  - **The share panel** ("KeyBank's commercial book: share by portfolio")
+    stacks to 100%, captioned "No loan counted twice"; in the cells (read
+    through UNO) the nonfarm parent is 0 wherever the parts are drawn
+    (2011Q3 on) and the parts 0 before. At 2026Q2 C&I is 35.3 of 52.5 ($bn),
+    about two thirds, as drawn.
+  - **Decide's first column wraps**: with every row shown, "Investor CRE
+    (non-" / "owner-occupied)", "Nonfarm" / "nonresidential CRE",
+    "Owner-occupied" / "CRE", each whole on two lines.
+  - **KeyBank C&I across 2024Q4 to 2025Q4**: on Decide's chart (source
+    picked) the KeyBank dashed line runs from 2014 to 2024Q3, has a gap for
+    the five windows and goes on at 2026Q1 and 2026Q2; it does not start
+    after them. Reporting-change diamonds sit along the top at 2024Q4,
+    2025Q1 and 2025Q2 (the NDFI revision's quarters) and at 2020Q1; the two
+    later windows left out (2025Q3, 2025Q4) carry no mark on either chart.
+    The label that the series continues across them is in the text (Sources
+    C79, the series file, left-out.csv), not on a chart.
+- **Found and fixed (one commit): the commercial Glossary defined three
+  measures its book does not hold** — "30+ to charge-off", the two gaps on
+  it, and "Share paying only the minimum" ("Of the active consumer credit
+  card accounts at the large banks ..."), from the early-warning work of
+  6e7d2da0. `glossary.terms_for` now takes the measures the book holds and
+  leaves off a term of `MEASURE_TERMS` when the book holds none of its
+  measures; the consumer book, which holds all three, keeps them where they
+  were. The terms' wording is unchanged. Tests in `test_commercial_book.py`
+  (the measure names checked against `flows.MEASURE`,
+  `large_banks.MEASURES` and the consumer book's floor_off; the built
+  commercial fixture's Glossary); with the rule undone, both fail (checked).
+  Run after the fix: `test_commercial_book.py`, `test_book.py`,
+  `test_large_banks.py`, `test_floor_off.py`, `test_peers_flows.py`: 59
+  passed. `test_decide.py`, `test_internal_tab.py`, `test_peers_into.py`,
+  `test_reporting_changes.py`, `test_workbook.py`,
+  `test_workbook_synthesis.py`, `test_left_out.py`,
+  `test_peers_combined_products.py`, `test_stated_acquisitions.py` with 4
+  workers: 308 passed, 5 lost when their workers were killed for memory (the
+  15 GB machine's limit, LibreOffice holding 2.3 GB beside them); those 5 run
+  alone: 5 passed (30 min). The rest of the suite was not re-run.
+- **Found, not fixed**: the 30+ to charge-off term argues its two-quarter
+  horizon from consumer charge-off rules ("A card charges off at 180 days
+  past due and a closed-end consumer loan at 120"), and the build writes 30+
+  to charge-off files for the commercial portfolios. No commercial series
+  reads them today; if a commercial book ever rates one, that reasoning does
+  not carry over. A question for whoever owns that measure.
+- **Not done**: the commercial book was not rebuilt after the fix (only its
+  Glossary changes); the consumer book was not rebuilt; nothing was opened
+  in Excel.

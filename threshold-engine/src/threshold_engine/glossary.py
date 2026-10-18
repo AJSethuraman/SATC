@@ -488,13 +488,32 @@ _names = [t for t, _, _ in TERMS]
 INTERNAL_TAB_TERMS = frozenset(_names[_names.index(_FIRST):_names.index(_LAST) + 1])
 
 
-def terms_for(kind: dict):
-    """TERMS for a book of ``kind`` (an entry of ``kinds.KINDS``): the first
-    part's example is the kind's own, and the Internal tab's terms are left
-    off where the kind builds no Internal tab."""
+#: The terms that define one or more measures, each with the measures it
+#: defines (``peers.flows.MEASURE``, the book's floor_off gaps,
+#: ``peers.large_banks.MEASURES``): a book's Glossary gives one only when the
+#: book holds a series of one of them, so a commercial book, which holds none,
+#: does not define a consumer credit card share or a cure rate argued from
+#: consumer charge-off rules.
+MEASURE_TERMS = {
+    "30+ to charge-off": ("30+ to charge-off",),
+    "Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off":
+        ("Gap to peers on 30+ to charge-off", "Gap to industry on 30+ to charge-off"),
+    "Share paying only the minimum": ("Share paying only the minimum",),
+}
+
+
+def terms_for(kind: dict, *, measures):
+    """TERMS for a book of ``kind`` (an entry of ``kinds.KINDS``) holding
+    series of ``measures`` (the second part of each series' name): the first
+    part's example is the kind's own, the Internal tab's terms are left off
+    where the kind builds no Internal tab, and a term of ``MEASURE_TERMS`` is
+    left off where the book holds none of its measures."""
+    held = set(measures)
     out = []
     for term, meaning, calc in TERMS:
         if term in INTERNAL_TAB_TERMS and not kind["internal_tab"]:
+            continue
+        if term in MEASURE_TERMS and not held & set(MEASURE_TERMS[term]):
             continue
         if term == "Product":
             meaning = meaning.replace("such as Credit card", "such as %s" % kind["example"])

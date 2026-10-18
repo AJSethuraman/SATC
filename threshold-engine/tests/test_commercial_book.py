@@ -137,14 +137,52 @@ def test_a_combined_portfolio_is_its_parts_commercial_names_joined(tmp_path):
 
 def test_the_glossary_says_what_a_combined_portfolio_is_without_consumer_words():
     from threshold_engine import glossary as G
-    term = {t: (m, c) for t, m, c in G.terms_for(KD.KINDS["commercial"])}["Combined product"]
+    term = {t: (m, c) for t, m, c in G.terms_for(KD.KINDS["commercial"], measures=())}["Combined product"]
     said = KD.commercial_text(" ".join(term))
     assert "All consumer" not in said and "auto" not in said.lower() and "Combined portfolio" not in said
     assert said.startswith("A portfolio made of others: two or more joined by ' + '.")
     assert "Nonfarm nonresidential CRE may not be joined with Owner-occupied CRE or Investor CRE" in said
     assert G.COMBINED_CHANGES in " ".join(term)
-    consumer = {t: (m, c) for t, m, c in G.terms_for(KD.KINDS["consumer"])}["Combined product"]
+    consumer = {t: (m, c) for t, m, c in G.terms_for(KD.KINDS["consumer"], measures=())}["Combined product"]
     assert "All consumer" in consumer[0] and G.COMBINED_CHANGES in consumer[1]
+
+
+def test_a_measures_terms_are_given_only_where_the_book_holds_that_measure():
+    """The 30+ to charge-off, gap and minimum payment terms define measures:
+    a book's Glossary gives each only when it holds a series of one of them.
+    The names are the ones the builds write (the real commercial build of 18
+    Oct 2026 gave a commercial Glossary all three, its series holding none)."""
+    from threshold_engine import glossary as G
+    from threshold_engine.peers import flows, large_banks
+    assert G.MEASURE_TERMS["30+ to charge-off"] == (flows.MEASURE,)
+    assert G.MEASURE_TERMS["Share paying only the minimum"] == tuple(large_banks.MEASURES)
+    consumer = json.loads((ROOT / "books" / "consumer-public.json").read_text())
+    gaps = G.MEASURE_TERMS["Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off"]
+    assert set(gaps) == set(consumer["floor_off"])
+    for kind in ("commercial", "consumer"):
+        none = [t for t, _, _ in G.terms_for(KD.KINDS[kind], measures=("Net charge-offs", "Nonaccrual"))]
+        assert not set(none) & set(G.MEASURE_TERMS), kind
+        assert "Floor at zero" in none and "Measure" in none, kind
+    for term, held in G.MEASURE_TERMS.items():
+        for m in held:
+            got = [t for t, _, _ in G.terms_for(KD.KINDS["consumer"], measures=("Net charge-offs", m))]
+            assert term in got and not set(got) & (set(G.MEASURE_TERMS) - {term}), (term, m)
+    # Where they were: after Combined product, in the order TERMS holds them.
+    every = [t for t, _, _ in G.terms_for(KD.KINDS["consumer"],
+                                          measures=[m for ms in G.MEASURE_TERMS.values() for m in ms])]
+    assert every == [t for t, _, _ in G.TERMS if t not in G.INTERNAL_TAB_TERMS or KD.KINDS["consumer"]["internal_tab"]]
+
+
+def test_a_commercial_glossary_defines_no_measure_its_book_does_not_hold(built):
+    """Built end to end: the commercial fixture book holds net charge-offs and
+    nonaccrual only, so its Glossary defines none of the three."""
+    terms = {r[1].value for r in load_workbook(built["commercial"][0])["Glossary"].iter_rows()
+             if isinstance(r[1].value, str)}
+    assert "Floor at zero" in terms and not terms & set(MEASURE_TERM_NAMES)
+
+
+MEASURE_TERM_NAMES = ("30+ to charge-off", "Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off",
+                      "Share paying only the minimum")
 
 
 def test_a_commercial_book_has_no_internal_or_loan_classes_section(tmp_path):
