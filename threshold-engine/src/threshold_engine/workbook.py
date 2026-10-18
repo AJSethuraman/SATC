@@ -427,7 +427,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     for label, path in series:
         pts = read_series(Path(path))
         # Quarters the file declares left out (the peers build, where the jump
-        # left windows out only for a reporting change or an event): a gap
+        # left windows out only for a reporting change, never an event): a gap
         # there is read, as None, and nowhere else (series.check).
         left = read_left_out(Path(path))
         ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero, left_out=left)

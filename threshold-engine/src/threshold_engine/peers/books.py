@@ -505,7 +505,7 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     ``why_without_jump`` is the reason the window would have if those moves
     had not tripped it (None: it would be kept), so a caller can tell a
     window left out only by the jump (the firm, 17 Oct 2026, question 16:
-    a move in a quarter a reporting change or an event names does not break
+    a move in a quarter a reporting change names, never an event, does not break
     the series written; ``peers.run.unbroken_tail``). For a window the jump
     does not leave out it is ``why`` itself.
 

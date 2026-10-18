@@ -372,13 +372,13 @@ TERMS = [
      "drawdowns and the PPP loans in C&I. Labelled on every series it touches, in the quarters it covers.",
      "Listed with its source on the Reporting changes tab, under Events. Each series file the peers build "
      "writes carries an Event line for every event touching its product and measure within its quarters, "
-     "shown on Sources. It is never called a reporting change and is not marked on the charts (the firm, "
-     "17 Oct 2026)."),
+     "shown on Sources. It is never called a reporting change, is not marked on the charts, and never keeps "
+     "a series going across a gap: only a reporting change does (the firm, 17 Oct 2026)."),
     ("Continues across",
      "On Sources: quarters a series leaves out and runs across, because the jump left them out only for a move "
-     "in a quarter a reporting change or an event names for that product and measure.",
+     "in a quarter a reporting change names for that product and measure. An event never does.",
      "Those four-quarter windows are not written and never filled; the series keeps every quarter before them "
-     "(the firm, 17 Oct 2026). The file names the moves and the changes or events. Every other reason a window "
+     "(the firm, 17 Oct 2026). The file names the moves and the changes. Every other reason a window "
      "is left out still starts the series after it. The workbook reads this gap and no other: the quarters "
      "stay on Data, blank, in no line, and a year is still four quarters."),
     ("Reporting changes",

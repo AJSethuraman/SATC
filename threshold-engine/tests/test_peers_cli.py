@@ -1293,13 +1293,13 @@ def test_each_peers_banks_file_is_its_own_book_for_that_product(built, data):
     product with no value for a peer has no file.
 
     A peer's own file continues across windows the jump left out only for a
-    move in a quarter a reporting change or an event names for the product
+    move in a quarter a reporting change (never an event) names for the product
     (the firm, 17 Oct 2026, question 16): those quarters are not written,
     and the file declares them."""
     from threshold_engine import reporting_changes as RC
     from threshold_engine.peers.run import bridged, slug as slug_of, unbroken_tail
     from threshold_engine.series import read_left_out
-    changes, events = RC.load_all(ROOT / "config" / "reporting-changes.json")
+    changes, _ = RC.load_all(ROOT / "config" / "reporting-changes.json")
     roster = R.load(ROOT / "config" / "peers.json")
     compared = absent = across = 0
     for p, slug in zip(FOUR, SLUGS):
@@ -1307,7 +1307,7 @@ def test_each_peers_banks_file_is_its_own_book_for_that_product(built, data):
             rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=())
             for kind in ("gross", "net"):
                 path = built["series"] / "banks" / ("%s_%s_%s.csv" % (slug, slug_of(b["short"]), kind))
-                marks = RC.labelled_quarters(changes + events, p, RC.charge_off_measure(kind))
+                marks = RC.labelled_quarters(changes, p, RC.charge_off_measure(kind))
                 tail, _, _ = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows], bridged(rows, marks))
                 if not tail:
                     assert not path.exists(), path.name

@@ -47,10 +47,11 @@ What reads it:
   ``load_events`` checks the same file and returns its events;
 - ``event_lines`` gives the ``# event:`` lines for one series, as
   ``note_lines`` gives the reporting-change lines;
-- ``labelled_quarters`` gives every quarter a change or an event names for a
-  product and measure: a window the jump leaves out only for a move in one of
-  those quarters does not break the series written (the firm, 17 Oct 2026,
-  question 16; ``peers.run.bridged``);
+- ``labelled_quarters`` gives every quarter the entries given name for a
+  product and measure. Given the changes, a window the jump leaves out only
+  for a move in one of those quarters does not break the series written (the
+  firm, 17 Oct 2026, question 16; ``peers.run.bridged``); the events are
+  never given for that, as they are not reporting changes;
 - ``note_lines`` gives the ``# reporting-change:`` lines for one series (its
   products, its measure and its quarters), which ``peers build`` writes into
   every series file it makes, so the Sources tab shows them;
@@ -325,8 +326,9 @@ def event_lines(events: Sequence[dict], products_: Sequence[str], measure: str, 
 
 
 def labelled_quarters(entries: Sequence[dict], product: str, measure: str) -> Set[str]:
-    """Every quarter ('YYYYQn') a change or an event in ``entries`` names for
-    ``product`` on ``measure``: each quarter from its first to its last."""
+    """Every quarter ('YYYYQn') an entry (a change or an event) in ``entries``
+    names for ``product`` on ``measure``: each quarter from its first to its
+    last."""
     return {q for c in entries if product in c["products"] and measure in c["measures"]
             for q in quarters(c["first"], c["last"])}
 

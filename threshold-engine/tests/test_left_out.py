@@ -29,7 +29,6 @@ from threshold_engine.series import (Point, SeriesError, check, left_out_dates, 
 PEERS = ROOT / "tests" / "data" / "peers"
 REGISTRY = ROOT / "config" / "reporting-changes.json"
 CHANGES, EVENTS = RC.load_all(REGISTRY)
-LABELLED = CHANGES + EVENTS
 
 
 def qdates(first_year, n):
@@ -175,19 +174,19 @@ def test_keybanks_ci_runs_from_2006_with_the_ndfi_windows_left_out():
     left = ["2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4"]
     assert sorted(out) == left
     assert all(v == (books.WHY_JUMP, ["2024Q4"], None) for v in out.values())
-    marks = RC.labelled_quarters(LABELLED, "C&I", "net charge-offs")
+    marks = RC.labelled_quarters(CHANGES, "C&I", "net charge-offs")
     assert run.bridged(rows, marks) == set(left)
     old = run.unbroken_tail([(r["quarter"], r["net_rate"]) for r in rows])
     assert [q for q, _ in old[0]] == ["2026Q1", "2026Q2"]
     tail, before, after = run.unbroken_tail([(r["quarter"], r["net_rate"]) for r in rows], run.bridged(rows, marks))
     assert tail[0][0] == "2006Q1" and tail[-1][0] == "2026Q2" and before == [] and after == []
     assert [q for q, v in tail if v is None] == left
-    assert run.named_for(LABELLED, "C&I", "net charge-offs", ["2024Q4"]) == ["NDFI and margin-loan revision"]
+    assert run.named_for(CHANGES, "C&I", "net charge-offs", ["2024Q4"]) == ["NDFI and margin-loan revision"]
 
 
 def test_an_acquisition_or_the_minimum_book_still_breaks_the_series():
     data = keybank_ci()
-    marks = RC.labelled_quarters(LABELLED, "C&I", "net charge-offs")
+    marks = RC.labelled_quarters(CHANGES, "C&I", "net charge-offs")
     bought = books.bank_book(data, "17534", "C&I", 0.25, 0, True, acquired=["20250331"])
     assert {r["quarter"]: r["why_without_jump"] for r in bought if r["quarter"] in ("2025Q1", "2025Q2")} == \
         {"2025Q1": books.WHY_ACQUIRED, "2025Q2": books.WHY_ACQUIRED}
@@ -205,7 +204,7 @@ def test_an_acquisition_or_the_minimum_book_still_breaks_the_series():
 
 def test_the_delinquency_average_continues_across_the_same_windows():
     rows = D.bank_delinquency(keybank_ci(), "17534", "C&I", "nonaccrual", 0.25, 0, True, acquired=[])
-    marks = RC.labelled_quarters(LABELLED, "C&I", "nonaccrual")
+    marks = RC.labelled_quarters(CHANGES, "C&I", "nonaccrual")
     got = run.bridged(rows, marks, without="why_avg4_without_jump", quarter="q")
     assert got == {"2024Q4", "2025Q1", "2025Q2"}       # i-2..i: three averages hold the 2024Q4 move
     assert all(r["rate"] is not None for r in rows)    # a quarter-end rate is never blanked by the jump
@@ -287,7 +286,7 @@ def test_a_consumer_series_continues_across_a_labelled_change_and_breaks_at_an_u
         data[q] = [{"CERT": "17534", "REPDTE": q, "LNCRCD": bal, "DRCRCD": 10.0 * qn, "CRCRCD": 1.0 * qn,
                     "RSSDHCR": "1"}]
     rows = books.bank_book(data, "17534", "Credit card", 0.25, 0, True, acquired=[])
-    marks = RC.labelled_quarters(LABELLED, "Credit card", "net charge-offs")
+    marks = RC.labelled_quarters(CHANGES, "Credit card", "net charge-offs")
     assert run.bridged(rows, marks) == {"2010Q1", "2010Q2", "2010Q3", "2010Q4", "2011Q1"}
     run.build(tmp_path / "peers.xlsx", **build_kw(tmp_path, cache_of(tmp_path, data), "2008Q1", "2015Q4",
                                                    ["Credit card"], False, "2011Q4", (2011, 2013)))
@@ -304,3 +303,36 @@ def test_a_consumer_series_continues_across_a_labelled_change_and_breaks_at_an_u
     assert read_left_out(path) == ["2010-03-31", "2010-06-30", "2010-09-30", "2010-12-31", "2011-03-31"]
     assert "Securitizations back on the books (FAS 166 and 167) names for Credit card" in \
         dict(read_notes(path))["left-out"]
+
+
+def test_a_jump_in_a_quarter_only_an_event_names_still_breaks_the_series(tmp_path):
+    """Question 16 as agreed: "When a labeled reporting change trips the 25%
+    jump ... keep the series going across it". Question 13's record says the
+    2020 drawdowns and the PPP loans "are not reporting changes", and question
+    15 agreed only to label them and leave out the windows the rule catches.
+    So an event never keeps a series going. Here KeyBank's C&I book rises 30%
+    in 2020Q3, a quarter only the PPP event names for C&I charge-offs."""
+    d = json.loads(json.dumps(keybank_ci()))
+    k = 1.3 * d["20200630"][0]["LNCI"] / d["20200930"][0]["LNCI"]     # 2020Q3 is +30% on 2020Q2
+    for q, rows in d.items():
+        if q >= "20200930":
+            for r in rows:
+                r["LNCI"] = r["LNCI"] * k
+    rows = books.bank_book(d, "17534", "C&I", 0.25, 0, True, acquired=[])
+    jumped = {r["quarter"] for r in rows if r["why"] == books.WHY_JUMP and "2020Q3" in r["jumped"]}
+    assert jumped == {"2020Q3", "2020Q4", "2021Q1", "2021Q2", "2021Q3"}
+    assert "2020Q3" not in RC.labelled_quarters(CHANGES, "C&I", "net charge-offs")     # no change names it
+    assert "2020Q3" in RC.labelled_quarters(EVENTS, "C&I", "net charge-offs")          # the PPP event does
+    run.build(tmp_path / "peers.xlsx", **build_kw(tmp_path, cache_of(tmp_path, d), "2005Q1", "2026Q2", ["C&I"],
+                                                   True))
+    s = tmp_path / "series"
+    for name in ("c-i_keybank_net.csv", "c-i_keybank_gross.csv"):
+        pts = read_csv(s / name)
+        # Starts after the event's windows; the NDFI windows, a change's, are still bridged.
+        assert pts[0].date == "2021-12-31", name
+        assert read_left_out(s / name) == ["2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31"]
+        assert "Paycheck Protection" not in dict(read_notes(s / name))["left-out"]
+    dq = s / "c-i_keybank_delinquency-nonaccrual_four-quarter-average.csv"
+    assert not [x for x in read_left_out(dq) if x.startswith(("2020", "2021"))]
+    assert read_csv(dq)[0].date >= "2021-03-31"
+
