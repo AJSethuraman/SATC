@@ -39,6 +39,9 @@ SERIES = [("C&I", "Net charge-offs", "c-i", "net"), ("C&I", "Nonaccrual", "c-i",
            "delinquency-nonaccrual_quarter-end"),
           ("Investor CRE (non-owner-occupied)", "Nonaccrual", "other-nonfarm-nonresidential",
            "delinquency-nonaccrual_quarter-end")]
+#: What the commercial book says of its settings, which are the consumer
+#: book's because the firm has chosen none for commercial.
+PENDING = "Settings: the consumer book's, pending the firm's choice"
 SOURCES = [("Industry", "industry"), ("Peer median", "pack-median"), ("Peer total", "pack-composite"),
            ("KeyBank", "keybank")]
 
@@ -132,6 +135,10 @@ def test_the_books_in_the_repository_state_their_kinds():
     assert json.loads((ROOT / "books" / "consumer-public.json").read_text())["kind"] == "consumer"
     bk = BK.load(ROOT / "books" / "commercial-public.json")
     assert bk["kind"] == "commercial"
+    # The firm has chosen no commercial settings: the book says so in its
+    # name (Summary's and Chart's titles, the Run tab's Measure line) and first note.
+    assert bk["workbook"]["name"].endswith(PENDING)
+    assert bk["decide"]["notes"][0].startswith(PENDING)
     assert {v[0] for v in bk["decide"]["parts"].values()} == set(KD.COMMERCIAL_NAMES.values())
     assert bk["decide"]["compare"] == ("KeyBank", "Peer median (15 banks)")
     assert bk["peers"]["first"] == "1991Q1" and bk["peers"]["min_book"] == 0
@@ -165,7 +172,8 @@ def _book(base, data, kind):
         lambda p: next(k for k, v in KD.COMMERCIAL_NAMES.items() if v == p))
     series = [{word: shown(p), "Measure": m, "Source": s, "file": "series/%s_%s_%s.csv" % (slug, f, ms)}
               for p, m, slug, ms in SERIES for s, f in SOURCES]
-    book = {"kind": kind, "workbook": {"name": "Commercial", "unit": "%", "direction": "higher_is_worse",
+    name = json.loads((ROOT / "books" / "commercial-public.json").read_text())["workbook"]["name"]
+    book = {"kind": kind, "workbook": {"name": name if kind == "commercial" else "Commercial", "unit": "%", "direction": "higher_is_worse",
                                         "frequency": "quarterly", "smoothing": 1, "floor_at_zero": True,
                                         "moderate_halfwidth": 0.5, "low_step": 1.0, "high_z": 2.5,
                                         "on_the_line": "worse", "half_lives": [], "percentiles": [50, 75, 90, 95],
@@ -208,6 +216,16 @@ def built(data, tmp_path_factory):
     finally:
         mp.undo()
     return out
+
+
+def test_the_run_tab_and_the_titles_say_the_settings_are_the_consumer_books(built):
+    def measure_line(wb):
+        run = wb["Run"]
+        return next(run.cell(r, 3).value for r in range(1, 20) if run.cell(r, 2).value == "Measure")
+    wb = load_workbook(built["commercial"][0])
+    assert PENDING in measure_line(wb)
+    assert PENDING in wb["Summary"]["B1"].value
+    assert PENDING not in measure_line(load_workbook(built["consumer"][0]))
 
 
 def texts(wb):

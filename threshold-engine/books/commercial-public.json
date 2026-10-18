@@ -1,7 +1,7 @@
 {
   "kind": "commercial",
   "workbook": {
-    "name": "Commercial credit: net charge-offs (trailing twelve months) and nonaccrual (quarter-end)",
+    "name": "Commercial credit: net charge-offs (trailing twelve months) and nonaccrual (quarter-end). Settings: the consumer book's, pending the firm's choice",
     "unit": "%",
     "direction": "higher_is_worse",
     "frequency": "quarterly",
@@ -37,8 +37,8 @@
     "Peer median (15 banks)"
   ],
   "notes": [
+    "Settings: the consumer book's, pending the firm's choice. The firm has chosen no commercial settings but the minimum book. Every other setting here is the consumer book's (books/consumer-public.json), the ones agreed for credit card, as a starting point, and none is the firm's choice for commercial: the scale and the backtest (moderate_halfwidth 0.5, low_step 1.0, high_z 2.5, horizon 4, min_history 41), the 25% jump, the 5% acquisition share, pro forma, and at least 5 banks in a composite. No extra acquisition is declared: the consumer book's (Fifth Third, 6672=2022Q2) is a consumer acquisition and no commercial one is recorded, so the book index on Peers counts the FDIC record and the stated acquisitions only. The minimum book is 0, the consumer book's and the firm's answer to question 12. Change them on Decide.",
     "The commercial book on the firm's answers of 17 Oct 2026 to questions 1 to 12 of the commercial proposal (docs/COMMERCIAL-PROPOSAL.md, section 5), each agreed with its recommendation. Public data only: the FDIC Call Report; no paid data (question 9) and no SLOOS (question 10). Its own book file (question 11).",
-    "Settings: the firm has chosen no commercial settings but the minimum book. Every other setting here is the consumer book's (books/consumer-public.json), the ones agreed for credit card, as a starting point, and none is the firm's choice for commercial: the scale and the backtest (moderate_halfwidth 0.5, low_step 1.0, high_z 2.5, horizon 4, min_history 41), the 25% jump, the 5% acquisition share, pro forma, and at least 5 banks in a composite. No extra acquisition is declared: the consumer book's (Fifth Third, 6672=2022Q2) is a consumer acquisition and no commercial one is recorded, so the book index on Peers counts the FDIC record and the stated acquisitions only. The minimum book is 0, the consumer book's and the firm's answer to question 12. Change them on Decide.",
     "Portfolios (question 1): C&I; Nonfarm nonresidential CRE with its two parts, Owner-occupied CRE and Investor CRE (non-owner-occupied), filed from 2007Q1; Multifamily; Construction. The answer's 8 rated rows count four segments; here the parent and its two parts are each a row, so there are 12, and which of them is rated has not been said.",
     "Measures: the two the recommendation rates, nonaccrual at quarter-end and net charge-offs over the trailing twelve months. The four it shows and does not rate (30-89 and 90+ days past due, and each with nonaccrual added) are on the Peers tab. Gross charge-offs are in neither list and are not in this book. Nonaccrual is listed first for the CRE portfolios (question 3); C&I keeps net charge-offs first.",
     "Sources (question 4): the lines rest on the peer median, the middle bank of the 15 each quarter, each bank counted once whatever its size; the peer total, kept charge-offs over kept balances of the 15 added together and so weighted by dollars, is beside it. The peer total follows the banks switched on in the pack on Peers; the peer median is as built with all 15 and does not.",

@@ -2553,3 +2553,13 @@ fixed. The rest, one commit each:
   names"; with the old docstring put back it fails (checked). Run:
   `test_book.py` 16 passed; the three touched tests in
   `test_commercial_book.py` passed.
+- **The commercial book says its settings are the consumer book's.** Its
+  name now ends "Settings: the consumer book's, pending the firm's choice",
+  so the titles built from the name (Summary's and Chart's, seen in a
+  fixture build) and the Run tab's Measure line carry it; the settings note moves first and opens with
+  the same words; `books/README.md` says it in bold. No setting changed and
+  none was added. `test_commercial_book.py`: the repository book's name and
+  first note are checked, and the fixture's commercial book now takes the
+  real book's name, so a new test reads the Run tab's Measure line and
+  Summary's title of a built workbook (and that the consumer one says
+  nothing of it). Run: `test_commercial_book.py` 20 passed (22 s).
