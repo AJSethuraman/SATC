@@ -2,6 +2,17 @@
 
 Nothing here guesses. A gap inside the window is refused rather than
 interpolated, because a filled-in quarter is a number nobody published.
+
+One gap is not refused: quarters the file itself declares left out, on a
+``# left-out:`` note line (``read_left_out``). The peers build writes one where
+the jump left windows out only for a move in a quarter a reporting change or an
+event names for the series (the firm, 17 Oct 2026, the commercial proposal's
+question 16): the series continues across them, and they are never filled.
+``check`` given those quarters returns the whole calendar, each declared
+quarter as a ``Point`` whose value is None, so every reader measures a year as
+four quarters of the calendar, never four observations, and leaves the
+declared quarters out of everything it counts. A gap anywhere else, or a
+declared quarter that holds a value, is still refused.
 """
 from __future__ import annotations
 
@@ -96,8 +107,69 @@ def _months(date: str) -> int:
     return int(date[:4]) * 12 + int(date[5:7]) - 1
 
 
-def check(points: Sequence[Point], frequency: str) -> List[Point]:
-    """Dates in order, one per period, no gaps. Returns them sorted."""
+#: The key of the note line declaring the quarters a series leaves out and
+#: continues across (``# left-out: 2024Q4 to 2025Q4. Why ...``).
+LEFT_OUT_KEY = "left-out"
+_RUNS = re.compile(r"(\d{4}Q[1-4](?: to \d{4}Q[1-4])?(?:, \d{4}Q[1-4](?: to \d{4}Q[1-4])?)*)\. ")
+
+
+def _quarter_n(label: str) -> int:
+    return int(label[:4]) * 4 + int(label[5]) - 1
+
+
+def _quarter_date(n: int) -> str:
+    return "%d-%s" % (n // 4, ("03-31", "06-30", "09-30", "12-31")[n % 4])
+
+
+def left_out_line(labels: Sequence[str], why: str) -> str:
+    """The ``left-out:`` note line for quarters (``YYYYQn``, in order) a series
+    continues across: the runs, then ``why``."""
+    runs: List[List[str]] = []
+    for q in labels:
+        if runs and _quarter_n(q) == _quarter_n(runs[-1][1]) + 1:
+            runs[-1][1] = q
+        else:
+            runs.append([q, q])
+    return "%s: %s. %s" % (LEFT_OUT_KEY, ", ".join(a if a == b else "%s to %s" % (a, b) for a, b in runs), why)
+
+
+def left_out_dates(notes: Sequence[Tuple[str, str]]) -> List[str]:
+    """The quarter-end dates (ISO) the ``left-out`` lines among ``notes``
+    (``read_notes``' pairs) declare, in order. A ``left-out`` line that does
+    not begin with its quarters is refused: it would declare nothing while
+    looking as if it did. So is a run written backwards ("2025Q4 to
+    2024Q4"), which would declare no quarter at all."""
+    out: List[str] = []
+    for key, text in notes:
+        if key != LEFT_OUT_KEY:
+            continue
+        m = _RUNS.match(text)
+        if not m:
+            raise ValueError("a left-out note must begin with its quarters, like '2024Q4 to 2025Q4. ', not %r"
+                             % text[:60])
+        for run in m.group(1).split(", "):
+            a, _, b = run.partition(" to ")
+            if b and _quarter_n(b) < _quarter_n(a):
+                raise ValueError("a left-out run must go forwards, like '2024Q4 to 2025Q4', not %r: written "
+                                 "backwards it declares no quarter" % run)
+            out += [_quarter_date(n) for n in range(_quarter_n(a), _quarter_n(b or a) + 1)]
+    return sorted(set(out))
+
+
+def read_left_out(path) -> List[str]:
+    """The quarter-end dates a series file declares left out (``left_out_dates``
+    over its notes); empty for a file that declares none."""
+    return left_out_dates(read_notes(path))
+
+
+def check(points: Sequence[Point], frequency: str, left_out: Sequence[str] = ()) -> List[Point]:
+    """Dates in order, one per period, no gaps. Returns them sorted.
+
+    ``left_out`` is the quarter-end dates the file declares left out
+    (``read_left_out``): a gap made only of those is accepted, and the result
+    is then the whole calendar, each of them a ``Point`` whose value is None.
+    A declared quarter outside the first and last observation, or one that
+    holds a value, is refused; so is a declaration on a monthly series."""
     if frequency not in STEP_MONTHS:
         raise SeriesError("frequency", "frequency must be one of %s, not %r"
                           % (sorted(STEP_MONTHS), frequency))
@@ -114,22 +186,42 @@ def check(points: Sequence[Point], frequency: str) -> List[Point]:
             raise SeriesError("date", "%r is not a calendar date written YYYY-MM-DD" % (p.date,))
     pts = sorted(points, key=lambda p: p.date)
     step = STEP_MONTHS[frequency]
+    declared = sorted(set(left_out))
+    if declared and frequency != "quarterly":
+        raise SeriesError("left-out", "only a quarterly series can declare quarters left out")
+    held = {p.date for p in pts}
+    for d in declared:
+        if d in held:
+            raise SeriesError("left-out", "%s is declared left out but holds a value" % d)
+        if not (pts[0].date < d < pts[-1].date):
+            raise SeriesError("left-out", "%s is declared left out but is not between the first and last "
+                                          "observation (%s to %s)" % (d, pts[0].date, pts[-1].date))
+    out = [pts[0]]
     for a, b in zip(pts, pts[1:]):
         gap = _months(b.date) - _months(a.date)
         if gap == 0:
             raise SeriesError("duplicate", "two observations for %s" % a.date)
         if gap != step:
-            raise SeriesError(
-                "gap", "%s is followed by %s: expected one %s step. A missing "
-                "period is refused, not filled in." % (a.date, b.date, frequency))
-    return pts
+            between = [_quarter_date(n) for n in range(_months(a.date) // 3 + 1, _months(b.date) // 3)]
+            if gap % step or not declared or any(d not in declared for d in between):
+                raise SeriesError(
+                    "gap", "%s is followed by %s: expected one %s step. A missing "
+                    "period is refused, not filled in." % (a.date, b.date, frequency))
+            out += [Point(d, None) for d in between]
+        out.append(b)
+    if declared and len(out) != len(pts) + len(declared):
+        raise SeriesError("left-out", "a quarter declared left out is not a quarter-end of this series")
+    return out
 
 
 def smooth(points: Sequence[Point], periods: int) -> List[Point]:
     """Trailing mean over ``periods`` observations, dated at the last one.
 
     ``periods=1`` is no smoothing. The first ``periods - 1`` observations have
-    no full window and are dropped rather than averaged over fewer.
+    no full window and are dropped rather than averaged over fewer. A window
+    holding a quarter left out (a value of None, ``check``) has no mean: None,
+    never a mean of fewer. None at either end of the result is dropped, so a
+    smoothed series still begins and ends with a value.
     """
     if periods < 1:
         raise SeriesError("smoothing", "smoothing must be 1 or more periods")
@@ -139,5 +231,12 @@ def smooth(points: Sequence[Point], periods: int) -> List[Point]:
     out = []
     for i in range(periods - 1, len(points)):
         window = points[i - periods + 1:i + 1]
-        out.append(Point(points[i].date, sum(p.value for p in window) / periods))
+        out.append(Point(points[i].date, None if any(p.value is None for p in window)
+                         else sum(p.value for p in window) / periods))
+    while out and out[0].value is None:
+        out.pop(0)
+    while out and out[-1].value is None:
+        out.pop()
+    if not out:
+        raise SeriesError("smoothing", "no %d periods in a row are left after the quarters left out" % periods)
     return out

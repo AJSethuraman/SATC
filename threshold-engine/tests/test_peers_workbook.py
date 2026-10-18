@@ -84,7 +84,7 @@ def roster():
 @pytest.fixture(scope="module")
 def books(data, roster):
     return {p: {b["cert"]: bank_book(data, b["cert"], p, JUMP, MIN_BOOK,
-                                     exempt_min_book=b["cert"] == KEYBANK, acquired=())
+                                     exempt_min_book=b["cert"] == KEYBANK, acquired=(), stated=())
                 for b in roster} for p in FOUR}
 
 
@@ -95,7 +95,7 @@ def MERGERS():
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, **RANK)
+              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, stated={}, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -404,7 +404,7 @@ def test_the_product_rate_and_yes_no_cells_move_the_lines(all_peers, regionals_g
         assert_series(wcol(vals, info, "charge_offs", name),
                       [r["gross_rate"] for r in books["Other consumer"][cert]], name)
     assert peers_cell(vals, "B%d" % info["layout"]["v1"]) == \
-        "Charge-offs: other consumer, gross rate, trailing four quarters (%)"
+        "Charge-offs: Other consumer, gross rate, trailing four quarters (%)"   # the name as built, never LOWER()
 
 
 def test_a_named_peer_is_drawn_switched_off_and_min_obs_is_met_at_exactly(all_peers, books, roster, tmp_path):
@@ -841,7 +841,7 @@ def dq_spec(dl_data, **over):
 def dl_books(dl_data, roster, product, measure):
     return {b["cert"]: D.bank_delinquency(dl_data, b["cert"], product, measure, DQ_RULES["jump"],
                                           DQ_RULES["min_book"], DQ_RULES["exempt_self"] and b["cert"] == KEYBANK,
-                                          acquired=())
+                                          acquired=(), stated=())
             for b in roster}
 
 
@@ -930,7 +930,8 @@ def test_delinquency_pickers_move_product_measure_and_basis(dlq, dl_data, roster
     assert peers_cell(vals, "B%d" % (lay["tiles"] + 1)) == "none"
     assert peers_cell(vals, "B%d" % lay["mix_peers"]).startswith("No charge-offs were built for Mortgage")
     assert peers_cell(vals, "B%d" % 6) == "No charge-offs built for this product."
-    assert peers_cell(vals, "J%d" % lay["v1"]) == "Delinquency: mortgage, 30+ incl. nonaccrual, four-quarter average (%)"
+    # The product as built, never LOWER()'d (the example commercial build, 17 Oct 2026: "c&i").
+    assert peers_cell(vals, "J%d" % lay["v1"]) == "Delinquency: Mortgage, 30+ incl. nonaccrual, four-quarter average (%)"
 
 
 def test_delinquency_banks_needed_is_met_at_exactly_that_many(dlq, dl_data, roster, tmp_path):
@@ -1047,7 +1048,8 @@ def test_glossary_lists_everything_left_out_and_why(dlq):
     assert sorted(left) == sorted([
         "Left out: an acquisition (the jump)", "Left out: a small book (the minimum book)",
         "Left out: not filed", "Left out: fewer than four quarters", "Left out: not included",
-        "Left out: too few banks", "Left out: before a gap (series files)"])
+        "Left out: too few banks", "Left out: before a gap (series files)",
+        "Left out: a stated acquisition"])                 # the firm, 17 Oct 2026, question 14
     terms = [r[0] for r in rows]
     first = terms.index("Left out, and why")
     assert set(terms[first + 1:first + 1 + len(left)]) == set(left)
@@ -1055,6 +1057,7 @@ def test_glossary_lists_everything_left_out_and_why(dlq):
     for term, where in (("an acquisition (the jump)", "Why not kept"), ("not filed", "Why not kept"),
                         ("fewer than four quarters", "Why no four-quarter average"),
                         ("not included", "Switched off (No)"), ("too few banks", "never drawn from fewer"),
+                        ("a stated acquisition", "Why not kept"),
                         ("before a gap (series files)", "note names")):
         assert where in left["Left out: " + term][2], term
 
@@ -1162,3 +1165,60 @@ def test_no_reporting_changes_stated_marks_nothing(tmp_path, recent, roster):
                   delinquency=None, acquired=NONE_ACQUIRED, combined={}, **RANK)
         build_peers_workbook(tmp_path / "x.xlsx", recent, roster, ("Credit card",), JUMP, MIN_BOOK, "all",
                              MERGERS(), EXTRAS, "2019Q4", **kw)
+
+
+def _small_chart_heights(path, row):
+    """The drawn height (EMU) of each chart anchored at ``row`` (0-based) on
+    Peers, by the column it starts in."""
+    with zipfile.ZipFile(path) as z:
+        xml = z.read("xl/drawings/drawing1.xml").decode("utf-8")
+    out = {}
+    for a in re.findall(r"<(?:xdr:)?oneCellAnchor>.*?</(?:xdr:)?oneCellAnchor>", xml, re.S):
+        col = int(re.search(r"<(?:xdr:)?col>(\d+)<", a).group(1))
+        r = int(re.search(r"<(?:xdr:)?row>(\d+)<", a).group(1))
+        if r == row:
+            out[col] = int(re.search(r'cy="(\d+)"', a).group(1))
+    return out
+
+
+def test_a_consumer_share_panel_is_unchanged_by_the_stacking_rule(tmp_path, recent, roster):
+    """Commercial products overlap (Nonfarm nonresidential and its parts), so
+    the share panel stacks the parts or the whole, says so in a caption, and
+    the chart gives that caption its last row. Consumer products overlap
+    nothing: the formula is the one the panel always had, there is no
+    caption, and the chart is as tall as the one beside it."""
+    p = tmp_path / "c.xlsx"
+    info = make(p, recent, roster, "all")
+    wb = load_workbook(p)
+    wk, pe = wb["Workings"], wb["Peers"]
+    first = column_index_from_string(info["charge_offs"]["helpers"]["mix"])
+    for r in range(2, len(info["quarters"]) + 2):
+        for j in range(len(FOUR)):
+            f = wk.cell(r, first + j).value
+            m = re.fullmatch(r"=IF\(ISNUMBER\(CHOOSE\(([^,]+),([^)]+)\)\),CHOOSE\(\1,\2\),0\)", f)
+            assert m and m.group(2).count("Data!$G$") == len(FOUR), f
+    assert not [c.value for row in pe.iter_rows() for c in row
+                if isinstance(c.value, str) and "counted twice" in c.value]
+    heights = _small_chart_heights(p, info["layout"]["small_chart"] - 1)
+    assert set(heights) == {1, 9} and heights[1] == heights[9]
+    calc = {row[0]: row[2] for row in PEER_TERMS}
+    gl = {r[1].value: r[3].value for r in wb["Glossary"].iter_rows() if isinstance(r[1].value, str)}
+    assert gl["Consumer book by product"] == calc["Consumer book by product"]
+
+
+def test_a_commercial_share_panel_gives_its_caption_the_last_row(tmp_path):
+    data = json.loads((PEERS / "commercial_2007.json").read_text())
+    roster = R.load(ROOT / "config" / "peers.json")
+    p = tmp_path / "m.xlsx"
+    products = ("C&I", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                "Other nonfarm nonresidential")
+    info = make(p, data, roster, "all", products=products, base="2007Q4", lagged_years=(2007, 2007),
+                lag_years=1, normalisation_years=(2007, 2007), mix_base_year=2007, min_banks=1,
+                acquired={x: {} for x in products})
+    heights = _small_chart_heights(p, info["layout"]["small_chart"] - 1)
+    keep = PW.SMALL_ROWS - PW.MIX_CAPTION_ROWS
+    assert heights[9] * PW.SMALL_ROWS == pytest.approx(heights[1] * keep, rel=1e-3)   # cm, rounded
+    pe = load_workbook(p)["Peers"]
+    cap = pe.cell(info["layout"]["small_chart"] + keep, 10).value
+    assert cap == ("No loan counted twice: the two parts of Nonfarm nonresidential where KeyBank files both, "
+                   "the whole where it does not.")

@@ -251,11 +251,18 @@ def pull(quarters: Sequence[str], fields: Union[str, Sequence[str]],
 #: acquisition for this purpose. Codes and wording are the FDIC's own.
 ACQUISITIONS: Dict[int, str] = {
     211: "Failure - Whole Institution",
+    # Added 17 Oct 2026, the firm's answer to the commercial proposal's
+    # question 17 ("agreed with the recommendation" on the docket form): an
+    # assisted merger is classified as an acquisition, like 211. The merger
+    # record since 1990 was refused on three of these rows (May 1990), so no
+    # peer build before 2005 could run. Marking it does more than leave a
+    # quarter out of a window: see "What marking a code does" below.
+    213: "Merger - Assisted",
     # Added 12 Oct 2026, after this module's own refusal caught it live (two
     # rows, 2008, neither acquirer on the roster). A failed bank's business
     # was split between several buyers, so each buyer's next filing carries a
-    # piece of a bank it did not have. Marking it can only leave a quarter
-    # out of a window; it never adds a number. credit-suite does not list it.
+    # piece of a bank it did not have. credit-suite does not list it. Marking
+    # it does more than leave a quarter out of a window: see below.
     215: "Failure Multiple Acquirer",
     216: "Bridge Bank Resolution",
     217: "Passthrough Receivorship/Conservatorship Resolution",
@@ -264,10 +271,33 @@ ACQUISITIONS: Dict[int, str] = {
     223: "Merger -Without Assistance",
     224: "Affiliated Institution Merger (Pooling)",
 }
+# What marking a code does. Corrected 18 Oct 2026: the notes on 213 and 215
+# said marking a code "can only leave a quarter out of a window; it never adds
+# a number". That is false. A row with a code on this list and an absorbed
+# certificate (OUT_CERT) becomes an absorption link (:func:`absorptions`), and
+# the build reads the links three ways:
+#   - pro forma (peers build --pro-forma): ``books.combination`` makes the
+#     absorbed bank a member of the acquirer's book, and
+#     ``books.combined_flows`` ADDS its balances and charge-offs to the
+#     acquirer's figures for the quarters before the absorption;
+#   - ``books.repeated_ytd``: when the two banks had the same parent, the
+#     absorbed bank's year-to-date figures that the survivor's filing repeats
+#     are taken off;
+#   - ``books.acquired_quarters``: a window covering a quarter where an
+#     acquisition brought in enough of a product's book is left out (without
+#     pro forma, or under it for an absorption that could not be added).
+# :func:`classify` (the acquirer and quarter, no absorbed bank) feeds
+# ``mergers.json`` as well; this note does not describe every reader of it.
 
 #: Events that name an acquirer but do NOT bring a whole bank onto the filing.
 NOT_AN_ACQUISITION: Dict[int, str] = {
     712: "a branch purchase -- some offices changed hands, not a bank",
+    # Added 17 Oct 2026, the firm's answer to question 17: classified as not
+    # an acquisition, like 712. The FDIC's own words for the code are
+    # "Partial Purchase & Assumption - Without Assistance": part of a bank
+    # changed hands, not a whole bank (one row, 1991, in the record since 1990).
+    225: "a partial purchase and assumption without assistance -- part of a bank "
+         "changed hands, not a whole bank",
     810: "the mirror entry the FDIC writes against the acquirer for an "
          "absorption, consolidation or merger already counted above",
     811: "the mirror entry for an FDIC-assisted merger already counted above",

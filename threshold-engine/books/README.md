@@ -40,6 +40,28 @@ row says it was not tested.
 `consumer-public-series.csv` is its series list; open it in Excel to see or
 change what goes in.
 
+`commercial-public.json` is the commercial book on the firm's answers of 17
+Oct 2026 to questions 1 to 12 of `docs/COMMERCIAL-PROPOSAL.md` (on main):
+6 portfolios (C&I, Nonfarm nonresidential CRE and its two parts, Multifamily,
+Construction) x 2 measures (nonaccrual and net charge-offs) from the
+industry, the peer median, the peer total and KeyBank: 48 series, from
+1991Q1 where the data holds it. **Its settings are the consumer book's,
+pending the firm's choice**: the firm has chosen none for commercial but the
+minimum book (0). The book's name says so, so Summary's and Chart's titles
+and the Run tab's Measure line carry it, and so does its first note. It declares no extra
+acquisition: the consumer book's is a consumer deal. Its notes say how each
+answer was applied and
+what was not. Its cache paths name a scratch folder; change them to build it
+elsewhere.
+
+Every book states its `kind`. A consumer book calls the first part
+**Product**; a commercial book calls it **Portfolio**, on every tab, and shows
+its portfolios by commercial names, with the Call Report's own name for each
+on the Glossary. The firm asked only for more commercial names ("names in
+this should be changed to be more commercial ... product sounds consumer");
+the names themselves were proposed by the session that built the book
+(Claude) the same day, 17 Oct 2026, and the firm did not object. A book that does not state its kind is refused.
+
 ## Build it at work: the one file
 
 `Consumer credit thresholds.pyzw` is the whole tool in one file

@@ -32,8 +32,10 @@ did not file at q; a delinquency field is blank; no delinquent dollars; the
 next two quarter-ends are not in the data, or the bank did not file them (a
 flow needs both filings); the product's balance moved more than the jump
 between q and q+2 (a sale or purchase moves charge-offs against the stock);
-an acquisition quarter in q+1..q+2. The jump and the acquisition quarters
-are the build's, as for every other series.
+an acquisition quarter in q+1..q+2; a stated acquisition (one the FDIC
+record cannot see, ``peers.stated``) in q+1..q+2. The jump, the acquisition
+quarters and the stated acquisitions are the build's, as for every other
+series.
 
 The composite over a set of banks is the kept banks' charged-off summed over
 their delinquent summed, needing at least ``min_banks`` banks; the industry
@@ -45,7 +47,7 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Optional, Sequence
 
 from . import delinquency as D
-from .books import WHY_ACQUIRED, WHY_JUMP, _at_least, _by_cert, _contiguous, _flows, label
+from .books import WHY_ACQUIRED, WHY_JUMP, WHY_STATED, _at_least, _by_cert, _contiguous, _flows, label
 
 MEASURE = "30+ to charge-off"
 GAP_PEERS = "Gap to peers on 30+ to charge-off"
@@ -71,16 +73,22 @@ DEFINITION_GAP = ("%s: %s's four-quarter average 30+ to charge-off less %s's, th
                   "with no floor at zero.")
 
 
-def bank_flow(data: Dict[str, list], cert, product: str, jump: float, *, acquired: Iterable[str]) -> List[dict]:
+def bank_flow(data: Dict[str, list], cert, product: str, jump: float, *, acquired: Iterable[str],
+              stated: Iterable[str]) -> List[dict]:
     """One row per quarter-end in ``data``: ``{q, delinquent, charged_off,
     rate, avg4, kept, why, why_avg4}``, ``q`` labeled ``YYYYQn``.
-    ``jump`` (0.25 = 25%) and ``acquired`` (the bank's acquisition quarter-ends,
-    ``YYYYMMDD``, as ``books.acquired_quarters`` gives them) are required."""
+    ``jump`` (0.25 = 25%), ``acquired`` (the bank's acquisition quarter-ends,
+    ``YYYYMMDD``, as ``books.acquired_quarters`` gives them) and ``stated``
+    (the bank's stated acquisitions' quarter-ends, ``YYYYMMDD``,
+    ``peers.stated``; the firm, 17 Oct 2026, question 14: every product's
+    windows holding one are left out, with their own reason) are required."""
     _at_least("jump", jump, 0)
-    if isinstance(acquired, str):
-        raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
+    for name, v in (("acquired", acquired), ("stated", stated)):
+        if isinstance(v, str):
+            raise ValueError("%s is a list of quarter-ends, not %r" % (name, v))
     qs, snap = _by_cert(data)
-    return _bank_flow(qs, snap, _contiguous(qs), str(cert), product, jump, {label(q) for q in acquired})
+    return _bank_flow(qs, snap, _contiguous(qs), str(cert), product, jump, {label(q) for q in acquired},
+                      {label(q) for q in stated})
 
 
 def industry(data: Dict[str, list], product: str) -> List[dict]:
@@ -91,11 +99,12 @@ def industry(data: Dict[str, list], product: str) -> List[dict]:
     qs, snap = _by_cert(data)
     follows = _contiguous(qs)
     certs = sorted({c for q in qs for c in snap[q]})
-    books = {c: _bank_flow(qs, snap, follows, c, product, None, set()) for c in certs}
+    books = {c: _bank_flow(qs, snap, follows, c, product, None, set(), set()) for c in certs}
     return composite(books, certs, 0)
 
 
-def _bank_flow(qs, snap, follows, cert: str, product: str, jump: Optional[float], bought: set) -> List[dict]:
+def _bank_flow(qs, snap, follows, cert: str, product: str, jump: Optional[float], bought: set,
+               told: set) -> List[dict]:
     flows = _flows(qs, snap, cert, product)                   # (q, gross, recoveries, balance), own filings
     _, p3, p9, na = D._fields(product)
     rows = []
@@ -132,6 +141,8 @@ def _bank_flow(qs, snap, follows, cert: str, product: str, jump: Optional[float]
                         why = moved
                     elif any(label(qs[k]) in bought for k in (i + 1, i + 2)):
                         why = WHY_ACQUIRED
+                    elif any(label(qs[k]) in told for k in (i + 1, i + 2)):
+                        why = WHY_STATED
                     else:
                         co = flows[i + 1][1] + flows[i + 2][1]
         rate = 100 * co / delinquent if why is None else None

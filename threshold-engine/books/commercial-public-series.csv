@@ -1,0 +1,49 @@
+Portfolio,Measure,Source,file
+C&I,Net charge-offs,Industry,out/commercial-series/c-i_industry_net.csv
+C&I,Net charge-offs,Peer median (15 banks),out/commercial-series/c-i_pack-median_net.csv
+C&I,Net charge-offs,Peer total (15 banks),out/commercial-series/c-i_pack-composite_net.csv
+C&I,Net charge-offs,KeyBank,out/commercial-series/c-i_keybank_net.csv
+C&I,Nonaccrual,Industry,out/commercial-series/c-i_industry_delinquency-nonaccrual_quarter-end.csv
+C&I,Nonaccrual,Peer median (15 banks),out/commercial-series/c-i_pack-median_delinquency-nonaccrual_quarter-end.csv
+C&I,Nonaccrual,Peer total (15 banks),out/commercial-series/c-i_pack-composite_delinquency-nonaccrual_quarter-end.csv
+C&I,Nonaccrual,KeyBank,out/commercial-series/c-i_keybank_delinquency-nonaccrual_quarter-end.csv
+Nonfarm nonresidential CRE,Nonaccrual,Industry,out/commercial-series/nonfarm-nonresidential_industry_delinquency-nonaccrual_quarter-end.csv
+Nonfarm nonresidential CRE,Nonaccrual,Peer median (15 banks),out/commercial-series/nonfarm-nonresidential_pack-median_delinquency-nonaccrual_quarter-end.csv
+Nonfarm nonresidential CRE,Nonaccrual,Peer total (15 banks),out/commercial-series/nonfarm-nonresidential_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Nonfarm nonresidential CRE,Nonaccrual,KeyBank,out/commercial-series/nonfarm-nonresidential_keybank_delinquency-nonaccrual_quarter-end.csv
+Nonfarm nonresidential CRE,Net charge-offs,Industry,out/commercial-series/nonfarm-nonresidential_industry_net.csv
+Nonfarm nonresidential CRE,Net charge-offs,Peer median (15 banks),out/commercial-series/nonfarm-nonresidential_pack-median_net.csv
+Nonfarm nonresidential CRE,Net charge-offs,Peer total (15 banks),out/commercial-series/nonfarm-nonresidential_pack-composite_net.csv
+Nonfarm nonresidential CRE,Net charge-offs,KeyBank,out/commercial-series/nonfarm-nonresidential_keybank_net.csv
+Owner-occupied CRE,Nonaccrual,Industry,out/commercial-series/owner-occupied-nonfarm-nonresidential_industry_delinquency-nonaccrual_quarter-end.csv
+Owner-occupied CRE,Nonaccrual,Peer median (15 banks),out/commercial-series/owner-occupied-nonfarm-nonresidential_pack-median_delinquency-nonaccrual_quarter-end.csv
+Owner-occupied CRE,Nonaccrual,Peer total (15 banks),out/commercial-series/owner-occupied-nonfarm-nonresidential_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Owner-occupied CRE,Nonaccrual,KeyBank,out/commercial-series/owner-occupied-nonfarm-nonresidential_keybank_delinquency-nonaccrual_quarter-end.csv
+Owner-occupied CRE,Net charge-offs,Industry,out/commercial-series/owner-occupied-nonfarm-nonresidential_industry_net.csv
+Owner-occupied CRE,Net charge-offs,Peer median (15 banks),out/commercial-series/owner-occupied-nonfarm-nonresidential_pack-median_net.csv
+Owner-occupied CRE,Net charge-offs,Peer total (15 banks),out/commercial-series/owner-occupied-nonfarm-nonresidential_pack-composite_net.csv
+Owner-occupied CRE,Net charge-offs,KeyBank,out/commercial-series/owner-occupied-nonfarm-nonresidential_keybank_net.csv
+Investor CRE (non-owner-occupied),Nonaccrual,Industry,out/commercial-series/other-nonfarm-nonresidential_industry_delinquency-nonaccrual_quarter-end.csv
+Investor CRE (non-owner-occupied),Nonaccrual,Peer median (15 banks),out/commercial-series/other-nonfarm-nonresidential_pack-median_delinquency-nonaccrual_quarter-end.csv
+Investor CRE (non-owner-occupied),Nonaccrual,Peer total (15 banks),out/commercial-series/other-nonfarm-nonresidential_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Investor CRE (non-owner-occupied),Nonaccrual,KeyBank,out/commercial-series/other-nonfarm-nonresidential_keybank_delinquency-nonaccrual_quarter-end.csv
+Investor CRE (non-owner-occupied),Net charge-offs,Industry,out/commercial-series/other-nonfarm-nonresidential_industry_net.csv
+Investor CRE (non-owner-occupied),Net charge-offs,Peer median (15 banks),out/commercial-series/other-nonfarm-nonresidential_pack-median_net.csv
+Investor CRE (non-owner-occupied),Net charge-offs,Peer total (15 banks),out/commercial-series/other-nonfarm-nonresidential_pack-composite_net.csv
+Investor CRE (non-owner-occupied),Net charge-offs,KeyBank,out/commercial-series/other-nonfarm-nonresidential_keybank_net.csv
+Multifamily,Nonaccrual,Industry,out/commercial-series/multifamily_industry_delinquency-nonaccrual_quarter-end.csv
+Multifamily,Nonaccrual,Peer median (15 banks),out/commercial-series/multifamily_pack-median_delinquency-nonaccrual_quarter-end.csv
+Multifamily,Nonaccrual,Peer total (15 banks),out/commercial-series/multifamily_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Multifamily,Nonaccrual,KeyBank,out/commercial-series/multifamily_keybank_delinquency-nonaccrual_quarter-end.csv
+Multifamily,Net charge-offs,Industry,out/commercial-series/multifamily_industry_net.csv
+Multifamily,Net charge-offs,Peer median (15 banks),out/commercial-series/multifamily_pack-median_net.csv
+Multifamily,Net charge-offs,Peer total (15 banks),out/commercial-series/multifamily_pack-composite_net.csv
+Multifamily,Net charge-offs,KeyBank,out/commercial-series/multifamily_keybank_net.csv
+Construction,Nonaccrual,Industry,out/commercial-series/construction_industry_delinquency-nonaccrual_quarter-end.csv
+Construction,Nonaccrual,Peer median (15 banks),out/commercial-series/construction_pack-median_delinquency-nonaccrual_quarter-end.csv
+Construction,Nonaccrual,Peer total (15 banks),out/commercial-series/construction_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Construction,Nonaccrual,KeyBank,out/commercial-series/construction_keybank_delinquency-nonaccrual_quarter-end.csv
+Construction,Net charge-offs,Industry,out/commercial-series/construction_industry_net.csv
+Construction,Net charge-offs,Peer median (15 banks),out/commercial-series/construction_pack-median_net.csv
+Construction,Net charge-offs,Peer total (15 banks),out/commercial-series/construction_pack-composite_net.csv
+Construction,Net charge-offs,KeyBank,out/commercial-series/construction_keybank_net.csv

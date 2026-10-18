@@ -44,6 +44,7 @@ from conftest import DATA, ROOT
 from threshold_engine import reporting_changes as RC
 from threshold_engine.book import PEER_TAB_NAMES
 from threshold_engine.peers import peers_workbook as PW
+from threshold_engine.peers.glossary import PEER_TERMS
 from threshold_engine.peers import roster as R
 from threshold_engine.peers import run
 
@@ -114,7 +115,7 @@ def build(module, out, data, roster, products, pack="all", **over):
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
                                            json.loads((PEERS / "mergers_roster.json").read_text()),
                                            {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
-                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES}))
+                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": {}}))
     finally:
         mp.undo()
 
@@ -153,6 +154,7 @@ def run_build(out, cache, series, **over):
               pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12, base_quarter="2019Q4",
               index_min_book=500_000.0, lagged_years=[2019, 2025], lag_years=2, normalisation_years=[2019, 2025],
               mix_base_year=2019, delinquency=True, reporting_changes=ROOT / "config" / "reporting-changes.json",
+              stated_acquisitions=None,
               say=lambda s: None)
     kw.update(over)
     return run.build(out, **kw)
@@ -171,7 +173,8 @@ def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_pat
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
-                        lambda *a, into=None, names=None, combined=None, changes=None, **kw:
+                        lambda *a, into=None, names=None, combined=None, changes=None, stated=None,
+                        book_kind=None, **kw:
                         OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")
     assert load_workbook(old["out"]).sheetnames == ["Peers", "Workings", "Glossary", "Data", "DelinquencyData",
@@ -277,7 +280,7 @@ def test_the_glossary_and_run_are_second_sections_of_the_hosts(into_and_alone):
         ["Term", "What it means", "How it is calculated"]
     mine = section_rows(alone["Glossary"], 5, 2, 3)
     theirs = section_rows(g, 6, 1, 3)
-    assert len(mine) == len(PW.PEER_TERMS) == len(theirs)
+    assert len(mine) == len(PEER_TERMS) == len(theirs)
     assert theirs == [tuple(words(v) for v in r) for r in mine]
     assert any("Peers data tab" in v for r in theirs for v in r)
     r_ = wb["Run"]
@@ -397,7 +400,7 @@ def test_the_sections_go_after_the_hosts_content_when_its_tabs_come_later(tmp_pa
     g = saved["Glossary"]
     assert g["B14"].value == "Peers terms" and g["B15"].value == "Term" and g["B16"].value == "Pack"
     assert [r for r in range(1, g.max_row + 1) if g.cell(r, 2).value == "Peers terms"] == [14]
-    assert g.max_row == 15 + len(PW.PEER_TERMS)
+    assert g.max_row == 15 + len(PEER_TERMS)
     r_ = saved["Run"]                                      # nothing made a Run: the save did
     assert r_["A1"].value == "Peers: this build" and saved.sheetnames[-1] == "Run"
     assert "save" not in wb.__dict__                       # the workbook saves as any other from here

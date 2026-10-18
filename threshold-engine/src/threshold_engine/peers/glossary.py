@@ -87,10 +87,10 @@ PEER_TERMS = [
      "Whether a bank's rate for a quarter is used.",
      "TRUE when the average balance is at least the minimum book and above zero, all four quarters' flows "
      "were filed, no quarter-on-quarter move from the quarter before the four through the last was larger "
-     "than the jump, and no recorded acquisition brought in at least the acquisition share (with pro forma, "
-     "only an absorption that could not be added counts). Why says the "
-     "first reason it is not, in that order: a quarter missing from the data, the jump, an acquisition, "
-     "the minimum, a flow not filed."),
+     "than the jump, no recorded acquisition brought in at least the acquisition share (with pro forma, "
+     "only an absorption that could not be added counts), and no stated acquisition is in the window. Why "
+     "says the first reason it is not, in that order: a quarter missing from the data, the jump, an "
+     "acquisition, a stated acquisition, the minimum, a flow not filed."),
     # What is left out, and why: one row per reason, as the bank asked
     # (12 Oct 2026): "it should list what we are omitting and why".
     ("Left out, and why",
@@ -130,10 +130,19 @@ PEER_TERMS = [
      "A quarter in which fewer banks are kept than a composite or band needs.",
      "A quarter with fewer kept banks than the Peers tab asks for is blank, never drawn from fewer. The headline "
      "over each chart counts the banks in at the latest quarter; Workings counts them every quarter."),
+    ("Left out: a stated acquisition",
+     "A quarter in which a bank took in a book the FDIC record cannot see, listed with its filing.",
+     "From the stated acquisitions file the build is given (config/stated-acquisitions.json; the firm, 17 Oct "
+     "2026): a failure with no FDIC row naming the buyer, a deal the FDIC codes as a branch purchase, or an "
+     "asset purchase from a company that is not a bank. Every product's windows holding the quarter are left "
+     "out for that bank, as for a recorded acquisition, with no share measured. Recorded in Why not kept (the "
+     "Data tab, DelinquencyData) and on Run."),
     ("Left out: before a gap (series files)",
      "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
      "A series file is written from the first quarter after its last gap; its note names the quarters left "
-     "out before and after."),
+     "out before and after. One gap does not break it: windows the jump left out only for a move in a quarter "
+     "a reporting change names for the product and measure (an event never does). The file runs across them, declares "
+     "them on its Continues across line and never fills them (the firm, 17 Oct 2026)."),
     ("Composite",
      "The pack's rate as if its banks were one bank: every dollar counts once, so a large book weighs more "
      "than a small one.",
@@ -181,29 +190,6 @@ PEER_TERMS = [
      "minus the pack composite, in percentage points. 4-quarter change is the bank's rate minus its own rate "
      "four quarters earlier, in percentage points, blank when either is missing. Balance ($bn) is the average "
      "balance on charge-offs and the quarter-end balance on delinquency. In pack marks Peer A and Peer B."),
-    ("Peer loan classes",
-     "What each peer's consumer book holds, from the holding company's own quarterly filing with the SEC: "
-     "its loan classes, and whether it holds student loans, unsecured or personal loans and lines, and loans "
-     "secured by anything other than a home or a car.",
-     "Amounts are the filing's own at amortized cost, read from its XBRL by the members named, or as printed "
-     "where the filing does not tag a class. The Call Report's other consumer line (RC-C 6.b + 6.d) mixes "
-     "these classes."),
-    ("Counted as",
-     "What a class is counted as on Peer loan classes: student, unsecured or personal, secured non-auto, mixed "
-     "other consumer, or other.",
-     "A judgment stated per class in config/peer-loan-classes.json, with the filing's words quoted. "
-     "Unsecured or personal holds classes the filing calls unsecured or personal loans, and solar energy "
-     "installation loans, which the bank's analyst ruled count as unsecured (15 Oct 2026: the panels are "
-     "little to recover). A filing that says personal without saying unsecured is said so."),
-    ("For an unsecured comparison",
-     "Whether a bank's other consumer rate on the Call Report can stand for its unsecured lending.",
-     "Clean: the filing shows the unsecured or personal slice on its own and no student loans. Mixed: other "
-     "consumer holds unsecured lending beside student, secured or undefined classes. Not comparable: secured, "
-     "securities-based or fair-value lending dominates, or the book is too small. A judgment, with why."),
-    ("How the amount was read",
-     "Whether a class's amount came from the filing's XBRL (tagged with the members named) or as printed on "
-     "the page named, because the filing does not tag that class.",
-     "Either way the tie-out checks it against the filing (docs/tie-out/peer-loan-classes-2026q2)."),
     ("Book size",
      "The average balance of each bank's book in the product picked, in $ billions: KeyBank, Peer A and "
      "Peer B as lines, the pack as its median and shaded bands, and every bank ranked by size beside it.",
@@ -331,3 +317,68 @@ PEER_TERMS = [
      "has no rate. Every series file the build writes names the changes touching it in its notes, with the "
      "source."),
 ]
+
+#: The terms of the Peer loan classes tab (``loan_classes_tab.TITLE``), which
+#: only a book with a loan_classes section has: shown on a Glossary only when
+#: its workbook has that tab, after "Rank tables", where they always were.
+LOAN_CLASS_TAB = "Peer loan classes"
+LOAN_CLASS_TERMS = [
+    ("Peer loan classes",
+     "What each peer's consumer book holds, from the holding company's own quarterly filing with the SEC: "
+     "its loan classes, and whether it holds student loans, unsecured or personal loans and lines, and loans "
+     "secured by anything other than a home or a car.",
+     "Amounts are the filing's own at amortized cost, read from its XBRL by the members named, or as printed "
+     "where the filing does not tag a class. The Call Report's other consumer line (RC-C 6.b + 6.d) mixes "
+     "these classes."),
+    ("Counted as",
+     "What a class is counted as on Peer loan classes: student, unsecured or personal, secured non-auto, mixed "
+     "other consumer, or other.",
+     "A judgment stated per class in config/peer-loan-classes.json, with the filing's words quoted. "
+     "Unsecured or personal holds classes the filing calls unsecured or personal loans, and solar energy "
+     "installation loans, which the bank's analyst ruled count as unsecured (15 Oct 2026: the panels are "
+     "little to recover). A filing that says personal without saying unsecured is said so."),
+    ("For an unsecured comparison",
+     "Whether a bank's other consumer rate on the Call Report can stand for its unsecured lending.",
+     "Clean: the filing shows the unsecured or personal slice on its own and no student loans. Mixed: other "
+     "consumer holds unsecured lending beside student, secured or undefined classes. Not comparable: secured, "
+     "securities-based or fair-value lending dominates, or the book is too small. A judgment, with why."),
+    ("How the amount was read",
+     "Whether a class's amount came from the filing's XBRL (tagged with the members named) or as printed on "
+     "the page named, because the filing does not tag that class.",
+     "Either way the tie-out checks it against the filing (docs/tie-out/peer-loan-classes-2026q2)."),
+]
+_LOAN_CLASS_AFTER = "Rank tables"
+
+#: The share panel's term, which names the book's kind as the panel does.
+SHARE_TERM = "Consumer book by product"
+
+
+def terms_for(book_kind=None, share_note=None, tabs=()):
+    """``PEER_TERMS`` for a workbook whose book states ``book_kind``
+    (``kinds.KINDS``). The share panel names the bank's book by that kind
+    ("KeyBank's commercial book: share by product"), so its term does too: a
+    commercial book's is "Commercial book by product", about KeyBank's
+    commercial book. None, the standalone peers build, and a consumer book
+    keep the list as it is.
+
+    ``share_note`` is the share panel's caption when the products built
+    overlap (``peers_workbook.mix_caption``), added to how the term is
+    calculated; None (no product overlaps another) adds nothing.
+
+    ``tabs`` are the titles of the tabs of the workbook the terms go into.
+    The Peer loan classes terms (``LOAN_CLASS_TERMS``) are given only when it
+    has that tab: a book without it, every commercial book among them, and
+    the standalone peers build would otherwise define terms for a tab the
+    reader cannot find."""
+    out = []
+    for term, meaning, calc in PEER_TERMS:
+        if term == SHARE_TERM:
+            if book_kind not in (None, "consumer"):
+                term = "%s book by product" % book_kind.capitalize()
+                meaning = meaning.replace("KeyBank's consumer book", "KeyBank's %s book" % book_kind)
+            if share_note:
+                calc = "%s %s" % (calc, share_note)
+        out.append((term, meaning, calc))
+        if term == _LOAN_CLASS_AFTER and LOAN_CLASS_TAB.casefold() in {str(t).casefold() for t in tabs}:
+            out += LOAN_CLASS_TERMS
+    return out

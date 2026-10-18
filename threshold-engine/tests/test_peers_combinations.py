@@ -74,7 +74,7 @@ def test_the_repeated_year_to_date_is_taken_off_once():
 
 def test_the_survivors_own_flows_count_each_dollar_once():
     fixed = without_repeats(books(), repeated_ytd(books(), LINK, ["Credit card"]))
-    rows = bank_book(fixed, "1", "Credit card", 1.0, 0, acquired=())
+    rows = bank_book(fixed, "1", "Credit card", 1.0, 0, acquired=(), stated=())
     assert [r["gross"] for r in rows] == [55.0, 60.0, 60.0, 60.0]   # 10, 10, 15, 15 / then 15 a quarter
 
 
@@ -123,23 +123,23 @@ def test_acquisitions_in_one_quarter_are_added_together():
 def test_the_four_windows_holding_the_acquisition_are_left_out_and_say_why():
     data = books(parent_b="200")
     rows = bank_book(data, "1", "Credit card", 1.0, 0,
-                     acquired=acquired_quarters(data, LINK, "Credit card", 0.05)["1"])
+                     acquired=acquired_quarters(data, LINK, "Credit card", 0.05)["1"], stated=())
     assert [(r["quarter"], r["why"]) for r in rows] == [
         ("2012Q1", WHY_ACQUIRED), ("2012Q2", WHY_ACQUIRED), ("2012Q3", None), ("2012Q4", None)]
-    assert bank_book(data, "1", "Credit card", 1.0, 0, acquired=())[0]["why"] is None
+    assert bank_book(data, "1", "Credit card", 1.0, 0, acquired=(), stated=())[0]["why"] is None
 
 
 def test_the_jump_still_speaks_first():
     data = books(parent_b="200", bal_b=900.0)
-    rows = bank_book(data, "1", "Credit card", 0.25, 0, acquired=["20110930"])
+    rows = bank_book(data, "1", "Credit card", 0.25, 0, acquired=["20110930"], stated=())
     assert rows[0]["why"] == WHY_JUMP
 
 
 def test_acquired_is_required_and_a_string_is_refused():
     with pytest.raises(TypeError):
-        bank_book(books(), "1", "Credit card", 0.25, 0)
+        bank_book(books(), "1", "Credit card", 0.25, 0, stated=())
     with pytest.raises(ValueError, match="list of quarter-ends"):
-        bank_book(books(), "1", "Credit card", 0.25, 0, acquired="20110930")
+        bank_book(books(), "1", "Credit card", 0.25, 0, acquired="20110930", stated=())
 
 
 @pytest.mark.parametrize("share", [-0.01, float("nan")])
@@ -188,8 +188,8 @@ def test_delinquency_blanks_the_four_quarter_average_at_an_acquisition_never_a_r
     from threshold_engine.peers import delinquency as D
     data = {q: [{"CERT": 1, "REPDTE": q, "LNCRCD": 1000.0, "P3CRCD": 10.0, "P9CRCD": 5.0, "NACRCD": 1.0}]
             for q in QUARTERS}
-    plain = D.bank_delinquency(data, "1", "Credit card", "30-89", 1.0, 0, False, acquired=())
-    bought = D.bank_delinquency(data, "1", "Credit card", "30-89", 1.0, 0, False, acquired=["20110930"])
+    plain = D.bank_delinquency(data, "1", "Credit card", "30-89", 1.0, 0, False, acquired=(), stated=())
+    bought = D.bank_delinquency(data, "1", "Credit card", "30-89", 1.0, 0, False, acquired=["20110930"], stated=())
     assert [r["rate"] for r in bought] == [r["rate"] for r in plain]
     assert [r["avg4"] is None for r in bought] == [True, True, True, True, True, False, False, False]
     assert bought[4]["why_avg4"].startswith(D.WHY_ACQUIRED_PREFIX)
@@ -322,7 +322,7 @@ def test_the_composite_leaves_out_a_bank_an_acquisition_blanked():
     data = {q: [{"CERT": c, "REPDTE": q, "LNCRCD": 1000.0, "P3CRCD": p3, "P9CRCD": 0.0, "NACRCD": 0.0}
                 for c, p3 in ((1, 10.0), (2, 30.0), (3, 20.0))] for q in QUARTERS}
     banks = {str(c): D.bank_delinquency(data, str(c), "Credit card", "30-89", 1.0, 0, False,
-                                        acquired=["20120630"] if c == 1 else ())
+                                        acquired=["20120630"] if c == 1 else (), stated=())
              for c in (1, 2, 3)}
     comp = D.composite_delinquency(banks, ["1", "2", "3"], 2)
     assert [r["q"] for r in comp] == ["2011Q%d" % n for n in range(1, 5)] + ["2012Q%d" % n for n in range(1, 5)]

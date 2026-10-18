@@ -19,6 +19,7 @@ outside the repository (here the session's scratchpad, `cache-commercial`).
 python -m threshold_engine peers pull --cache $CACHE --first 2006Q1 --last 2026Q2 --products "C&I" Construction Multifamily "Nonfarm nonresidential" "Owner-occupied nonfarm nonresidential" "Other nonfarm nonresidential" --delinquency yes --mergers 2005-01-01
 cp $CACHE/mergers.json $CACHE/mergers-since-2005.json; cp $CACHE/absorptions.json $CACHE/absorptions-since-2005.json
 python -m threshold_engine peers pull --cache $CACHE --first 1991Q1 --last 2005Q4 --products "C&I" Construction Multifamily "Nonfarm nonresidential" "Owner-occupied nonfarm nonresidential" "Other nonfarm nonresidential" --delinquency yes --mergers 1990-01-01
+cp $CACHE/mergers.json $CACHE/mergers-since-1990.json; cp $CACHE/absorptions.json $CACHE/absorptions-since-1990.json
 python -m threshold_engine peers build $OUT/peers.xlsx --cache $CACHE --roster config/peers.json --series-dir $OUT/series --first FIRST --last 2026Q2 --products "C&I" Construction Multifamily "Nonfarm nonresidential" "Owner-occupied nonfarm nonresidential" "Other nonfarm nonresidential" --mergers $CACHE/mergers-since-2005.json --absorptions $CACHE/absorptions-since-2005.json --extra-acquisitions 6672=2022Q2 --delinquency yes --reporting-changes config/reporting-changes.json --industry-combined "Construction+Multifamily+Nonfarm nonresidential" --jump 0.25 --acquisition-share 0.05 --min-book 0 --exempt-self yes --pro-forma yes --pack all --min-banks 5 --rank-by net --last-n 8 --min-obs 6 --base-quarter 2019Q4 --index-min-book 1000000 --lagged-years 2019 2025 --lag-years 2 --normalisation-years 2019 2025 --mix-base-year 2019
 python docs/commercial-2026-10/stress_tool_rules.py $OUT/series $OUT/peers.xlsx PATH/TO/stats-output.txt
 python docs/commercial-2026-10/fred_ttm.py PATH/TO/fred/CORBLACBN.csv $FED/CORBLACBN-ttm.csv
@@ -26,6 +27,14 @@ python docs/commercial-2026-10/fred_ttm.py PATH/TO/fred/CORCREXFACBN.csv $FED/CO
 python -m threshold_engine compare $OUT/series/c-i_industry_net.csv $FED/CORBLACBN-ttm.csv
 python -m threshold_engine compare $OUT/series/construction-multifamily-nonfarm-nonresidential_industry_net.csv $FED/CORCREXFACBN-ttm.csv
 ```
+
+Each `pull --mergers` writes `mergers.json` and `absorptions.json` over the
+last pull's, so each record is copied under the date it starts from. A
+build from `FIRST` = **1991Q1** must read the `-since-1990` files: the build
+does not check that the merger record reaches back to its first quarter
+(LOG.md, 17 Oct 2026, question 6). The builds tabled here ran before
+`--stated-acquisitions FILE|none` existed; it has been required since 17
+Oct 2026 (question 14), so the command above is refused today without it.
 
 `build` was run twice, `FIRST` = **2006Q1** (the consumer book's first
 quarter) and **2005Q1**. Only the second gives KeyBank a 2006Q4 window: a
@@ -94,6 +103,9 @@ What differs, and what was checked as the cause:
    the as-filed worst since 2014 (0.901%, 2025Q2) is one of the windows the
    jump leaves out. **This is a decision for the firm**: the jump rule
    reading a reporting change as a book move. Nothing was changed.
+   *Update, 17 Oct 2026:* answered (question 16). The series continues
+   across those windows: 2024Q4 to 2025Q4 are declared left out and the
+   history before them is kept (LOG.md, 17 Oct 2026, question 16).
 4. **KeyBank construction and multifamily charge-offs, pro forma.** Each
    includes the banks KeyBank absorbed (First Niagara Bank, certificate 16004 by the FDIC's
    institutions record, absorbed 2016Q4, and the others the Data tab names), so the 2010 peaks
@@ -137,6 +149,13 @@ number for number.
 - **No build from 1991**: COULD NOT, the merger record since 1990 refused
   on codes 213 and 225 (above). The industry's early-1990s CRE losses, which
   the proposal leans on, are therefore not under the tool's rules yet.
+  *Update, 17 Oct 2026:* the firm placed both codes (question 17: 213 an
+  acquisition, 225 not), so the merger record since 1990 is no longer
+  refused on them (LOG.md, 17 Oct 2026, question 17). A build from 1991Q1
+  then ran (question 6), first on an interrupted run's code (LOG.md, the
+  partial entry), then on the reviewed code, with the merger record since
+  1990: LOG.md, "17 Oct 2026, question 6: a peers build from 1991Q1". The
+  early-1990s figures were not tied out to the QBP.
 - The registry's reporting-change notes on the commercial series were read
   in the series files; the workbook built from them was not opened in Excel.
 - The peer workbook from these builds was not opened. Its dashboard text

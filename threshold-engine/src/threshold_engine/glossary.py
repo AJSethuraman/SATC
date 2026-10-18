@@ -8,6 +8,23 @@ definition.
 """
 
 # (term, what it means, how it is calculated)
+#: Said of a combined product under every kind (the merge of 18 Oct 2026,
+#: a rule the firm can overrule): it follows its parts' reporting changes
+#: and events.
+COMBINED_CHANGES = ("A reporting change or event named for any of its parts is labeled on it, and a change named "
+                    "for any part can keep it going (see Continues across).")
+#: The Combined product term in a commercial book (``terms_for``): no All
+#: consumer, which is the consumer five, and no auto; the one combination
+#: refused is a whole with a part it holds (books.INSIDE). Reworded with the
+#: rest of the workbook (kinds.reword).
+COMBINED_COMMERCIAL = (
+    "A product made of others: two or more joined by ' + '. Nonfarm nonresidential may not be joined with "
+    "Owner-occupied nonfarm nonresidential or Other nonfarm nonresidential, which it holds.",
+    "Each bank's balances, charge-offs, recoveries and past-due amounts for the parts are added together before "
+    "the rate is taken, so the rate is dollar-weighted, and the jump, acquisition and minimum book rules are "
+    "applied to the combined book. A blank field is not filed, never 0, so a part not filed leaves the combined "
+    "book not filed in that quarter. " + COMBINED_CHANGES)
+
 TERMS = [
     ("Product",
      "The first of the three parts that name a series, such as Credit card.",
@@ -18,7 +35,7 @@ TERMS = [
      "Each bank's balances, charge-offs, recoveries and past-due amounts for the parts are added together "
      "before the rate is taken, so the rate is dollar-weighted, and the jump, acquisition and minimum book "
      "rules are applied to the combined book. Its delinquency is written only for quarters in which every "
-     "part's fields were filed (auto's begin in 2011Q1)."),
+     "part's fields were filed (auto's begin in 2011Q1). " + COMBINED_CHANGES),
     ("30+ to charge-off",
      "Of the dollars 30 to 89 days past due, 90 or more days past due and still accruing, and on nonaccrual at a "
      "quarter-end, the percent charged off (gross, before recoveries) over the next two quarters. One minus it is "
@@ -99,11 +116,12 @@ TERMS = [
      "strip and gray dots on the line, and recorded on Run."),
     ("Left out as built",
      "Quarters a series' file does not hold, written to left-out.csv beside the series files with why: those "
-     "before its last break, and its latest quarters when they have no value.",
-     "A series is written from the first quarter after its last break, because the workbook refuses a gap. "
-     "Each row names the series by Product, Measure and Source, the first and last quarter left out, and the "
-     "reason the quarter at the break has no value. The periods left out on Decide are not in it. Its "
-     "SHA-256 is on Run."),
+     "before its last break, those it continues across, and its latest quarters when they have no value.",
+     "A series is written from the first quarter after its last break, because the workbook refuses a gap it "
+     "is not told of; the quarters it continues across (see Continues across) are the one gap it is told of. "
+     "Each row names the series by Product, Measure and Source, the first and last quarter left out, and why: "
+     "the reason the quarter at the break has no value, or that the series continues across them. The periods "
+     "left out on Decide are not in it. Its SHA-256 is on Run."),
     ("Median kept",
      "The middle of the quarters kept: half were higher, half lower. The center of Moderate.",
      "MEDIAN of the quarters kept."),
@@ -434,6 +452,21 @@ TERMS = [
      "shown on Sources; a change a product's own note already describes points to that note instead. "
      "Decide's chart marks the quarters with a diamond along the top, for any source of the row shown; the "
      "Peers charts mark them on the pack composite."),
+    ("Event",
+     "Something that moved a series without being a change to the report, such as the 2020 revolving-line "
+     "drawdowns and the PPP loans in C&I. Labeled on every series it touches, in the quarters it covers.",
+     "Listed with its source on the Reporting changes tab, under Events. Each series file the peers build "
+     "writes carries an Event line for every event touching its product and measure within its quarters, "
+     "shown on Sources. It is never called a reporting change, is not marked on the charts, and never keeps "
+     "a series going across a gap: only a reporting change does (the firm, 17 Oct 2026)."),
+    ("Continues across",
+     "On Sources: quarters a series leaves out and runs across, because the jump left them out only for a move "
+     "in a quarter a reporting change names for that product and measure (for a combined product, for any of "
+     "its parts). An event never does.",
+     "Those four-quarter windows are not written and never filled; the series keeps every quarter before them "
+     "(the firm, 17 Oct 2026). The file names the moves and the changes. Every other reason a window "
+     "is left out still starts the series after it. The workbook reads this gap and no other: the quarters "
+     "stay on Data, blank, in no line, and a year is still four quarters."),
     ("Reporting changes",
      "The tab listing every reporting change this workbook labels, one row each.",
      "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "
@@ -466,3 +499,45 @@ TERMS = [
      "definitions."),
 ]
 
+
+#: The Internal tab's own terms, from Internal data to Competitive check: a
+#: workbook built without that tab (a commercial book, kinds.KINDS) leaves
+#: them off, so the Glossary names no tab the workbook does not have.
+_FIRST, _LAST = "Internal data", "Competitive check"
+_names = [t for t, _, _ in TERMS]
+INTERNAL_TAB_TERMS = frozenset(_names[_names.index(_FIRST):_names.index(_LAST) + 1])
+
+
+#: The terms that define one or more measures, each with the measures it
+#: defines (``peers.flows.MEASURE``, the book's floor_off gaps,
+#: ``peers.large_banks.MEASURES``): a book's Glossary gives one only when the
+#: book holds a series of one of them, so a commercial book, which holds none,
+#: does not define a consumer credit card share or a cure rate argued from
+#: consumer charge-off rules.
+MEASURE_TERMS = {
+    "30+ to charge-off": ("30+ to charge-off",),
+    "Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off":
+        ("Gap to peers on 30+ to charge-off", "Gap to industry on 30+ to charge-off"),
+    "Share paying only the minimum": ("Share paying only the minimum",),
+}
+
+
+def terms_for(kind: dict, *, measures):
+    """TERMS for a book of ``kind`` (an entry of ``kinds.KINDS``) holding
+    series of ``measures`` (the second part of each series' name): the first
+    part's example is the kind's own, the Internal tab's terms are left off
+    where the kind builds no Internal tab, and a term of ``MEASURE_TERMS`` is
+    left off where the book holds none of its measures."""
+    held = set(measures)
+    out = []
+    for term, meaning, calc in TERMS:
+        if term in INTERNAL_TAB_TERMS and not kind["internal_tab"]:
+            continue
+        if term in MEASURE_TERMS and not held & set(MEASURE_TERMS[term]):
+            continue
+        if term == "Product":
+            meaning = meaning.replace("such as Credit card", "such as %s" % kind["example"])
+        if term == "Combined product" and kind["word"] != "Product":
+            meaning, calc = COMBINED_COMMERCIAL
+        out.append((term, meaning, calc))
+    return out

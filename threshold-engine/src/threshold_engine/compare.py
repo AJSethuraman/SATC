@@ -19,9 +19,13 @@ from .series import Point, read_csv
 def by_quarter(points: Sequence[Point], name: str) -> Dict[str, float]:
     """``{'YYYYQn': value}``. Any date in a quarter names that quarter, so a
     series dated at the quarter's first day meets one dated at its end. Two
-    points in one quarter are refused: the series is not quarterly."""
+    points in one quarter are refused: the series is not quarterly. A quarter
+    a file declares left out (a value of None, ``series.check``) has no value
+    and is not listed."""
     out: Dict[str, float] = {}
     for p in points:
+        if p.value is None:
+            continue
         try:
             ok = len(p.date) == 10 and dt.date.fromisoformat(p.date).isoformat() == p.date
         except (TypeError, ValueError):

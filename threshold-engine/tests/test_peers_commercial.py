@@ -129,7 +129,7 @@ def test_a_split_before_2007_is_not_filed_never_a_jump_from_zero(data):
     too: the first window that can be measured is 2008Q2 (2007Q3-2008Q2,
     the moves from 2007Q1 on)."""
     for p in (OO, OTHER):
-        rows = by_q(bank_book(data, KEYBANK, p, 0.25, 0, exempt_min_book=True, acquired=()))
+        rows = by_q(bank_book(data, KEYBANK, p, 0.25, 0, exempt_min_book=True, acquired=(), stated=()))
         assert [q for q in rows] == ["2007Q3", "2007Q4", "2008Q1", "2008Q2"]
         assert rows["2007Q3"]["why"] == rows["2007Q4"]["why"] == rows["2008Q1"]["why"] == WHY_NOT_FILED, p
         assert rows["2008Q2"]["kept"], p
@@ -141,20 +141,20 @@ def test_a_split_before_2007_is_not_filed_never_a_jump_from_zero(data):
              (ytd["20080331"][0], ytd["20080331"][1]),
              (ytd["20080630"][0] - ytd["20080331"][0], ytd["20080630"][1] - ytd["20080331"][1])]
     avg = sum(ytd[q][2] for q in ("20070930", "20071231", "20080331", "20080630")) / 4
-    got = by_q(bank_book(data, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=()))["2008Q2"]
+    got = by_q(bank_book(data, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=(), stated=()))["2008Q2"]
     assert got["gross_rate"] == pytest.approx(100 * sum(g for g, _ in flows) / avg)
     assert got["net_rate"] == pytest.approx(100 * sum(g - c for g, c in flows) / avg)
     # The TFR filer never filed the split: every window says so, none says jump or small.
-    tfr = bank_book(data, TFR, OO, 0.25, 0, acquired=())
+    tfr = bank_book(data, TFR, OO, 0.25, 0, acquired=(), stated=())
     assert {r["why"] for r in tfr} == {WHY_NOT_FILED}
     # The CALLFORM 2 filer's C&I: a balance and no charge-offs is not filed, not a 0% rate.
-    assert {r["why"] for r in bank_book(data, NO_FLOWS, "C&I", 0.25, 0, acquired=())} == {WHY_NOT_FILED}
+    assert {r["why"] for r in bank_book(data, NO_FLOWS, "C&I", 0.25, 0, acquired=(), stated=())} == {WHY_NOT_FILED}
     # Read the consumer way (blank = 0), the split would have said something else.
     as_zero = {q: [{k: (0 if v is None and k in NOT_FILED else v) for k, v in r.items()} for r in rows]
                for q, rows in data.items()}
-    whys = {r["why"] for r in bank_book(as_zero, TFR, OO, 0.25, 0, acquired=())}
+    whys = {r["why"] for r in bank_book(as_zero, TFR, OO, 0.25, 0, acquired=(), stated=())}
     assert whys == {WHY_SMALL}
-    k = by_q(bank_book(as_zero, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=()))
+    k = by_q(bank_book(as_zero, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=(), stated=()))
     assert k["2007Q3"]["why"] == WHY_JUMP
 
 
@@ -199,7 +199,7 @@ def test_the_summed_industry_counts_each_product_where_it_was_filed(data):
 
 
 def test_delinquency_reads_the_split_as_not_filed_before_2007(data):
-    k = by_q(D.bank_delinquency(data, KEYBANK, OO, "nonaccrual", 0.25, 0, True, acquired=()), "q")
+    k = by_q(D.bank_delinquency(data, KEYBANK, OO, "nonaccrual", 0.25, 0, True, acquired=(), stated=()), "q")
     assert k["2006Q4"]["rate"] is None and k["2006Q4"]["why"] == D.WHY_BLANK % "LNRENROW"
     r = row(data, "20070331", KEYBANK)
     assert k["2007Q1"]["rate"] == pytest.approx(100 * r["NARENROW"] / r["LNRENROW"])
@@ -247,11 +247,11 @@ def test_a_bank_added_pro_forma_that_did_not_file_the_product_is_not_filed(data)
     """JPMorgan with Sovereign added in, say, to 2008Q2: Sovereign filed no
     split, so no window of the combined split can be measured, rather than
     being read as JPMorgan alone."""
-    rows = bank_book(data, JPM, OO, 0.25, 0, acquired=(), members=[(TFR, "20080630")])
+    rows = bank_book(data, JPM, OO, 0.25, 0, acquired=(), members=[(TFR, "20080630")], stated=())
     assert {r["why"] for r in rows} == {WHY_NOT_FILED}
     # The total, which Sovereign did file, combines as before.
-    both = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=(), members=[(TFR, "20080630")]))
-    alone = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=()))
+    both = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=(), members=[(TFR, "20080630")], stated=()))
+    alone = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=(), stated=()))
     assert both["2008Q1"]["kept"] and both["2008Q1"]["avg_balance"] > alone["2008Q1"]["avg_balance"]
 
 
@@ -322,6 +322,7 @@ def built(data, tmp_path_factory):
             "--mergers", str(base / "mergers.json"), "--absorptions", str(base / "absorptions.json"),
             "--extra-acquisitions", "--industry-combined", "Construction+Multifamily+Nonfarm nonresidential",
             "--delinquency", "yes", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json"),
+            "--stated-acquisitions", "none",
             "--jump", "0.25", "--acquisition-share", "0.05", "--min-book", "0", "--exempt-self", "yes",
             "--pro-forma", "yes", "--pack", "all", "--min-banks", "5", "--rank-by", "net", "--last-n", "8",
             "--min-obs", "6", "--base-quarter", "2007Q4", "--index-min-book", "1000000",
@@ -402,7 +403,7 @@ def test_the_first_window_is_not_marked_not_filed_by_the_last_quarter():
     quarters 2020Q1 to 2021Q1 are all filed."""
     data = {q: [_ci(q, 1, 100000, 10 * (k % 4 + 1), 0)] for k, q in enumerate(SIX)}
     data[SIX[-1]] = [_ci(SIX[-1], 1, 100000, None, 0)]
-    rows = by_q(bank_book(data, "1", "C&I", 0.25, 0, acquired=()))
+    rows = by_q(bank_book(data, "1", "C&I", 0.25, 0, acquired=(), stated=()))
     assert rows["2021Q1"]["why"] is None and rows["2021Q1"]["kept"], rows["2021Q1"]
     assert rows["2021Q1"]["gross_rate"] == pytest.approx(100 * 40 / 100000)
     assert rows["2021Q2"]["why"] == WHY_NOT_FILED
@@ -411,7 +412,7 @@ def test_the_first_window_is_not_marked_not_filed_by_the_last_quarter():
 def test_avg_balance_is_not_a_zero_for_a_bank_that_never_filed_the_split(data):
     """Read as 0, the TFR filer's split balance went to Data column G, which
     the balance charts read, as a book of 0."""
-    rows = bank_book(data, TFR, OO, 0.25, 0, acquired=())
+    rows = bank_book(data, TFR, OO, 0.25, 0, acquired=(), stated=())
     assert rows and all(r["why"] == WHY_NOT_FILED for r in rows)
     assert [(r["quarter"], r["avg_balance"]) for r in rows if r["avg_balance"] is not None] == []
     # The book's path is then not stated, and the line says why, not "fewer quarters held".
@@ -425,7 +426,7 @@ def test_avg_balance_does_not_average_a_blank_quarter_in_as_zero(data):
     three filed balances over four is no balance at all. A window whose own
     four quarters are filed keeps its average even when a quarter only the
     jump test reads (i-5, i-4) was blank: 2007Q4 is 2007Q1 to 2007Q4."""
-    rows = by_q(bank_book(data, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=()))
+    rows = by_q(bank_book(data, KEYBANK, OO, 0.25, 0, exempt_min_book=True, acquired=(), stated=()))
     assert row(data, "20061231", KEYBANK)["LNRENROW"] is None
     assert rows["2007Q3"]["why"] == WHY_NOT_FILED and rows["2007Q3"]["avg_balance"] is None
     four = ("20070331", "20070630", "20070930", "20071231")
@@ -433,7 +434,7 @@ def test_avg_balance_does_not_average_a_blank_quarter_in_as_zero(data):
     assert rows["2007Q4"]["avg_balance"] == pytest.approx(sum(row(data, q, KEYBANK)["LNRENROW"] for q in four) / 4)
     # A consumer product's blank is still 0, so nothing changes there.
     assert all(r["avg_balance"] is not None for r in bank_book(data, KEYBANK, "Credit card", 10.0, 0,
-                                                               exempt_min_book=True, acquired=()))
+                                                               exempt_min_book=True, acquired=(), stated=()))
 
 
 def test_the_workbook_writes_no_average_balance_where_the_window_is_not_filed(built):

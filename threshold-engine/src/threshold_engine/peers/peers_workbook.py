@@ -112,9 +112,9 @@ from .. import reporting_changes as RC
 from . import roster as R
 from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
-from .books import (PRODUCTS, _fields, bank_book, combined_flows, is_product, label, members, members_by_quarter,
-                    quarter_end, raw_fields)
-from .glossary import PEER_TERMS
+from .books import (PRODUCTS, _fields, bank_book, combined_flows, industry_filers, is_product, label, members,
+                    members_by_quarter, quarter_end, raw_fields, stacking, SPLITS)
+from .glossary import terms_for
 
 INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
 NOTE = Font(name="Calibri", size=10, color=K.SLATE)
@@ -174,6 +174,7 @@ SETTINGS = (("rank_by", "Best and worst: ranked on the", (2, 3), 4, None),
             ("min_banks", "Banks a composite or band needs", (14, 15), 16, None))
 CHART_ROWS = 16                   # rows each top chart covers (16.5 pt each: 352 px)
 SMALL_ROWS = 8                    # rows each small chart covers (15 pt each: 160 px)
+MIX_CAPTION_ROWS = 1              # of those, the mix chart's caption takes, when it has one
 
 
 def _px_width(px: int) -> float:
@@ -452,7 +453,8 @@ def _acquisitions(mergers: Dict[str, Sequence[str]], extras: Dict[str, Sequence[
     return [(label(d.replace("-", "")), found[d]) for d in sorted(found)]
 
 
-def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Optional[dict]:
+def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict, *,
+                       stated: Dict[str, Sequence[str]]) -> Optional[dict]:
     """None for no delinquency tabs; otherwise the stated settings, checked,
     with every bank's rows worked out once (``delinquency.bank_delinquency``,
     per product, measure and bank) under ``books`` and the quarter-ends under
@@ -469,7 +471,12 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
     no rows (nobody filed, which is not a field missing); and a field of a
     product absent from every row of a quarter. That last is a field that was
     not pulled, which is not the same as a field not filed (a blank value,
-    which the module reads as not filed): ``fdic.pull`` refuses the same."""
+    which the module reads as not filed): ``fdic.pull`` refuses the same.
+
+    ``stated`` is ``{cert: [YYYYMMDD]}``, the stated acquisitions; required,
+    ``{}`` for none, and refused when not a dict, built or not."""
+    if not isinstance(stated, dict):
+        raise ValueError("stated must be {cert: [YYYYMMDD]}, {} for none, not %r" % (stated,))
     if spec is None:
         return None
     if not isinstance(spec, dict):
@@ -514,7 +521,8 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
                                  "first %s: pull it with the delinquency fields" % (p, f, len(lacking), lacking[0]))
     books = {p: {m: {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, spec["jump"], spec["min_book"],
                                                    spec["exempt_self"] and b is me,
-                                                   acquired=spec["acquired"][p].get(b["cert"], []))
+                                                   acquired=spec["acquired"][p].get(b["cert"], []),
+                                                   stated=stated.get(b["cert"], []))
                      for b in roster} for m in D.MEASURES} for p in products}
     grid = [r["q"] for r in books[products[0]][spec["measure"]][me["cert"]]]
     return dict(spec, products=products, books=books, grid=grid)
@@ -772,6 +780,42 @@ def _merged(ws, row, first, last, value, font=F_BODY, height=None, wrap=True, al
     if height:
         ws.row_dimensions[row].height = height
     return c
+
+
+def mix_cell(pick: str, cells: Sequence[str], stack: Sequence[tuple]) -> str:
+    """The mix chart's cell for the product numbered ``pick`` (a formula), from
+    ``cells``, KeyBank's balance cell per product, stacked as
+    ``books.stacking`` says, so no loan counts twice. A blank (not filed) is
+    no balance. With no product overlapping another, the formula is the one
+    the panel always had."""
+    if all(role == "own" for role, _ in stack):
+        c = ",".join(cells)
+        return "=IF(ISNUMBER(CHOOSE({i},{c})),CHOOSE({i},{c}),0)".format(i=pick, c=c)
+    out = []
+    for cell, (role, parts_) in zip(cells, stack):
+        own = "IF(ISNUMBER({c}),{c},0)".format(c=cell)
+        filed = "AND(%s)" % ",".join("ISNUMBER(%s)" % cells[i] for i in parts_) if parts_ else ""
+        out.append({"own": own, "whole": "IF(%s,0,%s)" % (filed, own),
+                    "part": "IF(%s,%s,0)" % (filed, own), "inside": "0"}[role])
+    return "=CHOOSE(%s,%s)" % (pick, ",".join(out))
+
+
+def mix_caption(products: Sequence[str], stack: Sequence[tuple], me: str) -> Optional[str]:
+    """What the mix chart's caption says of how it is stacked, or None when no
+    product overlaps another (nothing is said, as before). Each product is
+    named whole on one line, so a commercial book's rewording finds it."""
+    said = []
+    for p, (role, parts_) in zip(products, stack):
+        if role == "whole":
+            said.append("the %s parts of %s where %s files %s, the whole where it does not" % (
+                "two" if len(parts_) == 2 else len(parts_), p, me, "both" if len(parts_) == 2 else "all of them"))
+    for p, (role, _) in zip(products, stack):
+        if role == "inside":
+            parent = next(q for q, pieces in SPLITS.items() if p in pieces)
+            said.append("%s left out, as %s holds it" % (p, parent))
+    if not said:
+        return None
+    return "No loan counted twice: %s." % "; ".join(said)
 
 
 def _not_built(what: str, products) -> str:
@@ -1044,12 +1088,20 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          acquired: Dict[str, Dict[str, Sequence[str]]],
                          combined: Dict[str, Sequence[Tuple[str, str]]],
                          changes: Sequence[dict],
+                         stated: Dict[str, Sequence[str]],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
                          product: Optional[str] = None,
                          into: Optional[Workbook] = None,
-                         names: Optional[Dict[str, str]] = None) -> dict:
+                         names: Optional[Dict[str, str]] = None,
+                         book_kind: Optional[str] = None) -> dict:
     """Write the peer workbook to ``out`` and return what went in.
+
+    ``book_kind`` is the kind the book states (``kinds.KINDS``: consumer or
+    commercial) when the peers are built into a book, and names the bank's
+    book on the share panel ("KeyBank's commercial book"); None, as the
+    standalone ``peers build`` has, names no kind there rather than guess one
+    from the products.
 
     ``data`` is ``{REPDTE: [rows]}`` as ``fdic.pull`` returns it; ``roster`` the
     banks as ``roster.load`` returns them. The judgements, none defaulted:
@@ -1067,6 +1119,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
       charge-off and delinquency charts mark, on the pack composite, each
       quarter a change touching the product and measure shown took effect.
       ``[]`` states none;
+    - ``stated``: ``{cert: [YYYYMMDD]}``, the stated acquisitions in these
+      quarters (``peers.stated``; the firm, 17 Oct 2026): every product's
+      windows holding one are left out for that bank, with their own reason.
+      Required, like ``acquired``: ``{}`` states none, and None is refused;
     - ``pack``: 'all' or 'regionals', the peers whose Yes/No starts Yes;
     - ``min_banks``: how many kept banks a composite or band needs (a live
       cell on Peers, starting here);
@@ -1178,14 +1234,15 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         if pick not in shorts + [WORST, BEST]:
             raise ValueError("a peer pick must be a peer's short name, %r or %r, not %r" % (WORST, BEST, pick))
     in_pack = {b["cert"] for b in (R.peers(roster) if pack == "all" else R.regionals(roster))}
-    dq = _check_delinquency(delinquency, roster, me)
+    dq = _check_delinquency(delinquency, roster, me, stated=stated)
 
     if not isinstance(combined, dict):
         raise ValueError("combined must be {cert: [(absorbed, until)]}, {} for none, not %r" % (combined,))
     books = {p: {b["cert"]: bank_book(data, b["cert"], p, jump, min_book,
                                       exempt_min_book=exempt_self and b is me,
                                       acquired=acquired[p].get(b["cert"], []),
-                                      members=combined.get(b["cert"], ()))
+                                      members=combined.get(b["cert"], ()),
+                                      stated=stated.get(b["cert"], []))
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
     for p in products:
@@ -1304,6 +1361,16 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         return 2 + pi * NB * Q + bi * Q + k
 
     # ---- Workings: lists, then the settings every block reads ----
+    # How many filers each product's industry series holds in the last
+    # quarter, out of every filer that quarter: a commercial series leaves
+    # out a filer that left a field blank (books.NOT_FILED_NOTE), so the
+    # caption under the industry's rate says the count, never "every filer"
+    # (the example commercial build, 17 Oct 2026: 4,296 of 4,313).
+    last_repdte = sorted(data)[-1]
+    n_filers = len(data[last_repdte])
+    counted = {p: industry_filers(data, [p], last_repdte) for p in products} if industry else {}
+    filer_words = ["all {:,} filers".format(n_filers) if counted[p] == n_filers
+                   else "{:,} of {:,} filers".format(counted[p], n_filers) for p in products] if industry else []
     lists, lists_pe = {}, {}
     for col, key, head, items in (
             (3, "banks", "All banks", [b["short"] for b in roster]),
@@ -1313,7 +1380,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             (7, "dq_products", "Delinquency products", dq["products"] if dq else []),
             (8, "windows", "Chart shows", list(WINDOWS)),
             (9, "dq_measures", "Delinquency measures", list(D.MEASURES) if dq else []),
-            (10, "bases", "Delinquency bases", list(D.BASES) if dq else [])):
+            (10, "bases", "Delinquency bases", list(D.BASES) if dq else []),
+            (11, "ind_filers", "Industry filers, last quarter", filer_words)):
         wk.cell(1, col, head)
         for i, v in enumerate(items):
             wk.cell(2 + i, col, v)
@@ -1452,6 +1520,11 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         co.add(name, heads=[h])
     co.add("smark", heads=["%s, last balance drawn" % me["short"]])
     NPROD = len(base_i)
+    # The mix chart stacks KeyBank's book by product, so no loan may be in
+    # it twice: a combined product is not drawn (base_i), and a product built
+    # with its parts (books.SPLITS) is stacked as the parts where they are
+    # filed and as the whole where they are not.
+    stack = stacking([products[pi] for pi in base_i])
     mix_idx = ["%s" % S["mix_pick"]] + ["(%d+(%d>=%s))" % (j, j, S["mix_pick"]) for j in range(1, NPROD)]
     co.add("mix", NPROD, ["=CHOOSE(%s,%s)" % (x_, base_names) for x_ in mix_idx])
     # The quarters a reporting change took effect, per product and rate
@@ -1466,8 +1539,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             cells = ["%s$G$%d" % (DA, drow(pi, i, k)) for pi in range(len(products))]
             wk.cell(r, co.col["ub"] + i, "=%s/1000000" % pick_number(cells, "NA()"))
         for j, x_ in enumerate(mix_idx):
-            cells = ",".join("%s$G$%d" % (DA, drow(pi, me_i, k)) for pi in base_i)
-            wk.cell(r, co.col["mix"] + j, "=IF(ISNUMBER(CHOOSE({i},{c})),CHOOSE({i},{c}),0)".format(i=x_, c=cells))
+            wk.cell(r, co.col["mix"] + j, mix_cell(x_, ["%s$G$%d" % (DA, drow(pi, me_i, k)) for pi in base_i],
+                                                   stack))
         wk.cell(r, co.col["inwin"], "=%d>=%d-%s" % (k, Q, SET["last_n"]))
         for j in range(NB):
             wk.cell(r, co.col["uk"] + j, "=IF(%s>0,%s,FALSE)" % (co_p, pick("J", j, k)))
@@ -1896,7 +1969,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     charts = []                                  # (chart, anchor)
     # ---- the two panels: charge-offs (left), delinquency (right) ----
     v1, tl = lay["v1"], lay["tiles"]
-    _section(pe, v1, *LEFT, '="Charge-offs: "&LOWER({p})&", "&LOWER({r})&" rate, trailing four quarters (%)"'
+    # A product is shown by its name as built, never lower-cased: LOWER()
+    # made "C&I" read "c&i" (the example commercial build, 17 Oct 2026).
+    _section(pe, v1, *LEFT, '="Charge-offs: "&{p}&", "&LOWER({r})&" rate, trailing four quarters (%)"'
              .format(p=PICK["product"], r=PICK["rate"]))
     k_, c_l, ind_l = w_(co, "k", LR), w_(co, "c", LR), w_(co, "ind", LR)
     r_row = WK + co.across("r", LR)
@@ -1910,7 +1985,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
          '=IF(ISNUMBER({k}),(COUNTIF({r},"<"&{k})+1)&" of "&(COUNT({r})+1),"none")'.format(k=k_, r=r_row),
          "1 = the lowest rate", "General"),
         (8, 8, "Industry", '=IF(ISNUMBER({x}),{x},"none")'.format(x=ind_l),
-         '=IF(ISNUMBER({x}),"every filer, {q}","not supplied")'.format(x=ind_l, q=last_q), "0.00")])
+         '=IF(ISNUMBER({x}),INDEX({f},{p})&", {q}","not supplied")'.format(
+             x=ind_l, q=last_q, f=lists_pe["ind_filers"], p=S_PE["co_p"]), "0.00")])
     ch = _Chart(named("co", co, "q"))
     ch.band(named("co", co, "p10"), named("co", co, "p90"), BAND_LIGHT)
     ch.band(named("co", co, "p25"), named("co", co, "p75"), BAND_DARK)
@@ -1929,7 +2005,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         cond="%s=0" % S_PE["co_p"], alt=_not_built("charge-offs were", products))
 
     if dl is not None:
-        _section(pe, v1, *RIGHT, '="Delinquency: "&LOWER({p})&", "&{m}&", "&{b}&" (%)"'.format(
+        _section(pe, v1, *RIGHT, '="Delinquency: "&{p}&", "&{m}&", "&{b}&" (%)"'.format(
             p=PICK["product"], m=PICK["dq_measure"], b=PICK["dq_basis"]))
         dlast = dq["grid"][-1]
         dk, dc = w_(dl, "k", DLR), w_(dl, "c", DLR)
@@ -2011,7 +2087,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     # ---- book size: KeyBank, Peer A and B against the pack's balances ----
     sv = lay["size"]
-    _section(pe, sv, *LEFT, '="Book size: "&LOWER({p})&" loans, average balance ($bn)"'.format(p=PICK["product"]))
+    _section(pe, sv, *LEFT, '="Book size: "&{p}&" loans, average balance ($bn)"'.format(p=PICK["product"]))
     _section(pe, sv, *RIGHT, "Where each bank stands on book size, %s (1 = the largest)" % last_q)
     bk_l, s50_l = w_(co, "bk_k", LR), w_(co, "s50", LR)
     b4_l = w_(co, "bk_k", LR - 4) if LR - 4 >= 2 else "NA()"
@@ -2086,9 +2162,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     # ---- the rate against the composite, KeyBank's mix ----
     sm, sc = lay["small"], lay["small_chart"]
     _section(pe, sm, *LEFT, "Charge-off rate ÷ pack composite (1 = the composite)")
-    _section(pe, sm, *RIGHT, '="{me}\'s consumer book: share by product ("&{p}&" in red)"'.format(
-        me=me["short"], p="CHOOSE(%s,%s)" % (S_PE["mix_pick"], ",".join(
-            '"%s"' % p_ for p_ in products if p_ in PRODUCTS))))
+    _section(pe, sm, *RIGHT, '="{me}\'s {kind}book: share by product ("&{p}&" in red)"'.format(
+        me=me["short"], kind=book_kind + " " if book_kind else "",
+        p="CHOOSE(%s,%s)" % (S_PE["mix_pick"], ",".join('"%s"' % p_ for p_ in products if p_ in PRODUCTS))))
     small_h = SMALL_ROWS * HEIGHTS["small"] / 0.75
     ch = _Chart(named("co", co, "q"))
     ch.lines([(named("co", co, "rk"), label_ref(co, "rk")) + STYLE["small_self"],
@@ -2109,7 +2185,15 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         s_.graphicalProperties.line.noFill = True
         area.series.append(s_)
     area.grouping = "percentStacked"
-    charts.append((_frame(area, "0%", 16, COL_PX * 7, small_h), "J%d" % sc))
+    caption = mix_caption([products[pi] for pi in base_i], stack, me["short"])
+    if caption is None:
+        charts.append((_frame(area, "0%", 16, COL_PX * 7, small_h), "J%d" % sc))
+    else:
+        # The caption takes the chart's last rows on the right only, so no
+        # row moves and the left chart keeps its size.
+        keep = SMALL_ROWS - MIX_CAPTION_ROWS
+        charts.append((_frame(area, "0%", 16, COL_PX * 7, keep * HEIGHTS["small"] / 0.75), "J%d" % sc))
+        _note(pe, sc + keep, RIGHT, MIX_CAPTION_ROWS, caption, words=t.words)
     for r in range(sc, sc + SMALL_ROWS):
         pe.row_dimensions[r].height = HEIGHTS["small"]
     pe.row_dimensions[lay["more_note"] - 1].height = HEIGHTS["gap"]
@@ -2120,7 +2204,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     # ---- the lagged rate (left) and normalization (right) ----
     v2 = lay["v2"]
-    _section(pe, v2, *LEFT, '="Lagged rate: "&LOWER({p})&" net charge-offs over the book {n} year{s} '
+    _section(pe, v2, *LEFT, '="Lagged rate: "&{p}&" net charge-offs over the book {n} year{s} '
              'earlier (%)"'.format(p=PICK["product"], n=lag_years, s="" if lag_years == 1 else "s"))
     lr0 = lay["lagged"]
     _table_head(pe, lr0, 2, ["", ""] + ["%d over %d" % (y, y - lag_years) for y in lagged_years], right_from=2,
@@ -2193,7 +2277,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     # ---- against the industry (left) and the book index (right) ----
     v3 = lay["v3"]
     pe.row_dimensions[v3 - 1].height = HEIGHTS["gap"]
-    _section(pe, v3, *LEFT, '="Against the industry: "&{me}&"\'s "&LOWER({p})&" net rate since {y}"'.format(
+    _section(pe, v3, *LEFT, '="Against the industry: "&{me}&"\'s "&{p}&" net rate since {y}"'.format(
         me='"%s"' % me["short"], p=PICK["product"], y=mix_base_year))
     mt = lay["mix"]
     _table_head(pe, mt, 2, ["Year", "%s net rate (%%)" % me["short"], "Industry net rate (%)",
@@ -2224,7 +2308,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
           "means %s's rate rose more than the industry's since %d. The balance factor is the %d book / this "
           "year's." % (me["short"], mix_base_year, mix_base_year))
 
-    _section(pe, lay["book"], *RIGHT, '="Book index: "&LOWER({p})&" loans, {b} = 100"'.format(
+    _section(pe, lay["book"], *RIGHT, '="Book index: "&{p}&" loans, {b} = 100"'.format(
         p=PICK["product"], b=base_lbl))
     bt = lay["book_table"]
     _table_head(pe, bt, 10, ["Latest, %s" % last_q, "", "", "As reported", "", "Without acquisitions", ""],
@@ -2273,7 +2357,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                                extra_acquisitions, lagged_years, lag_years, (y0, y1), mix_base_year, industry, dq,
                                roster, acq_of)
     if gl is not None:
-        _glossary_tab(gl, t)
+        _glossary_tab(gl, t, book_kind, caption)
     if run is not None:
         _run_tab(run, run_entries)
 
@@ -2290,7 +2374,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         _na_as_gap(out)
     else:
         folded = {x: t.title(x) for x in FOLDED}
-        _fold(wb, [(folded["Glossary"], lambda ws, row, first: _write_glossary(ws, row, first, t, "Peers terms")),
+        _fold(wb, [(folded["Glossary"], lambda ws, row, first: _write_glossary(ws, row, first, t, "Peers terms",
+                                                                              book_kind, caption)),
                    (folded["Run"], lambda ws, row, first: _write_run(ws, row, first, run_entries, "Peers: "))])
 
     def cols(block):
@@ -2324,16 +2409,17 @@ GLOSSARY_WIDTHS = (2.29, 30.7, 90.7, 90.7)       # A (16 px), then Term, What it
 RUN_WIDTHS = (2.29, 44, 60, 66, 14, 10)
 
 
-def _write_glossary(ws, row, first_col, t, heading=None) -> int:
-    """Every peer term from ``row``: an optional section heading, the column
-    labels, then one wrapped row per term, its height fitted to the longest
-    cell. Returns the row after the last."""
+def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None, share_note=None) -> int:
+    """Every peer term from ``row`` (``glossary.terms_for(book_kind, share_note)``): an
+    optional section heading, the column labels, then one wrapped row per
+    term, its height fitted to the longest cell. Returns the row after the
+    last."""
     if heading:
         row = K.quiet_section(ws, row, heading, 3, first_col)
     _ref_header(ws, row, ["Term", "What it means", "How it is calculated"], first_col, height=15)
     row += 1
     widths = [ws.column_dimensions[L(first_col + i)].width or 13 for i in range(3)]
-    for term, meaning, calc in PEER_TERMS:
+    for term, meaning, calc in terms_for(book_kind, share_note, ws.parent.sheetnames):
         vals = (term, t.words(meaning), t.words(calc))
         for i, v in enumerate(vals):
             c = ws.cell(row, first_col + i, v)
@@ -2346,12 +2432,12 @@ def _write_glossary(ws, row, first_col, t, heading=None) -> int:
     return row
 
 
-def _glossary_tab(gl, t) -> None:
+def _glossary_tab(gl, t, book_kind=None, share_note=None) -> None:
     for i, w in enumerate(GLOSSARY_WIDTHS):
         gl.column_dimensions[L(1 + i)].width = w
     _ref_title(gl, 2, 3, t.title("Glossary"), "Each term on the peer tabs: what it means, and how the workbook "
                                               "calculates it.")
-    _write_glossary(gl, 4, 2, t)
+    _write_glossary(gl, 4, 2, t, book_kind=book_kind, share_note=share_note)
     gl.freeze_panes = "C5"
 
 
@@ -2487,7 +2573,21 @@ def _fold(wb, writers) -> None:
                 del wb.__dict__["save"]
         return real(filename)
 
+    save.later = later
     wb.save = save
+
+
+def write_folded_now(wb) -> None:
+    """Write now the peer sections ``_fold`` left for the save, so whatever
+    runs over the finished workbook before it is saved (a commercial book's
+    words, ``kinds.reword``) sees them too. Nothing to do if none is left."""
+    save = wb.__dict__.get("save")
+    later = getattr(save, "later", None)
+    if later is None:
+        return
+    while later:
+        _write_folded(wb, *later.pop(0))
+    del wb.__dict__["save"]
 
 
 def _tab(wb, title):

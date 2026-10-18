@@ -74,13 +74,18 @@ def _inside(spell, date):
 
 def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
              frequency: str, smoothing: int, scale: Optional[dict],
-             floor_at_zero: bool, half_lives: Sequence[float] = ()) -> dict:
+             floor_at_zero: bool, half_lives: Sequence[float] = (), left_out: Sequence[str] = ()) -> dict:
     """``scale``: dict(halfwidth, low_step, high_z, on_the_line), the workbook's
-    settings, or None for the evidence alone (no scenario or recency lines)."""
-    pr = profile(points, name, unit, direction, frequency, smoothing)
+    settings, or None for the evidence alone (no scenario or recency lines).
+    ``left_out``: the quarter-end dates the file declares left out
+    (``series.read_left_out``). They are in the calendar as None, as a period
+    the bank leaves out is: in no statistic, no change and no departure window,
+    and a year is still four quarters of the calendar."""
+    pr = profile(points, name, unit, direction, frequency, smoothing, left_out)
     sign = 1.0 if direction == "higher_is_worse" else -1.0
-    series = smooth(check(points, frequency), smoothing)
-    work = [Point(p.date, sign * p.value) for p in series]
+    series = smooth(check(points, frequency, left_out), smoothing)
+    cal = [Point(p.date, None if p.value is None else sign * p.value) for p in series]
+    work = [p for p in cal if p.value is not None]
     years = len(work) / (12 // STEP_MONTHS[frequency])
 
     spells = []
@@ -92,7 +97,7 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
                       if sign * t["peak"] >= sign * s["peak"])
         spells.append(dict(s, robust_z=z, return_period_years=years / reached,
                            dip=_deepest_dip(inside, work)))
-    changes = [b.value - a.value for a, b in zip(work, work[1:])]
+    changes = [b.value - a.value for a, b in zip(cal, cal[1:]) if a.value is not None and b.value is not None]
     sd_change = statistics.stdev(changes) if len(changes) > 1 else 0.0
     for s in spells:
         if s["dip"]:
@@ -138,7 +143,7 @@ def evidence(points: Sequence[Point], name: str, unit: str, direction: str,
 
     # Departure windows are 2, 3 and 4 years whatever the frequency.
     per_year = 12 // STEP_MONTHS[frequency]
-    deps = departures(work, tuple(L * per_year // 4 for L in BRIDGE_LENGTHS))
+    deps = departures(cal, tuple(L * per_year // 4 for L in BRIDGE_LENGTHS))
     for d in deps:
         d["mean_departure"] *= sign            # back to the measure's own units
 
@@ -176,7 +181,8 @@ def departures(work: Sequence[Point], lengths=BRIDGE_LENGTHS, rounds=ROUNDS):
 
     Values are in "higher is worse" space; a positive departure is worse than
     the path around it. The data cannot say why a stretch departed. That is
-    the bank's to record.
+    the bank's to record. A window holding a period left out (a value of
+    None) is not drawn: its bridge would cross quarters nobody may read.
     """
     v = [p.value for p in work]
     pool = []
@@ -184,6 +190,8 @@ def departures(work: Sequence[Point], lengths=BRIDGE_LENGTHS, rounds=ROUNDS):
         rows = []
         for st in range(0, len(v) - w):
             en = st + w
+            if any(x is None for x in v[st:en + 1]):
+                continue
             dev = [v[t] - (v[st] + (v[en] - v[st]) * (t - st) / w) for t in range(st + 1, en)]
             rows.append((sum(dev) / len(dev), st, en, w))
         if not rows:

@@ -338,10 +338,11 @@ def test_quarter_end_refuses_a_date_that_is_not_one(bad):
         fdic.quarter_end(bad)
 
 
-def test_allowlist_is_credit_suites_plus_215():
-    # credit-suite's list, plus 215 (decided here 12 Oct 2026, LOG.md).
-    assert sorted(fdic.ACQUISITIONS) == [211, 215, 216, 217, 221, 222, 223, 224]
-    assert sorted(fdic.NOT_AN_ACQUISITION) == [712, 810, 811, 812]
+def test_allowlist_is_credit_suites_plus_215_and_213():
+    # credit-suite's list, plus 215 (decided here 12 Oct 2026, LOG.md) and 213
+    # (the firm, 17 Oct 2026, question 17); 225 is not an acquisition.
+    assert sorted(fdic.ACQUISITIONS) == [211, 213, 215, 216, 217, 221, 222, 223, 224]
+    assert sorted(fdic.NOT_AN_ACQUISITION) == [225, 712, 810, 811, 812]
     assert fdic.FIELDS == "CERT,EFFDATE,CHANGECODE,CHANGECODE_DESC,ACQ_CERT,OUT_CERT,OUT_NAME,PROCDATE"
 
 
@@ -407,3 +408,22 @@ def test_a_failure_with_several_acquirers_marks_each_acquirer():
     rows = [hist(215, "18113", "2008-09-05"), hist(215, "2448", "2008-09-19")]
     out = fdic.pull_mergers("2005-10-01", fetch=FakeHistory(rows), sleep=no_sleep)
     assert out == {"18113": ["2008-09-30"], "2448": ["2008-09-30"]}
+
+
+def test_213_is_an_acquisition_and_225_is_not_and_neither_stops_the_pull():
+    """The firm, 17 Oct 2026, on the commercial proposal's question 17
+    ("agreed with the recommendation"): FDIC history code 213 ("Merger -
+    Assisted") is classified as an acquisition, like 211; code 225 ("Partial
+    Purchase & Assumption - Without Assistance") as not one, like 712. Before,
+    both were on neither list, so the merger record since 1990 was refused
+    and no peer build before 2005 could run. The descriptions are the FDIC's
+    own, as the history API sends them."""
+    rows = [dict(hist(213, "5510", "1990-05-11", "8001"), CHANGECODE_DESC="Merger - Assisted"),
+            dict(hist(225, "6672", "1991-06-14", "8002"),
+                 CHANGECODE_DESC="Partial Purchase & Assumption - Without Assistance"),
+            hist(712, "6384", "1991-08-01")]
+    assert fdic.unrecognised(rows) == []
+    assert fdic.classify(rows) == {"5510": ["1990-06-30"]}
+    assert fdic.absorptions(rows) == [{"acquirer": "5510", "absorbed": "8001", "quarter": "1990-06-30"}]
+    out = fdic.pull_mergers("1990-01-01", fetch=FakeHistory(rows), sleep=no_sleep)
+    assert out == {"5510": ["1990-06-30"]}

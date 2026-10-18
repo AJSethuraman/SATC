@@ -10,6 +10,7 @@ The registry is a file (``config/reporting-changes.json``), never code, and
 every key of every entry is required; nothing has a default:
 
     {"_what": "what the file is and what it leaves out",
+     "events": [entries of the same shape, [] for none],
      "changes": [{
         "name": "a short name",
         "first": "YYYYQn", "last": "YYYYQn",   # the quarters it took effect in
@@ -22,6 +23,15 @@ every key of every entry is required; nothing has a default:
                              that already describe this change"} or {}
      }]}
 
+``events`` (the firm, 17 Oct 2026, on the commercial proposal's question 15,
+"agreed with the recommendation") holds what moved a series without being a
+change to the report: the 2020 revolving-line drawdowns and the PPP loans in
+C&I. Each event is checked as a change is, and labelled the same way on every
+series it touches, under its own key (``# event: ...``, "Event" on Sources),
+so it is never called a reporting change. Events are listed on the
+Reporting changes tab after the changes, under their own heading; Decide's
+and the Peers charts' diamonds mark reporting changes only.
+
 ``first`` to ``last`` is when the change took effect: one quarter, or several
 where banks were allowed to report it over more than one (the December 2024
 NDFI and margin-loan revision, best efforts until 30 June 2025). A change that
@@ -33,7 +43,15 @@ refused if that note does not hold them.
 What reads it:
 
 - ``load`` checks it and refuses, naming each entry and what is wrong with it,
-  every problem at once (``RegistryError``);
+  every problem at once (``RegistryError``), and returns the changes;
+  ``load_events`` checks the same file and returns its events;
+- ``event_lines`` gives the ``# event:`` lines for one series, as
+  ``note_lines`` gives the reporting-change lines;
+- ``labelled_quarters`` gives every quarter the entries given name for a
+  product and measure. Given the changes, a window the jump leaves out only
+  for a move in one of those quarters does not break the series written (the
+  firm, 17 Oct 2026, question 16; ``peers.run.bridged``); the events are
+  never given for that, as they are not reporting changes;
 - ``note_lines`` gives the ``# reporting-change:`` lines for one series (its
   products, its measure and its quarters), which ``peers build`` writes into
   every series file it makes, so the Sources tab shows them;
@@ -48,7 +66,7 @@ import re
 from pathlib import Path
 from typing import Iterable, List, Sequence, Set, Tuple
 
-TOP_KEYS = ("_what", "changes")
+TOP_KEYS = ("_what", "changes", "events")
 KEYS = ("name", "first", "last", "products", "measures", "call_report_items", "what_changed", "sources",
         "already_labelled")
 SOURCE_KEYS = ("citation", "url")
@@ -58,7 +76,14 @@ CHARGE_OFFS = ("net charge-offs", "gross charge-offs")
 #: The key a series file's note line carries (``# reporting-change: ...``):
 #: the Sources tab shows it as "Reporting change".
 NOTE_KEY = "reporting-change"
+#: The key an event's note line carries (``# event: ...``): "Event" on Sources.
+EVENT_KEY = "event"
 TAB = "Reporting changes"
+#: The heading the events take on the tab, and what it says about them.
+EVENTS_HEADING = "Events"
+EVENTS_ABOUT = ("What moved a series without being a change to the report's definitions or forms (the firm, "
+                "17 Oct 2026). Each is labelled on every series it touches as an Event, not a Reporting change, "
+                "and is not marked on the charts.")
 HEADINGS = ("Change", "Took effect", "Products touched", "Measures touched", "Call Report items", "What changed",
             "Source document")
 _QUARTER = re.compile(r"\d{4}Q[1-4]")
@@ -135,22 +160,43 @@ def _one_line(text) -> bool:
 
 
 def check(raw, name: str = "the registry") -> List[dict]:
-    """The registry's entries, checked; ``RegistryError`` listing every
-    problem, each naming its entry, when anything is wrong."""
+    """The registry's changes, checked; ``RegistryError`` listing every
+    problem, each naming its entry, when anything is wrong, in the changes or
+    in the events."""
+    return check_all(raw, name)[0]
+
+
+def check_all(raw, name: str = "the registry") -> Tuple[List[dict], List[dict]]:
+    """``(changes, events)``, both checked by the same rules; a name is used
+    once across both lists."""
     problems: List[str] = []
     if not _keys(name, raw, TOP_KEYS, problems):
         raise RegistryError("\n".join(problems))
     if not (isinstance(raw["_what"], str) and raw["_what"].strip()):
         problems.append("%s: _what must say what the file is" % name)
-    changes = raw["changes"]
+    changes, events = raw["changes"], raw["events"]
     if not (isinstance(changes, list) and changes):
         problems.append("%s: changes must list at least one change" % name)
+    if not isinstance(events, list):
+        problems.append("%s: events must be a list of events ([] for none)" % name)
+    if problems:
         raise RegistryError("\n".join(problems))
+    seen: set = set()
+    out_c = _entries(changes, "change", seen, problems)
+    out_e = _entries(events, "event", seen, problems)
+    if problems:
+        raise RegistryError("\n".join(problems))
+    return out_c, out_e
+
+
+def _entries(entries, kind: str, seen: set, problems: List[str]) -> List[dict]:
+    """The entries of one list (``kind`` 'change' or 'event'), each checked;
+    every problem is added to ``problems`` under the entry's name."""
     allowed_p, allowed_m = products(), measures()
-    seen, out = set(), []
-    for i, c in enumerate(changes, start=1):
+    out = []
+    for i, c in enumerate(entries, start=1):
         label = c.get("name") if isinstance(c, dict) else None
-        where = "change %d (%s)" % (i, label) if isinstance(label, str) and label.strip() else "change %d" % i
+        where = "%s %d (%s)" % (kind, i, label) if isinstance(label, str) and label.strip() else "%s %d" % (kind, i)
         if not _keys(where, c, KEYS, problems):
             continue
         before = len(problems)
@@ -210,13 +256,21 @@ def check(raw, name: str = "the registry") -> List[dict]:
                                     "so the link would point at nothing" % (where, p, words, p))
         if len(problems) == before:
             out.append({k: c[k] for k in KEYS})
-    if problems:
-        raise RegistryError("\n".join(problems))
     return out
 
 
 def load(path) -> List[dict]:
-    """Read and check the registry file at ``path``."""
+    """Read and check the registry file at ``path``; its changes."""
+    return load_all(path)[0]
+
+
+def load_events(path) -> List[dict]:
+    """Read and check the registry file at ``path``; its events."""
+    return load_all(path)[1]
+
+
+def load_all(path) -> Tuple[List[dict], List[dict]]:
+    """Read and check the registry file at ``path``: ``(changes, events)``."""
     path = Path(path)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -228,7 +282,7 @@ def load(path) -> List[dict]:
         raise RegistryError("%s is not a UTF-8 text file" % path) from None
     except OSError as e:
         raise RegistryError("the reporting changes file %s cannot be read: %s" % (path, e.strerror or e)) from None
-    return check(raw, path.name)
+    return check_all(raw, path.name)
 
 
 def what(path) -> str:
@@ -260,12 +314,32 @@ def note_lines(changes: Sequence[dict], products_: Sequence[str], measure: str, 
     ``notes``. A change one of those lines already describes (its
     ``already_labelled`` words are in it) is linked to that line, not said
     again."""
+    return _lines(changes, NOTE_KEY, products_, measure, first, last, notes)
+
+
+def event_lines(events: Sequence[dict], products_: Sequence[str], measure: str, first: str, last: str,
+                notes: Sequence[str]) -> List[str]:
+    """The ``event:`` note lines for a series, as ``note_lines`` gives the
+    reporting-change lines: an event is labelled the same way, under its own
+    key, so it is never called a reporting change."""
+    return _lines(events, EVENT_KEY, products_, measure, first, last, notes)
+
+
+def labelled_quarters(entries: Sequence[dict], product: str, measure: str) -> Set[str]:
+    """Every quarter ('YYYYQn') an entry (a change or an event) in ``entries``
+    names for ``product`` on ``measure``: each quarter from its first to its
+    last."""
+    return {q for c in entries if product in c["products"] and measure in c["measures"]
+            for q in quarters(c["first"], c["last"])}
+
+
+def _lines(changes, key, products_, measure, first, last, notes) -> List[str]:
     out = []
     for c in touching(changes, products_, measure, first, last):
         linked = [w for p, w in c["already_labelled"].items() if p in products_ and any(w in n for n in notes)]
         body = ('The note above that says "%s" describes this change.' % linked[0] if linked
                 else c["what_changed"])
-        out.append("%s: %s, %s. %s Source: %s." % (NOTE_KEY, when(c), c["name"], body, cited(c)))
+        out.append("%s: %s, %s. %s Source: %s." % (key, when(c), c["name"], body, cited(c)))
     return out
 
 
@@ -285,10 +359,12 @@ def quarters_in_notes(notes: Sequence[Tuple[str, str]]) -> Set[str]:
     return out
 
 
-def write_tab(ws, changes: Sequence[dict], about: str, source_name: str) -> int:
+def write_tab(ws, changes: Sequence[dict], about: str, source_name: str, events: Sequence[dict]) -> int:
     """The Reporting changes tab, on the reference tabs' template: the
-    registry's own description, then one row per change. Returns the last
-    row written."""
+    registry's own description, then one row per change, then, under their
+    own heading, one row per event (``events``: what moved a series without
+    being a change to the report; ``[]`` for none, and then no heading).
+    Returns the last row written."""
     from openpyxl.styles import Alignment, Font
 
     from . import keybank_style as K
@@ -305,16 +381,31 @@ def write_tab(ws, changes: Sequence[dict], about: str, source_name: str) -> int:
     widths = (30, 16, 22, 26, 36, 60, 60)
     ws.row_dimensions[4].height = 15 * _lines(about, sum(widths[1:]))
     r = _ref_header(ws, 6, list(HEADINGS), 2)
-    for ch in changes:
-        vals = (ch["name"], when(ch), ", ".join(ch["products"]) or "None of the products",
-                ", ".join(ch["measures"]) or "None", "; ".join(ch["call_report_items"]) or "None stated",
-                ch["what_changed"], "\n".join("%s, %s" % (s["citation"], s["url"]) for s in ch["sources"]))
-        for col, v in enumerate(vals, start=2):
-            cell = ws.cell(r, col, v)
-            cell.font = Font(name="Calibri", size=11, color=K.INK_TEXT, bold=col == 2)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-        _ref_row(ws, r, 2, last_col, lines=max(_lines(v, w) + str(v).count("\n") for v, w in zip(vals, widths)))
+
+    def rows(entries, r):
+        for ch in entries:
+            vals = (ch["name"], when(ch), ", ".join(ch["products"]) or "None of the products",
+                    ", ".join(ch["measures"]) or "None", "; ".join(ch["call_report_items"]) or "None stated",
+                    ch["what_changed"], "\n".join("%s, %s" % (s["citation"], s["url"]) for s in ch["sources"]))
+            for col, v in enumerate(vals, start=2):
+                cell = ws.cell(r, col, v)
+                cell.font = Font(name="Calibri", size=11, color=K.INK_TEXT, bold=col == 2)
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+            _ref_row(ws, r, 2, last_col, lines=max(_lines(v, w) + str(v).count("\n") for v, w in zip(vals, widths)))
+            r += 1
+        return r
+
+    r = rows(changes, r)
+    if events:
         r += 1
+        ws.cell(r, 2, EVENTS_HEADING).font = REF_LABEL
+        c = ws.cell(r, 3, EVENTS_ABOUT)
+        c.font = Font(name="Calibri", size=11, color=K.INK_TEXT)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=r, start_column=3, end_row=r, end_column=last_col)
+        ws.row_dimensions[r].height = 15 * _lines(EVENTS_ABOUT, sum(widths[1:]))
+        r = _ref_header(ws, r + 1, list(HEADINGS), 2)
+        r = rows(events, r)
     ws.column_dimensions["A"].width = REF_EDGE
     for i, w in enumerate(widths):
         ws.column_dimensions[chr(ord("B") + i)].width = w

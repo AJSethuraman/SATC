@@ -53,7 +53,9 @@ from . import books, fdic, peers_workbook
 from . import delinquency as D
 from . import flows as FL
 from . import roster as R
+from . import stated as ST
 from .. import reporting_changes as RC
+from ..series import left_out_line
 
 #: The workbook's pickers start here; every measure and basis is built.
 START_MEASURE = next(iter(D.MEASURES))
@@ -85,7 +87,7 @@ def _yes_no(flag, value):
         raise ValueError("%s must be stated, yes or no, not %r" % (flag, value))
 
 
-def unbroken_tail(rows):
+def unbroken_tail(rows, bridge=()):
     """The latest unbroken run of ``(quarter, value)`` pairs, the quarters
     before it that are left out, and the quarters after it that are left out.
 
@@ -94,15 +96,64 @@ def unbroken_tail(rows):
     first quarter after its last break. A series whose latest quarters have no
     value ends at its last value. What is left out, at either end, is named,
     not hidden: unnamed, an older value would be read as the latest one.
+
+    ``bridge`` names the quarters whose missing value does not break the run:
+    the windows the jump left out only for a move in a quarter a reporting
+    change names for the series (the firm, 17 Oct 2026, the commercial
+    proposal's question 16; ``bridged``). An event never does. They stay in the run as
+    ``(quarter, None)``, never filled: the file declares them on a
+    ``left-out:`` line (``series_note``) and the readers take that gap and no
+    other (``series.check``). The run never begins or ends on one. Every
+    other quarter with no value breaks the run as before.
     """
     rows = list(rows)
+    bridge = set(bridge)
     end = len(rows)
     while end and rows[end - 1][1] is None:
         end -= 1
     start = end
-    while start and rows[start - 1][1] is not None:
+    while start and (rows[start - 1][1] is not None or rows[start - 1][0] in bridge):
         start -= 1
+    while start < end and rows[start][1] is None:
+        start += 1
     return rows[start:end], [q for q, _ in rows[:start]], [q for q, _ in rows[end:]]
+
+
+def values(tail):
+    """The quarters of ``tail`` (``unbroken_tail``'s) that hold a value: the
+    quarters written. A quarter the series continues across holds None and
+    is declared, not written."""
+    return sum(v is not None for _, v in tail)
+
+
+def labelled_for(entries, product, measure):
+    """Every quarter (``YYYYQn``) an entry in ``entries`` names for
+    ``product`` on ``measure`` (``reporting_changes.labelled_quarters``); for
+    a combined product (``books.members``), an entry naming any of its parts,
+    as the Peers charts mark a combined product's changes
+    (``peers_workbook.change_quarters``) and its files note them."""
+    return set().union(*(RC.labelled_quarters(entries, n, measure) for n in books.members(product)))
+
+
+def bridged(rows, marks, *, jumped="jumped", without="why_without_jump", quarter="quarter"):
+    """The quarters (``YYYYQn``) of ``rows`` (``books.bank_book``'s, or
+    ``delinquency.bank_delinquency``'s with ``without="why_avg4_without_jump"``
+    and ``quarter="q"``) left out by the jump alone, every move that tripped
+    it in a quarter of ``marks`` (``labelled_for``): left out, and nothing
+    else would have left them out."""
+    return {r[quarter] for r in rows
+            if r[jumped] and r[without] is None and set(r[jumped]) <= set(marks)}
+
+
+def named_for(entries, product, measure, quarters_):
+    """``(name, parts)`` for each entry in ``entries`` (the reporting changes,
+    for a ``left-out:`` line) that names any of ``quarters_`` for ``product``
+    on ``measure``, in registry order; ``parts`` are the products of
+    ``product`` (``books.members``: itself, unless combined) it names."""
+    qs, names = set(quarters_), books.members(product)
+    return [(c["name"], [n for n in names if n in c["products"]]) for c in entries
+            if set(names) & set(c["products"]) and measure in c["measures"]
+            and qs & set(RC.quarters(c["first"], c["last"]))]
 
 
 def break_reason(row, key: str, min_banks: int) -> str:
@@ -136,13 +187,40 @@ def left_out_spans(before, after, reasons) -> List[Tuple[str, str, str]]:
     return spans
 
 
-def series_note(note, tail, before, after):
+#: The reason the left-out file gives for quarters a series continues across.
+WHY_WITHIN = ("within the series: the jump left these windows out and nothing else would have, every move that "
+              "tripped it in a quarter a reporting change names; not written, never filled, and the series "
+              "continues across them (the file's left-out line names the moves and the changes)")
+
+
+def within_spans(tail) -> List[Tuple[str, str, str]]:
+    """``(first, last, why)`` for each run of quarters with no value inside
+    ``tail`` (``unbroken_tail``'s, with a ``bridge``): the windows a series
+    continues across, for the left-out file beside ``left_out_spans``'."""
+    spans, run_ = [], []
+    for q, v in list(tail) + [(None, 0)]:
+        if v is None:
+            run_.append(q)
+        elif run_:
+            spans.append((run_[0], run_[-1], WHY_WITHIN))
+            run_ = []
+    return spans
+
+
+def series_note(note, tail, before, after, why_gap=None):
     """The note lines for a series written from ``tail``: the given note, then
-    what is left out before the run and after it. An empty ``tail`` is not
-    written, so it has no note."""
+    what is left out before the run and after it, and, where the run holds
+    quarters with no value (``unbroken_tail``'s ``bridge``), the ``left-out:``
+    line declaring them, with ``why_gap``, the reason in words. An empty
+    ``tail`` is not written, so it has no note."""
     if not tail:
         return []
     lines = list(note)
+    gaps = [q for q, v in tail if v is None]
+    if gaps:
+        if not why_gap:
+            raise ValueError("a series continuing across quarters left out must say why")
+        lines.append(left_out_line(gaps, why_gap))
     if before:
         lines.append("Written from %s, the first quarter after the last break; %d earlier quarters "
                      "(%s to %s) are left out, because the workbook refuses a gap and a gap is not "
@@ -391,7 +469,7 @@ def left_out_note(left_out, tail, names):
     the quarters written (``tail``), the banks left out of it and why: their
     own four-quarter average was blanked by the jump or by the acquisition
     share. ``left_out`` is ``{YYYYQn: [(cert, reason)]}``, the reason "the
-    jump" or "the acquisition share" (``composite_delinquency``'s
+    jump", "the acquisition share" or "a stated acquisition" (``composite_delinquency``'s
     ``avg4_left_out`` with each bank's own ``why_avg4``), ``names`` ``{cert:
     label}``. Written either way, so what was left out is never hidden."""
     written = {q for q, _ in tail}
@@ -401,26 +479,37 @@ def left_out_note(left_out, tail, names):
             for c, why in items:
                 by_bank.setdefault((why, c), []).append(q)
     if not by_bank:
-        return ("No bank was left out of this average by the jump or the acquisition share in the "
-                "quarters written.")
+        return ("No bank was left out of this average by the jump, the acquisition share or a stated "
+                "acquisition in the quarters written.")
     parts_ = []
-    for why in ("the jump", "the acquisition share"):
+    for why in ("the jump", "the acquisition share", "a stated acquisition"):
         banks = [(c, qs) for (w, c), qs in by_bank.items() if w == why]
         if banks:
             parts_.append("blanked by %s (%s): %s" % (
                 why, "the book moved by more than the jump" if why == "the jump" else
-                "recorded acquisitions brought in at least that share of the book",
+                "recorded acquisitions brought in at least that share of the book"
+                if why == "the acquisition share" else
+                "an acquisition the FDIC record cannot see, listed with its filing",
                 "; ".join("%s %s" % (names.get(c, c), quarter_runs(sorted(qs))) for c, qs in banks)))
     return "Left out of this average because their own four-quarter average was " + "; and ".join(parts_) + "."
 
 
 def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_book, exempt_self,
-                        min_banks, source, every, out_dir, acquired, acquisition_share):
+                        min_banks, source, every, out_dir, acquired, acquisition_share, stated, stated_note,
+                        bridging):
     """Per product, measure and basis, the pack composite, the bank itself and
-    the industry, as ``(path, rows, note, product, measure, left_out)``: the delinquency
+    the industry, as ``(path, rows, note, product, measure, left_out, bridge, reasons)``: the delinquency
     CSVs. ``left_out`` is ``{YYYYQn: [cert]}`` for a pack composite's
     four-quarter average and None for every other file. ``every`` words
     the industry from how many filers its last quarter counts (``banks``).
+    ``stated`` is ``{cert: [YYYYMMDD]}``, the stated acquisitions in these
+    quarters (``peers.stated``), and ``stated_note`` the line naming them,
+    given to every file the rules apply to. ``bridge`` is ``{YYYYQn:
+    [quarters that moved]}``, the bank's own four-quarter average quarters
+    left out by the jump alone, for a move in a quarter a reporting change
+    in ``bridging`` names for the product and measure (``bridged``; never an
+    event); empty for every other file. ``reasons`` is ``{YYYYQn: why no
+    value}`` (``break_reason``), for the left-out file.
 
     The rules note says what each series was built under, and no more. The
     jump blanks a bank's own four-quarter average, and a bank so blanked is
@@ -448,8 +537,11 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
             nums = " + ".join(f for n in D._numerator_fields(p, m) for f in books.parts(n))
             banks_ = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, jump, min_book,
                                                     exempt_self and b is me,
-                                                    acquired=acquired[p].get(b["cert"], []))
+                                                    acquired=acquired[p].get(b["cert"], []),
+                                                    stated=stated.get(b["cert"], []))
                       for b in roster}
+            own_bridge = bridged(banks_[me["cert"]], labelled_for(bridging, p, m),
+                                 without="why_avg4_without_jump", quarter="q")
             comp = D.composite_delinquency(banks_, certs, min_banks)
             mid = {b_: D.band_delinquency(banks_, certs, b_, (50,), min_banks=min_banks) for b_ in D.BASES}
             median = [{"q": a["q"], D.BASES["quarter-end"]: a["p50"],
@@ -472,7 +564,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                     note = ["%s, delinquency: %s, %s, %%." % (p, m, how),
                             "Amounts are $ thousands at quarter-end, as filed; a field not filed is "
                             "never read as 0.",
-                            words[0].upper() + words[1:] + ".", source] + ([ruled] if ruled else [])
+                            words[0].upper() + words[1:] + ".", source] + ([ruled, stated_note] if ruled else [])
                     note += D.comparability(p, m)
                     if p not in books.PRODUCTS:
                         note += books.definitions(p)[:1] + [D.COMBINED]
@@ -481,30 +573,40 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                         note += [said] if said else []
                     own = {c: {x["q"]: x["why_avg4"] or "" for x in banks_[c]} for c in certs}
                     left_out = ({r["q"]: [(c, "the jump" if own[c].get(r["q"], "").startswith(D.WHY_JUMP_PREFIX)
+                                           else "a stated acquisition"
+                                           if own[c].get(r["q"], "").startswith(D.WHY_STATED_PREFIX)
                                            else "the acquisition share") for c in r["avg4_left_out"]]
                                  for r in comp}
                                 if rows is comp and basis == "four-quarter average" else None)
+                    bridge = ({r["q"]: r["jumped"] for r in banks_[me["cert"]] if r["q"] in own_bridge}
+                              if rows is banks_[me["cert"]] and basis == "four-quarter average" else {})
                     made.append((out_dir / ("%s_%s_delinquency-%s_%s.csv" % (slug(p), who, slug(m), slug(basis))),
-                                 D.values(rows, basis), note, p, m, left_out,
+                                 D.values(rows, basis), note, p, m, left_out, bridge,
                                  {r["q"]: break_reason(r, D.BASES[basis], min_banks) for r in rows}))
     return made
 
 
 def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition_share, min_banks, source, every,
-                 out_dir, acquired):
+                 out_dir, acquired, stated, stated_note):
     """The 30+ to charge-off series files (``flows``), per product: the pack
     composite, the bank itself and the industry, each on both bases, and the
     bank's gap to the peer group and to the industry (four-quarter average).
     Each is ``(path, rows, note, product, measure, reasons)``, ``reasons``
-    ``{quarter: why no value}`` for the left-out file."""
-    rule = ("Rules: each bank's own filings (not pro forma); jump %g and acquisition share %g, applied to the two "
-            "quarters after the quarter-end (a sale, purchase or acquisition there moves the charge-offs against "
-            "the stock); at least %d banks in the composite. The industry has no jump, acquisition or minimum rule."
+    ``{quarter: why no value}`` for the left-out file. ``stated`` is
+    ``{cert: [YYYYMMDD]}``, the stated acquisitions in these quarters
+    (``peers.stated``), applied as the acquisition quarters are, and
+    ``stated_note`` the line naming them, given to every file the rules apply
+    to."""
+    rule = ("Rules: each bank's own filings (not pro forma); jump %g, acquisition share %g and the stated "
+            "acquisitions, applied to the two quarters after the quarter-end (a sale, purchase or acquisition "
+            "there moves the charge-offs against the stock); at least %d banks in the composite. The industry "
+            "has no jump, acquisition or minimum rule."
             % (jump, acquisition_share, min_banks))
     certs = [b["cert"] for b in pack]
     made = []
     for p in products:
-        banks_ = {b["cert"]: FL.bank_flow(data, b["cert"], p, jump, acquired=acquired[p].get(b["cert"], []))
+        banks_ = {b["cert"]: FL.bank_flow(data, b["cert"], p, jump, acquired=acquired[p].get(b["cert"], []),
+                                          stated=stated.get(b["cert"], []))
                   for b in roster}
         comp = FL.composite(banks_, certs, min_banks)
         ind = FL.industry(data, p)
@@ -520,7 +622,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
                 note = ["%s, %s, %s, %%." % (p, FL.MEASURE, basis), FL.DEFINITION]
                 if basis == "four-quarter average":
                     note.append(FL.DEFINITION_AVG4)
-                note += [words[0].upper() + words[1:] + ".", source, rule] + books.definitions(p)
+                note += [words[0].upper() + words[1:] + ".", source, rule, stated_note] + books.definitions(p)
                 reasons = {r["q"]: (r["why_avg4"] if key == "avg4" else r["why"]) or "no value" for r in rows}
                 made.append((out_dir / ("%s_%s_%s_%s.csv" % (slug(p), who, FL.SLUG, slug(basis))),
                              FL.values(rows, basis), note, p, FL.MEASURE, reasons))
@@ -529,7 +631,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
             g = FL.gap(mine, other)
             note = ["%s, %s, four-quarter average, percentage points." % (p, meas),
                     FL.DEFINITION_GAP % (meas, me["short"], words, me["short"], words), FL.DEFINITION,
-                    FL.DEFINITION_AVG4, source, rule] + books.definitions(p)
+                    FL.DEFINITION_AVG4, source, rule, stated_note] + books.definitions(p)
             made.append((out_dir / ("%s_%s_%s_four-quarter-average.csv" % (slug(p), slug(me["short"]), slug(meas))),
                          FL.values(g, "four-quarter average"), note, p, meas,
                          {r["q"]: r["why"] or "no value" for r in g}))
@@ -619,9 +721,13 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
           pack: str, min_banks: int, rank_by: str,
           last_n: int, min_obs: int, base_quarter: str, index_min_book: float,
           lagged_years: Sequence[int], lag_years: int, normalisation_years: Sequence[int],
-          mix_base_year: int, delinquency: bool, reporting_changes, say: Callable[[str], None] = print,
-          into=None, names: Optional[Dict[str, str]] = None) -> dict:
+          mix_base_year: int, delinquency: bool, reporting_changes, stated_acquisitions,
+          say: Callable[[str], None] = print, into=None, names: Optional[Dict[str, str]] = None,
+          book_kind: Optional[str] = None) -> dict:
     """Read the cache, write the peer workbook and the series CSVs.
+
+    ``book_kind`` is the kind a book states (``kinds.KINDS``), given by the
+    book command; the standalone command states none (``build_peers_workbook``).
 
     ``mergers`` and ``absorptions`` are the files 'peers pull --mergers'
     writes. ``acquisition_share`` (0.05 = 5%) is the share of a product's
@@ -649,7 +755,30 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     touches its product and measure within its quarters (the firm, 16 Oct
     2026: "Definitely mark reporting changes."), and the Peers charts mark the
     quarters each took effect. A registry that is not there or not well formed
-    is refused, by entry, before anything is read.
+    is refused, by entry, before anything is read. Its events (the 2020
+    drawdowns and PPP loans in C&I; the firm, 17 Oct 2026, question 15) are
+    labelled the same way, as ``event`` notes, on every series they touch;
+    they leave nothing out and keep nothing in: the jump still decides.
+
+    Where the jump leaves a bank's own window out and nothing else would
+    have, every move that tripped it in a quarter a reporting change names
+    for the product and measure, the series written continues across those
+    windows instead of starting after them (the firm, 17 Oct 2026, question
+    16: "When a labeled reporting change trips the 25% jump"): they stay out,
+    unwritten, declared on a ``left-out:`` line, and the earlier history is
+    kept. An event is not a reporting change (question 13's record: the 2020
+    drawdowns and PPP "are not reporting changes"), so a window that only an
+    event names breaks the series, as every other reason a window is left
+    out does.
+
+    ``stated_acquisitions`` is the file of acquisitions the FDIC record cannot
+    see (``config/stated-acquisitions.json``, ``peers.stated``; the firm, 17
+    Oct 2026, question 14), or None to state that none is read; required.
+    Every product's windows holding one are left out for its acquirer, with
+    their own reason, charge-offs and the delinquency average alike; a
+    malformed entry, or one naming a certificate not on the roster, is
+    refused by entry before anything is read, and one outside the quarters
+    read is named on the Run tab as not read.
 
     Every stated setting is checked before anything is read or written, and
     two series that would land in the same file are refused then too. The
@@ -674,16 +803,28 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     Returns ``{out, info, series}``: the workbook written (None with
     ``into``), what ``build_peers_workbook`` returned, and per series
     ``(path, quarters written, left out before, left out after)`` (0
-    quarters: not written)."""
+    quarters: not written). Quarters written counts values only: the
+    windows a series continues across are declared, not written.
+    ``left_out`` is ``{path: [(first, last, why)]}`` for every series
+    written (``left_out_spans``), for the book's left-out file."""
     s = dict(locals())
     products = _check_build(s)
     if reporting_changes is None or isinstance(reporting_changes, bool):
         raise ValueError("--reporting-changes must name the registry of Call Report changes "
                          "(config/reporting-changes.json), not %r" % (reporting_changes,))
     try:
-        changes = RC.load(reporting_changes)
+        changes, events = RC.load_all(reporting_changes)
     except RC.RegistryError as e:
         raise ValueError("--reporting-changes: %s" % e) from None
+    bridging = list(changes)    # question 16: a reporting change, never an event
+    if isinstance(stated_acquisitions, bool) or not (stated_acquisitions is None
+                                                     or isinstance(stated_acquisitions, (str, Path))):
+        raise ValueError("--stated-acquisitions must name the file of acquisitions the FDIC record cannot see "
+                         "(config/stated-acquisitions.json), or none, not %r" % (stated_acquisitions,))
+    try:
+        stated_ = [] if stated_acquisitions is None else ST.load(stated_acquisitions)
+    except ST.StatedError as e:
+        raise ValueError("--stated-acquisitions: %s" % e) from None
     if into is None:
         _check_out(out, roster=roster, mergers=mergers, absorptions=absorptions)
     elif out is not None:
@@ -697,6 +838,15 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     links_ = load_absorptions(absorptions)
     extras_ = extras(extra_acquisitions, roster_, quarters)
     combined_ = combined(industry_combined)
+    try:
+        stated_q, stated_outside = ST.by_cert(stated_, [b["cert"] for b in roster_], quarters)
+    except ST.StatedError as e:
+        raise ValueError("--stated-acquisitions: %s" % e) from None
+    # The book index reads a stated acquisition as one the bank declared.
+    for c, qs in stated_q.items():
+        for q in qs:
+            if books.label(q) not in extras_.get(c, []):
+                extras_.setdefault(c, []).append(books.label(q))
 
     cache = Path(cache)
     missing = [q for q in quarters if not (cache / ("q%s.json" % q)).exists()]
@@ -732,6 +882,14 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         acquired_co = acquired
     merged = sorted({(r["acquirer"], r["quarter"]) for r in repeats})
     names_ = {b["cert"]: b["short"] for b in roster_}
+    in_range = [e for e in stated_ if e not in stated_outside]
+    stated_note = ("Stated acquisitions, the ones the FDIC record cannot see (%s): %s" % (
+        Path(stated_acquisitions).name if stated_acquisitions is not None else "none read",
+        "none named, so none is read." if stated_acquisitions is None else
+        "%d in these quarters, each bank's windows holding one left out for every product: %s." % (
+            len(in_range), "; ".join("%s %s (%s)" % (names_[e["acquirer"]], e["quarter"], e["citation"])
+                                     for e in in_range)) if in_range else
+        "none in these quarters."))
     on_roster = [(c, q) for c, q in merged if c in names_]
     repeat_note = ("Absorptions under common control: the absorbed bank's year-to-date charge-offs and "
                    "recoveries, which the survivor's filing repeats, are taken off the survivor's for the "
@@ -768,7 +926,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         bks = {b["cert"]: books.bank_book(data, b["cert"], p, jump, min_book,
                                           exempt_min_book=exempt_self and b is me,
                                           acquired=acquired_co[p].get(b["cert"], []),
-                                          members=members.get(b["cert"], ())) for b in roster_}
+                                          members=members.get(b["cert"], ()),
+                                          stated=stated_q.get(b["cert"], [])) for b in roster_}
         peer_books[p] = bks
         comp = books.composite(bks, [b["cert"] for b in pack_], min_banks)
         mids = {k: books.band(bks, [b["cert"] for b in pack_], k, (50,), min_banks=min_banks)
@@ -795,50 +954,78 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                                   every(books.industry_filers(data, summed, quarters[-1]))), False,
                      books.industry(data, summed[0], summed[1:])))
 
+    def gap_why(product, measure, gaps, rows, key="quarter"):
+        """The words of a ``left-out:`` line: which moves left the windows out,
+        and which reporting changes name their quarters; for a combined
+        product, which of its parts each names (``named_for``)."""
+        moved = sorted({q for r in rows if r[key] in gaps for q in r["jumped"]})
+        named = named_for(bridging, product, measure, moved)
+        if product in books.PRODUCTS:
+            who = "%s names for %s" % (" and ".join(n for n, _ in named), product)
+        else:
+            parts_ = list(dict.fromkeys(x for _, ps in named for x in ps))
+            who = "%s, %s of %s" % (" and ".join("%s names for %s" % (n, " and ".join(ps)) for n, ps in named),
+                                    "a part" if len(parts_) == 1 else "parts", product)
+        return ("The jump left these windows out and nothing else would have: every move that tripped it "
+                "(%s) is in a quarter %s, %s. They are not written and never filled; the series "
+                "continues across them and keeps every quarter before (the firm, 17 Oct 2026)."
+                % (", ".join(moved), who, measure))
+
+    def written(tail, before, after, note, product, measure, rows, key="quarter"):
+        """The note lines of a series written from ``tail``: the reporting
+        changes and events touching it (for a combined product, touching any
+        of its parts, ``books.members``), and the left-out line."""
+        if not tail:
+            return []
+        prods = [m for n in product.split(" plus ") for m in books.members(n)]
+        note = note + RC.note_lines(changes, prods, measure, tail[0][0], tail[-1][0], note)
+        note = note + RC.event_lines(events, prods, measure, tail[0][0], tail[-1][0], note)
+        gaps = [q for q, v in tail if v is None]
+        return series_note(note, tail, before, after,
+                           gap_why(product, measure, set(gaps), rows, key) if gaps else None)
+
     series = []                 # (path, tail, note lines, left out before, left out after, group)
     left_out_ = {}              # path -> [(first, last, why)], as built
     for words_p, slug_, who, words, ruled, rows in made:
+        own = who == slug(me["short"])
         for kind in ("gross", "net"):
-            tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+            measure = RC.charge_off_measure(kind)
+            bridge = bridged(rows, labelled_for(bridging, words_p, measure)) if own else set()
+            tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows], bridge)
             left_out_[out_dir / ("%s_%s_%s.csv" % (slug_, who, kind))] = left_out_spans(
                 before, after, {r["quarter"]: break_reason(r, kind + "_rate", min_banks) for r in rows})
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
-                    words[0].upper() + words[1:] + ".", source] + ([rule] if ruled else []) + [repeat_note]
+                    words[0].upper() + words[1:] + ".", source] + ([rule, stated_note] if ruled else []) + [repeat_note]
             note += [d for d in dict.fromkeys(d for n in words_p.split(" plus ") for d in books.definitions(n))
                      if d not in note]
-            if tail:
-                note += RC.note_lines(changes, [m for n in words_p.split(" plus ") for m in books.members(n)],
-                                      RC.charge_off_measure(kind), tail[0][0], tail[-1][0], note)
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
-                           series_note(note, tail, before, after), before, after, None))
+                           written(tail, before, after, note, words_p, measure, rows), before, after, None))
     # Each peer's own book, for the synthesis's peer percentiles: banks/ keeps
     # them apart from the pack, KeyBank and industry files beside it.
     for p in products:
         for b in R.peers(roster_):
             rows = peer_books[p][b["cert"]]
             for kind in ("gross", "net"):
-                tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+                measure = RC.charge_off_measure(kind)
+                tail, before, after = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows],
+                                                    bridged(rows, labelled_for(bridging, p, measure)))
                 note = ["%s, %s charge-off rate, trailing four quarters, %%." % (p, kind),
                         "%s (certificate %s), its own book, a peer." % (b["short"], b["cert"]),
-                        source, rule, repeat_note] + books.definitions(p)
-                if tail:
-                    note += RC.note_lines(changes, books.members(p), RC.charge_off_measure(kind), tail[0][0],
-                                          tail[-1][0], note)
+                        source, rule, stated_note, repeat_note] + books.definitions(p)
                 series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
-                               series_note(note, tail, before, after), before, after, ("banks", p)))
+                               written(tail, before, after, note, p, measure, rows), before, after, ("banks", p)))
     dq_spec = None
     if delinquency:
         labels = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
-        for path, rows, note, p, m, left_out, reasons in _delinquency_series(
+        for path, rows, note, p, m, left_out, bridge, reasons in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
-                min_banks, source, every, out_dir, acquired, acquisition_share):
-            tail, before, after = unbroken_tail(rows)
+                min_banks, source, every, out_dir, acquired, acquisition_share, stated_q, stated_note, bridging):
+            tail, before, after = unbroken_tail(rows, bridge)
             left_out_[path] = left_out_spans(before, after, reasons)
             if left_out is not None and tail:
                 note = note + [left_out_note(left_out, tail, labels)]
-            if tail:
-                note = note + RC.note_lines(changes, books.members(p), m, tail[0][0], tail[-1][0], note)
-            series.append((path, tail, series_note(note, tail, before, after), before, after, p))
+            moved = [{"q": q, "jumped": j} for q, j in bridge.items()]
+            series.append((path, tail, written(tail, before, after, note, p, m, moved, "q"), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
                        exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
                        basis=START_BASIS)
@@ -847,15 +1034,24 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         # is as built; it does not follow Banks in the pack.
         for path, rows, note, p, m, reasons in _flow_series(
                 data, roster_, me, pack_, pack_words, products, jump, acquisition_share, min_banks, source, every,
-                out_dir, acquired):
+                out_dir, acquired, stated_q, stated_note):
             tail, before, after = unbroken_tail(rows)
             left_out_[path] = left_out_spans(before, after, reasons)
             if tail:
-                # The changes touching what it is made of: gross charge-offs and the three delinquency fields.
-                for under in (RC.charge_off_measure("gross"), "30-89", "90+ accruing", "nonaccrual"):
-                    note = note + RC.note_lines(changes, books.members(p), under, tail[0][0], tail[-1][0], note)
+                # The changes and events touching what it is made of: gross charge-offs and the three
+                # delinquency fields, each once.
+                for lines_ in (RC.note_lines, RC.event_lines):
+                    for under in (RC.charge_off_measure("gross"), "30-89", "90+ accruing", "nonaccrual"):
+                        note = note + [x for x in lines_(changes if lines_ is RC.note_lines else events,
+                                                         books.members(p), under, tail[0][0], tail[-1][0], note)
+                                       if x not in note]
             series.append((path, tail, series_note(note, tail, before, after), before, after, ("flows", p)))
 
+    # The left-out file lists the windows a series continues across too, in
+    # order with what was left out before and after it.
+    for path, tail, *_ in series:
+        if path in left_out_ and any(v is None for _, v in tail):
+            left_out_[path] = sorted(left_out_[path] + within_spans(tail))
     paths = [str(path).lower() for path, *_ in series]
     twice = sorted({p for p in paths if paths.count(p) > 1})
     if twice:                   # combined() refuses the known cause; this is the backstop
@@ -874,13 +1070,19 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             lagged_years=lagged_years, lag_years=lag_years,
             normalisation_years=normalisation_years, mix_base_year=mix_base_year,
             industry=ind, delinquency=dq_spec, acquired=acquired_co, cache_dir=cache, mergers_file=mergers,
-            combined=members, changes=changes,
+            combined=members, changes=changes, stated=stated_q,
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
                         dt.date.today().isoformat())] + pro_forma_lines(pro_forma, combo, names_)
-            + ["Reporting changes: %s, %d changes, SHA-256 %s; each series file notes those touching it"
-               % (reporting_changes, len(changes), hashlib.sha256(Path(reporting_changes).read_bytes()).hexdigest())],
-            into=into, names=names)
+            + ["Reporting changes: %s, %d changes and %d events, SHA-256 %s; each series file notes those touching it"
+               % (reporting_changes, len(changes), len(events),
+                  hashlib.sha256(Path(reporting_changes).read_bytes()).hexdigest())]
+            + ["Stated acquisitions: none read (none was named)" if stated_acquisitions is None else
+               "Stated acquisitions: %s, %d entries, SHA-256 %s; in these quarters: %s; outside them, not read: %s"
+               % (stated_acquisitions, len(stated_), hashlib.sha256(Path(stated_acquisitions).read_bytes()).hexdigest(),
+                  "; ".join("%s %s" % (names_[e["acquirer"]], e["quarter"]) for e in in_range) or "none",
+                  "; ".join("%s %s" % (names_[e["acquirer"]], e["quarter"]) for e in stated_outside) or "none")],
+            into=into, names=names, book_kind=book_kind)
         moves = [(part_out, out)] if out is not None else []
         for path, tail, lines, _, _, _ in series:
             if tail:
@@ -918,8 +1120,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             written[group][2] += bool(before)
             if not after or isinstance(group, tuple):
                 continue        # 150 files: counted below; what each leaves out is in its notes
-        say("Wrote %s: %d quarters%s%s"
-            % (path, len(tail), ", %d earlier left out at a break" % len(before) if before else "",
+        gaps = len(tail) - values(tail)
+        say("Wrote %s: %d quarters%s%s%s"
+            % (path, values(tail), ", %d left out within it, not written (left-out line)" % gaps if gaps else "",
+               ", %d earlier left out at a break" % len(before) if before else "",
                ", ends %s: %d later quarter%s with no value"
                % (tail[-1][0], len(after), "" if len(after) == 1 else "s") if after else ""))
     for p, (n, of, broke) in written.items():
@@ -935,6 +1139,6 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             % (p, n, of, out_dir, "; %d start after a break (a four-quarter average always does), "
                "the quarters left out named in each file's notes" % broke if broke else ""))
     return dict(out=out, info=info,
-                series=[(path, len(tail), before, after) for path, tail, _, before, after, _ in series],
+                series=[(path, values(tail), before, after) for path, tail, _, before, after, _ in series],
                 left_out={path: spans for path, spans in left_out_.items()
                           if str(path).lower() in {str(p_).lower() for p_, t_, *_ in series if t_}})

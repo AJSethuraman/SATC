@@ -54,6 +54,15 @@ W_LATEST, W_RATING = 6.7, 15.0
 W_GUTTER, W_EDGE = 2.71, 1.57
 
 
+def product_width(names: Sequence[str], base: float = W_PRODUCT) -> float:
+    """The first part's column width: ``base`` (the tab's own), or wide
+    enough for the longest name in bold Calibri 11 (about 1.05 width units a
+    character, and a margin), so a long name such as a commercial book's
+    "Investor CRE (non-owner-occupied)" is not cut off ("Nonfarm
+    nonreside..." in the example build, 17 Oct 2026)."""
+    return max([base] + [round(1.05 * len(n) + 1, 1) for n in names])
+
+
 def _order(values):
     out = []
     for v in values:
@@ -361,7 +370,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
 
     ws.column_dimensions["A"].width = W_EDGE
     for base in panel_left:
-        ws.column_dimensions[L(base)].width = W_PRODUCT
+        ws.column_dimensions[L(base)].width = product_width([r[0] for r in rows])
         ws.column_dimensions[L(base + 1)].width = W_MEASURE
         for i, s in enumerate(srcs):
             a, b = offs[s]

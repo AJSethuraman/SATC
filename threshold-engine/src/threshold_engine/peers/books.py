@@ -195,8 +195,46 @@ DEFINITIONS.update({
                                                   field="LNRENROT") + " " + NOT_FILED_NOTE,
 })
 
+#: A product the Call Report also files in parts that add up to it: RC-C item
+#: 1.e, nonfarm nonresidential (LNRENRES), is 1.e(1), owner-occupied
+#: (LNRENROW), plus 1.e(2), other (LNRENROT), as DEFINITIONS above say
+#: ("owner-occupied and other together"). The parts are filed from 2007Q1.
+SPLITS = {"Nonfarm nonresidential": ("Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential")}
+
+
+def stacking(products: Sequence[str]) -> List[Tuple[str, Tuple[int, ...]]]:
+    """How each of ``products`` goes into a stack that must count no loan
+    twice (the share panel on Peers), as ``(role, parts)`` in their order.
+    ``parts`` are the positions in ``products`` of the parts of its split.
+
+    - ``("own", ())``: no other product built overlaps it; stacked as it is.
+    - ``("whole", parts)``: a parent (``SPLITS``) whose every part is built:
+      stacked only in a quarter in which not every part has a figure.
+    - ``("part", parts)``: a part whose parent and every other part are
+      built: stacked only in a quarter in which every part has a figure.
+    - ``("inside", ())``: a part whose parent is built but not every other
+      part is: the parent holds it, so it is never stacked.
+
+    A part whose parent is not built has nothing to overlap: ``own``."""
+    at = {p: i for i, p in enumerate(products)}
+    out: List[Tuple[str, Tuple[int, ...]]] = []
+    for p in products:
+        role: Tuple[str, Tuple[int, ...]] = ("own", ())
+        if p in SPLITS and any(q in at for q in SPLITS[p]):
+            pieces = SPLITS[p]
+            role = ("whole", tuple(at[q] for q in pieces)) if all(q in at for q in pieces) else ("own", ())
+        for parent, pieces in SPLITS.items():
+            if p in pieces and parent in at:
+                role = ("part", tuple(at[q] for q in pieces)) if all(q in at for q in pieces) else ("inside", ())
+        out.append(role)
+    return out
+
+
 WHY_JUMP = "book moved more than the jump in this window"
 WHY_ACQUIRED = "an acquisition brought in at least the acquisition share in this window"
+#: A stated acquisition (``peers.stated``): one the FDIC record cannot see,
+#: listed with its filing, whose share of the book was never measured.
+WHY_STATED = "a stated acquisition the FDIC record cannot see is in this window"
 
 #: The FDIC field naming a filer's top holding company (its RSSD ID), filed
 #: each quarter. Two banks with the same one are under common control.
@@ -520,10 +558,10 @@ def _blank_quarters(data: Dict[str, list], cert, product: str,
 
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
               exempt_min_book: bool = False, *, acquired: Iterable[str],
-              members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
+              stated: Iterable[str], members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
-    avg_balance, kept, why}``.
+    avg_balance, kept, why, jumped, why_without_jump}``.
 
     ``jump`` is the largest quarter-on-quarter balance move (0.25 = 25%) that
     is still credit rather than a merger, sale or reclassification;
@@ -532,7 +570,7 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     the bank drawn as itself. A quarter with no filing counts as a balance of
     0 in the jump and average tests, as the earlier build counted it. ``why``
     names the first reason a quarter is not kept, in the order: jump,
-    acquisition, minimum, missing. Ahead of all of them, a window whose
+    acquisition, stated acquisition, minimum, missing. Ahead of all of them, a window whose
     quarters i-4 to i are not consecutive quarter-ends in the data is missing:
     neither the jump nor a TTM can be measured across a quarter the data does
     not hold. Next, for a commercial product, a window is not filed
@@ -549,6 +587,21 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     acquisitions brought in at least the acquisition share of its book
     (:func:`acquired_quarters`). A TTM window holding one is left out: its
     flows mix two books. Required; an empty list states there are none.
+    ``stated`` is this bank's quarter-ends of stated acquisitions, the ones
+    the FDIC record cannot see (``peers.stated``; the firm, 17 Oct 2026,
+    question 14): a window holding one is left out too, right after the
+    recorded ones, with its own reason (``WHY_STATED``), since no share of
+    the book was measured. Required, like ``acquired``: an empty list states
+    there are none, so a caller cannot leave them out without saying so.
+
+    ``jumped`` names the quarters (``YYYYQn``, i-4 to i) whose move tripped
+    the jump, when the jump is the reason; else it is empty.
+    ``why_without_jump`` is the reason the window would have if those moves
+    had not tripped it (None: it would be kept), so a caller can tell a
+    window left out only by the jump (the firm, 17 Oct 2026, question 16:
+    a move in a quarter a reporting change names, never an event, does not break
+    the series written; ``peers.run.unbroken_tail``). For a window the jump
+    does not leave out it is ``why`` itself.
 
     ``members`` (``combination``) are the banks it absorbed, added to its own
     figures quarter by quarter (``combined_flows``): pro forma. With none,
@@ -564,7 +617,11 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     bal = [0.0 if b is None else b for _, _, _, b in flows]
     moved = [False] + [bool(a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0)
                        for a, b in zip(bal, bal[1:])]
+    if isinstance(stated, str):
+        raise ValueError("stated is a list of quarter-ends, not %r" % (stated,))
+    stated = set(stated)
     bought = [q in acquired for q, _, _, _ in flows]
+    told = [q in stated for q, _, _, _ in flows]
     out = []
     for i in range(4, len(flows)):
         win = range(i - 3, i + 1)
@@ -573,20 +630,24 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
         complete = unbroken and all(flows[k][1] is not None for k in win)
         g = sum(flows[k][1] for k in win) if complete else None
         rc = sum(flows[k][2] for k in win) if complete else None
+        jumped = []
         if not unbroken:
             why = WHY_MISSING
         elif any(blank[k] for k in range(max(0, i - 5), i + 1)):
             why = WHY_NOT_FILED
-        elif any(moved[k] for k in range(i - 4, i + 1)):
-            why = WHY_JUMP
-        elif any(bought[k] for k in range(i - 3, i + 1)):
-            why = WHY_ACQUIRED
-        elif not ((avg >= min_book or exempt_min_book) and avg > 0):
-            why = WHY_SMALL
-        elif not complete:
-            why = WHY_MISSING
         else:
-            why = None
+            jumped = [label(flows[k][0]) for k in range(i - 4, i + 1) if moved[k]]
+            if any(bought[k] for k in win):
+                rest = WHY_ACQUIRED
+            elif any(told[k] for k in win):
+                rest = WHY_STATED
+            elif not ((avg >= min_book or exempt_min_book) and avg > 0):
+                rest = WHY_SMALL
+            elif not complete:
+                rest = WHY_MISSING
+            else:
+                rest = None
+            why = WHY_JUMP if jumped else rest
         kept = why is None
         out.append({
             "quarter": label(flows[i][0]),
@@ -594,6 +655,8 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
             "net_rate": 100 * (g - rc) / avg if kept else None,
             "gross": g, "recoveries": rc, "avg_balance": avg,
             "kept": kept, "why": why,
+            "jumped": jumped if why == WHY_JUMP else [],
+            "why_without_jump": rest if why == WHY_JUMP else why,
         })
     return out
 

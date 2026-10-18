@@ -51,7 +51,7 @@ from openpyxl.worksheet.hyperlink import Hyperlink
 
 from . import assess_tab as AT
 from . import keybank_style as K
-from .series import check, read_csv, smooth
+from .series import check, read_csv, read_left_out, smooth
 from .synthesis import LINES, SOURCES, TRANSLATIONS, _check
 
 #: Thresholds' wording for the refusal that leaves lines 2-4 standing, and
@@ -205,7 +205,9 @@ def load(synthesis: Dict[str, dict], smoothing: int) -> Dict[str, dict]:
     def one(path, what):
         raw = read_csv(Path(path))
         try:
-            return Path(path), raw, smooth(check(raw, "quarterly"), smoothing)
+            # A quarter the file declares left out stays in the calendar as
+            # None and is never written (series.check).
+            return Path(path), raw, smooth(check(raw, "quarterly", read_left_out(Path(path))), smoothing)
         except ValueError as exc:
             raise ValueError("%s (%s): %s" % (what, Path(path).name, exc)) from None
     out = {}
@@ -274,7 +276,7 @@ def build(wb, sy, sd, asx, *, loaded, syn, syn_loaded, grid, n, higher, floor_at
     rng = lambda c_: "SynthesisData!$%s$%d:$%s$%d" % (L(c_), r0, L(c_), r1)      # noqa: E731
 
     def by_q(pts):
-        return {quarter(p.date): p.value for p in pts}
+        return {quarter(p.date): p.value for p in pts if p.value is not None}
 
     top = 4
     tops = {}

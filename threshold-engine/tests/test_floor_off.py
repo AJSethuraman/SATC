@@ -31,7 +31,7 @@ def write_book(folder, floor_off, series_extra=()):
         fh.write("# Card, Gap to peers on Net: a test series that is negative half the time.\ndate,value\n")
         for p in pts:
             fh.write("%s,%s\n" % (p.date, p.value - med))
-    book = {"workbook": dict(WORKBOOK), "parts": ["Product", "Measure", "Source"],
+    book = {"kind": "consumer", "workbook": dict(WORKBOOK), "parts": ["Product", "Measure", "Source"],
             "lines_from": {"part": "Source", "start": "Bank"},
             "series": [{"Product": "Card", "Measure": "Net", "Source": "Bank", "file": "files/cards_nco_ttm.csv"},
                        {"Product": "Card", "Measure": "Gap to peers on Net", "Source": "Bank", "file": "files/gap.csv"}]

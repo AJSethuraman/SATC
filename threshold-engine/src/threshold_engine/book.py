@@ -11,6 +11,7 @@ judgement is refused, not filled in). Relative paths are read from the book's
 own folder, so a book and its files can be copied to another machine whole.
 
     {
+      "kind": "consumer" or "commercial" (kinds.KINDS),
       "workbook": {"name", "unit", "direction", "frequency", "smoothing",
                    "floor_at_zero", "moderate_halfwidth", "low_step", "high_z",
                    "on_the_line", "half_lives", "percentiles", "horizon",
@@ -36,6 +37,11 @@ own folder, so a book and its files can be copied to another machine whole.
       "signals": null or {"balances", "originations", "survey": the files 'peers signals-pull' fetched;
                           "nmdb", "fico": the committed files under data/signals}
     }
+
+The ``peers`` section's ``stated_acquisitions`` is the file of acquisitions
+the FDIC record cannot see (config/stated-acquisitions.json; the firm, 17 Oct
+2026, the commercial proposal's question 14), or null to state that none is
+read; like every key it is required.
 
 ``signals`` (18 Oct 2026): the Signals tab, every public signal found in the
 early-warning work laid beside the book's series (``signals_tab.py``,
@@ -71,6 +77,20 @@ measure the book does not map stays on the Internal tab: whether an internal
 
 A part value of ``*`` in ``not_in_book`` stands for every value of that part.
 
+``kind`` (the firm, 17 Oct 2026, on the commercial book: "names in this
+should be changed to be more commercial ... product sounds consumer") is the
+kind of book, stated, never guessed from its product names (``kinds.py``). It
+decides the word the reader sees for the first part, which the book's
+``parts`` must use: Product in a consumer book, exactly as before, and
+Portfolio in a commercial one, on every tab. A commercial book's portfolios
+take the names in ``kinds.COMMERCIAL_NAMES`` (the firm asked only for more
+commercial names; these were proposed by the session that built the book,
+Claude, the same day, and the firm did not object), and the
+Glossary gives the Call Report's own name beside each; it has no Internal tab
+(the internal import is laid out for consumer products, so an internal
+section is refused) and no Peer loan classes tab (the classes file records
+the peers' consumer books, so loan_classes must be null).
+
 ``lines_from`` says which part is the source and what each row's Lines set
 from starts as. Decide and Thresholds have one row per value of the other two
 parts (a product and a measure), and its lines are set from the history of
@@ -92,7 +112,7 @@ from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
+TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
             "floor_off", "large_banks", "signals",
             "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
@@ -105,8 +125,11 @@ INTERNAL_KEYS = ("file", "source", "segments", "measures", "call_report_source")
 PEERS_KEYS = ("cache", "roster", "series_dir", "first", "last", "products", "mergers", "absorptions",
               "extra_acquisitions", "industry_combined", "jump", "acquisition_share", "min_book", "exempt_self",
               "pro_forma", "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
-              "lagged_years", "lag_years", "normalisation_years", "mix_base_year", "delinquency")
+              "lagged_years", "lag_years", "normalisation_years", "mix_base_year", "delinquency",
+              "stated_acquisitions")
 PEERS_PATHS = ("cache", "roster", "series_dir", "mergers", "absorptions")
+#: Paths that may be null, stating there is none: the stated acquisitions (null: none is read).
+PEERS_PATHS_OR_NULL = ("stated_acquisitions",)
 #: The peer tabs' titles inside the book's workbook, which has its own Data, Glossary and Run.
 #: One dashboard (Peers) and its hidden Workings since 14 Oct 2026; before, one tab per view. Since
 #: 15 Oct 2026 the peer glossary and run record are sections of the book's own Glossary and Run.
@@ -190,6 +213,24 @@ def _live_peer_group(wb, series, info, say) -> int:
     return made
 
 
+def _call_report_names(gl) -> None:
+    """A section at the foot of the Glossary: each portfolio's name as shown,
+    beside the Call Report's own name for it and where it is filed, so a
+    figure can be traced to the filing (the firm, 17 Oct 2026)."""
+    from openpyxl.styles import Alignment, Font
+    from .kinds import CALL_REPORT
+    from . import keybank_style as K
+    r = max((c.row for row in gl.iter_rows() for c in row if c.value is not None), default=0) + 2
+    gl.cell(r, 2, "Portfolio names").font = Font(name="Arial", size=12, bold=True, color=K.INK)
+    gl.cell(r + 1, 2, "Each portfolio as this workbook names it, the Call Report's own name for it, and where it "
+                      "is filed: a figure here can be traced to the filing by the second and third columns.")
+    heads = ("Shown as", "The Call Report's name", "Where it is filed")
+    for j, h in enumerate(heads):
+        gl.cell(r + 2, 2 + j, h).font = Font(name="Arial", size=10, bold=True, color=K.INK)
+    for i, row in enumerate(CALL_REPORT):
+        for j, v in enumerate(row):
+            c = gl.cell(r + 3 + i, 2 + j, v)
+            c.alignment = Alignment(wrap_text=True, vertical="top")
 #: The file of quarters left out as built, written beside the series files
 #: (the agent building Book 2, 17 Oct 2026, asked for it; the analyst: "sure").
 LEFT_OUT_FILE = "left-out.csv"
@@ -198,7 +239,7 @@ LEFT_OUT_HEAD = ("Product", "Measure", "Source", "first", "last", "why")
 
 def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> int:
     """Write ``path``: one row per span a book series left out as built
-    (``peers.run.left_out_spans``), in the series list's order, named by the
+    (``peers.run.left_out_spans`` and ``within_spans``), in the series list's order, named by the
     book's Product, Measure and Source. A series with nothing left out has no
     row. The periods left out on Decide are the analyst's and are not here.
     Returns the number of rows."""
@@ -208,8 +249,8 @@ def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> 
         for first, last, why in by_path.get(str(Path(p_)).lower(), []):
             rows.append(list(parts[lbl]) + [first, last, why])
     with open(path, "w", newline="", encoding="utf-8") as fh:
-        fh.write("# Quarters each series left out as built, before its last break or after its last value, "
-                 "with why. A series with nothing left out has no row.\n")
+        fh.write("# Quarters each series left out as built, before its last break, within it where it continues "
+                 "across them, or after its last value, with why. A series with nothing left out has no row.\n")
         fh.write("# The periods left out on Decide are the analyst's, typed in the saved workbook, and are not "
                  "here. Quarters are YYYYQn.\n")
         w = csv.writer(fh)
@@ -278,6 +319,16 @@ def load(path) -> dict:
         problems.append("parts must be a list of three names, for example [\"Product\", \"Measure\", \"Source\"]")
         raise BookError("\n".join(problems))
 
+    from . import kinds as KD
+    kind = KD.kind_of(raw["kind"])
+    if kind is None:
+        problems.append("kind must be one of %s, the kind of book this is: it decides the word the reader "
+                        "sees for the first part (%s), not %r" % (", ".join(KD.KINDS), ", ".join(
+                            "%s in a %s book" % (k["word"], n) for n, k in KD.KINDS.items()), raw["kind"]))
+    elif parts[0] != kind["word"]:
+        problems.append("parts: a %s book calls its first part %r, not %r (kind decides the word the reader "
+                        "sees)" % (raw["kind"], kind["word"], parts[0]))
+
     def resolve(p) -> Path:
         q = Path(p)
         return q if q.is_absolute() else folder / q
@@ -324,6 +375,16 @@ def load(path) -> dict:
         seen.add(label.casefold())
         series.append((label, resolve(r["file"])))
         decide_parts[label] = vals
+    if raw["kind"] == "commercial":
+        # A combined portfolio is its parts' commercial names joined by " + "
+        # (kinds.commercial_product), as a consumer book names its combined
+        # products by their parts' names.
+        shown = list(KD.COMMERCIAL_NAMES.values())
+        odd = sorted(x for x in {v[0] for v in decide_parts.values()} if KD.commercial_product(x) is None)
+        if odd:
+            problems.append("a commercial book names its %ss by the commercial names (%s), or two or more of "
+                            "them joined by ' + ', not %s"
+                            % (parts[0].lower(), ", ".join(shown), ", ".join(repr(x) for x in odd)))
     absent = raw["not_in_book"]
     if not isinstance(absent, list):
         problems.append("not_in_book must be a list (empty to say there is nothing missing to explain)")
@@ -357,6 +418,12 @@ def load(path) -> dict:
             peers = dict(peers)
             for k in PEERS_PATHS:
                 peers[k] = resolve(peers[k])
+            for k in PEERS_PATHS_OR_NULL:
+                if peers[k] is not None:
+                    if not isinstance(peers[k], str) or not peers[k].strip():
+                        problems.append("peers: %s must be null or a file, not %r" % (k, peers[k]))
+                    else:
+                        peers[k] = resolve(peers[k])
     # A series file that is not there is only a problem if no peers build will write it.
     if peers is None:
         for label, p in series:
@@ -370,6 +437,14 @@ def load(path) -> dict:
             loan_classes = {k: resolve(loan_classes[k]) for k in LOAN_CLASSES_KEYS}
             if not loan_classes["file"].exists():
                 problems.append("loan_classes: the file %s does not exist" % loan_classes["file"])
+    if kind is not None and not kind["internal_tab"]:
+        if raw["internal"] is not None:
+            problems.append("internal: a %s book has no Internal tab (the internal import, "
+                            "docs/INTERNAL-IMPORT.md, is laid out for consumer products), so internal must be "
+                            "null" % raw["kind"])
+        if raw["loan_classes"] is not None:
+            problems.append("loan_classes: the classes file records each peer's consumer book, so a %s book's "
+                            "loan_classes must be null" % raw["kind"])
     lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
     floor_off = raw["floor_off"]
     measures_ = {v[1] for v in decide_parts.values()}
@@ -397,7 +472,7 @@ def load(path) -> dict:
                 if not signals[k].exists():
                     problems.append("signals: the file %s does not exist (data/signals holds the committed ones)" % signals[k])
     reporting = raw["reporting_changes"]
-    changes = None
+    changes = events = None
     if reporting is None:
         if peers is not None:
             problems.append("reporting_changes: the peers build reads the Call Report, so name the registry of its "
@@ -409,7 +484,7 @@ def load(path) -> dict:
         from . import reporting_changes as RC
         reporting = resolve(reporting)
         try:
-            changes = RC.load(reporting)
+            changes, events = RC.load_all(reporting)
         except RC.RegistryError as e:
             problems.extend("reporting_changes: %s" % p for p in str(e).splitlines())
     if problems:
@@ -417,11 +492,13 @@ def load(path) -> dict:
     wbk = dict(raw["workbook"])
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
-    return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
-            "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes,
+    return {"kind": raw["kind"], "workbook": wbk, "series": series, "peers": peers, "folder": folder,
+            "internal": internal,
+            "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes, "events": events,
             "large_banks": large, "signals": signals,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
-                       "notes": notes, "lines_from": lines_from, "floor_off": list(floor_off)}}
+                       "notes": notes, "lines_from": lines_from, "kind": raw["kind"],
+                       "floor_off": list(floor_off)}}
 
 
 def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
@@ -566,7 +643,7 @@ def build(book_path, out, say=print) -> dict:
     if bk["peers"] is not None:
         from .peers import run as peers_run
         built = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say,
-                                reporting_changes=bk["reporting_changes"], **bk["peers"])
+                                reporting_changes=bk["reporting_changes"], book_kind=bk["kind"], **bk["peers"])
         peer_info = built["info"]
         peer_tabs = peer_info["sheets"]
         if bk["large_banks"] is not None:
@@ -630,6 +707,17 @@ def build(book_path, out, say=print) -> dict:
             _live_peer_group(wb, series, peer_info, say)
         if left_out is not None:
             _left_out_on_run(wb, *left_out)
+        if bk["kind"] == "commercial":
+            # Every tab is written by now (the peer sections of Glossary and
+            # Run too), so the commercial words go in everywhere at once,
+            # and then the Call Report's names beside the ones shown.
+            from .kinds import reword
+            from .peers.peers_workbook import write_folded_now
+            write_folded_now(wb)
+            changed = reword(wb)
+            _call_report_names(wb["Glossary"])
+            say("commercial names: %d pieces of text on %d tabs say portfolio and the portfolios' names"
+                % (sum(changed.values()), len(changed)))
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
@@ -668,8 +756,10 @@ def build(book_path, out, say=print) -> dict:
     if bk["changes"] is not None:
         from . import reporting_changes as RC
         ws = host.create_sheet(RC.TAB)
-        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name)
-        say("reporting changes: %d, from %s" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
+        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name,
+                     bk["events"])
+        say("reporting changes: %d, and %d events, from %s" % (len(bk["changes"]), len(bk["events"]),
+                                                              Path(bk["reporting_changes"]).name))
 
     info = WB.build(out, series, decide=decide, into=host, before_save=tidy, floor_off=bk["decide"]["floor_off"],
                     **bk["workbook"])

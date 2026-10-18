@@ -24,6 +24,12 @@ What these are not: significance tests. Consecutive periods share most of their
 ``horizon`` window, so the observations overlap and are not independent; a
 correlation here describes the history, it does not prove a rule.
 
+Quarters a file declares left out (``series.check``'s ``left_out``) stay in
+the calendar, so ``horizon`` is always that many periods later on it: a period
+is tested only when it and the period ``horizon`` later both hold a value, and
+the history it is scored against is the values before it, at least
+``min_history`` of them.
+
 Weighted percentiles take the midpoint of the lower and upper weighted
 quantile (the first value at which cumulative weight reaches p of the total,
 and the first at which it passes it). The same rule is used at every weighting,
@@ -81,27 +87,43 @@ def spearman(a, b) -> Optional[float]:
 def backtest(points: Sequence[Point], name: str, unit: str, direction: str,
              frequency: str, smoothing: int, percentiles: Sequence[float],
              horizon: int, min_history: int, floor_at_zero: bool,
-             half_lives: Sequence[float] = ()) -> dict:
+             half_lives: Sequence[float] = (), left_out: Sequence[str] = ()) -> dict:
     if direction not in ("higher_is_worse", "lower_is_worse"):
         raise ValueError("direction must be higher_is_worse or lower_is_worse")
     if list(percentiles) != sorted(set(percentiles)) or not all(0 < p < 100 for p in percentiles):
         raise ValueError("percentiles must rise strictly and lie between 0 and 100")
     if horizon < 1 or min_history < 2:
         raise ValueError("horizon must be 1 or more and min_history 2 or more")
-    series = smooth(check(points, frequency), smoothing)
-    if len(series) < min_history + horizon:
+    series = smooth(check(points, frequency, left_out), smoothing)
+    held = sum(1 for p in series if p.value is not None)
+    # With nothing left out, too few values is said plainly here. With a gap,
+    # horizon counts calendar periods, so fewer values can still hold a test:
+    # the scan below decides.
+    if held == len(series) and held < min_history + horizon:
         raise ValueError("%d observations after smoothing; at least min_history + "
-                         "horizon = %d are needed" % (len(series), min_history + horizon))
+                         "horizon = %d are needed" % (held, min_history + horizon))
     sign = 1.0 if direction == "higher_is_worse" else -1.0
     vals = [p.value for p in series]
     dates = [p.date for p in series]
+    # The positions tested: a value now and ``horizon`` periods later on the
+    # calendar, with at least min_history values up to now. With nothing left
+    # out these are min_history - 1 to len - horizon - 1, as before.
+    count, at = 0, []
+    for i in range(len(series) - horizon):
+        count += vals[i] is not None
+        if vals[i] is not None and vals[i + horizon] is not None and count >= min_history:
+            at.append(i)
+    if not at:
+        raise ValueError("no period has a value with at least min_history = %d before it and one %d periods "
+                         "after it, around the quarters left out" % (min_history, horizon))
 
     runs = []
     for hl in [None] + list(half_lives):
         scores, ahead, change, tested = [], [], [], []
-        for i in range(min_history - 1, len(series) - horizon):
-            hist = [sign * v for v in vals[:i + 1]]
-            w = [1.0] * (i + 1) if hl is None else recency_weights(dates[:i + 1], hl)
+        for i in at:
+            idx = [j for j in range(i + 1) if vals[j] is not None]
+            hist = [sign * vals[j] for j in idx]
+            w = [1.0] * len(idx) if hl is None else recency_weights([dates[j] for j in idx], hl)
             bounds = [sign * weighted_percentile(hist, w, p) for p in percentiles]
             scores.append(score(vals[i], bounds, direction, "worse", floor_at_zero))
             tested.append({"date": dates[i], "value": vals[i], "bounds": bounds,
@@ -118,8 +140,8 @@ def backtest(points: Sequence[Point], name: str, unit: str, direction: str,
                 "mean_level_ahead": (sign * sum(ahead[j] for j in idx) / len(idx)
                                      if idx else None)})
         runs.append({"half_life_years": hl, "periods_tested": len(scores),
-                     "first_tested": dates[min_history - 1],
-                     "last_tested": dates[len(series) - horizon - 1],
+                     "first_tested": dates[at[0]],
+                     "last_tested": dates[at[-1]],
                      "score_vs_level_ahead": spearman(scores, ahead),
                      "score_vs_change_ahead": spearman(scores, change),
                      "by_score": by_score, "periods": tested})

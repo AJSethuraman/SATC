@@ -37,7 +37,8 @@ BUILD = ["--roster", str(ROOT / "config" / "peers.json"), "--first", "2006Q1", "
     "--min-banks", "5", "--rank-by", "net", "--last-n", "20", "--min-obs", "12",
     "--base-quarter", "2019Q4", "--index-min-book", "500000", "--lagged-years", "2019", "2025",
     "--lag-years", "2", "--normalisation-years", "2019", "2025", "--mix-base-year", "2019",
-    "--delinquency", "no", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json")]
+    "--delinquency", "no", "--reporting-changes", str(ROOT / "config" / "reporting-changes.json"),
+    "--stated-acquisitions", "none"]
 
 MEASURE = ["--name", "Net charge-offs", "--unit", "%", "--direction", "higher_is_worse",
            "--frequency", "quarterly", "--smoothing", "1", "--floor-at-zero", "yes",
@@ -305,7 +306,7 @@ BUILD_FLAGS = ["--cache", "--series-dir", "--roster", "--first", "--last", "--pr
                "--acquisition-share", "--min-book", "--exempt-self", "--pro-forma",
                "--pack", "--min-banks", "--rank-by", "--last-n", "--min-obs", "--base-quarter",
                "--index-min-book", "--lagged-years", "--lag-years", "--normalisation-years",
-               "--mix-base-year", "--delinquency", "--reporting-changes"]
+               "--mix-base-year", "--delinquency", "--reporting-changes", "--stated-acquisitions"]
 
 
 def without(args, flag):
@@ -505,7 +506,7 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     roster = R.load(ROOT / "config" / "peers.json")
     regionals = [b["cert"] for b in R.regionals(roster)]
     assert 0 < len(regionals) < len(R.peers(roster))
-    books = {b["cert"]: bank_book(data, b["cert"], "Credit card", 0.25, 1_000_000, acquired=()) for b in roster}
+    books = {b["cert"]: bank_book(data, b["cert"], "Credit card", 0.25, 1_000_000, acquired=(), stated=()) for b in roster}
     want = {quarter_end(r["quarter"]): r["net_rate"] for r in composite(books, regionals, 5)}
     notes, rows = read_csv(series / "credit-card_pack-composite_net.csv")
     assert rows and all(v == pytest.approx(want[d], abs=1e-12) for d, v in rows)
@@ -817,7 +818,7 @@ def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
     data, s = dq_built["data"], dq_built["series"]
     roster = R.load(ROOT / "config" / "peers.json")
     banks = {b["cert"]: D.bank_delinquency(data, b["cert"], "Credit card", "90+ accruing", 0.25,
-                                           1_000_000, b["cert"] == KEYBANK, acquired=()) for b in roster}
+                                           1_000_000, b["cert"] == KEYBANK, acquired=(), stated=()) for b in roster}
     comp = D.composite_delinquency(banks, [b["cert"] for b in R.peers(roster)], 5)
     ind = D.industry_delinquency(data, "Credit card", "90+ accruing")
     for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp), ("industry", ind)):
@@ -981,8 +982,9 @@ def test_build_and_pull_are_peers_run(monkeypatch):
     assert k["delinquency"] is False and k["exempt_self"] is True and k["jump"] == 0.25
     assert k["extra_acquisitions"] == ["6672=2022Q2"] and k["industry_combined"] == []
     # into and names say where the tabs go (another workbook, under other
-    # titles), as say does for lines: not settings, and not on the command line.
-    assert set(k) == params - {"out", "say", "into", "names"}
+    # titles), as say does for lines, and book_kind the kind that workbook's
+    # book states: not settings, and not on the command line.
+    assert set(k) == params - {"out", "say", "into", "names", "book_kind"}
     assert kp == dict(cache="c", first="2026Q1", last="2026Q2", products=["Auto"], delinquency=True,
                       mergers_since="2005-10-01", refresh=False)
 
@@ -991,10 +993,12 @@ def test_the_shared_body_defaults_nothing_but_where_lines_go():
     """Every setting of run.build and run.pull is required: the window cannot
     fall back on a value nobody stated. What is defaulted says only where the
     output goes: say, where lines go, and on build into and names, where the
-    peer tabs go (their own file unless a workbook is given), each None."""
+    peer tabs go (their own file unless a workbook is given), and book_kind,
+    the kind the book they go into states (kinds.KINDS; no book, no kind),
+    each None."""
     import inspect
     from threshold_engine.peers import run
-    for fn, where in ((run.build, ["say", "into", "names"]), (run.pull, ["say"])):
+    for fn, where in ((run.build, ["say", "into", "names", "book_kind"]), (run.pull, ["say"])):
         params = inspect.signature(fn).parameters
         defaulted = [n for n, p in params.items() if p.default is not inspect.Parameter.empty]
         assert defaulted == where, fn.__name__
@@ -1024,7 +1028,7 @@ def test_the_window_gets_the_same_refusals_as_the_flags(built, tmp_path, key, va
                   exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
                   normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
-                  reporting_changes=ROOT / "config" / "reporting-changes.json")
+                  reporting_changes=ROOT / "config" / "reporting-changes.json", stated_acquisitions=None)
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
@@ -1074,7 +1078,7 @@ def test_every_delinquency_csv_follows_the_stated_rules(dq_odd):
     compared = absent = 0
     for p in ("Home equity", "Auto"):
         for m, ms in DQ_MEASURES.items():
-            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False, acquired=())
+            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False, acquired=(), stated=())
                      for b in roster}
             comp = D.composite_delinquency(banks, regionals, 6)
             for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp),
@@ -1231,7 +1235,7 @@ def test_the_window_gets_the_whole_year_refusals(built, tmp_path, key, value, sa
                   exempt_self=True, pro_forma=False, pack="all", min_banks=5, rank_by="net", last_n=20, min_obs=12,
                   base_quarter="2019Q4", index_min_book=5e5, lagged_years=[2019, 2025], lag_years=2,
                   normalisation_years=[2019, 2025], mix_base_year=2019, delinquency=False,
-                  reporting_changes=ROOT / "config" / "reporting-changes.json")
+                  reporting_changes=ROOT / "config" / "reporting-changes.json", stated_acquisitions=None)
     stated[key] = value
     with pytest.raises(ValueError, match=re.escape(says)):
         run.build(tmp_path / "p.xlsx", say=lambda line: None, **stated)
@@ -1285,7 +1289,7 @@ def test_the_pack_median_series_are_the_bands_median_gross_and_net(built, data):
     pack = [b["cert"] for b in R.peers(roster)]
     for p, slug in zip(FOUR, SLUGS):
         bks = {b["cert"]: bank_book(data, b["cert"], p, 0.25, 1_000_000,
-                                    exempt_min_book=b["cert"] == KEYBANK, acquired=()) for b in roster}
+                                    exempt_min_book=b["cert"] == KEYBANK, acquired=(), stated=()) for b in roster}
         files = {}
         for kind in ("gross", "net"):
             tail, _, _ = unbroken_tail([(r["quarter"], r["p50"])
@@ -1300,25 +1304,38 @@ def test_the_pack_median_series_are_the_bands_median_gross_and_net(built, data):
 def test_each_peers_banks_file_is_its_own_book_for_that_product(built, data):
     """Review finding 20: every banks/ CSV, each peer, product and kind, is
     books.bank_book for that peer and that product, quarter by quarter; a
-    product with no value for a peer has no file."""
-    from threshold_engine.peers.run import slug as slug_of, unbroken_tail
+    product with no value for a peer has no file.
+
+    A peer's own file continues across windows the jump left out only for a
+    move in a quarter a reporting change (never an event) names for the product
+    (the firm, 17 Oct 2026, question 16): those quarters are not written,
+    and the file declares them."""
+    from threshold_engine import reporting_changes as RC
+    from threshold_engine.peers.run import bridged, slug as slug_of, unbroken_tail
+    from threshold_engine.series import read_left_out
+    changes, _ = RC.load_all(ROOT / "config" / "reporting-changes.json")
     roster = R.load(ROOT / "config" / "peers.json")
-    compared = absent = 0
+    compared = absent = across = 0
     for p, slug in zip(FOUR, SLUGS):
         for b in R.peers(roster):
-            rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=())
+            rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=(), stated=())
             for kind in ("gross", "net"):
                 path = built["series"] / "banks" / ("%s_%s_%s.csv" % (slug, slug_of(b["short"]), kind))
-                tail, _, _ = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+                marks = RC.labelled_quarters(changes, p, RC.charge_off_measure(kind))
+                tail, _, _ = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows], bridged(rows, marks))
                 if not tail:
                     assert not path.exists(), path.name
                     absent += 1
                     continue
                 _, got = read_csv(path)
+                gaps = [quarter_end(q) for q, v in tail if v is None]
+                assert read_left_out(path) == gaps, path.name
+                across += bool(gaps)
+                tail = [(q, v) for q, v in tail if v is not None]
                 assert [d for d, _ in got] == [quarter_end(q) for q, _ in tail], path.name
                 assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), path.name
                 compared += 1
-    assert compared > 100
+    assert compared > 100 and across > 0
 
 
 def test_a_delinquency_pack_median_is_the_band_median_on_each_basis(dq_built, dq_cache):
@@ -1336,7 +1353,7 @@ def test_a_delinquency_pack_median_is_the_band_median_on_each_basis(dq_built, dq
     for p in FIVE:
         for m, ms in DQ_MEASURES.items():
             banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.25, 1_000_000,
-                                                   b["cert"] == KEYBANK, acquired=()) for b in roster}
+                                                   b["cert"] == KEYBANK, acquired=(), stated=()) for b in roster}
             got_by_basis = {}
             for basis, bs in DQ_BASES.items():
                 band = D.band_delinquency(banks, pack, basis, (50,), min_banks=5)
