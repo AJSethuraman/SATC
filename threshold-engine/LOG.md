@@ -2636,3 +2636,9 @@ fixed. The rest, one commit each:
   the column. Nothing changed in the code; a test now holds the wrap, the
   width and the two-line rows (`test_commercial_book.py`; with the wrap
   taken off, it fails, checked).
+- **Not done.** The real commercial book was not rebuilt after these
+  commits (the last real build is e99bc5b4's), so its workbook does not yet
+  show the new name, the stacked share panel or the shorter Glossary.
+  Nothing was opened in Excel; nothing can be opened in Excel here. The
+  full suite was not run: only the files named above, plus
+  `test_peers_fdic.py` (46 passed) after the comment change.
