@@ -117,7 +117,7 @@ def test_grids_count_the_book_by_the_new_columns_bands(tmp_path):
     text = [ws.cell(row=r, column=2).value for r in range(1, ws.max_row + 1)]
     assert "How common each group is: a count, not a test" in text
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 12)}
-    assert "how many loans, and booked dollars, fall in each group" in note["Groups"]
+    assert "how many loans, and how many booked dollars, fall in each group" in note["Groups"]
     assert "INCOME_TO_SALES, each pocket cut at its own median" in text
     assert "INCOME_TO_SALES = INCOME ÷ SALES, by its bands (0.1; 0.25; 0.5; 1; 2: the band edges on Columns)" in text
     totals = [r for r in range(1, ws.max_row + 1) if ws.cell(row=r, column=2).value == "Every pocket"]

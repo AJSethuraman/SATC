@@ -56,17 +56,18 @@ CHART_ROWS = 17             # rows it covers
 DATA_W = 11                 # the width of every column but the first
 ACROSS = "Across the bottom"
 SAY_THIN = "A point with fewer loans than the {few:,} in Fewest loans in a pocket on Control is left off its line."
-SAY_SAME = "Panels by is the filter the lines are by, so one chart is drawn. Pick the other filter, or None."
-SAY_SAME3 = "Panels by is the filter the lines are by, so one chart is drawn. Pick another filter, or None."
+SAY_SAME = ("Panels by is set to the same filter as Lines by, so only one chart is drawn. Pick the other filter, or "
+            "None.")
+SAY_SAME3 = ("Panels by is set to the same filter as Lines by, so only one chart is drawn. Pick another filter, or "
+             "None.")
 SAY_ACROSS = "{x} is across the bottom, so the lines are by {other} and one chart is drawn."
-SAY_READ = "If the lines have the same shape in every panel, the pattern holds across both categories."
 #: the helper block's three columns for each line: its y, the same to scale by, its x
 Y_COL, CLEAN, X_COL = 0, 1, 2
 #: how far under the smallest value the labels across sit, as a share of the values' range
 LABEL_DROP = 0.12
 #: where across the scale's two invisible points sit: on the axis's left end, clear of every label
 SCALE_X = 0.5
-SAY_ASOF = "As of the last Run: the numbers are the Run's, and Fewest loans in a pocket is the one it used."
+SAY_ASOF = "The figures are as of the last Run, and Fewest loans in a pocket is the value that Run used."
 
 
 def band_options(res) -> tuple[list[str], list[str]]:
@@ -225,20 +226,19 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
     each = "either" if len(fs) == 2 else "any"
     note = [
         ("What it is", "Pick what goes across the bottom and a measure. Each line is one value of the filter picked "
-                       "in Lines by. The dashed grey line is the whole book."),
+                       "in Lines by. The dashed gray line is the whole book."),
         ("Across", "A band column's bands" + (f", or {each} filter's values: Origination year there is the vintage "
                                               "view" if any(n == ORIG_YEAR_LABEL for _, n in xf) else
                                               f", or {each} filter's values" if xf else "") + "."),
         ("Panels", ("Panels by draws one small chart for each value of the other filter, side by side. Every panel "
-                    "has the same scale, so higher in one panel is higher in all.") if len(fs) == 2 else
+                    "uses the same scale.") if len(fs) == 2 else
                    ("Panels by draws one small chart for each value of another filter, side by side; the filter in "
-                    "neither Lines by nor Panels by is All loans. Every panel has the same scale, so higher in one "
-                    "panel is higher in all.") if sf2 else
+                    "neither Lines by nor Panels by is All loans. Every panel uses the same scale.") if sf2 else
                    "Pick a second filter in the launcher (Filter 2) to draw one small chart for each of its values."),
         ("Thin points", (SAY_THIN.format(few=few) if few is not None else "Every point is drawn.")
-                        + " The table under the charts still shows it, in grey. A panel with nothing to show for "
+                        + " The table under the charts still shows it, in gray. A panel with nothing to show for "
                           "what is picked stays empty, on the same scale."),
-        ("Reading it", SAY_READ + " Nothing here is tested. " + SAY_ASOF),
+        ("Reading it", "Nothing here is tested. " + SAY_ASOF),
     ]
     if ORIG_YEAR in names:
         note.append(("Years", YEAR_SAID.format(res.config.origination_date).strip()))
@@ -386,8 +386,8 @@ def write_compare(wb, res, choices: Choices, views: Views) -> None:
               h="left", name="Arial")
         ws.merge_cells(start_row=top, start_column=c0, end_row=top, end_column=c0 + PANEL_COLS - 1)
         ws.add_chart(_chart(ws, p, L, MB, DR, (CATC, pcol(p, 0), pcol(p, 2), pcol(p, 1), pcol(p, 3)), scol, R_TITLE), f"{col(c0)}{top + 1}")
-    _cell(ws, top + CHART_ROWS + 1, left, f'="Across the bottom: "&{B}&" · "&{M}&" · lines by "&{lb_name}&". "&'
-          + live.q(SAY_READ), size=9, color=house.SLATE, h="left")
+    _cell(ws, top + CHART_ROWS + 1, left, f'="Across the bottom: "&{B}&" · "&{M}&" · lines by "&{lb_name}&"."',
+          size=9, color=house.SLATE, h="left")
     r = top + CHART_ROWS + 3
     for p in range(1, P + 1):
         r = _table(ws, r, left, p, L, MB, USED(p), PV(p), PB, pb_name, B, FEW, CATC, DR, scol, R_TITLE, R_RATE,
