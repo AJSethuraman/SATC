@@ -16,6 +16,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 SRC = Path(os.environ.get("EXCHANGE_SRC", HERE.parent / "exchange.py"))
@@ -437,6 +438,57 @@ class TestMutualPositions(Base):
         first = (self.root / "AGREED.md").read_bytes()
         run(self.root, ["agreed", "--write"])
         self.assertEqual(first, (self.root / "AGREED.md").read_bytes())
+
+
+class TestConcurrentRegeneration(Base):
+    """Rev's and Codex's finding: a writer that scanned earlier must not be able
+    to finish later and replace a newer AGREED.md with its older snapshot."""
+
+    def setUp(self):
+        super().setUp()
+        post(self.root, "bassy", "Proposal: use one writer per file.", kind="suggestion")
+        self.fp = ex.sha8((self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
+
+    def agree(self, me):
+        return post(self.root, me, "I agree to that.", kind="agreement",
+                    proposal="B-0001#" + self.fp)
+
+    def test_a_stale_snapshot_cannot_win(self):
+        self.agree("rev")
+        real = ex.view_agreed
+        calls = {"n": 0}
+
+        def racing(root):
+            text = real(root)
+            calls["n"] += 1
+            if calls["n"] == 1:
+                self.agree("bassy")  # a newer assent lands after this snapshot
+            return text
+
+        with mock.patch.object(ex, "view_agreed", racing):
+            ex.write_agreed(self.root)
+        final = (self.root / "AGREED.md").read_text(encoding="utf-8")
+        self.assertIn("mutual", final)
+        self.assertNotIn("one side only", final)
+
+    def test_two_writers_do_not_share_a_temporary_name(self):
+        seen = []
+        real = os.replace
+
+        def spy(src, dst):
+            seen.append(Path(src).name)
+            return real(src, dst)
+
+        with mock.patch.object(ex.os, "replace", spy):
+            ex.atomic_write(self.root / "X.md", "a")
+            ex.atomic_write(self.root / "X.md", "b")
+        self.assertEqual(len(seen), 2)
+        self.assertEqual(len(set(seen)), 2)
+
+    def test_the_command_uses_the_converging_writer(self):
+        self.agree("rev")
+        self.assertEqual(run(self.root, ["agreed", "--write"])[0], 0)
+        self.assertIn("one side only (rev)", (self.root / "AGREED.md").read_text(encoding="utf-8"))
 
 
 class TestRedirection(Base):

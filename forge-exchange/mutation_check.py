@@ -77,6 +77,11 @@ MUTATIONS = [
     ("a cross-side withdrawal counts (at reading)",
      'if w and w.startswith(PREFIX[m.side] + "-"):  # WITHDRAW-READ-MARK',
      "if w:  # WITHDRAW-READ-MARK"),
+    ("a stale snapshot can win", "if view_agreed(root) == text:  # CONVERGE-MARK",
+     "if True:  # CONVERGE-MARK"),
+    ("temporary names can collide",
+     'tmp = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")  # TMP-UNIQUE-MARK',
+     'tmp = path.with_name(f".{path.name}.tmp")  # TMP-UNIQUE-MARK'),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]

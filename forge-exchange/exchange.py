@@ -29,6 +29,7 @@ import io
 import json
 import os
 import re
+import secrets
 import sys
 import urllib.parse
 from dataclasses import dataclass, field
@@ -138,9 +139,31 @@ def check_not_redirected(root: Path) -> None:
 
 
 def atomic_write(path: Path, text: str) -> None:
-    tmp = path.with_name(f".{path.name}.tmp")
+    """Write whole or not at all. The temporary name is unique per call, so two
+    writers never share (and never delete) each other's temporary file."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")  # TMP-UNIQUE-MARK
     tmp.write_text(text, encoding="utf-8", newline="\n")
     os.replace(tmp, path)
+
+
+def write_agreed(root: Path, tries: int = 5) -> str:
+    """Regenerate AGREED.md and make sure an older snapshot cannot win.
+
+    The file is a pure function of the messages. A replace is atomic but does not
+    stop a writer that scanned EARLIER from finishing LATER and putting its older
+    snapshot over a newer one. So after writing, recompute from the messages as
+    they are now and, if the answer differs from what was written, write again.
+    Every writer does this after its own write, so concurrent writers converge on
+    the state of the messages, whichever finishes last.
+    """
+    path = root / "AGREED.md"
+    for _ in range(tries):
+        text = view_agreed(root)
+        atomic_write(path, text)
+        if view_agreed(root) == text:  # CONVERGE-MARK
+            return text
+    raise Refused(["AGREED.md kept changing while it was being written; "
+                   "run the command again"])
 
 
 def sha8(text: str) -> str:
@@ -417,7 +440,7 @@ def leftovers(root: Path) -> list[str]:
             for p in sorted(folder.iterdir()):
                 if p.name.startswith("."):
                     known = (re.fullmatch(r"\.[BR]-\d{4}\.(?:tmp|reserve)", p.name)
-                             or p.name == ".RESUME.md.tmp")
+                             or re.fullmatch(r"\.RESUME\.md\.\d+\.[0-9a-f]{8}\.tmp", p.name))
                     out.append(f"{side}/{p.name}" if known  # NOECHO-HIDDEN-MARK
                                else f"{side}/an unrecognised hidden file")
     return out
@@ -823,12 +846,11 @@ def main(argv: Optional[Sequence[str]] = None, stdin: Optional[str] = None) -> i
             elif args.cmd == "ack":
                 print(cmd_ack(root, args.me, args.upto))
             elif args.cmd == "agreed":
-                text = view_agreed(root)
                 if args.write:
-                    atomic_write(root / "AGREED.md", text)
+                    write_agreed(root)
                     print("wrote AGREED.md")
                 else:
-                    print(text)
+                    print(view_agreed(root))
             elif args.cmd == "post":
                 body = stdin if stdin is not None else sys.stdin.read()
                 h = {k: getattr(args, k) for k in
