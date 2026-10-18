@@ -82,6 +82,9 @@ MUTATIONS = [
     ("temporary names can collide",
      'tmp = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")  # TMP-UNIQUE-MARK',
      'tmp = path.with_name(f".{path.name}.tmp")  # TMP-UNIQUE-MARK'),
+    ("an out-of-date AGREED.md is not reported",
+     'current = on_disk == view_agreed(root)  # STALE-AGREED-MARK',
+     'current = True  # STALE-AGREED-MARK'),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]

@@ -155,6 +155,12 @@ def write_agreed(root: Path, tries: int = 5) -> str:
     they are now and, if the answer differs from what was written, write again.
     Every writer does this after its own write, so concurrent writers converge on
     the state of the messages, whichever finishes last.
+
+    LIMITS, said plainly. If a process dies after its replace, or the retries run
+    out, a stale file can remain until the next run. That is not prevented; it is
+    DETECTED: `status` reports when AGREED.md no longer matches the messages. The
+    tests simulate a newer assent arriving mid-write; they do not run real
+    concurrent processes or kill one mid-write.
     """
     path = root / "AGREED.md"
     for _ in range(tries):
@@ -508,6 +514,16 @@ def view_status(root: Path, me: str) -> str:
     lo = leftovers(root)
     if lo:
         out.append("Unfinished or leftover files: " + ", ".join(lo))
+    agreed = root / "AGREED.md"
+    if agreed.is_file():
+        try:
+            on_disk = agreed.read_text(encoding="utf-8").replace("\r\n", "\n")
+            current = on_disk == view_agreed(root)  # STALE-AGREED-MARK
+        except OSError:
+            current = True
+        if not current:
+            out.append("AGREED.md is out of date with the messages; regenerate "
+                       "it with `agreed --write`.")
     return "\n".join(out)
 
 

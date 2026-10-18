@@ -485,6 +485,16 @@ class TestConcurrentRegeneration(Base):
         self.assertEqual(len(seen), 2)
         self.assertEqual(len(set(seen)), 2)
 
+    def test_status_reports_an_out_of_date_agreed_file(self):
+        self.agree("rev")
+        run(self.root, ["agreed", "--write"])
+        self.assertNotIn("out of date", run(self.root, ["status", "--as", "bassy"])[1])
+        self.agree("bassy")  # a newer assent; the file on disk is now behind
+        self.assertIn("AGREED.md is out of date",
+                      run(self.root, ["status", "--as", "bassy"])[1])
+        run(self.root, ["agreed", "--write"])
+        self.assertNotIn("out of date", run(self.root, ["status", "--as", "bassy"])[1])
+
     def test_the_command_uses_the_converging_writer(self):
         self.agree("rev")
         self.assertEqual(run(self.root, ["agreed", "--write"])[0], 0)
