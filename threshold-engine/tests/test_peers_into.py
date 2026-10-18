@@ -44,6 +44,7 @@ from conftest import DATA, ROOT
 from threshold_engine import reporting_changes as RC
 from threshold_engine.book import PEER_TAB_NAMES
 from threshold_engine.peers import peers_workbook as PW
+from threshold_engine.peers.glossary import PEER_TERMS
 from threshold_engine.peers import roster as R
 from threshold_engine.peers import run
 
@@ -279,7 +280,7 @@ def test_the_glossary_and_run_are_second_sections_of_the_hosts(into_and_alone):
         ["Term", "What it means", "How it is calculated"]
     mine = section_rows(alone["Glossary"], 5, 2, 3)
     theirs = section_rows(g, 6, 1, 3)
-    assert len(mine) == len(PW.PEER_TERMS) == len(theirs)
+    assert len(mine) == len(PEER_TERMS) == len(theirs)
     assert theirs == [tuple(words(v) for v in r) for r in mine]
     assert any("Peers data tab" in v for r in theirs for v in r)
     r_ = wb["Run"]
@@ -399,7 +400,7 @@ def test_the_sections_go_after_the_hosts_content_when_its_tabs_come_later(tmp_pa
     g = saved["Glossary"]
     assert g["B14"].value == "Peers terms" and g["B15"].value == "Term" and g["B16"].value == "Pack"
     assert [r for r in range(1, g.max_row + 1) if g.cell(r, 2).value == "Peers terms"] == [14]
-    assert g.max_row == 15 + len(PW.PEER_TERMS)
+    assert g.max_row == 15 + len(PEER_TERMS)
     r_ = saved["Run"]                                      # nothing made a Run: the save did
     assert r_["A1"].value == "Peers: this build" and saved.sheetnames[-1] == "Run"
     assert "save" not in wb.__dict__                       # the workbook saves as any other from here
