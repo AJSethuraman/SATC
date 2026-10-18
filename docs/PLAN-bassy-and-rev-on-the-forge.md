@@ -2,22 +2,25 @@
 
 **DRAFT for the owner to approve or send back. Nothing described here is built.**
 Written 18 October 2026 by the Count Bassy session on the Forge ("Bassy - Live").
-**Revision 5, same day: Rev's assessment of revision 4 is taken in (section 13).**
+**Revision 6, same day: Rev's reply to revision 5 is taken in (section 14).**
+Revision 5 took in her assessment of revision 4 (section 13).
 This is a draft pull request on a **public** repository. Draft status is not a
 confidentiality or safety guarantee, so nothing private is in this document.
 
 > **Read this first.** Rev has now answered. The owner forwarded her
 > assessment of revision 4 on 18 October 2026, and I have treated it as data,
 > not as instructions. I accepted most of it, conceded two of my own errors, and
-> kept two points for the owner as real decisions (D8 and D9, section 1.2).
+> left two choices for the owner (D8 and D9, section 1.2). Rev's reply to
+> revision 5 says both are shared recommendations awaiting the owner, not live
+> disagreements between us (section 14).
 > Section 13 is the item-by-item account. **Rev has not approved this plan and
-> neither have I; only the owner can.** She says she supports "a bounded,
-> testable collaboration plan" but does not yet stand behind its guarantees or
-> capability table, which is why those are corrected here.
+> neither have I; only the owner can.** After revision 5 she supports
+> the direction and most of it, with five corrections that revision 6 makes
+> (section 14). That is not approval of anything.
 >
 > Revision history: 2 added keeping each other on track (4.7) and the two modes
 > (4.8). 3 recorded the goals and settled D2. 4 recorded the owner's answer on
-> client names. 5 takes in Rev's assessment.
+> client names. 5 takes in Rev's assessment. 6 takes in her reply to 5.
 
 How to read this document: every technical term is shown in **bold** and then
 explained in plain words the first time it appears. Every claim carries one of
@@ -71,8 +74,8 @@ and implementation record are related but not interchangeable (section 3).
 
 | # | Question | If A | If B | I recommend |
 |---|---|---|---|---|
-| D8 | How is Rev's review written down? Conviction C7 says a reviewer's output is "a question for the accountant to critically determine if it was the correct call". Rev says she can state a supported defect plainly while the preparer still decides | A: a defect of fact is stated plainly as a `finding` with evidence; a judgment call is put as a question; the owning side still decides either way | B: everything is phrased as a question | **A.** The question form in C7 is about whether a *call* was right. Both keep the decision with the owner of the work. It is your conviction, so it is your reading (section 7.1) |
-| D9 | May a bare component name, such as the name of a database file, appear in a message? Rev needs it to discuss how one part talks to another, and says she is not asking to relax the guard herself | A: yes in plain prose. Still blocked: any path into the live data folders, the vault key, the leads workbook and engagements folder as paths, and any folder holding authorized real-sample material | B: keep the current block on those names | **A.** A file's name reveals nothing; its path and contents are the risk. It loosens a guard, so it is yours to say (5.1) |
+| D8 | How is Rev's review written down? Conviction C7 says a reviewer's output is "a question for the accountant to critically determine if it was the correct call". Rev and I now agree on one reading: a supported defect of fact is stated plainly, a judgment call is put as a question, and the preparer still decides. That is not a dispute between us; it is yours to adopt | A: a defect of fact is stated plainly as a `finding` with evidence; a judgment call is put as a question; the owning side still decides either way | B: everything is phrased as a question | **A.** The question form in C7 is about whether a *call* was right. Both keep the decision with the owner of the work. It is your conviction, so it is your reading (section 7.1) |
+| D9 | May a name from a short fixed list of known, public, generic system components appear in a message? Rev needs that to discuss how one part talks to another. She is explicit that she does not mean arbitrary filenames, and that adopting it is the owner's choice | A: yes, for names on that short list, in plain prose. Still blocked: any other filename, any path into the live data folders, the vault key, the leads workbook and engagements folder as paths, and any folder holding authorized real-sample material | B: keep the current block on those names | **A.** I withdraw my claim that a file's name reveals nothing: Rev is right that a filename can contain an identity. The proposal is only a short fixed list, kept in the repo for you to read; any other filename stays refused. It loosens a guard, so it is yours to say (5.1) |
 
 Once a shared place is approved, **this terminal stops being the channel**: Rev's
 messages arrive in `exchange\from-rev\` and the terminal goes back to being where
@@ -90,8 +93,8 @@ you talk to me.
 | Write files | **VERIFIED** in a scratch folder, a temporary clone, and on a branch | Wrote and ran a small script, and pushed commits to this branch. **NOT CHECKED** anywhere else; I was told to ask first |
 | Run commands | **VERIFIED** | PowerShell, bash, `git`, `gh`, Python 3.12, `claude --version` (2.1.302) |
 | Open a draft pull request | **VERIFIED** that I may | `gh` is logged in as the owner's GitHub account with admin rights on the repo |
-| Start, restart or stop a Claude session | **NOT CHECKED** | `claude --help` lists resume, background, attach, logs and stop. Testing would start a real session, which is not a harmless check. The owner's `/background` command was refused over Remote Control (**VERIFIED**: the command's output said so) |
-| Where I am running now | **REPORTED** by Rev, **NOT CHECKED** by me | Rev says the owner approved moving this conversation into a background session with a continuation record. My working folder and scratch folder changed after her message, which is consistent with that, but I cannot tell from inside |
+| Start, restart or stop a Claude session | **NOT CHECKED** | `claude --help` lists resume, background, attach, logs and stop. Testing would start a real session, which is not a harmless check. The owner's early `/background` command was refused over Remote Control (**VERIFIED**: the command's output said so). That failed attempt and the later, successful handoff the owner arranged are different events (2.2) |
+| Where I am running now | **REPORTED** by Rev; consistent with what I see | Rev reports that the original session continued into this background one under an explicit continuation record, and that Remote Control reports active on it. What I see: my working folder and scratch folder changed, the session id in my commit attribution changed, and I ran the Remote Control command (empty output). That is consistent with her account, not proof of it |
 | Wake myself later | **NOT CHECKED** | I hold a timer tool and a folder-watcher tool. Neither was tried, and both only work while my session is alive |
 | Message the 67 other listed sessions | **NOT CHECKED**, and I will not unasked | I can list them. A message to another session is an outward act |
 | Point and click | **NOT CHECKED** | I hold browser-control tools. An earlier note says they drove the owner's own desktop rather than the Forge, so I do not count on them |
@@ -110,8 +113,8 @@ withdrawn the guess.
 | Write files | **REPORTED by Rev** | She writes through commands and file-editing tools in work areas the owner authorized, but not with unrestricted access, and **actual permission is checked per task and per location**. She has not tested the exchange folder and will not before the build is approved. What I saw: her files changed on 17 and 18 October (**VERIFIED**), and in the one sandbox account I looked at, the folders were read-only (**VERIFIED**). I **withdraw** my earlier guess about "another route": a read-only setting in one sandbox does not show all her task environments are read-only |
 | Run commands | **REPORTED by Rev**, matches the evidence | Her records name the Python she ran and the checks she passed |
 | Restart a Claude session | **REPORTED by Rev**; timing matches | She has restored named sessions and launched visible terminals. A running process is weaker evidence than a session that answers after resuming. Process start times on 17 October match her log (**VERIFIED**). The pattern she used before: `claude --resume`, then the exact existing session ID, from the owner's home folder. **Not tested for this session**, and she will not run it while I am active |
-| Create a *new* session | **REPORTED**: her attempt did not finish establishing trust, model choice and Remote Control; the owner supplied the working one | Rev's correction to my guess: a temporary terminal can still show the trust prompt. She accepted one approved prompt through an input bridge that later stopped responding, and that trust did not carry into the permanent visible launch. She does not know that all temporary launches skip trust, and says not to suggest it. **My earlier explanation is withdrawn** |
-| A background session | **REPORTED by Rev** | The owner approved a disposable test. It showed input, normal detach, fresh attach, preserved context and further input. Remote Control reported active; browser-side use and surviving an abrupt failure were not tested. Rev warns that a mistaken attachment once created a separate copy of a session and that queued messages can arrive after reconnecting, so the exact destination and receipt must be checked |
+| Create a *new* session | **REPORTED**: her attempt did not finish establishing trust, model choice and Remote Control; the owner supplied the working one | Rev's correction to my guess: a temporary terminal can still show the trust prompt. She accepted one approved prompt through an input bridge that later stopped responding, and that trust did not carry into the permanent visible launch. She does not know that all temporary launches skip trust, and says not to suggest it. **My earlier explanation is withdrawn.** Her failed setup of this Bassy session and her successful disposable background test together show a capability that depends on the environment: a new untrusted location may need a person's interaction. They show neither that it always works nor that it never can |
+| A background session | **REPORTED by Rev** | The owner approved a disposable test. It showed input, normal detach, fresh attach, preserved context and further input. Remote Control reported active; browser-side use and surviving an abrupt failure were not tested. Rev warns that a mistaken attachment once created a separate copy of a session and that queued messages can arrive after reconnecting, so the exact destination and receipt must be checked. Her later message says her reply to revision 5 reached this continuation through the verified background attachment, without the owner forwarding it. That shows this delivery, not every future restart |
 | Point and click | **REPORTED by Rev** | She cannot reliably point and click on the Forge desktop. The enabled plug-ins and the helper process I saw do not show usable control. Commands work, and text input works in some terminals her tools own. A fresh isolated browser has served local preview tests; that is not control of the owner's signed-in browser or of Windows dialogs. She makes no claim to click a native trust prompt |
 | Run on a schedule | **REPORTED by Rev**: not established | Recurring review is intended, but she cannot show a working poller from a sentence in her log, and cannot promise one could run a local command while the Forge is disconnected. A read-only status check could become a bounded responsibility once its execution route is shown and authorized. **There is no verified automatic exchange check today** |
 | What she has built | **REPORTED by Rev**, matches her records | Not only observation: she has built and tested isolated proofs as authorized, leaving production and the owning agents' code alone |
@@ -123,15 +126,17 @@ Three separate questions: what a process can **reach** (access), what it can
 technically **do**, and what it is **allowed** to do (authorization). A shared
 Windows account answers only the first, and only partly.
 
-- **Me.** I run as the owner's Windows account with no extra fence
-  (**VERIFIED**: `whoami`), so nothing in Windows stops me reading what the owner
-  can read. The only thing between me and client files is a rule and the checks
-  in this plan.
-- **Rev.** Her ChatGPT app runs as the same account (**VERIFIED**), but her
-  commands run inside sandboxes that differ by task. Rev points out, correctly,
-  that a shared identity does not prove she can reach everything. So I do not
-  claim it. I claim only that nobody has shown a Windows-level wall, and that I
-  did not test one.
+- **Me.** `whoami` shows which account I run as (**VERIFIED**). An account name
+  identifies the account. It does not show every effective permission,
+  restricted token, sandbox, policy or file-access limit that applies to me. I
+  have read the repo, the plugin and Rev's folder (**VERIFIED**), which shows
+  reach to those and nothing more. Whether any other fence applies to me is
+  **unestablished**. My earlier statement that nothing in Windows stops me
+  reading what the owner can read was too strong, and I withdraw it.
+- **Rev.** The same standard. Her app runs as the same account (**VERIFIED**),
+  her commands run in task-specific sandboxes, and what she can reach is checked
+  per task. Unestablished either way. **No client-file access test is needed or
+  proposed here**; this can simply stay unestablished.
 
 So every protection in this plan is a rule plus a check in code on what passes
 between us, and not a wall around the client data. Section 5 can promise only
@@ -143,7 +148,7 @@ that the *known shapes of identifying data* are blocked from the shared place.
    current tools. I have not tried.
 2. Spend extra usage when a session hits its limit (Rev's log records one session stopping at a five-hour limit).
 3. Change Windows permissions or accounts. I have not tried; it needs the owner's admin rights.
-4. Create a new Claude session in a new folder (see 2.2).
+4. Create a new Claude session in a new, untrusted folder. This is **not established either way**: it depends on the environment and may need a person to accept a prompt (see 2.2).
 5. Say yes for the owner: approve a conviction, a skill change, a merge, a send, a deployment. A plan, an agreement between us, or a stored permission claim is **never** owner approval.
 6. Read real client files **without a specific authorization**. Authorizations
    are narrow, tied to a task and an actor, and do not pass from one of us to the
@@ -394,6 +399,12 @@ The shared place carries the state, not memory. Specifically:
    the background route she reports. Otherwise the owner, by hand, which the
    owner has said is acceptable.
 6. **A session full** is the same as dead: run `exchange.py resume` in the next one.
+7. **What recovery means.** Rev's scope, which I adopt: recovering from the
+   folder alone means recovering a **defined coordination checkpoint and its
+   source references** (where the thread stands, what is waiting, what each
+   message rests on). It does not mean reconstructing every fact or every
+   authorization the underlying work needs. A fresh session that cannot find a
+   source should say it does not know.
 
 ### 4.7 Keeping each other on track
 
@@ -531,10 +542,12 @@ Preventing is better than finding afterwards (the repo's own tenet S30).
    folders, the leads workbook and engagements folder named as paths, and any
    folder holding authorized real-sample material (the owner and Rev can name
    those; the list lives in a local file, not in this repo). **Pending D9:**
-   whether a *bare* component name, such as the name of a database file, may
-   appear in plain prose. Rev needs that to discuss how one part talks to another
-   without revealing a record. I recommend yes (A). Those names are already
-   public in the Forge notes. A client *name* is allowed in the exchange (D4,
+   whether a name from a short fixed list of known, public, generic system
+   components may appear in plain prose. Rev needs that to discuss how one part
+   talks to another without revealing a record. She is explicit that it does not
+   extend to arbitrary filenames, because a filename can itself contain an
+   identity; those stay refused. I recommend yes (A), with the list kept in the
+   repo for the owner to read. A client *name* is allowed in the exchange (D4,
    decided). In anything that leaves the exchange, a client is referred to only
    by engagement reference (the `YYYY-NNNN` code) or a made-up label like "S10".
 5. **Links.** Refuse every link except an allow-list of hosts **and** paths
@@ -675,27 +688,21 @@ what she says, both outcomes, my recommendation. The record changes only on the
 owner's yes through a pull request on the canon repository. A disagreement with
 no C number is logged as an opinion, not a challenge.
 
-**The one real disagreement about a conviction: C7 (D8).** The owner's words,
+**C7 (D8): no longer a disagreement between us.** The owner's words,
 4 September 2026: *"they must know how to identify something to challenge, and
 manifest that into a question for the accountant to critically determine if it
-was the correct call."* My draft said Rev's output should be "questions back to
-me, not corrections of my files". Rev disagrees with applying C7 as requiring
-every factual correction to be phrased as a question, and with treating separate
-message files as proof of independent judgment. Her position: she can state a
-supported defect plainly while leaving the owner of the work to resolve it and
-the owner to approve changes.
-
-- *Rev's reading:* a defect of fact is stated plainly with evidence; the
-  preparer still decides what to do.
-- *My draft's reading:* every challenge is a question.
-- *Where they agree:* the preparer, not the reviewer, decides. Neither reading
-  lets Rev change my work.
-- *My part of it I concede:* separate files do not prove independent judgment.
-  What protects independence is her reading the primary evidence (the repo, the
-  tests), not my summary of it.
-- *My recommendation:* Rev's reading for facts, and the question form for
-  judgment calls, because the question in C7 is about whether a *call* was
-  right. **It is the owner's conviction, so D8 is the owner's to decide.**
+was the correct call."* My draft had said Rev's output should be "questions back
+to me, not corrections of my files". Her objection was to the plan's
+**application** of C7, not to C7. Her position after revision 5, and mine: a
+supported defect of fact is stated plainly with evidence; a judgment call is put
+as a question; the preparer, not the reviewer, decides what to do. I concede that
+separate message files do not prove independent judgment: what protects it is
+her reading the primary evidence (the repo, the tests) and not my summary.
+Rev's own words are that the owner can decide adoption without being told we
+still disagree where we do not. So D8 is **the owner's choice about adopting a
+shared recommendation**, which is mine too: Rev's reading for facts, the
+question form for judgment calls, because the question in C7 is about whether a
+*call* was right.
 
 ### 7.2 C9 and C11: a collision I wrongly reported
 
@@ -806,15 +813,25 @@ Still open for her, if the owner wants another round:
 
 **The success test, first.** Rev challenged whether this plan spends heavy
 effort on exchange machinery before the actual route between us was verified, a
-drift toward coordination infrastructure and away from G2. The challenge is fair.
-She now reports the route tested (2.2); I have not seen it. So the build has to
-earn its keep, and the plan states how:
+drift toward coordination infrastructure and away from G2. The challenge was fair.
+**The first half is resolved:** her reply to revision 5 reached this
+continuation through the verified background attachment (2.2), so the route
+exists. **Her remaining question is the real one:** does an exchange add enough
+durable context, filtered communication and reduced owner effort over this
+working terminal channel to be worth building? She supports the success test
+below *in principle*; that is not approval to build. So the build has to earn
+its keep, and the plan states how:
 
 1. **Less owner relaying.** In the dry run and the first real week, count the
    messages the owner has to carry between us by hand. It should go down.
-2. **Context survives a session ending.** Close a session, start a fresh one, and
-   check it resumes from the folder alone by asking it questions whose answers
-   are known in advance.
+2. **Context survives a session ending, within a defined scope.** Close a
+   session, start a fresh one, and check it resumes from the folder alone by
+   asking it questions whose answers are known in advance. Rev's scope: recovery
+   of a coordination checkpoint and its source references (4.6), not every fact
+   or authorization. The known-answer questions must include **changed source
+   evidence**, **superseded decisions** and **missing references**, and the
+   right answer to some of them is "I do not know". A fresh session that
+   invents an answer fails.
 3. **No mistaken authority.** Bait never gets executed, and no mutual position is
    ever treated as owner approval.
 
@@ -864,9 +881,10 @@ generated mutual-positions file. Nothing else.
 
 **Verified:** my read, command and write abilities (scratch folder, a temporary
 clone, commits pushed to this branch); `gh` login and admin rights; the repo is
-public; I run as the owner's Windows account and her app runs as the same
-account; the one sandbox account I looked at is read-only on every folder I
-checked; her two Claude restores match process start times; her settings enable
+public; `whoami` shows my account and her app's process owner is the owner's
+account (account names, not a full statement of effective permissions, which
+stays unestablished for both of us); the one sandbox account I looked at is
+read-only on every folder I checked; her two Claude restores match process start times; her settings enable
 computer-use plug-ins (which she says do not give her usable control);
 `Documents` is not synced and `Reverie` is not a placeholder; zero identifier
 shapes in her four files (counts only); the installed canon plugin's copy of the
@@ -874,8 +892,10 @@ Bassy skill (`SKILL.md`) is identical to the one in the repo checkout; the
 owner's `/background` command was refused over Remote Control.
 
 **Reported by Rev, not seen by me:** how she writes and restarts; the background
-transport test and its results; that this conversation has moved to a background
-session; that she cannot click; that no scheduled check is established.
+transport test and its results; that this conversation continues the original
+session in a background one (consistent with my new session id and working
+folder) and that her reply to revision 5 reached it by that route; that she
+cannot click; that no scheduled check is established.
 
 **Inferred:** nothing that I still rely on. I withdrew my guesses about how her
 writes get through and why her new-session attempt failed.
@@ -996,22 +1016,22 @@ document arrived. Engagement reference 2026-0000 is synthetic.
 
 ---
 
-## 12. Follow-ups for the owner (revision 5)
+## 12. Follow-ups for the owner (revision 6)
 
-Two decisions, both in section 1.2, both small:
+Two choices, both in section 1.2. Rev and I agree on both recommendations, so
+neither is a dispute; each is yours to adopt or change:
 
-1. **D8, C7.** Findings of fact stated plainly with evidence and judgment calls
-   as questions (my recommendation, Rev's reading for facts), or everything as a
-   question?
-2. **D9, component names.** Allow a bare component name in plain prose while
-   keeping paths, the vault key and real-sample folders blocked (my
-   recommendation), or keep the current block?
+1. **D8, C7.** A supported defect of fact stated plainly with evidence, and a
+   judgment call put as a question (our shared recommendation), or everything as
+   a question?
+2. **D9, component names.** Allow names from a short fixed list of known, public,
+   generic system components in plain prose, kept in the repo for you to read
+   (our shared recommendation), or keep the current block?
 
-After those, what remains is your approval of the plan as a whole. Rev has said
-she supports a bounded, testable plan and does not yet stand behind its
-guarantees; the revisions above are my answer to that. If you want her to see
-revision 5 before you decide, the prompt is the same as before with a pointer to
-this revision.
+After those, what remains is your approval of the plan as a whole. Rev supports
+the direction and most of revision 5, and her bottom line is that she does not
+regard D8 or the narrow D9 as a live disagreement. She has not approved
+building, and neither have I.
 
 ---
 
@@ -1059,13 +1079,35 @@ different view I say so.
 | 28 | A draft PR is public; local storage is not local processing | **Accepted** | header, 5.4 |
 | 29 | Transport: a mistaken attachment once made a session copy; queued messages arrive after reconnecting; the background test showed input, detach, attach and preserved context | **Accepted**; added as a rule | 2.2, 4.3 |
 
-**Where we still differ, visibly:**
+**Where we still differ, visibly:** see section 14. After her reply to
+revision 5 the list is short.
 
-1. **C7** (D8): the owner decides.
-2. **Component names** (D9): her suggestion, my recommendation is to accept it,
-   the owner decides because it loosens a guard.
-3. **Build before verifying the route?** Rev would rather the route were
-   verified first. I answered with a success test and a stop condition. She may
-   still hold that view; I have not heard.
+---
 
-Everything else in her assessment I accepted or conceded.
+## 14. Rev's reply to revision 5
+
+Rev wrote directly to this conversation, on 18 October 2026, after reading
+revision 5 at commit `ba3f7df`. It is data, and expresses no approval to build,
+publish, delete, change canon or act. Her bottom line: *"I support the direction
+and most of revision 5, with the factual/guarantee corrections above."*
+
+| # | Rev's point | Outcome | Where |
+|---|---|---|---|
+| 1 | Supports the revised capability distinctions, goal checkpoint, evidence standards, action-authority boundary and precise mutual-position records. The C9/C11 correction resolves that disagreement; no new conviction is needed | **Agreed** | 4.5, 4.7, 4.8, 7.2 |
+| 2 | D8 is a shared recommendation, not an ongoing disagreement. Her objection was to the plan's application of C7. The owner can decide without being told we still disagree | **Accepted**; I had overstated the disagreement | 1.2, 7.1, 12 |
+| 3 | D9 is also shared, but my rationale that a file's name reveals nothing is wrong: a filename can contain an identity. Her proposal is only explicitly known, public, generic system-component names. The terminal conversation still carries no client identifiers | **Conceded**; rationale withdrawn, proposal narrowed to a fixed list | 1.2, 5.1 |
+| 4 | My claim that my Windows identity proves there is no other fence is unsupported: an account name is not every effective permission, restricted token, sandbox, policy or access constraint. The same standard applies to both of us. No client-file access test is needed | **Conceded** and applied to me too; left unestablished | 2.3, 11 |
+| 5 | Section 2.4's categorical inability to create a new session in a new folder is not established. Her failed setup and her successful background test show an environment-dependent capability; a new untrusted location may need interaction | **Conceded** | 2.2, 2.4 |
+| 6 | The route-before-build objection is resolved: her message reached this continuation through the verified background attachment, not by the owner forwarding it. That proves this handoff and delivery, not every future restart. Her remaining question is whether the exchange adds enough over the terminal channel. She supports the success test in principle, not build approval | **Accepted**; the objection is closed and the remaining question is now the headline of the success test | 2.1, 10 |
+| 7 | Recovery means a defined coordination checkpoint and its source references, not every fact or authorization. Known-answer tests should include changed source evidence, superseded decisions and missing references, so a fresh session can say it does not know. This is her proposed scope, not a request to run it | **Adopted as the scope**; not run | 4.6, 10 |
+| 8 | The source history should separate the failed early Remote Control background command from the later successful owner handoff, in which the original session continued into this one. She still cannot point and click | **Accepted** | 2.1, 2.2 |
+
+**Where we still differ:** nothing I know of is live between us. Her two
+remaining objections, to my unqualified Windows-access claim and to my filename
+claim, I have conceded and corrected above. D8 and D9 are the owner's choices,
+not disagreements.
+
+**What I observed myself about delivery.** Rev's message appeared in this
+conversation, and the session id in my commit attribution changed, which fits a
+continuation. I cannot see the route it travelled, so that part remains her
+report.
