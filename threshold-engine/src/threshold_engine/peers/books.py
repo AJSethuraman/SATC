@@ -138,6 +138,41 @@ DEFINITIONS.update({
                                                   field="LNRENROT") + " " + NOT_FILED_NOTE,
 })
 
+#: A product the Call Report also files in parts that add up to it: RC-C item
+#: 1.e, nonfarm nonresidential (LNRENRES), is 1.e(1), owner-occupied
+#: (LNRENROW), plus 1.e(2), other (LNRENROT), as DEFINITIONS above say
+#: ("owner-occupied and other together"). The parts are filed from 2007Q1.
+SPLITS = {"Nonfarm nonresidential": ("Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential")}
+
+
+def stacking(products: Sequence[str]) -> List[Tuple[str, Tuple[int, ...]]]:
+    """How each of ``products`` goes into a stack that must count no loan
+    twice (the share panel on Peers), as ``(role, parts)`` in their order.
+    ``parts`` are the positions in ``products`` of the parts of its split.
+
+    - ``("own", ())``: no other product built overlaps it; stacked as it is.
+    - ``("whole", parts)``: a parent (``SPLITS``) whose every part is built:
+      stacked only in a quarter in which not every part has a figure.
+    - ``("part", parts)``: a part whose parent and every other part are
+      built: stacked only in a quarter in which every part has a figure.
+    - ``("inside", ())``: a part whose parent is built but not every other
+      part is: the parent holds it, so it is never stacked.
+
+    A part whose parent is not built has nothing to overlap: ``own``."""
+    at = {p: i for i, p in enumerate(products)}
+    out: List[Tuple[str, Tuple[int, ...]]] = []
+    for p in products:
+        role: Tuple[str, Tuple[int, ...]] = ("own", ())
+        if p in SPLITS and any(q in at for q in SPLITS[p]):
+            pieces = SPLITS[p]
+            role = ("whole", tuple(at[q] for q in pieces)) if all(q in at for q in pieces) else ("own", ())
+        for parent, pieces in SPLITS.items():
+            if p in pieces and parent in at:
+                role = ("part", tuple(at[q] for q in pieces)) if all(q in at for q in pieces) else ("inside", ())
+        out.append(role)
+    return out
+
+
 WHY_JUMP = "book moved more than the jump in this window"
 WHY_ACQUIRED = "an acquisition brought in at least the acquisition share in this window"
 #: A stated acquisition (``peers.stated``): one the FDIC record cannot see,

@@ -113,7 +113,7 @@ from . import roster as R
 from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
 from .books import (PRODUCTS, _fields, bank_book, combined_flows, industry_filers, label, members_by_quarter,
-                    quarter_end, raw_fields)
+                    quarter_end, raw_fields, stacking, SPLITS)
 from .glossary import terms_for
 
 INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
@@ -174,6 +174,7 @@ SETTINGS = (("rank_by", "Best and worst: ranked on the", (2, 3), 4, None),
             ("min_banks", "Banks a composite or band needs", (14, 15), 16, None))
 CHART_ROWS = 16                   # rows each top chart covers (16.5 pt each: 352 px)
 SMALL_ROWS = 8                    # rows each small chart covers (15 pt each: 160 px)
+MIX_CAPTION_ROWS = 1              # of those, the mix chart's caption takes, when it has one
 
 
 def _px_width(px: int) -> float:
@@ -779,6 +780,42 @@ def _merged(ws, row, first, last, value, font=F_BODY, height=None, wrap=True, al
     if height:
         ws.row_dimensions[row].height = height
     return c
+
+
+def mix_cell(pick: str, cells: Sequence[str], stack: Sequence[tuple]) -> str:
+    """The mix chart's cell for the product numbered ``pick`` (a formula), from
+    ``cells``, KeyBank's balance cell per product, stacked as
+    ``books.stacking`` says, so no loan counts twice. A blank (not filed) is
+    no balance. With no product overlapping another, the formula is the one
+    the panel always had."""
+    if all(role == "own" for role, _ in stack):
+        c = ",".join(cells)
+        return "=IF(ISNUMBER(CHOOSE({i},{c})),CHOOSE({i},{c}),0)".format(i=pick, c=c)
+    out = []
+    for cell, (role, parts_) in zip(cells, stack):
+        own = "IF(ISNUMBER({c}),{c},0)".format(c=cell)
+        filed = "AND(%s)" % ",".join("ISNUMBER(%s)" % cells[i] for i in parts_) if parts_ else ""
+        out.append({"own": own, "whole": "IF(%s,0,%s)" % (filed, own),
+                    "part": "IF(%s,%s,0)" % (filed, own), "inside": "0"}[role])
+    return "=CHOOSE(%s,%s)" % (pick, ",".join(out))
+
+
+def mix_caption(products: Sequence[str], stack: Sequence[tuple], me: str) -> Optional[str]:
+    """What the mix chart's caption says of how it is stacked, or None when no
+    product overlaps another (nothing is said, as before). Each product is
+    named whole on one line, so a commercial book's rewording finds it."""
+    said = []
+    for p, (role, parts_) in zip(products, stack):
+        if role == "whole":
+            said.append("the %s parts of %s where %s files %s, the whole where it does not" % (
+                "two" if len(parts_) == 2 else len(parts_), p, me, "both" if len(parts_) == 2 else "all of them"))
+    for p, (role, _) in zip(products, stack):
+        if role == "inside":
+            parent = next(q for q, pieces in SPLITS.items() if p in pieces)
+            said.append("%s left out, as %s holds it" % (p, parent))
+    if not said:
+        return None
+    return "No loan counted twice: %s." % "; ".join(said)
 
 
 def _not_built(what: str, products) -> str:
@@ -1474,6 +1511,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         co.add(name, heads=[h])
     co.add("smark", heads=["%s, last balance drawn" % me["short"]])
     NPROD = len(products)
+    # The mix chart stacks KeyBank's book by product, so no loan may be in
+    # it twice: a product built with its parts (books.SPLITS) is stacked as
+    # the parts where they are filed and as the whole where they are not.
+    stack = stacking(products)
     mix_idx = ["%s" % S["mix_pick"]] + ["(%d+(%d>=%s))" % (j, j, S["mix_pick"]) for j in range(1, NPROD)]
     co.add("mix", NPROD, ["=INDEX(%s,%s)" % (lists["co_products"], x_) for x_ in mix_idx])
     # The quarters a reporting change took effect, per product and rate
@@ -1488,8 +1529,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             cells = ["%s$G$%d" % (DA, drow(pi, i, k)) for pi in range(NPROD)]
             wk.cell(r, co.col["ub"] + i, "=%s/1000000" % pick_number(cells, "NA()"))
         for j, x_ in enumerate(mix_idx):
-            cells = ",".join("%s$G$%d" % (DA, drow(pi, me_i, k)) for pi in range(NPROD))
-            wk.cell(r, co.col["mix"] + j, "=IF(ISNUMBER(CHOOSE({i},{c})),CHOOSE({i},{c}),0)".format(i=x_, c=cells))
+            wk.cell(r, co.col["mix"] + j, mix_cell(x_, ["%s$G$%d" % (DA, drow(pi, me_i, k)) for pi in range(NPROD)],
+                                                   stack))
         wk.cell(r, co.col["inwin"], "=%d>=%d-%s" % (k, Q, SET["last_n"]))
         for j in range(NB):
             wk.cell(r, co.col["uk"] + j, "=IF(%s>0,%s,FALSE)" % (co_p, pick("J", j, k)))
@@ -2134,7 +2175,15 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         s_.graphicalProperties.line.noFill = True
         area.series.append(s_)
     area.grouping = "percentStacked"
-    charts.append((_frame(area, "0%", 16, COL_PX * 7, small_h), "J%d" % sc))
+    caption = mix_caption(products, stack, me["short"])
+    if caption is None:
+        charts.append((_frame(area, "0%", 16, COL_PX * 7, small_h), "J%d" % sc))
+    else:
+        # The caption takes the chart's last rows on the right only, so no
+        # row moves and the left chart keeps its size.
+        keep = SMALL_ROWS - MIX_CAPTION_ROWS
+        charts.append((_frame(area, "0%", 16, COL_PX * 7, keep * HEIGHTS["small"] / 0.75), "J%d" % sc))
+        _note(pe, sc + keep, RIGHT, MIX_CAPTION_ROWS, caption, words=t.words)
     for r in range(sc, sc + SMALL_ROWS):
         pe.row_dimensions[r].height = HEIGHTS["small"]
     pe.row_dimensions[lay["more_note"] - 1].height = HEIGHTS["gap"]
@@ -2298,7 +2347,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                                extra_acquisitions, lagged_years, lag_years, (y0, y1), mix_base_year, industry, dq,
                                roster, acq_of)
     if gl is not None:
-        _glossary_tab(gl, t, book_kind)
+        _glossary_tab(gl, t, book_kind, caption)
     if run is not None:
         _run_tab(run, run_entries)
 
@@ -2316,7 +2365,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     else:
         folded = {x: t.title(x) for x in FOLDED}
         _fold(wb, [(folded["Glossary"], lambda ws, row, first: _write_glossary(ws, row, first, t, "Peers terms",
-                                                                              book_kind)),
+                                                                              book_kind, caption)),
                    (folded["Run"], lambda ws, row, first: _write_run(ws, row, first, run_entries, "Peers: "))])
 
     def cols(block):
@@ -2350,8 +2399,8 @@ GLOSSARY_WIDTHS = (2.29, 30.7, 90.7, 90.7)       # A (16 px), then Term, What it
 RUN_WIDTHS = (2.29, 44, 60, 66, 14, 10)
 
 
-def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None) -> int:
-    """Every peer term from ``row`` (``glossary.terms_for(book_kind)``): an
+def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None, share_note=None) -> int:
+    """Every peer term from ``row`` (``glossary.terms_for(book_kind, share_note)``): an
     optional section heading, the column labels, then one wrapped row per
     term, its height fitted to the longest cell. Returns the row after the
     last."""
@@ -2360,7 +2409,7 @@ def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None) -> int:
     _ref_header(ws, row, ["Term", "What it means", "How it is calculated"], first_col, height=15)
     row += 1
     widths = [ws.column_dimensions[L(first_col + i)].width or 13 for i in range(3)]
-    for term, meaning, calc in terms_for(book_kind):
+    for term, meaning, calc in terms_for(book_kind, share_note):
         vals = (term, t.words(meaning), t.words(calc))
         for i, v in enumerate(vals):
             c = ws.cell(row, first_col + i, v)
@@ -2373,12 +2422,12 @@ def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None) -> int:
     return row
 
 
-def _glossary_tab(gl, t, book_kind=None) -> None:
+def _glossary_tab(gl, t, book_kind=None, share_note=None) -> None:
     for i, w in enumerate(GLOSSARY_WIDTHS):
         gl.column_dimensions[L(1 + i)].width = w
     _ref_title(gl, 2, 3, t.title("Glossary"), "Each term on the peer tabs: what it means, and how the workbook "
                                               "calculates it.")
-    _write_glossary(gl, 4, 2, t, book_kind=book_kind)
+    _write_glossary(gl, 4, 2, t, book_kind=book_kind, share_note=share_note)
     gl.freeze_panes = "C5"
 
 

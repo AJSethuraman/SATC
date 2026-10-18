@@ -2575,3 +2575,34 @@ fixed. The rest, one commit each:
   pair, so two deals in one quarter go in one entry.
   `test_stated_acquisitions.py` 33 passed with `test_left_out.py` (50 in
   all), including the two new tests and the updated duplicate message.
+- **KeyBank's share panel counts no loan twice.** The panel stacked every
+  portfolio built, so Nonfarm nonresidential and its two parts were counted
+  twice. `books.SPLITS` records the one split (RC-C 1.e = 1.e(1) + 1.e(2),
+  as `DEFINITIONS` says) and `books.stacking` gives each product a role:
+  where the parent and both parts are built, the parts are stacked in a
+  quarter KeyBank files both and the parent in a quarter it does not, never
+  both (before 2007 the parts are not filed, so the parent carries the
+  nonfarm book there); a part built without its sibling is left out, inside
+  the parent; a part without its parent overlaps nothing. The mix cells on
+  Workings follow it (`peers_workbook.mix_cell`). The panel's caption, on the
+  chart's last row on the right only (the chart is one row shorter, no row
+  moves): "No loan counted twice: the two parts of Nonfarm nonresidential
+  CRE where KeyBank files both, the whole where it does not." The Glossary's
+  share term adds the same sentence to how it is calculated. A consumer
+  book's panel is unchanged: with no overlap the formula is the one it
+  always had, no caption, full height.
+  - Tests: `test_commercial_book.py` evaluates every mix cell of the built
+    commercial fixture with `formulas` against KeyBank's balances read from
+    the Data tab (both regimes present in the fixture), checks the roles and
+    the caption; with stacking switched off, 2 fail (checked).
+    `test_peers_workbook.py`: a consumer build keeps the old formula, no
+    caption, equal chart heights; a commercial build's mix chart is
+    (8 - 1)/8 of the one beside it with the caption under it.
+  - Run (3 workers, 15 min): `test_peers_workbook.py`,
+    `test_peers_dashboard.py`, `test_commercial_book.py`,
+    `test_peers_commercial.py`, `test_peers_into.py`: 150 passed, 2 failed.
+    The 2 are `test_peers_into.py`'s glossary tests, which read
+    `peers_workbook.PEER_TERMS`, an import fd092631 removed: failing since
+    that commit, not this one; fixed in the next commit.
+  - Not checked: how Excel draws the shorter chart and the caption; nothing
+    was opened in Excel.

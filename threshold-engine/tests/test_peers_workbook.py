@@ -1165,3 +1165,60 @@ def test_no_reporting_changes_stated_marks_nothing(tmp_path, recent, roster):
                   delinquency=None, acquired=NONE_ACQUIRED, combined={}, **RANK)
         build_peers_workbook(tmp_path / "x.xlsx", recent, roster, ("Credit card",), JUMP, MIN_BOOK, "all",
                              MERGERS(), EXTRAS, "2019Q4", **kw)
+
+
+def _small_chart_heights(path, row):
+    """The drawn height (EMU) of each chart anchored at ``row`` (0-based) on
+    Peers, by the column it starts in."""
+    with zipfile.ZipFile(path) as z:
+        xml = z.read("xl/drawings/drawing1.xml").decode("utf-8")
+    out = {}
+    for a in re.findall(r"<(?:xdr:)?oneCellAnchor>.*?</(?:xdr:)?oneCellAnchor>", xml, re.S):
+        col = int(re.search(r"<(?:xdr:)?col>(\d+)<", a).group(1))
+        r = int(re.search(r"<(?:xdr:)?row>(\d+)<", a).group(1))
+        if r == row:
+            out[col] = int(re.search(r'cy="(\d+)"', a).group(1))
+    return out
+
+
+def test_a_consumer_share_panel_is_unchanged_by_the_stacking_rule(tmp_path, recent, roster):
+    """Commercial products overlap (Nonfarm nonresidential and its parts), so
+    the share panel stacks the parts or the whole, says so in a caption, and
+    the chart gives that caption its last row. Consumer products overlap
+    nothing: the formula is the one the panel always had, there is no
+    caption, and the chart is as tall as the one beside it."""
+    p = tmp_path / "c.xlsx"
+    info = make(p, recent, roster, "all")
+    wb = load_workbook(p)
+    wk, pe = wb["Workings"], wb["Peers"]
+    first = column_index_from_string(info["charge_offs"]["helpers"]["mix"])
+    for r in range(2, len(info["quarters"]) + 2):
+        for j in range(len(FOUR)):
+            f = wk.cell(r, first + j).value
+            m = re.fullmatch(r"=IF\(ISNUMBER\(CHOOSE\(([^,]+),([^)]+)\)\),CHOOSE\(\1,\2\),0\)", f)
+            assert m and m.group(2).count("Data!$G$") == len(FOUR), f
+    assert not [c.value for row in pe.iter_rows() for c in row
+                if isinstance(c.value, str) and "counted twice" in c.value]
+    heights = _small_chart_heights(p, info["layout"]["small_chart"] - 1)
+    assert set(heights) == {1, 9} and heights[1] == heights[9]
+    calc = {row[0]: row[2] for row in PEER_TERMS}
+    gl = {r[1].value: r[3].value for r in wb["Glossary"].iter_rows() if isinstance(r[1].value, str)}
+    assert gl["Consumer book by product"] == calc["Consumer book by product"]
+
+
+def test_a_commercial_share_panel_gives_its_caption_the_last_row(tmp_path):
+    data = json.loads((PEERS / "commercial_2007.json").read_text())
+    roster = R.load(ROOT / "config" / "peers.json")
+    p = tmp_path / "m.xlsx"
+    products = ("C&I", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                "Other nonfarm nonresidential")
+    info = make(p, data, roster, "all", products=products, base="2007Q4", lagged_years=(2007, 2007),
+                lag_years=1, normalisation_years=(2007, 2007), mix_base_year=2007, min_banks=1,
+                acquired={x: {} for x in products})
+    heights = _small_chart_heights(p, info["layout"]["small_chart"] - 1)
+    keep = PW.SMALL_ROWS - PW.MIX_CAPTION_ROWS
+    assert heights[9] * PW.SMALL_ROWS == pytest.approx(heights[1] * keep, rel=1e-3)   # cm, rounded
+    pe = load_workbook(p)["Peers"]
+    cap = pe.cell(info["layout"]["small_chart"] + keep, 10).value
+    assert cap == ("No loan counted twice: the two parts of Nonfarm nonresidential where KeyBank files both, "
+                   "the whole where it does not.")

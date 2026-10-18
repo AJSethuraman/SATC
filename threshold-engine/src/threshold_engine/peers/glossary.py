@@ -345,19 +345,24 @@ PEER_TERMS = [
 SHARE_TERM = "Consumer book by product"
 
 
-def terms_for(book_kind=None):
+def terms_for(book_kind=None, share_note=None):
     """``PEER_TERMS`` for a workbook whose book states ``book_kind``
     (``kinds.KINDS``). The share panel names the bank's book by that kind
     ("KeyBank's commercial book: share by product"), so its term does too: a
     commercial book's is "Commercial book by product", about KeyBank's
     commercial book. None, the standalone peers build, and a consumer book
-    keep the list as it is."""
-    if book_kind is None or book_kind == "consumer":
-        return list(PEER_TERMS)
+    keep the list as it is.
+
+    ``share_note`` is the share panel's caption when the products built
+    overlap (``peers_workbook.mix_caption``), added to how the term is
+    calculated; None (no product overlaps another) adds nothing."""
     out = []
     for term, meaning, calc in PEER_TERMS:
         if term == SHARE_TERM:
-            term = "%s book by product" % book_kind.capitalize()
-            meaning = meaning.replace("KeyBank's consumer book", "KeyBank's %s book" % book_kind)
+            if book_kind not in (None, "consumer"):
+                term = "%s book by product" % book_kind.capitalize()
+                meaning = meaning.replace("KeyBank's consumer book", "KeyBank's %s book" % book_kind)
+            if share_note:
+                calc = "%s %s" % (calc, share_note)
         out.append((term, meaning, calc))
     return out

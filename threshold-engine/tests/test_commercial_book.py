@@ -367,3 +367,90 @@ def test_summary_is_wide_enough_for_the_longest_portfolio_name(built):
     from threshold_engine.summary_tab import W_PRODUCT, product_width
     consumer = ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto"]
     assert product_width(consumer) == W_PRODUCT and product_width(consumer, 16.43) == 16.43
+
+
+# ---------------------------------------------------------------- the share panel stacks no loan twice
+
+def test_stacking_takes_the_parts_or_the_whole_never_both():
+    nnr, oo, other = "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"
+    c = list(books.COMMERCIAL)
+    roles = dict(zip(c, books.stacking(c)))
+    assert roles[nnr] == ("whole", (c.index(oo), c.index(other)))
+    assert roles[oo] == roles[other] == ("part", (c.index(oo), c.index(other)))
+    assert {roles[p] for p in ("C&I", "Construction", "Multifamily")} == {("own", ())}
+    # The parent with one part: the parent holds it, so the part is not stacked.
+    assert books.stacking([nnr, oo]) == [("own", ()), ("inside", ())]
+    # The parts without the parent overlap nothing.
+    assert books.stacking([oo, other, "C&I"]) == [("own", ())] * 3
+    # Consumer products overlap nothing.
+    assert books.stacking(list(books.CONSUMER)) == [("own", ())] * len(books.CONSUMER)
+
+
+def test_the_share_panel_counts_no_loan_twice(built):
+    """KeyBank's share panel stacks every portfolio built, so Nonfarm
+    nonresidential and its two parts were counted twice. Each mix cell is
+    evaluated (Excel's rules, by ``formulas``) on the Data tab's figures with
+    the first portfolio picked, and checked against KeyBank's balances read
+    from the Data tab directly: the parts in a quarter KeyBank files both, the
+    whole in a quarter it does not, never both."""
+    import formulas
+    import schedula as sh
+    wb = load_workbook(built["commercial"][0])
+    wk, da = wb["Peers workings"], wb["Peers data"]
+    head = [c.value for c in da[1]]
+    col = {h: i for i, h in enumerate(head)}
+    bal = {}
+    for row in da.iter_rows(min_row=2, values_only=True):
+        if row[col["Bank"]] == "KeyBank":
+            bal[row[col["Portfolio"]], row[col["Quarter"]]] = row[col["Average balance ($000)"]]
+    products = list(books.COMMERCIAL)
+    shown = [KD.COMMERCIAL_NAMES[p] for p in products]
+    mix = [c.column for c in wk[2] if isinstance(c.value, str) and c.value.startswith("=CHOOSE(")
+           and "'Peers data'!$G$" in c.value]
+    assert len(mix) == len(products)
+    qcol = next(c.column for c in wk[1] if c.value == "Quarter")
+    pick = re.match(r"=CHOOSE\(\$?([A-Z]+)\$?(\d+),", wk.cell(2, mix[0]).value)
+    pick = pick.group(1) + pick.group(2)
+    nnr, oo, other = (shown[products.index(p)] for p in ("Nonfarm nonresidential",
+                                                          "Owner-occupied nonfarm nonresidential",
+                                                          "Other nonfarm nonresidential"))
+    regimes = set()
+    for r in range(2, wk.max_row + 1):
+        q = wk.cell(r, qcol).value
+        if not q:
+            break
+        got = []
+        for j, c_ in enumerate(mix):
+            f = wk.cell(r, c_).value
+            fn = formulas.Parser().ast(f)[1].compile()
+            args = []
+            for ref in fn.inputs:
+                if "!" not in ref:                     # Workings' own cell: the portfolio picked
+                    assert ref == pick, (ref, pick)
+                    args.append(1)
+                    continue
+                sheet, cell = ref.rsplit("!", 1)
+                assert sheet == "'PEERS DATA'", ref
+                v = da[cell].value
+                args.append(sh.EMPTY if v is None else v)
+            got.append(float(fn(*args)))
+        both = all(isinstance(bal.get((p, q)), (int, float)) for p in (oo, other))
+        regimes.add(both)
+        want = [float(bal.get((p, q)) or 0) for p in shown]
+        if both:
+            want[shown.index(nnr)] = 0.0
+        else:
+            want[shown.index(oo)] = want[shown.index(other)] = 0.0
+        assert got == want, (q, got, want)
+    # The fixture holds quarters of both kinds, so both branches were read.
+    assert regimes == {True, False}
+
+
+def test_the_share_panel_says_how_it_is_stacked(built):
+    pe = load_workbook(built["commercial"][0])["Peers"]
+    said = [c.value for r in pe.iter_rows() for c in r if isinstance(c.value, str) and "counted twice" in c.value]
+    assert said == ["No loan counted twice: the two parts of Nonfarm nonresidential CRE where KeyBank files both, "
+                    "the whole where it does not."]
+    gl = load_workbook(built["commercial"][0])["Glossary"]
+    calc = {r[1].value: r[3].value for r in gl.iter_rows() if isinstance(r[1].value, str)}
+    assert calc["Commercial book by portfolio"].endswith(said[0])
