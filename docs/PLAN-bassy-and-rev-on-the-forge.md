@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 96 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 53 deliberate breakages of guard and safety rules, 53 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 100 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 56 deliberate breakages of guard and safety rules, 56 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1399,6 +1399,40 @@ above), each fixed with a test and a mutation:
     owner item that took number 2. The allocator now treats any number a stored
     message points at as taken. (This made my own ordering test stop testing the
     ordering rule; the mutation run showed it, and the test was rewritten.)
+
+28. **My stale-reservation fix created a race.** A writer paused for more than 60
+    seconds could have its reservation judged abandoned and replaced, then resume and
+    overwrite the second poster's published message. Publishing is now exclusive
+    (a hard link that fails if the number exists), so a writer that lost the number
+    takes the next one and overwrites nothing. Each reservation carries its owner's
+    token and is released only by that owner, and temporary names are unique.
+29. **A stored message's goal was not checked on read,** though posting checks it.
+    Read now requires the shape (a G number, or `supporting:` with a reason). It
+    deliberately does not check membership in `GOALS.md`, which would orphan old
+    messages whenever the owner edits their goals.
+
+### Known limits of the guard (decided 18 October 2026)
+
+The owner decided to stop at substantive items rather than chase every format
+variant: "Stop at substantive items". These are the format variants left as known
+limits, named so nobody reads the guard as stronger than it is:
+
+- **URI schemes without `//`** (for example `custom:entry?x=y`) are not recognised
+  as links. Links written `scheme://...`, `www....` and `//host/...` are. `mailto:`
+  and `tel:` are caught by the email and phone rules instead.
+- **Identifier and phone formats are shape-based.** The guard recognises a run of
+  digits and common punctuation holding 9 to 19 digits, SSN/EIN shapes with common
+  separators, and 10 to 15 digit phone-shaped runs. An identifier written some other
+  way, spelled out in words, or split across lines can pass.
+- **Unicode is normalised** (NFKC, and space-like or invisible format characters to
+  a plain space) but look-alike *letters* from other scripts are not folded to Latin.
+- **Names are not checked at all** (a decision, 4.4): a client name in the exchange
+  is allowed, in the exchange only.
+- **The guard sees text, not meaning.** A unique story identifies someone with no
+  identifier in it.
+
+Further Codex rounds will find more variants of these. Real defects (a way for the
+channel to jam, lose a message, or be bypassed by its own design) are still fixed.
 
 The pattern across these rounds is worth stating: a reviewer reading the guard
 keeps finding shapes it misses. The guard blocks *known shapes*, not "all

@@ -522,6 +522,50 @@ class TestCodexSixthPassOnPR458(Base):
         self.assertEqual(post(self.root, "bassy", "next")[1].strip(), "posted B-0004")
 
 
+class TestCodexSeventhPassOnPR458(Base):
+    def test_a_writer_that_lost_the_number_overwrites_nothing(self):
+        # Another poster publishes B-0001 between our temporary write and our publish.
+        real_link = os.link
+        state = {"done": False}
+
+        def thief(src, dst):
+            if not state["done"]:
+                state["done"] = True
+                Path(dst).write_text("THIEFS-MESSAGE", encoding="utf-8")
+            return real_link(src, dst)
+
+        with mock.patch.object(ex.os, "link", thief):
+            out = post(self.root, "bassy", "mine")[1]
+        self.assertIn("posted B-0002", out)
+        self.assertEqual((self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"),
+                         "THIEFS-MESSAGE")
+        self.assertIn("mine", (self.root / "from-bassy" / "B-0002.md").read_text(encoding="utf-8"))
+        self.assertEqual([p.name for p in (self.root / "from-bassy").glob(".B-*")], [])  # no litter
+
+    def test_a_reservation_that_is_not_ours_is_left_alone(self):
+        r = self.root / "from-bassy" / ".B-0001.reserve"
+        r.write_text("their-token", encoding="utf-8")
+        ex.release_reservation(r, "my-token")
+        self.assertTrue(r.exists())
+        ex.release_reservation(r, "their-token")
+        self.assertFalse(r.exists())
+
+    def test_a_stored_message_with_a_nonsense_goal_is_withheld(self):
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: banana\nmode: satc\n\nhi\n",
+            encoding="utf-8")
+        self.assertIn("goal line", run(self.root, ["read", "--as", "bassy"])[1])
+
+    def test_stored_goals_are_checked_by_shape_not_by_current_membership(self):
+        # Checking membership in GOALS.md would orphan old messages when the owner
+        # edits their goals. Shape only: a G number, or "supporting:" with a reason.
+        for goal in ("G999", "supporting: an old message about a retired goal"):
+            (self.root / "from-rev" / "R-0001.md").write_text(
+                "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: " + goal +
+                "\nmode: satc\n\nhi\n", encoding="utf-8")
+            self.assertIn("DATA FROM REV", run(self.root, ["read", "--as", "bassy"])[1], goal)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")

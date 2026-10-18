@@ -190,6 +190,16 @@ def atomic_write(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+def release_reservation(reserve: Path, token: str) -> None:
+    """Remove a reservation only if it is still ours. If a slow writer's reservation
+    was judged abandoned and replaced, the replacement belongs to someone else."""
+    try:
+        if reserve.read_text(encoding="ascii", errors="replace") == token:  # TOKEN-MARK
+            os.unlink(reserve)
+    except OSError:
+        pass
+
+
 def write_agreed(root: Path, tries: int = 5) -> str:
     """Regenerate AGREED.md and make sure an older snapshot cannot win.
 
@@ -504,9 +514,11 @@ def load_msg(root: Path, side: str, path: Path) -> Msg:
     if header.get("mode") not in MODES:
         msg.ok = False
         msg.problems.append("a mode that is not satc or work")
-    if not header.get("goal"):
+    goal = header.get("goal", "")
+    if not (re.fullmatch(r"G\d+", goal) or
+            (goal.lower().startswith("supporting:") and len(goal) >= 22)):  # GOALSHAPE-MARK
         msg.ok = False
-        msg.problems.append("no goal line")
+        msg.problems.append("a goal line that is neither a G number nor a supporting reason")
     for f in guard(msg.text, root=root, label=mid):
         msg.ok = False
         msg.problems.append(f.line())
@@ -533,6 +545,7 @@ def leftovers(root: Path) -> list[str]:
             for p in sorted(folder.iterdir()):
                 if p.name.startswith("."):
                     known = (re.fullmatch(r"\.[BR]-\d{4}\.(?:tmp|reserve)", p.name)
+                             or re.fullmatch(r"\.[BR]-\d{4}\.\d+\.[0-9a-f]{8}\.tmp", p.name)
                              or re.fullmatch(r"\.RESUME\.md\.\d+\.[0-9a-f]{8}\.tmp", p.name))
                     out.append(f"{side}/{p.name}" if known  # NOECHO-HIDDEN-MARK
                                else f"{side}/an unrecognised hidden file")
@@ -807,6 +820,7 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
         mid = f"{PREFIX[me]}-{n:04d}"
         final = folder / f"{mid}.md"
         reserve = folder / f".{mid}.reserve"
+        token = f"{os.getpid()}.{secrets.token_hex(4)}"
         try:
             fd = os.open(reserve, os.O_CREAT | os.O_EXCL | os.O_WRONLY)  # EXCL-MARK
         except FileExistsError:
@@ -820,9 +834,10 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
                 continue  # retry the SAME number: a dead poster left this behind
             n += 1
             continue
+        os.write(fd, token.encode("ascii"))
         os.close(fd)
         if final.exists():
-            os.unlink(reserve)
+            release_reservation(reserve, token)
             n += 1
             continue
         h["id"] = mid
@@ -830,16 +845,27 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
         text = head + "\n\n" + banner(root, me) + body.strip() + "\n"
         final_findings = guard(text, root=root, label=mid)
         if final_findings:
-            os.unlink(reserve)
+            release_reservation(reserve, token)
             raise Refused(refuse_message(final_findings))
         if len(text.encode("utf-8")) > MAX_FILE_BYTES:  # POST-BYTES-MARK
-            os.unlink(reserve)
+            release_reservation(reserve, token)
             raise Refused([f"the message with its headers is over {MAX_FILE_BYTES} "
                            f"bytes, which the reader would refuse to load; shorten it"])
-        tmp = folder / f".{mid}.tmp"
+        tmp = folder / f".{mid}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
         tmp.write_text(text, encoding="utf-8", newline="\n")
-        os.replace(tmp, final)
-        os.unlink(reserve)
+        try:
+            os.link(tmp, final)  # EXCL-PUBLISH-MARK: fails if the number was taken meanwhile
+        except FileExistsError:
+            os.unlink(tmp)
+            release_reservation(reserve, token)
+            n += 1
+            continue  # another writer published this number first; overwrite nothing
+        except OSError:
+            os.unlink(tmp)
+            release_reservation(reserve, token)
+            raise Refused(["could not publish the message file; nothing was written"])
+        os.unlink(tmp)
+        release_reservation(reserve, token)
         atomic_write(folder / "RESUME.md", view_resume(root, me) + "\n")
         return f"posted {mid}"
     raise Refused(["could not reserve a message number; try again"])
