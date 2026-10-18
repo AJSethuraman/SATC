@@ -97,5 +97,6 @@
   "loan_classes": null,
   "reporting_changes": "../config/reporting-changes.json",
   "floor_off": [],
-  "large_banks": null
+  "large_banks": null,
+  "signals": null
 }

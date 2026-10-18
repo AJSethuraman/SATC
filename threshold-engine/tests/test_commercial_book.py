@@ -266,7 +266,7 @@ def _book(base, data, kind):
                       "normalisation_years": [2007, 2007], "mix_base_year": 2007, "delinquency": True,
                       "stated_acquisitions": None},
             "internal": None, "loan_classes": None,
-            "reporting_changes": str(ROOT / "config" / "reporting-changes.json"), "floor_off": [], "large_banks": None}
+            "reporting_changes": str(ROOT / "config" / "reporting-changes.json"), "floor_off": [], "large_banks": None, "signals": None}
     p = base / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")
     return p

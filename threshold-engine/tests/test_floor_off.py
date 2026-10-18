@@ -37,7 +37,7 @@ def write_book(folder, floor_off, series_extra=()):
                        {"Product": "Card", "Measure": "Gap to peers on Net", "Source": "Bank", "file": "files/gap.csv"}]
             + list(series_extra),
             "not_in_book": [], "compare": None, "notes": [], "peers": None, "internal": None, "loan_classes": None,
-            "reporting_changes": None, "floor_off": floor_off, "large_banks": None}
+            "reporting_changes": None, "floor_off": floor_off, "large_banks": None, "signals": None}
     p = folder / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")
     return p

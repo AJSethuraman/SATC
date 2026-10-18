@@ -41,7 +41,7 @@ def test_prepare_writes_the_book_with_the_folders_own_paths(tmp_path):
         (ROOT / "config" / "reporting-changes.json").read_bytes()
     # Every other setting is the book's own, unchanged.
     for k in shipped:
-        if k not in ("peers", "internal", "loan_classes", "reporting_changes", "large_banks"):
+        if k not in ("peers", "internal", "loan_classes", "reporting_changes", "large_banks", "signals"):
             assert raw[k] == shipped[k], k
     for k in shipped["peers"]:
         if k not in ("cache", "mergers", "absorptions", "roster", "last"):
