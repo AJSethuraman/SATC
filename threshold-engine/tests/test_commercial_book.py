@@ -121,6 +121,11 @@ def test_the_books_in_the_repository_state_their_kinds():
     assert {v[0] for v in bk["decide"]["parts"].values()} == set(KD.COMMERCIAL_NAMES.values())
     assert bk["decide"]["compare"] == ("KeyBank", "Peer median (15 banks)")
     assert bk["peers"]["first"] == "1991Q1" and bk["peers"]["min_book"] == 0
+    # No extra acquisition: the consumer book's (Fifth Third, 6672=2022Q2) is a
+    # consumer deal, and no commercial one is recorded. The acquisitions the
+    # FDIC record cannot see come from the stated list (question 14).
+    assert bk["peers"]["extra_acquisitions"] == []
+    assert bk["peers"]["stated_acquisitions"] is not None
     assert bk["internal"] is None and bk["loan_classes"] is None
     # Question 3: nonaccrual leads every CRE portfolio.
     first = {}

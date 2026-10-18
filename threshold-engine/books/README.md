@@ -21,7 +21,9 @@ Oct 2026 to questions 1 to 12 of `docs/COMMERCIAL-PROPOSAL.md` (on main):
 Construction) x 2 measures (nonaccrual and net charge-offs) from the
 industry, the peer median, the peer total and KeyBank: 48 series, from
 1991Q1 where the data holds it. Its settings are the consumer book's: the firm
-has chosen none for commercial. Its notes say how each answer was applied and
+has chosen none for commercial but the minimum book (0). It declares no extra
+acquisition: the consumer book's is a consumer deal. Its notes say how each
+answer was applied and
 what was not. Its cache paths name a scratch folder; change them to build it
 elsewhere.
 
