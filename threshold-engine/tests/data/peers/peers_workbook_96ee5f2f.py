@@ -467,7 +467,7 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
                                  "first %s: pull it with the delinquency fields" % (p, f, len(lacking), lacking[0]))
     books = {p: {m: {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, spec["jump"], spec["min_book"],
                                                    spec["exempt_self"] and b is me,
-                                                   acquired=spec["acquired"][p].get(b["cert"], []))
+                                                   acquired=spec["acquired"][p].get(b["cert"], []), stated=())
                      for b in roster} for m in D.MEASURES} for p in products}
     grid = [r["q"] for r in books[products[0]][spec["measure"]][me["cert"]]]
     return dict(spec, products=products, books=books, grid=grid)
@@ -1026,7 +1026,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     books = {p: {b["cert"]: bank_book(data, b["cert"], p, jump, min_book,
                                       exempt_min_book=exempt_self and b is me,
-                                      acquired=acquired[p].get(b["cert"], []))
+                                      acquired=acquired[p].get(b["cert"], []), stated=())
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
     for p in products:

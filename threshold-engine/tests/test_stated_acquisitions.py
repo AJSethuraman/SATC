@@ -150,7 +150,7 @@ def test_a_stated_quarter_leaves_out_every_window_holding_it_with_its_own_reason
     and invisible to the 5% share, so before the list the windows were kept,
     two books mixed."""
     data = flat_book()
-    before = books.bank_book(data, "588", "C&I", 0.25, 0, acquired=[])
+    before = books.bank_book(data, "588", "C&I", 0.25, 0, acquired=[], stated=())
     assert all(r["kept"] for r in before)
     rows = books.bank_book(data, "588", "C&I", 0.25, 0, acquired=[], stated=["20110630"])
     out = {r["quarter"]: r["why"] for r in rows if not r["kept"]}
@@ -170,6 +170,29 @@ def test_a_stated_quarter_blanks_the_delinquency_average_never_a_quarter_end_rat
     assert blank == {q: D.WHY_STATED % "2011Q2" for q in ("2011Q2", "2011Q3", "2011Q4")}
     assert D.WHY_STATED_PREFIX in D.LEFT_OUT
 
+
+
+def test_the_stated_acquisitions_are_required_wherever_the_recorded_ones_are():
+    """Every setting is required: left out, a stated acquisition's windows
+    would be kept with two books mixed and nothing said. ``acquired`` is
+    keyword-only with no default on the same functions, so ``stated`` is
+    too; an empty list (``{}`` for the workbook) states none."""
+    import inspect
+    from threshold_engine.peers import peers_workbook as PW
+    data = flat_book()
+    with pytest.raises(TypeError, match="stated"):
+        books.bank_book(data, "588", "C&I", 0.25, 0, acquired=[])
+    with pytest.raises(TypeError, match="stated"):
+        D.bank_delinquency(data, "588", "C&I", "30-89", 0.25, 0, False, acquired=[])
+    for f in (books.bank_book, D.bank_delinquency, PW.build_peers_workbook, PW._check_delinquency):
+        params = inspect.signature(f).parameters
+        assert "stated" in params, f.__name__
+        for name in [n for n in ("acquired", "stated") if n in params]:
+            par = params[name]
+            assert par.default is inspect.Parameter.empty, (f.__name__, name)
+            assert par.kind is inspect.Parameter.KEYWORD_ONLY, (f.__name__, name)
+    with pytest.raises(ValueError, match="stated must be"):
+        PW._check_delinquency(None, [], {}, stated=None)
 
 # ---- the build reads it like the FDIC record -----------------------------------------------------------
 

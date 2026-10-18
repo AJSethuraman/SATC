@@ -169,7 +169,7 @@ def test_keybanks_ci_runs_from_2006_with_the_ndfi_windows_left_out():
     """KeyBank's C&I fell from $41.9bn to $29.9bn in 2024Q4 (-28.6%), the NDFI
     and margin-loan revision, which the registry names for C&I from 2024Q4 to
     2025Q2. Before, the series started at 2026Q1: two quarters."""
-    rows = books.bank_book(keybank_ci(), "17534", "C&I", 0.25, 0, True, acquired=[])
+    rows = books.bank_book(keybank_ci(), "17534", "C&I", 0.25, 0, True, acquired=[], stated=())
     out = {r["quarter"]: (r["why"], r["jumped"], r["why_without_jump"]) for r in rows if not r["kept"]}
     left = ["2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4"]
     assert sorted(out) == left
@@ -187,7 +187,7 @@ def test_keybanks_ci_runs_from_2006_with_the_ndfi_windows_left_out():
 def test_an_acquisition_or_the_minimum_book_still_breaks_the_series():
     data = keybank_ci()
     marks = RC.labelled_quarters(CHANGES, "C&I", "net charge-offs")
-    bought = books.bank_book(data, "17534", "C&I", 0.25, 0, True, acquired=["20250331"])
+    bought = books.bank_book(data, "17534", "C&I", 0.25, 0, True, acquired=["20250331"], stated=())
     assert {r["quarter"]: r["why_without_jump"] for r in bought if r["quarter"] in ("2025Q1", "2025Q2")} == \
         {"2025Q1": books.WHY_ACQUIRED, "2025Q2": books.WHY_ACQUIRED}
     tail, before, _ = run.unbroken_tail([(r["quarter"], r["net_rate"]) for r in bought], run.bridged(bought, marks))
@@ -195,15 +195,15 @@ def test_an_acquisition_or_the_minimum_book_still_breaks_the_series():
     told = books.bank_book(data, "17534", "C&I", 0.25, 0, True, acquired=[], stated=["20250331"])
     assert run.unbroken_tail([(r["quarter"], r["net_rate"]) for r in told], run.bridged(told, marks))[0][0][0] == \
         "2026Q1"
-    small = books.bank_book(data, "17534", "C&I", 0.25, 35e6, False, acquired=[])
+    small = books.bank_book(data, "17534", "C&I", 0.25, 35e6, False, acquired=[], stated=())
     tail, _, _ = run.unbroken_tail([(r["quarter"], r["net_rate"]) for r in small], run.bridged(small, marks))
     assert all(v is not None for _, v in tail)          # a window under the minimum is never bridged
     # A jump in a quarter nothing names breaks it as before: the same move read as 2023Q4.
-    assert run.bridged(books.bank_book(data, "17534", "C&I", 0.25, 0, True, acquired=[]), marks - {"2024Q4"}) == set()
+    assert run.bridged(books.bank_book(data, "17534", "C&I", 0.25, 0, True, acquired=[], stated=()), marks - {"2024Q4"}) == set()
 
 
 def test_the_delinquency_average_continues_across_the_same_windows():
-    rows = D.bank_delinquency(keybank_ci(), "17534", "C&I", "nonaccrual", 0.25, 0, True, acquired=[])
+    rows = D.bank_delinquency(keybank_ci(), "17534", "C&I", "nonaccrual", 0.25, 0, True, acquired=[], stated=())
     marks = RC.labelled_quarters(CHANGES, "C&I", "nonaccrual")
     got = run.bridged(rows, marks, without="why_avg4_without_jump", quarter="q")
     assert got == {"2024Q4", "2025Q1", "2025Q2"}       # i-2..i: three averages hold the 2024Q4 move
@@ -285,7 +285,7 @@ def test_a_consumer_series_continues_across_a_labelled_change_and_breaks_at_an_u
         qn = (int(q[4:6]) - 1) // 3 + 1
         data[q] = [{"CERT": "17534", "REPDTE": q, "LNCRCD": bal, "DRCRCD": 10.0 * qn, "CRCRCD": 1.0 * qn,
                     "RSSDHCR": "1"}]
-    rows = books.bank_book(data, "17534", "Credit card", 0.25, 0, True, acquired=[])
+    rows = books.bank_book(data, "17534", "Credit card", 0.25, 0, True, acquired=[], stated=())
     marks = RC.labelled_quarters(CHANGES, "Credit card", "net charge-offs")
     assert run.bridged(rows, marks) == {"2010Q1", "2010Q2", "2010Q3", "2010Q4", "2011Q1"}
     run.build(tmp_path / "peers.xlsx", **build_kw(tmp_path, cache_of(tmp_path, data), "2008Q1", "2015Q4",
@@ -318,7 +318,7 @@ def test_a_jump_in_a_quarter_only_an_event_names_still_breaks_the_series(tmp_pat
         if q >= "20200930":
             for r in rows:
                 r["LNCI"] = r["LNCI"] * k
-    rows = books.bank_book(d, "17534", "C&I", 0.25, 0, True, acquired=[])
+    rows = books.bank_book(d, "17534", "C&I", 0.25, 0, True, acquired=[], stated=())
     jumped = {r["quarter"] for r in rows if r["why"] == books.WHY_JUMP and "2020Q3" in r["jumped"]}
     assert jumped == {"2020Q3", "2020Q4", "2021Q1", "2021Q2", "2021Q3"}
     assert "2020Q3" not in RC.labelled_quarters(CHANGES, "C&I", "net charge-offs")     # no change names it

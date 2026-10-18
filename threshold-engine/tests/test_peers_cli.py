@@ -506,7 +506,7 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     roster = R.load(ROOT / "config" / "peers.json")
     regionals = [b["cert"] for b in R.regionals(roster)]
     assert 0 < len(regionals) < len(R.peers(roster))
-    books = {b["cert"]: bank_book(data, b["cert"], "Credit card", 0.25, 1_000_000, acquired=()) for b in roster}
+    books = {b["cert"]: bank_book(data, b["cert"], "Credit card", 0.25, 1_000_000, acquired=(), stated=()) for b in roster}
     want = {quarter_end(r["quarter"]): r["net_rate"] for r in composite(books, regionals, 5)}
     notes, rows = read_csv(series / "credit-card_pack-composite_net.csv")
     assert rows and all(v == pytest.approx(want[d], abs=1e-12) for d, v in rows)
@@ -804,7 +804,7 @@ def test_a_delinquency_csv_is_the_module_over_the_cache(dq_built):
     data, s = dq_built["data"], dq_built["series"]
     roster = R.load(ROOT / "config" / "peers.json")
     banks = {b["cert"]: D.bank_delinquency(data, b["cert"], "Credit card", "90+ accruing", 0.25,
-                                           1_000_000, b["cert"] == KEYBANK, acquired=()) for b in roster}
+                                           1_000_000, b["cert"] == KEYBANK, acquired=(), stated=()) for b in roster}
     comp = D.composite_delinquency(banks, [b["cert"] for b in R.peers(roster)], 5)
     ind = D.industry_delinquency(data, "Credit card", "90+ accruing")
     for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp), ("industry", ind)):
@@ -1064,7 +1064,7 @@ def test_every_delinquency_csv_follows_the_stated_rules(dq_odd):
     compared = absent = 0
     for p in ("Home equity", "Auto"):
         for m, ms in DQ_MEASURES.items():
-            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False, acquired=())
+            banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.05, 5_000_000, False, acquired=(), stated=())
                      for b in roster}
             comp = D.composite_delinquency(banks, regionals, 6)
             for who, rows in (("keybank", banks[KEYBANK]), ("pack-composite", comp),
@@ -1275,7 +1275,7 @@ def test_the_pack_median_series_are_the_bands_median_gross_and_net(built, data):
     pack = [b["cert"] for b in R.peers(roster)]
     for p, slug in zip(FOUR, SLUGS):
         bks = {b["cert"]: bank_book(data, b["cert"], p, 0.25, 1_000_000,
-                                    exempt_min_book=b["cert"] == KEYBANK, acquired=()) for b in roster}
+                                    exempt_min_book=b["cert"] == KEYBANK, acquired=(), stated=()) for b in roster}
         files = {}
         for kind in ("gross", "net"):
             tail, _, _ = unbroken_tail([(r["quarter"], r["p50"])
@@ -1304,7 +1304,7 @@ def test_each_peers_banks_file_is_its_own_book_for_that_product(built, data):
     compared = absent = across = 0
     for p, slug in zip(FOUR, SLUGS):
         for b in R.peers(roster):
-            rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=())
+            rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=(), stated=())
             for kind in ("gross", "net"):
                 path = built["series"] / "banks" / ("%s_%s_%s.csv" % (slug, slug_of(b["short"]), kind))
                 marks = RC.labelled_quarters(changes, p, RC.charge_off_measure(kind))
@@ -1339,7 +1339,7 @@ def test_a_delinquency_pack_median_is_the_band_median_on_each_basis(dq_built, dq
     for p in FIVE:
         for m, ms in DQ_MEASURES.items():
             banks = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, 0.25, 1_000_000,
-                                                   b["cert"] == KEYBANK, acquired=()) for b in roster}
+                                                   b["cert"] == KEYBANK, acquired=(), stated=()) for b in roster}
             got_by_basis = {}
             for basis, bs in DQ_BASES.items():
                 band = D.band_delinquency(banks, pack, basis, (50,), min_banks=5)

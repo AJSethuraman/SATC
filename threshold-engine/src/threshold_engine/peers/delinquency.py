@@ -253,7 +253,7 @@ def _avg4(rates: Sequence[Optional[float]], follows: Sequence[bool], i: int) -> 
 
 def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
                      jump: float, min_book: float, exempt_min_book: bool, *,
-                     acquired: Iterable[str], stated: Iterable[str] = ()) -> List[dict]:
+                     acquired: Iterable[str], stated: Iterable[str]) -> List[dict]:
     """One row per quarter-end in ``data``: ``{q, numerator, balance, rate,
     avg4, kept, why, why_avg4, jumped, why_avg4_without_jump}``, ``q``
     labelled ``YYYYQn``.
@@ -279,8 +279,8 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
     ``stated`` is the bank's quarter-ends of stated acquisitions, the ones the
     FDIC record cannot see (``peers.stated``; the firm, 17 Oct 2026, question
     14): one in i-2..i blanks the average too, with its own reason, right
-    after the recorded ones. Data, like ``books.bank_book``'s: none when not
-    given.
+    after the recorded ones. Required, like ``acquired``: an empty list
+    states none.
 
     ``jumped`` names every quarter in i-2..i whose move tripped the jump, when
     the jump blanked the average; ``why_avg4_without_jump`` is the reason the

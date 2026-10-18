@@ -44,7 +44,7 @@ def acquisitions(mergers, cert):
 
 
 def card_book(data, cert):
-    return bank_book(data, cert, CARD, JUMP, MIN_BOOK, exempt_min_book=cert == KEYBANK, acquired=())
+    return bank_book(data, cert, CARD, JUMP, MIN_BOOK, exempt_min_book=cert == KEYBANK, acquired=(), stated=())
 
 
 # --- acceptance: lagged rates -------------------------------------------------

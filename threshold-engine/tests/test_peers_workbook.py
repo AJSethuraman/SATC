@@ -84,7 +84,7 @@ def roster():
 @pytest.fixture(scope="module")
 def books(data, roster):
     return {p: {b["cert"]: bank_book(data, b["cert"], p, JUMP, MIN_BOOK,
-                                     exempt_min_book=b["cert"] == KEYBANK, acquired=())
+                                     exempt_min_book=b["cert"] == KEYBANK, acquired=(), stated=())
                 for b in roster} for p in FOUR}
 
 
@@ -95,7 +95,7 @@ def MERGERS():
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, **RANK)
+              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, stated={}, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -841,7 +841,7 @@ def dq_spec(dl_data, **over):
 def dl_books(dl_data, roster, product, measure):
     return {b["cert"]: D.bank_delinquency(dl_data, b["cert"], product, measure, DQ_RULES["jump"],
                                           DQ_RULES["min_book"], DQ_RULES["exempt_self"] and b["cert"] == KEYBANK,
-                                          acquired=())
+                                          acquired=(), stated=())
             for b in roster}
 
 

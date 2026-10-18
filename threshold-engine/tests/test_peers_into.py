@@ -114,7 +114,7 @@ def build(module, out, data, roster, products, pack="all", **over):
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
                                            json.loads((PEERS / "mergers_roster.json").read_text()),
                                            {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
-                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES}))
+                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": {}}))
     finally:
         mp.undo()
 

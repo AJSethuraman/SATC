@@ -465,7 +465,7 @@ def _blank_quarters(data: Dict[str, list], cert, product: str,
 
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
               exempt_min_book: bool = False, *, acquired: Iterable[str],
-              members: Sequence[Tuple[str, str]] = (), stated: Iterable[str] = ()) -> List[dict]:
+              stated: Iterable[str], members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
     avg_balance, kept, why, jumped, why_without_jump}``.
@@ -498,7 +498,8 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     the FDIC record cannot see (``peers.stated``; the firm, 17 Oct 2026,
     question 14): a window holding one is left out too, right after the
     recorded ones, with its own reason (``WHY_STATED``), since no share of
-    the book was measured. Data, like ``members``: none when not given.
+    the book was measured. Required, like ``acquired``: an empty list states
+    there are none, so a caller cannot leave them out without saying so.
 
     ``jumped`` names the quarters (``YYYYQn``, i-4 to i) whose move tripped
     the jump, when the jump is the reason; else it is empty.
