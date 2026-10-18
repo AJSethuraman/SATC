@@ -930,7 +930,8 @@ def test_delinquency_pickers_move_product_measure_and_basis(dlq, dl_data, roster
     assert peers_cell(vals, "B%d" % (lay["tiles"] + 1)) == "none"
     assert peers_cell(vals, "B%d" % lay["mix_peers"]).startswith("No charge-offs were built for Mortgage")
     assert peers_cell(vals, "B%d" % 6) == "No charge-offs built for this product."
-    assert peers_cell(vals, "J%d" % lay["v1"]) == "Delinquency: mortgage, 30+ incl. nonaccrual, four-quarter average (%)"
+    # The product as built, never LOWER()'d (the example commercial build, 17 Oct 2026: "c&i").
+    assert peers_cell(vals, "J%d" % lay["v1"]) == "Delinquency: Mortgage, 30+ incl. nonaccrual, four-quarter average (%)"
 
 
 def test_delinquency_banks_needed_is_met_at_exactly_that_many(dlq, dl_data, roster, tmp_path):

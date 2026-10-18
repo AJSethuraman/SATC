@@ -2385,3 +2385,135 @@ industry figures were not tied out to the QBP. Nothing was opened in Excel.
   `commercial-example`) still says 2006Q1. It is not on this branch and was
   not changed or rebuilt. No Thresholds workbook was built from these
   series.
+
+## 18 Oct 2026: the commercial book, and a book that states its kind
+
+- **The book.** `books/commercial-public.json` and its series CSV, on the
+  firm's answers of 17 Oct to questions 1 to 12 (`docs/COMMERCIAL-PROPOSAL.md`
+  on main, section 5, every one agreed with its recommendation):
+  - 6 portfolios (question 1): C&I, Nonfarm nonresidential CRE, its two parts
+    (Owner-occupied CRE, Investor CRE), Multifamily, Construction. The
+    answer's "8 rated rows" counts four segments; with the parent and its
+    parts each a row there are 12. Which is rated was not said: put to the
+    firm.
+  - 2 measures, the two the recommendation rates: nonaccrual (quarter-end)
+    and net charge-offs (trailing twelve months). The four shown measures are
+    on Peers. Gross charge-offs are in neither list and are not in the book.
+  - Nonaccrual first for every CRE portfolio (question 3); C&I keeps net
+    charge-offs first. Decide's order follows the CSV, so no code was needed.
+  - 4 sources (question 4): Industry, Peer median (15 banks), Peer total
+    (15 banks), KeyBank; `compare` is KeyBank against the median. The peers
+    build already wrote the median (`*_pack-median_*`). The total follows the
+    pack switches on Peers (`_live_peer_group` matches `pack-composite` files
+    only); the median does not. The notes say so.
+  - From 1991Q1 (question 6), the since-1990 merger record, the stated
+    acquisitions (question 14), minimum book 0 (question 12), same 15 peers
+    (question 5, the three weak comparators labelled in a note), no internal
+    or loan classes section, `industry_combined` empty (no A + B of any kind).
+  - **Settings: the consumer book's.** The firm has chosen no commercial
+    settings; the notes say so.
+  - **`lines_from` starts null.** The book has one starting source for all
+    rows, not one per row, so question 2's "CRE net charge-offs from the
+    industry" cannot be a starting value without new machinery. The notes
+    say to pick Industry on those rows.
+  - Caches are absolute scratchpad paths (`cache-commercial`); a note says
+    so and how to build elsewhere.
+- **A book states its kind** (the firm, 17 Oct: *"names in this should be
+  changed to be more commercial ... product sounds consumer"*). `kind` is a
+  required key (`kinds.py`), refused by name when missing or unknown, and
+  `parts[0]` must be the kind's word: Product (consumer, unchanged) or
+  Portfolio (commercial). A commercial book's portfolios must be the firm's
+  names; once every tab is written, `kinds.reword` puts Portfolio for
+  Product, the firm's names for the Call Report products and "Loans to
+  nonbank financials (NDFI)" for NDFI into every cell's text, the quoted
+  text of every formula, the dropdown prompts and the chart titles. It never
+  touches references, and refuses a table column or defined name holding one
+  of the words. A quoted string grown past 255 characters is split with `&`.
+  The Glossary ends with each name as shown, the Call Report's name and the
+  RC-C item and FDIC field (`kinds.CALL_REPORT`, from the FDIC definitions
+  file and the FFIEC instructions as research-fdic.md and research-ffiec.md
+  quote them). `consumer-public.json` gains `"kind": "consumer"` and nothing
+  else.
+- **The example build's display problems**, each with a test:
+  - Summary's first column widens for the longest name (Thresholds and Lines
+    by source too); consumer widths are unchanged, tested.
+  - Peers headings show the product as built: `LOWER()` is gone from the six
+    headings. This changes the consumer headings too ("Charge-offs: Other
+    consumer, ..."); `test_peers_workbook.py` updated.
+  - The share panel names the book's kind ("KeyBank's commercial book");
+    `peers build` on its own names none (`book_kind` None).
+  - The industry caption states its count, from `books.industry_filers`:
+    "4,296 of 4,313 filers, 2026Q2" in the real build.
+  - A series too short for a four-quarter change: the move, its helpers and
+    lines 2 to 4 are blank, not `#NUM!`; the fix says "Put back a period"
+    only when a period was left out by hand, otherwise "Only N quarters, and
+    nothing was left out by hand ...". Checked by mutation (the old `MEDIAN`
+    put back: the test fails on `#NUM!`).
+  - **Internal: left out** for a kind without it. The like-for-like section
+    is built from consumer Call Report comparisons (`internal.COMPARISONS`),
+    so following the book's products would need new comparisons; a
+    commercial book builds no Internal or Internal data tab, drops their
+    Glossary terms and refuses an internal section.
+- **Built** (commit 6f635af0's code; the later commit changes tests and a line
+  wrap only), `python -m threshold_engine book books/commercial-public.json
+  scratchpad/commercial-public.xlsx`: **1,596 s, exit 0**, nothing refused.
+  Printed: "commercial names: 43576 pieces of text on 11 tabs say portfolio
+  and the portfolios' names"; "Wrote ...: 48 series, 142 quarters".
+  - **KeyBank's C&I net charge-offs: 86 quarters, 2003Q4 to 2026Q2**,
+    continuing across 2024Q4 to 2025Q4 (5 windows left out for the NDFI
+    revision, question 16). Earlier than the 2006 expected because the pull
+    starts in 1991; 1992Q1 to 2003Q3 (47 quarters) stay out for the
+    new-charter rule recorded on 17 Oct.
+  - Other starts: KeyBank's net charge-offs from 2003Q4 (nonfarm parent,
+    multifamily), 2011Q3 (the two parts), 2015Q3 (construction); its
+    nonaccrual from 1991Q1 (parts 2007Q1). Industry net from 1991Q4 (parts
+    2007Q4); peer median and total net from 1998Q4 (multifamily 1999Q3, parts
+    2010Q4). No series in this book is too short for a yearly move, so the
+    new blank-and-fix path is tested but not exercised by the real book.
+  - Scanned whole with openpyxl: no "product", no bare NDFI, no Call Report
+    product name left on any of its 17 tabs.
+  - **Recalculated** with `formulas` on a cut-down copy (Decide, Summary,
+    Thresholds, Lines by source, Assess, Data, Chart, Run; the 12 live peer
+    total columns made the values of their files): loaded 198 s, calculated
+    216 s. Formula errors by tab: Summary, Thresholds, Lines by source (984
+    formulas), Run, Data, Assess, Chart 0 (NA() by design apart: Assess 289,
+    Chart 6,566). Decide: 12 `SUBTOTAL(103, ...)` cells the engine does not
+    know, and 3,362 cells downstream of them, `#NAME?`; 1 `#N/A` (AA3, a
+    MATCH on the picked row). The example build had the same kind.
+  - The Peers tabs were **not** recalculated with `formulas`: a cut-down copy
+    (Peers, Peers workings, Peers data, Peers delinquency data) was killed
+    for memory once (with tests beside it) and, alone, was still loading at
+    the 50-minute limit, at about 10 GB. The LibreOffice text below is the
+    only check of those tabs.
+  - **LibreOffice** turned the whole workbook into a 9,464-page PDF in 43 s;
+    its text holds no `#NUM!`, `#VALUE!`, `#DIV/0!`, `#REF!`, `#NAME?`, `#N/A`
+    or `Err:`. Summary and Decide pages rendered to PNG
+    (`scratchpad/round2-png/`): Summary shows Portfolio and every name whole.
+- **Found, not fixed:**
+  - Decide's first column is still 16.43 wide, so "Investor CRE
+    (non-owner-occupied)" will be cut when that portfolio is picked. Decide's
+    layout is the design hand-off's; widening it moves the slicers and chart.
+  - KeyBank's share panel on Peers stacks every portfolio built, so the
+    nonfarm parent and its two parts are counted twice.
+  - The Glossary's peer section still defines "Peer loan classes", a tab a
+    commercial book does not have.
+- **Results.** `test_commercial_book.py` 17 passed (the commercial words, by
+  mutation: with `reword` off, 3 fail). `test_book.py`, `test_peers_commercial.py`
+  passed. `test_reporting_changes.py`, `test_peers_into.py`, `test_app.py`:
+  85 passed, 1 failed (`test_peers_into`'s retired-builder stub did not take
+  `book_kind`; fixed, re-run: passed). Then, at e99bc5b4 (scratch venv,
+  Python 3.13, openpyxl 3.1.5, formulas 1.3.4, `OPENPYXL_LXML=False`):
+  - `test_workbook.py`, `test_internal_tab.py`, `test_commercial_book.py`,
+    `test_peers_into.py`: 138 passed (31 min, 2 workers).
+  - Every other test file: 1,050 passed, 5 skipped, 6 failed (55 min, 3
+    workers). Two are `test_peers_cli.py`'s regionals and pro forma tests,
+    which this log records as failing before this work. Four were this
+    change, and their expectations are updated: the Peers delinquency heading
+    now says "Mortgage" (no `LOWER()`), and three tests that list
+    `peers.run.build`'s keywords now count `book_kind` beside `into` and
+    `names`, as saying where the tabs go rather than a setting (default None:
+    no book, no kind). Re-run: 4 passed.
+- **Not done.** Nothing was opened in Excel; nothing can be opened in Excel
+  here. Slicers do not render in LibreOffice. The consumer book was not
+  rebuilt. `threshold-engine-book` gained combined products after this branch
+  left it; nothing here anticipates them.

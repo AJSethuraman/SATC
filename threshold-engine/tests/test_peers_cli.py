@@ -968,8 +968,9 @@ def test_build_and_pull_are_peers_run(monkeypatch):
     assert k["delinquency"] is False and k["exempt_self"] is True and k["jump"] == 0.25
     assert k["extra_acquisitions"] == ["6672=2022Q2"] and k["industry_combined"] == []
     # into and names say where the tabs go (another workbook, under other
-    # titles), as say does for lines: not settings, and not on the command line.
-    assert set(k) == params - {"out", "say", "into", "names"}
+    # titles), as say does for lines, and book_kind the kind that workbook's
+    # book states: not settings, and not on the command line.
+    assert set(k) == params - {"out", "say", "into", "names", "book_kind"}
     assert kp == dict(cache="c", first="2026Q1", last="2026Q2", products=["Auto"], delinquency=True,
                       mergers_since="2005-10-01", refresh=False)
 
@@ -978,10 +979,12 @@ def test_the_shared_body_defaults_nothing_but_where_lines_go():
     """Every setting of run.build and run.pull is required: the window cannot
     fall back on a value nobody stated. What is defaulted says only where the
     output goes: say, where lines go, and on build into and names, where the
-    peer tabs go (their own file unless a workbook is given), each None."""
+    peer tabs go (their own file unless a workbook is given), and book_kind,
+    the kind the book they go into states (kinds.KINDS; no book, no kind),
+    each None."""
     import inspect
     from threshold_engine.peers import run
-    for fn, where in ((run.build, ["say", "into", "names"]), (run.pull, ["say"])):
+    for fn, where in ((run.build, ["say", "into", "names", "book_kind"]), (run.pull, ["say"])):
         params = inspect.signature(fn).parameters
         defaulted = [n for n, p in params.items() if p.default is not inspect.Parameter.empty]
         assert defaulted == where, fn.__name__
