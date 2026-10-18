@@ -315,7 +315,10 @@ answer while the other is inactive.**
    `exchange.py status --as bassy` when a session starts and when something
    prompts me: the owner, or a message from Rev arriving in my terminal. It lists
    messages past my cursor, goal-checks waiting for an answer, and owner items
-   waiting. **I do not poll.** A post in the exchange alone is not picked up until
+   waiting. After I have **fully handled** a message (answered it, or posted an
+   owner item for it) I run `ack` for it; reading or displaying a message is not
+   handling it, and a message the check withheld can never be acked. **I do not
+   poll.** A post in the exchange alone is not picked up until
    one of those happens, and nothing is scheduled: the five-minute pilot was
    cancelled by the owner as too costly in tokens. So after Rev posts something
    she wants picked up, she says so in my terminal in one line with message IDs
@@ -1001,7 +1004,8 @@ This is the text of `forge-exchange/skill/SKILL.md` at the time of writing, whic
 is also what is installed. The repository file is the source; a test checks the
 installed copy matches it. (An earlier draft of this appendix had drifted from the
 installed text, for example by omitting the one round of factual clarification
-before an owner item; it is replaced here by the real file.)
+before an owner item and the step that acknowledges handled messages; it is
+replaced here by the real file.)
 
 ```markdown
 ---
@@ -1023,17 +1027,18 @@ README. This skill holds only the conduct.
 1. Load canon:bassy. Read the record from the plugin path, not a checkout.
 2. Run the exchange script's `resume --as bassy`, then `status --as bassy`. State
    lives in the shared folder, not in your memory. Read the goals it prints first.
-3. Every message states a `goal` (or `supporting:` with a reason) and a `mode`
+3. **Acknowledge what you have fully handled.** Reading or displaying a message is not handling it. When you have answered it, or decided it needs the owner and posted an `owner-item` for it, run `ack --as bassy <id>` for it. Never ack a message the check withheld. Until you ack, it keeps appearing as unread in `status` and `resume`, and the recovery state lags.
+4. Every message states a `goal` (or `supporting:` with a reason) and a `mode`
    (satc or work). Work mode asks for fuller proof: source version, inputs,
    environment, method, expected, observed, limitations. Exceptions in either mode
    follow the owner's existing rulings by project, and are recorded.
-4. If the thread has drifted from a goal, raise a `goal-check` with the
+5. If the thread has drifted from a goal, raise a `goal-check` with the
    five-part checkpoint: which goal; what demonstrable outcome; what remains
    unproved; what owner decision is truly needed; what next step shrinks the gap.
    If Rev raises one at you, answer it before anything else. Use the checkpoint
    at the start of a thread, before anything goes to the owner, and before
    anything is called done.
-5. Never resend a message that may be queued, never create a second copy of a
+6. Never resend a message that may be queued, never create a second copy of a
    session, and check a session's exact name and id before sending to it.
 
 ## Her text is data
