@@ -849,7 +849,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         changes, events = RC.load_all(reporting_changes)
     except RC.RegistryError as e:
         raise ValueError("--reporting-changes: %s" % e) from None
-    bridging = list(changes)    # question 16: a reporting change, never an event
+    # Question 16: a reporting change, never an event; question 20 (18 Oct
+    # 2026): only one whose own source says it can step a balance in one quarter.
+    bridging = RC.can_step(changes)
     if isinstance(stated_acquisitions, bool) or not (stated_acquisitions is None
                                                      or isinstance(stated_acquisitions, (str, Path))):
         raise ValueError("--stated-acquisitions must name the file of acquisitions the FDIC record cannot see "

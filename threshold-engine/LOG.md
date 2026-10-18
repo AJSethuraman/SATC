@@ -3147,3 +3147,90 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   build was run for this answer. The Wells Fargo rail car purchase (2016Q1,
   $4.1bn) is not a stated entry; its quarter is already this entry's
   quarter, and its Call Report lines were not read.
+
+## 18 Oct 2026, question 20: a label carries a series across a jump only when its change could have caused it
+
+- **Question 20, 18 Oct 2026, agreed with the recommendation** (read back
+  above; first note *"i don't understand"*, then in chat, after the plain
+  explanation and the two pictures, KeyBank C&I/NDFI 2024Q4 and
+  multifamily/construction 2009Q1: *"then agree with that and the rest"*):
+  *"Each reporting change gets a required yes/no, from its own source, on
+  whether it can step a balance in one quarter; only a yes carries a series
+  across."*
+- **The registry.** Every entry of `config/reporting-changes.json`, the
+  changes and the two events alike, has two more keys, both required, none
+  with a default: `steps_balance`, exactly true or false (a string, a
+  number or null is refused), and `steps_balance_why`, one sentence from the
+  entry's own source. Where the source does not say, false, and the reason
+  says so (the safe side: no series carried across a jump nothing explains).
+  `reporting_changes.can_step` gives the changes marked true, and
+  `peers build` carries a series across windows the jump left out only for
+  those (question 16's rule, narrowed). An event never does, whatever it
+  says. The Reporting changes tab has a new column, "Can step a balance"
+  ("Yes: ..." / "No: ..."), with a Glossary entry; "Continues across" says
+  the rule.
+- **What each says** (12 changes, 2 events):
+
+  | Entry | Can step | From its source |
+  |---|---|---|
+  | Construction, nonfarm and lease splits (2007Q1) | no | the totals are continuous; the splits are first filed in it |
+  | Loans classified as trading (2008Q1) | no | the 2011 notice says trading loans "should be excluded from Schedule RC-C", not when or whether loans already there moved (the 2008 guidance was not read): not settled |
+  | Secured by real estate, clarified (2009Q1) | no | new loans only, so gradual |
+  | FAS 166 and 167 (2010Q1) | **yes** | more than $300bn of card balances consolidated in that quarter |
+  | NDFI loans split out of other loans (2010Q1) | **yes** | moved onto a new line at one report date; it names no product, so it carries nothing |
+  | Construction loans after completion (2011Q1) | no | the notice lists only "instructional revisions that address the reporting of construction loans following the completion of construction", effective 31 Mar 2011, and does not say whether loans already elsewhere move: not settled |
+  | Auto loans get their own line (2011Q1) | **yes** | inside other consumer until March 2011, on their own line from then |
+  | Real estate breakdown for the whole bank (2013Q2) | no | whether the FDIC's fields moved with it was not checked |
+  | CECL: purchased credit-deteriorated loans (2020Q1) | no | the notices describe PCD loans at acquisition and the date of first use, not what happened to loans already held: not settled |
+  | COVID-19 deferrals not reported as past due (2020Q2) | no | changes what is reported past due, not what is on the books |
+  | TDR captions replaced (2024Q2) | no | memoranda only; the main loan lines unaffected |
+  | NDFI and margin-loan revision (2024Q4 to 2025Q2) | **yes** | every margin loan out of C&I and other consumer from the 31 Dec 2024 report date; industry C&I -$128bn in 2024Q4 |
+  | Revolving-line drawdowns, event (2020Q1) | yes | industry C&I +$339.4bn (15.4%); an event, so it carries nothing |
+  | PPP loans, event (2020Q2 to 2021Q4) | yes | industry C&I +$146.5bn in 2020Q2; an event, so it carries nothing |
+
+  As the docket expected: the NDFI revision, FAS 166/167 and the 2011 auto
+  split yes; the 2009Q1 clarification and the COVID rules no. Of the others,
+  three are no because their source is silent (trading, construction after
+  completion, CECL), not because it says no. The two FR notices for trading
+  and construction-after-completion (76 FR 5253) and the CECL notice (84 FR
+  4131) were read on 18 Oct 2026 through a web fetch that returns the page
+  as text.
+- **Proof.** `tests/test_steps_balance.py`, 13 tests: every entry's answer
+  as above, and each silent source saying "not settled, so no"; `can_step`;
+  the refusals (a string, 1, null; an empty, blank, two-line or null
+  reason); both keys required on a change and on an event; KeyBank's C&I
+  (the public cache file in `tests/data/peers`) built with the NDFI
+  revision marked yes (runs from 2006Q1 across the five NDFI windows) and
+  the same entry marked no (starts 2026Q1); and KeyBank's C&I given a +30%
+  move in 2009Q1, a quarter only the 2009 clarification names for C&I:
+  the series starts after that jump's windows (2010Q2) and still runs across
+  the NDFI windows. Checked by mutation, each put back: every change
+  bridging again (2 fail), `can_step` keeping every change (3), any
+  `steps_balance` accepted (3), any reason accepted (4).
+  `test_reporting_changes.py`'s fixture and tab test were given the new
+  keys and column.
+- **Results.** Scratch venv, pytest with 3 workers: `test_steps_balance`,
+  `test_reporting_changes`, `test_left_out`, `test_peers_cli`,
+  `test_peers_combined_products`, `test_commercial_book`,
+  `test_peers_combinations`: 290 passed, 1 skipped (16 min). The rest of the
+  suite was not run for this answer.
+- **The consumer book: this changes its output.** The rule is the build's,
+  not the commercial book's, so a consumer series that the jump broke in
+  2008Q1 (trading), 2013Q2 (the whole-bank breakdown names Mortgage and
+  Home equity) or 2020Q1 (CECL) and that question 16 carried across now
+  starts after that jump again. FAS 166/167 and the 2011 auto split still
+  carry, so the 14 other-consumer files question 16 extended on test data,
+  mostly across the auto split, are expected to keep their history; that was
+  not re-measured.
+- **For the consumer session** (question 19: *"make the change for yourself
+  and then tell the other agent"*). Built on the commercial side, in shared
+  code, so both reach the consumer book on merge:
+  1. `config/reporting-changes.json` entries now need `steps_balance` and
+     `steps_balance_why`; a registry without them is refused by entry. Only
+     a change marked true carries a series across (`reporting_changes.can_step`).
+     The consumer-relevant answers: FAS 166/167 and the auto split yes;
+     trading 2008Q1, the 2013Q2 whole-bank breakdown, CECL 2020Q1 and the
+     COVID rules no. Overrule any of them in the file, with its source.
+  2. `config/stated-acquisitions.json` entries carry `products`,
+     `products_source` and `products_unsettled` (question 18). The consumer
+     book still reads none (`stated_acquisitions: null`).

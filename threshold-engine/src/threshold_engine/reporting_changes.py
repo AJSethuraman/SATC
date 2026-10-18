@@ -18,6 +18,8 @@ every key of every entry is required; nothing has a default:
         "measures": [the measures it touches, MEASURES; [] exactly when products is []],
         "call_report_items": ["RC-C 4: C&I", ...; the items it touches, for commercial later],
         "what_changed": "one plain sentence",
+        "steps_balance": true or false,   # can it step a book's balance in a single quarter?
+        "steps_balance_why": "one short sentence, from the entry's own source",
         "sources": [{"citation": "...", "url": "https://..."}, ...],
         "already_labelled": {product: "words of the product's own definition note
                              that already describe this change"} or {}
@@ -31,6 +33,16 @@ series it touches, under its own key (``# event: ...``, "Event" on Sources),
 so it is never called a reporting change. Events are listed on the
 Reporting changes tab after the changes, under their own heading; Decide's
 and the Peers charts' diamonds mark reporting changes only.
+
+``steps_balance`` (the firm, 18 Oct 2026, the round 2 docket's question 20,
+"agreed with the recommendation": a label explains a jump only when its change
+could have caused it) says whether the change can step a book's balance in a
+single quarter, and ``steps_balance_why`` why, from the entry's own source;
+where the source does not say, it is false and says so (the safe side: a
+series is never carried across a jump nothing explains). It must be exactly
+true or false. Only a reporting change marked true carries a series across
+windows the jump left out (``can_step``, ``peers.run.build``, question 16); an
+event never does, whatever it says.
 
 ``first`` to ``last`` is when the change took effect: one quarter, or several
 where banks were allowed to report it over more than one (the December 2024
@@ -47,8 +59,10 @@ What reads it:
   ``load_events`` checks the same file and returns its events;
 - ``event_lines`` gives the ``# event:`` lines for one series, as
   ``note_lines`` gives the reporting-change lines;
+- ``can_step`` gives the changes marked as able to step a balance in one
+  quarter, the only ones a series continues across;
 - ``labelled_quarters`` gives every quarter the entries given name for a
-  product and measure. Given the changes, a window the jump leaves out only
+  product and measure. Given ``can_step``'s changes, a window the jump leaves out only
   for a move in one of those quarters does not break the series written (the
   firm, 17 Oct 2026, question 16; ``peers.run.bridged``); the events are
   never given for that, as they are not reporting changes;
@@ -67,8 +81,8 @@ from pathlib import Path
 from typing import Iterable, List, Sequence, Set, Tuple
 
 TOP_KEYS = ("_what", "changes", "events")
-KEYS = ("name", "first", "last", "products", "measures", "call_report_items", "what_changed", "sources",
-        "already_labelled")
+KEYS = ("name", "first", "last", "products", "measures", "call_report_items", "what_changed", "steps_balance",
+        "steps_balance_why", "sources", "already_labelled")
 SOURCE_KEYS = ("citation", "url")
 #: The charge-off measures, as the registry names them; the delinquency
 #: measures are ``peers.delinquency.MEASURES``' keys.
@@ -85,7 +99,7 @@ EVENTS_ABOUT = ("What moved a series without being a change to the report's defi
                 "17 Oct 2026). Each is labelled on every series it touches as an Event, not a Reporting change, "
                 "and is not marked on the charts.")
 HEADINGS = ("Change", "Took effect", "Products touched", "Measures touched", "Call Report items", "What changed",
-            "Source document")
+            "Can step a balance", "Source document")
 _QUARTER = re.compile(r"\d{4}Q[1-4]")
 _WHEN = re.compile(r"(\d{4}Q[1-4])(?: to (\d{4}Q[1-4]))?, ")
 
@@ -228,6 +242,11 @@ def _entries(entries, kind: str, seen: set, problems: List[str]) -> List[dict]:
         w = c["what_changed"]
         if not (isinstance(w, str) and w.strip()) or not _one_line(w):
             problems.append("%s: what_changed must be one plain sentence on one line" % where)
+        if not isinstance(c["steps_balance"], bool):
+            problems.append("%s: steps_balance must be true or false, whether it can step a book's balance in a "
+                            "single quarter (false where its source does not say), not %r" % (where, c["steps_balance"]))
+        if not (_one_line(c["steps_balance_why"]) and c["steps_balance_why"].strip()):
+            problems.append("%s: steps_balance_why must say why, from its source, in one sentence on one line" % where)
         srcs = c["sources"]
         if not (isinstance(srcs, list) and srcs):
             problems.append("%s: sources must list at least one source, each a citation and its URL" % where)
@@ -288,6 +307,13 @@ def load_all(path) -> Tuple[List[dict], List[dict]]:
 def what(path) -> str:
     """The registry's own description of itself (its ``_what``)."""
     return json.loads(Path(path).read_text(encoding="utf-8"))["_what"]
+
+
+def can_step(changes: Sequence[dict]) -> List[dict]:
+    """The changes whose own source says they can step a book's balance in a
+    single quarter (``steps_balance``): the only ones a series continues
+    across (the firm, 18 Oct 2026, question 20)."""
+    return [c for c in changes if c["steps_balance"] is True]
 
 
 def touching(changes: Sequence[dict], products_: Iterable[str], measure: str, first: str, last: str) -> List[dict]:
@@ -378,7 +404,7 @@ def write_tab(ws, changes: Sequence[dict], about: str, source_name: str, events:
     c.font = Font(name="Calibri", size=11, color=K.INK_TEXT)
     c.alignment = Alignment(wrap_text=True, vertical="top")
     ws.merge_cells(start_row=4, start_column=3, end_row=4, end_column=last_col)
-    widths = (30, 16, 22, 26, 36, 60, 60)
+    widths = (30, 16, 22, 26, 36, 60, 44, 60)
     ws.row_dimensions[4].height = 15 * _lines(about, sum(widths[1:]))
     r = _ref_header(ws, 6, list(HEADINGS), 2)
 
@@ -386,7 +412,8 @@ def write_tab(ws, changes: Sequence[dict], about: str, source_name: str, events:
         for ch in entries:
             vals = (ch["name"], when(ch), ", ".join(ch["products"]) or "None of the products",
                     ", ".join(ch["measures"]) or "None", "; ".join(ch["call_report_items"]) or "None stated",
-                    ch["what_changed"], "\n".join("%s, %s" % (s["citation"], s["url"]) for s in ch["sources"]))
+                    ch["what_changed"], "%s: %s" % ("Yes" if ch["steps_balance"] else "No", ch["steps_balance_why"]),
+                    "\n".join("%s, %s" % (s["citation"], s["url"]) for s in ch["sources"]))
             for col, v in enumerate(vals, start=2):
                 cell = ws.cell(r, col, v)
                 cell.font = Font(name="Calibri", size=11, color=K.INK_TEXT, bold=col == 2)
