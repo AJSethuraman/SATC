@@ -2839,6 +2839,19 @@ Multifamily; with the rule undone both fail (checked).
   (it was on the tree before the follow-up commits); the whole suite below
   covers them.
 
+### The whole suite
+
+At 658ca101 (everything above), every test file in `tests/` (scratch venv,
+Python 3.13, openpyxl 3.1.5, formulas 1.3.4, pytest-xdist, 4 workers):
+**1,415 passed, 5 skipped, 0 failed** of 1,420 collected, in 1 h 49 min.
+The 5 skipped: four in `test_launcher.py` (one Windows-only file lock,
+three need tkinter, not installed here) and one in `test_peers_cli.py`
+(Windows file locking). The two `test_peers_cli.py` tests this log records
+as failing before this work (the regionals pack and pro forma) passed.
+With nothing failing, no test was run on `threshold-engine-book` alone.
+A first, single-process run was stopped at 5% (it would have taken hours)
+and restarted with 4 workers.
+
 ### Not done, not checked
 
 - The real books (consumer and commercial) were not rebuilt on the merged
