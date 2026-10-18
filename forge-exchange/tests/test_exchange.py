@@ -305,6 +305,44 @@ class TestCodexFindingsOnPR458(Base):
         self.assertEqual([c for c in called if c.name == "R-0001.md"], [])
 
 
+class TestCodexSecondPassOnPR458(Base):
+    def test_a_withdrawal_cannot_point_at_a_later_message(self):
+        # Codex: a hand-saved B-0001 withdrawing B-0002 would silently hide the
+        # owner item that B-0002 later becomes.
+        (self.root / "from-bassy" / "B-0001.md").write_text(
+            "id: B-0001\nfrom: bassy\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
+            "withdraws: B-0002\n\nhand saved\n", encoding="utf-8")
+        post(self.root, "bassy", "Need a decision.", kind="owner-item")  # becomes B-0002
+        self.assertIn("Owner items open: 1", run(self.root, ["owner-items"])[1])
+
+    def test_a_withdrawal_of_an_earlier_own_message_still_works(self):
+        post(self.root, "bassy", "Need a decision.", kind="owner-item")
+        post(self.root, "bassy", "Answered; closing.", withdraws="B-0001")
+        self.assertIn("Owner items open: 0", run(self.root, ["owner-items"])[1])
+
+    def test_grouped_digits_joined_by_any_punctuation_are_refused(self):
+        for text in ("1234.5678.9012.3456", "123,456" + ",789", "1234/5678/9012",
+                     "1234_5678_9012"):
+            self.assertTrue(ex.guard("acct " + text, label="t"), text)
+
+    def test_ordinary_dotted_and_comma_numbers_are_not_false_alarms(self):
+        for text in ("version 3.12.10", "1,434 passed", "2026.10.18", "17/17 checks",
+                     "about 112,000 characters", "PR 456 and 458"):
+            self.assertEqual(ex.guard(text, label="t"), [], text)
+
+    def test_a_path_that_ends_at_the_engagements_folder_is_refused(self):
+        for text in ("C:\\Clients\\engagements", "/srv/engagements",
+                     "C:\\Clients\\engagements\\2026"):
+            reasons = " | ".join(f.what for f in ex.guard(text, label="t"))
+            self.assertIn("the engagements folder", reasons, text)
+        # naming the folder in prose is fine (the public docs do)
+        self.assertEqual(ex.guard("the engagements folder holds real clients", label="t"), [])
+
+    def test_a_lone_carriage_return_is_refused_but_crlf_is_not(self):
+        self.assertTrue(ex.guard("safe text\roverwrite", label="t"))
+        self.assertEqual(ex.guard("line one\r\nline two", label="t"), [])
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")
@@ -415,8 +453,10 @@ class TestWithdrawalsBelongToTheirAuthor(Base):
 
     def test_a_hand_saved_cross_withdrawal_counts_for_nothing(self):
         post(self.root, "bassy", "Need the owner to decide.", kind="owner-item")
-        (self.root / "from-rev" / "R-0001.md").write_text(
-            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
+        post(self.root, "rev", "A first note, so the next number is later than the target.")
+        # R-0002 is numbered AFTER B-0001, so only the side rule can stop it
+        (self.root / "from-rev" / "R-0002.md").write_text(
+            "id: R-0002\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
             "withdraws: B-0001\n\nclosing your item\n", encoding="utf-8")
         self.assertIn("Owner items open: 1", run(self.root, ["owner-items"])[1])
 
@@ -424,8 +464,10 @@ class TestWithdrawalsBelongToTheirAuthor(Base):
         post(self.root, "bassy", "Proposal.", kind="suggestion")
         fp = ex.sha8((self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
         post(self.root, "bassy", "I agree.", kind="agreement", proposal="B-0001#" + fp)
-        (self.root / "from-rev" / "R-0001.md").write_text(
-            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
+        post(self.root, "rev", "First note.")
+        post(self.root, "rev", "Second note, so the hand-saved one is numbered after B-0002.")
+        (self.root / "from-rev" / "R-0003.md").write_text(
+            "id: R-0003\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
             "withdraws: B-0002\n\nwithdrawing bassy's assent\n", encoding="utf-8")
         self.assertIn("one side only (bassy)", ex.view_agreed(self.root))
 

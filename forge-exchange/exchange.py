@@ -74,11 +74,12 @@ PHONE = re.compile(
     r"(?<!\d)(?:\+?1[-. ]?)?(?:\(\d{3}\)[-. ]?\d{3}[-. ]?\d{4}"
     r"|\d{3}[-. ]\d{3}[-. ]\d{4})(?!\d)")  # PHONE-MARK
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
-DIGIT_RUN = re.compile(r"(?<![A-Za-z0-9])\d{3,}(?:[ -]\d{3,})*(?![A-Za-z0-9])")
+DIGIT_RUN = re.compile(r"(?<![A-Za-z0-9])\d{3,}(?:[ .,/_-]\d{3,})*(?![A-Za-z0-9])")  # PUNCT-MARK
 PROTECTED = (
     ("the vault key", re.compile(r"vault\.key", re.I)),  # PROTECTED-MARK
     ("the leads workbook", re.compile(r"leads\.xlsx", re.I)),
-    ("the engagements folder as a path", re.compile(r"engagements[\\/]", re.I)),
+    ("the engagements folder as a path",
+     re.compile(r"(?:[\\/]engagements\b|\bengagements[\\/])", re.I)),  # ENGAGE-MARK
     ("a path into the live data folders", re.compile(r"build[\\/]data", re.I)),
     ("a path to a database file", re.compile(r"[\\/]satc_(?:vault|mart)\.db", re.I)),
 )
@@ -289,7 +290,7 @@ def guard(text: str, *, root: Optional[Path] = None,
             n = i + 1
         return f"{label} line {n}"
 
-    if CONTROL.search(text):
+    if CONTROL.search(text) or "\r" in text.replace("\r\n", "\n"):  # CR-MARK
         found.append(Finding(label, "a control character"))
     for name, rx in SHAPES:
         for m in rx.finditer(text):
@@ -543,7 +544,9 @@ def effective_withdrawals(msgs: Iterable[Msg]) -> set:
     for m in msgs:
         w = m.header.get("withdraws")
         if w and w.startswith(PREFIX[m.side] + "-"):  # WITHDRAW-READ-MARK
-            out.add(w)
+            mt = MSG_NAME.match(w + ".md")
+            if mt and int(mt.group(2)) < m.n:  # WITHDRAW-ORDER-MARK
+                out.add(w)
     return out
 
 
