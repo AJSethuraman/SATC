@@ -55,6 +55,8 @@ JUMP, MIN_BOOK = 0.25, 1_000_000
 NAMES = dict(PEER_TAB_NAMES)
 OWN = [t for t in PW.TABS if t not in PW.FOLDED]
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
+#: No stated acquisition in any product (question 18: one {cert: [quarter-ends]} per product).
+NONE_STATED = {p: {} for p in NONE_ACQUIRED}
 #: What the host's own Data, Glossary and Run hold: a peer formula pointed at
 #: one of them would read one of these.
 HOST = {"Data": ("HOST DATA A1", 987654321.0), "Glossary": ("HOST GLOSSARY A1", 876543219.0),
@@ -115,7 +117,7 @@ def build(module, out, data, roster, products, pack="all", **over):
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
                                            json.loads((PEERS / "mergers_roster.json").read_text()),
                                            {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
-                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": {}}))
+                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": NONE_STATED}))
     finally:
         mp.undo()
 

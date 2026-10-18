@@ -134,9 +134,10 @@ PEER_TERMS = [
      "A quarter in which a bank took in a book the FDIC record cannot see, listed with its filing.",
      "From the stated acquisitions file the build is given (config/stated-acquisitions.json; the firm, 17 Oct "
      "2026): a failure with no FDIC row naming the buyer, a deal the FDIC codes as a branch purchase, or an "
-     "asset purchase from a company that is not a bank. Every product's windows holding the quarter are left "
-     "out for that bank, as for a recorded acquisition, with no share measured. Recorded in Why not kept (the "
-     "Data tab, DelinquencyData) and on Run."),
+     "asset purchase from a company that is not a bank. The windows holding the quarter are left out for that "
+     "bank, as for a recorded acquisition, with no share measured, in each product the entry says the deal "
+     "brought and no other (the firm, 18 Oct 2026); a product its source does not settle is listed, so left out. "
+     "Recorded in Why not kept (the Data tab, DelinquencyData) and on Run."),
     ("Left out: before a gap (series files)",
      "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
      "A series file is written from the first quarter after its last gap; its note names the quarters left "

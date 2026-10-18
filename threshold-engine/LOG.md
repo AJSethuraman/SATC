@@ -3034,3 +3034,116 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
 2. **A series continues across a labelled reporting change** (question 16, `peers/run.py`). This already changes consumer series: on test data 14 of 118 other-consumer files gain history, mostly across the 2011Q1 auto split. Question 20 will narrow it to changes whose own source says they can step a balance in one quarter, which changes the consumer series too.
 3. **Combined products and labelled changes** (merge of 18 Oct): a combined product continues across a gap when a change is named for any of its parts. Recorded as a decision the firm can overrule; the stricter rule (only when the named part itself moved) is not built.
 4. **A build will refuse a merger list that starts after its first quarter** (question 22). This changes the merger and absorption files' format; consumer caches will need one re-pull. It will be announced in this log when built.
+
+## 18 Oct 2026, question 18: a stated deal leaves out only the products it brought
+
+- **Question 18, 18 Oct 2026, agreed with the recommendation** (the round 2
+  commercial docket, read back above): *"A listed deal leaves out only the
+  portfolios it brought"*; *"Each stated acquisition gets a required
+  `products` list with a source."*
+- **The file.** Each entry of `config/stated-acquisitions.json` now has three
+  more keys, all required, none with a default:
+  - `products`: the books the deal brought, names from `books.PRODUCTS`.
+    An unknown name is refused (so is a combined name such as "All
+    consumer"), and so is an empty list, a name given twice, and a list
+    naming Nonfarm nonresidential without both its splits or a split without
+    the whole: a loan in a split is in the whole, so the two cannot differ.
+  - `products_source`: where the list comes from, on one line.
+  - `products_unsettled`: the products in the list the source does not
+    settle. They are listed all the same (the safe side: a window left out,
+    never two books mixed); each must be in `products`; `[]` when the source
+    settles every one.
+- **What is in it.** Only from `docs/commercial-2026-10/research-breaks.md`
+  (on main) and each entry's own filing:
+
+  | Deal | Products | Not settled by the source |
+  |---|---|---|
+  | JPMorgan / Washington Mutual, 2008Q3 | all 11 (a whole bank: "substantially all of the assets ... of Washington Mutual's banks") | none |
+  | M&T / Wilmington Trust, 2011Q2 | all 11 (a whole bank holding company and its two banks) | none |
+  | Wells Fargo / GE Capital, 2016Q1 | C&I | none |
+  | Capital One / GE Healthcare, 2015Q4 | all 11 | 9: the five consumer products, Construction, Multifamily, and the two nonfarm splits |
+
+  - **Wells Fargo.** The release in the entry's citation: *"Added $30.8
+    billion of loans and leases from GE Capital acquisitions"*, of which
+    *"$26.7 billion from commercial and industrial loans and leases (3/1/16
+    close)"* is this deal and *"$4.1 billion from rail car portfolio (1/1/16
+    close)"* is a separate purchase in the same quarter, not this entry.
+    Leases are not a product here, so C&I alone. The release's categories
+    are Wells Fargo's own; which Call Report line each loan went to was not
+    read. Read 18 Oct 2026 through a web fetch that returns the page as text
+    (the 30.8 and 4.1 lines were not byte-compared: EDGAR refuses an
+    automated request that does not give a contact email, and none was
+    given).
+  - **Capital One.** The filing quoted names the business bought, not its
+    loans. research-breaks.md shows what moved in 2015Q4: nonfarm
+    nonresidential 10.9 to 16.2 (+49%), C&I +21%, other loans +27%. So C&I
+    and nonfarm nonresidential are listed as shown; nothing settles which
+    nonfarm split, or construction, multifamily or the consumer products, so
+    those are listed too and named as not settled. The rest of the
+    exhibit (its notes past the balance sheet) could not be read: the web
+    fetch stops at 20,824 characters and EDGAR refuses the direct request.
+- **What the build does.** `stated.for_product` gives, per product, the
+  quarters of the deals that brought it (a combined product's when any part
+  is named); `peers build` uses it for every product's charge-off windows,
+  the delinquency four-quarter average and 30+ to charge-off, and for the
+  peer workbook (`build_peers_workbook`'s `stated` is now
+  `{product: {cert: [quarter-ends]}}`, a product missing refused). The book
+  index still reads every stated quarter as declared, whatever its products.
+  Each series file's stated line now names the deals that brought its
+  product, with the list's source and its unsettled products, and the deals
+  in its quarters that did not ("nothing is left out for them"); the Run
+  tab lists each deal with what it brought.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  2006Q1 to 2026Q2, jump 0.25, share 0.05, minimum 0, pro forma, the merger
+  record since 2005, as the question 14 entry measured it; by `bank_book`
+  and `bank_delinquency` with every product's quarters and with the
+  products list, not a full build):
+  - charge-off windows given the stated reason: **60 before, 40 after**.
+    The 20 are Wells Fargo's 2016Q1 to 2016Q4 windows in Construction,
+    Multifamily, Nonfarm nonresidential and its two splits, now kept (four
+    each). Nothing else moved: JPMorgan, M&T and Capital One list every
+    product.
+  - delinquency four-quarter averages blanked by it: **235 before, 160
+    after** (those five Wells Fargo products, 15 each: five measures, three
+    quarters).
+  - 30+ to charge-off was not measured on the cache; it reads the same
+    per-product quarters (tested).
+- **Proof.** `tests/test_stated_products.py`, 22 tests: the file's lists;
+  each refusal (13); the three keys required; a whole with both splits
+  accepted; `for_product`, combined products included; the workbook
+  refusing a product with no mapping; a build of C&I and Construction with
+  M&T listed as bringing Construction only (C&I charge-offs, delinquency and
+  30+ to charge-off untouched and the note saying so; Construction left out)
+  and then C&I only (the reverse); the stated note's wording. Checked by
+  mutation, each then put back: `for_product` ignoring the list (4 fail);
+  the whole-without-splits check off (2), the split-without-whole check off
+  (1), the unsettled check off (1), unknown names allowed (3); charge-offs,
+  delinquency or 30+ to charge-off reading every product's deals (1 each);
+  every product's note worded for C&I (1). `test_stated_acquisitions.py`
+  was given the new keys and the new wording.
+- **Results.** Scratch venv (Python 3.13, `OPENPYXL_LXML=False`), pytest
+  with 4 workers, in this worktree:
+  - every `test_peers_*` file, `test_commercial_book`, `test_reporting_changes`,
+    `test_left_out`, `test_from_1991`, `test_launcher`, `test_book` and the
+    two stated files: 791 passed, 5 skipped, 1 failed (24 min). The failure
+    was `test_peers_workbook.py`'s commercial share panel, which built with
+    the consumer products' empty stated mapping and was refused for C&I; it
+    was given one per product and passed. The two `test_peers_cli.py`
+    failures this log recorded before passed.
+  - after the glossary and that fix: `test_stated_acquisitions`,
+    `test_stated_products`, `test_peers_dashboard`: 64 passed.
+  - the other 23 test files were started and stopped by a 40-minute timeout
+    before reporting, so they are **not checked** here. None of them names
+    the stated acquisitions, `run.build` or `build_peers_workbook`.
+- **Docs.** `docs/WHAT-IT-DOES.md`'s `--stated-acquisitions` row and the peer
+  glossary's "Left out: a stated acquisition" say a deal leaves out only the
+  products it brought.
+- **The consumer book.** Unchanged: it states `stated_acquisitions: null`.
+  For the consumer session (question 19): the file now carries a products
+  list per deal, consumer products included, so a consumer book that reads
+  it would leave out only the deals listing its product (JPMorgan, M&T and,
+  as not settled, Capital One; not Wells Fargo).
+- **Not done.** Nothing was opened in Excel; none can be here. No full
+  build was run for this answer. The Wells Fargo rail car purchase (2016Q1,
+  $4.1bn) is not a stated entry; its quarter is already this entry's
+  quarter, and its Call Report lines were not read.

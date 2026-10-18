@@ -453,6 +453,16 @@ def _acquisitions(mergers: Dict[str, Sequence[str]], extras: Dict[str, Sequence[
     return [(label(d.replace("-", "")), found[d]) for d in sorted(found)]
 
 
+def _stated_for(stated: Dict[str, Dict[str, Sequence[str]]], product: str) -> Dict[str, Sequence[str]]:
+    """``{cert: [YYYYMMDD]}`` for ``product`` out of ``stated``, refused when
+    the product is not there: every product drawn states its own, ``{}`` for
+    none (the firm, 18 Oct 2026, question 18)."""
+    if product not in stated or not isinstance(stated[product], dict):
+        raise ValueError("stated must give {cert: [YYYYMMDD]} for every product drawn ({} for none); %r has none"
+                         % (product,))
+    return stated[product]
+
+
 def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict, *,
                        stated: Dict[str, Sequence[str]]) -> Optional[dict]:
     """None for no delinquency tabs; otherwise the stated settings, checked,
@@ -473,10 +483,12 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict, *,
     not pulled, which is not the same as a field not filed (a blank value,
     which the module reads as not filed): ``fdic.pull`` refuses the same.
 
-    ``stated`` is ``{cert: [YYYYMMDD]}``, the stated acquisitions; required,
-    ``{}`` for none, and refused when not a dict, built or not."""
+    ``stated`` is ``{product: {cert: [YYYYMMDD]}}``, the stated acquisitions
+    that brought each product (``stated.for_product``); required, and
+    refused when not a dict, built or not; checked against the products by
+    ``build_peers_workbook``."""
     if not isinstance(stated, dict):
-        raise ValueError("stated must be {cert: [YYYYMMDD]}, {} for none, not %r" % (stated,))
+        raise ValueError("stated must be {product: {cert: [YYYYMMDD]}}, not %r" % (stated,))
     if spec is None:
         return None
     if not isinstance(spec, dict):
@@ -522,7 +534,7 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict, *,
     books = {p: {m: {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, spec["jump"], spec["min_book"],
                                                    spec["exempt_self"] and b is me,
                                                    acquired=spec["acquired"][p].get(b["cert"], []),
-                                                   stated=stated.get(b["cert"], []))
+                                                   stated=_stated_for(stated, p).get(b["cert"], []))
                      for b in roster} for m in D.MEASURES} for p in products}
     grid = [r["q"] for r in books[products[0]][spec["measure"]][me["cert"]]]
     return dict(spec, products=products, books=books, grid=grid)
@@ -1088,7 +1100,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          acquired: Dict[str, Dict[str, Sequence[str]]],
                          combined: Dict[str, Sequence[Tuple[str, str]]],
                          changes: Sequence[dict],
-                         stated: Dict[str, Sequence[str]],
+                         stated: Dict[str, Dict[str, Sequence[str]]],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
                          peer_a: str = WORST, peer_b: str = BEST,
                          product: Optional[str] = None,
@@ -1119,10 +1131,12 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
       charge-off and delinquency charts mark, on the pack composite, each
       quarter a change touching the product and measure shown took effect.
       ``[]`` states none;
-    - ``stated``: ``{cert: [YYYYMMDD]}``, the stated acquisitions in these
-      quarters (``peers.stated``; the firm, 17 Oct 2026): every product's
+    - ``stated``: ``{product: {cert: [YYYYMMDD]}}``, the stated acquisitions
+      in these quarters that brought each product (``peers.stated``; the
+      firm, 17 Oct 2026, and question 18, 18 Oct 2026): that product's
       windows holding one are left out for that bank, with their own reason.
-      Required, like ``acquired``: ``{}`` states none, and None is refused;
+      Required for every product, like ``acquired``: ``{}`` under a product
+      states none for it; a product missing, or None, is refused;
     - ``pack``: 'all' or 'regionals', the peers whose Yes/No starts Yes;
     - ``min_banks``: how many kept banks a composite or band needs (a live
       cell on Peers, starting here);
@@ -1242,7 +1256,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                                       exempt_min_book=exempt_self and b is me,
                                       acquired=acquired[p].get(b["cert"], []),
                                       members=combined.get(b["cert"], ()),
-                                      stated=stated.get(b["cert"], []))
+                                      stated=_stated_for(stated, p).get(b["cert"], []))
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
     for p in products:

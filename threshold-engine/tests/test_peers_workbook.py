@@ -43,6 +43,8 @@ RANK = dict(rank_by="net", last_n=20, min_obs=12)
 EXTRAS = {FIFTH_THIRD: ["2022Q2"]}
 #: No acquisition brought in the share in these tests: every product, none.
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
+#: No stated acquisition in any product (question 18: one {cert: [quarter-ends]} per product).
+NONE_STATED = {p: {} for p in NONE_ACQUIRED}
 DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED)
 #: The pickers and settings on Peers (fixed by peers_workbook.PICKERS and SETTINGS).
 PRODUCT, RATE, PEER_A, PEER_B, WINDOW, DQ_MEASURE, DQ_BASIS = "B5", "C5", "D5", "E5", "F5", "J5", "K5"
@@ -95,7 +97,7 @@ def MERGERS():
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
     kw = dict(exempt_self=True, min_banks=MIN_BANKS, index_min_book=500_000, lagged_years=(2019, 2025),
               lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019, industry=None,
-              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, stated={}, **RANK)
+              delinquency=None, acquired=NONE_ACQUIRED, combined={}, changes=CHANGES, stated=NONE_STATED, **RANK)
     kw.update(over)
     return build_peers_workbook(path, data, roster, products, JUMP, MIN_BOOK, pack, MERGERS(), EXTRAS, base, **kw)
 
@@ -1214,7 +1216,7 @@ def test_a_commercial_share_panel_gives_its_caption_the_last_row(tmp_path):
                 "Other nonfarm nonresidential")
     info = make(p, data, roster, "all", products=products, base="2007Q4", lagged_years=(2007, 2007),
                 lag_years=1, normalisation_years=(2007, 2007), mix_base_year=2007, min_banks=1,
-                acquired={x: {} for x in products})
+                acquired={x: {} for x in products}, stated={x: {} for x in products})
     heights = _small_chart_heights(p, info["layout"]["small_chart"] - 1)
     keep = PW.SMALL_ROWS - PW.MIX_CAPTION_ROWS
     assert heights[9] * PW.SMALL_ROWS == pytest.approx(heights[1] * keep, rel=1e-3)   # cm, rounded
