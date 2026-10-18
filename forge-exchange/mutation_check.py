@@ -63,6 +63,20 @@ MUTATIONS = [
     ("runnable text not flagged", "if RUNNABLE.search(m.body):", "if False:"),
     ("stale agreements shown as current", 'stale = prop is None or st["hash"] != {cur}',
      "stale = False"),
+    ("an unknown header key is echoed", 'raise ValueError("a header key that is not allowed")  # NOECHO-KEY-MARK',
+     'raise ValueError(f"header key {k!r} is not allowed")  # NOECHO-KEY-MARK'),
+    ("an odd file name is shown", 'else "unexpected-" + sha8(path.name)  # NOECHO-NAME-MARK',
+     'else path.name  # NOECHO-NAME-MARK'),
+    ("an odd hidden file name is shown", "if known  # NOECHO-HIDDEN-MARK",
+     "if True  # NOECHO-HIDDEN-MARK"),
+    ("ack echoes its argument", 'raise Refused([f"that is not one of {OTHER[me]}\'s message ids"])  # NOECHO-ACK-MARK',
+     'raise Refused([f"{upto} is not one of {OTHER[me]}\'s message ids"])  # NOECHO-ACK-MARK'),
+    ("you can withdraw the other side's message (at posting)",
+     'if wd and wd != "none" and not wd.startswith(PREFIX[me] + "-"):  # WITHDRAW-POST-MARK',
+     "if False:  # WITHDRAW-POST-MARK"),
+    ("a cross-side withdrawal counts (at reading)",
+     'if w and w.startswith(PREFIX[m.side] + "-"):  # WITHDRAW-READ-MARK',
+     "if w:  # WITHDRAW-READ-MARK"),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]
@@ -71,6 +85,7 @@ MUTATIONS = [
 def run_tests(tree: Path) -> tuple[bool, str]:
     env = dict(os.environ)
     env.pop("EXCHANGE_SRC", None)
+    env["EXCHANGE_MUTATION_RUN"] = "1"  # the install-match tests would kill every mutant
     r = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests"],
                        cwd=tree / "forge-exchange", capture_output=True, text=True, env=env)
     return r.returncode == 0, (r.stdout + r.stderr)

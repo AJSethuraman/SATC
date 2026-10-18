@@ -310,6 +310,70 @@ class TestReadingIsSafeAndReadOnly(Base):
             self.assertTrue(out.startswith("GOALS (version"), cmd)
 
 
+class TestNothingIsEchoed(Base):
+    """Rev's source-review findings: an odd header key, an odd file name and an
+    odd hidden file name were all printed back. None may be."""
+
+    def everything_shown(self):
+        return (run(self.root, ["status", "--as", "bassy"])[1] +
+                run(self.root, ["read", "--as", "bassy", "--all"])[1] +
+                run(self.root, ["resume", "--as", "bassy"])[1])
+
+    def test_an_unknown_header_key_is_not_echoed(self):
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\njane_doe_account: 1\n"
+            "goal: G1\nmode: satc\n\nx\n", encoding="utf-8")
+        shown = self.everything_shown()
+        self.assertIn("WITHHELD", shown)
+        self.assertNotIn("jane_doe_account", shown)
+
+    def test_an_odd_file_name_is_not_echoed(self):
+        (self.root / "from-rev" / "Jane_Doe_return.txt").write_text("x", encoding="utf-8")
+        shown = self.everything_shown()
+        self.assertIn("WITHHELD unexpected-", shown)
+        self.assertNotIn("Jane_Doe", shown)
+
+    def test_an_odd_hidden_file_name_is_not_echoed(self):
+        (self.root / "from-rev" / ".Jane_Doe.tmp").write_text("x", encoding="utf-8")
+        shown = self.everything_shown()
+        self.assertIn("an unrecognised hidden file", shown)
+        self.assertNotIn("Jane_Doe", shown)
+
+    def test_the_scripts_own_leftovers_are_still_named(self):
+        (self.root / "from-bassy" / ".B-0005.tmp").write_text("x", encoding="utf-8")
+        self.assertIn(".B-0005.tmp", self.everything_shown())
+
+    def test_ack_does_not_echo_a_strange_argument(self):
+        code, out, err = run(self.root, ["ack", "--as", "bassy", "Jane_Doe_return"])
+        self.assertEqual(code, 2)
+        self.assertNotIn("Jane_Doe", out + err)
+
+
+class TestWithdrawalsBelongToTheirAuthor(Base):
+    def test_you_cannot_withdraw_the_other_sides_message(self):
+        post(self.root, "bassy", "Need the owner to decide.", kind="owner-item")
+        code, _, err = post(self.root, "rev", "closing your item", withdraws="B-0001")
+        self.assertEqual(code, 2)
+        self.assertIn("only withdraw your own", err)
+        self.assertIn("Owner items open: 1", run(self.root, ["owner-items"])[1])
+
+    def test_a_hand_saved_cross_withdrawal_counts_for_nothing(self):
+        post(self.root, "bassy", "Need the owner to decide.", kind="owner-item")
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
+            "withdraws: B-0001\n\nclosing your item\n", encoding="utf-8")
+        self.assertIn("Owner items open: 1", run(self.root, ["owner-items"])[1])
+
+    def test_a_hand_saved_cross_withdrawal_cannot_cancel_the_other_sides_assent(self):
+        post(self.root, "bassy", "Proposal.", kind="suggestion")
+        fp = ex.sha8((self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
+        post(self.root, "bassy", "I agree.", kind="agreement", proposal="B-0001#" + fp)
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n"
+            "withdraws: B-0002\n\nwithdrawing bassy's assent\n", encoding="utf-8")
+        self.assertIn("one side only (bassy)", ex.view_agreed(self.root))
+
+
 class TestThreadsGoalChecksAndOwnerItems(Base):
     def test_goal_check_is_listed_until_answered(self):
         post(self.root, "rev", "Has this drifted from G2?", kind="goal-check")
@@ -392,6 +456,8 @@ class TestRedirection(Base):
 
 class TestInstalledSkill(unittest.TestCase):
     def test_installed_copy_matches_the_repo_copy(self):
+        if os.environ.get("EXCHANGE_MUTATION_RUN"):
+            self.skipTest("environment check, skipped during the mutation run")
         installed = Path.home() / ".claude" / "skills" / "rev-exchange" / "SKILL.md"
         repo = HERE.parent / "skill" / "SKILL.md"
         if not installed.is_file():
@@ -406,6 +472,9 @@ class TestInstalledBin(unittest.TestCase):
              "GOALS.template.md", "guard-local.template.txt")
 
     def test_bin_copy_matches_the_repo_copy(self):
+        if os.environ.get("EXCHANGE_MUTATION_RUN"):
+            self.skipTest("environment check, skipped during the mutation run so "
+                          "that every kill comes from a rule test")
         bin_dir = Path.home() / "Documents" / "Main" / "Reverie" / "exchange" / "bin"
         if not bin_dir.is_dir():
             self.skipTest("no bin folder on this machine; the match check was NOT run")

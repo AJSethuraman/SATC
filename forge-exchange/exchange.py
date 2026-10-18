@@ -336,9 +336,9 @@ def parse_message(text: str) -> tuple[dict, str, str]:
         k, _, v = line.partition(":")
         k = k.strip()
         if k not in HEADER_KEYS:
-            raise ValueError(f"header key {k!r} is not allowed")
+            raise ValueError("a header key that is not allowed")  # NOECHO-KEY-MARK
         if k in header:
-            raise ValueError(f"header key {k!r} appears twice")
+            raise ValueError("a header key that appears twice")
         header[k] = v.strip()
     context, body = "", rest
     if rest.startswith(CONTEXT_START):
@@ -351,7 +351,7 @@ def parse_message(text: str) -> tuple[dict, str, str]:
 
 def load_msg(root: Path, side: str, path: Path) -> Msg:
     m = MSG_NAME.match(path.name)
-    mid = path.stem if m else path.name
+    mid = path.stem if m else "unexpected-" + sha8(path.name)  # NOECHO-NAME-MARK
     msg = Msg(id=mid, side=side, path=path)
     if not m or m.group(1) != PREFIX[side]:
         msg.ok = False
@@ -416,7 +416,10 @@ def leftovers(root: Path) -> list[str]:
         if folder.is_dir():
             for p in sorted(folder.iterdir()):
                 if p.name.startswith("."):
-                    out.append(f"{side}/{p.name}")
+                    known = (re.fullmatch(r"\.[BR]-\d{4}\.(?:tmp|reserve)", p.name)
+                             or p.name == ".RESUME.md.tmp")
+                    out.append(f"{side}/{p.name}" if known  # NOECHO-HIDDEN-MARK
+                               else f"{side}/an unrecognised hidden file")
     return out
 
 
@@ -485,9 +488,20 @@ def view_status(root: Path, me: str) -> str:
     return "\n".join(out)
 
 
+def effective_withdrawals(msgs: Iterable[Msg]) -> set:
+    """Ids withdrawn by the side that wrote them. A file saved by hand that
+    withdraws the other side's message counts for nothing."""
+    out = set()
+    for m in msgs:
+        w = m.header.get("withdraws")
+        if w and w.startswith(PREFIX[m.side] + "-"):  # WITHDRAW-READ-MARK
+            out.add(w)
+    return out
+
+
 def open_owner_items(root: Path) -> list[Msg]:
     allm = good(list_messages(root, "bassy")) + good(list_messages(root, "rev"))
-    withdrawn = {m.header.get("withdraws") for m in allm}
+    withdrawn = effective_withdrawals(allm)
     return [m for m in allm if m.kind == "owner-item" and m.id not in withdrawn]
 
 
@@ -513,7 +527,7 @@ def view_resume(root: Path, me: str) -> str:
 def view_agreed(root: Path) -> str:
     allm = good(list_messages(root, "bassy")) + good(list_messages(root, "rev"))
     by_id = {m.id: m for m in allm}
-    withdrawn = {m.header.get("withdraws") for m in allm}
+    withdrawn = effective_withdrawals(allm)
     state: dict[str, dict] = {}
     for m in allm:
         if m.kind != "agreement" or m.id in withdrawn:
@@ -604,6 +618,9 @@ def validate_new(root: Path, me: str, h: dict, body: str) -> None:
             elif sha8(found.text) != ph:
                 problems.append("the proposal has changed since that fingerprint; "
                                 "agree to the current one")
+    wd = h.get("withdraws")
+    if wd and wd != "none" and not wd.startswith(PREFIX[me] + "-"):  # WITHDRAW-POST-MARK
+        problems.append("you can only withdraw your own messages")
     for key in ("re", "withdraws"):
         ref = h.get(key)
         if ref and ref != "none":
@@ -709,7 +726,7 @@ def cmd_ack(root: Path, me: str, upto: str) -> str:
     check_not_redirected(root)
     m = MSG_NAME.match(upto + ".md")
     if not m or m.group(1) != PREFIX[OTHER[me]]:
-        raise Refused([f"{upto} is not one of {OTHER[me]}'s message ids"])
+        raise Refused([f"that is not one of {OTHER[me]}'s message ids"])  # NOECHO-ACK-MARK
     target = int(m.group(2))
     cur = read_cursor(root, me)
     theirs = {x.n: x for x in list_messages(root, OTHER[me])
