@@ -37,6 +37,11 @@ book["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"), abso
 book["loan_classes"] = {"file": str(ROOT / "config" / "peer-loan-classes.json"),
                         "cache": str(Path(sys.argv[2]).resolve())}
 book["reporting_changes"] = str(ROOT / "config" / "reporting-changes.json")
+if book.get("signals") is not None:
+    sig = cache / "signals"
+    book["signals"] = {"balances": str(sig / "26Q2-CreditCardBalances.csv"), "originations": str(sig / "26Q2-CreditCardOriginations.csv"),
+                       "survey": str(sig / "DRTSCLCC.csv"), "nmdb": str(ROOT / "data" / "signals" / "nmdb.json"),
+                       "fico": str(ROOT / "data" / "signals" / "fico-under-660.json")}
 if book.get("large_banks") is not None:
     # The Philadelphia Fed file 'peers large-banks-pull' put beside the FDIC cache.
     book["large_banks"] = {"file": str(cache / "large-banks" / Path(book["large_banks"]["file"]).name)}

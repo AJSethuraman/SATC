@@ -274,6 +274,12 @@ def _peers_parser(sub):
                     help="the absorptions file 'peers pull --mergers' wrote")
     il.add_argument("--reporting-changes", required=True, metavar="FILE", help="config/reporting-changes.json")
 
+    sp = ps.add_parser("signals-pull", help="the public files behind the Signals tab for one quarter (Philadelphia "
+                                            "Fed card balances and originations; FRED DRTSCLCC) into DIR/signals")
+    sp.add_argument("--cache", required=True, metavar="DIR")
+    sp.add_argument("--quarter", required=True, metavar="YYYYQn")
+    sp.add_argument("--refresh", action="store_true", help="fetch again, even if held")
+
     bu = ps.add_parser("build", help="the peer workbook and the series CSVs, from the cache only")
     bu.add_argument("out", help="the .xlsx to write")
     bu.add_argument("--cache", required=True, metavar="DIR")
@@ -339,6 +345,17 @@ def _peers_pull(a):
     from .peers import run
     run.pull(cache=a.cache, first=a.first, last=a.last, products=a.products,
              delinquency=a.delinquency, mergers_since=a.mergers, refresh=a.refresh)
+    return 0
+
+
+def _peers_signals_pull(a):
+    """``peers signals-pull``: signals_data.pull."""
+    from . import signals_data as SD
+    try:
+        SD.pull(a.cache, a.quarter, refresh=a.refresh)
+    except ValueError as e:
+        print("REFUSED: %s" % e, file=sys.stderr)
+        return 2
     return 0
 
 
@@ -587,7 +604,8 @@ def main(argv=None):
         try:
             return {"pull": _peers_pull, "classes-pull": _peers_classes_pull,
                     "large-banks-pull": _peers_large_banks_pull,
-                    "industry-long": _peers_industry_long}.get(a.peers_command, _peers_build)(a)
+                    "industry-long": _peers_industry_long,
+                    "signals-pull": _peers_signals_pull}.get(a.peers_command, _peers_build)(a)
         except (ValueError, OSError, RuntimeError) as exc:
             return _refused(exc)
     if a.command == "book":
