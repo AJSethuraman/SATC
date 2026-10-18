@@ -149,6 +149,19 @@ def test_the_backtests_history_counts_values_not_calendar_quarters():
     assert bt["runs"][0]["first_tested"] == ds[14]             # positions 0-4 and 8-14: twelve values
     assert bt["runs"][0]["periods"][0]["date"] == ds[14]
 
+def test_a_gap_inside_the_horizon_can_hold_a_test_with_fewer_values_than_history_plus_horizon():
+    """Eight values, three quarters left out, then one value four calendar
+    quarters after the eighth: nine values, under min_history + horizon = 12,
+    and still one valid test (Codex on #460)."""
+    ds = qdates(2010, 12)
+    left = ds[8:11]
+    pts = [Point(d, float(i)) for i, d in enumerate(ds) if d not in left]
+    bt = backtest(pts, "x", "%", "higher_is_worse", "quarterly", 1, (50, 75, 90, 95), 4, 8, True, (), left)
+    assert [p["date"] for p in bt["runs"][0]["periods"]] == [ds[7]]
+    with pytest.raises(ValueError, match="no period has a value"):    # one value short: refused by the scan
+        backtest(pts[1:], "x", "%", "higher_is_worse", "quarterly", 1, (50, 75, 90, 95), 4, 8, True, (), left)
+
+
 # ---- the writer: which windows the series continues across --------------------------------------------------
 
 def test_unbroken_tail_bridges_only_the_quarters_named_and_never_starts_or_ends_on_one():

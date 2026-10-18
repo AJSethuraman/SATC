@@ -96,7 +96,10 @@ def backtest(points: Sequence[Point], name: str, unit: str, direction: str,
         raise ValueError("horizon must be 1 or more and min_history 2 or more")
     series = smooth(check(points, frequency, left_out), smoothing)
     held = sum(1 for p in series if p.value is not None)
-    if held < min_history + horizon:
+    # With nothing left out, too few values is said plainly here. With a gap,
+    # horizon counts calendar periods, so fewer values can still hold a test:
+    # the scan below decides.
+    if held == len(series) and held < min_history + horizon:
         raise ValueError("%d observations after smoothing; at least min_history + "
                          "horizon = %d are needed" % (held, min_history + horizon))
     sign = 1.0 if direction == "higher_is_worse" else -1.0
