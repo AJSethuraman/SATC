@@ -10,7 +10,10 @@ and other consumer also carry 30+ to charge-off (of the dollars past due at
 a quarter-end, the share charged off over the next two quarters) and
 KeyBank's gap to peers and to the industry on it; credit card carries the
 large banks' share of accounts paying only the minimum (Philadelphia Fed).
-That is 56 sets of lines. A combined
+That is 56 sets of lines. A Signals tab (18 Oct 2026) sets every public
+early-warning signal beside the book's series, compared against whatever
+product, measure and source you pick, with the peer group recorded beside
+each chart; nothing on it is rated. A combined
 product adds its parts' dollars together before the rate is taken. Each set
 of lines is set from the history of one of three sources, picked for that
 product and measure: the industry (every bank that files a Call Report), a

@@ -18,6 +18,7 @@
      "expect": [
       "Decide",
       "Summary",
+      "Signals",
       "Peers",
       "Peer loan classes",
       "Thresholds",
@@ -30,12 +31,14 @@
       "Reporting changes",
       "Run",
       "Data",
+      "Signals data",
       "Peers data",
       "Peers delinquency data",
       "Internal data",
       "Assess",
       "Chart",
-      "Peers workings"
+      "Peers workings",
+      "Signals workings"
      ]
     },
     {
@@ -11614,6 +11617,711 @@
     }
    ],
    "picture": []
+  },
+  {
+   "id": "B14",
+   "what": "Open Signals",
+   "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; every peer's state is beside it; two fit tables agree with the same correlations worked out from the series, lead by lead",
+   "actions": [],
+   "reads": [
+    {
+     "sheet": "Signals",
+     "cell": "B5",
+     "expect": "Other consumer"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C5",
+     "expect": "30+ days past due incl. nonaccrual"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D5",
+     "expect": "KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G5",
+     "expect": "Other consumer - 30+ days past due incl. nonaccrual - KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "K5",
+     "expect": "yes"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "O5",
+     "expect": "15 of 15, from Peers"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C11",
+     "expect": 926589
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D11",
+     "expect": 0.03198275740963098
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E11",
+     "expect": 42666
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F11",
+     "expect": 0.39868804664723034
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G11",
+     "expect": 24275
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H11",
+     "expect": 0.07853369265261094
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C12",
+     "expect": 4469033
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D12",
+     "expect": 0.1542560922853988
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E12",
+     "expect": 59618
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F12",
+     "expect": 0.5570942662779398
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G12",
+     "expect": 53410
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H12",
+     "expect": 0.1727902996735716
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C13",
+     "expect": 2929570
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D13",
+     "expect": 0.10111897143667002
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E13",
+     "expect": 2322
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F13",
+     "expect": 0.021697690065037002
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G13",
+     "expect": 72018
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H13",
+     "expect": 0.23299029773247104
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C14",
+     "expect": 20584113
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D14",
+     "expect": 0.7104948284206174
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E14",
+     "expect": 1899
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F14",
+     "expect": 0.017745010091948867
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G14",
+     "expect": 158704
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H14",
+     "expect": 0.5134340333157555
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C15",
+     "expect": 62212
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D15",
+     "expect": 0.002147350447682805
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E15",
+     "expect": 511
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F15",
+     "expect": 0.0047749869178440605
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G15",
+     "expect": 696
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H15",
+     "expect": 0.0022516766255908224
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U11",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T11",
+     "expect": "JPMorgan"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U12",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T12",
+     "expect": "Wells Fargo"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U13",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T13",
+     "expect": "Bank of America"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U14",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T14",
+     "expect": "Citi"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U15",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T15",
+     "expect": "U.S. Bank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U16",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T16",
+     "expect": "PNC"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U17",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T17",
+     "expect": "Truist"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U18",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T18",
+     "expect": "Capital One"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U19",
+     "expect": "out: its own four-quarter average was blanked this quarter by the jump or the acquisition share"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T19",
+     "expect": "Fifth Third"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U20",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T20",
+     "expect": "Huntington"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U21",
+     "expect": "out: its own four-quarter average was blanked this quarter by the jump or the acquisition share"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T21",
+     "expect": "First Citizens"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U22",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T22",
+     "expect": "Citizens"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U23",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T23",
+     "expect": "M&T"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U24",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T24",
+     "expect": "Regions"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U25",
+     "expect": "in"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T25",
+     "expect": "Zions"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C174",
+     "expect": "2 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D174",
+     "expect": 0.8923573311318846
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F174",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E174",
+     "expect": 0.9666015097137213
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C175",
+     "expect": "2 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D175",
+     "expect": 0.8604408488787167
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F175",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E175",
+     "expect": 0.8307722344365586
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C176",
+     "expect": "2 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D176",
+     "expect": 0.8339772638856662
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F176",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E176",
+     "expect": 0.3080802393004971
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C177",
+     "expect": "1 qtrs after"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D177",
+     "expect": 0.7569587749225609
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F177",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E177",
+     "expect": 0.34410415755063956
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C178",
+     "expect": "1 qtrs after"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D178",
+     "expect": 0.9129499906596658
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F178",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E178",
+     "expect": 0.8579660011363002
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C179",
+     "expect": "4 qtrs after"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D179",
+     "expect": 0.7817046927495512
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F179",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E179",
+     "expect": 0.618676221626357
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C180",
+     "expect": "6 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D180",
+     "expect": 0.6812375273649898
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F180",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E180",
+     "expect": -0.7329267796471881
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C181",
+     "expect": "6 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D181",
+     "expect": 0.5051634081457965
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F181",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E181",
+     "expect": -0.8785693868848957
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C182",
+     "expect": "4 qtrs after"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D182",
+     "expect": 0.7817046927495512
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F182",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E182",
+     "expect": 0.618676221626357
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C210",
+     "expect": "4 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D210",
+     "expect": 0.8248286522101923
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F210",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E210",
+     "expect": 0.3343361919039883
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C211",
+     "expect": "2 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D211",
+     "expect": 0.6496075304096223
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F211",
+     "expect": 47
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E211",
+     "expect": 0.5483677972129555
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C212",
+     "expect": "4 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D212",
+     "expect": 0.727205759606632
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F212",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E212",
+     "expect": 0.42257694197164625
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C213",
+     "expect": "1 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D213",
+     "expect": 0.7305729102024882
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F213",
+     "expect": 39
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E213",
+     "expect": 0.6696662859769211
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C214",
+     "expect": "same quarter"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D214",
+     "expect": 0.8526871793915897
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F214",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E214",
+     "expect": 0.5392094256518403
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C215",
+     "expect": "3 qtrs after"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D215",
+     "expect": 0.5082401370242108
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F215",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E215",
+     "expect": -0.39273193956532265
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C216",
+     "expect": "7 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D216",
+     "expect": 0.31660819802914997
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F216",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E216",
+     "expect": 0.7384681296983978
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C217",
+     "expect": "7 qtrs ahead"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D217",
+     "expect": 0.22584854043033203
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F217",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E217",
+     "expect": -0.06506447848812397
+    },
+    {
+     "sheet": "Signals",
+     "cell": "C218",
+     "expect": "3 qtrs after"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D218",
+     "expect": 0.5082401370242108
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F218",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E218",
+     "expect": -0.39273193956532265
+    }
+   ],
+   "picture": [
+    {
+     "sheet": "Signals",
+     "range": "A1:U60",
+     "file": "b14-signals.png"
+    }
+   ]
   }
  ]
 }
