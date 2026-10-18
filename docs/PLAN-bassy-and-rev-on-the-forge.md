@@ -1246,7 +1246,7 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 84 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Tests | 90 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
 | Mutation check | 50 deliberate breakages of guard and safety rules, 50 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
@@ -1367,6 +1367,21 @@ above), each fixed with a test and a mutation:
     stall every `status` and `read`. Both patterns are now linear (0.01 seconds on
     39,000 characters), with a timing test and two mutations that reintroduce the slow
     patterns. My own test of the fourth-pass fixes is what exposed it: it hung.
+
+20. **National phone formats** such as `(020) 7946 0958` matched none of the
+    format-specific phone rules. Instead of adding one more format, the three phone
+    rules became one general rule: a run of digits and phone punctuation holding 10
+    to 15 digits (the E.164 range). A new national format is no longer a new gap.
+21. **Nested parentheses in a link** (`.../foo((bar))?client=...`) still hid the
+    query, because the pattern handled one nesting level. Links are now scanned
+    with a small balanced-parenthesis scanner of any depth.
+22. **A concurrent poster's abandoned reservation left a gap** that later posts
+    skipped past, so `ack` stayed blocked. New messages now take the lowest free
+    number, which heals a gap once the dead reservation goes stale; a live
+    reservation is still respected.
+23. **The duplicate key could be ambiguous:** joining fields with `|` made
+    (`about="a"`, `evidence="|"`) collide with (`about="a|"`). Fields are now
+    length-prefixed.
 
 The pattern across these rounds is worth stating: a reviewer reading the guard
 keeps finding shapes it misses. The guard blocks *known shapes*, not "all

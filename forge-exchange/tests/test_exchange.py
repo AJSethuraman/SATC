@@ -428,11 +428,57 @@ class TestCodexFourthPassOnPR458(Base):
         self.assertIn("mutual", out)
 
     def test_numbering_stops_before_an_id_the_reader_cannot_parse(self):
-        (self.root / "from-bassy" / "B-9999.md").write_text("x", encoding="utf-8")
-        code, _, err = post(self.root, "bassy", "one more")
+        # The real limit is 9999 (the reader accepts four digits). Use a small limit so
+        # the test can fill every slot; with gaps filled from the lowest free number,
+        # a lone high id no longer means the numbers are used up.
+        with mock.patch.object(ex, "MAX_MESSAGE_NUMBER", 3):
+            for n in (1, 2, 3):
+                (self.root / "from-bassy" / f"B-000{n}.md").write_text("x", encoding="utf-8")
+            code, _, err = post(self.root, "bassy", "one more")
         self.assertEqual(code, 2)
         self.assertIn("used up", err)
-        self.assertEqual([p.name for p in (self.root / "from-bassy").glob("B-*")], ["B-9999.md"])
+        self.assertEqual(sorted(p.name for p in (self.root / "from-bassy").glob("B-*")),
+                         ["B-0001.md", "B-0002.md", "B-0003.md"])
+
+
+class TestCodexFifthPassOnPR458(Base):
+    def test_national_and_international_phone_formats_are_all_one_rule(self):
+        cases = ("call (020) 7946 0958", "call 020 7946 0958", "call +44 20 7946 0958",
+                 "call +61 2 9374 4000", "call +33 1 23 45 67 89",
+                 "call (216)555" + "-" + "0142", "call 216" + "." + "555" + "." + "0142",
+                 "call +1 (216)555" + "-" + "0142")
+        for text in cases:
+            found = ex.guard(text, label="t")
+            self.assertTrue(any("phone" in f.what for f in found), text)
+
+    def test_ordinary_numbers_are_not_phone_numbers(self):
+        for text in ("2026-10-18 12:00 and 3.12.10", "(see section 4.9) and (A)", "1,434 passed of 1,436",
+                     "17+ tests and C++ 20", "+3 more tests", "PR 456, 112 checks", "84 tests, 50 mutations"):
+            self.assertEqual(ex.guard(text, label="t"), [], text)
+
+    def test_nested_parentheses_cannot_hide_a_query(self):
+        for text in ("[x](https://github.com/AJSethuraman/SATC/foo((bar))?client=Jane)",
+                     "[x](https://github.com/AJSethuraman/SATC/a(b(c(d)))?client=Jane)",
+                     "[x](https://github.com/AJSethuraman/SATC/foo(bar)?client=Jane)"):
+            found = ex.guard(text, label="t")
+            self.assertTrue(any("query string" in f.what for f in found), text)
+        self.assertEqual(ex.guard("see https://github.com/AJSethuraman/SATC/a(b(c))", label="t"), [])
+
+    def test_a_gap_left_by_a_dead_poster_is_filled_not_skipped(self):
+        for n in (1, 3):  # published B-0001 and B-0003; B-0002 never finished
+            (self.root / "from-bassy" / f"B-000{n}.md").write_text("x", encoding="utf-8")
+        self.assertEqual(post(self.root, "bassy", "fills the gap")[1].strip(), "posted B-0002")
+
+    def test_a_live_reservation_in_the_gap_is_respected(self):
+        for n in (1, 3):
+            (self.root / "from-bassy" / f"B-000{n}.md").write_text("x", encoding="utf-8")
+        (self.root / "from-bassy" / ".B-0002.reserve").write_text("", encoding="utf-8")
+        self.assertEqual(post(self.root, "bassy", "next free")[1].strip(), "posted B-0004")
+
+    def test_duplicate_detection_is_not_fooled_by_the_delimiter(self):
+        self.assertIn("posted B-0001", post(self.root, "bassy", "Same words.", about="a", evidence="|")[1])
+        code, out, _ = post(self.root, "bassy", "Same words.", about="a|")
+        self.assertIn("posted B-0002", out)
 
 
 class TestReadingIsSafeAndReadOnly(Base):

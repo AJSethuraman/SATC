@@ -75,10 +75,9 @@ SHAPES = (
 # Linear time: start only at a token start and never backtrack into the token, so a
 # long unbroken run cannot be rescanned from every character (it was quadratic).
 EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]++@[\w-]+(?:\.[\w-]+)+")  # EMAIL-MARK
-PHONE = re.compile(
-    r"(?<!\d)(?:\+?1[-. ]?)?(?:\(\d{3}\)[-. ]?\d{3}[-. ]?\d{4}"
-    r"|\d{3}[-. ]\d{3}[-. ]\d{4})(?!\d)")  # PHONE-MARK
-INTL_PHONE = re.compile(r"(?<![\w+])\+\d[\d ().-]{7,18}\d")  # INTL-MARK
+# A phone number is any run of digits and phone punctuation holding 10 to 15 digits
+# (the E.164 range). One general rule, so a new national format is not a new gap.
+PHONE_RUN = re.compile(r"[\d()+.\- ]{10,}")
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 DIGIT_RUN = re.compile(r"(?<![A-Za-z0-9])\d{3,}(?:[ .,/_-]\d{3,})*(?![A-Za-z0-9])")  # PUNCT-MARK
 PROTECTED = (
@@ -89,8 +88,36 @@ PROTECTED = (
     ("a path into the live data folders", re.compile(r"build[\\/]data", re.I)),
     ("a path to a database file", re.compile(r"[\\/]satc_(?:vault|mart)\.db", re.I)),
 )
-URL = re.compile(r"(?:(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*+://|(?<![\w.])www\.|(?<![:\w/])//(?=[\w-]+\.[A-Za-z]{2,}))"
-                 r"(?:[^\s()>\]\"'`]|\([^\s()>]*\))+", re.I)  # URL-MARK
+URL_START = re.compile(
+    r"(?:(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*+://|(?<![\w.])www\.|"
+    r"(?<![:\w/])//(?=[\w-]+\.[A-Za-z]{2,}))", re.I)  # URL-MARK
+URL_STOP = set(">]\"'`")
+
+
+def iter_urls(text: str):
+    """Yield (start, link). Parentheses inside a link are kept while balanced, at any
+    depth, so a query after them is still part of the link that gets checked."""
+    pos = 0
+    while True:
+        m = URL_START.search(text, pos)
+        if not m:
+            return
+        i, depth = m.end(), 0
+        while i < len(text):
+            ch = text[i]
+            if ch.isspace() or ch in URL_STOP:
+                break
+            if ch == "(":
+                depth += 1  # DEPTH-MARK
+            elif ch == ")":
+                if depth == 0:
+                    break
+                depth -= 1
+            i += 1
+        yield m.start(), text[m.start():i]
+        pos = max(i, m.end())
+
+
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 RUNNABLE = re.compile(
     r"(^```)|(^\s*(?:\$|PS>|>>>)\s)|"
@@ -252,8 +279,8 @@ def local_rules(root: Optional[Path]) -> list[tuple[str, re.Pattern]]:
 def _scan_links(text: str, where_of) -> list[Finding]:
     found = []
     allow = allowed_links()
-    for m in URL.finditer(text):
-        raw = m.group(0).rstrip(".,;:")
+    for start, link in iter_urls(text):
+        raw = link.rstrip(".,;:")
         if raw.startswith("//"):
             url = "https:" + raw
         elif re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", raw):
@@ -262,12 +289,12 @@ def _scan_links(text: str, where_of) -> list[Finding]:
             url = "https://" + raw
         p = urllib.parse.urlsplit(url)
         if p.scheme.lower() not in ("http", "https"):  # SCHEME-MARK
-            found.append(Finding(where_of(m.start()),
+            found.append(Finding(where_of(start),
                                  "a link that is not an http or https link"))
             continue
         host = (p.hostname or "").lower()
         path = p.path.rstrip("/").lower()
-        where = where_of(m.start())
+        where = where_of(start)
         line_anchor = re.fullmatch(r"L\d+(?:-L\d+)?", p.fragment or "")
         if p.query or (p.fragment and not line_anchor) or "@" in p.netloc:  # QUERY-MARK
             found.append(Finding(where, "a link with a query string, fragment "
@@ -318,12 +345,11 @@ def guard(text: str, *, root: Optional[Path] = None,
                                  "a run of nine or more digits"))
     for m in EMAIL.finditer(text):
         found.append(Finding(where_of(m.start()), "an email address"))
-    for m in PHONE.finditer(text):
-        found.append(Finding(where_of(m.start()), "something shaped like a phone number"))
-    for m in INTL_PHONE.finditer(text):
-        if 9 <= len(re.sub(r"\D", "", m.group(0))) <= 15:
-            found.append(Finding(where_of(m.start()),
-                                 "something shaped like an international phone number"))
+    for m in PHONE_RUN.finditer(scrub):
+        run = m.group(0).strip(" .-")
+        digits = len(re.sub(r"\D", "", run))
+        if 10 <= digits <= 15 and re.search(r"\D", run):  # PHONE-MARK
+            found.append(Finding(where_of(m.start()), "something shaped like a phone number"))
     for name, rx in PROTECTED:
         for m in rx.finditer(text):
             found.append(Finding(where_of(m.start()), name))
@@ -716,7 +742,7 @@ def find_message(root: Path, mid: str) -> Optional[Msg]:
 
 def content_key(h: dict, body: str) -> str:
     fields = [h.get(k, "") for k in HEADER_KEYS if k not in ("id", "from")]  # KEY-FIELDS-MARK
-    return sha8("|".join(fields + [body.strip()]))
+    return sha8("".join(f"{len(v)}:{v}" for v in fields + [body.strip()]))  # KEY-ENCODE-MARK
 
 
 def post(root: Path, me: str, h: dict, body: str) -> str:
@@ -735,7 +761,8 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
     for m in good(list_messages(root, me)):
         if content_key(m.header, m.body) == key:
             return f"not posted: identical to {m.id}, which is already there"
-    n = max([m.n for m in list_messages(root, me) if MSG_NAME.match(m.path.name)] + [0]) + 1
+    taken = {m.n for m in list_messages(root, me) if MSG_NAME.match(m.path.name)}
+    n = next((i for i in range(1, max(taken | {0}) + 2) if i not in taken), 1)  # GAP-MARK
     for _ in range(200):
         if n > MAX_MESSAGE_NUMBER:  # NUMBER-MARK
             raise Refused([f"message numbers are used up ({MAX_MESSAGE_NUMBER}); "
