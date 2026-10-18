@@ -110,6 +110,43 @@ def test_a_commercial_book_names_its_portfolios_by_the_commercial_names(tmp_path
     assert bk["kind"] == "commercial" and bk["decide"]["kind"] == "commercial"
 
 
+def test_a_combined_portfolio_is_its_parts_commercial_names_joined(tmp_path):
+    """The combined products (the other branch, merged 18 Oct 2026) in a
+    commercial book: the parts' commercial names joined by " + ", as a
+    consumer book joins its products' names, and what the workbook's
+    rewording turns the build's name into; a whole with a part it holds is
+    refused here as the build refuses it (books.INSIDE)."""
+    pairs = {"C&I + Multifamily": "C&I + Multifamily",
+             "Owner-occupied CRE + Investor CRE (non-owner-occupied)":
+                 "Owner-occupied nonfarm nonresidential + Other nonfarm nonresidential",
+             "Construction": "Construction"}
+    for shown, built in pairs.items():
+        assert KD.commercial_product(shown) == built
+        assert KD.commercial_text(built) == shown
+    for bad in ("Nonfarm nonresidential CRE + Owner-occupied CRE", "C&I + C&I", "All consumer",
+                "Credit card + C&I", "C&I +", "Owner-occupied nonfarm nonresidential", None):
+        assert KD.commercial_product(bad) is None, bad
+    over = dict(kind="commercial", parts=["Portfolio", "Measure", "Source"], compare=None, not_in_book=[])
+    bk = BK.load(write_book(tmp_path, series=commercial_rows(["C&I", "C&I + Multifamily"]), **over))
+    assert {v[0] for v in bk["decide"]["parts"].values()} == {"C&I", "C&I + Multifamily"}
+    with pytest.raises(BK.BookError, match="or two or more of them joined by ' \\+ ', not "
+                                           "'Nonfarm nonresidential CRE \\+ Investor CRE"):
+        BK.load(write_book(tmp_path, series=commercial_rows(
+            ["Nonfarm nonresidential CRE + Investor CRE (non-owner-occupied)"]), **over))
+
+
+def test_the_glossary_says_what_a_combined_portfolio_is_without_consumer_words():
+    from threshold_engine import glossary as G
+    term = {t: (m, c) for t, m, c in G.terms_for(KD.KINDS["commercial"])}["Combined product"]
+    said = KD.commercial_text(" ".join(term))
+    assert "All consumer" not in said and "auto" not in said.lower() and "Combined portfolio" not in said
+    assert said.startswith("A portfolio made of others: two or more joined by ' + '.")
+    assert "Nonfarm nonresidential CRE may not be joined with Owner-occupied CRE or Investor CRE" in said
+    assert G.COMBINED_CHANGES in " ".join(term)
+    consumer = {t: (m, c) for t, m, c in G.terms_for(KD.KINDS["consumer"])}["Combined product"]
+    assert "All consumer" in consumer[0] and G.COMBINED_CHANGES in consumer[1]
+
+
 def test_a_commercial_book_has_no_internal_or_loan_classes_section(tmp_path):
     over = dict(kind="commercial", parts=["Portfolio", "Measure", "Source"], compare=None, not_in_book=[],
                 series=commercial_rows(["C&I"]))

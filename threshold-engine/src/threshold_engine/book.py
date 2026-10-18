@@ -353,10 +353,14 @@ def load(path) -> dict:
         series.append((label, resolve(r["file"])))
         decide_parts[label] = vals
     if raw["kind"] == "commercial":
+        # A combined portfolio is its parts' commercial names joined by " + "
+        # (kinds.commercial_product), as a consumer book names its combined
+        # products by their parts' names.
         shown = list(KD.COMMERCIAL_NAMES.values())
-        odd = sorted({v[0] for v in decide_parts.values()} - set(shown))
+        odd = sorted(x for x in {v[0] for v in decide_parts.values()} if KD.commercial_product(x) is None)
         if odd:
-            problems.append("a commercial book names its %ss by the commercial names (%s), not %s"
+            problems.append("a commercial book names its %ss by the commercial names (%s), or two or more of "
+                            "them joined by ' + ', not %s"
                             % (parts[0].lower(), ", ".join(shown), ", ".join(repr(x) for x in odd)))
     absent = raw["not_in_book"]
     if not isinstance(absent, list):

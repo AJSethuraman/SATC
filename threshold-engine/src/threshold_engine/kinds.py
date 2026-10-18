@@ -79,6 +79,28 @@ CALL_REPORT = (
 )
 
 
+def commercial_product(shown) -> Optional[str]:
+    """The peers build's product for a commercial book's portfolio name
+    (``COMMERCIAL_NAMES``), or for commercial names joined by " + ", a
+    combined portfolio (``peers.books.members``: its parts' names joined the
+    same way, as the consumer book names "Credit card + Other consumer");
+    None for any other name, or a combination the build refuses (a whole
+    with a part it holds)."""
+    from .peers.books import JOIN, members
+    if not isinstance(shown, str):
+        return None
+    back = {v: k for k, v in COMMERCIAL_NAMES.items()}
+    names = shown.split(JOIN)
+    if not all(n in back for n in names):
+        return None
+    product = JOIN.join(back[n] for n in names)
+    try:
+        members(product)
+    except ValueError:
+        return None
+    return product
+
+
 def kind_of(name) -> Optional[dict]:
     """The kind named, or None if ``name`` is not one of ``KINDS``."""
     return KINDS.get(name) if isinstance(name, str) else None

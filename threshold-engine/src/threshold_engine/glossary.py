@@ -8,6 +8,23 @@ definition.
 """
 
 # (term, what it means, how it is calculated)
+#: Said of a combined product under every kind (the merge of 18 Oct 2026,
+#: a rule the firm can overrule): it follows its parts' reporting changes
+#: and events.
+COMBINED_CHANGES = ("A reporting change or event named for any of its parts is labeled on it, and a change named "
+                    "for any part can keep it going (see Continues across).")
+#: The Combined product term in a commercial book (``terms_for``): no All
+#: consumer, which is the consumer five, and no auto; the one combination
+#: refused is a whole with a part it holds (books.INSIDE). Reworded with the
+#: rest of the workbook (kinds.reword).
+COMBINED_COMMERCIAL = (
+    "A product made of others: two or more joined by ' + '. Nonfarm nonresidential may not be joined with "
+    "Owner-occupied nonfarm nonresidential or Other nonfarm nonresidential, which it holds.",
+    "Each bank's balances, charge-offs, recoveries and past-due amounts for the parts are added together before "
+    "the rate is taken, so the rate is dollar-weighted, and the jump, acquisition and minimum book rules are "
+    "applied to the combined book. A blank field is not filed, never 0, so a part not filed leaves the combined "
+    "book not filed in that quarter. " + COMBINED_CHANGES)
+
 TERMS = [
     ("Product",
      "The first of the three parts that name a series, such as Credit card.",
@@ -18,7 +35,7 @@ TERMS = [
      "Each bank's balances, charge-offs, recoveries and past-due amounts for the parts are added together "
      "before the rate is taken, so the rate is dollar-weighted, and the jump, acquisition and minimum book "
      "rules are applied to the combined book. Its delinquency is written only for quarters in which every "
-     "part's fields were filed (auto's begin in 2011Q1)."),
+     "part's fields were filed (auto's begin in 2011Q1). " + COMBINED_CHANGES),
     ("30+ to charge-off",
      "Of the dollars 30 to 89 days past due, 90 or more days past due and still accruing, and on nonaccrual at a "
      "quarter-end, the percent charged off (gross, before recoveries) over the next two quarters. One minus it is "
@@ -417,14 +434,15 @@ TERMS = [
      "Peers charts mark them on the pack composite."),
     ("Event",
      "Something that moved a series without being a change to the report, such as the 2020 revolving-line "
-     "drawdowns and the PPP loans in C&I. Labelled on every series it touches, in the quarters it covers.",
+     "drawdowns and the PPP loans in C&I. Labeled on every series it touches, in the quarters it covers.",
      "Listed with its source on the Reporting changes tab, under Events. Each series file the peers build "
      "writes carries an Event line for every event touching its product and measure within its quarters, "
      "shown on Sources. It is never called a reporting change, is not marked on the charts, and never keeps "
      "a series going across a gap: only a reporting change does (the firm, 17 Oct 2026)."),
     ("Continues across",
      "On Sources: quarters a series leaves out and runs across, because the jump left them out only for a move "
-     "in a quarter a reporting change names for that product and measure. An event never does.",
+     "in a quarter a reporting change names for that product and measure (for a combined product, for any of "
+     "its parts). An event never does.",
      "Those four-quarter windows are not written and never filled; the series keeps every quarter before them "
      "(the firm, 17 Oct 2026). The file names the moves and the changes. Every other reason a window "
      "is left out still starts the series after it. The workbook reads this gap and no other: the quarters "
@@ -480,5 +498,7 @@ def terms_for(kind: dict):
             continue
         if term == "Product":
             meaning = meaning.replace("such as Credit card", "such as %s" % kind["example"])
+        if term == "Combined product" and kind["word"] != "Product":
+            meaning, calc = COMBINED_COMMERCIAL
         out.append((term, meaning, calc))
     return out
