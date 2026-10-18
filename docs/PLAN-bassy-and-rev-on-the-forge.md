@@ -1188,8 +1188,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 49 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 22 deliberate breakages of guard and safety rules, 22 caught. The first run had 3 survivors; two rules were partly redundant with others (phone numbers and the vault key were also caught by the digit-run and file-extension rules) and one test never isolated its rule. The tests were tightened to check the reason for each refusal, and the check was rerun |
+| Tests | 57 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 28 deliberate breakages of guard and safety rules, 28 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1227,4 +1227,28 @@ words" list (4.5), I ask by pop-up in this session, with both outcomes and my
 recommendation. The owner's answer is the approval and is recorded with its
 date. For things Rev carries, she posts a message quoting the owner's words and
 naming the item; I act on it only if it is reversible and inside the arrangement.
+
+### 15.1 Rev's review of PR 458, and what it found
+
+Rev read the code (static review, nothing executed) and reported two problems,
+both real, both of which my tests and mutation check had missed because I had
+only tested the rules I thought of:
+
+1. **Values were echoed back.** An unknown header key was printed inside an error,
+   and an unexpected file's name was shown as its id, contrary to the rule that
+   a refusal never repeats a value. I reproduced it, and found a third path she
+   did not name: the names of leftover hidden files. **Fixed:** keys are never
+   named, an unexpected file is shown as `unexpected-` plus a fingerprint of its
+   name, hidden files are named only when they are the script's own temporary or
+   reservation files, and `ack` no longer repeats its argument.
+2. **A side could withdraw the other's message.** The withdrawal check confirmed
+   the target existed but not that the poster wrote it, so Rev could close my
+   owner item or cancel my assent, and the reverse. **Fixed twice:** refused at
+   posting unless the message is the poster's own, and when reading, a withdrawal
+   counts only if its author wrote the target (so a hand-saved file cannot do
+   it).
+
+Reproduced before fixing, covered by new tests after, and each fix has a
+mutation test. Her point that the passing suite did not establish those paths
+was correct.
 
