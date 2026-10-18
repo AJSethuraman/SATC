@@ -94,6 +94,9 @@ What differs, and what was checked as the cause:
    the as-filed worst since 2014 (0.901%, 2025Q2) is one of the windows the
    jump leaves out. **This is a decision for the firm**: the jump rule
    reading a reporting change as a book move. Nothing was changed.
+   *Update, 17 Oct 2026:* answered (question 16). The series continues
+   across those windows: 2024Q4 to 2025Q4 are declared left out and the
+   history before them is kept (LOG.md, 17 Oct 2026, question 16).
 4. **KeyBank construction and multifamily charge-offs, pro forma.** Each
    includes the banks KeyBank absorbed (First Niagara Bank, certificate 16004 by the FDIC's
    institutions record, absorbed 2016Q4, and the others the Data tab names), so the 2010 peaks

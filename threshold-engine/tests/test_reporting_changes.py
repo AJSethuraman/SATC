@@ -220,6 +220,8 @@ def test_the_registry_holds_the_2020_drawdowns_and_ppp_as_events_on_ci():
     assert "$482.2 billion" in EVENTS[1]["what_changed"] and "not checked" in EVENTS[1]["what_changed"]
     assert all(e["what_changed"].startswith("Not a change to the report") for e in EVENTS)
     assert not {e["name"] for e in EVENTS} & {c["name"] for c in CHANGES}
+    assert sorted(RC.labelled_quarters(EVENTS, "C&I", "nonaccrual")) == RC.quarters("2020Q1", "2021Q4")
+    assert RC.labelled_quarters(EVENTS, "Credit card", "nonaccrual") == set()
     assert "question 15, still open" not in RC.what(REGISTRY)
 
 
@@ -567,7 +569,7 @@ def test_the_book_writes_the_reporting_changes_tab(tmp_path):
     assert ws.cell(8 + n, 2).value == RC.EVENTS_HEADING and ws.cell(9 + n, 2).value == RC.HEADINGS[0]
     assert [ws.cell(10 + n + k, 2).value for k in range(3)] == [
         "Revolving-line drawdowns", "Paycheck Protection Program loans", None]
-    assert "Event" in terms
+    assert {"Event", "Continues across"} <= terms
 
 
 def test_a_book_without_a_registry_has_no_tab(tmp_path):

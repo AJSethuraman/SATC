@@ -374,6 +374,13 @@ TERMS = [
      "writes carries an Event line for every event touching its product and measure within its quarters, "
      "shown on Sources. It is never called a reporting change and is not marked on the charts (the firm, "
      "17 Oct 2026)."),
+    ("Continues across",
+     "On Sources: quarters a series leaves out and runs across, because the jump left them out only for a move "
+     "in a quarter a reporting change or an event names for that product and measure.",
+     "Those four-quarter windows are not written and never filled; the series keeps every quarter before them "
+     "(the firm, 17 Oct 2026). The file names the moves and the changes or events. Every other reason a window "
+     "is left out still starts the series after it. The workbook reads this gap and no other: the quarters "
+     "stay on Data, blank, in no line, and a year is still four quarters."),
     ("Reporting changes",
      "The tab listing every reporting change this workbook labels, one row each.",
      "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "

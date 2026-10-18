@@ -70,7 +70,7 @@ import sys
 from .backtest import backtest, report as backtest_report
 from .evidence import evidence, report as evidence_report
 from .profile import profile, report
-from .series import SeriesError, read_csv
+from .series import SeriesError, check as _check_series, read_csv, read_left_out
 # The bodies of `peers pull` and `peers build` live in peers/run.py, which the
 # window calls too, so the two cannot drift. These names stay for the tests.
 from .peers.run import series_note as _series_note  # noqa: F401
@@ -395,6 +395,12 @@ def _template(a):
 _read = read_csv
 
 
+def _calendar(path):
+    """A series file's calendar for the synthesis: its points, with each
+    quarter the file declares left out as a value of None (series.check)."""
+    return _check_series(read_csv(path), "quarterly", read_left_out(path))
+
+
 # ---------------------------------------------------------------- internal
 
 def _internal_parser(sub):
@@ -556,8 +562,8 @@ def main(argv=None):
                     return _refused("--peer takes NAME=FILE, not %r" % item)
                 if name in peers:
                     return _refused("--peer names %s twice; each peer once" % name)
-                peers[name] = read_csv(path)
-            r = synthesize(read_csv(a.internal), read_csv(a.industry), read_csv(a.filed) if a.filed else None,
+                peers[name] = _calendar(path)
+            r = synthesize(_calendar(a.internal), _calendar(a.industry), _calendar(a.filed) if a.filed else None,
                            peers, direction=a.direction, halfwidth=a.moderate_halfwidth, low_step=a.low_step,
                            high_z=a.high_z, floor_at_zero=a.floor_at_zero, on_the_line=a.on_the_line,
                            translation=a.translation, peer_percentiles=a.peer_percentiles, leads=a.leads)
@@ -574,7 +580,8 @@ def main(argv=None):
         return 0
     if a.command == "profile":
         try:
-            pr = profile(_read(a.csv), a.name, a.unit, a.direction, a.frequency, a.smoothing)
+            pr = profile(_read(a.csv), a.name, a.unit, a.direction, a.frequency, a.smoothing,
+                         left_out=read_left_out(a.csv))
         except (SeriesError, ValueError, OSError) as exc:
             return _refused(exc)
         print(json.dumps(pr, indent=2) if a.json else report(pr))
@@ -603,7 +610,7 @@ def main(argv=None):
         try:
             r = backtest(_read(a.csv), a.name, a.unit, a.direction, a.frequency,
                          a.smoothing, a.percentiles, a.horizon, a.min_history,
-                         a.floor_at_zero, a.half_lives)
+                         a.floor_at_zero, a.half_lives, left_out=read_left_out(a.csv))
         except (SeriesError, ValueError, OSError) as exc:
             return _refused(exc)
         print(json.dumps(r, indent=2) if a.json else backtest_report(r))
@@ -612,7 +619,7 @@ def main(argv=None):
         ev = evidence(_read(a.csv), a.name, a.unit, a.direction, a.frequency, a.smoothing,
                       dict(halfwidth=a.moderate_halfwidth, low_step=a.low_step,
                            high_z=a.high_z, on_the_line=a.on_the_line),
-                      a.floor_at_zero, a.half_lives)
+                      a.floor_at_zero, a.half_lives, left_out=read_left_out(a.csv))
     except (SeriesError, ValueError, OSError) as exc:
         return _refused(exc)
     print(json.dumps(ev, indent=2, default=str) if a.json else evidence_report(ev))

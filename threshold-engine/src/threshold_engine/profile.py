@@ -20,6 +20,12 @@ and draw their own conclusion:
 Percentiles interpolate linearly between ranked observations, the method of
 Excel's PERCENTILE.INC. "Worse" follows the measure's direction: higher for a
 loss rate, lower for a credit score.
+
+Quarters a file declares left out (``series.check``'s ``left_out``) are in no
+figure: not in a percentile or a count, and a spell is never carried across
+them (it ends where they begin, and one starting just after them is not
+known to be complete). The change over the last year is against the quarter
+a year before on the calendar, and none when that quarter is left out.
 """
 from __future__ import annotations
 
@@ -43,7 +49,8 @@ def percentile(values: Sequence[float], p: float) -> float:
 def _spells(work: Sequence[Point], level: float, inclusive: bool) -> List[tuple]:
     """(first, last) index of each unbroken stretch worse than level, or at or
     worse than it when ``inclusive``."""
-    worse = (lambda x: x >= level) if inclusive else (lambda x: x > level)
+    worse = ((lambda x: x is not None and x >= level) if inclusive
+             else (lambda x: x is not None and x > level))
     out, i = [], 0
     while i < len(work):
         if worse(work[i].value):
@@ -58,16 +65,21 @@ def _spells(work: Sequence[Point], level: float, inclusive: bool) -> List[tuple]
 
 
 def profile(points: Sequence[Point], name: str, unit: str, direction: str,
-            frequency: str, smoothing: int) -> dict:
+            frequency: str, smoothing: int, left_out: Sequence[str] = ()) -> dict:
+    """``left_out``: the quarter-end dates the file declares left out
+    (``series.read_left_out``), none when not given."""
     if direction not in ("higher_is_worse", "lower_is_worse"):
         raise ValueError("direction must be higher_is_worse or lower_is_worse")
-    checked = check(points, frequency)
-    series = smooth(checked, smoothing)
+    checked = check(points, frequency, left_out)
+    calendar = smooth(checked, smoothing)
     sign = 1.0 if direction == "higher_is_worse" else -1.0
-    work = [Point(p.date, sign * p.value) for p in series]
+    cal = [Point(p.date, None if p.value is None else sign * p.value) for p in calendar]
+    series = [p for p in calendar if p.value is not None]
+    work = [p for p in cal if p.value is not None]
     vals = [p.value for p in series]
     per_year = 12 // STEP_MONTHS[frequency]
     n = len(series)
+    N = len(cal)
 
     def real(x):                       # back from "higher is worse" space
         return sign * x
@@ -85,21 +97,25 @@ def profile(points: Sequence[Point], name: str, unit: str, direction: str,
 
     median_w = sign * dist["p50"]
     spells = []
-    for a, b in _spells(work, median_w, inclusive=False):
-        k = max(range(a, b + 1), key=lambda i: work[i].value)
-        end = work[b + 1].date if b + 1 < n else None
+    for a, b in _spells(cal, median_w, inclusive=False):
+        k = max(range(a, b + 1), key=lambda i: cal[i].value)
+        end = cal[b + 1].date if b + 1 < N else None
+        cut_end = end is not None and cal[b + 1].value is None
+        cut_start = a > 0 and cal[a - 1].value is None
         spells.append({
-            "start": work[a].date, "peak_date": work[k].date,
-            "peak": real(work[k].value), "end": end,
+            "start": cal[a].date, "peak_date": cal[k].date,
+            "peak": real(cal[k].value), "end": end,
             "periods": b - a + 1,
             "periods_to_peak": k - a + 1,
             "periods_peak_to_end": (b + 1 - k) if end else None,
-            "peak_minus_median": abs(work[k].value - median_w),
-            "peak_over_median": (real(work[k].value) / dist["p50"]
+            "peak_minus_median": abs(cal[k].value - median_w),
+            "peak_over_median": (real(cal[k].value) / dist["p50"]
                                  if dist["p50"] else None),
-            "complete": end is not None and a > 0,
+            "complete": end is not None and a > 0 and not cut_end and not cut_start,
             "note": ("under way at the first observation" if a == 0 else
                      "still under way at the last observation" if end is None
+                     else "ends where quarters are left out" if cut_end
+                     else "begins just after quarters left out" if cut_start
                      else ""),
         })
     by_peak = sorted(range(len(spells)), key=lambda i: -sign * spells[i]["peak"])
@@ -109,14 +125,14 @@ def profile(points: Sequence[Point], name: str, unit: str, direction: str,
     exceed = []
     for p in UPPER:
         lvl_w = sign * dist["p%d" % p]
-        runs = _spells(work, lvl_w, inclusive=True)
+        runs = _spells(cal, lvl_w, inclusive=True)
         hit = sum(1 for x in work if x.value >= lvl_w)
         longest = max(runs, key=lambda r: r[1] - r[0], default=None)
         exceed.append({
             "level": "p%d" % p, "value": dist["p%d" % p],
             "share_at_or_worse": hit / n, "spells_worse": len(runs),
             "longest": (None if longest is None else
-                        (work[longest[0]].date, work[longest[1]].date,
+                        (cal[longest[0]].date, cal[longest[1]].date,
                          longest[1] - longest[0] + 1)),
             "years": sorted({x.date[:4] for x in work if x.value >= lvl_w}),
         })
@@ -135,23 +151,28 @@ def profile(points: Sequence[Point], name: str, unit: str, direction: str,
     last = series[-1]
     last_w = sign * last.value
     rank = sum(1 for x in work if x.value <= last_w) / n
-    year_ago = series[-1 - per_year].value if n > per_year else None
+    # A year before on the calendar; none when that quarter is left out.
+    year_ago = calendar[-1 - per_year].value if N > per_year else None
     # Step back over the unbroken run at or worse than the latest value, then
-    # find the last time before that run that history was this bad.
-    i = n - 1
-    while i - 1 >= 0 and work[i - 1].value >= last_w:
+    # find the last time before that run that history was this bad. Quarters
+    # left out end the run: nothing is known about them.
+    i = N - 1
+    while i - 1 >= 0 and cal[i - 1].value is not None and cal[i - 1].value >= last_w:
         i -= 1
-    prior = [p for p in work[:i] if p.value >= last_w]
+    prior = [p for p in cal[:i] if p.value is not None and p.value >= last_w]
     latest = {"date": last.date, "value": last.value,
               "share_of_history_no_worse": rank,
               "change_over_year": None if year_ago is None else last.value - year_ago,
-              "run_at_or_worse_since": work[i].date,
+              "run_at_or_worse_since": cal[i].date,
               "last_this_bad_before": prior[-1].date if prior else None}
 
+    coverage = {"first": checked[0].date, "last": checked[-1].date,
+                "observations": sum(1 for p in checked if p.value is not None), "after_smoothing": n}
+    if left_out:
+        coverage["left_out"] = sorted(left_out)
     return {"measure": {"name": name, "unit": unit, "direction": direction,
                         "frequency": frequency, "smoothing": smoothing},
-            "coverage": {"first": checked[0].date, "last": checked[-1].date,
-                         "observations": len(checked), "after_smoothing": n},
+            "coverage": coverage,
             "distribution": dict(dist, mean=mean, sd=sd,
                                  best=(best.date, real(best.value)),
                                  worst=(worst.date, real(worst.value))),

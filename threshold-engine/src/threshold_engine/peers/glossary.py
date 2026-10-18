@@ -140,7 +140,9 @@ PEER_TERMS = [
     ("Left out: before a gap (series files)",
      "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
      "A series file is written from the first quarter after its last gap; its note names the quarters left "
-     "out before and after."),
+     "out before and after. One gap does not break it: windows the jump left out only for a move in a quarter "
+     "a reporting change or an event names for the product and measure. The file runs across them, declares "
+     "them on its Continues across line and never fills them (the firm, 17 Oct 2026)."),
     ("Composite",
      "The pack's rate as if its banks were one bank: every dollar counts once, so a large book weighs more "
      "than a small one.",

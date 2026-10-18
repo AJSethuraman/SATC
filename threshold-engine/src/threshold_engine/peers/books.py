@@ -468,7 +468,7 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
               members: Sequence[Tuple[str, str]] = (), stated: Iterable[str] = ()) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
-    avg_balance, kept, why}``.
+    avg_balance, kept, why, jumped, why_without_jump}``.
 
     ``jump`` is the largest quarter-on-quarter balance move (0.25 = 25%) that
     is still credit rather than a merger, sale or reclassification;
@@ -500,6 +500,15 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
     recorded ones, with its own reason (``WHY_STATED``), since no share of
     the book was measured. Data, like ``members``: none when not given.
 
+    ``jumped`` names the quarters (``YYYYQn``, i-4 to i) whose move tripped
+    the jump, when the jump is the reason; else it is empty.
+    ``why_without_jump`` is the reason the window would have if those moves
+    had not tripped it (None: it would be kept), so a caller can tell a
+    window left out only by the jump (the firm, 17 Oct 2026, question 16:
+    a move in a quarter a reporting change or an event names does not break
+    the series written; ``peers.run.unbroken_tail``). For a window the jump
+    does not leave out it is ``why`` itself.
+
     ``members`` (``combination``) are the banks it absorbed, added to its own
     figures quarter by quarter (``combined_flows``): pro forma. With none,
     the book is the bank's own filings alone."""
@@ -527,22 +536,24 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
         complete = unbroken and all(flows[k][1] is not None for k in win)
         g = sum(flows[k][1] for k in win) if complete else None
         rc = sum(flows[k][2] for k in win) if complete else None
+        jumped = []
         if not unbroken:
             why = WHY_MISSING
         elif any(blank[k] for k in range(max(0, i - 5), i + 1)):
             why = WHY_NOT_FILED
-        elif any(moved[k] for k in range(i - 4, i + 1)):
-            why = WHY_JUMP
-        elif any(bought[k] for k in range(i - 3, i + 1)):
-            why = WHY_ACQUIRED
-        elif any(told[k] for k in range(i - 3, i + 1)):
-            why = WHY_STATED
-        elif not ((avg >= min_book or exempt_min_book) and avg > 0):
-            why = WHY_SMALL
-        elif not complete:
-            why = WHY_MISSING
         else:
-            why = None
+            jumped = [label(flows[k][0]) for k in range(i - 4, i + 1) if moved[k]]
+            if any(bought[k] for k in win):
+                rest = WHY_ACQUIRED
+            elif any(told[k] for k in win):
+                rest = WHY_STATED
+            elif not ((avg >= min_book or exempt_min_book) and avg > 0):
+                rest = WHY_SMALL
+            elif not complete:
+                rest = WHY_MISSING
+            else:
+                rest = None
+            why = WHY_JUMP if jumped else rest
         kept = why is None
         out.append({
             "quarter": label(flows[i][0]),
@@ -550,6 +561,8 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
             "net_rate": 100 * (g - rc) / avg if kept else None,
             "gross": g, "recoveries": rc, "avg_balance": avg,
             "kept": kept, "why": why,
+            "jumped": jumped if why == WHY_JUMP else [],
+            "why_without_jump": rest if why == WHY_JUMP else why,
         })
     return out
 

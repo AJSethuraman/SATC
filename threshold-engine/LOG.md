@@ -2084,3 +2084,173 @@ list):
 
 **Not done.** No review, no test, no rebuild for question 6. The early-1990s
 industry figures were not tied out to the QBP. Nothing was opened in Excel.
+
+## 17 Oct 2026, question 16: a series continues across windows left out only for a labelled change
+
+- **Question 16, 17 Oct 2026, agreed with the recommendation** on the docket
+  form (`docs/COMMERCIAL-PROPOSAL.md` on main, section 5): *"When a labeled
+  reporting change trips the 25% jump (KeyBank's C&I in 2024Q4, the NDFI
+  move), keep the series going across it instead of starting it after the
+  gap?"* The recommendation: *"KeyBank's C&I charge-off history runs 2006
+  on, with the change labeled and its windows left out. This changes how
+  every series is written, consumer included: today each starts after its
+  last left-out window."*
+- **What counts.** A bank's own window that the jump alone left out:
+  - every move that tripped it falls in a quarter that a reporting change or
+    an event names for the series' product and measure
+    (`reporting_changes.labelled_quarters`);
+  - and no other reason would have left the window out.
+
+  `bank_book` gives `jumped` and `why_without_jump` for this, and
+  `bank_delinquency` gives `jumped` and `why_avg4_without_jump`.
+  `peers.run.bridged` picks the windows. Every row's `why` is what it was
+  before; only the two new keys were added.
+- **How the series is written.** It continues across those windows. They
+  are not written and never filled. A `# left-out:` line declares them:
+  their quarters, the moves, the changes or events that name them, and that
+  the earlier history is kept. Sources shows it as "Continues across". The
+  run never begins or ends on a left-out window.
+- **What does not change.** Every other reason a window is left out still
+  starts the series after it:
+  - an acquisition, recorded or stated;
+  - the minimum book;
+  - a missing or unfiled quarter;
+  - a jump in a quarter nothing names, or one where a move that nothing
+    names trips it too.
+
+  Only a bank's own series continue across a gap: KeyBank's, and each
+  peer's own file under `banks/`. The pack composites, the medians and the
+  industry are written as before.
+- **The readers.** Each reader takes the declared gap and no other.
+  `series.check(points, frequency, left_out)` returns the calendar, with
+  None in each declared quarter. A gap the file does not declare is
+  refused, as is a declared quarter that holds a value or lies outside the
+  first and last values.
+  - Profile, evidence and backtest count only values. A year is four
+    calendar quarters. A spell, a change or a departure window never spans
+    the gap. The backtest tests a period only when the period `horizon`
+    later has a value; its `min_history` counts values.
+  - Smoothing never averages across the gap.
+  - The workbook keeps those quarters on Data, blank. The live formulas
+    already test each cell with ISNUMBER, so a year is still four rows.
+  - The synthesis reads the gap in peer and filed files. It refuses it in
+    the internal and industry series: their typical yearly move is taken
+    quarter by quarter in order.
+  - The command-line `profile`, `evidence`, `backtest` and `synthesize`
+    read it too.
+- **Proof.** `tests/test_left_out.py`, 15 tests:
+  - the reader, refusals included;
+  - the `left-out:` line round trip;
+  - smoothing;
+  - profile, spells, evidence and the backtest across a gap;
+  - `unbroken_tail` and `series_note`;
+  - KeyBank's C&I from the public filings
+    (`tests/data/peers/keybank_ci_2005.json`): before, 2 quarters
+    (2026Q1 to 2026Q2); now 2006Q1 to 2026Q2, with 2024Q4 to 2025Q4 left
+    out and declared;
+  - an acquisition, a stated acquisition, the minimum book, and the same
+    move in a quarter nothing names, each still breaking the series;
+  - the delinquency average (2024Q4 to 2025Q2 left out);
+  - a full `peers build` and the workbook built from it, with those quarters
+    blank on Data;
+  - a consumer series: a card book up 60% in 2010Q1 (FAS 166 and 167,
+    labelled for credit card) continues; a 40% jump in 2014Q1, which
+    nothing names, still starts the series after it.
+
+  **Checked by mutation:** each test was run against a deliberately broken
+  copy of the code, then the code was put back.
+  - When `bridged` also took windows with another reason, the acquisition
+    test failed.
+  - When the backtest's `min_history` counted calendar quarters, the
+    backtest history test failed. That test was added here because the
+    interrupted run's tests did not catch the mutation.
+- **Where this came from.** The interrupted run's code, carried in the
+  partial commit ae64d732, reviewed and kept. Changed here:
+  - a paragraph `peers.run.build`'s docstring said twice was removed;
+  - the backtest history test was added;
+  - one existing test was updated, as described under Results.
+- **Run on the real cache** (`scratchpad/cache-commercial`, public FDIC
+  data, not in the repository). The commercial example book's settings
+  from 2005Q1 to 2026Q2, with the merger record since 2005 and
+  `config/stated-acquisitions.json`. It ran at this commit's code and took
+  11 min 47 s.
+  - **Denominator.** 15 of the 470 series files written (290, plus 180
+    peers' own under `banks/`) continue across a gap. None of the pack
+    composite, median or industry files does.
+  - **KeyBank**, 9 files:
+    - C&I gross and net run 2006Q1 to 2026Q2: 77 quarters, with 2024Q4 to
+      2025Q4 declared left out (NDFI and margin-loan revision);
+    - its five C&I four-quarter delinquency averages continue across
+      2024Q4 to 2025Q2;
+    - multifamily gross and net continue across 2009Q1 to 2010Q1 ("Secured
+      by real estate, clarified"). See below.
+  - **The peers' own C&I gross and net**, 6 files:
+    - Citizens, 2024Q4 to 2025Q4 (NDFI);
+    - JPMorgan, 2020Q1 to 2021Q1 (CECL, and the revolving-line drawdowns
+      event);
+    - Zions, 2020Q2 to 2021Q2 (the PPP event).
+  - These are the same 15 files the interrupted run reported on its own
+    code.
+- **A gap this opens: KeyBank's multifamily, 2009Q1.** KeyBank's own
+  filings:
+  - multifamily went from 1,007,146 to 1,539,618 (+52.9%) in 2009Q1;
+  - construction fell from 7,880,797 to 6,359,536 in the same quarter.
+
+  The registry's "Secured by real estate, clarified" entry names 2009Q1 for
+  multifamily, so the series now continues across those windows. That
+  entry's own words say the change applied to new loans only, "so the move
+  is gradual". It cannot explain a 53% step in one quarter. The cause of
+  KeyBank's move was not checked: a reclassification out of construction
+  is a reading of those two figures, not a finding.
+
+  The rule follows the firm's answer as worded: a jump in a quarter the
+  registry names for the product. The registry does not say whether an
+  entry can move a balance at all. Some cannot: "COVID-19 deferrals not
+  reported as past due" (2020Q2, eight products) changes only past-due
+  reporting. Put to the firm as a decision; nothing was changed for it.
+- **Results.** Run at this commit alone (scratch venv, Python 3.13,
+  openpyxl 3.1.5, formulas 1.3.4, pytest-xdist, 4 workers), every test
+  file in `tests/`: 1,261 passed, 5 skipped and 4 failed, in 1 h 6 min.
+  - Two failures are `test_peers_cli.py`'s
+    `test_the_regionals_pack_and_no_exemption` and
+    `test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out`, which
+    this log records as failing before this work.
+  - `test_decide.py`'s
+    `test_with_no_source_picked_a_period_left_out_sets_nothing_and_the_row_says_pick`
+    did not fail: its worker crashed while the real-cache build shared the
+    machine. Re-run alone: 1 passed.
+  - `test_peers_cli.py`'s
+    `test_each_peers_banks_file_is_its_own_book_for_that_product` failed on
+    purpose. It recomputed each peer's file with the old `unbroken_tail`,
+    and U.S. Bank's other consumer file now starts at 2007Q1. The test now
+    takes the bridge and checks each file's declared quarters, and at least
+    one file must continue across a gap. Re-run: 1 passed.
+
+  **The consumer series, in that test's data.** The data is
+  `roster_2006.json`: public FDIC filings for the 16 banks, 2006Q1 to
+  2026Q2. Measured with `bank_book`, `bridged` and `unbroken_tail`, at a
+  minimum book of $1bn, with other consumer as it is defined now (6.b +
+  6.d). 14 of the 118 charge-off files written now continue across a gap,
+  all of them other consumer, gross and net:
+  - Bank of America from 2007Q1 instead of 2026Q1 (2 to 68 values);
+  - U.S. Bank and M&T from 2007Q1 instead of 2012Q2 (57 to 73);
+  - Citizens from 2008Q4 instead of 2012Q2 (57 to 66);
+  - PNC from 2011Q1 instead of 2026Q1 (2 to 57);
+  - JPMorgan from 2018Q3 instead of 2026Q2 (1 to 27);
+  - Capital One from 2009Q2 instead of 2012Q2 (5 to 12).
+
+  The moves are the 2011Q1 auto split ("Auto loans get their own line"),
+  the NDFI revision of 2024Q4 to 2025Q2, and, for Capital One, also 2008Q1
+  ("Loans classified as trading"). KeyBank's own consumer files do not
+  change. This is not the consumer book's own build: it is the test's
+  data, at the test's minimum book.
+- **Not done.** Nothing was opened in Excel; nothing can be opened in Excel
+  here. No consumer cache is on this machine, so no real consumer build ran.
+  The consumer series are covered only by the synthetic card test above.
+  The consumer book was not rebuilt.
+
+  `threshold-engine-book` gained combined products ("All consumer", and
+  "A + B") after this branch left it. `labelled_quarters` matches a product
+  name exactly, so a combined product would never continue across a gap
+  until the registry names it. That was not checked, because that code is
+  not on this branch.

@@ -50,7 +50,7 @@ from . import VERSION
 from .evidence import evidence
 from .glossary import TERMS
 from .scale import scale as _scale
-from .series import CORE_NOTES, LABEL_RULE, check, label_ok, read_csv, read_notes, smooth
+from .series import CORE_NOTES, LABEL_RULE, check, label_ok, read_csv, read_left_out, read_notes, smooth
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
 INPUT = PatternFill("solid", fgColor="FFF2CC")
@@ -88,7 +88,8 @@ def _axis_floor(loaded, direction, halfwidth, low_step, high_z):
     lows, highs = [], []
     for s in loaded:
         vals = [p.value for p in s["points"]]
-        ref = _scale(vals, direction, halfwidth, low_step, high_z, False)
+        # The calendar, quarters left out as None, so a year is four quarters.
+        ref = _scale([p.value for p in s["calendar"]], direction, halfwidth, low_step, high_z, False)
         med, move, spread = ref["median"], ref["typical_yearly_move"] or 0.0, ref["spread_of_levels"]
         lines = []
         for hw in {halfwidth, 0.25, 1.0}:
@@ -416,12 +417,16 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     loaded = []
     for label, path in series:
         pts = read_series(Path(path))
-        ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero)
+        # Quarters the file declares left out (the peers build, where the jump
+        # left windows out only for a reporting change or an event): a gap
+        # there is read, as None, and nowhere else (series.check).
+        left = read_left_out(Path(path))
+        ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero, left_out=left)
         # Life to date (the firm, 14 Oct 2026): a series shorter than the
         # backtest needs keeps its lines; only its backtest says it was not run.
         try:
             bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
-                          horizon, min_history, floor_at_zero, half_lives)
+                          horizon, min_history, floor_at_zero, half_lives, left_out=left)
         except ValueError as exc:
             if "at least min_history" not in str(exc):
                 raise
@@ -430,13 +435,18 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # Smoothing comes before anything else, as the window says: the live
         # lines, the latest value and the score are built from the series the
         # evidence and backtest use, never from the raw file beside it.
-        used = smooth(check(pts, frequency), smoothing)
+        cal = smooth(check(pts, frequency, left), smoothing)
+        used = [p for p in cal if p.value is not None]
         by_q = {quarter(p.date): p.value for p in used}
         if len(by_q) != len(used):
             raise ValueError("%s has two observations in one quarter" % label)
-        loaded.append(dict(label=label, path=Path(path), raw=pts, points=used, ev=ev, bt=bt, by_q=by_q))
+        loaded.append(dict(label=label, path=Path(path), raw=pts, points=used, calendar=cal, ev=ev, bt=bt,
+                           by_q=by_q))
     syn_loaded = ST.load(synthesis, smoothing) if synthesis else None
-    grid = sorted(set().union(*(s["by_q"] for s in loaded)))
+    # The quarters a file declares left out stay on the calendar, blank: the
+    # live formulas measure a year as four rows.
+    grid = sorted(set().union(*(s["by_q"] for s in loaded),
+                              *({quarter(p.date) for p in s["calendar"] if p.value is None} for s in loaded)))
     # Decimals to suit the values: 3.978 (a rate) keeps three, 714.5 (a score)
     # one; three decimals on a credit score read as false precision.
     biggest = max(abs(p.value) for s in loaded for p in s["points"])
@@ -879,6 +889,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     _ref_title(srcs, "Sources", "Each series file's description lines, as written in the file. A required line "
                                 "the file does not give is marked.", 3)
     shown = {"measure": "Measure", "population": "Who is in it", "call-report": "Call Report lines",
+             "left-out": "Continues across",
              "numerator": "Numerator", "denominator": "Denominator", "basis": "Basis",
              "as-of": "As of", "source": "Source", "checked": "Checked", "prepared-by": "Prepared by",
              "prepared-on": "Prepared on", "note": "Note"}

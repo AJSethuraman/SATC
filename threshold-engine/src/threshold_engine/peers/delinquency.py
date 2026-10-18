@@ -255,7 +255,8 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
                      jump: float, min_book: float, exempt_min_book: bool, *,
                      acquired: Iterable[str], stated: Iterable[str] = ()) -> List[dict]:
     """One row per quarter-end in ``data``: ``{q, numerator, balance, rate,
-    avg4, kept, why, why_avg4}``, ``q`` labelled ``YYYYQn``.
+    avg4, kept, why, why_avg4, jumped, why_avg4_without_jump}``, ``q``
+    labelled ``YYYYQn``.
 
     ``rate`` is ``100 x numerator / balance`` from the one filing, ``kept``
     whether it was computed, and ``why`` the reason it was not (first that
@@ -279,7 +280,12 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
     FDIC record cannot see (``peers.stated``; the firm, 17 Oct 2026, question
     14): one in i-2..i blanks the average too, with its own reason, right
     after the recorded ones. Data, like ``books.bank_book``'s: none when not
-    given."""
+    given.
+
+    ``jumped`` names every quarter in i-2..i whose move tripped the jump, when
+    the jump blanked the average; ``why_avg4_without_jump`` is the reason the
+    average would be blank if those moves had not tripped it (None: it would
+    be written), as ``books.bank_book`` gives them for charge-offs."""
     _at_least("jump", jump, 0)
     if isinstance(acquired, str):
         raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
@@ -315,39 +321,40 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
                 why = None
         rate = 100 * num / bal if why is None else None
         rows.append({"q": label(q), "numerator": num, "balance": bal, "rate": rate,
-                     "avg4": None, "kept": why is None, "why": why, "why_avg4": None})
+                     "avg4": None, "kept": why is None, "why": why, "why_avg4": None,
+                     "jumped": [], "why_avg4_without_jump": None})
     rates = [r["rate"] for r in rows]
     for i, row in enumerate(rows):
         if i < 3 or not all(follows[k] for k in range(i - 2, i + 1)):
-            row["why_avg4"] = WHY_FEWER_THAN_FOUR
+            row["why_avg4"] = row["why_avg4_without_jump"] = WHY_FEWER_THAN_FOUR
             continue
-        jumped = None
+        moves = []
         for k in range(i - 2, i + 1):
             a, b = rows[k - 1]["balance"], rows[k]["balance"]
             if a is None or b is None:
                 continue
             if a > 0 and abs(b / a - 1) > jump:
-                jumped = WHY_JUMP % (rows[k]["q"], 100 * (b / a - 1))
-                break
-            if a == 0 and b > 0:
-                jumped = WHY_JUMP_FROM_ZERO % rows[k]["q"]
-                break
-        if not jumped:
-            hit = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in bought), None)
-            if hit:
-                jumped = WHY_ACQUIRED % hit
-        if not jumped:
-            said = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in told), None)
-            if said:
-                jumped = WHY_STATED % said
-        if jumped:
-            row["why_avg4"] = jumped
-            continue
+                moves.append((rows[k]["q"], WHY_JUMP % (rows[k]["q"], 100 * (b / a - 1))))
+            elif a == 0 and b > 0:
+                moves.append((rows[k]["q"], WHY_JUMP_FROM_ZERO % rows[k]["q"]))
+        rest = None
+        hit = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in bought), None)
+        said = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in told), None)
         missing = next((k for k in range(i - 3, i + 1) if rates[k] is None), None)
-        if missing is not None:
-            row["why_avg4"] = WHY_RATE_MISSING % (rows[missing]["q"], rows[missing]["why"])
-            continue
-        row["avg4"] = _avg4(rates, follows, i)
+        if hit:
+            rest = WHY_ACQUIRED % hit
+        elif said:
+            rest = WHY_STATED % said
+        elif missing is not None:
+            rest = WHY_RATE_MISSING % (rows[missing]["q"], rows[missing]["why"])
+        row["why_avg4_without_jump"] = rest
+        if moves:
+            row["why_avg4"] = moves[0][1]
+            row["jumped"] = [q for q, _ in moves]
+        elif rest:
+            row["why_avg4"] = rest
+        else:
+            row["avg4"] = _avg4(rates, follows, i)
     return rows
 
 

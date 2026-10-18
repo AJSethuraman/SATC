@@ -144,6 +144,10 @@ def synthesize(internal: Sequence[Point], industry: Sequence[Point], filed: Opti
     scale_args = (direction, halfwidth, low_step, high_z, floor_at_zero)
     internal = _quarterly(internal, "the internal series")
     industry = _quarterly(industry, "the industry series")
+    for pts, what in ((internal, "the internal series"), (industry, "the industry series")):
+        if any(p.value is None for p in pts):
+            raise ValueError("%s declares quarters left out; its typical yearly move is measured quarter by "
+                             "quarter in order, so it is refused rather than read across them" % what)
     if filed is not None:
         filed = _quarterly(filed, "KeyBank's filed series")
     peers = {name: _quarterly(pts, "peer %s" % name) for name, pts in (peers or {}).items()}

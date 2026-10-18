@@ -1287,25 +1287,38 @@ def test_the_pack_median_series_are_the_bands_median_gross_and_net(built, data):
 def test_each_peers_banks_file_is_its_own_book_for_that_product(built, data):
     """Review finding 20: every banks/ CSV, each peer, product and kind, is
     books.bank_book for that peer and that product, quarter by quarter; a
-    product with no value for a peer has no file."""
-    from threshold_engine.peers.run import slug as slug_of, unbroken_tail
+    product with no value for a peer has no file.
+
+    A peer's own file continues across windows the jump left out only for a
+    move in a quarter a reporting change or an event names for the product
+    (the firm, 17 Oct 2026, question 16): those quarters are not written,
+    and the file declares them."""
+    from threshold_engine import reporting_changes as RC
+    from threshold_engine.peers.run import bridged, slug as slug_of, unbroken_tail
+    from threshold_engine.series import read_left_out
+    changes, events = RC.load_all(ROOT / "config" / "reporting-changes.json")
     roster = R.load(ROOT / "config" / "peers.json")
-    compared = absent = 0
+    compared = absent = across = 0
     for p, slug in zip(FOUR, SLUGS):
         for b in R.peers(roster):
             rows = bank_book(data, b["cert"], p, 0.25, 1_000_000, acquired=())
             for kind in ("gross", "net"):
                 path = built["series"] / "banks" / ("%s_%s_%s.csv" % (slug, slug_of(b["short"]), kind))
-                tail, _, _ = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows])
+                marks = RC.labelled_quarters(changes + events, p, RC.charge_off_measure(kind))
+                tail, _, _ = unbroken_tail([(r["quarter"], r[kind + "_rate"]) for r in rows], bridged(rows, marks))
                 if not tail:
                     assert not path.exists(), path.name
                     absent += 1
                     continue
                 _, got = read_csv(path)
+                gaps = [quarter_end(q) for q, v in tail if v is None]
+                assert read_left_out(path) == gaps, path.name
+                across += bool(gaps)
+                tail = [(q, v) for q, v in tail if v is not None]
                 assert [d for d, _ in got] == [quarter_end(q) for q, _ in tail], path.name
                 assert [v for _, v in got] == pytest.approx([v for _, v in tail], abs=1e-12), path.name
                 compared += 1
-    assert compared > 100
+    assert compared > 100 and across > 0
 
 
 def test_a_delinquency_pack_median_is_the_band_median_on_each_basis(dq_built, dq_cache):
