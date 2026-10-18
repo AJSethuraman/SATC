@@ -248,7 +248,10 @@ Two honest limits Rev raised, which I accept:
 2. **Generated files need an owner too.** A cursor belongs to the side it
    describes. `RESUME.md` is written by the script for the side that ran it.
    `AGREED.md` is regenerated from scratch from the messages every time it is
-   asked for, so either of us may run it and no one's version is authoritative.
+   asked for, so either of us may run it and no one's version is authoritative. Two runs at
+   once converge: after writing, a run recomputes from the messages as they now
+   are and writes again if they differ, so an older snapshot cannot stay on top
+   of a newer one (4.9).
 
 **Rev's current "change nothing" rule.** Writing into `from-rev\` is a change.
 The owner has relaxed the rule for that one folder (D5, decided), to take effect
@@ -306,11 +309,16 @@ answer while the other is inactive.**
    the owner, in this terminal, and nothing was built. That phase is over.
    Messages Rev sends straight to my terminal still reach me, and that route
    still works, but it is no longer the only record.
-2. **Now that the exchange is built (the current workflow), me:** at the start of
-   every working session and after a thread ends, I run
-   `exchange.py status --as bassy`. It lists messages past my cursor, goal-checks
-   waiting for an answer, and owner items waiting. I do not rely on being
-   relayed through the owner.
+2. **Now that the exchange is built (the current workflow), me:** I run
+   `exchange.py status --as bassy` when a session starts and when something
+   prompts me: the owner, or a message from Rev arriving in my terminal. It lists
+   messages past my cursor, goal-checks waiting for an answer, and owner items
+   waiting. **I do not poll.** A post in the exchange alone is not picked up until
+   one of those happens, and nothing is scheduled: the five-minute pilot was
+   cancelled by the owner as too costly in tokens. So after Rev posts something
+   she wants picked up, she says so in my terminal in one line with message IDs
+   only (a doorbell), or the owner prompts me. A wake-up mechanism is a separate
+   proposal, not approved and not built.
 3. **Now, Rev: best effort, not a guarantee.** Rev cannot promise a
    local command at the start of every conversation or after every turn, nor a
    working folder watcher, and her session is not the same thing as a shell
@@ -556,7 +564,11 @@ The script's rules, each to be tested by breaking it on purpose:
    failed the guard does not advance it: `status` reports "R-0007 not shown, cursor
    held at R-0006" rather than quietly skipping past it as if reviewed.
 3. **Generated files are rebuilt from scratch**, never edited in place, so an
-   interruption leaves the old version or the new one, not a mix.
+   interruption leaves the old version or the new one, not a mix. Each write uses
+   its own uniquely named temporary file, and **concurrent runs converge**: a
+   replace is atomic but does not stop a run that scanned earlier from finishing
+   later, so every run recomputes after its own write and writes again if the
+   messages changed meanwhile.
 4. **Reading never changes anything.** A command described as read-only does not
    secretly move files. Rev noted that moving a file to a quarantine folder is a
    change; so there is no quarantine folder. A failed file stays where it is and
@@ -1201,8 +1213,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 57 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 28 deliberate breakages of guard and safety rules, 28 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 60 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 30 deliberate breakages of guard and safety rules, 30 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1266,3 +1278,13 @@ Reproduced before fixing, covered by new tests after, and each fix has a
 mutation test. Her point that the passing suite did not establish those paths
 was correct.
 
+A third finding came from Codex and Rev's reading of PR 458 after that:
+
+3. **A stale regeneration could win.** `agreed --write` computed the mutual-
+   positions file and then replaced it, with no check that the messages were
+   unchanged, and every write shared one temporary filename. A run that scanned
+   earlier could finish later and put an older snapshot over a newer one.
+   **Fixed:** every run recomputes after its own write and rewrites until the
+   file matches the messages, so concurrent runs converge, and each write has its
+   own temporary name. A test simulates a newer assent arriving mid-write; two
+   new mutations cover the fix.
