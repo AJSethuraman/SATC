@@ -90,6 +90,63 @@ PRODUCTS = {**CONSUMER, **COMMERCIAL}
 #: product's. The consumer fields keep the earlier build's reading.
 NOT_FILED = frozenset(f for names in COMMERCIAL.values() for n in names for f in n.split("+"))
 
+#: A combined product: ``ALL`` (the consumer five) or two or more of them
+#: joined by ``JOIN`` ("Credit card + Other consumer"). Its balance,
+#: charge-offs and recoveries are its parts' filed fields added together
+#: before any rate is taken, so its rate is dollar-weighted and every rule
+#: (the jump, acquisitions, pro forma, the minimum book) runs on the combined
+#: book (the analyst, 17 Oct 2026: "can we do a composite of all loans as a
+#: top line to select from? ... maybe i want to see unsecured loans + credit
+#: cards or something").
+ALL = "All consumer"
+JOIN = " + "
+#: A product whose filed fields already hold other products' (the two nonfarm
+#: nonresidential splits are inside Nonfarm nonresidential): a combination
+#: holding both would count the split twice, so it is refused (Codex on
+#: #442, 18 Oct 2026).
+INSIDE = {"Nonfarm nonresidential": ("Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential")}
+
+
+def members(product) -> List[str]:
+    """The products ``product`` is made of: itself, the consumer five
+    (``CONSUMER``) for ``ALL``, or the names joined by ``JOIN``. Anything else
+    is refused."""
+    if isinstance(product, str):
+        if product in PRODUCTS:
+            return [product]
+        if product == ALL:
+            return list(CONSUMER)
+        names = product.split(JOIN)
+        if len(names) >= 2 and len(set(names)) == len(names) and all(n in PRODUCTS for n in names):
+            for whole, parts_ in INSIDE.items():
+                inside = [n for n in names if n in parts_]
+                if whole in names and inside:
+                    raise ValueError("%r already holds %s, so a combination may not hold both: %r would count "
+                                     "%s twice" % (whole, " and ".join(parts_), product, ", ".join(inside)))
+            return names
+    raise ValueError("product must be one of %s, %r, or two or more of them joined by %r, not %r"
+                     % (", ".join(PRODUCTS), ALL, JOIN, product))
+
+
+def is_product(product) -> bool:
+    """True for a product ``members`` reads, combined or not."""
+    try:
+        members(product)
+    except ValueError:
+        return False
+    return True
+
+
+def definitions(product) -> List[str]:
+    """What a product's notes must say about its definition: for a combined
+    product, what it adds together, then each part's own definition."""
+    names = members(product)
+    said = [] if product in PRODUCTS else [
+        "%s: %s added together, balances, charge-offs and recoveries field by field, before the rate is "
+        "taken, so the rate is dollar-weighted and the jump, acquisition and minimum book rules are applied "
+        "to the combined book." % (product, ", ".join(names))]
+    return said + [DEFINITIONS[n] for n in names if n in DEFINITIONS]
+
 #: What a product's series notes must say about its definition. Stated in
 #: every file built for the product, so the Sources tab carries it.
 DEFINITIONS = {
@@ -117,7 +174,7 @@ _SPLIT = ("{what} is RC-C {item} ({field}), first filed 2007Q1: before it every 
           "nonfarm nonresidential loans filed both parts of the split as 0 ($20.1bn to $27.0bn of those loans; "
           "the FDIC's definition of LNRENROW: before March 2008 a memoranda item for filers that met specific "
           "criteria); from 2008Q1 none did. The industry series counts them as filed, so in 2007, and in its "
-          "four-quarter windows holding a 2007 quarter (through 2008Q3), it leaves those loans out: labelled, "
+          "four-quarter windows holding a 2007 quarter (through 2008Q3), it leaves those loans out: labeled, "
           "not dropped. Savings institutions filing the TFR (CALLFORM 100) never filed the split (838 filers, "
           "$64.1bn of nonfarm nonresidential loans at 2007Q1; the FDIC: \"not available for TFR Reporters\"): "
           "blank for 655 filers at 2011Q4 and 17 from 2012Q1.")
@@ -238,9 +295,10 @@ def raw_fields(names: Iterable[str]) -> List[str]:
 
 
 def _fields(product: str) -> Tuple[str, str, str]:
-    if product not in PRODUCTS:
-        raise ValueError("product must be one of %s, not %r" % (sorted(PRODUCTS), product))
-    return PRODUCTS[product]
+    """(balance, gross charge-offs, recoveries) fields; a combined product's
+    are its parts' joined by "+" (``members``)."""
+    names = members(product)
+    return tuple("+".join(PRODUCTS[n][k] for n in names) for k in range(3))
 
 
 def _num(row: dict, field: str) -> float:

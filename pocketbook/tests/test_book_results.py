@@ -153,7 +153,7 @@ def test_paid_cost_kept_follows_the_lines_on_control(tmp_path):
     assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert tabs.heads(ws, head, results.C_BAND, results.C_TOG) == [
-        "Band", "Segment", "Loans", "Booked", "GCOs", "RANR", "RANR ÷ Booked", "Avg line", "Line × book", "Gap pts",
+        "Band", "Segment", "Loans", "Booked", "Avg line", "Line × book", "GCOs", "RANR", "RANR ÷ Booked", "Gap pts",
         "Dollars", "Rest", "× rest of band", "Dollars", "Rest", "Gap pts", "Dollars", "Rest", "Together"]
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
         "RANR + GCOs · gap vs rest of band", "GCOs · × rest of band", "RANR · gap vs rest of band"]
@@ -355,7 +355,7 @@ def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
     check = tabs.record(_tab(b, "Record"))
     assert check["Materiality line: GCOs ($)"] == "100,000 GCO_AMT dollars"
     assert check["Materiality line: RANR"] == (
-        "a shortfall of 100,000 RANR_AMT dollars: the same dollar line as GCO (Control's materiality answer)")
+        "a shortfall of 100,000 RANR_AMT dollars, the same dollar line as GCO (the materiality answer on Control)")
     assert "GCO amount" in check["Materiality line: Bad loans"]
     assert check["Smallest excess loss worth reporting"] == "$100,000 of GCO"
 

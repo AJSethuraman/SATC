@@ -25,7 +25,8 @@ collects/retains client info, and provides small services around Drake.
 | `threshold-engine/` | Candidate risk-rating cutoffs from any continuous signal (a charge-off rate, WAPD, a score): finds the normal level and the stress episodes, tests whether the worst is an outlier, proposes the bounds a separate scoring file uses. Every setting is required and none has a default; it refuses rather than fill a gap. Public data only in the repository — internal metrics are run on site. Design: the *Consumer Risk Thresholds: Design Proposal* doc, section 3a | Python, stdlib only | `cd threshold-engine && python -m pytest -q` (783, ~28 min; the workbook tests need `formulas`). Front door: `threshold-engine workbook OUT.xlsx --series ...` (every product, live lines in Excel) or the window `Thresholds.pyw`; peers (charge-offs, delinquency and nonaccrual) from public FDIC data with `peers pull` / `peers build` or the window's Peers step; `template` for internal data run on site; also `profile`, `evidence`, `backtest`. Start with `threshold-engine/docs/WHAT-IT-DOES.md` |
 | `docs/` | Specs and research that govern the above — including `prd-interview-and-field-registry.md`, which the interview is built to | Markdown | — |
 
-**The repo also holds twelve credit and macro analytics projects** —
+**The repo also holds thirteen credit and macro analytics projects** —
+`loan-survival/` *(Kaplan-Meier "did underwriting get better?"; handed over 16 Oct 2026, GUI built; log in `BACKLOG.md` §6e)*,
 `credit-review-os/`, `portfolio-analysis-pack/` *(v1 built 18–19 Sep 2026; its
 PRD is the spec and `BACKLOG.md` §6c the log)*, `pocketbook/` *(PocketBook,
 `origination-cube/` until 27 Sep 2026: where the book bleeds, pockets against

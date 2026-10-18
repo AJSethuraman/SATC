@@ -121,8 +121,7 @@ After that, the whole routine is:
      number, the outcome and a column marked *Origination date*; the booked
      amount, GCO and RANR only if the extract has them.
 
-   The box underneath says what will run, with a plain line under it for each
-   word the window uses first (GCO dollars, a grid, scouting). **Next: answer in the workbook**
+   The box underneath says what will run. **Next: answer in the workbook**
    writes the workbook beside the extract as *loans - PocketBook.xlsx*.
    Control shows these choices read-only, under *Chosen in the launcher*; to
    change one, go back to Choose tests (press it on the left) and Next again.
@@ -202,7 +201,7 @@ After that, the whole routine is:
      20 or 50 bars and a From and To, and the chart regroups live; the edges
      typed on Columns show as red dashed lines as you type them. The 10th,
      25th, 50th, 75th and 90th percentiles are listed under the block and
-     drawn as thin grey lines labelled P10 to P90 (worked out as Excel's
+     drawn as thin gray lines labeled P10 to P90 (worked out as Excel's
      PERCENTILE.INC, over the same values as the median; a percentile
      outside From and To isn't drawn). The labels under the bars are short:
      24k, 1.2M, and a score or a ratio as it is (620, 0.35). With a split,
@@ -241,7 +240,7 @@ After that, the whole routine is:
      (OC-44). The worse pockets come first, largest dollars first; the order
      is the last Run's, the verdicts and dollars are live. On the split view,
      pockets from grids that don't hold the split's partner fixed come last, in
-     grey, reading "No: may be mostly FICO".
+     gray, reading "No: may be mostly FICO".
    - **RANR vs GCOs** (*Paid, cost, kept* until 30 Sep 2026: the firm, *"I want to
      use the terms I gave you out of the box so it can be understood by
      insiders"*; a Run takes the old tab off a workbook written before): one grid
@@ -258,16 +257,17 @@ After that, the whole routine is:
      if pockets are straight negative on returns"*), right after Loans: each
      pocket's own **Booked**, **GCOs** and **RANR** dollars and its **RANR ÷
      Booked**, compared with nothing. A pocket whose RANR is
-     below zero lost money outright, before comparing it with anyone: its RANR
-     and RANR ÷ Booked are red, and the line beside the Grid dropdown counts them
-     ("6 pockets lost money outright, totalling $166,260"). Under the table,
+     below zero shows its RANR and RANR ÷ Booked in red, and the line beside the
+     Grid dropdown counts them ("6 pockets listed have RANR below zero, with
+     combined RANR of -$166,260, shown in red"). Under the table,
      **Pockets listed**, **Not listed** (pockets with nothing to compare them
      with, only when there are any) and **Whole book**, which the first two
      add up to. Booked is the booked dollars under RANR (a loan with no
      readable RANR is left out of both), so RANR ÷ Booked is RANR's own rate. Every
      figure is worked out in the Run; the dollars show in thousands only when
-     the whole book's booked would not fit the column, as on Grids. The block ends
-     on each pocket's **Avg line** and **× book**, as on Summary (2 Oct 2026), in
+     the whole book's booked would not fit the column, as on Grids. Each pocket's
+     **Avg line** and **× book** sit right after Booked, as RANR ÷ Booked sits
+     after RANR (2 Oct 2026; moved beside Booked 17 Oct 2026), in
      Loan size's one neutral hue, darker the bigger the line against the book's,
      never red or green; the totals carry them too (Whole book 1.00×).
    - **Grids:** a Grid and a Measure dropdown, and four blocks one under
@@ -289,15 +289,15 @@ After that, the whole routine is:
      Bad loans): "Of these 237 loans, 10.59% went bad", "1.38× the bad-loan
      rate of the whole book", "0.59× ... of the other loans in 496 - 653 (the
      Broker, Online loans)", "237 loans; 496 - 653 has 761 in all", and what
-     its colour means. A blank says why: alone in its band, or fewer losses than the
+     its color means. A blank says why: alone in its band, or fewer losses than the
      minimum. The sentences are fixed by measure (`results.SAY`); only the names
      and numbers change.
      A pocket with fewer loans than **Fewest loans in a pocket** on Control (the
      number the Run used, its suggestion worked out when that was picked) shows
-     its number in **grey**, with no colour, and is left out of the largest gap
+     its number in **gray**, with no color, and is left out of the largest gap
      that sets the scale for a gap in points: a 3-loan pocket at -50 points no
-     longer pales every real gap. What one cell says: "Grey: only 3 loans,
-     fewer than the 30 set on Control, so not coloured." The **vs the book**
+     longer pales every real gap. What one cell says: "Gray: only 3 loans,
+     fewer than the 30 set on Control, so not colored." The **vs the book**
      heading carries the book's own figure for the measure picked ("vs the book
      (book: 7.73%)"); vs rest of band has none, since its rest differs by row.
      **Only loans where** *(Filter by column)* **is** (the firm, 30 Sep 2026: the
@@ -310,7 +310,7 @@ After that, the whole routine is:
      note says the year comes from the Origination date column. vs
      the book stays against the **whole book** (the firm: *"we keep things
      compared to the whole book that's just kind of the point"*); vs rest of
-     band is the rest of the band among those loans; grey and the heat scale go
+     band is the rest of the band among those loans; gray and the heat scale go
      by that view's own cells, and the columns' width fits the filtered values
      too. With Filter 2 picked, a second dropdown, **and** *(Filter 2 column)*
      **is**, sits beside it: either one alone, or both for the loans with both
@@ -349,13 +349,13 @@ After that, the whole routine is:
      Every number is worked out by the Run (`engine.summary_rows`) and tied out
      to the book before it is written; the tab's formulas only pick the row.
      Nothing is tested: no p-value, no red or green, the All row shaded light
-     grey and nothing else. A column whose source the Run hasn't got is left
+     gray and nothing else. A column whose source the Run hasn't got is left
      off and the note says so. Dollars show in thousands ($1,234k) only when
      the largest would not fit the column.
-     **Grey rows under [50] loans** (the firm, 3 Oct 2026: *"make the really low
+     **Gray rows under [50] loans** (the firm, 3 Oct 2026: *"make the really low
      unit counts grayed out to a degree ... this count should be separately
      adjustable from all other config items"*), at the top of the tab (C2): every
-     row with fewer loans reads in light grey, at once, as you type another
+     row with fewer loans reads in light gray, at once, as you type another
      number. Nothing else reads it: not Control, not Fewest loans, not the cube
      file. A Run writes it back at 50.
      **Vintage**, under the table (the firm, 3 Oct 2026: *"Could the summary tab
@@ -364,11 +364,11 @@ After that, the whole routine is:
      year across the bottom. **Vintage measure** offers every Summary column;
      **Vintage row** one row of the column picked above (its list follows that
      dropdown). Three lines: that row, the rest of the book (every other loan),
-     and the whole book (dashed grey), each year's figure worked out by the Run
+     and the whole book (dashed gray), each year's figure worked out by the Run
      the way the Summary row is (`summary_chart.py`), on the loans Only loans
      where shows. A share is of that year's loans; a rate or share is drawn in
      per cent. A point on fewer loans than *Fewest loans in a pocket* is left
-     off its line and grey in the table under the chart. A loan with no
+     off its line and gray in the table under the chart. A loan with no
      readable date is on no line. With no column marked Origination date, one
      sentence says so in the chart's place. Pictures:
      `docs/summary-vintage-2026-10-03/`.
@@ -384,9 +384,9 @@ After that, the whole routine is:
      **Panels by** is the other filter, one small chart per value side by side
      on **one y scale**, or None. With a filter across the bottom the lines are
      by the other filter and one chart is drawn, and the tab says so. The
-     dashed grey line is the whole book. A point on fewer loans than *Fewest
+     dashed gray line is the whole book. A point on fewer loans than *Fewest
      loans in a pocket* on Control is **left off its line** (#N/A), and shown
-     in grey in the table under the charts, which lists every point's rate and
+     in gray in the table under the charts, which lists every point's rate and
      loans. Every number is the Run's (`engine.summaries`, the cells Summary
      shows) and the dropdowns only pick them (`compare.py`), so the charts
      redraw live; the charts are scatters with lines, since LibreOffice draws a
@@ -422,7 +422,7 @@ After that, the whole routine is:
      label column fits its longest label; **Control** and **Columns** fit
      their questions, answers, names and samples. `tests/test_widths.py`
      holds each rule.
-   - **Record** (grey tab; it merges Check and the Log): six sections in three
+   - **Record** (gray tab; it merges Check and the Log): six sections in three
      pairs, read across. *This Run*: the extract, the loans run, what was run,
      the band edges, the split, the range of origination dates (so a wrong
      extract shows on the first page) and, for a pre-spec, the file, its
@@ -493,7 +493,7 @@ such"*). Five answers on Control only judge numbers the Run has already worked
 out, so they are Excel formulas: the loss line (how much worse, how much
 better), the profit line, materiality, the confidence level, and what a pocket
 is judged against. Change one on Control and every reading, flag, dollar
-figure, "is material" and colour on the result tabs follows at once, with no
+figure, "is material" and color on the result tabs follows at once, with no
 Run. The p-values don't depend on the confidence level (the tests and both
 allowances for many tests are worked out without it), so only the bar they are
 compared with moves: one cell, `ROUND(1 - confidence, 12)`. Everything else
@@ -522,7 +522,7 @@ errors of the bar, either side, the verdict says so: *Net drain · borderline
 (p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets' Worse?,
 RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
 and tile, the Run's *Worst for* line and Record, which states the rule and
-counts them. The colour, order and counts stay the verdict's. A z test's or an
+counts them. The color, order and counts stay the verdict's. A z test's or an
 exact test's p-value is the same on every run, so Bad loans are never
 borderline. The rule, and how the allowance for many tests scales the standard
 error, are in `docs/statistics.md` B2a.
@@ -715,14 +715,14 @@ The same engine is behind a command line, which the tests use:
 `tools/shoot_launcher.py` photographs the window in each state (L1 to L5)
 on a virtual display. The window's rules live in `launcher.Flow`, which knows
 nothing of Tk, so `tests/test_launcher.py` drives every state without one. The
-colours are `house.py`'s: the bank palette, written once for the cube (a copy
+colors are `house.py`'s: the bank palette, written once for the cube (a copy
 of credit-suite's style file anywhere in the repository fails its conformance
 test).
 
 ## Checking it
 
 ```
-pytest -q                          # 1,095 tests on 4 Oct 2026 (1,081 passed and 14 skipped without tkinter, LibreOffice present); 850 on 29 Sep 2026, 115 of them needing LibreOffice (the per-file list that follows is from an earlier count of 771: 5 skip without a display; the 22 in test_live.py, 22 in test_result_tabs.py, 6 in test_answer_tabs.py, 5 in test_firm_answers_2026_09_27.py, 6 in test_confirm_test.py, 5 in test_shortlist.py, 2 in test_record.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs; New variables (each group found, confirmed and confirmed with the held-fixed columns, the test with nothing held fixed counted by hand, Holds up? and Still holds? and Material? live, excess counted by hand, the Found columns hidden for a saved shortlist, the chart's worse line), Record (six sections in three pairs, every Check line in its section, Settings shaded on a change, a refusal on Every Run at once, an older Log carried over), the pre-spec recorded not blocked (its fingerprint, each held-back run in order, a change labelled), and a new variable asked only what it uses, its worse line suggested from its own groups, its Set up building no grid; and the lean pre-spec: a shortlist of inputs read line by line, the one-column form still read and confirmed figure for figure, three inputs on the first book (two planted hold up, one with nothing planted does not), Benjamini-Hochberg across every candidate's groups worked out by hand, a verdict the allowance turns, a block and a chart per candidate, and the launcher filling its boxes from the file; and scouting: the planted inputs ranked first and proposed and nothing else, with and without the held-fixed columns, a correlated pair counted by hand, the bins on the planted cliffs and the reference holding the median, the development loans the first 70% by date counted by hand, the held-back loans proved unread (every one turned over, the same shortlist and file), the pre-spec written and logged before any held-back result and confirmed figure for figure against a hand-written one, the same file from the same extract, an edit after a held-back run kept and labelled, the strata waiting for an answer when nothing is held fixed, and scikit-learn simulated missing (finding refused in words, a saved shortlist still confirmed, the launcher offering it); and the rename to PocketBook (27 Sep 2026): a workbook, memory, launcher choices and $CUBE_MEMORY made under the old name still read; and the analyst's walk (27 Sep 2026, docs/walkthrough/2026-09-27): a pre-spec changed after a held-back run, or written by this Run, never reads "Follows the pre-spec: Yes", a Run that stopped isn't "answers needed", a failed tie-out said as one, the answers in the workbook's order, a workbook that won't open said, good news not in red, Record naming the measures as the result tabs do, and scikit-learn installed after the add-ons in one window finishing; and the firm's answers to the walk's design calls (27 Sep 2026): a launcher change waiting for a Run, no check figure that can only read fine, losing more with profit holding, Start here's largest pockets picked live, one count of answers needed, a plain line under each first term, Comes to worked out before the first Run, Look only for columns cut into bands, the odds heading saying what is held fixed, the Run's first two lines on the finished screen, and no print titles over the pre-spec; and the tree the main path (OC-51, 28 Sep 2026): a cutoff on Control splitting the loans to the day and blank until answered, the tree's AUC on the held-back loans equal to scikit-learn's own and recorded as a touch of the holdout, and every candidate together, fitted as scikit-learn fits a design built by hand from the extract, a near copy flagged beside the original and adding nothing, and separation, empty groups and thin pockets refused in words
+pytest -q                          # 1,095 tests on 4 Oct 2026 (1,081 passed and 14 skipped without tkinter, LibreOffice present); 850 on 29 Sep 2026, 115 of them needing LibreOffice (the per-file list that follows is from an earlier count of 771: 5 skip without a display; the 22 in test_live.py, 22 in test_result_tabs.py, 6 in test_answer_tabs.py, 5 in test_firm_answers_2026_09_27.py, 6 in test_confirm_test.py, 5 in test_shortlist.py, 2 in test_record.py, 2 in test_generic.py and 1 in test_run_kind.py skip without LibreOffice): one per finding, the worked examples in docs/statistics.md for every test the cube runs, every Control answer applied, the workbook route, the split, profit after losses (the firm's Tests 2 and 4), the launcher's five steps (every state, without a display), the suggested values on Control before the first Run, the tabs you fill in (Start here, Control in three blocks with Status and the materiality panel, Columns with odd values and memory, Look with live bars, range and edge lines, one load and one save per Run), the pre-spec, the add-on check, the Look tab, the origination date (every loan runs; the range on Check; old lines refused by name) and new columns, the pre-spec checks, the pocket budget, the prevalence table, the tabs' wording, a pocket alone in its band, one comparison deciding the flag, the dollars and materiality, the literal profit wording, and the judging settings live in the workbook (calculated through LibreOffice headless, tests/recalc.py, and held pocket by pocket to the engine run again with each changed setting), Set up reading each thing once (the date gates held to strptime alone over 22,750 values), and the confirmatory test: statistics.md B3 to B6 reproduced, B3 equal to the conditional score test to 1e-9, statsmodels' ConditionalLogit as literals, and the goal's run on the dated synthetic book counted by hand, and on the second book (planted another way, and a copy with no cliff that must not be confirmed), and a test of a new variable run with no booked amount, GCO or RANR while the bleed analysis still refuses one, and a test of a new variable building no grid and writing none of the bleed's tabs; New variables (each group found, confirmed and confirmed with the held-fixed columns, the test with nothing held fixed counted by hand, Holds up? and Still holds? and Material? live, excess counted by hand, the Found columns hidden for a saved shortlist, the chart's worse line), Record (six sections in three pairs, every Check line in its section, Settings shaded on a change, a refusal on Every Run at once, an older Log carried over), the pre-spec recorded not blocked (its fingerprint, each held-back run in order, a change labeled), and a new variable asked only what it uses, its worse line suggested from its own groups, its Set up building no grid; and the lean pre-spec: a shortlist of inputs read line by line, the one-column form still read and confirmed figure for figure, three inputs on the first book (two planted hold up, one with nothing planted does not), Benjamini-Hochberg across every candidate's groups worked out by hand, a verdict the allowance turns, a block and a chart per candidate, and the launcher filling its boxes from the file; and scouting: the planted inputs ranked first and proposed and nothing else, with and without the held-fixed columns, a correlated pair counted by hand, the bins on the planted cliffs and the reference holding the median, the development loans the first 70% by date counted by hand, the held-back loans proved unread (every one turned over, the same shortlist and file), the pre-spec written and logged before any held-back result and confirmed figure for figure against a hand-written one, the same file from the same extract, an edit after a held-back run kept and labeled, the strata waiting for an answer when nothing is held fixed, and scikit-learn simulated missing (finding refused in words, a saved shortlist still confirmed, the launcher offering it); and the rename to PocketBook (27 Sep 2026): a workbook, memory, launcher choices and $CUBE_MEMORY made under the old name still read; and the analyst's walk (27 Sep 2026, docs/walkthrough/2026-09-27): a pre-spec changed after a held-back run, or written by this Run, never reads "Follows the pre-spec: Yes", a Run that stopped isn't "answers needed", a failed tie-out said as one, the answers in the workbook's order, a workbook that won't open said, good news not in red, Record naming the measures as the result tabs do, and scikit-learn installed after the add-ons in one window finishing; and the firm's answers to the walk's design calls (27 Sep 2026): a launcher change waiting for a Run, no check figure that can only read fine, losing more with profit holding, Start here's largest pockets picked live, one count of answers needed, Comes to worked out before the first Run, Look only for columns cut into bands, the odds heading saying what is held fixed, the Run's first two lines on the finished screen, and no print titles over the pre-spec; and the tree the main path (OC-51, 28 Sep 2026): a cutoff on Control splitting the loans to the day and blank until answered, the tree's AUC on the held-back loans equal to scikit-learn's own and recorded as a touch of the holdout, and every candidate together, fitted as scikit-learn fits a design built by hand from the extract, a near copy flagged beside the original and adding nothing, and separation, empty groups and thin pockets refused in words
 python tools/mutation_check.py     # puts 669 bugs back (4 Oct 2026; 459 on 29 Sep 2026; the VBA's and today's rules); every one must be caught: a test must FAIL, not error or skip. --files FILE ... puts back only those files' bugs
 ```
 

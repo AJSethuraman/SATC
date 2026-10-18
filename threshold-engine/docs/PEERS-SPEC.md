@@ -265,3 +265,34 @@ open the workbook). Optionally **Peers** (cache folder, pull, build).
 Everything the window decides is in plain functions the tests call without a
 display. A smoke test opens and closes the window if a display is present, and
 skips with the reason otherwise.
+
+### `flows.py`: 30+ to charge-off (18 Oct 2026)
+
+The analyst's choice after the early-warning work (`docs/early-warning-2026-10`):
+*"looking at how much 30+ tracks with everyone else, and seems generally
+smooth i think that's our choice. 30+ nonaccrual"*. Per bank and quarter-end:
+delinquent = RC-N 30-89 + 90+ accruing + nonaccrual for the product, each as
+filed (a blank is not filed); charged off = the product's gross charge-offs in
+the two quarters after, the bank's own filings (not pro forma); the share is
+100 × charged off / delinquent, and the series in the book is its four-quarter
+average. Not kept: not filed, a blank field, no delinquent dollars, the next
+two quarter-ends missing or not filed, the balance moving more than the jump
+between q and q+2, an acquisition quarter in q+1..q+2. The pack composite is
+the kept banks' charged-off summed over their delinquent summed, needing
+`min_banks`; the industry is the same over every filer with no rule. The gaps
+(`Gap to peers on 30+ to charge-off`, `Gap to industry on 30+ to charge-off`)
+are the bank's four-quarter average less the composite's or the industry's,
+same quarter, and have no floor at zero (the book's `floor_off`). Files:
+`<product>_<who>_30-plus-to-charge-off_<basis>.csv` and
+`<product>_keybank_gap-to-<peers|industry>-on-30-plus-to-charge-off_four-quarter-average.csv`.
+The composite does not follow Banks in the pack on the Peers tab.
+
+### `large_banks.py`: the Philadelphia Fed source (18 Oct 2026)
+
+`peers large-banks-pull --cache DIR --quarter YYYYQn` fetches the quarter's
+credit card balances file (every quarter since 2012Q3 is in it) into
+`DIR/large-banks`; the book names it under `large_banks` and the build writes
+`credit-card_large-banks_share-paying-only-the-minimum_quarter-end.csv` with
+the file's name and SHA-256 in the notes. One measure so far: the share of
+active card accounts paying only the minimum, a count of accounts across the
+FR Y-14M banks ($100bn and over), so an industry reading with no KeyBank figure.

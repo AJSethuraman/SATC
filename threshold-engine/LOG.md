@@ -1802,6 +1802,96 @@ already say so in their notes. `test_reporting_changes.py` and
 `test_peers_commercial.py`: 67 passed. The new duplicate-note assertion was
 not run against the code before its fix.
 
+## 17 October 2026: combined products, All consumer and Credit card + Other consumer
+
+The analyst: *"can we do a composite of all loans as a top line to select
+from? sure, it will only represent what the entire book looks like but who
+else even looks like that? in fact it would be sort of cool to be able to
+somehow combine 2 things to look at ... maybe i want to see unsecured loans +
+credit cards or something"*.
+
+- **A combined product** is `"All consumer"` (the five) or two or more
+  products joined by `" + "` (`books.members`). Its filed fields are its
+  parts' added together before any rate is taken (`books._fields`,
+  `delinquency._fields`), so the rate is dollar-weighted and the jump,
+  acquisition, pro forma and minimum book rules run on the combined book.
+  Every series, the Peers tab, Decide and the live peer group take it as a
+  product. Only KeyBank's share by product on Peers draws the five alone: a
+  combined one would count its parts twice.
+- **The Call Report has no unsecured line.** Other consumer also holds
+  student loans and boats and RVs, so the second product is named for what
+  it is, Credit card + Other consumer. Its peer composite starts 2011Q2.
+- A combined delinquency is written only where every part's fields were
+  filed: All consumer's from 2011Q1, when auto's begin.
+- **KeyBank's own All consumer history runs unbroken from 2007Q1** (78
+  quarters, worst 1.77% at 2010Q1), the first KeyBank series in the book
+  whose history holds the crisis. At the agreed settings the lines fit: High
+  from 1.16%; 2026Q2 is 0.28% (rank 3 of 16 on Peers).
+- Book: 147 series (49 sets of lines), built in 790s. Walkthrough **2,060 of
+  2,060** reads as expected in Excel 16; slicer check PASS. The three Peers
+  notes that listed every product built now say only that none was built:
+  with seven names, two of them ran out of room.
+
+## 18 October 2026: the early-warning dimension, decided from the evidence
+
+Overnight, from the analyst's instruction of 17 October: *"go through
+everything we've been talking about. I want to be able to show why we are
+able to determine some stuff really doesn't matter in these scenarios ...
+get this super hammered out over night. Then when all of it is said and done
+for book 1 we can get book 2 a prompt."*
+
+- **The record** is `docs/early-warning-2026-10/EVIDENCE.html` (and `.pdf`):
+  the decision measure by measure, then the evidence for what was kept and
+  for what was set aside, each drawn from public data by the scripts in
+  `record/` with the data beside them. Refreshed FICO moves with 30-89 and
+  is set aside; card balances under 660 are a peer comparison, not a rating;
+  purchase volume by score, mortgage origination terms and current LTV, and
+  the roll steps on their own are set aside with the chart that decided each.
+- **Built into the book:** for credit card and other consumer, **30+ to
+  charge-off** (industry, peer group, KeyBank; `peers/flows.py`) and
+  KeyBank's **gap to peers** and **gap to industry** on it; for credit card,
+  the large banks' **share paying only the minimum** (Philadelphia Fed;
+  `peers/large_banks.py`, `peers large-banks-pull`). Mortgage stays rated on
+  nonaccrual; the analyst weights it later.
+- **A measure can have no floor at zero.** The workbook's `floor_at_zero`
+  is true of a rate and false of a gap, so the book names the measures that
+  have none under `floor_off`; a name that is not a measure of the book is
+  refused. Each series carries its own flag on Lines by source (hidden
+  column AA, "Floor at zero"), and every rating formula on Decide,
+  Thresholds and Lines by source reads it. `DESIGN-PRINCIPLES.md` §5.
+- **The industry from 1990.** `peers industry-long` writes the industry's
+  card, home equity and other consumer charge-offs over a cache that starts
+  in 1990Q1 as separate series, Source "Industry (every bank) from 1990",
+  committed under `data/industry`; the 2006 series are unchanged. Checked:
+  the six long series equal the 2006 series on every one of their 79
+  overlapping quarters (2006Q4 to 2026Q2), difference 0. Card net peaks
+  at 10.33% in 2010Q2; 1991Q4 4.58%, 2001Q4 5.39%, 2026Q2 4.01%. The
+  registry labels the 2008, 2010, 2011 and 2020 changes on them; the
+  2001 redraw of RC-C item 6 is in the product definitions, not the
+  registry, which has no cited entry for it yet.
+- **`left-out.csv`** beside the series files: every span a series left out
+  as built, with why; its SHA-256 on Run. Book 2 asked for it.
+- The book's title is now **Consumer Industry Analysis**. 164 series.
+- `docs/BOOK2-PROMPT.md` is the prompt for the agent building Book 2, with
+  the coordination note folded in.
+
+**Walkthrough:** book of 164 series built in 858s; **2,258 of 2,258** reads
+as expected in Excel 16; slicer check PASS. **Finding before green:** at
+the agreed settings (width 0.5, Moderate-Low 1.0, z 2.5) the five new
+KeyBank-only rows refuse their own lines, "High would begin beyond the
+worst quarter kept": the four gaps and the minimum-payment share have
+short, narrow histories, so the z that fits is lower (the record's
+section C shows 1.79 for the card gap and 1.56 for the minimum-payment
+share). The book does not pick a z for them; the analyst types one on
+Decide, where What fits says the range. The long industry series rate on
+their own lines (card net 4.01% is 3 Moderate against High from 6.95%).
+
+Settings the analyst has not decided, left as they were: whether the gap
+zones come from the gap's own history or sit around zero (own history as
+built); whether other consumer's lines use the whole history or from 2023
+(whole history; the 2023 step is in the chart); whether the minimum-payment
+share is rated or context (rated, as instructed).
+
 ## 17 Oct 2026, question 17: FDIC history codes 213 and 225 placed
 
 The firm answered the commercial proposal's open questions on 17 Oct 2026,

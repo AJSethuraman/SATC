@@ -52,13 +52,13 @@ groups:
           - value: bleed
             label: "Where the book bleeds"
             explains: >-
-              The grids, the split and the three-way: which pockets lose more than their share.
-              Needs the loan number, booked amount, outcome, GCO and RANR. No date.
+              Builds the grids, the split and the three-way, showing which pockets lose more than their share.
+              Requires the loan number, booked amount, outcome, GCO and RANR, but no date.
           - value: new_variable
             label: "Finding and testing a new variable"
             explains: >-
-              Whether a new column, like income over sales, tells good loans from bad on loans
-              kept back. Needs the loan number, the outcome and a column marked Origination date.
+              Tests whether a new column, such as income over sales, separates good loans from bad on held-back
+              loans. Requires the loan number, the outcome and a column marked Origination date.
 
       - key: new_variable_step
         asked_in: launcher
@@ -71,13 +71,13 @@ groups:
           - value: scout
             label: "Scout first"
             explains: >-
-              The main path: the tree ranks the ticked columns on loans before the cutoff, to write
-              the pre-spec and confirm it on the loans held back. Needs scikit-learn.
+              The main path: a random forest ranks the ticked columns on loans before the cutoff, to write the
+              pre-spec and confirm it on the loans held back. Requires scikit-learn.
           - value: prespec
             label: "Test from a pre-spec"
             explains: >-
-              Or test a shortlist saved earlier, once, on the loans it kept back. The launcher
-              names the pre-spec file.
+              Tests a shortlist saved earlier, once, on the loans it held back. The pre-spec file is chosen in
+              the launcher.
 
       # OC-51 (the firm, 27 Sep 2026: "tree guesses on 2024 data if 2022-2023 are used to build branches"): the
       # line between the loans the tree is built on and the loans it is checked on. A judgment call (OC-13): the
@@ -94,18 +94,19 @@ groups:
           - value: calc
             label: The month start nearest 70% of the loans (suggested)
             explains: >-
-              Worked out from this extract's dates: the first of the month by which about 70% of the
-              loans had been made. The tree is built on the loans before it.
+              The first of the month by which about 70% of the loans had been made, calculated from this
+              extract's dates. The forest is built on the loans before that date.
           - value: calc80
             label: The month start nearest 80% of the loans
             explains: >-
-              The same at 80%: more loans to find on, fewer held back to confirm on.
+              The same calculation at 80%, which leaves more loans for scouting and fewer held back for
+              confirmation.
 
-  - title: How columns are recognised
+  - title: How columns are recognized
     settings:
       - key: few_values
         asked_in: launcher
-        question: "Number columns: this many values or fewer is a category; more is cut into bands"
+        question: "Number columns: a column with this many distinct values or fewer is a category; one with more is cut into bands"
         takes_effect: re-run
         override: whole number of values
         valid: {min: 2, max: 100, whole: true}
@@ -125,7 +126,7 @@ groups:
 
       - key: many_values
         asked_in: launcher
-        question: "Text columns: more values than this is too many to cut by (text is never cut into bands)"
+        question: "Text columns: a column with more distinct values than this is raised as a question, not used as a segment (text is never cut into bands)"
         takes_effect: re-run
         override: whole number of values
         valid: {min: 2, max: 1000, whole: true}
@@ -134,14 +135,14 @@ groups:
             label: "50 values"
             recommended: true
             explains: >-
-              State (50 or so) is still a dimension; a city or a dealer name is
-              raised as a question instead.
+              A state column (about 50 values) is still used as a segment; a city or dealer name is raised as a
+              question instead.
           - value: 25
             label: "25 values"
             explains: Keeps grids small. Longer lists are raised as questions.
           - value: 100
             label: "100 values"
-            explains: Allows long lists as dimensions; many of their pockets will be tiny.
+            explains: Allows long lists as segments. Many of their pockets will be very small.
 
       - key: band_count
         question: How many bands a number column is cut into
@@ -152,18 +153,18 @@ groups:
           - value: 5
             label: "5 bands"
             recommended: true
-            explains: Fine enough to see a trend, with each band holding a fifth of the loans.
+            explains: Each band holds about a fifth of the loans.
           - value: 3
             label: "3 bands"
-            explains: Low, middle, high. Big pockets; a problem at the edge may be diluted.
+            explains: Low, middle and high bands, each holding about a third of the loans.
           - value: 10
             label: "10 bands"
-            explains: Shows where a rate turns, but each band is a tenth of the book.
+            explains: Each band holds about a tenth of the book.
           - value: 20
             label: "20 bands"
             explains: >-
-              Narrow bands, each a twentieth of the book. Needs a big book, or most
-              pockets will be too small to test.
+              Each band holds about a twentieth of the book. On a small book, most pockets will be too small to
+              test.
 
       - key: band_cut
         question: Where the band edges fall
@@ -173,10 +174,10 @@ groups:
           - value: equal_loans
             label: Each band holds about the same number of loans
             recommended: true
-            explains: Every band can be tested equally well. Edges land on uneven numbers.
+            explains: Edges fall on uneven values.
           - value: round
             label: The same, snapped to round numbers
-            explains: Edges on round numbers, easier to quote. Bands hold uneven counts.
+            explains: Edges fall on round numbers, so bands hold uneven numbers of loans.
 
       # The firm, 30 Sep 2026: "I can guarantee you that they are the bureau missing codes". Asked once, never
       # answered for them: blank changes nothing and the Run doesn't wait for it (optional). The line is
@@ -210,12 +211,12 @@ groups:
           - value: "yes"
             label: "Yes"
             explains: >-
-              A second file beside this one, ending "- audit.xlsx": one pocket's figures worked out again
-              from the loans, step by step. The Run takes longer.
+              Writes a second file beside this one, ending "- audit.xlsx", that recalculates one pocket's
+              figures from the loan-level data, step by step. The Run takes longer.
           - value: "no"
             label: "No"
             explains: >-
-              No audit workbook. Blank is the same.
+              No audit workbook is written. A blank answer has the same effect.
 
   - title: Is it enough loans to matter
     settings:
@@ -232,8 +233,8 @@ groups:
           - value: calc
             label: Enough for 5 expected losses (suggested)
             explains: >-
-              Worked out from this book: the loans a pocket needs to expect 5 with the
-              outcome at the book's rate, the textbook floor for the usual test.
+              Calculated from this book as the loans a pocket needs to expect 5 with the outcome at the book's
+              rate. Five expected is the standard minimum for the usual test.
           - value: 30
             label: "30 loans"
             explains: >-
@@ -258,7 +259,7 @@ groups:
         options:
           - value: 5
             label: "5 losses"
-            explains: The least the test can work with. Ranges will be wide.
+            explains: The minimum the test can work with. Confidence intervals will be wide.
           - value: 10
             label: "10 losses"
             explains: >-
@@ -266,7 +267,7 @@ groups:
               holds. Ten is a common floor.
           - value: 20
             label: "20 losses"
-            explains: Ranges narrow enough to rank pockets against each other.
+            explains: Confidence intervals narrow enough to rank pockets against each other.
 
   - title: Is it material
     settings:
@@ -279,24 +280,23 @@ groups:
         options:
           - value: 0.5% of losses
             label: 0.5% of the book's total losses
-            explains: Catches small pockets as well as big ones. Excess is counted against whatever a pocket is judged against, below.
+            explains: Keeps pockets whose excess reaches 0.5% of the book's losses. Excess is measured against the comparison set in What a pocket is judged against.
           - value: 1% of losses
             label: 1% of the book's total losses
-            explains: Scales with the book, so the same setting works on any population. Excess is counted against whatever a pocket is judged against, below.
+            explains: Keeps pockets whose excess reaches 1% of the book's losses.
           - value: 2% of losses
             label: 2% of the book's total losses
-            explains: Keeps pockets whose excess is over 2% of the book's losses. Excess is counted against whatever a pocket is judged against, below.
+            explains: Keeps pockets whose excess reaches 2% of the book's losses.
           - value: 5% of losses
             label: 5% of the book's total losses
-            explains: Only pockets that move the total. Excess is counted against whatever a pocket is judged against, below.
+            explains: Keeps pockets whose excess reaches 5% of the book's losses.
           - value: 10% of losses
             label: 10% of the book's total losses
-            explains: Only the few pockets that carry the book. Excess is counted against whatever a pocket is judged against, below.
+            explains: Keeps pockets whose excess reaches 10% of the book's losses.
           - value: none
             label: No floor
             explains: >-
-              Every pocket that tests worse is listed, however small. For spotting
-              patterns rather than dollars.
+              Every pocket that tests worse is listed, however small.
 
   - title: Does it underperform
     settings:
@@ -312,13 +312,13 @@ groups:
           - value: peers
             label: The rest of its band
             explains: >-
-              A pocket against the other segments in the same band. Both
-              comparisons are printed; this one decides the flag.
+              Compares a pocket with the other segments in the same band. Both comparisons are shown; this one
+              decides the flag.
           - value: topline
             label: The rest of the book
             explains: >-
-              The simplest story: does this pocket stand out overall? Both
-              comparisons are printed; this one decides the flag.
+              Compares a pocket with every other loan in the book. Both comparisons are shown; this one decides
+              the flag.
 
       - key: worse_at
         question: How much worse than its comparison a pocket must be
@@ -330,18 +330,17 @@ groups:
           - value: luck
             label: The smallest significant gap in a typical pocket (suggested)
             explains: >-
-              From this book: the smallest gap a typical pocket can call significant,
-              1.96 standard errors at 95% (how far a pocket's rate typically lands from
-              its true value).
+              Calculated from this book as the smallest gap a pocket of typical size can call significant: 1.96
+              standard errors at 95% confidence.
           - value: 1.25
             label: 1.25 times
-            explains: The old workbook's value. Moderate gaps; more pockets flagged.
+            explains: The old workbook's value.
           - value: 1.5
             label: 1.5 times
-            explains: Half as bad again.
+            explains: A rate at least one and a half times the comparison's.
           - value: 2.0
             label: 2 times
-            explains: Only pockets at double the rate or more. Few, and obvious.
+            explains: Only pockets at double the comparison's rate or more.
 
       - key: better_at
         question: How much better than its comparison a pocket must be
@@ -356,17 +355,16 @@ groups:
           - value: luck
             label: The smallest significant gap in a typical pocket (suggested)
             explains: >-
-              The same as above, the other way: one over the smallest gap a pocket of
-              typical size can call significant.
+              One divided by the smallest gap a pocket of typical size can call significant.
           - value: 0.8
             label: 0.8 times
             explains: The old workbook's value.
           - value: 0.67
             label: 0.67 times
-            explains: A third better or more.
+            explains: About two-thirds of the comparison's rate or less.
           - value: 0.5
             label: 0.5 times
-            explains: Half the rate or less. Few, and obvious.
+            explains: Half the comparison's rate or less.
 
       - key: revenue_line
         question: How far profit must move before it counts as more or less
@@ -385,8 +383,8 @@ groups:
           - value: 0.25
             label: "0.25 points either way"
             explains: >-
-              A point is 1% of booked dollars. A gap of a quarter point or more counts,
-              and one that isn't significant says so.
+              A point is 1% of booked dollars. A gap of 0.25 points or more counts; a gap that is not
+              significant is labeled not significant.
           - value: 0.5
             label: "0.5 points either way"
             explains: Only gaps of half a point of booked dollars or more count.
@@ -407,13 +405,13 @@ groups:
         options:
           - value: 0.90
             label: "90% sure"
-            explains: Finds more. About 1 in 10 pockets with no real difference will still pass.
+            explains: About 1 in 10 pockets with no real difference will still test significant.
           - value: 0.95
             label: "95% sure"
-            explains: The usual standard. About 1 pocket in 20 with no real difference will still pass.
+            explains: The usual standard. About 1 pocket in 20 with no real difference will still test significant.
           - value: 0.99
             label: "99% sure"
-            explains: Strict. About 1 in 100, and smaller real gaps will be missed.
+            explains: About 1 pocket in 100 with no real difference will still test significant, and more small real gaps will be missed.
 
       - key: power
         question: How often a real gap should be caught
@@ -432,10 +430,10 @@ groups:
               could show; it never flags anything.
           - value: 0.9
             label: "90% of the time"
-            explains: Each pocket can vouch for larger gaps only.
+            explains: The smallest gap each pocket can show is larger.
           - value: 0.5
             label: "50% of the time"
-            explains: A coin toss. The smallest gap a pocket could possibly show.
+            explains: Gives the smallest gap each pocket could possibly show.
 
       - key: many_tests
         question: Allowing for testing many pockets at once
@@ -448,19 +446,19 @@ groups:
           - value: none
             label: No allowance
             explains: >-
-              Each pocket is tested alone. Scan 200 pockets at 95% and about 10 will
-              read significant with no real difference behind them.
+              Each pocket is tested on its own. Of 200 pockets tested at 95%, about 10 will test significant
+              with no real difference behind them.
           - value: bh
             label: Hold down the share of false finds (Benjamini-Hochberg)
             recommended: true
             explains: >-
-              Of the pockets that read significant, about 5% at 95% are expected to have
-              no real difference behind them. Suits scanning for leads.
+              Of the pockets that read significant, about 5% at 95% are expected to have no real difference
+              behind them.
           - value: bonferroni
             label: Hold down the chance of any false find (Bonferroni)
             explains: >-
-              The chance of even one pocket reading significant with no real difference
-              is held to 5% at 95%. Very strict; suits a short list going to the LOB.
+              The chance of even one pocket reading significant with no real difference is held to 5% at 95%.
+              This is the strictest of the three.
 
 # What a column can mean, and how `pocketbook init` recognises it. The firm, 25 Sep
 # 2026: "it should suggest all columns, and maybe we can teach it along the way

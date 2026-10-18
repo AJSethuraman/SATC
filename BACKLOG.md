@@ -3534,6 +3534,126 @@ changed in the code.
     skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
     test, with DISPLAY unset; every entry's old string occurs once (707).
 
+- **The VOICE pass on the other tabs, proposed (14 Oct 2026).** The firm: *"spawn an agent whose sole job is to scan for
+  rewording opportunities. Do not change key terms though we are keeping them. Key terms are things like pocket, RANR,
+  GCO, better at, worse at"*. One agent scanned every tab but the audit workbook and the Glossary (134 proposals), a
+  second checked each against the code and the firm's decisions (38 corrected, none dropped), and a third read them
+  against the firm's new canon voice (PR #439; 7 revised, none worse than what is there now). The page the firm marks:
+  https://claude.ai/artifact/H1B5AikussADwR3az7Fphq (its database holds the marks). Nothing is built until marked.
+  - **Found on the way:** the Glossary's RANR line (*"Risk-adjusted net revenue … interest, fees and interchange, less
+    rewards and charge-offs"*) and its GCO line (*"before any recoveries"*) were written by a session on 2 Oct and
+    contradict or go beyond the firm's own definition (26 Sep: *"RANR is profit after losses — interest income + fees −
+    cost of funds − losses"*). Item G on the page.
+  - **Where canon's voice and PocketBook's disagree, the firm's answers (14 Oct 2026):** a "Note:" saying what a result
+    does not mean (proposal 114 cuts *"That is not proof there is none."*): *"keep this as we have it"*, so PocketBook's
+    no-self-protective-sentences rule holds. Acronyms spelled out on first use: *"Add this"*. Both are in
+    `pocketbook/VOICE.md`.
+  - **The firm's answers on the page (14 Oct 2026):** S, American spelling: yes, everywhere, tab names included. G:
+    *"Ranr is risk adjusted net revenue. The audience knows what they mean they don't need to be spelled out like
+    'this is what we keep'"*: RANR is spelled out on first use, and key terms get their full name rather than an
+    everyday gloss, so the GCO line makes no claim about recoveries. 69 read from the same answer: the tab says only
+    that RANR is below zero, *"lost money outright"* goes. All in `pocketbook/VOICE.md`.
+  - **Proposal 3, the launcher's term lines** (asked for on 27 Sep, decision F): the firm, 14 Oct 2026, *"Drop the
+    lines"*. They are removed, not reworded. **Still open:** the marks on the rest.
+- **Docket, 14 Oct 2026 (open items only):** https://claude.ai/artifact/FDbirziK1xDwiH6cfPMRAM, answers in its database
+  (collection `decisions`). Asks: 1, build the wording pass with every unmarked proposal as Use it; 2, the bank's loan
+  count against Start here's; 3, any Excel "repaired" message; 4, accept the eleven older "for the firm to confirm"
+  notes as built. **Next (silence approves):** build the wording pass on #440 once item 1 is answered; until then,
+  reproduce or retract the Summary vintage chart's "breaks past about 42 years".
+  - **Answered the same day:** 1, *"Yes, build them all"*: every unmarked proposal is built as Use it. 2, *"Figure out
+    after we are ready to ship"*: the loan-count check waits for the next kit that goes to the bank. 3 (Excel) not
+    answered; it stays open. 4, *"Yes, they stand"*: the eleven older notes are accepted as built and come off the list.
+  - **Built (PR #440):** phase 1 (a73663ce) is the 134 rewordings plus the Glossary's GCO and RANR lines, with the launcher's
+    term lines removed. Phase 2 (2ba818d7) is American spelling, with Summary's old "Grey rows under" label still read.
+    Phase 3 (843b16d7) spells out GCO, RANR and AUC on each tab's first sentence that uses them. An independent review
+    found nothing that had to be fixed. Its two should-fix items, the launcher's "56 grids" (56 views) and the README's
+    removed term lines, plus the 0.67 option's "at most two-thirds", are fixed in 89dccd2c. Planted bugs: two added, two
+    repointed and one retired (F, whose code is gone); all caught.
+
+- **Fixed, 14 Oct 2026: Summary's vintage chart lost points past 41 origination years** (branch
+  `claude/pocketbook-vintage-years`, PR #441; HANDOFF.md open item *"The Summary vintage chart breaks past about 42
+  distinct origination years"*). Reproduced first on synthetic books: with a Charge-off date marked (17 Summary
+  measures) the chart broke at 42 years, without one (15 measures) at 47; at 100 years whole measures were gone.
+  - **Cause:** every `_views` lookup reads `results.AREA`, columns B to ZZ (701 numbers a row). The vintage block kept
+    each line (the row picked, the rest of the book, the whole book) as one row of every measure, measure after
+    measure, year after year: 17 x 42 = 714. The helper cell for a measure's later years read past ZZ, got `#REF!`,
+    the drawn point became `#N/A` and the table under the chart showed a blank. Nothing said so.
+  - **Fix:** a `_views` row per line and year, every Summary column across in the Vintage measure dropdown's order:
+    `V|<column><view>|book|y<year>`, `|<i>|y<year>` and `|<i>|rest|y<year>`. A row is as wide as Summary (17 at
+    most), so any number of years fits and there is no year limit. A line with nothing in a year gets no row; its
+    lookup reads blank, as an empty row did. Each year's helper cells find that year's row for each line (three new
+    hidden columns) and read the measure's column and the Loans column. The Vintage row dropdown's labels sit one to
+    a row under `V|<column>|rows`, so a long category list fits too.
+  - **First fix, reworked after the independent review (95ec524e):** a row per line and measure, as wide as the
+    years. The review found it multiplied the vintage rows by the number of measures: at the bank's 1 Oct shape (26
+    Summary columns, up to 150 filter views, about 7 rows, so 15 lines) that is 26 x 150 x 15 x 17, about 995,000
+    rows, against Excel's 1,048,576; main had about 58,500. Transposed, it is x the years with loans on each line:
+    about 410,000 at 7 vintages, fewer when a filter is Origination year (one year a view).
+  - **A ceiling on `_views`:** `results.MOST_VIEWS_ROWS`, 1,000,000 (openpyxl writes past Excel's last row, and Excel
+    then repairs the file). The vintage rows are put on `_views` last, once every other row is counted. If they would
+    pass the ceiling, every tab is written again with the chart as one sentence, in Summary's note and where the
+    chart would be: *"No vintage chart: its points would need N more rows on the hidden _views sheet, taking it past
+    the 1,000,000 this workbook writes (Excel opens at most 1,048,576)."* If the other rows alone pass it, the Run
+    refuses and does not save, so the workbook keeps the last Run's results: *"Couldn't write the results: even
+    without the vintage chart they need N rows on the hidden _views sheet, and the most this workbook writes is
+    1,000,000 (Excel opens at most 1,048,576). Nothing was written, so the workbook still has the last Run's results.
+    Use fewer filters, fewer filter values, or fewer band and category columns."* Dropping only the chart was chosen
+    as the least surprising: the analysis still runs, and the chart is the one part that can be left off on its own.
+  - **Second independent review (on `dd403481`): nothing blocking.** Its should-fix, a refused scouting Run leaving a
+    pre-spec beside the book, does not reproduce: a scouting Run is a new-variable Run, which writes no bleed tabs
+    (`engine.py`, `bleed = config.run_kind != "new_variable"`), so it never reaches the row refusal. Its wording nit
+    is fixed: the refusal now counts only the rows that would be written, and its last sentence is a full one. One
+    planted bug added for the count (the chart's rows counted again), caught. One retired: dropping the chart before
+    refusing (`if n:` for `if n and views.r <= MOST_VIEWS_ROWS:`) now ends in the same refusal, words and count, after
+    a wasted second pass, so no test can tell it apart; the guard it planted into is kept for that pass's cost.
+  - **Same figures below the old limit:** a 10-year and a 41-year book, Summary calculated through LibreOffice
+    before (main) and after, at five dropdown picks each (three measures, a CHANNEL filter, the CHANNEL column with
+    Avg line). Every visible cell, every helper value and the chart's references are the same. The only differences
+    are in hidden columns: W (the `_views` row numbers) and the three new row-finding columns, AL to AN. A 42- and a
+    100-year book show no error cell, and their median months to charge-off tie to the loan file every year.
+  - **`_views` measured** (synthetic book, 3,000 loans, a charge-off date, CHANNEL filter):
+
+    | | main | 95ec524e | now |
+    |---|---|---|---|
+    | rows, 10 years | 910 | 2,328 | 1,712 |
+    | rows, 41 years | 910 | 2,328 | 4,440 |
+    | vintage rows, 10 / 41 years | 90 / 90 | 1,508 / 1,508 | 892 / 3,620 |
+    | cells, 41 years | 57,778 | 59,196 | 61,308 |
+    | widest row, 41 years | 698 | 42 | 19 |
+    | workbook bytes, 10 / 41 years | 326,437 / 652,095 | 337,815 / 653,786 | 333,611 / 685,371 |
+
+    The synthetic book's 41 years are more than its 17 measures, so it has more rows than 95ec524e; a card book with a
+    handful of vintages has fewer.
+  - **Tests**, written failing first, in `tests/test_vintage_years_2026_10_14.py` (4, all red on main): no `_views` row wider than
+    AREA reads, and no key twice, on a 42-year book with a charge-off date (71 rows were 714 wide on main); the
+    vintage block alone, 120 years and 300 rows, a line and a year a row, as wide as Summary, none for an empty year;
+    the ceiling set low, first leaving room for all but the chart's rows (the sentence, every other row as it was)
+    and then one fewer (the refusal, the file unchanged); and through LibreOffice, Median months to charge-off (the
+    last measure) on the 42-year book: every year of all three lines ties to the loan file, no cell reads an error
+    but `#N/A`, and the chart reads the same points. `test_summary_vintage_2026_10_03` reads the new rows; its
+    figures are unchanged.
+  - **Planted bugs:** 10 added and 1 repointed in `tools/mutation_check.py`: every measure by every year on a row
+    again; the row labels back on the count's row; a row written for an empty year; a line's loans read as its value;
+    Loans read whatever the measure; the Vintage row list a row early; the chart's rows written past the ceiling; the
+    rest written past it; the refusal counting without the chart; the refused Run saving the workbook; and the
+    existing "each year's point from the year before", now the year in the row's key. 11 of 11 caught by a failed
+    test, with DISPLAY unset.
+  - **Not fixed, recorded in HANDOFF.md:** Grids, Compare and Split also put a row per column's values on
+    `_views`. None exceeds 701 at the default Text columns limit (50), or at 100 with a split. Control allows up to
+    1,000; above about 700 values, or about 100 with a split, those columns would show blank too. Found by reading,
+    not run.
+- **Built, 17 Oct 2026: RANR vs GCOs puts Avg line beside Booked** (branch
+  `claude/pocketbook-avg-line-beside-booked`). The firm: *"i want avg line and booked metrics to be closer together
+  the same way RANR and RANR/booked is, like avg line and line x book and such belong in the same relative place"*.
+  The gross block read Booked, GCOs, RANR, RANR ÷ Booked, Avg line, Line × book; it now reads Booked, Avg line, Line ×
+  book, GCOs, RANR, RANR ÷ Booked, under the one "Gross · this pocket alone" heading. Each cell still picks its own
+  `_views` entry by column, so the figures, the totals under the table and a sort are as before. Summary already read
+  Booked $, Avg line, Line × book, % of booked (the shape of its GCO and RANR columns) and is unchanged; the audit
+  workbook proves Avg line in its own step and is unchanged.
+  - Tests: 2 in `tests/test_avg_line_beside_booked_2026_10_17.py` (the headings and the group heading; every gross
+    cell in exactly one conditional-format range, which LibreOffice needs), and the three tests that pinned the old
+    order moved. Planted bugs: 4 added, 4 caught, with no display.
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
@@ -3676,6 +3796,30 @@ research pass before a spec, no exceptions.
 - 2026-07-02 — Bureau review pass: 16 findings fixed (heat inversion,
   IFERROR empty-cell coercion, raw_slots guard, MS-OVBA protection keys).
 - 2026-06-30..07-01 — Templates #1 (FRED) and #2 (bureau) shipped; PR #53.
+
+## 6e · Loan Survival (`loan-survival/` — handed over 16 Oct 2026, GUI built same day)
+
+Kaplan-Meier comparison of loan groups at the same month on book: vintages,
+before/after a date, backtested cutoffs, flags, and a Cox model, plus a check on
+whether 90+ days past due is a good early stand-in for charge-off. One engine
+(`loan_survival.py`), now with an importable `run()`; a tkinter front door
+(`loan_survival_gui.py`) that writes the engine's own .ini text. Credit work at a
+bank, not the practice's software; no client data. README and `CLAUDE.md` are in
+the folder.
+
+- [x] **Engine arrived with 11 validation checks** against a hand-worked example,
+      SciPy, statsmodels and plain pandas. `python tests/validate.py` — ALL PASSED
+      on arrival and after the refactor.
+- [x] **`main()` split into `run()`**, engine `sys.exit` calls became `UserError`.
+- [x] **GUI built** — five tabs, auto column match, date-parse counts, test dialogs,
+      seasoned-loans shortcut, save/load .ini. `tests/gui_check.py`: GUI's Tests and
+      Models sheets equal the CLI's on the sample, run under a real window on
+      Xvfb. Each tab was opened and looked at.
+- [ ] **Not checked:** Windows and the bank's Python (tkinter present?), the real SB
+      extract's column names, Excel opening the workbook, how the right-click menu
+      is wired, SR 11-7 status of the Cox piece.
+- [ ] Backlog from the brief: snapshot/roll-rate mode, unseasoned-economics warning,
+      dollar-weighted bad rates, cutoff chart.
 
 ## 6 - Hosted practice app (satc_system) - the "hodgepodge" build-out (AJ, 2026-07-30)
 

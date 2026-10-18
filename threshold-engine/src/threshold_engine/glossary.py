@@ -12,6 +12,46 @@ TERMS = [
     ("Product",
      "The first of the three parts that name a series, such as Credit card.",
      "Taken from the book's series list. A series' label is its product, measure and source joined by ' - '."),
+    ("Combined product",
+     "A product made of others: All consumer (credit card, mortgage, home equity, other consumer and auto), "
+     "or two or more joined by ' + ', such as Credit card + Other consumer.",
+     "Each bank's balances, charge-offs, recoveries and past-due amounts for the parts are added together "
+     "before the rate is taken, so the rate is dollar-weighted, and the jump, acquisition and minimum book "
+     "rules are applied to the combined book. Its delinquency is written only for quarters in which every "
+     "part's fields were filed (auto's begin in 2011Q1)."),
+    ("30+ to charge-off",
+     "Of the dollars 30 to 89 days past due, 90 or more days past due and still accruing, and on nonaccrual at a "
+     "quarter-end, the percent charged off (gross, before recoveries) over the next two quarters. One minus it is "
+     "the estimated cure.",
+     "From each bank's own Call Report filings: the three RC-N fields of the product at the quarter-end, and the "
+     "product's gross charge-offs (RI-B, year to date differenced) in the two quarters after, 100 x the second over "
+     "the first. A card charges off at 180 days past due and a closed-end consumer loan at 120, so every delinquent "
+     "dollar has charged off or left delinquency within two quarters. An aggregate estimate, not a tracked cohort: "
+     "loans charged off within the two quarters that were current at the quarter-end count too. The series in the "
+     "book is the four-quarter average of the quarter-end shares. The pack composite is the kept banks' dollars "
+     "charged off summed over their delinquent dollars summed, and does not follow Banks in the pack. The latest "
+     "two quarter-ends have no value yet."),
+    ("Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off",
+     "The bank's four-quarter average 30+ to charge-off less the peer group's, or less the industry's, in the same "
+     "quarter, in percentage points. Above zero the bank turns more of its delinquent dollars into loss than they "
+     "do; below zero, less.",
+     "KeyBank's four-quarter average less the pack composite's (or the industry's) for the same quarter, where "
+     "both exist. A measure with no floor at zero (the book's floor_off): a negative gap is rated on its lines, "
+     "never as 1 Low by the floor. Its lines are set from its own history."),
+    ("Share paying only the minimum",
+     "Of the active consumer credit card accounts at the large banks, the percent whose payment in the quarter "
+     "was the minimum due.",
+     "The Philadelphia Fed's 'Share of Accounts Making the Minimum Payment' from its Large Bank Credit Card and "
+     "Mortgage Data, quarterly from 2012Q3: the bank holding companies that file FR Y-14M (those with $100 "
+     "billion or more in assets). A count of accounts, not dollars, across the panel: an industry reading with no "
+     "KeyBank figure. The source is the file 'peers large-banks-pull' fetched, named with its SHA-256 in the "
+     "series' notes and on Run."),
+    ("Floor at zero",
+     "Whether a value at or below zero is always 1 Low for a series. True of a rate; false of a gap between two "
+     "rates.",
+     "The workbook's floor_at_zero, switched off for each measure the book names under floor_off. Held per "
+     "series on Lines by source (a hidden column) and read by every rating formula, so Decide, Thresholds and "
+     "Lines by source rate the same way; the lines of a series without a floor are set without it too."),
     ("Measure",
      "The second of the three parts that name a series: the rate measured, such as Net charge-offs.",
      "Taken from the book's series list, as for Product."),
@@ -37,6 +77,13 @@ TERMS = [
      "reason. As many periods as there are rows, for any series. A row with something missing says what in its "
      "Status and refuses its series until it is complete or cleared. Shown on the chart as a dark "
      "strip and gray dots on the line, and recorded on Run."),
+    ("Left out as built",
+     "Quarters a series' file does not hold, written to left-out.csv beside the series files with why: those "
+     "before its last break, and its latest quarters when they have no value.",
+     "A series is written from the first quarter after its last break, because the workbook refuses a gap. "
+     "Each row names the series by Product, Measure and Source, the first and last quarter left out, and the "
+     "reason the quarter at the break has no value. The periods left out on Decide are not in it. Its "
+     "SHA-256 is on Run."),
     ("Median kept",
      "The middle of the quarters kept: half were higher, half lower. The center of Moderate.",
      "MEDIAN of the quarters kept."),
@@ -360,7 +407,7 @@ TERMS = [
     # one is recorded.
     ("Reporting change",
      "A change to the Call Report's definitions or forms that moves a series without any change in risk, such "
-     "as margin loans moved out of other consumer from December 2024. Labelled on every series it touches, in "
+     "as margin loans moved out of other consumer from December 2024. Labeled on every series it touches, in "
      "the quarter it took effect.",
      "Listed once, with its source, on the Reporting changes tab. Each series file the peers build writes "
      "carries a Reporting change line for every change touching its product and measure within its quarters, "

@@ -41,7 +41,7 @@ def test_a_run_that_stopped_is_not_called_an_answer_needed(tmp_path, monkeypatch
     assert f.needs_head()[0] == "Run stopped" and "answer" not in f.needs_head()[0]
     assert f.steps()[3].sub == "Run stopped"
     said = f.needs[0].says
-    assert said.startswith("Run stopped: the grids didn't add up to the book, so nothing was written. grid "), said
+    assert said.startswith("Run stopped: the grids did not reconcile to the book, so nothing was written. grid "), said
     assert "Something went wrong" not in said
     # a refusal that is waiting for answers still says so
     monkeypatch.undo()
@@ -101,8 +101,8 @@ def test_an_install_that_worked_is_good_news_not_a_refusal(tmp_path, monkeypatch
 
 def test_the_line_under_the_extract_counts_the_add_ons_missing():
     """Defect 9: "while the add-on installs", with three missing and nothing installing."""
-    assert launcher.waiting_words(["numpy", "openpyxl", "PyYAML"]).startswith("Until they are in, ")
-    assert launcher.waiting_words(["numpy"]).startswith("Until it is in, ")
+    assert launcher.waiting_words(["numpy", "openpyxl", "PyYAML"]).startswith("Until they are installed, ")
+    assert launcher.waiting_words(["numpy"]).startswith("Until it is installed, ")
     assert "installs" not in launcher.waiting_words(["numpy", "PyYAML"])
 
 

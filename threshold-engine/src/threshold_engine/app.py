@@ -38,7 +38,12 @@ BUNDLE = (("consumer-public.json", ROOT / "books" / "consumer-public.json"),
           ("consumer-public-series.csv", ROOT / "books" / "consumer-public-series.csv"),
           ("peers.json", ROOT / "config" / "peers.json"),
           ("peer-loan-classes.json", ROOT / "config" / "peer-loan-classes.json"),
-          ("reporting-changes.json", ROOT / "config" / "reporting-changes.json"))
+          ("reporting-changes.json", ROOT / "config" / "reporting-changes.json")) + tuple(
+    # The industry from 1990 (peers industry-long): committed series, not rebuilt on site. The series
+    # list reaches them as ../data/industry/<file> from the Book folder, so prepare writes them there.
+    ("%s_industry-from-1990_%s.csv" % (slug_, kind), ROOT / "data" / "industry" / ("%s_industry-from-1990_%s.csv" % (slug_, kind)))
+    for slug_ in ("credit-card", "home-equity", "other-consumer") for kind in ("net", "gross"))
+LONG_INDUSTRY = Path("data") / "industry"
 QUARTER = re.compile(r"^(19|20)\d\dQ[1-4]$")
 MERGERS_SINCE = "2005-01-01"
 INTERNAL_SOURCE = "KeyBank internal"
@@ -82,7 +87,9 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
     (folder / CACHE).mkdir(exist_ok=True)
     raw = json.loads(bundled("consumer-public.json").decode("utf-8"))
     for name, _ in BUNDLE[1:]:
-        (book_dir / name).write_bytes(bundled(name))
+        target = (folder / LONG_INDUSTRY / name) if "_industry-from-" in name else (book_dir / name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(bundled(name))
     cache = folder / CACHE
     raw["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"),
                         absorptions=str(cache / "absorptions.json"), roster="peers.json", last=quarter)
@@ -90,6 +97,9 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
         raw["loan_classes"] = {"file": "peer-loan-classes.json", "cache": str(folder / SEC)}
     if raw.get("reporting_changes") is not None:
         raw["reporting_changes"] = "reporting-changes.json"
+    if raw.get("large_banks") is not None:
+        from .peers import large_banks as LB
+        raw["large_banks"] = {"file": str(folder / CACHE / LB.FOLDER / LB.file_name(quarter))}
     raw["internal"] = None if not internal else {
         "file": str(Path(internal).resolve()), "source": INTERNAL_SOURCE, "segments": bool(segments),
         "measures": dict(INTERNAL_MEASURES), "call_report_source": "KeyBank"}
@@ -107,6 +117,9 @@ def pull(folder, quarter: str, say: Callable[[str], None] = print, contact: Opti
     raw = book["peers"]
     peers_run.pull(cache=str(Path(folder) / CACHE), first=raw["first"], last=quarter, products=raw["products"],
                    delinquency=bool(raw["delinquency"]), mergers_since=MERGERS_SINCE, refresh=False, say=say)
+    if book.get("large_banks") is not None:
+        from .peers import large_banks as LB
+        LB.pull(Path(folder) / CACHE, quarter, say=say)
     if book.get("loan_classes") is not None:
         from .peers import classes, loan_classes_tab
         tmp = Path(folder) / BOOK

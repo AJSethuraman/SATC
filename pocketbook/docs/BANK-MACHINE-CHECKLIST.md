@@ -99,7 +99,7 @@ py --version
 
 ☐ It says `Python 3.12.` something (any 3.10 or later is fine).
 
-If it says `'py' is not recognized`, try `python --version`. If that opens the Microsoft Store or isn't recognised either, Python isn't installed: see 1.2. Wherever this checklist says `py`, type `python` instead on this machine.
+If it says `'py' is not recognized`, try `python --version`. If that opens the Microsoft Store or isn't recognized either, Python isn't installed: see 1.2. Wherever this checklist says `py`, type `python` instead on this machine.
 
 ### 2.2 Unzip PocketBook into your own folder
 
@@ -131,7 +131,7 @@ dir "%USERPROFILE%\PocketBook"
 
 It lists `PocketBook.pyw`, `Install add-ons.bat`, `Install add-ons from this folder.bat`, `VERSION.txt`, `README.md`, and the folders `src` and `docs`.
 
-If `tar` isn't recognised, right-click the zip, choose **Extract All…**, and change the folder in the box to what `echo %USERPROFILE%` prints.
+If `tar` isn't recognized, right-click the zip, choose **Extract All…**, and change the folder in the box to what `echo %USERPROFILE%` prints.
 
 ### 2.3 Open the window
 
@@ -301,7 +301,7 @@ Click each cell. A small arrow should appear beside it; press it.
 
 Put Pockets back to **Bad loans** and **All** when done.
 
-### 4.4 A "Changes now" answer: verdicts, colours and dollars follow without a Run
+### 4.4 A "Changes now" answer: verdicts, colors and dollars follow without a Run
 
 On Control, pick **2 times** in C15.
 
@@ -329,7 +329,7 @@ On Control, pick **100 loans** in C24. Press **Ctrl+S** to save.
 
 With the workbook still open in Excel, look at the PocketBook window.
 
-☐ A pink bar says **The workbook is open in Excel**, and **Run** is grey. **Check this:** PocketBook looks for the lock Excel puts on the file. That's only been seen with a stand-in.
+☐ A pink bar says **The workbook is open in Excel**, and **Run** is gray. **Check this:** PocketBook looks for the lock Excel puts on the file. That's only been seen with a stand-in.
 
 ☐ Save and close the workbook. Within a couple of seconds the bar goes and **Run** turns red.
 
@@ -341,7 +341,7 @@ Open the workbook again and go to **Look**. The first block is FICO.
 
 ☐ In C20 (**Bars**), pick **10**: the chart regroups into 10 bars.
 
-☐ Type `600` in C21 (**From**) and `800` in C22 (**To**): the chart spans 600 to 800, with a grey bar at each end for the loans outside.
+☐ Type `600` in C21 (**From**) and `800` in C22 (**To**): the chart spans 600 to 800, with a gray bar at each end for the loans outside.
 
 ☐ On **Columns**, type `620; 680; 740` in I14 (FICO's band edges). Back on Look, three red dashed lines appear on the FICO chart, at 620, 680 and 740, and the line over the chart reads *FICO · edges now 620; 680; 740*.
 
@@ -365,7 +365,7 @@ Each tab opens with **How this tab works**.
 
 ☐ **Look:** a chart for each band column chosen in the launcher and for the split column (FICO and ORIG_BAL, then REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s. A band column or split changed on Control is drawn at the next Run.
 
-☐ **Split** and **Grids:** the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).
+☐ **Split** and **Grids:** the shaded tables have their colors (pink worse, green better, deeper for bigger gaps).
 
 **Check this** for all three: every chart has only been seen in LibreOffice.
 

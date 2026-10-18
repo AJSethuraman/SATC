@@ -83,7 +83,11 @@ def test_unanswered_cells_are_shaded_by_a_rule_not_labelled(book):
     assert len(shaded) == len(answered)
     r = _row(ws, "materiality")
     assert f"C{r}:D{r}" in shaded
-    assert "re-run" not in text and "live" not in text.split()   # results are worked out on Run, not live
+    # results are worked out on Run, not live. The one exception is said in words: the materiality levels panel
+    # follows the answer (the wording pass of 14 Oct 2026, proposal 25: "It updates live with your answer.")
+    levels = dict(control.METHOD)["Materiality levels"]
+    assert levels in text
+    assert "re-run" not in text and "live" not in text.replace(levels, "").split()
 
 
 def test_method_settings_open_on_their_recommendation(book):

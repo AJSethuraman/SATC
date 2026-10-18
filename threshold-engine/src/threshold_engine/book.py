@@ -31,13 +31,26 @@ own folder, so a book and its files can be copied to another machine whole.
                            "call_report_source": the source holding the bank's Call Report series},
       "loan_classes": null or {"file": the loan classes file (config/peer-loan-classes.json),
                                "cache": the folder 'peers classes-pull' fetched the filings into},
-      "reporting_changes": null or the registry of Call Report changes (config/reporting-changes.json)
+      "reporting_changes": null or the registry of Call Report changes (config/reporting-changes.json),
+      "floor_off": [measures whose series have no floor at zero (a gap can be negative); [] for none],
+      "large_banks": null or {"file": the Philadelphia Fed credit card balances file 'peers large-banks-pull' fetched}
     }
 
 The ``peers`` section's ``stated_acquisitions`` is the file of acquisitions
 the FDIC record cannot see (config/stated-acquisitions.json; the firm, 17 Oct
 2026, the commercial proposal's question 14), or null to state that none is
 read; like every key it is required.
+
+``floor_off`` (17 Oct 2026, the gap measures): the workbook's ``floor_at_zero``
+says a value at or below zero is always Low, which is true of a rate and
+false of a difference between two rates. Each measure named here is rated
+without the floor, on Decide, Thresholds and Lines by source alike, and its
+lines are set without it. A name that is not a measure of the book's series
+is refused.
+
+``large_banks``: the build writes each of its measures (``peers.large_banks``)
+as a series file beside the peer series, and the series list names it under
+the source "Large banks (Philadelphia Fed)".
 
 ``reporting_changes`` (the firm, 16 Oct 2026: "Definitely mark reporting
 changes."): the registry is checked as ``reporting_changes.load`` checks it,
@@ -90,6 +103,7 @@ from .series import LABEL_RULE, label_ok
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
 TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
+            "floor_off", "large_banks",
             "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
 LOAN_CLASSES_KEYS = ("file", "cache")
@@ -207,6 +221,43 @@ def _call_report_names(gl) -> None:
         for j, v in enumerate(row):
             c = gl.cell(r + 3 + i, 2 + j, v)
             c.alignment = Alignment(wrap_text=True, vertical="top")
+#: The file of quarters left out as built, written beside the series files
+#: (the agent building Book 2, 17 Oct 2026, asked for it; the analyst: "sure").
+LEFT_OUT_FILE = "left-out.csv"
+LEFT_OUT_HEAD = ("Product", "Measure", "Source", "first", "last", "why")
+
+
+def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> int:
+    """Write ``path``: one row per span a book series left out as built
+    (``peers.run.left_out_spans``), in the series list's order, named by the
+    book's Product, Measure and Source. A series with nothing left out has no
+    row. The periods left out on Decide are the analyst's and are not here.
+    Returns the number of rows."""
+    by_path = {str(Path(p_)).lower(): v for p_, v in spans.items()}
+    rows = []
+    for lbl, p_ in series:
+        for first, last, why in by_path.get(str(Path(p_)).lower(), []):
+            rows.append(list(parts[lbl]) + [first, last, why])
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        fh.write("# Quarters each series left out as built, before its last break or after its last value, "
+                 "with why. A series with nothing left out has no row.\n")
+        fh.write("# The periods left out on Decide are the analyst's, typed in the saved workbook, and are not "
+                 "here. Quarters are YYYYQn.\n")
+        w = csv.writer(fh)
+        w.writerow(LEFT_OUT_HEAD)
+        w.writerows(rows)
+    return len(rows)
+
+
+def _left_out_on_run(wb, path: Path, n: int) -> None:
+    """The left-out file on Run, under its own heading, with its SHA-256."""
+    from . import workbook as WB
+    run = wb["Run"]
+    r = WB.K.quiet_section(run, run.max_row + 2, "Left out as built", 6, first_col=2)
+    r = WB._ref_header(run, r, ["File", "Path", "Rows", "", "", "SHA-256"], 2, numeric=(2,))
+    for col, v in enumerate(["Quarters left out as built", str(path), n, None, None, WB._sha(path)], start=2):
+        run.cell(r, col, v).font = WB.REF_BODY
+    WB._ref_row(run, r, 2, 7)
 
 
 class BookError(ValueError):
@@ -368,6 +419,22 @@ def load(path) -> dict:
             problems.append("loan_classes: the classes file records each peer's consumer book, so a %s book's "
                             "loan_classes must be null" % raw["kind"])
     lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
+    floor_off = raw["floor_off"]
+    measures_ = {v[1] for v in decide_parts.values()}
+    if not (isinstance(floor_off, list) and all(isinstance(m, str) for m in floor_off)):
+        problems.append("floor_off must be a list of the measures that have no floor at zero ([] for none)")
+        floor_off = []
+    else:
+        for m in floor_off:
+            if m not in measures_:
+                problems.append("floor_off names %r, which is not a %s of the book's series" % (m, parts[1]))
+        if floor_off and not raw["workbook"].get("floor_at_zero", True):
+            problems.append("floor_off names measures, but the workbook has no floor at zero to switch off")
+    large = raw["large_banks"]
+    if large is not None:
+        _keys("large_banks", large, ("file",), problems)
+        if isinstance(large, dict) and "file" in large:
+            large = {"file": resolve(large["file"])}      # a cache file: its presence is checked at build
     reporting = raw["reporting_changes"]
     changes = events = None
     if reporting is None:
@@ -392,8 +459,10 @@ def load(path) -> dict:
     return {"kind": raw["kind"], "workbook": wbk, "series": series, "peers": peers, "folder": folder,
             "internal": internal,
             "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes, "events": events,
+            "large_banks": large,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
-                       "notes": notes, "lines_from": lines_from, "kind": raw["kind"]}}
+                       "notes": notes, "lines_from": lines_from, "kind": raw["kind"],
+                       "floor_off": list(floor_off)}}
 
 
 def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
@@ -533,17 +602,30 @@ def build(book_path, out, say=print) -> dict:
     out = Path(out)
     host = Workbook()
     blank = host.active
-    peer_tabs = peer_info = None
+    peer_tabs = peer_info = left_out = None
     if bk["peers"] is not None:
         from .peers import run as peers_run
-        peer_info = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say,
-                                    reporting_changes=bk["reporting_changes"], book_kind=bk["kind"],
-                                    **bk["peers"])["info"]
+        built = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say,
+                                reporting_changes=bk["reporting_changes"], book_kind=bk["kind"], **bk["peers"])
+        peer_info = built["info"]
         peer_tabs = peer_info["sheets"]
+        if bk["large_banks"] is not None:
+            # The Philadelphia Fed's measures, written beside the peer series from the file fetched.
+            from .peers import large_banks as LB
+            if not bk["large_banks"]["file"].exists():
+                raise BookError("large_banks: the file %s does not exist; run 'peers large-banks-pull' first"
+                                % bk["large_banks"]["file"])
+            for parts_, path in LB.write(bk["large_banks"]["file"], bk["peers"]["series_dir"], say=say):
+                lbl = " - ".join(parts_)
+                if lbl not in dict(bk["series"]):
+                    raise BookError("large_banks: the book's series list does not list %r (file %s)" % (lbl, path))
         missing = [(lbl, p) for lbl, p in bk["series"] if not p.exists()]
         if missing:
-            raise BookError("\n".join("the file for %r was not written by the peers build either: %s" % m
+            raise BookError("\n".join("the file for %r was not written by the peers build or the large banks file either: %s" % m
                                       for m in missing))
+        lo_path = Path(bk["peers"]["series_dir"]) / LEFT_OUT_FILE
+        left_out = (lo_path, write_left_out(lo_path, bk["series"], bk["decide"]["parts"], built["left_out"]))
+        say("left out as built: %d spans, in %s" % (left_out[1], lo_path))
 
     def tidy(wb):
         if blank.title in wb.sheetnames and blank.max_row == 1 and blank["A1"].value is None:
@@ -557,6 +639,8 @@ def build(book_path, out, say=print) -> dict:
         wb.active = wb.sheetnames.index("Summary")
         if peer_info is not None:
             _live_peer_group(wb, series, peer_info, say)
+        if left_out is not None:
+            _left_out_on_run(wb, *left_out)
         if bk["kind"] == "commercial":
             # Every tab is written by now (the peer sections of Glossary and
             # Run too), so the commercial words go in everywhere at once,
@@ -610,7 +694,8 @@ def build(book_path, out, say=print) -> dict:
         say("reporting changes: %d, and %d events, from %s" % (len(bk["changes"]), len(bk["events"]),
                                                               Path(bk["reporting_changes"]).name))
 
-    info = WB.build(out, series, decide=decide, into=host, before_save=tidy, **bk["workbook"])
+    info = WB.build(out, series, decide=decide, into=host, before_save=tidy, floor_off=bk["decide"]["floor_off"],
+                    **bk["workbook"])
     if peer_tabs:
         # The peer charts draw a missing quarter as a gap, which is set on the saved file.
         from .peers.peers_workbook import na_as_gap

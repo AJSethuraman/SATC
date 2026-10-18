@@ -550,21 +550,31 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     FIELDS = ("bal", "gco", "nco", "d30", "d60", "d90")
     pblock = {}
     for pi, p in enumerate(products):
-        b = {k: hc.take() for k in ("cnt",) + FIELDS + ("r_net", "r_gross", "r_d30", "r_d60", "r_d90", "at")}
+        b = {k: hc.take() for k in ("cnt", "hq") + FIELDS + ("r_net", "r_gross", "r_d30", "r_d60", "r_d90", "at")}
         pblock[p] = b
         ws.cell(1, b["cnt"], p)
         hasall = "$%s$2" % L(b["cnt"])
         bad = "$%s$3" % L(b["cnt"])
-        ws[hasall[1:].replace("$", "")] = ('=IF(COUNTIFS({p},{c},{t},1,{u},1)>0,1,0)'
-                                           .format(p=S["prod"], c=crit(p), t=S["total"], u=S["used"]))
+        # hq, per quarter: 1 when the file gives the product's All row for that
+        # quarter (used there), else 0 and the segments are summed. hasall
+        # reads them back: 0 no All row, 1 All in every quarter with rows, 2
+        # All in some (Codex on #442: one global choice dropped the quarters
+        # that had segments only).
+        HQ = "$%s$%d:$%s$%d" % (L(b["hq"]), W0, L(b["hq"]), WE)
+        CNT = "$%s$%d:$%s$%d" % (L(b["cnt"]), W0, L(b["cnt"]), WE)
+        ws[hasall[1:].replace("$", "")] = ('=IF(SUM({hq})=0,0,IF(SUM({hq})=COUNTIF({cnt},">0"),1,2))'
+                                           .format(hq=HQ, cnt=CNT))
         ws[bad[1:].replace("$", "")] = '=COUNTIFS({p},{c},{u},0)'.format(p=S["prod"], c=crit(p), u=S["used"])
         b["hasall"], b["bad"] = hasall, bad
         for k in b:
             if isinstance(b[k], int):
                 ws.cell(4, b[k], k)
-        base = '{p},{c},{u},1,{t},{h}'.format(p=S["prod"], c=crit(p), u=S["used"], t=S["total"], h=hasall)
         for i in range(CAL):
             r = W0 + i
+            ws.cell(r, b["hq"], '=IF(COUNTIFS({qn},{q},{p},{c},{u},1,{t},1)>0,1,0)'
+                    .format(qn=S["qn"], q=QN(r), p=S["prod"], c=crit(p), u=S["used"], t=S["total"]))
+            base = '{p},{c},{u},1,{t},{h}'.format(p=S["prod"], c=crit(p), u=S["used"], t=S["total"],
+                                                  h="%s%d" % (L(b["hq"]), r))
             ws.cell(r, b["cnt"], "=COUNTIFS(%s,%s,%s)" % (S["qn"], QN(r), base))
             ws.cell(r, b["at"], '=IF(%s%d>0,%d,"")' % (L(b["cnt"]), r, i + 1))
             for k in FIELDS:
@@ -836,7 +846,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(7, col, '=IF(%s6=0,"",INDEX(%s,MIN(%s)))' % (L(col), CALQ, at))
         ws.cell(8, col, '=IF(%s6=0,"",INDEX(%s,MAX(%s)))' % (L(col), CALQ, at))
         ws.cell(9, col, '=COUNTIFS(%s,%s,%s,1)' % (S["prod"], crit(p), S["seg_first"]))
-        ws.cell(10, col, '=IF({c}6=0,"",IF({h}=1,"All rows","Summed"))'.format(c=L(col), h=b["hasall"]))
+        ws.cell(10, col, '=IF({c}6=0,"",IF({h}=1,"All rows",IF({h}=2,"All rows where given, else summed",'
+                         '"Summed")))'.format(c=L(col), h=b["hasall"]))
         ws.cell(11, col, '=IF({c}6=0,"",INDEX({b},MATCH({c}8,{q},0))/1000)'
                 .format(c=L(col), b=rng(b["bal"], W0, WE), q=CALQ))
         ws.cell(12, col, "=%s" % b["bad"])

@@ -3,12 +3,21 @@
 The workbook sets one set of lines for each consumer credit product and
 measure, where it moves from rating 1 Low to 5 High, and records the decision
 on each. It covers five products (credit card, mortgage, home equity, other
-consumer, auto) and seven measures (net and gross charge-offs, and five
-delinquency measures): 35 sets of lines. Each is set from the history of one
-of three sources, picked for that product and measure: the industry (every
-bank that files a Call Report), a 15-bank peer group, or KeyBank's own Call
-Report. All three are rated on the lines picked. That is 105 series, all public
-FDIC Call Report data.
+consumer, auto), two combined ones (All consumer, the five added together,
+and Credit card + Other consumer), and seven measures (net and gross
+charge-offs, and five delinquency measures): 49 sets of lines. Credit card
+and other consumer also carry 30+ to charge-off (of the dollars past due at
+a quarter-end, the share charged off over the next two quarters) and
+KeyBank's gap to peers and to the industry on it; credit card carries the
+large banks' share of accounts paying only the minimum (Philadelphia Fed).
+That is 56 sets of lines. A combined
+product adds its parts' dollars together before the rate is taken. Each set
+of lines is set from the history of one of three sources, picked for that
+product and measure: the industry (every bank that files a Call Report), a
+15-bank peer group, or KeyBank's own Call Report. All three are rated on the
+lines picked. That is 164 series: public FDIC Call Report data (including
+the industry's card, home equity and other consumer charge-offs back to
+1990, as separate series), and one public Philadelphia Fed series.
 
 ## Opening it
 

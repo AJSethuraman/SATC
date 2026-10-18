@@ -288,7 +288,7 @@ def _thresholds_book(th, name, n, labels, decide, floored):
                     ("fix", "To fix"), ("med_change", "Median change"), ("spread", "Spread of levels"),
                     ("med_all", "Median, every quarter"), ("med_change_all", "Median change, every quarter"),
                     ("move_all", "Typical yearly move, every quarter"),
-                    ("spread_all", "Spread of levels, every quarter")):
+                    ("spread_all", "Spread of levels, every quarter"), ("floor", "Floor at zero")):
         th["%s4" % T[key]].value = t_
     a1, a2 = DT.TH_HIDDEN
     for c_ in range(CI(a1), CI(a2) + 1):
@@ -352,10 +352,8 @@ def _thresholds_book(th, name, n, labels, decide, floored):
     for i in range(3, CI(T["check"]) - 1):
         th.auto_filter.filterColumn.append(FilterColumn(colId=i, hiddenButton=True, showButton=None))
     th.freeze_panes = "E5"
-    th.cell(6 + n, 2, "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. A value at or below "
-                      "zero is always Low. Every term is defined on the Glossary tab." if floored
-                      else "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. Every term is "
-                      "defined on the Glossary tab.").font = NOTE
+    th.cell(6 + n, 2, "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.%s Every term is "
+                      "defined on the Glossary tab." % floored).font = NOTE
 
 
 def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
@@ -364,7 +362,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           half_lives: Sequence[float],
           percentiles: Sequence[float], horizon: int, min_history: int,
           synthesis: Optional[Dict[str, dict]] = None, decide: Optional[dict] = None,
-          into: Optional[Workbook] = None, before_save=None) -> dict:
+          into: Optional[Workbook] = None, before_save=None, floor_off: Sequence[str] = ()) -> dict:
     """``decide``, when given, adds the Summary and Decide tabs and makes Decide
     where the settings, periods left out and decisions are typed (decide_tab.py,
     summary_tab.py): ``{"names": [three part names], "parts": {label: (three
@@ -419,6 +417,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     raise ValueError("the workbook would be written over %s, %s for %s; write it elsewhere"
                                      % (Path(path).name, what, lbl))
     higher = direction == "higher_is_worse"
+    floor_off = tuple(floor_off or ())
+    if floor_off and not decide:
+        raise ValueError("floor_off names measures, which only a book with Decide has")
+
+    def floored(label: str) -> bool:
+        """Whether a value at or below zero is always Low for this series: the
+        workbook's floor, unless its measure is in floor_off (a difference
+        between two rates has no floor)."""
+        return bool(floor_at_zero and higher and not (decide and decide["parts"][label][1] in floor_off))
+
+    floor_words = ("" if not (floor_at_zero and higher) else
+                   " A value at or below zero is always Low" + (
+                       ("" if not floor_off else ", except on %s, which %s no floor at zero"
+                        % (", ".join(floor_off), "has" if len(floor_off) == 1 else "have")) + "."))
     # Thresholds' columns: the book's layout with Decide (round 2), the plain
     # one without. Every formula below takes its letters from here.
     TC = DT.TH_BOOK if decide else DT.TH_PLAIN
@@ -430,12 +442,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # left windows out only for a reporting change, never an event): a gap
         # there is read, as None, and nowhere else (series.check).
         left = read_left_out(Path(path))
-        ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floor_at_zero, left_out=left)
+        ev = evidence(pts, label, unit, direction, frequency, smoothing, None, floored(label), left_out=left)
         # Life to date (the firm, 14 Oct 2026): a series shorter than the
         # backtest needs keeps its lines; only its backtest says it was not run.
         try:
             bt = backtest(pts, label, unit, direction, frequency, smoothing, percentiles,
-                          horizon, min_history, floor_at_zero, half_lives, left_out=left)
+                          horizon, min_history, floored(label), half_lives, left_out=left)
         except ValueError as exc:
             if "at least min_history" not in str(exc):
                 raise
@@ -554,10 +566,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     if decide:
         d_pairs, _ = DT.pairs_of([s["label"] for s in loaded], decide["parts"])
     sg = 1 if higher else -1
-    fz = "TRUE" if floor_at_zero and higher else "FALSE"
     for k, s in enumerate(loaded):
         r = 5 + k
         sr = srow[s["label"]]
+        fz = "TRUE" if floored(s["label"]) else "FALSE"
         col = lambda c_: "Data!$%s$%d:$%s$%d" % (L(c_), first, L(c_), last)        # noqa: E731
         kept, yoy, dev = col(2 + n + k), col(2 + 2 * n + k), col(2 + 3 * n + k)
         levdev = col(2 + 4 * n + k)
@@ -642,6 +654,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         if decide:
             # The book's own columns: the parts, the rating as a person reads
             # it, the decision typed on Decide, and the Check in one cell.
+            put("floor", floored(s["label"]))                # read by Decide's rating formulas
             p_ = decide["parts"][s["label"]]
             for key, v in zip(("product", "measure", "source"), p_):
                 put(key, v)
@@ -654,7 +667,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 f=L(dc[DT.LINES_FROM]), d=L(dc["Decision"]), r=dr, s=p_[2].replace('"', '""')))
             put("check", '=IF({m}="","OK","To fix: "&{f})'.format(m=at("refusal"), f=DT.HERE.format(m=at("fix"))))
     if decide:
-        _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_at_zero and higher)
+        _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_words)
     else:
         _thresholds_plain(th, name, n, loaded, floor_at_zero and higher)
 
@@ -989,7 +1002,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     build_rows += [("Measure", "%s (%s); %s; %s; %s" % (
                         name, unit, "higher is worse" if higher else "lower is worse",
                         "no smoothing" if smoothing == 1 else "smoothed over %d quarters" % smoothing,
-                        "a value at or below zero is always Low" if floor_at_zero else "no floor at zero")),
+                        ("a value at or below zero is always Low" + (
+                            "" if not floor_off else ", except on %s" % ", ".join(floor_off)))
+                        if floor_at_zero else "no floor at zero")),
                    ("Starting settings", "Width of Moderate %g; Moderate-Low begins %g; How rare High is %g; on a "
                     "line, rate it %s" % (moderate_halfwidth, low_step, high_z, on_the_line)),
                    ("Backtest half-lives", ", ".join("%g" % h for h in half_lives) or "none"),
@@ -1053,7 +1068,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
                        lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero,
                        changes={s["label"]: RC.quarters_in_notes(read_notes(s["path"])) for s in loaded},
-                       quarters=grid)
+                       quarters=grid, floor_off=floor_off)
         # Decide is where the bank types and looks, so Assess (whose cells
         # Decide feeds) and Chart (every series on one scale, 95 switches)
         # are kept for their workings but hidden (the firm, 14 Oct 2026: "doesnt
@@ -1078,7 +1093,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         srcs = SU.layout(labels, decide["parts"], decide["compare"])["sources"]
         tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=srcs, part_names=decide["names"],
                       decide=dec, n_series=n, name=name, higher=higher, floor_at_zero=floor_at_zero,
-                      number_format=NF)
+                      number_format=NF, floor_off=floor_off)
         su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
                       absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
                       refs=TT.refs(tt, dec["by_pair"]))

@@ -177,64 +177,66 @@ def _method(res, st, tests, excesses, stamp: str) -> list[tuple[str, object]]:
     out.append(("Found, then confirmed", " ".join(said) + " The comparison is made once on each; only the "
                                                           "held-back result counts."))
     out.append(("Gap", f"The odds ratio against {ref}. Odds are bad loans divided by good ones, and an odds ratio is "
-                       f"a group's odds divided by {ref}'s: 2.00× means twice the odds of going bad. While few loans "
-                       f"go bad it is close to how many times as often they do. Worked out by conditional logistic "
-                       f"regression, which compares the groups inside each pocket and takes each pocket's own count "
-                       f"of bad loans as given, instead of estimating a rate for every pocket, which biases the "
-                       f"answer when pockets are thin."))
+                       f"a group's odds divided by {ref}'s: 2.00× means twice the odds of going bad. When the bad rate "
+                       f"is low, the odds ratio is close to the ratio of bad rates. It is estimated by conditional "
+                       f"logistic regression, which compares the groups within each pocket and conditions on each "
+                       f"pocket's count of bad loans. This avoids estimating a separate rate for every pocket, which "
+                       f"biases the estimate when pockets are thin."))
     how = confirmatory.allowance(res)
     after = "" if how == "none" else ", after the allowance for testing many at once (below)"
-    out.append(("p-value", live.text("The chance of a gap at least this big if the group were no different from "
-                                     f"{ref}{after}. Below ", ('TEXT(significance_bar,"0%")',), " is significant, at ",
-                                     ('TEXT(confidence,"0%")',), " sure. Two-sided: a gap either way counts.")))
+    out.append(("p-value", live.text("The probability of a gap at least this large if the group were no different "
+                                     f"from {ref}{after}. A p-value below ", ('TEXT(significance_bar,"0%")',),
+                                     " is significant, at ", ('TEXT(confidence,"0%")',),
+                                     " confidence. The test is two-sided, so a gap in either direction counts.")))
     out.append(("Many at once", confirmatory.allowance_words(res, tests)))
-    out.append(("Holds up?", "Yes when the held-back loans show the gap on the same side of 1 as the found loans "
-                             "did, and significant. Only the held-back result counts: the found one is where the "
-                             "idea came from."))
+    out.append(("Holds up?", "Yes when the gap on the held-back loans is significant and on the same side of 1 as on "
+                             "the found loans. Only the held-back result counts; the found loans are where the "
+                             "candidate was identified."))
     what_col = t.column if one else "the candidate"
     if t.held:
         out.append((f"{held} held fixed",
-                    f"The held-back comparison made again with every loan compared only with loans in its own "
-                    f"pocket, cut by {held} at the band edges on Record. A difference in the {held} mix then can't "
-                    f"pass for a difference in {what_col}. Still holds? says whether the gap stays; if it goes, "
-                    f"the candidate was mostly telling you {held}. Every pocket counts, however small: fewest "
-                    f"loans and fewest losses decide only whether one pocket can be read on its own, and a "
-                    f"pocket where no loan, or every loan, went bad says nothing and adds nothing."))
+                    f"The held-back comparison repeated with each loan compared only with loans in its own "
+                    f"pocket, cut by {held} at the band edges on Record. A difference in the {held} mix therefore "
+                    f"cannot appear as a difference in {what_col}. Still holds? says whether the gap remains. "
+                    f"Every pocket counts, however small: fewest loans and fewest losses decide only whether a "
+                    f"single pocket can be read on its own. A pocket where no loan, or every loan, went bad "
+                    f"contributes nothing."))
     else:
         out.append(("Nothing held fixed", "The pre-spec holds no column fixed, so the whole book is one pocket and "
                                           "there is one confirmation."))
     ex = next((e for e in excesses if e is not None), None)
     if ex is not None:
         what = "GCOs" if ex.unit == "dollars" else "bad loans"
-        out.append(("Material?", f"Excess is a group's {what} on the held-back loans above its share of them (its "
-                                 f"share of the held-back loans), times the whole book's {what} over the held-back "
-                                 f"loans', so it sits on the same scale as Control's materiality line. Material? is "
-                                 f"Yes when it reaches the line."))
+        first = "gross charge-offs (GCOs)" if ex.unit == "dollars" else what       # spelled out on first use
+        out.append(("Material?", f"Excess is a group's {first} on the held-back loans above its share of them (its "
+                                 f"share of the held-back loans), scaled by the whole book's {what} divided by the "
+                                 f"held-back loans' {what}. This puts it on the same scale as Control's materiality "
+                                 f"line. Material? is Yes when the excess reaches the line."))
     out.append(("In words", f"The two verdicts read together: holds up, and not just {held or 'the columns held fixed'}; "
                             f"holds up, but it was mostly {held or 'those columns'}; holds up only with them held "
                             f"fixed; or didn't hold up on held-back loans." if t.held else
                 "Holds up on held-back loans, or didn't."))
     k_words = (f"the Mantel-Haenszel test for {K} groups" if K else "the Mantel-Haenszel test for its groups")
     df_words = (f"{K - 1} degrees of freedom" if K else "one fewer degree of freedom than its groups")
-    out.append(("The tests in full", f"Under the chart{'' if one else ', one block per candidate'}. Does "
-                                     f"{t.column if one else 'each candidate'} matter at all: the general test "
-                                     f"({k_words}: a standard way to add pockets up without "
-                                     f"mixing their loans), read against a chi-square on {df_words}"
-                                     f"{', one fewer than the groups' if K else ''}; the trend test, which gives the "
-                                     f"groups the scores 1 to {K if K else 'their number'} and asks whether the bad "
-                                     f"rate climbs or falls steadily with them, on 1 "
-                                     f"degree of freedom; and the regression's block test (a likelihood ratio test, "
-                                     f"on {df_words}), whether the groups together add anything. A "
-                                     f"difference with no trend is a U or a hump, which a straight-line test would "
-                                     f"call nothing. Then each group's odds ratio with its range and its raw p-value, "
-                                     f"before any allowance, and how much of the "
-                                     f"held-back loans' losses sit in each group (on the holdout only, and on the "
-                                     f"book as a whole, not pocket by pocket: the lift, the group's bad rate over "
-                                     f"the holdout's, is the finding, never the share of all losses)."))
+    out.append(("The tests in full", f"Under the chart{'' if one else ', one block per candidate'}, three tests "
+                                     f"ask whether {t.column if one else 'each candidate'} matters at all. The "
+                                     f"general test ({k_words}, which combines pockets without mixing their loans) "
+                                     f"is read against a chi-square on {df_words}"
+                                     f"{', one fewer than the groups' if K else ''}. The trend test scores the "
+                                     f"groups 1 to {K if K else 'their number'} and asks whether the bad rate rises "
+                                     f"or falls steadily across them, on 1 degree of freedom. The regression's block "
+                                     f"test (a likelihood ratio test, on {df_words}) asks whether the groups "
+                                     f"together add anything. A difference with no trend, such as a U or a hump, is "
+                                     f"not detected by a straight-line test. Each group's odds ratio is then shown "
+                                     f"with its range and its raw p-value, before any allowance. A table then shows "
+                                     f"how much of the held-back loans' losses sit in each group, on the holdout as "
+                                     f"a whole rather than pocket by pocket, with the lift: the group's bad rate "
+                                     f"divided by the holdout's."))
     gaps = [s.mh_gap for x in tests for s in (x.development, x.holdout) if s.mh_gap is not None]
-    out.append(("The range", live.text("Where the true odds ratio sits, ", ('TEXT(confidence,"0%")',), " sure: the "
-                                       "log odds ratio plus and minus the multiple of its standard error that the "
-                                       "confidence level sets. It is each group's own, before the allowance."
+    out.append(("The range", live.text("The ", ('TEXT(confidence,"0%")',), " confidence interval for the odds "
+                                       "ratio: the log odds ratio plus and minus the confidence level's critical "
+                                       "value times its standard error. It is each group's own interval, before the "
+                                       "allowance."
                                        + (f" As a check, each odds ratio held fixed was worked out a second way, pair "
                                           f"by pair with Mantel-Haenszel: the largest gap between the two is "
                                           f"{max(gaps):.1%}." if gaps else ""))))
@@ -287,11 +289,12 @@ def _method_lead(res, st) -> list[tuple[str, object]]:
         held = " and ".join(sc.hold)
         out.append(("The tree, unseen", "The random forest from the Scouting tab, grown on every loan made before the "
                                         f"cutoff ({sc.cutoff.isoformat()}), scores the loans made on or after it, "
-                                        "which it never saw. AUC is the chance a random bad loan scores above a "
-                                        "random good one: 0.5 is a coin flip, 1 is perfect. Built is the forest's "
-                                        "AUC on the development loans, each scored by a forest grown on the others "
-                                        "(the Scouting tab); unseen is on the held-back loans. Unseen well under "
-                                        "built means the tree learnt those years, not the book."
+                                        "which it never saw. The area under the curve (AUC) is the probability that a "
+                                        "random bad loan scores "
+                                        "above a random good one; 0.5 is no better than chance and 1 is perfect "
+                                        "separation. Built is the forest's AUC on the development loans, each scored "
+                                        "by a forest grown on the others (the Scouting tab); unseen is the AUC on "
+                                        "the held-back loans."
                                         + (f" Said twice: from the candidates alone, and with {held} in the forest "
                                            f"too." if sc.hold else "")))
     if _joint_shown(st):
@@ -308,8 +311,7 @@ def _method_lead(res, st) -> list[tuple[str, object]]:
                                        ", after the allowance for testing the shortlist at once") + ". Adds? is Yes "
                                     "when that p-value is under the bar. Moves with names candidates whose values "
                                     f"rise and fall together (a rank correlation of {scout.CORRELATED:.1f} or more, "
-                                    "on the development loans): what one adds, the other may already say. The "
-                                    "loans are the held-back ones with a value of every candidate, in pockets where "
+                                    "on the development loans). The loans are the held-back ones with a value of every candidate, in pockets where "
                                     "some went bad and some didn't."))
     return out
 
@@ -327,7 +329,7 @@ def _unseen(ws, res, r: int) -> int:
     if o is None:
         return r
     house.section(ws, r, FIRST, LAST, "The tree on loans it never saw")
-    said = scout.auc_words(sc) or f"The tree couldn't be checked on the held-back loans: {o.problem}."
+    said = scout.auc_words(sc, spell=False) or f"The tree couldn't be checked on the held-back loans: {o.problem}."
     r = _line(ws, r + 1, "What it found", said)
     return r + 1
 
@@ -431,9 +433,7 @@ def _together(ws, res, st, r: int, helper_rows: list) -> tuple[int, int | None]:
                 r = _line(ws, r, None, f"{t.column} moves with {other} ({rho:+.2f}), which is held fixed: what it "
                                        f"adds here is what it says beyond {other}.")
             else:
-                r = _line(ws, r, None, f"{t.column} and {other} move together ({rho:+.2f}): what one adds, the other "
-                                       f"mostly says already, so each can read as adding little while the pair "
-                                       f"matters.")
+                r = _line(ws, r, None, f"{t.column} and {other} move together ({rho:+.2f}).")
         for k, why in t.not_estimable.items():
             r = _line(ws, r, None, f"{t.column}, {t.groups[k]}: no odds ratio together, because {why}.")
     for t in j.terms:
@@ -729,7 +729,7 @@ def _matters(ws, t, views, r: int) -> int:
         f = (f'=IF(AND({live.sig(g)},{live.sig(tr)}),{_q(f"{lead} the bad rate differs across the groups, and {way} steadily as {t.column} rises.")},'
              f'IF({live.sig(g)},{_q(f"{lead} the bad rate differs across the groups, but not in one direction: higher in some groups, lower in others.")},'
              f'IF({live.sig(tr)},{_q(f"{lead} the groups taken all at once do not differ significantly, but the bad rate {way} steadily as {t.column} rises (the trend test).")},'
-             f'{_q(f"{lead} no difference across the groups shows at ")}&TEXT(confidence,"0%")&{_q(" sure. That is not proof there is none.")})))')
+             f'{_q(f"{lead} no difference across the groups is significant at ")}&TEXT(confidence,"0%")&{_q(" confidence.")})))')
         r = _line(ws, r, "What it found", _empty(side, lead) or f, chars=150)
         r += 1
     return r
@@ -1027,8 +1027,9 @@ def found_block(ws, wb, r: int, value_of) -> int:
     ws.conditional_formatting.add(f"G{t + 1}:G{last}", FormulaRule(
         formula=[f'G{t + 1}="Yes, worse"'], font=Font(bold=True, color=house.CRIMSON),
         fill=PatternFill("solid", fgColor=house.ALERT_FG, bgColor=house.ALERT_FG)))
-    link = ws.cell(row=last + 1, column=2, value="Found beside confirmed, with and without the columns held fixed, "
-                                                 "and how it's worked out: the New variables tab.")
+    link = ws.cell(row=last + 1, column=2, value="The New variables tab shows the found and confirmed results side "
+                                                 "by side, with and without the columns held fixed, and how each is "
+                                                 "calculated.")
     link.hyperlink = f"#'{SHEET}'!A1"
     link.font = Font(name="Calibri", size=10, color=house.KEY_RED, underline="single")
     return last + 3

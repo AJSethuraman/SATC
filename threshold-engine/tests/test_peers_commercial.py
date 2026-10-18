@@ -80,7 +80,7 @@ def test_the_commercial_products_are_the_research_tables_fields():
         assert books.NOT_FILED_NOTE in books.DEFINITIONS[p], p
     for p in (OO, OTHER):
         assert "first filed 2007Q1" in books.DEFINITIONS[p]
-        assert "labelled, not dropped" in books.DEFINITIONS[p]
+        assert "labeled, not dropped" in books.DEFINITIONS[p]
 
 
 def test_the_fixture_is_five_filers_eight_quarters_as_pulled(data):

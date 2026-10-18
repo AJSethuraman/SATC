@@ -65,7 +65,8 @@ def layout(sources: Sequence[str]) -> dict:
 
 def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str], Dict[str, str]],
           sources: Sequence[str], part_names: Sequence[str], decide: dict, n_series: int, name: str,
-          higher: bool, floor_at_zero: bool, number_format: str = "0.00", index: Optional[int] = None) -> dict:
+          higher: bool, floor_at_zero: bool, number_format: str = "0.00", index: Optional[int] = None,
+          floor_off: Sequence[str] = ()) -> dict:
     """Add Thresholds: one row per product and measure (``pairs``, in Decide's
     order). ``by_pair``: each row's label per source; ``sources``: the order
     of the source columns (Summary's); ``decide``: what ``decide_tab.build``
@@ -82,7 +83,7 @@ def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str]
     lbs_a = lbs_col("series")
     C = decide["columns"]
     p0, p1, p2 = part_names
-    fz = "TRUE" if floor_at_zero and higher else "FALSE"
+    floor_off = tuple(floor_off or ())
     op_w, op_b = ("<=", "<") if higher else (">=", ">")
     last = FIRST + len(pairs) - 1
     last_col = lay["last_shown"]
@@ -189,7 +190,8 @@ def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str]
             ws["%s%d" % (pc["number"], r)] = (
                 '=IF(OR(COUNT({ln})<4,NOT(ISNUMBER({x}))),"",IF(AND({fz},{x}<=0),1,1+IF({rule}="worse",'
                 'COUNTIF({ln},"{w}"&{x}),COUNTIF({ln},"{b}"&{x}))))'
-                .format(ln=lines, x=x, fz=fz, rule=at("rule"), w=op_w, b=op_b))
+                .format(ln=lines, x=x, fz="TRUE" if (floor_at_zero and higher and pr[1] not in floor_off) else "FALSE",
+                        rule=at("rule"), w=op_w, b=op_b))
             k = cell_("number")
             ws["%s%d" % (pc["rating"], r)] = (
                 '=IF({d}="","{np}",IF({w}="","Not in this workbook",IF({rf}<>"","Refused",IF({k}="","",'
@@ -252,12 +254,13 @@ def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str]
         ws.auto_filter.filterColumn.append(FilterColumn(colId=i, hiddenButton=True, showButton=None))
     ws.freeze_panes = "E5"
     floored = floor_at_zero and higher
-    ws.cell(last + 2, 2, "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. A value at or below "
-                         "zero is always Low. Each %s's own lines, with the same settings, are on the Lines by source "
-                         "tab. Every term is defined on the Glossary tab." % p2.lower() if floored
-            else "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High. Each %s's own lines, with the "
-                 "same settings, are on the Lines by source tab. Every term is defined on the Glossary tab."
-                 % p2.lower()).font = Font(name="Calibri", size=10, color=K.SLATE)
+    floor_words = ("" if not floored else " A value at or below zero is always Low" + (
+        "" if not floor_off else ", except on %s, which %s no floor at zero"
+        % (", ".join(floor_off), "has" if len(floor_off) == 1 else "have")) + ".")
+    ws.cell(last + 2, 2, "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.%s Each %s's own "
+                         "lines, with the same settings, are on the Lines by source tab. Every term is defined on "
+                         "the Glossary tab." % (floor_words, p2.lower())).font = Font(name="Calibri", size=10,
+                                                                                       color=K.SLATE)
     rows = {pr: FIRST + i for i, pr in enumerate(pairs)}
     return {"sheet": TITLE, "first": FIRST, "last": last, "cols": cols, "per": per, "rows": rows,
             "hidden": lay["hidden"]}

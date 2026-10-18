@@ -22,7 +22,10 @@ book = json.loads((ROOT / "books" / "consumer-public.json").read_text(encoding="
 with (ROOT / "books" / "consumer-public-series.csv").open(newline="", encoding="utf-8") as fh:
     rows = list(csv.DictReader(fh))
 for r in rows:
-    r["file"] = "series/" + Path(r["file"]).name
+    if "data/industry/" in r["file"].replace("\\", "/"):
+        r["file"] = str(ROOT / "data" / "industry" / Path(r["file"]).name)      # committed, not built
+    else:
+        r["file"] = "series/" + Path(r["file"]).name
 with (out / "series.csv").open("w", newline="", encoding="utf-8") as fh:
     w = csv.DictWriter(fh, fieldnames=list(rows[0]))
     w.writeheader()
@@ -33,5 +36,9 @@ book["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"), abso
 # The SEC filings for the Peer loan classes tab: the cache 'peers classes-pull' filled.
 book["loan_classes"] = {"file": str(ROOT / "config" / "peer-loan-classes.json"),
                         "cache": str(Path(sys.argv[2]).resolve())}
+book["reporting_changes"] = str(ROOT / "config" / "reporting-changes.json")
+if book.get("large_banks") is not None:
+    # The Philadelphia Fed file 'peers large-banks-pull' put beside the FDIC cache.
+    book["large_banks"] = {"file": str(cache / "large-banks" / Path(book["large_banks"]["file"]).name)}
 (out / "book.json").write_text(json.dumps(book, indent=2) + "\n", encoding="utf-8")
 print("wrote %s: %d series, cache %s" % (out / "book.json", len(rows), cache))

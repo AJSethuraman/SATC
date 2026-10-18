@@ -523,8 +523,12 @@ def test_the_regionals_pack_and_no_exemption(built, data, tmp_path, capsys):
     peers_ = R.peers(roster)
     assert [pe.cell(pe[peers_workbook.include_cell(j)].row - 1, pe[peers_workbook.include_cell(j)].column).value
             for j in range(len(peers_))] == [b["short"] for b in peers_]
-    on = {b["cert"] for j, b in enumerate(peers_) if pe[peers_workbook.include_cell(j)].value == "Yes"}
-    assert on == set(regionals) and pe[peers_workbook.include_cell(0)].value == "No"   # JPMorgan starts off
+    # Every bank follows Banks in the pack, which starts on Regionals only, so
+    # the banks in are the regionals (JPMorgan starts off).
+    assert {pe[peers_workbook.include_cell(j)].value for j in range(len(peers_))} == {peers_workbook.FOLLOW}
+    assert pe[peers_workbook.picker_cell("pack")].value == peers_workbook.PACK_PICKS[1]
+    on = {b["cert"] for b in peers_ if b["regional"]}
+    assert on == set(regionals) and not peers_[0]["regional"]
 
 
 def test_a_series_that_ends_early_says_so(built, data, tmp_path, capsys):
@@ -789,7 +793,17 @@ def test_delinquency_yes_writes_every_product_measure_basis_and_series(dq_built)
             for who in ("pack-composite", "pack-median", "keybank", "industry")
             for m in DQ_MEASURES.values() for b in DQ_BASES.values()}
     assert dq == want and len(dq) == 200
-    assert len(names - dq) == 5 * 4 * 2
+    # 30+ to charge-off (flows.py) rides on the delinquency fields: per product the pack composite,
+    # KeyBank and the industry on both bases, and KeyBank's gap to peers and to the industry.
+    fl = {n for n in names if "30-plus-to-charge-off" in n}
+    want_fl = {"%s_%s_30-plus-to-charge-off_%s.csv" % (p, who, b)
+               for p in ("credit-card", "mortgage", "home-equity", "other-consumer", "auto")
+               for who in ("pack-composite", "keybank", "industry") for b in DQ_BASES.values()}
+    want_fl |= {"%s_keybank_gap-to-%s-on-30-plus-to-charge-off_four-quarter-average.csv" % (p, who)
+                for p in ("credit-card", "mortgage", "home-equity", "other-consumer", "auto")
+                for who in ("peers", "industry")}
+    assert fl == want_fl and len(fl) == 40
+    assert len(names - dq - fl) == 5 * 4 * 2
     wb = load_workbook(dq_built["out"])
     assert wb["DelinquencyData"]["A1"].value == "Product"                 # built, not the not-built line
     assert "dl_c" in wb["Peers"].defined_names
@@ -1506,7 +1520,7 @@ def test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out(merger_built_p
     wb = load_workbook(built["out"])
     da = wb["Data"]
     head = [c.value for c in da[1]]
-    assert head[13:] == ["Quarter-end balance ($000)", "Combined with"]
+    assert head[13:] == ["Quarter-end balance ($000)", "Combined with", "In the pack now"]
     got = {(r[1], r[3]): (r[9], r[10], r[13], r[14]) for r in da.iter_rows(min_row=2, values_only=True)}
     assert all(w != WHY_ACQUIRED for _, w, _, _ in got.values())
     assert got["P1", "2020Q1"] == (True, None, 5500, "certificate 300, absorbed 2020Q2")

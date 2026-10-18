@@ -168,7 +168,7 @@ def test_start_here_shows_each_group_on_the_holdout_and_follows_the_confidence(r
         if k != t.ref:
             assert cells[(rr, 7)] == ("Yes, worse" if k in worse else cells[(rr, 7)])
             assert (cells[(rr, 7)] == "Yes, worse") == (k in worse)
-    assert "Nothing yet" not in " ".join(v for v in cells.values() if isinstance(v, str))
+    assert "No Run yet" not in " ".join(v for v in cells.values() if isinstance(v, str))
 
     # at 99% sure, a group whose p-value sits between 1% and 5% stops counting (OC-40: the lines are live)
     wb = load_workbook(runs["b"])

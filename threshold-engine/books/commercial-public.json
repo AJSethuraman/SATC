@@ -95,5 +95,7 @@
   },
   "internal": null,
   "loan_classes": null,
-  "reporting_changes": "../config/reporting-changes.json"
+  "reporting_changes": "../config/reporting-changes.json",
+  "floor_off": [],
+  "large_banks": null
 }

@@ -11,7 +11,12 @@ What these tests hold: the windows stay out and are never filled; the file
 declares them on a `left-out:` line; every reader takes that gap and no
 other; every other reason a window is left out (an acquisition, the minimum
 book, a jump in a quarter nothing names) breaks the series as before.
+
+The book's left-out file (left-out.csv, the agent building Book 2, 17 Oct
+2026, asked for it; the analyst: "sure") is tested at the foot, on synthetic
+rows worked by hand.
 """
+import csv
 import json
 from pathlib import Path
 
@@ -20,6 +25,7 @@ import pytest
 from conftest import ROOT
 from threshold_engine import reporting_changes as RC
 from threshold_engine.backtest import backtest
+from threshold_engine.book import LEFT_OUT_HEAD, write_left_out
 from threshold_engine.evidence import evidence
 from threshold_engine.peers import books, delinquency as D, run
 from threshold_engine.profile import profile
@@ -187,7 +193,7 @@ def test_keybanks_ci_runs_from_2006_with_the_ndfi_windows_left_out():
     tail, before, after = run.unbroken_tail([(r["quarter"], r["net_rate"]) for r in rows], run.bridged(rows, marks))
     assert tail[0][0] == "2006Q1" and tail[-1][0] == "2026Q2" and before == [] and after == []
     assert [q for q, v in tail if v is None] == left
-    assert run.named_for(CHANGES, "C&I", "net charge-offs", ["2024Q4"]) == ["NDFI and margin-loan revision"]
+    assert run.named_for(CHANGES, "C&I", "net charge-offs", ["2024Q4"]) == [("NDFI and margin-loan revision", ["C&I"])]
 
 
 def test_an_acquisition_or_the_minimum_book_still_breaks_the_series():
@@ -358,3 +364,40 @@ def test_the_build_reports_the_quarters_it_wrote_not_the_quarters_on_the_calenda
     assert line.startswith("Wrote %s: %d quarters, 5 left out within it, not written (left-out line)"
                            % (path, written)), line
     assert next(n for p, n, _, _ in got["series"] if p == path) == written
+
+
+# ---- the left-out file: the quarters each series left out as built ----------------------------------------
+
+def test_a_bank_rows_own_reason_is_used():
+    assert run.break_reason({"quarter": "2021Q3", "net_rate": None, "why": "book moved more than the jump"},
+                        "net_rate", 5) == "book moved more than the jump"
+    assert run.break_reason({"q": "2010Q1", "avg4": None, "why": None, "why_avg4": "fewer than four"},
+                        "avg4", 5) == "fewer than four"
+    assert run.break_reason({"quarter": "2008Q1", "net_rate": None, "banks": 3}, "net_rate", 5) == \
+        "3 banks kept, fewer than the 5 needed"
+    assert run.break_reason({"quarter": "2008Q1", "net_rate": None}, "net_rate", 5) == "no value"
+    assert run.break_reason(None, "rate", 5) == "not in the data"
+
+
+def test_spans_before_the_last_break_and_after_the_last_value():
+    rows = [("2020Q1", 1.0), ("2020Q2", None), ("2020Q3", 2.0), ("2020Q4", 3.0), ("2021Q1", None)]
+    tail, before, after = run.unbroken_tail(rows)
+    assert [q for q, _ in tail] == ["2020Q3", "2020Q4"]
+    spans = run.left_out_spans(before, after, {"2020Q2": "book moved more than the jump"})
+    assert spans[0][:2] == ("2020Q1", "2020Q2") and "2020Q2 has no value (book moved more than the jump)" in spans[0][2]
+    assert spans[1] == ("2021Q1", "2021Q1", "the latest quarters have no value: 2021Q1 (no value)")
+    assert run.left_out_spans([], [], {}) == []
+
+
+def test_the_file_names_each_series_by_its_parts_and_skips_whole_ones(tmp_path):
+    a, b = tmp_path / "auto_keybank_net.csv", tmp_path / "card_industry_net.csv"
+    series = [("Auto - Net charge-offs - KeyBank", a), ("Credit card - Net charge-offs - Industry", b)]
+    parts = {"Auto - Net charge-offs - KeyBank": ("Auto", "Net charge-offs", "KeyBank"),
+             "Credit card - Net charge-offs - Industry": ("Credit card", "Net charge-offs", "Industry")}
+    out = tmp_path / "left-out.csv"
+    n = write_left_out(out, series, parts, {a: [("2007Q1", "2022Q3", "before the last break")], b: []})
+    lines = out.read_text(encoding="utf-8").splitlines()
+    assert n == 1 and all(l.startswith("# ") for l in lines[:2])
+    rows = list(csv.reader(lines[2:]))
+    assert rows == [list(LEFT_OUT_HEAD), ["Auto", "Net charge-offs", "KeyBank", "2007Q1", "2022Q3",
+                                          "before the last break"]]
