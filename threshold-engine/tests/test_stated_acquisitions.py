@@ -214,7 +214,8 @@ def test_the_stated_acquisitions_are_required_wherever_the_recorded_ones_are():
         books.bank_book(data, "588", "C&I", 0.25, 0, acquired=[])
     with pytest.raises(TypeError, match="stated"):
         D.bank_delinquency(data, "588", "C&I", "30-89", 0.25, 0, False, acquired=[])
-    for f in (books.bank_book, D.bank_delinquency, PW.build_peers_workbook, PW._check_delinquency):
+    from threshold_engine.peers import flows as FL
+    for f in (books.bank_book, D.bank_delinquency, FL.bank_flow, PW.build_peers_workbook, PW._check_delinquency):
         params = inspect.signature(f).parameters
         assert "stated" in params, f.__name__
         for name in [n for n in ("acquired", "stated") if n in params]:
@@ -338,6 +339,11 @@ def test_the_delinquency_files_name_the_list_and_the_pack_average_names_the_bank
            "quarters" in comp
     assert "blanked by a stated acquisition (an acquisition the FDIC record cannot see, listed with its " \
            "filing): M&T (588) 2011Q2" in comp
+    # 30+ to charge-off (flows, merged 18 Oct 2026; flows.bank_flow is tested on its own): the files the
+    # rules apply to name the list and say the rule.
+    pack = (series / "c-i_pack-composite_30-plus-to-charge-off_quarter-end.csv").read_text(encoding="utf-8")
+    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 in these " \
+           "quarters" in pack and "and the stated acquisitions, applied to the two quarters" in pack
 
 
 def test_left_out_note_words_each_reason_apart():

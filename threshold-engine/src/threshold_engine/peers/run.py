@@ -567,20 +567,26 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
 
 
 def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition_share, min_banks, source, every,
-                 out_dir, acquired):
+                 out_dir, acquired, stated, stated_note):
     """The 30+ to charge-off series files (``flows``), per product: the pack
     composite, the bank itself and the industry, each on both bases, and the
     bank's gap to the peer group and to the industry (four-quarter average).
     Each is ``(path, rows, note, product, measure, reasons)``, ``reasons``
-    ``{quarter: why no value}`` for the left-out file."""
-    rule = ("Rules: each bank's own filings (not pro forma); jump %g and acquisition share %g, applied to the two "
-            "quarters after the quarter-end (a sale, purchase or acquisition there moves the charge-offs against "
-            "the stock); at least %d banks in the composite. The industry has no jump, acquisition or minimum rule."
+    ``{quarter: why no value}`` for the left-out file. ``stated`` is
+    ``{cert: [YYYYMMDD]}``, the stated acquisitions in these quarters
+    (``peers.stated``), applied as the acquisition quarters are, and
+    ``stated_note`` the line naming them, given to every file the rules apply
+    to."""
+    rule = ("Rules: each bank's own filings (not pro forma); jump %g, acquisition share %g and the stated "
+            "acquisitions, applied to the two quarters after the quarter-end (a sale, purchase or acquisition "
+            "there moves the charge-offs against the stock); at least %d banks in the composite. The industry "
+            "has no jump, acquisition or minimum rule."
             % (jump, acquisition_share, min_banks))
     certs = [b["cert"] for b in pack]
     made = []
     for p in products:
-        banks_ = {b["cert"]: FL.bank_flow(data, b["cert"], p, jump, acquired=acquired[p].get(b["cert"], []))
+        banks_ = {b["cert"]: FL.bank_flow(data, b["cert"], p, jump, acquired=acquired[p].get(b["cert"], []),
+                                          stated=stated.get(b["cert"], []))
                   for b in roster}
         comp = FL.composite(banks_, certs, min_banks)
         ind = FL.industry(data, p)
@@ -596,7 +602,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
                 note = ["%s, %s, %s, %%." % (p, FL.MEASURE, basis), FL.DEFINITION]
                 if basis == "four-quarter average":
                     note.append(FL.DEFINITION_AVG4)
-                note += [words[0].upper() + words[1:] + ".", source, rule] + books.definitions(p)
+                note += [words[0].upper() + words[1:] + ".", source, rule, stated_note] + books.definitions(p)
                 reasons = {r["q"]: (r["why_avg4"] if key == "avg4" else r["why"]) or "no value" for r in rows}
                 made.append((out_dir / ("%s_%s_%s_%s.csv" % (slug(p), who, FL.SLUG, slug(basis))),
                              FL.values(rows, basis), note, p, FL.MEASURE, reasons))
@@ -605,7 +611,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
             g = FL.gap(mine, other)
             note = ["%s, %s, four-quarter average, percentage points." % (p, meas),
                     FL.DEFINITION_GAP % (meas, me["short"], words, me["short"], words), FL.DEFINITION,
-                    FL.DEFINITION_AVG4, source, rule] + books.definitions(p)
+                    FL.DEFINITION_AVG4, source, rule, stated_note] + books.definitions(p)
             made.append((out_dir / ("%s_%s_%s_four-quarter-average.csv" % (slug(p), slug(me["short"]), slug(meas))),
                          FL.values(g, "four-quarter average"), note, p, meas,
                          {r["q"]: r["why"] or "no value" for r in g}))
@@ -1008,7 +1014,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         # is as built; it does not follow Banks in the pack.
         for path, rows, note, p, m, reasons in _flow_series(
                 data, roster_, me, pack_, pack_words, products, jump, acquisition_share, min_banks, source, every,
-                out_dir, acquired):
+                out_dir, acquired, stated_q, stated_note):
             tail, before, after = unbroken_tail(rows)
             left_out_[path] = left_out_spans(before, after, reasons)
             if tail:
