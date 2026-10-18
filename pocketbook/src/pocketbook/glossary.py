@@ -209,6 +209,12 @@ def _verdicts(res, grids, label) -> dict:
     return out
 
 
+def _plain(x: float) -> str:
+    """A number as a plain decimal, never in scientific notation: 1/10001 is 0.00009999, not 9.999e-05."""
+    from decimal import Decimal
+    return f"{Decimal(f'{x:.6g}'):f}"
+
+
 def _pocket(p: dict) -> str:
     return f"{p['band']} / {p['seg']}"
 
@@ -471,11 +477,11 @@ def rows(f: dict | None) -> list[tuple[str, str, str]]:
                 f"0.08% reads {live.SIG_BETTER}. One at p = 23% reads {live.SIG_NO}."))
     pv = yes or better or near or no
     out.append((f"{live.P_HEAD} (the column beside {live.SIG_HEAD.format('N%')})",
-                f"The p-value that decides the reading beside it, held as a number and shown as a percentage, so it "
-                f"sorts and filters as one. Below 0.01% it shows < 0.01%, and one that would show as the line takes "
-                f"more decimals. {allowance}",
+                f"The p-value that decides the reading beside it, shown as a percentage. It is a number, so the "
+                f"column can be sorted and filtered on. Below 0.01% it shows under 0.01%, and one that would show "
+                f"as the line takes more decimals. {allowance}",
                 f"Beside {pv['band']} / {pv['seg']}'s {pv['said']} on {pv['measure']}, the column holds "
-                f"{pv['p']:.6g}, shown as {pv['p_said'].split(' ', 1)[1].lstrip('= ')}." if run and pv else
+                f"{_plain(pv['p'])}, shown as {pv['p_said'].split(' ', 1)[1].lstrip('= ')}." if run and pv else
                 f"A p-value of 0.0037 shows as {live.p_words(0.0037, 0.05)[4:]}, and at 95% sure one of 0.0498 shows "
                 f"as {live.p_words(0.0498, 0.05)[4:]} rather than as the 5% line."))
     out.append(("Borderline",

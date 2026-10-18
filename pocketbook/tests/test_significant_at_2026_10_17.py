@@ -16,6 +16,7 @@ the allowance for many tests. The heading follows How sure on Control live."""
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 
@@ -182,18 +183,21 @@ def test_the_tab_prints_only_the_new_readings_and_never_the_old(sig_book):
 
 @pytest.mark.parametrize("p, bar, said", [
     (0.0009, 0.05, "p = 0.09%"), (0.0037, 0.05, "p = 0.37%"), (0.048, 0.05, "p = 4.8%"), (0.23, 0.05, "p = 23%"),
-    (0.0001, 0.05, "p = 0.01%"), (0.0000999, 0.05, "p < 0.01%"), (0.0, 0.05, "p < 0.01%"),
+    (0.0001, 0.05, "p = 0.01%"), (0.0000999, 0.05, "p under 0.01%"), (0.0, 0.05, "p under 0.01%"),
     # the tiers are by the p-value itself, as a number format's conditions are: under 1% two decimals, so 0.00995 is
     # 1.00%; under 10% one, so 0.0996 is 10.0%
     (0.00995, 0.05, "p = 1.00%"), (0.0996, 0.05, "p = 10.0%"), (1.0, 0.05, "p = 100%"),
     # a p-value that would round onto the bar it is under, or over, takes one more decimal
     (0.0498, 0.05, "p = 4.98%"), (0.0503, 0.05, "p = 5.03%"), (0.05, 0.05, "p = 5.0%"),
     (0.0099, 0.01, "p = 0.99%"), (0.00999, 0.01, "p = 0.999%"), (0.0101, 0.01, "p = 1.01%"),
-    # LibreOffice rounds the binary double: 0.00145 x 100 is 0.14499...
-    (0.00145, 0.05, "p = 0.14%"),
+    # the spreadsheet rounds the decimal value, 0.00145, not its binary double 0.0014499...: 0.15%
+    (0.00145, 0.05, "p = 0.15%"),
     # just under the line at 90%, 95% and 97.5% sure, and past two extra decimals it says which side
-    (0.0999, 0.1, "p = 9.99%"), (0.09996, 0.1, "p = 9.996%"), (0.10004, 0.1, "p > 10%"),
-    (0.0499996, 0.05, "p < 5%"), (0.02499, 0.025, "p = 2.499%"), (0.024996, 0.025, "p < 2.5%"),
+    (0.0999, 0.1, "p = 9.99%"), (0.09996, 0.1, "p = 9.996%"), (0.10004, 0.1, "p over 10%"),
+    (0.0499996, 0.05, "p under 5%"), (0.02499, 0.025, "p = 2.499%"), (0.024996, 0.025, "p under 2.5%"),
+    # exact half-ways, rounded on the decimal value as the spreadsheet rounds them (the review of 17 Oct 2026)
+    (0.05005, 0.05, "p = 5.01%"), (0.049995, 0.05, "p under 5%"), (0.025005, 0.025, "p = 2.501%"),
+    (0.02495, 0.025, "p = 2.495%"),
     (0.000996, 0.001, "p = 0.0996%"),
 ])
 def test_the_p_value_is_a_percentage_at_the_firms_precision(p, bar, said):
@@ -206,8 +210,9 @@ def test_the_p_columns_formats_choose_as_python_does_in_a_spreadsheet(tmp_path):
     from recalc import recalc
     ps = [0.0009, 0.0037, 0.048, 0.23, 0.0001, 0.0000999, 0.0, 0.00995, 0.0996, 1.0, 0.0498, 0.0503, 0.05, 0.0099,
           0.012345, 0.000151, 0.4567, 0.00999, 0.0101, 0.00145, 0.0999, 0.09996, 0.10004, 0.0499996, 0.02499,
+          0.05005, 0.049995, 0.025005, 0.02495, 0.10005, 0.0099995,
           0.024996, 0.000996, 0.001, 0.01, 0.025, 0.1]
-    own = lambda p: '"< 0.01%"' if p < live.RAREST else "0.00%" if p < 0.01 else "0.0%"     # noqa: E731
+    own = lambda p: '"under 0.01%"' if p < live.RAREST else "0.00%" if p < 0.01 else "0.0%"     # noqa: E731
     for bar in (0.05, 0.01, 0.1, 0.025, 0.001):
         wb = Workbook()
         ws = wb.active
@@ -224,6 +229,53 @@ def test_the_p_columns_formats_choose_as_python_does_in_a_spreadsheet(tmp_path):
             hit = next((fmt for j, (_, fmt) in enumerate(rules, start=2) if calc.cell(row=i, column=j).value is True),
                        own(p))
             assert hit == live.p_format(p, bar), (p, bar, hit)
+
+
+def _half_ways(bar: float) -> list[float]:
+    """p-values around a line: exact half-ways and their neighbours at every precision the column can take."""
+    from decimal import Decimal
+    out = {0.00145, 0.05005, 0.049995, 0.025005, 0.02495, 0.0009, 0.0037, 0.23, 0.00005, 0.0001}
+    for n in range(3, 9):
+        h = Decimal(5) * Decimal(10) ** -(n + 1)
+        for k in range(-3, 4):
+            for sgn in (-1, 1):
+                v = float(Decimal(str(bar)) + sgn * h + k * Decimal(10) ** -n)
+                if 0 < v < 1 and v != bar:
+                    out.add(v)
+    return sorted(out)
+
+
+@pytest.mark.parametrize("bar", [0.05, 0.01, 0.1, 0.025, 0.001])
+def test_the_p_value_shows_in_libreoffice_as_python_says(tmp_path, bar):
+    """What the p-value column shows, read off the page LibreOffice prints (its number format and conditional
+    formats applied), against live.show_p, around each line: half-ways included, and never the line itself."""
+    import shutil
+    import subprocess
+    from recalc import SOFFICE, _profile_dir, need_soffice
+    need_soffice()
+    if not shutil.which("pdftotext"):
+        if os.environ.get("CI"):
+            pytest.fail("pdftotext (poppler-utils) isn't installed in CI, so the shown p-values can't be read")
+        pytest.skip("pdftotext isn't installed")
+    ps = _half_ways(bar)
+    wb = Workbook()
+    ws = wb.active
+    ws["Z1"] = bar
+    ws.column_dimensions["A"].width = 18
+    wb.defined_names[live.BAR] = DefinedName(live.BAR, attr_text=f"'{ws.title}'!$Z$1")
+    for i, p in enumerate(ps, start=1):
+        ws.cell(row=i, column=1, value=p).number_format = live.P_FMT
+    results.cf(ws, f"A1:A{len(ps)}", [(f, None, None, fmt) for f, fmt in live.p_rules("A1")], "ISNUMBER($A1)")
+    wb.save(tmp_path / "p.xlsx")
+    subprocess.run([SOFFICE, f"-env:UserInstallation={_profile_dir().as_uri()}", "--headless", "--convert-to", "pdf",
+                    "--outdir", str(tmp_path), str(tmp_path / "p.xlsx")], capture_output=True, timeout=300)
+    text = subprocess.run(["pdftotext", "-layout", str(tmp_path / "p.pdf"), "-"], capture_output=True,
+                          text=True).stdout
+    shown = [x.strip() for x in text.splitlines() if x.strip().endswith("%")]
+    assert len(shown) == len(ps), (len(shown), len(ps))
+    for p, got in zip(ps, shown):
+        assert got == live.show_p(live.p_format(p, bar), p), (p, bar, got)
+        assert got != live.pct_words(bar), (p, bar, got)             # never the line it sits under or over
 
 
 # --------------------------------------------------------------------------

@@ -580,7 +580,7 @@ NO_REST = "Nothing to compare with"
 FEW_LOSSES, NOT_MORE = "Too few losses to test", "Not losing more"
 #: every reading sig_said can give, for the Glossary's guard
 SIG_READINGS = (SIG_WORSE, SIG_BETTER, SIG_BORDER, SIG_NO, FEW_LOSSES, NO_REST, NOT_MORE)
-#: under this a p-value shows as "< 0.01%"
+#: under this a p-value shows as "under 0.01%"
 RAREST = 0.0001
 #: the confidence and its line, 1 - confidence, as percentages in _live's words ("95%", "97.5%", "0.1%")
 _PCT = 'IF(ROUND({x}*100,9)=ROUND({x}*100,0),TEXT({x}*100,"0"),TEXT({x}*100,"0.0"))&"%"'
@@ -597,18 +597,26 @@ def pct_words(x: float) -> str:
     return sure_words(x)[:-len(" sure")]
 
 
-def _half_up(v: float, d: int) -> Decimal:
-    """v to d decimals, a half rounded away from zero, on the binary double itself, as LibreOffice's ROUND and FIXED
-    do: 0.00145 x 100 is 0.144999... in binary, so it is 0.14."""
-    return Decimal(v).quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
+def _dec(v: float) -> Decimal:
+    """v as the spreadsheet holds it in decimal: its 15 significant digits, so 0.00145 is 0.00145 and not the
+    0.0014499... of its binary double."""
+    return Decimal(f"{v:.15g}")
+
+
+def _half_up(v: float | Decimal, d: int) -> Decimal:
+    """v to d decimals, a half rounded away from zero, as Excel's and LibreOffice's ROUND and number formats round
+    it: on its decimal value (_dec), so 0.00145 shown as a percentage to two decimals is 0.15%."""
+    x = v if isinstance(v, Decimal) else _dec(v)
+    return x.quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
 
 
 # The p-value column holds the number and shows it as a percentage (the firm's precision, 17 Oct 2026): two decimals
-# under 1%, one under 10%, none from 10%, and "< 0.01%" under 0.01%. A p-value that would show as the line it sits
-# under or over (1 - confidence) takes up to two more decimals, then says which side it is ("< 10%"). The number
+# under 1%, one under 10%, none from 10%, and "under 0.01%" under 0.01%, as every other tab shows it (book.P_FMT).
+# A p-value that would show as the line it sits under or over (1 - confidence) takes up to two more decimals, then
+# says which side it is ("under 10%", "over 10%"). The number
 # format carries what two conditions can (P_FMT); conditional formats carry the rest (p_rules), and p_format says,
 # in Python, which one a p-value gets
-P_FMT = '[<0.0001]"< 0.01%";[<0.01]0.00%;0.0%'
+P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
 #: the format for each tier (share decimals 4, 3 and 2), with no, one and two more decimals
 _TIER_FMTS = {4: ("0.00%", "0.000%", "0.0000%"), 3: ("0.0%", "0.00%", "0.000%"), 2: ("0%", "0.0%", "0.00%")}
 
@@ -621,14 +629,14 @@ def _dd(p: float) -> int:
 def p_format(p: float, bar: float) -> str:
     """The number format a p-value shows in, the same choice p_rules makes in the workbook."""
     if p < RAREST:
-        return '"< 0.01%"'
+        return '"under 0.01%"'
     dd = _dd(p)
     on = lambda k: _half_up(p, dd + k) == _half_up(bar, dd + k)                    # noqa: E731
     if p != bar and on(0):
         if on(1):
             if on(2):
                 whole = _half_up(bar * 100, 0) == _half_up(bar * 100, 9)
-                return f'"{"<" if p < bar else ">"} "' + ("0%" if whole else "0.0%")
+                return f'"{"under" if p < bar else "over"} "' + ("0%" if whole else "0.0%")
             return _TIER_FMTS[dd][2]
         return _TIER_FMTS[dd][1]
     return _TIER_FMTS[dd][0]
@@ -642,13 +650,13 @@ def show_p(fmt: str, p: float) -> str:
             return lead
         return lead + show_p(num, p)
     d = len(fmt.split(".")[1]) - 1 if "." in fmt else 0
-    return f"{_half_up(p * 100, d)}%"
+    return f"{_half_up(_dec(p) * 100, d)}%"
 
 
 def p_words(p: float, bar: float) -> str:
-    """A p-value in words, as the Glossary quotes it: "p = 0.37%", "p < 0.01%", "p < 10%"."""
+    """A p-value in words, as the Glossary quotes it: "p = 0.37%", "p under 0.01%", "p under 10%"."""
     shown = show_p(p_format(p, bar), p)
-    return f"p {shown}" if shown.startswith(("<", ">")) else f"p = {shown}"
+    return f"p {shown}" if shown.startswith(("under", "over")) else f"p = {shown}"
 
 
 def p_rules(c: str) -> list[tuple[str, str]]:
@@ -658,8 +666,9 @@ def p_rules(c: str) -> list[tuple[str, str]]:
     on = lambda k: f"ROUND({c},{dd}+{k})=ROUND({BAR},{dd}+{k})"                  # noqa: E731
     whole = f"ROUND({BAR}*100,0)=ROUND({BAR}*100,9)"
     still = f"{on(0)},{on(1)},{on(2)}"
-    out = [(f"AND({base},{still},{c}<{BAR},{whole})", '"< "0%'), (f"AND({base},{still},{c}<{BAR})", '"< "0.0%'),
-           (f"AND({base},{still},{whole})", '"> "0%'), (f"AND({base},{still})", '"> "0.0%')]
+    out = [(f"AND({base},{still},{c}<{BAR},{whole})", '"under "0%'),
+           (f"AND({base},{still},{c}<{BAR})", '"under "0.0%'),
+           (f"AND({base},{still},{whole})", '"over "0%'), (f"AND({base},{still})", '"over "0.0%')]
     tiers = ((f"{c}<0.01", 4), (f"{c}<0.1", 3), ("TRUE", 2))
     for k, cond in ((2, f"{on(0)},{on(1)}"), (1, on(0))):
         out += [(f"AND({base},{cond},{t})", _TIER_FMTS[n][k]) for t, n in tiers]

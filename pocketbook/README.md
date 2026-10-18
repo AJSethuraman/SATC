@@ -251,7 +251,7 @@ After that, the whole routine is:
      (OC-44). The rows come in seven groups for investigation (the firm, 17 Oct
      2026): Yes, worse; Borderline and No losing more; no test; No and
      Borderline losing less; Yes, better; each by its excess, largest first, so
-     the most-better pocket is last. The order is the last Run's, the verdicts
+     the pocket that loses least against the rest comes last. The order is the last Run's, the verdicts
      and dollars are live. On the split view, pockets from grids that don't hold
      the split's partner fixed read *Mixed with FICO*, sit with the no-test
      group, in gray, and Holds FICO fixed? reads "No: may be mostly FICO".

@@ -5,7 +5,7 @@ The firm, 17 Oct 2026, on significantly better pockets: direction labels, "Yes, 
 slicers that get added would need to adapt i guess". So the category and the p-value sit in two columns, each with
 few distinct values to filter or slice on, the p-value a number; and the rows come in seven groups, worst first:
 Yes, worse; Borderline losing more; No losing more; no test; No losing less; Borderline losing less; Yes, better,
-each by its excess, so the most-better pocket is the last row."""
+each by its excess, so the pocket that loses least against the rest comes last."""
 
 from __future__ import annotations
 
@@ -89,7 +89,9 @@ def test_the_p_value_is_a_number_in_its_own_column_right_beside_the_category(bui
     w = built["written"]
     first = h + 1
     # the firm's precision as far as a number format's two conditions carry it, written out rather than read back
-    assert w.cell(row=first, column=results.K_PV).number_format == '[<0.0001]"< 0.01%";[<0.01]0.00%;0.0%' == live.P_FMT
+    assert w.cell(row=first, column=results.K_PV).number_format == '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%' == live.P_FMT
+    # and the house format every other tab's p-value uses, so the two styles never sit side by side
+    assert live.P_FMT == results.P_FMT
     rules = [(r.formula[0], r.dxf.numFmt.formatCode if r.dxf and r.dxf.numFmt else None)
              for rng in w.conditional_formatting if str(rng.sqref).startswith(results.col(results.K_PV))
              for r in rng.rules]
@@ -102,7 +104,8 @@ def test_excels_filter_arrows_cover_every_heading_the_p_value_included(built):
     w = built["written"]
     h = tabs.header_row(w, results.K_NUM, "#")
     ref = w.auto_filter.ref
-    assert ref and ref.startswith(f"{results.col(results.K_NUM)}{h}:{results.col(results.K_HOLDS)}"), ref
+    # to the hidden index columns, so a sort carries each row's pocket (tests/test_sorting_2026_10_17.py)
+    assert ref and ref.startswith(f"{results.col(results.K_NUM)}{h}:{results.col(results.K_ROW)}"), ref
     lo, hi = (results.col(c) for c in (results.K_NUM, results.K_HOLDS))
     assert lo <= results.col(results.K_P) <= hi and results.col(results.K_PV) <= hi
 
@@ -117,7 +120,7 @@ def _group(x) -> int:
 
 def test_pockets_come_in_the_seven_groups_worst_first_each_by_its_excess(built):
     """Every measure's rows run through the groups in order, and within a group by excess, largest first, so in the
-    losing-less groups the most-better pocket is last; GCOs ($) on this book has all seven groups."""
+    losing-less groups the pocket that loses least comes last; GCOs ($) on this book has all seven groups."""
     for measure, ws in built["tabs"].items():
         rows = tabs.pockets(ws)
         groups = [_group(x) for x in rows]
@@ -142,4 +145,4 @@ def test_the_note_says_the_order_and_that_control_does_not_move_it(built):
     ws = built["tabs"]["GCOs ($)"]
     note = " ".join(str(c.value) for row in ws.iter_rows(max_row=20) for c in row if isinstance(c.value, str))
     assert "Sorted as of the last Run in seven groups: Yes, worse;" in note
-    assert "the most-better pocket is the last row" in note and "but not the order" in note
+    assert "the pocket that loses least against the rest comes last" in note and "but not the order" in note

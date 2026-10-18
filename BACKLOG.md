@@ -3778,6 +3778,21 @@ changed in the code.
     `tests/test_significant_columns_2026_10_17.py`, all failing first; the format choice is checked rule by rule in
     LibreOffice against Python. Planted bugs: 12 added and the rest on these lines repointed, 58 of 58 caught.
     Full suite in 4 shards: 1,241 passed, 1 failed (a heading list one column short, fixed and rerun), 15 skipped.
+  - Review fixes (18 Oct 2026, on 9a82e204). Sorting with Pockets' filter arrows moved only #: each row finds its
+    pocket through hidden index columns that sat outside the range, so a sort moved the formulas and every row
+    worked its pocket out again where it was. The range now runs to the hidden index, so a sort carries each row's
+    pocket and # keeps the Run's order as a label; proved by sorting a built book in LibreOffice through its Python
+    bridge (`tests/unosort.py`, `tests/test_sorting_2026_10_17.py`), with a check that no row reads another. RANR vs
+    GCOs already sorted rightly (its helpers were inside its range) and now has the same test. CI installs
+    python3-uno and poppler-utils for these. A sort descending puts the empty rows of a shorter view on top, since
+    a formula's "" is text; the rows still belong together. The Python mirror of the p-value's display now rounds
+    the decimal value as the spreadsheet does (0.00145 is 0.15%, 0.05005 at 5% is 5.01%), checked against the page
+    LibreOffice prints, half-ways included. The column shows "under 0.01%", "under 10%" and "over 10%", as the
+    other tabs' p-values do. The Glossary's p-value example prints a plain decimal, and "the most-better pocket"
+    reads "the pocket that loses least against the rest".
+    Tests: `test_sorting_2026_10_17.py` (4; the two Pockets sorts failed first), a printed-page test of the p-value
+    at five lines, half-ways in the format tests, a plain-decimal test. Planted bugs: 4 added, 62 of 62 on these
+    lines caught. Full suite in 4 shards: 1,259 passed, 15 skipped.
 
 ## 7 · Standing rules for new items
 

@@ -432,7 +432,7 @@ def candidates(res, kind: str, m) -> list[tuple]:
     could flag). The order is for investigation (the firm, 17 Oct 2026: "sorted in a sensical manner for
     investigation"), in Significant at N%?'s seven groups as the Run read them (live.sig_group): Yes, worse;
     Borderline and No losing more; no test; No and Borderline losing less; Yes, better. Within each, by the dollars
-    that decide, largest first, so in the losing-less groups the most-better pocket comes last. A pocket losing
+    that decide, largest first, so in the losing-less groups the pocket that loses least comes last. A pocket losing
     more only against the comparison that doesn't decide now loses less against the one that does, so it falls in
     the losing-less groups, as it used to come last. A split pocket whose grid doesn't hold the partner fixed reads
     Mixed with, in the no-test group (the fourth walk, defect 1, put it last)."""
@@ -506,7 +506,7 @@ def _write_list(wb, res, lv, kinds, sel: dict) -> tuple[int, dict]:
 
 POCKETS_NOTE_ORDER = ("Sorted as of the last Run in seven groups: Yes, worse; then Borderline and No losing more; "
                       "then pockets with no test; then No and Borderline losing less; then Yes, better. Within each, "
-                      "the largest excess comes first, so the most-better pocket is the last row.")
+                      "the largest excess comes first, so the pocket that loses least against the rest comes last.")
 
 
 def _pockets_note(res) -> list[tuple[str, str]]:
@@ -641,7 +641,7 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
               K_WORSE: house.fit([live.TOO_FEW, "Worse?"], floor=11, cap=36),
               K_P: house.fit([live.SIG_HEAD.format("97.5%"), live.FEW_LOSSES, live.NO_REST, live.SIG_BETTER,
                               live.NOT_MORE] + ([MIXED + pt[0]] if pt else []), floor=11, cap=36),
-              K_PV: house.fit([live.P_HEAD, P_WIDEST, "< 0.01%"], floor=9, cap=16),
+              K_PV: house.fit([live.P_HEAD, P_WIDEST, "under 0.01%", "under 97.5%"], floor=9, cap=16),
               K_MAT: 11, K_CAUGHT: house.fit(["Could have caught"], floor=11, cap=20),
               K_HOLDS: house.fit([f"No: may be mostly {pt[0]}", f"Holds {pt[0]} fixed?"] if pt else [],
                                  floor=12, cap=LABELS_CAP, pad=3)}
@@ -761,8 +761,11 @@ def write_pockets(wb, res, choices: Choices, stamp: str) -> None:
     cf(ws, rng(K_HOLDS), [(loose, None, Font(color=CRIMSON, bold=True), None)], line)
     # the p-value: a number, its precision and its guard against showing the line in conditional formats
     cf(ws, rng(K_PV), [(f, None, None, fmt) for f, fmt in live.p_rules(f"{col(K_PV)}{first}")], line)
-    # Excel's sort and filter arrows on every heading, the p-value's included
-    ws.auto_filter.ref = f"{col(K_NUM)}{h}:{col(K_HOLDS)}{end}"
+    # Excel's sort and filter arrows on every heading, the p-value's included, over every column a row reads from:
+    # the hidden index columns too, so a sort carries each row's pocket with it (the review of 17 Oct 2026: with
+    # them outside, a sort moved the formulas and each row worked its pocket out again where it was). # is a number
+    # in the row's own formula, so it travels too and keeps the Run's order as a label
+    ws.auto_filter.ref = f"{col(K_NUM)}{h}:{col(K_ROW)}{end}"
     _hide(ws, K_IDX, K_SEL)
     ws.freeze_panes = f"A{first}"
     _fit(ws)

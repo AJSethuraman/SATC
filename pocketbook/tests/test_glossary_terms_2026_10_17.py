@@ -278,3 +278,15 @@ def test_a_split_run_names_its_own_split_and_partner(tmp_path, monkeypatch):
     holds = rows["Holds (column) fixed? / Mixed with (column)"][1]
     assert re.fullmatch(r"REV_DEBT moves with FICO \(correlation [+-][\d.]+\), so a split pocket in ORIG_BAL x "
                         r"CHANNEL / REV_DEBT reads No: may be mostly FICO, and Mixed with FICO\.", holds), holds
+
+
+@pytest.mark.parametrize("p, plain", [(1 / 10001, "0.00009999"), (1.2e-10, "0.00000000012"), (0.001, "0.001"),
+                                      (0.0374, "0.0374")])
+def test_the_p_value_example_is_a_plain_decimal(p, plain):
+    """The p-value row's example after a Run quotes the number the column holds, never in scientific notation (the
+    review of 17 Oct 2026: with no allowance, 1 / 10,001 printed 9.999e-05)."""
+    yes = {"band": "Column A 620 - 679", "seg": "B1", "said": live.SIG_WORSE, "measure": "Bad loans", "gap": 1.6,
+           "p": p, "p_said": live.p_words(p, 0.05)}
+    rows = {t: e for t, _, e in glossary.rows({"sig": {live.SIG_WORSE: yes}, "co_date": True, "confidence": 0.95})}
+    ex = rows[f"{live.P_HEAD} (the column beside {live.SIG_HEAD.format('N%')})"]
+    assert f"the column holds {plain}, shown as" in ex and "e-" not in ex, ex
