@@ -367,6 +367,13 @@ TERMS = [
      "shown on Sources; a change a product's own note already describes points to that note instead. "
      "Decide's chart marks the quarters with a diamond along the top, for any source of the row shown; the "
      "Peers charts mark them on the pack composite."),
+    ("Event",
+     "Something that moved a series without being a change to the report, such as the 2020 revolving-line "
+     "drawdowns and the PPP loans in C&I. Labelled on every series it touches, in the quarters it covers.",
+     "Listed with its source on the Reporting changes tab, under Events. Each series file the peers build "
+     "writes carries an Event line for every event touching its product and measure within its quarters, "
+     "shown on Sources. It is never called a reporting change and is not marked on the charts (the firm, "
+     "17 Oct 2026)."),
     ("Reporting changes",
      "The tab listing every reporting change this workbook labels, one row each.",
      "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "

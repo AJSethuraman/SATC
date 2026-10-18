@@ -575,7 +575,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     touches its product and measure within its quarters (the firm, 16 Oct
     2026: "Definitely mark reporting changes."), and the Peers charts mark the
     quarters each took effect. A registry that is not there or not well formed
-    is refused, by entry, before anything is read.
+    is refused, by entry, before anything is read. Its events (the 2020
+    drawdowns and PPP loans in C&I; the firm, 17 Oct 2026, question 15) are
+    labelled the same way, as ``event`` notes, on every series they touch;
+    they leave nothing out and keep nothing in: the jump still decides.
 
     ``stated_acquisitions`` is the file of acquisitions the FDIC record cannot
     see (``config/stated-acquisitions.json``, ``peers.stated``; the firm, 17
@@ -616,7 +619,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         raise ValueError("--reporting-changes must name the registry of Call Report changes "
                          "(config/reporting-changes.json), not %r" % (reporting_changes,))
     try:
-        changes = RC.load(reporting_changes)
+        changes, events = RC.load_all(reporting_changes)
     except RC.RegistryError as e:
         raise ValueError("--reporting-changes: %s" % e) from None
     if isinstance(stated_acquisitions, bool) or not (stated_acquisitions is None
@@ -767,6 +770,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             if tail:
                 note += RC.note_lines(changes, words_p.split(" plus "), RC.charge_off_measure(kind),
                                       tail[0][0], tail[-1][0], note)
+                note += RC.event_lines(events, words_p.split(" plus "), RC.charge_off_measure(kind),
+                                       tail[0][0], tail[-1][0], note)
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
                            series_note(note, tail, before, after), before, after, None))
     # Each peer's own book, for the synthesis's peer percentiles: banks/ keeps
@@ -781,6 +786,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                         source, rule, stated_note, repeat_note] + ([books.DEFINITIONS[p]] if p in books.DEFINITIONS else [])
                 if tail:
                     note += RC.note_lines(changes, [p], RC.charge_off_measure(kind), tail[0][0], tail[-1][0], note)
+                    note += RC.event_lines(events, [p], RC.charge_off_measure(kind), tail[0][0], tail[-1][0], note)
                 series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
                                series_note(note, tail, before, after), before, after, ("banks", p)))
     dq_spec = None
@@ -794,6 +800,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                 note = note + [left_out_note(left_out, tail, labels)]
             if tail:
                 note = note + RC.note_lines(changes, [p], m, tail[0][0], tail[-1][0], note)
+                note = note + RC.event_lines(events, [p], m, tail[0][0], tail[-1][0], note)
             series.append((path, tail, series_note(note, tail, before, after), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
                        exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
@@ -821,8 +828,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
                         dt.date.today().isoformat())] + pro_forma_lines(pro_forma, combo, names_)
-            + ["Reporting changes: %s, %d changes, SHA-256 %s; each series file notes those touching it"
-               % (reporting_changes, len(changes), hashlib.sha256(Path(reporting_changes).read_bytes()).hexdigest())]
+            + ["Reporting changes: %s, %d changes and %d events, SHA-256 %s; each series file notes those "
+               "touching it" % (reporting_changes, len(changes), len(events),
+                                hashlib.sha256(Path(reporting_changes).read_bytes()).hexdigest())]
             + ["Stated acquisitions: none read (none was named)" if stated_acquisitions is None else
                "Stated acquisitions: %s, %d entries, SHA-256 %s; in these quarters: %s; outside them, not read: %s"
                % (stated_acquisitions, len(stated_), hashlib.sha256(Path(stated_acquisitions).read_bytes()).hexdigest(),

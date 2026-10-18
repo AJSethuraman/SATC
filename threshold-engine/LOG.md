@@ -1958,3 +1958,82 @@ each "agreed with the recommendation" on the docket form
   `commercial-example`) does not have the new required key
   `peers.stated_acquisitions`, so it is now refused until it states the
   list or null. It was not rebuilt.
+
+## 17 Oct 2026, question 15: the 2020 drawdowns and the PPP loans labelled on C&I, as events
+
+- **Question 15, 17 Oct 2026, agreed with the recommendation** on the docket
+  form (`docs/COMMERCIAL-PROPOSAL.md` on main, section 5): *"Also label
+  2020Q1–2021Q4 on C&I (revolver drawdowns and PPP: not definition changes,
+  but they move the book), and leave out the windows the 25% rule catches
+  across both periods?"* The recommendation: labelled; windows left out
+  where the rule fires.
+- **The events.** `config/reporting-changes.json` has a second required
+  list, `events`, beside `changes`. Its entries take the same keys and are
+  checked by the same rules, and a name may be used only once across both
+  lists. Two events, both on C&I and every measure, each citing the FDIC
+  Quarterly Banking Profile figures `docs/commercial-2026-10/research-breaks.md`
+  (on main) records, with the addresses that file lists:
+  - **Revolving-line drawdowns, 2020Q1.** QBP Q1 2020: C&I up $339.4 billion
+    (15.4 percent); unfunded C&I commitments down $269 billion.
+  - **Paycheck Protection Program loans, 2020Q2 to 2021Q4.** QBP Q2 2020:
+    C&I up $146.5 billion, attributed to the PPP, with $482.2 billion of
+    PPP loans. 2021Q4 is the end of the span the firm chose. When the PPP
+    loans left the books was not checked, and the entry says so.
+  - Both say "Not a change to the report". The registry's `_what` no longer
+    calls question 15 open.
+- **How an event is written.** Every series file `peers build` writes
+  carries a `# event:` line for each event touching its product and measure
+  within its quarters, beside its `# reporting-change:` lines. Sources shows
+  it as "Event". The Reporting changes tab lists the events after the
+  changes, under their own heading, "Events". The Glossary has "Event". Run
+  counts them ("12 changes and 2 events").
+- **What an event does not do.** It is never called a reporting change.
+  Decide's diamonds and the Peers charts' diamonds still mark reporting
+  changes only: events are not drawn on the charts. An event leaves nothing
+  out and keeps nothing in. The jump alone decides, as before: the event
+  list reaches only the note lines, never `bank_book` or
+  `bank_delinquency`.
+- **Where this came from.** The interrupted run's code, carried in the
+  partial commit ae64d732 (now replaced by this one and the next). It was
+  reviewed and narrowed to this question. Two things were changed:
+  - `write_tab`'s `events` no longer has a default; `[]` states none;
+  - `labelled_quarters` moved to question 16, which uses it.
+- **Proof.** `tests/test_reporting_changes.py` has these tests:
+  - the two events in the registry, their sources and words;
+  - an event labelled as an event, on C&I only, and never read as a change;
+  - a malformed event refused by name, and a name used once across both
+    lists;
+  - the tab's Events heading;
+  - the book's tab and Glossary entry;
+  - a `peers build` from KeyBank's public C&I filings
+    (`tests/data/peers/keybank_ci_2005.json`, 2018Q1 to 2023Q4).
+
+  In that build, KeyBank's C&I rose 18.0% in 2020Q1, under the 25% jump.
+  Its net and gross series, the industry's, and two delinquency files carry
+  both events, and none as a reporting change. The net series keeps all 20
+  of its windows, and Run says "12 changes and 2 events".
+
+  The fixture's 86 quarters were compared, field by field, with the
+  commercial cache `peers pull` wrote on 16 Oct 2026: no difference. With
+  the event lines taken out of the charge-off series, the build test fails
+  (checked, then put back).
+- **Results.** Run at this commit alone (scratch venv, Python 3.13,
+  openpyxl 3.1.5, formulas 1.3.4, pytest-xdist, 4 workers).
+  - `test_reporting_changes.py`: 52 passed.
+  - Every other test file that imports a module changed here, 16 files:
+    `test_app`, `test_book`, `test_cli`, `test_decide`,
+    `test_internal_tab`, `test_launcher`, the peers files (`books`, `cli`,
+    `combinations`, `commercial`, `dashboard`, `into`, `workbook`),
+    `test_stated_acquisitions`, `test_workbook` and
+    `test_workbook_synthesis`.
+
+    726 passed, 5 skipped and 2 failed, in 1 h 33 min. The two failures are
+    `test_peers_cli.py`'s `test_the_regionals_pack_and_no_exemption` and
+    `test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out`. This
+    log already records both as failing before this work.
+
+  The rest of the suite was not run.
+- **Not done.** Nothing was opened in Excel; nothing can be opened in Excel
+  here. No real-cache build was run at this commit. The FFIEC instruction
+  that places PPP loans in C&I was not read: research-breaks.md records
+  that ffiec.gov returned 403.

@@ -310,7 +310,7 @@ def load(path) -> dict:
                 problems.append("loan_classes: the file %s does not exist" % loan_classes["file"])
     lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
     reporting = raw["reporting_changes"]
-    changes = None
+    changes = events = None
     if reporting is None:
         if peers is not None:
             problems.append("reporting_changes: the peers build reads the Call Report, so name the registry of its "
@@ -322,7 +322,7 @@ def load(path) -> dict:
         from . import reporting_changes as RC
         reporting = resolve(reporting)
         try:
-            changes = RC.load(reporting)
+            changes, events = RC.load_all(reporting)
         except RC.RegistryError as e:
             problems.extend("reporting_changes: %s" % p for p in str(e).splitlines())
     if problems:
@@ -331,7 +331,7 @@ def load(path) -> dict:
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
     return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
-            "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes,
+            "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes, "events": events,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from}}
 
@@ -533,8 +533,10 @@ def build(book_path, out, say=print) -> dict:
     if bk["changes"] is not None:
         from . import reporting_changes as RC
         ws = host.create_sheet(RC.TAB)
-        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name)
-        say("reporting changes: %d, from %s" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
+        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name,
+                     bk["events"])
+        say("reporting changes: %d, and %d events, from %s" % (len(bk["changes"]), len(bk["events"]),
+                                                              Path(bk["reporting_changes"]).name))
 
     info = WB.build(out, series, decide=decide, into=host, before_save=tidy, **bk["workbook"])
     if peer_tabs:

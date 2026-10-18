@@ -22,7 +22,7 @@ from threshold_engine import reporting_changes as RC
 from threshold_engine.glossary import TERMS
 from threshold_engine.peers import books as PB
 from threshold_engine.peers import delinquency as D
-from threshold_engine.series import read_notes
+from threshold_engine.series import read_csv, read_notes
 from threshold_engine.workbook import build
 
 REGISTRY = ROOT / "config" / "reporting-changes.json"
@@ -100,7 +100,7 @@ def test_quarters_counts_every_quarter_of_a_spread_change():
 # ---- the refusals: by entry, by name, every problem at once ---------------------------------------------
 
 def good():
-    return {"_what": "A test registry.",
+    return {"_what": "A test registry.", "events": [],
             "changes": [{"name": "A change", "first": "2024Q4", "last": "2025Q2", "products": ["Other consumer"],
                          "measures": ["net charge-offs"], "call_report_items": ["RC-C 6.d"],
                          "what_changed": "Something moved.",
@@ -174,9 +174,11 @@ def test_every_problem_is_listed_at_once_each_under_its_entry(tmp_path):
 
 @pytest.mark.parametrize("raw, says", [
     ({"changes": []}, "r.json is missing '_what'"),
-    ({"_what": "x", "changes": []}, "changes must list at least one change"),
-    ({"_what": "x", "changes": [], "extra": 1}, "has 'extra', which is not a key it takes"),
-    ({"_what": "", "changes": good()["changes"]}, "_what must say what the file is"),
+    ({"_what": "x", "changes": [], "events": []}, "changes must list at least one change"),
+    ({"_what": "x", "changes": [], "events": [], "extra": 1}, "has 'extra', which is not a key it takes"),
+    ({"_what": "", "changes": good()["changes"], "events": []}, "_what must say what the file is"),
+    ({"_what": "x", "changes": good()["changes"]}, "r.json is missing 'events'"),
+    ({"_what": "x", "changes": good()["changes"], "events": {}}, "events must be a list of events ([] for none)"),
 ])
 def test_the_file_itself_is_checked(tmp_path, raw, says):
     assert says in refused(raw, tmp_path)
@@ -193,6 +195,70 @@ def test_a_missing_or_broken_file_is_refused(tmp_path):
     (tmp_path / "latin.json").write_bytes(b'{"_what": "\xe9"}')
     with pytest.raises(RC.RegistryError, match="is not a UTF-8 text file"):
         RC.load(tmp_path / "latin.json")
+
+
+# ---- events: what moved a series without being a change to the report (question 15) --------------------
+
+EVENTS = RC.load_events(REGISTRY)
+
+
+def test_the_registry_holds_the_2020_drawdowns_and_ppp_as_events_on_ci():
+    """The firm, 17 Oct 2026, on the commercial proposal's question 15 ("agreed
+    with the recommendation"): label 2020Q1 to 2021Q4 on C&I, the revolving-line
+    drawdowns (2020Q1) and the PPP loans (2020Q2 to 2021Q4). They are not
+    definition changes, so they are events, never reporting changes, each
+    citing the FDIC Quarterly Banking Profile figures research-breaks.md
+    recorded. The 25% jump still leaves out what it catches."""
+    assert [(e["name"], RC.when(e), e["products"]) for e in EVENTS] == [
+        ("Revolving-line drawdowns", "2020Q1", ["C&I"]),
+        ("Paycheck Protection Program loans", "2020Q2 to 2021Q4", ["C&I"])]
+    assert all(e["measures"] == ALL_MEASURES for e in EVENTS)
+    assert [s["url"] for e in EVENTS for s in e["sources"]] == [
+        "https://www.fdic.gov/analysis/quarterly-banking-profile/qbp/2020mar/qbp.pdf",
+        "https://www.fdic.gov/analysis/quarterly-banking-profile/qbp/2020jun/qbp.pdf"]
+    assert "$339.4 billion (15.4 percent)" in EVENTS[0]["what_changed"]
+    assert "$482.2 billion" in EVENTS[1]["what_changed"] and "not checked" in EVENTS[1]["what_changed"]
+    assert all(e["what_changed"].startswith("Not a change to the report") for e in EVENTS)
+    assert not {e["name"] for e in EVENTS} & {c["name"] for c in CHANGES}
+    assert "question 15, still open" not in RC.what(REGISTRY)
+
+
+def test_an_event_is_labelled_as_an_event_on_ci_only_and_never_marked_as_a_change():
+    ci = RC.event_lines(EVENTS, ["C&I"], "net charge-offs", "2006Q1", "2026Q2", [])
+    assert [ln[:56] for ln in ci] == ["event: 2020Q1, Revolving-line drawdowns. Not a change to",
+                                      "event: 2020Q2 to 2021Q4, Paycheck Protection Program loa"]
+    assert ci[0].endswith("Source: FDIC Quarterly Banking Profile, First Quarter 2020: C&I loan portfolio increased "
+                          "by $339.4 billion (15.4 percent); unfunded C&I loan commitments declined by $269 billion, "
+                          "https://www.fdic.gov/analysis/quarterly-banking-profile/qbp/2020mar/qbp.pdf.")
+    assert RC.event_lines(EVENTS, ["Credit card"], "net charge-offs", "2006Q1", "2026Q2", []) == []
+    assert RC.event_lines(EVENTS, ["C&I"], "30-89", "2022Q1", "2026Q2", []) == []      # after them
+    assert not any("drawdowns" in ln for ln in RC.note_lines(CHANGES, ["C&I"], "30-89", "2006Q1", "2026Q2", []))
+    # Decide's diamonds read reporting-change lines only.
+    assert RC.quarters_in_notes([("event", ln.split(": ", 1)[1]) for ln in ci]) == set()
+
+
+def test_a_malformed_event_is_refused_by_name_and_a_name_is_used_once_across_both_lists(tmp_path):
+    raw = good()
+    ev = copy.deepcopy(raw["changes"][0])
+    ev.update(name="An event", products=["C&I"], first="2020Q3", last="2020Q1")
+    raw["events"] = [ev, dict(copy.deepcopy(raw["changes"][0]))]
+    msg = refused(raw, tmp_path)
+    assert "event 1 (An event): last, 2020Q1, comes before first, 2020Q3" in msg
+    assert "event 2 (A change): the name is used twice" in msg
+
+
+def test_the_tab_lists_the_events_under_their_own_heading():
+    from openpyxl import Workbook
+    ws = Workbook().active
+    last = RC.write_tab(ws, CHANGES, RC.what(REGISTRY), REGISTRY.name, EVENTS)
+    col_b = [ws.cell(r, 2).value for r in range(1, last + 1)]
+    at = col_b.index(RC.EVENTS_HEADING)
+    assert col_b[at + 2:] == ["Revolving-line drawdowns", "Paycheck Protection Program loans"]
+    assert col_b[at + 1] == RC.HEADINGS[0]
+    assert ws.cell(at + 1, 3).value == RC.EVENTS_ABOUT
+    assert col_b[6:6 + len(CHANGES)] == [c["name"] for c in CHANGES]
+    plain = Workbook().active                                # without events, the tab is as it was
+    assert RC.write_tab(plain, CHANGES, RC.what(REGISTRY), REGISTRY.name, []) == 6 + len(CHANGES)
 
 
 # ---- the note lines on a series ----------------------------------------------------------------------
@@ -289,6 +355,47 @@ def test_the_peers_build_refuses_without_a_good_registry(tmp_path):
         run.build("p.xlsx", reporting_changes=p, say=lambda line: None, **STATED)
     assert not Path("p.xlsx").exists()
 
+
+
+def test_the_peers_build_labels_the_events_on_ci_and_leaves_out_nothing_for_them(tmp_path):
+    """The firm, 17 Oct 2026, question 15: the events are labelled as events on
+    the C&I series that hold their quarters, and the jump alone decides what
+    is left out. KeyBank's C&I (tests/data/peers/keybank_ci_2005.json, the
+    public FDIC filings) rose 18.0% in 2020Q1, under the 25% jump, so its
+    series runs unbroken across both events and carries both labels."""
+    from threshold_engine.peers import run
+    data = json.loads((ROOT / "tests" / "data" / "peers" / "keybank_ci_2005.json").read_text(encoding="utf-8"))
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    for q, rows in data.items():
+        if "20180331" <= q <= "20231231":
+            (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
+    (tmp_path / "m.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "a.json").write_text("[]", encoding="utf-8")
+    said = []
+    run.build(tmp_path / "p.xlsx", cache=cache, roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
+              first="2018Q1", last="2023Q4", products=["C&I"], mergers=tmp_path / "m.json",
+              absorptions=tmp_path / "a.json", extra_acquisitions=[], industry_combined=[], jump=0.25,
+              acquisition_share=0.05, min_book=0, exempt_self=True, pro_forma=False, pack="all", min_banks=1,
+              rank_by="net", last_n=4, min_obs=2, base_quarter="2019Q4", index_min_book=0, lagged_years=[2019],
+              lag_years=1, normalisation_years=[2019, 2023], mix_base_year=2019, delinquency=True,
+              reporting_changes=REGISTRY, stated_acquisitions=None, say=said.append)
+    s = tmp_path / "s"
+    for name in ("c-i_keybank_net.csv", "c-i_keybank_gross.csv", "c-i_industry_net.csv",
+                 "c-i_keybank_delinquency-nonaccrual_quarter-end.csv",
+                 "c-i_keybank_delinquency-30-89_four-quarter-average.csv"):
+        notes = read_notes(s / name)
+        events = [v for k, v in notes if k == "event"]
+        assert [e.split(".")[0] for e in events] == ["2020Q1, Revolving-line drawdowns",
+                                                     "2020Q2 to 2021Q4, Paycheck Protection Program loans"], name
+        assert not any("drawdowns" in v or "Paycheck" in v for k, v in notes if k == "reporting-change"), name
+        assert RC.quarters_in_notes(notes) == RC.quarters_in_notes([n for n in notes if n[0] != "event"])
+    net = s / "c-i_keybank_net.csv"
+    assert "Written from" not in net.read_text(encoding="utf-8")         # nothing was left out for an event
+    assert len(read_csv(net)) == 20                                      # 2019Q1 to 2023Q4, every window
+    run_tab = load_workbook(tmp_path / "p.xlsx")["Run"]
+    assert any(isinstance(c.value, str) and "12 changes and 2 events" in c.value
+               for row in run_tab.iter_rows() for c in row)
 
 # ---- Decide: the chart marks the quarters, Sources shows the lines --------------------------------------
 
@@ -455,6 +562,12 @@ def test_the_book_writes_the_reporting_changes_tab(tmp_path):
                          ", ".join(ALL_MEASURES)]
     tdr = rows[[c["name"] for c in CHANGES].index("Troubled debt restructuring captions replaced")]
     assert tdr[2:4] == ["None of the products", "None"]
+    # The events (question 15, 17 Oct 2026) follow under their own heading, each with a Glossary entry.
+    n = len(CHANGES)
+    assert ws.cell(8 + n, 2).value == RC.EVENTS_HEADING and ws.cell(9 + n, 2).value == RC.HEADINGS[0]
+    assert [ws.cell(10 + n + k, 2).value for k in range(3)] == [
+        "Revolving-line drawdowns", "Paycheck Protection Program loans", None]
+    assert "Event" in terms
 
 
 def test_a_book_without_a_registry_has_no_tab(tmp_path):

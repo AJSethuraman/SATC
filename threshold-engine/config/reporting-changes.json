@@ -1,5 +1,41 @@
 {
-  "_what": "Changes to the Call Report's definitions and forms, each labelled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes (the proposal's question 15, still open). The commercial products were added to the entries later on 16 Oct 2026, each from the entry's own Call Report items: every loan category, every real estate category or C&I where the entry names them; the nonfarm splits, which begin in 2007Q1, under that change; C&I under the December 2024 revision; none under the 2010 NDFI change, which its source says came out of other loans and not out of C&I.",
+  "_what": "Changes to the Call Report's definitions and forms, each labelled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes: they are under events instead (the firm, 17 Oct 2026, question 15, agreed with the recommendation), labelled on the C&I series as events, never as reporting changes, from 2020Q1 to 2021Q4, each citing the FDIC Quarterly Banking Profile figures recorded in research-breaks.md. The commercial products were added to the entries later on 16 Oct 2026, each from the entry's own Call Report items: every loan category, every real estate category or C&I where the entry names them; the nonfarm splits, which begin in 2007Q1, under that change; C&I under the December 2024 revision; none under the 2010 NDFI change, which its source says came out of other loans and not out of C&I.",
+  "events": [
+    {
+      "name": "Revolving-line drawdowns",
+      "first": "2020Q1",
+      "last": "2020Q1",
+      "products": ["C&I"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": ["RC-C 4: C&I"],
+      "what_changed": "Not a change to the report: borrowers drew on their credit lines in 2020Q1, and the industry's C&I loans rose $339.4 billion (15.4 percent) while unfunded C&I commitments fell $269 billion.",
+      "sources": [
+        {
+          "citation": "FDIC Quarterly Banking Profile, First Quarter 2020: C&I loan portfolio increased by $339.4 billion (15.4 percent); unfunded C&I loan commitments declined by $269 billion",
+          "url": "https://www.fdic.gov/analysis/quarterly-banking-profile/qbp/2020mar/qbp.pdf"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "Paycheck Protection Program loans",
+      "first": "2020Q2",
+      "last": "2021Q4",
+      "products": ["C&I"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": ["RC-C 4: C&I"],
+      "what_changed": "Not a change to the report: PPP loans entered C&I from 2020Q2 ($482.2 billion of them at the end of that quarter, when the industry's C&I rose $146.5 billion); labelled 2020Q2 to 2021Q4, the span the firm chose on 17 Oct 2026, and when the PPP loans left the books was not checked.",
+      "sources": [
+        {
+          "citation": "FDIC Quarterly Banking Profile, Second Quarter 2020: C&I loans rose $146.5 billion, which it attributes to the Paycheck Protection Program, with $482.2 billion in PPP loans",
+          "url": "https://www.fdic.gov/analysis/quarterly-banking-profile/qbp/2020jun/qbp.pdf"
+        }
+      ],
+      "already_labelled": {}
+    }
+  ],
   "changes": [
     {
       "name": "Construction, nonfarm and lease splits",
