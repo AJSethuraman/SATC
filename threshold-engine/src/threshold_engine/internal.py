@@ -82,6 +82,7 @@ from __future__ import annotations
 
 import csv
 import re
+import dataclasses
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -751,27 +752,38 @@ def composite_rows(internal: Internal, product: str) -> List[Row]:
     if not rows:
         raise ValueError("the file has no rows for %s; it holds %s"
                          % (product, ", ".join(sorted({r.product for r in internal.rows}))))
-    alls = [r for r in rows if r.segment == ALL]
-    if alls:
-        return alls
     by_q: Dict[str, List[Row]] = {}
     for r in rows:
         by_q.setdefault(r.quarter, []).append(r)
+    # Quarter by quarter: the All row where the file gives one, else the
+    # segments summed. A file with All rows for part of its history and
+    # segment rows for the rest keeps every quarter (Codex on #442, 18 Oct
+    # 2026: the earlier reading dropped the segment-only quarters whenever
+    # any All row existed). Every row goes out under one segment name, so the
+    # composite reads as one series: All when every quarter had an All row.
+    seg = composite_segment(internal, product)
     out = []
     for q in sorted(by_q, key=qindex):
         rs = by_q[q]
+        alls = [r for r in rs if r.segment == ALL]
+        if alls:
+            out.append(dataclasses.replace(alls[0], segment=seg))
+            continue
 
         def tot(attr):
             return sum((getattr(r, attr) for r in rs), Decimal(0))
-        out.append(Row(rs[0].line, q, product, COMPOSITE, tot("balance"), tot("gross_charge_offs"),
+        out.append(Row(rs[0].line, q, product, seg, tot("balance"), tot("gross_charge_offs"),
                        tot("net_charge_offs"), tot("recoveries"), None, tot("dpd_30_plus"), tot("dpd_60_plus"),
                        tot("dpd_90_plus"), ()))
     return out
 
 
 def composite_segment(internal: Internal, product: str) -> str:
-    """``All`` when the file gives the product's total, else ``COMPOSITE``."""
-    return ALL if any(r.product == product and r.segment == ALL for r in internal.rows) else COMPOSITE
+    """``All`` when the file gives the product's total in every quarter it
+    holds, else ``COMPOSITE`` (the segments summed where there is no total)."""
+    qs = {r.quarter for r in internal.rows if r.product == product}
+    alls = {r.quarter for r in internal.rows if r.product == product and r.segment == ALL}
+    return ALL if qs and alls == qs else COMPOSITE
 
 
 def composite_series(internal: Internal, product: str, measure: str) -> List[Tuple[str, Optional[float]]]:

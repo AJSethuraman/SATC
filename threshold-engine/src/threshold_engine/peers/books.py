@@ -100,6 +100,11 @@ NOT_FILED = frozenset(f for names in COMMERCIAL.values() for n in names for f in
 #: cards or something").
 ALL = "All consumer"
 JOIN = " + "
+#: A product whose filed fields already hold other products' (the two nonfarm
+#: nonresidential splits are inside Nonfarm nonresidential): a combination
+#: holding both would count the split twice, so it is refused (Codex on
+#: #442, 18 Oct 2026).
+INSIDE = {"Nonfarm nonresidential": ("Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential")}
 
 
 def members(product) -> List[str]:
@@ -113,6 +118,11 @@ def members(product) -> List[str]:
             return list(CONSUMER)
         names = product.split(JOIN)
         if len(names) >= 2 and len(set(names)) == len(names) and all(n in PRODUCTS for n in names):
+            for whole, parts_ in INSIDE.items():
+                inside = [n for n in names if n in parts_]
+                if whole in names and inside:
+                    raise ValueError("%r already holds %s, so a combination may not hold both: %r would count "
+                                     "%s twice" % (whole, " and ".join(parts_), product, ", ".join(inside)))
             return names
     raise ValueError("product must be one of %s, %r, or two or more of them joined by %r, not %r"
                      % (", ".join(PRODUCTS), ALL, JOIN, product))

@@ -529,3 +529,29 @@ def test_a_book_must_say_whether_it_has_an_internal_file(book, tmp_path):
     p.write_text(json.dumps(raw))
     with pytest.raises(BK.BookError, match="missing 'internal'"):
         BK.load(p)
+
+
+def test_the_composite_takes_the_all_row_quarter_by_quarter():
+    """Codex on #442: a product with All rows for part of its history and
+    segment rows for the rest keeps every quarter; the All row is used where
+    given and the segments are summed where not, under one segment name."""
+    rows = []
+    for i, q in enumerate(INT_QS):
+        if i < 6:
+            rows.append(I.Row(0, q, "Auto", "All", Decimal(1000 + i), Decimal(10), Decimal(8), Decimal(2), None,
+                              Decimal(30), Decimal(20), Decimal(10), ()))
+        else:
+            for seg, bal in (("New", 600 + i), ("Used", 400)):
+                rows.append(I.Row(0, q, "Auto", seg, Decimal(bal), Decimal(5), Decimal(4), Decimal(1), None,
+                                  Decimal(15), Decimal(10), Decimal(5), ()))
+    one = I.Internal("synthetic", {}, {"All": "x", "New": "x", "Used": "x"}, (), tuple(rows))
+    comp = I.composite_rows(one, "Auto")
+    assert [r.quarter for r in comp] == list(INT_QS)
+    assert {r.segment for r in comp} == {I.COMPOSITE} and I.composite_segment(one, "Auto") == I.COMPOSITE
+    assert comp[0].balance == Decimal(1000) and comp[0].net_charge_offs == Decimal(8)
+    assert comp[6].balance == Decimal(1006) and comp[6].net_charge_offs == Decimal(8)
+    # Every quarter with an All row: the composite is the All rows, under All.
+    alls = tuple(r for r in rows if r.segment == "All")
+    only = I.Internal("synthetic", {}, {"All": "x"}, (), alls)
+    assert I.composite_segment(only, "Auto") == I.ALL
+    assert [r.segment for r in I.composite_rows(only, "Auto")] == [I.ALL] * 6

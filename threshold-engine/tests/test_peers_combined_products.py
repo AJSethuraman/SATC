@@ -31,6 +31,19 @@ def test_members():
             books.members(bad)
 
 
+def test_a_class_and_a_class_inside_it_may_not_be_combined():
+    """Codex on #442: Nonfarm nonresidential's fields already hold its two
+    splits, so a combination of both would count the split twice."""
+    for bad in ("Nonfarm nonresidential + Owner-occupied nonfarm nonresidential",
+                "Other nonfarm nonresidential + C&I + Nonfarm nonresidential"):
+        assert not books.is_product(bad)
+        with pytest.raises(ValueError, match="twice"):
+            books.members(bad)
+    assert books.members("Owner-occupied nonfarm nonresidential + Other nonfarm nonresidential") == [
+        "Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"]
+    assert books.members("Nonfarm nonresidential + C&I") == ["Nonfarm nonresidential", "C&I"]
+
+
 def test_fields_are_the_parts_summed():
     assert books._fields(CARD_OTHER) == ("LNCRCD+LNCONOTH+LNCONRP", "DRCRCD+DRCONOTH", "CRCRCD+CRCONOTH")
     assert D._fields("Mortgage + Auto") == ("LNRERSFM+LNAUTO", "P3RERSFM+P3AUTO", "P9RERSFM+P9AUTO",
