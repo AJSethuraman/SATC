@@ -593,8 +593,12 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
           last_n: int, min_obs: int, base_quarter: str, index_min_book: float,
           lagged_years: Sequence[int], lag_years: int, normalisation_years: Sequence[int],
           mix_base_year: int, delinquency: bool, reporting_changes, stated_acquisitions,
-          say: Callable[[str], None] = print, into=None, names: Optional[Dict[str, str]] = None) -> dict:
+          say: Callable[[str], None] = print, into=None, names: Optional[Dict[str, str]] = None,
+          book_kind: Optional[str] = None) -> dict:
     """Read the cache, write the peer workbook and the series CSVs.
+
+    ``book_kind`` is the kind a book states (``kinds.KINDS``), given by the
+    book command; the standalone command states none (``build_peers_workbook``).
 
     ``mergers`` and ``absorptions`` are the files 'peers pull --mergers'
     writes. ``acquisition_share`` (0.05 = 5%) is the share of a product's
@@ -908,7 +912,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                % (stated_acquisitions, len(stated_), hashlib.sha256(Path(stated_acquisitions).read_bytes()).hexdigest(),
                   "; ".join("%s %s" % (names_[e["acquirer"]], e["quarter"]) for e in in_range) or "none",
                   "; ".join("%s %s" % (names_[e["acquirer"]], e["quarter"]) for e in stated_outside) or "none")],
-            into=into, names=names)
+            into=into, names=names, book_kind=book_kind)
         moves = [(part_out, out)] if out is not None else []
         for path, tail, lines, _, _, _ in series:
             if tail:

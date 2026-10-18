@@ -389,6 +389,39 @@ def test_too_little_history_kept_is_refused_in_the_workbook(built, tmp_path):
     vals = with_settings(p, tmp_path, "short.xlsx", {"B6": "1985Q4", "C6": "2025Q2", "D6": "test"})
     assert vals["THRESHOLDS!M5"] == "Refused: too little history kept for a typical yearly move"
     assert vals["THRESHOLDS!K5"] == ""
+    # A period was left out by hand, so putting one back is the fix.
+    assert vals["THRESHOLDS!U5"] == "Put back a period, so that more than a year of quarters is kept."
+
+
+def test_a_series_too_short_for_a_yearly_move_shows_blanks_and_names_the_real_cause(tmp_path):
+    """The example commercial build (17 Oct 2026): KeyBank's C&I charge-off
+    series held too few quarters for a four-quarter change, so its typical
+    yearly move and three of its lines showed #NUM! on Lines by source, and
+    the fix said to put back a period when none had been left out. Now
+    those cells are blank and the fix says why."""
+    lines = (DATA / "cards_nco_ttm.csv").read_text(encoding="utf-8").splitlines()
+    short = tmp_path / "short.csv"
+    rows = [ln for ln in lines if not ln.startswith("#")]
+    short.write_text("\n".join([ln for ln in lines if ln.startswith("#")] + rows[:1] + rows[-4:]) + "\n",
+                     encoding="utf-8")
+    p = tmp_path / "w.xlsx"
+    kw = dict(name="NCO", unit="%", direction="higher_is_worse", frequency="quarterly", smoothing=1,
+              floor_at_zero=True, moderate_halfwidth=SET["halfwidth"], low_step=SET["low_step"],
+              high_z=SET["high_z"], on_the_line="worse", half_lives=(), percentiles=(50, 75, 90, 95), horizon=4,
+              min_history=41)
+    build(p, SERIES[:1] + [("Short", short)], **kw)
+    vals = recalc(p)
+    errors = {k: v for k, v in vals.items() if k.startswith("THRESHOLDS!") and isinstance(v, str)
+              and v.startswith("#")}
+    assert errors == {}
+    # Row 6 is the short series: no move, no lines 2 to 4, and the reason.
+    assert [vals["THRESHOLDS!%s6" % c] for c in "CEFG"] == ["", "", "", ""]
+    assert vals["THRESHOLDS!M6"] == "Refused: too little history kept for a typical yearly move"
+    assert vals["THRESHOLDS!U6"] == (
+        "Only 4 quarters, and nothing was left out by hand: a typical yearly move needs two quarters four "
+        "apart, so only a longer series clears this. Its notes on Sources say where it starts and why.")
+    # The series beside it is untouched.
+    assert vals["THRESHOLDS!M5"] == "" and isinstance(vals["THRESHOLDS!C5"], float)
 
 
 def test_a_smoothed_workbook_builds_its_live_lines_from_the_smoothed_series(tmp_path):

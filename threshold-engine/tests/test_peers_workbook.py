@@ -404,7 +404,7 @@ def test_the_product_rate_and_yes_no_cells_move_the_lines(all_peers, regionals_g
         assert_series(wcol(vals, info, "charge_offs", name),
                       [r["gross_rate"] for r in books["Other consumer"][cert]], name)
     assert peers_cell(vals, "B%d" % info["layout"]["v1"]) == \
-        "Charge-offs: other consumer, gross rate, trailing four quarters (%)"
+        "Charge-offs: Other consumer, gross rate, trailing four quarters (%)"   # the name as built, never LOWER()
 
 
 def test_a_named_peer_is_drawn_switched_off_and_min_obs_is_met_at_exactly(all_peers, books, roster, tmp_path):

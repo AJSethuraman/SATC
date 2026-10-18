@@ -136,7 +136,9 @@ def build(wb, *, pairs: Sequence[Tuple[str, str]], by_pair: Dict[Tuple[str, str]
     for s in sources:
         ws["%s4" % per[s]["number"]].value = "%s rating number" % s
         ws["%s4" % per[s]["quarter"]].value = "%s quarter" % s
-    widths = dict(A=1.57, B=16.43, C=33.57, D=19.29, E=9.86, F=9.86, G=9.86, H=10.71, I=10.71, J=10.71, K=10.71)
+    from .summary_tab import product_width
+    widths = dict(A=1.57, B=product_width([pr[0] for pr in pairs], 16.43), C=33.57, D=19.29, E=9.86, F=9.86,
+                  G=9.86, H=10.71, I=10.71, J=10.71, K=10.71)
     for c_, w in widths.items():
         ws.column_dimensions[c_].width = w
     for s in sources:

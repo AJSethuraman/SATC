@@ -52,7 +52,7 @@ LBS = DT.LINES_TAB.upper()
 
 def decide_spec(compare=("Bank", "Industry"), lines_from=None):
     return {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl in LABELS}, "absent": ABSENT,
-            "compare": compare, "notes": ["A note the book gave."], "lines_from": lines_from}
+            "compare": compare, "notes": ["A note the book gave."], "lines_from": lines_from, "kind": "consumer"}
 
 
 @pytest.fixture(scope="module")
@@ -497,7 +497,7 @@ def attention(tmp_path_factory):
     """Every row's lines set from the bank's own history from the start."""
     d = tmp_path_factory.mktemp("attention")
     spec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in ATTN}, "absent": [],
-            "compare": ("Bank", "Peer"), "notes": [], "lines_from": "Bank"}
+            "compare": ("Bank", "Peer"), "notes": [], "lines_from": "Bank", "kind": "consumer"}
     info = build(d / "a.xlsx", ATTN, decide=spec, **SETTINGS)
     return d, info
 
@@ -547,7 +547,7 @@ def test_more_leave_outs_than_rows_is_said(tmp_path):
     from threshold_engine.assess_tab import LO_ROWS
     ser = [("P%d - M - S" % k, DATA / "cards_nco_ttm.csv") for k in range(LO_ROWS + 1)]
     spec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in ser}, "absent": [],
-            "compare": None, "notes": [], "lines_from": "S"}
+            "compare": None, "notes": [], "lines_from": "S", "kind": "consumer"}
     info = build(tmp_path / "many.xlsx", ser, decide=spec, **SETTINGS)["decide"]
     wb = load_workbook(tmp_path / "many.xlsx")
     c = info["columns"]

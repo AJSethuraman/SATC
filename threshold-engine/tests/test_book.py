@@ -24,7 +24,7 @@ def write_book(folder: Path, **over) -> Path:
     files.mkdir(parents=True, exist_ok=True)
     for name in ("cards_nco_ttm.csv", "home_equity_nco_ttm.csv", "mortgage_nco_ttm.csv"):
         shutil.copy(DATA / name, files / name)
-    book = {"workbook": dict(WORKBOOK), "parts": ["Product", "Measure", "Source"],
+    book = {"kind": "consumer", "workbook": dict(WORKBOOK), "parts": ["Product", "Measure", "Source"],
             "lines_from": {"part": "Source", "start": None},
             "series": [{"Product": "Card", "Measure": "Net", "Source": "Industry", "file": "files/cards_nco_ttm.csv"},
                        {"Product": "Card", "Measure": "Net", "Source": "Bank", "file": "files/home_equity_nco_ttm.csv"},

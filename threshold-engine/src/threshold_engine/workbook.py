@@ -293,8 +293,10 @@ def _thresholds_book(th, name, n, labels, decide, floored):
     a1, a2 = DT.TH_HIDDEN
     for c_ in range(CI(a1), CI(a2) + 1):
         th.column_dimensions[L(c_)].hidden = True
+    from .summary_tab import product_width
     for c_, w in TH_BOOK_WIDTHS.items():
         th.column_dimensions[c_].width = w
+    th.column_dimensions["B"].width = product_width([v[0] for v in decide["parts"].values()], TH_BOOK_WIDTHS["B"])
     body = Font(name="Calibri", size=11, color=K.INK_TEXT)
     for r in range(5, last + 1):
         th.row_dimensions[r].height = 15
@@ -367,7 +369,9 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     where the settings, periods left out and decisions are typed (decide_tab.py,
     summary_tab.py): ``{"names": [three part names], "parts": {label: (three
     values)}, "absent": [{"parts": {...}, "why": text}], "compare": (a, b) or
-    None, "notes": [text]}``, every key stated. ``into`` builds into an
+    None, "notes": [text], "kind": the book's kind (kinds.KINDS)}``, every key
+    stated. A kind without an Internal tab (commercial) has none built, and its
+    terms are left off the Glossary. ``into`` builds into an
     existing workbook (the book command puts the peer tabs there first);
     ``before_save(wb)`` runs last, before saving.
 
@@ -378,6 +382,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     command line's flags into it. Without it the workbook is as before."""
     if frequency != "quarterly":
         raise ValueError("the workbook's calendar is quarterly; monthly series are not built yet")
+    from .kinds import kind_of
+    if decide is not None and kind_of(decide.get("kind")) is None:
+        raise ValueError("decide must state the book's kind, one of consumer or commercial, not %r"
+                         % (decide.get("kind"),))
+    kind = kind_of(decide["kind"]) if decide is not None else None
     out = Path(out)
     if out.suffix.lower() != ".xlsx":
         raise ValueError("the workbook must be written to a .xlsx file, not %s" % out.name)
@@ -556,15 +565,18 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         put = lambda key, v: th["%s%d" % (c[key], r)].__setattr__("value", v)      # noqa: E731
         put("series", s["label"])
         put("median", "=MEDIAN(%s)" % kept)
-        put("med_change", "=MEDIAN(%s)" % yoy)                       # helper: the median four-quarter change
-        put("move", "=1.4826*MEDIAN(%s)" % dev)
+        # A series with no two kept quarters four apart has no four-quarter
+        # change, so no typical yearly move: those cells are blank, not an
+        # error, and the refusal and its fix below say why.
+        put("med_change", '=IFERROR(MEDIAN(%s),"")' % yoy)           # helper: the median four-quarter change
+        put("move", '=IFERROR(1.4826*MEDIAN(%s),"")' % dev)
         put("worst", "=%s(%s)" % ("MAX" if higher else "MIN", kept))
         put("spread", "=1.4826*MEDIAN(%s)" % levdev)                  # helper: the spread of levels
         # Helpers for the Scenarios: the same, keeping every quarter.
         raw_all, chg_all = col(2 + k), col(2 + 5 * n + k)
         put("med_all", "=MEDIAN(%s)" % raw_all)
-        put("med_change_all", "=MEDIAN(%s)" % chg_all)
-        put("move_all", "=1.4826*MEDIAN(%s)" % col(2 + 6 * n + k))
+        put("med_change_all", '=IFERROR(MEDIAN(%s),"")' % chg_all)
+        put("move_all", '=IFERROR(1.4826*MEDIAN(%s),"")' % col(2 + 6 * n + k))
         put("spread_all", "=1.4826*MEDIAN(%s)" % col(2 + 7 * n + k))
         hw, ls, hz = ("Assess!$%s$%d" % (c_, sr) for c_ in "OPQ")
         B, C_, D, E, G, H_, P = (at(x) for x in ("median", "move", "worst", "l2", "l4", "l5", "spread"))
@@ -578,7 +590,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                         'IF(OR(NOT(ISNUMBER({hw})),{hw}<0),"Refused: Moderate\'s half-width must be 0 or more",'
                         'IF(OR(NOT(ISNUMBER({hz})),{hz}<=0),"Refused: High\'s z must be above 0",'
                         'IF(NOT(ISNUMBER({ls})),"Refused: Moderate-Low\'s step must be a number",'
-                        'IF(ISERROR({C}),"Refused: too little history kept for a typical yearly move",'
+                        'IF(NOT(ISNUMBER({C})),"Refused: too little history kept for a typical yearly move",'
                         'IF(AND({fz},{B}<=0),"Refused: the median is at or below zero",'
                         'IF({ls}<={hw},"Refused: Moderate-Low must begin further from the median than Moderate",'
                         'IF({sg}*({H}-{G})<=0,"Refused: High must begin beyond Moderate-High\'s line",'
@@ -593,7 +605,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     'IF(OR(NOT(ISNUMBER({hw})),{hw}<0),"Type 0 or more in Width of Moderate.",'
                     'IF(OR(NOT(ISNUMBER({hz})),{hz}<=0),"Type a number above 0 in How rare High is.",'
                     'IF(NOT(ISNUMBER({ls})),"Type a number in Moderate-Low begins.",'
-                    'IF(ISERROR({C}),"Put back a period, so that more than a year of quarters is kept.",'
+                    'IF(NOT(ISNUMBER({C})),IF({by_hand},"Put back a period, so that more than a year of '
+                    'quarters is kept.","Only "&COUNT({raw})&" quarters, and nothing was left out by hand: a '
+                    'typical yearly move needs two quarters four apart, so only a longer series clears this. '
+                    'Its notes on Sources say where it starts and why."),'
                     'IF(AND({fz},{B}<=0),"Put back periods so the quarters kept center above zero.",'
                     'IF({ls}<={hw},"Raise Moderate-Low begins above "&{hw}&", or lower Width of Moderate below "'
                     '&{ls}&".",'
@@ -604,11 +619,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                     'IF(AND({fz},{E}<=0),"Lower Moderate-Low begins to "&TEXT(ROUNDDOWN({B}/{C},2),"0.00")'
                     '&" or less.",""))))))))))')
             .format(fz=fz, ls=ls, hw=hw, hz=hz, sg=sg, lo=bad_lo, went=went, B=B, C=C_, D=D, E=E, G=G, H=H_,
-                    P=P))
+                    P=P, raw=raw_all, by_hand='SUMPRODUCT(({p}=${a}{r})*({ok}=1))>0'.format(
+                        p=LO_PROD, ok=LO_OK, a=c["series"], r=r)))
         mb, mv = "$%s%d" % (c["median"], r), "$%s%d" % (c["move"], r)
-        put("l4", "={b}+{sg}*{hw}*{c}".format(b=mb, sg=sg, hw=hw, c=mv))
-        put("l3", "={b}-{sg}*{hw}*{c}".format(b=mb, sg=sg, hw=hw, c=mv))
-        put("l2", "=IF(ISNUMBER({ls}),{b}-{sg}*{ls}*{c},\"\")".format(b=mb, sg=sg, ls=ls, c=mv))
+        put("l4", '=IF(ISNUMBER({c}),{b}+{sg}*{hw}*{c},"")'.format(b=mb, sg=sg, hw=hw, c=mv))
+        put("l3", '=IF(ISNUMBER({c}),{b}-{sg}*{hw}*{c},"")'.format(b=mb, sg=sg, hw=hw, c=mv))
+        put("l2", "=IF(AND(ISNUMBER({ls}),ISNUMBER({c})),{b}-{sg}*{ls}*{c},\"\")".format(b=mb, sg=sg, ls=ls, c=mv))
         put("l5", "={b}+{sg}*{hz}*${p}{r}".format(b=mb, sg=sg, hz=hz, p=c["spread"], r=r))
         lp = s["points"][-1]
         put("quarter", quarter(lp.date))
@@ -931,7 +947,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     _ref_title(gl, "Glossary", "What each term means, and how the workbook calculates it.", 4)
     _ref_header(gl, 4, ["Term", "What it means", "How it is calculated"], 2)
     widths_g = (30.7, 90.7, 90.7)
-    for i, (term, meaning, calc) in enumerate(TERMS):
+    from .glossary import terms_for
+    for i, (term, meaning, calc) in enumerate(terms_for(kind) if kind is not None else TERMS):
         rr = 5 + i
         for col, v in enumerate((term, meaning, calc), start=2):
             c = gl.cell(rr, col, v)
@@ -1049,7 +1066,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # internal file (decide["internal"]). ----
         from . import internal_tab as IT
         dec["internal"] = IT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], grid=grid,
-                                   higher=higher, floor_at_zero=floor_at_zero, internal=decide.get("internal"))
+                                   higher=higher, floor_at_zero=floor_at_zero, internal=decide.get("internal")) \
+            if kind["internal_tab"] else None
 
         # ---- One set of lines per product and measure (the firm, 15 Oct
         # 2026: "we need to use all 3 to set appropriate thresholds"): the

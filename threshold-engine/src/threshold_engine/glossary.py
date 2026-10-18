@@ -413,3 +413,24 @@ TERMS = [
      "definitions."),
 ]
 
+
+#: The Internal tab's own terms, from Internal data to Competitive check: a
+#: workbook built without that tab (a commercial book, kinds.KINDS) leaves
+#: them off, so the Glossary names no tab the workbook does not have.
+_FIRST, _LAST = "Internal data", "Competitive check"
+_names = [t for t, _, _ in TERMS]
+INTERNAL_TAB_TERMS = frozenset(_names[_names.index(_FIRST):_names.index(_LAST) + 1])
+
+
+def terms_for(kind: dict):
+    """TERMS for a book of ``kind`` (an entry of ``kinds.KINDS``): the first
+    part's example is the kind's own, and the Internal tab's terms are left
+    off where the kind builds no Internal tab."""
+    out = []
+    for term, meaning, calc in TERMS:
+        if term in INTERNAL_TAB_TERMS and not kind["internal_tab"]:
+            continue
+        if term == "Product":
+            meaning = meaning.replace("such as Credit card", "such as %s" % kind["example"])
+        out.append((term, meaning, calc))
+    return out

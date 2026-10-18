@@ -11,6 +11,7 @@ judgement is refused, not filled in). Relative paths are read from the book's
 own folder, so a book and its files can be copied to another machine whole.
 
     {
+      "kind": "consumer" or "commercial" (kinds.KINDS),
       "workbook": {"name", "unit", "direction", "frequency", "smoothing",
                    "floor_at_zero", "moderate_halfwidth", "low_step", "high_z",
                    "on_the_line", "half_lives", "percentiles", "horizon",
@@ -55,6 +56,18 @@ measure the book does not map stays on the Internal tab: whether an internal
 
 A part value of ``*`` in ``not_in_book`` stands for every value of that part.
 
+``kind`` (the firm, 17 Oct 2026, on the commercial book: "names in this
+should be changed to be more commercial ... product sounds consumer") is the
+kind of book, stated, never guessed from its product names (``kinds.py``). It
+decides the word the reader sees for the first part, which the book's
+``parts`` must use: Product in a consumer book, exactly as before, and
+Portfolio in a commercial one, on every tab. A commercial book's portfolios
+are named as the firm named them (``kinds.COMMERCIAL_NAMES``), and the
+Glossary gives the Call Report's own name beside each; it has no Internal tab
+(the internal import is laid out for consumer products, so an internal
+section is refused) and no Peer loan classes tab (the classes file records
+the peers' consumer books, so loan_classes must be null).
+
 ``lines_from`` says which part is the source and what each row's Lines set
 from starts as. Decide and Thresholds have one row per value of the other two
 parts (a product and a measure), and its lines are set from the history of
@@ -74,7 +87,7 @@ from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
+TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
             "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
 LOAN_CLASSES_KEYS = ("file", "cache")
@@ -174,6 +187,26 @@ def _live_peer_group(wb, series, info, say) -> int:
     return made
 
 
+def _call_report_names(gl) -> None:
+    """A section at the foot of the Glossary: each portfolio's name as shown,
+    beside the Call Report's own name for it and where it is filed, so a
+    figure can be traced to the filing (the firm, 17 Oct 2026)."""
+    from openpyxl.styles import Alignment, Font
+    from .kinds import CALL_REPORT
+    from . import keybank_style as K
+    r = max((c.row for row in gl.iter_rows() for c in row if c.value is not None), default=0) + 2
+    gl.cell(r, 2, "Portfolio names").font = Font(name="Arial", size=12, bold=True, color=K.INK)
+    gl.cell(r + 1, 2, "Each portfolio as this workbook names it, the Call Report's own name for it, and where it "
+                      "is filed: a figure here can be traced to the filing by the second and third columns.")
+    heads = ("Shown as", "The Call Report's name", "Where it is filed")
+    for j, h in enumerate(heads):
+        gl.cell(r + 2, 2 + j, h).font = Font(name="Arial", size=10, bold=True, color=K.INK)
+    for i, row in enumerate(CALL_REPORT):
+        for j, v in enumerate(row):
+            c = gl.cell(r + 3 + i, 2 + j, v)
+            c.alignment = Alignment(wrap_text=True, vertical="top")
+
+
 class BookError(ValueError):
     """A book that cannot be built from, with every problem found."""
 
@@ -209,6 +242,16 @@ def load(path) -> dict:
     if not (isinstance(parts, list) and len(parts) == 3 and all(isinstance(p, str) and p.strip() for p in parts)):
         problems.append("parts must be a list of three names, for example [\"Product\", \"Measure\", \"Source\"]")
         raise BookError("\n".join(problems))
+
+    from . import kinds as KD
+    kind = KD.kind_of(raw["kind"])
+    if kind is None:
+        problems.append("kind must be one of %s, the kind of book this is: it decides the word the reader "
+                        "sees for the first part (%s), not %r" % (", ".join(KD.KINDS), ", ".join(
+                            "%s in a %s book" % (k["word"], n) for n, k in KD.KINDS.items()), raw["kind"]))
+    elif parts[0] != kind["word"]:
+        problems.append("parts: a %s book calls its first part %r, not %r (kind decides the word the reader "
+                        "sees)" % (raw["kind"], kind["word"], parts[0]))
 
     def resolve(p) -> Path:
         q = Path(p)
@@ -256,6 +299,12 @@ def load(path) -> dict:
         seen.add(label.casefold())
         series.append((label, resolve(r["file"])))
         decide_parts[label] = vals
+    if raw["kind"] == "commercial":
+        shown = list(KD.COMMERCIAL_NAMES.values())
+        odd = sorted({v[0] for v in decide_parts.values()} - set(shown))
+        if odd:
+            problems.append("a commercial book names its %ss as the firm named them (%s), not %s"
+                            % (parts[0].lower(), ", ".join(shown), ", ".join(repr(x) for x in odd)))
     absent = raw["not_in_book"]
     if not isinstance(absent, list):
         problems.append("not_in_book must be a list (empty to say there is nothing missing to explain)")
@@ -308,6 +357,14 @@ def load(path) -> dict:
             loan_classes = {k: resolve(loan_classes[k]) for k in LOAN_CLASSES_KEYS}
             if not loan_classes["file"].exists():
                 problems.append("loan_classes: the file %s does not exist" % loan_classes["file"])
+    if kind is not None and not kind["internal_tab"]:
+        if raw["internal"] is not None:
+            problems.append("internal: a %s book has no Internal tab (the internal import, "
+                            "docs/INTERNAL-IMPORT.md, is laid out for consumer products), so internal must be "
+                            "null" % raw["kind"])
+        if raw["loan_classes"] is not None:
+            problems.append("loan_classes: the classes file records each peer's consumer book, so a %s book's "
+                            "loan_classes must be null" % raw["kind"])
     lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
     reporting = raw["reporting_changes"]
     changes = events = None
@@ -330,10 +387,10 @@ def load(path) -> dict:
     wbk = dict(raw["workbook"])
     wbk["half_lives"] = tuple(wbk["half_lives"])
     wbk["percentiles"] = tuple(wbk["percentiles"])
-    return {"workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
+    return {"kind": raw["kind"], "workbook": wbk, "series": series, "peers": peers, "folder": folder, "internal": internal,
             "loan_classes": loan_classes, "reporting_changes": reporting, "changes": changes, "events": events,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
-                       "notes": notes, "lines_from": lines_from}}
+                       "notes": notes, "lines_from": lines_from, "kind": raw["kind"]}}
 
 
 def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
@@ -477,7 +534,8 @@ def build(book_path, out, say=print) -> dict:
     if bk["peers"] is not None:
         from .peers import run as peers_run
         peer_info = peers_run.build(None, into=host, names=PEER_TAB_NAMES, say=say,
-                                    reporting_changes=bk["reporting_changes"], **bk["peers"])["info"]
+                                    reporting_changes=bk["reporting_changes"], book_kind=bk["kind"],
+                                    **bk["peers"])["info"]
         peer_tabs = peer_info["sheets"]
         missing = [(lbl, p) for lbl, p in bk["series"] if not p.exists()]
         if missing:
@@ -496,6 +554,17 @@ def build(book_path, out, say=print) -> dict:
         wb.active = wb.sheetnames.index("Summary")
         if peer_info is not None:
             _live_peer_group(wb, series, peer_info, say)
+        if bk["kind"] == "commercial":
+            # Every tab is written by now (the peer sections of Glossary and
+            # Run too), so the commercial words go in everywhere at once,
+            # and then the Call Report's names beside the ones shown.
+            from .kinds import reword
+            from .peers.peers_workbook import write_folded_now
+            write_folded_now(wb)
+            changed = reword(wb)
+            _call_report_names(wb["Glossary"])
+            say("commercial names: %d pieces of text on %d tabs say portfolio and the portfolios' names"
+                % (sum(changed.values()), len(changed)))
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 

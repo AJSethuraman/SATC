@@ -92,7 +92,7 @@ def book(tmp_path_factory):
            ("Credit card - %s - Refused" % NET, write_series(d / "e.csv", refused)),
            ("Auto - %s - Agrees" % NET, write_series(d / "f.csv", auto_s))]
     dec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in ser}, "absent": [],
-           "compare": None, "notes": [], "internal": {"capacity": 160}, "lines_from": None}
+           "compare": None, "notes": [], "internal": {"capacity": 160}, "lines_from": None, "kind": "consumer"}
     info = build(d / "book.xlsx", ser, decide=dec, **SETTINGS)
     return d, info, ser
 
@@ -445,7 +445,8 @@ def write_internal_csv(path):
 
 def write_book(folder, ser, internal):
     import json
-    book = {"workbook": {k: (list(x) if isinstance(x, tuple) else x) for k, x in SETTINGS.items()},
+    book = {"kind": "consumer",
+            "workbook": {k: (list(x) if isinstance(x, tuple) else x) for k, x in SETTINGS.items()},
             "parts": NAMES, "lines_from": {"part": NAMES[2], "start": None},
             "series": [dict(zip(NAMES, lbl.split(" - ")), file=str(p)) for lbl, p in ser],
             "not_in_book": [], "compare": None, "notes": [], "peers": None, "internal": internal,
