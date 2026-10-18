@@ -117,6 +117,13 @@ def unbroken_tail(rows, bridge=()):
     return rows[start:end], [q for q, _ in rows[:start]], [q for q, _ in rows[end:]]
 
 
+def values(tail):
+    """The quarters of ``tail`` (``unbroken_tail``'s) that hold a value: the
+    quarters written. A quarter the series continues across holds None and
+    is declared, not written."""
+    return sum(v is not None for _, v in tail)
+
+
 def bridged(rows, marks, *, jumped="jumped", without="why_without_jump", quarter="quarter"):
     """The quarters (``YYYYQn``) of ``rows`` (``books.bank_book``'s, or
     ``delinquency.bank_delinquency``'s with ``without="why_avg4_without_jump"``
@@ -675,7 +682,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     Returns ``{out, info, series}``: the workbook written (None with
     ``into``), what ``build_peers_workbook`` returned, and per series
     ``(path, quarters written, left out before, left out after)`` (0
-    quarters: not written)."""
+    quarters: not written). Quarters written counts values only: the
+    windows a series continues across are declared, not written."""
     s = dict(locals())
     products = _check_build(s)
     if reporting_changes is None or isinstance(reporting_changes, bool):
@@ -954,8 +962,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             written[group][2] += bool(before)
             if not after or isinstance(group, tuple):
                 continue        # 150 files: counted below; what each leaves out is in its notes
-        say("Wrote %s: %d quarters%s%s"
-            % (path, len(tail), ", %d earlier left out at a break" % len(before) if before else "",
+        gaps = len(tail) - values(tail)
+        say("Wrote %s: %d quarters%s%s%s"
+            % (path, values(tail), ", %d left out within it, not written (left-out line)" % gaps if gaps else "",
+               ", %d earlier left out at a break" % len(before) if before else "",
                ", ends %s: %d later quarter%s with no value"
                % (tail[-1][0], len(after), "" if len(after) == 1 else "s") if after else ""))
     for p, (n, of, broke) in written.items():
@@ -967,4 +977,4 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             % (p, n, of, out_dir, "; %d start after a break (a four-quarter average always does), "
                "the quarters left out named in each file's notes" % broke if broke else ""))
     return dict(out=out, info=info,
-                series=[(path, len(tail), before, after) for path, tail, _, before, after, _ in series])
+                series=[(path, values(tail), before, after) for path, tail, _, before, after, _ in series])

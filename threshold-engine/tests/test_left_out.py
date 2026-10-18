@@ -336,3 +336,19 @@ def test_a_jump_in_a_quarter_only_an_event_names_still_breaks_the_series(tmp_pat
     assert not [x for x in read_left_out(dq) if x.startswith(("2020", "2021"))]
     assert read_csv(dq)[0].date >= "2021-03-31"
 
+
+def test_the_build_reports_the_quarters_it_wrote_not_the_quarters_on_the_calendar(tmp_path):
+    """"Wrote ...: N quarters" is a denominator: the values in the file, with
+    the windows the series continues across counted apart. KeyBank's C&I
+    2005Q1 to 2026Q2 continues across five."""
+    said = []
+    kw = build_kw(tmp_path, cache_of(tmp_path, keybank_ci()), "2005Q1", "2026Q2", ["C&I"], False)
+    kw["say"] = said.append
+    got = run.build(tmp_path / "peers.xlsx", **kw)
+    path = tmp_path / "series" / "c-i_keybank_net.csv"
+    written = len(read_csv(path))
+    assert written == 77 and len(read_left_out(path)) == 5
+    line = next(x for x in said if x.startswith("Wrote %s:" % path))
+    assert line.startswith("Wrote %s: %d quarters, 5 left out within it, not written (left-out line)"
+                           % (path, written)), line
+    assert next(n for p, n, _, _ in got["series"] if p == path) == written
