@@ -87,10 +87,40 @@ def test_every_problem_is_listed_at_once_and_a_missing_or_extra_key_is_named(tmp
     assert "acquisition 2 (certificate 628, 2008Q3) is missing 'url' (every key is required" in msg
     assert "acquisition 2 (certificate 628, 2008Q3) has 'products', which is not a key it takes" in msg
     # 1 was refused, so 3 is the first of its kind; it is a repeat of nothing kept
-    assert "listed twice" not in msg
+    assert "already listed" not in msg
     ok = good()
     ok["acquisitions"].append(copy.deepcopy(ok["acquisitions"][0]))
-    assert "acquisition 2 (certificate 628, 2008Q3): the same acquisition is listed twice" in refused(ok, tmp_path)
+    assert ("acquisition 2 (certificate 628, 2008Q3): certificate 628 in 2008Q3 is already listed "
+            "(acquisition 1)") in refused(ok, tmp_path)
+
+
+def test_the_same_acquirer_and_quarter_is_one_acquisition_however_worded(tmp_path):
+    """The build reads the acquirer and the quarter, never the wording, so
+    the same pair twice is a duplicate even when the sentence differs."""
+    raw = good()
+    again = dict(raw["acquisitions"][0], what="A acquired the whole of B.", citation="A's 10-Q",
+                 url="https://example.org/10q")
+    raw["acquisitions"].append(again)
+    msg = refused(raw, tmp_path)
+    assert "acquisition 2 (certificate 628, 2008Q3): certificate 628 in 2008Q3 is already listed" in msg
+    assert "two deals in one quarter go in one entry" in msg
+    # Another quarter, or another acquirer, is another acquisition.
+    raw["acquisitions"][1]["quarter"] = "2008Q4"
+    assert len(ST.check(raw)) == 2
+
+
+def test_a_key_given_twice_in_one_entry_is_refused(tmp_path):
+    """JSON keeps the last of a key given twice, silently; the file is refused."""
+    p = tmp_path / "s.json"
+    p.write_text('{"_what": "A test list.", "acquisitions": [{"acquirer": "628", "quarter": "2008Q3", '
+                 '"quarter": "2009Q1", "what": "A bought B.", "citation": "A\'s 8-K", '
+                 '"url": "https://example.org/8k"}]}', encoding="utf-8")
+    with pytest.raises(ST.StatedError, match=r"s\.json: the key 'quarter' is given twice in one object "
+                                             r"\(certificate 628\); give it once"):
+        ST.load(p)
+    p.write_text('{"_what": "A.", "_what": "B.", "acquisitions": []}', encoding="utf-8")
+    with pytest.raises(ST.StatedError, match="the key '_what' is given twice"):
+        ST.load(p)
 
 
 @pytest.mark.parametrize("raw, says", [
