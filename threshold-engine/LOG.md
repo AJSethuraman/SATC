@@ -3007,3 +3007,30 @@ this into production and generate a workbook for review"*.
   (the pipeline's levels carry it); the dual-axis chart with real units on
   both axes is not possible live in Excel without macros, so the rescaled
   chart is on one axis and the units are printed beside it.
+
+## 18 Oct 2026: the firm's answers to the round 2 commercial docket
+
+
+Read back from the docket form's store (https://claude.ai/artifact/TUp5KEvQn9RQdhH9xziNe7, collection `decisions`), not retyped from the conversation.
+
+- **18. A listed deal leaves out only the portfolios it brought:** agreed with the recommendation. Each stated acquisition gets a required `products` list with a source.
+- **19. The consumer book reads the stated list too:** "Not now", with the note: *"i agree with this but expect coordination between the agents working on the threshold engine, so it makes more sense to make the change for yourself and then tell the other agent what we did and have it adjust if it makes sense"*. So: the commercial side builds and uses it; the consumer session is told what was built and decides whether to adopt it.
+- **20. A label explains a jump only when its change could have caused it:** agreed with the recommendation, after the plain explanation and two pictures (KeyBank C&I/NDFI 2024Q4; multifamily/construction 2009Q1). First note: *"i don't understand"*; in chat: *"then agree with that and the rest"*. Each reporting change gets a required yes/no, from its own source, on whether it can step a balance in one quarter; only a yes carries a series across.
+- **21. A new charter's first filing counts as that quarter's activity, where the FDIC record shows it opened that quarter:** agreed with the recommendation.
+- **22. A build stops if its merger list does not reach back as far as the history:** agreed with the recommendation, after the pictures (First Niagara 2016Q4 combined vs as filed; two banks merged 2004Q4 invisible to a list from 2005). The firm, in chat: *"ohhhh ok, so it doesn't look like a jump basically"* and *"then agree with that and the rest"*. The merger and absorption files record the date they start from; a build whose first quarter is earlier refuses.
+- **23. Nonfarm CRE: rate owner-occupied and investor CRE separately from 2007; show nonfarm as a whole, unrated:** agreed with the recommendation (10 rated rows).
+- **24. Each row chooses where its lines start; CRE charge-off rows start on Industry:** agreed with the recommendation.
+- **25. Gross charge-offs left out:** agreed with the recommendation.
+- **26. Headings show names as written in both books:** agreed with the recommendation.
+- **27. The peer median follows the pack switches:** agreed with the recommendation.
+- **28. Commercial settings chosen after the firm sees the workbook; the consumer book's settings stay, labelled provisional:** agreed with the recommendation.
+**What it causes.** 18, 20, 21, 22, 23, 24 and 27 are built next, on the commercial side, each with tests. 25 and 26 are already true (no gross charge-off rows; headings show names as written). 28 is already true: the commercial book says its settings are the consumer book's, pending the firm's choice.
+
+### For the consumer session (question 19: "make the change for yourself and then tell the other agent")
+
+Built on the commercial side; each is yours to adopt in the consumer book or not:
+
+1. **Stated acquisitions** (`config/stated-acquisitions.json`, `peers/stated.py`). Deals the FDIC record cannot see, each with a quoted filing. `peers.stated_acquisitions` is a required book key; `consumer-public.json` states `null`, so its output is unchanged. Candidates for consumer, from `docs/commercial-2026-10/research-breaks.md` on main: Capital One/HSBC cards 2012Q2 and JPMorgan/WaMu 2008Q3 (both need their filings read). Question 18 adds a required `products` list per deal, so one deal leaves out only the books it brought.
+2. **A series continues across a labelled reporting change** (question 16, `peers/run.py`). This already changes consumer series: on test data 14 of 118 other-consumer files gain history, mostly across the 2011Q1 auto split. Question 20 will narrow it to changes whose own source says they can step a balance in one quarter, which changes the consumer series too.
+3. **Combined products and labelled changes** (merge of 18 Oct): a combined product continues across a gap when a change is named for any of its parts. Recorded as a decision the firm can overrule; the stricter rule (only when the named part itself moved) is not built.
+4. **A build will refuse a merger list that starts after its first quarter** (question 22). This changes the merger and absorption files' format; consumer caches will need one re-pull. It will be announced in this log when built.
