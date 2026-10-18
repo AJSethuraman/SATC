@@ -340,3 +340,24 @@ PEER_TERMS = [
      "has no rate. Every series file the build writes names the changes touching it in its notes, with the "
      "source."),
 ]
+
+#: The share panel's term, which names the book's kind as the panel does.
+SHARE_TERM = "Consumer book by product"
+
+
+def terms_for(book_kind=None):
+    """``PEER_TERMS`` for a workbook whose book states ``book_kind``
+    (``kinds.KINDS``). The share panel names the bank's book by that kind
+    ("KeyBank's commercial book: share by product"), so its term does too: a
+    commercial book's is "Commercial book by product", about KeyBank's
+    commercial book. None, the standalone peers build, and a consumer book
+    keep the list as it is."""
+    if book_kind is None or book_kind == "consumer":
+        return list(PEER_TERMS)
+    out = []
+    for term, meaning, calc in PEER_TERMS:
+        if term == SHARE_TERM:
+            term = "%s book by product" % book_kind.capitalize()
+            meaning = meaning.replace("KeyBank's consumer book", "KeyBank's %s book" % book_kind)
+        out.append((term, meaning, calc))
+    return out

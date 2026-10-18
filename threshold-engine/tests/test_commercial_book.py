@@ -278,6 +278,23 @@ def test_the_share_panel_names_the_books_own_kind(built):
                        for c in r) or kind == "consumer"
 
 
+def test_the_glossary_names_the_share_panel_as_the_book_kind_says(built):
+    """The panel says "KeyBank's commercial book: share by portfolio"; its
+    Glossary term said "Consumer book by portfolio", "KeyBank's consumer book".
+    A consumer book keeps its term exactly."""
+    for kind, term, meaning in (
+            ("commercial", "Commercial book by portfolio",
+             "The share of KeyBank's commercial book in each portfolio built, the portfolio picked drawn first "
+             "in red."),
+            ("consumer", "Consumer book by product",
+             "The share of KeyBank's consumer book in each product built, the product picked drawn first in red.")):
+        gl = load_workbook(built[kind][0])["Glossary"]
+        rows = {r[1].value: r[2].value for r in gl.iter_rows() if isinstance(r[1].value, str)}
+        assert rows.get(term) == meaning, (kind, {t: m for t, m in rows.items() if "book by" in t})
+        if kind == "commercial":
+            assert not [t for t, m in rows.items() if t.startswith("Consumer book")
+                        or "KeyBank's consumer book" in (m or "")]
+
 def test_the_industry_caption_states_how_many_filers_it_holds(built, data):
     last = sorted(data)[-1]
     n = len(data[last])

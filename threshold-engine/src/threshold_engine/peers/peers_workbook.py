@@ -114,7 +114,7 @@ from .analyses import calendar_year, lagged_rate, mix_factor, organic_index
 from . import delinquency as D
 from .books import (PRODUCTS, _fields, bank_book, combined_flows, industry_filers, label, members_by_quarter,
                     quarter_end, raw_fields)
-from .glossary import PEER_TERMS
+from .glossary import terms_for
 
 INPUT = PatternFill("solid", fgColor=K.INPUT, bgColor=K.INPUT)
 NOTE = Font(name="Calibri", size=10, color=K.SLATE)
@@ -2298,7 +2298,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                                extra_acquisitions, lagged_years, lag_years, (y0, y1), mix_base_year, industry, dq,
                                roster, acq_of)
     if gl is not None:
-        _glossary_tab(gl, t)
+        _glossary_tab(gl, t, book_kind)
     if run is not None:
         _run_tab(run, run_entries)
 
@@ -2315,7 +2315,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         _na_as_gap(out)
     else:
         folded = {x: t.title(x) for x in FOLDED}
-        _fold(wb, [(folded["Glossary"], lambda ws, row, first: _write_glossary(ws, row, first, t, "Peers terms")),
+        _fold(wb, [(folded["Glossary"], lambda ws, row, first: _write_glossary(ws, row, first, t, "Peers terms",
+                                                                              book_kind)),
                    (folded["Run"], lambda ws, row, first: _write_run(ws, row, first, run_entries, "Peers: "))])
 
     def cols(block):
@@ -2349,16 +2350,17 @@ GLOSSARY_WIDTHS = (2.29, 30.7, 90.7, 90.7)       # A (16 px), then Term, What it
 RUN_WIDTHS = (2.29, 44, 60, 66, 14, 10)
 
 
-def _write_glossary(ws, row, first_col, t, heading=None) -> int:
-    """Every peer term from ``row``: an optional section heading, the column
-    labels, then one wrapped row per term, its height fitted to the longest
-    cell. Returns the row after the last."""
+def _write_glossary(ws, row, first_col, t, heading=None, book_kind=None) -> int:
+    """Every peer term from ``row`` (``glossary.terms_for(book_kind)``): an
+    optional section heading, the column labels, then one wrapped row per
+    term, its height fitted to the longest cell. Returns the row after the
+    last."""
     if heading:
         row = K.quiet_section(ws, row, heading, 3, first_col)
     _ref_header(ws, row, ["Term", "What it means", "How it is calculated"], first_col, height=15)
     row += 1
     widths = [ws.column_dimensions[L(first_col + i)].width or 13 for i in range(3)]
-    for term, meaning, calc in PEER_TERMS:
+    for term, meaning, calc in terms_for(book_kind):
         vals = (term, t.words(meaning), t.words(calc))
         for i, v in enumerate(vals):
             c = ws.cell(row, first_col + i, v)
@@ -2371,12 +2373,12 @@ def _write_glossary(ws, row, first_col, t, heading=None) -> int:
     return row
 
 
-def _glossary_tab(gl, t) -> None:
+def _glossary_tab(gl, t, book_kind=None) -> None:
     for i, w in enumerate(GLOSSARY_WIDTHS):
         gl.column_dimensions[L(1 + i)].width = w
     _ref_title(gl, 2, 3, t.title("Glossary"), "Each term on the peer tabs: what it means, and how the workbook "
                                               "calculates it.")
-    _write_glossary(gl, 4, 2, t)
+    _write_glossary(gl, 4, 2, t, book_kind=book_kind)
     gl.freeze_panes = "C5"
 
 
