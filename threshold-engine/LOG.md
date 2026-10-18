@@ -2428,7 +2428,9 @@ industry figures were not tied out to the QBP. Nothing was opened in Excel.
   required key (`kinds.py`), refused by name when missing or unknown, and
   `parts[0]` must be the kind's word: Product (consumer, unchanged) or
   Portfolio (commercial). A commercial book's portfolios must be the firm's
-  names; once every tab is written, `kinds.reword` puts Portfolio for
+  names *(corrected 18 Oct 2026: the firm asked only for more commercial
+  names; these names were proposed by this session the same day and the firm
+  did not object)*; once every tab is written, `kinds.reword` puts Portfolio for
   Product, the firm's names for the Call Report products and "Loans to
   nonbank financials (NDFI)" for NDFI into every cell's text, the quoted
   text of every formula, the dropdown prompts and the chart titles. It never
@@ -2539,3 +2541,15 @@ fixed. The rest, one commit each:
   the 12 Oct LOG line that said the same of 215 carries a correction. A
   comment only; no test.
 
+- **The portfolio names are not the firm's.** `kinds.py`, `book.py`,
+  `books/README.md` and the test file said the commercial names were "as the
+  firm named them on 17 Oct 2026". The firm asked only for more commercial
+  names (*"names in this should be changed to be more commercial ... product
+  sounds consumer"*); the names themselves were proposed by this session the
+  same day, and the firm did not object. Every place now says exactly that;
+  the refusal says "by the commercial names"; the 18 Oct LOG bullet carries a
+  correction. `test_commercial_book.py`: a new test that no source, the
+  books README or the commercial book says "as the firm named" or "firm's
+  names"; with the old docstring put back it fails (checked). Run:
+  `test_book.py` 16 passed; the three touched tests in
+  `test_commercial_book.py` passed.

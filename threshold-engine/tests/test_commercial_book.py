@@ -3,7 +3,9 @@
 The firm, 17 Oct 2026: *"names in this should be changed to be more
 commercial ... product sounds consumer"*. A book states its ``kind``; a
 commercial one says Portfolio wherever a consumer one says Product, shows the
-portfolios under the firm's names (NDFI in full), and keeps the Call Report's
+portfolios under commercial names (NDFI in full; the firm asked only for more
+commercial names, and these were proposed by the session that built the book
+the same day, the firm not objecting), and keeps the Call Report's
 own name beside each on the Glossary. A consumer book keeps Product exactly
 as before. Also here: the display problems the example commercial build found
 on 17 Oct 2026 (the Peers headings, the share panel's title, the industry's
@@ -96,10 +98,10 @@ def commercial_rows(names):
     return [{"Portfolio": n, "Measure": "Net", "Source": "Industry", "file": "files/cards_nco_ttm.csv"} for n in names]
 
 
-def test_a_commercial_book_names_its_portfolios_as_the_firm_did(tmp_path):
+def test_a_commercial_book_names_its_portfolios_by_the_commercial_names(tmp_path):
     over = dict(kind="commercial", parts=["Portfolio", "Measure", "Source"], compare=None, not_in_book=[])
     # The peers build's name is the Call Report's, not the one shown.
-    with pytest.raises(BK.BookError, match="not 'Owner-occupied nonfarm nonresidential'"):
+    with pytest.raises(BK.BookError, match="by the commercial names .*not 'Owner-occupied nonfarm nonresidential'"):
         BK.load(write_book(tmp_path, series=commercial_rows(["Owner-occupied nonfarm nonresidential"]), **over))
     bk = BK.load(write_book(tmp_path, series=commercial_rows(["Owner-occupied CRE", "C&I"]), **over))
     assert bk["kind"] == "commercial" and bk["decide"]["kind"] == "commercial"
@@ -112,6 +114,18 @@ def test_a_commercial_book_has_no_internal_or_loan_classes_section(tmp_path):
         BK.load(write_book(tmp_path, internal={k: "x" for k in BK.INTERNAL_KEYS}, **over))
     with pytest.raises(BK.BookError, match="loan_classes: the classes file records each peer's consumer book"):
         BK.load(write_book(tmp_path, loan_classes={"file": "x", "cache": "y"}, **over))
+
+
+def test_the_names_are_not_said_to_be_the_firms():
+    """The firm asked only for more commercial names (17 Oct 2026); the names
+    themselves were proposed by the session that built the book and the firm
+    did not object. Nothing says the firm named them."""
+    texts = list((ROOT / "src").rglob("*.py")) + [ROOT / "books" / "README.md",
+                                                  ROOT / "books" / "commercial-public.json"]
+    for p in texts:
+        text = p.read_text(encoding="utf-8")
+        assert "as the firm named" not in text and "firm's names" not in text, p
+    assert "did not object" in (ROOT / "src" / "threshold_engine" / "kinds.py").read_text(encoding="utf-8")
 
 
 def test_the_books_in_the_repository_state_their_kinds():
@@ -243,7 +257,7 @@ def test_a_consumer_book_keeps_product_exactly(built):
     assert [wk.cell(r, 5).value for r in range(2, 8)] == list(books.COMMERCIAL)
 
 
-def test_a_commercial_book_shows_the_firms_names_and_the_call_reports_beside_them(built, data):
+def test_a_commercial_book_shows_the_commercial_names_and_the_call_reports_beside_them(built, data):
     path, _ = built["commercial"]
     wb = load_workbook(path)
     wk = wb["Peers workings"]

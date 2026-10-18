@@ -9,10 +9,13 @@ required, as every key of a book is; a book that does not state it is
 refused, by name. Nothing here reads a book's product names to decide what
 kind of book it is.
 
-A commercial book also shows its portfolios under the firm's names (the same
-day): C&I, Owner-occupied CRE, Investor CRE (non-owner-occupied),
-Multifamily, Construction, Nonfarm nonresidential CRE for the parent total,
-and Loans to nonbank financials (NDFI) wherever NDFI appears. The Call
+A commercial book also shows its portfolios under commercial names: C&I,
+Owner-occupied CRE, Investor CRE (non-owner-occupied), Multifamily,
+Construction, Nonfarm nonresidential CRE for the parent total, and Loans to
+nonbank financials (NDFI) wherever NDFI appears. The firm asked only for more
+commercial names (the words above); these names were proposed by the session
+that built the book (Claude) the same day, 17 Oct 2026, and the firm did not
+object. The Call
 Report's own name for each stays beside it on the Glossary, so a figure can
 be traced to the filing (``CALL_REPORT``).
 
@@ -38,7 +41,10 @@ KINDS = {
 }
 
 #: A commercial book's portfolios, by the peers build's product name
-#: (``peers.books.COMMERCIAL``), as the firm named them on 17 Oct 2026.
+#: (``peers.books.COMMERCIAL``). The firm asked only for more commercial
+#: names ("names in this should be changed to be more commercial ... product
+#: sounds consumer"); these names were proposed by the session that built the
+#: book (Claude) the same day, 17 Oct 2026, and the firm did not object.
 COMMERCIAL_NAMES = {
     "C&I": "C&I",
     "Nonfarm nonresidential": "Nonfarm nonresidential CRE",

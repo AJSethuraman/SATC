@@ -29,8 +29,11 @@ elsewhere.
 
 Every book states its `kind`. A consumer book calls the first part
 **Product**; a commercial book calls it **Portfolio**, on every tab, and shows
-its portfolios by the firm's names, with the Call Report's own name for each
-on the Glossary. A book that does not state its kind is refused.
+its portfolios by commercial names, with the Call Report's own name for each
+on the Glossary. The firm asked only for more commercial names ("names in
+this should be changed to be more commercial ... product sounds consumer");
+the names themselves were proposed by the session that built the book
+(Claude) the same day, 17 Oct 2026, and the firm did not object. A book that does not state its kind is refused.
 
 ## Build it at work: the one file
 

@@ -62,7 +62,9 @@ kind of book, stated, never guessed from its product names (``kinds.py``). It
 decides the word the reader sees for the first part, which the book's
 ``parts`` must use: Product in a consumer book, exactly as before, and
 Portfolio in a commercial one, on every tab. A commercial book's portfolios
-are named as the firm named them (``kinds.COMMERCIAL_NAMES``), and the
+take the names in ``kinds.COMMERCIAL_NAMES`` (the firm asked only for more
+commercial names; these were proposed by the session that built the book,
+Claude, the same day, and the firm did not object), and the
 Glossary gives the Call Report's own name beside each; it has no Internal tab
 (the internal import is laid out for consumer products, so an internal
 section is refused) and no Peer loan classes tab (the classes file records
@@ -303,7 +305,7 @@ def load(path) -> dict:
         shown = list(KD.COMMERCIAL_NAMES.values())
         odd = sorted({v[0] for v in decide_parts.values()} - set(shown))
         if odd:
-            problems.append("a commercial book names its %ss as the firm named them (%s), not %s"
+            problems.append("a commercial book names its %ss by the commercial names (%s), not %s"
                             % (parts[0].lower(), ", ".join(shown), ", ".join(repr(x) for x in odd)))
     absent = raw["not_in_book"]
     if not isinstance(absent, list):
