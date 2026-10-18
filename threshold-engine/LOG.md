@@ -2732,3 +2732,126 @@ fixed. The rest, one commit each:
   Nothing was opened in Excel; nothing can be opened in Excel here. The
   full suite was not run: only the files named above, plus
   `test_peers_fdic.py` (46 passed) after the comment change.
+
+## 18 Oct 2026: threshold-engine-book merged into commercial-round2
+
+`origin/threshold-engine-book` (9f6c8247: the combined products of 8e79b0a4,
+the early-warning work of 6e7d2da0, a main merge and two Codex fixes) merged
+into this branch (ee936724; a merge, no rebase). Both branches had changed
+`book.py`, `cli.py`, `glossary.py`, `peers/books.py`, `delinquency.py`,
+`peers_workbook.py`, `peers/run.py`, `workbook.py`, `thresholds_tab.py`,
+`consumer-public.json`, `reporting-changes.json`, this log and several
+tests. Seven files conflicted; each was resolved keeping both behaviours,
+after reading both sides' commits for it. The other branch's log entries
+come first above, then this branch's, as each was written.
+
+What was resolved, and how:
+
+- **`peers/run.py`.** The other branch's left-out file (`break_reason`,
+  `left_out_spans`, the `left_out` the build returns) and this branch's
+  question 16 (`unbroken_tail`'s bridge, `bridged`, the `left-out:` line,
+  quarters written counted as values) both run on every series. The
+  delinquency files carry both the bridge and the reasons.
+- **`book.py`.** `kind` and the other branch's `floor_off` and
+  `large_banks` are all required keys. The left-out file goes on Run before
+  a commercial book's rewording, so it is reworded with the rest.
+- **`workbook.py`.** A series' declared left-out quarters and its
+  `floor_off` both reach evidence and backtest.
+- **`peers_workbook.py`.** The share panel draws only the products that are
+  not combined (the other branch), stacked so no loan counts twice (this
+  branch), with the kind naming the book ("KeyBank's commercial book").
+- **`test_left_out.py`.** Both branches had added a file by this name; both
+  sets of tests are in it.
+- **`reporting-changes.json`.** This branch's events; the visible
+  "labelled" in the file's text spelled "labeled", as the other branch chose
+  (efc6b113). The `already_labelled` key and code names are unchanged.
+- **The commercial book** states `floor_off: []` and `large_banks: null`,
+  now required. The consumer book keeps `stated_acquisitions: null`.
+
+### Decision for the firm: a combined product follows its parts
+
+A combined product ("All consumer", "Credit card + Other consumer") has no
+entry of its own in the reporting changes registry: entries name the
+products they touch, by product. The code on the other branch already read
+a combined product as touched by any change naming any of its parts: its
+notes list those changes (`note_lines` with `books.members`) and the Peers
+charts mark them (`peers_workbook.change_quarters`). The merge applies the
+same rule to question 16 and to the events: **a reporting change named for
+any part of a combined product keeps the combined series going across the
+windows the jump left out for it, and an event named for any part is
+labeled on it** (`run.labelled_for`, `run.named_for`; the left-out line
+says which part each change names, for example "Securitizations back on
+the books (FAS 166 and 167) names for Credit card, a part of Credit card +
+Mortgage"). An event still never keeps a series going.
+
+The rule does not ask which part moved: the combined book's jump is one
+number, and the code attributes no move to a part, for a single product or
+a combined one. So a combined book whose jump came from a part no change
+names, in a quarter a change names for another part, would be bridged too.
+**The firm can overrule this**: the stricter reading (bridge only when the
+part the change names moved by itself more than the jump) is not built.
+Tests: `test_left_out.py`, a combined product continues across a change
+named for one part (Credit card + Mortgage, FAS 166 and 167 in 2010Q1) and
+not across the other part's alone, and carries the events of C&I in C&I +
+Multifamily; with the rule undone both fail (checked).
+
+### Made to work together, after the merge, one commit each
+
+- **974b517d, 30+ to charge-off and the stated acquisitions.** The other
+  branch's flows applied the jump and the recorded acquisitions but not the
+  stated ones, which this branch requires wherever the recorded ones are.
+  `flows.bank_flow` takes `stated`, required and keyword-only, with its own
+  reason after a recorded acquisition's; the flow files carry the stated
+  acquisitions line and their rule names them. `test_peers_flows.py` (5)
+  and `test_stated_acquisitions.py` (33): 38 passed.
+- **ba6be41f, left-out.csv lists the windows a series continues across**
+  (`run.within_spans`, `WHY_WITHIN`), in order with the quarters before and
+  after; the file's header and the Glossary's "Left out as built" say so.
+  `test_left_out.py`: 21 passed.
+- **0e6a09bb**, the combined-product tests above. `test_left_out.py`: 23.
+- **ed8f4d78, combined portfolios in a commercial book.** The commercial
+  book refused any portfolio name not in `kinds.COMMERCIAL_NAMES`, so it
+  could hold no combined product. A combined portfolio is its parts'
+  commercial names joined by " + " ("C&I + Multifamily", "Owner-occupied
+  CRE + Investor CRE (non-owner-occupied)"), which is what the rewording
+  makes of the build's name, checked as the build checks it
+  (`kinds.commercial_product`; a whole with a part it holds is refused).
+  The Glossary's Combined product term says no consumer words in a
+  commercial book (no All consumer, no auto) and, in both kinds, that a
+  combined product follows its parts' changes and events. "All consumer" is
+  the consumer five (`books.members`), so a commercial book cannot name it.
+  `test_commercial_book.py` and `test_reporting_changes.py`: 80 passed.
+
+### Run, before the whole suite
+
+- `test_book.py`, `test_left_out.py`, `test_peers_combined_products.py`,
+  `test_stated_acquisitions.py`, `test_reporting_changes.py`,
+  `test_peers_flows.py`, `test_floor_off.py`, `test_large_banks.py`,
+  `test_long_industry.py` on the resolved tree: 140 passed, 3 failed, all
+  three `test_floor_off.py`'s book written without `kind`; given it, 3
+  passed (in the merge commit). The other branch's
+  `test_peers_combined_products.py` needed `stated=()` on its `bank_book`
+  calls (in the merge commit).
+- `test_commercial_book.py`, `test_peers_commercial.py`: 48 passed.
+- `test_peers_workbook.py`, `test_peers_dashboard.py`: 77 passed (28 min).
+- A run of `test_peers_into.py`, `test_peers_cli.py`, `test_internal_tab.py`,
+  `test_app.py`, `test_decide.py`, `test_launcher.py` was stopped unfinished
+  (it was on the tree before the follow-up commits); the whole suite below
+  covers them.
+
+### Not done, not checked
+
+- The real books (consumer and commercial) were not rebuilt on the merged
+  branch; nothing was opened in Excel, and nothing can be opened in Excel
+  here.
+- A book whose only products are combined would give the share panel no
+  product to draw (`CHOOSE` with no choices); that was so on the other
+  branch too and is not changed or tested here.
+- `large_banks` (the Philadelphia Fed's credit card file) is not refused
+  when a commercial book is loaded. Its build refuses it (read, not run): the
+  build requires the series list to list each large-banks series, named
+  Credit card, which the commercial-names check refuses.
+- The industry-from-1990 series (`peers/long_industry.py`) note reporting
+  changes but not events. Its products are consumer, and the only events
+  name C&I, so nothing it writes today misses one.
+- The window (`launcher.py`) was not changed for combined products.
