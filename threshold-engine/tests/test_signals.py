@@ -180,6 +180,8 @@ def test_the_controls_sit_in_row_5_as_inputs_never_merged_and_the_pick_is_named_
     # the grid: A 16 px, B to U 92 px (the file's width carries Excel's padding), frozen under the jump row
     assert ws.column_dimensions["A"].width == ST.W_A and all(ws.column_dimensions[L(col)].width == ST.W_COL for col in range(2, 22))
     assert ws.freeze_panes == "B8"
+    # every row has its own height: Excel would fit a row of text to 15 pt and the charts sit on 22 px rows
+    assert all(ws.row_dimensions[r].height for r in range(1, info["rows"] + 1))
     assert ws["U1"].value == "Latest quarter %s · nothing on this tab is rated" % GRID[-1] and ws["U1"].alignment.horizontal == "right"
 
 
@@ -261,7 +263,7 @@ def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follow
     assert [str(s.graphicalProperties.solidFill.srgbClr) for s in gap.series] == [K.GAP_WORSE, K.GAP_BETTER]
     assert gap.y_axis.scaling.min is None and gap.y_axis.scaling.max is None        # the real gap reaches -25 points
     assert gap.y_axis.majorGridlines is not None and gap.y_axis.numFmt.formatCode == "+0;-0;0"
-    assert [e.idx for e in gap.legend.legendEntry] == [0, 1]                         # entries only for the line
+    assert gap.legend is None                                                         # one line, named in the title above
     texts = _texts(ws)
     assert any(t.startswith('="Credit card · charged off within the window') for t in texts)
     assert any(t.startswith("=\"Gap, priced in KeyBank's delinquent \"&LOWER(") for t in texts)
@@ -290,9 +292,9 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
         assert head.value.endswith("· quarterly") and head.alignment.horizontal == "right"
         # the inputs of the rescale: a table under the overlay, the shift and the window live
         ri = pick + 12
-        assert [ws.cell(ri, col).value for col in (2, 6, 7, 8, 9)] == ["Line", "Normal", "One yearly move", "Shift (quarters)", "Window"]
-        assert ws.cell(ri + 1, 6).value.startswith("=IFERROR(MEDIAN('Signals workings'!") and ws.cell(ri + 1, 9).value == "='Signals'!$M$5"
-        assert "'Signals'!$K$5" in ws.cell(ri + 1, 8).value and ws.cell(ri + 2, 2).value.startswith("='Signals'!$B$5&")
+        assert [ws.cell(ri, col).value for col in (2, 6, 8, 9, 10)] == ["Line", "Normal", "One yearly move", "Shift (quarters)", "Window"]
+        assert ws.cell(ri + 1, 6).value.startswith("=IFERROR(MEDIAN('Signals workings'!") and ws.cell(ri + 1, 10).value == "='Signals'!$M$5"
+        assert "'Signals'!$K$5" in ws.cell(ri + 1, 9).value and ws.cell(ri + 2, 2).value.startswith("='Signals'!$B$5&")
         assert ws.cell(ri + 3, 2).value == "=PackLine"
     rules = [rule.formula[0] for cf in ws.conditional_formatting for rule in cf.rules]
     assert sum(1 for f in rules if f.startswith("AND(ISNUMBER(S") and ">=0.7" in f) == len(ST.SIGNALS)
@@ -311,7 +313,7 @@ def test_the_charts_take_the_sizes_the_grid_gives_them(tmp_path):
     wb, info = tiny_book(tmp_path)
     ws = wb["Signals"]
     sizes = {(round(ch.anchor.ext.width / 9525), round(ch.anchor.ext.height / 9525)) for ch in ws._charts}
-    assert {(912, 264), (452, 220), (544, 220), (360, 200), (268, 106)} <= sizes
+    assert {(912, 264), (452, 220), (544, 220), (352, 200), (268, 106)} <= sizes
     assert len(ws._charts) == 3 + 4 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
     for ch in ws._charts:
         if ch.tagname == "lineChart" and len(ch.series) == 1:

@@ -40,7 +40,7 @@ from typing import Dict, Sequence, Tuple
 from openpyxl.chart import AreaChart, LineChart, Reference
 from openpyxl.chart.axis import ChartLines
 from openpyxl.chart.data_source import StrRef
-from openpyxl.chart.legend import LegendEntry
+from openpyxl.chart.layout import Layout, ManualLayout
 from openpyxl.chart.marker import DataPoint, Marker
 from openpyxl.chart.series import SeriesLabel
 from openpyxl.chart.shapes import GraphicalProperties
@@ -75,8 +75,8 @@ CANVAS = PatternFill("solid", fgColor=K.CANVAS, bgColor=K.CANVAS)
 HAIR = Side(style="thin", color=K.MIST)
 EDGE = Side(style="thin", color=K.INPUT_EDGE)
 RULE = Side(style="thin", color=K.STONE)
-RIGHT = Alignment(horizontal="right", vertical="center")
-LEFT = Alignment(horizontal="left", vertical="center")
+RIGHT = Alignment(horizontal="right", vertical="bottom")
+LEFT = Alignment(horizontal="left", vertical="bottom")
 
 #: The grid: column A 16 px, then B to U at 92 px. openpyxl writes the file's
 #: width, which carries Excel's 5 px of padding: 13.14 shows as 12.43 (92 px).
@@ -168,10 +168,10 @@ def _emu(px: float) -> int:
     return int(round(px * 9525))
 
 
-def _put(ws, ch, col: int, row: int, w: int, h: int):
+def _put(ws, ch, col: int, row: int, w: int, h: int, dx: int = 0):
     """A chart w x h px, its top-left corner at the top-left of (col, row): sized
     in pixels, so it keeps its size whatever the row heights under it."""
-    ch.anchor = OneCellAnchor(_from=AnchorMarker(col=col - 1, colOff=0, row=row - 1, rowOff=0),
+    ch.anchor = OneCellAnchor(_from=AnchorMarker(col=col - 1, colOff=_emu(dx), row=row - 1, rowOff=0),
                               ext=XDRPositiveSize2D(_emu(w), _emu(h)))
     ws.add_chart(ch)
 
@@ -195,7 +195,7 @@ def _no_auto_title(ch):
     return ch
 
 
-def _chart(lines, cats, first, last, fmt, tick, legend=True, grid=False, low=False, y=None, major=None):
+def _chart(lines, cats, first, last, fmt, tick, legend=True, grid=False, low=False, y=None, major=None, wide_legend=False):
     """A line chart over rows ``first..last``. ``lines`` are dicts: ws, col,
     name (text) or ref (a cell holding it), color, w, dash, dot (the row index,
     from 0, that carries the last-point marker)."""
@@ -213,19 +213,25 @@ def _chart(lines, cats, first, last, fmt, tick, legend=True, grid=False, low=Fal
         if ln_.get("dot") is not None:
             dp = DataPoint(idx=ln_["dot"], marker=Marker(symbol="circle", size=6))
             dp.marker.graphicalProperties = GraphicalProperties(solidFill=ln_["color"], ln=_ln(ln_["color"], 0.75))
+            dp.graphicalProperties = GraphicalProperties(ln=_ln(ln_["color"], ln_.get("w", 1.5), ln_.get("dash")))
             s_.dPt.append(dp)
     ch.set_categories(Reference(cats[0], min_col=cats[1], min_row=first, max_row=last))
     _quiet_axes(ch, tick)
-    _finish(ch, fmt, legend, grid, low, y, major)
+    _finish(ch, fmt, legend, grid, low, y, major, wide_legend)
     return _no_auto_title(ch)
 
 
-def _finish(ch, fmt, legend, grid, low, y=None, major=None):
-    from .assess_tab import _text
+def _finish(ch, fmt, legend, grid, low, y=None, major=None, wide_legend=False):
+    from .assess_tab import _square, _text
+    _square(ch)                                            # no frame: the grid and the titles above are the frame
     if legend:
         ch.legend.position = "t"
         ch.legend.overlay = False
         ch.legend.txPr = _text(9)
+        if wide_legend:
+            # five products on two rows across the whole width, the plot under them
+            ch.legend.layout = Layout(manualLayout=ManualLayout(xMode="edge", yMode="edge", x=0.0, y=0.0, w=1.0, h=0.2))
+            ch.layout = Layout(manualLayout=ManualLayout(layoutTarget="inner", xMode="edge", yMode="edge", x=0.14, y=0.24, w=0.83, h=0.62))
     else:
         ch.legend = None
     if grid:
@@ -239,6 +245,11 @@ def _finish(ch, fmt, legend, grid, low, y=None, major=None):
     ch.y_axis.number_format = fmt
     ch.y_axis.numFmt.sourceLinked = False
     ch.display_blanks_as = "gap"
+
+
+def _skip(n: int) -> int:
+    """A raw chart's tick-label step: three or four quarters labelled, a multiple of four."""
+    return max(4, 4 * -(-n // 16))
 
 
 def _input(ws, row, c1, c2, value=None, center=False):
@@ -688,7 +699,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                   ("d30", "30+ incl. nonaccrual by product, $m"))):
         lines = [dict(ws=wk, col=col["dchart_%s_%s" % (_slug(p), k)], name=p, color=PRODUCT_COLOR[p], w=1.5) for p in PRODUCTS]
         title(A_TH, 10 + 4 * j, ttl)
-        _put(ws, _chart(lines, cats, F06, R1, "#,##0", 16), 10 + 4 * j, A_FIRST, 4 * GRID_PX - 8, 200)
+        _put(ws, _chart(lines, cats, F06, R1, "#,##0", 16, wide_legend=True), 10 + 4 * j, A_FIRST, 4 * GRID_PX - 16, 200, dx=8)
     row = A_ON + 1
     spacer(row)
     row += 1
@@ -710,31 +721,34 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     title(row + 1, 12, "KeyBank minus the peer group, points · shaded above zero (worse) and below (better)")
     d_kb = [last_idx(" - ".join((p_, CO, self_short)), F06) for p_ in {"Credit card", "Other consumer"}]
     dot = d_kb[0] if len(set(d_kb)) == 1 else None                       # the same last quarter whichever product is drawn
+    # a rate counts the charge-offs of the next two quarters, so the last two quarters have none: the charts stop before them
+    RC = R1 - 2
     lines = [dict(ws=wk, col=col["co_ind_c"], name=INDUSTRY, **style(INDUSTRY)), dict(ws=wk, col=col["co_pg_c"], name=pg_src, **style(pg_src)),
              dict(ws=wk, col=col["co_kb_c"], name=self_short, dot=dot, **style(self_short))]
-    _put(ws, _chart(lines, cats, F06, R1, "0.0", 8), 2, row + 2, 10 * GRID_PX - 8, 264)
+    _put(ws, _chart(lines, cats, F06, RC, "0.0", 8), 2, row + 2, 10 * GRID_PX - 8, 264)
     # the gap: shaded above and below zero, the line over it; the axis follows the data (the gap reaches -25)
     from .assess_tab import _quiet_axes
     area = AreaChart(); area.grouping = "standard"; area.varyColors = False
     for j, (cn, color) in enumerate((("gap", K.GAP_WORSE), ("gap", K.GAP_BETTER))):
-        area.add_data(Reference(wk, min_col=col["gap"] + 1 + j, min_row=F06, max_row=R1), titles_from_data=False)
+        area.add_data(Reference(wk, min_col=col["gap"] + 1 + j, min_row=F06, max_row=RC), titles_from_data=False)
         s_ = area.series[-1]; s_.tx = SeriesLabel(v=("above zero", "below zero")[j])
         s_.graphicalProperties.solidFill = color; s_.graphicalProperties.line.noFill = True
-    area.set_categories(Reference(wk, min_col=1, min_row=F06, max_row=R1))
+    area.set_categories(Reference(wk, min_col=1, min_row=F06, max_row=RC))
     gl = LineChart()
-    gl.add_data(Reference(wk, min_col=col["gap_c"], min_row=F06, max_row=R1), titles_from_data=False)
+    gl.add_data(Reference(wk, min_col=col["gap_c"], min_row=F06, max_row=RC), titles_from_data=False)
     s_ = gl.series[-1]
     s_.tx = SeriesLabel(v="Gap to peers, points (above zero: more of KeyBank's delinquent dollars became losses)")
     s_.graphicalProperties.line = _ln(K.KEY_RED, 2.25); s_.smooth = False; s_.marker.symbol = "none"
     if dot is not None:
         dp = DataPoint(idx=dot, marker=Marker(symbol="circle", size=6))
         dp.marker.graphicalProperties = GraphicalProperties(solidFill=K.KEY_RED, ln=_ln(K.KEY_RED, 0.75))
+        dp.graphicalProperties = GraphicalProperties(ln=_ln(K.KEY_RED, 2.25))
         s_.dPt.append(dp)
     area += gl
     _quiet_axes(area, 8)
-    _finish(area, "+0;-0;0", True, True, True)
+    # no legend: one line, named in the title above; Excel does not honor a deleted legend entry openpyxl writes
+    _finish(area, "+0;-0;0", False, True, True)
     area.x_axis.spPr = GraphicalProperties(ln=_ln(K.SLATE, 0.75))       # the zero line: the category axis crosses at zero
-    area.legend.legendEntry = [LegendEntry(idx=0, delete=True), LegendEntry(idx=1, delete=True)]
     _put(ws, _no_auto_title(area), 12, row + 2, 10 * GRID_PX - 8, 264)
     ws.cell(row + 14, 12, PACK).font = F_NOTE
     # the gap, priced
@@ -806,12 +820,14 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         title(r0 + 1, 2, "Both lines rescaled: yearly moves from each line's own normal · one grid line = one yearly move")
         title(r0 + 1, 12, raw_t)
         title(r0 + 7, 12, "The picked series, own units")
-        over = [dict(ws=wk, col=col["picked_zc"], ref=picked_name, color=K.KEY_RED, w=2),
-                dict(ws=wk, col=col[key + "_zsc"], ref=names[key], color=K.SIGNAL, w=2)]
-        _put(ws, _chart(over, cats, F06, R1, "+0;-0;0", 8, grid=True, low=True, y=(-4, 4), major=1), 2, r0 + 2, 10 * GRID_PX - 8, 264)
-        _put(ws, _chart([dict(ws=wk, col=col[key + "_c"], name=jname, color=K.SIGNAL, w=1.75)], cats, F06, R1, fmt, 16, legend=False),
+        over = [dict(ws=wk, col=col[key + "_zsc"], ref=names[key], color=K.SIGNAL, w=2),
+                dict(ws=wk, col=col["picked_zc"], ref=picked_name, color=K.KEY_RED, w=2)]
+        _put(ws, _chart(over, cats, F06, R1, "+0;-0;0", 8, grid=True, low=True, major=1), 2, r0 + 2, 10 * GRID_PX - 8, 264)
+        f_sig = R0 + grid.index(min(d)) if d and min(d) in grid else F06       # the raw signal from its first quarter
+        _put(ws, _chart([dict(ws=wk, col=col[key + "_c"], name=jname, color=K.SIGNAL, w=1.75)], cats, f_sig, R1, fmt,
+                        _skip(R1 - f_sig + 1), legend=False),
              12, r0 + 2, 3 * GRID_PX - 8, 106)
-        _put(ws, _chart([dict(ws=wk, col=col["picked_c"], name="the picked series", color=K.KEY_RED, w=1.75)], cats, F06, R1, "0.00", 16,
+        _put(ws, _chart([dict(ws=wk, col=col["picked_c"], name="the picked series", color=K.KEY_RED, w=1.75)], cats, F06, R1, "0.00", _skip(R1 - F06 + 1),
                         legend=False), 12, r0 + 8, 3 * GRID_PX - 8, 106)
         # the fit table, beside the charts: the pick first, then the eight fixed series
         for j, h in enumerate(("Against", "", "", "Lead", "Fit (r)", "Excl. 2020-23", "Qtrs")):
@@ -828,7 +844,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             if tname == "picked":
                 ws.merge_cells(start_row=rr, start_column=15, end_row=rr, end_column=17)
                 cc = ws.cell(rr, 15, "=" + PICK_SHORT)
-                cc.alignment = Alignment(horizontal="left", vertical="center", shrink_to_fit=True)
+                cc.alignment = Alignment(horizontal="left", vertical="bottom", shrink_to_fit=True)
             else:
                 cc = ws.cell(rr, 15, nice)
             cc.font = font
@@ -850,22 +866,22 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         fit_rows[key] = {"pick": r0 + 2, "first_fixed": first_fixed}
         # the inputs of the rescale, under the overlay
         ri = r0 + 14
-        ws.row_dimensions[ri].height = 27
-        for c_, h in ((2, "Line"), (6, "Normal"), (7, "One yearly move"), (8, "Shift (quarters)"), (9, "Window")):
+        # Line B:E; Normal F; One yearly move H, its header reaching over the empty G; Shift I; Window J
+        for c_, h in ((2, "Line"), (6, "Normal"), (8, "One yearly move"), (9, "Shift (quarters)"), (10, "Window")):
             cc = ws.cell(ri, c_, h); cc.font = F_LAB
-            cc.alignment = Alignment(horizontal="left" if c_ in (2, 9) else "right", vertical="bottom", wrap_text=True)
-        rule(ri, 2, 10)
+            cc.alignment = Alignment(horizontal="left" if c_ in (2, 10) else "right", vertical="bottom")
+        rule(ri, 2, 11)
         ws.cell(ri + 1, 2, jname).font = Font(name="Calibri", size=10, color=K.SIGNAL)
         num(ri + 1, 6, '=IFERROR(MEDIAN(%s),"")' % RW(key, 2), vfmt)
-        num(ri + 1, 7, '=IFERROR(1.4826*MEDIAN(%s),"")' % RW(key, 4), vfmt)
-        num(ri + 1, 8, '=%s&IF(ISNUMBER(%s),""," · %s")' % (shift_cells[key], SH, FIT_AUTO), "General")
-        ws.cell(ri + 1, 9, "=%s" % WIN).font = F_SMALL
+        num(ri + 1, 8, '=IFERROR(1.4826*MEDIAN(%s),"")' % RW(key, 4), vfmt)
+        num(ri + 1, 9, '=%s&IF(ISNUMBER(%s),""," · %s")' % (shift_cells[key], SH, FIT_AUTO), "General")
+        ws.cell(ri + 1, 10, "=%s" % WIN).font = F_SMALL
         ws.cell(ri + 2, 2, "=" + PICK_SHORT).font = Font(name="Calibri", size=10, color=K.KEY_RED)
         num(ri + 2, 6, '=IFERROR(MEDIAN(%s),"")' % RW("picked", 2), "0.00")
-        num(ri + 2, 7, '=IFERROR(1.4826*MEDIAN(%s),"")' % RW("picked", 4), "0.00")
-        num(ri + 2, 8, 0, "0")
-        ws.cell(ri + 2, 9, "=%s" % WIN).font = F_SMALL
-        rule(ri + 1, 2, 10, HAIR)
+        num(ri + 2, 8, '=IFERROR(1.4826*MEDIAN(%s),"")' % RW("picked", 4), "0.00")
+        num(ri + 2, 9, 0, "0")
+        ws.cell(ri + 2, 10, "=%s" % WIN).font = F_SMALL
+        rule(ri + 1, 2, 11, HAIR)
         ws.cell(ri + 3, 2, PACK).font = F_NOTE
         spacer(ri + 4)
         row = ri + 5
@@ -878,7 +894,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         title(row + 1, 2 + 6 * j, "%s · %s, %%" % (p, m))
         if lbl in head_:
             _put(ws, _chart([dict(ws=data_ws, col=head_[lbl], name="%s %s, industry" % (p, m.lower()), color=K.SLATE, w=1.75)],
-                            (data_ws, 1), F06, R1, "0.00", 16, legend=False), 2 + 6 * j, row + 2, 6 * GRID_PX - 8, 200)
+                            (data_ws, 1), F06, R1, "0.0", 16, legend=False), 2 + 6 * j, row + 2, 6 * GRID_PX - 8, 200)
     row += 12
 
     # the jump row: a link to each section's head
@@ -888,6 +904,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         cell.hyperlink = Hyperlink(ref=cell.coordinate, location="%sB%d" % (SG, r), display=name)
         cell.font = F_JUMP
         c_ += span
+    # Every row a height of its own: Excel fits a row with text to its font (15 pt for Calibri 11) whatever the
+    # sheet's default says, and the charts are laid on 22 px rows.
+    for r in range(1, row + 1):
+        if ws.row_dimensions[r].height is None:
+            ws.row_dimensions[r].height = 16.5
     ws.freeze_panes = "B8"
     return {"sheet": TITLE, "data": DATA_TITLE, "workings": WORK_TITLE, "rows": row, "signals": [k for k, *_ in SIGNALS],
             "fit_targets": [t[2] for t in targets],
