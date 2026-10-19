@@ -500,6 +500,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             if lbl != " - ".join(decide["parts"][lbl]):
                 raise ValueError("the series %r should be labelled %r, its parts joined by ' - '"
                                  % (lbl, " - ".join(decide["parts"][lbl])))
+    # The series of the rows the book shows and does not rate (question 23,
+    # 18 Oct 2026: "show nonfarm as a whole, unrated"): no lines and no
+    # rating on any tab, Assess, Chart and Backtest included.
+    not_rated = [lbl for lbl, _ in series if decide and tuple(decide["parts"][lbl][:2]) in decide["shown_not_rated"]]
     if into is not None:
         wb = into
         asx = wb.create_sheet("Assess", 0)
@@ -675,10 +679,17 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 put(key, v)
             if tuple(p_[:2]) in unrated:
                 # Shown for its history, never rated (the book's shown_not_rated):
-                # no row on Decide, so no decision and no rating.
+                # no row on Decide, so no decision; and no lines and no rating
+                # (review, 19 Oct 2026: Assess and Chart read them). Blank as
+                # text, not empty: an empty cell reads as 0 in "+0" and would
+                # draw five bands at zero.
+                for key in ("l2", "l3", "l4", "l5", "rating", "rating_name"):
+                    put(key, '=""')
+                put("refusal", DT.NOT_RATED_SAYS)
+                put("fix", "")
                 put("rating_shown", DT.NOT_RATED)
                 put("decision", "")
-                put("check", "%s: the book shows this row and does not rate it" % DT.NOT_RATED)
+                put("check", DT.NOT_RATED_SAYS)
                 continue
             put("rating_shown", '=IF({m}<>"","Refused",{k}&" "&{l})'.format(m=at("refusal"), k=at("rating"),
                                                                              l=at("rating_name")))
@@ -804,7 +815,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
              floor_at_zero=floor_at_zero, name=name, unit=unit, moderate_halfwidth=moderate_halfwidth,
              low_step=low_step, high_z=high_z, on_the_line=on_the_line, quarter=quarter,
              y_min=None if floor_at_zero else _axis_floor(loaded, direction, moderate_halfwidth, low_step, high_z),
-             nf=NF, th_cols=TC)
+             nf=NF, th_cols=TC, not_rated=not_rated)
 
     # ---- Synthesis: internal, industry and peers, where each colour starts ----
     syn_at = {}
@@ -902,6 +913,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     r = 5
     for s in loaded:
         ids = list(decide["parts"][s["label"]]) if decide else [s["label"]]
+        if s["label"] in not_rated:
+            # Rated on no lines, so not backtested on any (question 23).
+            s["bt"] = {"not_tested": "Not tested: %s" % DT.NOT_RATED_SAYS[0].lower() + DT.NOT_RATED_SAYS[1:],
+                       "runs": []}
         if s["bt"].get("not_tested"):
             for col, v in enumerate(ids + [s["bt"]["not_tested"]], start=2):
                 bts.cell(r, col, v).font = DATA_F
@@ -1105,6 +1120,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # internal file (decide["internal"]). ----
         from . import internal_tab as IT
         dec["internal"] = IT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], grid=grid,
+                                   not_rated=not_rated,
                                    higher=higher, floor_at_zero=floor_at_zero, internal=decide.get("internal")) \
             if kind["internal_tab"] else None
 

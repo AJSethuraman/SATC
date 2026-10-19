@@ -3844,3 +3844,57 @@ on 18 Oct 2026 (the round 2 commercial docket, read back above).
   guards removed, all 4 fail with the TypeError (`book.py`,
   `decide_tab.py`); the one-start guard in `book.py` removed alone, its
   case fails with "unhashable type: 'dict'".
+
+### Question 23: a row shown and not rated has no lines and no rating on any tab
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"Nonfarm
+  CRE: rate owner-occupied and investor CRE separately from 2007; show
+  nonfarm as a whole, unrated"* (10 rated rows).
+- **The finding.** The question 23 entry above blanked only the row's
+  visible Rating, Decision and Check on Lines by source. Its lines (2
+  Moderate-Low to 5 High, visible) and its hidden rating number and name
+  were still written from the book's settings, and other tabs read them:
+  Assess, whose series picker offers every row of Lines by source, showed
+  "1 Low" and five bands for it; Chart drew its bands; Backtest rated it;
+  and the Internal tab (consumer books) rated the bank's figures on its
+  lines. Reproduced on the test fixture (Mortgage - Net shown, not rated),
+  recalculated with the formulas engine.
+- **The fix.**
+  - **Lines by source**: the row's four lines, rating number and rating
+    name are blank, written as `=""` (an empty cell reads as 0 in the
+    `+0` the pickers use and drew five bands at zero; the test proves it,
+    below). Its hidden refusal says "Shown, not rated: the book shows this
+    row and does not rate it" (`decide_tab.NOT_RATED_SAYS`).
+  - **Assess**, picked on it: "No rating: see Check"; the Check reads
+    "Check: Shown, not rated: the book shows this row and does not rate
+    it."; no bands, no score-table lines; "Keeping every quarter" and the
+    three dials (which work lines out from the median and spread with
+    other settings) show none, each dial row saying "shown, not rated";
+    Your settings' Check names it. Its history, latest value and quarter
+    and "What the lines rest on" (median, typical move, spread, worst) are
+    still shown: the history is what the row is shown for.
+  - **Chart**: picked under Bands for, no bands are drawn.
+  - **Backtest**: one row, "Not tested: shown, not rated: the book shows
+    this row and does not rate it".
+  - **Internal** (consumer books only): it is not among the outside series
+    the bank's figures are compared with and rated on, as a series the
+    workbook does not have. `internal_tab.build` takes `not_rated`,
+    required.
+  - **Evidence** (spells and departures, no lines) is unchanged.
+- **Proof.** `tests/test_shown_not_rated.py`, 5 new tests (22 in the
+  file): Lines by source blank for the row and numbers for a rated row;
+  Assess and Chart both picked on it and recalculated (rating, Check,
+  score table, keeping every quarter, every dial row, Your settings), and
+  a rated pick still rated; Chart's bands drawn for a rated pick and not
+  for it; Backtest; the Internal tab with no reference to the row's lines
+  (and the pattern shown to find a rated row's). **Mutation**, each in a
+  copy of the package, the 5 tests run: lines and rating left as they were
+  (3 fail); written as empty cells instead of `=""` (3 fail: the score
+  table reads 0.0 for every line); Backtest rating it (1); the Internal tab
+  reading it (the build fails, 5 error); dials not gated (1); the Check not
+  saying it (1); keeping every quarter not gated (1).
+- **The consumer book.** Unchanged: it states `"shown_not_rated": []`, and
+  every new formula on Assess is written only when a row is named, so a
+  consumer build writes the same cells as before. For the consumer
+  session: a consumer book that names a row would now get none of its
+  lines or rating on Assess, Chart, Backtest or Internal.

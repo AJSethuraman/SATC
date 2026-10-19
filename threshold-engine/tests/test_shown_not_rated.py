@@ -190,3 +190,99 @@ def test_with_nothing_named_the_workbook_is_unchanged(tmp_path):
     assert info["decide"]["pairs"] == [("Card", "Net"), ("Mortgage", "Net"), ("Card", "Gross")]
     ws = load_workbook(info["path"])[DT.LINES_TAB]
     assert DT.NOT_RATED not in [c.value for c in ws[DT.TH_BOOK["rating_shown"]]]
+
+
+# ------------------------------------------------- no lines and no rating anywhere (review, 19 Oct 2026)
+#
+# The first build blanked only the visible Rating, Decision and Check of the
+# row: its lines (2 Moderate-Low to 5 High) and its hidden rating number and
+# name were still written, so Assess, picked on the series, showed "1 Low"
+# and five bands, Chart drew its bands, and Backtest rated it.
+
+UNRATED_ROW = 5 + LABELS.index("Mortgage - Net - Industry")
+LINE_KEYS = ("l2", "l3", "l4", "l5")
+
+
+def test_lines_by_source_gives_it_no_lines_and_no_rating(shown):
+    _, _, v = shown
+    T = DT.TH_BOOK
+    got = {k: v["%s!%s%d" % (DT.LINES_TAB.upper(), T[k], UNRATED_ROW)] for k in LINE_KEYS + ("rating", "rating_name")}
+    assert all(x == "" for x in got.values()), got
+    assert v["%s!%s%d" % (DT.LINES_TAB.upper(), T["refusal"], UNRATED_ROW)] == DT.NOT_RATED_SAYS
+    # A rated row keeps its lines and its rating.
+    r0 = 5 + LABELS.index("Card - Net - Industry")
+    assert all(isinstance(v["%s!%s%d" % (DT.LINES_TAB.upper(), T[k], r0)], float) for k in LINE_KEYS)
+    assert v["%s!%s%d" % (DT.LINES_TAB.upper(), T["rating"], r0)] in (1, 2, 3, 4, 5)
+
+
+@pytest.fixture(scope="module")
+def picked(shown, tmp_path_factory):
+    """The same workbook with Assess and Chart both picked on the unrated
+    series, recalculated."""
+    info, _, _ = shown
+    wb = load_workbook(info["path"])
+    wb["Assess"]["B5"] = "Mortgage - Net - Industry"
+    n = len(LABELS)
+    wb["Chart"].cell(5, 3 + n).value = "Mortgage - Net - Industry"
+    p = tmp_path_factory.mktemp("picked") / "p.xlsx"
+    wb.save(p)
+    return recalc(p)
+
+
+def test_assess_picked_on_it_shows_no_rating_no_bands_and_says_why(picked, shown):
+    from threshold_engine.workbook import assess_layout
+    lay = assess_layout(len(LABELS))
+    v = picked
+    assert v["ASSESS!H5"] == "No rating: see Check"
+    assert v["ASSESS!B6"] == "Check: %s." % DT.NOT_RATED_SAYS
+    # The score table's lines: none.
+    froms = [v["ASSESS!%s%d" % (c, lay["score_top"] + i)] for i in range(5) for c in "OP"
+             if "ASSESS!%s%d" % (c, lay["score_top"] + i) in v]
+    assert froms and all(x == "" for x in froms), froms
+    # Keeping every quarter, and every dial: no lines either.
+    assert [v["ASSESS!%s%d" % (c, lay["scen_all"])] for c in "CDEF"] == [""] * 4
+    for top in lay["dial_blocks"]:
+        for r in range(top + 2, top + 7):
+            assert [v["ASSESS!%s%d" % (c, r)] for c in "CDEF"] == [""] * 4, (top, r)
+            assert v["ASSESS!L%d" % r] == DT.NOT_RATED.lower()
+    # Your settings' Check names it.
+    i = LABELS.index("Mortgage - Net - Industry")
+    assert v["ASSESS!S%d" % (lay["set_top"] + i)] == DT.NOT_RATED_SAYS
+    # Picked on a rated series (as built), Assess rates it.
+    _, _, v0 = shown
+    assert v0["ASSESS!H5"][0] in "12345"
+
+
+def test_chart_draws_no_bands_for_it(picked, shown):
+    n = len(LABELS)
+    drawable = "CHART!%s4" % L(max(40, n + 10) + 1 + n + 6)
+    assert picked[drawable] == 0
+    assert shown[2][drawable] == 1                      # as built, on a rated series
+
+
+def test_backtest_does_not_test_it(shown):
+    info, wb, _ = shown
+    bts = wb["Backtest"]
+    rows = [[c.value for c in r_] for r_ in bts.iter_rows(min_row=5)]
+    mine = [r_ for r_ in rows if r_[1:4] == ["Mortgage", "Net", "Industry"]]
+    assert len(mine) == 1, mine
+    assert mine[0][4] == "Not tested: shown, not rated: the book shows this row and does not rate it"
+    rated = [r_ for r_ in rows if r_[1:4] == ["Card", "Net", "Industry"]]
+    assert rated and not any(DT.NOT_RATED.lower() in str(r_[4]) for r_ in rated)
+
+
+def test_the_internal_tab_rates_nothing_on_it(shown):
+    """The Internal tab (consumer books) rates the bank's figures on outside
+    series' lines; the unrated row has none, so it is not among them."""
+    _, wb, _ = shown
+    T = DT.TH_BOOK
+    it = wb["Internal"]
+    import re
+    at = re.compile(r"(?:'%s'|Thresholds)!\$(?:%s)\$%d(?!\d)" % (
+        DT.LINES_TAB, "|".join(T[k] for k in LINE_KEYS + ("rating", "refusal")), UNRATED_ROW))
+    refs = [c.coordinate for row_ in it.iter_rows() for c in row_ if isinstance(c.value, str) and at.search(c.value)]
+    assert not refs, refs
+    # The pattern finds a rated row's lines, which the tab does read.
+    r0 = 5 + LABELS.index("Card - Net - Industry")
+    at0 = re.compile(at.pattern.replace(r"\$%d(" % UNRATED_ROW, r"\$%d(" % r0))
+    assert any(isinstance(c.value, str) and at0.search(c.value) for row_ in it.iter_rows() for c in row_)

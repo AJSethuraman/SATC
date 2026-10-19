@@ -72,6 +72,10 @@ DECISIONS = ("Not decided", "Accept these lines", "Reject")
 #: What a row the book shows and does not rate (its shown_not_rated) says
 #: where a rating would be: on Lines by source and Summary. It has no row here.
 NOT_RATED = "Shown, not rated"
+#: Its refusal on Lines by source (hidden), which Assess's Check and Your
+#: settings read: the row has no lines and no rating anywhere (review of
+#: question 23, 19 Oct 2026).
+NOT_RATED_SAYS = "%s: the book shows this row and does not rate it" % NOT_RATED
 LINES_FROM = "Lines set from"
 FIXED = [LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
          "On a line, rate it", "Leave out from", "Leave out to", "Why left out", "Note", "Check", "Series", "Shown",
