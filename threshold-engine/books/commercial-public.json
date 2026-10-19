@@ -28,7 +28,18 @@
   ],
   "lines_from": {
     "part": "Source",
-    "start": null
+    "start": [
+      {"Portfolio": "C&I", "Measure": "Net charge-offs", "start": null},
+      {"Portfolio": "C&I", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Owner-occupied CRE", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Owner-occupied CRE", "Measure": "Net charge-offs", "start": "Industry"},
+      {"Portfolio": "Investor CRE (non-owner-occupied)", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Investor CRE (non-owner-occupied)", "Measure": "Net charge-offs", "start": "Industry"},
+      {"Portfolio": "Multifamily", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Multifamily", "Measure": "Net charge-offs", "start": "Industry"},
+      {"Portfolio": "Construction", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Construction", "Measure": "Net charge-offs", "start": "Industry"}
+    ]
   },
   "series": "commercial-public-series.csv",
   "not_in_book": [],
@@ -54,7 +65,7 @@
     "Portfolios (question 1): C&I; Nonfarm nonresidential CRE with its two parts, Owner-occupied CRE and Investor CRE (non-owner-occupied), filed from 2007Q1; Multifamily; Construction. Rated (question 23, 18 Oct 2026): the two parts separately, from 2007, when the Call Report split them, with C&I, Multifamily and Construction, 10 rows on Decide. Nonfarm nonresidential CRE as a whole is shown for its history from 1991 and not rated: it has no row on Decide or Thresholds, and Summary and Lines by source say Shown, not rated.",
     "Measures: the two the recommendation rates, nonaccrual at quarter-end and net charge-offs over the trailing twelve months. The four it shows and does not rate (30-89 and 90+ days past due, and each with nonaccrual added) are on the Peers tab. Gross charge-offs are in neither list and are not in this book. Nonaccrual is listed first for the CRE portfolios (question 3); C&I keeps net charge-offs first.",
     "Sources (question 4): the lines rest on the peer median, the middle bank of the 15 each quarter, each bank counted once whatever its size; the peer total, kept charge-offs over kept balances of the 15 added together and so weighted by dollars, is beside it. The peer total follows the banks switched on in the pack on Peers; the peer median is as built with all 15 and does not.",
-    "Lines set from (question 2): CRE net charge-offs are to be rated on lines set from the industry's history. The book has one starting source for every row, not one per row, so every row starts blank: pick Industry under Lines set from on the CRE net charge-off rows on Decide.",
+    "Lines set from (question 2, and question 24 of 18 Oct 2026): CRE net charge-offs are rated on lines set from the industry's history, so the four CRE net charge-off rows (Owner-occupied CRE, Investor CRE (non-owner-occupied), Multifamily and Construction) start on Industry under Lines set from on Decide. Every other row starts blank, for the bank to pick. Each is a starting point and can be changed on Decide.",
     "History (question 6): pulled from 1991Q1. The industry's nonaccrual runs from 1991Q1 and its net charge-offs from 1991Q4; the two nonfarm parts start in 2007. Each series' notes on Sources say where it starts and why.",
     "Peers (question 5): the same 15 banks as the consumer book. Citi (49% of corporate loans booked outside North America), Capital One (a commercial book small beside its card book) and First Citizens (SVB from 2023) are weak commercial comparators, labeled here; the firm decides whether to drop them.",
     "Industry: every bank filing a Call Report that files the portfolio's fields, added together. A blank field is not filed, never 0: at 2026Q2, 17 filers on CALLFORM 2 file commercial balances but no charge-off, past-due or nonaccrual field, so they are in no commercial series; the caption under the industry's rate on Peers and each series' notes give the count.",

@@ -17,7 +17,10 @@ own folder, so a book and its files can be copied to another machine whole.
                    "on_the_line", "half_lives", "percentiles", "horizon",
                    "min_history"},
       "parts": ["Product", "Measure", "Source"],
-      "lines_from": {"part": "Source", "start": null or one of its values},
+      "lines_from": {"part": "Source",
+                     "start": null or one of its values (every row), or
+                              [{"Product": ..., "Measure": ..., "start": null or a source of that row}]
+                              naming every rated row once},
       "series": [{"Product": ..., "Measure": ..., "Source": ..., "file": ...}]
                 or "a CSV with those columns",
       "not_in_book": [{"Product": ..., "Measure": ..., "Source": ..., "why": ...}],
@@ -111,6 +114,15 @@ the source picked there (the firm, 15 Oct 2026: "we don't need to set
 thresholds on all 3, we need to use all 3 to set appropriate thresholds").
 ``start`` null leaves every row's pick blank, which is the bank's to make.
 The source part is the third of ``parts``.
+
+``start`` may instead be a list, one entry per row (the firm, 18 Oct 2026,
+question 24 of the round 2 commercial docket: *"Each row chooses where its
+lines start; CRE charge-off rows start on Industry"*): each names a row by
+its first two parts and that row's own ``start``, null or a source the row
+has. Every rated row is named exactly once, and its ``start`` is required
+(null is stated, never assumed); a row the book shows and does not rate
+(``shown_not_rated``) has no Lines set from and is refused if named. A
+single value still starts every row the same way, as before.
 """
 from __future__ import annotations
 
@@ -460,7 +472,7 @@ def load(path) -> dict:
         if raw["loan_classes"] is not None:
             problems.append("loan_classes: the classes file records each peer's consumer book, so a %s book's "
                             "loan_classes must be null" % raw["kind"])
-    lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
+    lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems, decide_parts, unrated)
     floor_off = raw["floor_off"]
     measures_ = {v[1] for v in decide_parts.values()}
     if not (isinstance(floor_off, list) and all(isinstance(m, str) for m in floor_off)):
@@ -545,9 +557,11 @@ def _shown_not_rated(spec, parts, decide_parts, problems) -> Dict[Tuple[str, str
     return out
 
 
-def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
+def _lines_from(spec, parts, sources, internal, problems, decide_parts=None, unrated=()):
     """The book's lines_from, checked: which part is the source (the third),
-    and the source every row starts as, or None for blank."""
+    and where each row's Lines set from starts: one source (or None, blank)
+    for every row, or ``{(first, second): source or None}`` naming every
+    rated row once (question 24, 18 Oct 2026)."""
     _keys("lines_from", spec, LINES_FROM_KEYS, problems)
     if not isinstance(spec, dict) or any(k not in spec for k in LINES_FROM_KEYS):
         return None
@@ -556,11 +570,52 @@ def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
                         "its lines from, and it is listed third" % parts[2])
     start = spec["start"]
     allowed = set(sources) | ({internal["source"]} if internal else set())
+    if isinstance(start, list):
+        return _lines_from_rows(start, parts, internal, problems, decide_parts or {}, unrated)
     if start is not None and start not in allowed:
-        problems.append("lines_from: start must be null (every row blank, for the bank to pick) or one of %s, "
-                        "not %r" % (", ".join(sorted(allowed)), start))
+        problems.append("lines_from: start must be null (every row blank, for the bank to pick), one of %s, or a "
+                        "list naming each row's own start, not %r" % (", ".join(sorted(allowed)), start))
         return None
     return start
+
+
+def _lines_from_rows(entries, parts, internal, problems, decide_parts, unrated) -> Dict[Tuple[str, str], Optional[str]]:
+    """``lines_from.start`` as a list, checked: ``{(first, second): source or
+    None}`` with every rated row named once, each start a source that row has
+    (or the internal source), or None."""
+    rows = list(dict.fromkeys(tuple(v[:2]) for v in decide_parts.values()))
+    rated = [pr for pr in rows if pr not in unrated]
+    has = {pr: {v[2] for v in decide_parts.values() if tuple(v[:2]) == pr} for pr in rows}
+    extra = {internal["source"]} if internal else set()
+    out: Dict[Tuple[str, str], Optional[str]] = {}
+    named = set()
+    want = [parts[0], parts[1], "start"]
+    for i, e in enumerate(entries, start=1):
+        where = "lines_from start %d" % i
+        _keys(where, e, want, problems)
+        if not isinstance(e, dict) or any(k not in e for k in want):
+            continue
+        pr, st = (str(e[parts[0]]).strip(), str(e[parts[1]]).strip()), e["start"]
+        if pr in named and pr in has and pr not in unrated:
+            problems.append("%s names %s a second time" % (where, " - ".join(pr)))
+            continue
+        named.add(pr)
+        if pr in unrated:
+            problems.append("%s names %s, which the book shows and does not rate (shown_not_rated), so it has no "
+                            "Lines set from" % (where, " - ".join(pr)))
+        elif pr not in has:
+            problems.append("%s names %s, which is no %s and %s of the book's series"
+                            % (where, " - ".join(pr), parts[0].lower(), parts[1].lower()))
+        elif st is not None and st not in has[pr] | extra:
+            problems.append("%s: %s starts as %r, which is not one of its %ss (%s); start it null to leave it "
+                            "blank" % (where, " - ".join(pr), st, parts[2].lower(), ", ".join(sorted(has[pr] | extra))))
+        else:
+            out[pr] = st
+    missing = [" - ".join(pr) for pr in rated if pr not in named]
+    if missing:
+        problems.append("lines_from: start names no start for %s; every rated row is named, its start a %s or "
+                        "null (none has a default)" % (", ".join(missing), parts[2].lower()))
+    return out
 
 
 def _internal(spec, resolve, decide_parts, problems) -> Optional[dict]:

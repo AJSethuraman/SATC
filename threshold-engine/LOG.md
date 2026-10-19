@@ -3586,3 +3586,58 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   this answer. The commercial book was not rebuilt on the real cache for
   this answer alone (it is built once after questions 24 and 27, below).
   Nothing was opened in Excel; none can be here.
+
+## 18 Oct 2026, question 24: each row names where its lines start; the CRE charge-off rows start on Industry
+
+- **Question 24, 18 Oct 2026, agreed with the recommendation** (read back
+  above): *"Each row chooses where its lines start; CRE charge-off rows
+  start on Industry."* Question 2 (17 Oct 2026) had agreed that CRE net
+  charge-offs are rated on lines set from the industry's history; the book
+  could start every row only the same way, so it started them all blank and
+  its note asked the bank to pick Industry by hand.
+- **The book.** `lines_from.start` takes, as before, one value for every
+  row (null or a source), or now a list naming each rated row once with its
+  own start: `[{"Portfolio": ..., "Measure": ..., "start": null or a
+  source}]`. In the list form every rated row must be named and its `start`
+  is required: a row left out is refused by name ("names no start for ...;
+  every rated row is named ... (none has a default)"), and so is a row
+  named twice, a row no series has, a start the row has no series for
+  (including a number), a key the entry does not take, and a row the book
+  shows and does not rate (question 23: it has no Lines set from).
+  `decide_tab.check_start` refuses the same at build time for a Decide spec
+  given in code (a row missing, a row Decide does not have, a source the row
+  lacks).
+- **The commercial book** names its 10 rated rows. The four CRE net
+  charge-off rows, Owner-occupied CRE, Investor CRE (non-owner-occupied),
+  Multifamily and Construction, start on **Industry**; C&I's two rows and
+  the four CRE nonaccrual rows start **null** (blank, the bank's to pick).
+  Nonfarm nonresidential CRE is not named (shown, not rated). Its note on
+  Lines set from now says so instead of asking for a hand pick.
+- **The consumer book keeps the book-wide form, unchanged** (`"start":
+  null`). Not edited. Proved two ways: a test builds the same series with
+  one start for every row and with that start named on each row, for null
+  and for a source, and finds every cell of every tab the same (the Run
+  tab's time of the build and the file's own name aside); and, once, the
+  same two builds were made with the code before this answer (question 23's
+  commit) and after it: 78,328 cells each, none differing but the Run tab's
+  four input paths, which name the two checkouts.
+- **Proof.** `tests/test_lines_from_per_row.py`, 20 tests: each row's start
+  kept; each refusal by name (8, parametrized); a row shown and not rated
+  refused if named and not needed; the commercial book's four Industry rows
+  and six blank, none for nonfarm, and its note; the consumer book's one
+  start, null; Decide writing each row's own start; Thresholds and Summary
+  following them through the formulas engine (Thresholds' Lines set from
+  reads Bank, blank, Industry; Summary's heading counts 1 with no source
+  picked); one start equal to the same start on every row, cell for cell
+  (2); the workbook's refusals (3); the book command building with the list.
+  **Checked by mutation**, each put back: the missing-row refusal removed
+  (2 fail); the start-a-row-lacks refusal removed (2); the shown-not-rated
+  refusal removed (1); the twice refusal removed (1); Decide writing no start
+  (1); `check_start` not refusing a source the row lacks (1) or a missing row
+  (1); one CRE row of the commercial book started blank (1).
+- **Results.** Scratch venv, pytest: `test_lines_from_per_row.py`,
+  `test_book.py`, `test_shown_not_rated.py`, `test_commercial_book.py`,
+  `test_floor_off.py` and `test_internal_tab.py` with 3 workers, 107 passed;
+  `test_decide.py` with 2 workers (it ran out of memory with more, question
+  23 above), 31 passed. The other test files were not run for this answer.
+  Nothing was opened in Excel; none can be here.

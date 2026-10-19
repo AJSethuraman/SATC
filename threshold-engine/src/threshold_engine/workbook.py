@@ -376,8 +376,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     where the settings, periods left out and decisions are typed (decide_tab.py,
     summary_tab.py): ``{"names": [three part names], "parts": {label: (three
     values)}, "absent": [{"parts": {...}, "why": text}], "compare": (a, b) or
-    None, "notes": [text], "kind": the book's kind (kinds.KINDS)}``, every key
-    stated. A kind without an Internal tab (commercial) has none built, and its
+    None, "notes": [text], "kind": the book's kind (kinds.KINDS), "lines_from":
+    one source or None for every row, or {(first, second): source or None},
+    "shown_not_rated": {(first, second): why}}``, every key stated. A kind
+    without an Internal tab (commercial) has none built, and its
     terms are left off the Glossary. ``into`` builds into an
     existing workbook (the book command puts the peer tabs there first);
     ``before_save(wb)`` runs last, before saving.
@@ -487,7 +489,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         DT.validate(decide["names"])
         if "lines_from" not in decide:
             raise ValueError("decide needs lines_from: the source every row's Lines set from starts as, or None "
-                             "to start blank (none has a default)")
+                             "to start blank, or each row's own start (none has a default)")
         if "shown_not_rated" not in decide:
             raise ValueError("decide needs shown_not_rated: each row (first and second part) shown and not rated, "
                              "with why, or {} when every row is rated (none has a default)")

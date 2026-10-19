@@ -143,7 +143,10 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
 - **Decide**: click a product and a measure. The one yellow row under the
   buttons is that row's decision: **Lines set from** (the source whose history
   sets the lines; the book's `lines_from` says what it starts as, null for
-  blank), Accept these lines or Reject, its four settings, a period to leave
+  blank, either one start for every row or a list giving each row its own:
+  the commercial book starts its four CRE net charge-off rows on Industry
+  and the rest blank, the firm's answer of 18 Oct 2026), Accept these lines
+  or Reject, its four settings, a period to leave
   out of that source's history (first quarter, last quarter, why) and a note.
   Everything under it follows as you type: every source rated on the lines,
   every source on one chart over the five rating zones, where each rating

@@ -207,19 +207,38 @@ def validate(part_names: Sequence[str]) -> None:
         raise ValueError("the three parts need three different names")
 
 
-def check_start(start: Optional[str], labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]]) -> None:
-    """``start``, the source every row's Lines set from starts as, or None to
-    start blank. A source some row does not have is refused, naming the rows."""
-    if start is None:
-        return
+def check_start(start, labels: Sequence[str],
+                parts: Dict[str, Tuple[str, str, str]]) -> Dict[Tuple[str, str], Optional[str]]:
+    """``start``: the source every row's Lines set from starts as, or None to
+    start blank; or ``{(first, second): source or None}``, each row's own
+    (question 24, 18 Oct 2026), naming every row of ``labels`` once. A source
+    a row does not have is refused, naming the rows. Returns each row's
+    start, in Decide's order."""
     pairs, by = pairs_of(labels, parts)
-    if start not in sources_of(labels, parts):
-        raise ValueError("lines_from starts as %r, which is not a source of the series (%s)"
-                         % (start, ", ".join(sources_of(labels, parts))))
-    lacking = [" - ".join(pr) for pr in pairs if start not in by[pr]]
-    if lacking:
-        raise ValueError("lines_from starts as %r, and these have no %s series: %s. Start it blank (null) and "
-                         "pick a source on each row" % (start, start, ", ".join(lacking)))
+    if isinstance(start, dict):
+        given = {tuple(k): v for k, v in start.items()}
+        odd = [" - ".join(pr) for pr in given if pr not in by]
+        if odd:
+            raise ValueError("lines_from names %s, which no row of Decide is" % ", ".join(odd))
+        missing = [" - ".join(pr) for pr in pairs if pr not in given]
+        if missing:
+            raise ValueError("lines_from gives no start for %s: each row's start is a source or None (none has "
+                             "a default)" % ", ".join(missing))
+        wrong = ["%s (%r)" % (" - ".join(pr), given[pr]) for pr in pairs
+                 if given[pr] is not None and given[pr] not in by[pr]]
+        if wrong:
+            raise ValueError("lines_from starts these rows on a source they have no series for: %s. Start them "
+                             "blank (None) or on a source they have" % ", ".join(wrong))
+        return {pr: given[pr] for pr in pairs}
+    if start is not None:
+        if start not in sources_of(labels, parts):
+            raise ValueError("lines_from starts as %r, which is not a source of the series (%s)"
+                             % (start, ", ".join(sources_of(labels, parts))))
+        lacking = [" - ".join(pr) for pr in pairs if start not in by[pr]]
+        if lacking:
+            raise ValueError("lines_from starts as %r, and these have no %s series: %s. Start it blank (null) and "
+                             "pick a source on each row" % (start, start, ", ".join(lacking)))
+    return {pr: start for pr in pairs}
 
 
 def _rule(ws, row, c1, c2, side):
@@ -234,7 +253,7 @@ def _q(s: str) -> str:
 
 def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], part_names: Sequence[str],
           settings: Dict[str, Tuple[float, float, float, str]], lay: dict, n_quarters: int,
-          absent: Sequence[dict], compare: Optional[Tuple[str, str]], lines_from: Optional[str],
+          absent: Sequence[dict], compare: Optional[Tuple[str, str]], lines_from,
           shown_not_rated: Dict[Tuple[str, str], str], changes: Dict[str, Set[str]], quarters: Sequence[str],
           unit: str = "", higher: bool = True,
           floor_at_zero: bool = True, floor_off: Sequence[str] = ()) -> dict:
@@ -248,7 +267,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     the book's notes on combinations not in the workbook (``{"parts": {...},
     "why": text}``), printed as given; ``compare``: (this, against), two
     values of the third part to set side by side, or None; ``lines_from``:
-    the source every row's Lines set from starts as, or None for blank;
+    the source every row's Lines set from starts as, or None for blank, or
+    ``{(first, second): source or None}`` naming each rated row's own;
     ``shown_not_rated``: the rows (first and second part) the book shows and
     does not rate, with why: they get no row here, so no decision, and their
     series keep the book's settings on Assess;
@@ -267,7 +287,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     rated = [lab for lab in labels if tuple(parts[lab][:2]) not in shown_not_rated]
     if not rated:
         raise ValueError("shown_not_rated names every row, so Decide would have nothing to decide")
-    check_start(lines_from, rated, parts)
+    starts = check_start(lines_from, rated, parts)
     asx = wb["Assess"]
     T = TH_BOOK
     n = len(labels)
@@ -328,7 +348,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         r = FIRST + i
         ws.cell(r, C[p0], pr[0])
         ws.cell(r, C[p1], pr[1])
-        ws.cell(r, C[LINES_FROM], lines_from if lines_from is not None else None)
+        ws.cell(r, C[LINES_FROM], starts[pr])
         ws.cell(r, C["Decision"], DECISIONS[0])
         first_lab = next(iter(by_pair[pr].values()))
         for (name, _), v in zip(SETTING_COLS, settings[first_lab]):
