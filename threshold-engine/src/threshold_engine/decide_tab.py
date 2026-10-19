@@ -69,6 +69,9 @@ SLICER_COLUMNS = (3, 4)
 SLICER_STYLE = "SlicerStyleOther2"
 SLICER_BUTTON_IN = 0.25
 DECISIONS = ("Not decided", "Accept these lines", "Reject")
+#: What a row the book shows and does not rate (its shown_not_rated) says
+#: where a rating would be: on Lines by source and Summary. It has no row here.
+NOT_RATED = "Shown, not rated"
 LINES_FROM = "Lines set from"
 FIXED = [LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
          "On a line, rate it", "Leave out from", "Leave out to", "Why left out", "Note", "Check", "Series", "Shown",
@@ -232,7 +235,8 @@ def _q(s: str) -> str:
 def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], part_names: Sequence[str],
           settings: Dict[str, Tuple[float, float, float, str]], lay: dict, n_quarters: int,
           absent: Sequence[dict], compare: Optional[Tuple[str, str]], lines_from: Optional[str],
-          changes: Dict[str, Set[str]], quarters: Sequence[str], unit: str = "", higher: bool = True,
+          shown_not_rated: Dict[Tuple[str, str], str], changes: Dict[str, Set[str]], quarters: Sequence[str],
+          unit: str = "", higher: bool = True,
           floor_at_zero: bool = True, floor_off: Sequence[str] = ()) -> dict:
     """Add the Decide tab to ``wb`` (which already holds Assess, the per-series
     table titled Thresholds, and Data for ``labels``) and point Assess's typed
@@ -245,6 +249,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     "why": text}``), printed as given; ``compare``: (this, against), two
     values of the third part to set side by side, or None; ``lines_from``:
     the source every row's Lines set from starts as, or None for blank;
+    ``shown_not_rated``: the rows (first and second part) the book shows and
+    does not rate, with why: they get no row here, so no decision, and their
+    series keep the book's settings on Assess;
     ``higher``, ``floor_at_zero``: the measure's direction and floor, as the
     lines rate with them. ``changes``: each label's quarters a reporting
     change took effect in, as its file's notes name them
@@ -253,11 +260,19 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     (any of its sources' quarters). Returns where things are, for the
     slicers, the Thresholds tab and tests."""
     validate(part_names)
-    check_start(lines_from, labels, parts)
+    all_pairs = pairs_of(labels, parts)[0]
+    odd = [" - ".join(pr) for pr in shown_not_rated if tuple(pr) not in all_pairs]
+    if odd:
+        raise ValueError("shown_not_rated names %s, which no series has" % ", ".join(odd))
+    rated = [lab for lab in labels if tuple(parts[lab][:2]) not in shown_not_rated]
+    if not rated:
+        raise ValueError("shown_not_rated names every row, so Decide would have nothing to decide")
+    check_start(lines_from, rated, parts)
     asx = wb["Assess"]
     T = TH_BOOK
     n = len(labels)
-    pairs, by_pair = pairs_of(labels, parts)
+    # Decide's rows are the rated ones; a row shown and not rated is not offered.
+    pairs, by_pair = pairs_of(rated, parts)
     rows_n = len(pairs)
     q_last = n_quarters + 1                                  # Data rows 2..q_last
     d_raw_last = L(1 + n)
@@ -267,7 +282,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     LO_N = lay["lo_end"] - LO_TOP + 1
     C = columns(part_names)
     p0, p1, p2 = part_names
-    third = sources_of(labels, parts)
+    third = sources_of(rated, parts)
     colors = source_colors(third)
     lead = compare[0] if compare else third[0]
     lay_d = layout(rows_n, len(third), bool(compare))
@@ -390,6 +405,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     # the period left out is the history the lines are set from ----
     none = PatternFill(fill_type=None)
     for i, lab in enumerate(labels):
+        if tuple(parts[lab][:2]) not in row_of:
+            continue                      # shown, not rated: its settings stay the book's
         r, sr = row_of[tuple(parts[lab][:2])], SET_TOP + i
         for name, col in SETTING_COLS:
             c_ = asx["%s%d" % (col, sr)]

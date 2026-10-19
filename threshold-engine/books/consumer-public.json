@@ -32,6 +32,7 @@
   },
   "series": "consumer-public-series.csv",
   "not_in_book": [],
+  "shown_not_rated": [],
   "compare": [
     "KeyBank",
     "Peer group (15 banks)"

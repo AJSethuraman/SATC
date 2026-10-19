@@ -42,6 +42,7 @@ SERIES = [("C&I", "Net charge-offs", "c-i", "net"), ("C&I", "Nonaccrual", "c-i",
 #: What the commercial book says of its settings, which are the consumer
 #: book's because the firm has chosen none for commercial.
 PENDING = "Settings: the consumer book's, pending the firm's choice"
+NONFARM_WHY = "Shown for its history; its two parts are rated (a test)."
 SOURCES = [("Industry", "industry"), ("Peer median", "pack-median"), ("Peer total", "pack-composite"),
            ("KeyBank", "keybank")]
 
@@ -254,7 +255,11 @@ def _book(base, data, kind):
                                         "on_the_line": "worse", "half_lives": [], "percentiles": [50, 75, 90, 95],
                                         "horizon": 4, "min_history": 41},
             "parts": [word, "Measure", "Source"], "lines_from": {"part": "Source", "start": None},
-            "series": series, "not_in_book": [], "compare": ["KeyBank", "Peer median"],
+            "series": series, "not_in_book": [],
+            # As the commercial book does (question 23): the nonfarm parent shown, not rated.
+            "shown_not_rated": [] if kind == "consumer" else [
+                {"Portfolio": "Nonfarm nonresidential CRE", "Measure": "Nonaccrual", "why": NONFARM_WHY}],
+            "compare": ["KeyBank", "Peer median"],
             "notes": ["A test book on the commercial fixture."],
             "peers": {"cache": str(cache), "roster": str(ROOT / "config" / "peers.json"), "series_dir": "series",
                       "first": "2006Q3", "last": "2008Q2", "products": list(books.COMMERCIAL),
@@ -585,3 +590,21 @@ def test_decide_wraps_a_long_portfolio_name_and_keeps_its_column(built):
         if c.value in KD.COMMERCIAL_NAMES.values():
             assert c.alignment.wrap_text, c.coordinate
             assert ws.row_dimensions[c.row].height >= 2 * 15, c.coordinate
+
+
+def test_the_nonfarm_parent_is_shown_on_summary_and_not_offered_on_decide(built):
+    """Question 23 (18 Oct 2026), through the whole book: the parent has no
+    row on Decide or Thresholds, and Summary shows it as Shown, not rated,
+    with the book's why, after the commercial words went in."""
+    from threshold_engine import decide_tab as DT
+    wb = load_workbook(built["commercial"][0])
+    assert not any(c.value == "Nonfarm nonresidential CRE" for c in wb["Decide"]["B"][8:])
+    assert not any(c.value == "Nonfarm nonresidential CRE" for c in wb["Thresholds"]["B"])
+    su = [c.value for row in wb["Summary"].iter_rows() for c in row if isinstance(c.value, str)]
+    assert "Nonfarm nonresidential CRE" in su and DT.NOT_RATED in su
+    assert "%s: Nonfarm nonresidential CRE and nonaccrual. %s" % (DT.NOT_RATED, NONFARM_WHY) in su
+    lbs = [c.value for c in wb[DT.LINES_TAB][DT.TH_BOOK["rating_shown"]]]
+    assert lbs.count(DT.NOT_RATED) == 4                 # its four sources
+    # The consumer build of the same series rates every row.
+    assert not any(DT.NOT_RATED == c.value for row in load_workbook(built["consumer"][0])["Summary"].iter_rows()
+                   for c in row)

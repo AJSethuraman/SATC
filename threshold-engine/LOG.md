@@ -3505,3 +3505,84 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   that starts after its history (above). The commercial cache's
   `-since-2005` files were not re-pulled. Nothing was opened in Excel; none
   can be here.
+
+## 18 Oct 2026, question 23: owner-occupied and investor CRE rated, nonfarm CRE as a whole shown and not rated
+
+- **Question 23, 18 Oct 2026, agreed with the recommendation** (read back
+  above): *"Nonfarm CRE: rate owner-occupied and investor CRE separately
+  from 2007; show nonfarm as a whole, unrated"* (10 rated rows).
+- **How the book says it: `shown_not_rated`.** The book had no way to mark
+  a series shown but not rated (every row of the series was a Decide row),
+  so one required top-level key was added, the smallest that says it:
+  `"shown_not_rated": [{"Portfolio": ..., "Measure": ..., "why": ...}]`,
+  `[]` when every row is rated. It names a row (the first two parts), not a
+  source, because a row's lines are set from one source's history; every
+  source of the row is shown. A book without the key is refused ("missing
+  'shown_not_rated' (every key is required; none has a default)"), and so
+  is an entry with no why, a key it does not take, a row no series has, a
+  row twice, or every row (nothing would be rated). `workbook.build`
+  refuses a Decide spec without it, naming it.
+- **The commercial book** names Nonfarm nonresidential CRE, Nonaccrual and
+  Net charge-offs, with why: shown for its history from 1991, its two parts
+  (filed separately from 2007) rated in its place. Rated: C&I,
+  Owner-occupied CRE, Investor CRE (non-owner-occupied), Multifamily and
+  Construction, each on nonaccrual and net charge-offs: **10 rows on
+  Decide** (12 before). Its 8 nonfarm series (2 measures, 4 sources) stay
+  in the book for their history. The note on portfolios says so.
+- **What each tab does with it.**
+  - **Decide** does not offer it: no row, so no decision, no Lines set
+    from, no settings. Assess keeps the book's settings for its series (a
+    number, not a formula reading Decide).
+  - **Thresholds** has no row for it.
+  - **Lines by source** keeps its four rows with their latest value and
+    quarter; where the rating would be it says "Shown, not rated", the
+    Decision cell is empty and the Check says the book shows the row and
+    does not rate it.
+  - **Summary** shows its latest values, read live from Lines by source,
+    with "Shown, not rated" where the rating would be (slate italic, as
+    "Not in this workbook"), and prints the book's why under the panels
+    ("Shown, not rated: Nonfarm nonresidential CRE and nonaccrual. ...").
+    It is left out of the count in the heading (rated 4 or 5, refused, no
+    source picked), Needs your attention, and "N of M series".
+- **The consumer book** states `"shown_not_rated": []`, so its output is
+  unchanged: the code takes the same path when nothing is named (a test
+  builds with `{}` and finds every row on Decide and no "Shown, not
+  rated"). This is a new required key in a book file the consumer session
+  also edits: **any consumer book file without it is now refused, by name**;
+  adding `"shown_not_rated": []` is all it needs.
+- **Proof.** `tests/test_shown_not_rated.py`, 17 tests: each refusal by
+  name (7, parametrized), the key required and kept, the workbook's
+  refusals, the commercial book's 10 rated rows and its 8 shown series,
+  Decide and Thresholds without the row, Lines by source and Summary saying
+  it (the Summary value checked against the file's last quarter through the
+  formulas engine, and the cell it reads named), the counts leaving it out,
+  Assess keeping the book's settings, and nothing named leaving the workbook
+  as it was. `test_commercial_book.py` gains one test through the whole
+  commercial build on its fixture (the parent absent from Decide and
+  Thresholds, Summary and Lines by source saying it; the consumer build of
+  the same series rates every row). Every test file that writes a book or a
+  Decide spec was given the key.
+  **Checked by mutation**, each put back, against `test_shown_not_rated.py`:
+  Decide offering every row (4 fail); Summary not printing the why (1); the
+  "every row" refusal removed (1); the "a second time" refusal removed (1);
+  the workbook not asking for the key (1); Summary reading the value one row
+  down on Lines by source (1); Summary counting the unrated row (the
+  fixture errors, 6); Lines by source not saying it (1); Summary not saying
+  it (1).
+- **One test fixed, not the code.** The first attempt's Summary test
+  asserted the shown row's latest value was a float; the fixture's mortgage
+  series ends at 0.0, which the formulas engine returns as 0. The test now
+  reads the file's last value and checks the Summary cell names the right
+  Lines by source cell.
+- **Results.** Scratch venv, pytest: `test_shown_not_rated.py` 17 passed;
+  then `test_book.py`, `test_floor_off.py`, `test_commercial_book.py`,
+  `test_decide.py`, `test_internal_tab.py`, `test_app.py`,
+  `test_reporting_changes.py`, `test_stated_acquisitions.py`,
+  `test_signals.py`, `test_slicers.py` and `test_workbook.py` with 6
+  workers: 278 passed, 9 failed, every failure a `test_decide.py` worker
+  killed by the container's memory limit (the kernel log names the OOM
+  kill); `test_decide.py` again with 2 workers: 29 passed, 2 killed the
+  same way; those 2 alone: 2 passed. The other test files were not run for
+  this answer. The commercial book was not rebuilt on the real cache for
+  this answer alone (it is built once after questions 24 and 27, below).
+  Nothing was opened in Excel; none can be here.

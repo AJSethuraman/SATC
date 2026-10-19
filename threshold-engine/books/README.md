@@ -153,6 +153,12 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
   the top says how many of the 35 are decided.
 - **Thresholds** (one row per product and measure), **Lines by source** (each
   series' own lines) and **Assess** follow Decide; nothing is typed there.
+- **Shown, not rated**: a product and measure the book's `shown_not_rated`
+  names (with why; `[]` for none) keeps its series for their history but has
+  no row on Decide or Thresholds. Summary shows its latest values with
+  "Shown, not rated" and prints the why; Lines by source says the same where
+  its rating would be. The commercial book shows Nonfarm nonresidential CRE
+  as a whole this way and rates its two parts (the firm, 18 Oct 2026).
 - The **Peers** tabs: KeyBank against the 15 banks, as `peers build` writes
   them.
 - **Reporting changes**: every change to the Call Report the workbook labels

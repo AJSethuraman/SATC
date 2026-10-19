@@ -21,6 +21,7 @@ own folder, so a book and its files can be copied to another machine whole.
       "series": [{"Product": ..., "Measure": ..., "Source": ..., "file": ...}]
                 or "a CSV with those columns",
       "not_in_book": [{"Product": ..., "Measure": ..., "Source": ..., "why": ...}],
+      "shown_not_rated": [{"Product": ..., "Measure": ..., "why": ...}] ([] when every row is rated),
       "compare": ["KeyBank", "Peer group"] or null,
       "notes": ["..."],
       "peers": null or {every setting 'peers build' takes, by its keyword name},
@@ -77,6 +78,18 @@ measure the book does not map stays on the Internal tab: whether an internal
 
 A part value of ``*`` in ``not_in_book`` stands for every value of that part.
 
+``shown_not_rated`` (the firm, 18 Oct 2026, question 23 of the round 2
+commercial docket: *"show nonfarm as a whole, unrated"*) names each row, a
+first and second part (a portfolio and a measure), whose series are in the
+workbook for their history and given no lines to decide: Decide and
+Thresholds have no row for it, Lines by source says "Shown, not rated"
+where its rating would be, and Summary shows its latest values with "Shown,
+not rated" and prints the book's why. Rating is per row, not per source,
+because a row's lines are set from one source's history, so an entry names
+the first two parts and every source of the row is shown. An entry naming
+no row of the series, a row twice, or every row is refused; ``[]`` says
+every row is rated.
+
 ``kind`` (the firm, 17 Oct 2026, on the commercial book: "names in this
 should be changed to be more commercial ... product sounds consumer") is the
 kind of book, stated, never guessed from its product names (``kinds.py``). It
@@ -112,7 +125,8 @@ from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
+TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "shown_not_rated", "compare", "notes",
+            "peers", "internal",
             "floor_off", "large_banks", "signals",
             "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
@@ -397,6 +411,7 @@ def load(path) -> dict:
             if not str(a["why"]).strip():
                 problems.append("%s: why must say why" % where)
             absent_out.append({"parts": {p: a[p] for p in parts}, "why": str(a["why"]).strip()})
+    unrated = _shown_not_rated(raw["shown_not_rated"], parts, decide_parts, problems)
     compare = raw["compare"]
     third = {v[2] for v in decide_parts.values()}
     if compare is not None:
@@ -498,7 +513,36 @@ def load(path) -> dict:
             "large_banks": large, "signals": signals,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from, "kind": raw["kind"],
-                       "floor_off": list(floor_off)}}
+                       "floor_off": list(floor_off), "shown_not_rated": unrated}}
+
+
+def _shown_not_rated(spec, parts, decide_parts, problems) -> Dict[Tuple[str, str], str]:
+    """The book's shown_not_rated, checked: ``{(first, second): why}`` in the
+    book's order, each a row the series have."""
+    out: Dict[Tuple[str, str], str] = {}
+    if not isinstance(spec, list):
+        problems.append("shown_not_rated must be a list of the rows shown and not rated, each {%s, %s, why} "
+                        "([] when every row is rated)" % (parts[0], parts[1]))
+        return out
+    rows = list(dict.fromkeys(v[:2] for v in decide_parts.values()))
+    for i, e in enumerate(spec, start=1):
+        where = "shown_not_rated %d" % i
+        _keys(where, e, [parts[0], parts[1], "why"], problems)
+        if not isinstance(e, dict) or any(k not in e for k in (parts[0], parts[1], "why")):
+            continue
+        pr = (str(e[parts[0]]).strip(), str(e[parts[1]]).strip())
+        if not (isinstance(e["why"], str) and e["why"].strip()):
+            problems.append("%s: why must say why the row is shown and not rated" % where)
+        elif pr not in rows:
+            problems.append("%s names %s, which is no %s and %s of the book's series"
+                            % (where, " - ".join(pr), parts[0].lower(), parts[1].lower()))
+        elif pr in out:
+            problems.append("%s names %s a second time" % (where, " - ".join(pr)))
+        else:
+            out[pr] = e["why"].strip()
+    if rows and len(out) == len(rows):
+        problems.append("shown_not_rated names every row of the book's series, so nothing would be rated")
+    return out
 
 
 def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
