@@ -3036,6 +3036,7 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
 4. **A build will refuse a merger list that starts after its first quarter** (question 22). This changes the merger and absorption files' format; consumer caches will need one re-pull. It will be announced in this log when built.
    **Built, 18 Oct 2026** (entry "question 22", below). **Every consumer cache needs one re-pull of the merger record**: `peers pull --cache DIR --first 2006Q1 --last 2026Q2 --products ... --delinquency yes --mergers 2005-10-01` (or the date the cache was pulled from, on or before 2006-01-01). Only the merger record is fetched again; the quarters already cached are not. Until then `peers build` refuses `mergers.json` and `absorptions.json` as written before the date was recorded, naming the pull. The same re-pull writes `institutions.json`, which item 5 needs. The window app (`app.py`) pulls the merger record on every Pull, so its folders are re-pulled the next time Pull is pressed. A cache filled by `internal pull` needs `internal pull` run again for the same reason.
 5. **A new charter's first filing counts as that quarter's activity** (question 21, built 18 Oct 2026, entry below). Shared build code, and the consumer book is pro forma, so it changes consumer output: on the consumer book's settings 16 banks folded in first file partway through a year (JPMorgan 2, PNC 1, Huntington 8, First Citizens 4, Citizens 1), all 16 opened that quarter, so windows holding them that were missing are kept. A consumer build is refused without `institutions.json` in its cache; the re-pull in item 4 writes it.
+6. **A row shown and not rated, and each row's own start** (questions 23 and 24, built 18 Oct 2026, entries below). Two book changes in shared code. `shown_not_rated` is a new **required** top-level key: `books/consumer-public.json` states `[]` on this branch and its output is unchanged, but any consumer book file without the key is now refused by name, so a branch that edits the consumer book needs `"shown_not_rated": []` when it takes this one. `lines_from.start` may now be a list giving each row its own start; the consumer book keeps its one start, null, and its output is unchanged (tested cell for cell). Question 27 (the peer median follows the pack) changes nothing in the consumer book, which has no median series.
 
 ## 18 Oct 2026, question 18: a stated deal leaves out only the products it brought
 
@@ -3706,3 +3707,39 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   `test_reporting_changes.py` and `test_lines_from_per_row.py`: 436 passed,
   5 skipped. The other test files were not run for this answer. Nothing was
   opened in Excel; none can be here.
+
+## 18 Oct 2026: the commercial book rebuilt with questions 23, 24 and 27, and recalculated
+
+- **Built** at dec725ab (question 27's commit), from a copy of the
+  repository in the scratchpad so nothing was written into the checkout:
+  `python -m threshold_engine book books/commercial-public.json ...` on the
+  re-pulled `cache-commercial` (scratch venv, Python 3.13): **33 min 43 s,
+  exit 0**, nothing refused. Printed: "left out as built: 17 spans";
+  "reporting changes: 12, and 2 events"; **"peer group: 24 series follow
+  the banks in the pack on Peers"** (12 before question 27: the 12 medians
+  now follow too); "Wrote ...: 48 series, 142 quarters".
+- **Read as written** (openpyxl): Decide has **10 rows**, the four CRE net
+  charge-off rows starting on **Industry** under Lines set from and the six
+  others blank; Thresholds the same 10; Summary says "Shown, not rated" in
+  8 cells (Nonfarm nonresidential CRE's two rows, four sources each) and
+  prints both of the book's whys; Lines by source says it on 8 rows. The
+  helper columns are on Peers data (net rate, 13,248 rows: all six
+  portfolios' blocks, since every portfolio has a net median) and Peers
+  delinquency data (quarter-end rate, the six nonaccrual blocks, 13,632 of
+  68,160 rows).
+- **Recalculated in LibreOffice** (24.2, through UNO; loaded hidden,
+  `calculateAll`, every Peer median and Peer total cell of Data read):
+  - **With the pack as built**, the 12 live medians against their own
+    series files: **1,404 quarter values, 0 differ** (largest gap 5.3e-15),
+    none blank where the file has a value, no errors. The 12 totals, the
+    control: 1,404, 0 differ.
+  - **Bank of America switched out** (its switch on Peers workings set to
+    No, what Banks in the pack does): **1,321 of 1,404** median values
+    move. The 6 net charge-off medians (680 quarters) were recomputed in
+    Python from Peers data's written rates (kept, a rate, not KeyBank, not
+    Bank of America, at least 5 banks): **0 differ**, 597 moved. The 6
+    nonaccrual medians were not recomputed this way.
+- **Not checked.** Nothing was opened in Excel; nothing can be opened in
+  Excel here. LibreOffice was not used to type into Decide or to switch a
+  bank through the Peers tab's own Banks in the pack picker (the switch was
+  set on Peers workings, which that picker sets). No picture was rendered.
