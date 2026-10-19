@@ -142,6 +142,13 @@ MUTATIONS = [
     ("the duplicate key is a short hash",
      r'''return hashlib.sha256(payload.encode("utf-8")).hexdigest()  # a full digest: a short one can collide''',
      r'''return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]  # a full digest: a short one can collide'''),
+    ("a withdrawn proposal still shows as mutual", "if pid in withdrawn:  # WITHDRAWN-PROP-MARK",
+     "if False:  # WITHDRAWN-PROP-MARK"),
+    ("the body is cut at a marker line",
+     'f"{flag}\\n\\n{m.body.strip()}\\n"  # BODY-MARK',
+     'f"{flag}\\n\\n{m.text.split(MESSAGE_START + chr(10), 1)[-1].strip()}\\n"  # BODY-MARK'),
+    ("a cursor can move backwards", "n = max(n, read_cursor(root, side))  # MONOTONIC-MARK",
+     "pass  # MONOTONIC-MARK"),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]

@@ -616,6 +616,32 @@ class TestCodexNinthPassOnPR458(Base):
         self.assertIn("B-0002", resume)
 
 
+class TestCodexTenthPassOnPR458(Base):
+    def test_a_withdrawn_proposal_is_not_shown_as_a_mutual_position(self):
+        post(self.root, "bassy", "Proposal: one writer per file.", kind="suggestion")
+        fp = ex.sha8((self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
+        post(self.root, "rev", "I agree.", kind="agreement", proposal="B-0001#" + fp)
+        post(self.root, "bassy", "I agree.", kind="agreement", proposal="B-0001#" + fp)
+        self.assertIn("mutual", ex.view_agreed(self.root))
+        post(self.root, "bassy", "I withdraw that proposal.", withdraws="B-0001")
+        out = ex.view_agreed(self.root)
+        self.assertIn("WITHDRAWN", out)
+        self.assertNotIn("mutual;", out)
+
+    def test_a_body_containing_the_marker_line_is_shown_whole(self):
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n\n"
+            "FIRST-PART\n---message---\nSECOND-PART\n", encoding="utf-8")
+        shown = run(self.root, ["read", "--as", "bassy"])[1]
+        self.assertIn("FIRST-PART", shown)
+        self.assertIn("SECOND-PART", shown)
+
+    def test_a_cursor_never_moves_backwards(self):
+        ex.write_cursor(self.root, "bassy", 5)
+        ex.write_cursor(self.root, "bassy", 2)  # an older acknowledgement finishing last
+        self.assertEqual(ex.read_cursor(self.root, "bassy"), 5)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")
