@@ -3898,3 +3898,19 @@ on 18 Oct 2026 (the round 2 commercial docket, read back above).
   consumer build writes the same cells as before. For the consumer
   session: a consumer book that names a row would now get none of its
   lines or rating on Assess, Chart, Backtest or Internal.
+
+### Results, and what was not checked
+
+- **The whole suite**, after the four commits, scratch venv (Python 3.13,
+  `OPENPYXL_LXML=False`), pytest with 4 workers: **1,556 passed, 1 failed,
+  5 skipped** (1 h 48 min). The failure was a worker killed while running
+  `test_shown_not_rated.py::test_assess_picked_on_it_shows_no_rating_no_bands_and_says_why`
+  (two recalculations of one workbook in a worker; workers here reached 5
+  GB); that test alone: 1 passed. An earlier run of the touched files lost 8
+  tests the same way (7 in `test_decide.py`); all 8 passed run one at a
+  time.
+- **Not checked.** Nothing was opened in Excel; nothing can be here. The
+  commercial book was not rebuilt on the real cache for these fixes; the
+  question 18 figures above come from `organic_index` on the cache, not a
+  build. The Synthesis tab was not looked at for a row shown and not
+  rated (no book here builds one).
