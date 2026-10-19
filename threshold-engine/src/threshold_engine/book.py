@@ -220,26 +220,8 @@ def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> 
 
 def _signals_on_run(wb, signals):
     """A section on Run naming every source behind the Signals tab, with its file and SHA-256."""
-    ws = wb["Run"]
-    r = ws.max_row + 2
-    from . import keybank_style as K
-    r = K.quiet_section(ws, r, "Signals: the public data behind the tab", 6, first_col=2)
-    for j, h in enumerate(("Source", "File", "SHA-256")):
-        ws.cell(r, 2 + j, h).font = Font(name="Arial", size=9, bold=True, color=K.SLATE)
-    for i, (what, file, sha) in enumerate(signals["sources"]):
-        for j, v in enumerate((what, file, sha)):
-            ws.cell(r + 1 + i, 2 + j, v).font = Font(name="Calibri", size=10, color=K.INK_TEXT)
-
-
-def _left_out_on_run(wb, path: Path, n: int) -> None:
-    """The left-out file on Run, under its own heading, with its SHA-256."""
-    from . import workbook as WB
-    run = wb["Run"]
-    r = WB.K.quiet_section(run, run.max_row + 2, "Left out as built", 6, first_col=2)
-    r = WB._ref_header(run, r, ["File", "Path", "Rows", "", "", "SHA-256"], 2, numeric=(2,))
-    for col, v in enumerate(["Quarters left out as built", str(path), n, None, None, WB._sha(path)], start=2):
-        run.cell(r, col, v).font = WB.REF_BODY
-    WB._ref_row(run, r, 2, 7)
+    from . import reference_tabs as RT
+    RT.run_signals(wb["Run"], signals["sources"])
 
 
 class BookError(ValueError):
@@ -628,8 +610,6 @@ def build(book_path, out, say=print) -> dict:
         wb.active = wb.sheetnames.index("Summary")
         if peer_info is not None:
             _live_peer_group(wb, series, peer_info, say)
-        if left_out is not None:
-            _left_out_on_run(wb, *left_out)
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
@@ -665,14 +645,15 @@ def build(book_path, out, say=print) -> dict:
         LC.write(ws, spec, bk["loan_classes"]["cache"])
         say("loan classes: %d banks, from their %s filings" % (len(spec["banks"]), spec["quarter"]))
 
+    reporting = None
     if bk["changes"] is not None:
+        # The Call Report changes are the last section of Sources.
         from . import reporting_changes as RC
-        ws = host.create_sheet(RC.TAB)
-        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name)
-        say("reporting changes: %d, from %s" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
+        reporting = RC.for_sources(bk["changes"], bk["reporting_changes"])
+        say("reporting changes: %d, from %s, on Sources" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
 
     info = WB.build(out, series, decide=decide, into=host, before_save=tidy, floor_off=bk["decide"]["floor_off"],
-                    **bk["workbook"])
+                    left_out_file=left_out[0] if left_out else None, reporting=reporting, **bk["workbook"])
     if peer_tabs:
         # The peer charts draw a missing quarter as a gap, which is set on the saved file.
         from .peers.peers_workbook import na_as_gap

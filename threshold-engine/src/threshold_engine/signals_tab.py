@@ -317,8 +317,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     sd.cell(r, sc, "Sources").font = F_HEAD
     for i, (what, file, sha) in enumerate(sources):
         sd.cell(r + 1 + i, sc, what); sd.cell(r + 1 + i, sc + 1, file); sd.cell(r + 1 + i, sc + 2, sha)
+    # the data-tab treatment: header MIST, frozen at B2, the quarters before
+    # the first value grouped and hidden; row 1 keeps the keys the workings MATCH
+    from . import reference_tabs as RT
+    RT.data_layout(sd, 1, R0, R1, 1 + len(keys), None)
     sd.column_dimensions[L(sc + 1)].width = 90
-    sd.freeze_panes = "B2"
     SDt = _sheet(DATA_TITLE)
 
     # ---------------------------------------------------------------- Signals: the frame and the controls

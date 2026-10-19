@@ -437,32 +437,31 @@ def test_the_public_book_names_the_repositorys_registry():
     assert bk["reporting_changes"].resolve() == REGISTRY.resolve() and len(bk["changes"]) == 12
 
 
-def test_the_book_writes_the_reporting_changes_tab(tmp_path):
-    """One row per change, as the registry states it, under headings each with
-    a Glossary entry; the registry's own words (what it leaves out) above."""
+def test_the_book_writes_the_reporting_changes_on_sources(tmp_path):
+    """The book folds the changes into Sources as its last section: one row per
+    change, as the registry states it, under headings each with a Glossary
+    entry; the registry's own words (what it leaves out) above; no tab of its own."""
+    from threshold_engine import reference_tabs as RT
     out = tmp_path / "book.xlsx"
     BK.build(write_book(tmp_path, reporting_changes=str(REGISTRY)), out, say=lambda *_: None)
     wb = load_workbook(out)
-    assert wb.sheetnames.index(RC.TAB) == wb.sheetnames.index("Sources") + 1
-    ws = wb[RC.TAB]
-    assert ws["B1"].value == RC.TAB and ws["C4"].value == RC.what(REGISTRY)
-    heads = [ws.cell(6, c).value for c in range(2, 2 + len(RC.HEADINGS))]
-    assert heads == list(RC.HEADINGS)
+    assert RC.TAB not in wb.sheetnames
+    ws = wb["Sources"]
+    r = next(x for x in range(1, ws.max_row + 1) if str(ws.cell(x, 2).value or "").startswith("Reporting changes ·"))
+    assert ws.cell(r + 1, 2).value == RC.what(REGISTRY)
+    h = r + 2
+    heads = [ws.cell(h, c).value for c in range(2, 14) if ws.cell(h, c).value]
+    assert heads == list(RT.RC_HEAD)
     terms = {t for t, _, _ in TERMS}
-    assert set(heads) | {RC.TAB, "Reporting change"} <= terms, set(heads) - terms
-    rows = [[ws.cell(r, c).value for c in range(2, 2 + len(RC.HEADINGS))] for r in range(7, 7 + len(CHANGES))]
-    assert [r[0] for r in rows] == [c["name"] for c in CHANGES] and ws.cell(7 + len(CHANGES), 2).value is None
-    ndfi = rows[[c["name"] for c in CHANGES].index("NDFI and margin-loan revision")]
-    assert ndfi[1:4] == ["2024Q4 to 2025Q2", "Other consumer, C&I", ", ".join(ALL_MEASURES)]
-    assert "RC-C 6.d: other consumer loans" in ndfi[4] and ndfi[5] == by_name("NDFI and margin-loan revision")[
-        "what_changed"]
-    assert ndfi[6].splitlines()[1].endswith("https://www.fdic.gov/analysis/"
-                                            "bank-lending-nondepository-financial-institutions.pdf")
-    first = rows[0]
-    assert first[2:4] == ["Owner-occupied nonfarm nonresidential, Other nonfarm nonresidential",
-                         ", ".join(ALL_MEASURES)]
+    assert {"Reporting change"} <= terms
+    col = {v: c for c in range(2, 14) for v in [ws.cell(h, c).value] if v}
+    rows = [x for x in range(h + 1, ws.max_row + 1) if ws.cell(x, 2).value]
+    assert [ws.cell(x, 2).value for x in rows] == [c["name"] for c in CHANGES]
+    nd = rows[[c["name"] for c in CHANGES].index("NDFI and margin-loan revision")]
+    assert [ws.cell(nd, col[k]).value for k in RT.RC_HEAD[1:4]] == [
+        "2024Q4 to 2025Q2", "Other consumer, C&I", ", ".join(ALL_MEASURES)]
     tdr = rows[[c["name"] for c in CHANGES].index("Troubled debt restructuring captions replaced")]
-    assert tdr[2:4] == ["None of the products", "None"]
+    assert [ws.cell(tdr, col[k]).value for k in RT.RC_HEAD[2:4]] == ["None of the products", "None"]
 
 
 def test_a_book_without_a_registry_has_no_tab(tmp_path):
