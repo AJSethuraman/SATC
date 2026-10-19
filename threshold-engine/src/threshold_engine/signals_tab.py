@@ -242,6 +242,10 @@ def _finish(ch, fmt, legend, grid, low, y=None, major=None, wide_legend=False):
         ch.y_axis.scaling.min, ch.y_axis.scaling.max = y
     if major is not None:
         ch.y_axis.majorUnit = major
+        if grid and major > 1:
+            # the rescaled chart: a grid line at every yearly move, a label at every second
+            ch.y_axis.minorUnit = 1
+            ch.y_axis.minorGridlines = ChartLines(spPr=GraphicalProperties(ln=_ln(K.MIST, 0.5)))
     ch.y_axis.number_format = fmt
     ch.y_axis.numFmt.sourceLinked = False
     ch.display_blanks_as = "gap"
@@ -699,7 +703,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                   ("d30", "30+ incl. nonaccrual by product, $m"))):
         lines = [dict(ws=wk, col=col["dchart_%s_%s" % (_slug(p), k)], name=p, color=PRODUCT_COLOR[p], w=1.5) for p in PRODUCTS]
         title(A_TH, 10 + 4 * j, ttl)
-        _put(ws, _chart(lines, cats, F06, R1, "#,##0", 16, wide_legend=True), 10 + 4 * j, A_FIRST, 4 * GRID_PX - 16, 200, dx=8)
+        _put(ws, _chart(lines, cats, F06, R1, "#,##0", 16, low=True, wide_legend=True), 10 + 4 * j, A_FIRST, 4 * GRID_PX - 16, 200, dx=8)
     row = A_ON + 1
     spacer(row)
     row += 1
@@ -822,7 +826,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         title(r0 + 7, 12, "The picked series, own units")
         over = [dict(ws=wk, col=col[key + "_zsc"], ref=names[key], color=K.SIGNAL, w=2),
                 dict(ws=wk, col=col["picked_zc"], ref=picked_name, color=K.KEY_RED, w=2)]
-        _put(ws, _chart(over, cats, F06, R1, "+0;-0;0", 8, grid=True, low=True, major=1), 2, r0 + 2, 10 * GRID_PX - 8, 264)
+        _put(ws, _chart(over, cats, F06, R1, "+0;-0;0", 8, grid=True, low=True, major=2), 2, r0 + 2, 10 * GRID_PX - 8, 264)
         f_sig = R0 + grid.index(min(d)) if d and min(d) in grid else F06       # the raw signal from its first quarter
         _put(ws, _chart([dict(ws=wk, col=col[key + "_c"], name=jname, color=K.SIGNAL, w=1.75)], cats, f_sig, R1, fmt,
                         _skip(R1 - f_sig + 1), legend=False),
@@ -869,18 +873,18 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         # Line B:E; Normal F; One yearly move H, its header reaching over the empty G; Shift I; Window J
         for c_, h in ((2, "Line"), (6, "Normal"), (8, "One yearly move"), (9, "Shift (quarters)"), (10, "Window")):
             cc = ws.cell(ri, c_, h); cc.font = F_LAB
-            cc.alignment = Alignment(horizontal="left" if c_ in (2, 10) else "right", vertical="bottom")
+            cc.alignment = Alignment(horizontal="left" if c_ in (2, 10) else "right", vertical="bottom", indent=1 if c_ == 10 else 0)
         rule(ri, 2, 11)
         ws.cell(ri + 1, 2, jname).font = Font(name="Calibri", size=10, color=K.SIGNAL)
         num(ri + 1, 6, '=IFERROR(MEDIAN(%s),"")' % RW(key, 2), vfmt)
         num(ri + 1, 8, '=IFERROR(1.4826*MEDIAN(%s),"")' % RW(key, 4), vfmt)
         num(ri + 1, 9, '=%s&IF(ISNUMBER(%s),""," · %s")' % (shift_cells[key], SH, FIT_AUTO), "General")
-        ws.cell(ri + 1, 10, "=%s" % WIN).font = F_SMALL
+        cc = ws.cell(ri + 1, 10, "=%s" % WIN); cc.font = F_SMALL; cc.alignment = Alignment(vertical="bottom", indent=1)
         ws.cell(ri + 2, 2, "=" + PICK_SHORT).font = Font(name="Calibri", size=10, color=K.KEY_RED)
         num(ri + 2, 6, '=IFERROR(MEDIAN(%s),"")' % RW("picked", 2), "0.00")
         num(ri + 2, 8, '=IFERROR(1.4826*MEDIAN(%s),"")' % RW("picked", 4), "0.00")
         num(ri + 2, 9, 0, "0")
-        ws.cell(ri + 2, 10, "=%s" % WIN).font = F_SMALL
+        cc = ws.cell(ri + 2, 10, "=%s" % WIN); cc.font = F_SMALL; cc.alignment = Alignment(vertical="bottom", indent=1)
         rule(ri + 1, 2, 11, HAIR)
         ws.cell(ri + 3, 2, PACK).font = F_NOTE
         spacer(ri + 4)
