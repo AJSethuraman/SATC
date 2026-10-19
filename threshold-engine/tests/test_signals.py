@@ -1,7 +1,7 @@
 """The Signals tab's data layer and the tab's structure: what is fetched,
 what is read as filed, what is computed from the cache, and that every
-control, panel and fit table the mock-up specifies is on the sheet as a
-formula. Values the formulas produce are checked in Excel by the book
+control, section and fit table the round-3 hand-off specifies is on the
+sheet, in its place, as a formula. Values the formulas produce are checked in Excel by the book
 walkthrough (docs/walkthrough-book)."""
 import json
 from decimal import Decimal
@@ -12,6 +12,8 @@ from openpyxl import Workbook
 from threshold_engine import signals_data as SD
 from threshold_engine import signals_tab as ST
 from threshold_engine.cli import main
+from threshold_engine import keybank_style as K
+from openpyxl.utils import get_column_letter as L
 
 BAL_HEAD = ('"YRQTR","Total Balances ($Billions)","Utilization (Active Accounts Only) (50th percentile)",'
             '"Utilization (Active Accounts Only) (90th percentile)","30+ Days Past Due Rates: Balances Based",'
@@ -148,40 +150,185 @@ def tiny_book(tmp_path):
     return wb, info
 
 
-def test_the_tab_has_the_controls_the_sections_and_a_formula_everywhere_the_pick_matters(tmp_path):
+def _texts(ws):
+    return [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
+
+
+def test_the_controls_sit_in_row_5_as_inputs_never_merged_and_the_pick_is_named_live(tmp_path):
     wb, info = tiny_book(tmp_path)
     assert {"Signals", "Signals data", "Signals workings"} <= set(wb.sheetnames)
     ws = wb["Signals"]
-    assert ws["B5"].value == "Other consumer" and ws["C5"].value == "30+ days past due incl. nonaccrual" and ws["D5"].value == "KeyBank"
-    assert ws["E5"].value == ST.FIT_AUTO and ws["F5"].value == ST.WINDOWS[0]
-    assert ws["G5"].value.startswith("=") and "'Signals'!$B$5" in ws["G5"].value   # the picked label is live, and named by sheet
-    assert "MATCH" in ws["K5"].value                                            # in the book?
-    assert ws["O5"].value.startswith("=((") and "'Peers data'!$P:$P,TRUE" in ws["O5"].value   # banks in the pack, as Peers data resolves it
-    assert len(ws.data_validations.dataValidation) == 5
-    texts = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)]
-    for section in ("Where the dollars are", "30+ incl. nonaccrual, every product", "30+ to charge-off, and the gap to peers",
-                    "The pipeline: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs", "Across products"):
-        assert section in texts
-    for _, title, *_ in ST.SIGNALS:
-        assert title in texts
-    # the peer panel: three states, from the Yes/No cells on Peers and the left-out column on Peers delinquency data
-    panel = [v for v in texts if v.startswith("=IF(NOT(COUNTIFS('Peers data'!$B:$B,\"Alpha\"")]
-    assert panel and "off: turned off under Banks in the pack" in panel[0] and "$N:$N,TRUE" in panel[0] and '"in"' in panel[0]
-    assert sum(v.startswith("=IF(NOT(COUNTIFS('Peers data'!$B:$B,\"Beta\"") for v in texts) >= 4   # Beta's state beside every live chart
-    # the fit table: a best-lead cell per target, read from the workings' CORREL grid
-    assert sum("qtrs ahead" in v for v in texts) == len(ST.SIGNALS) * (len(info["fit_targets"]) + 1)
+    c = info["controls"]
+    assert (c["product"], c["measure"], c["source"], c["shift"], c["window"], c["picked"]) == ("B5", "E5", "I5", "K5", "M5", "P5")
+    assert ws["B5"].value == "Other consumer" and ws["E5"].value == "30+ days past due incl. nonaccrual" and ws["I5"].value == "KeyBank"
+    assert ws["K5"].value == ST.FIT_AUTO and ws["M5"].value == ST.WINDOWS[0]
+    assert [ws.cell(4, col).value for col in (2, 5, 9, 11, 13, 16)] == [
+        "Compare against: product", "Measure", "Source", "Shift the signal by", "Window for the normal", "Picked"]
+    # the picked series is named live, by sheet, and says when the book has no such series
+    assert ws["P5"].value.startswith("=IF(ISNUMBER(MATCH('Signals'!$B$5&\" - \"&'Signals'!$E$5&\" - \"&'Signals'!$I$5,'Data'!$1:$1,0))")
+    assert ws["P5"].fill.fill_type is None                                   # read-only: no input fill
+    # the inputs: yellow over their spans, the value in the first cell, nothing merged over any of them
+    inputs = {cell.coordinate for row in ws.iter_rows() for cell in row if cell.fill.fgColor.rgb == "00" + K.INPUT}
+    assert {"B5", "C5", "D5", "E5", "H5", "I5", "J5", "K5", "L5", "M5", "N5"} <= inputs and "O5" not in inputs
+    assert info["dollars"]["on"] == "B20:F20" and {"B20", "C20", "D20", "E20", "F20"} <= inputs
+    assert [ws.cell(20, col).value for col in range(2, 7)] == ["Yes"] * 5
+    assert [ws.cell(19, col).value for col in range(2, 7)] == list(ST.PRODUCTS)
+    for rng in ws.merged_cells.ranges:
+        assert not any(x.coordinate in inputs for row in ws[rng.coord] for x in row)
+    dvs = {str(dv.sqref): dv.formula1 for dv in ws.data_validations.dataValidation}
+    assert set(dvs) == {"B5", "E5", "I5", "K5", "M5", "B20 C20 D20 E20 F20"} and dvs["B20 C20 D20 E20 F20"] == '"Yes,No"'
+    # the grid: A 16 px, B to U 92 px (the file's width carries Excel's padding), frozen under the jump row
+    assert ws.column_dimensions["A"].width == ST.W_A and all(ws.column_dimensions[L(col)].width == ST.W_COL for col in range(2, 22))
+    assert ws.freeze_panes == "B8"
+    assert ws["U1"].value == "Latest quarter %s · nothing on this tab is rated" % GRID[-1] and ws["U1"].alignment.horizontal == "right"
+
+
+def test_the_pack_line_is_the_one_cell_on_peers_and_no_peer_panel_is_left(tmp_path):
+    wb, info = tiny_book(tmp_path)
+    ws = wb["Signals"]
+    packs = [c.coordinate for row in ws.iter_rows() for c in row if c.value == "=PackLine"]
+    # row 6, 30+ incl. nonaccrual, the gap, the pipeline and every signal block
+    assert packs[0] == "B6" and len(packs) == 4 + len(ST.SIGNALS)
+    texts = _texts(ws)
+    assert not any("Banks in the pack" in t or "'Peers data'!$B:$B" in t or "turned off" in t for t in texts)
+    assert not any("Peers delinquency data" in t for t in texts)
+
+
+def test_the_jump_row_links_every_section_head_and_fits_the_grid(tmp_path):
+    wb, info = tiny_book(tmp_path)
+    ws = wb["Signals"]
+    links = [c for c in ws[7] if c.hyperlink is not None]
+    assert len(links) == 5 + len(ST.SIGNALS) and links[0].coordinate == "B7" and links[-1].column <= 21
+    for c in links:
+        loc = c.hyperlink.location
+        assert loc.startswith("'Signals'!B")
+        head = ws[loc.split("!")[1]]
+        assert head.value and head.font.b and ws.cell(head.row, 21).border.bottom.style == "medium"   # a section head
+        assert c.font.color.rgb == "00" + K.KEY_RED and c.font.u == "single"
+    assert [n for n, _ in info["jumps"]][:4] == ["Where the dollars are", "30+ incl. nonaccrual", "30+ to charge-off and the gap", "The pipeline"]
+
+
+def test_where_the_dollars_are_shows_a_dash_without_call_report_dollars_and_the_yes_no_cells_gate_the_charts(tmp_path):
+    wb, info = tiny_book(tmp_path)
+    ws, wk = wb["Signals"], wb["Signals workings"]
+    d = info["dollars"]
+    assert (d["header"], d["first"], d["total"]) == (10, 11, 16)
+    assert [ws.cell(10, col).value for col in (2, 4, 5, 6, 7, 8, 9)] == [
+        "Product", "Balance ($000)", "Share", "Gross charge-offs, 4 quarters ($000)", "Share", "30+ incl. nonaccrual ($000)", "Share"]
+    assert [ws.cell(11 + i, 2).value for i in range(5)] == list(ST.PRODUCTS)
+    assert ws["B9"].value == "=\"Where the dollars are · \"&'Signals'!$I$5&\", %s\"" % GRID[-1]
+    dash = ('=IF(NOT(OR(\'Signals\'!$I$5="KeyBank",LEFT(\'Signals\'!$I$5,10)="Peer group",'
+            '\'Signals\'!$I$5="Industry (every bank)")),"—",')
+    for row in range(11, 17):
+        for col in (4, 5, 6, 7, 8, 9):
+            if row == 16 and col in (5, 7, 9):
+                continue
+            assert ws.cell(row, col).value.startswith(dash), (row, col)
+    gated = [(col, wk.cell(2, col).value) for col in range(1, wk.max_column + 1) if str(wk.cell(1, col).value).endswith("$m, on the charts")]
+    assert len(gated) == 15
+    src = L(min(col for col in range(1, wk.max_column + 1) if wk.cell(1, col).value == "Credit card: balance, source picked"))
+    assert gated[0][1] == "=IF(AND('Signals'!$B$20=\"Yes\",ISNUMBER(%s2)),%s2/1000,NA())" % (src, src)
+    assert gated[-1][1].startswith("=IF(AND('Signals'!$F$20=\"Yes\",")                # Auto's cell
+    charts = [ch for ch in ws._charts if ch.anchor._from.row == 10]                    # the three beside the table
+    assert len(charts) == 3 and all(len(ch.series) == 5 for ch in charts)
+
+
+def test_every_control_a_workings_formula_reads_is_named_by_sheet(tmp_path):
+    import re
+    wb, info = tiny_book(tmp_path)
     wk = wb["Signals workings"]
+    for row in wk.iter_rows():
+        for c in row:
+            if isinstance(c.value, str) and c.value.startswith("="):
+                for m in re.finditer(r"\$(B|E|I|K|M|F)\$(5|20)\b", c.value):
+                    assert c.value[:m.start()].endswith("'Signals'!"), (c.coordinate, c.value)
+
+
+def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follows_the_data(tmp_path):
+    wb, info = tiny_book(tmp_path)
+    ws, wk = wb["Signals"], wb["Signals workings"]
+    heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
+    cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 30)}
+    assert cells["30+ to charge-off: the product drawn"] == ("=IF(ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ to charge-off - KeyBank\","
+                                                             "'Data'!$1:$1,0)),'Signals'!$B$5,\"Credit card\")")
+    assert "LOOKUP(2,1/ISNUMBER(" in cells["last quarter with a gap"]
+    assert cells["the gap priced ($000): gap / 100 x KeyBank's 30+ dollars"].startswith("=IF(AND(ISNUMBER(")
+    kb = wk.cell(2, heads["30+ to charge-off: KeyBank, the product drawn"]).value
+    assert "MATCH('Signals workings'!$" in kb and "&\" - 30+ to charge-off - KeyBank\"" in kb
+    area = [ch for ch in ws._charts if ch.tagname == "areaChart"]
+    assert len(area) == 1
+    gap = area[0]
+    assert [str(s.graphicalProperties.solidFill.srgbClr) for s in gap.series] == [K.GAP_WORSE, K.GAP_BETTER]
+    assert gap.y_axis.scaling.min is None and gap.y_axis.scaling.max is None        # the real gap reaches -25 points
+    assert gap.y_axis.majorGridlines is not None and gap.y_axis.numFmt.formatCode == "+0;-0;0"
+    assert [e.idx for e in gap.legend.legendEntry] == [0, 1]                         # entries only for the line
+    texts = _texts(ws)
+    assert any(t.startswith('="Credit card · charged off within the window') for t in texts)
+    assert any(t.startswith("=\"Gap, priced in KeyBank's delinquent \"&LOWER(") for t in texts)
+
+
+def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_the_inputs_as_a_table(tmp_path):
+    wb, info = tiny_book(tmp_path)
+    ws, wk = wb["Signals"], wb["Signals workings"]
+    n_t = len(info["fit_targets"])
+    assert set(info["fit_tables"]) == {k for k, *_ in ST.SIGNALS}
+    for key, *_ in ST.SIGNALS:
+        ft = info["fit_tables"][key]
+        pick, first = ft["pick"], ft["first_fixed"]
+        assert first == pick + 1
+        assert [ws.cell(pick - 1, col).value for col in (15, 18, 19, 20, 21)] == ["Against", "Lead", "Fit (r)", "Excl. 2020-23", "Qtrs"]
+        p = ws.cell(pick, 15)
+        assert p.value.startswith("='Signals'!$B$5&") and p.font.b and p.fill.fgColor.rgb == "00" + K.CANVAS
+        assert all(ws.cell(pick, col).font.b for col in range(18, 22))
+        assert [ws.cell(first + j, 15).value for j in range(n_t)][:2] == ["Credit card · Net charge-offs · Industry",
+                                                                          "Credit card · Net charge-offs · KeyBank"]
+        for r in range(pick, first + n_t):
+            assert ws.cell(r, 18).value.startswith("=IF('Signals workings'!") and ws.cell(r, 18).number_format == "+0;-0;0"
+            assert ws.cell(r, 19).value.startswith("=IFERROR(MAX('Signals workings'!")
+            assert ws.cell(r, 21).value.startswith("=SUMPRODUCT(")
+        head = ws.cell(pick - 2, 21)
+        assert head.value.endswith("· quarterly") and head.alignment.horizontal == "right"
+        # the inputs of the rescale: a table under the overlay, the shift and the window live
+        ri = pick + 12
+        assert [ws.cell(ri, col).value for col in (2, 6, 7, 8, 9)] == ["Line", "Normal", "One yearly move", "Shift (quarters)", "Window"]
+        assert ws.cell(ri + 1, 6).value.startswith("=IFERROR(MEDIAN('Signals workings'!") and ws.cell(ri + 1, 9).value == "='Signals'!$M$5"
+        assert "'Signals'!$K$5" in ws.cell(ri + 1, 8).value and ws.cell(ri + 2, 2).value.startswith("='Signals'!$B$5&")
+        assert ws.cell(ri + 3, 2).value == "=PackLine"
+    rules = [rule.formula[0] for cf in ws.conditional_formatting for rule in cf.rules]
+    assert sum(1 for f in rules if f.startswith("AND(ISNUMBER(S") and ">=0.7" in f) == len(ST.SIGNALS)
     corr = [c.value for row in wk.iter_rows(min_row=len(GRID) + 5) for c in row if isinstance(c.value, str) and c.value.startswith("=IFERROR(CORREL(OFFSET(")]
-    assert len(corr) == len(ST.SIGNALS) * len(ST.LEADS) * (len(info["fit_targets"]) + 1) * 2
-    # the picked series is looked up on Data by its label, and its z uses the window
+    assert len(corr) == len(ST.SIGNALS) * len(ST.LEADS) * (n_t + 1) * 2
     picked = wk.cell(2, 2).value
-    assert "MATCH('Signals'!$B$5&\" - \"&'Signals'!$C$5&\" - \"&'Signals'!$D$5,'Data'!$1:$1,0)" in picked
+    assert "MATCH('Signals'!$B$5&\" - \"&'Signals'!$E$5&\" - \"&'Signals'!$I$5,'Data'!$1:$1,0)" in picked
     z = [wk.cell(2, c).value for c in range(1, wk.max_column + 1) if wk.cell(1, c).value == "picked: z"][0]
     assert "1.4826*MEDIAN(" in z
-    assert len(wb["Signals"]._charts) >= 20
+    # every series a chart draws holds #N/A where there is no number, so a chart shows a gap, not a zero
+    drawn = [wk.cell(2, c).value for c in range(1, wk.max_column + 1) if str(wk.cell(1, c).value).endswith(", drawn")]
+    assert len(drawn) >= 4 + 2 * len(ST.SIGNALS) and all(v.endswith(",NA())") for v in drawn)
+
+
+def test_the_charts_take_the_sizes_the_grid_gives_them(tmp_path):
+    wb, info = tiny_book(tmp_path)
+    ws = wb["Signals"]
+    sizes = {(round(ch.anchor.ext.width / 9525), round(ch.anchor.ext.height / 9525)) for ch in ws._charts}
+    assert {(912, 264), (452, 220), (544, 220), (360, 200), (268, 106)} <= sizes
+    assert len(ws._charts) == 3 + 4 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
+    for ch in ws._charts:
+        if ch.tagname == "lineChart" and len(ch.series) == 1:
+            assert ch.varyColors is False
     # the data sheet: one column per series on the book's calendar, the sources named
     sd = wb["Signals data"]
     assert sd["A2"].value == GRID[0] and sd["B1"].value == ST.SIGNALS[0][0]
     assert any(c.value == "0" * 64 for row in sd.iter_rows() for c in row)
     assert info["fit_targets"] == [lbl for lbl in LABELS if lbl in ["Credit card - Net charge-offs - Industry (every bank)", "Credit card - Net charge-offs - KeyBank",
                                                                        "Other consumer - 30+ days past due incl. nonaccrual - KeyBank"]]
+
+
+def test_a_saved_book_keeps_the_charts_untitled_and_the_links_internal(tmp_path):
+    from zipfile import ZipFile
+    tiny_book(tmp_path)
+    with ZipFile(tmp_path / "s.xlsx") as z:
+        charts = [n for n in z.namelist() if n.startswith("xl/charts/chart")]
+        assert charts and all(b"autoTitleDeleted val=\"1\"" in z.read(n) for n in charts)
+        sheets = [z.read(n) for n in z.namelist() if n.startswith("xl/worksheets/sheet")]
+        assert any(b"location=\"'Signals'!B9\"" in s for s in sheets)
