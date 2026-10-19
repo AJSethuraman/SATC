@@ -225,13 +225,13 @@ def check_start(start, labels: Sequence[str],
             raise ValueError("lines_from gives no start for %s: each row's start is a source or None (none has "
                              "a default)" % ", ".join(missing))
         wrong = ["%s (%r)" % (" - ".join(pr), given[pr]) for pr in pairs
-                 if given[pr] is not None and given[pr] not in by[pr]]
+                 if given[pr] is not None and (not isinstance(given[pr], str) or given[pr] not in by[pr])]
         if wrong:
             raise ValueError("lines_from starts these rows on a source they have no series for: %s. Start them "
                              "blank (None) or on a source they have" % ", ".join(wrong))
         return {pr: given[pr] for pr in pairs}
     if start is not None:
-        if start not in sources_of(labels, parts):
+        if not isinstance(start, str) or start not in sources_of(labels, parts):
             raise ValueError("lines_from starts as %r, which is not a source of the series (%s)"
                              % (start, ", ".join(sources_of(labels, parts))))
         lacking = [" - ".join(pr) for pr in pairs if start not in by[pr]]

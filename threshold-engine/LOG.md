@@ -3744,7 +3744,7 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   bank through the Peers tab's own Banks in the pack picker (the switch was
   set on Peers workings, which that picker sets). No picture was rendered.
 
-## 19 Oct 2026: review fixes to round 3 (questions 21, 18, 23 and 24)
+## 19 Oct 2026: review fixes to round 3 (questions 21, 18, 24 and 23)
 
 Four findings from a review of this branch, each reproduced first (by a
 break-it test file written outside the repository), then fixed with a test
@@ -3821,3 +3821,26 @@ on 18 Oct 2026 (the round 2 commercial docket, read back above).
 - **The consumer book.** Unchanged: it states `stated_acquisitions: null`.
   For the consumer session: a consumer book that reads the stated list
   would flatten only the index of the products each deal lists.
+
+### Question 24: a start that is a list or an object is refused by name, not crashed
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"Each row
+  chooses where its lines start; CRE charge-off rows start on Industry."*
+- **The finding.** A start in `lines_from.start` (the per-row list) that is
+  a list or an object crashed `book.load` with "TypeError: unhashable
+  type" (`st not in has[pr] | extra`) instead of a BookError naming the
+  entry; so did a one-for-every-row start that is an object, and
+  `decide_tab.check_start` with an unhashable value in its per-row dict or
+  as its one start. Reproduced in each.
+- **The fix.** A start must be a source's name (text) or null: anything
+  else is refused with the message a wrong source already gets ("lines_from
+  start 1: Card - Net starts as ['Industry'], which is not one of its
+  sources"; "lines_from: start must be null ..., not {'x': 1}"; on the
+  workbook side "no series for: Card - Net (['Bank'])" and "lines_from
+  starts as ['Bank'], which is not a source").
+- **Proof.** `tests/test_lines_from_per_row.py`, 4 new cases (a list and an
+  object, through `book.load` in both forms of `start`, and through
+  `check_start` per row and as one start). **Mutation:** with the four
+  guards removed, all 4 fail with the TypeError (`book.py`,
+  `decide_tab.py`); the one-start guard in `book.py` removed alone, its
+  case fails with "unhashable type: 'dict'".

@@ -632,7 +632,7 @@ def _lines_from(spec, parts, sources, internal, problems, decide_parts=None, unr
     allowed = set(sources) | ({internal["source"]} if internal else set())
     if isinstance(start, list):
         return _lines_from_rows(start, parts, internal, problems, decide_parts or {}, unrated)
-    if start is not None and start not in allowed:
+    if start is not None and (not isinstance(start, str) or start not in allowed):
         problems.append("lines_from: start must be null (every row blank, for the bank to pick), one of %s, or a "
                         "list naming each row's own start, not %r" % (", ".join(sorted(allowed)), start))
         return None
@@ -666,7 +666,7 @@ def _lines_from_rows(entries, parts, internal, problems, decide_parts, unrated) 
         elif pr not in has:
             problems.append("%s names %s, which is no %s and %s of the book's series"
                             % (where, " - ".join(pr), parts[0].lower(), parts[1].lower()))
-        elif st is not None and st not in has[pr] | extra:
+        elif st is not None and (not isinstance(st, str) or st not in has[pr] | extra):
             problems.append("%s: %s starts as %r, which is not one of its %ss (%s); start it null to leave it "
                             "blank" % (where, " - ".join(pr), st, parts[2].lower(), ", ".join(sorted(has[pr] | extra))))
         else:

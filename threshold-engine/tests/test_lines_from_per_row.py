@@ -75,6 +75,20 @@ def test_each_entry_is_checked_and_refused_by_name(tmp_path, entries, said):
         BK.load(write_book(tmp_path, lines_from={"part": "Source", "start": entries}))
 
 
+@pytest.mark.parametrize("bad", [["Industry"], {"x": 1}])
+def test_a_start_that_is_a_list_or_an_object_is_refused_by_name_not_crashed(tmp_path, bad):
+    """A start must be a source's name or null. A list or an object used to
+    reach ``st in set`` and crash with a TypeError (review, 19 Oct 2026); it
+    is refused naming the entry, in both forms of ``start``."""
+    with pytest.raises(BK.BookError, match=r"lines_from start 1: Card - Net starts as %s, which is not one of its "
+                       "sources" % re.escape(repr(bad))):
+        BK.load(write_book(tmp_path, lines_from={"part": "Source", "start": [
+            row("Card", "Net", bad), row("Mortgage", "Net", None)]}))
+    if isinstance(bad, dict):                   # a list is the per-row form, tried above
+        with pytest.raises(BK.BookError, match=r"lines_from: start must be null .* not %s" % re.escape(repr(bad))):
+            BK.load(write_book(tmp_path, lines_from={"part": "Source", "start": bad}))
+
+
 def test_a_row_shown_and_not_rated_has_no_start(tmp_path):
     """Question 23's rows have no row on Decide, so no Lines set from: naming
     one is refused, and leaving it out is right."""
@@ -172,6 +186,20 @@ def test_one_start_for_every_row_is_the_same_as_naming_it_on_each(tmp_path, star
 def test_the_workbook_refuses_a_start_it_cannot_place(tmp_path, starts, said):
     with pytest.raises(ValueError, match=said):
         build(tmp_path / "x.xlsx", SER, decide=spec(starts), **SETTINGS)
+
+
+@pytest.mark.parametrize("bad", [["Bank"], {"x": 1}])
+def test_check_start_refuses_a_start_that_is_not_a_name_rather_than_crash(bad):
+    """Review, 19 Oct 2026: an unhashable start crashed ``check_start`` with a
+    TypeError; it is refused naming the row, per row and as one start."""
+    parts = {lbl: tuple(lbl.split(" - ")) for lbl in LABELS}
+    starts = {pr: None for pr in PAIRS}
+    starts[("Card", "Net")] = bad
+    with pytest.raises(ValueError, match=r"no series for: Card - Net \(%s\)" % re.escape(repr(bad))):
+        DT.check_start(starts, LABELS, parts)
+    one = bad if isinstance(bad, list) else [bad]          # one start for every row; a dict is the per-row form
+    with pytest.raises(ValueError, match="lines_from starts as %s, which is not a source" % re.escape(repr(one))):
+        DT.check_start(one, LABELS, parts)
 
 
 def test_a_book_with_each_rows_start_builds_with_it(tmp_path):
