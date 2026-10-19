@@ -60,12 +60,41 @@ TERMS = [
      "dollars, and each product's share of the total.",
      "KeyBank's and the industry's are summed from the Call Report at build; the peer group's are summed from Peers data and "
      "Peers delinquency data over the banks in the pack, so they follow Banks in the pack on Peers."),
-    ("Peer group in this chart",
-     "Beside every chart on Signals that draws on the pack: each peer and its state this quarter: in; out by the book's "
-     "rules; off because unticked under Banks in the pack on Peers.",
-     "Out means the bank's own four-quarter average was blanked this quarter by the jump or the acquisition share, as Peers "
-     "delinquency data records it. A chart drawn from a survey, the Philadelphia Fed's panel or the FHFA database says whose "
-     "data it is instead: those are not the peer group."),
+    ("Pack line",
+     "One line under every chart or table that draws on the peer group: how many of the roster's banks are in "
+     "it, the quarter, which banks the book's rules took out, and which were switched off on Peers.",
+     "One cell on Peers workings, which every other tab reads: TEXTJOIN over the roster on Peers. In: Yes on "
+     "Peers and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
+     "jump or the acquisition share blanked it, as Peers delinquency data records it). Off: No. A chart drawn "
+     "from a survey, the Philadelphia Fed's panel or the FHFA database names whose data it is instead: those are "
+     "not the peer group."),
+    ("Rescaled",
+     "A line drawn in yearly moves from its own normal, so a signal and the picked series sit on one axis.",
+     "(value - its normal) / one typical yearly move. The normal is the median of the quarters in the window; "
+     "the move is 1.4826 x the median absolute deviation of its changes over a year (scale.py's rule). One grid "
+     "line is one yearly move for either line. The inputs are in the table under the chart."),
+    ("Lead",
+     "How many quarters the signal runs ahead of the series it is compared against. Below zero, the signal "
+     "follows it.",
+     "Of the leads from 4 quarters after to 12 ahead, the one with the highest Fit (r), over the quarters both "
+     "have."),
+    ("Fit (r)",
+     "How closely the signal moves with the series at its lead: 1.00 together exactly, 0 no relation, below "
+     "zero opposite.",
+     "CORREL of the signal's change over a year (the survey's value itself) and the series' change over a "
+     "year, the signal moved by the lead. Excl. 2020-23 is the same with 2020Q1 to 2023Q4 left out, whatever "
+     "Window for the normal is set to."),
+    ("Window for the normal",
+     "The quarters the normal and the typical yearly move of the rescaled lines are taken from: All quarters, "
+     "or Without 2020-23.",
+     "Picked in the yellow cell on Signals. Without 2020-23 leaves out 2020Q1 to 2023Q4."),
+    ("Shift",
+     "How many quarters later the signal is drawn on the rescaled chart.",
+     "Typed in the yellow cell on Signals, 0 to 12, or fits best: the lead with the highest Fit (r) against "
+     "the picked series, never below 0."),
+    ("Jump row",
+     "The row of links under the controls on Signals, one per section.",
+     "Each is a hyperlink to its section's first cell on Signals."),
     ("Floor at zero",
      "Whether a value at or below zero is always 1 Low for a series. True of a rate; false of a gap between two "
      "rates.",
@@ -429,40 +458,87 @@ TERMS = [
      "A change to the Call Report's definitions or forms that moves a series without any change in risk, such "
      "as margin loans moved out of other consumer from December 2024. Labeled on every series it touches, in "
      "the quarter it took effect.",
-     "Listed once, with its source, on the Reporting changes tab. Each series file the peers build writes "
+     "Listed once, with its source, under Reporting changes on Sources. Each series file the peers build writes "
      "carries a Reporting change line for every change touching its product and measure within its quarters, "
      "shown on Sources; a change a product's own note already describes points to that note instead. "
      "Decide's chart marks the quarters with a diamond along the top, for any source of the row shown; the "
      "Peers charts mark them on the pack composite."),
     ("Reporting changes",
-     "The tab listing every reporting change this workbook labels, one row each.",
+     "The last section of Sources: every reporting change this workbook labels, one row each.",
      "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "
-     "source are in it; what was left out, and why, is said at the top of the tab."),
+     "source are in it; what was left out, and why, is said above its table."),
     ("Change",
-     "On Reporting changes: the change's short name.",
+     "Under Reporting changes on Sources: the change's short name.",
      "As the registry states it."),
     ("Took effect",
-     "On Reporting changes: the quarter the change took effect, or the first and last when banks could report "
+     "Under Reporting changes on Sources: the quarter the change took effect, or the first and last when banks could report "
      "it over several quarters.",
      "As the registry states it: the December 2024 revision runs 2024Q4 to 2025Q2 because banks could report "
      "it on a best-efforts basis until 30 June 2025."),
     ("Products touched",
-     "On Reporting changes: the products whose series the change moves, consumer and commercial.",
+     "Under Reporting changes on Sources: the products whose series the change moves, consumer and commercial.",
      "As the registry states it. None of the products means it touches only lines no product is built from, "
      "such as other loans or the memoranda."),
     ("Measures touched",
-     "On Reporting changes: which charge-off and delinquency measures of those products it moves.",
+     "Under Reporting changes on Sources: which charge-off and delinquency measures of those products it moves.",
      "As the registry states it: net or gross charge-offs, or a delinquency measure (30-89, 90+ accruing, "
      "nonaccrual, 90+ incl. nonaccrual, 30+ incl. nonaccrual)."),
     ("Call Report items",
-     "On Reporting changes: the Call Report lines the change touches, kept for the commercial categories.",
+     "Under Reporting changes on Sources: the Call Report lines the change touches, kept for the commercial categories.",
      "As the registry states it, by schedule and item where the source gives the item (RC-C 4: C&I)."),
     ("What changed",
-     "On Reporting changes: what the change did, in one sentence.",
+     "Under Reporting changes on Sources: what the change did, in one sentence.",
      "As the registry states it, from the source."),
     ("Source document",
-     "On Reporting changes: where the change was read, with its address.",
+     "Under Reporting changes on Sources: where the change was read, linked to its address.",
      "As the registry states it: a Federal Register notice, an FDIC publication or the FDIC's own data "
      "definitions."),
 ]
+
+#: The tab each term first appears on, in the book's tab order (Claude Design's
+#: round 3: a Tab column, so a reader filters to the tab they came from).
+TAB_ORDER = ("Summary", "Decide", "Signals", "Peers", "Thresholds", "Internal", "Lines by source", "Peer books",
+             "Evidence", "Sources", "Run", "Data", "Assess", "Synthesis")
+_BY_TAB = {
+    "Summary": ("Product", "Combined product", "Measure", "Source", "Quarter", "30+ to charge-off",
+                "Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off",
+                "Share paying only the minimum", "Trailing twelve months (TTM)", "Rating", "Rating name", "Latest",
+                "Points", "Needs your attention", "Pick a source"),
+    "Decide": ("Floor at zero", "Quarters kept", "Left out", "Median kept", "Typical yearly move", "Worst kept",
+               "Moderate", "Width of Moderate (yearly moves)", "Moderate-Low", "Moderate-Low begins (yearly moves)",
+               "Low", "Moderate-High", "High", "What fits the history the lines are set from",
+               "How rare High is (z)", "Spread of levels", "On a line, rate it", "Check", "Decision",
+               "Lines set from", "Rating on these lines", "What each source's own history would give",
+               "Reporting change"),
+    "Signals": ("Signals", "Where the dollars are", "Pack line", "Rescaled", "Lead", "Fit (r)",
+                "Window for the normal", "Shift", "Jump row"),
+    "Thresholds": ("Thresholds", "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
+                   "2 Moderate-Low", "3 Moderate", "4 Moderate-High", "5 High", "Value"),
+    "Internal": ("Internal data", "Mapped", "Composite", "Segment", "Share of the product",
+                 "Balance by segment ($ millions)", "Rows not used", "Why not used", "Call Report source",
+                 "Like for like", "What counts as reliable", "Quarters both have", "Level correlation",
+                 "Change correlation", "Average gap", "Ratings that agree", "Within one rating", "Verdict",
+                 "CRR grade", "Lowest CRR grade"),
+    "Lines by source": ("Lines by source", "Backtest", "Spearman", "Half-life", "Percentile"),
+    "Evidence": ("Spell", "Robust z", "Unusual", "Years per spell this bad", "Deepest dip", "Temporary departure",
+                 "Worse than trend, better than trend"),
+    "Sources": ("Reporting changes", "Change", "Took effect", "Products touched", "Measures touched",
+                "Call Report items", "What changed", "Source document"),
+    "Run": ("SHA-256", "Left out as built", "Status"),
+    "Assess": ("Dial",),
+    "Synthesis": ("Synthesis", "Internal", "Industry", "Industry carried by (yours)", "Peers",
+                  "Peers at percentile (yours)", "Taken from (yours)", "Chosen line", "Competitive check"),
+}
+TAB = {term: tab for tab, terms in _BY_TAB.items() for term in terms}
+
+
+def by_tab():
+    """Every term as (tab, term, what it means, how it is calculated), grouped
+    by the tab it first appears on, in the book's tab order; within a tab, as
+    TERMS lists them. A term with no tab is refused, never guessed."""
+    missing = [t for t, _, _ in TERMS if t not in TAB]
+    if missing:
+        raise ValueError("glossary terms with no tab: %s" % ", ".join(missing))
+    rows = [(TAB[t], t, m, c) for t, m, c in TERMS]
+    return sorted(rows, key=lambda r: TAB_ORDER.index(r[0]))
 

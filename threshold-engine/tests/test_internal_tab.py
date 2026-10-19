@@ -228,12 +228,12 @@ def test_the_slot_ships_empty_and_says_so(book):
     assert all(ds.cell(r, c).value is None for r in range(5, 165) for c in range(1, 17))
     assert [ds.cell(4, c).value for c in range(1, 12)] == list(IT.SLOT[:11])
     vals = recalc(d / "book.xlsx")
-    assert iv(vals, "J", 9) == 0 and iv(vals, "J", 10) == 0
+    assert iv(vals, "I", 9) == 0 and iv(vals, "I", 10) == 0
     chart = info["decide"]["internal"]
     # The chart's title cell says there is nothing yet.
-    titles = [val for key, val in vals.items() if key.startswith("INTERNAL!") and val == "No internal data yet"]
+    titles = [val for key, val in vals.items() if key.startswith("INTERNAL DATA!") and val == "No internal data yet"]
     assert titles
-    assert all(iv(vals, c, chart["verdict_row"]) == IT.VERDICTS[0] for c in "MNOP")
+    assert all(iv(vals, c, chart["verdict_row"]) == IT.VERDICTS[0] for c in "LMNO")
 
 
 def test_the_workbook_lists_every_internal_tab_heading_in_the_glossary(book):
@@ -248,15 +248,15 @@ def test_the_workbook_lists_every_internal_tab_heading_in_the_glossary(book):
     ws = load_workbook(d / "book.xlsx")[IT.TITLE]
     rel = info["decide"]["internal"]["rel_top"]
     for r in range(rel + 1, rel + 8):
-        assert ws.cell(r, 12).value in terms
+        assert ws.cell(r, 11).value in terms
 
 
 def test_names_are_mapped_by_the_guess_rules_and_rows_read(filled):
     d, info, vals = filled
-    got = {iv(vals, "B", r): iv(vals, "C", r) for r in range(5, 13) if iv(vals, "B", r)}
+    got = {iv(vals, "B", r): iv(vals, "C", r) for r in range(5, 12) if iv(vals, "B", r)}
     assert got == {"Cards": "Credit card", "Auto loans": "Auto", "Boats": ""}
-    assert iv(vals, "J", 9) == len(internal_rows()) + 1
-    assert iv(vals, "J", 10) == 1
+    assert iv(vals, "I", 9) == len(internal_rows()) + 1
+    assert iv(vals, "I", 10) == 1
     # The unmapped row says why; a row with net charge-offs blank had it worked out.
     whys = [v(vals, "INTERNAL DATA!AH%d" % r) for r in range(5, 5 + len(internal_rows()) + 1)]
     assert whys.count("The product is not mapped on the Internal tab.") == 1
@@ -270,7 +270,7 @@ def test_names_are_mapped_by_the_guess_rules_and_rows_read(filled):
 def test_coverage_counts_each_product(filled):
     d, info, vals = filled
     prods = info["decide"]["internal"]["products"]
-    col = {p: "MNOPQ"[i] for i, p in enumerate(prods)}
+    col = {p: "LMNOP"[i] for i, p in enumerate(prods)}
     card, auto = col["Credit card"], col["Auto"]
     assert iv(vals, card, 6) == 48 and iv(vals, auto, 6) == 48
     assert iv(vals, card, 7) == "2008Q1" and iv(vals, card, 8) == "2019Q4"
@@ -294,7 +294,7 @@ def test_the_composite_matches_internal_py(filled):
             ref = dict(I.composite_series(the, p, key))
             from openpyxl.utils import get_column_letter as L
             for i, q in enumerate(t["calendar"]):
-                got = v(vals, "INTERNAL!%s%d" % (L(b[col]), w0 + i))
+                got = v(vals, "INTERNAL DATA!%s%d" % (L(b[col]), w0 + i))
                 want = ref.get(q)
                 if want is None:
                     assert got in ("", None), (p, key, q, got)
@@ -318,7 +318,7 @@ def test_every_figure_in_the_reliability_table_matches_the_reference(filled, boo
         label = "Credit card - %s - %s" % (NET, s)
         lines, worse, refused = lines_of(vals, info, label)
         ref = reference(comp, source_values(ser, label), lines, worse, refused)
-        col = "MNOPQ"[k]
+        col = "LMNOP"[k]
         got = {key: iv(vals, col, rel + 1 + i) for i, key in
                enumerate(("overlap", "level", "change", "gap", "agree", "within", "verdict"))}
         assert got["verdict"] == ref["verdict"] == want_verdicts[s], s
@@ -330,7 +330,7 @@ def test_every_figure_in_the_reliability_table_matches_the_reference(filled, boo
                 assert got[key] == pytest.approx(ref[key], abs=1e-9), (s, key)
         # The same figures in the every-series statistics.
         st = t["stats"][label]
-        assert v(vals, "INTERNAL!" + st["verdict"].replace("$", "")) == ref["verdict"]
+        assert v(vals, st["verdict"].replace("$", "").replace("'", "")) == ref["verdict"]
 
 
 def test_every_product_and_measure_names_the_best_source(filled):
@@ -377,7 +377,7 @@ def test_crr_grades_are_rated_and_compared(book):
     wb.save(d / "auto.xlsx")
     vals = paste(d / "auto.xlsx", d / "auto_filled.xlsx", internal_rows())
     t = info["decide"]["internal"]
-    sentence = iv(vals, "L", t["crr_row"])
+    sentence = iv(vals, "K", t["crr_row"])
     label = "Auto - %s - Agrees" % NET
     lines, worse, _ = lines_of(vals, info, label)
     auto = {q: x for q, x in I.composite_series(the_internal(), "Auto", "net-charge-off-rate") if x is not None}
@@ -418,11 +418,11 @@ def test_a_product_with_a_bad_row_has_no_composite(book):
     bad = dict(BAD, product="Cards", segment="Bank card", quarter="2010Q1")       # a repeated quarter
     vals = paste(d / "book.xlsx", d / "bad.xlsx", rows, extra=[bad])
     t = info["decide"]["internal"]
-    col = "MNOPQ"[t["products"].index("Credit card")]
+    col = "LMNOP"[t["products"].index("Credit card")]
     assert iv(vals, col, 12) == 2                         # the repeat and the row it repeats
     from openpyxl.utils import get_column_letter as L
     b = t["pblock"]["Credit card"]
-    assert all(v(vals, "INTERNAL!%s%d" % (L(b["r_net"]), t["w0"] + i)) in ("", None) for i in range(60))
+    assert all(v(vals, "INTERNAL DATA!%s%d" % (L(b["r_net"]), t["w0"] + i)) in ("", None) for i in range(60))
 
 
 # ---------------------------------------------------------------- the book's internal section
@@ -453,6 +453,32 @@ def write_book(folder, ser, internal):
     p = folder / "book.json"
     p.write_text(json.dumps(book), encoding="utf-8")
     return p
+
+
+def test_the_four_top_blocks_share_one_pitch_and_the_workings_sit_on_internal_data(book):
+    """Round 3: products B:C, measures E:F, what counts as reliable H:I and
+    the coverage from K, with 24 px gutters, on 16.5 pt rows; the
+    reliability table's sources wrap in a 27 pt INK header; the tab ends by
+    Z and its workings are hidden columns of Internal data."""
+    d, info, _ = book
+    wb = load_workbook(d / "book.xlsx")
+    ws, ds = wb[IT.TITLE], wb[IT.DATA_TITLE]
+    t = info["decide"]["internal"]
+    assert [ws.cell(4, c).value for c in (2, 5, 8, 11)] == ["Your products are", "Your measures are",
+                                                            "What counts as reliable", "Quarters loaded, per product"]
+    assert all(ws.row_dimensions[r].height == IT.PITCH for r in range(4, 12))
+    for c, px in IT.WIDTHS.items():
+        assert ws.column_dimensions[c].width == pytest.approx((px - 5) / 7, abs=0.01), c
+    assert ws.max_column <= 26
+    assert t["mapping_rows"] == (5, 11) and ws["C11"].fill.fgColor.rgb.endswith(IT.K.INPUT)
+    rel = t["rel_top"]
+    head = ws.cell(rel, 12)
+    assert ws.row_dimensions[rel].height == 27 and head.value == t["outside"][0]
+    assert head.fill.fgColor.rgb.endswith(IT.K.INK) and head.alignment.wrap_text
+    assert t["workings"] == IT.DATA_TITLE and ds.column_dimensions[t["workings_from"]].hidden
+    # The dropdowns read their lists from the workings.
+    lists = [dv.formula1 for dv in ws.data_validations.dataValidation]
+    assert lists and all(f.startswith("='Internal data'!") for f in lists)
 
 
 def test_a_book_with_an_internal_file_adds_its_series_and_fills_the_slot(book, tmp_path):
@@ -487,7 +513,7 @@ def test_a_book_with_an_internal_file_adds_its_series_and_fills_the_slot(book, t
     assert t["outside"] == ["Agrees", "Disagrees", "Short", "Refused"]
     ws = wb[IT.TITLE]
     assert [ws.cell(r, 6).value for r in range(5, 10)] == [NET] + [IT.NOT_MAPPED] * 4
-    assert ws["J11"].value == "Agrees"
+    assert ws["I8"].value == "Agrees"
     assert "Credit card - %s - Bank internal" % NET in [c.value for c in wb["Lines by source"]["A"]]
 
 

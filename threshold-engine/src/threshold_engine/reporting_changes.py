@@ -285,6 +285,32 @@ def quarters_in_notes(notes: Sequence[Tuple[str, str]]) -> Set[str]:
     return out
 
 
+def whens_in_notes(notes: Sequence[Tuple[str, str]]) -> List[str]:
+    """When each of a series' ``reporting-change`` notes took effect, as the
+    note says it ('2020Q1', '2024Q4 to 2025Q2'), in the file's order; what
+    Sources shows for the file. A malformed line is refused as in
+    ``quarters_in_notes``."""
+    out: List[str] = []
+    for key, text in notes:
+        if key != NOTE_KEY:
+            continue
+        m = _WHEN.match(text)
+        if not m:
+            raise ValueError("a reporting-change note must begin with the quarter it took effect, like "
+                             "'2024Q4 to 2025Q2, ...', not %r" % text[:60])
+        w = m.group(1) if not m.group(2) else "%s to %s" % (m.group(1), m.group(2))
+        if w not in out:
+            out.append(w)
+    return out
+
+
+def for_sources(changes: Sequence[dict], registry) -> dict:
+    """What ``workbook.build(reporting=...)`` takes to write the registry as
+    the last section of Sources: its entries, its own description and its
+    file's name."""
+    return {"changes": list(changes), "about": what(registry), "source_name": Path(registry).name}
+
+
 def write_tab(ws, changes: Sequence[dict], about: str, source_name: str) -> int:
     """The Reporting changes tab, on the reference tabs' template: the
     registry's own description, then one row per change. Returns the last
