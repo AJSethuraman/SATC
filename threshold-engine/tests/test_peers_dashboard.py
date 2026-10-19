@@ -33,6 +33,8 @@ PEERS = DATA / "peers"
 CHANGES = RC.load(ROOT / "config" / "reporting-changes.json")
 TWO = ("Credit card", "Mortgage")
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
+#: No stated acquisition in any product (question 18: one {cert: [quarter-ends]} per product).
+NONE_STATED = {p: {} for p in NONE_ACQUIRED}
 
 
 def _old():
@@ -48,14 +50,14 @@ OLD = _old()
 
 def build(module, out, recent, dl, roster):
     return module.build_peers_workbook(
-        out, recent, roster, TWO, 0.25, 1_000_000, "all", json.loads((PEERS / "mergers_roster.json").read_text()),
+        out, recent, roster, TWO, 0.25, 1_000_000, "all", json.loads((PEERS / "mergers_roster.json").read_text())["acquirers"],
         {"6672": ["2022Q2"]}, "2019Q4", exempt_self=True, min_banks=5, index_min_book=500_000,
         lagged_years=(2019, 2025), lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019,
         industry={p: industry(recent, p) for p in TWO},
         delinquency=dict(data=dl, products=TWO, jump=0.25, min_book=1_000_000, exempt_self=True,
                          acquired=NONE_ACQUIRED, measure="90+ accruing", basis="quarter-end"),
         acquired=NONE_ACQUIRED, rank_by="net", last_n=20, min_obs=12,
-        **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": {}}))
+        **({} if module is OLD else {"combined": {}, "opened": {}, "changes": CHANGES, "stated": NONE_STATED}))
 
 
 @pytest.fixture(scope="module")

@@ -252,15 +252,66 @@ def _whole(flag, value, low):
         raise ValueError("%s must be a whole number, not %r" % (flag, value))
 
 
-def load_mergers(path):
-    """``{cert: [quarter-end dates]}`` from the --mergers file, every date
-    checked here, so a bad file is refused by name rather than failing later."""
+#: The command that writes a merger record that states the date it starts
+#: from (the firm, 18 Oct 2026, question 22); named in every refusal of one
+#: that does not.
+REPULL = ("'peers pull --cache DIR --first YYYYQn --last YYYYQn --products ... --delinquency yes|no "
+          "--mergers SINCE', SINCE on or before the first day of the build's first quarter")
+
+
+def quarter_start(first: str) -> str:
+    """The first day (``YYYY-MM-DD``) of a quarter written ``YYYYQn``,
+    ``YYYYMMDD`` or as an ISO date."""
+    end = books.quarter_end(first)
+    return "%s-%02d-01" % (end[:4], int(end[5:7]) - 2)
+
+
+def _dated(path, key: str, what: str, again: str):
+    """``(since, body)`` from a merger or absorption file that records the
+    date it starts from, ``{"since": YYYY-MM-DD, key: body}``. A file without
+    it (the format before 18 Oct 2026) is refused with the command to pull
+    it again, ``again``."""
     try:
-        mergers = json.loads(Path(path).read_text(encoding="utf-8"))
+        got = json.loads(Path(path).read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
+    if not (isinstance(got, dict) and "since" in got):
+        raise ValueError("%s does not record the date %s starts from, so whether it reaches back to the first "
+                         "quarter cannot be checked (a file written before 18 Oct 2026). Pull it again: %s"
+                         % (path, what, again))
+    if set(got) != {"since", key} or not fdic._is_date(got["since"]):
+        raise ValueError("%s must hold {\"since\": a date written like 2005-10-01, \"%s\": ...}, as the pull "
+                         "writes it, not keys %s with since %r; pull it again: %s"
+                         % (path, key, sorted(got), got.get("since"), again))
+    return got["since"], got[key]
+
+
+def reaches_back(path, since: str, first: str, what: str, again: str) -> None:
+    """Refuse a record that starts after the first day of ``first``: an
+    acquisition between the two would be invisible to it, its quarters
+    neither left out nor added pro forma (the firm, 18 Oct 2026, question
+    22: "A build stops if its merger list does not reach back as far as the
+    history"). Names both dates."""
+    start = quarter_start(first)
+    if start < since:
+        raise ValueError("the first quarter, %s, starts on %s, before %s (%s) starts, on %s: an acquisition "
+                         "between the two would not be seen. Pull it again from %s or earlier (%s), or start "
+                         "at a quarter beginning on or after %s"
+                         % (books.label(books.quarter_end(first).replace("-", "")), start, what, Path(path).name,
+                            since, start, again, since))
+
+
+def load_mergers(path, first: str):
+    """``{cert: [quarter-end dates]}`` from the --mergers file, every date
+    checked here, so a bad file is refused by name rather than failing later.
+    The file is ``{"since": YYYY-MM-DD, "acquirers": {cert: [...]}}`` as
+    'peers pull --mergers' writes it; one without ``since`` is refused with
+    the command to pull it again, and so is one whose ``since`` is after the
+    first day of ``first`` (``reaches_back``)."""
+    since, mergers = _dated(path, "acquirers", "the merger record", REPULL)
+    reaches_back(path, since, first, "the merger record", REPULL)
     if not isinstance(mergers, dict):
-        raise ValueError("%s must hold {cert: [quarter-end dates]}" % path)
+        raise ValueError("%s: acquirers must be {cert: [quarter-end dates]}" % path)
     for cert, dates in mergers.items():
         if not isinstance(dates, list) or not all(isinstance(d, str) for d in dates):
             raise ValueError("%s: certificate %s must have a list of quarter-end dates, not %r"
@@ -274,16 +325,28 @@ def load_mergers(path):
     return mergers
 
 
-def load_absorptions(path):
+def load_absorptions(path, first: str, *, again: str):
     """``[{acquirer, absorbed, quarter}]`` from the file 'peers pull --mergers'
-    writes beside the merger record, every row checked here, so a bad file is
-    refused by name rather than failing later."""
-    try:
-        links = json.loads(Path(path).read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
+    writes beside the merger record (``read_absorptions``), refused, like the
+    merger record (``load_mergers``), when its ``since`` is after the first
+    day of ``first`` (question 22). ``again`` is the command that writes it
+    ('internal pull' writes its own)."""
+    since, links = read_absorptions(path, again=again)
+    reaches_back(path, since, first, "the absorptions record", again)
+    return links
+
+
+def read_absorptions(path, *, again: str):
+    """``(since, [{acquirer, absorbed, quarter}])`` from an absorptions file,
+    every row checked here, so a bad file is refused by name rather than
+    failing later. The file is ``{"since": YYYY-MM-DD, "absorptions":
+    [...]}``; one without ``since`` is refused with the command that writes
+    it, ``again``. Whether it reaches back is not checked here: the caller
+    decides (``load_absorptions``; 'peers industry-long' reads a record that
+    starts later than its history on purpose, and says so)."""
+    since, links = _dated(path, "absorptions", "the absorptions record", again)
     if not isinstance(links, list):
-        raise ValueError("%s must hold [{acquirer, absorbed, quarter}]" % path)
+        raise ValueError("%s: absorptions must be [{acquirer, absorbed, quarter}]" % path)
     for ln in links:
         ok = (isinstance(ln, dict) and set(ln) == {"acquirer", "absorbed", "quarter"}
               and all(isinstance(ln[k], str) and ln[k].isdigit() for k in ("acquirer", "absorbed")))
@@ -294,7 +357,162 @@ def load_absorptions(path):
                 ok = False
         if not ok:
             raise ValueError("%s: %r is not {acquirer, absorbed, quarter}" % (path, ln))
-    return links
+    return since, links
+
+
+#: The FDIC institutions record, as 'peers pull --mergers' writes it into the
+#: cache: each institution's establishment date (the firm, 18 Oct 2026,
+#: question 21). The build reads it from the cache and never fetches it.
+INSTITUTIONS = "institutions.json"
+
+
+def write_institutions(cache, fetch=None, say: Callable[[str], None] = print) -> Path:
+    """Pull the FDIC institutions record (``fdic.institutions``) and write
+    ``cache/institutions.json``: ``{source, fields, pulled, rows,
+    established: {cert: {name, established}}, undated: {cert: {name,
+    established}}}``. ``established`` dates are ``YYYY-MM-DD``; ``undated``
+    keeps the rows whose date is not a real one, as the FDIC gave it. Written
+    through a temporary file, so a failed pull leaves the last file whole."""
+    rows = fdic.institutions(fetch)
+    if not rows:
+        raise RuntimeError("the FDIC returned no institutions: the record is not there. Nothing was written; "
+                           "pull again later")
+    dated, undated = fdic.established(rows)
+    path = Path(cache) / INSTITUTIONS
+    tmp = path.with_name(path.name + ".part")
+    tmp.write_text(json.dumps({"source": fdic.INSTITUTIONS_URL, "fields": fdic.INSTITUTION_FIELDS,
+                               "pulled": dt.date.today().isoformat(), "rows": len(rows),
+                               "established": dated, "undated": undated}, indent=1, sort_keys=True),
+                   encoding="utf-8")
+    os.replace(str(tmp), str(path))
+    say("Wrote %s: %d institutions, %d with an establishment date, %d without one (kept as given)"
+        % (path, len(rows), len(dated), len(undated)))
+    return path
+
+
+def load_institutions(path) -> dict:
+    """``cache/institutions.json``, as :func:`write_institutions` writes it,
+    checked here, so a bad file is refused by name rather than failing later."""
+    try:
+        got = json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
+    keys = {"source", "fields", "pulled", "rows", "established", "undated"}
+    if not isinstance(got, dict) or set(got) != keys:
+        raise ValueError("%s must hold {%s}, as 'peers pull --mergers' writes it; pull the merger record "
+                         "again" % (path, ", ".join(sorted(keys))))
+    # 'pulled' decides whether a member the record lacks could have been in
+    # it (opened_members); a value that is not a date would compare as text
+    # and pass or fail that check by accident. 'rows' is printed as a count.
+    if not (isinstance(got["pulled"], str) and fdic._is_date(got["pulled"])):
+        raise ValueError("%s: pulled is %r, which is not a date written like 2026-10-18; it says whether a bank "
+                         "the record lacks could have been in it. Pull the merger record again"
+                         % (path, got["pulled"]))
+    if isinstance(got["rows"], bool) or not isinstance(got["rows"], int) or got["rows"] < 1:
+        raise ValueError("%s: rows is %r, which is not a count of institutions (a whole number, at least 1: the "
+                         "pull refuses an empty record). Pull the merger record again" % (path, got["rows"]))
+    for key in ("established", "undated"):
+        if not isinstance(got[key], dict):
+            raise ValueError("%s: %s must be {certificate: {name, established}}" % (path, key))
+        for cert, v in got[key].items():
+            if not (cert.isdigit() and isinstance(v, dict) and set(v) == {"name", "established"}):
+                raise ValueError("%s: %s, certificate %r: %r is not {name, established}" % (path, key, cert, v))
+    for cert, v in got["established"].items():
+        if not fdic._is_date(v["established"]):
+            raise ValueError("%s: certificate %s has %r, which is not a date written like 1991-06-07"
+                             % (path, cert, v["established"]))
+    return got
+
+
+def opened_members(cache, members: Dict[str, Sequence[Tuple[str, str]]], data,
+                   names: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str, str], Optional[dict]]:
+    """The firm, 18 Oct 2026, question 21: a bank added pro forma whose first
+    filing falls partway through a year counts it as that quarter's activity
+    when the FDIC institutions record shows it opened in that quarter;
+    otherwise that quarter stays missing.
+
+    Returns ``(firsts, opened, record)``: ``firsts`` ``{member: YYYYMMDD}``
+    (``books.first_filings``, over every roster bank's ``members``),
+    ``opened`` the ones whose establishment date is in that quarter
+    (``books.opened_in_first_quarter``), and the institutions record read
+    (None when no member needed it). The record is the cache's
+    ``institutions.json``; the build never fetches it. Refused, naming each
+    bank and the roster bank whose history it is in: a cache without the
+    file, and a member the file does not hold when the file was pulled
+    before that member's first filing quarter ended, so it could not have
+    held it. A member the record does not hold although pulled after that
+    (the FDIC has no row for it), or holds without a date, is not shown to
+    have opened then: its quarter stays missing, and the Run tab names it
+    (``opened_lines``)."""
+    firsts: Dict[str, str] = {}
+    owner: Dict[str, List[str]] = {}
+    for c, mem in members.items():
+        for b, q in books.first_filings(data, mem).items():
+            firsts[b] = q
+            owner.setdefault(b, []).append(c)
+    if not firsts:
+        return {}, {}, None
+
+    def who(certs):
+        return "; ".join("certificate %s (first filed %s, in %s's history)" % (
+            b, books.label(firsts[b]), " and ".join(names.get(c, c) for c in owner[b])) for b in certs)
+    path = Path(cache) / INSTITUTIONS
+    again = ("Pull the merger record again ('peers pull --cache %s ... --mergers SINCE'), which writes it "
+             "beside the merger record; build never fetches" % cache)
+    if not path.exists():
+        raise ValueError("pro forma needs the date each of these banks opened, since each first filed partway "
+                         "through a year (a new charter's first filing counts as that quarter's activity: the "
+                         "firm, 18 Oct 2026, question 21), and %s is not there: %s. %s"
+                         % (path, who(sorted(firsts)), again))
+    record = load_institutions(path)
+    held = set(record["established"]) | set(record["undated"])
+    stale = sorted(b for b in firsts if b not in held and record["pulled"] <= books.quarter_end(firsts[b]))
+    if stale:
+        raise ValueError("%s was pulled on %s, before the end of the quarter in which each of these banks added "
+                         "pro forma first filed, so it cannot say whether they opened then: %s. %s"
+                         % (path, record["pulled"], who(stale), again))
+    dates = {c: v["established"] for c, v in record["established"].items()}
+    return firsts, books.opened_in_first_quarter(firsts, dates), record
+
+
+def opened_lines(firsts: Dict[str, str], opened: Dict[str, str], record: Optional[dict],
+                 combo: Dict[str, dict], names: Dict[str, str]) -> List[str]:
+    """The Run tab's lines on question 21: per roster bank, the banks added
+    pro forma whose first filing falls partway through a year, those counted
+    as that quarter's activity (opened then, per the FDIC record) and those
+    not: opened in another quarter, or not in the record, or in it without a
+    date (that quarter has no flow, so the windows holding it are missing)."""
+    if not firsts:
+        return []
+    est, undated = record["established"], record["undated"]
+    lines = ["A bank added pro forma whose first filing falls partway through a year: its first year to date "
+             "counts as that quarter's activity where the FDIC institutions record (%s, pulled %s, %d "
+             "institutions) shows it opened in that quarter; otherwise that quarter has no flow and the windows "
+             "holding it are missing (the firm, 18 Oct 2026, question 21)."
+             % (INSTITUTIONS, record["pulled"], record["rows"])]
+    for cert, v in combo.items():
+        mine = [b for b, _ in v["members"] if b in firsts]
+        if not mine:
+            continue
+        def one(b):
+            return "%s (certificate %s), first filed %s, opened %s" % (
+                est[b]["name"], b, books.label(firsts[b]), est[b]["established"])
+        groups = (
+            ("counted", [one(b) for b in mine if b in opened]),
+            ("not counted, opened in another quarter",
+             [one(b) for b in mine if b in est and b not in opened]),
+            ("not counted, the record gives no date",
+             ["%s (certificate %s), first filed %s, the record's date %r" % (
+                 undated[b]["name"], b, books.label(firsts[b]), undated[b]["established"])
+              for b in mine if b in undated]),
+            ("not counted, not in the record",
+             ["certificate %s, first filed %s" % (b, books.label(firsts[b]))
+              for b in mine if b not in est and b not in undated]))
+        for words, items in groups:
+            if items:
+                lines.append("First filing %s, %s: %d bank%s: %s." % (
+                    words, names.get(cert, cert), len(items), "" if len(items) == 1 else "s", "; ".join(items)))
+    return lines
 
 
 def extras(items, roster, quarters):
@@ -345,8 +563,10 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
     """Fetch the quarters not already cached (every one with ``refresh``);
     with ``delinquency``, the delinquency fields of the products too; with
     ``mergers_since`` (YYYY-MM-DD, or None for no merger record), the merger
-    record into ``cache/mergers.json`` and who absorbed whom into
-    ``cache/absorptions.json``. Every quarter carries each filer's parent
+    record into ``cache/mergers.json``, who absorbed whom into
+    ``cache/absorptions.json`` and the FDIC institutions record, each
+    institution's establishment date, into ``cache/institutions.json``
+    (``write_institutions``; question 21). Every quarter carries each filer's parent
     (``books.PARENT``), which says whether an absorption was under common
     control.
 
@@ -382,14 +602,19 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
         rows = fdic.history(mergers_since)
         m = fdic.classify(rows)
         path = cache / "mergers.json"
-        path.write_text(json.dumps(m, indent=1, sort_keys=True), encoding="utf-8")
+        # Question 22 (the firm, 18 Oct 2026): each record states the date it
+        # starts from, so a build can refuse one that does not reach back.
+        path.write_text(json.dumps({"since": mergers_since, "acquirers": m}, indent=1, sort_keys=True),
+                        encoding="utf-8")
         acquirers = len(m)
         say("Wrote %s: %d acquirers since %s" % (path, acquirers, mergers_since))
         links = fdic.absorptions(rows)
         links_path = cache / "absorptions.json"
-        links_path.write_text(json.dumps(links, indent=1), encoding="utf-8")
+        links_path.write_text(json.dumps({"since": mergers_since, "absorptions": links}, indent=1),
+                              encoding="utf-8")
         say("Wrote %s: %d absorptions since %s (who took in whom)"
             % (links_path, len(links), mergers_since))
+        write_institutions(cache, say=say)
     return dict(quarters=quarters, fetched=fetched, already=len(quarters) - fetched, filers=filers,
                 fields=fields, mergers=path, acquirers=acquirers, absorptions=links_path)
 
@@ -494,17 +719,48 @@ def left_out_note(left_out, tail, names):
     return "Left out of this average because their own four-quarter average was " + "; and ".join(parts_) + "."
 
 
+def stated_note(file, in_range: Sequence[dict], product: str, names: Dict[str, str]) -> str:
+    """The line every series file of ``product`` the rules apply to carries:
+    the stated acquisitions in its quarters that brought it, each with its
+    citation and where its list of products comes from, and those that did
+    not, which leave nothing out of it (the firm, 18 Oct 2026, question 18).
+    ``file`` is the stated acquisitions file, or None when none is read."""
+    head = "Stated acquisitions, the ones the FDIC record cannot see (%s): " % (
+        Path(file).name if file is not None else "none read")
+    if file is None:
+        return head + "none named, so none is read."
+    if not in_range:
+        return head + "none in these quarters."
+    told = [e for e in in_range if ST.touches(e, product)]
+    other = [e for e in in_range if not ST.touches(e, product)]
+    rest = "; ".join("%s %s (it brought %s)" % (names[e["acquirer"]], e["quarter"], ", ".join(e["products"]))
+                     for e in other)
+    if not told:
+        return head + "none of the %d in these quarters brought %s, so nothing is left out for them: %s." % (
+            len(in_range), product, rest)
+    said = "%d of the %d in these quarters brought %s, so each bank's windows holding one are left out: " % (
+        len(told), len(in_range), product)
+    said += "; ".join("%s %s (%s; products: %s%s)" % (
+        names[e["acquirer"]], e["quarter"], e["citation"], e["products_source"],
+        "; listed because the source does not settle them: %s" % ", ".join(e["products_unsettled"])
+        if e["products_unsettled"] else "") for e in told)
+    if other:
+        said += ". The rest did not bring %s, so nothing is left out for them: %s" % (product, rest)
+    return head + said + "."
+
+
 def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_book, exempt_self,
-                        min_banks, source, every, out_dir, acquired, acquisition_share, stated, stated_note,
+                        min_banks, source, every, out_dir, acquired, acquisition_share, stated, stated_notes,
                         bridging):
     """Per product, measure and basis, the pack composite, the bank itself and
     the industry, as ``(path, rows, note, product, measure, left_out, bridge, reasons)``: the delinquency
     CSVs. ``left_out`` is ``{YYYYQn: [cert]}`` for a pack composite's
     four-quarter average and None for every other file. ``every`` words
     the industry from how many filers its last quarter counts (``banks``).
-    ``stated`` is ``{cert: [YYYYMMDD]}``, the stated acquisitions in these
-    quarters (``peers.stated``), and ``stated_note`` the line naming them,
-    given to every file the rules apply to. ``bridge`` is ``{YYYYQn:
+    ``stated`` is ``{product: {cert: [YYYYMMDD]}}``, the stated acquisitions
+    in these quarters that brought each product (``peers.stated.for_product``),
+    and ``stated_notes`` ``{product: the line naming them}``, given to every
+    file of that product the rules apply to. ``bridge`` is ``{YYYYQn:
     [quarters that moved]}``, the bank's own four-quarter average quarters
     left out by the jump alone, for a move in a quarter a reporting change
     in ``bridging`` names for the product and measure (``bridged``; never an
@@ -538,7 +794,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
             banks_ = {b["cert"]: D.bank_delinquency(data, b["cert"], p, m, jump, min_book,
                                                     exempt_self and b is me,
                                                     acquired=acquired[p].get(b["cert"], []),
-                                                    stated=stated.get(b["cert"], []))
+                                                    stated=stated[p].get(b["cert"], []))
                       for b in roster}
             own_bridge = bridged(banks_[me["cert"]], labelled_for(bridging, p, m),
                                  without="why_avg4_without_jump", quarter="q")
@@ -564,7 +820,7 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
                     note = ["%s, delinquency: %s, %s, %%." % (p, m, how),
                             "Amounts are $ thousands at quarter-end, as filed; a field not filed is "
                             "never read as 0.",
-                            words[0].upper() + words[1:] + ".", source] + ([ruled, stated_note] if ruled else [])
+                            words[0].upper() + words[1:] + ".", source] + ([ruled, stated_notes[p]] if ruled else [])
                     note += D.comparability(p, m)
                     if p not in books.PRODUCTS:
                         note += books.definitions(p)[:1] + [D.COMBINED]
@@ -587,16 +843,16 @@ def _delinquency_series(data, roster, me, pack, pack_words, products, jump, min_
 
 
 def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition_share, min_banks, source, every,
-                 out_dir, acquired, stated, stated_note):
+                 out_dir, acquired, stated, stated_notes):
     """The 30+ to charge-off series files (``flows``), per product: the pack
     composite, the bank itself and the industry, each on both bases, and the
     bank's gap to the peer group and to the industry (four-quarter average).
     Each is ``(path, rows, note, product, measure, reasons)``, ``reasons``
     ``{quarter: why no value}`` for the left-out file. ``stated`` is
-    ``{cert: [YYYYMMDD]}``, the stated acquisitions in these quarters
-    (``peers.stated``), applied as the acquisition quarters are, and
-    ``stated_note`` the line naming them, given to every file the rules apply
-    to."""
+    ``{product: {cert: [YYYYMMDD]}}``, the stated acquisitions in these
+    quarters that brought each product (``peers.stated.for_product``), applied
+    as the acquisition quarters are, and ``stated_notes`` ``{product: the line
+    naming them}``, given to every file of that product the rules apply to."""
     rule = ("Rules: each bank's own filings (not pro forma); jump %g, acquisition share %g and the stated "
             "acquisitions, applied to the two quarters after the quarter-end (a sale, purchase or acquisition "
             "there moves the charge-offs against the stock); at least %d banks in the composite. The industry "
@@ -606,7 +862,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
     made = []
     for p in products:
         banks_ = {b["cert"]: FL.bank_flow(data, b["cert"], p, jump, acquired=acquired[p].get(b["cert"], []),
-                                          stated=stated.get(b["cert"], []))
+                                          stated=stated[p].get(b["cert"], []))
                   for b in roster}
         comp = FL.composite(banks_, certs, min_banks)
         ind = FL.industry(data, p)
@@ -622,7 +878,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
                 note = ["%s, %s, %s, %%." % (p, FL.MEASURE, basis), FL.DEFINITION]
                 if basis == "four-quarter average":
                     note.append(FL.DEFINITION_AVG4)
-                note += [words[0].upper() + words[1:] + ".", source, rule, stated_note] + books.definitions(p)
+                note += [words[0].upper() + words[1:] + ".", source, rule, stated_notes[p]] + books.definitions(p)
                 reasons = {r["q"]: (r["why_avg4"] if key == "avg4" else r["why"]) or "no value" for r in rows}
                 made.append((out_dir / ("%s_%s_%s_%s.csv" % (slug(p), who, FL.SLUG, slug(basis))),
                              FL.values(rows, basis), note, p, FL.MEASURE, reasons))
@@ -631,7 +887,7 @@ def _flow_series(data, roster, me, pack, pack_words, products, jump, acquisition
             g = FL.gap(mine, other)
             note = ["%s, %s, four-quarter average, percentage points." % (p, meas),
                     FL.DEFINITION_GAP % (meas, me["short"], words, me["short"], words), FL.DEFINITION,
-                    FL.DEFINITION_AVG4, source, rule, stated_note] + books.definitions(p)
+                    FL.DEFINITION_AVG4, source, rule, stated_notes[p]] + books.definitions(p)
             made.append((out_dir / ("%s_%s_%s_four-quarter-average.csv" % (slug(p), slug(me["short"]), slug(meas))),
                          FL.values(g, "four-quarter average"), note, p, meas,
                          {r["q"]: r["why"] or "no value" for r in g}))
@@ -730,7 +986,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     book command; the standalone command states none (``build_peers_workbook``).
 
     ``mergers`` and ``absorptions`` are the files 'peers pull --mergers'
-    writes. ``acquisition_share`` (0.05 = 5%) is the share of a product's
+    writes. Each records the date it starts from, and a build whose first
+    quarter begins before it is refused, naming both (the firm, 18 Oct 2026,
+    question 22), as is a file written before that date was recorded. ``acquisition_share`` (0.05 = 5%) is the share of a product's
     book an acquisition quarter must bring in for the windows holding it to
     be left out (``books.acquired_quarters``), the firm's judgement. In a
     survivor's merger quarter under common control, the absorbed bank's
@@ -774,8 +1032,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     ``stated_acquisitions`` is the file of acquisitions the FDIC record cannot
     see (``config/stated-acquisitions.json``, ``peers.stated``; the firm, 17
     Oct 2026, question 14), or None to state that none is read; required.
-    Every product's windows holding one are left out for its acquirer, with
-    their own reason, charge-offs and the delinquency average alike; a
+    The windows holding one are left out for its acquirer, with their own
+    reason, charge-offs, the delinquency average and 30+ to charge-off alike,
+    for the products the entry says it brought and no others (question 18, 18
+    Oct 2026: "A listed deal leaves out only the portfolios it brought"); a
     malformed entry, or one naming a certificate not on the roster, is
     refused by entry before anything is read, and one outside the quarters
     read is named on the Run tab as not read.
@@ -816,7 +1076,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         changes, events = RC.load_all(reporting_changes)
     except RC.RegistryError as e:
         raise ValueError("--reporting-changes: %s" % e) from None
-    bridging = list(changes)    # question 16: a reporting change, never an event
+    # Question 16: a reporting change, never an event; question 20 (18 Oct
+    # 2026): only one whose own source says it can step a balance in one quarter.
+    bridging = RC.can_step(changes)
     if isinstance(stated_acquisitions, bool) or not (stated_acquisitions is None
                                                      or isinstance(stated_acquisitions, (str, Path))):
         raise ValueError("--stated-acquisitions must name the file of acquisitions the FDIC record cannot see "
@@ -834,19 +1096,20 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     roster_ = R.load(roster)
     me = R.self_bank(roster_)
     pack_ = R.peers(roster_) if pack == "all" else R.regionals(roster_)
-    mergers_ = load_mergers(mergers)
-    links_ = load_absorptions(absorptions)
+    # Question 22: each record must reach back to the first quarter.
+    mergers_ = load_mergers(mergers, first)
+    links_ = load_absorptions(absorptions, first, again=REPULL)
     extras_ = extras(extra_acquisitions, roster_, quarters)
     combined_ = combined(industry_combined)
     try:
-        stated_q, stated_outside = ST.by_cert(stated_, [b["cert"] for b in roster_], quarters)
+        _, stated_outside = ST.by_cert(stated_, [b["cert"] for b in roster_], quarters)
     except ST.StatedError as e:
         raise ValueError("--stated-acquisitions: %s" % e) from None
-    # The book index reads a stated acquisition as one the bank declared.
-    for c, qs in stated_q.items():
-        for q in qs:
-            if books.label(q) not in extras_.get(c, []):
-                extras_.setdefault(c, []).append(books.label(q))
+    # Question 18 (the firm, 18 Oct 2026): a deal leaves out only the
+    # windows of the products it brought, and flattens only those products'
+    # book index (build_peers_workbook reads ``stated`` per product; a
+    # stated quarter is no longer added to every product's declared ones).
+    stated_by = {p: ST.for_product(stated_, p, quarters) for p in products}
 
     cache = Path(cache)
     missing = [q for q in quarters if not (cache / ("q%s.json" % q)).exists()]
@@ -874,6 +1137,10 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     # a quarter out; one that cannot be added (no filing) is, as before.
     combo = books.combination(data, links_, [b["cert"] for b in roster_]) if pro_forma else {}
     members = {c: v["members"] for c, v in combo.items()}
+    names_ = {b["cert"]: b["short"] for b in roster_}
+    # Question 21 (the firm, 18 Oct 2026): a member's first filing partway
+    # through a year is that quarter's activity where it opened that quarter.
+    firsts, opened, inst = opened_members(cache, members, data, names_)
     if pro_forma:
         added = {(c, b) for c, v in combo.items() for b, _ in v["members"]}
         rest = [ln for ln in links_ if (str(ln["acquirer"]), str(ln["absorbed"])) not in added]
@@ -881,15 +1148,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     else:
         acquired_co = acquired
     merged = sorted({(r["acquirer"], r["quarter"]) for r in repeats})
-    names_ = {b["cert"]: b["short"] for b in roster_}
     in_range = [e for e in stated_ if e not in stated_outside]
-    stated_note = ("Stated acquisitions, the ones the FDIC record cannot see (%s): %s" % (
-        Path(stated_acquisitions).name if stated_acquisitions is not None else "none read",
-        "none named, so none is read." if stated_acquisitions is None else
-        "%d in these quarters, each bank's windows holding one left out for every product: %s." % (
-            len(in_range), "; ".join("%s %s (%s)" % (names_[e["acquirer"]], e["quarter"], e["citation"])
-                                     for e in in_range)) if in_range else
-        "none in these quarters."))
+    stated_notes = {p: stated_note(stated_acquisitions, in_range, p, names_) for p in products}
     on_roster = [(c, q) for c, q in merged if c in names_]
     repeat_note = ("Absorptions under common control: the absorbed bank's year-to-date charge-offs and "
                    "recoveries, which the survivor's filing repeats, are taken off the survivor's for the "
@@ -926,8 +1186,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         bks = {b["cert"]: books.bank_book(data, b["cert"], p, jump, min_book,
                                           exempt_min_book=exempt_self and b is me,
                                           acquired=acquired_co[p].get(b["cert"], []),
-                                          members=members.get(b["cert"], ()),
-                                          stated=stated_q.get(b["cert"], [])) for b in roster_}
+                                          members=members.get(b["cert"], ()), opened=opened,
+                                          stated=stated_by[p].get(b["cert"], [])) for b in roster_}
         peer_books[p] = bks
         comp = books.composite(bks, [b["cert"] for b in pack_], min_banks)
         mids = {k: books.band(bks, [b["cert"] for b in pack_], k, (50,), min_banks=min_banks)
@@ -995,7 +1255,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             left_out_[out_dir / ("%s_%s_%s.csv" % (slug_, who, kind))] = left_out_spans(
                 before, after, {r["quarter"]: break_reason(r, kind + "_rate", min_banks) for r in rows})
             note = ["%s, %s charge-off rate, trailing four quarters, %%." % (words_p, kind),
-                    words[0].upper() + words[1:] + ".", source] + ([rule, stated_note] if ruled else []) + [repeat_note]
+                    words[0].upper() + words[1:] + ".", source] + ([rule, stated_notes[words_p]] if ruled else []) \
+                + [repeat_note]
             note += [d for d in dict.fromkeys(d for n in words_p.split(" plus ") for d in books.definitions(n))
                      if d not in note]
             series.append((out_dir / ("%s_%s_%s.csv" % (slug_, who, kind)), tail,
@@ -1011,7 +1272,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                                                     bridged(rows, labelled_for(bridging, p, measure)))
                 note = ["%s, %s charge-off rate, trailing four quarters, %%." % (p, kind),
                         "%s (certificate %s), its own book, a peer." % (b["short"], b["cert"]),
-                        source, rule, stated_note, repeat_note] + books.definitions(p)
+                        source, rule, stated_notes[p], repeat_note] + books.definitions(p)
                 series.append((out_dir / "banks" / ("%s_%s_%s.csv" % (slug(p), slug(b["short"]), kind)), tail,
                                written(tail, before, after, note, p, measure, rows), before, after, ("banks", p)))
     dq_spec = None
@@ -1019,7 +1280,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         labels = {b["cert"]: "%s (%s)" % (b["short"], b["cert"]) for b in roster_}
         for path, rows, note, p, m, left_out, bridge, reasons in _delinquency_series(
                 data, roster_, me, pack_, pack_words, products, jump, min_book, exempt_self,
-                min_banks, source, every, out_dir, acquired, acquisition_share, stated_q, stated_note, bridging):
+                min_banks, source, every, out_dir, acquired, acquisition_share, stated_by, stated_notes, bridging):
             tail, before, after = unbroken_tail(rows, bridge)
             left_out_[path] = left_out_spans(before, after, reasons)
             if left_out is not None and tail:
@@ -1034,7 +1295,7 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
         # is as built; it does not follow Banks in the pack.
         for path, rows, note, p, m, reasons in _flow_series(
                 data, roster_, me, pack_, pack_words, products, jump, acquisition_share, min_banks, source, every,
-                out_dir, acquired, stated_q, stated_note):
+                out_dir, acquired, stated_by, stated_notes):
             tail, before, after = unbroken_tail(rows)
             left_out_[path] = left_out_spans(before, after, reasons)
             if tail:
@@ -1070,17 +1331,19 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
             lagged_years=lagged_years, lag_years=lag_years,
             normalisation_years=normalisation_years, mix_base_year=mix_base_year,
             industry=ind, delinquency=dq_spec, acquired=acquired_co, cache_dir=cache, mergers_file=mergers,
-            combined=members, changes=changes, stated=stated_q,
+            combined=members, opened=opened, changes=changes, stated=stated_by,
             sources=["Read from the cache %s, %d quarter files %s to %s, built %s"
                      % (cache, len(quarters), quarters[0], quarters[-1],
                         dt.date.today().isoformat())] + pro_forma_lines(pro_forma, combo, names_)
+            + opened_lines(firsts, opened, inst, combo, names_)
             + ["Reporting changes: %s, %d changes and %d events, SHA-256 %s; each series file notes those touching it"
                % (reporting_changes, len(changes), len(events),
                   hashlib.sha256(Path(reporting_changes).read_bytes()).hexdigest())]
             + ["Stated acquisitions: none read (none was named)" if stated_acquisitions is None else
                "Stated acquisitions: %s, %d entries, SHA-256 %s; in these quarters: %s; outside them, not read: %s"
                % (stated_acquisitions, len(stated_), hashlib.sha256(Path(stated_acquisitions).read_bytes()).hexdigest(),
-                  "; ".join("%s %s" % (names_[e["acquirer"]], e["quarter"]) for e in in_range) or "none",
+                  "; ".join("%s %s (brought %s)" % (names_[e["acquirer"]], e["quarter"], ", ".join(e["products"]))
+                            for e in in_range) or "none",
                   "; ".join("%s %s" % (names_[e["acquirer"]], e["quarter"]) for e in stated_outside) or "none")],
             into=into, names=names, book_kind=book_kind)
         moves = [(part_out, out)] if out is not None else []

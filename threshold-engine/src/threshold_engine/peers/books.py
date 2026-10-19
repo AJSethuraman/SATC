@@ -421,8 +421,11 @@ def quarterly_flows(data: Dict[str, list], cert, product: str) -> List[tuple]:
     return _flows(qs, snap, cert, product)
 
 
-def _flows(qs, snap, cert, product: str) -> List[tuple]:
-    """``quarterly_flows`` over data already keyed by ``_by_cert``."""
+def _flows(qs, snap, cert, product: str, opened: Optional[str] = None) -> List[tuple]:
+    """``quarterly_flows`` over data already keyed by ``_by_cert``. ``opened``
+    is the quarter-end (``YYYYMMDD``) of this bank's first filing when it
+    counts as that quarter's activity (``opened_in_first_quarter``): there its
+    year to date is the flow, as in a Q1."""
     ln, dr, cr = _fields(product)
     cert = str(cert)
     out = []
@@ -434,7 +437,7 @@ def _flows(qs, snap, cert, product: str) -> List[tuple]:
         if p and not_filed(p, product):
             p = None                    # no year to date to measure this quarter's flow from
         bal = _num(r, ln) if r else None
-        if r and q[4:6] == "03":
+        if r and (q[4:6] == "03" or (q == opened and p is None)):
             out.append((q, _num(r, dr), _num(r, cr), bal))
         elif r and p:
             out.append((q, flow(r, p, dr), flow(r, p, cr), bal))
@@ -489,8 +492,42 @@ def combination(data: Dict[str, list], links: Sequence[dict], certs: Iterable) -
     return out
 
 
+def first_filings(data: Dict[str, list], members: Sequence[Tuple[str, str]]) -> Dict[str, str]:
+    """Per member (``combination``), the quarter-end (``YYYYMMDD``) of its
+    first filing in the data when that falls partway through a year: not a
+    Q1, not the data's first quarter (a bank filing then may have filed
+    before it), and no later than its ``until``. Without a filing the quarter
+    before, such a quarter has no flow (a year to date less nothing), so every
+    window holding it is missing, unless the bank opened in that quarter
+    (``opened_in_first_quarter``). The firm, 18 Oct 2026, question 21."""
+    qs, snap = _by_cert(data)
+    out: Dict[str, str] = {}
+    for b, until in members:
+        b = str(b)
+        first = next((q for q in qs if b in snap[q]), None)
+        if first and first != qs[0] and first[4:6] != "03" and first <= until:
+            out[b] = first
+    return out
+
+
+def opened_in_first_quarter(firsts: Dict[str, str], established: Dict[str, str]) -> Dict[str, str]:
+    """The members of ``firsts`` (``first_filings``) whose establishment date
+    (``established``, ``{cert: YYYY-MM-DD}``, from the FDIC institutions
+    record) falls in the quarter of that first filing: a new charter, whose
+    first year to date is that quarter's activity (the firm, 18 Oct 2026,
+    question 21: "A new charter's first filing counts as that quarter's
+    activity, where the FDIC record shows it opened that quarter"). Every
+    other stays as it is: that quarter has no flow. A member with no date in
+    ``established`` is not shown to have opened then, so it stays as it is
+    too; whether the record could have held it is the caller's to check
+    (``peers.run.opened_members``)."""
+    return {b: q for b, q in firsts.items()
+            if b in established and quarter_end(established[b]).replace("-", "") == q}
+
+
 def combined_flows(data: Dict[str, list], cert, product: str,
-                   members: Sequence[Tuple[str, str]] = ()) -> List[tuple]:
+                   members: Sequence[Tuple[str, str]] = (),
+                   opened: Optional[Dict[str, str]] = None) -> List[tuple]:
     """``quarterly_flows`` for a bank with its ``members`` (``combination``)
     added: per quarter-end, the balance is the sum of the quarter-end balances
     of every one of them that filed that quarter, and each flow the sum of
@@ -505,12 +542,21 @@ def combined_flows(data: Dict[str, list], cert, product: str,
     absorbed bank files nothing for that quarter, and the absorber's filing
     covers the acquired loans from the close. The absorber also books the
     loans it buys at fair value, so their charge-offs in the first quarters
-    after a deal are not exactly what the absorbed bank would have reported."""
+    after a deal are not exactly what the absorbed bank would have reported.
+
+    ``opened`` is ``{member: YYYYMMDD}`` (``opened_in_first_quarter``): the
+    members whose first filing, partway through a year, counts as that
+    quarter's activity, because the FDIC record shows they opened in it (the
+    firm, 18 Oct 2026, question 21). Required with ``members``, ``{}`` to
+    state there are none; the bank's own first filing is not read this way."""
     qs, snap = _by_cert(data)
     own = _flows(qs, snap, cert, product)
     if not members:
         return own
-    parts_ = [(own, None)] + [(_flows(qs, snap, b, product), until) for b, until in members]
+    if not isinstance(opened, dict):
+        raise ValueError("opened must be {member certificate: YYYYMMDD}, {} for none, when there are members, "
+                         "not %r" % (opened,))
+    parts_ = [(own, None)] + [(_flows(qs, snap, b, product, opened.get(str(b))), until) for b, until in members]
     out = []
     for i, (q, _, _, _) in enumerate(own):
         g = rc = bal = 0.0
@@ -558,7 +604,8 @@ def _blank_quarters(data: Dict[str, list], cert, product: str,
 
 def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: float,
               exempt_min_book: bool = False, *, acquired: Iterable[str],
-              stated: Iterable[str], members: Sequence[Tuple[str, str]] = ()) -> List[dict]:
+              stated: Iterable[str], members: Sequence[Tuple[str, str]] = (),
+              opened: Optional[Dict[str, str]] = None) -> List[dict]:
     """One row per TTM quarter, from the fifth quarter in the data, labelled
     ``YYYYQn``: ``{quarter, gross_rate, net_rate, gross, recoveries,
     avg_balance, kept, why, jumped, why_without_jump}``.
@@ -605,13 +652,14 @@ def bank_book(data: Dict[str, list], cert, product: str, jump: float, min_book: 
 
     ``members`` (``combination``) are the banks it absorbed, added to its own
     figures quarter by quarter (``combined_flows``): pro forma. With none,
-    the book is the bank's own filings alone."""
+    the book is the bank's own filings alone. ``opened`` goes to
+    ``combined_flows``: required with ``members``."""
     _at_least("jump", jump, 0)
     _at_least("min_book", min_book, 0)
     if isinstance(acquired, str):
         raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
     acquired = set(acquired)
-    flows = combined_flows(data, cert, product, members)
+    flows = combined_flows(data, cert, product, members, opened)
     follows = _contiguous([q for q, _, _, _ in flows])
     blank = _blank_quarters(data, cert, product, members)
     bal = [0.0 if b is None else b for _, _, _, b in flows]

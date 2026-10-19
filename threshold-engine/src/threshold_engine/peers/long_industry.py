@@ -28,7 +28,7 @@ from typing import Callable, List, Sequence, Tuple
 
 from . import books, fdic
 from .. import reporting_changes as RC
-from .run import charge_off_fields, load_absorptions, series_note, slug, unbroken_tail
+from .run import REPULL, charge_off_fields, read_absorptions, series_note, slug, unbroken_tail
 
 SOURCE = "Industry (every bank) from %s"
 
@@ -55,7 +55,9 @@ def write(out_dir, *, cache, first: str, last: str, products: Sequence[str], abs
     def no_fetch(url):
         raise ValueError("industry-long reads the cache only and never fetches")
     data = fdic.pull(quarters, charge_off_fields(list(products)) + [books.PARENT], cache, fetch=no_fetch)
-    links_ = load_absorptions(absorptions)
+    # The record may start after the history (the module docstring); since
+    # 18 Oct 2026 it says when (question 22), and the note gives the date.
+    since, links_ = read_absorptions(absorptions, again=REPULL)
     repeats = books.repeated_ytd(data, links_, list(products))
     data = books.without_repeats(data, repeats)
     merged = sorted({(r["acquirer"], r["quarter"]) for r in repeats})
@@ -80,8 +82,8 @@ def write(out_dir, *, cache, first: str, last: str, products: Sequence[str], abs
                     "Source: FDIC BankFind financials, %s to %s, from the cache %s." % (first, last, cache.name),
                     "Absorptions under common control: the absorbed bank's year-to-date charge-offs and recoveries, "
                     "which the survivor's filing repeats, are taken off the survivor's for the rest of that year "
-                    "where %s names the absorption (%d survivor-quarters); before the merger record begins, a "
-                    "repeated year to date stays in the sum." % (Path(absorptions).name, len(merged)),
+                    "where %s names the absorption (%d survivor-quarters); before the merger record begins (%s), a "
+                    "repeated year to date stays in the sum." % (Path(absorptions).name, len(merged), since),
                     "Reporting changes: %s, SHA-256 %s." % (Path(reporting_changes).name, reg_sha)]
             note += books.definitions(p)
             if tail:

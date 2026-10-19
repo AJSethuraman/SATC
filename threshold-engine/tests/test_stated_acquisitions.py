@@ -45,7 +45,8 @@ def test_the_file_holds_the_four_deals_the_firm_named_and_says_why_macquarie_is_
 def good():
     return {"_what": "A test list.",
             "acquisitions": [{"acquirer": "628", "quarter": "2008Q3", "what": "A bought B.",
-                              "citation": "A's 8-K", "url": "https://example.org/8k"}]}
+                              "citation": "A's 8-K", "url": "https://example.org/8k", "products": ["C&I"],
+                              "products_source": "A's 8-K names its loans.", "products_unsettled": []}]}
 
 
 def refused(raw, tmp_path):
@@ -78,14 +79,14 @@ def test_every_problem_is_listed_at_once_and_a_missing_or_extra_key_is_named(tmp
     raw = good()
     second = copy.deepcopy(raw["acquisitions"][0])
     del second["url"]
-    second["products"] = ["C&I"]
+    second["product"] = ["C&I"]
     third = copy.deepcopy(raw["acquisitions"][0])             # the same deal again
     raw["acquisitions"] += [second, third]
     raw["acquisitions"][0]["quarter"] = "2008"
     msg = refused(raw, tmp_path)
     assert "acquisition 1 (certificate 628, 2008): quarter must be written like 2008Q3" in msg
     assert "acquisition 2 (certificate 628, 2008Q3) is missing 'url' (every key is required" in msg
-    assert "acquisition 2 (certificate 628, 2008Q3) has 'products', which is not a key it takes" in msg
+    assert "acquisition 2 (certificate 628, 2008Q3) has 'product', which is not a key it takes" in msg
     # 1 was refused, so 3 is the first of its kind; it is a repeat of nothing kept
     assert "already listed" not in msg
     ok = good()
@@ -237,9 +238,9 @@ def cache_of(tmp_path, data):
 
 def build_kw(tmp_path, cache, **over):
     m = tmp_path / "mergers.json"
-    m.write_text("{}", encoding="utf-8")
+    m.write_text('{"since": "1990-01-01", "acquirers": {}}', encoding="utf-8")
     a = tmp_path / "absorptions.json"
-    a.write_text("[]", encoding="utf-8")
+    a.write_text('{"since": "1990-01-01", "absorptions": []}', encoding="utf-8")
     kw = dict(cache=cache, roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "series",
               first="2010Q1", last="2012Q4", products=["C&I"], mergers=m, absorptions=a,
               extra_acquisitions=[], industry_combined=[], jump=0.25, acquisition_share=0.05, min_book=0,
@@ -262,16 +263,19 @@ def test_the_build_leaves_out_ms_windows_and_says_so_on_its_series_and_the_run_t
     # 2011Q2 to 2012Q1 hold the stated quarter, so the series starts after them.
     assert "date,value\n2012-06-30," in text
     assert "Written from 2012Q2, the first quarter after the last break" in text
-    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 in these " \
-           "quarters, each bank's windows holding one left out for every product: M&T 2011Q2 (M&T Bank " \
+    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 of the 1 " \
+           "in these quarters brought C&I, so each bank's windows holding one are left out: M&T 2011Q2 (M&T Bank " \
            "Corporation, Form 8-K, Item 2.01" in text
+    assert "; products: A whole bank: the filing quoted merges Wilmington Trust Corporation into M&T" in text
     run_tab = load_workbook(out)["Run"]
     said = " ".join(str(c.value) for row in run_tab.iter_rows() for c in row if c.value)
     assert "Stated acquisitions: %s, 4 entries, SHA-256" % FILE in said
-    assert "in these quarters: M&T 2011Q2; outside them, not read: JPMorgan 2008Q3; Wells Fargo 2016Q1; " \
+    assert "in these quarters: M&T 2011Q2 (brought Credit card, Mortgage, Home equity, Other consumer, Auto, " \
+           "C&I, Construction, Multifamily, Nonfarm nonresidential, Owner-occupied nonfarm nonresidential, Other " \
+           "nonfarm nonresidential); outside them, not read: JPMorgan 2008Q3; Wells Fargo 2016Q1; " \
            "Capital One 2015Q4" in said
-    # The book index reads it as declared, like an extra acquisition.
-    assert "2011Q2 (declared)" in said
+    # The book index takes it out of the products it brought (question 18).
+    assert "2011Q2 (stated: C&I)" in said
 
 
 def test_none_states_that_no_list_is_read_and_nothing_is_left_out(tmp_path):
@@ -297,7 +301,8 @@ def test_a_listed_certificate_not_on_the_roster_is_refused(tmp_path):
     p = tmp_path / "s.json"
     p.write_text(json.dumps({"_what": "x", "acquisitions": [
         {"acquirer": "99999", "quarter": "2011Q2", "what": "Someone bought something.",
-         "citation": "An 8-K", "url": "https://example.org/8k"}]}), encoding="utf-8")
+         "citation": "An 8-K", "url": "https://example.org/8k", "products": ["C&I"],
+         "products_source": "The 8-K.", "products_unsettled": []}]}), encoding="utf-8")
     with pytest.raises(ValueError, match=r"--stated-acquisitions: .*acquisition 1 \(certificate 99999, 2011Q2\)"):
         run.build(tmp_path / "p.xlsx", **build_kw(tmp_path, cache_of(tmp_path, flat_book()), stated_acquisitions=p))
 
@@ -335,15 +340,15 @@ def test_the_delinquency_files_name_the_list_and_the_pack_average_names_the_bank
     run.build(tmp_path / "peers.xlsx", **build_kw(tmp_path, cache, delinquency=True))
     series = tmp_path / "series"
     comp = (series / "c-i_pack-composite_delinquency-30-89_four-quarter-average.csv").read_text(encoding="utf-8")
-    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 in these " \
-           "quarters" in comp
+    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 of the 1 in " \
+           "these quarters brought C&I" in comp
     assert "blanked by a stated acquisition (an acquisition the FDIC record cannot see, listed with its " \
            "filing): M&T (588) 2011Q2" in comp
     # 30+ to charge-off (flows, merged 18 Oct 2026; flows.bank_flow is tested on its own): the files the
     # rules apply to name the list and say the rule.
     pack = (series / "c-i_pack-composite_30-plus-to-charge-off_quarter-end.csv").read_text(encoding="utf-8")
-    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 in these " \
-           "quarters" in pack and "and the stated acquisitions, applied to the two quarters" in pack
+    assert "# Stated acquisitions, the ones the FDIC record cannot see (stated-acquisitions.json): 1 of the 1 in " \
+           "these quarters brought C&I" in pack and "and the stated acquisitions, applied to the two quarters" in pack
 
 
 def test_left_out_note_words_each_reason_apart():

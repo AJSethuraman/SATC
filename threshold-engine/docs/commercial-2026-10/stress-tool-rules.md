@@ -30,9 +30,11 @@ python -m threshold_engine compare $OUT/series/construction-multifamily-nonfarm-
 
 Each `pull --mergers` writes `mergers.json` and `absorptions.json` over the
 last pull's, so each record is copied under the date it starts from. A
-build from `FIRST` = **1991Q1** must read the `-since-1990` files: the build
-does not check that the merger record reaches back to its first quarter
-(LOG.md, 17 Oct 2026, question 6). The builds tabled here ran before
+build from `FIRST` = **1991Q1** must read the `-since-1990` files. Since 18
+Oct 2026 (question 22) each record states the date it starts from and the
+build refuses one that starts after its first quarter begins, naming both;
+a record written before then (no date) is refused with the pull to run
+again, so the copies above must be re-pulled once. The builds tabled here ran before
 `--stated-acquisitions FILE|none` existed; it has been required since 17
 Oct 2026 (question 14), so the command above is refused today without it.
 

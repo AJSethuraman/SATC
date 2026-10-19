@@ -1184,7 +1184,8 @@ def window(root) -> dict:
         section(body, "Pull")
         peer_choice(body, "Merger record (--mergers)", "mergers_pull", PEER_MERGERS)
         peer_text(body, "Merger record from", "mergers_since", "A date written like 2005-10-01; Pull "
-                  "writes the record into the cache folder as mergers.json.")
+                  "writes the record into the cache folder as mergers.json and absorptions.json, with the FDIC "
+                  "institutions record (when each bank opened, which pro forma reads) as institutions.json.")
         peer_choice(body, "Quarters already in the cache (--refresh)", "refresh", PEER_REFRESH)
 
         section(body, "Build")
@@ -1193,8 +1194,9 @@ def window(root) -> dict:
                   "in the pack) start from the settings below and can be changed there.", browse="save")
         peer_text(body, "Series folder (--series-dir)", "series_dir", "Where the date,value CSVs go, for "
                   "the Series step.", browse="folder")
-        peer_text(body, "Merger file (--mergers)", "mergers_file", "{cert: [quarter-end dates]}, as Pull "
-                  "writes it.", browse="file")
+        peer_text(body, "Merger file (--mergers)", "mergers_file", "The merger record, as Pull writes it "
+                  "(mergers.json); it says the date it starts from, which must not be after the first quarter.",
+                  browse="file")
         peer_text(body, "Absorptions file (--absorptions)", "absorptions_file", "Who absorbed whom, as "
                   "Pull writes it beside the merger file (absorptions.json).", browse="file")
         peer_text(body, "Reporting changes file (--reporting-changes)", "reporting_changes", "The registry of "

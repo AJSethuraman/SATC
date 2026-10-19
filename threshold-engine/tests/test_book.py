@@ -31,6 +31,7 @@ def write_book(folder: Path, **over) -> Path:
                        {"Product": "Mortgage", "Measure": "Net", "Source": "Industry",
                         "file": "files/mortgage_nco_ttm.csv"}],
             "not_in_book": [{"Product": "Mortgage", "Measure": "Net", "Source": "Bank", "why": "No file (a test)."}],
+            "shown_not_rated": [],
             "compare": ["Bank", "Industry"], "notes": ["A note."], "peers": None, "internal": None, "loan_classes": None,
             "reporting_changes": None, "floor_off": [], "large_banks": None, "signals": None}
     book.update(over)

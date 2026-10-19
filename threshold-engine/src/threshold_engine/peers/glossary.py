@@ -63,7 +63,11 @@ PEER_TERMS = [
      "without pro forma. Two limits: in the quarter of the deal the absorbed bank files nothing, so its "
      "charge-offs count only from the close, in the absorber's filing; and the absorber books the loans it "
      "buys at fair value, so their charge-offs in the first quarters after a deal are not exactly what the "
-     "absorbed bank would have reported. Charge-offs only: delinquency is each bank as filed."),
+     "absorbed bank would have reported. A bank added in whose first filing falls partway through a year "
+     "has no quarter before it to take its year to date from; that year to date counts as the quarter's "
+     "activity where the FDIC institutions record shows the bank opened in that quarter, a new charter, and "
+     "otherwise the quarter has no flow (the Run tab names each). Charge-offs only: delinquency is each bank "
+     "as filed."),
     ("Combined with",
      "On the Data tab, the banks whose figures are added into that row (pro forma).",
      "Each absorbed bank that filed in one of the row's four quarters, by certificate, with the quarter it "
@@ -134,9 +138,10 @@ PEER_TERMS = [
      "A quarter in which a bank took in a book the FDIC record cannot see, listed with its filing.",
      "From the stated acquisitions file the build is given (config/stated-acquisitions.json; the firm, 17 Oct "
      "2026): a failure with no FDIC row naming the buyer, a deal the FDIC codes as a branch purchase, or an "
-     "asset purchase from a company that is not a bank. Every product's windows holding the quarter are left "
-     "out for that bank, as for a recorded acquisition, with no share measured. Recorded in Why not kept (the "
-     "Data tab, DelinquencyData) and on Run."),
+     "asset purchase from a company that is not a bank. The windows holding the quarter are left out for that "
+     "bank, as for a recorded acquisition, with no share measured, in each product the entry says the deal "
+     "brought and no other (the firm, 18 Oct 2026); a product its source does not settle is listed, so left out. "
+     "Recorded in Why not kept (the Data tab, DelinquencyData) and on Run."),
     ("Left out: before a gap (series files)",
      "The thresholds workbook needs an unbroken run of quarters and never fills a gap.",
      "A series file is written from the first quarter after its last gap; its note names the quarters left "

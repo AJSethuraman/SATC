@@ -411,7 +411,7 @@ def cache(tmp_path, drop=(), quarters=(Q1, Q2)):
         other = {k: 7 for k in mine}
         rows = [dict(CERT=int(KEY), REPDTE=q, **mine), dict(CERT=628, REPDTE=q, **other)]
         (d / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
-    (d / "absorptions.json").write_text("[]", encoding="utf-8")
+    (d / "absorptions.json").write_text('{"since": "2025-01-01", "absorptions": []}', encoding="utf-8")
     return d
 
 
@@ -599,14 +599,16 @@ def test_pull_fetches_only_the_reconcile_fields(tmp_path):
     assert list(got) == [Q1]
     assert "LNRERSF2" in asked[0] and "LNCONRP" in asked[0] and "RSSDHCR" in asked[0]
     assert any("/history" in u and "2025-01-01" in u for u in asked)
-    assert I.read_absorptions(tmp_path / "c") == []
+    assert I.read_absorptions(tmp_path / "c", "2025Q1") == []
+    # Question 22: the record states its start, the pull's first year
+    assert json.loads((tmp_path / "c" / "absorptions.json").read_text())["since"] == "2025-01-01"
 
 
 def test_reconcile_refuses_without_the_absorption_record(tmp_path):
     d = cache(tmp_path)
     (d / "absorptions.json").unlink()
     with pytest.raises(ValueError, match="absorptions.json is not there.*internal pull"):
-        I.read_absorptions(d)
+        I.read_absorptions(d, "2025Q1")
 
 
 def _card_gross_q2(tmp_path, filed, links, measure="gross_charge_offs"):

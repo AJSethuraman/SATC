@@ -143,7 +143,10 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
 - **Decide**: click a product and a measure. The one yellow row under the
   buttons is that row's decision: **Lines set from** (the source whose history
   sets the lines; the book's `lines_from` says what it starts as, null for
-  blank), Accept these lines or Reject, its four settings, a period to leave
+  blank, either one start for every row or a list giving each row its own:
+  the commercial book starts its four CRE net charge-off rows on Industry
+  and the rest blank, the firm's answer of 18 Oct 2026), Accept these lines
+  or Reject, its four settings, a period to leave
   out of that source's history (first quarter, last quarter, why) and a note.
   Everything under it follows as you type: every source rated on the lines,
   every source on one chart over the five rating zones, where each rating
@@ -153,6 +156,12 @@ command runs from inside `threshold-engine`. Followed from nothing on 15 Oct
   the top says how many of the 35 are decided.
 - **Thresholds** (one row per product and measure), **Lines by source** (each
   series' own lines) and **Assess** follow Decide; nothing is typed there.
+- **Shown, not rated**: a product and measure the book's `shown_not_rated`
+  names (with why; `[]` for none) keeps its series for their history but has
+  no row on Decide or Thresholds. Summary shows its latest values with
+  "Shown, not rated" and prints the why; Lines by source says the same where
+  its rating would be. The commercial book shows Nonfarm nonresidential CRE
+  as a whole this way and rates its two parts (the firm, 18 Oct 2026).
 - The **Peers** tabs: KeyBank against the 15 banks, as `peers build` writes
   them.
 - **Reporting changes**: every change to the Call Report the workbook labels

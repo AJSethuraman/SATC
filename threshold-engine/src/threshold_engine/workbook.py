@@ -237,6 +237,15 @@ TH_BOOK_WIDTHS = dict(A=1.57, B=16.43, C=27.86, D=19.29, E=11.29, F=11.29, G=11.
                       K=11.29, L=10.14, M=10.14, N=19.29, O=16.43, P=55.29)
 
 
+def _shown_refs(labels: Sequence[str], shown: Sequence[str]) -> Dict[str, Dict[str, str]]:
+    """For Summary: each shown, not rated series' latest value and quarter,
+    on its own row of Lines by source (it has none on Thresholds).
+    ``labels`` is every series in the per-series table's order."""
+    T, ref = DT.TH_BOOK, DT._sheet_ref(DT.LINES_TAB)
+    return {lbl: {"value": "%s$%s$%d" % (ref, T["value"], 5 + labels.index(lbl)),
+                  "quarter": "%s$%s$%d" % (ref, T["quarter"], 5 + labels.index(lbl))} for lbl in shown}
+
+
 def _thresholds_book(th, name, n, labels, decide, floored):
     """The per-series table with Decide: Claude Design's round 2 (README,
     "Thresholds"), retitled Lines by source once Decide is built
@@ -367,8 +376,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     where the settings, periods left out and decisions are typed (decide_tab.py,
     summary_tab.py): ``{"names": [three part names], "parts": {label: (three
     values)}, "absent": [{"parts": {...}, "why": text}], "compare": (a, b) or
-    None, "notes": [text], "kind": the book's kind (kinds.KINDS)}``, every key
-    stated. A kind without an Internal tab (commercial) has none built, and its
+    None, "notes": [text], "kind": the book's kind (kinds.KINDS), "lines_from":
+    one source or None for every row, or {(first, second): source or None},
+    "shown_not_rated": {(first, second): why}}``, every key stated. A kind
+    without an Internal tab (commercial) has none built, and its
     terms are left off the Glossary. ``into`` builds into an
     existing workbook (the book command puts the peer tabs there first);
     ``before_save(wb)`` runs last, before saving.
@@ -478,7 +489,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         DT.validate(decide["names"])
         if "lines_from" not in decide:
             raise ValueError("decide needs lines_from: the source every row's Lines set from starts as, or None "
-                             "to start blank (none has a default)")
+                             "to start blank, or each row's own start (none has a default)")
+        if "shown_not_rated" not in decide:
+            raise ValueError("decide needs shown_not_rated: each row (first and second part) shown and not rated, "
+                             "with why, or {} when every row is rated (none has a default)")
         missing = [lbl for lbl, _ in series if lbl not in decide["parts"]]
         if missing:
             raise ValueError("no parts given for %s" % ", ".join(missing))
@@ -486,6 +500,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             if lbl != " - ".join(decide["parts"][lbl]):
                 raise ValueError("the series %r should be labelled %r, its parts joined by ' - '"
                                  % (lbl, " - ".join(decide["parts"][lbl])))
+    # The series of the rows the book shows and does not rate (question 23,
+    # 18 Oct 2026: "show nonfarm as a whole, unrated"): no lines and no
+    # rating on any tab, Assess, Chart and Backtest included.
+    not_rated = [lbl for lbl, _ in series if decide and tuple(decide["parts"][lbl][:2]) in decide["shown_not_rated"]]
     if into is not None:
         wb = into
         asx = wb.create_sheet("Assess", 0)
@@ -564,7 +582,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     # series label kept in A for every lookup, and the workings hidden. ----
     c = TC
     if decide:
-        d_pairs, _ = DT.pairs_of([s["label"] for s in loaded], decide["parts"])
+        unrated = decide["shown_not_rated"]
+        d_pairs = [pr for pr in DT.pairs_of([s["label"] for s in loaded], decide["parts"])[0] if pr not in unrated]
     sg = 1 if higher else -1
     for k, s in enumerate(loaded):
         r = 5 + k
@@ -658,6 +677,20 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
             p_ = decide["parts"][s["label"]]
             for key, v in zip(("product", "measure", "source"), p_):
                 put(key, v)
+            if tuple(p_[:2]) in unrated:
+                # Shown for its history, never rated (the book's shown_not_rated):
+                # no row on Decide, so no decision; and no lines and no rating
+                # (review, 19 Oct 2026: Assess and Chart read them). Blank as
+                # text, not empty: an empty cell reads as 0 in "+0" and would
+                # draw five bands at zero.
+                for key in ("l2", "l3", "l4", "l5", "rating", "rating_name"):
+                    put(key, '=""')
+                put("refusal", DT.NOT_RATED_SAYS)
+                put("fix", "")
+                put("rating_shown", DT.NOT_RATED)
+                put("decision", "")
+                put("check", DT.NOT_RATED_SAYS)
+                continue
             put("rating_shown", '=IF({m}<>"","Refused",{k}&" "&{l})'.format(m=at("refusal"), k=at("rating"),
                                                                              l=at("rating_name")))
             # The decision shows on the source whose lines its row uses.
@@ -782,7 +815,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
              floor_at_zero=floor_at_zero, name=name, unit=unit, moderate_halfwidth=moderate_halfwidth,
              low_step=low_step, high_z=high_z, on_the_line=on_the_line, quarter=quarter,
              y_min=None if floor_at_zero else _axis_floor(loaded, direction, moderate_halfwidth, low_step, high_z),
-             nf=NF, th_cols=TC)
+             nf=NF, th_cols=TC, not_rated=not_rated)
 
     # ---- Synthesis: internal, industry and peers, where each colour starts ----
     syn_at = {}
@@ -880,6 +913,10 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     r = 5
     for s in loaded:
         ids = list(decide["parts"][s["label"]]) if decide else [s["label"]]
+        if s["label"] in not_rated:
+            # Rated on no lines, so not backtested on any (question 23).
+            s["bt"] = {"not_tested": "Not tested: %s" % DT.NOT_RATED_SAYS[0].lower() + DT.NOT_RATED_SAYS[1:],
+                       "runs": []}
         if s["bt"].get("not_tested"):
             for col, v in enumerate(ids + [s["bt"]["not_tested"]], start=2):
                 bts.cell(r, col, v).font = DATA_F
@@ -1067,7 +1104,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         settings = {lbl: (moderate_halfwidth, low_step, high_z, on_the_line) for lbl in labels}
         dec = DT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], settings=settings,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
-                       lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero,
+                       lines_from=decide["lines_from"], shown_not_rated=decide["shown_not_rated"], unit=unit,
+                       higher=higher, floor_at_zero=floor_at_zero,
                        changes={s["label"]: RC.quarters_in_notes(read_notes(s["path"])) for s in loaded},
                        quarters=grid, floor_off=floor_off)
         # Decide is where the bank types and looks, so Assess (whose cells
@@ -1082,6 +1120,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # internal file (decide["internal"]). ----
         from . import internal_tab as IT
         dec["internal"] = IT.build(wb, labels=labels, parts=decide["parts"], part_names=decide["names"], grid=grid,
+                                   not_rated=not_rated,
                                    higher=higher, floor_at_zero=floor_at_zero, internal=decide.get("internal")) \
             if kind["internal_tab"] else None
 
@@ -1091,13 +1130,15 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # lines of the source each row picks, with every source rated on them.
         DT.rename_tab(wb, "Thresholds", DT.LINES_TAB)
         from . import thresholds_tab as TT
-        srcs = SU.layout(labels, decide["parts"], decide["compare"])["sources"]
+        rated = [lbl for lbl in labels if tuple(decide["parts"][lbl][:2]) not in decide["shown_not_rated"]]
+        srcs = SU.layout(rated, decide["parts"], decide["compare"])["sources"]
         tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=srcs, part_names=decide["names"],
                       decide=dec, n_series=n, name=name, higher=higher, floor_at_zero=floor_at_zero,
                       number_format=NF, floor_off=floor_off)
         su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
                       absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
-                      refs=TT.refs(tt, dec["by_pair"]))
+                      refs=TT.refs(tt, dec["by_pair"]), shown_not_rated=decide["shown_not_rated"],
+                      shown_refs=_shown_refs(labels, [lbl for lbl in labels if lbl not in rated]))
         dec["thresholds"] = tt
         order = ["Summary", "Decide", "Thresholds", DT.LINES_TAB, "Assess", "Synthesis"]
         rest = [ws for ws in wb._sheets if ws.title not in order]
@@ -1113,7 +1154,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # The buttons over the Decisions table, written into the saved file
         # (openpyxl cannot write slicers); it opens on the first series.
         from . import slicers as SL
-        first_parts = decide["parts"][loaded[0]["label"]]
+        first_parts = dec["pairs"][0]
         SL.add_table_slicers(out, DT.TITLE, dec["table"], [
             {"column": nm, "caption": nm, "anchor": anchor, "selected": v, "name": "Pick" + str(i + 1),
              "columns": cols, "style": DT.SLICER_STYLE, "button_height": DT.SLICER_BUTTON_IN}

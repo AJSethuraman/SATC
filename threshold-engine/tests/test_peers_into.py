@@ -55,6 +55,8 @@ JUMP, MIN_BOOK = 0.25, 1_000_000
 NAMES = dict(PEER_TAB_NAMES)
 OWN = [t for t in PW.TABS if t not in PW.FOLDED]
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
+#: No stated acquisition in any product (question 18: one {cert: [quarter-ends]} per product).
+NONE_STATED = {p: {} for p in NONE_ACQUIRED}
 #: What the host's own Data, Glossary and Run hold: a peer formula pointed at
 #: one of them would read one of these.
 HOST = {"Data": ("HOST DATA A1", 987654321.0), "Glossary": ("HOST GLOSSARY A1", 876543219.0),
@@ -113,9 +115,9 @@ def build(module, out, data, roster, products, pack="all", **over):
     mp.setattr(module, "dt", FROZEN)
     try:
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
-                                           json.loads((PEERS / "mergers_roster.json").read_text()),
+                                           json.loads((PEERS / "mergers_roster.json").read_text())["acquirers"],
                                            {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
-                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": {}}))
+                                           **({} if module is OLD else {"combined": {}, "opened": {}, "changes": CHANGES, "stated": NONE_STATED}))
     finally:
         mp.undo()
 
@@ -173,7 +175,7 @@ def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_pat
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
-                        lambda *a, into=None, names=None, combined=None, changes=None, stated=None,
+                        lambda *a, into=None, names=None, combined=None, opened=None, changes=None, stated=None,
                         book_kind=None, **kw:
                         OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")

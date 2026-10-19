@@ -245,9 +245,9 @@ def cache_of(tmp_path, data):
 
 def build_kw(tmp_path, cache, first, last, products, delinquency, base="2019Q4", years=(2019, 2025)):
     m = tmp_path / "mergers.json"
-    m.write_text("{}", encoding="utf-8")
+    m.write_text('{"since": "1990-01-01", "acquirers": {}}', encoding="utf-8")
     a = tmp_path / "absorptions.json"
-    a.write_text("[]", encoding="utf-8")
+    a.write_text('{"since": "1990-01-01", "absorptions": []}', encoding="utf-8")
     return dict(cache=cache, roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "series",
                 first=first, last=last, products=products, mergers=m, absorptions=a, extra_acquisitions=[],
                 industry_combined=[], jump=0.25, acquisition_share=0.05, min_book=0, exempt_self=True,

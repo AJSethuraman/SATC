@@ -153,10 +153,14 @@ def _prompt(ws, ref, title, text):
 
 
 def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, unit, moderate_halfwidth,
-          low_step, high_z, on_the_line, y_min, quarter, nf="0.000", th_cols=None):
+          low_step, high_z, on_the_line, y_min, quarter, not_rated, nf="0.000", th_cols=None):
     # Thresholds' columns (decide_tab.TH_PLAIN or TH_BOOK); the letters below
     # are the plain layout's, translated through it.
-    from .decide_tab import TH_PLAIN
+    # ``not_rated``: the series of rows the book shows and does not rate
+    # (question 23), [] for none. Their lines and rating are blank on Lines
+    # by source; picked here, the Check says so and the dials and "keeping
+    # every quarter" show no lines either. With none, the tab is as before.
+    from .decide_tab import TH_PLAIN, NOT_RATED
     tc = th_cols or TH_PLAIN
     plain = {v: k for k, v in TH_PLAIN.items()}
     lay = layout(n)
@@ -172,6 +176,8 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     st = lambda c_: "INDEX(${c}${a}:${c}${b},{m})".format(c=c_, a=lay["set_top"], b=lay["set_end"], m=tr)   # noqa
     online = st("R")
     HW, LS, HZ = st("O"), st("P"), st("Q")
+    # True when the series showing is one the book does not rate.
+    UNRATED = 'LEFT({m},{k})="{t}"'.format(m=th("M"), k=len(NOT_RATED), t=NOT_RATED) if not_rated else None
 
     # ---- grid ----
     widths = {"A": 2.71, "B": 21, "L": 47.29, "M": 2.71, "N": 21, "U": 14}
@@ -237,6 +243,8 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     c = asx["B6"]
     c.value = ('=IF({m}="","Check: OK. Every setting is valid and every period left out is complete.",'
                '{m}&". To fix: "&{f})'.format(m=th("M"), f=th("U")))
+    if UNRATED:
+        c.value = '=IF(%s,"Check: "&%s&".",%s)' % (UNRATED, th("M"), c.value[1:])
     c.font = Font(name="Arial", size=11, bold=True, color=K.INK_TEXT)
     c.alignment = Alignment(vertical="center", indent=1, wrap_text=True)
     c.fill = fill(K.CANVAS)
@@ -550,7 +558,8 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
     asx.cell(rb, 2, "Keeping every quarter").font = F_DATA
     for i in range(4):
         asx.cell(ra, 3 + i, '=IFERROR(%s+0,"")' % sc(st0 + 1 + i))
-        asx.cell(rb, 3 + i, '=IFERROR(%s,"")' % all_lines[i])
+        asx.cell(rb, 3 + i, '=IFERROR(%s,"")' % (all_lines[i] if not UNRATED else
+                                                  'IF(%s,"",%s)' % (UNRATED, all_lines[i])))
     for i in range(5):
         asx.cell(ra, 7 + i, "=Q%d" % (st0 + i))
     bb = ["%s%d" % (c_, rb) for c_ in "CDEF"]
@@ -652,6 +661,8 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
             asx.cell(r, 2, "=" + now if v is None else v)
             hw_, ls_, hz_ = (val if now == x else x for x in (HW, LS, HZ))
             num = "AND(ISNUMBER({}),ISNUMBER({}),ISNUMBER({}))".format(hw_, ls_, hz_)
+            if UNRATED:
+                num = "AND(NOT(%s),%s)" % (UNRATED, num[4:-1])
             asx.cell(r, 3, '=IF({n},{m}-{s}*{ls}*{mv},"")'.format(n=num, m=MED, s=sgn, ls=ls_, mv=MOVE))
             asx.cell(r, 4, '=IF({n},{m}-{s}*{hw}*{mv},"")'.format(n=num, m=MED, s=sgn, hw=hw_, mv=MOVE))
             asx.cell(r, 5, '=IF({n},{m}+{s}*{hw}*{mv},"")'.format(n=num, m=MED, s=sgn, hw=hw_, mv=MOVE))
@@ -671,6 +682,8 @@ def build(asx, *, loaded, grid, first, last, n, higher, floor_at_zero, name, uni
                              'IF({s}*(F{r}-E{r})<=0,"refused: High inside Moderate-High",'
                              'IF({s}*({w}-F{r})<0,"refused: High beyond the worst kept",{now}))))')
                      .format(n=num, ls=ls_, hw=hw_, s=sgn, r=r, w=WORST, now='"◀ yours"' if v is None else '""'))
+            if UNRATED:
+                asx.cell(r, 12).value = '=IF(%s,"%s",%s)' % (UNRATED, NOT_RATED.lower(), asx.cell(r, 12).value[1:])
             for c_ in range(3, 7):
                 asx.cell(r, c_).number_format = nf
             for c_ in range(2, 13):

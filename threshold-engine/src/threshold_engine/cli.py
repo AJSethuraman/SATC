@@ -23,8 +23,9 @@ on the same scale as the workbook (threshold_engine.scale).
 fetches every FDIC filer's quarter into ``DIR/q{YYYYMMDD}.json`` (only the
 quarters not already there), with the products' delinquency and nonaccrual
 fields when ``--delinquency yes``, and, with ``--mergers``, the classified
-merger record into ``DIR/mergers.json`` and who absorbed whom into
-``DIR/absorptions.json``.
+merger record into ``DIR/mergers.json``, who absorbed whom into
+``DIR/absorptions.json`` and each institution's establishment date into
+``DIR/institutions.json`` (which a pro forma build reads).
 
     python -m threshold_engine peers build OUT.xlsx --cache DIR --roster
         config/peers.json --jump 0.25 --min-book 1000000 --pack all|regionals
@@ -241,7 +242,9 @@ def _peers_parser(sub):
     pu.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
                     help="whose fields to pull: " + _PRODUCTS_HELP % ", ".join(_peer_products()))
     pu.add_argument("--mergers", metavar="SINCE",
-                    help="also pull the merger record from this date (YYYY-MM-DD) into DIR/mergers.json")
+                    help="also pull the merger record from this date (YYYY-MM-DD) into DIR/mergers.json and "
+                         "DIR/absorptions.json, and the FDIC institutions record (each bank's establishment date, "
+                         "which a pro forma build reads) into DIR/institutions.json")
     pu.add_argument("--delinquency", required=True, type=_yes_no, metavar="yes|no",
                     help="yes: also pull the products' delinquency and nonaccrual fields")
     pu.add_argument("--refresh", action="store_true", help="fetch every quarter again, even if cached")
@@ -291,9 +294,11 @@ def _peers_parser(sub):
     w.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
                    help=_PRODUCTS_HELP % ", ".join(_peer_products()))
     w.add_argument("--mergers", required=True, metavar="FILE",
-                   help="{cert: [quarter-end dates]}, as 'peers pull --mergers' writes it")
+                   help="the merger record, as 'peers pull --mergers' writes it; it states the date it starts "
+                        "from, which must be on or before the first day of --first")
     w.add_argument("--absorptions", required=True, metavar="FILE",
-                   help="who absorbed whom, as 'peers pull --mergers' writes it beside the merger record")
+                   help="who absorbed whom, as 'peers pull --mergers' writes it beside the merger record; it "
+                        "states the date it starts from, which must be on or before the first day of --first")
     w.add_argument("--extra-acquisitions", required=True, nargs="*", metavar="CERT=QUARTER",
                    help="acquisitions the FDIC record does not show, e.g. 6672=2022Q2; "
                         "give the flag with nothing after it to state there are none")
@@ -574,7 +579,7 @@ def _internal(a):
     try:
         filed = I.read_filed(internal, a.cache)
         rows = I.reconcile(internal, filed, ex, a.tolerance, bank=bank,
-                           absorptions=I.read_absorptions(a.cache))
+                           absorptions=I.read_absorptions(a.cache, min(filed)))
     except I.Refused as exc:
         return _problems(exc.path, exc.problems, "exclusions for this internal file")
     notes = I.reconcile_notes(internal, ex, bank, a.tolerance,

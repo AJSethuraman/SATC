@@ -457,13 +457,13 @@ def test_pro_forma_adds_each_absorbed_banks_own_figures_up_to_its_absorption():
     combo = combination(data, [link(1, 2, "2021-06-30")], ["1"])
     assert combo == {"1": {"members": [("2", "20210630")], "uncombined": []}}
     own, theirs = quarterly_flows(data, 1, "Credit card"), quarterly_flows(data, 2, "Credit card")
-    got = combined_flows(data, 1, "Credit card", combo["1"]["members"])
+    got = combined_flows(data, 1, "Credit card", combo["1"]["members"], {})
     for (q, g, r, b), (_, g1, r1, b1), (_, g2, r2, b2) in zip(got, own, theirs):
         if q < "20210630":
             assert (g, r, b) == (g1 + g2, r1 + r2, b1 + b2), q
         else:
             assert (g, r, b) == (g1, r1, b1) == (16.0, 3.0, 1500.0), q
-    pro = bank_book(data, 1, "Credit card", JUMP, 0, acquired=(), members=combo["1"]["members"], stated=())
+    pro = bank_book(data, 1, "Credit card", JUMP, 0, acquired=(), members=combo["1"]["members"], opened={}, stated=())
     assert [r["why"] for r in pro] == [None] * 4
     assert all(r["gross_rate"] == pytest.approx(100 * 64 / 1500) for r in pro)
     assert all(r["net_rate"] == pytest.approx(100 * (64 - 12) / 1500) for r in pro)
@@ -483,7 +483,7 @@ def test_pro_forma_follows_the_chain():
     combo = combination(data, links, ["1", "2"])
     assert combo["1"]["members"] == [("2", "20210630"), ("3", "20200930")]
     assert combo["2"]["members"] == [("3", "20200930")]
-    got = {q: b for q, _, _, b in combined_flows(data, 1, "Credit card", combo["1"]["members"])}
+    got = {q: b for q, _, _, b in combined_flows(data, 1, "Credit card", combo["1"]["members"], {})}
     assert got["20200630"] == 1700 and got["20200930"] == 1500 and got["20210630"] == 1000
     rows = members_by_quarter(data, combo["1"]["members"])
     assert rows["2020Q4"] == [("2", "20210630"), ("3", "20200930")]   # 3 filed 2020Q1 and Q2
@@ -505,7 +505,7 @@ def test_a_quarter_in_which_a_member_has_no_flow_has_no_flow():
     so neither can the combined one. Its balance still counts."""
     data = merged(flat_bank(1, EIGHT, 1000, 10, 1), flat_bank(2, [q for q in EIGHT if q < "20210630"], 500, 6, 2))
     data["20200930"] = [r for r in data["20200930"] if r["CERT"] != 2]
-    got = {q: (g, b) for q, g, _, b in combined_flows(data, 1, "Credit card", [("2", "20210630")])}
+    got = {q: (g, b) for q, g, _, b in combined_flows(data, 1, "Credit card", [("2", "20210630")], {})}
     assert got["20200930"] == (10.0, 1000.0) and got["20201231"] == (None, 1500.0)
 
 

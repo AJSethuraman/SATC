@@ -462,7 +462,8 @@ TERMS = [
     ("Continues across",
      "On Sources: quarters a series leaves out and runs across, because the jump left them out only for a move "
      "in a quarter a reporting change names for that product and measure (for a combined product, for any of "
-     "its parts). An event never does.",
+     "its parts), and only a change whose own source says it can step a balance in one quarter. An event never "
+     "does.",
      "Those four-quarter windows are not written and never filled; the series keeps every quarter before them "
      "(the firm, 17 Oct 2026). The file names the moves and the changes. Every other reason a window "
      "is left out still starts the series after it. The workbook reads this gap and no other: the quarters "
@@ -493,6 +494,12 @@ TERMS = [
     ("What changed",
      "On Reporting changes: what the change did, in one sentence.",
      "As the registry states it, from the source."),
+    ("Can step a balance",
+     "On Reporting changes: whether the change can step a book's balance in a single quarter, Yes or No, and "
+     "why, from its own source.",
+     "As the registry states it. Only a Yes keeps a series going across windows the jump left out (the firm, "
+     "18 Oct 2026); where the source does not say, it is No, so a jump it cannot explain still starts the "
+     "series again. An event never keeps a series going, whatever it says."),
     ("Source document",
      "On Reporting changes: where the change was read, with its address.",
      "As the registry states it: a Federal Register notice, an FDIC publication or the FDIC's own data "

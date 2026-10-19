@@ -369,6 +369,8 @@ class FakeFDIC:
         offset, limit = int(q["offset"][0]), int(q["limit"][0])
         if url.startswith(fdic.HISTORY_URL):
             rows = self.history
+        elif url.startswith(fdic.INSTITUTIONS_URL):
+            rows = json.loads((PEERS / "institutions_keybank.json").read_text(encoding="utf-8"))
         else:
             # A field the API is asked for and does not hold comes back null,
             # as RSSDHCR does here: the fixtures were pulled without it.
@@ -410,9 +412,14 @@ def test_pull_with_mergers_writes_the_classified_record(data, tmp_path, monkeypa
     rc = main(["peers", "pull", "--delinquency", "no", "--cache", str(cache), "--first", "2026Q2", "--last", "2026Q2",
                "--products", "Credit card", "--mergers", "2005-10-01"])
     assert rc == 0
-    assert json.loads((cache / "mergers.json").read_text()) == {"6672": ["2019-03-31"]}
+    assert json.loads((cache / "mergers.json").read_text()) == {
+        "since": "2005-10-01", "acquirers": {"6672": ["2019-03-31"]}}
     assert any(u.startswith(fdic.HISTORY_URL) and "2005-10-01" in urllib.parse.unquote_plus(u)
                for u in fake.urls)
+    # Question 21: the institutions record comes with it, for pro forma.
+    inst = json.loads((cache / "institutions.json").read_text())
+    assert inst["rows"] == 6 and inst["established"]["34055"] == {
+        "name": "Key Bank USA, National Association", "established": "1995-09-05"}
     assert "Filers in 2026Q2: 16" in capsys.readouterr().out
 
 
@@ -464,7 +471,7 @@ def test_every_stated_setting_reaches_the_workbook(built, tmp_path, monkeypatch,
     monkeypatch.setattr(peers_workbook, "build_peers_workbook", record)
     mergers = {"6672": ["2019-03-31"], "6560": ["2021-06-30"]}
     mfile = tmp_path / "m.json"
-    mfile.write_text(json.dumps(mergers))
+    mfile.write_text(json.dumps({"since": "2005-10-01", "acquirers": mergers}))
     args = list(BUILD)
     for flag, values in (("--products", ["Mortgage", "Credit card"]), ("--mergers", [str(mfile)]),
                          ("--extra-acquisitions", ["6384=2021Q4", "6384=2023Q1"]),
@@ -620,11 +627,14 @@ def test_a_declared_acquisition_that_cannot_apply_is_refused(built, tmp_path, ca
 
 
 @pytest.mark.parametrize("content,says", [
-    ('{"6672": null}', "must have a list of quarter-end dates"),
-    ('{"6672": [20190331]}', "must have a list of quarter-end dates"),
-    ('{"6672": "2019-03-31"}', "must have a list of quarter-end dates"),
-    ('{"6672": ["2019-13-31"]}', "not a quarter-end date"),
-    ('["6672"]', "must hold {cert: [quarter-end dates]}"),
+    ('{"since": "2005-10-01", "acquirers": {"6672": null}}', "must have a list of quarter-end dates"),
+    ('{"since": "2005-10-01", "acquirers": {"6672": [20190331]}}', "must have a list of quarter-end dates"),
+    ('{"since": "2005-10-01", "acquirers": {"6672": "2019-03-31"}}', "must have a list of quarter-end dates"),
+    ('{"since": "2005-10-01", "acquirers": {"6672": ["2019-13-31"]}}', "not a quarter-end date"),
+    ('{"since": "2005-10-01", "acquirers": ["6672"]}', "acquirers must be {cert: [quarter-end dates]}"),
+    ('["6672"]', "does not record the date"),
+    ('{"6672": ["2019-03-31"]}', "does not record the date"),
+    ('{"since": "2005-13-01", "acquirers": {}}', "a date written like 2005-10-01"),
     ('{"6672": [', "is not valid JSON"),
 ])
 def test_a_bad_mergers_file_is_refused_not_a_traceback(built, tmp_path, capsys, content, says):
@@ -662,6 +672,19 @@ def cache_1992(tmp_path_factory):
     return cache, d
 
 
+def from_1992(tmp_path, args):
+    """``args`` with a merger and absorptions record stated from 1992-01-01.
+    mergers_roster.json starts on 2005-10-01, so a build from 1992Q1 reading
+    it is refused (the firm, 18 Oct 2026, question 22; before that these
+    tests built a 1992 history on a record from 2005 without a word). These
+    tests read the industry, which no acquisition touches, so the record is
+    a stand-in naming none, not the FDIC's."""
+    m, a = tmp_path / "mergers-1992.json", tmp_path / "absorptions-1992.json"
+    m.write_text(json.dumps({"since": "1992-01-01", "acquirers": {}}), encoding="utf-8")
+    a.write_text(json.dumps({"since": "1992-01-01", "absorptions": []}), encoding="utf-8")
+    return with_value(with_value(args, "--mergers", str(m)), "--absorptions", str(a))
+
+
 def test_the_industry_with_products_summed_is_written(cache_1992, tmp_path, capsys):
     """Acceptance 3's second series, other consumer with auto, through the
     CLI: books.industry with products=[Auto], beside other consumer as filed."""
@@ -669,7 +692,7 @@ def test_the_industry_with_products_summed_is_written(cache_1992, tmp_path, caps
     args = with_value(with_value(with_value(with_value(
         BUILD, "--first", "1992Q1"), "--products", "Other consumer"),
         "--industry-combined", "Other consumer+Auto"), "--extra-acquisitions")
-    rc, _, series = build_into(tmp_path, cache, args)
+    rc, _, series = build_into(tmp_path, cache, from_1992(tmp_path, args))
     assert rc == 0, capsys.readouterr().err
     for kind in ("gross", "net"):
         notes, rows = read_csv(series / ("other-consumer-auto_industry_%s.csv" % kind))
@@ -1208,7 +1231,7 @@ def test_the_same_combination_twice_is_refused_before_anything_is_written(cache_
     args = with_value(with_value(with_value(with_value(
         BUILD, "--first", "1992Q1"), "--products", "Other consumer"),
         "--industry-combined", *items), "--extra-acquisitions")
-    rc, out, series = build_into(tmp_path, cache, args)
+    rc, out, series = build_into(tmp_path, cache, from_1992(tmp_path, args))
     err = capsys.readouterr().err
     assert rc == 2 and ("REFUSED: --industry-combined gives %r and %r, the same products summed"
                         % tuple(items)) in err
@@ -1458,10 +1481,11 @@ def merger_build(base, pro_forma):
     for q, rows in merger_cache().items():
         (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
     files = {"--roster": (base / "roster.json", MERGER_ROSTER),
-             "--mergers": (base / "mergers.json", {"17534": ["2019-09-30"], "1": ["2020-06-30"]}),
-             "--absorptions": (base / "absorptions.json",
-                               [{"acquirer": "17534", "absorbed": "200", "quarter": "2019-09-30"},
-                                {"acquirer": "1", "absorbed": "300", "quarter": "2020-06-30"}])}
+             "--mergers": (base / "mergers.json", {"since": "2005-10-01", "acquirers": {
+                 "17534": ["2019-09-30"], "1": ["2020-06-30"]}}),
+             "--absorptions": (base / "absorptions.json", {"since": "2005-10-01", "absorptions": [
+                 {"acquirer": "17534", "absorbed": "200", "quarter": "2019-09-30"},
+                 {"acquirer": "1", "absorbed": "300", "quarter": "2020-06-30"}]})}
     for path, doc in files.values():
         path.write_text(json.dumps(doc), encoding="utf-8")
     args = with_value(BUILD, "--pro-forma", pro_forma)

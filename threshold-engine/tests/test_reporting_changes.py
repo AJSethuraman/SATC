@@ -103,7 +103,8 @@ def good():
     return {"_what": "A test registry.", "events": [],
             "changes": [{"name": "A change", "first": "2024Q4", "last": "2025Q2", "products": ["Other consumer"],
                          "measures": ["net charge-offs"], "call_report_items": ["RC-C 6.d"],
-                         "what_changed": "Something moved.",
+                         "what_changed": "Something moved.", "steps_balance": True,
+                         "steps_balance_why": "Its source moves the loans at one report date.",
                          "sources": [{"citation": "A notice", "url": "https://example.org/notice"}],
                          "already_labelled": {}}]}
 
@@ -372,8 +373,8 @@ def test_the_peers_build_labels_the_events_on_ci_and_leaves_out_nothing_for_them
     for q, rows in data.items():
         if "20180331" <= q <= "20231231":
             (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
-    (tmp_path / "m.json").write_text("{}", encoding="utf-8")
-    (tmp_path / "a.json").write_text("[]", encoding="utf-8")
+    (tmp_path / "m.json").write_text('{"since": "1990-01-01", "acquirers": {}}', encoding="utf-8")
+    (tmp_path / "a.json").write_text('{"since": "1990-01-01", "absorptions": []}', encoding="utf-8")
     said = []
     run.build(tmp_path / "p.xlsx", cache=cache, roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
               first="2018Q1", last="2023Q4", products=["C&I"], mergers=tmp_path / "m.json",
@@ -557,13 +558,15 @@ def test_the_book_writes_the_reporting_changes_tab(tmp_path):
     assert ndfi[1:4] == ["2024Q4 to 2025Q2", "Other consumer, C&I", ", ".join(ALL_MEASURES)]
     assert "RC-C 6.d: other consumer loans" in ndfi[4] and ndfi[5] == by_name("NDFI and margin-loan revision")[
         "what_changed"]
-    assert ndfi[6].splitlines()[1].endswith("https://www.fdic.gov/analysis/"
+    assert ndfi[6] == "Yes: " + by_name("NDFI and margin-loan revision")["steps_balance_why"]
+    assert ndfi[7].splitlines()[1].endswith("https://www.fdic.gov/analysis/"
                                             "bank-lending-nondepository-financial-institutions.pdf")
     first = rows[0]
     assert first[2:4] == ["Owner-occupied nonfarm nonresidential, Other nonfarm nonresidential",
                          ", ".join(ALL_MEASURES)]
     tdr = rows[[c["name"] for c in CHANGES].index("Troubled debt restructuring captions replaced")]
     assert tdr[2:4] == ["None of the products", "None"]
+    assert tdr[6].startswith("No: Its source replaces memorandum captions")
     # The events (question 15, 17 Oct 2026) follow under their own heading, each with a Glossary entry.
     n = len(CHANGES)
     assert ws.cell(8 + n, 2).value == RC.EVENTS_HEADING and ws.cell(9 + n, 2).value == RC.HEADINGS[0]

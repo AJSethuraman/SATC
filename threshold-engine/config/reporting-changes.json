@@ -1,5 +1,5 @@
 {
-  "_what": "Changes to the Call Report's definitions and forms, each labeled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes: they are under events instead (the firm, 17 Oct 2026, question 15, agreed with the recommendation), labeled on the C&I series as events, never as reporting changes, from 2020Q1 to 2021Q4, each citing the FDIC Quarterly Banking Profile figures recorded in research-breaks.md. The commercial products were added to the entries later on 16 Oct 2026, each from the entry's own Call Report items: every loan category, every real estate category or C&I where the entry names them; the nonfarm splits, which begin in 2007Q1, under that change; C&I under the December 2024 revision; none under the 2010 NDFI change, which its source says came out of other loans and not out of C&I.",
+  "_what": "Changes to the Call Report's definitions and forms, each labeled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes: they are under events instead (the firm, 17 Oct 2026, question 15, agreed with the recommendation), labeled on the C&I series as events, never as reporting changes, from 2020Q1 to 2021Q4, each citing the FDIC Quarterly Banking Profile figures recorded in research-breaks.md. The commercial products were added to the entries later on 16 Oct 2026, each from the entry's own Call Report items: every loan category, every real estate category or C&I where the entry names them; the nonfarm splits, which begin in 2007Q1, under that change; C&I under the December 2024 revision; none under the 2010 NDFI change, which its source says came out of other loans and not out of C&I. Each entry says whether it can step a book's balance in a single quarter (steps_balance) and why, from its own source (the firm, 18 Oct 2026, the round 2 docket's question 20, agreed with the recommendation: a label explains a jump only when its change could have caused it); where the source does not say, it is false and says why. Only a reporting change marked true carries a series across windows the jump left out; an event never does.",
   "events": [
     {
       "name": "Revolving-line drawdowns",
@@ -10,6 +10,8 @@
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": ["RC-C 4: C&I"],
       "what_changed": "Not a change to the report: borrowers drew on their credit lines in 2020Q1, and the industry's C&I loans rose $339.4 billion (15.4 percent) while unfunded C&I commitments fell $269 billion.",
+      "steps_balance": true,
+      "steps_balance_why": "Its source records the industry's C&I up $339.4bn (15.4 percent) in 2020Q1. An event: it never carries a series across, whatever this says.",
       "sources": [
         {
           "citation": "FDIC Quarterly Banking Profile, First Quarter 2020: C&I loan portfolio increased by $339.4 billion (15.4 percent); unfunded C&I loan commitments declined by $269 billion",
@@ -27,6 +29,8 @@
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": ["RC-C 4: C&I"],
       "what_changed": "Not a change to the report: PPP loans entered C&I from 2020Q2 ($482.2 billion of them at the end of that quarter, when the industry's C&I rose $146.5 billion); labeled 2020Q2 to 2021Q4, the span the firm chose on 17 Oct 2026, and when the PPP loans left the books was not checked.",
+      "steps_balance": true,
+      "steps_balance_why": "Its source records the industry's C&I up $146.5bn in 2020Q2, with $482.2bn of PPP loans. An event: it never carries a series across, whatever this says.",
       "sources": [
         {
           "citation": "FDIC Quarterly Banking Profile, Second Quarter 2020: C&I loans rose $146.5 billion, which it attributes to the Paycheck Protection Program, with $482.2 billion in PPP loans",
@@ -52,6 +56,8 @@
         "RC-L 1.c(1): commitments, split the same way"
       ],
       "what_changed": "Construction was split into 1-4 family and other, nonfarm nonresidential into owner-occupied and other, and leases into retail and commercial, in RC-C, RC-N and RI-B; the totals are continuous across it.",
+      "steps_balance": false,
+      "steps_balance_why": "Its source splits existing lines and says the totals are continuous across it; the splits are first filed in it, so there is no earlier quarter of theirs to step from.",
       "sources": [
         {
           "citation": "71 FR 8649 (17 Feb 2006), Call Report Revisions To Be Implemented March 31, 2007",
@@ -76,6 +82,8 @@
         "RC-C: every loan category (loans classified as trading are reported in RC-D)"
       ],
       "what_changed": "Guidance from the agencies said loans a bank classifies as trading leave RC-C and are reported as trading assets in RC-D; how much moved was not measured.",
+      "steps_balance": false,
+      "steps_balance_why": "Its source, a 2011 notice describing the 2008 guidance (not read), says trading loans 'should be excluded from Schedule RC-C', but not when, nor whether loans already reported there moved, nor how much: not settled, so no.",
       "sources": [
         {
           "citation": "76 FR 5253 (28 Jan 2011), section G.1, describing the March 2008 guidance (the guidance itself was not read)",
@@ -97,6 +105,8 @@
         "C&I, agricultural and other loans"
       ],
       "what_changed": "A loan is secured by real estate only if the real estate is worth more than 50% of the principal at origination, applied to new loans only, so the move is gradual.",
+      "steps_balance": false,
+      "steps_balance_why": "Its source applies the new test to new loans only, so the move is gradual, never a step in one quarter.",
       "sources": [
         {
           "citation": "74 FR 5028 (28 Jan 2009), section II.B",
@@ -114,6 +124,8 @@
                    "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
       "call_report_items": [],
       "what_changed": "Accounting rules FAS 166 and 167 brought securitization trusts back onto banks' books, consolidating more than $300bn of securitized card balances and adding $28.0bn to other consumer across the industry.",
+      "steps_balance": true,
+      "steps_balance_why": "Its source records more than $300bn of securitized card balances consolidated in 2010Q1, and $28.0bn added to other consumer, in that one quarter.",
       "sources": [
         {
           "citation": "FDIC Quarterly Banking Profile, first quarter 2010",
@@ -135,6 +147,8 @@
         "RC-L 1.b: card lines, split into consumer and other"
       ],
       "what_changed": "Loans to nondepository financial institutions became their own line, split out of other loans and not out of C&I, and other unused commitments were split three ways.",
+      "steps_balance": true,
+      "steps_balance_why": "Its source moves loans to nondepository financial institutions out of other loans onto a new line at one report date; it names none of the products, so it carries no series.",
       "sources": [
         {
           "citation": "74 FR 68314 (23 Dec 2009), sections II.A and II.B",
@@ -157,6 +171,8 @@
         "RC-C and RC-N: troubled debt restructuring memoranda, by category"
       ],
       "what_changed": "A construction loan stays in construction after the work is done while repayment still depends on selling the property, and the troubled debt restructuring memoranda were broken out by category.",
+      "steps_balance": false,
+      "steps_balance_why": "Its source lists only 'instructional revisions that address the reporting of construction loans following the completion of construction', effective 31 Mar 2011, and does not say whether loans already reported elsewhere move: not settled, so no.",
       "sources": [
         {
           "citation": "76 FR 5253 (28 Jan 2011)",
@@ -177,6 +193,8 @@
         "RC-C 6.d: other consumer loans"
       ],
       "what_changed": "Auto loans got their own line from March 2011; before it they were inside other consumer loans.",
+      "steps_balance": true,
+      "steps_balance_why": "Its source says auto loans were inside other consumer loans until March 2011 and on their own line from then: every one moved in that quarter.",
       "sources": [
         {
           "citation": "FDIC BankFind financial data definitions, LNAUTO: \"prior to March 2011, this item was included in other consumer loans (lnconoth)\"",
@@ -197,6 +215,8 @@
         "RC-C 1, FFIEC 031: the nine-category breakdown of loans secured by real estate for the consolidated bank (construction, farmland, 1-4 family: revolving 1.c(1), closed-end first liens 1.c(2)(a) and junior liens 1.c(2)(b), multifamily, nonfarm nonresidential)"
       ],
       "what_changed": "Large and highly complex institutions began reporting the nine-category real estate breakdown, 1-4 family included, for the whole bank, not only domestic offices; whether the FDIC's fields moved with it was not checked.",
+      "steps_balance": false,
+      "steps_balance_why": "Its source adds a consolidated breakdown for the largest filers; whether the FDIC's fields moved with it was not checked, so the source does not say it can step a balance read here.",
       "sources": [
         {
           "citation": "78 FR 30922 (23 May 2013)",
@@ -219,6 +239,8 @@
         "RC-C: balances of purchased credit-deteriorated loans, grossed up by the allowance"
       ],
       "what_changed": "Under CECL, adopted from 1 Jan 2020 by SEC filers, purchased credit-impaired loans became purchased credit-deteriorated loans carried at purchase price plus their allowance, and the nonaccrual exception was not carried over to them.",
+      "steps_balance": false,
+      "steps_balance_why": "Its sources describe purchased credit-deteriorated loans at acquisition and the date of first use (31 Mar 2020 for a calendar-year SEC filer), not what happened to loans already held: not settled, so no.",
       "sources": [
         {
           "citation": "84 FR 4131 (14 Feb 2019)",
@@ -244,6 +266,8 @@
         "RC-C Memoranda 17.a and 17.b: section 4013 loans (confidential)"
       ],
       "what_changed": "Loans given COVID-19 deferrals were not reported as past due during the deferral; when that relief ended was not checked.",
+      "steps_balance": false,
+      "steps_balance_why": "Its sources change which loans are reported past due, not what is on the books: no balance moves.",
       "sources": [
         {
           "citation": "Interagency statement, 7 Apr 2020 (FDIC PR-49-2020)",
@@ -267,6 +291,8 @@
         "RC-N Memorandum 1"
       ],
       "what_changed": "Troubled debt restructuring captions were replaced by loan modifications to borrowers experiencing financial difficulty, so these memoranda are not comparable across the change; the main loan lines are unaffected.",
+      "steps_balance": false,
+      "steps_balance_why": "Its source replaces memorandum captions and says the main loan lines are unaffected.",
       "sources": [
         {
           "citation": "89 FR 45046 (22 May 2024), section II.B.1",
@@ -293,6 +319,8 @@
         "RC-L 1.e(2) to 1.e(4): depository institutions, NDFI, all other"
       ],
       "what_changed": "Loans to nondepository financial institutions were redefined and every securities-based margin loan moved to loans for purchasing or carrying securities, out of C&I and out of other consumer (6.d), with best-efforts reporting until 30 Jun 2025.",
+      "steps_balance": true,
+      "steps_balance_why": "Its sources move every securities-based margin loan out of C&I and other consumer from the 31 Dec 2024 report date, with best efforts until 30 Jun 2025; the industry's C&I fell $128bn from 2024Q3 to 2024Q4.",
       "sources": [
         {
           "citation": "89 FR 45046 (22 May 2024), section II.C.1: effective as of the December 31, 2024, report date",

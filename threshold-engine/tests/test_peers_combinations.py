@@ -167,21 +167,25 @@ def test_absorptions_are_read_from_the_fdic_history():
     ]
 
 
-@pytest.mark.parametrize("content", ['{"7213": []}', '[{"acquirer": "7213"}]',
-                                     '[{"acquirer": "7213", "absorbed": "x", "quarter": "2011-09-30"}]',
-                                     '[{"acquirer": "7213", "absorbed": "1", "quarter": "2011-13-30"}]',
-                                     "not json"])
+def dated(body):
+    return '{"since": "2005-10-01", "absorptions": %s}' % body
+
+
+@pytest.mark.parametrize("content", [dated('{"7213": []}'), dated('[{"acquirer": "7213"}]'),
+                                     dated('[{"acquirer": "7213", "absorbed": "x", "quarter": "2011-09-30"}]'),
+                                     dated('[{"acquirer": "7213", "absorbed": "1", "quarter": "2011-13-30"}]'),
+                                     json.dumps(LINK), "not json"])
 def test_a_bad_absorptions_file_is_refused_by_name(tmp_path, content):
     f = tmp_path / "absorptions.json"
     f.write_text(content)
     with pytest.raises(ValueError, match="absorptions.json"):
-        load_absorptions(f)
+        load_absorptions(f, "2006Q1", again="the pull")
 
 
 def test_a_good_absorptions_file_is_read(tmp_path):
     f = tmp_path / "absorptions.json"
-    f.write_text(json.dumps(LINK))
-    assert load_absorptions(f) == LINK
+    f.write_text(dated(json.dumps(LINK)))
+    assert load_absorptions(f, "2006Q1", again="the pull") == LINK
 
 
 def test_delinquency_blanks_the_four_quarter_average_at_an_acquisition_never_a_rate():

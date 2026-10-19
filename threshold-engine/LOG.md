@@ -3034,3 +3034,883 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
 2. **A series continues across a labelled reporting change** (question 16, `peers/run.py`). This already changes consumer series: on test data 14 of 118 other-consumer files gain history, mostly across the 2011Q1 auto split. Question 20 will narrow it to changes whose own source says they can step a balance in one quarter, which changes the consumer series too.
 3. **Combined products and labelled changes** (merge of 18 Oct): a combined product continues across a gap when a change is named for any of its parts. Recorded as a decision the firm can overrule; the stricter rule (only when the named part itself moved) is not built.
 4. **A build will refuse a merger list that starts after its first quarter** (question 22). This changes the merger and absorption files' format; consumer caches will need one re-pull. It will be announced in this log when built.
+   **Built, 18 Oct 2026** (entry "question 22", below). **Every consumer cache needs one re-pull of the merger record**: `peers pull --cache DIR --first 2006Q1 --last 2026Q2 --products ... --delinquency yes --mergers 2005-10-01` (or the date the cache was pulled from, on or before 2006-01-01). Only the merger record is fetched again; the quarters already cached are not. Until then `peers build` refuses `mergers.json` and `absorptions.json` as written before the date was recorded, naming the pull. The same re-pull writes `institutions.json`, which item 5 needs. The window app (`app.py`) pulls the merger record on every Pull, so its folders are re-pulled the next time Pull is pressed. A cache filled by `internal pull` needs `internal pull` run again for the same reason.
+5. **A new charter's first filing counts as that quarter's activity** (question 21, built 18 Oct 2026, entry below). Shared build code, and the consumer book is pro forma, so it changes consumer output: on the consumer book's settings 16 banks folded in first file partway through a year (JPMorgan 2, PNC 1, Huntington 8, First Citizens 4, Citizens 1), all 16 opened that quarter, so windows holding them that were missing are kept. A consumer build is refused without `institutions.json` in its cache; the re-pull in item 4 writes it.
+6. **A row shown and not rated, and each row's own start** (questions 23 and 24, built 18 Oct 2026, entries below). Two book changes in shared code. `shown_not_rated` is a new **required** top-level key: `books/consumer-public.json` states `[]` on this branch and its output is unchanged, but any consumer book file without the key is now refused by name, so a branch that edits the consumer book needs `"shown_not_rated": []` when it takes this one. `lines_from.start` may now be a list giving each row its own start; the consumer book keeps its one start, null, and its output is unchanged (tested cell for cell). Question 27 (the peer median follows the pack) changes nothing in the consumer book, which has no median series.
+
+## 18 Oct 2026, question 18: a stated deal leaves out only the products it brought
+
+- **Question 18, 18 Oct 2026, agreed with the recommendation** (the round 2
+  commercial docket, read back above): *"A listed deal leaves out only the
+  portfolios it brought"*; *"Each stated acquisition gets a required
+  `products` list with a source."*
+- **The file.** Each entry of `config/stated-acquisitions.json` now has three
+  more keys, all required, none with a default:
+  - `products`: the books the deal brought, names from `books.PRODUCTS`.
+    An unknown name is refused (so is a combined name such as "All
+    consumer"), and so is an empty list, a name given twice, and a list
+    naming Nonfarm nonresidential without both its splits or a split without
+    the whole: a loan in a split is in the whole, so the two cannot differ.
+  - `products_source`: where the list comes from, on one line.
+  - `products_unsettled`: the products in the list the source does not
+    settle. They are listed all the same (the safe side: a window left out,
+    never two books mixed); each must be in `products`; `[]` when the source
+    settles every one.
+- **What is in it.** Only from `docs/commercial-2026-10/research-breaks.md`
+  (on main) and each entry's own filing:
+
+  | Deal | Products | Not settled by the source |
+  |---|---|---|
+  | JPMorgan / Washington Mutual, 2008Q3 | all 11 (a whole bank: "substantially all of the assets ... of Washington Mutual's banks") | none |
+  | M&T / Wilmington Trust, 2011Q2 | all 11 (a whole bank holding company and its two banks) | none |
+  | Wells Fargo / GE Capital, 2016Q1 | C&I | none |
+  | Capital One / GE Healthcare, 2015Q4 | all 11 | 9: the five consumer products, Construction, Multifamily, and the two nonfarm splits |
+
+  - **Wells Fargo.** The release in the entry's citation: *"Added $30.8
+    billion of loans and leases from GE Capital acquisitions"*, of which
+    *"$26.7 billion from commercial and industrial loans and leases (3/1/16
+    close)"* is this deal and *"$4.1 billion from rail car portfolio (1/1/16
+    close)"* is a separate purchase in the same quarter, not this entry.
+    Leases are not a product here, so C&I alone. The release's categories
+    are Wells Fargo's own; which Call Report line each loan went to was not
+    read. Read 18 Oct 2026 through a web fetch that returns the page as text
+    (the 30.8 and 4.1 lines were not byte-compared: EDGAR refuses an
+    automated request that does not give a contact email, and none was
+    given).
+  - **Capital One.** The filing quoted names the business bought, not its
+    loans. research-breaks.md shows what moved in 2015Q4: nonfarm
+    nonresidential 10.9 to 16.2 (+49%), C&I +21%, other loans +27%. So C&I
+    and nonfarm nonresidential are listed as shown; nothing settles which
+    nonfarm split, or construction, multifamily or the consumer products, so
+    those are listed too and named as not settled. The rest of the
+    exhibit (its notes past the balance sheet) could not be read: the web
+    fetch stops at 20,824 characters and EDGAR refuses the direct request.
+- **What the build does.** `stated.for_product` gives, per product, the
+  quarters of the deals that brought it (a combined product's when any part
+  is named); `peers build` uses it for every product's charge-off windows,
+  the delinquency four-quarter average and 30+ to charge-off, and for the
+  peer workbook (`build_peers_workbook`'s `stated` is now
+  `{product: {cert: [quarter-ends]}}`, a product missing refused). The book
+  index still reads every stated quarter as declared, whatever its products.
+  Each series file's stated line now names the deals that brought its
+  product, with the list's source and its unsettled products, and the deals
+  in its quarters that did not ("nothing is left out for them"); the Run
+  tab lists each deal with what it brought.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  2006Q1 to 2026Q2, jump 0.25, share 0.05, minimum 0, pro forma, the merger
+  record since 2005, as the question 14 entry measured it; by `bank_book`
+  and `bank_delinquency` with every product's quarters and with the
+  products list, not a full build):
+  - charge-off windows given the stated reason: **60 before, 40 after**.
+    The 20 are Wells Fargo's 2016Q1 to 2016Q4 windows in Construction,
+    Multifamily, Nonfarm nonresidential and its two splits, now kept (four
+    each). Nothing else moved: JPMorgan, M&T and Capital One list every
+    product.
+  - delinquency four-quarter averages blanked by it: **235 before, 160
+    after** (those five Wells Fargo products, 15 each: five measures, three
+    quarters).
+  - 30+ to charge-off was not measured on the cache; it reads the same
+    per-product quarters (tested).
+- **Proof.** `tests/test_stated_products.py`, 22 tests: the file's lists;
+  each refusal (13); the three keys required; a whole with both splits
+  accepted; `for_product`, combined products included; the workbook
+  refusing a product with no mapping; a build of C&I and Construction with
+  M&T listed as bringing Construction only (C&I charge-offs, delinquency and
+  30+ to charge-off untouched and the note saying so; Construction left out)
+  and then C&I only (the reverse); the stated note's wording. Checked by
+  mutation, each then put back: `for_product` ignoring the list (4 fail);
+  the whole-without-splits check off (2), the split-without-whole check off
+  (1), the unsettled check off (1), unknown names allowed (3); charge-offs,
+  delinquency or 30+ to charge-off reading every product's deals (1 each);
+  every product's note worded for C&I (1). `test_stated_acquisitions.py`
+  was given the new keys and the new wording.
+- **Results.** Scratch venv (Python 3.13, `OPENPYXL_LXML=False`), pytest
+  with 4 workers, in this worktree:
+  - every `test_peers_*` file, `test_commercial_book`, `test_reporting_changes`,
+    `test_left_out`, `test_from_1991`, `test_launcher`, `test_book` and the
+    two stated files: 791 passed, 5 skipped, 1 failed (24 min). The failure
+    was `test_peers_workbook.py`'s commercial share panel, which built with
+    the consumer products' empty stated mapping and was refused for C&I; it
+    was given one per product and passed. The two `test_peers_cli.py`
+    failures this log recorded before passed.
+  - after the glossary and that fix: `test_stated_acquisitions`,
+    `test_stated_products`, `test_peers_dashboard`: 64 passed.
+  - the other 23 test files were started and stopped by a 40-minute timeout
+    before reporting, so they are **not checked** here. None of them names
+    the stated acquisitions, `run.build` or `build_peers_workbook`.
+- **Docs.** `docs/WHAT-IT-DOES.md`'s `--stated-acquisitions` row and the peer
+  glossary's "Left out: a stated acquisition" say a deal leaves out only the
+  products it brought.
+- **The consumer book.** Unchanged: it states `stated_acquisitions: null`.
+  For the consumer session (question 19): the file now carries a products
+  list per deal, consumer products included, so a consumer book that reads
+  it would leave out only the deals listing its product (JPMorgan, M&T and,
+  as not settled, Capital One; not Wells Fargo).
+- **Not done.** Nothing was opened in Excel; none can be here. No full
+  build was run for this answer. The Wells Fargo rail car purchase (2016Q1,
+  $4.1bn) is not a stated entry; its quarter is already this entry's
+  quarter, and its Call Report lines were not read.
+
+## 18 Oct 2026, question 20: a label carries a series across a jump only when its change could have caused it
+
+- **Question 20, 18 Oct 2026, agreed with the recommendation** (read back
+  above; first note *"i don't understand"*, then in chat, after the plain
+  explanation and the two pictures, KeyBank C&I/NDFI 2024Q4 and
+  multifamily/construction 2009Q1: *"then agree with that and the rest"*):
+  *"Each reporting change gets a required yes/no, from its own source, on
+  whether it can step a balance in one quarter; only a yes carries a series
+  across."*
+- **The registry.** Every entry of `config/reporting-changes.json`, the
+  changes and the two events alike, has two more keys, both required, none
+  with a default: `steps_balance`, exactly true or false (a string, a
+  number or null is refused), and `steps_balance_why`, one sentence from the
+  entry's own source. Where the source does not say, false, and the reason
+  says so (the safe side: no series carried across a jump nothing explains).
+  `reporting_changes.can_step` gives the changes marked true, and
+  `peers build` carries a series across windows the jump left out only for
+  those (question 16's rule, narrowed). An event never does, whatever it
+  says. The Reporting changes tab has a new column, "Can step a balance"
+  ("Yes: ..." / "No: ..."), with a Glossary entry; "Continues across" says
+  the rule.
+- **What each says** (12 changes, 2 events):
+
+  | Entry | Can step | From its source |
+  |---|---|---|
+  | Construction, nonfarm and lease splits (2007Q1) | no | the totals are continuous; the splits are first filed in it |
+  | Loans classified as trading (2008Q1) | no | the 2011 notice says trading loans "should be excluded from Schedule RC-C", not when or whether loans already there moved (the 2008 guidance was not read): not settled |
+  | Secured by real estate, clarified (2009Q1) | no | new loans only, so gradual |
+  | FAS 166 and 167 (2010Q1) | **yes** | more than $300bn of card balances consolidated in that quarter |
+  | NDFI loans split out of other loans (2010Q1) | **yes** | moved onto a new line at one report date; it names no product, so it carries nothing |
+  | Construction loans after completion (2011Q1) | no | the notice lists only "instructional revisions that address the reporting of construction loans following the completion of construction", effective 31 Mar 2011, and does not say whether loans already elsewhere move: not settled |
+  | Auto loans get their own line (2011Q1) | **yes** | inside other consumer until March 2011, on their own line from then |
+  | Real estate breakdown for the whole bank (2013Q2) | no | whether the FDIC's fields moved with it was not checked |
+  | CECL: purchased credit-deteriorated loans (2020Q1) | no | the notices describe PCD loans at acquisition and the date of first use, not what happened to loans already held: not settled |
+  | COVID-19 deferrals not reported as past due (2020Q2) | no | changes what is reported past due, not what is on the books |
+  | TDR captions replaced (2024Q2) | no | memoranda only; the main loan lines unaffected |
+  | NDFI and margin-loan revision (2024Q4 to 2025Q2) | **yes** | every margin loan out of C&I and other consumer from the 31 Dec 2024 report date; industry C&I -$128bn in 2024Q4 |
+  | Revolving-line drawdowns, event (2020Q1) | yes | industry C&I +$339.4bn (15.4%); an event, so it carries nothing |
+  | PPP loans, event (2020Q2 to 2021Q4) | yes | industry C&I +$146.5bn in 2020Q2; an event, so it carries nothing |
+
+  As the docket expected: the NDFI revision, FAS 166/167 and the 2011 auto
+  split yes; the 2009Q1 clarification and the COVID rules no. Of the others,
+  three are no because their source is silent (trading, construction after
+  completion, CECL), not because it says no. The two FR notices for trading
+  and construction-after-completion (76 FR 5253) and the CECL notice (84 FR
+  4131) were read on 18 Oct 2026 through a web fetch that returns the page
+  as text.
+- **Proof.** `tests/test_steps_balance.py`, 13 tests: every entry's answer
+  as above, and each silent source saying "not settled, so no"; `can_step`;
+  the refusals (a string, 1, null; an empty, blank, two-line or null
+  reason); both keys required on a change and on an event; KeyBank's C&I
+  (the public cache file in `tests/data/peers`) built with the NDFI
+  revision marked yes (runs from 2006Q1 across the five NDFI windows) and
+  the same entry marked no (starts 2026Q1); and KeyBank's C&I given a +30%
+  move in 2009Q1, a quarter only the 2009 clarification names for C&I:
+  the series starts after that jump's windows (2010Q2) and still runs across
+  the NDFI windows. Checked by mutation, each put back: every change
+  bridging again (2 fail), `can_step` keeping every change (3), any
+  `steps_balance` accepted (3), any reason accepted (4).
+  `test_reporting_changes.py`'s fixture and tab test were given the new
+  keys and column.
+- **Results.** Scratch venv, pytest with 3 workers: `test_steps_balance`,
+  `test_reporting_changes`, `test_left_out`, `test_peers_cli`,
+  `test_peers_combined_products`, `test_commercial_book`,
+  `test_peers_combinations`: 290 passed, 1 skipped (16 min). The rest of the
+  suite was not run for this answer.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  public FDIC data, not in the repository). Two runs of the commercial
+  book's `peers build` alone (its `peers` settings, 1991Q1 to 2026Q2,
+  reporting changes from each commit's own registry), at 8fd739b9 (question
+  18) and at 93b5b984 (this answer): 1,958 s and 2,034 s, both exit 0, 516
+  series files each, none added or removed. **4 of the 516 change**, all in
+  their values and left-out line; no other file differs, notes included:
+  - **KeyBank multifamily, net and gross**: 86 quarters, 2003Q4 to 2026Q2,
+    carried across 2009Q1 to 2010Q1 because "Secured by real estate,
+    clarified" names 2009Q1 for Multifamily, become **65 quarters, 2010Q2
+    to 2026Q2**. That change applies to new loans only, so it cannot
+    explain KeyBank's 2009Q1 multifamily jump; the series now starts after
+    the jump's windows, as for any unexplained jump. This is the second
+    picture the firm was shown for this question.
+  - **JPMorgan C&I (a peer's own book, `banks/`), net and gross**: 55
+    quarters from 2011Q3, carried across 2020Q1 to 2021Q1 because CECL
+    names 2020Q1 for C&I, become **21 quarters from 2021Q2**. CECL's sources
+    do not say it moved loans already held; the 2020Q1 move is the quarter
+    of the revolving-line drawdowns, an event, which never carries a series.
+  - Every other series carried across a labelled change before still is:
+    KeyBank's C&I across the NDFI windows (2024Q4 to 2025Q4) among them.
+  Nothing was opened in Excel; the peer workbooks these runs wrote were not
+  opened.
+- **The consumer book: this changes its output.** The rule is the build's,
+  not the commercial book's, so a consumer series that the jump broke in
+  2008Q1 (trading), 2013Q2 (the whole-bank breakdown names Mortgage and
+  Home equity) or 2020Q1 (CECL) and that question 16 carried across now
+  starts after that jump again. FAS 166/167 and the 2011 auto split still
+  carry, so the 14 other-consumer files question 16 extended on test data,
+  mostly across the auto split, are expected to keep their history; that was
+  not re-measured.
+- **For the consumer session** (question 19: *"make the change for yourself
+  and then tell the other agent"*). Built on the commercial side, in shared
+  code, so both reach the consumer book on merge:
+  1. `config/reporting-changes.json` entries now need `steps_balance` and
+     `steps_balance_why`; a registry without them is refused by entry. Only
+     a change marked true carries a series across (`reporting_changes.can_step`).
+     The consumer-relevant answers: FAS 166/167 and the auto split yes;
+     trading 2008Q1, the 2013Q2 whole-bank breakdown, CECL 2020Q1 and the
+     COVID rules no. Overrule any of them in the file, with its source.
+  2. `config/stated-acquisitions.json` entries carry `products`,
+     `products_source` and `products_unsettled` (question 18). The consumer
+     book still reads none (`stated_acquisitions: null`).
+
+## 18 Oct 2026, question 21: a new charter's first filing counts as that quarter's activity
+
+- **Question 21, 18 Oct 2026, agreed with the recommendation** (the round 2
+  commercial docket, read back above): *"A new charter's first filing
+  counts as that quarter's activity, where the FDIC record shows it opened
+  that quarter"*.
+- **The rule** (`books.first_filings`, `books.opened_in_first_quarter`,
+  `books.combined_flows`). A bank folded into a roster bank's history (a pro
+  forma member) whose first filing in the data falls partway through a year
+  (not a Q1, not the data's first quarter, no later than its absorption)
+  has no filing the quarter before, so its flow there was not known and
+  every window holding it was missing. Now its first year to date is that
+  quarter's flow when the FDIC institutions record
+  (api.fdic.gov/banks/institutions, ESTYMD) gives an establishment date in
+  that quarter. Otherwise the quarter stays missing, as before. The roster
+  bank's own first filing is not read this way; the answer is about banks
+  folded in. Delinquency is each bank as filed, so it is untouched.
+- **The record is pulled, never fetched by a build.** `peers pull --mergers
+  SINCE` now also writes `institutions.json` into the cache
+  (`run.write_institutions`): every institution the FDIC has a record of,
+  open or closed, its name and establishment date as `YYYY-MM-DD`, the date
+  pulled, the row count; a date that is not a real `MM/DD/YYYY` date is kept
+  as given under `undated`, never read as a date. An empty record is
+  refused and nothing written. `peers build` reads it from its cache
+  (`run.opened_members`) and refuses, naming each bank by certificate, its
+  first filing and the roster bank whose history it is in:
+  - when a member needs a date and the cache has no `institutions.json`
+    (the message gives the pull to run);
+  - when the file does not hold a member and was pulled on or before the
+    end of that member's first filing quarter, so it could not have held it.
+  A member the record does not hold although pulled after that (the FDIC has
+  no row for it), or holds without a date, is not shown to have opened then:
+  its quarter stays missing, as the answer says ("otherwise"), and the Run
+  tab names it. Without pro forma nothing is needed and nothing is read.
+- **What the build says.** The Run tab gains a line on the rule, with the
+  file's pull date and row count, then per roster bank the members counted
+  (name, certificate, first filing, date opened) and those not, under "opened
+  in another quarter", "the record gives no date" or "not in the record".
+  The peer glossary's "Pro forma" says it in one sentence more. The
+  workbook's Data tab reads the same rule (`build_peers_workbook` takes a
+  required `opened`).
+- **Measured on the real cache** (`scratchpad/cache-commercial`, public
+  FDIC data, not in the repository; the institutions record pulled today
+  through `run.write_institutions`: 27,835 institutions, every one with a
+  readable date). The build's own steps (`combination`, `bank_book`), as
+  question 6 measured them: the 16 roster banks' C&I windows 1992Q1 to
+  2005Q4 on a 1991Q1 build, the record since 1990, pro forma, jump 0.25,
+  acquisition share 0.05, minimum book 0, the stated acquisitions; not a
+  full build.
+  - **Members first filing partway through a year: 348**, across all 16
+    roster banks (KeyBank 12, Huntington 62, Wells Fargo 53). **321** opened
+    in that quarter by the record and are counted. **27** are not: **21**
+    have no row in the institutions record at all (trust companies and
+    other non-deposit charters among them; for example certificate 32772,
+    SouthTrust Estate and Trust Co., which the FDIC history record carries
+    with an establishment date); **6** opened in another quarter (Old Kent,
+    National Association, first filed 1997Q3, opened 1985-01-01; Commerce
+    Security Bank; SouthTrust Bank of North Carolina; U.S. Trust Company;
+    First Place Bank; U.S. Trust Company of North Carolina).
+  - **The 896 windows** (16 banks, 56 each):
+
+    | | Kept | A quarter is missing | The jump |
+    |---|---|---|---|
+    | Before (question 6's count) | 385 | 501 | 10 |
+    | After | **782** | **104** | 10 |
+
+    **397 of the 501 come back.** Of the 104 still missing, 93 hold the
+    first filing of one of the 27 members not counted (Wells Fargo 25, Bank
+    of America 12, U.S. Bank 11, Fifth Third, Huntington and M&T 8 each,
+    Truist 7, Zions 5, JPMorgan and PNC 4 each, Regions 1); the other 11
+    were not looked into.
+  - **KeyBank's C&I** (all 12 of its members counted): its first kept window
+    was 1994Q2 and its net series was written from 2003Q4 (86 quarters, 32
+    earlier windows missing); now every window from 1992Q1 is kept and the
+    net series runs **from 1992Q1 to 2026Q2, 133 quarters written**, still
+    carried across the NDFI windows (2024Q4 to 2025Q4).
+- **Proof.** `tests/test_new_charters.py`, 14 tests. On made-up banks:
+  which first filing is found (not a Q1, not the first quarter, not after
+  its absorption); counted only when the date is in that quarter; the first
+  year to date as the flow and the next quarter as ever; the window kept,
+  its charge-offs checked by hand; `opened` required with members. The
+  record's dates read, an unreadable one kept. The pull writing the record
+  and refusing an empty one; a malformed record refused. On real data
+  (`keybank_usa_1994.json`, `institutions_keybank.json`, both from public
+  FDIC data, the README says how): KeyBank's C&I built 1994Q1 to 1997Q4
+  runs from its first window, 1995Q1, across Key Bank USA's first filing
+  (1995Q3, opened 5 Sep 1995), its 1995Q4 value checked by hand, the Data
+  tab's rows kept and the Run tab line; with the record lacking Key Bank
+  USA, the series starts at 1996Q3 and the Run tab names it; a cache
+  without the record and a record pulled on 1995-09-30 refused, naming
+  certificate 34055 and KeyBank (pulled 1995-10-01, built); no record needed
+  without pro forma. `test_peers_cli`'s merger pull test checks the record
+  is written. **Checked by mutation**, each put back: the first year to
+  date never the flow (3 fail); the date ignored (3); a Q1 first filing, the
+  data's first quarter, or one after the absorption counted (1 each);
+  `opened` not required (1); no refusal without the file (1); the stale
+  check off (1); the build or the workbook ignoring `opened` (1 each); an
+  empty record written (1); the pull not writing it (1).
+- **Results.** Scratch venv (Python 3.13, `OPENPYXL_LXML=False`), pytest
+  with 4 workers, the 31 test files that name the peers, the books or the
+  FDIC: 915 passed, 5 skipped, 13 failed, 15 errors (18 min 37 s). Every
+  failure and error was `test_peers_dashboard.py` and `test_peers_into.py`
+  calling `build_peers_workbook` without the new required `opened`; given
+  `{}`, those two files: 39 passed (7 min). The other 21 test files were
+  not run for this answer.
+- **The consumer book: this changes its output, and its builds need the
+  record.** The rule is the build's, for every pro forma build, and the
+  consumer book is pro forma. Measured the same way on the consumer book's
+  settings (2006Q1 to 2026Q2, the record since 2005; filings read from the
+  commercial cache, which holds every filer but not the consumer fields, so
+  no consumer window was measured): **16** members first file partway
+  through a year (JPMorgan 2, PNC 1, Huntington 8, First Citizens 4,
+  Citizens 1), **all 16** opened that quarter, so the windows holding them
+  are kept where they were missing. A consumer build on a cache without
+  `institutions.json` is now refused naming those 16; one re-pull of the
+  merger record writes it (question 22 needs that re-pull too).
+- **Not done.** No full build was run for this answer (one is run after
+  question 22, on the re-pulled record). The 21 members with no row in the
+  institutions record stay missing: the FDIC history record has an
+  establishment date for at least one of them (32772), and reading it
+  would be a second source the answer does not name; put to the firm. The
+  11 other missing windows were not examined. Nothing was opened in Excel;
+  none can be here.
+
+## 18 Oct 2026, question 22: a build stops if its merger list does not reach back as far as the history
+
+- **Question 22, 18 Oct 2026, agreed with the recommendation** (read back
+  above; after the pictures, First Niagara 2016Q4 combined against as filed
+  and two banks merged in 2004Q4 that a list from 2005 cannot see; the firm
+  in chat: *"ohhhh ok, so it doesn't look like a jump basically"* and *"then
+  agree with that and the rest"*): *"The merger and absorption files record
+  the date they start from; a build whose first quarter is earlier
+  refuses."*
+- **The files.** `peers pull --mergers SINCE` now writes `mergers.json` as
+  `{"since": SINCE, "acquirers": {cert: [quarter-ends]}}` and
+  `absorptions.json` as `{"since": SINCE, "absorptions": [...]}`.
+  `internal pull` writes its `absorptions.json` the same way, `since` the
+  first day of the earliest year it pulled the record from.
+- **The build** (`run.load_mergers`, `run.load_absorptions`,
+  `run.reaches_back`). `peers build` refuses, before anything is read from
+  the cache or written, when the first quarter begins before either file's
+  `since`, naming the quarter, its first day, the file and its date, and
+  the pull to run (for example: *"the first quarter, 1994Q1, starts on
+  1994-01-01, before the merger record (mergers.json) starts, on
+  1994-01-02 ..."*). A record from the first day of the first quarter
+  builds. A file in the earlier format (no `since`) is refused with
+  *"does not record the date ... Pull it again: 'peers pull --cache DIR
+  ... --mergers SINCE'"*; so is a malformed `since`. `internal reconcile`
+  reads its record the same way and refuses one that starts after the
+  earliest quarter it reads (the message names `internal pull`).
+- **Not refused: `peers industry-long`.** It reads a record that starts
+  after its history on purpose (its module says so: the 1990 industry
+  series are built with the record from 2005, and each file notes that a
+  repeated year to date before the record begins stays in the sum). It now
+  reads the dated format, refuses the old one, and its note gives the date
+  (*"before the merger record begins (2005-10-01)"*). The answer names the
+  build; whether the long series should refuse too is not asked here.
+- **The committed fixtures.** `tests/data/peers/mergers_roster.json` is now
+  `{"since": "2005-10-01", "acquirers": ...}`, the mapping unchanged. The
+  date its original pull (6 Oct 2026, evidence pack) started from is not in
+  this repository. 2005-10-01 is the date every documented pull here uses,
+  and the mapping was checked against today's record (the commercial
+  cache's, since 1990-01-01): restricted to its 16 certificates and to
+  quarter-ends from 2005-12-31, which is what a pull from 2005-10-01 gives,
+  it is identical. `absorptions_none.json` is
+  `{"since": "2005-10-01", "absorptions": []}`, a stand-in stating no
+  absorption, with the date of the record it is used beside. The README
+  says both. Every test that writes a record inline was given the format.
+- **What the guard caught in the suite.** Three `test_peers_cli.py` tests
+  built a 1992Q1 history (`roster_1992.json`) reading
+  `mergers_roster.json`, a record from 2005: refused now, as the answer
+  means. They read only the industry, which no acquisition touches, so
+  they were given a stand-in record from 1992-01-01 naming none, and say
+  why.
+- **Proof.** `tests/test_merger_record_start.py`, 10 tests: a quarter's
+  first day; a record from the first day of the first quarter builds;
+  either record a day later refused, naming both dates and the pull
+  (parametrized over the two files); either file in the earlier format
+  refused with the pull to run; a record from 2005 under a build from 1994
+  refused (the firm's second picture); the committed fixtures' dates, and
+  `mergers_roster.json` refused for 2005Q3; `internal` reading and refusing
+  the same way; `read_absorptions` for industry-long. `test_from_1991.py`,
+  `test_peers_cli.py`, `test_launcher.py` and `test_internal.py` check the
+  pull writes `since`. **Checked by mutation**, each put back: never
+  refusing a late record (5 fail); comparing the quarter's end, not its
+  start (4); reading the old format as dated (4); the pull writing another
+  `since` for the merger record (2) or the absorptions (1); the build
+  skipping the absorptions check (1); `internal pull` writing another
+  `since` (1); `internal` skipping the check (2).
+- **The real cache, re-pulled.** `peers pull --cache cache-commercial
+  --first 1991Q1 --last 2026Q2 --products` (the six commercial)
+  `--delinquency yes --mergers 1990-01-01` with this code: 0 quarters
+  fetched, 142 already there; the merger record since 1990-01-01 5,946
+  acquirers and 16,362 absorptions, **each identical** to the old-format
+  `mergers-since-1990.json` and `absorptions-since-1990.json` (compared
+  whole; the old files kept in `cache-commercial/old-format`), copied over
+  those names, which the commercial book reads; `institutions.json` 27,835
+  institutions. The `-since-2005` files in that cache are still the old
+  format and would be refused.
+- **A full build on the re-pulled cache, questions 21 and 22 together.**
+  The commercial book's `peers build` alone (its `peers` settings, 1991Q1
+  to 2026Q2, the dated record since 1990-01-01, pro forma), at this code
+  (question 21's commit plus this answer), against the question 20 run
+  (93b5b984, LOG above): 1,880 s, no refusal, 516 series files, none added
+  or removed. (The institutions record it read was pulled again with the
+  merger record, at 2026-10-19 UTC: the same 27,835 rows.)
+  - **110 of 516 files change, every one in its values; none in its notes
+    alone.** None starts later or ends elsewhere. Every bank file that
+    changed starts earlier with its shared quarters' values unchanged: the
+    windows that come back are earlier ones. KeyBank's C&I net and gross
+    from 2003Q4 (86 quarters) to **1992Q1 (133)**, as measured in the
+    question 21 entry; KeyBank's nonfarm nonresidential from 2003Q4 (91) to
+    1992Q1 (138); peers' own books under `banks/` (Citi's and First
+    Citizens' C&I from 2006Q4 and 2009Q3 to 1992Q1, Huntington's C&I from
+    2012Q2 to 1999Q2: 82 files under `banks/` in all, net and gross).
+  - **The pack composites and medians** of C&I, construction and nonfarm
+    nonresidential start at 1992Q1 instead of 1998Q4 (multifamily instead
+    of 1999Q3); the two nonfarm splits at 2010Q3 instead of 2010Q4. Their
+    values in quarters both runs wrote differ in 1998Q4 to 2012Q1 (37 to 50
+    quarters per file; 3 for the splits), because banks whose windows were
+    missing are now counted in them.
+  - The Run tab lists, per roster bank, the members counted and not: 321
+    counted, 21 not in the institutions record, 6 opened in another
+    quarter, as measured. Nothing was opened in Excel; none can be here.
+- **Results.** Scratch venv, pytest with 3 workers (the full build ran
+  beside it), the same 31 test files as question 21 plus
+  `test_merger_record_start.py`: 954 passed, 5 skipped, 3 failed (25 min
+  23 s). The 3 were the 1992 builds above; given the stand-in record, they
+  passed (3 passed). The other 20 test files were not run for this answer.
+- **For the consumer session** (question 19: *"make the change for
+  yourself and then tell the other agent"*): the section addressed to it
+  in the docket entry above now says so, items 4 and 5. In short: **every
+  consumer cache needs one re-pull of the merger record** (`peers pull ...
+  --mergers 2005-10-01`, or any date on or before 2006-01-01); the quarters
+  are not fetched again. It writes the dated `mergers.json` and
+  `absorptions.json` and the `institutions.json` question 21 needs. Until
+  then a consumer build is refused, by name, with that command.
+  `books/consumer-public.json` was not changed: it names
+  `ind_cache/mergers.json` and `ind_cache/absorptions.json`, which the
+  re-pull rewrites in place.
+- **Not done.** The consumer book was not rebuilt and no consumer cache was
+  re-pulled (none is here). `peers industry-long` does not refuse a record
+  that starts after its history (above). The commercial cache's
+  `-since-2005` files were not re-pulled. Nothing was opened in Excel; none
+  can be here.
+
+## 18 Oct 2026, question 23: owner-occupied and investor CRE rated, nonfarm CRE as a whole shown and not rated
+
+- **Question 23, 18 Oct 2026, agreed with the recommendation** (read back
+  above): *"Nonfarm CRE: rate owner-occupied and investor CRE separately
+  from 2007; show nonfarm as a whole, unrated"* (10 rated rows).
+- **How the book says it: `shown_not_rated`.** The book had no way to mark
+  a series shown but not rated (every row of the series was a Decide row),
+  so one required top-level key was added, the smallest that says it:
+  `"shown_not_rated": [{"Portfolio": ..., "Measure": ..., "why": ...}]`,
+  `[]` when every row is rated. It names a row (the first two parts), not a
+  source, because a row's lines are set from one source's history; every
+  source of the row is shown. A book without the key is refused ("missing
+  'shown_not_rated' (every key is required; none has a default)"), and so
+  is an entry with no why, a key it does not take, a row no series has, a
+  row twice, or every row (nothing would be rated). `workbook.build`
+  refuses a Decide spec without it, naming it.
+- **The commercial book** names Nonfarm nonresidential CRE, Nonaccrual and
+  Net charge-offs, with why: shown for its history from 1991, its two parts
+  (filed separately from 2007) rated in its place. Rated: C&I,
+  Owner-occupied CRE, Investor CRE (non-owner-occupied), Multifamily and
+  Construction, each on nonaccrual and net charge-offs: **10 rows on
+  Decide** (12 before). Its 8 nonfarm series (2 measures, 4 sources) stay
+  in the book for their history. The note on portfolios says so.
+- **What each tab does with it.**
+  - **Decide** does not offer it: no row, so no decision, no Lines set
+    from, no settings. Assess keeps the book's settings for its series (a
+    number, not a formula reading Decide).
+  - **Thresholds** has no row for it.
+  - **Lines by source** keeps its four rows with their latest value and
+    quarter; where the rating would be it says "Shown, not rated", the
+    Decision cell is empty and the Check says the book shows the row and
+    does not rate it.
+  - **Summary** shows its latest values, read live from Lines by source,
+    with "Shown, not rated" where the rating would be (slate italic, as
+    "Not in this workbook"), and prints the book's why under the panels
+    ("Shown, not rated: Nonfarm nonresidential CRE and nonaccrual. ...").
+    It is left out of the count in the heading (rated 4 or 5, refused, no
+    source picked), Needs your attention, and "N of M series".
+- **The consumer book** states `"shown_not_rated": []`, so its output is
+  unchanged: the code takes the same path when nothing is named (a test
+  builds with `{}` and finds every row on Decide and no "Shown, not
+  rated"). This is a new required key in a book file the consumer session
+  also edits: **any consumer book file without it is now refused, by name**;
+  adding `"shown_not_rated": []` is all it needs.
+- **Proof.** `tests/test_shown_not_rated.py`, 17 tests: each refusal by
+  name (7, parametrized), the key required and kept, the workbook's
+  refusals, the commercial book's 10 rated rows and its 8 shown series,
+  Decide and Thresholds without the row, Lines by source and Summary saying
+  it (the Summary value checked against the file's last quarter through the
+  formulas engine, and the cell it reads named), the counts leaving it out,
+  Assess keeping the book's settings, and nothing named leaving the workbook
+  as it was. `test_commercial_book.py` gains one test through the whole
+  commercial build on its fixture (the parent absent from Decide and
+  Thresholds, Summary and Lines by source saying it; the consumer build of
+  the same series rates every row). Every test file that writes a book or a
+  Decide spec was given the key.
+  **Checked by mutation**, each put back, against `test_shown_not_rated.py`:
+  Decide offering every row (4 fail); Summary not printing the why (1); the
+  "every row" refusal removed (1); the "a second time" refusal removed (1);
+  the workbook not asking for the key (1); Summary reading the value one row
+  down on Lines by source (1); Summary counting the unrated row (the
+  fixture errors, 6); Lines by source not saying it (1); Summary not saying
+  it (1).
+- **One test fixed, not the code.** The first attempt's Summary test
+  asserted the shown row's latest value was a float; the fixture's mortgage
+  series ends at 0.0, which the formulas engine returns as 0. The test now
+  reads the file's last value and checks the Summary cell names the right
+  Lines by source cell.
+- **Results.** Scratch venv, pytest: `test_shown_not_rated.py` 17 passed;
+  then `test_book.py`, `test_floor_off.py`, `test_commercial_book.py`,
+  `test_decide.py`, `test_internal_tab.py`, `test_app.py`,
+  `test_reporting_changes.py`, `test_stated_acquisitions.py`,
+  `test_signals.py`, `test_slicers.py` and `test_workbook.py` with 6
+  workers: 278 passed, 9 failed, every failure a `test_decide.py` worker
+  killed by the container's memory limit (the kernel log names the OOM
+  kill); `test_decide.py` again with 2 workers: 29 passed, 2 killed the
+  same way; those 2 alone: 2 passed. The other test files were not run for
+  this answer. The commercial book was not rebuilt on the real cache for
+  this answer alone (it is built once after questions 24 and 27, below).
+  Nothing was opened in Excel; none can be here.
+
+## 18 Oct 2026, question 24: each row names where its lines start; the CRE charge-off rows start on Industry
+
+- **Question 24, 18 Oct 2026, agreed with the recommendation** (read back
+  above): *"Each row chooses where its lines start; CRE charge-off rows
+  start on Industry."* Question 2 (17 Oct 2026) had agreed that CRE net
+  charge-offs are rated on lines set from the industry's history; the book
+  could start every row only the same way, so it started them all blank and
+  its note asked the bank to pick Industry by hand.
+- **The book.** `lines_from.start` takes, as before, one value for every
+  row (null or a source), or now a list naming each rated row once with its
+  own start: `[{"Portfolio": ..., "Measure": ..., "start": null or a
+  source}]`. In the list form every rated row must be named and its `start`
+  is required: a row left out is refused by name ("names no start for ...;
+  every rated row is named ... (none has a default)"), and so is a row
+  named twice, a row no series has, a start the row has no series for
+  (including a number), a key the entry does not take, and a row the book
+  shows and does not rate (question 23: it has no Lines set from).
+  `decide_tab.check_start` refuses the same at build time for a Decide spec
+  given in code (a row missing, a row Decide does not have, a source the row
+  lacks).
+- **The commercial book** names its 10 rated rows. The four CRE net
+  charge-off rows, Owner-occupied CRE, Investor CRE (non-owner-occupied),
+  Multifamily and Construction, start on **Industry**; C&I's two rows and
+  the four CRE nonaccrual rows start **null** (blank, the bank's to pick).
+  Nonfarm nonresidential CRE is not named (shown, not rated). Its note on
+  Lines set from now says so instead of asking for a hand pick.
+- **The consumer book keeps the book-wide form, unchanged** (`"start":
+  null`). Not edited. Proved two ways: a test builds the same series with
+  one start for every row and with that start named on each row, for null
+  and for a source, and finds every cell of every tab the same (the Run
+  tab's time of the build and the file's own name aside); and, once, the
+  same two builds were made with the code before this answer (question 23's
+  commit) and after it: 78,328 cells each, none differing but the Run tab's
+  four input paths, which name the two checkouts.
+- **Proof.** `tests/test_lines_from_per_row.py`, 20 tests: each row's start
+  kept; each refusal by name (8, parametrized); a row shown and not rated
+  refused if named and not needed; the commercial book's four Industry rows
+  and six blank, none for nonfarm, and its note; the consumer book's one
+  start, null; Decide writing each row's own start; Thresholds and Summary
+  following them through the formulas engine (Thresholds' Lines set from
+  reads Bank, blank, Industry; Summary's heading counts 1 with no source
+  picked); one start equal to the same start on every row, cell for cell
+  (2); the workbook's refusals (3); the book command building with the list.
+  **Checked by mutation**, each put back: the missing-row refusal removed
+  (2 fail); the start-a-row-lacks refusal removed (2); the shown-not-rated
+  refusal removed (1); the twice refusal removed (1); Decide writing no start
+  (1); `check_start` not refusing a source the row lacks (1) or a missing row
+  (1); one CRE row of the commercial book started blank (1).
+- **Results.** Scratch venv, pytest: `test_lines_from_per_row.py`,
+  `test_book.py`, `test_shown_not_rated.py`, `test_commercial_book.py`,
+  `test_floor_off.py` and `test_internal_tab.py` with 3 workers, 107 passed;
+  `test_decide.py` with 2 workers (it ran out of memory with more, question
+  23 above), 31 passed. The other test files were not run for this answer.
+  Nothing was opened in Excel; none can be here.
+
+## 18 Oct 2026, question 27: the peer median follows the pack switches
+
+- **Question 27, 18 Oct 2026, agreed with the recommendation** (read back
+  above): *"The peer median follows the pack switches."* Before, the book
+  made only the peer total (the pack composite) live: each quarter it had a
+  value, its Data cell summed Peers data over the banks kept and in the pack
+  now. The peer median stayed as built with all 15, and the commercial
+  book's note said so.
+- **What changed** (`book._live_peer_group`). A series whose file is a pack
+  median (`*_pack-median_net`, `_gross`, or
+  `_delinquency-*_quarter-end`, as the peers build names them) is made live
+  the same way: each quarter it had a value, its Data cell is the MEDIAN of
+  the rates of the banks kept that quarter and in the pack now, when at least
+  the banks the Peers tab asks for are counted, and blank below that. MEDIAN
+  is PERCENTILE.INC at 50, which is what the build used (`books.band`,
+  `delinquency.band_delinquency`). Its latest value and quarter on Lines by
+  source follow, as the total's do. The rates come from a helper column the
+  book adds at the right of Peers data ("Net rate, kept and in the pack now
+  (%)", "Gross rate, ...") or Peers delinquency data ("Quarter-end rate,
+  ..."), written only on the rows of the blocks a median reads: the bank's
+  rate where it is kept and in the pack now, blank text otherwise, which
+  MEDIAN and COUNT pass over. Every cell is an ordinary formula (no array
+  formula), so it calculates the same in any Excel. Each median cell reads
+  one row per bank for its quarter; the build checks each of those rows
+  holds that quarter and refuses otherwise, naming it, rather than read the
+  wrong row.
+- **The consumer book has no median series** (its peer source is the pack
+  composite), so its output is unchanged: no helper column is written and
+  the count printed ("peer group: N series follow the banks in the pack on
+  Peers") is the same. The commercial book's count goes from 12 to 24. Its
+  note on sources now says both follow the pack.
+- **Proof.** `tests/test_peer_median_follows_pack.py`, 6 tests on a small
+  workbook laid out as the book's (two portfolios, five banks, three
+  quarters, and the delinquency blocks), made live and evaluated with the
+  formulas engine: the four medians and the total made live and nothing
+  else; with every bank in, each median equals the middle of the kept rates
+  and KeyBank (never in the pack) is not counted; **switching P2 out moves
+  each median** to the middle of the banks left (and the total moves, as
+  before); with P2 and P3 out a quarter with one bank kept is blank, not a
+  median of one; Lines by source reads the live latest median and quarter;
+  a median quarter the peer tabs do not hold is refused.
+  **Checked by mutation**, each put back: medians not matched (5 fail); the
+  helper ignoring the pack switch (4); no banks-needed test (3); the net
+  median reading the gross rate (4); the delinquency median reading the
+  balance (2). Two conditions in the helper, kept and a numeric rate, are
+  each redundant with the other (the build writes a rate exactly when a
+  row is kept), so removing either one alone changes nothing and no test
+  can see it.
+- **Not live, as for the total.** Evidence, Backtest and Decide's history
+  suggestions read the series as built (the original live peer group,
+  15 Oct 2026, says the same of the total); so does the Peers tab's own
+  charge-off band, which already followed the switches through Workings.
+- `test_commercial_book.py` gains one test through the whole commercial
+  build on its fixture: no Peer median or Peer total value is left as a
+  number, the medians are MEDIAN formulas, the build prints "peer group: 10
+  series follow the banks in the pack on Peers", and Peers delinquency data
+  carries the helper column.
+- **Results.** Scratch venv, pytest with 3 workers:
+  `test_peer_median_follows_pack.py`, `test_commercial_book.py`,
+  `test_stated_acquisitions.py`, `test_stated_products.py`,
+  `test_peers_cli.py`, `test_launcher.py`, `test_peers_into.py`,
+  `test_reporting_changes.py` and `test_lines_from_per_row.py`: 436 passed,
+  5 skipped. The other test files were not run for this answer. Nothing was
+  opened in Excel; none can be here.
+
+## 18 Oct 2026: the commercial book rebuilt with questions 23, 24 and 27, and recalculated
+
+- **Built** at dec725ab (question 27's commit), from a copy of the
+  repository in the scratchpad so nothing was written into the checkout:
+  `python -m threshold_engine book books/commercial-public.json ...` on the
+  re-pulled `cache-commercial` (scratch venv, Python 3.13): **33 min 43 s,
+  exit 0**, nothing refused. Printed: "left out as built: 17 spans";
+  "reporting changes: 12, and 2 events"; **"peer group: 24 series follow
+  the banks in the pack on Peers"** (12 before question 27: the 12 medians
+  now follow too); "Wrote ...: 48 series, 142 quarters".
+- **Read as written** (openpyxl): Decide has **10 rows**, the four CRE net
+  charge-off rows starting on **Industry** under Lines set from and the six
+  others blank; Thresholds the same 10; Summary says "Shown, not rated" in
+  8 cells (Nonfarm nonresidential CRE's two rows, four sources each) and
+  prints both of the book's whys; Lines by source says it on 8 rows. The
+  helper columns are on Peers data (net rate, 13,248 rows: all six
+  portfolios' blocks, since every portfolio has a net median) and Peers
+  delinquency data (quarter-end rate, the six nonaccrual blocks, 13,632 of
+  68,160 rows).
+- **Recalculated in LibreOffice** (24.2, through UNO; loaded hidden,
+  `calculateAll`, every Peer median and Peer total cell of Data read):
+  - **With the pack as built**, the 12 live medians against their own
+    series files: **1,404 quarter values, 0 differ** (largest gap 5.3e-15),
+    none blank where the file has a value, no errors. The 12 totals, the
+    control: 1,404, 0 differ.
+  - **Bank of America switched out** (its switch on Peers workings set to
+    No, what Banks in the pack does): **1,321 of 1,404** median values
+    move. The 6 net charge-off medians (680 quarters) were recomputed in
+    Python from Peers data's written rates (kept, a rate, not KeyBank, not
+    Bank of America, at least 5 banks): **0 differ**, 597 moved. The 6
+    nonaccrual medians were not recomputed this way.
+- **Not checked.** Nothing was opened in Excel; nothing can be opened in
+  Excel here. LibreOffice was not used to type into Decide or to switch a
+  bank through the Peers tab's own Banks in the pack picker (the switch was
+  set on Peers workings, which that picker sets). No picture was rendered.
+
+## 19 Oct 2026: review fixes to round 3 (questions 21, 18, 24 and 23)
+
+Four findings from a review of this branch, each reproduced first (by a
+break-it test file written outside the repository), then fixed with a test
+here that fails without the fix. Each answer is quoted as the firm gave it
+on 18 Oct 2026 (the round 2 commercial docket, read back above).
+
+### Question 21: the institutions record's `pulled` and `rows` are checked
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"A new
+  charter's first filing counts as that quarter's activity, where the FDIC
+  record shows it opened that quarter."*
+- **The finding.** `load_institutions` says a bad file is "refused by name
+  rather than failing later", but never looked at `pulled` or `rows`.
+  Reproduced: `pulled` null crashed `opened_members` with a TypeError
+  (comparing None with a date); `pulled` of `""`, `"someday"`, `20261018`
+  or `"18/10/2026"` was taken; `"unknown"` sorts after every ISO date as
+  text, so the stale check passed and a member missing from the record was
+  read as one the FDIC has no row for (its quarter missing, the build going
+  on) when the record may simply have been too old to hold it; `rows` of
+  null, `"many"` or 1.5 was taken (the Run tab prints it with `%d`). The
+  pull writes both correctly; only a hand-edited or damaged file bites.
+- **The fix.** `pulled` must be a real date written `YYYY-MM-DD` (the same
+  check as each `established` date); `rows` a whole number, at least 1 (the
+  pull refuses an empty record), not true or false. Each refusal names the
+  value and says to pull the merger record again.
+- **Proof.** `tests/test_new_charters.py`, 15 new cases: 7 `pulled` values
+  (null, empty, two words, a number, a day-first date, 30 February), 6
+  `rows` values (null, a word, 1.5, true, 0, -3), and `opened_members`
+  over a record lacking the member with `pulled` null and `"unknown"`, both
+  now refused by name. **Mutation:** with the two checks removed, all 15
+  fail (the null case with the TypeError); with them, the file's 29 pass.
+
+### Question 18: a stated deal flattens the book index of the products it brought, and no other
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"A listed
+  deal leaves out only the portfolios it brought"*; *"Each stated
+  acquisition gets a required `products` list with a source."*
+- **The finding.** The question 18 entry above recorded, as a choice, that
+  "the book index still reads every stated quarter as declared, whatever
+  its products": `run.build` added every stated quarter to every product's
+  declared acquisitions, so the organic book index treated it as an
+  acquisition quarter (growth set to none) in products the deal did not
+  bring. That contradicts the answer's own words, so it is fixed rather
+  than put to the firm. Reproduced: M&T listed as bringing Construction
+  only, its C&I index got 2011Q2 as an acquisition quarter.
+- **The fix.** `run.build` no longer adds stated quarters to the declared
+  ones. `build_peers_workbook` already receives `stated` per product
+  (question 18); the book index now adds, per product, only the stated
+  quarters of the deals that brought it. The Run tab's "Acquisition
+  quarters, per bank" marks such a quarter "(stated: the products)", and
+  "Declared acquisitions" lists only those named at the build, as its
+  header says. `peers/stated.py`'s docstring says the same.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  Wells Fargo, certificate 3511, the GE Capital deal listed as C&I only;
+  `analyses.organic_index` from the cache, base 2019Q4, its recorded
+  mergers plus or minus 2016Q1; not a full build). The chain runs back from
+  the base, so 2016Q1 and later are unchanged and every quarter before
+  moves by that quarter's growth. At 2015Q4, before -> after:
+  Construction 120.72 -> 116.11; Multifamily 92.40 -> 113.67; Nonfarm
+  nonresidential 105.20 -> 103.05; Owner-occupied 115.96 -> 117.40; Other
+  nonfarm nonresidential 101.37 -> 97.94. C&I unchanged (99.84; the deal
+  lists it). **For the firm to look at:** Wells Fargo's multifamily book
+  fell by about 18.7% in 2016Q1 (the index's own step), under the 0.25
+  jump, and is now read as that quarter's organic change; what moved it
+  was not read.
+- **Proof.** `tests/test_stated_products.py::test_the_book_index_follows_the_products_list`:
+  a build of C&I and Construction spying on `organic_index`, M&T listed as
+  bringing Construction only (C&I gets no acquisition quarter, Construction
+  gets 2011Q2; the Run tab says "2011Q2 (stated: Construction)" and
+  "Declared acquisitions: none"), then C&I only (the reverse).
+  `test_stated_acquisitions.py`'s Run tab check now reads "2011Q2 (stated:
+  C&I)". **Mutation:** with `src/threshold_engine/peers` as before, both
+  fail; with the fix, the two stated files pass (56).
+- **The consumer book.** Unchanged: it states `stated_acquisitions: null`.
+  For the consumer session: a consumer book that reads the stated list
+  would flatten only the index of the products each deal lists.
+
+### Question 24: a start that is a list or an object is refused by name, not crashed
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"Each row
+  chooses where its lines start; CRE charge-off rows start on Industry."*
+- **The finding.** A start in `lines_from.start` (the per-row list) that is
+  a list or an object crashed `book.load` with "TypeError: unhashable
+  type" (`st not in has[pr] | extra`) instead of a BookError naming the
+  entry; so did a one-for-every-row start that is an object, and
+  `decide_tab.check_start` with an unhashable value in its per-row dict or
+  as its one start. Reproduced in each.
+- **The fix.** A start must be a source's name (text) or null: anything
+  else is refused with the message a wrong source already gets ("lines_from
+  start 1: Card - Net starts as ['Industry'], which is not one of its
+  sources"; "lines_from: start must be null ..., not {'x': 1}"; on the
+  workbook side "no series for: Card - Net (['Bank'])" and "lines_from
+  starts as ['Bank'], which is not a source").
+- **Proof.** `tests/test_lines_from_per_row.py`, 4 new cases (a list and an
+  object, through `book.load` in both forms of `start`, and through
+  `check_start` per row and as one start). **Mutation:** with the four
+  guards removed, all 4 fail with the TypeError (`book.py`,
+  `decide_tab.py`); the one-start guard in `book.py` removed alone, its
+  case fails with "unhashable type: 'dict'".
+
+### Question 23: a row shown and not rated has no lines and no rating on any tab
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"Nonfarm
+  CRE: rate owner-occupied and investor CRE separately from 2007; show
+  nonfarm as a whole, unrated"* (10 rated rows).
+- **The finding.** The question 23 entry above blanked only the row's
+  visible Rating, Decision and Check on Lines by source. Its lines (2
+  Moderate-Low to 5 High, visible) and its hidden rating number and name
+  were still written from the book's settings, and other tabs read them:
+  Assess, whose series picker offers every row of Lines by source, showed
+  "1 Low" and five bands for it; Chart drew its bands; Backtest rated it;
+  and the Internal tab (consumer books) rated the bank's figures on its
+  lines. Reproduced on the test fixture (Mortgage - Net shown, not rated),
+  recalculated with the formulas engine.
+- **The fix.**
+  - **Lines by source**: the row's four lines, rating number and rating
+    name are blank, written as `=""` (an empty cell reads as 0 in the
+    `+0` the pickers use and drew five bands at zero; the test proves it,
+    below). Its hidden refusal says "Shown, not rated: the book shows this
+    row and does not rate it" (`decide_tab.NOT_RATED_SAYS`).
+  - **Assess**, picked on it: "No rating: see Check"; the Check reads
+    "Check: Shown, not rated: the book shows this row and does not rate
+    it."; no bands, no score-table lines; "Keeping every quarter" and the
+    three dials (which work lines out from the median and spread with
+    other settings) show none, each dial row saying "shown, not rated";
+    Your settings' Check names it. Its history, latest value and quarter
+    and "What the lines rest on" (median, typical move, spread, worst) are
+    still shown: the history is what the row is shown for.
+  - **Chart**: picked under Bands for, no bands are drawn.
+  - **Backtest**: one row, "Not tested: shown, not rated: the book shows
+    this row and does not rate it".
+  - **Internal** (consumer books only): it is not among the outside series
+    the bank's figures are compared with and rated on, as a series the
+    workbook does not have. `internal_tab.build` takes `not_rated`,
+    required.
+  - **Evidence** (spells and departures, no lines) is unchanged.
+- **Proof.** `tests/test_shown_not_rated.py`, 5 new tests (22 in the
+  file): Lines by source blank for the row and numbers for a rated row;
+  Assess and Chart both picked on it and recalculated (rating, Check,
+  score table, keeping every quarter, every dial row, Your settings), and
+  a rated pick still rated; Chart's bands drawn for a rated pick and not
+  for it; Backtest; the Internal tab with no reference to the row's lines
+  (and the pattern shown to find a rated row's). **Mutation**, each in a
+  copy of the package, the 5 tests run: lines and rating left as they were
+  (3 fail); written as empty cells instead of `=""` (3 fail: the score
+  table reads 0.0 for every line); Backtest rating it (1); the Internal tab
+  reading it (the build fails, 5 error); dials not gated (1); the Check not
+  saying it (1); keeping every quarter not gated (1).
+- **The consumer book.** Unchanged: it states `"shown_not_rated": []`, and
+  every new formula on Assess is written only when a row is named, so a
+  consumer build writes the same cells as before. For the consumer
+  session: a consumer book that names a row would now get none of its
+  lines or rating on Assess, Chart, Backtest or Internal.
+
+### Results, and what was not checked
+
+- **The whole suite**, after the four commits, scratch venv (Python 3.13,
+  `OPENPYXL_LXML=False`), pytest with 4 workers: **1,556 passed, 1 failed,
+  5 skipped** (1 h 48 min). The failure was a worker killed while running
+  `test_shown_not_rated.py::test_assess_picked_on_it_shows_no_rating_no_bands_and_says_why`
+  (two recalculations of one workbook in a worker; workers here reached 5
+  GB); that test alone: 1 passed. An earlier run of the touched files lost 8
+  tests the same way (7 in `test_decide.py`); all 8 passed run one at a
+  time.
+- **Not checked.** Nothing was opened in Excel; nothing can be here. The
+  commercial book was not rebuilt on the real cache for these fixes; the
+  question 18 figures above come from `organic_index` on the cache, not a
+  build. The Synthesis tab was not looked at for a row shown and not
+  rated (no book here builds one).

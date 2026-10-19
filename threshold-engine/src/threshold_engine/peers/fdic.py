@@ -8,6 +8,10 @@ Public data only: the FDIC BankFind API. Nothing from KeyBank's books.
                 are $ thousands; DR* and CR* are year-to-date, LN* quarter-end.
     history     https://api.fdic.gov/banks/history -- structure changes.
                 Which quarters a whole-bank acquisition makes uncomparable.
+    institutions https://api.fdic.gov/banks/institutions -- every institution
+                the FDIC has a record of, open or closed: its establishment
+                date (ESTYMD), which says whether a bank's first filing was a
+                new charter's (the firm, 18 Oct 2026, question 21).
 
 The rules, as the earlier pull scripts applied them (pull_peers_2006.py and
 pull_mergers_2006.py in the 6 Oct 2026 evidence pack), tightened on 12 Oct 2026:
@@ -42,6 +46,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 FINANCIALS_URL = "https://api.fdic.gov/banks/financials"
 HISTORY_URL = "https://api.fdic.gov/banks/history"
+INSTITUTIONS_URL = "https://api.fdic.gov/banks/institutions"
 PAGE = 10000
 ATTEMPTS = 4
 BACKOFF_SECONDS = 5          # wait 5 x attempt number between attempts
@@ -442,3 +447,55 @@ def history(since: str, fetch: Optional[Fetch] = None,
             "code means, add it to ACQUISITIONS or NOT_AN_ACQUISITION in "
             "peers/fdic.py." % (len(odd), since, listed))
     return rows
+
+
+# ---------------------------------------------------------------- institutions
+#
+# The firm, 18 Oct 2026, question 21 of the round 2 commercial docket ("agreed
+# with the recommendation"): "A new charter's first filing counts as that
+# quarter's activity, where the FDIC record shows it opened that quarter". The
+# record is the institutions file: one row per institution, open or closed,
+# with its establishment date. It is pulled, cached and read by the build;
+# the build never fetches it.
+
+INSTITUTION_FIELDS = "CERT,NAME,ESTYMD"
+
+
+def _us_date(text) -> Optional[str]:
+    """``MM/DD/YYYY`` (the FDIC's way of writing ESTYMD) as ``YYYY-MM-DD``, or
+    None when it is not a real calendar date written that way."""
+    m = re.fullmatch(r"(\d{2})/(\d{2})/(\d{4})", str(text or "").strip())
+    if not m:
+        return None
+    iso = "%s-%s-%s" % (m.group(3), m.group(1), m.group(2))
+    return iso if _is_date(iso) else None
+
+
+def institutions(fetch: Optional[Fetch] = None,
+                 sleep: Callable[[float], None] = time.sleep) -> List[dict]:
+    """Every row of the FDIC institutions record (CERT, NAME, ESTYMD), paged
+    and retried like :func:`pull`, the stated total checked."""
+    params = {"filters": "CERT:[1 TO *]", "fields": INSTITUTION_FIELDS,
+              "sort_by": "CERT", "sort_order": "ASC"}
+    return _paged(INSTITUTIONS_URL, params, "CERT", fetch or urllib_fetch, sleep)
+
+
+def established(rows: Sequence[dict]) -> Tuple[Dict[str, dict], Dict[str, dict]]:
+    """``(dated, undated)`` from institutions rows, each ``{cert: {"name",
+    "established"}}``. ``dated`` holds the rows whose ESTYMD is a real date,
+    as ``YYYY-MM-DD``; ``undated`` the rest, with ESTYMD as the FDIC gave it
+    (None when it gave none): unknown is a third answer, kept and shown, never
+    read as a date."""
+    dated: Dict[str, dict] = {}
+    undated: Dict[str, dict] = {}
+    for row in rows:
+        cert = str(row.get("CERT") or "").strip()
+        if not (cert.isascii() and cert.isdigit()):
+            continue
+        iso = _us_date(row.get("ESTYMD"))
+        name = row.get("NAME")
+        if iso:
+            dated[cert] = {"name": name, "established": iso}
+        else:
+            undated[cert] = {"name": name, "established": row.get("ESTYMD")}
+    return dated, undated

@@ -35,6 +35,7 @@ from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter as L
 
 from . import keybank_style as K
+from .decide_tab import NOT_RATED
 from .thresholds_tab import NOT_PICKED
 
 TITLE = "Summary"
@@ -136,18 +137,27 @@ def layout(labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]],
 
 def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]],
           part_names: Sequence[str], absent: Sequence[dict], compare: Optional[Tuple[str, str]],
-          notes: Sequence[str], refs: Dict[str, Dict[str, str]]) -> dict:
+          notes: Sequence[str], refs: Dict[str, Dict[str, str]],
+          shown_not_rated: Dict[Tuple[str, str], str], shown_refs: Dict[str, Dict[str, str]]) -> dict:
     """Add the Summary tab. ``absent`` and ``notes`` are the book's own words,
     printed as given; nothing is said about a missing series that the book
     did not say. ``refs`` gives each label's cells on Thresholds by meaning
-    (``thresholds_tab.refs``)."""
+    (``thresholds_tab.refs``). ``shown_not_rated``: the rows the book shows
+    and does not rate, with the book's why (``{}`` for none); their series
+    show their latest value from ``shown_refs`` (each label's value and
+    quarter on Lines by source), "Shown, not rated" where the rating would
+    be, and are left out of the count and Needs your attention."""
     ws = wb.create_sheet(TITLE)
-    missing = [lab for lab in labels if any(k not in refs.get(lab, {}) for k in TH_READ)]
+    unrated_labels = [lab for lab in labels if tuple(parts[lab][:2]) in shown_not_rated]
+    gone = [lab for lab in unrated_labels if any(k not in shown_refs.get(lab, {}) for k in ("value", "quarter"))]
+    if gone:
+        raise ValueError("Summary needs the latest value and quarter of %s, shown and not rated" % ", ".join(gone[:3]))
+    missing = [lab for lab in labels if lab not in unrated_labels and any(k not in refs.get(lab, {}) for k in TH_READ)]
     if missing:
         raise ValueError("Summary needs the Thresholds cells of %s" % ", ".join(missing[:3]))
 
     def th(col, lab):
-        return refs[lab][col]
+        return refs[lab][col] if lab in refs else shown_refs[lab][col]
 
     p0, p1, _ = part_names
     lay = layout(labels, parts, compare)
@@ -160,7 +170,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     ws.sheet_view.showGridLines = False
     ws.sheet_view.zoomScale = 100
 
-    lead_rows = [(a, b) for a, b in rows if (a, b, lead) in by]
+    lead_rows = [(a, b) for a, b in rows if (a, b, lead) in by and (a, b) not in shown_not_rated]
     first_lead = by[lead_rows[0] + (lead,)] if lead_rows else labels[0]
     ws["B1"] = '="%s · where each series stands, "&%s' % (name.replace('"', '""'), th("quarter", first_lead))
     ws["B1"].font = Font(name="Arial", size=16, bold=True, color=K.INK)
@@ -238,7 +248,8 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
                     val.number_format = "0.00"
                     val.font = f_val
                     val.alignment = Alignment(horizontal="right", vertical="center")
-                    rt = ws.cell(r, base + b, '=%s&""' % th("rating_text", lab) if lab else "Not in this workbook")
+                    rt = ws.cell(r, base + b, ('=%s&""' % th("rating_text", lab) if (a_, b_) not in shown_not_rated
+                                               else NOT_RATED) if lab else "Not in this workbook")
                     rt.font = Font(name="Calibri", size=13 if big else 11, bold=big, color=INK if big else SLATE)
                     rt.alignment = Alignment(horizontal="left", vertical="center", indent=0, shrink_to_fit=True)
                 if compare:
@@ -360,6 +371,7 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     told.append("Refused: the settings do not fit the series. Its Check on Decide states the reason and the fix. "
                 "No rating is shown in its place.")
     told += ["Not in this workbook: " + a["why"] for a in absent]
+    told += ["%s: %s and %s. %s" % (NOT_RATED, a_, b_.lower(), why) for (a_, b_), why in shown_not_rated.items()]
     told += list(notes)
     for i, t in enumerate(told):
         cell = ws.cell(r + i, 2, t)
@@ -403,6 +415,6 @@ def _rating_rules(ws, rng, anchor):
                                                        fill=K.solid(K.RATING_FILL[k]), font=Font(color=K.INK)))
     ws.conditional_formatting.add(rng, FormulaRule(formula=['%s="Refused"' % anchor], fill=K.solid(K.CANVAS),
                                                    font=Font(bold=True, color=K.CRIMSON)))
-    ws.conditional_formatting.add(rng, FormulaRule(formula=['OR(%s="Not in this workbook",%s="%s")'
-                                                            % (anchor, anchor, NOT_PICKED)],
+    ws.conditional_formatting.add(rng, FormulaRule(formula=['OR(%s="Not in this workbook",%s="%s",%s="%s")'
+                                                            % (anchor, anchor, NOT_PICKED, anchor, NOT_RATED)],
                                                    font=Font(italic=True, color=SLATE)))

@@ -28,10 +28,33 @@
   ],
   "lines_from": {
     "part": "Source",
-    "start": null
+    "start": [
+      {"Portfolio": "C&I", "Measure": "Net charge-offs", "start": null},
+      {"Portfolio": "C&I", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Owner-occupied CRE", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Owner-occupied CRE", "Measure": "Net charge-offs", "start": "Industry"},
+      {"Portfolio": "Investor CRE (non-owner-occupied)", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Investor CRE (non-owner-occupied)", "Measure": "Net charge-offs", "start": "Industry"},
+      {"Portfolio": "Multifamily", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Multifamily", "Measure": "Net charge-offs", "start": "Industry"},
+      {"Portfolio": "Construction", "Measure": "Nonaccrual", "start": null},
+      {"Portfolio": "Construction", "Measure": "Net charge-offs", "start": "Industry"}
+    ]
   },
   "series": "commercial-public-series.csv",
   "not_in_book": [],
+  "shown_not_rated": [
+    {
+      "Portfolio": "Nonfarm nonresidential CRE",
+      "Measure": "Nonaccrual",
+      "why": "Shown for its history, which starts in 1991; it is not rated. Its two parts, Owner-occupied CRE and Investor CRE (non-owner-occupied), filed separately from 2007, are rated in its place (the firm, 18 Oct 2026, question 23)."
+    },
+    {
+      "Portfolio": "Nonfarm nonresidential CRE",
+      "Measure": "Net charge-offs",
+      "why": "Shown for its history, which starts in 1991; it is not rated. Its two parts, Owner-occupied CRE and Investor CRE (non-owner-occupied), filed separately from 2007, are rated in its place (the firm, 18 Oct 2026, question 23)."
+    }
+  ],
   "compare": [
     "KeyBank",
     "Peer median (15 banks)"
@@ -39,14 +62,14 @@
   "notes": [
     "Settings: the consumer book's, pending the firm's choice. The firm has chosen no commercial settings but the minimum book. Every other setting here is the consumer book's (books/consumer-public.json), the ones agreed for credit card, as a starting point, and none is the firm's choice for commercial: the scale and the backtest (moderate_halfwidth 0.5, low_step 1.0, high_z 2.5, horizon 4, min_history 41), the 25% jump, the 5% acquisition share, pro forma, and at least 5 banks in a composite. No extra acquisition is declared: the consumer book's (Fifth Third, 6672=2022Q2) is a consumer acquisition and no commercial one is recorded, so the book index on Peers counts the FDIC record and the stated acquisitions only. The minimum book is 0, the consumer book's and the firm's answer to question 12. Change them on Decide.",
     "The commercial book on the firm's answers of 17 Oct 2026 to questions 1 to 12 of the commercial proposal (docs/COMMERCIAL-PROPOSAL.md, section 5), each agreed with its recommendation. Public data only: the FDIC Call Report; no paid data (question 9) and no SLOOS (question 10). Its own book file (question 11).",
-    "Portfolios (question 1): C&I; Nonfarm nonresidential CRE with its two parts, Owner-occupied CRE and Investor CRE (non-owner-occupied), filed from 2007Q1; Multifamily; Construction. The answer's 8 rated rows count four segments; here the parent and its two parts are each a row, so there are 12, and which of them is rated has not been said.",
+    "Portfolios (question 1): C&I; Nonfarm nonresidential CRE with its two parts, Owner-occupied CRE and Investor CRE (non-owner-occupied), filed from 2007Q1; Multifamily; Construction. Rated (question 23, 18 Oct 2026): the two parts separately, from 2007, when the Call Report split them, with C&I, Multifamily and Construction, 10 rows on Decide. Nonfarm nonresidential CRE as a whole is shown for its history from 1991 and not rated: it has no row on Decide or Thresholds, and Summary and Lines by source say Shown, not rated.",
     "Measures: the two the recommendation rates, nonaccrual at quarter-end and net charge-offs over the trailing twelve months. The four it shows and does not rate (30-89 and 90+ days past due, and each with nonaccrual added) are on the Peers tab. Gross charge-offs are in neither list and are not in this book. Nonaccrual is listed first for the CRE portfolios (question 3); C&I keeps net charge-offs first.",
-    "Sources (question 4): the lines rest on the peer median, the middle bank of the 15 each quarter, each bank counted once whatever its size; the peer total, kept charge-offs over kept balances of the 15 added together and so weighted by dollars, is beside it. The peer total follows the banks switched on in the pack on Peers; the peer median is as built with all 15 and does not.",
-    "Lines set from (question 2): CRE net charge-offs are to be rated on lines set from the industry's history. The book has one starting source for every row, not one per row, so every row starts blank: pick Industry under Lines set from on the CRE net charge-off rows on Decide.",
+    "Sources (question 4): the lines rest on the peer median, the middle bank of the 15 each quarter, each bank counted once whatever its size; the peer total, kept charge-offs over kept balances of the 15 added together and so weighted by dollars, is beside it. Both follow the banks switched on in the pack on Peers (the peer median since question 27, 18 Oct 2026): switch a bank out there and the peer median and the peer total, and the lines and ratings set from them, are worked out again without it.",
+    "Lines set from (question 2, and question 24 of 18 Oct 2026): CRE net charge-offs are rated on lines set from the industry's history, so the four CRE net charge-off rows (Owner-occupied CRE, Investor CRE (non-owner-occupied), Multifamily and Construction) start on Industry under Lines set from on Decide. Every other row starts blank, for the bank to pick. Each is a starting point and can be changed on Decide.",
     "History (question 6): pulled from 1991Q1. The industry's nonaccrual runs from 1991Q1 and its net charge-offs from 1991Q4; the two nonfarm parts start in 2007. Each series' notes on Sources say where it starts and why.",
     "Peers (question 5): the same 15 banks as the consumer book. Citi (49% of corporate loans booked outside North America), Capital One (a commercial book small beside its card book) and First Citizens (SVB from 2023) are weak commercial comparators, labeled here; the firm decides whether to drop them.",
     "Industry: every bank filing a Call Report that files the portfolio's fields, added together. A blank field is not filed, never 0: at 2026Q2, 17 filers on CALLFORM 2 file commercial balances but no charge-off, past-due or nonaccrual field, so they are in no commercial series; the caption under the industry's rate on Peers and each series' notes give the count.",
-    "Pro forma: each bank's charge-offs include those of the banks it absorbed, before each absorption. The acquisitions the FDIC record cannot see are read from config/stated-acquisitions.json (question 14). A window the jump leaves out only for a move in a quarter a reporting change names does not end the series: it continues across it, left out and labeled (question 16). An event (the 2020 drawdowns, the PPP loans) is labeled but never does: it is not a reporting change.",
+    "Pro forma: each bank's charge-offs include those of the banks it absorbed, before each absorption. The acquisitions the FDIC record cannot see are read from config/stated-acquisitions.json (question 14). A window the jump leaves out only for a move in a quarter a reporting change names, and only a change whose own source says it can step a balance in one quarter, does not end the series: it continues across it, left out and labeled (questions 16 and 20). An event (the 2020 drawdowns, the PPP loans) is labeled but never does: it is not a reporting change.",
     "Not in this book: criticized and classified loans and rating migration, rated on the bank's own data only (question 7); peers' criticized shares (question 8), not built yet. There is no Internal tab and no Peer loan classes tab: both are laid out for consumer books.",
     "This book's FDIC cache, merger and absorption files are named by absolute path, a scratch folder on the machine it was built on (cache-commercial, pulled with --first 1991Q1 --mergers 1990-01-01). To build it elsewhere, pull the commercial products into a cache (docs/commercial-2026-10/stress-tool-rules.md has the command) and change those three paths."
   ],

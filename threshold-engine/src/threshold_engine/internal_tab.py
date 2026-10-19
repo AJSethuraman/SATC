@@ -260,7 +260,8 @@ class _Cols:
 
 
 def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], part_names: Sequence[str],
-          grid: Sequence[str], higher: bool, floor_at_zero: bool, internal: Optional[dict] = None,
+          grid: Sequence[str], not_rated: Sequence[str], higher: bool, floor_at_zero: bool,
+          internal: Optional[dict] = None,
           capacity: Optional[int] = None) -> dict:
     """Add Internal and Internal data to a workbook that has Decide.
 
@@ -269,7 +270,12 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     "measures": {internal measure key: workbook measure}, "call_report":
     the source holding the bank's Call Report series, "peers_self": the
     bank's short name on Peers data, or None}``. Without it the slot is empty
-    and the starting values are the guesses the README states."""
+    and the starting values are the guesses the README states.
+
+    ``not_rated``: the series of rows the book shows and does not rate
+    (question 23), [] for none. They have no lines, so nothing here is rated
+    on them: they are left out of the outside series compared, as a series
+    the workbook does not have."""
     internal = internal or {}
     rows_in = list(internal.get("rows") or [])
     # Room for the rows given and 500 more; with none, the standing size.
@@ -297,7 +303,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     G = len(grid)
     cal = list(grid) + [I._quarter_label(qn[-1] + k) for k in range(1, 13)]
     CAL = len(cal)
-    refs = thresholds_refs(wb, labels, parts)
+    refs = thresholds_refs(wb, [lab for lab in labels if lab not in not_rated], parts)
     d_last = L(1 + n)
     data_hdr = "Data!$B$1:$%s$1" % d_last
     data_col = {lab: L(2 + i) for i, lab in enumerate(labels)}
@@ -595,7 +601,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     RATE_KEYS = ("r_net", "r_gross", "r_d30", "r_d60", "r_d90")
 
     # ---- hidden: (product, workbook measure) blocks, aligned with Data
-    out_labels = [lab for lab in labels if parts[lab][2] in outside]
+    out_labels = [lab for lab in labels if parts[lab][2] in outside and lab not in not_rated]
     pw = {}
     for lab in out_labels:
         p, w, _ = parts[lab]

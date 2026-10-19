@@ -17,10 +17,14 @@ own folder, so a book and its files can be copied to another machine whole.
                    "on_the_line", "half_lives", "percentiles", "horizon",
                    "min_history"},
       "parts": ["Product", "Measure", "Source"],
-      "lines_from": {"part": "Source", "start": null or one of its values},
+      "lines_from": {"part": "Source",
+                     "start": null or one of its values (every row), or
+                              [{"Product": ..., "Measure": ..., "start": null or a source of that row}]
+                              naming every rated row once},
       "series": [{"Product": ..., "Measure": ..., "Source": ..., "file": ...}]
                 or "a CSV with those columns",
       "not_in_book": [{"Product": ..., "Measure": ..., "Source": ..., "why": ...}],
+      "shown_not_rated": [{"Product": ..., "Measure": ..., "why": ...}] ([] when every row is rated),
       "compare": ["KeyBank", "Peer group"] or null,
       "notes": ["..."],
       "peers": null or {every setting 'peers build' takes, by its keyword name},
@@ -77,6 +81,18 @@ measure the book does not map stays on the Internal tab: whether an internal
 
 A part value of ``*`` in ``not_in_book`` stands for every value of that part.
 
+``shown_not_rated`` (the firm, 18 Oct 2026, question 23 of the round 2
+commercial docket: *"show nonfarm as a whole, unrated"*) names each row, a
+first and second part (a portfolio and a measure), whose series are in the
+workbook for their history and given no lines to decide: Decide and
+Thresholds have no row for it, Lines by source says "Shown, not rated"
+where its rating would be, and Summary shows its latest values with "Shown,
+not rated" and prints the book's why. Rating is per row, not per source,
+because a row's lines are set from one source's history, so an entry names
+the first two parts and every source of the row is shown. An entry naming
+no row of the series, a row twice, or every row is refused; ``[]`` says
+every row is rated.
+
 ``kind`` (the firm, 17 Oct 2026, on the commercial book: "names in this
 should be changed to be more commercial ... product sounds consumer") is the
 kind of book, stated, never guessed from its product names (``kinds.py``). It
@@ -98,6 +114,15 @@ the source picked there (the firm, 15 Oct 2026: "we don't need to set
 thresholds on all 3, we need to use all 3 to set appropriate thresholds").
 ``start`` null leaves every row's pick blank, which is the bank's to make.
 The source part is the third of ``parts``.
+
+``start`` may instead be a list, one entry per row (the firm, 18 Oct 2026,
+question 24 of the round 2 commercial docket: *"Each row chooses where its
+lines start; CRE charge-off rows start on Industry"*): each names a row by
+its first two parts and that row's own ``start``, null or a source the row
+has. Every rated row is named exactly once, and its ``start`` is required
+(null is stated, never assumed); a row the book shows and does not rate
+(``shown_not_rated``) has no Lines set from and is refused if named. A
+single value still starts every row the same way, as before.
 """
 from __future__ import annotations
 
@@ -112,7 +137,8 @@ from .series import LABEL_RULE, label_ok
 
 WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_at_zero", "moderate_halfwidth",
                  "low_step", "high_z", "on_the_line", "half_lives", "percentiles", "horizon", "min_history")
-TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
+TOP_KEYS = ("kind", "workbook", "parts", "lines_from", "series", "not_in_book", "shown_not_rated", "compare", "notes",
+            "peers", "internal",
             "floor_off", "large_banks", "signals",
             "loan_classes", "reporting_changes")
 #: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
@@ -139,18 +165,28 @@ PEER_TAB_NAMES = {"Peers": "Peers", "Workings": "Peers workings", "Glossary": "G
 
 def _live_peer_group(wb, series, info, say) -> int:
     """Make the peer group series follow the banks in the pack on the Peers
-    tab (the analyst, 15 Oct 2026: "this tab needs to adjust with peers").
+    tab (the analyst, 15 Oct 2026: "this tab needs to adjust with peers"),
+    the pack composite (the peer total) and, since question 27 of the round 2
+    commercial docket (the firm, 18 Oct 2026: *"The peer median follows the
+    pack switches"*), the pack median.
 
-    A peer group series is a pack composite the peers build wrote at build
-    time with the pack as it started. Here its Data column becomes live: each
-    quarter it had a value, the same composite is summed from Peers data (or
-    Peers delinquency data) over the banks kept that quarter and in the pack
-    now, needing at least the banks the Peers tab asks for, and blank below
-    that. With the pack as built, every value equals the file's. Its latest
-    value and quarter on Lines by source become live too. Which composite a
-    series is comes from its file's name, as the peers build wrote it.
-    Returns the number of series made live."""
+    A peer group series is one the peers build wrote at build time with the
+    pack as it started. Here its Data column becomes live: each quarter it
+    had a value, the composite is summed from Peers data (or Peers
+    delinquency data) over the banks kept that quarter and in the pack now,
+    and the median is the middle of those banks' rates (MEDIAN, as
+    ``books.band`` and ``delinquency.band_delinquency`` take PERCENTILE.INC at
+    50), each needing at least the banks the Peers tab asks for, and blank
+    below that. With the pack as built, every value equals the file's. Its
+    latest value and quarter on Lines by source become live too. Which series
+    a file is comes from its name, as the peers build wrote it.
+
+    The median reads, per bank, a helper column added to the rows of the
+    blocks it needs on Peers data or Peers delinquency data: the bank's rate
+    where it is kept and in the pack now, blank text otherwise, which MEDIAN
+    and COUNT pass over. Returns the number of series made live."""
     import re
+    from openpyxl.styles import Font
     from openpyxl.utils import get_column_letter as L
     from .peers import delinquency as D
     from .peers.run import slug
@@ -164,8 +200,9 @@ def _live_peer_group(wb, series, info, say) -> int:
     NB = info["data_rows"] // (len(products) * Q)
     blocks = {("co", slug(p_)): (2 + i * NB * Q, 1 + (i + 1) * NB * Q) for i, p_ in enumerate(products)}
     dq = info.get("delinquency")
+    Qd = len(dq["quarters"]) if dq else 0
     if dq:
-        NM, Qd = len(D.MEASURES), len(dq["quarters"])
+        NM = len(D.MEASURES)
         for i, p_ in enumerate(dq["products"]):
             for j, m in enumerate(D.MEASURES):
                 a = 2 + (i * NM + j) * NB * Qd
@@ -176,30 +213,79 @@ def _live_peer_group(wb, series, info, say) -> int:
     while last > 1 and data.cell(last, 1).value is None:
         last -= 1
     lbs = wb["Lines by source"] if "Lines by source" in wb.sheetnames else None
+    # The median's helper columns, one per rate it reads, added once each.
+    # (sheet, rate column, kept column, in-the-pack column, quarter column, header)
+    HELP = {"net": (sheets["Data"], "I", "J", "P", "D", "Net rate, kept and in the pack now (%)"),
+            "gross": (sheets["Data"], "H", "J", "P", "D", "Gross rate, kept and in the pack now (%)"),
+            "dq": (sheets["DelinquencyData"], "H", "I", "O", "E", "Quarter-end rate, kept and in the pack now (%)")}
+    helper_col, helped = {}, set()
+
+    def helper(kind, a, z):
+        """The helper column for ``kind``, written on rows a..z (one block)."""
+        title, rate, kept, on, _, words = HELP[kind]
+        ws = wb[title]
+        if kind not in helper_col:
+            c = ws.max_column + 1
+            ws.cell(1, c, words).font = Font(**{k: getattr(ws.cell(1, c - 1).font, k) for k in ("name", "size", "bold",
+                                                                                               "color")})
+            ws.column_dimensions[L(c)].width = 14
+            helper_col[kind] = L(c)
+        hc = helper_col[kind]
+        if (kind, a) not in helped:
+            for r in range(a, z + 1):
+                ws["%s%d" % (hc, r)] = '=IF(AND({k}{r},{o}{r},ISNUMBER({v}{r})),{v}{r},"")'.format(
+                    k=kept, o=on, v=rate, r=r)
+                ws["%s%d" % (hc, r)].number_format = "0.00"
+            helped.add((kind, a))
+        return hc
+
     made = 0
     for label, path in series:
-        m = re.fullmatch(r"(.+)_pack-composite_(net|gross|delinquency-(.+)_quarter-end)", Path(path).stem)
+        m = re.fullmatch(r"(.+)_pack-(composite|median)_(net|gross|delinquency-(.+)_quarter-end)", Path(path).stem)
         if not m or label not in head:
             continue
-        col = head[label]
-        if m.group(3) is None:
+        col, median = head[label], m.group(2) == "median"
+        if m.group(4) is None:
             a, z = blocks[("co", m.group(1))]
+            kind, sh, nq = m.group(3), pd_, Q
             rng = lambda c_: "%s$%s$%d:$%s$%d" % (pd_, c_, a, c_, z)                       # noqa: E731
             crit = lambda r: "%s,$A%d,%s,TRUE,%s,TRUE" % (rng("D"), r, rng("J"), rng("P"))  # noqa: E731
             num = (lambda r: "SUMIFS(%s,%s)-SUMIFS(%s,%s)" % (rng("E"), crit(r), rng("F"), crit(r))) \
-                if m.group(2) == "net" else (lambda r: "SUMIFS(%s,%s)" % (rng("E"), crit(r)))
+                if m.group(3) == "net" else (lambda r: "SUMIFS(%s,%s)" % (rng("E"), crit(r)))
             den = lambda r: "SUMIFS(%s,%s)" % (rng("G"), crit(r))                           # noqa: E731
         else:
-            key = ("dq", m.group(1), m.group(3))
+            key = ("dq", m.group(1), m.group(4))
             if key not in blocks:
                 continue
             a, z = blocks[key]
+            kind, sh, nq = "dq", dd, Qd
             rng = lambda c_: "%s$%s$%d:$%s$%d" % (dd, c_, a, c_, z)                       # noqa: E731
             crit = lambda r: "%s,$A%d,%s,TRUE,%s,TRUE" % (rng("E"), r, rng("I"), rng("O"))  # noqa: E731
             num = lambda r: "SUMIFS(%s,%s)" % (rng("F"), crit(r))                           # noqa: E731
             den = lambda r: "SUMIFS(%s,%s)" % (rng("G"), crit(r))                           # noqa: E731
+        if median:
+            hc = helper(kind, a, z)
+            src = wb[HELP[kind][0]]
+            qcol = HELP[kind][4]
+            # Each quarter's place in the block: the first bank's rows hold every quarter, in order.
+            at_k = {src["%s%d" % (qcol, a + k)].value: k for k in range(nq)}
         for r in range(2, last + 1):
-            if isinstance(data.cell(r, col).value, (int, float)):
+            if not isinstance(data.cell(r, col).value, (int, float)):
+                continue
+            if median:
+                q = data.cell(r, 1).value
+                if q not in at_k:
+                    raise ValueError("the peer median %s has a value in %s, a quarter %s does not hold for it; "
+                                     "the series and the peer tabs are not from one build" % (label, q, sheets[
+                                         "DelinquencyData" if kind == "dq" else "Data"]))
+                rows_q = [a + bi * nq + at_k[q] for bi in range(NB)]
+                odd = [rq for rq in rows_q if src["%s%d" % (qcol, rq)].value != q]
+                if odd:
+                    raise ValueError("the peer median %s: %s row %d is not %s, so the rows are not one per bank "
+                                     "and quarter in order" % (label, HELP[kind][0], odd[0], q))
+                refs = ",".join("%s$%s$%d" % (sh, hc, rq) for rq in rows_q)
+                data.cell(r, col).value = '=IF(COUNT(%s)>=%s,MEDIAN(%s),"")' % (refs, mb, refs)
+            else:
                 data.cell(r, col).value = '=IF(COUNTIFS(%s)>=%s,100*(%s)/%s,"")' % (crit(r), mb, num(r), den(r))
         if lbs is not None:
             c_, rows_ = L(col), "Data!$%s$2:$%s$%d" % (L(col), L(col), last)
@@ -397,6 +483,7 @@ def load(path) -> dict:
             if not str(a["why"]).strip():
                 problems.append("%s: why must say why" % where)
             absent_out.append({"parts": {p: a[p] for p in parts}, "why": str(a["why"]).strip()})
+    unrated = _shown_not_rated(raw["shown_not_rated"], parts, decide_parts, problems)
     compare = raw["compare"]
     third = {v[2] for v in decide_parts.values()}
     if compare is not None:
@@ -445,7 +532,7 @@ def load(path) -> dict:
         if raw["loan_classes"] is not None:
             problems.append("loan_classes: the classes file records each peer's consumer book, so a %s book's "
                             "loan_classes must be null" % raw["kind"])
-    lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems)
+    lines_from = _lines_from(raw["lines_from"], parts, third, internal, problems, decide_parts, unrated)
     floor_off = raw["floor_off"]
     measures_ = {v[1] for v in decide_parts.values()}
     if not (isinstance(floor_off, list) and all(isinstance(m, str) for m in floor_off)):
@@ -498,12 +585,43 @@ def load(path) -> dict:
             "large_banks": large, "signals": signals,
             "decide": {"names": list(parts), "parts": decide_parts, "absent": absent_out, "compare": compare,
                        "notes": notes, "lines_from": lines_from, "kind": raw["kind"],
-                       "floor_off": list(floor_off)}}
+                       "floor_off": list(floor_off), "shown_not_rated": unrated}}
 
 
-def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
+def _shown_not_rated(spec, parts, decide_parts, problems) -> Dict[Tuple[str, str], str]:
+    """The book's shown_not_rated, checked: ``{(first, second): why}`` in the
+    book's order, each a row the series have."""
+    out: Dict[Tuple[str, str], str] = {}
+    if not isinstance(spec, list):
+        problems.append("shown_not_rated must be a list of the rows shown and not rated, each {%s, %s, why} "
+                        "([] when every row is rated)" % (parts[0], parts[1]))
+        return out
+    rows = list(dict.fromkeys(v[:2] for v in decide_parts.values()))
+    for i, e in enumerate(spec, start=1):
+        where = "shown_not_rated %d" % i
+        _keys(where, e, [parts[0], parts[1], "why"], problems)
+        if not isinstance(e, dict) or any(k not in e for k in (parts[0], parts[1], "why")):
+            continue
+        pr = (str(e[parts[0]]).strip(), str(e[parts[1]]).strip())
+        if not (isinstance(e["why"], str) and e["why"].strip()):
+            problems.append("%s: why must say why the row is shown and not rated" % where)
+        elif pr not in rows:
+            problems.append("%s names %s, which is no %s and %s of the book's series"
+                            % (where, " - ".join(pr), parts[0].lower(), parts[1].lower()))
+        elif pr in out:
+            problems.append("%s names %s a second time" % (where, " - ".join(pr)))
+        else:
+            out[pr] = e["why"].strip()
+    if rows and len(out) == len(rows):
+        problems.append("shown_not_rated names every row of the book's series, so nothing would be rated")
+    return out
+
+
+def _lines_from(spec, parts, sources, internal, problems, decide_parts=None, unrated=()):
     """The book's lines_from, checked: which part is the source (the third),
-    and the source every row starts as, or None for blank."""
+    and where each row's Lines set from starts: one source (or None, blank)
+    for every row, or ``{(first, second): source or None}`` naming every
+    rated row once (question 24, 18 Oct 2026)."""
     _keys("lines_from", spec, LINES_FROM_KEYS, problems)
     if not isinstance(spec, dict) or any(k not in spec for k in LINES_FROM_KEYS):
         return None
@@ -512,11 +630,52 @@ def _lines_from(spec, parts, sources, internal, problems) -> Optional[str]:
                         "its lines from, and it is listed third" % parts[2])
     start = spec["start"]
     allowed = set(sources) | ({internal["source"]} if internal else set())
-    if start is not None and start not in allowed:
-        problems.append("lines_from: start must be null (every row blank, for the bank to pick) or one of %s, "
-                        "not %r" % (", ".join(sorted(allowed)), start))
+    if isinstance(start, list):
+        return _lines_from_rows(start, parts, internal, problems, decide_parts or {}, unrated)
+    if start is not None and (not isinstance(start, str) or start not in allowed):
+        problems.append("lines_from: start must be null (every row blank, for the bank to pick), one of %s, or a "
+                        "list naming each row's own start, not %r" % (", ".join(sorted(allowed)), start))
         return None
     return start
+
+
+def _lines_from_rows(entries, parts, internal, problems, decide_parts, unrated) -> Dict[Tuple[str, str], Optional[str]]:
+    """``lines_from.start`` as a list, checked: ``{(first, second): source or
+    None}`` with every rated row named once, each start a source that row has
+    (or the internal source), or None."""
+    rows = list(dict.fromkeys(tuple(v[:2]) for v in decide_parts.values()))
+    rated = [pr for pr in rows if pr not in unrated]
+    has = {pr: {v[2] for v in decide_parts.values() if tuple(v[:2]) == pr} for pr in rows}
+    extra = {internal["source"]} if internal else set()
+    out: Dict[Tuple[str, str], Optional[str]] = {}
+    named = set()
+    want = [parts[0], parts[1], "start"]
+    for i, e in enumerate(entries, start=1):
+        where = "lines_from start %d" % i
+        _keys(where, e, want, problems)
+        if not isinstance(e, dict) or any(k not in e for k in want):
+            continue
+        pr, st = (str(e[parts[0]]).strip(), str(e[parts[1]]).strip()), e["start"]
+        if pr in named and pr in has and pr not in unrated:
+            problems.append("%s names %s a second time" % (where, " - ".join(pr)))
+            continue
+        named.add(pr)
+        if pr in unrated:
+            problems.append("%s names %s, which the book shows and does not rate (shown_not_rated), so it has no "
+                            "Lines set from" % (where, " - ".join(pr)))
+        elif pr not in has:
+            problems.append("%s names %s, which is no %s and %s of the book's series"
+                            % (where, " - ".join(pr), parts[0].lower(), parts[1].lower()))
+        elif st is not None and (not isinstance(st, str) or st not in has[pr] | extra):
+            problems.append("%s: %s starts as %r, which is not one of its %ss (%s); start it null to leave it "
+                            "blank" % (where, " - ".join(pr), st, parts[2].lower(), ", ".join(sorted(has[pr] | extra))))
+        else:
+            out[pr] = st
+    missing = [" - ".join(pr) for pr in rated if pr not in named]
+    if missing:
+        problems.append("lines_from: start names no start for %s; every rated row is named, its start a %s or "
+                        "null (none has a default)" % (", ".join(missing), parts[2].lower()))
+    return out
 
 
 def _internal(spec, resolve, decide_parts, problems) -> Optional[dict]:

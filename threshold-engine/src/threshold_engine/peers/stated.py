@@ -20,19 +20,39 @@ key of every entry is required; nothing has a default:
         "quarter": "2008Q3",        # the Call Report quarter its first filing holds the deal
         "what": "one plain sentence: who bought what",
         "citation": "the filing that records it, with its date",
-        "url": "https://... the filing itself"
+        "url": "https://... the filing itself",
+        "products": ["C&I", ...],   # the books the deal brought, names from books.PRODUCTS
+        "products_source": "where the list comes from, on one line",
+        "products_unsettled": [...] # those in products the source does not settle: listed, so left out
      }]}
+
+``products`` (the firm, 18 Oct 2026, the round 2 docket's question 18,
+"agreed with the recommendation": *"A listed deal leaves out only the
+portfolios it brought"*) names the books the deal brought; only those
+products' windows are left out for it, charge-offs, the delinquency average
+and 30+ to charge-off alike, and a combined product's when any of its parts
+is named. A name not in ``books.PRODUCTS`` is refused, and so is a list
+naming Nonfarm nonresidential without both of the splits inside it, or a
+split without the whole (``books.INSIDE``): a loan in a split is in the whole,
+so the two cannot differ. ``products_unsettled`` names the products the source
+does not settle either way; they are listed all the same (the safe side: a
+window left out, never a book mixed), and saying which they are keeps the
+guess visible. Every one must be in ``products``; ``[]`` when the source
+settles every product.
 
 A malformed entry is refused by name, every problem at once. So is a key
 given twice in one object (JSON would keep the last silently), and an
 acquirer and quarter listed twice, however each is worded: the build reads
 one quarter per entry, so two deals in one quarter go in one entry. What the build
-does with an entry (``peers.run.build``): every product's four-quarter windows
-holding the quarter are left out for that bank, with their own reason
+does with an entry (``peers.run.build``): the four-quarter windows holding
+the quarter, of each product the entry lists (``for_product``), are left out
+for that bank, with their own reason
 (``books.WHY_STATED``), right after the recorded acquisitions; no share of the
 book is measured, because the FDIC record holds no filing of what was bought.
-The bank's book index treats the quarter as an acquisition too, marked
-declared on the Run tab.
+The bank's book index, of each product the entry lists and no other,
+treats the quarter as an acquisition too, marked "stated" with those
+products on the Run tab (question 18; the review of 19 Oct 2026 found every
+product's index was flattened).
 """
 from __future__ import annotations
 
@@ -41,8 +61,10 @@ import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
+from .books import INSIDE, PRODUCTS, members
+
 TOP_KEYS = ("_what", "acquisitions")
-KEYS = ("acquirer", "quarter", "what", "citation", "url")
+KEYS = ("acquirer", "quarter", "what", "citation", "url", "products", "products_source", "products_unsettled")
 _QUARTER = re.compile(r"\d{4}Q[1-4]")
 
 
@@ -100,6 +122,10 @@ def check(raw, name: str = "the stated acquisitions") -> List[dict]:
                 problems.append("%s: %s must be %s" % (where, k, says))
         if not (isinstance(e["url"], str) and re.fullmatch(r"https://\S+", e["url"])):
             problems.append("%s: url must be the filing's address, starting https://, not %r" % (where, e["url"]))
+        if not _one_line(e["products_source"]):
+            problems.append("%s: products_source must say, on one line, where the list of products comes from"
+                            % where)
+        problems += _products(where, e["products"], e["products_unsettled"])
         if len(problems) == before:
             # The build reads an acquirer and quarter, never the wording, so
             # the same pair twice is the same acquisition, however worded.
@@ -113,6 +139,45 @@ def check(raw, name: str = "the stated acquisitions") -> List[dict]:
     if problems:
         raise StatedError("\n".join(problems))
     return out
+
+
+def _names(where: str, key: str, got, problems: List[str], empty: bool) -> bool:
+    if not isinstance(got, list) or not all(isinstance(x, str) for x in got):
+        problems.append("%s: %s must be a list of product names (%s), not %r"
+                        % (where, key, ", ".join(PRODUCTS), got))
+        return False
+    if not got and not empty:
+        problems.append("%s: %s must name at least one product: a deal that brought no book leaves nothing out, "
+                        "so it is not listed" % (where, key))
+        return False
+    unknown = [x for x in got if x not in PRODUCTS]
+    if unknown:
+        problems.append("%s: %s names %s, not a product (the products are %s)"
+                        % (where, key, ", ".join(repr(x) for x in unknown), ", ".join(PRODUCTS)))
+    twice = sorted({x for x in got if got.count(x) > 1})
+    if twice:
+        problems.append("%s: %s names %s more than once" % (where, key, ", ".join(twice)))
+    return not unknown and not twice
+
+
+def _products(where: str, products, unsettled) -> List[str]:
+    """The problems with one entry's ``products`` and ``products_unsettled``."""
+    problems: List[str] = []
+    ok = _names(where, "products", products, problems, empty=False)
+    if _names(where, "products_unsettled", unsettled, problems, empty=True) and ok:
+        outside = [x for x in unsettled if x not in products]
+        if outside:
+            problems.append("%s: products_unsettled names %s, which products does not: a product the source "
+                            "does not settle is listed, so it is left out" % (where, ", ".join(outside)))
+    if ok:
+        for whole, parts_ in INSIDE.items():
+            if whole in products and not all(x in products for x in parts_):
+                problems.append("%s: products names %s without %s, which it holds: name every one or none"
+                                % (where, whole, " and ".join(x for x in parts_ if x not in products)))
+            elif whole not in products and any(x in products for x in parts_):
+                problems.append("%s: products names %s without %s, which holds it: name every one or none"
+                                % (where, " and ".join(x for x in parts_ if x in products), whole))
+    return problems
 
 
 class _KeyTwice(ValueError):
@@ -157,7 +222,8 @@ def _repdte(quarter: str) -> str:
 def by_cert(entries: Sequence[dict], roster_certs: Iterable[str],
             quarters: Sequence[str]) -> Tuple[Dict[str, List[str]], List[dict]]:
     """``({cert: [YYYYMMDD]}, outside)``: each entry's quarter-end for its
-    acquirer, when the quarter is one of ``quarters`` (the build's
+    acquirer, whatever products it brought (the book index reads every
+    one; which products' windows it leaves out is ``for_product``), when the quarter is one of ``quarters`` (the build's
     ``YYYYMMDD`` quarter-ends), and the entries whose quarter is not, which
     the build reports rather than reads. An acquirer not on the roster is
     refused by entry: a typo there would otherwise be ignored and the
@@ -180,4 +246,24 @@ def by_cert(entries: Sequence[dict], roster_certs: Iterable[str],
     return {c: sorted(qs) for c, qs in sorted(out.items())}, outside
 
 
-__all__: List[str] = ["StatedError", "check", "load", "by_cert", "KEYS", "TOP_KEYS"]
+def touches(entry: dict, product: str) -> bool:
+    """Whether ``entry`` (checked) brought any of the books ``product`` is made
+    of (``books.members``: itself, or a combined product's parts)."""
+    return any(m in entry["products"] for m in members(product))
+
+
+def for_product(entries: Sequence[dict], product: str, quarters: Sequence[str]) -> Dict[str, List[str]]:
+    """``{cert: [YYYYMMDD]}``: the quarter-ends, among ``quarters``, of the
+    entries (checked, acquirers already on the roster, ``by_cert``) that
+    brought a book ``product`` is made of (the firm, 18 Oct 2026, question 18:
+    a deal leaves out only the products it brought)."""
+    held = set(quarters)
+    out: Dict[str, List[str]] = {}
+    for e in entries:
+        q = _repdte(e["quarter"])
+        if q in held and touches(e, product) and q not in out.setdefault(e["acquirer"], []):
+            out[e["acquirer"]].append(q)
+    return {c: sorted(qs) for c, qs in sorted(out.items()) if qs}
+
+
+__all__: List[str] = ["StatedError", "check", "load", "by_cert", "for_product", "touches", "KEYS", "TOP_KEYS"]
