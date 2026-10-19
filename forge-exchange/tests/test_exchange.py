@@ -469,10 +469,12 @@ class TestCodexFifthPassOnPR458(Base):
             self.assertTrue(any("query string" in f.what for f in found), text)
         self.assertEqual(ex.guard("see https://github.com/AJSethuraman/SATC/a(b(c))", label="t"), [])
 
-    def test_a_gap_left_by_a_dead_poster_is_filled_not_skipped(self):
-        for n in (1, 3):  # published B-0001 and B-0003; B-0002 never finished
+    def test_a_gap_left_by_a_dead_poster_is_not_back_filled(self):
+        # Numbers are chronology (withdrawal order and "latest agreement" rely on it),
+        # so a lower number is never handed out after a higher one exists.
+        for n in (1, 3):
             (self.root / "from-bassy" / f"B-000{n}.md").write_text("x", encoding="utf-8")
-        self.assertEqual(post(self.root, "bassy", "fills the gap")[1].strip(), "posted B-0002")
+        self.assertEqual(post(self.root, "bassy", "after the gap")[1].strip(), "posted B-0004")
 
     def test_a_live_reservation_in_the_gap_is_respected(self):
         for n in (1, 3):
@@ -642,6 +644,20 @@ class TestCodexTenthPassOnPR458(Base):
         self.assertEqual(ex.read_cursor(self.root, "bassy"), 5)
 
 
+class TestCodexEleventhPassOnPR458(Base):
+    def test_withdrawing_the_newest_agreement_does_not_revive_the_older_one(self):
+        post(self.root, "bassy", "Proposal: one writer per file.", kind="suggestion")
+        fp = ex.sha8((self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
+        post(self.root, "bassy", "I agree.", kind="agreement", proposal="B-0001#" + fp)
+        post(self.root, "rev", "I agree.", kind="agreement", proposal="B-0001#" + fp)
+        post(self.root, "rev", "I agree again, more firmly.", kind="agreement", proposal="B-0001#" + fp)
+        self.assertIn("mutual", ex.view_agreed(self.root))
+        post(self.root, "rev", "I withdraw my latest agreement.", withdraws="R-0002")
+        out = ex.view_agreed(self.root)
+        self.assertIn("one side only (bassy)", out)  # rev's older agreement must not come back
+        self.assertNotIn("mutual;", out)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")
@@ -671,16 +687,39 @@ class TestReadingIsSafeAndReadOnly(Base):
         self.assertNotIn(SSN, status)
         self.assertTrue((self.root / "from-rev" / "R-0001.md").exists())  # not moved
 
-    def test_cursor_cannot_pass_a_withheld_or_missing_message(self):
+    def test_cursor_cannot_pass_a_withheld_message_but_steps_over_a_missing_one(self):
         (self.root / "from-rev" / "R-0001.md").write_text("junk", encoding="utf-8")
         post(self.root, "rev", "good one")  # becomes R-0002
         code, _, err = run(self.root, ["ack", "--as", "bassy", "R-0002"])
-        self.assertEqual(code, 2)
+        self.assertEqual(code, 2)  # R-0001 exists but failed the check: a human must fix it
         self.assertIn("R-0001", err)
         os.unlink(self.root / "from-rev" / "R-0001.md")
-        code, _, err = run(self.root, ["ack", "--as", "bassy", "R-0002"])
+        code, out, _ = run(self.root, ["ack", "--as", "bassy", "R-0002"])
+        self.assertEqual(code, 0)  # R-0001 is now simply missing, and nobody is writing it
+        self.assertIn("stepped over abandoned gap: R-0001", out)
+
+    def test_ack_waits_for_a_number_that_is_still_being_written(self):
+        post(self.root, "rev", "one")
+        (self.root / "from-rev" / "R-0003.md").write_text("x", encoding="utf-8")
+        (self.root / "from-rev" / ".R-0002.reserve").write_text("", encoding="utf-8")  # fresh
+        code, _, err = run(self.root, ["ack", "--as", "bassy", "R-0003"])
         self.assertEqual(code, 2)
-        self.assertIn("missing", err)
+        self.assertIn("still being written", err)
+
+    def test_ack_steps_over_a_gap_whose_reservation_went_stale(self):
+        post(self.root, "rev", "one")
+        # R-0003 must be a valid message for ack to pass it
+        post(self.root, "rev", "two")
+        os.rename(self.root / "from-rev" / "R-0002.md", self.root / "from-rev" / "R-0003.md")
+        text = (self.root / "from-rev" / "R-0003.md").read_text(encoding="utf-8").replace("R-0002", "R-0003")
+        (self.root / "from-rev" / "R-0003.md").write_text(text, encoding="utf-8")
+        stale = self.root / "from-rev" / ".R-0002.reserve"
+        stale.write_text("", encoding="utf-8")
+        old = time.time() - 3600
+        os.utime(stale, (old, old))
+        code, out, _ = run(self.root, ["ack", "--as", "bassy", "R-0003"])
+        self.assertEqual(code, 0)
+        self.assertIn("stepped over abandoned gap: R-0002", out)
 
     def test_ack_moves_the_cursor_after_good_messages(self):
         post(self.root, "rev", "one")

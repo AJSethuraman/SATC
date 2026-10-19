@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 106 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 61 deliberate breakages of guard and safety rules, 61 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 109 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 63 deliberate breakages of guard and safety rules, 63 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1378,7 +1378,7 @@ above), each fixed with a test and a mutation:
 22. **A concurrent poster's abandoned reservation left a gap** that later posts
     skipped past, so `ack` stayed blocked. New messages now take the lowest free
     number, which heals a gap once the dead reservation goes stale; a live
-    reservation is still respected.
+    reservation is still respected. **Superseded by finding 36.**
 23. **The duplicate key could be ambiguous:** joining fields with `|` made
     (`about="a"`, `evidence="|"`) collide with (`about="a|"`). Fields are now
     length-prefixed.
@@ -1398,7 +1398,7 @@ above), each fixed with a test and a mutation:
     filling: a hand-saved `B-0003` withdrawing a missing `B-0002` would later hide the
     owner item that took number 2. The allocator now treats any number a stored
     message points at as taken. (This made my own ordering test stop testing the
-    ordering rule; the mutation run showed it, and the test was rewritten.)
+    ordering rule; the mutation run showed it, and the test was rewritten.) **Superseded by finding 36.**
 
 28. **My stale-reservation fix created a race.** A writer paused for more than 60
     seconds could have its reservation judged abandoned and replaced, then resume and
@@ -1436,6 +1436,22 @@ above), each fixed with a test and a mutation:
     A cursor now never decreases. (Simultaneous acknowledgements can still lose a
     race in a very small window; the effect is only that a handled message shows as
     unread until acknowledged again. Listed under known limits.)
+
+36. **Root cause of three findings: my gap-filling broke the meaning of message
+    numbers.** Making new messages take the lowest free number (findings 22 and 27)
+    meant a number no longer meant "later than the ones below", yet two rules still
+    used it as a time: a withdrawal counts only if its target is earlier, and the
+    latest agreement per side wins. Codex then found a withdrawal into a filled gap
+    that was silently ignored, and a re-agreement that lost to an older, higher-
+    numbered one. Patching each rule would have been whack-a-mole. **Numbering is
+    strictly increasing again** (a number is a time, and a gap is never back-filled),
+    and the problem gap-filling was meant to solve is solved at the other end:
+    `ack` steps over a missing number that nobody is writing, and still refuses one
+    whose reservation is fresh (a post in flight). A message that exists but failed
+    the check still blocks the cursor until someone fixes it.
+37. **Withdrawing the newest agreement revived the older one.** The latest
+    agreement per side is now chosen first, and a withdrawal of that one removes the
+    side's assent.
 
 ### Known limits of the guard (decided 18 October 2026)
 
