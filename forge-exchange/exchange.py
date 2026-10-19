@@ -174,10 +174,14 @@ def is_reparse(path: Path) -> bool:
 def check_not_redirected(root: Path) -> None:
     """Refuse a root, or anything above or inside it, that points elsewhere."""
     probe = [root, root / "from-rev", root / "from-bassy", root / "cursors"]
+    probe += [root / name for name in ("GOALS.md", "guard-local.txt", "AGREED.md")]  # FILES-MARK
+    probe += [root / d / "RESUME.md" for d in ("from-rev", "from-bassy")]
+    if (root / "cursors").is_dir():
+        probe += list((root / "cursors").glob("*.json"))
     probe += list(root.parents)
     for p in probe:
         if p.exists() and is_reparse(p):
-            raise Refused(["a folder in the exchange path is a shortcut or "
+            raise Refused(["a folder or file in the exchange is a shortcut or "
                            "junction that could redirect it elsewhere; refusing "
                            "to read or write through it"])
 
@@ -307,7 +311,12 @@ def _scan_links(text: str, where_of) -> list[Finding]:
             url = raw
         else:
             url = "https://" + raw
-        p = urllib.parse.urlsplit(url)
+        try:
+            p = urllib.parse.urlsplit(url)
+            p.hostname, p.port  # reading these can raise too
+        except ValueError:  # MALFORMED-URL-MARK
+            found.append(Finding(where_of(start), "a malformed link"))
+            continue
         if p.scheme.lower() not in ("http", "https"):  # SCHEME-MARK
             found.append(Finding(where_of(start),
                                  "a link that is not an http or https link"))
@@ -404,7 +413,7 @@ def guard(text: str, *, root: Optional[Path] = None,
     names = allowed_names()
     cleaned = text
     for n in sorted(names, key=len, reverse=True):
-        cleaned = re.sub(r"(?<![\w\\/.-])" + re.escape(n) + r"(?![\w])",
+        cleaned = re.sub(r"(?<![\w\\/.-])" + re.escape(n) + r"(?![\w-]|\.\w)",  # NAME-END-MARK
                          lambda m: " " * len(m.group(0)), cleaned, flags=re.I)
     ext = "|".join(DATA_EXTENSIONS)
     for m in re.finditer(r"(?<=[\w)])\.(?:%s)\b" % ext, cleaned, flags=re.I):  # EXT-MARK

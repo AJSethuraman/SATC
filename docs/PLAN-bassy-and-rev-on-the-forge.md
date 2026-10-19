@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 112 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 66 deliberate breakages of guard and safety rules, 66 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 118 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 69 deliberate breakages of guard and safety rules, 69 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1463,6 +1463,23 @@ above), each fixed with a test and a mutation:
     gaps it stepped over; if a message later appears in one, `status` says it
     "Arrived LATE", `read` shows it, and `ack` of that id clears it without moving
     the cursor. A late message that fails the check cannot be acknowledged.
+
+40. **A malformed link (`https://[`) crashed the reader with a traceback,** which would
+    jam `status`, `read` and `ack` until the file was removed. A link that cannot be
+    parsed is now a blocked link.
+41. **Files inside the exchange were not checked for redirection,** only the folders.
+    A `GOALS.md` that is a symlink to another file would have been followed and its
+    target printed or copied into a message. `GOALS.md`, the local deny-list, the
+    generated files and the cursor files are now checked too.
+42. **An allowed file name was exempt even as the start of a longer one** (`satc_vault.db.bak`
+    passed). The exemption now applies only to the complete name.
+
+Because crashes had become a recurring *kind* of finding, I stopped chasing instances
+and tested the class: 60,000 random hostile strings (malformed links, control
+characters, Unicode separators, odd ports and brackets) through the guard, the parser
+and normaliser raised nothing, and a fixed-seed version is now part of the test suite,
+including a folder of hand-saved hostile files read by `status`, `read`, `resume` and
+`ack`.
 
 ### Known limits of the guard (decided 18 October 2026)
 

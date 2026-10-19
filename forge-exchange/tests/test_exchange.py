@@ -710,6 +710,75 @@ class TestCodexTwelfthPassOnPR458(Base):
         self.assertIn("withheld", err)
 
 
+class TestCodexThirteenthPassOnPR458(Base):
+    def test_a_malformed_link_is_blocked_not_a_crash(self):
+        for text in ("see https://[", "see http://[::1", "see https://host:99999999/x"):
+            found = ex.guard(text, label="t")
+            self.assertTrue(found, text)  # no exception, and something is reported
+
+    def test_a_stored_message_with_a_malformed_link_is_withheld_not_a_traceback(self):
+        (self.root / "from-rev" / "R-0001.md").write_text(
+            "id: R-0001\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n\nsee https://[\n",
+            encoding="utf-8")
+        for argv in (["status", "--as", "bassy"], ["read", "--as", "bassy"],
+                     ["ack", "--as", "bassy", "R-0001"]):
+            code, out, err = run(self.root, argv)
+            self.assertNotIn("Traceback", out + err, argv)
+        self.assertIn("WITHHELD", run(self.root, ["read", "--as", "bassy"])[1])
+
+    def test_a_goals_file_that_points_elsewhere_is_refused(self):
+        real = ex.is_reparse
+        with mock.patch.object(ex, "is_reparse",
+                               lambda p: Path(p).name == "GOALS.md" or real(p)):
+            code, out, err = run(self.root, ["status", "--as", "bassy"])
+        self.assertEqual(code, 2)
+        self.assertIn("shortcut or junction", err)
+
+    def test_an_allowed_name_is_not_exempt_as_the_start_of_another_file(self):
+        for text in ("see satc_vault.db.bak", "see satc_vault.db.zip", "see satc_mart.db.csv"):
+            self.assertTrue(ex.guard(text, label="t"), text)
+        for text in ("see satc_vault.db.", "see satc_vault.db, and satc_mart.db;", "the satc_vault.db file"):
+            self.assertEqual(ex.guard(text, label="t"), [], text)
+
+
+class TestNothingHostileCrashesTheReader(Base):
+    """The same class of finding kept coming back (a malformed link, then others):
+    an input that raises instead of being reported would jam the channel. Rather than
+    chase instances, throw many hostile strings at the guard, the parser and a whole
+    folder of hand-saved files, with a fixed seed, and require no exception at all."""
+
+    PIECES = ["https://", "http://", "ftp://", "//", "www.", "[", "]", "(", ")", "@", "+",
+              "\u00a0", "\u2028", "\x00", "\r", "\n", "\t", "1", "12", "123", "1234", "-", ".",
+              ",", "?", "#", "%", "%zz", ":", "\\", "/", "a", "Z", "\u00e9", "\u65e5", "\uff11",
+              "\u200b", "::1", "[::1]", "host", "x.y", "user:pw@", "8080", ":99999999", "`",
+              "'", '"', "<", ">", "|", "&", "=", "~", "^", "*", "!", "$", ";", "{", "}"]
+
+    def strings(self, n, seed):
+        import random
+        rng = random.Random(seed)
+        for _ in range(n):
+            yield "".join(rng.choice(self.PIECES) for _ in range(rng.randint(1, 40)))
+
+    def test_the_guard_and_parser_never_raise_on_hostile_text(self):
+        for text in self.strings(4000, 20261018):
+            ex.guard(text, label="t")
+            ex.normalize_for_guard(text)
+            try:
+                ex.parse_message("id: B-0001\nkind: note\n\n" + text)
+            except ValueError:
+                pass  # a ValueError from the parser is its way of saying "malformed"
+
+    def test_status_read_and_ack_survive_a_folder_of_hostile_files(self):
+        for i, text in enumerate(self.strings(120, 7), start=1):
+            head = ("id: R-%04d\nfrom: rev\nkind: note\nabout: x\ngoal: G1\nmode: satc\n\n" % i)
+            (self.root / "from-rev" / ("R-%04d.md" % i)).write_text(head + text + "\n", encoding="utf-8")
+        for argv in (["status", "--as", "bassy"], ["read", "--as", "bassy", "--all"],
+                     ["resume", "--as", "bassy"], ["ack", "--as", "bassy", "R-0120"]):
+            code, out, err = run(self.root, argv)
+            self.assertNotIn("Traceback", out + err, argv)
+            self.assertIn(code, (0, 2), argv)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")

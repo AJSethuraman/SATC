@@ -158,6 +158,12 @@ MUTATIONS = [
     ("a late arrival into a stepped-over gap is hidden", "or m.id in late]  # LATE-SHOWN-MARK",
      "]  # LATE-SHOWN-MARK"),
     ("a late arrival is not shown by read", "or m.id in late]  # LATE-READ-MARK", "]  # LATE-READ-MARK"),
+    ("a malformed link crashes the reader", "except ValueError:  # MALFORMED-URL-MARK",
+     "except KeyError:  # MALFORMED-URL-MARK"),
+    ("GOALS.md is not checked for redirection", 'for name in ("GOALS.md", "guard-local.txt", "AGREED.md")]  # FILES-MARK',
+     'for name in ("guard-local.txt", "AGREED.md")]  # FILES-MARK'),
+    ("an allowed name hides a longer file name", r'''re.escape(n) + r"(?![\w-]|\.\w)",  # NAME-END-MARK''',
+     r'''re.escape(n) + r"(?![\w])",  # NAME-END-MARK'''),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]
