@@ -200,30 +200,33 @@ def release_reservation(reserve: Path, token: str) -> None:
         pass
 
 
-def write_agreed(root: Path, tries: int = 5) -> str:
-    """Regenerate AGREED.md and make sure an older snapshot cannot win.
+def write_converging(path: Path, compute, tries: int = 5) -> str:
+    """Write a generated file and make sure an older snapshot cannot stay on top.
 
     The file is a pure function of the messages. A replace is atomic but does not
     stop a writer that scanned EARLIER from finishing LATER and putting its older
-    snapshot over a newer one. So after writing, recompute from the messages as
-    they are now and, if the answer differs from what was written, write again.
-    Every writer does this after its own write, so concurrent writers converge on
-    the state of the messages, whichever finishes last.
+    snapshot over a newer one. So after writing, recompute from the messages as they
+    are now and, if the answer differs from what was written, write again. Every
+    writer does this after its own write, so concurrent writers converge on the
+    state of the messages, whichever finishes last.
 
     LIMITS, said plainly. If a process dies after its replace, or the retries run
-    out, a stale file can remain until the next run. That is not prevented; it is
-    DETECTED: `status` reports when AGREED.md no longer matches the messages. The
-    tests simulate a newer assent arriving mid-write; they do not run real
-    concurrent processes or kill one mid-write.
+    out, a stale file can remain until the next run. That is not prevented; for
+    AGREED.md it is DETECTED: `status` reports when it no longer matches the
+    messages. The tests simulate a newer message arriving mid-write; they do not run
+    real concurrent processes or kill one mid-write.
     """
-    path = root / "AGREED.md"
     for _ in range(tries):
-        text = view_agreed(root)
+        text = compute()
         atomic_write(path, text)
-        if view_agreed(root) == text:  # CONVERGE-MARK
+        if compute() == text:  # CONVERGE-MARK
             return text
-    raise Refused(["AGREED.md kept changing while it was being written; "
-                   "run the command again"])
+    raise Refused([f"{path.name} kept changing while it was being written; "
+                   f"run the command again"])
+
+
+def write_agreed(root: Path, tries: int = 5) -> str:
+    return write_converging(root / "AGREED.md", lambda: view_agreed(root), tries)
 
 
 def sha8(text: str) -> str:
@@ -786,7 +789,8 @@ def find_message(root: Path, mid: str) -> Optional[Msg]:
 
 def content_key(h: dict, body: str) -> str:
     fields = [h.get(k, "") for k in HEADER_KEYS if k not in ("id", "from")]  # KEY-FIELDS-MARK
-    return sha8("".join(f"{len(v)}:{v}" for v in fields + [body.strip()]))  # KEY-ENCODE-MARK
+    payload = "".join(f"{len(v)}:{v}" for v in fields + [body.strip()])  # KEY-ENCODE-MARK
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()  # a full digest: a short one can collide
 
 
 def post(root: Path, me: str, h: dict, body: str) -> str:
@@ -867,7 +871,7 @@ def post(root: Path, me: str, h: dict, body: str) -> str:
             raise Refused(["could not publish the message file; nothing was written"])
         os.unlink(tmp)
         release_reservation(reserve, token)
-        atomic_write(folder / "RESUME.md", view_resume(root, me) + "\n")
+        write_converging(folder / "RESUME.md", lambda: view_resume(root, me) + "\n")
         return f"posted {mid}"
     raise Refused(["could not reserve a message number; try again"])
 

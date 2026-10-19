@@ -576,6 +576,46 @@ class TestCodexEighthPassOnPR458(Base):
         self.assertIn("about: x\n", (self.root / "from-bassy" / "B-0001.md").read_text(encoding="utf-8"))
 
 
+class TestCodexNinthPassOnPR458(Base):
+    def test_two_different_messages_whose_short_hashes_collide_are_both_posted(self):
+        # Codex: a 32-bit key silently discarded a different message. Find a real
+        # collision on the first 8 hex digits and check the full digest tells them apart.
+        h = {"kind": "note", "about": "collision", "goal": "G1", "mode": "satc"}
+        seen = {}
+        pair = None
+        for i in range(600000):
+            body = "safe collision candidate %d" % i
+            k = ex.content_key(h, body)
+            if k[:8] in seen:
+                pair = (seen[k[:8]], body)
+                break
+            seen[k[:8]] = body
+        self.assertIsNotNone(pair, "no 32-bit collision found to test with")
+        self.assertEqual(len(ex.content_key(h, "x")), 64)
+        self.assertNotEqual(ex.content_key(h, pair[0]), ex.content_key(h, pair[1]))
+        for body in pair:
+            code, out, _ = post(self.root, "bassy", body, about="collision", goal="G1")
+            self.assertIn("posted", out)
+            self.assertNotIn("identical", out)
+        self.assertEqual(len(list((self.root / "from-bassy").glob("B-*.md"))), 2)
+
+    def test_a_stale_resume_snapshot_cannot_win(self):
+        real = ex.view_resume
+        calls = {"n": 0}
+
+        def racing(root, me):
+            text = real(root, me)
+            calls["n"] += 1
+            if calls["n"] == 1:
+                post(self.root, "bassy", "A second message lands mid-write.")
+            return text
+
+        with mock.patch.object(ex, "view_resume", racing):
+            post(self.root, "bassy", "The first message.")
+        resume = (self.root / "from-bassy" / "RESUME.md").read_text(encoding="utf-8")
+        self.assertIn("B-0002", resume)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")
