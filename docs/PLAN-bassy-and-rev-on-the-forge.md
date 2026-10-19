@@ -1530,3 +1530,37 @@ identifying data" (section 5.4), and every round has been a new shape or an edge
 of an existing rule. Codex reviewing again is cheap relative to a missed shape,
 but this list will not reach "complete".
 
+---
+
+## 16. Merge record
+
+What was merged, when, and what was *not* reviewed, so nobody has to infer it.
+
+| | |
+|---|---|
+| This plan, PR 456 | Merged 18 October 2026 as `c9f8d55e`, pinned to head `754ae78678`, with Codex clean on that exact head, CI green and no unresolved review threads |
+| The exchange code, PR 458 | Merged 19 October 2026 as `e6a55af9`, pinned to head `b1cc0c91`, CI green, no unresolved review threads, 120 tests and 70 of 70 deliberate breakages caught |
+
+**The gap.** Codex ran out of usage before it could review the final commit of PR 458
+(`b1cc0c91`; its summary reads "failed", and it posted that the usage limit was
+reached). Every earlier commit on that branch was reviewed by Codex across fourteen
+passes, and each finding was fixed or recorded as a known limit (section 15.1). The
+unreviewed change is two small fixes: the dangling-symlink check (finding 43) and the
+allowed-name boundary (finding 44), each with tests and mutations. `CLAUDE.md` says to
+merge only after Codex reads Completed, so this departs from it. **The owner approved
+the merge anyway, by pop-up, on 19 October 2026**, choosing "merge now, record the gap"
+over waiting for the limit to reset.
+
+**The owner's guidance on this, 19 October 2026:** waiting on Codex constantly is a
+fool's errand; if a review is blocked, use the adversarial skill (`canon:adversarial`)
+or have Rev review it.
+
+**The compensating review.** Rev was asked, through the exchange (B-0003), to review
+exactly the unreviewed commit. Her answer, and anything it finds, is a message in
+the exchange and, if it is a real defect, a new pull request. It is not recorded here
+because it had not arrived when this was written.
+
+**What this does not change.** Nothing deploys from `forge-exchange/`; the website and
+the invoicer deploy from other folders. The guard is a tripwire for known shapes, not a
+guarantee (section 15.1, known limits).
+
