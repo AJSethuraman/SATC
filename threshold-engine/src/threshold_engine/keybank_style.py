@@ -272,6 +272,10 @@ PICKED     = "F6D9A8"   # the picked product's name
 BANDS      = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")   # 1 Low ... 5 High
 LINES      = ("8E877B", "B98577", "B35A5A", "960019")              # 2, 3, 4, 5 from, as lines
 SERIES     = ("0A0908", "CC0000", "57534B", "9C7A4A")              # products on the Chart tab
+#: Round 3 (19 Oct 2026).
+SIGNAL     = "9C7A4A"   # a public signal's line; Large banks
+GAP_WORSE  = "F4CBCB"   # shading above zero on a gap chart (= zone 5)
+GAP_BETTER = "E9F1E3"   # shading below zero on a gap chart (= zone 1)
 
 
 def solid(hex_):
