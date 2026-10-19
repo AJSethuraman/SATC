@@ -1184,7 +1184,8 @@ def window(root) -> dict:
         section(body, "Pull")
         peer_choice(body, "Merger record (--mergers)", "mergers_pull", PEER_MERGERS)
         peer_text(body, "Merger record from", "mergers_since", "A date written like 2005-10-01; Pull "
-                  "writes the record into the cache folder as mergers.json.")
+                  "writes the record into the cache folder as mergers.json and absorptions.json, with the FDIC "
+                  "institutions record (when each bank opened, which pro forma reads) as institutions.json.")
         peer_choice(body, "Quarters already in the cache (--refresh)", "refresh", PEER_REFRESH)
 
         section(body, "Build")

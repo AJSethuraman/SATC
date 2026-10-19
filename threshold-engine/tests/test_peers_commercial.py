@@ -247,10 +247,10 @@ def test_a_bank_added_pro_forma_that_did_not_file_the_product_is_not_filed(data)
     """JPMorgan with Sovereign added in, say, to 2008Q2: Sovereign filed no
     split, so no window of the combined split can be measured, rather than
     being read as JPMorgan alone."""
-    rows = bank_book(data, JPM, OO, 0.25, 0, acquired=(), members=[(TFR, "20080630")], stated=())
+    rows = bank_book(data, JPM, OO, 0.25, 0, acquired=(), members=[(TFR, "20080630")], opened={}, stated=())
     assert {r["why"] for r in rows} == {WHY_NOT_FILED}
     # The total, which Sovereign did file, combines as before.
-    both = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=(), members=[(TFR, "20080630")], stated=()))
+    both = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=(), members=[(TFR, "20080630")], opened={}, stated=()))
     alone = by_q(bank_book(data, JPM, NFNR, 10.0, 0, acquired=(), stated=()))
     assert both["2008Q1"]["kept"] and both["2008Q1"]["avg_balance"] > alone["2008Q1"]["avg_balance"]
 

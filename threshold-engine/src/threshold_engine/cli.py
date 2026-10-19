@@ -23,8 +23,9 @@ on the same scale as the workbook (threshold_engine.scale).
 fetches every FDIC filer's quarter into ``DIR/q{YYYYMMDD}.json`` (only the
 quarters not already there), with the products' delinquency and nonaccrual
 fields when ``--delinquency yes``, and, with ``--mergers``, the classified
-merger record into ``DIR/mergers.json`` and who absorbed whom into
-``DIR/absorptions.json``.
+merger record into ``DIR/mergers.json``, who absorbed whom into
+``DIR/absorptions.json`` and each institution's establishment date into
+``DIR/institutions.json`` (which a pro forma build reads).
 
     python -m threshold_engine peers build OUT.xlsx --cache DIR --roster
         config/peers.json --jump 0.25 --min-book 1000000 --pack all|regionals
@@ -241,7 +242,9 @@ def _peers_parser(sub):
     pu.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
                     help="whose fields to pull: " + _PRODUCTS_HELP % ", ".join(_peer_products()))
     pu.add_argument("--mergers", metavar="SINCE",
-                    help="also pull the merger record from this date (YYYY-MM-DD) into DIR/mergers.json")
+                    help="also pull the merger record from this date (YYYY-MM-DD) into DIR/mergers.json and "
+                         "DIR/absorptions.json, and the FDIC institutions record (each bank's establishment date, "
+                         "which a pro forma build reads) into DIR/institutions.json")
     pu.add_argument("--delinquency", required=True, type=_yes_no, metavar="yes|no",
                     help="yes: also pull the products' delinquency and nonaccrual fields")
     pu.add_argument("--refresh", action="store_true", help="fetch every quarter again, even if cached")

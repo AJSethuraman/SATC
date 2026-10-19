@@ -1,0 +1,38 @@
+[
+ {
+  "CERT": 746,
+  "ESTYMD": "01/01/1893",
+  "NAME": "AmeriTrust Company National Association",
+  "ID": "746"
+ },
+ {
+  "CERT": 777,
+  "ESTYMD": "05/06/1868",
+  "NAME": "Society Bank & Trust",
+  "ID": "777"
+ },
+ {
+  "CERT": 6568,
+  "ESTYMD": "06/22/1863",
+  "NAME": "Society Bank, National Association",
+  "ID": "6568"
+ },
+ {
+  "CERT": 17534,
+  "ESTYMD": "01/01/1849",
+  "NAME": "KeyBank National Association",
+  "ID": "17534"
+ },
+ {
+  "CERT": 26650,
+  "ESTYMD": "04/23/1986",
+  "NAME": "AmeriTrust Development Bank",
+  "ID": "26650"
+ },
+ {
+  "CERT": 34055,
+  "ESTYMD": "09/05/1995",
+  "NAME": "Key Bank USA, National Association",
+  "ID": "34055"
+ }
+]

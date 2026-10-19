@@ -369,6 +369,8 @@ class FakeFDIC:
         offset, limit = int(q["offset"][0]), int(q["limit"][0])
         if url.startswith(fdic.HISTORY_URL):
             rows = self.history
+        elif url.startswith(fdic.INSTITUTIONS_URL):
+            rows = json.loads((PEERS / "institutions_keybank.json").read_text(encoding="utf-8"))
         else:
             # A field the API is asked for and does not hold comes back null,
             # as RSSDHCR does here: the fixtures were pulled without it.
@@ -413,6 +415,10 @@ def test_pull_with_mergers_writes_the_classified_record(data, tmp_path, monkeypa
     assert json.loads((cache / "mergers.json").read_text()) == {"6672": ["2019-03-31"]}
     assert any(u.startswith(fdic.HISTORY_URL) and "2005-10-01" in urllib.parse.unquote_plus(u)
                for u in fake.urls)
+    # Question 21: the institutions record comes with it, for pro forma.
+    inst = json.loads((cache / "institutions.json").read_text())
+    assert inst["rows"] == 6 and inst["established"]["34055"] == {
+        "name": "Key Bank USA, National Association", "established": "1995-09-05"}
     assert "Filers in 2026Q2: 16" in capsys.readouterr().out
 
 

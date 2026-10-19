@@ -88,7 +88,12 @@ class FakeFDIC:
         self.urls.append(url)
         q = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
         offset, limit = int(q["offset"][0]), int(q["limit"][0])
-        rows = self.history if url.startswith(fdic.HISTORY_URL) else self.data[q["filters"][0].split(":")[1]]
+        if url.startswith(fdic.HISTORY_URL):
+            rows = self.history
+        elif url.startswith(fdic.INSTITUTIONS_URL):
+            rows = json.loads((PEERS / "institutions_keybank.json").read_text(encoding="utf-8"))
+        else:
+            rows = self.data[q["filters"][0].split(":")[1]]
         return {"data": [{"data": r} for r in rows[offset:offset + limit]], "meta": {"total": len(rows)}}
 
 

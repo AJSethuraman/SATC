@@ -117,7 +117,7 @@ def build(module, out, data, roster, products, pack="all", **over):
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
                                            json.loads((PEERS / "mergers_roster.json").read_text()),
                                            {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
-                                           **({} if module is OLD else {"combined": {}, "changes": CHANGES, "stated": NONE_STATED}))
+                                           **({} if module is OLD else {"combined": {}, "opened": {}, "changes": CHANGES, "stated": NONE_STATED}))
     finally:
         mp.undo()
 
@@ -175,7 +175,7 @@ def test_peers_build_writes_the_same_series_as_before_the_round_2_layout(tmp_pat
     new = run_build(tmp_path / "after.xlsx", cache, tmp_path / "after")
     assert load_workbook(new["out"]).sheetnames == list(PW.TABS)
     monkeypatch.setattr(PW, "build_peers_workbook",
-                        lambda *a, into=None, names=None, combined=None, changes=None, stated=None,
+                        lambda *a, into=None, names=None, combined=None, opened=None, changes=None, stated=None,
                         book_kind=None, **kw:
                         OLD.build_peers_workbook(*a, **kw))
     old = run_build(tmp_path / "before.xlsx", cache, tmp_path / "before")

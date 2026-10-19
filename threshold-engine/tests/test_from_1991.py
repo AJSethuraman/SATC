@@ -57,6 +57,8 @@ class Fake:
         offset, limit = int(q["offset"][0]), int(q["limit"][0])
         if url.startswith(fdic.HISTORY_URL):
             rows = self.rows
+        elif url.startswith(fdic.INSTITUTIONS_URL):
+            rows = json.loads((PEERS / "institutions_keybank.json").read_text(encoding="utf-8"))
         else:
             asked = q["fields"][0].split(",")
             rows = [{f: r.get(f) for f in asked} for r in self.data[q["filters"][0].split(":")[1]]]

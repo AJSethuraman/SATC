@@ -3257,3 +3257,127 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   2. `config/stated-acquisitions.json` entries carry `products`,
      `products_source` and `products_unsettled` (question 18). The consumer
      book still reads none (`stated_acquisitions: null`).
+
+## 18 Oct 2026, question 21: a new charter's first filing counts as that quarter's activity
+
+- **Question 21, 18 Oct 2026, agreed with the recommendation** (the round 2
+  commercial docket, read back above): *"A new charter's first filing
+  counts as that quarter's activity, where the FDIC record shows it opened
+  that quarter"*.
+- **The rule** (`books.first_filings`, `books.opened_in_first_quarter`,
+  `books.combined_flows`). A bank folded into a roster bank's history (a pro
+  forma member) whose first filing in the data falls partway through a year
+  (not a Q1, not the data's first quarter, no later than its absorption)
+  has no filing the quarter before, so its flow there was not known and
+  every window holding it was missing. Now its first year to date is that
+  quarter's flow when the FDIC institutions record
+  (api.fdic.gov/banks/institutions, ESTYMD) gives an establishment date in
+  that quarter. Otherwise the quarter stays missing, as before. The roster
+  bank's own first filing is not read this way; the answer is about banks
+  folded in. Delinquency is each bank as filed, so it is untouched.
+- **The record is pulled, never fetched by a build.** `peers pull --mergers
+  SINCE` now also writes `institutions.json` into the cache
+  (`run.write_institutions`): every institution the FDIC has a record of,
+  open or closed, its name and establishment date as `YYYY-MM-DD`, the date
+  pulled, the row count; a date that is not a real `MM/DD/YYYY` date is kept
+  as given under `undated`, never read as a date. An empty record is
+  refused and nothing written. `peers build` reads it from its cache
+  (`run.opened_members`) and refuses, naming each bank by certificate, its
+  first filing and the roster bank whose history it is in:
+  - when a member needs a date and the cache has no `institutions.json`
+    (the message gives the pull to run);
+  - when the file does not hold a member and was pulled on or before the
+    end of that member's first filing quarter, so it could not have held it.
+  A member the record does not hold although pulled after that (the FDIC has
+  no row for it), or holds without a date, is not shown to have opened then:
+  its quarter stays missing, as the answer says ("otherwise"), and the Run
+  tab names it. Without pro forma nothing is needed and nothing is read.
+- **What the build says.** The Run tab gains a line on the rule, with the
+  file's pull date and row count, then per roster bank the members counted
+  (name, certificate, first filing, date opened) and those not, under "opened
+  in another quarter", "the record gives no date" or "not in the record".
+  The peer glossary's "Pro forma" says it in one sentence more. The
+  workbook's Data tab reads the same rule (`build_peers_workbook` takes a
+  required `opened`).
+- **Measured on the real cache** (`scratchpad/cache-commercial`, public
+  FDIC data, not in the repository; the institutions record pulled today
+  through `run.write_institutions`: 27,835 institutions, every one with a
+  readable date). The build's own steps (`combination`, `bank_book`), as
+  question 6 measured them: the 16 roster banks' C&I windows 1992Q1 to
+  2005Q4 on a 1991Q1 build, the record since 1990, pro forma, jump 0.25,
+  acquisition share 0.05, minimum book 0, the stated acquisitions; not a
+  full build.
+  - **Members first filing partway through a year: 348**, across all 16
+    roster banks (KeyBank 12, Huntington 62, Wells Fargo 53). **321** opened
+    in that quarter by the record and are counted. **27** are not: **21**
+    have no row in the institutions record at all (trust companies and
+    other non-deposit charters among them; for example certificate 32772,
+    SouthTrust Estate and Trust Co., which the FDIC history record carries
+    with an establishment date); **6** opened in another quarter (Old Kent,
+    National Association, first filed 1997Q3, opened 1985-01-01; Commerce
+    Security Bank; SouthTrust Bank of North Carolina; U.S. Trust Company;
+    First Place Bank; U.S. Trust Company of North Carolina).
+  - **The 896 windows** (16 banks, 56 each):
+
+    | | Kept | A quarter is missing | The jump |
+    |---|---|---|---|
+    | Before (question 6's count) | 385 | 501 | 10 |
+    | After | **782** | **104** | 10 |
+
+    **397 of the 501 come back.** Of the 104 still missing, 93 hold the
+    first filing of one of the 27 members not counted (Wells Fargo 25, Bank
+    of America 12, U.S. Bank 11, Fifth Third, Huntington and M&T 8 each,
+    Truist 7, Zions 5, JPMorgan and PNC 4 each, Regions 1); the other 11
+    were not looked into.
+  - **KeyBank's C&I** (all 12 of its members counted): its first kept window
+    was 1994Q2 and its net series was written from 2003Q4 (86 quarters, 32
+    earlier windows missing); now every window from 1992Q1 is kept and the
+    net series runs **from 1992Q1 to 2026Q2, 133 quarters written**, still
+    carried across the NDFI windows (2024Q4 to 2025Q4).
+- **Proof.** `tests/test_new_charters.py`, 14 tests. On made-up banks:
+  which first filing is found (not a Q1, not the first quarter, not after
+  its absorption); counted only when the date is in that quarter; the first
+  year to date as the flow and the next quarter as ever; the window kept,
+  its charge-offs checked by hand; `opened` required with members. The
+  record's dates read, an unreadable one kept. The pull writing the record
+  and refusing an empty one; a malformed record refused. On real data
+  (`keybank_usa_1994.json`, `institutions_keybank.json`, both from public
+  FDIC data, the README says how): KeyBank's C&I built 1994Q1 to 1997Q4
+  runs from its first window, 1995Q1, across Key Bank USA's first filing
+  (1995Q3, opened 5 Sep 1995), its 1995Q4 value checked by hand, the Data
+  tab's rows kept and the Run tab line; with the record lacking Key Bank
+  USA, the series starts at 1996Q3 and the Run tab names it; a cache
+  without the record and a record pulled on 1995-09-30 refused, naming
+  certificate 34055 and KeyBank (pulled 1995-10-01, built); no record needed
+  without pro forma. `test_peers_cli`'s merger pull test checks the record
+  is written. **Checked by mutation**, each put back: the first year to
+  date never the flow (3 fail); the date ignored (3); a Q1 first filing, the
+  data's first quarter, or one after the absorption counted (1 each);
+  `opened` not required (1); no refusal without the file (1); the stale
+  check off (1); the build or the workbook ignoring `opened` (1 each); an
+  empty record written (1); the pull not writing it (1).
+- **Results.** Scratch venv (Python 3.13, `OPENPYXL_LXML=False`), pytest
+  with 4 workers, the 31 test files that name the peers, the books or the
+  FDIC: 915 passed, 5 skipped, 13 failed, 15 errors (18 min 37 s). Every
+  failure and error was `test_peers_dashboard.py` and `test_peers_into.py`
+  calling `build_peers_workbook` without the new required `opened`; given
+  `{}`, those two files: 39 passed (7 min). The other 21 test files were
+  not run for this answer.
+- **The consumer book: this changes its output, and its builds need the
+  record.** The rule is the build's, for every pro forma build, and the
+  consumer book is pro forma. Measured the same way on the consumer book's
+  settings (2006Q1 to 2026Q2, the record since 2005; filings read from the
+  commercial cache, which holds every filer but not the consumer fields, so
+  no consumer window was measured): **16** members first file partway
+  through a year (JPMorgan 2, PNC 1, Huntington 8, First Citizens 4,
+  Citizens 1), **all 16** opened that quarter, so the windows holding them
+  are kept where they were missing. A consumer build on a cache without
+  `institutions.json` is now refused naming those 16; one re-pull of the
+  merger record writes it (question 22 needs that re-pull too).
+- **Not done.** No full build was run for this answer (one is run after
+  question 22, on the re-pulled record). The 21 members with no row in the
+  institutions record stay missing: the FDIC history record has an
+  establishment date for at least one of them (32772), and reading it
+  would be a second source the answer does not name; put to the firm. The
+  11 other missing windows were not examined. Nothing was opened in Excel;
+  none can be here.

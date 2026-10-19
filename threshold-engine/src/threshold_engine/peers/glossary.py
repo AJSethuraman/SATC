@@ -63,7 +63,11 @@ PEER_TERMS = [
      "without pro forma. Two limits: in the quarter of the deal the absorbed bank files nothing, so its "
      "charge-offs count only from the close, in the absorber's filing; and the absorber books the loans it "
      "buys at fair value, so their charge-offs in the first quarters after a deal are not exactly what the "
-     "absorbed bank would have reported. Charge-offs only: delinquency is each bank as filed."),
+     "absorbed bank would have reported. A bank added in whose first filing falls partway through a year "
+     "has no quarter before it to take its year to date from; that year to date counts as the quarter's "
+     "activity where the FDIC institutions record shows the bank opened in that quarter, a new charter, and "
+     "otherwise the quarter has no flow (the Run tab names each). Charge-offs only: delinquency is each bank "
+     "as filed."),
     ("Combined with",
      "On the Data tab, the banks whose figures are added into that row (pro forma).",
      "Each absorbed bank that filed in one of the row's four quarters, by certificate, with the quarter it "

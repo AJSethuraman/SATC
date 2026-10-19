@@ -1099,6 +1099,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                          delinquency: Optional[dict],
                          acquired: Dict[str, Dict[str, Sequence[str]]],
                          combined: Dict[str, Sequence[Tuple[str, str]]],
+                         opened: Dict[str, str],
                          changes: Sequence[dict],
                          stated: Dict[str, Dict[str, Sequence[str]]],
                          sources: Iterable[str] = (), cache_dir=None, mergers_file=None,
@@ -1127,6 +1128,11 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     - ``combined``: ``{cert: [(absorbed, until)]}``, pro forma
       (``books.combination``): the banks whose charge-offs and balances are
       added to each bank's own. ``{}`` states none: every bank as filed;
+    - ``opened``: ``{absorbed: YYYYMMDD}``, the banks added pro forma whose
+      first filing, partway through a year, counts as that quarter's activity
+      because the FDIC record shows they opened in it
+      (``books.opened_in_first_quarter``; the firm, 18 Oct 2026, question
+      21). ``{}`` states none;
     - ``changes``: the reporting changes (``reporting_changes.load``); the
       charge-off and delinquency charts mark, on the pack composite, each
       quarter a change touching the product and measure shown took effect.
@@ -1252,10 +1258,12 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     if not isinstance(combined, dict):
         raise ValueError("combined must be {cert: [(absorbed, until)]}, {} for none, not %r" % (combined,))
+    if not isinstance(opened, dict):
+        raise ValueError("opened must be {absorbed: YYYYMMDD}, {} for none, not %r" % (opened,))
     books = {p: {b["cert"]: bank_book(data, b["cert"], p, jump, min_book,
                                       exempt_min_book=exempt_self and b is me,
                                       acquired=acquired[p].get(b["cert"], []),
-                                      members=combined.get(b["cert"], ()),
+                                      members=combined.get(b["cert"], ()), opened=opened,
                                       stated=_stated_for(stated, p).get(b["cert"], []))
                  for b in roster} for p in products}
     grid = [r["quarter"] for r in books[products[0]][me["cert"]]]
@@ -1352,7 +1360,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             # Pro forma, both are the bank's own with the banks it absorbed
             # (combined); "Combined with" names those in the row's window.
             mem = combined.get(b["cert"], ())
-            at_end = {label(q): bal for q, _, _, bal in combined_flows(data, b["cert"], p, mem)}
+            at_end = {label(q): bal for q, _, _, bal in combined_flows(data, b["cert"], p, mem, opened)}
             for r in books[p][b["cert"]]:
                 x = ix.get(r["quarter"])
                 inside = inside_by.get(b["cert"], {}).get(r["quarter"], [])
