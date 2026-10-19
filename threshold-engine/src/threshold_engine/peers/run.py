@@ -252,15 +252,66 @@ def _whole(flag, value, low):
         raise ValueError("%s must be a whole number, not %r" % (flag, value))
 
 
-def load_mergers(path):
-    """``{cert: [quarter-end dates]}`` from the --mergers file, every date
-    checked here, so a bad file is refused by name rather than failing later."""
+#: The command that writes a merger record that states the date it starts
+#: from (the firm, 18 Oct 2026, question 22); named in every refusal of one
+#: that does not.
+REPULL = ("'peers pull --cache DIR --first YYYYQn --last YYYYQn --products ... --delinquency yes|no "
+          "--mergers SINCE', SINCE on or before the first day of the build's first quarter")
+
+
+def quarter_start(first: str) -> str:
+    """The first day (``YYYY-MM-DD``) of a quarter written ``YYYYQn``,
+    ``YYYYMMDD`` or as an ISO date."""
+    end = books.quarter_end(first)
+    return "%s-%02d-01" % (end[:4], int(end[5:7]) - 2)
+
+
+def _dated(path, key: str, what: str, again: str):
+    """``(since, body)`` from a merger or absorption file that records the
+    date it starts from, ``{"since": YYYY-MM-DD, key: body}``. A file without
+    it (the format before 18 Oct 2026) is refused with the command to pull
+    it again, ``again``."""
     try:
-        mergers = json.loads(Path(path).read_text(encoding="utf-8"))
+        got = json.loads(Path(path).read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
+    if not (isinstance(got, dict) and "since" in got):
+        raise ValueError("%s does not record the date %s starts from, so whether it reaches back to the first "
+                         "quarter cannot be checked (a file written before 18 Oct 2026). Pull it again: %s"
+                         % (path, what, again))
+    if set(got) != {"since", key} or not fdic._is_date(got["since"]):
+        raise ValueError("%s must hold {\"since\": a date written like 2005-10-01, \"%s\": ...}, as the pull "
+                         "writes it, not keys %s with since %r; pull it again: %s"
+                         % (path, key, sorted(got), got.get("since"), again))
+    return got["since"], got[key]
+
+
+def reaches_back(path, since: str, first: str, what: str, again: str) -> None:
+    """Refuse a record that starts after the first day of ``first``: an
+    acquisition between the two would be invisible to it, its quarters
+    neither left out nor added pro forma (the firm, 18 Oct 2026, question
+    22: "A build stops if its merger list does not reach back as far as the
+    history"). Names both dates."""
+    start = quarter_start(first)
+    if start < since:
+        raise ValueError("the first quarter, %s, starts on %s, before %s (%s) starts, on %s: an acquisition "
+                         "between the two would not be seen. Pull it again from %s or earlier (%s), or start "
+                         "at a quarter beginning on or after %s"
+                         % (books.label(books.quarter_end(first).replace("-", "")), start, what, Path(path).name,
+                            since, start, again, since))
+
+
+def load_mergers(path, first: str):
+    """``{cert: [quarter-end dates]}`` from the --mergers file, every date
+    checked here, so a bad file is refused by name rather than failing later.
+    The file is ``{"since": YYYY-MM-DD, "acquirers": {cert: [...]}}`` as
+    'peers pull --mergers' writes it; one without ``since`` is refused with
+    the command to pull it again, and so is one whose ``since`` is after the
+    first day of ``first`` (``reaches_back``)."""
+    since, mergers = _dated(path, "acquirers", "the merger record", REPULL)
+    reaches_back(path, since, first, "the merger record", REPULL)
     if not isinstance(mergers, dict):
-        raise ValueError("%s must hold {cert: [quarter-end dates]}" % path)
+        raise ValueError("%s: acquirers must be {cert: [quarter-end dates]}" % path)
     for cert, dates in mergers.items():
         if not isinstance(dates, list) or not all(isinstance(d, str) for d in dates):
             raise ValueError("%s: certificate %s must have a list of quarter-end dates, not %r"
@@ -274,16 +325,28 @@ def load_mergers(path):
     return mergers
 
 
-def load_absorptions(path):
+def load_absorptions(path, first: str, *, again: str):
     """``[{acquirer, absorbed, quarter}]`` from the file 'peers pull --mergers'
-    writes beside the merger record, every row checked here, so a bad file is
-    refused by name rather than failing later."""
-    try:
-        links = json.loads(Path(path).read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError("%s is not valid JSON: %s" % (path, exc)) from None
+    writes beside the merger record (``read_absorptions``), refused, like the
+    merger record (``load_mergers``), when its ``since`` is after the first
+    day of ``first`` (question 22). ``again`` is the command that writes it
+    ('internal pull' writes its own)."""
+    since, links = read_absorptions(path, again=again)
+    reaches_back(path, since, first, "the absorptions record", again)
+    return links
+
+
+def read_absorptions(path, *, again: str):
+    """``(since, [{acquirer, absorbed, quarter}])`` from an absorptions file,
+    every row checked here, so a bad file is refused by name rather than
+    failing later. The file is ``{"since": YYYY-MM-DD, "absorptions":
+    [...]}``; one without ``since`` is refused with the command that writes
+    it, ``again``. Whether it reaches back is not checked here: the caller
+    decides (``load_absorptions``; 'peers industry-long' reads a record that
+    starts later than its history on purpose, and says so)."""
+    since, links = _dated(path, "absorptions", "the absorptions record", again)
     if not isinstance(links, list):
-        raise ValueError("%s must hold [{acquirer, absorbed, quarter}]" % path)
+        raise ValueError("%s: absorptions must be [{acquirer, absorbed, quarter}]" % path)
     for ln in links:
         ok = (isinstance(ln, dict) and set(ln) == {"acquirer", "absorbed", "quarter"}
               and all(isinstance(ln[k], str) and ln[k].isdigit() for k in ("acquirer", "absorbed")))
@@ -294,7 +357,7 @@ def load_absorptions(path):
                 ok = False
         if not ok:
             raise ValueError("%s: %r is not {acquirer, absorbed, quarter}" % (path, ln))
-    return links
+    return since, links
 
 
 #: The FDIC institutions record, as 'peers pull --mergers' writes it into the
@@ -529,12 +592,16 @@ def pull(*, cache, first: str, last: str, products: Sequence[str], delinquency: 
         rows = fdic.history(mergers_since)
         m = fdic.classify(rows)
         path = cache / "mergers.json"
-        path.write_text(json.dumps(m, indent=1, sort_keys=True), encoding="utf-8")
+        # Question 22 (the firm, 18 Oct 2026): each record states the date it
+        # starts from, so a build can refuse one that does not reach back.
+        path.write_text(json.dumps({"since": mergers_since, "acquirers": m}, indent=1, sort_keys=True),
+                        encoding="utf-8")
         acquirers = len(m)
         say("Wrote %s: %d acquirers since %s" % (path, acquirers, mergers_since))
         links = fdic.absorptions(rows)
         links_path = cache / "absorptions.json"
-        links_path.write_text(json.dumps(links, indent=1), encoding="utf-8")
+        links_path.write_text(json.dumps({"since": mergers_since, "absorptions": links}, indent=1),
+                              encoding="utf-8")
         say("Wrote %s: %d absorptions since %s (who took in whom)"
             % (links_path, len(links), mergers_since))
         write_institutions(cache, say=say)
@@ -909,7 +976,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     book command; the standalone command states none (``build_peers_workbook``).
 
     ``mergers`` and ``absorptions`` are the files 'peers pull --mergers'
-    writes. ``acquisition_share`` (0.05 = 5%) is the share of a product's
+    writes. Each records the date it starts from, and a build whose first
+    quarter begins before it is refused, naming both (the firm, 18 Oct 2026,
+    question 22), as is a file written before that date was recorded. ``acquisition_share`` (0.05 = 5%) is the share of a product's
     book an acquisition quarter must bring in for the windows holding it to
     be left out (``books.acquired_quarters``), the firm's judgement. In a
     survivor's merger quarter under common control, the absorbed bank's
@@ -1017,8 +1086,9 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     roster_ = R.load(roster)
     me = R.self_bank(roster_)
     pack_ = R.peers(roster_) if pack == "all" else R.regionals(roster_)
-    mergers_ = load_mergers(mergers)
-    links_ = load_absorptions(absorptions)
+    # Question 22: each record must reach back to the first quarter.
+    mergers_ = load_mergers(mergers, first)
+    links_ = load_absorptions(absorptions, first, again=REPULL)
     extras_ = extras(extra_acquisitions, roster_, quarters)
     combined_ = combined(industry_combined)
     try:

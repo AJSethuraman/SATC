@@ -310,8 +310,8 @@ def built(data, tmp_path_factory):
     cache.mkdir()
     for q, rows in data.items():
         (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
-    (base / "mergers.json").write_text("{}", encoding="utf-8")
-    (base / "absorptions.json").write_text("[]", encoding="utf-8")
+    (base / "mergers.json").write_text('{"since": "1990-01-01", "acquirers": {}}', encoding="utf-8")
+    (base / "absorptions.json").write_text('{"since": "1990-01-01", "absorptions": []}', encoding="utf-8")
     out, series = base / "peers.xlsx", base / "series"
     mp = pytest.MonkeyPatch()
     mp.setattr(fdic, "urllib_fetch", lambda url: (_ for _ in ()).throw(AssertionError(url)))

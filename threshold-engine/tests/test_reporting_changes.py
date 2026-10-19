@@ -373,8 +373,8 @@ def test_the_peers_build_labels_the_events_on_ci_and_leaves_out_nothing_for_them
     for q, rows in data.items():
         if "20180331" <= q <= "20231231":
             (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
-    (tmp_path / "m.json").write_text("{}", encoding="utf-8")
-    (tmp_path / "a.json").write_text("[]", encoding="utf-8")
+    (tmp_path / "m.json").write_text('{"since": "1990-01-01", "acquirers": {}}', encoding="utf-8")
+    (tmp_path / "a.json").write_text('{"since": "1990-01-01", "absorptions": []}', encoding="utf-8")
     said = []
     run.build(tmp_path / "p.xlsx", cache=cache, roster=ROOT / "config" / "peers.json", series_dir=tmp_path / "s",
               first="2018Q1", last="2023Q4", products=["C&I"], mergers=tmp_path / "m.json",

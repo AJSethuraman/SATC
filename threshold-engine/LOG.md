@@ -3034,6 +3034,8 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
 2. **A series continues across a labelled reporting change** (question 16, `peers/run.py`). This already changes consumer series: on test data 14 of 118 other-consumer files gain history, mostly across the 2011Q1 auto split. Question 20 will narrow it to changes whose own source says they can step a balance in one quarter, which changes the consumer series too.
 3. **Combined products and labelled changes** (merge of 18 Oct): a combined product continues across a gap when a change is named for any of its parts. Recorded as a decision the firm can overrule; the stricter rule (only when the named part itself moved) is not built.
 4. **A build will refuse a merger list that starts after its first quarter** (question 22). This changes the merger and absorption files' format; consumer caches will need one re-pull. It will be announced in this log when built.
+   **Built, 18 Oct 2026** (entry "question 22", below). **Every consumer cache needs one re-pull of the merger record**: `peers pull --cache DIR --first 2006Q1 --last 2026Q2 --products ... --delinquency yes --mergers 2005-10-01` (or the date the cache was pulled from, on or before 2006-01-01). Only the merger record is fetched again; the quarters already cached are not. Until then `peers build` refuses `mergers.json` and `absorptions.json` as written before the date was recorded, naming the pull. The same re-pull writes `institutions.json`, which item 5 needs. The window app (`app.py`) pulls the merger record on every Pull, so its folders are re-pulled the next time Pull is pressed. A cache filled by `internal pull` needs `internal pull` run again for the same reason.
+5. **A new charter's first filing counts as that quarter's activity** (question 21, built 18 Oct 2026, entry below). Shared build code, and the consumer book is pro forma, so it changes consumer output: on the consumer book's settings 16 banks folded in first file partway through a year (JPMorgan 2, PNC 1, Huntington 8, First Citizens 4, Citizens 1), all 16 opened that quarter, so windows holding them that were missing are kept. A consumer build is refused without `institutions.json` in its cache; the re-pull in item 4 writes it.
 
 ## 18 Oct 2026, question 18: a stated deal leaves out only the products it brought
 
@@ -3381,3 +3383,125 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   would be a second source the answer does not name; put to the firm. The
   11 other missing windows were not examined. Nothing was opened in Excel;
   none can be here.
+
+## 18 Oct 2026, question 22: a build stops if its merger list does not reach back as far as the history
+
+- **Question 22, 18 Oct 2026, agreed with the recommendation** (read back
+  above; after the pictures, First Niagara 2016Q4 combined against as filed
+  and two banks merged in 2004Q4 that a list from 2005 cannot see; the firm
+  in chat: *"ohhhh ok, so it doesn't look like a jump basically"* and *"then
+  agree with that and the rest"*): *"The merger and absorption files record
+  the date they start from; a build whose first quarter is earlier
+  refuses."*
+- **The files.** `peers pull --mergers SINCE` now writes `mergers.json` as
+  `{"since": SINCE, "acquirers": {cert: [quarter-ends]}}` and
+  `absorptions.json` as `{"since": SINCE, "absorptions": [...]}`.
+  `internal pull` writes its `absorptions.json` the same way, `since` the
+  first day of the earliest year it pulled the record from.
+- **The build** (`run.load_mergers`, `run.load_absorptions`,
+  `run.reaches_back`). `peers build` refuses, before anything is read from
+  the cache or written, when the first quarter begins before either file's
+  `since`, naming the quarter, its first day, the file and its date, and
+  the pull to run (for example: *"the first quarter, 1994Q1, starts on
+  1994-01-01, before the merger record (mergers.json) starts, on
+  1994-01-02 ..."*). A record from the first day of the first quarter
+  builds. A file in the earlier format (no `since`) is refused with
+  *"does not record the date ... Pull it again: 'peers pull --cache DIR
+  ... --mergers SINCE'"*; so is a malformed `since`. `internal reconcile`
+  reads its record the same way and refuses one that starts after the
+  earliest quarter it reads (the message names `internal pull`).
+- **Not refused: `peers industry-long`.** It reads a record that starts
+  after its history on purpose (its module says so: the 1990 industry
+  series are built with the record from 2005, and each file notes that a
+  repeated year to date before the record begins stays in the sum). It now
+  reads the dated format, refuses the old one, and its note gives the date
+  (*"before the merger record begins (2005-10-01)"*). The answer names the
+  build; whether the long series should refuse too is not asked here.
+- **The committed fixtures.** `tests/data/peers/mergers_roster.json` is now
+  `{"since": "2005-10-01", "acquirers": ...}`, the mapping unchanged. The
+  date its original pull (6 Oct 2026, evidence pack) started from is not in
+  this repository. 2005-10-01 is the date every documented pull here uses,
+  and the mapping was checked against today's record (the commercial
+  cache's, since 1990-01-01): restricted to its 16 certificates and to
+  quarter-ends from 2005-12-31, which is what a pull from 2005-10-01 gives,
+  it is identical. `absorptions_none.json` is
+  `{"since": "2005-10-01", "absorptions": []}`, a stand-in stating no
+  absorption, with the date of the record it is used beside. The README
+  says both. Every test that writes a record inline was given the format.
+- **What the guard caught in the suite.** Three `test_peers_cli.py` tests
+  built a 1992Q1 history (`roster_1992.json`) reading
+  `mergers_roster.json`, a record from 2005: refused now, as the answer
+  means. They read only the industry, which no acquisition touches, so
+  they were given a stand-in record from 1992-01-01 naming none, and say
+  why.
+- **Proof.** `tests/test_merger_record_start.py`, 10 tests: a quarter's
+  first day; a record from the first day of the first quarter builds;
+  either record a day later refused, naming both dates and the pull
+  (parametrized over the two files); either file in the earlier format
+  refused with the pull to run; a record from 2005 under a build from 1994
+  refused (the firm's second picture); the committed fixtures' dates, and
+  `mergers_roster.json` refused for 2005Q3; `internal` reading and refusing
+  the same way; `read_absorptions` for industry-long. `test_from_1991.py`,
+  `test_peers_cli.py`, `test_launcher.py` and `test_internal.py` check the
+  pull writes `since`. **Checked by mutation**, each put back: never
+  refusing a late record (5 fail); comparing the quarter's end, not its
+  start (4); reading the old format as dated (4); the pull writing another
+  `since` for the merger record (2) or the absorptions (1); the build
+  skipping the absorptions check (1); `internal pull` writing another
+  `since` (1); `internal` skipping the check (2).
+- **The real cache, re-pulled.** `peers pull --cache cache-commercial
+  --first 1991Q1 --last 2026Q2 --products` (the six commercial)
+  `--delinquency yes --mergers 1990-01-01` with this code: 0 quarters
+  fetched, 142 already there; the merger record since 1990-01-01 5,946
+  acquirers and 16,362 absorptions, **each identical** to the old-format
+  `mergers-since-1990.json` and `absorptions-since-1990.json` (compared
+  whole; the old files kept in `cache-commercial/old-format`), copied over
+  those names, which the commercial book reads; `institutions.json` 27,835
+  institutions. The `-since-2005` files in that cache are still the old
+  format and would be refused.
+- **A full build on the re-pulled cache, questions 21 and 22 together.**
+  The commercial book's `peers build` alone (its `peers` settings, 1991Q1
+  to 2026Q2, the dated record since 1990-01-01, pro forma), at this code
+  (question 21's commit plus this answer), against the question 20 run
+  (93b5b984, LOG above): 1,880 s, no refusal, 516 series files, none added
+  or removed. (The institutions record it read was pulled again with the
+  merger record, at 2026-10-19 UTC: the same 27,835 rows.)
+  - **110 of 516 files change, every one in its values; none in its notes
+    alone.** None starts later or ends elsewhere. Every bank file that
+    changed starts earlier with its shared quarters' values unchanged: the
+    windows that come back are earlier ones. KeyBank's C&I net and gross
+    from 2003Q4 (86 quarters) to **1992Q1 (133)**, as measured in the
+    question 21 entry; KeyBank's nonfarm nonresidential from 2003Q4 (91) to
+    1992Q1 (138); peers' own books under `banks/` (Citi's and First
+    Citizens' C&I from 2006Q4 and 2009Q3 to 1992Q1, Huntington's C&I from
+    2012Q2 to 1999Q2: 82 files under `banks/` in all, net and gross).
+  - **The pack composites and medians** of C&I, construction and nonfarm
+    nonresidential start at 1992Q1 instead of 1998Q4 (multifamily instead
+    of 1999Q3); the two nonfarm splits at 2010Q3 instead of 2010Q4. Their
+    values in quarters both runs wrote differ in 1998Q4 to 2012Q1 (37 to 50
+    quarters per file; 3 for the splits), because banks whose windows were
+    missing are now counted in them.
+  - The Run tab lists, per roster bank, the members counted and not: 321
+    counted, 21 not in the institutions record, 6 opened in another
+    quarter, as measured. Nothing was opened in Excel; none can be here.
+- **Results.** Scratch venv, pytest with 3 workers (the full build ran
+  beside it), the same 31 test files as question 21 plus
+  `test_merger_record_start.py`: 954 passed, 5 skipped, 3 failed (25 min
+  23 s). The 3 were the 1992 builds above; given the stand-in record, they
+  passed (3 passed). The other 20 test files were not run for this answer.
+- **For the consumer session** (question 19: *"make the change for
+  yourself and then tell the other agent"*): the section addressed to it
+  in the docket entry above now says so, items 4 and 5. In short: **every
+  consumer cache needs one re-pull of the merger record** (`peers pull ...
+  --mergers 2005-10-01`, or any date on or before 2006-01-01); the quarters
+  are not fetched again. It writes the dated `mergers.json` and
+  `absorptions.json` and the `institutions.json` question 21 needs. Until
+  then a consumer build is refused, by name, with that command.
+  `books/consumer-public.json` was not changed: it names
+  `ind_cache/mergers.json` and `ind_cache/absorptions.json`, which the
+  re-pull rewrites in place.
+- **Not done.** The consumer book was not rebuilt and no consumer cache was
+  re-pulled (none is here). `peers industry-long` does not refuse a record
+  that starts after its history (above). The commercial cache's
+  `-since-2005` files were not re-pulled. Nothing was opened in Excel; none
+  can be here.

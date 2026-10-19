@@ -93,12 +93,17 @@ def test_the_fixtures_are_what_the_readme_says():
 def test_the_merger_record_since_1990_is_pulled_now_that_213_and_225_are_placed(tmp_path, monkeypatch, capsys):
     cache = tmp_path / "cache"
     assert pull(cache, monkeypatch, history()) == 0
-    mergers = json.loads((cache / "mergers.json").read_text(encoding="utf-8"))
+    record = json.loads((cache / "mergers.json").read_text(encoding="utf-8"))
+    # Question 22: the record states the date it starts from.
+    assert record["since"] == "1990-01-01"
+    mergers = record["acquirers"]
     # 213 is an acquisition: each of its three acquirers is marked in 1990Q2.
     # 225 is not: its acquirer (15689) is not marked.
     assert mergers == {"17534": ["1992-03-31", "1992-09-30", "1993-09-30"],
                        "33057": ["1990-06-30"], "33097": ["1990-06-30"], "33110": ["1990-06-30"]}
     links = json.loads((cache / "absorptions.json").read_text(encoding="utf-8"))
+    assert links["since"] == "1990-01-01"
+    links = links["absorptions"]
     assert [ln for ln in links if ln["acquirer"] == KEYBANK] == [
         {"acquirer": "17534", "absorbed": "6568", "quarter": "1992-03-31"},
         {"acquirer": "17534", "absorbed": "26650", "quarter": "1992-09-30"},

@@ -1178,8 +1178,12 @@ def pull(cache, first: str, last: str, fetch=None) -> Dict[str, list]:
     # The record covers every quarter in the cache, not only this pull's, so
     # a later, shorter pull never drops an earlier absorption.
     held = sorted(f.name[1:9] for f in Path(cache).glob("q*.json") if f.name[1:9].isdigit())
-    rows = fdic.history("%s-01-01" % min([first[:4]] + [h[:4] for h in held]), fetch=fetch)
-    (Path(cache) / ABSORPTIONS).write_text(json.dumps(fdic.absorptions(rows), indent=1), encoding="utf-8")
+    since = "%s-01-01" % min([first[:4]] + [h[:4] for h in held])
+    rows = fdic.history(since, fetch=fetch)
+    # The record states the date it starts from (the firm, 18 Oct 2026,
+    # question 22), so reconcile can refuse one that does not reach back.
+    (Path(cache) / ABSORPTIONS).write_text(json.dumps({"since": since, "absorptions": fdic.absorptions(rows)},
+                                                      indent=1), encoding="utf-8")
     return data
 
 
@@ -1187,12 +1191,14 @@ def pull(cache, first: str, last: str, fetch=None) -> Dict[str, list]:
 ABSORPTIONS = "absorptions.json"
 
 
-def read_absorptions(cache) -> List[dict]:
+def read_absorptions(cache, first: str) -> List[dict]:
     """``cache/absorptions.json``, as 'internal pull' writes it; refused, by
-    name, when it is not there."""
+    name, when it is not there, when it does not record the date it starts
+    from, or when that date is after the first day of ``first`` (the
+    earliest quarter reconcile reads: the firm, 18 Oct 2026, question 22)."""
     from .peers.run import load_absorptions
     path = Path(cache) / ABSORPTIONS
     if not path.exists():
         raise ValueError("%s is not there: reconcile needs the FDIC's record of who absorbed whom, so a "
                          "repeated year to date is not counted twice. Run 'internal pull' again" % path)
-    return load_absorptions(path)
+    return load_absorptions(path, first, again="'internal pull --cache %s --first YYYYQn --last YYYYQn'" % cache)

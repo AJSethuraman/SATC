@@ -91,7 +91,7 @@ def books(data, roster):
 
 
 def MERGERS():
-    return json.loads((PEERS / "mergers_roster.json").read_text())
+    return json.loads((PEERS / "mergers_roster.json").read_text())["acquirers"]
 
 
 def make(path, data, roster, pack, products=FOUR, base="2019Q4", **over):
@@ -744,7 +744,7 @@ def test_run_tab_records_when_each_quarter_and_the_mergers_were_pulled(tmp_path,
     later = dt.datetime(2026, 10, 2, 8, 0, 0)
     os.utime(late, (later.timestamp(), later.timestamp()))
     mfile = tmp_path / "mergers.json"
-    mfile.write_text(json.dumps(MERGERS()), encoding="utf-8")
+    mfile.write_text(json.dumps({"since": "2005-10-01", "acquirers": MERGERS()}), encoding="utf-8")
     os.utime(mfile, (stamp, stamp))
     p = tmp_path / "run.xlsx"
     make(p, recent, roster, "all", products=("Credit card",), cache_dir=cache, mergers_file=mfile)

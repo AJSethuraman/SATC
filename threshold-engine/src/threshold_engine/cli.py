@@ -294,9 +294,11 @@ def _peers_parser(sub):
     w.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
                    help=_PRODUCTS_HELP % ", ".join(_peer_products()))
     w.add_argument("--mergers", required=True, metavar="FILE",
-                   help="{cert: [quarter-end dates]}, as 'peers pull --mergers' writes it")
+                   help="the merger record, as 'peers pull --mergers' writes it; it states the date it starts "
+                        "from, which must be on or before the first day of --first")
     w.add_argument("--absorptions", required=True, metavar="FILE",
-                   help="who absorbed whom, as 'peers pull --mergers' writes it beside the merger record")
+                   help="who absorbed whom, as 'peers pull --mergers' writes it beside the merger record; it "
+                        "states the date it starts from, which must be on or before the first day of --first")
     w.add_argument("--extra-acquisitions", required=True, nargs="*", metavar="CERT=QUARTER",
                    help="acquisitions the FDIC record does not show, e.g. 6672=2022Q2; "
                         "give the flag with nothing after it to state there are none")
@@ -577,7 +579,7 @@ def _internal(a):
     try:
         filed = I.read_filed(internal, a.cache)
         rows = I.reconcile(internal, filed, ex, a.tolerance, bank=bank,
-                           absorptions=I.read_absorptions(a.cache))
+                           absorptions=I.read_absorptions(a.cache, min(filed)))
     except I.Refused as exc:
         return _problems(exc.path, exc.problems, "exclusions for this internal file")
     notes = I.reconcile_notes(internal, ex, bank, a.tolerance,

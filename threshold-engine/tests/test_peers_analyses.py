@@ -36,7 +36,7 @@ def data():
 
 @pytest.fixture(scope="module")
 def mergers():
-    return json.loads((PEERS / "mergers_roster.json").read_text())
+    return json.loads((PEERS / "mergers_roster.json").read_text())["acquirers"]
 
 
 def acquisitions(mergers, cert):

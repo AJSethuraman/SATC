@@ -43,7 +43,8 @@ import credit-suite**, because each project must lift out whole.
 - `tests/data/peers/expected_books.json`: **acceptance.** The earlier
   `build_peers.py` output: per bank and product, TTM gross and net rates in %,
   quarters `2007Q1`–`2026Q2`, plus the all-15-peer composite.
-- `tests/data/peers/mergers_roster.json`: `{cert: [YYYY-MM-DD quarter-ends]}`,
+- `tests/data/peers/mergers_roster.json`: `{"since": "2005-10-01", "acquirers": {cert: [YYYY-MM-DD quarter-ends]}}`
+  (the `since` key since 18 Oct 2026, question 22),
   each roster bank's acquisition quarters from the earlier classified pull.
 - The full all-filer pulls (128MB and 229MB) are **not** in the repository.
   They are in the evidence pack, `C:\Users\ajish\SATC-evidence\threshold-analysis-2026-10-06\peers2006`

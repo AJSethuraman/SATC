@@ -50,7 +50,7 @@ OLD = _old()
 
 def build(module, out, recent, dl, roster):
     return module.build_peers_workbook(
-        out, recent, roster, TWO, 0.25, 1_000_000, "all", json.loads((PEERS / "mergers_roster.json").read_text()),
+        out, recent, roster, TWO, 0.25, 1_000_000, "all", json.loads((PEERS / "mergers_roster.json").read_text())["acquirers"],
         {"6672": ["2022Q2"]}, "2019Q4", exempt_self=True, min_banks=5, index_min_book=500_000,
         lagged_years=(2019, 2025), lag_years=2, normalisation_years=(2019, 2025), mix_base_year=2019,
         industry={p: industry(recent, p) for p in TWO},

@@ -40,7 +40,7 @@ def test_the_long_series_are_books_industry_over_the_whole_cache(cache_1992, tmp
         notes = [t for _, t in read_notes(p)]
         assert notes[0] == "Other consumer, %s charge-off rate, trailing four quarters, %%." % kind
         assert any(n.startswith("Industry from 1992: every filer in the cache") for n in notes)
-        assert any("before the merger record begins, a repeated year to date stays in the sum" in n for n in notes)
+        assert any("before the merger record begins (2005-10-01), a repeated year to date stays in the sum" in n for n in notes)
         assert any(n.startswith("Reporting changes: reporting-changes.json, SHA-256 ") for n in notes)
     assert "Wrote" in capsys.readouterr().out
 

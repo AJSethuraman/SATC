@@ -190,9 +190,10 @@ def lay_out(tmp, institutions=True, drop=(), pulled=None):
     cache.mkdir()
     for q, rows in fixture().items():
         (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
-    (cache / "mergers.json").write_text(json.dumps({KEYBANK: ["2004-12-31"]}), encoding="utf-8")
-    (cache / "absorptions.json").write_text(json.dumps(
-        [{"acquirer": KEYBANK, "absorbed": KEY_USA, "quarter": "2004-12-31"}]), encoding="utf-8")
+    (cache / "mergers.json").write_text(json.dumps({"since": "1990-01-01", "acquirers": {KEYBANK: ["2004-12-31"]}}),
+                                        encoding="utf-8")
+    (cache / "absorptions.json").write_text(json.dumps({"since": "1990-01-01", "absorptions": [
+        {"acquirer": KEYBANK, "absorbed": KEY_USA, "quarter": "2004-12-31"}]}), encoding="utf-8")
     if institutions:
         path = run.write_institutions(cache, Fake([r for r in institutions_rows() if str(r["CERT"]) not in drop]),
                                       say=lambda s: None)

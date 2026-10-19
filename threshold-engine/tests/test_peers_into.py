@@ -115,7 +115,7 @@ def build(module, out, data, roster, products, pack="all", **over):
     mp.setattr(module, "dt", FROZEN)
     try:
         return module.build_peers_workbook(out, data, roster, products, JUMP, MIN_BOOK, pack,
-                                           json.loads((PEERS / "mergers_roster.json").read_text()),
+                                           json.loads((PEERS / "mergers_roster.json").read_text())["acquirers"],
                                            {"6672": ["2022Q2"]}, "2019Q4", **settings(**over),
                                            **({} if module is OLD else {"combined": {}, "opened": {}, "changes": CHANGES, "stated": NONE_STATED}))
     finally:

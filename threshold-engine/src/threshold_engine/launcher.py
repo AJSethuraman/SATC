@@ -1194,8 +1194,9 @@ def window(root) -> dict:
                   "in the pack) start from the settings below and can be changed there.", browse="save")
         peer_text(body, "Series folder (--series-dir)", "series_dir", "Where the date,value CSVs go, for "
                   "the Series step.", browse="folder")
-        peer_text(body, "Merger file (--mergers)", "mergers_file", "{cert: [quarter-end dates]}, as Pull "
-                  "writes it.", browse="file")
+        peer_text(body, "Merger file (--mergers)", "mergers_file", "The merger record, as Pull writes it "
+                  "(mergers.json); it says the date it starts from, which must not be after the first quarter.",
+                  browse="file")
         peer_text(body, "Absorptions file (--absorptions)", "absorptions_file", "Who absorbed whom, as "
                   "Pull writes it beside the merger file (absorptions.json).", browse="file")
         peer_text(body, "Reporting changes file (--reporting-changes)", "reporting_changes", "The registry of "

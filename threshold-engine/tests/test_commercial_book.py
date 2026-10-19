@@ -240,8 +240,8 @@ def _book(base, data, kind):
     cache.mkdir()
     for q, rows in data.items():
         (cache / ("q%s.json" % q)).write_text(json.dumps(rows), encoding="utf-8")
-    (base / "mergers.json").write_text("{}", encoding="utf-8")
-    (base / "absorptions.json").write_text("[]", encoding="utf-8")
+    (base / "mergers.json").write_text('{"since": "1990-01-01", "acquirers": {}}', encoding="utf-8")
+    (base / "absorptions.json").write_text('{"since": "1990-01-01", "absorptions": []}', encoding="utf-8")
     word = KD.KINDS[kind]["word"]
     shown = (lambda p: p) if kind == "commercial" else (
         lambda p: next(k for k, v in KD.COMMERCIAL_NAMES.items() if v == p))

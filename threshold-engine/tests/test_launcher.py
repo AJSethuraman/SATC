@@ -671,7 +671,8 @@ def test_a_real_pull_through_run_fills_the_cache_from_a_fake_fdic(tmp_path, monk
     assert out.ok, out.lines
     assert sorted(p.name for p in (tmp_path / "c").glob("q*.json")) == [
         "q20250930.json", "q20251231.json", "q20260331.json", "q20260630.json"]
-    assert json.loads((tmp_path / "c" / "mergers.json").read_text()) == {"6672": ["2019-03-31"]}
+    assert json.loads((tmp_path / "c" / "mergers.json").read_text()) == {
+        "since": "2005-10-01", "acquirers": {"6672": ["2019-03-31"]}}
     assert heard == out.lines and any("4 fetched" in x for x in out.lines)
     assert "Filers in 2026Q2: 16" in out.lines
 
