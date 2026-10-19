@@ -3641,3 +3641,68 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   `test_decide.py` with 2 workers (it ran out of memory with more, question
   23 above), 31 passed. The other test files were not run for this answer.
   Nothing was opened in Excel; none can be here.
+
+## 18 Oct 2026, question 27: the peer median follows the pack switches
+
+- **Question 27, 18 Oct 2026, agreed with the recommendation** (read back
+  above): *"The peer median follows the pack switches."* Before, the book
+  made only the peer total (the pack composite) live: each quarter it had a
+  value, its Data cell summed Peers data over the banks kept and in the pack
+  now. The peer median stayed as built with all 15, and the commercial
+  book's note said so.
+- **What changed** (`book._live_peer_group`). A series whose file is a pack
+  median (`*_pack-median_net`, `_gross`, or
+  `_delinquency-*_quarter-end`, as the peers build names them) is made live
+  the same way: each quarter it had a value, its Data cell is the MEDIAN of
+  the rates of the banks kept that quarter and in the pack now, when at least
+  the banks the Peers tab asks for are counted, and blank below that. MEDIAN
+  is PERCENTILE.INC at 50, which is what the build used (`books.band`,
+  `delinquency.band_delinquency`). Its latest value and quarter on Lines by
+  source follow, as the total's do. The rates come from a helper column the
+  book adds at the right of Peers data ("Net rate, kept and in the pack now
+  (%)", "Gross rate, ...") or Peers delinquency data ("Quarter-end rate,
+  ..."), written only on the rows of the blocks a median reads: the bank's
+  rate where it is kept and in the pack now, blank text otherwise, which
+  MEDIAN and COUNT pass over. Every cell is an ordinary formula (no array
+  formula), so it calculates the same in any Excel. Each median cell reads
+  one row per bank for its quarter; the build checks each of those rows
+  holds that quarter and refuses otherwise, naming it, rather than read the
+  wrong row.
+- **The consumer book has no median series** (its peer source is the pack
+  composite), so its output is unchanged: no helper column is written and
+  the count printed ("peer group: N series follow the banks in the pack on
+  Peers") is the same. The commercial book's count goes from 12 to 24. Its
+  note on sources now says both follow the pack.
+- **Proof.** `tests/test_peer_median_follows_pack.py`, 6 tests on a small
+  workbook laid out as the book's (two portfolios, five banks, three
+  quarters, and the delinquency blocks), made live and evaluated with the
+  formulas engine: the four medians and the total made live and nothing
+  else; with every bank in, each median equals the middle of the kept rates
+  and KeyBank (never in the pack) is not counted; **switching P2 out moves
+  each median** to the middle of the banks left (and the total moves, as
+  before); with P2 and P3 out a quarter with one bank kept is blank, not a
+  median of one; Lines by source reads the live latest median and quarter;
+  a median quarter the peer tabs do not hold is refused.
+  **Checked by mutation**, each put back: medians not matched (5 fail); the
+  helper ignoring the pack switch (4); no banks-needed test (3); the net
+  median reading the gross rate (4); the delinquency median reading the
+  balance (2). Two conditions in the helper, kept and a numeric rate, are
+  each redundant with the other (the build writes a rate exactly when a
+  row is kept), so removing either one alone changes nothing and no test
+  can see it.
+- **Not live, as for the total.** Evidence, Backtest and Decide's history
+  suggestions read the series as built (the original live peer group,
+  15 Oct 2026, says the same of the total); so does the Peers tab's own
+  charge-off band, which already followed the switches through Workings.
+- `test_commercial_book.py` gains one test through the whole commercial
+  build on its fixture: no Peer median or Peer total value is left as a
+  number, the medians are MEDIAN formulas, the build prints "peer group: 10
+  series follow the banks in the pack on Peers", and Peers delinquency data
+  carries the helper column.
+- **Results.** Scratch venv, pytest with 3 workers:
+  `test_peer_median_follows_pack.py`, `test_commercial_book.py`,
+  `test_stated_acquisitions.py`, `test_stated_products.py`,
+  `test_peers_cli.py`, `test_launcher.py`, `test_peers_into.py`,
+  `test_reporting_changes.py` and `test_lines_from_per_row.py`: 436 passed,
+  5 skipped. The other test files were not run for this answer. Nothing was
+  opened in Excel; none can be here.

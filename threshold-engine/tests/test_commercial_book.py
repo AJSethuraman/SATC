@@ -608,3 +608,26 @@ def test_the_nonfarm_parent_is_shown_on_summary_and_not_offered_on_decide(built)
     # The consumer build of the same series rates every row.
     assert not any(DT.NOT_RATED == c.value for row in load_workbook(built["consumer"][0])["Summary"].iter_rows()
                    for c in row)
+
+
+def test_the_peer_median_follows_the_pack_through_the_whole_book(built):
+    """Question 27 (18 Oct 2026), through the book command: no Peer median
+    or Peer total value is left as built; each is a formula over the banks
+    in the pack now, the median reading the helper column the book adds to
+    the peer data, and the build says how many series follow the pack."""
+    path, said = built["commercial"]
+    wb = load_workbook(path)
+    data = wb["Data"]
+    head = {data.cell(1, c).value: c for c in range(1, data.max_column + 1)}
+    found = {}
+    for end, start in ((" - Peer median", "=IF(COUNT("), (" - Peer total", "=IF(COUNTIFS(")):
+        labels = [lbl for lbl in head if isinstance(lbl, str) and lbl.endswith(end)]
+        assert len(labels) == 5, end                      # the fixture's five portfolio-measure rows
+        cells = [data.cell(r, head[lbl]).value for lbl in labels for r in range(2, data.max_row + 1)]
+        assert not any(isinstance(c, (int, float)) for c in cells), end
+        found[end] = [c for c in cells if isinstance(c, str) and c.startswith("=")]
+        assert found[end] and all(c.startswith(start) for c in found[end]), end
+    assert all("MEDIAN(" in c for c in found[" - Peer median"])
+    assert "peer group: 10 series follow the banks in the pack on Peers" in said
+    heads = [c.value for c in wb["Peers delinquency data"][1]]
+    assert heads[-1] == "Quarter-end rate, kept and in the pack now (%)"

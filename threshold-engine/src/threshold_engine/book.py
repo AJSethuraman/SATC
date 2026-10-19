@@ -165,18 +165,28 @@ PEER_TAB_NAMES = {"Peers": "Peers", "Workings": "Peers workings", "Glossary": "G
 
 def _live_peer_group(wb, series, info, say) -> int:
     """Make the peer group series follow the banks in the pack on the Peers
-    tab (the analyst, 15 Oct 2026: "this tab needs to adjust with peers").
+    tab (the analyst, 15 Oct 2026: "this tab needs to adjust with peers"),
+    the pack composite (the peer total) and, since question 27 of the round 2
+    commercial docket (the firm, 18 Oct 2026: *"The peer median follows the
+    pack switches"*), the pack median.
 
-    A peer group series is a pack composite the peers build wrote at build
-    time with the pack as it started. Here its Data column becomes live: each
-    quarter it had a value, the same composite is summed from Peers data (or
-    Peers delinquency data) over the banks kept that quarter and in the pack
-    now, needing at least the banks the Peers tab asks for, and blank below
-    that. With the pack as built, every value equals the file's. Its latest
-    value and quarter on Lines by source become live too. Which composite a
-    series is comes from its file's name, as the peers build wrote it.
-    Returns the number of series made live."""
+    A peer group series is one the peers build wrote at build time with the
+    pack as it started. Here its Data column becomes live: each quarter it
+    had a value, the composite is summed from Peers data (or Peers
+    delinquency data) over the banks kept that quarter and in the pack now,
+    and the median is the middle of those banks' rates (MEDIAN, as
+    ``books.band`` and ``delinquency.band_delinquency`` take PERCENTILE.INC at
+    50), each needing at least the banks the Peers tab asks for, and blank
+    below that. With the pack as built, every value equals the file's. Its
+    latest value and quarter on Lines by source become live too. Which series
+    a file is comes from its name, as the peers build wrote it.
+
+    The median reads, per bank, a helper column added to the rows of the
+    blocks it needs on Peers data or Peers delinquency data: the bank's rate
+    where it is kept and in the pack now, blank text otherwise, which MEDIAN
+    and COUNT pass over. Returns the number of series made live."""
     import re
+    from openpyxl.styles import Font
     from openpyxl.utils import get_column_letter as L
     from .peers import delinquency as D
     from .peers.run import slug
@@ -190,8 +200,9 @@ def _live_peer_group(wb, series, info, say) -> int:
     NB = info["data_rows"] // (len(products) * Q)
     blocks = {("co", slug(p_)): (2 + i * NB * Q, 1 + (i + 1) * NB * Q) for i, p_ in enumerate(products)}
     dq = info.get("delinquency")
+    Qd = len(dq["quarters"]) if dq else 0
     if dq:
-        NM, Qd = len(D.MEASURES), len(dq["quarters"])
+        NM = len(D.MEASURES)
         for i, p_ in enumerate(dq["products"]):
             for j, m in enumerate(D.MEASURES):
                 a = 2 + (i * NM + j) * NB * Qd
@@ -202,30 +213,79 @@ def _live_peer_group(wb, series, info, say) -> int:
     while last > 1 and data.cell(last, 1).value is None:
         last -= 1
     lbs = wb["Lines by source"] if "Lines by source" in wb.sheetnames else None
+    # The median's helper columns, one per rate it reads, added once each.
+    # (sheet, rate column, kept column, in-the-pack column, quarter column, header)
+    HELP = {"net": (sheets["Data"], "I", "J", "P", "D", "Net rate, kept and in the pack now (%)"),
+            "gross": (sheets["Data"], "H", "J", "P", "D", "Gross rate, kept and in the pack now (%)"),
+            "dq": (sheets["DelinquencyData"], "H", "I", "O", "E", "Quarter-end rate, kept and in the pack now (%)")}
+    helper_col, helped = {}, set()
+
+    def helper(kind, a, z):
+        """The helper column for ``kind``, written on rows a..z (one block)."""
+        title, rate, kept, on, _, words = HELP[kind]
+        ws = wb[title]
+        if kind not in helper_col:
+            c = ws.max_column + 1
+            ws.cell(1, c, words).font = Font(**{k: getattr(ws.cell(1, c - 1).font, k) for k in ("name", "size", "bold",
+                                                                                               "color")})
+            ws.column_dimensions[L(c)].width = 14
+            helper_col[kind] = L(c)
+        hc = helper_col[kind]
+        if (kind, a) not in helped:
+            for r in range(a, z + 1):
+                ws["%s%d" % (hc, r)] = '=IF(AND({k}{r},{o}{r},ISNUMBER({v}{r})),{v}{r},"")'.format(
+                    k=kept, o=on, v=rate, r=r)
+                ws["%s%d" % (hc, r)].number_format = "0.00"
+            helped.add((kind, a))
+        return hc
+
     made = 0
     for label, path in series:
-        m = re.fullmatch(r"(.+)_pack-composite_(net|gross|delinquency-(.+)_quarter-end)", Path(path).stem)
+        m = re.fullmatch(r"(.+)_pack-(composite|median)_(net|gross|delinquency-(.+)_quarter-end)", Path(path).stem)
         if not m or label not in head:
             continue
-        col = head[label]
-        if m.group(3) is None:
+        col, median = head[label], m.group(2) == "median"
+        if m.group(4) is None:
             a, z = blocks[("co", m.group(1))]
+            kind, sh, nq = m.group(3), pd_, Q
             rng = lambda c_: "%s$%s$%d:$%s$%d" % (pd_, c_, a, c_, z)                       # noqa: E731
             crit = lambda r: "%s,$A%d,%s,TRUE,%s,TRUE" % (rng("D"), r, rng("J"), rng("P"))  # noqa: E731
             num = (lambda r: "SUMIFS(%s,%s)-SUMIFS(%s,%s)" % (rng("E"), crit(r), rng("F"), crit(r))) \
-                if m.group(2) == "net" else (lambda r: "SUMIFS(%s,%s)" % (rng("E"), crit(r)))
+                if m.group(3) == "net" else (lambda r: "SUMIFS(%s,%s)" % (rng("E"), crit(r)))
             den = lambda r: "SUMIFS(%s,%s)" % (rng("G"), crit(r))                           # noqa: E731
         else:
-            key = ("dq", m.group(1), m.group(3))
+            key = ("dq", m.group(1), m.group(4))
             if key not in blocks:
                 continue
             a, z = blocks[key]
+            kind, sh, nq = "dq", dd, Qd
             rng = lambda c_: "%s$%s$%d:$%s$%d" % (dd, c_, a, c_, z)                       # noqa: E731
             crit = lambda r: "%s,$A%d,%s,TRUE,%s,TRUE" % (rng("E"), r, rng("I"), rng("O"))  # noqa: E731
             num = lambda r: "SUMIFS(%s,%s)" % (rng("F"), crit(r))                           # noqa: E731
             den = lambda r: "SUMIFS(%s,%s)" % (rng("G"), crit(r))                           # noqa: E731
+        if median:
+            hc = helper(kind, a, z)
+            src = wb[HELP[kind][0]]
+            qcol = HELP[kind][4]
+            # Each quarter's place in the block: the first bank's rows hold every quarter, in order.
+            at_k = {src["%s%d" % (qcol, a + k)].value: k for k in range(nq)}
         for r in range(2, last + 1):
-            if isinstance(data.cell(r, col).value, (int, float)):
+            if not isinstance(data.cell(r, col).value, (int, float)):
+                continue
+            if median:
+                q = data.cell(r, 1).value
+                if q not in at_k:
+                    raise ValueError("the peer median %s has a value in %s, a quarter %s does not hold for it; "
+                                     "the series and the peer tabs are not from one build" % (label, q, sheets[
+                                         "DelinquencyData" if kind == "dq" else "Data"]))
+                rows_q = [a + bi * nq + at_k[q] for bi in range(NB)]
+                odd = [rq for rq in rows_q if src["%s%d" % (qcol, rq)].value != q]
+                if odd:
+                    raise ValueError("the peer median %s: %s row %d is not %s, so the rows are not one per bank "
+                                     "and quarter in order" % (label, HELP[kind][0], odd[0], q))
+                refs = ",".join("%s$%s$%d" % (sh, hc, rq) for rq in rows_q)
+                data.cell(r, col).value = '=IF(COUNT(%s)>=%s,MEDIAN(%s),"")' % (refs, mb, refs)
+            else:
                 data.cell(r, col).value = '=IF(COUNTIFS(%s)>=%s,100*(%s)/%s,"")' % (crit(r), mb, num(r), den(r))
         if lbs is not None:
             c_, rows_ = L(col), "Data!$%s$2:$%s$%d" % (L(col), L(col), last)
