@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 61 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 31 deliberate breakages of guard and safety rules, 31 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 120 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 70 deliberate breakages of guard and safety rules, 70 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1325,3 +1325,208 @@ A third finding came from Codex and Rev's reading of PR 458 after that:
    mid-write but do not run real concurrent processes or interrupt one. The
    earlier wording ("cannot win") was too strong. Three new mutations cover the
    fix and the detection.
+
+Seven more came in two further passes of Codex's review of PR 458 (after the four
+above), each fixed with a test and a mutation:
+
+8. **A withdrawal could point at a later message,** so a hand-saved `B-0001`
+   withdrawing `B-0002` would hide the owner item `B-0002` later became. A
+   withdrawal now counts only if its target is an earlier message from the same
+   side. The new rule masked the side rule in two older tests; they were rewritten
+   so each rule is tested on its own (the mutation run exposed it).
+9. **Digit groups joined by dots, commas, slashes or underscores** escaped the
+   digit-run rule. Those separators now count; ordinary numbers still pass.
+10. **A path ending at the engagements folder** was not refused. It is now, while
+    naming the folder in prose stays fine.
+11. **A lone carriage return** could overwrite displayed text. Refused; CRLF line
+    endings stay allowed.
+12. **International phone numbers** (`+44 ...`) matched neither phone rule. A plus
+    sign followed by 9 to 15 digits is now refused; ordinary plus signs are not.
+13. **Protocol-relative and other-scheme links** bypassed the link allow-list.
+    Every scheme and `//host/...` link now goes through it; only http and https
+    can pass. A first draft broke plain https links and an older test caught it.
+14. **A dead poster's reservation left a permanent numbering gap** that `ack`
+    could never pass. A reservation older than 60 seconds with no message is now
+    treated as abandoned and its number reused; a fresh one is still respected.
+
+15. **A link with balanced parentheses could hide a query** after them
+    (`.../foo(bar)?client=...`): the link pattern stopped at the first `)`. Balanced
+    parentheses now stay inside the link.
+16. **A message the reader would refuse could be written.** Headers plus a long
+    multibyte body could exceed the 40,000-byte read limit, so posting succeeded and
+    every later load withheld the file, holding the other side's cursor. Posting now
+    checks the real byte size before writing and releases its reservation.
+17. **A re-agreement after an edit could not restore a mutual position,** because old
+    fingerprints from superseded agreements kept the proposal marked stale. Only each
+    side's latest agreement counts now.
+18. **Numbering could produce an id the reader cannot parse** after message 9999. It
+    now stops there with a clear message.
+19. **A denial-of-service hole, found by me while fixing the above.** The email and
+    link patterns rescanned a long unbroken run from every character, so 30,000
+    characters took about 8 seconds per guard pass and a hand-saved 39 KB file could
+    stall every `status` and `read`. Both patterns are now linear (0.01 seconds on
+    39,000 characters), with a timing test and two mutations that reintroduce the slow
+    patterns. My own test of the fourth-pass fixes is what exposed it: it hung.
+
+20. **National phone formats** such as `(020) 7946 0958` matched none of the
+    format-specific phone rules. Instead of adding one more format, the three phone
+    rules became one general rule: a run of digits and phone punctuation holding 10
+    to 15 digits (the E.164 range). A new national format is no longer a new gap.
+21. **Nested parentheses in a link** (`.../foo((bar))?client=...`) still hid the
+    query, because the pattern handled one nesting level. Links are now scanned
+    with a small balanced-parenthesis scanner of any depth.
+22. **A concurrent poster's abandoned reservation left a gap** that later posts
+    skipped past, so `ack` stayed blocked. New messages now take the lowest free
+    number, which heals a gap once the dead reservation goes stale; a live
+    reservation is still respected. **Superseded by finding 36.**
+23. **The duplicate key could be ambiguous:** joining fields with `|` made
+    (`about="a"`, `evidence="|"`) collide with (`about="a|"`). Fields are now
+    length-prefixed.
+
+24. **Unicode look-alikes slipped past the digit and phone rules:** a non-breaking
+    space, a narrow no-break space, a zero-width space, or full-width digits turned
+    `(020) 7946 0958` into something no rule matched. Text is now normalised (NFKC,
+    and every space-like or invisible format character to a plain space) before the
+    guard scans it, so each Unicode variant is no longer its own gap.
+25. **Regrouped nine-digit identifiers** (`123 45 6789`, `123.45.6789`, `12 3456789`)
+    passed both the grouped-digit rule and the hyphen-only TIN rules. Added a rule
+    for the same shapes with other common separators.
+26. **Unicode line separators in a header value** (`U+0085`, `U+2028`, `U+2029`)
+    wrote a message the reader then withheld as malformed. They are refused at
+    posting, and in a body.
+27. **A number named by a stored message could be handed out again,** after gap
+    filling: a hand-saved `B-0003` withdrawing a missing `B-0002` would later hide the
+    owner item that took number 2. The allocator now treats any number a stored
+    message points at as taken. (This made my own ordering test stop testing the
+    ordering rule; the mutation run showed it, and the test was rewritten.) **Superseded by finding 36.**
+
+28. **My stale-reservation fix created a race.** A writer paused for more than 60
+    seconds could have its reservation judged abandoned and replaced, then resume and
+    overwrite the second poster's published message. Publishing is now exclusive
+    (a hard link that fails if the number exists), so a writer that lost the number
+    takes the next one and overwrites nothing. Each reservation carries its owner's
+    token and is released only by that owner, and temporary names are unique.
+29. **A stored message's goal was not checked on read,** though posting checks it.
+    Read now requires the shape (a G number, or `supporting:` with a reason). It
+    deliberately does not check membership in `GOALS.md`, which would orphan old
+    messages whenever the owner edits their goals.
+
+30. **Header whitespace defeated duplicate detection:** `--about " x "` posted twice
+    made two messages, because the stored copy is trimmed and the first hash was not.
+    Header values are trimmed before validation, hashing and writing.
+
+31. **A 32-bit duplicate key could silently discard a different message.** Two
+    distinct messages whose short hashes collide (Codex produced a pair) made the
+    later one "identical" and wrote nothing, which is a lost message. The key is now
+    a full SHA-256 digest of a length-prefixed payload. A test finds a real 32-bit
+    collision and posts both messages.
+32. **A stale `RESUME.md` could replace a newer one** when two posts overlapped. The
+    convergence loop first written for `AGREED.md` is now one shared helper used for
+    both generated files. (The 8-hex-digit fingerprints that bind an agreement to its
+    proposal are display codes: an *engineered* collision could pass an altered
+    proposal, but either side can already edit a file, so this is recorded as a limit,
+    not a defence.)
+
+33. **A withdrawn proposal still showed as a mutual position.** Withdrawing the
+    proposal itself now marks it WITHDRAWN in the mutual-positions file.
+34. **A hand-saved body containing a `---message---` line was shown cut short,**
+    so a message could be acknowledged without its whole body being seen. The reader
+    now shows the body the parser returned, never a raw-text split.
+35. **Two acknowledgements finishing out of order could move a cursor backwards.**
+    A cursor now never decreases. (Simultaneous acknowledgements can still lose a
+    race in a very small window; the effect is only that a handled message shows as
+    unread until acknowledged again. Listed under known limits.)
+
+36. **Root cause of three findings: my gap-filling broke the meaning of message
+    numbers.** Making new messages take the lowest free number (findings 22 and 27)
+    meant a number no longer meant "later than the ones below", yet two rules still
+    used it as a time: a withdrawal counts only if its target is earlier, and the
+    latest agreement per side wins. Codex then found a withdrawal into a filled gap
+    that was silently ignored, and a re-agreement that lost to an older, higher-
+    numbered one. Patching each rule would have been whack-a-mole. **Numbering is
+    strictly increasing again** (a number is a time, and a gap is never back-filled),
+    and the problem gap-filling was meant to solve is solved at the other end:
+    `ack` steps over a missing number that nobody is writing, and still refuses one
+    whose reservation is fresh (a post in flight). A message that exists but failed
+    the check still blocks the cursor until someone fixes it.
+37. **Withdrawing the newest agreement revived the older one.** The latest
+    agreement per side is now chosen first, and a withdrawal of that one removes the
+    side's assent.
+
+38. **`ack` accepted a message number that never existed.** With only `R-0001`
+    present, `ack R-9999` moved the cursor to 9999 and made every future message
+    look already read. The target must now exist, and only missing numbers *between*
+    the cursor and an existing target can be stepped over. (My own gap-stepping fix
+    from finding 36 introduced this.)
+39. **A paused writer could publish into a gap the cursor had already stepped
+    over,** so the message would never be shown. The cursor file now remembers the
+    gaps it stepped over; if a message later appears in one, `status` says it
+    "Arrived LATE", `read` shows it, and `ack` of that id clears it without moving
+    the cursor. A late message that fails the check cannot be acknowledged.
+
+40. **A malformed link (`https://[`) crashed the reader with a traceback,** which would
+    jam `status`, `read` and `ack` until the file was removed. A link that cannot be
+    parsed is now a blocked link.
+41. **Files inside the exchange were not checked for redirection,** only the folders.
+    A `GOALS.md` that is a symlink to another file would have been followed and its
+    target printed or copied into a message. `GOALS.md`, the local deny-list, the
+    generated files and the cursor files are now checked too.
+42. **An allowed file name was exempt even as the start of a longer one** (`satc_vault.db.bak`
+    passed). The exemption now applies only to the complete name.
+
+43. **A dangling symlink was not seen as a redirection.** A broken link "does not
+    exist", so the existence check skipped it, and `init` could follow a broken
+    `GOALS.md` link to create a file outside the exchange. The check now uses the
+    directory entry itself, not whether its target exists.
+44. **The allowed-name exemption still leaked on path-like continuations:**
+    `satc_vault.db\archive`, a Windows alternate stream `satc_vault.db:client`, and
+    `satc_vault.db~` all passed. An allowed name is now exempt only as a bare token
+    followed by whitespace, the end, or sentence punctuation.
+
+Because crashes had become a recurring *kind* of finding, I stopped chasing instances
+and tested the class: 60,000 random hostile strings (malformed links, control
+characters, Unicode separators, odd ports and brackets) through the guard, the parser
+and normaliser raised nothing, and a fixed-seed version is now part of the test suite,
+including a folder of hand-saved hostile files read by `status`, `read`, `resume` and
+`ack`.
+
+### Known limits of the guard (decided 18 October 2026)
+
+The owner decided to stop at substantive items rather than chase every format
+variant: "Stop at substantive items". These are the format variants left as known
+limits, named so nobody reads the guard as stronger than it is:
+
+- **URI schemes without `//`** (for example `custom:entry?x=y`) are not recognised
+  as links. Links written `scheme://...`, `www....` and `//host/...` are. `mailto:`
+  and `tel:` are caught by the email and phone rules instead.
+- **Identifier and phone formats are shape-based.** The guard recognises a run of
+  digits and common punctuation holding 9 to 19 digits, SSN/EIN shapes with common
+  separators, and 10 to 15 digit phone-shaped runs. An identifier written some other
+  way, spelled out in words, or split across lines can pass.
+- **Unicode is normalised** (NFKC, and space-like or invisible format characters to
+  a plain space) but look-alike *letters* from other scripts are not folded to Latin.
+- **Names are not checked at all** (a decision, 4.4): a client name in the exchange
+  is allowed, in the exchange only.
+- **Simultaneous acknowledgements** can still lose a race in a very small window,
+  leaving a handled message showing as unread until it is acknowledged again. A
+  cursor never decreases within one write, but a true lock would be needed to close
+  the window; judged not worth it.
+- **Idempotency is best effort under simultaneous posts.** Two identical posts
+  running at the very same moment can both succeed (a duplicate message, not a lost
+  one). Closing it needs a posting lock with stale-lock handling, judged not worth
+  its machinery for a double post.
+- **A hand-saved message can claim to reply to a message that does not exist yet.**
+  The two sides' numbers are not ordered against each other, so the reader cannot
+  tell. The script refuses such a reply at posting; only a hand-saved file can do it.
+- **The guard sees text, not meaning.** A unique story identifies someone with no
+  identifier in it.
+
+Further Codex rounds will find more variants of these. Real defects (a way for the
+channel to jam, lose a message, or be bypassed by its own design) are still fixed.
+
+The pattern across these rounds is worth stating: a reviewer reading the guard
+keeps finding shapes it misses. The guard blocks *known shapes*, not "all
+identifying data" (section 5.4), and every round has been a new shape or an edge
+of an existing rule. Codex reviewing again is cheap relative to a missed shape,
+but this list will not reach "complete".
+
