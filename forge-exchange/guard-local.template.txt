@@ -1,0 +1,7 @@
+# Local deny-list. This file lives in the exchange folder and is NEVER committed.
+# One rule per line: `literal: some text` or `re: some pattern`. Case-insensitive.
+# A refusal names "local rule N", never the text it matched.
+# Add the employer's name and anything else that must not pass through the
+# exchange. The two below are folders of authorized real-sample material.
+literal: real-sample-proof
+literal: PRIVATE-FIXTURE
