@@ -31,6 +31,70 @@
 
 window.INTAKE_STEPS = [
 
+  /* ===================================================== SIMPLE FILER ROUTE
+     PROPOSED, NOT APPROVED. Review only.
+
+     Two plain factual questions, shown ONLY to a visitor who arrived from the
+     Simple Filer band on the homepage. They mirror the two real conditions on
+     the package's gate in fee-schedule.yaml -- `schedules_none: true` and
+     `other_income_documents: "no"` -- asked in words a client already owns.
+
+     WHAT THEY DELIBERATELY DO NOT ASK. Nothing about EIC eligibility, which a
+     visitor cannot and should not self-determine. Nothing about dependants or
+     the filer's own education credit, because neither excludes this package --
+     fee-schedule.yaml:370-384 removed `has_dependents` as a gate on 26 Aug 2026
+     and closes with "A W-2 parent claiming the child tax credit is a Simple
+     Filer." Asking would imply they disqualify.
+
+     THEY DO NOT DECIDE ANYTHING. The pricing engine reads the preparer
+     interview, not this form -- `other_income_documents` is interview.yaml:516,
+     not a step here -- so these answers cannot and must not be turned into a
+     price on the page. They route and they inform; the figure stays a published
+     package price with "we confirm on documents" next to it.
+
+     ROUTE METADATA, WITHOUT A NEW MECHANISM. intake.js prunes any answer whose
+     key is not a declared step id (intake.js:38, :54-57) and `_json` carries
+     `state.answers` only, so there is no side channel to smuggle a source tag
+     through. These two steps ARE the tag: they appear on no other route, so
+     the presence of `sf_other_income` in the payload is what identifies Simple
+     Filer interest. No new key, no `_subject` change -- that string is
+     load-bearing for a mailbox rule (INTAKE.md:131-149) -- and they reach the
+     workbook through its existing Raw JSON column with no flow edit
+     (leads-to-excel.md:49-50).
+
+     Option objects are written `value: '...', label: '...'` ON ONE LINE
+     because client-documents/leads.py:111-127 regex-parses THIS FILE for that
+     exact shape. Split across two lines, a preparer sees the code string
+     instead of the English.  */
+  {
+    id: 'sf_other_income',
+    type: 'single',
+    question: 'Besides W-2s, did any other income document arrive?',
+    help: 'Interest, dividends, a 1099 of any kind, retirement, unemployment. A 1098-T for your own tuition does not count here.',
+    required: true,
+    options: [
+      { value: 'no', label: 'No, just W-2s' },
+      { value: 'yes', label: 'Yes, something else came' },
+      { value: 'unsure', label: 'Not sure' },
+    ],
+    showIf: () => isSimpleFilerRoute(),
+  },
+
+  {
+    id: 'sf_schedules',
+    type: 'single',
+    question: 'Do you have a business, a rental, or investments you sold?',
+    help: 'Any one of these moves a return past this package. Having children or claiming your own tuition credit does not.',
+    required: true,
+    options: [
+      { value: 'no', label: 'None of those' },
+      { value: 'yes', label: 'Yes, at least one' },
+      { value: 'unsure', label: 'Not sure' },
+    ],
+    showIf: (a) => isSimpleFilerRoute() && a.sf_other_income === 'no',
+  },
+
+
   /* ── 1 · Primary routing question ─────────────────────────────────────── */
   {
     id: 'services',
@@ -283,4 +347,19 @@ function asksBusinessStructure(answers) {
 /** Do we scope the business itself? Requires one to exist AND to be in scope. */
 function asksBusinessComplexity(answers) {
   return asksBusinessStructure(answers) && hasBusiness(answers) && wantsBusinessWork(answers);
+}
+
+/* Did this visitor arrive from the Simple Filer band? PROPOSED, review only.
+
+   Set by the band's click handler in index.html. Read here rather than stored
+   as an answer because an answer would need its own declared step, and a step
+   that renders nothing is a new engine concept -- see the note in PROPOSAL.md
+   under "what the engine cannot do today". A refresh loses the route, and the
+   two questions above then correctly disappear; their answers are pruned with
+   them, which is the existing showIf contract doing its job rather than a bug. */
+function isSimpleFilerRoute() {
+  try {
+    return window.__SATC_ROUTE === 'simple_filer' ||
+           /(^|[?&#])route=simple_filer/.test(window.location.search + window.location.hash);
+  } catch (e) { return false; }
 }
