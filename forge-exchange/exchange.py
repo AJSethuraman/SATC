@@ -180,7 +180,7 @@ def check_not_redirected(root: Path) -> None:
         probe += list((root / "cursors").glob("*.json"))
     probe += list(root.parents)
     for p in probe:
-        if p.exists() and is_reparse(p):
+        if os.path.lexists(p) and is_reparse(p):  # LEXISTS-MARK: a broken link still counts
             raise Refused(["a folder or file in the exchange is a shortcut or "
                            "junction that could redirect it elsewhere; refusing "
                            "to read or write through it"])
@@ -413,7 +413,7 @@ def guard(text: str, *, root: Optional[Path] = None,
     names = allowed_names()
     cleaned = text
     for n in sorted(names, key=len, reverse=True):
-        cleaned = re.sub(r"(?<![\w\\/.-])" + re.escape(n) + r"(?![\w-]|\.\w)",  # NAME-END-MARK
+        cleaned = re.sub(r"(?<![\w\\/.-])" + re.escape(n) + r"(?=\s|\Z|[,;)\]}'\"]|[.:!?](?:\s|\Z))",  # NAME-END-MARK
                          lambda m: " " * len(m.group(0)), cleaned, flags=re.I)
     ext = "|".join(DATA_EXTENSIONS)
     for m in re.finditer(r"(?<=[\w)])\.(?:%s)\b" % ext, cleaned, flags=re.I):  # EXT-MARK

@@ -162,8 +162,11 @@ MUTATIONS = [
      "except KeyError:  # MALFORMED-URL-MARK"),
     ("GOALS.md is not checked for redirection", 'for name in ("GOALS.md", "guard-local.txt", "AGREED.md")]  # FILES-MARK',
      'for name in ("guard-local.txt", "AGREED.md")]  # FILES-MARK'),
-    ("an allowed name hides a longer file name", r'''re.escape(n) + r"(?![\w-]|\.\w)",  # NAME-END-MARK''',
+    ("an allowed name hides a longer file name",
+     r'''re.escape(n) + r"(?=\s|\Z|[,;)\]}'\"]|[.:!?](?:\s|\Z))",  # NAME-END-MARK''',
      r'''re.escape(n) + r"(?![\w])",  # NAME-END-MARK'''),
+    ("a dangling link is not a redirection", "if os.path.lexists(p) and is_reparse(p):  # LEXISTS-MARK",
+     "if p.exists() and is_reparse(p):  # LEXISTS-MARK"),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]

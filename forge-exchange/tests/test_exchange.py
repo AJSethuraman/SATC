@@ -779,6 +779,32 @@ class TestNothingHostileCrashesTheReader(Base):
             self.assertIn(code, (0, 2), argv)
 
 
+class TestCodexFourteenthPassOnPR458(Base):
+    def test_a_dangling_link_is_still_a_redirection(self):
+        # A broken symlink "does not exist", so an exists() check never looked at it.
+        real_exists = Path.exists
+        real_reparse = ex.is_reparse
+
+        def hide(self):
+            return False if self.name == "GOALS.md" else real_exists(self)
+
+        with mock.patch.object(Path, "exists", hide), \
+                mock.patch.object(ex, "is_reparse",
+                                  lambda p: Path(p).name == "GOALS.md" or real_reparse(p)):
+            code, _, err = run(self.root, ["init"])
+        self.assertEqual(code, 2)
+        self.assertIn("shortcut or junction", err)
+
+    def test_an_allowed_name_is_exempt_only_as_a_bare_complete_token(self):
+        for text in ("see satc_vault.db\\archive", "see satc_vault.db:client", "see satc_vault.db~",
+                     "see satc_vault.db/x", "see satc_vault.db.bak", "see satc_mart.db#frag"):
+            found = ex.guard(text, label="t")
+            self.assertTrue(any(".db" in f.what for f in found), text)
+        for text in ("the satc_vault.db file", "(satc_vault.db)", "satc_vault.db, then satc_mart.db.",
+                     "satc_vault.db: holds the vault", "is it satc_mart.db?", "both satc_vault.db and satc_mart.db"):
+            self.assertEqual(ex.guard(text, label="t"), [], text)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")
