@@ -48,7 +48,8 @@ TERMS = [
      "series' notes and on Run."),
     ("Signals",
      "A tab laying every public signal found in the October 2026 early-warning work beside the book's own series, compared "
-     "against whichever product, measure and source is picked, with the banks behind each chart recorded beside it.",
+     "against whichever product, measure and source is picked. A section that draws on the peer group has the pack "
+     "line under it; each signal block names its source, span and frequency in its head row.",
      "The picked series is looked up on Data by its label. Each signal's change over a year is set against that series' at "
      "every lead from four quarters after to twelve ahead (CORREL); the fit table shows the lead that fits best and how well, "
      "with and without 2020-23. The rescaled chart draws each line as (value - its normal) / its typical yearly move, the "
@@ -63,11 +64,12 @@ TERMS = [
     ("Pack line",
      "One line under every chart or table that draws on the peer group: how many of the roster's banks are in "
      "it, the quarter, which banks the book's rules took out, and which were switched off on Peers.",
-     "One cell on Peers workings, which every other tab reads: TEXTJOIN over the roster on Peers. In: Yes on "
+     "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster on Peers. "
+     "In: Yes on "
      "Peers and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
-     "jump or the acquisition share blanked it, as Peers delinquency data records it). Off: No. A chart drawn "
-     "from a survey, the Philadelphia Fed's panel or the FHFA database names whose data it is instead: those are "
-     "not the peer group."),
+     "jump or the acquisition share blanked it, as Peers delinquency data records it). Off: No. A signal drawn "
+     "from a survey, the Philadelphia Fed's panel or the FHFA database has no pack line: its head row names its "
+     "source, span and frequency instead, since it is not the peer group."),
     ("Rescaled",
      "A line drawn in yearly moves from its own normal, so a signal and the picked series sit on one axis.",
      "(value - its normal) / one typical yearly move. The normal is the median of the quarters in the window; "
