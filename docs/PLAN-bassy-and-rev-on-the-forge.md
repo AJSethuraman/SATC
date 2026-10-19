@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 109 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 63 deliberate breakages of guard and safety rules, 63 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 112 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 66 deliberate breakages of guard and safety rules, 66 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1452,6 +1452,17 @@ above), each fixed with a test and a mutation:
 37. **Withdrawing the newest agreement revived the older one.** The latest
     agreement per side is now chosen first, and a withdrawal of that one removes the
     side's assent.
+
+38. **`ack` accepted a message number that never existed.** With only `R-0001`
+    present, `ack R-9999` moved the cursor to 9999 and made every future message
+    look already read. The target must now exist, and only missing numbers *between*
+    the cursor and an existing target can be stepped over. (My own gap-stepping fix
+    from finding 36 introduced this.)
+39. **A paused writer could publish into a gap the cursor had already stepped
+    over,** so the message would never be shown. The cursor file now remembers the
+    gaps it stepped over; if a message later appears in one, `status` says it
+    "Arrived LATE", `read` shows it, and `ack` of that id clears it without moving
+    the cursor. A late message that fails the check cannot be acknowledged.
 
 ### Known limits of the guard (decided 18 October 2026)
 

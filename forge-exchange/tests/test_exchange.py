@@ -658,6 +658,58 @@ class TestCodexEleventhPassOnPR458(Base):
         self.assertNotIn("mutual;", out)
 
 
+class TestCodexTwelfthPassOnPR458(Base):
+    def _msg(self, side, n, body="a message"):
+        pre = "R" if side == "rev" else "B"
+        folder = "from-rev" if side == "rev" else "from-bassy"
+        (self.root / folder / f"{pre}-{n:04d}.md").write_text(
+            f"id: {pre}-{n:04d}\nfrom: {side}\nkind: note\nabout: x\ngoal: G1\nmode: satc\n\n{body}\n",
+            encoding="utf-8")
+
+    def test_ack_refuses_a_target_that_does_not_exist(self):
+        self._msg("rev", 1)
+        code, _, err = run(self.root, ["ack", "--as", "bassy", "R-9999"])
+        self.assertEqual(code, 2)
+        self.assertIn("not a message that exists", err)
+        self.assertEqual(ex.read_cursor(self.root, "bassy"), 0)  # unchanged
+
+    def test_a_message_published_into_a_stepped_over_gap_is_not_lost(self):
+        self._msg("rev", 1)
+        self._msg("rev", 3)
+        stale = self.root / "from-rev" / ".R-0002.reserve"
+        stale.write_text("", encoding="utf-8")
+        old = time.time() - 3600
+        os.utime(stale, (old, old))
+        code, out, _ = run(self.root, ["ack", "--as", "bassy", "R-0003"])
+        self.assertEqual(code, 0)
+        self.assertIn("stepped over abandoned gap: R-0002", out)
+        # the paused writer resumes and publishes R-0002 after the cursor passed it
+        self._msg("rev", 2, body="LATE-BODY")
+        status = run(self.root, ["status", "--as", "bassy"])[1]
+        self.assertIn("Arrived LATE", status)
+        self.assertIn("R-0002", status)
+        self.assertIn("New from rev: 1", status)  # the late message counts as new
+        self.assertIn("LATE-BODY", run(self.root, ["read", "--as", "bassy"])[1])
+        code, out, _ = run(self.root, ["ack", "--as", "bassy", "R-0002"])
+        self.assertEqual(code, 0)
+        self.assertIn("acknowledged late message R-0002", out)
+        self.assertNotIn("Arrived LATE", run(self.root, ["status", "--as", "bassy"])[1])
+        self.assertEqual(ex.read_cursor(self.root, "bassy"), 3)  # the cursor did not move
+
+    def test_a_late_message_that_fails_the_check_cannot_be_acknowledged(self):
+        self._msg("rev", 1)
+        self._msg("rev", 3)
+        stale = self.root / "from-rev" / ".R-0002.reserve"
+        stale.write_text("", encoding="utf-8")
+        old = time.time() - 3600
+        os.utime(stale, (old, old))
+        run(self.root, ["ack", "--as", "bassy", "R-0003"])
+        (self.root / "from-rev" / "R-0002.md").write_text("junk", encoding="utf-8")
+        code, _, err = run(self.root, ["ack", "--as", "bassy", "R-0002"])
+        self.assertEqual(code, 2)
+        self.assertIn("withheld", err)
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")

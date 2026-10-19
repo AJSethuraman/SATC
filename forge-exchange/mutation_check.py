@@ -153,6 +153,11 @@ MUTATIONS = [
      "if False:  # GAP-INFLIGHT-MARK"),
     ("a withdrawn newest agreement revives an older one", "if m.id in withdrawn:  # LATEST-FIRST-MARK",
      "if False:  # LATEST-FIRST-MARK"),
+    ("ack accepts a message that does not exist", "if target not in theirs:  # TARGET-EXISTS-MARK",
+     "if False:  # TARGET-EXISTS-MARK"),
+    ("a late arrival into a stepped-over gap is hidden", "or m.id in late]  # LATE-SHOWN-MARK",
+     "]  # LATE-SHOWN-MARK"),
+    ("a late arrival is not shown by read", "or m.id in late]  # LATE-READ-MARK", "]  # LATE-READ-MARK"),
     ("local deny-list ignored", 'elif raw.lower().startswith("literal:"):',
      'elif False:'),
 ]

@@ -565,11 +565,21 @@ def read_cursor(root: Path, side: str) -> int:
         return 0
 
 
-def write_cursor(root: Path, side: str, n: int) -> None:
+def read_skipped(root: Path, side: str) -> set:
+    """Ids this side's cursor stepped over because nobody was writing them."""
+    p = root / "cursors" / f"{side}.json"
+    try:
+        return set(json.loads(p.read_text(encoding="utf-8")).get("skipped", []))
+    except (OSError, ValueError, AttributeError):
+        return set()
+
+
+def write_cursor(root: Path, side: str, n: int, skipped: Optional[set] = None) -> None:
     n = max(n, read_cursor(root, side))  # MONOTONIC-MARK
+    keep = read_skipped(root, side) if skipped is None else set(skipped)
     (root / "cursors").mkdir(exist_ok=True)
     atomic_write(root / "cursors" / f"{side}.json",
-                 json.dumps({"read_through": n}, indent=2) + "\n")
+                 json.dumps({"read_through": n, "skipped": sorted(keep)}, indent=2) + "\n")
 
 
 def good(msgs: Iterable[Msg]) -> list[Msg]:
@@ -589,8 +599,14 @@ def view_status(root: Path, me: str) -> str:
     out = [f"GOALS (version {sha8((root / 'GOALS.md').read_text(encoding='utf-8'))}):",
            goals_text(goals), "",
            f"You are {me}. Cursor: read through {PREFIX[them]}-{cur:04d}."]
-    new = [m for m in theirs if not MSG_NAME.match(m.path.name) or m.n > cur]
+    late = read_skipped(root, me)
+    new = [m for m in theirs if not MSG_NAME.match(m.path.name) or m.n > cur
+           or m.id in late]  # LATE-SHOWN-MARK
     held = None
+    arrived_late = [m.id for m in theirs if m.id in late]
+    if arrived_late:
+        out.append("Arrived LATE, after your cursor stepped over its gap: "
+                   + ", ".join(arrived_late) + " (read it, then ack it)")
     out.append(f"New from {them}: {len(new)}")
     for m in new:
         if m.ok:
@@ -903,7 +919,9 @@ def cmd_read(root: Path, me: str, ids: Sequence[str], everything: bool) -> str:
     elif everything:
         pick = theirs
     else:
-        pick = [m for m in theirs if not MSG_NAME.match(m.path.name) or m.n > cur]
+        late = read_skipped(root, me)
+        pick = [m for m in theirs if not MSG_NAME.match(m.path.name) or m.n > cur
+                or m.id in late]  # LATE-READ-MARK
     if not pick:
         return "Nothing new."
     return "\n\n".join(render_message(m) for m in pick)
@@ -918,6 +936,19 @@ def cmd_ack(root: Path, me: str, upto: str) -> str:
     cur = read_cursor(root, me)
     theirs = {x.n: x for x in list_messages(root, OTHER[me])
               if MSG_NAME.match(x.path.name)}
+    late = read_skipped(root, me)
+    if upto in late:  # a message that arrived after its gap was stepped over
+        x = theirs.get(target)
+        if x is None:
+            raise Refused([f"{upto} has not arrived"])
+        if not x.ok:
+            raise Refused([f"{x.id} was withheld by the check, so it cannot be "
+                           f"acknowledged as reviewed"])
+        write_cursor(root, me, cur, late - {upto})
+        return f"acknowledged late message {upto}"
+    if target not in theirs:  # TARGET-EXISTS-MARK
+        raise Refused([f"{upto} is not a message that exists, so the cursor "
+                       f"cannot be moved to it"])
     skipped = []
     for n in range(cur + 1, target + 1):
         x = theirs.get(n)
@@ -936,7 +967,7 @@ def cmd_ack(root: Path, me: str, upto: str) -> str:
             raise Refused([f"{x.id} was withheld by the check, so it cannot be "
                            f"acknowledged as reviewed"])
     if target > cur:
-        write_cursor(root, me, target)
+        write_cursor(root, me, target, late | set(skipped))
     note = f" (stepped over abandoned gap: {', '.join(skipped)})" if skipped else ""
     return f"cursor for {me} is now {PREFIX[OTHER[me]]}-{max(target, cur):04d}{note}"
 
