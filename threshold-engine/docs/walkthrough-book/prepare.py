@@ -33,7 +33,7 @@ with (out / "series.csv").open("w", newline="", encoding="utf-8") as fh:
 book["series"] = "series.csv"
 book["peers"].update(cache=str(cache), mergers=str(cache / "mergers.json"), absorptions=str(cache / "absorptions.json"),
                      roster=str(ROOT / "config" / "peers.json"), series_dir="series")
-# The SEC filings for the Peer loan classes tab: the cache 'peers classes-pull' filled.
+# The SEC filings for the Peer books tab: the cache 'peers classes-pull' filled.
 book["loan_classes"] = {"file": str(ROOT / "config" / "peer-loan-classes.json"),
                         "cache": str(Path(sys.argv[2]).resolve())}
 book["reporting_changes"] = str(ROOT / "config" / "reporting-changes.json")

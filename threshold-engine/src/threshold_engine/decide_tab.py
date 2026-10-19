@@ -15,10 +15,12 @@ that source; its settings and its period left out apply to that history. The
 tab shows what every source's own history would give, every source's latest
 quarter rated on the lines picked, and all of them on one chart.
 
-Laid out to Claude Design's round 2 (docs/design/round-2/README.md, "Decide"):
-the slicers as rows of buttons over B4:Q6, the table from row 8, then the
-headline, the Check band, and the chart beside the panel of its numbers, all
-on the first screen.
+Laid out to Claude Design's round 2 (docs/design/round-2/README.md, "Decide")
+and round 3 (docs/design/round-3/handoff/README.md, "Decide"): the slicers as
+three rows of buttons over B4:Q7, the table from row 9, then the headline,
+the Check band, and the chart beside the panel of its numbers, all on the
+first screen, with the pack line (the workbook's PackLine, from Peers) under
+the chart when the peer tabs are in the workbook.
 
 Assess's settings and periods-left-out cells become formulas reading the
 table, so every source's lines (the Lines by source tab) are computed exactly
@@ -53,22 +55,27 @@ TABLE = "Decisions"
 #: workbook builds as "Thresholds" and the book renames once Decide is built,
 #: so that Thresholds is the one set of lines per product and measure.
 LINES_TAB = "Lines by source"
-HDR = 8                                   # the table's header row; the slicers sit over rows 4-6
-SLICER_ROWS = (4, 6)
+HDR = 9                                   # the table's header row; the slicers sit over rows 4-7
+SLICER_ROWS = (4, 7)
 #: What the chart can show; the lines never depend on it. Each with the
 #: quarters between its labels (the README: 2 / 4 / 8 / 12).
 WINDOWS = ("Last 20 quarters", "Last 48 quarters", "Last 80 quarters", "Every quarter")
 DEFAULT_WINDOW = WINDOWS[1]
 #: Where the two slicers sit, as (from_col, from_row, to_col, to_row), 0-based
-#: cells: over B:E and F:Q, and how many buttons to a row. They take in the
-#: 6 pt rows above and below 4-6: Excel 16 drew the caption and two rows of
-#: 0.25 in buttons in 94 px, and rows 4-6 alone are 78 px, which cut the
-#: second row in half.
-SLICER_ANCHORS = ((1, 2, 5, 7), (5, 2, 17, 7))
-SLICER_COLUMNS = (3, 4)
+#: cells: over B:E and F:Q, and how many buttons to a row (round 3: Product
+#: three to a row, Measure five, so every name fits in three rows). They
+#: take in the 6 pt rows above and below 4-7, 108 px in all: Excel 16 drew
+#: the caption and two rows of 0.25 in buttons in 94 px, so three rows take
+#: buttons of 0.2 in.
+SLICER_ANCHORS = ((1, 2, 5, 8), (5, 2, 17, 8))
+SLICER_COLUMNS = (3, 5)
 SLICER_STYLE = "SlicerStyleOther2"
-SLICER_BUTTON_IN = 0.25
+SLICER_BUTTON_IN = 0.2
 DECISIONS = ("Not decided", "Accept these lines", "Reject")
+#: What a source with no series for the row shown reads, in STONE.
+NO_SERIES = "—"
+#: The workbook's pack line (peers_workbook.PACK_LINE), under the chart when the peer tabs are built.
+PACK_LINE = "PackLine"
 LINES_FROM = "Lines set from"
 FIXED = [LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
          "On a line, rate it", "Leave out from", "Leave out to", "Why left out", "Note", "Check", "Series", "Shown",
@@ -81,6 +88,14 @@ TYPED = (LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "Ho
 #: Typed cells shown bold: the numbers and the picks.
 BOLD_TYPED = (LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
               "On a line, rate it")
+#: Column widths in pixels at 100% (docs/design/round-3/handoff/README.md,
+#: Decide). The table's are the README's to K. L:Q take the right panel's
+#: (220 · 130 · 110 · 90 · 90 · 120), so its source names fit: the README
+#: gives L:Q two sets of widths, both 760 px in all, and a column has one,
+#: so Why left out, Note and Check take the panel's; O:Q hold only the
+#: table's hidden helpers.
+COL_PX = {"A": 16, "B": 110, "C": 200, "D": 150, "E": 130, "F": 84, "G": 84, "H": 84, "I": 74, "J": 80, "K": 80,
+          "L": 220, "M": 130, "N": 110, "O": 90, "P": 90, "Q": 120}
 #: Assess's columns for each of Your settings, in order.
 SETTING_COLS = (("Width of Moderate", "O"), ("Moderate-Low begins", "P"), ("How rare High is (z)", "Q"),
                 ("On a line, rate it", "R"))
@@ -173,8 +188,9 @@ def sources_of(labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]]) ->
 def layout(n: int, n_third: int, compare: bool) -> dict:
     """Where everything sits on Decide for n rows (products × measures) and
     n_third sources: one place for the builder, the tests and the walkthrough.
-    For the book (49 rows, three sources) the headline is row 59, the Check
-    60, the section headings 62 and the chart 63 to 80."""
+    For the book (56 rows, five sources) the table is rows 10 to 65, the
+    headline 67, the Check 68, the section headings 70, the chart 71 to 90
+    and the pack line 91."""
     first, last = HDR + 1, HDR + n
     head = last + 2
     sec = head + 3
@@ -186,7 +202,8 @@ def layout(n: int, n_third: int, compare: bool) -> dict:
     sett = hist + 6
     return dict(first=first, last=last, headline=head, chip=head, compare_line=head if compare else None,
                 check=head + 1, section=sec, chart_top=sec + 1, chart_end=chart_end, ratings_head=sec + 1,
-                ratings_first=sec + 2, sources_title=sec + 8, sources_head=sec + 9, compare_first=sec + 10,
+                pack_line=chart_end + 1, ratings_first=sec + 2, sources_title=sec + 8, sources_head=sec + 9,
+                compare_first=sec + 10,
                 window=sec + 10 + t, lines_label=sec + 12 + t, median=sec + 13 + t, move=sec + 14 + t,
                 worst=sec + 15 + t, gives_title=gives, gives_head=gives + 1, gives_first=gives + 2,
                 history=hist, evidence=hist + 1, left_now=hist + 4, settings=sett, notes=sett + 6)
@@ -280,20 +297,16 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.sheet_view.showGridLines = False
 
     # ---- columns and the rows above the table (the README, px -> units) ----
-    widths = {"A": 1.57, "B": 16.43, "C": 20.71, "D": 17.86, "E": 17.86, "F": 11.29, "G": 11.29, "H": 11.29,
-              "I": 9.86, "J": 10.71, "K": 10.71, "L": 27.86, "M": 30.71, "N": 15.0, "O": 13.57, "P": 13.57,
-              "Q": 14.43}
-    for c_, w in widths.items():
-        ws.column_dimensions[c_].width = w
-    for r, h in ((1, 25.5), (2, 15), (3, 6), (4, 19.5), (5, 19.5), (6, 19.5), (7, 6), (HDR, 27)):
+    for c_, px in COL_PX.items():
+        ws.column_dimensions[c_].width = round(px / 7, 2)
+    for r, h in ((1, 25.5), (2, 15), (3, 6), (4, 15), (5, 18), (6, 18), (7, 18), (8, 6), (HDR, 27)):
         ws.row_dimensions[r].height = h
 
     ws["B1"] = "Decide · one %s and %s at a time" % (p0.lower(), p1.lower())
     ws["B1"].font = Font(name="Arial", size=16, bold=True, color=K.INK)
     ws["B1"].alignment = Alignment(vertical="bottom")
-    ws["B2"] = ("Pick a %s and a %s with the buttons. The yellow cells in the row below them set one set of lines "
-                "from the history of the %s named under %s; save the file (Ctrl+S) to keep them."
-                % (p0.lower(), p1.lower(), p2.lower(), LINES_FROM))
+    ws["B2"] = ("Pick a %s and a %s. The yellow row sets one set of lines from the history of the %s under %s; "
+                "save the file (Ctrl+S) to keep them." % (p0.lower(), p1.lower(), p2.lower(), LINES_FROM))
     ws["B2"].font = F_SLATE
     _rule(ws, 2, 2, 17, Side(style="medium", color=K.KEY_RED))
 
@@ -564,7 +577,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for j in range(4):
         col("lab%d" % j, "")
     for key, head in (("num", "drawn and shown, numbers only"), ("low", "drawn and shown, lowest"),
-                      ("any", "drawn"), ("fit", "first, count, last, label every"), ("ft", "floor, top")):
+                      ("any", "drawn"), ("fit", "first, count, last, label every"), ("ft", "floor, top"),
+                      ("zero", "Zero, a measure without a floor")):
         col(key, head)
     # The quarters a reporting change took effect, per row of the table (any
     # of its sources' files names it), and the marker for the row shown.
@@ -626,6 +640,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(r, cols_["low"], '=IF(AND({w},COUNT({c})>0),MIN({m}),"")'.format(
             w=inwin, c=",".join(refs), m=",".join("IF(ISNUMBER(%s),%s,1E+300)" % (y, y) for y in refs)))
         ws.cell(r, cols_["base"], "=%s" % FLOOR)
+        # Where the axis crosses: a measure without a floor (a gap) can be
+        # either side of zero, so zero is drawn, SLATE.
+        ws.cell(r, cols_["zero"], "=IF(AND(%s,NOT(%s),%s),0,NA())" % (HAS, FZ, inwin))
         for k in range(5):
             ws.cell(r, cols_["z%d" % (k + 1)], "=IF(%s,MAX(%s-%s,0),NA())" % (lines_ok, edges[k + 1], edges[k]))
         for j in range(4):
@@ -649,6 +666,10 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.cell(4, cols_["fit"], "=%s+%s-1" % (FIT, FIT_N))
     ws.cell(5, cols_["fit"], '=IF({w}="{e}",12,IF({s}<=20,2,IF({s}<=48,4,8)))'.format(w=WIN, e=WINDOWS[3], s=span))
     num, lows = rng_("num"), rng_("low")
+    # The zones' base: 0, or the lowest value drawn when a gap runs below
+    # it. Taking it down to a whole step of the range was tried, so the base
+    # would sit at the axis minimum: Excel then took its axis a step lower
+    # still (seen in Excel, 19 Oct 2026), and the axis is Excel's to set.
     ws.cell(2, cols_["ft"], "=MIN(0,MIN(%s))" % lows)
     # The top fits what is drawn, and takes in a line that sits within 60% of
     # the drawn range above it, so its zone and label show.
@@ -703,7 +724,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     from openpyxl.chart.shapes import GraphicalProperties as _GP
     mark.marker.graphicalProperties = _GP(solidFill=K.INK)
     mark.marker.graphicalProperties.line.solidFill = K.INK
-    for s_ in over + [left] + picks + labs + [mark]:
+    zero = series("zero", "dq_zero", "Zero")
+    zero.graphicalProperties.line = _ln(K.SLATE, 0.75)
+    for s_ in [zero] + over + [left] + picks + labs + [mark]:
         s_.idx = s_.order = idx
         idx += 1
         line.series.append(s_)
@@ -743,6 +766,13 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                                              x=0.06, y=0.03, w=0.83, h=0.86))
     from .assess_tab import _place
     _place(ws, line, 2, lay_d["chart_top"], 12, lay_d["chart_end"] + 1)
+    # Under the chart, the pack line: which peers the peer group's line is
+    # summed over this quarter. Only where the peer tabs define it.
+    if PACK_LINE in wb.defined_names:
+        c_ = ws.cell(lay_d["pack_line"], 2, "=" + PACK_LINE)
+        c_.font = F_NOTE
+        c_.alignment = Alignment(vertical="center")
+        ws.row_dimensions[lay_d["pack_line"]].height = 15
 
     # ---- the panel, right: where each rating begins ----
     rh = lay_d["ratings_head"]
@@ -760,8 +790,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         c_.font = F_BOLD
         c_.fill = fill(SCALE[k])
         if k == 0:
-            begins = "the bottom" if higher else "the top"
-            ws.cell(r, 13, '=IF(%s,"%s","")' % (lines_ok, begins))
+            # With a floor, 1 Low begins at it; without one (a gap) it has
+            # no bottom, so it reads as what it is below (or above).
+            begins, side = ("the bottom", "below") if higher else ("the top", "above")
+            ws.cell(r, 13, '=IF({ok},IF({fz},"{b}","{s} "&TEXT({l2},"0.00")),"")'.format(
+                ok=lines_ok, fz=FZ, b=begins, s=side, l2=LN[0]))
         else:
             ws.cell(r, 13, '=IF(ISNUMBER(%s),%s,"")' % (LN[k - 1], LN[k - 1]))
         ws.cell(r, 14, '=IF(OR(NOT({h}),{rf}<>""),"",COUNTIF({rr},{k}))'.format(h=HAS, rf=REFUSAL, rr=rate_r,
@@ -802,13 +835,19 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         a_, b_, x_, k_ = ("$%s$%d" % (L(H + j), sr_) for j in range(4))
         nm = ws.cell(r, 12, '=IF({s}="{v}","━ ","╍ ")&"{v}"'.format(s=SRC, v=_q(v)))
         nm.font = Font(name="Calibri", size=11, bold=True, color=colors[v])
-        ws.cell(r, 13, '=IF(NOT({o}),"",IF({b}="","Not in this workbook",IF({k}="",IF({s}="","No lines picked",'
+        # A source with no series for the row shown: — under rating and
+        # latest, and its name, in STONE.
+        ws.cell(r, 13, '=IF(NOT({o}),"",IF({b}="","{d}",IF({k}="",IF({s}="","No lines picked",'
                        '"No rating"),{k}&" "&CHOOSE({k},"{r0}","{r1}","{r2}","{r3}","{r4}"))))'
-                .format(o=ONE, b=b_, k=k_, s=SRC, r0=RATINGS[0], r1=RATINGS[1], r2=RATINGS[2], r3=RATINGS[3],
-                        r4=RATINGS[4])).font = F_BOLD
-        c_ = ws.cell(r, 14, '=IF(ISNUMBER({x}),{x},"")'.format(x=x_))
+                .format(o=ONE, b=b_, k=k_, s=SRC, d=NO_SERIES, r0=RATINGS[0], r1=RATINGS[1], r2=RATINGS[2],
+                        r3=RATINGS[3], r4=RATINGS[4])).font = F_BOLD
+        c_ = ws.cell(r, 14, '=IF(ISNUMBER({x}),{x},IF(AND({o},{b}=""),"{d}",""))'.format(x=x_, o=ONE, b=b_,
+                                                                                       d=NO_SERIES))
         c_.number_format = "0.00"
         c_.font = F_BODY
+        c_.alignment = Alignment(horizontal="right")
+        ws.conditional_formatting.add("L%d:N%d" % (r, r), FormulaRule(
+            formula=['AND(%s,%s="")' % (ONE, b_)], font=Font(bold=False, color=K.STONE), stopIfTrue=True))
         ws.cell(r, 15, '=IF({b}="","",IFERROR(INDEX({q},{b})&"",""))'.format(b=b_, q=th_col("quarter"))
                 ).font = F_SLATE
         ws.cell(r, 16, '=IF({b}="","",SUMPRODUCT(ISNUMBER({v})*({h}={a}&", kept")))'
@@ -892,7 +931,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                   (17, "Worst kept")):
         cell = ws.cell(gh, c, t_)
         cell.font = F_LAB
-        cell.alignment = Alignment(horizontal="left" if c == 12 else "right", vertical="center")
+        # "4 Moderate-High" is a little wider than O (90 px): shrunk, not cut.
+        cell.alignment = Alignment(horizontal="left" if c == 12 else "right", vertical="center", shrink_to_fit=True)
     _rule(ws, gh, 12, 17, Side(style="thin", color=K.STONE))
     gives = {}
     for i, v in enumerate(third):
@@ -904,8 +944,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         refused_ = 'INDEX(%s,%s)<>""' % (th_col("refusal"), b_)
         for c, key in ((13, "l2"), (14, "l3"), (15, "l4"), (16, "l5"), (17, "worst")):
             if c == 13:
-                f = ('=IF({b}="",IF({o},"Not in this workbook",""),IF({rf},"Refused",IFERROR(INDEX({x},{b})+0,"")))'
-                     .format(b=b_, o=ONE, rf=refused_, x=th_col(key)))
+                f = ('=IF({b}="",IF({o},"{d}",""),IF({rf},"Refused",IFERROR(INDEX({x},{b})+0,"")))'
+                     .format(b=b_, o=ONE, d=NO_SERIES, rf=refused_, x=th_col(key)))
             elif key == "worst":
                 f = '=IF({b}="","",IFERROR(INDEX({x},{b})+0,""))'.format(b=b_, x=th_col(key))
             else:
@@ -918,6 +958,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for c in range(12, 18):
             ws.cell(r, c).border = Border(bottom=HAIR)
         ws.row_dimensions[r].height = 16.5
+        ws.conditional_formatting.add("L%d:Q%d" % (r, r), FormulaRule(
+            formula=['AND(%s,%s="")' % (ONE, b_)], font=Font(bold=False, color=K.STONE), stopIfTrue=True))
     g1, g2 = lay_d["gives_first"], lay_d["gives_first"] + len(third) - 1
     ws.conditional_formatting.add("M%d:M%d" % (g1, g2), FormulaRule(
         formula=['$M%d="Refused"' % g1], font=Font(bold=True, color=K.CRIMSON)))

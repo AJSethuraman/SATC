@@ -15,7 +15,10 @@ filters like a dashboard at the top?"*
                     (Worst in pack, Best in pack or any peer; row 6 names the
                     bank drawn), what the charts show (the last 20 or 48
                     quarters, or every quarter), the delinquency measure and
-                    basis. Rows 8 and 9: each peer's name over its Yes/No.
+                    basis. Rows 8 to 10: each peer's name over its Yes/No,
+                    and the state it is read in this quarter (in, out by
+                    rule, off); under them the pack line (round 3, the
+                    workbook's PackLine, also under both charts).
                     Then how best and worst are ranked, and how many banks a
                     composite or band needs; a strip of four numbers over
                     each panel's chart (bands, pack composite, KeyBank, Peer A
@@ -124,6 +127,13 @@ PACKS = ("all", "regionals")
 SOURCES = ("FDIC BankFind financials: https://api.fdic.gov/banks/financials",
            "FDIC BankFind structure changes: https://api.fdic.gov/banks/history")
 YES, NO = "Yes", "No"
+#: The three states a peer is read in this quarter (the roster on Peers, the
+#: rank tables and the pack line), and the workbook-level name of the one
+#: cell, on Workings, that says the pack in a line for every tab.
+STATE_IN, STATE_OUT, STATE_OFF = "in", "out by rule", "off"
+PACK_LINE = "PackLine"
+#: The delinquency measure whose four-quarter average decides out by rule (as Signals reads it).
+DQ_PACK_MEASURE = "30+ incl. nonaccrual"
 #: A bank's cell under its name: follow Banks in the pack, or set it.
 FOLLOW = "Pack"
 #: Banks in the pack: who is in when a bank's cell reads Pack (the analyst,
@@ -529,7 +539,8 @@ NOTE_ROWS = dict(note1=1, size_note=2, size_right=2, lagged_note=2, norm_note=2,
 NOTE_CHARS = 140                  # characters a line of a note holds across a panel (910 px)
 #: Row heights in points (docs/design/round-2/README.md, Peers).
 HEIGHTS = {"title": 25.5, "sub": 15, "spacer": 6, "label": 13.5, "pick": 19.5, "resolved": 12,
-           "names": 22.5, "yes_no": 18, "settings": 19.5, "best_worst": 13.5, "gap": 7.5, "section": 16.5,
+           "names": 22.5, "yes_no": 18, "state": 13.5, "pack": 15, "settings": 19.5, "best_worst": 13.5, "gap": 7.5,
+           "section": 16.5,
            "strip": (13.5, 19.5, 12), "chart": 16.5, "note": 13.5, "table": 15, "small": 15}
 
 
@@ -538,21 +549,28 @@ def layout(n_peers: int, n_banks: int, n_years: int) -> dict:
     ``n_banks`` banks on the roster and ``n_years`` mix years: one place for
     the builder, the tests and anyone photographing it.
 
-    With up to 14 peers the rows are the design's: the Yes/No row is 9, the
-    ranking rule 10, the panel titles 13, the strips 14 to 16 and the charts
-    17 to 32. The design draws fifteen Yes/No cells across B:P, which Excel's
-    columns cannot hold (the gutter I is 24 pixels), so each further 14 peers
-    take another pair of rows and move everything under them down by two."""
+    The roster takes three rows per 14 peers: names (row 8), the Yes/No
+    inputs (9) and the state each is read in this quarter (10). Under it the
+    pack line, then the ranking rule. With up to 14 peers the pack line is
+    row 11, the ranking rule 12, the panel titles 15, the strips 16 to 18 and
+    the charts 19 to 34, with the pack line again in row 36 under both. The
+    design draws fifteen 120 px roster cells in one row, which Excel's
+    columns cannot hold beside the panels' (B:H and J:P at 130 px, the gutter
+    I at 24), so each further 14 peers take another three rows and move
+    everything under them down by three."""
     chunks = max(1, math.ceil(n_peers / PER_ROW))
-    off = 2 * (chunks - 1)
-    rank_head = 36 + off
+    off = 3 * chunks - 1
+    note1 = 17 + off + CHART_ROWS
+    ranks = note1 + 3
+    rank_head = ranks + 1
     size = rank_head + n_banks + 2
     size_note = size + 4 + max(CHART_ROWS, n_banks)
     small = size_note + NOTE_ROWS["size_note"] + 1
     v2 = small + SMALL_ROWS + 4
     v3 = v2 + 2 + 4 + NOTE_ROWS["lagged_note"] + 1
-    return dict(chunks=chunks, settings=10 + off, best_worst=11 + off, v1=13 + off, tiles=14 + off,
-                chart1=17 + off, note1=17 + off + CHART_ROWS, ranks=35 + off, rank_head=rank_head,
+    return dict(chunks=chunks, pack=R_BANKS + 3 * chunks, settings=10 + off, best_worst=11 + off, v1=13 + off,
+                tiles=14 + off, chart1=17 + off, note1=note1, pack_charts=note1 + 1, ranks=ranks,
+                rank_head=rank_head,
                 size=size, size_tiles=size + 1, size_chart=size + 4, size_head=size + 3, size_note=size_note,
                 small=small, small_chart=small + 1, more_note=small + SMALL_ROWS + 2,
                 v2=v2, lagged=v2 + 1, lagged_note=v2 + 6, norm=v2, norm_table=v2 + 1, norm_note=v2 + 6,
@@ -564,7 +582,13 @@ def layout(n_peers: int, n_banks: int, n_years: int) -> dict:
 def include_cell(j: int) -> str:
     """The Yes/No cell of the j-th peer (roster order, peers only) on Peers."""
     chunk, at = divmod(j, PER_ROW)
-    return "%s%d" % (L(BANK_COLS[at]), R_BANKS + 2 * chunk + 1)
+    return "%s%d" % (L(BANK_COLS[at]), R_BANKS + 3 * chunk + 1)
+
+
+def state_cell(j: int) -> str:
+    """The cell under the j-th peer's Yes/No on Peers: in, out by rule or off."""
+    chunk, at = divmod(j, PER_ROW)
+    return "%s%d" % (L(BANK_COLS[at]), R_BANKS + 3 * chunk + 2)
 
 
 def picker_cell(name: str) -> str:
@@ -818,6 +842,13 @@ def _section(ws, row, first, last, value):
     for col in range(first, last + 1):
         ws.cell(row, col).border = Border(bottom=Side(style="medium", color=K.INK))
     ws.row_dimensions[row].height = HEIGHTS["section"]
+
+
+def _state_rule(ws, col, r1, r2):
+    """A rank table's In pack column: out by rule in SLATE italic, as on the roster."""
+    ws.conditional_formatting.add("%s%d:%s%d" % (L(col), r1, L(col), r2), FormulaRule(
+        formula=['LEFT($%s%d,%d)="%s"' % (L(col), r1, len(STATE_OUT), STATE_OUT)],
+        font=Font(color=K.SLATE, italic=True)))
 
 
 def _table_head(ws, row, first, heads, right_from=1, merges=()):
@@ -1709,6 +1740,46 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     if dl is not None:
         fit("dl", dl, len(dq["grid"]))
 
+    # ---- Workings: the pack line, one row per peer (roster order) ----
+    # Each peer is in (Yes, and a four-quarter average at the latest
+    # quarter-end), out by the book's rules (Yes, and none: the jump or the
+    # acquisition share blanked it, or it was not kept), or off (No). As the
+    # Signals tab reads it: the product picked here, 30+ incl. nonaccrual,
+    # from DelinquencyData. One cell, PackLine, says it for every tab.
+    pk = _Block(wk, wk.max_column + 2)
+    for name, h in (("name", "Peer (pack line)"), ("out", "Out by the book's rules"), ("state", "State"),
+                    ("outs", "Out, by name"), ("offs", "Off, by name")):
+        pk.add(name, heads=[h])
+    if dq:
+        m30 = list(D.MEASURES).index(DQ_PACK_MEASURE)
+        NB_, DQN = len(roster), len(dq["grid"])
+        dq_row = lambda pi, bi: 2 + ((pi * len(D.MEASURES) + m30) * NB_ + bi) * DQN + DQN - 1   # noqa: E731
+        pack_q = dl.fixed("q", DLR)
+    else:
+        pack_q = co.fixed("q", LR)
+    for j, b in enumerate(peers):
+        r, i = 2 + j, peer_i[j]
+        wk.cell(r, pk.col["name"], b["short"])
+        if dq:
+            wk.cell(r, pk.col["out"], "=IF({p}=0,FALSE,CHOOSE({p},{c}))".format(p=S["dq_p"], c=",".join(
+                "OR({dd}$N${x},NOT({dd}$L${x}))".format(dd=DD, x=dq_row(pi, i)) for pi in range(len(dq["products"])))))
+        else:
+            wk.cell(r, pk.col["out"], False)
+        st = pk.at("state", r)
+        wk.cell(r, pk.col["state"], '=IF({inc}<>"{y}","{off}",IF({o},"{out}","{in_}"))'.format(
+            inc=INC[j], y=YES, o=pk.at("out", r), off=STATE_OFF, out=STATE_OUT, in_=STATE_IN))
+        wk.cell(r, pk.col["outs"], '=IF(%s="%s",%s,"")' % (st, STATE_OUT, pk.at("name", r)))
+        wk.cell(r, pk.col["offs"], '=IF(%s="%s",%s,"")' % (st, STATE_OFF, pk.at("name", r)))
+    states = pk.down("state", 2, 1 + NP)
+    scalar("pack_line", "Pack line",
+           '="Peer group · "&COUNTIF({s},"{in_}")&" of {n} in"&IF(COUNTIF({s},"{out}")>0," · out by the book\'s '
+           'rules, "&{q}&": "&_xlfn.TEXTJOIN(", ",TRUE,{outs}),"")&IF(COUNTIF({s},"{off}")>0," · switched off '
+           'on {pe}: "&_xlfn.TEXTJOIN(", ",TRUE,{offs}),"")'.format(
+               s=states, n=NP, in_=STATE_IN, out=STATE_OUT, off=STATE_OFF, q=pack_q,
+               outs=pk.down("outs", 2, 1 + NP), offs=pk.down("offs", 2, 1 + NP),
+               pe=t.title("Peers").replace('"', '""')))
+    wb.defined_names[PACK_LINE] = DefinedName(PACK_LINE, attr_text=S_PE["pack_line"])
+
     # ---- Workings: the rank tables, one row per bank (roster order) ----
     # Each bank switched on with a rate at the latest quarter, and KeyBank,
     # ordered by rate: SMALL over a key that is the rate plus a billionth per
@@ -1725,8 +1796,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             r = 2 + i
             wk.cell(r, rb.col["name"], b["short"])
             wk.cell(r, rb.col["label"], "—" if b is me else (
-                '="{y}"&IF(IFERROR({i}={a},FALSE),IF(IFERROR({i}={b},FALSE)," · Peer A, B"," · Peer A"),'
-                'IF(IFERROR({i}={b},FALSE)," · Peer B",""))'.format(y=YES, i=i + 1, a=S["a_no"], b=S["b_no"])))
+                '={st}&IF(IFERROR({i}={a},FALSE),IF(IFERROR({i}={b},FALSE)," · Peer A, B"," · Peer A"),'
+                'IF(IFERROR({i}={b},FALSE)," · Peer B",""))'.format(st=pk.fixed("state", 2 + peer_i.index(i)),
+                                                                  i=i + 1, a=S["a_no"], b=S["b_no"])))
             on = "TRUE" if b is me else '%s="%s"' % (INC[peer_i.index(i)], YES)
             eps = "" if b is me else "+%d*1E-9" % (peer_i.index(i) + 1)
             wk.cell(r, rb.col["rate"], "=" + rate(i))
@@ -1848,8 +1920,9 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                             error="Pack (follow Banks in the pack), Yes or No.")
     pe.add_data_validation(yes_no)
     for ch in range(lay["chunks"]):
-        pe.row_dimensions[R_BANKS + 2 * ch].height = HEIGHTS["names"]
-        pe.row_dimensions[R_BANKS + 2 * ch + 1].height = HEIGHTS["yes_no"]
+        pe.row_dimensions[R_BANKS + 3 * ch].height = HEIGHTS["names"]
+        pe.row_dimensions[R_BANKS + 3 * ch + 1].height = HEIGHTS["yes_no"]
+        pe.row_dimensions[R_BANKS + 3 * ch + 2].height = HEIGHTS["state"]
     for j, b in enumerate(peers):
         cell = include_cell(j)
         c = pe[cell]
@@ -1859,13 +1932,19 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         c.value = FOLLOW
         _yellow(c, "center")
         yes_no.add(cell)
-        # A bank out of the pack, however it got there, reads in slate on a
-        # gray cell, its name struck through; the cell stays an input.
-        out_ = ['%s="%s"' % (INC[j], NO)]
-        pe.conditional_formatting.add(cell, FormulaRule(formula=out_, font=Font(color=K.SLATE),
-                                                        fill=K.solid(K.MIST)))
-        pe.conditional_formatting.add(name.coordinate, FormulaRule(formula=out_, font=Font(color=K.SLATE,
-                                                                                           strike=True)))
+        # Under each Yes/No, the state it is read in this quarter: in (INK),
+        # out by rule (SLATE italic) or off (STONE, struck through). The
+        # Yes/No cell takes the same treatment and stays an input.
+        sc = pe[state_cell(j)]
+        sc.value = "=" + WK + pk.fixed("state", 2 + j)
+        sc.font = Font(name="Calibri", size=9, color=K.INK)
+        sc.alignment = Alignment(horizontal="center", vertical="top")
+        st_ = "$%s$%d" % (L(sc.column), sc.row)
+        for where, struck in ((sc.coordinate, True), (cell, False)):
+            pe.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (st_, STATE_OUT)],
+                                                             font=Font(color=K.SLATE, italic=True)))
+            pe.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (st_, STATE_OFF)],
+                                                             font=Font(color=K.STONE, strike=struck)))
     rs = lay["settings"]
     counts = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="1", allow_blank=False,
                             showErrorMessage=True, errorTitle="A whole number of at least 1",
@@ -1892,6 +1971,14 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         NOTE, wrap=False)
     pe.row_dimensions[lay["best_worst"]].height = HEIGHTS["best_worst"]
     pe.row_dimensions[lay["best_worst"] + 1].height = HEIGHTS["gap"]
+    # The pack line under the roster and under both charts: the one cell on
+    # Workings that every tab drawing on the pack reads.
+    for r, cols_ in ((lay["pack"], (FIRST_COL,)), (lay["pack_charts"], (LEFT[0],) + ((RIGHT[0],) if dl else ()))):
+        for c_ in cols_:
+            c = pe.cell(r, c_, "=" + PACK_LINE)
+            c.font = NOTE
+            c.alignment = Alignment(vertical="center")
+        pe.row_dimensions[r].height = HEIGHTS["pack"]
 
     charts = []                                  # (chart, anchor)
     # ---- the two panels: charge-offs (left), delinquency (right) ----
@@ -1964,7 +2051,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         _merged(pe, tl, *RIGHT, NOT_BUILT, F_BOLD, wrap=False)
     for r in range(lay["chart1"], lay["chart1"] + CHART_ROWS):
         pe.row_dimensions[r].height = HEIGHTS["chart"]
-    pe.row_dimensions[lay["note1"] + 1].height = HEIGHTS["gap"]
+    pe.row_dimensions[lay["pack_charts"] + 1].height = HEIGHTS["gap"]
 
     # ---- below the fold: where each bank stands ----
     def rank_table(first, rb, comp, title):
@@ -2000,6 +2087,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         pe.conditional_formatting.add(rng, FormulaRule(
             formula=['$%s%d="%s"' % (L(first + 1), head + 1, me["short"])], fill=K.solid(K.CANVAS),
             font=Font(bold=True, color=K.KEY_RED)))
+        _state_rule(pe, first + 6, head + 1, head + NB)
 
     rank_table(LEFT[0], rk_co, w_(co, "c", LR), "Where each bank stands on charge-offs, %s (1 = the lowest rate)"
                % last_q)
@@ -2078,6 +2166,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     pe.conditional_formatting.add(rng, FormulaRule(
         formula=['$%s%d="%s"' % (L(first + 1), head + 1, me["short"])], fill=K.solid(K.CANVAS),
         font=Font(bold=True, color=K.KEY_RED)))
+    _state_rule(pe, first + 6, head + 1, head + NB)
     for r in range(lay["size_chart"], lay["size_note"]):
         pe.row_dimensions[r].height = HEIGHTS["chart"]
     pe.row_dimensions[head].height = HEIGHTS["table"]
@@ -2303,7 +2392,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             # view's helper columns on Workings (values from row 2).
             "layout": dict(lay, pickers={key: picker_cell(key) for key, _, _ in PICKERS},
                            settings_cells={key: setting_cell(key, NP) for key, *_ in SETTINGS},
-                           include={b["short"]: include_cell(j) for j, b in enumerate(peers)}),
+                           include={b["short"]: include_cell(j) for j, b in enumerate(peers)},
+                           states={b["short"]: state_cell(j) for j, b in enumerate(peers)}),
+            # The pack line: its workbook-level name and its cell on Workings.
+            "pack_line": {"name": PACK_LINE, "cell": S["pack_line"], "helpers": cols(pk)},
             "scalars": dict(S),
             "charge_offs": {"helpers": cols(co), "first_row": 2, "quarters": grid},
             "book": {"helpers": cols(bk), "first_row": 2, "quarters": grid[base_k:]},
