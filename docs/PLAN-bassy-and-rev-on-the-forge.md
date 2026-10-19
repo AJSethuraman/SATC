@@ -1545,7 +1545,7 @@ What was merged, when, and what was *not* reviewed, so nobody has to infer it.
 (`b1cc0c91`; its summary reads "failed", and it posted that the usage limit was
 reached). Every earlier commit on that branch was reviewed by Codex across fourteen
 passes, and each finding was fixed or recorded as a known limit (section 15.1). The
-unreviewed change is two small fixes: the dangling-symlink check (findings 43) and the
+unreviewed change is two small fixes: the dangling-symlink check (finding 43) and the
 allowed-name boundary (finding 44), each with tests and mutations. `CLAUDE.md` says to
 merge only after Codex reads Completed, so this departs from it. **The owner approved
 the merge anyway, by pop-up, on 19 October 2026**, choosing "merge now, record the gap"
