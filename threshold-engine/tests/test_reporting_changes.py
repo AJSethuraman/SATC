@@ -325,12 +325,21 @@ def marked(tmp_path_factory):
 
 def test_sources_shows_each_reporting_change_line(marked):
     d, info = marked
+    """Round 3: each file's row on Sources names the quarters its reporting
+    changes took effect (the table under Reporting changes says what each
+    is), and the lines themselves are not repeated."""
     ws = load_workbook(info["path"])["Sources"]
-    rows = [(ws.cell(r, 2).value, ws.cell(r, 3).value) for r in range(1, ws.max_row + 1)]
-    shown = [v for k, v in rows if k == "Reporting change"]
-    want = [ln[len("reporting-change: "):] for lbl in ("Card - Net - Industry", "Card - Gross - Industry")
-            for ln in NOTES[lbl]]
-    assert shown == want and len(shown) == 3
+    h = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 5).value == "File")
+    col = [ws.cell(h, c).value for c in range(1, 12)].index("Reporting changes") + 1
+    by_file = {ws.cell(r, 5).value: ws.cell(r, col).value for r in range(h + 1, h + 1 + len(SER))}
+    files = dict(SER)                                    # the fixture's copies keep the file names
+    for lbl, notes in NOTES.items():
+        want = RC.whens_in_notes([("reporting-change", ln[len("reporting-change: "):]) for ln in notes])
+        assert by_file[files[lbl].name] == " · ".join(want)
+    assert by_file[files["Card - Net - Industry"].name] == "2010Q1 · 2020Q1"
+    assert by_file[files["Card - Gross - Industry"].name] == "2024Q4 to 2025Q2"
+    text = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value)
+    assert "reporting-change:" not in text
     assert "Reporting change" in {t for t, _, _ in TERMS}
 
 
