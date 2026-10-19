@@ -83,8 +83,8 @@ window.INTAKE_STEPS = [
   {
     id: 'sf_schedules',
     type: 'single',
-    question: 'Do you have a business, a rental, or investments you sold?',
-    help: 'Any one of these moves a return past this package. Having children or claiming your own tuition credit does not.',
+    question: 'Do you have a business, rentals, investment sales, or plan to itemize deductions?',
+    help: 'Itemizing means claiming deductions such as mortgage interest or donations instead of the standard deduction. Having children or claiming your own tuition credit does not exclude you.',
     required: true,
     options: [
       { value: 'no', label: 'None of those' },
@@ -354,12 +354,12 @@ function asksBusinessComplexity(answers) {
    Set by the band's click handler in index.html. Read here rather than stored
    as an answer because an answer would need its own declared step, and a step
    that renders nothing is a new engine concept -- see the note in PROPOSAL.md
-   under "what the engine cannot do today". A refresh loses the route, and the
-   two questions above then correctly disappear; their answers are pruned with
-   them, which is the existing showIf contract doing its job rather than a bug. */
+   under "what the engine cannot do today". A refresh loses a click-only route;
+   an explicit URL route survives. When the route is lost, the two questions
+   disappear and their answers are pruned by the existing showIf contract. */
 function isSimpleFilerRoute() {
   try {
     return window.__SATC_ROUTE === 'simple_filer' ||
-           /(^|[?&#])route=simple_filer/.test(window.location.search + window.location.hash);
+           /(^|[?&#])route=simple_filer(?:[&#]|$)/.test(window.location.search + window.location.hash);
   } catch (e) { return false; }
 }

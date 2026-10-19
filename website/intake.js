@@ -481,7 +481,16 @@
 
   function simpleFilerLooksLikely() {
     const a = state.answers;
-    return a.sf_other_income === 'no' && a.sf_schedules === 'no';
+    /* Keep existing answers. Other requested work or known return complexity
+       needs the full intake, even when the two new answers say No/No. Do not
+       silently erase a business or rental lead to make the shortcut fit.
+       Multiple states alone do not change the package's federal-schedule gate;
+       prior 'none'/'unsure' choices can be clarified by the new factual answers. */
+    const otherWork = (a.services || []).some(v => v !== 'individual_tax');
+    const priorComplexity = (a.individual_complexity || []).some(v =>
+      !['w2', 'multistate', 'none', 'unsure'].includes(v));
+    return a.sf_other_income === 'no' && a.sf_schedules === 'no' &&
+           !otherWork && !priorComplexity;
   }
 
   function renderLikelyFit() {
