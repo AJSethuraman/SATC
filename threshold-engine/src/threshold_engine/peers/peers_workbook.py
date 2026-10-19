@@ -463,6 +463,21 @@ def _stated_for(stated: Dict[str, Dict[str, Sequence[str]]], product: str) -> Di
     return stated[product]
 
 
+def _stated_by_quarter(stated: Dict[str, Dict[str, Sequence[str]]], products: Sequence[str],
+                       roster: List[dict]) -> Dict[str, Dict[str, List[str]]]:
+    """``{cert: {quarter label: [products]}}``: per bank, each stated
+    acquisition quarter and the products drawn that the deal brought, in
+    ``products``' order (question 18)."""
+    out: Dict[str, Dict[str, List[str]]] = {b["cert"]: {} for b in roster}
+    for p in products:
+        for cert, qs in _stated_for(stated, p).items():
+            for q in qs:
+                ps = out.setdefault(cert, {}).setdefault(label(str(q).replace("-", "")), [])
+                if p not in ps:
+                    ps.append(p)
+    return out
+
+
 def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict, *,
                        stated: Dict[str, Sequence[str]]) -> Optional[dict]:
     """None for no delinquency tabs; otherwise the stated settings, checked,
@@ -1318,11 +1333,17 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
 
     # ---- the book index: per product and bank, from the base on ----
     acq_of = {b["cert"]: _acquisitions(mergers, extra_acquisitions, b["cert"]) for b in roster}
+    # Question 18 (the firm, 18 Oct 2026): "A listed deal leaves out only the
+    # portfolios it brought", so a stated deal flattens the organic index of
+    # the products it brought and no other.
+    stated_of = _stated_by_quarter(stated, products, roster)
     indexed, index_note = {}, {}
     for p in products:
         for b in roster:
+            gone = sorted({q for q, _ in acq_of[b["cert"]]}
+                          | {q for q, ps in stated_of[b["cert"]].items() if p in ps})
             try:
-                idx = organic_index(data, b["cert"], p, base_quarter, [q for q, _ in acq_of[b["cert"]]])
+                idx = organic_index(data, b["cert"], p, base_quarter, gone)
             except ValueError:
                 # The base quarter is in the data (checked above), so this is
                 # the bank having no filing or a zero book there.
@@ -2377,7 +2398,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     run_entries = _run_entries(data, sources, cache_dir, mergers, mergers_file, jump, min_book, exempt_self,
                                min_banks, pack, rank_by, last_n, min_obs, base_lbl, index_min_book,
                                extra_acquisitions, lagged_years, lag_years, (y0, y1), mix_base_year, industry, dq,
-                               roster, acq_of)
+                               roster, acq_of, stated_of)
     if gl is not None:
         _glossary_tab(gl, t, book_kind, caption)
     if run is not None:
@@ -2465,7 +2486,7 @@ def _glossary_tab(gl, t, book_kind=None, share_note=None) -> None:
 
 def _run_entries(data, sources, cache_dir, mergers, mergers_file, jump, min_book, exempt_self, min_banks, pack,
                  rank_by, last_n, min_obs, base_lbl, index_min_book, extra_acquisitions, lagged_years, lag_years,
-                 norm_years, mix_base_year, industry, dq, roster, acq_of) -> list:
+                 norm_years, mix_base_year, industry, dq, roster, acq_of, stated_of) -> list:
     """What the peer tabs were built from, as (kind, values): "section" (a
     heading), "head" (column labels) or "row"."""
     e = [("section", "This build"), ("row", ["threshold-engine", VERSION]),
@@ -2528,10 +2549,12 @@ def _run_entries(data, sources, cache_dir, mergers, mergers_file, jump, min_book
         e.append(("row", ["Delinquency", "not built"]))
     e += [("section", "Acquisition quarters, per bank"),
           ("head", ["Bank", "Taken out of the book index without acquisitions (declared: named at the build, not "
-                    "in the FDIC record)"])]
+                    "in the FDIC record; stated: a stated acquisition, taken out of the products it brought only)"])]
     for b in roster:
-        e.append(("row", [b["short"], ", ".join(q + (" (declared)" if d else "") for q, d in acq_of[b["cert"]])
-                          or "none"]))
+        mine = {q: " (declared)" if d else "" for q, d in acq_of[b["cert"]]}
+        for q, ps in stated_of[b["cert"]].items():
+            mine.setdefault(q, " (stated: %s)" % ", ".join(ps))
+        e.append(("row", [b["short"], ", ".join(q + mine[q] for q in sorted(mine)) or "none"]))
     e += [("section", "Roster"), ("head", ["Certificate", "Name", "Short", "Group", "Regional"])]
     for b in roster:
         e.append(("row", [b["cert"], b["name"], b["short"], b["group"], "yes" if b["regional"] else "no"]))

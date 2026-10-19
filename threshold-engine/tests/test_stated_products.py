@@ -202,6 +202,32 @@ def test_the_delinquency_follows_the_products_list(tmp_path, monkeypatch):
     assert seen[("588", "C&I")] == ["20110630"] and seen[("588", "Construction")] == []
 
 
+def test_the_book_index_follows_the_products_list(tmp_path, monkeypatch):
+    """Review, 19 Oct 2026: every stated quarter used to be added to every
+    product's declared acquisitions, so a deal flattened the organic book
+    index of products it did not bring (Wells Fargo's construction,
+    multifamily and nonfarm in 2016Q1, for a C&I-only deal). Question 18:
+    "A listed deal leaves out only the portfolios it brought"."""
+    from openpyxl import load_workbook
+    seen = {}
+    real = PW.organic_index
+
+    def spy(data, cert, product, base_quarter, acquisitions):
+        seen[(str(cert), product)] = [books.label(books.quarter_end(a).replace("-", "")) for a in acquisitions]
+        return real(data, cert, product, base_quarter, acquisitions)
+    monkeypatch.setattr(PW, "organic_index", spy)
+    cache = cache_of(tmp_path, two_banks())
+    out = tmp_path / "peers.xlsx"
+    run.build(out, **build_kw(tmp_path, cache, products=BOTH,
+                              stated_acquisitions=listing(tmp_path, ["Construction"])))
+    assert seen[("588", "C&I")] == [] and seen[("588", "Construction")] == ["2011Q2"]
+    rows = {r[1]: r[2] for r in load_workbook(out)["Run"].iter_rows(values_only=True) if len(r) > 2 and r[1]}
+    assert rows["M&T"] == "2011Q2 (stated: Construction)"
+    assert rows["Declared acquisitions"] == "none"
+    run.build(out, **build_kw(tmp_path, cache, products=BOTH, stated_acquisitions=listing(tmp_path, ["C&I"])))
+    assert seen[("588", "C&I")] == ["2011Q2"] and seen[("588", "Construction")] == []
+
+
 def test_the_note_names_the_deals_that_did_not_bring_the_product_beside_those_that_did():
     entries = [e for e in ST.load(FILE) if e["acquirer"] in ("3511", "4297")]
     names = {"3511": "Wells Fargo", "4297": "Capital One"}

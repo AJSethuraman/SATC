@@ -3776,3 +3776,48 @@ on 18 Oct 2026 (the round 2 commercial docket, read back above).
   over a record lacking the member with `pulled` null and `"unknown"`, both
   now refused by name. **Mutation:** with the two checks removed, all 15
   fail (the null case with the TypeError); with them, the file's 29 pass.
+
+### Question 18: a stated deal flattens the book index of the products it brought, and no other
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"A listed
+  deal leaves out only the portfolios it brought"*; *"Each stated
+  acquisition gets a required `products` list with a source."*
+- **The finding.** The question 18 entry above recorded, as a choice, that
+  "the book index still reads every stated quarter as declared, whatever
+  its products": `run.build` added every stated quarter to every product's
+  declared acquisitions, so the organic book index treated it as an
+  acquisition quarter (growth set to none) in products the deal did not
+  bring. That contradicts the answer's own words, so it is fixed rather
+  than put to the firm. Reproduced: M&T listed as bringing Construction
+  only, its C&I index got 2011Q2 as an acquisition quarter.
+- **The fix.** `run.build` no longer adds stated quarters to the declared
+  ones. `build_peers_workbook` already receives `stated` per product
+  (question 18); the book index now adds, per product, only the stated
+  quarters of the deals that brought it. The Run tab's "Acquisition
+  quarters, per bank" marks such a quarter "(stated: the products)", and
+  "Declared acquisitions" lists only those named at the build, as its
+  header says. `peers/stated.py`'s docstring says the same.
+- **What it changes on the real cache** (`scratchpad/cache-commercial`,
+  Wells Fargo, certificate 3511, the GE Capital deal listed as C&I only;
+  `analyses.organic_index` from the cache, base 2019Q4, its recorded
+  mergers plus or minus 2016Q1; not a full build). The chain runs back from
+  the base, so 2016Q1 and later are unchanged and every quarter before
+  moves by that quarter's growth. At 2015Q4, before -> after:
+  Construction 120.72 -> 116.11; Multifamily 92.40 -> 113.67; Nonfarm
+  nonresidential 105.20 -> 103.05; Owner-occupied 115.96 -> 117.40; Other
+  nonfarm nonresidential 101.37 -> 97.94. C&I unchanged (99.84; the deal
+  lists it). **For the firm to look at:** Wells Fargo's multifamily book
+  fell by about 18.7% in 2016Q1 (the index's own step), under the 0.25
+  jump, and is now read as that quarter's organic change; what moved it
+  was not read.
+- **Proof.** `tests/test_stated_products.py::test_the_book_index_follows_the_products_list`:
+  a build of C&I and Construction spying on `organic_index`, M&T listed as
+  bringing Construction only (C&I gets no acquisition quarter, Construction
+  gets 2011Q2; the Run tab says "2011Q2 (stated: Construction)" and
+  "Declared acquisitions: none"), then C&I only (the reverse).
+  `test_stated_acquisitions.py`'s Run tab check now reads "2011Q2 (stated:
+  C&I)". **Mutation:** with `src/threshold_engine/peers` as before, both
+  fail; with the fix, the two stated files pass (56).
+- **The consumer book.** Unchanged: it states `stated_acquisitions: null`.
+  For the consumer session: a consumer book that reads the stated list
+  would flatten only the index of the products each deal lists.

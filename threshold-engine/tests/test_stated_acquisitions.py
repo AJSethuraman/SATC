@@ -274,8 +274,8 @@ def test_the_build_leaves_out_ms_windows_and_says_so_on_its_series_and_the_run_t
            "C&I, Construction, Multifamily, Nonfarm nonresidential, Owner-occupied nonfarm nonresidential, Other " \
            "nonfarm nonresidential); outside them, not read: JPMorgan 2008Q3; Wells Fargo 2016Q1; " \
            "Capital One 2015Q4" in said
-    # The book index reads it as declared, like an extra acquisition.
-    assert "2011Q2 (declared)" in said
+    # The book index takes it out of the products it brought (question 18).
+    assert "2011Q2 (stated: C&I)" in said
 
 
 def test_none_states_that_no_list_is_read_and_nothing_is_left_out(tmp_path):

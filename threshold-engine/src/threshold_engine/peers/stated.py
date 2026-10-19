@@ -49,8 +49,10 @@ the quarter, of each product the entry lists (``for_product``), are left out
 for that bank, with their own reason
 (``books.WHY_STATED``), right after the recorded acquisitions; no share of the
 book is measured, because the FDIC record holds no filing of what was bought.
-The bank's book index treats the quarter as an acquisition too, marked
-declared on the Run tab.
+The bank's book index, of each product the entry lists and no other,
+treats the quarter as an acquisition too, marked "stated" with those
+products on the Run tab (question 18; the review of 19 Oct 2026 found every
+product's index was flattened).
 """
 from __future__ import annotations
 

@@ -1102,17 +1102,14 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
     extras_ = extras(extra_acquisitions, roster_, quarters)
     combined_ = combined(industry_combined)
     try:
-        stated_q, stated_outside = ST.by_cert(stated_, [b["cert"] for b in roster_], quarters)
+        _, stated_outside = ST.by_cert(stated_, [b["cert"] for b in roster_], quarters)
     except ST.StatedError as e:
         raise ValueError("--stated-acquisitions: %s" % e) from None
     # Question 18 (the firm, 18 Oct 2026): a deal leaves out only the
-    # windows of the products it brought.
+    # windows of the products it brought, and flattens only those products'
+    # book index (build_peers_workbook reads ``stated`` per product; a
+    # stated quarter is no longer added to every product's declared ones).
     stated_by = {p: ST.for_product(stated_, p, quarters) for p in products}
-    # The book index reads a stated acquisition as one the bank declared.
-    for c, qs in stated_q.items():
-        for q in qs:
-            if books.label(q) not in extras_.get(c, []):
-                extras_.setdefault(c, []).append(books.label(q))
 
     cache = Path(cache)
     missing = [q for q in quarters if not (cache / ("q%s.json" % q)).exists()]
