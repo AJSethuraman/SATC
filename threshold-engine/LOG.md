@@ -3743,3 +3743,36 @@ Built on the commercial side; each is yours to adopt in the consumer book or not
   Excel here. LibreOffice was not used to type into Decide or to switch a
   bank through the Peers tab's own Banks in the pack picker (the switch was
   set on Peers workings, which that picker sets). No picture was rendered.
+
+## 19 Oct 2026: review fixes to round 3 (questions 21, 18, 23 and 24)
+
+Four findings from a review of this branch, each reproduced first (by a
+break-it test file written outside the repository), then fixed with a test
+here that fails without the fix. Each answer is quoted as the firm gave it
+on 18 Oct 2026 (the round 2 commercial docket, read back above).
+
+### Question 21: the institutions record's `pulled` and `rows` are checked
+
+- **The answer, 18 Oct 2026, agreed with the recommendation:** *"A new
+  charter's first filing counts as that quarter's activity, where the FDIC
+  record shows it opened that quarter."*
+- **The finding.** `load_institutions` says a bad file is "refused by name
+  rather than failing later", but never looked at `pulled` or `rows`.
+  Reproduced: `pulled` null crashed `opened_members` with a TypeError
+  (comparing None with a date); `pulled` of `""`, `"someday"`, `20261018`
+  or `"18/10/2026"` was taken; `"unknown"` sorts after every ISO date as
+  text, so the stale check passed and a member missing from the record was
+  read as one the FDIC has no row for (its quarter missing, the build going
+  on) when the record may simply have been too old to hold it; `rows` of
+  null, `"many"` or 1.5 was taken (the Run tab prints it with `%d`). The
+  pull writes both correctly; only a hand-edited or damaged file bites.
+- **The fix.** `pulled` must be a real date written `YYYY-MM-DD` (the same
+  check as each `established` date); `rows` a whole number, at least 1 (the
+  pull refuses an empty record), not true or false. Each refusal names the
+  value and says to pull the merger record again.
+- **Proof.** `tests/test_new_charters.py`, 15 new cases: 7 `pulled` values
+  (null, empty, two words, a number, a day-first date, 30 February), 6
+  `rows` values (null, a word, 1.5, true, 0, -3), and `opened_members`
+  over a record lacking the member with `pulled` null and `"unknown"`, both
+  now refused by name. **Mutation:** with the two checks removed, all 15
+  fail (the null case with the TypeError); with them, the file's 29 pass.

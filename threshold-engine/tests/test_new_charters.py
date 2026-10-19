@@ -22,6 +22,7 @@ API returned them on 18 Oct 2026: Key Bank USA opened 5 Sep 1995. The unit
 tests on ``books`` use made-up banks "1" and "2", as test_peers_books.py does.
 """
 import json
+import re
 import urllib.parse
 
 import pytest
@@ -174,6 +175,44 @@ def test_a_malformed_record_is_refused_by_name(tmp_path):
     path.write_text(json.dumps(good), encoding="utf-8")
     with pytest.raises(ValueError, match="not a date written like"):
         run.load_institutions(path)
+
+
+def _record(tmp_path, **over):
+    rec = {"source": "s", "fields": "f", "pulled": "2026-10-18", "rows": 1, "undated": {}, "established": {}}
+    rec.update(over)
+    path = tmp_path / run.INSTITUTIONS
+    path.write_text(json.dumps(rec), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("pulled", [None, "", "someday", "unknown", 20261018, "18/10/2026", "2026-02-30"])
+def test_a_record_whose_pulled_is_not_a_date_is_refused_by_name(tmp_path, pulled):
+    """Review, 19 Oct 2026: 'pulled' was never checked. It decides whether a
+    bank the record lacks could have been in it, so 'unknown' (which sorts
+    after every ISO date) passed that check by accident and null crashed it
+    with a TypeError."""
+    with pytest.raises(ValueError, match=r"pulled is %s, which is not a date" % re.escape(repr(pulled))):
+        run.load_institutions(_record(tmp_path, pulled=pulled))
+
+
+@pytest.mark.parametrize("rows", [None, "many", 1.5, True, 0, -3])
+def test_a_record_whose_rows_is_not_a_count_is_refused_by_name(tmp_path, rows):
+    with pytest.raises(ValueError, match=r"rows is %s, which is not a count" % re.escape(repr(rows))):
+        run.load_institutions(_record(tmp_path, rows=rows))
+
+
+@pytest.mark.parametrize("pulled", [None, "unknown"])
+def test_the_build_step_refuses_a_bad_pulled_rather_than_crash_or_pass(tmp_path, pulled):
+    """Through opened_members, as the build reaches it: a record lacking the
+    member, its 'pulled' null (was a TypeError) or 'unknown' (was read as
+    pulled after the member's first quarter, so the member was taken as one
+    the FDIC has no row for and the build went on)."""
+    cache = lay_out(tmp_path, drop=(KEY_USA,), pulled="1995-10-01")
+    rec = json.loads((cache / run.INSTITUTIONS).read_text(encoding="utf-8"))
+    _record(cache, **dict(rec, pulled=pulled))
+    data = fixture()
+    with pytest.raises(ValueError, match="pulled is"):
+        run.opened_members(cache, {KEYBANK: [(KEY_USA, "20041231")]}, data, {KEYBANK: "KeyBank"})
 
 
 # ---------------------------------------------------------------- build

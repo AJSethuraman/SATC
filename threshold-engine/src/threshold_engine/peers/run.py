@@ -401,6 +401,16 @@ def load_institutions(path) -> dict:
     if not isinstance(got, dict) or set(got) != keys:
         raise ValueError("%s must hold {%s}, as 'peers pull --mergers' writes it; pull the merger record "
                          "again" % (path, ", ".join(sorted(keys))))
+    # 'pulled' decides whether a member the record lacks could have been in
+    # it (opened_members); a value that is not a date would compare as text
+    # and pass or fail that check by accident. 'rows' is printed as a count.
+    if not (isinstance(got["pulled"], str) and fdic._is_date(got["pulled"])):
+        raise ValueError("%s: pulled is %r, which is not a date written like 2026-10-18; it says whether a bank "
+                         "the record lacks could have been in it. Pull the merger record again"
+                         % (path, got["pulled"]))
+    if isinstance(got["rows"], bool) or not isinstance(got["rows"], int) or got["rows"] < 1:
+        raise ValueError("%s: rows is %r, which is not a count of institutions (a whole number, at least 1: the "
+                         "pull refuses an empty record). Pull the merger record again" % (path, got["rows"]))
     for key in ("established", "undated"):
         if not isinstance(got[key], dict):
             raise ValueError("%s: %s must be {certificate: {name, established}}" % (path, key))
