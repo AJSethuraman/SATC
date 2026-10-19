@@ -174,7 +174,7 @@ def is_reparse(path: Path) -> bool:
 def check_not_redirected(root: Path) -> None:
     """Refuse a root, or anything above or inside it, that points elsewhere."""
     probe = [root, root / "from-rev", root / "from-bassy", root / "cursors"]
-    probe += [root / name for name in ("GOALS.md", "guard-local.txt", "AGREED.md")]  # FILES-MARK
+    probe += [root / name for name in ("GOALS.md", "guard-local.txt", "AGREED.md", "README.md")]  # FILES-MARK
     probe += [root / d / "RESUME.md" for d in ("from-rev", "from-bassy")]
     if (root / "cursors").is_dir():
         probe += list((root / "cursors").glob("*.json"))
@@ -987,13 +987,13 @@ def cmd_init(root: Path) -> str:
     for d in ("from-rev", "from-bassy", "cursors"):
         (root / d).mkdir(parents=True, exist_ok=True)
     made = []
-    if not (root / "GOALS.md").exists():
+    if not os.path.lexists(root / "GOALS.md"):  # INIT-LEXISTS-MARK
         shutil_copy(HERE / "GOALS.template.md", root / "GOALS.md")
         made.append("GOALS.md")
-    if not (root / "guard-local.txt").exists():
+    if not os.path.lexists(root / "guard-local.txt"):
         shutil_copy(HERE / "guard-local.template.txt", root / "guard-local.txt")
         made.append("guard-local.txt")
-    if not (root / "README.md").exists():
+    if not os.path.lexists(root / "README.md"):  # INIT-README-MARK
         shutil_copy(HERE / "README.md", root / "README.md")
         made.append("README.md")
     return "ready: " + str(root) + (" (created " + ", ".join(made) + ")" if made else "")

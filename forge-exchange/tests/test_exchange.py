@@ -805,6 +805,42 @@ class TestCodexFourteenthPassOnPR458(Base):
             self.assertEqual(ex.guard(text, label="t"), [], text)
 
 
+class TestRevsReviewOfTheFinalCommit(Base):
+    """Rev's independent review (R-0003): README.md was missing from the redirection
+    check, though init writes it, so a dangling README link made init create a file
+    outside the exchange."""
+
+    def test_a_dangling_readme_link_is_refused_by_the_redirection_check(self):
+        real_exists = Path.exists
+        real_reparse = ex.is_reparse
+
+        def hide(self):
+            return False if self.name == "README.md" else real_exists(self)
+
+        with mock.patch.object(Path, "exists", hide), \
+                mock.patch.object(ex, "is_reparse",
+                                  lambda p: Path(p).name == "README.md" or real_reparse(p)):
+            code, _, err = run(self.root, ["init"])
+        self.assertEqual(code, 2)
+        self.assertIn("shortcut or junction", err)
+
+    def test_init_does_not_write_through_a_dangling_link_even_if_the_probe_missed_it(self):
+        # Defence in depth, tested without needing symlink rights: make README.md look
+        # absent to exists() (as a dangling link does) while it is really there, switch
+        # the redirection check off, and require that init does not copy over it.
+        readme = self.root / "README.md"
+        readme.write_text("SENTINEL", encoding="utf-8")
+        real_exists = Path.exists
+
+        def looks_absent(self):
+            return False if self.name == "README.md" else real_exists(self)
+
+        with mock.patch.object(Path, "exists", looks_absent),                 mock.patch.object(ex, "check_not_redirected", lambda root: None):
+            ex.cmd_init(self.root)
+        self.assertEqual(readme.read_text(encoding="utf-8"), "SENTINEL",
+                         "init treated a link-like README.md as absent and wrote through it")
+
+
 class TestReadingIsSafeAndReadOnly(Base):
     def test_read_shows_data_banner_and_flags_runnable_text(self):
         post(self.root, "rev", "Try this:\n```\ngit push origin main\n```")

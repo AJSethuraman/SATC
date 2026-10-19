@@ -1246,8 +1246,8 @@ the shared folder. What exists, measured:
 
 | | |
 |---|---|
-| Tests | 120 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
-| Mutation check | 70 deliberate breakages of guard and safety rules, 70 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
+| Tests | 122 (`python -m unittest discover -s tests`), all passing, none skipped on this machine |
+| Mutation check | 72 deliberate breakages of guard and safety rules, 72 caught, each by a rule test. The first run had 3 survivors (two rules were partly redundant with others, and one test never isolated its rule); the tests were tightened. A later run was **vacuous** for a time: once the test that checks the installed copy matches the repo copy existed, every mutant differed from it and failed it, so "all caught" meant nothing. I found that while fixing Rev's findings and the check now skips the two environment tests |
 | Dry run | Run in a temporary folder with bait: an SSN-shaped value was refused and nothing written; a message of kind "run" was refused; a note containing a code block was shown as data and flagged runnable-looking; a hand-saved bad file was withheld without its value, left where it was, and the cursor was held and refused to pass it; identical words posted once; an agreement went from mutual to STALE when its proposal was edited; a client name was allowed and an email refused |
 | Parity | The SSN and EIN patterns equal `client-documents/tins.py` (a test compares them). A `bin` copy must match the repo copy (a test compares them; it failed when I deliberately left them out of step and passed after refreshing) |
 | False-alarm denominator | Over Rev's four existing files, about 115,000 characters, counts only: 17 findings (links off the allowed list, file names such as spreadsheets and PDFs, and mentions of two protected places by name). 0 findings in one file. No SSN, EIN or long digit run anywhere |
@@ -1482,6 +1482,16 @@ above), each fixed with a test and a mutation:
     `satc_vault.db\archive`, a Windows alternate stream `satc_vault.db:client`, and
     `satc_vault.db~` all passed. An allowed name is now exempt only as a bare token
     followed by whitespace, the end, or sentence punctuation.
+
+45. **`README.md` was missing from the redirection check,** found by Rev's independent
+    review of the final commit (R-0003), the review that stood in for Codex. `init`
+    writes it, so a dangling `README.md` link made `init` report "ready" and create a
+    file outside the exchange. Rev reproduced it in an isolated fixture and stated it
+    was pre-existing, not caused by the commit she was reviewing. `README.md` is in
+    the check now, and `init` also stops treating a dangling link as "absent", so it
+    cannot write through one even if the check misses it. Rev's lower-priority note, a
+    backtick before a file name giving a false positive, is a format variant and is
+    recorded as such, not fixed.
 
 Because crashes had become a recurring *kind* of finding, I stopped chasing instances
 and tested the class: 60,000 random hostile strings (malformed links, control
