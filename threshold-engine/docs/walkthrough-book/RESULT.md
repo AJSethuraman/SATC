@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2462 of 2462 reads as expected.**
+**2502 of 2502 reads as expected.**
 
 No differences.
 
@@ -2442,9 +2442,9 @@ The peer group is every peer again: each latest value is the series file's own.
 | ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
-## B14 · Open Signals: 124 of 124
+## B14 · Open Signals: 164 of 164
 
-The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; two fit tables agree with the same correlations worked out from the series, lead by lead.
+The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead.
 
 | | Cell | Expected | Excel |
 |---|---|---|---|
@@ -2500,15 +2500,15 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!F20 | Yes | Yes |
 | ok | Signals!R74 | 2 | 2 |
 | ok | Signals!S74 | 0.8923573311318846 | 0.8923573311318843 |
-| ok | Signals!U74 | 29 | 29 |
+| ok | Signals!U74 | 27 | 27 |
 | ok | Signals!T74 | 0.9666015097137213 | 0.9666015097137214 |
 | ok | Signals!R75 | 2 | 2 |
 | ok | Signals!S75 | 0.8604408488787167 | 0.8604408488787165 |
-| ok | Signals!U75 | 29 | 29 |
+| ok | Signals!U75 | 27 | 27 |
 | ok | Signals!T75 | 0.8307722344365586 | 0.8307722344365583 |
 | ok | Signals!R76 | 2 | 2 |
 | ok | Signals!S76 | 0.8339772638856662 | 0.8339772638856662 |
-| ok | Signals!U76 | 29 | 29 |
+| ok | Signals!U76 | 27 | 27 |
 | ok | Signals!T76 | 0.3080802393004971 | 0.3080802393004945 |
 | ok | Signals!R77 | -1 | -1 |
 | ok | Signals!S77 | 0.7569587749225609 | 0.7569587749225606 |
@@ -2524,11 +2524,11 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!T79 | 0.618676221626357 | 0.6186762216263574 |
 | ok | Signals!R80 | 6 | 6 |
 | ok | Signals!S80 | 0.6812375273649898 | 0.6812375273649897 |
-| ok | Signals!U80 | 29 | 29 |
+| ok | Signals!U80 | 23 | 23 |
 | ok | Signals!T80 | -0.7329267796471881 | -0.7329267796471896 |
 | ok | Signals!R81 | 6 | 6 |
 | ok | Signals!S81 | 0.5051634081457965 | 0.5051634081457965 |
-| ok | Signals!U81 | 29 | 29 |
+| ok | Signals!U81 | 23 | 23 |
 | ok | Signals!T81 | -0.8785693868848957 | -0.8785693868848993 |
 | ok | Signals!O73 | Other consumer · 30+ incl. nonaccrual · KeyBank | Other consumer · 30+ incl. nonaccrual · KeyBank |
 | ok | Signals!R73 | -4 | -4 |
@@ -2537,7 +2537,7 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!T73 | 0.618676221626357 | 0.6186762216263574 |
 | ok | Signals!R93 | 4 | 4 |
 | ok | Signals!S93 | 0.8248286522101923 | 0.8248286522101921 |
-| ok | Signals!U93 | 52 | 52 |
+| ok | Signals!U93 | 48 | 48 |
 | ok | Signals!T93 | 0.3343361919039883 | 0.33433619190398817 |
 | ok | Signals!R94 | 2 | 2 |
 | ok | Signals!S94 | 0.6496075304096223 | 0.649607530409622 |
@@ -2545,7 +2545,7 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!T94 | 0.5483677972129555 | 0.5483677972129556 |
 | ok | Signals!R95 | 4 | 4 |
 | ok | Signals!S95 | 0.727205759606632 | 0.7272057596066318 |
-| ok | Signals!U95 | 52 | 52 |
+| ok | Signals!U95 | 48 | 48 |
 | ok | Signals!T95 | 0.42257694197164625 | 0.4225769419716454 |
 | ok | Signals!R96 | 1 | 1 |
 | ok | Signals!S96 | 0.7305729102024882 | 0.7305729102024879 |
@@ -2561,14 +2561,54 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!T98 | -0.39273193956532265 | -0.39273193956532243 |
 | ok | Signals!R99 | 7 | 7 |
 | ok | Signals!S99 | 0.31660819802914997 | 0.31660819802914997 |
-| ok | Signals!U99 | 52 | 52 |
+| ok | Signals!U99 | 45 | 45 |
 | ok | Signals!T99 | 0.7384681296983978 | 0.7384681296983978 |
 | ok | Signals!R100 | 7 | 7 |
 | ok | Signals!S100 | 0.22584854043033203 | 0.22584854043033187 |
-| ok | Signals!U100 | 52 | 52 |
+| ok | Signals!U100 | 45 | 45 |
 | ok | Signals!T100 | -0.06506447848812397 | -0.06506447848812379 |
 | ok | Signals!O92 | Other consumer · 30+ incl. nonaccrual · KeyBank | Other consumer · 30+ incl. nonaccrual · KeyBank |
 | ok | Signals!R92 | -3 | -3 |
 | ok | Signals!S92 | 0.5082401370242108 | 0.508240137024211 |
 | ok | Signals!U92 | 52 | 52 |
 | ok | Signals!T92 | -0.39273193956532265 | -0.39273193956532243 |
+| ok | Signals!M207 | Credit card | Credit card |
+| ok | Signals!R207 | 3 | 3 |
+| ok | Signals!S207 | 0.40658975870741754 | 0.4065897587074173 |
+| ok | Signals!U207 | 75 | 75 |
+| ok | Signals!T207 | 0.46924711728888324 | 0.4692471172888829 |
+| ok | Signals!M208 | Other consumer | Other consumer |
+| ok | Signals!R208 | 3 | 3 |
+| ok | Signals!S208 | 0.6560351950614584 | 0.6560351950614582 |
+| ok | Signals!U208 | 75 | 75 |
+| ok | Signals!T208 | 0.7141740481861664 | 0.7141740481861663 |
+| ok | Signals!M209 | Home equity | Home equity |
+| ok | Signals!R209 | 5 | 5 |
+| ok | Signals!S209 | 0.7312726595549335 | 0.731272659554934 |
+| ok | Signals!U209 | 73 | 73 |
+| ok | Signals!T209 | 0.8142146842529272 | 0.8142146842529274 |
+| ok | Signals!M210 | Mortgage | Mortgage |
+| ok | Signals!R210 | 3 | 3 |
+| ok | Signals!S210 | 0.7295736881390031 | 0.7295736881390033 |
+| ok | Signals!U210 | 75 | 75 |
+| ok | Signals!T210 | 0.7919005226831971 | 0.791900522683197 |
+| ok | Signals!M211 | Auto | Auto |
+| ok | Signals!R211 | -3 | -3 |
+| ok | Signals!S211 | 0.5119252437309332 | 0.5119252437309331 |
+| ok | Signals!U211 | 58 | 58 |
+| ok | Signals!T211 | -0.2571888967999909 | -0.2571888967999906 |
+| ok | Signals!M212 | All consumer | All consumer |
+| ok | Signals!R212 | -3 | -3 |
+| ok | Signals!S212 | 0.42415700651147836 | 0.4241570065114781 |
+| ok | Signals!U212 | 58 | 58 |
+| ok | Signals!T212 | 0.1801565549290261 | 0.18015655492902607 |
+| ok | Signals!M213 | Credit card + Other consumer | Credit card + Other consumer |
+| ok | Signals!R213 | 3 | 3 |
+| ok | Signals!S213 | 0.5241427657433206 | 0.5241427657433207 |
+| ok | Signals!U213 | 75 | 75 |
+| ok | Signals!T213 | 0.6074780200613327 | 0.6074780200613324 |
+| ok | Signals!B57 | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg |
+| ok | Signals!I51 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 |
+| ok | Signals!L53 | 36.51470839230916 | 36.51470839230916 |
+| ok | Signals!L54 | 73.23803479311124 | 73.23803479311124 |
+| ok | Signals!L55 | 110.4453569817389 | 110.4453569817389 |

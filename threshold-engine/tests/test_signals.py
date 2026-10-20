@@ -4,6 +4,7 @@ control, section and fit table the round-3 hand-off specifies is on the
 sheet, in its place, as a formula. Values the formulas produce are checked in Excel by the book
 walkthrough (docs/walkthrough-book)."""
 import json
+import re
 from decimal import Decimal
 
 import pytest
@@ -120,7 +121,7 @@ LABELS = ["Credit card - Net charge-offs - Industry (every bank)", "Credit card 
           "Credit card - 30+ to charge-off - Peer group (2 banks)", "Credit card - 30+ days past due incl. nonaccrual - KeyBank"]
 
 
-def tiny_book(tmp_path):
+def tiny_book(tmp_path, extra=()):
     wb = Workbook()
     da = wb.active; da.title = "Data"
     da.append(["Quarter"] + LABELS)
@@ -139,8 +140,9 @@ def tiny_book(tmp_path):
     sig = {"series": [(k, "title of " + k, "%", {q: float(i) for i, q in enumerate(GRID)}) for k, *_ in ST.SIGNALS]
            + [("keybank_credit-card_bal", "KeyBank, Credit card: balance", "$000", {q: 1000.0 for q in GRID}),
               ("keybank_credit-card_d30", "KeyBank, Credit card: 30+", "$000", {q: 60.0 for q in GRID}),
-              ("win1", "window 1", "%", {q: 40.0 for q in GRID}), ("win2", "window 2", "%", {q: 80.0 for q in GRID}),
-              ("win3", "window 3", "%", {q: 120.0 for q in GRID})],
+              ("win1_credit-card", "window 1", "%", {q: 40.0 for q in GRID}),
+              ("win2_credit-card", "window 2", "%", {q: 80.0 for q in GRID}),
+              ("win3_credit-card", "window 3", "%", {q: 120.0 for q in GRID})] + list(extra),
            "sources": [("a source", "a file", "0" * 64)]}
     info = ST.build(wb, labels=LABELS, parts={lbl: tuple(lbl.split(" - ")) for lbl in LABELS}, grid=GRID, signals=sig,
                     peers=[{"short": "Alpha"}, {"short": "Beta"}], include={"Alpha": "B9", "Beta": "C9"}, peers_sheet="Peers",
@@ -251,8 +253,11 @@ def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follow
     ws, wk = wb["Signals"], wb["Signals workings"]
     heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
     cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 30)}
-    assert cells["30+ to charge-off: the product drawn"] == ("=IF(ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ to charge-off - KeyBank\","
-                                                             "'Data'!$1:$1,0)),'Signals'!$B$5,\"Credit card\")")
+    # Always the picked product; a product with none is said, never drawn as another product.
+    assert cells["30+ to charge-off: the product drawn"] == "='Signals'!$B$5"
+    assert cells["30+ to charge-off: the product drawn has it"] == (
+        "=ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ to charge-off - KeyBank\",'Data'!$1:$1,0))")
+    assert any("none for this product in this workbook" in t for t in _texts(ws))
     assert "LOOKUP(2,1/ISNUMBER(" in cells["last quarter with a gap"]
     assert cells["the gap priced ($000): gap / 100 x KeyBank's 30+ dollars"].startswith("=IF(AND(ISNUMBER(")
     kb = wk.cell(2, heads["30+ to charge-off: KeyBank, the product drawn"]).value
@@ -262,11 +267,71 @@ def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follow
     gap = area[0]
     assert [str(s.graphicalProperties.solidFill.srgbClr) for s in gap.series] == [K.GAP_WORSE, K.GAP_BETTER]
     assert gap.y_axis.scaling.min is None and gap.y_axis.scaling.max is None        # the real gap reaches -25 points
-    assert gap.y_axis.majorGridlines is not None and gap.y_axis.numFmt.formatCode == "+0;-0;0"
+    assert gap.y_axis.majorGridlines is not None and gap.y_axis.numFmt.formatCode == "+0.0;-0.0;0"
     assert gap.legend is None                                                         # one line, named in the title above
     texts = _texts(ws)
-    assert any(t.startswith('="Credit card · charged off within the window') for t in texts)
+    # The window test follows the product drawn, by its key on Signals data.
+    assert any(t.startswith("='Signals workings'!") and '" · charged off within the window' in t for t in texts)
+    assert any('MATCH("win2_"&VLOOKUP(' in t for t in texts)
     assert any(t.startswith("=\"Gap, priced in KeyBank's delinquent \"&LOWER(") for t in texts)
+
+
+def test_the_gap_reads_every_products_30_plus_to_charge_off_from_signals_data(tmp_path):
+    # The build writes each product's 30+ to charge-off on Signals data, so the gap follows a product the
+    # book does not rate on it (the analyst, 20 Oct 2026: it "doesn't change and I would think it should").
+    co = [("co_%s_other-consumer" % w, w, "%", {q: 50.0 for q in GRID}) for w in ("keybank", "pack-composite", "industry")]
+    wb, info = tiny_book(tmp_path, extra=co)
+    wk = wb["Signals workings"]
+    heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
+    cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 40)}
+    assert cells["30+ to charge-off: the product drawn"] == "='Signals'!$B$5"
+    assert 'MATCH("co_keybank_"&IFERROR(VLOOKUP(' in cells["30+ to charge-off: the product drawn has it"]
+    for w, h in (("keybank", "KeyBank"), ("pack-composite", "Peer group (2 banks)"), ("industry", "Industry (every bank)")):
+        f = wk.cell(2, heads["30+ to charge-off: %s, the product drawn" % h]).value
+        assert '"co_%s_"&VLOOKUP(' % w in f and "'Signals data'!" in f
+
+
+def test_across_products_reads_each_product_against_the_pick(tmp_path):
+    # The analyst, 20 Oct 2026, on three fixed charts: "Why in the world is it literally just three graphs
+    # that don't change". Each product's industry 30-89 is fitted against the picked series, lead by lead.
+    wb, info = tiny_book(tmp_path, extra=())
+    ws = wb["Signals"]
+    texts = _texts(ws)
+    assert any(t.startswith("Across products · 30-89 days past due, Industry (every bank), against the picked series")
+               for t in texts)
+    assert any(t.startswith('="Against "&') for t in texts)
+    assert not any("Mortgage · 90+ days past due incl. nonaccrual, %" == t for t in texts)
+    # every product the book has, the combined two as well, each with a color of its own (Codex on #466)
+    assert set(ST.PRODUCTS + ST.COMBINED) <= set(ST.PRODUCT_COLOR)
+    assert len({ST.PRODUCT_COLOR[p] for p in ST.PRODUCTS + ST.COMBINED}) == len(ST.PRODUCTS + ST.COMBINED)
+
+
+def test_the_pipeline_follows_the_picked_product(tmp_path):
+    # The analyst, 20 Oct 2026: "I was hoping the pipeline would adjust with the product to show the
+    # pipeline in every product we have". Each line is looked up on Data by the product drawn.
+    wb, info = tiny_book(tmp_path)
+    ws, wk = wb["Signals"], wb["Signals workings"]
+    heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
+    cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 40)}
+    assert cells["the pipeline: the product drawn"] == "='Signals'!$B$5"
+    assert cells["the pipeline: the product drawn has 30+ incl. nonaccrual"] == (
+        "=ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ days past due incl. nonaccrual - KeyBank\",'Data'!$1:$1,0))")
+    for m in ST.PIPE:
+        for s_ in ("Industry (every bank)", "Peer group (2 banks)", "KeyBank"):
+            f = wk.cell(2, heads["the pipeline: %s, %s, the product drawn" % (m, s_)]).value
+            assert '&" - %s - %s"' % (m, s_) in f and "MATCH('Signals workings'!$" in f
+    texts = _texts(ws)
+    assert any(t.startswith('="The pipeline · "&LOWER(') for t in texts)
+    assert sum(t.startswith('="%d. "&' % k) for t in texts for k in (1, 2, 3)) == 3
+    # The three pipeline charts draw from the workings, not from a fixed column on Data.
+    piped = [ch for ch in ws._charts if any("Signals workings" in s_.val.numRef.f and "pipe" in
+                                            wk.cell(1, _col_of(s_.val.numRef.f)).value for s_ in ch.series)]
+    assert len(piped) == 3
+
+
+def _col_of(ref):
+    from openpyxl.utils import column_index_from_string
+    return column_index_from_string(re.search(r"!\$([A-Z]+)\$", ref).group(1))
 
 
 def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_the_inputs_as_a_table(tmp_path):
@@ -287,7 +352,7 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
         for r in range(pick, first + n_t):
             assert ws.cell(r, 18).value.startswith("=IF('Signals workings'!") and ws.cell(r, 18).number_format == "+0;-0;0"
             assert ws.cell(r, 19).value.startswith("=IFERROR(MAX('Signals workings'!")
-            assert ws.cell(r, 21).value.startswith("=SUMPRODUCT(")
+            assert "SUMPRODUCT(--ISNUMBER(OFFSET(" in ws.cell(r, 21).value   # counted at the lead shown
         head = ws.cell(pick - 2, 21)
         assert head.value.endswith("· quarterly") and head.alignment.horizontal == "right"
         # the inputs of the rescale: a table under the overlay, the shift and the window live
@@ -313,8 +378,8 @@ def test_the_charts_take_the_sizes_the_grid_gives_them(tmp_path):
     wb, info = tiny_book(tmp_path)
     ws = wb["Signals"]
     sizes = {(round(ch.anchor.ext.width / 9525), round(ch.anchor.ext.height / 9525)) for ch in ws._charts}
-    assert {(912, 264), (452, 220), (544, 220), (352, 200), (268, 106)} <= sizes
-    assert len(ws._charts) == 3 + 4 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
+    assert {(912, 264), (360, 220), (544, 220), (352, 200), (268, 106)} <= sizes
+    assert len(ws._charts) == 3 + 5 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
     for ch in ws._charts:
         if ch.tagname == "lineChart" and len(ch.series) == 1:
             assert ch.varyColors is False

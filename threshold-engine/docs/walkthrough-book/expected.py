@@ -19,6 +19,7 @@ still there in step 4, and step 10 saves, closes and reopens the file to show
 the decisions were kept.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -697,7 +698,9 @@ def _fit(sig_change, tgt_change, excl=False):
     if not out_all:
         return None
     k = max(out_all, key=lambda k_: out_all[k_])
-    return k, out_all[k], out_ex.get(k), sum(1 for q in sig_change if q in tgt_change)
+    # the quarters the fit at that lead rests on
+    return k, out_all[k], out_ex.get(k), sum(1 for i in range(max(0, -k), n_ - max(0, k))
+                                             if GRID_Q[i] in sig_change and GRID_Q[i + k] in tgt_change)
 
 
 DATA_SER = {lbl: {quarter(p_.date): p_.value for p_ in PTS[lbl]} for lbl in LABELS}
@@ -752,11 +755,43 @@ for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
                       {"sheet": "Signals", "cell": "U%d" % rr, "expect": n_}]
         if r_ex is not None:
             sig_reads.append({"sheet": "Signals", "cell": "T%d" % rr, "expect": r_ex})
+# Across products: each product's industry 30-89 against the pick, worked out here as the fit tables are.
+_xp_head = next(c.row for row in _sig.iter_rows(min_col=13, max_col=13) for c in row if c.value == "Product")
+for _i, _p in enumerate([p_ for p_ in ST.PRODUCTS + ST.COMBINED if " - ".join((p_, ST.XP_MEASURE, ST.INDUSTRY)) in DATA_SER]):
+    _rr = _xp_head + 1 + _i
+    sig_reads.append({"sheet": "Signals", "cell": "M%d" % _rr, "expect": _p})
+    _f = _fit(_change(DATA_SER[" - ".join((_p, ST.XP_MEASURE, ST.INDUSTRY))]), _change(DATA_SER[PICKED_LBL]))
+    if _f is None:
+        continue
+    _k, _r_all, _r_ex, _n = _f
+    sig_reads += [{"sheet": "Signals", "cell": "R%d" % _rr, "expect": _k},
+                  {"sheet": "Signals", "cell": "S%d" % _rr, "expect": _r_all},
+                  {"sheet": "Signals", "cell": "U%d" % _rr, "expect": _n}]
+    if _r_ex is not None:
+        sig_reads.append({"sheet": "Signals", "cell": "T%d" % _rr, "expect": _r_ex})
+
+# The pipeline and the window test follow the product drawn (the pick as built, other consumer;
+# the analyst, 20 Oct 2026: "show the pipeline in every product we have").
+_PICK_P = _sig["B5"].value
+_at = {c.value: c.coordinate for row in _sig.iter_rows() for c in row if isinstance(c.value, str)}
+_pipe_cell = next(v for k, v in _at.items() if k.startswith('="The pipeline'))
+sig_reads.append({"sheet": "Signals", "cell": _pipe_cell, "expect": "The pipeline %s %s: 30+ incl. nonaccrual, then 90+ incl. "
+                  "nonaccrual, then charge-offs" % (DOT, _PICK_P.lower())})
+_win_key = "win%d_" + re.sub(r"[^a-z0-9]+", "-", _PICK_P.lower()).strip("-")
+_qw = max(q for q in SIGNAL[_win_key % 3])
+_win_cell = next(v for k, v in _at.items() if '" · charged off within the window' in k)
+sig_reads.append({"sheet": "Signals", "cell": _win_cell, "expect": "%s %s charged off within the window, %% of delinquent dollars, %s"
+                  % (_PICK_P, DOT, _qw)})
+_wr = int(re.sub(r"[A-Z]+", "", _win_cell))
+for _n in (1, 2, 3):
+    if _qw in SIGNAL[_win_key % _n]:
+        sig_reads.append({"sheet": "Signals", "cell": "L%d" % (_wr + 1 + _n), "expect": SIGNAL[_win_key % _n][_qw]})
 steps.append({"id": "B14", "what": "Open Signals",
               "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads "
-                       "KeyBank's Call Report by product; the pack line names the peers in and out; two fit tables agree with "
-                       "the same correlations worked out from the series, lead by lead",
-              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}]})
+                       "KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the "
+                       "window test are other consumer's; two fit tables agree with the same correlations worked out "
+                       "from the series, lead by lead",
+              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}, {"sheet": "Signals", "range": "A%d:U%d" % (_xp_head - 3, _xp_head + 14), "file": "b14-across.png"}]})
 
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")
