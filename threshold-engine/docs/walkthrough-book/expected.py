@@ -19,6 +19,7 @@ still there in step 4, and step 10 saves, closes and reopens the file to show
 the decisions were kept.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -752,10 +753,27 @@ for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
                       {"sheet": "Signals", "cell": "U%d" % rr, "expect": n_}]
         if r_ex is not None:
             sig_reads.append({"sheet": "Signals", "cell": "T%d" % rr, "expect": r_ex})
+# The pipeline and the window test follow the product drawn (the pick as built, other consumer;
+# the analyst, 20 Oct 2026: "show the pipeline in every product we have").
+_PICK_P = _sig["B5"].value
+_at = {c.value: c.coordinate for row in _sig.iter_rows() for c in row if isinstance(c.value, str)}
+_pipe_cell = next(v for k, v in _at.items() if k.startswith('="The pipeline'))
+sig_reads.append({"sheet": "Signals", "cell": _pipe_cell, "expect": "The pipeline %s %s: 30+ incl. nonaccrual, then 90+ incl. "
+                  "nonaccrual, then charge-offs" % (DOT, _PICK_P.lower())})
+_win_key = "win%d_" + re.sub(r"[^a-z0-9]+", "-", _PICK_P.lower()).strip("-")
+_qw = max(q for q in SIGNAL[_win_key % 3])
+_win_cell = next(v for k, v in _at.items() if '" · charged off within the window' in k)
+sig_reads.append({"sheet": "Signals", "cell": _win_cell, "expect": "%s %s charged off within the window, %% of delinquent dollars, %s"
+                  % (_PICK_P, DOT, _qw)})
+_wr = int(re.sub(r"[A-Z]+", "", _win_cell))
+for _n in (1, 2, 3):
+    if _qw in SIGNAL[_win_key % _n]:
+        sig_reads.append({"sheet": "Signals", "cell": "L%d" % (_wr + 1 + _n), "expect": SIGNAL[_win_key % _n][_qw]})
 steps.append({"id": "B14", "what": "Open Signals",
               "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads "
-                       "KeyBank's Call Report by product; the pack line names the peers in and out; two fit tables agree with "
-                       "the same correlations worked out from the series, lead by lead",
+                       "KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the "
+                       "window test are other consumer's; two fit tables agree with the same correlations worked out "
+                       "from the series, lead by lead",
               "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}]})
 
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},

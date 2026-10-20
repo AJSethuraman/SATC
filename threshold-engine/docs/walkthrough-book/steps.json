@@ -12039,7 +12039,7 @@
   {
    "id": "B14",
    "what": "Open Signals",
-   "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; two fit tables agree with the same correlations worked out from the series, lead by lead",
+   "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead",
    "actions": [],
    "reads": [
     {
@@ -12661,6 +12661,31 @@
      "sheet": "Signals",
      "cell": "T92",
      "expect": -0.39273193956532265
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B57",
+     "expect": "The pipeline \u00b7 other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "I51",
+     "expect": "Other consumer \u00b7 charged off within the window, % of delinquent dollars, 2025Q3"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "L53",
+     "expect": 36.51470839230916
+    },
+    {
+     "sheet": "Signals",
+     "cell": "L54",
+     "expect": 73.23803479311124
+    },
+    {
+     "sheet": "Signals",
+     "cell": "L55",
+     "expect": 110.4453569817389
     }
    ],
    "picture": [

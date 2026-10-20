@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2462 of 2462 reads as expected.**
+**2467 of 2467 reads as expected.**
 
 No differences.
 
@@ -2442,9 +2442,9 @@ The peer group is every peer again: each latest value is the series file's own.
 | ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
-## B14 · Open Signals: 124 of 124
+## B14 · Open Signals: 129 of 129
 
-The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; two fit tables agree with the same correlations worked out from the series, lead by lead.
+The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead.
 
 | | Cell | Expected | Excel |
 |---|---|---|---|
@@ -2572,3 +2572,8 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!S92 | 0.5082401370242108 | 0.508240137024211 |
 | ok | Signals!U92 | 52 | 52 |
 | ok | Signals!T92 | -0.39273193956532265 | -0.39273193956532243 |
+| ok | Signals!B57 | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg |
+| ok | Signals!I51 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 |
+| ok | Signals!L53 | 36.51470839230916 | 36.51470839230916 |
+| ok | Signals!L54 | 73.23803479311124 | 73.23803479311124 |
+| ok | Signals!L55 | 110.4453569817389 | 110.4453569817389 |

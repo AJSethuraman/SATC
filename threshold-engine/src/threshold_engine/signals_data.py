@@ -193,10 +193,13 @@ def windows(data: Dict[str, list], product: str, ns=(1, 2, 3)) -> Dict[int, Dict
     return out
 
 
-def load(spec: dict, cache, data: Optional[Dict[str, list]], self_cert, products, say=print) -> dict:
+def load(spec: dict, cache, data: Optional[Dict[str, list]], self_cert, products, say=print,
+         window_products=None) -> dict:
     """Every series the tab draws. ``spec`` is the book's ``signals`` section
     with paths resolved; ``data`` the FDIC cache as the peers build read it
-    (None: the by-product dollars are not computed)."""
+    (None: the by-product dollars are not computed). ``window_products``:
+    the products the window test is worked out for (every product in the
+    book, combined ones included); ``products`` when not given."""
     series: List[Tuple[str, str, str, Dict[str, float]]] = []
     sources: List[Tuple[str, str, str]] = []
     cols = {}
@@ -233,9 +236,11 @@ def load(spec: dict, cache, data: Optional[Dict[str, list]], self_cert, products
                     series.append(("%s_%s_%s" % (who.lower(), re.sub(r"[^a-z0-9]+", "-", p.lower()).strip("-"), k),
                                    "%s, %s: %s" % (who, p, title), "$000",
                                    {q: v[k] for q, v in bp[p].items() if v[k] is not None}))
-        for n, d_ in windows(data, "Credit card").items():
-            series.append(("win%d" % n, "Industry card: of the dollars 30+ incl. nonaccrual at quarter-end, %% charged off over the next %d quarter%s (4q avg)"
-                           % (n, "" if n == 1 else "s"), "%", d_))
+        for p in (window_products or products):
+            slug = re.sub(r"[^a-z0-9]+", "-", p.lower()).strip("-")
+            for n, d_ in windows(data, p).items():
+                series.append(("win%d_%s" % (n, slug), "Industry, %s: of the dollars 30+ incl. nonaccrual at quarter-end, "
+                               "%% charged off over the next %d quarter%s (4q avg)" % (p, n, "" if n == 1 else "s"), "%", d_))
         sources.append(("FDIC Call Reports from the book's cache: each product's balance, charge-offs and past-due fields", "the cache", ""))
     say("signals: %d series from %d sources" % (len(series), len(sources)))
     return {"series": series, "sources": sources}

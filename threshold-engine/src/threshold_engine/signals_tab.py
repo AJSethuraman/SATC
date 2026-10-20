@@ -133,6 +133,8 @@ DQ30 = "30+ days past due incl. nonaccrual"
 DQ90 = "90+ days past due incl. nonaccrual"
 DQ_KEY_30 = "30+ incl. nonaccrual"                 # the measure's name on Peers delinquency data
 CO = "30+ to charge-off"
+#: The pipeline's three measures, in order.
+PIPE = (DQ30, DQ90, "Gross charge-offs")
 INDUSTRY = "Industry (every bank)"
 
 #: Rows of the fixed top of the tab, and of Where the dollars are.
@@ -288,6 +290,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     by_key = {k: (t, u, d) for k, t, u, d in signals["series"]}
     sources = signals["sources"]
     present = {lbl: parts[lbl] for lbl in labels}
+    prods = list(dict.fromkeys(parts[lbl][0] for lbl in labels))                  # every product in the book
     DA = _sheet(data_sheet)
     PD = _sheet("Peers data")
     DD = _sheet(dq_sheet)
@@ -547,19 +550,43 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         wk.cell(r, c0 + 2, '=IF(ISNUMBER({g}),MIN({g},0),0)'.format(g=A("gap", r)))
     for nm in ("co_kb", "co_pg", "co_ind", "gap"):
         drawn(nm + "_c", L(col[nm]), "%s, drawn" % nm)
+    # each product's key on Signals data (the window test and the dollars), as Python spells it
+    take("prod_name"); take("prod_slug")
+    wk.cell(1, col["prod_name"], "product"); wk.cell(1, col["prod_slug"], "its key on Signals data")
+    for i, p_ in enumerate(prods):
+        wk.cell(R0 + i, col["prod_name"], p_); wk.cell(R0 + i, col["prod_slug"], _slug(p_))
+    SLUG = lambda p_cell: 'VLOOKUP(%s,%s$%s$%d:$%s$%d,2,FALSE)' % (                       # noqa: E731
+        p_cell, WK, L(col["prod_name"]), R0, L(col["prod_slug"]), R0 + len(prods) - 1)
     # the gap, priced: at the last quarter with a gap, KeyBank's 30+ dollars in the product drawn
     q_gap = cell_("q_gap", "last quarter with a gap", '=IFERROR(LOOKUP(2,1/ISNUMBER(%s),%s),"")' % (RW("gap"), WQ))
     gap_at = cell_("gap_at", "gap at that quarter, points", '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (RW("gap"), q_gap, WQ))
     last_sd = L(sc - 2)
     d30_at = cell_("d30_at", "KeyBank 30+ incl. nonaccrual at that quarter, the product drawn ($000)",
-                   '=IFERROR(INDEX(%s$A$1:$%s$%d,MATCH(%s,%s$A$1:$A$%d,0),MATCH("keybank_"&SUBSTITUTE(LOWER(%s)," ","-")&"_d30",%s$1:$1,0)),"")'
-                   % (SDt, last_sd, R1, q_gap, SDt, R1, co_prod, SDt))
+                   '=IFERROR(INDEX(%s$A$1:$%s$%d,MATCH(%s,%s$A$1:$A$%d,0),MATCH("keybank_"&%s&"_d30",%s$1:$1,0)),"")'
+                   % (SDt, last_sd, R1, q_gap, SDt, R1, SLUG(co_prod), SDt))
     cell_("priced", "the gap priced ($000): gap / 100 x KeyBank's 30+ dollars",
           '=IF(AND(ISNUMBER(%s),ISNUMBER(%s)),%s/100*%s,"")' % (gap_at, d30_at, gap_at, d30_at))
+    # the pipeline, for the picked product where KeyBank has 30+ incl. nonaccrual, else credit card:
+    # each measure and source looked up on Data by its label, so the charts follow the pick
+    pipe_prod = cell_("pipe_product", "the pipeline: the product drawn",
+                      '=IF(ISNUMBER(MATCH(%s&" - %s - %s",%s$1:$1,0)),%s,"Credit card")' % (P_, DQ30, _q(self_short), DA, P_))
+    for j, m in enumerate(PIPE):
+        for s in (INDUSTRY, pg_src, self_short):
+            nm = "pipe%d_%s" % (j, _slug(s))
+            c0 = take(nm)
+            wk.cell(1, c0, "the pipeline: %s, %s, the product drawn" % (m, s))
+            for r in range(R0, R1 + 1):
+                wk.cell(r, c0, lookup('%s&" - %s - %s"' % (pipe_prod, m, _q(s)), r))
+            drawn(nm + "_c", L(c0), "the pipeline: %s, %s, drawn" % (m, s))
     # the window test: the last quarter every window has a rate
-    if "win3" in kcol:
-        cell_("q_win", "window test: last quarter with all three windows",
-              '=IFERROR(LOOKUP(2,1/ISNUMBER(%s$%s$%d:$%s$%d),%s$A$%d:$A$%d),"")' % (SDt, L(kcol["win3"]), R0, L(kcol["win3"]), R1, SDt, R0, R1))
+    # for the product drawn above (30+ to charge-off); its industry windows found on Signals data by key
+    SD_LAST = L(1 + len(keys))
+    win_at = lambda n_, q_: ('IFERROR(INDEX(%s$A$1:$%s$%d,MATCH(%s,%s$A$1:$A$%d,0),MATCH("win%d_"&%s,%s$1:$1,0)),"")'   # noqa: E731
+                             % (SDt, SD_LAST, R1, q_, SDt, R1, n_, SLUG(co_prod), SDt))
+    if any(k.startswith("win") for k in keys):
+        cell_("q_win", "window test: last quarter with all three windows, the product drawn",
+              '=IFERROR(LOOKUP(2,1/ISNUMBER(INDEX(%s$B$%d:$%s$%d,0,MATCH("win3_"&%s,%s$B$1:$%s$1,0))),%s$A$%d:$A$%d),"")'
+              % (SDt, R0, SD_LAST, R1, SLUG(co_prod), SDt, SD_LAST, SDt, R0, R1))
 
     # shifted z per signal: the signal's z moved k quarters later, k from the shift cell or the best fit
     shift_cells, best_cells = {}, {}
@@ -779,28 +806,27 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(r, 6, note).font = F_NOTE
         if i < 2:
             rule(r, 2, 7, HAIR)
-    # the window test: credit card, the industry over the next 1, 2 and 3 quarters; KeyBank and the
-    # peer group over two (the book's definition)
+    # the window test: the product drawn above, the industry over the next 1, 2 and 3 quarters;
+    # KeyBank and the peer group over two (the book's definition)
     if "q_win" in cells:
         qw = cells["q_win"]
-        c_ = ws.cell(g0 - 1, 9, '="Credit card · charged off within the window, %% of delinquent dollars, "&%s' % qw); c_.font = F_LAB
+        c_ = ws.cell(g0 - 1, 9, '=%s&" · charged off within the window, %% of delinquent dollars, "&%s' % (co_prod, qw))
+        c_.font = F_LAB
         for j, h in enumerate(("Window", "KeyBank", "Peer group", "Industry", "Gap to peers")):
             cc = ws.cell(g0, 9 + j, h); cc.font = F_LAB; cc.alignment = LEFT if j == 0 else RIGHT
         rule(g0, 9, 13)
-        card = {s: head_.get(" - ".join(("Credit card", CO, s))) for s in (self_short, pg_src)}
-        at = lambda c_: 'IFERROR(INDEX(%s$%s$%d:$%s$%d,MATCH(%s,%s$A$%d:$A$%d,0)),"")' % (DA, L(c_), R0, L(c_), R1, qw, DA, R0, R1)  # noqa: E731
+        at = lambda s_: ('IFERROR(INDEX(%s$A$1:$XFD$%d,MATCH(%s,%s$A$1:$A$%d,0),MATCH(%s&" - %s - %s",%s$1:$1,0)),"")'  # noqa: E731
+                         % (DA, R1, qw, DA, R1, co_prod, CO, _q(s_), DA))
         for i, n_ in enumerate((1, 2, 3)):
             r = g0 + 1 + i
             font = F_SMALL_B if n_ == 2 else F_SMALL
             ws.cell(r, 9, "%d quarter%s" % (n_, "" if n_ == 1 else "s")).font = font
-            if n_ == 2 and all(card.values()):
-                kb_, pg_ = at(card[self_short]), at(card[pg_src])
+            if n_ == 2:
+                kb_, pg_ = at(self_short), at(pg_src)
                 num(r, 10, "=" + kb_, "0.00", font); num(r, 11, "=" + pg_, "0.00", font)
                 c_ = num(r, 13, '=IF(AND(ISNUMBER(J{r}),ISNUMBER(K{r})),J{r}-K{r},"")'.format(r=r), "+0.00;-0.00;0.00", font)
                 c_.font = Font(name="Calibri", size=10, bold=True, color=K.CRIMSON)
-            if "win%d" % n_ in kcol:
-                num(r, 12, '=IFERROR(INDEX(%s$%s$%d:$%s$%d,MATCH(%s,%s$A$%d:$A$%d,0)),"")'
-                    % (SDt, L(kcol["win%d" % n_]), R0, L(kcol["win%d" % n_]), R1, qw, SDt, R0, R1), "0.00", font)
+            num(r, 12, "=" + win_at(n_, qw), "0.00", font)
             for c_ in range(9, 14):
                 if n_ == 2:
                     ws.cell(r, c_).fill = CANVAS
@@ -809,13 +835,18 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     spacer(g0 + 4)
     row = g0 + 5
 
-    # D. the pipeline
-    head(row, "The pipeline · credit card: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs", "The pipeline", 1)
+    # D. the pipeline, for the product drawn (the picked one, where KeyBank has 30+ incl. nonaccrual)
+    pp = cells["pipe_product"]
+    head(row, '="The pipeline · "&LOWER(%s)&": 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs"' % pp,
+         "The pipeline", 1)
     ws.row_dimensions[row + 1].height = 15
-    for j, (m, ttl) in enumerate(((DQ30, "1. Card 30+ incl. nonaccrual, %"), (DQ90, "2. Card 90+ incl. nonaccrual, %"),
-                                  ("Gross charge-offs", "3. Card gross charge-offs, 4 quarters, %"))):
+    for j, ttl in enumerate(('="1. "&%s&" 30+ incl. nonaccrual, %%"' % pp, '="2. "&%s&" 90+ incl. nonaccrual, %%"' % pp,
+                             '="3. "&%s&" gross charge-offs, 4 quarters, %%"' % pp)):
         title(row + 1, 2 + 6 * j, ttl)
-        _put(ws, _chart(three("Credit card", m, F06), (data_ws, 1), F06, R1, "0.0", 16), 2 + 6 * j, row + 2, 6 * GRID_PX - 8, 220)
+        lines = [dict(ws=wk, col=col["pipe%d_%s_c" % (j, _slug(s_))], name=s_,
+                      dot=(R1 - F06) if s_ == self_short else None, **style(s_))
+                 for s_ in (INDUSTRY, pg_src, self_short)]
+        _put(ws, _chart(lines, (data_ws, 1), F06, R1, "0.0", 16), 2 + 6 * j, row + 2, 6 * GRID_PX - 8, 220)
     ws.cell(row + 12, 2, PACK).font = F_NOTE
     spacer(row + 13)
     row += 14
