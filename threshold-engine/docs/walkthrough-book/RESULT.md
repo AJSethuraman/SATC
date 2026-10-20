@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2467 of 2467 reads as expected.**
+**2492 of 2492 reads as expected.**
 
 No differences.
 
@@ -2442,7 +2442,7 @@ The peer group is every peer again: each latest value is the series file's own.
 | ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
-## B14 · Open Signals: 129 of 129
+## B14 · Open Signals: 154 of 154
 
 The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead.
 
@@ -2572,6 +2572,31 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!S92 | 0.5082401370242108 | 0.508240137024211 |
 | ok | Signals!U92 | 52 | 52 |
 | ok | Signals!T92 | -0.39273193956532265 | -0.39273193956532243 |
+| ok | Signals!M207 | Credit card | Credit card |
+| ok | Signals!R207 | 3 | 3 |
+| ok | Signals!S207 | 0.40658975870741754 | 0.4065897587074173 |
+| ok | Signals!U207 | 78 | 78 |
+| ok | Signals!T207 | 0.46924711728888324 | 0.4692471172888829 |
+| ok | Signals!M208 | Other consumer | Other consumer |
+| ok | Signals!R208 | 3 | 3 |
+| ok | Signals!S208 | 0.6560351950614584 | 0.6560351950614582 |
+| ok | Signals!U208 | 78 | 78 |
+| ok | Signals!T208 | 0.7141740481861664 | 0.7141740481861663 |
+| ok | Signals!M209 | Home equity | Home equity |
+| ok | Signals!R209 | 5 | 5 |
+| ok | Signals!S209 | 0.7312726595549335 | 0.731272659554934 |
+| ok | Signals!U209 | 78 | 78 |
+| ok | Signals!T209 | 0.8142146842529272 | 0.8142146842529274 |
+| ok | Signals!M210 | Mortgage | Mortgage |
+| ok | Signals!R210 | 3 | 3 |
+| ok | Signals!S210 | 0.7295736881390031 | 0.7295736881390033 |
+| ok | Signals!U210 | 78 | 78 |
+| ok | Signals!T210 | 0.7919005226831971 | 0.791900522683197 |
+| ok | Signals!M211 | Auto | Auto |
+| ok | Signals!R211 | -3 | -3 |
+| ok | Signals!S211 | 0.5119252437309332 | 0.5119252437309331 |
+| ok | Signals!U211 | 58 | 58 |
+| ok | Signals!T211 | -0.2571888967999909 | -0.2571888967999906 |
 | ok | Signals!B57 | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg |
 | ok | Signals!I51 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 |
 | ok | Signals!L53 | 36.51470839230916 | 36.51470839230916 |

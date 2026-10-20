@@ -12664,6 +12664,131 @@
     },
     {
      "sheet": "Signals",
+     "cell": "M207",
+     "expect": "Credit card"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R207",
+     "expect": 3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S207",
+     "expect": 0.40658975870741754
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U207",
+     "expect": 78
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T207",
+     "expect": 0.46924711728888324
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M208",
+     "expect": "Other consumer"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R208",
+     "expect": 3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S208",
+     "expect": 0.6560351950614584
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U208",
+     "expect": 78
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T208",
+     "expect": 0.7141740481861664
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M209",
+     "expect": "Home equity"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R209",
+     "expect": 5
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S209",
+     "expect": 0.7312726595549335
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U209",
+     "expect": 78
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T209",
+     "expect": 0.8142146842529272
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M210",
+     "expect": "Mortgage"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R210",
+     "expect": 3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S210",
+     "expect": 0.7295736881390031
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U210",
+     "expect": 78
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T210",
+     "expect": 0.7919005226831971
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M211",
+     "expect": "Auto"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R211",
+     "expect": -3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S211",
+     "expect": 0.5119252437309332
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U211",
+     "expect": 58
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T211",
+     "expect": -0.2571888967999909
+    },
+    {
+     "sheet": "Signals",
      "cell": "B57",
      "expect": "The pipeline \u00b7 other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs"
     },
@@ -12693,6 +12818,11 @@
      "sheet": "Signals",
      "range": "A1:U110",
      "file": "b14-signals.png"
+    },
+    {
+     "sheet": "Signals",
+     "range": "A203:U220",
+     "file": "b14-across.png"
     }
    ]
   }

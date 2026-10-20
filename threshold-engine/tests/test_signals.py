@@ -267,7 +267,7 @@ def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follow
     gap = area[0]
     assert [str(s.graphicalProperties.solidFill.srgbClr) for s in gap.series] == [K.GAP_WORSE, K.GAP_BETTER]
     assert gap.y_axis.scaling.min is None and gap.y_axis.scaling.max is None        # the real gap reaches -25 points
-    assert gap.y_axis.majorGridlines is not None and gap.y_axis.numFmt.formatCode == "+0;-0;0"
+    assert gap.y_axis.majorGridlines is not None and gap.y_axis.numFmt.formatCode == "+0.0;-0.0;0"
     assert gap.legend is None                                                         # one line, named in the title above
     texts = _texts(ws)
     # The window test follows the product drawn, by its key on Signals data.
@@ -289,6 +289,18 @@ def test_the_gap_reads_every_products_30_plus_to_charge_off_from_signals_data(tm
     for w, h in (("keybank", "KeyBank"), ("pack-composite", "Peer group (2 banks)"), ("industry", "Industry (every bank)")):
         f = wk.cell(2, heads["30+ to charge-off: %s, the product drawn" % h]).value
         assert '"co_%s_"&VLOOKUP(' % w in f and "'Signals data'!" in f
+
+
+def test_across_products_reads_each_product_against_the_pick(tmp_path):
+    # The analyst, 20 Oct 2026, on three fixed charts: "Why in the world is it literally just three graphs
+    # that don't change". Each product's industry 30-89 is fitted against the picked series, lead by lead.
+    wb, info = tiny_book(tmp_path, extra=())
+    ws = wb["Signals"]
+    texts = _texts(ws)
+    assert any(t.startswith("Across products · 30-89 days past due, Industry (every bank), against the picked series")
+               for t in texts)
+    assert any(t.startswith('="Against "&') for t in texts)
+    assert not any("Mortgage · 90+ days past due incl. nonaccrual, %" == t for t in texts)
 
 
 def test_the_pipeline_follows_the_picked_product(tmp_path):
@@ -363,8 +375,8 @@ def test_the_charts_take_the_sizes_the_grid_gives_them(tmp_path):
     wb, info = tiny_book(tmp_path)
     ws = wb["Signals"]
     sizes = {(round(ch.anchor.ext.width / 9525), round(ch.anchor.ext.height / 9525)) for ch in ws._charts}
-    assert {(912, 264), (452, 220), (544, 220), (352, 200), (268, 106)} <= sizes
-    assert len(ws._charts) == 3 + 4 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
+    assert {(912, 264), (360, 220), (544, 220), (352, 200), (268, 106)} <= sizes
+    assert len(ws._charts) == 3 + 5 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
     for ch in ws._charts:
         if ch.tagname == "lineChart" and len(ch.series) == 1:
             assert ch.varyColors is False

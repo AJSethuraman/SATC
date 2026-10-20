@@ -1950,3 +1950,31 @@ scales itself.
 - **Proof.** Suite 1,356 passed before these fixes; the walkthrough in
   Excel 16 reads 2,462 of 2,462 as expected, the slicer check passes, no
   dialogs.
+
+## 20 October 2026, later: Signals follows the product picked
+
+The analyst, reviewing the round-3 book: *"I was hoping the pipeline would
+adjust with the product to show the pipeline in every product we have"*; on
+the gap, *"it says credit card next to it"* when another product was picked;
+*"why would we want silent failure when a function is completely missing"*;
+on Across products, *"Why in the world is it literally just three graphs
+that don't change"*.
+
+- **No silent fallback.** The gap and the pipeline always draw the product
+  picked. A product without the series reads "none for this product in this
+  workbook" in the section's head; nothing falls back to credit card.
+- **The gap, every product.** The peers build already writes 30+ to
+  charge-off for all seven products; the book rates it for credit card and
+  other consumer only (18 Oct). Signals data now carries all seven, so the
+  gap, its price and the window test follow any product. Decide's rows are
+  unchanged. Checked in Excel with each of the seven products picked.
+- **The pipeline and the window test** follow the product; the industry's
+  1, 2 and 3-quarter windows are worked out for all seven.
+- **Across products** is one chart of every product's industry 30-89 days
+  past due, raw, and a table of each against the picked series: the lead
+  that fits best, the fit, the fit without 2020-23, the quarters. The same
+  arithmetic as the signal fit tables; the walkthrough works it out
+  independently.
+- **30+ incl. nonaccrual, every product** now shows all five (auto was
+  missing). The gap's axis reads one decimal: "+0" had labelled half-point
+  steps "+2, +2, +1, +1".

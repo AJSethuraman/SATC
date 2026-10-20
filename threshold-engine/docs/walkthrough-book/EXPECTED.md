@@ -90,4 +90,4 @@ The peer group is every peer again: each latest value is the series file's own.
 
 The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead.
 
-129 reads.
+154 reads.

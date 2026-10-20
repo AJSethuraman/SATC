@@ -136,6 +136,8 @@ CO = "30+ to charge-off"
 #: The pipeline's three measures, in order.
 PIPE = (DQ30, DQ90, "Gross charge-offs")
 INDUSTRY = "Industry (every bank)"
+#: Across products: the measure each product is read on.
+XP_MEASURE = "30-89 days past due"
 
 #: Rows of the fixed top of the tab, and of Where the dollars are.
 R_LABELS, R_INPUTS, R_PACK, R_JUMP = 4, 5, 6, 7
@@ -656,6 +658,31 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for r in range(R0, R1 + 1):
             wk.cell(r, zc, '=IFERROR(IF(INDEX(%s,%d-%s)="","",INDEX(%s,%d-%s)),"")'
                     % (RW(key, 5), r - R0 + 1, shift_cells[key], RW(key, 5), r - R0 + 1, shift_cells[key]))
+    # across products: each product's industry 30-89 days past due against the picked series, as a
+    # signal is (the analyst, 20 Oct 2026, on three fixed charts: "Why in the world is it literally just
+    # three graphs that don't change")
+    xprods = [p_ for p_ in PRODUCTS if " - ".join((p_, XP_MEASURE, INDUSTRY)) in present]
+    for p_ in xprods:
+        series_block("xp_" + _slug(p_), lambda r, l_=" - ".join((p_, XP_MEASURE, INDUSTRY)): lookup('"%s"' % _q(l_), r))
+    XF0 = FIT0 + len(SIGNALS) * (len(LEADS) + 4)
+    wk.cell(XF0, 1, "across products: fit by lead against the picked series, all quarters and without 2020-23").font = F_LAB
+    xfit = {}
+    for i, p_ in enumerate(xprods):
+        ca, cx = 2 + 2 * i, 3 + 2 * i
+        wk.cell(XF0 + 1, ca, "%s, all quarters" % p_); wk.cell(XF0 + 1, cx, "%s, without 2020-23" % p_)
+        for li, k in enumerate(LEADS):
+            r = XF0 + 2 + li
+            wk.cell(r, 1, k)
+            n = N - abs(k)
+            s_off, t_off = max(0, -k), max(0, k)
+            for c_, j_ in ((ca, 1), (cx, 6)):
+                sig_first = "%s$%s$%d" % (WK, L(col["xp_" + _slug(p_)] + j_), R0)
+                tgt_first = "%s$%s$%d" % (WK, L(col["picked"] + j_), R0)
+                wk.cell(r, c_, '=IFERROR(CORREL(OFFSET(%s,%d,0,%d,1),OFFSET(%s,%d,0,%d,1)),"")'
+                        % (sig_first, s_off, n, tgt_first, t_off, n))
+        xfit[p_] = ("%s$%s$%d:$%s$%d" % (WK, L(ca), XF0 + 2, L(ca), XF0 + 1 + len(LEADS)),
+                    "%s$%s$%d:$%s$%d" % (WK, L(cx), XF0 + 2, L(cx), XF0 + 1 + len(LEADS)))
+    XLEADS = "%s$A$%d:$A$%d" % (WK, XF0 + 2, XF0 + 1 + len(LEADS))
     # what the signal blocks draw: each line with #N/A for no number, and the overlay's two names
     drawn("picked_c", L(col["picked"]), "picked: value, drawn")
     drawn("picked_zc", L(col["picked"] + 5), "picked: z, drawn")
@@ -766,9 +793,10 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     # B. 30+ incl. nonaccrual, every product
     head(row, "30+ days past due incl. nonaccrual, every product · quarter-end, %", "30+ incl. nonaccrual", 2)
     ws.row_dimensions[row + 1].height = 15
-    for i, p in enumerate(("Credit card", "Other consumer", "Mortgage", "Home equity")):
-        title(row + 1, 2 + 5 * i, "%s · %s, %%" % (p, DQ30))
-        _put(ws, _chart(three(p, DQ30, F06), (data_ws, 1), F06, R1, "0.0", 16), 2 + 5 * i, row + 2, 5 * GRID_PX - 8, 220)
+    # every product, five across on the 20-column grid (Auto was missing: "every product" said otherwise)
+    for i, p in enumerate(("Credit card", "Other consumer", "Mortgage", "Home equity", "Auto")):
+        title(row + 1, 2 + 4 * i, "%s · 30+ incl. nonaccrual, %%" % p)
+        _put(ws, _chart(three(p, DQ30, F06), (data_ws, 1), F06, R1, "0.0", 16), 2 + 4 * i, row + 2, 4 * GRID_PX - 8, 220)
     ws.cell(row + 12, 2, PACK).font = F_NOTE
     spacer(row + 13)
     row += 14
@@ -807,7 +835,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     area += gl
     _quiet_axes(area, 8)
     # no legend: one line, named in the title above; Excel does not honor a deleted legend entry openpyxl writes
-    _finish(area, "+0;-0;0", False, True, True)
+    # one decimal: the axis steps by half a point on a small gap (mortgage), and "+0" read "+2, +2, +1, +1"
+    _finish(area, "+0.0;-0.0;0", False, True, True)
     area.x_axis.spPr = GraphicalProperties(ln=_ln(K.SLATE, 0.75))       # the zero line: the category axis crosses at zero
     _put(ws, _no_auto_title(area), 12, row + 2, 10 * GRID_PX - 8, 264)
     ws.cell(row + 14, 12, PACK).font = F_NOTE
@@ -951,16 +980,36 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         spacer(ri + 4)
         row = ri + 5
 
-    # F. across products: the industry's early delinquency in one product beside another's
-    head(row, "Across products · %s, quarter-end" % INDUSTRY, "Across products", 1)
+    # F. across products: each product's industry 30-89 days past due, raw, and how each runs against the pick
+    head(row, "Across products · %s, %s, against the picked series" % (XP_MEASURE.lower(), INDUSTRY), "Across products", 1)
     ws.row_dimensions[row + 1].height = 15
-    for j, (p, m) in enumerate((("Other consumer", "30-89 days past due"), ("Mortgage", "30-89 days past due"), ("Mortgage", DQ90))):
-        lbl = " - ".join((p, m, INDUSTRY))
-        title(row + 1, 2 + 6 * j, "%s · %s, %%" % (p, m))
-        if lbl in head_:
-            _put(ws, _chart([dict(ws=data_ws, col=head_[lbl], name="%s %s, industry" % (p, m.lower()), color=K.SLATE, w=1.75)],
-                            (data_ws, 1), F06, R1, "0.0", 16, legend=False), 2 + 6 * j, row + 2, 6 * GRID_PX - 8, 200)
-    row += 12
+    title(row + 1, 2, "%s, every product, %s, %%" % (XP_MEASURE, INDUSTRY))
+    lines = [dict(ws=data_ws, col=head_[" - ".join((p_, XP_MEASURE, INDUSTRY))], name=p_, color=PRODUCT_COLOR[p_], w=1.75)
+             for p_ in xprods]
+    if lines:
+        _put(ws, _chart(lines, (data_ws, 1), F06, R1, "0.0", 16), 2, row + 2, 10 * GRID_PX - 8, 264)
+    c_ = ws.cell(row + 1, 13, '="Against "&%s' % PICK_SHORT); c_.font = F_LAB
+    c_.alignment = Alignment(vertical="bottom")                   # runs over the empty N:U, never shrunk
+    for c_, h in ((13, "Product"), (18, "Lead"), (19, "Fit (r)"), (20, "Excl. 2020-23"), (21, "Qtrs")):
+        cc = ws.cell(row + 2, c_, h); cc.font = F_LAB
+        cc.alignment = Alignment(horizontal="left" if c_ == 13 else "right", vertical="bottom")
+    rule(row + 2, 13, 21)
+    for i, p_ in enumerate(xprods):
+        rr = row + 3 + i
+        ws.cell(rr, 13, p_).font = F_SMALL
+        a_, x_ = xfit[p_]
+        best = 'INDEX(%s,MATCH(MAX(%s),%s,0))' % (XLEADS, a_, a_)
+        num(rr, 18, '=IFERROR(%s,"")' % best, "+0;-0;0")
+        num(rr, 19, '=IFERROR(MAX(%s),"")' % a_, "0.00")
+        num(rr, 20, '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (x_, best, XLEADS), "0.00")
+        num(rr, 21, '=SUMPRODUCT(--ISNUMBER(%s),--ISNUMBER(%s))' % (RW("xp_" + _slug(p_), 1), RW("picked", 1)), "0")
+        for c_ in range(13, 22):
+            ws.cell(rr, c_).border = Border(bottom=HAIR)
+    if xprods:
+        f0, f1 = row + 3, row + 2 + len(xprods)
+        ws.conditional_formatting.add("S%d:S%d" % (f0, f1), FormulaRule(
+            formula=["AND(ISNUMBER(S%d),ABS(S%d)>=0.7)" % (f0, f0)], font=Font(bold=True)))
+    row += 16
 
     # the jump row: a link to each section's head
     c_ = 2

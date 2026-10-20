@@ -753,6 +753,21 @@ for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
                       {"sheet": "Signals", "cell": "U%d" % rr, "expect": n_}]
         if r_ex is not None:
             sig_reads.append({"sheet": "Signals", "cell": "T%d" % rr, "expect": r_ex})
+# Across products: each product's industry 30-89 against the pick, worked out here as the fit tables are.
+_xp_head = next(c.row for row in _sig.iter_rows(min_col=13, max_col=13) for c in row if c.value == "Product")
+for _i, _p in enumerate([p_ for p_ in ST.PRODUCTS if " - ".join((p_, ST.XP_MEASURE, ST.INDUSTRY)) in DATA_SER]):
+    _rr = _xp_head + 1 + _i
+    sig_reads.append({"sheet": "Signals", "cell": "M%d" % _rr, "expect": _p})
+    _f = _fit(_change(DATA_SER[" - ".join((_p, ST.XP_MEASURE, ST.INDUSTRY))]), _change(DATA_SER[PICKED_LBL]))
+    if _f is None:
+        continue
+    _k, _r_all, _r_ex, _n = _f
+    sig_reads += [{"sheet": "Signals", "cell": "R%d" % _rr, "expect": _k},
+                  {"sheet": "Signals", "cell": "S%d" % _rr, "expect": _r_all},
+                  {"sheet": "Signals", "cell": "U%d" % _rr, "expect": _n}]
+    if _r_ex is not None:
+        sig_reads.append({"sheet": "Signals", "cell": "T%d" % _rr, "expect": _r_ex})
+
 # The pipeline and the window test follow the product drawn (the pick as built, other consumer;
 # the analyst, 20 Oct 2026: "show the pipeline in every product we have").
 _PICK_P = _sig["B5"].value
@@ -774,7 +789,7 @@ steps.append({"id": "B14", "what": "Open Signals",
                        "KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the "
                        "window test are other consumer's; two fit tables agree with the same correlations worked out "
                        "from the series, lead by lead",
-              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}]})
+              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}, {"sheet": "Signals", "range": "A%d:U%d" % (_xp_head - 3, _xp_head + 14), "file": "b14-across.png"}]})
 
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")
