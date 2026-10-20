@@ -60,14 +60,14 @@ TERMS = [
      "For the source picked, each consumer product's balance, gross charge-offs over four quarters and 30+ incl. nonaccrual "
      "dollars, and each product's share of the total.",
      "KeyBank's and the industry's are summed from the Call Report at build; the peer group's are summed from Peers data and "
-     "Peers delinquency data over the banks in the pack, so they follow Banks in the pack on Peers."),
+     "Peers delinquency data over the banks in the pack, so they follow the switches under Banks in the peer group on Decide."),
     ("Pack line",
      "One line under every chart or table that draws on the peer group: how many of the roster's banks are "
      "switched on, which the book's rules took out of 30+ incl. nonaccrual in the latest quarter, and which were "
-     "switched off on Peers. Each chart's own count of banks is on its tiles.",
-     "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster on Peers. "
+     "switched off on Decide. Each chart's own count of banks is on its tiles.",
+     "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster. "
      "In: Yes on "
-     "Peers and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
+     "Decide and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
      "jump or the acquisition share blanked it, as Peers delinquency data records it). Off: No. A signal drawn "
      "from a survey, the Philadelphia Fed's panel or the FHFA database has no pack line: its head row names its "
      "source, span and frequency instead, since it is not the peer group."),
@@ -120,15 +120,18 @@ TERMS = [
      "quarter-end balances. For Federal Reserve data: the average of the four quarterly rates. The engine can "
      "also do this itself from quarterly values (smoothing 4: the mean of each quarter and the three before it)."),
     ("Quarters kept",
-     "The quarters the thresholds are built from: every quarter, except any periods left out on Assess.",
-     "A quarter is left out if a whole row of Periods left out on Assess names its series and the quarter "
-     "falls between that row's From and To, inclusive."),
+     "The quarters the thresholds are built from: every quarter, except any periods left out on Decide (on Assess in a "
+     "workbook without Decide).",
+     "A quarter is left out if a whole row of Periods left out on Decide names its product and measure, the "
+     "series is the one its row's lines are set from, and the quarter falls between that row's From and To, "
+     "inclusive."),
     ("Left out",
      "A period set aside because it does not represent the risk being rated, with the reason recorded.",
-     "Picked on Assess: the series, the first and last quarter from lists of the quarters in the data, and a "
-     "reason. As many periods as there are rows, for any series. A row with something missing says what in its "
-     "Status and refuses its series until it is complete or cleared. Shown on the chart as a dark "
-     "strip and gray dots on the line, and recorded on Run."),
+     "Picked under Periods left out on Decide (on Assess, by series, in a workbook without Decide): the "
+     "product and measure, the first and last quarter from lists of the quarters in the data, and a reason. As "
+     "many periods as there are rows, and more than one for a product and measure. A row with something "
+     "missing says what in its Status and refuses its series until it is complete or cleared. Shown on the "
+     "chart as a dark strip and gray dots on the line, and recorded on Run."),
     ("Left out as built",
      "Quarters a series' file does not hold, written to left-out.csv beside the series files with why: those "
      "before its last break, and its latest quarters when they have no value.",

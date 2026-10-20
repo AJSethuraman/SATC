@@ -51,7 +51,9 @@ PAIRS, BY = DT.pairs_of(LABELS, PARTS)
 THIRD = DT.sources_of(LABELS, PARTS)
 LEAD = COMPARE[0] if COMPARE else THIRD[0]
 COLS = DT.columns(NAMES)
-DL = DT.layout(len(PAIRS), len(THIRD), COMPARE is not None)
+from threshold_engine.peers import roster as _RO                    # noqa: E402
+N_PEERS = len(_RO.peers(_RO.load(bk["peers"]["roster"]))) if bk["peers"] else 0
+DL = DT.layout(len(PAIRS), len(THIRD), COMPARE is not None, N_PEERS)
 AL = assess_layout(N)
 SL = SU.layout(LABELS, PARTS, COMPARE)
 TL = TT.layout(SL["sources"], SL["dropped"])
@@ -209,6 +211,18 @@ def slicers(**picks):
 
 def typed(pr, name, value):
     return {"type": "cell", "sheet": "Decide", "cell": dcell(name, pr), "value": value}
+
+
+#: Periods left out on Decide: row k's column for each field.
+LO_FIELD = dict(zip(("product", "measure", "from", "to", "why"), "BCDEF"))
+
+
+def lo_cell(k, field):
+    return "%s%d" % (LO_FIELD[field], DL["lo_first"] + k)
+
+
+def lo_typed(k, field, value):
+    return {"type": "cell", "sheet": "Decide", "cell": lo_cell(k, field), "value": value}
 
 
 def every_own(pr, **kw):
@@ -396,26 +410,34 @@ ind5 = BY[CN][IND]
 steps.append({"id": "B5", "what": "Leave out %s to %s, the period Decide suggests, with a reason" % WINDOW,
               "shows": "%s's lines move as the reference says; the other sources' own lines do not; Assess lists "
                        "the period under %s's series, its Status whole" % (LEAD, LEAD),
-              "actions": [typed(CN, "Leave out from", WINDOW[0]), typed(CN, "Leave out to", WINDOW[1]),
-                          typed(CN, "Why left out", "Suggested by the evidence: unusual stretch")],
+              "actions": [lo_typed(0, "product", CN[0]), lo_typed(0, "measure", CN[1]), lo_typed(0, "from", WINDOW[0]),
+                          lo_typed(0, "to", WINDOW[1]), lo_typed(0, "why", "Suggested by the evidence: unusual stretch")],
               "reads": [{"sheet": "Decide", "cell": "D%d" % DL["evidence"], "expect": "Leave out %s to %s" % WINDOW},
+                        {"sheet": "Decide", "cell": "L%d" % DL["lo_first"], "expect": "Left out: 6 quarters"},
+                        {"sheet": "Decide", "cell": dcell("Periods left out", CN), "expect": 1},
+                        {"sheet": "Decide", "cell": dcell("Quarters left out", CN), "expect": 6},
+                        {"sheet": "Decide", "cell": "D%d" % DL["left_now"], "expect": "Left out: %s to %s, Suggested by the "
+                         "evidence: unusual stretch. The chart draws these quarters in gray; the lines are set without them."
+                         % WINDOW},
                         {"sheet": "Assess", "cell": "N%d" % AL["lo_top"], "expect": kb},
                         {"sheet": "Assess", "cell": "T%d" % AL["lo_top"], "expect": "Left out: 6 quarters"}]
                        + lbs_reads(kb, lines5) + lbs_reads(ind5, own(ind5, z=3.5)) + row_reads(CN, LEAD, lines5),
-              "picture": []})
+              "picture": [{"sheet": "Decide", "range": "A%d:Q%d" % (DL["history"], DL["lo_last"]),
+                           "file": "b5-periods-left-out.png"}]})
 
 # ---- B6: half a period refuses, in words; then put it back ----
 steps.append({"id": "B6", "what": "Clear the reason", "shows": "The lines are refused, saying why and what to do",
-              "actions": [typed(CN, "Why left out", "")],
+              "actions": [lo_typed(0, "why", "")],
               "reads": [{"sheet": LBS, "cell": "%s%d" % (DT.TH_BOOK["refusal"], 5 + LABELS.index(kb)),
                          "expect": "Refused: a period left out for this product is not whole; its Status on Assess "
                                    "says what is missing"},
                         {"sheet": "Thresholds", "cell": "%s%d" % (TL["cols"]["check"], 5 + PAIRS.index(CN)),
-                         "startswith": "To fix: Finish its row on Decide"},
+                         "expect": "To fix: Finish its row under Periods left out on Decide (product, measure, From, "
+                                   "To and Why), or clear all five of its cells."},
                         {"sheet": "Decide", "cell": dcell("Check", CN), "expect": "Refused: see the fix below"}],
               "picture": []})
 steps.append({"id": "B6b", "what": "Type the reason back", "shows": "The lines are back as in B5",
-              "actions": [typed(CN, "Why left out", "Suggested by the evidence: unusual stretch")],
+              "actions": [lo_typed(0, "why", "Suggested by the evidence: unusual stretch")],
               "reads": lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5), "picture": []})
 
 # ---- B7: the decision ----
@@ -495,7 +517,7 @@ steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file ag
               "actions": [{"type": "reopen"}],
               "reads": [{"sheet": "Decide", "cell": dcell(DT.LINES_FROM, CN), "expect": LEAD},
                         {"sheet": "Decide", "cell": dcell("How rare High is (z)", CN), "expect": 3.5},
-                        {"sheet": "Decide", "cell": dcell("Leave out from", CN), "expect": WINDOW[0]},
+                        {"sheet": "Decide", "cell": lo_cell(0, "from"), "expect": WINDOW[0]},
                         {"sheet": "Decide", "cell": dcell("Decision", CN), "expect": "Accept these lines"},
                         {"sheet": "Decide", "cell": dcell("Note", CN), "expect": "Walkthrough: accepted with z 3.5"},
                         {"sheet": "Decide", "cell": "L1", "expect": decided(1, 0)},
@@ -503,7 +525,7 @@ steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file ag
                        + lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5) + attention(),
               "picture": [{"sheet": "Summary", "range": "A1:%s%d" % (L(SU_LAST + 1), ATT_HEAD + 10), "file": "b10-summary.png"}]})
 
-# ---- B11 to B13: the peer group follows the banks in the pack on Peers ----
+# ---- B11 to B13: the peer group follows the banks in the pack set on Decide ----
 # (the firm, 15 Oct 2026: "this tab needs to adjust with peers and i need a
 # faster way to select and de-select peers"). The expected composites are
 # summed here, in Python, from the per-bank rows the build wrote to Peers data
@@ -568,12 +590,24 @@ def live_reads(certs):
 every = {b["cert"] for b in peers_}
 regionals = {b["cert"] for b in peers_ if b["regional"]}
 jpm = next(j for j, b in enumerate(peers_) if b["short"] == "JPMorgan")
-PACK_CELL, JPM_CELL = PW.picker_cell("pack"), PW.include_cell(jpm)
+_half = -(-len(peers_) // 2)
+
+
+def switch_cell(j):
+    """The j-th peer's switch on Decide (decide_tab.peer_switches): two lists side by side."""
+    return "%s%d" % (L(DT.PEER_LISTS[j // _half][1]), DL["peers_first"] + j % _half)
+
+
+def name_cell(j):
+    return "%s%d" % (L(DT.PEER_LISTS[j // _half][0][0]), DL["peers_first"] + j % _half)
+
+
+PACK_CELL, JPM_CELL = "D%d" % DL["peers_pick"], switch_cell(jpm)
 
 # Round 3's pack line (the workbook name PackLine, on Peers, Decide and Signals): each peer is in
 # (switched on, and a four-quarter average of 30+ incl. nonaccrual at the latest quarter, for the
 # product picked on Peers), out by the book's rules (switched on, and that average blanked or the bank
-# not kept), or switched off on Peers. Worked out here from Peers delinquency data's flags.
+# not kept), or switched off on Decide. Worked out here from Peers delinquency data's flags.
 _dq_head = [c for c in next(_wb["Peers delinquency data"].iter_rows(min_row=1, max_row=1, values_only=True))]
 PEERS_PRODUCT = _wb["Peers"][PW.picker_cell("product")].value
 DQ_LAST = max(r[4] for r in DQ_ROWS)
@@ -593,7 +627,7 @@ def PACK_TEXT(included):
     if outs:
         t += " %s out by the book's rules on %s, %s: %s" % (DOT, PW.DQ_PACK_MEASURE, DQ_LAST, ", ".join(outs))
     if offs:
-        t += " %s switched off on Peers: %s" % (DOT, ", ".join(offs))
+        t += " %s switched off on Decide: %s" % (DOT, ", ".join(offs))
     return t
 
 
@@ -606,25 +640,29 @@ def pack_reads(included):
             {"sheet": "Signals", "cell": "B6", "expect": t}]
 
 
-# The roster as built: JPMorgan's Yes/No on row 9, the fifteenth peer wrapped to row 12; each reads Pack.
+# The roster as built: each peer's switch on Decide under its name, reading Pack, and Peers reading Decide.
 steps[0]["reads"] += pack_reads(every) + [
+    {"sheet": "Decide", "cell": switch_cell(j), "expect": PW.FOLLOW} for j in (jpm, len(peers_) - 1)] + [
+    {"sheet": "Decide", "cell": name_cell(j), "expect": peers_[j]["short"]} for j in (jpm, len(peers_) - 1)] + [
     {"sheet": "Peers", "cell": PW.include_cell(j), "expect": PW.FOLLOW} for j in (jpm, len(peers_) - 1)] + [
-    {"sheet": "Peers", "cell": "%s%d" % (PW.include_cell(j)[0], int(PW.include_cell(j)[1:]) - 1), "expect": peers_[j]["short"]}
-    for j in (jpm, len(peers_) - 1)]
-steps.append({"id": "B11", "what": "On Peers, set Banks in the pack to Regionals only",
+    {"sheet": "Decide", "cell": PACK_CELL, "expect": PW.PACK_PICKS[0]},
+    {"sheet": "Peers", "cell": PW.picker_cell("pack"), "expect": PW.PACK_PICKS[0]}]
+steps.append({"id": "B11", "what": "On Decide, set Banks in the pack to Regionals only",
               "shows": "Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over "
                        "the %d regionals: the latest values below are their composite" % len(regionals),
-              "actions": [{"type": "cell", "sheet": "Peers", "cell": PACK_CELL, "value": PW.PACK_PICKS[1]}],
+              "actions": [{"type": "cell", "sheet": "Decide", "cell": PACK_CELL, "value": PW.PACK_PICKS[1]}],
               "reads": live_reads(regionals) + pack_reads(regionals), "picture": []})
 steps.append({"id": "B12", "what": "Set Banks in the pack back to Every peer, and JPMorgan's cell to No",
               "shows": "The peer group is every peer but JPMorgan",
-              "actions": [{"type": "cell", "sheet": "Peers", "cell": PACK_CELL, "value": PW.PACK_PICKS[0]},
-                          {"type": "cell", "sheet": "Peers", "cell": JPM_CELL, "value": PW.NO}],
+              "actions": [{"type": "cell", "sheet": "Decide", "cell": PACK_CELL, "value": PW.PACK_PICKS[0]},
+                          {"type": "cell", "sheet": "Decide", "cell": JPM_CELL, "value": PW.NO}],
               "reads": live_reads(every - {peers_[jpm]["cert"]}) + pack_reads(every - {peers_[jpm]["cert"]}),
-              "picture": [{"sheet": "Peers", "range": "A1:Q%d" % (PL["pack_charts"] + 1), "file": "b12-peers.png"}]})
+              "picture": [{"sheet": "Peers", "range": "A1:Q%d" % (PL["pack_charts"] + 1), "file": "b12-peers.png"},
+                          {"sheet": "Decide", "range": "A%d:Q%d" % (DL["pack_line"], DL["peers_first"] + _half),
+                           "file": "b12-decide-peers.png"}]})
 steps.append({"id": "B13", "what": "Set JPMorgan's cell back to Pack",
               "shows": "The peer group is every peer again: each latest value is the series file's own",
-              "actions": [{"type": "cell", "sheet": "Peers", "cell": JPM_CELL, "value": PW.FOLLOW}],
+              "actions": [{"type": "cell", "sheet": "Decide", "cell": JPM_CELL, "value": PW.FOLLOW}],
               "reads": live_reads(every) + [
                   {"sheet": LBS, "cell": "M%d" % (5 + LABELS.index(peer_label(pr, me))),
                    "expect": PTS[peer_label(pr, me)][-1].value} for pr, me, _ in LIVE] + pack_reads(every),

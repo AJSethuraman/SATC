@@ -72,6 +72,14 @@ def at(info, name, i):
     return "Decide!%s%d" % (col(info, name), info["decide"]["first"] + i)
 
 
+def lo(info, k, pair=None, frm=None, to=None, why=None):
+    """Row k (0-based) of Periods left out on Decide, typed: {cell: value} for the
+    product and measure of ``pair`` and From, To and Why, each only when given."""
+    r = info["decide"]["layout"]["lo_first"] + k
+    vals = dict(zip("BCDEF", (pair or (None, None)) + (frm, to, why)))
+    return {"Decide!%s%d" % (c, r): v for c, v in vals.items() if v is not None}
+
+
 def typed(src, dst, cells, show=None, info=None):
     """Type into a copy: cells is {'Sheet!A1': value}; show names the rows
     (PAIRS) the slicers leave visible (Shown = 1 on its row, 0 elsewhere)."""
@@ -138,31 +146,30 @@ def test_a_setting_typed_on_decide_applies_to_every_source_of_its_row(pair, sett
 
 
 def test_a_period_left_out_applies_to_the_source_the_lines_are_set_from(pair):
-    """Two rows with a source picked and a period left out, typed out of order;
-    Assess lists them in table order, each under the series picked, and Lines
-    by source equals the twin."""
+    """Two rows with a source picked and a period listed for each under Periods
+    left out; Assess reads them row for row, each under the series picked, and
+    Lines by source equals the twin."""
     d, w, p = pair
     lay = assess_layout(4)
     dec = typed(w["path"], d / "dl.xlsx", {
-        at(w, DT.LINES_FROM, 2): "Industry", at(w, "Leave out from", 2): "2009Q1", at(w, "Leave out to", 2): "2011Q4",
-        at(w, "Why left out", 2): "crisis",
-        at(w, DT.LINES_FROM, 0): "Bank", at(w, "Leave out from", 0): "2020Q2", at(w, "Leave out to", 0): "2021Q4",
-        at(w, "Why left out", 0): "pandemic"})
-    lo = lay["lo_top"]
+        at(w, DT.LINES_FROM, 2): "Industry", at(w, DT.LINES_FROM, 0): "Bank",
+        **lo(w, 0, PAIRS[2], "2009Q1", "2011Q4", "crisis"), **lo(w, 1, PAIRS[0], "2020Q2", "2021Q4", "pandemic")})
+    lo_ = lay["lo_top"]
     ref = typed(p["path"], d / "pl.xlsx", {
-        "Assess!N%d" % lo: LABELS[1], "Assess!O%d" % lo: "2020Q2", "Assess!P%d" % lo: "2021Q4", "Assess!Q%d" % lo:
-        "pandemic", "Assess!N%d" % (lo + 1): LABELS[3], "Assess!O%d" % (lo + 1): "2009Q1",
-        "Assess!P%d" % (lo + 1): "2011Q4", "Assess!Q%d" % (lo + 1): "crisis"})
+        "Assess!N%d" % lo_: LABELS[1], "Assess!O%d" % lo_: "2020Q2", "Assess!P%d" % lo_: "2021Q4", "Assess!Q%d" % lo_:
+        "pandemic", "Assess!N%d" % (lo_ + 1): LABELS[3], "Assess!O%d" % (lo_ + 1): "2009Q1",
+        "Assess!P%d" % (lo_ + 1): "2011Q4", "Assess!Q%d" % (lo_ + 1): "crisis"})
     same(lbs_rows(dec), plain_rows(ref))
-    assert [dec["ASSESS!N%d" % (lo + k)] for k in range(3)] == [LABELS[1], LABELS[3], ""]
+    assert [dec["ASSESS!N%d" % (lo_ + k)] for k in range(3)] == [LABELS[3], LABELS[1], ""]
+    f = w["decide"]["first"]
+    assert [dec["DECIDE!%s%d" % (col(w, c_), f + 2)] for c_ in DT.LEFT_OUT_COLS] == [1, 12]
     assert lbs_rows(dec)[1] != plain_rows(recalc(p["path"]))[1]
     assert lbs_rows(dec)[0] == lbs_rows(recalc(w["path"]))[0]             # Industry's own history is untouched
 
 
 def test_with_no_source_picked_a_period_left_out_sets_nothing_and_the_row_is_blank(pair):
     d, w, p = pair
-    v = typed(w["path"], d / "dn.xlsx", {at(w, "Leave out from", 0): "2020Q2", at(w, "Leave out to", 0): "2021Q4",
-                                         at(w, "Why left out", 0): "pandemic"}, show={PAIRS[0]}, info=w)
+    v = typed(w["path"], d / "dn.xlsx", lo(w, 0, PAIRS[0], "2020Q2", "2021Q4", "pandemic"), show={PAIRS[0]}, info=w)
     same(lbs_rows(v), lbs_rows(recalc(w["path"])))
     info = w["decide"]
     assert v["DECIDE!%s%d" % (col(w, "Check"), info["first"])] == "Pick a source"
@@ -186,9 +193,8 @@ def test_a_period_left_out_is_drawn_apart_and_said(pair):
     info = w["decide"]
     h = info["helpers"]
     third = info["sources"]
-    v = typed(w["path"], d / "dlo.xlsx", {
-        at(w, DT.LINES_FROM, 0): "Industry", at(w, "Leave out from", 0): "2020Q2", at(w, "Leave out to", 0):
-        "2021Q4", at(w, "Why left out", 0): "pandemic"}, show={PAIRS[0]}, info=w)
+    v = typed(w["path"], d / "dlo.xlsx", {at(w, DT.LINES_FROM, 0): "Industry",
+                                          **lo(w, 0, PAIRS[0], "2020Q2", "2021Q4", "pandemic")}, show={PAIRS[0]}, info=w)
     q = {v["DECIDE!%s%d" % (h["q"], r)]: r for r in range(2, 200) if v.get("DECIDE!%s%d" % (h["q"], r))}
     num = lambda c_, qq: isinstance(v["DECIDE!%s%d" % (h[c_], q[qq])], float)          # noqa: E731
     k = "pick%d" % third.index("Industry")
@@ -209,13 +215,14 @@ def test_a_period_left_out_is_drawn_apart_and_said(pair):
 def test_a_half_typed_period_refuses_the_source_picked_in_words(pair):
     d, w, p = pair
     f = w["decide"]["first"]
-    v = typed(w["path"], d / "dh.xlsx", {at(w, DT.LINES_FROM, 0): "Bank", at(w, "Leave out from", 0): "2009Q1"})
+    v = typed(w["path"], d / "dh.xlsx", {at(w, DT.LINES_FROM, 0): "Bank", **lo(w, 0, PAIRS[0], "2009Q1")})
     assert "not whole" in lb(v, "refusal", 6)
     assert lb(v, "refusal", 5) == ""
     assert v["DECIDE!%s%d" % (col(w, "Check"), f)] == "Refused: see the fix below"
     assert v["DECIDE!%s%d" % (col(w, "Check"), f + 1)] == "Pick a source"
     ck = w["thresholds"]["cols"]["check"]
-    assert v["THRESHOLDS!%s5" % ck].startswith("To fix: Finish its row on Decide")
+    assert v["THRESHOLDS!%s5" % ck] == ("To fix: Finish its row under Periods left out on Decide (product, measure, From, To "
+                                                  "and Why), or clear all five of its cells.")
     assert v["THRESHOLDS!H5"] == "" and v["THRESHOLDS!%s5" % w["thresholds"]["per"]["Bank"]["rating"]] == "Refused"
 
 
@@ -405,16 +412,25 @@ def test_decide_is_laid_out_to_round_3(pair):
     assert heights == {1: 25.5, 2: 15, 3: 6, 4: 15, 5: 18, 6: 18, 7: 18, 8: 6, 9: 27, 10: 34.5,
                        lay["headline"]: 30, lay["check"]: 25.5, lay["section"]: 16.5, lay["chart_end"]: 16.5}
     tbl = ws.tables[DT.TABLE]
-    assert tbl.ref == "B9:Q%d" % lay["last"] and lay["last"] == 9 + len(PAIRS)
+    assert tbl.ref == "B9:P%d" % lay["last"] and lay["last"] == 9 + len(PAIRS)
     assert [ws.cell(9, c).value for c in range(2, 6)] == ["Product", "Measure", DT.LINES_FROM, "Decision"]
-    assert all(ws.cell(10, c).fill.fgColor.rgb.endswith(K.INPUT) for c in range(CI("D"), CI("M") + 1))
-    assert all(ws.cell(10, c).number_format == ";;;" for c in range(CI("O"), CI("Q") + 1))
+    # typed: Lines set from to On a line, and Note; Periods and Quarters left out are read from the list below
+    assert all(ws.cell(10, c).fill.fgColor.rgb.endswith(K.INPUT) for c in list(range(CI("D"), CI("I") + 1)) + [CI("L")])
+    assert [ws.cell(9, c).value for c in (CI("J"), CI("K"))] == list(DT.LEFT_OUT_COLS)
+    assert not any(ws.cell(10, c).fill.fgColor.rgb.endswith(K.INPUT) for c in (CI("J"), CI("K"), CI("M")))
+    assert all(ws.cell(10, c).number_format == ";;;" for c in range(CI("N"), CI("P") + 1))
     # the slicers: Product three buttons to a row over B:E, Measure five over F:Q, rows 3 to 8
     assert DT.SLICER_ANCHORS == ((1, 2, 5, 8), (5, 2, 17, 8)) and DT.SLICER_COLUMNS == (3, 5)
     # the book's rows: 35 products and measures, three sources
     big = DT.layout(35, 3, True)
     assert (big["headline"], big["check"], big["section"], big["chart_top"], big["chart_end"], big["window"],
             big["gives_first"], big["history"], big["pack_line"]) == (46, 47, 49, 50, 67, 62, 71, 75, 68)
+    # with fifteen peers, their switches sit under the pack line, eight to a list, and the history after them
+    p15 = DT.layout(35, 3, True, 15)
+    assert (p15["peers_title"], p15["peers_pick"], p15["peers_head"], p15["peers_first"], p15["history"]) ==         (69, 69, 70, 71, 80)
+    # Periods left out: Assess's rows, after Left out now, then the settings
+    from threshold_engine.assess_tab import LO_ROWS
+    assert (big["lo_title"], big["lo_first"], big["lo_last"], big["settings"]) == (81, 83, 82 + LO_ROWS, 84 + LO_ROWS)
     # no peer tabs in this workbook, so no pack line under the chart
     assert ws.cell(lay["pack_line"], 2).value is None
     anchor = ws._charts[0].anchor
@@ -568,22 +584,38 @@ def test_a_refused_series_is_counted_and_not_listed(attention):
     assert _attention_read(v2, s)[0][0] == "None rated 4 or 5."
 
 
-def test_more_leave_outs_than_rows_is_said(tmp_path):
-    from threshold_engine.assess_tab import LO_ROWS
-    ser = [("P%d - M - S" % k, DATA / "cards_nco_ttm.csv") for k in range(LO_ROWS + 1)]
-    spec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in ser}, "absent": [],
-            "compare": None, "notes": [], "lines_from": "S"}
-    info = build(tmp_path / "many.xlsx", ser, decide=spec, **SETTINGS)["decide"]
-    wb = load_workbook(tmp_path / "many.xlsx")
-    c = info["columns"]
-    for i in range(LO_ROWS + 1):
-        r = info["first"] + i
-        wb["Decide"]["%s%d" % (L(c["Leave out from"]), r)] = "2009Q1"
-        wb["Decide"]["%s%d" % (L(c["Leave out to"]), r)] = "2010Q4"
-        wb["Decide"]["%s%d" % (L(c["Why left out"]), r)] = "x"
-    wb.save(tmp_path / "many2.xlsx")
-    v = recalc(tmp_path / "many2.xlsx")
-    assert v["DECIDE!B%d" % info["check_row"]].startswith("More than %d rows" % LO_ROWS)
+def test_two_periods_left_out_of_one_row_both_apply_and_are_said(pair):
+    """The analyst, 20 Oct 2026: "how am I supposed to even address multiple
+    stretches of quarters being left out". Two rows of Periods left out for one
+    product and measure: both stretches leave the lines, and Left out now names both."""
+    d, w, p = pair
+    info = w["decide"]
+    v = typed(w["path"], d / "d2.xlsx", {at(w, DT.LINES_FROM, 0): "Industry",
+                                         **lo(w, 0, PAIRS[0], "2009Q1", "2010Q4", "crisis"),
+                                         **lo(w, 1, PAIRS[0], "2020Q2", "2021Q4", "pandemic")}, show={PAIRS[0]}, info=w)
+    lo_ = assess_layout(4)["lo_top"]
+    ref = typed(p["path"], d / "p2.xlsx", {
+        "Assess!N%d" % lo_: LABELS[0], "Assess!O%d" % lo_: "2009Q1", "Assess!P%d" % lo_: "2010Q4",
+        "Assess!Q%d" % lo_: "crisis", "Assess!N%d" % (lo_ + 1): LABELS[0], "Assess!O%d" % (lo_ + 1): "2020Q2",
+        "Assess!P%d" % (lo_ + 1): "2021Q4", "Assess!Q%d" % (lo_ + 1): "pandemic"})
+    same(lbs_rows(v), plain_rows(ref))
+    f = info["first"]
+    assert [v["DECIDE!%s%d" % (col(w, c_), f)] for c_ in DT.LEFT_OUT_COLS] == [2, 15]
+    lay = info["layout"]
+    assert v["DECIDE!D%d" % lay["left_now"]] == ("Left out: 2009Q1 to 2010Q4, crisis; 2020Q2 to 2021Q4, pandemic. "
+                                                 "The chart draws these quarters in gray; the lines are set without them.")
+    assert v["DECIDE!L%d" % lay["lo_first"]] == "Left out: 8 quarters"
+
+
+def test_overlapping_periods_count_each_quarter_once(pair):
+    """Codex on #467: 2020Q1 to 2020Q4 and 2020Q3 to 2021Q2 leave out six quarters,
+    not eight; Quarters left out says what the lines lose."""
+    d, w, p = pair
+    v = typed(w["path"], d / "dov.xlsx", {at(w, DT.LINES_FROM, 0): "Industry",
+                                          **lo(w, 0, PAIRS[0], "2020Q1", "2020Q4", "a"),
+                                          **lo(w, 1, PAIRS[0], "2020Q3", "2021Q2", "b")}, show={PAIRS[0]}, info=w)
+    f = w["decide"]["first"]
+    assert [v["DECIDE!%s%d" % (col(w, c_), f)] for c_ in DT.LEFT_OUT_COLS] == [2, 6]
 
 
 @pytest.mark.parametrize("names, err", [(["Product", "Measure"], "exactly three"),
