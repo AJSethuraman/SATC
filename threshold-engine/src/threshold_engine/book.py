@@ -601,12 +601,27 @@ def build(book_path, out, say=print) -> dict:
                      latest=grid_[-1])
             _signals_on_run(wb, signals)
             say("signals: the Signals tab, %d sections, %d series on Signals data" % (len(ST.SIGNALS), len(signals["series"])))
-        order = ["Decide", "Summary", "Signals", "Peers", "Peer loan classes", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
-                 "Backtest",
-                 "Glossary", "Sources", "Reporting changes", "Run", "Data", "Signals data", "Peers data", "Peers delinquency data", "Internal data",
-                 "SynthesisData", "Assess", "Chart", "Peers workings", "Signals workings"]
+        # Round 3: Backtest's columns join Lines by source, one row per series on both.
+        if "Backtest" in wb.sheetnames and "Lines by source" in wb.sheetnames:
+            WB.fold_backtest(wb)
+        # Work (ink), then reference (stone), then data (mist); the peers' filed
+        # figures and the workings hidden, read only by formulas.
+        work = ["Summary", "Decide", "Signals", "Peers", "Thresholds", "Internal", "Synthesis"]
+        reference = ["Lines by source", "Peer books", "Peer loan classes", "Evidence", "Glossary", "Sources", "Run"]
+        data = ["Data", "Signals data", "Internal data", "SynthesisData"]
+        hidden = ["Peers data", "Peers delinquency data", "Assess", "Chart", "Peers workings", "Signals workings"]
+        order = work + reference + data + hidden
         known = [wb[t] for t in order if t in wb.sheetnames]
         wb._sheets = known + [ws for ws in wb._sheets if ws not in known]
+        for names, colour in ((work, WB.K.TAB_WORK), (reference, WB.K.TAB_REFERENCE), (data, WB.K.TAB_DATA)):
+            for t in names:
+                if t in wb.sheetnames:
+                    wb[t].sheet_properties.tabColor = colour
+        # Without an internal file Internal and Internal data are empty: hidden,
+        # not removed, since Decide's formulas still name them.
+        for t in ["Peers data", "Peers delinquency data"] + (["Internal", "Internal data"] if bk["internal"] is None else []):
+            if t in wb.sheetnames:
+                wb[t].sheet_state = "hidden"
         wb.active = wb.sheetnames.index("Summary")
         if peer_info is not None:
             _live_peer_group(wb, series, peer_info, say)
