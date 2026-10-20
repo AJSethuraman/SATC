@@ -98,6 +98,18 @@ TERMS = [
     ("Jump row",
      "The row of links under the controls on Signals, one per section.",
      "Each is a hyperlink to its section's first cell on Signals."),
+    ("Saved view",
+     "A numbered row of picks for Signals or Peers, with a note, kept on the Saved views tab.",
+     "Typed or picked under Saved view on Signals or Peers, 1 to 12. Each pick the view's row holds replaces "
+     "the tab's own, which is struck through; a blank cell keeps the tab's pick. Clear the cell to go back to "
+     "the tab's picks."),
+    ("Picks now",
+     "The row on Saved views that reads the tab's own yellow cells, to copy onto a view's row.",
+     "Each cell equals the tab's yellow cell over the same heading. Copy it and paste values onto a view's row."),
+    ("Data through",
+     "The latest quarter in the workbook when a view was saved, typed beside it.",
+     "Picked from the quarters on Data. Not updated by a rebuild: a rebuilt workbook with later quarters shows "
+     "the same picks against more data."),
     ("Floor at zero",
      "Whether a value at or below zero is always 1 Low for a series. True of a rate; false of a gap between two "
      "rates.",
@@ -515,8 +527,8 @@ TERMS = [
 
 #: The tab each term first appears on, in the book's tab order (Claude Design's
 #: round 3: a Tab column, so a reader filters to the tab they came from).
-TAB_ORDER = ("Summary", "Decide", "Signals", "Peers", "Thresholds", "Internal", "Lines by source", "Peer books",
-             "Evidence", "Sources", "Run", "Data", "Assess", "Synthesis")
+TAB_ORDER = ("Summary", "Decide", "Signals", "Peers", "Saved views", "Thresholds", "Internal", "Lines by source",
+             "Peer books", "Evidence", "Sources", "Run", "Data", "Assess", "Synthesis")
 _BY_TAB = {
     "Summary": ("Product", "Combined product", "Measure", "Source", "Quarter", "30+ to charge-off",
                 "Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off",
@@ -530,6 +542,7 @@ _BY_TAB = {
                "Reporting change"),
     "Signals": ("Signals", "Where the dollars are", "Pack line", "Rescaled", "Lead", "Fit (r)",
                 "Window for the normal", "Shift", "Jump row"),
+    "Saved views": ("Saved view", "Picks now", "Data through"),
     "Thresholds": ("Thresholds", "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
                    "2 Moderate-Low", "3 Moderate", "4 Moderate-High", "5 High", "Value"),
     "Internal": ("Internal data", "Mapped", "Composite", "Segment", "Share of the product",

@@ -91,3 +91,15 @@ The peer group is every peer again: each latest value is the series file's own.
 The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead.
 
 164 reads.
+
+## B15 · On Saved views, fill view 1 for Signals (credit card) and for Peers (home equity, gross); type 1 under Saved view on each tab
+
+Each tab follows its view: the picks the view holds replace the tab's, which are struck through, the rest are kept, and the note shows under the box.
+
+5 reads.
+
+## B16 · Clear Saved view on Signals and on Peers
+
+Each tab is back on its own picks; the view stays on Saved views.
+
+4 reads.

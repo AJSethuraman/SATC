@@ -602,12 +602,18 @@ def build(book_path, out, say=print) -> dict:
                      latest=grid_[-1])
             _signals_on_run(wb, signals)
             say("signals: the Signals tab, %d sections, %d series on Signals data" % (len(ST.SIGNALS), len(signals["series"])))
+        if "Signals" in wb.sheetnames or "Peers" in wb.sheetnames:
+            # Saved views: Signals' and Peers' picks kept by number with a note, called back on each tab.
+            from . import views_tab as VT
+            made = VT.build(wb, "=Data!$A$2:$A$%d" % wb["Data"].max_row)
+            if made:
+                say("saved views: %s" % ", ".join("%s, %d picks" % (t, len(p)) for t, p in made["picks"].items()))
         # Round 3: Backtest's columns join Lines by source, one row per series on both.
         if "Backtest" in wb.sheetnames and "Lines by source" in wb.sheetnames:
             WB.fold_backtest(wb)
         # Work (ink), then reference (stone), then data (mist); the peers' filed
         # figures and the workings hidden, read only by formulas.
-        work = ["Summary", "Decide", "Signals", "Peers", "Thresholds", "Internal", "Synthesis"]
+        work = ["Summary", "Decide", "Signals", "Peers", "Saved views", "Thresholds", "Internal", "Synthesis"]
         reference = ["Lines by source", "Peer books", "Evidence", "Glossary", "Sources", "Run"]
         data = ["Data", "Signals data", "Internal data", "SynthesisData"]
         hidden = ["Peers data", "Peers delinquency data", "Assess", "Chart", "Peers workings", "Signals workings"]

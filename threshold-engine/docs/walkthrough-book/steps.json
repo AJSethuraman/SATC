@@ -20,6 +20,7 @@
       "Decide",
       "Signals",
       "Peers",
+      "Saved views",
       "Thresholds",
       "Internal",
       "Lines by source",
@@ -12936,6 +12937,152 @@
      "sheet": "Signals",
      "range": "A203:U220",
      "file": "b14-across.png"
+    }
+   ]
+  },
+  {
+   "id": "B15",
+   "what": "On Saved views, fill view 1 for Signals (credit card) and for Peers (home equity, gross); type 1 under Saved view on each tab",
+   "shows": "Each tab follows its view: the picks the view holds replace the tab's, which are struck through, the rest are kept, and the note shows under the box",
+   "actions": [
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "C8",
+     "value": "Card against the pack"
+    },
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "D8",
+     "value": "2026Q2"
+    },
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "E8",
+     "value": "Credit card"
+    },
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "C25",
+     "value": "Home equity, gross rate"
+    },
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "D25",
+     "value": "2026Q2"
+    },
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "E25",
+     "value": "Home equity"
+    },
+    {
+     "type": "cell",
+     "sheet": "Saved views",
+     "cell": "F25",
+     "value": "Gross"
+    },
+    {
+     "type": "cell",
+     "sheet": "Signals",
+     "cell": "U5",
+     "value": 1
+    },
+    {
+     "type": "cell",
+     "sheet": "Peers",
+     "cell": "H5",
+     "value": 1
+    }
+   ],
+   "reads": [
+    {
+     "sheet": "Signals",
+     "cell": "P5",
+     "expect": "Credit card \u00b7 30+ days past due incl. nonaccrual \u00b7 KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U6",
+     "expect": "Saved view 1: Card against the pack"
+    },
+    {
+     "sheet": "Peers",
+     "cell": "H6",
+     "expect": "Saved view 1: Home equity, gross rate"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B5",
+     "expect": "Other consumer"
+    },
+    {
+     "sheet": "Peers",
+     "cell": "B5",
+     "expect": "Credit card"
+    }
+   ],
+   "picture": [
+    {
+     "sheet": "Saved views",
+     "range": "A1:N37",
+     "file": "b15-saved-views.png"
+    },
+    {
+     "sheet": "Signals",
+     "range": "A1:U7",
+     "file": "b15-signals-view.png"
+    },
+    {
+     "sheet": "Peers",
+     "range": "A1:Q36",
+     "file": "b15-peers-view.png"
+    }
+   ]
+  },
+  {
+   "id": "B16",
+   "what": "Clear Saved view on Signals and on Peers",
+   "shows": "Each tab is back on its own picks; the view stays on Saved views",
+   "actions": [
+    {
+     "type": "cell",
+     "sheet": "Signals",
+     "cell": "U5",
+     "value": ""
+    },
+    {
+     "type": "cell",
+     "sheet": "Peers",
+     "cell": "H5",
+     "value": ""
+    }
+   ],
+   "reads": [
+    {
+     "sheet": "Signals",
+     "cell": "P5",
+     "expect": "Other consumer \u00b7 30+ days past due incl. nonaccrual \u00b7 KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U6",
+     "expect": ""
+    },
+    {
+     "sheet": "Peers",
+     "cell": "H6",
+     "expect": ""
+    },
+    {
+     "sheet": "Saved views",
+     "cell": "E25",
+     "expect": "Home equity"
     }
    ]
   }
