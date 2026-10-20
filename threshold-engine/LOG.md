@@ -1916,3 +1916,37 @@ this into production and generate a workbook for review"*.
   (the pipeline's levels carry it); the dual-axis chart with real units on
   both axes is not possible live in Excel without macros, so the rescaled
   chart is on one axis and the units are printed beside it.
+
+## 20 October 2026: design round 3, built
+
+Design's round 3 hand-off (`docs/design/round-3/handoff/`) built in full
+except one point. The analyst: *"Build it, auto axis (Recommended)"*. Design's
+fixed −20..+20 gap axis would have clipped the real Other consumer gap
+(−25.0 in 2019Q2; 7 of 34 quarters outside ±20), so the gap chart's axis
+scales itself.
+
+- **Tabs.** Work (ink): Summary, Decide, Signals, Peers, Thresholds,
+  Internal. Reference (stone): Lines by source, Peer books (was Peer loan
+  classes), Evidence, Glossary, Sources, Run. Data (mist): Data, Signals
+  data, Internal data. Hidden: Peers data, Peers delinquency data, Assess,
+  Chart, Peers workings, Signals workings, and Internal and Internal data
+  when there is no internal file. Backtest is folded into Lines by source
+  (each untested series keeps its reason), and Reporting changes is the
+  last section of Sources. The plain `workbook` command keeps Backtest.
+- **The pack line.** One cell, the workbook name `PackLine`, read by every
+  tab that draws on the peer group. It counts the banks switched on and
+  names those the book's rules took out of 30+ incl. nonaccrual and those
+  switched off on Peers. It first counted only the banks "in", which read 13
+  under a charge-off chart whose tiles counted 14 (the rule is on
+  delinquency data, not charge-offs), so it now counts banks switched on and
+  names the measure the rule reads.
+- **Fine detail, from Excel's pictures of the walk.** Decide: "4
+  Moderate-High" wraps instead of shrinking; the footnotes run to three rows
+  inside column Q; no lines picked reads "—", as on Summary. Summary: the
+  strip is one right-aligned cell (the value's column had opened a gap
+  after it); Needs your attention puts measure, latest and rating under the
+  panel's own columns. Signals: on *fits best*, a best lead below zero is
+  not used, and the overlay's name now says so and gives the lead.
+- **Proof.** Suite 1,356 passed before these fixes; the walkthrough in
+  Excel 16 reads 2,462 of 2,462 as expected, the slicer check passes, no
+  dialogs.

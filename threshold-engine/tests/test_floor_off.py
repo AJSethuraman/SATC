@@ -61,8 +61,22 @@ def test_floor_off_with_no_floor_to_switch_off_is_refused(tmp_path):
 
 def test_a_measure_without_a_floor_is_rated_on_its_lines(tmp_path):
     out = tmp_path / "out.xlsx"
-    BK.build(write_book(tmp_path, ["Gap to peers on Net"]), out, say=lambda s: None)
+    info = BK.build(write_book(tmp_path, ["Gap to peers on Net"]), out, say=lambda s: None)
     wb = load_workbook(out)
+    # On Decide, round 3: a row without a floor has no bottom, so 1 Low
+    # begins below line 2; zero is drawn where the axis crosses, SLATE 0.75 pt.
+    lay = info["decide"]["layout"]
+    fz_ = "$%s$12" % DT.L(DT.H)
+    low = wb["Decide"].cell(lay["ratings_first"], 13).value
+    assert fz_ in low and '"the bottom"' in low and '"below "&TEXT(' in low
+    zero = info["decide"]["helpers"]["zero"]
+    assert wb["Decide"]["%s2" % zero].value == "=IF(AND(%s,NOT(%s),%s),0,NA())" % (
+        "AND($%s$2=1,ISNUMBER($%s$3))" % (DT.L(DT.H), DT.L(DT.H)), fz_,
+        "AND(2>=$%s$2,2<=$%s$4)" % (info["decide"]["helpers"]["fit"], info["decide"]["helpers"]["fit"]))
+    chart = wb["Decide"]._charts[0]
+    first = chart.series[0]
+    assert first.val.numRef.f == "Decide!dq_zero"
+    assert first.spPr.ln.solidFill.srgbClr == DT.K.SLATE and first.spPr.ln.w == 9525
     lbs = wb[DT.LINES_TAB]
     T = DT.TH_BOOK
     assert lbs["%s4" % T["floor"]].value == "Floor at zero"

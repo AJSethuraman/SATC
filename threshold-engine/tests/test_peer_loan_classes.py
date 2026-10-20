@@ -1,4 +1,4 @@
-"""The Peer loan classes tab (peers/classes.py, peers/loan_classes_tab.py):
+"""The Peer books tab, once Peer loan classes (peers/classes.py, peers/loan_classes_tab.py):
 the SEC pull, reading a filing's classes, the stated file, and the tab. Offline:
 a made-up filing stands in for EDGAR."""
 import json
@@ -144,17 +144,49 @@ def test_the_tab_reads_amounts_from_the_filing_and_sums_them_live(tmp_path):
     wb = Workbook()
     ws = wb.active
     info = LC.write(ws, spec(), tmp_path / "sec")
-    rows = {ws.cell(r, 2).value: (ws.cell(r, 3).value, ws.cell(r, 4).value, ws.cell(r, 6).value)
+    rows = {ws.cell(r, 3).value: (ws.cell(r, 4).value, ws.cell(r, 5).value, ws.cell(r, 7).value)
             for r in range(info["first"], info["last"] + 1)}
-    assert rows == {"Education": (8044.0, "Student", "Read from the filing's XBRL"),
-                    "Other Retail": (4031.0, "Mixed other consumer", "Read from the filing's XBRL"),
-                    "Unsecured": (626.0, "Unsecured or personal", "As printed (not tagged by class)")}
+    assert rows == {"Education": (8044.0, "Student", "From the filing's XBRL"),
+                    "Other Retail": (4031.0, "Mixed other consumer", "From the filing's XBRL"),
+                    "Unsecured": (626.0, "Unsecured or personal", "As printed, not tagged")}
     r = info["summary"]["Made-up"]
-    assert ws.cell(r, 2).value.startswith('=IF(COUNTIFS(') and '"Student"' in ws.cell(r, 2).value
+    assert ws.cell(r, 3).value.startswith('=IF(COUNTIFS(') and '"Student"' in ws.cell(r, 3).value
     # Where no class is counted as a kind, the finding's short form shows; its full answer is in the words table.
-    assert '"Not stated"' in ws.cell(r, 4).value
-    assert ws.cell(info["first"], 5).hyperlink.target == "https://www.sec.gov/Archives/edgar/data/1/" \
+    assert '"Not stated"' in ws.cell(r, 5).value
+    assert ws.cell(info["first"], 6).hyperlink.target == "https://www.sec.gov/Archives/edgar/data/1/" \
                                                           "000000000126000009/bka-20260630.htm"
+
+
+def test_peer_books_is_a_reference_tab_laid_out_to_round_3(tmp_path):
+    """docs/design/round-3/handoff/README.md, Peer books: the reference
+    template, the Why column 876 px wrapped in Calibri 10, amounts #,##0 with
+    words in SLATE, the verdict bold in its colour, and the classes an Excel
+    table filtered only on Bank and Counted as."""
+    C.pull(tmp_path / "sec", [{"short": "Made-up", "cik": 1}], "2026Q2", UA, fetch=fake_edgar([]), pause=0)
+    wb = Workbook()
+    ws = wb.active
+    s = spec(comparison={"answer": "Not comparable", "why": "Recreational finance is six times the other. " * 6})
+    info = LC.write(ws, s, tmp_path / "sec")
+    assert LC.TITLE == "Peer books" and ws["B1"].value.startswith("Peer books · ")
+    assert ws.sheet_properties.tabColor.rgb.endswith(LC.K.TAB_REFERENCE)
+    r = info["summary"]["Made-up"]
+    why = ws.cell(r, 8)
+    assert round(ws.column_dimensions["H"].width * 7) == 876
+    assert why.alignment.wrap_text and why.font.name == "Calibri" and why.font.sz == 10
+    assert ws.row_dimensions[r].height > 15                     # the long why wraps to a second line
+    assert all(ws.cell(r, c).number_format == "#,##0" for c in range(3, 7))
+    verdict = ws.cell(r, 7)
+    assert verdict.font.b and verdict.font.color.rgb.endswith(LC.K.CRIMSON)
+    head = ws.cell(info["first"] - 1, 2)
+    assert head.fill.fgColor.rgb.endswith(LC.K.MIST) and ws.row_dimensions[info["first"] - 1].height == 27
+    t = ws.tables[info["table"]]
+    assert t.ref == "B%d:H%d" % (info["first"] - 1, info["last"])
+    hidden = {f.colId for f in t.autoFilter.filterColumn if f.hiddenButton}
+    assert hidden == {1, 2, 4, 5, 6}                            # buttons on Bank (0) and Counted as (3) only
+    # Words in an amount column read in SLATE.
+    rules = [rule for cf in ws.conditional_formatting for rule in cf.rules]
+    assert any(rule.formula == ["ISTEXT(C%d)" % r] and rule.dxf.font.color.rgb.endswith(LC.K.SLATE)
+               for rule in rules)
     missing = spec(classes=[{"members": ["us-gaap:AutomobileLoanMember"], "is": "Other"}])
     with pytest.raises(C.Refused, match="has no amortized cost"):
         LC.write(Workbook().active, missing, tmp_path / "sec")

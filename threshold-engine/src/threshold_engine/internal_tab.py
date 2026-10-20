@@ -74,7 +74,7 @@ MEASURES = (("net-charge-off-rate", "Net charge-off rate"),
             ("dpd-90-plus-quarter-end", "90+ days past due"))
 NOT_MAPPED = "Internal tab only"
 COMPOSITE = "Composite"
-N_NAMES = 8                       # product names the mapping holds (rows 5-12)
+N_NAMES = 7                       # product names the mapping holds (rows 5-11)
 N_SEGS = 8                        # segments shown for the picked product
 WINDOW = 48                       # quarters on the charts
 
@@ -98,9 +98,14 @@ HELPER_HEADS = dict(q="Quarter, read as", qn="Quarter number", prod="Product, ma
                     name_n="Product order", seg_n="Segment order", has="Has data", has_grade="Has a grade",
                     latest="Quarter number, picked product", seg_first="First row of its segment")
 
-#: Visible layout of the Internal tab (README: columns and rows).
-WIDTHS = {"A": 16, "B": 150, "C": 190, "D": 20, "E": 150, "F": 250, "G": 20, "H": 110, "I": 110, "J": 110,
-          "K": 20, "L": 170, "M": 100, "N": 100, "O": 100, "P": 100, "Q": 152}
+#: Visible layout of the Internal tab (round 3, README "Internal"): four top
+#: blocks with 24 px gutters (D, G, J), products B:C, measures E:F, what
+#: counts as reliable H:I, coverage K and a column per product from L. The
+#: tab's used range ends by Z; its workings sit on Internal data from HC0.
+WIDTHS = {"A": 16, "B": 150, "C": 190, "D": 24, "E": 150, "F": 250, "G": 24, "H": 230, "I": 100, "J": 24,
+          "K": 180, "L": 102, "M": 102, "N": 102, "O": 102, "P": 102, "Q": 102, "R": 102}
+HC0 = 44                          # AR: Internal data's first workings column, past its own helpers (R:AP)
+PITCH = 16.5                      # every row of the four top blocks
 PICK_ROW = 15
 REL_TOP = 15                      # the reliability table's header row; its seven rows follow
 CRR_TOP = 24
@@ -437,46 +442,50 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     n_below = 'COUNTA(%s$A$%d:$P$%d)' % (DT, last_slot + 1, last_slot + 5000)
 
     # ================================================================ Internal: visible
+    # Every reference is written with its sheet's name, so a formula reads the
+    # same on either tab: the visible cells' as Internal!, the workings' (on
+    # Internal data, from HC0) as 'Internal data'!.
     for col, px in WIDTHS.items():
         ws.column_dimensions[col].width = _width(px)
-    heights = {1: 25.5, 2: 15, 3: 6, 4: 16.5, 5: 15, 13: 7.5, 32: 7.5}
-    for r in range(6, 13):
-        heights[r] = 16.5
+    LASTV = max(16, 11 + len(products))                       # the last visible column
+    heights = {1: 25.5, 2: 15, 3: 6, 13: 7.5, 32: 7.5}
+    for r in range(4, 13):
+        heights[r] = PITCH
     for r in range(14, 32):
         heights[r] = 16.5
     for r, hgt in heights.items():
         ws.row_dimensions[r].height = hgt
-    ws["B1"] = "Internal: the bank's own figures beside the Call Report, peers and industry"
+    ws["B1"] = "Internal \u00b7 the bank's own figures beside the Call Report, peers and industry"
     ws["B1"].font = F_TITLE
     ws["B1"].alignment = Alignment(vertical="bottom")
     ws["B2"] = ("Built from the rows on Internal data. The yellow cells under What counts as reliable are "
                 "starting values to set.")
     ws["B2"].font = F_SUB
-    for col in range(2, 18):
+    for col in range(2, LASTV + 1):
         ws.cell(2, col).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
 
-    hc = _Cols(max(27, 13 + len(products) + 3))
-    # Lists the dropdowns read, in hidden columns.
+    hc = _Cols(HC0)
+    # Lists the dropdowns read, on Internal data.
     lists = {}
 
     def a_list(key, items, head):
         col = hc.take()
-        ws.cell(1, col, head)
+        ds.cell(1, col, head)
         for i, v in enumerate(items):
-            ws.cell(2 + i, col, v)
-        lists[key] = "$%s$2:$%s$%d" % (L(col), L(col), 1 + max(1, len(items)))
+            ds.cell(2 + i, col, v)
+        lists[key] = "%s$%s$2:$%s$%d" % (DT, L(col), L(col), 1 + max(1, len(items)))
         return col
     a_list("products", products, "Products")
     a_list("measures", measures + [NOT_MAPPED], "Measures")
     a_list("sources", outside, "Sources")
     a_list("imeasures", [m for _, m in MEASURES], "Internal measures")
     seg_list_col = hc.take()
-    ws.cell(1, seg_list_col, "Segments")
-    ws.cell(2, seg_list_col, COMPOSITE)
+    ds.cell(1, seg_list_col, "Segments")
+    ds.cell(2, seg_list_col, COMPOSITE)
     for k in range(N_SEGS):
-        ws.cell(3 + k, seg_list_col, '=IFERROR(INDEX(%s,MATCH(%d,%s,0)),"")' % (S["seg"], k + 1, S["seg_n"]))
-    lists["segments"] = "$%s$2:$%s$%d" % (L(seg_list_col), L(seg_list_col), 2 + N_SEGS)
-    SEG_NAME = lambda k: "$%s$%d" % (L(seg_list_col), 3 + k)                # noqa: E731
+        ds.cell(3 + k, seg_list_col, '=IFERROR(INDEX(%s,MATCH(%d,%s,0)),"")' % (S["seg"], k + 1, S["seg_n"]))
+    lists["segments"] = "%s$%s$2:$%s$%d" % (DT, L(seg_list_col), L(seg_list_col), 2 + N_SEGS)
+    SEG_NAME = lambda k: "%s$%s$%d" % (DT, L(seg_list_col), 3 + k)          # noqa: E731
 
     def dv(ref, key, title):
         v = DataValidation(type="list", formula1="=%s" % lists[key], showErrorMessage=True, errorTitle=title,
@@ -484,7 +493,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.add_data_validation(v)
         v.add(ref)
 
-    # ---- 1. Your products are (B4:C12)
+    MAP_END = 4 + N_NAMES                                     # the four top blocks: rows 5 to 11
+    # ---- 1. Your products are (B4:C11)
     _section(ws, 4, 2, 3, "Your products are")
     rules = guess_product(products)
     for i in range(N_NAMES):
@@ -496,65 +506,67 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                           lit(target), guess)
         _input(ws.cell(r, 3), '=IF(B{r}="","",IFERROR(INDEX({p},MATCH(B{r},{p},0)),{g}))'
                .format(r=r, p=lists["products"], g=guess))
-    dv("C5:C%d" % (4 + N_NAMES), "products", "Product")
+    dv("C5:C%d" % MAP_END, "products", "Product")
 
-    # ---- 2. Your measures are (E4:F12)
+    # ---- 2. Your measures are (E4:F11)
     _section(ws, 4, 5, 6, "Your measures are")
     for i, (key, name) in enumerate(MEASURES):
         r = 5 + i
         ws.cell(r, 5, name).font = F_BODY
         _input(ws.cell(r, 6), mapped.get(key, NOT_MAPPED))
     dv("F5:F%d" % (4 + len(MEASURES)), "measures", "Workbook measure")
-    M_NAMES = "$E$5:$E$%d" % (4 + len(MEASURES))
-    M_MAP = "$F$5:$F$%d" % (4 + len(MEASURES))
-    ws.cell(11, 5, "CRR grade column").font = F_LAB
-    ws.cell(11, 6, '=IF(%s$AC$3=0,"Not in the file",IF(SUM(%s)=0,"In the table, with no grades",'
-                   'SUM(%s)&" rows have a grade"))' % (DT, S["has_grade"], S["has_grade"])).font = F_BODY
+    M_NAMES = "%s$E$5:$E$%d" % (IN, 4 + len(MEASURES))
+    M_MAP = "%s$F$5:$F$%d" % (IN, 4 + len(MEASURES))
+    ws.cell(MAP_END, 5, "CRR grade column").font = F_LAB
+    ws.cell(MAP_END, 6, '=IF(%s$AC$3=0,"Not in the file",IF(SUM(%s)=0,"In the table, with no grades",'
+                        'SUM(%s)&" rows have a grade"))' % (DT, S["has_grade"], S["has_grade"])).font = F_BODY
 
-    # ---- 3. What counts as reliable (H4:J12)
-    _section(ws, 4, 8, 10, "What counts as reliable")
+    # ---- 3. What counts as reliable (H4:I11)
+    _section(ws, 4, 8, 9, "What counts as reliable")
     for r, lab, v, fmt in ((5, "Quarters both have, at least", 12, "0"),
                            (6, "Ratings that agree, at least", 0.7, "0%"),
                            (7, "Change correlation, at least", 0.6, "0.00")):
         ws.cell(r, 8, lab).font = F_LAB
-        _input(ws.cell(r, 10), v)
-        ws.cell(r, 10).number_format = fmt
-    MIN_Q, MIN_A, MIN_C = "$J$5", "$J$6", "$J$7"
+        _input(ws.cell(r, 9), v)
+        ws.cell(r, 9).number_format = fmt
+    MIN_Q, MIN_A, MIN_C = ("%s$I$%d" % (IN, r) for r in (5, 6, 7))
+    ws.cell(8, 8, "Call Report source").font = F_LAB
+    _input(ws.cell(8, 9), call_report)
+    dv("I8", "sources", "Call Report source")
     ws.cell(9, 8, "Rows on Internal data").font = F_LAB
-    ws.cell(9, 10, "=SUM(%s)+%s" % (S["has"], n_below)).font = F_BODY
+    ws.cell(9, 9, "=SUM(%s)+%s" % (S["has"], n_below)).font = F_BODY
     ws.cell(10, 8, "Rows not used").font = F_LAB
-    ws.cell(10, 10, "=SUM(%s)-SUM(%s)+%s" % (S["has"], S["used"], n_below)).font = F_BOLD
-    ws.conditional_formatting.add("J10", FormulaRule(formula=["$J$10>0"], fill=fill(K.CANVAS),
+    ws.cell(10, 9, "=SUM(%s)-SUM(%s)+%s" % (S["has"], S["used"], n_below)).font = F_BOLD
+    ws.conditional_formatting.add("I10", FormulaRule(formula=["$I$10>0"], fill=fill(K.CANVAS),
                                                      font=Font(bold=True, color=K.CRIMSON)))
-    ws.cell(11, 8, "Call Report source").font = F_LAB
-    _input(ws.cell(11, 10), call_report)
-    dv("J11", "sources", "Call Report source")
-    ws.cell(12, 8, "Rows the slot holds").font = F_LAB
-    ws.cell(12, 10, cap).font = F_BODY
-    for r in (9, 10, 12):
-        ws.cell(r, 10).number_format = "#,##0"
-    CR = "$J$11"
+    ws.cell(11, 8, "Rows the slot holds").font = F_LAB
+    ws.cell(11, 9, cap).font = F_BODY
+    for r in range(5, 12):
+        ws.cell(r, 9).alignment = Alignment(horizontal="right", vertical="center")
+    for r in (9, 10, 11):
+        ws.cell(r, 9).number_format = "#,##0"
+    CR = "%s$I$8" % IN
 
     # ---- hidden: calendar and one block per product (composite)
     W0 = 5
     WE = W0 + CAL - 1
     c_q, c_qn = hc.take(), hc.take()
-    ws.cell(4, c_q, "Quarter")
-    ws.cell(4, c_qn, "Quarter number")
+    ds.cell(4, c_q, "Quarter")
+    ds.cell(4, c_qn, "Quarter number")
     for i, q in enumerate(cal):
-        ws.cell(W0 + i, c_q, q)
-        ws.cell(W0 + i, c_qn, I.qindex(q))
+        ds.cell(W0 + i, c_q, q)
+        ds.cell(W0 + i, c_qn, I.qindex(q))
     QN = lambda r: "$%s%d" % (L(c_qn), r)                                 # noqa: E731
-    CALQ = "$%s$%d:$%s$%d" % (L(c_q), W0, L(c_q), WE)
-    CALN = "$%s$%d:$%s$%d" % (L(c_qn), W0, L(c_qn), WE)
+    CALQ = "%s$%s$%d:$%s$%d" % (DT, L(c_q), W0, L(c_q), WE)
+    CALN = "%s$%s$%d:$%s$%d" % (DT, L(c_qn), W0, L(c_qn), WE)
     FIELDS = ("bal", "gco", "nco", "d30", "d60", "d90")
     pblock = {}
     for pi, p in enumerate(products):
         b = {k: hc.take() for k in ("cnt", "hq") + FIELDS + ("r_net", "r_gross", "r_d30", "r_d60", "r_d90", "at")}
         pblock[p] = b
-        ws.cell(1, b["cnt"], p)
-        hasall = "$%s$2" % L(b["cnt"])
-        bad = "$%s$3" % L(b["cnt"])
+        ds.cell(1, b["cnt"], p)
+        hasall = "%s$%s$2" % (DT, L(b["cnt"]))
+        bad = "%s$%s$3" % (DT, L(b["cnt"]))
         # hq, per quarter: 1 when the file gives the product's All row for that
         # quarter (used there), else 0 and the segments are summed. hasall
         # reads them back: 0 no All row, 1 All in every quarter with rows, 2
@@ -562,35 +574,35 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         # that had segments only).
         HQ = "$%s$%d:$%s$%d" % (L(b["hq"]), W0, L(b["hq"]), WE)
         CNT = "$%s$%d:$%s$%d" % (L(b["cnt"]), W0, L(b["cnt"]), WE)
-        ws[hasall[1:].replace("$", "")] = ('=IF(SUM({hq})=0,0,IF(SUM({hq})=COUNTIF({cnt},">0"),1,2))'
-                                           .format(hq=HQ, cnt=CNT))
-        ws[bad[1:].replace("$", "")] = '=COUNTIFS({p},{c},{u},0)'.format(p=S["prod"], c=crit(p), u=S["used"])
+        ds.cell(2, b["cnt"], ('=IF(SUM({hq})=0,0,IF(SUM({hq})=COUNTIF({cnt},">0"),1,2))'
+                                           .format(hq=HQ, cnt=CNT)))
+        ds.cell(3, b["cnt"], '=COUNTIFS({p},{c},{u},0)'.format(p=S["prod"], c=crit(p), u=S["used"]))
         b["hasall"], b["bad"] = hasall, bad
         for k in b:
             if isinstance(b[k], int):
-                ws.cell(4, b[k], k)
+                ds.cell(4, b[k], k)
         for i in range(CAL):
             r = W0 + i
-            ws.cell(r, b["hq"], '=IF(COUNTIFS({qn},{q},{p},{c},{u},1,{t},1)>0,1,0)'
+            ds.cell(r, b["hq"], '=IF(COUNTIFS({qn},{q},{p},{c},{u},1,{t},1)>0,1,0)'
                     .format(qn=S["qn"], q=QN(r), p=S["prod"], c=crit(p), u=S["used"], t=S["total"]))
             base = '{p},{c},{u},1,{t},{h}'.format(p=S["prod"], c=crit(p), u=S["used"], t=S["total"],
                                                   h="%s%d" % (L(b["hq"]), r))
-            ws.cell(r, b["cnt"], "=COUNTIFS(%s,%s,%s)" % (S["qn"], QN(r), base))
-            ws.cell(r, b["at"], '=IF(%s%d>0,%d,"")' % (L(b["cnt"]), r, i + 1))
+            ds.cell(r, b["cnt"], "=COUNTIFS(%s,%s,%s)" % (S["qn"], QN(r), base))
+            ds.cell(r, b["at"], '=IF(%s%d>0,%d,"")' % (L(b["cnt"]), r, i + 1))
             for k in FIELDS:
-                ws.cell(r, b[k], "=SUMIFS(%s,%s,%s,%s)" % (S[k], S["qn"], QN(r), base))
+                ds.cell(r, b[k], "=SUMIFS(%s,%s,%s,%s)" % (S[k], S["qn"], QN(r), base))
             cn = lambda k_, rr: "%s%d" % (L(b[k_]), rr)                     # noqa: E731
             for rk, fk in (("r_net", "nco"), ("r_gross", "gco")):
                 if i < 3:
-                    ws.cell(r, b[rk], '=""')
+                    ds.cell(r, b[rk], '=""')
                     continue
                 win = lambda k_: "SUM(%s:%s)" % (cn(k_, r - 3), cn(k_, r))  # noqa: E731
-                ws.cell(r, b[rk], '=IF({bad}>0,"",IF(AND({c0}>0,{c1}>0,{c2}>0,{c3}>0),IF({sb}>0,100*{sn}/({sb}/4),'
+                ds.cell(r, b[rk], '=IF({bad}>0,"",IF(AND({c0}>0,{c1}>0,{c2}>0,{c3}>0),IF({sb}>0,100*{sn}/({sb}/4),'
                                   '""),""))'.format(bad=bad, c0=cn("cnt", r), c1=cn("cnt", r - 1),
                                                     c2=cn("cnt", r - 2), c3=cn("cnt", r - 3), sb=win("bal"),
                                                     sn=win(fk)))
             for rk, fk in (("r_d30", "d30"), ("r_d60", "d60"), ("r_d90", "d90")):
-                ws.cell(r, b[rk], '=IF(OR({bad}>0,{c}=0),"",IF({b}>0,100*{d}/{b},""))'
+                ds.cell(r, b[rk], '=IF(OR({bad}>0,{c}=0),"",IF({b}>0,100*{d}/{b},""))'
                         .format(bad=bad, c=cn("cnt", r), b=cn("bal", r), d=cn(fk, r)))
     RATE_KEYS = ("r_net", "r_gross", "r_d30", "r_d60", "r_d90")
 
@@ -604,17 +616,17 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         v, fl = hc.take(), hc.take()
         pw[(p, w)] = (v, fl)
         kcell = "$%s$3" % L(v)
-        ws.cell(1, v, "%s - %s" % (p, w))
-        ws.cell(3, v, '=IFERROR(MATCH(%s,%s,0),0)' % (lit(w), M_MAP))
+        ds.cell(1, v, "%s - %s" % (p, w))
+        ds.cell(3, v, '=IFERROR(MATCH(%s,%s,0),0)' % (lit(w), M_MAP))
         b = pblock[p]
         for i in range(G):
             r = W0 + i
             ch = "CHOOSE(%s,%s)" % (kcell, ",".join("%s%d" % (L(b[k]), r) for k in RATE_KEYS))
-            ws.cell(r, v, "=IF(%s=0,0,IF(ISNUMBER(%s),%s,0))" % (kcell, ch, ch))
-            ws.cell(r, fl, "=IF(%s=0,0,IF(ISNUMBER(%s),1,0))" % (kcell, ch))
+            ds.cell(r, v, "=IF(%s=0,0,IF(ISNUMBER(%s),%s,0))" % (kcell, ch, ch))
+            ds.cell(r, fl, "=IF(%s=0,0,IF(ISNUMBER(%s),1,0))" % (kcell, ch))
 
     def rng(col, a, b_):
-        return "$%s$%d:$%s$%d" % (L(col), a, L(col), b_)
+        return "%s$%s$%d:$%s$%d" % (DT, L(col), a, L(col), b_)
 
     def rating(v, lines, wc):
         op = ">" if higher else "<"
@@ -641,8 +653,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         at = {}
         c = c0
         for k, fm in sums:
-            ws.cell(row, c, "=" + fm)
-            at[k] = "$%s$%d" % (L(c), row)
+            ds.cell(row, c, "=" + fm)
+            at[k] = "%s$%s$%d" % (DT, L(c), row)
             c += 1
 
         def corr(n_, sx, sy, sxx, syy, sxy):
@@ -655,8 +667,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                 ("agree", 'IF(AND({n}>0,{rf}<>1,ISNUMBER({agn})),{agn}/{n},"")'.format(rf=refused, **at)),
                 ("within", 'IF(AND({n}>0,{rf}<>1,ISNUMBER({win})),{win}/{n},"")'.format(rf=refused, **at))]
         for k, fm in figs:
-            ws.cell(row, c, "=" + fm)
-            at[k] = "$%s$%d" % (L(c), row)
+            ds.cell(row, c, "=" + fm)
+            at[k] = "%s$%s$%d" % (DT, L(c), row)
             c += 1
         verdict = ('IF({n}<{mq},"{v0}",IF({ref}=1,"{v1}",IF(AND(ISNUMBER({a}),ISNUMBER({ch})),'
                    'IF(AND({a}>={ma},{ch}>={mc}),"{v2}",IF({a}>=0.75*{ma},"{v3}","{v4}")),'
@@ -665,13 +677,13 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                            v0=VERDICTS[0], v1=VERDICTS[1], v2=VERDICTS[2], v3=VERDICTS[3], v4=VERDICTS[4]))
         if found is not None:
             verdict = 'IF(%s,%s,"%s")' % (found, verdict, NO_SERIES)
-        ws.cell(row, c, "=" + verdict)
-        at["verdict"] = "$%s$%d" % (L(c), row)
+        ds.cell(row, c, "=" + verdict)
+        at["verdict"] = "%s$%s$%d" % (DT, L(c), row)
         c += 1
         # Ranks the sources for the best one: agreement, where the verdict allows it.
-        ws.cell(row, c, '=IF(OR({v}="{a}",{v}="{b}",{v}="{c}"),{ag},-1)'.format(
+        ds.cell(row, c, '=IF(OR({v}="{a}",{v}="{b}",{v}="{c}"),{ag},-1)'.format(
             v=at["verdict"], a=VERDICTS[2], b=VERDICTS[3], c=VERDICTS[4], ag=at["agree"]))
-        at["score"] = "$%s$%d" % (L(c), row)
+        at["score"] = "%s$%s$%d" % (DT, L(c), row)
         return at
 
     # ---- hidden: one row of statistics per outside series
@@ -679,11 +691,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     st_lines = [hc.take() for _ in range(4)]
     st_w, st_ref = hc.take(), hc.take()
     st0 = hc.take(22)
-    ws.cell(4, st_lab, "Series")
+    ds.cell(4, st_lab, "Series")
     for k in range(4):
-        ws.cell(4, st_lines[k], "Line %d" % (k + 2))
-    ws.cell(4, st_w, "On a line is worse")
-    ws.cell(4, st_ref, "Refused")
+        ds.cell(4, st_lines[k], "Line %d" % (k + 2))
+    ds.cell(4, st_w, "On a line is worse")
+    ds.cell(4, st_ref, "Refused")
     st_at = {}
     STAT0 = W0
     I_rows = (W0, W0 + G - 1)
@@ -691,11 +703,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         r = STAT0 + j
         p, w, s = parts[lab]
         rf = refs[lab]
-        ws.cell(r, st_lab, lab)
+        ds.cell(r, st_lab, lab)
         for k in range(4):
-            ws.cell(r, st_lines[k], "=%s" % rf["lines"][k])
-        ws.cell(r, st_w, '=IF(%s="worse",1,0)' % rf["otl"])
-        ws.cell(r, st_ref, '=IF(%s<>"",1,0)' % rf["refused"])
+            ds.cell(r, st_lines[k], "=%s" % rf["lines"][k])
+        ds.cell(r, st_w, '=IF(%s="worse",1,0)' % rf["otl"])
+        ds.cell(r, st_ref, '=IF(%s<>"",1,0)' % rf["refused"])
         v, fl = pw[(p, w)]
         dc = data_col[lab]
         Srng = "Data!$%s$2:$%s$%d" % (dc, dc, G + 1)
@@ -704,12 +716,13 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             rng(v, W0 + 4, W0 + G - 1), rng(v, W0, W0 + G - 5), rng(fl, W0 + 4, W0 + G - 1), rng(fl, W0, W0 + G - 5),
             "Data!$%s$6:$%s$%d" % (dc, dc, G + 1), "Data!$%s$2:$%s$%d" % (dc, dc, G - 3),
             "ISNUMBER(Data!$%s$6:$%s$%d)" % (dc, dc, G + 1), "ISNUMBER(Data!$%s$2:$%s$%d)" % (dc, dc, G - 3),
-            ["$%s$%d" % (L(c_), r) for c_ in st_lines], "$%s$%d" % (L(st_w), r), "$%s$%d" % (L(st_ref), r))
+            ["%s$%s$%d" % (DT, L(c_), r) for c_ in st_lines], "%s$%s$%d" % (DT, L(st_w), r),
+            "%s$%s$%d" % (DT, L(st_ref), r))
     ST_END = STAT0 + max(1, len(out_labels)) - 1
     ST_LABELS = rng(st_lab, STAT0, ST_END)
     def st_range(key):
-        col = re.match(r"\$([A-Z]+)\$", st_at[out_labels[0]][key]).group(1)
-        return "$%s$%d:$%s$%d" % (col, STAT0, col, ST_END)
+        col = re.search(r"\$([A-Z]+)\$", st_at[out_labels[0]][key]).group(1)
+        return "%s$%s$%d:$%s$%d" % (DT, col, STAT0, col, ST_END)
 
     # ---- the pickers (row 15)
     for col, t in ((2, "Product"), (3, "Measure"), (5, "Segment"), (6, "Shade with lines from")):
@@ -723,30 +736,30 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     dv("C%d" % PICK_ROW, "imeasures", "Measure")
     dv("E%d" % PICK_ROW, "segments", "Segment")
     dv("F%d" % PICK_ROW, "sources", "Shade with lines from")
-    PB, PC, PE, PF = ("$%s$%d" % (c_, PICK_ROW) for c_ in "BCEF")
+    PB, PC, PE, PF = ("%s$%s$%d" % (IN, c_, PICK_ROW) for c_ in "BCEF")
 
     # ---- hidden: the picked series, every calendar quarter
     pk = {k: hc.take() for k in ("cnt",) + FIELDS + ("rate", "val", "flag", "last", "grade", "gcount")}
     for k, c_ in pk.items():
-        ws.cell(4, c_, "picked " + k)
+        ds.cell(4, c_, "picked " + k)
     c0 = pk["cnt"]
-    KM = "$%s$1" % L(c0)
-    ws.cell(1, c0, "=IFERROR(MATCH(%s,%s,0),0)" % (PC, M_NAMES))
-    HASALL = "$%s$2" % L(c0)
-    ws.cell(2, c0, '=IF(COUNTIFS(%s,%s,%s,1,%s,1)>0,1,0)' % (S["prod"], crit_of(PB), S["total"], S["used"]))
-    BAD = "$%s$3" % L(c0)
-    ws.cell(3, c0, '=COUNTIFS(%s,%s,%s,0)' % (S["prod"], crit_of(PB), S["used"]))
+    KM = "%s$%s$1" % (DT, L(c0))
+    ds.cell(1, c0, "=IFERROR(MATCH(%s,%s,0),0)" % (PC, M_NAMES))
+    HASALL = "%s$%s$2" % (DT, L(c0))
+    ds.cell(2, c0, '=IF(COUNTIFS(%s,%s,%s,1,%s,1)>0,1,0)' % (S["prod"], crit_of(PB), S["total"], S["used"]))
+    BAD = "%s$%s$3" % (DT, L(c0))
+    ds.cell(3, c0, '=COUNTIFS(%s,%s,%s,0)' % (S["prod"], crit_of(PB), S["used"]))
     COMP = '(%s="%s")' % (PE, COMPOSITE)
-    WPK = "$%s$1" % L(pk["bal"])                                    # the workbook measure the pick maps to
-    ws.cell(1, pk["bal"], '=IF(%s=0,"",INDEX(%s,%s))' % (KM, M_MAP, KM))
+    WPK = "%s$%s$1" % (DT, L(pk["bal"]))                                    # the workbook measure the pick maps to
+    ds.cell(1, pk["bal"], '=IF(%s=0,"",INDEX(%s,%s))' % (KM, M_MAP, KM))
     base_c = '{p},{c},{u},1,{t},{h}'.format(p=S["prod"], c=crit_of(PB), u=S["used"], t=S["total"], h=HASALL)
     base_s = '{p},{c},{u},1,{s},{e}'.format(p=S["prod"], c=crit_of(PB), u=S["used"], s=S["seg"], e=crit_of(PE))
     for i in range(CAL):
         r = W0 + i
-        ws.cell(r, pk["cnt"], "=IF(%s,COUNTIFS(%s,%s,%s),COUNTIFS(%s,%s,%s))"
+        ds.cell(r, pk["cnt"], "=IF(%s,COUNTIFS(%s,%s,%s),COUNTIFS(%s,%s,%s))"
                 % (COMP, S["qn"], QN(r), base_c, S["qn"], QN(r), base_s))
         for k in FIELDS:
-            ws.cell(r, pk[k], "=IF(%s,SUMIFS(%s,%s,%s,%s),SUMIFS(%s,%s,%s,%s))"
+            ds.cell(r, pk[k], "=IF(%s,SUMIFS(%s,%s,%s,%s),SUMIFS(%s,%s,%s,%s))"
                     % (COMP, S[k], S["qn"], QN(r), base_c, S[k], S["qn"], QN(r), base_s))
         cn = lambda k_, rr: "%s%d" % (L(pk[k_]), rr)                       # noqa: E731
         if i >= 3:
@@ -756,39 +769,39 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         else:
             ttm = lambda k_: '""'                                           # noqa: E731
         qe = lambda k_: 'IF(AND(%s>0,%s>0),100*%s/%s,"")' % (cn("cnt", r), cn("bal", r), cn(k_, r), cn("bal", r))  # noqa
-        ws.cell(r, pk["rate"], '=IF(OR(%s>0,%s=0),"",CHOOSE(%s,%s,%s,%s,%s,%s))'
+        ds.cell(r, pk["rate"], '=IF(OR(%s>0,%s=0),"",CHOOSE(%s,%s,%s,%s,%s,%s))'
                 % (BAD, KM, KM, ttm("nco"), ttm("gco"), qe("d30"), qe("d60"), qe("d90")))
-        ws.cell(r, pk["val"], '=IF(ISNUMBER(%s),%s,0)' % (cn("rate", r), cn("rate", r)))
-        ws.cell(r, pk["flag"], '=IF(ISNUMBER(%s),1,0)' % cn("rate", r))
-        ws.cell(r, pk["last"], '=IF(%s=1,%d,%s)' % (cn("flag", r), i + 1, cn("last", r - 1) if i else 0))
+        ds.cell(r, pk["val"], '=IF(ISNUMBER(%s),%s,0)' % (cn("rate", r), cn("rate", r)))
+        ds.cell(r, pk["flag"], '=IF(ISNUMBER(%s),1,0)' % cn("rate", r))
+        ds.cell(r, pk["last"], '=IF(%s=1,%d,%s)' % (cn("flag", r), i + 1, cn("last", r - 1) if i else 0))
         gq = "%s,%s,%s,1" % (S["qn"], QN(r), S["has_grade"])
-        ws.cell(r, pk["gcount"], "=IF(%s,IF(%s=1,COUNTIFS(%s,%s,%s,1),0),COUNTIFS(%s,%s,%s))"
+        ds.cell(r, pk["gcount"], "=IF(%s,IF(%s=1,COUNTIFS(%s,%s,%s,1),0),COUNTIFS(%s,%s,%s))"
                 % (COMP, HASALL, gq, S["prod"] + "," + crit_of(PB), S["total"], gq, S["prod"] + "," + crit_of(PB),
                    S["seg"] + "," + crit_of(PE)))
-        ws.cell(r, pk["grade"], '=IF(%s=1,IF(%s,SUMIFS(%s,%s,%s,%s,1),SUMIFS(%s,%s,%s,%s)),"")'
+        ds.cell(r, pk["grade"], '=IF(%s=1,IF(%s,SUMIFS(%s,%s,%s,%s,1),SUMIFS(%s,%s,%s,%s)),"")'
                 % (cn("gcount", r), COMP, S["grade"], gq, S["prod"] + "," + crit_of(PB), S["total"],
                    S["grade"], gq, S["prod"] + "," + crit_of(PB), S["seg"] + "," + crit_of(PE)))
-    LAST = "$%s$%d" % (L(pk["last"]), WE)
+    LAST = "%s$%s$%d" % (DT, L(pk["last"]), WE)
 
     # ---- hidden: each outside source for the pick, and its statistics
     psrc = {}
     for k, s in enumerate(outside):
         v, fl = hc.take(), hc.take()
         psrc[s] = (v, fl)
-        lab_c, col_c, idx_c = "$%s$1" % L(v), "$%s$2" % L(v), "$%s$3" % L(v)
-        ws.cell(1, v, '=%s&" - "&%s&" - "&%s' % (PB, WPK, lit(s)))
-        ws.cell(2, v, '=IFERROR(MATCH(%s,%s,0),0)' % (lab_c, data_hdr))
-        ws.cell(3, v, '=IFERROR(MATCH(%s,%s,0),0)' % (lab_c, ST_LABELS))
-        ws.cell(4, v, s)
+        lab_c, col_c, idx_c = ("%s$%s$%d" % (DT, L(v), k_) for k_ in (1, 2, 3))
+        ds.cell(1, v, '=%s&" - "&%s&" - "&%s' % (PB, WPK, lit(s)))
+        ds.cell(2, v, '=IFERROR(MATCH(%s,%s,0),0)' % (lab_c, data_hdr))
+        ds.cell(3, v, '=IFERROR(MATCH(%s,%s,0),0)' % (lab_c, ST_LABELS))
+        ds.cell(4, v, s)
         for i in range(CAL):
             r = W0 + i
             if i < G:
                 cell = "INDEX(Data!$B${d}:${e}${d},{c})".format(d=2 + i, e=d_last, c=col_c)
-                ws.cell(r, v, '=IF({c}=0,0,IF({x}="",0,{x}))'.format(c=col_c, x=cell))
-                ws.cell(r, fl, '=IF({c}=0,0,IF({x}="",0,1))'.format(c=col_c, x=cell))
+                ds.cell(r, v, '=IF({c}=0,0,IF({x}="",0,{x}))'.format(c=col_c, x=cell))
+                ds.cell(r, fl, '=IF({c}=0,0,IF({x}="",0,1))'.format(c=col_c, x=cell))
             else:
-                ws.cell(r, v, 0)
-                ws.cell(r, fl, 0)
+                ds.cell(r, v, 0)
+                ds.cell(r, fl, 0)
     pst_lines = [hc.take() for _ in range(4)]
     pst_w, pst_ref, pst_found = hc.take(), hc.take(), hc.take()
     pst0 = hc.take(22)
@@ -797,50 +810,53 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for k, s in enumerate(outside):
         r = PST0 + k
         v, fl = psrc[s]
-        idx = "$%s$3" % L(v)
+        idx = "%s$%s$3" % (DT, L(v))
         for j in range(4):
-            ws.cell(r, pst_lines[j], '=IF(%s=0,"",INDEX(%s,%s))' % (idx, rng(st_lines[j], STAT0, ST_END), idx))
-        ws.cell(r, pst_w, '=IF(%s=0,0,INDEX(%s,%s))' % (idx, rng(st_w, STAT0, ST_END), idx))
-        ws.cell(r, pst_ref, '=IF(%s=0,0,INDEX(%s,%s))' % (idx, rng(st_ref, STAT0, ST_END), idx))
-        ws.cell(r, pst_found, '=IF(%s>0,TRUE,FALSE)' % idx)
+            ds.cell(r, pst_lines[j], '=IF(%s=0,"",INDEX(%s,%s))' % (idx, rng(st_lines[j], STAT0, ST_END), idx))
+        ds.cell(r, pst_w, '=IF(%s=0,0,INDEX(%s,%s))' % (idx, rng(st_w, STAT0, ST_END), idx))
+        ds.cell(r, pst_ref, '=IF(%s=0,0,INDEX(%s,%s))' % (idx, rng(st_ref, STAT0, ST_END), idx))
+        ds.cell(r, pst_found, '=IF(%s>0,TRUE,FALSE)' % idx)
         pst_at[s] = stats(
             r, pst0, rng(pk["val"], *I_rows), rng(pk["flag"], *I_rows), rng(v, *I_rows), rng(fl, *I_rows),
             rng(pk["val"], W0 + 4, W0 + G - 1), rng(pk["val"], W0, W0 + G - 5),
             rng(pk["flag"], W0 + 4, W0 + G - 1), rng(pk["flag"], W0, W0 + G - 5),
             rng(v, W0 + 4, W0 + G - 1), rng(v, W0, W0 + G - 5), rng(fl, W0 + 4, W0 + G - 1), rng(fl, W0, W0 + G - 5),
-            ["$%s$%d" % (L(pst_lines[j]), r) for j in range(4)], "$%s$%d" % (L(pst_w), r),
-            "$%s$%d" % (L(pst_ref), r), found="$%s$%d" % (L(pst_found), r))
+            ["%s$%s$%d" % (DT, L(pst_lines[j]), r) for j in range(4)], "%s$%s$%d" % (DT, L(pst_w), r),
+            "%s$%s$%d" % (DT, L(pst_ref), r), found="%s$%s$%d" % (DT, L(pst_found), r))
     # The shading source's lines.
     sh = hc.take()
-    SH_IDX = "$%s$1" % L(sh)
-    ws.cell(1, sh, '=IFERROR(MATCH(%s&" - "&%s&" - "&%s,%s,0),0)' % (PB, WPK, PF, ST_LABELS))
+    SH_IDX = "%s$%s$1" % (DT, L(sh))
+    ds.cell(1, sh, '=IFERROR(MATCH(%s&" - "&%s&" - "&%s,%s,0),0)' % (PB, WPK, PF, ST_LABELS))
     SH = []
     for j in range(4):
-        ws.cell(2 + j, sh, '=IF(%s=0,"",INDEX(%s,%s))' % (SH_IDX, rng(st_lines[j], STAT0, ST_END), SH_IDX))
-        SH.append("$%s$%d" % (L(sh), 2 + j))
-    SH_W = "$%s$6" % L(sh)
-    ws.cell(6, sh, '=IF(%s=0,0,INDEX(%s,%s))' % (SH_IDX, rng(st_w, STAT0, ST_END), SH_IDX))
-    SH_REF = "$%s$7" % L(sh)
-    ws.cell(7, sh, '=IF(%s=0,1,INDEX(%s,%s))' % (SH_IDX, rng(st_ref, STAT0, ST_END), SH_IDX))
-    SH_OK = "$%s$8" % L(sh)
-    ws.cell(8, sh, '=AND(%s=0,%s)' % (SH_REF, ",".join("ISNUMBER(%s)" % x for x in SH)))
+        ds.cell(2 + j, sh, '=IF(%s=0,"",INDEX(%s,%s))' % (SH_IDX, rng(st_lines[j], STAT0, ST_END), SH_IDX))
+        SH.append("%s$%s$%d" % (DT, L(sh), 2 + j))
+    SH_W = "%s$%s$6" % (DT, L(sh))
+    ds.cell(6, sh, '=IF(%s=0,0,INDEX(%s,%s))' % (SH_IDX, rng(st_w, STAT0, ST_END), SH_IDX))
+    SH_REF = "%s$%s$7" % (DT, L(sh))
+    ds.cell(7, sh, '=IF(%s=0,1,INDEX(%s,%s))' % (SH_IDX, rng(st_ref, STAT0, ST_END), SH_IDX))
+    SH_OK = "%s$%s$8" % (DT, L(sh))
+    ds.cell(8, sh, '=AND(%s=0,%s)' % (SH_REF, ",".join("ISNUMBER(%s)" % x for x in SH)))
     misc = hc.take()                     # the latest quarters: the picked product's, and the one compared
-    ws.cell(1, misc, "latest quarters")
+    ds.cell(1, misc, "latest quarters")
 
-    # ---- 4. Quarters loaded, per product (L4:Q12)
-    _section(ws, 4, 12, 12 + len(products), "Quarters loaded, per product")
+    # ---- 4. Quarters loaded, per product (K4:P12): a column per product from L
+    CV0 = 12
+    _section(ws, 4, CV0 - 1, CV0 - 1 + len(products), "Quarters loaded, per product")
     for j, p in enumerate(products):
-        c = ws.cell(5, 13 + j, p)
+        c = ws.cell(5, CV0 + j, p)
         c.font = F_LAB
-        c.alignment = Alignment(horizontal="right")
-    ws.row_dimensions[5].height = 15
+        c.alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+    # A combined product's name takes two lines; the row grows only then.
+    if any(len(p) > 15 for p in products):
+        ws.row_dimensions[5].height = 27
     cov_rows = ("Quarters", "First quarter", "Latest quarter", "Segments", "Composite from",
                 "Balance, latest ($ millions)", "Rows not used")
     for i, t in enumerate(cov_rows):
-        ws.cell(6 + i, 12, t).font = F_LAB
+        ws.cell(6 + i, CV0 - 1, t).font = F_LAB
     for j, p in enumerate(products):
         b = pblock[p]
-        col = 13 + j
+        col = CV0 + j
         at = rng(b["at"], W0, WE)
         ws.cell(6, col, "=COUNT(%s)" % at)
         ws.cell(7, col, '=IF(%s6=0,"",INDEX(%s,MIN(%s)))' % (L(col), CALQ, at))
@@ -854,24 +870,28 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for r in range(6, 13):
             cell = ws.cell(r, col)
             cell.font = F_BODY
-            cell.alignment = Alignment(horizontal="right")
+            cell.alignment = Alignment(horizontal="right", vertical="center", shrink_to_fit=r == 10)
         ws.cell(6, col).number_format = "0"
         ws.cell(11, col).number_format = "#,##0.0"
         ws.cell(12, col).number_format = "0"
     if products:
-        grid_rng = "M6:%s12" % L(12 + len(products))
-        ws.conditional_formatting.add(grid_rng, FormulaRule(formula=['M$5=%s' % PB], fill=fill(K.INTERNAL),
-                                                            font=Font(color=K.PAPER, bold=True)))
-        ws.conditional_formatting.add("M6:%s6" % L(12 + len(products)),
-                                      FormulaRule(formula=["M6>=%s" % MIN_Q], fill=fill(K.INTERNAL_TINT),
+        c1, cz = L(CV0), L(CV0 - 1 + len(products))
+        ws.conditional_formatting.add("%s6:%s12" % (c1, cz), FormulaRule(formula=['%s$5=%s' % (c1, PB)],
+                                                                         fill=fill(K.INTERNAL),
+                                                                         font=Font(color=K.PAPER, bold=True)))
+        ws.conditional_formatting.add("%s6:%s6" % (c1, cz),
+                                      FormulaRule(formula=["%s6>=%s" % (c1, MIN_Q)], fill=fill(K.INTERNAL_TINT),
                                                   font=Font(color=K.INTERNAL_TEXT)))
-        ws.conditional_formatting.add("M12:%s12" % L(12 + len(products)),
-                                      FormulaRule(formula=["M12>0"], fill=fill(K.CANVAS),
+        ws.conditional_formatting.add("%s12:%s12" % (c1, cz),
+                                      FormulaRule(formula=["%s12>0" % c1], fill=fill(K.CANVAS),
                                                   font=Font(bold=True, color=K.CRIMSON)))
 
-    # ---- 7. How reliable is each outside source here? (L14:Q31)
-    _section(ws, 14, 12, 17, "How reliable is each outside source here?")
-    _head(ws, REL_TOP, 12, [""] + outside)
+    # ---- 7. How reliable is each outside source here? (K14:P23): a column
+    # per source from L, under a 27 pt INK header its names wrap in
+    RL = 11
+    REL_LAST = max(RL + len(outside), 16)
+    _section(ws, 14, RL, REL_LAST, "How reliable is each outside source here?")
+    _head(ws, REL_TOP, RL, [""] + outside)
     ws.row_dimensions[REL_TOP].height = 27
     rel_rows = (("Quarters both have", "overlap", "0"), ("Level correlation", "level", "0.00"),
                 ("Change correlation", "change", "0.00"),
@@ -880,53 +900,55 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                 ("Verdict", "verdict", None))
     for i, (t, key, fmt) in enumerate(rel_rows):
         r = REL_TOP + 1 + i
-        ws.cell(r, 12, t).font = F_LAB
+        ws.cell(r, RL, t).font = F_LAB
         for k, s in enumerate(outside):
-            c = ws.cell(r, 13 + k)
+            c = ws.cell(r, RL + 1 + k)
             src = pst_at[s][key]
             if key == "verdict":
                 c.value = "=%s" % src
             else:
                 c.value = '=IF(%s="%s","",%s)' % (pst_at[s]["verdict"], NO_SERIES, src)
             c.font = F_BOLD if key == "verdict" else F_BODY
-            c.alignment = Alignment(horizontal="right" if key != "verdict" else "center", wrap_text=key == "verdict")
+            c.alignment = Alignment(horizontal="right" if key != "verdict" else "center", vertical="center",
+                                    wrap_text=key == "verdict")
             if fmt:
                 c.number_format = fmt
         if key == "verdict":
             ws.row_dimensions[r].height = 30
     V_ROW = REL_TOP + len(rel_rows)
-    _verdict_formats(ws, "M%d:%s%d" % (V_ROW, L(12 + len(outside)), V_ROW), "M%d" % V_ROW)
-    ws.cell(V_ROW + 1, 12, '="Lines: each source\'s own, from Lines by source, for "&%s&" - "&IF(%s="","(not mapped)",%s)&"."'
+    _verdict_formats(ws, "%s%d:%s%d" % (L(RL + 1), V_ROW, L(RL + len(outside)), V_ROW), "%s%d" % (L(RL + 1), V_ROW))
+    ws.cell(V_ROW + 1, RL, '="Lines: each source\'s own, from Lines by source, for "&%s&" - "&IF(%s="","(not mapped)",%s)&"."'
             % (PB, WPK, WPK)).font = F_NOTE
 
-    # ---- CRR grades (L24:Q30)
-    _section(ws, CRR_TOP, 12, 17, "If your file has CRR grades")
-    ws.cell(CRR_TOP + 1, 12, "Rating").font = F_LAB
-    ws.cell(CRR_TOP + 1, 14, "Lowest CRR grade").font = F_LAB
+    # ---- CRR grades (K24:P31)
+    _section(ws, CRR_TOP, RL, REL_LAST, "If your file has CRR grades")
+    ws.cell(CRR_TOP + 1, RL, "Rating").font = F_LAB
+    ws.cell(CRR_TOP + 1, RL + 1, "Lowest CRR grade").font = F_LAB
     for k, (nm, low) in enumerate(zip(("1 Low", "2 Moderate-Low", "3 Moderate", "4 Moderate-High", "5 High"),
                                       (1, 3, 5, 7, 9))):
         r = CRR_TOP + 2 + k
-        c = ws.cell(r, 12, nm)
+        c = ws.cell(r, RL, nm)
         c.font = F_BODY
         c.fill = fill(K.RATING_FILL[k])
-        _input(ws.cell(r, 14), low)
-    LOWS = "$N$%d:$N$%d" % (CRR_TOP + 2, CRR_TOP + 6)
+        _input(ws.cell(r, RL + 1), low)
+    LG = L(RL + 1)
+    LOWS = "%s$%s$%d:$%s$%d" % (IN, LG, CRR_TOP + 2, LG, CRR_TOP + 6)
     # Per quarter: the grade's rating, and the internal value's rating on the shading source's lines.
     gr_c, ir_c = hc.take(), hc.take()
-    ws.cell(4, gr_c, "grade rating")
-    ws.cell(4, ir_c, "internal rating on the shading lines")
+    ds.cell(4, gr_c, "grade rating")
+    ds.cell(4, ir_c, "internal rating on the shading lines")
     for i in range(CAL):
         r = W0 + i
         g_ = "%s%d" % (L(pk["grade"]), r)
-        ws.cell(r, gr_c, '=IF(ISNUMBER(%s),COUNTIF(%s,"<="&%s),0)' % (g_, LOWS, g_))
+        ds.cell(r, gr_c, '=IF(ISNUMBER(%s),COUNTIF(%s,"<="&%s),0)' % (g_, LOWS, g_))
         v_ = "%s%d" % (L(pk["val"]), r)
-        ws.cell(r, ir_c, '=IF(AND(%s%d=1,%s),%s,0)' % (L(pk["flag"]), r, SH_OK, rating(v_, SH, SH_W)))
+        ds.cell(r, ir_c, '=IF(AND(%s%d=1,%s),%s,0)' % (L(pk["flag"]), r, SH_OK, rating(v_, SH, SH_W)))
     both = "(%s>0)*(%s>0)" % (rng(gr_c, W0, WE), rng(ir_c, W0, WE))
     crr_n = "SUMPRODUCT(%s*1)" % both
     crr_a = "SUMPRODUCT(%s*(%s=%s))" % (both, rng(gr_c, W0, WE), rng(ir_c, W0, WE))
-    asc = "AND(%s)" % ",".join("$N$%d<$N$%d" % (CRR_TOP + 2 + k, CRR_TOP + 3 + k) for k in range(4))
+    asc = "AND(%s)" % ",".join("$%s$%d<$%s$%d" % (LG, CRR_TOP + 2 + k, LG, CRR_TOP + 3 + k) for k in range(4))
     r = CRR_TOP + 7
-    c = ws.cell(r, 12, ('=IF(NOT({asc}),"The lowest grades must rise from rating 1 to rating 5.",'
+    c = ws.cell(r, RL, ('=IF(NOT({asc}),"The lowest grades must rise from rating 1 to rating 5.",'
                         'IF({ix}=0,"The workbook has no "&{f}&" series for this product and measure.",'
                         'IF({rf}=1,"The "&{f}&" lines for this series are refused on Lines by source, so no quarter is '
                         'rated.",IF({n}=0,"No quarter of the picked series has both a CRR grade and an internal '
@@ -934,55 +956,55 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                         '&" of "&{n}&" quarters."))))').format(asc=asc, n=crr_n, a=crr_a, f=PF, ix=SH_IDX, rf=SH_REF))
     c.font = F_BOLD
     c.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.merge_cells(start_row=r, start_column=12, end_row=r, end_column=17)
+    ws.merge_cells(start_row=r, start_column=RL, end_row=r, end_column=REL_LAST)
     ws.row_dimensions[r].height = 30
 
     # ---- the chart block: the last 48 quarters of the picked series
     cb = {k: hc.take() for k in ("idx", "q", "int", "num_lo", "num_hi", "base", "z1", "z2", "z3", "z4", "z5")}
     cb_src = {s: hc.take() for s in outside}
     for k, c_ in cb.items():
-        ws.cell(4, c_, "chart " + k)
-    START = "$%s$1" % L(cb["idx"])
-    ws.cell(1, cb["idx"], "=IF(%s=0,MAX(1,%d),MAX(1,%s-%d))" % (LAST, G - WINDOW + 1, LAST, WINDOW - 1))
-    FLOOR, TOP = "$%s$2" % L(cb["idx"]), "$%s$3" % L(cb["idx"])
+        ds.cell(4, c_, "chart " + k)
+    START = "%s$%s$1" % (DT, L(cb["idx"]))
+    ds.cell(1, cb["idx"], "=IF(%s=0,MAX(1,%d),MAX(1,%s-%d))" % (LAST, G - WINDOW + 1, LAST, WINDOW - 1))
+    FLOOR, TOP = "%s$%s$2" % (DT, L(cb["idx"])), "%s$%s$3" % (DT, L(cb["idx"]))
     C0, CE = W0, W0 + WINDOW - 1
     lo_r, hi_r = rng(cb["num_lo"], C0, CE), rng(cb["num_hi"], C0, CE)
     fz = "TRUE" if (floor_at_zero and higher) else "FALSE"
-    ws.cell(2, cb["idx"], "=IF(COUNT({lo})=0,0,IF({fz},MIN(0,MIN({lo})),MIN({lo})-0.08*(MAX({hi})-MIN({lo}))))"
+    ds.cell(2, cb["idx"], "=IF(COUNT({lo})=0,0,IF({fz},MIN(0,MIN({lo})),MIN({lo})-0.08*(MAX({hi})-MIN({lo}))))"
             .format(lo=lo_r, hi=hi_r, fz=fz))
-    ws.cell(3, cb["idx"], "=IF(COUNT({hi})=0,1,MAX({hi})+0.08*(MAX({hi})-{f})+IF(MAX({hi})={f},1,0))"
+    ds.cell(3, cb["idx"], "=IF(COUNT({hi})=0,1,MAX({hi})+0.08*(MAX({hi})-{f})+IF(MAX({hi})={f},1,0))"
             .format(hi=hi_r, f=FLOOR))
-    ws.cell(1, cb["q"], '=IF(%s=0,"No internal data yet",%s&", "&%s&IF(%s,"",", "&%s)&": the last 48 quarters")'
+    ds.cell(1, cb["q"], '=IF(%s=0,"No internal data yet",%s&", "&%s&IF(%s,"",", "&%s)&": the last 48 quarters")'
             % (LAST, PB, PC, COMP, PE))
     order = [0, 1, 2, 3] if higher else [3, 2, 1, 0]
     zone_fills = list(K.ZONE_FILL) if higher else list(K.ZONE_FILL[::-1])
     for j in range(WINDOW):
         r = C0 + j
         idx = "%s%d" % (L(cb["idx"]), r)
-        ws.cell(r, cb["idx"], "=MIN(%s+%d,%d)" % (START, j, CAL))
-        ws.cell(r, cb["q"], "=INDEX(%s,%s)" % (CALQ, idx))
-        ws.cell(r, cb["int"], "=IF(INDEX({f},{i})=1,INDEX({v},{i}),NA())".format(
+        ds.cell(r, cb["idx"], "=MIN(%s+%d,%d)" % (START, j, CAL))
+        ds.cell(r, cb["q"], "=INDEX(%s,%s)" % (CALQ, idx))
+        ds.cell(r, cb["int"], "=IF(INDEX({f},{i})=1,INDEX({v},{i}),NA())".format(
             f=rng(pk["flag"], W0, WE), v=rng(pk["val"], W0, WE), i=idx))
         drawn = ["%s%d" % (L(cb["int"]), r)]
         for s in outside:
             v, fl = psrc[s]
-            ws.cell(r, cb_src[s], "=IF(INDEX({f},{i})=1,INDEX({v},{i}),NA())".format(
+            ds.cell(r, cb_src[s], "=IF(INDEX({f},{i})=1,INDEX({v},{i}),NA())".format(
                 f=rng(fl, W0, WE), v=rng(v, W0, WE), i=idx))
             drawn.append("%s%d" % (L(cb_src[s]), r))
-        ws.cell(r, cb["num_lo"], '=IF(COUNT({c})=0,"",MIN({m}))'.format(
+        ds.cell(r, cb["num_lo"], '=IF(COUNT({c})=0,"",MIN({m}))'.format(
             c=",".join(drawn), m=",".join("IF(ISNUMBER(%s),%s,1E+300)" % (x, x) for x in drawn)))
-        ws.cell(r, cb["num_hi"], '=IF(COUNT({c})=0,"",MAX({m}))'.format(
+        ds.cell(r, cb["num_hi"], '=IF(COUNT({c})=0,"",MAX({m}))'.format(
             c=",".join(drawn), m=",".join("IF(ISNUMBER(%s),%s,-1E+300)" % (x, x) for x in drawn)))
         clip = lambda e: "MIN(MAX(%s,%s),%s)" % (e, FLOOR, TOP)              # noqa: E731
         edges = [FLOOR] + [clip(SH[k]) for k in order] + [TOP]
-        ws.cell(r, cb["base"], "=IF(%s,%s,NA())" % (SH_OK, FLOOR))
+        ds.cell(r, cb["base"], "=IF(%s,%s,NA())" % (SH_OK, FLOOR))
         for k in range(5):
-            ws.cell(r, cb["z%d" % (k + 1)], "=IF(%s,MAX(%s-%s,0),NA())" % (SH_OK, edges[k + 1], edges[k]))
-    TITLE_CELL = "'%s'!$%s$1" % (TITLE, L(cb["q"]))
-    cats = "'%s'!$%s$%d:$%s$%d" % (TITLE, L(cb["q"]), C0, L(cb["q"]), CE)
+            ds.cell(r, cb["z%d" % (k + 1)], "=IF(%s,MAX(%s-%s,0),NA())" % (SH_OK, edges[k + 1], edges[k]))
+    TITLE_CELL = "'%s'!$%s$1" % (DATA_TITLE, L(cb["q"]))
+    cats = "'%s'!$%s$%d:$%s$%d" % (DATA_TITLE, L(cb["q"]), C0, L(cb["q"]), CE)
 
     def ser(col, title, idx):
-        s_ = Series(val=NumDataSource(numRef=NumRef(f="'%s'!$%s$%d:$%s$%d" % (TITLE, L(col), C0, L(col), CE))),
+        s_ = Series(val=NumDataSource(numRef=NumRef(f="'%s'!$%s$%d:$%s$%d" % (DATA_TITLE, L(col), C0, L(col), CE))),
                     tx=SeriesLabel(v=title))
         s_.cat = AxDataSource(strRef=StrRef(f=cats))
         s_.idx = s_.order = idx
@@ -1022,22 +1044,22 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     line.visible_cells_only = False
     line += area
     AT._square(line)
-    AT._place(ws, line, 2, 16, 11, 32)
+    AT._place(ws, line, 2, 16, 10, 32)                   # B:I, the gutter J clear
     _key(ws, 32, outside, looks)
 
-    # ---- 5. The composite and each segment (B33:J45) and the balance chart (L33:Q47)
-    _section(ws, SEG_TOP, 2, 10, None)
-    LQ = "$%s$4" % L(misc)                                      # the picked product's latest quarter number
-    ws.cell(4, misc, "=IF(COUNT(%s)=0,0,MAX(%s))" % (S["latest"], S["latest"]))
+    # ---- 5. The composite and each segment (B33:K45) and the balance chart (L33:P47)
+    _section(ws, SEG_TOP, 2, 11, None)
+    LQ = "%s$%s$4" % (DT, L(misc))                                      # the picked product's latest quarter number
+    ds.cell(4, misc, "=IF(COUNT(%s)=0,0,MAX(%s))" % (S["latest"], S["latest"]))
     ws.cell(SEG_TOP, 2, '=%s&": the composite and each segment"&IF(%s=0,"",", "&INDEX(%s,MATCH(%s,%s,0)))'
             % (PB, LQ, CALQ, LQ, CALN)).font = F_SECTION
     seg_head = ["Segment", "Balance ($ millions)", None, "Share of the product", "Net charge-off rate", None,
-                "Gross charge-off rate", "30+ days past due", "90+ days past due"]
-    for i, t in enumerate(seg_head):
+                "Gross charge-off rate", "30+ days past due", None, "90+ days past due"]
+    for i, t in enumerate(seg_head):                     # one INK band, the gutters too
+        c = ws.cell(SEG_TOP + 1, 2 + i, t)
+        c.fill = fill(K.INK)
         if t:
-            c = ws.cell(SEG_TOP + 1, 2 + i, t)
             c.font = F_HEAD
-            c.fill = fill(K.INK)
             c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="left" if i == 0 else "right")
     ws.row_dimensions[SEG_TOP + 1].height = 27
 
@@ -1054,7 +1076,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ok = "AND(%s=0,%s>0)" % (BAD, LQ)
         return {3: '=IF(AND(%s,%s>0),%s/1000,"")' % (ok, cnt(LQ), sm("bal", LQ)),
                 6: '=IF(%s,%s,"")' % (ok, ttm("nco")), 8: '=IF(%s,%s,"")' % (ok, ttm("gco")),
-                9: '=IF(%s,%s,"")' % (ok, qe("d30")), 10: '=IF(%s,%s,"")' % (ok, qe("d90"))}
+                9: '=IF(%s,%s,"")' % (ok, qe("d30")), 11: '=IF(%s,%s,"")' % (ok, qe("d90"))}
     comp_r = SEG_TOP + 2
     rows_seg = [(comp_r, COMPOSITE, "%s,%s" % (S["total"], HASALL))]
     for k in range(N_SEGS):
@@ -1076,7 +1098,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         sh_c.number_format = "0%"
         sh_c.font = F_BOLD if r == comp_r else F_BODY
         sh_c.alignment = Alignment(horizontal="right")
-        for col in range(2, 11):
+        for col in range(2, 12):
             ws.cell(r, col).border = Border(bottom=HAIR)
     tog_r = comp_r + 1 + N_SEGS
     ws.cell(tog_r, 2, "Segments together").font = F_LAB
@@ -1093,31 +1115,31 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     bseg = [hc.take() for _ in range(N_SEGS)]
     bcomp = hc.take()
     for k in range(N_SEGS):
-        ws.cell(4, bseg[k], "=%s" % SEG_NAME(k))
-    ws.cell(4, bcomp, "Composite")
+        ds.cell(4, bseg[k], "=%s" % SEG_NAME(k))
+    ds.cell(4, bcomp, "Composite")
     for j in range(WINDOW):
         r = C0 + j
         qn_ = "INDEX(%s,%s%d)" % (CALN, L(cb["idx"]), r)
         for k in range(N_SEGS):
             base = "%s,%s,%s,1,%s,%s,%s,%s" % (S["prod"], crit_of(PB), S["used"], S["seg"], crit_of(SEG_NAME(k)),
                                               S["qn"], qn_)
-            ws.cell(r, bseg[k], '=IF(OR({n}="",{b}>0,COUNTIFS({x})=0),NA(),SUMIFS({v},{x})/1000)'
+            ds.cell(r, bseg[k], '=IF(OR({n}="",{b}>0,COUNTIFS({x})=0),NA(),SUMIFS({v},{x})/1000)'
                     .format(n=SEG_NAME(k), b=BAD, x=base, v=S["bal"]))
         base = "%s,%s,%s,1,%s,%s,%s,%s" % (S["prod"], crit_of(PB), S["used"], S["total"], HASALL, S["qn"], qn_)
-        ws.cell(r, bcomp, '=IF(OR({b}>0,COUNTIFS({x})=0),NA(),SUMIFS({v},{x})/1000)'.format(b=BAD, x=base, v=S["bal"]))
-    _section(ws, SEG_TOP, 12, 17, "Balance by segment ($ millions)")
+        ds.cell(r, bcomp, '=IF(OR({b}>0,COUNTIFS({x})=0),NA(),SUMIFS({v},{x})/1000)'.format(b=BAD, x=base, v=S["bal"]))
+    _section(ws, SEG_TOP, 12, LASTV, "Balance by segment ($ millions)")
     bal_area = AreaChart()
     bal_area.grouping = "stacked"
     for k in range(N_SEGS):
-        s_ = Series(val=NumDataSource(numRef=NumRef(f="'%s'!$%s$%d:$%s$%d" % (TITLE, L(bseg[k]), C0, L(bseg[k]), CE))),
-                    tx=SeriesLabel(strRef=StrRef(f="'%s'!$%s$4" % (TITLE, L(bseg[k])))))
+        s_ = Series(val=NumDataSource(numRef=NumRef(f="'%s'!$%s$%d:$%s$%d" % (DATA_TITLE, L(bseg[k]), C0, L(bseg[k]), CE))),
+                    tx=SeriesLabel(strRef=StrRef(f="'%s'!$%s$4" % (DATA_TITLE, L(bseg[k])))))
         s_.cat = AxDataSource(strRef=StrRef(f=cats))
         s_.idx = s_.order = 1 + k
         s_.graphicalProperties.solidFill = SEG_COLORS[k]
         s_.graphicalProperties.line.noFill = True
         bal_area.series.append(s_)
     bal_line = LineChart()
-    s_ = Series(val=NumDataSource(numRef=NumRef(f="'%s'!$%s$%d:$%s$%d" % (TITLE, L(bcomp), C0, L(bcomp), CE))),
+    s_ = Series(val=NumDataSource(numRef=NumRef(f="'%s'!$%s$%d:$%s$%d" % (DATA_TITLE, L(bcomp), C0, L(bcomp), CE))),
                 tx=SeriesLabel(v="Composite"))
     s_.cat = AxDataSource(strRef=StrRef(f=cats))
     s_.idx = s_.order = 0
@@ -1132,26 +1154,26 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     bal_line.visible_cells_only = False
     bal_line += bal_area
     AT._square(bal_line)
-    AT._place(ws, bal_line, 12, SEG_TOP + 1, 18, tog_r + 4)
+    AT._place(ws, bal_line, 12, SEG_TOP + 1, LASTV + 1, tog_r + 4)
 
     # ---- 6. Against the Call Report, like for like
     LR = tog_r + 5
-    _section(ws, LR, 2, 17, None)
+    _section(ws, LR, 2, LASTV, None)
     ws.cell(LR, 2, '="Against "&%s&"\'s Call Report, like for like, "&IF(%s=0,"(no quarter yet)",%s)'
-            % (CR, "$%s$5" % L(misc), "$%s$6" % L(misc))).font = F_SECTION
+            % (CR, "%s$%s$5" % (DT, L(misc)), "%s$%s$6" % (DT, L(misc)))).font = F_SECTION
     # The quarter compared: the latest the internal file and the Data tab both hold.
     all_at = ",".join(rng(pblock[p]["at"], W0, WE) for p in products)
-    ws.cell(5, misc, '=IF(COUNT({a})=0,0,MIN(INDEX({n},MAX({a})),{last}))'.format(a=all_at, n=CALN, last=qn[-1]))
-    QSTAR = "$%s$5" % L(misc)
-    ws.cell(6, misc, '=IF(%s=0,"",INDEX(%s,MATCH(%s,%s,0)))' % (QSTAR, CALQ, QSTAR, CALN))
+    ds.cell(5, misc, '=IF(COUNT({a})=0,0,MIN(INDEX({n},MAX({a})),{last}))'.format(a=all_at, n=CALN, last=qn[-1]))
+    QSTAR = "%s$%s$5" % (DT, L(misc))
+    ds.cell(6, misc, '=IF(%s=0,"",INDEX(%s,MATCH(%s,%s,0)))' % (QSTAR, CALQ, QSTAR, CALN))
     lr_head = ["Comparison", "Internal figure", None, "Call Report lines", "Read from", None,
-               "Balance, internal ($ millions)", "Balance, Call Report", "Balance gap", None,
+               "Balance, internal ($ millions)", "Balance, Call Report", None, "Balance gap",
                "Net charge-off rate, internal", "Net charge-off rate, Call Report", "Rate gap (pts)"]
-    for i, t in enumerate(lr_head):
+    for i, t in enumerate(lr_head):                     # one INK band, the gutters too
+        c = ws.cell(LR + 1, 2 + i, t)
+        c.fill = fill(K.INK)
         if t:
-            c = ws.cell(LR + 1, 2 + i, t)
             c.font = F_HEAD
-            c.fill = fill(K.INK)
             c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="left" if i < 5 else "right")
     ws.row_dimensions[LR + 1].height = 39
     peers_ok = "Peers data" in wb.sheetnames and internal.get("peers_self")
@@ -1186,8 +1208,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                 else:
                     terms.append('SUMIFS({v},{q},">="&({s}-3),{q},"<="&{s},{b})'
                                  .format(v=S[k_], q=S["qn"], s=QSTAR, b=b))
-            ws.cell(r, hcs + j, "=AND(%s)" % ",".join(terms) if what == "cnt" else "=" + "+".join(terms))
-        H_OK, H_BAL, H_GCO, H_NCO = ("$%s$%d" % (L(hcs + j), r) for j in range(4))
+            ds.cell(r, hcs + j, "=AND(%s)" % ",".join(terms) if what == "cnt" else "=" + "+".join(terms))
+        H_OK, H_BAL, H_GCO, H_NCO = ("%s$%s$%d" % (DT, L(hcs + j), r) for j in range(4))
         ok_int = "AND(%s>0,%s,%s>0)" % (QSTAR, H_OK, H_BAL)
         # The public side.
         prods, missing = decompose(comp)
@@ -1225,7 +1247,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         c.alignment = Alignment(wrap_text=True, vertical="center")
         cells = {8: '=IF(%s,(%s/4)/1000,"")' % (ok_int, H_BAL),
                  9: "=%s" % pub_bal if pub_bal else '=""',
-                 10: '=IF(AND(ISNUMBER(H{r}),ISNUMBER(I{r})),H{r}-I{r},"")'.format(r=r),
+                 11: '=IF(AND(ISNUMBER(H{r}),ISNUMBER(I{r})),H{r}-I{r},"")'.format(r=r),
                  12: '=IF({ok},100*{n}/({b}/4),"")'.format(ok=ok_int, n=H_NCO, b=H_BAL),
                  13: "=%s" % pub_rate if pub_rate else '=""',
                  14: '=IF(AND(ISNUMBER(L{r}),ISNUMBER(M{r})),L{r}-M{r},"")'.format(r=r)}
@@ -1233,37 +1255,40 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             c = ws.cell(r, col, fm)
             c.font = F_BODY
             c.alignment = Alignment(horizontal="right", vertical="center")
-            c.number_format = "#,##0.0" if col in (8, 9) else "+#,##0.0;-#,##0.0;0.0" if col == 10 else \
+            c.number_format = "#,##0.0" if col in (8, 9) else "+#,##0.0;-#,##0.0;0.0" if col == 11 else \
                 "+0.00;-0.00;0.00" if col == 14 else "0.00"
         ws.row_dimensions[r].height = 45
-        for col in range(2, 18):
+        for col in range(2, LASTV + 1):
             ws.cell(r, col).border = Border(bottom=HAIR)
     note_r = lr_rows[-1] + 1
     ws.cell(note_r, 2, ("Balances are the mean of four quarter-end balances, in $ millions; the net charge-off rate "
                         "is four quarters' net charge-offs over that mean. Named exclusions are not taken off "
                         "here; the internal reconcile command applies them.")).font = F_NOTE
-    ws.merge_cells(start_row=note_r, start_column=2, end_row=note_r, end_column=17)
+    ws.merge_cells(start_row=note_r, start_column=2, end_row=note_r, end_column=LASTV)
     ws.row_dimensions[note_r].height = 28
     ws.cell(note_r, 2).alignment = Alignment(wrap_text=True, vertical="top")
 
     # ---- 8. Every product and measure you loaded
     EV = note_r + 2
-    _section(ws, EV, 2, 17, "Every product and measure you loaded")
-    agree_cols = [8, 9, 10, 12][:len(outside)]
+    # Agreement per source over H, I, K, L, M (J the gutter), then the best
+    # source and its verdict, two columns each.
+    agree_cols = [8, 9, 11, 12, 13][:len(outside)]
     cols_ev = {"Product": 2, "Measure": 3, "Workbook measure": 5, "Quarters": 6}
     for s_, c_ in zip(outside, agree_cols):
         cols_ev["Agree: %s" % s_] = c_
-    cols_ev["Best source"] = 13
-    cols_ev["Verdict"] = 15
+    cols_ev["Best source"] = max(13, agree_cols[-1] + 1)
+    cols_ev["Verdict"] = cols_ev["Best source"] + 2
+    EV_LAST = max(LASTV, cols_ev["Verdict"] + 1)
+    _section(ws, EV, 2, EV_LAST, "Every product and measure you loaded")
     for t, col in cols_ev.items():
         c = ws.cell(EV + 1, col, t)
         c.font = F_HEAD
         c.fill = fill(K.INK)
         c.alignment = Alignment(wrap_text=True, vertical="center",
                                 horizontal="left" if col < 6 or t in ("Best source", "Verdict") else "right")
-    for col in range(2, 18):
+    for col in range(2, EV_LAST + 1):
         ws.cell(EV + 1, col).fill = fill(K.INK)
-    ws.row_dimensions[EV + 1].height = 27
+    ws.row_dimensions[EV + 1].height = 39
     r = EV + 2
     best_c, verdict_c = cols_ev.get("Best source"), cols_ev.get("Verdict")
     for p in products:
@@ -1271,7 +1296,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for mi, (key, name) in enumerate(MEASURES):
             ws.cell(r, 2, p).font = F_BODY
             ws.cell(r, 3, name).font = F_BODY
-            mp = "$F$%d" % (5 + mi)
+            mp = "%s$F$%d" % (IN, 5 + mi)
             ws.cell(r, 5, "=%s" % mp).font = F_BODY
             ws.cell(r, 6, "=COUNT(%s)" % rng(b[RATE_KEYS[mi]], W0, WE)).font = F_BODY
             ws.cell(r, 6).number_format = "0"
@@ -1289,11 +1314,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                     c.alignment = Alignment(horizontal="right")
             hidden_s = hc.take(len(outside) + 1)
             for k in range(len(outside)):
-                ws.cell(r, hidden_s + k, "=" + scores[k])
-            sc = "$%s$%d:$%s$%d" % (L(hidden_s), r, L(hidden_s + len(outside) - 1), r)
+                ds.cell(r, hidden_s + k, "=" + scores[k])
+            sc = "%s$%s$%d:$%s$%d" % (DT, L(hidden_s), r, L(hidden_s + len(outside) - 1), r)
             vv = hidden_s + len(outside)
             # Verdicts of every source, for the row when no source qualifies.
-            ws.cell(r, vv, "=" + "&\"|\"&".join(verdicts))
+            ds.cell(r, vv, "=" + "&\"|\"&".join(verdicts))
             if best_c:
                 ws.cell(r, best_c, '=IF(MAX({s})<0,"",INDEX({o},MATCH(MAX({s}),{s},0)))'
                         .format(s=sc, o=lists["sources"])).font = F_BOLD
@@ -1301,12 +1326,12 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             if verdict_c:
                 c = ws.cell(r, verdict_c, ('=IF(MAX({s})>=0,CHOOSE(MATCH(MAX({s}),{s},0),{vs}),IF(ISNUMBER(SEARCH("{v1}",'
                                            '{vv})),"{v1}",IF(ISNUMBER(SEARCH("{v0}",{vv})),"{v0}","{ns}")))')
-                           .format(s=sc, vs=",".join(verdicts), vv="$%s$%d" % (L(vv), r), v0=VERDICTS[0],
+                           .format(s=sc, vs=",".join(verdicts), vv="%s$%s$%d" % (DT, L(vv), r), v0=VERDICTS[0],
                                    v1=VERDICTS[1], ns=NO_SERIES))
                 c.font = F_BOLD
                 c.alignment = Alignment(horizontal="center")
-                ws.merge_cells(start_row=r, start_column=verdict_c, end_row=r, end_column=verdict_c + 2)
-            for c_ in range(2, 18):
+                ws.merge_cells(start_row=r, start_column=verdict_c, end_row=r, end_column=verdict_c + 1)
+            for c_ in range(2, EV_LAST + 1):
                 ws.cell(r, c_).border = Border(bottom=HAIR)
             ws.row_dimensions[r].height = 15
             r += 1
@@ -1327,8 +1352,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for i, t in enumerate(notes):
         c = ws.cell(EV_END + 2 + i, 2, t)
         c.font = F_NOTE
-    for col in range(hc_start(products), hc.next):
-        ws.column_dimensions[L(col)].hidden = True
+    for col in range(HC0, hc.next):
+        ds.column_dimensions[L(col)].hidden = True
     ws.freeze_panes = None
     ws.sheet_view.zoomScale = 100
     return {"sheet": TITLE, "data_sheet": DATA_TITLE, "table": TABLE, "capacity": cap, "first": FIRST,
@@ -1337,7 +1362,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             "seg_rows": (comp_r, tog_r), "like_rows": lr_rows, "every_rows": (EV + 2, EV_END),
             "every_cols": cols_ev, "stats": st_at, "stat_rows": {lab: STAT0 + j for j, lab in enumerate(out_labels)},
             "pblock": pblock, "w0": W0, "calendar": cal, "mapping_rows": (5, 4 + N_NAMES),
-            "measure_rows": (5, 4 + len(MEASURES)), "helpers": H, "pick_stats": pst_at}
+            "measure_rows": (5, 4 + len(MEASURES)), "helpers": H, "pick_stats": pst_at,
+            "workings": DATA_TITLE, "workings_from": L(HC0), "reliable_col": "I", "reliability_col": L(RL),
+            "coverage_col": L(CV0)}
 
 
 #: Segment fills on the balance chart, darkest at the bottom of the stack.
@@ -1362,11 +1389,11 @@ def line_styles(outside, call_report):
 
 def _key(ws, row, outside, looks):
     """The chart's key under it: each line's name in its color, one cell
-    each (B, C, E, F, then H, I), and what the shading is."""
+    each (B, C, E, F, then H, I, K), and what the shading is."""
     mark = {None: "\u2014", "dash": "- -", "sysDash": "- - -", "sysDot": "\u00b7\u00b7\u00b7"}
     items = [("%s Internal" % mark[None], K.INTERNAL)] + [("%s %s" % (mark[looks[s][1]], s), looks[s][0])
                                                           for s in outside]
-    cols = [2, 3, 5, 6, 8, 9, 10]
+    cols = [2, 3, 5, 6, 8, 9, 11]
     for (text, color), col in zip(items, cols):
         c = ws.cell(row, col, text)
         c.font = Font(name="Calibri", size=9, bold=True, color=color)
@@ -1374,10 +1401,6 @@ def _key(ws, row, outside, looks):
     ws.cell(row, nxt, "Shading: ratings on the lines picked under Shade with lines from.").font = \
         Font(name="Calibri", size=9, color=K.SLATE)
     ws.row_dimensions[row].height = 15
-
-
-def hc_start(products):
-    return max(27, 13 + len(products) + 3)
 
 
 def _verdict_formats(ws, rng_, first):

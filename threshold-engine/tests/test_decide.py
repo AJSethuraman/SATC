@@ -159,7 +159,7 @@ def test_a_period_left_out_applies_to_the_source_the_lines_are_set_from(pair):
     assert lbs_rows(dec)[0] == lbs_rows(recalc(w["path"]))[0]             # Industry's own history is untouched
 
 
-def test_with_no_source_picked_a_period_left_out_sets_nothing_and_the_row_says_pick(pair):
+def test_with_no_source_picked_a_period_left_out_sets_nothing_and_the_row_is_blank(pair):
     d, w, p = pair
     v = typed(w["path"], d / "dn.xlsx", {at(w, "Leave out from", 0): "2020Q2", at(w, "Leave out to", 0): "2021Q4",
                                          at(w, "Why left out", 0): "pandemic"}, show={PAIRS[0]}, info=w)
@@ -173,8 +173,10 @@ def test_with_no_source_picked_a_period_left_out_sets_nothing_and_the_row_says_p
                                                    "Lines set from.")
     assert v["THRESHOLDS!D5"] == "" and v["THRESHOLDS!H5"] == ""
     t = w["thresholds"]
-    assert all(v["THRESHOLDS!%s5" % t["per"][s]["rating"]] == "Pick a source" for s in ("Bank", "Industry"))
-    assert v["THRESHOLDS!%s5" % t["cols"]["check"]] == "Pick a source under Lines set from on Decide."
+    # Round 3: an undecided row is blank from Lines set from to Check, but for each source's latest quarter.
+    assert all(v["THRESHOLDS!%s5" % t["per"][s]["rating"]] == "" for s in ("Bank", "Industry"))
+    assert v["THRESHOLDS!%s5" % t["cols"]["check"]] == "" and v["THRESHOLDS!%s5" % t["cols"]["decision"]] == ""
+    assert all(isinstance(v["THRESHOLDS!%s5" % t["per"][s]["latest"]], float) for s in ("Bank", "Industry"))
 
 
 def test_a_period_left_out_is_drawn_apart_and_said(pair):
@@ -353,7 +355,8 @@ def test_the_decided_count_and_both_decision_columns(pair):
                                          at(w, "Decision", 2): "Reject"})
     assert v["DECIDE!L1"] == "Decided: 2 of 3 · accepted 1 · rejected 1"
     dc = w["thresholds"]["cols"]["decision"]
-    assert [v["THRESHOLDS!%s%d" % (dc, 5 + i)] for i in range(3)] == ["Accept these lines", "Not decided", "Reject"]
+    # Round 3: a row with no source picked and nothing decided is blank; a decision typed shows.
+    assert [v["THRESHOLDS!%s%d" % (dc, 5 + i)] for i in range(3)] == ["Accept these lines", "", "Reject"]
     # on Lines by source the decision shows on the source the lines are set from
     assert [lb(v, "decision", 5 + i) for i in range(4)] == ["", "Accept these lines", "", ""]
 
@@ -387,27 +390,33 @@ def test_every_reference_to_the_per_series_table_follows_its_new_title(pair):
     assert not errs, errs[:5]
 
 
-def test_decide_is_laid_out_to_round_2(pair):
+def test_decide_is_laid_out_to_round_3(pair):
+    """docs/design/round-3/handoff/README.md, Decide: the columns in pixels
+    (L:Q the right panel's), the slicer rows 4-7 at 15 / 18 / 18 / 18 pt and
+    every row under them one lower than round 2's, the table's header in 9."""
     d, w, p = pair
     ws = load_workbook(w["path"])["Decide"]
     lay = w["decide"]["layout"]
-    widths = {c: round(ws.column_dimensions[c].width, 2) for c in "ABCDEFGHIJKLMNOPQ"}
-    assert widths == {"A": 1.57, "B": 16.43, "C": 20.71, "D": 17.86, "E": 17.86, "F": 11.29, "G": 11.29,
-                      "H": 11.29, "I": 9.86, "J": 10.71, "K": 10.71, "L": 27.86, "M": 30.71, "N": 15.0,
-                      "O": 13.57, "P": 13.57, "Q": 14.43}
-    heights = {r: ws.row_dimensions[r].height for r in (1, 2, 3, 4, 5, 6, 7, 8, 9, lay["headline"],
+    px = {c: round(ws.column_dimensions[c].width * 7) for c in "ABCDEFGHIJKLMNOPQ"}
+    assert px == {"A": 16, "B": 110, "C": 200, "D": 150, "E": 130, "F": 84, "G": 84, "H": 84, "I": 74, "J": 80,
+                  "K": 80, "L": 220, "M": 130, "N": 110, "O": 90, "P": 90, "Q": 120}
+    heights = {r: ws.row_dimensions[r].height for r in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, lay["headline"],
                                                         lay["check"], lay["section"], lay["chart_end"])}
-    assert heights == {1: 25.5, 2: 15, 3: 6, 4: 19.5, 5: 19.5, 6: 19.5, 7: 6, 8: 27, 9: 34.5, lay["headline"]: 30,
-                       lay["check"]: 25.5, lay["section"]: 16.5, lay["chart_end"]: 16.5}
+    assert heights == {1: 25.5, 2: 15, 3: 6, 4: 15, 5: 18, 6: 18, 7: 18, 8: 6, 9: 27, 10: 34.5,
+                       lay["headline"]: 30, lay["check"]: 25.5, lay["section"]: 16.5, lay["chart_end"]: 16.5}
     tbl = ws.tables[DT.TABLE]
-    assert tbl.ref == "B8:Q%d" % lay["last"] and lay["last"] == 8 + len(PAIRS)
-    assert [ws.cell(8, c).value for c in range(2, 6)] == ["Product", "Measure", DT.LINES_FROM, "Decision"]
-    assert all(ws.cell(9, c).fill.fgColor.rgb.endswith(K.INPUT) for c in range(CI("D"), CI("M") + 1))
-    assert all(ws.cell(9, c).number_format == ";;;" for c in range(CI("O"), CI("Q") + 1))
+    assert tbl.ref == "B9:Q%d" % lay["last"] and lay["last"] == 9 + len(PAIRS)
+    assert [ws.cell(9, c).value for c in range(2, 6)] == ["Product", "Measure", DT.LINES_FROM, "Decision"]
+    assert all(ws.cell(10, c).fill.fgColor.rgb.endswith(K.INPUT) for c in range(CI("D"), CI("M") + 1))
+    assert all(ws.cell(10, c).number_format == ";;;" for c in range(CI("O"), CI("Q") + 1))
+    # the slicers: Product three buttons to a row over B:E, Measure five over F:Q, rows 3 to 8
+    assert DT.SLICER_ANCHORS == ((1, 2, 5, 8), (5, 2, 17, 8)) and DT.SLICER_COLUMNS == (3, 5)
     # the book's rows: 35 products and measures, three sources
     big = DT.layout(35, 3, True)
     assert (big["headline"], big["check"], big["section"], big["chart_top"], big["chart_end"], big["window"],
-            big["gives_first"], big["history"]) == (45, 46, 48, 49, 66, 61, 70, 74)
+            big["gives_first"], big["history"], big["pack_line"]) == (46, 47, 49, 50, 67, 62, 71, 75, 68)
+    # no peer tabs in this workbook, so no pack line under the chart
+    assert ws.cell(lay["pack_line"], 2).value is None
     anchor = ws._charts[0].anchor
     assert (anchor._from.col, anchor._from.row, anchor.to.col, anchor.to.row) == (1, lay["chart_top"] - 1, 11,
                                                                                  lay["chart_end"])
@@ -420,9 +429,15 @@ def test_lines_by_source_and_thresholds_are_laid_out(pair):
     ws = wb[DT.LINES_TAB]
     T = DT.TH_BOOK
     assert [ws.cell(4, c).value for c in range(2, 17)] == [
-        "Product", "Measure", "Source", "Median kept", "Typical yearly move", "Worst kept", "2 Moderate-Low",
+        "Product", "Measure", "Source", "Median kept", "Yearly move", "Worst kept", "2 Moderate-Low",
         "3 Moderate", "4 Moderate-High", "5 High", "Quarter", "Value", "Rating", "Decision", "Check"]
     assert ws.freeze_panes == "E5"
+    # Round 3: a reference tab; values 0.00; the widths of the hand-off.
+    assert ws["B1"].font.size == 14 and ws.cell(4, 2).fill.fgColor.rgb.endswith(K.MIST)
+    assert all(ws["%s5" % T[k]].number_format == "0.00" for k in ("median", "l2", "l5", "value"))
+    assert {c: ws.column_dimensions[c].width for c in "BCDEP"} == {"B": 20.71, "C": 30.14, "D": 20.71, "E": 9.57,
+                                                                  "P": 36.43}
+    assert ws["%s5" % T["check"]].alignment.wrap_text
     assert [(ws.cell(5 + i, 1).value, tuple(ws.cell(5 + i, c).value for c in (2, 3, 4))) for i in range(4)] == [
         (lbl, tuple(lbl.split(" - "))) for lbl in LABELS]
     a, b = DT.TH_HIDDEN
@@ -432,15 +447,17 @@ def test_lines_by_source_and_thresholds_are_laid_out(pair):
     th = wb["Thresholds"]
     t = w["thresholds"]
     assert [th.cell(4, c).value for c in range(2, 12)] == [
-        "Product", "Measure", DT.LINES_FROM, "Median kept", "Typical yearly move", "Worst kept", "2 Moderate-Low",
+        "Product", "Measure", DT.LINES_FROM, "Median kept", "Yearly move", "Worst kept", "2 Moderate-Low",
         "3 Moderate", "4 Moderate-High", "5 High"]
     assert [th["%s4" % t["per"][s][k]].value for s in ("Bank", "Industry") for k in ("latest", "rating")] == [
         "Bank latest", "Bank rating", "Industry latest", "Industry rating"]
     assert [(th.cell(5 + i, 2).value, th.cell(5 + i, 3).value) for i in range(3)] == PAIRS
-    assert th.freeze_panes == "E5" and th.auto_filter.ref == "B4:%s7" % t["cols"]["check"]
+    assert th.freeze_panes == "D5" and th.auto_filter.ref == "B4:%s7" % t["cols"]["check"]
     h1, h2 = t["hidden"]
     assert all(th.column_dimensions[L(c)].hidden for c in range(CI(h1), CI(h2) + 1))
-    assert th["%s6" % t["per"]["Bank"]["rating"]].value == "Not in this workbook"         # Mortgage has no Bank
+    assert th["%s6" % t["per"]["Bank"]["rating"]].value is None                  # Mortgage has no Bank: blank
+    assert {c: th.column_dimensions[c].width for c in "BCDE"} == {"B": 20.71, "C": 32.43, "D": 20.14, "E": 9.0}
+    assert th[t["count"]].value.startswith('="Lines picked: "') and th["H5"].number_format == "0.00"
 
 
 def test_the_book_has_two_slicers_of_button_rows_and_no_filter_arrows(pair):
@@ -448,7 +465,7 @@ def test_the_book_has_two_slicers_of_button_rows_and_no_filter_arrows(pair):
     z = zipfile.ZipFile(w["path"])
     sl = z.read("xl/slicers/slicer1.xml").decode()
     got = re.findall(r'<slicer name="(\w+)"[^>]*? columnCount="(\d+)" style="(\w+)" rowHeight="(\d+)"', sl)
-    assert got == [("Pick1", "3", "SlicerStyleOther2", "228600"), ("Pick2", "4", "SlicerStyleOther2", "228600")]
+    assert got == [("Pick1", "3", "SlicerStyleOther2", "182880"), ("Pick2", "5", "SlicerStyleOther2", "182880")]
     table = next(t for t in (z.read(n).decode() for n in z.namelist() if n.startswith("xl/tables/"))
                  if 'displayName="Decisions"' in t)
     assert table.count('hiddenButton="1"') == len(DT.FIXED) + 2
@@ -458,16 +475,20 @@ def test_summary_reads_thresholds_and_marks_what_is_not_there(pair):
     d, w, p = pair
     ws = load_workbook(w["path"])["Summary"]
     s = w["summary"]
-    assert s["sources"] == ["Bank", "Industry"]
-    assert [ws.cell(5, c).value for c in range(2, 9)] == ["Product", "Measure", "Latest", "Rating", "Points",
-                                                          "Latest", "Rating"]
-    assert ws.cell(4, 4).value == "Bank" and ws.cell(4, 6).value == "vs Industry" and ws.cell(4, 7).value == "Industry"
+    assert s["sources"] == ["Bank", "Industry"] and s["dropped"] == []
+    # Round 3: no Product column; each product is a header row over its measures.
+    assert [ws.cell(5, c).value for c in range(2, 8)] == ["Measure", "Latest", "Rating", "Points", "Latest", "Rating"]
+    assert ws.cell(4, 3).value == "Bank" and ws.cell(4, 5).value == "vs Industry" and ws.cell(4, 6).value == "Industry"
     (bl, br), (il, ir), pt = s["columns"]["Bank"], s["columns"]["Industry"], s["columns"]["points"]
+    assert s["heads"]["Card"] == (6, 2) and ws.cell(6, 2).value == "Card" and ws.cell(6, 2).font.b
     r, base = s["placed"][("Card", "Net")]
-    assert base == 2 and ws.cell(r, 2).value == "Card" and ws.cell(r, 3).value == "Net"
+    assert (r, base) == (7, 2) and ws.cell(r, 2).value == "Net"
+    assert {c: ws.column_dimensions[c].width for c in "BCDEFG"} == {"B": 36.43, "C": 8.43, "D": 17.0, "E": 7.86,
+                                                                   "F": 7.29, "G": 15.29}
+    assert ws.row_dimensions[6].height == 16.5 and ws.row_dimensions[7].height == 15.75
     v0 = recalc(w["path"])
-    assert v0["SUMMARY!%s%d" % (L(ir), r)] == "Pick a source" and v0["SUMMARY!%s%d" % (L(br), r)] == "Pick a source"
-    assert v0["SUMMARY!" + s["count"]] == "Bank: 0 rated 4 or 5 · 0 refused · 1 with no source picked"
+    assert v0["SUMMARY!%s%d" % (L(ir), r)] == "—" and v0["SUMMARY!%s%d" % (L(br), r)] == "—"
+    assert v0["SUMMARY!" + s["count"]] == "Lines picked: 0 of 3 · Bank rated 4 or 5: 0 · refused: 0"
     v = typed(w["path"], d / "su.xlsx", {at(w, DT.LINES_FROM, 0): "Industry"})
     assert v["SUMMARY!%s%d" % (L(il), r)] == pytest.approx(lb(v, "value", 5))
     assert v["SUMMARY!%s%d" % (L(bl), r)] == pytest.approx(lb(v, "value", 6))
@@ -479,10 +500,13 @@ def test_summary_reads_thresholds_and_marks_what_is_not_there(pair):
     # Card has two rows and goes left; Mortgage goes right, past the gutter.
     assert s["placed"][("Card", "Gross")] == (r + 1, 2)
     mr, mb = s["placed"][("Mortgage", "Net")]
-    assert mb == 2 + 7 + 1 and ws.cell(mr, mb).value == "Mortgage"
-    assert ws.cell(mr, mb + br - 2).value == "Not in this workbook"
-    notes = [ws.cell(r_, 2).value for r_ in range(s["notes"], ws.max_row + 1)]
-    assert "Not in this workbook: " + ABSENT[0]["why"] in notes and "A note the book gave." in notes
+    assert mb == 2 + 6 + 1 and s["heads"]["Mortgage"] == (6, mb) and ws.cell(mr, mb).value == "Net"
+    # A source with no series for the row: blank.
+    assert ws.cell(mr, mb + br - 2).value is None and ws.cell(mr, mb + bl - 2).value is None
+    # Three footnotes: rating, points, nothing else (the book's notes are on Sources).
+    notes = [ws.cell(r_, 2).value for r_ in range(s["notes"], ws.max_row + 1) if ws.cell(r_, 2).value]
+    assert [n_.split(":")[0] for n_ in notes] == ["Rating", "Points"]
+    assert all(ws.cell(s["notes"] + i, 2).font.size == 10 for i in range(2))
 
 
 ATTN = [("A - Net - Bank", DATA / "other_consumer_as_filed_nco_ttm.csv"),
@@ -503,12 +527,10 @@ def attention(tmp_path_factory):
 
 
 def _attention_read(v, s):
-    a, base = s["attention"], s["panels"][1]
-    rate_ = base + s["columns"]["Bank"][1] - 2
-    got = [(v["SUMMARY!%s%d" % (L(base), r)], v["SUMMARY!%s%d" % (L(rate_), r)],
-            v["SUMMARY!%s%d" % (L(rate_ + 1), r)]) for r in a["rows"]]
-    return [g for g in got if g[0]], v["SUMMARY!%s%d" % (L(base), a["more"])], \
-        (v["SUMMARY!%s%d" % (L(base), a["refused"])], v["SUMMARY!%s%d" % (L(rate_), a["refused"])])
+    a = s["attention"]
+    keys = ("measure", "latest", "rating", "product")
+    got = [tuple(v["SUMMARY!%s%d" % (L(a["columns"][k]), r)] for k in keys) for r in a["rows"]]
+    return [g for g in got if g[0]]
 
 
 def test_a_series_rated_4_or_5_is_listed_by_rating_then_value(attention):
@@ -521,13 +543,13 @@ def test_a_series_rated_4_or_5_is_listed_by_rating_then_value(attention):
                    if lb(v, "rating", rows[l]) not in ("", None) and lb(v, "rating", rows[l]) >= 4),
                   key=lambda t: (-t[0], -t[1]))
     assert [l for _, _, l in want] == ["A - Net - Bank", "B - Net - Bank"]     # the data rate them 4
-    listed, more, refused = _attention_read(v, s)
-    assert listed == [("%s · Net" % l[0], "%d %s" % (k, lb(v, "rating_name", rows[l])),
-                       "%.2f%% in %s" % (j, lb(v, "quarter", rows[l]))) for k, j, l in want]
-    assert more == "" and refused == ("0 of 4 Bank series", "None refused")
+    listed = _attention_read(v, s)
+    assert listed == [("Net", pytest.approx(j), "%d %s" % (k, lb(v, "rating_name", rows[l])),
+                       "%s · lines from Bank" % l[0]) for k, j, l in want]
     sheet = load_workbook(info["path"])["Summary"]
-    assert sheet.cell(s["attention"]["head"], s["panels"][1]).value == "Needs your attention · Bank"
-    assert v["SUMMARY!" + s["count"]] == "Bank: 2 rated 4 or 5 · 0 refused · 0 with no source picked"
+    # Round 3: under the left panel.
+    assert sheet.cell(s["attention"]["head"], s["panels"][0]).value == "Needs your attention · Bank rated 4 or 5"
+    assert v["SUMMARY!" + s["count"]] == "Lines picked: 4 of 4 · Bank rated 4 or 5: 2 · refused: 0"
 
 
 def test_a_refused_series_is_counted_and_not_listed(attention):
@@ -538,9 +560,12 @@ def test_a_refused_series_is_counted_and_not_listed(attention):
     cells = {"Decide!%s%d" % (z, f): 50, "Decide!%s%d" % (z, f + 3): 50}        # rows A and D
     v = typed(info["path"], d / "refused.xlsx", cells)
     assert lb(v, "refusal", 5).startswith("Refused") and lb(v, "refusal", 9).startswith("Refused")
-    listed, more, refused = _attention_read(v, s)
-    assert [x[0] for x in listed] == ["B · Net"]
-    assert refused == ("2 of 4 Bank series", "Refused")
+    listed = _attention_read(v, s)
+    assert [x[3].split(" · ")[0] for x in listed] == ["B"]
+    assert v["SUMMARY!" + s["count"]] == "Lines picked: 4 of 4 · Bank rated 4 or 5: 1 · refused: 2"
+    # None rated 4 or 5: the first row says so.
+    v2 = typed(info["path"], d / "none.xlsx", {"Decide!%s%d" % (z, f + k): 50 for k in range(4)})
+    assert _attention_read(v2, s)[0][0] == "None rated 4 or 5."
 
 
 def test_more_leave_outs_than_rows_is_said(tmp_path):
@@ -587,7 +612,7 @@ def test_every_summary_and_decide_heading_is_defined_in_the_glossary(pair):
     ws = load_workbook(w["path"])["Summary"]
     terms = {t for t, _, _ in TERMS}
     heads = {ws.cell(5, c).value for c in range(1, ws.max_column + 1) if ws.cell(5, c).value} - set(NAMES)
-    heads.add(ws.cell(w["summary"]["attention"]["head"], w["summary"]["panels"][1]).value.split(" · ")[0])
+    heads.add(ws.cell(w["summary"]["attention"]["head"], w["summary"]["panels"][0]).value.split(" · ")[0])
     assert heads == {"Latest", "Rating", "Points", "Needs your attention"} and heads <= terms
     assert {DT.LINES_FROM, DT.LINES_TAB, "Thresholds", "Rating on these lines", "Pick a source",
             "What each source's own history would give", "Quarters kept", "Worst kept"} <= terms
@@ -597,6 +622,97 @@ def test_without_a_compare_pair_the_first_source_leads_and_there_are_no_points()
     from threshold_engine import summary_tab as SU
     parts = {lbl: tuple(lbl.split(" - ")) for lbl in LABELS}
     lay = SU.layout(LABELS, parts, None)
-    assert lay["sources"] == ["Industry", "Bank"] and "points" not in lay["offsets"] and lay["width"] == 6
+    assert lay["sources"] == ["Industry", "Bank"] and "points" not in lay["offsets"] and lay["width"] == 5
     lay = SU.layout(LABELS, parts, ("Bank", "Industry"))
-    assert lay["sources"] == ["Bank", "Industry"] and lay["offsets"]["points"] == 4
+    assert lay["sources"] == ["Bank", "Industry"] and lay["offsets"]["points"] == 3
+
+
+def test_the_panels_split_where_the_taller_is_shortest():
+    """Round 3: the book's products, counted with a header row each, split
+    Credit card, Mortgage, Home equity | the rest (28 rows against 35)."""
+    from threshold_engine import summary_tab as SU
+    blocks = [("Credit card", 11), ("Mortgage", 7), ("Home equity", 7), ("Other consumer", 10), ("Auto", 7),
+              ("All consumer", 7), ("Credit card + Other consumer", 7)]
+    assert SU.split_panels(blocks) == (["Credit card", "Mortgage", "Home equity"],
+                                       ["Other consumer", "Auto", "All consumer", "Credit card + Other consumer"])
+
+
+NARROW = SER + [("Card - Min - Wide", DATA / "cards_nco_ttm.csv")] + [
+    ("P%d - Net - Industry" % k, DATA / "cards_nco_ttm.csv") for k in range(3)]
+
+
+@pytest.fixture(scope="module")
+def narrow(tmp_path_factory):
+    """A source with one series, on a row nothing else covers: no column on
+    Summary or Thresholds, a strip in Summary's row 2."""
+    d = tmp_path_factory.mktemp("narrow")
+    spec = {"names": NAMES, "parts": {lbl: tuple(lbl.split(" - ")) for lbl, _ in NARROW}, "absent": [],
+            "compare": ("Bank", "Industry"), "notes": [], "lines_from": None}
+    return d, build(d / "n.xlsx", NARROW, decide=spec, **SETTINGS)
+
+
+def test_a_source_on_few_rows_gets_no_column_and_a_live_strip(narrow):
+    d, info = narrow
+    s, t = info["summary"], info["thresholds"]
+    assert s["sources"] == ["Bank", "Industry"] and s["dropped"] == ["Wide"]
+    assert t["shown"] == ["Bank", "Industry"] and t["dropped"] == ["Wide"]
+    wb = load_workbook(info["path"])
+    ws, th = wb["Summary"], wb["Thresholds"]
+    # No column for Wide on Thresholds; its cells are hidden workings.
+    heads = [th.cell(4, c).value for c in range(1, CI(t["cols"]["check"]) + 1)]
+    assert not any("Wide" in str(h) for h in heads)
+    assert th.column_dimensions[t["per"]["Wide"]["latest"]].hidden
+    # The row only Wide covers says so where the bank's rating would be.
+    r, base = s["placed"][("Card", "Min")]
+    assert ws.cell(r, base + s["columns"]["Bank"][1] - 2).value == "Wide only"
+    strip = s["strips"][0]
+    assert strip["source"] == "Wide" and strip["row"] == 2
+    assert ws[strip["text"]].value.startswith('="Wide · Card · Min · "&IF(ISNUMBER(Thresholds!')
+    assert ws[strip["text"]].alignment.horizontal == "right"
+    # Live: the value is the series' own latest on Lines by source; no lines picked reads "—".
+    v = recalc(info["path"])
+    row = 5 + [lbl for lbl, _ in NARROW].index("Card - Min - Wide")
+    assert v["SUMMARY!" + strip["text"]] == "Wide · Card · Min · %.2f%% · %s · rating —" % (
+        lb(v, "value", row), lb(v, "quarter", row))
+    notes = [ws.cell(r_, 2).value for r_ in range(s["notes"], s["notes"] + 3)]
+    assert notes[2] == "Wide: its latest quarter and its own lines are on Lines by source."
+
+
+def test_backtest_folds_into_lines_by_source(pair):
+    """The book's fold (fold_backtest): Backtest's three summary columns and
+    its averages by rating join Lines by source past the hidden workings, the
+    tab goes, and nothing recalculates to an error."""
+    from threshold_engine.workbook import fold_backtest
+    d, w, p = pair
+    wb = load_workbook(w["path"])
+    bt = wb["Backtest"]
+    want = {}
+    for r in range(5, 5 + 2 * len(LABELS)):
+        if bt.cell(r, 5).value == "none":
+            want[tuple(bt.cell(r, c).value for c in (2, 3, 4))] = [bt.cell(r, c).value for c in range(6, 11)]
+    assert want
+    got = fold_backtest(wb)
+    assert "Backtest" not in wb.sheetnames
+    assert got["columns"] == {"spearman_value": "AB", "spearman_change": "AC", "tested": "AD"}
+    assert got["by_rating"] == ["AE", "AF"] and got["horizon"] == 4       # one percentile: two ratings
+    ws = wb[DT.LINES_TAB]
+    assert [ws[c + "4"].value for c in ("AB", "AC", "AD", "AE", "AF")] == [
+        "Spearman, value", "Spearman, change", "Quarters tested", "1 Low", "2 Moderate-Low"]
+    assert ws["AB3"].value == "How predictive, 4 quarters ahead"
+    assert ws.column_dimensions["AE"].hidden and ws.column_dimensions["AE"].outline_level == 1
+    assert not ws.column_dimensions["AB"].hidden
+    for r in range(5, 5 + len(LABELS)):
+        key = tuple(ws.cell(r, c).value for c in (2, 3, 4))
+        vals = [ws[c + str(r)].value for c in ("AB", "AC", "AE", "AF", "AD")]
+        if key in want:
+            assert vals == want[key]
+        else:
+            assert vals[:2] == [None, None] and vals[4] == 0
+    assert ws["AB5"].number_format == "0.00" and ws["AD5"].number_format == "0"
+    # The engine has no SUBTOTAL: stand in for the slicers, as every test here does.
+    for i in range(len(PAIRS)):
+        wb["Decide"]["%s%d" % (col(w, "Shown"), w["decide"]["first"] + i)] = 1 if i == 0 else 0
+    wb.save(d / "folded.xlsx")
+    v = recalc(d / "folded.xlsx")
+    errs = [k for k, x in v.items() if str(x).startswith("#") and str(x) != "#N/A"]
+    assert not errs, errs[:5]

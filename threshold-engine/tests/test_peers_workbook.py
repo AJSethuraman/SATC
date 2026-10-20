@@ -197,7 +197,7 @@ def assert_rank_table(vals, info, books_p, certs, roster, kind="net"):
         assert num(peers_cell(vals, "D%d" % r)) == pytest.approx(last[c], abs=1e-12)
         assert num(peers_cell(vals, "E%d" % r)) == pytest.approx(last[c] - comp, abs=1e-9)
         assert (peers_cell(vals, "H%d" % r) == "—") if c == KEYBANK else \
-            peers_cell(vals, "H%d" % r).startswith("Yes")
+            peers_cell(vals, "H%d" % r).split(" · ")[0] in (PW.STATE_IN, PW.STATE_OUT)
     assert all(peers_cell(vals, "%s%d" % (c_, head + 1 + k)) in ("", None)
                for k in range(len(ranked), len(roster)) for c_ in "BCD")
     me = ranked.index(KEYBANK) + 1
@@ -888,6 +888,79 @@ def test_delinquency_composite_and_band_equal_the_module(dlq, dl_data, roster):
     assert num(peers_cell(vals, "J%d" % t)) == pytest.approx(books[KEYBANK][-1]["rate"], abs=1e-12)
     assert num(peers_cell(vals, "L%d" % t)) == pytest.approx(comp[-1]["rate"], abs=1e-12)
     assert num(peers_cell(vals, "P%d" % t)) == band_[-1]["banks"]
+
+
+def pack_states(dl_data, roster):
+    """Each peer's state as the book reads it at the latest quarter-end, with
+    every peer switched on: out by rule when its own four-quarter average of
+    card 30+ incl. nonaccrual was not kept or the jump left it out."""
+    books = dl_books(dl_data, roster, "Credit card", PW.DQ_PACK_MEASURE)
+    out = {}
+    for b in R.peers(roster):
+        last = books[b["cert"]][-1]
+        left = last["avg4"] is None or (last["why_avg4"] or "").startswith(D.LEFT_OUT)
+        out[b["short"]] = PW.STATE_OUT if left else PW.STATE_IN
+    return out
+
+
+def test_the_pack_line_is_one_named_cell_with_three_states(dlq, dl_data, roster, tmp_path):
+    """docs/design/round-3/handoff/README.md, "The peer group, one way
+    everywhere": one cell on Workings, named PackLine at the workbook level,
+    says how many peers are in, which the book's rules took out this quarter
+    and which were switched off on Peers; the roster's state row, the rank
+    tables and the pack lines on Peers read it. Switching a bank to No moves
+    it to switched off."""
+    p, info, vals = dlq
+    wb = load_workbook(p)
+    cell = "Workings!" + info["pack_line"]["cell"]
+    assert re.fullmatch(r"Workings!\$B\$\d+", cell)
+    assert wb.defined_names[PW.PACK_LINE].attr_text == cell
+    f = wb["Workings"][cell.split("!")[1].replace("$", "")].value
+    assert "_xlfn.TEXTJOIN" in f and "Peer group · " in f and " of 15 switched on" in f
+    assert "out by the book's rules on 30+ incl. nonaccrual, " in f and " · switched off on Peers: " in f
+    helpers = info["pack_line"]["helpers"]
+    for word in (PW.STATE_IN, PW.STATE_OUT, PW.STATE_OFF):
+        assert '"%s"' % word in f or '"%s"' % word in wb["Workings"]["%s2" % helpers["state"]].value
+    lay = info["layout"]
+    pe = wb["Peers"]
+    assert [pe.cell(r, c).value for r, c in ((lay["pack"], 2), (lay["pack_charts"], 2), (lay["pack_charts"], 10))] \
+        == ["=PackLine"] * 3
+
+    want = pack_states(dl_data, roster)
+    peers = [b["short"] for b in R.peers(roster)]
+    last_q = info["delinquency"]["quarters"][-1]
+
+    def check(vals, want):
+        states = [vals.get("WORKINGS!%s%d" % (helpers["state"], 2 + j)) for j in range(len(peers))]
+        assert dict(zip(peers, states)) == want
+        assert [peers_cell(vals, lay["states"][s]) for s in peers] == states
+        text = vals.get("WORKINGS!" + cell.split("!")[1].replace("$", ""))
+        n_on = sum(s != PW.STATE_OFF for s in states)
+        assert text.startswith("Peer group · %d of %d switched on" % (n_on, len(peers)))
+        outs = [s for s in peers if want[s] == PW.STATE_OUT]
+        offs = [s for s in peers if want[s] == PW.STATE_OFF]
+        out_part = text.split(" · out by the book's rules on 30+ incl. nonaccrual, %s: " % last_q)
+        assert (len(out_part) == 2) == bool(outs)
+        off_part = text.split(" · switched off on Peers: ")
+        assert (len(off_part) == 2) == bool(offs)
+        assert all(s in out_part[1].split(" · switched off")[0] for s in outs)
+        assert all(s in off_part[1] for s in offs)
+        return text
+
+    check(vals, want)
+    assert peers_cell(vals, lay["states"]["JPMorgan"]) in (PW.STATE_IN, PW.STATE_OUT)
+    after = typed(p, tmp_path / "jpm.xlsx", {inc(info, "JPMorgan"): "No"})
+    text = check(after, dict(want, JPMorgan=PW.STATE_OFF))
+    # The formulas engine keeps TEXTJOIN's empty strings (", , JPMorgan, , "),
+    # which Excel drops (Excel read "switched off on Peers: Capital One" on
+    # the real book, 19 Oct 2026): the names are compared, not the commas.
+    off_names = [x for x in text.split(" · switched off on Peers: ")[1].split(", ") if x]
+    assert off_names == ["JPMorgan"]
+    # The rank tables' In pack reads the same word.
+    jpm = next(i for i, b in enumerate(roster) if b["short"] == "JPMorgan")
+    label = info["ranks"]["charge_offs"]["label"]
+    assert vals.get("WORKINGS!%s%d" % (label, 2 + jpm)).split(" · ")[0] == want["JPMorgan"]
+    assert after.get("WORKINGS!%s%d" % (label, 2 + jpm)).split(" · ")[0] == PW.STATE_OFF
 
 
 def test_delinquency_follows_jpmorgan_switched_off(dlq, dl_data, roster, tmp_path):
