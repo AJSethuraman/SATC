@@ -2419,7 +2419,13 @@ RUN_WIDTHS = (2.29, 44, 60, 66, 14, 10)
 def _write_glossary(ws, row, first_col, t, heading=None) -> int:
     """Every peer term from ``row``: an optional section heading, the column
     labels, then one wrapped row per term, its height fitted to the longest
-    cell. Returns the row after the last."""
+    cell. Returns the row after the last. Into the book's Glossary (round 3,
+    reference_tabs.glossary: a Tab column first, from B4), the terms are
+    added to its table under the Peers tab instead."""
+    if ws.cell(4, 2).value == "Tab":
+        from .. import reference_tabs as RT
+        return RT.append_terms(ws, t.title("Peers"), [(term, t.words(m), t.words(c))
+                                                      for term, m, c in PEER_TERMS]) + 1
     if heading:
         row = K.quiet_section(ws, row, heading, 3, first_col)
     _ref_header(ws, row, ["Term", "What it means", "How it is calculated"], first_col, height=15)
@@ -2540,7 +2546,11 @@ def _write_run(ws, row, first_col, entries, prefix="") -> int:
                 c = ws.cell(row, first_col + i, v)
                 c.font = (Font(name="Arial", size=9, bold=True, color=K.SLATE) if i == 0
                           else Font(name="Calibri", size=11, color=K.INK_TEXT))
-                c.alignment = Alignment(vertical="top", wrap_text=i == 1 and isinstance(v, str) and len(v) > 60)
+                # Folded into the book's Run, column C is narrow (about
+                # 255 px) and a wrapped value made rows very tall: it runs on
+                # unwrapped there.
+                c.alignment = Alignment(vertical="top", wrap_text=not prefix and i == 1 and isinstance(v, str)
+                                        and len(v) > 60)
             row += 1
     return row
 
