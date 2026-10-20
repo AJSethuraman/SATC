@@ -231,57 +231,60 @@ def _thresholds_plain(th, name, n, loaded, floored):
                       "defined on the Glossary tab.").font = NOTE
 
 
-#: Thresholds in the book (round 2): px -> units, as (px - 5) / 7.
-TH_BOOK_WIDTHS = dict(A=1.57, B=16.43, C=27.86, D=19.29, E=11.29, F=11.29, G=11.29, H=11.29, I=11.29, J=11.29,
-                      K=11.29, L=10.14, M=10.14, N=19.29, O=16.43, P=55.29)
+#: Lines by source in the book (round 3): px -> units, as (px - 5) / 7: B 150,
+#: C 216, D 150, E-K 72, L 64, M 64, N 120, O 110, P 260.
+TH_BOOK_WIDTHS = dict(A=1.57, B=20.71, C=30.14, D=20.71, E=9.57, F=9.57, G=9.57, H=9.57, I=9.57, J=9.57,
+                      K=9.57, L=8.43, M=8.43, N=16.43, O=15.0, P=36.43)
+#: Backtest folded into Lines by source (fold_backtest): its three summary
+#: columns, then the average change ahead by rating in a collapsed group,
+#: past the hidden workings (decide_tab.TH_HIDDEN), so no letter moves.
+FOLD_SHOWN = ("spearman_value", "spearman_change", "tested")
+FOLD_WIDTHS = (9.57, 9.57, 8.43)                     # 72, 72, 64 px; the group's columns 64 px
+FOLD_HEADS = ("Spearman, value", "Spearman, change", "Quarters tested")
+#: A line of wrapped text at Calibri 10 on Check (P), and a refused row's height.
+LBS_CHECK_CHARS, H_REFUSED = 44, 34.5
 
 
-def _thresholds_book(th, name, n, labels, decide, floored):
-    """The per-series table with Decide: Claude Design's round 2 (README,
-    "Thresholds"), retitled Lines by source once Decide is built
-    (decide_tab.rename_tab): every source's own lines, with its product and
-    measure's settings. Product, Measure and Source in B:D, frozen with the
-    header; repeated names hidden by formatting, so the header filters still
-    work."""
+def _thresholds_book(th, name, n, labels, decide, floored, refused_at_build=()):
+    """The per-series table with Decide, retitled Lines by source once
+    Decide is built (decide_tab.rename_tab): every source's own lines, with
+    its product and measure's settings. Claude Design's round 3 (README,
+    "Lines by source"): a reference tab, Product, Measure and Source in B:D,
+    frozen with the header; repeated names hidden by formatting, so the
+    header filters still work. A row's height cannot follow a formula, so a
+    series refused as built (``refused_at_build``) is three lines high and
+    its To fix reads whole."""
     T = DT.TH_BOOK
     last = 4 + n
     th.sheet_properties.tabColor = K.TAB_REFERENCE
+    th.sheet_view.showGridLines = False
     th["B1"] = "Lines by source · what each %s's own history gives" % decide["names"][2].lower()
-    th["B1"].font = Font(name="Arial", bold=True, size=16, color=K.INK)
+    th["B1"].font = Font(name="Arial", bold=True, size=14, color=K.INK)
     th["B1"].alignment = Alignment(vertical="bottom")
     th["B2"] = ("Each %s's own lines, with its %s and %s's settings on Decide; Thresholds uses one of them per row. "
                 "The header arrows filter by %s, %s or %s."
                 % ((decide["names"][2].lower(), decide["names"][0].lower(), decide["names"][1].lower())
                    + tuple(p.lower() for p in decide["names"])))
     th["B2"].font = Font(name="Calibri", size=11, color=K.SLATE)
+    th["B2"].alignment = Alignment(vertical="center")
     for c_ in range(2, 17):
-        th.cell(2, c_).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
-    for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 25.5)):
+        th.cell(2, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
+    # The header is three lines of Arial 9, so "4 Moderate-High" reads whole in 72 px.
+    for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 39)):
         th.row_dimensions[r].height = h
-    groups = (("B", "D", "Series", None), ("E", "G", "What the lines rest on", K.SLATE),
-              ("H", "K", "Each rating begins at", K.SLATE), ("L", "N", "Latest quarter, on its own lines", K.KEY_RED),
-              ("O", "P", "Your decision, where its lines are used", K.SLATE))
+    groups = (("B", "D", "Series"), ("E", "G", "What the lines rest on"), ("H", "K", "Each rating begins at"),
+              ("L", "N", "Latest quarter, on its own lines"), ("O", "P", "Your decision, where its lines are used"))
     from openpyxl.utils import column_index_from_string as CI
-    for a, b, lbl, rule in groups:
-        cell = th["%s3" % a]
-        cell.value = lbl
-        cell.font = Font(name="Arial", bold=True, size=9, color=K.INK)
-        cell.alignment = Alignment(vertical="bottom")
-        if rule:
-            for c_ in range(CI(a), CI(b) + 1):
-                th.cell(3, c_).border = Border(bottom=Side(style="medium", color=rule))
+    for a, b, lbl in groups:
+        _ref_group(th, a, b, lbl)
     heads = [("product", decide["names"][0]), ("measure", decide["names"][1]), ("source", decide["names"][2]),
-             ("median", "Median kept"), ("move", "Typical yearly move"), ("worst", "Worst kept"),
+             ("median", "Median kept"), ("move", "Yearly move"), ("worst", "Worst kept"),
              ("l2", "2 Moderate-Low"), ("l3", "3 Moderate"), ("l4", "4 Moderate-High"), ("l5", "5 High"),
              ("quarter", "Quarter"), ("value", "Value"), ("rating_shown", "Rating"), ("decision", "Decision"),
              ("check", "Check")]
     right = {"median", "move", "worst", "l2", "l3", "l4", "l5", "value"}
     for key, t_ in heads:
-        cell = th["%s4" % T[key]]
-        cell.value = t_
-        cell.font = Font(name="Arial", bold=True, size=9, color=K.PAPER)
-        cell.fill = K.solid(K.INK)
-        cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if key in right else "left")
+        _ref_head(th["%s4" % T[key]], t_, key in right)
     # The hidden workings keep a header, so a column found by its heading stays findable.
     for key, t_ in (("rating", "Rating number"), ("rating_name", "Rating name"), ("refusal", "Refused because"),
                     ("fix", "To fix"), ("med_change", "Median change"), ("spread", "Spread of levels"),
@@ -295,15 +298,21 @@ def _thresholds_book(th, name, n, labels, decide, floored):
     for c_, w in TH_BOOK_WIDTHS.items():
         th.column_dimensions[c_].width = w
     body = Font(name="Calibri", size=11, color=K.INK_TEXT)
+    refused_at_build = set(refused_at_build)
     for r in range(5, last + 1):
-        th.row_dimensions[r].height = 15
+        th.row_dimensions[r].height = H_REFUSED if labels[r - 5] in refused_at_build else 15
         for c_ in range(2, 17):
             th.cell(r, c_).font = body
+            th.cell(r, c_).alignment = Alignment(vertical="center")
+        for key in ("median", "move", "worst", "l2", "l3", "l4", "l5", "value"):
+            th["%s%d" % (T[key], r)].number_format = "0.00"
         th["%s%d" % (T["product"], r)].font = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
         th["%s%d" % (T["quarter"], r)].font = Font(name="Calibri", size=11, color=K.SLATE)
         th["%s%d" % (T["value"], r)].font = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
-        th["%s%d" % (T["rating_shown"], r)].font = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
         th["%s%d" % (T["check"], r)].font = Font(name="Calibri", size=10, color=K.SLATE)
+        # A To fix that arrives after the build, on a row one line high, shows its first line.
+        th["%s%d" % (T["check"], r)].alignment = Alignment(
+            vertical="center" if labels[r - 5] in refused_at_build else "top", wrap_text=True)
         src = th["%s%d" % (T["source"], r)]
         if "keybank" in str(src.value).casefold():
             src.font = Font(name="Calibri", size=11, color=K.KEY_RED)
@@ -350,7 +359,118 @@ def _thresholds_book(th, name, n, labels, decide, floored):
         th.auto_filter.filterColumn.append(FilterColumn(colId=i, hiddenButton=True, showButton=None))
     th.freeze_panes = "E5"
     th.cell(6 + n, 2, "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.%s Every term is "
-                      "defined on the Glossary tab." % floored).font = NOTE
+                      "defined on the Glossary tab." % floored).font = Font(name="Calibri", size=10, color=K.SLATE)
+
+
+def _ref_group(ws, a, b, label, row=3):
+    """A group label over columns ``a`` to ``b``: Arial 9 bold INK over a thin
+    STONE rule (the reference template)."""
+    from openpyxl.utils import column_index_from_string as CI
+    cell = ws["%s%d" % (a, row)]
+    cell.value = label
+    cell.font = Font(name="Arial", bold=True, size=9, color=K.INK)
+    cell.alignment = Alignment(vertical="bottom")
+    for c_ in range(CI(a), CI(b) + 1):
+        ws.cell(row, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
+
+
+def _ref_head(cell, text, right=False):
+    """A reference table's header cell: Arial 9 bold INK on MIST, wrapped, a
+    STONE rule under it."""
+    cell.value = text
+    cell.font = Font(name="Arial", bold=True, size=9, color=K.INK)
+    cell.fill = K.solid(K.MIST)
+    cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if right else "left")
+    cell.border = Border(bottom=Side(style="thin", color=K.STONE))
+
+
+def fold_backtest(wb, backtest: str = "Backtest") -> dict:
+    """Fold the Backtest tab into Lines by source and remove it (the book
+    only; Claude Design's round 3: "Backtest folded in").
+
+    Each series' unweighted run gives three columns past the hidden workings
+    (Spearman against the value ahead, against the change ahead, quarters
+    tested), headed "How predictive, N quarters ahead"; the average change
+    ahead by rating follows in a collapsed column group. A series too short
+    to test has 0 quarters tested and no Spearman. Its notes go under the
+    table. Nothing in the workbook refers to the Backtest tab by formula, so
+    nothing else moves. Returns the columns, by meaning."""
+    import re
+    from openpyxl.utils import column_index_from_string as CI
+    bts, ws = wb[backtest], wb[DT.LINES_TAB]
+    head = {}
+    c = 2
+    while bts.cell(4, c).value not in (None, ""):
+        head[str(bts.cell(4, c).value)] = c
+        c += 1
+    if "Weighting" not in head or "Quarters tested" not in head:
+        raise ValueError("the Backtest tab has no Weighting or Quarters tested column; nothing was folded")
+    wt = head["Weighting"]
+    id_cols = list(range(2, wt))
+    ratings = [k for k in head if k.isdigit()]
+    m = re.search(r"value (\d+) quarters? later", str(bts["B2"].value or ""))
+    if not m:
+        raise ValueError("the Backtest tab does not say its horizon; nothing was folded")
+    horizon = int(m.group(1))
+    tested, notes = {}, []
+    r = 5
+    while bts.cell(r, 2).value not in (None, ""):
+        key = tuple(bts.cell(r, c_).value for c_ in id_cols)
+        w = bts.cell(r, wt).value
+        if w == "none":
+            tested[key] = (bts.cell(r, head["Value ahead"]).value, bts.cell(r, head["Change ahead"]).value,
+                           bts.cell(r, head["Quarters tested"]).value,
+                           [bts.cell(r, head[k]).value for k in ratings])
+        elif isinstance(w, str) and w.startswith("Not tested"):
+            tested.setdefault(key, (None, None, 0, [None] * len(ratings)))
+        r += 1
+    r += 1
+    while r <= bts.max_row:
+        if bts.cell(r, 2).value:
+            notes.append(bts.cell(r, 2).value)
+        r += 1
+    first = CI(DT.TH_HIDDEN[1]) + 1
+    cols = {k: first + i for i, k in enumerate(FOLD_SHOWN)}
+    group = [first + len(FOLD_SHOWN) + i for i in range(len(ratings))]
+    _ref_group(ws, L(first), L(first + len(FOLD_SHOWN) - 1), "How predictive, %d quarters ahead" % horizon)
+    _ref_group(ws, L(group[0]), L(group[-1]), "Average change ahead, by rating")
+    for k, t_ in zip(FOLD_SHOWN, FOLD_HEADS):
+        _ref_head(ws.cell(4, cols[k]), t_, True)
+    for c_, k in zip(group, ratings):
+        _ref_head(ws.cell(4, c_), "%s %s" % (k, RATINGS[int(k) - 1]), True)
+    T = DT.TH_BOOK
+    last, r = 4, 5
+    while ws["%s%d" % (T["product"], r)].value not in (None, ""):
+        key = tuple(ws["%s%d" % (T[k], r)].value for k in ("product", "measure", "source"))
+        got = tested.get(key)
+        if got is None:
+            raise ValueError("Backtest has no row for %s; nothing was folded" % " - ".join(map(str, key)))
+        vals = [got[0], got[1], got[2]] + list(got[3])
+        top = ws["%s%d" % (T["check"], r)].border.top
+        for c_, v in zip([cols[k] for k in FOLD_SHOWN] + group, vals):
+            cell = ws.cell(r, c_, v)
+            cell.font = Font(name="Calibri", size=11, color=K.INK_TEXT)
+            cell.alignment = Alignment(horizontal="right", vertical="center")
+            cell.number_format = "0" if c_ == cols["tested"] else (
+                "0.00" if c_ in (cols["spearman_value"], cols["spearman_change"]) else "+0.00;-0.00;0.00")
+            cell.border = Border(top=top)
+        last = r
+        r += 1
+    for c_, w in zip([cols[k] for k in FOLD_SHOWN], FOLD_WIDTHS):
+        ws.column_dimensions[L(c_)].width = w
+    for c_ in group:
+        ws.column_dimensions[L(c_)].width = 8.43
+    ws.column_dimensions.group(L(group[0]), L(group[-1]), outline_level=1, hidden=True)
+    for c_ in range(first, group[-1] + 1):
+        ws.cell(2, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
+    # Backtest's own words, under the table's note.
+    nr = last + 3
+    lines = [str(bts["B2"].value)] + notes
+    for i, t in enumerate(lines):
+        ws.cell(nr + i, 2, t).font = Font(name="Calibri", size=10, color=K.SLATE)
+    wb.remove(bts)
+    return {"columns": {k: L(v) for k, v in cols.items()}, "by_rating": [L(c_) for c_ in group],
+            "horizon": horizon, "rows": (5, last), "notes": nr}
 
 
 def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
@@ -641,7 +761,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 f=L(dc[DT.LINES_FROM]), d=L(dc["Decision"]), r=dr, s=p_[2].replace('"', '""')))
             put("check", '=IF({m}="","OK","To fix: "&{f})'.format(m=at("refusal"), f=DT.HERE.format(m=at("fix"))))
     if decide:
-        _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_words)
+        # Which series the lines refuse as built (the starting settings, no
+        # period left out): their rows are set three lines high, so the To fix
+        # reads whole. The same rules as the Check (scale.scale).
+        refused_at_build = [s["label"] for s in loaded if _scale(
+            [p.value for p in s["points"]], direction, moderate_halfwidth, low_step, high_z,
+            floored(s["label"]))["refused"]]
+        _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_words, refused_at_build)
     else:
         _thresholds_plain(th, name, n, loaded, floor_at_zero and higher)
 
@@ -1061,10 +1187,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # lines of the source each row picks, with every source rated on them.
         DT.rename_tab(wb, "Thresholds", DT.LINES_TAB)
         from . import thresholds_tab as TT
-        srcs = SU.layout(labels, decide["parts"], decide["compare"])["sources"]
-        tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=srcs, part_names=decide["names"],
-                      decide=dec, n_series=n, name=name, higher=higher, floor_at_zero=floor_at_zero,
-                      number_format=NF, floor_off=floor_off)
+        su_lay = SU.layout(labels, decide["parts"], decide["compare"])
+        tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=su_lay["sources"],
+                      dropped=su_lay["dropped"], part_names=decide["names"], decide=dec, n_series=n, name=name,
+                      higher=higher, floor_at_zero=floor_at_zero, number_format="0.00", floor_off=floor_off,
+                      refused_at_build=refused_at_build, start=decide["lines_from"])
         su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
                       absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
                       refs=TT.refs(tt, dec["by_pair"]))
