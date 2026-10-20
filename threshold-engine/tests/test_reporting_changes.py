@@ -392,8 +392,8 @@ def test_decides_chart_draws_the_marker_as_a_diamond_and_says_so(marked):
     assert "<v>Reporting change</v>" in ser and '<symbol val="diamond" /><size val="7" />' in ser
     assert "<a:ln><a:noFill" in ser
     ws = load_workbook(info["path"])["Decide"]
-    note = ws.cell(info["decide"]["layout"]["notes"] + 1, 2).value
-    assert "A diamond along the top marks a quarter in which a reporting change took effect" in note
+    note = ws.cell(info["decide"]["layout"]["notes"] + 2, 2).value
+    assert "A diamond at the top of the shading marks a quarter in which a reporting change took effect" in note
 
 
 def test_without_reporting_change_notes_decide_marks_nothing(tmp_path):
@@ -401,7 +401,7 @@ def test_without_reporting_change_notes_decide_marks_nothing(tmp_path):
     h = info["decide"]["helpers"]
     ws = load_workbook(info["path"])["Decide"]
     assert all(ws["%s%d" % (h["chg%d" % i], r)].value is None for i in range(len(PAIRS)) for r in range(2, 180))
-    assert "diamond" not in ws.cell(info["decide"]["layout"]["notes"] + 1, 2).value
+    assert "diamond" not in ws.cell(info["decide"]["layout"]["notes"] + 2, 2).value
 
 
 def test_a_malformed_reporting_change_note_is_refused(tmp_path):

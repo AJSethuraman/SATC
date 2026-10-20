@@ -916,8 +916,8 @@ def test_the_pack_line_is_one_named_cell_with_three_states(dlq, dl_data, roster,
     assert re.fullmatch(r"Workings!\$B\$\d+", cell)
     assert wb.defined_names[PW.PACK_LINE].attr_text == cell
     f = wb["Workings"][cell.split("!")[1].replace("$", "")].value
-    assert "_xlfn.TEXTJOIN" in f and "Peer group · " in f and " of 15 in" in f
-    assert "out by the book's rules, " in f and " · switched off on Peers: " in f
+    assert "_xlfn.TEXTJOIN" in f and "Peer group · " in f and " of 15 switched on" in f
+    assert "out by the book's rules on 30+ incl. nonaccrual, " in f and " · switched off on Peers: " in f
     helpers = info["pack_line"]["helpers"]
     for word in (PW.STATE_IN, PW.STATE_OUT, PW.STATE_OFF):
         assert '"%s"' % word in f or '"%s"' % word in wb["Workings"]["%s2" % helpers["state"]].value
@@ -935,11 +935,11 @@ def test_the_pack_line_is_one_named_cell_with_three_states(dlq, dl_data, roster,
         assert dict(zip(peers, states)) == want
         assert [peers_cell(vals, lay["states"][s]) for s in peers] == states
         text = vals.get("WORKINGS!" + cell.split("!")[1].replace("$", ""))
-        n_in = sum(s == PW.STATE_IN for s in states)
-        assert text.startswith("Peer group · %d of %d in" % (n_in, len(peers)))
+        n_on = sum(s != PW.STATE_OFF for s in states)
+        assert text.startswith("Peer group · %d of %d switched on" % (n_on, len(peers)))
         outs = [s for s in peers if want[s] == PW.STATE_OUT]
         offs = [s for s in peers if want[s] == PW.STATE_OFF]
-        out_part = text.split(" · out by the book's rules, %s: " % last_q)
+        out_part = text.split(" · out by the book's rules on 30+ incl. nonaccrual, %s: " % last_q)
         assert (len(out_part) == 2) == bool(outs)
         off_part = text.split(" · switched off on Peers: ")
         assert (len(off_part) == 2) == bool(offs)

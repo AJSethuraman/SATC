@@ -562,7 +562,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
               '=IFERROR(LOOKUP(2,1/ISNUMBER(%s$%s$%d:$%s$%d),%s$A$%d:$A$%d),"")' % (SDt, L(kcol["win3"]), R0, L(kcol["win3"]), R1, SDt, R0, R1))
 
     # shifted z per signal: the signal's z moved k quarters later, k from the shift cell or the best fit
-    shift_cells = {}
+    shift_cells, best_cells = {}, {}
     for key, *_ in SIGNALS:
         c0 = take(key + "_zs", 1)
         wk.cell(1, c0, "%s: z, slid" % key)
@@ -604,6 +604,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         wk.cell(rb + 1, 1, "shift used")
         wk.cell(rb + 1, 2, '=IF(ISNUMBER(%s),%s,IF(ISNUMBER(%s),MAX(0,%s),0))' % (SH, SH, sh, sh))
         shift_cells[key] = "%s$B$%d" % (WK, rb + 1)
+        best_cells[key] = sh
         zc = col[key + "_zs"]
         for r in range(R0, R1 + 1):
             wk.cell(r, zc, '=IFERROR(IF(INDEX(%s,%d-%s)="","",INDEX(%s,%d-%s)),"")'
@@ -616,8 +617,12 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for key, *_ in SIGNALS:
         drawn(key + "_c", L(col[key]), "%s: value, drawn" % key)
         drawn(key + "_zsc", L(col[key + "_zs"]), "%s: z, slid, drawn" % key)
+        # On fits best, a best lead below zero is not used; the name says so and gives the lead.
+        nm, sc_, b_ = _q(SHOWN[key][1]), shift_cells[key], best_cells[key]
         names[key] = cell_(key + "_name", "%s: its name on the overlay" % key,
-                           '="%s, shifted "&%s&IF(%s=1," quarter"," quarters")' % (_q(SHOWN[key][1]), shift_cells[key], shift_cells[key]))
+                           '=IF(AND(NOT(ISNUMBER({SH})),ISNUMBER({b}),N({b})<0),'
+                           '"{n}, not shifted: fits best at lead "&{b},'
+                           '"{n}, shifted "&{s}&IF({s}=1," quarter"," quarters"))'.format(SH=SH, b=b_, n=nm, s=sc_))
 
     # ---------------------------------------------------------------- Signals: the sections
     jumps = []                                                            # (name, columns, row)

@@ -528,7 +528,7 @@ def attention(tmp_path_factory):
 
 def _attention_read(v, s):
     a = s["attention"]
-    keys = ("product", "measure", "latest", "rating", "lines_from")
+    keys = ("measure", "latest", "rating", "product")
     got = [tuple(v["SUMMARY!%s%d" % (L(a["columns"][k]), r)] for k in keys) for r in a["rows"]]
     return [g for g in got if g[0]]
 
@@ -544,8 +544,8 @@ def test_a_series_rated_4_or_5_is_listed_by_rating_then_value(attention):
                   key=lambda t: (-t[0], -t[1]))
     assert [l for _, _, l in want] == ["A - Net - Bank", "B - Net - Bank"]     # the data rate them 4
     listed = _attention_read(v, s)
-    assert listed == [(l[0], "Net", pytest.approx(j), "%d %s" % (k, lb(v, "rating_name", rows[l])), "lines from Bank")
-                      for k, j, l in want]
+    assert listed == [("Net", pytest.approx(j), "%d %s" % (k, lb(v, "rating_name", rows[l])),
+                       "%s · lines from Bank" % l[0]) for k, j, l in want]
     sheet = load_workbook(info["path"])["Summary"]
     # Round 3: under the left panel.
     assert sheet.cell(s["attention"]["head"], s["panels"][0]).value == "Needs your attention · Bank rated 4 or 5"
@@ -561,7 +561,7 @@ def test_a_refused_series_is_counted_and_not_listed(attention):
     v = typed(info["path"], d / "refused.xlsx", cells)
     assert lb(v, "refusal", 5).startswith("Refused") and lb(v, "refusal", 9).startswith("Refused")
     listed = _attention_read(v, s)
-    assert [x[0] for x in listed] == ["B"]
+    assert [x[3].split(" · ")[0] for x in listed] == ["B"]
     assert v["SUMMARY!" + s["count"]] == "Lines picked: 4 of 4 · Bank rated 4 or 5: 1 · refused: 2"
     # None rated 4 or 5: the first row says so.
     v2 = typed(info["path"], d / "none.xlsx", {"Decide!%s%d" % (z, f + k): 50 for k in range(4)})
@@ -667,14 +667,13 @@ def test_a_source_on_few_rows_gets_no_column_and_a_live_strip(narrow):
     assert ws.cell(r, base + s["columns"]["Bank"][1] - 2).value == "Wide only"
     strip = s["strips"][0]
     assert strip["source"] == "Wide" and strip["row"] == 2
-    assert ws[strip["text"]].value == "Wide · Card · Min · "
-    assert ws[strip["value"]].value.startswith("=IF(ISNUMBER(Thresholds!")
-    assert ws[strip["value"]].number_format == '0.00"%"'
+    assert ws[strip["text"]].value.startswith('="Wide · Card · Min · "&IF(ISNUMBER(Thresholds!')
+    assert ws[strip["text"]].alignment.horizontal == "right"
     # Live: the value is the series' own latest on Lines by source; no lines picked reads "—".
     v = recalc(info["path"])
     row = 5 + [lbl for lbl, _ in NARROW].index("Card - Min - Wide")
-    assert v["SUMMARY!" + strip["value"]] == pytest.approx(lb(v, "value", row))
-    assert v["SUMMARY!" + strip["end"]] == " · %s · rating —" % lb(v, "quarter", row)
+    assert v["SUMMARY!" + strip["text"]] == "Wide · Card · Min · %.2f%% · %s · rating —" % (
+        lb(v, "value", row), lb(v, "quarter", row))
     notes = [ws.cell(r_, 2).value for r_ in range(s["notes"], s["notes"] + 3)]
     assert notes[2] == "Wide: its latest quarter and its own lines are on Lines by source."
 

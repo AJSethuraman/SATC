@@ -62,8 +62,9 @@ TERMS = [
      "KeyBank's and the industry's are summed from the Call Report at build; the peer group's are summed from Peers data and "
      "Peers delinquency data over the banks in the pack, so they follow Banks in the pack on Peers."),
     ("Pack line",
-     "One line under every chart or table that draws on the peer group: how many of the roster's banks are in "
-     "it, the quarter, which banks the book's rules took out, and which were switched off on Peers.",
+     "One line under every chart or table that draws on the peer group: how many of the roster's banks are "
+     "switched on, which the book's rules took out of 30+ incl. nonaccrual in the latest quarter, and which were "
+     "switched off on Peers. Each chart's own count of banks is on its tiles.",
      "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster on Peers. "
      "In: Yes on "
      "Peers and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
@@ -475,8 +476,8 @@ TERMS = [
      "Listed once, with its source, under Reporting changes on Sources. Each series file the peers build writes "
      "carries a Reporting change line for every change touching its product and measure within its quarters, "
      "shown on Sources; a change a product's own note already describes points to that note instead. "
-     "Decide's chart marks the quarters with a diamond along the top, for any source of the row shown; the "
-     "Peers charts mark them on the pack composite."),
+     "Decide's chart marks the quarters with a diamond at the top of the shading, for any source of the row shown; "
+     "the Peers charts mark them on the pack composite."),
     ("Reporting changes",
      "The last section of Sources: every reporting change this workbook labels, one row each.",
      "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "

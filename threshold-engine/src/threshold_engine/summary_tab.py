@@ -357,33 +357,29 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     # ---- Row 2, right: each source left out with a single series, as a strip ----
     strips = []
     one = [s for s in lay["dropped"] if sum(1 for lab in labels if parts[lab][2] == s) == 1]
-    base = panel_left[1]
-    c_end = max(base + 2, last_col - 2)
-    c_lab, c_val = c_end - 2, c_end - 1
     pct = unit == "%"
     for k, s in enumerate(one):
         r = 2 + k
         lab = next(lab for lab in labels if parts[lab][2] == s)
         a_, b_ = parts[lab][:2]
-        t = ws.cell(r, c_lab, "%s · %s · %s · " % (s, a_, b_))
+        # One cell, right-aligned under the counts, so no column's width
+        # opens a gap between the value and the words after it.
+        t = ws.cell(r, last_col, '="{w} · "&IF(ISNUMBER({v}),TEXT({v},"0.00"){u}&" · ","")&{q}&" · rating "&'
+                                 'IF(OR({d}="",{t}=""),"{n}",{t})'.format(
+                                     w=("%s · %s · %s" % (s, a_, b_)).replace('"', '""'), v=th("value", lab),
+                                     u='&"%"' if pct else "", q=th("quarter", lab), d=th("lines_from", lab),
+                                     t=th("rating_text", lab), n=NO_LINES))
         t.font = Font(name="Calibri", size=11, color=SLATE)
         t.alignment = Alignment(horizontal="right", vertical="center")
-        v = ws.cell(r, c_val, '=IF(ISNUMBER({v}),{v},"")'.format(v=th("value", lab)))
-        v.font = Font(name="Calibri", size=11, bold=True, color=K.INK)
-        v.number_format = '0.00"%"' if pct else "0.00"
-        v.alignment = Alignment(horizontal="left", vertical="center")
-        e = ws.cell(r, c_end, '=" · "&{q}&" · rating "&IF(OR({d}="",{t}=""),"{n}",{t})'.format(
-            q=th("quarter", lab), d=th("lines_from", lab), t=th("rating_text", lab), n=NO_LINES))
-        e.font = Font(name="Calibri", size=11, color=SLATE)
-        e.alignment = Alignment(horizontal="left", vertical="center")
         if r > 2:
             ws.row_dimensions[r].height = 15
-        strips.append({"source": s, "label": lab, "row": r, "value": v.coordinate, "text": t.coordinate,
-                       "end": e.coordinate})
+        strips.append({"source": s, "label": lab, "row": r, "text": t.coordinate})
 
     # ---- Needs your attention, under the left panel ----
     base = panel_left[0]
-    c_prod, c_meas, c_val, c_chip, c_from = base, base + 1, base + 4, base + 5, base + 6
+    # Measure, latest and rating under the panel's Measure and KeyBank columns;
+    # the product and the source after them, where the panel's other sources are.
+    c_meas, c_val, c_chip, c_prod = base, base + 1, base + 2, base + 3
     r = ends[0] + 2
     head = ws.cell(r, base, "Needs your attention · %s rated 4 or 5" % lead)
     head.font = Font(name="Arial", size=11, bold=True, color=K.INK)
@@ -391,18 +387,17 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
     for off in range(width):
         ws.cell(r, base + off).border = Border(bottom=_side("medium", K.INK))
     ws.row_dimensions[r].height = 16.5
-    attention = {"head": r, "rows": [], "columns": {"product": c_prod, "measure": c_meas, "latest": c_val,
-                                                    "rating": c_chip, "lines_from": c_from}}
+    attention = {"head": r, "rows": [], "columns": {"measure": c_meas, "latest": c_val, "rating": c_chip,
+                                                    "product": c_prod}}
     body = Font(name="Calibri", size=11, color=INK)
     for k in range(1, ATTENTION_ROWS + 1):
         r += 1
         at = "MATCH(%d,%s,0)" % (k, rng_h("order"))
         pick = lambda key: "INDEX(%s,%s)" % (rng_h(key), at)              # noqa: E731
-        f_prod = 'IFERROR(%s,"")' % pick("product")
+        f_meas = 'IFERROR(%s,"")' % pick("measure")
         if k == 1:
-            f_prod = 'IF(%s=0,"%s",%s)' % (hot, NONE_HOT, f_prod)
-        ws.cell(r, c_prod, "=" + f_prod).font = body
-        ws.cell(r, c_meas, '=IFERROR(%s,"")' % pick("measure")).font = body
+            f_meas = 'IF(%s=0,"%s",%s)' % (hot, NONE_HOT, f_meas)
+        ws.cell(r, c_meas, "=" + f_meas).font = body
         v = ws.cell(r, c_val, '=IFERROR(%s,"")' % pick("latest"))
         v.font = Font(name="Calibri", size=12, bold=True, color=INK)
         v.number_format = "0.00"
@@ -412,16 +407,16 @@ def build(wb, *, name: str, unit: str, labels: Sequence[str], parts: Dict[str, T
         chip.font = Font(name="Calibri", size=11, color=INK)
         chip.alignment = Alignment(vertical="center")
         # The source's name up to its bracket, so the words end inside the panel.
-        ws.cell(r, c_from, '=IFERROR("lines from "&IFERROR(LEFT({s},FIND(" (",{s})-1),{s}),"")'.format(
-            s=pick("lines_from"))).font = small
-        for c_ in (c_prod, c_meas, c_from):
+        ws.cell(r, c_prod, '=IFERROR({p}&" · lines from "&IFERROR(LEFT({s},FIND(" (",{s})-1),{s}),"")'.format(
+            p=pick("product"), s=pick("lines_from"))).font = small
+        for c_ in (c_meas, c_prod):
             ws.cell(r, c_).alignment = Alignment(vertical="center")
         attention["rows"].append(r)
         ws.row_dimensions[r].height = H_BODY
         for off in range(width):
             ws.cell(r, base + off).border = Border(bottom=_side("thin", "EFEBE4"))
     # The first row says "None rated 4 or 5." in slate when the list is empty.
-    f0 = "%s%d" % (L(c_prod), attention["rows"][0])
+    f0 = "%s%d" % (L(c_meas), attention["rows"][0])
     ws.conditional_formatting.add(f0, FormulaRule(formula=['%s="%s"' % (f0, NONE_HOT)], font=Font(color=SLATE)))
     _rating_rules(ws, "%s%d:%s%d" % (L(c_chip), attention["rows"][0], L(c_chip), r),
                   "%s%d" % (L(c_chip), attention["rows"][0]))

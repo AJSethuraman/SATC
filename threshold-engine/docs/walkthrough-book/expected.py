@@ -225,7 +225,6 @@ steps = []
 # ---- Round 3's Summary: the strip for a source left out with one series, the
 # rows only such a source has, the attention block, the counts top right ----
 SU_LAST = SL["last_col"]
-_strip_end = max(SL["panels"][1] + 2, SU_LAST - 2)
 STRIPS = [(2 + k, lbl) for k, lbl in enumerate(
     next(lbl for lbl in LABELS if PARTS[lbl][2] == s_) for s_ in SL["dropped"]
     if sum(1 for lbl in LABELS if PARTS[lbl][2] == s_) == 1)]
@@ -234,14 +233,13 @@ DOT = "·"
 
 
 def strip_reads(rating_text=None):
-    """Each strip's value (the series' latest) and its end: the quarter and the rating, or the dash."""
+    """Each strip, one cell under the counts: the series' latest, its quarter and the rating, or the dash."""
     out = []
     for r_, lbl in STRIPS:
-        out += [{"sheet": "Summary", "cell": "%s%d" % (L(_strip_end - 2), r_),
-                 "expect": "%s %s %s %s %s %s " % (PARTS[lbl][2], DOT, PARTS[lbl][0], DOT, PARTS[lbl][1], DOT)},
-                {"sheet": "Summary", "cell": "%s%d" % (L(_strip_end - 1), r_), "expect": PTS[lbl][-1].value},
-                {"sheet": "Summary", "cell": "%s%d" % (L(_strip_end), r_),
-                 "expect": " %s %s %s rating %s" % (DOT, quarter(PTS[lbl][-1].date), DOT, rating_text or SU.NO_LINES)}]
+        out.append({"sheet": "Summary", "cell": "%s%d" % (L(SU_LAST), r_),
+                    "expect": "%s %s %s %s %s %s %.2f%% %s %s %s rating %s" % (
+                        PARTS[lbl][2], DOT, PARTS[lbl][0], DOT, PARTS[lbl][1], DOT, PTS[lbl][-1].value, DOT,
+                        quarter(PTS[lbl][-1].date), DOT, rating_text or SU.NO_LINES)})
     return out
 
 
@@ -298,7 +296,7 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                   {"sheet": "Summary", "cell": "B%d" % ATT_HEAD, "expect": "Needs your attention %s %s rated 4 or 5" % (DOT, LEAD)},
                   {"sheet": "Summary", "cell": "B%d" % (ATT_HEAD + 1), "expect": SU.NONE_HOT}]
                  + counts(0, 0, 0) + strip_reads() + only_reads() + undecided_reads(first),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b1-decide.png"},
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b1-decide.png"},
                           {"sheet": "Summary", "range": "A1:%s%d" % (L(SU_LAST + 1), ATT_HEAD + 10), "file": "b1-summary.png"}]})
 
 # ---- B2: every Summary cell, before a source is picked ----
@@ -374,7 +372,7 @@ steps.append({"id": "B3", "what": "On Decide, click Credit card and Nonaccrual, 
                           for j, c in enumerate("EFGH")]
                        + decide_reads(CN, lines3, others3) + row_reads(CN, LEAD, lines3) + lbs_reads(kb, lines3)
                        + fits_reads(kb),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b3-decide.png"},
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b3-decide.png"},
                           {"sheet": "Thresholds", "range": "A1:%s%d" % (TL["cols"]["check"], 5 + len(PAIRS)),
                            "file": "b3-thresholds.png"}]})
 
@@ -449,7 +447,7 @@ steps.append({"id": "B8", "what": "Click Auto and Net charge-offs, and pick %s u
                        + ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}] if lines8["bounds"] else
                           [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": lines8["M"]}])
                        + decide_reads(AN, lines8, every_own(AN)) + row_reads(AN, IND, lines8),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b8-life-to-date.png"}]})
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b8-life-to-date.png"}]})
 
 # ---- B9: lines that are refused, and the To fix ----
 MN = ("Mortgage", "Net charge-offs")
@@ -465,7 +463,7 @@ steps.append({"id": "B9", "what": "Click Mortgage and Net charge-offs, and pick 
                           "startswith": "To fix: "}] if lines9["M"] else
                         [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}])
                        + row_reads(MN, IND, lines9) + lbs_reads(mg, lines9),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b9-refused.png"}]})
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b9-refused.png"}]})
 
 # The three rows picked so far, as Summary's counts and Needs your attention read them.
 PICKED_ROWS = [(CN, LEAD, lines5), (AN, IND, lines8), (MN, IND, lines9)]
@@ -483,11 +481,10 @@ def attention():
         return out + [{"sheet": "Summary", "cell": "B%d" % (ATT_HEAD + 1), "expect": SU.NONE_HOT}]
     for i, (k, v, pr, text, src) in enumerate(hot[:SU.ATTENTION_ROWS]):
         r_ = ATT_HEAD + 1 + i
-        out += [{"sheet": "Summary", "cell": "B%d" % r_, "expect": pr[0]},
-                {"sheet": "Summary", "cell": "C%d" % r_, "expect": pr[1]},
-                {"sheet": "Summary", "cell": "F%d" % r_, "expect": v},
-                {"sheet": "Summary", "cell": "G%d" % r_, "expect": text},
-                {"sheet": "Summary", "cell": "H%d" % r_, "expect": "lines from " + SU.short(src)}]
+        out += [{"sheet": "Summary", "cell": "B%d" % r_, "expect": pr[1]},
+                {"sheet": "Summary", "cell": "C%d" % r_, "expect": v},
+                {"sheet": "Summary", "cell": "D%d" % r_, "expect": text},
+                {"sheet": "Summary", "cell": "E%d" % r_, "expect": "%s %s lines from %s" % (pr[0], DOT, SU.short(src))}]
     return out
 
 
@@ -591,9 +588,9 @@ def _out_by_rule(b):
 def PACK_TEXT(included):
     outs = [b["short"] for b in peers_ if b["cert"] in included and _out_by_rule(b)]
     offs = [b["short"] for b in peers_ if b["cert"] not in included]
-    t = "Peer group %s %d of %d in" % (DOT, len(included) - len(outs), len(peers_))
+    t = "Peer group %s %d of %d switched on" % (DOT, len(included), len(peers_))
     if outs:
-        t += " %s out by the book's rules, %s: %s" % (DOT, DQ_LAST, ", ".join(outs))
+        t += " %s out by the book's rules on %s, %s: %s" % (DOT, PW.DQ_PACK_MEASURE, DQ_LAST, ", ".join(outs))
     if offs:
         t += " %s switched off on Peers: %s" % (DOT, ", ".join(offs))
     return t

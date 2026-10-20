@@ -116,18 +116,8 @@
     },
     {
      "sheet": "Summary",
-     "cell": "N2",
-     "expect": "Large banks (Philadelphia Fed) \u00b7 Credit card \u00b7 Share paying only the minimum \u00b7 "
-    },
-    {
-     "sheet": "Summary",
-     "cell": "O2",
-     "expect": 10.15
-    },
-    {
-     "sheet": "Summary",
-     "cell": "P2",
-     "expect": " \u00b7 2026Q2 \u00b7 rating \u2014"
+     "cell": "R2",
+     "expect": "Large banks (Philadelphia Fed) \u00b7 Credit card \u00b7 Share paying only the minimum \u00b7 10.15% \u00b7 2026Q2 \u00b7 rating \u2014"
     },
     {
      "sheet": "Summary",
@@ -227,27 +217,27 @@
     {
      "sheet": "Peers",
      "cell": "B14",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Peers",
      "cell": "B39",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Peers",
      "cell": "J39",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Decide",
      "cell": "B91",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Signals",
      "cell": "B6",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Peers",
@@ -288,7 +278,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q113",
+     "range": "A1:Q114",
      "file": "b1-decide.png"
     },
     {
@@ -10491,7 +10481,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q113",
+     "range": "A1:Q114",
      "file": "b3-decide.png"
     },
     {
@@ -11428,7 +11418,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q113",
+     "range": "A1:Q114",
      "file": "b8-life-to-date.png"
     }
    ]
@@ -11585,7 +11575,7 @@
    "picture": [
     {
      "sheet": "Decide",
-     "range": "A1:Q113",
+     "range": "A1:Q114",
      "file": "b9-refused.png"
     }
    ]
@@ -11780,27 +11770,22 @@
     {
      "sheet": "Summary",
      "cell": "B36",
-     "expect": "Credit card"
-    },
-    {
-     "sheet": "Summary",
-     "cell": "C36",
      "expect": "Nonaccrual"
     },
     {
      "sheet": "Summary",
-     "cell": "F36",
+     "cell": "C36",
      "expect": 0.6908132947833397
     },
     {
      "sheet": "Summary",
-     "cell": "G36",
+     "cell": "D36",
      "expect": "5 High"
     },
     {
      "sheet": "Summary",
-     "cell": "H36",
-     "expect": "lines from KeyBank"
+     "cell": "E36",
+     "expect": "Credit card \u00b7 lines from KeyBank"
     }
    ],
    "picture": [
@@ -11857,27 +11842,27 @@
     {
      "sheet": "Peers",
      "cell": "B14",
-     "expect": "Peer group \u00b7 9 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
+     "expect": "Peer group \u00b7 10 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
     },
     {
      "sheet": "Peers",
      "cell": "B39",
-     "expect": "Peer group \u00b7 9 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
+     "expect": "Peer group \u00b7 10 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
     },
     {
      "sheet": "Peers",
      "cell": "J39",
-     "expect": "Peer group \u00b7 9 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
+     "expect": "Peer group \u00b7 10 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
     },
     {
      "sheet": "Decide",
      "cell": "B91",
-     "expect": "Peer group \u00b7 9 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
+     "expect": "Peer group \u00b7 10 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
     },
     {
      "sheet": "Signals",
      "cell": "B6",
-     "expect": "Peer group \u00b7 9 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
+     "expect": "Peer group \u00b7 10 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan, Wells Fargo, Bank of America, Citi, Capital One"
     }
    ],
    "picture": []
@@ -11934,27 +11919,27 @@
     {
      "sheet": "Peers",
      "cell": "B14",
-     "expect": "Peer group \u00b7 13 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
+     "expect": "Peer group \u00b7 14 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
     },
     {
      "sheet": "Peers",
      "cell": "B39",
-     "expect": "Peer group \u00b7 13 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
+     "expect": "Peer group \u00b7 14 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
     },
     {
      "sheet": "Peers",
      "cell": "J39",
-     "expect": "Peer group \u00b7 13 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
+     "expect": "Peer group \u00b7 14 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
     },
     {
      "sheet": "Decide",
      "cell": "B91",
-     "expect": "Peer group \u00b7 13 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
+     "expect": "Peer group \u00b7 14 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
     },
     {
      "sheet": "Signals",
      "cell": "B6",
-     "expect": "Peer group \u00b7 13 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
+     "expect": "Peer group \u00b7 14 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington \u00b7 switched off on Peers: JPMorgan"
     }
    ],
    "picture": [
@@ -12026,27 +12011,27 @@
     {
      "sheet": "Peers",
      "cell": "B14",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Peers",
      "cell": "B39",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Peers",
      "cell": "J39",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Decide",
      "cell": "B91",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Signals",
      "cell": "B6",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     }
    ],
    "picture": []
@@ -12090,7 +12075,7 @@
     {
      "sheet": "Signals",
      "cell": "B6",
-     "expect": "Peer group \u00b7 14 of 15 in \u00b7 out by the book's rules, 2026Q2: Huntington"
+     "expect": "Peer group \u00b7 15 of 15 switched on \u00b7 out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington"
     },
     {
      "sheet": "Signals",

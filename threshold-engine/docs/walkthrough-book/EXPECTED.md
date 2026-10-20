@@ -6,7 +6,7 @@ From `book.json` and the series files the build wrote, through `scale.py`. 164 s
 
 It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide shows the first product and measure, no source picked and nothing decided.
 
-49 reads.
+47 reads.
 
 ## B2 · Read Summary, and every source's own lines on Lines by source
 
@@ -66,7 +66,7 @@ Refused, with what to type.
 
 Every decision, pick and setting typed is still there, and the lines with them.
 
-40 reads.
+39 reads.
 
 ## B11 · On Peers, set Banks in the pack to Regionals only
 

@@ -1741,6 +1741,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         fit("dl", dl, len(dq["grid"]))
 
     # ---- Workings: the pack line, one row per peer (roster order) ----
+    # The line counts the banks switched on (each chart's own count is on
+    # its tiles) and names those the rules took out of 30+ incl. nonaccrual.
     # Each peer is in (Yes, and a four-quarter average at the latest
     # quarter-end), out by the book's rules (Yes, and none: the jump or the
     # acquisition share blanked it, or it was not kept), or off (No). As the
@@ -1772,10 +1774,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         wk.cell(r, pk.col["offs"], '=IF(%s="%s",%s,"")' % (st, STATE_OFF, pk.at("name", r)))
     states = pk.down("state", 2, 1 + NP)
     scalar("pack_line", "Pack line",
-           '="Peer group · "&COUNTIF({s},"{in_}")&" of {n} in"&IF(COUNTIF({s},"{out}")>0," · out by the book\'s '
-           'rules, "&{q}&": "&_xlfn.TEXTJOIN(", ",TRUE,{outs}),"")&IF(COUNTIF({s},"{off}")>0," · switched off '
-           'on {pe}: "&_xlfn.TEXTJOIN(", ",TRUE,{offs}),"")'.format(
-               s=states, n=NP, in_=STATE_IN, out=STATE_OUT, off=STATE_OFF, q=pack_q,
+           '="Peer group · "&COUNTIF({s},"<>{off}")&" of {n} switched on"&IF(COUNTIF({s},"{out}")>0," · out by '
+           'the book\'s rules on {m}, "&{q}&": "&_xlfn.TEXTJOIN(", ",TRUE,{outs}),"")&IF(COUNTIF({s},"{off}")>0,'
+           '" · switched off on {pe}: "&_xlfn.TEXTJOIN(", ",TRUE,{offs}),"")'.format(
+               s=states, n=NP, out=STATE_OUT, off=STATE_OFF, q=pack_q, m=DQ_PACK_MEASURE,
                outs=pk.down("outs", 2, 1 + NP), offs=pk.down("offs", 2, 1 + NP),
                pe=t.title("Peers").replace('"', '""')))
     wb.defined_names[PACK_LINE] = DefinedName(PACK_LINE, attr_text=S_PE["pack_line"])

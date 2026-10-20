@@ -1,12 +1,12 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2465 of 2465 reads as expected.**
+**2462 of 2462 reads as expected.**
 
 No differences.
 
 
-## B1 · Open the workbook as built: 49 of 49
+## B1 · Open the workbook as built: 47 of 47
 
 It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide shows the first product and measure, no source picked and nothing decided.
 
@@ -27,9 +27,7 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | ok | Summary!B36 | None rated 4 or 5. | None rated 4 or 5. |
 | ok | Summary!R1 | Lines picked: 0 of 56 · KeyBank rated 4 or 5: 0 · refused: 0 | Lines picked: 0 of 56 · KeyBank rated 4 or 5: 0 · refused: 0 |
 | ok | Thresholds!S1 | Lines picked: 0 of 56 · KeyBank rated 4 or 5: 0 · refused: 0 | Lines picked: 0 of 56 · KeyBank rated 4 or 5: 0 · refused: 0 |
-| ok | Summary!N2 | Large banks (Philadelphia Fed) · Credit card · Share paying only the minimum ·  | Large banks (Philadelphia Fed) · Credit card · Share paying only the minimum ·  |
-| ok | Summary!O2 | 10.15 | 10.15 |
-| ok | Summary!P2 |  · 2026Q2 · rating — |  · 2026Q2 · rating — |
+| ok | Summary!R2 | Large banks (Philadelphia Fed) · Credit card · Share paying only the minimum · 10.15% · 20 | Large banks (Philadelphia Fed) · Credit card · Share paying only the minimum · 10.15% · 20 |
 | ok | Summary!D17 | Large banks only | Large banks only |
 | ok | Thresholds!D5 |  |  |
 | ok | Thresholds!E5 |  |  |
@@ -49,11 +47,11 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | ok | Thresholds!L5 | 3.7557700716206863 | 3.755770071620686 |
 | ok | Thresholds!AK5 |  |  |
 | ok | Thresholds!AJ5 | 4.009514461690263 | 4.009514461690263 |
-| ok | Peers!B14 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Peers!B39 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Peers!J39 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Decide!B91 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Signals!B6 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
+| ok | Peers!B14 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!B39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!J39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Peers!B9 | Pack | Pack |
 | ok | Peers!B12 | Pack | Pack |
 | ok | Peers!B8 | JPMorgan | JPMorgan |
@@ -2341,7 +2339,7 @@ Refused, with what to type.
 | ok | Lines by source!Q26 |  |  |
 | ok | Lines by source!S26 | Refused: Moderate-Low would begin at or below zero | Refused: Moderate-Low would begin at or below zero |
 
-## B10 · Save (Ctrl+S), close Excel, open the file again: 40 of 40
+## B10 · Save (Ctrl+S), close Excel, open the file again: 39 of 39
 
 Every decision, pick and setting typed is still there, and the lines with them.
 
@@ -2382,11 +2380,10 @@ Every decision, pick and setting typed is still there, and the lines with them.
 | ok | Thresholds!L9 | 0.6908132947833397 | 0.6908132947833397 |
 | ok | Summary!R1 | Lines picked: 3 of 56 · KeyBank rated 4 or 5: 1 · refused: 2 | Lines picked: 3 of 56 · KeyBank rated 4 or 5: 1 · refused: 2 |
 | ok | Thresholds!S1 | Lines picked: 3 of 56 · KeyBank rated 4 or 5: 1 · refused: 2 | Lines picked: 3 of 56 · KeyBank rated 4 or 5: 1 · refused: 2 |
-| ok | Summary!B36 | Credit card | Credit card |
-| ok | Summary!C36 | Nonaccrual | Nonaccrual |
-| ok | Summary!F36 | 0.6908132947833397 | 0.6908132947833397 |
-| ok | Summary!G36 | 5 High | 5 High |
-| ok | Summary!H36 | lines from KeyBank | lines from KeyBank |
+| ok | Summary!B36 | Nonaccrual | Nonaccrual |
+| ok | Summary!C36 | 0.6908132947833397 | 0.6908132947833397 |
+| ok | Summary!D36 | 5 High | 5 High |
+| ok | Summary!E36 | Credit card · lines from KeyBank | Credit card · lines from KeyBank |
 
 ## B11 · On Peers, set Banks in the pack to Regionals only: 11 of 11
 
@@ -2400,11 +2397,11 @@ Every peer group series on Decide, Lines by source, Thresholds and Summary is su
 | ok | Lines by source!M69 | 1.4198154778682879 | 1.4198154778682879 |
 | ok | Lines by source!L24 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M24 | 1.143434987871377 | 1.143434987871377 |
-| ok | Peers!B14 | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe |
-| ok | Peers!B39 | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe |
-| ok | Peers!J39 | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe |
-| ok | Decide!B91 | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe |
-| ok | Signals!B6 | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe | Peer group · 9 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on Pe |
+| ok | Peers!B14 | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!B39 | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!J39 | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Decide!B91 | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Signals!B6 | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 10 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
 ## B12 · Set Banks in the pack back to Every peer, and JPMorgan's cell to No: 11 of 11
 
@@ -2418,11 +2415,11 @@ The peer group is every peer but JPMorgan.
 | ok | Lines by source!M69 | 1.7016297268673766 | 1.7016297268673766 |
 | ok | Lines by source!L24 | 2026Q2 | 2026Q2 |
 | ok | Lines by source!M24 | 1.5238862704282101 | 1.5238862704282101 |
-| ok | Peers!B14 | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P |
-| ok | Peers!B39 | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P |
-| ok | Peers!J39 | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P |
-| ok | Decide!B91 | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P |
-| ok | Signals!B6 | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P | Peer group · 13 of 15 in · out by the book's rules, 2026Q2: Huntington · switched off on P |
+| ok | Peers!B14 | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!B39 | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!J39 | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Decide!B91 | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Signals!B6 | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 14 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
 ## B13 · Set JPMorgan's cell back to Pack: 14 of 14
 
@@ -2439,11 +2436,11 @@ The peer group is every peer again: each latest value is the series file's own.
 | ok | Lines by source!M6 | 3.9545852353018254 | 3.9545852353018254 |
 | ok | Lines by source!M69 | 1.550392085338516 | 1.550392085338516 |
 | ok | Lines by source!M24 | 1.3825111539309054 | 1.3825111539309054 |
-| ok | Peers!B14 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Peers!B39 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Peers!J39 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Decide!B91 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
-| ok | Signals!B6 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
+| ok | Peers!B14 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!B39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Peers!J39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
 ## B14 · Open Signals: 124 of 124
 
@@ -2457,7 +2454,7 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!K5 | fits best | fits best |
 | ok | Signals!M5 | All quarters | All quarters |
 | ok | Signals!P5 | Other consumer · 30+ days past due incl. nonaccrual · KeyBank | Other consumer · 30+ days past due incl. nonaccrual · KeyBank |
-| ok | Signals!B6 | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington | Peer group · 14 of 15 in · out by the book's rules, 2026Q2: Huntington |
+| ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Signals!B11 | Credit card | Credit card |
 | ok | Signals!D11 | 926589 | 926589 |
 | ok | Signals!E11 | 0.03198275740963098 | 0.03198275740963098 |

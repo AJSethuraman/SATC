@@ -837,10 +837,10 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         nm.font = Font(name="Calibri", size=11, bold=True, color=colors[v])
         # A source with no series for the row shown: — under rating and
         # latest, and its name, in STONE.
-        ws.cell(r, 13, '=IF(NOT({o}),"",IF({b}="","{d}",IF({k}="",IF({s}="","No lines picked",'
+        ws.cell(r, 13, '=IF(NOT({o}),"",IF({b}="","{d}",IF({k}="",IF({s}="","{n}",'
                        '"No rating"),{k}&" "&CHOOSE({k},"{r0}","{r1}","{r2}","{r3}","{r4}"))))'
-                .format(o=ONE, b=b_, k=k_, s=SRC, d=NO_SERIES, r0=RATINGS[0], r1=RATINGS[1], r2=RATINGS[2],
-                        r3=RATINGS[3], r4=RATINGS[4])).font = F_BOLD
+                .format(o=ONE, b=b_, k=k_, s=SRC, d=NO_SERIES, n=NO_SERIES, r0=RATINGS[0], r1=RATINGS[1],
+                        r2=RATINGS[2], r3=RATINGS[3], r4=RATINGS[4])).font = F_BOLD
         c_ = ws.cell(r, 14, '=IF(ISNUMBER({x}),{x},IF(AND({o},{b}=""),"{d}",""))'.format(x=x_, o=ONE, b=b_,
                                                                                        d=NO_SERIES))
         c_.number_format = "0.00"
@@ -931,8 +931,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                   (17, "Worst kept")):
         cell = ws.cell(gh, c, t_)
         cell.font = F_LAB
-        # "4 Moderate-High" is a little wider than O (90 px): shrunk, not cut.
-        cell.alignment = Alignment(horizontal="left" if c == 12 else "right", vertical="center", shrink_to_fit=True)
+        # "4 Moderate-High" is wider than O (90 px): two lines, never shrunk.
+        cell.alignment = Alignment(horizontal="left" if c == 12 else "right", vertical="bottom", wrap_text=True)
+    ws.row_dimensions[gh].height = 30
     _rule(ws, gh, 12, 17, Side(style="thin", color=K.STONE))
     gives = {}
     for i, v in enumerate(third):
@@ -963,7 +964,6 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     g1, g2 = lay_d["gives_first"], lay_d["gives_first"] + len(third) - 1
     ws.conditional_formatting.add("M%d:M%d" % (g1, g2), FormulaRule(
         formula=['$M%d="Refused"' % g1], font=Font(bold=True, color=K.CRIMSON)))
-    ws.row_dimensions[gh].height = 16.5
 
     # ---- below the fold: the evidence, and what each setting does ----
     hi = lay_d["history"]
@@ -1042,10 +1042,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                    "are set from: it is drawn, and it does not set the lines." % (p2.lower(), p2.lower())
             ).font = F_NOTE
     ws.cell(nt + 1, 2, "The settings apply to every %s's history: the lines picked, and what each %s's own history "
-                       "would give. The shading runs from 1 Low to 5 High. The chart starts at the first quarter any "
-                       "line has, within the window set under Chart shows.%s Every term is defined on the Glossary tab."
-            % (p2.lower(), p2.lower(), " A diamond along the top marks a quarter in which a reporting change took "
-               "effect (Reporting changes tab)." if any(took) else "")).font = F_NOTE
+                       "would give. The shading runs from 1 Low to 5 High." % (p2.lower(), p2.lower())).font = F_NOTE
+    ws.cell(nt + 2, 2, "The chart starts at the first quarter any line has, within the window set under Chart shows.%s "
+                       "Every term is defined on the Glossary tab."
+            % (" A diamond at the top of the shading marks a quarter in which a reporting change took effect "
+               "(Sources tab, Reporting changes)." if any(took) else "")).font = F_NOTE
 
     for c in range(H, nxt[0]):
         ws.column_dimensions[L(c)].hidden = True
