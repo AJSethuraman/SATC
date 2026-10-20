@@ -1978,3 +1978,5 @@ that don't change"*.
 - **30+ incl. nonaccrual, every product** now shows all five (auto was
   missing). The gap's axis reads one decimal: "+0" had labelled half-point
   steps "+2, +2, +1, +1".
+
+Codex on #466, two findings, both fixed: Across products now takes the two combined products too (All consumer, Credit card + Other consumer, dashed), and Qtrs on every fit table counts the quarters the fit at the lead shown rests on, not both full columns (78 became 75 beside a lead of 3). Walked in Excel: 2,502 of 2,502 reads as expected.

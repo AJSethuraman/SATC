@@ -12305,7 +12305,7 @@
     {
      "sheet": "Signals",
      "cell": "U74",
-     "expect": 29
+     "expect": 27
     },
     {
      "sheet": "Signals",
@@ -12325,7 +12325,7 @@
     {
      "sheet": "Signals",
      "cell": "U75",
-     "expect": 29
+     "expect": 27
     },
     {
      "sheet": "Signals",
@@ -12345,7 +12345,7 @@
     {
      "sheet": "Signals",
      "cell": "U76",
-     "expect": 29
+     "expect": 27
     },
     {
      "sheet": "Signals",
@@ -12425,7 +12425,7 @@
     {
      "sheet": "Signals",
      "cell": "U80",
-     "expect": 29
+     "expect": 23
     },
     {
      "sheet": "Signals",
@@ -12445,7 +12445,7 @@
     {
      "sheet": "Signals",
      "cell": "U81",
-     "expect": 29
+     "expect": 23
     },
     {
      "sheet": "Signals",
@@ -12490,7 +12490,7 @@
     {
      "sheet": "Signals",
      "cell": "U93",
-     "expect": 52
+     "expect": 48
     },
     {
      "sheet": "Signals",
@@ -12530,7 +12530,7 @@
     {
      "sheet": "Signals",
      "cell": "U95",
-     "expect": 52
+     "expect": 48
     },
     {
      "sheet": "Signals",
@@ -12610,7 +12610,7 @@
     {
      "sheet": "Signals",
      "cell": "U99",
-     "expect": 52
+     "expect": 45
     },
     {
      "sheet": "Signals",
@@ -12630,7 +12630,7 @@
     {
      "sheet": "Signals",
      "cell": "U100",
-     "expect": 52
+     "expect": 45
     },
     {
      "sheet": "Signals",
@@ -12680,7 +12680,7 @@
     {
      "sheet": "Signals",
      "cell": "U207",
-     "expect": 78
+     "expect": 75
     },
     {
      "sheet": "Signals",
@@ -12705,7 +12705,7 @@
     {
      "sheet": "Signals",
      "cell": "U208",
-     "expect": 78
+     "expect": 75
     },
     {
      "sheet": "Signals",
@@ -12730,7 +12730,7 @@
     {
      "sheet": "Signals",
      "cell": "U209",
-     "expect": 78
+     "expect": 73
     },
     {
      "sheet": "Signals",
@@ -12755,7 +12755,7 @@
     {
      "sheet": "Signals",
      "cell": "U210",
-     "expect": 78
+     "expect": 75
     },
     {
      "sheet": "Signals",
@@ -12786,6 +12786,56 @@
      "sheet": "Signals",
      "cell": "T211",
      "expect": -0.2571888967999909
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M212",
+     "expect": "All consumer"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R212",
+     "expect": -3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S212",
+     "expect": 0.42415700651147836
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U212",
+     "expect": 58
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T212",
+     "expect": 0.1801565549290261
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M213",
+     "expect": "Credit card + Other consumer"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R213",
+     "expect": 3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S213",
+     "expect": 0.5241427657433206
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U213",
+     "expect": 75
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T213",
+     "expect": 0.6074780200613327
     },
     {
      "sheet": "Signals",

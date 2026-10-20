@@ -698,7 +698,9 @@ def _fit(sig_change, tgt_change, excl=False):
     if not out_all:
         return None
     k = max(out_all, key=lambda k_: out_all[k_])
-    return k, out_all[k], out_ex.get(k), sum(1 for q in sig_change if q in tgt_change)
+    # the quarters the fit at that lead rests on
+    return k, out_all[k], out_ex.get(k), sum(1 for i in range(max(0, -k), n_ - max(0, k))
+                                             if GRID_Q[i] in sig_change and GRID_Q[i + k] in tgt_change)
 
 
 DATA_SER = {lbl: {quarter(p_.date): p_.value for p_ in PTS[lbl]} for lbl in LABELS}
@@ -755,7 +757,7 @@ for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
             sig_reads.append({"sheet": "Signals", "cell": "T%d" % rr, "expect": r_ex})
 # Across products: each product's industry 30-89 against the pick, worked out here as the fit tables are.
 _xp_head = next(c.row for row in _sig.iter_rows(min_col=13, max_col=13) for c in row if c.value == "Product")
-for _i, _p in enumerate([p_ for p_ in ST.PRODUCTS if " - ".join((p_, ST.XP_MEASURE, ST.INDUSTRY)) in DATA_SER]):
+for _i, _p in enumerate([p_ for p_ in ST.PRODUCTS + ST.COMBINED if " - ".join((p_, ST.XP_MEASURE, ST.INDUSTRY)) in DATA_SER]):
     _rr = _xp_head + 1 + _i
     sig_reads.append({"sheet": "Signals", "cell": "M%d" % _rr, "expect": _p})
     _f = _fit(_change(DATA_SER[" - ".join((_p, ST.XP_MEASURE, ST.INDUSTRY))]), _change(DATA_SER[PICKED_LBL]))

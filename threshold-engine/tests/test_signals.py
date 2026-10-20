@@ -301,6 +301,9 @@ def test_across_products_reads_each_product_against_the_pick(tmp_path):
                for t in texts)
     assert any(t.startswith('="Against "&') for t in texts)
     assert not any("Mortgage · 90+ days past due incl. nonaccrual, %" == t for t in texts)
+    # every product the book has, the combined two as well, each with a color of its own (Codex on #466)
+    assert set(ST.PRODUCTS + ST.COMBINED) <= set(ST.PRODUCT_COLOR)
+    assert len({ST.PRODUCT_COLOR[p] for p in ST.PRODUCTS + ST.COMBINED}) == len(ST.PRODUCTS + ST.COMBINED)
 
 
 def test_the_pipeline_follows_the_picked_product(tmp_path):
@@ -349,7 +352,7 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
         for r in range(pick, first + n_t):
             assert ws.cell(r, 18).value.startswith("=IF('Signals workings'!") and ws.cell(r, 18).number_format == "+0;-0;0"
             assert ws.cell(r, 19).value.startswith("=IFERROR(MAX('Signals workings'!")
-            assert ws.cell(r, 21).value.startswith("=SUMPRODUCT(")
+            assert "SUMPRODUCT(--ISNUMBER(OFFSET(" in ws.cell(r, 21).value   # counted at the lead shown
         head = ws.cell(pick - 2, 21)
         assert head.value.endswith("· quarterly") and head.alignment.horizontal == "right"
         # the inputs of the rescale: a table under the overlay, the shift and the window live

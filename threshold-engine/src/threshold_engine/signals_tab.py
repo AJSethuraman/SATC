@@ -128,7 +128,10 @@ JUMP_HEAD = (("Where the dollars are", 2), ("30+ incl. nonaccrual", 2), ("30+ to
 JUMP_TAIL = (("Across products", 1),)
 PRODUCTS = ("Credit card", "Other consumer", "Home equity", "Mortgage", "Auto")
 #: A product's line on the dollar charts.
-PRODUCT_COLOR = {"Credit card": K.SIGNAL, "Other consumer": K.KEY_RED, "Home equity": K.INTERNAL, "Mortgage": K.SLATE, "Auto": K.STONE}
+PRODUCT_COLOR = {"Credit card": K.SIGNAL, "Other consumer": K.KEY_RED, "Home equity": K.INTERNAL, "Mortgage": K.SLATE, "Auto": K.STONE,
+                 "All consumer": K.INK, "Credit card + Other consumer": K.MEDIAN}
+#: The combined products, drawn dashed beside the five on Across products.
+COMBINED = ("All consumer", "Credit card + Other consumer")
 DQ30 = "30+ days past due incl. nonaccrual"
 DQ90 = "90+ days past due incl. nonaccrual"
 DQ_KEY_30 = "30+ incl. nonaccrual"                 # the measure's name on Peers delinquency data
@@ -350,7 +353,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(2, c_).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
     ws.row_dimensions[3].height = 6
     ws.row_dimensions[R_INPUTS].height = 19.5
-    products = sorted({p for p, _, _ in present.values()}, key=lambda p: list(PRODUCTS).index(p) if p in PRODUCTS else 99)
+    products = sorted({p for p, _, _ in present.values()}, key=lambda p: (list(PRODUCTS).index(p) if p in PRODUCTS else 99, p))
     measures = list(dict.fromkeys(m for _, m, _ in present.values()))
     srcs = list(dict.fromkeys(s for _, _, s in present.values()))
     CTRL = (("Compare against: product", 2, 4, "Other consumer"), ("Measure", 5, 8, DQ30), ("Source", 9, 10, self_short),
@@ -661,7 +664,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     # across products: each product's industry 30-89 days past due against the picked series, as a
     # signal is (the analyst, 20 Oct 2026, on three fixed charts: "Why in the world is it literally just
     # three graphs that don't change")
-    xprods = [p_ for p_ in PRODUCTS if " - ".join((p_, XP_MEASURE, INDUSTRY)) in present]
+    xprods = [p_ for p_ in PRODUCTS + COMBINED if " - ".join((p_, XP_MEASURE, INDUSTRY)) in present]
     for p_ in xprods:
         series_block("xp_" + _slug(p_), lambda r, l_=" - ".join((p_, XP_MEASURE, INDUSTRY)): lookup('"%s"' % _q(l_), r))
     XF0 = FIT0 + len(SIGNALS) * (len(LEADS) + 4)
@@ -948,7 +951,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             num(rr, 18, '=IF(%s="","",%s)' % (best, best), "+0;-0;0", font)
             num(rr, 19, '=IFERROR(MAX(%s),"")' % rng, "0.00", font)
             num(rr, 20, '=IF(%s="","",%s)' % (ex, ex), "0.00", font)
-            num(rr, 21, '=SUMPRODUCT(--ISNUMBER(%s),--ISNUMBER(%s))' % (RW(key, 1 if kind == "level" else 0), RW(tname, 1)), "0", font)
+            # the quarters the fit at that lead rests on (Codex on #466: not both full columns)
+            sf_ = "%s$%s$%d" % (WK, L(col[key] + (1 if kind == "level" else 0)), R0)
+            tf_ = "%s$%s$%d" % (WK, L(col[tname] + 1), R0)
+            num(rr, 21, '=IF(ISNUMBER($R{r}),SUMPRODUCT(--ISNUMBER(OFFSET({s},MAX(0,-$R{r}),0,{n}-ABS($R{r}),1)),'
+                        '--ISNUMBER(OFFSET({t},MAX(0,$R{r}),0,{n}-ABS($R{r}),1))),"")'.format(r=rr, s=sf_, t=tf_, n=N), "0", font)
             for c_ in range(15, 22):
                 if tname == "picked":
                     ws.cell(rr, c_).fill = CANVAS
@@ -984,8 +991,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     head(row, "Across products · %s, %s, against the picked series" % (XP_MEASURE.lower(), INDUSTRY), "Across products", 1)
     ws.row_dimensions[row + 1].height = 15
     title(row + 1, 2, "%s, every product, %s, %%" % (XP_MEASURE, INDUSTRY))
-    lines = [dict(ws=data_ws, col=head_[" - ".join((p_, XP_MEASURE, INDUSTRY))], name=p_, color=PRODUCT_COLOR[p_], w=1.75)
-             for p_ in xprods]
+    lines = [dict(ws=data_ws, col=head_[" - ".join((p_, XP_MEASURE, INDUSTRY))], name=p_, color=PRODUCT_COLOR[p_], w=1.75,
+                  dash="dash" if p_ in COMBINED else None) for p_ in xprods]
     if lines:
         _put(ws, _chart(lines, (data_ws, 1), F06, R1, "0.0", 16), 2, row + 2, 10 * GRID_PX - 8, 264)
     c_ = ws.cell(row + 1, 13, '="Against "&%s' % PICK_SHORT); c_.font = F_LAB
@@ -1002,7 +1009,10 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         num(rr, 18, '=IFERROR(%s,"")' % best, "+0;-0;0")
         num(rr, 19, '=IFERROR(MAX(%s),"")' % a_, "0.00")
         num(rr, 20, '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (x_, best, XLEADS), "0.00")
-        num(rr, 21, '=SUMPRODUCT(--ISNUMBER(%s),--ISNUMBER(%s))' % (RW("xp_" + _slug(p_), 1), RW("picked", 1)), "0")
+        # the quarters the fit at that lead rests on: both yearly changes there, the signal led by the lead
+        sf_, tf_ = ("%s$%s$%d" % (WK, L(col[k_] + 1), R0) for k_ in ("xp_" + _slug(p_), "picked"))
+        num(rr, 21, '=IF(ISNUMBER($R{r}),SUMPRODUCT(--ISNUMBER(OFFSET({s},MAX(0,-$R{r}),0,{n}-ABS($R{r}),1)),'
+                    '--ISNUMBER(OFFSET({t},MAX(0,$R{r}),0,{n}-ABS($R{r}),1))),"")'.format(r=rr, s=sf_, t=tf_, n=N), "0")
         for c_ in range(13, 22):
             ws.cell(rr, c_).border = Border(bottom=HAIR)
     if xprods:
