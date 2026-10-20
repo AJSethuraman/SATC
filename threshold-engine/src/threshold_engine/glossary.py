@@ -120,15 +120,18 @@ TERMS = [
      "quarter-end balances. For Federal Reserve data: the average of the four quarterly rates. The engine can "
      "also do this itself from quarterly values (smoothing 4: the mean of each quarter and the three before it)."),
     ("Quarters kept",
-     "The quarters the thresholds are built from: every quarter, except any periods left out on Assess.",
-     "A quarter is left out if a whole row of Periods left out on Assess names its series and the quarter "
-     "falls between that row's From and To, inclusive."),
+     "The quarters the thresholds are built from: every quarter, except any periods left out on Decide (on Assess in a "
+     "workbook without Decide).",
+     "A quarter is left out if a whole row of Periods left out on Decide names its product and measure, the "
+     "series is the one its row's lines are set from, and the quarter falls between that row's From and To, "
+     "inclusive."),
     ("Left out",
      "A period set aside because it does not represent the risk being rated, with the reason recorded.",
-     "Picked on Assess: the series, the first and last quarter from lists of the quarters in the data, and a "
-     "reason. As many periods as there are rows, for any series. A row with something missing says what in its "
-     "Status and refuses its series until it is complete or cleared. Shown on the chart as a dark "
-     "strip and gray dots on the line, and recorded on Run."),
+     "Picked under Periods left out on Decide (on Assess, by series, in a workbook without Decide): the "
+     "product and measure, the first and last quarter from lists of the quarters in the data, and a reason. As "
+     "many periods as there are rows, and more than one for a product and measure. A row with something "
+     "missing says what in its Status and refuses its series until it is complete or cleared. Shown on the "
+     "chart as a dark strip and gray dots on the line, and recorded on Run."),
     ("Left out as built",
      "Quarters a series' file does not hold, written to left-out.csv beside the series files with why: those "
      "before its last break, and its latest quarters when they have no value.",

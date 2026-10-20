@@ -607,6 +607,17 @@ def test_two_periods_left_out_of_one_row_both_apply_and_are_said(pair):
     assert v["DECIDE!L%d" % lay["lo_first"]] == "Left out: 8 quarters"
 
 
+def test_overlapping_periods_count_each_quarter_once(pair):
+    """Codex on #467: 2020Q1 to 2020Q4 and 2020Q3 to 2021Q2 leave out six quarters,
+    not eight; Quarters left out says what the lines lose."""
+    d, w, p = pair
+    v = typed(w["path"], d / "dov.xlsx", {at(w, DT.LINES_FROM, 0): "Industry",
+                                          **lo(w, 0, PAIRS[0], "2020Q1", "2020Q4", "a"),
+                                          **lo(w, 1, PAIRS[0], "2020Q3", "2021Q2", "b")}, show={PAIRS[0]}, info=w)
+    f = w["decide"]["first"]
+    assert [v["DECIDE!%s%d" % (col(w, c_), f)] for c_ in DT.LEFT_OUT_COLS] == [2, 6]
+
+
 @pytest.mark.parametrize("names, err", [(["Product", "Measure"], "exactly three"),
                                         (["Product", "Measure", "Decision"], "can't name a part"),
                                         (["Product", "Measure", "product"], "three different")])

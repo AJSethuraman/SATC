@@ -365,9 +365,14 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                 .format(lf=lf, m=th_col("refusal"), s=ser, a=th_a))
         ws.cell(r, C["Shown"], "=SUBTOTAL(103,%s%d)" % (L(C[p0]), r))
         ws.cell(r, C["Key"], '={a}{r}&" · "&{b}{r}'.format(a=L(C[p0]), b=L(C[p1]), r=r))
-        for name, sum_ in zip(LEFT_OUT_COLS, (LO_W, LO_Q)):
-            ws.cell(r, C[name], '=SUMIFS({s},{lb},{a}{r},{lc},{b}{r})'.format(
-                s=sum_, lb=lo_rng("B"), lc=lo_rng("C"), a=L(C[p0]), b=L(C[p1]), r=r)).number_format = '0;-0;;@'
+        ws.cell(r, C["Periods left out"], '=SUMIFS({s},{lb},{a}{r},{lc},{b}{r})'.format(
+            s=LO_W, lb=lo_rng("B"), lc=lo_rng("C"), a=L(C[p0]), b=L(C[p1]), r=r)).number_format = '0;-0;;@'
+        # The quarters the lines lose: the series' values less those it keeps on Data, so
+        # periods that overlap count each quarter once, as the lines do (Codex on #467).
+        d_all, d_hdr = "Data!$B$2:$%s$%d" % (d_kept_last, q_last), "Data!$B$1:$%s$1" % d_kept_last
+        ws.cell(r, C["Quarters left out"], '=IF({s}="","",SUMPRODUCT(({h}={s})*ISNUMBER({v}))'
+                                           '-SUMPRODUCT(({h}={s}&", kept")*ISNUMBER({v})))'
+                .format(s=ser, v=d_all, h=d_hdr)).number_format = '0;-0;;@'
         for name in C:
             c_ = ws.cell(r, C[name])
             c_.alignment = Alignment(vertical="center", wrap_text=name in ("Note", "Check", LINES_FROM)
