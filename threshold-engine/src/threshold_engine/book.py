@@ -95,7 +95,7 @@ WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_a
 TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
             "floor_off", "large_banks", "signals",
             "loan_classes", "reporting_changes")
-#: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
+#: The Peer books tab: the stated classes file and the SEC filings' cache.
 LOAN_CLASSES_KEYS = ("file", "cache")
 LINES_FROM_KEYS = ("part", "start")
 #: The internal section: the file (docs/INTERNAL-IMPORT.md) and the judgments made about it.
@@ -607,7 +607,7 @@ def build(book_path, out, say=print) -> dict:
         # Work (ink), then reference (stone), then data (mist); the peers' filed
         # figures and the workings hidden, read only by formulas.
         work = ["Summary", "Decide", "Signals", "Peers", "Thresholds", "Internal", "Synthesis"]
-        reference = ["Lines by source", "Peer books", "Peer loan classes", "Evidence", "Glossary", "Sources", "Run"]
+        reference = ["Lines by source", "Peer books", "Evidence", "Glossary", "Sources", "Run"]
         data = ["Data", "Signals data", "Internal data", "SynthesisData"]
         hidden = ["Peers data", "Peers delinquency data", "Assess", "Chart", "Peers workings", "Signals workings"]
         order = work + reference + data + hidden
