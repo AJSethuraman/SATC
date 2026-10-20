@@ -390,27 +390,33 @@ def test_every_reference_to_the_per_series_table_follows_its_new_title(pair):
     assert not errs, errs[:5]
 
 
-def test_decide_is_laid_out_to_round_2(pair):
+def test_decide_is_laid_out_to_round_3(pair):
+    """docs/design/round-3/handoff/README.md, Decide: the columns in pixels
+    (L:Q the right panel's), the slicer rows 4-7 at 15 / 18 / 18 / 18 pt and
+    every row under them one lower than round 2's, the table's header in 9."""
     d, w, p = pair
     ws = load_workbook(w["path"])["Decide"]
     lay = w["decide"]["layout"]
-    widths = {c: round(ws.column_dimensions[c].width, 2) for c in "ABCDEFGHIJKLMNOPQ"}
-    assert widths == {"A": 1.57, "B": 16.43, "C": 20.71, "D": 17.86, "E": 17.86, "F": 11.29, "G": 11.29,
-                      "H": 11.29, "I": 9.86, "J": 10.71, "K": 10.71, "L": 27.86, "M": 30.71, "N": 15.0,
-                      "O": 13.57, "P": 13.57, "Q": 14.43}
-    heights = {r: ws.row_dimensions[r].height for r in (1, 2, 3, 4, 5, 6, 7, 8, 9, lay["headline"],
+    px = {c: round(ws.column_dimensions[c].width * 7) for c in "ABCDEFGHIJKLMNOPQ"}
+    assert px == {"A": 16, "B": 110, "C": 200, "D": 150, "E": 130, "F": 84, "G": 84, "H": 84, "I": 74, "J": 80,
+                  "K": 80, "L": 220, "M": 130, "N": 110, "O": 90, "P": 90, "Q": 120}
+    heights = {r: ws.row_dimensions[r].height for r in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, lay["headline"],
                                                         lay["check"], lay["section"], lay["chart_end"])}
-    assert heights == {1: 25.5, 2: 15, 3: 6, 4: 19.5, 5: 19.5, 6: 19.5, 7: 6, 8: 27, 9: 34.5, lay["headline"]: 30,
-                       lay["check"]: 25.5, lay["section"]: 16.5, lay["chart_end"]: 16.5}
+    assert heights == {1: 25.5, 2: 15, 3: 6, 4: 15, 5: 18, 6: 18, 7: 18, 8: 6, 9: 27, 10: 34.5,
+                       lay["headline"]: 30, lay["check"]: 25.5, lay["section"]: 16.5, lay["chart_end"]: 16.5}
     tbl = ws.tables[DT.TABLE]
-    assert tbl.ref == "B8:Q%d" % lay["last"] and lay["last"] == 8 + len(PAIRS)
-    assert [ws.cell(8, c).value for c in range(2, 6)] == ["Product", "Measure", DT.LINES_FROM, "Decision"]
-    assert all(ws.cell(9, c).fill.fgColor.rgb.endswith(K.INPUT) for c in range(CI("D"), CI("M") + 1))
-    assert all(ws.cell(9, c).number_format == ";;;" for c in range(CI("O"), CI("Q") + 1))
+    assert tbl.ref == "B9:Q%d" % lay["last"] and lay["last"] == 9 + len(PAIRS)
+    assert [ws.cell(9, c).value for c in range(2, 6)] == ["Product", "Measure", DT.LINES_FROM, "Decision"]
+    assert all(ws.cell(10, c).fill.fgColor.rgb.endswith(K.INPUT) for c in range(CI("D"), CI("M") + 1))
+    assert all(ws.cell(10, c).number_format == ";;;" for c in range(CI("O"), CI("Q") + 1))
+    # the slicers: Product three buttons to a row over B:E, Measure five over F:Q, rows 3 to 8
+    assert DT.SLICER_ANCHORS == ((1, 2, 5, 8), (5, 2, 17, 8)) and DT.SLICER_COLUMNS == (3, 5)
     # the book's rows: 35 products and measures, three sources
     big = DT.layout(35, 3, True)
     assert (big["headline"], big["check"], big["section"], big["chart_top"], big["chart_end"], big["window"],
-            big["gives_first"], big["history"]) == (45, 46, 48, 49, 66, 61, 70, 74)
+            big["gives_first"], big["history"], big["pack_line"]) == (46, 47, 49, 50, 67, 62, 71, 75, 68)
+    # no peer tabs in this workbook, so no pack line under the chart
+    assert ws.cell(lay["pack_line"], 2).value is None
     anchor = ws._charts[0].anchor
     assert (anchor._from.col, anchor._from.row, anchor.to.col, anchor.to.row) == (1, lay["chart_top"] - 1, 11,
                                                                                  lay["chart_end"])
@@ -459,7 +465,7 @@ def test_the_book_has_two_slicers_of_button_rows_and_no_filter_arrows(pair):
     z = zipfile.ZipFile(w["path"])
     sl = z.read("xl/slicers/slicer1.xml").decode()
     got = re.findall(r'<slicer name="(\w+)"[^>]*? columnCount="(\d+)" style="(\w+)" rowHeight="(\d+)"', sl)
-    assert got == [("Pick1", "3", "SlicerStyleOther2", "228600"), ("Pick2", "4", "SlicerStyleOther2", "228600")]
+    assert got == [("Pick1", "3", "SlicerStyleOther2", "182880"), ("Pick2", "5", "SlicerStyleOther2", "182880")]
     table = next(t for t in (z.read(n).decode() for n in z.namelist() if n.startswith("xl/tables/"))
                  if 'displayName="Decisions"' in t)
     assert table.count('hiddenButton="1"') == len(DT.FIXED) + 2
