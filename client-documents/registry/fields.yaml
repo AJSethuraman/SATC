@@ -357,13 +357,48 @@ fields:
   - field: TaxYear
     label: "Tax year"
     source: interview
-    templates: [organizer-letter, tax-letter]
+    templates: [organizer-letter, reissue-email, tax-letter]
     notes: >-
       Appears three times in the tax letter — drive them all from one value.
   - field: TaxpayerName
     label: "Taxpayer"
     source: interview
     templates: [records-release, tax-letter]
+  - field: ContactFirstName
+    label: "Who the email is addressed to — first name"
+    source: computed
+    templates: [reissue-email]
+    notes: >-
+      The contact person's first name, from TaxpayerName. One person, never
+      both spouses: the firm's emails open "Hi Pat," (13 Oct 2026).
+  - field: IssueRaised
+    label: "What the client asked about"
+    source: reissue
+    templates: [reissue-email]
+    notes: >-
+      A noun phrase that follows "Thanks for catching" -- "the early-withdrawal
+      penalty question". Only when the client raised it.
+  - field: FreehandNote
+    label: "The preparer's own explanation"
+    source: reissue
+    templates: [reissue-email]
+    notes: >-
+      For a re-issue the results comparison cannot describe. Typed by the
+      preparer; printed as written under "What changed".
+  - field: FilingDeadline
+    label: "When the returns are due"
+    source: reissue
+    templates: [reissue-email]
+    notes: >-
+      The date the returns must be filed by -- the extended date when an
+      extension was filed. A real date.
+  - field: PreparerFirstName
+    label: "Preparer — first name, for the sign-off"
+    source: firm
+    templates: [reissue-email]
+    notes: >-
+      From firm-settings.yaml (preparer.first_name). The firm's emails close
+      "Thanks," then the first name.
   - field: PaymentQr
     label: "The payment link as a QR code"
     source: computed
@@ -535,6 +570,52 @@ flags:
       Adds the officer-compensation scope exclusion, which is
       meaningless for a partnership.
 
+  - flag: RaisedAndRight
+    label: "The client raised it and was right"
+    source: reissue
+    templates: [reissue-email]
+    notes: >-
+      One of RaisedAndRight / RaisedAndNotRight / NotRaised, exactly one true,
+      derived from two stored answers. The merge engine cannot nest IF blocks,
+      so each opening is its own flag.
+  - flag: RaisedAndNotRight
+    label: "The client raised it and the earlier return had it right"
+    source: reissue
+    templates: [reissue-email]
+  - flag: NotRaised
+    label: "The firm found the change itself"
+    source: reissue
+    templates: [reissue-email]
+  - flag: AlsoUpdated
+    label: "Other changes beyond what the client raised"
+    source: reissue
+    templates: [reissue-email]
+  - flag: FreehandExplanation
+    label: "The preparer wrote the explanation"
+    source: reissue
+    templates: [reissue-email]
+  - flag: ResignBoth
+    label: "New signature needed, both spouses"
+    source: reissue
+    templates: [reissue-email]
+    notes: >-
+      One of ResignBoth / ResignOne / SignIfNotYetBoth / SignIfNotYetOne,
+      exactly one true. Whether a new signature is needed is computed from the
+      earlier and new figures against IRS Pub 1345 ($50 income or AGI; $14 tax,
+      withholding, refund or amount owed), never typed.
+  - flag: ResignOne
+    label: "New signature needed, one signer"
+    source: reissue
+    templates: [reissue-email]
+  - flag: SignIfNotYetBoth
+    label: "No new signature needed, both spouses"
+    source: reissue
+    templates: [reissue-email]
+  - flag: SignIfNotYetOne
+    label: "No new signature needed, one signer"
+    source: reissue
+    templates: [reissue-email]
+
 lists:
   - list: ScopeItems
     label: "What the bookkeeping covers"
@@ -611,7 +692,7 @@ lists:
       pre-formatted string -- a human must not type a tax figure here.
   - list: ReturnsDelivered
     label: "Returns being delivered"
-    templates: [delivery-letter]
+    templates: [delivery-letter, reissue-email]
     item_fields: [Detail, Return]
     required: true
     notes: >-
@@ -667,3 +748,26 @@ lists:
       item as yours." Pointing at nothing. Same failure as the onboarding
       letter's RequestList, on the document with the most legal exposure in
       the set.
+  - list: ResultChanges
+    label: "Returns whose result changed"
+    templates: [reissue-email]
+    item_fields: [After, Before, Reason, Return]
+    required: false
+    notes: >-
+      Built by comparing the earlier results summary with the new one. Before
+      and After are pre-formatted ("$225 refund"); Reason is the preparer's.
+  - list: OtherChanges
+    label: "Changes that did not move a result"
+    templates: [reissue-email]
+    item_fields: [Detail, Label]
+    required: false
+  - list: ChecksDue
+    label: "Balances paid by check"
+    templates: [reissue-email]
+    item_fields: [Amount, DueDate, PayTo]
+    required: false
+  - list: WithdrawalsDue
+    label: "Balances paid by withdrawal"
+    templates: [reissue-email]
+    item_fields: [Account, Amount, DueDate, PayTo]
+    required: false
