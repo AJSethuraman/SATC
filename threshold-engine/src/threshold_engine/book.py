@@ -583,7 +583,7 @@ def build(book_path, out, say=print) -> dict:
             fields_ = charge_off_fields(five) + [PB.PARENT] + [f for f in PD.fields_for(five)]
             data_ = PF.pull(qs_, list(dict.fromkeys(fields_)), pe_["cache"], fetch=lambda u: (_ for _ in ()).throw(ValueError("build never fetches")))
             signals = SD.load(bk["signals"], pe_["cache"], data_, PR.self_bank(PR.load(pe_["roster"]))["cert"], five, say=say,
-                              window_products=list(pe_["products"]))
+                              window_products=list(pe_["products"]), flows_dir=pe_["series_dir"])
         lo_path = Path(bk["peers"]["series_dir"]) / LEFT_OUT_FILE
         left_out = (lo_path, write_left_out(lo_path, bk["series"], bk["decide"]["parts"], built["left_out"]))
         say("left out as built: %d spans, in %s" % (left_out[1], lo_path))

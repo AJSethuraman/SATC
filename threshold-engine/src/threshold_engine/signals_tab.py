@@ -531,15 +531,41 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         cells[key] = "%s$%s$%d" % (WK, L(col["cells_value"]), r)
         return cells[key]
 
-    # 30+ to charge-off and the gap, for the picked product where the book has it, else credit card
+    # each product's key on Signals data (the window test and the dollars), as Python spells it
+    take("prod_name"); take("prod_slug")
+    wk.cell(1, col["prod_name"], "product"); wk.cell(1, col["prod_slug"], "its key on Signals data")
+    for i, p_ in enumerate(prods):
+        wk.cell(R0 + i, col["prod_name"], p_); wk.cell(R0 + i, col["prod_slug"], _slug(p_))
+    SLUG = lambda p_cell: 'VLOOKUP(%s,%s$%s$%d:$%s$%d,2,FALSE)' % (                       # noqa: E731
+        p_cell, WK, L(col["prod_name"]), R0, L(col["prod_slug"]), R0 + len(prods) - 1)
+    # 30+ to charge-off and the gap, for the picked product. Read from Signals data, where the build
+    # puts every product's (the analyst, 20 Oct 2026: the gap "doesn't change and I would think it
+    # should"); without those, from Data, where the book rates it, else credit card.
     pg_src = next((s for s in srcs if s.startswith("Peer group")), "Peer group")
-    co_prod = cell_("co_product", "30+ to charge-off: the product drawn",
-                    '=IF(ISNUMBER(MATCH(%s&" - %s - %s",%s$1:$1,0)),%s,"Credit card")' % (P_, CO, _q(self_short), DA, P_))
+    co_sd = any(k.startswith("co_keybank_") for k in keys)
+    co_key = {self_short: "keybank", pg_src: "pack-composite", INDUSTRY: "industry"}
+    # Always the picked product: where it has none, the section says so rather than draw another product.
+    co_prod = cell_("co_product", "30+ to charge-off: the product drawn", "=%s" % P_)
+    if co_sd:
+        co_has = cell_("co_has", "30+ to charge-off: the product drawn has it",
+                       '=ISNUMBER(MATCH("co_keybank_"&IFERROR(%s,""),%s$1:$1,0))' % (SLUG(P_), SDt))
+    else:
+        co_has = cell_("co_has", "30+ to charge-off: the product drawn has it",
+                       '=ISNUMBER(MATCH(%s&" - %s - %s",%s$1:$1,0))' % (P_, CO, _q(self_short), DA))
+
+    def co_at(src, r):
+        """``src``'s 30+ to charge-off for the product drawn, on row ``r`` of the calendar."""
+        if co_sd:
+            return ('=IFERROR(IF(INDEX({d}${r}:${r},1,MATCH("co_{w}_"&{s},{d}$1:$1,0))="","",'
+                    'INDEX({d}${r}:${r},1,MATCH("co_{w}_"&{s},{d}$1:$1,0))),"")'
+                    .format(d=SDt, r=r, w=co_key[src], s=SLUG(co_prod)))
+        return lookup('%s&" - %s - %s"' % (co_prod, CO, _q(src)), r)
+
     for nm, src in (("co_kb", self_short), ("co_pg", pg_src), ("co_ind", INDUSTRY)):
         c0 = take(nm)
         wk.cell(1, c0, "%s: %s, the product drawn" % (CO, src))
         for r in range(R0, R1 + 1):
-            wk.cell(r, c0, lookup('%s&" - %s - %s"' % (co_prod, CO, _q(src)), r))
+            wk.cell(r, c0, co_at(src, r))
     c0 = take("gap", 3)
     for j, h in enumerate(("gap to peers, points", "gap above zero", "gap below zero")):
         wk.cell(1, c0 + j, h)
@@ -550,13 +576,6 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         wk.cell(r, c0 + 2, '=IF(ISNUMBER({g}),MIN({g},0),0)'.format(g=A("gap", r)))
     for nm in ("co_kb", "co_pg", "co_ind", "gap"):
         drawn(nm + "_c", L(col[nm]), "%s, drawn" % nm)
-    # each product's key on Signals data (the window test and the dollars), as Python spells it
-    take("prod_name"); take("prod_slug")
-    wk.cell(1, col["prod_name"], "product"); wk.cell(1, col["prod_slug"], "its key on Signals data")
-    for i, p_ in enumerate(prods):
-        wk.cell(R0 + i, col["prod_name"], p_); wk.cell(R0 + i, col["prod_slug"], _slug(p_))
-    SLUG = lambda p_cell: 'VLOOKUP(%s,%s$%s$%d:$%s$%d,2,FALSE)' % (                       # noqa: E731
-        p_cell, WK, L(col["prod_name"]), R0, L(col["prod_slug"]), R0 + len(prods) - 1)
     # the gap, priced: at the last quarter with a gap, KeyBank's 30+ dollars in the product drawn
     q_gap = cell_("q_gap", "last quarter with a gap", '=IFERROR(LOOKUP(2,1/ISNUMBER(%s),%s),"")' % (RW("gap"), WQ))
     gap_at = cell_("gap_at", "gap at that quarter, points", '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (RW("gap"), q_gap, WQ))
@@ -568,8 +587,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
           '=IF(AND(ISNUMBER(%s),ISNUMBER(%s)),%s/100*%s,"")' % (gap_at, d30_at, gap_at, d30_at))
     # the pipeline, for the picked product where KeyBank has 30+ incl. nonaccrual, else credit card:
     # each measure and source looked up on Data by its label, so the charts follow the pick
-    pipe_prod = cell_("pipe_product", "the pipeline: the product drawn",
-                      '=IF(ISNUMBER(MATCH(%s&" - %s - %s",%s$1:$1,0)),%s,"Credit card")' % (P_, DQ30, _q(self_short), DA, P_))
+    pipe_prod = cell_("pipe_product", "the pipeline: the product drawn", "=%s" % P_)
+    pipe_has = cell_("pipe_has", "the pipeline: the product drawn has 30+ incl. nonaccrual",
+                     '=ISNUMBER(MATCH(%s&" - %s - %s",%s$1:$1,0))' % (P_, DQ30, _q(self_short), DA))
     for j, m in enumerate(PIPE):
         for s in (INDUSTRY, pg_src, self_short):
             nm = "pipe%d_%s" % (j, _slug(s))
@@ -754,7 +774,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     row += 14
 
     # C. 30+ to charge-off and the gap, for the product drawn
-    head(row, '="30+ to charge-off, and the gap to peers · "&%s' % co_prod, "30+ to charge-off and the gap", 2)
+    head(row, '="30+ to charge-off, and the gap to peers · "&%s&IF(%s,""," · none for this product in this workbook")'
+         % (co_prod, co_has), "30+ to charge-off and the gap", 2)
     ws.row_dimensions[row + 1].height = 15
     title(row + 1, 2, "Of the dollars 30+ incl. nonaccrual at quarter-end, the share charged off over the next two quarters, %")
     title(row + 1, 12, "KeyBank minus the peer group, points · shaded above zero (worse) and below (better)")
@@ -815,8 +836,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for j, h in enumerate(("Window", "KeyBank", "Peer group", "Industry", "Gap to peers")):
             cc = ws.cell(g0, 9 + j, h); cc.font = F_LAB; cc.alignment = LEFT if j == 0 else RIGHT
         rule(g0, 9, 13)
-        at = lambda s_: ('IFERROR(INDEX(%s$A$1:$XFD$%d,MATCH(%s,%s$A$1:$A$%d,0),MATCH(%s&" - %s - %s",%s$1:$1,0)),"")'  # noqa: E731
-                         % (DA, R1, qw, DA, R1, co_prod, CO, _q(s_), DA))
+        at = lambda s_: ('IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")'                                 # noqa: E731
+                         % (RW("co_kb" if s_ == self_short else "co_pg"), qw, WQ))
         for i, n_ in enumerate((1, 2, 3)):
             r = g0 + 1 + i
             font = F_SMALL_B if n_ == 2 else F_SMALL
@@ -837,7 +858,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
 
     # D. the pipeline, for the product drawn (the picked one, where KeyBank has 30+ incl. nonaccrual)
     pp = cells["pipe_product"]
-    head(row, '="The pipeline · "&LOWER(%s)&": 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs"' % pp,
+    head(row, '="The pipeline · "&LOWER(%s)&IF(%s,": 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs",'
+         '" · none for this product in this workbook")' % (pp, cells["pipe_has"]),
          "The pipeline", 1)
     ws.row_dimensions[row + 1].height = 15
     for j, ttl in enumerate(('="1. "&%s&" 30+ incl. nonaccrual, %%"' % pp, '="2. "&%s&" 90+ incl. nonaccrual, %%"' % pp,

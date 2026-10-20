@@ -121,7 +121,7 @@ LABELS = ["Credit card - Net charge-offs - Industry (every bank)", "Credit card 
           "Credit card - 30+ to charge-off - Peer group (2 banks)", "Credit card - 30+ days past due incl. nonaccrual - KeyBank"]
 
 
-def tiny_book(tmp_path):
+def tiny_book(tmp_path, extra=()):
     wb = Workbook()
     da = wb.active; da.title = "Data"
     da.append(["Quarter"] + LABELS)
@@ -142,7 +142,7 @@ def tiny_book(tmp_path):
               ("keybank_credit-card_d30", "KeyBank, Credit card: 30+", "$000", {q: 60.0 for q in GRID}),
               ("win1_credit-card", "window 1", "%", {q: 40.0 for q in GRID}),
               ("win2_credit-card", "window 2", "%", {q: 80.0 for q in GRID}),
-              ("win3_credit-card", "window 3", "%", {q: 120.0 for q in GRID})],
+              ("win3_credit-card", "window 3", "%", {q: 120.0 for q in GRID})] + list(extra),
            "sources": [("a source", "a file", "0" * 64)]}
     info = ST.build(wb, labels=LABELS, parts={lbl: tuple(lbl.split(" - ")) for lbl in LABELS}, grid=GRID, signals=sig,
                     peers=[{"short": "Alpha"}, {"short": "Beta"}], include={"Alpha": "B9", "Beta": "C9"}, peers_sheet="Peers",
@@ -253,8 +253,11 @@ def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follow
     ws, wk = wb["Signals"], wb["Signals workings"]
     heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
     cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 30)}
-    assert cells["30+ to charge-off: the product drawn"] == ("=IF(ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ to charge-off - KeyBank\","
-                                                             "'Data'!$1:$1,0)),'Signals'!$B$5,\"Credit card\")")
+    # Always the picked product; a product with none is said, never drawn as another product.
+    assert cells["30+ to charge-off: the product drawn"] == "='Signals'!$B$5"
+    assert cells["30+ to charge-off: the product drawn has it"] == (
+        "=ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ to charge-off - KeyBank\",'Data'!$1:$1,0))")
+    assert any("none for this product in this workbook" in t for t in _texts(ws))
     assert "LOOKUP(2,1/ISNUMBER(" in cells["last quarter with a gap"]
     assert cells["the gap priced ($000): gap / 100 x KeyBank's 30+ dollars"].startswith("=IF(AND(ISNUMBER(")
     kb = wk.cell(2, heads["30+ to charge-off: KeyBank, the product drawn"]).value
@@ -273,6 +276,21 @@ def test_the_gap_follows_the_picked_product_and_is_shaded_on_an_axis_that_follow
     assert any(t.startswith("=\"Gap, priced in KeyBank's delinquent \"&LOWER(") for t in texts)
 
 
+def test_the_gap_reads_every_products_30_plus_to_charge_off_from_signals_data(tmp_path):
+    # The build writes each product's 30+ to charge-off on Signals data, so the gap follows a product the
+    # book does not rate on it (the analyst, 20 Oct 2026: it "doesn't change and I would think it should").
+    co = [("co_%s_other-consumer" % w, w, "%", {q: 50.0 for q in GRID}) for w in ("keybank", "pack-composite", "industry")]
+    wb, info = tiny_book(tmp_path, extra=co)
+    wk = wb["Signals workings"]
+    heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
+    cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 40)}
+    assert cells["30+ to charge-off: the product drawn"] == "='Signals'!$B$5"
+    assert 'MATCH("co_keybank_"&IFERROR(VLOOKUP(' in cells["30+ to charge-off: the product drawn has it"]
+    for w, h in (("keybank", "KeyBank"), ("pack-composite", "Peer group (2 banks)"), ("industry", "Industry (every bank)")):
+        f = wk.cell(2, heads["30+ to charge-off: %s, the product drawn" % h]).value
+        assert '"co_%s_"&VLOOKUP(' % w in f and "'Signals data'!" in f
+
+
 def test_the_pipeline_follows_the_picked_product(tmp_path):
     # The analyst, 20 Oct 2026: "I was hoping the pipeline would adjust with the product to show the
     # pipeline in every product we have". Each line is looked up on Data by the product drawn.
@@ -280,9 +298,9 @@ def test_the_pipeline_follows_the_picked_product(tmp_path):
     ws, wk = wb["Signals"], wb["Signals workings"]
     heads = {wk.cell(1, col).value: col for col in range(1, wk.max_column + 1)}
     cells = {wk.cell(r, heads["single cells"]).value: wk.cell(r, heads["value"]).value for r in range(2, 40)}
-    assert cells["the pipeline: the product drawn"] == (
-        "=IF(ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ days past due incl. nonaccrual - KeyBank\",'Data'!$1:$1,0)),"
-        "'Signals'!$B$5,\"Credit card\")")
+    assert cells["the pipeline: the product drawn"] == "='Signals'!$B$5"
+    assert cells["the pipeline: the product drawn has 30+ incl. nonaccrual"] == (
+        "=ISNUMBER(MATCH('Signals'!$B$5&\" - 30+ days past due incl. nonaccrual - KeyBank\",'Data'!$1:$1,0))")
     for m in ST.PIPE:
         for s_ in ("Industry (every bank)", "Peer group (2 banks)", "KeyBank"):
             f = wk.cell(2, heads["the pipeline: %s, %s, the product drawn" % (m, s_)]).value

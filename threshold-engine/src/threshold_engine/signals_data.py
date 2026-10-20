@@ -193,13 +193,21 @@ def windows(data: Dict[str, list], product: str, ns=(1, 2, 3)) -> Dict[int, Dict
     return out
 
 
+#: Whose 30+ to charge-off Signals reads from the peers build, by file name part.
+FLOW_WHO = (("keybank", "KeyBank"), ("pack-composite", "Peer group"), ("industry", "Industry (every bank)"))
+
+
 def load(spec: dict, cache, data: Optional[Dict[str, list]], self_cert, products, say=print,
-         window_products=None) -> dict:
+         window_products=None, flows_dir=None) -> dict:
     """Every series the tab draws. ``spec`` is the book's ``signals`` section
     with paths resolved; ``data`` the FDIC cache as the peers build read it
     (None: the by-product dollars are not computed). ``window_products``:
     the products the window test is worked out for (every product in the
-    book, combined ones included); ``products`` when not given."""
+    book, combined ones included); ``products`` when not given.
+    ``flows_dir``: the peers build's series folder; each window product's
+    30+ to charge-off (KeyBank, the pack composite, the industry; four-quarter
+    average) is read from it, so the gap on Signals follows every product
+    whether or not the book rates that product's 30+ to charge-off."""
     series: List[Tuple[str, str, str, Dict[str, float]]] = []
     sources: List[Tuple[str, str, str]] = []
     cols = {}
@@ -229,8 +237,9 @@ def load(spec: dict, cache, data: Optional[Dict[str, list]], self_cert, products
     sources.append(("Each holding company's 10-Q XBRL, FICO bands by class, read into JSON", Path(spec["fico"]).name, _sha(spec["fico"])))
     if data is not None:
         for who, cert in (("KeyBank", self_cert), ("Industry", None)):
-            bp = by_product(data, cert, products)
-            for p in products:
+            ps = list(dict.fromkeys(list(products) + list(window_products or [])))     # the gap is priced in every product's dollars
+            bp = by_product(data, cert, ps)
+            for p in ps:
                 for k, title in (("bal", "balance ($000), quarter-end"), ("gco4", "gross charge-offs, trailing four quarters ($000)"),
                                  ("d30", "30+ incl. nonaccrual dollars ($000), quarter-end")):
                     series.append(("%s_%s_%s" % (who.lower(), re.sub(r"[^a-z0-9]+", "-", p.lower()).strip("-"), k),
@@ -242,5 +251,17 @@ def load(spec: dict, cache, data: Optional[Dict[str, list]], self_cert, products
                 series.append(("win%d_%s" % (n, slug), "Industry, %s: of the dollars 30+ incl. nonaccrual at quarter-end, "
                                "%% charged off over the next %d quarter%s (4q avg)" % (p, n, "" if n == 1 else "s"), "%", d_))
         sources.append(("FDIC Call Reports from the book's cache: each product's balance, charge-offs and past-due fields", "the cache", ""))
+    if flows_dir is not None:
+        from .series import read_csv
+        from .peers.run import slug as file_slug                       # the build's file names: "+" is "plus"
+        for p in (window_products or products):
+            slug = re.sub(r"[^a-z0-9]+", "-", p.lower()).strip("-")
+            for who, words in FLOW_WHO:
+                f = Path(flows_dir) / ("%s_%s_30-plus-to-charge-off_four-quarter-average.csv" % (file_slug(p), who))
+                if not f.exists():
+                    continue
+                series.append(("co_%s_%s" % (who, slug), "%s, %s: 30+ to charge-off, four-quarter average" % (words, p), "%",
+                               {"%sQ%d" % (pt.date[:4], (int(pt.date[5:7]) - 1) // 3 + 1): pt.value for pt in read_csv(f)}))
+                sources.append(("The peers build's 30+ to charge-off, %s, %s" % (p, words), f.name, _sha(f)))
     say("signals: %d series from %d sources" % (len(series), len(sources)))
     return {"series": series, "sources": sources}
