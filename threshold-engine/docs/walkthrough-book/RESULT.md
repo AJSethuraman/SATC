@@ -1,12 +1,12 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2502 of 2502 reads as expected.**
+**2510 of 2510 reads as expected.**
 
 No differences.
 
 
-## B1 · Open the workbook as built: 47 of 47
+## B1 · Open the workbook as built: 51 of 51
 
 It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide shows the first product and measure, no source picked and nothing decided.
 
@@ -52,10 +52,14 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | ok | Peers!J39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
+| ok | Decide!D94 | Pack | Pack |
+| ok | Decide!I100 | Pack | Pack |
+| ok | Decide!B94 | JPMorgan | JPMorgan |
+| ok | Decide!F100 | Zions | Zions |
 | ok | Peers!B9 | Pack | Pack |
 | ok | Peers!B12 | Pack | Pack |
-| ok | Peers!B8 | JPMorgan | JPMorgan |
-| ok | Peers!B11 | Zions | Zions |
+| ok | Decide!D92 | Every peer | Every peer |
+| ok | Peers!L5 | Every peer | Every peer |
 | ok | Sources!B191 | Reporting changes · 12 rows | Reporting changes · 12 rows, from reporting-changes.json |
 | ok | Sources!B193 | Change | Change |
 | ok | Sources!B194 | Construction, nonfarm and lease splits | Construction, nonfarm and lease splits |
@@ -2100,10 +2104,10 @@ One row shows; the lines are KeyBank's own; every source is rated on them, besid
 | ok | Lines by source!Q19 | 5 | 5 |
 | ok | Lines by source!R19 | High | High |
 | ok | Lines by source!S19 |  |  |
-| ok | Decide!L107 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
-| ok | Decide!L108 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
-| ok | Decide!L109 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
-| ok | Decide!L110 | Either fits. | Either fits. |
+| ok | Decide!L125 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
+| ok | Decide!L126 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
+| ok | Decide!L127 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
+| ok | Decide!L128 | Either fits. | Either fits. |
 
 ## B4 · Type 3.5 under How rare High is (z), in the yellow row: 55 of 55
 
@@ -2162,18 +2166,22 @@ High's line moves for every source of the row; Thresholds and Summary follow.
 | ok | Lines by source!R19 | Moderate-High | Moderate-High |
 | ok | Lines by source!S19 |  |  |
 | ok | Summary!D11 | 4 Moderate-High | 4 Moderate-High |
-| ok | Decide!L107 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
-| ok | Decide!L108 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
-| ok | Decide!L109 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
-| ok | Decide!L110 | Either fits. | Either fits. |
+| ok | Decide!L125 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
+| ok | Decide!L126 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
+| ok | Decide!L127 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
+| ok | Decide!L128 | Either fits. | Either fits. |
 
-## B5 · Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason: 41 of 41
+## B5 · Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason: 45 of 45
 
 KeyBank's lines move as the reference says; the other sources' own lines do not; Assess lists the period under KeyBank's series, its Status whole.
 
 | | Cell | Expected | Excel |
 |---|---|---|---|
-| ok | Decide!D101 | Leave out 2012Q3 to 2013Q4 | Leave out 2012Q3 to 2013Q4 |
+| ok | Decide!D104 | Leave out 2012Q3 to 2013Q4 | Leave out 2012Q3 to 2013Q4 |
+| ok | Decide!L111 | Left out: 6 quarters | Left out: 6 quarters |
+| ok | Decide!J14 | 1 | 1 |
+| ok | Decide!K14 | 6 | 6 |
+| ok | Decide!D107 | Left out: 2012Q3 to 2013Q4, Suggested by the evidence: unusual stretch. The chart draws th | Left out: 2012Q3 to 2013Q4, Suggested by the evidence: unusual stretch. The chart draws th |
 | ok | Assess!N186 | Credit card - Nonaccrual - KeyBank | Credit card - Nonaccrual - KeyBank |
 | ok | Assess!T186 | Left out: 6 quarters | Left out: 6 quarters |
 | ok | Lines by source!E19 | 0.2721174589355553 | 0.2721174589355553 |
@@ -2222,8 +2230,8 @@ The lines are refused, saying why and what to do.
 | | Cell | Expected | Excel |
 |---|---|---|---|
 | ok | Lines by source!S19 | Refused: a period left out for this product is not whole; its Status on Assess says what i | Refused: a period left out for this product is not whole; its Status on Assess says what i |
-| ok | Thresholds!S9 | To fix: Finish its row on Decide | To fix: Finish its row on Decide (product, From, To and a reason), or clear all four of it |
-| ok | Decide!N14 | Refused: see the fix below | Refused: see the fix below |
+| ok | Thresholds!S9 | To fix: Finish its row under Periods left out on Decide (product, measure, From, To and Wh | To fix: Finish its row under Periods left out on Decide (product, measure, From, To and Wh |
+| ok | Decide!M14 | Refused: see the fix below | Refused: see the fix below |
 
 ## B6b · Type the reason back: 26 of 26
 
@@ -2347,9 +2355,9 @@ Every decision, pick and setting typed is still there, and the lines with them.
 |---|---|---|---|
 | ok | Decide!D14 | KeyBank | KeyBank |
 | ok | Decide!H14 | 3.5 | 3.5 |
-| ok | Decide!J14 | 2012Q3 | 2012Q3 |
+| ok | Decide!D111 | 2012Q3 | 2012Q3 |
 | ok | Decide!E14 | Accept these lines | Accept these lines |
-| ok | Decide!M14 | Walkthrough: accepted with z 3.5 | Walkthrough: accepted with z 3.5 |
+| ok | Decide!L14 | Walkthrough: accepted with z 3.5 | Walkthrough: accepted with z 3.5 |
 | ok | Decide!L1 | Decided: 1 of 56 · accepted 1 · rejected 0 | Decided: 1 of 56 · accepted 1 · rejected 0 |
 | ok | slicers | {'Product': 'Mortgage', 'Measure': 'Net charge-offs'} | {'Product': 'Mortgage', 'Measure': 'Net charge-offs'} |
 | ok | Lines by source!E19 | 0.2721174589355553 | 0.2721174589355553 |
@@ -2385,7 +2393,7 @@ Every decision, pick and setting typed is still there, and the lines with them.
 | ok | Summary!D36 | 5 High | 5 High |
 | ok | Summary!E36 | Credit card · lines from KeyBank | Credit card · lines from KeyBank |
 
-## B11 · On Peers, set Banks in the pack to Regionals only: 11 of 11
+## B11 · On Decide, set Banks in the pack to Regionals only: 11 of 11
 
 Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over the 10 regionals: the latest values below are their composite.
 

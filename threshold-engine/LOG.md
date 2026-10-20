@@ -1980,3 +1980,27 @@ that don't change"*.
   steps "+2, +2, +1, +1".
 
 Codex on #466, two findings, both fixed: Across products now takes the two combined products too (All consumer, Credit card + Other consumer, dashed), and Qtrs on every fit table counts the quarters the fit at the lead shown rests on, not both full columns (78 became 75 beside a lead of 3). Walked in Excel: 2,502 of 2,502 reads as expected.
+
+## 20 October 2026, later still: Decide sets the peers and any number of periods left out
+
+Three answers from the analyst, each the recommended one:
+
+- **A source with nothing for the row shown is blank on Decide**, its name too, in Every source on these
+  lines and What each source's own history would give. *"Philadelphia fed is grayed out ... What do we have
+  this for if we don't have it?"* It has one series of the 56 rows (Credit card, share paying only the
+  minimum); Industry from 1990 has six. The row stays (Excel cannot remove one without a macro) and is empty.
+- **Periods left out is a list on Decide**, twelve rows (product, measure, From, To, Why, and a Status read
+  from Assess), Assess's twelve rows read row for row. A product and measure can take any number of them;
+  the table's Leave out from, Leave out to and Why left out became Periods left out and Quarters left out,
+  read from the list. Left out now names every period of the row shown. *"how am I supposed to even
+  address multiple stretches of quarters being left out"* The engine already left out any listed span;
+  only Decide allowed one.
+- **The peer group is set on Decide**: each peer's Pack/Yes/No and Banks in the pack, under the chart, two
+  lists with each bank's state this quarter (in, out by rule, off). Peers' cells read Decide and are no
+  longer inputs. The source is named "Peer group" (it was "Peer group (15 banks)", written at build and
+  never true once a bank was switched off); the pack line carries the live count. *"pure group always
+  says 15 banks ... we should be able to set peers on here probably even an individually"*
+
+Asked why Huntington is out on credit card: only its four-quarter delinquency average, 2026Q1 and 2026Q2,
+by the acquisition share (0.05; certificate 11813 absorbed 2026Q1); its quarter-end rates and its
+charge-offs (pro forma) are in. It returns in 2027Q1. Nothing changed for that; the setting is the book's.

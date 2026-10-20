@@ -6,7 +6,7 @@ From `book.json` and the series files the build wrote, through `scale.py`. 164 s
 
 It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide shows the first product and measure, no source picked and nothing decided.
 
-47 reads.
+51 reads.
 
 ## B2 · Read Summary, and every source's own lines on Lines by source
 
@@ -30,7 +30,7 @@ High's line moves for every source of the row; Thresholds and Summary follow.
 
 KeyBank's lines move as the reference says; the other sources' own lines do not; Assess lists the period under KeyBank's series, its Status whole.
 
-41 reads.
+45 reads.
 
 ## B6 · Clear the reason
 
@@ -68,7 +68,7 @@ Every decision, pick and setting typed is still there, and the lines with them.
 
 39 reads.
 
-## B11 · On Peers, set Banks in the pack to Regionals only
+## B11 · On Decide, set Banks in the pack to Regionals only
 
 Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over the 10 regionals: the latest values below are their composite.
 

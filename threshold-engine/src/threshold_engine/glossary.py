@@ -60,14 +60,14 @@ TERMS = [
      "For the source picked, each consumer product's balance, gross charge-offs over four quarters and 30+ incl. nonaccrual "
      "dollars, and each product's share of the total.",
      "KeyBank's and the industry's are summed from the Call Report at build; the peer group's are summed from Peers data and "
-     "Peers delinquency data over the banks in the pack, so they follow Banks in the pack on Peers."),
+     "Peers delinquency data over the banks in the pack, so they follow the switches under Banks in the peer group on Decide."),
     ("Pack line",
      "One line under every chart or table that draws on the peer group: how many of the roster's banks are "
      "switched on, which the book's rules took out of 30+ incl. nonaccrual in the latest quarter, and which were "
-     "switched off on Peers. Each chart's own count of banks is on its tiles.",
-     "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster on Peers. "
+     "switched off on Decide. Each chart's own count of banks is on its tiles.",
+     "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster. "
      "In: Yes on "
-     "Peers and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
+     "Decide and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
      "jump or the acquisition share blanked it, as Peers delinquency data records it). Off: No. A signal drawn "
      "from a survey, the Philadelphia Fed's panel or the FHFA database has no pack line: its head row names its "
      "source, span and frequency instead, since it is not the peer group."),

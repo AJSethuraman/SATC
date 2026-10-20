@@ -1088,7 +1088,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
                        lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero,
                        changes={s["label"]: RC.quarters_in_notes(read_notes(s["path"])) for s in loaded},
-                       quarters=grid, floor_off=floor_off)
+                       quarters=grid, floor_off=floor_off, peers=decide.get("peers"))
         # Decide is where the bank types and looks, so Assess (whose cells
         # Decide feeds) and Chart (every series on one scale, 95 switches)
         # are kept for their workings but hidden (the firm, 14 Oct 2026: "doesnt
