@@ -413,7 +413,7 @@ def fold_backtest(wb, backtest: str = "Backtest") -> dict:
     if not m:
         raise ValueError("the Backtest tab does not say its horizon; nothing was folded")
     horizon = int(m.group(1))
-    tested, notes = {}, []
+    tested, notes, untested = {}, [], []
     r = 5
     while bts.cell(r, 2).value not in (None, ""):
         key = tuple(bts.cell(r, c_).value for c_ in id_cols)
@@ -424,6 +424,7 @@ def fold_backtest(wb, backtest: str = "Backtest") -> dict:
                            [bts.cell(r, head[k]).value for k in ratings])
         elif isinstance(w, str) and w.startswith("Not tested"):
             tested.setdefault(key, (None, None, 0, [None] * len(ratings)))
+            untested.append("%s: %s" % (" - ".join(map(str, key)), w))
         r += 1
     r += 1
     while r <= bts.max_row:
@@ -466,7 +467,7 @@ def fold_backtest(wb, backtest: str = "Backtest") -> dict:
         ws.cell(2, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
     # Backtest's own words, under the table's note.
     nr = last + 3
-    lines = [str(bts["B2"].value)] + notes
+    lines = [str(bts["B2"].value)] + untested + notes
     for i, t in enumerate(lines):
         ws.cell(nr + i, 2, t).font = Font(name="Calibri", size=10, color=K.SLATE)
     wb.remove(bts)
