@@ -20,10 +20,11 @@ python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
 
 The walkthrough ran the second command on a copy of the book whose only
 change is where the cache is (`prepare.py`): the cache pulled on 14 Oct 2026
-was used rather than pulled again. Expected: `Wrote consumer-credit.xlsx: 105
-series, 82 quarters; open it on Summary, decide on Decide`. It took 8 min 48 s
-on the last run (12 min 42 s on the first), almost all of it the peers build
-reading the cache.
+was used rather than pulled again. Expected: `Wrote consumer-credit.xlsx: 164
+series, 143 quarters; open it on Summary, decide on Decide`. It took 21 min 40 s
+on the round 3 run of 19 Oct 2026, with the full test suite running beside it
+(8 min 48 s alone before round 3), almost all of it the peers build reading
+the cache.
 
 ## 2. The steps
 
@@ -37,8 +38,8 @@ source whose history sets its lines.
 
 | Step | What you do | What it shows |
 |---|---|---|
-| B1 | Open the workbook | It opens on Summary; the tabs in order (Assess, Chart and Peers workings hidden); two slicers, one button each; Decide shows the first product and measure, no source picked, nothing decided; no links, no errors |
-| B2 | Read Summary and Lines by source | All 105 series' latest value, Pick a source where each rating goes, and every series' own lines equal the reference |
+| B1 | Open the workbook | It opens on Summary; the tabs in round 3's order (Peers data, Peers delinquency data, Internal, Internal data, Assess, Chart and both workings tabs hidden); two slicers, one button each; Decide shows the first product and measure, no source picked, nothing decided; the counts, the Large banks strip, Needs your attention empty, the pack line on Peers, Decide and Signals, Reporting changes last on Sources; no links, no errors |
+| B2 | Read Summary and Lines by source | Every series Summary shows: its latest value, a dash where its rating goes; every series' own lines equal the reference; the backtest folded into Lines by source for two series, one too short to test |
 | B3 | On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from | One row; the lines are KeyBank's own; every source rated on them, beside what its own history would give; Thresholds holds the same |
 | B4 | Type 3.5 under How rare High is (z) | High's line moves for every source of the row; Thresholds and Summary follow |
 | B5 | Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason | KeyBank's lines move as the reference says, the industry's own lines do not; Assess lists the period under KeyBank's series, whole |
@@ -46,7 +47,9 @@ source whose history sets its lines.
 | B7 | Accept these lines, with a note | Decided: 1 of 35; the decision on Thresholds, and on Lines by source beside KeyBank only |
 | B8 | Click Auto and Net charge-offs, and pick Industry (every bank) | KeyBank's life-to-date history rated on the lines the industry's longer history gives |
 | B9 | Click Mortgage and Net charge-offs, and pick Industry (every bank) | Refused, with the number that would fix it |
-| B10 | Save, close, open again | Every pick, decision and setting still there, and the lines with them |
+| B10 | Save, close, open again | Every pick, decision and setting still there, and the lines with them; Summary's counts and Needs your attention |
+| B11 to B13 | On Peers: Regionals only; Every peer with JPMorgan off; JPMorgan back | The peer group's latest values are the composite over the banks left in, and the pack line names those switched off |
+| B14 | Open Signals | The controls and Picked, the pack line, where the dollars are, two fit tables |
 
 A step passes when every cell it reads says what `steps.json` says: a number
 within 1e-9, text exactly.
@@ -85,7 +88,7 @@ Assess 169, Chart 8,470, Decide 249, Peers workings 1,556).
   the other 104 rest on the same code and the reference, not on a filing each.
 - Three of the 35 rows have a source picked in the walk (Credit card
   nonaccrual, Auto and Mortgage net charge-offs); the other 32 are read blank
-  (Pick a source) on Summary, and every source's own lines are read for all
+  (a dash) on Summary, and every source's own lines are read for all
   105 on Lines by source.
 - Thresholds' latest value is written by the build, not a live formula on
   Data: pasting a corrected quarter into Data moves the lines but not the
