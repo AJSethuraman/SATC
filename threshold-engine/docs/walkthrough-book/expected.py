@@ -875,6 +875,30 @@ _at = {c.value: c.coordinate for row in _sig.iter_rows() for c in row if isinsta
 _pipe_cell = next(v for k, v in _at.items() if k.startswith('="The pipeline'))
 sig_reads.append({"sheet": "Signals", "cell": _pipe_cell, "expect": "The pipeline %s %s: 30+ incl. nonaccrual, then 90+ incl. "
                   "nonaccrual, then charge-offs" % (DOT, _PICK_P.lower())})
+# How each stage leads the next, for the product drawn: the head, and per pair of stages and per source the
+# best lead, its fit, the fit without 2020-23 and the quarters, worked out here from Data as the fit tables are.
+_st_cell = next(v for k, v in _at.items() if k.startswith('="%s' % ST.STAGE_HEAD))
+sig_reads.append({"sheet": "Signals", "cell": _st_cell, "expect": "%s %s %s, fit (r) of the changes over a year at each lead, in "
+                  "quarters" % (ST.STAGE_HEAD, DOT, _PICK_P.lower())})
+_st_th = int(re.sub(r"[A-Z]+", "", _st_cell)) + 10
+_stage_m = dict(ST.STAGES)
+_st_srcs = [ST.INDUSTRY, next(l_.split(" - ")[2] for l_ in LABELS if l_.split(" - ")[2].startswith("Peer group")), "KeyBank"]
+for _pi, (_a, _b, _t) in enumerate(ST.STAGE_PAIRS):
+    _c1 = 2 + 6 * _pi
+    sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(_c1), _st_th), "expect": "Source"})
+    for _si, _s in enumerate(_st_srcs):
+        _rr = _st_th + 1 + _si
+        sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(_c1), _rr), "expect": _s.replace(" (every bank)", "")})
+        _la, _lb = (" - ".join((_PICK_P, _stage_m[k_], _s)) for k_ in (_a, _b))
+        _f = _fit(_change(DATA_SER[_la]), _change(DATA_SER[_lb])) if _la in DATA_SER and _lb in DATA_SER else None
+        if _f is None:
+            continue
+        _k, _r_all, _r_ex, _n = _f
+        sig_reads += [{"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 2), _rr), "expect": _k},
+                      {"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 3), _rr), "expect": _r_all},
+                      {"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 5), _rr), "expect": _n}]
+        if _r_ex is not None:
+            sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 4), _rr), "expect": _r_ex})
 _win_key = "win%d_" + re.sub(r"[^a-z0-9]+", "-", _PICK_P.lower()).strip("-")
 _qw = max(q for q in SIGNAL[_win_key % 3])
 _win_cell = next(v for k, v in _at.items() if '" · charged off within the window' in k)
@@ -889,7 +913,8 @@ steps.append({"id": "B14", "what": "Open Signals",
                        "KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the "
                        "window test are other consumer's; two fit tables agree with the same correlations worked out "
                        "from the series, lead by lead",
-              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}, {"sheet": "Signals", "range": "A%d:U%d" % (_xp_head - 3, _xp_head + 14), "file": "b14-across.png"}]})
+              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}, {"sheet": "Signals", "range": "A%d:U%d" % (_xp_head - 3, _xp_head + 14), "file": "b14-across.png"},
+                          {"sheet": "Signals", "range": "A%d:U%d" % (_st_th - 13, _st_th + 5), "file": "b14-stages.png"}]})
 
 # Saved views (views_tab): a view for each tab, called up by its number, then put away.
 from threshold_engine import views_tab as VT                          # noqa: E402

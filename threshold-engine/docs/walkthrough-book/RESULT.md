@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2523 of 2523 reads as expected.**
+**2572 of 2572 reads as expected.**
 
 No differences.
 
@@ -2454,7 +2454,7 @@ The peer group is every peer again: each latest value is the series file's own.
 | ok | Decide!B91 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Signals!B6 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 
-## B14 · Open Signals: 164 of 164
+## B14 · Open Signals: 213 of 213
 
 The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the window test are other consumer's; two fit tables agree with the same correlations worked out from the series, lead by lead.
 
@@ -2510,116 +2510,165 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!D20 | Yes | Yes |
 | ok | Signals!E20 | Yes | Yes |
 | ok | Signals!F20 | Yes | Yes |
-| ok | Signals!R74 | 2 | 2 |
-| ok | Signals!S74 | 0.8923573311318846 | 0.8923573311318843 |
-| ok | Signals!U74 | 27 | 27 |
-| ok | Signals!T74 | 0.9666015097137213 | 0.9666015097137214 |
-| ok | Signals!R75 | 2 | 2 |
-| ok | Signals!S75 | 0.8604408488787167 | 0.8604408488787165 |
-| ok | Signals!U75 | 27 | 27 |
-| ok | Signals!T75 | 0.8307722344365586 | 0.8307722344365583 |
-| ok | Signals!R76 | 2 | 2 |
-| ok | Signals!S76 | 0.8339772638856662 | 0.8339772638856662 |
-| ok | Signals!U76 | 27 | 27 |
-| ok | Signals!T76 | 0.3080802393004971 | 0.3080802393004945 |
-| ok | Signals!R77 | -1 | -1 |
-| ok | Signals!S77 | 0.7569587749225609 | 0.7569587749225606 |
-| ok | Signals!U77 | 29 | 29 |
-| ok | Signals!T77 | 0.34410415755063956 | 0.3441041575506396 |
-| ok | Signals!R78 | -1 | -1 |
-| ok | Signals!S78 | 0.9129499906596658 | 0.9129499906596653 |
-| ok | Signals!U78 | 29 | 29 |
-| ok | Signals!T78 | 0.8579660011363002 | 0.8579660011363011 |
-| ok | Signals!R79 | -4 | -4 |
-| ok | Signals!S79 | 0.7817046927495512 | 0.7817046927495511 |
-| ok | Signals!U79 | 29 | 29 |
-| ok | Signals!T79 | 0.618676221626357 | 0.6186762216263574 |
-| ok | Signals!R80 | 6 | 6 |
-| ok | Signals!S80 | 0.6812375273649898 | 0.6812375273649897 |
-| ok | Signals!U80 | 23 | 23 |
-| ok | Signals!T80 | -0.7329267796471881 | -0.7329267796471896 |
-| ok | Signals!R81 | 6 | 6 |
-| ok | Signals!S81 | 0.5051634081457965 | 0.5051634081457965 |
-| ok | Signals!U81 | 23 | 23 |
-| ok | Signals!T81 | -0.8785693868848957 | -0.8785693868848993 |
-| ok | Signals!O73 | Other consumer · 30+ incl. nonaccrual · KeyBank | Other consumer · 30+ incl. nonaccrual · KeyBank |
-| ok | Signals!R73 | -4 | -4 |
-| ok | Signals!S73 | 0.7817046927495512 | 0.7817046927495511 |
-| ok | Signals!U73 | 29 | 29 |
-| ok | Signals!T73 | 0.618676221626357 | 0.6186762216263574 |
-| ok | Signals!R93 | 4 | 4 |
-| ok | Signals!S93 | 0.8248286522101923 | 0.8248286522101921 |
-| ok | Signals!U93 | 48 | 48 |
-| ok | Signals!T93 | 0.3343361919039883 | 0.33433619190398817 |
-| ok | Signals!R94 | 2 | 2 |
-| ok | Signals!S94 | 0.6496075304096223 | 0.649607530409622 |
-| ok | Signals!U94 | 47 | 47 |
-| ok | Signals!T94 | 0.5483677972129555 | 0.5483677972129556 |
-| ok | Signals!R95 | 4 | 4 |
-| ok | Signals!S95 | 0.727205759606632 | 0.7272057596066318 |
-| ok | Signals!U95 | 48 | 48 |
-| ok | Signals!T95 | 0.42257694197164625 | 0.4225769419716454 |
-| ok | Signals!R96 | 1 | 1 |
-| ok | Signals!S96 | 0.7305729102024882 | 0.7305729102024879 |
-| ok | Signals!U96 | 39 | 39 |
-| ok | Signals!T96 | 0.6696662859769211 | 0.6696662859769216 |
-| ok | Signals!R97 | 0 | 0 |
-| ok | Signals!S97 | 0.8526871793915897 | 0.8526871793915897 |
-| ok | Signals!U97 | 52 | 52 |
-| ok | Signals!T97 | 0.5392094256518403 | 0.53920942565184 |
-| ok | Signals!R98 | -3 | -3 |
-| ok | Signals!S98 | 0.5082401370242108 | 0.508240137024211 |
-| ok | Signals!U98 | 52 | 52 |
-| ok | Signals!T98 | -0.39273193956532265 | -0.39273193956532243 |
-| ok | Signals!R99 | 7 | 7 |
-| ok | Signals!S99 | 0.31660819802914997 | 0.31660819802914997 |
-| ok | Signals!U99 | 45 | 45 |
-| ok | Signals!T99 | 0.7384681296983978 | 0.7384681296983978 |
-| ok | Signals!R100 | 7 | 7 |
-| ok | Signals!S100 | 0.22584854043033203 | 0.22584854043033187 |
-| ok | Signals!U100 | 45 | 45 |
-| ok | Signals!T100 | -0.06506447848812397 | -0.06506447848812379 |
-| ok | Signals!O92 | Other consumer · 30+ incl. nonaccrual · KeyBank | Other consumer · 30+ incl. nonaccrual · KeyBank |
-| ok | Signals!R92 | -3 | -3 |
-| ok | Signals!S92 | 0.5082401370242108 | 0.508240137024211 |
-| ok | Signals!U92 | 52 | 52 |
-| ok | Signals!T92 | -0.39273193956532265 | -0.39273193956532243 |
-| ok | Signals!M207 | Credit card | Credit card |
-| ok | Signals!R207 | 3 | 3 |
-| ok | Signals!S207 | 0.40658975870741754 | 0.4065897587074173 |
-| ok | Signals!U207 | 75 | 75 |
-| ok | Signals!T207 | 0.46924711728888324 | 0.4692471172888829 |
-| ok | Signals!M208 | Other consumer | Other consumer |
-| ok | Signals!R208 | 3 | 3 |
-| ok | Signals!S208 | 0.6560351950614584 | 0.6560351950614582 |
-| ok | Signals!U208 | 75 | 75 |
-| ok | Signals!T208 | 0.7141740481861664 | 0.7141740481861663 |
-| ok | Signals!M209 | Home equity | Home equity |
-| ok | Signals!R209 | 5 | 5 |
-| ok | Signals!S209 | 0.7312726595549335 | 0.731272659554934 |
-| ok | Signals!U209 | 73 | 73 |
-| ok | Signals!T209 | 0.8142146842529272 | 0.8142146842529274 |
-| ok | Signals!M210 | Mortgage | Mortgage |
-| ok | Signals!R210 | 3 | 3 |
-| ok | Signals!S210 | 0.7295736881390031 | 0.7295736881390033 |
-| ok | Signals!U210 | 75 | 75 |
-| ok | Signals!T210 | 0.7919005226831971 | 0.791900522683197 |
-| ok | Signals!M211 | Auto | Auto |
-| ok | Signals!R211 | -3 | -3 |
-| ok | Signals!S211 | 0.5119252437309332 | 0.5119252437309331 |
-| ok | Signals!U211 | 58 | 58 |
-| ok | Signals!T211 | -0.2571888967999909 | -0.2571888967999906 |
-| ok | Signals!M212 | All consumer | All consumer |
-| ok | Signals!R212 | -3 | -3 |
-| ok | Signals!S212 | 0.42415700651147836 | 0.4241570065114781 |
-| ok | Signals!U212 | 58 | 58 |
-| ok | Signals!T212 | 0.1801565549290261 | 0.18015655492902607 |
-| ok | Signals!M213 | Credit card + Other consumer | Credit card + Other consumer |
-| ok | Signals!R213 | 3 | 3 |
-| ok | Signals!S213 | 0.5241427657433206 | 0.5241427657433207 |
-| ok | Signals!U213 | 75 | 75 |
-| ok | Signals!T213 | 0.6074780200613327 | 0.6074780200613324 |
+| ok | Signals!R88 | 2 | 2 |
+| ok | Signals!S88 | 0.8923573311318846 | 0.8923573311318843 |
+| ok | Signals!U88 | 27 | 27 |
+| ok | Signals!T88 | 0.9666015097137213 | 0.9666015097137214 |
+| ok | Signals!R89 | 2 | 2 |
+| ok | Signals!S89 | 0.8604408488787167 | 0.8604408488787165 |
+| ok | Signals!U89 | 27 | 27 |
+| ok | Signals!T89 | 0.8307722344365586 | 0.8307722344365583 |
+| ok | Signals!R90 | 2 | 2 |
+| ok | Signals!S90 | 0.8339772638856662 | 0.8339772638856662 |
+| ok | Signals!U90 | 27 | 27 |
+| ok | Signals!T90 | 0.3080802393004971 | 0.3080802393004945 |
+| ok | Signals!R91 | -1 | -1 |
+| ok | Signals!S91 | 0.7569587749225609 | 0.7569587749225606 |
+| ok | Signals!U91 | 29 | 29 |
+| ok | Signals!T91 | 0.34410415755063956 | 0.3441041575506396 |
+| ok | Signals!R92 | -1 | -1 |
+| ok | Signals!S92 | 0.9129499906596658 | 0.9129499906596653 |
+| ok | Signals!U92 | 29 | 29 |
+| ok | Signals!T92 | 0.8579660011363002 | 0.8579660011363011 |
+| ok | Signals!R93 | -4 | -4 |
+| ok | Signals!S93 | 0.7817046927495512 | 0.7817046927495511 |
+| ok | Signals!U93 | 29 | 29 |
+| ok | Signals!T93 | 0.618676221626357 | 0.6186762216263574 |
+| ok | Signals!R94 | 6 | 6 |
+| ok | Signals!S94 | 0.6812375273649898 | 0.6812375273649897 |
+| ok | Signals!U94 | 23 | 23 |
+| ok | Signals!T94 | -0.7329267796471881 | -0.7329267796471896 |
+| ok | Signals!R95 | 6 | 6 |
+| ok | Signals!S95 | 0.5051634081457965 | 0.5051634081457965 |
+| ok | Signals!U95 | 23 | 23 |
+| ok | Signals!T95 | -0.8785693868848957 | -0.8785693868848993 |
+| ok | Signals!O87 | Other consumer · 30+ incl. nonaccrual · KeyBank | Other consumer · 30+ incl. nonaccrual · KeyBank |
+| ok | Signals!R87 | -4 | -4 |
+| ok | Signals!S87 | 0.7817046927495512 | 0.7817046927495511 |
+| ok | Signals!U87 | 29 | 29 |
+| ok | Signals!T87 | 0.618676221626357 | 0.6186762216263574 |
+| ok | Signals!R107 | 4 | 4 |
+| ok | Signals!S107 | 0.8248286522101923 | 0.8248286522101921 |
+| ok | Signals!U107 | 48 | 48 |
+| ok | Signals!T107 | 0.3343361919039883 | 0.33433619190398817 |
+| ok | Signals!R108 | 2 | 2 |
+| ok | Signals!S108 | 0.6496075304096223 | 0.649607530409622 |
+| ok | Signals!U108 | 47 | 47 |
+| ok | Signals!T108 | 0.5483677972129555 | 0.5483677972129556 |
+| ok | Signals!R109 | 4 | 4 |
+| ok | Signals!S109 | 0.727205759606632 | 0.7272057596066318 |
+| ok | Signals!U109 | 48 | 48 |
+| ok | Signals!T109 | 0.42257694197164625 | 0.4225769419716454 |
+| ok | Signals!R110 | 1 | 1 |
+| ok | Signals!S110 | 0.7305729102024882 | 0.7305729102024879 |
+| ok | Signals!U110 | 39 | 39 |
+| ok | Signals!T110 | 0.6696662859769211 | 0.6696662859769216 |
+| ok | Signals!R111 | 0 | 0 |
+| ok | Signals!S111 | 0.8526871793915897 | 0.8526871793915897 |
+| ok | Signals!U111 | 52 | 52 |
+| ok | Signals!T111 | 0.5392094256518403 | 0.53920942565184 |
+| ok | Signals!R112 | -3 | -3 |
+| ok | Signals!S112 | 0.5082401370242108 | 0.508240137024211 |
+| ok | Signals!U112 | 52 | 52 |
+| ok | Signals!T112 | -0.39273193956532265 | -0.39273193956532243 |
+| ok | Signals!R113 | 7 | 7 |
+| ok | Signals!S113 | 0.31660819802914997 | 0.31660819802914997 |
+| ok | Signals!U113 | 45 | 45 |
+| ok | Signals!T113 | 0.7384681296983978 | 0.7384681296983978 |
+| ok | Signals!R114 | 7 | 7 |
+| ok | Signals!S114 | 0.22584854043033203 | 0.22584854043033187 |
+| ok | Signals!U114 | 45 | 45 |
+| ok | Signals!T114 | -0.06506447848812397 | -0.06506447848812379 |
+| ok | Signals!O106 | Other consumer · 30+ incl. nonaccrual · KeyBank | Other consumer · 30+ incl. nonaccrual · KeyBank |
+| ok | Signals!R106 | -3 | -3 |
+| ok | Signals!S106 | 0.5082401370242108 | 0.508240137024211 |
+| ok | Signals!U106 | 52 | 52 |
+| ok | Signals!T106 | -0.39273193956532265 | -0.39273193956532243 |
+| ok | Signals!M221 | Credit card | Credit card |
+| ok | Signals!R221 | 3 | 3 |
+| ok | Signals!S221 | 0.40658975870741754 | 0.4065897587074173 |
+| ok | Signals!U221 | 75 | 75 |
+| ok | Signals!T221 | 0.46924711728888324 | 0.4692471172888829 |
+| ok | Signals!M222 | Other consumer | Other consumer |
+| ok | Signals!R222 | 3 | 3 |
+| ok | Signals!S222 | 0.6560351950614584 | 0.6560351950614582 |
+| ok | Signals!U222 | 75 | 75 |
+| ok | Signals!T222 | 0.7141740481861664 | 0.7141740481861663 |
+| ok | Signals!M223 | Home equity | Home equity |
+| ok | Signals!R223 | 5 | 5 |
+| ok | Signals!S223 | 0.7312726595549335 | 0.731272659554934 |
+| ok | Signals!U223 | 73 | 73 |
+| ok | Signals!T223 | 0.8142146842529272 | 0.8142146842529274 |
+| ok | Signals!M224 | Mortgage | Mortgage |
+| ok | Signals!R224 | 3 | 3 |
+| ok | Signals!S224 | 0.7295736881390031 | 0.7295736881390033 |
+| ok | Signals!U224 | 75 | 75 |
+| ok | Signals!T224 | 0.7919005226831971 | 0.791900522683197 |
+| ok | Signals!M225 | Auto | Auto |
+| ok | Signals!R225 | -3 | -3 |
+| ok | Signals!S225 | 0.5119252437309332 | 0.5119252437309331 |
+| ok | Signals!U225 | 58 | 58 |
+| ok | Signals!T225 | -0.2571888967999909 | -0.2571888967999906 |
+| ok | Signals!M226 | All consumer | All consumer |
+| ok | Signals!R226 | -3 | -3 |
+| ok | Signals!S226 | 0.42415700651147836 | 0.4241570065114781 |
+| ok | Signals!U226 | 58 | 58 |
+| ok | Signals!T226 | 0.1801565549290261 | 0.18015655492902607 |
+| ok | Signals!M227 | Credit card + Other consumer | Credit card + Other consumer |
+| ok | Signals!R227 | 3 | 3 |
+| ok | Signals!S227 | 0.5241427657433206 | 0.5241427657433207 |
+| ok | Signals!U227 | 75 | 75 |
+| ok | Signals!T227 | 0.6074780200613327 | 0.6074780200613324 |
 | ok | Signals!B57 | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg | The pipeline · other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charg |
+| ok | Signals!B69 | How each stage leads the next · other consumer, fit (r) of the changes over a year at each | How each stage leads the next · other consumer, fit (r) of the changes over a year at each |
+| ok | Signals!B79 | Source | Source |
+| ok | Signals!B80 | Industry | Industry |
+| ok | Signals!D80 | 9 | 9 |
+| ok | Signals!E80 | 0.6819699227306423 | 0.6819699227306425 |
+| ok | Signals!G80 | 69 | 69 |
+| ok | Signals!F80 | 0.6965796283980122 | 0.6965796283980125 |
+| ok | Signals!B81 | Peer group | Peer group |
+| ok | Signals!D81 | 0 | 0 |
+| ok | Signals!E81 | 0.6359266750369438 | 0.6359266750369436 |
+| ok | Signals!G81 | 78 | 78 |
+| ok | Signals!F81 | 0.6086817395844047 | 0.6086817395844047 |
+| ok | Signals!B82 | KeyBank | KeyBank |
+| ok | Signals!D82 | 3 | 3 |
+| ok | Signals!E82 | 0.6613877409358704 | 0.6613877409358707 |
+| ok | Signals!G82 | 75 | 75 |
+| ok | Signals!F82 | 0.637728622101184 | 0.637728622101184 |
+| ok | Signals!H79 | Source | Source |
+| ok | Signals!H80 | Industry | Industry |
+| ok | Signals!J80 | 1 | 1 |
+| ok | Signals!K80 | 0.4072153378441943 | 0.4072153378441943 |
+| ok | Signals!M80 | 75 | 75 |
+| ok | Signals!L80 | 0.43407643875166324 | 0.43407643875166324 |
+| ok | Signals!H81 | Peer group | Peer group |
+| ok | Signals!J81 | -4 | -4 |
+| ok | Signals!K81 | 0.4631046967917211 | 0.46310469679172117 |
+| ok | Signals!M81 | 49 | 49 |
+| ok | Signals!L81 | 0.5291634752223634 | 0.5291634752223634 |
+| ok | Signals!H82 | KeyBank | KeyBank |
+| ok | Signals!J82 | 1 | 1 |
+| ok | Signals!K82 | 0.6694178059342946 | 0.6694178059342945 |
+| ok | Signals!M82 | 39 | 39 |
+| ok | Signals!L82 | 0.11741870037129429 | 0.11741870037129415 |
+| ok | Signals!N79 | Source | Source |
+| ok | Signals!N80 | Industry | Industry |
+| ok | Signals!P80 | 2 | 2 |
+| ok | Signals!Q80 | 0.811662529177475 | 0.8116625291774753 |
+| ok | Signals!S80 | 75 | 75 |
+| ok | Signals!R80 | 0.8275233526870936 | 0.8275233526870939 |
+| ok | Signals!N81 | Peer group | Peer group |
+| ok | Signals!P81 | -2 | -2 |
+| ok | Signals!Q81 | 0.5580310540412763 | 0.5580310540412761 |
+| ok | Signals!S81 | 51 | 51 |
+| ok | Signals!R81 | 0.7116640955197698 | 0.7116640955197698 |
+| ok | Signals!N82 | KeyBank | KeyBank |
+| ok | Signals!P82 | 3 | 3 |
+| ok | Signals!Q82 | 0.7007035262225106 | 0.7007035262225108 |
+| ok | Signals!S82 | 39 | 39 |
+| ok | Signals!R82 | 0.19994997342122195 | 0.19994997342122117 |
 | ok | Signals!I51 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 | Other consumer · charged off within the window, % of delinquent dollars, 2025Q3 |
 | ok | Signals!L53 | 36.51470839230916 | 36.51470839230916 |
 | ok | Signals!L54 | 73.23803479311124 | 73.23803479311124 |

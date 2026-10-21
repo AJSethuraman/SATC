@@ -327,6 +327,9 @@ def test_the_pipeline_follows_the_picked_product(tmp_path):
     piped = [ch for ch in ws._charts if any("Signals workings" in s_.val.numRef.f and "pipe" in
                                             wk.cell(1, _col_of(s_.val.numRef.f)).value for s_ in ch.series)]
     assert len(piped) == 3
+    # Codex on #470: MAX over a range of "" reads 0, so a stage with no fit must stay blank, not 0.00.
+    assert sum(t.startswith('=IF(COUNT(') and ',"",MAX(' in t for t in texts) >= len(ST.STAGE_PAIRS) * 3
+    assert not any(t.startswith('=IFERROR(MAX(') for t in texts)
 
 
 def _col_of(ref):
@@ -351,7 +354,7 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
                                                                           "Credit card · Net charge-offs · KeyBank"]
         for r in range(pick, first + n_t):
             assert ws.cell(r, 18).value.startswith("=IF('Signals workings'!") and ws.cell(r, 18).number_format == "+0;-0;0"
-            assert ws.cell(r, 19).value.startswith("=IFERROR(MAX('Signals workings'!")
+            assert ws.cell(r, 19).value.startswith("=IF(COUNT('Signals workings'!")
             assert "SUMPRODUCT(--ISNUMBER(OFFSET(" in ws.cell(r, 21).value   # counted at the lead shown
         head = ws.cell(pick - 2, 21)
         assert head.value.endswith("· quarterly") and head.alignment.horizontal == "right"
@@ -364,7 +367,8 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
     rules = [rule.formula[0] for cf in ws.conditional_formatting for rule in cf.rules]
     assert sum(1 for f in rules if f.startswith("AND(ISNUMBER(S") and ">=0.7" in f) == len(ST.SIGNALS)
     corr = [c.value for row in wk.iter_rows(min_row=len(GRID) + 5) for c in row if isinstance(c.value, str) and c.value.startswith("=IFERROR(CORREL(OFFSET(")]
-    assert len(corr) == len(ST.SIGNALS) * len(ST.LEADS) * (n_t + 1) * 2
+    # every signal against each target and the pick; then how each stage leads the next, per pair and source
+    assert len(corr) == len(ST.SIGNALS) * len(ST.LEADS) * (n_t + 1) * 2 + len(ST.STAGE_PAIRS) * 3 * len(ST.LEADS) * 2
     picked = wk.cell(2, 2).value
     assert "MATCH('Signals'!$B$5&\" - \"&'Signals'!$E$5&\" - \"&'Signals'!$I$5,'Data'!$1:$1,0)" in picked
     z = [wk.cell(2, c).value for c in range(1, wk.max_column + 1) if wk.cell(1, c).value == "picked: z"][0]
@@ -379,7 +383,9 @@ def test_the_charts_take_the_sizes_the_grid_gives_them(tmp_path):
     ws = wb["Signals"]
     sizes = {(round(ch.anchor.ext.width / 9525), round(ch.anchor.ext.height / 9525)) for ch in ws._charts}
     assert {(912, 264), (360, 220), (544, 220), (352, 200), (268, 106)} <= sizes
-    assert len(ws._charts) == 3 + 5 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
+    # the lead curves: one per pair of stages, under the pipeline
+    assert (544, 176) in sizes
+    assert len(ws._charts) == 3 + 5 + 2 + 3 + len(ST.STAGE_PAIRS) + 3 * len(ST.SIGNALS)   # Across products draws only what Data holds
     for ch in ws._charts:
         if ch.tagname == "lineChart" and len(ch.series) == 1:
             assert ch.varyColors is False
