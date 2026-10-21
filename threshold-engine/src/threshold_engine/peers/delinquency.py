@@ -199,7 +199,9 @@ def why_out(rows: Sequence[dict], acquired: Iterable[str], jump: float, share: f
     quarters were found with. Said from the rows, never assumed: a jump or an
     acquisition counts while it is one of the window's last three quarters, so
     the bank is back three quarters after the latest one in the window, unless
-    its book moves again; a missing rate counts in any of the four, and when a
+    its book moves again, and that latest one is the one named (Codex on
+    #469: naming the first beside the latest's return read as wrong); a
+    missing rate counts in any of the four, and when a
     rate will come back is not known, so no quarter is given. A reason this
     does not know is said as the data words it."""
     last = rows[-1]
@@ -209,26 +211,23 @@ def why_out(rows: Sequence[dict], acquired: Iterable[str], jump: float, share: f
     i = len(rows) - 1
     pct = lambda x: "%g%%" % round(100 * x, 6)                              # noqa: E731
     if why.startswith(WHY_JUMP_PREFIX) or why.startswith(WHY_ACQUIRED_PREFIX):
+        # Every event in the window, as bank_delinquency tests it (a jump before an acquisition in
+        # one quarter); the latest sets when the bank is back, so it is the one the sentence names.
         bought = {label(q) for q in acquired}
         events = []
         for k in range(i - 2, i + 1):
-            a, b = rows[k - 1]["balance"], rows[k]["balance"]
-            moved = a is not None and b is not None and ((a > 0 and abs(b / a - 1) > jump) or (a == 0 and b > 0))
-            if moved or rows[k]["q"] in bought:
-                events.append(rows[k]["q"])
-        back = " Back in %s unless it moves again." % _plus(events[-1], 3) if events else ""
-        q = why.split(": ", 1)[1].split(" ", 1)[0]
-        if why.startswith(WHY_ACQUIRED_PREFIX):
-            # books.acquired_quarters also lists a quarter whose absorbed book was not filed.
-            return RULE_ACQUIRED, ("An acquisition in %s brought in at least %s of its book, or a book not "
-                                   "filed.%s" % (q, pct(share), back))
-        moved = why.split(": ", 1)[1]
-        if moved.endswith(" from 0 to above 0"):
-            said = "Its book went from 0 to above 0 in %s" % q
-        else:
-            said = "Its book moved %s in %s" % (moved.split(" ")[1], q)
-        return RULE_JUMP, ("%s, more than the %s jump.%s" % (said, pct(jump), back) if "from 0" not in said
-                           else "%s.%s" % (said, back))
+            a, b, q = rows[k - 1]["balance"], rows[k]["balance"], rows[k]["q"]
+            if a is not None and b is not None and a > 0 and abs(b / a - 1) > jump:
+                events.append((RULE_JUMP, q, "Its book moved %+.1f%% in %s, more than the %s jump."
+                               % (100 * (b / a - 1), q, pct(jump))))
+            elif a is not None and b is not None and a == 0 and b > 0:
+                events.append((RULE_JUMP, q, "Its book went from 0 to above 0 in %s." % q))
+            elif q in bought:
+                # books.acquired_quarters also lists a quarter whose absorbed book was not filed.
+                events.append((RULE_ACQUIRED, q, "An acquisition in %s brought in at least %s of its book, "
+                                                 "or a book not filed." % (q, pct(share))))
+        rule, q, said = events[-1]
+        return rule, "%s Back in %s unless it moves again." % (said, _plus(q, 3))
     if why.startswith(WHY_RATE_MISSING.split(":")[0]):
         q, rest = why.split(": ", 1)[1].split(" ", 1)
         return RULE_NO_RATE, "No rate in %s: %s. The average needs all four quarters." % (q, rest[1:-1])

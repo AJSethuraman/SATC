@@ -582,9 +582,13 @@ def test_why_out_names_the_rule_and_when_the_bank_is_back():
     assert D.why_out(rows, ["20260331"], 0.25, 0.05) == (D.RULE_ACQUIRED, "An acquisition in 2026Q1 brought in "
                                                          "at least 5% of its book, or a book not filed. "
                                                          "Back in 2026Q4 unless it moves again.")
-    # the latest event in the window sets Back in, though the reason names the first
+    # two events in the window: the latest sets Back in, so it is the one named, whichever rule it is
     rows = _rows([100, 100, 100, 140, 140, 190], D.WHY_JUMP % ("2025Q4", 40.0))
-    assert D.why_out(rows, [], 0.25, 0.05)[1].endswith("Back in 2027Q1 unless it moves again.")
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_JUMP, "Its book moved +35.7% in 2026Q2, more than the 25% "
+                                                            "jump. Back in 2027Q1 unless it moves again.")
+    rows = _rows([100, 100, 100, 140, 140, 141], D.WHY_JUMP % ("2025Q4", 40.0))
+    assert D.why_out(rows, ["20260630"], 0.25, 0.05)[:1] == (D.RULE_ACQUIRED,)
+    assert D.why_out(rows, ["20260630"], 0.25, 0.05)[1].startswith("An acquisition in 2026Q2")
     rows = _rows([0, 0, 0, 5, 5, 5], D.WHY_RATE_MISSING % ("2025Q3", D.WHY_NO_BOOK))
     assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_NO_RATE, "No rate in 2025Q3: no book (balance 0 or below). "
                                                                "The average needs all four quarters.")

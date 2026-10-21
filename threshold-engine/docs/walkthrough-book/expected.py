@@ -625,13 +625,38 @@ def _out_by_rule(b):
 _JUMP, _SHARE = bk["peers"]["jump"], bk["peers"]["acquisition_share"]
 
 
+def _pct(x):
+    return "%g%%" % round(100 * x, 6)
+
+
+def _latest_event(b):
+    """A jump or an acquisition in the window's last three quarters, the latest one, as (rule, sentence):
+    jumps from the data's own balances (column G), acquisitions from the quarters the bank's reasons
+    (column M) name. The latest sets when the bank is back, so Why out names it."""
+    mine = sorted((r for r in DQ_ROWS if r[3] == b["cert"] and r[0] == PEERS_PRODUCT
+                   and r[1] == PW.DQ_PACK_MEASURE), key=lambda r: r[4])
+    bought = {(r[12] or "").split(": ", 1)[1].split(" ")[0] for r in mine
+              if (r[12] or "").startswith("an acquisition brought in")}
+    found = None
+    for prev, row in zip(mine[-4:-1], mine[-3:]):
+        a, c, q = prev[6], row[6], row[4]
+        if a is not None and c is not None and a > 0 and abs(c / a - 1) > _JUMP:
+            found = ("jump", "Its book moved %+.1f%% in %s, more than the %s jump." % (100 * (c / a - 1), q, _pct(_JUMP)))
+        elif a is not None and c is not None and a == 0 and c > 0:
+            found = ("jump", "Its book went from 0 to above 0 in %s." % q)
+        elif q in bought:
+            found = ("acquisition", "An acquisition in %s brought in at least %s of its book, or a book not filed."
+                     % (q, _pct(_SHARE)))
+    return found
+
+
 def _rule(b):
     why = _DQ_AT[b["cert"]][12] or ""
     for prefix, rule in (("an acquisition brought in", "acquisition"), ("book moved more than the jump", "jump"),
                          ("a quarter-end rate in the window is None", "no rate"),
                          ("fewer than four consecutive", "too few quarters")):
         if why.startswith(prefix):
-            return rule
+            return _latest_event(b)[0] if rule in ("acquisition", "jump") else rule
     return ""
 
 
@@ -639,11 +664,9 @@ def _first_sentence(b):
     why = _DQ_AT[b["cert"]][12]
     rest = why.split(": ", 1)[1]
     q = rest.split(" ")[0]
-    pct = lambda x: "%g%%" % round(100 * x, 6)                                # noqa: E731
-    return {"acquisition": lambda: "An acquisition in %s brought in at least %s of its book, or a book not filed." % (q, pct(_SHARE)),
-            "jump": lambda: ("Its book went from 0 to above 0 in %s." % q if rest.endswith("from 0 to above 0") else
-                             "Its book moved %s in %s, more than the %s jump." % (rest.split(" ")[1], q, pct(_JUMP))),
-            "no rate": lambda: "No rate in %s: %s." % (q, rest.split(" ", 1)[1][1:-1]),
+    if _rule(b) in ("acquisition", "jump"):
+        return _latest_event(b)[1]
+    return {"no rate": lambda: "No rate in %s: %s." % (q, rest.split(" ", 1)[1][1:-1]),
             "too few quarters": lambda: "Fewer than four consecutive quarter-ends in the data."}[_rule(b)]()
 
 
