@@ -843,7 +843,7 @@ def build(out, result, pull, whatif=None):
         missing_by.setdefault(x["key"], {})[x["reading"]] = x["why"]
     ws = sheet(SHOWN_NAME)
     last = 10
-    widths(ws, [46, 11, 12, 26, 13, 14, 13, 12, 90])
+    widths(ws, [62, 11, 12, 26, 13, 14, 13, 12, 90])
     title_band(ws, SHOWN_NAME, "The research's \"usable with care\" group, each against its own history. "
                                "None is rated.", last, tab=K.SLATE)
     link(ws.cell(2, 2), "Ratings", "Back to Ratings")
@@ -903,10 +903,11 @@ def build(out, result, pull, whatif=None):
         row = section(ws, row, "Nothing to show, and why", last)
         row = sub_header(ws, row, ["Series", "Reading", "Why"], height=18)
         for x in result["not_shown"]:
-            put(ws, row, 2, BY_KEY[x["key"]].title)
-            put(ws, row, 3, reading_name(x["reading"], months))
+            put(ws, row, 2, BY_KEY[x["key"]].title, align=WRAP)
+            put(ws, row, 3, reading_name(x["reading"], months), align=WRAP)
             ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=last)
             put(ws, row, 4, x["why"], font=F_NOTE, align=WRAP)
+            ws.row_dimensions[row].height = 14 * max(2, math.ceil(len(x["why"]) / (width_of(ws, 4, last) * 1.2))) + 3
             rule(ws, row, 2, last)
             row += 1
         row += 1
