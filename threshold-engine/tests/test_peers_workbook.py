@@ -1149,6 +1149,9 @@ def test_glossary_lists_everything_left_out_and_why(dlq):
     (dict(cutoff=3), "not known: cutoff"),
     (dict(jump="0.25"), "jump must be a number"),
     (dict(jump=True), "jump must be a number"),
+    (dict(acquisition_share=-0.05), "acquisition_share must be a finite number of at least 0"),
+    (dict(acquisition_share=float("nan")), "acquisition_share must be a finite number of at least 0"),
+    (dict(acquisition_share=float("inf")), "acquisition_share must be a finite number of at least 0"),
     (dict(data=[{}]), r"data must be \{REPDTE: \[rows\]\}.*not a list"),
 ])
 def test_a_bad_delinquency_setting_is_refused(tmp_path, recent, roster, dl_data, over, why):

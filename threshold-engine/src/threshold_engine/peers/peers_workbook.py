@@ -507,6 +507,9 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
     for name in ("jump", "min_book", "acquisition_share"):
         if isinstance(spec[name], bool) or not isinstance(spec[name], (int, float)):
             raise ValueError("delinquency %s must be a number, not %r" % (name, spec[name]))
+    if not math.isfinite(spec["acquisition_share"]) or spec["acquisition_share"] < 0:
+        raise ValueError("delinquency acquisition_share must be a finite number of at least 0, as "
+                         "books.acquired_quarters requires, not %r" % (spec["acquisition_share"],))
     if not isinstance(spec["acquired"], dict) or any(p not in spec["acquired"] for p in products):
         raise ValueError("delinquency acquired must be {product: {cert: [quarter-ends]}} for every "
                          "product, not %r" % (spec["acquired"],))
