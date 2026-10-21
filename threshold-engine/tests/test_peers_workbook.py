@@ -854,6 +854,19 @@ def dlq(tmp_path_factory, recent, dl_data, roster):
     return p, info, recalc(p)
 
 
+def test_why_out_says_so_for_a_product_with_no_delinquency(tmp_path, recent, roster, dl_data):
+    """Codex on #469: card charge-offs with only mortgage delinquency built. Card picked tests no
+    rule, so the heading Decide shows says no delinquency was built and no bank has a reason."""
+    p = tmp_path / "card.xlsx"
+    info = make(p, recent, roster, "all", products=("Credit card",),
+                delinquency=dq_spec(dl_data, products=("Mortgage",)))
+    vals = recalc(p)
+    assert scalar(vals, info, "dq_p") == 0
+    assert scalar(vals, info, "why_head") == "Why out · no delinquency was built for this product"
+    why = info["pack_line"]["helpers"]["why"]
+    assert all(vals.get("WORKINGS!%s%d" % (why, 2 + j)) in (None, "") for j in range(len(R.peers(roster))))
+
+
 def assert_delinquency(vals, info, books, certs, basis, what, min_banks=MIN_BANKS):
     """Composite, both bank counts and the band on ``basis`` equal peers.delinquency."""
     comp = D.composite_delinquency(books, certs, min_banks)

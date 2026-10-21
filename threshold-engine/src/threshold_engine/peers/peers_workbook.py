@@ -1802,8 +1802,12 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                outs=pk.down("outs", 2, 1 + NP), offs=pk.down("offs", 2, 1 + NP),
                pe=t.title("Peers").replace('"', '""')))
     wb.defined_names[PACK_LINE] = DefinedName(PACK_LINE, attr_text=S_PE["pack_line"])
-    scalar("why_head", "Why out, its heading",
-           '="Why out · {m}, "&LOWER({p})&", "&{q}'.format(m=DQ_PACK_MEASURE, p=PICK["product"], q=pack_q))
+    # A product with charge-offs and no delinquency tests no rule: the heading says so, as Peers does.
+    # (With no delinquency at all there is no dq_p, and Decide is handed no Why out.)
+    head = '"Why out · {m}, "&LOWER({p})&", "&{q}'.format(m=DQ_PACK_MEASURE, p=PICK["product"], q=pack_q)
+    if "dq_p" in S:
+        head = 'IF({d}=0,"Why out · no delinquency was built for this product",{h})'.format(d=S["dq_p"], h=head)
+    scalar("why_head", "Why out, its heading", "=" + head)
 
     # ---- Workings: the rank tables, one row per bank (roster order) ----
     # Each bank switched on with a rate at the latest quarter, and KeyBank,
