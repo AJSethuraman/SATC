@@ -138,6 +138,12 @@ DQ_KEY_30 = "30+ incl. nonaccrual"                 # the measure's name on Peers
 CO = "30+ to charge-off"
 #: The pipeline's three measures, in order.
 PIPE = (DQ30, DQ90, "Gross charge-offs")
+#: How each stage leads the next: the stages, early to late (30-89, not 30+, which holds the 90+ inside it),
+#: and the three pairs drawn, (earlier, later, title).
+STAGES = (("d3089", "30-89 days past due"), ("d90", DQ90), ("gco", "Gross charge-offs"))
+STAGE_PAIRS = (("d3089", "d90", "30-89 → 90+ incl. nonaccrual"), ("d90", "gco", "90+ incl. nonaccrual → gross charge-offs"),
+               ("d3089", "gco", "30-89 → gross charge-offs"))
+STAGE_HEAD = "How each stage leads the next"
 INDUSTRY = "Industry (every bank)"
 #: Across products: the measure each product is read on.
 XP_MEASURE = "30-89 days past due"
@@ -686,6 +692,39 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         xfit[p_] = ("%s$%s$%d:$%s$%d" % (WK, L(ca), XF0 + 2, L(ca), XF0 + 1 + len(LEADS)),
                     "%s$%s$%d:$%s$%d" % (WK, L(cx), XF0 + 2, L(cx), XF0 + 1 + len(LEADS)))
     XLEADS = "%s$A$%d:$A$%d" % (WK, XF0 + 2, XF0 + 1 + len(LEADS))
+    # how each stage leads the next, for the product drawn in the pipeline: each stage and source a series,
+    # and per pair and source the fit at every lead (all quarters, without 2020-23), drawn, and its peak
+    stage_src = (INDUSTRY, pg_src, self_short)
+    for sk, m in STAGES:
+        for s_ in stage_src:
+            series_block("st_%s_%s" % (sk, _slug(s_)),
+                         lambda r, m=m, s_=s_: lookup('%s&" - %s - %s"' % (pipe_prod, m, _q(s_)), r))
+    SF0 = XF0 + len(LEADS) + 4
+    wk.cell(SF0, 1, "how each stage leads the next: fit by lead, the product drawn").font = F_LAB
+    stage_fit = {}
+    for pi, (a_k, b_k, _) in enumerate(STAGE_PAIRS):
+        for si, s_ in enumerate(stage_src):
+            c0 = 2 + 4 * (pi * len(stage_src) + si)
+            for j, h in enumerate(("all quarters", "without 2020-23", "drawn", "peak")):
+                wk.cell(SF0 + 1, c0 + j, "%s to %s, %s: %s" % (a_k, b_k, s_, h))
+            ra, rb_ = SF0 + 2, SF0 + 1 + len(LEADS)
+            rng = "$%s$%d:$%s$%d" % (L(c0), ra, L(c0), rb_)
+            for li, k in enumerate(LEADS):
+                r = ra + li
+                wk.cell(r, 1, k)
+                n = N - abs(k)
+                s_off, t_off = max(0, -k), max(0, k)
+                for j, cj in ((0, 1), (1, 6)):
+                    x_ = "%s$%s$%d" % (WK, L(col["st_%s_%s" % (a_k, _slug(s_))] + cj), R0)
+                    y_ = "%s$%s$%d" % (WK, L(col["st_%s_%s" % (b_k, _slug(s_))] + cj), R0)
+                    wk.cell(r, c0 + j, '=IFERROR(CORREL(OFFSET(%s,%d,0,%d,1),OFFSET(%s,%d,0,%d,1)),"")' % (x_, s_off, n, y_, t_off, n))
+                v = "%s%d" % (L(c0), r)
+                wk.cell(r, c0 + 2, "=IF(ISNUMBER(%s),%s,NA())" % (v, v))
+                wk.cell(r, c0 + 3, "=IF(AND(ISNUMBER(%s),%s=MAX(%s)),%s,NA())" % (v, v, rng, v))
+            stage_fit[(pi, si)] = {"col": c0, "all": WK + rng, "excl": WK + "$%s$%d:$%s$%d" % (L(c0 + 1), ra, L(c0 + 1), rb_),
+                                   "x": "%s$%s$%d" % (WK, L(col["st_%s_%s" % (a_k, _slug(s_))] + 1), R0),
+                                   "y": "%s$%s$%d" % (WK, L(col["st_%s_%s" % (b_k, _slug(s_))] + 1), R0)}
+    SLEADS = "%s$A$%d:$A$%d" % (WK, SF0 + 2, SF0 + 1 + len(LEADS))
     # what the signal blocks draw: each line with #N/A for no number, and the overlay's two names
     drawn("picked_c", L(col["picked"]), "picked: value, drawn")
     drawn("picked_zc", L(col["picked"] + 5), "picked: z, drawn")
@@ -901,9 +940,53 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                       dot=(R1 - F06) if s_ == self_short else None, **style(s_))
                  for s_ in (INDUSTRY, pg_src, self_short)]
         _put(ws, _chart(lines, (data_ws, 1), F06, R1, "0.0", 16), 2 + 6 * j, row + 2, 6 * GRID_PX - 8, 220)
-    ws.cell(row + 12, 2, PACK).font = F_NOTE
-    spacer(row + 13)
-    row += 14
+    # how each stage leads the next: per pair, the fit at every lead (a dot at the best), and the best lead per source
+    sr = row + 12
+    ws.cell(sr, 2, '="%s · "&LOWER(%s)&", fit (r) of the changes over a year at each lead, in quarters"' % (STAGE_HEAD, pp)).font = F_HEAD
+    rule(sr, 2, LAST_COL)
+    ws.row_dimensions[sr + 1].height = 15
+    ST0, ST1 = SF0 + 2, SF0 + 1 + len(LEADS)
+    for pi, (a_k, b_k, ttl) in enumerate(STAGE_PAIRS):
+        c1 = 2 + 6 * pi
+        title(sr + 1, c1, ttl)
+        lines = [dict(ws=wk, col=stage_fit[(pi, si)]["col"] + 2, name=s_.replace(" (every bank)", ""), **style(s_))
+                 for si, s_ in enumerate(stage_src)]
+        # no legend: the colours are the pipeline's above, and the table under the chart names each source
+        ch = _chart(lines, cats, ST0, ST1, "0.0", 4, legend=False, grid=True, low=True, y=(-1, 1), major=0.5)
+        for si, s_ in enumerate(stage_src):
+            ch.add_data(Reference(wk, min_col=stage_fit[(pi, si)]["col"] + 3, min_row=ST0, max_row=ST1), titles_from_data=False)
+            d_ = ch.series[-1]
+            d_.tx = SeriesLabel(v="best lead")
+            d_.graphicalProperties.line.noFill = True
+            d_.smooth = False
+            d_.marker.symbol = "circle"; d_.marker.size = 6
+            d_.marker.graphicalProperties = GraphicalProperties(solidFill=style(s_)["color"], ln=_ln(style(s_)["color"], 0.75))
+        _put(ws, ch, c1, sr + 2, 6 * GRID_PX - 8, 176)
+        th = sr + 10
+        for c_, h in ((c1, "Source"), (c1 + 2, "Lead"), (c1 + 3, "Fit (r)"), (c1 + 4, "Excl. 2020-23"), (c1 + 5, "Qtrs")):
+            cc = ws.cell(th, c_, h); cc.font = F_LAB
+            cc.alignment = Alignment(horizontal="left" if c_ == c1 else "right", vertical="bottom", indent=1 if c_ == c1 and pi else 0)
+        rule(th, c1, c1 + 5)
+        for si, s_ in enumerate(stage_src):
+            rr, f_ = th + 1 + si, stage_fit[(pi, si)]
+            cc = ws.cell(rr, c1, s_.replace(" (every bank)", "")); cc.font = F_SMALL
+            cc.alignment = Alignment(vertical="bottom", indent=1 if pi else 0)
+            best = 'INDEX(%s,MATCH(MAX(%s),%s,0))' % (SLEADS, f_["all"], f_["all"])
+            lead_c = "%s%d" % (L(c1 + 2), rr)
+            num(rr, c1 + 2, '=IFERROR(%s,"")' % best, "+0;-0;0")
+            num(rr, c1 + 3, '=IFERROR(MAX(%s),"")' % f_["all"], "0.00")
+            num(rr, c1 + 4, '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (f_["excl"], best, SLEADS), "0.00")
+            num(rr, c1 + 5, '=IF(ISNUMBER({l}),SUMPRODUCT(--ISNUMBER(OFFSET({x},MAX(0,-{l}),0,{n}-ABS({l}),1)),'
+                            '--ISNUMBER(OFFSET({y},MAX(0,{l}),0,{n}-ABS({l}),1))),"")'.format(l=lead_c, x=f_["x"], y=f_["y"], n=N), "0")
+            for c_ in range(c1, c1 + 6):
+                ws.cell(rr, c_).border = Border(bottom=HAIR)
+        fc = L(c1 + 3)
+        ws.conditional_formatting.add("%s%d:%s%d" % (fc, th + 1, fc, th + len(stage_src)), FormulaRule(
+            formula=["AND(ISNUMBER(%s%d),ABS(%s%d)>=0.7)" % (fc, th + 1, fc, th + 1)], font=Font(bold=True)))
+    stage_rows = {"head": sr, "table": sr + 10}
+    ws.cell(sr + 14, 2, PACK).font = F_NOTE
+    spacer(sr + 15)
+    row = sr + 16
 
     # E. one block per signal
     fit_rows = {}
@@ -1038,4 +1121,4 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             "fit_targets": [t[2] for t in targets],
             "controls": {"product": "B5", "measure": "E5", "source": "I5", "shift": "K5", "window": "M5", "picked": "P5"},
             "dollars": {"header": A_TH, "first": A_FIRST, "total": A_TOTAL, "on": "B%d:F%d" % (A_ON, A_ON)},
-            "fit_tables": fit_rows, "jumps": [(n, r) for n, _, r in jumps]}
+            "fit_tables": fit_rows, "stages": stage_rows, "jumps": [(n, r) for n, _, r in jumps]}

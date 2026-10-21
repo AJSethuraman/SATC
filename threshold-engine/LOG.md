@@ -2058,3 +2058,33 @@ acquisition was 2026Q1, and three quarters later it leaves the window. Said in c
 four-quarter reading of the window, which the code does not do.
 
 The acquisition share now travels with the delinquency settings (D_KEYS), so the sentence can say it.
+
+Codex on #469, five findings, each fixed before the merge: the acquisition share is refused below 0 or
+not finite, as books.acquired_quarters refuses it; Decide shows no Why out list when delinquency was not
+built, and its heading says "no delinquency was built for this product" when the product picked has none;
+the acquisition sentence reads "at least 5% of its book, or a book not filed", since acquired_quarters
+also lists a quarter whose absorbed book was not filed; and with two jumps or acquisitions in the window
+the sentence names the latest, the one that sets Back in.
+
+## 21 October 2026: how each stage leads the next
+
+*"How do I demonstrate the curved graphs that help show how 30+ leads to 90+ leads to charge off fairly
+reliably"* The pipeline on Signals drew the three stages side by side and measured nothing between them.
+Worked out first on the industry series (CORREL of changes over a year, lead 0 to 8): credit card 30-89 to
+90+ best at 1 quarter (r 0.96), 90+ to gross charge-offs at 3 (0.96), 30-89 to charge-offs at 4 (0.93);
+mortgage 4 / 0 / 4 (0.92, 0.89, 0.91); auto 3 / 0 / 3 (0.62, 0.60, 0.88); home equity 3 / 2 / 5 (0.38,
+0.50, 0.84). The direct 30-89 to charge-off step held in all four; the step through 90+ is weak for auto
+and home equity. The analyst took the recommended form: a lead curve per step.
+
+- **Under The pipeline, for the product drawn**: three charts, 30-89 to 90+ incl. nonaccrual, 90+ to
+  gross charge-offs, 30-89 to gross charge-offs. Each draws the industry, the peer group and KeyBank's Fit
+  (r) at every lead from 4 quarters after to 12 ahead (the leads the signal fit tables use), a dot at each
+  one's best.
+- **A table under each chart**: per source, the best lead, its fit, the fit at that lead without 2020-23,
+  and the quarters it rests on, as the fit tables beside the signals give them.
+- **30-89, not 30+**: 30+ incl. nonaccrual holds the 90+ inside it, so a fit of 30+ against 90+ partly
+  measures the same dollars twice. The Glossary says so under "How each stage leads the next".
+
+Not said on the tab, and true of every fit table here: the changes over a year overlap quarter to
+quarter, so 75 quarters are far fewer independent readings than 75, and an r near 0.9 is less certain
+than the count suggests.

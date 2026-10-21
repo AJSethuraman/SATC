@@ -12378,553 +12378,798 @@
     },
     {
      "sheet": "Signals",
-     "cell": "R74",
+     "cell": "R88",
      "expect": 2
     },
     {
      "sheet": "Signals",
-     "cell": "S74",
+     "cell": "S88",
      "expect": 0.8923573311318846
     },
     {
      "sheet": "Signals",
-     "cell": "U74",
+     "cell": "U88",
      "expect": 27
     },
     {
      "sheet": "Signals",
-     "cell": "T74",
+     "cell": "T88",
      "expect": 0.9666015097137213
     },
     {
      "sheet": "Signals",
-     "cell": "R75",
+     "cell": "R89",
      "expect": 2
     },
     {
      "sheet": "Signals",
-     "cell": "S75",
+     "cell": "S89",
      "expect": 0.8604408488787167
     },
     {
      "sheet": "Signals",
-     "cell": "U75",
+     "cell": "U89",
      "expect": 27
     },
     {
      "sheet": "Signals",
-     "cell": "T75",
+     "cell": "T89",
      "expect": 0.8307722344365586
     },
     {
      "sheet": "Signals",
-     "cell": "R76",
+     "cell": "R90",
      "expect": 2
     },
     {
      "sheet": "Signals",
-     "cell": "S76",
+     "cell": "S90",
      "expect": 0.8339772638856662
     },
     {
      "sheet": "Signals",
-     "cell": "U76",
+     "cell": "U90",
      "expect": 27
     },
     {
      "sheet": "Signals",
-     "cell": "T76",
+     "cell": "T90",
      "expect": 0.3080802393004971
     },
     {
      "sheet": "Signals",
-     "cell": "R77",
+     "cell": "R91",
      "expect": -1
     },
     {
      "sheet": "Signals",
-     "cell": "S77",
+     "cell": "S91",
      "expect": 0.7569587749225609
     },
     {
      "sheet": "Signals",
-     "cell": "U77",
+     "cell": "U91",
      "expect": 29
     },
     {
      "sheet": "Signals",
-     "cell": "T77",
+     "cell": "T91",
      "expect": 0.34410415755063956
     },
     {
      "sheet": "Signals",
-     "cell": "R78",
+     "cell": "R92",
      "expect": -1
     },
     {
      "sheet": "Signals",
-     "cell": "S78",
+     "cell": "S92",
      "expect": 0.9129499906596658
     },
     {
      "sheet": "Signals",
-     "cell": "U78",
-     "expect": 29
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T78",
-     "expect": 0.8579660011363002
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R79",
-     "expect": -4
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S79",
-     "expect": 0.7817046927495512
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U79",
-     "expect": 29
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T79",
-     "expect": 0.618676221626357
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R80",
-     "expect": 6
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S80",
-     "expect": 0.6812375273649898
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U80",
-     "expect": 23
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T80",
-     "expect": -0.7329267796471881
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R81",
-     "expect": 6
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S81",
-     "expect": 0.5051634081457965
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U81",
-     "expect": 23
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T81",
-     "expect": -0.8785693868848957
-    },
-    {
-     "sheet": "Signals",
-     "cell": "O73",
-     "expect": "Other consumer \u00b7 30+ incl. nonaccrual \u00b7 KeyBank"
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R73",
-     "expect": -4
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S73",
-     "expect": 0.7817046927495512
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U73",
-     "expect": 29
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T73",
-     "expect": 0.618676221626357
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R93",
-     "expect": 4
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S93",
-     "expect": 0.8248286522101923
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U93",
-     "expect": 48
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T93",
-     "expect": 0.3343361919039883
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R94",
-     "expect": 2
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S94",
-     "expect": 0.6496075304096223
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U94",
-     "expect": 47
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T94",
-     "expect": 0.5483677972129555
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R95",
-     "expect": 4
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S95",
-     "expect": 0.727205759606632
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U95",
-     "expect": 48
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T95",
-     "expect": 0.42257694197164625
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R96",
-     "expect": 1
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S96",
-     "expect": 0.7305729102024882
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U96",
-     "expect": 39
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T96",
-     "expect": 0.6696662859769211
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R97",
-     "expect": 0
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S97",
-     "expect": 0.8526871793915897
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U97",
-     "expect": 52
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T97",
-     "expect": 0.5392094256518403
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R98",
-     "expect": -3
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S98",
-     "expect": 0.5082401370242108
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U98",
-     "expect": 52
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T98",
-     "expect": -0.39273193956532265
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R99",
-     "expect": 7
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S99",
-     "expect": 0.31660819802914997
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U99",
-     "expect": 45
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T99",
-     "expect": 0.7384681296983978
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R100",
-     "expect": 7
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S100",
-     "expect": 0.22584854043033203
-    },
-    {
-     "sheet": "Signals",
-     "cell": "U100",
-     "expect": 45
-    },
-    {
-     "sheet": "Signals",
-     "cell": "T100",
-     "expect": -0.06506447848812397
-    },
-    {
-     "sheet": "Signals",
-     "cell": "O92",
-     "expect": "Other consumer \u00b7 30+ incl. nonaccrual \u00b7 KeyBank"
-    },
-    {
-     "sheet": "Signals",
-     "cell": "R92",
-     "expect": -3
-    },
-    {
-     "sheet": "Signals",
-     "cell": "S92",
-     "expect": 0.5082401370242108
-    },
-    {
-     "sheet": "Signals",
      "cell": "U92",
-     "expect": 52
+     "expect": 29
     },
     {
      "sheet": "Signals",
      "cell": "T92",
+     "expect": 0.8579660011363002
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R93",
+     "expect": -4
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S93",
+     "expect": 0.7817046927495512
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U93",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T93",
+     "expect": 0.618676221626357
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R94",
+     "expect": 6
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S94",
+     "expect": 0.6812375273649898
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U94",
+     "expect": 23
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T94",
+     "expect": -0.7329267796471881
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R95",
+     "expect": 6
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S95",
+     "expect": 0.5051634081457965
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U95",
+     "expect": 23
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T95",
+     "expect": -0.8785693868848957
+    },
+    {
+     "sheet": "Signals",
+     "cell": "O87",
+     "expect": "Other consumer \u00b7 30+ incl. nonaccrual \u00b7 KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R87",
+     "expect": -4
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S87",
+     "expect": 0.7817046927495512
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U87",
+     "expect": 29
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T87",
+     "expect": 0.618676221626357
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R107",
+     "expect": 4
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S107",
+     "expect": 0.8248286522101923
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U107",
+     "expect": 48
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T107",
+     "expect": 0.3343361919039883
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R108",
+     "expect": 2
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S108",
+     "expect": 0.6496075304096223
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U108",
+     "expect": 47
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T108",
+     "expect": 0.5483677972129555
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R109",
+     "expect": 4
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S109",
+     "expect": 0.727205759606632
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U109",
+     "expect": 48
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T109",
+     "expect": 0.42257694197164625
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R110",
+     "expect": 1
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S110",
+     "expect": 0.7305729102024882
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U110",
+     "expect": 39
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T110",
+     "expect": 0.6696662859769211
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R111",
+     "expect": 0
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S111",
+     "expect": 0.8526871793915897
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U111",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T111",
+     "expect": 0.5392094256518403
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R112",
+     "expect": -3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S112",
+     "expect": 0.5082401370242108
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U112",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T112",
      "expect": -0.39273193956532265
     },
     {
      "sheet": "Signals",
-     "cell": "M207",
+     "cell": "R113",
+     "expect": 7
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S113",
+     "expect": 0.31660819802914997
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U113",
+     "expect": 45
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T113",
+     "expect": 0.7384681296983978
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R114",
+     "expect": 7
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S114",
+     "expect": 0.22584854043033203
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U114",
+     "expect": 45
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T114",
+     "expect": -0.06506447848812397
+    },
+    {
+     "sheet": "Signals",
+     "cell": "O106",
+     "expect": "Other consumer \u00b7 30+ incl. nonaccrual \u00b7 KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R106",
+     "expect": -3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S106",
+     "expect": 0.5082401370242108
+    },
+    {
+     "sheet": "Signals",
+     "cell": "U106",
+     "expect": 52
+    },
+    {
+     "sheet": "Signals",
+     "cell": "T106",
+     "expect": -0.39273193956532265
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M221",
      "expect": "Credit card"
     },
     {
      "sheet": "Signals",
-     "cell": "R207",
+     "cell": "R221",
      "expect": 3
     },
     {
      "sheet": "Signals",
-     "cell": "S207",
+     "cell": "S221",
      "expect": 0.40658975870741754
     },
     {
      "sheet": "Signals",
-     "cell": "U207",
+     "cell": "U221",
      "expect": 75
     },
     {
      "sheet": "Signals",
-     "cell": "T207",
+     "cell": "T221",
      "expect": 0.46924711728888324
     },
     {
      "sheet": "Signals",
-     "cell": "M208",
+     "cell": "M222",
      "expect": "Other consumer"
     },
     {
      "sheet": "Signals",
-     "cell": "R208",
+     "cell": "R222",
      "expect": 3
     },
     {
      "sheet": "Signals",
-     "cell": "S208",
+     "cell": "S222",
      "expect": 0.6560351950614584
     },
     {
      "sheet": "Signals",
-     "cell": "U208",
+     "cell": "U222",
      "expect": 75
     },
     {
      "sheet": "Signals",
-     "cell": "T208",
+     "cell": "T222",
      "expect": 0.7141740481861664
     },
     {
      "sheet": "Signals",
-     "cell": "M209",
+     "cell": "M223",
      "expect": "Home equity"
     },
     {
      "sheet": "Signals",
-     "cell": "R209",
+     "cell": "R223",
      "expect": 5
     },
     {
      "sheet": "Signals",
-     "cell": "S209",
+     "cell": "S223",
      "expect": 0.7312726595549335
     },
     {
      "sheet": "Signals",
-     "cell": "U209",
+     "cell": "U223",
      "expect": 73
     },
     {
      "sheet": "Signals",
-     "cell": "T209",
+     "cell": "T223",
      "expect": 0.8142146842529272
     },
     {
      "sheet": "Signals",
-     "cell": "M210",
+     "cell": "M224",
      "expect": "Mortgage"
     },
     {
      "sheet": "Signals",
-     "cell": "R210",
+     "cell": "R224",
      "expect": 3
     },
     {
      "sheet": "Signals",
-     "cell": "S210",
+     "cell": "S224",
      "expect": 0.7295736881390031
     },
     {
      "sheet": "Signals",
-     "cell": "U210",
+     "cell": "U224",
      "expect": 75
     },
     {
      "sheet": "Signals",
-     "cell": "T210",
+     "cell": "T224",
      "expect": 0.7919005226831971
     },
     {
      "sheet": "Signals",
-     "cell": "M211",
+     "cell": "M225",
      "expect": "Auto"
     },
     {
      "sheet": "Signals",
-     "cell": "R211",
+     "cell": "R225",
      "expect": -3
     },
     {
      "sheet": "Signals",
-     "cell": "S211",
+     "cell": "S225",
      "expect": 0.5119252437309332
     },
     {
      "sheet": "Signals",
-     "cell": "U211",
+     "cell": "U225",
      "expect": 58
     },
     {
      "sheet": "Signals",
-     "cell": "T211",
+     "cell": "T225",
      "expect": -0.2571888967999909
     },
     {
      "sheet": "Signals",
-     "cell": "M212",
+     "cell": "M226",
      "expect": "All consumer"
     },
     {
      "sheet": "Signals",
-     "cell": "R212",
+     "cell": "R226",
      "expect": -3
     },
     {
      "sheet": "Signals",
-     "cell": "S212",
+     "cell": "S226",
      "expect": 0.42415700651147836
     },
     {
      "sheet": "Signals",
-     "cell": "U212",
+     "cell": "U226",
      "expect": 58
     },
     {
      "sheet": "Signals",
-     "cell": "T212",
+     "cell": "T226",
      "expect": 0.1801565549290261
     },
     {
      "sheet": "Signals",
-     "cell": "M213",
+     "cell": "M227",
      "expect": "Credit card + Other consumer"
     },
     {
      "sheet": "Signals",
-     "cell": "R213",
+     "cell": "R227",
      "expect": 3
     },
     {
      "sheet": "Signals",
-     "cell": "S213",
+     "cell": "S227",
      "expect": 0.5241427657433206
     },
     {
      "sheet": "Signals",
-     "cell": "U213",
+     "cell": "U227",
      "expect": 75
     },
     {
      "sheet": "Signals",
-     "cell": "T213",
+     "cell": "T227",
      "expect": 0.6074780200613327
     },
     {
      "sheet": "Signals",
      "cell": "B57",
      "expect": "The pipeline \u00b7 other consumer: 30+ incl. nonaccrual, then 90+ incl. nonaccrual, then charge-offs"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B69",
+     "expect": "How each stage leads the next \u00b7 other consumer, fit (r) of the changes over a year at each lead, in quarters"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B79",
+     "expect": "Source"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B80",
+     "expect": "Industry"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D80",
+     "expect": 9
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E80",
+     "expect": 0.6819699227306423
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G80",
+     "expect": 69
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F80",
+     "expect": 0.6965796283980122
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B81",
+     "expect": "Peer group"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D81",
+     "expect": 0
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E81",
+     "expect": 0.6359266750369438
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G81",
+     "expect": 78
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F81",
+     "expect": 0.6086817395844047
+    },
+    {
+     "sheet": "Signals",
+     "cell": "B82",
+     "expect": "KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "D82",
+     "expect": 3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "E82",
+     "expect": 0.6613877409358704
+    },
+    {
+     "sheet": "Signals",
+     "cell": "G82",
+     "expect": 75
+    },
+    {
+     "sheet": "Signals",
+     "cell": "F82",
+     "expect": 0.637728622101184
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H79",
+     "expect": "Source"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H80",
+     "expect": "Industry"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "J80",
+     "expect": 1
+    },
+    {
+     "sheet": "Signals",
+     "cell": "K80",
+     "expect": 0.4072153378441943
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M80",
+     "expect": 75
+    },
+    {
+     "sheet": "Signals",
+     "cell": "L80",
+     "expect": 0.43407643875166324
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H81",
+     "expect": "Peer group"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "J81",
+     "expect": -4
+    },
+    {
+     "sheet": "Signals",
+     "cell": "K81",
+     "expect": 0.4631046967917211
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M81",
+     "expect": 49
+    },
+    {
+     "sheet": "Signals",
+     "cell": "L81",
+     "expect": 0.5291634752223634
+    },
+    {
+     "sheet": "Signals",
+     "cell": "H82",
+     "expect": "KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "J82",
+     "expect": 1
+    },
+    {
+     "sheet": "Signals",
+     "cell": "K82",
+     "expect": 0.6694178059342946
+    },
+    {
+     "sheet": "Signals",
+     "cell": "M82",
+     "expect": 39
+    },
+    {
+     "sheet": "Signals",
+     "cell": "L82",
+     "expect": 0.11741870037129429
+    },
+    {
+     "sheet": "Signals",
+     "cell": "N79",
+     "expect": "Source"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "N80",
+     "expect": "Industry"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "P80",
+     "expect": 2
+    },
+    {
+     "sheet": "Signals",
+     "cell": "Q80",
+     "expect": 0.811662529177475
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S80",
+     "expect": 75
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R80",
+     "expect": 0.8275233526870936
+    },
+    {
+     "sheet": "Signals",
+     "cell": "N81",
+     "expect": "Peer group"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "P81",
+     "expect": -2
+    },
+    {
+     "sheet": "Signals",
+     "cell": "Q81",
+     "expect": 0.5580310540412763
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S81",
+     "expect": 51
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R81",
+     "expect": 0.7116640955197698
+    },
+    {
+     "sheet": "Signals",
+     "cell": "N82",
+     "expect": "KeyBank"
+    },
+    {
+     "sheet": "Signals",
+     "cell": "P82",
+     "expect": 3
+    },
+    {
+     "sheet": "Signals",
+     "cell": "Q82",
+     "expect": 0.7007035262225106
+    },
+    {
+     "sheet": "Signals",
+     "cell": "S82",
+     "expect": 39
+    },
+    {
+     "sheet": "Signals",
+     "cell": "R82",
+     "expect": 0.19994997342122195
     },
     {
      "sheet": "Signals",
@@ -12955,8 +13200,13 @@
     },
     {
      "sheet": "Signals",
-     "range": "A203:U220",
+     "range": "A217:U234",
      "file": "b14-across.png"
+    },
+    {
+     "sheet": "Signals",
+     "range": "A66:U84",
+     "file": "b14-stages.png"
     }
    ]
   },

@@ -87,6 +87,13 @@ TERMS = [
      "CORREL of the signal's change over a year (the survey's value itself) and the series' change over a "
      "year, the signal moved by the lead. Excl. 2020-23 is the same with 2020Q1 to 2023Q4 left out, whatever "
      "Window for the normal is set to."),
+    ("How each stage leads the next",
+     "Under the pipeline, for the product drawn: how many quarters 30-89 days past due runs ahead of 90+ incl. "
+     "nonaccrual, 90+ ahead of gross charge-offs, and 30-89 ahead of gross charge-offs, for the industry, the peer "
+     "group and KeyBank. Each curve is the Fit (r) at every lead; the dot is the best.",
+     "CORREL of the earlier stage's change over a year and the later stage's change over a year, the earlier "
+     "moved by the lead, as Lead and Fit (r) are for a signal. The first stage is 30-89, not 30+ incl. "
+     "nonaccrual, which holds the 90+ inside it."),
     ("Window for the normal",
      "The quarters the normal and the typical yearly move of the rescaled lines are taken from: All quarters, "
      "or Without 2020-23.",
@@ -549,7 +556,8 @@ _BY_TAB = {
                "Lines set from", "Rating on these lines", "What each source's own history would give",
                "Reporting change", "Why out"),
     "Signals": ("Signals", "Where the dollars are", "Pack line", "Rescaled", "Lead", "Fit (r)",
-                "Window for the normal", "Shift", "Jump row", "Saved view"),
+                "How each stage leads the next", "Window for the normal", "Shift", "Jump row",
+                "Saved view"),
     "Saved views": ("Picks now", "Data through"),
     "Thresholds": ("Thresholds", "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
                    "2 Moderate-Low", "3 Moderate", "4 Moderate-High", "5 High", "Value"),

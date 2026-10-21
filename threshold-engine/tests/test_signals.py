@@ -364,7 +364,8 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
     rules = [rule.formula[0] for cf in ws.conditional_formatting for rule in cf.rules]
     assert sum(1 for f in rules if f.startswith("AND(ISNUMBER(S") and ">=0.7" in f) == len(ST.SIGNALS)
     corr = [c.value for row in wk.iter_rows(min_row=len(GRID) + 5) for c in row if isinstance(c.value, str) and c.value.startswith("=IFERROR(CORREL(OFFSET(")]
-    assert len(corr) == len(ST.SIGNALS) * len(ST.LEADS) * (n_t + 1) * 2
+    # every signal against each target and the pick; then how each stage leads the next, per pair and source
+    assert len(corr) == len(ST.SIGNALS) * len(ST.LEADS) * (n_t + 1) * 2 + len(ST.STAGE_PAIRS) * 3 * len(ST.LEADS) * 2
     picked = wk.cell(2, 2).value
     assert "MATCH('Signals'!$B$5&\" - \"&'Signals'!$E$5&\" - \"&'Signals'!$I$5,'Data'!$1:$1,0)" in picked
     z = [wk.cell(2, c).value for c in range(1, wk.max_column + 1) if wk.cell(1, c).value == "picked: z"][0]
@@ -379,7 +380,9 @@ def test_the_charts_take_the_sizes_the_grid_gives_them(tmp_path):
     ws = wb["Signals"]
     sizes = {(round(ch.anchor.ext.width / 9525), round(ch.anchor.ext.height / 9525)) for ch in ws._charts}
     assert {(912, 264), (360, 220), (544, 220), (352, 200), (268, 106)} <= sizes
-    assert len(ws._charts) == 3 + 5 + 2 + 3 + 3 * len(ST.SIGNALS)              # Across products draws only what Data holds
+    # the lead curves: one per pair of stages, under the pipeline
+    assert (544, 176) in sizes
+    assert len(ws._charts) == 3 + 5 + 2 + 3 + len(ST.STAGE_PAIRS) + 3 * len(ST.SIGNALS)   # Across products draws only what Data holds
     for ch in ws._charts:
         if ch.tagname == "lineChart" and len(ch.series) == 1:
             assert ch.varyColors is False
