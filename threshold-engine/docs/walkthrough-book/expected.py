@@ -229,8 +229,8 @@ def every_own(pr, **kw):
     return {s: own(lbl, **kw) for s, lbl in BY[pr].items()}
 
 
-SHEETS = ["Summary", "Decide", "Signals", "Peers", "Thresholds", "Internal", LBS, "Peer books", "Evidence", "Glossary",
-          "Sources", "Run", "Data", "Signals data", "Internal data", "Peers data", "Peers delinquency data", "Assess",
+SHEETS = ["Summary", "Decide", "Signals", "Peers", "Saved views", "Thresholds", "Internal", LBS, "Peer books",
+          "Evidence", "Glossary", "Sources", "Run", "Data", "Signals data", "Internal data", "Peers data", "Peers delinquency data", "Assess",
           "Chart", "Peers workings", "Signals workings"]
 HIDDEN = (["Internal"] if bk["internal"] is None else []) + (["Internal data"] if bk["internal"] is None else []) + [
     "Peers data", "Peers delinquency data", "Assess", "Chart", "Peers workings", "Signals workings"]
@@ -830,6 +830,43 @@ steps.append({"id": "B14", "what": "Open Signals",
                        "window test are other consumer's; two fit tables agree with the same correlations worked out "
                        "from the series, lead by lead",
               "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}, {"sheet": "Signals", "range": "A%d:U%d" % (_xp_head - 3, _xp_head + 14), "file": "b14-across.png"}]})
+
+# Saved views (views_tab): a view for each tab, called up by its number, then put away.
+from threshold_engine import views_tab as VT                          # noqa: E402
+_sv = _wb[VT.TITLE]
+_sec = {_sv.cell(r, 2).value: r for r in range(1, 60) if _sv.cell(r, 2).value in VT.TABS}
+_v1 = {t: _sec[t] + 3 for t in _sec}                                  # each tab's view 1
+_SV_NOTE = {"Signals": "Card against the pack", "Peers": "Home equity, gross rate"}
+_sv_typed = lambda t, col, v: {"type": "cell", "sheet": VT.TITLE, "cell": "%s%d" % (col, _v1[t]), "value": v}  # noqa: E731
+_box = {t: VT.TABS[t]["box"] for t in _sec}
+_note = {t: VT.TABS[t]["note"] for t in _sec}
+_PICKED_NOW = "%s %s %s %s KeyBank" % (_PICK_P, DOT, _sig["E5"].value, DOT)
+steps.append({"id": "B15", "what": "On Saved views, fill view 1 for Signals (credit card) and for Peers (home equity, "
+                                   "gross); type 1 under Saved view on each tab",
+              "shows": "Each tab follows its view: the picks the view holds replace the tab's, which are struck "
+                       "through, the rest are kept, and the note shows under the box",
+              "actions": [_sv_typed("Signals", "C", _SV_NOTE["Signals"]), _sv_typed("Signals", "D", GRID_Q[-1]),
+                          _sv_typed("Signals", "E", "Credit card"),
+                          _sv_typed("Peers", "C", _SV_NOTE["Peers"]), _sv_typed("Peers", "D", GRID_Q[-1]),
+                          _sv_typed("Peers", "E", "Home equity"), _sv_typed("Peers", "F", "Gross"),
+                          {"type": "cell", "sheet": "Signals", "cell": _box["Signals"], "value": 1},
+                          {"type": "cell", "sheet": "Peers", "cell": _box["Peers"], "value": 1}],
+              "reads": [{"sheet": "Signals", "cell": "P5", "expect": _PICKED_NOW.replace(_PICK_P, "Credit card", 1)},
+                        {"sheet": "Signals", "cell": _note["Signals"], "expect": "Saved view 1: " + _SV_NOTE["Signals"]},
+                        {"sheet": "Peers", "cell": _note["Peers"], "expect": "Saved view 1: " + _SV_NOTE["Peers"]},
+                        {"sheet": "Signals", "cell": "B5", "expect": _PICK_P},
+                        {"sheet": "Peers", "cell": "B5", "expect": "Credit card"}],
+              "picture": [{"sheet": VT.TITLE, "range": "A1:N%d" % (_sec["Peers"] + 3 + VT.VIEWS), "file": "b15-saved-views.png"},
+                          {"sheet": "Signals", "range": "A1:U7", "file": "b15-signals-view.png"},
+                          {"sheet": "Peers", "range": "A1:Q36", "file": "b15-peers-view.png"}]})
+steps.append({"id": "B16", "what": "Clear Saved view on Signals and on Peers",
+              "shows": "Each tab is back on its own picks; the view stays on Saved views",
+              "actions": [{"type": "cell", "sheet": "Signals", "cell": _box["Signals"], "value": ""},
+                          {"type": "cell", "sheet": "Peers", "cell": _box["Peers"], "value": ""}],
+              "reads": [{"sheet": "Signals", "cell": "P5", "expect": _PICKED_NOW},
+                        {"sheet": "Signals", "cell": _note["Signals"], "expect": ""},
+                        {"sheet": "Peers", "cell": _note["Peers"], "expect": ""},
+                        {"sheet": VT.TITLE, "cell": "E%d" % _v1["Peers"], "expect": "Home equity"}]})
 
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")

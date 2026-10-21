@@ -2004,3 +2004,29 @@ Three answers from the analyst, each the recommended one:
 Asked why Huntington is out on credit card: only its four-quarter delinquency average, 2026Q1 and 2026Q2,
 by the acquisition share (0.05; certificate 11813 absorbed 2026Q1); its quarter-end rates and its
 charge-offs (pro forma) are in. It returns in 2027Q1. Nothing changed for that; the setting is the book's.
+
+Codex on #467, two findings, both fixed: Quarters left out counted an overlap twice (it now counts the
+series' values on Data less those kept, what the lines lose), and the Glossary still sent readers to Assess.
+
+## 20 October 2026, evening: Saved views
+
+*"the factors on decide are easy to show as proof of threshold work. What about other tabs? Options to
+essentially 'save a view with notes'?"* Proposed three ways (a Saved views tab, a note per tab, pasted
+snapshots); the analyst took the first.
+
+- **Saved views** is a new tab after Peers: for Signals and for Peers, twelve numbered rows, each a note,
+  Data through and the tab's picks, and a Picks now row that reads the tab's own yellow cells to paste from.
+- **Saved view** is a new yellow box on each tab (Signals U5, Peers H5). A number calls up that row: each pick
+  it holds replaces the tab's, which is struck through; a blank cell keeps the tab's pick. The note shows
+  under the box; a row with no picks says so.
+- Peers' rule cells (row 15) and the peer switches on Decide are not part of a view.
+- Built last: every formula that named a pick reads its in-effect cell on Saved views instead. A pick no
+  formula reads is refused at build, not skipped.
+
+Not possible without a macro, and said in the proposal: Excel's own Custom Views are off in a workbook with
+a table, and no formula freezes a value, so a view is its picks; Data through is typed to record when.
+
+Codex on #468 (P1): a rebuild writes a new workbook, so its Saved views start empty. True, and true of
+every cell typed in (Decide's decisions, Periods left out, the peer switches): no build reads the workbook
+it replaces. This entry and the Glossary had said a rebuild keeps the picks; corrected. Carrying typed
+cells across a rebuild is a change to how every input works, put to the analyst rather than made here.

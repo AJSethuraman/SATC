@@ -1,7 +1,7 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2510 of 2510 reads as expected.**
+**2519 of 2519 reads as expected.**
 
 No differences.
 
@@ -13,7 +13,7 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | | Cell | Expected | Excel |
 |---|---|---|---|
 | ok | active | Summary | Summary |
-| ok | sheets | ['Summary', 'Decide', 'Signals', 'Peers', 'Thresholds', 'Internal', 'Lines by source', 'Pe | ['Summary', 'Decide', 'Signals', 'Peers', 'Thresholds', 'Internal', 'Lines by source', 'Pe |
+| ok | sheets | ['Summary', 'Decide', 'Signals', 'Peers', 'Saved views', 'Thresholds', 'Internal', 'Lines  | ['Summary', 'Decide', 'Signals', 'Peers', 'Saved views', 'Thresholds', 'Internal', 'Lines  |
 | ok | hidden | ['Internal', 'Internal data', 'Peers data', 'Peers delinquency data', 'Assess', 'Chart', ' | ['Internal', 'Internal data', 'Peers data', 'Peers delinquency data', 'Assess', 'Chart', ' |
 | ok | slicers | {'Product': 'Credit card', 'Measure': 'Net charge-offs'} | {'Product': 'Credit card', 'Measure': 'Net charge-offs'} |
 | ok | visible_rows | [10] | [10] |
@@ -2620,3 +2620,26 @@ The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book
 | ok | Signals!L53 | 36.51470839230916 | 36.51470839230916 |
 | ok | Signals!L54 | 73.23803479311124 | 73.23803479311124 |
 | ok | Signals!L55 | 110.4453569817389 | 110.4453569817389 |
+
+## B15 · On Saved views, fill view 1 for Signals (credit card) and for Peers (home equity, gross); type 1 under Saved view on each tab: 5 of 5
+
+Each tab follows its view: the picks the view holds replace the tab's, which are struck through, the rest are kept, and the note shows under the box.
+
+| | Cell | Expected | Excel |
+|---|---|---|---|
+| ok | Signals!P5 | Credit card · 30+ days past due incl. nonaccrual · KeyBank | Credit card · 30+ days past due incl. nonaccrual · KeyBank |
+| ok | Signals!U6 | Saved view 1: Card against the pack | Saved view 1: Card against the pack |
+| ok | Peers!H6 | Saved view 1: Home equity, gross rate | Saved view 1: Home equity, gross rate |
+| ok | Signals!B5 | Other consumer | Other consumer |
+| ok | Peers!B5 | Credit card | Credit card |
+
+## B16 · Clear Saved view on Signals and on Peers: 4 of 4
+
+Each tab is back on its own picks; the view stays on Saved views.
+
+| | Cell | Expected | Excel |
+|---|---|---|---|
+| ok | Signals!P5 | Other consumer · 30+ days past due incl. nonaccrual · KeyBank | Other consumer · 30+ days past due incl. nonaccrual · KeyBank |
+| ok | Signals!U6 |  |  |
+| ok | Peers!H6 |  |  |
+| ok | Saved views!E25 | Home equity | Home equity |
