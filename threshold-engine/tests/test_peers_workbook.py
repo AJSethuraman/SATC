@@ -43,7 +43,7 @@ RANK = dict(rank_by="net", last_n=20, min_obs=12)
 EXTRAS = {FIFTH_THIRD: ["2022Q2"]}
 #: No acquisition brought in the share in these tests: every product, none.
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
-DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED)
+DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED, acquisition_share=0.05)
 #: The pickers and settings on Peers (fixed by peers_workbook.PICKERS and SETTINGS).
 PRODUCT, RATE, PEER_A, PEER_B, WINDOW, DQ_MEASURE, DQ_BASIS = "B5", "C5", "D5", "E5", "F5", "J5", "K5"
 
@@ -197,7 +197,8 @@ def assert_rank_table(vals, info, books_p, certs, roster, kind="net"):
         assert num(peers_cell(vals, "D%d" % r)) == pytest.approx(last[c], abs=1e-12)
         assert num(peers_cell(vals, "E%d" % r)) == pytest.approx(last[c] - comp, abs=1e-9)
         assert (peers_cell(vals, "H%d" % r) == "—") if c == KEYBANK else \
-            peers_cell(vals, "H%d" % r).split(" · ")[0] in (PW.STATE_IN, PW.STATE_OUT)
+            (peers_cell(vals, "H%d" % r).split(" · ")[0] == PW.STATE_IN
+             or peers_cell(vals, "H%d" % r).startswith(PW.OUT))
     assert all(peers_cell(vals, "%s%d" % (c_, head + 1 + k)) in ("", None)
                for k in range(len(ranked), len(roster)) for c_ in "BCD")
     me = ranked.index(KEYBANK) + 1
@@ -892,14 +893,16 @@ def test_delinquency_composite_and_band_equal_the_module(dlq, dl_data, roster):
 
 def pack_states(dl_data, roster):
     """Each peer's state as the book reads it at the latest quarter-end, with
-    every peer switched on: out by rule when its own four-quarter average of
-    card 30+ incl. nonaccrual was not kept or the jump left it out."""
+    every peer switched on: out, with the rule delinquency.why_out names, when
+    its own four-quarter average of card 30+ incl. nonaccrual was not kept or the
+    jump left it out."""
     books = dl_books(dl_data, roster, "Credit card", PW.DQ_PACK_MEASURE)
     out = {}
     for b in R.peers(roster):
         last = books[b["cert"]][-1]
         left = last["avg4"] is None or (last["why_avg4"] or "").startswith(D.LEFT_OUT)
-        out[b["short"]] = PW.STATE_OUT if left else PW.STATE_IN
+        rule = D.why_out(books[b["cert"]], [], DQ_RULES["jump"], DQ_RULES["acquisition_share"])[0]
+        out[b["short"]] = (PW.OUT + ": " + rule if rule else PW.STATE_OUT) if left else PW.STATE_IN
     return out
 
 
@@ -937,7 +940,7 @@ def test_the_pack_line_is_one_named_cell_with_three_states(dlq, dl_data, roster,
         text = vals.get("WORKINGS!" + cell.split("!")[1].replace("$", ""))
         n_on = sum(s != PW.STATE_OFF for s in states)
         assert text.startswith("Peer group · %d of %d switched on" % (n_on, len(peers)))
-        outs = [s for s in peers if want[s] == PW.STATE_OUT]
+        outs = [s for s in peers if want[s].startswith(PW.OUT)]
         offs = [s for s in peers if want[s] == PW.STATE_OFF]
         out_part = text.split(" · out by the book's rules on 30+ incl. nonaccrual, %s: " % last_q)
         assert (len(out_part) == 2) == bool(outs)
@@ -948,7 +951,7 @@ def test_the_pack_line_is_one_named_cell_with_three_states(dlq, dl_data, roster,
         return text
 
     check(vals, want)
-    assert peers_cell(vals, lay["states"]["JPMorgan"]) in (PW.STATE_IN, PW.STATE_OUT)
+    assert peers_cell(vals, lay["states"]["JPMorgan"]) == PW.STATE_IN or         peers_cell(vals, lay["states"]["JPMorgan"]).startswith(PW.OUT)
     after = typed(p, tmp_path / "jpm.xlsx", {inc(info, "JPMorgan"): "No"})
     text = check(after, dict(want, JPMorgan=PW.STATE_OFF))
     # The formulas engine keeps TEXTJOIN's empty strings (", , JPMorgan, , "),

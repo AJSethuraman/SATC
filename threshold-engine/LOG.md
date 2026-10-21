@@ -2026,3 +2026,28 @@ snapshots); the analyst took the first.
 Not possible without a macro, and said in the proposal: Excel's own Custom Views are off in a workbook with
 a table, and no formula freezes a value, so a view is its picks. A rebuild with later quarters shows the
 same picks against more data; Data through is typed to record when.
+
+## 20 October 2026, night: why a bank is out
+
+*"it should just be more clear why a bank is out, out by rule is one thing but it is hard to keep track of
+all the little rules we have established"* The reason was already on Peers delinquency data (Why no
+four-quarter average); nothing on Decide or Peers said it. The analyst took the recommended layout:
+
+- **The state under each bank names the rule**: out: acquisition, out: jump, out: no rate (out: too few
+  quarters where the data is short). Out by rule stays only for a reason none of these names.
+- **Why out, beside the switches on Decide**: each bank out this quarter, in roster order, with one
+  sentence: what happened, in which quarter, the book's setting, and when it is back. Its heading names the
+  measure, the product picked on Peers and the quarter.
+- **The pack line names the rule**: "out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington
+  (acquisition)".
+
+Back in is read from the rule, not assumed: a jump or an acquisition counts while it is one of the
+window's last three quarters (delinquency.bank_delinquency checks k in i-2..i), so the bank is back three
+quarters after the latest one, unless its book moves again. A missing rate counts in any of the four, and
+when a rate returns is not known, so no quarter is given.
+
+**Corrected:** the entry above says Huntington returns on credit card in 2027Q1. It is 2026Q4: the
+acquisition was 2026Q1, and three quarters later it leaves the window. Said in chat on 20 Oct 2026 from a
+four-quarter reading of the window, which the code does not do.
+
+The acquisition share now travels with the delinquency settings (D_KEYS), so the sentence can say it.

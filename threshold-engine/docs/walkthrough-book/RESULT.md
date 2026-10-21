@@ -1,12 +1,12 @@
 # Result: the book walkthrough
 
 Excel 16.0, `C:\Users\ajish\SATC\threshold-engine\docs\walkthrough-book\out\walk.xlsx`. Each read: what the step expected, what Excel said.
-**2519 of 2519 reads as expected.**
+**2523 of 2523 reads as expected.**
 
 No differences.
 
 
-## B1 · Open the workbook as built: 51 of 51
+## B1 · Open the workbook as built: 55 of 55
 
 It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide shows the first product and measure, no source picked and nothing decided.
 
@@ -47,6 +47,10 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | ok | Thresholds!L5 | 3.7557700716206863 | 3.755770071620686 |
 | ok | Thresholds!AK5 |  |  |
 | ok | Thresholds!AJ5 | 4.009514461690263 | 4.009514461690263 |
+| ok | Peers!L10 | out: acquisition | out: acquisition |
+| ok | Decide!B104 | Huntington | Huntington |
+| ok | Decide!D104 | An acquisition in 2026Q1 brought in at least 5% of its book. | An acquisition in 2026Q1 brought in at least 5% of its book. Back in 2026Q4 unless it move |
+| ok | Decide!B103 | Why out · 30+ incl. nonaccrual, credit card, 2026Q2 | Why out · 30+ incl. nonaccrual, credit card, 2026Q2 |
 | ok | Peers!B14 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Peers!B39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Peers!J39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
@@ -2104,10 +2108,10 @@ One row shows; the lines are KeyBank's own; every source is rated on them, besid
 | ok | Lines by source!Q19 | 5 | 5 |
 | ok | Lines by source!R19 | High | High |
 | ok | Lines by source!S19 |  |  |
-| ok | Decide!L125 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
-| ok | Decide!L126 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
-| ok | Decide!L127 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
-| ok | Decide!L128 | Either fits. | Either fits. |
+| ok | Decide!L135 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
+| ok | Decide!L136 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
+| ok | Decide!L137 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
+| ok | Decide!L138 | Either fits. | Either fits. |
 
 ## B4 · Type 3.5 under How rare High is (z), in the yellow row: 55 of 55
 
@@ -2166,10 +2170,10 @@ High's line moves for every source of the row; Thresholds and Summary follow.
 | ok | Lines by source!R19 | Moderate-High | Moderate-High |
 | ok | Lines by source!S19 |  |  |
 | ok | Summary!D11 | 4 Moderate-High | 4 Moderate-High |
-| ok | Decide!L125 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
-| ok | Decide!L126 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
-| ok | Decide!L127 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
-| ok | Decide!L128 | Either fits. | Either fits. |
+| ok | Decide!L135 | Fits below 1.00, where Moderate-Low begins. It fits. | Fits below 1.00, where Moderate-Low begins. It fits. |
+| ok | Decide!L136 | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. | Fits above 0.50, and below 2.98 so line 2 stays above zero. It fits. |
+| ok | Decide!L137 | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi | Fits above 0.34 (High beyond Moderate-High) and up to 10.98 (some quarter kept can rate Hi |
+| ok | Decide!L138 | Either fits. | Either fits. |
 
 ## B5 · Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason: 45 of 45
 
@@ -2177,11 +2181,11 @@ KeyBank's lines move as the reference says; the other sources' own lines do not;
 
 | | Cell | Expected | Excel |
 |---|---|---|---|
-| ok | Decide!D104 | Leave out 2012Q3 to 2013Q4 | Leave out 2012Q3 to 2013Q4 |
-| ok | Decide!L111 | Left out: 6 quarters | Left out: 6 quarters |
+| ok | Decide!D114 | Leave out 2012Q3 to 2013Q4 | Leave out 2012Q3 to 2013Q4 |
+| ok | Decide!L121 | Left out: 6 quarters | Left out: 6 quarters |
 | ok | Decide!J14 | 1 | 1 |
 | ok | Decide!K14 | 6 | 6 |
-| ok | Decide!D107 | Left out: 2012Q3 to 2013Q4, Suggested by the evidence: unusual stretch. The chart draws th | Left out: 2012Q3 to 2013Q4, Suggested by the evidence: unusual stretch. The chart draws th |
+| ok | Decide!D117 | Left out: 2012Q3 to 2013Q4, Suggested by the evidence: unusual stretch. The chart draws th | Left out: 2012Q3 to 2013Q4, Suggested by the evidence: unusual stretch. The chart draws th |
 | ok | Assess!N186 | Credit card - Nonaccrual - KeyBank | Credit card - Nonaccrual - KeyBank |
 | ok | Assess!T186 | Left out: 6 quarters | Left out: 6 quarters |
 | ok | Lines by source!E19 | 0.2721174589355553 | 0.2721174589355553 |
@@ -2355,7 +2359,7 @@ Every decision, pick and setting typed is still there, and the lines with them.
 |---|---|---|---|
 | ok | Decide!D14 | KeyBank | KeyBank |
 | ok | Decide!H14 | 3.5 | 3.5 |
-| ok | Decide!D111 | 2012Q3 | 2012Q3 |
+| ok | Decide!D121 | 2012Q3 | 2012Q3 |
 | ok | Decide!E14 | Accept these lines | Accept these lines |
 | ok | Decide!L14 | Walkthrough: accepted with z 3.5 | Walkthrough: accepted with z 3.5 |
 | ok | Decide!L1 | Decided: 1 of 56 · accepted 1 · rejected 0 | Decided: 1 of 56 · accepted 1 · rejected 0 |

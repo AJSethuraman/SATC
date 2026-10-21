@@ -840,7 +840,8 @@ def build(out, *, cache, roster, series_dir, first: str, last: str, products: Se
                 note = note + RC.note_lines(changes, books.members(p), m, tail[0][0], tail[-1][0], note)
             series.append((path, tail, series_note(note, tail, before, after), before, after, p))
         dq_spec = dict(data=data, products=list(products), jump=jump, min_book=min_book,
-                       exempt_self=exempt_self, acquired=acquired, measure=START_MEASURE,
+                       exempt_self=exempt_self, acquired=acquired, acquisition_share=acquisition_share,
+                       measure=START_MEASURE,
                        basis=START_BASIS)
         # 30+ to charge-off and the gaps (flows.py): the delinquency fields and
         # the gross charge-offs of each bank's own filings. The pack composite
