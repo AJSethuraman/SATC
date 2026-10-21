@@ -2422,7 +2422,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
             # The pack line: its workbook-level name and its cell on Workings.
             "pack_line": {"name": PACK_LINE, "cell": S["pack_line"], "helpers": cols(pk)},
             # Why out, for Decide's list: its heading, and per peer (row 2 on) the name, why and number.
-            "why_out": {"head": S_PE["why_head"], "names": WK + pk.down("name", 2, 1 + NP),
+            # None when delinquency was not built: no rule was tested, so there is no list to show.
+            "why_out": None if dl is None else {"head": S_PE["why_head"], "names": WK + pk.down("name", 2, 1 + NP),
                         "whys": WK + pk.down("why", 2, 1 + NP), "numbers": WK + pk.down("out_n", 2, 1 + NP)},
             "scalars": dict(S),
             "charge_offs": {"helpers": cols(co), "first_row": 2, "quarters": grid},

@@ -1086,6 +1086,7 @@ def test_not_built_the_dashboard_and_the_tab_say_so(all_peers):
     p, info, vals = all_peers
     wb = load_workbook(p)
     assert info["delinquency"] is None
+    assert info["why_out"] is None  # no rule was tested, so Decide shows no Why out list
     assert "Delinquency was not built" in wb["DelinquencyData"]["A1"].value
     assert peers_cell(vals, "J%d" % info["layout"]["tiles"]) == PW.NOT_BUILT
     run = {r[0]: r for r in run_rows(wb) if r and r[0]}
