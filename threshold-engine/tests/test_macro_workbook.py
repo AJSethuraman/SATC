@@ -663,3 +663,14 @@ def test_the_printout_and_the_record_carry_the_credit_the_survey_licence_require
     record = json.loads(capsys.readouterr().out)
     sce = [x for x in record["shown"] if x["key"] == "expected_missed_payment"]
     assert sce and all(x["credit"] == SCE_CREDIT for x in sce)
+
+
+def test_show_prints_the_credit_with_the_survey_data_it_prints(shown_cache, capsys):  # noqa: F811
+    # Codex on #452: show printed the NY Fed survey's observations without the attribution its licence requires.
+    from threshold_engine.macro.__main__ import main
+    from threshold_engine.macro.catalog import SCE_CREDIT
+    assert main(["show", "--cache", str(shown_cache), "expected_missed_payment", "--tail", "3"]) == 0
+    out = capsys.readouterr().out
+    assert "2026-09-01" in out and out.rstrip().endswith(SCE_CREDIT)
+    assert main(["show", "--cache", str(shown_cache), "saving_rate", "--tail", "3"]) == 0
+    assert "Survey of Consumer Expectations" not in capsys.readouterr().out     # only where a licence asks

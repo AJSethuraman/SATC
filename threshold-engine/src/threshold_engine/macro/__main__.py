@@ -74,10 +74,15 @@ def cmd_show(a):
         raise SystemExit("not in the catalog: %s" % a.key)
     points, vintage = load(a.cache, a.key, a.vintage)
     s = BY_KEY[a.key]
-    print(json.dumps({"key": s.key, "title": s.title, "publisher": s.publisher, "unit": s.unit,
-                      "vintage": vintage, "breaks": [list(b) for b in s.breaks]}, indent=1))
+    # A licence that asks for wording gets it wherever the data are printed: here, before and after them
+    # (Codex on #452: show printed the NY Fed survey's numbers without it).
+    print(json.dumps(dict({"key": s.key, "title": s.title, "publisher": s.publisher, "unit": s.unit,
+                           "vintage": vintage, "breaks": [list(b) for b in s.breaks]},
+                          **({"credit": s.credit} if s.credit else {})), indent=1))
     for d, v in points[-a.tail:]:
         print(d, "missing" if v is None else v)
+    if s.credit:
+        print("\n" + s.credit)
 
 
 def cmd_settings_template(a):
