@@ -2024,5 +2024,9 @@ snapshots); the analyst took the first.
   formula reads is refused at build, not skipped.
 
 Not possible without a macro, and said in the proposal: Excel's own Custom Views are off in a workbook with
-a table, and no formula freezes a value, so a view is its picks. A rebuild with later quarters shows the
-same picks against more data; Data through is typed to record when.
+a table, and no formula freezes a value, so a view is its picks; Data through is typed to record when.
+
+Codex on #468 (P1): a rebuild writes a new workbook, so its Saved views start empty. True, and true of
+every cell typed in (Decide's decisions, Periods left out, the peer switches): no build reads the workbook
+it replaces. This entry and the Glossary had said a rebuild keeps the picks; corrected. Carrying typed
+cells across a rebuild is a change to how every input works, put to the analyst rather than made here.

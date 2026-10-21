@@ -108,8 +108,9 @@ TERMS = [
      "Each cell equals the tab's yellow cell over the same heading. Copy it and paste values onto a view's row."),
     ("Data through",
      "The latest quarter in the workbook when a view was saved, typed beside it.",
-     "Picked from the quarters on Data. Not updated by a rebuild: a rebuilt workbook with later quarters shows "
-     "the same picks against more data."),
+     "Picked from the quarters on Data. A view holds picks, not values: in the same workbook it shows the "
+     "same figures each time. A rebuild writes a new workbook whose Saved views start empty, like every "
+     "other cell typed in."),
     ("Floor at zero",
      "Whether a value at or below zero is always 1 Low for a series. True of a rate; false of a gap between two "
      "rates.",
