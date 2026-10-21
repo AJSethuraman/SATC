@@ -49,7 +49,7 @@ It opens on Summary; the tabs in order; two slicers, each with one button picked
 | ok | Thresholds!AJ5 | 4.009514461690263 | 4.009514461690263 |
 | ok | Peers!L10 | out: acquisition | out: acquisition |
 | ok | Decide!B104 | Huntington | Huntington |
-| ok | Decide!D104 | An acquisition in 2026Q1 brought in at least 5% of its book. | An acquisition in 2026Q1 brought in at least 5% of its book. Back in 2026Q4 unless it move |
+| ok | Decide!D104 | An acquisition in 2026Q1 brought in at least 5% of its book, or a book not filed. | An acquisition in 2026Q1 brought in at least 5% of its book, or a book not filed. Back in  |
 | ok | Decide!B103 | Why out · 30+ incl. nonaccrual, credit card, 2026Q2 | Why out · 30+ incl. nonaccrual, credit card, 2026Q2 |
 | ok | Peers!B14 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
 | ok | Peers!B39 | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q | Peer group · 15 of 15 switched on · out by the book's rules on 30+ incl. nonaccrual, 2026Q |
