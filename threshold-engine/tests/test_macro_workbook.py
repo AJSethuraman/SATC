@@ -332,6 +332,17 @@ def test_a_reading_only_the_what_if_rates_still_shows_where_its_ratings_start(ca
     want = [row["b"]["lines"][str(k)] for k in range(2, 6)]
     got = [ws.cell(head.row + k, head.column).value for k in range(2, 6)]
     assert got == [pytest.approx(w / 100) if w is not None else "not reached" for w in want]   # in percent
+    # Codex on #452: and its chart: the history, with the what-if's lines dashed over it and no bands under
+    # it, since these settings do not rate it.
+    assert len(ws._charts) == 1
+    chart = ws._charts[0]
+    assert type(chart).__name__ == "LineChart"
+    with zipfile.ZipFile(out) as z:
+        xml = [z.read(n).decode() for n in z.namelist() if n.startswith("xl/charts/chart")]
+    mine = [x for x in xml if "not rated under these settings" in x]
+    assert len(mine) == 1 and "areaChart" not in mine[0] and mine[0].count('prstDash val="dash"') == 4
+    assert "No bands" in _text(ws)
+    assert _holds_together_in_excel(out) > 0
 
 
 def test_a_series_in_neither_run_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811

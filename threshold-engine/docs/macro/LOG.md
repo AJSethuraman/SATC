@@ -800,7 +800,11 @@ group with licensed series left out, and **shown, not rated**.
 - **Codex on a446af65:** `show` printed the survey's numbers without the credit too. It now prints it
   with them. `show`, `rate` and the workbook are every place the tool prints a series' data, so each now
   carries the credit wherever a licence asks for one.
-- **Checks.** 136 macro tests pass, 13 of them new (139 after Codex's three). Each new behaviour was broken in turn, and a test
+- **Codex on 341d60a9** (the what-if, not the shown series): a reading these settings do not rate and the
+  what-if does had its table of starting points and no chart. It is now drawn without bands, with the
+  what-if's lines dashed over the history, and the tab's note says why. The plain chart the shown series
+  use now takes dashed lines too. Opened in LibreOffice and looked at.
+- **Checks.** 136 macro tests pass, 13 of them new (139 after Codex's four; the last extends a test). Each new behaviour was broken in turn, and a test
   failed every time but one. Reading the shown series again in `build`'s fingerprint check is not
   separately testable, because the Shown tab has already read every one of them. It stays, so the check
   says what it means.

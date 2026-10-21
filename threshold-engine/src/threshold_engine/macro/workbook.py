@@ -1038,6 +1038,69 @@ def build(out, result, pull, whatif=None):
         area += latest
         return area
 
+    def plain_chart(ws, title, unit, data_col, first, last, latest_col, frequency, axis, step, dashed_col=None):
+        """The history in ink with the latest reading ringed, and no bands: nothing rates it under these
+        settings (a shown series, or a reading only the what-if rates), so no reading is placed as better or
+        worse. A what-if's lines, when there are any, are dashed over it, as on a banded chart."""
+        cats = Reference(ws, min_col=14, min_row=first, max_row=last)
+        line = LineChart()
+        line.add_data(Reference(ws, min_col=data_col, min_row=first - 1, max_row=last), titles_from_data=True)
+        line.set_categories(cats)
+        hist = line.series[0]
+        hist.graphicalProperties.line = ln(K.INK, 2.0)
+        hist.marker.symbol = "none"
+        hist.smooth = False
+        latest = LineChart()
+        latest.add_data(Reference(ws, min_col=latest_col, min_row=first - 1, max_row=last), titles_from_data=True)
+        latest.set_categories(cats)
+        pt = latest.series[0]
+        pt.graphicalProperties.line.noFill = True
+        pt.marker.symbol = "circle"
+        pt.marker.size = 7
+        pt.marker.graphicalProperties = GraphicalProperties(solidFill="FFFFFF", ln=ln(K.INK, 1.5))
+        pt.dLbls = DataLabelList()
+        pt.dLbls.showVal, pt.dLbls.showCatName, pt.dLbls.showSerName, pt.dLbls.showLegendKey = True, False, False, False
+        pt.dLbls.position = "l"
+        pt.dLbls.numFmt = "#,##0.0#"
+        pt.dLbls.txPr = text(9, K.INK_TEXT, True)
+        line.x_axis = years_axis([ws.cell(first, 14).value.isoformat(), ws.cell(last, 14).value.isoformat()],
+                                 frequency)
+        dashed = None
+        if dashed_col:
+            dashed = LineChart()
+            dashed.add_data(Reference(ws, min_col=dashed_col, max_col=dashed_col + 3, min_row=first - 1,
+                                      max_row=last), titles_from_data=True)
+            dashed.set_categories(cats)
+            for s_, colour in zip(dashed.series, K.LINES):
+                s_.graphicalProperties.line = ln(colour, 1.25, "dash")
+                s_.marker.symbol = "none"
+                s_.smooth = False
+        for chart_ in (line, latest) + ((dashed,) if dashed else ()):
+            chart_.x_axis = line.x_axis
+            chart_.y_axis.crossAx = line.x_axis.axId
+        ax = line.y_axis
+        ax.delete = False
+        ax.majorGridlines = None
+        ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
+        ax.txPr = text()
+        ax.scaling.min, ax.scaling.max = axis
+        ax.majorUnit = step
+        ax.number_format = "#,##0.0#" if abs(axis[1]) < 1000 else "#,##0"
+        ax.title = unit
+        line.visible_cells_only = False     # the latest point lives in a hidden helper column
+        line.title = title
+        line.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True,
+                                                                                      solidFill=K.INK))
+        line.legend = None
+        line.display_blanks = "gap"
+        line.height, line.width = 8.5, 24
+        line.roundedCorners = False
+        line.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
+        if dashed:
+            line += dashed
+        line += latest
+        return line
+
     for key in national:
         item = items[key]
         mine = by_key.get(key, {})
@@ -1110,14 +1173,20 @@ def build(out, result, pull, whatif=None):
             ws.row_dimensions[row + 3].height = 30
         row += tall + 1
 
+        # Every reading the what-if rates on the same measure gets its lines drawn, the ones these settings do
+        # not rate too: those are drawn without bands (Codex on #452: a reading only the what-if rated had its
+        # table of starting points and no chart).
         drawn = [rd for rd in ("position", "change") if (wrows.get(key, {}).get(rd) or {}).get("b")
-                 and wrows[key][rd]["same_measure"] and mine.get(rd)]
+                 and wrows[key][rd]["same_measure"]]
         entries = [("The charts", "The history in black over five shaded bands, one for each rating, from 1 Low "
                                   "(lightest) to 5 High (darkest), as these settings place them. The circle is the "
                                   "latest reading.")]
         if drawn:
             entries.append(("Dashed lines", "Where ratings 2, 3, 4 and 5 start under %s, drawn over the years that "
                                             "history covers." % whatif["b"]))
+        if any(not mine.get(rd) for rd in drawn):
+            entries.append(("No bands", "A reading only the what-if rates is drawn without bands, since these "
+                                        "settings do not rate it: the history, and the what-if's lines dashed."))
         entries += [("Rating starts", "Where each rating starts: the least extreme reading in this history that "
                                       "took it, and how many readings took it."),
                     ("History", "Every reading, with its change over %d months, is in columns N to Q. A period the "
@@ -1200,21 +1269,30 @@ def build(out, result, pull, whatif=None):
         helper = 20                                 # T onwards, hidden
         for n_reading, (reading, data_col) in enumerate((("position", 15), ("change", 16))):
             r = mine.get(reading)
-            if not r:
+            if not r and reading not in drawn:
                 helper += 7
                 continue
+            ref = r or wrows[key][reading]["b"]         # the what-if's own rating, when only it rates this
             values = [v for _, v in points if v is not None] if reading == "position" else list(chg.values())
-            lo, hi, step = nice_axis(min(values + [r["low"]]), max(values + [r["high"]]))
-            base, heights, order = band_heights(r["lines"], r["direction"], lo, hi)
-            r = dict(r, order=order, axis=(lo, hi), step=step)
-            names = ["base"] + [label(k) for k in order] + ["Latest"]
+            # The axis holds every reading drawn; a rating's own lowest and highest are among them, and the
+            # what-if's lines are readings of the same history.
+            ends = [r["low"], r["high"]] if r else []
+            lo, hi, step = nice_axis(min(values + ends), max(values + ends))
+            if r:
+                base, heights, order = band_heights(r["lines"], r["direction"], lo, hi)
+                r = dict(r, order=order, axis=(lo, hi), step=step)
+                names = ["base"] + [label(k) for k in order] + ["Latest"]
+            else:
+                names = [None] * 6 + ["Latest"]
             for j, name in enumerate(names):
-                put(ws, top, helper + j, name, font=F_NOTE)
-            latest_row = first + dates.index(_date(r["date"]).isoformat())
-            for rr in range(first, last + 1):
-                ws.cell(rr, helper, base)
-                for j, h in enumerate(heights):
-                    ws.cell(rr, helper + 1 + j, h)
+                if name:
+                    put(ws, top, helper + j, name, font=F_NOTE)
+            latest_row = first + dates.index(_date(ref["date"]).isoformat())
+            if r:
+                for rr in range(first, last + 1):
+                    ws.cell(rr, helper, base)
+                    for j, h in enumerate(heights):
+                        ws.cell(rr, helper + 1 + j, h)
             # Rounded here: LibreOffice ignores a label's own number format.
             ws.cell(latest_row, helper + 6, round(ws.cell(latest_row, data_col).value, 2))
             for j in range(7):
@@ -1238,9 +1316,12 @@ def build(out, result, pull, whatif=None):
                      "Change over %d months against its history" % months)
             if dashed_col:
                 title += " (dashed: where 2 to 5 start under the what-if)"
-            chart = banded_chart(ws, title, item.unit if reading == "position" else
-                                 ("percent" if item.change_in == "percent" else "points"),
-                                 data_col, first, last, helper, r, item.frequency, dashed_col)
+            unit = item.unit if reading == "position" else ("percent" if item.change_in == "percent" else "points")
+            if r:
+                chart = banded_chart(ws, title, unit, data_col, first, last, helper, r, item.frequency, dashed_col)
+            else:
+                chart = plain_chart(ws, title + "; not rated under these settings", unit, data_col, first, last,
+                                    helper + 6, item.frequency, (lo, hi), step, dashed_col)
             ws.add_chart(chart, "B%d" % row)
             row += 18
             helper += 7
@@ -1313,55 +1394,6 @@ def build(out, result, pull, whatif=None):
         ws.print_area = "A1:L%d" % row
 
     # -- one sheet per shown series -----------------------------------------
-    def plain_chart(ws, title, unit, data_col, first, last, latest_col, frequency, axis, step):
-        """The history in ink with the latest reading ringed, and no bands: the series is not rated, so no
-        reading is placed as better or worse."""
-        cats = Reference(ws, min_col=14, min_row=first, max_row=last)
-        line = LineChart()
-        line.add_data(Reference(ws, min_col=data_col, min_row=first - 1, max_row=last), titles_from_data=True)
-        line.set_categories(cats)
-        hist = line.series[0]
-        hist.graphicalProperties.line = ln(K.INK, 2.0)
-        hist.marker.symbol = "none"
-        hist.smooth = False
-        latest = LineChart()
-        latest.add_data(Reference(ws, min_col=latest_col, min_row=first - 1, max_row=last), titles_from_data=True)
-        latest.set_categories(cats)
-        pt = latest.series[0]
-        pt.graphicalProperties.line.noFill = True
-        pt.marker.symbol = "circle"
-        pt.marker.size = 7
-        pt.marker.graphicalProperties = GraphicalProperties(solidFill="FFFFFF", ln=ln(K.INK, 1.5))
-        pt.dLbls = DataLabelList()
-        pt.dLbls.showVal, pt.dLbls.showCatName, pt.dLbls.showSerName, pt.dLbls.showLegendKey = True, False, False, False
-        pt.dLbls.position = "l"
-        pt.dLbls.numFmt = "#,##0.0#"
-        pt.dLbls.txPr = text(9, K.INK_TEXT, True)
-        line.x_axis = years_axis([ws.cell(first, 14).value.isoformat(), ws.cell(last, 14).value.isoformat()],
-                                 frequency)
-        for chart_ in (line, latest):
-            chart_.x_axis = line.x_axis
-            chart_.y_axis.crossAx = line.x_axis.axId
-        ax = line.y_axis
-        ax.delete = False
-        ax.majorGridlines = None
-        ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
-        ax.txPr = text()
-        ax.scaling.min, ax.scaling.max = axis
-        ax.majorUnit = step
-        ax.number_format = "#,##0.0#" if abs(axis[1]) < 1000 else "#,##0"
-        ax.title = unit
-        line.visible_cells_only = False     # the latest point lives in a hidden helper column
-        line.title = title
-        line.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True,
-                                                                                      solidFill=K.INK))
-        line.legend = None
-        line.display_blanks = "gap"
-        line.height, line.width = 8.5, 24
-        line.roundedCorners = False
-        line.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
-        line += latest
-        return line
 
     for _, keys in SHOWN_TOPICS:
         for key in keys:
