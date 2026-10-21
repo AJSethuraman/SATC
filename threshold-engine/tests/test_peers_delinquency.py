@@ -580,7 +580,8 @@ def test_why_out_names_the_rule_and_when_the_bank_is_back():
                                                             "jump. Back in 2026Q4 unless it moves again.")
     rows = _rows([100, 100, 100, 100, 104, 104], D.WHY_ACQUIRED % "2026Q1")
     assert D.why_out(rows, ["20260331"], 0.25, 0.05) == (D.RULE_ACQUIRED, "An acquisition in 2026Q1 brought in "
-                                                         "at least 5% of its book. Back in 2026Q4 unless it moves again.")
+                                                         "at least 5% of its book, or a book not filed. "
+                                                         "Back in 2026Q4 unless it moves again.")
     # the latest event in the window sets Back in, though the reason names the first
     rows = _rows([100, 100, 100, 140, 140, 190], D.WHY_JUMP % ("2025Q4", 40.0))
     assert D.why_out(rows, [], 0.25, 0.05)[1].endswith("Back in 2027Q1 unless it moves again.")

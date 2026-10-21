@@ -640,7 +640,7 @@ def _first_sentence(b):
     rest = why.split(": ", 1)[1]
     q = rest.split(" ")[0]
     pct = lambda x: "%g%%" % round(100 * x, 6)                                # noqa: E731
-    return {"acquisition": lambda: "An acquisition in %s brought in at least %s of its book." % (q, pct(_SHARE)),
+    return {"acquisition": lambda: "An acquisition in %s brought in at least %s of its book, or a book not filed." % (q, pct(_SHARE)),
             "jump": lambda: ("Its book went from 0 to above 0 in %s." % q if rest.endswith("from 0 to above 0") else
                              "Its book moved %s in %s, more than the %s jump." % (rest.split(" ")[1], q, pct(_JUMP))),
             "no rate": lambda: "No rate in %s: %s." % (q, rest.split(" ", 1)[1][1:-1]),

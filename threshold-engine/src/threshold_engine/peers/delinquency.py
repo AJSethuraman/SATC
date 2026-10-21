@@ -219,7 +219,9 @@ def why_out(rows: Sequence[dict], acquired: Iterable[str], jump: float, share: f
         back = " Back in %s unless it moves again." % _plus(events[-1], 3) if events else ""
         q = why.split(": ", 1)[1].split(" ", 1)[0]
         if why.startswith(WHY_ACQUIRED_PREFIX):
-            return RULE_ACQUIRED, "An acquisition in %s brought in at least %s of its book.%s" % (q, pct(share), back)
+            # books.acquired_quarters also lists a quarter whose absorbed book was not filed.
+            return RULE_ACQUIRED, ("An acquisition in %s brought in at least %s of its book, or a book not "
+                                   "filed.%s" % (q, pct(share), back))
         moved = why.split(": ", 1)[1]
         if moved.endswith(" from 0 to above 0"):
             said = "Its book went from 0 to above 0 in %s" % q
