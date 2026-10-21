@@ -2024,9 +2024,15 @@ snapshots); the analyst took the first.
   formula reads is refused at build, not skipped.
 
 Not possible without a macro, and said in the proposal: Excel's own Custom Views are off in a workbook with
-<<<<<<< HEAD
-a table, and no formula freezes a value, so a view is its picks. A rebuild with later quarters shows the
-same picks against more data; Data through is typed to record when.
+a table, and no formula freezes a value, so a view is its picks; Data through is typed to record when.
+
+Codex on #468 (P1): a rebuild writes a new workbook, so its Saved views start empty. True, and true of
+every cell typed in (Decide's decisions, Periods left out, the peer switches): no build reads the workbook
+it replaces. This entry and the Glossary had said a rebuild keeps the picks; corrected. Carrying typed
+cells across a rebuild is a change to how every input works, put to the analyst rather than made here.
+
+Asked whether a rebuild should carry typed cells forward from the workbook it replaces (every input, Saved
+views only, or neither): the analyst chose to leave it as is. A rebuild starts fresh; the Glossary says so.
 
 ## 20 October 2026, night: why a bank is out
 
@@ -2036,7 +2042,7 @@ four-quarter average); nothing on Decide or Peers said it. The analyst took the 
 
 - **The state under each bank names the rule**: out: acquisition, out: jump, out: no rate (out: too few
   quarters where the data is short). Out by rule stays only for a reason none of these names.
-- **Why out, beside the switches on Decide**: each bank out this quarter, in roster order, with one
+- **Why out, under the switches on Decide**: each bank out this quarter, in roster order, with one
   sentence: what happened, in which quarter, the book's setting, and when it is back. Its heading names the
   measure, the product picked on Peers and the quarter.
 - **The pack line names the rule**: "out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington
@@ -2052,14 +2058,3 @@ acquisition was 2026Q1, and three quarters later it leaves the window. Said in c
 four-quarter reading of the window, which the code does not do.
 
 The acquisition share now travels with the delinquency settings (D_KEYS), so the sentence can say it.
-=======
-a table, and no formula freezes a value, so a view is its picks; Data through is typed to record when.
-
-Codex on #468 (P1): a rebuild writes a new workbook, so its Saved views start empty. True, and true of
-every cell typed in (Decide's decisions, Periods left out, the peer switches): no build reads the workbook
-it replaces. This entry and the Glossary had said a rebuild keeps the picks; corrected. Carrying typed
-cells across a rebuild is a change to how every input works, put to the analyst rather than made here.
->>>>>>> origin/saved-views
-
-Asked whether a rebuild should carry typed cells forward from the workbook it replaces (every input, Saved
-views only, or neither): the analyst chose to leave it as is. A rebuild starts fresh; the Glossary says so.
