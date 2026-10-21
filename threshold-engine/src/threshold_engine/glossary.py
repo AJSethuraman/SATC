@@ -98,6 +98,13 @@ TERMS = [
     ("Jump row",
      "The row of links under the controls on Signals, one per section.",
      "Each is a hyperlink to its section's first cell on Signals."),
+    ("Why out",
+     "Beside the peer switches on Decide: each peer the book's rules take out of the pack this quarter, and why.",
+     "Read from the bank's own 30+ incl. nonaccrual rows for the product picked on Peers. acquisition: an "
+     "acquisition brought in at least the book's acquisition share of its book in one of the last three "
+     "quarters. jump: its book moved more than the book's jump in one of them. no rate: one of the four "
+     "quarters has no rate. A jump or an acquisition stops counting three quarters after it, which gives "
+     "Back in; a missing rate gives none, since when it returns is not known."),
     ("Saved view",
      "A numbered row of picks for Signals or Peers, with a note, kept on the Saved views tab.",
      "Typed or picked under Saved view on Signals or Peers, 1 to 12. Each pick the view's row holds replaces "
@@ -540,7 +547,7 @@ _BY_TAB = {
                "Low", "Moderate-High", "High", "What fits the history the lines are set from",
                "How rare High is (z)", "Spread of levels", "On a line, rate it", "Check", "Decision",
                "Lines set from", "Rating on these lines", "What each source's own history would give",
-               "Reporting change"),
+               "Reporting change", "Why out"),
     "Signals": ("Signals", "Where the dollars are", "Pack line", "Rescaled", "Lead", "Fit (r)",
                 "Window for the normal", "Shift", "Jump row", "Saved view"),
     "Saved views": ("Picks now", "Data through"),

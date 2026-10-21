@@ -22,6 +22,7 @@ from threshold_engine.peers.delinquency import (
     WHY_SMALL,
     band_delinquency, bank_delinquency, basis_key, composite_delinquency, fields_for,
     industry_delinquency, values)
+from threshold_engine.peers import delinquency as D
 from threshold_engine.profile import percentile
 from threshold_engine.workbook import read_series
 
@@ -560,3 +561,37 @@ def test_other_consumer_before_2001_names_the_line_not_filed():
     assert rows[0]["rate"] is None and rows[0]["why"] == "not filed this quarter: LNCONRP is blank"
     assert rows[1]["rate"] == 100 * 5 / 600
     assert "no other consumer delinquency rate is written before then" in DEFINITIONS["Other consumer"]
+
+
+def _rows(balances, why_last, avg_last=None, rates=None):
+    """bank_delinquency-shaped rows from 2025Q1, the last one's four-quarter average as given."""
+    qs = ["2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2"][:len(balances)]
+    rows = [{"q": q, "balance": b, "rate": (rates or [1.0] * len(balances))[i], "avg4": 1.0, "why_avg4": None,
+             "why": None} for i, (q, b) in enumerate(zip(qs, balances))]
+    rows[-1]["avg4"], rows[-1]["why_avg4"] = avg_last, why_last
+    return rows
+
+
+def test_why_out_names_the_rule_and_when_the_bank_is_back():
+    """The analyst, 20 Oct 2026: "it should just be more clear why a bank is out". A jump or an
+    acquisition counts while it is one of the window's last three quarters: back three after it."""
+    rows = _rows([100, 100, 100, 100, 146.3, 147], D.WHY_JUMP % ("2026Q1", 46.3))
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_JUMP, "Its book moved +46.3% in 2026Q1, more than the 25% "
+                                                            "jump. Back in 2026Q4 unless it moves again.")
+    rows = _rows([100, 100, 100, 100, 104, 104], D.WHY_ACQUIRED % "2026Q1")
+    assert D.why_out(rows, ["20260331"], 0.25, 0.05) == (D.RULE_ACQUIRED, "An acquisition in 2026Q1 brought in "
+                                                         "at least 5% of its book, or a book not filed. "
+                                                         "Back in 2026Q4 unless it moves again.")
+    # two events in the window: the latest sets Back in, so it is the one named, whichever rule it is
+    rows = _rows([100, 100, 100, 140, 140, 190], D.WHY_JUMP % ("2025Q4", 40.0))
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_JUMP, "Its book moved +35.7% in 2026Q2, more than the 25% "
+                                                            "jump. Back in 2027Q1 unless it moves again.")
+    rows = _rows([100, 100, 100, 140, 140, 141], D.WHY_JUMP % ("2025Q4", 40.0))
+    assert D.why_out(rows, ["20260630"], 0.25, 0.05)[:1] == (D.RULE_ACQUIRED,)
+    assert D.why_out(rows, ["20260630"], 0.25, 0.05)[1].startswith("An acquisition in 2026Q2")
+    rows = _rows([0, 0, 0, 5, 5, 5], D.WHY_RATE_MISSING % ("2025Q3", D.WHY_NO_BOOK))
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_NO_RATE, "No rate in 2025Q3: no book (balance 0 or below). "
+                                                               "The average needs all four quarters.")
+    assert D.why_out(_rows([1, 1, 1, 1], None, avg_last=1.0), [], 0.25, 0.05) == ("", "")
+    assert D.why_out(_rows([1, 1], D.WHY_FEWER_THAN_FOUR), [], 0.25, 0.05) == (
+        D.RULE_FEW, "Fewer than four consecutive quarter-ends in the data.")

@@ -425,9 +425,11 @@ def test_decide_is_laid_out_to_round_3(pair):
     big = DT.layout(35, 3, True)
     assert (big["headline"], big["check"], big["section"], big["chart_top"], big["chart_end"], big["window"],
             big["gives_first"], big["history"], big["pack_line"]) == (46, 47, 49, 50, 67, 62, 71, 75, 68)
-    # with fifteen peers, their switches sit under the pack line, eight to a list, and the history after them
+    # with fifteen peers, their switches sit under the pack line, eight to a list, Why out under them (a
+    # heading and eight rows), and the history after
     p15 = DT.layout(35, 3, True, 15)
-    assert (p15["peers_title"], p15["peers_pick"], p15["peers_head"], p15["peers_first"], p15["history"]) ==         (69, 69, 70, 71, 80)
+    assert (p15["peers_title"], p15["peers_pick"], p15["peers_head"], p15["peers_first"], p15["why_head"],
+            p15["why_first"], p15["history"]) == (69, 69, 70, 71, 80, 81, 90)
     # Periods left out: Assess's rows, after Left out now, then the settings
     from threshold_engine.assess_tab import LO_ROWS
     assert (big["lo_title"], big["lo_first"], big["lo_last"], big["settings"]) == (81, 83, 82 + LO_ROWS, 84 + LO_ROWS)

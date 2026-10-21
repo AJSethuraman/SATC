@@ -131,6 +131,9 @@ YES, NO = "Yes", "No"
 #: rank tables and the pack line), and the workbook-level name of the one
 #: cell, on Workings, that says the pack in a line for every tab.
 STATE_IN, STATE_OUT, STATE_OFF = "in", "out by rule", "off"
+#: Every out state starts with this: "out: <the rule>" (delinquency.why_out), or out by rule when the
+#: reason is one why_out does not name.
+OUT = "out"
 PACK_LINE = "PackLine"
 #: The delinquency measure whose four-quarter average decides out by rule (as Signals reads it).
 DQ_PACK_MEASURE = "30+ incl. nonaccrual"
@@ -148,7 +151,8 @@ START_WINDOW = WINDOWS[1]
 _SPANS = (20, 48, 100000)
 
 #: What ``delinquency`` must name when the tabs are built; nothing is defaulted.
-D_KEYS = ("data", "products", "jump", "min_book", "exempt_self", "acquired", "measure", "basis")
+D_KEYS = ("data", "products", "jump", "min_book", "exempt_self", "acquired", "acquisition_share", "measure",
+          "basis")
 NOT_BUILT = ("Delinquency was not built for this workbook: the build was told not to "
              "(delinquency=None, or --delinquency no).")
 
@@ -500,9 +504,12 @@ def _check_delinquency(spec: Optional[dict], roster: List[dict], me: dict) -> Op
         raise ValueError("delinquency basis must be one of %s, not %r" % (list(D.BASES), spec["basis"]))
     if not isinstance(spec["exempt_self"], bool):
         raise ValueError("delinquency exempt_self must be True or False, not %r" % (spec["exempt_self"],))
-    for name in ("jump", "min_book"):
+    for name in ("jump", "min_book", "acquisition_share"):
         if isinstance(spec[name], bool) or not isinstance(spec[name], (int, float)):
             raise ValueError("delinquency %s must be a number, not %r" % (name, spec[name]))
+    if not math.isfinite(spec["acquisition_share"]) or spec["acquisition_share"] < 0:
+        raise ValueError("delinquency acquisition_share must be a finite number of at least 0, as "
+                         "books.acquired_quarters requires, not %r" % (spec["acquisition_share"],))
     if not isinstance(spec["acquired"], dict) or any(p not in spec["acquired"] for p in products):
         raise ValueError("delinquency acquired must be {product: {cert: [quarter-ends]}} for every "
                          "product, not %r" % (spec["acquired"],))
@@ -847,7 +854,7 @@ def _section(ws, row, first, last, value):
 def _state_rule(ws, col, r1, r2):
     """A rank table's In pack column: out by rule in SLATE italic, as on the roster."""
     ws.conditional_formatting.add("%s%d:%s%d" % (L(col), r1, L(col), r2), FormulaRule(
-        formula=['LEFT($%s%d,%d)="%s"' % (L(col), r1, len(STATE_OUT), STATE_OUT)],
+        formula=['LEFT($%s%d,%d)="%s"' % (L(col), r1, len(OUT), OUT)],
         font=Font(color=K.SLATE, italic=True)))
 
 
@@ -1750,7 +1757,8 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
     # from DelinquencyData. One cell, PackLine, says it for every tab.
     pk = _Block(wk, wk.max_column + 2)
     for name, h in (("name", "Peer (pack line)"), ("out", "Out by the book's rules"), ("state", "State"),
-                    ("outs", "Out, by name"), ("offs", "Off, by name")):
+                    ("outs", "Out, by name"), ("offs", "Off, by name"), ("rule", "The rule it is out by"),
+                    ("why", "Why out"), ("out_n", "Out, numbered")):
         pk.add(name, heads=[h])
     if dq:
         m30 = list(D.MEASURES).index(DQ_PACK_MEASURE)
@@ -1765,22 +1773,41 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         if dq:
             wk.cell(r, pk.col["out"], "=IF({p}=0,FALSE,CHOOSE({p},{c}))".format(p=S["dq_p"], c=",".join(
                 "OR({dd}$N${x},NOT({dd}$L${x}))".format(dd=DD, x=dq_row(pi, i)) for pi in range(len(dq["products"])))))
+            # Why, per product, from the same rows: the rule's name and a sentence (delinquency.why_out).
+            said = [D.why_out(dq["books"][p_][DQ_PACK_MEASURE][b["cert"]], dq["acquired"][p_].get(b["cert"], []),
+                              dq["jump"], dq["acquisition_share"]) for p_ in dq["products"]]
+            for key, k in (("rule", 0), ("why", 1)):
+                wk.cell(r, pk.col[key], '=IF({p}=0,"",CHOOSE({p},{c}))'.format(p=S["dq_p"], c=",".join(
+                    '"%s"' % x[k].replace('"', '""') for x in said)))
         else:
             wk.cell(r, pk.col["out"], False)
-        st = pk.at("state", r)
-        wk.cell(r, pk.col["state"], '=IF({inc}<>"{y}","{off}",IF({o},"{out}","{in_}"))'.format(
-            inc=INC[j], y=YES, o=pk.at("out", r), off=STATE_OFF, out=STATE_OUT, in_=STATE_IN))
-        wk.cell(r, pk.col["outs"], '=IF(%s="%s",%s,"")' % (st, STATE_OUT, pk.at("name", r)))
+            wk.cell(r, pk.col["rule"], "")
+            wk.cell(r, pk.col["why"], "")
+        st, ru = pk.at("state", r), pk.at("rule", r)
+        wk.cell(r, pk.col["state"], '=IF({inc}<>"{y}","{off}",IF({o},IF({ru}="","{out}","{o_}: "&{ru}),"{in_}"))'
+                .format(inc=INC[j], y=YES, o=pk.at("out", r), off=STATE_OFF, out=STATE_OUT, in_=STATE_IN, ru=ru,
+                        o_=OUT))
+        is_out = 'LEFT(%s,%d)="%s"' % (st, len(OUT), OUT)
+        wk.cell(r, pk.col["outs"], '=IF({t},{n}&IF({ru}="",""," ("&{ru}&")"),"")'.format(
+            t=is_out, n=pk.at("name", r), ru=ru))
+        wk.cell(r, pk.col["out_n"], '=IF({t},MAX({c}$1:{c}{p})+1,"")'.format(
+            t=is_out, c=L(pk.col["out_n"]), p=r - 1))
         wk.cell(r, pk.col["offs"], '=IF(%s="%s",%s,"")' % (st, STATE_OFF, pk.at("name", r)))
     states = pk.down("state", 2, 1 + NP)
     scalar("pack_line", "Pack line",
-           '="Peer group · "&COUNTIF({s},"<>{off}")&" of {n} switched on"&IF(COUNTIF({s},"{out}")>0," · out by '
+           '="Peer group · "&COUNTIF({s},"<>{off}")&" of {n} switched on"&IF(MAX({nums})>0," · out by '
            'the book\'s rules on {m}, "&{q}&": "&_xlfn.TEXTJOIN(", ",TRUE,{outs}),"")&IF(COUNTIF({s},"{off}")>0,'
            '" · switched off on {pe}: "&_xlfn.TEXTJOIN(", ",TRUE,{offs}),"")'.format(
-               s=states, n=NP, out=STATE_OUT, off=STATE_OFF, q=pack_q, m=DQ_PACK_MEASURE,
+               s=states, n=NP, nums=pk.down("out_n", 2, 1 + NP), off=STATE_OFF, q=pack_q, m=DQ_PACK_MEASURE,
                outs=pk.down("outs", 2, 1 + NP), offs=pk.down("offs", 2, 1 + NP),
                pe=t.title("Peers").replace('"', '""')))
     wb.defined_names[PACK_LINE] = DefinedName(PACK_LINE, attr_text=S_PE["pack_line"])
+    # A product with charge-offs and no delinquency tests no rule: the heading says so, as Peers does.
+    # (With no delinquency at all there is no dq_p, and Decide is handed no Why out.)
+    head = '"Why out · {m}, "&LOWER({p})&", "&{q}'.format(m=DQ_PACK_MEASURE, p=PICK["product"], q=pack_q)
+    if "dq_p" in S:
+        head = 'IF({d}=0,"Why out · no delinquency was built for this product",{h})'.format(d=S["dq_p"], h=head)
+    scalar("why_head", "Why out, its heading", "=" + head)
 
     # ---- Workings: the rank tables, one row per bank (roster order) ----
     # Each bank switched on with a rate at the latest quarter, and KeyBank,
@@ -1943,7 +1970,7 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
         sc.alignment = Alignment(horizontal="center", vertical="top")
         st_ = "$%s$%d" % (L(sc.column), sc.row)
         for where, struck in ((sc.coordinate, True), (cell, False)):
-            pe.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (st_, STATE_OUT)],
+            pe.conditional_formatting.add(where, FormulaRule(formula=['LEFT(%s,%d)="%s"' % (st_, len(OUT), OUT)],
                                                              font=Font(color=K.SLATE, italic=True)))
             pe.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (st_, STATE_OFF)],
                                                              font=Font(color=K.STONE, strike=struck)))
@@ -2398,6 +2425,10 @@ def build_peers_workbook(out, data: Dict[str, list], roster: List[dict], product
                            states={b["short"]: state_cell(j) for j, b in enumerate(peers)}),
             # The pack line: its workbook-level name and its cell on Workings.
             "pack_line": {"name": PACK_LINE, "cell": S["pack_line"], "helpers": cols(pk)},
+            # Why out, for Decide's list: its heading, and per peer (row 2 on) the name, why and number.
+            # None when delinquency was not built: no rule was tested, so there is no list to show.
+            "why_out": None if dl is None else {"head": S_PE["why_head"], "names": WK + pk.down("name", 2, 1 + NP),
+                        "whys": WK + pk.down("why", 2, 1 + NP), "numbers": WK + pk.down("out_n", 2, 1 + NP)},
             "scalars": dict(S),
             "charge_offs": {"helpers": cols(co), "first_row": 2, "quarters": grid},
             "book": {"helpers": cols(bk), "first_row": 2, "quarters": grid[base_k:]},

@@ -211,7 +211,10 @@ def layout(n: int, n_third: int, compare: bool, n_peers: int = 0) -> dict:
     # under the chart: a title with Banks in the pack, a header, then the banks in two lists, the rows
     # level with What each source's own history would give
     peers_title = chart_end + 2 if n_peers else None
-    peers_end = chart_end + 3 + -(-n_peers // 2) if n_peers else 0
+    half = -(-n_peers // 2)
+    # Why out, under the two lists: its heading, then as many rows as a list has
+    why_head = chart_end + 3 + half + 2 if n_peers else None
+    peers_end = why_head + half if n_peers else 0
     hist = max(panel_end, peers_end) + 2
     lo_title = hist + 6
     sett = lo_title + 2 + LO_ROWS + 1
@@ -224,7 +227,8 @@ def layout(n: int, n_third: int, compare: bool, n_peers: int = 0) -> dict:
                 history=hist, evidence=hist + 1, left_now=hist + 4, settings=sett, notes=sett + 6,
                 lo_title=lo_title, lo_head=lo_title + 1, lo_first=lo_title + 2, lo_last=lo_title + 1 + LO_ROWS,
                 peers_title=peers_title, peers_pick=peers_title,
-                peers_head=chart_end + 3 if n_peers else None, peers_first=chart_end + 4 if n_peers else None)
+                peers_head=chart_end + 3 if n_peers else None, peers_first=chart_end + 4 if n_peers else None,
+                why_head=why_head, why_first=why_head + 1 if n_peers else None)
 
 
 def validate(part_names: Sequence[str]) -> None:
@@ -1140,7 +1144,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     if peers:
         from .peers import peers_workbook as PW
         switches = peer_switches(wb, lay_d, peers["names"], peers["sheet"], peers["include"], peers["states"],
-                                 peers["pack"], PW.PACK_PICKS, PW.FOLLOW, PW.YES, PW.NO, PW.STATE_OUT, PW.STATE_OFF)
+                                 peers["pack"], PW.PACK_PICKS, PW.FOLLOW, PW.YES, PW.NO, PW.OUT, PW.STATE_OFF,
+                                 why_out=peers.get("why_out"))
     return {"sheet": TITLE, "table": TABLE, "header_row": HDR, "first": FIRST, "last": LAST, "columns": C, "switches": switches,
             "check_row": lay_d["check"], "compare_rows": rows, "gives_rows": gives, "leave_out_rows": LO_N,
             "layout": lay_d, "helpers": {k: L(v) for k, v in cols_.items()}, "pairs": pairs, "by_pair": by_pair,
@@ -1198,13 +1203,15 @@ def rename_tab(wb, old: str, new: str) -> int:
 
 def peer_switches(wb, lay_d: dict, peers: Sequence[str], peers_sheet: str, include: Dict[str, str],
                   states: Dict[str, str], pack_cell: str, picks: Sequence[str], follow: str, yes: str, no: str,
-                  state_out: str, state_off: str) -> Dict[str, str]:
+                  state_out: str, state_off: str, why_out: Optional[dict] = None) -> Dict[str, str]:
     """Each peer's switch, and Banks in the pack, set on Decide under the chart; the
     cells on ``peers_sheet`` that held them read Decide instead, so there is one
     place to set each (the analyst, 20 Oct 2026: "I think we should be able to set
     peers on here probably even individually"). ``include``/``states``: each
     peer's switch and state cell on Peers; ``pack_cell``: Banks in the pack there.
-    Each switch starts as Peers had it. Returns each peer's switch cell on Decide."""
+    Each switch starts as Peers had it. ``state_out`` begins every out state ("out: jump").
+    ``why_out`` (peers_workbook's): under the lists, each bank out and why, in roster order.
+    Returns each peer's switch cell on Decide."""
     from .peers.peers_workbook import _quoted
     ws, pe = wb[TITLE], wb[peers_sheet]
     PE = _quoted(peers_sheet) + "!"
@@ -1254,9 +1261,10 @@ def peer_switches(wb, lay_d: dict, peers: Sequence[str], peers_sheet: str, inclu
         s_.font = F_SLATE
         s_.alignment = Alignment(horizontal="center", vertical="center")
         sref = "$%s$%d" % (L(st0), r)
-        # in (INK), out by rule (SLATE italic), off (STONE, struck through), as on Peers
+        # in (INK), out (SLATE italic), off (STONE, struck through), as on Peers
         for where, struck in ((s_.coordinate, True), (c_.coordinate, False)):
-            ws.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (sref, state_out)],
+            ws.conditional_formatting.add(where, FormulaRule(formula=['LEFT(%s,%d)="%s"' % (sref, len(state_out),
+                                                                                            state_out)],
                                                              font=Font(color=K.SLATE, italic=True)))
             ws.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (sref, state_off)],
                                                              font=Font(color=K.STONE, strike=struck)))
@@ -1266,6 +1274,28 @@ def peer_switches(wb, lay_d: dict, peers: Sequence[str], peers_sheet: str, inclu
         # Peers reads the switch from here: no longer an input there.
         _peers_reads(pe, include[short], "=%s!%s" % (TITLE, out[short]))
     _peers_reads(pe, pack_cell, "=%s!$D$%d" % (TITLE, pr))
+    if why_out:
+        # Why out, under the lists: the k-th bank out this quarter and its reason, as many rows as a list
+        # has; when more are out, the last row says how many more.
+        wh = lay_d["why_head"]
+        h_ = ws.cell(wh, 2, "=" + why_out["head"])
+        h_.font, h_.alignment = F_LAB, Alignment(vertical="bottom")
+        _rule(ws, wh, 2, 11, Side(style="thin", color=K.STONE))
+        n_out = "MAX(%s)" % why_out["numbers"]
+        for k in range(1, half + 1):
+            r = lay_d["why_first"] + k - 1
+            at = "MATCH(%d,%s,0)" % (k, why_out["numbers"])
+            more = '{n}>{h}'.format(n=n_out, h=half) if k == half else "FALSE"
+            ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=3)
+            nm = ws.cell(r, 2, '=IF({m},"",IFERROR(INDEX({b},{a}),""))'.format(m=more, b=why_out["names"], a=at))
+            nm.font, nm.alignment = F_BODY, Alignment(vertical="center")
+            ws.merge_cells(start_row=r, start_column=4, end_row=r, end_column=11)
+            wy = ws.cell(r, 4, ('=IF({m},"And "&({n}-{h}+1)&" more: the rule for each is under This '
+                                'quarter.",IFERROR(INDEX({w},{a}),""))').format(
+                m=more, n=n_out, h=half, w=why_out["whys"], a=at))
+            wy.font, wy.alignment = F_SLATE, Alignment(vertical="center")
+            for c in range(2, 12):
+                ws.cell(r, c).border = Border(bottom=HAIR)
     # The pack line names where a bank is switched off: here now.
     if PACK_LINE in wb.defined_names:
         sh, at = wb.defined_names[PACK_LINE].attr_text.rsplit("!", 1)

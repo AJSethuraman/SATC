@@ -121,7 +121,7 @@ def build(module, out, data, roster, products, pack="all", **over):
 
 def dq(dl_data, **over):
     spec = dict(data=dl_data, products=TWO, measure="90+ accruing", basis="quarter-end",
-                jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED)
+                jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED, acquisition_share=0.05)
     spec.update(over)
     return spec
 

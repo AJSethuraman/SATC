@@ -640,7 +640,7 @@ def build(book_path, out, say=print) -> dict:
         # Each peer's switch is set on Decide, under the chart (decide_tab.peer_switches).
         pl_ = peer_info["layout"]
         decide["peers"] = {"names": list(pl_["include"]), "sheet": PEER_TAB_NAMES["Peers"], "include": pl_["include"],
-                           "states": pl_["states"], "pack": pl_["pickers"]["pack"]}
+                           "states": pl_["states"], "pack": pl_["pickers"]["pack"], "why_out": peer_info.get("why_out")}
     signals = signals if bk["signals"] is not None and bk["peers"] is not None else None
     if bk["internal"] is not None:
         # The bank's own figures, on site: their series sit beside the

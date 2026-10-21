@@ -6,7 +6,7 @@ From `book.json` and the series files the build wrote, through `scale.py`. 164 s
 
 It opens on Summary; the tabs in order; two slicers, each with one button picked; Decide shows the first product and measure, no source picked and nothing decided.
 
-51 reads.
+55 reads.
 
 ## B2 · Read Summary, and every source's own lines on Lines by source
 

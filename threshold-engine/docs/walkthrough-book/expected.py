@@ -620,8 +620,59 @@ def _out_by_rule(b):
     return r[13] is True or r[11] is not True
 
 
+# The rule each is out by, read from the data's own reason (Why no four-quarter average), and the
+# first sentence of Why out on Decide said from it with the book's jump and acquisition share.
+_JUMP, _SHARE = bk["peers"]["jump"], bk["peers"]["acquisition_share"]
+
+
+def _pct(x):
+    return "%g%%" % round(100 * x, 6)
+
+
+def _latest_event(b):
+    """A jump or an acquisition in the window's last three quarters, the latest one, as (rule, sentence):
+    jumps from the data's own balances (column G), acquisitions from the quarters the bank's reasons
+    (column M) name. The latest sets when the bank is back, so Why out names it."""
+    mine = sorted((r for r in DQ_ROWS if r[3] == b["cert"] and r[0] == PEERS_PRODUCT
+                   and r[1] == PW.DQ_PACK_MEASURE), key=lambda r: r[4])
+    bought = {(r[12] or "").split(": ", 1)[1].split(" ")[0] for r in mine
+              if (r[12] or "").startswith("an acquisition brought in")}
+    found = None
+    for prev, row in zip(mine[-4:-1], mine[-3:]):
+        a, c, q = prev[6], row[6], row[4]
+        if a is not None and c is not None and a > 0 and abs(c / a - 1) > _JUMP:
+            found = ("jump", "Its book moved %+.1f%% in %s, more than the %s jump." % (100 * (c / a - 1), q, _pct(_JUMP)))
+        elif a is not None and c is not None and a == 0 and c > 0:
+            found = ("jump", "Its book went from 0 to above 0 in %s." % q)
+        elif q in bought:
+            found = ("acquisition", "An acquisition in %s brought in at least %s of its book, or a book not filed."
+                     % (q, _pct(_SHARE)))
+    return found
+
+
+def _rule(b):
+    why = _DQ_AT[b["cert"]][12] or ""
+    for prefix, rule in (("an acquisition brought in", "acquisition"), ("book moved more than the jump", "jump"),
+                         ("a quarter-end rate in the window is None", "no rate"),
+                         ("fewer than four consecutive", "too few quarters")):
+        if why.startswith(prefix):
+            return _latest_event(b)[0] if rule in ("acquisition", "jump") else rule
+    return ""
+
+
+def _first_sentence(b):
+    why = _DQ_AT[b["cert"]][12]
+    rest = why.split(": ", 1)[1]
+    q = rest.split(" ")[0]
+    if _rule(b) in ("acquisition", "jump"):
+        return _latest_event(b)[1]
+    return {"no rate": lambda: "No rate in %s: %s." % (q, rest.split(" ", 1)[1][1:-1]),
+            "too few quarters": lambda: "Fewer than four consecutive quarter-ends in the data."}[_rule(b)]()
+
+
 def PACK_TEXT(included):
-    outs = [b["short"] for b in peers_ if b["cert"] in included and _out_by_rule(b)]
+    outs = [b["short"] + (" (%s)" % _rule(b) if _rule(b) else "") for b in peers_
+            if b["cert"] in included and _out_by_rule(b)]
     offs = [b["short"] for b in peers_ if b["cert"] not in included]
     t = "Peer group %s %d of %d switched on" % (DOT, len(included), len(peers_))
     if outs:
@@ -640,7 +691,16 @@ def pack_reads(included):
             {"sheet": "Signals", "cell": "B6", "expect": t}]
 
 
-# The roster as built: each peer's switch on Decide under its name, reading Pack, and Peers reading Decide.
+# The roster as built: each peer's switch on Decide under its name, reading Pack, and Peers reading Decide;
+# each bank out says its rule under its name, and Why out lists them in roster order with the reason.
+_outs = [b for b in peers_ if _out_by_rule(b)]
+steps[0]["reads"] += [{"sheet": "Peers", "cell": PW.state_cell(j), "expect": "out: " + _rule(b) if _rule(b) else
+                       PW.STATE_OUT} for j, b in enumerate(peers_) if _out_by_rule(b)] + [
+    {"sheet": "Decide", "cell": "B%d" % (DL["why_first"] + k), "expect": b["short"]} for k, b in enumerate(_outs[:_half])] + [
+    {"sheet": "Decide", "cell": "D%d" % (DL["why_first"] + k), "startswith": _first_sentence(b)}
+    for k, b in enumerate(_outs[:_half]) if _rule(b)] + [
+    {"sheet": "Decide", "cell": "B%d" % DL["why_head"], "expect": "Why out %s %s, %s, %s" % (
+        DOT, PW.DQ_PACK_MEASURE, PEERS_PRODUCT.lower(), DQ_LAST)}]
 steps[0]["reads"] += pack_reads(every) + [
     {"sheet": "Decide", "cell": switch_cell(j), "expect": PW.FOLLOW} for j in (jpm, len(peers_) - 1)] + [
     {"sheet": "Decide", "cell": name_cell(j), "expect": peers_[j]["short"]} for j in (jpm, len(peers_) - 1)] + [
@@ -658,7 +718,7 @@ steps.append({"id": "B12", "what": "Set Banks in the pack back to Every peer, an
                           {"type": "cell", "sheet": "Decide", "cell": JPM_CELL, "value": PW.NO}],
               "reads": live_reads(every - {peers_[jpm]["cert"]}) + pack_reads(every - {peers_[jpm]["cert"]}),
               "picture": [{"sheet": "Peers", "range": "A1:Q%d" % (PL["pack_charts"] + 1), "file": "b12-peers.png"},
-                          {"sheet": "Decide", "range": "A%d:Q%d" % (DL["pack_line"], DL["peers_first"] + _half),
+                          {"sheet": "Decide", "range": "A%d:Q%d" % (DL["pack_line"], DL["why_first"] + _half),
                            "file": "b12-decide-peers.png"}]})
 steps.append({"id": "B13", "what": "Set JPMorgan's cell back to Pack",
               "shows": "The peer group is every peer again: each latest value is the series file's own",

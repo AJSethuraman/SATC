@@ -180,8 +180,8 @@ PEER_TERMS = [
      "Rank 1 is the lowest rate; a peer level with KeyBank ranks after it. vs composite is the bank's rate "
      "minus the pack composite, in percentage points. 4-quarter change is the bank's rate minus its own rate "
      "four quarters earlier, in percentage points, blank when either is missing. Balance ($bn) is the average "
-     "balance on charge-offs and the quarter-end balance on delinquency. In pack reads in, out by rule or off, "
-     "as on the roster, and marks Peer A and Peer B."),
+     "balance on charge-offs and the quarter-end balance on delinquency. In pack reads in, out with its rule (out: "
+     "acquisition, out: jump, out: no rate) or off, as on the roster, and marks Peer A and Peer B."),
     ("Peer books",
      "What each peer's consumer book holds, from the holding company's own quarterly filing with the SEC: "
      "its loan classes, and whether it holds student loans, unsecured or personal loans and lines, and loans "
