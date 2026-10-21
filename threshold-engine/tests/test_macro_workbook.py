@@ -11,9 +11,10 @@ openpyxl = pytest.importorskip("openpyxl")
 from threshold_engine.macro import rate as R
 from threshold_engine.macro.catalog import HIGHER, LOWER, RATED, SERIES, STATES
 from threshold_engine.macro.settings import check
-from threshold_engine.macro.workbook import TAB, TOPICS, band_heights, build, glossary, nice_axis
+from threshold_engine.macro.workbook import (SHOWN_NAME, SHOWN_TAB, SHOWN_TOPICS, TAB, TOPICS, band_heights, build,
+                                             glossary, nice_axis)
 
-from test_macro_rate import cache  # noqa: F401  (the fixture: a pull on disk)
+from test_macro_rate import cache, shown_cache  # noqa: F401  (the fixtures: pulls on disk)
 from test_macro_settings import answered
 
 
@@ -45,7 +46,8 @@ def test_every_national_series_has_one_topic_and_one_tab():
 def test_the_sheets_are_the_ratings_first_then_one_per_series_by_topic(book):
     _, _, wb = book
     tabs = [TAB[k] for _, keys in TOPICS for k in keys]
-    assert wb.sheetnames == (["Ratings", "States"] + tabs
+    shown = [SHOWN_TAB[k] for _, keys in SHOWN_TOPICS for k in keys]
+    assert wb.sheetnames == (["Ratings", "States", SHOWN_NAME] + tabs + shown
                              + ["State data", "Not rated", "Glossary", "Run", "Sources"])
 
 
@@ -545,3 +547,80 @@ def test_a_settings_file_named_like_a_formula_is_written_as_text(cache, tmp_path
         assert not [n for n in sheets if "<f>" in z.read(n).decode("utf-8")]
     run = openpyxl.load_workbook(out)["Run"]
     assert "=SUM(1,2)" in {c.value for row in run.iter_rows() for c in row}
+
+
+
+# -- the shown series ------------------------------------------------------------
+
+def test_every_shown_series_has_one_topic_and_one_tab():
+    from threshold_engine.macro.catalog import SHOWN
+    in_topics = [k for _, keys in SHOWN_TOPICS for k in keys]
+    assert sorted(in_topics) == sorted(s.key for s in SHOWN) and len(set(in_topics)) == len(in_topics)
+    assert sorted(SHOWN_TAB) == sorted(in_topics)
+    names = list(SHOWN_TAB.values()) + list(TAB.values())
+    assert len(set(names)) == len(names) and all(len(v) <= 31 for v in names)
+
+
+@pytest.fixture
+def shown_book(shown_cache, tmp_path):  # noqa: F811
+    return _build(shown_cache, tmp_path / "shown.xlsx", show_sahm=False, history="full")
+
+
+def test_the_shown_tab_lists_every_shown_series_and_the_rest_of_the_group(shown_book):
+    from threshold_engine.macro.catalog import NOT_SHOWN, SCE_CREDIT, SHOWN
+    _, result, wb = shown_book
+    ws = wb[SHOWN_NAME]
+    links = {ws.cell(r, 2).value: _to(ws.cell(r, 2)) for r in range(1, ws.max_row + 1)
+             if ws.cell(r, 2).hyperlink and _to(ws.cell(r, 2)) != "Ratings"}
+    assert links == {s.title: SHOWN_TAB[s.key] for s in SHOWN}
+    text = _text(ws)
+    assert all(what in text for what, _ in NOT_SHOWN) and SCE_CREDIT in text
+    assert "None is rated" in text and not re.search(r"[1-5] (Low|Moderate|High)", text)
+    # the saving rate's latest is its lowest: at or above its 1 reading of 321
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Personal saving rate")
+    assert ws.cell(row, 4).value == 1.0 and ws.cell(row, 6).value == pytest.approx(1 / 321)
+    # a series that grows is shown on its change only
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Real disposable income")
+    assert ws.cell(row, 6).value == "change only" and ws.cell(row, 8).value is not None
+    # what the pull lacks is said, with why
+    assert "Nothing to show, and why" in text and "Job openings" in text
+    assert _to(wb["Ratings"].cell(2, 2)) == SHOWN_NAME
+
+
+def _to(cell):
+    """The tab an in-workbook link opens, however openpyxl read it back."""
+    h = cell.hyperlink
+    return re.match(r"#?'(.*)'!A1$", h.location or h.target).group(1)
+
+
+def test_a_shown_series_tab_draws_its_history_with_no_rating_and_no_bands(shown_book):
+    out, result, wb = shown_book
+    ws = wb["Saving rate"]
+    text = _text(ws)
+    assert "Shown, not rated" in text and "Not set: the series is shown, not rated" in text
+    assert not re.search(r"[1-5] (Low|Moderate|High)", text)
+    assert len(ws._charts) == 2                         # its level and its change
+    for chart in ws._charts:
+        assert type(chart).__name__ == "LineChart"     # no rating bands under it
+    assert len(wb["Real income"]._charts) == 1          # change only
+    assert SCE_CREDIT_IN(wb["Expected missed payments"])
+    assert "Nothing to show" in _text(wb["Job openings"]) and not wb["Job openings"]._charts
+    assert _holds_together_in_excel(out) > 0
+    run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert run["Series shown, not rated"].startswith("30 (5 readings shown;")
+
+
+def SCE_CREDIT_IN(ws):
+    from threshold_engine.macro.catalog import SCE_CREDIT
+    return SCE_CREDIT in _text(ws)
+
+
+def test_a_build_refuses_a_pull_whose_shown_file_changed_since_the_rating(shown_cache, tmp_path):  # noqa: F811
+    # The shown series are drawn from the same reading of the pull as the ratings: a survey file changed
+    # between the rating and the workbook is refused, as a rated series' file is.
+    from threshold_engine.macro.settings import Refused
+    result = R.rate_all(shown_cache, check(answered()))
+    pull = R.Pull(shown_cache)
+    (pull.folder / "nyfed_sce.xlsx").write_bytes((pull.folder / "nyfed_sce.xlsx").read_bytes() + b" ")
+    with pytest.raises(Refused, match="nyfed_sce.xlsx"):
+        build(tmp_path / "x.xlsx", result, pull)

@@ -21,6 +21,7 @@ BLS = ("https://data.bls.gov/timeseries/{id}?from_year={start}&to_year={end}"
 FED_EBP = "https://www.federalreserve.gov/econres/notes/feds-notes/ebp_csv.csv"
 FHFA_NMDB = ("https://www.fhfa.gov/document/d/nmdb/"
              "nmdb-mortgage-performance-statistics-national-census-areas-quarterly.zip")
+NYFED_SCE = "https://www.newyorkfed.org/medialibrary/interactives/sce/sce/downloads/data/frbny-sce-data.xlsx"
 
 NUMBER = re.compile(r"-?\d+(\.\d+)?")
 
@@ -35,6 +36,8 @@ def url_for(series, today_year):
         return FED_EBP
     if series.source == "fhfa_nmdb":
         return FHFA_NMDB
+    if series.source == "nyfed_sce":
+        return NYFED_SCE
     raise ValueError("no source of kind %r" % series.source)
 
 
@@ -107,7 +110,42 @@ def read_fhfa_nmdb(raw, selector):
     return sorted(out)
 
 
-READERS = {"fred": read_fred, "bls": read_bls, "fed_ebp": read_fed_ebp, "fhfa_nmdb": read_fhfa_nmdb}
+#: What the SCE file's delinquency sheet says its column holds, checked so another sheet is never read as it.
+SCE_MISSED = "Mean probability of missing minimum debt payment over the next three months"
+
+
+def read_nyfed_sce(raw, sheet):
+    """The NY Fed's Survey of Consumer Expectations workbook: one sheet per question, the month as 201306 in
+    column A and the mean in column B, under four rows of source and title. A month with no number is kept as
+    missing."""
+    from openpyxl import load_workbook
+    try:
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception as e:
+        raise ValueError("not the NY Fed's SCE workbook: %s" % e)
+    if sheet not in wb.sheetnames:
+        raise ValueError("the SCE workbook has no sheet %r" % sheet)
+    rows = list(wb[sheet].iter_rows(values_only=True))
+    heads = [str(c) for r in rows[:6] for c in r if isinstance(c, str)]
+    if SCE_MISSED not in heads:
+        raise ValueError("the SCE sheet %r does not hold %r" % (sheet, SCE_MISSED))
+    out = []
+    for r in rows:
+        month = r[0] if r else None
+        if isinstance(month, (int, float)) and not isinstance(month, bool) and 190001 <= month <= 299912:
+            month = int(month)
+            if not 1 <= month % 100 <= 12:
+                raise ValueError("the SCE sheet %r has %s where a month belongs" % (sheet, r[0]))
+            v = r[1] if len(r) > 1 else None
+            out.append(("%04d-%02d-01" % (month // 100, month % 100),
+                        float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None))
+    if not out:
+        raise ValueError("no months in the SCE sheet %r" % sheet)
+    return out
+
+
+READERS = {"fred": read_fred, "bls": read_bls, "fed_ebp": read_fed_ebp, "fhfa_nmdb": read_fhfa_nmdb,
+           "nyfed_sce": read_nyfed_sce}
 
 
 def read(series, raw):

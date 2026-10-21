@@ -1,6 +1,6 @@
 """python -m threshold_engine.macro list | pull | show | settings-template | rate
 
-    list                         every series in the catalog, and what is not read yet
+    list                         every series in the catalog, rated or shown, and what is not read
     pull --cache DIR [KEY ...]   download into DIR/<today>/, keeping every earlier pull
     show --cache DIR KEY         one series as read from the newest pull (or --vintage)
     settings-template OUT.json   the firm's settings, every answer empty, to fill in
@@ -15,7 +15,7 @@ import json
 import pathlib
 import sys
 
-from .catalog import BY_KEY, DERIVED, NOT_YET, SERIES
+from .catalog import BY_KEY, DERIVED, NOT_SHOWN, NOT_YET, SERIES, SHOWN
 from .pull import load, pull
 from .rate import Pull, rate_all
 from .settings import Refused, load as load_settings, write_template
@@ -24,6 +24,8 @@ from .settings import Refused, load as load_settings, write_template
 def direction(s):
     """Which way is worse, as list shows it. Where the research leaves it open
     the answer is the firm's, in the settings file, not in the catalog."""
+    if getattr(s, "shown", False):
+        return "shown, not rated"
     if not s.rated:
         return "input, not rated"
     return s.stress or "the firm's settings"
@@ -31,9 +33,11 @@ def direction(s):
 
 def cmd_list(_):
     rated = [s for s in SERIES if s.rated]
-    print("%d series in the catalog (%d rated, %d inputs to a derived reading)\n"
-          % (len(SERIES), len(rated), len(SERIES) - len(rated)))
+    print("%d series in the catalog (%d rated, %d inputs to a derived reading, %d shown and not rated)\n"
+          % (len(SERIES), len(rated), len(SERIES) - len(rated) - len(SHOWN), len(SHOWN)))
     for s in SERIES:
+        if s.shown:
+            continue
         if s.key.startswith("unemployment_") and s.key != "unemployment_ak":
             continue
         name = "Unemployment rate by state (51: AK ... WY)" if s.key == "unemployment_ak" else s.title
@@ -46,6 +50,13 @@ def cmd_list(_):
                                                           direction(d), d.title))
     print("\nIn the ready-to-rate group but not read yet:")
     for what, why in NOT_YET:
+        print("  %s: %s" % (what, why))
+    print("\nThe usable-with-care group: shown, never rated (why each needs care is on its workbook tab):")
+    for s in SHOWN:
+        print("  %-26s %-10s %-9s from %-10s %-24s %s" % (s.key, s.group, s.frequency, s.starts, direction(s),
+                                                          s.title))
+    print("\nIn the usable-with-care group but not read:")
+    for what, why in NOT_SHOWN:
         print("  %s: %s" % (what, why))
 
 
@@ -111,6 +122,12 @@ def cmd_rate(a):
         print("\nNot rated:")
         for x in result["not_rated"]:
             print("  %-26s %-8s %s" % (x["key"], x["reading"], x["why"]))
+    if result["shown"] or result["not_shown"]:
+        print("\nShown, not rated (the usable-with-care group):")
+        for x in result["shown"]:
+            print("     %-26s %-8s %s" % (x["key"], x["reading"], x["sentence"]))
+        for x in result["not_shown"]:
+            print("     %-26s %-8s nothing to show: %s" % (x["key"], x["reading"], x["why"]))
     return 0
 
 

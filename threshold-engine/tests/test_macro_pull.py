@@ -30,6 +30,9 @@ def _fake(fail=()):
             return b"date,gz_spread,ebp,est_prob\n2026-08-01,1,0.1,0.2\n"
         if "nmdb" in url:
             return nmdb.getvalue()
+        if "newyorkfed.org" in url:
+            from test_macro_sources import sce_workbook
+            return sce_workbook([(202607, 12.0), (202608, 13.2), (202609, 12.2)])
         if "data.bls.gov" in url:
             return ('Series Id: CUSR0000SETE <table id="table0"><TR><TH scope="row">2025</TH>'
                     + "<TD>1</TD>" * 9 + "<TD>-(9)</TD><TD></TD><TD>2</TD></TR></table>").encode()

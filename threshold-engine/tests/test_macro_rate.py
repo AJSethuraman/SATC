@@ -141,7 +141,16 @@ def _fetcher():
         "CAUR": ("monthly", start, lambda i, d: None if d.isoformat() == "2025-10-01" else 5 + (i % 7) / 10),
     }
 
+    # Three shown series: one described on its level and change, one that grows (change only), and the NY
+    # Fed's survey, read from its workbook. The saving rate ends on its lowest reading.
+    series["PSAVERT"] = ("monthly", start, lambda i, d: 1.0 if d >= datetime.date(2026, 9, 1) else 5 + (i % 9) / 4)
+    series["DSPIC96"] = ("monthly", start, lambda i, d: round(10000 * 1.002 ** i, 3))
+
     def fetch(url):
+        if "newyorkfed.org" in url:
+            from test_macro_sources import sce_workbook
+            return sce_workbook([(100 * (2013 + (5 + i) // 12) + (5 + i) % 12 + 1, 10 + (i % 7) / 2)
+                                 for i in range(160)])
         sid = url.split("id=")[1]
         freq, first, value = series[sid]
         return csv(sid, freq, first, value)
@@ -235,3 +244,53 @@ def test_a_file_several_series_share_is_read_once_and_its_fingerprint_is_of_thos
     path.write_bytes(b"date,gz_spread,ebp,est_prob\n2026-09-01,9,9.9,0.9\n")     # replaced part way through
     assert pull._get("excess_bond_premium")[-1] == ("2026-08-01", 0.1)         # from the bytes read first
     assert pull.read_sha == {"fed_ebp.csv": hashlib.sha256(first).hexdigest()}
+
+
+# -- the shown series: described, never rated ---------------------------------
+
+SHOWN_KEYS = ["unemployment", "saving_rate", "real_income", "expected_missed_payment"]
+
+
+@pytest.fixture
+def shown_cache(tmp_path):
+    P.pull(tmp_path, keys=SHOWN_KEYS, today="2026-10-15", fetcher=_fetcher())
+    return tmp_path
+
+
+def test_a_shown_series_is_described_where_it_sits_with_no_rating_and_no_direction(shown_cache):
+    s = check(answered(history="full"))
+    result = R.rate_all(shown_cache, s)
+    got = {(x["key"], x["reading"]): x for x in result["shown"]}
+    assert set(got) == {("saving_rate", "position"), ("saving_rate", "change"), ("real_income", "change"),
+                        ("expected_missed_payment", "position"), ("expected_missed_payment", "change")}
+    for x in got.values():
+        assert "rating" not in x and "direction" not in x and "lines" not in x
+        assert x["sentence"].endswith("Shown, not rated.")
+    # counted from the lowest: the saving rate's latest is its lowest, so it is at or above itself alone
+    low = got[("saving_rate", "position")]
+    assert low["value"] == 1.0 and low["readings"] == 321 and low["percentile"] == pytest.approx(100 / 321)
+    assert "at or above 0.3% of the 321 readings since Jan 2000 (lowest 1, highest 7)" in low["sentence"]
+    # the survey: every month of its workbook, the latest at or above the share at or below it
+    sce = got[("expected_missed_payment", "position")]
+    values = [10 + (i % 7) / 2 for i in range(160)]
+    assert sce["readings"] == 160 and sce["date"] == "2026-09-01"
+    assert sce["percentile"] == pytest.approx(100 * sum(v <= values[-1] for v in values) / 160)
+    # none of them is rated, or counted as a reading the settings call for
+    shown_keys = {"saving_rate", "real_income", "expected_missed_payment"}
+    assert not {r["key"] for r in result["ratings"]} & shown_keys
+    assert not {x["key"] for x in result["not_rated"]} & shown_keys
+
+
+def test_a_shown_series_the_pull_lacks_says_why_and_is_no_rating_failure(cache):
+    from threshold_engine.macro.catalog import SHOWN
+    result = R.rate_all(cache, check(answered()))
+    assert result["shown"] == []
+    missing = {(x["key"], x["reading"]): x["why"] for x in result["not_shown"]}
+    assert set(missing) == {(i.key, r) for i in SHOWN for r in R.readings_shown(i)}
+    assert all(w.startswith("not in the pull of 2026-10-15") for w in missing.values())
+    assert not {x["key"] for x in result["not_rated"]} & {i.key for i in SHOWN}
+
+
+def test_the_runs_fingerprints_cover_the_files_of_the_shown_series(shown_cache):
+    result = R.rate_all(shown_cache, check(answered()))
+    assert {"nyfed_sce.xlsx", "fred-PSAVERT.csv", "fred-DSPIC96.csv", "fred-UNRATE.csv"} <= set(result["read_sha"])

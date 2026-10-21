@@ -5,9 +5,11 @@ says where each stands against its own history, for the firm and the consumer
 and commercial teams. It looks only at conditions outside management's
 control. Nothing from KeyBank's books goes in.
 
-The series are the "ready to rate" group in
+The rated series are the "ready to rate" group in
 [`reports/Macro risk indicators for lending.md`](reports/Macro%20risk%20indicators%20for%20lending.md),
-chosen by the firm on 15 Oct 2026.
+chosen by the firm on 15 Oct 2026. The report's next group, "usable with
+care", was added on 21 Oct 2026, shown and never rated (the firm: *"expand
+what we keep in this book after all - even if not super useful"*).
 
 ## What works now (all three slices)
 
@@ -19,6 +21,26 @@ chosen by the firm on 15 Oct 2026.
   Each entry gives the publisher, id, frequency, first observation, licence,
   known breaks, and the report section that put it on the list. Every id was
   checked on FRED or at the publisher on 15 Oct 2026.
+- **30 more series, shown and never rated** (21 Oct 2026): the report's
+  "usable with care" group, as far as the tool can read it. They are short,
+  broken or heavily revised: underemployment, job openings, layoffs and quits,
+  temporary help, two wage measures, real income with and without transfers,
+  the saving rate, the three debt service ratios, the large-bank minimum
+  payment share, the NY Fed survey's expected chance of missing a debt
+  payment, the auto, other consumer and three CRE lending-standards series,
+  new homes' months' supply, equipment orders, business applications, three
+  regional manufacturing surveys, customs duties and two policy uncertainty
+  indexes. None has a direction of stress and the settings ask nothing about
+  them, so the firm's settings stay as they are. Each is described, not
+  rated: its latest reading, and the share of the readings in the same
+  history window it is at or above, counted from the lowest. That says where
+  it sits, not whether that is good or bad. The ids, first readings and
+  licences come from the report (14-16 Oct 2026); the live pull that checks
+  them is in the log. **Licensed series stay out**, as the firm chose:
+  University of Michigan sentiment (no redistribution) and the Atlanta Fed's
+  wage tracker and affordability index (its terms allow reproduction only
+  "not for commercial gain or monetary profit"). `list` names those and the
+  rest of the group that is not read, with why.
 - **The pull: no API key.** It downloads every series into a folder named
   for the day and never overwrites an earlier one, so every rating can name
   the release it used. A shared file is fetched once. A failure is recorded
@@ -65,12 +87,21 @@ chosen by the firm on 15 Oct 2026.
     name opens its tab.
   - **What if:** only with `--compare`; see below.
   - **States:** unemployment by state, level and change, worst first.
+  - **Shown, not rated:** every shown series under four topics, with its
+    latest reading, where its level and change sit in its history, and why it
+    is only usable with care; then what had nothing to show, the rest of the
+    group with why it is not read, and the credit the NY Fed's licence
+    requires for its survey data.
   - **One tab per series:** both ratings with what drove them; where each
     rating starts and how many readings in its history took it; its history
     drawn over the five bands, level and change; what it is, where it comes
     from and its breaks; and every reading, with "no value published" where
     the publisher left a gap. The unemployment tab also draws the Sahm
     reading against its 0.50 trigger.
+  - **One tab per shown series:** its tab is slate. It gives the latest level
+    and change with where each sits, the history drawn in ink with the latest
+    reading ringed and no bands, and what it is, its licence, why it needs
+    care and its breaks.
   - **State data, Glossary, Run and Sources.** The glossary explains every
     term from the settings the run used. Run says when the workbook was
     built, from which pull, with which answers. Sources lists every file the
@@ -208,6 +239,9 @@ every rating follows.
    - business loan demand: weaker is worse, and a fall is worse.
 
 ## Not read yet, and why
+
+The usable-with-care group's own list is in the catalog's `NOT_SHOWN` and
+printed by `list`. The ready-to-rate group's:
 
 - **NY Fed recession probability.** It is published only as an old-format
   Excel file, which needs a reader the tool does not have. The 10-year minus

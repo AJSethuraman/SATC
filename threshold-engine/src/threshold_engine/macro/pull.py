@@ -12,7 +12,8 @@ its size and SHA-256, and, per series, how many observations it holds, the
 first and last, and every missing one.
 
 A file the catalog shares (the Fed's spread file, FHFA's mortgage file) is
-downloaded once. A series that fails is recorded with the reason; the pull
+downloaded once. The shown series (the "usable with care" group) are pulled
+with the rest. A series that fails is recorded with the reason; the pull
 does not stop, and it exits non-zero if anything failed.
 """
 import datetime
@@ -43,6 +44,8 @@ def fetch(url, timeout=60):
 def file_name(series):
     if series.source in ("fed_ebp", "fhfa_nmdb"):
         return series.source + (".csv" if series.source == "fed_ebp" else ".zip")
+    if series.source == "nyfed_sce":
+        return "nyfed_sce.xlsx"
     ext = ".csv" if series.source == "fred" else ".html"
     return "%s-%s%s" % (series.source, series.source_id, ext)
 

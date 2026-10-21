@@ -1,4 +1,5 @@
-"""The series the tool reads: the report's "ready to rate" group.
+"""The series the tool reads: the report's "ready to rate" group, rated, and
+its "usable with care" group, shown and not rated.
 
 Every entry is a fact about a public series, checked at the publisher or on
 FRED on 15 Oct 2026: who publishes it, where it comes from, how often, from
@@ -17,6 +18,14 @@ around zero) or as a percent of the earlier reading (a level that grows).
 history, and otherwise says why not; those are rated on their change only.
 DERIVED holds the two readings the report builds from two series: house
 prices against income, and the mortgage rate over the 10-year Treasury.
+
+SHOWN holds the report's "usable with care" group: short, broken or heavily
+revised series, added at the firm's request on 21 Oct 2026 ("expand what we
+keep in this book after all - even if not super useful"). Each is pulled and
+drawn but never rated, so none has a direction of stress and the settings ask
+nothing about them; "care" says why it is only usable with care. The firm
+chose to leave licensed series out: NOT_SHOWN lists those, and the rest of the
+group the tool cannot read yet, with the reason for each.
 """
 from dataclasses import dataclass, field
 
@@ -47,12 +56,22 @@ class Series:
     note: str = ""
     change_in: str = ""     # points (a rate, spread or index around zero) or percent (a level that grows)
     position: str = ""      # "" rated on its place in its own history; otherwise why it is not
+    shown: bool = False     # True: in the "usable with care" group, drawn and never rated
+    care: str = ""          # why it is only usable with care, for the reader of the workbook
+    credit: str = ""        # wording the publisher's licence requires wherever its data are shown
 
 
 def _fred(key, sid, title, group, publisher, freq, unit, starts, licence, stress, report, breaks=(), rated=True,
           note="", *, change_in, position=""):
     return Series(key, title, group, publisher, "fred", sid, freq, unit, starts, licence, stress, report,
                   tuple(breaks), rated, note, change_in, position)
+
+
+def _shown(key, sid, title, group, publisher, freq, unit, starts, licence, report, care, breaks=(), note="", *,
+           change_in, position="", source="fred", credit=""):
+    """A series of the "usable with care" group: pulled and drawn, never rated, so it has no direction."""
+    return Series(key, title, group, publisher, source, sid, freq, unit, starts, licence, None, report,
+                  tuple(breaks), False, note, change_in, position, True, care, credit)
 
 
 #: Why a series is rated on its change only. A level that climbs with prices
@@ -179,6 +198,150 @@ SERIES = [
 
 READY = "Roughly three dozen series are ready; licences and breaks put the rest in context only"
 
+SCE_CREDIT = ("Source: Survey of Consumer Expectations, \u00a9 2013-2026 Federal Reserve Bank of New York (FRBNY). "
+              "The SCE data are available without charge at http://www.newyorkfed.org/microeconomics/sce and may "
+              "be used subject to license terms posted there. FRBNY disclaims any responsibility for this analysis "
+              "and interpretation of Survey of Consumer Expectations data.")
+SCE_LICENCE = ("NY Fed SCE licence: free to reproduce, use and distribute, with the attribution it sets out "
+               "(read 21 Oct 2026)")
+SHORT_SINCE = "starts %s, so its history holds %s"
+REVISED = "heavily revised: BEA's annual update of September 2026 revised it back to January 2021"
+
+#: The report's "usable with care" group, as far as the tool can read it: shown, never rated. Ids, first
+#: readings and licences are as the report recorded them (14-16 Oct 2026) and are checked against a live pull.
+SHOWN = [
+    # -- jobs and income
+    _shown("underemployment", "U6RATE", "Underemployment rate (U-6)", "both", "BLS (household survey)", "monthly",
+           "percent", "1994-01", FRED_PD, LABOUR, SHORT_SINCE % ("in 1994", "three recessions"), [OCT_2025],
+           change_in="points"),
+    _shown("job_openings", "JTSJOL", "Job openings", "both", "BLS (JOLTS)", "monthly", "thousands", "2000-12",
+           FRED_PD, LABOUR, SHORT_SINCE % ("in December 2000", "two recessions"), change_in="percent",
+           position=TREND),
+    _shown("layoffs_rate", "JTSLDR", "Layoffs and discharges rate", "both", "BLS (JOLTS)", "monthly",
+           "percent of employment", "2000-12", FRED_PD, LABOUR, SHORT_SINCE % ("in December 2000", "two recessions"),
+           change_in="points"),
+    _shown("quits_rate", "JTSQUR", "Quits rate", "both", "BLS (JOLTS)", "monthly", "percent of employment",
+           "2000-12", FRED_PD, LABOUR, SHORT_SINCE % ("in December 2000", "two recessions"), change_in="points"),
+    _shown("temp_help", "TEMPHELPS", "Temporary help jobs", "both", "BLS (establishment survey)", "monthly",
+           "thousands of jobs", "1990-01", FRED_PD, LABOUR, SHORT_SINCE % ("in 1990", "three recessions"),
+           change_in="percent", position=TREND),
+    _shown("wages_eci", "ECIWAG", "Employment cost index: wages and salaries, private", "consumer", "BLS",
+           "quarterly", "index Dec 2005=100", "2001-01", FRED_PD, LABOUR,
+           SHORT_SINCE % ("in 2001 on FRED", "two recessions"), change_in="percent", position=TREND),
+    _shown("hourly_earnings", "CES0500000003", "Average hourly earnings, private", "consumer",
+           "BLS (establishment survey)", "monthly", "dollars an hour", "2006-03", FRED_PD, LABOUR,
+           SHORT_SINCE % ("in 2006", "two recessions") + "; the average rises when low-paid workers lose their "
+           "jobs (report)", change_in="percent", position=TREND),
+    _shown("real_income", "DSPIC96", "Real disposable income", "consumer", "BEA", "monthly",
+           "billions of chained 2017 dollars", "1959-01", FRED_PD, LABOUR, REVISED + "; the October 2025 price "
+           "index was interpolated", change_in="percent", position=TREND),
+    _shown("income_ex_transfers", "W875RX1", "Real personal income excluding transfers", "consumer", "BEA",
+           "monthly", "billions of chained 2017 dollars", "1959-01", FRED_PD, LABOUR, REVISED,
+           change_in="percent", position=TREND),
+    _shown("saving_rate", "PSAVERT", "Personal saving rate", "consumer", "BEA", "monthly",
+           "percent of disposable income", "1959-01", FRED_PD, LABOUR,
+           REVISED + "; October 2025 moved from 3.7% at first print to 4.9%", change_in="points"),
+    # -- household debt and credit
+    _shown("debt_service", "TDSP", "Household debt service ratio", "consumer", "Federal Reserve Board",
+           "quarterly", "percent of disposable income", "2005-01", FRED_PD, HOUSE,
+           "rebuilt in 2024 on credit-bureau data and now starts in 2005; it includes mortgage escrow, so it runs "
+           "higher than the old series, which is not joined on", change_in="points"),
+    _shown("debt_service_mortgage", "MDSP", "Mortgage debt service ratio", "consumer", "Federal Reserve Board",
+           "quarterly", "percent of disposable income", "2005-01", FRED_PD, HOUSE,
+           "rebuilt in 2024 and now starts in 2005, as the household ratio", change_in="points"),
+    _shown("debt_service_consumer", "CDSP", "Consumer debt service ratio", "consumer", "Federal Reserve Board",
+           "quarterly", "percent of disposable income", "2005-01", FRED_PD, HOUSE,
+           "rebuilt in 2024 and now starts in 2005, as the household ratio", change_in="points"),
+    _shown("card_minimum_payment", "RCCCBSHRMIN", "Large-bank card accounts paying only the minimum",
+           "consumer", "Philadelphia Fed (FR Y-14M)", "quarterly", "percent of accounts", "2012-07", FRED_PD,
+           HOUSE, "large banks only; " + SHORT_SINCE % ("in 2012 Q3", "one recession (2020)"),
+           change_in="points"),
+    _shown("expected_missed_payment", "Delinquency expectations",
+           "Expected chance of missing a minimum debt payment in the next 3 months", "consumer",
+           "New York Fed (Survey of Consumer Expectations)", "monthly", "percent (mean probability)", "2013-06",
+           SCE_LICENCE, HOUSE, SHORT_SINCE % ("in June 2013", "one recession (2020)"), change_in="points",
+           source="nyfed_sce", credit=SCE_CREDIT),
+    _shown("auto_standards", "STDSAUTO", "Banks tightening auto loan standards (net %)", "consumer",
+           "Federal Reserve (Senior Loan Officer Survey)", "quarterly", "net percent", "2011-04", FRED_PD, HOUSE,
+           SHORT_SINCE % ("in 2011", "one recession (2020)"), change_in="points"),
+    _shown("other_consumer_standards", "STDSOTHCONS", "Banks tightening other consumer loan standards (net %)",
+           "consumer", "Federal Reserve (Senior Loan Officer Survey)", "quarterly", "net percent", "2011-04",
+           FRED_PD, HOUSE, SHORT_SINCE % ("in 2011", "one recession (2020)"), change_in="points"),
+    _shown("new_home_supply", "MSACSR", "New homes for sale: months' supply", "consumer", "Census and HUD",
+           "monthly", "months", "1963-01", FRED_PD, HOUSE,
+           "wide sampling error: the Census Bureau puts the August 2026 monthly change at plus or minus 17.2%; "
+           "the report reads it smoothed, and it is shown here as published", change_in="points"),
+    # -- business
+    _shown("equipment_orders", "NEWORDER", "Orders for business equipment excluding aircraft", "commercial",
+           "Census Bureau (M3)", "monthly", "millions of dollars", "1992-02", FRED_PD, COMM,
+           "in dollars, not adjusted for prices; the industry classification changed in 2001",
+           change_in="percent", position=TREND),
+    _shown("business_applications", "BABATOTALSAUS", "Business applications", "commercial",
+           "Census Bureau (Business Formation Statistics)", "monthly", "applications", "2004-07", FRED_PD, COMM,
+           "counts new businesses, not distress (report); an IRS outage in December 2025", change_in="percent",
+           position=TREND),
+    _shown("likely_employer_applications", "BAHBATOTALSAUS", "Business applications likely to hire",
+           "commercial", "Census Bureau (Business Formation Statistics)", "monthly", "applications", "2004-07",
+           FRED_PD, COMM, "redefined for its whole history in January 2026, so a copy from before then differs; "
+           "an IRS outage in December 2025", change_in="percent", position=TREND),
+    _shown("philadelphia_survey", "GACDFSA066MSFRBPHI", "Philadelphia Fed manufacturing survey: current activity",
+           "commercial", "Philadelphia Fed", "monthly", "diffusion index", "1968-05", FRED_CR, COMM,
+           "a survey of one region's manufacturers", change_in="points"),
+    _shown("empire_survey", "GACDISA066MSFRBNY", "Empire State manufacturing survey: current activity",
+           "commercial", "New York Fed", "monthly", "diffusion index", "2001-07", FRED_CR, COMM,
+           "a survey of one state's manufacturers; " + SHORT_SINCE % ("in 2001", "two recessions"),
+           change_in="points"),
+    _shown("dallas_survey", "BACTSAMFRBDAL", "Dallas Fed manufacturing survey: business activity", "commercial",
+           "Dallas Fed", "monthly", "diffusion index", "2004-06", FRED_CR, COMM,
+           "a survey of one state's manufacturers; " + SHORT_SINCE % ("in 2004", "two recessions"),
+           change_in="points"),
+    _shown("cre_standards_construction", "SUBLPDRCSC",
+           "Banks tightening construction and land loan standards (net %)", "commercial",
+           "Federal Reserve (Senior Loan Officer Survey)", "quarterly", "net percent", "2013-10", FRED_PD, COMM,
+           SHORT_SINCE % ("in 2013 Q4", "no fall in CRE prices but 2020"), change_in="points"),
+    _shown("cre_standards_nonresidential", "SUBLPDRCSN",
+           "Banks tightening nonresidential property loan standards (net %)", "commercial",
+           "Federal Reserve (Senior Loan Officer Survey)", "quarterly", "net percent", "2013-10", FRED_PD, COMM,
+           SHORT_SINCE % ("in 2013 Q4", "no fall in CRE prices but 2020"), change_in="points"),
+    _shown("cre_standards_multifamily", "SUBLPDRCSM", "Banks tightening multifamily loan standards (net %)",
+           "commercial", "Federal Reserve (Senior Loan Officer Survey)", "quarterly", "net percent", "2013-10",
+           FRED_PD, COMM, SHORT_SINCE % ("in 2013 Q4", "no fall in CRE prices but 2020"), change_in="points"),
+    _shown("customs_duties", "B235RC1Q027SBEA", "Customs duties collected", "commercial", "BEA", "quarterly",
+           "billions of dollars, annual rate", "1959-01", FRED_PD, COMM,
+           "policy context, not a measure of stress (report); tariff policy changed in 2025 and 2026",
+           change_in="percent", position=TREND),
+    _shown("policy_uncertainty", "USEPUINDXM", "Economic policy uncertainty (newspaper index)", "both",
+           "Baker, Bloom and Davis", "monthly", "index", "1985-01", FRED_PD, COMM,
+           "built from newspaper articles; no test found linking it to loan losses (report)", change_in="points"),
+    _shown("trade_policy_uncertainty", "EPUTRADE", "Trade policy uncertainty (newspaper index)", "commercial",
+           "Baker, Bloom and Davis", "monthly", "index", "1985-01", FRED_PD, COMM,
+           "built from newspaper articles; no test found linking it to loan losses (report)", change_in="points"),
+]
+
+#: In the "usable with care" group and not shown, and why.
+NOT_SHOWN = [
+    ("University of Michigan consumer sentiment", "licensed: no redistribution (report); the firm chose to leave "
+     "licensed series out"),
+    ("Atlanta Fed wage growth tracker", "licensed: the Atlanta Fed's terms of use allow reproduction only \"not for "
+     "commercial gain or monetary profit\" (read 21 Oct 2026)"),
+    ("Atlanta Fed home ownership affordability", "licensed: the same terms of use, and its price and insurance "
+     "inputs are licensed from others (report)"),
+    ("VIX", "CBOE's copyright, reprinted on FRED with permission (report); its terms for others' use are not "
+     "confirmed"),
+    ("Yale Budget Lab tariff rate", "its terms are not confirmed (report); customs duties collected are shown"),
+    ("NY Fed student loan delinquency", "the NY Fed's reuse terms for its household credit data are not "
+     "confirmed (report, gaps)"),
+    ("County unemployment rates", "about 3,200 series, not seasonally adjusted, too many for one workbook; a "
+     "county monitor is specified in this repository (bls-laus-county-monitor) but not built"),
+    ("CFPB mortgage delinquency by state, metro and county", "each file is named for the month it runs to (the "
+     "newest ran to December 2025 on 21 Oct 2026), so the pull would first have to find it on the CFPB's "
+     "download page; no reader yet"),
+    ("Bankruptcy filings (US Courts)", "published as PDF and spreadsheet tables with no download service "
+     "(report); no reader yet"),
+    ("Census Business Trends and Outlook Survey", "an experimental survey every two weeks from September 2023, "
+     "published as a spreadsheet per question, with no reader yet"),
+]
+
 
 @dataclass(frozen=True)
 class Derived:
@@ -225,6 +388,7 @@ NOT_YET = [
     ("FHFA mortgage delinquency by state", "the state file is not wired in yet; national and loan type are"),
 ]
 
+SERIES = SERIES + SHOWN
 BY_KEY = {s.key: s for s in SERIES}
 DERIVED_BY_KEY = {d.key: d for d in DERIVED}
 #: Everything that can be rated: the catalog's own series, then the derived readings.

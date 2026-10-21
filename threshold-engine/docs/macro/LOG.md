@@ -749,3 +749,49 @@ for a written plan and objections before anything is built. Both are in
   The plan recommends testing on both, labelled.
 - **Waiting on the firm:** 17 decisions, listed in the plan, and a note for
   Book 1's agent asking for the left-out quarters as a file.
+
+## 21 Oct 2026: the usable-with-care group, shown and never rated
+
+The firm: *"after thinking for some time i would like to expand what we keep in this book after all - even if
+not super useful"*. Asked which book and how far, they chose the Macrobook, the report's "usable with care"
+group with licensed series left out, and **shown, not rated**.
+
+- **What was added: 30 series** (`catalog.SHOWN`), each with the report's caveat in a sentence (`care`).
+  27 come from FRED. The NY Fed survey's expected chance of missing a debt payment comes from the NY Fed's
+  own workbook (`sources.read_nyfed_sce`), whose licence grants a worldwide right to reproduce, use and
+  distribute with a stated attribution. That attribution is carried with the series and printed wherever
+  its data are (`credit`).
+- **How a shown series is read.** It is described, never rated: its latest reading, and the share of the
+  readings in the firm's history window it is at or above, counted from the lowest, with the lowest and
+  highest beside it. No direction is set, and nothing says better or worse. The rules for level and change
+  are the rated series': a level that grows with prices and the economy is shown on its change only. The
+  settings ask nothing about a shown series, so the firm's settings file still checks unchanged (a test
+  says so).
+- **One reading of the pull.** `rate_all` reads the shown series with the rated ones, so the run's
+  fingerprints cover their files. `build` refuses a workbook whose Pull read a shown file differently,
+  as it does a rated one (a test changes the survey file between the rating and the build).
+- **The workbook** gains a *Shown, not rated* tab after States, with topics, links, what had nothing to
+  show and the rest of the group with why it is not read. Each shown series gets its own slate tab, with
+  its history in ink, the latest reading ringed and **no bands**, since nothing is rated. Ratings links to
+  it, and Run and the Glossary count and define it.
+- **Left out, and why** (`catalog.NOT_SHOWN`, printed by `list`):
+  - licensed: University of Michigan sentiment; the Atlanta Fed's wage tracker and affordability index.
+    The Atlanta Fed's terms of use (read 21 Oct 2026) allow reproduction only *"not for commercial gain or
+    monetary profit"*;
+  - terms not confirmed: VIX, the Yale tariff rate, NY Fed student loan delinquency;
+  - no reader yet: county unemployment (about 3,200 series); CFPB delinquency, whose files are named for the
+    month they run to; bankruptcy tables; the Census BTOS.
+- **Found on the way.**
+  - The new survey reader first accepted 201313 as a month. A test caught it, and the reader now refuses
+    the file.
+  - This log's first draft said the repository's `bls-laus-county-monitor` reads county rates. It is a
+    draft spec, not built. Corrected before commit.
+- **Could not check today.** The St. Louis Fed's whole site, FRED included, answered *"Site Maintenance"*
+  from about 19:40 to at least 21:30 UTC on 21 Oct 2026, and data.bls.gov timed out. So the 27 FRED ids,
+  first readings and licence tags are the report's (14-16 Oct), not re-read. The example workbook is not
+  rebuilt yet. Both wait for FRED. The pull refuses a maintenance page in place of a file, because the
+  FRED reader checks the header.
+- **Checks.** 136 macro tests pass, 13 of them new. Each new behaviour was broken in turn, and a test
+  failed every time but one. Reading the shown series again in `build`'s fingerprint check is not
+  separately testable, because the Shown tab has already read every one of them. It stays, so the check
+  says what it means.
