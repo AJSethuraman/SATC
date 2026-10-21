@@ -973,8 +973,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             cc.alignment = Alignment(vertical="bottom", indent=1 if pi else 0)
             best = 'INDEX(%s,MATCH(MAX(%s),%s,0))' % (SLEADS, f_["all"], f_["all"])
             lead_c = "%s%d" % (L(c1 + 2), rr)
-            num(rr, c1 + 2, '=IFERROR(%s,"")' % best, "+0;-0;0")
-            num(rr, c1 + 3, '=IFERROR(MAX(%s),"")' % f_["all"], "0.00")
+            num(rr, c1 + 2, '=IF(COUNT(%s)=0,"",IFERROR(%s,""))' % (f_["all"], best), "+0;-0;0")
+            num(rr, c1 + 3, '=IF(COUNT(%s)=0,"",MAX(%s))' % (f_["all"], f_["all"]), "0.00")
             num(rr, c1 + 4, '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (f_["excl"], best, SLEADS), "0.00")
             num(rr, c1 + 5, '=IF(ISNUMBER({l}),SUMPRODUCT(--ISNUMBER(OFFSET({x},MAX(0,-{l}),0,{n}-ABS({l}),1)),'
                             '--ISNUMBER(OFFSET({y},MAX(0,{l}),0,{n}-ABS({l}),1))),"")'.format(l=lead_c, x=f_["x"], y=f_["y"], n=N), "0")
@@ -1032,7 +1032,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             rng = "%s$%s$%d:$%s$%d" % (WK, L(2 + j), top + 2, L(2 + j), top + 1 + len(LEADS))
             ex = "%s%s%d" % (WK, L(2 + j + len(tcols) + 2), rb)
             num(rr, 18, '=IF(%s="","",%s)' % (best, best), "+0;-0;0", font)
-            num(rr, 19, '=IFERROR(MAX(%s),"")' % rng, "0.00", font)
+            num(rr, 19, '=IF(COUNT(%s)=0,"",MAX(%s))' % (rng, rng), "0.00", font)
             num(rr, 20, '=IF(%s="","",%s)' % (ex, ex), "0.00", font)
             # the quarters the fit at that lead rests on (Codex on #466: not both full columns)
             sf_ = "%s$%s$%d" % (WK, L(col[key] + (1 if kind == "level" else 0)), R0)
@@ -1089,8 +1089,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(rr, 13, p_).font = F_SMALL
         a_, x_ = xfit[p_]
         best = 'INDEX(%s,MATCH(MAX(%s),%s,0))' % (XLEADS, a_, a_)
-        num(rr, 18, '=IFERROR(%s,"")' % best, "+0;-0;0")
-        num(rr, 19, '=IFERROR(MAX(%s),"")' % a_, "0.00")
+        num(rr, 18, '=IF(COUNT(%s)=0,"",IFERROR(%s,""))' % (a_, best), "+0;-0;0")
+        num(rr, 19, '=IF(COUNT(%s)=0,"",MAX(%s))' % (a_, a_), "0.00")
         num(rr, 20, '=IFERROR(INDEX(%s,MATCH(%s,%s,0)),"")' % (x_, best, XLEADS), "0.00")
         # the quarters the fit at that lead rests on: both yearly changes there, the signal led by the lead
         sf_, tf_ = ("%s$%s$%d" % (WK, L(col[k_] + 1), R0) for k_ in ("xp_" + _slug(p_), "picked"))

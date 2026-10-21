@@ -327,6 +327,9 @@ def test_the_pipeline_follows_the_picked_product(tmp_path):
     piped = [ch for ch in ws._charts if any("Signals workings" in s_.val.numRef.f and "pipe" in
                                             wk.cell(1, _col_of(s_.val.numRef.f)).value for s_ in ch.series)]
     assert len(piped) == 3
+    # Codex on #470: MAX over a range of "" reads 0, so a stage with no fit must stay blank, not 0.00.
+    assert sum(t.startswith('=IF(COUNT(') and ',"",MAX(' in t for t in texts) >= len(ST.STAGE_PAIRS) * 3
+    assert not any(t.startswith('=IFERROR(MAX(') for t in texts)
 
 
 def _col_of(ref):
@@ -351,7 +354,7 @@ def test_each_signal_block_has_the_fit_table_beside_it_with_the_pick_first_and_t
                                                                           "Credit card · Net charge-offs · KeyBank"]
         for r in range(pick, first + n_t):
             assert ws.cell(r, 18).value.startswith("=IF('Signals workings'!") and ws.cell(r, 18).number_format == "+0;-0;0"
-            assert ws.cell(r, 19).value.startswith("=IFERROR(MAX('Signals workings'!")
+            assert ws.cell(r, 19).value.startswith("=IF(COUNT('Signals workings'!")
             assert "SUMPRODUCT(--ISNUMBER(OFFSET(" in ws.cell(r, 21).value   # counted at the lead shown
         head = ws.cell(pick - 2, 21)
         assert head.value.endswith("· quarterly") and head.alignment.horizontal == "right"

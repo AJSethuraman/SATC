@@ -2088,3 +2088,5 @@ and home equity. The analyst took the recommended form: a lead curve per step.
 Not said on the tab, and true of every fit table here: the changes over a year overlap quarter to
 quarter, so 75 quarters are far fewer independent readings than 75, and an r near 0.9 is less certain
 than the count suggests.
+
+**21 October 2026, Codex on #470.** A fit range where every lead is blank read 0.00 under `MAX`, since Excel's `MAX` of blanks is 0. Fit and Lead now stay blank when `COUNT` of the range is 0, in the stage table and in the two older fit tables (each signal, across products), which had the same formula.
