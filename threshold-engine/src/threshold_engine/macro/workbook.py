@@ -842,8 +842,8 @@ def build(out, result, pull, whatif=None):
     for x in result.get("not_shown", []):
         missing_by.setdefault(x["key"], {})[x["reading"]] = x["why"]
     ws = sheet(SHOWN_NAME)
-    last = 10
-    widths(ws, [62, 11, 12, 26, 13, 14, 13, 12, 90])
+    last = 11
+    widths(ws, [62, 11, 12, 26, 13, 14, 11, 13, 12, 90])
     title_band(ws, SHOWN_NAME, "The research's \"usable with care\" group, each against its own history. "
                                "None is rated.", last, tab=K.SLATE)
     link(ws.cell(2, 2), "Ratings", "Back to Ratings")
@@ -858,7 +858,9 @@ def build(out, result, pull, whatif=None):
                         "lowest."),
         ("Level", "The latest value against every value in the history window. A series that grows with prices "
                   "and the economy is shown on its change only, as the rated series are."),
-        ("Change", "The change over %d months against every such change in the history window." % months),
+        ("Change", "The change over %d months against every such change in the history window. \"Change to\" "
+                   "is the month it runs to: the latest reading's, unless a reading %d months before it is "
+                   "missing, when it is the latest month that has one." % (months, months)),
         ("History from", "The first reading the latest is measured against: %s." % (
             "the full history the publisher has" if s["history"] == "full" else
             "the last %d years up to the latest reading" % s["history"]["years"])),
@@ -867,10 +869,10 @@ def build(out, result, pull, whatif=None):
     ]
     row = method_note(ws, 6, last, entries)
     cols = ["Series", "Latest", "Value", "Unit", "Level: at or above", "Change over %d months" % months,
-            "Change: at or above", "History from", "Why with care"]
+            "Change to", "Change: at or above", "History from", "Why with care"]
     for topic, keys in SHOWN_TOPICS:
         row = section(ws, row, topic, last)
-        row = sub_header(ws, row, cols, right=(1, 2, 4, 5, 6), centre=(7,))
+        row = sub_header(ws, row, cols, right=(1, 2, 4, 5, 7), centre=(6, 8))
         for key in keys:
             item = BY_KEY[key]
             got = shown_by.get(key, {})
@@ -889,12 +891,16 @@ def build(out, result, pull, whatif=None):
             elif item.position:
                 put(ws, row, 6, "change only", font=F_NOTE, align=Alignment(horizontal="right", vertical="center"))
             if chg:
+                # The change's own month beside it: when a reading the horizon back is missing (October
+                # 2025), the latest change is an earlier month's (Codex on #452).
                 put(ws, row, 7, *change_value(item, chg["value"]))
-                put(ws, row, 8, chg["percentile"] / 100, "0.0%")
+                put(ws, row, 8, _date(chg["date"]), "yyyy-mm", align=CENTER,
+                    font=F_BOLD if now and chg["date"] != now[0] else None)
+                put(ws, row, 9, chg["percentile"] / 100, "0.0%")
             if lvl or chg:
-                put(ws, row, 9, _date((lvl or chg)["history_from"]), "yyyy-mm", align=CENTER)
+                put(ws, row, 10, _date((lvl or chg)["history_from"]), "yyyy-mm", align=CENTER)
             care = item.care[0].upper() + item.care[1:] + "."
-            put(ws, row, 10, care, font=F_NOTE, align=Alignment(wrap_text=True, vertical="center"))
+            put(ws, row, 11, care, font=F_NOTE, align=Alignment(wrap_text=True, vertical="center"))
             ws.row_dimensions[row].height = max(15, 14 * math.ceil(len(care) / 105) + 3)
             rule(ws, row, 2, last)
             row += 1

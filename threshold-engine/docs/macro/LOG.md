@@ -791,7 +791,13 @@ group with licensed series left out, and **shown, not rated**.
   first readings and licence tags are the report's (14-16 Oct), not re-read. The example workbook is not
   rebuilt yet. Both wait for FRED. The pull refuses a maintenance page in place of a file, because the
   FRED reader checks the header.
-- **Checks.** 136 macro tests pass, 13 of them new. Each new behaviour was broken in turn, and a test
+- **Codex on 26a2c538, two findings, both fixed:**
+  - `rate` printed the NY Fed survey's numbers without the credit its licence requires. Each described
+    reading now carries the credit, so `--json` has it too, and the printout ends with it.
+  - On the Shown tab, a change could sit beside the latest reading's date when a reading the horizon back
+    is missing, as October 2025 is. The change was then an earlier month's. A *Change to* column now gives
+    the month each change runs to.
+- **Checks.** 136 macro tests pass, 13 of them new (138 after Codex's two). Each new behaviour was broken in turn, and a test
   failed every time but one. Reading the shown series again in `build`'s fingerprint check is not
   separately testable, because the Shown tab has already read every one of them. It stays, so the check
   says what it means.

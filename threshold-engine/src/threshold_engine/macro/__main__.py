@@ -128,6 +128,8 @@ def cmd_rate(a):
             print("     %-26s %-8s %s" % (x["key"], x["reading"], x["sentence"]))
         for x in result["not_shown"]:
             print("     %-26s %-8s nothing to show: %s" % (x["key"], x["reading"], x["why"]))
+        for credit in sorted({x["credit"] for x in result["shown"] if x.get("credit")}):
+            print("\n  %s" % credit)
     return 0
 
 

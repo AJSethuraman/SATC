@@ -291,6 +291,10 @@ def describe_reading(item, reading, points, settings):
         "unit": item.unit if reading == "position" else ("percent" if item.change_in == "percent" else "points"),
         "frequency": item.frequency, "date": date, "value": value, "percentile": pct, "readings": len(window),
         "history_from": window[0][0], "low": ordered[0], "high": ordered[-1], "sentence": sentence,
+        # The wording the publisher's licence requires wherever its data are shown, carried with the data so
+        # every output that prints them can print it (Codex on #452: the printout showed the NY Fed's numbers
+        # without it).
+        **({"credit": item.credit} if item.credit else {}),
     }, None
 
 

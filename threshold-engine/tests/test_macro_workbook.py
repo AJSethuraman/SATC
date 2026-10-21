@@ -581,7 +581,7 @@ def test_the_shown_tab_lists_every_shown_series_and_the_rest_of_the_group(shown_
     assert ws.cell(row, 4).value == 1.0 and ws.cell(row, 6).value == pytest.approx(1 / 321)
     # a series that grows is shown on its change only
     row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Real disposable income")
-    assert ws.cell(row, 6).value == "change only" and ws.cell(row, 8).value is not None
+    assert ws.cell(row, 6).value == "change only" and ws.cell(row, 9).value is not None
     # what the pull lacks is said, with why
     assert "Nothing to show, and why" in text and "Job openings" in text
     assert _to(wb["Ratings"].cell(2, 2)) == SHOWN_NAME
@@ -624,3 +624,42 @@ def test_a_build_refuses_a_pull_whose_shown_file_changed_since_the_rating(shown_
     (pull.folder / "nyfed_sce.xlsx").write_bytes((pull.folder / "nyfed_sce.xlsx").read_bytes() + b" ")
     with pytest.raises(Refused, match="nyfed_sce.xlsx"):
         build(tmp_path / "x.xlsx", result, pull)
+
+
+def test_the_shown_tab_dates_a_change_by_its_own_month_when_the_latest_has_none(tmp_path):
+    # Codex on #452: a reading missing the horizon back leaves the latest month with no change, so the change
+    # shown is an earlier month's; written beside the latest date alone, it read as the latest month's.
+    from test_macro_rate import _fetcher
+    from test_macro_sources import sce_workbook
+    base = _fetcher()
+
+    def fetch(url):
+        if "newyorkfed.org" in url:      # March 2026 missing: no change over 6 months to September
+            return sce_workbook([(100 * (2013 + (5 + i) // 12) + (5 + i) % 12 + 1, None if i == 153 else 10 + i % 3)
+                                 for i in range(160)])
+        return base(url)
+    R.P.pull(tmp_path, keys=["expected_missed_payment"], today="2026-10-15", fetcher=fetch)
+    out, result, wb = _build(tmp_path, tmp_path / "x.xlsx")
+    chg = next(x for x in result["shown"] if x["key"] == "expected_missed_payment" and x["reading"] == "change")
+    assert chg["date"] == "2026-08-01"
+    ws = wb[SHOWN_NAME]
+    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Expected chance of missing a minimum "
+               "debt payment")
+    assert ws.cell(row, 3).value.date().isoformat() == "2026-09-01"     # the latest reading
+    assert ws.cell(row, 8).value.date().isoformat() == "2026-08-01"     # the month the change runs to
+
+
+def test_the_printout_and_the_record_carry_the_credit_the_survey_licence_requires(shown_cache, tmp_path, capsys):  # noqa: F811
+    # Codex on #452: rate printed the NY Fed's numbers without the attribution its licence requires.
+    import json
+    from threshold_engine.macro.__main__ import main
+    from threshold_engine.macro.catalog import SCE_CREDIT
+    settings = tmp_path / "s.json"
+    settings.write_text(json.dumps(answered()))
+    assert main(["rate", "--cache", str(shown_cache), "--settings", str(settings)]) == 0
+    out = capsys.readouterr().out
+    assert "expected_missed_payment" in out and SCE_CREDIT in out
+    assert main(["rate", "--cache", str(shown_cache), "--settings", str(settings), "--json"]) == 0
+    record = json.loads(capsys.readouterr().out)
+    sce = [x for x in record["shown"] if x["key"] == "expected_missed_payment"]
+    assert sce and all(x["credit"] == SCE_CREDIT for x in sce)
