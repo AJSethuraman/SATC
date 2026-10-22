@@ -575,6 +575,29 @@ def test_the_what_if_row_on_a_series_tab_is_as_tall_as_its_words(cache, tmp_path
     assert seen
 
 
+def test_a_change_read_only_under_the_what_if_still_builds_its_tab(tmp_path):
+    # Codex on #471: a quarterly series with every quarter but two left out, six months apart, has one change over
+    # six months as you have it, too few to read, while the what-if reads it. The chart was sized from the what-if's latest date in
+    # the column of the first side's changes, found an empty cell, and the whole build failed.
+    from threshold_engine.macro import pull as P
+    base = _fetcher()
+
+    def fetch(url):                                   # a quarterly series, 2000 Q1 to 2026 Q3, irregular
+        if "id=DRTSCLCC" in url:
+            rows = ["observation_date,DRTSCLCC"] + ["%d-%02d-01,%d" % (2000 + i // 4, 3 * (i % 4) + 1, (i * i) % 9 - 4)
+                                                    for i in range(107)]
+            return ("\n".join(rows) + "\n").encode()
+        return base(url)
+    P.pull(tmp_path, keys=["card_standards"], today="2026-10-22", fetcher=fetch)
+    out, c, wb = _whatif(tmp_path, tmp_path / "w.xlsx",
+                         {"history": "full", "left_out": ["1990Q1-2024Q2", "2024Q4", "2025Q2-2026Q4"]},
+                         {"history": "full"})
+    row = next(x for x in c["rows"] if x["key"] == "card_standards" and x["reading"] == "change")
+    assert row["a"] is None and row["b"] is not None              # read under the what-if only
+    assert "Read under the what-if only" in _text(wb["Card standards"])
+    assert _holds_together_in_excel(out) > 0
+
+
 def test_a_different_change_horizon_draws_no_dashed_lines_and_names_both_horizons(cache, tmp_path):  # noqa: F811
     # Six months against twelve is a different measure: its range would sit on the wrong scale.
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_months": 6}, {"change_months": 12})

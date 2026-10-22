@@ -1138,8 +1138,11 @@ def build(out, result, pull, whatif=None, zoom=None):
             ref = r or wb_
             keep = []
             latest_row = first + dates.index(_date(ref["date"]).isoformat())
-            if a <= latest_row <= b:
-                keep.append(ws.cell(latest_row, data_col).value)
+            # Read under the what-if only, the latest is the what-if's, which this side's column may not hold
+            # (Codex on #471: an empty cell there failed the whole build).
+            latest = ws.cell(latest_row, data_col).value if a <= latest_row <= b else None
+            if latest is not None:
+                keep.append(latest)
             band_col = dashed_col = None
             if reading == "change":
                 if r:
@@ -1149,9 +1152,9 @@ def build(out, result, pull, whatif=None, zoom=None):
             lo, hi, step, above, below = axis_view(seen, s["axis_cut"], keep)
             latest_col = 21 if reading == "position" else 24
             put(ws, top, latest_col, "Latest", font=F_NOTE)
-            if a <= latest_row <= b:
+            if latest is not None:
                 # Rounded here: LibreOffice ignores a label's own number format.
-                ws.cell(latest_row, latest_col, round(ws.cell(latest_row, data_col).value, 2))
+                ws.cell(latest_row, latest_col, round(latest, 2))
             if reading == "change" and r:
                 band_col = 22
                 put(ws, top, 22, "Normal from", font=F_NOTE)

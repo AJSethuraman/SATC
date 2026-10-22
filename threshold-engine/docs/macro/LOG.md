@@ -1084,3 +1084,13 @@ LibreOffice From 2020 Q2 to To 2026 Q3 drew them from 2020.25 to 2026.7. But
 reversing them failed none of the 56 workbook tests. A test now holds both
 ends of the shared lines and of each pick's, and fails when they are
 reversed.
+
+**Codex on #471, a seventh finding, fixed.** A change read under the what-if
+only, on a series whose first side still had a change in the drawn quarters,
+sized its chart from the what-if's latest date in the column of the first
+side's changes. That cell was empty, and the whole build failed with a
+TypeError. Reproduced with a quarterly series leaving out every quarter but
+two, six months apart: one change, too few to read, while the what-if read
+it. The chart now uses the latest value only where its column holds one. The
+test failed before the fix. The example is unchanged: its settings leave
+nothing out. 171 tests pass.
