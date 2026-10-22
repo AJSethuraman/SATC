@@ -1074,3 +1074,13 @@ after quarter from the first month drawn to the last, and out to a zoom's
 ends. Tested both ways, and the test failed before the fix. In LibreOffice,
 that zoom with the pandemic left out now computes, and both picks draw from
 July 2021 to September 2026. 169 tests pass.
+
+**Codex on #471, a sixth finding: did not reproduce, and found a gap in the
+tests.** Codex read the Dashboard's dashed lines as having their ends clamped
+the wrong way round, which would stretch every change chart back over the
+whole history whatever From and To say. They were not: each line starts at
+MAX(From, the pick's first month) and ends at MIN(To, its last), and in
+LibreOffice From 2020 Q2 to To 2026 Q3 drew them from 2020.25 to 2026.7. But
+reversing them failed none of the 56 workbook tests. A test now holds both
+ends of the shared lines and of each pick's, and fails when they are
+reversed.

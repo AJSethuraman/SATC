@@ -279,6 +279,20 @@ def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends
         assert ",$AP3>=$AN$6,$AP3<=$AN$7),$AP3,NA())" in x, x
 
 
+def test_the_dashed_lines_run_only_inside_the_quarters_chosen(book):
+    # Codex on #471 read the dashed lines' ends as clamped the wrong way round, which would stretch every change
+    # chart back over the whole history. They were not (in LibreOffice, From 2020 Q2 to 2026 Q3 drew them from
+    # 2020.25 to 2026.7), but no test would have failed had they been: each line starts at the later of From and
+    # the pick's first month, and ends at the earlier of To and its last.
+    _, _, wb = book
+    ws = wb[DASHBOARD]
+    lines_at = 40 + 13                                      # the shared lines, then each pick's
+    for col in (lines_at, lines_at + 3, lines_at + 6):
+        start, end = ws.cell(3, col).value, ws.cell(4, col).value
+        assert re.match(r"=(IFERROR\()?MAX\(\$AN\$6,", start), start
+        assert re.match(r"=(IFERROR\()?MIN\(\$AN\$7,", end), end
+
+
 def test_the_dashboard_says_why_a_pick_has_no_line_on_the_levels_chart(book):
     _, _, wb = book
     ws = wb[DASHBOARD]
