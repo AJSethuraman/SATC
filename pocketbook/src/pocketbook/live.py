@@ -33,8 +33,8 @@ Excel without dynamic arrays: no SORT, FILTER or LET, so Excel 2016 and LibreOff
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
 
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -64,8 +64,8 @@ P_RATE, P_WORSE, P_MAT = 34, 35, 36
 # shuffle standard error after the allowance (values; blank for a test that isn't shuffled), the p-value in words
 # when the flag turns on it and it is that near the bar, the same for Worse?, and Worse? as the tabs print it
 P_SE_BOOK, P_SE_BAND, P_BTXT, P_WBTXT, P_WORSE_SAID = 37, 38, 39, 40, 41
-#: How often by chance (the firm, 5 Oct 2026), as Pockets prints it
-P_CHANCE = 42
+#: Significant at N%? (the firm, 17 Oct 2026; How often by chance from 5 Oct), as Pockets prints it
+P_SIG = 42
 #: what joins a verdict and its flag: "Yes · borderline (p 0.048)"
 JOIN = " · "
 #: Worse? in words: the flag that decides, as Yes / Not sure / No / Too few losses
@@ -90,7 +90,7 @@ POCKET_HEADS = {
     P_BTXT: "Borderline: the p-value that decides, when the flag turns on it and it is within 2 standard errors of "
             "the bar",
     P_WBTXT: "Borderline, for Worse?", P_WORSE_SAID: "Worse? as the tabs print it",
-    P_CHANCE: "How often by chance",
+    P_SIG: "Significant at the confidence on Control?",
 }
 P_FIRST = 4               # the first pocket row on _pockets
 
@@ -174,6 +174,7 @@ class Live:
     last: dict = field(default_factory=dict)          # words for what the last Run used, by _live row
     last_sentence: str = ""
     kind_of: dict = field(default_factory=dict)       # id(grid) -> "grids" | "three-way"
+    line_rows: dict = field(default_factory=dict)     # a line-size setting's key -> its _live row (17 Oct 2026)
 
     def ref(self, kind: str, grid, band, seg, measure: str, column: int) -> str | None:
         r = self.rows.get((kind, id(grid), band, seg, measure))
@@ -218,7 +219,7 @@ def _options(res) -> list[tuple[str, str, str, object]]:
     sug = getattr(res, "suggested", None) or {}
     out = []
     for s in control.load_settings():
-        if s.key not in LIVE_KEYS:
+        if s.key not in LIVE_KEYS + control.LINE_KEYS:
             continue
         for o in s.options:
             v, kind = o.value, ""
@@ -242,9 +243,10 @@ def _control_rows(wb, res=None) -> dict[str, int]:
     used = getattr(res, "control_used", None) or {}
     # a setting this run wasn't asked (settings.yaml only_when: the profit line, the better line and what a pocket
     # is judged against, on a test of a new variable) reads by what the run used, never a blank cell
-    skip = {s.key for s in control.load_settings() if s.key in LIVE_KEYS and used.get("run_kind") is not None
+    keys = LIVE_KEYS + control.LINE_KEYS            # and the line-size lines (17 Oct 2026)
+    skip = {s.key for s in control.load_settings() if s.key in keys and used.get("run_kind") is not None
             and not control.asked(s, used)}
-    return {k: control.row_of(ws, k) for k in LIVE_KEYS if k not in skip and control.row_of(ws, k)}
+    return {k: control.row_of(ws, k) for k in keys if k not in skip and control.row_of(ws, k)}
 
 
 def _write_live(wb, res, lv: Live) -> None:
@@ -378,11 +380,54 @@ def _write_live(wb, res, lv: Live) -> None:
     ws.cell(row=L_LINES - 1, column=7, value="Rate (key)").font = Font(bold=True)
     wb.defined_names["line_keys"] = DefinedName("line_keys", attr_text=f"'{LIVE_SHEET}'!$G${L_LINES}:$G${r + 5}")
     wb.defined_names["line_values"] = DefinedName("line_values", attr_text=f"'{LIVE_SHEET}'!$C${L_LINES}:$C${r + 5}")
+    _write_lines(wb, ws, res, lv, r + 8, cells, own_set, opt)
     ws.column_dimensions["B"].width = 60
     ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 22
     ws.column_dimensions["E"].width = 40
     ws.column_dimensions["K"].width = 50
+
+
+#: the switch's words, by its value (settings.yaml line_worse_on)
+WORSE_ON_WORDS = {"either": "Either", "bad": "Bad loans", "gco": "GCOs"}
+
+
+def line_words(key: str, v) -> str | None:
+    """A line-size setting's value in _live's words, the same formats as its formula: "1.25×", "80%", "Either"."""
+    if v is None:
+        return None
+    if key == "line_worse_on":
+        return WORSE_ON_WORDS.get(v, str(v))
+    return f"{v * 100:.0f}%" if key == "line_lost" else f"{v:.2f}×"
+
+
+def _write_lines(wb, ws, res, lv: Live, top: int, cells, own_set, opt) -> None:
+    """The line-size lines (the firm, 17 Oct 2026), each by name for the Line size tab: line_big, line_bad_bigger,
+    line_lost, line_sooner and line_worse_on. Each reads Control as the lines above do; a Control tab set up before
+    the rows were added has none, and the line is the one the Run used, the starting line (control.read_control)."""
+    settings = {s.key: s for s in control.load_settings() if s.key in control.LINE_KEYS}
+    used = getattr(res, "control_used", None) or {}
+    ws.cell(row=top - 1, column=2, value="The line-size lines (the Line size tab)").font = Font(bold=True)
+    for i, key in enumerate(k for k in control.LINE_KEYS if k in settings):
+        s, r = settings[key], top + i
+        start = s.start().value if s.start() is not None else None
+        last = used.get(key, start)
+        c, d = cells(key)
+        if key == "line_worse_on":
+            # a blank (or unlisted) switch reads as Either, its starting answer: the tab never empties over it (the
+            # review of 17 Oct 2026: a cleared C56 made every Tripped by #N/A and the tab blank, All pockets too)
+            f = f'=IFERROR({opt(key, c)},"{start}")' if c else last
+            words = f'IF(C{r}="bad","Bad loans",IF(C{r}="gco","GCOs","Either"))'
+        else:
+            f = f"=IF({own_set(d)},{d},IFERROR({opt(key, c)},IF(ISNUMBER({c}),{c},VALUE({c}))))" if c else last
+            words = f'TEXT(C{r},"0%")' if key == "line_lost" else f'TEXT(C{r},"0.00")&"×"'
+        ws.cell(row=r, column=2, value=s.question)
+        ws.cell(row=r, column=3, value=f)
+        ws.cell(row=r, column=4, value=last)
+        ws.cell(row=r, column=5, value=f'=IFERROR({words},"no usable answer on Control")')
+        ws.cell(row=r, column=6, value=line_words(key, last))
+        wb.defined_names[key] = DefinedName(key, attr_text=f"'{LIVE_SHEET}'!$C${r}")
+        lv.line_rows[key] = r
 
 
 def _last(res, gco_total: float) -> dict:
@@ -521,62 +566,160 @@ def said_formula(word: str, ptext: str) -> str:
     return f'IF(OR({word}="",{ptext}=""),{word},{word}&{q(JOIN + "borderline (p ")}&{ptext}&")")'
 
 
-#: How often by chance (the firm, 5 Oct 2026: "it should indicate a 1 in X number ... but if we can't rely on it it
-#: should say something instead of the 1 in X that explains easily why"): a Yes pocket's p-value as "1 in X", and
-#: in its place, for every other pocket, the reason there is no number to rely on
-NO_REST, CLOSE, CHANCE = "Nothing to compare with", "Too close to call", "Could be chance"
-FEW_LOSSES, FEW_LOANS, NOT_MORE = "Too few losses to test", "Too few loans to test", "Not losing more"
-UNDER_WORSE, UNDER_PROFIT = "Under the Worse at line", "Within the profit line"
-#: under this the "1 in X" would print a number no Run can stand behind; it reads "Rarer than 1 in 10,000"
+#: Significant at N%? (the firm, 17 Oct 2026, replacing How often by chance of 5 Oct 2026: "i don't like how often by
+#: chance or could be chance as much as luck at this point. or another sort of standard term, i just think could be
+#: chance is too vague for a typical user"). The column answers its own question and nothing else (the review of 17
+#: Oct 2026): every pocket with a p-value reads by that p-value alone, Borderline when a shuffled p-value is within
+#: BORDERLINE_SE of its standard errors of the line; whether the pocket is worse is Worse?'s to say. A significant
+#: pocket says which side it is on (the firm, 17 Oct 2026: "Yes, worse (p = 1.2%)" and "Yes, better (p = 0.08%)",
+#: "i want it sorted in a sensical manner for investigation and slicers that get added would need to adapt"), and
+#: the p-value has a column of its own, a number, so a filter or a slicer over either column sees few values. Only a
+#: pocket with no p-value gets a reason instead
+SIG_WORSE, SIG_BETTER, SIG_BORDER, SIG_NO = "Yes, worse", "Yes, better", "Borderline", "No"
+NO_REST = "Nothing to compare with"
+FEW_LOSSES, NOT_MORE = "Too few losses to test", "Not losing more"
+#: every reading sig_said can give, for the Glossary's guard
+SIG_READINGS = (SIG_WORSE, SIG_BETTER, SIG_BORDER, SIG_NO, FEW_LOSSES, NO_REST, NOT_MORE)
+#: under this a p-value shows as "under 0.01%"
 RAREST = 0.0001
+#: the confidence and its line, 1 - confidence, as percentages in _live's words ("95%", "97.5%", "0.1%")
+_PCT = 'IF(ROUND({x}*100,9)=ROUND({x}*100,0),TEXT({x}*100,"0"),TEXT({x}*100,"0.0"))&"%"'
+CONF_PCT = "(" + _PCT.format(x="confidence") + ")"
+BAR_PCT = "(" + _PCT.format(x=BAR) + ")"
+#: the column's heading, the confidence on Control filled in live, and the p-value's beside it
+SIG_HEAD = "Significant at {}?"
+SIG_HEAD_FORMULA = f'="Significant at "&{CONF_PCT}&"?"'
+P_HEAD = "p-value"
 
 
-def one_in(p: float) -> str:
-    """A p-value as the tabs say it: "1 in 400", X to two significant figures, or "Rarer than 1 in 10,000"."""
+def pct_words(x: float) -> str:
+    """A share as _live words it: 0.95 is "95%", 0.975 "97.5%", 0.001 "0.1%"."""
+    return sure_words(x)[:-len(" sure")]
+
+
+def _dec(v: float) -> Decimal:
+    """v as the spreadsheet holds it in decimal: its 15 significant digits, so 0.00145 is 0.00145 and not the
+    0.0014499... of its binary double."""
+    return Decimal(f"{v:.15g}")
+
+
+def _half_up(v: float | Decimal, d: int) -> Decimal:
+    """v to d decimals, a half rounded away from zero, as Excel's and LibreOffice's ROUND and number formats round
+    it: on its decimal value (_dec), so 0.00145 shown as a percentage to two decimals is 0.15%."""
+    x = v if isinstance(v, Decimal) else _dec(v)
+    return x.quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
+
+
+# The p-value column holds the number and shows it as a percentage (the firm's precision, 17 Oct 2026): two decimals
+# under 1%, one under 10%, none from 10%, and "under 0.01%" under 0.01%, as every other tab shows it (book.P_FMT).
+# A p-value that would show as the line it sits under or over (1 - confidence) takes up to two more decimals, then
+# says which side it is ("under 10%", "over 10%"). The number
+# format carries what two conditions can (P_FMT); conditional formats carry the rest (p_rules), and p_format says,
+# in Python, which one a p-value gets
+P_FMT = '[<0.0001]"under 0.01%";[<0.01]0.00%;0.0%'
+#: the format for each tier (share decimals 4, 3 and 2), with no, one and two more decimals
+_TIER_FMTS = {4: ("0.00%", "0.000%", "0.0000%"), 3: ("0.0%", "0.00%", "0.000%"), 2: ("0%", "0.0%", "0.00%")}
+
+
+def _dd(p: float) -> int:
+    """The share decimals of p's tier: 4 under 1% (0.00%), 3 under 10% (0.0%), 2 from 10% (0%)."""
+    return 4 if p < 0.01 else 3 if p < 0.1 else 2
+
+
+def p_format(p: float, bar: float) -> str:
+    """The number format a p-value shows in, the same choice p_rules makes in the workbook."""
     if p < RAREST:
-        return "Rarer than 1 in 10,000"
-    x = 1.0 / p
-    digits = max(0, int(math.floor(math.log10(x))) - 1)
-    return f"1 in {math.floor(x / 10 ** digits + 0.5) * 10 ** digits:,.0f}"
+        return '"under 0.01%"'
+    dd = _dd(p)
+    on = lambda k: _half_up(p, dd + k) == _half_up(bar, dd + k)                    # noqa: E731
+    if p != bar and on(0):
+        if on(1):
+            if on(2):
+                whole = _half_up(bar * 100, 0) == _half_up(bar * 100, 9)
+                return f'"{"under" if p < bar else "over"} "' + ("0%" if whole else "0.0%")
+            return _TIER_FMTS[dd][2]
+        return _TIER_FMTS[dd][1]
+    return _TIER_FMTS[dd][0]
 
 
-def one_in_formula(p: str) -> str:
-    """one_in as a formula."""
-    x = f"(1/{p})"
-    return (f'IF({p}<{RAREST!r},"Rarer than 1 in 10,000","1 in "&TEXT(ROUND({x},'
-            f'-MAX(0,INT(LOG10({x}))-1)),"#,##0"))')
+def show_p(fmt: str, p: float) -> str:
+    """What a format from p_format shows for p: the few formats it uses, rounded as the spreadsheet rounds."""
+    if fmt.startswith('"'):
+        lead, num = fmt[1:].split('"', 1)
+        if not num:
+            return lead
+        return lead + show_p(num, p)
+    d = len(fmt.split(".")[1]) - 1 if "." in fmt else 0
+    return f"{_half_up(_dec(p) * 100, d)}%"
 
 
-def chance_said(word: str | None, gap: float | None, p: float | None, border: str | None, profit: bool,
-                profit_kind: str = "test") -> str:
-    """How often by chance, in Python: the reading (engine's word), the gap that decides (a multiple, or points
-    for profit), the p-value that decides and Worse?'s borderline words."""
-    if word in (engine.FEW, engine.THIN):
-        return FEW_LOSSES if word == engine.FEW else FEW_LOANS
+def p_words(p: float, bar: float) -> str:
+    """A p-value in words, as the Glossary quotes it: "p = 0.37%", "p under 0.01%", "p under 10%"."""
+    shown = show_p(p_format(p, bar), p)
+    return f"p {shown}" if shown.startswith(("under", "over")) else f"p = {shown}"
+
+
+def p_rules(c: str) -> list[tuple[str, str]]:
+    """p_format as conditional formats on a cell (its first cell `c`), in order: (formula, number format)."""
+    base = f"AND(ISNUMBER({c}),{c}>={RAREST!r},{c}<>{BAR})"
+    dd = f"IF({c}<0.01,4,IF({c}<0.1,3,2))"
+    on = lambda k: f"ROUND({c},{dd}+{k})=ROUND({BAR},{dd}+{k})"                  # noqa: E731
+    whole = f"ROUND({BAR}*100,0)=ROUND({BAR}*100,9)"
+    still = f"{on(0)},{on(1)},{on(2)}"
+    out = [(f"AND({base},{still},{c}<{BAR},{whole})", '"under "0%'),
+           (f"AND({base},{still},{c}<{BAR})", '"under "0.0%'),
+           (f"AND({base},{still},{whole})", '"over "0%'), (f"AND({base},{still})", '"over "0.0%')]
+    tiers = ((f"{c}<0.01", 4), (f"{c}<0.1", 3), ("TRUE", 2))
+    for k, cond in ((2, f"{on(0)},{on(1)}"), (1, on(0))):
+        out += [(f"AND({base},{cond},{t})", _TIER_FMTS[n][k]) for t, n in tiers]
+    out.append((f"AND(ISNUMBER({c}),{c}>=0.1)", "0%"))
+    return out
+
+
+def sig_said(word: str | None, gap: float | None, p: float | None, near: bool, profit: bool, bar: float) -> str:
+    """Significant at N%?, in Python: from the engine's word, the gap that decides (a multiple, or points for
+    profit), the p-value that decides, whether that p-value is a shuffled one within BORDERLINE_SE of its standard
+    errors of the line (`near`), and the line (1 - confidence). Yes, worse or Yes, better when the p-value is under
+    the line, by the side of the gap; No when it is not; Borderline when it is that near. A pocket without a p-value:
+    too few losses to test, nothing to compare with, or, losing no more than the rest, not losing more."""
+    if word == engine.FEW:
+        return FEW_LOSSES
     if gap is None:
         return NO_REST
-    if border:
-        return CLOSE
-    if word == engine.WORSE:
-        return one_in(p)
-    if word == engine.UNSURE_WORSE:
-        return CHANCE
     more = gap < 0 if profit else gap > 1
-    if word == engine.IN_LINE and more:
-        if profit and profit_kind == "test":
-            return CHANCE
-        return UNDER_PROFIT if profit else UNDER_WORSE
-    return NOT_MORE
+    if p is None:
+        # on Pockets every rate with a comparison is tested unless it has too few losses (engine.FEW); the median
+        # comparison's engine.THIN never reaches the tab. Kept for a rate whose test was not run
+        return FEW_LOSSES if more else NOT_MORE
+    if near:
+        return SIG_BORDER
+    if p < bar:
+        return SIG_WORSE if more else SIG_BETTER
+    return SIG_NO
 
 
-def chance_words(f: str, gap: str, p: str, wbtxt: str, profit: bool) -> str:
-    """chance_said as a formula, from _pockets' flag, gap, p-value and Worse?'s borderline words."""
+def sig_words(f: str, gap: str, p: str, se: str, profit: bool) -> str:
+    """sig_said as a formula, from _pockets' flag, gap, p-value and that p-value's shuffle standard error."""
     more = f"{gap}<0" if profit else f"{gap}>1"
-    under = (f'IF(profit_kind="test",{q(CHANCE)},{q(UNDER_PROFIT)})' if profit else q(UNDER_WORSE))
-    return (f'IF({f}={q(engine.FEW)},{q(FEW_LOSSES)},IF({f}={q(engine.THIN)},{q(FEW_LOANS)},'
-            f'IF({gap}="",{q(NO_REST)},IF({wbtxt}<>"",{q(CLOSE)},'
-            f'IF({f}={q(engine.WORSE)},{one_in_formula(p)},IF({f}={q(engine.UNSURE_WORSE)},{q(CHANCE)},'
-            f'IF(AND({f}={q(engine.IN_LINE)},{more}),{under},{q(NOT_MORE)})))))))')
+    near = f"IF(ISNUMBER({se}),ABS({p}-{BAR})<={stats.BORDERLINE_SE!r}*{se},FALSE)"   # AND would read both
+    return (f'IF({f}={q(engine.FEW)},{q(FEW_LOSSES)},IF({gap}="",{q(NO_REST)},'
+            f'IF(NOT(ISNUMBER({p})),IF({more},{q(FEW_LOSSES)},{q(NOT_MORE)}),'
+            f'IF({near},{q(SIG_BORDER)},IF({sig(p)},IF({more},{q(SIG_WORSE)},{q(SIG_BETTER)}),{q(SIG_NO)})))))')
+
+
+#: Pockets' order (the firm, 17 Oct 2026: "sorted in a sensical manner for investigation"), worst first: the group
+#: of a reading, by whether the pocket loses more than its comparison
+SIG_GROUPS = ((SIG_WORSE, True), (SIG_BORDER, True), (SIG_NO, True), (None, None), (SIG_NO, False),
+              (SIG_BORDER, False), (SIG_BETTER, False))
+
+
+def sig_group(reading: str, more: bool) -> int:
+    """1 to 7: Yes, worse; Borderline and No losing more; no test (any reason, Mixed with included); No and
+    Borderline losing less; Yes, better."""
+    for i, (word, side) in enumerate(SIG_GROUPS, start=1):
+        if word == reading and (side is None or side == more):
+            return i
+    return 4
 
 
 def base_word(cell: str) -> str:
@@ -688,8 +831,8 @@ def _write_pockets(wb, res, lv: Live) -> None:
                         ws.cell(row=r, column=cc, value="=" + border_text(R(P_FLAG), R(P_GAP), R(P_P), se,
                                                                            m.in_points, only))
                     ws.cell(row=r, column=P_WORSE_SAID, value="=" + said_formula(R(P_WORSE), R(P_WBTXT)))
-                    ws.cell(row=r, column=P_CHANCE, value="=" + chance_words(R(P_FLAG), R(P_GAP), R(P_P),
-                                                                             R(P_WBTXT), m.in_points))
+                    ws.cell(row=r, column=P_SIG, value="=" + sig_words(R(P_FLAG), R(P_GAP), R(P_P), se,
+                                                                          m.in_points))
                     ws.cell(row=r, column=P_MAT, value=(
                         f'=IF({R(P_MATERIAL)}="yes",{q(YES)},IF({R(P_MATERIAL)}="","",{q(NO)}))'))
                     lv.rows[(kind, id(g), bl, dl, m.name)] = r
