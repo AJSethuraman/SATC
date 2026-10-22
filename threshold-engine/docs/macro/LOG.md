@@ -1064,3 +1064,13 @@ credit, now ends with "Credits the publishers' licences require": once for
 each publisher whose series the tab shows and the pull read. Tested: each
 tab carries the NY Fed's credit once, and a tab with no credited series read
 carries none. Each part fails a test when taken out. 168 tests pass.
+
+**Codex on #471, a fifth finding, fixed.** The Dashboard's From and To lists
+held only quarters with a reading. So a zoom starting in a quarter left out
+of every series (`--zoom 2020Q2:2026Q3` with the pandemic left out), or
+ending past the data, opened the boxes on a quarter the lookup could not find
+(#N/A), and every chart on the tab drew nothing. The list now runs quarter
+after quarter from the first month drawn to the last, and out to a zoom's
+ends. Tested both ways, and the test failed before the fix. In LibreOffice,
+that zoom with the pandemic left out now computes, and both picks draw from
+July 2021 to September 2026. 169 tests pass.

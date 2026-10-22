@@ -297,6 +297,22 @@ def test_a_zoom_opens_the_dashboard_on_its_quarters_and_keeps_every_month(cache,
     assert ws.cell(3, 42).value == 2000.0                         # the From box can still widen the view
 
 
+def test_a_zoom_from_a_quarter_left_out_or_past_the_data_still_opens_on_quarters_the_boxes_offer(cache, tmp_path):  # noqa: F811,E501
+    # Codex on #471: the From and To lists held only quarters with a reading, so a zoom from the first quarter left
+    # out, or to one past the data, opened the boxes on a quarter the lookup could not find, and every chart broke.
+    for zoom, left in ((["2020Q2", "2026Q3"], ["2020Q2-2021Q2"]), (["2024Q1", "2027Q2"], [])):
+        _, _, wb = _build(cache, tmp_path / ("z%s.xlsx" % zoom[0]), zoom=zoom, left_out=left)
+        ws, data = wb[DASHBOARD], wb[DASH_DATA]
+        dq = next(d for d in ws.data_validations.dataValidation if set(str(d.sqref).split()) == {"C6", "C7"})
+        col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, dq.formula1).group(1)
+        quarters = [c.value for c in data[col][2:] if c.value]
+        assert ws["C6"].value in quarters and ws["C7"].value in quarters, (zoom, ws["C6"].value, ws["C7"].value)
+        assert len(quarters) == len(set(quarters))
+        # one quarter after another, none skipped
+        idx = [int(q[:4]) * 4 + int(q[-1]) for q in quarters]
+        assert idx == list(range(idx[0], idx[-1] + 1))
+
+
 def test_the_dashboard_data_are_each_series_month_by_month_in_typical_moves_from_its_median(book):
     _, result, wb = book
     data = wb[DASH_DATA]

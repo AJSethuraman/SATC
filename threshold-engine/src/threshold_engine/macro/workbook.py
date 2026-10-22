@@ -45,7 +45,7 @@ from .catalog import BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED, HOUSEHO
 from .compare import CALLED, NOT_ASKED, plain, row_label, spans, when
 from .readings import (DECREASING, DIRECTIONS, INCREASING, STABLE, changes, kept, percentile, sahm_kept,
                        window_of)
-from .settings import QUESTIONS, Refused, left_out_set, quarter_index, quarter_of, readings_of
+from .settings import QUESTIONS, Refused, left_out_set, quarter_index, quarter_label, quarter_of, readings_of
 
 ROW_RULE = "EFEBE4"      # PocketBook's one-pixel line between rows
 ARROW = {INCREASING: "▲ Increasing", STABLE: "Stable", DECREASING: "▼ Decreasing"}
@@ -110,7 +110,8 @@ CARE_TOPICS = [
 CARE_TAB = {
     "underemployment": "Underemployment", "job_openings": "Job openings", "layoffs_rate": "Layoffs rate",
     "quits_rate": "Quits rate", "temp_help": "Temp help jobs", "wages_eci": "Wages (ECI)",
-    "real_wages_eci": "Wages after inflation", "hourly_earnings": "Hourly earnings", "wage_tracker": "Wage tracker", "real_income": "Real income", "income_ex_transfers": "Income ex transfers",
+    "real_wages_eci": "Wages after inflation", "hourly_earnings": "Hourly earnings", "wage_tracker": "Wage tracker",
+    "real_income": "Real income", "income_ex_transfers": "Income ex transfers",
     "saving_rate": "Saving rate", "debt_service": "Debt service", "debt_service_mortgage": "Mortgage debt service",
     "debt_service_consumer": "Consumer debt service", "card_minimum_payment": "Card minimum payments",
     "expected_missed_payment": "Expected missed payments", "auto_standards": "Auto loan standards",
@@ -1828,13 +1829,13 @@ def build(out, result, pull, whatif=None, zoom=None):
     span_cols = (s0 + len(stats), s0 + len(stats) + 1)        # each series' first and last month drawn, in years
     dd.cell(2, span_cols[0], "First month drawn")
     dd.cell(2, span_cols[1], "Last month drawn")
-    # The quarters the Dashboard's From and To boxes offer, each with the years its months run from and to.
+    # The quarters the Dashboard's From and To boxes offer, each with the years its months run from and to: one
+    # after another from the first month drawn to the last, and out to a zoom's ends, so a quarter left out of
+    # every series, or a zoom past the data, is still one the boxes can hold (Codex on #471).
     q0 = span_cols[1] + 2
-    quarters_ = []
-    for m in every:
-        label = "%s Q%d" % (m[:4], (int(m[5:7]) - 1) // 3 + 1)
-        if not quarters_ or quarters_[-1] != label:
-            quarters_.append(label)
+    ends = [quarter_index(quarter_of(m + "-01")) for m in (every[:1] + every[-1:])]
+    ends += [quarter_index(q) for q in (zoom or ())]
+    quarters_ = [quarter_label(i).replace("Q", " Q") for i in range(min(ends), max(ends) + 1)] if ends else []
     for k, words in enumerate(("Quarter", "From", "To")):
         dd.cell(2, q0 + k, words)
     for n, label in enumerate(quarters_):
