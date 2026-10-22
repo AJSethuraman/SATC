@@ -207,8 +207,9 @@ SCE_LICENCE = ("NY Fed SCE licence: free to reproduce, use and distribute, with 
 SHORT_SINCE = "starts %s, so its history holds %s"
 REVISED = "heavily revised: BEA's annual update of September 2026 revised it back to January 2021"
 
-#: The report's "usable with care" group, as far as the tool can read it: shown, never rated. Ids, first
-#: readings and licences are as the report recorded them (14-16 Oct 2026) and are checked against a live pull.
+#: The report's "usable with care" group, as far as the tool can read it: shown, never rated. Every FRED id,
+#: title, frequency, unit, first reading and licence tag was checked on FRED's own series page and in a live
+#: pull on 22 Oct 2026; the NY Fed survey against its workbook and licence on 21 Oct.
 SHOWN = [
     # -- jobs and income
     _shown("underemployment", "U6RATE", "Underemployment rate (U-6)", "both", "BLS (household survey)", "monthly",
@@ -317,6 +318,12 @@ SHOWN = [
     _shown("trade_policy_uncertainty", "EPUTRADE", "Trade policy uncertainty (newspaper index)", "commercial",
            "Baker, Bloom and Davis", "monthly", "index", "1985-01", FRED_PD, COMM,
            "built from newspaper articles; no test found linking it to loan losses (report)", change_in="points"),
+    # Its FRED tag, read 22 Oct 2026, is "Copyrighted: Citation Required", as for the Freddie Mac rate and the
+    # Chicago Fed indexes the tool rates: usable with the citation, so it is not among the licensed series left
+    # out. FRED's note: "Copyright, 2016, Chicago Board Options Exchange, Inc. Reprinted with permission."
+    _shown("vix", "VIXCLS", "Stock market volatility (VIX)", "commercial", "Cboe (via FRED)", "daily", "index",
+           "1990-01-02", FRED_CR, COMM, "a daily market price of expected volatility, which moves in hours; the "
+           "Fed's stress test uses its quarterly peak (report)", change_in="points"),
 ]
 
 #: In the "usable with care" group and not shown, and why.
@@ -327,8 +334,6 @@ NOT_SHOWN = [
      "commercial gain or monetary profit\" (read 21 Oct 2026)"),
     ("Atlanta Fed home ownership affordability", "licensed: the same terms of use, and its price and insurance "
      "inputs are licensed from others (report)"),
-    ("VIX", "CBOE's copyright, reprinted on FRED with permission (report); its terms for others' use are not "
-     "confirmed"),
     ("Yale Budget Lab tariff rate", "its terms are not confirmed (report); customs duties collected are shown"),
     ("NY Fed student loan delinquency", "the NY Fed's reuse terms for its household credit data are not "
      "confirmed (report, gaps)"),

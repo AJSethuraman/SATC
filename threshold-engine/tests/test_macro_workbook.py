@@ -618,7 +618,8 @@ def test_a_shown_series_tab_draws_its_history_with_no_rating_and_no_bands(shown_
     assert "Nothing to show" in _text(wb["Job openings"]) and not wb["Job openings"]._charts
     assert _holds_together_in_excel(out) > 0
     run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
-    assert run["Series shown, not rated"].startswith("30 (5 readings shown;")
+    from threshold_engine.macro.catalog import SHOWN
+    assert run["Series shown, not rated"].startswith("%d (5 readings shown;" % len(SHOWN))
 
 
 def SCE_CREDIT_IN(ws):

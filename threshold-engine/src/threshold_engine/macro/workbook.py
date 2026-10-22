@@ -82,7 +82,7 @@ SHOWN_TOPICS = [
     ("Business", ["equipment_orders", "business_applications", "likely_employer_applications",
                   "philadelphia_survey", "empire_survey", "dallas_survey", "cre_standards_construction",
                   "cre_standards_nonresidential", "cre_standards_multifamily", "customs_duties"]),
-    ("Policy", ["policy_uncertainty", "trade_policy_uncertainty"]),
+    ("Policy and markets", ["policy_uncertainty", "trade_policy_uncertainty", "vix"]),
 ]
 SHOWN_TAB = {
     "underemployment": "Underemployment", "job_openings": "Job openings", "layoffs_rate": "Layoffs rate",
@@ -99,6 +99,7 @@ SHOWN_TAB = {
     "cre_standards_nonresidential": "CRE nonresidential standards",
     "cre_standards_multifamily": "CRE multifamily standards", "customs_duties": "Customs duties",
     "policy_uncertainty": "Policy uncertainty", "trade_policy_uncertainty": "Trade policy uncertainty",
+    "vix": "VIX",
 }
 SHOWN_NAME = "Shown, not rated"
 

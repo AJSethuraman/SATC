@@ -808,3 +808,33 @@ group with licensed series left out, and **shown, not rated**.
   failed every time but one. Reading the shown series again in `build`'s fingerprint check is not
   separately testable, because the Shown tab has already read every one of them. It stays, so the check
   says what it means.
+
+## 22 Oct 2026: FRED back; the shown series checked, the VIX added, the example rebuilt
+
+FRED answered again at 05:45 UTC. It had served its maintenance page from about 19:40 on 21 Oct, then timed
+out or returned 504 at 04:40.
+
+- **Each of the 27 shown FRED series was checked on its own FRED series page** (title, units, frequency and
+  licence tag) and in a live pull (first reading). All 27 match the catalog. The three regional manufacturing
+  surveys are "Copyrighted: Citation Required", as recorded, and the other 24 are "Public Domain: Citation
+  Requested". The two policy uncertainty indexes are public domain, as the report said.
+- **The VIX is now shown** (31 series). Its FRED tag is "Copyrighted: Citation Required", the same as the
+  Freddie Mac rate and the Chicago Fed indexes the tool already rates, so it is usable with the citation and
+  is not among the licensed series the firm chose to leave out. FRED's note: *"Copyright, 2016, Chicago Board
+  Options Exchange, Inc. Reprinted with permission."* It was taken off `NOT_SHOWN`. Its daily history from
+  2 Jan 1990 has 302 market holidays, which FRED leaves blank; they are kept as missing.
+- **Several readings agree with the report's own figures.** U-6 is 7.6% (September 2026), the saving rate
+  4.1% (August), new-home supply 8.5 months (August), the NY Fed survey 12.2% (September), and each CRE
+  standards series has 52 readings.
+- **The example was rebuilt** from the day's second pull, `2026-10-22-2` (116 of 116 series; the first pull
+  was made before the VIX was added). It is `examples/economic-conditions-what-if-2026-10-22.xlsx`, with its
+  printout. The 17 Oct example and printout are removed. 16 of 158 readings move under the 30-year what-if:
+  13 up, 3 down, 7 of them national. The mortgage rate's level still moves from 2 to 4 (52.5% of 2,899 weeks
+  since 1971; 91.4% of 1,566 since 1996).
+- **Checked:** the ISO schemas give 0 errors over 251 parts. The Open XML SDK gives 22, all of them the
+  font-element order notes in `styles.xml`, the same kind the 17 Oct example had. Printed to PDF in
+  LibreOffice (215 pages), the Shown tab and the minimum-payment, VIX and other tabs were looked at.
+- **Not checked:** whether the rebuilt file opens in Excel. There is no Excel here. The merge waits on the
+  firm.
+- main was merged in first (f8f6ffd7). It adds colours to `keybank_style.py` and changes none the
+  Macrobook uses.

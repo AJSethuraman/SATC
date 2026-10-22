@@ -21,7 +21,7 @@ what we keep in this book after all - even if not super useful"*).
   Each entry gives the publisher, id, frequency, first observation, licence,
   known breaks, and the report section that put it on the list. Every id was
   checked on FRED or at the publisher on 15 Oct 2026.
-- **30 more series, shown and never rated** (21 Oct 2026): the report's
+- **31 more series, shown and never rated** (21-22 Oct 2026): the report's
   "usable with care" group, as far as the tool can read it. They are short,
   broken or heavily revised: underemployment, job openings, layoffs and quits,
   temporary help, two wage measures, real income with and without transfers,
@@ -29,14 +29,15 @@ what we keep in this book after all - even if not super useful"*).
   payment share, the NY Fed survey's expected chance of missing a debt
   payment, the auto, other consumer and three CRE lending-standards series,
   new homes' months' supply, equipment orders, business applications, three
-  regional manufacturing surveys, customs duties and two policy uncertainty
-  indexes. None has a direction of stress and the settings ask nothing about
+  regional manufacturing surveys, customs duties, two policy uncertainty
+  indexes and the VIX. None has a direction of stress and the settings ask nothing about
   them, so the firm's settings stay as they are. Each is described, not
   rated: its latest reading, and the share of the readings in the same
   history window it is at or above, counted from the lowest. That says where
-  it sits, not whether that is good or bad. The ids, first readings and
-  licences come from the report (14-16 Oct 2026); the live pull that checks
-  them is in the log. **Licensed series stay out**, as the firm chose:
+  it sits, not whether that is good or bad. Every FRED id, title,
+  frequency, unit, first reading and licence tag was checked on FRED's own
+  series page and in a live pull on 22 Oct 2026. **Licensed series stay
+  out**, as the firm chose:
   University of Michigan sentiment (no redistribution) and the Atlanta Fed's
   wage tracker and affordability index (its terms allow reproduction only
   "not for commercial gain or monetary profit"). `list` names those and the
@@ -149,10 +150,12 @@ against the last 30 years took a script written by hand. The firm, 17 Oct
     different measure, so it is not drawn on the same chart.
 - **The example** (`examples/`): the firm's settings against
   `what-if-30-years.json`, the same answers with history set to the last 30
-  years. From the pull of 17 Oct 2026, 13 of 158 readings move: 11 up, 2
-  down. Seven are national, as the walk's hand-written script found on 16
-  Oct, including the mortgage rate's level, from 2 to 4 (52.5% of 2,899
-  weeks since 1971; 91.4% of 1,566 since 1996).
+  years. From the pull of 22 Oct 2026 (folder `2026-10-22-2`, the day's
+  second pull, the first having been made before the VIX was added), 16 of
+  158 readings move: 13 up, 3 down. Seven are national, including the
+  mortgage rate's level, from 2 to 4 (52.5% of 2,899 weeks since 1971;
+  91.4% of 1,566 since 1996). The 17 Oct example, built before the shown
+  series, had 13 moves: 11 up, 2 down. It also holds the 31 shown series.
 
 ## How each series is read
 
