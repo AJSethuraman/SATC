@@ -245,11 +245,6 @@ def zoom_rows(dates, zoom):
     return (inside[0], inside[-1]) if inside else None
 
 
-def excel_day(d):
-    """A date as Excel counts days, for a value axis of dates."""
-    return (_date(d) - datetime.date(1899, 12, 30)).days
-
-
 def build(out, result, pull, whatif=None, zoom=None):
     """Write the workbook for one run of readings (``read_all``'s result) to ``out``.
 
@@ -270,7 +265,7 @@ def build(out, result, pull, whatif=None, zoom=None):
     from openpyxl import Workbook
     from openpyxl.chart import AreaChart, BarChart, LineChart, Reference, ScatterChart, Series
     from openpyxl.chart.label import DataLabelList
-    from openpyxl.chart.legend import Legend
+    from openpyxl.chart.legend import Legend, LegendEntry
     from openpyxl.chart.series import SeriesLabel, StrRef
     from openpyxl.chart.shapes import GraphicalProperties
     from openpyxl.chart.text import RichText
@@ -1762,10 +1757,9 @@ def build(out, result, pull, whatif=None, zoom=None):
             for d, v in window:
                 got["place"][d[:7]] = percentile(v, ordered) / 100
         monthly[key] = got
+    # Every month, whatever the zoom: the zoom only sets the quarters the Dashboard opens on, and the From and To
+    # boxes can widen them.
     every = sorted({m for g in monthly.values() for part in g.values() for m in part})
-    if zoom:
-        every = [m for m in every if quarter_index(zoom[0]) <= quarter_index(quarter_of(m + "-01"))
-                 <= quarter_index(zoom[1])]
     dd = sheet(DASH_DATA)
     dd.sheet_state = "hidden"
     put(dd, 2, 1, "Month", font=F_BOLD)
@@ -1785,6 +1779,13 @@ def build(out, result, pull, whatif=None, zoom=None):
                 if v is not None:
                     dd.cell(first_row + i, c0 + k, v)
     shown_months = set(every)
+
+    def year_of(m):
+        """A month as a decimal year, 2019.0 for January 2019: a chart's time axis in years fits the months it is
+        given. A date axis of day numbers does not: Excel starts one at zero, 1900, unless the dates are close
+        together (the firm's Dashboard, 22 Oct 2026, ran from 1900 to 2036)."""
+        return int(m[:4]) + (int(m[5:7]) - 1) / 12
+
     s0 = 2 + 4 * len(pickable) + 1                  # the summary of each series, one row each, and the pick list
     stats = ["Series", "Unit", "Latest", "Value", "Level: at or above", "Change", "Change in", "Change to",
              "Normal from", "Normal to", "Direction", "Typical moves", "Since"]
@@ -1802,19 +1803,33 @@ def build(out, result, pull, whatif=None, zoom=None):
                 chg["movement"] if chg else None, _date(chg["since"]) if chg else None]
         drawn_ = sorted(m for part in ("level", "change") for m in monthly.get(key, {}).get(part, {})
                         if m in shown_months)
-        vals += [_date(drawn_[0] + "-01") if drawn_ else None, _date(drawn_[-1] + "-01") if drawn_ else None]
+        vals += [year_of(drawn_[0]) if drawn_ else None, year_of(drawn_[-1]) if drawn_ else None]
         for k, v in enumerate(vals):
             if v is not None:
                 dd.cell(rr, s0 + k, v)
-    span_cols = (s0 + len(stats), s0 + len(stats) + 1)        # each series' first and last month drawn
+    span_cols = (s0 + len(stats), s0 + len(stats) + 1)        # each series' first and last month drawn, in years
     dd.cell(2, span_cols[0], "First month drawn")
     dd.cell(2, span_cols[1], "Last month drawn")
+    # The quarters the Dashboard's From and To boxes offer, each with the years its months run from and to.
+    q0 = span_cols[1] + 2
+    quarters_ = []
+    for m in every:
+        label = "%s Q%d" % (m[:4], (int(m[5:7]) - 1) // 3 + 1)
+        if not quarters_ or quarters_[-1] != label:
+            quarters_.append(label)
+    for k, words in enumerate(("Quarter", "From", "To")):
+        dd.cell(2, q0 + k, words)
+    for n, label in enumerate(quarters_):
+        start = int(label[:4]) + (int(label[-1]) - 1) / 4
+        dd.cell(first_row + n, q0, label)
+        dd.cell(first_row + n, q0 + 1, start)
+        dd.cell(first_row + n, q0 + 2, start + 0.2)    # its third month is start + 2/12
     data_end = L(span_cols[1])
 
     ws = dash
-    widths(ws, [16, 13, 13, 18, 12, 12, 9, 12, 11, 11, 14, 11, 11])
-    title_band(ws, DASHBOARD, "Pick any two series: both drawn together on scales they share, then each on "
-                              "its own.", 14)
+    widths(ws, [22, 13, 13, 18, 12, 12, 9, 12, 11, 11, 14, 11, 11])
+    title_band(ws, DASHBOARD, "Pick any two series and the quarters to draw: both together on scales they "
+                              "share, then each on its own.", 14)
     link(ws.cell(2, 2), "Overview", "Back to Overview")
     picks = [("First series", "Unemployment rate"), ("Second series", "Initial jobless claims")]
     for i, (words, default) in enumerate(picks):
@@ -1826,101 +1841,136 @@ def build(out, result, pull, whatif=None, zoom=None):
         c.fill = K.solid(K.CANVAS)
         c.border = Border(bottom=side("medium", PICK_COLOURS[i]))
         ws.row_dimensions[rr].height = 20
+    window = zoom or ([quarters_[0].replace(" ", ""), quarters_[-1].replace(" ", "")] if quarters_ else None)
+    for i, words in enumerate(("From", "To")):
+        rr = 6 + i
+        put(ws, rr, 2, words, font=F_BOLD)
+        c = put(ws, rr, 3, window[i].replace("Q", " Q") if window else None,
+                font=Font(name="Arial", bold=True, size=11, color=K.INK_TEXT))
+        c.fill = K.solid(K.CANVAS)
+        c.border = Border(bottom=side("medium", K.INK))
+        ws.row_dimensions[rr].height = 20
     put(ws, 4, 8, "Pick a series from the list in each box.", font=F_NOTE)
+    put(ws, 6, 8, "Pick the quarters to draw. The axes fit what is picked; no reading changes.", font=F_NOTE)
     pick_list = "'%s'!$%s$%d:$%s$%d" % (DASH_DATA, L(s0), first_row, L(s0), first_row + len(names) - 1)
     dv = DataValidation(type="list", formula1=pick_list, allow_blank=False, showErrorMessage=True,
                         errorTitle="Not a series in this workbook", error="Pick a series from the list.")
     ws.add_data_validation(dv)
     dv.add("C4")
     dv.add("C5")
-    # Where each pick's columns start on the data tab, and its row in the summary: hidden helpers.
+    q_list = "'%s'!$%s$%d:$%s$%d" % (DASH_DATA, L(q0), first_row, L(q0), first_row + max(len(quarters_), 1) - 1)
+    dq = DataValidation(type="list", formula1=q_list, allow_blank=False, showErrorMessage=True,
+                        errorTitle="Not a quarter in this workbook", error="Pick a quarter from the list.")
+    ws.add_data_validation(dq)
+    dq.add("C6")
+    dq.add("C7")
+    # Hidden helpers: where each pick's columns start on the data tab and its row in the summary; the years the
+    # From and To quarters run from and to.
     HELP = 40                                       # AN onwards, hidden: the helpers and the drawn columns
+    rows_of = "'%s'!$%s$%d:$%s$%d"
     for i in range(2):
         rr = 4 + i
         formula(ws, rr, HELP, "=MATCH($C$%d,'%s'!$1:$1,0)" % (rr, DASH_DATA))
-        formula(ws, rr, HELP + 1, "=MATCH($C$%d,'%s'!$%s$%d:$%s$%d,0)" % (
-            rr, DASH_DATA, L(s0), first_row, L(s0), first_row + len(names) - 1))
-    header(ws, 7, [""] + stats[1:], right=(3, 4, 5, 8, 9), centre=(2, 6, 7, 10, 11, 12), height=20)
+        formula(ws, rr, HELP + 1, "=MATCH($C$%d,%s,0)" % (rr, rows_of % (DASH_DATA, L(s0), first_row, L(s0),
+                                                                         first_row + len(names) - 1)))
+    q_rows = (first_row, first_row + max(len(quarters_), 1) - 1)
+    for i, col in enumerate((q0 + 1, q0 + 2)):
+        rr = 6 + i
+        formula(ws, rr, HELP, "=INDEX(%s,MATCH($C$%d,%s,0))" % (
+            rows_of % (DASH_DATA, L(col), q_rows[0], L(col), q_rows[1]), rr,
+            rows_of % (DASH_DATA, L(q0), q_rows[0], L(q0), q_rows[1])))
+    T0, T1 = "$%s$6" % L(HELP), "$%s$7" % L(HELP)
+    formula(ws, 7, 8, '=IF(%s>%s,"From is after To, so nothing is drawn.","")' % (T0, T1),
+            font=Font(name="Calibri", size=10, bold=True, color=K.CRIMSON))
+
+    def stat(i, k):
+        """The summary's column k for pick i, as a formula."""
+        col = L(s0 + k)
+        return "INDEX(%s,$%s$%d)" % (rows_of % (DASH_DATA, col, first_row, col, first_row + len(names) - 1),
+                                     L(HELP + 1), 4 + i)
+    header(ws, 9, [""] + stats[1:], right=(3, 4, 5, 8, 9), centre=(2, 6, 7, 10, 11, 12), height=20)
     fmts = [None, None, "yyyy-mm-dd", "General", "0.0%", "+#,##0.0#;-#,##0.0#;0", None, "yyyy-mm-dd",
             "+#,##0.0#;-#,##0.0#;0", "+#,##0.0#;-#,##0.0#;0", None, "+0.0;-0.0;0.0", "yyyy-mm"]
     for i in range(2):
-        rr = 8 + i
+        rr = 10 + i
         formula(ws, rr, 2, "=C%d" % (4 + i), font=Font(name="Calibri", size=10, bold=True, color=PICK_COLOURS[i]))
         for k in range(1, len(stats)):
-            col = L(s0 + k)
-            formula(ws, rr, 2 + k, "=IF(INDEX('%s'!$%s$%d:$%s$%d,$%s$%d)=\"\",\"\",INDEX('%s'!$%s$%d:$%s$%d,$%s$%d))"
-                    % (DASH_DATA, col, first_row, col, first_row + len(names) - 1, L(HELP + 1), 4 + i, DASH_DATA, col,
-                       first_row, col, first_row + len(names) - 1, L(HELP + 1), 4 + i), fmts[k],
+            formula(ws, rr, 2 + k, '=IF(%s="","",%s)' % (stat(i, k), stat(i, k)), fmts[k],
                     align=CENTER if k in (6, 7, 10, 11, 12) else None)
         rule(ws, rr, 2, 14)
-    row = method_note(ws, 11, 14, [
-        ("Pick", "Choose a series in each box from its list. Every chart below follows the two boxes; nothing else "
-                 "in the workbook changes."),
+    row = method_note(ws, 13, 14, [
+        ("Pick", "Choose a series in each of the first two boxes, and the first and last quarter to draw in the "
+                 "other two. Every chart below follows the four boxes; nothing else in the workbook changes."),
         ("Together, moving", "Each series' change over %d months, measured in its own typical moves from its own "
                              "median change, so two series of different units share one scale. Between the dashed "
                              "lines at %s and %s is normal movement; past them the change reads Increasing or "
                              "Decreasing." % (months, "%+g" % s["normal_width"], "%+g" % -s["normal_width"])),
         ("Together, levels", "Where each level sits in its own history, from 0% (its lowest) to 100% (its "
-                             "highest), month by month. A series read on its change only has no line here."),
-        ("Each on its own", "Each series' level and its change in its own units, the change with its normal range "
-                            "dashed. Axes here fit whatever is picked, so a spike is not left off."),
+                             "highest). A series read on its change only has no line here, and the line above the "
+                             "chart says so."),
+        ("Each on its own", "Each series' level, and its change with its normal range dashed, in its own units."),
+        ("Axes", "Every axis fits what is picked and the quarters chosen. To look past a spike, such as 2020, "
+                 "pick quarters after it."),
         ("Months", "Every chart here is drawn month by month: a daily or weekly series at each month's last "
-                   "reading, a quarterly one at the first month of each quarter."),
+                   "reading, a quarterly one at the first month of each quarter. A line runs across a month with "
+                   "no reading; each series' own tab shows such a gap as a gap."),
         ("Formulas", "This tab is the one place with formulas. They only look up values written on a hidden tab, "
                      "%s, so no reading moves." % DASH_DATA),
-    ] + ([("Zoom", zoom_words)] if zoom_words else []) + ([("Quarters left out", left_words)] if left_words else []))
-    # The drawn columns: the month, then for each pick the month again where it has a reading (so the time axis
-    # fits the picks rather than every series in the book), its level, change, typical moves and place in its
-    # history; a month with nothing is #N/A, which a chart skips.
-    put(ws, 2, HELP + 2, "Month", font=F_NOTE)
+    ] + ([("Quarters left out", left_words)] if left_words else []))
+    # The drawn columns: the month in years, then for each pick that year again where the pick has a reading in
+    # the quarters chosen (so every axis fits the picks and the quarters), its level, change, typical moves and
+    # place in its history; a month with nothing is #N/A, which a chart skips.
+    put(ws, 2, HELP + 2, "Year", font=F_NOTE)
 
     def col_of(i, k):
-        """Pick i's drawn column k: 0 its months, 1 level, 2 change, 3 typical moves, 4 at or above."""
+        """Pick i's drawn column k: 0 its years, 1 level, 2 change, 3 typical moves, 4 at or above."""
         return HELP + 3 + 5 * i + k
     for i in range(2):
-        for k, words in enumerate(("Months", "Level", "Change", "Typical moves", "At or above")):
+        for k, words in enumerate(("Years", "Level", "Change", "Typical moves", "At or above")):
             put(ws, 2, col_of(i, k), "%s: %s" % (picks[i][0], words), font=F_NOTE)
     for n, m in enumerate(every):
         rr = first_row + n
-        ws.cell(rr, HELP + 2, _date(m + "-01")).number_format = "yyyy-mm"
+        ws.cell(rr, HELP + 2, year_of(m))
         for i in range(2):
             for k in range(4):
                 where = "INDEX('%s'!$A$%d:$%s$%d,ROW()-%d,$%s$%d+%d)" % (
                     DASH_DATA, first_row, data_end, last_row, first_row - 1, L(HELP), 4 + i, k)
-                formula(ws, rr, col_of(i, k + 1), "=IF(%s=\"\",NA(),%s)" % (where, where))
-            formula(ws, rr, col_of(i, 0), "=IF(AND(ISNA(%s%d),ISNA(%s%d)),NA(),%s%d)" % (
-                L(col_of(i, 1)), rr, L(col_of(i, 2)), rr, L(HELP + 2), rr), "yyyy-mm")
-    # The dashed lines: two points each, from the first month either pick has to the last, or each pick's own,
-    # looked up as values (a newer spreadsheet function such as AGGREGATE reads #NAME? unless the file marks it).
+                formula(ws, rr, col_of(i, k + 1), '=IF(%s="",NA(),%s)' % (where, where))
+            yr = "$%s%d" % (L(HELP + 2), rr)
+            formula(ws, rr, col_of(i, 0), "=IF(AND(OR(ISNUMBER(%s%d),ISNUMBER(%s%d)),%s>=%s,%s<=%s),%s,NA())" % (
+                L(col_of(i, 1)), rr, L(col_of(i, 2)), rr, yr, T0, yr, T1, yr))
+    # The dashed lines: two points each, across the quarters chosen where the picks have readings, looked up as
+    # values (a newer spreadsheet function such as AGGREGATE reads #NAME? unless the file marks it).
     LINES_AT = HELP + 13
     if every:
         def span_of(i, n):
-            col = L(span_cols[n])
-            return "INDEX('%s'!$%s$%d:$%s$%d,$%s$%d)" % (DASH_DATA, col, first_row, col, first_row + len(names) - 1,
-                                                       L(HELP + 1), 4 + i)
+            return stat(i, len(stats) + n)
         for n in range(2):
             rr = first_row + n
-            pick = "MIN" if n == 0 else "MAX"
+            inner, outer = ("MIN", "MAX") if n == 0 else ("MAX", "MIN")
             one, two = span_of(0, n), span_of(1, n)
-            formula(ws, rr, LINES_AT, "=%s(IFERROR(%s,%s),IFERROR(%s,%s))" % (pick, one, two, two, one), "yyyy-mm")
+            bound = T0 if n == 0 else T1
+            formula(ws, rr, LINES_AT, "=%s(%s,%s(IFERROR(%s,%s),IFERROR(%s,%s)))" % (outer, bound, inner, one, two,
+                                                                                    two, one))
             ws.cell(rr, LINES_AT + 1, s["normal_width"])
             ws.cell(rr, LINES_AT + 2, -s["normal_width"])
             for i in range(2):
-                formula(ws, rr, LINES_AT + 3 + 3 * i, "=IFERROR(%s+0,NA())" % span_of(i, n), "yyyy-mm")
-                for k, col in enumerate((s0 + 8, s0 + 9)):     # each pick's normal range, from the summary
-                    formula(ws, rr, LINES_AT + 4 + 3 * i + k, "=IFERROR(INDEX('%s'!$%s$%d:$%s$%d,$%s$%d)+0,NA())"
-                            % (DASH_DATA, L(col), first_row, L(col), first_row + len(names) - 1, L(HELP + 1),
-                               4 + i))
+                formula(ws, rr, LINES_AT + 3 + 3 * i, "=IFERROR(%s(%s,%s+0),NA())" % (outer, bound, span_of(i, n)))
+                for k, col in enumerate((8, 9)):            # each pick's normal range, from the summary
+                    formula(ws, rr, LINES_AT + 4 + 3 * i + k, "=IFERROR(%s+0,NA())" % stat(i, col))
     for col in range(HELP, LINES_AT + 10):
         ws.column_dimensions[L(col)].hidden = True
-    every_moves = [(m + "-01", v) for g in monthly.values() for m, v in g["moves"].items() if m in shown_months]
 
-    def scatter(title, unit, ys, lines_=(), bounds=None, fmt="General"):
-        """A chart of months: each of ``ys`` a (column, colour, the cell naming it); ``lines_`` dashed two-point
-        lines (column, colour, words). ``bounds`` fixes the value axis; without it the axis fits the picks."""
+    def scatter(title, unit, ys, lines_=(), bounds=None, fmt="General", legend=True):
+        """A chart of months, in years: each of ``ys`` a (column, its years' column, colour, the cell naming
+        it); ``lines_`` dashed two-point lines (column, its years' column, colour, words). ``bounds`` fixes the
+        value axis; without it, every axis fits the picks and the quarters chosen."""
         from openpyxl.chart.axis import NumericAxis
         ch = ScatterChart()
         ch.scatterStyle = "line"
+        # One colour a line, stated: left unstated, Excel colours every point of a one-line chart apart and gives
+        # each its own legend entry, which drew rows of unnamed dashes under the firm's charts (22 Oct 2026).
+        ch.varyColors = False
         for col, xcol, colour, name in ys:
             xs = Reference(ws, min_col=xcol, min_row=first_row, max_row=last_row)
             ser = Series(Reference(ws, min_col=col, min_row=first_row, max_row=last_row), xs)
@@ -1936,54 +1986,65 @@ def build(out, result, pull, whatif=None, zoom=None):
             ser.marker.symbol = "none"
             ser.smooth = False
             ch.series.append(ser)
-        # The time axis is left to fit whatever is picked: its months are #N/A wherever a pick has no reading.
         x = NumericAxis(axId=500, crossAx=100)
-        x.number_format = "yyyy"
+        x.axPos = "b"
+        x.number_format = "0"                     # years: 2019, 2020 ...
         x.delete = False
         x.majorGridlines = None
         x.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
-        x.txPr = text()
-        x.tickLblPos = "low"
+        x.txPr = text(9, K.SLATE)
+        x.tickLblPos = "low"                      # at the foot of the chart, wherever zero falls
         ch.x_axis = x
         y = ch.y_axis
         y.axId, y.crossAx = 100, 500
+        y.axPos = "l"
         y.delete = False
         y.majorGridlines = None
         y.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
-        y.txPr = text()
+        y.txPr = text(9, K.SLATE)
         y.number_format = fmt
+        y.tickLblPos = "low"
         y.title = unit
         if bounds:
             y.scaling.min, y.scaling.max = bounds[0], bounds[1]
             y.majorUnit = bounds[2]
         ch.title = title
-        ch.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True,
+        ch.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1100, b=True,
                                                                                     solidFill=K.INK))
-        ch.legend = Legend()
-        ch.legend.position = "b"
-        ch.legend.txPr = text(9, K.INK_TEXT)
-        ch.display_blanks = "gap"
+        if legend:                                # above the chart, clear of the years along its foot
+            ch.legend = Legend()
+            ch.legend.position = "t"
+            ch.legend.txPr = text(10, K.INK_TEXT)
+            named = set()                         # two dashed lines of one name: the name once in the legend
+            for idx, (*_, words) in enumerate(lines_, start=len(ys)):
+                if words in named:
+                    ch.legend.legendEntry.append(LegendEntry(idx=idx, delete=True))
+                named.add(words)
+        else:
+            ch.legend = None
+        # Joined across a month with no reading: a quarterly series has one a quarter on this tab's monthly grid,
+        # and Excel joins across #N/A anyway. Each series' own tab shows a real gap as one.
+        ch.display_blanks = "span"
         ch.visible_cells_only = False       # the drawn columns are hidden helpers
-        ch.height, ch.width = 9, 26
+        ch.height, ch.width = 9.5, 26
         ch.roundedCorners = False
         ch.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
         return ch
 
     if every:
-        w_ = s["normal_width"]
-        lo, hi, step, above, below = axis_view(every_moves or [("", 0.0)], s["axis_cut"], [w_, -w_])
         moves_title = "Both changes over %d months, in typical moves from each one's median" % months
         ws.add_chart(scatter(moves_title, "typical moves", [(col_of(0, 3), col_of(0, 0), PICK_COLOURS[0], "$C$4"),
                                                              (col_of(1, 3), col_of(1, 0), PICK_COLOURS[1], "$C$5")],
-                             [(LINES_AT + 1, LINES_AT, K.STONE, "Normal: top"),
-                              (LINES_AT + 2, LINES_AT, K.STONE, "Normal: bottom")],
-                             (lo, hi, step), "+0.0;-0.0;0"), "B%d" % row)
-        row += 19
-        if s["axis_cut"] and (above or below):
-            note(ws, row, 2, "The axis runs from %s to %s typical moves: %g%% of every series' changes at each end "
-                             "run off it, so the rest can be read. No reading changes." % (
-                                 "%+g" % lo, "%+g" % hi, s["axis_cut"]), 14)
-            row += 1
+                             [(LINES_AT + 1, LINES_AT, K.STONE, "Normal movement"),
+                              (LINES_AT + 2, LINES_AT, K.STONE, "Normal movement")], fmt="+0.0;-0.0;0"),
+                     "B%d" % row)
+        row += 20
+        only = [stat(i, 4) for i in range(2)]
+        formula(ws, row, 2, '=IF(AND(%s="change only",%s="change only"),"Neither pick has a line here: both are read '
+                            'on their change only.",IF(%s="change only",$C$4&" has no line here: it is read on its '
+                            'change only.",IF(%s="change only",$C$5&" has no line here: it is read on its change '
+                            'only.","")))' % (only[0], only[1], only[0], only[1]),
+                font=Font(name="Calibri", size=10, bold=True, color=K.SLATE))
         row += 1
         ws.add_chart(scatter("Both levels: where each sits in its own history", "at or above, of its history",
                              [(col_of(0, 4), col_of(0, 0), PICK_COLOURS[0], "$C$4"),
@@ -1994,15 +2055,17 @@ def build(out, result, pull, whatif=None, zoom=None):
             formula(ws, row, 2, "=C%d" % (4 + i), font=Font(name="Arial", bold=True, size=11, color=PICK_COLOURS[i]))
             row += 1
             ws.add_chart(scatter("Level", "its own units", [(col_of(i, 1), col_of(i, 0), PICK_COLOURS[i],
-                                                             "$C$%d" % (4 + i))]), "B%d" % row)
-            row += 19
-            ws.add_chart(scatter("Change over %d months, its normal range dashed" % months, "points or percent",
+                                                             "$C$%d" % (4 + i))], legend=False), "B%d" % row)
+            row += 20
+            ws.add_chart(scatter("Change over %d months (dashed: its normal range)" % months, "points or percent",
                                  [(col_of(i, 2), col_of(i, 0), PICK_COLOURS[i], "$C$%d" % (4 + i))],
                                  [(LINES_AT + 4 + 3 * i, LINES_AT + 3 + 3 * i, K.STONE, "Normal from"),
-                                  (LINES_AT + 5 + 3 * i, LINES_AT + 3 + 3 * i, K.STONE, "Normal to")]), "B%d" % row)
-            row += 20
+                                  (LINES_AT + 5 + 3 * i, LINES_AT + 3 + 3 * i, K.STONE, "Normal to")],
+                                 legend=False), "B%d" % row)
+            row += 21
     else:
         put(ws, row, 2, "No months to draw%s." % (" in %s to %s" % tuple(zoom) if zoom else ""), font=F_NOTE)
+    ws.freeze_panes = "A8"                  # the four boxes stay in view while the charts scroll
     ws.print_area = "A1:N%d" % row
     wb.calculation.fullCalcOnLoad = True            # Excel works out the lookups when the file opens
 

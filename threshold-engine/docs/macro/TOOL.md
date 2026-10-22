@@ -116,6 +116,9 @@ ways. Set it to 0 to keep every reading on every chart.
 The firm, 22 Oct 2026: *"i want to be able to simply change the view of
 quarters not change cutoffs or averages or anything but to literally zoom in
 on a set of quarters"*, and on where to set it, *"Name it, then rebuild"*.
+The Dashboard's From and To boxes do the same live, for any two series; the
+series tabs are values only, so their zoom is set when the workbook is built,
+and it also sets the quarters the Dashboard opens on.
 
 ```
 python -m threshold_engine.macro read --cache work/macro-cache --settings docs/macro/settings.json --workbook work/zoomed.xlsx --zoom 2019Q1:2026Q3
@@ -142,21 +145,29 @@ with formulas, and they only look up values written on its hidden data tab.
   history. Tiles count the changes in each direction.
 - **Dashboard.** The firm, 22 Oct 2026: *"a fairly simple to drive dashboard
   tab that basically lets you layer any 2 charts or something see the
-  individual charts and see a chart the shows magnitude in movement"*. Pick
-  a series in each of two boxes. The charts follow:
+  individual charts and see a chart the shows magnitude in movement"*, and,
+  having opened it in Excel, *"I would really like to auto adjust the axis to
+  match and also why can't I have a custom view of quarters?"*. Four boxes:
+  two series, each from a list, and a From and a To quarter. Every chart on
+  the tab follows them, and every axis fits what is picked and the quarters
+  chosen:
   - both changes, in typical moves from each one's median, on one chart,
-    with the normal range dashed: the magnitude of each one's movement on a
+    with normal movement dashed: the magnitude of each one's movement on a
     scale they share;
-  - both levels, as where each sits in its own history, 0% to 100%;
-  - each series on its own: its level, and its change with its normal range.
+  - both levels, as where each sits in its own history, 0% to 100% (a series
+    read on its change only has no line here, and the tab says so);
+  - each series on its own: its level, and its change with its normal range
+    dashed.
 
-  Two series in different units are never drawn against two different
-  axes: that misleads, so the layered charts use scales they share. Every
-  chart is drawn month by month: a daily or weekly series at each month's
-  last reading. **This tab is the one that could not be checked in Excel
-  here**: LibreOffice computes its lookups and draws its charts, and the file
-  passes the ISO schemas and the Open XML SDK, but its formulas are the first
-  in this workbook.
+  Over the full history the 2020 spike in jobless claims flattens the rest:
+  pick quarters after it and the axis refits. Two series in different units
+  are never drawn against two different axes: that misleads, so the layered
+  charts use scales the two share. Time runs in years, not day numbers:
+  Excel starts a day-number axis at 1900 unless the dates are close together.
+  The tab is drawn month by month, a daily or weekly series at each month's
+  last reading, and a line runs across a month with no reading (each series'
+  own tab shows the gap). **Its formulas are the only ones in the workbook**,
+  and use only functions every Excel since 2007 knows.
 - **What if:** only with `--compare`; see below.
 - **States:** unemployment by state, level and change, moving states first.
 - **Household debt.** The firm, 22 Oct 2026: *"household as a graph on this

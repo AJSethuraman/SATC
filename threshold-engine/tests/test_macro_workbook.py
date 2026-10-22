@@ -221,22 +221,79 @@ def test_the_dashboard_only_looks_up_values_written_on_its_hidden_tab(book):
     formulas = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("=")]
     assert formulas
     used = {f for x in formulas for f in re.findall(r"([A-Z]+)\(", x)}
-    assert used <= {"INDEX", "MATCH", "ROW", "IF", "IFERROR", "ISNA", "AND", "NA", "MIN", "MAX"}, used
+    # Functions every Excel since 2007 knows by name: one newer (AGGREGATE) read #NAME? unless the file marks it.
+    assert used <= {"INDEX", "MATCH", "ROW", "IF", "IFERROR", "ISNA", "ISNUMBER", "AND", "OR", "NA", "MIN",
+                    "MAX"}, used
     for x in formulas:
         for sheet in re.findall(r"'([^']+)'!", x):
             assert sheet in (DASH_DATA, DASHBOARD), x
-    # two pickers, each a list of every national and care series
-    dvs = ws.data_validations.dataValidation
-    assert len(dvs) == 1 and str(dvs[0].sqref) in ("C4 C5", "C5 C4") and dvs[0].type == "list"
+    # four pickers: two series, each from the list of every national and care series, and two quarters
+    dvs = {str(d.sqref): d for d in ws.data_validations.dataValidation}
+    series_dv = next(d for k, d in dvs.items() if set(k.split()) == {"C4", "C5"})
+    quarter_dv = next(d for k, d in dvs.items() if set(k.split()) == {"C6", "C7"})
+    assert len(dvs) == 2 and series_dv.type == quarter_dv.type == "list"
     data = wb[DASH_DATA]
-    col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, dvs[0].formula1).group(1)
+    col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, series_dv.formula1).group(1)
     names = [c.value for c in data[col][2:] if c.value]
     national = [k for _, keys in TOPICS for k in keys] + [k for _, keys in CARE_TOPICS for k in keys]
     assert len(names) == len(national) and ws["C4"].value in names and ws["C5"].value in names
-    # the charts: both changes in typical moves, both levels in their history, and each pick's own two
+    col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, quarter_dv.formula1).group(1)
+    quarters = [c.value for c in data[col][2:] if c.value]
+    assert quarters[0] == "2000 Q1" and quarters[-1] == "2026 Q3" and len(quarters) == len(set(quarters))
+    assert (ws["C6"].value, ws["C7"].value) == ("2000 Q1", "2026 Q3")      # opens on every quarter
+    assert ws.freeze_panes == "A8"                                          # the four boxes stay in view
+
+
+def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends(book):
+    # The firm, 22 Oct 2026, in Excel: years from 1900 to 2036 printed over the legends, and rows of unnamed
+    # dashes under the one-line charts.
+    out, result, wb = book
     charts = [x for n, x in _charts(out).items() if "scatterChart" in x]
     assert len(charts) == 6
-    assert all("'Dashboard'!$C$4" in x or "'Dashboard'!$C$5" in x for x in charts)
+    for x in charts:
+        assert "'Dashboard'!$C$4" in x or "'Dashboard'!$C$5" in x
+        assert '<varyColors val="0"/>' in x                       # one colour a line: no legend entry a point
+        x_axis = re.search(r'<valAx><axId val="500"/>.*?</valAx>', x, re.S).group(0)
+        assert '<axPos val="b"/>' in x_axis and 'formatCode="0"' in x_axis       # years, along the foot
+        assert "<min " not in x_axis and "<max " not in x_axis                    # fitted to what is picked
+        legend = re.search(r"<legend>.*?</legend>", x, re.S)
+        lines = len(re.findall(r"<ser>", x)) - x.count('prstDash val="dash"')
+        assert (legend is None) == (lines == 1)                   # a one-line chart has no legend
+        if legend:
+            assert '<legendPos val="t"/>' in legend.group(0)       # above, clear of the years
+            gone = re.findall(r'<legendEntry><idx val="(\d+)"/><delete val="1"/></legendEntry>', legend.group(0))
+            names = re.findall(r"<ser>.*?<tx>(.*?)</tx>", x, re.S)
+            shown = [n for k, n in enumerate(names) if str(k) not in gone]
+            assert len(shown) == len(set(shown)), shown            # no name twice
+        assert '<dispBlanksAs val="span"/>' in x                  # a quarterly pick drawn beside a monthly one
+    # the drawn years are the months in years, and the window helpers read the From and To quarters
+    ws = wb[DASHBOARD]
+    years = [ws.cell(r, 42).value for r in range(3, 8)]
+    assert years[:2] == [2000.0, pytest.approx(2000 + 1 / 12)]
+    t0, t1 = (ws.cell(r, 40).value for r in (6, 7))
+    assert t0.startswith("=INDEX(") and "$C$6" in t0 and t1.startswith("=INDEX(") and "$C$7" in t1
+    # each month is drawn only from the From quarter's first month to the To quarter's last
+    for col in (43, 48):
+        x = ws.cell(3, col).value
+        assert ",$AP3>=$AN$6,$AP3<=$AN$7),$AP3,NA())" in x, x
+
+
+def test_the_dashboard_says_why_a_pick_has_no_line_on_the_levels_chart(book):
+    _, _, wb = book
+    ws = wb[DASHBOARD]
+    said = [c.value for row in ws.iter_rows(min_col=2, max_col=2) for c in row
+            if isinstance(c.value, str) and "read on their change only" in c.value]
+    assert len(said) == 1 and "has no line here: it is read on its change only" in said[0]
+    # both picks are tested on their own, and together: four tests of the cell that says "change only"
+    tests = re.findall(r"(INDEX\([^()]*\))=\"change only\"", said[0])
+    assert len(tests) == 4 and len(set(tests)) == 2 and tests[:2] == tests[2:], tests
+
+
+def test_a_zoom_opens_the_dashboard_on_its_quarters_and_keeps_every_month(cache, tmp_path):  # noqa: F811
+    _, _, wb = _build(cache, tmp_path / "z.xlsx", zoom=["2024Q1", "2026Q3"])
+    ws = wb[DASHBOARD]
+    assert (ws["C6"].value, ws["C7"].value) == ("2024 Q1", "2026 Q3")
+    assert ws.cell(3, 42).value == 2000.0                         # the From box can still widen the view
 
 
 def test_the_dashboard_data_are_each_series_month_by_month_in_typical_moves_from_its_median(book):

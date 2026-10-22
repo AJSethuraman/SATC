@@ -955,3 +955,52 @@ from an earlier one. The latest shown is now the latest kept; the series' tab
 says when later readings were left out. Tested, and the test fails with the
 fix taken out.
 
+**The Dashboard, rebuilt after the firm opened it in Excel (22 Oct 2026).**
+The firm: *"Hard to read and I would really like to auto adjust the axis to
+match and also why can't I have a custom view of quarters? Also how are these
+dashes useful"*, and of the levels chart, *"this is just blank"*. What Excel
+showed, and why, none of it seen in LibreOffice:
+
+- **Rows of unnamed dashes** under each one-line chart: the chart did not say
+  `varyColors` is off, so Excel coloured every point apart and gave each its
+  own legend entry. It is now stated off, and a one-line chart has no legend.
+- **Years from 1900 to 2036**, printed over the legends: the time axis was in
+  day numbers, which Excel starts at zero unless the dates are close
+  together, and its labels sat at the foot where the legend was. Time is now
+  in years (2019.0 for January 2019), the legends sit above the charts.
+- **A blank levels chart**: both picks (core prices and the wage index) are
+  read on their change only, so neither has a place in its history to draw.
+  A line above the chart now says so.
+- **Axes that fit, and quarters to choose**: From and To boxes on the tab
+  set the quarters every chart draws, and every axis fits the picks and the
+  quarters. The fixed axis on the movement chart is gone.
+- **A quarterly series drew nothing** in LibreOffice beside a monthly one:
+  on the tab's monthly grid it has a reading one month in three, and the line
+  broke at every other month. Lines on this tab now join across a month with
+  no reading, as Excel already does; each series' own tab still shows a gap.
+
+The rebuilt tab was rendered in LibreOffice with the firm's two picks and
+2010 Q1 to 2026 Q3, and with the defaults; both drew as intended. It still
+has not been opened in Excel here.
+
+
+The movement chart's legend also named "Normal movement" twice, once for each
+dashed line; it now names it once. Every fix above has a test, and each was
+checked by breaking it (the colours stated, the axis at the foot, a legend on
+a one-line chart, the boxes frozen in view, years for day numbers, the To
+quarter, each pick's test in the "no line here" note, lines joined across a
+month, the name once): each break turned a test red. Three did not on the
+first try (the To quarter, the note, the joined lines), so those tests were
+made exact. 162 tests pass.
+
+**A design hand-off (22 Oct 2026).** The firm: *"I want a zip to hand off to
+an agent to allow them to make a design for this workbook so you can apply
+it."* The brief is `design/BRIEF-2026-10-22.md`, in the shape of the
+threshold workbook's design rounds (`docs/design/`): every tab's job and
+what looks wrong, the constraints the generator works under, and what to send
+back (an HTML mock, a build spec tab by tab, a token sheet, a note to the
+builder). The zip held the brief, the example workbook, every kind of tab
+printed, the firm's three photos of the Dashboard in Excel before the
+rebuild, the readings and the 73 series month by month as JSON, and the style
+references. It is not in the repository: it is rebuilt from the example and
+the brief.
