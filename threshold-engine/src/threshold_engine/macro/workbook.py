@@ -554,6 +554,27 @@ def build(out, result, pull, whatif=None, zoom=None):
             put(ws, row, 14, _date((lvl or chg)["history_from"]), "yyyy-mm", align=CENTER)
         return got
 
+    def credits(ws, row, last, keys):
+        """The wording a publisher's licence asks for wherever its figures are shown: once for each publisher
+        whose series the tab shows, at the foot of the tab (Codex on #471: the Overview showed the NY Fed's
+        household debt without it)."""
+        said = {}
+        for key in keys:
+            item = items.get(key)
+            if key in by_key and getattr(item, "credit", ""):     # only where its figures are on the tab
+                said.setdefault(item.credit, item.publisher)
+        if not said:
+            return row
+        row = section(ws, row + 1, "Credits the publishers' licences require", last)
+        for words, who in said.items():
+            put(ws, row, 2, who, font=F_BOLD, align=WRAP)
+            ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=last)
+            put(ws, row, 3, words, align=WRAP)
+            ws.row_dimensions[row].height = 14 * math.ceil(len(words) / (width_of(ws, 3, last) * 1.1)) + 4
+            rule(ws, row, 2, last)
+            row += 1
+        return row
+
     # -- Overview -----------------------------------------------------------
     ws = sheet("Overview", first=True)
     last = 15 if whatif else 14
@@ -628,6 +649,7 @@ def build(out, result, pull, whatif=None, zoom=None):
             rule(ws, row, 2, last)
             row += 1
         row += 1
+    credits(ws, row, last, national)
     ws.freeze_panes = "C2"
 
     # -- Dashboard (written after the data it looks up; its place in the tab order is kept here) ---------------
@@ -891,6 +913,7 @@ def build(out, result, pull, whatif=None, zoom=None):
             if same:
                 ws.row_dimensions.group(start, row - 1, outline_level=1, hidden=True)
             row += 1
+        row = credits(ws, row, last, [x["key"] for x in whatif["rows"]])
         ws.print_area = "A1:N%d" % row
 
     # -- States -----------------------------------------------------------
@@ -1572,16 +1595,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         put(ws, row, 3, why[0].upper() + why[1:] + ".", font=F_NOTE, align=WRAP)
         rule(ws, row, 2, last)
         row += 1
-    credits = [(x.title, x.credit) for x in CARE if x.credit]
-    if credits:
-        row = section(ws, row + 1, "Credits the publishers' licences require", last)
-        for what, words in credits:
-            put(ws, row, 2, what, font=F_BOLD, align=WRAP)
-            ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=last)
-            put(ws, row, 3, words, align=WRAP)
-            ws.row_dimensions[row].height = 14 * math.ceil(len(words) / 150) + 3
-            rule(ws, row, 2, last)
-            row += 1
+    credits(ws, row, last, [k for _, keys in CARE_TOPICS for k in keys])
     ws.freeze_panes = ws.cell(6, 3)
 
     # -- one sheet per series ----------------------------------------------
@@ -2069,6 +2083,8 @@ def build(out, result, pull, whatif=None, zoom=None):
             row += 21
     else:
         put(ws, row, 2, "No months to draw%s." % (" in %s to %s" % tuple(zoom) if zoom else ""), font=F_NOTE)
+        row += 1
+    row = credits(ws, row, 14, pickable)    # any series can be picked, so every credit they could need
     ws.freeze_panes = "A8"                  # the four boxes stay in view while the charts scroll
     ws.print_area = "A1:N%d" % row
     wb.calculation.fullCalcOnLoad = True            # Excel works out the lookups when the file opens

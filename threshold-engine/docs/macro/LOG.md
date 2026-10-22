@@ -1054,3 +1054,13 @@ standards, and wages after inflation. Rendered, the wages-after-inflation tab
 showed its what-if line running to a third line in a row two lines tall; the
 row is now as tall as its words, tested, and the test fails with the fix
 taken out. The four screenshots in `examples/` are from this build.
+
+**Codex on #471, a fourth finding, fixed.** The Overview showed each type of
+NY Fed household debt, its balance and its change, without the attribution
+the NY Fed's terms of use ask for wherever its data are shown; only the
+Household debt tab carried it. So did the What if tab and the Dashboard (any
+series can be picked). Each of them, and Usable with care for the survey's
+credit, now ends with "Credits the publishers' licences require": once for
+each publisher whose series the tab shows and the pull read. Tested: each
+tab carries the NY Fed's credit once, and a tab with no credited series read
+carries none. Each part fails a test when taken out. 168 tests pass.

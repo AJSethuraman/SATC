@@ -865,6 +865,26 @@ def test_household_debt_is_one_tab_stacked_as_the_ny_fed_reports_it_with_its_cre
     assert _holds_together_in_excel(out) > 0
 
 
+def test_every_tab_showing_the_ny_feds_figures_carries_its_credit_once(tmp_path):
+    # Codex on #471: the Overview showed each type's balance and change without the attribution the NY Fed's
+    # terms of use ask for wherever its data are shown. So do the Dashboard (any series can be picked) and the
+    # What if tab; the Household debt tab carried it already.
+    from threshold_engine.macro import pull as P
+    P.pull(tmp_path, keys=HOUSEHOLD_KEYS, today="2026-10-22", fetcher=_fetcher())
+    _, _, wb = _whatif(tmp_path, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    credit = "Source: New York Fed Consumer Credit Panel / Equifax."
+    for name in ("Overview", DASHBOARD, "What if"):
+        assert _text(wb[name]).count(credit) == 1, name
+    assert credit in _text(wb[HOUSEHOLD_NAME])               # under its chart and in its facts, as before
+    assert credit not in _text(wb[CARE_NAME])                # no NY Fed debt figures on it
+
+
+def test_a_tab_without_a_credited_series_read_carries_no_credits(cache, tmp_path):  # noqa: F811
+    _, _, wb = _build(cache, tmp_path / "b.xlsx")
+    for name in ("Overview", DASHBOARD, CARE_NAME):
+        assert "Credits the publishers' licences require" not in _text(wb[name]), name
+
+
 def test_a_quarter_left_out_neither_draws_nor_stretches_the_household_debt_chart(tmp_path):
     # Codex on #471: a left-out quarter's total still sized the axis, so a spike it held flattened the bars.
     from threshold_engine.macro import pull as P
