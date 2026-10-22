@@ -1094,3 +1094,145 @@ two, six months apart: one change, too few to read, while the what-if read
 it. The chart now uses the latest value only where its column holds one. The
 test failed before the fix. The example is unchanged: its settings leave
 nothing out. 171 tests pass.
+
+## 22 Oct 2026 (evening): the design applied
+
+**Claude Design's round 1 came back and is applied.** The firm sent the zip
+back, *KeyBank_design_style.zip*, with no words: the mock, a build spec tab by
+tab, seven tokens and a note to the builder. All of it is kept in
+`design/round-1/`, with pictures of the mock drawn in Chromium. What changed,
+in the spec's own order:
+
+- **One grammar on every tab.** The changes, everywhere:
+  - title band 27 pt with the subtitle beside it;
+  - links in row 2;
+  - section names over an ink rule (the dark bands are gone);
+  - canvas headers with a stone rule, rows ruled in `EFEBE4`;
+  - Calibri 11 data;
+  - a direction bold on mist whichever way it moves, Calibri 11;
+  - the method note ("How this tab works") moved from the top of every tab to
+    its foot, folded away, with no word changed.
+- **Overview.** One frozen header (it was repeated under each topic). The
+  first series is on row 9, where it was on row 21. The month a change runs to
+  is shown only when it is not the latest's, and then bold. The What if column
+  is blank where a series reads the same way, since the tile counts those.
+  Household debt shows its total, with the six types folded away under it.
+- **Dashboard, one screen.**
+  - The four boxes sit in one row (B5, H5, N5, Q5), and both picks' readings
+    sit in the Overview's columns.
+  - The two charts that set the picks together are side by side; under each
+    pick's name come its level and its change.
+  - **The spike rule:** past each series' cut (the firm's `axis_cut`, 1%, at
+    each end of its whole history, with the latest reading and the normal
+    range always kept on), a drawn value is #N/A by formula, so Excel's axis
+    fits the rest.
+  - A triangle marks each reading left off. The line under the two charts set
+    together counts them and names the furthest. Checked in LibreOffice: with
+    unemployment and claims over every quarter, *"9 readings run off the top,
+    8 off the bottom; the furthest +13.9 typical moves in Apr 2020"* and
+    *"7 ... 7 ...; the furthest +214.0 typical moves in Mar 2020"*.
+  - The new functions are COUNTIF, ABS and TEXT, all older than Excel 2007,
+    and the test's list of allowed functions grows by those three.
+- **Series tab, one function for 66 tabs.**
+  - Tiles for the level (with its lowest and highest), the change (normal
+    range, typical moves, since, history from) and, on unemployment, the Sahm
+    reading.
+  - The level and change charts side by side; a change-only series gets one
+    chart the full width.
+  - Each chart has its note under it, then What it is, which now ends with
+    the tool's two sentences, moved out of the tiles unchanged.
+  - The history moves from N:Q to AA:AD.
+  - Every history chart gets gridlines and a triangle at the edge for each
+    reading off the axis, and the what-if's range is slate, dashed, 1 pt
+    (it was red on some tabs and black on others).
+- **Household debt:** the NY Fed's chart beside the table of every type, the
+  total's change under the table, the credit line under both.
+- **Usable with care:** in the Overview's columns, with why each needs care in
+  a row under its name.
+- **States:** two tables side by side, 26 and 25, all 51 on one screen.
+- **What if:** canvas headers, section names, the method note at the foot.
+- **Record tabs:** one template, a link back to the Overview on each.
+- **Tab order** follows the Overview, coloured by topic (slate and stone in
+  turn), States after the core series, and Usable with care in mist.
+
+**Where the build departs from the spec, and why:**
+
+1. **The tokens live in `workbook.py`**, not appended to `keybank_style.py`.
+   That file also styles the threshold workbook, and this work writes only
+   under the macro tool's own folders.
+2. **Charts are anchored to their cells corner to corner**, not drawn at the
+   spec's sizes in centimetres. LibreOffice gives a column different pixels
+   from Excel, and the NY Fed's chart ran over the start of the table beside
+   it. Anchored to cells, a chart fills the same columns in both.
+3. **The latest reading's label sits left of its point**, not right. At the
+   right, LibreOffice clipped it off the chart's edge.
+4. **Daily and weekly series stay line charts on a date axis.** The spec says
+   they "stay scatter"; they were never scatter, and the date axis is the one
+   proven in Excel.
+5. **Some columns are wider, and two strings of mine are shorter:**
+   - States' "Unemployment rate" column is 12, not 9.57, because the header
+     broke mid-word;
+   - What if's normal-range columns are 20, because the size-11 text was cut
+     off;
+   - two strings written today for wages after inflation are shorter, because
+     they ran past their columns. The title is now "Employment cost index:
+     wages and salaries, after inflation", and the unit "index: wages over
+     prices, x 100".
+6. **Choices the spec left open:**
+   - the Dashboard freezes rows 1 to 5;
+   - its "From is after To" warning moved to T5;
+   - its change, date and range cells are text the tool writes, so one cell
+     shows any pick in its own format;
+   - its direction is bold on mist by conditional formatting;
+   - the Household debt tiles have no what-if row (the spec's row table has
+     none).
+7. **One method-note sentence changed, because it would otherwise be false.**
+   On the Dashboard, "the line above the chart says so" now reads "its name in
+   the legend says so", since that line is gone. The Dashboard's note also
+   gains an "Off the chart" entry, worded as the series tabs' is.
+
+**The questions the note to the builder asked, and the default taken:**
+
+- **The Dashboard's cut uses each series' whole history, at the firm's 1%.**
+  Over the full history the claims movement chart still runs to about +20
+  typical moves. A wider cut on the Dashboard alone would need a setting of
+  its own.
+- **Triangles are on the series tabs too.** LibreOffice draws them, with no
+  legend entry. Excel has not been seen.
+- **The normal range is drawn two ways:** a band on the series tabs, dashed on
+  the Dashboard, where every chart is a scatter chart.
+- **The x axis's step is fixed at build**, as the spec says.
+- **Tab colours alternate by topic.** If the firm reads meaning into slate
+  against stone, all core tabs can be slate.
+- **The chart row on a series tab** follows whether the what-if row is there,
+  as the note asks.
+
+**New words, for the firm to approve or replace:**
+
+- the tile labels "Lowest", "Highest" and "Sahm's published trigger";
+- the levels chart's "<name>: change only";
+- the line under the Dashboard's charts, "Off the chart, <name>: N readings
+  run off the top, M off the bottom; the furthest +X typical moves in Mon
+  YYYY.";
+- What it is's labels "Level" and "Change over 12 months".
+
+**Checked:**
+
+- 175 tests pass. The new tests cover:
+  - the Overview's one header and its folded note;
+  - the series tab's tiles, side-by-side charts, gridlines and triangles;
+  - a reading off the axis marked at the edge;
+  - the Dashboard's cut, markers and note;
+  - States in two tables;
+  - the tab order and colours;
+  - the What if column blank when the same;
+  - the household types folded.
+- Each was broken in turn and each break failed a test, nine in all.
+- The rendered workbook in LibreOffice showed three faults that tests had not
+  caught. Each is fixed and now tested:
+  - tile figures sitting at the right of their cells (left alignment was
+    never stated);
+  - an empty Sahm chart (its columns are now hidden, and the chart was not
+    told to plot hidden cells);
+  - the overlapping NY Fed chart.
+- **Not seen in Excel.**

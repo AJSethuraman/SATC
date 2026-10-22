@@ -437,11 +437,11 @@ DERIVED = [
     # salaries, June 2025, March and June 2026) come out of this arithmetic to the published decimal in five of
     # six; the sixth, private for June 2025, is 0.851 against BLS's 0.8. Prices averaged over the quarter, or
     # taken at its middle month, miss by 0.2 to 0.8 points (22 Oct 2026; docs/macro/LOG.md).
-    Derived("real_wages_eci", "Employment cost index: wages and salaries, private, after inflation", "consumer",
+    Derived("real_wages_eci", "Employment cost index: wages and salaries, after inflation", "consumer",
             ("wages_eci_nsa", "cpi_nsa"),
             "the wages and salaries index for private industry divided by consumer prices in the quarter's last "
             "month, both before seasonal adjustment; a quarter with no price for that month is left out",
-            "quarterly", "wages index over consumer prices, x 100", None, LABOUR, "percent",
+            "quarterly", "index: wages over prices, x 100", None, LABOUR, "percent",
             position="an index of one index over another has no meaning as a level, so its place in its own "
                      "history says nothing",
             note="Worked this way, BLS's own figures after inflation for June 2025, March 2026 and June 2026 come "

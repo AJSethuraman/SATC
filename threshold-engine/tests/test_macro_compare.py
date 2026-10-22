@@ -107,7 +107,7 @@ def test_compare_prints_what_differs_and_writes_the_what_if_tab_after_the_dashbo
     assert M.main(["read", "--cache", str(cache), "--settings", a, "--compare", b, "--workbook", str(out)]) == 0
     printed = capsys.readouterr().out
     assert printed.startswith("What if: what-if.json against settings.json, both from the pull of 2026-10-15.")
-    assert openpyxl.load_workbook(out).sheetnames[:4] == ["Overview", "Dashboard", "What if", "States"]
+    assert openpyxl.load_workbook(out).sheetnames[:4] == ["Overview", "Dashboard", "What if", "Unemployment"]
     assert M.main(["read", "--cache", str(cache), "--settings", a, "--compare", b, "--json"]) == 0
     got = json.loads(capsys.readouterr().out)
     assert got["compare"]["b"] == "what-if.json" and got["readings"]

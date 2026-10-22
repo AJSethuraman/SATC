@@ -7,4 +7,4 @@ What if: what-if-pandemic-left-out.json against settings.json, both from the pul
   dn  Initial jobless claims, change over 12 months                Stable -> Decreasing  (-1.0 typical moves of 3,068 since Jan 1968 -> -1.0 of 2,951 since Jan 1968)
   dn  Mortgages 90+ days late, all, change over 12 months          Increasing -> Stable  (+1.1 typical moves of 94 since Jan 2003 -> +0.7 of 85 since Jan 2003)
   dn  Banks tightening nonresidential property loan standards (net %), change over 12 months Stable -> Decreasing  (-1.0 typical moves of 48 since Oct 2014 -> -1.1 of 39 since Oct 2014)
-  dn  Employment cost index: wages and salaries, private, after inflation, change over 12 months Stable -> Decreasing  (-0.9 typical moves of 98 since Jan 2002 -> -1.0 of 89 since Jan 2002)
+  dn  Employment cost index: wages and salaries, after inflation, change over 12 months Stable -> Decreasing  (-0.9 typical moves of 98 since Jan 2002 -> -1.0 of 89 since Jan 2002)

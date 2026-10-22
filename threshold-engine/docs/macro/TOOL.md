@@ -135,45 +135,62 @@ runs). The tables keep the whole history, and the Run tab records the zoom.
 ## The workbook
 
 `read --workbook OUT.xlsx` writes it from the same run, so it cannot exist
-without the firm's settings. Its look is PocketBook's (17 Oct 2026, the firm:
-*"take inspiration from pocketbook for UI look and feel"*) and its charts
-follow Claude Design's for the threshold workbook (`docs/design/HANDOFF.md`).
+without the firm's settings. **Its design is Claude Design's round 1**
+(`design/round-1/`: the mock, the build spec, the tokens and the note to the
+builder), asked for on 22 Oct 2026 (*"I want a zip to hand off to an agent to
+allow them to make a design for this workbook so you can apply it"*). One
+grammar on every tab: a dark title band with the red rule, tiles of figures
+under the labels the tables use, section names over an ink rule, canvas
+column headers, a direction bold on mist whichever way it moves, and the
+method note ("How this tab works") at the foot of each tab, folded away.
 Every number is a value written by the tool. The Dashboard is the one place
 with formulas, and they only look up values written on its hidden data tab.
 
+The tab bar follows the Overview: Overview, Dashboard, What if, then every
+core series in the Overview's order (tabs slate and stone in turn, by topic),
+States, Usable with care and its series (mist), then State data, Glossary,
+Not read, Run and Sources.
+
 - **Overview:** every core series under five topics (jobs; prices and
   insurance; housing and household credit; business and the economy;
-  markets and financial conditions): its latest value, where its level sits,
-  its change and the month it runs to, its normal range, its direction, how
-  many typical moves it is from the median, since when, and the start of its
-  history. Tiles count the changes in each direction.
+  markets and financial conditions), under one frozen header: its latest
+  value, where its level sits, its change (and the month it runs to, when
+  that is not the latest's), its normal range, its direction, how many typical
+  moves it is from the median, since when, and the start of its history.
+  Household debt shows its total, the six types folded away under it. Tiles
+  count the changes in each direction.
 - **Dashboard.** The firm, 22 Oct 2026: *"a fairly simple to drive dashboard
   tab that basically lets you layer any 2 charts or something see the
   individual charts and see a chart the shows magnitude in movement"*, and,
   having opened it in Excel, *"I would really like to auto adjust the axis to
-  match and also why can't I have a custom view of quarters?"*. Four boxes:
-  two series, each from a list, and a From and a To quarter. Every chart on
-  the tab follows them, and every axis fits what is picked and the quarters
-  chosen:
-  - both changes, in typical moves from each one's median, on one chart,
-    with normal movement dashed: the magnitude of each one's movement on a
-    scale they share;
+  match and also why can't I have a custom view of quarters?"*. One screen:
+  four boxes in a row (two series, each from a list, and a From and a To
+  quarter); both picks' readings in the Overview's columns; then, side by
+  side,
+  - both changes, in typical moves from each one's median, with normal
+    movement dashed: the magnitude of each one's movement on a scale they
+    share;
   - both levels, as where each sits in its own history, 0% to 100% (a series
-    read on its change only has no line here, and the tab says so);
-  - each series on its own: its level, and its change with its normal range
-    dashed.
+    read on its change only has no line, and its name in the legend says
+    "change only");
 
-  Over the full history the 2020 spike in jobless claims flattens the rest:
-  pick quarters after it and the axis refits. Two series in different units
-  are never drawn against two different axes: that misleads, so the layered
-  charts use scales the two share. Time runs in years, not day numbers:
-  Excel starts a day-number axis at 1900 unless the dates are close together.
-  The tab is drawn month by month, a daily or weekly series at each month's
-  last reading, and a line runs across a month with no reading (each series'
-  own tab shows the gap). **Its formulas are the only ones in the workbook**,
-  and use only functions every Excel since 2007 knows.
+  and under each pick's name its level, and its change with its normal range
+  dashed. Every axis fits what is picked and the quarters chosen. **Past the
+  firm's cut (1% of each series' readings at each end of its history, the
+  axis setting) a reading is left off by formula**, so the 2020 spike no
+  longer flattens the rest; a triangle marks each one at the edge, and the
+  line under the two charts set together counts them and names the furthest.
+  Two series in different units are never drawn against two different axes:
+  that misleads, so the layered charts use scales the two share. Time runs in
+  years, not day numbers: Excel starts a day-number axis at 1900 unless the
+  dates are close together. The tab is drawn month by month, a daily or
+  weekly series at each month's last reading, and a line runs across a month
+  with no reading (each series' own tab shows the gap). **Its formulas are
+  the only ones in the workbook**, and use only functions every Excel since
+  2007 knows.
 - **What if:** only with `--compare`; see below.
-- **States:** unemployment by state, level and change, moving states first.
+- **States:** unemployment by state, level and change, moving states first,
+  in two tables side by side so all 51 fit on one screen.
 - **Household debt.** The firm, 22 Oct 2026: *"household as a graph on this
   that split between as it is literally reported. It's like credit cards
   mortgage and other"*, and to which, *"NY Fed debt by type"*. The NY Fed's
@@ -181,18 +198,23 @@ with formulas, and they only look up values written on its hidden data tab.
   revolving, auto loan, credit card, student loan and other, stacked, in
   trillions of dollars, from 2003 Q1, with the NY Fed's own names. Beside it,
   each type's balance, share of the total, change over 12 months and
-  direction, and the total's change drawn over its normal range.
-- **Usable with care:** the research's usable-with-care group, read the same
-  way, with why each needs care; then what had nothing to show, the rest of
-  the group with why it is not read, and the credits the publishers' licences
-  require.
-- **One tab per series:** its level and change with the sentence behind each;
-  its level drawn against its history and its change over its shaded normal
-  range, the latest reading ringed; what it is, where it comes from, its
-  licence and breaks; and every reading, with "no value published" where the
-  publisher left a gap and "left out" for a quarter the firm left out. The
-  unemployment tab also draws the Sahm reading against its 0.50 trigger.
-- **State data, Not read, Glossary, Run and Sources.**
+  direction, and under that the total's change drawn over its normal range.
+- **Usable with care:** the research's usable-with-care group, in the
+  Overview's columns, with why each needs care under its name; then what had
+  nothing to show, the rest of the group with why it is not read, and the
+  credits the publishers' licences require.
+- **One tab per series:** tiles of its level (with the lowest and highest
+  in its history) and its change (with its normal range, typical moves,
+  since and history from); its level drawn against its history and its change
+  over its shaded normal range side by side, the latest reading ringed and a
+  triangle at the edge for each reading off the axis (a series read on its
+  change only has one chart, the full width); what it is, where it comes
+  from, its licence and breaks, and the tool's two sentences behind the
+  tiles; and every reading in columns AA to AD, with "no value published"
+  where the publisher left a gap and "left out" for a quarter the firm left
+  out. The unemployment tab adds the Sahm reading in a tile and its chart
+  against the 0.50 trigger.
+- **State data, Not read, Glossary, Run and Sources**, on one template.
 
 Run from `threshold-engine/`:
 

@@ -13,7 +13,10 @@ from threshold_engine.macro import readings as R
 from threshold_engine.macro.catalog import CARE, CARE_DERIVED, CARE_NOT_READ, CORE, SCE_CREDIT, SERIES, STATES
 from threshold_engine.macro.settings import Refused, check
 from threshold_engine.macro.workbook import (CARE_NAME, CARE_TAB, CARE_TOPICS, DASH_DATA, DASHBOARD, HOUSEHOLD_KEYS,
-                                             HOUSEHOLD_NAME, TAB, TOPICS, axis_view, build, glossary, nice_axis)
+                                             HOUSEHOLD_NAME, SERIES_COLS, TAB, TOPICS, axis_view, build, glossary,
+                                             nice_axis)
+
+C = SERIES_COLS
 
 from test_macro_readings import _fetcher, cache, care_cache  # noqa: F401  (the fixtures: pulls on disk)
 from test_macro_settings import answered
@@ -43,6 +46,12 @@ def _to(cell):
     """The tab an in-workbook link opens, however openpyxl read it back."""
     h = cell.hyperlink
     return re.match(r"#?'(.*)'!A1$", h.location or h.target).group(1)
+
+
+def _state(ws, st):
+    """A state's row on States, and the first column of the table it sits in: two tables side by side."""
+    firsts = [c for c in range(1, ws.max_column + 1) if ws.cell(4, c).value == "State"]
+    return next((r, c) for c in firsts for r in range(5, ws.max_row + 1) if ws.cell(r, c).value == st)
 
 
 def _charts(out):
@@ -78,9 +87,17 @@ def test_the_sheets_are_the_overview_and_dashboard_first_then_one_per_series_by_
             if TAB[k] not in tabs:
                 tabs.append(TAB[k])
     care = [CARE_TAB[k] for _, keys in CARE_TOPICS for k in keys]
-    assert wb.sheetnames == (["Overview", DASHBOARD, "States", CARE_NAME] + tabs + care
-                             + ["State data", "Not read", "Glossary", "Run", "Sources", DASH_DATA])
+    # the tab bar follows the Overview's rows, States after the core series (Claude Design, round 1)
+    assert wb.sheetnames == (["Overview", DASHBOARD] + tabs + ["States", CARE_NAME] + care
+                             + ["State data", "Glossary", "Not read", "Run", "Sources", DASH_DATA])
     assert wb[DASH_DATA].sheet_state == "hidden"
+    colour = {ws.title: (ws.sheet_properties.tabColor.rgb[-6:] if ws.sheet_properties.tabColor else None)
+              for ws in wb.worksheets}
+    assert colour["Overview"] == colour[DASHBOARD] == colour["States"] == "0A0908"           # ink
+    for t, (_, keys) in enumerate(TOPICS):                    # slate and stone in turn, by topic
+        assert {colour[TAB[k]] for k in keys} == {("57534B", "B9B4AC")[t % 2]}
+    assert {colour[n] for n in care + [CARE_NAME]} == {"E4DFD5"}                              # mist
+    assert all(colour[n] is None for n in ("State data", "Glossary", "Run", "Sources"))
 
 
 def test_the_overview_reads_every_national_series_under_its_topic_and_rates_none(book):
@@ -106,20 +123,105 @@ def test_the_overview_reads_every_national_series_under_its_topic_and_rates_none
     assert ws.cell(u, 12).value == pytest.approx(chg["movement"])
     assert ws.cell(u, 13).value.date().isoformat() == chg["since"]
     # the tiles count the national changes by direction
-    tiles = {ws.cell(3, c).value: ws.cell(4, c).value for c in range(2, 13) if ws.cell(3, c).value}
+    tiles = {ws.cell(4, c).value: ws.cell(5, c).value for c in range(2, 13) if ws.cell(4, c).value}
     assert tiles["Changes read"] == len(national)
     for d in ("Increasing", "Stable", "Decreasing"):
         key = next(k for k in tiles if k.endswith(d))
         assert tiles[key] == sum(1 for r in national if r["direction"] == d)
 
 
+def test_the_overview_has_one_header_and_its_method_note_folded_away_at_its_foot(book):
+    # Claude Design, round 1: the column header repeated per section is one frozen header; "How this tab works"
+    # moves from above the table to its foot, folded away, with no word changed.
+    _, result, wb = book
+    ws = wb["Overview"]
+    assert [ws.cell(7, c).value for c in range(2, 7)] == ["Series", "Latest", "Value", "Unit", "Level: at or above"]
+    how = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "How this tab works")
+    assert sum(1 for r in range(1, how) if ws.cell(r, 2).value == "Series") == 1
+    assert ws.freeze_panes == "C8" and ws.cell(8, 2).value == TOPICS[0][0]
+    u = _row(ws, "Unemployment rate")
+    assert u == 9                                                 # the first series, on the first screen
+    # the change's own month only when it is not the latest's
+    chg = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "change")
+    lvl = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "position")
+    assert chg["date"] == lvl["date"] and ws.cell(u, 8).value is None
+    for name in ("Overview", "Unemployment", HOUSEHOLD_NAME, "States", DASHBOARD):
+        sheet = wb[name] if name in wb.sheetnames else None
+        if sheet is None:
+            continue
+        how = next(r for r in range(1, sheet.max_row + 1) if sheet.cell(r, 2).value == "How this tab works")
+        under = [r for r in range(how + 1, sheet.max_row + 1) if sheet.row_dimensions[r].outlineLevel == 1]
+        assert under and all(sheet.row_dimensions[r].hidden for r in under), name
+        assert how > max(r for r in range(1, how) if sheet.cell(r, 2).value is not None) - 1
+
+
+def test_a_series_tab_reads_in_tiles_then_its_two_charts_side_by_side(book):
+    # Claude Design, round 1: the figures in tiles under the labels the tables use, the level and change charts
+    # side by side, a change-only series' chart the full width, what it is after them; the history past them.
+    out, _, wb = book
+    ws = wb["Unemployment"]
+    assert (ws["B4"].value, ws["H4"].value) == ("LEVEL", "CHANGE OVER 6 MONTHS")
+    assert [ws.cell(6, c).value for c in (2, 4, 6, 8, 10, 12, 14, 16)] == [
+        "Level: at or above", "Lowest", "Highest", "Normal from", "Normal to", "Typical moves", "Since",
+        "History from"]
+    assert ws.cell(4, C["date"]).value == "Date" and ws.freeze_panes == "A4"
+    # a figure reads from the left of its tile: numbers left alone sat at the right (LibreOffice, 22 Oct 2026)
+    assert all(ws.cell(r, c).alignment.horizontal == "left" for r, c in ((5, 2), (7, 2), (7, 8), (7, 12)))
+    anchors = sorted((c.anchor._from.col, c.anchor._from.row, c.anchor.to.col) for c in ws._charts)
+    assert anchors[0][0] == 1 and anchors[1][0] == 13 and anchors[0][1] == anchors[1][1]    # B and N, one row
+    assert anchors[0][2] == 13 and anchors[1][2] == 25                                       # to M and to Y
+    only = wb["Prices"]._charts
+    assert len(only) == 1 and (only[0].anchor._from.col, only[0].anchor.to.col) == (1, 25)  # the full width
+    text = _text(ws)
+    what = _row(ws, "What it is")
+    assert what > anchors[0][1] and "Level" in [ws.cell(r, 2).value for r in range(what, ws.max_row + 1)]
+    assert "at or above" in text and "typical moves above the median change" in text      # the tool's sentences
+    # every history chart: gridlines in the row rule's colour, a triangle for each reading off the axis
+    hist = [x for x in _charts(out).values() if "'Unemployment'!" in x and "Sahm" not in x]
+    assert hist and all("<majorGridlines>" in x and "EFEBE4" in x for x in hist)
+    assert all('<symbol val="triangle"/>' in x for x in hist)
+
+
+def test_a_reading_off_the_axis_is_marked_at_the_edge(tmp_path):
+    out, result, wb = _build(_spiked(tmp_path, ["unemployment"]), tmp_path / "m.xlsx", axis_cut=1, history="full")
+    ws = wb["Unemployment"]
+    lvl = next(x for x in _charts(out).values() if "Level against its history" in x)
+    hi = float(re.search(r'<max val="([\d.]+)"', lvl).group(1))
+    marked = {ws.cell(r, C["date"]).value.date().isoformat(): ws.cell(r, C["off_level"]).value
+              for r in range(5, ws.max_row + 1) if ws.cell(r, C["off_level"]).value is not None}
+    assert marked == {"2020-04-01": hi, "2020-05-01": hi}          # at the axis's top, on each reading off it
+
+
+def test_the_dashboard_cuts_each_pick_at_the_firms_setting_and_marks_what_runs_off(book):
+    # Claude Design, round 1: past each series' cut (the firm's 1% at each end) a drawn value is #N/A, so the
+    # axis fits the rest, and a triangle marks it at the cut; the line under the charts set together counts them.
+    out, result, wb = book
+    ws = wb[DASHBOARD]
+    data = wb[DASH_DATA]
+    col = {data.cell(2, c).value: c for c in range(2, data.max_column + 1) if data.cell(2, c).value}
+    r = next(r for r in range(3, data.max_row + 1) if data.cell(r, col["Series"]).value == "Unemployment rate")
+    lo, hi = data.cell(r, col["Moves: off below"]).value, data.cell(r, col["Moves: off above"]).value
+    chg = next(x for x in result["readings"] if x["key"] == "unemployment" and x["reading"] == "change")
+    assert lo <= -1.5 and hi >= max(1.5, chg["movement"] - 1e-9)   # the normal band and the latest always stay on
+    assert ws["AN8"].value == "=IFERROR(%s+0,NA())" % re.search(r"(INDEX\(.*\))\+0", ws["AN8"].value).group(1)
+    drawn, marker = ws.cell(3, 43 + 7).value, ws.cell(3, 43 + 10).value
+    assert drawn == "=IF(ISNUMBER(AT3),IF(OR(AT3>$AN$9,AT3<$AN$8),NA(),AT3),NA())", drawn
+    assert marker == "=IF(ISNUMBER(AQ3),IF(ISNUMBER(AT3),IF(AT3>$AN$9,$AN$9,IF(AT3<$AN$8,$AN$8,NA())),NA()),NA())"
+    assert "COUNTIF(" in ws["AN14"].value and "the furthest" in ws["AN14"].value
+    assert ws["B25"].value == '=$AN$14&IF(AND($AN$14<>"",$AN$15<>"")," ","")&$AN$15'
+    moves = next(x for x in _charts(out).values() if "Both changes" in x)
+    assert moves.count('<symbol val="triangle"/>') == 2
+    gone = set(re.findall(r'<legendEntry><idx val="(\d+)"/><delete val="1"/></legendEntry>', moves))
+    assert gone == {"3", "4", "5"}                    # the second "Normal movement" and both pick's triangles
+
+
 def test_a_missing_month_is_an_empty_cell_and_says_so(book):
     _, _, wb = book
     ws = wb["Unemployment"]
-    row = next(c.row for col in ws.iter_cols(min_col=14, max_col=14) for c in col
+    row = next(c.row for col in ws.iter_cols(min_col=C["date"], max_col=C["date"]) for c in col
                if getattr(c.value, "isoformat", None) and c.value.isoformat()[:10] == "2025-10-01")
-    assert ws.cell(row, 15).value is None               # not zero, not text a chart would draw as zero
-    assert ws.cell(row, 17).value == "no value published"
+    assert ws.cell(row, C["value"]).value is None       # not zero, not text a chart would draw as zero
+    assert ws.cell(row, C["note"]).value == "no value published"
 
 
 def test_every_change_is_drawn_over_its_normal_range_and_every_chart_leaves_gaps(book):
@@ -136,9 +238,9 @@ def test_every_change_is_drawn_over_its_normal_range_and_every_chart_leaves_gaps
     # the band is the normal range: an unfilled base at its bottom and its height above
     ws = wb["Unemployment"]
     chg = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "change")
-    head = _row(ws, "Normal from", col=22)
-    filled = {(ws.cell(r, 22).value, ws.cell(r, 23).value) for r in range(head + 1, ws.max_row + 1)
-              if ws.cell(r, 22).value is not None}
+    head = _row(ws, "Normal from", col=C["band"])
+    filled = {(ws.cell(r, C["band"]).value, ws.cell(r, C["band"] + 1).value) for r in range(head + 1, ws.max_row + 1)
+              if ws.cell(r, C["band"]).value is not None}
     assert filled == {(chg["normal_low"], chg["normal_high"] - chg["normal_low"])}
 
 
@@ -224,25 +326,25 @@ def test_the_dashboard_only_looks_up_values_written_on_its_hidden_tab(book):
     used = {f for x in formulas for f in re.findall(r"([A-Z]+)\(", x)}
     # Functions every Excel since 2007 knows by name: one newer (AGGREGATE) read #NAME? unless the file marks it.
     assert used <= {"INDEX", "MATCH", "ROW", "IF", "IFERROR", "ISNA", "ISNUMBER", "AND", "OR", "NA", "MIN",
-                    "MAX"}, used
+                    "MAX", "COUNTIF", "ABS", "TEXT"}, used
     for x in formulas:
         for sheet in re.findall(r"'([^']+)'!", x):
             assert sheet in (DASH_DATA, DASHBOARD), x
     # four pickers: two series, each from the list of every national and care series, and two quarters
     dvs = {str(d.sqref): d for d in ws.data_validations.dataValidation}
-    series_dv = next(d for k, d in dvs.items() if set(k.split()) == {"C4", "C5"})
-    quarter_dv = next(d for k, d in dvs.items() if set(k.split()) == {"C6", "C7"})
+    series_dv = next(d for k, d in dvs.items() if set(k.split()) == {"B5", "H5"})
+    quarter_dv = next(d for k, d in dvs.items() if set(k.split()) == {"N5", "Q5"})
     assert len(dvs) == 2 and series_dv.type == quarter_dv.type == "list"
     data = wb[DASH_DATA]
     col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, series_dv.formula1).group(1)
     names = [c.value for c in data[col][2:] if c.value]
     national = [k for _, keys in TOPICS for k in keys] + [k for _, keys in CARE_TOPICS for k in keys]
-    assert len(names) == len(national) and ws["C4"].value in names and ws["C5"].value in names
+    assert len(names) == len(national) and ws["B5"].value in names and ws["H5"].value in names
     col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, quarter_dv.formula1).group(1)
     quarters = [c.value for c in data[col][2:] if c.value]
     assert quarters[0] == "2000 Q1" and quarters[-1] == "2026 Q3" and len(quarters) == len(set(quarters))
-    assert (ws["C6"].value, ws["C7"].value) == ("2000 Q1", "2026 Q3")      # opens on every quarter
-    assert ws.freeze_panes == "A8"                                          # the four boxes stay in view
+    assert (ws["N5"].value, ws["Q5"].value) == ("2000 Q1", "2026 Q3")      # opens on every quarter
+    assert ws.freeze_panes == "A6"                                          # the four boxes stay in view
 
 
 def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends(book):
@@ -252,14 +354,14 @@ def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends
     charts = [x for n, x in _charts(out).items() if "scatterChart" in x]
     assert len(charts) == 6
     for x in charts:
-        assert "'Dashboard'!$C$4" in x or "'Dashboard'!$C$5" in x
+        assert re.search(r"'Dashboard'!\$(B|H)\$5|'Dashboard'!\$AO\$1[45]", x)   # named by the boxes
         assert '<varyColors val="0"/>' in x                       # one colour a line: no legend entry a point
         x_axis = re.search(r'<valAx><axId val="500"/>.*?</valAx>', x, re.S).group(0)
         assert '<axPos val="b"/>' in x_axis and 'formatCode="0"' in x_axis       # years, along the foot
         assert "<min " not in x_axis and "<max " not in x_axis                    # fitted to what is picked
         legend = re.search(r"<legend>.*?</legend>", x, re.S)
-        lines = len(re.findall(r"<ser>", x)) - x.count('prstDash val="dash"')
-        assert (legend is None) == (lines == 1)                   # a one-line chart has no legend
+        picks = len(re.findall(r"<ser>.*?<strRef>", x, re.S))
+        assert (legend is None) == (picks == 1)                   # a chart of one pick has no legend
         if legend:
             assert '<legendPos val="t"/>' in legend.group(0)       # above, clear of the years
             gone = re.findall(r'<legendEntry><idx val="(\d+)"/><delete val="1"/></legendEntry>', legend.group(0))
@@ -272,9 +374,9 @@ def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends
     years = [ws.cell(r, 42).value for r in range(3, 8)]
     assert years[:2] == [2000.0, pytest.approx(2000 + 1 / 12)]
     t0, t1 = (ws.cell(r, 40).value for r in (6, 7))
-    assert t0.startswith("=INDEX(") and "$C$6" in t0 and t1.startswith("=INDEX(") and "$C$7" in t1
+    assert t0.startswith("=INDEX(") and "$N$5" in t0 and t1.startswith("=INDEX(") and "$Q$5" in t1
     # each month is drawn only from the From quarter's first month to the To quarter's last
-    for col in (43, 48):
+    for col in (43, 55):
         x = ws.cell(3, col).value
         assert ",$AP3>=$AN$6,$AP3<=$AN$7),$AP3,NA())" in x, x
 
@@ -286,7 +388,7 @@ def test_the_dashed_lines_run_only_inside_the_quarters_chosen(book):
     # the pick's first month, and ends at the earlier of To and its last.
     _, _, wb = book
     ws = wb[DASHBOARD]
-    lines_at = 40 + 13                                      # the shared lines, then each pick's
+    lines_at = 40 + 3 + 24                                  # the shared lines, then each pick's
     for col in (lines_at, lines_at + 3, lines_at + 6):
         start, end = ws.cell(3, col).value, ws.cell(4, col).value
         assert re.match(r"=(IFERROR\()?MAX\(\$AN\$6,", start), start
@@ -294,20 +396,23 @@ def test_the_dashed_lines_run_only_inside_the_quarters_chosen(book):
 
 
 def test_the_dashboard_says_why_a_pick_has_no_line_on_the_levels_chart(book):
-    _, _, wb = book
+    # The firm, 22 Oct 2026, of the levels chart: "this is just blank". Each pick's name in its legend reads
+    # "<name>: change only" when it has no level to draw (Claude Design, round 1).
+    out, _, wb = book
     ws = wb[DASHBOARD]
-    said = [c.value for row in ws.iter_rows(min_col=2, max_col=2) for c in row
-            if isinstance(c.value, str) and "read on their change only" in c.value]
-    assert len(said) == 1 and "has no line here: it is read on its change only" in said[0]
-    # both picks are tested on their own, and together: four tests of the cell that says "change only"
-    tests = re.findall(r"(INDEX\([^()]*\))=\"change only\"", said[0])
-    assert len(tests) == 4 and len(set(tests)) == 2 and tests[:2] == tests[2:], tests
+    names = [ws.cell(r, 41).value for r in (14, 15)]
+    for name, box in zip(names, ("$B$5", "$H$5")):
+        test = re.match(r'=IF\((INDEX\([^()]*\$AO\$(\d)\))="change only",(\$\w\$5)&": change only",(\$\w\$5)\)$', name)
+        assert test and test.group(3) == test.group(4) == box, name
+        assert "Level: at or above" in _text(wb[DASH_DATA]) and test.group(2) == {"$B$5": "4", "$H$5": "5"}[box]
+    levels = next(x for x in _charts(out).values() if "Both levels" in x)
+    assert "'Dashboard'!$AO$14" in levels and "'Dashboard'!$AO$15" in levels
 
 
 def test_a_zoom_opens_the_dashboard_on_its_quarters_and_keeps_every_month(cache, tmp_path):  # noqa: F811
     _, _, wb = _build(cache, tmp_path / "z.xlsx", zoom=["2024Q1", "2026Q3"])
     ws = wb[DASHBOARD]
-    assert (ws["C6"].value, ws["C7"].value) == ("2024 Q1", "2026 Q3")
+    assert (ws["N5"].value, ws["Q5"].value) == ("2024 Q1", "2026 Q3")
     assert ws.cell(3, 42).value == 2000.0                         # the From box can still widen the view
 
 
@@ -317,10 +422,10 @@ def test_a_zoom_from_a_quarter_left_out_or_past_the_data_still_opens_on_quarters
     for zoom, left in ((["2020Q2", "2026Q3"], ["2020Q2-2021Q2"]), (["2024Q1", "2027Q2"], [])):
         _, _, wb = _build(cache, tmp_path / ("z%s.xlsx" % zoom[0]), zoom=zoom, left_out=left)
         ws, data = wb[DASHBOARD], wb[DASH_DATA]
-        dq = next(d for d in ws.data_validations.dataValidation if set(str(d.sqref).split()) == {"C6", "C7"})
+        dq = next(d for d in ws.data_validations.dataValidation if set(str(d.sqref).split()) == {"N5", "Q5"})
         col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, dq.formula1).group(1)
         quarters = [c.value for c in data[col][2:] if c.value]
-        assert ws["C6"].value in quarters and ws["C7"].value in quarters, (zoom, ws["C6"].value, ws["C7"].value)
+        assert ws["N5"].value in quarters and ws["Q5"].value in quarters, (zoom, ws["N5"].value, ws["Q5"].value)
         assert len(quarters) == len(set(quarters))
         # one quarter after another, none skipped
         idx = [int(q[:4]) * 4 + int(q[-1]) for q in quarters]
@@ -352,9 +457,13 @@ def test_the_run_sheet_shows_the_answers_the_run_used(book):
 
 def test_the_sahm_reading_appears_only_when_the_firm_asked_for_it(book, cache, tmp_path):  # noqa: F811
     assert "Sahm's published trigger" not in _text(book[2]["Overview"])
-    shown = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)[2]
+    out, _, shown = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)
     assert "Sahm's published trigger is 0.50" in _text(shown["Overview"])
-    assert "Sahm reading" in _text(shown["Unemployment"])
+    ws = shown["Unemployment"]
+    assert "Sahm reading" in _text(ws) and ws["T4"].value == "SAHM READING, BESIDE THE CHANGE"
+    # its columns are hidden helpers, so the chart is told to plot them: left alone it drew nothing (22 Oct 2026)
+    sahm = next(x for x in _charts(out).values() if "Sahm reading" in x)
+    assert 'plotVisOnly val="0"' in sahm
 
 
 def test_states_have_their_own_sheet_and_stay_off_the_national_one(book):
@@ -362,10 +471,15 @@ def test_states_have_their_own_sheet_and_stay_off_the_national_one(book):
     assert any(r["key"] == "unemployment_ca" for r in result["readings"])
     assert "Unemployment rate, CA" not in _text(wb["Overview"])
     ws = wb["States"]
-    ca = _row(ws, "CA")
-    assert ws.cell(ca, 9).value in ("▲ Increasing", "Stable", "▼ Decreasing")
-    assert 0 < ws.cell(ca, 5).value <= 1
-    assert ws.cell(_row(ws, "TX"), 3).value == "not in this pull"
+    ca, c0 = _state(ws, "CA")
+    assert ws.cell(ca, c0 + 7).value in ("▲ Increasing", "Stable", "▼ Decreasing")
+    assert 0 < ws.cell(ca, c0 + 3).value <= 1
+    tx, c0 = _state(ws, "TX")
+    assert ws.cell(tx, c0 + 1).value == "not in this pull"
+    # two tables side by side, 26 states and 25, all 51 in rows 5 to 30 (Claude Design, round 1)
+    firsts = [c for c in range(1, ws.max_column + 1) if ws.cell(4, c).value == "State"]
+    counts = [sum(1 for r in range(5, 40) if ws.cell(r, c).value in STATES) for c in firsts]
+    assert len(firsts) == 2 and counts == [26, 25] and ws.freeze_panes == "A5"
 
 
 def test_the_glossary_explains_every_term_a_reader_meets(book):
@@ -387,7 +501,7 @@ def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
     rows = {ws.cell(r, 2).value: [ws.cell(r, j).value for j in range(2, 11)] for r in range(1, ws.max_row + 1)}
     assert all(s.title in rows for s in SERIES)
     assert len(rows["Unemployment rate"][8]) == 64     # SHA-256 of the file the run read
-    assert rows["Initial jobless claims"][7] == "not in this pull"
+    assert rows["Initial jobless claims"][6] == "not in this pull"     # fetched; the address and SHA at the end
 
 
 def test_the_fingerprint_is_of_the_bytes_read_not_of_the_file_when_the_workbook_is_built(cache, tmp_path):  # noqa: F811
@@ -421,8 +535,9 @@ def test_the_latest_point_on_a_chart_is_labelled_rounded(book):
     # Walk (W7): the label printed 41.4897092453; LibreOffice ignores a label's own format.
     _, _, wb = book
     ws = wb["Prices"]
-    head = _row(ws, "Latest", col=24)
-    latest = [ws.cell(r, 24).value for r in range(head + 1, ws.max_row + 1) if ws.cell(r, 24).value is not None]
+    col = C["latest_change"]
+    head = _row(ws, "Latest", col=col)
+    latest = [ws.cell(r, col).value for r in range(head + 1, ws.max_row + 1) if ws.cell(r, col).value is not None]
     assert len(latest) == 1 and round(latest[0], 2) == latest[0]
 
 
@@ -430,18 +545,18 @@ def test_a_series_tab_prints_its_readings_and_charts_not_its_whole_history(book)
     # Walk (W14): the workbook printed 856 pages, about 800 of them data.
     _, _, wb = book
     for name in {TAB[k] for _, keys in TOPICS for k in keys}:
-        assert wb[name].print_area and wb[name].print_area.startswith("'%s'!$A$1:$L$" % name), name
+        assert wb[name].print_area and wb[name].print_area.startswith("'%s'!$A$1:$Y$" % name), name
 
 
 def test_quarters_left_out_are_not_drawn_and_are_said_on_every_tab(cache, tmp_path):  # noqa: F811
     out, result, wb = _build(cache, tmp_path / "left.xlsx", history="full", left_out=["2026Q3"])
     ws = wb["Unemployment"]
-    rows = {ws.cell(r, 14).value.date().isoformat(): r for r in range(1, ws.max_row + 1)
-            if getattr(ws.cell(r, 14).value, "date", None)}
+    rows = {ws.cell(r, C["date"]).value.date().isoformat(): r for r in range(1, ws.max_row + 1)
+            if getattr(ws.cell(r, C["date"]).value, "date", None)}
     sep = rows["2026-09-01"]
-    assert ws.cell(sep, 15).value == 9.0                         # the publisher's figure is kept in the table
-    assert ws.cell(sep, 17).value == "left out (2026Q3)" and ws.cell(sep, 20).value is None     # but not drawn
-    assert ws.cell(rows["2026-06-01"], 20).value is not None
+    assert ws.cell(sep, C["value"]).value == 9.0                 # the publisher's figure is kept in the table
+    assert ws.cell(sep, C["note"]).value == "left out (2026Q3)" and ws.cell(sep, C["level"]).value is None
+    assert ws.cell(rows["2026-06-01"], C["level"]).value is not None
     for name in ("Overview", "Unemployment", "States"):
         assert "Left out of every history: 2026Q3" in _text(wb[name]), name
     # Codex on #471: the latest shown is the latest kept, beside the readings measured from it
@@ -453,12 +568,12 @@ def test_quarters_left_out_are_not_drawn_and_are_said_on_every_tab(cache, tmp_pa
     stats = next(r for r in range(3, data.max_row + 1) for c in range(2, data.max_column + 1)
                  if data.cell(2, c).value == "Series" and data.cell(r, c).value == "Unemployment rate")
     latest_col = next(c for c in range(2, data.max_column + 1) if data.cell(2, c).value == "Latest")
-    assert data.cell(stats, latest_col).value.date().isoformat() == "2026-06-01"
+    assert data.cell(stats, latest_col).value == "2026-06"            # as the Dashboard shows a month
     assert "Later readings, to Sep 2026, fall in quarters left out." in _text(ws)
     _, _, sahm_ = _build(cache, tmp_path / "left-sahm.xlsx", history="full", left_out=["2026Q3"], show_sahm=True)
     ws = sahm_["Unemployment"]
-    drawn = {ws.cell(r, 14).value.date().isoformat(): ws.cell(r, 18).value for r in range(1, ws.max_row + 1)
-             if getattr(ws.cell(r, 14).value, "date", None)}
+    drawn = {ws.cell(r, C["date"]).value.date().isoformat(): ws.cell(r, C["sahm"]).value
+             for r in range(1, ws.max_row + 1) if getattr(ws.cell(r, C["date"]).value, "date", None)}
     assert drawn["2026-06-01"] is not None and drawn["2026-07-01"] is None and drawn["2026-09-01"] is None
     assert "2026Q3" in dict((wb["Run"].cell(r, 2).value, wb["Run"].cell(r, 3).value)
                             for r in range(1, wb["Run"].max_row + 1))["Quarters left out"]
@@ -471,18 +586,18 @@ def test_a_zoom_draws_only_its_quarters_and_changes_no_reading(cache, tmp_path):
     ws = wb["Unemployment"]
     first_drawn = {}
     for n, x in _charts(out).items():
-        refs = re.findall(r"<f>'Unemployment'!\$N\$(\d+):\$N\$(\d+)</f>", x)
+        refs = re.findall(r"<f>'Unemployment'!\$AA\$(\d+):\$AA\$(\d+)</f>", x)
         if refs:
             first_drawn[n] = refs[0]
     assert first_drawn
     for a, b in first_drawn.values():
-        assert ws.cell(int(a), 14).value.date().isoformat() == "2024-01-01"
-        assert ws.cell(int(b), 14).value.date().isoformat() == "2026-09-01"
+        assert ws.cell(int(a), C["date"]).value.date().isoformat() == "2024-01-01"
+        assert ws.cell(int(b), C["date"]).value.date().isoformat() == "2026-09-01"
     assert "The charts show 2024Q1 to 2026Q3 only" in _text(ws)
     run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
     assert run["Charts zoomed to"] == "2024Q1 to 2026Q3; no reading changes with it"
     # the whole history is still in the table
-    assert any(getattr(ws.cell(r, 14).value, "year", 0) == 2000 for r in range(1, ws.max_row + 1))
+    assert any(getattr(ws.cell(r, C["date"]).value, "year", 0) == 2000 for r in range(1, ws.max_row + 1))
 
 
 def test_a_zoom_with_no_reading_in_it_says_so_rather_than_drawing_nothing(cache, tmp_path):  # noqa: F811
@@ -518,7 +633,7 @@ def _whatif(cache, path, a=None, b=None):  # noqa: F811
 
 def test_the_what_if_tab_sets_every_national_change_side_by_side(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": "full", "left_out": ["2026Q3"]})
-    assert wb.sheetnames[:4] == ["Overview", DASHBOARD, "What if", "States"]
+    assert wb.sheetnames[:4] == ["Overview", DASHBOARD, "What if", "Unemployment"]
     ws = wb["What if"]
     text = _text(ws)
     assert "Quarters left out" in text and "2026Q3" in text
@@ -544,20 +659,26 @@ def test_the_what_if_tab_sets_every_national_change_side_by_side(cache, tmp_path
     ov = wb["Overview"]
     for x in moved:
         assert "%s → %s" % (x["a"]["direction"], x["b"]["direction"]) in ov.cell(_row(ov, x["title"]), 15).value
+    # blank when every reading of the series reads the same way: the tile counts those (Claude Design, round 1)
+    alike = {x["title"] for x in c["rows"] if x["key"] not in {y["key"] for y in c["rows"] if y["move"]}
+             and x["a"] and x["b"] and not x["key"].startswith("unemployment_")}
+    assert alike and all(ov.cell(_row(ov, t), 15).value is None for t in alike)
 
 
 def test_the_dashed_lines_are_the_what_ifs_normal_range_over_the_years_its_history_covers(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     ws = wb["Unemployment"]
     row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "change")
-    head = _row(ws, "What if: normal from", col=25)
-    for col, want in ((25, row["b"]["normal_low"]), (26, row["b"]["normal_high"])):
+    head = _row(ws, "What if: normal from", col=C["whatif"])
+    for col, want in ((C["whatif"], row["b"]["normal_low"]), (C["whatif"] + 1, row["b"]["normal_high"])):
         assert ws.column_dimensions[openpyxl.utils.get_column_letter(col)].hidden
-        filled = [(ws.cell(r, 14).value, ws.cell(r, col).value) for r in range(head + 1, ws.max_row + 1)
+        filled = [(ws.cell(r, C["date"]).value, ws.cell(r, col).value) for r in range(head + 1, ws.max_row + 1)
                   if ws.cell(r, col).value is not None]
         assert filled and {v for _, v in filled} == {want}
         assert min(d for d, _ in filled).isoformat()[:10] == row["b"]["history_from"][:10]
-    assert any(x.count('prstDash val="dash"') == 2 and "areaChart" in x for x in _charts(out).values())
+    # slate, dashed, 1 pt: one way to draw the what-if's range on every tab (Claude Design, round 1)
+    assert any(x.count('prstDash val="sysDash"') == 2 and "areaChart" in x and '57534B' in x
+               for x in _charts(out).values())
 
 
 def test_the_what_if_row_on_a_series_tab_is_as_tall_as_its_words(cache, tmp_path):  # noqa: F811
@@ -565,12 +686,13 @@ def test_the_what_if_row_on_a_series_tab_is_as_tall_as_its_words(cache, tmp_path
     _, _, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     seen = 0
     for ws in wb.worksheets:
-        row = next((r for r in range(1, 12) if ws.cell(r, 7).value == "WHAT IF"), None)
-        words = ws.cell(row, 9).value if row else None
+        row = next((r for r in range(1, 12) if ws.cell(r, 8).value == "WHAT IF"), None)     # the change tile's
+        words = ws.cell(row, 11).value if row else None
         if not words:
             continue
-        width = sum(ws.column_dimensions[openpyxl.utils.get_column_letter(c)].width or 9 for c in range(9, 12))
-        assert ws.row_dimensions[row].height >= 14 * math.ceil(len(words) / (width * 1.1)), ws.title
+        room = sum(7 * (ws.column_dimensions[openpyxl.utils.get_column_letter(c)].width or 8.43) + 5
+                   for c in range(11, 20)) - 8
+        assert ws.row_dimensions[row].height >= 15 * math.ceil(len(words) * 6.6 / room), ws.title
         seen += 1
     assert seen
 
@@ -623,8 +745,8 @@ def test_a_series_in_neither_run_is_not_called_the_same(cache, tmp_path):  # noq
     # Codex on #452: an unpulled state read "not in this pull" and "same rating" on one row.
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     st = wb["States"]
-    tx = _row(st, "TX")
-    assert st.cell(tx, 3).value == "not in this pull" and st.cell(tx, 13).value == "not read under either"
+    tx, c0 = _state(st, "TX")
+    assert st.cell(tx, c0 + 1).value == "not in this pull" and st.cell(tx, c0 + 11).value == "not read under either"
     ov = wb["Overview"]
     assert ov.cell(_row(ov, "Initial jobless claims"), 15).value == "not read under either"
 
@@ -813,7 +935,7 @@ def test_the_care_tab_reads_every_series_in_the_group_and_names_the_rest(care_bo
     row = _row(ws, "Real disposable income")
     assert ws.cell(row, 6).value == "change only" and ws.cell(row, 7).value is not None
     assert "Nothing to show, and why" in text and "Job openings" in text
-    assert _to(wb["Overview"].cell(2, 2)) == CARE_NAME
+    assert _to(wb["Overview"].cell(2, 3)) == CARE_NAME
 
 
 def test_a_care_series_tab_draws_its_level_and_its_change_over_its_normal_range(care_book):
@@ -904,17 +1026,20 @@ def test_household_debt_is_one_tab_stacked_as_the_ny_fed_reports_it_with_its_cre
         assert "<v>%s</v>" % column in stack                         # the legend: the NY Fed's own names
     assert "Total Debt Balance and Its Composition" in stack
     # each type's row: its latest balance, its share and its change against its own normal range
-    row = _row(ws, "Credit Card")
+    # the table beside the NY Fed's chart, N to Y (Claude Design, round 1)
+    row = _row(ws, "Credit Card", col=14)
     cards = next(r for r in result["readings"] if r["key"] == "household_credit_card")
     total = next(r for r in result["readings"] if r["key"] == "household_total")
-    assert ws.cell(row, 5).value == pytest.approx(cards["value"] / 100)
-    assert ws.cell(row, 8).value in ("▲ Increasing", "Stable", "▼ Decreasing")
-    assert ws.cell(row, 4).value == pytest.approx(ws.cell(row, 3).value / ws.cell(_row(ws, "Total"), 3).value)
+    assert ws.cell(row, 18).value == pytest.approx(cards["value"] / 100)
+    assert ws.cell(row, 21).value in ("▲ Increasing", "Stable", "▼ Decreasing")
+    assert ws.cell(row, 17).value == pytest.approx(ws.cell(row, 16).value / ws.cell(_row(ws, "Total", col=14), 16).value)
     assert total["direction"] in ("Increasing", "Stable", "Decreasing")
-    # the Overview lists every type, each linked to this one tab
+    # the Overview lists every type, each linked to this one tab; the six types folded away under the total
     ov = wb["Overview"]
     links = {_to(ov.cell(_row(ov, "Household debt: " + t), 2)) for t in ("mortgage", "credit card", "total")}
     assert links == {HOUSEHOLD_NAME}
+    t, m = _row(ov, "Household debt: total"), _row(ov, "Household debt: mortgage")
+    assert m == t + 1 and ov.row_dimensions[m].hidden and not ov.row_dimensions[t].hidden
     assert _holds_together_in_excel(out) > 0
 
 
