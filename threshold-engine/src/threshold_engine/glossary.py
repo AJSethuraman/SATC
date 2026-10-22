@@ -48,7 +48,8 @@ TERMS = [
      "series' notes and on Run."),
     ("Signals",
      "A tab laying every public signal found in the October 2026 early-warning work beside the book's own series, compared "
-     "against whichever product, measure and source is picked, with the banks behind each chart recorded beside it.",
+     "against whichever product, measure and source is picked. A section that draws on the peer group has the pack "
+     "line under it; each signal block names its source, span and frequency in its head row.",
      "The picked series is looked up on Data by its label. Each signal's change over a year is set against that series' at "
      "every lead from four quarters after to twelve ahead (CORREL); the fit table shows the lead that fits best and how well, "
      "with and without 2020-23. The rescaled chart draws each line as (value - its normal) / its typical yearly move, the "
@@ -59,13 +60,71 @@ TERMS = [
      "For the source picked, each consumer product's balance, gross charge-offs over four quarters and 30+ incl. nonaccrual "
      "dollars, and each product's share of the total.",
      "KeyBank's and the industry's are summed from the Call Report at build; the peer group's are summed from Peers data and "
-     "Peers delinquency data over the banks in the pack, so they follow Banks in the pack on Peers."),
-    ("Peer group in this chart",
-     "Beside every chart on Signals that draws on the pack: each peer and its state this quarter: in; out by the book's "
-     "rules; off because unticked under Banks in the pack on Peers.",
-     "Out means the bank's own four-quarter average was blanked this quarter by the jump or the acquisition share, as Peers "
-     "delinquency data records it. A chart drawn from a survey, the Philadelphia Fed's panel or the FHFA database says whose "
-     "data it is instead: those are not the peer group."),
+     "Peers delinquency data over the banks in the pack, so they follow the switches under Banks in the peer group on Decide."),
+    ("Pack line",
+     "One line under every chart or table that draws on the peer group: how many of the roster's banks are "
+     "switched on, which the book's rules took out of 30+ incl. nonaccrual in the latest quarter, and which were "
+     "switched off on Decide. Each chart's own count of banks is on its tiles.",
+     "One cell on Peers workings, named PackLine, which every other tab reads: TEXTJOIN over the roster. "
+     "In: Yes on "
+     "Decide and a rate this quarter. Out by the book's rules: Yes and no four-quarter average this quarter (the "
+     "jump or the acquisition share blanked it, as Peers delinquency data records it). Off: No. A signal drawn "
+     "from a survey, the Philadelphia Fed's panel or the FHFA database has no pack line: its head row names its "
+     "source, span and frequency instead, since it is not the peer group."),
+    ("Rescaled",
+     "A line drawn in yearly moves from its own normal, so a signal and the picked series sit on one axis.",
+     "(value - its normal) / one typical yearly move. The normal is the median of the quarters in the window; "
+     "the move is 1.4826 x the median absolute deviation of its changes over a year (scale.py's rule). One grid "
+     "line is one yearly move for either line. The inputs are in the table under the chart."),
+    ("Lead",
+     "How many quarters the signal runs ahead of the series it is compared against. Below zero, the signal "
+     "follows it.",
+     "Of the leads from 4 quarters after to 12 ahead, the one with the highest Fit (r), over the quarters both "
+     "have."),
+    ("Fit (r)",
+     "How closely the signal moves with the series at its lead: 1.00 together exactly, 0 no relation, below "
+     "zero opposite.",
+     "CORREL of the signal's change over a year (the survey's value itself) and the series' change over a "
+     "year, the signal moved by the lead. Excl. 2020-23 is the same with 2020Q1 to 2023Q4 left out, whatever "
+     "Window for the normal is set to."),
+    ("How each stage leads the next",
+     "Under the pipeline, for the product drawn: how many quarters 30-89 days past due runs ahead of 90+ incl. "
+     "nonaccrual, 90+ ahead of gross charge-offs, and 30-89 ahead of gross charge-offs, for the industry, the peer "
+     "group and KeyBank. Each curve is the Fit (r) at every lead; the dot is the best.",
+     "CORREL of the earlier stage's change over a year and the later stage's change over a year, the earlier "
+     "moved by the lead, as Lead and Fit (r) are for a signal. The first stage is 30-89, not 30+ incl. "
+     "nonaccrual, which holds the 90+ inside it."),
+    ("Window for the normal",
+     "The quarters the normal and the typical yearly move of the rescaled lines are taken from: All quarters, "
+     "or Without 2020-23.",
+     "Picked in the yellow cell on Signals. Without 2020-23 leaves out 2020Q1 to 2023Q4."),
+    ("Shift",
+     "How many quarters later the signal is drawn on the rescaled chart.",
+     "Typed in the yellow cell on Signals, 0 to 12, or fits best: the lead with the highest Fit (r) against "
+     "the picked series, never below 0."),
+    ("Jump row",
+     "The row of links under the controls on Signals, one per section.",
+     "Each is a hyperlink to its section's first cell on Signals."),
+    ("Why out",
+     "Beside the peer switches on Decide: each peer the book's rules take out of the pack this quarter, and why.",
+     "Read from the bank's own 30+ incl. nonaccrual rows for the product picked on Peers. acquisition: an "
+     "acquisition brought in at least the book's acquisition share of its book in one of the last three "
+     "quarters. jump: its book moved more than the book's jump in one of them. no rate: one of the four "
+     "quarters has no rate. A jump or an acquisition stops counting three quarters after it, which gives "
+     "Back in; a missing rate gives none, since when it returns is not known."),
+    ("Saved view",
+     "A numbered row of picks for Signals or Peers, with a note, kept on the Saved views tab.",
+     "Typed or picked under Saved view on Signals or Peers, 1 to 12. Each pick the view's row holds replaces "
+     "the tab's own, which is struck through; a blank cell keeps the tab's pick. Clear the cell to go back to "
+     "the tab's picks."),
+    ("Picks now",
+     "The row on Saved views that reads the tab's own yellow cells, to copy onto a view's row.",
+     "Each cell equals the tab's yellow cell over the same heading. Copy it and paste values onto a view's row."),
+    ("Data through",
+     "The latest quarter in the workbook when a view was saved, typed beside it.",
+     "Picked from the quarters on Data. A view holds picks, not values: in the same workbook it shows the "
+     "same figures each time. A rebuild writes a new workbook whose Saved views start empty, like every "
+     "other cell typed in."),
     ("Floor at zero",
      "Whether a value at or below zero is always 1 Low for a series. True of a rate; false of a gap between two "
      "rates.",
@@ -88,15 +147,18 @@ TERMS = [
      "quarter-end balances. For Federal Reserve data: the average of the four quarterly rates. The engine can "
      "also do this itself from quarterly values (smoothing 4: the mean of each quarter and the three before it)."),
     ("Quarters kept",
-     "The quarters the thresholds are built from: every quarter, except any periods left out on Assess.",
-     "A quarter is left out if a whole row of Periods left out on Assess names its series and the quarter "
-     "falls between that row's From and To, inclusive."),
+     "The quarters the thresholds are built from: every quarter, except any periods left out on Decide (on Assess in a "
+     "workbook without Decide).",
+     "A quarter is left out if a whole row of Periods left out on Decide names its product and measure, the "
+     "series is the one its row's lines are set from, and the quarter falls between that row's From and To, "
+     "inclusive."),
     ("Left out",
      "A period set aside because it does not represent the risk being rated, with the reason recorded.",
-     "Picked on Assess: the series, the first and last quarter from lists of the quarters in the data, and a "
-     "reason. As many periods as there are rows, for any series. A row with something missing says what in its "
-     "Status and refuses its series until it is complete or cleared. Shown on the chart as a dark "
-     "strip and gray dots on the line, and recorded on Run."),
+     "Picked under Periods left out on Decide (on Assess, by series, in a workbook without Decide): the "
+     "product and measure, the first and last quarter from lists of the quarters in the data, and a reason. As "
+     "many periods as there are rows, and more than one for a product and measure. A row with something "
+     "missing says what in its Status and refuses its series until it is complete or cleared. Shown on the "
+     "chart as a dark strip and gray dots on the line, and recorded on Run."),
     ("Left out as built",
      "Quarters a series' file does not hold, written to left-out.csv beside the series files with why: those "
      "before its last break, and its latest quarters when they have no value.",
@@ -107,6 +169,9 @@ TERMS = [
     ("Median kept",
      "The middle of the quarters kept: half were higher, half lower. The center of Moderate.",
      "MEDIAN of the quarters kept."),
+    ("Yearly move",
+     "The column heading for Typical yearly move on Thresholds and Lines by source.",
+     "See Typical yearly move."),
     ("Typical yearly move",
      "How much the rate ordinarily changes in a year. It is the unit the Moderate band and the Moderate-Low "
      "line are measured in.",
@@ -288,6 +353,15 @@ TERMS = [
     ("Spearman",
      "How consistently a higher rating came before a higher value (1 is perfect, 0 is none, negative is reverse).",
      "The correlation of the ranks of the two lists."),
+    ("Spearman, value",
+     "On Lines by source: how consistently a higher rating came before a higher value four quarters later.",
+     "Spearman of each quarter's rating against the value four quarters later, over the quarters tested."),
+    ("Spearman, change",
+     "On Lines by source: how consistently a higher rating came before a bigger rise over the next four quarters.",
+     "Spearman of each quarter's rating against the change from it to the value four quarters later."),
+    ("Quarters tested",
+     "How many quarters the backtest rated. 0 means the series is too short; the reason is under the table.",
+     "Quarters with the minimum history before them and four quarters after them."),
     ("Half-life",
      "A way of weighting recent quarters more heavily.",
      "A quarter's weight halves for every half-life of age."),
@@ -429,40 +503,90 @@ TERMS = [
      "A change to the Call Report's definitions or forms that moves a series without any change in risk, such "
      "as margin loans moved out of other consumer from December 2024. Labeled on every series it touches, in "
      "the quarter it took effect.",
-     "Listed once, with its source, on the Reporting changes tab. Each series file the peers build writes "
+     "Listed once, with its source, under Reporting changes on Sources. Each series file the peers build writes "
      "carries a Reporting change line for every change touching its product and measure within its quarters, "
      "shown on Sources; a change a product's own note already describes points to that note instead. "
-     "Decide's chart marks the quarters with a diamond along the top, for any source of the row shown; the "
-     "Peers charts mark them on the pack composite."),
+     "Decide's chart marks the quarters with a diamond at the top of the shading, for any source of the row shown; "
+     "the Peers charts mark them on the pack composite."),
     ("Reporting changes",
-     "The tab listing every reporting change this workbook labels, one row each.",
+     "The last section of Sources: every reporting change this workbook labels, one row each.",
      "Written from the registry the book names (config/reporting-changes.json). Only changes read in a primary "
-     "source are in it; what was left out, and why, is said at the top of the tab."),
+     "source are in it; what was left out, and why, is said above its table."),
     ("Change",
-     "On Reporting changes: the change's short name.",
+     "Under Reporting changes on Sources: the change's short name.",
      "As the registry states it."),
     ("Took effect",
-     "On Reporting changes: the quarter the change took effect, or the first and last when banks could report "
+     "Under Reporting changes on Sources: the quarter the change took effect, or the first and last when banks could report "
      "it over several quarters.",
      "As the registry states it: the December 2024 revision runs 2024Q4 to 2025Q2 because banks could report "
      "it on a best-efforts basis until 30 June 2025."),
     ("Products touched",
-     "On Reporting changes: the products whose series the change moves, consumer and commercial.",
+     "Under Reporting changes on Sources: the products whose series the change moves, consumer and commercial.",
      "As the registry states it. None of the products means it touches only lines no product is built from, "
      "such as other loans or the memoranda."),
     ("Measures touched",
-     "On Reporting changes: which charge-off and delinquency measures of those products it moves.",
+     "Under Reporting changes on Sources: which charge-off and delinquency measures of those products it moves.",
      "As the registry states it: net or gross charge-offs, or a delinquency measure (30-89, 90+ accruing, "
      "nonaccrual, 90+ incl. nonaccrual, 30+ incl. nonaccrual)."),
     ("Call Report items",
-     "On Reporting changes: the Call Report lines the change touches, kept for the commercial categories.",
+     "Under Reporting changes on Sources: the Call Report lines the change touches, kept for the commercial categories.",
      "As the registry states it, by schedule and item where the source gives the item (RC-C 4: C&I)."),
     ("What changed",
-     "On Reporting changes: what the change did, in one sentence.",
+     "Under Reporting changes on Sources: what the change did, in one sentence.",
      "As the registry states it, from the source."),
     ("Source document",
-     "On Reporting changes: where the change was read, with its address.",
+     "Under Reporting changes on Sources: where the change was read, linked to its address.",
      "As the registry states it: a Federal Register notice, an FDIC publication or the FDIC's own data "
      "definitions."),
 ]
+
+#: The tab each term first appears on, in the book's tab order (Claude Design's
+#: round 3: a Tab column, so a reader filters to the tab they came from).
+TAB_ORDER = ("Summary", "Decide", "Signals", "Peers", "Saved views", "Thresholds", "Internal", "Lines by source",
+             "Peer books", "Evidence", "Sources", "Run", "Data", "Assess", "Synthesis")
+_BY_TAB = {
+    "Summary": ("Product", "Combined product", "Measure", "Source", "Quarter", "30+ to charge-off",
+                "Gap to peers on 30+ to charge-off, Gap to industry on 30+ to charge-off",
+                "Share paying only the minimum", "Trailing twelve months (TTM)", "Rating", "Rating name", "Latest",
+                "Points", "Needs your attention", "Pick a source"),
+    "Decide": ("Floor at zero", "Quarters kept", "Left out", "Median kept", "Yearly move", "Typical yearly move", "Worst kept",
+               "Moderate", "Width of Moderate (yearly moves)", "Moderate-Low", "Moderate-Low begins (yearly moves)",
+               "Low", "Moderate-High", "High", "What fits the history the lines are set from",
+               "How rare High is (z)", "Spread of levels", "On a line, rate it", "Check", "Decision",
+               "Lines set from", "Rating on these lines", "What each source's own history would give",
+               "Reporting change", "Why out"),
+    "Signals": ("Signals", "Where the dollars are", "Pack line", "Rescaled", "Lead", "Fit (r)",
+                "How each stage leads the next", "Window for the normal", "Shift", "Jump row",
+                "Saved view"),
+    "Saved views": ("Picks now", "Data through"),
+    "Thresholds": ("Thresholds", "2 Moderate-Low from, 3 Moderate from, 4 Moderate-High from, 5 High from",
+                   "2 Moderate-Low", "3 Moderate", "4 Moderate-High", "5 High", "Value"),
+    "Internal": ("Internal data", "Mapped", "Composite", "Segment", "Share of the product",
+                 "Balance by segment ($ millions)", "Rows not used", "Why not used", "Call Report source",
+                 "Like for like", "What counts as reliable", "Quarters both have", "Level correlation",
+                 "Change correlation", "Average gap", "Ratings that agree", "Within one rating", "Verdict",
+                 "CRR grade", "Lowest CRR grade"),
+    "Lines by source": ("Lines by source", "Backtest", "Spearman", "Spearman, value", "Spearman, change",
+                        "Quarters tested", "Half-life", "Percentile"),
+    "Evidence": ("Spell", "Robust z", "Unusual", "Years per spell this bad", "Deepest dip", "Temporary departure",
+                 "Worse than trend, better than trend"),
+    "Sources": ("Reporting changes", "Change", "Took effect", "Products touched", "Measures touched",
+                "Call Report items", "What changed", "Source document"),
+    "Run": ("SHA-256", "Left out as built", "Status"),
+    "Assess": ("Dial",),
+    "Synthesis": ("Synthesis", "Internal", "Industry", "Industry carried by (yours)", "Peers",
+                  "Peers at percentile (yours)", "Taken from (yours)", "Chosen line", "Competitive check"),
+}
+TAB = {term: tab for tab, terms in _BY_TAB.items() for term in terms}
+
+
+def by_tab():
+    """Every term as (tab, term, what it means, how it is calculated), grouped
+    by the tab it first appears on, in the book's tab order; within a tab, as
+    TERMS lists them. A term with no tab is refused, never guessed."""
+    missing = [t for t, _, _ in TERMS if t not in TAB]
+    if missing:
+        raise ValueError("glossary terms with no tab: %s" % ", ".join(missing))
+    rows = [(TAB[t], t, m, c) for t, m, c in TERMS]
+    return sorted(rows, key=lambda r: TAB_ORDER.index(r[0]))
 

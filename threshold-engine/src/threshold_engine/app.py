@@ -123,7 +123,7 @@ def prepare(folder, quarter: str, internal: Optional[str], segments: bool) -> Pa
 
 def pull(folder, quarter: str, say: Callable[[str], None] = print, contact: Optional[str] = None) -> None:
     """Fetch the FDIC quarters the folder does not hold yet, and, when the
-    book has a Peer loan classes tab, each peer's filing for the quarter the
+    book has a Peer books tab, each peer's filing for the quarter the
     classes file states (its judgements are about those filings)."""
     from .peers import run as peers_run
     book = json.loads(bundled("consumer-public.json").decode("utf-8"))
@@ -181,7 +181,7 @@ def main() -> None:                                              # pragma: no co
         row=0, column=0, columnspan=3, sticky="w", **pad)
     tk.Label(root, justify="left", fg="#57534B", wraplength=820, text=(
         "Builds the workbook from the FDIC's public Call Report data, and the bank's internal file if you "
-        "choose one, and each peer's own SEC filing for the Peer loan classes tab. Step 1 downloads only "
+        "choose one, and each peer's own SEC filing for the Peer books tab. Step 1 downloads only "
         "what the folder does not hold yet. Step 2 takes about "
         "eight minutes, then Excel opens the workbook.")).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
 

@@ -43,7 +43,7 @@ RANK = dict(rank_by="net", last_n=20, min_obs=12)
 EXTRAS = {FIFTH_THIRD: ["2022Q2"]}
 #: No acquisition brought in the share in these tests: every product, none.
 NONE_ACQUIRED = {p: {} for p in ("Credit card", "Mortgage", "Home equity", "Other consumer", "Auto")}
-DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED)
+DQ_RULES = dict(jump=0.25, min_book=1_000_000, exempt_self=True, acquired=NONE_ACQUIRED, acquisition_share=0.05)
 #: The pickers and settings on Peers (fixed by peers_workbook.PICKERS and SETTINGS).
 PRODUCT, RATE, PEER_A, PEER_B, WINDOW, DQ_MEASURE, DQ_BASIS = "B5", "C5", "D5", "E5", "F5", "J5", "K5"
 
@@ -197,7 +197,8 @@ def assert_rank_table(vals, info, books_p, certs, roster, kind="net"):
         assert num(peers_cell(vals, "D%d" % r)) == pytest.approx(last[c], abs=1e-12)
         assert num(peers_cell(vals, "E%d" % r)) == pytest.approx(last[c] - comp, abs=1e-9)
         assert (peers_cell(vals, "H%d" % r) == "—") if c == KEYBANK else \
-            peers_cell(vals, "H%d" % r).startswith("Yes")
+            (peers_cell(vals, "H%d" % r).split(" · ")[0] == PW.STATE_IN
+             or peers_cell(vals, "H%d" % r).startswith(PW.OUT))
     assert all(peers_cell(vals, "%s%d" % (c_, head + 1 + k)) in ("", None)
                for k in range(len(ranked), len(roster)) for c_ in "BCD")
     me = ranked.index(KEYBANK) + 1
@@ -853,6 +854,19 @@ def dlq(tmp_path_factory, recent, dl_data, roster):
     return p, info, recalc(p)
 
 
+def test_why_out_says_so_for_a_product_with_no_delinquency(tmp_path, recent, roster, dl_data):
+    """Codex on #469: card charge-offs with only mortgage delinquency built. Card picked tests no
+    rule, so the heading Decide shows says no delinquency was built and no bank has a reason."""
+    p = tmp_path / "card.xlsx"
+    info = make(p, recent, roster, "all", products=("Credit card",),
+                delinquency=dq_spec(dl_data, products=("Mortgage",)))
+    vals = recalc(p)
+    assert scalar(vals, info, "dq_p") == 0
+    assert scalar(vals, info, "why_head") == "Why out · no delinquency was built for this product"
+    why = info["pack_line"]["helpers"]["why"]
+    assert all(vals.get("WORKINGS!%s%d" % (why, 2 + j)) in (None, "") for j in range(len(R.peers(roster))))
+
+
 def assert_delinquency(vals, info, books, certs, basis, what, min_banks=MIN_BANKS):
     """Composite, both bank counts and the band on ``basis`` equal peers.delinquency."""
     comp = D.composite_delinquency(books, certs, min_banks)
@@ -888,6 +902,81 @@ def test_delinquency_composite_and_band_equal_the_module(dlq, dl_data, roster):
     assert num(peers_cell(vals, "J%d" % t)) == pytest.approx(books[KEYBANK][-1]["rate"], abs=1e-12)
     assert num(peers_cell(vals, "L%d" % t)) == pytest.approx(comp[-1]["rate"], abs=1e-12)
     assert num(peers_cell(vals, "P%d" % t)) == band_[-1]["banks"]
+
+
+def pack_states(dl_data, roster):
+    """Each peer's state as the book reads it at the latest quarter-end, with
+    every peer switched on: out, with the rule delinquency.why_out names, when
+    its own four-quarter average of card 30+ incl. nonaccrual was not kept or the
+    jump left it out."""
+    books = dl_books(dl_data, roster, "Credit card", PW.DQ_PACK_MEASURE)
+    out = {}
+    for b in R.peers(roster):
+        last = books[b["cert"]][-1]
+        left = last["avg4"] is None or (last["why_avg4"] or "").startswith(D.LEFT_OUT)
+        rule = D.why_out(books[b["cert"]], [], DQ_RULES["jump"], DQ_RULES["acquisition_share"])[0]
+        out[b["short"]] = (PW.OUT + ": " + rule if rule else PW.STATE_OUT) if left else PW.STATE_IN
+    return out
+
+
+def test_the_pack_line_is_one_named_cell_with_three_states(dlq, dl_data, roster, tmp_path):
+    """docs/design/round-3/handoff/README.md, "The peer group, one way
+    everywhere": one cell on Workings, named PackLine at the workbook level,
+    says how many peers are in, which the book's rules took out this quarter
+    and which were switched off on Peers; the roster's state row, the rank
+    tables and the pack lines on Peers read it. Switching a bank to No moves
+    it to switched off."""
+    p, info, vals = dlq
+    wb = load_workbook(p)
+    cell = "Workings!" + info["pack_line"]["cell"]
+    assert re.fullmatch(r"Workings!\$B\$\d+", cell)
+    assert wb.defined_names[PW.PACK_LINE].attr_text == cell
+    f = wb["Workings"][cell.split("!")[1].replace("$", "")].value
+    assert "_xlfn.TEXTJOIN" in f and "Peer group · " in f and " of 15 switched on" in f
+    assert "out by the book's rules on 30+ incl. nonaccrual, " in f and " · switched off on Peers: " in f
+    helpers = info["pack_line"]["helpers"]
+    for word in (PW.STATE_IN, PW.STATE_OUT, PW.STATE_OFF):
+        assert '"%s"' % word in f or '"%s"' % word in wb["Workings"]["%s2" % helpers["state"]].value
+    lay = info["layout"]
+    pe = wb["Peers"]
+    assert [pe.cell(r, c).value for r, c in ((lay["pack"], 2), (lay["pack_charts"], 2), (lay["pack_charts"], 10))] \
+        == ["=PackLine"] * 3
+
+    want = pack_states(dl_data, roster)
+    peers = [b["short"] for b in R.peers(roster)]
+    last_q = info["delinquency"]["quarters"][-1]
+
+    def check(vals, want):
+        states = [vals.get("WORKINGS!%s%d" % (helpers["state"], 2 + j)) for j in range(len(peers))]
+        assert dict(zip(peers, states)) == want
+        assert [peers_cell(vals, lay["states"][s]) for s in peers] == states
+        text = vals.get("WORKINGS!" + cell.split("!")[1].replace("$", ""))
+        n_on = sum(s != PW.STATE_OFF for s in states)
+        assert text.startswith("Peer group · %d of %d switched on" % (n_on, len(peers)))
+        outs = [s for s in peers if want[s].startswith(PW.OUT)]
+        offs = [s for s in peers if want[s] == PW.STATE_OFF]
+        out_part = text.split(" · out by the book's rules on 30+ incl. nonaccrual, %s: " % last_q)
+        assert (len(out_part) == 2) == bool(outs)
+        off_part = text.split(" · switched off on Peers: ")
+        assert (len(off_part) == 2) == bool(offs)
+        assert all(s in out_part[1].split(" · switched off")[0] for s in outs)
+        assert all(s in off_part[1] for s in offs)
+        return text
+
+    check(vals, want)
+    assert peers_cell(vals, lay["states"]["JPMorgan"]) == PW.STATE_IN or         peers_cell(vals, lay["states"]["JPMorgan"]).startswith(PW.OUT)
+    after = typed(p, tmp_path / "jpm.xlsx", {inc(info, "JPMorgan"): "No"})
+    text = check(after, dict(want, JPMorgan=PW.STATE_OFF))
+    # The formulas engine keeps TEXTJOIN's empty strings (", , JPMorgan, , "),
+    # which Excel drops (Excel read "switched off on Peers: Capital One" on
+    # the real book, 19 Oct 2026): the names are compared, not the commas.
+    off_names = [x for x in text.split(" · switched off on Peers: ")[1].split(", ") if x]
+    assert off_names == ["JPMorgan"]
+    # The rank tables' In pack reads the same word.
+    jpm = next(i for i, b in enumerate(roster) if b["short"] == "JPMorgan")
+    label = info["ranks"]["charge_offs"]["label"]
+    assert vals.get("WORKINGS!%s%d" % (label, 2 + jpm)).split(" · ")[0] == want["JPMorgan"]
+    assert after.get("WORKINGS!%s%d" % (label, 2 + jpm)).split(" · ")[0] == PW.STATE_OFF
 
 
 def test_delinquency_follows_jpmorgan_switched_off(dlq, dl_data, roster, tmp_path):
@@ -1010,6 +1099,7 @@ def test_not_built_the_dashboard_and_the_tab_say_so(all_peers):
     p, info, vals = all_peers
     wb = load_workbook(p)
     assert info["delinquency"] is None
+    assert info["why_out"] is None  # no rule was tested, so Decide shows no Why out list
     assert "Delinquency was not built" in wb["DelinquencyData"]["A1"].value
     assert peers_cell(vals, "J%d" % info["layout"]["tiles"]) == PW.NOT_BUILT
     run = {r[0]: r for r in run_rows(wb) if r and r[0]}
@@ -1073,6 +1163,9 @@ def test_glossary_lists_everything_left_out_and_why(dlq):
     (dict(cutoff=3), "not known: cutoff"),
     (dict(jump="0.25"), "jump must be a number"),
     (dict(jump=True), "jump must be a number"),
+    (dict(acquisition_share=-0.05), "acquisition_share must be a finite number of at least 0"),
+    (dict(acquisition_share=float("nan")), "acquisition_share must be a finite number of at least 0"),
+    (dict(acquisition_share=float("inf")), "acquisition_share must be a finite number of at least 0"),
     (dict(data=[{}]), r"data must be \{REPDTE: \[rows\]\}.*not a list"),
 ])
 def test_a_bad_delinquency_setting_is_refused(tmp_path, recent, roster, dl_data, over, why):

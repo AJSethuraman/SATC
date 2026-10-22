@@ -115,6 +115,7 @@ try {
             switch ($r.special) {
                 "active" { $got = $wb.ActiveSheet.Name }
                 "sheets" { $got = @($wb.Worksheets | ForEach-Object { $_.Name }) }
+                "hidden" { $got = @($wb.Worksheets | Where-Object { $_.Visible -ne -1 } | ForEach-Object { $_.Name }) }
                 "slicers" { $got = Picked }
                 "visible_rows" { $got = Visible $r.sheet }
                 "links" { $l = $wb.LinkSources(1); $got = if ($l) { @($l) } else { @() } }

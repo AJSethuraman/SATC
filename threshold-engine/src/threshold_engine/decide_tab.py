@@ -15,10 +15,12 @@ that source; its settings and its period left out apply to that history. The
 tab shows what every source's own history would give, every source's latest
 quarter rated on the lines picked, and all of them on one chart.
 
-Laid out to Claude Design's round 2 (docs/design/round-2/README.md, "Decide"):
-the slicers as rows of buttons over B4:Q6, the table from row 8, then the
-headline, the Check band, and the chart beside the panel of its numbers, all
-on the first screen.
+Laid out to Claude Design's round 2 (docs/design/round-2/README.md, "Decide")
+and round 3 (docs/design/round-3/handoff/README.md, "Decide"): the slicers as
+three rows of buttons over B4:Q7, the table from row 9, then the headline,
+the Check band, and the chart beside the panel of its numbers, all on the
+first screen, with the pack line (the workbook's PackLine, from Peers) under
+the chart when the peer tabs are in the workbook.
 
 Assess's settings and periods-left-out cells become formulas reading the
 table, so every source's lines (the Lines by source tab) are computed exactly
@@ -46,6 +48,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from . import keybank_style as K
+from .assess_tab import HC as A_HC, LO_ROWS
 
 TITLE = "Decide"
 TABLE = "Decisions"
@@ -53,34 +56,49 @@ TABLE = "Decisions"
 #: workbook builds as "Thresholds" and the book renames once Decide is built,
 #: so that Thresholds is the one set of lines per product and measure.
 LINES_TAB = "Lines by source"
-HDR = 8                                   # the table's header row; the slicers sit over rows 4-6
-SLICER_ROWS = (4, 6)
+HDR = 9                                   # the table's header row; the slicers sit over rows 4-7
+SLICER_ROWS = (4, 7)
 #: What the chart can show; the lines never depend on it. Each with the
 #: quarters between its labels (the README: 2 / 4 / 8 / 12).
 WINDOWS = ("Last 20 quarters", "Last 48 quarters", "Last 80 quarters", "Every quarter")
 DEFAULT_WINDOW = WINDOWS[1]
 #: Where the two slicers sit, as (from_col, from_row, to_col, to_row), 0-based
-#: cells: over B:E and F:Q, and how many buttons to a row. They take in the
-#: 6 pt rows above and below 4-6: Excel 16 drew the caption and two rows of
-#: 0.25 in buttons in 94 px, and rows 4-6 alone are 78 px, which cut the
-#: second row in half.
-SLICER_ANCHORS = ((1, 2, 5, 7), (5, 2, 17, 7))
-SLICER_COLUMNS = (3, 4)
+#: cells: over B:E and F:Q, and how many buttons to a row (round 3: Product
+#: three to a row, Measure five, so every name fits in three rows). They
+#: take in the 6 pt rows above and below 4-7, 108 px in all: Excel 16 drew
+#: the caption and two rows of 0.25 in buttons in 94 px, so three rows take
+#: buttons of 0.2 in.
+SLICER_ANCHORS = ((1, 2, 5, 8), (5, 2, 17, 8))
+SLICER_COLUMNS = (3, 5)
 SLICER_STYLE = "SlicerStyleOther2"
-SLICER_BUTTON_IN = 0.25
+SLICER_BUTTON_IN = 0.2
 DECISIONS = ("Not decided", "Accept these lines", "Reject")
+#: What a source with no series for the row shown reads, in STONE.
+NO_SERIES = "—"
+#: The workbook's pack line (peers_workbook.PACK_LINE), under the chart when the peer tabs are built.
+PACK_LINE = "PackLine"
 LINES_FROM = "Lines set from"
 FIXED = [LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
-         "On a line, rate it", "Leave out from", "Leave out to", "Why left out", "Note", "Check", "Series", "Shown",
-         "Left out no."]
+         "On a line, rate it", "Periods left out", "Quarters left out", "Note", "Check", "Series", "Shown", "Key"]
 #: Table columns that only the formulas read. They sit in O:Q, under the
 #: panel's columns, so they are not hidden: their text is formatted away.
-HIDDEN = ("Series", "Shown", "Left out no.")
+HIDDEN = ("Series", "Shown", "Key")
 TYPED = (LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
-         "On a line, rate it", "Leave out from", "Leave out to", "Why left out", "Note")
+         "On a line, rate it", "Note")
+#: Read from the Periods left out list below the table, one or more per row (the analyst, 20 Oct 2026:
+#: "how am I supposed to even address multiple stretches of quarters being left out").
+LEFT_OUT_COLS = ("Periods left out", "Quarters left out")
 #: Typed cells shown bold: the numbers and the picks.
 BOLD_TYPED = (LINES_FROM, "Decision", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
               "On a line, rate it")
+#: Column widths in pixels at 100% (docs/design/round-3/handoff/README.md,
+#: Decide). The table's are the README's to K. L:Q take the right panel's
+#: (220 · 130 · 110 · 90 · 90 · 120), so its source names fit: the README
+#: gives L:Q two sets of widths, both 760 px in all, and a column has one,
+#: so Note and Check take the panel's; N:P hold only the
+#: table's hidden helpers.
+COL_PX = {"A": 16, "B": 110, "C": 200, "D": 150, "E": 130, "F": 84, "G": 84, "H": 84, "I": 74, "J": 80, "K": 80,
+          "L": 220, "M": 130, "N": 110, "O": 90, "P": 90, "Q": 120}
 #: Assess's columns for each of Your settings, in order.
 SETTING_COLS = (("Width of Moderate", "O"), ("Moderate-Low begins", "P"), ("How rare High is (z)", "Q"),
                 ("On a line, rate it", "R"))
@@ -119,8 +137,10 @@ TH = TH_BOOK
 TH_HIDDEN = ("Q", "AA")
 
 #: The per-series refusal for a half-typed period says to look on Assess; on Decide the cells are here.
-HERE = ('SUBSTITUTE(SUBSTITUTE({m},"its Status on Assess says what is missing","fill in Leave out from, Leave out to '
-        'and Why left out in its row on Decide"),"Finish that row under Periods left out","Finish its row on Decide")')
+HERE = ('SUBSTITUTE(SUBSTITUTE({m},"its Status on Assess says what is missing","its row under Periods left out on '
+        'Decide says what is missing"),"Finish that row under Periods left out (product, From, To and a reason), or '
+        'clear all four of its cells","Finish its row under Periods left out on Decide (product, measure, From, To and '
+        'Why), or clear all five of its cells")')
 
 
 def fill(hex_):
@@ -170,11 +190,17 @@ def sources_of(labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]]) ->
     return out
 
 
-def layout(n: int, n_third: int, compare: bool) -> dict:
+#: The peer group's banks under the chart: two lists side by side, each (name columns, switch, this quarter).
+PEER_LISTS = (((2, 3), 4, 5), ((6, 8), 9, (10, 11)))
+
+
+def layout(n: int, n_third: int, compare: bool, n_peers: int = 0) -> dict:
     """Where everything sits on Decide for n rows (products × measures) and
     n_third sources: one place for the builder, the tests and the walkthrough.
-    For the book (49 rows, three sources) the headline is row 59, the Check
-    60, the section headings 62 and the chart 63 to 80."""
+    For the book (56 rows, five sources) the table is rows 10 to 65, the
+    headline 67, the Check 68, the section headings 70, the chart 71 to 90
+    and the pack line 91. ``n_peers``: the banks the peer group can add up,
+    listed under the chart with their switches (none without the peer tabs)."""
     first, last = HDR + 1, HDR + n
     head = last + 2
     sec = head + 3
@@ -182,14 +208,27 @@ def layout(n: int, n_third: int, compare: bool) -> dict:
     chart_end = sec + 15 + t
     gives = chart_end + 2
     panel_end = gives + 1 + t
-    hist = panel_end + 2
-    sett = hist + 6
+    # under the chart: a title with Banks in the pack, a header, then the banks in two lists, the rows
+    # level with What each source's own history would give
+    peers_title = chart_end + 2 if n_peers else None
+    half = -(-n_peers // 2)
+    # Why out, under the two lists: its heading, then as many rows as a list has
+    why_head = chart_end + 3 + half + 2 if n_peers else None
+    peers_end = why_head + half if n_peers else 0
+    hist = max(panel_end, peers_end) + 2
+    lo_title = hist + 6
+    sett = lo_title + 2 + LO_ROWS + 1
     return dict(first=first, last=last, headline=head, chip=head, compare_line=head if compare else None,
                 check=head + 1, section=sec, chart_top=sec + 1, chart_end=chart_end, ratings_head=sec + 1,
-                ratings_first=sec + 2, sources_title=sec + 8, sources_head=sec + 9, compare_first=sec + 10,
+                pack_line=chart_end + 1, ratings_first=sec + 2, sources_title=sec + 8, sources_head=sec + 9,
+                compare_first=sec + 10,
                 window=sec + 10 + t, lines_label=sec + 12 + t, median=sec + 13 + t, move=sec + 14 + t,
                 worst=sec + 15 + t, gives_title=gives, gives_head=gives + 1, gives_first=gives + 2,
-                history=hist, evidence=hist + 1, left_now=hist + 4, settings=sett, notes=sett + 6)
+                history=hist, evidence=hist + 1, left_now=hist + 4, settings=sett, notes=sett + 6,
+                lo_title=lo_title, lo_head=lo_title + 1, lo_first=lo_title + 2, lo_last=lo_title + 1 + LO_ROWS,
+                peers_title=peers_title, peers_pick=peers_title,
+                peers_head=chart_end + 3 if n_peers else None, peers_first=chart_end + 4 if n_peers else None,
+                why_head=why_head, why_first=why_head + 1 if n_peers else None)
 
 
 def validate(part_names: Sequence[str]) -> None:
@@ -233,7 +272,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
           settings: Dict[str, Tuple[float, float, float, str]], lay: dict, n_quarters: int,
           absent: Sequence[dict], compare: Optional[Tuple[str, str]], lines_from: Optional[str],
           changes: Dict[str, Set[str]], quarters: Sequence[str], unit: str = "", higher: bool = True,
-          floor_at_zero: bool = True, floor_off: Sequence[str] = ()) -> dict:
+          floor_at_zero: bool = True, floor_off: Sequence[str] = (), peers: Optional[dict] = None) -> dict:
     """Add the Decide tab to ``wb`` (which already holds Assess, the per-series
     table titled Thresholds, and Data for ``labels``) and point Assess's typed
     cells at it.
@@ -250,7 +289,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     change took effect in, as its file's notes name them
     (``reporting_changes.quarters_in_notes``; an empty set for none), and
     ``quarters`` the Data tab's quarters, in order: the chart marks them, along the top of the rating zones, for the row shown
-    (any of its sources' quarters). Returns where things are, for the
+    (any of its sources' quarters). ``peers``: None, or the peer tabs' switches to set
+    here instead (``names``, ``sheet``, ``include``, ``states``, ``pack``; peer_switches).
+    Returns where things are, for the
     slicers, the Thresholds tab and tests."""
     validate(part_names)
     check_start(lines_from, labels, parts)
@@ -270,9 +311,15 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     third = sources_of(labels, parts)
     colors = source_colors(third)
     lead = compare[0] if compare else third[0]
-    lay_d = layout(rows_n, len(third), bool(compare))
+    lay_d = layout(rows_n, len(third), bool(compare), len(peers["names"]) if peers else 0)
     FIRST, LAST = lay_d["first"], lay_d["last"]
     row_of = {pr: FIRST + i for i, pr in enumerate(pairs)}
+    # Periods left out, below: its rows, and per row (hidden, from AA) the quarters it leaves out when
+    # whole, 1 when whole, and the words of the row shown's periods so far, "; " between them
+    LO1, LO9 = lay_d["lo_first"], lay_d["lo_last"]
+    lo_rng = lambda c_: "$%s$%d:$%s$%d" % (c_, LO1, c_, LO9)               # noqa: E731
+    LO_Q, LO_W = (lo_rng(L(H + i)) for i in range(2))
+    LO_SAID = "$%s$%d" % (L(H + 2), LO9)
     fz = floor_at_zero and higher
 
     ws = wb.create_sheet(TITLE)
@@ -280,20 +327,16 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.sheet_view.showGridLines = False
 
     # ---- columns and the rows above the table (the README, px -> units) ----
-    widths = {"A": 1.57, "B": 16.43, "C": 20.71, "D": 17.86, "E": 17.86, "F": 11.29, "G": 11.29, "H": 11.29,
-              "I": 9.86, "J": 10.71, "K": 10.71, "L": 27.86, "M": 30.71, "N": 15.0, "O": 13.57, "P": 13.57,
-              "Q": 14.43}
-    for c_, w in widths.items():
-        ws.column_dimensions[c_].width = w
-    for r, h in ((1, 25.5), (2, 15), (3, 6), (4, 19.5), (5, 19.5), (6, 19.5), (7, 6), (HDR, 27)):
+    for c_, px in COL_PX.items():
+        ws.column_dimensions[c_].width = round(px / 7, 2)
+    for r, h in ((1, 25.5), (2, 15), (3, 6), (4, 15), (5, 18), (6, 18), (7, 18), (8, 6), (HDR, 27)):
         ws.row_dimensions[r].height = h
 
     ws["B1"] = "Decide · one %s and %s at a time" % (p0.lower(), p1.lower())
     ws["B1"].font = Font(name="Arial", size=16, bold=True, color=K.INK)
     ws["B1"].alignment = Alignment(vertical="bottom")
-    ws["B2"] = ("Pick a %s and a %s with the buttons. The yellow cells in the row below them set one set of lines "
-                "from the history of the %s named under %s; save the file (Ctrl+S) to keep them."
-                % (p0.lower(), p1.lower(), p2.lower(), LINES_FROM))
+    ws["B2"] = ("Pick a %s and a %s. The yellow row sets one set of lines from the history of the %s under %s; "
+                "save the file (Ctrl+S) to keep them." % (p0.lower(), p1.lower(), p2.lower(), LINES_FROM))
     ws["B2"].font = F_SLATE
     _rule(ws, 2, 2, 17, Side(style="medium", color=K.KEY_RED))
 
@@ -325,16 +368,19 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                '"Refused: see the fix below"),"No such series: pick another"))'
                 .format(lf=lf, m=th_col("refusal"), s=ser, a=th_a))
         ws.cell(r, C["Shown"], "=SUBTOTAL(103,%s%d)" % (L(C[p0]), r))
-        # 1, 2, 3 down the rows with anything typed under Leave out: Assess's
-        # periods-left-out rows find them by number.
-        lo = L(C["Left out no."])
-        ws.cell(r, C["Left out no."], '=IF(({f}{r}<>"")+({t}{r}<>"")+({w}{r}<>"")>0,MAX({c}${h}:{c}{p})+1,"")'
-                .format(f=L(C["Leave out from"]), t=L(C["Leave out to"]), w=L(C["Why left out"]), r=r, c=lo,
-                        h=HDR, p=r - 1))
+        ws.cell(r, C["Key"], '={a}{r}&" · "&{b}{r}'.format(a=L(C[p0]), b=L(C[p1]), r=r))
+        ws.cell(r, C["Periods left out"], '=SUMIFS({s},{lb},{a}{r},{lc},{b}{r})'.format(
+            s=LO_W, lb=lo_rng("B"), lc=lo_rng("C"), a=L(C[p0]), b=L(C[p1]), r=r)).number_format = '0;-0;;@'
+        # The quarters the lines lose: the series' values less those it keeps on Data, so
+        # periods that overlap count each quarter once, as the lines do (Codex on #467).
+        d_all, d_hdr = "Data!$B$2:$%s$%d" % (d_kept_last, q_last), "Data!$B$1:$%s$1" % d_kept_last
+        ws.cell(r, C["Quarters left out"], '=IF({s}="","",SUMPRODUCT(({h}={s})*ISNUMBER({v}))'
+                                           '-SUMPRODUCT(({h}={s}&", kept")*ISNUMBER({v})))'
+                .format(s=ser, v=d_all, h=d_hdr)).number_format = '0;-0;;@'
         for name in C:
             c_ = ws.cell(r, C[name])
-            c_.alignment = Alignment(vertical="center", wrap_text=name in ("Why left out", "Note", "Check",
-                                                                           LINES_FROM) or name in part_names)
+            c_.alignment = Alignment(vertical="center", wrap_text=name in ("Note", "Check", LINES_FROM)
+                                     or name in part_names, horizontal="right" if name in LEFT_OUT_COLS else None)
             if name in TYPED:
                 c_.font = F_BOLD if name in BOLD_TYPED else F_BODY
                 c_.fill = fill(K.INPUT)
@@ -348,7 +394,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for name in ("Width of Moderate", "Moderate-Low begins", "How rare High is (z)"):
             ws.cell(r, C[name]).number_format = "0.0#"
         ws.row_dimensions[r].height = 34.5
-    tbl = Table(displayName=TABLE, ref="%s%d:%s%d" % (L(C[p0]), HDR, L(C["Left out no."]), LAST))
+    tbl = Table(displayName=TABLE, ref="%s%d:%s%d" % (L(C[p0]), HDR, L(C["Key"]), LAST))
     # No table style: the header is styled by hand, and the helper columns'
     # header must not be drawn (an unnamed style is what Excel writes for None).
     tbl.tableStyleInfo = TableStyleInfo(name=None, showRowStripes=False)
@@ -358,8 +404,7 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         return "%s$%s$%d:$%s$%d" % (sheet, L(C[name]), FIRST, L(C[name]), LAST)
 
     for name, lst in ((LINES_FROM, '"%s"' % ",".join(third)), ("Decision", '"%s"' % ",".join(DECISIONS)),
-                      ("On a line, rate it", '"worse,better"'),
-                      ("Leave out from", "=Data!$A$2:$A$%d" % q_last), ("Leave out to", "=Data!$A$2:$A$%d" % q_last)):
+                      ("On a line, rate it", '"worse,better"')):
         dv = DataValidation(type="list", formula1=lst, showErrorMessage=True, errorTitle=name,
                             error="Pick one from the list.")
         ws.add_data_validation(dv)
@@ -395,13 +440,19 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             c_ = asx["%s%d" % (col, sr)]
             c_.value = '=IF(Decide!{c}{r}="","",Decide!{c}{r})'.format(c=L(C[name]), r=r)
             c_.fill = none
+    assert LO_N == LO_ROWS, "Periods left out on Decide and on Assess hold the same rows"
     for k in range(LO_N):
-        # The k-th row with anything typed under Leave out, in table order.
-        kth = "MATCH(%d,%s,0)" % (k + 1, rng("Left out no.", "Decide!"))
-        for col, name in (("N", "Series"), ("O", "Leave out from"), ("P", "Leave out to"), ("Q", "Why left out")):
-            c_ = asx["%s%d" % (col, LO_TOP + k)]
-            c_.value = '=IFERROR(INDEX(%s,%s)&"","")' % (rng(name, "Decide!"), kth)
-            c_.fill = none
+        # Row k of Periods left out on Decide: its series is the product and measure's
+        # under the source its row's lines are set from.
+        dr = lay_d["lo_first"] + k
+        lf_ = 'INDEX(%s,MATCH(Decide!$B$%d&" · "&Decide!$C$%d,%s,0))' % (rng(LINES_FROM, "Decide!"), dr, dr,
+                                                                       rng("Key", "Decide!"))
+        asx["N%d" % (LO_TOP + k)].value = ('=IF(OR(Decide!$B${r}="",Decide!$C${r}=""),"",IFERROR(IF({lf}="","",'
+                                           'Decide!$B${r}&" - "&Decide!$C${r}&" - "&{lf}),""))').format(r=dr, lf=lf_)
+        for col, dc in (("O", "D"), ("P", "E"), ("Q", "F")):
+            asx["%s%d" % (col, LO_TOP + k)].value = '=Decide!$%s$%d&""' % (dc, dr)
+        for col in "NOPQ":
+            asx["%s%d" % (col, LO_TOP + k)].fill = none
     asx.cell(lay["set_title"], 14).value = "Your settings · set on the Decide tab, shown here"
     asx.cell(lay["lo_title"], 14).value = "Periods left out · set on the Decide tab, shown here"
     for row in range(1, 4):
@@ -410,7 +461,6 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
             if isinstance(v, str) and v.startswith("Choose what to show in B5"):
                 asx.cell(row, col).value = ("Detail for the series in B5. Settings, periods left out and decisions "
                                             "are made on the Decide tab.")
-    n_lo = "MAX(%s)" % rng("Left out no.")
 
     # ---- hidden helpers: the row the buttons picked, and its lines ----
     SER, SHOWN = rng("Series"), rng("Shown")
@@ -503,15 +553,13 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.row_dimensions[cr].height = 25.5
     ws.merge_cells(start_row=cr, start_column=2, end_row=cr, end_column=8)
     ws.merge_cells(start_row=cr, start_column=9, end_row=cr, end_column=17)
-    too_many = '{n}>{m}'.format(n=n_lo, m=LO_N)
-    many_msg = "More than %d rows have a period left out; only the first %d are used. Clear one." % (LO_N, LO_N)
-    ws.cell(cr, 2, '=IF({t},"{mm}",IF(NOT({o}),"",IF({s}="","Check: pick the {d} whose history sets the lines, '
+    ws.cell(cr, 2, '=IF(NOT({o}),"",IF({s}="","Check: pick the {d} whose history sets the lines, '
                    'under {lf}.",IF(NOT(ISNUMBER({row})),"Check: this workbook has no "&{s}&" series for this {a} '
-                   'and {b}.",IF({r}="","Check: OK, your settings fit the history the lines are set from.",{why})))))'
-            .format(o=ONE, t=too_many, mm=many_msg, s=SRC, d=p2.lower(), lf=LINES_FROM, row=ROW, a=p0.lower(),
+                   'and {b}.",IF({r}="","Check: OK, your settings fit the history the lines are set from.",{why}))))'
+            .format(o=ONE, s=SRC, d=p2.lower(), lf=LINES_FROM, row=ROW, a=p0.lower(),
                     b=p1.lower(), r=REFUSAL, why=HERE.format(m=REFUSAL)))
-    ws.cell(cr, 9, '=IF(OR(NOT({h}),{t}),"",IF({r}="","","To fix: "&{fix}))'
-            .format(h=HAS, t=too_many, r=REFUSAL, fix=HERE.format(m=th_("fix"))))
+    ws.cell(cr, 9, '=IF(NOT({h}),"",IF({r}="","","To fix: "&{fix}))'
+            .format(h=HAS, r=REFUSAL, fix=HERE.format(m=th_("fix"))))
     for c in (2, 9):
         ws.cell(cr, c).font = Font(name="Arial", size=12, bold=True, color=K.INK)
         ws.cell(cr, c).alignment = Alignment(vertical="center", indent=1 if c == 2 else 0, shrink_to_fit=True)
@@ -564,7 +612,8 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     for j in range(4):
         col("lab%d" % j, "")
     for key, head in (("num", "drawn and shown, numbers only"), ("low", "drawn and shown, lowest"),
-                      ("any", "drawn"), ("fit", "first, count, last, label every"), ("ft", "floor, top")):
+                      ("any", "drawn"), ("fit", "first, count, last, label every"), ("ft", "floor, top"),
+                      ("zero", "Zero, a measure without a floor")):
         col(key, head)
     # The quarters a reporting change took effect, per row of the table (any
     # of its sources' files names it), and the marker for the row shown.
@@ -626,6 +675,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         ws.cell(r, cols_["low"], '=IF(AND({w},COUNT({c})>0),MIN({m}),"")'.format(
             w=inwin, c=",".join(refs), m=",".join("IF(ISNUMBER(%s),%s,1E+300)" % (y, y) for y in refs)))
         ws.cell(r, cols_["base"], "=%s" % FLOOR)
+        # Where the axis crosses: a measure without a floor (a gap) can be
+        # either side of zero, so zero is drawn, SLATE.
+        ws.cell(r, cols_["zero"], "=IF(AND(%s,NOT(%s),%s),0,NA())" % (HAS, FZ, inwin))
         for k in range(5):
             ws.cell(r, cols_["z%d" % (k + 1)], "=IF(%s,MAX(%s-%s,0),NA())" % (lines_ok, edges[k + 1], edges[k]))
         for j in range(4):
@@ -649,6 +701,10 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     ws.cell(4, cols_["fit"], "=%s+%s-1" % (FIT, FIT_N))
     ws.cell(5, cols_["fit"], '=IF({w}="{e}",12,IF({s}<=20,2,IF({s}<=48,4,8)))'.format(w=WIN, e=WINDOWS[3], s=span))
     num, lows = rng_("num"), rng_("low")
+    # The zones' base: 0, or the lowest value drawn when a gap runs below
+    # it. Taking it down to a whole step of the range was tried, so the base
+    # would sit at the axis minimum: Excel then took its axis a step lower
+    # still (seen in Excel, 19 Oct 2026), and the axis is Excel's to set.
     ws.cell(2, cols_["ft"], "=MIN(0,MIN(%s))" % lows)
     # The top fits what is drawn, and takes in a line that sits within 60% of
     # the drawn range above it, so its zone and label show.
@@ -703,7 +759,9 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     from openpyxl.chart.shapes import GraphicalProperties as _GP
     mark.marker.graphicalProperties = _GP(solidFill=K.INK)
     mark.marker.graphicalProperties.line.solidFill = K.INK
-    for s_ in over + [left] + picks + labs + [mark]:
+    zero = series("zero", "dq_zero", "Zero")
+    zero.graphicalProperties.line = _ln(K.SLATE, 0.75)
+    for s_ in [zero] + over + [left] + picks + labs + [mark]:
         s_.idx = s_.order = idx
         idx += 1
         line.series.append(s_)
@@ -743,6 +801,13 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                                                              x=0.06, y=0.03, w=0.83, h=0.86))
     from .assess_tab import _place
     _place(ws, line, 2, lay_d["chart_top"], 12, lay_d["chart_end"] + 1)
+    # Under the chart, the pack line: which peers the peer group's line is
+    # summed over this quarter. Only where the peer tabs define it.
+    if PACK_LINE in wb.defined_names:
+        c_ = ws.cell(lay_d["pack_line"], 2, "=" + PACK_LINE)
+        c_.font = F_NOTE
+        c_.alignment = Alignment(vertical="center")
+        ws.row_dimensions[lay_d["pack_line"]].height = 15
 
     # ---- the panel, right: where each rating begins ----
     rh = lay_d["ratings_head"]
@@ -760,8 +825,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         c_.font = F_BOLD
         c_.fill = fill(SCALE[k])
         if k == 0:
-            begins = "the bottom" if higher else "the top"
-            ws.cell(r, 13, '=IF(%s,"%s","")' % (lines_ok, begins))
+            # With a floor, 1 Low begins at it; without one (a gap) it has
+            # no bottom, so it reads as what it is below (or above).
+            begins, side = ("the bottom", "below") if higher else ("the top", "above")
+            ws.cell(r, 13, '=IF({ok},IF({fz},"{b}","{s} "&TEXT({l2},"0.00")),"")'.format(
+                ok=lines_ok, fz=FZ, b=begins, s=side, l2=LN[0]))
         else:
             ws.cell(r, 13, '=IF(ISNUMBER(%s),%s,"")' % (LN[k - 1], LN[k - 1]))
         ws.cell(r, 14, '=IF(OR(NOT({h}),{rf}<>""),"",COUNTIF({rr},{k}))'.format(h=HAS, rf=REFUSAL, rr=rate_r,
@@ -800,15 +868,19 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         rows[v] = r
         sr_ = src_rows[v]
         a_, b_, x_, k_ = ("$%s$%d" % (L(H + j), sr_) for j in range(4))
-        nm = ws.cell(r, 12, '=IF({s}="{v}","━ ","╍ ")&"{v}"'.format(s=SRC, v=_q(v)))
+        # A source with no series for the row shown is blank there, its name too (the analyst, 20 Oct 2026,
+        # on the Philadelphia Fed grayed on 55 rows of 56: "What do we have this for if we don't have it?").
+        nm = ws.cell(r, 12, '=IF(AND({o},{b}=""),"",IF({s}="{v}","━ ","╍ ")&"{v}")'.format(o=ONE, b=b_, s=SRC,
+                                                                                         v=_q(v)))
         nm.font = Font(name="Calibri", size=11, bold=True, color=colors[v])
-        ws.cell(r, 13, '=IF(NOT({o}),"",IF({b}="","Not in this workbook",IF({k}="",IF({s}="","No lines picked",'
+        ws.cell(r, 13, '=IF(NOT({o}),"",IF({b}="","",IF({k}="",IF({s}="","{n}",'
                        '"No rating"),{k}&" "&CHOOSE({k},"{r0}","{r1}","{r2}","{r3}","{r4}"))))'
-                .format(o=ONE, b=b_, k=k_, s=SRC, r0=RATINGS[0], r1=RATINGS[1], r2=RATINGS[2], r3=RATINGS[3],
-                        r4=RATINGS[4])).font = F_BOLD
+                .format(o=ONE, b=b_, k=k_, s=SRC, n=NO_SERIES, r0=RATINGS[0], r1=RATINGS[1],
+                        r2=RATINGS[2], r3=RATINGS[3], r4=RATINGS[4])).font = F_BOLD
         c_ = ws.cell(r, 14, '=IF(ISNUMBER({x}),{x},"")'.format(x=x_))
         c_.number_format = "0.00"
         c_.font = F_BODY
+        c_.alignment = Alignment(horizontal="right")
         ws.cell(r, 15, '=IF({b}="","",IFERROR(INDEX({q},{b})&"",""))'.format(b=b_, q=th_col("quarter"))
                 ).font = F_SLATE
         ws.cell(r, 16, '=IF({b}="","",SUMPRODUCT(ISNUMBER({v})*({h}={a}&", kept")))'
@@ -820,6 +892,11 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         for c in range(12, 17):
             ws.cell(r, c).border = Border(bottom=HAIR)
         # The source the lines are set from is the solid line already: its switch reads Lines from it.
+        ws.conditional_formatting.add("Q%d" % r, Rule(type="expression", formula=['AND(%s,%s="")' % (ONE, b_)],
+                                                      stopIfTrue=True, dxf=DifferentialStyle(
+                                                          numFmt=NumberFormat(numFmtId=191, formatCode=';;;'),
+                                                          fill=fill(K.PAPER), border=Border(
+                                                              *(Side(style="thin", color=K.PAPER),) * 4))))
         ws.conditional_formatting.add("Q%d" % r, Rule(type="expression", formula=['%s="%s"' % (SRC, _q(v))],
                                                       stopIfTrue=True, dxf=DifferentialStyle(
                                                           numFmt=NumberFormat(numFmtId=190,
@@ -892,20 +969,22 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                   (17, "Worst kept")):
         cell = ws.cell(gh, c, t_)
         cell.font = F_LAB
-        cell.alignment = Alignment(horizontal="left" if c == 12 else "right", vertical="center")
+        # "4 Moderate-High" is wider than O (90 px): two lines, never shrunk.
+        cell.alignment = Alignment(horizontal="left" if c == 12 else "right", vertical="bottom", wrap_text=True)
+    ws.row_dimensions[gh].height = 30
     _rule(ws, gh, 12, 17, Side(style="thin", color=K.STONE))
     gives = {}
     for i, v in enumerate(third):
         r = lay_d["gives_first"] + i
         gives[v] = r
         b_ = "$%s$%d" % (L(H + 1), src_rows[v])
-        nm = ws.cell(r, 12, v)
+        nm = ws.cell(r, 12, '=IF(AND({o},{b}=""),"","{v}")'.format(o=ONE, b=b_, v=_q(v)))
         nm.font = Font(name="Calibri", size=11, bold=True, color=colors[v])
         refused_ = 'INDEX(%s,%s)<>""' % (th_col("refusal"), b_)
         for c, key in ((13, "l2"), (14, "l3"), (15, "l4"), (16, "l5"), (17, "worst")):
             if c == 13:
-                f = ('=IF({b}="",IF({o},"Not in this workbook",""),IF({rf},"Refused",IFERROR(INDEX({x},{b})+0,"")))'
-                     .format(b=b_, o=ONE, rf=refused_, x=th_col(key)))
+                f = ('=IF({b}="","",IF({rf},"Refused",IFERROR(INDEX({x},{b})+0,"")))'
+                     .format(b=b_, rf=refused_, x=th_col(key)))
             elif key == "worst":
                 f = '=IF({b}="","",IFERROR(INDEX({x},{b})+0,""))'.format(b=b_, x=th_col(key))
             else:
@@ -921,7 +1000,60 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
     g1, g2 = lay_d["gives_first"], lay_d["gives_first"] + len(third) - 1
     ws.conditional_formatting.add("M%d:M%d" % (g1, g2), FormulaRule(
         formula=['$M%d="Refused"' % g1], font=Font(bold=True, color=K.CRIMSON)))
-    ws.row_dimensions[gh].height = 16.5
+
+    # ---- Periods left out: as many per row as needed, each read by Assess's row of the same number ----
+    lt = lay_d["lo_title"]
+    ws.cell(lt, 2, "Periods left out").font = F_HEAD
+    _rule(ws, lt, 2, 17, Side(style="medium", color=K.INK))
+    lh = lay_d["lo_head"]
+    for c, t_ in ((2, p0), (3, p1), (4, "From"), (5, "To"), (6, "Why"), (12, "Status")):
+        ws.cell(lh, c, t_).font = F_LAB
+        ws.cell(lh, c).alignment = Alignment(vertical="bottom")
+    _rule(ws, lh, 2, 17, Side(style="thin", color=K.STONE))
+    # the two lists the first columns pick from, hidden beside the helpers
+    lists = {}
+    for i, vals in enumerate((list(dict.fromkeys(a for a, _ in pairs)), list(dict.fromkeys(b for _, b in pairs)))):
+        c = H + 3 + i
+        for j, v in enumerate(vals):
+            assert ws.cell(LO1 + j, c).value is None, "Periods left out's lists overlap a helper"
+            ws.cell(LO1 + j, c, v)
+        lists[i] = "=$%s$%d:$%s$%d" % (L(c), LO1, L(c), LO1 + len(vals) - 1)
+    dvs = [DataValidation(type="list", formula1=f_, showErrorMessage=True, errorTitle=t_, error="Pick one from the list.")
+           for f_, t_ in ((lists[0], p0), (lists[1], p1), ("=Data!$A$2:$A$%d" % q_last, "Quarter"))]
+    for dv_ in dvs:
+        ws.add_data_validation(dv_)
+    akey = 'IFERROR(INDEX({k},MATCH(1,{s},0)),"")'.format(k=rng("Key"), s=SHOWN)
+    z_, aa_, ok_ = (L(A_HC + 14 + i) for i in range(3))
+    for k in range(LO_N):
+        r, ar = LO1 + k, LO_TOP + k
+        for c in range(2, 7):
+            c_ = ws.cell(r, c)
+            c_.fill, c_.border = fill(K.INPUT), BOX
+            c_.font = F_BODY if c == 6 else F_BOLD
+            c_.alignment = Alignment(vertical="center")
+        ws.merge_cells(start_row=r, start_column=6, end_row=r, end_column=11)
+        dvs[0].add("B%d" % r)
+        dvs[1].add("C%d" % r)
+        dvs[2].add("D%d:E%d" % (r, r))
+        for c, f in ((H, '=IF(Assess!${o}${a}=1,Assess!${t}${a}-Assess!${f}${a}+1,0)'),
+                     (H + 1, '=IF(Assess!${o}${a}=1,1,0)'),
+                     (H + 2, '=IF(AND(${w}{r}=1,$B{r}&" · "&$C{r}={k}),{p}$D{r}&" to "&$E{r}&IF(TRIM($F{r})="","",'
+                             '", "&TRIM($F{r})),{q})')):
+            assert ws.cell(r, c).value is None, "Periods left out's helpers overlap another"
+            prev = "$%s$%d" % (L(H + 2), r - 1)
+            ws.cell(r, c, f.format(o=ok_, a=ar, t=aa_, f=z_, w=L(H + 1), r=r, k=akey,
+                                   p='IF(%s="","",%s&"; ")&' % (prev, prev) if k else "", q=prev if k else '""'))
+        ws.merge_cells(start_row=r, start_column=12, end_row=r, end_column=17)
+        st = ws.cell(r, 12, '=IF(AND($B{r}="",$C{r}="",$D{r}="",$E{r}="",TRIM($F{r})=""),"",IF(ISNA(MATCH($B{r}&" · "&$C{r},'
+                            '{key},0)),"Pick a {a} and a {b} from the lists",IF(INDEX({lf},MATCH($B{r}&" · "&$C{r},{key},'
+                            '0))="","Pick a {d} under {lfn} on its row first",Assess!$T${ar})))'
+                     .format(r=r, ar=ar, key=rng("Key"), lf=rng(LINES_FROM), a=p0.lower(), b=p1.lower(),
+                             d=p2.lower(), lfn=LINES_FROM))
+        st.font = F_SLATE
+        st.alignment = Alignment(vertical="center", shrink_to_fit=True)
+        ws.row_dimensions[r].height = 18
+    ws.conditional_formatting.add("L%d:Q%d" % (LO1, LO9), FormulaRule(
+        formula=['ISNUMBER(SEARCH("refused",$L%d))' % LO1], font=Font(bold=True, color=K.CRIMSON)))
 
     # ---- below the fold: the evidence, and what each setting does ----
     hi = lay_d["history"]
@@ -938,10 +1070,10 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
         c_.alignment = Alignment(vertical="center", shrink_to_fit=True)
     r = lay_d["left_now"]
     ws.cell(r, 2, "Left out now").font = F_LAB
-    fr, to, why = shown("Leave out from"), shown("Leave out to"), shown("Why left out")
-    c_ = ws.cell(r, 4, '=IF(NOT({o}),"",IF(AND({f}="",{t}=""),"No period is left out; every quarter is kept.",'
-                       '"Left out: "&{f}&" to "&{t}&IF({w}="","",", "&{w})&". The chart draws these quarters in '
-                       'gray; the lines are set without them."))'.format(o=ONE, f=fr, t=to, w=why))
+    said = LO_SAID
+    c_ = ws.cell(r, 4, '=IF(NOT({o}),"",IF({s}="","No period is left out; every quarter is kept.",'
+                       '"Left out: "&{s}&". The chart draws these quarters in gray; the lines are set without them."))'
+                 .format(o=ONE, s=said))
     c_.font = F_BODY
     ws.merge_cells(start_row=r, start_column=4, end_row=r, end_column=17)
     c_.alignment = Alignment(vertical="center", shrink_to_fit=True)
@@ -1000,14 +1132,21 @@ def build(wb, *, labels: Sequence[str], parts: Dict[str, Tuple[str, str, str]], 
                    "are set from: it is drawn, and it does not set the lines." % (p2.lower(), p2.lower())
             ).font = F_NOTE
     ws.cell(nt + 1, 2, "The settings apply to every %s's history: the lines picked, and what each %s's own history "
-                       "would give. The shading runs from 1 Low to 5 High. The chart starts at the first quarter any "
-                       "line has, within the window set under Chart shows.%s Every term is defined on the Glossary tab."
-            % (p2.lower(), p2.lower(), " A diamond along the top marks a quarter in which a reporting change took "
-               "effect (Reporting changes tab)." if any(took) else "")).font = F_NOTE
+                       "would give. The shading runs from 1 Low to 5 High." % (p2.lower(), p2.lower())).font = F_NOTE
+    ws.cell(nt + 2, 2, "The chart starts at the first quarter any line has, within the window set under Chart shows.%s "
+                       "Every term is defined on the Glossary tab."
+            % (" A diamond at the top of the shading marks a quarter in which a reporting change took effect "
+               "(Sources tab, Reporting changes)." if any(took) else "")).font = F_NOTE
 
     for c in range(H, nxt[0]):
         ws.column_dimensions[L(c)].hidden = True
-    return {"sheet": TITLE, "table": TABLE, "header_row": HDR, "first": FIRST, "last": LAST, "columns": C,
+    switches = None
+    if peers:
+        from .peers import peers_workbook as PW
+        switches = peer_switches(wb, lay_d, peers["names"], peers["sheet"], peers["include"], peers["states"],
+                                 peers["pack"], PW.PACK_PICKS, PW.FOLLOW, PW.YES, PW.NO, PW.OUT, PW.STATE_OFF,
+                                 why_out=peers.get("why_out"))
+    return {"sheet": TITLE, "table": TABLE, "header_row": HDR, "first": FIRST, "last": LAST, "columns": C, "switches": switches,
             "check_row": lay_d["check"], "compare_rows": rows, "gives_rows": gives, "leave_out_rows": LO_N,
             "layout": lay_d, "helpers": {k: L(v) for k, v in cols_.items()}, "pairs": pairs, "by_pair": by_pair,
             "row_of": row_of, "sources": third, "lead": lead, "source_rows": src_rows}
@@ -1060,3 +1199,122 @@ def rename_tab(wb, old: str, new: str) -> int:
     for dn in wb.defined_names.values():
         dn.attr_text = fix(dn.attr_text)
     return count[0]
+
+
+def peer_switches(wb, lay_d: dict, peers: Sequence[str], peers_sheet: str, include: Dict[str, str],
+                  states: Dict[str, str], pack_cell: str, picks: Sequence[str], follow: str, yes: str, no: str,
+                  state_out: str, state_off: str, why_out: Optional[dict] = None) -> Dict[str, str]:
+    """Each peer's switch, and Banks in the pack, set on Decide under the chart; the
+    cells on ``peers_sheet`` that held them read Decide instead, so there is one
+    place to set each (the analyst, 20 Oct 2026: "I think we should be able to set
+    peers on here probably even individually"). ``include``/``states``: each
+    peer's switch and state cell on Peers; ``pack_cell``: Banks in the pack there.
+    Each switch starts as Peers had it. ``state_out`` begins every out state ("out: jump").
+    ``why_out`` (peers_workbook's): under the lists, each bank out and why, in roster order.
+    Returns each peer's switch cell on Decide."""
+    from .peers.peers_workbook import _quoted
+    ws, pe = wb[TITLE], wb[peers_sheet]
+    PE = _quoted(peers_sheet) + "!"
+    t = lay_d["peers_title"]
+    ws.cell(t, 2, "Peer group").font = F_HEAD
+    ws.cell(t, 2).alignment = Alignment(vertical="bottom")
+    _rule(ws, t, 2, 11, Side(style="medium", color=K.INK))
+    pr = lay_d["peers_pick"]
+    ws.cell(pr, 3, "Banks in the pack").font = F_LAB
+    ws.cell(pr, 3).alignment = Alignment(horizontal="right", vertical="bottom", indent=1)
+    pk = ws.cell(pr, 4, pe[pack_cell].value)
+    pk.font, pk.fill, pk.border = F_BOLD, fill(K.INPUT), BOX
+    pk.alignment = Alignment(vertical="center", indent=1)
+    dv_pk = DataValidation(type="list", formula1='"%s"' % ",".join(picks), showErrorMessage=True,
+                           errorTitle="Banks in the pack", error="Pick one from the list.")
+    ws.add_data_validation(dv_pk)
+    dv_pk.add(pk.coordinate)
+    dv_sw = DataValidation(type="list", formula1='"%s,%s,%s"' % (follow, yes, no), showErrorMessage=True,
+                           errorTitle="In the peer group", error="%s (follow Banks in the pack), %s or %s."
+                           % (follow, yes, no))
+    ws.add_data_validation(dv_sw)
+    hr = lay_d["peers_head"]
+    for names, sw, st in PEER_LISTS:
+        st0 = st if isinstance(st, int) else st[0]
+        if not isinstance(st, int):
+            ws.merge_cells(start_row=hr, start_column=st[0], end_row=hr, end_column=st[1])
+        for c, h in ((names[0], "Bank"), (sw, "Switch"), (st0, "This quarter")):
+            ws.cell(hr, c, h).font = F_LAB
+            ws.cell(hr, c).alignment = Alignment(horizontal="left" if c == names[0] else "center",
+                                                 vertical="bottom")
+    _rule(ws, hr, 2, 11, Side(style="thin", color=K.STONE))
+    half = -(-len(peers) // 2)
+    out = {}
+    for j, short in enumerate(peers):
+        (names, sw, st), r = PEER_LISTS[j // half], lay_d["peers_first"] + j % half
+        if names[1] > names[0]:
+            ws.merge_cells(start_row=r, start_column=names[0], end_row=r, end_column=names[1])
+        ws.cell(r, names[0], short).font = F_BODY
+        c_ = ws.cell(r, sw, pe[include[short]].value)
+        c_.font, c_.fill, c_.border = F_BOLD, fill(K.INPUT), BOX
+        c_.alignment = Alignment(horizontal="center", vertical="center")
+        dv_sw.add(c_.coordinate)
+        st0 = st if isinstance(st, int) else st[0]
+        if not isinstance(st, int):
+            ws.merge_cells(start_row=r, start_column=st[0], end_row=r, end_column=st[1])
+        s_ = ws.cell(r, st0, "=%s%s" % (PE, "$%s$%s" % _split(states[short])))
+        s_.font = F_SLATE
+        s_.alignment = Alignment(horizontal="center", vertical="center")
+        sref = "$%s$%d" % (L(st0), r)
+        # in (INK), out (SLATE italic), off (STONE, struck through), as on Peers
+        for where, struck in ((s_.coordinate, True), (c_.coordinate, False)):
+            ws.conditional_formatting.add(where, FormulaRule(formula=['LEFT(%s,%d)="%s"' % (sref, len(state_out),
+                                                                                            state_out)],
+                                                             font=Font(color=K.SLATE, italic=True)))
+            ws.conditional_formatting.add(where, FormulaRule(formula=['%s="%s"' % (sref, state_off)],
+                                                             font=Font(color=K.STONE, strike=struck)))
+        for c in range(names[0], (st if isinstance(st, int) else st[1]) + 1):
+            ws.cell(r, c).border = Border(bottom=HAIR) if c != sw else BOX
+        out[short] = "$%s$%d" % (L(sw), r)
+        # Peers reads the switch from here: no longer an input there.
+        _peers_reads(pe, include[short], "=%s!%s" % (TITLE, out[short]))
+    _peers_reads(pe, pack_cell, "=%s!$D$%d" % (TITLE, pr))
+    if why_out:
+        # Why out, under the lists: the k-th bank out this quarter and its reason, as many rows as a list
+        # has; when more are out, the last row says how many more.
+        wh = lay_d["why_head"]
+        h_ = ws.cell(wh, 2, "=" + why_out["head"])
+        h_.font, h_.alignment = F_LAB, Alignment(vertical="bottom")
+        _rule(ws, wh, 2, 11, Side(style="thin", color=K.STONE))
+        n_out = "MAX(%s)" % why_out["numbers"]
+        for k in range(1, half + 1):
+            r = lay_d["why_first"] + k - 1
+            at = "MATCH(%d,%s,0)" % (k, why_out["numbers"])
+            more = '{n}>{h}'.format(n=n_out, h=half) if k == half else "FALSE"
+            ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=3)
+            nm = ws.cell(r, 2, '=IF({m},"",IFERROR(INDEX({b},{a}),""))'.format(m=more, b=why_out["names"], a=at))
+            nm.font, nm.alignment = F_BODY, Alignment(vertical="center")
+            ws.merge_cells(start_row=r, start_column=4, end_row=r, end_column=11)
+            wy = ws.cell(r, 4, ('=IF({m},"And "&({n}-{h}+1)&" more: the rule for each is under This '
+                                'quarter.",IFERROR(INDEX({w},{a}),""))').format(
+                m=more, n=n_out, h=half, w=why_out["whys"], a=at))
+            wy.font, wy.alignment = F_SLATE, Alignment(vertical="center")
+            for c in range(2, 12):
+                ws.cell(r, c).border = Border(bottom=HAIR)
+    # The pack line names where a bank is switched off: here now.
+    if PACK_LINE in wb.defined_names:
+        sh, at = wb.defined_names[PACK_LINE].attr_text.rsplit("!", 1)
+        c = wb[sh.strip("'")][at.replace("$", "")]
+        c.value = c.value.replace(" · switched off on %s: " % peers_sheet, " · switched off on %s: " % TITLE)
+    return out
+
+
+def _split(coord: str):
+    return re.fullmatch(r"([A-Z]+)(\d+)", coord).groups()
+
+
+def _peers_reads(pe, coord: str, formula: str) -> None:
+    """A Peers input cell made to read Decide: the formula, out of its list, no longer yellow."""
+    c = pe[coord]
+    c.value = formula
+    c.fill = PatternFill(fill_type=None)
+    c.border = Border()
+    c.font = Font(name="Calibri", size=11, bold=True, color=K.SLATE)
+    for dv in pe.data_validations.dataValidation:
+        if coord in dv.sqref:
+            dv.sqref.remove(coord)

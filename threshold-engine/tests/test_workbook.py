@@ -804,12 +804,24 @@ def test_the_sources_tab_prints_what_each_file_says_about_itself(built):
     from threshold_engine.series import read_notes
     p, _, _ = built
     ws = load_workbook(p)["Sources"]
-    cells = {(ws.cell(r, 2).value, ws.cell(r, 3).value) for r in range(1, ws.max_row + 1)}
     for label, path in SERIES:
         notes = dict(read_notes(path))
-        assert ("Measure", notes["measure"]) in cells and ("Source", notes["source"]) in cells
-    assert not any(v == "Not stated in the file" for _, v in cells)          # every public file says it all
+        said = source_lines(ws, path.name)
+        assert "measure: " + notes["measure"] in said and "source: " + notes["source"] in said
+        assert "Not stated:" not in said                                 # every public file says it all
     assert load_workbook(p).sheetnames.index("Sources") == load_workbook(p).sheetnames.index("Glossary") - 1
+
+
+def source_lines(ws, file_name):
+    """Everything Sources says about one file (round 3: one row per file, its
+    own lines in the last column, the lines it shares with other files under
+    Shared notes, named by key): the file's lines, as one text."""
+    h = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 3).value == "File")
+    r = next(r for r in range(h + 1, ws.max_row + 1) if ws.cell(r, 3).value == file_name)
+    shared = {ws.cell(x, 2).value: ((ws.cell(x, 3).value + ": ") if ws.cell(x, 3).value else "")
+              + ws.cell(x, 4).value for x in range(5, h) if str(ws.cell(x, 2).value or "").startswith("S")}
+    keys = (ws.cell(r, 7).value or "").split()
+    return " ".join([str(ws.cell(r, 9).value or "")] + [shared[k] for k in keys])
 
 
 def test_a_file_that_says_nothing_about_itself_is_marked_not_filled_in(tmp_path):
@@ -824,8 +836,8 @@ def test_a_file_that_says_nothing_about_itself_is_marked_not_filled_in(tmp_path)
           floor_at_zero=True, moderate_halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse", half_lives=(),
           percentiles=(50,), horizon=4, min_history=41)
     ws = load_workbook(p)["Sources"]
-    marked = [ws.cell(r, 2).value for r in range(1, ws.max_row + 1) if ws.cell(r, 3).value == "Not stated in the file"]
-    assert len(marked) == len(CORE_NOTES)
+    said = source_lines(ws, "bare.csv")
+    assert said.endswith("Not stated: Measure, As of, Basis, Source.") and len(CORE_NOTES) == 4
 
 
 def test_the_fixed_axis_holds_every_line_the_dials_offer(tmp_path):

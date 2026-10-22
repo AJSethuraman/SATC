@@ -19,6 +19,7 @@ still there in step 4, and step 10 saves, closes and reopens the file to show
 the decisions were kept.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -50,9 +51,12 @@ PAIRS, BY = DT.pairs_of(LABELS, PARTS)
 THIRD = DT.sources_of(LABELS, PARTS)
 LEAD = COMPARE[0] if COMPARE else THIRD[0]
 COLS = DT.columns(NAMES)
-DL = DT.layout(len(PAIRS), len(THIRD), COMPARE is not None)
+from threshold_engine.peers import roster as _RO                    # noqa: E402
+N_PEERS = len(_RO.peers(_RO.load(bk["peers"]["roster"]))) if bk["peers"] else 0
+DL = DT.layout(len(PAIRS), len(THIRD), COMPARE is not None, N_PEERS)
 AL = assess_layout(N)
-TL = TT.layout(SU.layout(LABELS, PARTS, COMPARE)["sources"])
+SL = SU.layout(LABELS, PARTS, COMPARE)
+TL = TT.layout(SL["sources"], SL["dropped"])
 PTS = {lbl: check(read_csv(p), "quarterly") for lbl, p in SER}
 FLOOR_OFF = set(bk["decide"]["floor_off"])
 
@@ -146,6 +150,9 @@ def row_reads(pr, src, lines):
     r = 5 + PAIRS.index(pr)
     c, per = TL["cols"], TL["per"]
     out = [{"sheet": "Thresholds", "cell": "%s%d" % (c["lines_from"], r), "expect": src}]
+    # Round 3: what the lines rest on (median, yearly move, worst kept) beside them.
+    out += [{"sheet": "Thresholds", "cell": "%s%d" % (c[k], r), "expect": lines[v]}
+            for k, v in (("median", "B"), ("move", "C"), ("worst", "D"))]
     for k, v in zip(("l2", "l3", "l4", "l5"), "EFGH"):
         out.append({"sheet": "Thresholds", "cell": "%s%d" % (c[k], r), "expect": lines[v] if lines["bounds"] else ""})
     for s, lbl in BY[pr].items():
@@ -206,13 +213,80 @@ def typed(pr, name, value):
     return {"type": "cell", "sheet": "Decide", "cell": dcell(name, pr), "value": value}
 
 
+#: Periods left out on Decide: row k's column for each field.
+LO_FIELD = dict(zip(("product", "measure", "from", "to", "why"), "BCDEF"))
+
+
+def lo_cell(k, field):
+    return "%s%d" % (LO_FIELD[field], DL["lo_first"] + k)
+
+
+def lo_typed(k, field, value):
+    return {"type": "cell", "sheet": "Decide", "cell": lo_cell(k, field), "value": value}
+
+
 def every_own(pr, **kw):
     return {s: own(lbl, **kw) for s, lbl in BY[pr].items()}
 
 
+SHEETS = ["Summary", "Decide", "Signals", "Peers", "Saved views", "Thresholds", "Internal", LBS, "Peer books",
+          "Evidence", "Glossary", "Sources", "Run", "Data", "Signals data", "Internal data", "Peers data", "Peers delinquency data", "Assess",
+          "Chart", "Peers workings", "Signals workings"]
+HIDDEN = (["Internal"] if bk["internal"] is None else []) + (["Internal data"] if bk["internal"] is None else []) + [
+    "Peers data", "Peers delinquency data", "Assess", "Chart", "Peers workings", "Signals workings"]
 IND, PEER = [s for s in THIRD if s != LEAD][:2] if len(THIRD) >= 3 else (THIRD[0], THIRD[-1])
 OK = "Check: OK, your settings fit the history the lines are set from."
 steps = []
+# ---- Round 3's Summary: the strip for a source left out with one series, the
+# rows only such a source has, the attention block, the counts top right ----
+SU_LAST = SL["last_col"]
+STRIPS = [(2 + k, lbl) for k, lbl in enumerate(
+    next(lbl for lbl in LABELS if PARTS[lbl][2] == s_) for s_ in SL["dropped"]
+    if sum(1 for lbl in LABELS if PARTS[lbl][2] == s_) == 1)]
+ATT_HEAD = SL["ends"][0] + 2
+DOT = "·"
+
+
+def strip_reads(rating_text=None):
+    """Each strip, one cell under the counts: the series' latest, its quarter and the rating, or the dash."""
+    out = []
+    for r_, lbl in STRIPS:
+        out.append({"sheet": "Summary", "cell": "%s%d" % (L(SU_LAST), r_),
+                    "expect": "%s %s %s %s %s %s %.2f%% %s %s %s rating %s" % (
+                        PARTS[lbl][2], DOT, PARTS[lbl][0], DOT, PARTS[lbl][1], DOT, PTS[lbl][-1].value, DOT,
+                        quarter(PTS[lbl][-1].date), DOT, rating_text or SU.NO_LINES)})
+    return out
+
+
+def only_reads():
+    """A row only a source left out has: "<source> only" where the lead's rating goes."""
+    out = []
+    for pm, srcs in SL["only"].items():
+        r_, base = SL["placed"][pm]
+        out.append({"sheet": "Summary", "cell": "%s%d" % (L(base + SL["offsets"][LEAD][1]), r_),
+                    "expect": "%s only" % " and ".join(SU.short(x) for x in srcs)})
+    return out
+
+
+def counts(picked, hot, refused):
+    t = "Lines picked: %d of %d %s %s rated 4 or 5: %d %s refused: %d" % (picked, len(PAIRS), DOT, LEAD, hot, DOT, refused)
+    return [{"sheet": "Summary", "cell": "%s1" % L(SU_LAST), "expect": t},
+            {"sheet": "Thresholds", "cell": "%s1" % TL["cols"]["check"], "expect": t}]
+
+
+def undecided_reads(pr):
+    """A row with no source picked on Thresholds: blank from Lines set from to Check, but each
+    source's latest quarter."""
+    r_ = 5 + PAIRS.index(pr)
+    c_, per = TL["cols"], TL["per"]
+    out = [{"sheet": "Thresholds", "cell": "%s%d" % (c_[k], r_), "expect": ""}
+           for k in ("lines_from", "median", "move", "worst", "l2", "l3", "l4", "l5", "decision", "check")]
+    for s_, lbl in BY[pr].items():
+        out += [{"sheet": "Thresholds", "cell": "%s%d" % (per[s_]["rating"], r_), "expect": ""},
+                {"sheet": "Thresholds", "cell": "%s%d" % (per[s_]["latest"], r_), "expect": PTS[lbl][-1].value}]
+    return out
+
+
 # ---- B1: open ----
 first = PAIRS[0]
 steps.append({"id": "B1", "what": "Open the workbook as built",
@@ -220,10 +294,10 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                        "shows the first product and measure, no source picked and nothing decided",
               "actions": [], "reads": [
                   {"special": "active", "expect": "Summary"},
-                  {"special": "sheets", "expect": ["Decide", "Summary", "Signals", "Peers", "Peer loan classes", "Thresholds", LBS, "Internal",
-                                                   "Evidence", "Backtest", "Glossary", "Sources", "Reporting changes", "Run", "Data",
-                                                   "Signals data", "Peers data", "Peers delinquency data", "Internal data", "Assess",
-                                                   "Chart", "Peers workings", "Signals workings"]},
+                  # Round 3: work, then reference, then data, then the hidden tabs; Backtest folded into
+                  # Lines by source, Reporting changes the last section of Sources.
+                  {"special": "sheets", "expect": SHEETS},
+                  {"special": "hidden", "expect": HIDDEN},
                   {"special": "slicers", "expect": {NAMES[0]: first[0], NAMES[1]: first[1]}},
                   {"special": "visible_rows", "sheet": "Decide", "expect": [DL["first"]]},
                   {"sheet": "Decide", "cell": "L1", "expect": decided(0, 0)},
@@ -233,19 +307,65 @@ steps.append({"id": "B1", "what": "Open the workbook as built",
                    "expect": "Check: pick the %s whose history sets the lines, under %s."
                              % (NAMES[2].lower(), DT.LINES_FROM)},
                   {"special": "links", "expect": []},
-                  {"special": "errors", "expect": 0}],
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b1-decide.png"},
-                          {"sheet": "Summary", "range": "A1:T34", "file": "b1-summary.png"}]})
+                  {"special": "errors", "expect": 0},
+                  {"sheet": "Summary", "cell": "B%d" % ATT_HEAD, "expect": "Needs your attention %s %s rated 4 or 5" % (DOT, LEAD)},
+                  {"sheet": "Summary", "cell": "B%d" % (ATT_HEAD + 1), "expect": SU.NONE_HOT}]
+                 + counts(0, 0, 0) + strip_reads() + only_reads() + undecided_reads(first),
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b1-decide.png"},
+                          {"sheet": "Summary", "range": "A1:%s%d" % (L(SU_LAST + 1), ATT_HEAD + 10), "file": "b1-summary.png"}]})
 
 # ---- B2: every Summary cell, before a source is picked ----
 reads = []
 for lbl in LABELS:
-    r, c = summary_cell(lbl)
+    if lbl not in SL["cells"]:          # a source left out of Summary's columns: its strip, or Lines by source
+        continue
+    r, c, rc = SL["cells"][lbl]
     reads.append({"sheet": "Summary", "cell": "%s%d" % (L(c), r), "expect": PTS[lbl][-1].value})
-    reads.append({"sheet": "Summary", "cell": "%s%d" % (L(c + 1), r), "expect": TT.NOT_PICKED})
+    reads.append({"sheet": "Summary", "cell": "%s%d" % (L(rc), r), "expect": SU.NO_LINES})
 reads += [own_read for lbl in LABELS for own_read in lbs_reads(lbl, own(lbl))]
+# Round 3: Backtest folded into Lines by source. Each series' unweighted run (backtest.py, the
+# reference) past the hidden workings: Spearman against the value ahead and the change ahead, the
+# quarters tested, then the average change ahead by rating; a series too short has 0 quarters tested,
+# no Spearman, and its reason under the table.
+from threshold_engine.backtest import backtest as _backtest          # noqa: E402
+from openpyxl.utils import column_index_from_string as _CI           # noqa: E402
+FOLD0 = _CI(DT.TH_HIDDEN[1]) + 1
+
+
+def _bt(lbl):
+    try:
+        return _backtest(read_csv(dict(SER)[lbl]), lbl, W["unit"], W["direction"], W["frequency"], W["smoothing"],
+                         W["percentiles"], W["horizon"], W["min_history"], floor_of(lbl), W["half_lives"]), None
+    except ValueError as exc:
+        if "at least min_history" not in str(exc):
+            raise
+        return None, str(exc)
+
+
+UNTESTED = [lbl for lbl in LABELS if _bt(lbl)[0] is None]
+
+
+def fold_reads(lbl):
+    r_ = 5 + LABELS.index(lbl)
+    bt, why = _bt(lbl)
+    if bt is None:
+        out = [{"sheet": LBS, "cell": "%s%d" % (L(FOLD0 + k), r_), "expect": v} for k, v in enumerate(("", "", 0))]
+        out.append({"sheet": LBS, "cell": "B%d" % (4 + N + 3 + 1 + UNTESTED.index(lbl)),
+                    "startswith": "%s: Not tested: %s" % (lbl, why)})
+        return out
+    run = bt["runs"][0]
+    vals = [run["score_vs_level_ahead"], run["score_vs_change_ahead"], run["periods_tested"]] + [
+        b["mean_change_ahead"] for b in run["by_score"]]
+    return [{"sheet": LBS, "cell": "%s%d" % (L(FOLD0 + k), r_), "expect": "" if v is None else v}
+            for k, v in enumerate(vals)]
+
+
+FOLD_HEADS = [{"sheet": LBS, "cell": "%s4" % L(FOLD0 + k), "expect": h}
+              for k, h in enumerate(("Spearman, value", "Spearman, change", "Quarters tested"))]
+reads += FOLD_HEADS + fold_reads("Credit card - Net charge-offs - Industry (every bank)") + fold_reads(
+    "Auto - Net charge-offs - KeyBank")
 steps.append({"id": "B2", "what": "Read Summary, and every source's own lines on Lines by source",
-              "shows": "Every series' latest value, and Pick a source where its rating goes: %d series, each with "
+              "shows": "Every series' latest value, and a dash where its rating goes: %d series, each with "
                        "its own lines on Lines by source" % N,
               "actions": [], "reads": reads, "picture": []})
 
@@ -267,7 +387,7 @@ steps.append({"id": "B3", "what": "On Decide, click Credit card and Nonaccrual, 
                           for j, c in enumerate("EFGH")]
                        + decide_reads(CN, lines3, others3) + row_reads(CN, LEAD, lines3) + lbs_reads(kb, lines3)
                        + fits_reads(kb),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b3-decide.png"},
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b3-decide.png"},
                           {"sheet": "Thresholds", "range": "A1:%s%d" % (TL["cols"]["check"], 5 + len(PAIRS)),
                            "file": "b3-thresholds.png"}]})
 
@@ -290,26 +410,34 @@ ind5 = BY[CN][IND]
 steps.append({"id": "B5", "what": "Leave out %s to %s, the period Decide suggests, with a reason" % WINDOW,
               "shows": "%s's lines move as the reference says; the other sources' own lines do not; Assess lists "
                        "the period under %s's series, its Status whole" % (LEAD, LEAD),
-              "actions": [typed(CN, "Leave out from", WINDOW[0]), typed(CN, "Leave out to", WINDOW[1]),
-                          typed(CN, "Why left out", "Suggested by the evidence: unusual stretch")],
+              "actions": [lo_typed(0, "product", CN[0]), lo_typed(0, "measure", CN[1]), lo_typed(0, "from", WINDOW[0]),
+                          lo_typed(0, "to", WINDOW[1]), lo_typed(0, "why", "Suggested by the evidence: unusual stretch")],
               "reads": [{"sheet": "Decide", "cell": "D%d" % DL["evidence"], "expect": "Leave out %s to %s" % WINDOW},
+                        {"sheet": "Decide", "cell": "L%d" % DL["lo_first"], "expect": "Left out: 6 quarters"},
+                        {"sheet": "Decide", "cell": dcell("Periods left out", CN), "expect": 1},
+                        {"sheet": "Decide", "cell": dcell("Quarters left out", CN), "expect": 6},
+                        {"sheet": "Decide", "cell": "D%d" % DL["left_now"], "expect": "Left out: %s to %s, Suggested by the "
+                         "evidence: unusual stretch. The chart draws these quarters in gray; the lines are set without them."
+                         % WINDOW},
                         {"sheet": "Assess", "cell": "N%d" % AL["lo_top"], "expect": kb},
                         {"sheet": "Assess", "cell": "T%d" % AL["lo_top"], "expect": "Left out: 6 quarters"}]
                        + lbs_reads(kb, lines5) + lbs_reads(ind5, own(ind5, z=3.5)) + row_reads(CN, LEAD, lines5),
-              "picture": []})
+              "picture": [{"sheet": "Decide", "range": "A%d:Q%d" % (DL["history"], DL["lo_last"]),
+                           "file": "b5-periods-left-out.png"}]})
 
 # ---- B6: half a period refuses, in words; then put it back ----
 steps.append({"id": "B6", "what": "Clear the reason", "shows": "The lines are refused, saying why and what to do",
-              "actions": [typed(CN, "Why left out", "")],
+              "actions": [lo_typed(0, "why", "")],
               "reads": [{"sheet": LBS, "cell": "%s%d" % (DT.TH_BOOK["refusal"], 5 + LABELS.index(kb)),
                          "expect": "Refused: a period left out for this product is not whole; its Status on Assess "
                                    "says what is missing"},
                         {"sheet": "Thresholds", "cell": "%s%d" % (TL["cols"]["check"], 5 + PAIRS.index(CN)),
-                         "startswith": "To fix: Finish its row on Decide"},
+                         "expect": "To fix: Finish its row under Periods left out on Decide (product, measure, From, "
+                                   "To and Why), or clear all five of its cells."},
                         {"sheet": "Decide", "cell": dcell("Check", CN), "expect": "Refused: see the fix below"}],
               "picture": []})
 steps.append({"id": "B6b", "what": "Type the reason back", "shows": "The lines are back as in B5",
-              "actions": [typed(CN, "Why left out", "Suggested by the evidence: unusual stretch")],
+              "actions": [lo_typed(0, "why", "Suggested by the evidence: unusual stretch")],
               "reads": lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5), "picture": []})
 
 # ---- B7: the decision ----
@@ -342,7 +470,7 @@ steps.append({"id": "B8", "what": "Click Auto and Net charge-offs, and pick %s u
                        + ([{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}] if lines8["bounds"] else
                           [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": lines8["M"]}])
                        + decide_reads(AN, lines8, every_own(AN)) + row_reads(AN, IND, lines8),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b8-life-to-date.png"}]})
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b8-life-to-date.png"}]})
 
 # ---- B9: lines that are refused, and the To fix ----
 MN = ("Mortgage", "Net charge-offs")
@@ -358,7 +486,30 @@ steps.append({"id": "B9", "what": "Click Mortgage and Net charge-offs, and pick 
                           "startswith": "To fix: "}] if lines9["M"] else
                         [{"sheet": "Decide", "cell": "B%d" % DL["check"], "expect": OK}])
                        + row_reads(MN, IND, lines9) + lbs_reads(mg, lines9),
-              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 1), "file": "b9-refused.png"}]})
+              "picture": [{"sheet": "Decide", "range": "A1:Q%d" % (DL["notes"] + 2), "file": "b9-refused.png"}]})
+
+# The three rows picked so far, as Summary's counts and Needs your attention read them.
+PICKED_ROWS = [(CN, LEAD, lines5), (AN, IND, lines8), (MN, IND, lines9)]
+
+
+def attention():
+    hot = []
+    for pr, src, lines in PICKED_ROWS:
+        k, text = on_lines(BY[pr][LEAD], lines)
+        if k != "" and k >= 4:
+            hot.append((k, PTS[BY[pr][LEAD]][-1].value, pr, text, src))
+    hot.sort(key=lambda h: (-h[0], -h[1]))
+    out = counts(len(PICKED_ROWS), len(hot), sum(1 for _, _, ln in PICKED_ROWS if ln["bounds"] is None))
+    if not hot:
+        return out + [{"sheet": "Summary", "cell": "B%d" % (ATT_HEAD + 1), "expect": SU.NONE_HOT}]
+    for i, (k, v, pr, text, src) in enumerate(hot[:SU.ATTENTION_ROWS]):
+        r_ = ATT_HEAD + 1 + i
+        out += [{"sheet": "Summary", "cell": "B%d" % r_, "expect": pr[1]},
+                {"sheet": "Summary", "cell": "C%d" % r_, "expect": v},
+                {"sheet": "Summary", "cell": "D%d" % r_, "expect": text},
+                {"sheet": "Summary", "cell": "E%d" % r_, "expect": "%s %s lines from %s" % (pr[0], DOT, SU.short(src))}]
+    return out
+
 
 # ---- B10: save, close, reopen ----
 steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file again",
@@ -366,14 +517,15 @@ steps.append({"id": "B10", "what": "Save (Ctrl+S), close Excel, open the file ag
               "actions": [{"type": "reopen"}],
               "reads": [{"sheet": "Decide", "cell": dcell(DT.LINES_FROM, CN), "expect": LEAD},
                         {"sheet": "Decide", "cell": dcell("How rare High is (z)", CN), "expect": 3.5},
-                        {"sheet": "Decide", "cell": dcell("Leave out from", CN), "expect": WINDOW[0]},
+                        {"sheet": "Decide", "cell": lo_cell(0, "from"), "expect": WINDOW[0]},
                         {"sheet": "Decide", "cell": dcell("Decision", CN), "expect": "Accept these lines"},
                         {"sheet": "Decide", "cell": dcell("Note", CN), "expect": "Walkthrough: accepted with z 3.5"},
                         {"sheet": "Decide", "cell": "L1", "expect": decided(1, 0)},
                         {"special": "slicers", "expect": {NAMES[0]: MN[0], NAMES[1]: MN[1]}}]
-                       + lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5), "picture": []})
+                       + lbs_reads(kb, lines5) + row_reads(CN, LEAD, lines5) + attention(),
+              "picture": [{"sheet": "Summary", "range": "A1:%s%d" % (L(SU_LAST + 1), ATT_HEAD + 10), "file": "b10-summary.png"}]})
 
-# ---- B11 to B13: the peer group follows the banks in the pack on Peers ----
+# ---- B11 to B13: the peer group follows the banks in the pack set on Decide ----
 # (the firm, 15 Oct 2026: "this tab needs to adjust with peers and i need a
 # faster way to select and de-select peers"). The expected composites are
 # summed here, in Python, from the per-bank rows the build wrote to Peers data
@@ -438,23 +590,157 @@ def live_reads(certs):
 every = {b["cert"] for b in peers_}
 regionals = {b["cert"] for b in peers_ if b["regional"]}
 jpm = next(j for j, b in enumerate(peers_) if b["short"] == "JPMorgan")
-PACK_CELL, JPM_CELL = PW.picker_cell("pack"), PW.include_cell(jpm)
-steps.append({"id": "B11", "what": "On Peers, set Banks in the pack to Regionals only",
+_half = -(-len(peers_) // 2)
+
+
+def switch_cell(j):
+    """The j-th peer's switch on Decide (decide_tab.peer_switches): two lists side by side."""
+    return "%s%d" % (L(DT.PEER_LISTS[j // _half][1]), DL["peers_first"] + j % _half)
+
+
+def name_cell(j):
+    return "%s%d" % (L(DT.PEER_LISTS[j // _half][0][0]), DL["peers_first"] + j % _half)
+
+
+PACK_CELL, JPM_CELL = "D%d" % DL["peers_pick"], switch_cell(jpm)
+
+# Round 3's pack line (the workbook name PackLine, on Peers, Decide and Signals): each peer is in
+# (switched on, and a four-quarter average of 30+ incl. nonaccrual at the latest quarter, for the
+# product picked on Peers), out by the book's rules (switched on, and that average blanked or the bank
+# not kept), or switched off on Decide. Worked out here from Peers delinquency data's flags.
+_dq_head = [c for c in next(_wb["Peers delinquency data"].iter_rows(min_row=1, max_row=1, values_only=True))]
+PEERS_PRODUCT = _wb["Peers"][PW.picker_cell("product")].value
+DQ_LAST = max(r[4] for r in DQ_ROWS)
+_DQ_AT = {r[3]: r for r in DQ_ROWS if r[0] == PEERS_PRODUCT and r[1] == PW.DQ_PACK_MEASURE and r[4] == DQ_LAST}
+PL = PW.layout(len(peers_), len(roster), 0)
+
+
+def _out_by_rule(b):
+    r = _DQ_AT[b["cert"]]
+    return r[13] is True or r[11] is not True
+
+
+# The rule each is out by, read from the data's own reason (Why no four-quarter average), and the
+# first sentence of Why out on Decide said from it with the book's jump and acquisition share.
+_JUMP, _SHARE = bk["peers"]["jump"], bk["peers"]["acquisition_share"]
+
+
+def _pct(x):
+    return "%g%%" % round(100 * x, 6)
+
+
+def _latest_event(b):
+    """A jump or an acquisition in the window's last three quarters, the latest one, as (rule, sentence):
+    jumps from the data's own balances (column G), acquisitions from the quarters the bank's reasons
+    (column M) name. The latest sets when the bank is back, so Why out names it."""
+    mine = sorted((r for r in DQ_ROWS if r[3] == b["cert"] and r[0] == PEERS_PRODUCT
+                   and r[1] == PW.DQ_PACK_MEASURE), key=lambda r: r[4])
+    bought = {(r[12] or "").split(": ", 1)[1].split(" ")[0] for r in mine
+              if (r[12] or "").startswith("an acquisition brought in")}
+    found = None
+    for prev, row in zip(mine[-4:-1], mine[-3:]):
+        a, c, q = prev[6], row[6], row[4]
+        if a is not None and c is not None and a > 0 and abs(c / a - 1) > _JUMP:
+            found = ("jump", "Its book moved %+.1f%% in %s, more than the %s jump." % (100 * (c / a - 1), q, _pct(_JUMP)))
+        elif a is not None and c is not None and a == 0 and c > 0:
+            found = ("jump", "Its book went from 0 to above 0 in %s." % q)
+        elif q in bought:
+            found = ("acquisition", "An acquisition in %s brought in at least %s of its book, or a book not filed."
+                     % (q, _pct(_SHARE)))
+    return found
+
+
+def _rule(b):
+    why = _DQ_AT[b["cert"]][12] or ""
+    for prefix, rule in (("an acquisition brought in", "acquisition"), ("book moved more than the jump", "jump"),
+                         ("a quarter-end rate in the window is None", "no rate"),
+                         ("fewer than four consecutive", "too few quarters")):
+        if why.startswith(prefix):
+            return _latest_event(b)[0] if rule in ("acquisition", "jump") else rule
+    return ""
+
+
+def _first_sentence(b):
+    why = _DQ_AT[b["cert"]][12]
+    rest = why.split(": ", 1)[1]
+    q = rest.split(" ")[0]
+    if _rule(b) in ("acquisition", "jump"):
+        return _latest_event(b)[1]
+    return {"no rate": lambda: "No rate in %s: %s." % (q, rest.split(" ", 1)[1][1:-1]),
+            "too few quarters": lambda: "Fewer than four consecutive quarter-ends in the data."}[_rule(b)]()
+
+
+def PACK_TEXT(included):
+    outs = [b["short"] + (" (%s)" % _rule(b) if _rule(b) else "") for b in peers_
+            if b["cert"] in included and _out_by_rule(b)]
+    offs = [b["short"] for b in peers_ if b["cert"] not in included]
+    t = "Peer group %s %d of %d switched on" % (DOT, len(included), len(peers_))
+    if outs:
+        t += " %s out by the book's rules on %s, %s: %s" % (DOT, PW.DQ_PACK_MEASURE, DQ_LAST, ", ".join(outs))
+    if offs:
+        t += " %s switched off on Decide: %s" % (DOT, ", ".join(offs))
+    return t
+
+
+def pack_reads(included):
+    t = PACK_TEXT(included)
+    return [{"sheet": "Peers", "cell": "B%d" % PL["pack"], "expect": t},
+            {"sheet": "Peers", "cell": "B%d" % PL["pack_charts"], "expect": t},
+            {"sheet": "Peers", "cell": "J%d" % PL["pack_charts"], "expect": t},
+            {"sheet": "Decide", "cell": "B%d" % DL["pack_line"], "expect": t},
+            {"sheet": "Signals", "cell": "B6", "expect": t}]
+
+
+# The roster as built: each peer's switch on Decide under its name, reading Pack, and Peers reading Decide;
+# each bank out says its rule under its name, and Why out lists them in roster order with the reason.
+_outs = [b for b in peers_ if _out_by_rule(b)]
+steps[0]["reads"] += [{"sheet": "Peers", "cell": PW.state_cell(j), "expect": "out: " + _rule(b) if _rule(b) else
+                       PW.STATE_OUT} for j, b in enumerate(peers_) if _out_by_rule(b)] + [
+    {"sheet": "Decide", "cell": "B%d" % (DL["why_first"] + k), "expect": b["short"]} for k, b in enumerate(_outs[:_half])] + [
+    {"sheet": "Decide", "cell": "D%d" % (DL["why_first"] + k), "startswith": _first_sentence(b)}
+    for k, b in enumerate(_outs[:_half]) if _rule(b)] + [
+    {"sheet": "Decide", "cell": "B%d" % DL["why_head"], "expect": "Why out %s %s, %s, %s" % (
+        DOT, PW.DQ_PACK_MEASURE, PEERS_PRODUCT.lower(), DQ_LAST)}]
+steps[0]["reads"] += pack_reads(every) + [
+    {"sheet": "Decide", "cell": switch_cell(j), "expect": PW.FOLLOW} for j in (jpm, len(peers_) - 1)] + [
+    {"sheet": "Decide", "cell": name_cell(j), "expect": peers_[j]["short"]} for j in (jpm, len(peers_) - 1)] + [
+    {"sheet": "Peers", "cell": PW.include_cell(j), "expect": PW.FOLLOW} for j in (jpm, len(peers_) - 1)] + [
+    {"sheet": "Decide", "cell": PACK_CELL, "expect": PW.PACK_PICKS[0]},
+    {"sheet": "Peers", "cell": PW.picker_cell("pack"), "expect": PW.PACK_PICKS[0]}]
+steps.append({"id": "B11", "what": "On Decide, set Banks in the pack to Regionals only",
               "shows": "Every peer group series on Decide, Lines by source, Thresholds and Summary is summed over "
                        "the %d regionals: the latest values below are their composite" % len(regionals),
-              "actions": [{"type": "cell", "sheet": "Peers", "cell": PACK_CELL, "value": PW.PACK_PICKS[1]}],
-              "reads": live_reads(regionals), "picture": []})
+              "actions": [{"type": "cell", "sheet": "Decide", "cell": PACK_CELL, "value": PW.PACK_PICKS[1]}],
+              "reads": live_reads(regionals) + pack_reads(regionals), "picture": []})
 steps.append({"id": "B12", "what": "Set Banks in the pack back to Every peer, and JPMorgan's cell to No",
               "shows": "The peer group is every peer but JPMorgan",
-              "actions": [{"type": "cell", "sheet": "Peers", "cell": PACK_CELL, "value": PW.PACK_PICKS[0]},
-                          {"type": "cell", "sheet": "Peers", "cell": JPM_CELL, "value": PW.NO}],
-              "reads": live_reads(every - {peers_[jpm]["cert"]}), "picture": []})
+              "actions": [{"type": "cell", "sheet": "Decide", "cell": PACK_CELL, "value": PW.PACK_PICKS[0]},
+                          {"type": "cell", "sheet": "Decide", "cell": JPM_CELL, "value": PW.NO}],
+              "reads": live_reads(every - {peers_[jpm]["cert"]}) + pack_reads(every - {peers_[jpm]["cert"]}),
+              "picture": [{"sheet": "Peers", "range": "A1:Q%d" % (PL["pack_charts"] + 1), "file": "b12-peers.png"},
+                          {"sheet": "Decide", "range": "A%d:Q%d" % (DL["pack_line"], DL["why_first"] + _half),
+                           "file": "b12-decide-peers.png"}]})
 steps.append({"id": "B13", "what": "Set JPMorgan's cell back to Pack",
               "shows": "The peer group is every peer again: each latest value is the series file's own",
-              "actions": [{"type": "cell", "sheet": "Peers", "cell": JPM_CELL, "value": PW.FOLLOW}],
+              "actions": [{"type": "cell", "sheet": "Decide", "cell": JPM_CELL, "value": PW.FOLLOW}],
               "reads": live_reads(every) + [
                   {"sheet": LBS, "cell": "M%d" % (5 + LABELS.index(peer_label(pr, me))),
-                   "expect": PTS[peer_label(pr, me)][-1].value} for pr, me, _ in LIVE], "picture": []})
+                   "expect": PTS[peer_label(pr, me)][-1].value} for pr, me, _ in LIVE] + pack_reads(every),
+              "picture": []})
+
+# Round 3: Reporting changes is the last section of Sources (no tab of its own). Its heading, the
+# registry's first change and when it took effect, from the registry file the book names.
+from threshold_engine import reporting_changes as RCH                # noqa: E402
+_rc = RCH.load(bk["reporting_changes"])
+_src_rows = list(_wb["Sources"].iter_rows(min_row=1, values_only=True))
+_heads = [i for i, r in enumerate(_src_rows, start=1) if len(r) > 1 and isinstance(r[1], str)
+          and r[1].startswith("Reporting changes %s " % DOT)]
+assert len(_heads) == 1, _heads
+RC_ROW = _heads[0]
+steps[0]["reads"] += [
+    {"sheet": "Sources", "cell": "B%d" % RC_ROW, "startswith": "Reporting changes %s %d rows" % (DOT, len(_rc))},
+    {"sheet": "Sources", "cell": "B%d" % (RC_ROW + 2), "expect": "Change"},
+    {"sheet": "Sources", "cell": "B%d" % (RC_ROW + 3), "expect": _rc[0]["name"]}]
 
 # ---------------------------------------------------------------- B14: the Signals tab, as built
 # What the tab's formulas should show with the pick as built (other consumer, 30+ incl.
@@ -510,65 +796,162 @@ def _fit(sig_change, tgt_change, excl=False):
     if not out_all:
         return None
     k = max(out_all, key=lambda k_: out_all[k_])
-    return k, out_all[k], out_ex.get(k), sum(1 for q in sig_change if q in tgt_change)
-
-
-def _lead_text(k):
-    return "same quarter" if k == 0 else ("%d qtrs ahead" % k if k > 0 else "%d qtrs after" % -k)
+    # the quarters the fit at that lead rests on
+    return k, out_all[k], out_ex.get(k), sum(1 for i in range(max(0, -k), n_ - max(0, k))
+                                             if GRID_Q[i] in sig_change and GRID_Q[i + k] in tgt_change)
 
 
 DATA_SER = {lbl: {quarter(p_.date): p_.value for p_ in PTS[lbl]} for lbl in LABELS}
 PICKED_LBL = "Other consumer - 30+ days past due incl. nonaccrual - KeyBank"
 TARGET_LBLS = [" - ".join(t) for t in ST.FIT_TARGETS if " - ".join(t) in DATA_SER] + [PICKED_LBL]
 sig_reads = [{"sheet": "Signals", "cell": "B5", "expect": "Other consumer"},
-             {"sheet": "Signals", "cell": "C5", "expect": "30+ days past due incl. nonaccrual"},
-             {"sheet": "Signals", "cell": "D5", "expect": "KeyBank"},
-             {"sheet": "Signals", "cell": "G5", "expect": PICKED_LBL},
-             {"sheet": "Signals", "cell": "K5", "expect": "yes"},
-             {"sheet": "Signals", "cell": "O5", "expect": "%d of %d, from Peers" % (len(peers_), len(peers_))}]
-# where the dollars are: KeyBank's row for each product, from Signals data, and the shares
+             {"sheet": "Signals", "cell": "E5", "expect": "30+ days past due incl. nonaccrual"},
+             {"sheet": "Signals", "cell": "I5", "expect": "KeyBank"},
+             {"sheet": "Signals", "cell": "K5", "expect": ST.FIT_AUTO},
+             {"sheet": "Signals", "cell": "M5", "expect": ST.WINDOWS[0]},
+             # Picked, in words: the series is in the book
+             {"sheet": "Signals", "cell": "P5", "expect": (" %s " % DOT).join(PICKED_LBL.split(" - "))},
+             {"sheet": "Signals", "cell": "B6", "expect": PACK_TEXT(every)}]
+# where the dollars are: KeyBank's row for each product, from Signals data, and the shares; the total row
 _last = GRID_Q[-1]
-_rows = [i for i, r in enumerate(SIG_ROWS, start=1) if r[1] == "Product" and r[2] == "Balance ($000)"]
-if _rows:
-    r0 = _rows[0]
-    tots = {k: sum(SIGNAL.get("keybank_%s_%s" % (p.lower().replace(" ", "-"), k), {}).get(_last, 0) for p in ST.PRODUCTS) for k in ("bal", "gco4", "d30")}
-    for i, p_ in enumerate(ST.PRODUCTS):
-        slug_ = p_.lower().replace(" ", "-")
-        for j, k in enumerate(("bal", "gco4", "d30")):
-            v = SIGNAL.get("keybank_%s_%s" % (slug_, k), {}).get(_last)
-            if v is not None:
-                sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(3 + 2 * j), r0 + 1 + i), "expect": v})
-                sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(4 + 2 * j), r0 + 1 + i), "expect": v / tots[k]})
-# the peer panel beside the where-the-dollars-are table: every peer's state this quarter
-_left = {(r[0], r[2]) for r in DQ_ROWS if r[1] == ST.DQ_KEY_30 and r[4] == _last and r[13] is True}
-for j, b_ in enumerate(peers_):
-    state = ("out: its own four-quarter average was blanked this quarter by the jump or the acquisition share"
-             if ("Other consumer", b_["short"]) in _left else "in")
-    sig_reads.append({"sheet": "Signals", "cell": "U%d" % (r0 + 1 + j), "expect": state})
-    sig_reads.append({"sheet": "Signals", "cell": "T%d" % (r0 + 1 + j), "expect": b_["short"]})
-# two fit tables: the first signal's and the minimum-payment share's
-_fit_rows = [i for i, r in enumerate(SIG_ROWS, start=1) if r[1] == "How this signal fits every loss and delinquency series in the book"]
+assert SIG_ROWS[ST.A_TH - 1][1] == "Product" and SIG_ROWS[ST.A_TH - 1][3] == "Balance ($000)", SIG_ROWS[ST.A_TH - 1]
+tots = {k: sum(SIGNAL.get("keybank_%s_%s" % (p.lower().replace(" ", "-"), k), {}).get(_last, 0) for p in ST.PRODUCTS)
+        for k in ("bal", "gco4", "d30")}
+for i, p_ in enumerate(ST.PRODUCTS):
+    slug_ = p_.lower().replace(" ", "-")
+    sig_reads.append({"sheet": "Signals", "cell": "B%d" % (ST.A_FIRST + i), "expect": p_})
+    for j, k in enumerate(("bal", "gco4", "d30")):
+        v = SIGNAL.get("keybank_%s_%s" % (slug_, k), {}).get(_last)
+        sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(4 + 2 * j), ST.A_FIRST + i), "expect": "" if v is None else v})
+        sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(5 + 2 * j), ST.A_FIRST + i),
+                          "expect": "" if v is None or not tots[k] else v / tots[k]})
+for j, k in enumerate(("bal", "gco4", "d30")):
+    sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(4 + 2 * j), ST.A_TOTAL), "expect": tots[k]})
+# the Yes/No under the table: every product on the charts as built
+sig_reads += [{"sheet": "Signals", "cell": "%s%d" % (L(2 + i), ST.A_ON), "expect": ST.YES} for i in range(len(ST.PRODUCTS))]
+# two fit tables: the first signal's and the minimum-payment share's. Each: a header row (Against in
+# column O), the pick first (merged O:Q), then the fixed series; Lead a number, Fit, Excl. 2020-23, Qtrs.
+_fit_rows = [i for i, r in enumerate(SIG_ROWS, start=1) if len(r) > 14 and r[14] == "Against"]
 for si, (key, title, what, kind, pkind, fmt) in enumerate(ST.SIGNALS):
     if key not in ("fico_keycorp", "minpay"):
         continue
-    top = _fit_rows[si]
+    head_ = _fit_rows[si]
     x = SIGNAL[key] if kind == "change" else _change(SIGNAL[key], pct=(key == "pv660"))
     for j, lbl in enumerate(TARGET_LBLS):
+        is_pick = j == len(TARGET_LBLS) - 1          # the pick, last here, first on the tab; the same series may be fixed too
+        rr = head_ + 1 if is_pick else head_ + 2 + j
+        if is_pick:
+            pr_, me_, so_ = lbl.split(" - ")
+            sig_reads.append({"sheet": "Signals", "cell": "O%d" % rr, "expect": (" %s " % DOT).join(
+                (pr_, me_.replace(" days past due incl.", " incl."), so_.replace(" (every bank)", "")))})
         f = _fit(x, _change(DATA_SER[lbl]))
-        rr = top + 2 + j
         if f is None:
             continue
         k, r_all, r_ex, n_ = f
-        sig_reads += [{"sheet": "Signals", "cell": "C%d" % rr, "expect": _lead_text(k)},
-                      {"sheet": "Signals", "cell": "D%d" % rr, "expect": r_all},
-                      {"sheet": "Signals", "cell": "F%d" % rr, "expect": n_}]
+        sig_reads += [{"sheet": "Signals", "cell": "R%d" % rr, "expect": k},
+                      {"sheet": "Signals", "cell": "S%d" % rr, "expect": r_all},
+                      {"sheet": "Signals", "cell": "U%d" % rr, "expect": n_}]
         if r_ex is not None:
-            sig_reads.append({"sheet": "Signals", "cell": "E%d" % rr, "expect": r_ex})
+            sig_reads.append({"sheet": "Signals", "cell": "T%d" % rr, "expect": r_ex})
+# Across products: each product's industry 30-89 against the pick, worked out here as the fit tables are.
+_xp_head = next(c.row for row in _sig.iter_rows(min_col=13, max_col=13) for c in row if c.value == "Product")
+for _i, _p in enumerate([p_ for p_ in ST.PRODUCTS + ST.COMBINED if " - ".join((p_, ST.XP_MEASURE, ST.INDUSTRY)) in DATA_SER]):
+    _rr = _xp_head + 1 + _i
+    sig_reads.append({"sheet": "Signals", "cell": "M%d" % _rr, "expect": _p})
+    _f = _fit(_change(DATA_SER[" - ".join((_p, ST.XP_MEASURE, ST.INDUSTRY))]), _change(DATA_SER[PICKED_LBL]))
+    if _f is None:
+        continue
+    _k, _r_all, _r_ex, _n = _f
+    sig_reads += [{"sheet": "Signals", "cell": "R%d" % _rr, "expect": _k},
+                  {"sheet": "Signals", "cell": "S%d" % _rr, "expect": _r_all},
+                  {"sheet": "Signals", "cell": "U%d" % _rr, "expect": _n}]
+    if _r_ex is not None:
+        sig_reads.append({"sheet": "Signals", "cell": "T%d" % _rr, "expect": _r_ex})
+
+# The pipeline and the window test follow the product drawn (the pick as built, other consumer;
+# the analyst, 20 Oct 2026: "show the pipeline in every product we have").
+_PICK_P = _sig["B5"].value
+_at = {c.value: c.coordinate for row in _sig.iter_rows() for c in row if isinstance(c.value, str)}
+_pipe_cell = next(v for k, v in _at.items() if k.startswith('="The pipeline'))
+sig_reads.append({"sheet": "Signals", "cell": _pipe_cell, "expect": "The pipeline %s %s: 30+ incl. nonaccrual, then 90+ incl. "
+                  "nonaccrual, then charge-offs" % (DOT, _PICK_P.lower())})
+# How each stage leads the next, for the product drawn: the head, and per pair of stages and per source the
+# best lead, its fit, the fit without 2020-23 and the quarters, worked out here from Data as the fit tables are.
+_st_cell = next(v for k, v in _at.items() if k.startswith('="%s' % ST.STAGE_HEAD))
+sig_reads.append({"sheet": "Signals", "cell": _st_cell, "expect": "%s %s %s, fit (r) of the changes over a year at each lead, in "
+                  "quarters" % (ST.STAGE_HEAD, DOT, _PICK_P.lower())})
+_st_th = int(re.sub(r"[A-Z]+", "", _st_cell)) + 10
+_stage_m = dict(ST.STAGES)
+_st_srcs = [ST.INDUSTRY, next(l_.split(" - ")[2] for l_ in LABELS if l_.split(" - ")[2].startswith("Peer group")), "KeyBank"]
+for _pi, (_a, _b, _t) in enumerate(ST.STAGE_PAIRS):
+    _c1 = 2 + 6 * _pi
+    sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(_c1), _st_th), "expect": "Source"})
+    for _si, _s in enumerate(_st_srcs):
+        _rr = _st_th + 1 + _si
+        sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(_c1), _rr), "expect": _s.replace(" (every bank)", "")})
+        _la, _lb = (" - ".join((_PICK_P, _stage_m[k_], _s)) for k_ in (_a, _b))
+        _f = _fit(_change(DATA_SER[_la]), _change(DATA_SER[_lb])) if _la in DATA_SER and _lb in DATA_SER else None
+        if _f is None:
+            continue
+        _k, _r_all, _r_ex, _n = _f
+        sig_reads += [{"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 2), _rr), "expect": _k},
+                      {"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 3), _rr), "expect": _r_all},
+                      {"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 5), _rr), "expect": _n}]
+        if _r_ex is not None:
+            sig_reads.append({"sheet": "Signals", "cell": "%s%d" % (L(_c1 + 4), _rr), "expect": _r_ex})
+_win_key = "win%d_" + re.sub(r"[^a-z0-9]+", "-", _PICK_P.lower()).strip("-")
+_qw = max(q for q in SIGNAL[_win_key % 3])
+_win_cell = next(v for k, v in _at.items() if '" · charged off within the window' in k)
+sig_reads.append({"sheet": "Signals", "cell": _win_cell, "expect": "%s %s charged off within the window, %% of delinquent dollars, %s"
+                  % (_PICK_P, DOT, _qw)})
+_wr = int(re.sub(r"[A-Z]+", "", _win_cell))
+for _n in (1, 2, 3):
+    if _qw in SIGNAL[_win_key % _n]:
+        sig_reads.append({"sheet": "Signals", "cell": "L%d" % (_wr + 1 + _n), "expect": SIGNAL[_win_key % _n][_qw]})
 steps.append({"id": "B14", "what": "Open Signals",
               "shows": "The pick as built (other consumer, 30+ incl. nonaccrual, KeyBank) is in the book; where the dollars are reads "
-                       "KeyBank's Call Report by product; every peer's state is beside it; two fit tables agree with the same "
-                       "correlations worked out from the series, lead by lead",
-              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U60", "file": "b14-signals.png"}]})
+                       "KeyBank's Call Report by product; the pack line names the peers in and out; the pipeline and the "
+                       "window test are other consumer's; two fit tables agree with the same correlations worked out "
+                       "from the series, lead by lead",
+              "actions": [], "reads": sig_reads, "picture": [{"sheet": "Signals", "range": "A1:U110", "file": "b14-signals.png"}, {"sheet": "Signals", "range": "A%d:U%d" % (_xp_head - 3, _xp_head + 14), "file": "b14-across.png"},
+                          {"sheet": "Signals", "range": "A%d:U%d" % (_st_th - 13, _st_th + 5), "file": "b14-stages.png"}]})
+
+# Saved views (views_tab): a view for each tab, called up by its number, then put away.
+from threshold_engine import views_tab as VT                          # noqa: E402
+_sv = _wb[VT.TITLE]
+_sec = {_sv.cell(r, 2).value: r for r in range(1, 60) if _sv.cell(r, 2).value in VT.TABS}
+_v1 = {t: _sec[t] + 3 for t in _sec}                                  # each tab's view 1
+_SV_NOTE = {"Signals": "Card against the pack", "Peers": "Home equity, gross rate"}
+_sv_typed = lambda t, col, v: {"type": "cell", "sheet": VT.TITLE, "cell": "%s%d" % (col, _v1[t]), "value": v}  # noqa: E731
+_box = {t: VT.TABS[t]["box"] for t in _sec}
+_note = {t: VT.TABS[t]["note"] for t in _sec}
+_PICKED_NOW = "%s %s %s %s KeyBank" % (_PICK_P, DOT, _sig["E5"].value, DOT)
+steps.append({"id": "B15", "what": "On Saved views, fill view 1 for Signals (credit card) and for Peers (home equity, "
+                                   "gross); type 1 under Saved view on each tab",
+              "shows": "Each tab follows its view: the picks the view holds replace the tab's, which are struck "
+                       "through, the rest are kept, and the note shows under the box",
+              "actions": [_sv_typed("Signals", "C", _SV_NOTE["Signals"]), _sv_typed("Signals", "D", GRID_Q[-1]),
+                          _sv_typed("Signals", "E", "Credit card"),
+                          _sv_typed("Peers", "C", _SV_NOTE["Peers"]), _sv_typed("Peers", "D", GRID_Q[-1]),
+                          _sv_typed("Peers", "E", "Home equity"), _sv_typed("Peers", "F", "Gross"),
+                          {"type": "cell", "sheet": "Signals", "cell": _box["Signals"], "value": 1},
+                          {"type": "cell", "sheet": "Peers", "cell": _box["Peers"], "value": 1}],
+              "reads": [{"sheet": "Signals", "cell": "P5", "expect": _PICKED_NOW.replace(_PICK_P, "Credit card", 1)},
+                        {"sheet": "Signals", "cell": _note["Signals"], "expect": "Saved view 1: " + _SV_NOTE["Signals"]},
+                        {"sheet": "Peers", "cell": _note["Peers"], "expect": "Saved view 1: " + _SV_NOTE["Peers"]},
+                        {"sheet": "Signals", "cell": "B5", "expect": _PICK_P},
+                        {"sheet": "Peers", "cell": "B5", "expect": "Credit card"}],
+              "picture": [{"sheet": VT.TITLE, "range": "A1:N%d" % (_sec["Peers"] + 3 + VT.VIEWS), "file": "b15-saved-views.png"},
+                          {"sheet": "Signals", "range": "A1:U7", "file": "b15-signals-view.png"},
+                          {"sheet": "Peers", "range": "A1:Q36", "file": "b15-peers-view.png"}]})
+steps.append({"id": "B16", "what": "Clear Saved view on Signals and on Peers",
+              "shows": "Each tab is back on its own picks; the view stays on Saved views",
+              "actions": [{"type": "cell", "sheet": "Signals", "cell": _box["Signals"], "value": ""},
+                          {"type": "cell", "sheet": "Peers", "cell": _box["Peers"], "value": ""}],
+              "reads": [{"sheet": "Signals", "cell": "P5", "expect": _PICKED_NOW},
+                        {"sheet": "Signals", "cell": _note["Signals"], "expect": ""},
+                        {"sheet": "Peers", "cell": _note["Peers"], "expect": ""},
+                        {"sheet": VT.TITLE, "cell": "E%d" % _v1["Peers"], "expect": "Home equity"}]})
 
 (HERE / "steps.json").write_text(json.dumps({"book": str(BOOK), "series": N, "rows": len(PAIRS), "steps": steps},
                                             indent=1, default=str), encoding="utf-8")

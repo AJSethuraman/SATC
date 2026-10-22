@@ -1916,3 +1916,177 @@ this into production and generate a workbook for review"*.
   (the pipeline's levels carry it); the dual-axis chart with real units on
   both axes is not possible live in Excel without macros, so the rescaled
   chart is on one axis and the units are printed beside it.
+
+## 20 October 2026: design round 3, built
+
+Design's round 3 hand-off (`docs/design/round-3/handoff/`) built in full
+except one point. The analyst: *"Build it, auto axis (Recommended)"*. Design's
+fixed −20..+20 gap axis would have clipped the real Other consumer gap
+(−25.0 in 2019Q2; 7 of 34 quarters outside ±20), so the gap chart's axis
+scales itself.
+
+- **Tabs.** Work (ink): Summary, Decide, Signals, Peers, Thresholds,
+  Internal. Reference (stone): Lines by source, Peer books (was Peer loan
+  classes), Evidence, Glossary, Sources, Run. Data (mist): Data, Signals
+  data, Internal data. Hidden: Peers data, Peers delinquency data, Assess,
+  Chart, Peers workings, Signals workings, and Internal and Internal data
+  when there is no internal file. Backtest is folded into Lines by source
+  (each untested series keeps its reason), and Reporting changes is the
+  last section of Sources. The plain `workbook` command keeps Backtest.
+- **The pack line.** One cell, the workbook name `PackLine`, read by every
+  tab that draws on the peer group. It counts the banks switched on and
+  names those the book's rules took out of 30+ incl. nonaccrual and those
+  switched off on Peers. It first counted only the banks "in", which read 13
+  under a charge-off chart whose tiles counted 14 (the rule is on
+  delinquency data, not charge-offs), so it now counts banks switched on and
+  names the measure the rule reads.
+- **Fine detail, from Excel's pictures of the walk.** Decide: "4
+  Moderate-High" wraps instead of shrinking; the footnotes run to three rows
+  inside column Q; no lines picked reads "—", as on Summary. Summary: the
+  strip is one right-aligned cell (the value's column had opened a gap
+  after it); Needs your attention puts measure, latest and rating under the
+  panel's own columns. Signals: on *fits best*, a best lead below zero is
+  not used, and the overlay's name now says so and gives the lead.
+- **Proof.** Suite 1,356 passed before these fixes; the walkthrough in
+  Excel 16 reads 2,462 of 2,462 as expected, the slicer check passes, no
+  dialogs.
+
+## 20 October 2026, later: Signals follows the product picked
+
+The analyst, reviewing the round-3 book: *"I was hoping the pipeline would
+adjust with the product to show the pipeline in every product we have"*; on
+the gap, *"it says credit card next to it"* when another product was picked;
+*"why would we want silent failure when a function is completely missing"*;
+on Across products, *"Why in the world is it literally just three graphs
+that don't change"*.
+
+- **No silent fallback.** The gap and the pipeline always draw the product
+  picked. A product without the series reads "none for this product in this
+  workbook" in the section's head; nothing falls back to credit card.
+- **The gap, every product.** The peers build already writes 30+ to
+  charge-off for all seven products; the book rates it for credit card and
+  other consumer only (18 Oct). Signals data now carries all seven, so the
+  gap, its price and the window test follow any product. Decide's rows are
+  unchanged. Checked in Excel with each of the seven products picked.
+- **The pipeline and the window test** follow the product; the industry's
+  1, 2 and 3-quarter windows are worked out for all seven.
+- **Across products** is one chart of every product's industry 30-89 days
+  past due, raw, and a table of each against the picked series: the lead
+  that fits best, the fit, the fit without 2020-23, the quarters. The same
+  arithmetic as the signal fit tables; the walkthrough works it out
+  independently.
+- **30+ incl. nonaccrual, every product** now shows all five (auto was
+  missing). The gap's axis reads one decimal: "+0" had labelled half-point
+  steps "+2, +2, +1, +1".
+
+Codex on #466, two findings, both fixed: Across products now takes the two combined products too (All consumer, Credit card + Other consumer, dashed), and Qtrs on every fit table counts the quarters the fit at the lead shown rests on, not both full columns (78 became 75 beside a lead of 3). Walked in Excel: 2,502 of 2,502 reads as expected.
+
+## 20 October 2026, later still: Decide sets the peers and any number of periods left out
+
+Three answers from the analyst, each the recommended one:
+
+- **A source with nothing for the row shown is blank on Decide**, its name too, in Every source on these
+  lines and What each source's own history would give. *"Philadelphia fed is grayed out ... What do we have
+  this for if we don't have it?"* It has one series of the 56 rows (Credit card, share paying only the
+  minimum); Industry from 1990 has six. The row stays (Excel cannot remove one without a macro) and is empty.
+- **Periods left out is a list on Decide**, twelve rows (product, measure, From, To, Why, and a Status read
+  from Assess), Assess's twelve rows read row for row. A product and measure can take any number of them;
+  the table's Leave out from, Leave out to and Why left out became Periods left out and Quarters left out,
+  read from the list. Left out now names every period of the row shown. *"how am I supposed to even
+  address multiple stretches of quarters being left out"* The engine already left out any listed span;
+  only Decide allowed one.
+- **The peer group is set on Decide**: each peer's Pack/Yes/No and Banks in the pack, under the chart, two
+  lists with each bank's state this quarter (in, out by rule, off). Peers' cells read Decide and are no
+  longer inputs. The source is named "Peer group" (it was "Peer group (15 banks)", written at build and
+  never true once a bank was switched off); the pack line carries the live count. *"pure group always
+  says 15 banks ... we should be able to set peers on here probably even an individually"*
+
+Asked why Huntington is out on credit card: only its four-quarter delinquency average, 2026Q1 and 2026Q2,
+by the acquisition share (0.05; certificate 11813 absorbed 2026Q1); its quarter-end rates and its
+charge-offs (pro forma) are in. It returns in 2027Q1. Nothing changed for that; the setting is the book's.
+
+Codex on #467, two findings, both fixed: Quarters left out counted an overlap twice (it now counts the
+series' values on Data less those kept, what the lines lose), and the Glossary still sent readers to Assess.
+
+## 20 October 2026, evening: Saved views
+
+*"the factors on decide are easy to show as proof of threshold work. What about other tabs? Options to
+essentially 'save a view with notes'?"* Proposed three ways (a Saved views tab, a note per tab, pasted
+snapshots); the analyst took the first.
+
+- **Saved views** is a new tab after Peers: for Signals and for Peers, twelve numbered rows, each a note,
+  Data through and the tab's picks, and a Picks now row that reads the tab's own yellow cells to paste from.
+- **Saved view** is a new yellow box on each tab (Signals U5, Peers H5). A number calls up that row: each pick
+  it holds replaces the tab's, which is struck through; a blank cell keeps the tab's pick. The note shows
+  under the box; a row with no picks says so.
+- Peers' rule cells (row 15) and the peer switches on Decide are not part of a view.
+- Built last: every formula that named a pick reads its in-effect cell on Saved views instead. A pick no
+  formula reads is refused at build, not skipped.
+
+Not possible without a macro, and said in the proposal: Excel's own Custom Views are off in a workbook with
+a table, and no formula freezes a value, so a view is its picks; Data through is typed to record when.
+
+Codex on #468 (P1): a rebuild writes a new workbook, so its Saved views start empty. True, and true of
+every cell typed in (Decide's decisions, Periods left out, the peer switches): no build reads the workbook
+it replaces. This entry and the Glossary had said a rebuild keeps the picks; corrected. Carrying typed
+cells across a rebuild is a change to how every input works, put to the analyst rather than made here.
+
+Asked whether a rebuild should carry typed cells forward from the workbook it replaces (every input, Saved
+views only, or neither): the analyst chose to leave it as is. A rebuild starts fresh; the Glossary says so.
+
+## 20 October 2026, night: why a bank is out
+
+*"it should just be more clear why a bank is out, out by rule is one thing but it is hard to keep track of
+all the little rules we have established"* The reason was already on Peers delinquency data (Why no
+four-quarter average); nothing on Decide or Peers said it. The analyst took the recommended layout:
+
+- **The state under each bank names the rule**: out: acquisition, out: jump, out: no rate (out: too few
+  quarters where the data is short). Out by rule stays only for a reason none of these names.
+- **Why out, under the switches on Decide**: each bank out this quarter, in roster order, with one
+  sentence: what happened, in which quarter, the book's setting, and when it is back. Its heading names the
+  measure, the product picked on Peers and the quarter.
+- **The pack line names the rule**: "out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington
+  (acquisition)".
+
+Back in is read from the rule, not assumed: a jump or an acquisition counts while it is one of the
+window's last three quarters (delinquency.bank_delinquency checks k in i-2..i), so the bank is back three
+quarters after the latest one, unless its book moves again. A missing rate counts in any of the four, and
+when a rate returns is not known, so no quarter is given.
+
+**Corrected:** the entry above says Huntington returns on credit card in 2027Q1. It is 2026Q4: the
+acquisition was 2026Q1, and three quarters later it leaves the window. Said in chat on 20 Oct 2026 from a
+four-quarter reading of the window, which the code does not do.
+
+The acquisition share now travels with the delinquency settings (D_KEYS), so the sentence can say it.
+
+Codex on #469, five findings, each fixed before the merge: the acquisition share is refused below 0 or
+not finite, as books.acquired_quarters refuses it; Decide shows no Why out list when delinquency was not
+built, and its heading says "no delinquency was built for this product" when the product picked has none;
+the acquisition sentence reads "at least 5% of its book, or a book not filed", since acquired_quarters
+also lists a quarter whose absorbed book was not filed; and with two jumps or acquisitions in the window
+the sentence names the latest, the one that sets Back in.
+
+## 21 October 2026: how each stage leads the next
+
+*"How do I demonstrate the curved graphs that help show how 30+ leads to 90+ leads to charge off fairly
+reliably"* The pipeline on Signals drew the three stages side by side and measured nothing between them.
+Worked out first on the industry series (CORREL of changes over a year, lead 0 to 8): credit card 30-89 to
+90+ best at 1 quarter (r 0.96), 90+ to gross charge-offs at 3 (0.96), 30-89 to charge-offs at 4 (0.93);
+mortgage 4 / 0 / 4 (0.92, 0.89, 0.91); auto 3 / 0 / 3 (0.62, 0.60, 0.88); home equity 3 / 2 / 5 (0.38,
+0.50, 0.84). The direct 30-89 to charge-off step held in all four; the step through 90+ is weak for auto
+and home equity. The analyst took the recommended form: a lead curve per step.
+
+- **Under The pipeline, for the product drawn**: three charts, 30-89 to 90+ incl. nonaccrual, 90+ to
+  gross charge-offs, 30-89 to gross charge-offs. Each draws the industry, the peer group and KeyBank's Fit
+  (r) at every lead from 4 quarters after to 12 ahead (the leads the signal fit tables use), a dot at each
+  one's best.
+- **A table under each chart**: per source, the best lead, its fit, the fit at that lead without 2020-23,
+  and the quarters it rests on, as the fit tables beside the signals give them.
+- **30-89, not 30+**: 30+ incl. nonaccrual holds the 90+ inside it, so a fit of 30+ against 90+ partly
+  measures the same dollars twice. The Glossary says so under "How each stage leads the next".
+
+Not said on the tab, and true of every fit table here: the changes over a year overlap quarter to
+quarter, so 75 quarters are far fewer independent readings than 75, and an r near 0.9 is less certain
+than the count suggests.
+
+**21 October 2026, Codex on #470.** A fit range where every lead is blank read 0.00 under `MAX`, since Excel's `MAX` of blanks is 0. Fit and Lead now stay blank when `COUNT` of the range is 0, in the stage table and in the two older fit tables (each signal, across products), which had the same formula.

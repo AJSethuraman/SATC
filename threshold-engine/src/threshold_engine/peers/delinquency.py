@@ -179,6 +179,63 @@ WHY_FEWER_THAN_FOUR = "fewer than four consecutive quarter-ends in the data"
 WHY_RATE_MISSING = "a quarter-end rate in the window is None: %s (%s)"
 
 
+#: The rule a bank's latest four-quarter average was taken out by, as the
+#: state under its name says it (the analyst, 20 Oct 2026: "it should just be
+#: more clear why a bank is out ... it is hard to keep track of all the little
+#: rules we have established").
+RULE_ACQUIRED, RULE_JUMP, RULE_NO_RATE, RULE_FEW = "acquisition", "jump", "no rate", "too few quarters"
+
+
+def _plus(q: str, n: int) -> str:
+    """``YYYYQn`` moved on ``n`` quarters."""
+    k = int(q[:4]) * 4 + int(q[5]) - 1 + n
+    return "%dQ%d" % (k // 4, k % 4 + 1)
+
+
+def why_out(rows: Sequence[dict], acquired: Iterable[str], jump: float, share: float) -> Tuple[str, str]:
+    """Why the last row's four-quarter average is out, as ``(rule, sentence)``;
+    ``("", "")`` when it is in. ``rows`` are ``bank_delinquency``'s, with the
+    same ``acquired`` and ``jump``; ``share`` is the acquisition share those
+    quarters were found with. Said from the rows, never assumed: a jump or an
+    acquisition counts while it is one of the window's last three quarters, so
+    the bank is back three quarters after the latest one in the window, unless
+    its book moves again, and that latest one is the one named (Codex on
+    #469: naming the first beside the latest's return read as wrong); a
+    missing rate counts in any of the four, and when a
+    rate will come back is not known, so no quarter is given. A reason this
+    does not know is said as the data words it."""
+    last = rows[-1]
+    why = last["why_avg4"]
+    if last["avg4"] is not None or not why:
+        return "", ""
+    i = len(rows) - 1
+    pct = lambda x: "%g%%" % round(100 * x, 6)                              # noqa: E731
+    if why.startswith(WHY_JUMP_PREFIX) or why.startswith(WHY_ACQUIRED_PREFIX):
+        # Every event in the window, as bank_delinquency tests it (a jump before an acquisition in
+        # one quarter); the latest sets when the bank is back, so it is the one the sentence names.
+        bought = {label(q) for q in acquired}
+        events = []
+        for k in range(i - 2, i + 1):
+            a, b, q = rows[k - 1]["balance"], rows[k]["balance"], rows[k]["q"]
+            if a is not None and b is not None and a > 0 and abs(b / a - 1) > jump:
+                events.append((RULE_JUMP, q, "Its book moved %+.1f%% in %s, more than the %s jump."
+                               % (100 * (b / a - 1), q, pct(jump))))
+            elif a is not None and b is not None and a == 0 and b > 0:
+                events.append((RULE_JUMP, q, "Its book went from 0 to above 0 in %s." % q))
+            elif q in bought:
+                # books.acquired_quarters also lists a quarter whose absorbed book was not filed.
+                events.append((RULE_ACQUIRED, q, "An acquisition in %s brought in at least %s of its book, "
+                                                 "or a book not filed." % (q, pct(share))))
+        rule, q, said = events[-1]
+        return rule, "%s Back in %s unless it moves again." % (said, _plus(q, 3))
+    if why.startswith(WHY_RATE_MISSING.split(":")[0]):
+        q, rest = why.split(": ", 1)[1].split(" ", 1)
+        return RULE_NO_RATE, "No rate in %s: %s. The average needs all four quarters." % (q, rest[1:-1])
+    if why == WHY_FEWER_THAN_FOUR:
+        return RULE_FEW, "Fewer than four consecutive quarter-ends in the data."
+    return "", why[:1].upper() + why[1:] + "."
+
+
 def fields_for(products: Iterable[str]) -> List[str]:
     """Every delinquency field (balance, P3, P9, NA) of the products named, in
     table order, each once, so ``peers pull`` can add them to its request.

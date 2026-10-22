@@ -43,6 +43,7 @@ from . import assess_tab as AT
 from . import keybank_style as K
 from . import decide_tab as DT
 from . import reporting_changes as RC
+from . import reference_tabs as RT
 from . import summary_tab as SU
 from . import synthesis_tab as ST
 from .backtest import backtest
@@ -231,57 +232,60 @@ def _thresholds_plain(th, name, n, loaded, floored):
                       "defined on the Glossary tab.").font = NOTE
 
 
-#: Thresholds in the book (round 2): px -> units, as (px - 5) / 7.
-TH_BOOK_WIDTHS = dict(A=1.57, B=16.43, C=27.86, D=19.29, E=11.29, F=11.29, G=11.29, H=11.29, I=11.29, J=11.29,
-                      K=11.29, L=10.14, M=10.14, N=19.29, O=16.43, P=55.29)
+#: Lines by source in the book (round 3): px -> units, as (px - 5) / 7: B 150,
+#: C 216, D 150, E-K 72, L 64, M 64, N 120, O 110, P 260.
+TH_BOOK_WIDTHS = dict(A=1.57, B=20.71, C=30.14, D=20.71, E=9.57, F=9.57, G=9.57, H=9.57, I=9.57, J=9.57,
+                      K=9.57, L=8.43, M=8.43, N=16.43, O=15.0, P=36.43)
+#: Backtest folded into Lines by source (fold_backtest): its three summary
+#: columns, then the average change ahead by rating in a collapsed group,
+#: past the hidden workings (decide_tab.TH_HIDDEN), so no letter moves.
+FOLD_SHOWN = ("spearman_value", "spearman_change", "tested")
+FOLD_WIDTHS = (9.57, 9.57, 8.43)                     # 72, 72, 64 px; the group's columns 64 px
+FOLD_HEADS = ("Spearman, value", "Spearman, change", "Quarters tested")
+#: A line of wrapped text at Calibri 10 on Check (P), and a refused row's height.
+LBS_CHECK_CHARS, H_REFUSED = 44, 34.5
 
 
-def _thresholds_book(th, name, n, labels, decide, floored):
-    """The per-series table with Decide: Claude Design's round 2 (README,
-    "Thresholds"), retitled Lines by source once Decide is built
-    (decide_tab.rename_tab): every source's own lines, with its product and
-    measure's settings. Product, Measure and Source in B:D, frozen with the
-    header; repeated names hidden by formatting, so the header filters still
-    work."""
+def _thresholds_book(th, name, n, labels, decide, floored, refused_at_build=()):
+    """The per-series table with Decide, retitled Lines by source once
+    Decide is built (decide_tab.rename_tab): every source's own lines, with
+    its product and measure's settings. Claude Design's round 3 (README,
+    "Lines by source"): a reference tab, Product, Measure and Source in B:D,
+    frozen with the header; repeated names hidden by formatting, so the
+    header filters still work. A row's height cannot follow a formula, so a
+    series refused as built (``refused_at_build``) is three lines high and
+    its To fix reads whole."""
     T = DT.TH_BOOK
     last = 4 + n
     th.sheet_properties.tabColor = K.TAB_REFERENCE
+    th.sheet_view.showGridLines = False
     th["B1"] = "Lines by source · what each %s's own history gives" % decide["names"][2].lower()
-    th["B1"].font = Font(name="Arial", bold=True, size=16, color=K.INK)
+    th["B1"].font = Font(name="Arial", bold=True, size=14, color=K.INK)
     th["B1"].alignment = Alignment(vertical="bottom")
     th["B2"] = ("Each %s's own lines, with its %s and %s's settings on Decide; Thresholds uses one of them per row. "
                 "The header arrows filter by %s, %s or %s."
                 % ((decide["names"][2].lower(), decide["names"][0].lower(), decide["names"][1].lower())
                    + tuple(p.lower() for p in decide["names"])))
     th["B2"].font = Font(name="Calibri", size=11, color=K.SLATE)
+    th["B2"].alignment = Alignment(vertical="center")
     for c_ in range(2, 17):
-        th.cell(2, c_).border = Border(bottom=Side(style="medium", color=K.KEY_RED))
-    for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 25.5)):
+        th.cell(2, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
+    # The header is three lines of Arial 9, so "4 Moderate-High" reads whole in 72 px.
+    for r, h in ((1, 25.5), (2, 15), (3, 16.5), (4, 39)):
         th.row_dimensions[r].height = h
-    groups = (("B", "D", "Series", None), ("E", "G", "What the lines rest on", K.SLATE),
-              ("H", "K", "Each rating begins at", K.SLATE), ("L", "N", "Latest quarter, on its own lines", K.KEY_RED),
-              ("O", "P", "Your decision, where its lines are used", K.SLATE))
+    groups = (("B", "D", "Series"), ("E", "G", "What the lines rest on"), ("H", "K", "Each rating begins at"),
+              ("L", "N", "Latest quarter, on its own lines"), ("O", "P", "Your decision, where its lines are used"))
     from openpyxl.utils import column_index_from_string as CI
-    for a, b, lbl, rule in groups:
-        cell = th["%s3" % a]
-        cell.value = lbl
-        cell.font = Font(name="Arial", bold=True, size=9, color=K.INK)
-        cell.alignment = Alignment(vertical="bottom")
-        if rule:
-            for c_ in range(CI(a), CI(b) + 1):
-                th.cell(3, c_).border = Border(bottom=Side(style="medium", color=rule))
+    for a, b, lbl in groups:
+        _ref_group(th, a, b, lbl)
     heads = [("product", decide["names"][0]), ("measure", decide["names"][1]), ("source", decide["names"][2]),
-             ("median", "Median kept"), ("move", "Typical yearly move"), ("worst", "Worst kept"),
+             ("median", "Median kept"), ("move", "Yearly move"), ("worst", "Worst kept"),
              ("l2", "2 Moderate-Low"), ("l3", "3 Moderate"), ("l4", "4 Moderate-High"), ("l5", "5 High"),
              ("quarter", "Quarter"), ("value", "Value"), ("rating_shown", "Rating"), ("decision", "Decision"),
              ("check", "Check")]
     right = {"median", "move", "worst", "l2", "l3", "l4", "l5", "value"}
     for key, t_ in heads:
-        cell = th["%s4" % T[key]]
-        cell.value = t_
-        cell.font = Font(name="Arial", bold=True, size=9, color=K.PAPER)
-        cell.fill = K.solid(K.INK)
-        cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if key in right else "left")
+        _ref_head(th["%s4" % T[key]], t_, key in right)
     # The hidden workings keep a header, so a column found by its heading stays findable.
     for key, t_ in (("rating", "Rating number"), ("rating_name", "Rating name"), ("refusal", "Refused because"),
                     ("fix", "To fix"), ("med_change", "Median change"), ("spread", "Spread of levels"),
@@ -295,15 +299,21 @@ def _thresholds_book(th, name, n, labels, decide, floored):
     for c_, w in TH_BOOK_WIDTHS.items():
         th.column_dimensions[c_].width = w
     body = Font(name="Calibri", size=11, color=K.INK_TEXT)
+    refused_at_build = set(refused_at_build)
     for r in range(5, last + 1):
-        th.row_dimensions[r].height = 15
+        th.row_dimensions[r].height = H_REFUSED if labels[r - 5] in refused_at_build else 15
         for c_ in range(2, 17):
             th.cell(r, c_).font = body
+            th.cell(r, c_).alignment = Alignment(vertical="center")
+        for key in ("median", "move", "worst", "l2", "l3", "l4", "l5", "value"):
+            th["%s%d" % (T[key], r)].number_format = "0.00"
         th["%s%d" % (T["product"], r)].font = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
         th["%s%d" % (T["quarter"], r)].font = Font(name="Calibri", size=11, color=K.SLATE)
         th["%s%d" % (T["value"], r)].font = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
-        th["%s%d" % (T["rating_shown"], r)].font = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT)
         th["%s%d" % (T["check"], r)].font = Font(name="Calibri", size=10, color=K.SLATE)
+        # A To fix that arrives after the build, on a row one line high, shows its first line.
+        th["%s%d" % (T["check"], r)].alignment = Alignment(
+            vertical="center" if labels[r - 5] in refused_at_build else "top", wrap_text=True)
         src = th["%s%d" % (T["source"], r)]
         if "keybank" in str(src.value).casefold():
             src.font = Font(name="Calibri", size=11, color=K.KEY_RED)
@@ -350,7 +360,119 @@ def _thresholds_book(th, name, n, labels, decide, floored):
         th.auto_filter.filterColumn.append(FilterColumn(colId=i, hiddenButton=True, showButton=None))
     th.freeze_panes = "E5"
     th.cell(6 + n, 2, "Ratings: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.%s Every term is "
-                      "defined on the Glossary tab." % floored).font = NOTE
+                      "defined on the Glossary tab." % floored).font = Font(name="Calibri", size=10, color=K.SLATE)
+
+
+def _ref_group(ws, a, b, label, row=3):
+    """A group label over columns ``a`` to ``b``: Arial 9 bold INK over a thin
+    STONE rule (the reference template)."""
+    from openpyxl.utils import column_index_from_string as CI
+    cell = ws["%s%d" % (a, row)]
+    cell.value = label
+    cell.font = Font(name="Arial", bold=True, size=9, color=K.INK)
+    cell.alignment = Alignment(vertical="bottom")
+    for c_ in range(CI(a), CI(b) + 1):
+        ws.cell(row, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
+
+
+def _ref_head(cell, text, right=False):
+    """A reference table's header cell: Arial 9 bold INK on MIST, wrapped, a
+    STONE rule under it."""
+    cell.value = text
+    cell.font = Font(name="Arial", bold=True, size=9, color=K.INK)
+    cell.fill = K.solid(K.MIST)
+    cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if right else "left")
+    cell.border = Border(bottom=Side(style="thin", color=K.STONE))
+
+
+def fold_backtest(wb, backtest: str = "Backtest") -> dict:
+    """Fold the Backtest tab into Lines by source and remove it (the book
+    only; Claude Design's round 3: "Backtest folded in").
+
+    Each series' unweighted run gives three columns past the hidden workings
+    (Spearman against the value ahead, against the change ahead, quarters
+    tested), headed "How predictive, N quarters ahead"; the average change
+    ahead by rating follows in a collapsed column group. A series too short
+    to test has 0 quarters tested and no Spearman. Its notes go under the
+    table. Nothing in the workbook refers to the Backtest tab by formula, so
+    nothing else moves. Returns the columns, by meaning."""
+    import re
+    from openpyxl.utils import column_index_from_string as CI
+    bts, ws = wb[backtest], wb[DT.LINES_TAB]
+    head = {}
+    c = 2
+    while bts.cell(4, c).value not in (None, ""):
+        head[str(bts.cell(4, c).value)] = c
+        c += 1
+    if "Weighting" not in head or "Quarters tested" not in head:
+        raise ValueError("the Backtest tab has no Weighting or Quarters tested column; nothing was folded")
+    wt = head["Weighting"]
+    id_cols = list(range(2, wt))
+    ratings = [k for k in head if k.isdigit()]
+    m = re.search(r"value (\d+) quarters? later", str(bts["B2"].value or ""))
+    if not m:
+        raise ValueError("the Backtest tab does not say its horizon; nothing was folded")
+    horizon = int(m.group(1))
+    tested, notes, untested = {}, [], []
+    r = 5
+    while bts.cell(r, 2).value not in (None, ""):
+        key = tuple(bts.cell(r, c_).value for c_ in id_cols)
+        w = bts.cell(r, wt).value
+        if w == "none":
+            tested[key] = (bts.cell(r, head["Value ahead"]).value, bts.cell(r, head["Change ahead"]).value,
+                           bts.cell(r, head["Quarters tested"]).value,
+                           [bts.cell(r, head[k]).value for k in ratings])
+        elif isinstance(w, str) and w.startswith("Not tested"):
+            tested.setdefault(key, (None, None, 0, [None] * len(ratings)))
+            untested.append("%s: %s" % (" - ".join(map(str, key)), w))
+        r += 1
+    r += 1
+    while r <= bts.max_row:
+        if bts.cell(r, 2).value:
+            notes.append(bts.cell(r, 2).value)
+        r += 1
+    first = CI(DT.TH_HIDDEN[1]) + 1
+    cols = {k: first + i for i, k in enumerate(FOLD_SHOWN)}
+    group = [first + len(FOLD_SHOWN) + i for i in range(len(ratings))]
+    _ref_group(ws, L(first), L(first + len(FOLD_SHOWN) - 1), "How predictive, %d quarters ahead" % horizon)
+    _ref_group(ws, L(group[0]), L(group[-1]), "Average change ahead, by rating")
+    for k, t_ in zip(FOLD_SHOWN, FOLD_HEADS):
+        _ref_head(ws.cell(4, cols[k]), t_, True)
+    for c_, k in zip(group, ratings):
+        _ref_head(ws.cell(4, c_), "%s %s" % (k, RATINGS[int(k) - 1]), True)
+    T = DT.TH_BOOK
+    last, r = 4, 5
+    while ws["%s%d" % (T["product"], r)].value not in (None, ""):
+        key = tuple(ws["%s%d" % (T[k], r)].value for k in ("product", "measure", "source"))
+        got = tested.get(key)
+        if got is None:
+            raise ValueError("Backtest has no row for %s; nothing was folded" % " - ".join(map(str, key)))
+        vals = [got[0], got[1], got[2]] + list(got[3])
+        top = ws["%s%d" % (T["check"], r)].border.top
+        for c_, v in zip([cols[k] for k in FOLD_SHOWN] + group, vals):
+            cell = ws.cell(r, c_, v)
+            cell.font = Font(name="Calibri", size=11, color=K.INK_TEXT)
+            cell.alignment = Alignment(horizontal="right", vertical="center")
+            cell.number_format = "0" if c_ == cols["tested"] else (
+                "0.00" if c_ in (cols["spearman_value"], cols["spearman_change"]) else "+0.00;-0.00;0.00")
+            cell.border = Border(top=top)
+        last = r
+        r += 1
+    for c_, w in zip([cols[k] for k in FOLD_SHOWN], FOLD_WIDTHS):
+        ws.column_dimensions[L(c_)].width = w
+    for c_ in group:
+        ws.column_dimensions[L(c_)].width = 8.43
+    ws.column_dimensions.group(L(group[0]), L(group[-1]), outline_level=1, hidden=True)
+    for c_ in range(first, group[-1] + 1):
+        ws.cell(2, c_).border = Border(bottom=Side(style="thin", color=K.STONE))
+    # Backtest's own words, under the table's note.
+    nr = last + 3
+    lines = [str(bts["B2"].value)] + untested + notes
+    for i, t in enumerate(lines):
+        ws.cell(nr + i, 2, t).font = Font(name="Calibri", size=10, color=K.SLATE)
+    wb.remove(bts)
+    return {"columns": {k: L(v) for k, v in cols.items()}, "by_rating": [L(c_) for c_ in group],
+            "horizon": horizon, "rows": (5, last), "notes": nr}
 
 
 def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
@@ -359,7 +481,8 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
           half_lives: Sequence[float],
           percentiles: Sequence[float], horizon: int, min_history: int,
           synthesis: Optional[Dict[str, dict]] = None, decide: Optional[dict] = None,
-          into: Optional[Workbook] = None, before_save=None, floor_off: Sequence[str] = ()) -> dict:
+          into: Optional[Workbook] = None, before_save=None, floor_off: Sequence[str] = (),
+          left_out_file: Optional[Path] = None, reporting: Optional[dict] = None) -> dict:
     """``decide``, when given, adds the Summary and Decide tabs and makes Decide
     where the settings, periods left out and decisions are typed (decide_tab.py,
     summary_tab.py): ``{"names": [three part names], "parts": {label: (three
@@ -367,6 +490,12 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     None, "notes": [text]}``, every key stated. ``into`` builds into an
     existing workbook (the book command puts the peer tabs there first);
     ``before_save(wb)`` runs last, before saving.
+
+    ``left_out_file``, the left-out file the book wrote (book.LEFT_OUT_FILE), is
+    printed on Run beside This build. ``reporting``, ``{"changes": the
+    registry's entries, "about": its own description, "source_name": its
+    file's name}``, is the last section of Sources (the book's registry of
+    reporting changes; round 3 folded its tab into Sources).
 
     ``synthesis``, when given, adds the Synthesis tab (synthesis_tab.py):
     ``{label: {industry: PATH, filed: PATH or None, peers: [(NAME, PATH)],
@@ -641,7 +770,13 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                 f=L(dc[DT.LINES_FROM]), d=L(dc["Decision"]), r=dr, s=p_[2].replace('"', '""')))
             put("check", '=IF({m}="","OK","To fix: "&{f})'.format(m=at("refusal"), f=DT.HERE.format(m=at("fix"))))
     if decide:
-        _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_words)
+        # Which series the lines refuse as built (the starting settings, no
+        # period left out): their rows are set three lines high, so the To fix
+        # reads whole. The same rules as the Check (scale.scale).
+        refused_at_build = [s["label"] for s in loaded if _scale(
+            [p.value for p in s["points"]], direction, moderate_halfwidth, low_step, high_z,
+            floored(s["label"]))["refused"]]
+        _thresholds_book(th, name, n, [s["label"] for s in loaded], decide, floor_words, refused_at_build)
     else:
         _thresholds_plain(th, name, n, loaded, floor_at_zero and higher)
 
@@ -777,59 +912,15 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
     DATA_F = REF_BODY
     # A series is named by its parts where the book gives them.
     named = (lambda lbl: " · ".join(decide["parts"][lbl])) if decide else (lambda lbl: lbl)    # noqa: E731
+    # Product, Measure and Source where the book gives them; a file it does
+    # not name (a synthesis file) under its own name in the first column.
+    ids_of = (lambda lbl: list(decide["parts"][lbl]) if decide and lbl in decide["parts"]          # noqa: E731
+              else [lbl] + [None] * (len(decide["names"]) - 1 if decide else 0))
 
-    # ---- Evidence: each series' spells and departures, side by side ----
-    sp_head = ["Spell from", "Peak quarter", "Peak", "Peak ÷ median", "Robust z", "Years per spell this bad",
-               "Deepest dip (sd of quarterly change)", "Note"]
-    dp_head = ["First quarter", "Last quarter", "Worse or better", "Average distance from trend", "Robust z",
-               "Rank among windows of its length", "Window (quarters)"]
-    SP, DP = 2, 11                                      # B..I, a gap in J, K..Q
-    ev_last = DP + len(dp_head) - 1
-    _ref_title(evs, "Evidence for each judgment",
-               "Spells worse than the median and temporary departures from trend, for each series. Robust z "
-               "measures how far a peak sits from the rest of the history; 3.5 or more is unusual.", ev_last)
-    r = 4
-    for s in loaded:
-        ev = s["ev"]
-        r = _ref_block(evs, r, named(s["label"]), 2, ev_last)
-        evs.cell(r, SP, "Spells worse than the median").font = REF_LABEL
-        evs.cell(r, DP, "Temporary departures from trend").font = REF_LABEL
-        evs.row_dimensions[r].height = 15
-        r = _ref_header(evs, r + 1, sp_head, SP, numeric=range(2, 7), height=40.5)
-        _ref_header(evs, r - 1, dp_head, DP, numeric=(3, 4, 6), height=40.5)
-        for i in range(max(len(ev["spells"]), len(ev["departures"]), 1)):
-            rr = r + i
-            if i < len(ev["spells"]):
-                sp = ev["spells"][i]
-                for col, v in enumerate([quarter(sp["start"]), quarter(sp["peak_date"]), sp["peak"],
-                                         sp["peak_over_median"], sp["robust_z"], sp["return_period_years"],
-                                         sp["dip"]["in_sd_of_change"] if sp["dip"] else None, sp["note"]], start=SP):
-                    evs.cell(rr, col, v).font = DATA_F
-                for col, fmt in ((SP + 2, "0.00"), (SP + 3, "0.00"), (SP + 4, "+0.0;-0.0;0.0"), (SP + 5, "0.0"),
-                                 (SP + 6, "0.0")):
-                    evs.cell(rr, col).number_format = fmt
-                evs.cell(rr, SP + 7).alignment = Alignment(wrap_text=True, vertical="top")
-            if i < len(ev["departures"]):
-                d = ev["departures"][i]
-                for col, v in enumerate([quarter(d["first"]), quarter(d["last"]), d["direction"],
-                                         d["mean_departure"], d["robust_z"], "1 of %d" % d["of"], d["length"]],
-                                        start=DP):
-                    evs.cell(rr, col, v).font = DATA_F
-                evs.cell(rr, DP + 3).number_format = "0.00"
-                evs.cell(rr, DP + 4).number_format = "+0.0;-0.0;0.0"
-                evs.cell(rr, DP + 5).alignment = Alignment(horizontal="right")
-            note = ev["spells"][i]["note"] if i < len(ev["spells"]) else ""
-            _ref_row(evs, rr, SP, SP + len(sp_head) - 1, lines=_lines(note, 35))
-            _ref_row(evs, rr, DP, ev_last)
-        r += max(len(ev["spells"]), len(ev["departures"]), 1) + 1
-    for col in (SP + 4, DP + 4):
-        c_ = L(col)
-        evs.conditional_formatting.add("%s5:%s%d" % (c_, c_, max(r, 5)), FormulaRule(
-            formula=["AND(ISNUMBER(%s5),ABS(%s5)>=3.5)" % (c_, c_)], font=Font(bold=True, color=K.INK)))
-    for col, w in zip(range(1, ev_last + 1), (REF_EDGE, 10.14, 10.14, 8.43, 10.14, 8.43, 12.14, 16, 35, 3.57,
-                                               12.14, 10.14, 16.43, 15.0, 8.43, 16.43, 10.71)):
-        evs.column_dimensions[L(col)].width = w
-    evs.freeze_panes = "B4"
+    # ---- Evidence: two Excel tables, Spells and Departures, every row named
+    # by its series' parts (round 3; reference_tabs.evidence) ----
+    id_names = list(decide["names"]) if decide else ["Series"]
+    RT.evidence(evs, [dict(ids=ids_of(s["label"]), ev=s["ev"]) for s in loaded], id_names, quarter)
 
     # ---- Backtest: a row per series and weighting; the series' parts in
     # their own columns where the book gives them ----
@@ -885,87 +976,40 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         bts.column_dimensions[L(col)].width = 11
     bts.freeze_panes = bts.cell(5, WT + 1).coordinate
 
-    # ---- Sources: what each file says about itself. Generic by construction:
-    # the tab prints the file's own description lines ("# key: text", the
-    # keys the internal templates ask for) and adds nothing; a key every file
-    # should give and this one does not is marked, never filled in. ----
-    _ref_title(srcs, "Sources", "Each series file's description lines, as written in the file. A required line "
-                                "the file does not give is marked.", 3)
-    shown = {"measure": "Measure", "population": "Who is in it", "call-report": "Call Report lines",
-             "numerator": "Numerator", "denominator": "Denominator", "basis": "Basis",
-             "as-of": "As of", "source": "Source", "checked": "Checked", "prepared-by": "Prepared by",
-             "prepared-on": "Prepared on", "note": "Note"}
-    r = 4
+    # ---- Sources: what each file says about itself, in three sections
+    # (round 3; reference_tabs.sources): the lines many files share, printed
+    # once; one row per file with its own lines verbatim and the required
+    # lines it does not give marked, never filled in; and the reporting
+    # changes, when the book names their registry. ----
     # The synthesis' files (industry, KeyBank filed, each peer) follow the
     # series, each under its own name, by the same rule.
     described = [dict(label=s["label"], title=named(s["label"]), path=s["path"], raw=s["raw"]) for s in loaded]
     described += [dict(label=t_, title=t_, path=p_, raw=raw_)
                   for t_, p_, raw_ in (ST.files(syn_loaded) if synthesis else [])]
-    for s in described:
-        notes = read_notes(s["path"])
-        r = _ref_block(srcs, r, s["title"], 2, 3)
-        rows_ = [("File", "%s (%d rows, %s to %s; its SHA-256 is on Run)"
-                  % (s["path"].name, len(s["raw"]), s["raw"][0].date, s["raw"][-1].date))]
-        rows_ += [(shown.get(k, k.replace("-", " ").capitalize()), v) for k, v in notes]
-        given = {k for k, _ in notes}
-        missing = [k for k in CORE_NOTES if k not in given]
-        for i, (lbl, v) in enumerate(rows_):
-            srcs.cell(r, 2, lbl).font = REF_LABEL
-            srcs.cell(r, 2).alignment = Alignment(vertical="top")
-            c = srcs.cell(r, 3, v)
-            c.font = Font(name="Calibri", size=11, color=K.INK_TEXT, bold=i == 0)
-            c.alignment = Alignment(wrap_text=True, vertical="top")
-            _ref_row(srcs, r, 2, 3, lines=_lines(v, 120))
-            r += 1
-        for k in missing:
-            srcs.cell(r, 2, shown.get(k, k)).font = Font(name="Arial", bold=True, size=9, color=K.CRIMSON)
-            srcs.cell(r, 3, "Not stated in the file").font = Font(name="Calibri", size=11, bold=True, color=K.CRIMSON)
-            srcs.cell(r, 3).fill = K.solid(K.CANVAS)
-            _ref_row(srcs, r, 2, 3)
-            r += 1
-        r += 1
-    srcs.column_dimensions["A"].width = REF_EDGE
-    srcs.column_dimensions["B"].width = 22
-    srcs.column_dimensions["C"].width = 120
-    srcs.freeze_panes = "C4"
+    files_ = [dict(ids=ids_of(s["label"]), path=Path(s["path"]), rows=len(s["raw"]), first=s["raw"][0].date,
+                   last=s["raw"][-1].date, notes=read_notes(s["path"])) for s in described]
+    RT.sources(srcs, files_, id_names, CORE_NOTES, reporting=reporting, change_key=RC.NOTE_KEY,
+               whens=RC.whens_in_notes)
 
-    # ---- Glossary: the one tab whose rows wrap ----
-    _ref_title(gl, "Glossary", "What each term means, and how the workbook calculates it.", 4)
-    _ref_header(gl, 4, ["Term", "What it means", "How it is calculated"], 2)
-    widths_g = (30.7, 90.7, 90.7)
-    for i, (term, meaning, calc) in enumerate(TERMS):
-        rr = 5 + i
-        for col, v in enumerate((term, meaning, calc), start=2):
-            c = gl.cell(rr, col, v)
-            c.alignment = Alignment(wrap_text=True, vertical="top")
-            c.font = Font(name="Calibri", size=11, bold=col == 2, color=K.SLATE if col == 4 else K.INK_TEXT)
-        _ref_row(gl, rr, 2, 4, lines=max(_lines(v, w) for v, w in zip((term, meaning, calc), widths_g)))
-    gl.column_dimensions["A"].width = REF_EDGE
-    for c_, w in zip("BCD", widths_g):
-        gl.column_dimensions[c_].width = w
-    gl.freeze_panes = "B5"
+    # ---- Glossary: with Decide (the book) a Tab column first ----
+    if decide:
+        from .glossary import by_tab
+        RT.glossary(gl, by_tab(), with_tab=True)
+    else:
+        RT.glossary(gl, TERMS, with_tab=False)
 
-    # ---- Data: quarter in A, a series per column; the header wraps ----
+    # ---- Data: quarter in A, a series per column; the quarters before the
+    # first value folded away. Rates to four decimals; a measure in the
+    # hundreds (a score) keeps its own. ----
     groups = 8                                       # raw, kept, change, distances x2, the same keeping every quarter
-    for col in range(1, 2 + groups * n):
-        c = da.cell(1, col)
-        c.fill = K.solid(K.MIST)
-        c.font = Font(name="Arial", bold=True, size=9, color=K.INK)
-        c.alignment = Alignment(wrap_text=True, vertical="center")
-        c.border = Border(bottom=Side(style="thin", color=K.STONE))
-        if col > 1:
-            da.column_dimensions[L(col)].width = 16
-    da.row_dimensions[1].height = 45
-    # Rates to four decimals; a measure in the hundreds (a score) keeps its own.
-    dnf = NF if biggest >= 100 else "0.0000"
-    for r in range(first, last + 1):
-        for col in range(2, 2 + groups * n):
-            da.cell(r, col).number_format = dnf
-    da.freeze_panes = "B2"
+    RT.data_layout(da, 1, first, last, 1 + groups * n, NF if biggest >= 100 else "0.0000")
 
-    # ---- Run: four sections on fixed columns; the hash goes last ----
-    _ref_title(run, "Run", "The build, each input file with its SHA-256 fingerprint, and the settings in use.", 7)
-    r = K.quiet_section(run, 4, "This build", 6, first_col=2)
+    # ---- Run: This build (the series folder once), Left out as built when
+    # the book wrote one, the files by name with their SHA-256, then the live
+    # sections; every table on the same columns ----
+    grid_r = RT.run_grid(id_names, [f["ids"] for f in files_], [f["path"].name for f in files_])
+    LAST_R = grid_r["last_col"]
+    folders = list(dict.fromkeys(str(Path(s["path"]).resolve().parent) for s in described))
     build_rows = [("threshold-engine", VERSION), ("Built", dt.datetime.now().isoformat(timespec="seconds"))]
     if smoothing > 1:
         build_rows.append(("Smoothing", "The Data tab holds each file's values as a trailing mean over %d quarters, "
@@ -982,55 +1026,59 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                    ("Backtest half-lives", ", ".join("%g" % h for h in half_lives) or "none"),
                    ("Backtest settings", "percentiles %s; horizon %d; min history %d"
                     % ("/".join("%g" % p for p in percentiles), horizon, min_history))]
-    for lbl, v in build_rows:
-        run.cell(r, 2, lbl).font = REF_LABEL
-        run.cell(r, 3, v).font = DATA_F
-        _ref_row(run, r, 2, 7)
+    r = RT.run_build(run, grid_r, build_rows, folders)
+    if left_out_file is not None:
+        r = RT.run_left_out(run, r + 1, grid_r, left_out_file)
+    else:
         r += 1
-    r = K.quiet_section(run, r + 1, "Files", 6, first_col=2)
-    r = _ref_header(run, r, ["Series", "File", "Rows", "First", "Last", "SHA-256"], 2, numeric=(2,))
-    for s in described:
-        for col, v in enumerate([s["label"], str(s["path"]), len(s["raw"]), s["raw"][0].date, s["raw"][-1].date,
-                                 _sha(Path(s["path"]))], start=2):
-            run.cell(r, col, v).font = DATA_F
-        run.cell(r, 7).font = Font(name="Consolas", size=9, color=K.SLATE)
-        _ref_row(run, r, 2, 7)
-        r += 1
-    r = K.quiet_section(run, r + 1, "Periods left out (live)", 6, first_col=2)
-    r = _ref_header(run, r, ["Series", "From", "To", "Reason", "Status", ""], 2)
+    r = RT.run_files(run, r, grid_r, id_names,
+                     [dict(ids=f["ids"], name=f["path"].name, rows=f["rows"], first=f["first"], last=f["last"],
+                           sha=_sha(f["path"])) for f in files_], "Files \u00b7 %d" % len(files_))
+
+    def live(r_, heading, names_at):
+        """A live section's heading and header, its names at Run's columns."""
+        last_ = max(LAST_R, max(names_at))
+        r_ = RT.section(run, r_, heading, 2, last_)
+        names = [None] * (last_ - 1)
+        for c_, nm in names_at.items():
+            names[c_ - 2] = nm
+        return RT.header(run, r_, names, 2)
+
+    G_ = grid_r
+    r = live(r, "Periods left out (live)", {2: "Series", G_["first"]: "From", G_["last"]: "To", G_["file"]: "Reason",
+                                             G_["sha"]: "Status"})
     for rr in range(LO_TOP, lo_end + 1):
-        for col, c_ in enumerate("NOPQ", start=2):
+        for col, c_ in zip((2, G_["first"], G_["last"], G_["file"]), "NOPQ"):
             run.cell(r, col, '=IF(Assess!{c}{r}="","",Assess!{c}{r})'.format(c=c_, r=rr)).font = DATA_F
-        run.cell(r, 6, "=Assess!T%d" % rr).font = DATA_F
-        _ref_row(run, r, 2, 7)
+        run.cell(r, G_["sha"], "=Assess!T%d" % rr).font = DATA_F
+        RT.body(run, r, 2, LAST_R)
         r += 1
-    r = K.quiet_section(run, r + 1, "Settings in use (live)", 6, first_col=2)
-    r = _ref_header(run, r, ["Series", "Width of Moderate", "Moderate-Low begins", "How rare High is (z)",
-                             "On a line, rate it", ""], 2)
+    r = live(r + 1, "Settings in use (live)", {2: "Series", G_["first"]: "Width of Moderate",
+                                                G_["last"]: "Moderate-Low begins", G_["file"]: "How rare High is (z)",
+                                                G_["sha"]: "On a line, rate it"})
     for s in loaded:
         run.cell(r, 2, s["label"]).font = DATA_F
-        for col, c_ in enumerate("OPQR", start=3):
+        for col, c_ in zip((G_["first"], G_["last"], G_["file"], G_["sha"]), "OPQR"):
             run.cell(r, col, "=Assess!%s%d" % (c_, srow[s["label"]])).font = DATA_F
-        _ref_row(run, r, 2, 7)
+            run.cell(r, col).alignment = Alignment(horizontal="left")
+        RT.body(run, r, 2, LAST_R)
         r += 1
     if synthesis:
-        r = K.quiet_section(run, r + 1, "Synthesis choices, as on Synthesis (live)", 6, first_col=2)
-        r = _ref_header(run, r, ["Series", "Industry carried by", "Taken from: lines 2, 3, 4, 5",
-                                 "Peers at percentile: lines 2, 3, 4, 5", "Check", ""], 2)
+        r = live(r + 1, "Synthesis choices, as on Synthesis (live)",
+                 {2: "Series", G_["first"]: "Industry carried by", G_["file"]: "Taken from: lines 2, 3, 4, 5",
+                  G_["sha"]: "Peers at percentile: lines 2, 3, 4, 5", LAST_R + 1: "Check"})
+        run.column_dimensions[L(LAST_R + 1)].width = RT.px(300)
         for lbl, at in syn_at.items():
             lr = at["lines"]
             run.cell(r, 2, lbl).font = DATA_F
-            run.cell(r, 3, "=Synthesis!B%d&\"\"" % at["translation"]).font = DATA_F
-            run.cell(r, 4, "=" + '&", "&'.join("Synthesis!F%d" % x for x in lr)).font = DATA_F
-            run.cell(r, 5, ("=" + '&", "&'.join("Synthesis!D%d" % x for x in lr))
+            run.cell(r, G_["first"], "=Synthesis!B%d&\"\"" % at["translation"]).font = DATA_F
+            run.merge_cells(start_row=r, start_column=G_["first"], end_row=r, end_column=G_["rows"])
+            run.cell(r, G_["file"], "=" + '&", "&'.join("Synthesis!F%d" % x for x in lr)).font = DATA_F
+            run.cell(r, G_["sha"], ("=" + '&", "&'.join("Synthesis!D%d" % x for x in lr))
                      if synthesis[lbl].get("peers") else "no peers").font = DATA_F
-            run.cell(r, 6, "=Synthesis!B%d" % at["check"]).font = DATA_F
-            _ref_row(run, r, 2, 7)
+            run.cell(r, LAST_R + 1, "=Synthesis!B%d" % at["check"]).font = DATA_F
+            RT.body(run, r, 2, LAST_R + 1)
             r += 1
-    for c_, w in zip("ABCDEFG", (REF_EDGE, max(24, min(60, 2 + max(len(s["label"]) for s in described))), 52, 12,
-                                 26, 30, 70)):
-        run.column_dimensions[c_].width = w
-    run.freeze_panes = "A4"
 
     dec = su = tt = None
     if decide:
@@ -1040,7 +1088,7 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
                        lay=lay, n_quarters=len(grid), absent=decide["absent"], compare=decide["compare"],
                        lines_from=decide["lines_from"], unit=unit, higher=higher, floor_at_zero=floor_at_zero,
                        changes={s["label"]: RC.quarters_in_notes(read_notes(s["path"])) for s in loaded},
-                       quarters=grid, floor_off=floor_off)
+                       quarters=grid, floor_off=floor_off, peers=decide.get("peers"))
         # Decide is where the bank types and looks, so Assess (whose cells
         # Decide feeds) and Chart (every series on one scale, 95 switches)
         # are kept for their workings but hidden (the firm, 14 Oct 2026: "doesnt
@@ -1061,10 +1109,11 @@ def build(out: Path, series: Sequence[Tuple[str, Path]], name: str, unit: str,
         # lines of the source each row picks, with every source rated on them.
         DT.rename_tab(wb, "Thresholds", DT.LINES_TAB)
         from . import thresholds_tab as TT
-        srcs = SU.layout(labels, decide["parts"], decide["compare"])["sources"]
-        tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=srcs, part_names=decide["names"],
-                      decide=dec, n_series=n, name=name, higher=higher, floor_at_zero=floor_at_zero,
-                      number_format=NF, floor_off=floor_off)
+        su_lay = SU.layout(labels, decide["parts"], decide["compare"])
+        tt = TT.build(wb, pairs=dec["pairs"], by_pair=dec["by_pair"], sources=su_lay["sources"],
+                      dropped=su_lay["dropped"], part_names=decide["names"], decide=dec, n_series=n, name=name,
+                      higher=higher, floor_at_zero=floor_at_zero, number_format="0.00", floor_off=floor_off,
+                      refused_at_build=refused_at_build, start=decide["lines_from"])
         su = SU.build(wb, name=name, unit=unit, labels=labels, parts=decide["parts"], part_names=decide["names"],
                       absent=decide["absent"], compare=decide["compare"], notes=decide["notes"],
                       refs=TT.refs(tt, dec["by_pair"]))

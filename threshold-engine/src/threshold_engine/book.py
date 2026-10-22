@@ -95,7 +95,7 @@ WORKBOOK_KEYS = ("name", "unit", "direction", "frequency", "smoothing", "floor_a
 TOP_KEYS = ("workbook", "parts", "lines_from", "series", "not_in_book", "compare", "notes", "peers", "internal",
             "floor_off", "large_banks", "signals",
             "loan_classes", "reporting_changes")
-#: The Peer loan classes tab: the stated classes file and the SEC filings' cache.
+#: The Peer books tab: the stated classes file and the SEC filings' cache.
 LOAN_CLASSES_KEYS = ("file", "cache")
 LINES_FROM_KEYS = ("part", "start")
 #: The internal section: the file (docs/INTERNAL-IMPORT.md) and the judgments made about it.
@@ -220,26 +220,8 @@ def write_left_out(path: Path, series, parts: Dict[str, tuple], spans: Dict) -> 
 
 def _signals_on_run(wb, signals):
     """A section on Run naming every source behind the Signals tab, with its file and SHA-256."""
-    ws = wb["Run"]
-    r = ws.max_row + 2
-    from . import keybank_style as K
-    r = K.quiet_section(ws, r, "Signals: the public data behind the tab", 6, first_col=2)
-    for j, h in enumerate(("Source", "File", "SHA-256")):
-        ws.cell(r, 2 + j, h).font = Font(name="Arial", size=9, bold=True, color=K.SLATE)
-    for i, (what, file, sha) in enumerate(signals["sources"]):
-        for j, v in enumerate((what, file, sha)):
-            ws.cell(r + 1 + i, 2 + j, v).font = Font(name="Calibri", size=10, color=K.INK_TEXT)
-
-
-def _left_out_on_run(wb, path: Path, n: int) -> None:
-    """The left-out file on Run, under its own heading, with its SHA-256."""
-    from . import workbook as WB
-    run = wb["Run"]
-    r = WB.K.quiet_section(run, run.max_row + 2, "Left out as built", 6, first_col=2)
-    r = WB._ref_header(run, r, ["File", "Path", "Rows", "", "", "SHA-256"], 2, numeric=(2,))
-    for col, v in enumerate(["Quarters left out as built", str(path), n, None, None, WB._sha(path)], start=2):
-        run.cell(r, col, v).font = WB.REF_BODY
-    WB._ref_row(run, r, 2, 7)
+    from . import reference_tabs as RT
+    RT.run_signals(wb["Run"], signals["sources"])
 
 
 class BookError(ValueError):
@@ -600,7 +582,8 @@ def build(book_path, out, say=print) -> dict:
             qs_ = PF.quarter_ends(pe_["first"], pe_["last"])
             fields_ = charge_off_fields(five) + [PB.PARENT] + [f for f in PD.fields_for(five)]
             data_ = PF.pull(qs_, list(dict.fromkeys(fields_)), pe_["cache"], fetch=lambda u: (_ for _ in ()).throw(ValueError("build never fetches")))
-            signals = SD.load(bk["signals"], pe_["cache"], data_, PR.self_bank(PR.load(pe_["roster"]))["cert"], five, say=say)
+            signals = SD.load(bk["signals"], pe_["cache"], data_, PR.self_bank(PR.load(pe_["roster"]))["cert"], five, say=say,
+                              window_products=list(pe_["products"]), flows_dir=pe_["series_dir"])
         lo_path = Path(bk["peers"]["series_dir"]) / LEFT_OUT_FILE
         left_out = (lo_path, write_left_out(lo_path, bk["series"], bk["decide"]["parts"], built["left_out"]))
         say("left out as built: %d spans, in %s" % (left_out[1], lo_path))
@@ -619,21 +602,45 @@ def build(book_path, out, say=print) -> dict:
                      latest=grid_[-1])
             _signals_on_run(wb, signals)
             say("signals: the Signals tab, %d sections, %d series on Signals data" % (len(ST.SIGNALS), len(signals["series"])))
-        order = ["Decide", "Summary", "Signals", "Peers", "Peer loan classes", "Thresholds", "Lines by source", "Internal", "Synthesis", "Evidence",
-                 "Backtest",
-                 "Glossary", "Sources", "Reporting changes", "Run", "Data", "Signals data", "Peers data", "Peers delinquency data", "Internal data",
-                 "SynthesisData", "Assess", "Chart", "Peers workings", "Signals workings"]
+        if "Signals" in wb.sheetnames or "Peers" in wb.sheetnames:
+            # Saved views: Signals' and Peers' picks kept by number with a note, called back on each tab.
+            from . import views_tab as VT
+            made = VT.build(wb, "=Data!$A$2:$A$%d" % wb["Data"].max_row)
+            if made:
+                say("saved views: %s" % ", ".join("%s, %d picks" % (t, len(p)) for t, p in made["picks"].items()))
+        # Round 3: Backtest's columns join Lines by source, one row per series on both.
+        if "Backtest" in wb.sheetnames and "Lines by source" in wb.sheetnames:
+            WB.fold_backtest(wb)
+        # Work (ink), then reference (stone), then data (mist); the peers' filed
+        # figures and the workings hidden, read only by formulas.
+        work = ["Summary", "Decide", "Signals", "Peers", "Saved views", "Thresholds", "Internal", "Synthesis"]
+        reference = ["Lines by source", "Peer books", "Evidence", "Glossary", "Sources", "Run"]
+        data = ["Data", "Signals data", "Internal data", "SynthesisData"]
+        hidden = ["Peers data", "Peers delinquency data", "Assess", "Chart", "Peers workings", "Signals workings"]
+        order = work + reference + data + hidden
         known = [wb[t] for t in order if t in wb.sheetnames]
         wb._sheets = known + [ws for ws in wb._sheets if ws not in known]
+        for names, colour in ((work, WB.K.TAB_WORK), (reference, WB.K.TAB_REFERENCE), (data, WB.K.TAB_DATA)):
+            for t in names:
+                if t in wb.sheetnames:
+                    wb[t].sheet_properties.tabColor = colour
+        # Without an internal file Internal and Internal data are empty: hidden,
+        # not removed, since Decide's formulas still name them.
+        for t in ["Peers data", "Peers delinquency data"] + (["Internal", "Internal data"] if bk["internal"] is None else []):
+            if t in wb.sheetnames:
+                wb[t].sheet_state = "hidden"
         wb.active = wb.sheetnames.index("Summary")
         if peer_info is not None:
             _live_peer_group(wb, series, peer_info, say)
-        if left_out is not None:
-            _left_out_on_run(wb, *left_out)
         for ws in wb.worksheets:
             ws.sheet_view.tabSelected = ws.title == "Summary"
 
     series, decide = list(bk["series"]), dict(bk["decide"])
+    if peer_info is not None:
+        # Each peer's switch is set on Decide, under the chart (decide_tab.peer_switches).
+        pl_ = peer_info["layout"]
+        decide["peers"] = {"names": list(pl_["include"]), "sheet": PEER_TAB_NAMES["Peers"], "include": pl_["include"],
+                           "states": pl_["states"], "pack": pl_["pickers"]["pack"], "why_out": peer_info.get("why_out")}
     signals = signals if bk["signals"] is not None and bk["peers"] is not None else None
     if bk["internal"] is not None:
         # The bank's own figures, on site: their series sit beside the
@@ -665,14 +672,15 @@ def build(book_path, out, say=print) -> dict:
         LC.write(ws, spec, bk["loan_classes"]["cache"])
         say("loan classes: %d banks, from their %s filings" % (len(spec["banks"]), spec["quarter"]))
 
+    reporting = None
     if bk["changes"] is not None:
+        # The Call Report changes are the last section of Sources.
         from . import reporting_changes as RC
-        ws = host.create_sheet(RC.TAB)
-        RC.write_tab(ws, bk["changes"], RC.what(bk["reporting_changes"]), Path(bk["reporting_changes"]).name)
-        say("reporting changes: %d, from %s" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
+        reporting = RC.for_sources(bk["changes"], bk["reporting_changes"])
+        say("reporting changes: %d, from %s, on Sources" % (len(bk["changes"]), Path(bk["reporting_changes"]).name))
 
     info = WB.build(out, series, decide=decide, into=host, before_save=tidy, floor_off=bk["decide"]["floor_off"],
-                    **bk["workbook"])
+                    left_out_file=left_out[0] if left_out else None, reporting=reporting, **bk["workbook"])
     if peer_tabs:
         # The peer charts draw a missing quarter as a gap, which is set on the saved file.
         from .peers.peers_workbook import na_as_gap

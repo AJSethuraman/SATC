@@ -325,12 +325,21 @@ def marked(tmp_path_factory):
 
 def test_sources_shows_each_reporting_change_line(marked):
     d, info = marked
+    """Round 3: each file's row on Sources names the quarters its reporting
+    changes took effect (the table under Reporting changes says what each
+    is), and the lines themselves are not repeated."""
     ws = load_workbook(info["path"])["Sources"]
-    rows = [(ws.cell(r, 2).value, ws.cell(r, 3).value) for r in range(1, ws.max_row + 1)]
-    shown = [v for k, v in rows if k == "Reporting change"]
-    want = [ln[len("reporting-change: "):] for lbl in ("Card - Net - Industry", "Card - Gross - Industry")
-            for ln in NOTES[lbl]]
-    assert shown == want and len(shown) == 3
+    h = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 5).value == "File")
+    col = [ws.cell(h, c).value for c in range(1, 12)].index("Reporting changes") + 1
+    by_file = {ws.cell(r, 5).value: ws.cell(r, col).value for r in range(h + 1, h + 1 + len(SER))}
+    files = dict(SER)                                    # the fixture's copies keep the file names
+    for lbl, notes in NOTES.items():
+        want = RC.whens_in_notes([("reporting-change", ln[len("reporting-change: "):]) for ln in notes])
+        assert by_file[files[lbl].name] == " · ".join(want)
+    assert by_file[files["Card - Net - Industry"].name] == "2010Q1 · 2020Q1"
+    assert by_file[files["Card - Gross - Industry"].name] == "2024Q4 to 2025Q2"
+    text = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value)
+    assert "reporting-change:" not in text
     assert "Reporting change" in {t for t, _, _ in TERMS}
 
 
@@ -383,8 +392,8 @@ def test_decides_chart_draws_the_marker_as_a_diamond_and_says_so(marked):
     assert "<v>Reporting change</v>" in ser and '<symbol val="diamond" /><size val="7" />' in ser
     assert "<a:ln><a:noFill" in ser
     ws = load_workbook(info["path"])["Decide"]
-    note = ws.cell(info["decide"]["layout"]["notes"] + 1, 2).value
-    assert "A diamond along the top marks a quarter in which a reporting change took effect" in note
+    note = ws.cell(info["decide"]["layout"]["notes"] + 2, 2).value
+    assert "A diamond at the top of the shading marks a quarter in which a reporting change took effect" in note
 
 
 def test_without_reporting_change_notes_decide_marks_nothing(tmp_path):
@@ -392,7 +401,7 @@ def test_without_reporting_change_notes_decide_marks_nothing(tmp_path):
     h = info["decide"]["helpers"]
     ws = load_workbook(info["path"])["Decide"]
     assert all(ws["%s%d" % (h["chg%d" % i], r)].value is None for i in range(len(PAIRS)) for r in range(2, 180))
-    assert "diamond" not in ws.cell(info["decide"]["layout"]["notes"] + 1, 2).value
+    assert "diamond" not in ws.cell(info["decide"]["layout"]["notes"] + 2, 2).value
 
 
 def test_a_malformed_reporting_change_note_is_refused(tmp_path):
@@ -428,32 +437,31 @@ def test_the_public_book_names_the_repositorys_registry():
     assert bk["reporting_changes"].resolve() == REGISTRY.resolve() and len(bk["changes"]) == 12
 
 
-def test_the_book_writes_the_reporting_changes_tab(tmp_path):
-    """One row per change, as the registry states it, under headings each with
-    a Glossary entry; the registry's own words (what it leaves out) above."""
+def test_the_book_writes_the_reporting_changes_on_sources(tmp_path):
+    """The book folds the changes into Sources as its last section: one row per
+    change, as the registry states it, under headings each with a Glossary
+    entry; the registry's own words (what it leaves out) above; no tab of its own."""
+    from threshold_engine import reference_tabs as RT
     out = tmp_path / "book.xlsx"
     BK.build(write_book(tmp_path, reporting_changes=str(REGISTRY)), out, say=lambda *_: None)
     wb = load_workbook(out)
-    assert wb.sheetnames.index(RC.TAB) == wb.sheetnames.index("Sources") + 1
-    ws = wb[RC.TAB]
-    assert ws["B1"].value == RC.TAB and ws["C4"].value == RC.what(REGISTRY)
-    heads = [ws.cell(6, c).value for c in range(2, 2 + len(RC.HEADINGS))]
-    assert heads == list(RC.HEADINGS)
+    assert RC.TAB not in wb.sheetnames
+    ws = wb["Sources"]
+    r = next(x for x in range(1, ws.max_row + 1) if str(ws.cell(x, 2).value or "").startswith("Reporting changes ·"))
+    assert ws.cell(r + 1, 2).value == RC.what(REGISTRY)
+    h = r + 2
+    heads = [ws.cell(h, c).value for c in range(2, 14) if ws.cell(h, c).value]
+    assert heads == list(RT.RC_HEAD)
     terms = {t for t, _, _ in TERMS}
-    assert set(heads) | {RC.TAB, "Reporting change"} <= terms, set(heads) - terms
-    rows = [[ws.cell(r, c).value for c in range(2, 2 + len(RC.HEADINGS))] for r in range(7, 7 + len(CHANGES))]
-    assert [r[0] for r in rows] == [c["name"] for c in CHANGES] and ws.cell(7 + len(CHANGES), 2).value is None
-    ndfi = rows[[c["name"] for c in CHANGES].index("NDFI and margin-loan revision")]
-    assert ndfi[1:4] == ["2024Q4 to 2025Q2", "Other consumer, C&I", ", ".join(ALL_MEASURES)]
-    assert "RC-C 6.d: other consumer loans" in ndfi[4] and ndfi[5] == by_name("NDFI and margin-loan revision")[
-        "what_changed"]
-    assert ndfi[6].splitlines()[1].endswith("https://www.fdic.gov/analysis/"
-                                            "bank-lending-nondepository-financial-institutions.pdf")
-    first = rows[0]
-    assert first[2:4] == ["Owner-occupied nonfarm nonresidential, Other nonfarm nonresidential",
-                         ", ".join(ALL_MEASURES)]
+    assert {"Reporting change"} <= terms
+    col = {v: c for c in range(2, 14) for v in [ws.cell(h, c).value] if v}
+    rows = [x for x in range(h + 1, ws.max_row + 1) if ws.cell(x, 2).value]
+    assert [ws.cell(x, 2).value for x in rows] == [c["name"] for c in CHANGES]
+    nd = rows[[c["name"] for c in CHANGES].index("NDFI and margin-loan revision")]
+    assert [ws.cell(nd, col[k]).value for k in RT.RC_HEAD[1:4]] == [
+        "2024Q4 to 2025Q2", "Other consumer, C&I", ", ".join(ALL_MEASURES)]
     tdr = rows[[c["name"] for c in CHANGES].index("Troubled debt restructuring captions replaced")]
-    assert tdr[2:4] == ["None of the products", "None"]
+    assert [ws.cell(tdr, col[k]).value for k in RT.RC_HEAD[2:4]] == ["None of the products", "None"]
 
 
 def test_a_book_without_a_registry_has_no_tab(tmp_path):
