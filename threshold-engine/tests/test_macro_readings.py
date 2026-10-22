@@ -7,7 +7,7 @@ import pytest
 
 from threshold_engine.macro import pull as P
 from threshold_engine.macro import readings as R
-from threshold_engine.macro.catalog import BY_KEY, CARE, DERIVED_BY_KEY, READ
+from threshold_engine.macro.catalog import BY_KEY, CARE, CARE_DERIVED, DERIVED_BY_KEY, READ
 from threshold_engine.macro.settings import Refused, check, readings_of
 
 from test_macro_settings import answered
@@ -176,6 +176,26 @@ def test_the_mortgage_spread_uses_the_same_day_or_the_week_before_and_no_older()
     got = R.derive(DERIVED_BY_KEY["mortgage_spread"], {"mortgage_rate": rate, "treasury_10y": tsy})
     assert got == [("2026-10-01", pytest.approx(2.28)), ("2026-10-08", pytest.approx(2.19)),
                    ("2026-10-15", None)]           # the last yield is 7 days old
+
+
+def test_wages_after_inflation_come_out_as_bls_prints_them_but_one():
+    # FRED's figures, pulled 22 Oct 2026 (CIU2020000000000I, CPIAUCNS), and BLS's June 2026 Employment Cost Index
+    # release, Table A, private wages and salaries, 12 months, not seasonally adjusted, as the firm photographed
+    # it that day: 3.5, 3.4, 3.1 in current dollars and 0.8, 0.1, -0.4 in constant dollars (June 2025, March 2026,
+    # June 2026). bls.gov itself refused to serve the page here (403).
+    wages = [("2024-04-01", 167.900), ("2025-01-01", 171.900), ("2025-04-01", 173.849), ("2026-01-01", 177.672),
+             ("2026-04-01", 179.304)]
+    prices = [("2024-06-01", 314.175), ("2025-03-01", 319.799), ("2025-06-01", 322.561), ("2026-03-01", 330.213),
+              ("2026-06-01", 333.952), ("2026-09-01", None)]
+    item = DERIVED_BY_KEY["real_wages_eci"]
+    real = dict(R.changes(R.derive(item, {"wages_eci_nsa": wages, "cpi_nsa": prices}), 12, "quarterly", "percent"))
+    nominal = dict(R.changes(wages, 12, "quarterly", "percent"))
+    assert [round(nominal[d], 1) for d in ("2025-04-01", "2026-01-01", "2026-04-01")] == [3.5, 3.4, 3.1]
+    assert [round(real[d], 1) for d in ("2026-01-01", "2026-04-01")] == [0.1, -0.4]
+    assert real["2025-04-01"] == pytest.approx(0.851, abs=0.001)   # BLS prints 0.8: not explained, recorded
+    # a quarter whose last month has no price is left out, never filled
+    got = R.derive(item, {"wages_eci_nsa": [("2026-07-01", 180.0)], "cpi_nsa": prices})
+    assert got == [("2026-07-01", None)]
 
 
 
@@ -368,7 +388,7 @@ def test_a_series_used_with_care_is_read_exactly_as_the_core_is_and_carries_the_
 def test_a_care_series_the_pull_lacks_says_why_like_any_other(cache):
     result = R.read_all(cache, check(answered()))
     missing = {(x["key"], x["reading"]): x["why"] for x in result["not_read"] if x["care"]}
-    assert set(missing) == {(i.key, r) for i in CARE for r in readings_of(i)}
+    assert set(missing) == {(i.key, r) for i in CARE + CARE_DERIVED for r in readings_of(i)}
     assert all(w.startswith("not in the pull of 2026-10-15") for w in missing.values())
 
 

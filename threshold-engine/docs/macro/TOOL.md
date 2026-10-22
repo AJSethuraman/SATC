@@ -21,16 +21,20 @@ after all - even if not super useful"*) and is read the same way.
 
 ## The catalog and the pull
 
-- **124 series** in `src/threshold_engine/macro/catalog.py`: 91 core series
-  read on their own (51 of them unemployment by state), 31 usable with care,
-  and 2 inputs (income per person, the 10-year Treasury) to the two readings
-  the report builds from two series (house prices against income, the
-  mortgage rate over the Treasury). Each entry gives the publisher, id,
+- **127 series** in `src/threshold_engine/macro/catalog.py`: 91 core series
+  read on their own (51 of them unemployment by state), 32 usable with care,
+  and 4 inputs to three readings built from two series. Two are the
+  report's: house prices against income (from income per person) and the
+  mortgage rate over the Treasury (from the 10-year yield). The third is
+  wages after inflation, usable with care (from the wage index and consumer
+  prices, both before seasonal adjustment). Each entry gives the publisher, id,
   frequency, first observation, licence, known breaks, and the report
   section that put it on the list.
 - **Licensed series stay out**, as the firm chose on 21 Oct 2026: University
-  of Michigan sentiment and the Atlanta Fed's wage tracker and affordability
-  index. `list` names those and the rest of the group not read, with why.
+  of Michigan sentiment and the Atlanta Fed's affordability index. The
+  Atlanta Fed's wage tracker was out too until 22 Oct 2026, when FRED's page
+  was found to tag it Public Domain: Citation Requested; it is now read from
+  FRED, as every FRED series is. `list` names those and the rest of the group not read, with why.
 - **The pull needs no API key.** It downloads every series into a folder
   named for the day and never overwrites an earlier one, so every reading can
   name the release it used. A shared file is fetched once. A failure is
@@ -228,9 +232,11 @@ against the last 30 years took a script written by hand. The firm, 17 Oct
 - **The example** (`examples/`): the firm's settings against
   `what-if-pandemic-left-out.json`, the same answers with 2020 Q2 to 2021 Q2
   left out of every history. From the pull of 22 Oct 2026 (folder
-  `2026-10-22-3`), 2 of the 124 changes read another way, both more
-  downward: mortgages 90+ days late (Increasing to Stable) and banks
-  tightening nonresidential property loan standards (Stable to Decreasing).
+  `2026-10-22-4`), 4 of the 126 changes read another way, all more
+  downward: initial jobless claims (Stable to Decreasing), mortgages 90+
+  days late (Increasing to Stable), banks tightening nonresidential property
+  loan standards (Stable to Decreasing) and wages after inflation (Stable to
+  Decreasing).
   So few move because the normal range rests on medians, which the pandemic
   spike hardly moves. `what-if-30-years.json` is kept as a second example.
 
@@ -279,11 +285,22 @@ These follow the report's rules by type of series.
   arithmetic as not the NY Fed's. In 2026 Q2 the total was $18.77 trillion,
   credit cards $1.263 trillion.
 
-**Wage growth** was asked about the same day. It is in the book already, in
-the usable-with-care group: the employment cost index for wages and salaries
-(+3.1% in the year to 2026 Q2) and average hourly earnings (+3.0% in the year
-to September 2026). The Atlanta Fed's wage growth tracker stays out: its
-terms allow reproduction only "not for commercial gain or monetary profit".
+**Wage growth** was asked about the same day. Four measures sit in the
+usable-with-care group:
+
+- the employment cost index for private wages and salaries, +3.1% in the
+  year to 2026 Q2, as BLS's June 2026 release prints it;
+- the same index **after inflation**: divided by consumer prices in the
+  quarter's last month, both before seasonal adjustment. Worked this way,
+  five of BLS's six figures after inflation in that release (private and
+  all civilian workers; June 2025, March and June 2026) come out to the
+  decimal. The sixth, private for June 2025, is 0.851% against BLS's 0.8%;
+- average hourly earnings, +3.0% in the year to September 2026;
+- the Atlanta Fed's wage growth tracker, the median of each person's own
+  wage change, 3-month average: 3.9% in September 2026, read from FRED,
+  which tags it Public Domain: Citation Requested. The Atlanta Fed's own
+  site terms allow reproduction only "not for commercial gain or monetary
+  profit"; the tool reads it from FRED under FRED's tag.
 
 ## Checked against the publishers' own figures (15 Oct 2026)
 

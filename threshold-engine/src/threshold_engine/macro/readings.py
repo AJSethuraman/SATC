@@ -200,6 +200,13 @@ def derive(item, inputs):
             else:
                 out.append((d, round(v - tsy[i][1], 10)))
         return out
+    if item.key == "real_wages_eci":
+        prices = dict(inputs["cpi_nsa"])
+        out = []
+        for d, v in inputs["wages_eci_nsa"]:
+            price = prices.get("%s-%02d-01" % (d[:4], int(d[5:7]) + 2))      # the quarter's last month
+            out.append((d, None) if v is None or price is None else (d, round(v / price * 100, 10)))
+        return out
     raise ValueError("no way to derive %r" % item.key)
 
 

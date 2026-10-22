@@ -1004,3 +1004,53 @@ printed, the firm's three photos of the Dashboard in Excel before the
 rebuild, the readings and the 73 series month by month as JSON, and the style
 references. It is not in the repository: it is rebuilt from the example and
 the brief.
+
+**Wage growth checked against BLS, and two series added (22 Oct 2026).** The
+firm, with a photo of BLS's June 2026 Employment Cost Index release (Table A):
+*"Also do we note use the Atlanta fed wage growth data? And this report has
+wage and salary growth adjusted for salary and I'm not sure the nominal
+amounts match ours"* (the release's constant-dollar columns, adjusted for
+inflation).
+
+- **The nominal figure matches.** The book's wage index is private wages and
+  salaries (FRED `ECIWAG`): +3.138% in the year to 2026 Q2, 3.1% as BLS
+  prints it for private industry. Civilian workers (3.2%) and state and local
+  government (3.4%, the figure in the release's opening paragraph) are other
+  rows of the same table. From FRED's series before seasonal adjustment
+  (`CIU2020000000000I`, `CIU1020000000000I`), all six figures BLS prints in
+  current dollars come out to the decimal: private 3.5, 3.4, 3.1 and civilian
+  3.6, 3.4, 3.2 for June 2025, March 2026 and June 2026. Civilian for March
+  2026 is exactly 3.3500%, on the rounding edge.
+- **Inflation-adjusted: five of six.** Dividing that index by consumer prices
+  (`CPIAUCNS`, before seasonal adjustment) in the quarter's last month gives
+  BLS's constant-dollar figures to the decimal in five of six: private 0.1 and
+  -0.4, civilian 0.9, 0.1 and -0.3. The sixth, private for June 2025, comes out
+  0.851% against BLS's 0.8%. Taking prices as the quarter's average, or its
+  middle month, misses by 0.2 to 0.8 points; taking the index to one decimal
+  first moves which figure misses (civilian June 2026 then fails) and does not
+  close it. BLS's method note would settle it, but bls.gov refused every
+  request from here (403) and its data API had hit its daily limit. Recorded,
+  not explained.
+- **Added:** wages after inflation, worked out as above, in the
+  usable-with-care group (made from the two series before seasonal
+  adjustment, so it ties to BLS's table; read on its change only, as an index
+  of one index over another has no meaning as a level). Its tab says the five
+  of six.
+- **The Atlanta Fed's wage tracker is read now.** It was left out on 21 Oct
+  under the Atlanta Fed's site terms ("not for commercial gain"). FRED's own
+  page for it, read today, tags it *Public Domain: Citation Requested*, the tag
+  every other FRED series the book reads carries. It is read from FRED under
+  that tag: `FRBATLWGT3MMAUMHWGO`, the 3-month average of the median wage
+  change, monthly from 1997, 3.9% in September 2026 (the 12-month average,
+  also on FRED, was 3.7%). October 2025 has no value, as the household survey
+  it is built from has none. **This reverses what the firm was told earlier
+  today** ("licensed and stays out"); the firm can still leave it out.
+
+The example was rebuilt from a fresh pull (folder `2026-10-22-4`, 127 of 127
+series), so it carries both new series. Leaving out the pandemic now moves 4
+of 126 changes, all more downward: initial claims (Stable to Decreasing, on
+the week to 17 Oct), mortgages 90+ days late, nonresidential property
+standards, and wages after inflation. Rendered, the wages-after-inflation tab
+showed its what-if line running to a third line in a row two lines tall; the
+row is now as tall as its words, tested, and the test fails with the fix
+taken out. The four screenshots in `examples/` are from this build.

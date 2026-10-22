@@ -18,8 +18,9 @@ says whether its change is counted in points (a rate, a spread, an index
 around zero) or as a percent of the earlier reading (a level that grows).
 "position" is empty when the series' place in its own history means
 something, and otherwise says why not; those are read on their change only.
-DERIVED holds the two readings the report builds from two series: house
-prices against income, and the mortgage rate over the 10-year Treasury.
+DERIVED holds the readings built from two series: house prices against
+income and the mortgage rate over the 10-year Treasury (the report's), and
+wages after inflation, worked out as BLS does (usable with care).
 
 CARE holds the report's "usable with care" group: short, broken or heavily
 revised series, added at the firm's request on 21 Oct 2026 ("expand what we
@@ -141,6 +142,14 @@ SERIES = [
           [("each September", "most of the year's rise lands in one step; rate the change over a year"),
            ("latest 4 months", "preliminary")],
           note="What insurers charge, not what households pay: no free series measures that.", change_in="percent", position=TREND),
+    # Inputs to wages after inflation (usable with care), both not seasonally adjusted, as BLS deflates. FRED's
+    # pages, read 22 Oct 2026: BLS, Public Domain: Citation Requested.
+    _fred("wages_eci_nsa", "CIU2020000000000I", "Employment cost index: wages and salaries, private, not seasonally "
+          "adjusted", "consumer", "BLS", "quarterly", "index Dec 2005=100", "2001-01", FRED_PD, None, LABOUR,
+          read_alone=False, note="Input to wages after inflation.", change_in="percent"),
+    _fred("cpi_nsa", "CPIAUCNS", "Consumer prices, all items, not seasonally adjusted", "consumer", "BLS", "monthly",
+          "index 1982-84=100", "1913-01", FRED_PD, None, LABOUR, [OCT_2025], read_alone=False,
+          note="Input to wages after inflation.", change_in="percent"),
     # -- consumer: housing and credit
     _fred("house_prices", "USSTHPI", "House prices (FHFA, all transactions)", "consumer", "FHFA", "quarterly",
           "index 1980Q1=100", "1975-01", FRED_PD, None, HOUSE,
@@ -264,6 +273,16 @@ CARE = [
            "BLS (establishment survey)", "monthly", "dollars an hour", "2006-03", FRED_PD, LABOUR,
            SHORT_SINCE % ("in 2006", "two recessions") + "; the average rises when low-paid workers lose their "
            "jobs (report)", change_in="percent", position=TREND),
+    # FRED's page, read 22 Oct 2026, tags it Public Domain: Citation Requested. The Atlanta Fed's own site terms
+    # (read 21 Oct) allow its content to be reproduced only "not for commercial gain"; it is read from FRED, under
+    # FRED's tag, as every other FRED series is. The 3-month average, of the two FRED carries, follows a turn
+    # sooner than the 12-month.
+    _care("wage_tracker", "FRBATLWGT3MMAUMHWGO", "Median wage growth, 3-month average (Atlanta Fed tracker)",
+           "consumer", "Federal Reserve Bank of Atlanta", "monthly", "percent change from a year ago", "1997-01",
+           FRED_PD, LABOUR, SHORT_SINCE % ("in 1997", "three recessions") + "; each person's own wage change, from "
+           "the household survey, so October 2025 has none",
+           [("2025-10", "no value: no household survey that month (the 2025 lapse in appropriations); kept as "
+                        "missing, never filled")], change_in="points"),
     _care("real_income", "DSPIC96", "Real disposable income", "consumer", "BEA", "monthly",
            "billions of chained 2017 dollars", "1959-01", FRED_PD, LABOUR, REVISED + "; the October 2025 price "
            "index was interpolated", change_in="percent", position=TREND),
@@ -361,8 +380,6 @@ CARE = [
 CARE_NOT_READ = [
     ("University of Michigan consumer sentiment", "licensed: no redistribution (report); the firm chose to leave "
      "licensed series out"),
-    ("Atlanta Fed wage growth tracker", "licensed: the Atlanta Fed's terms of use allow reproduction only \"not for "
-     "commercial gain or monetary profit\" (read 21 Oct 2026)"),
     ("Atlanta Fed home ownership affordability", "licensed: the same terms of use, and its price and insurance "
      "inputs are licensed from others (report)"),
     ("Yale Budget Lab tariff rate", "its terms are not confirmed (report); customs duties collected are shown"),
@@ -397,6 +414,7 @@ class Derived:
     note: str = ""
     read_alone: bool = True
     breaks: tuple = ()
+    care: str = ""          # in the "usable with care" group: why
 
 
 DERIVED = [
@@ -415,6 +433,21 @@ DERIVED = [
             note="Wider is worse: the Fed's scenario guide sizes a severe move as a spread up 0.70 to 1.60 "
                  "points, or at 3 points or more, whichever is higher (report, What \"severe\" looks like).",
             breaks=(("2022-11-17", "mortgage rate method change: built from loan applications"),)),
+    # BLS's own figures after inflation in its June 2026 release (Table A: private and civilian wages and
+    # salaries, June 2025, March and June 2026) come out of this arithmetic to the published decimal in five of
+    # six; the sixth, private for June 2025, is 0.851 against BLS's 0.8. Prices averaged over the quarter, or
+    # taken at its middle month, miss by 0.2 to 0.8 points (22 Oct 2026; docs/macro/LOG.md).
+    Derived("real_wages_eci", "Employment cost index: wages and salaries, private, after inflation", "consumer",
+            ("wages_eci_nsa", "cpi_nsa"),
+            "the wages and salaries index for private industry divided by consumer prices in the quarter's last "
+            "month, both before seasonal adjustment; a quarter with no price for that month is left out",
+            "quarterly", "wages index over consumer prices, x 100", None, LABOUR, "percent",
+            position="an index of one index over another has no meaning as a level, so its place in its own "
+                     "history says nothing",
+            note="Worked this way, BLS's own figures after inflation for June 2025, March 2026 and June 2026 come "
+                 "out to the decimal for private and for all civilian workers in five of six; the sixth, private "
+                 "for June 2025, is 0.851% against BLS's 0.8%.",
+            care=SHORT_SINCE % ("in 2001 on FRED", "two recessions")),
 ]
 
 #: In the ready-to-rate group but not read yet, and why.
@@ -430,6 +463,8 @@ SERIES = SERIES + CARE
 BY_KEY = {s.key: s for s in SERIES}
 DERIVED_BY_KEY = {d.key: d for d in DERIVED}
 #: The ready-to-rate group as read: the catalog's own series read alone, then the derived readings.
-CORE = [s for s in SERIES if s.read_alone and not s.care] + [d for d in DERIVED if d.read_alone]
+CORE = [s for s in SERIES if s.read_alone and not s.care] + [d for d in DERIVED if d.read_alone and not d.care]
+#: The usable-with-care group's derived readings, read after its own series.
+CARE_DERIVED = [d for d in DERIVED if d.care]
 #: Everything the tool reads: the core, then the usable-with-care group.
-READ = CORE + CARE
+READ = CORE + CARE + CARE_DERIVED

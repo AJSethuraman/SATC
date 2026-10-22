@@ -17,7 +17,7 @@ scripts and data behind it, are kept below for the record. Public data only.
 | `settings.json` | The firm's answers (16 and 22 Oct 2026), each with where it came from |
 | `what-if-pandemic-left-out.json` | An example what-if, not the firm's settings: theirs with 2020 Q2 to 2021 Q2 left out |
 | `what-if-30-years.json` | Another example what-if: theirs with history set to the last 30 years |
-| `examples/` | The workbook from the pull of 22 Oct 2026 (folder `2026-10-22-3`) with the pandemic what-if, its printout, and four screenshots of it: the Overview, the Dashboard, household debt, and the initial claims charts with the 2020 spike off the axis |
+| `examples/` | The workbook from the pull of 22 Oct 2026 (folder `2026-10-22-4`) with the pandemic what-if, its printout, and four screenshots of it: the Overview, the Dashboard, household debt, and the initial claims charts with the 2020 spike off the axis |
 | `walkthrough/` | The walk of the monthly refresh: the procedure as one PDF, and the defects it found |
 | `tie-out/gasoline-change-2026-10-16/` | The workbook's top reading tied to EIA, with three more tied to BLS, FRED and FHFA, as one PDF |
 | `LOG.md` | This work's log (kept apart from the main LOG.md) |

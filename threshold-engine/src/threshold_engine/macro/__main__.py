@@ -20,7 +20,7 @@ import json
 import pathlib
 import sys
 
-from .catalog import BY_KEY, CARE, CARE_NOT_READ, DERIVED, NOT_YET, SERIES
+from .catalog import BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED, NOT_YET, SERIES
 from .pull import load, pull
 from .readings import Pull, read_all
 from .settings import QUARTER, Refused, load as load_settings, quarter_index, write_template
@@ -48,6 +48,8 @@ def cmd_list(_):
             direction(s), name))
     print("\nDerived from two of the above:")
     for d in DERIVED:
+        if d.care:
+            continue
         print("  %-26s %-10s %-9s from %-10s %-24s %s" % (d.key, d.group, d.frequency, "(inputs)",
                                                           direction(d), d.title))
     print("\nIn the ready-to-rate group but not read yet:")
@@ -57,6 +59,9 @@ def cmd_list(_):
     for s in CARE:
         print("  %-26s %-10s %-9s from %-10s %-24s %s" % (s.key, s.group, s.frequency, s.starts, direction(s),
                                                           s.title))
+    for d in CARE_DERIVED:
+        print("  %-26s %-10s %-9s from %-10s %-24s %s" % (d.key, d.group, d.frequency, "(inputs)", direction(d),
+                                                          d.title))
     print("\nIn the usable-with-care group but not read:")
     for what, why in CARE_NOT_READ:
         print("  %s: %s" % (what, why))

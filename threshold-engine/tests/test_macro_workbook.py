@@ -1,6 +1,7 @@
 """The workbook the teams read: built only from a finished run, values not formulas outside the Dashboard, a
 missing month left empty so no chart draws it as zero, every change drawn over its normal range, and nothing
 rated anywhere."""
+import math
 import re
 import zipfile
 
@@ -9,7 +10,7 @@ import pytest
 openpyxl = pytest.importorskip("openpyxl")
 
 from threshold_engine.macro import readings as R
-from threshold_engine.macro.catalog import CARE, CARE_NOT_READ, CORE, SCE_CREDIT, SERIES, STATES
+from threshold_engine.macro.catalog import CARE, CARE_DERIVED, CARE_NOT_READ, CORE, SCE_CREDIT, SERIES, STATES
 from threshold_engine.macro.settings import Refused, check
 from threshold_engine.macro.workbook import (CARE_NAME, CARE_TAB, CARE_TOPICS, DASH_DATA, DASHBOARD, HOUSEHOLD_KEYS,
                                              HOUSEHOLD_NAME, TAB, TOPICS, axis_view, build, glossary, nice_axis)
@@ -65,7 +66,7 @@ def test_every_national_series_has_one_topic_and_one_tab():
 
 def test_every_care_series_has_one_topic_and_one_tab():
     in_topics = [k for _, keys in CARE_TOPICS for k in keys]
-    assert sorted(in_topics) == sorted(s.key for s in CARE) and len(set(in_topics)) == len(in_topics)
+    assert sorted(in_topics) == sorted(s.key for s in CARE + CARE_DERIVED) and len(set(in_topics)) == len(in_topics)
     assert sorted(CARE_TAB) == sorted(in_topics)
 
 
@@ -529,6 +530,21 @@ def test_the_dashed_lines_are_the_what_ifs_normal_range_over_the_years_its_histo
     assert any(x.count('prstDash val="dash"') == 2 and "areaChart" in x for x in _charts(out).values())
 
 
+def test_the_what_if_row_on_a_series_tab_is_as_tall_as_its_words(cache, tmp_path):  # noqa: F811
+    # The example, 22 Oct 2026: "Reads another way: ..." in bold ran to a third line in a row two lines tall.
+    _, _, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    seen = 0
+    for ws in wb.worksheets:
+        row = next((r for r in range(1, 12) if ws.cell(r, 7).value == "WHAT IF"), None)
+        words = ws.cell(row, 9).value if row else None
+        if not words:
+            continue
+        width = sum(ws.column_dimensions[openpyxl.utils.get_column_letter(c)].width or 9 for c in range(9, 12))
+        assert ws.row_dimensions[row].height >= 14 * math.ceil(len(words) / (width * 1.1)), ws.title
+        seen += 1
+    assert seen
+
+
 def test_a_different_change_horizon_draws_no_dashed_lines_and_names_both_horizons(cache, tmp_path):  # noqa: F811
     # Six months against twelve is a different measure: its range would sit on the wrong scale.
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_months": 6}, {"change_months": 12})
@@ -733,7 +749,7 @@ def test_the_care_tab_reads_every_series_in_the_group_and_names_the_rest(care_bo
     ws = wb[CARE_NAME]
     links = {ws.cell(r, 2).value: _to(ws.cell(r, 2)) for r in range(1, ws.max_row + 1)
              if ws.cell(r, 2).hyperlink and _to(ws.cell(r, 2)) != "Overview"}
-    assert links == {s.title: CARE_TAB[s.key] for s in CARE}
+    assert links == {s.title: CARE_TAB[s.key] for s in CARE + CARE_DERIVED}
     text = _text(ws)
     assert all(what in text for what, _ in CARE_NOT_READ) and SCE_CREDIT in text
     assert not re.search(r"\b[1-5] (Low|Moderate|High)", text)

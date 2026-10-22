@@ -41,7 +41,7 @@ a change, and a second set of settings drawn as dashed lines.
 import datetime
 import math
 
-from .catalog import BY_KEY, CARE, CARE_NOT_READ, DERIVED, HOUSEHOLD_DEBT, READ, SERIES, STATES
+from .catalog import BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED, HOUSEHOLD_DEBT, READ, SERIES, STATES
 from .compare import CALLED, NOT_ASKED, plain, row_label, spans, when
 from .readings import (DECREASING, DIRECTIONS, INCREASING, STABLE, changes, kept, percentile, sahm_kept,
                        window_of)
@@ -97,7 +97,8 @@ TAB = {
 #: The Usable with care tab's sections, and each series' tab name.
 CARE_TOPICS = [
     ("Jobs and income", ["underemployment", "job_openings", "layoffs_rate", "quits_rate", "temp_help", "wages_eci",
-                         "hourly_earnings", "real_income", "income_ex_transfers", "saving_rate"]),
+                         "real_wages_eci", "hourly_earnings", "wage_tracker", "real_income", "income_ex_transfers",
+                         "saving_rate"]),
     ("Household debt, credit and housing", ["debt_service", "debt_service_mortgage", "debt_service_consumer",
                                             "card_minimum_payment", "expected_missed_payment", "auto_standards",
                                             "other_consumer_standards", "new_home_supply"]),
@@ -109,7 +110,7 @@ CARE_TOPICS = [
 CARE_TAB = {
     "underemployment": "Underemployment", "job_openings": "Job openings", "layoffs_rate": "Layoffs rate",
     "quits_rate": "Quits rate", "temp_help": "Temp help jobs", "wages_eci": "Wages (ECI)",
-    "hourly_earnings": "Hourly earnings", "real_income": "Real income", "income_ex_transfers": "Income ex transfers",
+    "real_wages_eci": "Wages after inflation", "hourly_earnings": "Hourly earnings", "wage_tracker": "Wage tracker", "real_income": "Real income", "income_ex_transfers": "Income ex transfers",
     "saving_rate": "Saving rate", "debt_service": "Debt service", "debt_service_mortgage": "Mortgage debt service",
     "debt_service_consumer": "Consumer debt service", "card_minimum_payment": "Card minimum payments",
     "expected_missed_payment": "Expected missed payments", "auto_standards": "Auto loan standards",
@@ -573,7 +574,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         nat = [x for x in whatif["rows"] if x["key"] not in state_keys and x["reading"] == "change"]
         tile(ws, 3, 13, 15, "What if: %s" % whatif["b"], "%d of %d changes read another way" % (
             sum(1 for x in nat if x["move"]), sum(1 for x in nat if x["move"] is not None)), to="What if")
-    link(ws.cell(2, 2), CARE_NAME, "Also read, with care: %d series" % len(CARE))
+    link(ws.cell(2, 2), CARE_NAME, "Also read, with care: %d series" % len(CARE + CARE_DERIVED))
     link(ws.cell(2, 4), DASHBOARD, "Dashboard: any two series together")
     width_words = "one typical move" if s["normal_width"] == 1 else "%g typical moves" % s["normal_width"]
     entries = [
@@ -608,7 +609,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                                    "tab sets every reading side by side." % whatif["b"]))
     entries.append(("Series", "Each name opens the series' tab: its level and change, and their charts."))
     entries.append((CARE_NAME, "%d more series, short, broken or heavily revised, are on the %s tab, read the "
-                               "same way." % (len(CARE), CARE_NAME)))
+                               "same way." % (len(CARE + CARE_DERIVED), CARE_NAME)))
     row = method_note(ws, 6, last, entries)
     cols = TABLE + (["What if"] if whatif else [])
     for topic, keys in TOPICS:
@@ -1179,6 +1180,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         """The level and the change at the top of a series' tab, each in its own box."""
         tall = 4 if whatif else 3
         said = []
+        what_if_said = []          # (words, first column, last column): the what-if row is as tall as its words
         for j, reading in enumerate(("position", "change")):
             col = 2 + 5 * j
             end = col + 4
@@ -1218,6 +1220,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                         "Reads another way", b["movement"], signed(item, b["normal_low"]),
                         signed(item, b["normal_high"]), "{:,}".format(b["readings"]), noun, when(b["history_from"]))
                     note(ws, row + 3, col + 2, words, end, F_UP if w["move"] else F_DATA)
+                    what_if_said.append((words, col + 2, end))
                 elif b:
                     note(ws, row + 3, col + 1, "At or above %.1f%% of %s readings since %s." % (
                         b["percentile"], "{:,}".format(b["readings"]), when(b["history_from"])), end, F_DATA)
@@ -1228,7 +1231,8 @@ def build(out, result, pull, whatif=None, zoom=None):
         ws.row_dimensions[row + 2].height = 14 * max(math.ceil(len(x) / (width_of(ws, 2, 6) * 1.2))
                                                      for x in said) + 4
         if whatif:
-            ws.row_dimensions[row + 3].height = 30
+            ws.row_dimensions[row + 3].height = max(
+                [30] + [14 * math.ceil(len(x) / (width_of(ws, a, b) * 1.1)) + 4 for x, a, b in what_if_said])
         return row + tall + 1
 
     def chart_entries(item, extra=()):
@@ -1522,7 +1526,7 @@ def build(out, result, pull, whatif=None, zoom=None):
     title_band(ws, CARE_NAME, "The research's \"usable with care\" group, read the same way as the rest.", last,
                tab=K.SLATE)
     link(ws.cell(2, 2), "Overview", "Back to Overview")
-    tile(ws, 3, 2, 2, "Series read", len(CARE), "#,##0")
+    tile(ws, 3, 2, 2, "Series read", len(CARE + CARE_DERIVED), "#,##0")
     tile(ws, 3, 3, 4, "In the group, not read", len(CARE_NOT_READ), "#,##0")
     care_changes = [r for r in result["readings"] if r["reading"] == "change" and r["care"]]
     for i, d in enumerate((INCREASING, STABLE, DECREASING)):
@@ -1552,7 +1556,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         row = section(ws, row, "Nothing to show, and why", last)
         row = sub_header(ws, row, ["Series", "Reading", "Why"], height=18)
         for x in not_read_care:
-            put(ws, row, 2, BY_KEY[x["key"]].title, align=WRAP)
+            put(ws, row, 2, items[x["key"]].title, align=WRAP)
             put(ws, row, 3, reading_name(x["reading"], months), align=WRAP)
             ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=last)
             put(ws, row, 4, x["why"], font=F_NOTE, align=WRAP)
