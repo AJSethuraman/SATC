@@ -3653,6 +3653,146 @@ changed in the code.
   - Tests: 2 in `tests/test_avg_line_beside_booked_2026_10_17.py` (the headings and the group heading; every gross
     cell in exactly one conditional-format range, which LibreOffice needs), and the three tests that pinned the old
     order moved. Planted bugs: 4 added, 4 caught, with no display.
+- **Built, 17 Oct 2026: Line size, a tab of its own** (branch `claude/pocketbook-line-size`, on #450). The firm wants
+  to show that *"we give assignments that are too high to these people"*, in a separate view *"so it isn't all in one
+  spot and too much for a user"*, shown when an indicator trips. Their decisions: literal names; the trip line
+  editable on Control, starting at 1.25×; "worse" for tripping on a switch, Bad loans / GCOs / Either, starting on
+  Either; the four ratios that point in a risk direction counted as Signals; starting lines are suggestions, marked
+  as suggested, like Worse at today; and *"let's just look at an example after"*.
+  - **The tab**, right after RANR vs GCOs, in the house style (title band, How this tab works, the lines in use):
+    one grid at a time, and a Show dropdown (*Pockets where something tripped*, the default; *2 or more signals*;
+    *All pockets*) that picks the rows by formula from the hidden `_lines`, as Pockets' Show picks from `_list`.
+    Columns: Band, Segment, Loans, Avg line, Line × book, Line on bad loans ÷ line on good loans, Share of line lost
+    on bad loans, Months to charge-off (straight avg), Months to charge-off weighted by line, Line-weighted ÷
+    straight, Signals ("2 of 4: Bad got bigger lines, Big lines fail sooner") and Tripped by (Worse on bad loans,
+    Worse on GCOs, Bad got bigger lines). Sorted by Line on bad loans ÷ line on good loans, highest first. Each ratio
+    is red past its line; nothing else is judged; each cell sits in one conditional-format range.
+  - **The figures**, worked out in the Run (`engine.LineSize`, `engine.line_vs`) and kept on `_views` (`L|<grid>|k`):
+    every one counts only loans with a booked amount, Avg line's rule. Line on bad ÷ good: the average line of bad
+    loans over that of good loans. Share of line lost: Σ GCO ÷ Σ booked over bad loans with both (the GCO rate's own
+    top and bottom). Weighted months: Σ(months × booked) ÷ Σ booked over loans with months to charge-off; and that
+    over the straight average. Without a Charge-off date the months columns are hidden and Signals counts out of 3.
+  - **Control**: the four lines and the switch sit in a fourth block, *Line size*, under the launcher's, live as
+    Changes now's are (named `line_big`, `line_bad_bigger`, `line_lost`, `line_sooner`, `line_worse_on` on `_live`).
+    Under the launcher's block, not inside Changes now, so no row above them moves: the bank checklist sends the
+    analyst to Control C15, C19, C24 and H24. Each opens on its starting line, its label marked *(suggested)*
+    (settings.yaml `starts: true`). A workbook set up before the rows existed still Runs on the starting lines
+    (settings.yaml `added`; `control.read_control`), Record says them, and the next Set up writes the rows.
+  - **Also**: Summary carries the two figures that need no dates after % of booked (so Booked $, Avg line, Line ×
+    book, % of booked keep the shape the GCO and RANR blocks have) and the two months figures after the median
+    months; its vintage chart leaves the four off. Grids offers the first two as Measures, shown and not compared.
+    The Glossary has a line per new term (37 terms, 33 without a charge-off date); Start here lists the tab; Record
+    keeps the five settings. The synthetic book has an optional plant, `synth.add_big_lines` (bigger, wholly lost
+    lines on one pocket's bad loans), off by default, so the practice book is unchanged.
+  - Tests: 13 in `tests/test_line_size_2026_10_17.py` (the figures by hand on eight loans; the figures against the
+    CSV; the Show dropdown's three choices, each signal at its line and a hair past it, and the switch, after a
+    LibreOffice recalculation; out of 3 without a charge-off date; an older workbook without the rows). Tests that
+    pinned the tab list, Control's blocks, Summary's columns, Grids' measures and the Glossary's terms were moved to
+    the new shape; the literal-names test no longer reads "Charge-off date", a column's meaning, as the old measure
+    name. Full suite in 4 shards with no display: 1,173 passed, 15 skipped. Planted bugs: 21 added, 21 caught.
+  - Review fixes (17 Oct 2026): Line-weighted ÷ straight divided weighted months (loans with a booked amount) by
+    the straight average over every charged-off loan; both are now over the same loans (`LineSize.co_months`),
+    on Line size and Summary, and the note says Grids' own average can differ. A cleared *Tripped by being worse
+    on* made the switch #N/A and emptied the tab; it now reads as Either. Grids' line measures are tied to the CSV
+    inner cell and margins. 3 tests and 3 planted bugs added.
+- **Built, 17 Oct 2026: the Glossary's custom terms, luck as the other side of confidence, and Significant at
+  N%?** (branch `claude/pocketbook-glossary-terms`, on the Line size branch). Three asks from the firm the same day:
+  - *"our custom terms - like bad / good loans, these i do want in the glossary along with our key terms as fairly
+    plain language and simple explanations to walk a user through what it means. keep my voice in mind"*. Every
+    word PocketBook coined or uses in its own sense was read off the tabs' code and a built synthetic workbook. The
+    Glossary goes from 37 terms to 72 (68 without a charge-off date): 35 added, each beside the term it belongs with
+    (Good loan after Bad loan; Judged against after the two comparisons; Bad loans, Bad dollars and Loan size after
+    them; Two-way / Split by after Pocket; Compare's dropdowns after Vintage; Excess, Worse? with its four readings,
+    Material? / Material at, Show, How sure / Significant at N%?, its readings, the reasons it gives instead of a
+    p-value, the profit line, Holds fixed / Mixed with and Could have caught among the verdicts; Together and its
+    six readings; Line size's Show; Treat as; then Control's words, Gray rows under, and the new-variable test's
+    Found on / Held back, Pre-spec and Holds up? / Still holds?). Three rewritten: GCOs ($), which said only "Gross
+    charge-off dollars."; Borderline, whose example was a Worse? cell, which has printed the word alone since 5 Oct;
+    and Tripped by, now walked through. After a Run, 23 of the new examples use the book's own figures
+    (Good loan, Bad loans % and Bad dollars ÷ Booked tie to the CSV in a test); the rest stay generic and never say
+    "This book". canon's voice check: 0 tells in 195 strings.
+  - *"also luck is seriously only a term we will understand, make sure it's clear that luck is basically the other
+    side of confidence"*. No tab, Control label, launcher message or Record line says luck (the 26 Sep test still
+    guards that). It survives where a reader can meet it only as a setting's value: `revenue_line: luck` in the
+    what-ran YAML and the cube-file refusal that names that value; both left as identifiers. `docs/statistics.md`
+    now pairs confidence with the p-value, and the Glossary's *How sure / Significant at N%?* says it: at 95% sure a
+    gap is significant when its p-value is under 5%, a gap that large arising by chance less than 1 in 20 times.
+  - *"i don't like how often by chance or could be chance as much as luck at this point. or another sort of
+    standard term, i just think could be chance is too vague for a typical user"*, with the layout they chose
+    (*Significant at 95%?*: *Yes (p = 0.09%)*, *Borderline (p = 4.8%)*, *No (p = 23%)*, *Too few losses to test*,
+    *Not losing more*). **This supersedes the 5 Oct 2026 "How often by chance" decision (its "1 in X", Could be
+    chance and Too close to call) and the 26 Sep 2026 note that the p-value is never luck** (the p-value keeps its
+    name; the column is now named for the test it answers). The heading follows How sure live. The p-value is the
+    one "1 in X" was built from, after the allowance for many tests, and the note says so. It prints two decimals
+    under 1%, one under 10%, none from 10%, and *p < 0.01%* below 0.01%; one rounding onto the line it sits under or
+    over takes up to two more decimals (4.98%, not 5.0%, beside *Significant at 95%?*). The other reasons are kept.
+    RANR vs GCOs', Split's and Start here's *· borderline (p 0.048)* are unchanged: they sit on other tabs, beside a
+    verdict rather than in a column of p-values, and moving them is the firm's call.
+  - Tests: `tests/test_glossary_terms_2026_10_17.py` (15) and `tests/test_significant_at_2026_10_17.py` (26), both
+    written first (12 of 15 and 26 of 26 failed on the code before). The guard reads every verdict word, reading,
+    Show and Measure option and Together reading from the constants the tabs print, so a reading added without a
+    Glossary row fails it; a control proves it can. One Yes pocket is tied by hand: its z test from its own counts
+    and Benjamini-Hochberg worked out in the test, against the engine, `_pockets` and the tab. Moved deliberately: the
+    Glossary's term list, the bank checklist's count (37/33 to 72/68, plus a C18 step for the heading; HTML and PDF
+    rebuilt) and 8 tests pinned to How often by chance. Planted bugs: 21 added and 7 repointed, 28 of 28 caught.
+    Full suite in 4 shards with no display, Line size's review fixes merged in: 1,207 passed, 1 failed, 15 skipped;
+    the failure (`test_generic`: two made-up examples named the synthetic book's columns) was fixed and its file
+    rerun green.
+  - Review fixes (17 Oct 2026, PR #455). Significant at N%? now answers its own question: every pocket with a
+    p-value reads Yes, No or Borderline by that p-value alone (Borderline for any shuffled p-value within 2 of its
+    standard errors of the line); only a pocket with no p-value gets a reason (Too few losses to test, Nothing to
+    compare with, Not losing more, Mixed with FICO). Under the Worse at line and Not losing more are Worse?'s to say.
+    On the example book's 405 `_pockets` rows, 234 changed: Not losing more to No 170, to Yes 22 and to Borderline
+    3; Under the Worse at line to No 39 (before: Yes 32, Borderline 4, No 98, Not losing more 195, Under the Worse
+    at line 39, Too few losses 29, Nothing to compare with 8; after: Yes 54, Borderline 7, No 307, Too few losses
+    29, Nothing to compare with 8). How sure is worded as `_live` words it everywhere a tab says it (97.5%, never
+    98%; its line 2.5%), the heading included. A p-value still on the line after two extra decimals says which side
+    ("p < 10%"), and Python rounds the binary double as LibreOffice does (0.00145 is 0.14%). The Pockets note and
+    the Glossary claim no allowance when Control sets none. The Glossary restores the condition the p-value rests on
+    and says what the allowance holds; the profit line and Together say a side must pass its line and be
+    significant; Borderline's example follows How sure; made-up examples use made-up names (Column A), a split Run
+    names its own split and partner, and the note says which examples are the book's. The guard now enumerates
+    Significant at N%?'s and Worse?'s readings from `live.sig_said` and `live.worse_of` over `engine.READINGS`.
+    Tests: `test_significant_at_2026_10_17.py` 26 to 42 (a typed 97.5% and 99.9%, the note with and without an
+    allowance, the formula against `sig_said` over every combination in LibreOffice, the line at 90%, 95% and 97.5%),
+    `test_glossary_terms_2026_10_17.py` 15 to 22; the Glossary is 72 terms (68 without a charge-off date). Planted
+    bugs: 19 added, 9 repointed, 1 retired with the reading it planted into; all 46 that touch these lines caught.
+    Full suite in 4 shards: 1,229 passed, 1 failed, 15 skipped; the failure was the bank checklist read before its
+    count was moved to 72, rerun green. canon's voice check: 0 tells in 190 strings.
+  - Direction, a p-value column and an order for investigation (17 Oct 2026). The firm, on significantly better
+    pockets: direction labels, *"Yes, worse (p = 1.2%)"* and *"Yes, better (p = 0.08%)"*, Borderline and No as they
+    are, and *"this is fine but i want it sorted in a sensical manner for investigation and slicers that get added
+    would need to adapt i guess"*. **The layout changed from what the firm saw** (one cell, "Yes (p = 1.2%)"): the
+    category and the p-value now sit in two columns, so a filter or slicer on either sees few values.
+    *Significant at N%?* holds Yes, worse / Yes, better / Borderline / No / Too few losses to test / Nothing to
+    compare with / Not losing more / Mixed with (column); **p-value**, right beside it, holds the number, formatted
+    `[<0.0001]"< 0.01%";[<0.01]0.00%;0.0%`, with conditional formats for none from 10% and for a value that would
+    show as the line (more decimals, then "< 10%"); the side is the gap's against its comparison. Excel's filter
+    arrows now cover every heading on Pockets. The rows come in seven groups as of the last Run: Yes, worse;
+    Borderline losing more; No losing more; no test; No losing less; Borderline losing less; Yes, better; each by
+    its excess, largest first, so the most-better pocket is last. The old "losing more only against the other
+    comparison comes last" falls out of it (those pockets lose less against the comparison that decides); a split
+    pocket whose grid doesn't hold the partner fixed now sits in the no-test group rather than last. On the example
+    book, GCOs ($): 41 rows, groups 7 / 1 / 22 / 2 / 7 / 1 / 1; Bad loans 44, 6 / 0 / 25 / 2 / 9 / 0 / 2. The
+    Glossary gains the p-value column's row (73 terms, 69 without a charge-off date). Tests: 13 in
+    `tests/test_significant_columns_2026_10_17.py`, all failing first; the format choice is checked rule by rule in
+    LibreOffice against Python. Planted bugs: 12 added and the rest on these lines repointed, 58 of 58 caught.
+    Full suite in 4 shards: 1,241 passed, 1 failed (a heading list one column short, fixed and rerun), 15 skipped.
+  - Review fixes (18 Oct 2026, on 9a82e204). Sorting with Pockets' filter arrows moved only #: each row finds its
+    pocket through hidden index columns that sat outside the range, so a sort moved the formulas and every row
+    worked its pocket out again where it was. The range now runs to the hidden index, so a sort carries each row's
+    pocket and # keeps the Run's order as a label; proved by sorting a built book in LibreOffice through its Python
+    bridge (`tests/unosort.py`, `tests/test_sorting_2026_10_17.py`), with a check that no row reads another. RANR vs
+    GCOs already sorted rightly (its helpers were inside its range) and now has the same test. CI installs
+    python3-uno and poppler-utils for these. A sort descending puts the empty rows of a shorter view on top, since
+    a formula's "" is text; the rows still belong together. The Python mirror of the p-value's display now rounds
+    the decimal value as the spreadsheet does (0.00145 is 0.15%, 0.05005 at 5% is 5.01%), checked against the page
+    LibreOffice prints, half-ways included. The column shows "under 0.01%", "under 10%" and "over 10%", as the
+    other tabs' p-values do. The Glossary's p-value example prints a plain decimal, and "the most-better pocket"
+    reads "the pocket that loses least against the rest".
+    Tests: `test_sorting_2026_10_17.py` (4; the two Pockets sorts failed first), a printed-page test of the p-value
+    at five lines, half-ways in the format tests, a plain-decimal test. Planted bugs: 4 added, 62 of 62 on these
+    lines caught. Full suite in 4 shards: 1,259 passed, 15 skipped.
 
 ## 7 · Standing rules for new items
 

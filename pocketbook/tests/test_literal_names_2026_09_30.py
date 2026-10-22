@@ -37,15 +37,20 @@ OLD_BOOK, OLD_EXTRACT = OLD / "Bureau book - PocketBook.xlsx", OLD / "Bureau boo
 #: the three measures' old names, and the stand-ins for them the tabs used; none may name a measure any more
 OLD_NAMES = ("Charge-offs", "Kept after losses", "Earned before losses", "Paid us", "Cost us", "Paid, cost, kept")
 #: the same, in any case, read inside a sentence ("pockets have charge-offs above their share"). "Gross charge-offs
-#: (GCOs)" is not the old name: it is the acronym spelled out on first use (VOICE.md, the firm, 14 Oct 2026)
-OLD_WORDS = re.compile(r"(?<!gross )charge-off|charged off|charges off|kept after losses|earned before losses|paid us|cost us"
+#: (GCOs)" is not the old name: it is the acronym spelled out on first use (VOICE.md, the firm, 14 Oct 2026); nor is
+#: "Charge-off date", a column's meaning on Columns, which Line size names when a book has none (17 Oct 2026)
+OLD_WORDS = re.compile(r"(?<!gross )charge-off(?! date)|charged off|charges off|kept after losses|earned before losses|paid us|cost us"
                        r"|paid, cost, kept|profit after losses|contribution before losses|Kept ·|keeping (less|more)",
                        re.I)
 NEW = {"gco_rate": "GCOs ($)", "ranr_rate": "RANR", "contribution_rate": "RANR + GCOs"}
 #: what the Rate block's heading says for each Measure option, literally: what is divided by what
 HEADS = {"Bad loans": "Rate · Bad loans ÷ Loans", "Bad dollars": "Rate · Bad dollars ÷ Booked",
          "GCOs ($)": "Rate · GCOs ÷ Booked", "RANR": "Rate · RANR ÷ Booked",
-         "RANR + GCOs": "Rate · (RANR + GCOs) ÷ Booked", "Loan size": "Rate · Average booked per loan"}
+         "RANR + GCOs": "Rate · (RANR + GCOs) ÷ Booked", "Loan size": "Rate · Average booked per loan",
+         # Line size's two figures (17 Oct 2026), shown and not compared: the heading is the figure's literal name
+         results.LINE_HEADS[5]: f"Rate · {results.LINE_HEADS[5]}", results.LINE_HEADS[6]: f"Rate · {results.LINE_HEADS[6]}"}
+#: the Measure options that are shown and never compared, so vs the book has no book figure in its heading
+SHOWN_ONLY = (results.LINE_HEADS[5], results.LINE_HEADS[6])
 #: sheets the analyst never reads that still hold words, each with why its words may stay: the meanings'
 #: definitions ("gross charge-off dollars" says what GCO is, and is no measure's name); and the Glossary, whose
 #: every row says what a term means (the firm, 2 Oct 2026), "GCOs ($)" as "gross charge-off dollars" among them
@@ -96,7 +101,7 @@ def test_every_list_offers_the_new_names_and_every_tab_uses_them(ran):
     wb = load_workbook(ran)
     five = ["Bad loans", "Bad dollars", *NEW.values()]
     assert tabs.options(wb, results.POCKETS, "Measure") == five
-    assert tabs.options(wb, results.GRIDS, "Measure") == five + ["Loan size"]
+    assert tabs.options(wb, results.GRIDS, "Measure") == five + ["Loan size", *SHOWN_ONLY]
     assert tabs.options(wb, results.SPLIT, "Measure") == five
     said = {s: " ".join(v for t, _, v in _strings(wb) if t == s) for s in wb.sheetnames}
     for name in NEW.values():
@@ -129,6 +134,9 @@ def test_the_rate_heading_says_what_is_divided_by_what_and_follows_the_measure(r
         assert _rate_head(ws) == HEADS[pick], pick
         heads = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str)
                  and c.value.startswith("vs the book (")]
+        if pick in SHOWN_ONLY:                  # nothing is compared, so no book figure to compare with
+            assert heads == [] and any(c.value == "vs the book" for row in ws.iter_rows() for c in row), pick
+            continue
         assert len(heads) == 1 and re.fullmatch(r"vs the book \(book: (\$[\d,]+|\d+\.\d\d%)\)", heads[0]), \
             (pick, heads)
 
