@@ -1,0 +1,165 @@
+Product,Measure,Source,file
+Credit card,Net charge-offs,Industry (every bank),out/series/credit-card_industry_net.csv
+Credit card,Net charge-offs,Peer group,out/series/credit-card_pack-composite_net.csv
+Credit card,Net charge-offs,KeyBank,out/series/credit-card_keybank_net.csv
+Credit card,Gross charge-offs,Industry (every bank),out/series/credit-card_industry_gross.csv
+Credit card,Gross charge-offs,Peer group,out/series/credit-card_pack-composite_gross.csv
+Credit card,Gross charge-offs,KeyBank,out/series/credit-card_keybank_gross.csv
+Credit card,30-89 days past due,Industry (every bank),out/series/credit-card_industry_delinquency-30-89_quarter-end.csv
+Credit card,30-89 days past due,Peer group,out/series/credit-card_pack-composite_delinquency-30-89_quarter-end.csv
+Credit card,30-89 days past due,KeyBank,out/series/credit-card_keybank_delinquency-30-89_quarter-end.csv
+Credit card,90+ days past due and accruing,Industry (every bank),out/series/credit-card_industry_delinquency-90-plus-accruing_quarter-end.csv
+Credit card,90+ days past due and accruing,Peer group,out/series/credit-card_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+Credit card,90+ days past due and accruing,KeyBank,out/series/credit-card_keybank_delinquency-90-plus-accruing_quarter-end.csv
+Credit card,Nonaccrual,Industry (every bank),out/series/credit-card_industry_delinquency-nonaccrual_quarter-end.csv
+Credit card,Nonaccrual,Peer group,out/series/credit-card_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Credit card,Nonaccrual,KeyBank,out/series/credit-card_keybank_delinquency-nonaccrual_quarter-end.csv
+Credit card,30+ days past due incl. nonaccrual,Industry (every bank),out/series/credit-card_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Credit card,30+ days past due incl. nonaccrual,Peer group,out/series/credit-card_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Credit card,30+ days past due incl. nonaccrual,KeyBank,out/series/credit-card_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Credit card,90+ days past due incl. nonaccrual,Industry (every bank),out/series/credit-card_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card,90+ days past due incl. nonaccrual,Peer group,out/series/credit-card_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card,90+ days past due incl. nonaccrual,KeyBank,out/series/credit-card_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Mortgage,Net charge-offs,Industry (every bank),out/series/mortgage_industry_net.csv
+Mortgage,Net charge-offs,Peer group,out/series/mortgage_pack-composite_net.csv
+Mortgage,Net charge-offs,KeyBank,out/series/mortgage_keybank_net.csv
+Mortgage,Gross charge-offs,Industry (every bank),out/series/mortgage_industry_gross.csv
+Mortgage,Gross charge-offs,Peer group,out/series/mortgage_pack-composite_gross.csv
+Mortgage,Gross charge-offs,KeyBank,out/series/mortgage_keybank_gross.csv
+Mortgage,30-89 days past due,Industry (every bank),out/series/mortgage_industry_delinquency-30-89_quarter-end.csv
+Mortgage,30-89 days past due,Peer group,out/series/mortgage_pack-composite_delinquency-30-89_quarter-end.csv
+Mortgage,30-89 days past due,KeyBank,out/series/mortgage_keybank_delinquency-30-89_quarter-end.csv
+Mortgage,90+ days past due and accruing,Industry (every bank),out/series/mortgage_industry_delinquency-90-plus-accruing_quarter-end.csv
+Mortgage,90+ days past due and accruing,Peer group,out/series/mortgage_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+Mortgage,90+ days past due and accruing,KeyBank,out/series/mortgage_keybank_delinquency-90-plus-accruing_quarter-end.csv
+Mortgage,Nonaccrual,Industry (every bank),out/series/mortgage_industry_delinquency-nonaccrual_quarter-end.csv
+Mortgage,Nonaccrual,Peer group,out/series/mortgage_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Mortgage,Nonaccrual,KeyBank,out/series/mortgage_keybank_delinquency-nonaccrual_quarter-end.csv
+Mortgage,30+ days past due incl. nonaccrual,Industry (every bank),out/series/mortgage_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Mortgage,30+ days past due incl. nonaccrual,Peer group,out/series/mortgage_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Mortgage,30+ days past due incl. nonaccrual,KeyBank,out/series/mortgage_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Mortgage,90+ days past due incl. nonaccrual,Industry (every bank),out/series/mortgage_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Mortgage,90+ days past due incl. nonaccrual,Peer group,out/series/mortgage_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Mortgage,90+ days past due incl. nonaccrual,KeyBank,out/series/mortgage_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Home equity,Net charge-offs,Industry (every bank),out/series/home-equity_industry_net.csv
+Home equity,Net charge-offs,Peer group,out/series/home-equity_pack-composite_net.csv
+Home equity,Net charge-offs,KeyBank,out/series/home-equity_keybank_net.csv
+Home equity,Gross charge-offs,Industry (every bank),out/series/home-equity_industry_gross.csv
+Home equity,Gross charge-offs,Peer group,out/series/home-equity_pack-composite_gross.csv
+Home equity,Gross charge-offs,KeyBank,out/series/home-equity_keybank_gross.csv
+Home equity,30-89 days past due,Industry (every bank),out/series/home-equity_industry_delinquency-30-89_quarter-end.csv
+Home equity,30-89 days past due,Peer group,out/series/home-equity_pack-composite_delinquency-30-89_quarter-end.csv
+Home equity,30-89 days past due,KeyBank,out/series/home-equity_keybank_delinquency-30-89_quarter-end.csv
+Home equity,90+ days past due and accruing,Industry (every bank),out/series/home-equity_industry_delinquency-90-plus-accruing_quarter-end.csv
+Home equity,90+ days past due and accruing,Peer group,out/series/home-equity_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+Home equity,90+ days past due and accruing,KeyBank,out/series/home-equity_keybank_delinquency-90-plus-accruing_quarter-end.csv
+Home equity,Nonaccrual,Industry (every bank),out/series/home-equity_industry_delinquency-nonaccrual_quarter-end.csv
+Home equity,Nonaccrual,Peer group,out/series/home-equity_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Home equity,Nonaccrual,KeyBank,out/series/home-equity_keybank_delinquency-nonaccrual_quarter-end.csv
+Home equity,30+ days past due incl. nonaccrual,Industry (every bank),out/series/home-equity_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Home equity,30+ days past due incl. nonaccrual,Peer group,out/series/home-equity_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Home equity,30+ days past due incl. nonaccrual,KeyBank,out/series/home-equity_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Home equity,90+ days past due incl. nonaccrual,Industry (every bank),out/series/home-equity_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Home equity,90+ days past due incl. nonaccrual,Peer group,out/series/home-equity_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Home equity,90+ days past due incl. nonaccrual,KeyBank,out/series/home-equity_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Other consumer,Net charge-offs,Industry (every bank),out/series/other-consumer_industry_net.csv
+Other consumer,Net charge-offs,Peer group,out/series/other-consumer_pack-composite_net.csv
+Other consumer,Net charge-offs,KeyBank,out/series/other-consumer_keybank_net.csv
+Other consumer,Gross charge-offs,Industry (every bank),out/series/other-consumer_industry_gross.csv
+Other consumer,Gross charge-offs,Peer group,out/series/other-consumer_pack-composite_gross.csv
+Other consumer,Gross charge-offs,KeyBank,out/series/other-consumer_keybank_gross.csv
+Other consumer,30-89 days past due,Industry (every bank),out/series/other-consumer_industry_delinquency-30-89_quarter-end.csv
+Other consumer,30-89 days past due,Peer group,out/series/other-consumer_pack-composite_delinquency-30-89_quarter-end.csv
+Other consumer,30-89 days past due,KeyBank,out/series/other-consumer_keybank_delinquency-30-89_quarter-end.csv
+Other consumer,90+ days past due and accruing,Industry (every bank),out/series/other-consumer_industry_delinquency-90-plus-accruing_quarter-end.csv
+Other consumer,90+ days past due and accruing,Peer group,out/series/other-consumer_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+Other consumer,90+ days past due and accruing,KeyBank,out/series/other-consumer_keybank_delinquency-90-plus-accruing_quarter-end.csv
+Other consumer,Nonaccrual,Industry (every bank),out/series/other-consumer_industry_delinquency-nonaccrual_quarter-end.csv
+Other consumer,Nonaccrual,Peer group,out/series/other-consumer_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Other consumer,Nonaccrual,KeyBank,out/series/other-consumer_keybank_delinquency-nonaccrual_quarter-end.csv
+Other consumer,30+ days past due incl. nonaccrual,Industry (every bank),out/series/other-consumer_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Other consumer,30+ days past due incl. nonaccrual,Peer group,out/series/other-consumer_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Other consumer,30+ days past due incl. nonaccrual,KeyBank,out/series/other-consumer_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Other consumer,90+ days past due incl. nonaccrual,Industry (every bank),out/series/other-consumer_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Other consumer,90+ days past due incl. nonaccrual,Peer group,out/series/other-consumer_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Other consumer,90+ days past due incl. nonaccrual,KeyBank,out/series/other-consumer_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Auto,Net charge-offs,Industry (every bank),out/series/auto_industry_net.csv
+Auto,Net charge-offs,Peer group,out/series/auto_pack-composite_net.csv
+Auto,Net charge-offs,KeyBank,out/series/auto_keybank_net.csv
+Auto,Gross charge-offs,Industry (every bank),out/series/auto_industry_gross.csv
+Auto,Gross charge-offs,Peer group,out/series/auto_pack-composite_gross.csv
+Auto,Gross charge-offs,KeyBank,out/series/auto_keybank_gross.csv
+Auto,30-89 days past due,Industry (every bank),out/series/auto_industry_delinquency-30-89_quarter-end.csv
+Auto,30-89 days past due,Peer group,out/series/auto_pack-composite_delinquency-30-89_quarter-end.csv
+Auto,30-89 days past due,KeyBank,out/series/auto_keybank_delinquency-30-89_quarter-end.csv
+Auto,90+ days past due and accruing,Industry (every bank),out/series/auto_industry_delinquency-90-plus-accruing_quarter-end.csv
+Auto,90+ days past due and accruing,Peer group,out/series/auto_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+Auto,90+ days past due and accruing,KeyBank,out/series/auto_keybank_delinquency-90-plus-accruing_quarter-end.csv
+Auto,Nonaccrual,Industry (every bank),out/series/auto_industry_delinquency-nonaccrual_quarter-end.csv
+Auto,Nonaccrual,Peer group,out/series/auto_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Auto,Nonaccrual,KeyBank,out/series/auto_keybank_delinquency-nonaccrual_quarter-end.csv
+Auto,30+ days past due incl. nonaccrual,Industry (every bank),out/series/auto_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Auto,30+ days past due incl. nonaccrual,Peer group,out/series/auto_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Auto,30+ days past due incl. nonaccrual,KeyBank,out/series/auto_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Auto,90+ days past due incl. nonaccrual,Industry (every bank),out/series/auto_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Auto,90+ days past due incl. nonaccrual,Peer group,out/series/auto_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Auto,90+ days past due incl. nonaccrual,KeyBank,out/series/auto_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+All consumer,Net charge-offs,Industry (every bank),out/series/all-consumer_industry_net.csv
+All consumer,Net charge-offs,Peer group,out/series/all-consumer_pack-composite_net.csv
+All consumer,Net charge-offs,KeyBank,out/series/all-consumer_keybank_net.csv
+All consumer,Gross charge-offs,Industry (every bank),out/series/all-consumer_industry_gross.csv
+All consumer,Gross charge-offs,Peer group,out/series/all-consumer_pack-composite_gross.csv
+All consumer,Gross charge-offs,KeyBank,out/series/all-consumer_keybank_gross.csv
+All consumer,30-89 days past due,Industry (every bank),out/series/all-consumer_industry_delinquency-30-89_quarter-end.csv
+All consumer,30-89 days past due,Peer group,out/series/all-consumer_pack-composite_delinquency-30-89_quarter-end.csv
+All consumer,30-89 days past due,KeyBank,out/series/all-consumer_keybank_delinquency-30-89_quarter-end.csv
+All consumer,90+ days past due and accruing,Industry (every bank),out/series/all-consumer_industry_delinquency-90-plus-accruing_quarter-end.csv
+All consumer,90+ days past due and accruing,Peer group,out/series/all-consumer_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+All consumer,90+ days past due and accruing,KeyBank,out/series/all-consumer_keybank_delinquency-90-plus-accruing_quarter-end.csv
+All consumer,Nonaccrual,Industry (every bank),out/series/all-consumer_industry_delinquency-nonaccrual_quarter-end.csv
+All consumer,Nonaccrual,Peer group,out/series/all-consumer_pack-composite_delinquency-nonaccrual_quarter-end.csv
+All consumer,Nonaccrual,KeyBank,out/series/all-consumer_keybank_delinquency-nonaccrual_quarter-end.csv
+All consumer,30+ days past due incl. nonaccrual,Industry (every bank),out/series/all-consumer_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+All consumer,30+ days past due incl. nonaccrual,Peer group,out/series/all-consumer_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+All consumer,30+ days past due incl. nonaccrual,KeyBank,out/series/all-consumer_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+All consumer,90+ days past due incl. nonaccrual,Industry (every bank),out/series/all-consumer_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+All consumer,90+ days past due incl. nonaccrual,Peer group,out/series/all-consumer_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+All consumer,90+ days past due incl. nonaccrual,KeyBank,out/series/all-consumer_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card + Other consumer,Net charge-offs,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_net.csv
+Credit card + Other consumer,Net charge-offs,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_net.csv
+Credit card + Other consumer,Net charge-offs,KeyBank,out/series/credit-card-plus-other-consumer_keybank_net.csv
+Credit card + Other consumer,Gross charge-offs,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_gross.csv
+Credit card + Other consumer,Gross charge-offs,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_gross.csv
+Credit card + Other consumer,Gross charge-offs,KeyBank,out/series/credit-card-plus-other-consumer_keybank_gross.csv
+Credit card + Other consumer,30-89 days past due,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_delinquency-30-89_quarter-end.csv
+Credit card + Other consumer,30-89 days past due,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_delinquency-30-89_quarter-end.csv
+Credit card + Other consumer,30-89 days past due,KeyBank,out/series/credit-card-plus-other-consumer_keybank_delinquency-30-89_quarter-end.csv
+Credit card + Other consumer,90+ days past due and accruing,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_delinquency-90-plus-accruing_quarter-end.csv
+Credit card + Other consumer,90+ days past due and accruing,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_delinquency-90-plus-accruing_quarter-end.csv
+Credit card + Other consumer,90+ days past due and accruing,KeyBank,out/series/credit-card-plus-other-consumer_keybank_delinquency-90-plus-accruing_quarter-end.csv
+Credit card + Other consumer,Nonaccrual,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_delinquency-nonaccrual_quarter-end.csv
+Credit card + Other consumer,Nonaccrual,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_delinquency-nonaccrual_quarter-end.csv
+Credit card + Other consumer,Nonaccrual,KeyBank,out/series/credit-card-plus-other-consumer_keybank_delinquency-nonaccrual_quarter-end.csv
+Credit card + Other consumer,30+ days past due incl. nonaccrual,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Credit card + Other consumer,30+ days past due incl. nonaccrual,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Credit card + Other consumer,30+ days past due incl. nonaccrual,KeyBank,out/series/credit-card-plus-other-consumer_keybank_delinquency-30-plus-incl-nonaccrual_quarter-end.csv
+Credit card + Other consumer,90+ days past due incl. nonaccrual,Industry (every bank),out/series/credit-card-plus-other-consumer_industry_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card + Other consumer,90+ days past due incl. nonaccrual,Peer group,out/series/credit-card-plus-other-consumer_pack-composite_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card + Other consumer,90+ days past due incl. nonaccrual,KeyBank,out/series/credit-card-plus-other-consumer_keybank_delinquency-90-plus-incl-nonaccrual_quarter-end.csv
+Credit card,30+ to charge-off,Industry (every bank),out/series/credit-card_industry_30-plus-to-charge-off_four-quarter-average.csv
+Credit card,30+ to charge-off,Peer group,out/series/credit-card_pack-composite_30-plus-to-charge-off_four-quarter-average.csv
+Credit card,30+ to charge-off,KeyBank,out/series/credit-card_keybank_30-plus-to-charge-off_four-quarter-average.csv
+Credit card,Gap to peers on 30+ to charge-off,KeyBank,out/series/credit-card_keybank_gap-to-peers-on-30-plus-to-charge-off_four-quarter-average.csv
+Credit card,Gap to industry on 30+ to charge-off,KeyBank,out/series/credit-card_keybank_gap-to-industry-on-30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,30+ to charge-off,Industry (every bank),out/series/other-consumer_industry_30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,30+ to charge-off,Peer group,out/series/other-consumer_pack-composite_30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,30+ to charge-off,KeyBank,out/series/other-consumer_keybank_30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,Gap to peers on 30+ to charge-off,KeyBank,out/series/other-consumer_keybank_gap-to-peers-on-30-plus-to-charge-off_four-quarter-average.csv
+Other consumer,Gap to industry on 30+ to charge-off,KeyBank,out/series/other-consumer_keybank_gap-to-industry-on-30-plus-to-charge-off_four-quarter-average.csv
+Credit card,Share paying only the minimum,Large banks (Philadelphia Fed),out/series/credit-card_large-banks_share-paying-only-the-minimum_quarter-end.csv
+Credit card,Net charge-offs,Industry (every bank) from 1990,../data/industry/credit-card_industry-from-1990_net.csv
+Credit card,Gross charge-offs,Industry (every bank) from 1990,../data/industry/credit-card_industry-from-1990_gross.csv
+Home equity,Net charge-offs,Industry (every bank) from 1990,../data/industry/home-equity_industry-from-1990_net.csv
+Home equity,Gross charge-offs,Industry (every bank) from 1990,../data/industry/home-equity_industry-from-1990_gross.csv
+Other consumer,Net charge-offs,Industry (every bank) from 1990,../data/industry/other-consumer_industry-from-1990_net.csv
+Other consumer,Gross charge-offs,Industry (every bank) from 1990,../data/industry/other-consumer_industry-from-1990_gross.csv

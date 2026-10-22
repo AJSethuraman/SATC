@@ -347,7 +347,7 @@ def test_assess_shows_the_synthesis_for_the_series_showing(built):
     ws = load_workbook(p)["Assess"]
     assert ws.cell(top, 21).hyperlink.location == "Synthesis!A1" or "#Synthesis!A1" in str(ws.cell(top, 21).hyperlink.target)
     assert top + 7 < lay["dial_title"]
-    assert vals["ASSESS!N%d" % top] == "Where each colour starts · Credit card"
+    assert vals["ASSESS!N%d" % top] == "Where each color starts · Credit card"
     for k in range(4):
         row = top + 2 + k
         got = [vals["ASSESS!%s%d" % (c, row)] for c in "OPQRS"]
@@ -393,14 +393,14 @@ def test_the_synthesis_tabs_sit_beside_thresholds_and_data(built):
 def test_sources_and_run_carry_every_synthesis_file(built):
     p, _, _, files = built
     wb = load_workbook(p)
-    src = {(wb["Sources"].cell(r, 1).value, wb["Sources"].cell(r, 2).value) for r in range(1, wb["Sources"].max_row + 1)}
-    titles = {wb["Sources"].cell(r, 1).value for r in range(1, wb["Sources"].max_row + 1)}
+    from test_workbook import source_lines
+    titles = {wb["Sources"].cell(r, 2).value for r in range(1, wb["Sources"].max_row + 1)}
     named = [("Credit card · industry", files["industry"]), ("Credit card · KeyBank filed", files["filed"])] + \
             [("Credit card · peer %s" % k, f) for k, f in files["peers"]]
     for title, path in named:
         assert title in titles
-        assert ("Measure", dict(read_notes(path))["measure"]) in src
-    run = {r[0].value: r[5].value for r in wb["Run"].iter_rows(min_row=4) if len(str(r[5].value or "")) == 64}
+        assert "measure: " + dict(read_notes(path))["measure"] in source_lines(wb["Sources"], path.name)
+    run = {r[1].value: r[6].value for r in wb["Run"].iter_rows(min_row=4) if len(str(r[6].value or "")) == 64}
     for title, path in named:
         assert run[title] == hashlib.sha256(path.read_bytes()).hexdigest()
 

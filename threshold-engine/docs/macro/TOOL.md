@@ -5,9 +5,11 @@ says where each stands against its own history, for the firm and the consumer
 and commercial teams. It looks only at conditions outside management's
 control. Nothing from KeyBank's books goes in.
 
-The series are the "ready to rate" group in
+The rated series are the "ready to rate" group in
 [`reports/Macro risk indicators for lending.md`](reports/Macro%20risk%20indicators%20for%20lending.md),
-chosen by the firm on 15 Oct 2026.
+chosen by the firm on 15 Oct 2026. The report's next group, "usable with
+care", was added on 21 Oct 2026, shown and never rated (the firm: *"expand
+what we keep in this book after all - even if not super useful"*).
 
 ## What works now (all three slices)
 
@@ -19,6 +21,27 @@ chosen by the firm on 15 Oct 2026.
   Each entry gives the publisher, id, frequency, first observation, licence,
   known breaks, and the report section that put it on the list. Every id was
   checked on FRED or at the publisher on 15 Oct 2026.
+- **31 more series, shown and never rated** (21-22 Oct 2026): the report's
+  "usable with care" group, as far as the tool can read it. They are short,
+  broken or heavily revised: underemployment, job openings, layoffs and quits,
+  temporary help, two wage measures, real income with and without transfers,
+  the saving rate, the three debt service ratios, the large-bank minimum
+  payment share, the NY Fed survey's expected chance of missing a debt
+  payment, the auto, other consumer and three CRE lending-standards series,
+  new homes' months' supply, equipment orders, business applications, three
+  regional manufacturing surveys, customs duties, two policy uncertainty
+  indexes and the VIX. None has a direction of stress and the settings ask nothing about
+  them, so the firm's settings stay as they are. Each is described, not
+  rated: its latest reading, and the share of the readings in the same
+  history window it is at or above, counted from the lowest. That says where
+  it sits, not whether that is good or bad. Every FRED id, title,
+  frequency, unit, first reading and licence tag was checked on FRED's own
+  series page and in a live pull on 22 Oct 2026. **Licensed series stay
+  out**, as the firm chose:
+  University of Michigan sentiment (no redistribution) and the Atlanta Fed's
+  wage tracker and affordability index (its terms allow reproduction only
+  "not for commercial gain or monetary profit"). `list` names those and the
+  rest of the group that is not read, with why.
 - **The pull: no API key.** It downloads every series into a folder named
   for the day and never overwrites an earlier one, so every rating can name
   the release it used. A shared file is fetched once. A failure is recorded
@@ -45,22 +68,41 @@ chosen by the firm on 15 Oct 2026.
     - where each rating starts, in the series' own units.
 - **The workbook the teams read.** `rate --workbook OUT.xlsx` writes it from
   the same run, so it cannot exist without the firm's settings. Every number
-  in it is a value, not a formula. It follows the threshold workbook's design
-  (Claude Design's hand-off, in `keybank_style.py`): titles on paper, canvas
-  headers, and the same five rating colours, as chips in the tables and as
-  shaded bands behind every chart. Its tabs:
+  in it is a value, not a formula.
+  - **Its look is PocketBook's** (17 Oct 2026, the firm: *"take inspiration
+    from pocketbook for UI look and feel"*): a dark title band with the red
+    rule under it, one "How this tab works" note per tab that folds away,
+    tiles for the headline figures, dark section bands, and tabs coloured for
+    what they hold (results dark, the record grey).
+  - **Its charts are Claude Design's**, from the threshold workbook's
+    hand-off (`docs/design/HANDOFF.md`, in `keybank_style.py`): the five
+    rating colours shaded behind every history, the history in ink, the
+    latest reading ringed and labelled. A what-if's cut-offs are dashed
+    lines, as that workbook draws "what happens if". The years along the
+    bottom are a date axis, one label every 1, 2, 5 or 10 years.
+  - Its tabs:
   - **Ratings:** every national series under five topics (jobs; prices and
     insurance; housing and household credit; business and the economy;
     markets and financial conditions). Each row gives the series' level and
     change, each rated, and the sentence behind the higher rating. A series'
     name opens its tab.
+  - **What if:** only with `--compare`; see below.
   - **States:** unemployment by state, level and change, worst first.
+  - **Shown, not rated:** every shown series under four topics, with its
+    latest reading, where its level and change sit in its history, and why it
+    is only usable with care; then what had nothing to show, the rest of the
+    group with why it is not read, and the credit the NY Fed's licence
+    requires for its survey data.
   - **One tab per series:** both ratings with what drove them; where each
     rating starts and how many readings in its history took it; its history
     drawn over the five bands, level and change; what it is, where it comes
     from and its breaks; and every reading, with "no value published" where
     the publisher left a gap. The unemployment tab also draws the Sahm
     reading against its 0.50 trigger.
+  - **One tab per shown series:** its tab is slate. It gives the latest level
+    and change with where each sits, the history drawn in ink with the latest
+    reading ringed and no bands, and what it is, its licence, why it needs
+    care and its breaks.
   - **State data, Glossary, Run and Sources.** The glossary explains every
     term from the settings the run used. Run says when the workbook was
     built, from which pull, with which answers. Sources lists every file the
@@ -75,11 +117,45 @@ python -m threshold_engine.macro pull --cache work/macro-cache
 python -m threshold_engine.macro show --cache work/macro-cache unemployment
 python -m threshold_engine.macro settings-template work/macro-settings.json
 python -m threshold_engine.macro rate --cache work/macro-cache --settings work/macro-settings.json --workbook work/economic-conditions.xlsx
+python -m threshold_engine.macro rate --cache work/macro-cache --settings docs/macro/settings.json --compare docs/macro/what-if-30-years.json --workbook work/what-if.xlsx
 ```
 
 `rate` prints every rating, highest first; `--json` gives the full record, and
 `--vintage 2026-10-15` rates an earlier pull. Until every answer is filled in,
 it prints `REFUSED:` with each missing answer named, and exits 2.
+
+## What if: two sets of settings side by side (17 Oct 2026)
+
+The walk found it (W12): asking what changes if each reading is measured
+against the last 30 years took a script written by hand. The firm, 17 Oct
+2026, to building it: *"i set yes"*.
+
+- **`rate --compare WHAT-IF.json`** rates the same pull a second time, with a
+  second settings file. It prints what differs between the two files, the
+  totals, and every reading whose rating moves, with both percentiles and
+  both histories.
+- **Both files must be complete.** A what-if with a gap refuses, naming its
+  file and the gap, exactly as the firm's own does. Neither file is changed,
+  and nothing is chosen: the tool reports, the firm decides.
+- **With `--workbook`**, the workbook gains:
+  - a **What if** tab, second: what differs, a grid of each national
+    reading's rating as you have it against its rating under the what-if,
+    the counts at each rating drawn side by side, every reading that moves
+    (national, then states), and the readings at the same rating, folded away
+    so the count can be checked;
+  - a **What if** column on Ratings and States, saying which readings move;
+  - on each series' tab, the what-if rating beside each rating, where its
+    ratings start, and its cut-offs drawn as dashed lines over the years its
+    history covers. A change over a different number of months is a
+    different measure, so it is not drawn on the same chart.
+- **The example** (`examples/`): the firm's settings against
+  `what-if-30-years.json`, the same answers with history set to the last 30
+  years. From the pull of 22 Oct 2026 (folder `2026-10-22-2`, the day's
+  second pull, the first having been made before the VIX was added), 16 of
+  158 readings move: 13 up, 3 down. Seven are national, including the
+  mortgage rate's level, from 2 to 4 (52.5% of 2,899 weeks since 1971;
+  91.4% of 1,566 since 1996). The 17 Oct example, built before the shown
+  series, had 13 moves: 11 up, 2 down. It also holds the 31 shown series.
 
 ## How each series is read
 
@@ -136,7 +212,7 @@ reverse for any series.
 
 - **Walked:** `walkthrough/refresh-2026-10-16/PROCEDURE-refresh-2026-10-16.pdf` is the monthly refresh,
   step by step with screenshots. `walkthrough/WALKTHROUGH-DEFECTS.md` lists what the walk found (13, against
-  73 passing tests that caught none; 11 fixed, 2 open).
+  73 passing tests that caught none; 12 fixed, W12 built on 17 Oct; W1 open).
 - **Tied out:** `tie-out/gasoline-change-2026-10-16/TIE-OUT-gasoline-change-2026-10-16.pdf` traces the Ratings
   tab's top reading, gasoline's change over a year, +41.49%, rated 4, from the cell to EIA's own table and
   history file, worked again by hand and by spreadsheet formula. It ties three more of the tab's figures to
@@ -166,6 +242,9 @@ every rating follows.
    - business loan demand: weaker is worse, and a fall is worse.
 
 ## Not read yet, and why
+
+The usable-with-care group's own list is in the catalog's `NOT_SHOWN` and
+printed by `list`. The ready-to-rate group's:
 
 - **NY Fed recession probability.** It is published only as an old-format
   Excel file, which needs a reader the tool does not have. The 10-year minus

@@ -1,18 +1,21 @@
 """python -m threshold_engine.macro list | pull | show | settings-template | rate
 
-    list                         every series in the catalog, and what is not read yet
+    list                         every series in the catalog, rated or shown, and what is not read
     pull --cache DIR [KEY ...]   download into DIR/<today>/, keeping every earlier pull
     show --cache DIR KEY         one series as read from the newest pull (or --vintage)
     settings-template OUT.json   the firm's settings, every answer empty, to fill in
-    rate --cache DIR --settings FILE [--workbook OUT.xlsx]
+    rate --cache DIR --settings FILE [--compare WHAT-IF.json] [--workbook OUT.xlsx]
                                  every rating from the newest pull (or --vintage);
-                                 refuses, naming each gap, until every answer is in
+                                 refuses, naming each gap, until every answer is in.
+                                 --compare rates the same pull with a second settings
+                                 file and reports every reading whose rating differs
 """
 import argparse
 import json
+import pathlib
 import sys
 
-from .catalog import BY_KEY, DERIVED, NOT_YET, SERIES
+from .catalog import BY_KEY, DERIVED, NOT_SHOWN, NOT_YET, SERIES, SHOWN
 from .pull import load, pull
 from .rate import Pull, rate_all
 from .settings import Refused, load as load_settings, write_template
@@ -21,6 +24,8 @@ from .settings import Refused, load as load_settings, write_template
 def direction(s):
     """Which way is worse, as list shows it. Where the research leaves it open
     the answer is the firm's, in the settings file, not in the catalog."""
+    if getattr(s, "shown", False):
+        return "shown, not rated"
     if not s.rated:
         return "input, not rated"
     return s.stress or "the firm's settings"
@@ -28,9 +33,11 @@ def direction(s):
 
 def cmd_list(_):
     rated = [s for s in SERIES if s.rated]
-    print("%d series in the catalog (%d rated, %d inputs to a derived reading)\n"
-          % (len(SERIES), len(rated), len(SERIES) - len(rated)))
+    print("%d series in the catalog (%d rated, %d inputs to a derived reading, %d shown and not rated)\n"
+          % (len(SERIES), len(rated), len(SERIES) - len(rated) - len(SHOWN), len(SHOWN)))
     for s in SERIES:
+        if s.shown:
+            continue
         if s.key.startswith("unemployment_") and s.key != "unemployment_ak":
             continue
         name = "Unemployment rate by state (51: AK ... WY)" if s.key == "unemployment_ak" else s.title
@@ -43,6 +50,13 @@ def cmd_list(_):
                                                           direction(d), d.title))
     print("\nIn the ready-to-rate group but not read yet:")
     for what, why in NOT_YET:
+        print("  %s: %s" % (what, why))
+    print("\nThe usable-with-care group: shown, never rated (why each needs care is on its workbook tab):")
+    for s in SHOWN:
+        print("  %-26s %-10s %-9s from %-10s %-24s %s" % (s.key, s.group, s.frequency, s.starts, direction(s),
+                                                          s.title))
+    print("\nIn the usable-with-care group but not read:")
+    for what, why in NOT_SHOWN:
         print("  %s: %s" % (what, why))
 
 
@@ -60,10 +74,15 @@ def cmd_show(a):
         raise SystemExit("not in the catalog: %s" % a.key)
     points, vintage = load(a.cache, a.key, a.vintage)
     s = BY_KEY[a.key]
-    print(json.dumps({"key": s.key, "title": s.title, "publisher": s.publisher, "unit": s.unit,
-                      "vintage": vintage, "breaks": [list(b) for b in s.breaks]}, indent=1))
+    # A licence that asks for wording gets it wherever the data are printed: here, before and after them
+    # (Codex on #452: show printed the NY Fed survey's numbers without it).
+    print(json.dumps(dict({"key": s.key, "title": s.title, "publisher": s.publisher, "unit": s.unit,
+                           "vintage": vintage, "breaks": [list(b) for b in s.breaks]},
+                          **({"credit": s.credit} if s.credit else {})), indent=1))
     for d, v in points[-a.tail:]:
         print(d, "missing" if v is None else v)
+    if s.credit:
+        print("\n" + s.credit)
 
 
 def cmd_settings_template(a):
@@ -72,13 +91,28 @@ def cmd_settings_template(a):
 
 def cmd_rate(a):
     settings = load_settings(a.settings)
+    other = None
+    if a.compare:
+        try:
+            other = load_settings(a.compare)
+        except Refused as e:
+            raise Refused("the what-if settings in %s: %s" % (a.compare, e))
     p = Pull(a.cache, a.vintage)
     result = rate_all(a.cache, settings, pull=p)
+    whatif = None
+    if other is not None:
+        from .compare import compare
+        whatif = compare(result, rate_all(a.cache, other, pull=p), pathlib.Path(a.settings).name,
+                         pathlib.Path(a.compare).name)
     if a.workbook:
         from .workbook import build
-        print("wrote %s" % build(a.workbook, result, p), file=sys.stderr)
+        print("wrote %s" % build(a.workbook, result, p, whatif=whatif), file=sys.stderr)
     if a.json:
-        print(json.dumps(result, indent=1))
+        print(json.dumps(dict(result, compare=whatif) if whatif else result, indent=1))
+        return 0
+    if whatif:
+        from .compare import lines
+        print("\n".join(lines(whatif)))
         return 0
     s = result["settings"]
     print("Ratings from the pull of %s. History: %s. Change over %d months. Cut-offs for 2 to 5: %s "
@@ -93,6 +127,14 @@ def cmd_rate(a):
         print("\nNot rated:")
         for x in result["not_rated"]:
             print("  %-26s %-8s %s" % (x["key"], x["reading"], x["why"]))
+    if result["shown"] or result["not_shown"]:
+        print("\nShown, not rated (the usable-with-care group):")
+        for x in result["shown"]:
+            print("     %-26s %-8s %s" % (x["key"], x["reading"], x["sentence"]))
+        for x in result["not_shown"]:
+            print("     %-26s %-8s nothing to show: %s" % (x["key"], x["reading"], x["why"]))
+        for credit in sorted({x["credit"] for x in result["shown"] if x.get("credit")}):
+            print("\n  %s" % credit)
     return 0
 
 
@@ -117,6 +159,8 @@ def main(argv=None):
     pr.add_argument("--vintage")
     pr.add_argument("--json", action="store_true")
     pr.add_argument("--workbook", metavar="OUT.xlsx", help="also write the workbook the teams read")
+    pr.add_argument("--compare", metavar="WHAT-IF.json",
+                    help="a second settings file: rate the same pull with it and show what changes")
     a = p.parse_args(argv)
     commands = {"list": cmd_list, "pull": cmd_pull, "show": cmd_show,
                 "settings-template": cmd_settings_template, "rate": cmd_rate}

@@ -9,7 +9,7 @@ as the spreadsheet; there is no Excel here. The procedure it produced is
 **none of the 13 findings below**. Eleven are fixed. Each fix has a test, and a deliberate break of the
 fix makes that test fail (checked). The suite is now 78 tests. Two findings are open:
 - **W1** needs a line in a file outside the paths this work may write.
-- **W12** is a feature, proposed below.
+- **W12** is a feature, proposed below. *Built on 17 Oct 2026, after the firm said yes; W1 is still open.*
 
 Nothing was fixed during the walk. Each fix was made after it, and checked by walking its step again.
 
@@ -22,7 +22,7 @@ They are ranked by what each would cost the teams that read the workbook.
 | W7 | Chart labels printed the raw float, after a fix had been claimed | Fixed |
 | W2, W3 | `list` said "firm sets direction" after the firm had set them, and of two series never rated | Fixed |
 | W1 | The pull goes into `work/` inside the repository, which nothing ignores | **Open** |
-| W12 | A what-if needs a hand-written comparison | **Open (proposal)** |
+| W12 | A what-if needs a hand-written comparison | Built, 17 Oct 2026 |
 | W10 | Quarterly chart axes repeated the year | Fixed |
 | W8 | A tab's "change only" note was cut off | Fixed |
 | W14, W11 | Printing gave 856 pages, and the Sahm chart split across two | Fixed |
@@ -111,6 +111,12 @@ level, from 2 to 4. The threshold workbook's *What happens if* section is the mo
 
 **Proposal:** `rate --compare OTHER-SETTINGS.json` would print, and write to the workbook, each reading
 whose rating differs, old and new. The firm decides whether it is wanted.
+
+**Built, 17 Oct 2026** (the firm: *"i set yes"*). `rate --compare` prints and writes it, as proposed, and
+the workbook gains a What if tab and dashed lines on every chart it applies to (`TOOL.md`, *What if*). Run
+on the pull of 17 Oct 2026 with the last 30 years, it finds the same 7 national readings the script found,
+the mortgage rate's level among them, from 2 to 4. Tests: `tests/test_macro_compare.py` and the four What
+if tests in `tests/test_macro_workbook.py`; each of eight deliberate breaks makes one fail.
 
 ## W10. Quarterly axes repeated the year
 

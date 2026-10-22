@@ -78,3 +78,44 @@ def test_every_catalog_source_has_a_reader_and_an_address():
     for s in BY_KEY.values():
         assert s.source in sources.READERS
         assert sources.url_for(s, "2026").startswith("https://")
+
+
+def sce_workbook(rows, sheet="Delinquency expectations",
+                 title="Mean probability of missing minimum debt payment over the next three months"):
+    """The NY Fed's SCE workbook as it is laid out: four rows of source and title, then month and mean."""
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    wb.active.title = "Disclaimer"
+    ws = wb.create_sheet(sheet)
+    ws.append(["Source:  Survey of Consumer Expectations, (c) 2013-26 Federal Reserve Bank of New York (FRBNY)."])
+    ws.append(["Debt delinquency expectations"])
+    ws.append([None])
+    ws.append([None, title])
+    for r in rows:
+        ws.append(list(r))
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def test_sce_reads_each_month_and_keeps_a_blank_month_missing():
+    raw = sce_workbook([(201306, 13.408), (201307, None), (201308, "."), (201309, 12.2)])
+    pts = sources.read(BY_KEY["expected_missed_payment"], raw)
+    assert pts == [("2013-06-01", 13.408), ("2013-07-01", None), ("2013-08-01", None), ("2013-09-01", 12.2)]
+
+
+def test_sce_refuses_a_workbook_without_the_sheet_or_with_another_question_in_it():
+    with pytest.raises(ValueError, match="no sheet"):
+        sources.read_nyfed_sce(sce_workbook([(201306, 13.4)], sheet="Inflation expectations"),
+                               "Delinquency expectations")
+    # Another question laid out the same way is never read as this one.
+    with pytest.raises(ValueError, match="does not hold"):
+        sources.read_nyfed_sce(sce_workbook([(201306, 3.1)], title="Median one-year-ahead expected inflation rate"),
+                               "Delinquency expectations")
+    with pytest.raises(ValueError, match="not the NY Fed's SCE workbook"):
+        sources.read_nyfed_sce(b"<html>We'll be back soon!</html>", "Delinquency expectations")
+
+
+def test_sce_refuses_a_number_that_is_not_a_month():
+    with pytest.raises(ValueError, match="201313 where a month belongs"):
+        sources.read_nyfed_sce(sce_workbook([(201312, 13.4), (201313, 13.5)]), "Delinquency expectations")

@@ -2,16 +2,30 @@
 
 Made only from a finished rating run, so it cannot exist without the firm's
 settings. Every number in it is a value written by Python; nothing is a
-formula, so nothing moves after it is written. It follows the threshold
-workbook's design (Claude Design's hand-off, 13 Oct 2026, in
-keybank_style.py): titles on paper, canvas headers, and the same five rating
-colours, as chips in the tables and as shaded bands behind every chart.
+formula, so nothing moves after it is written.
+
+Its look is PocketBook's workbook (pocketbook/docs/redesign-2026-09-26, built
+in pocketbook/src/pocketbook/house.py): a dark title band with the red rule
+under it, one "How this tab works" note per tab that folds away, tiles for the
+headline figures, dark section bands, and tabs coloured for what they hold
+(results dark, the record grey). Its charts are Claude Design's for the
+threshold workbook (docs/design/HANDOFF.md, in keybank_style.py): the five
+rating bands shaded behind the history, the history in ink, the latest reading
+ringed and labelled, and a second set of settings drawn as dashed lines, as
+the threshold workbook draws "what happens if".
 
     Ratings      every national series by topic: its level and its change,
                  each rated, and the reading that stands out
+    What if      only with --compare: every reading rated under a second set
+                 of settings, side by side with the first
     States       unemployment by state: level and change
+    Shown, not rated  the report's "usable with care" group: each series'
+                 latest reading and where it sits in its own history, with
+                 no rating, and the rest of the group with why it is not read
     one per series   its ratings, where each rating starts, its history over
                  the five bands, what it is and where it comes from
+    one per shown series  its latest reading, where it sits, its history,
+                 and why it is only usable with care
     State data   every state's unemployment rate, month by month
     Not rated    only when something could not be rated, and why
     Glossary     every term, and how it is worked out
@@ -19,12 +33,16 @@ colours, as chips in the tables and as shaded bands behind every chart.
     Sources      every file: address, licence, when fetched, SHA-256
 """
 import datetime
+import math
 
-from .catalog import BY_KEY, DERIVED, HIGHER, RATED, SERIES, STATES
+from .catalog import BY_KEY, DERIVED, HIGHER, NOT_SHOWN, RATED, SERIES, SHOWN, STATES
+from .compare import CALLED, NOT_ASKED, plain, row_label, when
 from .rate import changes, sahm
-from .settings import QUESTIONS, readings_of
+from .settings import QUESTIONS, Refused, readings_of
 
 RATINGS = ("Low", "Moderate-Low", "Moderate", "Moderate-High", "High")
+SHORT = {1: "1 Low", 2: "2 Mod-Low", 3: "3 Moderate", 4: "4 Mod-High", 5: "5 High"}
+ROW_RULE = "EFEBE4"      # PocketBook's one-pixel line between rows
 
 #: The Ratings tab's sections, in reading order, and each series' tab name.
 TOPICS = [
@@ -52,6 +70,38 @@ TAB = {
     "bond_recession_probability": "Bond recession prob", "nfci": "NFCI", "nfci_adjusted": "NFCI adjusted",
     "stlfsi": "St Louis stress", "kcfsi": "Kansas City stress", "yield_curve": "Yield curve",
 }
+WHAT_IF_LINES = 34       # AH onwards: the what-if's lines, four columns a reading, hidden
+
+#: The Shown tab's sections, and each shown series' tab name.
+SHOWN_TOPICS = [
+    ("Jobs and income", ["underemployment", "job_openings", "layoffs_rate", "quits_rate", "temp_help", "wages_eci",
+                         "hourly_earnings", "real_income", "income_ex_transfers", "saving_rate"]),
+    ("Household debt, credit and housing", ["debt_service", "debt_service_mortgage", "debt_service_consumer",
+                                            "card_minimum_payment", "expected_missed_payment", "auto_standards",
+                                            "other_consumer_standards", "new_home_supply"]),
+    ("Business", ["equipment_orders", "business_applications", "likely_employer_applications",
+                  "philadelphia_survey", "empire_survey", "dallas_survey", "cre_standards_construction",
+                  "cre_standards_nonresidential", "cre_standards_multifamily", "customs_duties"]),
+    ("Policy and markets", ["policy_uncertainty", "trade_policy_uncertainty", "vix"]),
+]
+SHOWN_TAB = {
+    "underemployment": "Underemployment", "job_openings": "Job openings", "layoffs_rate": "Layoffs rate",
+    "quits_rate": "Quits rate", "temp_help": "Temp help jobs", "wages_eci": "Wages (ECI)",
+    "hourly_earnings": "Hourly earnings", "real_income": "Real income", "income_ex_transfers": "Income ex transfers",
+    "saving_rate": "Saving rate", "debt_service": "Debt service", "debt_service_mortgage": "Mortgage debt service",
+    "debt_service_consumer": "Consumer debt service", "card_minimum_payment": "Card minimum payments",
+    "expected_missed_payment": "Expected missed payments", "auto_standards": "Auto loan standards",
+    "other_consumer_standards": "Other consumer standards", "new_home_supply": "New home supply",
+    "equipment_orders": "Equipment orders", "business_applications": "Business applications",
+    "likely_employer_applications": "Likely-employer applications", "philadelphia_survey": "Philadelphia survey",
+    "empire_survey": "Empire State survey", "dallas_survey": "Dallas survey",
+    "cre_standards_construction": "CRE construction standards",
+    "cre_standards_nonresidential": "CRE nonresidential standards",
+    "cre_standards_multifamily": "CRE multifamily standards", "customs_duties": "Customs duties",
+    "policy_uncertainty": "Policy uncertainty", "trade_policy_uncertainty": "Trade policy uncertainty",
+    "vix": "VIX",
+}
+SHOWN_NAME = "Shown, not rated"
 
 
 def label(r):
@@ -73,12 +123,14 @@ def value_format(x):
 
 def nice_axis(low, high):
     """Round an axis out to a tidy step, about five steps from bottom to top."""
-    import math
     span = (high - low) or abs(high) or 1.0
     raw = span / 5
     mag = 10 ** math.floor(math.log10(raw))
     step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
-    return math.floor(low / step) * step, math.ceil(high / step) * step, step
+    lo, hi = math.floor(low / step) * step, math.ceil(high / step) * step
+    if hi <= lo:        # every reading the same, on a step: an axis of no height (Fable on #452)
+        lo, hi = lo - step, hi + step
+    return lo, hi, step
 
 
 def band_heights(lines, direction, low, high):
@@ -98,11 +150,61 @@ def band_heights(lines, direction, low, high):
     return low, [max(b - a, 0.0) for a, b in zip(cuts, cuts[1:])], order
 
 
-def build(out, result, pull):
-    """Write the workbook for one rating run (``rate_all``'s result) to ``out``."""
+def move_text(rows, months):
+    """How a series' readings stand under the what-if, as a Ratings or States cell says it, from every one
+    of its comparison rows: each reading that moves, is rated on one side only, or is not rated where its
+    settings asked for it says so; one at the same rating says nothing. Empty when there is nothing to say,
+    and the caller writes "same rating" or "not rated under either" (Codex on #452: a row left out of the
+    cell let a failed reading read as the same rating). ``months`` is each side's horizon; a change counted
+    over different months names the what-if's when the what-if is the side reported."""
+    if all(not (r["a"] or r["b"]) and r["why_a"] != NOT_ASKED and r["why_b"] != NOT_ASKED for r in rows):
+        return ""                         # none, or every reading asked for under both and rated under neither
+    parts = []
+    for r in rows:
+        what = "Level" if r["reading"] == "position" else "Change"
+        if r["a"] or r["b"]:
+            # The horizon named is that of a rating the cell reports: the what-if's when the what-if rated it,
+            # none when only these settings did (Fable on #452, the fourth branch of the same fault).
+            when_ = "" if r["same_measure"] or not r["b"] else " (what if: over %d months)" % months[1]
+            if r["move"]:
+                parts.append("%s %d → %d%s" % (what, r["a"]["rating"], r["b"]["rating"], when_))
+            elif r["move"] is None:
+                parts.append("%s%s: rated %s only" % (what, when_, "as you have it" if r["a"] else
+                                                      "under the what-if"))
+        else:
+            asked_a, asked_b = r["why_a"] != NOT_ASKED, r["why_b"] != NOT_ASKED
+            when_ = "" if r["same_measure"] or not asked_b else " (what if: over %d months)" % months[1]
+            parts.append("%s%s: not rated %s" % (what, when_, "under either" if asked_a and asked_b else
+                                                 "as you have it" if asked_a else "under the what-if"))
+    return "; ".join(parts)
+
+
+def summary_text(rows, months):
+    """The whole Ratings or States cell for a series: what moved or failed, else whether it held."""
+    return move_text(rows, months) or ("same rating" if any(r["move"] == 0 for r in rows) else
+                                       "not rated under either")
+
+
+def build(out, result, pull, whatif=None):
+    """Write the workbook for one rating run (``rate_all``'s result) to ``out``.
+
+    ``whatif`` is ``compare.compare``'s result for a second set of settings on
+    the same pull; with it the workbook gains the What if tab, a column for it
+    on Ratings and States, and dashed lines on every chart it applies to. A
+    what-if made from other bytes, or against other settings than this
+    rating's, is refused: every input is checked against one reading of the
+    pull (Codex on #452)."""
+    if result["vintage"] != pull.vintage:
+        raise Refused("the rating is of the pull of %s and the Pull given is of %s: build from the Pull the "
+                      "rating used." % (result["vintage"], pull.vintage))
+    if whatif and (whatif["vintage"] != result["vintage"] or whatif["read_sha"] != result["read_sha"]
+                   or whatif["baseline"] != result["settings"]):
+        raise Refused("the what-if was not compared against this rating (another pull, other bytes of it, or "
+                      "other settings as you have it). Compare this rating and build from the same Pull.")
     from openpyxl import Workbook
-    from openpyxl.chart import AreaChart, LineChart, Reference
+    from openpyxl.chart import AreaChart, BarChart, LineChart, Reference
     from openpyxl.chart.label import DataLabelList
+    from openpyxl.chart.legend import Legend
     from openpyxl.chart.shapes import GraphicalProperties
     from openpyxl.chart.text import RichText
     from openpyxl.drawing.line import LineProperties
@@ -123,13 +225,25 @@ def build(out, result, pull):
     items = {i.key: i for i in RATED}
     state_keys = {"unemployment_" + st.lower() for st in STATES}
     national = [k for _, keys in TOPICS for k in keys]
+    topic_of = {k: t for t, keys in TOPICS for k in keys}
+    wrows = {}
+    b_months = None
+    if whatif:
+        for x in whatif["rows"]:
+            wrows.setdefault(x["key"], {})[x["reading"]] = x
+        b_months = "%d months" % whatif["months"][1]
 
-    F_DATA = Font(name="Calibri", size=11, color=K.INK_TEXT)
+    F_DATA = Font(name="Calibri", size=10, color=K.INK_TEXT)
+    F_BOLD = Font(name="Calibri", size=10, bold=True, color=K.INK_TEXT)
     F_NOTE = Font(name="Calibri", size=10, color=K.SLATE)
-    F_LABEL = Font(name="Arial", size=9, bold=True, color=K.SLATE)
-    F_LINK = Font(name="Calibri", size=11, color="1F4E79", underline="single")
+    F_FIELD = Font(name="Arial", size=8, bold=True, color=K.SLATE)
+    F_BIG = Font(name="Calibri", size=14, bold=True, color=K.INK_TEXT)
+    F_LINK = Font(name="Calibri", size=10, color="1F4E79", underline="single")
+    F_UP = Font(name="Calibri", size=10, bold=True, color=K.CRIMSON)
+    F_DOWN = Font(name="Calibri", size=10, bold=True, color=K.POSITIVE)
     WRAP = Alignment(wrap_text=True, vertical="top")
     CENTER = Alignment(horizontal="center", vertical="center")
+    MIDDLE = Alignment(vertical="center")
 
     def ln(hex_, width_pt=None, dash=None):
         lp = LineProperties(solidFill=hex_)
@@ -143,8 +257,12 @@ def build(out, result, pull):
         cp = CharacterProperties(sz=int(size * 100), b=bold, solidFill=color, latin=None)
         return RichText(p=[Paragraph(pPr=ParagraphProperties(defRPr=cp), endParaRPr=cp)])
 
+    def side(style, color):
+        return Side(style=style, color=color)
+
     wb = Workbook()
 
+    # -- the house anatomy (PocketBook's house.py, written here for this workbook) ---------------------------
     def sheet(title, first=False):
         ws = wb.active if first else wb.create_sheet()
         ws.title = title
@@ -152,18 +270,130 @@ def build(out, result, pull):
         ws.page_setup.orientation = "landscape"
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
+        ws.column_dimensions["A"].width = 2.71
         return ws
 
-    def widths(ws, ws_widths, first=1):
+    def widths(ws, ws_widths, first=2):
         for i, w in enumerate(ws_widths, first):
             ws.column_dimensions[L(i)].width = w
 
-    def chip(ws, row, col, r, size=9):
-        c = ws.cell(row, col, label(r))
+    def title_band(ws, title, sub, last, record=False, tab=None):
+        """Row 1: the tab's name in white on ink, a one-line subtitle beside it, a thick red rule under it.
+        The record tabs are slate with a stone rule, and their tabs grey. ``tab`` sets another tab colour: the
+        shown series' tabs are slate, between the results and the record."""
+        fill, rule = (K.SLATE, K.STONE) if record else (K.INK, K.KEY_RED)
+        for col in range(1, last + 1):
+            c = ws.cell(1, col)
+            c.fill = K.solid(fill)
+            c.border = Border(bottom=side("thick", rule))
+        c = ws.cell(1, 2, title)
+        c.font = Font(name="Arial", bold=True, size=16, color=K.PAPER)
+        c.alignment = MIDDLE
+        # The subtitle is its own cell, in the first column past the title (Arial 16 bold runs about 1.9 width
+        # units a character), as PocketBook writes it. Not rich text in one cell: no workbook the firm opens in
+        # Excel uses that, and the firm's Excel refused this one (17 Oct 2026).
+        need, col, used = len(title) * 1.9 + 3, 2, 0
+        while used < need and col < last:
+            used += ws.column_dimensions[L(col)].width or 9
+            col += 1
+        s_ = ws.cell(1, col, sub)
+        s_.font = Font(name="Arial", size=10, color=K.MIST if record else K.STONE)
+        s_.alignment = MIDDLE
+        ws.row_dimensions[1].height = 30
+        ws.sheet_properties.tabColor = tab or (K.STONE if record else K.INK)
+
+    def width_of(ws, first, last):
+        return sum((ws.column_dimensions[L(c)].width or 9) for c in range(first, last + 1))
+
+    def method_note(ws, top, last, entries, label_cols=1, first=2):
+        """The tab's one method note: a heading row, then one row per entry, the label bold and the words in
+        one merged cell that wraps, on canvas. The entries are grouped under the heading, so the reader folds
+        them away with the outline's minus."""
+        for col in range(first, last + 1):
+            ws.cell(top, col).fill = K.solid(K.CANVAS)
+        ws.cell(top, first, "How this tab works").font = Font(name="Arial", bold=True, size=9, color=K.SLATE)
+        text_col = first + label_cols
+        per_line = width_of(ws, text_col, last) * 1.4
+        r = top + 1
+        for name, words in entries:
+            for col in range(first, last + 1):
+                ws.cell(r, col).fill = K.solid(K.CANVAS)
+            a = ws.cell(r, first, name)
+            a.font, a.alignment = F_BOLD, Alignment(vertical="top")
+            ws.merge_cells(start_row=r, start_column=text_col, end_row=r, end_column=last)
+            b = ws.cell(r, text_col, words)
+            b.font, b.alignment = F_DATA, WRAP
+            ws.row_dimensions[r].height = 14 * max(1, math.ceil(len(words) / per_line)) + 3
+            r += 1
+        ws.row_dimensions.group(top + 1, r - 1, outline_level=1, hidden=False)
+        ws.sheet_properties.outlinePr.summaryBelow = False
+        return r + 1
+
+    def tile(ws, row, first, last, name, value, fmt=None, to=None):
+        """A headline figure over two rows: canvas, a thick red rule on top, the label small, the value bold."""
+        for rr in (row, row + 1):
+            for col in range(first, last + 1):
+                c = ws.cell(rr, col)
+                c.fill = K.solid(K.CANVAS)
+                c.border = Border(top=side("thick", K.KEY_RED)) if rr == row else Border()
+            if last > first:
+                ws.merge_cells(start_row=rr, start_column=first, end_row=rr, end_column=last)
+        a = ws.cell(row, first, name)
+        a.font, a.alignment = Font(name="Calibri", size=9, color=K.SLATE), Alignment(vertical="top", indent=1)
+        b = ws.cell(row + 1, first, value)
+        b.font = Font(name="Arial", bold=True, size=12, color=K.INK_TEXT)
+        b.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        if fmt:
+            b.number_format = fmt
+        if to:
+            b.hyperlink = "#'%s'!A1" % to
+            b.font = Font(name="Arial", bold=True, size=12, color="1F4E79", underline="single")
+        ws.row_dimensions[row].height = 15
+        ws.row_dimensions[row + 1].height = 22
+
+    def section(ws, row, words, last, first=2):
+        """A section's dark band, one row, with the red rule under it."""
+        for col in range(first, last + 1):
+            c = ws.cell(row, col)
+            c.fill = K.solid(K.INK)
+            c.border = Border(bottom=side("medium", K.KEY_RED))
+        c = ws.cell(row, first, words)
+        c.font, c.alignment = Font(name="Arial", bold=True, size=10, color=K.PAPER), MIDDLE
+        ws.row_dimensions[row].height = 20
+        return row + 1
+
+    def sub_header(ws, row, heads, first=2, right=(), centre=(), height=25.5):
+        """The canvas row naming a section's columns."""
+        for i, h in enumerate(heads):
+            c = ws.cell(row, first + i, h)
+            c.fill = K.solid(K.CANVAS)
+            c.font = Font(name="Arial", bold=True, size=9, color=K.SLATE)
+            c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if i in right else
+                                    "center" if i in centre else "left")
+        ws.row_dimensions[row].height = height
+        return row + 1
+
+    def header(ws, row, heads, first=2, right=(), centre=(), height=25.5):
+        """A table's column headers: ink, white Arial bold."""
+        for i, h in enumerate(heads):
+            c = ws.cell(row, first + i, h)
+            c.fill = K.solid(K.INK)
+            c.font = Font(name="Arial", bold=True, size=9, color=K.PAPER)
+            c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="right" if i in right else
+                                    "center" if i in centre else "left")
+        ws.row_dimensions[row].height = height
+        return row + 1
+
+    def rule(ws, row, first, last):
+        for col in range(first, last + 1):
+            ws.cell(row, col).border = Border(bottom=side("thin", ROW_RULE))
+
+    def chip(ws, row, col, r, size=9, short=False):
+        c = ws.cell(row, col, SHORT[r] if short else label(r))
         c.font = Font(name="Arial", bold=True, size=size, color=K.INK)
         c.fill = K.solid(K.BANDS[r - 1])
         c.alignment = CENTER
-        c.border = Border(left=Side(style="thin", color=K.PAPER), right=Side(style="thin", color=K.PAPER))
+        c.border = Border(left=side("thin", K.PAPER), right=side("thin", K.PAPER))
         return c
 
     def link(cell, sheet_name, text_=None):
@@ -172,10 +402,18 @@ def build(out, result, pull):
         cell.hyperlink = "#'%s'!A1" % sheet_name
         cell.font = F_LINK
 
-    def note(ws, row, col, value, last_col):
+    def note(ws, row, col, value, last_col, font=None):
         ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=last_col)
         c = ws.cell(row, col, value)
-        c.font, c.alignment = F_NOTE, WRAP
+        c.font, c.alignment = font or F_NOTE, WRAP
+        return c
+
+    def put(ws, row, col, value, fmt=None, font=None, align=None):
+        c = ws.cell(row, col, value)
+        c.font = font or F_DATA
+        if fmt:
+            c.number_format = fmt
+        c.alignment = align or MIDDLE
         return c
 
     def standout(key):
@@ -184,141 +422,543 @@ def build(out, result, pull):
             return None
         return max(got.values(), key=lambda r: (r["rating"], r["reading"] == "change"))
 
+    def change_value(item, v):
+        """A change as a cell holds it: a percent change as a fraction, so the cell's format shows %."""
+        if item.change_in == "percent":
+            return v / 100, "+#,##0.0#%;-#,##0.0#%;0%"
+        return v, "+#,##0.0#;-#,##0.0#;0"
+
+    def moved_font(rows):
+        if any(r["move"] and r["move"] > 0 for r in rows):
+            return F_UP
+        if any(r["move"] and r["move"] < 0 for r in rows):
+            return F_DOWN
+        return F_NOTE
+
     # -- Ratings ----------------------------------------------------------
     ws = sheet("Ratings", first=True)
-    widths(ws, [2.71, 46, 11, 12, 30, 16, 12, 12, 16, 12, 12, 90])
-    row = K.light_title(ws, 1, 11, "Economic conditions",
-                        "Public data, pulled %s. Each series against its own history: 1 Low to 5 High."
-                        % vintage, first_col=2)
-    row += 1
+    last = 13 if whatif else 12
+    widths(ws, [46, 11, 12, 30, 16, 12, 12, 16, 12, 12, 90] + ([26] if whatif else []))
+    title_band(ws, "Economic conditions", "Public data, pulled %s. Each series against its own history: "
+                                          "1 Low to 5 High." % vintage, last)
     every = [r for r in result["ratings"] if r["key"] not in state_keys]
-    ws.cell(row, 2, "Readings at each rating, national series").font = F_LABEL
-    short = {5: "5 High", 4: "4 Mod-High", 3: "3 Moderate", 2: "2 Mod-Low", 1: "1 Low"}
-    for i, k in enumerate((5, 4, 3, 2, 1)):
-        chip(ws, row, 6 + i, k).value = short[k]
-        c = ws.cell(row + 1, 6 + i, sum(1 for r in every if r["rating"] == k))
-        c.font, c.alignment = Font(name="Calibri", size=14, bold=True, color=K.INK_TEXT), CENTER
-    ws.row_dimensions[row + 1].height = 21
+    tile(ws, 3, 2, 2, "From the pull of", vintage)
+    tile(ws, 3, 3, 4, "Readings rated", len(result["ratings"]), "#,##0")
     sahm_x = next(iter(result["alongside"]), None)
     if sahm_x:
-        ws.cell(row + 2, 2, "Sahm reading").font = F_LABEL
-        c = ws.cell(row + 2, 3, "%.2f in %s. Sahm's published trigger is 0.50; shown, not rated."
-                    % (sahm_x["value"], _date(sahm_x["date"]).strftime("%b %Y")))
-        c.font = F_DATA
-    row += 4
-    cut = s["cutoffs"]
-    note(ws, row, 2, "Level: where the latest reading sits in the series' own history. Change: how its change over "
-                     "%d months compares with every such change in that history. A rating of 2 starts at the "
-                     "%gth percentile, 3 at the %gth, 4 at the %gth and 5 at the %gth. Click a series to open it."
-                     % (months, cut[0], cut[1], cut[2], cut[3]), 12)
-    ws.row_dimensions[row].height = 30
-    row += 2
+        tile(ws, 3, 5, 5, "Sahm reading, shown, not rated", "%.2f in %s" % (
+            sahm_x["value"], _date(sahm_x["date"]).strftime("%b %Y")))
+    ws.cell(2, 6, "NATIONAL READINGS AT EACH RATING").font = F_FIELD
+    for i, k in enumerate((5, 4, 3, 2, 1)):
+        c = chip(ws, 3, 6 + i, k, short=True)
+        if k == 1:
+            c.border = Border(left=side("thin", K.STONE), right=side("thin", K.STONE), top=side("thin", K.STONE))
+        c = put(ws, 4, 6 + i, sum(1 for r in every if r["rating"] == k),
+                font=Font(name="Arial", size=14, bold=True, color=K.INK_TEXT), align=CENTER)
+        c.fill = K.solid(K.CANVAS)
+    if whatif:
+        nat = [x for x in whatif["rows"] if x["key"] not in state_keys]
+        moved = sum(1 for x in nat if x["move"])
+        tile(ws, 3, 12, 13, "What if: %s" % whatif["b"], "%d of %d national readings change rating" % (
+            moved, sum(1 for x in nat if x["move"] is not None)), to="What if")
+    entries = [
+        ("Level", "Where the latest reading sits in the series' own history: the share of every reading in that "
+                  "history at or beyond it in the direction of stress."),
+        ("Change", "The change over %d months, measured the same way against every such change in that history. "
+                   "Twelve series that grow with prices and output are rated on their change only." % months),
+        ("Rating", "1 Low to 5 High. Rating 2 starts at the %gth percentile, 3 at the %gth, 4 at the %gth and 5 at "
+                   "the %gth. A reading exactly on a cut-off takes the %s rating." % (
+                       *s["cutoffs"], s["on_the_line"])),
+        ("History from", "The first reading each rating is measured against: %s." % (
+            "the full history the publisher has" if s["history"] == "full" else
+            "the last %d years up to the latest reading" % s["history"]["years"])),
+        ("What stands out", "The sentence behind the higher of the series' two ratings; the change on a tie."),
+    ]
+    if sahm_x:
+        entries.append(("Sahm reading", "The 3-month average unemployment rate minus its lowest 3-month average in "
+                                        "the 12 months before. Sahm's published trigger is 0.50; shown, not "
+                                        "rated."))
+    if whatif:
+        entries.append(("What if", "Each reading whose rating differs under %s, rated from the same pull. The "
+                                   "What if tab sets every reading side by side." % whatif["b"]))
+    entries.append(("Series", "Each name opens the series' tab: both ratings, where each rating starts, and the "
+                              "history drawn over the five rating bands."))
+    entries.append((SHOWN_NAME, "%d more series, short, broken or heavily revised, are on the %s tab: drawn "
+                                "against their own history and never rated." % (len(SHOWN), SHOWN_NAME)))
+    link(ws.cell(2, 2), SHOWN_NAME, "Also shown, not rated: %d series" % len(SHOWN))
+    row = method_note(ws, 6, last, entries)
     cols = ["Series", "Latest", "Value", "Unit", "Level", "Level percentile", "Change over %d months" % months,
-            "Change", "Change percentile", "History from", "What stands out"]
+            "Change", "Change percentile", "History from", "What stands out"] + (["What if"] if whatif else [])
     for topic, keys in TOPICS:
-        row = K.quiet_section(ws, row, topic, 11, first_col=2)
-        row = K.canvas_header(ws, row, cols, first_col=2, right_from=None)
-        for j in (6, 9, 11):
-            ws.cell(row - 1, j).alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
-        for j in (3, 4, 7, 8, 10):
-            ws.cell(row - 1, j).alignment = Alignment(wrap_text=True, vertical="center", horizontal="right")
+        row = section(ws, row, topic, last)
+        row = sub_header(ws, row, cols, right=(1, 2, 5, 6, 8), centre=(4, 7, 9))
         ranked = sorted(keys, key=lambda k: (-(standout(k) or {"rating": 0})["rating"], items[k].title))
         for key in ranked:
             got = by_key.get(key, {})
             lvl, chg, top = got.get("position"), got.get("change"), standout(key)
-            link(ws.cell(row, 2), TAB[key], items[key].title)
-            first = lvl or chg
-            ws.cell(row, 5, items[key].unit).font = F_NOTE
-            pts = pull.points(items[key])
+            item = items[key]
+            link(ws.cell(row, 2), TAB[key], item.title)
+            put(ws, row, 5, item.unit, font=F_NOTE)
+            pts = pull.points(item)
             now = next(((d, v) for d, v in reversed(pts) if v is not None), None) if not isinstance(pts, str) else None
             if now:                     # the latest value, rated on its level or not
-                c = ws.cell(row, 3, _date(now[0]))
-                c.number_format, c.font = "yyyy-mm-dd", F_DATA
-                c = ws.cell(row, 4, now[1])
-                c.number_format, c.font = value_format(now[1]), F_DATA
+                put(ws, row, 3, _date(now[0]), "yyyy-mm-dd")
+                put(ws, row, 4, now[1], value_format(now[1]))
             if lvl:
                 chip(ws, row, 6, lvl["rating"])
-                c = ws.cell(row, 7, lvl["percentile"] / 100)
-                c.number_format, c.font = "0.0%", F_DATA
-            elif items[key].position:
-                c = ws.cell(row, 6, "change only")
-                c.font, c.alignment = F_NOTE, CENTER
-            if not chg and "change" not in readings_of(items[key], s["change_for"]):
-                c = ws.cell(row, 9, "level only")      # not asked for by the settings: not a failure
-                c.font, c.alignment = F_NOTE, CENTER
+                put(ws, row, 7, lvl["percentile"] / 100, "0.0%")
+            elif item.position:
+                put(ws, row, 6, "change only", font=F_NOTE, align=CENTER)
+            if not chg and "change" not in readings_of(item, s["change_for"]):
+                put(ws, row, 9, "level only", font=F_NOTE, align=CENTER)   # not asked for: not a failure
             if chg:
-                c = ws.cell(row, 8, chg["value"])
-                c.number_format = "+#,##0.0#%;-#,##0.0#%;0%" if items[key].change_in == "percent" else \
-                    "+#,##0.0#;-#,##0.0#;0"
-                if items[key].change_in == "percent":
-                    c.value = chg["value"] / 100
-                c.font = F_DATA
+                v, fmt = change_value(item, chg["value"])
+                put(ws, row, 8, v, fmt)
                 chip(ws, row, 9, chg["rating"])
-                c = ws.cell(row, 10, chg["percentile"] / 100)
-                c.number_format, c.font = "0.0%", F_DATA
+                put(ws, row, 10, chg["percentile"] / 100, "0.0%")
+            first = lvl or chg
             if first:
-                c = ws.cell(row, 11, _date(first["history_from"]))
-                c.number_format, c.font, c.alignment = "yyyy-mm", F_DATA, CENTER
+                put(ws, row, 11, _date(first["history_from"]), "yyyy-mm", align=CENTER)
             if top:
-                c = ws.cell(row, 12, top["sentence"])
-                c.font, c.alignment = F_NOTE, WRAP
+                put(ws, row, 12, top["sentence"], font=F_NOTE, align=WRAP)
             if not got:
-                ws.cell(row, 12, "Not rated: see the Not rated tab").font = F_NOTE
-            for j in range(2, 13):
-                ws.cell(row, j).alignment = Alignment(vertical="center", wrap_text=j == 12,
-                                                      horizontal=ws.cell(row, j).alignment.horizontal)
+                put(ws, row, 12, "Not rated: see the Not rated tab", font=F_NOTE)
+            if whatif:
+                mine = list(wrows.get(key, {}).values())
+                put(ws, row, 13, summary_text(mine, whatif["months"]),
+                    font=moved_font(mine) if move_text(mine, whatif["months"]) else F_NOTE)
+            for j in range(2, last + 1):
+                c = ws.cell(row, j)
+                c.alignment = Alignment(vertical="center", wrap_text=j in (12, 13), horizontal=c.alignment.horizontal)
             ws.row_dimensions[row].height = 30
-            K.hairlines(ws, row, 2, 12)
+            rule(ws, row, 2, last)
             row += 1
         row += 1
-    ws.freeze_panes = "C3"
+    ws.freeze_panes = "C2"
+
+    # -- What if ----------------------------------------------------------
+    if whatif:
+        ws = sheet("What if")
+        last = 14
+        widths(ws, [40, 22] + [12] * 10 + [10])
+        title_band(ws, "What if", "%s against %s, both rating the pull of %s." % (whatif["b"], whatif["a"], vintage),
+                   last)
+        link(ws.cell(2, 2), "Ratings", "Back to Ratings")
+        nat = [x for x in whatif["rows"] if x["key"] not in state_keys]
+        sts = [x for x in whatif["rows"] if x["key"] in state_keys]
+        both = [x for x in nat if x["move"] is not None]
+        tile(ws, 3, 2, 2, "National readings rated under both", len(both))
+        tile(ws, 3, 3, 3, "At the same rating", sum(1 for x in both if x["move"] == 0))
+        tile(ws, 3, 4, 5, "Rated higher", sum(1 for x in both if x["move"] > 0))
+        tile(ws, 3, 6, 7, "Rated lower", sum(1 for x in both if x["move"] < 0))
+        tile(ws, 3, 8, 10, "State readings that change", "%d of %d" % (
+            sum(1 for x in sts if x["move"]), sum(1 for x in sts if x["move"] is not None)))
+        tile(ws, 3, 11, 14, "Rated under one set only", sum(1 for x in whatif["rows"] if x["move"] is None
+                                                             and (x["a"] or x["b"])))
+        row = method_note(ws, 6, last, [
+            ("What it is", "Every reading rated twice from the same pull: with the settings in %s (as you have it) "
+                           "and with those in %s (what if). Nothing but the settings differs." % (
+                               whatif["a"], whatif["b"])),
+            ("Percentile, history", "Each side's percentile, the first reading of the history it is measured "
+                                    "against, and how many readings that history holds."),
+            ("Move", "The what-if rating minus the rating as you have it: above zero is a higher rating, below zero "
+                     "a lower one."),
+            ("The grid", "National readings only. The rating as you have it runs down the side and the what-if "
+                         "rating across; the diagonal holds the readings at the same rating under both."),
+            ("Same rating", "The readings at the same rating under both are listed last, in rows folded away. The "
+                            "plus sign beside the row numbers opens them."),
+            ("The files", "Neither settings file is changed. The Run tab lists both files' answers."),
+        ])
+
+        # what differs
+        row = section(ws, row, "What differs between the two settings", last)
+        sub_header(ws, row, ["Setting", "", "", "", "As you have it", "", "", "", "What if"], height=18)
+        for a, b in ((2, 5), (6, 9), (10, 13)):
+            ws.merge_cells(start_row=row, start_column=a, end_row=row, end_column=b)
+        row += 1
+
+        def setting_row(rr, x, strong):
+            for a, b in ((2, 5), (6, 9), (10, 13)):
+                ws.merge_cells(start_row=rr, start_column=a, end_row=rr, end_column=b)
+            put(ws, rr, 2, x["setting"], font=F_BOLD if strong else F_NOTE, align=MIDDLE)
+            put(ws, rr, 6, x["a"], font=F_DATA if strong else F_NOTE, align=Alignment(vertical="center",
+                                                                                         wrap_text=True))
+            put(ws, rr, 10, x["b"], font=F_BOLD if strong else F_NOTE,
+                align=Alignment(vertical="center", wrap_text=True))
+            if strong:
+                for col in range(10, 14):
+                    ws.cell(rr, col).fill = K.solid(K.MIST)
+            ws.row_dimensions[rr].height = 18 if max(len(x["a"]), len(x["b"])) < 50 else 30
+            rule(ws, rr, 2, 13)
+        differ = [x for x in whatif["settings"] if x["differs"]]
+        alike = [x for x in whatif["settings"] if not x["differs"]]
+        for x in differ:
+            setting_row(row, x, True)
+            row += 1
+        if not differ:
+            put(ws, row, 2, "None: the two files give the same answers, so every rating is the same.", font=F_BOLD)
+            row += 1
+        if alike:
+            put(ws, row, 2, "The other %d settings are the same in both (folded away below)." % len(alike),
+                font=F_NOTE)
+            row += 1
+            start = row
+            for x in alike:
+                setting_row(row, x, False)
+                row += 1
+            ws.row_dimensions.group(start, row - 1, outline_level=1, hidden=True)
+        row += 1
+
+        # the grid, national readings, with the counts drawn beside it
+        row = section(ws, row, "National readings: the rating as you have it against the what-if rating", last)
+        grid = [[0] * 5 for _ in range(5)]
+        for x in both:
+            grid[x["a"]["rating"] - 1][x["b"]["rating"] - 1] += 1
+        top = row + 1
+        ws.merge_cells(start_row=top, start_column=6, end_row=top, end_column=10)
+        put(ws, top, 6, "WHAT IF", font=F_FIELD, align=CENTER)
+        put(ws, top + 1, 5, "AS YOU HAVE IT", font=F_FIELD, align=Alignment(horizontal="right", vertical="center"))
+        for k in range(1, 6):
+            chip(ws, top + 1, 5 + k, k, short=True)
+            chip(ws, top + 1 + k, 5, k, short=True)
+            for j in range(1, 6):
+                n = grid[k - 1][j - 1]
+                c = put(ws, top + 1 + k, 5 + j, n if (n or j == k) else None, "#,##0",
+                        font=F_BOLD if j == k else F_DATA, align=CENTER)
+                if j == k:
+                    c.fill = K.solid(K.CANVAS)
+                elif n:
+                    c.fill = K.solid(K.HEAT_GOOD if j < k else K.HEAT_BAD if j - k >= 2 else K.HEAT_WARM)
+            put(ws, top + 1 + k, 11, sum(grid[k - 1]), "#,##0", F_BOLD, CENTER)
+            put(ws, top + 7, 5 + k, sum(g[k - 1] for g in grid), "#,##0", F_BOLD, CENTER)
+        put(ws, top + 1, 11, "Total", font=F_FIELD, align=CENTER)
+        put(ws, top + 7, 5, "Total", font=F_FIELD, align=Alignment(horizontal="right", vertical="center"))
+        put(ws, top + 7, 11, len(both), "#,##0", F_BOLD, CENTER)
+        for rr in range(top, top + 8):
+            ws.row_dimensions[rr].height = 20
+        for col in range(5, 12):
+            ws.cell(top + 6, col).border = Border(bottom=side("thin", K.STONE))
+        # the chart's own numbers, hidden beside the table
+        put(ws, top, 16, "Rating", font=F_NOTE)
+        put(ws, top, 17, "As you have it", font=F_NOTE)
+        put(ws, top, 18, "What if", font=F_NOTE)
+        for k in range(1, 6):
+            ws.cell(top + k, 16, SHORT[k])
+            ws.cell(top + k, 17, sum(grid[k - 1]))
+            ws.cell(top + k, 18, sum(g[k - 1] for g in grid))
+        for col in (16, 17, 18):
+            ws.column_dimensions[L(col)].hidden = True
+        bar = BarChart()
+        bar.type, bar.grouping, bar.gapWidth, bar.overlap = "col", "clustered", 60, -10
+        bar.add_data(Reference(ws, min_col=17, max_col=18, min_row=top, max_row=top + 5), titles_from_data=True)
+        bar.set_categories(Reference(ws, min_col=16, min_row=top + 1, max_row=top + 5))
+        for s_, colour in zip(bar.series, (K.INK, K.KEY_RED)):
+            s_.graphicalProperties.solidFill = colour
+            s_.graphicalProperties.line.noFill = True
+        bar.dataLabels = DataLabelList()
+        bar.dataLabels.showVal = True
+        bar.dataLabels.showSerName = bar.dataLabels.showCatName = bar.dataLabels.showLegendKey = False
+        bar.dataLabels.txPr = text(9, K.INK_TEXT, True)
+        for ax in (bar.x_axis, bar.y_axis):
+            ax.delete = False
+            ax.majorGridlines = None
+            ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
+            ax.txPr = text()
+        bar.y_axis.delete = True
+        bar.legend = Legend()
+        bar.legend.position = "b"
+        bar.legend.txPr = text(9, K.INK_TEXT)
+        bar.title = "National readings at each rating"
+        bar.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True,
+                                                                                      solidFill=K.INK))
+        bar.visible_cells_only = False
+        bar.height, bar.width = 5.6, 11.6
+        bar.roundedCorners = False
+        bar.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
+        ws.add_chart(bar, "B%d" % top)
+        row = top + 9
+
+        heads = ["Series", "Reading", "Latest", "Value", "Rating", "Percentile", "History from", "Readings",
+                 "Rating", "Percentile", "History from", "Readings", "Move"]
+
+        def groups(rr):
+            for a, b, words in ((6, 9, "As you have it"), (10, 13, "What if")):
+                ws.merge_cells(start_row=rr, start_column=a, end_row=rr, end_column=b)
+                for col in range(a, b + 1):
+                    c = ws.cell(rr, col)
+                    c.fill = K.solid(K.ONYX)
+                    c.border = Border(left=side("thin", K.PAPER) if col == a else None)
+                c = ws.cell(rr, a, words)
+                c.font, c.alignment = Font(name="Arial", bold=True, size=9, color=K.PAPER), CENTER
+            ws.row_dimensions[rr].height = 16
+            return header(ws, rr + 1, heads, right=(2, 3, 5, 7, 9, 11), centre=(4, 6, 8, 10, 12), height=18)
+
+        def reading_row(rr, x):
+            item = items[x["key"]]
+            name = item.title
+            link(ws.cell(rr, 2), "States" if x["key"] in state_keys else TAB[x["key"]], name)
+            one = x["a"] or x["b"]                # None when rated under neither: no latest value to show
+            if x["same_measure"]:
+                put(ws, rr, 3, reading_name(x["reading"], months), font=F_NOTE)
+                if one:
+                    put(ws, rr, 4, _date(one["date"]), "yyyy-mm-dd")
+                    v, fmt = change_value(item, one["value"]) if x["reading"] == "change" else (
+                        one["value"], value_format(one["value"]))
+                    put(ws, rr, 5, v, fmt)
+            else:
+                # Two different changes: each side's rating is of its own, so neither value is shown as shared.
+                put(ws, rr, 3, row_label(x, whatif["months"]).capitalize(), font=F_NOTE,
+                    align=Alignment(vertical="center", wrap_text=True))
+            for col, got, why in ((6, x["a"], x["why_a"]), (10, x["b"], x["why_b"])):
+                if got:
+                    chip(ws, rr, col, got["rating"], short=True)
+                    put(ws, rr, col + 1, got["percentile"] / 100, "0.0%")
+                    put(ws, rr, col + 2, _date(got["history_from"]), "yyyy-mm", align=CENTER)
+                    put(ws, rr, col + 3, got["readings"], "#,##0")
+                else:
+                    ws.merge_cells(start_row=rr, start_column=col, end_row=rr, end_column=col + 3)
+                    put(ws, rr, col, "Not rated: " + why, font=F_NOTE, align=WRAP)
+            if x["move"]:
+                put(ws, rr, 14, ("▲ %d" if x["move"] > 0 else "▼ %d") % abs(x["move"]),
+                    font=F_UP if x["move"] > 0 else F_DOWN, align=CENTER)
+            elif x["move"] == 0:
+                put(ws, rr, 14, "same", font=F_NOTE, align=CENTER)
+            ws.row_dimensions[rr].height = 18 if x["same_measure"] else 28
+            rule(ws, rr, 2, last)
+
+        def ordered(rows_):
+            return sorted(rows_, key=lambda x: ([t for t, _ in TOPICS].index(topic_of[x["key"]])
+                                               if x["key"] in topic_of else 99,
+                                               -abs(x["move"] or 0), x["title"], x["reading"] != "position"))
+
+        changed = ordered([x for x in nat if x["move"]])
+        row = section(ws, row, "National readings that change rating (%d)" % len(changed), last)
+        row = groups(row)
+        if not changed:
+            put(ws, row, 2, "None: every national reading rated under both takes the same rating.", font=F_BOLD)
+            row += 1
+        topic = None
+        for x in changed:
+            if topic_of.get(x["key"]) != topic:
+                topic = topic_of.get(x["key"])
+                for col in range(2, last + 1):
+                    ws.cell(row, col).fill = K.solid(K.CANVAS)
+                put(ws, row, 2, topic, font=Font(name="Arial", bold=True, size=9, color=K.SLATE))
+                row += 1
+            reading_row(row, x)
+            row += 1
+        row += 1
+        st_changed = sorted([x for x in sts if x["move"]], key=lambda x: (-abs(x["move"]), x["title"]))
+        row = section(ws, row, "State readings that change rating (%d of %d)" % (
+            len(st_changed), sum(1 for x in sts if x["move"] is not None)), last)
+        row = groups(row)
+        if not st_changed:
+            put(ws, row, 2, "None: every state reading rated under both takes the same rating.", font=F_BOLD)
+            row += 1
+        for x in st_changed:
+            reading_row(row, x)
+            row += 1
+        row += 1
+        one_side = [x for x in whatif["rows"] if x["move"] is None and (x["a"] or x["b"])]
+        if one_side:
+            row = section(ws, row, "Rated under one set of settings only (%d)" % len(one_side), last)
+            row = groups(row)
+            for x in ordered(one_side):
+                reading_row(row, x)
+                row += 1
+            row += 1
+        # Asked for by either and rated by neither, each with its run's reason (Codex on #452).
+        neither = [x for x in whatif["rows"] if not (x["a"] or x["b"])]
+        if neither:
+            row = section(ws, row, "Rated under neither set of settings (%d)" % len(neither), last)
+            row = groups(row)
+            for x in ordered(neither):
+                reading_row(row, x)
+                row += 1
+            row += 1
+        same = ordered([x for x in nat if x["move"] == 0])
+        row = section(ws, row, "National readings at the same rating under both (%d, folded away)" % len(same),
+                      last)
+        row = groups(row)
+        start = row
+        for x in same:
+            reading_row(row, x)
+            row += 1
+        if same:
+            ws.row_dimensions.group(start, row - 1, outline_level=1, hidden=True)
+        ws.print_area = "A1:N%d" % row
 
     # -- States -----------------------------------------------------------
     ws = sheet("States")
-    widths(ws, [2.71, 8, 12, 14, 15, 11, 16, 15, 11, 11])
-    row = K.light_title(ws, 1, 9, "Unemployment by state",
-                        "BLS (LAUS), pulled %s. Each state against its own history, worst first." % vintage,
-                        first_col=2)
-    row += 1
+    last = 11 if whatif else 10
+    widths(ws, [8, 12, 14, 15, 11, 16, 15, 11, 11] + ([22] if whatif else []))
+    title_band(ws, "Unemployment by state", "Bureau of Labor Statistics, Local Area Unemployment Statistics "
+                                            "(LAUS), pulled %s." % vintage, last)
+    link(ws.cell(2, 2), "Ratings", "Back to Ratings")
+    entries = [("Rate", "The unemployment rate, seasonally adjusted, in percent; each state is rated against its "
+                        "own history, as the national series are."),
+               ("Level, Change", "Level: the latest rate against every month in the state's history. Change: the "
+                                 "change over %d months, in points, against every such change." % months),
+               ("Order", "By the higher of the state's two ratings, then by state.")]
+    if whatif:
+        entries.append(("What if", "Each reading whose rating differs under %s." % whatif["b"]))
+    row = method_note(ws, 3, last, entries, label_cols=2)
     head = row
-    row = K.canvas_header(ws, row, ["State", "Latest", "Unemployment rate", "Level", "Level percentile",
-                                    "Change over %d months" % months, "Change", "Change percentile",
-                                    "History from"], first_col=2)
-    for j in (4, 6, 7, 9):
-        ws.cell(head, j).alignment = Alignment(wrap_text=True, vertical="center", horizontal="right")
+    row = header(ws, row, ["State", "Latest", "Unemployment rate", "Level", "Level percentile",
+                           "Change over %d months" % months, "Change", "Change percentile", "History from"]
+                 + (["What if"] if whatif else []), right=(1, 2, 4, 5, 7), centre=(3, 6, 8))
 
     def worst(st):
         got = by_key.get("unemployment_" + st.lower(), {})
         return -max([x["rating"] for x in got.values()] or [0])
     for st in sorted(STATES, key=lambda st: (worst(st), st)):
-        got = by_key.get("unemployment_" + st.lower(), {})
+        key = "unemployment_" + st.lower()
+        got = by_key.get(key, {})
         lvl, chg = got.get("position"), got.get("change")
-        ws.cell(row, 2, st).font = F_DATA
+        put(ws, row, 2, st)
         if lvl:
-            c = ws.cell(row, 3, _date(lvl["date"]))
-            c.number_format, c.font = "yyyy-mm", F_DATA
-            c = ws.cell(row, 4, lvl["value"])
-            c.number_format, c.font = "0.0", F_DATA
+            put(ws, row, 3, _date(lvl["date"]), "yyyy-mm")
+            put(ws, row, 4, lvl["value"], "0.0")
             chip(ws, row, 5, lvl["rating"])
-            c = ws.cell(row, 6, lvl["percentile"] / 100)
-            c.number_format, c.font = "0.0%", F_DATA
-            c = ws.cell(row, 10, _date(lvl["history_from"]))
-            c.number_format, c.font = "yyyy-mm", F_DATA
+            put(ws, row, 6, lvl["percentile"] / 100, "0.0%")
+            put(ws, row, 10, _date(lvl["history_from"]), "yyyy-mm", align=CENTER)
         if chg:
-            c = ws.cell(row, 7, chg["value"])
-            c.number_format, c.font = "+0.0;-0.0;0.0", F_DATA
+            put(ws, row, 7, chg["value"], "+0.0;-0.0;0.0")
             chip(ws, row, 8, chg["rating"])
-            c = ws.cell(row, 9, chg["percentile"] / 100)
-            c.number_format, c.font = "0.0%", F_DATA
+            put(ws, row, 9, chg["percentile"] / 100, "0.0%")
         if not got:
-            ws.cell(row, 3, "not in this pull").font = F_NOTE
-        K.hairlines(ws, row, 2, 10)
+            put(ws, row, 3, "not in this pull", font=F_NOTE)
+        if whatif:
+            mine = list(wrows.get(key, {}).values())
+            put(ws, row, 11, summary_text(mine, whatif["months"]),
+                font=moved_font(mine) if move_text(mine, whatif["months"]) else F_NOTE)
+        rule(ws, row, 2, last)
         row += 1
     ws.freeze_panes = ws.cell(head + 1, 3)
 
+    # -- Shown, not rated ---------------------------------------------------
+    shown_by, missing_by = {}, {}
+    for x in result.get("shown", []):
+        shown_by.setdefault(x["key"], {})[x["reading"]] = x
+    for x in result.get("not_shown", []):
+        missing_by.setdefault(x["key"], {})[x["reading"]] = x["why"]
+    ws = sheet(SHOWN_NAME)
+    last = 11
+    widths(ws, [62, 11, 12, 26, 13, 14, 11, 13, 12, 90])
+    title_band(ws, SHOWN_NAME, "The research's \"usable with care\" group, each against its own history. "
+                               "None is rated.", last, tab=K.SLATE)
+    link(ws.cell(2, 2), "Ratings", "Back to Ratings")
+    tile(ws, 3, 2, 2, "Series shown", len(SHOWN), "#,##0")
+    tile(ws, 3, 3, 4, "In the group, not read", len(NOT_SHOWN), "#,##0")
+    entries = [
+        (SHOWN_NAME, "Series the research calls usable with care: short, broken or heavily revised. They are "
+                     "drawn so they can be read beside the rated series. None is rated and no direction of stress "
+                     "is set for any, so nothing on this tab says whether a reading is good or bad."),
+        ("At or above", "The share of the readings in the history window that the latest is at or above, counted "
+                        "from the lowest. 100% is the highest reading in that history; near 0% is near the "
+                        "lowest."),
+        ("Level", "The latest value against every value in the history window. A series that grows with prices "
+                  "and the economy is shown on its change only, as the rated series are."),
+        ("Change", "The change over %d months against every such change in the history window. \"Change to\" "
+                   "is the month it runs to: the latest reading's, unless a reading %d months before it is "
+                   "missing, when it is the latest month that has one." % (months, months)),
+        ("History from", "The first reading the latest is measured against: %s." % (
+            "the full history the publisher has" if s["history"] == "full" else
+            "the last %d years up to the latest reading" % s["history"]["years"])),
+        ("Why with care", "Why the research puts the series in its usable-with-care group, in short. Each "
+                          "series' tab gives the rest."),
+    ]
+    row = method_note(ws, 6, last, entries)
+    cols = ["Series", "Latest", "Value", "Unit", "Level: at or above", "Change over %d months" % months,
+            "Change to", "Change: at or above", "History from", "Why with care"]
+    for topic, keys in SHOWN_TOPICS:
+        row = section(ws, row, topic, last)
+        row = sub_header(ws, row, cols, right=(1, 2, 4, 5, 7), centre=(6, 8))
+        for key in keys:
+            item = BY_KEY[key]
+            got = shown_by.get(key, {})
+            lvl, chg = got.get("position"), got.get("change")
+            link(ws.cell(row, 2), SHOWN_TAB[key], item.title)
+            put(ws, row, 5, item.unit, font=F_NOTE)
+            pts = pull.points(item)
+            now = next(((d, v) for d, v in reversed(pts) if v is not None), None) if not isinstance(pts, str) else None
+            if now:
+                put(ws, row, 3, _date(now[0]), "yyyy-mm-dd")
+                put(ws, row, 4, now[1], value_format(now[1]))
+            else:
+                put(ws, row, 3, "not in this pull", font=F_NOTE)
+            if lvl:
+                put(ws, row, 6, lvl["percentile"] / 100, "0.0%")
+            elif item.position:
+                put(ws, row, 6, "change only", font=F_NOTE, align=Alignment(horizontal="right", vertical="center"))
+            if chg:
+                # The change's own month beside it: when a reading the horizon back is missing (October
+                # 2025), the latest change is an earlier month's (Codex on #452).
+                put(ws, row, 7, *change_value(item, chg["value"]))
+                put(ws, row, 8, _date(chg["date"]), "yyyy-mm", align=CENTER,
+                    font=F_BOLD if now and chg["date"] != now[0] else None)
+                put(ws, row, 9, chg["percentile"] / 100, "0.0%")
+            if lvl or chg:
+                put(ws, row, 10, _date((lvl or chg)["history_from"]), "yyyy-mm", align=CENTER)
+            care = item.care[0].upper() + item.care[1:] + "."
+            put(ws, row, 11, care, font=F_NOTE, align=Alignment(wrap_text=True, vertical="center"))
+            ws.row_dimensions[row].height = max(15, 14 * math.ceil(len(care) / 105) + 3)
+            rule(ws, row, 2, last)
+            row += 1
+        row += 1
+    if result.get("not_shown"):
+        row = section(ws, row, "Nothing to show, and why", last)
+        row = sub_header(ws, row, ["Series", "Reading", "Why"], height=18)
+        for x in result["not_shown"]:
+            put(ws, row, 2, BY_KEY[x["key"]].title, align=WRAP)
+            put(ws, row, 3, reading_name(x["reading"], months), align=WRAP)
+            ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=last)
+            put(ws, row, 4, x["why"], font=F_NOTE, align=WRAP)
+            ws.row_dimensions[row].height = 14 * max(2, math.ceil(len(x["why"]) / (width_of(ws, 4, last) * 1.2))) + 3
+            rule(ws, row, 2, last)
+            row += 1
+        row += 1
+    row = section(ws, row, "In the group, not read, and why", last)
+    row = sub_header(ws, row, ["Series", "Why it is not read"], height=18)
+    for what, why in NOT_SHOWN:
+        put(ws, row, 2, what)
+        ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=last)
+        put(ws, row, 3, why[0].upper() + why[1:] + ".", font=F_NOTE, align=WRAP)
+        rule(ws, row, 2, last)
+        row += 1
+    credits = [(x.title, x.credit) for x in SHOWN if x.credit]
+    if credits:
+        row = section(ws, row + 1, "Credits the publishers' licences require", last)
+        for what, words in credits:
+            put(ws, row, 2, what, font=F_BOLD, align=WRAP)
+            ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=last)
+            put(ws, row, 3, words, align=WRAP)
+            ws.row_dimensions[row].height = 14 * math.ceil(len(words) / 150) + 3
+            rule(ws, row, 2, last)
+            row += 1
+    ws.freeze_panes = ws.cell(6, 3)
+
     # -- one sheet per national series --------------------------------------
-    def banded_chart(ws, title, unit, data_col, first, last, helper_col, r, frequency):
-        """History line over the five rating bands, with the latest reading marked.
+    def years_axis(dates, frequency):
+        """A date axis labelled every 1, 2, 5 or 10 years, at most ten labels. On a text axis LibreOffice
+        ignores the label skip and prints nearly every year (the walk of 16 Oct 2026)."""
+        from openpyxl.chart.axis import DateAxis
+        span = max(1, int(dates[-1][:4]) - int(dates[0][:4]))
+        ax = DateAxis(crossAx=100)
+        ax.number_format = "yyyy"
+        ax.majorTimeUnit = "years"
+        ax.majorUnit = next(k for k in (1, 2, 5, 10, 20) if span / k <= 10)
+        ax.baseTimeUnit = "months" if frequency in ("monthly", "quarterly") else "days"
+        ax.delete = False
+        ax.majorGridlines = None
+        ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
+        ax.txPr = text()
+        ax.tickLblPos = "low"
+        return ax
+
+    def banded_chart(ws, title, unit, data_col, first, last, helper_col, r, frequency, dashed_col=None):
+        """History line over the five rating bands, with the latest reading marked, and the what-if's lines
+        dashed when there are any.
 
         The bands are the chart underneath and the lines are laid over them:
         LibreOffice draws in the order charts are combined, Excel draws areas
@@ -327,7 +967,8 @@ def build(out, result, pull):
         area.grouping = "stacked"
         area.add_data(Reference(ws, min_col=helper_col, max_col=helper_col + 5, min_row=first - 1, max_row=last),
                       titles_from_data=True)
-        area.set_categories(Reference(ws, min_col=14, min_row=first, max_row=last))
+        cats = Reference(ws, min_col=14, min_row=first, max_row=last)
+        area.set_categories(cats)
         area.series[0].graphicalProperties.noFill = True
         area.series[0].graphicalProperties.line.noFill = True
         for i, s_ in enumerate(area.series[1:]):
@@ -335,12 +976,26 @@ def build(out, result, pull):
             s_.graphicalProperties.line.noFill = True
         line = LineChart()
         line.add_data(Reference(ws, min_col=data_col, min_row=first - 1, max_row=last), titles_from_data=True)
+        # Every series carries its own dates. Without them Excel places a line on 1, 2, 3 ... of a date axis,
+        # 1900, while LibreOffice borrows the area's (Fable's report on #452, not checked in Excel).
+        line.set_categories(cats)
         hist = line.series[0]
-        hist.graphicalProperties.line = ln(K.INK, 1.75)
+        hist.graphicalProperties.line = ln(K.INK, 2.0)
         hist.marker.symbol = "none"
         hist.smooth = False
+        dashed = None
+        if dashed_col:
+            dashed = LineChart()
+            dashed.add_data(Reference(ws, min_col=dashed_col, max_col=dashed_col + 3, min_row=first - 1,
+                                      max_row=last), titles_from_data=True)
+            dashed.set_categories(cats)
+            for s_, colour in zip(dashed.series, K.LINES):
+                s_.graphicalProperties.line = ln(colour, 1.25, "dash")
+                s_.marker.symbol = "none"
+                s_.smooth = False
         latest = LineChart()
         latest.add_data(Reference(ws, min_col=helper_col + 6, min_row=first - 1, max_row=last), titles_from_data=True)
+        latest.set_categories(cats)
         pt = latest.series[0]
         pt.graphicalProperties.line.noFill = True
         pt.marker.symbol = "circle"
@@ -351,15 +1006,18 @@ def build(out, result, pull):
         pt.dLbls.position = "l"
         pt.dLbls.numFmt = "#,##0.0#"
         pt.dLbls.txPr = text(9, K.INK_TEXT, True)
-        for ax in (area.x_axis, area.y_axis):
-            ax.delete = False
-            ax.majorGridlines = None
-            ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
-            ax.txPr = text()
-        n = last - first + 1
-        area.x_axis.number_format = "yyyy-mm" if frequency == "quarterly" else "yyyy"
-        area.x_axis.tickLblSkip = area.x_axis.tickMarkSkip = max(1, n // 8)
-        area.x_axis.tickLblPos = "low"
+        area.x_axis = years_axis([ws.cell(first, 14).value.isoformat(), ws.cell(last, 14).value.isoformat()],
+                                 frequency)
+        for chart_ in (area, line, latest) + ((dashed,) if dashed else ()):
+            chart_.x_axis = area.x_axis           # one axis for every layer, or the lines drift off the bands
+            # and the value axis crosses that axis: left at its default (10, an axis this chart does not have),
+            # Excel refused the whole file (17 Oct 2026); LibreOffice drew it anyway
+            chart_.y_axis.crossAx = area.x_axis.axId
+        ax = area.y_axis
+        ax.delete = False
+        ax.majorGridlines = None
+        ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
+        ax.txPr = text()
         area.y_axis.scaling.min, area.y_axis.scaling.max = r["axis"]
         area.y_axis.majorUnit = r["step"]
         area.y_axis.number_format = "#,##0.0#" if abs(r["axis"][1]) < 1000 else "#,##0"
@@ -376,145 +1034,295 @@ def build(out, result, pull):
         area.roundedCorners = False
         area.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
         area += line
+        if dashed:
+            area += dashed
         area += latest
         return area
+
+    def plain_chart(ws, title, unit, data_col, first, last, latest_col, frequency, axis, step, dashed_col=None):
+        """The history in ink with the latest reading ringed, and no bands: nothing rates it under these
+        settings (a shown series, or a reading only the what-if rates), so no reading is placed as better or
+        worse. A what-if's lines, when there are any, are dashed over it, as on a banded chart."""
+        cats = Reference(ws, min_col=14, min_row=first, max_row=last)
+        line = LineChart()
+        line.add_data(Reference(ws, min_col=data_col, min_row=first - 1, max_row=last), titles_from_data=True)
+        line.set_categories(cats)
+        hist = line.series[0]
+        hist.graphicalProperties.line = ln(K.INK, 2.0)
+        hist.marker.symbol = "none"
+        hist.smooth = False
+        latest = LineChart()
+        latest.add_data(Reference(ws, min_col=latest_col, min_row=first - 1, max_row=last), titles_from_data=True)
+        latest.set_categories(cats)
+        pt = latest.series[0]
+        pt.graphicalProperties.line.noFill = True
+        pt.marker.symbol = "circle"
+        pt.marker.size = 7
+        pt.marker.graphicalProperties = GraphicalProperties(solidFill="FFFFFF", ln=ln(K.INK, 1.5))
+        pt.dLbls = DataLabelList()
+        pt.dLbls.showVal, pt.dLbls.showCatName, pt.dLbls.showSerName, pt.dLbls.showLegendKey = True, False, False, False
+        pt.dLbls.position = "l"
+        pt.dLbls.numFmt = "#,##0.0#"
+        pt.dLbls.txPr = text(9, K.INK_TEXT, True)
+        line.x_axis = years_axis([ws.cell(first, 14).value.isoformat(), ws.cell(last, 14).value.isoformat()],
+                                 frequency)
+        dashed = None
+        if dashed_col:
+            dashed = LineChart()
+            dashed.add_data(Reference(ws, min_col=dashed_col, max_col=dashed_col + 3, min_row=first - 1,
+                                      max_row=last), titles_from_data=True)
+            dashed.set_categories(cats)
+            for s_, colour in zip(dashed.series, K.LINES):
+                s_.graphicalProperties.line = ln(colour, 1.25, "dash")
+                s_.marker.symbol = "none"
+                s_.smooth = False
+        for chart_ in (line, latest) + ((dashed,) if dashed else ()):
+            chart_.x_axis = line.x_axis
+            chart_.y_axis.crossAx = line.x_axis.axId
+        ax = line.y_axis
+        ax.delete = False
+        ax.majorGridlines = None
+        ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
+        ax.txPr = text()
+        ax.scaling.min, ax.scaling.max = axis
+        ax.majorUnit = step
+        ax.number_format = "#,##0.0#" if abs(axis[1]) < 1000 else "#,##0"
+        ax.title = unit
+        line.visible_cells_only = False     # the latest point lives in a hidden helper column
+        line.title = title
+        line.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True,
+                                                                                      solidFill=K.INK))
+        line.legend = None
+        line.display_blanks = "gap"
+        line.height, line.width = 8.5, 24
+        line.roundedCorners = False
+        line.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
+        if dashed:
+            line += dashed
+        line += latest
+        return line
 
     for key in national:
         item = items[key]
         mine = by_key.get(key, {})
         ws = sheet(TAB[key])
-        widths(ws, [2.71, 18, 13, 13, 13, 13, 18, 13, 13, 13, 13, 13, 2.71, 12, 13, 13, 22, 12, 9])
+        widths(ws, [18, 13, 13, 13, 13, 18, 13, 13, 13, 13, 13, 2.71, 12, 13, 13, 22, 12, 9])
         source = BY_KEY.get(key)
-        row = K.light_title(ws, 1, 11, item.title, "%s. %s, %s. Pulled %s." % (
-            source.publisher if source else "Made from two series", item.unit, item.frequency, vintage),
-            first_col=2)
-        link(ws.cell(row, 2), "Ratings", "Back to Ratings")
-        row += 1
+        title_band(ws, item.title, "%s · %s · %s · pulled %s" % (
+            source.publisher if source else "made from two series", item.unit, item.frequency, vintage), 17)
+        link(ws.cell(2, 2), "Ratings", "Back to Ratings")
+        if whatif:
+            link(ws.cell(2, 4), "What if", "What if")
+        row = 4
+        tall = 4 if whatif else 3
         for j, reading in enumerate(("position", "change")):
             col = 2 + 5 * j
-            ws.cell(row, col, reading_name(reading, months)).font = F_LABEL
+            end = col + 4
+            for rr in range(row, row + tall):
+                for cc in range(col, end + 1):
+                    ws.cell(rr, cc).fill = K.solid(K.CANVAS)
+            for cc in range(col, end + 1):
+                ws.cell(row, cc).border = Border(top=side("thick", K.KEY_RED))
+            put(ws, row, col, reading_name(reading, months).upper(), font=F_FIELD, align=MIDDLE)
             r = mine.get(reading)
             if r:
                 chip(ws, row + 1, col, r["rating"], size=11)
-                v = ws.cell(row + 1, col + 1, r["value"] / 100 if reading == "change" and
-                            item.change_in == "percent" else r["value"])
-                v.number_format = ("+#,##0.0#%;-#,##0.0#%;0%" if item.change_in == "percent" else
-                                   "+#,##0.0#;-#,##0.0#;0") if reading == "change" else value_format(r["value"])
-                v.font = Font(name="Calibri", size=14, bold=True, color=K.INK_TEXT)
-                d = ws.cell(row + 1, col + 2, _date(r["date"]))
-                d.number_format, d.font = "yyyy-mm-dd", F_NOTE
-                note(ws, row + 2, col, r["sentence"], col + 4)
+                v, fmt = change_value(item, r["value"]) if reading == "change" else (r["value"],
+                                                                                   value_format(r["value"]))
+                put(ws, row + 1, col + 1, v, fmt, F_BIG, Alignment(horizontal="right", vertical="center"))
+                put(ws, row + 1, col + 2, _date(r["date"]), "yyyy-mm-dd", F_NOTE,
+                    Alignment(horizontal="left", vertical="center", indent=1))
+                note(ws, row + 2, col, r["sentence"], end, F_DATA)
             elif reading == "position" and item.position:
-                c = ws.cell(row + 1, col, "change only")
-                c.font = F_NOTE
-                note(ws, row + 2, col, "Change only: " + item.position + ".", col + 4)
+                put(ws, row + 1, col, "change only", font=F_NOTE, align=MIDDLE)
+                note(ws, row + 2, col, "Change only: " + item.position + ".", end)
             elif reading not in readings_of(item, s["change_for"]):
                 # Not a failure: the firm's settings rate the change only of the series they list.
-                c = ws.cell(row + 1, col, "level only")
-                c.font = F_NOTE
-                note(ws, row + 2, col, "Not asked for: the firm's settings rate this series on its level only.",
-                     col + 4)
+                put(ws, row + 1, col, "level only", font=F_NOTE, align=MIDDLE)
+                note(ws, row + 2, col, "Not asked for: the firm's settings rate this series on its level only.", end)
             else:
-                note(ws, row + 2, col, "Not rated: see the Not rated tab.", col + 4)
-        ws.row_dimensions[row + 1].height = 21
-        ws.row_dimensions[row + 2].height = 58
-        row += 4
+                note(ws, row + 2, col, "Not rated: see the Not rated tab.", end)
+            w = wrows.get(key, {}).get(reading)
+            if w:
+                put(ws, row + 3, col, "WHAT IF", font=F_FIELD, align=MIDDLE)
+                if w["b"]:
+                    b = w["b"]
+                    chip(ws, row + 3, col + 1, b["rating"], short=True)
+                    noun = "readings" if reading == "position" else "changes" if w["same_measure"] else \
+                        "changes over %s" % b_months
+                    if w["move"] is None:
+                        words = "Rated under the what-if only: %.1f%% of %s %s since %s." % (
+                            b["percentile"], "{:,}".format(b["readings"]), noun, when(b["history_from"]))
+                    elif w["move"] == 0:
+                        words = "Same rating: %.1f%% of %s %s since %s." % (
+                            b["percentile"], "{:,}".format(b["readings"]), noun, when(b["history_from"]))
+                    else:
+                        a = w["a"]
+                        words = "%s %d: %.1f%% of %s %s since %s (as you have it, %.1f%% of %s since %s)." % (
+                            "Up" if w["move"] > 0 else "Down", abs(w["move"]), b["percentile"],
+                            "{:,}".format(b["readings"]), noun, when(b["history_from"]), a["percentile"],
+                            "{:,}".format(a["readings"]), when(a["history_from"]))
+                    note(ws, row + 3, col + 2, words, end, F_UP if (w["move"] or 0) > 0 else F_DOWN if
+                         (w["move"] or 0) < 0 else F_DATA)
+                else:
+                    note(ws, row + 3, col + 1, "Not rated under the what-if: %s." % w["why_b"], end)
+        ws.row_dimensions[row].height = 16
+        ws.row_dimensions[row + 1].height = 24
+        said = [mine[rd]["sentence"] for rd in mine] + ["Change only: " + (item.position or "")]
+        ws.row_dimensions[row + 2].height = 14 * max(math.ceil(len(x) / (width_of(ws, 2, 6) * 1.2)) for x in said) + 4
+        if whatif:
+            ws.row_dimensions[row + 3].height = 30
+        row += tall + 1
+
+        # Every reading the what-if rates on the same measure gets its lines drawn, the ones these settings do
+        # not rate too: those are drawn without bands (Codex on #452: a reading only the what-if rated had its
+        # table of starting points and no chart).
+        drawn = [rd for rd in ("position", "change") if (wrows.get(key, {}).get(rd) or {}).get("b")
+                 and wrows[key][rd]["same_measure"]]
+        entries = [("The charts", "The history in black over five shaded bands, one for each rating, from 1 Low "
+                                  "(lightest) to 5 High (darkest), as these settings place them. The circle is the "
+                                  "latest reading.")]
+        if drawn:
+            entries.append(("Dashed lines", "Where ratings 2, 3, 4 and 5 start under %s, drawn over the years that "
+                                            "history covers." % whatif["b"]))
+        if any(not mine.get(rd) for rd in drawn):
+            entries.append(("No bands", "A reading only the what-if rates is drawn without bands, since these "
+                                        "settings do not rate it: the history, and the what-if's lines dashed."))
+        entries += [("Rating starts", "Where each rating starts: the least extreme reading in this history that "
+                                      "took it, and how many readings took it."),
+                    ("History", "Every reading, with its change over %d months, is in columns N to Q. A period the "
+                                "publisher left blank stays empty and reads no value published." % months)]
+        row = method_note(ws, row, 12, entries)
 
         # where each rating starts, and how many readings took it
-        row = K.quiet_section(ws, row, "Where each rating starts", 11, first_col=2)
+        row = section(ws, row, "Where each rating starts", 12)
+        def sides(reading):
+            """This run's rating of the reading and the what-if's, either of them None when that run did not
+            rate it. Codex on #452: a reading only the what-if rates still shows where its ratings start."""
+            w = wrows.get(key, {}).get(reading)
+            return mine.get(reading), (w["b"] if w else None)
+
         head_cols = ["Rating"]
         for reading in ("position", "change"):
-            if reading in mine:
-                head_cols += ["%s from" % ("Level" if reading == "position" else "Change"),
-                              "Readings" if reading == "position" else "Changes"]
-        row = K.canvas_header(ws, row, head_cols, first_col=2, right_from=1)
+            r, b = sides(reading)
+            noun = "Level" if reading == "position" else "Change"
+            if r:
+                head_cols += ["%s from" % noun, "Readings" if reading == "position" else "Changes"]
+            if b:
+                head_cols.append("What if: %s from" % (noun.lower() if reading == "position" or
+                                                       wrows[key][reading]["same_measure"] else
+                                                       "change over %s" % b_months))
+        row = sub_header(ws, row, head_cols, right=tuple(range(1, len(head_cols))))
         for k in range(1, 6):
             chip(ws, row, 2, k)
             col = 3
             for reading in ("position", "change"):
-                r = mine.get(reading)
-                if not r:
-                    continue
-                if k == 1:
-                    c = ws.cell(row, col, "below 2" if r["direction"] == HIGHER else "above 2")
-                    c.font, c.alignment = F_NOTE, Alignment(horizontal="right")
-                else:
-                    edge = r["lines"][str(k)]
-                    if edge is None:
-                        c = ws.cell(row, col, "not reached")
-                        c.font, c.alignment = F_NOTE, Alignment(horizontal="right")
+                pct = reading == "change" and item.change_in == "percent"
+                for side_, got in zip("ab", sides(reading)):
+                    if not got:
+                        continue
+                    edge = got["lines"][str(k)] if k > 1 else None
+                    if k == 1:
+                        put(ws, row, col, "below 2" if got["direction"] == HIGHER else "above 2", font=F_NOTE,
+                            align=Alignment(horizontal="right", vertical="center"))
+                    elif edge is None:
+                        put(ws, row, col, "not reached", font=F_NOTE,
+                            align=Alignment(horizontal="right", vertical="center"))
                     else:
-                        shown = edge / 100 if reading == "change" and item.change_in == "percent" else edge
-                        c = ws.cell(row, col, shown)
-                        c.font = F_DATA
-                        c.number_format = "#,##0.0#%" if reading == "change" and item.change_in == "percent" \
-                            else value_format(edge)
-                c = ws.cell(row, col + 1, r["counts"][str(k)])
-                c.font, c.number_format = F_DATA, "#,##0"
-                col += 2
-            K.hairlines(ws, row, 2, 2 + len(head_cols) - 1)
+                        put(ws, row, col, edge / 100 if pct else edge, "#,##0.0#%" if pct else value_format(edge),
+                            F_DATA if side_ == "a" else F_BOLD)
+                    col += 1
+                    if side_ == "a":
+                        put(ws, row, col, got["counts"][str(k)], "#,##0")
+                        col += 1
+            rule(ws, row, 2, 2 + len(head_cols) - 1)
             row += 1
-        note(ws, row, 2, "From: the least extreme reading (or change) in this history that took the rating; every "
-                         "one further in the direction of stress took that rating or higher.", 11)
-        row += 2
+        row += 1
 
         # the history, on the right: Date, Value, Change, Note; hidden helper columns for the bands
         points = pull.points(item)
-        if isinstance(points, str):
-            ws.cell(row, 2, points).font = F_NOTE
+        if isinstance(points, str) or not any(v is not None for _, v in points):
+            # Nothing to draw: said, not drawn (Fable on #452: a file of headers only crashed the Sahm chart).
+            put(ws, row, 2, points if isinstance(points, str) else
+                "The pull of %s holds no values for this series." % vintage, font=F_NOTE)
             ws.print_area = "A1:L%d" % row
             continue
         chg = dict(changes(points, months, item.frequency, item.change_in))
+        ws.row_breaks.append(Break(id=row - 1))     # printed, the charts start a page of their own
         top = row          # beside the first chart, below the tall rows at the top
-        K.canvas_header(ws, top, ["Date", "Value", "Change over %d months" % months, "Note"], first_col=14,
-                        right_from=1)
-        ws.cell(top, 17).alignment = Alignment(wrap_text=True, vertical="center")
+        header(ws, top, ["Date", "Value", "Change over %d months" % months, "Note"], first=14, right=(1, 2))
         first = top + 1
         dates = []
         for i, (d, v) in enumerate(points):
             rr = first + i
             dates.append(_date(d).isoformat())
-            c = ws.cell(rr, 14, _date(d))
-            c.number_format, c.font = "yyyy-mm-dd", F_DATA
+            put(ws, rr, 14, _date(d), "yyyy-mm-dd")
             # A missing value stays an empty cell: text there would be drawn
             # as zero on the chart, the very error the readers are kept from.
             if v is not None:
-                c = ws.cell(rr, 15, v)
-                c.number_format, c.font = value_format(v), F_DATA
+                put(ws, rr, 15, v, value_format(v))
             else:
-                ws.cell(rr, 17, "no value published").font = F_NOTE
+                put(ws, rr, 17, "no value published", font=F_NOTE)
             if dates[-1] in chg:
-                c = ws.cell(rr, 16, chg[dates[-1]])
-                c.number_format, c.font = "#,##0.0#", F_DATA
+                put(ws, rr, 16, chg[dates[-1]], "#,##0.0#")
         last = first + len(points) - 1
 
         helper = 20                                 # T onwards, hidden
-        for reading, data_col in (("position", 15), ("change", 16)):
+        for n_reading, (reading, data_col) in enumerate((("position", 15), ("change", 16))):
             r = mine.get(reading)
-            if not r:
+            if not r and reading not in drawn:
                 helper += 7
                 continue
+            ref = r or wrows[key][reading]["b"]         # the what-if's own rating, when only it rates this
             values = [v for _, v in points if v is not None] if reading == "position" else list(chg.values())
-            lo, hi, step = nice_axis(min(values + [r["low"]]), max(values + [r["high"]]))
-            base, heights, order = band_heights(r["lines"], r["direction"], lo, hi)
-            r = dict(r, order=order, axis=(lo, hi), step=step)
-            names = ["base"] + [label(k) for k in order] + ["Latest"]
+            # The axis holds every reading drawn; a rating's own lowest and highest are among them, and the
+            # what-if's lines are readings of the same history.
+            ends = [r["low"], r["high"]] if r else []
+            lo, hi, step = nice_axis(min(values + ends), max(values + ends))
+            if r:
+                base, heights, order = band_heights(r["lines"], r["direction"], lo, hi)
+                r = dict(r, order=order, axis=(lo, hi), step=step)
+                names = ["base"] + [label(k) for k in order] + ["Latest"]
+            else:
+                names = [None] * 6 + ["Latest"]
             for j, name in enumerate(names):
-                ws.cell(top, helper + j, name).font = F_NOTE
-            latest_row = first + dates.index(_date(r["date"]).isoformat())
-            for rr in range(first, last + 1):
-                ws.cell(rr, helper, base)
-                for j, h in enumerate(heights):
-                    ws.cell(rr, helper + 1 + j, h)
+                if name:
+                    put(ws, top, helper + j, name, font=F_NOTE)
+            latest_row = first + dates.index(_date(ref["date"]).isoformat())
+            if r:
+                for rr in range(first, last + 1):
+                    ws.cell(rr, helper, base)
+                    for j, h in enumerate(heights):
+                        ws.cell(rr, helper + 1 + j, h)
             # Rounded here: LibreOffice ignores a label's own number format.
             ws.cell(latest_row, helper + 6, round(ws.cell(latest_row, data_col).value, 2))
             for j in range(7):
                 ws.column_dimensions[L(helper + j)].hidden = True
-            chart = banded_chart(ws, ("Level against its history" if reading == "position" else
-                                      "Change over %d months against its history" % months),
-                                 item.unit if reading == "position" else
-                                 ("percent" if item.change_in == "percent" else "points"),
-                                 data_col, first, last, helper, r, item.frequency)
+            dashed_col = None
+            if reading in drawn:
+                # The what-if's lines: one column for each of 2 to 5, filled over the years its history covers.
+                b = wrows[key][reading]["b"]
+                dashed_col = WHAT_IF_LINES + 4 * n_reading
+                start = _date(b["history_from"]).isoformat()
+                for j, k in enumerate(range(2, 6)):
+                    put(ws, top, dashed_col + j, "What if: %d from" % k, font=F_NOTE)
+                    ws.column_dimensions[L(dashed_col + j)].hidden = True
+                    edge = b["lines"][str(k)]
+                    if edge is None:
+                        continue
+                    for i, d in enumerate(dates):
+                        if d >= start:
+                            ws.cell(first + i, dashed_col + j, edge)
+            title = ("Level against its history" if reading == "position" else
+                     "Change over %d months against its history" % months)
+            if dashed_col:
+                title += " (dashed: where 2 to 5 start under the what-if)"
+            unit = item.unit if reading == "position" else ("percent" if item.change_in == "percent" else "points")
+            if r:
+                chart = banded_chart(ws, title, unit, data_col, first, last, helper, r, item.frequency, dashed_col)
+            else:
+                chart = plain_chart(ws, title + "; not rated under these settings", unit, data_col, first, last,
+                                    helper + 6, item.frequency, (lo, hi), step, dashed_col)
             ws.add_chart(chart, "B%d" % row)
             row += 18
             helper += 7
@@ -523,11 +1331,10 @@ def build(out, result, pull):
         if sahm_drawn:
             ws.row_breaks.append(Break(id=row - 1))     # printed, the chart starts a page whole
             sv = dict(sahm(points))
-            K.canvas_header(ws, top, ["Sahm reading", "Trigger"], first_col=18, right_from=0)
+            header(ws, top, ["Sahm reading", "Trigger"], first=18, right=(0, 1))
             for i, d in enumerate(dates):
                 if d in sv:
-                    c = ws.cell(first + i, 18, sv[d])
-                    c.number_format = "0.00"
+                    put(ws, first + i, 18, sv[d], "0.00")
                     ws.cell(first + i, 19, 0.50)
             sc = LineChart()
             sc.add_data(Reference(ws, min_col=18, max_col=19, min_row=top, max_row=last), titles_from_data=True)
@@ -537,24 +1344,26 @@ def build(out, result, pull):
             for s_ in sc.series:
                 s_.marker.symbol = "none"
                 s_.smooth = False
-            for ax in (sc.x_axis, sc.y_axis):
-                ax.delete = False
-                ax.majorGridlines = None
-                ax.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
-                ax.txPr = text()
-            sc.x_axis.number_format = "yyyy"
-            sc.x_axis.tickLblSkip = sc.x_axis.tickMarkSkip = max(1, len(points) // 8)
-            sc.x_axis.tickLblPos = "low"
+            sc.x_axis = years_axis(dates, "monthly")
+            sc.y_axis.crossAx = sc.x_axis.axId
+            sc.y_axis.delete = False
+            sc.y_axis.majorGridlines = None
+            sc.y_axis.spPr = GraphicalProperties(ln=ln(K.STONE, 0.75))
+            sc.y_axis.txPr = text()
             sc.title = "Sahm reading (shown, not rated): dashed line at Sahm's trigger, 0.50"
+            sc.title.tx.rich.p[0].pPr = ParagraphProperties(defRPr=CharacterProperties(sz=1000, b=True,
+                                                                                        solidFill=K.INK))
             sc.legend = None
             sc.display_blanks = "gap"
             sc.height, sc.width = 8.5, 24
+            sc.roundedCorners = False
+            sc.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
             ws.add_chart(sc, "B%d" % row)
             row += 18
 
         if not sahm_drawn:
             ws.row_breaks.append(Break(id=row - 1))
-        row = K.quiet_section(ws, row, "What it is", 11, first_col=2)
+        row = section(ws, row, "What it is", 12)
         facts = []
         if source:
             facts += [("Source", "%s %s" % (source.source.upper().replace("_", " "), source.source_id)),
@@ -573,130 +1382,288 @@ def build(out, result, pull):
                                 for k, v in sorted(mine.items())) or "not rated"))
         if item.note:
             facts.append(("Note", item.note))
-        for when, what in item.breaks:
-            facts.append(("Break", "%s: %s" % (when, what)))
+        for when_, what in item.breaks:
+            facts.append(("Break", "%s: %s" % (when_, what)))
         for k, v in facts:
-            c = ws.cell(row, 2, k)
-            c.font, c.alignment = F_LABEL, WRAP
-            c = ws.cell(row, 3, v)
+            put(ws, row, 2, k, font=F_BOLD, align=WRAP)
             ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=12)
-            c.font, c.alignment = F_DATA, WRAP
+            put(ws, row, 3, v, align=WRAP)
             ws.row_dimensions[row].height = 15 * (1 + len(v) // 120)
+            rule(ws, row, 2, 12)
             row += 1
         # Printed, a tab is its ratings, charts and facts; its history stays on screen.
         ws.print_area = "A1:L%d" % row
 
+    # -- one sheet per shown series -----------------------------------------
+
+    for _, keys in SHOWN_TOPICS:
+        for key in keys:
+            item = BY_KEY[key]
+            got = shown_by.get(key, {})
+            ws = sheet(SHOWN_TAB[key])
+            widths(ws, [18, 13, 13, 13, 13, 18, 13, 13, 13, 13, 13, 2.71, 12, 13, 13, 22, 12, 9])
+            title_band(ws, item.title, "%s · %s · %s · pulled %s · shown, not rated" % (
+                item.publisher, item.unit, item.frequency, vintage), 17, tab=K.SLATE)
+            link(ws.cell(2, 2), SHOWN_NAME, "Back to " + SHOWN_NAME)
+            row = 4
+            said = []
+            for j, reading in enumerate(("position", "change")):
+                col = 2 + 5 * j
+                end = col + 4
+                for rr in range(row, row + 3):
+                    for cc in range(col, end + 1):
+                        ws.cell(rr, cc).fill = K.solid(K.CANVAS)
+                for cc in range(col, end + 1):
+                    ws.cell(row, cc).border = Border(top=side("thick", K.KEY_RED))
+                put(ws, row, col, reading_name(reading, months).upper(), font=F_FIELD, align=MIDDLE)
+                r = got.get(reading)
+                if r:
+                    v, fmt = change_value(item, r["value"]) if reading == "change" else (r["value"],
+                                                                                       value_format(r["value"]))
+                    put(ws, row + 1, col, v, fmt, F_BIG, Alignment(horizontal="left", vertical="center"))
+                    put(ws, row + 1, col + 2, _date(r["date"]), "yyyy-mm-dd", F_NOTE,
+                        Alignment(horizontal="left", vertical="center", indent=1))
+                    said.append(r["sentence"])
+                elif reading == "position" and item.position:
+                    put(ws, row + 1, col, "change only", font=F_NOTE, align=MIDDLE)
+                    said.append("Change only: " + item.position + ".")
+                else:
+                    said.append("Nothing to show: %s." % missing_by.get(key, {}).get(reading, "not in this pull"))
+                note(ws, row + 2, col, said[-1], end, F_DATA)
+            ws.row_dimensions[row].height = 16
+            ws.row_dimensions[row + 1].height = 24
+            ws.row_dimensions[row + 2].height = 14 * max(math.ceil(len(x) / (width_of(ws, 2, 6) * 1.2))
+                                                         for x in said) + 4
+            row += 4
+            row = method_note(ws, row, 12, [
+                ("The charts", "The history in black; the circle is the latest reading. There are no bands: the "
+                               "series is not rated, so no reading is placed as better or worse."),
+                ("At or above", "The share of the readings in the history window that the latest is at or above, "
+                                "counted from the lowest."),
+                ("History", "Every reading, with its change over %d months, is in columns N to Q. A period the "
+                            "publisher left blank stays empty and reads no value published." % months)])
+
+            points = pull.points(item)
+            if isinstance(points, str) or not any(v is not None for _, v in points):
+                put(ws, row, 2, points if isinstance(points, str) else
+                    "The pull of %s holds no values for this series." % vintage, font=F_NOTE)
+                ws.print_area = "A1:L%d" % row
+                continue
+            chg = dict(changes(points, months, item.frequency, item.change_in))
+            ws.row_breaks.append(Break(id=row - 1))
+            top = row
+            header(ws, top, ["Date", "Value", "Change over %d months" % months, "Note"], first=14, right=(1, 2))
+            first = top + 1
+            dates = []
+            for i, (d, v) in enumerate(points):
+                rr = first + i
+                dates.append(_date(d).isoformat())
+                put(ws, rr, 14, _date(d), "yyyy-mm-dd")
+                if v is not None:
+                    put(ws, rr, 15, v, value_format(v))
+                else:
+                    put(ws, rr, 17, "no value published", font=F_NOTE)
+                if dates[-1] in chg:
+                    put(ws, rr, 16, chg[dates[-1]], "#,##0.0#")
+            last = first + len(points) - 1
+            helper = 20                             # T onwards, hidden: the latest point of each chart
+            for reading, data_col in (("position", 15), ("change", 16)):
+                r = got.get(reading)
+                if not r:
+                    continue
+                values = [v for _, v in points if v is not None] if reading == "position" else list(chg.values())
+                lo, hi, step = nice_axis(min(values), max(values))
+                put(ws, top, helper, "Latest", font=F_NOTE)
+                latest_row = first + dates.index(_date(r["date"]).isoformat())
+                ws.cell(latest_row, helper, round(ws.cell(latest_row, data_col).value, 2))
+                ws.column_dimensions[L(helper)].hidden = True
+                title = ("Level against its history" if reading == "position" else
+                         "Change over %d months against its history" % months)
+                ws.add_chart(plain_chart(ws, title, item.unit if reading == "position" else
+                                         ("percent" if item.change_in == "percent" else "points"),
+                                         data_col, first, last, helper, item.frequency, (lo, hi), step),
+                             "B%d" % row)
+                row += 18
+                helper += 1
+
+            ws.row_breaks.append(Break(id=row - 1))
+            row = section(ws, row, "What it is", 12)
+            facts = [("Source", "%s %s" % (item.source.upper().replace("_", " "), item.source_id)),
+                     ("Licence", item.licence), ("First reading", item.starts),
+                     ("How it is shown", "Change only: " + item.position if item.position else "Level and change"),
+                     ("Which way is worse", "Not set: the series is shown, not rated"),
+                     ("Why with care", item.care[0].upper() + item.care[1:]),
+                     ("In the research", item.report)]
+            if item.note:
+                facts.append(("Note", item.note))
+            for when_, what in item.breaks:
+                facts.append(("Break", "%s: %s" % (when_, what)))
+            if item.credit:
+                facts.append(("Credit", item.credit))
+            for k, v in facts:
+                put(ws, row, 2, k, font=F_BOLD, align=WRAP)
+                ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=12)
+                put(ws, row, 3, v, align=WRAP)
+                ws.row_dimensions[row].height = 15 * (1 + len(v) // 120)
+                rule(ws, row, 2, 12)
+                row += 1
+            ws.print_area = "A1:L%d" % row
+
     # -- State data ---------------------------------------------------------
     ws = sheet("State data")
-    row = K.light_title(ws, 1, 12, "Unemployment rate by state, month by month",
-                        "Percent. An empty cell is a month with no value published (October 2025: the lapse "
-                        "in appropriations).", live=False, first_col=1)
-    head = row + 1
-    row = K.canvas_header(ws, head, ["Date"] + list(STATES), right_from=1)
+    widths(ws, [11] + [7] * len(STATES))
+    title_band(ws, "Unemployment rate by state, month by month",
+               "Percent. An empty cell is a month with no value published (October 2025: the lapse in "
+               "appropriations).", 1 + 1 + len(STATES), record=True)
+    head = 3
+    row = sub_header(ws, head, ["Date"] + list(STATES), right=tuple(range(1, len(STATES) + 1)), height=18)
     columns = {}
-    for j, st in enumerate(STATES, 2):
+    for j, st in enumerate(STATES, 3):
         pts = pull.points(BY_KEY["unemployment_" + st.lower()])
         columns[j] = dict(pts) if not isinstance(pts, str) else {}
     for d in sorted({d for c in columns.values() for d in c}):
-        ws.cell(row, 1, _date(d)).number_format = "yyyy-mm"
+        put(ws, row, 2, _date(d), "yyyy-mm")
         for j, c in columns.items():
             if d in c and c[d] is not None:
-                ws.cell(row, j, c[d])
+                put(ws, row, j, c[d], "0.0")
         row += 1
-    ws.freeze_panes = ws.cell(head + 1, 2)
+    ws.freeze_panes = ws.cell(head + 1, 3)
 
     # -- Not rated ----------------------------------------------------------
     if result["not_rated"]:
         ws = sheet("Not rated")
         widths(ws, [44, 24, 90])
-        row = K.light_title(ws, 1, 3, "Not rated", "Each reading the settings call for that has no rating, "
-                                                   "and why.", live=False)
-        row = K.canvas_header(ws, row + 1, ["Series", "Reading", "Why"])
+        title_band(ws, "Not rated", "Each reading the settings call for that has no rating, and why.", 4,
+                   record=True)
+        row = sub_header(ws, 3, ["Series", "Reading", "Why"], height=18)
         for x in result["not_rated"]:
-            for j, v in enumerate((items[x["key"]].title, reading_name(x["reading"], months), x["why"]), 1):
-                ws.cell(row, j, v).font = F_DATA
+            for j, v in enumerate((items[x["key"]].title, reading_name(x["reading"], months), x["why"]), 2):
+                put(ws, row, j, v)
+            rule(ws, row, 2, 4)
             row += 1
 
     # -- Glossary -----------------------------------------------------------
     ws = sheet("Glossary")
     widths(ws, [30, 120])
-    row = K.light_title(ws, 1, 2, "Glossary", "Every term in this workbook, and how it is worked out.",
-                        live=False)
-    row = K.canvas_header(ws, row + 1, ["Term", "What it means, and how it is worked out"])
-    for term, meaning in glossary(s):
-        c = ws.cell(row, 1, term)
-        c.font, c.alignment = Font(name="Calibri", size=11, bold=True, color=K.INK_TEXT), WRAP
-        c = ws.cell(row, 2, meaning)
-        c.font, c.alignment = F_DATA, WRAP
-        ws.row_dimensions[row].height = 15 * (1 + len(meaning) // 150)
+    title_band(ws, "Glossary", "Every term in this workbook, and how it is worked out.", 3, record=True)
+    row = sub_header(ws, 3, ["Term", "What it means, and how it is worked out"], height=18)
+    for term, meaning in glossary(s, whatif):
+        put(ws, row, 2, term, font=F_BOLD, align=WRAP)
+        put(ws, row, 3, meaning, align=WRAP)
+        ws.row_dimensions[row].height = 14 * (1 + len(meaning) // 130) + 3
+        rule(ws, row, 2, 3)
         row += 1
 
     # -- Run ----------------------------------------------------------------
     ws = sheet("Run")
-    widths(ws, [42, 40, 100])
-    row = K.light_title(ws, 1, 3, "Run", "What went into this workbook.", live=False)
-    row += 1
-    for k, v in (("Built", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
-                 ("From the pull of", vintage), ("Tool", "threshold-engine %s, economic conditions" % VERSION),
-                 ("Readings rated", len(result["ratings"])), ("Readings not rated", len(result["not_rated"]))):
-        ws.cell(row, 1, k).font = F_LABEL
-        c = ws.cell(row, 2, v)
-        c.font, c.alignment = F_DATA, Alignment(horizontal="left")
+    widths(ws, [42, 40] + ([40] if whatif else []) + [90])
+    last = 5 if whatif else 4
+    title_band(ws, "Run", "What went into this workbook.", last, record=True)
+    row = 3
+    # The fingerprint of each file's bytes as the rating read them, not as the manifest recorded it at the pull
+    # (Fable on #452: a file changed after the pull was rated as changed and published with the old fingerprint),
+    # and not as the file is when the workbook is built (Codex on #452: the ratings come from the bytes read).
+    from .pull import file_name
+    files = pull.manifest.get("files", {})
+    # The ratings' own fingerprints come first: a workbook drawn from other bytes than the rating read
+    # would publish one version's ratings beside another's history, so it is refused (Codex on #452: rate_all
+    # with its own Pull, then build with a new one, after a file changed in between).
+    # Every file the rating could have read is read here too, so the two are compared whole: a file changed,
+    # gone or new since the rating is a mismatch (Codex on #452, twice).
+    for item in RATED + SHOWN:
+        pull.points(item)
+    rated = result["read_sha"]
+    other = sorted(n for n in set(rated) | set(pull.read_sha) if rated.get(n) != pull.read_sha.get(n))
+    if other:
+        raise Refused("the workbook would draw %s from other bytes than the rating read: changed, gone or new "
+                      "since the rating. Build the workbook from the Pull the rating used." % ", ".join(other))
+    read_sha = rated
+    changed = [n for n, h in read_sha.items() if files.get(n, {}).get("sha256") not in (None, h)]
+    # A file the pull fetched and the rating never read (gone, unreadable, or one the pull could not read)
+    # has no fingerprint as read: it is said so, not given the manifest's (Codex on #452).
+    unread = {}
+    for name in sorted({file_name(x) for x in SERIES}):
+        if files.get(name, {}).get("sha256") and name not in read_sha:
+            errs = [v["error"] for v in pull.manifest.get("series", {}).values()
+                    if v.get("file") == name and v.get("error")]
+            unread[name] = ("not read: the pull could not read it (%s)" % errs[0] if errs else
+                            "not read: missing from the pull folder" if not (pull.folder / name).exists() else
+                            "not read: it could not be read when rated")
+    facts = [("Built", datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
+             ("From the pull of", vintage), ("Tool", "threshold-engine %s, economic conditions" % VERSION),
+             ("Readings rated", len(result["ratings"])), ("Readings not rated", len(result["not_rated"])),
+             ("Series shown, not rated", "%d (%d readings shown; %d with nothing to show)" % (
+                 len(SHOWN), len(result.get("shown", [])), len(result.get("not_shown", [])))),
+             ("Files changed since the pull", "%d: see Sources" % len(changed) if changed else "none"),
+             ("Files fetched and not read", "%d: see Sources" % len(unread) if unread else "none")]
+    if whatif:
+        facts += [("Settings file", whatif["a"]), ("What-if file", whatif["b"])]
+    for k, v in facts:
+        put(ws, row, 2, k, font=F_FIELD)
+        put(ws, row, 3, v, align=Alignment(horizontal="left"))
+        rule(ws, row, 2, 3)
         row += 1
     row += 1
-    row = K.canvas_header(ws, row, ["Setting", "The firm's answer", "The question"])
+    row = sub_header(ws, row, ["Setting", "The firm's answer"] + (["What if"] if whatif else []) + ["The question"],
+                     height=18)
     asked = {q[0]: q[1] for q in QUESTIONS}
-    plain = {
-        "cutoffs": ", ".join("%g" % c for c in s["cutoffs"]) + " (percentiles where 2, 3, 4 and 5 start)",
-        "on_the_line": s["on_the_line"] + " rating",
-        "history": "full history" if s["history"] == "full" else "the last %d years" % s["history"]["years"],
-        "change_months": "%d months" % months,
-        "show_sahm": "yes" if s["show_sahm"] else "no",
-        "change_for": "all series" if s["change_for"] == "all" else ", ".join(s["change_for"]) or "none",
-    }
-    called = {"cutoffs": "Where ratings 2 to 5 start", "on_the_line": "A reading exactly on a cut-off",
-              "history": "History each reading is measured against", "change_months": "Change counted over",
-              "show_sahm": "Sahm reading shown", "change_for": "Also rated on their change"}
-    rows = [(called[n], a, asked[n]) for n, a in plain.items()]
-    rows += [("Which way is worse: %s, %s" % (items[k].title, reading_name(rd, months).lower()), d,
-              asked["directions"]) for k, rd, d in s["directions"]]
+    if whatif:
+        rows = [(x["setting"], x["a"], x["b"], asked[x["name"]]) for x in whatif["settings"]]
+    else:
+        rows = [(CALLED[n], plain(n, s), asked[n]) for n in CALLED]
+        rows += [("Which way is worse: %s, %s" % (items[k].title, reading_name(rd, months).lower()), d,
+                  asked["directions"]) for k, rd, d in s["directions"]]
     for vals in rows:
-        for j, v in enumerate(vals, 1):
-            c = ws.cell(row, j, v)
-            c.font, c.alignment = F_DATA, WRAP
+        for j, v in enumerate(vals, 2):
+            put(ws, row, j, v, align=WRAP, font=F_BOLD if whatif and j == 4 and vals[1] != vals[2] else None)
         ws.row_dimensions[row].height = 30
+        rule(ws, row, 2, last)
         row += 1
 
     # -- Sources ------------------------------------------------------------
     ws = sheet("Sources")
-    widths(ws, [44, 36, 30, 34, 13, 28, 60, 26, 66])
-    row = K.light_title(ws, 1, 9, "Sources", "Every file the pull fetched, as fetched.", live=False)
-    row = K.canvas_header(ws, row + 1, ["Series", "Publisher", "Id at the source", "Licence", "First reading",
-                                        "File", "Address", "Fetched", "SHA-256"])
-    from .pull import file_name
-    files = pull.manifest.get("files", {})
+    widths(ws, [44, 36, 30, 34, 13, 28, 60, 26, 66, 44])
+    title_band(ws, "Sources", "Every file the pull fetched, and its fingerprint as the rating read it.", 11,
+               record=True)
+    row = sub_header(ws, 3, ["Series", "Publisher", "Id at the source", "Licence", "First reading", "File", "Address",
+                             "Fetched", "SHA-256 as read", "Since the pull"], height=18)
     for x in SERIES:
         name = file_name(x)
         f = files.get(name, {})
         for j, v in enumerate((x.title, x.publisher, x.source_id, x.licence, x.starts, name, f.get("url", ""),
-                               f.get("fetched_at", f.get("error", "not in this pull")), f.get("sha256", "")), 1):
-            ws.cell(row, j, v).font = F_DATA
-        ws.cell(row, 9).font = Font(name="Consolas", size=9, color=K.SLATE)
+                               f.get("fetched_at", f.get("error", "not in this pull")),
+                               read_sha.get(name, "")), 2):
+            put(ws, row, j, v)
+        ws.cell(row, 10).font = Font(name="Consolas", size=9, color=K.SLATE)
+        if name in changed:
+            put(ws, row, 11, "changed after the pull, which recorded %s…" % f["sha256"][:16],
+                font=Font(name="Calibri", size=10, bold=True, color=K.CRIMSON))
+        elif name in unread:
+            put(ws, row, 11, unread[name], font=Font(name="Calibri", size=10, bold=True, color=K.CRIMSON))
+        rule(ws, row, 2, 11)
         row += 1
     for d in DERIVED:
-        ws.cell(row, 1, d.title).font = F_DATA
-        ws.cell(row, 2, "made from " + " and ".join(BY_KEY[k].title for k in d.inputs)).font = F_DATA
+        put(ws, row, 2, d.title)
+        put(ws, row, 3, "made from " + " and ".join(BY_KEY[k].title for k in d.inputs))
+        rule(ws, row, 2, 11)
         row += 1
-    ws.freeze_panes = ws.cell(4, 2)
+    ws.freeze_panes = ws.cell(4, 3)
 
+    # Values only, whatever wrote them: a text beginning with "=" (a settings file named "=x.json", say) is kept
+    # as text and never stored as a formula (Codex on #452).
+    # Only the cells that exist: walking every row would add an empty one to the file wherever a row has none.
+    for sheet_ in wb.worksheets:
+        for c in sheet_._cells.values():
+            if c.data_type == "f":
+                c.data_type = "s"
     wb.save(out)
     return out
 
 
-def glossary(s):
+def glossary(s, whatif=None):
     """Every term the workbook uses, worded from the settings the run used."""
     c, m = s["cutoffs"], s["change_months"]
-    return [
+    terms = [
         ("Level", "The latest reading itself, compared with every reading in the series' own history."),
         ("Change over %d months" % m,
          "The latest reading minus the reading %d months earlier. For a rate, a spread or an index around zero it "
@@ -737,4 +1704,22 @@ def glossary(s):
                   "know before comparing across it."),
         ("Not rated", "A reading the settings call for that has no rating: not in the pull, or chosen by the firm "
                       "not to be rated. The Not rated tab says which and why, when there are any."),
+        ("Shown, not rated", "A series from the research's usable-with-care group: short, broken or heavily "
+                             "revised. It is drawn against its own history and never rated, and no direction of "
+                             "stress is set for it. The %s tab lists every one, and the rest of the group with "
+                             "why it is not read." % SHOWN_NAME),
+        ("At or above", "For a shown series: the share of the readings in its history window that the latest is at "
+                        "or above, counted from the lowest. It says where the reading sits, not whether that is "
+                        "good or bad."),
     ]
+    if whatif:
+        terms += [
+            ("As you have it", "The ratings from the firm's settings file, %s: every rating on every other tab."
+             % whatif["a"]),
+            ("What if", "The same pull rated with a second settings file, %s. It changes no rating anywhere else in "
+                        "the workbook, and neither file is changed." % whatif["b"]),
+            ("Move", "The what-if rating minus the rating as you have it. ▲ is a higher rating, ▼ a lower one."),
+            ("Dashed lines", "On a series' chart: where ratings 2 to 5 start under the what-if, over the years its "
+                             "history covers. Drawn only where the two measure the same thing."),
+        ]
+    return terms
