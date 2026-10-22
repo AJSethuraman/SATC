@@ -1,3 +1,5 @@
+> **Since 22 Oct 2026 the tool rates nothing and the command is `read`, not `rate`** (see `docs/macro/TOOL.md`). This procedure is the walk of 16 Oct 2026, kept as it was.
+
 # Refresh the economic conditions workbook
 
 The monthly job: download the public data, rate it with the firm's settings, write the workbook and read

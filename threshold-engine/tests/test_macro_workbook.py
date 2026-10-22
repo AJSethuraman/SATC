@@ -1,6 +1,6 @@
-"""The workbook the teams read: built only from a finished run, values not
-formulas, a missing month left empty so no chart draws it as zero, and the
-five rating bands drawn under every history line."""
+"""The workbook the teams read: built only from a finished run, values not formulas outside the Dashboard, a
+missing month left empty so no chart draws it as zero, every change drawn over its normal range, and nothing
+rated anywhere."""
 import re
 import zipfile
 
@@ -8,20 +8,20 @@ import pytest
 
 openpyxl = pytest.importorskip("openpyxl")
 
-from threshold_engine.macro import rate as R
-from threshold_engine.macro.catalog import HIGHER, LOWER, RATED, SERIES, STATES
-from threshold_engine.macro.settings import check
-from threshold_engine.macro.workbook import (SHOWN_NAME, SHOWN_TAB, SHOWN_TOPICS, TAB, TOPICS, band_heights, build,
-                                             glossary, nice_axis)
+from threshold_engine.macro import readings as R
+from threshold_engine.macro.catalog import CARE, CARE_NOT_READ, CORE, SCE_CREDIT, SERIES, STATES
+from threshold_engine.macro.settings import Refused, check
+from threshold_engine.macro.workbook import (CARE_NAME, CARE_TAB, CARE_TOPICS, DASH_DATA, DASHBOARD, HOUSEHOLD_KEYS,
+                                             HOUSEHOLD_NAME, TAB, TOPICS, axis_view, build, glossary, nice_axis)
 
-from test_macro_rate import cache, shown_cache  # noqa: F401  (the fixtures: pulls on disk)
+from test_macro_readings import _fetcher, cache, care_cache  # noqa: F401  (the fixtures: pulls on disk)
 from test_macro_settings import answered
 
 
-def _build(cache, path, **answers):  # noqa: F811
+def _build(cache, path, zoom=None, **answers):  # noqa: F811
     pull = R.Pull(cache)
-    result = R.rate_all(cache, check(answered(**answers)), pull=pull)
-    out = build(path, result, pull)
+    result = R.read_all(cache, check(answered(**answers)), pull=pull)
+    out = build(path, result, pull, zoom=zoom)
     return out, result, openpyxl.load_workbook(out)
 
 
@@ -34,43 +34,82 @@ def _text(ws):
     return " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value is not None)
 
 
+def _row(ws, title, col=2):
+    return next(c.row for c_ in ws.iter_cols(min_col=col, max_col=col) for c in c_ if c.value == title)
+
+
+def _to(cell):
+    """The tab an in-workbook link opens, however openpyxl read it back."""
+    h = cell.hyperlink
+    return re.match(r"#?'(.*)'!A1$", h.location or h.target).group(1)
+
+
+def _charts(out):
+    with zipfile.ZipFile(out) as z:
+        return {n: z.read(n).decode() for n in z.namelist() if n.startswith("xl/charts/chart")}
+
+
 def test_every_national_series_has_one_topic_and_one_tab():
     states = {"unemployment_" + st.lower() for st in STATES}
-    national = sorted(i.key for i in RATED if i.key not in states)
+    national = sorted(i.key for i in CORE if i.key not in states)
     in_topics = [k for _, keys in TOPICS for k in keys]
     assert sorted(in_topics) == national and len(set(in_topics)) == len(in_topics)
     assert sorted(TAB) == national
-    assert len(set(TAB.values())) == len(TAB) and all(len(v) <= 31 for v in TAB.values())
+    # every series has its own tab but the household types, which share one
+    own = [v for k, v in TAB.items() if k not in HOUSEHOLD_KEYS]
+    assert len(set(own)) == len(own) and HOUSEHOLD_NAME not in own
+    assert {TAB[k] for k in HOUSEHOLD_KEYS} == {HOUSEHOLD_NAME}
+    names = own + [HOUSEHOLD_NAME] + list(CARE_TAB.values())
+    assert len(set(names)) == len(names) and all(len(v) <= 31 for v in names)
 
 
-def test_the_sheets_are_the_ratings_first_then_one_per_series_by_topic(book):
+def test_every_care_series_has_one_topic_and_one_tab():
+    in_topics = [k for _, keys in CARE_TOPICS for k in keys]
+    assert sorted(in_topics) == sorted(s.key for s in CARE) and len(set(in_topics)) == len(in_topics)
+    assert sorted(CARE_TAB) == sorted(in_topics)
+
+
+def test_the_sheets_are_the_overview_and_dashboard_first_then_one_per_series_by_topic(book):
     _, _, wb = book
-    tabs = [TAB[k] for _, keys in TOPICS for k in keys]
-    shown = [SHOWN_TAB[k] for _, keys in SHOWN_TOPICS for k in keys]
-    assert wb.sheetnames == (["Ratings", "States", SHOWN_NAME] + tabs + shown
-                             + ["State data", "Not rated", "Glossary", "Run", "Sources"])
+    tabs = []
+    for _, keys in TOPICS:
+        for k in keys:
+            if TAB[k] not in tabs:
+                tabs.append(TAB[k])
+    care = [CARE_TAB[k] for _, keys in CARE_TOPICS for k in keys]
+    assert wb.sheetnames == (["Overview", DASHBOARD, "States", CARE_NAME] + tabs + care
+                             + ["State data", "Not read", "Glossary", "Run", "Sources", DASH_DATA])
+    assert wb[DASH_DATA].sheet_state == "hidden"
 
 
-def test_the_ratings_sheet_rates_every_national_series_under_its_topic(book):
+def test_the_overview_reads_every_national_series_under_its_topic_and_rates_none(book):
     _, result, wb = book
-    ws = wb["Ratings"]
-    series_rows = [c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.hyperlink]
-    chips = [ws.cell(r, j).value for r in series_rows for j in (6, 9)
-             if re.match(r"[1-5] (Low|Moderate|High)", str(ws.cell(r, j).value))]
-    national = [r for r in result["ratings"] if not r["key"].startswith("unemployment_")]
-    assert len(chips) == len(national)                  # one chip per rated reading
+    ws = wb["Overview"]
     text = _text(ws)
     for topic, _ in TOPICS:
         assert topic in text
-    # the fixture's record unemployment rate is rated 5, and its row links to its tab
-    link = next(c for row in ws.iter_rows(min_col=2, max_col=2) for c in row if c.value == "Unemployment rate")
-    assert link.hyperlink.location == "'Unemployment'!A1" or link.hyperlink.target.endswith("'Unemployment'!A1")
-    assert ws.cell(link.row, 6).value == "5 High"
-    # the counts at the top are of national readings only, one per rating
-    top = next(c.row for col in ws.iter_cols(min_col=6, max_col=6) for c in col if c.value == "5 High")
-    counts = [ws.cell(top + 1, j).value for j in range(6, 11)]
-    assert sum(counts) == len(national)
-    assert counts == [sum(1 for r in national if r["rating"] == k) for k in (5, 4, 3, 2, 1)]
+    assert not re.search(r"\b[1-5] (Low|Moderate|High|Mod-)", text) and "Rating" not in text
+    rows = [c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.hyperlink
+            and _to(c) not in (CARE_NAME, DASHBOARD)]
+    ways = [ws.cell(r, 11).value for r in rows if ws.cell(r, 11).value]
+    national = [r for r in result["readings"] if r["reading"] == "change" and not r["care"]
+                and not r["key"].startswith("unemployment_")]
+    assert len(ways) == len(national) and set(ways) <= {"▲ Increasing", "Stable", "▼ Decreasing"}
+    # the fixture's unemployment jumps to a record: Increasing, its level at the top, its row linked to its tab
+    u = _row(ws, "Unemployment rate")
+    assert _to(ws.cell(u, 2)) == "Unemployment"
+    assert ws.cell(u, 11).value == "▲ Increasing" and ws.cell(u, 6).value == 1.0
+    chg = next(r for r in national if r["key"] == "unemployment")
+    assert (ws.cell(u, 9).value, ws.cell(u, 10).value) == (pytest.approx(chg["normal_low"]),
+                                                          pytest.approx(chg["normal_high"]))
+    assert ws.cell(u, 12).value == pytest.approx(chg["movement"])
+    assert ws.cell(u, 13).value.date().isoformat() == chg["since"]
+    # the tiles count the national changes by direction
+    tiles = {ws.cell(3, c).value: ws.cell(4, c).value for c in range(2, 13) if ws.cell(3, c).value}
+    assert tiles["Changes read"] == len(national)
+    for d in ("Increasing", "Stable", "Decreasing"):
+        key = next(k for k in tiles if k.endswith(d))
+        assert tiles[key] == sum(1 for r in national if r["direction"] == d)
 
 
 def test_a_missing_month_is_an_empty_cell_and_says_so(book):
@@ -82,28 +121,74 @@ def test_a_missing_month_is_an_empty_cell_and_says_so(book):
     assert ws.cell(row, 17).value == "no value published"
 
 
-def test_every_chart_leaves_gaps_plots_its_hidden_bands_and_draws_them_under_the_line(book):
-    out, _, _ = book
-    with zipfile.ZipFile(out) as z:
-        charts = [z.read(n) for n in z.namelist() if n.startswith("xl/charts/chart")]
-    assert charts
-    banded = [c for c in charts if b"areaChart" in c]
+def test_every_change_is_drawn_over_its_normal_range_and_every_chart_leaves_gaps(book):
+    out, result, wb = book
+    charts = _charts(out)
+    banded = [x for x in charts.values() if "areaChart" in x]
     assert banded
-    for c in charts:
-        assert re.search(rb'dispBlanksAs val="gap"', c)
-    for c in banded:
-        assert re.search(rb'plotVisOnly val="0"', c)    # the bands live in hidden columns
-        assert c.index(b"areaChart") < c.index(b"lineChart")   # drawn first, so underneath
+    for x in charts.values():
+        if "scatterChart" not in x and "barChart" not in x:
+            assert 'dispBlanksAs val="gap"' in x or 'dispBlanksAs val="span"' in x
+    for x in banded:
+        assert 'plotVisOnly val="0"' in x                # the band lives in hidden columns
+        assert x.index("areaChart") < x.index("lineChart")   # drawn first, so underneath
+    # the band is the normal range: an unfilled base at its bottom and its height above
+    ws = wb["Unemployment"]
+    chg = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "change")
+    head = _row(ws, "Normal from", col=22)
+    filled = {(ws.cell(r, 22).value, ws.cell(r, 23).value) for r in range(head + 1, ws.max_row + 1)
+              if ws.cell(r, 22).value is not None}
+    assert filled == {(chg["normal_low"], chg["normal_high"] - chg["normal_low"])}
 
 
-def test_the_bands_fill_the_axis_bottom_up_in_the_direction_of_stress():
-    lines = {"2": 2.0, "3": 3.0, "4": 4.0, "5": None}
-    base, heights, order = band_heights(lines, HIGHER, 1.0, 6.0)
-    assert base == 1.0 and order == [1, 2, 3, 4, 5]
-    assert heights == [1.0, 1.0, 1.0, 2.0, 0.0]         # 5 never reached: a band of no height
-    assert sum(heights) == 5.0
-    base, heights, order = band_heights({"2": 4.0, "3": 3.0, "4": 2.0, "5": 1.5}, LOWER, 1.0, 6.0)
-    assert order == [5, 4, 3, 2, 1] and heights == [0.5, 0.5, 1.0, 1.0, 2.0]
+def _spiked(tmp_path, keys):
+    """A pull whose unemployment rate spikes in April and May 2020 and whose prime rate is daily with holidays."""
+    import datetime
+    from threshold_engine.macro import pull as P
+    base = _fetcher()
+
+    def fetch(url):
+        if url.endswith("id=UNRATE"):
+            rows, d, i = ["observation_date,UNRATE"], datetime.date(2000, 1, 1), 0
+            while d <= datetime.date(2026, 9, 1):
+                v = {"2020-04-01": 14.8, "2020-05-01": 13.2}.get(d.isoformat(), 4.0 + ((i * i) % 7) / 10)
+                rows.append("%s,%s" % (d.isoformat(), v))
+                d, i = (d.replace(day=1) + datetime.timedelta(days=32)).replace(day=1), i + 1
+            return ("\n".join(rows) + "\n").encode()
+        if url.endswith("id=DPRIME"):
+            rows, d, i = ["observation_date,DPRIME"], datetime.date(2000, 1, 3), 0
+            while d <= datetime.date(2026, 10, 13):
+                if d.weekday() < 5:
+                    rows.append("%s,%s" % (d.isoformat(), "." if (d.month, d.day) in ((1, 1), (7, 4), (12, 25))
+                                           else 4 + ((i * i) % 9) / 4))
+                    i += 1
+                d += datetime.timedelta(days=1)
+            return ("\n".join(rows) + "\n").encode()
+        return base(url)
+    P.pull(tmp_path, keys=keys, today="2026-10-15", fetcher=fetch)
+    return tmp_path
+
+
+def test_a_spike_runs_off_the_chart_and_the_note_under_it_names_it(tmp_path):
+    out, result, wb = _build(_spiked(tmp_path, ["unemployment"]), tmp_path / "cut.xlsx", axis_cut=1,
+                             history="full")
+    text = _text(wb["Unemployment"])
+    assert "Off the chart: 2 readings run off the top, the highest 14.8 percent in Apr 2020." in text
+    lvl = next(x for x in _charts(out).values() if "Level against its history" in x)
+    assert float(re.search(r'<max val="([\d.]+)"', lvl).group(1)) < 13.2       # the axis stops below the spike
+    _, _, plain = _build(tmp_path, tmp_path / "nocut.xlsx", axis_cut=0, history="full")
+    assert "Off the chart" not in _text(plain["Unemployment"])
+
+
+def test_a_daily_line_joins_across_a_holiday_and_a_monthly_one_leaves_its_gap(tmp_path):
+    # The prime rate, 22 Oct 2026: every holiday broke its line. October 2025 still shows as a gap.
+    out, _, wb = _build(_spiked(tmp_path, ["prime_rate", "unemployment"]), tmp_path / "d.xlsx", history="full")
+    charts = _charts(out)
+    prime = [x for x in charts.values() if "'Prime rate'!" in x]
+    monthly = [x for x in charts.values() if "'Unemployment'!" in x and "Sahm" not in x]
+    assert prime and all('dispBlanksAs val="span"' in x for x in prime)
+    assert monthly and all('dispBlanksAs val="gap"' in x for x in monthly)
+    assert "A daily series has no reading on a holiday" in _text(wb["Prime rate"])
 
 
 def test_an_axis_rounds_out_to_a_tidy_step():
@@ -112,49 +197,100 @@ def test_an_axis_rounds_out_to_a_tidy_step():
     assert lo <= -9.6 and hi >= 10.6 and step == 5
 
 
-def test_every_number_is_a_value_not_a_formula(book):
-    _, _, wb = book
+def test_a_spike_runs_off_the_axis_but_the_latest_reading_and_the_normal_range_stay_on():
+    dated = [("d%03d" % i, 1.0 + (i % 5) / 10) for i in range(200)] + [("spike", 60.0), ("spike2", 55.0)]
+    lo, hi, step, above, below = axis_view(dated, 1, keep=[0.5])
+    assert hi < 55 and above == [("spike", 60.0), ("spike2", 55.0)] and not below
+    assert lo <= 0.5                                     # kept on, though no reading is that low
+    assert axis_view(dated, 0, keep=[])[1] >= 60        # a cut of 0 keeps every reading on the chart
+
+
+def test_every_number_outside_the_dashboard_is_a_value_not_a_formula(book):
+    out, _, wb = book
     for ws in wb.worksheets:
+        if ws.title == DASHBOARD:
+            continue
         for row in ws.iter_rows():
             for c in row:
                 assert not (isinstance(c.value, str) and c.value.startswith("=")), (ws.title, c.coordinate)
+
+
+def test_the_dashboard_only_looks_up_values_written_on_its_hidden_tab(book):
+    out, result, wb = book
+    ws = wb[DASHBOARD]
+    formulas = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("=")]
+    assert formulas
+    used = {f for x in formulas for f in re.findall(r"([A-Z]+)\(", x)}
+    assert used <= {"INDEX", "MATCH", "ROW", "IF", "IFERROR", "ISNA", "AND", "NA", "MIN", "MAX"}, used
+    for x in formulas:
+        for sheet in re.findall(r"'([^']+)'!", x):
+            assert sheet in (DASH_DATA, DASHBOARD), x
+    # two pickers, each a list of every national and care series
+    dvs = ws.data_validations.dataValidation
+    assert len(dvs) == 1 and str(dvs[0].sqref) in ("C4 C5", "C5 C4") and dvs[0].type == "list"
+    data = wb[DASH_DATA]
+    col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, dvs[0].formula1).group(1)
+    names = [c.value for c in data[col][2:] if c.value]
+    national = [k for _, keys in TOPICS for k in keys] + [k for _, keys in CARE_TOPICS for k in keys]
+    assert len(names) == len(national) and ws["C4"].value in names and ws["C5"].value in names
+    # the charts: both changes in typical moves, both levels in their history, and each pick's own two
+    charts = [x for n, x in _charts(out).items() if "scatterChart" in x]
+    assert len(charts) == 6
+    assert all("'Dashboard'!$C$4" in x or "'Dashboard'!$C$5" in x for x in charts)
+
+
+def test_the_dashboard_data_are_each_series_month_by_month_in_typical_moves_from_its_median(book):
+    _, result, wb = book
+    data = wb[DASH_DATA]
+    head = {data.cell(1, c).value: c for c in range(2, data.max_column + 1) if data.cell(1, c).value}
+    c0 = head["Unemployment rate"]
+    chg = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "change")
+    row = next(r for r in range(3, data.max_row + 1) if data.cell(r, 1).value.date().isoformat() == "2026-09-01")
+    assert data.cell(row, c0).value == 9.0
+    assert data.cell(row, c0 + 1).value == pytest.approx(chg["value"])
+    assert data.cell(row, c0 + 2).value == pytest.approx(chg["movement"])
+    assert data.cell(row, c0 + 3).value == 1.0               # at the top of its history
 
 
 def test_the_run_sheet_shows_the_answers_the_run_used(book):
     _, _, wb = book
     ws = wb["Run"]
     got = {ws.cell(r, 2).value: ws.cell(r, 3).value for r in range(1, ws.max_row + 1)}
-    assert got["Where ratings 2 to 5 start"].startswith("40, 60, 80, 97")
+    assert got["Normal movement"] == "the median change plus or minus 1.5 typical moves"
+    assert got["Quarters left out"] == "none" and got["Readings a chart may leave off its axis"] == "none: every reading stays on"
     assert got["Sahm reading shown"] == "no" and got["History each reading is measured against"] == "the last 20 years"
-    assert got["From the pull of"] == "2026-10-15"
+    assert got["From the pull of"] == "2026-10-15" and got["Charts zoomed to"].startswith("not zoomed")
 
 
 def test_the_sahm_reading_appears_only_when_the_firm_asked_for_it(book, cache, tmp_path):  # noqa: F811
-    assert "Sahm's published trigger" not in _text(book[2]["Ratings"])
+    assert "Sahm's published trigger" not in _text(book[2]["Overview"])
     shown = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)[2]
-    assert "Sahm's published trigger is 0.50" in _text(shown["Ratings"])
+    assert "Sahm's published trigger is 0.50" in _text(shown["Overview"])
     assert "Sahm reading" in _text(shown["Unemployment"])
 
 
 def test_states_have_their_own_sheet_and_stay_off_the_national_one(book):
     _, result, wb = book
-    assert any(r["key"] == "unemployment_ca" for r in result["ratings"])
-    assert "Unemployment rate, CA" not in _text(wb["Ratings"])
+    assert any(r["key"] == "unemployment_ca" for r in result["readings"])
+    assert "Unemployment rate, CA" not in _text(wb["Overview"])
     ws = wb["States"]
-    ca = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "CA")
-    assert ws.cell(ca, 5).value[0].isdigit() and ws.cell(ca, 8).value[0].isdigit()
-    tx = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "TX")
-    assert ws.cell(tx, 3).value == "not in this pull"
+    ca = _row(ws, "CA")
+    assert ws.cell(ca, 9).value in ("▲ Increasing", "Stable", "▼ Decreasing")
+    assert 0 < ws.cell(ca, 5).value <= 1
+    assert ws.cell(_row(ws, "TX"), 3).value == "not in this pull"
 
 
 def test_the_glossary_explains_every_term_a_reader_meets(book):
     _, _, wb = book
     terms = {wb["Glossary"].cell(r, 2).value for r in range(1, wb["Glossary"].max_row + 1)}
-    for needed in ("Level", "Change over 6 months", "Percentile", "Rating", "From", "History from",
-                   "At this rating since", "What stands out", "Change only", "Sahm reading", "No value published"):
+    for needed in ("Level", "Level: at or above", "Change over 6 months", "Typical move", "Normal range",
+                   "Increasing, Stable, Decreasing", "Typical moves (a number)", "Since", "History from",
+                   "Quarters left out", "Off the chart", "Change only", "In the research", "Sahm reading",
+                   "No value published", CARE_NAME, HOUSEHOLD_NAME, DASHBOARD):
         assert needed in terms, needed
-    assert "2 starts at the 40th, 3 at the 60th, 4 at the 80th and 5 at the 97th" in dict(
-        glossary(check(answered())))["Rating"]
+    assert not {"Rating", "Percentile", "What stands out"} & terms
+    words = dict(glossary(check(answered(left_out=["2020Q2-2021Q2"]))))
+    assert "2020Q2 to 2021Q2" in words["Quarters left out"] and "1.5 typical moves" in words["Normal range"]
 
 
 def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
@@ -162,33 +298,33 @@ def test_the_sources_sheet_fingerprints_every_file_the_pull_fetched(book):
     ws = wb["Sources"]
     rows = {ws.cell(r, 2).value: [ws.cell(r, j).value for j in range(2, 11)] for r in range(1, ws.max_row + 1)}
     assert all(s.title in rows for s in SERIES)
-    assert len(rows["Unemployment rate"][8]) == 64     # SHA-256 of the file the rating read
+    assert len(rows["Unemployment rate"][8]) == 64     # SHA-256 of the file the run read
     assert rows["Initial jobless claims"][7] == "not in this pull"
 
 
-def test_the_fingerprint_is_of_the_bytes_rated_not_of_the_file_when_the_workbook_is_built(cache, tmp_path):  # noqa: F811
-    # Codex on #452: a file changed between the rating and the build was hashed as it was at the build, so
-    # the Sources tab named data the ratings never used.
+def test_the_fingerprint_is_of_the_bytes_read_not_of_the_file_when_the_workbook_is_built(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a file changed between the run and the build was hashed as it was at the build, so the
+    # Sources tab named data the readings never used.
     import hashlib
     pull = R.Pull(cache)
-    result = R.rate_all(cache, check(answered(show_sahm=False)), pull=pull)
+    result = R.read_all(cache, check(answered(show_sahm=False)), pull=pull)
     path = pull.folder / "fred-UNRATE.csv"
-    rated = hashlib.sha256(path.read_bytes()).hexdigest()
+    read = hashlib.sha256(path.read_bytes()).hexdigest()
     with open(path, "a") as fh:
-        fh.write("2026-10-01,2.0\n")                     # after the rating, before the workbook
+        fh.write("2026-10-01,2.0\n")                     # after the run, before the workbook
     wb = openpyxl.load_workbook(build(tmp_path / "macro.xlsx", result, pull))
     ws = wb["Sources"]
-    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
-    assert ws.cell(row, 10).value == rated and ws.cell(row, 11).value is None
+    row = _row(ws, "Unemployment rate")
+    assert ws.cell(row, 10).value == read and ws.cell(row, 11).value is None
     facts = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
     assert facts["Files changed since the pull"] == "none"
 
 
-def test_a_series_rated_on_its_change_only_still_shows_its_latest_value(book):
+def test_a_series_read_on_its_change_only_still_shows_its_latest_value(book):
     # Walk, 16 Oct 2026 (W6): gasoline read "change only" and never said $4.33 a gallon.
     _, _, wb = book
-    ws = wb["Ratings"]
-    row = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "Consumer prices, all items")
+    ws = wb["Overview"]
+    row = _row(ws, "Consumer prices, all items")
     assert ws.cell(row, 6).value == "change only"
     assert isinstance(ws.cell(row, 4).value, float) and ws.cell(row, 5).value.startswith("index")
 
@@ -197,32 +333,71 @@ def test_the_latest_point_on_a_chart_is_labelled_rounded(book):
     # Walk (W7): the label printed 41.4897092453; LibreOffice ignores a label's own format.
     _, _, wb = book
     ws = wb["Prices"]
-    hidden = [c for c in range(20, 40) if ws.column_dimensions[openpyxl.utils.get_column_letter(c)].hidden]
-    latest = [ws.cell(r, c).value for c in hidden for r in range(1, ws.max_row + 1)
-              if ws.cell(r, c).value is not None and isinstance(ws.cell(r, c).value, float)
-              and ws.cell(r - 1, c).value in (None, "Latest") and ws.cell(r + 1, c).value is None]
-    assert latest and all(round(v, 2) == v for v in latest)
+    head = _row(ws, "Latest", col=24)
+    latest = [ws.cell(r, 24).value for r in range(head + 1, ws.max_row + 1) if ws.cell(r, 24).value is not None]
+    assert len(latest) == 1 and round(latest[0], 2) == latest[0]
 
 
-def test_a_series_tab_prints_its_ratings_and_charts_not_its_whole_history(book):
+def test_a_series_tab_prints_its_readings_and_charts_not_its_whole_history(book):
     # Walk (W14): the workbook printed 856 pages, about 800 of them data.
     _, _, wb = book
-    for name in [TAB[k] for _, keys in TOPICS for k in keys]:
+    for name in {TAB[k] for _, keys in TOPICS for k in keys}:
         assert wb[name].print_area and wb[name].print_area.startswith("'%s'!$A$1:$L$" % name), name
 
 
-def test_a_change_the_settings_did_not_ask_for_is_not_called_a_failure(cache, tmp_path):  # noqa: F811
-    # Codex on #436: with change_for listing only some series, the others have no
-    # change rating by design, and their tabs said "Not rated: see the Not rated tab",
-    # a tab that says nothing about them.
-    out, result, wb = _build(cache, tmp_path / "level.xlsx", change_for=[])
-    assert not any(x["key"] == "unemployment" and x["reading"] == "change" for x in result["not_rated"])
-    tab = _text(wb["Unemployment"])
-    assert "Not asked for: the firm's settings rate this series on its level only." in tab
-    assert "Not rated: see the Not rated tab" not in tab
-    ws = wb["Ratings"]
-    row = next(c.row for col in ws.iter_cols(min_col=2, max_col=2) for c in col if c.value == "Unemployment rate")
-    assert ws.cell(row, 9).value == "level only"
+def test_quarters_left_out_are_not_drawn_and_are_said_on_every_tab(cache, tmp_path):  # noqa: F811
+    out, result, wb = _build(cache, tmp_path / "left.xlsx", history="full", left_out=["2026Q3"])
+    ws = wb["Unemployment"]
+    rows = {ws.cell(r, 14).value.date().isoformat(): r for r in range(1, ws.max_row + 1)
+            if getattr(ws.cell(r, 14).value, "date", None)}
+    sep = rows["2026-09-01"]
+    assert ws.cell(sep, 15).value == 9.0                         # the publisher's figure is kept in the table
+    assert ws.cell(sep, 17).value == "left out (2026Q3)" and ws.cell(sep, 20).value is None     # but not drawn
+    assert ws.cell(rows["2026-06-01"], 20).value is not None
+    for name in ("Overview", "Unemployment", "States"):
+        assert "Left out of every history: 2026Q3" in _text(wb[name]), name
+    assert "2026Q3" in dict((wb["Run"].cell(r, 2).value, wb["Run"].cell(r, 3).value)
+                            for r in range(1, wb["Run"].max_row + 1))["Quarters left out"]
+
+
+def test_a_zoom_draws_only_its_quarters_and_changes_no_reading(cache, tmp_path):  # noqa: F811
+    whole_out, whole, _ = _build(cache, tmp_path / "whole.xlsx", history="full")
+    out, zoomed, wb = _build(cache, tmp_path / "zoom.xlsx", zoom=["2024Q1", "2026Q3"], history="full")
+    assert zoomed["readings"] == whole["readings"]               # the readings are made before the workbook
+    ws = wb["Unemployment"]
+    first_drawn = {}
+    for n, x in _charts(out).items():
+        refs = re.findall(r"<f>'Unemployment'!\$N\$(\d+):\$N\$(\d+)</f>", x)
+        if refs:
+            first_drawn[n] = refs[0]
+    assert first_drawn
+    for a, b in first_drawn.values():
+        assert ws.cell(int(a), 14).value.date().isoformat() == "2024-01-01"
+        assert ws.cell(int(b), 14).value.date().isoformat() == "2026-09-01"
+    assert "The charts show 2024Q1 to 2026Q3 only" in _text(ws)
+    run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert run["Charts zoomed to"] == "2024Q1 to 2026Q3; no reading changes with it"
+    # the whole history is still in the table
+    assert any(getattr(ws.cell(r, 14).value, "year", 0) == 2000 for r in range(1, ws.max_row + 1))
+
+
+def test_a_zoom_with_no_reading_in_it_says_so_rather_than_drawing_nothing(cache, tmp_path):  # noqa: F811
+    out, _, wb = _build(cache, tmp_path / "early.xlsx", zoom=["1990Q1", "1991Q4"])
+    assert "No reading of its level falls in 1990Q1 to 1991Q4" in _text(wb["Unemployment"])
+    assert not wb["Unemployment"]._charts
+
+
+def test_the_command_line_refuses_a_zoom_it_cannot_use(cache, tmp_path, capsys):  # noqa: F811
+    import json
+    from threshold_engine.macro.__main__ import main
+    s = tmp_path / "s.json"
+    s.write_text(json.dumps(answered()))
+    for zoom, says in (("2026Q3:2024Q1", "the first not after the second"), ("2024-01:2026-09", "two quarters")):
+        assert main(["read", "--cache", str(cache), "--settings", str(s), "--workbook", str(tmp_path / "x.xlsx"),
+                     "--zoom", zoom]) == 2
+        assert says in capsys.readouterr().err
+    assert main(["read", "--cache", str(cache), "--settings", str(s), "--zoom", "2024Q1:2026Q3"]) == 2
+    assert "needs --workbook" in capsys.readouterr().err
 
 
 # --- What if (W12) -------------------------------------------------------------------------------------------
@@ -230,28 +405,26 @@ def test_a_change_the_settings_did_not_ask_for_is_not_called_a_failure(cache, tm
 def _whatif(cache, path, a=None, b=None):  # noqa: F811
     from threshold_engine.macro.compare import compare
     pull = R.Pull(cache)
-    ra = R.rate_all(cache, check(answered(**(a or {}))), pull=pull)
-    rb = R.rate_all(cache, check(answered(**(b or {}))), pull=pull)
+    ra = R.read_all(cache, check(answered(**(a or {}))), pull=pull)
+    rb = R.read_all(cache, check(answered(**(b or {}))), pull=pull)
     c = compare(ra, rb, "settings.json", "what-if.json")
     out = build(path, ra, pull, whatif=c)
     return out, c, openpyxl.load_workbook(out)
 
 
-def test_the_what_if_tab_sets_every_national_reading_side_by_side(cache, tmp_path):  # noqa: F811
-    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
-    assert wb.sheetnames[:3] == ["Ratings", "What if", "States"]
+def test_the_what_if_tab_sets_every_national_change_side_by_side(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": "full", "left_out": ["2026Q3"]})
+    assert wb.sheetnames[:4] == ["Overview", DASHBOARD, "What if", "States"]
     ws = wb["What if"]
     text = _text(ws)
-    assert "History each reading is measured against" in text and "the last 3 years" in text
-    # every national reading rated under both (the partial pull leaves the rest rated under neither)
-    national = [x for x in c["rows"] if not x["key"].startswith("unemployment_") and x["a"] and x["b"]]
-    # the grid: the rating as you have it down the side, the what-if across, every national reading once
+    assert "Quarters left out" in text and "2026Q3" in text
+    national = [x for x in c["rows"] if not x["key"].startswith("unemployment_") and x["move"] is not None]
     corner = next(cl for row in ws.iter_rows() for cl in row if cl.value == "AS YOU HAVE IT")
-    grid = [[ws.cell(corner.row + k, corner.column + j).value or 0 for j in range(1, 6)] for k in range(1, 6)]
+    grid = [[ws.cell(corner.row + 1 + k, corner.column + 1 + j).value or 0 for j in range(3)] for k in range(3)]
     assert sum(map(sum, grid)) == len(national)
+    from threshold_engine.macro.readings import DIRECTIONS
     for x in national:
-        assert grid[x["a"]["rating"] - 1][x["b"]["rating"] - 1] >= 1
-    # every national reading that moves is listed, linked to its tab, with both chips and the move
+        assert grid[DIRECTIONS.index(x["a"]["direction"])][DIRECTIONS.index(x["b"]["direction"])] >= 1
     moved = [x for x in national if x["move"]]
     assert moved
     for x in moved:
@@ -259,161 +432,102 @@ def test_the_what_if_tab_sets_every_national_reading_side_by_side(cache, tmp_pat
                     if cl.value == x["title"] and ws.cell(cl.row, 14).value not in (None, "same"))
         assert cell.hyperlink is not None
         assert ws.cell(cell.row, 14).value == ("▲ %d" if x["move"] > 0 else "▼ %d") % abs(x["move"])
-        assert ws.cell(cell.row, 6).value[0] == str(x["a"]["rating"])
-        assert ws.cell(cell.row, 10).value[0] == str(x["b"]["rating"])
-    # the readings at the same rating are listed too, folded away, so the count can be checked
+        assert ws.cell(cell.row, 6).value.endswith(x["a"]["direction"])
+        assert ws.cell(cell.row, 10).value.endswith(x["b"]["direction"])
     same = [x for x in national if x["move"] == 0]
     folded = [r for r in range(1, ws.max_row + 1) if ws.cell(r, 14).value == "same"]
     assert len(folded) == len(same) and all(ws.row_dimensions[r].hidden for r in folded)
-    # Ratings says which readings move, beside each series
-    rt = wb["Ratings"]
+    ov = wb["Overview"]
     for x in moved:
-        row = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == x["title"])
-        assert "%d → %d" % (x["a"]["rating"], x["b"]["rating"]) in rt.cell(row, 13).value
+        assert "%s → %s" % (x["a"]["direction"], x["b"]["direction"]) in ov.cell(_row(ov, x["title"]), 15).value
 
 
-def test_the_dashed_lines_are_the_what_ifs_cut_offs_over_the_years_its_history_covers(cache, tmp_path):  # noqa: F811
+def test_the_dashed_lines_are_the_what_ifs_normal_range_over_the_years_its_history_covers(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     ws = wb["Unemployment"]
-    row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "position")
-    head = next(cl for col in ws.iter_cols(min_col=34, max_col=34) for cl in col if cl.value == "What if: 2 from")
-    for j, k in enumerate(range(2, 6)):
-        col = 34 + j
+    row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "change")
+    head = _row(ws, "What if: normal from", col=25)
+    for col, want in ((25, row["b"]["normal_low"]), (26, row["b"]["normal_high"])):
         assert ws.column_dimensions[openpyxl.utils.get_column_letter(col)].hidden
-        filled = [(ws.cell(r, 14).value, ws.cell(r, col).value) for r in range(head.row + 1, ws.max_row + 1)
+        filled = [(ws.cell(r, 14).value, ws.cell(r, col).value) for r in range(head + 1, ws.max_row + 1)
                   if ws.cell(r, col).value is not None]
-        if row["b"]["lines"][str(k)] is None:
-            assert not filled
-            continue
-        assert filled and {v for _, v in filled} == {row["b"]["lines"][str(k)]}
+        assert filled and {v for _, v in filled} == {want}
         assert min(d for d, _ in filled).isoformat()[:10] == row["b"]["history_from"][:10]
-    with zipfile.ZipFile(out) as z:
-        charts = [z.read(n) for n in z.namelist() if n.startswith("xl/charts/chart")]
-    assert any(ch.count(b'prstDash val="dash"') == 4 for ch in charts)
+    assert any(x.count('prstDash val="dash"') == 2 and "areaChart" in x for x in _charts(out).values())
 
 
-def test_a_different_change_horizon_draws_no_dashed_lines_on_the_change(cache, tmp_path):  # noqa: F811
-    # Six months against twelve is a different measure: its lines would sit on the wrong scale.
+def test_a_different_change_horizon_draws_no_dashed_lines_and_names_both_horizons(cache, tmp_path):  # noqa: F811
+    # Six months against twelve is a different measure: its range would sit on the wrong scale.
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_months": 6}, {"change_months": 12})
     assert all(not x["same_measure"] for x in c["rows"] if x["reading"] == "change")
     ws = wb["Unemployment"]
-    assert any(ws.cell(r, 34).value == "What if: 2 from" for r in range(1, 80))      # the level's lines
-    assert not any(ws.cell(r, 38).value for r in range(1, ws.max_row + 1))         # none for the change
-    # Codex on #452: the What if tab named the 6-month change and showed its value beside a rating of the
-    # 12-month one. Each side is its own change, so the row names both and shows neither as shared.
+    assert not any(ws.cell(r, 25).value for r in range(1, ws.max_row + 1))
+    # Codex on #452: each side is its own change, so the row names both and shows neither value as shared.
     wi = wb["What if"]
     rows = [r for r in range(1, wi.max_row + 1) if str(wi.cell(r, 3).value).startswith("Change over")]
     assert rows
     for r in rows:
         assert wi.cell(r, 3).value == "Change over 6 months; what if: over 12 months"
         assert wi.cell(r, 4).value is None and wi.cell(r, 5).value is None
-    assert any(wi.cell(r, 3).value == "Level" and wi.cell(r, 5).value is not None for r in range(1, wi.max_row + 1))
-    # and the series' own table gives the what-if's starting points under its own horizon's name
-    assert "What if: change over 12 months from" in _text(ws)
-    # and Ratings says whose horizon a moved change is
-    moved = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
-    assert moved["move"]
-    rt = wb["Ratings"]
-    row = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
-               if cl.value == "Consumer prices, all items")
-    assert "(what if: over 12 months)" in rt.cell(row, 13).value
+    moved = [x for x in c["rows"] if x["move"]]
+    assert moved
+    ov = wb["Overview"]
+    for x in moved:
+        if not x["key"].startswith("unemployment_"):
+            assert "(what if: over 12 months)" in ov.cell(_row(ov, x["title"]), 15).value
 
 
-def test_a_reading_only_the_what_if_rates_still_shows_where_its_ratings_start(cache, tmp_path):  # noqa: F811
-    # Codex on #452: the table was built from this run's ratings alone, so it dropped the what-if's.
-    from threshold_engine.macro.settings import template as T
-    directions = {k: {r: LOWER for r in v} for k, v in T()["directions"]["answer"].items()}
-    directions["cpi"]["change"] = "not rated"
-    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"directions": directions}, {})
-    row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
-    assert row["a"] is None and row["b"]
-    ws = wb["Prices"]
-    head = next(cl for row_ in ws.iter_rows() for cl in row_ if cl.value == "What if: change from")
-    want = [row["b"]["lines"][str(k)] for k in range(2, 6)]
-    got = [ws.cell(head.row + k, head.column).value for k in range(2, 6)]
-    assert got == [pytest.approx(w / 100) if w is not None else "not reached" for w in want]   # in percent
-    # Codex on #452: and its chart: the history, with the what-if's lines dashed over it and no bands under
-    # it, since these settings do not rate it.
-    assert len(ws._charts) == 1
-    chart = ws._charts[0]
-    assert type(chart).__name__ == "LineChart"
-    with zipfile.ZipFile(out) as z:
-        xml = [z.read(n).decode() for n in z.namelist() if n.startswith("xl/charts/chart")]
-    mine = [x for x in xml if "not rated under these settings" in x]
-    assert len(mine) == 1 and "areaChart" not in mine[0] and mine[0].count('prstDash val="dash"') == 4
-    assert "No bands" in _text(ws)
-    assert _holds_together_in_excel(out) > 0
-
-
-def test_a_series_in_neither_run_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811
+def test_a_series_in_neither_run_is_not_called_the_same(cache, tmp_path):  # noqa: F811
     # Codex on #452: an unpulled state read "not in this pull" and "same rating" on one row.
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     st = wb["States"]
-    tx = next(cl.row for col in st.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == "TX")
-    assert st.cell(tx, 3).value == "not in this pull" and st.cell(tx, 11).value == "not rated under either"
-    rt = wb["Ratings"]
-    claims = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
-                  if cl.value == "Initial jobless claims")
-    assert rt.cell(claims, 13).value == "not rated under either"
+    tx = _row(st, "TX")
+    assert st.cell(tx, 3).value == "not in this pull" and st.cell(tx, 13).value == "not read under either"
+    ov = wb["Overview"]
+    assert ov.cell(_row(ov, "Initial jobless claims"), 15).value == "not read under either"
 
 
-
-def test_a_reading_neither_run_rates_has_its_own_rows_with_each_runs_reason(cache, tmp_path):  # noqa: F811
-    # Codex on #452: one only the what-if asked for, and could not rate, had no row on the What if tab.
-    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": []}, {})
+def test_a_reading_neither_run_reads_has_its_own_rows_with_each_runs_reason(cache, tmp_path):  # noqa: F811
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {}, {"history": {"years": 3}})
     neither = [x for x in c["rows"] if x["a"] is None and x["b"] is None]
     ws = wb["What if"]
     head = next(cl.row for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
-                if str(cl.value).startswith("Rated under neither set of settings"))
-    assert ws.cell(head, 2).value == "Rated under neither set of settings (%d)" % len(neither)
-    texts = [(ws.cell(r, 6).value, ws.cell(r, 10).value) for r in range(head + 1, head + 2 + len(neither) + 1)]
-    assert ("Not rated: not asked for by these settings",
-            next(t for _, t in texts if t and "not in the pull" in t)) in texts
-    tiles = [ws.cell(4, col).value for col in range(2, 15)]
-    assert c["totals"]["only_a"] + c["totals"]["only_b"] in tiles     # the one-set tile does not count them
+                if str(cl.value).startswith("Read under neither set of settings"))
+    assert ws.cell(head, 2).value == "Read under neither set of settings (%d)" % len(neither)
+    assert ws.cell(head + 3, 6).value.startswith("Not read: not in the pull of 2026-10-15")
 
 
-def test_a_change_neither_run_rates_is_labelled_with_the_horizon_that_asked_for_it(cache, tmp_path):  # noqa: F811
-    # Codex on #452: the What if tab gave it both horizons, though only the what-if asked for it.
-    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": [], "change_months": 6}, {"change_months": 12})
-    ws = wb["What if"]
-    head = next(cl.row for col in ws.iter_cols(min_col=2, max_col=2) for cl in col
-                if str(cl.value).startswith("Rated under neither set of settings"))
-    labels = {ws.cell(r, 3).value for r in range(head + 1, ws.max_row + 1)
-              if ws.cell(r, 6).value == "Not rated: not asked for by these settings"}
-    assert labels == {"Change (what if: over 12 months)"}
-
-
-
-def test_a_reading_only_the_what_if_asked_for_and_could_not_rate_is_not_called_the_same_rating(cache, tmp_path):  # noqa: F811,E501
-    # Codex on #452: the level held, the what-if's change could not be counted (400 months is longer than the
-    # history), and the Ratings cell read "same rating"; the What if tab said every reading took the same rating.
-    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_for": []}, {"change_months": 400})
+def test_a_change_only_one_side_reads_names_that_sides_horizon(cache, tmp_path):  # noqa: F811
+    # Codex on #452: the summary named the what-if's horizon for a change that moved, not for one only the
+    # what-if read, so a 12-month reading read as the 6-month change beside it.
+    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"change_months": 400}, {"change_months": 12})
     row = next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "change")
-    assert row["a"] is None and row["b"] is None and row["why_a"] == "not asked for by these settings"
-    assert next(x for x in c["rows"] if x["key"] == "unemployment" and x["reading"] == "position")["move"] == 0
-    rt = wb["Ratings"]
-    r = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col if cl.value == "Unemployment rate")
-    assert rt.cell(r, 13).value == "Change (what if: over 400 months): not rated under the what-if"
-    assert "None: every national reading rated under both takes the same rating." in _text(wb["What if"])
-    assert "every national reading takes the same rating under both" not in _text(wb["What if"])
+    assert row["a"] is None and row["b"] and not row["same_measure"]
+    ov = wb["Overview"]
+    assert ov.cell(_row(ov, "Unemployment rate"), 15).value == "Change (what if: over 12 months): read under the " \
+                                                                 "what-if only"
+    wi = wb["What if"]
+    head = next(cl.row for col in wi.iter_cols(min_col=2, max_col=2) for cl in col
+                if str(cl.value).startswith("Read under one set of settings only"))
+    r = next(rr for rr in range(head, wi.max_row + 1) if wi.cell(rr, 2).value == "Unemployment rate")
+    assert wi.cell(r, 3).value == "Change (what if: over 12 months)"
 
-def test_a_file_gone_before_the_rating_has_no_fingerprint_as_read(tmp_path):
+
+def test_a_file_gone_before_the_run_has_no_fingerprint_as_read(tmp_path):
     # Codex on #452: a file deleted after the pull kept the manifest's fingerprint under "SHA-256 as read".
     from threshold_engine.macro import pull as P
-    from test_macro_rate import _fetcher
     P.pull(tmp_path, keys=["unemployment", "cpi"], today="2026-10-17", fetcher=_fetcher())
     pull = R.Pull(tmp_path)
     (pull.folder / "fred-UNRATE.csv").unlink()
-    result = R.rate_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    result = R.read_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
     wb = openpyxl.load_workbook(build(tmp_path / "b.xlsx", result, pull))
     ws = wb["Sources"]
-    rows = {ws.cell(r, 2).value: r for r in range(1, ws.max_row + 1)}
-    u, cpi = rows["Unemployment rate"], rows["Consumer prices, all items"]
+    u, cpi = _row(ws, "Unemployment rate"), _row(ws, "Consumer prices, all items")
     assert ws.cell(u, 10).value is None and ws.cell(u, 11).value == "not read: missing from the pull folder"
     assert len(ws.cell(cpi, 10).value) == 64 and ws.cell(cpi, 11).value is None
     run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
     assert run["Files fetched and not read"] == "1: see Sources" and run["Files changed since the pull"] == "none"
+
 
 def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
@@ -427,8 +541,8 @@ def test_the_run_tab_lists_both_files_answers_side_by_side(cache, tmp_path):  # 
 
 def _holds_together_in_excel(out):
     """What LibreOffice forgives and Excel does not, as far as it can be checked here: every axis a chart
-    names is one the chart has, every axis crosses one it has, and no cell holds rich-text runs (which no
-    workbook the firm opens in Excel uses; plain strings are inline in every openpyxl file)."""
+    names is one the chart has, every axis crosses one it has, every series carries its own categories (or,
+    on the Dashboard's charts of months, its own months), and no cell holds rich-text runs."""
     with zipfile.ZipFile(out) as z:
         charts = 0
         for n in z.namelist():
@@ -440,10 +554,10 @@ def _holds_together_in_excel(out):
                 crosses = set(re.findall(r'<crossAx val="(\d+)"/>', x))
                 named = set(re.findall(r'<axId val="(\d+)"/>', x))
                 assert crosses <= set(defined) and named <= set(defined), (n, defined, crosses)
-                # every series carries its own categories: without them Excel places a line at 1, 2, 3 ... on
-                # a date axis, in 1900 (Fable's review of #452, not checked in Excel)
+                # without its own categories Excel places a line at 1, 2, 3 ... on a date axis, in 1900
+                # (Fable's review of #452, not checked in Excel)
                 for ser in re.findall(r"<ser>.*?</ser>", x, re.S):
-                    assert "<cat>" in ser, (n, ser[:200])
+                    assert "<cat>" in ser or "<xVal>" in ser, (n, ser[:200])
             elif n.startswith("xl/worksheets/sheet"):
                 assert b"<is><r>" not in z.read(n), n
         return charts
@@ -456,233 +570,207 @@ def test_every_chart_crosses_axes_it_has_so_excel_can_open_it(book, cache, tmp_p
     assert _holds_together_in_excel(book[0]) > 0
     out, _, _ = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
     assert _holds_together_in_excel(out) > 0
-    shown, _, _ = _build(cache, tmp_path / "sahm.xlsx", show_sahm=True)
-    assert _holds_together_in_excel(shown) > 0
+    zoomed, _, _ = _build(cache, tmp_path / "z.xlsx", zoom=["2020Q1", "2026Q3"], show_sahm=True)
+    assert _holds_together_in_excel(zoomed) > 0
 
 
-def test_a_change_only_the_what_if_rates_over_another_horizon_says_that_horizon(cache, tmp_path):  # noqa: F811
-    # Codex on #452: the summary named the what-if's horizon for a change that moved, not for one only the
-    # what-if rates, so a 12-month rating read as one of the 6-month change beside it.
-    from threshold_engine.macro.settings import template as T
-    directions = {k: {r: LOWER for r in v} for k, v in T()["directions"]["answer"].items()}
-    directions["cpi"]["change"] = "not rated"
-    out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"directions": directions, "change_months": 6},
-                         {"change_months": 12})
-    row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
-    assert row["a"] is None and row["b"] and not row["same_measure"]
-    rt = wb["Ratings"]
-    r = next(cl.row for col in rt.iter_cols(min_col=2, max_col=2) for cl in col
-             if cl.value == "Consumer prices, all items")
-    assert rt.cell(r, 13).value == "Change (what if: over 12 months): rated under the what-if only"
-    assert "changes over 12 months since" in _text(wb["Prices"])
-    # and the What if tab's row names the what-if's horizon only (Codex on #452: it named both)
-    wi = wb["What if"]
-    head = next(cl.row for col in wi.iter_cols(min_col=2, max_col=2) for cl in col
-                if str(cl.value).startswith("Rated under one set of settings only"))
-    cpi = next(rr for rr in range(head, wi.max_row + 1) if wi.cell(rr, 2).value == "Consumer prices, all items")
-    assert wi.cell(cpi, 3).value == "Change (what if: over 12 months)"
-
-
-def test_a_workbook_drawn_from_other_bytes_than_the_rating_read_is_refused(cache, tmp_path):  # noqa: F811
-    # Codex on #452: rate_all with its own Pull, a file replaced, then build with a new Pull, published the new
-    # file's fingerprint beside ratings made from the old one.
-    from threshold_engine.macro.settings import Refused
-    result = R.rate_all(cache, check(answered(show_sahm=False)))         # its own Pull, kept inside
-    path = R.Pull(cache).folder / "fred-UNRATE.csv"
-    with open(path, "a") as fh:
+def test_a_workbook_drawn_from_other_bytes_than_the_run_read_is_refused(cache, tmp_path):  # noqa: F811
+    # Codex on #452: a run with its own Pull, a file replaced, then a build with a new Pull, published the new
+    # file's fingerprint beside readings made from the old one.
+    result = R.read_all(cache, check(answered(show_sahm=False)))         # its own Pull, kept inside
+    with open(R.Pull(cache).folder / "fred-UNRATE.csv", "a") as fh:
         fh.write("2026-10-01,2.0\n")
-    with pytest.raises(Refused, match="fred-UNRATE.csv from other bytes than the rating read"):
+    with pytest.raises(Refused, match="fred-UNRATE.csv from other bytes than the run read"):
         build(tmp_path / "macro.xlsx", result, R.Pull(cache))
 
 
-def test_a_workbook_from_a_new_pull_of_unchanged_files_publishes_the_ratings_fingerprints(cache, tmp_path):  # noqa: F811
-    result = R.rate_all(cache, check(answered(show_sahm=False)))
+def test_a_workbook_from_a_new_pull_of_unchanged_files_publishes_the_runs_fingerprints(cache, tmp_path):  # noqa: F811
+    result = R.read_all(cache, check(answered(show_sahm=False)))
     wb = openpyxl.load_workbook(build(tmp_path / "macro.xlsx", result, R.Pull(cache)))
     ws = wb["Sources"]
-    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Unemployment rate")
-    assert ws.cell(row, 10).value == result["read_sha"]["fred-UNRATE.csv"]
+    assert ws.cell(_row(ws, "Unemployment rate"), 10).value == result["read_sha"]["fred-UNRATE.csv"]
 
 
-def test_a_workbook_whose_pull_lacks_a_file_the_rating_read_is_refused(cache, tmp_path):  # noqa: F811
+def test_a_workbook_whose_pull_lacks_a_file_the_run_read_is_refused(cache, tmp_path):  # noqa: F811
     # Codex on #452: a file gone before the workbook's Pull read it passed the check, its old fingerprint shown.
-    from threshold_engine.macro.settings import Refused
-    result = R.rate_all(cache, check(answered(show_sahm=False)))
+    result = R.read_all(cache, check(answered(show_sahm=False)))
     (R.Pull(cache).folder / "fred-CPIAUCSL.csv").unlink()
-    with pytest.raises(Refused, match="fred-CPIAUCSL.csv from other bytes than the rating read"):
+    with pytest.raises(Refused, match="fred-CPIAUCSL.csv from other bytes than the run read"):
         build(tmp_path / "macro.xlsx", result, R.Pull(cache))
 
 
-def test_a_what_if_not_compared_against_this_rating_is_refused(cache, tmp_path):  # noqa: F811
+def test_a_what_if_not_compared_against_these_readings_is_refused(cache, tmp_path):  # noqa: F811
     # Codex on #452: a what-if from an earlier reading of the pull, or against other settings, was accepted.
     from threshold_engine.macro.compare import compare
-    from threshold_engine.macro.settings import Refused
     pull = R.Pull(cache)
-    ra = R.rate_all(cache, check(answered()), pull=pull)
-    rb = R.rate_all(cache, check(answered(history={"years": 3})), pull=pull)
+    ra = R.read_all(cache, check(answered()), pull=pull)
+    rb = R.read_all(cache, check(answered(history={"years": 3})), pull=pull)
     c = compare(ra, rb, "settings.json", "what-if.json")
-    other = R.rate_all(cache, check(answered(cutoffs=[50, 75, 90, 95])), pull=pull)
-    with pytest.raises(Refused, match="not compared against this rating"):
+    other = R.read_all(cache, check(answered(normal_width=2)), pull=pull)
+    with pytest.raises(Refused, match="not compared against these readings"):
         build(tmp_path / "a.xlsx", other, pull, whatif=c)              # other settings as you have it
     with open(pull.folder / "fred-UNRATE.csv", "a") as fh:
         fh.write("2026-10-01,2.0\n")
     fresh = R.Pull(cache)
-    now = R.rate_all(cache, check(answered()), pull=fresh)
-    with pytest.raises(Refused, match="not compared against this rating"):
+    now = R.read_all(cache, check(answered()), pull=fresh)
+    with pytest.raises(Refused, match="not compared against these readings"):
         build(tmp_path / "b.xlsx", now, fresh, whatif=c)               # an earlier reading of the pull
-    assert build(tmp_path / "c.xlsx", ra, pull, whatif=c)              # the rating it was made from
-    with pytest.raises(Refused, match="not compared against this rating"):
+    assert build(tmp_path / "c.xlsx", ra, pull, whatif=c)              # the run it was made from
+    with pytest.raises(Refused, match="not compared against these readings"):
         build(tmp_path / "d.xlsx", ra, pull, whatif=dict(c, vintage="2026-10-14"))   # another pull's name
 
 
-def test_a_rating_built_with_the_pull_of_another_day_is_refused(cache, tmp_path):  # noqa: F811
+def test_readings_built_with_the_pull_of_another_day_are_refused(cache, tmp_path):  # noqa: F811
     # Codex on #452: the workbook names result["vintage"] as its pull; a Pull of another day with the same bytes
     # would make that provenance false.
     import shutil
-    from threshold_engine.macro.settings import Refused
     pull = R.Pull(cache)
-    result = R.rate_all(cache, check(answered(show_sahm=False)), pull=pull)
+    result = R.read_all(cache, check(answered(show_sahm=False)), pull=pull)
     shutil.copytree(pull.folder, pull.folder.parent / "2026-10-16")
-    with pytest.raises(Refused, match="the rating is of the pull of 2026-10-15 and the Pull given is of 2026-10-16"):
+    with pytest.raises(Refused, match="the readings are of the pull of 2026-10-15 and the Pull given is of 2026-10-16"):
         build(tmp_path / "macro.xlsx", result, R.Pull(cache, "2026-10-16"))
 
 
 def test_a_settings_file_named_like_a_formula_is_written_as_text(cache, tmp_path):  # noqa: F811
-    # Codex on #452: a what-if file named "=b.json" went into the Run tab as a formula.
+    # Codex on #452: a what-if file named "=b.json" went into the Run tab as a formula. The Dashboard's own
+    # lookups are the only formulas left in the file.
     from threshold_engine.macro.compare import compare
     pull = R.Pull(cache)
-    ra = R.rate_all(cache, check(answered()), pull=pull)
-    rb = R.rate_all(cache, check(answered(history={"years": 3})), pull=pull)
+    ra = R.read_all(cache, check(answered()), pull=pull)
+    rb = R.read_all(cache, check(answered(history={"years": 3})), pull=pull)
     out = build(tmp_path / "w.xlsx", ra, pull, whatif=compare(ra, rb, "=a.json", "=SUM(1,2)"))
+    wb = openpyxl.load_workbook(out)
     with zipfile.ZipFile(out) as z:
-        sheets = [n for n in z.namelist() if n.startswith("xl/worksheets/sheet")]
-        assert not [n for n in sheets if "<f>" in z.read(n).decode("utf-8")]
-    run = openpyxl.load_workbook(out)["Run"]
+        names = {ws.title: "xl/worksheets/sheet%d.xml" % (i + 1) for i, ws in enumerate(wb.worksheets)}
+        with_formulas = [t for t, n in names.items() if "<f>" in z.read(n).decode("utf-8")]
+    assert with_formulas == [DASHBOARD]
+    run = wb["Run"]
     assert "=SUM(1,2)" in {c.value for row in run.iter_rows() for c in row}
 
 
-
-# -- the shown series ------------------------------------------------------------
-
-def test_every_shown_series_has_one_topic_and_one_tab():
-    from threshold_engine.macro.catalog import SHOWN
-    in_topics = [k for _, keys in SHOWN_TOPICS for k in keys]
-    assert sorted(in_topics) == sorted(s.key for s in SHOWN) and len(set(in_topics)) == len(in_topics)
-    assert sorted(SHOWN_TAB) == sorted(in_topics)
-    names = list(SHOWN_TAB.values()) + list(TAB.values())
-    assert len(set(names)) == len(names) and all(len(v) <= 31 for v in names)
-
+# -- the usable-with-care group ---------------------------------------------------------------------------------
 
 @pytest.fixture
-def shown_book(shown_cache, tmp_path):  # noqa: F811
-    return _build(shown_cache, tmp_path / "shown.xlsx", show_sahm=False, history="full")
+def care_book(care_cache, tmp_path):  # noqa: F811
+    return _build(care_cache, tmp_path / "care.xlsx", show_sahm=False, history="full")
 
 
-def test_the_shown_tab_lists_every_shown_series_and_the_rest_of_the_group(shown_book):
-    from threshold_engine.macro.catalog import NOT_SHOWN, SCE_CREDIT, SHOWN
-    _, result, wb = shown_book
-    ws = wb[SHOWN_NAME]
+def test_the_care_tab_reads_every_series_in_the_group_and_names_the_rest(care_book):
+    _, result, wb = care_book
+    ws = wb[CARE_NAME]
     links = {ws.cell(r, 2).value: _to(ws.cell(r, 2)) for r in range(1, ws.max_row + 1)
-             if ws.cell(r, 2).hyperlink and _to(ws.cell(r, 2)) != "Ratings"}
-    assert links == {s.title: SHOWN_TAB[s.key] for s in SHOWN}
+             if ws.cell(r, 2).hyperlink and _to(ws.cell(r, 2)) != "Overview"}
+    assert links == {s.title: CARE_TAB[s.key] for s in CARE}
     text = _text(ws)
-    assert all(what in text for what, _ in NOT_SHOWN) and SCE_CREDIT in text
-    assert "None is rated" in text and not re.search(r"[1-5] (Low|Moderate|High)", text)
-    # the saving rate's latest is its lowest: at or above its 1 reading of 321
-    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Personal saving rate")
+    assert all(what in text for what, _ in CARE_NOT_READ) and SCE_CREDIT in text
+    assert not re.search(r"\b[1-5] (Low|Moderate|High)", text)
+    # the saving rate's latest is its lowest: at or above its 1 reading of 321, and its change Decreasing
+    row = _row(ws, "Personal saving rate")
     assert ws.cell(row, 4).value == 1.0 and ws.cell(row, 6).value == pytest.approx(1 / 321)
-    # a series that grows is shown on its change only
-    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Real disposable income")
-    assert ws.cell(row, 6).value == "change only" and ws.cell(row, 9).value is not None
-    # what the pull lacks is said, with why
+    assert ws.cell(row, 11).value == "▼ Decreasing"
+    row = _row(ws, "Real disposable income")
+    assert ws.cell(row, 6).value == "change only" and ws.cell(row, 7).value is not None
     assert "Nothing to show, and why" in text and "Job openings" in text
-    assert _to(wb["Ratings"].cell(2, 2)) == SHOWN_NAME
+    assert _to(wb["Overview"].cell(2, 2)) == CARE_NAME
 
 
-def _to(cell):
-    """The tab an in-workbook link opens, however openpyxl read it back."""
-    h = cell.hyperlink
-    return re.match(r"#?'(.*)'!A1$", h.location or h.target).group(1)
-
-
-def test_a_shown_series_tab_draws_its_history_with_no_rating_and_no_bands(shown_book):
-    out, result, wb = shown_book
+def test_a_care_series_tab_draws_its_level_and_its_change_over_its_normal_range(care_book):
+    out, result, wb = care_book
     ws = wb["Saving rate"]
     text = _text(ws)
-    assert "Shown, not rated" in text and "Not set: the series is shown, not rated" in text
-    assert not re.search(r"[1-5] (Low|Moderate|High)", text)
+    assert "usable with care" in text and "Why with care" in text
     assert len(ws._charts) == 2                         # its level and its change
-    for chart in ws._charts:
-        assert type(chart).__name__ == "LineChart"     # no rating bands under it
+    assert type(ws._charts[1]).__name__ == "AreaChart"  # the change, over its normal range
     assert len(wb["Real income"]._charts) == 1          # change only
-    assert SCE_CREDIT_IN(wb["Expected missed payments"])
-    assert "Nothing to show" in _text(wb["Job openings"]) and not wb["Job openings"]._charts
+    assert SCE_CREDIT in _text(wb["Expected missed payments"])
+    assert "Not read" in _text(wb["Job openings"]) and not wb["Job openings"]._charts
     assert _holds_together_in_excel(out) > 0
-    run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
-    from threshold_engine.macro.catalog import SHOWN
-    assert run["Series shown, not rated"].startswith("%d (5 readings shown;" % len(SHOWN))
 
 
-def SCE_CREDIT_IN(ws):
-    from threshold_engine.macro.catalog import SCE_CREDIT
-    return SCE_CREDIT in _text(ws)
-
-
-def test_a_build_refuses_a_pull_whose_shown_file_changed_since_the_rating(shown_cache, tmp_path):  # noqa: F811
-    # The shown series are drawn from the same reading of the pull as the ratings: a survey file changed
-    # between the rating and the workbook is refused, as a rated series' file is.
-    from threshold_engine.macro.settings import Refused
-    result = R.rate_all(shown_cache, check(answered()))
-    pull = R.Pull(shown_cache)
+def test_a_build_refuses_a_pull_whose_care_file_changed_since_the_run(care_cache, tmp_path):  # noqa: F811
+    result = R.read_all(care_cache, check(answered()))
+    pull = R.Pull(care_cache)
     (pull.folder / "nyfed_sce.xlsx").write_bytes((pull.folder / "nyfed_sce.xlsx").read_bytes() + b" ")
     with pytest.raises(Refused, match="nyfed_sce.xlsx"):
         build(tmp_path / "x.xlsx", result, pull)
 
 
-def test_the_shown_tab_dates_a_change_by_its_own_month_when_the_latest_has_none(tmp_path):
+def test_a_change_is_dated_by_its_own_month_when_the_latest_has_none(tmp_path):
     # Codex on #452: a reading missing the horizon back leaves the latest month with no change, so the change
     # shown is an earlier month's; written beside the latest date alone, it read as the latest month's.
-    from test_macro_rate import _fetcher
     from test_macro_sources import sce_workbook
     base = _fetcher()
 
     def fetch(url):
-        if "newyorkfed.org" in url:      # March 2026 missing: no change over 6 months to September
-            return sce_workbook([(100 * (2013 + (5 + i) // 12) + (5 + i) % 12 + 1, None if i == 153 else 10 + i % 3)
-                                 for i in range(160)])
+        if "newyorkfed.org" in url and "hhdc" not in url.lower():    # March 2026 missing: no change to September
+            return sce_workbook([(100 * (2013 + (5 + i) // 12) + (5 + i) % 12 + 1,
+                                  None if i == 153 else 10 + (i * i) % 7) for i in range(160)])
         return base(url)
     R.P.pull(tmp_path, keys=["expected_missed_payment"], today="2026-10-15", fetcher=fetch)
     out, result, wb = _build(tmp_path, tmp_path / "x.xlsx")
-    chg = next(x for x in result["shown"] if x["key"] == "expected_missed_payment" and x["reading"] == "change")
+    chg = next(x for x in result["readings"] if x["key"] == "expected_missed_payment" and x["reading"] == "change")
     assert chg["date"] == "2026-08-01"
-    ws = wb[SHOWN_NAME]
-    row = next(r for r in range(1, ws.max_row + 1) if ws.cell(r, 2).value == "Expected chance of missing a minimum "
-               "debt payment")
+    ws = wb[CARE_NAME]
+    row = _row(ws, "Expected chance of missing a minimum debt payment")
     assert ws.cell(row, 3).value.date().isoformat() == "2026-09-01"     # the latest reading
     assert ws.cell(row, 8).value.date().isoformat() == "2026-08-01"     # the month the change runs to
 
 
-def test_the_printout_and_the_record_carry_the_credit_the_survey_licence_requires(shown_cache, tmp_path, capsys):  # noqa: F811
-    # Codex on #452: rate printed the NY Fed's numbers without the attribution its licence requires.
+def test_the_printout_and_the_record_carry_the_credit_a_licence_requires(care_cache, tmp_path, capsys):  # noqa: F811
+    # Codex on #452: the printout showed the NY Fed's numbers without the attribution its licence requires.
     import json
     from threshold_engine.macro.__main__ import main
-    from threshold_engine.macro.catalog import SCE_CREDIT
     settings = tmp_path / "s.json"
     settings.write_text(json.dumps(answered()))
-    assert main(["rate", "--cache", str(shown_cache), "--settings", str(settings)]) == 0
+    assert main(["read", "--cache", str(care_cache), "--settings", str(settings)]) == 0
     out = capsys.readouterr().out
-    assert "expected_missed_payment" in out and SCE_CREDIT in out
-    assert main(["rate", "--cache", str(shown_cache), "--settings", str(settings), "--json"]) == 0
+    assert "expected_missed_payment" in out and SCE_CREDIT in out and "rated" not in out
+    assert main(["read", "--cache", str(care_cache), "--settings", str(settings), "--json"]) == 0
     record = json.loads(capsys.readouterr().out)
-    sce = [x for x in record["shown"] if x["key"] == "expected_missed_payment"]
+    sce = [x for x in record["readings"] if x["key"] == "expected_missed_payment"]
     assert sce and all(x["credit"] == SCE_CREDIT for x in sce)
 
 
-def test_show_prints_the_credit_with_the_survey_data_it_prints(shown_cache, capsys):  # noqa: F811
+def test_show_prints_the_credit_with_the_survey_data_it_prints(care_cache, capsys):  # noqa: F811
     # Codex on #452: show printed the NY Fed survey's observations without the attribution its licence requires.
     from threshold_engine.macro.__main__ import main
-    from threshold_engine.macro.catalog import SCE_CREDIT
-    assert main(["show", "--cache", str(shown_cache), "expected_missed_payment", "--tail", "3"]) == 0
+    assert main(["show", "--cache", str(care_cache), "expected_missed_payment", "--tail", "3"]) == 0
     out = capsys.readouterr().out
     assert "2026-09-01" in out and out.rstrip().endswith(SCE_CREDIT)
-    assert main(["show", "--cache", str(shown_cache), "saving_rate", "--tail", "3"]) == 0
+    assert main(["show", "--cache", str(care_cache), "saving_rate", "--tail", "3"]) == 0
     assert "Survey of Consumer Expectations" not in capsys.readouterr().out     # only where a licence asks
+
+
+# -- household debt -------------------------------------------------------------------------------------------
+
+@pytest.fixture
+def household_book(tmp_path):
+    from threshold_engine.macro import pull as P
+    P.pull(tmp_path, keys=HOUSEHOLD_KEYS, today="2026-10-22", fetcher=_fetcher())
+    return _build(tmp_path, tmp_path / "hh.xlsx", history="full", change_months=12)
+
+
+def test_household_debt_is_one_tab_stacked_as_the_ny_fed_reports_it_with_its_credit(household_book):
+    out, result, wb = household_book
+    ws = wb[HOUSEHOLD_NAME]
+    text = _text(ws)
+    for column in ("Mortgage", "HE Revolving", "Auto Loan", "Credit Card", "Student Loan", "Other", "Total"):
+        assert column in text
+    assert "Source: New York Fed Consumer Credit Panel / Equifax." in text
+    stack = next(x for x in _charts(out).values() if "barChart" in x and 'grouping val="stacked"' in x)
+    for column in ("Mortgage", "HE Revolving", "Auto Loan", "Credit Card", "Student Loan", "Other"):
+        assert "<v>%s</v>" % column in stack                         # the legend: the NY Fed's own names
+    assert "Total Debt Balance and Its Composition" in stack
+    # each type's row: its latest balance, its share and its change against its own normal range
+    row = _row(ws, "Credit Card")
+    cards = next(r for r in result["readings"] if r["key"] == "household_credit_card")
+    total = next(r for r in result["readings"] if r["key"] == "household_total")
+    assert ws.cell(row, 5).value == pytest.approx(cards["value"] / 100)
+    assert ws.cell(row, 8).value in ("▲ Increasing", "Stable", "▼ Decreasing")
+    assert ws.cell(row, 4).value == pytest.approx(ws.cell(row, 3).value / ws.cell(_row(ws, "Total"), 3).value)
+    assert total["direction"] in ("Increasing", "Stable", "Decreasing")
+    # the Overview lists every type, each linked to this one tab
+    ov = wb["Overview"]
+    links = {_to(ov.cell(_row(ov, "Household debt: " + t), 2)) for t in ("mortgage", "credit card", "total")}
+    assert links == {HOUSEHOLD_NAME}
+    assert _holds_together_in_excel(out) > 0

@@ -10,13 +10,13 @@ import zipfile
 import pytest
 
 from threshold_engine.macro import pull as P
-from threshold_engine.macro import rate as R
+from threshold_engine.macro import readings as R
 from threshold_engine.macro import settings as S
-from threshold_engine.macro.catalog import BY_KEY, LOWER
+from threshold_engine.macro.catalog import BY_KEY
 from threshold_engine.macro.compare import compare
 
 from test_macro_pull import _fake
-from test_macro_rate import _fetcher, cache                       # noqa: F401  (the fixture: a pull on disk)
+from test_macro_readings import _fetcher, cache                   # noqa: F401  (the fixture: a pull on disk)
 from test_macro_settings import answered
 
 
@@ -40,11 +40,11 @@ def test_a_file_the_pull_could_not_read_leaves_its_readings_not_rated_rather_tha
         return f(url)
     m = P.pull(tmp_path, keys=["mortgage_90", "unemployment"], today="2026-10-17", fetcher=fetcher)
     assert "could not read" in m["series"]["mortgage_90"]["error"]        # the pull knew
-    result = R.rate_all(tmp_path, S.check(answered()))                     # so the rating must not crash
-    why = {(x["key"], x["reading"]): x["why"] for x in result["not_rated"]}
+    result = R.read_all(tmp_path, S.check(answered()))                     # so the run must not crash
+    why = {(x["key"], x["reading"]): x["why"] for x in result["not_read"]}
     assert ("mortgage_90", "position") in why
     assert "could not read" in why[("mortgage_90", "position")]
-    assert any(r["key"] == "unemployment" for r in result["ratings"])      # and the rest is still rated
+    assert any(r["key"] == "unemployment" for r in result["readings"])     # and the rest is still read
 
 
 def test_a_refused_pull_leaves_the_cache_as_it_was(tmp_path):
@@ -82,26 +82,25 @@ def test_pulling_a_derived_reading_is_not_called_not_in_the_catalog(tmp_path):
 # 2. Settings validation
 # ---------------------------------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("reading,says", [
-    ("position", "cpi position"),       # an answer to a question the tool never asks: CPI is rated on its change only
-    ("chnage", "cpi chnage"),           # a misspelt reading name
-])
-def test_a_direction_for_a_reading_the_series_does_not_carry_is_refused_by_name(reading, says):
+def test_an_answer_to_a_question_the_tool_no_longer_asks_is_refused_by_name():
     """The settings refuse an unknown top-level key ("colour: not a setting the tool has") and a direction
     for a series the research already states ("unemployment: its direction is stated by the research").
     A direction for a *reading* a series does not carry passes in silence: ``cpi: {"position": ...}``
     is accepted although CPI's level is never rated, and so is a misspelt reading name. The firm can
     believe it has set how CPI's level is read when nothing reads it. Every other stray answer is
-    named; this one should be too."""
+    named; this one should be too.
+
+    (22 Oct 2026: the directions question left the settings when the tool stopped rating. The finding
+    stands for whatever replaces it: an answer nothing reads is named, never passed in silence.)"""
     t = answered()
-    t["directions"]["answer"]["cpi"][reading] = LOWER
+    t["directions"] = {"answer": {"cpi": {"position": "lower is worse"}}}
     with pytest.raises(S.Refused) as e:
         S.check(t)
-    assert says in str(e.value)
+    assert "directions: no longer a setting" in str(e.value)
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# 3. The ratings
+# 3. The readings
 # ---------------------------------------------------------------------------------------------------------------
 
 def _quarterly(values, first_year=2000):
@@ -114,8 +113,8 @@ def _quarterly(values, first_year=2000):
     # a series whose every value the publisher left blank
     ("position", [("2026-01-01", None), ("2026-04-01", None)], 12, "values readings"),
 ])
-def test_the_reason_a_reading_cannot_be_rated_reads_as_english_and_does_not_blame_the_pull(reading, points,
-                                                                                            months, bad):
+def test_the_reason_a_reading_cannot_be_read_reads_as_english_and_does_not_blame_the_pull(reading, points,
+                                                                                           months, bad):
     """The reason a reading has no rating is printed by ``rate`` and written to the Not rated tab and
     the What if tab, where a reader meets it as prose. It reads "no changes readings in the pull" and
     "no values readings in the pull". Worse than the grammar: for a quarterly series under a horizon
@@ -123,7 +122,7 @@ def test_the_reason_a_reading_cannot_be_rated_reads_as_english_and_does_not_blam
     but the reason says the pull. The reason should read as a sentence and name the actual cause."""
     item = BY_KEY["house_prices"]
     s = S.check(answered(change_months=months))
-    out, why = R.rate_reading(item, reading, points, s, LOWER)
+    out, why = R.describe(item, reading, points, s)
     assert out is None
     assert bad not in why, why
     if reading == "change":
@@ -134,25 +133,26 @@ def test_the_reason_a_reading_cannot_be_rated_reads_as_english_and_does_not_blam
 # 4. The what-if
 # ---------------------------------------------------------------------------------------------------------------
 
-def test_a_change_rated_as_you_have_it_only_is_not_labelled_with_the_what_ifs_horizon(cache):  # noqa: F811
+def test_a_change_read_as_you_have_it_only_is_not_labelled_with_the_what_ifs_horizon(cache):  # noqa: F811
     """Codex found three branches that named a change with the wrong side's horizon, and each fix covered
     the branch in front of it. This is the fourth. Settings count the change over 6 months and rate
     CPI's change; the what-if counts over 12 months and does not rate it. The Ratings tab's What if
     cell reads "Change (what if: over 12 months): rated as you have it only": the only rating in that
     cell is the 6-month one, and the what-if, whose horizon it names, rated nothing. The cell should
-    name the horizon of the rating it reports, or none."""
+    name the horizon of the rating it reports, or none.
+
+    (22 Oct 2026: nothing is rated and no setting turns a reading off, so the what-if here reads nothing
+    because 400 months is longer than any history in the fixture.)"""
     from threshold_engine.macro.workbook import move_text
-    b = answered(change_months=12)
-    b["directions"]["answer"]["cpi"]["change"] = S.NOT_RATED
     pull = R.Pull(cache)
-    ra = R.rate_all(cache, S.check(answered(change_months=6)), pull=pull)
-    rb = R.rate_all(cache, S.check(b), pull=pull)
+    ra = R.read_all(cache, S.check(answered(change_months=6)), pull=pull)
+    rb = R.read_all(cache, S.check(answered(change_months=400)), pull=pull)
     c = compare(ra, rb, "settings.json", "what-if.json")
     row = next(x for x in c["rows"] if x["key"] == "cpi" and x["reading"] == "change")
     assert row["a"] and row["b"] is None and not row["same_measure"]
     words = move_text([row], c["months"])
-    assert "rated as you have it only" in words
-    assert "what if: over 12 months" not in words, words
+    assert "read as you have it only" in words
+    assert "what if: over 400 months" not in words, words
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -175,8 +175,8 @@ def test_a_series_with_no_rows_in_the_pull_does_not_crash_the_workbook_when_the_
             return b"observation_date,UNRATE\n"
         return f(url)
     P.pull(tmp_path, keys=["unemployment", "cpi"], today="2026-10-17", fetcher=fetcher)
-    result = R.rate_all(tmp_path, S.check(answered(show_sahm=True)))
-    assert any(x["key"] == "unemployment" for x in result["not_rated"])
+    result = R.read_all(tmp_path, S.check(answered(show_sahm=True)))
+    assert any(x["key"] == "unemployment" for x in result["not_read"])
     out = build(str(tmp_path / "b.xlsx"), result, R.Pull(tmp_path))
     assert "Unemployment" in openpyxl.load_workbook(out).sheetnames
 
@@ -195,8 +195,8 @@ def test_the_sources_tab_fingerprints_the_file_the_rating_read(tmp_path):
     path = tmp_path / "2026-10-17" / "fred-UNRATE.csv"
     with open(path, "a") as fh:
         fh.write("2026-10-01,2.0\n")                                # the file the rating will read
-    result = R.rate_all(tmp_path, S.check(answered()))
-    u = next(r for r in result["ratings"] if r["key"] == "unemployment" and r["reading"] == "position")
+    result = R.read_all(tmp_path, S.check(answered()))
+    u = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "position")
     assert u["date"] == "2026-10-01"                                 # it did read the changed file
     out = build(str(tmp_path / "b.xlsx"), result, R.Pull(tmp_path))
     ws = openpyxl.load_workbook(out)["Sources"]
@@ -223,14 +223,19 @@ def test_a_history_of_one_value_gets_a_chart_axis_with_a_span(tmp_path):
             return ("\n".join(rows) + "\n").encode()
         return f(url)
     P.pull(tmp_path, keys=["unemployment"], today="2026-10-17", fetcher=fetcher)
-    result = R.rate_all(tmp_path, S.check(answered(show_sahm=False)))
+    result = R.read_all(tmp_path, S.check(answered(show_sahm=False)))
     out = build(str(tmp_path / "b.xlsx"), result, R.Pull(tmp_path))
+    # openpyxl writes a chart without the c: prefix: matched with it, as this check was until 22 Oct 2026, it
+    # found no axis and could not fail.
+    seen = 0
     with zipfile.ZipFile(out) as z:
         for n in z.namelist():
             if n.startswith("xl/charts/chart"):
                 x = z.read(n).decode()
-                for m in re.finditer(r'<c:scaling>.*?</c:scaling>', x, re.S):
-                    lo = re.search(r'<c:min val="([^"]+)"/>', m.group(0))
-                    hi = re.search(r'<c:max val="([^"]+)"/>', m.group(0))
+                for m in re.finditer(r'<scaling>.*?</scaling>', x, re.S):
+                    lo = re.search(r'<min val="([^"]+)"/>', m.group(0))
+                    hi = re.search(r'<max val="([^"]+)"/>', m.group(0))
                     if lo and hi:
+                        seen += 1
                         assert float(lo.group(1)) < float(hi.group(1)), (n, m.group(0))
+    assert seen

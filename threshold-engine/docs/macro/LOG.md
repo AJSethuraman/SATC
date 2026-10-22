@@ -838,3 +838,103 @@ out or returned 504 at 04:40.
   firm.
 - main was merged in first (f8f6ffd7). It adds colours to `keybank_style.py` and changes none the
   Macrobook uses.
+
+## 22 Oct 2026: nothing rated; direction against normal movement; quarters left out; the zoom; the prime rate, household debt and a Dashboard
+
+**What the firm said.** Looking at the Initial claims tab in Excel: *"Views
+need to allow us to somehow normalize this or be able to exclude a spike or
+something"*. Then: *"We are not rating these. At most these are directional.
+I will take recommended ways of viewing tho. Also we need to be able up
+exclude quarters we choose. Not an option"*; *"Yes direction only and ways to
+establish normal movement"*; quarters to leave out to start, *"None yet"*;
+normal movement, *"Typical move (Recommended)"*. While it was being built:
+*"how do we not have the prime interest rate as a graph on this?"*;
+*"household as a graph on this that split between as it is literally
+reported. It's like credit cards mortgage and other"*, then *"NY Fed debt by
+type (Recommended)"*; *"i want to be able to simply change the view of
+quarters not change cutoffs or averages or anything but to literally zoom in
+on a set of quarters"*, then *"Name it, then rebuild (Recommended)"*; *"is
+wage growth available"*; and *"there should be a fairly simple to drive
+dashboard tab that basically lets you layer any 2 charts or something see the
+individual charts and see a chart the shows magnitude in movement"*.
+
+**What changed.**
+
+- **No ratings.** The cut-offs, the tie rule, the directions of stress and
+  the change-for list leave the settings; a file that still answers one is
+  refused, with why. `rate.py` is `readings.py`, and the command is `read`.
+- **Every series, core and usable with care, is read the same way:** where its
+  level sits (the share of its history it is at or above, counted from the
+  lowest) and whether its change is Increasing, Stable or Decreasing against
+  the median change plus or minus one typical move (1.4826 x the median
+  absolute deviation, Book 1's measure). How many typical moves a change is
+  from the median is shown as a number, and since when it has read that way.
+- **New settings, each answered by the firm:** `normal_width` 1, `left_out`
+  [], `axis_cut` 1. The template, `settings.json` and the two example
+  what-ifs are rewritten to them.
+- **Quarters left out** are taken out before anything is measured, drawn as
+  gaps, kept in the tables with "left out", and named on every tab.
+- **The zoom** is `--zoom 2019Q1:2026Q3` on `read --workbook`. Charts only; a
+  test builds with and without it and finds the readings identical.
+- **The axis cut**: each chart's axis may leave off up to 1% of its readings
+  at each end, the latest reading and the normal range always kept on, and a
+  note under the chart names the furthest one off.
+- **The prime rate** (FRED `DPRIME`, daily from 1955-08-04, Public Domain:
+  Citation Requested, all read on FRED's page today). The report named it but
+  grouped it nowhere, which is how the catalog missed it.
+- **Household debt by type**: the NY Fed's Page 3 Data (Mortgage, HE
+  Revolving, Auto Loan, Credit Card, Student Loan, Other, Total), on one tab,
+  stacked as the NY Fed draws it with its names, its attribution carried.
+  The file is found through the report's own page. The NY Fed's terms of use
+  (6/9/2023), read today, allow business use with that attribution, so the
+  "terms not confirmed" reasons in the catalog were false and are rewritten.
+- **The Dashboard**: two pickers; both changes in typical moves on one chart,
+  both levels as where each sits in its history on another, and each one's
+  own level and change. The dataviz guidance rules out a chart of two
+  different units on two axes, so the layered charts are of scales the two
+  share. Its formulas look up values written on a hidden tab; a test holds
+  every other tab to values and the Dashboard to INDEX, MATCH, ROW, IF,
+  IFERROR, ISNA, AND, NA, MIN and MAX.
+- **Wage growth** was there already, in the usable-with-care group: ECI wages
+  and salaries +3.1% in the year to 2026 Q2, average hourly earnings +3.0%
+  in the year to September.
+
+**What running it found.**
+
+- From the pull of 22 Oct 2026 (folder `2026-10-22-3`, all 124 series), 219
+  readings, none failed. Of the 42 national core changes, 6 read Increasing,
+  34 Stable, 2 Decreasing.
+- Leaving 2020 Q2 to 2021 Q2 out moves 2 of 124 changes, both downward. A
+  normal range built on medians barely notices the pandemic spike, which is
+  what the firm was told when it chose the typical move ("A big spike doesn't
+  widen it"); the zoom and the axis cut are what change the view.
+- The first fixtures were too regular: half their changes equalled the
+  median, the typical move was zero, and the tool rightly refused to read
+  them. The fixtures now vary; the refusal has its own test.
+- A Fable test of 17 Oct, "a history of one value gets a chart axis with a
+  span", searched the chart XML for `<c:scaling>`. openpyxl writes it without
+  the prefix, so the test found no axis and could not fail. It now matches
+  what is written and asserts it saw at least one axis.
+- LibreOffice gave `#NAME?` for `AGGREGATE`: a function newer than Excel 2007
+  needs a prefix in the file, and Excel would have shown the same. The
+  Dashboard looks up each series' first and last month as values instead.
+- A daily series' line broke at every holiday, the blank day being drawn as a
+  gap. Daily lines now join across a day with no reading; a missing month or
+  week is still a gap.
+
+**Decisions carried over, for the firm to confirm or reverse.**
+
+1. A change exactly on an edge of its normal range reads as moving, carried
+   from the 16 Oct answer that a tie goes to the warning.
+2. The axis cut applies at each end, though the option shown said "the top
+   1%": a change spikes both ways.
+3. The research's direction of stress is shown on each series' tab as a fact
+   ("Higher readings signal stress, the research says"); it changes nothing.
+
+**Checked, and not.** 157 tests pass (`tests/test_macro_*.py`). The example
+workbook passes the ISO schemas (0 errors) and the Open XML SDK (only the 25
+known font-order notes in styles.xml). Every tab was rendered in LibreOffice
+and looked at; the Dashboard's lookups compute and its charts follow the
+pickers there. **Not checked in Excel**: the firm's Excel is the check that
+remains, the Dashboard above all, the first tab in this workbook with
+formulas.

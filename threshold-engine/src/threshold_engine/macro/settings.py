@@ -1,4 +1,4 @@
-"""The firm's settings for the ratings, and the refusal when any is missing.
+"""The firm's settings for the readings, and the refusal when any is missing.
 
 Every setting is required and none has a default. The settings file is JSON;
 each question carries an "answer", and only the answer is read. The template
@@ -8,98 +8,83 @@ whose answers are still empty is refused, with every missing answer named, in
 one message.
 
     python -m threshold_engine.macro settings-template OUT.json
+
+Nothing is rated (the firm, 22 Oct 2026: "We are not rating these. At most
+these are directional"), so the settings say how a reading is measured, not
+where a rating starts: which history, which horizon, how wide normal movement
+is, which quarters are left out of every history, and how much of a chart may
+run off its axis.
 """
 import json
 import pathlib
+import re
 
-from .catalog import HIGHER, LOWER, RATED
-
-NOT_RATED = "not rated"
-DIRECTIONS = (HIGHER, LOWER, NOT_RATED)
 READINGS = ("position", "change")
+
+#: Settings an earlier version asked for, and why a file that still holds one is refused rather than read.
+REMOVED = {
+    "cutoffs": "the tool no longer rates (22 Oct 2026), so no rating starts anywhere",
+    "on_the_line": "the tool no longer rates (22 Oct 2026), so no reading sits on a cut-off",
+    "directions": "the tool no longer rates (22 Oct 2026); a change is read as Increasing, Stable or "
+                  "Decreasing whichever way is worse",
+    "change_for": "every series now has its change read, since its direction comes from it (22 Oct 2026)",
+}
+
+QUARTER = re.compile(r"^(\d{4})Q([1-4])$")
 
 
 class Refused(ValueError):
     """The settings are missing an answer or hold one the tool cannot use."""
 
 
-def readings_of(series, change_for):
-    """The readings a series carries under ``change_for`` ("all" or a list of keys).
-
-    A series rated on its place in its own history carries that reading, and its
-    change too if the firm asks for it. A series not rated on its place (a level
-    that climbs over the decades) carries its change only, whatever ``change_for``
-    says, since otherwise it would carry nothing."""
-    if series.position:
-        return ("change",)
-    if change_for == "all" or series.key in change_for:
-        return READINGS
-    return ("position",)
-
-
-def open_readings(change_for):
-    """Each (series key, reading) whose direction the research leaves to the firm."""
-    return [(s.key, r) for s in RATED if s.stress is None for r in readings_of(s, change_for)]
-
-
-def _recommended_directions():
-    rec = {
-        "cpi": {"change": HIGHER},
-        "cpi_core": {"change": HIGHER},
-        "used_cars": {"change": HIGHER},
-        "house_prices": {"change": LOWER},
-        "house_price_to_income": {"position": HIGHER, "change": LOWER},
-        "mortgage_rate": {"position": HIGHER, "change": HIGHER},
-        "revolving_credit": {"change": HIGHER},
-        "cre_prices": {"change": LOWER},
-        "ci_demand": {"position": LOWER, "change": LOWER},
-    }
-    return {k: dict(rec[k]) for k, _ in open_readings("all")}
+def readings_of(series):
+    """The readings a series carries: its level where its place in its own history means something, and
+    always its change. A level that climbs over the decades carries its change only."""
+    return ("change",) if series.position else READINGS
 
 
 QUESTIONS = [
-    ("cutoffs",
-     "From which percentile of its own history does a reading take ratings 2, 3, 4 and 5? Four numbers, "
-     "each above the last, between 0 and 100.",
-     [50, 75, 90, 95],
-     "A reading above the median is at least a 2, and the top two ratings sit in the tail: the Fed's "
-     "Financial Stability Report speaks of the upper quartile and the 90th percentile, and the Fed staff "
-     "heat map (Aikman et al. 2015) drew lines at the 65th and 85th, with a red zone at the 80th."),
-    ("on_the_line",
-     "A reading exactly on a cut-off: does it take the worse rating or the better one? \"worse\" or \"better\".",
-     "worse",
-     "The tool exists to warn; a tie goes to the warning. The loss thresholds ask the same question."),
     ("history",
      "Which history is each reading measured against? \"full\" for everything the publisher has, or "
      "{\"years\": N} for the last N years up to the latest reading.",
      "full",
      "Every series starts in a different year, so a fixed window would cut the long ones short; the start "
-     "of each history is shown beside every rating, as the regulators do."),
+     "of each history is shown beside every reading, as the regulators do."),
     ("change_months",
      "Over how many months is a change counted? A whole number. Weekly and daily series count whole "
      "weeks (12 months is 52), as FRED does: a day with no reading that many weeks before has no change.",
      12,
      "A year: it takes out the seasons, and the report reads homeowner's insurance and revolving credit "
      "over a year."),
+    ("normal_width",
+     "How wide is normal movement? The median change plus or minus this many typical moves, where a typical "
+     "move is 1.4826 times the median distance of the changes from their median. A number above 0. A change "
+     "inside reads Stable; one at or past either edge reads Increasing or Decreasing.",
+     1,
+     "One typical move is the measure the loss thresholds use for ordinary year-to-year movement "
+     "(threshold-engine scale.py). For changes shaped like a bell it holds about two in three of them, and a "
+     "spike does not widen it, as it would a standard deviation."),
+    ("left_out",
+     "Which quarters are left out of every history? A list, each entry a quarter such as \"2020Q2\" or a run "
+     "such as \"2020Q2-2021Q2\"; [] leaves nothing out. A reading in a quarter left out is not measured "
+     "against, and a change with either end in one is not counted.",
+     [],
+     "Nothing until there is a reason to record. The pandemic quarters are the usual candidate: 2020Q2 to "
+     "2021Q2 holds the spike in jobless claims and unemployment, and the loss thresholds' evidence was "
+     "tested with and without 2020Q1 to 2023Q4."),
+    ("axis_cut",
+     "How much of each chart's readings may run off its axis, at each end? A percent from 0 to 10; 0 keeps "
+     "every reading on the chart. The latest reading and the normal range always stay on it. Only the "
+     "charts change; no reading does.",
+     1,
+     "A spike such as the 2020 jobless claims flattens the rest of a chart. With 1% at each end it runs off "
+     "the edge, and a note under the chart names the highest reading and its date."),
     ("show_sahm",
-     "Show the Sahm reading beside the national unemployment rate? true or false. It is shown, not rated.",
+     "Show the Sahm reading beside the national unemployment rate? true or false.",
      True,
      "It is the best-known published trigger for unemployment (0.50 points, Sahm 2019), and the report "
-     "records its false alarm of 2024, so a reader should see it beside the rating rather than instead of it."),
-    ("change_for",
-     "Which series rated on their place in history also get a rating for their change? \"all\", or a list "
-     "of series keys. Series rated on their change only always get it.",
-     "all",
-     "The report's first rule: unemployment is lowest just before recessions, so its level alone reads "
-     "1 Low at the turn; the change carries the signal, and the same holds for spreads and claims."),
-    ("directions",
-     "For each reading the research leaves open: which way is stress? \"higher is worse\", \"lower is "
-     "worse\" or \"not rated\".",
-     None,  # filled in by template(), one entry per open reading
-     "Prices: rising is worse for borrowers. House prices: stretched when high against income, stressed "
-     "when falling (the report's second rule). Mortgage rate: higher is worse for payments. Revolving "
-     "credit: faster growth is the build-up. Business loan demand: weaker is worse, the least certain of "
-     "these."),
+     "records its false alarm of 2024, so a reader should see it beside the change rather than instead of "
+     "it."),
 ]
 
 
@@ -108,12 +93,7 @@ def template():
     out = {"about": "Fill in every \"answer\"; the tool refuses until each one is filled. The "
                     "\"recommended\" values are suggestions and are never read by the tool."}
     for name, question, recommended, why in QUESTIONS:
-        if name == "directions":
-            recommended = _recommended_directions()
-            answer = {k: {r: None for r in v} for k, v in recommended.items()}
-        else:
-            answer = None
-        out[name] = {"question": question, "recommended": recommended, "why": why, "answer": answer}
+        out[name] = {"question": question, "recommended": recommended, "why": why, "answer": None}
     return out
 
 
@@ -129,6 +109,40 @@ def _number(x):
     return isinstance(x, (int, float)) and not isinstance(x, bool)
 
 
+def quarter_index(label):
+    """2020Q2 as a count of quarters, so runs of quarters compare and step; None if it is not a quarter."""
+    m = QUARTER.match(label) if isinstance(label, str) else None
+    return int(m.group(1)) * 4 + int(m.group(2)) - 1 if m else None
+
+
+def quarter_label(n):
+    return "%dQ%d" % (n // 4, n % 4 + 1)
+
+
+def quarter_of(date):
+    """The quarter a date (YYYY-MM-DD) falls in, as 2020Q2."""
+    return "%sQ%d" % (date[:4], (int(date[5:7]) - 1) // 3 + 1)
+
+
+def runs(entries):
+    """The quarters left out, as [first, last] runs in order, from the firm's list; raises ValueError naming
+    the first entry that is not a quarter or a run of them."""
+    out = []
+    for e in entries:
+        first, _, last = e.partition("-") if isinstance(e, str) else (None, "", None)
+        last = last or first
+        a, b = quarter_index(first), quarter_index(last)
+        if a is None or b is None or a > b:
+            raise ValueError(e)
+        out.append([quarter_label(a), quarter_label(b)])
+    return sorted(out)
+
+
+def left_out_set(left_out):
+    """Every quarter in the runs left out, as labels."""
+    return {quarter_label(n) for a, b in left_out for n in range(quarter_index(a), quarter_index(b) + 1)}
+
+
 def check(raw):
     """The answers from a settings dict, or Refused naming every problem."""
     problems, s = [], {}
@@ -136,7 +150,8 @@ def check(raw):
         raise Refused("the settings file must hold one JSON object")
     known = {q[0] for q in QUESTIONS} | {"about"}
     for extra in sorted(set(raw) - known):
-        problems.append("%s: not a setting the tool has" % extra)
+        problems.append("%s: %s" % (extra, "no longer a setting: " + REMOVED[extra] if extra in REMOVED else
+                                    "not a setting the tool has"))
 
     def answer(name):
         item = raw.get(name)
@@ -145,19 +160,6 @@ def check(raw):
             return None
         return item["answer"]
 
-    c = answer("cutoffs")
-    if c is not None:
-        if (isinstance(c, list) and len(c) == 4 and all(_number(x) for x in c)
-                and all(0 < x < 100 for x in c) and all(a < b for a, b in zip(c, c[1:]))):
-            s["cutoffs"] = [float(x) for x in c]
-        else:
-            problems.append("cutoffs: need four numbers, each above the last, between 0 and 100; got %r" % (c,))
-    o = answer("on_the_line")
-    if o is not None:
-        if o in ("worse", "better"):
-            s["on_the_line"] = o
-        else:
-            problems.append("on_the_line: need \"worse\" or \"better\"; got %r" % (o,))
     h = answer("history")
     if h is not None:
         if h == "full":
@@ -173,63 +175,37 @@ def check(raw):
             s["change_months"] = m
         else:
             problems.append("change_months: need a whole number of months above 0; got %r" % (m,))
+    w = answer("normal_width")
+    if w is not None:
+        if _number(w) and 0 < w <= 10:
+            s["normal_width"] = float(w)
+        else:
+            problems.append("normal_width: need a number of typical moves above 0 and at most 10; got %r" % (w,))
+    lo = answer("left_out")
+    if lo is not None:
+        if not isinstance(lo, list):
+            problems.append("left_out: need a list of quarters such as \"2020Q2\" or runs such as "
+                            "\"2020Q2-2021Q2\"; got %r" % (lo,))
+        else:
+            try:
+                s["left_out"] = runs(lo)
+            except ValueError as e:
+                problems.append("left_out: %r is not a quarter such as \"2020Q2\" or a run such as "
+                                "\"2020Q2-2021Q2\" whose first quarter comes first" % (e.args[0],))
+    cut = answer("axis_cut")
+    if cut is not None:
+        if _number(cut) and 0 <= cut <= 10:
+            s["axis_cut"] = float(cut)
+        else:
+            problems.append("axis_cut: need a percent from 0 to 10; got %r" % (cut,))
     sahm = answer("show_sahm")
     if sahm is not None:
         if isinstance(sahm, bool):
             s["show_sahm"] = sahm
         else:
             problems.append("show_sahm: need true or false; got %r" % (sahm,))
-    cf = answer("change_for")
-    rated_keys = {x.key for x in RATED}
-    if cf is not None:
-        if cf == "all":
-            s["change_for"] = "all"
-        elif isinstance(cf, list) and all(isinstance(k, str) for k in cf):
-            unknown = sorted(set(cf) - rated_keys)
-            if unknown:
-                problems.append("change_for: not series the tool rates: %s" % ", ".join(unknown))
-            else:
-                s["change_for"] = sorted(set(cf))
-        else:
-            problems.append("change_for: need \"all\" or a list of series keys; got %r" % (cf,))
-
-    d = raw.get("directions")
-    given = d.get("answer") if isinstance(d, dict) else None
-    if given is None:
-        given = {}
-    if not isinstance(given, dict):
-        problems.append("directions: need an object of series keys; got %r" % (given,))
-        given = {}
-    open_keys = {x.key for x in RATED if x.stress is None}
-    for k in sorted(set(given) - open_keys):
-        why = "its direction is stated by the research" if k in rated_keys else "not a series the tool rates"
-        problems.append("directions: %s: %s" % (k, why))
-    # An answer for a reading a series never carries is named, as every other stray answer is (Fable on #452:
-    # a direction for CPI's level, never rated, or for a misspelt reading, passed in silence).
-    carried = {}
-    for k, r in open_readings("all"):
-        carried.setdefault(k, set()).add(r)
-    for k in sorted(set(given) & open_keys):
-        if isinstance(given[k], dict):
-            for r in sorted(set(given[k]) - carried.get(k, set())):
-                problems.append("directions: %s %s: %s" % (
-                    k, r, "rated on its change only, so this answer is never read" if r == "position" else
-                    "not a reading: \"position\" (its level) or \"change\""))
-    directions = {}
-    # Until change_for is answered, every open reading is asked for, so one
-    # refusal names every gap rather than revealing them one answer at a time.
-    for k, r in open_readings(s.get("change_for", "all")):
-        v = given.get(k, {}).get(r) if isinstance(given.get(k), dict) else None
-        if v is None:
-            problems.append("directions: %s %s: not answered" % (k, r))
-        elif v not in DIRECTIONS:
-            problems.append("directions: %s %s: need one of %s; got %r" % (
-                k, r, ", ".join('"%s"' % x for x in DIRECTIONS), v))
-        else:
-            directions[(k, r)] = v
-    s["directions"] = directions
     if problems:
-        raise Refused("the settings are not complete, so nothing is rated:\n  " + "\n  ".join(problems))
+        raise Refused("the settings are not complete, so nothing is read:\n  " + "\n  ".join(problems))
     return s
 
 
@@ -243,4 +219,3 @@ def load(path):
     except json.JSONDecodeError as e:
         raise Refused("%s is not readable JSON: %s" % (path, e))
     return check(raw)
-
