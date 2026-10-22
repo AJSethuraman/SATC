@@ -19,15 +19,22 @@ history starts, the pull the data came from, and how long the series has held
 the rating, with each earlier reading rated against the same window. The
 report asks for the last because of 2022-25: a one-month crossing should look
 like one.
+
+The shown series (the report's "usable with care" group) get no rating and
+no direction. Each is described instead: its latest reading, and the share of
+the readings in the same history window that it is at or above, counted from
+the lowest, with the lowest and highest beside it. That says where it sits,
+not whether that is good or bad.
 """
 import bisect
 import calendar
 import datetime
+import hashlib
 import json
 import pathlib
 
 from . import pull as P
-from .catalog import BY_KEY, DERIVED_BY_KEY, HIGHER, RATED
+from .catalog import BY_KEY, DERIVED_BY_KEY, HIGHER, RATED, SHOWN
 from .settings import NOT_RATED, Refused, readings_of
 
 #: Sahm, Hamilton Project 2019 (report, "Published flags"): the 3-month average
@@ -182,15 +189,43 @@ def _num(x):
     return "0" if x == 0 else "%.3g" % x
 
 
-def rate_reading(item, reading, points, settings, direction):
-    """One rating, or None with the reason when there is nothing to rate."""
+def _window(item, reading, points, settings):
+    """The readings a reading is measured against, or None with the reason there are none."""
     if reading == "position":
         dated = [(d, v) for d, v in points if v is not None]
     else:
         dated = changes(points, settings["change_months"], item.frequency, item.change_in)
     window = in_window(dated, settings["history"])
-    if not window:
-        return None, "no %s readings in the pull" % ("changes" if reading == "change" else "values")
+    if window:
+        return window, None
+    # Said as the cause, in a sentence (Fable on #452: "no changes readings in the pull", for a quarterly
+    # series whose pull held every quarter and whose horizon no change could land on).
+    if dated:
+        return None, "none of its %s falls in the last %d years" % (
+            "values" if reading == "position" else "changes", settings["history"]["years"])
+    if reading == "position":
+        return None, "the pull holds no values for it"
+    return None, "no change over %d months can be counted: no reading has one that far before it" % (
+        settings["change_months"])
+
+
+def _what(item, reading, settings, date, value, window):
+    """The reading and what it is measured against, in words: its value and date, then the history."""
+    when, start = _when(date, item.frequency), _when(window[0][0], item.frequency)
+    if reading == "position":
+        return ("%s: %s %s" % (when, _num(value), item.unit),
+                "%s readings since %s" % ("{:,}".format(len(window)), start))
+    sign = "+" if value > 0 else ""
+    unit = "%" if item.change_in == "percent" else " points"
+    return ("Change over %d months to %s: %s%s%s" % (settings["change_months"], when, sign, _num(value), unit),
+            "%s such changes since %s" % ("{:,}".format(len(window)), start))
+
+
+def rate_reading(item, reading, points, settings, direction):
+    """One rating, or None with the reason when there is nothing to rate."""
+    window, why = _window(item, reading, points, settings)
+    if window is None:
+        return None, why
     ordered = sorted(v for _, v in window)
     cut, line = settings["cutoffs"], settings["on_the_line"]
 
@@ -215,15 +250,7 @@ def rate_reading(item, reading, points, settings, direction):
             break
         held, since = held + 1, d
     side = "above" if direction == HIGHER else "below"
-    when, start = _when(date, item.frequency), _when(window[0][0], item.frequency)
-    if reading == "position":
-        what = "%s: %s %s" % (when, _num(value), item.unit)
-        among = "%s readings since %s" % ("{:,}".format(len(window)), start)
-    else:
-        sign = "+" if value > 0 else ""
-        unit = "%" if item.change_in == "percent" else " points"
-        what = "Change over %d months to %s: %s%s%s" % (settings["change_months"], when, sign, _num(value), unit)
-        among = "%s such changes since %s" % ("{:,}".format(len(window)), start)
+    what, among = _what(item, reading, settings, date, value, window)
     nxt = "; %d starts at %s%%" % (r + 1, _num(cut[r - 1])) if r < 5 else ""
     sentence = "%s: at or %s %.1f%% of the %s. Rated %d%s. Rated %d since %s (%s %s)." % (
         what, side, pct, among, r, nxt, r, _when(since, item.frequency), "{:,}".format(held),
@@ -239,11 +266,44 @@ def rate_reading(item, reading, points, settings, direction):
     }, None
 
 
+def readings_shown(item):
+    """What a shown series is described on: its level where its place in its history means something (the
+    catalog's rule, as for a rated series), and always its change."""
+    return ("change",) if item.position else ("position", "change")
+
+
+def describe_reading(item, reading, points, settings):
+    """One shown series' reading, with no rating and no direction, or None with the reason there is none.
+
+    The percentile is the share of the window at or below the latest reading, counted from the lowest. It
+    says where the reading sits; nothing here says which way is worse."""
+    window, why = _window(item, reading, points, settings)
+    if window is None:
+        return None, why
+    ordered = sorted(v for _, v in window)
+    date, value = window[-1]
+    pct = percentile(value, ordered, HIGHER)
+    what, among = _what(item, reading, settings, date, value, window)
+    sentence = "%s: at or above %.1f%% of the %s (lowest %s, highest %s). Shown, not rated." % (
+        what, pct, among, _num(ordered[0]), _num(ordered[-1]))
+    return {
+        "key": item.key, "title": item.title, "group": item.group, "reading": reading,
+        "unit": item.unit if reading == "position" else ("percent" if item.change_in == "percent" else "points"),
+        "frequency": item.frequency, "date": date, "value": value, "percentile": pct, "readings": len(window),
+        "history_from": window[0][0], "low": ordered[0], "high": ordered[-1], "sentence": sentence,
+        # The wording the publisher's licence requires wherever its data are shown, carried with the data so
+        # every output that prints them can print it (Codex on #452: the printout showed the NY Fed's numbers
+        # without it).
+        **({"credit": item.credit} if item.credit else {}),
+    }, None
+
+
 class Pull:
     """One pull folder: its manifest, and each series' points read once.
 
     ``points`` gives a list of (date, value), or a string saying why there is
-    none (the series failed or is not in this pull)."""
+    none (the series failed or is not in this pull). Each file is read once;
+    ``read_sha`` gives the SHA-256 of each file's bytes as they were read."""
 
     def __init__(self, cache, vintage=None):
         folder = pathlib.Path(cache) / vintage if vintage else P.latest(cache)
@@ -252,16 +312,28 @@ class Pull:
                           % ("named %s " % vintage if vintage else "", cache, cache))
         self.cache, self.folder, self.vintage = cache, folder, folder.name
         self.manifest = json.loads((folder / "manifest.json").read_text("utf-8"))
-        self._loaded = {}
+        self._loaded, self._bytes = {}, {}
 
     def _get(self, key):
         if key not in self._loaded:
+            recorded = self.manifest.get("series", {}).get(key, {}).get("error")
+            if recorded:
+                # The pull already recorded that it could not fetch or read this one: not rated, with its
+                # reason. Reading it again raised what nothing caught (Fable on #452: an HTML page where
+                # FHFA's zip belonged stopped every rating with BadZipFile).
+                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, recorded)
+                return self._loaded[key]
             try:
-                self._loaded[key] = P.load(self.cache, key, self.vintage)[0]
-            except (SystemExit, ValueError, OSError) as e:
-                why = self.manifest.get("series", {}).get(key, {}).get("error") or str(e)
-                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, why)
+                self._loaded[key] = P.load(self.cache, key, self.vintage, read=self._bytes)[0]
+            except SystemExit as e:
+                self._loaded[key] = "not in the pull of %s (%s)" % (self.vintage, e)
+            except Exception as e:  # a file that no longer reads: recorded as the pull records one
+                self._loaded[key] = "not in the pull of %s (could not read: %s)" % (self.vintage, e)
         return self._loaded[key]
+
+    @property
+    def read_sha(self):
+        return {name: hashlib.sha256(data).hexdigest() for name, data in self._bytes.items()}
 
     def points(self, item):
         if item.key in DERIVED_BY_KEY:
@@ -301,6 +373,21 @@ def rate_all(cache, settings, vintage=None, pull=None):
                 "sentence": "Sahm reading for %s: %.2f points (3-month average unemployment minus its lowest in "
                             "the 12 months before; Sahm's published trigger is 0.50). Shown, not rated."
                             % (_when(d, "monthly"), v)})
+    # The "usable with care" group: described, never rated. Read here, with the rated series, so the run's
+    # fingerprints cover every file the workbook draws.
+    described, undescribed = [], []
+    for item in SHOWN:
+        points = pull.points(item)
+        for reading in readings_shown(item):
+            out, why = (None, points) if isinstance(points, str) else describe_reading(item, reading, points,
+                                                                                      settings)
+            if out is None:
+                undescribed.append({"key": item.key, "reading": reading, "why": why})
+            else:
+                described.append(out)
     shown = dict(settings, directions=[[k, r, v] for (k, r), v in sorted(settings["directions"].items())])
+    # The fingerprint of every file as this run read it, kept with the ratings it produced, so a workbook built
+    # from another Pull can be checked against it (Codex on #452).
     return {"vintage": pull.vintage, "settings": shown, "ratings": ratings, "not_rated": not_rated,
-            "alongside": alongside}
+            "alongside": alongside, "shown": described, "not_shown": undescribed,
+            "read_sha": dict(pull.read_sha)}

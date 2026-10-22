@@ -1,0 +1,22 @@
+What if: what-if-30-years.json against settings.json, both from the pull of 2026-10-22-2.
+
+  History each reading is measured against: full history -> the last 30 years
+
+158 readings rated under both: 142 at the same rating, 13 higher, 3 lower. 0 rated as you have it only, 0 under the what-if only.
+
+  +2  Consumer prices excluding food and energy, change over 12 months 1 -> 3  (45.4% of 824 since Jan 1958 -> 76.3% of 359 since Oct 1996)
+  +2  30-year fixed mortgage rate, level                           2 -> 4  (52.5% of 2,899 since Apr 1971 -> 91.4% of 1,566 since Oct 1996)
+  +1  Consumer prices, all items, change over 12 months            2 -> 3  (66.9% of 944 since Jan 1948 -> 85.2% of 359 since Oct 1996)
+  +1  30-year fixed mortgage rate, change over 12 months           3 -> 4  (87.1% of 2,847 since Mar 1972 -> 93.3% of 1,566 since Oct 1996)
+  -1  Industrial production, change over 12 months                 2 -> 1  (57.5% of 1,281 since Jan 1920 -> 46.1% of 360 since Oct 1996)
+  +1  Chicago Fed financial conditions, level                      1 -> 2  (39.5% of 2,911 since Jan 1971 -> 50.7% of 1,566 since Oct 1996)
+  +1  Unemployment rate, AZ, level                                 1 -> 2  (34.2% of 608 since Jan 1976 -> 53.2% of 359 since Oct 1996)
+  +1  Unemployment rate, CO, level                                 1 -> 2  (32.4% of 608 since Jan 1976 -> 51.3% of 359 since Oct 1996)
+  +1  Unemployment rate, DE, level                                 1 -> 2  (49.0% of 608 since Jan 1976 -> 64.1% of 359 since Oct 1996)
+  -1  Unemployment rate, MA, change over 12 months                 2 -> 1  (52.2% of 596 since Jan 1977 -> 49.0% of 359 since Oct 1996)
+  -1  Unemployment rate, MN, change over 12 months                 3 -> 2  (75.7% of 596 since Jan 1977 -> 73.0% of 359 since Oct 1996)
+  +1  Unemployment rate, OK, level                                 1 -> 2  (41.6% of 608 since Jan 1976 -> 56.0% of 359 since Oct 1996)
+  +1  Unemployment rate, UT, level                                 1 -> 2  (34.4% of 608 since Jan 1976 -> 52.6% of 359 since Oct 1996)
+  +1  Unemployment rate, VA, level                                 1 -> 2  (30.1% of 608 since Jan 1976 -> 51.0% of 359 since Oct 1996)
+  +1  Unemployment rate, VA, change over 12 months                 2 -> 3  (74.2% of 596 since Jan 1977 -> 75.8% of 359 since Oct 1996)
+  +1  House prices against income per person, level                2 -> 3  (68.9% of 206 since Jan 1975 -> 75.8% of 120 since Jul 1996)

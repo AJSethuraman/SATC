@@ -12,7 +12,8 @@ its size and SHA-256, and, per series, how many observations it holds, the
 first and last, and every missing one.
 
 A file the catalog shares (the Fed's spread file, FHFA's mortgage file) is
-downloaded once. A series that fails is recorded with the reason; the pull
+downloaded once. The shown series (the "usable with care" group) are pulled
+with the rest. A series that fails is recorded with the reason; the pull
 does not stop, and it exits non-zero if anything failed.
 """
 import datetime
@@ -24,7 +25,7 @@ import urllib.parse
 import urllib.request
 
 from . import sources
-from .catalog import SERIES
+from .catalog import DERIVED_BY_KEY, SERIES
 
 USER_AGENT = "Mozilla/5.0 (compatible; threshold-engine macro pull; public data)"
 
@@ -43,6 +44,8 @@ def fetch(url, timeout=60):
 def file_name(series):
     if series.source in ("fed_ebp", "fhfa_nmdb"):
         return series.source + (".csv" if series.source == "fed_ebp" else ".zip")
+    if series.source == "nyfed_sce":
+        return "nyfed_sce.xlsx"
     ext = ".csv" if series.source == "fred" else ".html"
     return "%s-%s%s" % (series.source, series.source_id, ext)
 
@@ -61,16 +64,21 @@ def summarise(points):
 def pull(cache, keys=None, today=None, fetcher=fetch):
     """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest."""
     today = today or datetime.date.today().isoformat()
+    if keys:
+        # A reading made from two series pulls those two (Fable on #452: `pull mortgage_spread` said "not in
+        # the catalog", pointing at `list`, which lists it).
+        keys = [k for key in keys for k in (DERIVED_BY_KEY[key].inputs if key in DERIVED_BY_KEY else [key])]
+        unknown = sorted(set(keys) - {s.key for s in SERIES})
+        if unknown:
+            # Refused before anything is written: a refused pull used to leave an empty folder for the day,
+            # so the day's real pull went to "-2" (Fable on #452).
+            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
+                             % ", ".join(unknown))
     folder, n = pathlib.Path(cache) / today, 2
     while folder.exists():                  # never write into an earlier pull, even today's
         folder, n = pathlib.Path(cache) / ("%s-%d" % (today, n)), n + 1
     folder.mkdir(parents=True)
     wanted = [s for s in SERIES if keys is None or s.key in keys]
-    if keys:
-        unknown = sorted(set(keys) - {s.key for s in SERIES})
-        if unknown:
-            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
-                             % ", ".join(unknown))
     files, series_out = {}, {}
     for s in wanted:
         name = file_name(s)
@@ -113,12 +121,22 @@ def latest(cache):
     return max(found)[1] if found else None
 
 
-def load(cache, key, vintage=None):
-    """One series' points from a pull: the newest, or the folder named ``vintage``."""
+def load(cache, key, vintage=None, read=None):
+    """One series' points from a pull: the newest, or the folder named ``vintage``.
+
+    ``read``, when given, keeps the bytes of each file read, by file name. A file is then read once, and every
+    series it holds (FHFA's three, the Fed's three) is parsed from those same bytes, whose fingerprint is the
+    one a run can publish as what it read (Codex on #452)."""
     from .catalog import BY_KEY
     s = BY_KEY[key]
     folder = pathlib.Path(cache) / vintage if vintage else latest(cache)
-    if folder is None or not (folder / file_name(s)).exists():
+    name = file_name(s)
+    if read is not None and name in read:
+        return sources.read(s, read[name]), folder.name
+    if folder is None or not (folder / name).exists():
         raise SystemExit("no pull of %s under %s: run python -m threshold_engine.macro pull --cache %s"
                          % (key, cache, cache))
-    return sources.read(s, (folder / file_name(s)).read_bytes()), folder.name
+    data = (folder / name).read_bytes()
+    if read is not None:
+        read[name] = data
+    return sources.read(s, data), folder.name
