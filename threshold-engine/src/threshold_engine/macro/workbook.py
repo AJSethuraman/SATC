@@ -509,8 +509,12 @@ def build(out, result, pull, whatif=None, zoom=None):
         return "%s%s%s" % ("+" if v > 0 else "", _num(v), "%" if item.change_in == "percent" else "")
 
     def latest_of(item):
+        """The latest reading kept: one in a quarter left out is not shown as the latest beside readings measured
+        from an earlier one (Codex on #471); the series' tab says when later readings were left out."""
         pts = pull.points(item)
-        return next(((d, v) for d, v in reversed(pts) if v is not None), None) if not isinstance(pts, str) else None
+        if isinstance(pts, str):
+            return None
+        return next(((d, v) for d, v in reversed(kept(pts, s["left_out"])) if v is not None), None)
 
     left_words = ("Left out of every history: %s. A reading in those quarters is not measured against, and a "
                   "change with either end in one is not counted." % spans(s["left_out"])) if s["left_out"] else ""

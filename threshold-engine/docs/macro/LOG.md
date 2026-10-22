@@ -948,3 +948,10 @@ quarter left out (not drawn) could still stretch it; it is now sized from the
 quarters drawn. Each has a test, and each test fails with its fix taken out.
 Neither changes the example, whose settings leave nothing out.
 
+**Codex on #471, a third finding, fixed.** When the newest reading fell in a
+quarter left out, the Overview's Latest, the household debt headline and
+share, and the Dashboard summary still showed it, beside readings measured
+from an earlier one. The latest shown is now the latest kept; the series' tab
+says when later readings were left out. Tested, and the test fails with the
+fix taken out.
+

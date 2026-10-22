@@ -356,6 +356,17 @@ def test_quarters_left_out_are_not_drawn_and_are_said_on_every_tab(cache, tmp_pa
     assert ws.cell(rows["2026-06-01"], 20).value is not None
     for name in ("Overview", "Unemployment", "States"):
         assert "Left out of every history: 2026Q3" in _text(wb[name]), name
+    # Codex on #471: the latest shown is the latest kept, beside the readings measured from it
+    ov = wb["Overview"]
+    u = _row(ov, "Unemployment rate")
+    lvl = next(r for r in result["readings"] if r["key"] == "unemployment" and r["reading"] == "position")
+    assert ov.cell(u, 3).value.date().isoformat() == lvl["date"] == "2026-06-01" and ov.cell(u, 4).value == lvl["value"]
+    data = wb[DASH_DATA]
+    stats = next(r for r in range(3, data.max_row + 1) for c in range(2, data.max_column + 1)
+                 if data.cell(2, c).value == "Series" and data.cell(r, c).value == "Unemployment rate")
+    latest_col = next(c for c in range(2, data.max_column + 1) if data.cell(2, c).value == "Latest")
+    assert data.cell(stats, latest_col).value.date().isoformat() == "2026-06-01"
+    assert "Later readings, to Sep 2026, fall in quarters left out." in _text(ws)
     _, _, sahm_ = _build(cache, tmp_path / "left-sahm.xlsx", history="full", left_out=["2026Q3"], show_sahm=True)
     ws = sahm_["Unemployment"]
     drawn = {ws.cell(r, 14).value.date().isoformat(): ws.cell(r, 18).value for r in range(1, ws.max_row + 1)
