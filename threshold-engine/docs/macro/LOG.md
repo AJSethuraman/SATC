@@ -938,3 +938,13 @@ and looked at; the Dashboard's lookups compute and its charts follow the
 pickers there. **Not checked in Excel**: the firm's Excel is the check that
 remains, the Dashboard above all, the first tab in this workbook with
 formulas.
+
+**Codex on #471, two findings, both fixed.** (1) The Sahm reading was worked
+from every month, a quarter left out included, on the Overview and in its
+chart; it is now worked from the months kept, and a reading dated in a
+quarter left out is not shown, since its average borrows the months either
+side. (2) The household debt chart sized its axis from every quarter, so a
+quarter left out (not drawn) could still stretch it; it is now sized from the
+quarters drawn. Each has a test, and each test fails with its fix taken out.
+Neither changes the example, whose settings leave nothing out.
+

@@ -305,6 +305,14 @@ def test_the_sahm_reading_is_shown_only_when_asked_and_never_read_as_a_change(ca
     assert not any(r["reading"] == "sahm" for r in shown["readings"])
 
 
+def test_the_sahm_reading_leaves_out_the_quarters_every_reading_leaves_out(cache):
+    # Codex on #471: the Sahm reading was worked from every month, a quarter left out included.
+    whole = R.read_all(cache, check(answered(show_sahm=True)))["alongside"][0]
+    less = R.read_all(cache, check(answered(show_sahm=True, left_out=["2026Q3"])))["alongside"][0]
+    assert whole["date"] == "2026-09-01" and whole["value"] > 4          # the jump to 9% in 2026 Q3
+    assert less["date"] == "2026-06-01" and less["value"] < 1       # July's average borrows May and June: not shown
+
+
 def test_an_earlier_pull_can_be_read_by_name(cache):
     P.pull(cache, keys=["unemployment"], today="2026-10-16", fetcher=_fetcher())
     s = check(answered())

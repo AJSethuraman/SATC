@@ -43,7 +43,8 @@ import math
 
 from .catalog import BY_KEY, CARE, CARE_NOT_READ, DERIVED, HOUSEHOLD_DEBT, READ, SERIES, STATES
 from .compare import CALLED, NOT_ASKED, plain, row_label, spans, when
-from .readings import DECREASING, DIRECTIONS, INCREASING, STABLE, changes, kept, percentile, sahm, window_of
+from .readings import (DECREASING, DIRECTIONS, INCREASING, STABLE, changes, kept, percentile, sahm_kept,
+                       window_of)
 from .settings import QUESTIONS, Refused, left_out_set, quarter_index, quarter_of, readings_of
 
 ROW_RULE = "EFEBE4"      # PocketBook's one-pixel line between rows
@@ -1282,7 +1283,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         sahm_drawn = key == "unemployment" and s["show_sahm"] and span is not None
         if sahm_drawn:
             ws.row_breaks.append(Break(id=row - 1))     # printed, the chart starts a page whole
-            sv = dict(sahm(points))
+            sv = dict(sahm_kept(points, s["left_out"]))       # as the Overview's reading is (Codex on #471)
             header(ws, top, ["Sahm reading", "Trigger"], first=18, right=(0, 1))
             for i, d in enumerate(dates):
                 if d in sv:
@@ -1453,7 +1454,10 @@ def build(out, result, pull, whatif=None, zoom=None):
         x_axis.txPr = text()
         x_axis.tickLblPos = "low"
         stack.y_axis.crossAx = x_axis.axId
-        totals = [cols.get("household_total", {}).get(quarters[i]) for i in range(span[0], span[1] + 1)]
+        # Sized from the quarters drawn: a quarter left out is not drawn, so it must not stretch the axis (Codex on
+        # #471).
+        totals = [cols.get("household_total", {}).get(quarters[i]) for i in range(span[0], span[1] + 1)
+                  if quarter_of(quarters[i]) not in left]
         top_ = max([v for v in totals if v is not None] or [1.0])
         lo, hi, step = nice_axis(0, top_)
         finish(stack, "Total Debt Balance and Its Composition (the NY Fed's chart, as it reports it)",

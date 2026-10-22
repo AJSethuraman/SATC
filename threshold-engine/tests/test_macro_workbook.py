@@ -356,6 +356,11 @@ def test_quarters_left_out_are_not_drawn_and_are_said_on_every_tab(cache, tmp_pa
     assert ws.cell(rows["2026-06-01"], 20).value is not None
     for name in ("Overview", "Unemployment", "States"):
         assert "Left out of every history: 2026Q3" in _text(wb[name]), name
+    _, _, sahm_ = _build(cache, tmp_path / "left-sahm.xlsx", history="full", left_out=["2026Q3"], show_sahm=True)
+    ws = sahm_["Unemployment"]
+    drawn = {ws.cell(r, 14).value.date().isoformat(): ws.cell(r, 18).value for r in range(1, ws.max_row + 1)
+             if getattr(ws.cell(r, 14).value, "date", None)}
+    assert drawn["2026-06-01"] is not None and drawn["2026-07-01"] is None and drawn["2026-09-01"] is None
     assert "2026Q3" in dict((wb["Run"].cell(r, 2).value, wb["Run"].cell(r, 3).value)
                             for r in range(1, wb["Run"].max_row + 1))["Quarters left out"]
 
@@ -774,3 +779,28 @@ def test_household_debt_is_one_tab_stacked_as_the_ny_fed_reports_it_with_its_cre
     links = {_to(ov.cell(_row(ov, "Household debt: " + t), 2)) for t in ("mortgage", "credit card", "total")}
     assert links == {HOUSEHOLD_NAME}
     assert _holds_together_in_excel(out) > 0
+
+
+def test_a_quarter_left_out_neither_draws_nor_stretches_the_household_debt_chart(tmp_path):
+    # Codex on #471: a left-out quarter's total still sized the axis, so a spike it held flattened the bars.
+    from threshold_engine.macro import pull as P
+    from test_macro_sources import hhdc_page, hhdc_workbook
+    base = _fetcher()
+    rows = [("%02d:Q%d" % (24 + i // 4, i % 4 + 1), 13.0, 0.4, 1.6, 1.2, 1.6, 0.5, 18.3) for i in range(10)]
+    rows[5] = rows[5][:7] + (100.0,)                                  # 2025 Q2's total: a spike
+
+    def fetch(url):
+        if "hhdc-iframe" in url:
+            return hhdc_page("2026Q2")
+        if "HHD_C_Report" in url:
+            return hhdc_workbook(rows)
+        return base(url)
+    P.pull(tmp_path, keys=HOUSEHOLD_KEYS, today="2026-10-22", fetcher=fetch)
+
+    def top(**answers):
+        out = _build(tmp_path, tmp_path / ("%s.xlsx" % len(answers)), history="full", change_months=12, **answers)[0]
+        stack = next(x for x in _charts(out).values() if "barChart" in x and 'grouping val="stacked"' in x)
+        return float(re.search(r'<max val="([\d.]+)"', stack).group(1))
+    assert top() >= 100                                               # drawn, the spike sets the axis
+    assert top(left_out=["2025Q2"]) == nice_axis(0, 18.3)[1]          # left out, it neither draws nor stretches it
+

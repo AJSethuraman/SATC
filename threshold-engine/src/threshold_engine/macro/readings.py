@@ -168,6 +168,14 @@ def sahm(points):
     return out
 
 
+def sahm_kept(points, left_out):
+    """The Sahm reading from the months kept, and none dated in a quarter left out: its average borrows the
+    months either side of a gap, as FRED's does, so a month left out would otherwise still be dated (Codex on
+    #471)."""
+    out_ = left_out_set(left_out)
+    return [(d, v) for d, v in sahm(kept(points, left_out)) if quarter_of(d) not in out_]
+
+
 def derive(item, inputs):
     """A derived reading's points from its inputs' points (both from one pull)."""
     if item.key == "house_price_to_income":
@@ -391,7 +399,8 @@ def read_all(cache, settings, vintage=None, pull=None):
                 out.append(got)
     if settings["show_sahm"]:
         u = pull.points(BY_KEY["unemployment"])
-        s = sahm(u) if not isinstance(u, str) else []
+        # Worked from the months kept, as every reading is (Codex on #471: a quarter left out still moved it).
+        s = sahm_kept(u, settings["left_out"]) if not isinstance(u, str) else []
         if s:
             d, v = s[-1]
             alongside.append({
