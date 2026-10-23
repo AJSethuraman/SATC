@@ -1258,3 +1258,12 @@ in the spec's own order:
 
 Each fix was taken out in turn and its test failed, three in all. The example
 is rebuilt.
+
+**Codex on #471, a fifth finding on the design build, fixed.** The household
+total's change chart was drawn only when the total was read under these
+settings. Too short to read here but read under the what-if, it was skipped,
+so the tab showed neither the change nor the what-if's range; the series tabs
+draw that case, titled "not read under these settings". The household chart
+now does the same, with no shaded range of its own. A new test fails with the
+fix taken out. The example is unchanged by it apart from its build time, so it
+is not rebuilt.

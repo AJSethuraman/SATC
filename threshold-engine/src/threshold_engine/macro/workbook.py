@@ -1750,27 +1750,35 @@ def build(out, result, pull, whatif=None, zoom=None):
         w = (wrows.get("household_total", {}).get("change") or {}) if whatif else {}
         wb_ = w.get("b") if w.get("same_measure") else None
         said = ""
-        if r:
+        ref = r or wb_                  # read under the what-if only, the chart still draws (Codex on #471)
+        if ref:
             seen = [(quarters[i], chg[quarters[i]]) for i in range(span[0], span[1] + 1) if quarters[i] in chg]
             if seen:
-                latest_row = first + quarters.index(r["date"])
-                keep = [r["normal_low"], r["normal_high"]] + ([chg[r["date"]]] if a <= latest_row <= b else [])
-                if wb_:
-                    keep += [wb_["normal_low"], wb_["normal_high"]]
+                latest_row = first + quarters.index(ref["date"])
+                # The what-if's latest may be a quarter this side left out, so this side's column has none.
+                latest = chg.get(ref["date"]) if a <= latest_row <= b else None
+                keep = ([latest] if latest is not None else []) + (
+                    [r["normal_low"], r["normal_high"]] if r else []) + (
+                    [wb_["normal_low"], wb_["normal_high"]] if wb_ else [])
                 lo, hi, step, above, below = axis_view(seen, s["axis_cut"], keep)
-                for col, words in ((HH["band"], "Normal from"), (HH["band"] + 1, "Normal range"),
-                                   (HH["latest"], "Latest"), (HH["off"], "Off the axis")):
+                for col, words in ((HH["latest"], "Latest"), (HH["off"], "Off the axis")):
                     ws.cell(top, col, words)
-                for rr in range(a, b + 1):
-                    ws.cell(rr, HH["band"], r["normal_low"])
-                    ws.cell(rr, HH["band"] + 1, r["normal_high"] - r["normal_low"])
-                if a <= latest_row <= b:
-                    ws.cell(latest_row, HH["latest"], round(chg[r["date"]], 2))
+                band_col = None
+                if r:
+                    band_col = HH["band"]
+                    ws.cell(top, band_col, "Normal from")
+                    ws.cell(top, band_col + 1, "Normal range")
+                    for rr in range(a, b + 1):
+                        ws.cell(rr, band_col, r["normal_low"])
+                        ws.cell(rr, band_col + 1, r["normal_high"] - r["normal_low"])
+                if latest is not None:
+                    ws.cell(latest_row, HH["latest"], round(latest, 2))
                 for d, v in above:
                     ws.cell(first + quarters.index(d), HH["off"], hi)
                 for d, v in below:
                     ws.cell(first + quarters.index(d), HH["off"], lo)
-                title = "Total: change over %d months, its normal range shaded" % months
+                title = ("Total: change over %d months, its normal range shaded" % months if r else
+                         "Total: change over %d months; not read under these settings" % months)
                 dashed_col = None
                 if wb_:
                     # The what-if's range, as on every series tab: two lines over the years its history covers
@@ -1785,7 +1793,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                             ws.cell(first + i, dashed_col + 1, wb_["normal_high"])
                     title += " (dashed: the normal range under the what-if)"
                 place(ws, history_chart(ws, title, "percent", HH["change"], a, b, HH["latest"], "quarterly",
-                                        (lo, hi), step, HH["band"], dashed_col, head=top, off_col=HH["off"],
+                                        (lo, hi), step, band_col, dashed_col, head=top, off_col=HH["off"],
                                         height=4.23, signed_axis=True, label_fmt="+0.00;-0.00;0.00",
                                         date_col=HH["date"]), 14, 19, 25, 26)
                 said = off_edge(above, below, "quarterly", lambda v: signed(item, v))

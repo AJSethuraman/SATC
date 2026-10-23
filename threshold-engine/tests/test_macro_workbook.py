@@ -1132,3 +1132,18 @@ def test_the_household_debt_chart_draws_the_what_ifs_normal_range_as_every_serie
         assert min(d for d, _ in filled).isoformat()[:10] == row["b"]["history_from"][:10]
     chart = next(x for x in _charts(out).values() if "Total: change over" in x)
     assert chart.count('prstDash val="sysDash"') == 2 and "the normal range under the what-if" in chart
+
+
+def test_the_household_total_read_under_the_what_if_only_still_draws_its_change_chart(tmp_path):
+    # Codex on #471: with the total too short to read as you have it but read under the what-if, the chart was
+    # skipped, so the tab showed neither the change nor the what-if's range. The series tabs draw it.
+    from threshold_engine.macro import pull as P
+    P.pull(tmp_path, keys=HOUSEHOLD_KEYS, today="2026-10-22", fetcher=_fetcher())
+    left = ["2003Q1-2025Q3", "2026Q1"]                               # one change over 6 months: too few
+    out, c, wb = _whatif(tmp_path, tmp_path / "w.xlsx", {"history": "full", "left_out": left}, {"history": "full"})
+    row = next(x for x in c["rows"] if x["key"] == "household_total" and x["reading"] == "change")
+    assert row["a"] is None and row["b"] and row["same_measure"]
+    chart = next(x for x in _charts(out).values() if "Total: change over" in x)
+    assert "not read under these settings" in chart and chart.count('prstDash val="sysDash"') == 2
+    assert "areaChart" not in chart                                   # no normal range of its own to shade
+    assert _holds_together_in_excel(out) > 0
