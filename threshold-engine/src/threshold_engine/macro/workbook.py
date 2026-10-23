@@ -2240,12 +2240,15 @@ def build(out, result, pull, whatif=None, zoom=None):
     link(ws.cell(2, 2), "Overview", "Back to Overview", nav=True)
     BOX = {"first": (2, 7), "second": (8, 13), "from": (14, 16), "to": (17, 19)}
     CELL = {k: "$%s$5" % L(a) for k, (a, _) in BOX.items()}
-    # It opens on a macro series beside bank credit, the comparison the firm asked for (23 Oct 2026); a pull without
-    # the bank series opens on the next series in the list.
+    # It opens on a macro series beside bank credit, the comparison the firm asked for (23 Oct 2026); a pick without
+    # readings in this pull, as when the bank build failed, gives way to the first series that has them (Codex on
+    # #472: every title is in the list whether or not its data came).
     picks = [("First series", "Unemployment rate"), ("Second series", "Card net charge-offs, all banks")]
     window = zoom or ([quarters_[0].replace(" ", ""), quarters_[-1].replace(" ", "")] if quarters_ else None)
-    values_ = {"first": picks[0][1] if picks[0][1] in names else names[0],
-               "second": picks[1][1] if picks[1][1] in names else names[1],
+    readable = [items[k].title for k in pickable if k in monthly] or names
+    first_ = picks[0][1] if picks[0][1] in readable else readable[0]
+    rest_ = [t for t in readable if t != first_] or names[1:]
+    values_ = {"first": first_, "second": picks[1][1] if picks[1][1] in rest_ else rest_[0],
                "from": window[0].replace("Q", " Q") if window else None,
                "to": window[1].replace("Q", " Q") if window else None}
     for i, (name_, words) in enumerate((("first", "First series"), ("second", "Second series"), ("from", "From"),

@@ -1646,3 +1646,25 @@ that file's size, hash and the time it was built (22:32 UTC).
 Two breaks (the mortgage start back to 2006 Q1; the 30-year what-if without
 the Dashboard answers) and the old note wording each failed a test.
 201 tests pass.
+
+Codex on 1f41c1c3, two findings:
+
+- **Fixed: the Dashboard's opening picks.** Every title was in the pick
+  list whether or not its data came, so a pull whose bank build failed (an
+  installed copy run outside threshold-engine/, say) opened on unemployment
+  against an empty card series. The picks now come from the series that
+  have readings in this pull. The test pull, which holds five series and no
+  bank series, now opens on two series with readings; on the old code it
+  opened on the empty card series, and the new test fails there.
+- **Put to the firm, not changed: where each lead's year-apart correlations
+  come from.** Codex asked for each lead and starting point's own, from its
+  pairwise-complete annual readings, in place of the whole window's. Worked
+  on eight real pairs: per subsample, r1 x r2 swings widely (card 30+
+  against card losses, all banks: +0.01 to +0.25 across the 44 lead and
+  start subsamples, against +0.10 over the window), because each rests on
+  about ten pairs a year apart, and a correlation on so few is noisy and
+  biased low. The verdicts matched in six of the eight; in two they moved,
+  one each way (card 30+ against revolving credit gained the second leading
+  by 6 months; the minimum-payment share against card losses lost +12). The
+  usual practice is the whole series' autocorrelation, which the window
+  gives from every month's pair a year apart. Recommended: keep it.

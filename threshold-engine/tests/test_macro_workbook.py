@@ -411,6 +411,18 @@ def _ranges(formula):
     return [(a, int(b), int(d)) for a, b, c, d in re.findall(r"\$([A-Z]+)\$(\d+):\$([A-Z]+)\$(\d+)", formula)]
 
 
+def test_a_pull_without_the_bank_series_opens_the_dashboard_on_two_series_with_readings(book):
+    # This pull never asked for the bank series, as a pull whose bank build failed would hold none: the Dashboard
+    # opens on two series that have readings, not on the empty card series the firm's default names (Codex on #472).
+    _, _, wb = book
+    ws, dd = wb[DASHBOARD], wb["Dashboard data"]
+    head = [c.value for c in dd[1]]
+    assert ws["B5"].value == "Unemployment rate" and ws["H5"].value != ws["B5"].value
+    for cell in ("B5", "H5"):
+        change = head.index(ws[cell].value) + 2                    # each pick's change column on the data tab
+        assert any(isinstance(dd.cell(r, change).value, (int, float)) for r in range(3, dd.max_row + 1)), cell
+
+
 def test_the_dashboard_sets_each_lead_beside_the_second_series_that_many_months_later(book):
     # The firm, 23 Oct 2026: the Dashboard becomes the comparison of two series, "As the Excel version": one
     # reading a year at four starting points, the leads the settings name, p < 0.05 after allowing for the leads.
