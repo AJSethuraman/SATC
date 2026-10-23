@@ -1588,3 +1588,29 @@ losses for all banks (holds). Every figure matched the separate script.
 Five breaks of the new line each failed a test: the branch never taken, the
 years from the r column, a near miss on any pass without the same sign, 0 of
 4 let in, and a positive r in place of a pass. 199 tests pass.
+
+## 23 Oct 2026 (night): Codex on 450302f9, the lead the line speaks of
+
+Codex found that the answer line, and the mist, followed the tested lead
+with the largest r even when it missed and a weaker lead held. The line then
+reported a miss and never named the lead that holds; before the near-miss
+wording it said "No lead holds", which was false. The flaw was there from
+the Dashboard's first commit. Now a lead that holds ranks above every lead
+that does not (|r| is at most 1, so its rank is |r| + 2), then the size of
+r.
+
+Seen on the 23 Oct pull: a scan of all 91 series in pairs found 4 pairs,
+each in both orders, where the largest r misses and another lead holds.
+Recalculated in LibreOffice and matched to the separate script:
+
+- card 30+ late (all banks) against revolving consumer credit: the second
+  leading by 6 months has r +0.74 and passes at 3 of 4; by 12 months, r
+  +0.71, holds. The line now reads "The changes move together when the
+  second leads by 12 months: r = +0.71 on one reading a year, holding at all
+  4 starting points", and that row is the one on mist (looked at);
+- industrial production against the Philadelphia Fed's current activity:
+  +12 months has r -0.49 at 3 of 4; +6 months, r -0.46, holds, and the line
+  now speaks of +6.
+
+The default pair and KeyBank's card pair read as before. A break (the rank
+by r alone) failed the test. 199 tests pass.

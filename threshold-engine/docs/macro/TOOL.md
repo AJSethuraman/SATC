@@ -216,7 +216,9 @@ Not read, Run and Sources.
     four, pairs the fewest, and a lead holds when all four agree in sign and
     each passes p < 0.05 divided by the number of leads tested. A lead with
     fewer than 6 pairs, or too few effective pairs for a p, is not tested
-    and does not count among them. The strongest lead is bold on mist;
+    and does not count among them. The strongest lead that holds, or the
+    strongest tested when none does, is bold on mist and is the one the line
+    at the top speaks of;
   - **both changes drawn**, in typical moves from each one's median, normal
     movement dashed, in KeyBank ink and red. Past the firm's cut (1% at each
     end of each series' history) a reading is left off the chart by formula

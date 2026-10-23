@@ -2530,7 +2530,11 @@ def build(out, result, pull, whatif=None, zoom=None):
             cell_["tested"], rs, S, rs, S))
         formula(ws, rr, RC["holds"], "=AND(%s=1,%s=%d,%s)" % (cell_["tested"], cell_["holds_in"], S,
                                                                cell_["same_sign"]))
-        formula(ws, rr, RC["abs"], "=IF(%s=1,ABS(%s),-1)" % (cell_["tested"], cell_["avg"]))
+        # the rank the answer and the mist follow: a lead that holds above every lead that does not (|r| is at
+        # most 1, so 2 more puts it there), then the size of r; a weaker lead that holds is not hidden behind a
+        # stronger one that misses (Codex on #472)
+        formula(ws, rr, RC["abs"], "=IF(%s=1,ABS(%s)+IF(%s,2,0),-1)" % (cell_["tested"], cell_["avg"],
+                                                                         cell_["holds"]))
         merged(ws, rr, 2, 6, words, font=F_DATA)
         ws.merge_cells(start_row=rr, start_column=7, end_row=rr, end_column=8)
         formula(ws, rr, 7, "=%s" % cell_["avg"], "+0.00;-0.00;0.00", align=RIGHT)
@@ -2707,8 +2711,9 @@ def build(out, result, pull, whatif=None, zoom=None):
                   "a year earlier. r is the average of the %d; pairs the fewest at any of them. A lead with fewer "
                   "than %d pairs, or too few effective pairs for a p, is not tested." % (S, "s" * (S > 1), S, MP)),
         ("Holds", "A lead holds when all %d starting points agree in sign and each passes p below %g divided by "
-                  "the number of leads tested, which allows for trying %d leads. The strongest lead tested, by the "
-                  "size of r, is bold on mist; the line at the top says whether it holds." % (S, P, len(leads))),
+                  "the number of leads tested, which allows for trying %d leads. The strongest lead that holds, "
+                  "by the size of r, is bold on mist, or the strongest tested when none does; the line at the top "
+                  "speaks of it." % (S, P, len(leads))),
         ("Together, moving", "The chart: each series' change measured in its own typical moves from its own "
                              "median change, so two series of different units share one scale. Between the dashed "
                              "lines at %s and %s is normal movement." % ("%+g" % s["normal_width"],

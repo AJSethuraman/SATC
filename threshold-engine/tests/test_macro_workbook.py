@@ -467,6 +467,11 @@ def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_t
     # must neither read 0 passes nor count among the leads the level is divided by (Codex on #472)
     p_at = [k for k, v in cells.items() if "TDIST(" in v]
     tested_here = next(v for v in cells.values() if v.startswith("=IF(AND(MIN("))
+    # the lead the line and the mist speak of: one that holds before any that misses, then the size of r, so a
+    # weaker lead that holds is not hidden behind a stronger one that misses (Codex on #472)
+    holds_at = next(k for k, v in cells.items() if v.startswith("=AND(") and "=4," in v)
+    rank = next(v for v in cells.values() if "ABS(" in v and "+IF(" in v)
+    assert re.fullmatch(r"=IF\(\$[A-Z]+21=1,ABS\(\$[A-Z]+21\)\+IF\(\$%s,2,0\),-1\)" % holds_at, rank), rank
     assert "COUNT(%s:%s)=4" % (p_at[0], p_at[-1]) in tested_here, tested_here
     col = _dash_cols(ws)
     for y, who in zip(m.groups()[1:], ("First", "Second")):
