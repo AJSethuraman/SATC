@@ -483,6 +483,16 @@ def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_t
     assert "TDIST(" in p and "-2,2)" in p
     answer = ws["B11"].value
     assert "holding at all 4 starting points" in answer and "which passes" in answer and "From is after To" in answer
+    # a near miss, the same sign at every starting point without passing at all, reads in the table's words, "holds
+    # in 2 of 4, 11 years tested", not "no lead holds" (the firm, 23 Oct 2026: "just say something like 2 of 4,
+    # tested x"); the years are the table's fewest pairs at the strongest lead
+    sign_col = next(c.column_letter for c in ws[21] if isinstance(c.value, str) and '">0")=4' in c.value)
+    hin_col = next(c.column_letter for c in ws[21] if isinstance(c.value, str) and c.value.startswith("=IF(")
+                   and '"<"&0.05/MAX(' in c.value)
+    near = answer.index('IF(AND(INDEX($%s$19:$%s$23,' % (sign_col, sign_col))
+    assert answer.startswith(',INDEX($%s$19:$%s$23,' % (hin_col, hin_col), answer.index("),", near) + 1)  # 1 of 4 at least
+    assert answer.index('", holds in "&', near) < answer.index("No lead holds at every starting point", near)
+    assert '&INDEX($I$19:$I$23,' in answer and '" years tested."' in answer
 
 
 def test_the_dashboards_marks_are_keybanks_colours_and_the_house_mist_never_blue_or_orange(book):

@@ -2556,13 +2556,21 @@ def build(out, result, pull, whatif=None, zoom=None):
                                "on effective pairs. A lead holds when all %d do and agree in sign." % (S, P, S), 13)
     # The answer, in one line over the tables and the chart.
     at = lambda k: "INDEX(%s,%s)" % (col_rng(k), SC["strongest"])                        # noqa: E731
+    # A near miss, the strongest lead the same sign at every starting point and passing at one of them or more but
+    # not all, says so in the table's words rather than "no lead holds", which read as no link at all (the firm,
+    # 23 Oct 2026, of KeyBank's card 30+ against its card losses: "it just seems so unlikely this does not track";
+    # "shorten it though, just say something like 2 of 4, tested x"). Passing nowhere keeps "no lead holds": "move
+    # together" over 0 of 4 claims more than the test shows (the firm: "Only 1 of 4 or more").
     lead_words = (
         'IF(%(k)s=0,"Too few readings in these quarters to test a lead: pick a longer span.",IF(%(holds)s,"The '
         'changes move "&IF(%(avg)s>0,"together ","opposite ")&%(phrase)s&": r = "&TEXT(%(avg)s,"+0.00;-0.00")&'
-        '" on one reading a year, holding at all %(S)d starting points.","No lead holds at every starting point. '
-        'The strongest, "&%(phrase)s&", has r = "&TEXT(%(avg)s,"+0.00;-0.00")&" and passes at "&%(hin)s&" of '
-        '%(S)d."))') % {"k": SC["strongest"], "holds": at("holds"), "avg": at("avg"), "phrase": at("phrase"),
-                        "hin": at("holds_in"), "S": S}
+        '" on one reading a year, holding at all %(S)d starting points.",IF(%(sign)s,"The changes move "&'
+        'IF(%(avg)s>0,"together ","opposite ")&%(phrase)s&": r = "&TEXT(%(avg)s,"+0.00;-0.00")&", holds in "&'
+        '%(hin)s&" of %(S)d, "&%(fewest)s&" years tested.","No lead holds at every starting point. The strongest, "'
+        '&%(phrase)s&", has r = "&TEXT(%(avg)s,"+0.00;-0.00")&" and passes at "&%(hin)s&" of %(S)d.")))') % {
+        "k": SC["strongest"], "holds": at("holds"), "avg": at("avg"), "phrase": at("phrase"),
+        "hin": at("holds_in"), "S": S, "sign": "AND(%s,%s>0)" % (at("same_sign"), at("holds_in")),
+        "fewest": "INDEX($I$%d:$I$%d,%s)" % (first_lead, last_lead, SC["strongest"])}
     same_words = ('IF(%(n)s=0,""," On every reading they share at the same time: r = "&TEXT(%(r)s,"+0.00;-0.00")&'
                   '" on "&%(n)s&", "&IF(%(p)s="","too few to test.",IF(%(p)s<%(P)s,"which passes.",'
                   '"which does not pass.")))') % {"n": SC["same_n"], "r": SC["same_r"], "p": SC["same_p"], "P": P}

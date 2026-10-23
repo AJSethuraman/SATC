@@ -197,7 +197,10 @@ Not read, Run and Sources.
   - both picks' readings in the Overview's columns;
   - **one line that answers**: whether the changes move together (or
     opposite), at which lead, and whether that holds, then the same-time r;
-    bold on mist when a lead holds, plain when none does;
+    bold on mist when a lead holds, plain when none does. A near miss, the
+    strongest lead the same sign at every starting point and passing at one
+    or more but not all, reads in the table's words: "r = +0.76, holds in 2
+    of 4, 11 years tested". Passing nowhere reads "No lead holds";
   - **at the same time**, on every reading the two share in the quarters
     chosen: r, the readings, the effective readings and p. Neighbouring
     readings repeat most of their data (a trailing four-quarter rate above

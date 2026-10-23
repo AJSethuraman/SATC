@@ -1547,3 +1547,44 @@ could drift from the one the firm answers. The threshold engine's own app
   checking it holds the files.
 - 199 tests pass. The example was rebuilt from the same pull; the what-if
   printout is unchanged.
+
+## 23 Oct 2026 (evening): the firm opens it in Excel, and a near miss gets its own words
+
+The firm opened the workbook in Excel and set KeyBank's card 30+ late
+against KeyBank's card net charge-offs, 2010 Q1 to 2026 Q4. Excel's figures
+were the ones LibreOffice and the separate script gave for that pair: at +12
+months r +0.76, 11 pairs at the fewest, 2 of 4; at the same time r +0.35 on
+47 readings, 7.2 effective, p 0.428. The firm: *"it just seems so unlikely
+this does not track."*
+
+It does track, and the line said otherwise. Every starting point's r at +6
+and +12 months is positive, from +0.51 to +0.85. What fails is the bar:
+KeyBank filed no card loans until 2012 Q3 (LNCRCD 0, then 709,567 thousand
+dollars in its 30 Sep 2012 Call Report), so its changes start in 2013 and
+2014 and each starting point has about 12 readings a year apart. With 11
+leads tried, each must pass p below 0.05/11, which on 12 readings needs r of
+about +0.76 at every one: at +12 the four are +0.67, +0.74, +0.81 and +0.80.
+The all-banks pair, with 16 readings and r +0.94 to +0.97, clears it. The
+year-apart allowance barely enters here (effective 11.9 of 12).
+
+The answer line said "No lead holds at every starting point", which reads
+as no link. Asked, the firm chose to reword near misses, not to loosen the
+test ("Reword near-misses"), then: *"shorten it though, just say something
+like 2 of 4, tested x"*, and, for a lead passing at none of the four, "Only
+1 of 4 or more". So when the strongest lead has the same sign at every
+starting point and passes at one or more but not all, the line reads:
+
+> The changes move together when the first leads by 12 months: r = +0.76,
+> holds in 2 of 4, 11 years tested.
+
+The years are the table's fewest pairs at that lead. Passing nowhere keeps
+"No lead holds at every starting point ...", as the default pair
+(unemployment against card losses) still reads.
+
+**Checked.** LibreOffice computed the line for four pairs: the KeyBank pair
+(the words above), the default pair and mortgages 30-89 against mortgage
+losses (both pass nowhere: "No lead holds"), and card 30+ against card
+losses for all banks (holds). Every figure matched the separate script.
+Five breaks of the new line each failed a test: the branch never taken, the
+years from the r column, a near miss on any pass without the same sign, 0 of
+4 let in, and a positive r in place of a pass. 199 tests pass.
