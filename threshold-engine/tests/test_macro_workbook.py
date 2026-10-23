@@ -1086,3 +1086,49 @@ def test_a_quarter_left_out_neither_draws_nor_stretches_the_household_debt_chart
     assert top() >= 100                                               # drawn, the spike sets the axis
     assert top(left_out=["2025Q2"]) == nice_axis(0, 18.3)[1]          # left out, it neither draws nor stretches it
 
+
+
+def test_a_type_blank_in_the_newest_quarter_says_so_instead_of_showing_an_older_quarter(tmp_path):
+    # Codex on #471: a type the NY Fed left blank in its newest quarter showed its previous quarter's balance and
+    # change under "Each type, latest quarter", as though they were the newest quarter's.
+    from threshold_engine.macro import pull as P
+    from test_macro_sources import hhdc_page, hhdc_workbook
+    base = _fetcher()
+    rows = [("%02d:Q%d" % (24 + i // 4, i % 4 + 1), 13.0 + i / 10, 0.4, 1.6, 1.2 + i / 100, 1.6, 0.5, 18.3 + i / 10)
+            for i in range(10)]
+    rows[-1] = rows[-1][:4] + (None,) + rows[-1][5:]                 # 2026 Q2: no credit card balance
+
+    def fetch(url):
+        if "hhdc-iframe" in url:
+            return hhdc_page("2026Q2")
+        if "HHD_C_Report" in url:
+            return hhdc_workbook(rows)
+        return base(url)
+    P.pull(tmp_path, keys=HOUSEHOLD_KEYS, today="2026-10-22", fetcher=fetch)
+    _, _, wb = _build(tmp_path, tmp_path / "hh.xlsx", history="full", change_months=12)
+    ws = wb[HOUSEHOLD_NAME]
+    cards = _row(ws, "Credit Card", col=14)
+    assert ws.cell(cards, 16).value == "No 2026 Q2 value in the NY Fed's file; its latest is 2026 Q1."
+    assert all(ws.cell(cards, c).value is None for c in range(17, 26))
+    mortgage = _row(ws, "Mortgage", col=14)
+    assert ws.cell(mortgage, 16).value == pytest.approx(13.9)       # a type the newest quarter holds, as before
+
+
+def test_the_household_debt_chart_draws_the_what_ifs_normal_range_as_every_series_tab_does(tmp_path):
+    # Codex on #471: under --compare the series tabs dashed the what-if's normal range over their change charts;
+    # the household total's chart, drawn by its own code, did not.
+    from threshold_engine.macro import pull as P
+    P.pull(tmp_path, keys=HOUSEHOLD_KEYS, today="2026-10-22", fetcher=_fetcher())
+    out, c, wb = _whatif(tmp_path, tmp_path / "w.xlsx", {"history": "full"}, {"history": {"years": 3}})
+    row = next(x for x in c["rows"] if x["key"] == "household_total" and x["reading"] == "change")
+    assert row["same_measure"] and row["b"]
+    ws = wb[HOUSEHOLD_NAME]
+    head = next(cl for r in ws.iter_rows() for cl in r if cl.value == "What if: normal from")
+    for col, want in ((head.column, row["b"]["normal_low"]), (head.column + 1, row["b"]["normal_high"])):
+        assert ws.column_dimensions[openpyxl.utils.get_column_letter(col)].hidden
+        filled = [(ws.cell(r, 27).value, ws.cell(r, col).value) for r in range(head.row + 1, ws.max_row + 1)
+                  if ws.cell(r, col).value is not None]
+        assert filled and all(v == pytest.approx(want, abs=1e-9) for _, v in filled)
+        assert min(d for d, _ in filled).isoformat()[:10] == row["b"]["history_from"][:10]
+    chart = next(x for x in _charts(out).values() if "Total: change over" in x)
+    assert chart.count('prstDash val="sysDash"') == 2 and "the normal range under the what-if" in chart

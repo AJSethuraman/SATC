@@ -119,3 +119,5 @@ def test_wages_after_inflation_are_usable_with_care_and_read_on_their_change():
     assert d.inputs == ("wages_eci_nsa", "cpi_nsa") and d in CARE_DERIVED and d not in CORE
     assert [BY_KEY[k].source_id for k in d.inputs] == ["CIU2020000000000I", "CPIAUCNS"]
     assert d.change_in == "percent" and "says nothing" in d.position and "0.851%" in d.note
+    # private industry only, as its input is: shortened to fit its column, the title had lost it (Codex on #471)
+    assert "private" in BY_KEY["wages_eci_nsa"].title and "private" in d.title

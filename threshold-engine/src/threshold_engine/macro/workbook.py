@@ -1573,7 +1573,7 @@ def build(out, result, pull, whatif=None, zoom=None):
     #: Where the tab keeps the NY Fed's history, past the 24 columns of tiles and charts, and the hidden columns its
     #: charts draw from.
     HH = {"date": 27, "types": 28, "note": 35, "change": 36, "drawn": 37, "label": 43, "band": 44, "latest": 46,
-          "off": 47}
+          "off": 47, "whatif": 48}
 
     def household_tab():
         ws = sheet(HOUSEHOLD_NAME)
@@ -1613,11 +1613,18 @@ def build(out, result, pull, whatif=None, zoom=None):
             total_row = key == "household_total"
             merged(ws, row, 14, 15, column, font=F_BOLD if total_row else F_DATA)
             v = latest_of(it)
-            if v:
-                put(ws, row, 16, v[1], "0.000", F_BOLD if total_row else None, RIGHT)
-                if now and now[0] == v[0] and now[1]:
-                    put(ws, row, 17, v[1] / now[1], "0.0%", F_BOLD if total_row else None, RIGHT)
             chg = by_key.get(key, {}).get("change")
+            older = bool(v and now and v[0] != now[0])
+            if older:
+                # A type the NY Fed's newest quarter leaves blank: its balance and change are an older quarter's,
+                # and the table is headed the latest one, so it says so instead (Codex on #471).
+                merged(ws, row, 16, 25, "No %s value in the NY Fed's file; its latest is %s." % (
+                    _when(now[0], "quarterly"), _when(v[0], "quarterly")), font=F_NOTE)
+                chg = None
+            elif v:
+                put(ws, row, 16, v[1], "0.000", F_BOLD if total_row else None, RIGHT)
+                if now and now[1]:
+                    put(ws, row, 17, v[1] / now[1], "0.0%", F_BOLD if total_row else None, RIGHT)
             if chg:
                 put(ws, row, 18, *change_value(it, chg["value"]), align=RIGHT)
                 put(ws, row, 19, *change_value(it, chg["normal_low"]), align=RIGHT)
@@ -1627,7 +1634,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                 put(ws, row, 23, chg["movement"], "+0.0;-0.0;0.0", align=RIGHT)
                 since_cell(ws, row, 24, chg["since"], "quarterly")
                 since_cell(ws, row, 25, chg["history_from"], "quarterly")
-            elif key in missing_by:
+            elif key in missing_by and not older:
                 merged(ws, row, 18, 25, "Not read: " + missing_by[key]["change"], font=F_NOTE)
             ws.row_dimensions[row].height = 15
             rule(ws, row, 14, 25)
@@ -1678,7 +1685,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                 put(ws, rr, HH["note"], "left out (%s)" % quarter_of(d), font=F_NOTE)
         for j, (_, column, _) in enumerate(HOUSEHOLD_DEBT[:-1]):
             ws.cell(top, HH["drawn"] + j, column)
-        for col in range(HH["change"], HH["off"] + 1):
+        for col in range(HH["change"], HH["whatif"] + 2):
             ws.column_dimensions[L(col)].hidden = True
         span = zoom_rows(quarters, zoom)
         if span is None:
@@ -1740,12 +1747,16 @@ def build(out, result, pull, whatif=None, zoom=None):
             if d in chg:
                 put(ws, first + i, HH["change"], chg[d], "#,##0.0#")
         r = by_key.get("household_total", {}).get("change")
+        w = (wrows.get("household_total", {}).get("change") or {}) if whatif else {}
+        wb_ = w.get("b") if w.get("same_measure") else None
         said = ""
         if r:
             seen = [(quarters[i], chg[quarters[i]]) for i in range(span[0], span[1] + 1) if quarters[i] in chg]
             if seen:
                 latest_row = first + quarters.index(r["date"])
                 keep = [r["normal_low"], r["normal_high"]] + ([chg[r["date"]]] if a <= latest_row <= b else [])
+                if wb_:
+                    keep += [wb_["normal_low"], wb_["normal_high"]]
                 lo, hi, step, above, below = axis_view(seen, s["axis_cut"], keep)
                 for col, words in ((HH["band"], "Normal from"), (HH["band"] + 1, "Normal range"),
                                    (HH["latest"], "Latest"), (HH["off"], "Off the axis")):
@@ -1759,10 +1770,24 @@ def build(out, result, pull, whatif=None, zoom=None):
                     ws.cell(first + quarters.index(d), HH["off"], hi)
                 for d, v in below:
                     ws.cell(first + quarters.index(d), HH["off"], lo)
-                place(ws, history_chart(ws, "Total: change over %d months, its normal range shaded" % months,
-                                        "percent", HH["change"], a, b, HH["latest"], "quarterly", (lo, hi), step,
-                                        HH["band"], head=top, off_col=HH["off"], height=4.23, signed_axis=True,
-                                        label_fmt="+0.00;-0.00;0.00", date_col=HH["date"]), 14, 19, 25, 26)
+                title = "Total: change over %d months, its normal range shaded" % months
+                dashed_col = None
+                if wb_:
+                    # The what-if's range, as on every series tab: two lines over the years its history covers
+                    # (Codex on #471: this chart drew only the range as you have it).
+                    dashed_col = HH["whatif"]
+                    ws.cell(top, dashed_col, "What if: normal from")
+                    ws.cell(top, dashed_col + 1, "What if: normal to")
+                    start = _date(wb_["history_from"]).isoformat()
+                    for i in range(span[0], span[1] + 1):
+                        if quarters[i] >= start:
+                            ws.cell(first + i, dashed_col, wb_["normal_low"])
+                            ws.cell(first + i, dashed_col + 1, wb_["normal_high"])
+                    title += " (dashed: the normal range under the what-if)"
+                place(ws, history_chart(ws, title, "percent", HH["change"], a, b, HH["latest"], "quarterly",
+                                        (lo, hi), step, HH["band"], dashed_col, head=top, off_col=HH["off"],
+                                        height=4.23, signed_axis=True, label_fmt="+0.00;-0.00;0.00",
+                                        date_col=HH["date"]), 14, 19, 25, 26)
                 said = off_edge(above, below, "quarterly", lambda v: signed(item, v))
         if said:
             merged(ws, 28, 14, 25, said, font=F_NOTE, align=WRAP)

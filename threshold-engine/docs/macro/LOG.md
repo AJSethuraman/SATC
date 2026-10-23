@@ -1176,8 +1176,9 @@ in the spec's own order:
      off;
    - two strings written today for wages after inflation are shorter, because
      they ran past their columns. The title is now "Employment cost index:
-     wages and salaries, after inflation", and the unit "index: wages over
-     prices, x 100".
+     private wages, after inflation", and the unit "index: wages over
+     prices, x 100". (The first shortening dropped "private", which its
+     input is; Codex found it, below.)
 6. **Choices the spec left open:**
    - the Dashboard freezes rows 1 to 5;
    - its "From is after To" warning moved to T5;
@@ -1236,3 +1237,24 @@ in the spec's own order:
     told to plot hidden cells);
   - the overlapping NY Fed chart.
 - **Not seen in Excel.**
+
+**Codex on #471, three findings on the design build, all fixed.**
+
+1. **Wages after inflation had lost "private" from its title** when it was
+   shortened to fit its column, so it read as all workers. Its input is the
+   private industry index. The title is now "Employment cost index: private
+   wages, after inflation", 53 characters, which fits the column the longer
+   one ran past. A test holds the word in both the title and its input's.
+2. **A type of household debt blank in the NY Fed's newest quarter** would
+   have shown its previous quarter's balance and change under "Each type,
+   latest quarter". The NY Fed has not done that, but nothing stopped it.
+   Such a row now says *"No 2026 Q2 value in the NY Fed's file; its latest
+   is 2026 Q1."* and shows no figures.
+3. **The household total's change chart drew no what-if range.** Every
+   series tab dashes the what-if's normal range over its change chart; this
+   chart is drawn by the tab's own code and had been left out. It now draws
+   the same two slate dashed lines over the years the what-if's history
+   covers, and says so in its title.
+
+Each fix was taken out in turn and its test failed, three in all. The example
+is rebuilt.
