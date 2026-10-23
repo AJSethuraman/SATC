@@ -15,7 +15,8 @@ def answered(**over):
     """A complete settings dict. These are test inputs, not the firm's answers."""
     t = S.template()
     values = {"history": {"years": 20}, "change_months": 6, "normal_width": 1.5, "left_out": [], "axis_cut": 0,
-              "show_sahm": False}
+              "show_sahm": False, "compare_p": 0.05, "compare_leads": [-12, 0, 6, 12, 24], "compare_starts": 4,
+              "compare_min_pairs": 6}
     values.update(over)
     for k, v in values.items():
         t[k]["answer"] = v
@@ -44,11 +45,21 @@ def test_the_recommendation_is_never_read_as_an_answer():
 def test_a_complete_answer_is_read_exactly():
     s = S.check(answered(left_out=["2020Q2-2021Q2", "2008Q4"], axis_cut=1))
     assert s == {"history": {"years": 20}, "change_months": 6, "normal_width": 1.5,
-                 "left_out": [["2008Q4", "2008Q4"], ["2020Q2", "2021Q2"]], "axis_cut": 1.0, "show_sahm": False}
+                 "left_out": [["2008Q4", "2008Q4"], ["2020Q2", "2021Q2"]], "axis_cut": 1.0, "show_sahm": False,
+                 "compare_p": 0.05, "compare_leads": [-12, 0, 6, 12, 24], "compare_starts": 4,
+                 "compare_min_pairs": 6}
     assert len(S.left_out_set(s["left_out"])) == 6               # 2020Q2 to 2021Q2 is five quarters, and 2008Q4
 
 
 @pytest.mark.parametrize("name,value,says", [
+    ("compare_p", 0, "above 0 and below 1"),
+    ("compare_p", 1, "above 0 and below 1"),
+    ("compare_leads", [], "different whole numbers"),
+    ("compare_leads", [0, 0], "different whole numbers"),
+    ("compare_leads", [6.0], "different whole numbers"),
+    ("compare_starts", 5, "1, 2, 3, 4, 6 or 12"),
+    ("compare_starts", True, "1, 2, 3, 4, 6 or 12"),
+    ("compare_min_pairs", 3, "at least 4"),
     ("history", {"years": 0}, "above 0"),
     ("history", "all", "\"full\" or"),
     ("change_months", 12.0, "whole number"),
@@ -120,8 +131,10 @@ SETTINGS = TEMPLATE.with_name("settings.json")
 #: horizon and the Sahm reading). 22 Oct 2026: "Typical move (Recommended)", whose option read "The median change
 #: plus or minus one typical move ... the width is a setting you can change"; "None yet" for the quarters left
 #: out; and "I will take recommended ways of viewing", the recommendation being the axis that leaves a spike off.
+#: 23 Oct 2026, "As the Excel version (Recommended)": the Dashboard's test, as the comparison built in Excel ran it.
 FIRM = {"history": "full", "change_months": 12, "show_sahm": True, "normal_width": 1, "left_out": [],
-        "axis_cut": 1}
+        "axis_cut": 1, "compare_p": 0.05, "compare_leads": [-24, -18, -12, -6, 0, 6, 12, 18, 24, 30, 36],
+        "compare_starts": 4, "compare_min_pairs": 6}
 
 
 def test_the_firms_settings_are_complete_and_are_what_they_said():

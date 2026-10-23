@@ -101,6 +101,47 @@ HOUSEHOLD_DEBT = [("household_mortgage", "Mortgage", "mortgage"),
                   ("household_student", "Student Loan", "student loan"), ("household_other", "Other", "other"),
                   ("household_total", "Total", "total")]
 
+#: The bank credit series: each product's net charge-offs and its loans 30+ days late incl. nonaccrual, every FDIC
+#: filer summed and KeyBank on its own. The firm, 23 Oct 2026: "Yes, from FDIC each pull". Built by the threshold
+#: engine's peers build under the consumer book's settings (fdic_credit.py); the FDIC's website policies page,
+#: read 23 Oct 2026, states no terms of reuse for its own data.
+FDIC_LICENCE = ("FDIC BankFind: Call Report data the FDIC publishes; its website policies page states no terms of "
+                "reuse for its own data (read 23 Oct 2026)")
+#: (the product as the threshold engine names it, its file slug, the key's start, the title's words, the tab's).
+BANK_PRODUCTS = [("Credit card", "credit-card", "card", "Card", "Card"),
+                 ("Other consumer", "other-consumer", "other_consumer", "Other consumer", "Other cons"),
+                 ("Mortgage", "mortgage", "mortgage", "Mortgage", "Mortgage"),
+                 ("Home equity", "home-equity", "home_equity", "Home equity", "Home equity")]
+#: (who, as the threshold engine's files say it, the key's end, the title's words).
+BANK_WHO = [("industry", "all_banks", "all banks"), ("keybank", "keybank", "KeyBank")]
+#: (measure, the file name's tail, the key's middle, the title's words, the tab's, the unit). A loss rate is the
+#: past four quarters' net charge-offs over the average balance of those quarters; each tab's notes say so.
+BANK_MEASURES = [("net", "net", "losses", "net charge-offs", "losses",
+                  "% of loans, past year"),
+                 ("30+", "delinquency-30-plus-incl-nonaccrual_quarter-end", "late", "30+ days late incl. nonaccrual",
+                  "30+ late", "% of loans, quarter-end")]
+#: The first quarter each series holds, as the build of 23 Oct 2026 wrote it (2006Q1 to 2026Q2). KeyBank's card and
+#: other consumer start late: the build writes from the first quarter after the last break and fills no gap.
+BANK_STARTS = {("card", "net", "industry"): "2006Q4", ("card", "net", "keybank"): "2013Q4",
+               ("card", "30+", "keybank"): "2012Q3", ("other_consumer", "net", "keybank"): "2015Q4",
+               ("mortgage", "net", "keybank"): "2007Q1", ("home_equity", "net", "keybank"): "2007Q1"}
+SECURITIZED = ("2010Q1", "securitized cards came back onto banks' books under FAS 166 and 167 from 1 Jan 2010; "
+                         "before it a bank's securitized cards were off its books (the threshold engine's note)")
+
+
+def bank_key(product, measure, who):
+    """card_losses_all_banks, mortgage_late_keybank ..."""
+    pk = next(k for p, _, k, _, _ in BANK_PRODUCTS if p == product)
+    mk = next(k for m, _, k, *_ in BANK_MEASURES if m == measure)
+    return "%s_%s_%s" % (pk, mk, next(k for w, k, _ in BANK_WHO if w == who))
+
+
+def bank_source_id(product, measure, who):
+    """The threshold engine's own series file stem, e.g. credit-card_keybank_net."""
+    return "%s_%s_%s" % (next(s for p, s, *_ in BANK_PRODUCTS if p == product), who,
+                         next(t for m, t, *_ in BANK_MEASURES if m == measure))
+
+
 LABOUR = "Labour data carries the only official link to loan losses"
 INSURE = "Home insurance has no free series for what owners actually pay"
 HOUSE = "Household balance sheets: flows into delinquency beat balance stocks"
@@ -184,6 +225,17 @@ SERIES = [
            column, "quarterly", "trillions of dollars", "2003Q1", HHDC_LICENCE, None, HOUSE, (HHDC_REVISED,),
            change_in="percent", position=TREND, credit=HHDC_CREDIT)
     for key, column, title in HOUSEHOLD_DEBT
+] + [
+    Series(bank_key(product, measure, who), "%s %s, %s" % (words, mwords, wwords), "consumer",
+           "FDIC (Call Reports), built by the threshold engine", "fdic", bank_source_id(product, measure, who),
+           "quarterly", unit, BANK_STARTS.get((pk, measure, who), "2006Q1"), FDIC_LICENCE, None,
+           # The firm added these, not the research; the report reads card charge-offs against unemployment in its
+           # labour section and delinquency in its household section, the two each cites.
+           LABOUR if measure == "net" else HOUSE,
+           (SECURITIZED,) if pk == "card" and who == "industry" else (), change_in="points")
+    for product, _, pk, words, _ in BANK_PRODUCTS
+    for measure, _, _, mwords, _, unit in BANK_MEASURES
+    for who, _, wwords in BANK_WHO
 ] + [
     # -- commercial and the economy
     _fred("real_gdp", "GDPC1", "Real GDP", "both", "BEA", "quarterly", "billions of chained 2017 dollars", "1947-01",

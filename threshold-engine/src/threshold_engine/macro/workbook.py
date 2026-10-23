@@ -39,10 +39,14 @@ a change, and a second set of settings drawn as dashed lines.
     Dashboard data    hidden: the values the Dashboard looks up
 """
 import datetime
+import json
 import math
+import pathlib
 
-from .catalog import BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED, HOUSEHOLD_DEBT, READ, SERIES, STATES
+from .catalog import (BANK_MEASURES, BANK_PRODUCTS, BANK_WHO, BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED,
+                      HOUSEHOLD_DEBT, READ, SERIES, STATES, bank_key)
 from .compare import CALLED, NOT_ASKED, plain, row_label, spans, when
+from .fdic_credit import FILE as FDIC_FILE
 from .readings import (DECREASING, DIRECTIONS, INCREASING, STABLE, changes, kept, percentile, sahm_kept,
                        window_of)
 from .settings import QUESTIONS, Refused, left_out_set, quarter_index, quarter_label, quarter_of, readings_of
@@ -70,9 +74,10 @@ DASH_DATA = "Dashboard data"
 #: (dataviz skill), checked with its validator for adjacent pairs on 22 Oct 2026: every check passes; three
 #: sit below 3:1 against white, so the tab carries a legend and the table of every type.
 HOUSEHOLD_COLOURS = ("2A78D6", "EB6834", "1BAF7A", "EDA100", "E87BA4", "008300")
-#: The Dashboard's two picks: the reference palette's first two slots, which pass every pair. 4.4:1 and 3.0:1 on white,
-#: so every chart that draws them carries a legend, and the readings table names them.
-PICK_COLOURS = ("2A78D6", "EB6834")
+#: The Dashboard's two picks, in KeyBank's own colours: ink and Key red (keybank_style INK and KEY_RED). The firm,
+#: 23 Oct 2026: "not a huge fan of the blue and orange - i would rather use more Keybank esque colors". The chart
+#: carries a legend and the readings table names each pick beside its colour.
+PICK_COLOURS = ("0A0908", "CC0000")
 
 #: The Overview's sections, in reading order, and each series' tab name.
 TOPICS = [
@@ -86,6 +91,9 @@ TOPICS = [
     ("Markets and financial conditions", ["prime_rate", "gz_spread", "excess_bond_premium",
                                           "bond_recession_probability", "nfci", "nfci_adjusted", "stlfsi", "kcfsi",
                                           "yield_curve"]),
+    # The firm, 23 Oct 2026: bank credit from FDIC, all banks and KeyBank, to set beside the macro series.
+    ("Bank credit quality (FDIC Call Reports): all banks and KeyBank",
+     [bank_key(p, m, w) for p, *_ in BANK_PRODUCTS for m, *_ in BANK_MEASURES for w, *_ in BANK_WHO]),
 ]
 TAB = {
     "unemployment": "Unemployment", "initial_claims": "Initial claims", "continuing_claims": "Continuing claims",
@@ -101,6 +109,8 @@ TAB = {
     "bond_recession_probability": "Bond recession prob", "nfci": "NFCI", "nfci_adjusted": "NFCI adjusted",
     "stlfsi": "St Louis stress", "kcfsi": "Kansas City stress", "yield_curve": "Yield curve",
     **{k: HOUSEHOLD_NAME for k in HOUSEHOLD_KEYS},
+    **{bank_key(p, m, w): "%s %s, %s" % (tab, mtab, words) for p, _, _, _, tab in BANK_PRODUCTS
+       for m, _, _, _, mtab, _ in BANK_MEASURES for w, _, words in BANK_WHO},
 }
 
 #: The Usable with care tab's sections, and each series' tab name.
@@ -539,6 +549,17 @@ def build(out, result, pull, whatif=None, zoom=None):
 
     def signed(item, v):
         return "%s%s%s" % ("+" if v > 0 else "", _num(v), "%" if item.change_in == "percent" else "")
+
+    def bank_notes(item):
+        """A bank credit series' notes as the threshold engine's build wrote them: what it is, the rules, every
+        reporting change that touches it. Read from the pull's own file, so they are the run's."""
+        if getattr(item, "source", "") != "fdic":
+            return []
+        try:
+            got = json.loads((pathlib.Path(pull.folder) / FDIC_FILE).read_text("utf-8"))
+        except (OSError, ValueError):
+            return []
+        return got.get("series", {}).get(item.source_id, {}).get("note", [])
 
     def latest_of(item):
         """The latest reading kept: one in a quarter left out is not shown as the latest beside readings measured
@@ -1559,6 +1580,7 @@ def build(out, result, pull, whatif=None, zoom=None):
             facts.append(("Note", item.note))
         for when_, what in item.breaks:
             facts.append(("Break", "%s: %s" % (when_, what)))
+        facts += [("From the build", line) for line in bank_notes(item)]
         if getattr(item, "credit", ""):
             facts.append(("Credit", item.credit))
         row = facts_rows(ws, row, facts + sentences(item, key, mine))
@@ -2076,8 +2098,21 @@ def build(out, result, pull, whatif=None, zoom=None):
                 got["place"][d[:7]] = percentile(v, ordered) / 100
         monthly[key] = got
     # Every month, whatever the zoom: the zoom only sets the quarters the Dashboard opens on, and the From and To
-    # boxes can widen them.
-    every = sorted({m for g in monthly.values() for part in g.values() for m in part})
+    # boxes can widen them. One row a month with none skipped, and as many empty months before and after as the
+    # longest lead each way, so a lead's readings are always the rows that many below or above.
+    leads = s["compare_leads"]
+    found = sorted({m for g in monthly.values() for part in g.values() for m in part})
+
+    def month_add(m, n):
+        y, mo = int(m[:4]), int(m[5:7]) - 1 + n
+        return "%04d-%02d" % (y + mo // 12, mo % 12 + 1)
+    pad_top, pad_end = max(0, -min(leads)), max(0, max(leads))
+    every = []
+    if found:
+        m, end_ = month_add(found[0], -pad_top), month_add(found[-1], pad_end)
+        while m <= end_:
+            every.append(m)
+            m = month_add(m, 1)
     dd = sheet(DASH_DATA)
     dd.sheet_state = "hidden"
     put(dd, 2, 1, "Month", font=F_BOLD)
@@ -2112,11 +2147,11 @@ def build(out, result, pull, whatif=None, zoom=None):
              "Normal from", "Normal to", "Direction", "Typical moves", "Since", "History from",
              "First month drawn", "Last month drawn", "Moves: off below", "Moves: off above", "Level: off below",
              "Level: off above", "Change: off below", "Change: off above", "Normal from, as drawn",
-             "Normal to, as drawn"]
+             "Normal to, as drawn", "Months between readings"]
     ST = {k: i for i, k in enumerate(["series", "unit", "latest", "value", "level", "change", "normal_low",
                                       "normal_high", "direction", "moves", "since", "history", "first", "last",
                                       "moves_lo", "moves_hi", "level_lo", "level_hi", "change_lo", "change_hi",
-                                      "normal_low_n", "normal_high_n"])}
+                                      "normal_low_n", "normal_high_n", "step"])}
     for k, words in enumerate(stats):
         dd.cell(2, s0 + k, words)
 
@@ -2155,7 +2190,10 @@ def build(out, result, pull, whatif=None, zoom=None):
                 "latest": when_text(now[0], item.frequency) if now else None,
                 "value": value_text(now[1]) if now else None,
                 "level": lvl["percentile"] / 100 if lvl else ("change only" if item.position else None),
-                "direction": ARROW[chg["direction"]] if chg else "not read"}
+                "direction": ARROW[chg["direction"]] if chg else "not read",
+                # a quarterly series has a reading every third month of the grid; the rest one a month (a daily or
+                # weekly one at each month's last reading)
+                "step": 3 if item.frequency == "quarterly" else 1}
         if chg:
             vals.update(change=shown(item, chg["value"]), normal_low=shown(item, chg["normal_low"]),
                         normal_high=shown(item, chg["normal_high"]), moves=chg["movement"],
@@ -2180,7 +2218,7 @@ def build(out, result, pull, whatif=None, zoom=None):
     # after another from the first month drawn to the last, and out to a zoom's ends, so a quarter left out of
     # every series, or a zoom past the data, is still one the boxes can hold (Codex on #471).
     q0 = s0 + len(stats) + 1
-    ends = [quarter_index(quarter_of(m + "-01")) for m in (every[:1] + every[-1:])]
+    ends = [quarter_index(quarter_of(m + "-01")) for m in (found[:1] + found[-1:])]
     ends += [quarter_index(q) for q in (zoom or ())]
     quarters_ = [quarter_label(i).replace("Q", " Q") for i in range(min(ends), max(ends) + 1)] if ends else []
     for k, words in enumerate(("Quarter", "From", "To")):
@@ -2197,12 +2235,14 @@ def build(out, result, pull, whatif=None, zoom=None):
     # round 1). The tab-chart grid: B to Y, 24 columns of 72 px.
     ws = dash
     widths(ws, [9.57] * 24 + [2.71])
-    title_band(ws, DASHBOARD, "Pick any two series and the quarters to draw: both together on scales they "
-                              "share, then each on its own.", 26, tab=K.INK)
+    title_band(ws, DASHBOARD, "Pick any two series and the quarters: whether their changes move together, and "
+                              "whether one leads the other.", 26, tab=K.INK)
     link(ws.cell(2, 2), "Overview", "Back to Overview", nav=True)
     BOX = {"first": (2, 7), "second": (8, 13), "from": (14, 16), "to": (17, 19)}
     CELL = {k: "$%s$5" % L(a) for k, (a, _) in BOX.items()}
-    picks = [("First series", "Unemployment rate"), ("Second series", "Initial jobless claims")]
+    # It opens on a macro series beside bank credit, the comparison the firm asked for (23 Oct 2026); a pull without
+    # the bank series opens on the next series in the list.
+    picks = [("First series", "Unemployment rate"), ("Second series", "Card net charge-offs, all banks")]
     window = zoom or ([quarters_[0].replace(" ", ""), quarters_[-1].replace(" ", "")] if quarters_ else None)
     values_ = {"first": picks[0][1] if picks[0][1] in names else names[0],
                "second": picks[1][1] if picks[1][1] in names else names[1],
@@ -2259,7 +2299,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                                      L(HELP + 1), 4 + i)
     CUT = {}                                  # (pick, part, end) -> the hidden cell holding that cut
     for i in range(2):
-        for n, part in enumerate(("moves", "level", "change")):
+        for n, part in enumerate(("moves",)):
             for e, end in enumerate(("lo", "hi")):
                 rr = 8 + 2 * n + e
                 formula(ws, rr, HELP + i, "=IFERROR(%s+0,NA())" % stat(i, "%s_%s" % (part, end)))
@@ -2298,27 +2338,42 @@ def build(out, result, pull, whatif=None, zoom=None):
                                                        font=Font(name="Calibri", size=11, bold=True, color=K.INK)))
     ws.row_dimensions[10].height = 6
     # The drawn columns: the month in years, then for each pick, twelve: the year again where the pick has a
-    # reading in the quarters chosen (so every axis fits the picks and the quarters); its level, change, typical
-    # moves and place in its history as written; the first three again with a reading past the firm's cut left
-    # off (#N/A, which a chart skips), so the axes fit the rest; a marker at the cut for each reading left off;
-    # and the typical moves of the readings left off, for the note under the chart.
+    # reading in the quarters chosen (so the axis fits the picks and the quarters); its level, change and typical
+    # moves as written; its typical moves again with a reading past the firm's cut left off (#N/A, which a chart
+    # skips), so the axis fits the rest; a marker at the cut for each reading left off; and the typical moves of
+    # the readings left off, for the note under the chart. Columns 4 to 6, 8 and 9 are left empty: they held the
+    # levels and each pick's own charts, which the comparison replaced (23 Oct 2026).
     put(ws, 2, HELP + 2, "Year", font=F_NOTE)
 
     def col_of(i, k):
-        """Pick i's drawn column k: 0 years; 1 level, 2 change, 3 typical moves, 4 at or above, as written; 5 level,
-        6 change, 7 typical moves, inside the cut; 8, 9, 10 their markers; 11 typical moves left off."""
+        """Pick i's drawn column k: 0 years; 1 level, 2 change, 3 typical moves, as written; 7 typical moves inside
+        the cut; 10 its marker; 11 typical moves left off."""
         return HELP + 3 + 12 * i + k
-    names_ = ("Years", "Level", "Change", "Typical moves", "At or above", "Level, drawn", "Change, drawn",
-              "Typical moves, drawn", "Level off the axis", "Change off the axis", "Typical moves off the axis",
-              "Typical moves left off")
+    names_ = {0: "Years", 1: "Level", 2: "Change", 3: "Typical moves", 7: "Typical moves, drawn",
+              10: "Typical moves off the axis", 11: "Typical moves left off"}
     for i in range(2):
-        for k, words in enumerate(names_):
+        for k, words in names_.items():
             put(ws, 2, col_of(i, k), "%s: %s" % (picks[i][0], words), font=F_NOTE)
+    # The comparison's columns, after the dashed lines: the month of the year (0 for January); each pick's change
+    # inside the quarters chosen, text "" where it has none (CORREL skips a pair with text in it); the same where
+    # both have one; and the first pick's change at each starting point of the one-reading-a-year test.
+    LINES_AT = HELP + 3 + 24
+    CMP = LINES_AT + 10
+    S, P, MP = s["compare_starts"], s["compare_p"], s["compare_min_pairs"]
+    CH = {0: CMP + 1, 1: CMP + 2}                 # each pick's change inside the quarters chosen
+    SH = {0: CMP + 3, 1: CMP + 4}                 # the same, where both have one
+    ST_AT = [CMP + 5 + f for f in range(S)]       # the first pick's change at each starting point
+    for col, words in [(CMP, "Month of the year")] + [(CH[i], "%s: change in the quarters chosen" % picks[i][0])
+                                                       for i in range(2)] \
+            + [(SH[i], "%s: change where both have one" % picks[i][0]) for i in range(2)] \
+            + [(c, "First series: change at starting point %d" % (f + 1)) for f, c in enumerate(ST_AT)]:
+        put(ws, 2, col, words, font=F_NOTE)
     for n, m in enumerate(every):
         rr = first_row + n
         ws.cell(rr, HELP + 2, year_of(m))
+        ws.cell(rr, CMP, int(m[5:7]) - 1)
         for i in range(2):
-            for k in range(4):
+            for k in range(3):
                 where = "INDEX('%s'!$A$%d:$%s$%d,ROW()-%d,$%s$%d+%d)" % (
                     DASH_DATA, first_row, data_end, last_row, first_row - 1, L(HELP), 4 + i, k)
                 formula(ws, rr, col_of(i, k + 1), '=IF(%s="",NA(),%s)' % (where, where))
@@ -2326,18 +2381,22 @@ def build(out, result, pull, whatif=None, zoom=None):
             x = "%s%d" % (L(col_of(i, 0)), rr)
             formula(ws, rr, col_of(i, 0), "=IF(AND(OR(ISNUMBER(%s%d),ISNUMBER(%s%d)),%s>=%s,%s<=%s),%s,NA())" % (
                 L(col_of(i, 1)), rr, L(col_of(i, 2)), rr, yr, T0, yr, T1, yr))
-            for k, part in ((1, "level"), (2, "change"), (3, "moves")):
-                v = "%s%d" % (L(col_of(i, k)), rr)
-                lo, hi = CUT[(i, part, "lo")], CUT[(i, part, "hi")]
-                formula(ws, rr, col_of(i, k + 4), "=IF(ISNUMBER(%s),IF(OR(%s>%s,%s<%s),NA(),%s),NA())" % (
-                    v, v, hi, v, lo, v))
-                formula(ws, rr, col_of(i, k + 7), "=IF(ISNUMBER(%s),IF(ISNUMBER(%s),IF(%s>%s,%s,IF(%s<%s,%s,NA())),"
-                                                  "NA()),NA())" % (x, v, v, hi, hi, v, lo, lo))
+            v = "%s%d" % (L(col_of(i, 3)), rr)
+            lo, hi = CUT[(i, "moves", "lo")], CUT[(i, "moves", "hi")]
+            formula(ws, rr, col_of(i, 7), "=IF(ISNUMBER(%s),IF(OR(%s>%s,%s<%s),NA(),%s),NA())" % (v, v, hi, v, lo, v))
+            formula(ws, rr, col_of(i, 10), "=IF(ISNUMBER(%s),IF(ISNUMBER(%s),IF(%s>%s,%s,IF(%s<%s,%s,NA())),"
+                                           "NA()),NA())" % (x, v, v, hi, hi, v, lo, lo))
             mk = "%s%d" % (L(col_of(i, 10)), rr)
             formula(ws, rr, col_of(i, 11), '=IF(ISNUMBER(%s),%s%d,"")' % (mk, L(col_of(i, 3)), rr))
-    # The dashed lines: two points each, across the quarters chosen where the picks have readings, looked up as
-    # values (a newer spreadsheet function such as AGGREGATE reads #NAME? unless the file marks it).
-    LINES_AT = HELP + 3 + 24
+            c_ = "%s%d" % (L(col_of(i, 2)), rr)
+            formula(ws, rr, CH[i], '=IF(AND(ISNUMBER(%s),%s>=%s,%s<=%s),%s,"")' % (c_, yr, T0, yr, T1, c_))
+        a_, b_ = "%s%d" % (L(CH[0]), rr), "%s%d" % (L(CH[1]), rr)
+        for i in range(2):
+            formula(ws, rr, SH[i], '=IF(AND(ISNUMBER(%s),ISNUMBER(%s)),%s,"")' % (a_, b_, (a_, b_)[i]))
+        for f, col in enumerate(ST_AT):
+            formula(ws, rr, col, '=IF($%s%d=%d,%s,"")' % (L(CMP), rr, f * 12 // S, a_))
+    # The dashed lines of normal movement: two points, across the quarters chosen where the picks have readings,
+    # looked up as values (a newer spreadsheet function such as AGGREGATE reads #NAME? unless the file marks it).
     if every:
         def span_of(i, n):
             return stat(i, "first" if n == 0 else "last")
@@ -2350,13 +2409,8 @@ def build(out, result, pull, whatif=None, zoom=None):
                                                                                     two, one))
             ws.cell(rr, LINES_AT + 1, s["normal_width"])
             ws.cell(rr, LINES_AT + 2, -s["normal_width"])
-            for i in range(2):
-                formula(ws, rr, LINES_AT + 3 + 3 * i, "=IFERROR(%s(%s,%s+0),NA())" % (outer, bound, span_of(i, n)))
-                for k, part in enumerate(("normal_low_n", "normal_high_n")):   # each pick's normal range
-                    formula(ws, rr, LINES_AT + 4 + 3 * i + k, "=IFERROR(%s+0,NA())" % stat(i, part))
-    # The note under the two charts set together: for each pick, how many readings run off the movement chart at
-    # each end and the furthest of them, as each series' tab says it; and each pick's name for the levels chart's
-    # legend, with ": change only" when it has no level to draw.
+    # The note under the chart: for each pick, how many readings run off it at each end and the furthest of them,
+    # as each series' tab says it.
     rows_all = (first_row, last_row)
     for i in range(2):
         mk = "$%s$%d:$%s$%d" % (L(col_of(i, 10)), rows_all[0], L(col_of(i, 10)), rows_all[1])
@@ -2372,9 +2426,141 @@ def build(out, result, pull, whatif=None, zoom=None):
             'bottom"),"")&"; the furthest "&TEXT(%(far)s,"+0.0;-0.0")&" typical moves in "&TEXT(INDEX(%(months)s,'
             'MATCH(%(far)s,%(off)s,0)),"mmm yyyy")&"."),"")') % {"up": up, "down": down, "name": name_, "far": far,
                                                                  "months": months_, "off": off})
-        formula(ws, 14 + i, HELP + 1, '=IF(%s="change only",%s&": change only",%s)' % (stat(i, "level"), name_,
-                                                                                        name_))
-    for col in range(HELP, LINES_AT + 10):
+
+    # -- whether the two changes move together, and whether one leads the other ------------------------------
+    # At the same time, on every shared reading: r, the readings, the effective readings (fewer when each series'
+    # changes run on from one reading to the next: n x (1 - r1 r2) / (1 + r1 r2), r1 and r2 each one's correlation
+    # with its own previous reading) and p from Student's t on them. Then each lead, one reading a year at each
+    # starting point, so no two readings share data: r, pairs and p at each, and the lead holds when every
+    # starting point agrees in sign and passes p below the firm's level divided by the leads tested.
+    def grid(col, a=None, b=None):
+        return "$%s$%d:$%s$%d" % (L(col), first_row if a is None else a, L(col), last_row if b is None else b)
+    LH = ST_AT[-1] + 2                           # the lead helpers, one row per lead, beside the lead table
+    RC = {"phrase": LH, "r": LH + 1, "n": LH + 1 + S, "p": LH + 1 + 2 * S, "tested": LH + 1 + 3 * S,
+          "avg": LH + 2 + 3 * S, "holds_in": LH + 3 + 3 * S, "same_sign": LH + 4 + 3 * S, "holds": LH + 5 + 3 * S,
+          "abs": LH + 6 + 3 * S}
+    SC = {k: "$%s$%d" % (L(LH), 4 + n) for n, k in enumerate(
+        ("step", "auto1", "auto2", "tested", "level", "strongest", "same_r", "same_n", "same_eff", "same_p"))}
+    for k, cell in SC.items():
+        put(ws, int(cell.split("$")[-1]), LH - 1, k, font=F_NOTE)
+    formula(ws, int(SC["step"].split("$")[-1]), LH, "=MAX(IFERROR(%s+0,1),IFERROR(%s+0,1))" % (
+        stat(0, "step"), stat(1, "step")))
+    for i, key_ in ((0, "auto1"), (1, "auto2")):
+        lag = {g: "CORREL(%s,%s)" % (grid(SH[i], first_row, last_row - g), grid(SH[i], first_row + g, last_row))
+               for g in (1, 3)}
+        formula(ws, int(SC[key_].split("$")[-1]), LH, "=IFERROR(IF(%s=3,%s,%s),0)" % (SC["step"], lag[3], lag[1]))
+    same_rows = {"r": "=IFERROR(CORREL(%s,%s),\"\")" % (grid(SH[0]), grid(SH[1])),
+                 "n": "=SUMPRODUCT(--ISNUMBER(%s))" % grid(SH[0])}
+    formula(ws, int(SC["same_r"].split("$")[-1]), LH, same_rows["r"])
+    formula(ws, int(SC["same_n"].split("$")[-1]), LH, same_rows["n"])
+    formula(ws, int(SC["same_eff"].split("$")[-1]), LH, '=IFERROR(IF(%s<3,"",%s*(1-%s*%s)/(1+%s*%s)),"")' % (
+        SC["same_n"], SC["same_n"], SC["auto1"], SC["auto2"], SC["auto1"], SC["auto2"]))
+    formula(ws, int(SC["same_p"].split("$")[-1]), LH, (
+        '=IFERROR(IF(OR(%(e)s="",%(r)s=""),"",IF(%(e)s<3,"",TDIST(ABS(%(r)s)*SQRT((%(e)s-2)/MAX(1-%(r)s^2,1E-12)),'
+        '%(e)s-2,2))),"")') % {"e": SC["same_eff"], "r": SC["same_r"]})
+    # The table at the same time.
+    section(ws, 13, "At the same time: every reading the two share in the quarters chosen", 13)
+    same_heads = [(2, 6, "Changes over %d months" % months), (7, 7, "r"), (8, 8, "Readings"),
+                  (9, 9, "Effective readings"), (10, 10, "p"), (11, 13, "Passes at p < %g?" % P)]
+    for a, b, words in same_heads:
+        header(ws, 14, [words] + [None] * (b - a), first=a, right=() if a == 2 else (0,), height=33)
+        if b > a:
+            ws.merge_cells(start_row=14, start_column=a, end_row=14, end_column=b)
+    merged(ws, 15, 2, 6, "Both, read at the same time", font=F_DATA)
+    formula(ws, 15, 7, "=%s" % SC["same_r"], "+0.00;-0.00;0.00", align=RIGHT)
+    formula(ws, 15, 8, "=%s" % SC["same_n"], "#,##0", align=RIGHT)
+    formula(ws, 15, 9, "=%s" % SC["same_eff"], "0.0", align=RIGHT)
+    formula(ws, 15, 10, "=%s" % SC["same_p"], '[<0.001]"< 0.001";0.000', align=RIGHT)
+    merged(ws, 15, 11, 13, None)
+    formula(ws, 15, 11, '=IF(%(n)s=0,"No shared readings",IF(%(p)s="","Too few to test",IF(%(p)s<%(P)s,"Passes",'
+                        '"Does not pass")))' % {"n": SC["same_n"], "p": SC["same_p"], "P": P}, align=INDENT)
+    ws.row_dimensions[15].height = 15
+    rule(ws, 15, 2, 13)
+    # The lead table.
+    LT = 18                                       # its header; one row per lead below
+    section(ws, LT - 1, "Does one lead the other? One reading a year, at %d starting point%s" % (S, "s" * (S > 1)),
+            13)
+    lead_heads = [(2, 6, "Lead"), (7, 8, "r, the average of %d" % S if S > 1 else "r"),
+                  (9, 10, "Pairs, the fewest" if S > 1 else "Pairs"), (11, 13, "Holds in")]
+    for a, b, words in lead_heads:
+        header(ws, LT, [words] + [None] * (b - a), first=a, right=() if a in (2, 11) else (0,),
+               centre=(0,) if a == 11 else (), height=33)
+        ws.merge_cells(start_row=LT, start_column=a, end_row=LT, end_column=b)
+    first_lead, last_lead = LT + 1, LT + len(leads)
+    ra, rb = first_row + pad_top, last_row - pad_end
+    for j, lead in enumerate(leads):
+        rr = LT + 1 + j
+        words = ("At the same time" if lead == 0 else "First leads by %d months" % lead if lead > 0 else
+                 "Second leads by %d months" % -lead)
+        phrase = ("at the same time" if lead == 0 else "when the first leads by %d months" % lead if lead > 0
+                  else "when the second leads by %d months" % -lead)
+        ws.cell(rr, RC["phrase"], phrase)
+        second = grid(CH[1], ra + lead, rb + lead)
+        for f, col in enumerate(ST_AT):
+            first_ = grid(col, ra, rb)
+            r_, n_, p_ = ("%s%d" % (L(RC[k] + f), rr) for k in ("r", "n", "p"))
+            formula(ws, rr, RC["r"] + f, '=IFERROR(CORREL(%s,%s),"")' % (first_, second))
+            formula(ws, rr, RC["n"] + f, "=SUMPRODUCT(ISNUMBER(%s)*ISNUMBER(%s))" % (first_, second))
+            formula(ws, rr, RC["p"] + f, '=IF(AND(%(n)s>=%(MP)d,ISNUMBER(%(r)s)),IFERROR(TDIST(ABS(%(r)s)*SQRT((%(n)s-2)/'
+                                         'MAX(1-%(r)s^2,1E-12)),%(n)s-2,2),""),"")' % {"n": n_, "r": r_, "MP": MP})
+        rs = "%s%d:%s%d" % (L(RC["r"]), rr, L(RC["r"] + S - 1), rr)
+        ns = "%s%d:%s%d" % (L(RC["n"]), rr, L(RC["n"] + S - 1), rr)
+        ps = "%s%d:%s%d" % (L(RC["p"]), rr, L(RC["p"] + S - 1), rr)
+        cell_ = {k: "$%s%d" % (L(RC[k]), rr) for k in RC}
+        formula(ws, rr, RC["tested"], "=IF(AND(MIN(%s)>=%d,COUNT(%s)=%d),1,0)" % (ns, MP, rs, S))
+        formula(ws, rr, RC["avg"], '=IF(%s=1,AVERAGE(%s),"")' % (cell_["tested"], rs))
+        formula(ws, rr, RC["holds_in"], '=IF(%s=1,COUNTIF(%s,"<"&%s/MAX(%s,1)),"")' % (
+            cell_["tested"], ps, P, SC["tested"]))
+        formula(ws, rr, RC["same_sign"], '=IF(%s=1,OR(COUNTIF(%s,">0")=%d,COUNTIF(%s,"<0")=%d),FALSE)' % (
+            cell_["tested"], rs, S, rs, S))
+        formula(ws, rr, RC["holds"], "=AND(%s=1,%s=%d,%s)" % (cell_["tested"], cell_["holds_in"], S,
+                                                               cell_["same_sign"]))
+        formula(ws, rr, RC["abs"], "=IF(%s=1,ABS(%s),-1)" % (cell_["tested"], cell_["avg"]))
+        merged(ws, rr, 2, 6, words, font=F_DATA)
+        ws.merge_cells(start_row=rr, start_column=7, end_row=rr, end_column=8)
+        formula(ws, rr, 7, "=%s" % cell_["avg"], "+0.00;-0.00;0.00", align=RIGHT)
+        ws.merge_cells(start_row=rr, start_column=9, end_row=rr, end_column=10)
+        formula(ws, rr, 9, "=MIN(%s)" % ns, "#,##0", align=RIGHT)
+        ws.merge_cells(start_row=rr, start_column=11, end_row=rr, end_column=13)
+        formula(ws, rr, 11, '=IF(%s=1,%s&" of %d"&IF(%s,": holds",""),"not tested")' % (
+            cell_["tested"], cell_["holds_in"], S, cell_["holds"]), align=CENTER)
+        ws.row_dimensions[rr].height = 15
+        rule(ws, rr, 2, 13)
+    col_rng = lambda k: "$%s$%d:$%s$%d" % (L(RC[k]), first_lead, L(RC[k]), last_lead)   # noqa: E731
+    formula(ws, int(SC["tested"].split("$")[-1]), LH, "=SUM(%s)" % col_rng("tested"))
+    formula(ws, int(SC["level"].split("$")[-1]), LH, "=%s/MAX(%s,1)" % (P, SC["tested"]))
+    formula(ws, int(SC["strongest"].split("$")[-1]), LH, "=IF(MAX(%s)<0,0,MATCH(MAX(%s),%s,0))" % (
+        col_rng("abs"), col_rng("abs"), col_rng("abs")))
+    from openpyxl.formatting.rule import FormulaRule
+    from openpyxl.styles import PatternFill
+    # The strongest lead, bold on mist: the house's mark for a reading that stands out, whichever way it runs.
+    ws.conditional_formatting.add("B%d:M%d" % (first_lead, last_lead), FormulaRule(
+        formula=["AND(%s>0,ROW()-%d=%s)" % (SC["strongest"], LT, SC["strongest"])],
+        fill=PatternFill("solid", fgColor=K.MIST), font=Font(name="Calibri", size=11, bold=True, color=K.INK)))
+    note(ws, last_lead + 1, 2, "Holds in: of the %d starting points, how many pass p < %g divided by the leads tested "
+                               "(%s). A lead holds when all %d do and agree in sign." % (S, P, "in the quarters chosen",
+                                                                                      S), 13)
+    # The answer, in one line over the tables and the chart.
+    at = lambda k: "INDEX(%s,%s)" % (col_rng(k), SC["strongest"])                        # noqa: E731
+    lead_words = (
+        'IF(%(k)s=0,"Too few readings in these quarters to test a lead: pick a longer span.",IF(%(holds)s,"The '
+        'changes move "&IF(%(avg)s>0,"together ","opposite ")&%(phrase)s&": r = "&TEXT(%(avg)s,"+0.00;-0.00")&'
+        '" on one reading a year, holding at all %(S)d starting points.","No lead holds at every starting point. '
+        'The strongest, "&%(phrase)s&", has r = "&TEXT(%(avg)s,"+0.00;-0.00")&" and passes at "&%(hin)s&" of '
+        '%(S)d."))') % {"k": SC["strongest"], "holds": at("holds"), "avg": at("avg"), "phrase": at("phrase"),
+                        "hin": at("holds_in"), "S": S}
+    same_words = ('IF(%(n)s=0,""," On every reading they share at the same time: r = "&TEXT(%(r)s,"+0.00;-0.00")&'
+                  '" on "&%(n)s&", "&IF(%(p)s="","too few to test.",IF(%(p)s<%(P)s,"which passes.",'
+                  '"which does not pass.")))') % {"n": SC["same_n"], "r": SC["same_r"], "p": SC["same_p"], "P": P}
+    merged(ws, 11, 2, 25, None)
+    formula(ws, 11, 2, '=IFERROR(IF(%s>%s,"From is after To, so nothing is tested.",%s&%s),"")' % (
+        T0, T1, lead_words, same_words), font=F_DATA, align=Alignment(vertical="center", wrap_text=True, indent=1))
+    ws.row_dimensions[11].height = 33
+    ws.conditional_formatting.add("B11:Y11", FormulaRule(
+        formula=["IFERROR(%s,FALSE)" % at("holds")], fill=PatternFill("solid", fgColor=K.MIST),
+        font=Font(name="Calibri", size=11, bold=True, color=K.INK)))
+    ws.row_dimensions[12].height = 6
+    for col in range(HELP, RC["abs"] + 1):
         ws.column_dimensions[L(col)].hidden = True
 
     def scatter(title, unit, ys, lines_=(), bounds=None, fmt="General", legend=True, width=HALF, height=7.41,
@@ -2460,6 +2646,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         ch.graphical_properties = GraphicalProperties(ln=LineProperties(noFill=True))
         return ch
 
+    below = max(last_lead + 2, 31)
     if every:
         moves_title = "Both changes over %d months, in typical moves from each one's median" % months
         place(ws, scatter(moves_title, "typical moves",
@@ -2468,67 +2655,57 @@ def build(out, result, pull, whatif=None, zoom=None):
                              [(LINES_AT + 1, LINES_AT, K.STONE, "Normal movement"),
                               (LINES_AT + 2, LINES_AT, K.STONE, "Normal movement")], fmt="+0;-0;0",
                              markers=[(col_of(0, 10), col_of(0, 0)), (col_of(1, 10), col_of(1, 0))]),
-              2, 11, 13, 24)
-        place(ws, scatter("Both levels: where each sits in its own history", "at or above, of its history",
-                          [(col_of(0, 4), col_of(0, 0), PICK_COLOURS[0], "$%s$14" % L(HELP + 1)),
-                           (col_of(1, 4), col_of(1, 0), PICK_COLOURS[1], "$%s$15" % L(HELP + 1))],
-                          bounds=(0, 1, 0.25), fmt="0%"), 14, 11, 25, 24)
-        merged(ws, 25, 2, 25, None)
-        formula(ws, 25, 2, '=%s&IF(AND(%s<>"",%s<>"")," ","")&%s' % (
+              14, 13, 25, below - 1)
+        merged(ws, below, 2, 25, None)
+        formula(ws, below, 2, '=%s&IF(AND(%s<>"",%s<>"")," ","")&%s' % (
             "$%s$14" % L(HELP), "$%s$14" % L(HELP), "$%s$15" % L(HELP), "$%s$15" % L(HELP)), font=F_NOTE,
             align=Alignment(vertical="top", wrap_text=True))
-        for i, (a, b) in enumerate(((2, 13), (14, 25))):
-            for col in range(a, b + 1):
-                ws.cell(26, col).border = Border(bottom=side("medium", PICK_COLOURS[i]))
-            merged(ws, 26, a, b, None)
-            formula(ws, 26, a, "=%s" % (CELL["first"], CELL["second"])[i],
-                    font=Font(name="Arial", bold=True, size=10, color=K.INK), align=Alignment(vertical="bottom"))
-            name_ = (CELL["first"], CELL["second"])[i]
-            place(ws, scatter("Level", "its own units", [(col_of(i, 5), col_of(i, 0), PICK_COLOURS[i], name_)],
-                              fmt="#,##0.##", legend=False, width=11.32, height=6.24, major=10,
-                              markers=[(col_of(i, 8), col_of(i, 0))]), a, 27, a + 5, 38)
-            place(ws, scatter("Change over %d months, its normal range dashed" % months, "points or percent",
-                              [(col_of(i, 6), col_of(i, 0), PICK_COLOURS[i], name_)],
-                              [(LINES_AT + 4 + 3 * i, LINES_AT + 3 + 3 * i, K.STONE, "Normal from"),
-                               (LINES_AT + 5 + 3 * i, LINES_AT + 3 + 3 * i, K.STONE, "Normal to")],
-                              fmt="+#,##0.##;-#,##0.##;0", legend=False, width=11.32, height=6.24, major=10,
-                              markers=[(col_of(i, 9), col_of(i, 0))]), a + 6, 27, a + 11, 38)
-        ws.row_dimensions[25].height = 15
-        ws.row_dimensions[26].height = 18
-        row = 40
+        ws.row_dimensions[below].height = 27
+        row = below + 2
     else:
-        put(ws, 11, 2, "No months to draw%s." % (" in %s to %s" % tuple(zoom) if zoom else ""), font=F_NOTE)
-        row = 13
+        put(ws, 13, 14, "No months to draw%s." % (" in %s to %s" % tuple(zoom) if zoom else ""), font=F_NOTE)
+        row = below + 1
     row = credits(ws, row, 25, pickable, label_last=5)    # any series can be picked: every credit they could need
     ws.row_dimensions[row].height = 12
     end = method_note(ws, row + 1, 25, [
-        ("Pick", "Choose a series in each of the first two boxes, and the first and last quarter to draw in the "
-                 "other two. Every chart below follows the four boxes; nothing else in the workbook changes."),
-        ("Together, moving", "Each series' change over %d months, measured in its own typical moves from its own "
+        ("Pick", "Choose a series in each of the first two boxes, and the first and last quarter in the other two. "
+                 "The answer, both tables and the chart follow the four boxes; nothing else in the workbook "
+                 "changes."),
+        ("What is compared", "Each series' change over %d months, the change every tab reads. Only the readings "
+                             "both series have, inside the quarters chosen, are used." % months),
+        ("At the same time", "r is the correlation of the two changes over every reading they share: +1 moves "
+                             "exactly together, -1 exactly opposite, 0 not at all. Neighbouring readings repeat "
+                             "most of their data, so the effective readings are fewer: n x (1 - r1 x r2) / (1 + r1 "
+                             "x r2), r1 and r2 each series' correlation with its own previous reading. p comes from "
+                             "Student's t on the effective readings, two-tailed."),
+        ("Leads", "Each lead sets the first series' change beside the second's that many months later (a negative "
+                  "lead: earlier). One reading a year is used, so no two readings share data, and the test is run "
+                  "from %d starting point%s spread through the year. r is the average of the %d; pairs the fewest "
+                  "at any of them; a lead with fewer than %d is not tested." % (S, "s" * (S > 1), S, MP)),
+        ("Holds", "A lead holds when all %d starting points agree in sign and each passes p below %g divided by "
+                  "the number of leads tested, which allows for trying %d leads. The strongest lead tested, by the "
+                  "size of r, is bold on mist; the line at the top says whether it holds." % (S, P, len(leads))),
+        ("Together, moving", "The chart: each series' change measured in its own typical moves from its own "
                              "median change, so two series of different units share one scale. Between the dashed "
-                             "lines at %s and %s is normal movement; past them the change reads Increasing or "
-                             "Decreasing." % (months, "%+g" % s["normal_width"], "%+g" % -s["normal_width"])),
-        ("Together, levels", "Where each level sits in its own history, from 0% (its lowest) to 100% (its "
-                             "highest). A series read on its change only has no line here, and its name in the "
-                             "legend says so."),
-        ("Each on its own", "Each series' level, and its change with its normal range dashed, in its own units."),
-        ("Axes", "Every axis fits what is picked and the quarters chosen. To look past a spike, such as 2020, "
+                             "lines at %s and %s is normal movement." % ("%+g" % s["normal_width"],
+                                                                       "%+g" % -s["normal_width"])),
+        ("Axes", "The chart's axis fits what is picked and the quarters chosen. To look past a spike, such as 2020, "
                  "pick quarters after it."),
     ] + ([("Off the chart", "Up to %g%% of each series' readings, at each end of its whole history, are left off "
-                            "the charts, so a spike does not flatten the rest; a triangle marks each one at the "
-                            "edge, and the line under the charts set together names the furthest. The latest "
-                            "reading and the normal range always stay on. No reading changes." % s["axis_cut"])]
+                            "the chart, so a spike does not flatten the rest; a triangle marks each one at the "
+                            "edge, and the line under the chart names the furthest. The latest reading and the "
+                            "normal range always stay on. No reading changes, and the tests use every reading."
+                            % s["axis_cut"])]
          if s["axis_cut"] else []) + [
-        ("Months", "Every chart here is drawn month by month: a daily or weekly series at each month's last "
-                   "reading, a quarterly one at the first month of each quarter. A line runs across a month with "
-                   "no reading; each series' own tab shows such a gap as a gap."),
+        ("Months", "Everything here runs month by month: a daily or weekly series at each month's last reading, a "
+                   "quarterly one at the first month of each quarter, so two quarterly series share a reading "
+                   "every third month."),
         ("Formulas", "This tab is the one place with formulas. They only look up values written on a hidden tab, "
-                     "%s, so no reading moves." % DASH_DATA),
+                     "%s, so no reading moves; Excel works out r and p when the file opens." % DASH_DATA),
     ] + ([("Quarters left out", left_words)] if left_words else []))
-    for rr in range(11, 25):
-        ws.row_dimensions[rr].height = 15
-    for rr in range(27, 39):
-        ws.row_dimensions[rr].height = 15
+    for rr in range(13, below):
+        if ws.row_dimensions[rr].height is None:
+            ws.row_dimensions[rr].height = 15
     ws.freeze_panes = "A6"                  # the four boxes stay in view
     ws.print_area = "A1:Y%d" % (end - 1)
     wb.calculation.fullCalcOnLoad = True            # Excel works out the lookups when the file opens
@@ -2617,8 +2794,22 @@ def glossary(s, whatif=None, zoom=None):
                     "read the same way as the rest, with why it needs care beside it."),
         (HOUSEHOLD_NAME, "The NY Fed's household debt by type, as its Quarterly Report on Household Debt and "
                          "Credit gives it, from the New York Fed Consumer Credit Panel / Equifax."),
-        (DASHBOARD, "Pick any two series to see together: both changes in typical moves, both levels as where "
-                    "they sit in their own histories, and each one's own charts."),
+        (DASHBOARD, "Pick any two series and the quarters: whether their changes move together at the same time, "
+                    "whether one leads the other, and both changes drawn in typical moves."),
+        ("r", "The correlation of two series' changes: +1 when they move exactly together, -1 exactly opposite, "
+              "0 not at all. On the Dashboard."),
+        ("p", "How often a link at least as strong would turn up by chance if the two were unrelated, two-tailed. "
+              "A link passes when p is below the firm's level, %g." % s["compare_p"]),
+        ("Effective readings", "Fewer than the readings when each series' changes run on from one reading to the "
+                               "next, as a trailing four-quarter rate's do: n x (1 - r1 x r2) / (1 + r1 x r2)."),
+        ("Lead", "Months by which the first series' change comes before the second's. Tested on one reading a "
+                 "year, from %d starting point%s, so no two readings share data."
+         % (s["compare_starts"], "s" * (s["compare_starts"] > 1))),
+        ("Holds", "A lead holds when every starting point agrees in sign and passes p below %g divided by the "
+                  "number of leads tested." % s["compare_p"]),
+        ("Bank credit quality", "Each product's net charge-offs and its loans 30+ days past due including "
+                                "nonaccrual, every FDIC filer added together (all banks) and KeyBank on its own, "
+                                "from the FDIC's Call Report data, built by the threshold engine."),
     ]
     if zoom:
         terms.append(("Zoom", "Every chart in this workbook is drawn over %s to %s only. The readings are "

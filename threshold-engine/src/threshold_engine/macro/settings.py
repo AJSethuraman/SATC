@@ -85,6 +85,31 @@ QUESTIONS = [
      "It is the best-known published trigger for unemployment (0.50 points, Sahm 2019), and the report "
      "records its false alarm of 2024, so a reader should see it beside the change rather than instead of "
      "it."),
+    # The Dashboard's test of whether two series' changes move together (the firm, 23 Oct 2026: "As the Excel
+    # version", the comparison another agent built with the firm in the workbook that day).
+    ("compare_p",
+     "On the Dashboard, how small must p be for a link between two series' changes to pass? Two-tailed; a "
+     "number above 0 and below 1.",
+     0.05,
+     "The usual level. A lead is tested at it after allowing for how many leads were tried."),
+    ("compare_leads",
+     "On the Dashboard, which leads are tried, in months? A list of whole numbers: a positive lead has the "
+     "first series moving earlier, a negative one the second.",
+     [-24, -18, -12, -6, 0, 6, 12, 18, 24, 30, 36],
+     "Two years either way and three years of the first leading, in steps of six months: the range the "
+     "comparison was built with."),
+    ("compare_starts",
+     "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2, 3, 4, 6 or 12; "
+     "the starting months are spread evenly through the year.",
+     4,
+     "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data. "
+     "One reading every 12 months shares none, and four starting points (a quarter apart) show whether a link "
+     "holds whichever quarter the count starts from."),
+    ("compare_min_pairs",
+     "On the Dashboard, how many one-a-year pairs must a lead have at every starting point to be tested? A "
+     "whole number of at least 4.",
+     6,
+     "Fewer pairs than that cannot show much either way; a lead with fewer says not tested."),
 ]
 
 
@@ -204,6 +229,33 @@ def check(raw):
             s["show_sahm"] = sahm
         else:
             problems.append("show_sahm: need true or false; got %r" % (sahm,))
+    cp = answer("compare_p")
+    if cp is not None:
+        if _number(cp) and 0 < cp < 1:
+            s["compare_p"] = float(cp)
+        else:
+            problems.append("compare_p: need a number above 0 and below 1; got %r" % (cp,))
+    leads = answer("compare_leads")
+    if leads is not None:
+        if (isinstance(leads, list) and leads and all(isinstance(x, int) and not isinstance(x, bool)
+                                                      and abs(x) <= 120 for x in leads)
+                and len(set(leads)) == len(leads)):
+            s["compare_leads"] = sorted(leads)
+        else:
+            problems.append("compare_leads: need a list of different whole numbers of months, each from -120 to "
+                            "120; got %r" % (leads,))
+    starts = answer("compare_starts")
+    if starts is not None:
+        if starts in (1, 2, 3, 4, 6, 12) and not isinstance(starts, bool):
+            s["compare_starts"] = starts
+        else:
+            problems.append("compare_starts: need 1, 2, 3, 4, 6 or 12; got %r" % (starts,))
+    pairs = answer("compare_min_pairs")
+    if pairs is not None:
+        if isinstance(pairs, int) and not isinstance(pairs, bool) and pairs >= 4:
+            s["compare_min_pairs"] = pairs
+        else:
+            problems.append("compare_min_pairs: need a whole number of at least 4; got %r" % (pairs,))
     if problems:
         raise Refused("the settings are not complete, so nothing is read:\n  " + "\n  ".join(problems))
     return s

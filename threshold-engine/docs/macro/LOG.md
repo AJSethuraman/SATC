@@ -1330,3 +1330,103 @@ read, before answering, how the 2005 law change would affect it.
   the tab name "New bankruptcies", the care line above, the break's line and
   the note "Counts people whose credit report shows a new bankruptcy in the
   quarter, not cases filed in court."
+
+## 23 Oct 2026 (afternoon): bank credit, and the Dashboard becomes the comparison
+
+**Asked.** The firm sent a screenshot and a hand-off from another agent that
+had worked in the Excel copy of the workbook: 16 bank credit series pasted
+in as values, and a "Compare series" tab testing whether two series are
+related. *"i do not necessarily want it exactly like this because a lot is
+going on, but i want to work this to being the dashboard because it's the
+same info but further."* Asked four questions, the firm answered:
+
+- keep the answer line and the same-time r, and the lead table, condensed;
+  *"but i am not a huge fan of the blue and orange - i would rather use more
+  Keybank esque colors"*;
+- the 16 bank series, *"Yes, from FDIC each pull (Recommended)"*;
+- the test's settings, *"As the Excel version (Recommended)"*;
+- *"Merge #471 first (Recommended)"*, which was done (f8dc4656), Codex's last
+  point left as it was, as the firm chose.
+
+The Excel copy's own tabs could not be carried: the tool writes the whole
+workbook each run, so anything added by hand in Excel is gone at the next
+build. Both are built into the tool instead.
+
+**Bank credit.** Each product's net charge-offs (past four quarters over the
+average balance) and its loans 30+ days past due including nonaccrual, for
+credit card, other consumer, mortgage and home equity; every FDIC filer
+summed, and KeyBank (certificate 17534). Built by the threshold engine's own
+peers pull and build (`fdic_credit.py`), under the consumer book's recorded
+settings, so each figure is the threshold workbook's. Its own notes (the
+definition, KeyBank's rules, every reporting change touching the series) go
+into the file and onto each tab, with the cache's local path taken out.
+
+- **Tied out** against the threshold engine's committed industry files:
+  card net charge-offs 3.476549939643245% at 2006 Q4 and card 30+
+  3.750308262095038% at 2006 Q1, both to the last digit. KeyBank's card net
+  charge-offs for 2026 Q2, 3.76%, as the firm's Excel copy had them. The
+  test builds the series from the threshold engine's own test data and
+  checks KeyBank's and every filer's card 30+ against the filings'
+  arithmetic, worked separately.
+- **Licence:** the FDIC's website policies page, read 23 Oct 2026, states
+  no terms of reuse for its own data; the catalog says so.
+- **Citations:** each series cites the report's labour section (losses: it
+  reads card charge-offs against unemployment) or household section (30+);
+  the firm added them, not the research, and the catalog says that too.
+- The card series for all banks carry the 2010 Q1 securitization break
+  (FAS 166 and 167), as the threshold engine labels it. KeyBank's card
+  history starts after it (2012 Q3 for 30+, 2013 Q4 for losses).
+- Units shortened to fit their columns: "% of loans, past year" and "% of
+  loans, quarter-end"; the full definition is under "From the build".
+
+**The Dashboard.** Kept: the four boxes, both picks' readings, both changes
+in typical moves. Gone: the levels-together chart and each pick's own small
+charts (each series' tab has them). New:
+
+- one line that answers: the strongest lead, whether it holds, and the
+  same-time r; bold on mist when a lead holds;
+- at the same time, every shared reading: r, readings, effective readings
+  n x (1 - r1 r2) / (1 + r1 r2) and p (Student's t, two-tailed);
+- each lead the settings name, on one reading a year from four starting
+  points: r (average of four), pairs (fewest), holds in x of 4; a lead holds
+  when all four agree in sign and pass p < 0.05 divided by the leads tested;
+  the strongest bold on mist;
+- the picks in KeyBank ink and red (0A0908, CC0000) in place of blue and
+  orange.
+
+Four new settings, each the firm's answer of 23 Oct: `compare_p` 0.05,
+`compare_leads` -24 to +36 every 6, `compare_starts` 4, `compare_min_pairs` 6
+(the Excel copy's "Lags with under 6 annual pairs are not tested"). The
+month grid now runs one row a month with none skipped, padded by the longest
+lead each way, so each lead's ranges are fixed addresses (no OFFSET).
+Formulas use only Excel 2007 functions: CORREL, TDIST, SUMPRODUCT, SQRT,
+AVERAGE, SUM and COUNT join the list.
+
+**Checked.**
+
+- LibreOffice recalculated the Dashboard and every figure matched an
+  independent computation from the hidden data tab's values (a separate
+  script, its own Pearson and its own Student's t), largest difference
+  5e-13: same-time r +0.3987 on 704 readings, effective 243.2, p 1.1e-10
+  for unemployment against claims; each of 11 leads' r, pairs and holds.
+- Card 30+ against card net charge-offs, all banks, 2013 Q3 to 2026 Q2:
+  the first leads by 6 months, r = +0.96, holding at 4 of 4, and at 12
+  months +0.89, holding too: the Excel copy's own finding (+0.96 at +6, 4 of
+  4; industry holds at 12).
+- The default pair, unemployment against card net charge-offs for all
+  banks: no lead holds; at the same time r = +0.41 on 74 readings, effective
+  22.0, p 0.056, which does not pass.
+- 197 tests pass. Eight breaks of the new code each failed a test: the lead
+  offset, the starting months, the allowance for leads tried, the effective
+  readings, the colours, the all-four rule, the FDIC step back past an
+  unpublished quarter, and the cache path kept out of the notes.
+- The example (`examples/economic-conditions-2026-10-23.xlsx`, from a fresh
+  pull of all 144 series) passes the ISO schemas (0 errors); rendered in
+  LibreOffice, the Overview, the Dashboard and a bank tab looked at, and the
+  five pictures redrawn. The pandemic what-if still moves 4 changes, now of
+  143. **Not seen in Excel.** In particular, that Excel's CORREL skips a
+  pair with text in it as LibreOffice's does is from Excel's documentation,
+  not from a run.
+- Not run: the threshold engine's own tests (they take about 28 minutes and
+  this change writes nothing under its folders, though it calls its peers
+  code).

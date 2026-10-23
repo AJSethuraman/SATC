@@ -1,8 +1,8 @@
-What if: what-if-pandemic-left-out.json against settings.json, both from the pull of 2026-10-22-4.
+What if: what-if-pandemic-left-out.json against settings.json, both from the pull of 2026-10-23.
 
   Quarters left out: none -> 2020Q2 to 2021Q2
 
-127 changes read under both: 123 the same way, 0 more upward, 4 more downward. 0 read as you have it only, 0 under the what-if only.
+143 changes read under both: 139 the same way, 0 more upward, 4 more downward. 0 read as you have it only, 0 under the what-if only.
 
   dn  Initial jobless claims, change over 12 months                Stable -> Decreasing  (-1.0 typical moves of 3,068 since Jan 1968 -> -1.0 of 2,951 since Jan 1968)
   dn  Mortgages 90+ days late, all, change over 12 months          Increasing -> Stable  (+1.1 typical moves of 94 since Jan 2003 -> +0.7 of 85 since Jan 2003)

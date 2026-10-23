@@ -17,6 +17,11 @@ workbook is named for the quarter it runs to, so its address is read from the
 link on the NY Fed's own page, and recorded. The shown series (the "usable with care" group) are pulled
 with the rest. A series that fails is recorded with the reason; the pull
 does not stop, and it exits non-zero if anything failed.
+
+The bank credit series (fdic_credit.py) are not one download: the threshold
+engine's peers pull fills its FDIC cache (CACHE/fdic, kept across pulls, a
+quarter never fetched twice) and its peers build makes the series, written
+into the day's folder as one file, fdic_credit.json, like any other.
 """
 import datetime
 import hashlib
@@ -26,7 +31,7 @@ import re
 import urllib.parse
 import urllib.request
 
-from . import sources
+from . import fdic_credit, sources
 from .catalog import DERIVED_BY_KEY, SERIES
 
 USER_AGENT = "Mozilla/5.0 (compatible; threshold-engine macro pull; public data)"
@@ -48,6 +53,8 @@ def file_name(series):
         return series.source + (".csv" if series.source == "fed_ebp" else ".zip")
     if series.source in ("nyfed_sce", "nyfed_hhdc"):
         return series.source + ".xlsx"
+    if series.source == "fdic":
+        return fdic_credit.FILE
     ext = ".csv" if series.source == "fred" else ".html"
     return "%s-%s%s" % (series.source, series.source_id, ext)
 
@@ -63,8 +70,10 @@ def summarise(points):
             "last": present[-1][0], "last_value": present[-1][1], "missing_after_first": missing}
 
 
-def pull(cache, keys=None, today=None, fetcher=fetch):
-    """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest."""
+def pull(cache, keys=None, today=None, fetcher=fetch, fdic=None):
+    """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest. ``fdic`` builds the bank credit
+    file, ``fdic(cache, today) -> bytes``: the threshold engine's FDIC pull and build by default."""
+    fdic = fdic or fdic_credit.build_file
     today = today or datetime.date.today().isoformat()
     if keys:
         # A reading made from two series pulls those two (Fable on #452: `pull mortgage_spread` said "not in
@@ -85,11 +94,11 @@ def pull(cache, keys=None, today=None, fetcher=fetch):
     for s in wanted:
         name = file_name(s)
         if name not in files:
-            url = sources.url_for(s, today[:4])
+            url = (fdic_credit.URL if s.source == "fdic" else sources.url_for(s, today[:4]))
             try:
                 if s.source == "nyfed_hhdc":           # the page names the file for the quarter it runs to
                     url = sources.hhdc_file(fetcher(url))
-                raw = fetcher(url)
+                raw = fdic(cache, today) if s.source == "fdic" else fetcher(url)
             except Exception as e:  # recorded, not raised: one bad series must not hide the rest
                 files[name] = {"url": url, "error": "%s: %s" % (type(e).__name__, e)}
             else:
