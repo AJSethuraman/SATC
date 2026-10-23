@@ -838,3 +838,495 @@ out or returned 504 at 04:40.
   firm.
 - main was merged in first (f8f6ffd7). It adds colours to `keybank_style.py` and changes none the
   Macrobook uses.
+
+## 22 Oct 2026: nothing rated; direction against normal movement; quarters left out; the zoom; the prime rate, household debt and a Dashboard
+
+**What the firm said.** Looking at the Initial claims tab in Excel: *"Views
+need to allow us to somehow normalize this or be able to exclude a spike or
+something"*. Then: *"We are not rating these. At most these are directional.
+I will take recommended ways of viewing tho. Also we need to be able up
+exclude quarters we choose. Not an option"*; *"Yes direction only and ways to
+establish normal movement"*; quarters to leave out to start, *"None yet"*;
+normal movement, *"Typical move (Recommended)"*. While it was being built:
+*"how do we not have the prime interest rate as a graph on this?"*;
+*"household as a graph on this that split between as it is literally
+reported. It's like credit cards mortgage and other"*, then *"NY Fed debt by
+type (Recommended)"*; *"i want to be able to simply change the view of
+quarters not change cutoffs or averages or anything but to literally zoom in
+on a set of quarters"*, then *"Name it, then rebuild (Recommended)"*; *"is
+wage growth available"*; and *"there should be a fairly simple to drive
+dashboard tab that basically lets you layer any 2 charts or something see the
+individual charts and see a chart the shows magnitude in movement"*.
+
+**What changed.**
+
+- **No ratings.** The cut-offs, the tie rule, the directions of stress and
+  the change-for list leave the settings; a file that still answers one is
+  refused, with why. `rate.py` is `readings.py`, and the command is `read`.
+- **Every series, core and usable with care, is read the same way:** where its
+  level sits (the share of its history it is at or above, counted from the
+  lowest) and whether its change is Increasing, Stable or Decreasing against
+  the median change plus or minus one typical move (1.4826 x the median
+  absolute deviation, Book 1's measure). How many typical moves a change is
+  from the median is shown as a number, and since when it has read that way.
+- **New settings, each answered by the firm:** `normal_width` 1, `left_out`
+  [], `axis_cut` 1. The template, `settings.json` and the two example
+  what-ifs are rewritten to them.
+- **Quarters left out** are taken out before anything is measured, drawn as
+  gaps, kept in the tables with "left out", and named on every tab.
+- **The zoom** is `--zoom 2019Q1:2026Q3` on `read --workbook`. Charts only; a
+  test builds with and without it and finds the readings identical.
+- **The axis cut**: each chart's axis may leave off up to 1% of its readings
+  at each end, the latest reading and the normal range always kept on, and a
+  note under the chart names the furthest one off.
+- **The prime rate** (FRED `DPRIME`, daily from 1955-08-04, Public Domain:
+  Citation Requested, all read on FRED's page today). The report named it but
+  grouped it nowhere, which is how the catalog missed it.
+- **Household debt by type**: the NY Fed's Page 3 Data (Mortgage, HE
+  Revolving, Auto Loan, Credit Card, Student Loan, Other, Total), on one tab,
+  stacked as the NY Fed draws it with its names, its attribution carried.
+  The file is found through the report's own page. The NY Fed's terms of use
+  (6/9/2023), read today, allow business use with that attribution, so the
+  "terms not confirmed" reasons in the catalog were false and are rewritten.
+- **The Dashboard**: two pickers; both changes in typical moves on one chart,
+  both levels as where each sits in its history on another, and each one's
+  own level and change. The dataviz guidance rules out a chart of two
+  different units on two axes, so the layered charts are of scales the two
+  share. Its formulas look up values written on a hidden tab; a test holds
+  every other tab to values and the Dashboard to INDEX, MATCH, ROW, IF,
+  IFERROR, ISNA, AND, NA, MIN and MAX.
+- **Wage growth** was there already, in the usable-with-care group: ECI wages
+  and salaries +3.1% in the year to 2026 Q2, average hourly earnings +3.0%
+  in the year to September.
+
+**What running it found.**
+
+- From the pull of 22 Oct 2026 (folder `2026-10-22-3`, all 124 series), 219
+  readings, none failed. Of the 42 national core changes, 6 read Increasing,
+  34 Stable, 2 Decreasing.
+- Leaving 2020 Q2 to 2021 Q2 out moves 2 of 124 changes, both downward. A
+  normal range built on medians barely notices the pandemic spike, which is
+  what the firm was told when it chose the typical move ("A big spike doesn't
+  widen it"); the zoom and the axis cut are what change the view.
+- The first fixtures were too regular: half their changes equalled the
+  median, the typical move was zero, and the tool rightly refused to read
+  them. The fixtures now vary; the refusal has its own test.
+- A Fable test of 17 Oct, "a history of one value gets a chart axis with a
+  span", searched the chart XML for `<c:scaling>`. openpyxl writes it without
+  the prefix, so the test found no axis and could not fail. It now matches
+  what is written and asserts it saw at least one axis.
+- LibreOffice gave `#NAME?` for `AGGREGATE`: a function newer than Excel 2007
+  needs a prefix in the file, and Excel would have shown the same. The
+  Dashboard looks up each series' first and last month as values instead.
+- A daily series' line broke at every holiday, the blank day being drawn as a
+  gap. Daily lines now join across a day with no reading; a missing month or
+  week is still a gap.
+
+**Decisions carried over, for the firm to confirm or reverse.**
+
+1. A change exactly on an edge of its normal range reads as moving, carried
+   from the 16 Oct answer that a tie goes to the warning.
+2. The axis cut applies at each end, though the option shown said "the top
+   1%": a change spikes both ways.
+3. The research's direction of stress is shown on each series' tab as a fact
+   ("Higher readings signal stress, the research says"); it changes nothing.
+
+**Checked, and not.** 157 tests pass (`tests/test_macro_*.py`). The example
+workbook passes the ISO schemas (0 errors) and the Open XML SDK (only the 25
+known font-order notes in styles.xml). Every tab was rendered in LibreOffice
+and looked at; the Dashboard's lookups compute and its charts follow the
+pickers there. **Not checked in Excel**: the firm's Excel is the check that
+remains, the Dashboard above all, the first tab in this workbook with
+formulas.
+
+**Codex on #471, two findings, both fixed.** (1) The Sahm reading was worked
+from every month, a quarter left out included, on the Overview and in its
+chart; it is now worked from the months kept, and a reading dated in a
+quarter left out is not shown, since its average borrows the months either
+side. (2) The household debt chart sized its axis from every quarter, so a
+quarter left out (not drawn) could still stretch it; it is now sized from the
+quarters drawn. Each has a test, and each test fails with its fix taken out.
+Neither changes the example, whose settings leave nothing out.
+
+**Codex on #471, a third finding, fixed.** When the newest reading fell in a
+quarter left out, the Overview's Latest, the household debt headline and
+share, and the Dashboard summary still showed it, beside readings measured
+from an earlier one. The latest shown is now the latest kept; the series' tab
+says when later readings were left out. Tested, and the test fails with the
+fix taken out.
+
+**The Dashboard, rebuilt after the firm opened it in Excel (22 Oct 2026).**
+The firm: *"Hard to read and I would really like to auto adjust the axis to
+match and also why can't I have a custom view of quarters? Also how are these
+dashes useful"*, and of the levels chart, *"this is just blank"*. What Excel
+showed, and why, none of it seen in LibreOffice:
+
+- **Rows of unnamed dashes** under each one-line chart: the chart did not say
+  `varyColors` is off, so Excel coloured every point apart and gave each its
+  own legend entry. It is now stated off, and a one-line chart has no legend.
+- **Years from 1900 to 2036**, printed over the legends: the time axis was in
+  day numbers, which Excel starts at zero unless the dates are close
+  together, and its labels sat at the foot where the legend was. Time is now
+  in years (2019.0 for January 2019), the legends sit above the charts.
+- **A blank levels chart**: both picks (core prices and the wage index) are
+  read on their change only, so neither has a place in its history to draw.
+  A line above the chart now says so.
+- **Axes that fit, and quarters to choose**: From and To boxes on the tab
+  set the quarters every chart draws, and every axis fits the picks and the
+  quarters. The fixed axis on the movement chart is gone.
+- **A quarterly series drew nothing** in LibreOffice beside a monthly one:
+  on the tab's monthly grid it has a reading one month in three, and the line
+  broke at every other month. Lines on this tab now join across a month with
+  no reading, as Excel already does; each series' own tab still shows a gap.
+
+The rebuilt tab was rendered in LibreOffice with the firm's two picks and
+2010 Q1 to 2026 Q3, and with the defaults; both drew as intended. It still
+has not been opened in Excel here.
+
+
+The movement chart's legend also named "Normal movement" twice, once for each
+dashed line; it now names it once. Every fix above has a test, and each was
+checked by breaking it (the colours stated, the axis at the foot, a legend on
+a one-line chart, the boxes frozen in view, years for day numbers, the To
+quarter, each pick's test in the "no line here" note, lines joined across a
+month, the name once): each break turned a test red. Three did not on the
+first try (the To quarter, the note, the joined lines), so those tests were
+made exact. 162 tests pass.
+
+**A design hand-off (22 Oct 2026).** The firm: *"I want a zip to hand off to
+an agent to allow them to make a design for this workbook so you can apply
+it."* The brief is `design/BRIEF-2026-10-22.md`, in the shape of the
+threshold workbook's design rounds (`docs/design/`): every tab's job and
+what looks wrong, the constraints the generator works under, and what to send
+back (an HTML mock, a build spec tab by tab, a token sheet, a note to the
+builder). The zip held the brief, the example workbook, every kind of tab
+printed, the firm's three photos of the Dashboard in Excel before the
+rebuild, the readings and the 73 series month by month as JSON, and the style
+references. It is not in the repository: it is rebuilt from the example and
+the brief.
+
+**Wage growth checked against BLS, and two series added (22 Oct 2026).** The
+firm, with a photo of BLS's June 2026 Employment Cost Index release (Table A):
+*"Also do we note use the Atlanta fed wage growth data? And this report has
+wage and salary growth adjusted for salary and I'm not sure the nominal
+amounts match ours"* (the release's constant-dollar columns, adjusted for
+inflation).
+
+- **The nominal figure matches.** The book's wage index is private wages and
+  salaries (FRED `ECIWAG`): +3.138% in the year to 2026 Q2, 3.1% as BLS
+  prints it for private industry. Civilian workers (3.2%) and state and local
+  government (3.4%, the figure in the release's opening paragraph) are other
+  rows of the same table. From FRED's series before seasonal adjustment
+  (`CIU2020000000000I`, `CIU1020000000000I`), all six figures BLS prints in
+  current dollars come out to the decimal: private 3.5, 3.4, 3.1 and civilian
+  3.6, 3.4, 3.2 for June 2025, March 2026 and June 2026. Civilian for March
+  2026 is exactly 3.3500%, on the rounding edge.
+- **Inflation-adjusted: five of six.** Dividing that index by consumer prices
+  (`CPIAUCNS`, before seasonal adjustment) in the quarter's last month gives
+  BLS's constant-dollar figures to the decimal in five of six: private 0.1 and
+  -0.4, civilian 0.9, 0.1 and -0.3. The sixth, private for June 2025, comes out
+  0.851% against BLS's 0.8%. Taking prices as the quarter's average, or its
+  middle month, misses by 0.2 to 0.8 points; taking the index to one decimal
+  first moves which figure misses (civilian June 2026 then fails) and does not
+  close it. BLS's method note would settle it, but bls.gov refused every
+  request from here (403) and its data API had hit its daily limit. Recorded,
+  not explained.
+- **Added:** wages after inflation, worked out as above, in the
+  usable-with-care group (made from the two series before seasonal
+  adjustment, so it ties to BLS's table; read on its change only, as an index
+  of one index over another has no meaning as a level). Its tab says the five
+  of six.
+- **The Atlanta Fed's wage tracker is read now.** It was left out on 21 Oct
+  under the Atlanta Fed's site terms ("not for commercial gain"). FRED's own
+  page for it, read today, tags it *Public Domain: Citation Requested*, the tag
+  every other FRED series the book reads carries. It is read from FRED under
+  that tag: `FRBATLWGT3MMAUMHWGO`, the 3-month average of the median wage
+  change, monthly from 1997, 3.9% in September 2026 (the 12-month average,
+  also on FRED, was 3.7%). October 2025 has no value, as the household survey
+  it is built from has none. **This reverses what the firm was told earlier
+  today** ("licensed and stays out"); the firm can still leave it out.
+
+The example was rebuilt from a fresh pull (folder `2026-10-22-4`, 127 of 127
+series), so it carries both new series. Leaving out the pandemic now moves 4
+of 126 changes, all more downward: initial claims (Stable to Decreasing, on
+the week to 17 Oct), mortgages 90+ days late, nonresidential property
+standards, and wages after inflation. Rendered, the wages-after-inflation tab
+showed its what-if line running to a third line in a row two lines tall; the
+row is now as tall as its words, tested, and the test fails with the fix
+taken out. The four screenshots in `examples/` are from this build.
+
+**Codex on #471, a fourth finding, fixed.** The Overview showed each type of
+NY Fed household debt, its balance and its change, without the attribution
+the NY Fed's terms of use ask for wherever its data are shown; only the
+Household debt tab carried it. So did the What if tab and the Dashboard (any
+series can be picked). Each of them, and Usable with care for the survey's
+credit, now ends with "Credits the publishers' licences require": once for
+each publisher whose series the tab shows and the pull read. Tested: each
+tab carries the NY Fed's credit once, and a tab with no credited series read
+carries none. Each part fails a test when taken out. 168 tests pass.
+
+**Codex on #471, a fifth finding, fixed.** The Dashboard's From and To lists
+held only quarters with a reading. So a zoom starting in a quarter left out
+of every series (`--zoom 2020Q2:2026Q3` with the pandemic left out), or
+ending past the data, opened the boxes on a quarter the lookup could not find
+(#N/A), and every chart on the tab drew nothing. The list now runs quarter
+after quarter from the first month drawn to the last, and out to a zoom's
+ends. Tested both ways, and the test failed before the fix. In LibreOffice,
+that zoom with the pandemic left out now computes, and both picks draw from
+July 2021 to September 2026. 169 tests pass.
+
+**Codex on #471, a sixth finding: did not reproduce, and found a gap in the
+tests.** Codex read the Dashboard's dashed lines as having their ends clamped
+the wrong way round, which would stretch every change chart back over the
+whole history whatever From and To say. They were not: each line starts at
+MAX(From, the pick's first month) and ends at MIN(To, its last), and in
+LibreOffice From 2020 Q2 to To 2026 Q3 drew them from 2020.25 to 2026.7. But
+reversing them failed none of the 56 workbook tests. A test now holds both
+ends of the shared lines and of each pick's, and fails when they are
+reversed.
+
+**Codex on #471, a seventh finding, fixed.** A change read under the what-if
+only, on a series whose first side still had a change in the drawn quarters,
+sized its chart from the what-if's latest date in the column of the first
+side's changes. That cell was empty, and the whole build failed with a
+TypeError. Reproduced with a quarterly series leaving out every quarter but
+two, six months apart: one change, too few to read, while the what-if read
+it. The chart now uses the latest value only where its column holds one. The
+test failed before the fix. The example is unchanged: its settings leave
+nothing out. 171 tests pass.
+
+## 22 Oct 2026 (evening): the design applied
+
+**Claude Design's round 1 came back and is applied.** The firm sent the zip
+back, *KeyBank_design_style.zip*, with no words: the mock, a build spec tab by
+tab, seven tokens and a note to the builder. All of it is kept in
+`design/round-1/`, with pictures of the mock drawn in Chromium. What changed,
+in the spec's own order:
+
+- **One grammar on every tab.** The changes, everywhere:
+  - title band 27 pt with the subtitle beside it;
+  - links in row 2;
+  - section names over an ink rule (the dark bands are gone);
+  - canvas headers with a stone rule, rows ruled in `EFEBE4`;
+  - Calibri 11 data;
+  - a direction bold on mist whichever way it moves, Calibri 11;
+  - the method note ("How this tab works") moved from the top of every tab to
+    its foot, folded away, with no word changed.
+- **Overview.** One frozen header (it was repeated under each topic). The
+  first series is on row 9, where it was on row 21. The month a change runs to
+  is shown only when it is not the latest's, and then bold. The What if column
+  is blank where a series reads the same way, since the tile counts those.
+  Household debt shows its total, with the six types folded away under it.
+- **Dashboard, one screen.**
+  - The four boxes sit in one row (B5, H5, N5, Q5), and both picks' readings
+    sit in the Overview's columns.
+  - The two charts that set the picks together are side by side; under each
+    pick's name come its level and its change.
+  - **The spike rule:** past each series' cut (the firm's `axis_cut`, 1%, at
+    each end of its whole history, with the latest reading and the normal
+    range always kept on), a drawn value is #N/A by formula, so Excel's axis
+    fits the rest.
+  - A triangle marks each reading left off. The line under the two charts set
+    together counts them and names the furthest. Checked in LibreOffice: with
+    unemployment and claims over every quarter, *"9 readings run off the top,
+    8 off the bottom; the furthest +13.9 typical moves in Apr 2020"* and
+    *"7 ... 7 ...; the furthest +214.0 typical moves in Mar 2020"*.
+  - The new functions are COUNTIF, ABS and TEXT, all older than Excel 2007,
+    and the test's list of allowed functions grows by those three.
+- **Series tab, one function for 66 tabs.**
+  - Tiles for the level (with its lowest and highest), the change (normal
+    range, typical moves, since, history from) and, on unemployment, the Sahm
+    reading.
+  - The level and change charts side by side; a change-only series gets one
+    chart the full width.
+  - Each chart has its note under it, then What it is, which now ends with
+    the tool's two sentences, moved out of the tiles unchanged.
+  - The history moves from N:Q to AA:AD.
+  - Every history chart gets gridlines and a triangle at the edge for each
+    reading off the axis, and the what-if's range is slate, dashed, 1 pt
+    (it was red on some tabs and black on others).
+- **Household debt:** the NY Fed's chart beside the table of every type, the
+  total's change under the table, the credit line under both.
+- **Usable with care:** in the Overview's columns, with why each needs care in
+  a row under its name.
+- **States:** two tables side by side, 26 and 25, all 51 on one screen.
+- **What if:** canvas headers, section names, the method note at the foot.
+- **Record tabs:** one template, a link back to the Overview on each.
+- **Tab order** follows the Overview, coloured by topic (slate and stone in
+  turn), States after the core series, and Usable with care in mist.
+
+**Where the build departs from the spec, and why:**
+
+1. **The tokens live in `workbook.py`**, not appended to `keybank_style.py`.
+   That file also styles the threshold workbook, and this work writes only
+   under the macro tool's own folders.
+2. **Charts are anchored to their cells corner to corner**, not drawn at the
+   spec's sizes in centimetres. LibreOffice gives a column different pixels
+   from Excel, and the NY Fed's chart ran over the start of the table beside
+   it. Anchored to cells, a chart fills the same columns in both.
+3. **The latest reading's label sits left of its point**, not right. At the
+   right, LibreOffice clipped it off the chart's edge.
+4. **Daily and weekly series stay line charts on a date axis.** The spec says
+   they "stay scatter"; they were never scatter, and the date axis is the one
+   proven in Excel.
+5. **Some columns are wider, and two strings of mine are shorter:**
+   - States' "Unemployment rate" column is 12, not 9.57, because the header
+     broke mid-word;
+   - What if's normal-range columns are 20, because the size-11 text was cut
+     off;
+   - two strings written today for wages after inflation are shorter, because
+     they ran past their columns. The title is now "Employment cost index:
+     private wages, after inflation", and the unit "index: wages over
+     prices, x 100". (The first shortening dropped "private", which its
+     input is; Codex found it, below.)
+6. **Choices the spec left open:**
+   - the Dashboard freezes rows 1 to 5;
+   - its "From is after To" warning moved to T5;
+   - its change, date and range cells are text the tool writes, so one cell
+     shows any pick in its own format;
+   - its direction is bold on mist by conditional formatting;
+   - the Household debt tiles have no what-if row (the spec's row table has
+     none).
+7. **One method-note sentence changed, because it would otherwise be false.**
+   On the Dashboard, "the line above the chart says so" now reads "its name in
+   the legend says so", since that line is gone. The Dashboard's note also
+   gains an "Off the chart" entry, worded as the series tabs' is.
+
+**The questions the note to the builder asked, and the default taken:**
+
+- **The Dashboard's cut uses each series' whole history, at the firm's 1%.**
+  Over the full history the claims movement chart still runs to about +20
+  typical moves. A wider cut on the Dashboard alone would need a setting of
+  its own.
+- **Triangles are on the series tabs too.** LibreOffice draws them, with no
+  legend entry. Excel has not been seen.
+- **The normal range is drawn two ways:** a band on the series tabs, dashed on
+  the Dashboard, where every chart is a scatter chart.
+- **The x axis's step is fixed at build**, as the spec says.
+- **Tab colours alternate by topic.** If the firm reads meaning into slate
+  against stone, all core tabs can be slate.
+- **The chart row on a series tab** follows whether the what-if row is there,
+  as the note asks.
+
+**New words, for the firm to approve or replace:**
+
+- the tile labels "Lowest", "Highest" and "Sahm's published trigger";
+- the levels chart's "<name>: change only";
+- the line under the Dashboard's charts, "Off the chart, <name>: N readings
+  run off the top, M off the bottom; the furthest +X typical moves in Mon
+  YYYY.";
+- What it is's labels "Level" and "Change over 12 months".
+
+**Checked:**
+
+- 175 tests pass. The new tests cover:
+  - the Overview's one header and its folded note;
+  - the series tab's tiles, side-by-side charts, gridlines and triangles;
+  - a reading off the axis marked at the edge;
+  - the Dashboard's cut, markers and note;
+  - States in two tables;
+  - the tab order and colours;
+  - the What if column blank when the same;
+  - the household types folded.
+- Each was broken in turn and each break failed a test, nine in all.
+- The rendered workbook in LibreOffice showed three faults that tests had not
+  caught. Each is fixed and now tested:
+  - tile figures sitting at the right of their cells (left alignment was
+    never stated);
+  - an empty Sahm chart (its columns are now hidden, and the chart was not
+    told to plot hidden cells);
+  - the overlapping NY Fed chart.
+- **Not seen in Excel.**
+
+**Codex on #471, three findings on the design build, all fixed.**
+
+1. **Wages after inflation had lost "private" from its title** when it was
+   shortened to fit its column, so it read as all workers. Its input is the
+   private industry index. The title is now "Employment cost index: private
+   wages, after inflation", 53 characters, which fits the column the longer
+   one ran past. A test holds the word in both the title and its input's.
+2. **A type of household debt blank in the NY Fed's newest quarter** would
+   have shown its previous quarter's balance and change under "Each type,
+   latest quarter". The NY Fed has not done that, but nothing stopped it.
+   Such a row now says *"No 2026 Q2 value in the NY Fed's file; its latest
+   is 2026 Q1."* and shows no figures.
+3. **The household total's change chart drew no what-if range.** Every
+   series tab dashes the what-if's normal range over its change chart; this
+   chart is drawn by the tab's own code and had been left out. It now draws
+   the same two slate dashed lines over the years the what-if's history
+   covers, and says so in its title.
+
+Each fix was taken out in turn and its test failed, three in all. The example
+is rebuilt.
+
+**Codex on #471, a fifth finding on the design build, fixed.** The household
+total's change chart was drawn only when the total was read under these
+settings. Too short to read here but read under the what-if, it was skipped,
+so the tab showed neither the change nor the what-if's range; the series tabs
+draw that case, titled "not read under these settings". The household chart
+now does the same, with no shaded range of its own. A new test fails with the
+fix taken out. The example is unchanged by it apart from its build time, so it
+is not rebuilt.
+
+## 23 Oct 2026: bankruptcies
+
+**Asked:** *"what bankruptcy data do we have or can we get"*. Found, and told
+the firm:
+
+- **In our pull already, unread:** the NY Fed's household debt workbook, the
+  file household debt by type comes from, has three bankruptcy sheets.
+  Page 17 Data counts people with a new bankruptcy on their credit report,
+  nationally, each quarter from 2003 Q1 (136.8 thousand in 2026 Q2, against
+  131.3 thousand a year before). Page 30 Data splits the same by age from
+  2000 Q1, and Page 40 Data gives the share of people by state, for eleven
+  states only (AZ, CA, FL, IL, MI, NJ, NV, NY, OH, PA, TX).
+- **US Courts' filing tables:** the official counts, by chapter, business
+  and personal, by district, with a one-month table inside each quarter's
+  release and county counts in F-5A. PDF only. Twelve months to 30 Sep 2026:
+  621,111 filings, +11.4% (Table F); personal 594,057, business 27,054.
+- **The Federal Judicial Center's case files**, new to this log: one row per
+  bankruptcy case filed since October 2007, with the filing date, chapter,
+  business or personal, the debtor's county and ZIP code, and assets, debts
+  and income. No names. 887 MB zipped for FY2018 to 30 June 2026, 1.47 GB
+  for FY2008 to 2017 (fjc.gov/research/idb).
+- **Epiq / ABI:** monthly and fastest, but a commercial product: out, as the
+  firm chose for licensed series.
+- FRED could not be searched that day (its server sent nothing back).
+
+**Built:** *"build it"*, on the NY Fed count, usable with care. The firm had
+read, before answering, how the 2005 law change would affect it.
+
+- **The 2005 law is a break, not quarters left out.** Public Law 109-8 was
+  enacted 20 April 2005 and its section 1501(a) has it "take effect 180 days
+  after the date of enactment", 17 October 2005 (govinfo.gov). People rushed
+  to file before it: 948.6 thousand in 2005 Q4, 213.9 thousand in 2006 Q1.
+  Leaving those quarters out would take them out of every series, and the
+  readings barely need it: the normal range is -23.2% to +19.2% over the
+  full history and -22.4% to +19.1% from 2007; its level sits at or above
+  25.5% of its history, or 29% from 2006.
+- **What it reads, 2026 Q2:** +4.17% on a year before, Stable, 0.3 typical
+  moves above the median, Stable since 2024 Q3. The workbook's figures match
+  the same arithmetic done by hand on the NY Fed's file.
+- **Why with care, in the tab's words:** "estimated from a random sample of
+  credit reports; the October 2005 bankruptcy law broke its history". The
+  NY Fed's background page says the panel is "constructed from a nationally
+  representative random sample of Equifax credit report data".
+- **Not claimed: that it is revised each quarter.** The first draft said so,
+  borrowing the household debt series' break. Checked against the NY Fed's
+  2026 Q1 file, the 2026 Q2 report changed none of the 93 earlier quarters
+  of this count, so the claim was taken out.
+- **The reader** now reads a named sheet of the NY Fed's file ("Page 17
+  Data: bankruptcy") as well as Page 3, and checks each sheet's own title
+  and unit, so Page 3's table under Page 17's name is refused.
+- **Checked:** 181 tests pass. The reader, its title check and the series'
+  place on the Usable with care tab were each broken in turn, and each
+  break failed a test. The example is rebuilt from the same pull (folder
+  `2026-10-22-4`, which already held the file); under the pandemic what-if
+  this count reads the same way, so still 4 of now 127 changes move. Its tab
+  and the Usable with care tab were rendered in LibreOffice and looked at.
+  **Not seen in Excel.**
+- **New words, for the firm to approve or replace:** the title "People with
+  a new bankruptcy on their credit report", the unit "thousands of people",
+  the tab name "New bankruptcies", the care line above, the break's line and
+  the note "Counts people whose credit report shows a new bankruptcy in the
+  quarter, not cases filed in court."

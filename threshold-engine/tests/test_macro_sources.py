@@ -119,3 +119,99 @@ def test_sce_refuses_a_workbook_without_the_sheet_or_with_another_question_in_it
 def test_sce_refuses_a_number_that_is_not_a_month():
     with pytest.raises(ValueError, match="201313 where a month belongs"):
         sources.read_nyfed_sce(sce_workbook([(201312, 13.4), (201313, 13.5)]), "Delinquency expectations")
+
+
+HHDC_COLUMNS = ["Mortgage", "HE Revolving", "Auto Loan", "Credit Card", "Student Loan", "Other", "Total"]
+
+
+def hhdc_workbook(rows, sheet="Page 3 Data", title="Total Debt Balance and Its Composition", unit="Trillions of $",
+                  columns=HHDC_COLUMNS, notations=None):
+    """The NY Fed's household debt workbook as it is laid out on 22 Oct 2026: a contents sheet, then on Page 3
+    Data the title, the unit, a link back, the heading row, and one row a quarter as 03:Q1. Page 17 Data, the
+    people with a new foreclosure and a new bankruptcy in thousands, follows with ``notations`` as its rows, or
+    by default a row for each quarter of ``rows``; ``notations=False`` leaves it out."""
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    wb.active.title = "TABLE OF CONTENTS"
+    ws = wb.create_sheet(sheet)
+    ws.append([title])
+    ws.append([unit])
+    ws.append(["Return to Table of Contents"])
+    ws.append([None] + list(columns))
+    for r in rows:
+        ws.append(list(r))
+    if notations is None and sheet == "Page 3 Data":
+        notations = [(r[0], 50.0 + i, 120.0 + (i * i) % 13) for i, r in enumerate(rows)]
+    if notations:
+        ws = wb.create_sheet("Page 17 Data")
+        ws.append(["Number of Consumers with New Foreclosures and Bankruptcies "])     # as titled, with its space
+        ws.append(["Thousands"])
+        ws.append(["Return to Table of Contents", "Source: New York Fed Consumer Credit Panel/Equifax"])
+        ws.append([None, "foreclosure", "bankruptcy"])
+        for r in notations:
+            ws.append(list(r))
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def hhdc_page(*quarters):
+    """The household debt report's page, with a Data link for each quarter named."""
+    return "".join('<a class="glossary-download" href="/medialibrary/interactives/householdcredit/data/xls/'
+                   'HHD_C_Report_%s">Data</a>' % q for q in quarters).encode()
+
+
+def test_household_debt_reads_each_type_by_its_heading_and_keeps_a_blank_quarter_missing():
+    raw = hhdc_workbook([("25:Q4", 13.17, 0.4336, 1.667, 1.277, 1.664, 0.5641, 18.7757),
+                         ("26:Q1", 13.191, 0.446, None, 1.242, 1.658, 0.562, 18.784),
+                         ("26:Q2", 13.117, 0.4585, 1.713, 1.263, 1.651, 0.568, 18.7705)])
+    assert sources.read(BY_KEY["household_credit_card"], raw) == [
+        ("2025-10-01", 1.277), ("2026-01-01", 1.242), ("2026-04-01", 1.263)]
+    assert sources.read(BY_KEY["household_auto"], raw)[1] == ("2026-01-01", None)
+    assert sources.read(BY_KEY["household_total"], raw)[-1] == ("2026-04-01", 18.7705)
+
+
+def test_household_debt_refuses_another_sheet_another_table_or_a_missing_type():
+    row = [("26:Q2", 13.1, 0.4, 1.7, 1.2, 1.6, 0.5, 18.7)]
+    with pytest.raises(ValueError, match="no sheet"):
+        sources.read_nyfed_hhdc(hhdc_workbook(row, sheet="Page 4 Data"), "Mortgage")
+    # The next table in the workbook is laid out the same way and is never read as this one.
+    with pytest.raises(ValueError, match="is not"):
+        sources.read_nyfed_hhdc(hhdc_workbook(row, title="Number of Accounts by Loan Type",
+                                              unit="Millions"), "Mortgage")
+    with pytest.raises(ValueError, match="no column 'Credit Card'"):
+        sources.read_nyfed_hhdc(hhdc_workbook([r[:4] for r in row], columns=HHDC_COLUMNS[:3]), "Credit Card")
+    with pytest.raises(ValueError, match="not the NY Fed's household debt workbook"):
+        sources.read_nyfed_hhdc(b"<html>Page Not Found</html>", "Mortgage")
+
+
+def test_new_bankruptcies_are_read_from_page_17_whose_title_is_checked_as_page_3s_is():
+    rows = [("25:Q4", 13.1, 0.4, 1.7, 1.2, 1.6, 0.5, 18.7), ("26:Q1", 13.2, 0.4, 1.7, 1.2, 1.6, 0.5, 18.8),
+            ("26:Q2", 13.1, 0.5, 1.7, 1.3, 1.7, 0.6, 18.8)]
+    raw = hhdc_workbook(rows, notations=[("25:Q4", 58.14, 123.82), ("26:Q1", 59.16, None), ("26:Q2", 55.16, 136.8)])
+    assert sources.read(BY_KEY["new_bankruptcies"], raw) == [
+        ("2025-10-01", 123.82), ("2026-01-01", None), ("2026-04-01", 136.8)]
+    assert sources.read(BY_KEY["household_total"], raw)[-1] == ("2026-04-01", 18.8)       # Page 3, as before
+    with pytest.raises(ValueError, match="reads no household debt sheet 'Page 18 Data'"):
+        sources.read_nyfed_hhdc(raw, "Page 18 Data: collections")
+    with pytest.raises(ValueError, match="no sheet 'Page 17 Data'"):
+        sources.read_nyfed_hhdc(hhdc_workbook(rows, notations=False), "Page 17 Data: bankruptcy")
+    # Page 3's table under Page 17's name is never read as the count of bankruptcies.
+    with pytest.raises(ValueError, match="is not"):
+        sources.read_nyfed_hhdc(hhdc_workbook(rows, sheet="Page 17 Data", notations=False),
+                                "Page 17 Data: bankruptcy")
+
+
+def test_household_debt_refuses_quarters_out_of_order():
+    with pytest.raises(ValueError, match="not in order"):
+        sources.read_nyfed_hhdc(hhdc_workbook([("26:Q2", 1, 1, 1, 1, 1, 1, 6), ("26:Q1", 1, 1, 1, 1, 1, 1, 6)]),
+                                "Mortgage")
+
+
+def test_the_household_debt_file_is_the_newest_the_reports_page_links():
+    # The file is named for the quarter it runs to; a name guessed for the next quarter was served as a page of
+    # HTML with status 200 (22 Oct 2026), so the address is read from the report's own page.
+    assert sources.hhdc_file(hhdc_page("2025Q4", "2026Q2", "2026Q1")) == (
+        "https://www.newyorkfed.org/medialibrary/interactives/householdcredit/data/xls/HHD_C_Report_2026Q2")
+    with pytest.raises(ValueError, match="links no data file"):
+        sources.hhdc_file(b"<html><a href='/microeconomics/hhdc'>Household debt</a></html>")

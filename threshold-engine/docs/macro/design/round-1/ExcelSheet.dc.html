@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:1920px;background:#FFFFFF;border:1px solid #B9B4AC;box-shadow:0 30px 80px -40px rgba(0,0,0,.35);position:relative;overflow:hidden;flex-shrink:0;">
+  <div style="{{ sheet.frameSt }}">
+    <div style="position:absolute;left:0;top:0;width:30px;height:20px;background:#E6E6E6;border-right:1px solid #C8C8C8;border-bottom:1px solid #C8C8C8;box-sizing:border-box;"></div>
+    <sc-for list="{{ sheet.colHeads }}" as="h" hint-placeholder-count="0"><div style="{{ h.st }}">{{ h.l }}</div></sc-for>
+    <sc-for list="{{ sheet.gut }}" as="g" hint-placeholder-count="0"><div style="{{ g.st }}">{{ g.n }}</div></sc-for>
+    <div style="{{ sheet.gridSt }}">
+      <sc-for list="{{ sheet.cells }}" as="c" hint-placeholder-count="0"><div style="{{ c.st }}">{{ c.v }}</div></sc-for>
+      {{ sheet.chartLayer }}
+      <sc-for list="{{ sheet.inputs }}" as="i" hint-placeholder-count="0"><select style="{{ i.st }}" onChange="{{ i.on }}"><sc-for list="{{ i.options }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}" selected="{{ o.sel }}">{{ o.l }}</option></sc-for></select></sc-for>
+      <sc-for list="{{ sheet.freeze }}" as="f" hint-placeholder-count="0"><div style="{{ f.st }}"></div></sc-for>
+    </div>
+    <div style="{{ sheet.foldSt }}"><span style="position:absolute;right:12px;top:-20px;font:600 12px 'Hanken Grotesk', sans-serif;color:#CC0000;background:#FFFFFF;padding:2px 6px;">{{ sheet.foldLabel }}</span></div>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:24px;background:#F3F2F1;border-top:1px solid #D4D4D4;display:flex;padding-left:36px;font:12px 'Segoe UI', Arial, sans-serif;overflow:hidden;">
+      <sc-for list="{{ sheet.tabs }}" as="t" hint-placeholder-count="0"><div style="{{ t.st }}">{{ t.n }}</div></sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;1922px&quot;,&quot;height&quot;:&quot;900px&quot;},&quot;sheet&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

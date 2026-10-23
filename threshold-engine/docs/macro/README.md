@@ -1,8 +1,10 @@
 # Economic data
 
 On 14 Oct 2026 the firm redirected the work: economic data is its own
-subject, rated by a separate tool built on the same idea, not a helper to
-KeyBank's loss thresholds (see `LOG.md`). That tool is
+subject, read by a separate tool built on the same idea, not a helper to
+KeyBank's loss thresholds (see `LOG.md`). Since 22 Oct 2026 it rates nothing:
+each series shows where it sits in its own history and whether its change is
+Increasing, Stable or Decreasing against its normal movement. That tool is
 `src/threshold_engine/macro/`; what it does and how to run it is in
 `TOOL.md`. Its tests read two files here: the report (every series must cite
 a section it has) and the settings template. The earlier proposal, and the
@@ -12,9 +14,11 @@ scripts and data behind it, are kept below for the record. Public data only.
 |---|---|
 | `TOOL.md` | The economic conditions tool: what works, how each series is read, what was checked, what waits on the firm |
 | `settings-template.json` | The tool's settings, every answer empty, with a recommendation beside each |
-| `settings.json` | The firm's answers (16 Oct 2026: the recommendations) |
-| `what-if-30-years.json` | An example what-if, not the firm's settings: theirs with history set to the last 30 years |
-| `examples/` | The workbook from the pull of 22 Oct 2026 (folder `2026-10-22-2`) with that what-if and the usable-with-care series, its printout, and four screenshots of the 17 Oct build |
+| `settings.json` | The firm's answers (16 and 22 Oct 2026), each with where it came from |
+| `what-if-pandemic-left-out.json` | An example what-if, not the firm's settings: theirs with 2020 Q2 to 2021 Q2 left out |
+| `what-if-30-years.json` | Another example what-if: theirs with history set to the last 30 years |
+| `examples/` | The workbook from the pull of 22 Oct 2026 (folder `2026-10-22-4`) with the pandemic what-if, its printout, and four screenshots of it: the Overview, the Dashboard, household debt, and the initial claims charts with the 2020 spike off the axis |
+| `design/` | The design of the workbook: the brief sent to Claude Design (`BRIEF-2026-10-22.md`) and what came back, round 1 (`round-1/`: the mock, the build spec, the tokens, the note to the builder, and pictures of the mock) |
 | `walkthrough/` | The walk of the monthly refresh: the procedure as one PDF, and the defects it found |
 | `tie-out/gasoline-change-2026-10-16/` | The workbook's top reading tied to EIA, with three more tied to BLS, FRED and FHFA, as one PDF |
 | `LOG.md` | This work's log (kept apart from the main LOG.md) |

@@ -11,8 +11,10 @@ holds what it read. The manifest records, per file, the address, when it was fet
 its size and SHA-256, and, per series, how many observations it holds, the
 first and last, and every missing one.
 
-A file the catalog shares (the Fed's spread file, FHFA's mortgage file) is
-downloaded once. The shown series (the "usable with care" group) are pulled
+A file the catalog shares (the Fed's spread file, FHFA's mortgage file, the
+NY Fed's household debt workbook) is downloaded once. The household debt
+workbook is named for the quarter it runs to, so its address is read from the
+link on the NY Fed's own page, and recorded. The shown series (the "usable with care" group) are pulled
 with the rest. A series that fails is recorded with the reason; the pull
 does not stop, and it exits non-zero if anything failed.
 """
@@ -44,8 +46,8 @@ def fetch(url, timeout=60):
 def file_name(series):
     if series.source in ("fed_ebp", "fhfa_nmdb"):
         return series.source + (".csv" if series.source == "fed_ebp" else ".zip")
-    if series.source == "nyfed_sce":
-        return "nyfed_sce.xlsx"
+    if series.source in ("nyfed_sce", "nyfed_hhdc"):
+        return series.source + ".xlsx"
     ext = ".csv" if series.source == "fred" else ".html"
     return "%s-%s%s" % (series.source, series.source_id, ext)
 
@@ -85,6 +87,8 @@ def pull(cache, keys=None, today=None, fetcher=fetch):
         if name not in files:
             url = sources.url_for(s, today[:4])
             try:
+                if s.source == "nyfed_hhdc":           # the page names the file for the quarter it runs to
+                    url = sources.hhdc_file(fetcher(url))
                 raw = fetcher(url)
             except Exception as e:  # recorded, not raised: one bad series must not hide the rest
                 files[name] = {"url": url, "error": "%s: %s" % (type(e).__name__, e)}

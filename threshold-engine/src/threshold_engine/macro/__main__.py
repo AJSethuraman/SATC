@@ -1,42 +1,44 @@
-"""python -m threshold_engine.macro list | pull | show | settings-template | rate
+"""python -m threshold_engine.macro list | pull | show | settings-template | read
 
-    list                         every series in the catalog, rated or shown, and what is not read
+    list                         every series in the catalog, and what is not read
     pull --cache DIR [KEY ...]   download into DIR/<today>/, keeping every earlier pull
     show --cache DIR KEY         one series as read from the newest pull (or --vintage)
     settings-template OUT.json   the firm's settings, every answer empty, to fill in
-    rate --cache DIR --settings FILE [--compare WHAT-IF.json] [--workbook OUT.xlsx]
-                                 every rating from the newest pull (or --vintage);
-                                 refuses, naming each gap, until every answer is in.
-                                 --compare rates the same pull with a second settings
-                                 file and reports every reading whose rating differs
+    read --cache DIR --settings FILE [--compare WHAT-IF.json]
+         [--workbook OUT.xlsx [--zoom 2019Q1:2026Q2]]
+                                 every reading from the newest pull (or --vintage):
+                                 where each level sits, and whether each change is
+                                 Increasing, Stable or Decreasing against its normal
+                                 movement; refuses, naming each gap, until every
+                                 answer is in. --compare reads the same pull with a
+                                 second settings file and reports every change whose
+                                 direction differs. --zoom draws the workbook's charts
+                                 over those quarters only; no reading changes with it
 """
 import argparse
 import json
 import pathlib
 import sys
 
-from .catalog import BY_KEY, DERIVED, NOT_SHOWN, NOT_YET, SERIES, SHOWN
+from .catalog import BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED, NOT_YET, SERIES
 from .pull import load, pull
-from .rate import Pull, rate_all
-from .settings import Refused, load as load_settings, write_template
+from .readings import Pull, read_all
+from .settings import QUARTER, Refused, load as load_settings, quarter_index, write_template
 
 
 def direction(s):
-    """Which way is worse, as list shows it. Where the research leaves it open
-    the answer is the firm's, in the settings file, not in the catalog."""
-    if getattr(s, "shown", False):
-        return "shown, not rated"
-    if not s.rated:
-        return "input, not rated"
-    return s.stress or "the firm's settings"
+    """What list says of a series: an input, or which way the research reads stress in it."""
+    if not s.read_alone:
+        return "input, not read alone"
+    return "research: " + s.stress if s.stress else "research: no direction"
 
 
 def cmd_list(_):
-    rated = [s for s in SERIES if s.rated]
-    print("%d series in the catalog (%d rated, %d inputs to a derived reading, %d shown and not rated)\n"
-          % (len(SERIES), len(rated), len(SERIES) - len(rated) - len(SHOWN), len(SHOWN)))
+    alone = [s for s in SERIES if s.read_alone]
+    print("%d series in the catalog (%d read, %d of them usable with care; %d inputs to a derived reading)\n"
+          % (len(SERIES), len(alone), len(CARE), len(SERIES) - len(alone)))
     for s in SERIES:
-        if s.shown:
+        if s.care:
             continue
         if s.key.startswith("unemployment_") and s.key != "unemployment_ak":
             continue
@@ -46,17 +48,22 @@ def cmd_list(_):
             direction(s), name))
     print("\nDerived from two of the above:")
     for d in DERIVED:
+        if d.care:
+            continue
         print("  %-26s %-10s %-9s from %-10s %-24s %s" % (d.key, d.group, d.frequency, "(inputs)",
                                                           direction(d), d.title))
     print("\nIn the ready-to-rate group but not read yet:")
     for what, why in NOT_YET:
         print("  %s: %s" % (what, why))
-    print("\nThe usable-with-care group: shown, never rated (why each needs care is on its workbook tab):")
-    for s in SHOWN:
+    print("\nThe usable-with-care group (why each needs care is on its workbook tab):")
+    for s in CARE:
         print("  %-26s %-10s %-9s from %-10s %-24s %s" % (s.key, s.group, s.frequency, s.starts, direction(s),
                                                           s.title))
+    for d in CARE_DERIVED:
+        print("  %-26s %-10s %-9s from %-10s %-24s %s" % (d.key, d.group, d.frequency, "(inputs)", direction(d),
+                                                          d.title))
     print("\nIn the usable-with-care group but not read:")
-    for what, why in NOT_SHOWN:
+    for what, why in CARE_NOT_READ:
         print("  %s: %s" % (what, why))
 
 
@@ -86,11 +93,26 @@ def cmd_show(a):
 
 
 def cmd_settings_template(a):
-    print("wrote %s: fill in every \"answer\", then run rate --settings %s" % (write_template(a.out), a.out))
+    print("wrote %s: fill in every \"answer\", then run read --settings %s" % (write_template(a.out), a.out))
 
 
-def cmd_rate(a):
+def zoom_of(text):
+    """--zoom FROM:TO as two quarters, the first not after the second; Refused otherwise."""
+    if text is None:
+        return None
+    first, _, last = text.partition(":")
+    a, b = quarter_index(first), quarter_index(last)
+    if not (QUARTER.match(first) and QUARTER.match(last)) or a > b:
+        raise Refused("--zoom needs two quarters, the first not after the second, such as 2019Q1:2026Q2; got %r"
+                      % text)
+    return [first, last]
+
+
+def cmd_read(a):
     settings = load_settings(a.settings)
+    zoom = zoom_of(a.zoom)
+    if zoom and not a.workbook:
+        raise Refused("--zoom draws the workbook's charts over those quarters, so it needs --workbook")
     other = None
     if a.compare:
         try:
@@ -98,15 +120,15 @@ def cmd_rate(a):
         except Refused as e:
             raise Refused("the what-if settings in %s: %s" % (a.compare, e))
     p = Pull(a.cache, a.vintage)
-    result = rate_all(a.cache, settings, pull=p)
+    result = read_all(a.cache, settings, pull=p)
     whatif = None
     if other is not None:
         from .compare import compare
-        whatif = compare(result, rate_all(a.cache, other, pull=p), pathlib.Path(a.settings).name,
+        whatif = compare(result, read_all(a.cache, other, pull=p), pathlib.Path(a.settings).name,
                          pathlib.Path(a.compare).name)
     if a.workbook:
         from .workbook import build
-        print("wrote %s" % build(a.workbook, result, p, whatif=whatif), file=sys.stderr)
+        print("wrote %s" % build(a.workbook, result, p, whatif=whatif, zoom=zoom), file=sys.stderr)
     if a.json:
         print(json.dumps(dict(result, compare=whatif) if whatif else result, indent=1))
         return 0
@@ -114,27 +136,27 @@ def cmd_rate(a):
         from .compare import lines
         print("\n".join(lines(whatif)))
         return 0
+    from .compare import plain
     s = result["settings"]
-    print("Ratings from the pull of %s. History: %s. Change over %d months. Cut-offs for 2 to 5: %s "
-          "(on the line: %s).\n" % (result["vintage"], s["history"] if s["history"] == "full" else
-                                    "last %d years" % s["history"]["years"], s["change_months"],
-                                    ", ".join("%g" % c for c in s["cutoffs"]), s["on_the_line"]))
-    for r in sorted(result["ratings"], key=lambda r: (-r["rating"], r["key"], r["reading"])):
-        print("  %d  %-26s %-8s %s" % (r["rating"], r["key"], r["reading"], r["sentence"]))
+    print("Readings from the pull of %s. History: %s. Change over %d months. Normal movement: %s. Quarters left "
+          "out: %s.\n" % (result["vintage"], plain("history", s), s["change_months"], plain("normal_width", s),
+                          plain("left_out", s)))
+    order = {"Increasing": 0, "Decreasing": 1, "Stable": 2}
+    for group, care in (("Core", False), ("Usable with care", True)):
+        print(group + ":")
+        mine = [r for r in result["readings"] if r["care"] == care]
+        for r in sorted(mine, key=lambda r: (r["reading"] != "change", order.get(r.get("direction"), 3),
+                                             -abs(r.get("movement", 0)), r["key"])):
+            print("  %-10s %-26s %-8s %s" % (r.get("direction", ""), r["key"], r["reading"], r["sentence"]))
+        print()
     for x in result["alongside"]:
-        print("\n  %s" % x["sentence"])
-    if result["not_rated"]:
-        print("\nNot rated:")
-        for x in result["not_rated"]:
+        print("  %s\n" % x["sentence"])
+    if result["not_read"]:
+        print("Not read:")
+        for x in result["not_read"]:
             print("  %-26s %-8s %s" % (x["key"], x["reading"], x["why"]))
-    if result["shown"] or result["not_shown"]:
-        print("\nShown, not rated (the usable-with-care group):")
-        for x in result["shown"]:
-            print("     %-26s %-8s %s" % (x["key"], x["reading"], x["sentence"]))
-        for x in result["not_shown"]:
-            print("     %-26s %-8s nothing to show: %s" % (x["key"], x["reading"], x["why"]))
-        for credit in sorted({x["credit"] for x in result["shown"] if x.get("credit")}):
-            print("\n  %s" % credit)
+    for credit in sorted({x["credit"] for x in result["readings"] if x.get("credit")}):
+        print("\n  %s" % credit)
     return 0
 
 
@@ -153,17 +175,19 @@ def main(argv=None):
     ps.add_argument("--tail", type=int, default=12)
     pt = sub.add_parser("settings-template", help="the firm's settings to fill in")
     pt.add_argument("out")
-    pr = sub.add_parser("rate", help="every rating from a pull")
+    pr = sub.add_parser("read", help="every reading from a pull")
     pr.add_argument("--cache", required=True)
     pr.add_argument("--settings", required=True)
     pr.add_argument("--vintage")
     pr.add_argument("--json", action="store_true")
     pr.add_argument("--workbook", metavar="OUT.xlsx", help="also write the workbook the teams read")
+    pr.add_argument("--zoom", metavar="FROM:TO", help="draw the workbook's charts over these quarters only, "
+                    "such as 2019Q1:2026Q2; no reading changes")
     pr.add_argument("--compare", metavar="WHAT-IF.json",
-                    help="a second settings file: rate the same pull with it and show what changes")
+                    help="a second settings file: read the same pull with it and show what changes")
     a = p.parse_args(argv)
     commands = {"list": cmd_list, "pull": cmd_pull, "show": cmd_show,
-                "settings-template": cmd_settings_template, "rate": cmd_rate}
+                "settings-template": cmd_settings_template, "read": cmd_read}
     try:
         return commands[a.command](a) or 0
     except Refused as e:

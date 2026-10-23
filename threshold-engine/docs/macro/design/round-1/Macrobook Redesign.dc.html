@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Hanken+Grotesk:wght@400;600;700&family=Carlito:wght@400;700&family=Arimo:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#E9E5DE;color:#16130F;font-family:'Hanken Grotesk',sans-serif;}
+a{color:#1F4E79;text-decoration:none;} a:hover{color:#CC0000;text-decoration:underline;}
+code{font-family:Consolas,monospace;font-size:.92em;background:#F4F1EC;padding:1px 4px;}
+</style>
+</helmet>
+
+<div style="padding:64px 64px 120px;display:flex;flex-direction:column;gap:72px;min-width:2560px;">
+
+<section id="top" style="display:flex;gap:56px;align-items:flex-start;">
+  <div style="width:1100px;display:flex;flex-direction:column;gap:14px;">
+    <div style="font:700 13px Archivo;letter-spacing:.08em;text-transform:uppercase;color:#CC0000;">Macrobook · economic conditions · design round 1 · 22 Oct 2026</div>
+    <div style="font:800 46px/1.05 Archivo;">One reading, one way, on every tab</div>
+    <div style="font-size:18px;line-height:1.5;color:#57534B;text-wrap:pretty;">Every artboard is the tab as Excel draws it at 100% on 1920 × 1080 with the ribbon open, from the pull of 22 Oct 2026. The red dashed line is the bottom of the screen. Column letters and row numbers are the build's; the spec for each is in <code>README.md</code>.</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 28px;font-size:15px;line-height:1.5;margin-top:8px;">
+      <div><b>Dashboard: one screen.</b> Four boxes in one row, both readings, then six charts in two rows. Spikes run off the axis at the firm's 1% cut and are marked, so the full history reads.</div>
+      <div><b>Series tab: charts on the first screen.</b> Tiles hold figures, not sentences; level and change charts side by side; "How this tab works" folds away at the foot.</div>
+      <div><b>Overview: the first series on row 8.</b> One frozen header, quiet section rules, the method note folded at the foot, the six debt types folded under the total.</div>
+      <div><b>One grammar.</b> A reading, a direction, a normal range, a note, a link and a control each look the same on every tab. Seven new tokens; nothing in <code>keybank_style.py</code> changes.</div>
+    </div>
+  </div>
+  <div style="width:1180px;background:#FFFFFF;border:1px solid #DAD4CA;padding:20px 22px;display:flex;flex-direction:column;gap:12px;">
+    <div style="font:700 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:#57534B;">The tab set, in its new order · 76 visible, 1 hidden</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;font:12px 'Segoe UI',Arial,sans-serif;">
+      <sc-for list="{{ tabChips }}" as="t" hint-placeholder-count="40"><span style="{{ t.st }}">{{ t.n }}</span></sc-for>
+    </div>
+    <div style="font-size:14px;line-height:1.55;color:#57534B;text-wrap:pretty;">Tab colour marks the group, never a reading: <b style="color:#0A0908;">ink</b> the three front tabs and States; <b style="color:#0A0908;">slate and stone alternate by topic</b>, in the Overview's order, so the tab bar reads in blocks; <b style="color:#0A0908;">mist</b> Usable with care and its 31 tabs; no colour for the record tabs. States moves next to the core series (from 4th). Finding a series: the Overview (core) and Usable with care (the rest) are the index, every name a link; every series tab's row 2 leads back. Excel's own list of every tab is a right-click on the tab-bar arrows.</div>
+  </div>
+</section>
+
+<section id="overview" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;align-items:baseline;gap:16px;"><div style="font:800 28px Archivo;">1 · Overview</div><div style="font-size:15px;color:#57534B;">The front page. Click a series name in the workbook to open its tab.</div></div>
+  <div style="display:flex;gap:40px;align-items:flex-start;">
+    <sc-if value="{{ loaded }}" hint-placeholder-val="{{ false }}"><dc-import name="ExcelSheet" sheet="{{ ov }}" hint-size="1922px,1100px"></dc-import></sc-if>
+    <div style="width:420px;font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:14px;text-wrap:pretty;">
+      <div><b>Job.</b> Every core series by topic: latest, level, change against its normal range, direction. Opened first, every time, by both credit teams.</div>
+      <div><b>Above the fold.</b> The six tiles, the header, Jobs, Prices and insurance, Housing and household credit, and the start of Business. Panes freeze at <b>C8</b>, so the header and names stay on scroll.</div>
+      <div><b>Was wrong.</b> Eleven method rows above the first series; a header repeated five times; 8-point tile labels; "199,000claims"; "same direction" on 41 of 42 rows; decimals that wander (−0.2, +0.39, +11.56%).</div>
+      <div><b>Changed.</b> Method note to the foot, folded (outline +). One header. Tiles in Arial 9 / 12. Unit indented one level from Value. Changes, normal from and to all in two decimals, so the decimal points line up. <i>Change to</i> and <i>What if</i> are blank when they say the same as the row; the What if cell speaks only when a change moves.</div>
+      <div><b>Household debt.</b> The six types fold under <i>Household debt: total</i> (outline +). The Household debt tab shows them.</div>
+      <div><b>Direction.</b> Kept as today, and right: ▲/▼ with the word, bold on MIST, the same fill both ways, so it reads "moving", not good or bad. Stable plain slate. Now Calibri 11, the data font, instead of Arial 9.</div>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;align-items:baseline;gap:16px;"><div style="font:800 28px Archivo;">2 · Dashboard</div><div style="font-size:15px;color:#57534B;">The four yellow boxes work: pick any two series and the quarters.</div></div>
+  <div style="display:flex;gap:40px;align-items:flex-start;">
+    <sc-if value="{{ loaded }}" hint-placeholder-val="{{ false }}"><dc-import name="ExcelSheet" sheet="{{ dash }}" hint-size="1922px,1000px"></dc-import></sc-if>
+    <div style="width:420px;font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:14px;text-wrap:pretty;">
+      <div><b>Job.</b> Compare any two series: how hard each is moving, where each level sits, and each on its own. Opened with a question.</div>
+      <div><b>Above the fold.</b> All four boxes, both readings, and all six charts. Nothing to scroll for.</div>
+      <div><b>Was wrong.</b> Six charts stacked at one size; a seven-row note first; boxes down a column; 2020 claims at +200 typical moves flattening the movement chart; legend rows of dashes and years overprinting the legend in Excel.</div>
+      <div><b>Changed.</b> Boxes in one row (B5, H5, N5, Q5), yellow input cells with the pick's colour as their bottom edge: the box is the key. The readings table uses the Overview's columns and formats. The two "together" charts side by side, then each series' pair under its own coloured label.</div>
+      <div><b>Spikes.</b> Each series' 1st and 99th percentile of every chart value is written on Dashboard data. A formula returns <code>NA()</code> beyond them, so Excel's auto axis fits the rest; a second, marker-only series draws a small stone triangle at the cut where a reading runs off, and the note under the chart names the furthest. The firm's 1% setting, applied the way the series tabs apply it.</div>
+      <div><b>Excel fixes.</b> Every series states one line colour and no point colours; legend at the top, axis labels <code>low</code>; second "Normal movement" legend entry deleted; x axis major unit 5 years on the big charts, 10 on the small.</div>
+      <div><b>Levels chart.</b> A pick read on its change only gets the legend name "<i>name</i>: change only", from the formula cell the series name reads. The chart says why it is empty without a sentence.</div>
+    </div>
+  </div>
+</section>
+
+<section id="series" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;"><div style="font:800 28px Archivo;">3 · The series tab</div><div style="font-size:15px;color:#57534B;">One design, 66 tabs. Pick a variant:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <sc-for list="{{ variants }}" as="v" hint-placeholder-count="5"><button onClick="{{ v.on }}" style="{{ v.st }}">{{ v.l }}</button></sc-for>
+    </div>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start;">
+    <sc-if value="{{ loaded }}" hint-placeholder-val="{{ false }}"><dc-import name="ExcelSheet" sheet="{{ ser }}" hint-size="1922px,1100px"></dc-import></sc-if>
+    <div style="width:420px;font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:14px;text-wrap:pretty;">
+      <div><b>Job.</b> One series: where it is, how it is moving, both drawn against its history, and what it is. Opened from the Overview or the Dashboard.</div>
+      <div><b>Above the fold.</b> Both tiles, both charts with their off-chart notes, and What it is down to its breaks. The firm's two sentences close What it is.</div>
+      <div><b>Was wrong.</b> 250-character sentences inside the tiles; the charts started below "How this tab works", off the first screen on a laptop; each chart alone on a row at 24 cm, with 900 px of white beside it.</div>
+      <div><b>Changed.</b> The tiles hold figures under the table's own labels (Normal from, Typical moves, Since…), so a reader who knows the Overview reads the tile. Level and change charts side by side, 864 × 320 px each. Change only: the change chart takes the full 1,728 px. Sahm: a third tile, and its chart beside What it is.</div>
+      <div><b>Same everywhere.</b> Normal range a MIST band; what-if range SLATE dashed (was red dashed on some tabs, black on others); latest a ringed point with its value; off-axis readings a stone triangle at the edge; horizontal gridlines in the row-rule colour.</div>
+      <div><b>History.</b> Every reading moves from N:Q to AA:AD, past the visible width, header in row 4. Panes freeze below row 3.</div>
+    </div>
+  </div>
+</section>
+
+<section id="household" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;align-items:baseline;gap:16px;"><div style="font:800 28px Archivo;">4 · Household debt</div><div style="font-size:15px;color:#57534B;">The NY Fed's own split, as it reports it.</div></div>
+  <div style="display:flex;gap:40px;align-items:flex-start;">
+    <sc-if value="{{ loaded }}" hint-placeholder-val="{{ false }}"><dc-import name="ExcelSheet" sheet="{{ hh }}" hint-size="1922px,1000px"></dc-import></sc-if>
+    <div style="width:420px;font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:14px;text-wrap:pretty;">
+      <div><b>Job.</b> The NY Fed's debt by type, stacked as it reports it, and each type's change. Opened for the consumer book's context.</div>
+      <div><b>Above the fold.</b> The tiles, the stacked chart, the table of every type and the total's change chart, side by side, and the credit line.</div>
+      <div><b>Was wrong.</b> The chart sat below the table and five method rows; the change chart ran off the first screen.</div>
+      <div><b>Changed.</b> Same grid and tiles as a series tab. Stacked columns left (864 × 368 px), the table and the total's change right, ending level with the chart. Legend at the top. Six colours from today's palette; three sit under 3:1, so the legend and the table stay, as the brief allows.</div>
+      <div><b>Formats.</b> Balance <code>0.000</code>; share <code>0.0%</code>; change and normal range <code>+0.00%</code>; quarters as text, "2026 Q2".</div>
+    </div>
+  </div>
+</section>
+
+<section id="care" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;align-items:baseline;gap:16px;"><div style="font:800 28px Archivo;">5 · Usable with care</div><div style="font-size:15px;color:#57534B;">The Overview's table, with why under each name.</div></div>
+  <div style="display:flex;gap:40px;align-items:flex-start;">
+    <sc-if value="{{ loaded }}" hint-placeholder-val="{{ false }}"><dc-import name="ExcelSheet" sheet="{{ care }}" hint-size="1922px,1100px"></dc-import></sc-if>
+    <div style="width:420px;font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:14px;text-wrap:pretty;">
+      <div><b>Job.</b> The 31 short, broken or revised series, read the same way, each with why it needs care.</div>
+      <div><b>Was wrong.</b> 2,700 px wide: the 80-wide "Why" column ran off the screen and wrapped to different heights; 8-point type.</div>
+      <div><b>Changed.</b> Exactly the Overview's columns, so the two tabs line up when flipped between. Why with care moves under each name, a 13.5 pt row in Calibri 10 slate across B:N (1,359 px): the longest, 165 characters, fits on one line. Every series takes the same two rows.</div>
+      <div><b>Below.</b> In the group, not read, and why; the credits the licences require. Same row grammar.</div>
+    </div>
+  </div>
+</section>
+
+<section id="reference" style="display:flex;flex-direction:column;gap:14px;">
+  <div style="display:flex;align-items:baseline;gap:16px;"><div style="font:800 28px Archivo;">6 · Reference tabs: Glossary</div><div style="font-size:15px;color:#57534B;">The pattern Run, Sources, Not read and State data share.</div></div>
+  <div style="display:flex;gap:40px;align-items:flex-start;">
+    <sc-if value="{{ loaded }}" hint-placeholder-val="{{ false }}"><dc-import name="ExcelSheet" sheet="{{ glo }}" hint-size="1922px,900px"></dc-import></sc-if>
+    <div style="width:420px;font-size:15px;line-height:1.5;display:flex;flex-direction:column;gap:14px;text-wrap:pretty;">
+      <div><b>Job.</b> Look up a term or a source when a number is questioned. Opened rarely, read closely.</div>
+      <div><b>Was wrong.</b> 120-wide meaning column: 150-character lines; heights guessed from character counts, so some rows clip and some float.</div>
+      <div><b>Changed.</b> Slate title band and stone rule kept (record tabs). Meaning column 110 wide (775 px, about 125 characters a line); height 15 pt per line, lines counted at 6.6 px a character. Terms Calibri 11 bold, top-aligned. Back to Overview in row 2, as on every tab.</div>
+      <div><b>Run and Sources.</b> Same columns rule: the longest text column no wider than 775 px; hashes and paths last, Consolas 9 slate. Sources keeps its 11 columns; Address and SHA-256 move to the end.</div>
+    </div>
+  </div>
+</section>
+
+<section id="system" style="display:flex;gap:56px;align-items:flex-start;">
+  <div style="width:1100px;background:#FFFFFF;border:1px solid #DAD4CA;padding:24px 26px;display:flex;flex-direction:column;gap:16px;">
+    <div style="font:800 28px Archivo;">7 · Token sheet</div>
+    <div style="font-size:15px;color:#57534B;line-height:1.5;">Additions to <code>keybank_style.py</code> under a "Macrobook, round 1" block. Nothing existing changes; the threshold workbook is unaffected.</div>
+    <div style="display:grid;grid-template-columns:150px 110px 90px minmax(0,1fr);font-size:14px;border-top:2px solid #0A0908;">
+      <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="10">
+        <div style="padding:7px 0;border-bottom:1px solid #E7E2D8;font-weight:700;font-family:Consolas,monospace;font-size:13px;">{{ t.n }}</div>
+        <div style="padding:7px 0;border-bottom:1px solid #E7E2D8;font-family:Consolas,monospace;font-size:13px;">{{ t.h }}</div>
+        <div style="padding:5px 0;border-bottom:1px solid #E7E2D8;"><div style="{{ t.sw }}"></div></div>
+        <div style="padding:7px 0;border-bottom:1px solid #E7E2D8;line-height:1.4;">{{ t.j }}</div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="width:1180px;background:#FFFFFF;border:1px solid #DAD4CA;padding:24px 26px;display:flex;flex-direction:column;gap:14px;">
+    <div style="font:800 28px Archivo;">One way each</div>
+    <div style="display:grid;grid-template-columns:170px minmax(0,1fr);font-size:14px;line-height:1.45;border-top:2px solid #0A0908;">
+      <sc-for list="{{ grammar }}" as="g" hint-placeholder-count="12">
+        <div style="padding:8px 0;border-bottom:1px solid #E7E2D8;font-weight:700;">{{ g.k }}</div>
+        <div style="padding:8px 0;border-bottom:1px solid #E7E2D8;text-wrap:pretty;">{{ g.v }}</div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section id="cuts" style="display:flex;gap:56px;align-items:flex-start;">
+  <div style="width:1100px;display:flex;flex-direction:column;gap:12px;">
+    <div style="font:800 28px Archivo;">8 · Cuts</div>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+      <div><b>The repeated column header</b> on the Overview (×5) and Usable with care (×4). One frozen header.</div>
+      <div><b>"same direction" in the What if column</b> (41 of 42 rows). Blank when it reads the same; the tile already counts them.</div>
+      <div><b>The Change to date when it equals Latest.</b> Shown, bold, only when the change runs to an earlier month (October 2025).</div>
+      <div><b>"How this tab works" above the content</b> on Overview, Dashboard, every series tab, Household debt, States and Usable with care. Moved to the foot, folded. Nothing in it is reworded.</div>
+      <div><b>The Dashboard's "Change in" column</b> (points / %). The change's own format says it.</div>
+      <div><b>The black column-header bands</b> on States, What it is and What if. Canvas headers, as everywhere else.</div>
+      <div><b>The six household debt type rows on the Overview</b>, folded under the total, not deleted.</div>
+    </div>
+  </div>
+  <div style="width:1180px;display:flex;flex-direction:column;gap:12px;">
+    <div style="font:800 28px Archivo;">Did not fit, and what I did instead</div>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.5;text-wrap:pretty;">
+      <div><b>An axis that refits to the quarters and still ignores a spike.</b> Bounds cannot follow a cell. Instead the plotted values are cut by formula at each series' fixed 1st and 99th percentile, so Excel's auto axis fits what is left.</div>
+      <div><b>A shaded normal range on the Dashboard.</b> Its charts are scatter (years as decimals); an area band needs a category axis. Kept: two stone dashed lines, one legend entry. The series tabs keep the band.</div>
+      <div><b>Year labels that suit any window.</b> The major unit is fixed when the file is built: 5 years (big charts), 10 (small). A window under 5 years shows one label or none; the readings table and the boxes still say the quarters.</div>
+      <div><b>A search box for 76 tabs.</b> No macros, no text boxes. The Overview and Usable with care are the index; tab colour groups the bar.</div>
+      <div><b>The whole Overview on one screen.</b> 41 rows plus 5 sections at 15 pt need 980 px; the screen has 780. Frozen header and names instead; the fold falls in Business.</div>
+      <div><b>Series names as links in the Dashboard table.</b> HYPERLINK is not in the 2007 list the brief allows.</div>
+    </div>
+  </div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;whatIf&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Build&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;1920 × 1080&quot;,&quot;1366 × 768&quot;],&quot;default&quot;:&quot;1920 × 1080&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Build&quot;}}">
+const K={INK:'#0A0908',RED:'#CC0000',PAPER:'#FFFFFF',CANVAS:'#F4F1EC',MIST:'#E4DFD5',STONE:'#B9B4AC',SLATE:'#57534B',TEXT:'#16130F',HAIR:'#E7E2D8',RULE:'#EFEBE4',LINK:'#1F4E79',INPUT:'#FFF2CC',EDGE:'#D6B656',P:['#2A78D6','#EB6834']};
+const DEBT=['#2A78D6','#EB6834','#1BAF7A','#EDA100','#E87BA4','#008300'];
+const DEBT_KEYS=['household_mortgage','household_he_revolving','household_auto','household_credit_card','household_student','household_other'];
+const DEBT_NAMES=['Mortgage','HE Revolving','Auto Loan','Credit Card','Student Loan','Other'];
+const TOPICS=[["Jobs",["unemployment","initial_claims","continuing_claims","payrolls"]],["Prices and insurance",["cpi","cpi_core","gasoline","motor_insurance","used_cars","home_insurance"]],["Housing and household credit",["house_prices","house_price_to_income","mortgage_rate","mortgage_spread","mortgage_30_89","mortgage_90","mortgage_90_government","revolving_credit","card_standards","household_total"]],["Business and the economy",["real_gdp","industrial_production","capacity_use","cfnai","cre_prices","ci_standards","ci_demand"]],["Markets and financial conditions",["prime_rate","gz_spread","excess_bond_premium","bond_recession_probability","nfci","nfci_adjusted","stlfsi","kcfsi","yield_curve"]]];
+const CARE_TOPICS=[["Jobs and income",["underemployment","job_openings","layoffs_rate","quits_rate","temp_help","wages_eci","hourly_earnings","real_income","income_ex_transfers","saving_rate"]],["Household debt, credit and housing",["debt_service","debt_service_mortgage","debt_service_consumer","card_minimum_payment","expected_missed_payment","auto_standards","other_consumer_standards","new_home_supply"]],["Business",["equipment_orders","business_applications","likely_employer_applications","philadelphia_survey","empire_survey","dallas_survey","cre_standards_construction","cre_standards_nonresidential","cre_standards_multifamily","customs_duties"]],["Policy and markets",["policy_uncertainty","trade_policy_uncertainty","vix"]]];
+const TABN={unemployment:"Unemployment",initial_claims:"Initial claims",continuing_claims:"Continuing claims",payrolls:"Payrolls",cpi:"Prices",cpi_core:"Core prices",gasoline:"Gasoline",motor_insurance:"Motor insurance",used_cars:"Used cars",home_insurance:"Home insurance",house_prices:"House prices",house_price_to_income:"House prices to income",mortgage_rate:"Mortgage rate",mortgage_spread:"Mortgage spread",mortgage_30_89:"Mortgages 30-89",mortgage_90:"Mortgages 90+",mortgage_90_government:"Gov mortgages 90+",revolving_credit:"Revolving credit",card_standards:"Card standards",household_total:"Household debt",real_gdp:"Real GDP",industrial_production:"Industrial production",capacity_use:"Capacity use",cfnai:"Activity index",cre_prices:"CRE prices",ci_standards:"Business loan standards",ci_demand:"Business loan demand",prime_rate:"Prime rate",gz_spread:"Bond spread",excess_bond_premium:"Excess bond premium",bond_recession_probability:"Bond recession prob",nfci:"NFCI",nfci_adjusted:"NFCI adjusted",stlfsi:"St Louis stress",kcfsi:"Kansas City stress",yield_curve:"Yield curve"};
+const CARE_TABN={underemployment:"Underemployment",job_openings:"Job openings",layoffs_rate:"Layoffs rate",quits_rate:"Quits rate",temp_help:"Temp help jobs",wages_eci:"Wages (ECI)",hourly_earnings:"Hourly earnings",real_income:"Real income",income_ex_transfers:"Income ex transfers",saving_rate:"Saving rate",debt_service:"Debt service",debt_service_mortgage:"Mortgage debt service",debt_service_consumer:"Consumer debt service",card_minimum_payment:"Card minimum payments",expected_missed_payment:"Expected missed payments",auto_standards:"Auto loan standards",other_consumer_standards:"Other consumer standards",new_home_supply:"New home supply",equipment_orders:"Equipment orders",business_applications:"Business applications",likely_employer_applications:"Likely-employer applications",philadelphia_survey:"Philadelphia survey",empire_survey:"Empire State survey",dallas_survey:"Dallas survey",cre_standards_construction:"CRE construction standards",cre_standards_nonresidential:"CRE nonresidential standards",cre_standards_multifamily:"CRE multifamily standards",customs_duties:"Customs duties",policy_uncertainty:"Policy uncertainty",trade_policy_uncertainty:"Trade policy uncertainty",vix:"VIX"};
+const WHATIF={mortgage_90:'Change Increasing → Stable',cre_standards_nonresidential:'Change Stable → Decreasing'};
+const AR='Arial, Arimo, Helvetica, sans-serif', CA='Calibri, Carlito, "Segoe UI", sans-serif';
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const px=pt=>Math.round(pt*4/3);
+const cw=w=>Math.round(7*w+5);
+const colName=i=>{let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+const bd=s=>{if(!s)return undefined;const [k,c]=s.split('|');return (k==='thin'?1:k==='medium'?2:3)+'px solid '+c;};
+const sgn=(v,dp)=>{const r=+v.toFixed(dp);return (r>0?'+':r<0?'-':'')+Math.abs(r).toFixed(dp);};
+const chg=(v,u)=>v==null?'':u==='percent'?sgn(v,2)+'%':sgn(v,2);
+const num=v=>v==null?'':Math.abs(v)>=1000?Math.round(v).toLocaleString('en-US'):(Math.round(v*100)/100).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:2});
+const dt=(iso,f)=>{if(!iso)return '';const y=iso.slice(0,4),m=+iso.slice(5,7);return f==='quarterly'?y+' Q'+(Math.floor((m-1)/3)+1):f==='monthly'?iso.slice(0,7):iso.slice(0,10);};
+const ym=(iso,f)=>!iso?'':f==='quarterly'?dt(iso,f):iso.slice(0,7);
+const yr=gi=>1919+gi/12;
+const q=(s,p)=>{if(!s.length)return null;const i=(s.length-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo);};
+function niceTicks(lo,hi,n){if(!(hi>lo)){hi=lo+1;lo=lo-1;}const st0=(hi-lo)/n,mag=Math.pow(10,Math.floor(Math.log10(st0))),r=st0/mag;const st=(r<1.5?1:r<3?2:r<7?5:10)*mag;const a=Math.floor(lo/st+1e-9)*st,b=Math.ceil(hi/st-1e-9)*st;const t=[];for(let v=a;v<=b+st/2;v+=st)t.push(+v.toFixed(10));return t;}
+function axFmt(ticks,kind){const st=ticks.length>1?Math.abs(ticks[1]-ticks[0]):1;const dp=st<0.1?2:st<1?1:0;return v=>{if(kind==='pct01')return Math.round(v*100)+'%';if(kind==='chg')return (v>0?'+':'')+v.toFixed(dp);return Math.abs(v)>=1000?Math.round(v).toLocaleString('en-US'):v.toFixed(dp);};}
+let CLIP=0;
+function svgChart(o){
+  const h=React.createElement,W=o.w,H=o.h,els=[];const id='cp'+(CLIP++);
+  const leg=(o.legend||[]);const titleH=o.title?22:8,legH=leg.length?16:0;
+  const ml=o.ytitle?60:46,mr=o.ring?44:16,mt=titleH+legH+6,mb=22,pw=W-ml-mr,ph=H-mt-mb;
+  const ticks=o.yticks||niceTicks(o.y0,o.y1,o.ny||5);const y0=ticks[0],y1=ticks[ticks.length-1];
+  const X=x=>ml+(x-o.x0)/(o.x1-o.x0)*pw, Y=y=>mt+ph-(y-y0)/(y1-y0)*ph;
+  const f=o.fmt||axFmt(ticks,o.kind);
+  els.push(h('rect',{key:'bg',x:0,y:0,width:W,height:H,fill:'#fff'}));
+  els.push(h('defs',{key:'d'},h('clipPath',{id},h('rect',{x:ml,y:mt-4,width:pw,height:ph+8}))));
+  if(o.title)els.push(h('text',{key:'t',x:W/2,y:15,style:{font:'700 13.33px '+CA,fill:K.TEXT,textAnchor:'middle'}},o.title));
+  if(leg.length){const ws=leg.map(l=>26+l.n.length*5.9+14);const tot=ws.reduce((a,b)=>a+b,0);let x=Math.max(ml,(W-tot)/2);const y=titleH+9;
+    leg.forEach((l,i)=>{if(l.box)els.push(h('rect',{key:'lb'+i,x:x+4,y:y-5,width:10,height:10,style:{fill:l.col}}));else els.push(h('line',{key:'ll'+i,x1:x,y1:y,x2:x+18,y2:y,style:{stroke:l.col,strokeWidth:l.sw||2,strokeDasharray:l.dash||'none'}}));
+      els.push(h('text',{key:'lt'+i,x:x+24,y:y+4,style:{font:'12px '+CA,fill:K.TEXT}},l.n));x+=ws[i];});}
+  ticks.forEach((t,i)=>{els.push(h('line',{key:'g'+i,x1:ml,x2:ml+pw,y1:Y(t),y2:Y(t),style:{stroke:K.RULE,strokeWidth:1}}));els.push(h('text',{key:'gl'+i,x:ml-6,y:Y(t)+4,style:{font:'12px '+CA,fill:K.SLATE,textAnchor:'end'}},f(t)));});
+  const cl={clipPath:'url(#'+id+')'};
+  (o.bands||[]).forEach((b,i)=>els.push(h('rect',{key:'b'+i,x:X(b.x0),y:Y(b.hi),width:Math.max(0,X(b.x1)-X(b.x0)),height:Math.max(0,Y(b.lo)-Y(b.hi)),style:{fill:b.fill||K.MIST,...cl}})));
+  (o.bars||[]).forEach((b,i)=>{let acc=0;b.v.forEach((v,j)=>{if(v==null)return;els.push(h('rect',{key:'r'+i+'_'+j,x:X(b.x)-b.w/2,y:Y(acc+v),width:b.w,height:Math.max(0,Y(acc)-Y(acc+v)),style:{fill:o.barCols[j]}}));acc+=v;});});
+  if(y0<0&&y1>0)els.push(h('line',{key:'z',x1:ml,x2:ml+pw,y1:Y(0),y2:Y(0),style:{stroke:K.STONE,strokeWidth:1}}));
+  (o.hlines||[]).forEach((l,i)=>els.push(h('line',{key:'h'+i,x1:X(l.x0??o.x0),x2:X(l.x1??o.x1),y1:Y(l.y),y2:Y(l.y),style:{stroke:l.col,strokeWidth:l.sw||1,strokeDasharray:l.dash||'none'}})));
+  (o.series||[]).forEach((s,i)=>{let d='',pen=false;s.pts.forEach(([x,y])=>{if(y==null||x<o.x0||x>o.x1){pen=false;return;}d+=(pen?'L':'M')+X(x).toFixed(1)+' '+Y(y).toFixed(1);pen=true;});els.push(h('path',{key:'s'+i,d,style:{fill:'none',stroke:s.col,strokeWidth:s.sw||1.5,strokeLinejoin:'round',...cl}}));});
+  (o.marks||[]).forEach((m,i)=>{if(m.x<o.x0||m.x>o.x1)return;const x=X(m.x),y=Y(Math.max(y0,Math.min(y1,m.y)));const d=m.up?`M${x-3.5} ${y+3}L${x+3.5} ${y+3}L${x} ${y-3}Z`:`M${x-3.5} ${y-3}L${x+3.5} ${y-3}L${x} ${y+3}Z`;els.push(h('path',{key:'m'+i,d,style:{fill:K.STONE,stroke:K.SLATE,strokeWidth:0.75}}));});
+  if(o.ring){const x=X(o.ring.x),y=Y(o.ring.y);els.push(h('circle',{key:'ring',cx:x,cy:y,r:4,style:{fill:'#fff',stroke:K.INK,strokeWidth:1.5}}));if(o.ring.l)els.push(h('text',{key:'rl',x:x+(o.ring.left?-7:7),y:y+4,style:{font:'700 12px '+CA,fill:K.TEXT,textAnchor:o.ring.left?'end':'start'}},o.ring.l));}
+  els.push(h('line',{key:'ay',x1:ml,x2:ml,y1:mt,y2:mt+ph,style:{stroke:K.STONE,strokeWidth:1}}));
+  els.push(h('line',{key:'ax',x1:ml,x2:ml+pw,y1:mt+ph,y2:mt+ph,style:{stroke:K.STONE,strokeWidth:1}}));
+  const step=o.xstep||10;for(let v=Math.ceil(o.x0/step)*step;v<=o.x1;v+=step){const x=X(v);els.push(h('line',{key:'xt'+v,x1:x,x2:x,y1:mt+ph,y2:mt+ph+3,style:{stroke:K.STONE}}));els.push(h('text',{key:'xl'+v,x,y:mt+ph+16,style:{font:'12px '+CA,fill:K.SLATE,textAnchor:'middle'}},String(v)));}
+  if(o.ytitle)els.push(h('text',{key:'yt',x:14,y:mt+ph/2,transform:`rotate(-90 14 ${mt+ph/2})`,style:{font:'700 12px '+CA,fill:K.TEXT,textAnchor:'middle'}},o.ytitle));
+  return h('svg',{width:W,height:H,style:{display:'block'}},els);
+}
+function cut(vals,keep,p){const s=vals.filter(v=>v!=null&&isFinite(v)).sort((a,b)=>a-b);let lo=q(s,p),hi=q(s,1-p);keep.forEach(k=>{if(k!=null){lo=Math.min(lo,k);hi=Math.max(hi,k);}});return {lo,hi};}
+function applyCut(pts,c){const out=[],marks=[];pts.forEach(([x,y])=>{if(y==null){out.push([x,null]);return;}if(y>c.hi){out.push([x,null]);marks.push({x,y:c.hi,up:1});}else if(y<c.lo){out.push([x,null]);marks.push({x,y:c.lo,up:0});}else out.push([x,y]);});return {pts:out,marks};}
+function seriesPts(d,key,field,a,b){const s=d.series[key];const arr=s[field];const out=[];const quarterly=s.freq==='quarterly';for(let j=0;j<arr.length;j++){const gi=s.i0+j;if(a!=null&&(gi<a||gi>b))continue;const v=arr[j];if(v==null&&quarterly)continue;out.push([yr(gi),v]);}return out;}
+function rng(pts,extra){let lo=Infinity,hi=-Infinity;pts.forEach(([,y])=>{if(y!=null){lo=Math.min(lo,y);hi=Math.max(hi,y);}});(extra||[]).forEach(v=>{if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v);}});return [lo,hi];}
+function lastPt(pts){for(let i=pts.length-1;i>=0;i--)if(pts[i][1]!=null)return pts[i];return null;}
+
+/* ---------- sheet model ---------- */
+function newSheet(cols){return {cols,rows:[],charts:[],inputs:[],freeze:null};}
+function R(sh,h,cells,o){sh.rows.push({h,cells:cells||[],...(o||{})});return sh.rows.length-1;}
+function cellSt(c,left,width,top,height){
+  const al=c.al||'l',va=c.va||'c';
+  return {position:'absolute',left:left+'px',top:top+'px',width:width+'px',height:height+'px',boxSizing:'border-box',overflow:'hidden',display:'flex',alignItems:va==='t'?'flex-start':va==='b'?'flex-end':'center',justifyContent:al==='r'?'flex-end':al==='c'?'center':'flex-start',textAlign:al==='r'?'right':al==='c'?'center':'left',padding:(va==='t'?'2px ':'0 ')+(3+(al==='r'?0:(c.ind||0)*9))+'px '+(va==='t'?'0 ':'0 ')+(al==='l'?3:3)+'px',whiteSpace:c.wrap?'normal':'nowrap',lineHeight:c.wrap?'1.2':'1.1',fontFamily:c.f==='ar'?AR:CA,fontSize:((c.z||11)*4/3).toFixed(2)+'px',fontWeight:c.b?700:400,color:c.col||K.TEXT,background:c.bg||'transparent',borderBottom:bd(c.bb),borderTop:bd(c.bt),borderLeft:bd(c.bl),borderRight:bd(c.br),textDecoration:c.u?'underline':'none'};
+}
+function layout(sh,fold,tabs){
+  const W=sh.cols.map(cw);const L=[0];W.forEach((w,i)=>L.push(L[i]+w));
+  let y=0;sh.rows.forEach(r=>{r.top=y;r.px=r.hid?0:px(r.h);y+=r.px;});
+  const H=y;const VIS=1890;
+  const colHeads=[];const hs={position:'absolute',top:0,height:'20px',background:'#E6E6E6',borderRight:'1px solid #C8C8C8',borderBottom:'1px solid #C8C8C8',boxSizing:'border-box',font:'11px "Segoe UI", Arial, sans-serif',color:'#444',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'};
+  let i=0,x=0;while(x<VIS){const w=i<W.length?W[i]:64;colHeads.push({l:colName(i),st:{...hs,left:(30+x)+'px',width:Math.min(w,VIS-x)+'px'}});x+=w;i++;}
+  const gut=[];const gs={position:'absolute',left:0,width:'30px',background:'#E6E6E6',borderRight:'1px solid #C8C8C8',borderBottom:'1px solid #D0D0D0',boxSizing:'border-box',font:'11px "Segoe UI", Arial, sans-serif',color:'#444',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'};
+  sh.rows.forEach((r,ri)=>{if(!r.hid)gut.push({n:r.plus?'+ '+(ri+1):String(ri+1),st:{...gs,top:(20+r.top)+'px',height:r.px+'px',color:r.plus?K.RED:'#444',fontWeight:r.plus?700:400}});});
+  const minH=Math.max(H+40,fold+60);let yy=H,n=sh.rows.length;while(yy<minH){gut.push({n:String(++n),st:{...gs,top:(20+yy)+'px',height:'20px'}});yy+=20;}
+  const cells=[];sh.rows.forEach(r=>{if(r.hid)return;r.cells.forEach(c=>{const s=c.s||1;const w=L[Math.min(c.c+s,W.length)]-L[c.c];cells.push({v:c.v==null?'':String(c.v),st:cellSt(c,L[c.c],w,r.top,r.px)});});});
+  const h=React.createElement;
+  const chartLayer=h('div',{style:{position:'absolute',left:0,top:0}},sh.charts.map((ch,k)=>h('div',{key:k,style:{position:'absolute',left:(L[ch.c]+(ch.dx||0))+'px',top:(sh.rows[ch.r].top+(ch.dy||0))+'px',boxShadow:'0 0 0 1px #E7E2D8'}},svgChart(ch))));
+  const inputs=sh.inputs.map(inp=>{const r=sh.rows[inp.r];const w=L[inp.c+inp.s]-L[inp.c];return {...inp,st:{position:'absolute',left:L[inp.c]+'px',top:r.top+'px',width:w+'px',height:r.px+'px',boxSizing:'border-box',background:K.INPUT,border:'1px solid '+K.EDGE,borderBottom:'3px solid '+(inp.edge||K.EDGE),font:'700 '+(11*4/3).toFixed(2)+'px '+CA,color:K.TEXT,padding:'0 4px',cursor:'pointer'}};});
+  const freeze=[];if(sh.freeze){const fr=sh.rows[sh.freeze.r].top,fc=L[sh.freeze.c];freeze.push({st:{position:'absolute',left:0,right:0,top:fr+'px',height:0,borderTop:'1px solid #8A8A8A'}});if(sh.freeze.c)freeze.push({st:{position:'absolute',top:0,bottom:0,left:fc+'px',width:0,borderLeft:'1px solid #8A8A8A'}});}
+  const frameH=20+minH+24;
+  return {frameSt:{position:'relative',height:frameH+'px'},gridSt:{position:'absolute',left:'30px',top:'20px',width:VIS+'px',height:minH+'px',overflow:'hidden'},colHeads,gut,cells,chartLayer,inputs,freeze,foldSt:{position:'absolute',left:0,right:0,top:(20+fold)+'px',borderTop:'2px dashed '+K.RED,zIndex:5},foldLabel:'Bottom of the screen at 100%',tabs};
+}
+function tabStrip(order,active){const i=Math.max(0,order.findIndex(t=>t.n===active));const start=Math.max(0,i-3);return order.slice(start,start+22).map(t=>({n:t.n,st:{padding:'0 12px',display:'flex',alignItems:'center',whiteSpace:'nowrap',background:t.n===active?'#FFFFFF':'#F3F2F1',fontWeight:t.n===active?700:400,color:t.n===active?'#217346':'#222',borderRight:'1px solid #D4D4D4',borderBottom:'3px solid '+(t.c||'transparent'),boxSizing:'border-box'}}));}
+
+/* ---------- shared pieces ---------- */
+function titleBand(sh,W,title,sub,last,record){
+  const cells=[{c:0,s:last+1,bg:record?K.SLATE:K.INK,bb:'thick|'+(record?K.STONE:K.RED)},{c:1,s:12,v:title,f:'ar',z:16,b:1,col:K.PAPER}];
+  const need=title.length*12.4+20;let acc=0,c=1;while(acc<need&&c<last){acc+=W[c];c++;}
+  cells.push({c,s:last+1-c,v:sub,z:10,col:record?K.MIST:K.STONE});
+  R(sh,27,cells);
+}
+function nav(sh,items){R(sh,15,items.map(([c,s,v])=>({c,s,v,z:10,col:K.LINK})));}
+function spacer(sh,h){R(sh,h,[]);}
+function section(sh,text,c0,c1){return {c:c0,s:c1-c0+1,v:text,f:'ar',z:10,b:1,col:K.INK,bb:'medium|'+K.INK,va:'b'};}
+function hdr(c,s,v,al,o){return {c,s,v,f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS,bb:'thin|'+K.STONE,wrap:1,al:al||'l',...(o||{})};}
+function dirCell(c,s,dir,onCanvas){const mv=dir&&dir!=='Stable';return {c,s,v:dir==='Increasing'?'▲ Increasing':dir==='Decreasing'?'▼ Decreasing':(dir||''),al:'c',b:mv?1:0,col:mv?K.INK:K.SLATE,bg:mv?K.MIST:(onCanvas?K.CANVAS:undefined)};}
+function tileRows(sh,tiles){
+  R(sh,15,tiles.map(t=>({c:t.c,s:t.s,v:t.label,f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS,bt:'thick|'+K.RED,bl:'medium|#FFFFFF',ind:1})));
+  R(sh,22,tiles.map(t=>({c:t.c,s:t.s,v:t.value,f:'ar',z:12,b:1,col:t.link?K.LINK:K.TEXT,bg:K.CANVAS,bl:'medium|#FFFFFF',ind:1})));
+}
+const OV_COLS=[2.71,58,10.71,10.71,31,10.71,11.86,10.71,11.86,11.86,14.57,9.29,9.29,9.29,26];
+const OV_HEAD=[['Series','l'],['Latest','r'],['Value','r'],['Unit','l'],['Level: at or above','r'],['Change over 12 months','r'],['Change to','r'],['Normal from','r'],['Normal to','r'],['Direction','c'],['Typical moves','r'],['Since','r'],['History from','r'],['What if','l']];
+function readingCells(d,key,map,o){
+  const r=d.readings[key];if(!r)return [];const lv=r.level,ch=r.change,f=r.freq;const s=d.series[key]||{};
+  const date=lv?lv.date:ch.date;const val=lv?lv.value:r.latestLevel;const M=map;const out=[];
+  const put=(k,cell)=>{if(M[k]!=null)out.push({c:M[k],...cell});};
+  put('name',{v:o&&o.name||r.title,col:o&&o.plain?K.TEXT:K.LINK,b:o&&o.bold?1:0,bl:o&&o.edge?'thick|'+o.edge:undefined});
+  put('latest',{v:dt(date,f),al:'r'});
+  put('value',{v:num(val),al:'r'});
+  put('unit',{v:s.unit||r.unit,z:10,col:K.SLATE,ind:1,s:M.unitSpan||1});
+  put('level',lv?{v:lv.pct.toFixed(1)+'%',al:'r'}:{v:'change only',z:10,col:K.SLATE,al:'r'});
+  if(ch){put('change',{v:chg(ch.value,ch.unit),al:'r'});
+    put('to',{v:ch.date!==date?dt(ch.date,f):'',b:1,al:'r'});
+    put('lo',{v:chg(ch.lo,ch.unit),al:'r'});put('hi',{v:chg(ch.hi,ch.unit),al:'r'});
+    if(M.dir!=null)out.push(dirCell(M.dir,M.dirSpan||1,ch.dir));
+    put('moves',{v:sgn(ch.moves,1),al:'r'});put('since',{v:ym(ch.since,f),al:'r'});}
+  put('from',{v:ym((lv||ch).from,f),al:'r'});
+  put('whatif',{v:WHATIF[key]||'',b:1});
+  return out;
+}
+const OV_MAP={name:1,latest:2,value:3,unit:4,level:5,change:6,to:7,lo:8,hi:9,dir:10,moves:11,since:12,from:13,whatif:14};
+
+/* ---------- Overview ---------- */
+function buildOverview(d,whatIf,order,fold){
+  const cols=whatIf?OV_COLS:OV_COLS.slice(0,14);const last=cols.length-1;const sh=newSheet(cols);const W=cols.map(cw);
+  titleBand(sh,W,'Economic conditions','Public data, pulled '+d.vintage+'. Where each series sits in its own history, and whether it is moving more than it normally does.',last);
+  nav(sh,[[1,1,'Dashboard: any two series together'],[2,3,'Also read, with care: 31 series']]);
+  spacer(sh,6);
+  const core=TOPICS.flatMap(t=>t[1]).concat(DEBT_KEYS).map(k=>d.readings[k]).filter(r=>r&&r.change);
+  const cnt=dd=>core.filter(r=>r.change.dir===dd).length;
+  const tiles=[{c:1,s:1,label:'From the pull of',value:d.vintage},{c:2,s:2,label:'Changes read',value:core.length},{c:4,s:1,label:'▲ Increasing',value:cnt('Increasing')},{c:5,s:2,label:'Stable',value:cnt('Stable')},{c:7,s:2,label:'▼ Decreasing',value:cnt('Decreasing')},{c:9,s:3,label:'Sahm reading, beside the change',value:d.sahm.value.toFixed(2)+' in Sep 2026'}];
+  if(whatIf)tiles.push({c:12,s:3,label:'What if: what-if-pandemic-left-out.json',value:'2 of 73 changes read another way',link:1});
+  tileRows(sh,tiles);
+  spacer(sh,9);
+  const head=OV_HEAD.slice(0,last).map(([v,al],i)=>hdr(i+1,1,v,al,{ind:v==='Unit'?1:0}));
+  R(sh,24,head);
+  sh.freeze={r:sh.rows.length,c:2};
+  TOPICS.forEach(([t,keys],ti)=>{
+    if(ti)spacer(sh,6);
+    R(sh,18,[section(sh,t,1,last)]);
+    keys.forEach(k=>{
+      const isTot=k==='household_total';
+      R(sh,15,[{c:1,s:last,bb:'thin|'+K.RULE},...readingCells(d,k,OV_MAP)],{plus:isTot});
+      if(isTot)DEBT_KEYS.forEach(dk=>R(sh,15,readingCells(d,dk,OV_MAP),{hid:1}));
+    });
+  });
+  spacer(sh,12);
+  R(sh,15,[{c:1,s:last,v:'How this tab works',f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS}],{plus:1});
+  for(let i=0;i<12;i++)R(sh,15,[],{hid:1});
+  return layout(sh,fold,tabStrip(order,'Overview'));
+}
+
+/* ---------- Usable with care ---------- */
+function buildCare(d,order,fold){
+  const cols=OV_COLS.slice(0,14);const last=13;const sh=newSheet(cols);const W=cols.map(cw);
+  titleBand(sh,W,'Usable with care','The research\'s "usable with care" group, read the same way as the rest.',last);
+  nav(sh,[[1,1,'Back to Overview']]);spacer(sh,6);
+  const keys=CARE_TOPICS.flatMap(t=>t[1]);const rs=keys.map(k=>d.readings[k]).filter(r=>r&&r.change);const cnt=dd=>rs.filter(r=>r.change.dir===dd).length;
+  tileRows(sh,[{c:1,s:1,label:'Series read',value:keys.length},{c:2,s:2,label:'In the group, not read',value:d.notread.length},{c:4,s:1,label:'▲ Increasing',value:cnt('Increasing')},{c:5,s:2,label:'Stable',value:cnt('Stable')},{c:7,s:2,label:'▼ Decreasing',value:cnt('Decreasing')}]);
+  spacer(sh,9);
+  R(sh,24,OV_HEAD.slice(0,13).map(([v,al],i)=>hdr(i+1,1,v,al,{ind:v==='Unit'?1:0})));
+  sh.freeze={r:sh.rows.length,c:2};
+  CARE_TOPICS.forEach(([t,ks],ti)=>{
+    if(ti)spacer(sh,6);
+    R(sh,18,[section(sh,t,1,last)]);
+    ks.forEach(k=>{const r=d.readings[k];R(sh,15,readingCells(d,k,OV_MAP));R(sh,13.5,[{c:1,s:last,v:d.whys[r.title]||'',z:10,col:K.SLATE,ind:1,bb:'thin|'+K.RULE,va:'t'}]);});
+  });
+  spacer(sh,12);
+  R(sh,18,[section(sh,'In the group, not read, and why',1,last)]);
+  R(sh,15,[hdr(1,1,'Series'),hdr(2,last-1,'Why it is not read')]);
+  d.notread.forEach(([a,b])=>R(sh,15,[{c:1,s:last,bb:'thin|'+K.RULE},{c:1,v:a},{c:2,s:last-1,v:b,z:10,col:K.SLATE}]));
+  spacer(sh,12);
+  R(sh,18,[section(sh,"Credits the publishers' licences require",1,last)]);
+  R(sh,30,[{c:1,s:last,bb:'thin|'+K.RULE},{c:1,v:d.credit.B,wrap:1,va:'t'},{c:2,s:last-1,v:d.credit.C,z:10,col:K.SLATE,wrap:1,va:'t'}]);
+  spacer(sh,12);
+  R(sh,15,[{c:1,s:last,v:'How this tab works',f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS}],{plus:1});
+  return layout(sh,fold,tabStrip(order,'Usable with care'));
+}
+
+/* ---------- 72 px grid: series, household, dashboard ---------- */
+const G72=[2.71,...Array(24).fill(9.57),2.71,10.71,12,14,20];
+function changeTile(sh,d,key,c0,whatIfText){ /* rows appended by caller: returns cell arrays for rows 4..8 */
+  const r=d.readings[key],ch=r.change,f=r.freq;
+  return {
+    t:{c:c0,s:12,v:'CHANGE OVER 12 MONTHS'},
+    v:[dirCell(c0,2,ch.dir,1),{c:c0+2,s:2,v:chg(ch.value,ch.unit),f:'ar',z:14,b:1,al:'r'},{c:c0+4,s:2,v:ch.unit,z:10,col:K.SLATE,ind:1},{c:c0+6,s:2,v:dt(ch.date,f),al:'r'}],
+    l:[['Normal from',0],['Normal to',2],['Typical moves',4],['Since',6],['History from',8]].map(([v,o])=>({c:c0+o,s:2,v,z:9,col:K.SLATE,ind:1,va:'b'})),
+    x:[{c:c0,s:2,v:chg(ch.lo,ch.unit),ind:1},{c:c0+2,s:2,v:chg(ch.hi,ch.unit),ind:1},{c:c0+4,s:2,v:sgn(ch.moves,1),ind:1},{c:c0+6,s:2,v:ym(ch.since,f),ind:1},{c:c0+8,s:2,v:ym(ch.from,f),ind:1}],
+    w:whatIfText
+  };
+}
+function tileBlock(sh,blocks,whatIf){
+  const fill=(row)=>blocks.map(b=>({c:b.c,s:b.s,bg:K.CANVAS,bl:'medium|#FFFFFF',...(row===0?{bt:'thick|'+K.RED}:{})}));
+  R(sh,18,[...fill(0),...blocks.map(b=>({c:b.c,s:b.s,v:b.t,f:'ar',z:9,b:1,col:K.SLATE,ind:1}))]);
+  R(sh,24,[...fill(1),...blocks.flatMap(b=>b.v)]);
+  R(sh,13.5,[...fill(2),...blocks.flatMap(b=>b.l)]);
+  R(sh,15,[...fill(3),...blocks.flatMap(b=>b.x)]);
+  if(whatIf)R(sh,15,[...fill(4),...blocks.flatMap(b=>b.w||[])]);
+}
+function parseRange(s){if(!s)return null;const m=s.match(/normal range\s*([+\-]?[\d.]+)%?\s*to\s*([+\-]?[\d.]+)/);return m?[+m[1],+m[2]]:null;}
+function textRows(tt){const rows=Object.entries(tt).sort((a,b)=>a[0]-b[0]);return rows;}
+function buildSeries(d,key,whatIf,order,fold){
+  const r=d.readings[key],lv=r.level,ch=r.change,f=r.freq,s=d.series[key];const tab=TABN[key];const tt=d.tabText[tab]||{};
+  const sh=newSheet(G72);const W=G72.map(cw);
+  const sub=Object.entries(tt['1']||{}).filter(([c])=>c!=='B').map(e=>e[1])[0]||'';
+  titleBand(sh,W,r.title,sub,25);
+  nav(sh,[[1,3,'Back to Overview'],[4,3,'Dashboard'],[7,3,'What if']]);spacer(sh,6);
+  const wi=tt['7']||{};
+  const lvlBlock={c:1,s:6,t:'LEVEL',
+    v:[{c:1,s:2,v:num(lv?lv.value:r.latestLevel),f:'ar',z:14,b:1,ind:1},{c:3,s:2,v:s.unit,z:10,col:K.SLATE,ind:1},{c:5,s:2,v:dt(lv?lv.date:ch.date,f),al:'r'}],
+    l:lv?[['Level: at or above',1],['Lowest',3],['Highest',5]].map(([v,c])=>({c,s:2,v,z:9,col:K.SLATE,ind:1,va:'b'})):[{c:1,s:4,v:'Level: at or above',z:9,col:K.SLATE,ind:1,va:'b'}],
+    x:lv?[{c:1,s:2,v:lv.pct.toFixed(1)+'%',ind:1},{c:3,s:2,v:num(lv.lowest),ind:1},{c:5,s:2,v:num(lv.highest),ind:1}]:[{c:1,s:6,v:'change only',col:K.SLATE,ind:1}],
+    w:lv&&wi.C?[{c:1,s:1,v:'WHAT IF',f:'ar',z:9,b:1,col:K.SLATE,ind:1},{c:2,s:5,v:wi.C,z:10}]:[]};
+  const ct=changeTile(sh,d,key,7);
+  const chBlock={c:7,s:12,t:ct.t.v,v:ct.v,l:ct.l,x:ct.x,w:wi.I?[{c:7,s:1,v:'WHAT IF',f:'ar',z:9,b:1,col:K.SLATE,ind:1},dirCell(8,2,wi.H,1),{c:10,s:9,v:wi.I,z:10,ind:1}]:[]};
+  const blocks=[lvlBlock,chBlock];
+  if(key==='unemployment'){const sm=d.sahm;blocks.push({c:19,s:6,t:'SAHM READING, BESIDE THE CHANGE',v:[{c:19,s:2,v:sm.value.toFixed(2),f:'ar',z:14,b:1,ind:1},{c:21,s:2,v:'points',z:10,col:K.SLATE,ind:1},{c:23,s:2,v:dt(sm.date,'monthly'),al:'r'}],l:[{c:19,s:6,v:"Sahm's published trigger",z:9,col:K.SLATE,ind:1,va:'b'}],x:[{c:19,s:6,v:'0.50',ind:1}],w:[]});}
+  tileBlock(sh,blocks,whatIf);
+  spacer(sh,9);
+  const chartRow=sh.rows.length;for(let i=0;i<16;i++)R(sh,15,[]);
+  const offs=Object.values(tt).map(x=>x.B).filter(v=>v&&v.startsWith('Off the chart:'));
+  const wr=parseRange(wi.I);
+  const lvPts=seriesPts(d,key,'lv'),chPts=seriesPts(d,key,'ch');
+  const x0=Math.floor(yr(s.i0)),x1=yr(s.i0+s.lv.length);const span=x1-x0;const xstep=span>60?10:span>30?5:span>12?5:2;
+  const mkChange=(w,c)=>{const latest=lastPt(chPts);const cv=cut(chPts.map(p=>p[1]),[latest&&latest[1],ch.lo,ch.hi],0.01);const ap=applyCut(chPts,cv);const [lo,hi]=rng(ap.pts,[ch.lo,ch.hi,...(whatIf&&wr?wr:[])]);
+    const hl=whatIf&&wr?[{y:wr[0],col:K.SLATE,dash:'5 3'},{y:wr[1],col:K.SLATE,dash:'5 3'}]:[];
+    return {c,r:chartRow,w,h:320,title:'Change over 12 months, its normal range shaded'+(whatIf?' (dashed: the normal range under the what-if)':''),ytitle:ch.unit,x0,x1,y0:lo,y1:hi,kind:'chg',xstep:w>1000?5:xstep,bands:[{x0,x1,lo:ch.lo,hi:ch.hi}],hlines:hl,series:[{pts:ap.pts,col:K.INK,sw:1.5}],marks:ap.marks,ring:latest?{x:latest[0],y:latest[1],l:sgn(latest[1],ch.unit==='percent'?2:1)}:null};};
+  if(lv){const latest=lastPt(lvPts);const cv=cut(lvPts.map(p=>p[1]),[latest&&latest[1]],0.01);const ap=applyCut(lvPts,cv);const [lo,hi]=rng(ap.pts);
+    sh.charts.push({c:1,r:chartRow,w:864,h:320,title:'Level against its history',ytitle:s.unit.length<14?s.unit:'level',x0,x1,y0:lo,y1:hi,xstep,series:[{pts:ap.pts,col:K.INK,sw:1.5}],marks:ap.marks,ring:latest?{x:latest[0],y:latest[1],l:num(latest[1])}:null});
+    sh.charts.push(mkChange(864,13));}
+  else sh.charts.push(mkChange(1728,1));
+  const n1=lv?offs[0]:null,n2=lv?offs[1]:offs[0];
+  R(sh,27,[{c:1,s:12,v:n1||'',z:10,col:K.SLATE,wrap:1,va:'t'},{c:lv?13:1,s:lv?12:24,v:n2||'',z:10,col:K.SLATE,wrap:1,va:'t'}]);
+  spacer(sh,9);
+  const wiRow=sh.rows.length;
+  R(sh,18,[section(sh,'What it is',1,12)]);
+  let on=false;const facts=[];textRows(tt).forEach(([n,x])=>{if(x.B==='What it is'){on=true;return;}if(on&&x.B&&x.C)facts.push([x.B,x.C]);});
+  if(lv)facts.push(['Level',lv.sentence]);facts.push(['Change over 12 months',ch.sentence]);
+  facts.forEach(([a,b])=>{const lines=Math.max(1,Math.ceil(b.length*6.6/(720-10)));R(sh,15*lines,[{c:1,s:12,bb:'thin|'+K.RULE},{c:1,s:2,v:a,b:1,va:'t',wrap:1},{c:3,s:10,v:b,wrap:1,va:'t'}]);});
+  if(key==='unemployment'){const lvA=s.lv;const m3=lvA.map((v,j)=>{const w=[lvA[j],lvA[j-1],lvA[j-2]].filter(z=>z!=null);return j<2||!w.length?null:w.reduce((a,b)=>a+b,0)/w.length;});const sahm=m3.map((v,j)=>{if(v==null||j<14)return null;const prev=m3.slice(j-12,j).filter(z=>z!=null);return prev.length?v-Math.min(...prev):null;});const pts=sahm.map((v,j)=>[yr(s.i0+j),v]);const [lo,hi]=rng(pts,[0.5]);
+    sh.charts.push({c:13,r:wiRow,w:864,h:220,title:"Sahm reading, beside the change: dashed line at Sahm's trigger, 0.50",x0,x1,y0:lo,y1:hi,xstep,kind:'chg',hlines:[{y:0.5,col:K.SLATE,dash:'5 3'}],series:[{pts,col:K.INK,sw:1.5}],ring:{x:pts[pts.length-1][0],y:d.sahm.value,l:'0.00'}});}
+  spacer(sh,12);
+  R(sh,15,[{c:1,s:24,v:'How this tab works',f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS}],{plus:1});
+  for(let i=0;i<4;i++)R(sh,15,[],{hid:1});
+  sh.rows[3].cells.push(hdr(26,1,'Date','r'),hdr(27,1,'Value','r'),hdr(28,1,'Change over 12 months','r'),hdr(29,1,'Note'));
+  sh.freeze={r:3,c:0};
+  return layout(sh,fold,tabStrip(order,tab));
+}
+
+/* ---------- Household debt ---------- */
+function buildHousehold(d,whatIf,order,fold){
+  const sh=newSheet(G72);const W=G72.map(cw);const tt=d.tabText['Household debt'];
+  titleBand(sh,W,'Household debt',tt['1'].D,25);
+  nav(sh,[[1,3,'Back to Overview'],[4,3,'Dashboard']]);spacer(sh,6);
+  const tot=d.readings.household_total;const ct=changeTile(sh,d,'household_total',7);
+  const total=tot.latestLevel;
+  tileBlock(sh,[{c:1,s:6,t:'Total, 2026 Q2',v:[{c:1,s:4,v:'$'+total.toFixed(2)+' trillion',f:'ar',z:14,b:1,ind:1}],l:[{c:1,s:4,v:'History from',z:9,col:K.SLATE,ind:1,va:'b'}],x:[{c:1,s:4,v:'2003 Q1',ind:1}],w:[]},{c:7,s:12,t:ct.t.v,v:ct.v,l:ct.l,x:ct.x,w:[]}],false);
+  spacer(sh,9);
+  const top=sh.rows.length;
+  R(sh,18,[section(sh,'Each type, latest quarter',13,24)]);
+  R(sh,33,[hdr(13,2,'Type, as the NY Fed heads it'),hdr(15,1,'Balance, $ trillions','r'),hdr(16,1,'Share of total','r'),hdr(17,1,'Change over 12 months','r'),hdr(18,1,'Normal from','r'),hdr(19,1,'Normal to','r'),hdr(20,2,'Direction','c'),hdr(22,1,'Typical moves','r'),hdr(23,1,'Since','r'),hdr(24,1,'History from','r')]);
+  const map={name:13,lo:18,hi:19,change:17,dir:20,dirSpan:2,moves:22,since:23,from:24};
+  [...DEBT_KEYS,'household_total'].forEach((k,i)=>{const r=d.readings[k];const bal=r.latestLevel;const isT=k==='household_total';
+    const cells=[{c:13,s:12,bb:isT?'thin|'+K.INK:'thin|'+K.RULE},...readingCells(d,k,map,{name:isT?'Total':DEBT_NAMES[i],plain:1,bold:isT}).map(c=>c.c===13?{...c,s:2}:c),{c:15,v:bal.toFixed(3),al:'r',b:isT?1:0},{c:16,v:(bal/total*100).toFixed(1)+'%',al:'r',b:isT?1:0}];
+    R(sh,15,cells);});
+  spacer(sh,9);
+  const chRow=sh.rows.length;for(let i=0;i<8;i++)R(sh,15,[]);
+  const qs=d.series.household_total;const bars=[];const x0=2003,x1=yr(qs.i0+qs.lv.length)+0.25;
+  for(let j=0;j<qs.lv.length;j++){if(qs.lv[j]==null)continue;const gi=qs.i0+j;bars.push({x:yr(gi)+0.125,w:5.6,v:DEBT_KEYS.map(k=>{const s=d.series[k];return s.lv[gi-s.i0];})});}
+  const hTop=sh.rows.slice(top,chRow+8).reduce((a,r)=>a+px(r.h),0);
+  sh.charts.push({c:1,r:top,w:864,h:hTop,title:"Total Debt Balance and Its Composition (the NY Fed's chart, as it reports it)",ytitle:'trillions of dollars',x0,x1,yticks:[0,5,10,15,20],fmt:v=>String(v),xstep:2,bars,barCols:DEBT,legend:DEBT_NAMES.map((n,i)=>({n,col:DEBT[i],box:1}))});
+  const tp=seriesPts(d,'household_total','ch');const ch=tot.change;const latest=lastPt(tp);const [lo,hi]=rng(tp,[ch.lo,ch.hi]);
+  sh.charts.push({c:13,r:chRow,w:864,h:160,title:'Total: change over 12 months, its normal range shaded',ytitle:'percent',x0,x1,y0:lo,y1:hi,kind:'chg',xstep:5,bands:[{x0,x1,lo:ch.lo,hi:ch.hi}],series:[{pts:tp,col:K.INK,sw:1.5}],ring:{x:latest[0],y:latest[1],l:sgn(latest[1],2),left:1}});
+  R(sh,27,[{c:1,s:24,v:tt['44'].B,z:10,col:K.SLATE,wrap:1,va:'t'}]);
+  spacer(sh,9);
+  R(sh,18,[section(sh,'What it is',1,12)]);
+  let on=false;textRows(tt).forEach(([n,x])=>{if(x.B==='What it is'){on=true;return;}if(on&&x.B&&x.C){const lines=Math.max(1,Math.ceil(x.C.length*6.6/710));R(sh,15*lines,[{c:1,s:12,bb:'thin|'+K.RULE},{c:1,s:2,v:x.B,b:1,va:'t'},{c:3,s:10,v:x.C,wrap:1,va:'t'}]);}});
+  spacer(sh,12);R(sh,15,[{c:1,s:24,v:'How this tab works',f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS}],{plus:1});
+  sh.freeze={r:3,c:0};
+  return layout(sh,fold,tabStrip(order,'Household debt'));
+}
+
+/* ---------- Glossary ---------- */
+function buildGlossary(d,order,fold){
+  const cols=[2.71,28,110];const sh=newSheet(cols);const W=cols.map(cw);
+  titleBand(sh,W,'Glossary','Every term in this workbook, and how it is worked out.',2,true);
+  nav(sh,[[1,1,'Back to Overview']]);spacer(sh,6);
+  R(sh,18,[hdr(1,1,'Term'),hdr(2,1,'What it means, and how it is worked out')]);
+  sh.freeze={r:4,c:0};
+  d.glossary.forEach(([t,m])=>{const lines=Math.max(1,Math.ceil(m.length*6.6/765));R(sh,15*lines+3,[{c:1,s:2,bb:'thin|'+K.RULE},{c:1,v:t,b:1,va:'t',wrap:1},{c:2,v:m,wrap:1,va:'t'}]);});
+  return layout(sh,fold,tabStrip(order,'Glossary'));
+}
+
+/* ---------- Dashboard ---------- */
+function quarters(){const out=[];for(let y=1919;y<=2026;y++)for(let qq=1;qq<=4;qq++)out.push(y+' Q'+qq);return out;}
+function qIdx(qs,end){const y=+qs.slice(0,4),qq=+qs.slice(6);return (y-1919)*12+(qq-1)*3+(end?2:0);}
+function buildDashboard(d,st,on,order,fold){
+  const sh=newSheet(G72);const W=G72.map(cw);
+  titleBand(sh,W,'Dashboard','Pick any two series and the quarters to draw: both together on scales they share, then each on its own.',25);
+  nav(sh,[[1,3,'Back to Overview']]);spacer(sh,6);
+  R(sh,13.5,[{c:1,s:6,v:'First series',f:'ar',z:9,b:1,col:K.SLATE,va:'b'},{c:7,s:6,v:'Second series',f:'ar',z:9,b:1,col:K.SLATE,va:'b'},{c:13,s:3,v:'From',f:'ar',z:9,b:1,col:K.SLATE,va:'b'},{c:16,s:3,v:'To',f:'ar',z:9,b:1,col:K.SLATE,va:'b'}]);
+  const boxRow=sh.rows.length;R(sh,21,[]);
+  const picks=Object.keys(d.series).map(k=>({v:k,l:(d.readings[k]||{title:k}).title}));
+  const qs=quarters().map(v=>({v,l:v}));
+  const opt=(list,val)=>list.map(o=>({...o,sel:o.v===val}));
+  sh.inputs.push({r:boxRow,c:1,s:6,value:st.a,options:opt(picks,st.a),on:on.a,edge:K.P[0]},{r:boxRow,c:7,s:6,value:st.b,options:opt(picks,st.b),on:on.b,edge:K.P[1]},{r:boxRow,c:13,s:3,value:st.from,options:opt(qs,st.from),on:on.from},{r:boxRow,c:16,s:3,value:st.to,options:opt(qs,st.to),on:on.to});
+  spacer(sh,6);
+  R(sh,33,[hdr(1,4,'Series'),hdr(5,1,'Latest','r'),hdr(6,1,'Value','r'),hdr(7,2,'Unit','l',{ind:1}),hdr(9,1,'Level: at or above','r'),hdr(10,1,'Change over 12 months','r'),hdr(11,1,'Normal from','r'),hdr(12,1,'Normal to','r'),hdr(13,2,'Direction','c'),hdr(15,1,'Typical moves','r'),hdr(16,1,'Since','r'),hdr(17,1,'History from','r')]);
+  const map={name:1,latest:5,value:6,unit:7,unitSpan:2,level:9,change:10,lo:11,hi:12,dir:13,dirSpan:2,moves:15,since:16,from:17};
+  [st.a,st.b].forEach((k,i)=>R(sh,15,[{c:1,s:17,bb:'thin|'+K.RULE},...readingCells(d,k,map,{plain:1,edge:K.P[i]}).map(c=>c.c===1?{...c,s:4}:c)]));
+  spacer(sh,6);
+  let a=qIdx(st.from,0),b=Math.min(qIdx(st.to,1),d.months.length-1);if(b<a){const t=a;a=b;b=t;}
+  const x0=yr(a),x1=yr(b+1);
+  const keys=[st.a,st.b];const S=keys.map(k=>d.series[k]);const Rd=keys.map(k=>d.readings[k]);
+  const r1=sh.rows.length;for(let i=0;i<14;i++)R(sh,15,[]);
+  // movement
+  const mv=keys.map((k,i)=>{const pts=seriesPts(d,k,'tm',a,b);const c=cut(S[i].tm,[],0.01);return applyCut(pts,c);});
+  const [mlo,mhi]=rng([...mv[0].pts,...mv[1].pts,...mv[0].marks.map(m=>[0,m.y]),...mv[1].marks.map(m=>[0,m.y])],[-1,1]);
+  const names=Rd.map(r=>r.title);
+  sh.charts.push({c:1,r:r1,w:864,h:280,title:"Both changes over 12 months, in typical moves from each one's median",ytitle:'typical moves',x0,x1,y0:mlo,y1:mhi,kind:'chg',xstep:5,hlines:[{y:1,col:K.STONE,dash:'5 3',sw:1.25},{y:-1,col:K.STONE,dash:'5 3',sw:1.25}],series:mv.map((m,i)=>({pts:m.pts,col:K.P[i],sw:1.75})),marks:[...mv[0].marks,...mv[1].marks],legend:[{n:names[0],col:K.P[0]},{n:names[1],col:K.P[1]},{n:'Normal movement',col:K.STONE,dash:'5 3'}]});
+  const lvls=keys.map((k,i)=>seriesPts(d,k,'pa',a,b));
+  sh.charts.push({c:13,r:r1,w:864,h:280,title:'Both levels: where each sits in its own history',ytitle:'at or above, of its history',x0,x1,yticks:[0,0.25,0.5,0.75,1],kind:'pct01',xstep:5,series:lvls.map((p,i)=>({pts:p,col:K.P[i],sw:1.75})),legend:keys.map((k,i)=>({n:names[i]+(Rd[i].level?'':': change only'),col:K.P[i]}))});
+  const notes=mv.map((m,i)=>{const up=m.marks.filter(x=>x.up),dn=m.marks.filter(x=>!x.up);if(!m.marks.length)return '';const raw=seriesPts(d,keys[i],'tm',a,b);let far=null;raw.forEach(([x,y])=>{if(y!=null&&(far==null||Math.abs(y)>Math.abs(far[1])))far=[x,y];});const gi=Math.round((far[0]-1919)*12);const mo=MON[gi%12]+' '+Math.floor(1919+gi/12);
+    return 'Off the chart, '+names[i]+': '+(up.length?up.length+' readings run off the top':'')+(up.length&&dn.length?', ':'')+(dn.length?dn.length+' off the bottom':'')+'; the furthest '+sgn(far[1],1)+' typical moves in '+mo+'.';}).filter(Boolean);
+  R(sh,15,[{c:1,s:24,v:notes.join('   '),z:10,col:K.SLATE}]);
+  R(sh,18,[{c:1,s:12,v:names[0],f:'ar',z:10,b:1,col:K.INK,bb:'medium|'+K.P[0],va:'b'},{c:13,s:12,v:names[1],f:'ar',z:10,b:1,col:K.INK,bb:'medium|'+K.P[1],va:'b'}]);
+  const r2=sh.rows.length;for(let i=0;i<12;i++)R(sh,15,[]);
+  keys.forEach((k,i)=>{const lp=seriesPts(d,k,'lv',a,b);const lc=cut(S[i].lv,[],0.01);const la=applyCut(lp,lc);const [l0,l1]=rng(la.pts);
+    sh.charts.push({c:1+12*i,r:r2,dy:4,w:428,h:236,title:'Level',ytitle:'its own units',x0,x1,y0:l0,y1:l1,xstep:10,series:[{pts:la.pts,col:K.P[i],sw:1.5}],marks:la.marks});
+    const cp=seriesPts(d,k,'ch',a,b);const c=Rd[i].change;const cc=cut(S[i].ch,[c.lo,c.hi],0.01);const ca=applyCut(cp,cc);const [c0,c1]=rng(ca.pts,[c.lo,c.hi]);
+    sh.charts.push({c:7+12*i,r:r2,dy:4,w:428,h:236,title:'Change over 12 months, its normal range dashed',ytitle:c.unit,x0,x1,y0:c0,y1:c1,kind:'chg',xstep:10,hlines:[{y:c.lo,col:K.STONE,dash:'5 3',sw:1.25},{y:c.hi,col:K.STONE,dash:'5 3',sw:1.25}],series:[{pts:ca.pts,col:K.P[i],sw:1.5}],marks:ca.marks});});
+  spacer(sh,12);R(sh,15,[{c:1,s:24,v:'How this tab works',f:'ar',z:9,b:1,col:K.SLATE,bg:K.CANVAS}],{plus:1});
+  return layout(sh,fold,tabStrip(order,'Dashboard'));
+}
+
+function tabOrder(whatIf){
+  const o=[{n:'Overview',c:K.INK},{n:'Dashboard',c:K.INK}];if(whatIf)o.push({n:'What if',c:K.INK});
+  TOPICS.forEach(([t,ks],i)=>ks.forEach(k=>o.push({n:TABN[k],c:i%2?K.STONE:K.SLATE})));
+  o.push({n:'States',c:K.INK},{n:'Usable with care',c:K.MIST});
+  CARE_TOPICS.forEach(([t,ks])=>ks.forEach(k=>o.push({n:CARE_TABN[k],c:K.MIST})));
+  ['State data','Glossary','Run','Sources'].forEach(n=>o.push({n,c:null}));
+  return o;
+}
+const VARIANTS=[['unemployment','Level and change, Sahm · Unemployment'],['cpi_core','Change only · Core prices'],['house_prices','Quarterly · House prices'],['initial_claims','Weekly · Initial claims'],['prime_rate','Daily · Prime rate']];
+const TOKENS=[['MACRO_LINK','1F4E79','Every link: series names, the nav row, the What if tile. No underline.'],['MACRO_RULE','EFEBE4','The one-pixel rule under every data row; chart gridlines. (ROW_RULE in workbook.py today.)'],['PICK','2A78D6','First Dashboard pick: its box edge, table edge, label rule, lines. 4.4:1 on white.'],['PICK (2)','EB6834','Second pick. 3.0:1 on white, so every chart it is on has a legend and the table.'],['DEBT_TYPES','2A78D6 EB6834 1BAF7A EDA100 E87BA4 008300','NY Fed types in its order: mortgage, HE revolving, auto, card, student, other. Legend and table carry it.'],['NORMAL_BAND','E4DFD5','= MIST. The shaded normal range on every change chart.'],['WHATIF_LINE','57534B','= SLATE. The what-if normal range, dashed (sysDash), 1 pt.'],['OFF_AXIS','B9B4AC','= STONE fill, SLATE 0.75 pt edge: the triangle marking a reading off the axis.'],['TAB_TOPIC','57534B / B9B4AC','Core series tabs, alternating SLATE and STONE by topic.'],['TAB_CARE','E4DFD5','= MIST. Usable with care and its tabs.']];
+const GRAMMAR=[['Grid','Table tabs (Overview, Usable with care, States) share the Overview\'s columns. Chart tabs (Dashboard, series, Household debt) share A 2.71 + B:Y 24 × 9.57 (72 px) + Z 2.71: content 1,752 px, half 864, quarter 432. Every tab: row 1 title, row 2 links, row 3 a 6 pt spacer.'],['Type','Title Arial 16 bold on INK (SLATE on record tabs) · subtitle Calibri 10 STONE · section Arial 10 bold INK over a medium INK rule · column header Arial 9 bold SLATE on CANVAS · tile label Arial 9 bold SLATE · tile figure Arial 12 bold (Overview) / 14 bold (chart tabs) · field label Calibri 9 SLATE · data Calibri 11 · unit and note Calibri 10 SLATE · link Calibri 10/11 MACRO_LINK.'],['A reading','Latest · Value · Unit · Level: at or above · Change · Normal from · Normal to · Direction · Typical moves · Since · History from, in that order, in a table or a tile, with the same formats.'],['A direction','▲ Increasing / ▼ Decreasing bold INK on MIST, centred; Stable SLATE, no fill. Same both ways.'],['A normal range','Two numbers, Normal from and Normal to, in the change\'s format. On a series chart a MIST band; on the Dashboard two STONE dashed lines.'],['Numbers','Change and normal range +0.00 (points) or +0.00% (percent); typical moves +0.0; level 0.0%; value #,##0 at 1,000 and over, else #,##0.0#; dates by frequency: yyyy-mm-dd daily and weekly, yyyy-mm monthly, "2026 Q2" quarterly. Numbers and dates right-aligned; text left; direction centred.'],['A chart','Title Calibri 10 bold, centred. Legend at the top, only when two or more lines. Axis labels Calibri 9 SLATE, low. Axis lines STONE 0.75 pt. Gridlines MACRO_RULE 0.75 pt, horizontal only. Data INK 1.5 pt, or the pick colour 1.75 pt. Latest: a ring, size 7, PAPER fill, INK 1.5 pt, its value as label.'],['Off the axis','The firm\'s 1% at each end. A STONE triangle at the edge, and a note under the chart in the tool\'s words.'],['A note','Calibri 10 SLATE, upright, in the row under what it is about, never above.'],['A source','The subtitle names publisher · unit · frequency · pull; What it is gives the rest.'],['A control','A yellow INPUT cell, INPUT_EDGE border, list validation. On the Dashboard the bottom edge is the pick\'s colour.'],['Rules','Medium INK under a section name; thin STONE under a column header; thin MACRO_RULE under a data row; thick KEY_RED on a tile\'s top and under a live title; thick STONE under a record title. No other borders.'],['Method notes','"How this tab works" at the foot of the tab, grouped and collapsed. Words unchanged.']];
+
+class Component extends DCLogic {
+  state={d:null,a:'unemployment',b:'initial_claims',from:'1919 Q1',to:'2026 Q4',variant:'unemployment'};
+  componentDidMount(){fetch('data/macro.json').then(r=>r.json()).then(d=>this.setState({d})).catch(e=>console.error('data',e));}
+  renderVals(){
+    const whatIf=this.props.whatIf??true;const fold=(this.props.screen??'1920 × 1080')==='1920 × 1080'?780:470;
+    const order=tabOrder(whatIf);
+    const tabChips=order.map(t=>({n:t.n,st:{padding:'3px 8px',background:'#FFFFFF',border:'1px solid #D4D4D4',borderBottom:'3px solid '+(t.c||'#FFFFFF')}}));
+    const variants=VARIANTS.map(([k,l])=>({l,on:()=>this.setState({variant:k}),st:{font:"600 13px 'Hanken Grotesk',sans-serif",padding:'7px 12px',border:'1px solid '+(this.state.variant===k?'#0A0908':'#CFC8BC'),background:this.state.variant===k?'#0A0908':'#FFFFFF',color:this.state.variant===k?'#FFFFFF':'#16130F',cursor:'pointer'}}));
+    const tokens=TOKENS.map(([n,h,j])=>({n,h,j,sw:{height:'22px',width:'80px',display:'flex',background:h.includes(' ')?'linear-gradient(90deg,'+h.split(/[ \/]+/).filter(x=>x.length===6).map((c,i,a)=>'#'+c+' '+(i*100/a.length)+'% '+((i+1)*100/a.length)+'%').join(',')+')':'#'+h.slice(0,6),border:'1px solid #DAD4CA'}}));
+    const grammar=GRAMMAR.map(([k,v])=>({k,v}));
+    const base={loaded:false,tabChips,variants,tokens,grammar,ov:null,dash:null,ser:null,hh:null,care:null,glo:null};
+    const d=this.state.d;if(!d)return base;
+    const ck=whatIf+'|'+fold;
+    if(this._ck!==ck){this._ck=ck;this._c={ov:buildOverview(d,whatIf,order,fold),care:buildCare(d,order,fold),hh:buildHousehold(d,whatIf,order,fold),glo:buildGlossary(d,order,fold),ser:{}};}
+    if(!this._c.ser[this.state.variant])this._c.ser[this.state.variant]=buildSeries(d,this.state.variant,whatIf,order,fold);
+    const on={a:e=>this.setState({a:e.target.value}),b:e=>this.setState({b:e.target.value}),from:e=>this.setState({from:e.target.value}),to:e=>this.setState({to:e.target.value})};
+    const dash=buildDashboard(d,this.state,on,order,fold);
+    return {...base,loaded:true,ov:this._c.ov,care:this._c.care,hh:this._c.hh,glo:this._c.glo,ser:this._c.ser[this.state.variant],dash};
+  }
+}
+</script>
+</body>
+</html>
