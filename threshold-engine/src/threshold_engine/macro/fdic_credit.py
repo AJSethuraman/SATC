@@ -20,10 +20,11 @@ from ..peers import delinquency as D
 from ..peers import roster as R
 from .catalog import BANK_MEASURES, BANK_PRODUCTS, BANK_WHO, bank_source_id
 
-ENGINE = pathlib.Path(__file__).resolve().parents[3]
-BOOK = ENGINE / "books" / "consumer-public.json"
-ROSTER = ENGINE / "config" / "peers.json"
-CHANGES = ENGINE / "config" / "reporting-changes.json"
+HERE = pathlib.Path(__file__).resolve()
+#: The threshold engine's own files the build reads, inside its folder: the book's settings, the roster, the
+#: registry of reporting changes.
+BOOK, ROSTER, CHANGES = (pathlib.Path("books", "consumer-public.json"), pathlib.Path("config", "peers.json"),
+                         pathlib.Path("config", "reporting-changes.json"))
 #: The merger record the industry series were built with: data/industry/README.md, "peers pull ... --mergers
 #: 2005-01-01". A survivor's repeated year to date is taken off from then on.
 MERGERS_SINCE = "2005-01-01"
@@ -32,9 +33,22 @@ FILE = "fdic_credit.json"
 URL = "https://api.fdic.gov/banks/financials (every filer, by quarter), built by the threshold engine's peers build"
 
 
+def engine_folder():
+    """The threshold engine's folder, which holds the book and the roster: the source checkout this file sits in,
+    or, when the package is installed (``pip install .`` puts this file under site-packages, away from them), the
+    working directory, as the tool says to run from threshold-engine/. Neither: refused, naming what is needed
+    (Codex on #472). The files are read where they are kept, never copied into the package to drift apart."""
+    for root in (HERE.parents[3], pathlib.Path.cwd()):
+        if all((root / f).is_file() for f in (BOOK, ROSTER, CHANGES)):
+            return root
+    raise RuntimeError("the bank credit series are built under the threshold engine's own book and roster (%s), "
+                       "and neither this copy of the tool nor the folder it was run from holds them: run it from "
+                       "threshold-engine/" % ", ".join(f.as_posix() for f in (BOOK, ROSTER, CHANGES)))
+
+
 def book_settings():
     """The consumer book's "peers" settings: the firm's answers for this data, read where they are recorded."""
-    return json.loads(BOOK.read_text("utf-8"))["peers"]
+    return json.loads((engine_folder() / BOOK).read_text("utf-8"))["peers"]
 
 
 def latest_quarter(today):
@@ -56,6 +70,7 @@ def build_file(cache_root, today, fetch=None, first=None, say=lambda s: None):
     ``cache_root`` holds the FDIC cache (``fdic/``) across pulls. The last quarter is the latest the FDIC has
     published: the quarter just ended is tried first and, when the FDIC holds no filer for it yet, the one before.
     ``fetch`` is the FDIC downloader (``fetch(url) -> dict``), the API's by default."""
+    root = engine_folder()
     s = book_settings()
     first = first or s["first"]
     names = [p for p, *_ in BANK_PRODUCTS]
@@ -77,10 +92,10 @@ def build_file(cache_root, today, fetch=None, first=None, say=lambda s: None):
     mergers, absorptions = cache / "mergers.json", cache / "absorptions.json"
     mergers.write_text(json.dumps(fdic.classify(rows), indent=1, sort_keys=True), "utf-8")
     absorptions.write_text(json.dumps(fdic.absorptions(rows), indent=1), "utf-8")
-    me = R.self_bank(R.load(ROSTER))
+    me = R.self_bank(R.load(root / ROSTER))
     with tempfile.TemporaryDirectory() as tmp:
         from openpyxl import Workbook
-        run.build(None, cache=cache, roster=ROSTER, series_dir=pathlib.Path(tmp), first=first, last=last,
+        run.build(None, cache=cache, roster=root / ROSTER, series_dir=pathlib.Path(tmp), first=first, last=last,
                   products=names, mergers=mergers, absorptions=absorptions,
                   extra_acquisitions=s["extra_acquisitions"], industry_combined=[], jump=s["jump"],
                   acquisition_share=s["acquisition_share"], min_book=float(s["min_book"]),
@@ -88,7 +103,7 @@ def build_file(cache_root, today, fetch=None, first=None, say=lambda s: None):
                   rank_by=s["rank_by"], last_n=s["last_n"], min_obs=s["min_obs"], base_quarter=s["base_quarter"],
                   index_min_book=float(s["index_min_book"]), lagged_years=s["lagged_years"],
                   lag_years=s["lag_years"], normalisation_years=s["normalisation_years"],
-                  mix_base_year=s["mix_base_year"], delinquency=True, reporting_changes=CHANGES,
+                  mix_base_year=s["mix_base_year"], delinquency=True, reporting_changes=root / CHANGES,
                   say=say, into=Workbook())
         series = {}
         for product, *_ in BANK_PRODUCTS:

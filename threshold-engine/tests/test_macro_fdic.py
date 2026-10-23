@@ -2,6 +2,7 @@
 other download. Run on the threshold engine's own test data (tests/data/peers: the roster banks' filed Call Report
 rows), so no test reaches the FDIC."""
 import json
+import pathlib
 
 import pytest
 
@@ -91,6 +92,22 @@ def test_a_quarter_is_dated_by_its_first_month_and_the_cache_path_stays_out(buil
     assert all(d[5:7] in ("01", "04", "07", "10") and d.endswith("-01") for d, _ in pts)
     assert str(root) not in raw.decode()                          # notes name "the pull's FDIC cache", not a path
     assert any("Credit card, net charge-off rate" in n for n in got["series"]["credit-card_industry_net"]["note"])
+
+
+def test_an_installed_copy_reads_the_book_from_the_folder_it_is_run_from_and_refuses_without_it(tmp_path,
+                                                                                                monkeypatch):
+    # "pip install ." puts the module under site-packages, away from books/ and config/ (Codex on #472): the
+    # build then reads them from the folder it is run from, threshold-engine/, and says what it needs elsewhere.
+    engine = pathlib.Path(F.__file__).resolve().parents[3]
+    monkeypatch.setattr(F, "HERE", tmp_path / "lib" / "site-packages" / "threshold_engine" / "macro" / "f.py")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(RuntimeError, match="books/consumer-public.json.*run it from threshold-engine/"):
+        F.book_settings()
+    with pytest.raises(RuntimeError, match="run it from threshold-engine/"):
+        F.build_file(tmp_path, "2026-10-23", fetch=_fetch([]))
+    monkeypatch.chdir(engine)
+    assert F.engine_folder() == engine
+    assert F.book_settings() == json.loads((engine / "books" / "consumer-public.json").read_text())["peers"]
 
 
 def test_reading_refuses_a_file_that_is_not_the_bank_credit_file():

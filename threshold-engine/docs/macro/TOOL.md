@@ -52,7 +52,10 @@ after all - even if not super useful"*) and is read the same way.
   0.25, acquisition share 0.05, KeyBank pro forma with the banks it
   absorbed), so every figure is the one the threshold workbook shows. The 16
   series go into the day's folder as one file, `fdic_credit.json`, with the
-  build's own notes, which each series' tab prints. On 23 Oct 2026 the first
+  build's own notes, which each series' tab prints. The build reads the
+  book and the roster where they are kept, in `threshold-engine/`: an
+  installed copy of the tool (`pip install .`) finds them when it is run
+  from there, and refuses elsewhere, saying what it needs. On 23 Oct 2026 the first
   fetch of 82 quarters (about 230 MB) took about 6 minutes and the build about
   9; later pulls fetch only a new quarter, and the build runs each time. The quarter
   just ended is tried first and, before the FDIC publishes it, the one
@@ -208,8 +211,9 @@ Not read, Run and Sources.
     point's p is on its effective pairs, r1 and r2 then each series'
     correlation with its own change a year earlier. r is the average of the
     four, pairs the fewest, and a lead holds when all four agree in sign and
-    each passes p < 0.05 divided by the number of leads tested. The
-    strongest lead is bold on mist;
+    each passes p < 0.05 divided by the number of leads tested. A lead with
+    fewer than 6 pairs, or too few effective pairs for a p, is not tested
+    and does not count among them. The strongest lead is bold on mist;
   - **both changes drawn**, in typical moves from each one's median, normal
     movement dashed, in KeyBank ink and red. Past the firm's cut (1% at each
     end of each series' history) a reading is left off the chart by formula

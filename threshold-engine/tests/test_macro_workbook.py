@@ -463,6 +463,11 @@ def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_t
         m = re.fullmatch(r'=IFERROR\(MIN\(([A-Z]+21),\1\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)/\(1\+\2\*\3\)\),""\)', v)
         assert m, v
         assert sum("SQRT((%s-2)/" % k in p and ",%s-2,2)" % k in p for p in ps) == 1, k
+    # a lead is tested only with a p at every starting point: too few effective pairs give none, and such a lead
+    # must neither read 0 passes nor count among the leads the level is divided by (Codex on #472)
+    p_at = [k for k, v in cells.items() if "TDIST(" in v]
+    tested_here = next(v for v in cells.values() if v.startswith("=IF(AND(MIN("))
+    assert "COUNT(%s:%s)=4" % (p_at[0], p_at[-1]) in tested_here, tested_here
     col = _dash_cols(ws)
     for y, who in zip(m.groups()[1:], ("First", "Second")):
         (c1, a1, b1), (c2, a2, b2) = _ranges(ws[y.replace("$", "")].value)

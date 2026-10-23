@@ -2519,7 +2519,10 @@ def build(out, result, pull, whatif=None, zoom=None):
         ns = "%s%d:%s%d" % (L(RC["n"]), rr, L(RC["n"] + S - 1), rr)
         ps = "%s%d:%s%d" % (L(RC["p"]), rr, L(RC["p"] + S - 1), rr)
         cell_ = {k: "$%s%d" % (L(RC[k]), rr) for k in RC}
-        formula(ws, rr, RC["tested"], "=IF(AND(MIN(%s)>=%d,COUNT(%s)=%d),1,0)" % (ns, MP, rs, S))
+        # tested: enough pairs, an r and a p at every starting point; a p cannot be had when the effective pairs
+        # are too few, and a lead without one is not tested, so it neither shows 0 passes nor counts among the
+        # leads the firm's level is divided by (Codex on #472)
+        formula(ws, rr, RC["tested"], "=IF(AND(MIN(%s)>=%d,COUNT(%s)=%d,COUNT(%s)=%d),1,0)" % (ns, MP, rs, S, ps, S))
         formula(ws, rr, RC["avg"], '=IF(%s=1,AVERAGE(%s),"")' % (cell_["tested"], rs))
         formula(ws, rr, RC["holds_in"], '=IF(%s=1,COUNTIF(%s,"<"&%s/MAX(%s,1)),"")' % (
             cell_["tested"], ps, P, SC["tested"]))
@@ -2693,8 +2696,8 @@ def build(out, result, pull, whatif=None, zoom=None):
                   "lead: earlier), on one reading a year from %d starting point%s spread through the year, each "
                   "the first month of a quarter. A year's change can run on into the next, so p is on the "
                   "effective pairs, as at the same time, with r1 and r2 each series' correlation with its own change "
-                  "a year earlier. r is the average of the %d; pairs the fewest at any of them; a lead with fewer "
-                  "than %d is not tested." % (S, "s" * (S > 1), S, MP)),
+                  "a year earlier. r is the average of the %d; pairs the fewest at any of them. A lead with fewer "
+                  "than %d pairs, or too few effective pairs for a p, is not tested." % (S, "s" * (S > 1), S, MP)),
         ("Holds", "A lead holds when all %d starting points agree in sign and each passes p below %g divided by "
                   "the number of leads tested, which allows for trying %d leads. The strongest lead tested, by the "
                   "size of r, is bold on mist; the line at the top says whether it holds." % (S, P, len(leads))),

@@ -1501,3 +1501,49 @@ shortened to fit its one line.
 - **Not seen in Excel.** That Excel truncates TDIST's degrees of freedom to a
   whole number, as LibreOffice and the check do, is from Excel's
   documentation, not from a run.
+
+## 23 Oct 2026 (evening, second round): Codex on 7a03c63b
+
+Codex reviewed the fix and found two more things. Both were real.
+
+**A lead without a p counted as tested (its P1).** When the effective pairs
+at a starting point are too few for Student's t (fewer than 3), that
+starting point has no p. The lead still counted as tested, because the
+test looked only at the raw pairs and the r. So it read "0 of 4", could be
+picked as the strongest, and raised the number of leads the firm's level is
+divided by, which made every other lead harder to pass. Now a lead is tested
+only with a p at every starting point; otherwise it reads "not tested". Two
+real cases from the 23 Oct pull, recalculated in LibreOffice and matched to
+the separate script (no row differing, largest difference 7e-16):
+
+- core prices against mortgage net charge-offs (all banks), 2014 Q1 to 2023
+  Q4: each series' change against its own a year earlier +0.58 and +0.75,
+  so the leads at +30 and +36 months, with 7 pairs at each starting point,
+  have too few effective pairs. They now read not tested, and the level is
+  0.05 divided by 9, not 11;
+- house prices against mortgages 30+ days late (all banks), 2004 Q1 to 2013
+  Q4: the leads with the second ahead by 6 and 12 months, 6 pairs each, now
+  read not tested; 7 leads are tested.
+
+**An installed copy could not find the book (its P1).** The README installs
+the engine with `pip install .`, which puts the package under site-packages.
+The bank build found the consumer book and the roster from its own file's
+place, so an installed copy looked in the wrong folder and all 16 series
+failed with "file not found". Seen, not inferred: the pushed version,
+installed into a scratch site-packages with uv, looked in `.../inst/lib` and
+raised FileNotFoundError. Now the build looks in the source checkout first,
+then in the folder the tool is run from (the tool's instructions say
+`threshold-engine/`), and refuses elsewhere, naming the three files it needs.
+The files are not copied into the package, where a second copy of the book
+could drift from the one the firm answers. The threshold engine's own app
+(`app.py`) finds the same files the same way; it is not touched here.
+
+**Checked.**
+
+- The installed copy, run from `threshold-engine/`, found the book (jump
+  0.25); run from another folder, it refused with the sentence above.
+- Three breaks each failed a test: tested without a p at every starting
+  point, no working-directory fallback, and the checkout taken without
+  checking it holds the files.
+- 199 tests pass. The example was rebuilt from the same pull; the what-if
+  printout is unchanged.
