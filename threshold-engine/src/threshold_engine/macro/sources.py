@@ -158,26 +158,36 @@ def read_nyfed_sce(raw, sheet):
     return out
 
 
-#: What the household debt workbook's sheet says it holds, checked so another sheet is never read as it.
-HHDC_SHEET, HHDC_TITLE, HHDC_UNIT = "Page 3 Data", "Total Debt Balance and Its Composition", "Trillions of $"
+#: What each sheet of the household debt workbook the tool reads says it holds (its title and unit, as on 22 Oct
+#: 2026), checked so another sheet is never read as it. A column named alone is read from Page 3 Data.
+HHDC_SHEET = "Page 3 Data"
+HHDC_SHEETS = {"Page 3 Data": ("Total Debt Balance and Its Composition", "Trillions of $"),
+               "Page 17 Data": ("Number of Consumers with New Foreclosures and Bankruptcies", "Thousands")}
 HHDC_QUARTER = re.compile(r"^(\d{2}):Q([1-4])$")
 
 
 def read_nyfed_hhdc(raw, column):
-    """The NY Fed's household debt workbook: on its Page 3 Data sheet, the quarter as 03:Q1 in column A and one
-    column per type of debt under the heading row (Mortgage, HE Revolving, Auto Loan, Credit Card, Student
-    Loan, Other, Total), in trillions of dollars. A quarter with no number is kept as missing."""
+    """The NY Fed's household debt workbook: on each sheet, the quarter as 03:Q1 in column A and one column per
+    heading. ``column`` is a heading on Page 3 Data (Mortgage, HE Revolving, Auto Loan, Credit Card, Student
+    Loan, Other, Total, in trillions of dollars), or "<sheet>: <heading>" for another sheet the tool knows
+    (Page 17 Data: bankruptcy, people with a new bankruptcy on their credit report, in thousands). A quarter
+    with no number is kept as missing."""
     from openpyxl import load_workbook
+    sheet, _, column = column.rpartition(": ")
+    sheet = sheet or HHDC_SHEET
+    if sheet not in HHDC_SHEETS:
+        raise ValueError("the tool reads no household debt sheet %r" % sheet)
+    title, unit = HHDC_SHEETS[sheet]
     try:
         wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
     except Exception as e:
         raise ValueError("not the NY Fed's household debt workbook: %s" % e)
-    if HHDC_SHEET not in wb.sheetnames:
-        raise ValueError("the household debt workbook has no sheet %r" % HHDC_SHEET)
-    rows = list(wb[HHDC_SHEET].iter_rows(values_only=True))
+    if sheet not in wb.sheetnames:
+        raise ValueError("the household debt workbook has no sheet %r" % sheet)
+    rows = list(wb[sheet].iter_rows(values_only=True))
     top = [str(c).strip() for r in rows[:3] for c in r if isinstance(c, str)]
-    if HHDC_TITLE.lower() not in (x.lower() for x in top) or HHDC_UNIT not in top:
-        raise ValueError("the sheet %r is not %r in %r" % (HHDC_SHEET, HHDC_TITLE, HHDC_UNIT))
+    if title.lower() not in (x.lower() for x in top) or unit not in top:
+        raise ValueError("the sheet %r is not %r in %r" % (sheet, title, unit))
     head = next((r for r in rows[:8] if column in r), None)
     if head is None:
         raise ValueError("the household debt sheet has no column %r" % column)

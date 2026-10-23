@@ -114,6 +114,19 @@ def test_the_atlanta_fed_wage_tracker_is_read_from_fred_under_freds_tag():
     assert "Atlanta Fed wage growth tracker" not in dict(CARE_NOT_READ)
 
 
+def test_new_bankruptcies_are_usable_with_care_from_the_household_debt_file_with_the_2005_law_marked():
+    # The firm, 23 Oct 2026, "build it": the NY Fed's count, its full history, the 2005 law a break, no quarter
+    # left out (leaving quarters out would take them out of every series).
+    b = BY_KEY["new_bankruptcies"]
+    assert b in CARE and b not in CORE
+    assert (b.source, b.source_id, b.frequency, b.starts) == ("nyfed_hhdc", "Page 17 Data: bankruptcy", "quarterly",
+                                                              "2003Q1")
+    assert b.change_in == "percent" and not b.position              # a count: its level is read, its change in %
+    assert b.licence == BY_KEY["household_total"].licence and b.credit == BY_KEY["household_total"].credit
+    assert b.breaks[0][0] == "2005-10" and "17 October 2005" in b.breaks[0][1] and "109-8" in b.breaks[0][1]
+    assert "Bankruptcy filings (US Courts)" in dict(CARE_NOT_READ)  # court filings: still no reader
+
+
 def test_wages_after_inflation_are_usable_with_care_and_read_on_their_change():
     d = DERIVED_BY_KEY["real_wages_eci"]
     assert d.inputs == ("wages_eci_nsa", "cpi_nsa") and d in CARE_DERIVED and d not in CORE

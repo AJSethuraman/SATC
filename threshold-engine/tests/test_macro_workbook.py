@@ -951,6 +951,25 @@ def test_a_care_series_tab_draws_its_level_and_its_change_over_its_normal_range(
     assert _holds_together_in_excel(out) > 0
 
 
+def test_new_bankruptcies_have_a_care_tab_with_the_2005_law_marked_and_the_ny_feds_credit(tmp_path):
+    # The firm, 23 Oct 2026, "build it": the NY Fed's count of people with a new bankruptcy on their credit report.
+    from threshold_engine.macro import pull as P
+    from threshold_engine.macro.catalog import HHDC_CREDIT
+    P.pull(tmp_path, keys=["new_bankruptcies"], today="2026-10-22", fetcher=_fetcher())
+    out, result, wb = _build(tmp_path, tmp_path / "b.xlsx", history="full", change_months=12)
+    got = {x["reading"]: x for x in result["readings"] if x["key"] == "new_bankruptcies"}
+    assert set(got) == {"position", "change"} and all(x["care"] for x in got.values())
+    ws = wb[CARE_TAB["new_bankruptcies"]]
+    text = _text(ws)
+    assert "17 October 2005" in text and "Why with care" in text and HHDC_CREDIT in text
+    assert len(ws._charts) == 2                                       # its level and its change
+    care = wb[CARE_NAME]
+    row = _row(care, "People with a new bankruptcy on their credit report")
+    assert _to(care.cell(row, 2)) == CARE_TAB["new_bankruptcies"]
+    assert _text(care).count(HHDC_CREDIT) == 1                        # its figures shown there: credited once
+    assert _holds_together_in_excel(out) > 0
+
+
 def test_a_build_refuses_a_pull_whose_care_file_changed_since_the_run(care_cache, tmp_path):  # noqa: F811
     result = R.read_all(care_cache, check(answered()))
     pull = R.Pull(care_cache)
@@ -1054,7 +1073,8 @@ def test_every_tab_showing_the_ny_feds_figures_carries_its_credit_once(tmp_path)
     for name in ("Overview", DASHBOARD, "What if"):
         assert _text(wb[name]).count(credit) == 1, name
     assert credit in _text(wb[HOUSEHOLD_NAME])               # under its chart and in its facts, as before
-    assert credit not in _text(wb[CARE_NAME])                # no NY Fed debt figures on it
+    # the count of new bankruptcies comes from the same NY Fed file, so it is read and credited there too
+    assert _text(wb[CARE_NAME]).count(credit) == 1
 
 
 def test_a_tab_without_a_credited_series_read_carries_no_credits(cache, tmp_path):  # noqa: F811

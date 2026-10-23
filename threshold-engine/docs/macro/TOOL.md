@@ -21,8 +21,8 @@ after all - even if not super useful"*) and is read the same way.
 
 ## The catalog and the pull
 
-- **127 series** in `src/threshold_engine/macro/catalog.py`: 91 core series
-  read on their own (51 of them unemployment by state), 32 usable with care,
+- **128 series** in `src/threshold_engine/macro/catalog.py`: 91 core series
+  read on their own (51 of them unemployment by state), 33 usable with care,
   and 4 inputs to three readings built from two series. Two are the
   report's: house prices against income (from income per person) and the
   mortgage rate over the Treasury (from the 10-year yield). The third is
@@ -254,7 +254,7 @@ against the last 30 years took a script written by hand. The firm, 17 Oct
 - **The example** (`examples/`): the firm's settings against
   `what-if-pandemic-left-out.json`, the same answers with 2020 Q2 to 2021 Q2
   left out of every history. From the pull of 22 Oct 2026 (folder
-  `2026-10-22-4`), 4 of the 126 changes read another way, all more
+  `2026-10-22-4`), 4 of the 127 changes read another way, all more
   downward: initial jobless claims (Stable to Decreasing), mortgages 90+
   days late (Increasing to Stable), banks tightening nonresidential property
   loan standards (Stable to Decreasing) and wages after inflation (Stable to
@@ -306,6 +306,19 @@ These follow the report's rules by type of series.
   left open; the workbook carries the attribution and labels its own
   arithmetic as not the NY Fed's. In 2026 Q2 the total was $18.77 trillion,
   credit cards $1.263 trillion.
+- **People with a new bankruptcy on their credit report**, added 23 Oct 2026
+  (the firm: *"build it"*), usable with care. The same NY Fed file, its
+  Page 17 Data, in thousands of people a quarter from 2003 Q1. The panel is
+  "constructed from a nationally representative random sample of Equifax
+  credit report data" (the NY Fed's background page). It counts people, not
+  court cases. The bankruptcy law of April 2005 (Public Law 109-8) took
+  effect on 17 October 2005 and people rushed to file before it: 948.6
+  thousand in 2005 Q4, 213.9 thousand the next quarter. That is marked as a
+  break, not left out, because leaving quarters out takes them out of every
+  series; the normal range barely moves without it (-23.2% to +19.2% over
+  the full history, -22.4% to +19.1% from 2007). In 2026 Q2: 136.8 thousand,
+  +4.2% on a year before, Stable; its level at or above 25.5% of its
+  history. US Courts' own filing counts are still not read: PDF tables only.
 
 **Wage growth** was asked about the same day. Four measures sit in the
 usable-with-care group:

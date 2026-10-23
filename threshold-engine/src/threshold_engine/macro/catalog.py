@@ -313,6 +313,23 @@ CARE = [
            SCE_LICENCE, HOUSE, SHORT_SINCE % ("in June 2013", "one recession (2020)"),
            note="The survey asks each household the chance it will miss a minimum debt payment in the next three "
                 "months; this is the mean answer.", change_in="points", source="nyfed_sce", credit=SCE_CREDIT),
+    # The NY Fed's count from the workbook household debt by type comes from: Page 17 Data, "Number of Consumers
+    # with New Foreclosures and Bankruptcies", in thousands, from 2003 Q1 (read 23 Oct 2026). The firm, 23 Oct
+    # 2026: "build it", on reading the 2005 law change as a break rather than leaving quarters out. The law,
+    # Public Law 109-8, was enacted 20 April 2005 and its section 1501(a) has it "take effect 180 days after the
+    # date of enactment": 17 October 2005 (https://www.govinfo.gov/content/pkg/PLAW-109publ8/html/PLAW-109publ8.htm).
+    # The panel is "constructed from a nationally representative random sample of Equifax credit report data" (the
+    # NY Fed's background page, https://www.newyorkfed.org/microeconomics/hhdc/background.html, read 23 Oct 2026).
+    # Unlike credit card balances, no count here was revised by the 2026 Q2 report: its 93 earlier quarters match
+    # the 2026 Q1 file's, checked 23 Oct 2026.
+    _care("new_bankruptcies", "Page 17 Data: bankruptcy", "People with a new bankruptcy on their credit report",
+          "consumer", "NY Fed (Consumer Credit Panel / Equifax)", "quarterly", "thousands of people", "2003Q1",
+          HHDC_LICENCE, HOUSE, "estimated from a random sample of credit reports; the October 2005 bankruptcy law "
+          "broke its history",
+          [("2005-10", "the bankruptcy law of April 2005 took effect on 17 October 2005 (Public Law 109-8, section "
+                       "1501): people rushed to file before it, and filings fell away after")],
+          note="Counts people whose credit report shows a new bankruptcy in the quarter, not cases filed in court.",
+          change_in="percent", source="nyfed_hhdc", credit=HHDC_CREDIT),
     _care("auto_standards", "STDSAUTO", "Banks tightening auto loan standards (net %)", "consumer",
            "Federal Reserve (Senior Loan Officer Survey)", "quarterly", "net percent", "2011-04", FRED_PD, HOUSE,
            SHORT_SINCE % ("in 2011", "one recession (2020)"), change_in="points"),

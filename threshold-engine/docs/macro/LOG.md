@@ -1267,3 +1267,66 @@ draw that case, titled "not read under these settings". The household chart
 now does the same, with no shaded range of its own. A new test fails with the
 fix taken out. The example is unchanged by it apart from its build time, so it
 is not rebuilt.
+
+## 23 Oct 2026: bankruptcies
+
+**Asked:** *"what bankruptcy data do we have or can we get"*. Found, and told
+the firm:
+
+- **In our pull already, unread:** the NY Fed's household debt workbook, the
+  file household debt by type comes from, has three bankruptcy sheets.
+  Page 17 Data counts people with a new bankruptcy on their credit report,
+  nationally, each quarter from 2003 Q1 (136.8 thousand in 2026 Q2, against
+  131.3 thousand a year before). Page 30 Data splits the same by age from
+  2000 Q1, and Page 40 Data gives the share of people by state, for eleven
+  states only (AZ, CA, FL, IL, MI, NJ, NV, NY, OH, PA, TX).
+- **US Courts' filing tables:** the official counts, by chapter, business
+  and personal, by district, with a one-month table inside each quarter's
+  release and county counts in F-5A. PDF only. Twelve months to 30 Sep 2026:
+  621,111 filings, +11.4% (Table F); personal 594,057, business 27,054.
+- **The Federal Judicial Center's case files**, new to this log: one row per
+  bankruptcy case filed since October 2007, with the filing date, chapter,
+  business or personal, the debtor's county and ZIP code, and assets, debts
+  and income. No names. 887 MB zipped for FY2018 to 30 June 2026, 1.47 GB
+  for FY2008 to 2017 (fjc.gov/research/idb).
+- **Epiq / ABI:** monthly and fastest, but a commercial product: out, as the
+  firm chose for licensed series.
+- FRED could not be searched that day (its server sent nothing back).
+
+**Built:** *"build it"*, on the NY Fed count, usable with care. The firm had
+read, before answering, how the 2005 law change would affect it.
+
+- **The 2005 law is a break, not quarters left out.** Public Law 109-8 was
+  enacted 20 April 2005 and its section 1501(a) has it "take effect 180 days
+  after the date of enactment", 17 October 2005 (govinfo.gov). People rushed
+  to file before it: 948.6 thousand in 2005 Q4, 213.9 thousand in 2006 Q1.
+  Leaving those quarters out would take them out of every series, and the
+  readings barely need it: the normal range is -23.2% to +19.2% over the
+  full history and -22.4% to +19.1% from 2007; its level sits at or above
+  25.5% of its history, or 29% from 2006.
+- **What it reads, 2026 Q2:** +4.17% on a year before, Stable, 0.3 typical
+  moves above the median, Stable since 2024 Q3. The workbook's figures match
+  the same arithmetic done by hand on the NY Fed's file.
+- **Why with care, in the tab's words:** "estimated from a random sample of
+  credit reports; the October 2005 bankruptcy law broke its history". The
+  NY Fed's background page says the panel is "constructed from a nationally
+  representative random sample of Equifax credit report data".
+- **Not claimed: that it is revised each quarter.** The first draft said so,
+  borrowing the household debt series' break. Checked against the NY Fed's
+  2026 Q1 file, the 2026 Q2 report changed none of the 93 earlier quarters
+  of this count, so the claim was taken out.
+- **The reader** now reads a named sheet of the NY Fed's file ("Page 17
+  Data: bankruptcy") as well as Page 3, and checks each sheet's own title
+  and unit, so Page 3's table under Page 17's name is refused.
+- **Checked:** 181 tests pass. The reader, its title check and the series'
+  place on the Usable with care tab were each broken in turn, and each
+  break failed a test. The example is rebuilt from the same pull (folder
+  `2026-10-22-4`, which already held the file); under the pandemic what-if
+  this count reads the same way, so still 4 of now 127 changes move. Its tab
+  and the Usable with care tab were rendered in LibreOffice and looked at.
+  **Not seen in Excel.**
+- **New words, for the firm to approve or replace:** the title "People with
+  a new bankruptcy on their credit report", the unit "thousands of people",
+  the tab name "New bankruptcies", the care line above, the break's line and
+  the note "Counts people whose credit report shows a new bankruptcy in the
+  quarter, not cases filed in court."
