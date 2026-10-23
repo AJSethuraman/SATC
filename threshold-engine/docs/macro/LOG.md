@@ -1614,3 +1614,12 @@ Recalculated in LibreOffice and matched to the separate script:
 
 The default pair and KeyBank's card pair read as before. A break (the rank
 by r alone) failed the test. 199 tests pass.
+
+Codex on e5dbbe4b: with From and To the same quarter, two quarterly series
+share one reading, CORREL gives no r, and the line printed "r =  on 1, too
+few to test." The same-time sentence is now left out when there is no r.
+In LibreOffice, card 30+ against card losses (all banks), 2020 Q1 to 2020
+Q1, reads "Too few readings in these quarters to test a lead: pick a longer
+span." and nothing more; the default pair reads as before. A break (the
+sentence on the count of readings alone) failed the test. 199 tests
+pass.

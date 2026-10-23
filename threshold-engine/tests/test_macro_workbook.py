@@ -498,6 +498,9 @@ def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_t
     assert answer.startswith(',INDEX($%s$19:$%s$23,' % (hin_col, hin_col), answer.index("),", near) + 1)  # 1 of 4 at least
     assert answer.index('", holds in "&', near) < answer.index("No lead holds at every starting point", near)
     assert '&INDEX($I$19:$I$23,' in answer and '" years tested."' in answer
+    # no same-time sentence without an r to give, as one quarter for two quarterly series leaves (Codex on #472)
+    same_r = ws["G15"].value.lstrip("=")
+    assert 'IF(AND(%s>0,ISNUMBER(%s))," On every reading' % (ws["H15"].value.lstrip("="), same_r) in answer
 
 
 def test_the_dashboards_marks_are_keybanks_colours_and_the_house_mist_never_blue_or_orange(book):

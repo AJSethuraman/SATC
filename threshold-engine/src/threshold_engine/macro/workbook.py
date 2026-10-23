@@ -2575,9 +2575,12 @@ def build(out, result, pull, whatif=None, zoom=None):
         "k": SC["strongest"], "holds": at("holds"), "avg": at("avg"), "phrase": at("phrase"),
         "hin": at("holds_in"), "S": S, "sign": "AND(%s,%s>0)" % (at("same_sign"), at("holds_in")),
         "fewest": "INDEX($I$%d:$I$%d,%s)" % (first_lead, last_lead, SC["strongest"])}
-    same_words = ('IF(%(n)s=0,""," On every reading they share at the same time: r = "&TEXT(%(r)s,"+0.00;-0.00")&'
+    # no sentence when there is no r to give: no shared reading, or too few for CORREL, as one quarter chosen for
+    # two quarterly series gives (Codex on #472: it printed "r =  on 1")
+    same_words = ('IF(AND(%(n)s>0,ISNUMBER(%(r)s))," On every reading they share at the same time: r = "&'
+                  'TEXT(%(r)s,"+0.00;-0.00")&'
                   '" on "&%(n)s&", "&IF(%(p)s="","too few to test.",IF(%(p)s<%(P)s,"which passes.",'
-                  '"which does not pass.")))') % {"n": SC["same_n"], "r": SC["same_r"], "p": SC["same_p"], "P": P}
+                  '"which does not pass.")),"")') % {"n": SC["same_n"], "r": SC["same_r"], "p": SC["same_p"], "P": P}
     merged(ws, 11, 2, 25, None)
     formula(ws, 11, 2, '=IFERROR(IF(%s>%s,"From is after To, so nothing is tested.",%s&%s),"")' % (
         T0, T1, lead_words, same_words), font=F_DATA, align=Alignment(vertical="center", wrap_text=True, indent=1))
