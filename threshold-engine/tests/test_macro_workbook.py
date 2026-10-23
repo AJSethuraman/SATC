@@ -496,6 +496,10 @@ def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_t
     target = ws[eff.lstrip("=").replace("$", "")].value
     assert re.search(r"\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)/\(1\+\1\*\2\)", target), target
     assert re.search(r"MIN\((\$\w+\$\d+),\1\*", target), target                # never more than the readings
+    # each series' correlation with its previous reading is blank, never 0, when no pair a step apart gives one:
+    # 0 would give the effective readings as the readings and a p as if each were independent (Codex on #472)
+    for auto in re.search(r"\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)", target).groups():
+        assert ws[auto.replace("$", "")].value.endswith(',"")'), auto
     p = ws[ws["J15"].value.lstrip("=").replace("$", "")].value
     assert "TDIST(" in p and "-2,2)" in p
     answer = ws["B11"].value
@@ -1285,3 +1289,23 @@ def test_the_household_total_read_under_the_what_if_only_still_draws_its_change_
     assert "not read under these settings" in chart and chart.count('prstDash val="sysDash"') == 2
     assert "areaChart" not in chart                                   # no normal range of its own to shade
     assert _holds_together_in_excel(out) > 0
+
+
+def test_a_bank_series_notes_come_from_the_bytes_its_readings_came_from(tmp_path):
+    # The run reads each file once and fingerprints it; the build's notes are taken from those same bytes, so a file
+    # changed on disk between the readings and the workbook cannot mix two versions in one tab (Codex on #472).
+    import json as J
+    from threshold_engine.macro import pull as P
+    from test_macro_sources import fdic_file
+    P.pull(tmp_path, keys=["unemployment", "card_losses_all_banks"], today="2026-10-15", fetcher=_fetcher(),
+           fdic=lambda root, today: fdic_file())
+    pull = R.Pull(tmp_path)
+    result = R.read_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    path = pull.folder / "fdic_credit.json"
+    changed = J.loads(path.read_text())
+    for v in changed["series"].values():
+        v["note"] = ["changed on disk after the readings"]
+    path.write_text(J.dumps(changed))
+    wb = openpyxl.load_workbook(build(tmp_path / "bank.xlsx", result, pull))
+    tab = _text(wb[TAB["card_losses_all_banks"]])
+    assert "a test file" in tab and "changed on disk" not in tab

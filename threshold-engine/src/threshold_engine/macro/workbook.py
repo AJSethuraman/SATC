@@ -41,7 +41,6 @@ a change, and a second set of settings drawn as dashed lines.
 import datetime
 import json
 import math
-import pathlib
 
 from .catalog import (BANK_MEASURES, BANK_PRODUCTS, BANK_WHO, BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED,
                       HOUSEHOLD_DEBT, READ, SERIES, STATES, bank_key)
@@ -552,12 +551,16 @@ def build(out, result, pull, whatif=None, zoom=None):
 
     def bank_notes(item):
         """A bank credit series' notes as the threshold engine's build wrote them: what it is, the rules, every
-        reporting change that touches it. Read from the pull's own file, so they are the run's."""
+        reporting change that touches it. Read from the bytes the readings came from, the ones the run
+        fingerprints, never the file again: one changed between the two would mix versions (Codex on #472)."""
         if getattr(item, "source", "") != "fdic":
             return []
+        raw = pull.raw(FDIC_FILE)
+        if raw is None:
+            return []
         try:
-            got = json.loads((pathlib.Path(pull.folder) / FDIC_FILE).read_text("utf-8"))
-        except (OSError, ValueError):
+            got = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
             return []
         return got.get("series", {}).get(item.source_id, {}).get("note", [])
 
@@ -2455,7 +2458,9 @@ def build(out, result, pull, whatif=None, zoom=None):
     for i, key_ in ((0, "auto1"), (1, "auto2")):
         lag = {g: "CORREL(%s,%s)" % (grid(SH[i], first_row, last_row - g), grid(SH[i], first_row + g, last_row))
                for g in (1, 3)}
-        formula(ws, int(SC[key_].split("$")[-1]), LH, "=IFERROR(IF(%s=3,%s,%s),0)" % (SC["step"], lag[3], lag[1]))
+        # "" when there is no pair a step apart to measure it from: the effective readings and p are then left
+        # blank, never given as if each reading were independent (Codex on #472)
+        formula(ws, int(SC[key_].split("$")[-1]), LH, '=IFERROR(IF(%s=3,%s,%s),"")' % (SC["step"], lag[3], lag[1]))
     for i, key_ in ((0, "year1"), (1, "year2")):
         # each series' change in the quarters chosen against its own a year earlier; "" when it cannot be had,
         # and then no starting point's p is given rather than one that assumes the years independent

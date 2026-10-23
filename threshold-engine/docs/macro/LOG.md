@@ -1671,3 +1671,23 @@ Codex on 1f41c1c3, two findings:
 
 The firm, asked, kept the whole-window carry-over: "Once over the span
 (Recommended)". Codex's thread was answered with the numbers and closed.
+
+Codex on 5c73b532, two findings, both fixed:
+
+- At the same time, each series' correlation with its previous reading fell
+  back to 0 when no pair a step apart could give one (a quarterly series
+  with alternate quarters left out, say), so the effective readings were the
+  readings and a p was given as if each were independent. It is blank now,
+  and the effective readings and p with it, as the lead test already was.
+  Real pairs are untouched: in LibreOffice the default pair, unemployment
+  against claims and KeyBank's card pair read as before, matched to the
+  separate script.
+- The bank series' notes were read from the file on disk again, not from
+  the bytes the readings came from, which the run fingerprints; a file
+  changed between the two could put one version's notes beside another's
+  figures. `Pull.raw(name)` now hands back those bytes, and the notes come
+  from them. A test changes the file after the readings and finds the
+  original notes in the tab.
+
+Each fix's break (the 0 back; the notes read from disk) failed its test.
+203 tests pass.
