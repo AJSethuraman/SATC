@@ -99,12 +99,13 @@ QUESTIONS = [
      "Two years either way and three years of the first leading, in steps of six months: the range the "
      "comparison was built with."),
     ("compare_starts",
-     "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2, 3, 4, 6 or 12; "
-     "the starting months are spread evenly through the year.",
+     "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2 or 4; the "
+     "starting months are spread evenly through the year, each the first month of a quarter, so a quarterly "
+     "series has a reading at every one.",
      4,
-     "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data. "
-     "One reading every 12 months shares none, and four starting points (a quarter apart) show whether a link "
-     "holds whichever quarter the count starts from."),
+     "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data; "
+     "one reading every 12 months keeps them a year apart. Four starting points (a quarter apart) show whether "
+     "a link holds whichever quarter the count starts from."),
     ("compare_min_pairs",
      "On the Dashboard, how many one-a-year pairs must a lead have at every starting point to be tested? A "
      "whole number of at least 4.",
@@ -246,10 +247,14 @@ def check(raw):
                             "120; got %r" % (leads,))
     starts = answer("compare_starts")
     if starts is not None:
-        if starts in (1, 2, 3, 4, 6, 12) and not isinstance(starts, bool):
+        # Only these put every starting month on a quarter's first, where a quarterly series has its readings;
+        # 3, 6 or 12 would start in months a quarterly series never has, and every lead would say not tested
+        # (Codex on #472).
+        if starts in (1, 2, 4) and not isinstance(starts, bool):
             s["compare_starts"] = starts
         else:
-            problems.append("compare_starts: need 1, 2, 3, 4, 6 or 12; got %r" % (starts,))
+            problems.append("compare_starts: need 1, 2 or 4, so every starting month is the first of a quarter, "
+                            "where quarterly series have their readings; got %r" % (starts,))
     pairs = answer("compare_min_pairs")
     if pairs is not None:
         if isinstance(pairs, int) and not isinstance(pairs, bool) and pairs >= 4:

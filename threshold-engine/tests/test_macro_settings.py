@@ -57,8 +57,9 @@ def test_a_complete_answer_is_read_exactly():
     ("compare_leads", [], "different whole numbers"),
     ("compare_leads", [0, 0], "different whole numbers"),
     ("compare_leads", [6.0], "different whole numbers"),
-    ("compare_starts", 5, "1, 2, 3, 4, 6 or 12"),
-    ("compare_starts", True, "1, 2, 3, 4, 6 or 12"),
+    ("compare_starts", 5, "1, 2 or 4"),
+    ("compare_starts", 3, "first of a quarter"),          # Jan, May, Sep: a quarterly series has none in two
+    ("compare_starts", True, "1, 2 or 4"),
     ("compare_min_pairs", 3, "at least 4"),
     ("history", {"years": 0}, "above 0"),
     ("history", "all", "\"full\" or"),

@@ -199,15 +199,17 @@ Not read, Run and Sources.
     chosen: r, the readings, the effective readings and p. Neighbouring
     readings repeat most of their data (a trailing four-quarter rate above
     all), so the effective readings are n x (1 - r1 x r2) / (1 + r1 x r2),
-    r1 and r2 each series' correlation with its own previous reading, and
-    p is Student's t on them, two-tailed;
+    r1 and r2 each series' correlation with its own previous reading, never
+    more than n, and p is Student's t on them, two-tailed;
   - **does one lead the other**: for each lead the settings name (-24 to +36
     months, every 6), the first series' change beside the second's that many
-    months later, on one reading a year so no two readings share data, from
-    four starting points a quarter apart. r is the average of the four,
-    pairs the fewest, and a lead holds when all four agree in sign and each
-    passes p < 0.05 divided by the number of leads tested. The strongest
-    lead is bold on mist;
+    months later, on one reading a year from four starting points a quarter
+    apart. A year's change can run on into the next, so each starting
+    point's p is on its effective pairs, r1 and r2 then each series'
+    correlation with its own change a year earlier. r is the average of the
+    four, pairs the fewest, and a lead holds when all four agree in sign and
+    each passes p < 0.05 divided by the number of leads tested. The
+    strongest lead is bold on mist;
   - **both changes drawn**, in typical moves from each one's median, normal
     movement dashed, in KeyBank ink and red. Past the firm's cut (1% at each
     end of each series' history) a reading is left off the chart by formula

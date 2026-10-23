@@ -2430,17 +2430,21 @@ def build(out, result, pull, whatif=None, zoom=None):
     # -- whether the two changes move together, and whether one leads the other ------------------------------
     # At the same time, on every shared reading: r, the readings, the effective readings (fewer when each series'
     # changes run on from one reading to the next: n x (1 - r1 r2) / (1 + r1 r2), r1 and r2 each one's correlation
-    # with its own previous reading) and p from Student's t on them. Then each lead, one reading a year at each
-    # starting point, so no two readings share data: r, pairs and p at each, and the lead holds when every
-    # starting point agrees in sign and passes p below the firm's level divided by the leads tested.
+    # with its own previous reading, and never more than n) and p from Student's t on them. Then each lead, one
+    # reading a year at each starting point: r, pairs and p at each, and the lead holds when every starting point
+    # agrees in sign and passes p below the firm's level divided by the leads tested. Readings a year apart are
+    # not independent either (a 12-month change ends where the next begins, and a cycle runs over years: Codex on
+    # #472), so each starting point's p is on its effective pairs, r1 and r2 then each series' correlation with
+    # its own change a year earlier.
     def grid(col, a=None, b=None):
         return "$%s$%d:$%s$%d" % (L(col), first_row if a is None else a, L(col), last_row if b is None else b)
     LH = ST_AT[-1] + 2                           # the lead helpers, one row per lead, beside the lead table
-    RC = {"phrase": LH, "r": LH + 1, "n": LH + 1 + S, "p": LH + 1 + 2 * S, "tested": LH + 1 + 3 * S,
-          "avg": LH + 2 + 3 * S, "holds_in": LH + 3 + 3 * S, "same_sign": LH + 4 + 3 * S, "holds": LH + 5 + 3 * S,
-          "abs": LH + 6 + 3 * S}
+    RC = {"phrase": LH, "r": LH + 1, "n": LH + 1 + S, "e": LH + 1 + 2 * S, "p": LH + 1 + 3 * S,
+          "tested": LH + 1 + 4 * S, "avg": LH + 2 + 4 * S, "holds_in": LH + 3 + 4 * S, "same_sign": LH + 4 + 4 * S,
+          "holds": LH + 5 + 4 * S, "abs": LH + 6 + 4 * S}
     SC = {k: "$%s$%d" % (L(LH), 4 + n) for n, k in enumerate(
-        ("step", "auto1", "auto2", "tested", "level", "strongest", "same_r", "same_n", "same_eff", "same_p"))}
+        ("step", "auto1", "auto2", "tested", "level", "strongest", "same_r", "same_n", "same_eff", "same_p",
+         "year1", "year2"))}
     for k, cell in SC.items():
         put(ws, int(cell.split("$")[-1]), LH - 1, k, font=F_NOTE)
     formula(ws, int(SC["step"].split("$")[-1]), LH, "=MAX(IFERROR(%s+0,1),IFERROR(%s+0,1))" % (
@@ -2449,12 +2453,17 @@ def build(out, result, pull, whatif=None, zoom=None):
         lag = {g: "CORREL(%s,%s)" % (grid(SH[i], first_row, last_row - g), grid(SH[i], first_row + g, last_row))
                for g in (1, 3)}
         formula(ws, int(SC[key_].split("$")[-1]), LH, "=IFERROR(IF(%s=3,%s,%s),0)" % (SC["step"], lag[3], lag[1]))
+    for i, key_ in ((0, "year1"), (1, "year2")):
+        # each series' change in the quarters chosen against its own a year earlier; "" when it cannot be had,
+        # and then no starting point's p is given rather than one that assumes the years independent
+        formula(ws, int(SC[key_].split("$")[-1]), LH, '=IFERROR(CORREL(%s,%s),"")' % (
+            grid(CH[i], first_row, last_row - 12), grid(CH[i], first_row + 12, last_row)))
     same_rows = {"r": "=IFERROR(CORREL(%s,%s),\"\")" % (grid(SH[0]), grid(SH[1])),
                  "n": "=SUMPRODUCT(--ISNUMBER(%s))" % grid(SH[0])}
     formula(ws, int(SC["same_r"].split("$")[-1]), LH, same_rows["r"])
     formula(ws, int(SC["same_n"].split("$")[-1]), LH, same_rows["n"])
-    formula(ws, int(SC["same_eff"].split("$")[-1]), LH, '=IFERROR(IF(%s<3,"",%s*(1-%s*%s)/(1+%s*%s)),"")' % (
-        SC["same_n"], SC["same_n"], SC["auto1"], SC["auto2"], SC["auto1"], SC["auto2"]))
+    formula(ws, int(SC["same_eff"].split("$")[-1]), LH, '=IFERROR(IF(%s<3,"",MIN(%s,%s*(1-%s*%s)/(1+%s*%s))),"")' % (
+        SC["same_n"], SC["same_n"], SC["same_n"], SC["auto1"], SC["auto2"], SC["auto1"], SC["auto2"]))
     formula(ws, int(SC["same_p"].split("$")[-1]), LH, (
         '=IFERROR(IF(OR(%(e)s="",%(r)s=""),"",IF(%(e)s<3,"",TDIST(ABS(%(r)s)*SQRT((%(e)s-2)/MAX(1-%(r)s^2,1E-12)),'
         '%(e)s-2,2))),"")') % {"e": SC["same_eff"], "r": SC["same_r"]})
@@ -2498,11 +2507,14 @@ def build(out, result, pull, whatif=None, zoom=None):
         second = grid(CH[1], ra + lead, rb + lead)
         for f, col in enumerate(ST_AT):
             first_ = grid(col, ra, rb)
-            r_, n_, p_ = ("%s%d" % (L(RC[k] + f), rr) for k in ("r", "n", "p"))
+            r_, n_, e_ = ("%s%d" % (L(RC[k] + f), rr) for k in ("r", "n", "e"))
             formula(ws, rr, RC["r"] + f, '=IFERROR(CORREL(%s,%s),"")' % (first_, second))
             formula(ws, rr, RC["n"] + f, "=SUMPRODUCT(ISNUMBER(%s)*ISNUMBER(%s))" % (first_, second))
-            formula(ws, rr, RC["p"] + f, '=IF(AND(%(n)s>=%(MP)d,ISNUMBER(%(r)s)),IFERROR(TDIST(ABS(%(r)s)*SQRT((%(n)s-2)/'
-                                         'MAX(1-%(r)s^2,1E-12)),%(n)s-2,2),""),"")' % {"n": n_, "r": r_, "MP": MP})
+            formula(ws, rr, RC["e"] + f, '=IFERROR(MIN(%(n)s,%(n)s*(1-%(a)s*%(b)s)/(1+%(a)s*%(b)s)),"")' % {
+                "n": n_, "a": SC["year1"], "b": SC["year2"]})
+            formula(ws, rr, RC["p"] + f, '=IF(AND(%(n)s>=%(MP)d,ISNUMBER(%(r)s)),IFERROR(TDIST(ABS(%(r)s)*SQRT((%(e)s-2)/'
+                                         'MAX(1-%(r)s^2,1E-12)),%(e)s-2,2),""),"")' % {"n": n_, "r": r_, "e": e_,
+                                                                                     "MP": MP})
         rs = "%s%d:%s%d" % (L(RC["r"]), rr, L(RC["r"] + S - 1), rr)
         ns = "%s%d:%s%d" % (L(RC["n"]), rr, L(RC["n"] + S - 1), rr)
         ps = "%s%d:%s%d" % (L(RC["p"]), rr, L(RC["p"] + S - 1), rr)
@@ -2537,9 +2549,8 @@ def build(out, result, pull, whatif=None, zoom=None):
     ws.conditional_formatting.add("B%d:M%d" % (first_lead, last_lead), FormulaRule(
         formula=["AND(%s>0,ROW()-%d=%s)" % (SC["strongest"], LT, SC["strongest"])],
         fill=PatternFill("solid", fgColor=K.MIST), font=Font(name="Calibri", size=11, bold=True, color=K.INK)))
-    note(ws, last_lead + 1, 2, "Holds in: of the %d starting points, how many pass p < %g divided by the leads tested "
-                               "(%s). A lead holds when all %d do and agree in sign." % (S, P, "in the quarters chosen",
-                                                                                      S), 13)
+    note(ws, last_lead + 1, 2, "Holds in: of the %d starting points, how many pass p < %g divided by the leads tested, "
+                               "on effective pairs. A lead holds when all %d do and agree in sign." % (S, P, S), 13)
     # The answer, in one line over the tables and the chart.
     at = lambda k: "INDEX(%s,%s)" % (col_rng(k), SC["strongest"])                        # noqa: E731
     lead_words = (
@@ -2676,12 +2687,14 @@ def build(out, result, pull, whatif=None, zoom=None):
         ("At the same time", "r is the correlation of the two changes over every reading they share: +1 moves "
                              "exactly together, -1 exactly opposite, 0 not at all. Neighbouring readings repeat "
                              "most of their data, so the effective readings are fewer: n x (1 - r1 x r2) / (1 + r1 "
-                             "x r2), r1 and r2 each series' correlation with its own previous reading. p comes from "
-                             "Student's t on the effective readings, two-tailed."),
+                             "x r2), r1 and r2 each series' correlation with its own previous reading, and never "
+                             "more than n. p comes from Student's t on the effective readings, two-tailed."),
         ("Leads", "Each lead sets the first series' change beside the second's that many months later (a negative "
-                  "lead: earlier). One reading a year is used, so no two readings share data, and the test is run "
-                  "from %d starting point%s spread through the year. r is the average of the %d; pairs the fewest "
-                  "at any of them; a lead with fewer than %d is not tested." % (S, "s" * (S > 1), S, MP)),
+                  "lead: earlier), on one reading a year from %d starting point%s spread through the year, each "
+                  "the first month of a quarter. A year's change can run on into the next, so p is on the "
+                  "effective pairs, as at the same time, with r1 and r2 each series' correlation with its own change "
+                  "a year earlier. r is the average of the %d; pairs the fewest at any of them; a lead with fewer "
+                  "than %d is not tested." % (S, "s" * (S > 1), S, MP)),
         ("Holds", "A lead holds when all %d starting points agree in sign and each passes p below %g divided by "
                   "the number of leads tested, which allows for trying %d leads. The strongest lead tested, by the "
                   "size of r, is bold on mist; the line at the top says whether it holds." % (S, P, len(leads))),
@@ -2702,7 +2715,7 @@ def build(out, result, pull, whatif=None, zoom=None):
                    "every third month."),
         ("Formulas", "This tab is the one place with formulas. They only look up values written on a hidden tab, "
                      "%s, so no reading moves; Excel works out r and p when the file opens." % DASH_DATA),
-    ] + ([("Quarters left out", left_words)] if left_words else []))
+    ] + ([("Quarters left out", left_words)] if left_words else []), label_cols=2)   # labels need two columns
     for rr in range(13, below):
         if ws.row_dimensions[rr].height is None:
             ws.row_dimensions[rr].height = 15
@@ -2801,9 +2814,10 @@ def glossary(s, whatif=None, zoom=None):
         ("p", "How often a link at least as strong would turn up by chance if the two were unrelated, two-tailed. "
               "A link passes when p is below the firm's level, %g." % s["compare_p"]),
         ("Effective readings", "Fewer than the readings when each series' changes run on from one reading to the "
-                               "next, as a trailing four-quarter rate's do: n x (1 - r1 x r2) / (1 + r1 x r2)."),
+                               "next, as a trailing four-quarter rate's do: n x (1 - r1 x r2) / (1 + r1 x r2), and "
+                               "never more than the readings."),
         ("Lead", "Months by which the first series' change comes before the second's. Tested on one reading a "
-                 "year, from %d starting point%s, so no two readings share data."
+                 "year, from %d starting point%s, with p on the effective pairs."
          % (s["compare_starts"], "s" * (s["compare_starts"] > 1))),
         ("Holds", "A lead holds when every starting point agrees in sign and passes p below %g divided by the "
                   "number of leads tested." % s["compare_p"]),

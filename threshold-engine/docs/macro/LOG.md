@@ -1430,3 +1430,74 @@ AVERAGE, SUM and COUNT join the list.
 - Not run: the threshold engine's own tests (they take about 28 minutes and
   this change writes nothing under its folders, though it calls its peers
   code).
+
+## 23 Oct 2026 (evening): Codex on #472, readings a year apart, and the starting points
+
+Codex reviewed #472 and found two things. Both were real.
+
+**Readings a year apart are not independent (its P1).** The lead test took
+each starting point's one-a-year pairs as independent. That was the reason
+given to the firm when it chose "As the Excel version": "One reading per 12
+months at four starting points, so no two readings share data." It is true
+of a level and not of a change: a 12-month change ends where the next one
+begins, and a cycle runs over several years, so one year's change runs on
+into the next. On the raw count of pairs, p came out too small. Now each
+starting point's p is on its effective pairs, the same allowance the
+same-time test makes: n x (1 - r1 r2) / (1 + r1 r2), with r1 and r2 each
+series' correlation with its own change a year earlier, in the quarters
+chosen. Effective readings and effective pairs are never more than n: when
+r1 r2 is negative the formula gives more readings than there are, and the
+Dashboard no longer counts them.
+
+What it changes, from the 23 Oct pull on the firm's settings (eleven pairs
+worked by a separate script before the change was made):
+
+| Pair | Before | Now | Each series' change against its own a year earlier |
+|---|---|---|---|
+| Mortgages 30-89 days late, then mortgage net charge-offs (all banks) | +12 months holds, r +0.65 | no lead holds (0 of 4) | +0.35, +0.61 |
+| NY Fed household card debt, then card net charge-offs (all banks) | +18 months holds, r +0.66 | no lead holds (0 of 4) | +0.50, +0.35 |
+| Card 30+ late, then card net charge-offs, all banks, 2013 Q3 to 2026 Q2 | +6 (r +0.96) and +12 (r +0.89) hold | the same | +0.30, +0.30 |
+| Unemployment rate and initial claims | at the same time holds, r +0.70 | the same | -0.12, -0.06 |
+| Unemployment rate and card net charge-offs, all banks (the default) | none | none | -0.12, +0.35 |
+| KeyBank card 30+ late, then KeyBank card net charge-offs | none | none (best 2 of 4) | +0.14, +0.03 |
+
+Of the other five pairs tried, card 30+ against card losses over the whole
+history held at +6 and +12 months before and after, and four held nowhere
+before and after. The test is now
+stricter than the Excel copy's, which used the raw count. The firm's answers
+(p 0.05, the leads, four starting points, six pairs at the fewest) are
+unchanged.
+
+**Starting points must fall on a quarter (its P2).** `compare_starts`
+accepted 1, 2, 3, 4, 6 or 12. With 3, 6 or 12 some starting months (May,
+September and others) never hold a quarterly reading, so with a bank series
+picked every lead would have said not tested. The settings now accept 1, 2
+or 4 and refuse anything else, saying why. The firm's answer, 4, stands. The
+question and its reason are reworded in `settings.json`, the what-if and the
+template ("keeps them a year apart" where it said "shares none").
+
+**Also.** The Dashboard's folded method note cut its longer labels short
+("What is co", "At the same", "Together, m", "Off the char"). Its labels now
+take two columns, as the States tab's do. The last two were cut on main too.
+The note under the lead table now says p is on effective pairs; it was
+shortened to fit its one line.
+
+**Checked.**
+
+- LibreOffice recalculated the Dashboard for six pairs (the default,
+  unemployment against claims, card 30+ against card losses for all banks
+  from 2013 Q3, mortgages 30-89 late against mortgage losses, household card
+  debt against card losses, KeyBank card 30+ against KeyBank card losses).
+  Every figure matched a separate script with its own Pearson, its own
+  Student's t, its own year-apart correlations and its own reading of the
+  From and To quarters. Largest difference 5e-13; no row differed.
+- Seven breaks of the new code each failed a test: p on raw pairs, its
+  degrees of freedom on raw pairs, a month apart in place of a year, no cap
+  at a lead, no cap at the same time, the second series' year-apart
+  correlation taken from the first, and three starting points accepted.
+- 198 tests pass. The example was rebuilt from the same pull and passes
+  the ISO schemas (0 errors); the Dashboard was redrawn (picture 2) and its
+  method note looked at unfolded. The what-if printout is unchanged.
+- **Not seen in Excel.** That Excel truncates TDIST's degrees of freedom to a
+  whole number, as LibreOffice and the check do, is from Excel's
+  documentation, not from a run.

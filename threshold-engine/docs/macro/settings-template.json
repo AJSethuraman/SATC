@@ -61,9 +61,9 @@
   "answer": null
  },
  "compare_starts": {
-  "question": "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2, 3, 4, 6 or 12; the starting months are spread evenly through the year.",
+  "question": "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2 or 4; the starting months are spread evenly through the year, each the first month of a quarter, so a quarterly series has a reading at every one.",
   "recommended": 4,
-  "why": "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data. One reading every 12 months shares none, and four starting points (a quarter apart) show whether a link holds whichever quarter the count starts from.",
+  "why": "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data; one reading every 12 months keeps them a year apart. Four starting points (a quarter apart) show whether a link holds whichever quarter the count starts from.",
   "answer": null
  },
  "compare_min_pairs": {

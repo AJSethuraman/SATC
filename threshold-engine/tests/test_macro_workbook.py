@@ -454,10 +454,26 @@ def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_t
     assert holds.count("=1") == 1                                               # tested, all 4 pass, same sign
     same_sign = next(x for x in row if '">0")=4' in x and '"<0")=4' in x)
     assert same_sign.startswith("=IF(")
+    # each starting point's p is on its effective pairs, n(1 - y1 y2)/(1 + y1 y2) and never more than n, y1 and y2
+    # each series' change against its own a year earlier: readings a year apart are not independent (Codex on #472)
+    cells = {c.coordinate: c.value for c in ws[21] if isinstance(c.value, str)}
+    effs = {k: v for k, v in cells.items() if v.startswith("=IFERROR(MIN(")}
+    assert len(effs) == 4
+    for k, v in effs.items():
+        m = re.fullmatch(r'=IFERROR\(MIN\(([A-Z]+21),\1\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)/\(1\+\2\*\3\)\),""\)', v)
+        assert m, v
+        assert sum("SQRT((%s-2)/" % k in p and ",%s-2,2)" % k in p for p in ps) == 1, k
+    col = _dash_cols(ws)
+    for y, who in zip(m.groups()[1:], ("First", "Second")):
+        (c1, a1, b1), (c2, a2, b2) = _ranges(ws[y.replace("$", "")].value)
+        assert c1 == c2 == openpyxl.utils.get_column_letter(col["%s series: change in the quarters chosen" % who])
+        assert (a2 - a1, b2 - b1) == (12, 12)                                   # a year on
+    assert "on effective pairs" in ws.cell(19 + 5, 2).value                    # the note under the five leads
     # at the same time, on every shared reading: effective readings n(1 - r1 r2)/(1 + r1 r2), and p on them
     eff = ws["I15"].value
     target = ws[eff.lstrip("=").replace("$", "")].value
     assert re.search(r"\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)/\(1\+\1\*\2\)", target), target
+    assert re.search(r"MIN\((\$\w+\$\d+),\1\*", target), target                # never more than the readings
     p = ws[ws["J15"].value.lstrip("=").replace("$", "")].value
     assert "TDIST(" in p and "-2,2)" in p
     answer = ws["B11"].value
