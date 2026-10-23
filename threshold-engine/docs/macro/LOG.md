@@ -1623,3 +1623,26 @@ Q1, reads "Too few readings in these quarters to test a lead: pick a longer
 span." and nothing more; the default pair reads as before. A break (the
 sentence on the count of readings alone) failed the test. 199 tests
 pass.
+
+Codex on a877c290, two findings, both real:
+
+- `what-if-30-years.json`, the second example what-if, was refused: it did
+  not carry the four Dashboard answers, so `read --compare` would not take
+  it. It now carries the firm's answers, as the other two files do, and a
+  test reads every settings file in the docs folder.
+- The all-banks net charge-off series for other consumer, mortgage and home
+  equity said they start in 2006 Q1; their first value is 2006 Q4, as the
+  card series already said (a rate over the past four quarters). Checked
+  against the 23 Oct pull's file: those three were the only starts of the 16
+  that differed. A test holds every all-banks start to the rule.
+
+Also, my own: each bank series' source note read "from the cache the pull's
+FDIC cache", the path taken out and its words left in. It reads "from the
+pull's FDIC cache" now, and the test says so. The 23 Oct pull's bank file
+was built again with the fix from the same cache: all 16 series' figures
+identical, only the 16 source notes changed; the pull's record now gives
+that file's size, hash and the time it was built (22:32 UTC).
+
+Two breaks (the mortgage start back to 2006 Q1; the 30-year what-if without
+the Dashboard answers) and the old note wording each failed a test.
+201 tests pass.

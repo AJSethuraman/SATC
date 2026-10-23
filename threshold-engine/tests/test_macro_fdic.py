@@ -91,6 +91,8 @@ def test_a_quarter_is_dated_by_its_first_month_and_the_cache_path_stays_out(buil
     pts = F.read(raw, BY_KEY["card_losses_all_banks"].source_id)
     assert all(d[5:7] in ("01", "04", "07", "10") and d.endswith("-01") for d, _ in pts)
     assert str(root) not in raw.decode()                          # notes name "the pull's FDIC cache", not a path
+    notes = [n for v in got["series"].values() for n in v["note"]]
+    assert any("from the pull's FDIC cache." in n for n in notes) and not any("the cache the" in n for n in notes)
     assert any("Credit card, net charge-off rate" in n for n in got["series"]["credit-card_industry_net"]["note"])
 
 

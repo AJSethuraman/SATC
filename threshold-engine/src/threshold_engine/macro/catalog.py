@@ -122,9 +122,14 @@ BANK_MEASURES = [("net", "net", "losses", "net charge-offs", "losses",
                   "30+ late", "% of loans, quarter-end")]
 #: The first quarter each series holds, as the build of 23 Oct 2026 wrote it (2006Q1 to 2026Q2). KeyBank's card and
 #: other consumer start late: the build writes from the first quarter after the last break and fills no gap.
-BANK_STARTS = {("card", "net", "industry"): "2006Q4", ("card", "net", "keybank"): "2013Q4",
-               ("card", "30+", "keybank"): "2012Q3", ("other_consumer", "net", "keybank"): "2015Q4",
-               ("mortgage", "net", "keybank"): "2007Q1", ("home_equity", "net", "keybank"): "2007Q1"}
+#: Each series' first quarter in the build (the 23 Oct 2026 pull, every filer from 2006 Q1): a net charge-off rate is
+#: the past four quarters, so every product's for all banks starts in 2006 Q4 (Codex on #472: three said 2006 Q1);
+#: KeyBank's start where its books first hold the product.
+BANK_STARTS = {("card", "net", "industry"): "2006Q4", ("other_consumer", "net", "industry"): "2006Q4",
+               ("mortgage", "net", "industry"): "2006Q4", ("home_equity", "net", "industry"): "2006Q4",
+               ("card", "net", "keybank"): "2013Q4", ("card", "30+", "keybank"): "2012Q3",
+               ("other_consumer", "net", "keybank"): "2015Q4", ("mortgage", "net", "keybank"): "2007Q1",
+               ("home_equity", "net", "keybank"): "2007Q1"}
 SECURITIZED = ("2010Q1", "securitized cards came back onto banks' books under FAS 166 and 167 from 1 Jan 2010; "
                          "before it a bank's securitized cards were off its books (the threshold engine's note)")
 

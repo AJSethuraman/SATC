@@ -142,3 +142,10 @@ def test_the_firms_settings_are_complete_and_are_what_they_said():
     raw = json.loads(SETTINGS.read_text("utf-8"))
     S.check(raw)
     assert {name: raw[name]["answer"] for name, *_ in S.QUESTIONS} == FIRM
+
+
+def test_every_settings_file_in_the_docs_is_read_so_each_example_still_runs():
+    # A new question left the 30-year what-if refusing (Codex on #472): every file the docs offer must be read.
+    for path in sorted(SETTINGS.parent.glob("*.json")):
+        if path != TEMPLATE:
+            S.load(path)

@@ -115,8 +115,10 @@ def build_file(cache_root, today, fetch=None, first=None, say=lambda s: None):
                     if path.exists():
                         for line in path.read_text("utf-8").splitlines():
                             if line.startswith("# "):
-                                # The cache's place on this machine stays out of the file and the workbook.
-                                note.append(line[2:].replace(str(cache), "the pull's FDIC cache"))
+                                # The cache's place on this machine stays out of the file and the workbook; the
+                                # build's "from the cache <path>" reads "from the pull's FDIC cache".
+                                note.append(line[2:].replace("the cache " + str(cache), "the pull's FDIC cache")
+                                            .replace(str(cache), "the pull's FDIC cache"))
                             elif line and not line.startswith(("#", "date,")):
                                 d, v = line.split(",")
                                 points.append([d, float(v)])
