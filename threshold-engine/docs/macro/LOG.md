@@ -1668,3 +1668,6 @@ Codex on 1f41c1c3, two findings:
   by 6 months; the minimum-payment share against card losses lost +12). The
   usual practice is the whole series' autocorrelation, which the window
   gives from every month's pair a year apart. Recommended: keep it.
+
+The firm, asked, kept the whole-window carry-over: "Once over the span
+(Recommended)". Codex's thread was answered with the numbers and closed.
