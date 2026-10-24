@@ -236,3 +236,27 @@ def test_the_age_and_rent_fields_reach_the_estimate(client):
     assert not row.search(post(taxpayer_under_25="no", rental_and_passive_income="12000"))
     assert 'name="rental_and_passive_income"' in post()
     assert 'name="spouse_under_25"' in post()
+
+
+def test_the_screen_asks_whether_a_separate_filer_lived_apart(client):
+    """Codex on #451: the credit a separated parent can claim on a separate
+    return needs a question on the screen, not only in the engine."""
+    base = {"filing_status": "married_separately", "tax_year": "2025", "adjust_job": "0",
+            "pay_frequency": "annual", "pay_periods_remaining": "1",
+            "gross_pay_per_period": "15000", "federal_tax_withheld_per_period": "0",
+            "children_under_17": "1"}
+    assert b'name="lived_apart_from_spouse"' in client.get("/withholding").data
+    apart = client.post("/withholding", data=dict(base, lived_apart_from_spouse="yes")).data
+    assert b"4,328" in apart, apart.decode("utf-8", "replace")[:2000]
+    blank = client.post("/withholding", data=dict(base, lived_apart_from_spouse="")).data
+    assert b"4,328" not in blank and b"lived apart" in blank
+
+
+def test_two_blind_people_on_a_single_return_are_refused_on_screen(client):
+    resp = client.post("/withholding", data={
+        "filing_status": "single", "tax_year": "2025", "adjust_job": "0",
+        "pay_frequency": "annual", "pay_periods_remaining": "1",
+        "gross_pay_per_period": "60000", "federal_tax_withheld_per_period": "5000",
+        "blind_count": "2"})
+    assert resp.status_code == 200
+    assert b"legally blind" in resp.data and b"Total tax liability" not in resp.data

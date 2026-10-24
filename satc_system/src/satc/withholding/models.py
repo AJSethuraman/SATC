@@ -123,6 +123,12 @@ class Household:
     taxpayer_under_25: bool | None = None
     spouse_under_25: bool | None = None
     blind_count: int = 0
+    #: Married filing separately only: lived apart from the spouse for the last
+    #: six months of the year, or legally separated under a written agreement
+    #: and not living together at year end. With a qualifying child who lived
+    #: with the taxpayer over half the year, that allows the earned income
+    #: credit on a separate return (IRC sec. 32(d)(2), Pub. 596).
+    lived_apart_from_spouse: bool | None = None
     children_under_17: int | None = None
     other_dependents: int | None = None
     #: Children who qualify for the earned income credit (under 19, or under
@@ -362,6 +368,7 @@ def _build_household(data: dict[str, Any]) -> Household:
         taxpayer_under_25=_opt_bool(data.get("taxpayer_under_25")),
         spouse_under_25=_opt_bool(data.get("spouse_under_25")),
         blind_count=_opt_int(data.get("blind_count")) or 0,
+        lived_apart_from_spouse=_opt_bool(data.get("lived_apart_from_spouse")),
         children_under_17=_opt_int(data.get("children_under_17")),
         other_dependents=_opt_int(data.get("other_dependents")),
         eitc_children=_opt_int(data.get("eitc_children")))

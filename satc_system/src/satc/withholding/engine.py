@@ -336,6 +336,18 @@ def _extra_boxes(inp: EstimatorInput, status: str) -> int:
     is the older single-number input and is added as given.
     """
     hh = inp.household
+    most = 2 if status == "married_jointly" else 1
+    if hh.blind_count > most:
+        # REFUSED, NOT TRIMMED. Only the taxpayer, and a spouse on a joint
+        # return, have a blindness box (Pub. 501); a blind dependent adds
+        # nothing. Trimming would hide which of the two the preparer meant.
+        # Found by Codex on #451.
+        who = "you and your spouse" if most == 2 else "you"
+        raise ValueError(
+            f"{hh.blind_count} people marked legally blind; on a "
+            f"{status.replace('_', ' ')} return only {who} can count "
+            f"(at most {most}). A blind dependent does not add to the "
+            f"standard deduction.")
     boxes = int(bool(hh.taxpayer_65_or_older)) + hh.blind_count + inp.deductions.extra_standard_deductions
     if status == "married_jointly" and hh.spouse_65_or_older:
         boxes += 1
@@ -474,13 +486,18 @@ def _earned_income_credit(ctx: _Context, agi: Decimal, earned: Decimal) -> Decim
     t, hh = ctx.tables, ctx.inp.household
     if earned <= ZERO:
         return ZERO
-    if ctx.status == "married_separately":
-        ctx.eitc_ineligible_reason = "married filing separately"
+    kids = hh.eitc_children if hh.eitc_children is not None else (hh.children_under_17 or 0)
+    # A SEPARATE RETURN CAN CLAIM IT, ON CONDITIONS. Every one used to be
+    # refused, which can cost a separated parent thousands (Codex on #451).
+    # Not told is not eligible, and `_assumptions` says so.
+    if ctx.status == "married_separately" and not (kids > 0 and hh.lived_apart_from_spouse):
+        ctx.eitc_ineligible_reason = (
+            "married filing separately with no qualifying child" if kids == 0 else
+            "married filing separately and not marked as living apart from the spouse")
         return ZERO
     if ctx.investment_income > t.eitc_investment_income_limit:
         ctx.eitc_ineligible_reason = (f"investment income over {_usd(t.eitc_investment_income_limit)}")
         return ZERO
-    kids = hh.eitc_children if hh.eitc_children is not None else (hh.children_under_17 or 0)
     if kids == 0 and not _childless_age_ok(ctx):
         ctx.eitc_ineligible_reason = "no qualifying children and nobody on the return aged 25 to 64"
         return ZERO
@@ -767,7 +784,10 @@ def _prior_year_pct(inp: EstimatorInput, sh: dict, status: str) -> Decimal:
         high_threshold = Decimal(str(sh["high_income_agi_threshold_mfs"]))
     else:
         high_threshold = Decimal(str(sh["high_income_agi_threshold"]))
-    if inp.prior_year_agi is not None and inp.prior_year_agi > high_threshold:
+    # NOT GIVEN IS THE STRICTER RULE. Blank used to fall through to 100%, so
+    # a taxpayer over the AGI line could be told they were safe on a target
+    # 10% short (Codex on #451). `_assumptions` says this was assumed.
+    if inp.prior_year_agi is None or inp.prior_year_agi > high_threshold:
         return Decimal(str(sh["prior_year_pct_high_income"]))
     return Decimal(str(sh["prior_year_pct"]))
 
@@ -810,7 +830,9 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
             f"Each child under 17 is worth up to {_usd(t.ctc_per_child)} in credit; "
             f"each other dependent {_usd(t.odc_per_dependent)}.")
     kids = hh.children_under_17 or 0
-    eitc_reachable = ctx.earned_income > ZERO and status != "married_separately" and         max(ctx.agi, ctx.earned_income) < t.eitc_row(status, max(kids, 3))["completed"]
+    ek = hh.eitc_children if hh.eitc_children is not None else kids
+    mfs_apart = status == "married_separately" and ek > 0 and bool(hh.lived_apart_from_spouse)
+    eitc_reachable = ctx.earned_income > ZERO and (status != "married_separately" or mfs_apart) and         max(ctx.agi, ctx.earned_income) < t.eitc_row(status, max(kids, 3))["completed"]
     if hh.eitc_children is None and kids > 0 and eitc_reachable:
         add("Earned income credit", "The children under 17 are the qualifying children",
             "Children under 19, or under 24 and a student, also count for this credit.")
@@ -821,6 +843,18 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
         add("Earned income credit", "Somebody on the return is 25 or older",
             "With no qualifying child the credit needs somebody aged 25 to 64. "
             "If everyone is under 25, it is zero.")
+    if (status == "married_separately" and eitc_kids > 0 and ctx.earned_income > ZERO
+            and hh.lived_apart_from_spouse is None):
+        add("Earned income credit", "Not claimed: not told the spouses lived apart",
+            "A separate return can claim it if you lived apart from your spouse for the last "
+            "six months of the year, or are legally separated and did not live together at "
+            "year end, and the child lived with you over half the year.")
+    if inp.prior_year_tax is not None and inp.prior_year_tax > ZERO and inp.prior_year_agi is None:
+        hi = _usd(Decimal(str(t.safe_harbor()["high_income_agi_threshold_mfs" if status == "married_separately"
+                                               else "high_income_agi_threshold"])))
+        add("Last year's income", "Over the line, so the target is 110% of last year's tax",
+            f"If last year's AGI was {hi} or less, 100% is enough. Enter last year's AGI "
+            f"(Form 1040 line 11).")
     if inp.prior_year_tax is None:
         add("Last year's tax", "Not given, so only the 90%-of-this-year test was run",
             "Enter last year's total tax (Form 1040 line 24) -- paying that much "

@@ -29,7 +29,7 @@ from decimal import Decimal
 import pytest
 
 from satc.withholding import EstimatorInput, TaxYearNotOnFile, available_years, estimate, staleness
-from satc.withholding.tax_data import REQUIRED, incomplete_years, load_tax_tables
+from satc.withholding.tax_data import REQUIRED, incomplete_years, load_tax_tables, missing_parameters, required_for
 
 D = Decimal
 MID_YEAR = date(2025, 7, 1)
@@ -49,7 +49,7 @@ def test_every_year_the_estimator_offers_is_complete():
     """A year is offered only with every parameter the engine reads in force."""
     for year in available_years():
         tables, _ = load_tax_tables(year)
-        for name in REQUIRED:
+        for name in required_for(year):
             p = tables._x.params.get(name)
             assert p is not None and p.status == "in_force" and p.value is not None, (year, name)
 
@@ -244,6 +244,27 @@ def test_childless_joint_return_qualifies_on_either_spouse():
 def test_no_earned_income_credit_married_filing_separately():
     r = _run(wages=15000, status="married_separately", household={"children_under_17": 1})
     assert r.breakdown.earned_income_credit == ZERO_
+    # Not told they lived apart: not claimed, and said so.
+    assert any(a.topic == "Earned income credit" and "lived apart" in a.assumed for a in r.assumptions)
+    told_no = _run(wages=15000, status="married_separately",
+                   household={"children_under_17": 1, "lived_apart_from_spouse": False})
+    assert told_no.breakdown.earned_income_credit == ZERO_
+    assert not any("lived apart" in a.assumed for a in told_no.assumptions)
+
+
+def test_a_separated_parent_filing_separately_gets_the_credit():
+    # IRC sec. 32(d)(2), Pub. 596: a separate return with a qualifying child
+    # may claim it when the spouses lived apart the last six months. Codex
+    # review, PR #451. MFS uses the unmarried columns. One child, wages
+    # 15,000, 2025 (Rev. Proc. 2024-40 2.06): 15,000 x 4,328 / 12,730 = 5,099
+    # caps at 4,328; AGI 15,000 is under the 23,350 phase-out start.
+    r = _run(wages=15000, status="married_separately",
+             household={"children_under_17": 1, "lived_apart_from_spouse": True})
+    assert r.breakdown.earned_income_credit == D("4328.00")
+    # The rule needs a child: living apart alone does not open it.
+    none = _run(wages=15000, status="married_separately",
+                household={"children_under_17": 0, "lived_apart_from_spouse": True})
+    assert none.breakdown.earned_income_credit == ZERO_
 
 
 def test_nonrefundable_credits_do_not_offset_self_employment_tax():
@@ -349,6 +370,46 @@ def test_last_year_at_110_percent_above_150000():
     r = _run(wages=300000, prior_year_tax=50000, prior_year_agi=280000)
     assert r.recommendation.required_annual_payment == D("55000.00")
     assert r.recommendation.required_annual_payment_basis == "110% of last year's tax"
+
+
+def test_last_years_income_not_given_is_the_110_percent_rule_and_said():
+    # Pub. 505: 110% where last year's AGI was over 150,000. Blank used to
+    # fall through to 100% silently. Codex review, PR #451.
+    blank = _run(wages=300000, prior_year_tax=50000)
+    assert blank.recommendation.required_annual_payment == D("55000.00")
+    assert any(a.topic == "Last year's income" for a in blank.assumptions)
+    under = _run(wages=300000, prior_year_tax=50000, prior_year_agi=100000)
+    assert under.recommendation.required_annual_payment == D("50000.00")
+    assert not any(a.topic == "Last year's income" for a in under.assumptions)
+
+
+@pytest.mark.parametrize("status,count,ok", [
+    ("single", 1, True), ("single", 2, False), ("head_of_household", 2, False),
+    ("married_separately", 2, False), ("married_jointly", 2, True), ("married_jointly", 3, False)])
+def test_only_the_taxpayer_and_a_joint_spouse_can_be_blind(status, count, ok):
+    # Pub. 501: the blindness box is the taxpayer's, and the spouse's on a
+    # joint return; a blind dependent adds nothing. Codex review, PR #451.
+    if ok:
+        assert _run(wages=60000, status=status, household={"blind_count": count})
+    else:
+        with pytest.raises(ValueError, match="legally blind"):
+            _run(wages=60000, status=status, household={"blind_count": count})
+
+
+def test_a_later_year_must_carry_the_deductions_the_law_started_in_2026():
+    # A 2027 file without them would read them as zero and switch the
+    # deductions off. Codex review, PR #451.
+    import dataclasses
+    later = ("charity_nonitemizer_max", "charity_itemized_floor_pct",
+             "qbi_minimum_deduction", "qbi_minimum_qbi")
+    assert not set(later) & set(required_for(2025))
+    assert set(later) <= set(required_for(2027))
+    cw = load_tax_tables(2026)[0]._x
+    assert not missing_parameters(cw)
+    for name in later:
+        cut = dataclasses.replace(cw, tax_year=2027,
+                                  params={k: v for k, v in cw.params.items() if k != name})
+        assert missing_parameters(cut) == [name]
 
 
 def test_the_headline_says_the_answer_first():

@@ -160,10 +160,11 @@
         {{ yesno('spouse_65_or_older', 'Spouse 65 or older (joint return)') }}
         {{ yesno('taxpayer_under_25', 'Taxpayer under 25 by Dec 31') }}
         {{ yesno('spouse_under_25', 'Spouse under 25 (joint return)') }}
+        {{ yesno('lived_apart_from_spouse', 'Lived apart from spouse the last 6 months (separate return)') }}
         {{ field('children_under_17', 'Children under 17', 'blank = none') }}
         {{ field('other_dependents', 'Other dependents', 'older children, parents') }}
         {{ field('eitc_children', 'Children for the earned income credit', 'blank = the under-17 count') }}
-        {{ field('blind_count', 'People who are legally blind', 'blank = none') }}
+        {{ field('blind_count', 'Legally blind: taxpayer, and spouse on a joint return', 'blank = none; 1 or 2') }}
       </div>
     </div>
   </div>

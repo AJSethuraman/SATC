@@ -328,6 +328,23 @@ REQUIRED: tuple[str, ...] = (
     "qbi_threshold", "qbi_rate",
 )
 
+#: Parameters the law starts in a given year, required of that year and every
+#: later one. The accessors read a missing one as zero -- correct for 2025,
+#: which has no such deduction -- so without this a 2027 file that left one out
+#: would be offered as complete and quietly switch an enacted deduction off.
+#: Found by Codex on #451.
+REQUIRED_FROM: dict[int, tuple[str, ...]] = {
+    2026: ("charity_nonitemizer_max", "charity_itemized_floor_pct",
+           "qbi_minimum_deduction", "qbi_minimum_qbi"),
+}
+
+
+def required_for(tax_year: int) -> tuple[str, ...]:
+    """Every parameter a year must hold in force before it is offered."""
+    later = [n for start, names in sorted(REQUIRED_FROM.items())
+             if tax_year >= start for n in names]
+    return REQUIRED + tuple(later)
+
 
 class TaxYearNotOnFile(KeyError):
     """The estimator was asked for a year it does not hold complete tables for."""
@@ -342,7 +359,7 @@ _LIBRARY = CrosswalkLibrary()
 def missing_parameters(crosswalk: Crosswalk) -> list[str]:
     """The REQUIRED parameters this year does not hold in force."""
     out = []
-    for name in REQUIRED:
+    for name in required_for(crosswalk.tax_year):
         p = crosswalk.params.get(name)
         if p is None or p.is_pending or p.status != "in_force":
             out.append(name)
