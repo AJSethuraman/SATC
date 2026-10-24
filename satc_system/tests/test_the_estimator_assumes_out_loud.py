@@ -177,6 +177,11 @@ ZERO_ = D("0.00")
     ("single", 600000, 50000, "10000.00"),            # 40,000 - 30,000 = 10,000 floor
     ("single", 900000, 50000, "10000.00"),            # never below the floor
     ("married_separately", 260000, 30000, "18500.00"),  # (40,000 - 3,000) / 2
+    # Codex on #451 put the full 30% on a $20,000 cap ($5,000 here). The
+    # worksheet (lines 1, 7, 9, 10) and IRC 164(b)(6)-(7) reduce the $40,000
+    # amount and then halve it for a separate return: (40,000 - 15,000) / 2.
+    ("married_separately", 300000, 30000, "12500.00"),
+    ("married_separately", 400000, 30000, "5000.00"),   # 10,000 floor, halved
     ("single", 120000, 8000, "8000.00"),              # under 10,000: no worksheet
 ])
 def test_salt_worksheet(status, agi, paid, expected):
