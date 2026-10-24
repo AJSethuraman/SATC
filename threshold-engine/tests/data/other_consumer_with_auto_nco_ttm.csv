@@ -1,5 +1,11 @@
-# FDIC BankFind, every filer, other consumer plus LNAUTO/DRAUTO/CRAUTO
-# trailing-twelve-month net charge-off rate, percent; already smoothed
+# measure: Net charge-off rate on other consumer loans with automobile loans added back from 2011, every Call Report filer
+# population: Every institution that filed a Call Report for the quarter, summed across all of them
+# call-report: Other consumer as in the as-filed series (RC-C Part I line 6.d, "Other consumer loans (includes single payment and installment loans other than automobile loans, and all student loans)". It does not include line 6.b, "Other revolving credit plans"; charge-offs RI-B Part I line 5.c, "Other (includes revolving credit plans other than credit cards and other consumer loans)". This includes other revolving credit plans, which the balance (6.d) does not: the numerator covers more loans than the denominator. For KeyBank on 30 June 2026, other revolving credit was 268,825 ($000) against 4,200,208 in 6.d), plus automobile loans, RC-C Part I line 6.c "Automobile loans" (LNAUTO) and RI-B Part I line 5.b "Automobile loans" (DRAUTO, CRAUTO). Adding auto back keeps the series on one definition across the 2011 split
+# numerator: Other consumer plus auto charge-offs less recoveries, four quarters
+# denominator: Other consumer plus auto balances, the average of four quarter-ends
+# basis: Trailing twelve months: the four quarters' charge-offs less recoveries, over the average of the four quarter-end balances; dated at the quarter's end. Built in an earlier session; the script was not kept, and this file has not been tied out to its source
+# as-of: Each quarter-end, 1992Q4 to 2026Q2
+# source: FDIC BankFind Suite financial data, https://api.fdic.gov/banks/financials, fields LNCONOTH, DRCONOTH, CRCONOTH, LNAUTO, DRAUTO, CRAUTO; the FDIC takes them from each bank's Call Report
 date,value
 1992-12-31,0.9459
 1993-03-31,0.8484

@@ -153,7 +153,7 @@ def test_paid_cost_kept_follows_the_lines_on_control(tmp_path):
     assert tabs.dropdown(ws, "Grid").value == "FICO x CHANNEL"
     head = tabs.header_row(ws, results.C_TOG, "Together")
     assert tabs.heads(ws, head, results.C_BAND, results.C_TOG) == [
-        "Band", "Segment", "Loans", "Booked", "GCOs", "RANR", "RANR ÷ Booked", "Avg line", "Line × book", "Gap pts",
+        "Band", "Segment", "Loans", "Booked", "Avg line", "Line × book", "GCOs", "RANR", "RANR ÷ Booked", "Gap pts",
         "Dollars", "Rest", "× rest of band", "Dollars", "Rest", "Gap pts", "Dollars", "Rest", "Together"]
     assert [ws.cell(row=head - 1, column=c).value for c in (results.C_PAID, results.C_COST, results.C_KEPT)] == [
         "RANR + GCOs · gap vs rest of band", "GCOs · × rest of band", "RANR · gap vs rest of band"]
@@ -355,7 +355,7 @@ def test_a_dollar_materiality_line_is_gco_and_profit_is_held_to_it(tmp_path):
     check = tabs.record(_tab(b, "Record"))
     assert check["Materiality line: GCOs ($)"] == "100,000 GCO_AMT dollars"
     assert check["Materiality line: RANR"] == (
-        "a shortfall of 100,000 RANR_AMT dollars: the same dollar line as GCO (Control's materiality answer)")
+        "a shortfall of 100,000 RANR_AMT dollars, the same dollar line as GCO (the materiality answer on Control)")
     assert "GCO amount" in check["Materiality line: Bad loans"]
     assert check["Smallest excess loss worth reporting"] == "$100,000 of GCO"
 
@@ -504,11 +504,13 @@ def test_split_rows_say_what_their_grid_holds_fixed(tmp_path):
     rows = tabs.pockets(ws)
     assert rows[0]["band"].startswith("FICO") and rows[0]["holds"] == "Yes"
     assert any(x["band"].startswith("ORIG_BAL") and x["holds"] == "No: may be mostly FICO" for x in rows)
-    # How often by chance (5 Oct 2026): no number where the gap may be the partner's, and it says so
+    # Significant at N%? (17 Oct 2026; How often by chance from 5 Oct): no p-value where the gap may be the
+    # partner's, and it says so
     assert all(x["chance"] == "Mixed with FICO" for x in rows if str(x["holds"]).startswith("No:"))
     assert all(x["chance"] != "Mixed with FICO" for x in rows if x["holds"] == "Yes")
-    held = [x["holds"] == "Yes" for x in rows]
-    assert held == sorted(held, reverse=True)                              # held-fixed grids first
+    # since 17 Oct 2026 a Mixed with row sits with the pockets that have no test (group 4 of 7), not last
+    groups = [live.sig_group(x["chance"], (x["excess"] or 0) > 0) for x in rows]
+    assert groups == sorted(groups) and all(g == 4 for g, x in zip(groups, rows) if str(x["holds"]).startswith("No:"))
     # no verdict colour on those rows: their first rule greys them and the verdict rules come after it
     rules = [r.formula[0] for rng in ws.formulas.conditional_formatting
              if str(rng.sqref).startswith(results.col(results.K_WORSE)) for r in sorted(rng.rules,
@@ -770,7 +772,7 @@ def test_a_pocket_under_fewest_loans_is_tested_and_says_how(tmp_path):
     assert "Test" not in tabs.heads(ws, tabs.header_row(ws, results.K_NUM, "#"))
     rows = [x for x in tabs.pockets(ws) if x["worse"] != live.TOO_FEW]
     small, big = [x for x in rows if x["loans"] < 230], [x for x in rows if x["loans"] >= 230]
-    assert small and all(x["chance"] not in (None, live.FEW_LOSSES, live.FEW_LOANS) for x in small) and big
+    assert small and all(x["chance"] not in (None, live.FEW_LOSSES) for x in small) and big
     tests = {(r[live.P_LOANS - 1] < 230): r[live.P_TEST_BOOK - 1]
              for r in v[live.POCKETS].iter_rows(min_row=live.P_FIRST, values_only=True)
              if r[live.P_MEASURE - 1] == "outcome_loans" and r[live.P_TEST_BOOK - 1]}

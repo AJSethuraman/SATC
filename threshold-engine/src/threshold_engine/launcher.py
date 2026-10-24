@@ -14,8 +14,9 @@ imported, so this project lifts out whole):
     5. Peers      optional: the cache folder, the roster, the quarters, the
                   products, whether delinquency and nonaccrual are included,
                   and every rule `peers build` requires. Pull fills the cache
-                  from the FDIC; Build writes the peer workbook and its series
-                  CSVs. Both call ``peers/run.py``, the same two functions
+                  from the FDIC; Build writes the peer workbook (one Peers
+                  dashboard: filters at the top, every view under them) and
+                  its series CSVs. Both call ``peers/run.py``, the same two functions
                   `peers pull` and `peers build` call, so the window and the
                   command line cannot drift (docs/V1-ROUND2-SPEC.md, section C)
 
@@ -51,7 +52,10 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 # books.py is plain Python (no openpyxl), so the product names come from the
 # one place the peer build reads them, and the window still opens without
 # openpyxl. peers/run.py does import openpyxl, so it is loaded only on a press.
-from .peers.books import PRODUCTS as _PEER_PRODUCTS
+# The window offers the consumer products only (CONSUMER): the commercial ones
+# (16 Oct 2026) are on the command line, and the window gets them once its
+# Peers step has been opened with them on screen.
+from .peers.books import CONSUMER as _PEER_PRODUCTS
 from .series import LABEL_RULE, label_ok
 
 TITLE = "Thresholds"
@@ -420,7 +424,7 @@ def open_workbook(path: Path) -> str:
 # setting again before it reads anything, and what it refuses comes back here
 # as words too.
 
-#: The products the peer build knows, in its order (peers/books.py).
+#: The consumer products the peer build knows, in its order (peers/books.py).
 PEER_PRODUCTS = tuple(_PEER_PRODUCTS)
 PEER_DELINQUENCY = (("yes", "Yes: also delinquency and nonaccrual, by product"),
                     ("no", "No: charge-offs only"))
@@ -430,6 +434,8 @@ PEER_REFRESH = (("yes", "Yes: fetch every quarter again, even those in the cache
                 ("no", "No: fetch only the quarters not in the cache"))
 PEER_EXEMPT = (("yes", "Yes: the bank itself is drawn whatever its size"),
                ("no", "No: the bank itself meets the minimum like any other"))
+PEER_PRO_FORMA = (("yes", "Yes: each bank with the banks it absorbed, before each absorption"),
+                  ("no", "No: each bank as filed; a quarter after an acquisition is left out"))
 PEER_PACK = (("all", "All peers"), ("regionals", "Regionals only"))
 PEER_RANK_BY = (("gross", "Gross charge-offs"), ("net", "Net charge-offs"))
 #: What each press is called, and what it is doing while it runs.
@@ -460,11 +466,15 @@ class PeerForm:
     out: str = ""                  # the peer workbook, .xlsx
     series_dir: str = ""
     mergers_file: str = ""         # {cert: [quarter-end dates]}, as Pull writes it
+    absorptions_file: str = ""     # who absorbed whom, as Pull writes it
+    reporting_changes: str = ""    # the registry of Call Report changes
     extra_acquisitions: str = ""   # CERT=YYYYQn ..., or none
     industry_combined: str = ""    # PRODUCT+PRODUCT; ..., or none
     jump: str = ""
+    acquisition_share: str = ""
     min_book: str = ""
     exempt_self: str = ""          # yes | no
+    pro_forma: str = ""            # yes | no
     pack: str = ""                 # all | regionals
     min_banks: str = ""
     rank_by: str = ""              # gross | net
@@ -580,7 +590,8 @@ def _combined_ok(item: str) -> bool:
 _PULL = ("cache_pull", "first", "last", "products", "delinquency", "mergers_pull", "mergers_since",
          "refresh")
 _BUILD = ("cache_build", "roster", "first", "last", "products", "delinquency", "out", "series_dir",
-          "mergers_file", "extra_acquisitions", "industry_combined", "jump", "min_book", "exempt_self",
+          "mergers_file", "absorptions_file", "reporting_changes", "extra_acquisitions", "industry_combined", "jump",
+          "acquisition_share", "min_book", "exempt_self", "pro_forma",
           "pack", "min_banks", "rank_by", "last_n", "min_obs", "base_quarter", "index_min_book",
           "lagged_years", "lag_years", "normalisation_years", "mix_base_year")
 #: Every field in the order the page shows it.
@@ -656,6 +667,10 @@ def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
     put("series_dir", lambda o: _peer_path(pf.series_dir, "the series folder (--series-dir)", o,
                                            "folder", False))
     put("mergers_file", lambda o: _peer_path(pf.mergers_file, "the merger file (--mergers)", o, "file", True))
+    put("absorptions_file", lambda o: _peer_path(pf.absorptions_file, "the absorptions file (--absorptions)",
+                                                 o, "file", True))
+    put("reporting_changes", lambda o: _peer_path(pf.reporting_changes,
+                                                  "the reporting changes file (--reporting-changes)", o, "file", True))
     put("extra_acquisitions", lambda o: _peer_list(
         pf.extra_acquisitions, "the extra acquisitions (--extra-acquisitions)", o,
         lambda t: t.replace(",", " ").replace(";", " ").split(), _EXTRA.fullmatch, "CERT=YYYYQn items"))
@@ -664,8 +679,10 @@ def _peer_fields(pf: PeerForm) -> Dict[str, Tuple[object, List[str]]]:
         lambda t: t.split(";"), _combined_ok,
         "two or more products joined by +, one series from the next by ;"))
     num("jump", "the jump (--jump)", least=0)
+    num("acquisition_share", "the acquisition share (--acquisition-share)", least=0)
     num("min_book", "the minimum book (--min-book)", least=0)
     yes_no("exempt_self", PEER_EXEMPT, "whether the bank itself is exempt from the minimum (--exempt-self)")
+    yes_no("pro_forma", PEER_PRO_FORMA, "whether each bank includes the banks it absorbed (--pro-forma)")
     yes_no("pack", PEER_PACK, "the pack (--pack)")
     num("min_banks", "the number of banks a composite needs (--min-banks)", whole=True, least=1)
     yes_no("rank_by", PEER_RANK_BY, "what best and worst are ranked by (--rank-by)")
@@ -724,13 +741,14 @@ def peer_arguments(pf: PeerForm, action: str) -> dict:
                     refresh=yes("refresh"))
     return dict(out=v["out"], cache=v["cache_build"], roster=v["roster"], series_dir=v["series_dir"],
                 first=v["first"], last=v["last"], products=v["products"], mergers=v["mergers_file"],
+                absorptions=v["absorptions_file"],
                 extra_acquisitions=v["extra_acquisitions"], industry_combined=v["industry_combined"],
-                jump=v["jump"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pack=v["pack"],
+                jump=v["jump"], acquisition_share=v["acquisition_share"], min_book=v["min_book"], exempt_self=yes("exempt_self"), pro_forma=yes("pro_forma"), pack=v["pack"],
                 min_banks=v["min_banks"], rank_by=v["rank_by"], last_n=v["last_n"], min_obs=v["min_obs"],
                 base_quarter=v["base_quarter"], index_min_book=v["index_min_book"],
                 lagged_years=v["lagged_years"], lag_years=v["lag_years"],
                 normalisation_years=v["normalisation_years"], mix_base_year=v["mix_base_year"],
-                delinquency=yes("delinquency"))
+                delinquency=yes("delinquency"), reporting_changes=v["reporting_changes"])
 
 
 def peer_refusal(busy: Optional[str], action: str) -> Optional[str]:
@@ -984,8 +1002,8 @@ def window(root) -> dict:
             anchor="w", pady=(10, 0))
 
     def draw_settings():
-        heading("Settings", "The starting values for the workbook's red Settings tab. You can change them "
-                            "there afterwards and the lines move.")
+        heading("Settings", "The starting values for Your settings on the workbook's red Assess tab. You can "
+                            "change them there afterwards and the lines move.")
         cols = tk.Frame(page, bg=PAPER)
         cols.pack(anchor="w", fill="x")
         left, right = tk.Frame(cols, bg=PAPER), tk.Frame(cols, bg=PAPER)
@@ -1108,7 +1126,7 @@ def window(root) -> dict:
                     label(box, "  " + p, size=12, fg=CRIMSON).pack(anchor="w")
         if not any(wants.values()):
             label(box, "Everything is stated. Pull fills the cache; Build writes the peer workbook "
-                       "and opens it.", fg=SLATE).pack(anchor="w")
+                       "(one Peers tab: pick at the top, every chart and table follows) and opens it.", fg=SLATE).pack(anchor="w")
 
     def draw_peers():
         heading("Peers", "Optional. The bank against its peers, from public FDIC Call Reports. Pull "
@@ -1164,11 +1182,18 @@ def window(root) -> dict:
         peer_choice(body, "Quarters already in the cache (--refresh)", "refresh", PEER_REFRESH)
 
         section(body, "Build")
-        peer_text(body, "Peer workbook", "out", "The .xlsx Build writes.", browse="save")
+        peer_text(body, "Peer workbook", "out", "The .xlsx Build writes: one Peers tab, a dashboard. Its "
+                  "yellow cells (product, rate, Peer A and B, how many quarters the charts show, which banks are "
+                  "in the pack) start from the settings below and can be changed there.", browse="save")
         peer_text(body, "Series folder (--series-dir)", "series_dir", "Where the date,value CSVs go, for "
                   "the Series step.", browse="folder")
         peer_text(body, "Merger file (--mergers)", "mergers_file", "{cert: [quarter-end dates]}, as Pull "
                   "writes it.", browse="file")
+        peer_text(body, "Absorptions file (--absorptions)", "absorptions_file", "Who absorbed whom, as "
+                  "Pull writes it beside the merger file (absorptions.json).", browse="file")
+        peer_text(body, "Reporting changes file (--reporting-changes)", "reporting_changes", "The registry of "
+                  "Call Report changes, e.g. config/reporting-changes.json: each series notes the ones touching "
+                  "it.", browse="file")
         peer_text(body, "Extra acquisitions (--extra-acquisitions)", "extra_acquisitions",
                   "Acquisitions the FDIC record does not show, as CERT=YYYYQn separated by spaces; "
                   "write none if there are none.")
@@ -1180,11 +1205,16 @@ def window(root) -> dict:
         peer_text(body, "Jump (--jump)", "jump", "A quarter-on-quarter balance move above this is "
                   "structural (0.25 is 25%). Under delinquency it blanks a four-quarter average, never "
                   "a quarter-end rate.")
+        peer_text(body, "Acquisition share (--acquisition-share)", "acquisition_share", "When a bank's "
+                  "acquisitions in a quarter, added together, bring in at least this share of its book "
+                  "(0.05 is 5%), its next four quarters are left out: the bought loans' losses are not "
+                  "its own.")
         peer_text(body, "Minimum book (--min-book)", "min_book", "The smallest average balance ($000) "
                   "whose rate is kept; for delinquency, the quarter-end balance.")
         peer_choice(body, "Is the bank itself exempt from the minimum? (--exempt-self)", "exempt_self",
                     PEER_EXEMPT)
-        peer_choice(body, "Pack (--pack)", "pack", PEER_PACK)
+        peer_choice(body, "Each bank with the banks it absorbed? (--pro-forma)", "pro_forma", PEER_PRO_FORMA)
+        peer_choice(body, "Pack to start with (--pack): the banks whose Yes/No starts Yes", "pack", PEER_PACK)
         peer_text(body, "Banks a composite needs (--min-banks)", "min_banks", "Kept banks a composite or "
                   "band needs; a whole number.")
         peer_choice(body, "Best and worst are ranked by (--rank-by)", "rank_by", PEER_RANK_BY)
@@ -1192,12 +1222,12 @@ def window(root) -> dict:
         peer_text(body, "Quarters to be ranked (--min-obs)", "min_obs", "Kept quarters a bank needs to "
                   "be ranked.")
 
-        section(body, "The side analyses")
+        section(body, "The other views on the Peers tab")
         peer_text(body, "Balance index base (--base-quarter)", "base_quarter", "Written like 2019Q4.")
         peer_text(body, "Smallest book indexed (--index-min-book)", "index_min_book", "In $000, at the base.")
         peer_text(body, "Lagged years (--lagged-years)", "lagged_years", "Whole years separated by spaces.")
         peer_text(body, "Lag (--lag-years)", "lag_years", "In whole years.")
-        peer_text(body, "Normalisation years (--normalisation-years)", "normalisation_years",
+        peer_text(body, "Normalization years (--normalisation-years)", "normalisation_years",
                   "Two years: the base, then the end.")
         peer_text(body, "Mix base year (--mix-base-year)", "mix_base_year", "A whole year.")
 

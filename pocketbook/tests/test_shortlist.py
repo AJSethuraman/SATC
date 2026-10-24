@@ -574,8 +574,8 @@ def test_the_launcher_fills_test_it_and_hold_fixed_from_a_shortlist(tmp_path):
     assert [n for n, r in rows.items() if r["b"] and r["b"]["on"]] == ["UTIL", "TENURE"]   # the ratio isn't made yet
     assert all(r["locked"] for r in rows.values())
     ok, said = f.summary()
-    assert ok and said == ("the saved shortlist prespec.yaml: 3 inputs (UTIL, TENURE, income_to_sales) against "
-                           "BAD_FLAG, with FICO and CHANNEL held fixed, confirmed on the loans it held back.")
+    assert ok and said == ("the saved shortlist prespec.yaml, confirming 3 inputs (UTIL, TENURE, income_to_sales) against "
+                           "BAD_FLAG on the loans it held back, with FICO and CHANNEL held fixed.")
     got = f.choices()
     assert got.test == ("UTIL", "TENURE", "income_to_sales") and got.hold == ("FICO", "CHANNEL")
     assert got.split is None and got.bands == ("FICO",) and got.segments == ("CHANNEL",)

@@ -44,12 +44,15 @@ pocket step by step. The analyst runs it on a bank machine from one pasted scrip
 - **Run targeted tests locally;** the full suite and the planted bugs run in CI.
 - **Watch a PR only while it is yours to merge.**
 
-## Open items (4 Oct 2026)
+## Open items (17 Oct 2026)
 
 - **First Run with the new kit:** compare Record's rows read with the source system's loan count. Before 4 Oct, certain control characters could split one CSV row into two without warning. Fixed; the comparison confirms whether earlier Runs were affected.
 - **Excel itself is unverified.** Every check used LibreOffice. Ask the firm to report any "Excel repaired this file" message.
-- **The launcher's Next overwrites a category limit typed on Control.** Existing behaviour, not yet fixed.
-- **Only the audit workbook and Glossary are rewritten to `VOICE.md`.** The other tabs still need the same pass. Show the firm a numbered before/after page first.
-- **The Summary vintage chart breaks past about 42 distinct origination years.** Not a card-book concern.
+- **Grids, Compare and Split can still lose columns past 701 on a very long category list.** Every `_views` lookup reads columns B to ZZ (`results.AREA`). The vintage chart was fixed on 14 Oct 2026 (BACKLOG §6d). Grids rows are a grid's columns wide: a segment's values, times the split's parts, plus All. Compare and Split rows are a column's values wide. None exceeds 701 at the default Text columns limit of 50, or at 100 with a split. Above that, typed on Control (it allows up to 1,000), columns past ZZ show blank, and nothing says so. Found by reading the code; not run.
 - **The filter view limits can be bypassed:** a pair refused at 49 views is accepted with a small third filter. The firm chose to leave it.
-- **Proposed next project:** a tool that sets objective, product-specific thresholds for inherent (gross charge-offs) and residual (net charge-offs) risk ratings. Design first; the firm holds the brief.
+- **Line size (17 Oct 2026) waits on the firm's look at an example** (*"let's just look at an example after"*). Built
+  on synthetic data only; BACKLOG §6d has it. Three placements were chosen for them and are open to change: the five
+  Control rows sit in a block of their own under the launcher's (so the checklist's Control cells don't move);
+  Summary's two line figures follow % of booked rather than Line × book; and the vintage chart leaves the four line
+  figures off. `synth.write_extract(..., big_lines=True)` makes a book that trips.
+- **The thresholds tool proposed on 4 Oct is built** as its own project, `threshold-engine/` (root `CLAUDE.md`). Nothing of it is open here.

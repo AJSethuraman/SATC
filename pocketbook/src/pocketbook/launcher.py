@@ -46,14 +46,29 @@ from . import deps, house, places
 TITLE = "PocketBook"
 SUFFIX = f" - {TITLE}.xlsx"
 STEPS = ("Extract", "Set up", "Choose tests", "Answer in workbook", "Run")
-START = ["1. Pick the extract, and press Set up: it reads what each column is.",
-         "2. Choose the tests, and press Next: the workbook is written beside the extract.",
+START = ["1. Pick the extract and press Set up, which reads each column and suggests what it holds.",
+         "2. Choose the tests and press Next. The workbook is saved in the same folder as the extract.",
          "3. In the workbook, fill in the shaded cells, save and close it.",
-         "4. Press Run. The results land in the workbook."]
+         "4. Press Run. The results are written to the workbook."]
 PREFS: Path | None = None   # the launcher's last choices; None: launcher.json in the tool's folder (places.py)
 MODES = {"bleed": "Where the book bleeds", "new": "Test new variables"}
 FEW = (12, 6, 24)          # the options settings.yaml offers for the two limits, first the recommended one
 MANY = (50, 25, 100)
+# the two limits as the workbook beside the extract holds them (the firm, 14 Oct 2026): said under the dropdowns
+LIMIT_NAMES = {"few": "Number columns", "many": "Text columns"}
+
+
+def limits_moved(before: tuple | None, now: tuple) -> str | None:
+    """The refusal when the two limits differ from those Set up read the extract with; None when they don't."""
+    if before is None or tuple(before) == tuple(now):
+        return None
+    what = "; ".join(f"{LIMIT_NAMES[k]}: {b} to {n} values" for k, b, n in zip(("few", "many"), before, now) if b != n)
+    return (f"The column limits on Control changed after Set up read the extract ({what}). The columns have to be "
+            f"read again with them: press Set up.")
+
+
+LIMITS_FROM_BOOK = ("These are the limits on Control in this extract's workbook. A change here replaces them when "
+                    "you press Next.")
 
 
 def book_for(extract: str | Path) -> Path:
@@ -114,7 +129,7 @@ class AddOns:
             return [deps.ask_it(self.missing), "", "What the installer said last:", *("    " + ln for ln in tail)]
         them, theyre = ("it", "it's") if len(self.missing) == 1 else ("them", "they're")
         return [f"Install now downloads {them} from the internet. It takes a minute or two.",
-                f"Set up and Run switch on once {theyre} in."]
+                f"Set up and Run become available once {theyre} installed."]
 
     def start(self, optional: bool = False) -> list[str]:
         """Mark an install begun, and return the names to hand to deps.install: what the cube needs, or with
@@ -137,32 +152,12 @@ def waiting_words(missing: list[str]) -> str:
     """The line under the extract box while add-ons are missing. It said "while the add-on installs" with three
     missing and nothing installing yet (walk of 27 Sep 2026)."""
     them = "it is" if len(missing) == 1 else "they are"
-    return f"Until {them} in, you can still pick the extract and open a workbook written before."
+    return f"Until {them} installed, you can still pick the extract and open a workbook from an earlier Run."
 
 
-#: The words the window uses before the workbook explains them, each with its meaning in a line (F, the firm, 27 Sep
-#: 2026: "worse at 1.34x", "GCO dollars" and "scouting" were first read on the window, with the meaning only on a
-#: tab). A multiple is filled in from the words around it.
-TERMS = (("GCO dollars", "GCO dollars: what a loan charged off, in dollars."),
-         ("RANR dollars", "RANR dollars: what a loan earned after its losses, in dollars."),
-         ("grid", "A grid: every band of one column against every segment of another."),
-         ("measures", "Five measures: bad loans, bad dollars, GCOs ($), RANR, and RANR + GCOs."),
-         ("worse at", "worse at {x}x: losing {x} times as much as the rest counts as worse."),
-         ("better at", "better at {x}x: losing {x} times as much as the rest counts as better."),
-         ("scouting", "Scouting: the tree's first look at loans before the cutoff, to pick what to test."))
-
-
-def plain_words(said: str) -> list[str]:
-    """The meaning of each term in `said`, once each."""
-    out = []
-    for term, meaning in TERMS:
-        if term in ("worse at", "better at"):
-            m = re.search(term + r" ([0-9.]+)x", said)
-            if m:
-                out.append(meaning.format(x=m.group(1)))
-        elif re.search(r"\b" + term + r"s?\b", said):
-            out.append(meaning)
-    return out
+# The window's term lines (F, the firm, 27 Sep 2026: a plain meaning under each term the window used first) are
+# gone: the firm, 14 Oct 2026, on the wording review's proposal 3, "Drop the lines". The analysts know the terms
+# (VOICE.md: a key term gets its full name, not an everyday gloss), and the Glossary tab defines each one.
 
 
 def banner_clock(widgets: dict, gate: AddOns, optional: bool) -> None:
@@ -214,9 +209,9 @@ def _run(extract: str, progress=None):
     except TieOutError as exc:
         # walk of 27 Sep 2026: the one check the finished screen shows, when it failed, read "Something went wrong"
         crash = _crash("Run stopped")
-        out = book.Outcome(False, target, [f"Run stopped: the grids didn't add up to the book, so nothing was "
-                                           f"written. {exc}.", "That is a fault in PocketBook, not in your answers. "
-                                           "Press Copy details and send what it copies, to get it fixed."])
+        out = book.Outcome(False, target, [f"Run stopped: the grids did not reconcile to the book, so nothing "
+                                           f"was written. {exc}.", "This is a fault in PocketBook, not in your answers. "
+                                           "Press Copy details and send the copied text so it can be fixed."])
     except Exception:
         crash = _crash("Run stopped")
         out = book.Outcome(False, target, crash.lines())
@@ -242,7 +237,7 @@ class Crash:
 
     def lines(self) -> list[str]:
         out = [UNEXPECTED, f"{self.kind}: {self.said}" if self.said else self.kind,
-               "Press Copy details and send what it copies, to get it fixed."]
+               "Press Copy details and send the copied text so it can be fixed."]
         if self.log is not None:
             out.append(f"A copy is kept in {self.log}.")
         return out
@@ -388,6 +383,10 @@ class Flow:
         self.gate = gate or AddOns()
         self.extract = extract
         self.few, self.many = few, many
+        self.own = {"few": few, "many": many}   # the launcher's own choice of the two limits, kept in its prefs
+        self.chosen: set[str] = set()  # limits changed in the launcher since the workbook was last read or written
+        self.read_with: tuple | None = None   # the two limits Set up read the extract with
+        self.limits_said = ""         # LIMITS_FROM_BOOK while the two limits are the workbook's
         self.page = "extract"         # extract, choose, answer, needs, done
         self.read = None              # book.Read, once Set up has read the extract
         self.mode = "bleed"
@@ -415,6 +414,7 @@ class Flow:
         self.crash: Crash | None = None   # something PocketBook didn't expect: shown in the page's own space
         self.busy = ""
         self.stage, self.began = "", 0.0     # the progress line while busy: what is being done, since when
+        self.limits_from_book()       # the window opens on the last extract, which may have its workbook already
 
     # ---- where things stand
 
@@ -487,6 +487,46 @@ class Flow:
             self.extract = path
             self.read, self.written, self.finished, self.needs = None, None, None, []
             self.page, self.message, self.crash = "extract", [], None
+            self.chosen = set()
+            self.limits_from_book()
+
+    def limits_from_book(self, keep: set[str] | frozenset = frozenset()) -> None:
+        """The two limits as Control holds them in the workbook beside the extract, when there is one; otherwise the
+        launcher's own. The launcher kept its own last choice and Next wrote it over a limit typed on Control without
+        a word (HANDOFF.md, 4 Oct 2026); the firm, 14 Oct 2026, chose the workbook's, shown in the dropdowns, as the
+        other choices are. Only a path that is a file is looked at: a path being typed passes through names whose
+        workbook is another extract's (review of #437: "loans" on the way to "loans2.csv"). A limit in `keep` was
+        changed in the launcher and stays as it is; the other is still read (Codex on #437: one flag for both let a
+        launcher change to one limit hide an edit to the other on Control)."""
+        for k in ("few", "many"):
+            if k not in keep:
+                setattr(self, k, self.own[k])
+        self.limits_said = ""
+        if self.gate.missing or not self.extract or not Path(self.extract).is_file():
+            return
+        from . import book
+        got = book.limits_in(self.extract)
+        for k, key in (("few", "few_values"), ("many", "many_values")):
+            if k not in keep and key in got:
+                setattr(self, k, got[key])
+        if got and not keep:
+            self.limits_said = LIMITS_FROM_BOOK
+
+    def fresh_limits(self) -> None:
+        """Before Set up and Next: Control again, unless a limit was changed here since. The launcher stays open
+        while the analyst edits the workbook in Excel (review of #437: 24 typed on Control, then Next wrote 6)."""
+        self.limits_from_book(keep=self.chosen)
+
+    def choose_limit(self, key: str, n: int) -> None:
+        """A limit picked in the launcher's dropdown ("few" or "many"): the launcher's own choice, which Next writes."""
+        setattr(self, key, n)
+        self.own[key] = n
+        self.chosen.add(key)
+        self.limits_said = ""
+
+    def limit_prefs(self) -> dict:
+        """The two limits as the launcher keeps them for the next extract: its own choice, never a workbook's."""
+        return {"few": self.own["few"], "many": self.own["many"]}
 
     def set_up(self) -> None:
         """Read the extract: what each column is. Nothing is written."""
@@ -498,6 +538,7 @@ class Flow:
         if not Path(self.extract).is_file():
             self.message = [book.cant_read(self.extract, FileNotFoundError(), "Set up")]
             return
+        self.fresh_limits()
         try:
             got = book.read_extract(self.extract, self.few, self.many)
         except Exception:
@@ -507,6 +548,7 @@ class Flow:
             self.message = [got.problem]
             return
         self.read, self.message, self.note = got, [], []
+        self.read_with = (self.few, self.many)
         self._defaults(got.chosen)
         self.page = "choose"
 
@@ -665,10 +707,11 @@ class Flow:
         if c is None:
             return ""
         n = c.yes + c.no + c.other
-        rest = "nothing else" if not c.other else \
-            f"{_s(c.other, 'loan')} with anything else (blanks too) left out of the outcome rates, and counted"
-        return (f"1 means the loan went bad: {c.yes:,} loans ({c.yes / max(n, 1):.1%}). 0 means it didn't: "
-                f"{c.no:,}. {rest[0].upper() + rest[1:]}.")
+        rest = "no loan has any other value" if not c.other else \
+            f"any other value, including a blank, excludes the loan from the outcome rates ({_s(c.other, 'loan')}, " \
+            f"still counted)"
+        return (f"1 means the loan went bad ({c.yes:,} loans, {c.yes / max(n, 1):.1%}); 0 means it did not "
+                f"({c.no:,} loans). {rest[0].upper() + rest[1:]}.")
 
     def pick_outcome(self, name: str | None) -> None:
         """A column picked as the outcome: asked about before it counts (the firm: "it should be a pop-up to
@@ -815,8 +858,8 @@ class Flow:
             return ""
         views = ch.views_of(*(n for _, n in picked))
         sum_ = " × ".join(str(n + 1) for _, n in picked) + " = " if len(picked) > 1 else ""
-        return (f" Each grid is built for {sum_}{_s(views, 'view')}, All loans counted: {_s(grids, 'grid')} × "
-                f"{views:,} = {grids * views:,} to build.")
+        return (f" Each grid is built for {sum_}{_s(views, 'view')}, including All loans, so {_s(grids, 'grid')} × "
+                f"{views:,} = {grids * views:,} views are built.")
 
     def summary(self) -> tuple[bool, str]:
         """The "This will run:" box, and whether Next can be pressed."""
@@ -848,8 +891,8 @@ class Flow:
             held = f", with {_names(list(self.spec.strata))} held fixed" if self.spec.strata else ""
             cols = list(self.spec.columns)
             what = cols[0] if len(cols) == 1 else f"{_s(len(cols), 'input')} ({', '.join(cols)})"
-            return True, (f"the saved shortlist {Path(self.shortlist).name}: {what} against "
-                          f"{self.outcome or 'the outcome'}{held}, confirmed on the loans it held back.")
+            return True, (f"the saved shortlist {Path(self.shortlist).name}, confirming {what} against "
+                          f"{self.outcome or 'the outcome'} on the loans it held back{held}.")
         if "scikit-learn" in self.gate.optional:
             # Goal 2 item 9: finding needs the forest; confirming a saved shortlist doesn't
             return False, (f"{deps.message(['scikit-learn'])} Press Install scikit-learn, or confirm a saved "
@@ -861,13 +904,21 @@ class Flow:
         # OC-51: the tree is built on the loans before the cutoff picked on Control, and checked on the rest
         n = len(self.test)
         held = f", with and without {_names(self.hold)} held fixed" if self.hold else ""
-        return True, (f"{_s(n, 'input')} ({', '.join(self.test)}) against {self.outcome}{held}: found on the loans "
-                      f"made before the cutoff you pick on Control, then tested together and one by one on the rest.")
+        return True, (f"{_s(n, 'input')} ({', '.join(self.test)}) against {self.outcome}{held}. Scouting ranks them "
+                      f"on the loans made before the cutoff set on Control. The candidates it proposes are then "
+                      f"tested together and one at a time on the loans made on or after the cutoff.")
 
     def next(self) -> None:
         """Write the workbook with these choices (book.set_up keeps any answers already given)."""
         from . import book
         self.crash = None
+        self.fresh_limits()
+        moved = limits_moved(self.read_with, (self.few, self.many)) if self.read is not None else None
+        if moved:
+            # the columns were read with the old limits, so what was chosen on them may no longer hold (Codex on
+            # #437: a number column picked as a band, read as a category under the new limit); read them again
+            self.message, self.page = [moved], "extract"
+            return
         try:
             out = book.set_up(self.extract, choices=self.choices(), progress=self.progress)
         except Exception:
@@ -876,6 +927,7 @@ class Flow:
         if not out.ok:
             self.message = out.lines
             return
+        self.chosen = set()                           # written: Control holds them now, and is read again next time
         self.written, self.message, self.needs, self.finished, self.note = out, [], [], None, []
         self.page = "answer"
         self.refresh()
@@ -888,8 +940,8 @@ class Flow:
         parts = [said[k].format(v) for k, v in vals.items() if k in said and k not in fb]
         if not parts:
             return ""
-        return (f"Worked out from this extract: {'; '.join(parts)}. Each sits beside its setting on Control, "
-                f"for you to take or not.")
+        return (f"Calculated from this extract: {'; '.join(parts)}. Each value is shown beside its setting on "
+                f"Control and is used only if you choose it.")
 
     # ---- steps 4 and 5
 
@@ -932,7 +984,7 @@ class Flow:
         said = _open(b)
         if said:
             return said + f" Then go to {sheet} {cell}."
-        return "" if moved else f"Go to {sheet} {cell}: the workbook was already open, so it opened where it was."
+        return "" if moved else f"Go to {sheet} {cell}. The workbook was already open, so it stayed where it was."
 
     def open_book(self) -> str:
         """The Open the workbook button: what to say, or "" once it is opening."""
@@ -962,6 +1014,8 @@ class Flow:
     def after_install(self, optional: bool) -> None:
         """What the page says once an install ends and nothing the cube needs is missing: an optional add-on that
         didn't install is the note for IT, in red; one that did is good news, never in the red of a refusal."""
+        # the window opened without the add-ons, so the workbook's limits could not be read then (Codex on #437)
+        self.limits_from_book(keep=self.chosen)
         if optional and self.gate.optional:
             self.message = [f"Couldn't install {_names(self.gate.optional)} from here.", deps.ask_it(self.gate.optional)]
             self.note = []
@@ -976,17 +1030,6 @@ class Flow:
         """The Run's first two lines, under the finished screen's tiles (J, the firm, 27 Sep 2026): where to start
         reading, and a pre-spec changed after a held-back run when there is one. They were built and never shown."""
         return list(self.headline().get("first") or [])[:2]
-
-    def meanings(self) -> list[str]:
-        """A plain meaning for each term the window uses first on this page (F, the firm, 27 Sep 2026), one line
-        each, in the order the page shows them."""
-        if self.page == "choose" and self.read is not None:
-            said = [r["what"] for r in self.rows()] + [self.summary()[1]]
-        elif self.page == "answer":
-            said = [self.suggested_line()]
-        else:
-            return []
-        return plain_words(" ".join(said))
 
 
 # --------------------------------------------------------------------------
@@ -1025,12 +1068,12 @@ def confirm_tiles(h: dict) -> tuple:
         # several candidates' groups hold the same loans, so their shares of bad loans don't add up: count the
         # candidates with a group worse instead (Goal 2 item 3)
         return (("Groups worse than their reference", f"{h['worse']:,} of {h['groups']:,}",
-                 f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
+                 f"on the holdout, at {h['confidence']:.0%} confidence", "KEY_RED", "INK"),
                 ("Candidates with a group worse", f"{h['holding']:,} of {n:,}", "on the holdout", "KEY_RED", "INK"),
                 follows)
     # the column named: "Groups worse than 11,000 - 14,999" alone didn't say whose groups (walk of 27 Sep 2026)
     return ((f"{h['column']} groups worse than {h['reference']}", f"{h['worse']:,} of {h['groups']:,}",
-             f"on the holdout, {h['confidence']:.0%} sure", "KEY_RED", "INK"),
+             f"on the holdout, at {h['confidence']:.0%} confidence", "KEY_RED", "INK"),
             ("Their share of bad loans", f"{h['capture']:.0%}", "on the holdout", "KEY_RED", "INK"),
             follows)
 
@@ -1310,14 +1353,30 @@ def build(root) -> dict:
             b.pack(anchor="w")
             widgets["copy_details"] = b
 
+    def limit_options(key, opts):
+        """A limit's dropdown: the options, and the value in use when it is a number of the analyst's own."""
+        now = getattr(flow, key)
+        return [f"{o} values" for o in opts] + ([f"{now} values"] if now not in opts else [])
+
+    def show_limits_said():
+        """The line under the two limits: shown while they are the workbook's, gone once one is changed here."""
+        w = widgets.get("limits_said")
+        if w is None or not w.winfo_exists():
+            return
+        w.configure(text=flow.limits_said)
+        if flow.limits_said:
+            w.pack(fill="x", padx=8, pady=(0, 6))
+        else:
+            w.pack_forget()
+
     def page_extract():
         label(page, "Pick the loan extract", "title").pack(anchor="w")
         if flow.gate.missing:
             pass
         else:
-            label(page, "One row per loan, as a .csv or .xlsx. Set up reads it and guesses what each column "
-                        "means. The workbook is written beside it once you've chosen the tests. The extract "
-                        "itself is never changed.", "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(8, 12))
+            label(page, "The extract has one row per loan, as a .csv or .xlsx file. Set up reads it and suggests "
+                        "what each column means. Once you have chosen the tests, the workbook is saved in the same "
+                        "folder. PocketBook never changes the extract.", "body", fg="SLATE", wrap=470).pack(anchor="w", pady=(8, 12))
         row = tk.Frame(page, bg=C["WHITE"])
         row.pack(fill="x", pady=(8 if flow.gate.missing else 0, 0))
         entry = tk.Entry(row, textvariable=extract, font=F["body"], relief="solid", bd=1,
@@ -1332,25 +1391,29 @@ def build(root) -> dict:
         else:
             how = tk.Frame(page, bg=C["WHITE"], highlightbackground=C["MIST"], highlightthickness=1)
             how.pack(fill="x", pady=(14, 0))
-            label(how, "▾ How Set up recognises columns", "bold", bg=C["CANVAS"]).pack(fill="x", ipady=4, ipadx=8)
+            label(how, "▾ How Set up recognizes columns", "bold", bg=C["CANVAS"]).pack(fill="x", ipady=4, ipadx=8)
             # the firm, 29 Sep 2026: side by side, 12 and 50 read like one scale; they are for different columns
-            for text, key, opts in (("Number columns: this many values or fewer is a category; more is cut into "
-                                     "bands", "few", FEW),
-                                    ("Text columns: more values than this is too many to cut by (text is never "
-                                     "cut into bands)", "many", MANY)):
+            for text, key, opts in (("Number columns: a column with this many distinct values or fewer is a "
+                                     "category; one with more is cut into bands", "few", FEW),
+                                    ("Text columns: a column with more distinct values than this is raised as a "
+                                     "question, not used as a segment (text is never cut into bands)", "many", MANY)):
                 line = tk.Frame(how, bg=C["WHITE"])
                 line.pack(fill="x", padx=8, pady=4)
                 label(line, text, "body", wrap=320).pack(side="left")
                 var = tk.StringVar(value=f"{getattr(flow, key)} values")
-                pickb = ttk.Combobox(line, textvariable=var, values=[f"{o} values" for o in opts], width=11,
+                pickb = ttk.Combobox(line, textvariable=var, values=limit_options(key, opts), width=11,
                                      state="readonly", font=F["body"])
                 pickb.pack(side="right")
 
                 def chosen(e, key=key, var=var):
-                    setattr(flow, key, int(var.get().split()[0]))
-                    _save_prefs({"extract": extract.get(), "few": flow.few, "many": flow.many})
+                    flow.choose_limit(key, int(var.get().split()[0]))
+                    _save_prefs({"extract": extract.get(), **flow.limit_prefs()})
+                    show_limits_said()
                 pickb.bind("<<ComboboxSelected>>", chosen)
                 widgets[key] = pickb
+            # where the two came from, when the workbook beside the extract set them (the firm, 14 Oct 2026)
+            widgets["limits_said"] = label(how, flow.limits_said, "small", fg="SLATE", wrap=440)
+            show_limits_said()
         message_lines(page, flow.note, fg="INK")
         message_lines(page, flow.message)
         setup = ("setup", "Set up from this extract", lambda: background(flow.set_up, "Reading the extract"),
@@ -1426,7 +1489,6 @@ def build(root) -> dict:
         widgets["summary"] = label(text, ("This will run: " + said) if ok else said, "small", bg=C["CANVAS"])
         widgets["summary"].pack(fill="x")
         fit(widgets["summary"])
-        words_under(sumbox, C["CANVAS"], padx=10)
         message_lines(lower, flow.note, fg="INK")
         message_lines(lower, flow.message)
 
@@ -1587,20 +1649,12 @@ def build(root) -> dict:
             tile = tk.Frame(page, bg=C["CANVAS"])
             tile.pack(fill="x", pady=(4, 8))
             tk.Frame(tile, bg=C["KEY_RED"], height=3).pack(fill="x")
-            label(tile, said, "small", bg=C["CANVAS"], wrap=460).pack(anchor="w", padx=10, pady=(6, 0))
-            words_under(tile, C["CANVAS"], padx=10)
+            label(tile, said, "small", bg=C["CANVAS"], wrap=460).pack(anchor="w", padx=10, pady=(6, 6))
         lines = (flow.written.lines[1:] if flow.written else [])
         if lines:
             label(page, "\n".join(lines), "small", fg="INK", wrap=470).pack(anchor="w")
         message_lines(page, flow.message)
         buttons()
-
-    def words_under(master, bg, padx=0):
-        """The plain meaning of each term this page uses first (Flow.meanings), in slate under what uses it."""
-        lines = flow.meanings()
-        widgets["meanings"] = label(master, "\n".join(lines), "sub", fg="SLATE", bg=bg, wrap=460)
-        if lines:
-            widgets["meanings"].pack(anchor="w", padx=padx, pady=(2, 6))
 
     def open_banner():
         warn = tk.Frame(page, bg=C["ALERT_FG"], padx=10, pady=6)
@@ -1704,7 +1758,7 @@ def build(root) -> dict:
         draw_rail()
         clear(page)
         for k in ("setup", "next", "run", "open", "start", "open_banner", "summary", "install_optional", "tiles",
-                  "first", "meanings", "crash", "copy_details", "table", "progress"):
+                  "first", "crash", "copy_details", "table", "progress"):
             widgets.pop(k, None)
         {"extract": page_extract, "choose": page_choose, "answer": page_answer, "needs": page_needs,
          "done": page_done}["extract" if flow.gate.missing else flow.page]()
@@ -1726,7 +1780,7 @@ def build(root) -> dict:
         # Tk may only be touched from the main thread (found by tools/shoot_launcher.py: the worker read the
         # extract box itself). The Flow does the work in a thread; the window redraws when it comes back.
         flow.pick(extract.get())
-        _save_prefs({"extract": flow.extract, "few": flow.few, "many": flow.many})
+        _save_prefs({"extract": flow.extract, **flow.limit_prefs()})
         flow.busy, flow.stage, flow.began = what, "", time.monotonic()
         render()
         done: queue.Queue = queue.Queue()
@@ -1776,11 +1830,18 @@ def build(root) -> dict:
         # redrawn only when the page changes: a redraw while someone types would take the box away from them
         before = flow.page
         flow.pick(extract.get())
-        _save_prefs({"extract": flow.extract, "few": flow.few, "many": flow.many})
+        _save_prefs({"extract": flow.extract, **flow.limit_prefs()})
         if flow.page != before:
             render()
         elif "setup" in widgets:
             widgets["setup"].configure(state=flow.states()["setup"])
+            # the limits follow the extract's workbook, in place: a redraw would take the box away from the typist
+            for key, opts in (("few", FEW), ("many", MANY)):
+                w = widgets.get(key)
+                if w is not None and w.winfo_exists():
+                    w.configure(values=limit_options(key, opts))
+                    w.set(f"{getattr(flow, key)} values")
+            show_limits_said()
 
     extract.trace_add("write", on_extract)
 

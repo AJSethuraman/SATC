@@ -94,7 +94,7 @@ def test_each_template_written_filled_checked_and_built(tmp_path, capsys, key):
                "--unit", t.unit, "--direction", t.direction] + MEASURE)
     assert rc == 0, capsys.readouterr().err
     assert "Synthetic, 24 quarters" in capsys.readouterr().out
-    assert load_workbook(book).sheetnames[0] == "Thresholds"
+    assert load_workbook(book).sheetnames[:2] == ["Assess", "Thresholds"]
 
 
 def test_write_will_not_overwrite_a_filled_template(tmp_path, capsys):
@@ -202,8 +202,8 @@ def test_ok_gives_the_quarters_and_what_the_workbook_needs_of_them(tmp_path, cap
     assert rc == 0
     assert said.strip().endswith(
         "(Weighted average probability of default): 9 quarters. It is an ordinary series for the "
-        "workbook command's --series, which builds from it only when --min-history + --horizon + "
-        "--smoothing - 1 is 9 or less.")
+        "workbook command's --series; its backtest runs only when --min-history + --horizon + "
+        "--smoothing - 1 is 9 or less, and otherwise says it was not tested.")
 
     def build(min_history, horizon, smoothing):
         args = [a for a in MEASURE]
@@ -213,5 +213,9 @@ def test_ok_gives_the_quarters_and_what_the_workbook_needs_of_them(tmp_path, cap
                      "--unit", "%", "--direction", "higher_is_worse"] + args)
     assert build(4, 4, 2) == 0                        # 4 + 4 + 2 - 1 = 9
     capsys.readouterr()
-    assert build(5, 4, 2) == 2                        # 10
-    assert "8 observations after smoothing; at least min_history + horizon = 9" in capsys.readouterr().err
+    # 10: life to date (14 Oct 2026), the workbook still builds; the backtest says why it did not run.
+    assert build(5, 4, 2) == 0
+    ws = load_workbook(tmp_path / "w.xlsx")["Backtest"]
+    said = [ws.cell(r, 3).value for r in range(1, ws.max_row + 1)]      # after the margin and the series
+    assert any(isinstance(v, str) and v.startswith("Not tested: 8 observations after smoothing; at least "
+                                                    "min_history + horizon = 9") for v in said)

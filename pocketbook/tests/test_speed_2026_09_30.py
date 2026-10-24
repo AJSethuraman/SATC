@@ -113,7 +113,7 @@ def test_record_shows_where_the_time_went_and_it_adds_up(ran):
     total = _seconds(head)
     # each row rounded to a tenth (or a second), so the rows add up to the head within the rounding
     assert abs(sum(shown) - total) <= 0.05 * len(shown) + 1.0, (head, stages)
-    assert head.startswith(f"{timing.took(total)} before Record was written. The biggest: ")
+    assert head.startswith(f"{timing.took(total)} before Record was written. The longest stages: ")
     notes = dict(stages)
     assert "(loans.csv: csv, 1,500 rows x 11 columns)" in notes["Reading the extract"]
     assert "200 shuffles of 1,500 loans on 1 process" in notes["The shuffle test"]

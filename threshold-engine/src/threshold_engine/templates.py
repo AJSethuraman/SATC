@@ -190,7 +190,8 @@ def _checklist(t: Template, name: str) -> str:
         "separator, no blanks." % (t.unit, rng),
         "Add no other column. The file holds a date and a value and nothing else, so "
         "nothing about an account or a person can travel in it.",
-        "Run `threshold-engine template check %s %s`. It lists every problem at once; "
+        "Run `python -m threshold_engine template check %s %s` (on Windows `py` for `python` if that is "
+        "what the machine has). It lists every problem at once; "
         "fix them and run it again until it says OK." % (t.key, name),
     ]
     head = "# %s: what to do\n\n%s, measured as %s; %s.\n\n" % (

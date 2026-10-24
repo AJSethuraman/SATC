@@ -73,6 +73,15 @@ parameter with no citation **fails to load**; it does not become folklore.
 
 *Enforced:* `rules_for_jurisdiction`; `load_rules` rejects a sourceless rule.
 
+The same rule reaches into a workbook's arithmetic. threshold-engine rates a
+value at or below zero as Low because a rate cannot go below zero, which is
+true of a charge-off rate and false of a gap between two rates (18 Oct 2026,
+the gap to peers on 30+ to charge-off). The book names the measures that
+have no floor; a name that is not one of its measures is refused, and a
+measure not named keeps the floor. Nothing decides it from the data.
+
+*Enforced:* `book.load` (`floor_off`); `tests/test_floor_off.py`.
+
 ## 6 · The model proposes; the engine disposes
 
 The model never computes a number that matters and never writes state directly.

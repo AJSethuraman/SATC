@@ -57,30 +57,38 @@ WAITING, SAME = "\u21bb Waiting for a Run", "Same as last Run"
 #: the two blocks a person answers, in the spec's order; the launcher's block follows them
 NOW_KEYS = ("worse_at", "better_at", "revenue_line", "confidence", "materiality", "compare_to")
 RUN_KEYS = ("min_loans", "min_events", "band_count", "band_cut", "power", "many_tests")
+#: the Line size tab's lines and switch (the firm, 17 Oct 2026), live as Block A's are, in a block of their own under
+#: the launcher's, so no row above them moves (the bank's checklist names Control's cells by row)
+LINE_KEYS = ("line_big", "line_bad_bigger", "line_lost", "line_sooner", "line_worse_on")
 BLOCK_NOW, BLOCK_RUN, BLOCK_LAUNCHER = "block|now", "block|run", "block|launcher"
+BLOCK_LINES, LINES_COLS = "block|lines", "block|lines|cols"
+LINES_HEAD = "Line size · the Line size tab follows as you change these"
 NEEDS = "F7DEDE"          # ALERT_FG: the shade on a cell that still needs an answer
 METHOD = [
-    ("Changes now", "The result tabs read these answers with formulas. Change one and every reading, dollar figure, "
-                    "colour and verdict follows at once. The order of rows stays as the last Run left it."),
+    ("Changes now", "The result tabs read these answers through formulas, so changing one updates every reading, "
+                    "dollar figure, color and verdict immediately. The rows stay in the order the last Run left "
+                    "them."),
     ("Needs a Run", "These decide which pockets exist and which test each one gets, so they take effect when you "
                     "press Run again. Status says when an answer differs from what the last Run used."),
-    ("Your answer", "Pick from the list, or type a number under Or your own: a number there wins. A shaded answer "
-                    "still needs one. Comes to shows what the answer amounts to now."),
-    ("Worked out", "Fewest loans, worse at and better at each have a value worked out from this extract, shown "
-                   "beside the setting. It is never picked for you."),
+    ("Your answer", "Pick from the list, or type a number under Or your own; a number there takes precedence. A "
+                    "shaded cell still needs an answer. Comes to shows the value the answer currently produces."),
+    ("Worked out", "Fewest loans, worse at and better at each have a value calculated from this extract, shown "
+                   "beside the setting. The value is never entered as your answer."),
     ("Chosen in the launcher", "What you're running and how the pockets are cut. Change them in the launcher's "
                                "Choose tests, then press Next. They are shown here so a reviewer sees them."),
-    ("Materiality levels", "For each level: its dollar line, how many pockets have GCOs above their share "
-                           "that reach it, and their part of all such dollars. It follows your answer live."),
+    ("Materiality levels", "For each level, the panel shows the dollar line, the number of pockets whose gross "
+                           "charge-offs (GCOs) above their share reach it, and the portion of all such dollars those pockets hold. "
+                           "It updates live with your answer."),
 ]
 #: the two method lines a test of a new variable reads differently: it builds no pocket, so only worse at is worked
 #: out (from the confirmation's own groups), and the levels panel, which counts pockets, is hidden (phase 4's loose
 #: ends, closed with Goal 2 item 3). The bleed reads METHOD's
 METHOD_NEW = {
-    "Worked out": "Worse at has a value worked out from this extract, from the groups being confirmed, shown beside "
-                  "the setting. It is never picked for you.",
-    "Materiality levels": "Material? on New variables compares each group's excess with the level you pick, live. "
-                          "The panel of levels counts pockets, so it is hidden on this run, which builds none.",
+    "Worked out": "Worse at has a value calculated from this extract, using the groups being confirmed, shown "
+                  "beside the setting. The value is never entered as your answer.",
+    "Materiality levels": "Material? on New variables compares each group's excess with the selected level, and "
+                          "updates live. The panel of levels counts pockets, and this kind of Run builds none, so "
+                          "the panel is hidden.",
 }
 
 INK, CANVAS, MIST, SLATE, PAPER, KEY_RED = "16130F", "F4F1EC", "E4DFD5", "57534B", "FFFFFF", "CC0000"
@@ -98,6 +106,9 @@ class Option:
     label: str
     explains: str
     recommended: bool = False
+    #: the option the row opens on, its label marked "(suggested)" in its own words (the line-size lines, the firm,
+    #: 17 Oct 2026: "Starting lines are suggestions, marked as suggested")
+    starts: bool = False
 
     @property
     def shown(self) -> str:
@@ -119,9 +130,16 @@ class Setting:
     #: blank is an answer of its own: nothing is assumed and nothing changes, and the Run doesn't wait for it (the
     #: bureau codes question, 30 Sep 2026: asked, never answered for the firm)
     optional: bool = False
+    #: the day the row was added (settings.yaml `added`): a Control tab set up before it has no such row, and the Run
+    #: reads the starting option instead of refusing, so an older workbook still Runs
+    added: str | None = None
 
     def recommended(self) -> Option | None:
         return next((o for o in self.options if o.recommended), None)
+
+    def start(self) -> Option | None:
+        """The option the row opens on: the recommendation, or the starting (suggested) line."""
+        return self.recommended() or next((o for o in self.options if o.starts), None)
 
 
 #: The new-columns block under the settings (fix 3.9): a heading, a note, a header and this many rows.
@@ -130,8 +148,8 @@ class Setting:
 REMOVED_ROWS = ("min_age_months", "window_months", "as_of")
 DERIVED_KEY = "derived"
 DERIVED_ROWS = 3
-DERIVED_NOTE = ("Shows here and in Choose tests once you press Set up again, and on Look as a band column or the "
-                "split. Blank where the bottom is zero or blank.")
+DERIVED_NOTE = ("A new column appears here and under Choose tests after you press Set up again, and on Look once "
+                "it is a band column or the split. It is blank on loans where the denominator is zero or blank.")
 
 
 _ONCE = threading.local()
@@ -171,12 +189,14 @@ def _read_settings(path: str | Path | None = None) -> list[Setting]:
     for g in raw["groups"]:
         for s in g["settings"]:
             opts = tuple(Option(value=o["value"], label=str(o["label"]), explains=" ".join(str(o["explains"]).split()),
-                                recommended=bool(o.get("recommended", False))) for o in s["options"])
+                                recommended=bool(o.get("recommended", False)), starts=bool(o.get("starts", False)))
+                         for o in s["options"])
             out.append(Setting(key=s["key"], question=s["question"], takes_effect=s["takes_effect"],
                                override=s.get("override"), options=opts, group=g["title"],
                                judgment=bool(s.get("judgment", False)), valid=s.get("valid"),
                                only_when=s.get("only_when"), in_launcher=s.get("asked_in") == "launcher",
-                               optional=bool(s.get("optional", False))))
+                               optional=bool(s.get("optional", False)),
+                               added=str(s["added"]) if s.get("added") is not None else None))
     return out
 
 
@@ -228,8 +248,8 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
               "I": 56, "J": 4, "K": 4, "L": 3, "M": 12, "N": 14, "O": 10, "P": 11}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    house.title_band(ws, "Control", "The professional calls. The top block changes results now; the second waits "
-                                    "for a Run.", 2, PANEL_COL + 3)
+    house.title_band(ws, "Control", "The professional calls. Answers in the top block change the results "
+                                    "immediately; answers in the second block take effect at the next Run.", 2, PANEL_COL + 3)
     r = house.method_note(ws, 3, 2, LAST_VISIBLE, METHOD)
     # the legend: the three input styles, drawn as they appear
     for col, (text, style) in zip((2, 3, 6), (("Changes now", house.changes_now), ("Needs a Run", house.needs_run),
@@ -248,7 +268,8 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     by_key = {s.key: s for s in settings}
     now = [by_key[k] for k in NOW_KEYS if k in by_key]
     run = [by_key[k] for k in RUN_KEYS if k in by_key]
-    rest = [s for s in settings if not s.in_launcher and s.key not in NOW_KEYS + RUN_KEYS]
+    lines = [by_key[k] for k in LINE_KEYS if k in by_key]
+    rest = [s for s in settings if not s.in_launcher and s.key not in NOW_KEYS + RUN_KEYS + LINE_KEYS]
     run += [s for s in rest if s.takes_effect != "live"]
     now += [s for s in rest if s.takes_effect == "live"]
     # where each row lands, worked out first: a setting asked only after another's answer names that row
@@ -264,6 +285,10 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     for i, (key, _) in enumerate(launcher_rows):
         if key in by_key:
             row_of[key] = c_top + 1 + i
+    # Block D, the line-size lines (17 Oct 2026): under the launcher's block and the blank row after it
+    d_top = c_top + 1 + len(launcher_rows) + 1
+    for i, s in enumerate(lines):
+        row_of[s.key] = d_top + 2 + i
 
     house.section(ws, a_top, 2, LAST_VISIBLE, "Changes now · the result tabs follow as you change these")
     ws.cell(row=a_top, column=KEY_COL, value=BLOCK_NOW)
@@ -275,11 +300,17 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
     ws.cell(row=b_top, column=KEY_COL, value=BLOCK_RUN)
     house.sub_header(ws, b_top + 1, 2, ["Setting", "Your answer ↻", "Or your own", None, "Last Run used", None,
                                         "Status", "Worked out from the loans"], centre_from=1)
+    if lines:
+        house.section(ws, d_top, 2, LAST_VISIBLE, LINES_HEAD)
+        ws.cell(row=d_top, column=KEY_COL, value=BLOCK_LINES)
+        house.sub_header(ws, d_top + 1, 2, ["Setting", "Your answer", "Or your own", "Comes to", "Last Run used"],
+                         centre_from=1)
+        ws.cell(row=d_top + 1, column=KEY_COL, value=LINES_COLS)
     thin = Side(style="thin", color=house.ROW_RULE)
     status_rows = []
-    for s in now + run:
+    for s in now + run + lines:
         r = row_of[s.key]
-        live_now = s in now
+        live_now = s in now or s in lines
         first, last = ranges[s.key]
         ws.cell(row=r, column=2, value=s.question)
         # what each option means, on the setting's name rather than beside the row (tenet T1): hover to read it
@@ -287,7 +318,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         note = Comment("\n".join(f"{o.label}: {o.explains}" for o in s.options), "PocketBook")
         note.width, note.height = 420, 60 + 44 * len(s.options)
         ws.cell(row=r, column=2).comment = note
-        rec = s.recommended()
+        rec = s.start()
         choose = ws.cell(row=r, column=CHOOSE_COL, value=None if s.judgment or rec is None else rec.shown)
         dv = DataValidation(type="list", formula1=f"='{OPTIONS_SHEET}'!$C${first}:$C${last}", allow_blank=True,
                             showDropDown=False, showErrorMessage=True)
@@ -359,7 +390,7 @@ def write_control(wb: Workbook, settings: list[Setting]) -> None:
         ws.cell(row=r, column=CHOOSE_COL).alignment = Alignment(horizontal="left", vertical="center", indent=1)
         ws.cell(row=r, column=OWN_COL).alignment = Alignment(horizontal="center", vertical="center")
         ws.row_dimensions[r].height = 18
-    need = [row_of[s.key] for s in now + run]
+    need = [row_of[s.key] for s in now + run + lines]
     wb.defined_names["answers_needed"] = DefinedName(
         "answers_needed", attr_text=f"{SHEET}!$J${min(need)}:$J${max(need)}")
     end = _write_launcher_block(ws, settings, row_of, c_top, launcher_rows)
@@ -443,6 +474,11 @@ def _comes_to(key: str, plain: str, value: str = '""', worked: str = '""') -> st
         before = (f'IF(ISNUMBER({value}),TEXT({value},"0.00")&"×",IF(ISNUMBER({worked}),TEXT({worked},"0.00")&"×",'
                   f'""))')
         return f'IFERROR(TEXT({key},"0.00")&"×",{before})'
+    if key in LINE_KEYS and key != "line_worse_on":
+        # a line-size line: the option's own number, as the tab reads it (the share lost as a percentage)
+        if key == "line_lost":
+            return f'IF(ISNUMBER({value}),TEXT({value},"0%"),"")'
+        return f'IF(ISNUMBER({value}),TEXT({value},"0.00")&"×","")'
     return '""'                 # the answer says it already: nothing to add
 
 
@@ -489,7 +525,8 @@ def _materiality_panel(ws, settings: list[Setting], top: int) -> None:
         FormulaRule(formula=[f'RIGHT(${_letter(first)}{top + 2},1)="◂"'], font=Font(bold=True),
                     fill=PatternFill("solid", fgColor=house.CANVAS, bgColor=house.CANVAS)))
     for i, words in enumerate(("GCOs, every grid, against what each pocket is judged against.",
-                               "A RANR shortfall is held to the same dollar line.")):
+                               "A risk-adjusted net revenue (RANR) shortfall is held to the same "
+                               "dollar line.")):
         note = ws.cell(row=r + i, column=first, value=words)
         note.font = Font(name="Calibri", size=9, color=SLATE)
 
@@ -634,6 +671,8 @@ def fold_launcher_rows(ws) -> None:
         key = r[KEY_COL - 1].value
         if key in only_new:
             ws.row_dimensions[r[0].row].hidden = not new
+        elif key in (BLOCK_LINES, LINES_COLS):
+            ws.row_dimensions[r[0].row].hidden = new        # the Line size block's heading, with its rows
         elif isinstance(key, str) and any(x.key == key and x.only_when and "run_kind" in x.only_when
                                           for x in load_settings()):
             ws.row_dimensions[r[0].row].hidden = key in by_kind
@@ -657,7 +696,7 @@ def read_choices(ws):
     from . import choices as ch
     got, cells = {}, {}
     run_kind = shortlist = None
-    limits = {"few_values": 12, "many_values": 50}
+    limits = {"few_values": 12, "many_values": 50, **read_limits(ws)}
     for r in ws.iter_rows(min_row=FIRST_ROW):
         key = r[KEY_COL - 1].value
         if not isinstance(key, str):
@@ -674,13 +713,27 @@ def read_choices(ws):
         elif key == PRESPEC_KEY:
             shortlist = str(v).strip() if v not in (None, "") else None
             cells[key] = f"{SHEET}!C{r[0].row}"
-        elif key in limits:
-            n = answer_of(key, v, r[OWN_COL - 1].value)
-            if isinstance(n, (int, float)) and not isinstance(n, bool):
-                limits[key] = int(n)
     if got.get("bands") is None and got.get("segments") is None:
         return None, cells              # nothing written yet, or a workbook set up before the launcher chose
     return ch.Choices.from_rows(got, run_kind=run_kind, shortlist=shortlist, **limits), cells
+
+
+LIMITS = ("few_values", "many_values")
+
+
+def read_limits(ws) -> dict[str, int]:
+    """The two column limits as Control holds them, by key: the option picked or a number typed in its own cell.
+    A limit with no usable answer is left out. Reads a read-only worksheet too (book.limits_in): openpyxl pads its
+    rows to the sheet's recorded size, and a sheet written without one has rows that end at their last filled cell."""
+    got = {}
+    for row in ws.iter_rows(min_row=FIRST_ROW, values_only=True):
+        row = tuple(row) + (None,) * (KEY_COL - len(row))
+        key = row[KEY_COL - 1]
+        if key in LIMITS:
+            n = answer_of(key, row[CHOOSE_COL - 1], row[OWN_COL - 1])
+            if isinstance(n, (int, float)) and not isinstance(n, bool):
+                got[key] = int(n)
+    return got
 
 
 # --------------------------------------------------------------------------
@@ -726,7 +779,14 @@ def read_control(path, settings: list[Setting] | None = None) -> dict[str, Any]:
         later = [x for x in later if x not in now]
     for k in by_key:
         if k not in seen:
-            problems.append(f'The {SHEET} tab is missing the setting "{by_key[k].question}". Press Set up again.')
+            s = by_key[k]
+            if s.added and s.start() is not None:
+                # a Control tab set up before the row was added (17 Oct 2026, the line-size lines): the starting
+                # option, where the row is asked, and the next Set up writes the row
+                if asked(s, found):
+                    found[k] = s.start().value
+                continue
+            problems.append(f'The {SHEET} tab is missing the setting "{s.question}". Press Set up again.')
     if problems:
         raise ControlError(problems)
     return found

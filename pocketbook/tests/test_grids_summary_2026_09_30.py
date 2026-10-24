@@ -137,7 +137,7 @@ def test_grids_stacks_its_four_blocks_one_under_another_from_the_left(made):
     assert (ws["B12"].value, ws["F12"].value) == ("GRID", "MEASURE")
     # the note under the blocks, then What one cell says, then the groups, all below Loans
     blank = next(c.row for c in ws["B"] if isinstance(c.value, str) and c.value.startswith("A blank: alone"))
-    one = next(c.row for c in ws["B"] if c.value == "The colour")
+    one = next(c.row for c in ws["B"] if c.value == "The color")
     assert tops[-1] < blank < one
 
 

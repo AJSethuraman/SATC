@@ -16,12 +16,13 @@ import json
 import pytest
 
 from conftest import DATA
-from threshold_engine.peers.books import write_series
+from threshold_engine.peers.books import CONSUMER as CONSUMER_PRODUCTS, write_series
 from threshold_engine.peers.delinquency import (
     BASES, FIELDS, MEASURES, WHY_ABSENT, WHY_FEWER_THAN_FOUR, WHY_JUMP_PREFIX, WHY_NO_BOOK,
     WHY_SMALL,
     band_delinquency, bank_delinquency, basis_key, composite_delinquency, fields_for,
     industry_delinquency, values)
+from threshold_engine.peers import delinquency as D
 from threshold_engine.profile import percentile
 from threshold_engine.workbook import read_series
 
@@ -30,6 +31,9 @@ ROSTER = json.loads((PEERS.parents[2] / "config" / "peers.json").read_text())["b
 KEYBANK = "17534"
 PEER_CERTS = [b["cert"] for b in ROSTER if b["group"] == "peer"]
 CARD = "Credit card"
+#: The fixture was pulled for the consumer products (12 Oct 2026); the
+#: commercial ones have their own (commercial_2007.json).
+CONSUMER = [p for p in FIELDS if p in CONSUMER_PRODUCTS]
 
 
 # ------------------------------------------------------------------ helpers
@@ -52,7 +56,7 @@ def by_q(rows):
 
 
 def book(data, cert, measure="90+ accruing", jump=0.25, min_book=0, exempt=False):
-    return bank_delinquency(data, cert, CARD, measure, jump, min_book, exempt)
+    return bank_delinquency(data, cert, CARD, measure, jump, min_book, exempt, acquired=())
 
 
 # ------------------------------------------------------------------ the maps
@@ -62,8 +66,15 @@ def test_fields_are_the_spec_table():
         "Credit card": ("LNCRCD", "P3CRCD", "P9CRCD", "NACRCD"),
         "Mortgage": ("LNRERSFM", "P3RERSFM", "P9RERSFM", "NARERSFM"),
         "Home equity": ("LNRELOC", "P3RELOC", "P9RELOC", "NARELOC"),
-        "Other consumer": ("LNCONOTH", "P3CONOTH", "P9CONOTH", "NACONOTH"),
+        "Other consumer": ("LNCONOTH+LNCONRP", "P3CONOTH", "P9CONOTH", "NACONOTH"),
         "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
+        # The commercial products, 16 Oct 2026: research-fdic.md's field table.
+        "C&I": ("LNCI", "P3CI", "P9CI", "NACI"),
+        "Construction": ("LNRECONS", "P3RECONS", "P9RECONS", "NARECONS"),
+        "Multifamily": ("LNREMULT", "P3REMULT", "P9REMULT", "NAREMULT"),
+        "Nonfarm nonresidential": ("LNRENRES", "P3RENRES", "P9RENRES", "NARENRES"),
+        "Owner-occupied nonfarm nonresidential": ("LNRENROW", "P3RENROW", "P9RENROW", "NARENROW"),
+        "Other nonfarm nonresidential": ("LNRENROT", "P3RENROT", "P9RENROT", "NARENROT"),
     }
     assert list(MEASURES) == ["30-89", "90+ accruing", "nonaccrual",
                               "90+ incl. nonaccrual", "30+ incl. nonaccrual"]
@@ -98,7 +109,7 @@ def test_every_judgement_is_required():
     assert inspect.signature(band_delinquency).parameters["min_banks"].default \
         is inspect.Parameter.empty
     with pytest.raises(TypeError):
-        bank_delinquency(flat([1]), 1, CARD, "nonaccrual", 0.25, 0)
+        bank_delinquency(flat([1]), 1, CARD, "nonaccrual", 0.25, 0, acquired=())
 
 
 @pytest.mark.parametrize("kw, msg", [
@@ -116,7 +127,7 @@ def test_bad_settings_are_refused(kw, msg):
 
 def test_unknown_product_basis_and_min_banks_are_refused():
     with pytest.raises(ValueError, match="product must be one of"):
-        bank_delinquency(flat([1]), 1, "Cards", "nonaccrual", 0.25, 0, False)
+        bank_delinquency(flat([1]), 1, "Cards", "nonaccrual", 0.25, 0, False, acquired=())
     with pytest.raises(ValueError, match="product must be one of"):
         industry_delinquency(flat([1]), "Cards", "nonaccrual")
     with pytest.raises(ValueError, match="basis must be one of"):
@@ -138,7 +149,7 @@ def test_an_amount_that_is_not_a_finite_number_is_refused(field, value):
     data["20200331"][0][field] = value
     want = "CERT 1, REPDTE 20200331: %s is " % field
     with pytest.raises(ValueError, match=want):
-        bank_delinquency(data, 1, CARD, "90+ incl. nonaccrual", 0.25, 500, False)
+        bank_delinquency(data, 1, CARD, "90+ incl. nonaccrual", 0.25, 500, False, acquired=())
     with pytest.raises(ValueError, match=want):
         industry_delinquency(data, CARD, "90+ incl. nonaccrual")
 
@@ -457,12 +468,14 @@ def roster_data():
 def test_fixture_holds_every_roster_bank_every_quarter_and_field(roster_data):
     assert len(roster_data) == 38
     assert min(roster_data) == "20170331" and max(roster_data) == "20260630"
-    want = {"CERT", "REPDTE"} | set(fields_for(FIELDS))
+    want = {"CERT", "REPDTE"} | set(fields_for(CONSUMER))
     for q, rows in roster_data.items():
         assert sorted(str(r["CERT"]) for r in rows) == sorted(b["cert"] for b in ROSTER), q
         for r in rows:
-            assert set(r) == want and r["REPDTE"] == q
+            assert set(r) == want | {"RSSDHCR"} and r["REPDTE"] == q
             assert all(r[f] is not None for f in want), (q, r["CERT"])
+            # the parent is blank only for Zions, after its holding company merged into the bank
+            assert r["RSSDHCR"] is not None or (str(r["CERT"]) == "2270" and q >= "20180930"), (q, r["CERT"])
 
 
 def test_keybank_2026q2_against_the_filed_amounts(roster_data):
@@ -473,7 +486,9 @@ def test_keybank_2026q2_against_the_filed_amounts(roster_data):
         "Credit card": (926589, 8528, 9346, 6401),
         "Mortgage": (20584113, 23309, 15000, 120395),
         "Home equity": (2929570, 15639, 2072, 54307),
-        "Other consumer": (4200208, 27723, 21007, 4680),
+        # RC-C 6.d 4,200,208 plus 6.b 268,825: RC-N 5.c's past-due lines
+        # include other revolving credit plans, so the balance does too
+        "Other consumer": (4469033, 27723, 21007, 4680),
         "Auto": (62212, 302, 23, 371),
     }
     for product, (bal, p3, p9, na) in filed.items():
@@ -481,20 +496,20 @@ def test_keybank_2026q2_against_the_filed_amounts(roster_data):
                 "90+ incl. nonaccrual": p9 + na, "30+ incl. nonaccrual": p3 + p9 + na}
         for measure, n in nums.items():
             got = by_q(bank_delinquency(roster_data, KEYBANK, product, measure,
-                                        0.25, 1_000_000, True))["2026Q2"]
+                                        0.25, 1_000_000, True, acquired=()))["2026Q2"]
             assert (got["numerator"], got["balance"]) == (n, bal), (product, measure)
             assert got["rate"] == 100 * n / bal, (product, measure)
     # without the exemption, KeyBank's $62m auto book is under a $1bn minimum
     auto = by_q(bank_delinquency(roster_data, KEYBANK, "Auto", "nonaccrual",
-                                 0.25, 1_000_000, False))["2026Q2"]
+                                 0.25, 1_000_000, False, acquired=()))["2026Q2"]
     assert auto["rate"] is None and auto["why"] == WHY_SMALL
 
 
 def test_fixture_composite_band_and_industry_hold_together(roster_data):
-    for product in FIELDS:
+    for product in CONSUMER:
         for measure in MEASURES:
             books = {c: bank_delinquency(roster_data, c, product, measure, 0.25,
-                                         1_000_000, c == KEYBANK)
+                                         1_000_000, c == KEYBANK, acquired=())
                      for c in [b["cert"] for b in ROSTER]}
             comp = by_q(composite_delinquency(books, PEER_CERTS, 5))
             last = comp["2026Q2"]
@@ -519,7 +534,7 @@ def test_fixture_composite_leaves_jpmorgan_out_through_first_republic(roster_dat
     own four-quarter average is blanked by the jump, and the composite's
     average leaves it out: where it is the only bank left out, the average
     equals the composite of the pack without it."""
-    books = {c: bank_delinquency(roster_data, c, "Mortgage", "nonaccrual", 0.25, 1_000_000, False)
+    books = {c: bank_delinquency(roster_data, c, "Mortgage", "nonaccrual", 0.25, 1_000_000, False, acquired=())
              for c in PEER_CERTS}
     comp = by_q(composite_delinquency(books, PEER_CERTS, 5))
     rest = by_q(composite_delinquency(books, [c for c in PEER_CERTS if c != "628"], 5))
@@ -532,3 +547,51 @@ def test_fixture_composite_leaves_jpmorgan_out_through_first_republic(roster_dat
     kept_jumped = {(c, r["q"]) for c in PEER_CERTS for r in books[c]
                    if r["kept"] and (r["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)}
     assert kept_jumped <= left
+
+
+
+def test_other_consumer_before_2001_names_the_line_not_filed():
+    """6.b (LNCONRP) is blank before 2001Q1: the balance is not filed, and
+    the reason names LNCONRP, not the sum (review, 14 Oct 2026)."""
+    from threshold_engine.peers.delinquency import DEFINITIONS, bank_delinquency
+    row = {"CERT": 1, "LNCONOTH": 500.0, "LNCONRP": None, "P3CONOTH": 5.0, "P9CONOTH": 1.0, "NACONOTH": 1.0}
+    data = {"20001231": [dict(row, REPDTE="20001231")],
+            "20010331": [dict(row, REPDTE="20010331", LNCONRP=100.0)]}
+    rows = bank_delinquency(data, "1", "Other consumer", "30-89", 1.0, 0, False, acquired=())
+    assert rows[0]["rate"] is None and rows[0]["why"] == "not filed this quarter: LNCONRP is blank"
+    assert rows[1]["rate"] == 100 * 5 / 600
+    assert "no other consumer delinquency rate is written before then" in DEFINITIONS["Other consumer"]
+
+
+def _rows(balances, why_last, avg_last=None, rates=None):
+    """bank_delinquency-shaped rows from 2025Q1, the last one's four-quarter average as given."""
+    qs = ["2025Q1", "2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2"][:len(balances)]
+    rows = [{"q": q, "balance": b, "rate": (rates or [1.0] * len(balances))[i], "avg4": 1.0, "why_avg4": None,
+             "why": None} for i, (q, b) in enumerate(zip(qs, balances))]
+    rows[-1]["avg4"], rows[-1]["why_avg4"] = avg_last, why_last
+    return rows
+
+
+def test_why_out_names_the_rule_and_when_the_bank_is_back():
+    """The analyst, 20 Oct 2026: "it should just be more clear why a bank is out". A jump or an
+    acquisition counts while it is one of the window's last three quarters: back three after it."""
+    rows = _rows([100, 100, 100, 100, 146.3, 147], D.WHY_JUMP % ("2026Q1", 46.3))
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_JUMP, "Its book moved +46.3% in 2026Q1, more than the 25% "
+                                                            "jump. Back in 2026Q4 unless it moves again.")
+    rows = _rows([100, 100, 100, 100, 104, 104], D.WHY_ACQUIRED % "2026Q1")
+    assert D.why_out(rows, ["20260331"], 0.25, 0.05) == (D.RULE_ACQUIRED, "An acquisition in 2026Q1 brought in "
+                                                         "at least 5% of its book, or a book not filed. "
+                                                         "Back in 2026Q4 unless it moves again.")
+    # two events in the window: the latest sets Back in, so it is the one named, whichever rule it is
+    rows = _rows([100, 100, 100, 140, 140, 190], D.WHY_JUMP % ("2025Q4", 40.0))
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_JUMP, "Its book moved +35.7% in 2026Q2, more than the 25% "
+                                                            "jump. Back in 2027Q1 unless it moves again.")
+    rows = _rows([100, 100, 100, 140, 140, 141], D.WHY_JUMP % ("2025Q4", 40.0))
+    assert D.why_out(rows, ["20260630"], 0.25, 0.05)[:1] == (D.RULE_ACQUIRED,)
+    assert D.why_out(rows, ["20260630"], 0.25, 0.05)[1].startswith("An acquisition in 2026Q2")
+    rows = _rows([0, 0, 0, 5, 5, 5], D.WHY_RATE_MISSING % ("2025Q3", D.WHY_NO_BOOK))
+    assert D.why_out(rows, [], 0.25, 0.05) == (D.RULE_NO_RATE, "No rate in 2025Q3: no book (balance 0 or below). "
+                                                               "The average needs all four quarters.")
+    assert D.why_out(_rows([1, 1, 1, 1], None, avg_last=1.0), [], 0.25, 0.05) == ("", "")
+    assert D.why_out(_rows([1, 1], D.WHY_FEWER_THAN_FOUR), [], 0.25, 0.05) == (
+        D.RULE_FEW, "Fewer than four consecutive quarter-ends in the data.")

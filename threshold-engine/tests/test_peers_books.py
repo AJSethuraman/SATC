@@ -8,10 +8,10 @@ import json
 
 import pytest
 
-from conftest import DATA
+from conftest import DATA, as_earlier_build
 from threshold_engine.peers.books import (
-    WHY_JUMP, WHY_MISSING, WHY_SMALL, band, bank_book, best_worst, composite, industry,
-    label, quarter_end, quarterly_flows, write_series)
+    WHY_JUMP, WHY_MISSING, WHY_SMALL, band, bank_book, best_worst, combination, combined_flows, composite,
+    industry, label, members_by_quarter, quarter_end, quarterly_flows, write_series)
 from threshold_engine.profile import percentile
 from threshold_engine.workbook import read_series
 
@@ -27,7 +27,7 @@ JUMP, MIN_BOOK, MIN_BANKS = 0.25, 1_000_000, 5
 
 @pytest.fixture(scope="module")
 def data():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 @pytest.fixture(scope="module")
@@ -38,7 +38,7 @@ def expected():
 @pytest.fixture(scope="module")
 def books(data):
     return {p: {b["cert"]: bank_book(data, b["cert"], p, JUMP, MIN_BOOK,
-                                     exempt_min_book=b["cert"] == KEYBANK)
+                                     exempt_min_book=b["cert"] == KEYBANK, acquired=())
                 for b in ROSTER} for p in FOUR}
 
 
@@ -106,8 +106,8 @@ def test_every_dropped_quarter_says_why(books):
 
 
 def test_keybank_exemption_is_what_keeps_its_small_books(data):
-    exempt = bank_book(data, KEYBANK, "Credit card", JUMP, MIN_BOOK, exempt_min_book=True)
-    held = bank_book(data, KEYBANK, "Credit card", JUMP, MIN_BOOK)
+    exempt = bank_book(data, KEYBANK, "Credit card", JUMP, MIN_BOOK, exempt_min_book=True, acquired=())
+    held = bank_book(data, KEYBANK, "Credit card", JUMP, MIN_BOOK, acquired=())
     small = [a for a, b in zip(exempt, held) if a["kept"] and not b["kept"]]
     assert small and all(b["why"] == WHY_SMALL for a, b in zip(exempt, held)
                          if a["kept"] and not b["kept"])
@@ -116,13 +116,13 @@ def test_keybank_exemption_is_what_keeps_its_small_books(data):
 
 def test_judgement_settings_have_no_default(data):
     with pytest.raises(TypeError):
-        bank_book(data, KEYBANK, "Credit card")                      # noqa
+        bank_book(data, KEYBANK, "Credit card", acquired=())                      # noqa
     with pytest.raises(TypeError):
         composite({}, [])                                            # noqa
     with pytest.raises(TypeError):
         band({}, [], "net")                                          # noqa
     with pytest.raises(ValueError):
-        bank_book(data, KEYBANK, "Boats", JUMP, MIN_BOOK)
+        bank_book(data, KEYBANK, "Boats", JUMP, MIN_BOOK, acquired=())
 
 
 # --- synthetic -----------------------------------------------------------
@@ -239,29 +239,29 @@ EIGHT = ["2020%s" % m for m in ("0331", "0630", "0930", "1231")] + \
 
 
 def test_a_book_exactly_at_the_minimum_is_kept():
-    rows = bank_book(card_data(EIGHT), 1, "Credit card", JUMP, 1000)
+    rows = bank_book(card_data(EIGHT), 1, "Credit card", JUMP, 1000, acquired=())
     assert rows[-1]["avg_balance"] == 1000 and rows[-1]["kept"]
     assert rows[-1]["gross_rate"] == pytest.approx(4.0)              # 40 over 1000
     assert rows[-1]["net_rate"] == pytest.approx(3.6)
-    assert bank_book(card_data(EIGHT), 1, "Credit card", JUMP, 1000.01)[-1]["why"] == WHY_SMALL
+    assert bank_book(card_data(EIGHT), 1, "Credit card", JUMP, 1000.01, acquired=())[-1]["why"] == WHY_SMALL
 
 
 def test_a_move_exactly_at_the_jump_is_kept():
     data = card_data(EIGHT)
     data["20210630"] = [row(1, "20210630", 1250, 20, 2)]             # +25.0%, not more
     data["20210930"] = [row(1, "20210930", 1000, 30, 3)]             # -20%
-    assert all(r["kept"] for r in bank_book(data, 1, "Credit card", 0.25, 0))
+    assert all(r["kept"] for r in bank_book(data, 1, "Credit card", 0.25, 0, acquired=()))
     data["20210630"] = [row(1, "20210630", 1251, 20, 2)]
-    assert bank_book(data, 1, "Credit card", 0.25, 0)[-1]["why"] == WHY_JUMP
+    assert bank_book(data, 1, "Credit card", 0.25, 0, acquired=())[-1]["why"] == WHY_JUMP
 
 
 def test_why_names_the_first_reason_jump_then_minimum_then_missing():
     data = card_data(EIGHT, bal=10)
     data["20210630"] = [row(1, "20210630", 100, 20, 2)]              # jumps and is small
-    assert bank_book(data, 1, "Credit card", JUMP, 1000)[-1]["why"] == WHY_JUMP
+    assert bank_book(data, 1, "Credit card", JUMP, 1000, acquired=())[-1]["why"] == WHY_JUMP
     data = card_data(EIGHT, bal=10)
     data["20211231"] = []                                            # small and missing
-    assert bank_book(data, 1, "Credit card", 1.0, 1000)[-1]["why"] == WHY_SMALL
+    assert bank_book(data, 1, "Credit card", 1.0, 1000, acquired=())[-1]["why"] == WHY_SMALL
 
 
 def test_a_missing_quarter_is_missing_not_a_crash():
@@ -269,7 +269,7 @@ def test_a_missing_quarter_is_missing_not_a_crash():
     # can stop the last quarter: the bank did not file 2021Q4.
     data = card_data(EIGHT)
     data["20211231"] = []
-    last = bank_book(data, 1, "Credit card", 1.0, 0)[-1]
+    last = bank_book(data, 1, "Credit card", 1.0, 0, acquired=())[-1]
     assert last["why"] == WHY_MISSING and not last["kept"]
     assert last["gross_rate"] is None and last["gross"] is None
     assert last["avg_balance"] == 750
@@ -279,7 +279,7 @@ def test_a_quarter_the_data_skips_breaks_the_window():
     # 2019Q4 is not in the data at all, so no window touching it is four
     # consecutive quarters (the Q1 after it is still a year-to-date flow).
     qs = ["2019%s" % m for m in ("0331", "0630", "0930")] + EIGHT
-    rows = {r["quarter"]: r for r in bank_book(card_data(qs), 1, "Credit card", JUMP, 0)}
+    rows = {r["quarter"]: r for r in bank_book(card_data(qs), 1, "Credit card", JUMP, 0, acquired=())}
     for q in ("2020Q2", "2020Q3", "2020Q4"):
         assert rows[q]["why"] == WHY_MISSING and rows[q]["gross_rate"] is None
     # 2021Q1's window is 2020Q2 to 2021Q1, its jump test reaches back to 2020Q1:
@@ -339,11 +339,11 @@ def test_settings_that_cannot_be_right_are_refused(data):
         with pytest.raises(ValueError):
             best_worst(books, ["a", "b"], "gross", last_n=2, min_obs=bad)
     with pytest.raises(ValueError):
-        bank_book(data, KEYBANK, "Credit card", -0.01, MIN_BOOK)
+        bank_book(data, KEYBANK, "Credit card", -0.01, MIN_BOOK, acquired=())
     with pytest.raises(ValueError):
-        bank_book(data, KEYBANK, "Credit card", float("nan"), MIN_BOOK)
+        bank_book(data, KEYBANK, "Credit card", float("nan"), MIN_BOOK, acquired=())
     with pytest.raises(ValueError):
-        bank_book(data, KEYBANK, "Credit card", JUMP, -5)
+        bank_book(data, KEYBANK, "Credit card", JUMP, -5, acquired=())
 
 
 @pytest.mark.parametrize("q", ["2020Q0", "2020Q5", "20200015", "20201301", "2020-00-01",
@@ -364,7 +364,7 @@ def test_quarter_end_and_label_on_good_quarters():
 
 def test_data_keyed_by_anything_but_repdte_is_refused():
     iso = {quarter_end(q): v for q, v in card_data(EIGHT).items()}
-    for f in (lambda d: bank_book(d, 1, "Credit card", JUMP, 0),
+    for f in (lambda d: bank_book(d, 1, "Credit card", JUMP, 0, acquired=()),
               lambda d: industry(d, "Credit card"),
               lambda d: quarterly_flows(d, 1, "Credit card")):
         with pytest.raises(ValueError):
@@ -395,6 +395,131 @@ def test_an_amount_that_is_not_a_number_is_refused_by_bank_quarter_and_field(bad
     data = card_data(EIGHT)
     data["20200930"][0][field] = bad
     with pytest.raises(ValueError, match=r"certificate 1, 20200930: %s is .*, not a number" % field):
-        bank_book(data, 1, "Credit card", JUMP, 0)
+        bank_book(data, 1, "Credit card", JUMP, 0, acquired=())
     with pytest.raises(ValueError, match="not a number"):
         industry(data, "Credit card")
+
+
+def test_other_consumer_divides_by_6b_plus_6d():
+    """RI-B 5.c and RC-N 5.c include other revolving credit plans, so the
+    balance is 6.b + 6.d. KeyBank, 30 Jun 2026: 4,200,208 + 268,825."""
+    from threshold_engine.peers.books import PRODUCTS, _num, raw_fields
+    raw = json.loads((PEERS / "roster_2006.json").read_text())
+    kb = next(r for r in raw["20260630"] if str(r["CERT"]) == KEYBANK)
+    assert (kb["LNCONOTH"], kb["LNCONRP"]) == (4200208, 268825)
+    assert _num(kb, PRODUCTS["Other consumer"][0]) == 4469033
+    assert raw_fields(PRODUCTS["Other consumer"]) == ["LNCONOTH", "LNCONRP", "DRCONOTH", "CRCONOTH"]
+    now = bank_book(raw, KEYBANK, "Other consumer", JUMP, MIN_BOOK, exempt_min_book=True, acquired=())[-1]
+    then = bank_book(as_earlier_build(raw), KEYBANK, "Other consumer", JUMP, MIN_BOOK,
+                     exempt_min_book=True, acquired=())[-1]
+    assert now["avg_balance"] > then["avg_balance"] and now["net_rate"] < then["net_rate"]
+
+
+# --- pro forma: a bank with the banks it absorbed (the firm, 15 Oct 2026: "Pro forma (Recommended)") ---
+
+def flat_bank(cert, quarters, bal, step, rec):
+    """``cert`` filing a flat book of ``bal`` in each of ``quarters``,
+    charging off ``step`` and recovering ``rec`` a quarter (year to date)."""
+    out = {}
+    for q in quarters:
+        n = (int(q[4:6]) - 1) // 3 + 1
+        out[q] = [row(cert, q, bal, step * n, rec * n)]
+    return out
+
+
+def merged(*parts):
+    out = {}
+    for d in parts:
+        for q, rows in d.items():
+            out.setdefault(q, []).extend(rows)
+    return out
+
+
+def link(acq, absorbed, quarter):
+    return {"acquirer": str(acq), "absorbed": str(absorbed), "quarter": quarter}
+
+
+def test_pro_forma_adds_each_absorbed_banks_own_figures_up_to_its_absorption():
+    """Bank 1 (1,000, 10 a quarter, 1 back) absorbs bank 2 (500, 6, 2) in
+    2021Q2: bank 2 files through 2021Q1, and from 2021Q2 bank 1's own filing
+    holds both books, 1,500, 16 and 3. Pro forma, every quarter is the sum,
+    so the book never moves and every rate is 100 x 64 / 1,500."""
+    after = [q for q in EIGHT if q >= "20210630"]
+    data = merged(flat_bank(1, [q for q in EIGHT if q < "20210630"], 1000, 10, 1),
+                  {q: [row(1, q, 1500, 16 * ((int(q[4:6]) - 1) // 3 + 1) - (12 if q >= "20210630" else 0),
+                           3 * ((int(q[4:6]) - 1) // 3 + 1) - (4 if q >= "20210630" else 0))] for q in after},
+                  flat_bank(2, [q for q in EIGHT if q < "20210630"], 500, 6, 2))
+    # Bank 1's 2021 year to date from 2021Q2 is its own Q1 (10, 1) plus 16 and 3 a quarter.
+    for q in after:
+        n = (int(q[4:6]) - 1) // 3 + 1
+        data[q][0]["DRCRCD"] = 10 + 16 * (n - 1)
+        data[q][0]["CRCRCD"] = 1 + 3 * (n - 1)
+    combo = combination(data, [link(1, 2, "2021-06-30")], ["1"])
+    assert combo == {"1": {"members": [("2", "20210630")], "uncombined": []}}
+    own, theirs = quarterly_flows(data, 1, "Credit card"), quarterly_flows(data, 2, "Credit card")
+    got = combined_flows(data, 1, "Credit card", combo["1"]["members"])
+    for (q, g, r, b), (_, g1, r1, b1), (_, g2, r2, b2) in zip(got, own, theirs):
+        if q < "20210630":
+            assert (g, r, b) == (g1 + g2, r1 + r2, b1 + b2), q
+        else:
+            assert (g, r, b) == (g1, r1, b1) == (16.0, 3.0, 1500.0), q
+    pro = bank_book(data, 1, "Credit card", JUMP, 0, acquired=(), members=combo["1"]["members"])
+    assert [r["why"] for r in pro] == [None] * 4
+    assert all(r["gross_rate"] == pytest.approx(100 * 64 / 1500) for r in pro)
+    assert all(r["net_rate"] == pytest.approx(100 * (64 - 12) / 1500) for r in pro)
+    alone = bank_book(data, 1, "Credit card", JUMP, 0, acquired=())
+    # Alone, 1,000 to 1,500 in 2021Q2 is a 50% move: every window from 2021Q2 is left out.
+    assert [(r["quarter"], r["why"]) for r in alone] == [("2021Q1", None)] + [
+        (q, WHY_JUMP) for q in ("2021Q2", "2021Q3", "2021Q4")]
+
+
+def test_pro_forma_follows_the_chain():
+    """3 was absorbed by 2 in 2020Q3, and 2 by 1 in 2021Q2: 1's members are
+    2 to 2021Q2 and 3 to 2020Q3, each counted only while it filed."""
+    data = merged(flat_bank(1, EIGHT, 1000, 10, 1),
+                  flat_bank(2, [q for q in EIGHT if q < "20210630"], 500, 6, 2),
+                  flat_bank(3, [q for q in EIGHT if q < "20200930"], 200, 4, 0))
+    links = [link(1, 2, "2021-06-30"), link(2, 3, "2020-09-30")]
+    combo = combination(data, links, ["1", "2"])
+    assert combo["1"]["members"] == [("2", "20210630"), ("3", "20200930")]
+    assert combo["2"]["members"] == [("3", "20200930")]
+    got = {q: b for q, _, _, b in combined_flows(data, 1, "Credit card", combo["1"]["members"])}
+    assert got["20200630"] == 1700 and got["20200930"] == 1500 and got["20210630"] == 1000
+    rows = members_by_quarter(data, combo["1"]["members"])
+    assert rows["2020Q4"] == [("2", "20210630"), ("3", "20200930")]   # 3 filed 2020Q1 and Q2
+    assert rows["2021Q4"] == [("2", "20210630")]                        # 2 filed 2021Q1, in the window
+
+
+def test_an_absorbed_bank_that_never_filed_cannot_be_added_and_is_named():
+    """9 never filed in these quarters: there is nothing to add, so it is
+    listed as not combined. A link before the data's first quarter is not
+    listed: there is nothing in these quarters it could have broken."""
+    data = flat_bank(1, EIGHT, 1000, 10, 1)
+    combo = combination(data, [link(1, 9, "2020-09-30"), link(1, 8, "2005-03-31")], ["1"])
+    assert combo == {"1": {"members": [], "uncombined": [("9", "20200930")]}}
+    assert combined_flows(data, 1, "Credit card", []) == quarterly_flows(data, 1, "Credit card")
+
+
+def test_a_quarter_in_which_a_member_has_no_flow_has_no_flow():
+    """2 filed 2020Q4 but not 2020Q3: its 2020Q4 flow cannot be measured,
+    so neither can the combined one. Its balance still counts."""
+    data = merged(flat_bank(1, EIGHT, 1000, 10, 1), flat_bank(2, [q for q in EIGHT if q < "20210630"], 500, 6, 2))
+    data["20200930"] = [r for r in data["20200930"] if r["CERT"] != 2]
+    got = {q: (g, b) for q, g, _, b in combined_flows(data, 1, "Credit card", [("2", "20210630")])}
+    assert got["20200930"] == (10.0, 1000.0) and got["20201231"] == (None, 1500.0)
+
+
+def test_pro_forma_is_a_stated_setting_with_no_default():
+    """run.build refuses before reading anything when pro forma is not stated."""
+    from threshold_engine.peers import run
+    stated = dict(cache="c", roster="r", series_dir="s", first="2020Q1", last="2021Q4", products=["Credit card"],
+                  mergers="m", absorptions="a", extra_acquisitions=[], industry_combined=[], jump=0.25,
+                  acquisition_share=0.05, min_book=0, exempt_self=True, pack="all", min_banks=5,
+                  rank_by="net", last_n=4, min_obs=2, base_quarter="2020Q4", index_min_book=0,
+                  lagged_years=[2020], lag_years=1, normalisation_years=[2020, 2021], mix_base_year=2020,
+                  delinquency=False, reporting_changes="config/reporting-changes.json")
+    for value in (None, "yes", 1):
+        with pytest.raises(ValueError, match="--pro-forma must be stated, yes or no"):
+            run.build("p.xlsx", pro_forma=value, say=lambda line: None, **stated)
+    with pytest.raises(TypeError, match="pro_forma"):
+        run.build("p.xlsx", say=lambda line: None, **stated)

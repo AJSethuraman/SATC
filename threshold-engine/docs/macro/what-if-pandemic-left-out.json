@@ -1,0 +1,89 @@
+{
+ "about": "An example what-if, not the firm's settings: theirs with the pandemic quarters, 2020 Q2 to 2021 Q2, left out of every history. The firm's answer on 22 Oct 2026 was to leave nothing out yet.",
+ "history": {
+  "question": "Which history is each reading measured against? \"full\" for everything the publisher has, or {\"years\": N} for the last N years up to the latest reading.",
+  "recommended": "full",
+  "why": "Every series starts in a different year, so a fixed window would cut the long ones short; the start of each history is shown beside every reading, as the regulators do.",
+  "answer": "full"
+ },
+ "change_months": {
+  "question": "Over how many months is a change counted? A whole number. Weekly and daily series count whole weeks (12 months is 52), as FRED does: a day with no reading that many weeks before has no change.",
+  "recommended": 12,
+  "why": "A year: it takes out the seasons, and the report reads homeowner's insurance and revolving credit over a year.",
+  "answer": 12
+ },
+ "normal_width": {
+  "question": "How wide is normal movement? The median change plus or minus this many typical moves, where a typical move is 1.4826 times the median distance of the changes from their median. A number above 0. A change inside reads Stable; one at or past either edge reads Increasing or Decreasing.",
+  "recommended": 1,
+  "why": "One typical move is the measure the loss thresholds use for ordinary year-to-year movement (threshold-engine scale.py). For changes shaped like a bell it holds about two in three of them, and a spike does not widen it, as it would a standard deviation.",
+  "answer": 1
+ },
+ "left_out": {
+  "question": "Which quarters are left out of every history? A list, each entry a quarter such as \"2020Q2\" or a run such as \"2020Q2-2021Q2\"; [] leaves nothing out. A reading in a quarter left out is not measured against, and a change with either end in one is not counted.",
+  "recommended": [],
+  "why": "Nothing until there is a reason to record. The pandemic quarters are the usual candidate: 2020Q2 to 2021Q2 holds the spike in jobless claims and unemployment, and the loss thresholds' evidence was tested with and without 2020Q1 to 2023Q4.",
+  "answer": [
+   "2020Q2-2021Q2"
+  ]
+ },
+ "axis_cut": {
+  "question": "How much of each chart's readings may run off its axis, at each end? A percent from 0 to 10; 0 keeps every reading on the chart. The latest reading and the normal range always stay on it. Only the charts change; no reading does.",
+  "recommended": 1,
+  "why": "A spike such as the 2020 jobless claims flattens the rest of a chart. With 1% at each end it runs off the edge, and a note under the chart names the highest reading and its date.",
+  "answer": 1
+ },
+ "show_sahm": {
+  "question": "Show the Sahm reading beside the national unemployment rate? true or false.",
+  "recommended": true,
+  "why": "It is the best-known published trigger for unemployment (0.50 points, Sahm 2019), and the report records its false alarm of 2024, so a reader should see it beside the change rather than instead of it.",
+  "answer": true
+ },
+ "compare_p": {
+  "question": "On the Dashboard, how small must p be for a link between two series' changes to pass? Two-tailed; a number above 0 and below 1.",
+  "recommended": 0.05,
+  "why": "The usual level. A lead is tested at it after allowing for how many leads were tried.",
+  "answer": 0.05
+ },
+ "compare_leads": {
+  "question": "On the Dashboard, which leads are tried, in months? A list of whole numbers: a positive lead has the first series moving earlier, a negative one the second.",
+  "recommended": [
+   -24,
+   -18,
+   -12,
+   -6,
+   0,
+   6,
+   12,
+   18,
+   24,
+   30,
+   36
+  ],
+  "why": "Two years either way and three years of the first leading, in steps of six months: the range the comparison was built with.",
+  "answer": [
+   -24,
+   -18,
+   -12,
+   -6,
+   0,
+   6,
+   12,
+   18,
+   24,
+   30,
+   36
+  ]
+ },
+ "compare_starts": {
+  "question": "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2 or 4; the starting months are spread evenly through the year, each the first month of a quarter, so a quarterly series has a reading at every one.",
+  "recommended": 4,
+  "why": "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data; one reading every 12 months keeps them a year apart. Four starting points (a quarter apart) show whether a link holds whichever quarter the count starts from.",
+  "answer": 4
+ },
+ "compare_min_pairs": {
+  "question": "On the Dashboard, how many one-a-year pairs must a lead have at every starting point to be tested? A whole number of at least 4.",
+  "recommended": 6,
+  "why": "Fewer pairs than that cannot show much either way; a lead with fewer says not tested.",
+  "answer": 6
+ }
+}

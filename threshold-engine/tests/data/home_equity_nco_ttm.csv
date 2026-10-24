@@ -1,5 +1,11 @@
-# FDIC BankFind, every filer, LNRELOC/DRRELOC/CRRELOC; 1992-2026
-# trailing-twelve-month net charge-off rate, percent; already smoothed
+# measure: Net charge-off rate on home equity lines of credit, every Call Report filer
+# population: Every institution that filed a Call Report for the quarter, summed across all of them
+# call-report: Balance (LNRELOC): RC-C Part I line 1.c.(1), "Revolving, open-end loans secured by 1-4 family residential properties and extended under lines of credit". Charge-offs and recoveries (DRRELOC, CRRELOC): RI-B Part I line 1.c.(1), the same wording
+# numerator: Charge-offs less recoveries on home equity lines (DRRELOC - CRRELOC), four quarters
+# denominator: Home equity line balances (LNRELOC), the average of four quarter-ends
+# basis: Trailing twelve months: the four quarters' charge-offs less recoveries, over the average of the four quarter-end balances; dated at the quarter's end. Built in an earlier session; the script was not kept, and this file has not been tied out to its source
+# as-of: Each quarter-end, 1992Q4 to 2026Q2
+# source: FDIC BankFind Suite financial data, https://api.fdic.gov/banks/financials, fields LNRELOC, DRRELOC, CRRELOC; the FDIC takes them from each bank's Call Report
 date,value
 1992-12-31,0.2089
 1993-03-31,0.2417

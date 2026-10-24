@@ -242,3 +242,90 @@ def tighten_rule(ws, flag_range):
     ws.conditional_formatting.add(flag_range, FormulaRule(
         formula=[f'ISNUMBER(SEARCH("TIGHTENING",{first}))'],
         fill=TIGHTEN_FILL, font=Font(name="Arial", bold=True, color=SLATE)))
+
+
+# ===========================================================================
+# THE LIGHT PATTERN  (Claude Design's hand-off for the threshold workbook,
+# 13 Oct 2026): titles on paper, not black bands; one red rule on the live
+# tabs, a stone rule on the reference tabs; canvas column headers.
+# ===========================================================================
+INPUT      = "FFF2CC"   # every input cell, and nothing else
+INPUT_EDGE = "D6B656"   # thin border on every input cell
+
+# ===========================================================================
+# ROUND 2  (Claude Design's hand-off for the consumer credit workbook, 15 Oct
+# 2026: docs/design/round-2/README.md is the spec)
+# ===========================================================================
+REFUSE_BAND   = "F8E3E1"   # the refused Check band on Decide
+MEDIAN        = "8C877E"   # the Industry line on Peers; the ratio's reference line
+BAND_DARK     = "CFC8BC"   # the middle-50% band on Peers (MIST is the middle 80%)
+INTERNAL      = "2F5D50"   # the bank's own (internal) line; the picked coverage cell
+INTERNAL_TINT = "E1EAE6"   # coverage reached; the Reliable verdict's fill
+INTERNAL_TEXT = "1E4637"   # the Reliable verdict's text
+#: Rating cells, 1 Low to 5 High.
+RATING_FILL = ("E3EEDB", "EEF2D9", "FCEFC7", "F6C9A0", "E79A9A")
+#: Chart zones, one step lighter than the cells, 1 Low to 5 High.
+ZONE_FILL = ("E9F1E3", "F2F5E3", "FCF3D6", "FAE0CA", "F4CBCB")
+#: Tab colours: work tabs, reference tabs, data tabs.
+TAB_WORK, TAB_REFERENCE, TAB_DATA = INK, STONE, MIST
+PICKED     = "F6D9A8"   # the picked product's name
+BANDS      = ("F4F1EC", "E4DFD5", "EFD7CF", "E0A6A6", "CC8080")   # 1 Low ... 5 High
+LINES      = ("8E877B", "B98577", "B35A5A", "960019")              # 2, 3, 4, 5 from, as lines
+SERIES     = ("0A0908", "CC0000", "57534B", "9C7A4A")              # products on the Chart tab
+#: Round 3 (19 Oct 2026).
+SIGNAL     = "9C7A4A"   # a public signal's line; Large banks
+GAP_WORSE  = "F4CBCB"   # shading above zero on a gap chart (= zone 5)
+GAP_BETTER = "E9F1E3"   # shading below zero on a gap chart (= zone 1)
+
+
+def solid(hex_):
+    """A fill that also shows in conditional formats (which read bgColor)."""
+    return PatternFill("solid", fgColor=hex_, bgColor=hex_)
+
+
+def light_title(ws, row, ncols, title, subtitle, live=True, first_col=1):
+    """Title on paper, subtitle under it, and a rule: KEY_RED on the live
+    tabs, STONE on the reference tabs."""
+    last = get_column_letter(first_col + ncols - 1)
+    ws.merge_cells(f"{get_column_letter(first_col)}{row}:{last}{row}")
+    c = ws.cell(row, first_col, title)
+    c.font = Font(name="Arial", bold=True, size=16 if live else 14, color=INK)
+    c.alignment = Alignment(vertical="bottom")
+    ws.merge_cells(f"{get_column_letter(first_col)}{row + 1}:{last}{row + 1}")
+    s = ws.cell(row + 1, first_col, subtitle)
+    s.font = Font(name="Calibri", size=11, color=SLATE)
+    rule = Side(style="medium" if live else "thin", color=KEY_RED if live else STONE)
+    for col in range(first_col, first_col + ncols):
+        ws.cell(row + 1, col).border = Border(bottom=rule)
+    ws.row_dimensions[row].height = 22.5
+    ws.row_dimensions[row + 1].height = 13.5
+    return row + 2
+
+
+def canvas_header(ws, row, columns, first_col=1, right_from=None, fills=None, height=25.5):
+    """Column headers: CANVAS fill, Arial 9 bold SLATE, wrapped, a stone rule."""
+    for i, name in enumerate(columns):
+        c = ws.cell(row, first_col + i, name)
+        c.fill = solid(fills[i]) if fills and fills[i] else solid(CANVAS)
+        c.font = Font(name="Arial", bold=True, size=9, color=INK if fills and fills[i] else SLATE)
+        c.alignment = Alignment(wrap_text=True, vertical="center",
+                                horizontal="right" if right_from is not None and i >= right_from else "left")
+        c.border = Border(bottom=Side(style="thin", color=STONE))
+    ws.row_dimensions[row].height = height
+    return row + 1
+
+
+def quiet_section(ws, row, label, ncols, first_col=1):
+    """A section name over a medium INK rule: no black band."""
+    c = ws.cell(row, first_col, label)
+    c.font = Font(name="Arial", bold=True, size=11, color=INK)
+    c.alignment = Alignment(vertical="bottom")
+    for col in range(first_col, first_col + ncols):
+        ws.cell(row, col).border = Border(bottom=Side(style="medium", color=INK))
+    ws.row_dimensions[row].height = 16.5
+    return row + 1
+
+
+def hairlines(ws, row, first_col, last_col):
+    for col in range(first_col, last_col + 1):
+        ws.cell(row, col).border = Border(bottom=Side(style="thin", color="E7E2D8"))

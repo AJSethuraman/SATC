@@ -3487,6 +3487,312 @@ changed in the code.
     characters deleted instead of shown), both caught with no display; every entry's old string occurs once (665).
     With `-k "book or columns or summary or compare or filter"`: 257 passed, 3 skipped. Full suite, no display:
     1,045 passed, 14 skipped, 0 failed.
+- **Built, 14 Oct 2026: the two column limits follow the extract's workbook** (branch
+  `claude/pocketbook-limits-from-workbook`; HANDOFF.md open item *"The launcher's Next overwrites a category limit
+  typed on Control"*). Confirmed against the code first: the launcher kept its own last choice of the two limits
+  (*Number columns* and *Text columns*, saved with the launcher), and Set up took the launcher's choice over Control's
+  answer (`book.set_up`, the limits loop), so a value picked or typed on Control was replaced at Next without a word.
+  Reopening an extract already restored its bands, segments, split and filters from the workbook, but not the limits.
+  - **The firm's call (14 Oct 2026), offered three ways** (the workbook's, shown in the launcher; Next refuses on a
+    mismatch; the launcher wins and says so): *the workbook's, shown in the launcher*. Picking an extract whose
+    workbook exists loads Control's two limits into the launcher's dropdowns (`Flow.limits_from_book`, also when the
+    window opens on the last extract), and Next writes back what the dropdowns show. A value typed on Control
+    survives, including a number of the analyst's own off the list (60); a change made in the launcher replaces it.
+    An extract with no workbook, a workbook that can't be read, or a blank limit leaves the launcher's own.
+  - **Said on the screen:** under the two dropdowns, while they are the workbook's: *"These are the limits on Control
+    in this extract's workbook. A change here replaces them when you press Next."* Gone once either is changed in the
+    launcher. The dropdowns update in place when the extract is picked (no redraw while the path is typed), and a
+    number off the list is offered beside the options.
+  - **Where:** `control.read_limits` (Control's two limits, read-only worksheet too; `read_choices` now uses it),
+    `book.limits_in` (the workbook beside an extract, Control alone, opened read-only), `launcher.Flow.limits_from_book`
+    and `Flow.choose_limit`.
+  - **The independent review's findings, all fixed** (an agent that had not seen the work, reading the branch only):
+    (1) the planted bug on `read_limits`' row padding could not be caught, since openpyxl pads a read-only sheet's
+    rows to its recorded size; its test now also reads a sheet with no size recorded, whose short rows the padding is
+    for. (2) Left open, the launcher still wrote its stale limits over Control: 24 picked on Control in Excel, then
+    Next wrote 6. Set up and Next now read Control again (`Flow.fresh_limits`) unless a limit was changed in the
+    launcher since the workbook was last read or written. (3) A path typed character by character passes through
+    names whose workbook is another extract's (`.../loans` on the way to `.../loans2.csv`) and kept its limits; only
+    a path that is a file is looked at now, and moving to an extract with no workbook goes back to the launcher's own
+    choice, which alone is kept in its preferences (`Flow.own`, `Flow.limit_prefs`). (4) HANDOFF.md's open item
+    updated. (5) One planted bug matched only part of its line, so the mutant was a syntax error that read as caught;
+    it now replaces the whole line. Left as is: a workbook that exists but can't be read is treated as no workbook
+    (Set up then reports the workbook itself).
+  - **Codex's two findings (P1, on `da2e6c6`), both fixed:** (1) one flag for both limits meant a launcher change to
+    Number columns stopped an edit to Text columns on Control being read; each limit is now tracked on its own
+    (`Flow.chosen`), and the one not changed in the launcher is still read from Control. (2) Limits read again at Next
+    could differ from those Set up read the extract with, so a column chosen as a band could become a category under
+    the new limit; Next now refuses, names each change and returns to the first page: *"The column limits on Control
+    changed after Set up read the extract (Number columns: 6 to 24 values). The columns have to be read again with
+    them: press Set up."* (`launcher.limits_moved`). 2 planted bugs added, 3 repointed; 8 of 8 caught. Codex's re-review (P2): a window opened
+    with an add-on missing never read the workbook's limits, and the install finishing only redrew it; `after_install`
+    now reads them. 1 test, 1 planted bug, caught.
+  - Tests: 13 in `tests/test_limits_from_workbook_2026_10_14.py`, written failing-first (the reproduction read
+    `(6, 50)` for `(24, 50)`); one draws the window (needs a display), run under xvfb with Python 3.12 and 4 window
+    bugs planted by hand, 4 caught. With `test_launcher`, `test_rehearsal_2026_09_29`, `test_control`,
+    `test_mutation_tool`, `test_errors_on_screen` and `test_columns_launcher_2026_09_30`, no display: 97 passed, 5
+    skipped (the window tests). Planted bugs: 6 added to `tools/mutation_check.py`, 6 of 6 caught, each by a failed
+    test, with DISPLAY unset; every entry's old string occurs once (707).
+
+- **The VOICE pass on the other tabs, proposed (14 Oct 2026).** The firm: *"spawn an agent whose sole job is to scan for
+  rewording opportunities. Do not change key terms though we are keeping them. Key terms are things like pocket, RANR,
+  GCO, better at, worse at"*. One agent scanned every tab but the audit workbook and the Glossary (134 proposals), a
+  second checked each against the code and the firm's decisions (38 corrected, none dropped), and a third read them
+  against the firm's new canon voice (PR #439; 7 revised, none worse than what is there now). The page the firm marks:
+  https://claude.ai/artifact/H1B5AikussADwR3az7Fphq (its database holds the marks). Nothing is built until marked.
+  - **Found on the way:** the Glossary's RANR line (*"Risk-adjusted net revenue … interest, fees and interchange, less
+    rewards and charge-offs"*) and its GCO line (*"before any recoveries"*) were written by a session on 2 Oct and
+    contradict or go beyond the firm's own definition (26 Sep: *"RANR is profit after losses — interest income + fees −
+    cost of funds − losses"*). Item G on the page.
+  - **Where canon's voice and PocketBook's disagree, the firm's answers (14 Oct 2026):** a "Note:" saying what a result
+    does not mean (proposal 114 cuts *"That is not proof there is none."*): *"keep this as we have it"*, so PocketBook's
+    no-self-protective-sentences rule holds. Acronyms spelled out on first use: *"Add this"*. Both are in
+    `pocketbook/VOICE.md`.
+  - **The firm's answers on the page (14 Oct 2026):** S, American spelling: yes, everywhere, tab names included. G:
+    *"Ranr is risk adjusted net revenue. The audience knows what they mean they don't need to be spelled out like
+    'this is what we keep'"*: RANR is spelled out on first use, and key terms get their full name rather than an
+    everyday gloss, so the GCO line makes no claim about recoveries. 69 read from the same answer: the tab says only
+    that RANR is below zero, *"lost money outright"* goes. All in `pocketbook/VOICE.md`.
+  - **Proposal 3, the launcher's term lines** (asked for on 27 Sep, decision F): the firm, 14 Oct 2026, *"Drop the
+    lines"*. They are removed, not reworded. **Still open:** the marks on the rest.
+- **Docket, 14 Oct 2026 (open items only):** https://claude.ai/artifact/FDbirziK1xDwiH6cfPMRAM, answers in its database
+  (collection `decisions`). Asks: 1, build the wording pass with every unmarked proposal as Use it; 2, the bank's loan
+  count against Start here's; 3, any Excel "repaired" message; 4, accept the eleven older "for the firm to confirm"
+  notes as built. **Next (silence approves):** build the wording pass on #440 once item 1 is answered; until then,
+  reproduce or retract the Summary vintage chart's "breaks past about 42 years".
+  - **Answered the same day:** 1, *"Yes, build them all"*: every unmarked proposal is built as Use it. 2, *"Figure out
+    after we are ready to ship"*: the loan-count check waits for the next kit that goes to the bank. 3 (Excel) not
+    answered; it stays open. 4, *"Yes, they stand"*: the eleven older notes are accepted as built and come off the list.
+  - **Built (PR #440):** phase 1 (a73663ce) is the 134 rewordings plus the Glossary's GCO and RANR lines, with the launcher's
+    term lines removed. Phase 2 (2ba818d7) is American spelling, with Summary's old "Grey rows under" label still read.
+    Phase 3 (843b16d7) spells out GCO, RANR and AUC on each tab's first sentence that uses them. An independent review
+    found nothing that had to be fixed. Its two should-fix items, the launcher's "56 grids" (56 views) and the README's
+    removed term lines, plus the 0.67 option's "at most two-thirds", are fixed in 89dccd2c. Planted bugs: two added, two
+    repointed and one retired (F, whose code is gone); all caught.
+
+- **Fixed, 14 Oct 2026: Summary's vintage chart lost points past 41 origination years** (branch
+  `claude/pocketbook-vintage-years`, PR #441; HANDOFF.md open item *"The Summary vintage chart breaks past about 42
+  distinct origination years"*). Reproduced first on synthetic books: with a Charge-off date marked (17 Summary
+  measures) the chart broke at 42 years, without one (15 measures) at 47; at 100 years whole measures were gone.
+  - **Cause:** every `_views` lookup reads `results.AREA`, columns B to ZZ (701 numbers a row). The vintage block kept
+    each line (the row picked, the rest of the book, the whole book) as one row of every measure, measure after
+    measure, year after year: 17 x 42 = 714. The helper cell for a measure's later years read past ZZ, got `#REF!`,
+    the drawn point became `#N/A` and the table under the chart showed a blank. Nothing said so.
+  - **Fix:** a `_views` row per line and year, every Summary column across in the Vintage measure dropdown's order:
+    `V|<column><view>|book|y<year>`, `|<i>|y<year>` and `|<i>|rest|y<year>`. A row is as wide as Summary (17 at
+    most), so any number of years fits and there is no year limit. A line with nothing in a year gets no row; its
+    lookup reads blank, as an empty row did. Each year's helper cells find that year's row for each line (three new
+    hidden columns) and read the measure's column and the Loans column. The Vintage row dropdown's labels sit one to
+    a row under `V|<column>|rows`, so a long category list fits too.
+  - **First fix, reworked after the independent review (95ec524e):** a row per line and measure, as wide as the
+    years. The review found it multiplied the vintage rows by the number of measures: at the bank's 1 Oct shape (26
+    Summary columns, up to 150 filter views, about 7 rows, so 15 lines) that is 26 x 150 x 15 x 17, about 995,000
+    rows, against Excel's 1,048,576; main had about 58,500. Transposed, it is x the years with loans on each line:
+    about 410,000 at 7 vintages, fewer when a filter is Origination year (one year a view).
+  - **A ceiling on `_views`:** `results.MOST_VIEWS_ROWS`, 1,000,000 (openpyxl writes past Excel's last row, and Excel
+    then repairs the file). The vintage rows are put on `_views` last, once every other row is counted. If they would
+    pass the ceiling, every tab is written again with the chart as one sentence, in Summary's note and where the
+    chart would be: *"No vintage chart: its points would need N more rows on the hidden _views sheet, taking it past
+    the 1,000,000 this workbook writes (Excel opens at most 1,048,576)."* If the other rows alone pass it, the Run
+    refuses and does not save, so the workbook keeps the last Run's results: *"Couldn't write the results: even
+    without the vintage chart they need N rows on the hidden _views sheet, and the most this workbook writes is
+    1,000,000 (Excel opens at most 1,048,576). Nothing was written, so the workbook still has the last Run's results.
+    Use fewer filters, fewer filter values, or fewer band and category columns."* Dropping only the chart was chosen
+    as the least surprising: the analysis still runs, and the chart is the one part that can be left off on its own.
+  - **Second independent review (on `dd403481`): nothing blocking.** Its should-fix, a refused scouting Run leaving a
+    pre-spec beside the book, does not reproduce: a scouting Run is a new-variable Run, which writes no bleed tabs
+    (`engine.py`, `bleed = config.run_kind != "new_variable"`), so it never reaches the row refusal. Its wording nit
+    is fixed: the refusal now counts only the rows that would be written, and its last sentence is a full one. One
+    planted bug added for the count (the chart's rows counted again), caught. One retired: dropping the chart before
+    refusing (`if n:` for `if n and views.r <= MOST_VIEWS_ROWS:`) now ends in the same refusal, words and count, after
+    a wasted second pass, so no test can tell it apart; the guard it planted into is kept for that pass's cost.
+  - **Same figures below the old limit:** a 10-year and a 41-year book, Summary calculated through LibreOffice
+    before (main) and after, at five dropdown picks each (three measures, a CHANNEL filter, the CHANNEL column with
+    Avg line). Every visible cell, every helper value and the chart's references are the same. The only differences
+    are in hidden columns: W (the `_views` row numbers) and the three new row-finding columns, AL to AN. A 42- and a
+    100-year book show no error cell, and their median months to charge-off tie to the loan file every year.
+  - **`_views` measured** (synthetic book, 3,000 loans, a charge-off date, CHANNEL filter):
+
+    | | main | 95ec524e | now |
+    |---|---|---|---|
+    | rows, 10 years | 910 | 2,328 | 1,712 |
+    | rows, 41 years | 910 | 2,328 | 4,440 |
+    | vintage rows, 10 / 41 years | 90 / 90 | 1,508 / 1,508 | 892 / 3,620 |
+    | cells, 41 years | 57,778 | 59,196 | 61,308 |
+    | widest row, 41 years | 698 | 42 | 19 |
+    | workbook bytes, 10 / 41 years | 326,437 / 652,095 | 337,815 / 653,786 | 333,611 / 685,371 |
+
+    The synthetic book's 41 years are more than its 17 measures, so it has more rows than 95ec524e; a card book with a
+    handful of vintages has fewer.
+  - **Tests**, written failing first, in `tests/test_vintage_years_2026_10_14.py` (4, all red on main): no `_views` row wider than
+    AREA reads, and no key twice, on a 42-year book with a charge-off date (71 rows were 714 wide on main); the
+    vintage block alone, 120 years and 300 rows, a line and a year a row, as wide as Summary, none for an empty year;
+    the ceiling set low, first leaving room for all but the chart's rows (the sentence, every other row as it was)
+    and then one fewer (the refusal, the file unchanged); and through LibreOffice, Median months to charge-off (the
+    last measure) on the 42-year book: every year of all three lines ties to the loan file, no cell reads an error
+    but `#N/A`, and the chart reads the same points. `test_summary_vintage_2026_10_03` reads the new rows; its
+    figures are unchanged.
+  - **Planted bugs:** 10 added and 1 repointed in `tools/mutation_check.py`: every measure by every year on a row
+    again; the row labels back on the count's row; a row written for an empty year; a line's loans read as its value;
+    Loans read whatever the measure; the Vintage row list a row early; the chart's rows written past the ceiling; the
+    rest written past it; the refusal counting without the chart; the refused Run saving the workbook; and the
+    existing "each year's point from the year before", now the year in the row's key. 11 of 11 caught by a failed
+    test, with DISPLAY unset.
+  - **Not fixed, recorded in HANDOFF.md:** Grids, Compare and Split also put a row per column's values on
+    `_views`. None exceeds 701 at the default Text columns limit (50), or at 100 with a split. Control allows up to
+    1,000; above about 700 values, or about 100 with a split, those columns would show blank too. Found by reading,
+    not run.
+- **Built, 17 Oct 2026: RANR vs GCOs puts Avg line beside Booked** (branch
+  `claude/pocketbook-avg-line-beside-booked`). The firm: *"i want avg line and booked metrics to be closer together
+  the same way RANR and RANR/booked is, like avg line and line x book and such belong in the same relative place"*.
+  The gross block read Booked, GCOs, RANR, RANR ÷ Booked, Avg line, Line × book; it now reads Booked, Avg line, Line ×
+  book, GCOs, RANR, RANR ÷ Booked, under the one "Gross · this pocket alone" heading. Each cell still picks its own
+  `_views` entry by column, so the figures, the totals under the table and a sort are as before. Summary already read
+  Booked $, Avg line, Line × book, % of booked (the shape of its GCO and RANR columns) and is unchanged; the audit
+  workbook proves Avg line in its own step and is unchanged.
+  - Tests: 2 in `tests/test_avg_line_beside_booked_2026_10_17.py` (the headings and the group heading; every gross
+    cell in exactly one conditional-format range, which LibreOffice needs), and the three tests that pinned the old
+    order moved. Planted bugs: 4 added, 4 caught, with no display.
+- **Built, 17 Oct 2026: Line size, a tab of its own** (branch `claude/pocketbook-line-size`, on #450). The firm wants
+  to show that *"we give assignments that are too high to these people"*, in a separate view *"so it isn't all in one
+  spot and too much for a user"*, shown when an indicator trips. Their decisions: literal names; the trip line
+  editable on Control, starting at 1.25×; "worse" for tripping on a switch, Bad loans / GCOs / Either, starting on
+  Either; the four ratios that point in a risk direction counted as Signals; starting lines are suggestions, marked
+  as suggested, like Worse at today; and *"let's just look at an example after"*.
+  - **The tab**, right after RANR vs GCOs, in the house style (title band, How this tab works, the lines in use):
+    one grid at a time, and a Show dropdown (*Pockets where something tripped*, the default; *2 or more signals*;
+    *All pockets*) that picks the rows by formula from the hidden `_lines`, as Pockets' Show picks from `_list`.
+    Columns: Band, Segment, Loans, Avg line, Line × book, Line on bad loans ÷ line on good loans, Share of line lost
+    on bad loans, Months to charge-off (straight avg), Months to charge-off weighted by line, Line-weighted ÷
+    straight, Signals ("2 of 4: Bad got bigger lines, Big lines fail sooner") and Tripped by (Worse on bad loans,
+    Worse on GCOs, Bad got bigger lines). Sorted by Line on bad loans ÷ line on good loans, highest first. Each ratio
+    is red past its line; nothing else is judged; each cell sits in one conditional-format range.
+  - **The figures**, worked out in the Run (`engine.LineSize`, `engine.line_vs`) and kept on `_views` (`L|<grid>|k`):
+    every one counts only loans with a booked amount, Avg line's rule. Line on bad ÷ good: the average line of bad
+    loans over that of good loans. Share of line lost: Σ GCO ÷ Σ booked over bad loans with both (the GCO rate's own
+    top and bottom). Weighted months: Σ(months × booked) ÷ Σ booked over loans with months to charge-off; and that
+    over the straight average. Without a Charge-off date the months columns are hidden and Signals counts out of 3.
+  - **Control**: the four lines and the switch sit in a fourth block, *Line size*, under the launcher's, live as
+    Changes now's are (named `line_big`, `line_bad_bigger`, `line_lost`, `line_sooner`, `line_worse_on` on `_live`).
+    Under the launcher's block, not inside Changes now, so no row above them moves: the bank checklist sends the
+    analyst to Control C15, C19, C24 and H24. Each opens on its starting line, its label marked *(suggested)*
+    (settings.yaml `starts: true`). A workbook set up before the rows existed still Runs on the starting lines
+    (settings.yaml `added`; `control.read_control`), Record says them, and the next Set up writes the rows.
+  - **Also**: Summary carries the two figures that need no dates after % of booked (so Booked $, Avg line, Line ×
+    book, % of booked keep the shape the GCO and RANR blocks have) and the two months figures after the median
+    months; its vintage chart leaves the four off. Grids offers the first two as Measures, shown and not compared.
+    The Glossary has a line per new term (37 terms, 33 without a charge-off date); Start here lists the tab; Record
+    keeps the five settings. The synthetic book has an optional plant, `synth.add_big_lines` (bigger, wholly lost
+    lines on one pocket's bad loans), off by default, so the practice book is unchanged.
+  - Tests: 13 in `tests/test_line_size_2026_10_17.py` (the figures by hand on eight loans; the figures against the
+    CSV; the Show dropdown's three choices, each signal at its line and a hair past it, and the switch, after a
+    LibreOffice recalculation; out of 3 without a charge-off date; an older workbook without the rows). Tests that
+    pinned the tab list, Control's blocks, Summary's columns, Grids' measures and the Glossary's terms were moved to
+    the new shape; the literal-names test no longer reads "Charge-off date", a column's meaning, as the old measure
+    name. Full suite in 4 shards with no display: 1,173 passed, 15 skipped. Planted bugs: 21 added, 21 caught.
+  - Review fixes (17 Oct 2026): Line-weighted ÷ straight divided weighted months (loans with a booked amount) by
+    the straight average over every charged-off loan; both are now over the same loans (`LineSize.co_months`),
+    on Line size and Summary, and the note says Grids' own average can differ. A cleared *Tripped by being worse
+    on* made the switch #N/A and emptied the tab; it now reads as Either. Grids' line measures are tied to the CSV
+    inner cell and margins. 3 tests and 3 planted bugs added.
+- **Built, 17 Oct 2026: the Glossary's custom terms, luck as the other side of confidence, and Significant at
+  N%?** (branch `claude/pocketbook-glossary-terms`, on the Line size branch). Three asks from the firm the same day:
+  - *"our custom terms - like bad / good loans, these i do want in the glossary along with our key terms as fairly
+    plain language and simple explanations to walk a user through what it means. keep my voice in mind"*. Every
+    word PocketBook coined or uses in its own sense was read off the tabs' code and a built synthetic workbook. The
+    Glossary goes from 37 terms to 72 (68 without a charge-off date): 35 added, each beside the term it belongs with
+    (Good loan after Bad loan; Judged against after the two comparisons; Bad loans, Bad dollars and Loan size after
+    them; Two-way / Split by after Pocket; Compare's dropdowns after Vintage; Excess, Worse? with its four readings,
+    Material? / Material at, Show, How sure / Significant at N%?, its readings, the reasons it gives instead of a
+    p-value, the profit line, Holds fixed / Mixed with and Could have caught among the verdicts; Together and its
+    six readings; Line size's Show; Treat as; then Control's words, Gray rows under, and the new-variable test's
+    Found on / Held back, Pre-spec and Holds up? / Still holds?). Three rewritten: GCOs ($), which said only "Gross
+    charge-off dollars."; Borderline, whose example was a Worse? cell, which has printed the word alone since 5 Oct;
+    and Tripped by, now walked through. After a Run, 23 of the new examples use the book's own figures
+    (Good loan, Bad loans % and Bad dollars ÷ Booked tie to the CSV in a test); the rest stay generic and never say
+    "This book". canon's voice check: 0 tells in 195 strings.
+  - *"also luck is seriously only a term we will understand, make sure it's clear that luck is basically the other
+    side of confidence"*. No tab, Control label, launcher message or Record line says luck (the 26 Sep test still
+    guards that). It survives where a reader can meet it only as a setting's value: `revenue_line: luck` in the
+    what-ran YAML and the cube-file refusal that names that value; both left as identifiers. `docs/statistics.md`
+    now pairs confidence with the p-value, and the Glossary's *How sure / Significant at N%?* says it: at 95% sure a
+    gap is significant when its p-value is under 5%, a gap that large arising by chance less than 1 in 20 times.
+  - *"i don't like how often by chance or could be chance as much as luck at this point. or another sort of
+    standard term, i just think could be chance is too vague for a typical user"*, with the layout they chose
+    (*Significant at 95%?*: *Yes (p = 0.09%)*, *Borderline (p = 4.8%)*, *No (p = 23%)*, *Too few losses to test*,
+    *Not losing more*). **This supersedes the 5 Oct 2026 "How often by chance" decision (its "1 in X", Could be
+    chance and Too close to call) and the 26 Sep 2026 note that the p-value is never luck** (the p-value keeps its
+    name; the column is now named for the test it answers). The heading follows How sure live. The p-value is the
+    one "1 in X" was built from, after the allowance for many tests, and the note says so. It prints two decimals
+    under 1%, one under 10%, none from 10%, and *p < 0.01%* below 0.01%; one rounding onto the line it sits under or
+    over takes up to two more decimals (4.98%, not 5.0%, beside *Significant at 95%?*). The other reasons are kept.
+    RANR vs GCOs', Split's and Start here's *· borderline (p 0.048)* are unchanged: they sit on other tabs, beside a
+    verdict rather than in a column of p-values, and moving them is the firm's call.
+  - Tests: `tests/test_glossary_terms_2026_10_17.py` (15) and `tests/test_significant_at_2026_10_17.py` (26), both
+    written first (12 of 15 and 26 of 26 failed on the code before). The guard reads every verdict word, reading,
+    Show and Measure option and Together reading from the constants the tabs print, so a reading added without a
+    Glossary row fails it; a control proves it can. One Yes pocket is tied by hand: its z test from its own counts
+    and Benjamini-Hochberg worked out in the test, against the engine, `_pockets` and the tab. Moved deliberately: the
+    Glossary's term list, the bank checklist's count (37/33 to 72/68, plus a C18 step for the heading; HTML and PDF
+    rebuilt) and 8 tests pinned to How often by chance. Planted bugs: 21 added and 7 repointed, 28 of 28 caught.
+    Full suite in 4 shards with no display, Line size's review fixes merged in: 1,207 passed, 1 failed, 15 skipped;
+    the failure (`test_generic`: two made-up examples named the synthetic book's columns) was fixed and its file
+    rerun green.
+  - Review fixes (17 Oct 2026, PR #455). Significant at N%? now answers its own question: every pocket with a
+    p-value reads Yes, No or Borderline by that p-value alone (Borderline for any shuffled p-value within 2 of its
+    standard errors of the line); only a pocket with no p-value gets a reason (Too few losses to test, Nothing to
+    compare with, Not losing more, Mixed with FICO). Under the Worse at line and Not losing more are Worse?'s to say.
+    On the example book's 405 `_pockets` rows, 234 changed: Not losing more to No 170, to Yes 22 and to Borderline
+    3; Under the Worse at line to No 39 (before: Yes 32, Borderline 4, No 98, Not losing more 195, Under the Worse
+    at line 39, Too few losses 29, Nothing to compare with 8; after: Yes 54, Borderline 7, No 307, Too few losses
+    29, Nothing to compare with 8). How sure is worded as `_live` words it everywhere a tab says it (97.5%, never
+    98%; its line 2.5%), the heading included. A p-value still on the line after two extra decimals says which side
+    ("p < 10%"), and Python rounds the binary double as LibreOffice does (0.00145 is 0.14%). The Pockets note and
+    the Glossary claim no allowance when Control sets none. The Glossary restores the condition the p-value rests on
+    and says what the allowance holds; the profit line and Together say a side must pass its line and be
+    significant; Borderline's example follows How sure; made-up examples use made-up names (Column A), a split Run
+    names its own split and partner, and the note says which examples are the book's. The guard now enumerates
+    Significant at N%?'s and Worse?'s readings from `live.sig_said` and `live.worse_of` over `engine.READINGS`.
+    Tests: `test_significant_at_2026_10_17.py` 26 to 42 (a typed 97.5% and 99.9%, the note with and without an
+    allowance, the formula against `sig_said` over every combination in LibreOffice, the line at 90%, 95% and 97.5%),
+    `test_glossary_terms_2026_10_17.py` 15 to 22; the Glossary is 72 terms (68 without a charge-off date). Planted
+    bugs: 19 added, 9 repointed, 1 retired with the reading it planted into; all 46 that touch these lines caught.
+    Full suite in 4 shards: 1,229 passed, 1 failed, 15 skipped; the failure was the bank checklist read before its
+    count was moved to 72, rerun green. canon's voice check: 0 tells in 190 strings.
+  - Direction, a p-value column and an order for investigation (17 Oct 2026). The firm, on significantly better
+    pockets: direction labels, *"Yes, worse (p = 1.2%)"* and *"Yes, better (p = 0.08%)"*, Borderline and No as they
+    are, and *"this is fine but i want it sorted in a sensical manner for investigation and slicers that get added
+    would need to adapt i guess"*. **The layout changed from what the firm saw** (one cell, "Yes (p = 1.2%)"): the
+    category and the p-value now sit in two columns, so a filter or slicer on either sees few values.
+    *Significant at N%?* holds Yes, worse / Yes, better / Borderline / No / Too few losses to test / Nothing to
+    compare with / Not losing more / Mixed with (column); **p-value**, right beside it, holds the number, formatted
+    `[<0.0001]"< 0.01%";[<0.01]0.00%;0.0%`, with conditional formats for none from 10% and for a value that would
+    show as the line (more decimals, then "< 10%"); the side is the gap's against its comparison. Excel's filter
+    arrows now cover every heading on Pockets. The rows come in seven groups as of the last Run: Yes, worse;
+    Borderline losing more; No losing more; no test; No losing less; Borderline losing less; Yes, better; each by
+    its excess, largest first, so the most-better pocket is last. The old "losing more only against the other
+    comparison comes last" falls out of it (those pockets lose less against the comparison that decides); a split
+    pocket whose grid doesn't hold the partner fixed now sits in the no-test group rather than last. On the example
+    book, GCOs ($): 41 rows, groups 7 / 1 / 22 / 2 / 7 / 1 / 1; Bad loans 44, 6 / 0 / 25 / 2 / 9 / 0 / 2. The
+    Glossary gains the p-value column's row (73 terms, 69 without a charge-off date). Tests: 13 in
+    `tests/test_significant_columns_2026_10_17.py`, all failing first; the format choice is checked rule by rule in
+    LibreOffice against Python. Planted bugs: 12 added and the rest on these lines repointed, 58 of 58 caught.
+    Full suite in 4 shards: 1,241 passed, 1 failed (a heading list one column short, fixed and rerun), 15 skipped.
+  - Review fixes (18 Oct 2026, on 9a82e204). Sorting with Pockets' filter arrows moved only #: each row finds its
+    pocket through hidden index columns that sat outside the range, so a sort moved the formulas and every row
+    worked its pocket out again where it was. The range now runs to the hidden index, so a sort carries each row's
+    pocket and # keeps the Run's order as a label; proved by sorting a built book in LibreOffice through its Python
+    bridge (`tests/unosort.py`, `tests/test_sorting_2026_10_17.py`), with a check that no row reads another. RANR vs
+    GCOs already sorted rightly (its helpers were inside its range) and now has the same test. CI installs
+    python3-uno and poppler-utils for these. A sort descending puts the empty rows of a shorter view on top, since
+    a formula's "" is text; the rows still belong together. The Python mirror of the p-value's display now rounds
+    the decimal value as the spreadsheet does (0.00145 is 0.15%, 0.05005 at 5% is 5.01%), checked against the page
+    LibreOffice prints, half-ways included. The column shows "under 0.01%", "under 10%" and "over 10%", as the
+    other tabs' p-values do. The Glossary's p-value example prints a plain decimal, and "the most-better pocket"
+    reads "the pocket that loses least against the rest".
+    Tests: `test_sorting_2026_10_17.py` (4; the two Pockets sorts failed first), a printed-page test of the p-value
+    at five lines, half-ways in the format tests, a plain-decimal test. Planted bugs: 4 added, 62 of 62 on these
+    lines caught. Full suite in 4 shards: 1,259 passed, 15 skipped.
 
 ## 7 · Standing rules for new items
 
@@ -3630,6 +3936,30 @@ research pass before a spec, no exceptions.
 - 2026-07-02 — Bureau review pass: 16 findings fixed (heat inversion,
   IFERROR empty-cell coercion, raw_slots guard, MS-OVBA protection keys).
 - 2026-06-30..07-01 — Templates #1 (FRED) and #2 (bureau) shipped; PR #53.
+
+## 6e · Loan Survival (`loan-survival/` — handed over 16 Oct 2026, GUI built same day)
+
+Kaplan-Meier comparison of loan groups at the same month on book: vintages,
+before/after a date, backtested cutoffs, flags, and a Cox model, plus a check on
+whether 90+ days past due is a good early stand-in for charge-off. One engine
+(`loan_survival.py`), now with an importable `run()`; a tkinter front door
+(`loan_survival_gui.py`) that writes the engine's own .ini text. Credit work at a
+bank, not the practice's software; no client data. README and `CLAUDE.md` are in
+the folder.
+
+- [x] **Engine arrived with 11 validation checks** against a hand-worked example,
+      SciPy, statsmodels and plain pandas. `python tests/validate.py` — ALL PASSED
+      on arrival and after the refactor.
+- [x] **`main()` split into `run()`**, engine `sys.exit` calls became `UserError`.
+- [x] **GUI built** — five tabs, auto column match, date-parse counts, test dialogs,
+      seasoned-loans shortcut, save/load .ini. `tests/gui_check.py`: GUI's Tests and
+      Models sheets equal the CLI's on the sample, run under a real window on
+      Xvfb. Each tab was opened and looked at.
+- [ ] **Not checked:** Windows and the bank's Python (tkinter present?), the real SB
+      extract's column names, Excel opening the workbook, how the right-click menu
+      is wired, SR 11-7 status of the Cox piece.
+- [ ] Backlog from the brief: snapshot/roll-rate mode, unseasoned-economics warning,
+      dollar-weighted bad rates, cutoff chart.
 
 ## 6 - Hosted practice app (satc_system) - the "hodgepodge" build-out (AJ, 2026-07-30)
 
