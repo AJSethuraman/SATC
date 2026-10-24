@@ -31,70 +31,6 @@
 
 window.INTAKE_STEPS = [
 
-  /* ===================================================== SIMPLE FILER ROUTE
-     PROPOSED, NOT APPROVED. Review only.
-
-     Two plain factual questions, shown ONLY to a visitor who arrived from the
-     Simple Filer band on the homepage. They mirror the two real conditions on
-     the package's gate in fee-schedule.yaml -- `schedules_none: true` and
-     `other_income_documents: "no"` -- asked in words a client already owns.
-
-     WHAT THEY DELIBERATELY DO NOT ASK. Nothing about EIC eligibility, which a
-     visitor cannot and should not self-determine. Nothing about dependants or
-     the filer's own education credit, because neither excludes this package --
-     fee-schedule.yaml:370-384 removed `has_dependents` as a gate on 26 Aug 2026
-     and closes with "A W-2 parent claiming the child tax credit is a Simple
-     Filer." Asking would imply they disqualify.
-
-     THEY DO NOT DECIDE ANYTHING. The pricing engine reads the preparer
-     interview, not this form -- `other_income_documents` is interview.yaml:516,
-     not a step here -- so these answers cannot and must not be turned into a
-     price on the page. They route and they inform; the figure stays a published
-     package price with "we confirm on documents" next to it.
-
-     ROUTE METADATA, WITHOUT A NEW MECHANISM. intake.js prunes any answer whose
-     key is not a declared step id (intake.js:38, :54-57) and `_json` carries
-     `state.answers` only, so there is no side channel to smuggle a source tag
-     through. These two steps ARE the tag: they appear on no other route, so
-     the presence of `sf_other_income` in the payload is what identifies Simple
-     Filer interest. No new key, no `_subject` change -- that string is
-     load-bearing for a mailbox rule (INTAKE.md:131-149) -- and they reach the
-     workbook through its existing Raw JSON column with no flow edit
-     (leads-to-excel.md:49-50).
-
-     Option objects are written `value: '...', label: '...'` ON ONE LINE
-     because client-documents/leads.py:111-127 regex-parses THIS FILE for that
-     exact shape. Split across two lines, a preparer sees the code string
-     instead of the English.  */
-  {
-    id: 'sf_other_income',
-    type: 'single',
-    question: 'Besides W-2s, did any other income document arrive?',
-    help: 'Interest, dividends, a 1099 of any kind, retirement, unemployment. A 1098-T for your own tuition does not count here.',
-    required: true,
-    options: [
-      { value: 'no', label: 'No, just W-2s' },
-      { value: 'yes', label: 'Yes, something else came' },
-      { value: 'unsure', label: 'Not sure' },
-    ],
-    showIf: () => isSimpleFilerRoute(),
-  },
-
-  {
-    id: 'sf_schedules',
-    type: 'single',
-    question: 'Do you have a business, rentals, investment sales, or plan to itemize deductions?',
-    help: 'Itemizing means claiming deductions such as mortgage interest or donations instead of the standard deduction. Having children or claiming your own tuition credit does not exclude you.',
-    required: true,
-    options: [
-      { value: 'no', label: 'None of those' },
-      { value: 'yes', label: 'Yes, at least one' },
-      { value: 'unsure', label: 'Not sure' },
-    ],
-    showIf: (a) => isSimpleFilerRoute() && a.sf_other_income === 'no',
-  },
-
-
   /* ── 1 · Primary routing question ─────────────────────────────────────── */
   {
     id: 'services',
@@ -112,6 +48,71 @@ window.INTAKE_STEPS = [
       { value: 'unsure',            label: "I'm not sure yet", exclusive: true },
     ],
   },
+
+  /* ============================================================ SIMPLE FILER
+     Two plain factual questions, asked only when individual tax preparation is
+     the ONLY thing someone picked on the first screen. They mirror the two real
+     conditions on the package's gate in fee-schedule.yaml -- `schedules_none:
+     true` and `other_income_documents: "no"` -- in words a client already owns.
+
+     ONE DOOR. Every button on the site opens the same first question. What
+     decides whether these two appear is what the visitor ANSWERED, never which
+     button they pressed, so there is no route flag to get stuck in and nothing
+     to reset. (An earlier version set a window flag from the homepage band; a
+     visitor who took that door and then pressed "Tell Us About Your Situation"
+     stayed on the short-path question. The flag is gone.)
+
+     WHAT THEY DELIBERATELY DO NOT ASK. Nothing about EIC eligibility, which a
+     visitor cannot and should not self-determine. Nothing about dependants or
+     the filer's own education credit: neither excludes this package
+     (fee-schedule.yaml:370-384).
+
+     THEY DO NOT DECIDE ANYTHING. The pricing engine reads the preparer
+     interview, not this form -- `other_income_documents` is interview.yaml:516,
+     not a step here -- so these answers route and inform; the figure stays a
+     published package price with "Price confirmed upon review" beside it.
+
+     WHERE THEY SEND PEOPLE (see intake.js):
+       No, just W-2s + None of those  -> the likely-fit screen
+       Yes, something else came       -> straight on into the full form
+       Not sure (either question)     -> "fill out the full form" or "just have
+                                         us reach out"
+
+     PAYLOAD. A step id is the only thing intake.js keeps (it prunes unknown
+     keys), so `sf_other_income` appearing in the payload is itself the marker
+     that this path was shown. No new key, no `_subject` change, and it reaches
+     the workbook through the existing Raw JSON column.
+
+     Option objects are written `value: '...', label: '...'` ON ONE LINE because
+     client-documents/leads.py regex-parses THIS FILE for that exact shape.  */
+  {
+    id: 'sf_other_income',
+    type: 'single',
+    question: 'Besides W-2s, did any other income document arrive?',
+    help: 'Interest, dividends, a 1099 of any kind, retirement, unemployment. A 1098-T for your own tuition does not count here.',
+    required: true,
+    options: [
+      { value: 'no', label: 'No, just W-2s' },
+      { value: 'yes', label: 'Yes, something else came' },
+      { value: 'unsure', label: 'Not sure' },
+    ],
+    showIf: a => isOnlyIndividualTax(a),
+  },
+
+  {
+    id: 'sf_schedules',
+    type: 'single',
+    question: 'Do you have a business, rentals, investment sales, or plan to itemize deductions?',
+    help: 'Itemizing means claiming deductions such as mortgage interest or donations instead of the standard deduction. Having children or claiming your own tuition credit does not exclude you.',
+    required: true,
+    options: [
+      { value: 'no', label: 'None of those' },
+      { value: 'yes', label: 'Yes, at least one' },
+      { value: 'unsure', label: 'Not sure' },
+    ],
+    showIf: a => isOnlyIndividualTax(a) && a.sf_other_income === 'no',
+  },
+
 
   /* ── 2 · Individual complexity ────────────────────────────────────────── */
   {
@@ -349,17 +350,9 @@ function asksBusinessComplexity(answers) {
   return asksBusinessStructure(answers) && hasBusiness(answers) && wantsBusinessWork(answers);
 }
 
-/* Did this visitor arrive from the Simple Filer band? PROPOSED, review only.
-
-   Set by the band's click handler in index.html. Read here rather than stored
-   as an answer because an answer would need its own declared step, and a step
-   that renders nothing is a new engine concept -- see the note in PROPOSAL.md
-   under "what the engine cannot do today". A refresh loses a click-only route;
-   an explicit URL route survives. When the route is lost, the two questions
-   disappear and their answers are pruned by the existing showIf contract. */
-function isSimpleFilerRoute() {
-  try {
-    return window.__SATC_ROUTE === 'simple_filer' ||
-           /(^|[?&#])route=simple_filer(?:[&#]|$)/.test(window.location.search + window.location.hash);
-  } catch (e) { return false; }
+/* Individual tax preparation is the only service picked. This is what opens the
+   two Simple Filer questions: the answer decides, not the button that led here. */
+function isOnlyIndividualTax(a) {
+  const s = a && a.services;
+  return Array.isArray(s) && s.length === 1 && s[0] === 'individual_tax';
 }
