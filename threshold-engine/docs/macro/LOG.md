@@ -1330,3 +1330,364 @@ read, before answering, how the 2005 law change would affect it.
   the tab name "New bankruptcies", the care line above, the break's line and
   the note "Counts people whose credit report shows a new bankruptcy in the
   quarter, not cases filed in court."
+
+## 23 Oct 2026 (afternoon): bank credit, and the Dashboard becomes the comparison
+
+**Asked.** The firm sent a screenshot and a hand-off from another agent that
+had worked in the Excel copy of the workbook: 16 bank credit series pasted
+in as values, and a "Compare series" tab testing whether two series are
+related. *"i do not necessarily want it exactly like this because a lot is
+going on, but i want to work this to being the dashboard because it's the
+same info but further."* Asked four questions, the firm answered:
+
+- keep the answer line and the same-time r, and the lead table, condensed;
+  *"but i am not a huge fan of the blue and orange - i would rather use more
+  Keybank esque colors"*;
+- the 16 bank series, *"Yes, from FDIC each pull (Recommended)"*;
+- the test's settings, *"As the Excel version (Recommended)"*;
+- *"Merge #471 first (Recommended)"*, which was done (f8dc4656), Codex's last
+  point left as it was, as the firm chose.
+
+The Excel copy's own tabs could not be carried: the tool writes the whole
+workbook each run, so anything added by hand in Excel is gone at the next
+build. Both are built into the tool instead.
+
+**Bank credit.** Each product's net charge-offs (past four quarters over the
+average balance) and its loans 30+ days past due including nonaccrual, for
+credit card, other consumer, mortgage and home equity; every FDIC filer
+summed, and KeyBank (certificate 17534). Built by the threshold engine's own
+peers pull and build (`fdic_credit.py`), under the consumer book's recorded
+settings, so each figure is the threshold workbook's. Its own notes (the
+definition, KeyBank's rules, every reporting change touching the series) go
+into the file and onto each tab, with the cache's local path taken out.
+
+- **Tied out** against the threshold engine's committed industry files:
+  card net charge-offs 3.476549939643245% at 2006 Q4 and card 30+
+  3.750308262095038% at 2006 Q1, both to the last digit. KeyBank's card net
+  charge-offs for 2026 Q2, 3.76%, as the firm's Excel copy had them. The
+  test builds the series from the threshold engine's own test data and
+  checks KeyBank's and every filer's card 30+ against the filings'
+  arithmetic, worked separately.
+- **Licence:** the FDIC's website policies page, read 23 Oct 2026, states
+  no terms of reuse for its own data; the catalog says so.
+- **Citations:** each series cites the report's labour section (losses: it
+  reads card charge-offs against unemployment) or household section (30+);
+  the firm added them, not the research, and the catalog says that too.
+- The card series for all banks carry the 2010 Q1 securitization break
+  (FAS 166 and 167), as the threshold engine labels it. KeyBank's card
+  history starts after it (2012 Q3 for 30+, 2013 Q4 for losses).
+- Units shortened to fit their columns: "% of loans, past year" and "% of
+  loans, quarter-end"; the full definition is under "From the build".
+
+**The Dashboard.** Kept: the four boxes, both picks' readings, both changes
+in typical moves. Gone: the levels-together chart and each pick's own small
+charts (each series' tab has them). New:
+
+- one line that answers: the strongest lead, whether it holds, and the
+  same-time r; bold on mist when a lead holds;
+- at the same time, every shared reading: r, readings, effective readings
+  n x (1 - r1 r2) / (1 + r1 r2) and p (Student's t, two-tailed);
+- each lead the settings name, on one reading a year from four starting
+  points: r (average of four), pairs (fewest), holds in x of 4; a lead holds
+  when all four agree in sign and pass p < 0.05 divided by the leads tested;
+  the strongest bold on mist;
+- the picks in KeyBank ink and red (0A0908, CC0000) in place of blue and
+  orange.
+
+Four new settings, each the firm's answer of 23 Oct: `compare_p` 0.05,
+`compare_leads` -24 to +36 every 6, `compare_starts` 4, `compare_min_pairs` 6
+(the Excel copy's "Lags with under 6 annual pairs are not tested"). The
+month grid now runs one row a month with none skipped, padded by the longest
+lead each way, so each lead's ranges are fixed addresses (no OFFSET).
+Formulas use only Excel 2007 functions: CORREL, TDIST, SUMPRODUCT, SQRT,
+AVERAGE, SUM and COUNT join the list.
+
+**Checked.**
+
+- LibreOffice recalculated the Dashboard and every figure matched an
+  independent computation from the hidden data tab's values (a separate
+  script, its own Pearson and its own Student's t), largest difference
+  5e-13: same-time r +0.3987 on 704 readings, effective 243.2, p 1.1e-10
+  for unemployment against claims; each of 11 leads' r, pairs and holds.
+- Card 30+ against card net charge-offs, all banks, 2013 Q3 to 2026 Q2:
+  the first leads by 6 months, r = +0.96, holding at 4 of 4, and at 12
+  months +0.89, holding too: the Excel copy's own finding (+0.96 at +6, 4 of
+  4; industry holds at 12).
+- The default pair, unemployment against card net charge-offs for all
+  banks: no lead holds; at the same time r = +0.41 on 74 readings, effective
+  22.0, p 0.056, which does not pass.
+- 197 tests pass. Eight breaks of the new code each failed a test: the lead
+  offset, the starting months, the allowance for leads tried, the effective
+  readings, the colours, the all-four rule, the FDIC step back past an
+  unpublished quarter, and the cache path kept out of the notes.
+- The example (`examples/economic-conditions-2026-10-23.xlsx`, from a fresh
+  pull of all 144 series) passes the ISO schemas (0 errors); rendered in
+  LibreOffice, the Overview, the Dashboard and a bank tab looked at, and the
+  five pictures redrawn. The pandemic what-if still moves 4 changes, now of
+  143. **Not seen in Excel.** In particular, that Excel's CORREL skips a
+  pair with text in it as LibreOffice's does is from Excel's documentation,
+  not from a run.
+- Not run: the threshold engine's own tests (they take about 28 minutes and
+  this change writes nothing under its folders, though it calls its peers
+  code).
+
+## 23 Oct 2026 (evening): Codex on #472, readings a year apart, and the starting points
+
+Codex reviewed #472 and found two things. Both were real.
+
+**Readings a year apart are not independent (its P1).** The lead test took
+each starting point's one-a-year pairs as independent. That was the reason
+given to the firm when it chose "As the Excel version": "One reading per 12
+months at four starting points, so no two readings share data." It is true
+of a level and not of a change: a 12-month change ends where the next one
+begins, and a cycle runs over several years, so one year's change runs on
+into the next. On the raw count of pairs, p came out too small. Now each
+starting point's p is on its effective pairs, the same allowance the
+same-time test makes: n x (1 - r1 r2) / (1 + r1 r2), with r1 and r2 each
+series' correlation with its own change a year earlier, in the quarters
+chosen. Effective readings and effective pairs are never more than n: when
+r1 r2 is negative the formula gives more readings than there are, and the
+Dashboard no longer counts them.
+
+What it changes, from the 23 Oct pull on the firm's settings (eleven pairs
+worked by a separate script before the change was made):
+
+| Pair | Before | Now | Each series' change against its own a year earlier |
+|---|---|---|---|
+| Mortgages 30-89 days late, then mortgage net charge-offs (all banks) | +12 months holds, r +0.65 | no lead holds (0 of 4) | +0.35, +0.61 |
+| NY Fed household card debt, then card net charge-offs (all banks) | +18 months holds, r +0.66 | no lead holds (0 of 4) | +0.50, +0.35 |
+| Card 30+ late, then card net charge-offs, all banks, 2013 Q3 to 2026 Q2 | +6 (r +0.96) and +12 (r +0.89) hold | the same | +0.30, +0.30 |
+| Unemployment rate and initial claims | at the same time holds, r +0.70 | the same | -0.12, -0.06 |
+| Unemployment rate and card net charge-offs, all banks (the default) | none | none | -0.12, +0.35 |
+| KeyBank card 30+ late, then KeyBank card net charge-offs | none | none (best 2 of 4) | +0.14, +0.03 |
+
+Of the other five pairs tried, card 30+ against card losses over the whole
+history held at +6 and +12 months before and after, and four held nowhere
+before and after. The test is now
+stricter than the Excel copy's, which used the raw count. The firm's answers
+(p 0.05, the leads, four starting points, six pairs at the fewest) are
+unchanged.
+
+**Starting points must fall on a quarter (its P2).** `compare_starts`
+accepted 1, 2, 3, 4, 6 or 12. With 3, 6 or 12 some starting months (May,
+September and others) never hold a quarterly reading, so with a bank series
+picked every lead would have said not tested. The settings now accept 1, 2
+or 4 and refuse anything else, saying why. The firm's answer, 4, stands. The
+question and its reason are reworded in `settings.json`, the what-if and the
+template ("keeps them a year apart" where it said "shares none").
+
+**Also.** The Dashboard's folded method note cut its longer labels short
+("What is co", "At the same", "Together, m", "Off the char"). Its labels now
+take two columns, as the States tab's do. The last two were cut on main too.
+The note under the lead table now says p is on effective pairs; it was
+shortened to fit its one line.
+
+**Checked.**
+
+- LibreOffice recalculated the Dashboard for six pairs (the default,
+  unemployment against claims, card 30+ against card losses for all banks
+  from 2013 Q3, mortgages 30-89 late against mortgage losses, household card
+  debt against card losses, KeyBank card 30+ against KeyBank card losses).
+  Every figure matched a separate script with its own Pearson, its own
+  Student's t, its own year-apart correlations and its own reading of the
+  From and To quarters. Largest difference 5e-13; no row differed.
+- Seven breaks of the new code each failed a test: p on raw pairs, its
+  degrees of freedom on raw pairs, a month apart in place of a year, no cap
+  at a lead, no cap at the same time, the second series' year-apart
+  correlation taken from the first, and three starting points accepted.
+- 198 tests pass. The example was rebuilt from the same pull and passes
+  the ISO schemas (0 errors); the Dashboard was redrawn (picture 2) and its
+  method note looked at unfolded. The what-if printout is unchanged.
+- **Not seen in Excel.** That Excel truncates TDIST's degrees of freedom to a
+  whole number, as LibreOffice and the check do, is from Excel's
+  documentation, not from a run.
+
+## 23 Oct 2026 (evening, second round): Codex on 7a03c63b
+
+Codex reviewed the fix and found two more things. Both were real.
+
+**A lead without a p counted as tested (its P1).** When the effective pairs
+at a starting point are too few for Student's t (fewer than 3), that
+starting point has no p. The lead still counted as tested, because the
+test looked only at the raw pairs and the r. So it read "0 of 4", could be
+picked as the strongest, and raised the number of leads the firm's level is
+divided by, which made every other lead harder to pass. Now a lead is tested
+only with a p at every starting point; otherwise it reads "not tested". Two
+real cases from the 23 Oct pull, recalculated in LibreOffice and matched to
+the separate script (no row differing, largest difference 7e-16):
+
+- core prices against mortgage net charge-offs (all banks), 2014 Q1 to 2023
+  Q4: each series' change against its own a year earlier +0.58 and +0.75,
+  so the leads at +30 and +36 months, with 7 pairs at each starting point,
+  have too few effective pairs. They now read not tested, and the level is
+  0.05 divided by 9, not 11;
+- house prices against mortgages 30+ days late (all banks), 2004 Q1 to 2013
+  Q4: the leads with the second ahead by 6 and 12 months, 6 pairs each, now
+  read not tested; 7 leads are tested.
+
+**An installed copy could not find the book (its P1).** The README installs
+the engine with `pip install .`, which puts the package under site-packages.
+The bank build found the consumer book and the roster from its own file's
+place, so an installed copy looked in the wrong folder and all 16 series
+failed with "file not found". Seen, not inferred: the pushed version,
+installed into a scratch site-packages with uv, looked in `.../inst/lib` and
+raised FileNotFoundError. Now the build looks in the source checkout first,
+then in the folder the tool is run from (the tool's instructions say
+`threshold-engine/`), and refuses elsewhere, naming the three files it needs.
+The files are not copied into the package, where a second copy of the book
+could drift from the one the firm answers. The threshold engine's own app
+(`app.py`) finds the same files the same way; it is not touched here.
+
+**Checked.**
+
+- The installed copy, run from `threshold-engine/`, found the book (jump
+  0.25); run from another folder, it refused with the sentence above.
+- Three breaks each failed a test: tested without a p at every starting
+  point, no working-directory fallback, and the checkout taken without
+  checking it holds the files.
+- 199 tests pass. The example was rebuilt from the same pull; the what-if
+  printout is unchanged.
+
+## 23 Oct 2026 (evening): the firm opens it in Excel, and a near miss gets its own words
+
+The firm opened the workbook in Excel and set KeyBank's card 30+ late
+against KeyBank's card net charge-offs, 2010 Q1 to 2026 Q4. Excel's figures
+were the ones LibreOffice and the separate script gave for that pair: at +12
+months r +0.76, 11 pairs at the fewest, 2 of 4; at the same time r +0.35 on
+47 readings, 7.2 effective, p 0.428. The firm: *"it just seems so unlikely
+this does not track."*
+
+It does track, and the line said otherwise. Every starting point's r at +6
+and +12 months is positive, from +0.51 to +0.85. What fails is the bar:
+KeyBank filed no card loans until 2012 Q3 (LNCRCD 0, then 709,567 thousand
+dollars in its 30 Sep 2012 Call Report), so its changes start in 2013 and
+2014 and each starting point has about 12 readings a year apart. With 11
+leads tried, each must pass p below 0.05/11, which on 12 readings needs r of
+about +0.76 at every one: at +12 the four are +0.67, +0.74, +0.81 and +0.80.
+The all-banks pair, with 16 readings and r +0.94 to +0.97, clears it. The
+year-apart allowance barely enters here (effective 11.9 of 12).
+
+The answer line said "No lead holds at every starting point", which reads
+as no link. Asked, the firm chose to reword near misses, not to loosen the
+test ("Reword near-misses"), then: *"shorten it though, just say something
+like 2 of 4, tested x"*, and, for a lead passing at none of the four, "Only
+1 of 4 or more". So when the strongest lead has the same sign at every
+starting point and passes at one or more but not all, the line reads:
+
+> The changes move together when the first leads by 12 months: r = +0.76,
+> holds in 2 of 4, 11 years tested.
+
+The years are the table's fewest pairs at that lead. Passing nowhere keeps
+"No lead holds at every starting point ...", as the default pair
+(unemployment against card losses) still reads.
+
+**Checked.** LibreOffice computed the line for four pairs: the KeyBank pair
+(the words above), the default pair and mortgages 30-89 against mortgage
+losses (both pass nowhere: "No lead holds"), and card 30+ against card
+losses for all banks (holds). Every figure matched the separate script.
+Five breaks of the new line each failed a test: the branch never taken, the
+years from the r column, a near miss on any pass without the same sign, 0 of
+4 let in, and a positive r in place of a pass. 199 tests pass.
+
+## 23 Oct 2026 (night): Codex on 450302f9, the lead the line speaks of
+
+Codex found that the answer line, and the mist, followed the tested lead
+with the largest r even when it missed and a weaker lead held. The line then
+reported a miss and never named the lead that holds; before the near-miss
+wording it said "No lead holds", which was false. The flaw was there from
+the Dashboard's first commit. Now a lead that holds ranks above every lead
+that does not (|r| is at most 1, so its rank is |r| + 2), then the size of
+r.
+
+Seen on the 23 Oct pull: a scan of all 91 series in pairs found 4 pairs,
+each in both orders, where the largest r misses and another lead holds.
+Recalculated in LibreOffice and matched to the separate script:
+
+- card 30+ late (all banks) against revolving consumer credit: the second
+  leading by 6 months has r +0.74 and passes at 3 of 4; by 12 months, r
+  +0.71, holds. The line now reads "The changes move together when the
+  second leads by 12 months: r = +0.71 on one reading a year, holding at all
+  4 starting points", and that row is the one on mist (looked at);
+- industrial production against the Philadelphia Fed's current activity:
+  +12 months has r -0.49 at 3 of 4; +6 months, r -0.46, holds, and the line
+  now speaks of +6.
+
+The default pair and KeyBank's card pair read as before. A break (the rank
+by r alone) failed the test. 199 tests pass.
+
+Codex on e5dbbe4b: with From and To the same quarter, two quarterly series
+share one reading, CORREL gives no r, and the line printed "r =  on 1, too
+few to test." The same-time sentence is now left out when there is no r.
+In LibreOffice, card 30+ against card losses (all banks), 2020 Q1 to 2020
+Q1, reads "Too few readings in these quarters to test a lead: pick a longer
+span." and nothing more; the default pair reads as before. A break (the
+sentence on the count of readings alone) failed the test. 199 tests
+pass.
+
+Codex on a877c290, two findings, both real:
+
+- `what-if-30-years.json`, the second example what-if, was refused: it did
+  not carry the four Dashboard answers, so `read --compare` would not take
+  it. It now carries the firm's answers, as the other two files do, and a
+  test reads every settings file in the docs folder.
+- The all-banks net charge-off series for other consumer, mortgage and home
+  equity said they start in 2006 Q1; their first value is 2006 Q4, as the
+  card series already said (a rate over the past four quarters). Checked
+  against the 23 Oct pull's file: those three were the only starts of the 16
+  that differed. A test holds every all-banks start to the rule.
+
+Also, my own: each bank series' source note read "from the cache the pull's
+FDIC cache", the path taken out and its words left in. It reads "from the
+pull's FDIC cache" now, and the test says so. The 23 Oct pull's bank file
+was built again with the fix from the same cache: all 16 series' figures
+identical, only the 16 source notes changed; the pull's record now gives
+that file's size, hash and the time it was built (22:32 UTC).
+
+Two breaks (the mortgage start back to 2006 Q1; the 30-year what-if without
+the Dashboard answers) and the old note wording each failed a test.
+201 tests pass.
+
+Codex on 1f41c1c3, two findings:
+
+- **Fixed: the Dashboard's opening picks.** Every title was in the pick
+  list whether or not its data came, so a pull whose bank build failed (an
+  installed copy run outside threshold-engine/, say) opened on unemployment
+  against an empty card series. The picks now come from the series that
+  have readings in this pull. The test pull, which holds five series and no
+  bank series, now opens on two series with readings; on the old code it
+  opened on the empty card series, and the new test fails there.
+- **Put to the firm, not changed: where each lead's year-apart correlations
+  come from.** Codex asked for each lead and starting point's own, from its
+  pairwise-complete annual readings, in place of the whole window's. Worked
+  on eight real pairs: per subsample, r1 x r2 swings widely (card 30+
+  against card losses, all banks: +0.01 to +0.25 across the 44 lead and
+  start subsamples, against +0.10 over the window), because each rests on
+  about ten pairs a year apart, and a correlation on so few is noisy and
+  biased low. The verdicts matched in six of the eight; in two they moved,
+  one each way (card 30+ against revolving credit gained the second leading
+  by 6 months; the minimum-payment share against card losses lost +12). The
+  usual practice is the whole series' autocorrelation, which the window
+  gives from every month's pair a year apart. Recommended: keep it.
+
+The firm, asked, kept the whole-window carry-over: "Once over the span
+(Recommended)". Codex's thread was answered with the numbers and closed.
+
+Codex on 5c73b532, two findings, both fixed:
+
+- At the same time, each series' correlation with its previous reading fell
+  back to 0 when no pair a step apart could give one (a quarterly series
+  with alternate quarters left out, say), so the effective readings were the
+  readings and a p was given as if each were independent. It is blank now,
+  and the effective readings and p with it, as the lead test already was.
+  Real pairs are untouched: in LibreOffice the default pair, unemployment
+  against claims and KeyBank's card pair read as before, matched to the
+  separate script.
+- The bank series' notes were read from the file on disk again, not from
+  the bytes the readings came from, which the run fingerprints; a file
+  changed between the two could put one version's notes beside another's
+  figures. `Pull.raw(name)` now hands back those bytes, and the notes come
+  from them. A test changes the file after the readings and finds the
+  original notes in the tab.
+
+Each fix's break (the 0 back; the notes read from disk) failed its test.
+203 tests pass.

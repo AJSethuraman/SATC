@@ -206,8 +206,13 @@ def read_nyfed_hhdc(raw, column):
     return out
 
 
+def read_fdic(raw, sid):
+    from . import fdic_credit
+    return fdic_credit.read(raw, sid)
+
+
 READERS = {"fred": read_fred, "bls": read_bls, "fed_ebp": read_fed_ebp, "fhfa_nmdb": read_fhfa_nmdb,
-           "nyfed_sce": read_nyfed_sce, "nyfed_hhdc": read_nyfed_hhdc}
+           "nyfed_sce": read_nyfed_sce, "nyfed_hhdc": read_nyfed_hhdc, "fdic": read_fdic}
 
 
 def read(series, raw):

@@ -35,5 +35,41 @@
   "recommended": true,
   "why": "It is the best-known published trigger for unemployment (0.50 points, Sahm 2019), and the report records its false alarm of 2024, so a reader should see it beside the change rather than instead of it.",
   "answer": null
+ },
+ "compare_p": {
+  "question": "On the Dashboard, how small must p be for a link between two series' changes to pass? Two-tailed; a number above 0 and below 1.",
+  "recommended": 0.05,
+  "why": "The usual level. A lead is tested at it after allowing for how many leads were tried.",
+  "answer": null
+ },
+ "compare_leads": {
+  "question": "On the Dashboard, which leads are tried, in months? A list of whole numbers: a positive lead has the first series moving earlier, a negative one the second.",
+  "recommended": [
+   -24,
+   -18,
+   -12,
+   -6,
+   0,
+   6,
+   12,
+   18,
+   24,
+   30,
+   36
+  ],
+  "why": "Two years either way and three years of the first leading, in steps of six months: the range the comparison was built with.",
+  "answer": null
+ },
+ "compare_starts": {
+  "question": "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2 or 4; the starting months are spread evenly through the year, each the first month of a quarter, so a quarterly series has a reading at every one.",
+  "recommended": 4,
+  "why": "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data; one reading every 12 months keeps them a year apart. Four starting points (a quarter apart) show whether a link holds whichever quarter the count starts from.",
+  "answer": null
+ },
+ "compare_min_pairs": {
+  "question": "On the Dashboard, how many one-a-year pairs must a lead have at every starting point to be tested? A whole number of at least 4.",
+  "recommended": 6,
+  "why": "Fewer pairs than that cannot show much either way; a lead with fewer says not tested.",
+  "answer": null
  }
 }

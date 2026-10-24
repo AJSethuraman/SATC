@@ -24,7 +24,9 @@ NOT_ASKED = "not asked for by these settings"
 #: Each setting, as the workbook and the printout name it.
 CALLED = {"history": "History each reading is measured against", "change_months": "Change counted over",
           "normal_width": "Normal movement", "left_out": "Quarters left out",
-          "axis_cut": "Readings a chart may leave off its axis", "show_sahm": "Sahm reading shown"}
+          "axis_cut": "Readings a chart may leave off its axis", "show_sahm": "Sahm reading shown",
+          "compare_p": "Dashboard: p a link must pass", "compare_leads": "Dashboard: leads tried",
+          "compare_starts": "Dashboard: starting points a year", "compare_min_pairs": "Dashboard: fewest pairs to test"}
 
 
 def spans(left_out):
@@ -47,6 +49,17 @@ def plain(name, s):
         return "none: every reading stays on" if v == 0 else "%g%% at each end" % v
     if name == "show_sahm":
         return "yes" if v else "no"
+    if name == "compare_p":
+        return "p < %g, two-tailed" % v
+    if name == "compare_leads":
+        steps = {b - a for a, b in zip(v, v[1:])}
+        if len(v) > 2 and len(steps) == 1:
+            return "%+d to %+d months, every %d" % (v[0], v[-1], steps.pop())
+        return ", ".join("%+d" % x for x in v) + " months"
+    if name == "compare_starts":
+        return "%d, a reading every 12 months from each" % v
+    if name == "compare_min_pairs":
+        return "%d pairs at every starting point" % v
     raise KeyError(name)
 
 

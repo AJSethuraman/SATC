@@ -47,9 +47,16 @@ def _fake(fail=()):
     return fetcher, calls
 
 
+def _fdic(cache, today):
+    """The bank credit file, built by the test rather than by the threshold engine from the FDIC (which a test never
+    reaches): what the pull writes, and how it is read, is what is tested here."""
+    from test_macro_sources import fdic_file
+    return fdic_file()
+
+
 def test_pull_writes_a_dated_folder_with_a_manifest(tmp_path):
     f, calls = _fake()
-    m = P.pull(tmp_path, today="2026-10-15", fetcher=f)
+    m = P.pull(tmp_path, today="2026-10-15", fetcher=f, fdic=_fdic)
     assert m["failed"] == []
     assert len(m["series"]) == len(SERIES)
     u = m["series"]["unemployment"]
@@ -61,14 +68,14 @@ def test_pull_writes_a_dated_folder_with_a_manifest(tmp_path):
 
 def test_a_shared_file_is_downloaded_once(tmp_path):
     f, calls = _fake()
-    P.pull(tmp_path, today="2026-10-15", fetcher=f)
+    P.pull(tmp_path, today="2026-10-15", fetcher=f, fdic=_fdic)
     assert sum("ebp_csv" in c for c in calls) == 1     # three series read the Fed's one file
     assert sum("nmdb" in c for c in calls) == 1
 
 
 def test_one_failure_is_recorded_and_the_rest_still_pull(tmp_path):
     f, _ = _fake(fail=("id=ICSA",))
-    m = P.pull(tmp_path, today="2026-10-15", fetcher=f)
+    m = P.pull(tmp_path, today="2026-10-15", fetcher=f, fdic=_fdic)
     assert m["failed"] == ["initial_claims"]
     assert "refused" in m["series"]["initial_claims"]["error"]
     assert "error" not in m["series"]["unemployment"]

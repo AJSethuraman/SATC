@@ -134,3 +134,11 @@ def test_wages_after_inflation_are_usable_with_care_and_read_on_their_change():
     assert d.change_in == "percent" and "says nothing" in d.position and "0.851%" in d.note
     # private industry only, as its input is: shortened to fit its column, the title had lost it (Codex on #471)
     assert "private" in BY_KEY["wages_eci_nsa"].title and "private" in d.title
+
+
+def test_each_bank_series_starts_in_its_first_quarter_in_the_build():
+    # The 23 Oct 2026 build, every filer from 2006 Q1: a net charge-off rate is the past four quarters, so all banks'
+    # start in 2006 Q4 and their 30+ in 2006 Q1 (Codex on #472: three loss series said 2006 Q1).
+    for s in SERIES:
+        if s.source == "fdic" and s.source_id.split("_")[1] == "industry":
+            assert s.starts == ("2006Q4" if s.source_id.endswith("_net") else "2006Q1"), s.key

@@ -21,8 +21,9 @@ after all - even if not super useful"*) and is read the same way.
 
 ## The catalog and the pull
 
-- **128 series** in `src/threshold_engine/macro/catalog.py`: 91 core series
-  read on their own (51 of them unemployment by state), 33 usable with care,
+- **144 series** in `src/threshold_engine/macro/catalog.py`: 107 core series
+  read on their own (51 of them unemployment by state and 16 of them bank
+  credit), 33 usable with care,
   and 4 inputs to three readings built from two series. Two are the
   report's: house prices against income (from income per person) and the
   mortgage rate over the Treasury (from the 10-year yield). The third is
@@ -39,6 +40,30 @@ after all - even if not super useful"*) and is read the same way.
   named for the day and never overwrites an earlier one, so every reading can
   name the release it used. A shared file is fetched once. A failure is
   recorded and the rest still pull.
+- **Bank credit is built, not downloaded** (added 23 Oct 2026; the firm:
+  *"Yes, from FDIC each pull"*). Each product's net charge-offs (the past
+  four quarters' over the average balance) and its loans 30+ days past due
+  including nonaccrual, for credit card, other consumer, mortgage and home
+  equity, every FDIC filer added together (all banks) and KeyBank on its own
+  (certificate 17534). The threshold engine's own peers pull fills an FDIC
+  cache (`CACHE/fdic`, every filer from 2006 Q1; a quarter on disk is never
+  fetched again) and its own peers build makes the series, under the
+  settings the consumer book records (`books/consumer-public.json`: jump
+  0.25, acquisition share 0.05, KeyBank pro forma with the banks it
+  absorbed), so every figure is the one the threshold workbook shows. The 16
+  series go into the day's folder as one file, `fdic_credit.json`, with the
+  build's own notes, which each series' tab prints. The build reads the
+  book and the roster where they are kept, in `threshold-engine/`: an
+  installed copy of the tool (`pip install .`) finds them when it is run
+  from there, and refuses elsewhere, saying what it needs. On 23 Oct 2026 the first
+  fetch of 82 quarters (about 230 MB) took about 6 minutes and the build about
+  9; later pulls fetch only a new quarter, and the build runs each time. The quarter
+  just ended is tried first and, before the FDIC publishes it, the one
+  before. Tied out: the industry's card net charge-offs (3.4765% in 2006 Q4)
+  and card 30+ (3.7503% in 2006 Q1) match the threshold engine's committed
+  industry files to the last digit, and KeyBank's card net charge-offs for
+  2026 Q2 are 3.76%, as the firm's Excel copy had them. The FDIC's website
+  policies page, read 23 Oct 2026, states no terms of reuse for its own data.
 - **Gaps stay gaps.** FRED's "." and BLS's dash or blank are read as missing,
   never as zero. October 2025 is missing in every BLS household series and in
   CPI.
@@ -151,43 +176,61 @@ core series in the Overview's order (tabs slate and stone in turn, by topic),
 States, Usable with care and its series (mist), then State data, Glossary,
 Not read, Run and Sources.
 
-- **Overview:** every core series under five topics (jobs; prices and
+- **Overview:** every core series under six topics (jobs; prices and
   insurance; housing and household credit; business and the economy;
-  markets and financial conditions), under one frozen header: its latest
+  markets and financial conditions; bank credit quality, all banks and
+  KeyBank), under one frozen header: its latest
   value, where its level sits, its change (and the month it runs to, when
   that is not the latest's), its normal range, its direction, how many typical
   moves it is from the median, since when, and the start of its history.
   Household debt shows its total, the six types folded away under it. Tiles
   count the changes in each direction.
-- **Dashboard.** The firm, 22 Oct 2026: *"a fairly simple to drive dashboard
-  tab that basically lets you layer any 2 charts or something see the
-  individual charts and see a chart the shows magnitude in movement"*, and,
-  having opened it in Excel, *"I would really like to auto adjust the axis to
-  match and also why can't I have a custom view of quarters?"*. One screen:
-  four boxes in a row (two series, each from a list, and a From and a To
-  quarter); both picks' readings in the Overview's columns; then, side by
-  side,
-  - both changes, in typical moves from each one's median, with normal
-    movement dashed: the magnitude of each one's movement on a scale they
-    share;
-  - both levels, as where each sits in its own history, 0% to 100% (a series
-    read on its change only has no line, and its name in the legend says
-    "change only");
+- **Dashboard: whether two series move together, and whether one leads.**
+  The firm, 22 Oct 2026, asked for a tab to layer any two charts and see
+  the size of their movement; on 23 Oct 2026, having worked a comparison of
+  two series with another agent in Excel, *"i want to work this to being the
+  dashboard because it's the same info but further"*, keeping the answer
+  line, the same-time r and a condensed lead table, in KeyBank's colours
+  (*"not a huge fan of the blue and orange"*). One screen:
+  - four boxes in a row: two series, each from a list of every series, and
+    a From and a To quarter;
+  - both picks' readings in the Overview's columns;
+  - **one line that answers**: whether the changes move together (or
+    opposite), at which lead, and whether that holds, then the same-time r;
+    bold on mist when a lead holds, plain when none does. A near miss, the
+    strongest lead the same sign at every starting point and passing at one
+    or more but not all, reads in the table's words: "r = +0.76, holds in 2
+    of 4, 11 years tested". Passing nowhere reads "No lead holds";
+  - **at the same time**, on every reading the two share in the quarters
+    chosen: r, the readings, the effective readings and p. Neighbouring
+    readings repeat most of their data (a trailing four-quarter rate above
+    all), so the effective readings are n x (1 - r1 x r2) / (1 + r1 x r2),
+    r1 and r2 each series' correlation with its own previous reading, never
+    more than n, and p is Student's t on them, two-tailed;
+  - **does one lead the other**: for each lead the settings name (-24 to +36
+    months, every 6), the first series' change beside the second's that many
+    months later, on one reading a year from four starting points a quarter
+    apart. A year's change can run on into the next, so each starting
+    point's p is on its effective pairs, r1 and r2 then each series'
+    correlation with its own change a year earlier. r is the average of the
+    four, pairs the fewest, and a lead holds when all four agree in sign and
+    each passes p < 0.05 divided by the number of leads tested. A lead with
+    fewer than 6 pairs, or too few effective pairs for a p, is not tested
+    and does not count among them. The strongest lead that holds, or the
+    strongest tested when none does, is bold on mist and is the one the line
+    at the top speaks of;
+  - **both changes drawn**, in typical moves from each one's median, normal
+    movement dashed, in KeyBank ink and red. Past the firm's cut (1% at each
+    end of each series' history) a reading is left off the chart by formula
+    and a triangle marks it; the tests use every reading.
 
-  and under each pick's name its level, and its change with its normal range
-  dashed. Every axis fits what is picked and the quarters chosen. **Past the
-  firm's cut (1% of each series' readings at each end of its history, the
-  axis setting) a reading is left off by formula**, so the 2020 spike no
-  longer flattens the rest; a triangle marks each one at the edge, and the
-  line under the two charts set together counts them and names the furthest.
-  Two series in different units are never drawn against two different axes:
-  that misleads, so the layered charts use scales the two share. Time runs in
-  years, not day numbers: Excel starts a day-number axis at 1900 unless the
-  dates are close together. The tab is drawn month by month, a daily or
-  weekly series at each month's last reading, and a line runs across a month
-  with no reading (each series' own tab shows the gap). **Its formulas are
-  the only ones in the workbook**, and use only functions every Excel since
-  2007 knows.
+  The levels-together chart and each pick's own small charts went: each
+  series' own tab has those. It opens on the unemployment rate against card
+  net charge-offs for all banks. **Its formulas are the only ones in the
+  workbook**, and use only functions every Excel since 2007 knows (CORREL,
+  TDIST and SUMPRODUCT among them). Checked on 23 Oct 2026: recalculated in
+  LibreOffice, every r, pair count, effective count, p and verdict matched
+  an independent computation from the values on the hidden data tab to 5e-13.
 - **What if:** only with `--compare`; see below.
 - **States:** unemployment by state, level and change, moving states first,
   in two tables side by side so all 51 fit on one screen.
@@ -254,7 +297,7 @@ against the last 30 years took a script written by hand. The firm, 17 Oct
 - **The example** (`examples/`): the firm's settings against
   `what-if-pandemic-left-out.json`, the same answers with 2020 Q2 to 2021 Q2
   left out of every history. From the pull of 22 Oct 2026 (folder
-  `2026-10-22-4`), 4 of the 127 changes read another way, all more
+  `2026-10-23`), 4 of the 143 changes read another way, all more
   downward: initial jobless claims (Stable to Decreasing), mortgages 90+
   days late (Increasing to Stable), banks tightening nonresidential property
   loan standards (Stable to Decreasing) and wages after inflation (Stable to

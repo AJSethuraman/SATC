@@ -382,6 +382,10 @@ class Pull:
     def read_sha(self):
         return {name: hashlib.sha256(data).hexdigest() for name, data in self._bytes.items()}
 
+    def raw(self, name):
+        """A file's bytes as this run read them, the ones read_sha fingerprints; None when nothing read it."""
+        return self._bytes.get(name)
+
     def points(self, item):
         if item.key in DERIVED_BY_KEY:
             got = {k: self._get(k) for k in item.inputs}

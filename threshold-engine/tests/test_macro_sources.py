@@ -75,9 +75,11 @@ def test_fhfa_selects_one_market_and_series_and_keeps_suppressed_as_missing():
 
 
 def test_every_catalog_source_has_a_reader_and_an_address():
+    from threshold_engine.macro import fdic_credit
     for s in BY_KEY.values():
         assert s.source in sources.READERS
-        assert sources.url_for(s, "2026").startswith("https://")
+        # the bank credit file is built from the FDIC's API, not downloaded from one address
+        assert (fdic_credit.URL if s.source == "fdic" else sources.url_for(s, "2026")).startswith("https://")
 
 
 def sce_workbook(rows, sheet="Delinquency expectations",
@@ -153,6 +155,20 @@ def hhdc_workbook(rows, sheet="Page 3 Data", title="Total Debt Balance and Its C
     out = io.BytesIO()
     wb.save(out)
     return out.getvalue()
+
+
+def fdic_file(series=None):
+    """The bank credit file as fdic_credit.build_file writes it: ``series`` {source_id: [(quarter-end, value)]}, or
+    every bank series in the catalog with eight quarters to 2026Q2."""
+    import json
+    from threshold_engine.macro.catalog import SERIES
+    if series is None:
+        ends = ["2024-09-30", "2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31", "2026-03-31",
+                "2026-06-30"]
+        series = {s.source_id: [(d, 1.0 + i / 10 + (i * i) % 3 / 20) for i, d in enumerate(ends)]
+                  for s in SERIES if s.source == "fdic"}
+    return json.dumps({"first": "2024Q3", "last": "2026Q2", "series": {
+        k: {"note": ["a test file"], "points": [[d, v] for d, v in pts]} for k, pts in series.items()}}).encode()
 
 
 def hhdc_page(*quarters):

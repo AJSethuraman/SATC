@@ -208,7 +208,9 @@ def test_the_dashboard_cuts_each_pick_at_the_firms_setting_and_marks_what_runs_o
     assert drawn == "=IF(ISNUMBER(AT3),IF(OR(AT3>$AN$9,AT3<$AN$8),NA(),AT3),NA())", drawn
     assert marker == "=IF(ISNUMBER(AQ3),IF(ISNUMBER(AT3),IF(AT3>$AN$9,$AN$9,IF(AT3<$AN$8,$AN$8,NA())),NA()),NA())"
     assert "COUNTIF(" in ws["AN14"].value and "the furthest" in ws["AN14"].value
-    assert ws["B25"].value == '=$AN$14&IF(AND($AN$14<>"",$AN$15<>"")," ","")&$AN$15'
+    note_ = [c.value for row in ws.iter_rows(min_col=2, max_col=2) for c in row
+             if isinstance(c.value, str) and c.value.startswith("=$AN$14&")]
+    assert note_ == ['=$AN$14&IF(AND($AN$14<>"",$AN$15<>"")," ","")&$AN$15']
     moves = next(x for x in _charts(out).values() if "Both changes" in x)
     assert moves.count('<symbol val="triangle"/>') == 2
     gone = set(re.findall(r'<legendEntry><idx val="(\d+)"/><delete val="1"/></legendEntry>', moves))
@@ -326,7 +328,8 @@ def test_the_dashboard_only_looks_up_values_written_on_its_hidden_tab(book):
     used = {f for x in formulas for f in re.findall(r"([A-Z]+)\(", x)}
     # Functions every Excel since 2007 knows by name: one newer (AGGREGATE) read #NAME? unless the file marks it.
     assert used <= {"INDEX", "MATCH", "ROW", "IF", "IFERROR", "ISNA", "ISNUMBER", "AND", "OR", "NA", "MIN",
-                    "MAX", "COUNTIF", "ABS", "TEXT"}, used
+                    "MAX", "COUNTIF", "ABS", "TEXT", "CORREL", "SUMPRODUCT", "TDIST", "SQRT", "AVERAGE", "SUM",
+                    "COUNT"}, used
     for x in formulas:
         for sheet in re.findall(r"'([^']+)'!", x):
             assert sheet in (DASH_DATA, DASHBOARD), x
@@ -352,7 +355,7 @@ def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends
     # dashes under the one-line charts.
     out, result, wb = book
     charts = [x for n, x in _charts(out).items() if "scatterChart" in x]
-    assert len(charts) == 6
+    assert len(charts) == 1                                       # both changes together; the rest are tables
     for x in charts:
         assert re.search(r"'Dashboard'!\$(B|H)\$5|'Dashboard'!\$AO\$1[45]", x)   # named by the boxes
         assert '<varyColors val="0"/>' in x                       # one colour a line: no legend entry a point
@@ -371,8 +374,11 @@ def test_the_dashboard_charts_fit_their_picks_in_years_and_draw_no_point_legends
         assert '<dispBlanksAs val="span"/>' in x                  # a quarterly pick drawn beside a monthly one
     # the drawn years are the months in years, and the window helpers read the From and To quarters
     ws = wb[DASHBOARD]
-    years = [ws.cell(r, 42).value for r in range(3, 8)]
-    assert years[:2] == [2000.0, pytest.approx(2000 + 1 / 12)]
+    # one row a month, none skipped, from 12 months before the first reading (the longest lead back, -12 in the
+    # test settings) to 24 after the last (the longest forward)
+    years = [ws.cell(r, 42).value for r in range(3, 3 + 14)]
+    assert years[0] == 1999.0 and years[12] == 2000.0
+    assert all(abs(b - a - 1 / 12) < 1e-9 for a, b in zip(years, years[1:]))
     t0, t1 = (ws.cell(r, 40).value for r in (6, 7))
     assert t0.startswith("=INDEX(") and "$N$5" in t0 and t1.startswith("=INDEX(") and "$Q$5" in t1
     # each month is drawn only from the From quarter's first month to the To quarter's last
@@ -388,32 +394,148 @@ def test_the_dashed_lines_run_only_inside_the_quarters_chosen(book):
     # the pick's first month, and ends at the earlier of To and its last.
     _, _, wb = book
     ws = wb[DASHBOARD]
-    lines_at = 40 + 3 + 24                                  # the shared lines, then each pick's
-    for col in (lines_at, lines_at + 3, lines_at + 6):
+    lines_at = 40 + 3 + 24                                  # the normal movement lines across the chart
+    for col in (lines_at,):
         start, end = ws.cell(3, col).value, ws.cell(4, col).value
         assert re.match(r"=(IFERROR\()?MAX\(\$AN\$6,", start), start
         assert re.match(r"=(IFERROR\()?MIN\(\$AN\$7,", end), end
 
 
-def test_the_dashboard_says_why_a_pick_has_no_line_on_the_levels_chart(book):
-    # The firm, 22 Oct 2026, of the levels chart: "this is just blank". Each pick's name in its legend reads
-    # "<name>: change only" when it has no level to draw (Claude Design, round 1).
-    out, _, wb = book
+def _dash_cols(ws):
+    """The Dashboard's hidden comparison columns, by the names in their row 2."""
+    return {ws.cell(2, c).value: c for c in range(40, ws.max_column + 1) if isinstance(ws.cell(2, c).value, str)}
+
+
+def _ranges(formula):
+    """Each column range in a formula, as (column, first row, last row)."""
+    return [(a, int(b), int(d)) for a, b, c, d in re.findall(r"\$([A-Z]+)\$(\d+):\$([A-Z]+)\$(\d+)", formula)]
+
+
+def test_a_pull_without_the_bank_series_opens_the_dashboard_on_two_series_with_readings(book):
+    # This pull never asked for the bank series, as a pull whose bank build failed would hold none: the Dashboard
+    # opens on two series that have readings, not on the empty card series the firm's default names (Codex on #472).
+    _, _, wb = book
+    ws, dd = wb[DASHBOARD], wb["Dashboard data"]
+    head = [c.value for c in dd[1]]
+    assert ws["B5"].value == "Unemployment rate" and ws["H5"].value != ws["B5"].value
+    for cell in ("B5", "H5"):
+        change = head.index(ws[cell].value) + 2                    # each pick's change column on the data tab
+        assert any(isinstance(dd.cell(r, change).value, (int, float)) for r in range(3, dd.max_row + 1)), cell
+
+
+def test_the_dashboard_sets_each_lead_beside_the_second_series_that_many_months_later(book):
+    # The firm, 23 Oct 2026: the Dashboard becomes the comparison of two series, "As the Excel version": one
+    # reading a year at four starting points, the leads the settings name, p < 0.05 after allowing for the leads.
+    _, result, wb = book
     ws = wb[DASHBOARD]
-    names = [ws.cell(r, 41).value for r in (14, 15)]
-    for name, box in zip(names, ("$B$5", "$H$5")):
-        test = re.match(r'=IF\((INDEX\([^()]*\$AO\$(\d)\))="change only",(\$\w\$5)&": change only",(\$\w\$5)\)$', name)
-        assert test and test.group(3) == test.group(4) == box, name
-        assert "Level: at or above" in _text(wb[DASH_DATA]) and test.group(2) == {"$B$5": "4", "$H$5": "5"}[box]
-    levels = next(x for x in _charts(out).values() if "Both levels" in x)
-    assert "'Dashboard'!$AO$14" in levels and "'Dashboard'!$AO$15" in levels
+    col = _dash_cols(ws)
+    first_start = col["First series: change at starting point 1"]
+    second = openpyxl.utils.get_column_letter(col["Second series: change in the quarters chosen"])
+    leads = [-12, 0, 6, 12, 24]                                   # the test settings' compare_leads
+    words = [ws.cell(19 + j, 2).value for j in range(len(leads))]
+    assert words == ["Second leads by 12 months", "At the same time", "First leads by 6 months",
+                     "First leads by 12 months", "First leads by 24 months"]
+    for j, lead in enumerate(leads):
+        found = [c.value for c in ws[19 + j] if isinstance(c.value, str) and "CORREL(" in c.value]
+        assert len(found) == 4                                     # one r at each starting point
+        for f, x in enumerate(found):
+            (c1, a1, b1), (c2, a2, b2) = _ranges(x)
+            assert c1 == openpyxl.utils.get_column_letter(first_start + f) and c2 == second, x
+            assert (a2 - a1, b2 - b1) == (lead, lead), (lead, x)   # the second, that many months later
+            assert a1 - 3 == 12 and ws.max_row >= b2               # the padding before holds the longest lead back
+    # each starting point keeps the first series' change in its month only: January, April, July, October
+    month = openpyxl.utils.get_column_letter(col["Month of the year"])
+    for f in range(4):
+        x = ws.cell(20, first_start + f).value
+        assert x.startswith("=IF($%s20=%d," % (month, 3 * f)), x
+    # each change is kept only inside the From and To quarters
+    x = ws.cell(20, col["Second series: change in the quarters chosen"]).value
+    assert ">=$AN$6" in x and "<=$AN$7" in x
+
+
+def test_a_lead_holds_only_when_every_starting_point_passes_after_allowing_for_the_leads_tried(book):
+    _, _, wb = book
+    ws = wb[DASHBOARD]
+    row = [c.value for c in ws[21] if isinstance(c.value, str)]
+    ps = [x for x in row if "TDIST(" in x]
+    assert len(ps) == 4 and all(">=6" in x and "-2,2)" in x for x in ps)          # 6 pairs at least; two-tailed
+    holds_in = next(x for x in row if x.startswith("=IF(") and "COUNTIF(" in x and '"<"&0.05/MAX(' in x)
+    tested = re.search(r"/MAX\((\$[A-Z]+\$\d+),1\)", holds_in).group(1)
+    assert ws[tested.replace("$", "")].value.startswith("=SUM(")              # the leads tested, counted
+    holds = next(x for x in row if x.startswith("=AND(") and "=4," in x)
+    assert holds.count("=1") == 1                                               # tested, all 4 pass, same sign
+    same_sign = next(x for x in row if '">0")=4' in x and '"<0")=4' in x)
+    assert same_sign.startswith("=IF(")
+    # each starting point's p is on its effective pairs, n(1 - y1 y2)/(1 + y1 y2) and never more than n, y1 and y2
+    # each series' change against its own a year earlier: readings a year apart are not independent (Codex on #472)
+    cells = {c.coordinate: c.value for c in ws[21] if isinstance(c.value, str)}
+    effs = {k: v for k, v in cells.items() if v.startswith("=IFERROR(MIN(")}
+    assert len(effs) == 4
+    for k, v in effs.items():
+        m = re.fullmatch(r'=IFERROR\(MIN\(([A-Z]+21),\1\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)/\(1\+\2\*\3\)\),""\)', v)
+        assert m, v
+        assert sum("SQRT((%s-2)/" % k in p and ",%s-2,2)" % k in p for p in ps) == 1, k
+    # a lead is tested only with a p at every starting point: too few effective pairs give none, and such a lead
+    # must neither read 0 passes nor count among the leads the level is divided by (Codex on #472)
+    p_at = [k for k, v in cells.items() if "TDIST(" in v]
+    tested_here = next(v for v in cells.values() if v.startswith("=IF(AND(MIN("))
+    # the lead the line and the mist speak of: one that holds before any that misses, then the size of r, so a
+    # weaker lead that holds is not hidden behind a stronger one that misses (Codex on #472)
+    holds_at = next(k for k, v in cells.items() if v.startswith("=AND(") and "=4," in v)
+    rank = next(v for v in cells.values() if "ABS(" in v and "+IF(" in v)
+    assert re.fullmatch(r"=IF\(\$[A-Z]+21=1,ABS\(\$[A-Z]+21\)\+IF\(\$%s,2,0\),-1\)" % holds_at, rank), rank
+    assert "COUNT(%s:%s)=4" % (p_at[0], p_at[-1]) in tested_here, tested_here
+    col = _dash_cols(ws)
+    for y, who in zip(m.groups()[1:], ("First", "Second")):
+        (c1, a1, b1), (c2, a2, b2) = _ranges(ws[y.replace("$", "")].value)
+        assert c1 == c2 == openpyxl.utils.get_column_letter(col["%s series: change in the quarters chosen" % who])
+        assert (a2 - a1, b2 - b1) == (12, 12)                                   # a year on
+    assert "on effective pairs" in ws.cell(19 + 5, 2).value                    # the note under the five leads
+    # at the same time, on every shared reading: effective readings n(1 - r1 r2)/(1 + r1 r2), and p on them
+    eff = ws["I15"].value
+    target = ws[eff.lstrip("=").replace("$", "")].value
+    assert re.search(r"\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)/\(1\+\1\*\2\)", target), target
+    assert re.search(r"MIN\((\$\w+\$\d+),\1\*", target), target                # never more than the readings
+    # each series' correlation with its previous reading is blank, never 0, when no pair a step apart gives one:
+    # 0 would give the effective readings as the readings and a p as if each were independent (Codex on #472)
+    for auto in re.search(r"\*\(1-(\$\w+\$\d+)\*(\$\w+\$\d+)\)", target).groups():
+        assert ws[auto.replace("$", "")].value.endswith(',"")'), auto
+    p = ws[ws["J15"].value.lstrip("=").replace("$", "")].value
+    assert "TDIST(" in p and "-2,2)" in p
+    answer = ws["B11"].value
+    assert "holding at all 4 starting points" in answer and "which passes" in answer and "From is after To" in answer
+    # a near miss, the same sign at every starting point without passing at all, reads in the table's words, "holds
+    # in 2 of 4, 11 years tested", not "no lead holds" (the firm, 23 Oct 2026: "just say something like 2 of 4,
+    # tested x"); the years are the table's fewest pairs at the strongest lead
+    sign_col = next(c.column_letter for c in ws[21] if isinstance(c.value, str) and '">0")=4' in c.value)
+    hin_col = next(c.column_letter for c in ws[21] if isinstance(c.value, str) and c.value.startswith("=IF(")
+                   and '"<"&0.05/MAX(' in c.value)
+    near = answer.index('IF(AND(INDEX($%s$19:$%s$23,' % (sign_col, sign_col))
+    assert answer.startswith(',INDEX($%s$19:$%s$23,' % (hin_col, hin_col), answer.index("),", near) + 1)  # 1 of 4 at least
+    assert answer.index('", holds in "&', near) < answer.index("No lead holds at every starting point", near)
+    assert '&INDEX($I$19:$I$23,' in answer and '" years tested."' in answer
+    # no same-time sentence without an r to give, as one quarter for two quarterly series leaves (Codex on #472)
+    same_r = ws["G15"].value.lstrip("=")
+    assert 'IF(AND(%s>0,ISNUMBER(%s))," On every reading' % (ws["H15"].value.lstrip("="), same_r) in answer
+
+
+def test_the_dashboards_marks_are_keybanks_colours_and_the_house_mist_never_blue_or_orange(book):
+    # The firm, 23 Oct 2026: "not a huge fan of the blue and orange - i would rather use more Keybank esque colors"
+    out, _, wb = book
+    moves = next(x for x in _charts(out).values() if "Both changes" in x)
+    assert "0A0908" in moves and "CC0000" in moves
+    assert "2A78D6" not in moves and "EB6834" not in moves
+    ws = wb[DASHBOARD]
+    rules = [r for cf in ws.conditional_formatting for r in cf.rules]
+    fills = {r.dxf.fill.fgColor.rgb[-6:] for r in rules if r.dxf and r.dxf.fill is not None}
+    assert fills == {"E4DFD5"}                                  # mist: the answer that holds, the strongest lead
 
 
 def test_a_zoom_opens_the_dashboard_on_its_quarters_and_keeps_every_month(cache, tmp_path):  # noqa: F811
     _, _, wb = _build(cache, tmp_path / "z.xlsx", zoom=["2024Q1", "2026Q3"])
     ws = wb[DASHBOARD]
     assert (ws["N5"].value, ws["Q5"].value) == ("2024 Q1", "2026 Q3")
-    assert ws.cell(3, 42).value == 2000.0                         # the From box can still widen the view
+    assert ws.cell(3 + 12, 42).value == 2000.0                    # the From box can still widen the view
 
 
 def test_a_zoom_from_a_quarter_left_out_or_past_the_data_still_opens_on_quarters_the_boxes_offer(cache, tmp_path):  # noqa: F811,E501
@@ -1167,3 +1289,23 @@ def test_the_household_total_read_under_the_what_if_only_still_draws_its_change_
     assert "not read under these settings" in chart and chart.count('prstDash val="sysDash"') == 2
     assert "areaChart" not in chart                                   # no normal range of its own to shade
     assert _holds_together_in_excel(out) > 0
+
+
+def test_a_bank_series_notes_come_from_the_bytes_its_readings_came_from(tmp_path):
+    # The run reads each file once and fingerprints it; the build's notes are taken from those same bytes, so a file
+    # changed on disk between the readings and the workbook cannot mix two versions in one tab (Codex on #472).
+    import json as J
+    from threshold_engine.macro import pull as P
+    from test_macro_sources import fdic_file
+    P.pull(tmp_path, keys=["unemployment", "card_losses_all_banks"], today="2026-10-15", fetcher=_fetcher(),
+           fdic=lambda root, today: fdic_file())
+    pull = R.Pull(tmp_path)
+    result = R.read_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    path = pull.folder / "fdic_credit.json"
+    changed = J.loads(path.read_text())
+    for v in changed["series"].values():
+        v["note"] = ["changed on disk after the readings"]
+    path.write_text(J.dumps(changed))
+    wb = openpyxl.load_workbook(build(tmp_path / "bank.xlsx", result, pull))
+    tab = _text(wb[TAB["card_losses_all_banks"]])
+    assert "a test file" in tab and "changed on disk" not in tab
