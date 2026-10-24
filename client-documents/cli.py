@@ -57,6 +57,7 @@ import intake
 import interview as iv
 import closeout
 import consistency
+import emails
 import merge
 import pricing
 import requote
@@ -78,8 +79,12 @@ DOCUMENTS = {
     "bookkeeping-letter":   ("SATC Engagement Letter - Bookkeeping.html",     "Bookkeeping Engagement Letter"),
     "fee-estimate":         ("SATC Fee Estimate.html",                        "Fee Estimate"),
     "invoice":              ("SATC Invoice.html",                             "Invoice"),
-    "onboarding-letter":    ("SATC Onboarding Letter.html",                   "Onboarding Letter"),
-    "organizer-letter":     ("SATC Organizer Cover Letter.html",              "Organizer Cover Letter"),
+    # EMAILS, NOT LETTERS, since 24 Oct 2026 -- the firm: "this is actually
+    # supposed to be sent as an email not an attachment." The registry names
+    # stay, so nothing that counts documents moves; the templates are email
+    # bodies, and `render_one` writes no PDF for them.
+    "onboarding-letter":    ("SATC Onboarding Email.html",                    "Onboarding Email"),
+    "organizer-letter":     ("SATC Organizer Email.html",                     "Organizer Email"),
     "delivery-letter":      ("SATC Tax Return Delivery Letter.html",          "Return Delivery"),
     "extension-notice":     ("SATC Extension Notice.html",                    "Extension Notice"),
     "disengagement-letter": ("SATC Disengagement Letter.html",                "Disengagement"),
@@ -2207,7 +2212,9 @@ def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool
     written = [outdir / f"{stem}.html"]
     written[0].write_text(html, encoding="utf-8")
 
-    if want_pdf:
+    # AN EMAIL HAS NO PAGE TO PRINT. Its HTML is the message body; a PDF of it
+    # would be an attachment of the email it is the body of.
+    if want_pdf and not emails.is_email(html):
         _, render_pdf = pdf_engine()
         pdf_path = outdir / f"{stem}.pdf"
         render_pdf(html, pdf_path, TEMPLATE_DIR, draft)
@@ -2361,6 +2368,18 @@ def cmd_render(args) -> int:
             print(f"      {exc}", file=sys.stderr)
             continue
         rendered[doc] = result.html
+        if emails.is_email(result.html) and not args.draft:
+            # THE DRAFT TO OPEN AND SEND. An email rendered on its own (the
+            # organizer, from its event) is no use as an .html file; this is
+            # the same message as a draft the mail client opens addressed and
+            # written. The pack does not come through here: its one email is
+            # composed by `outgoing`, with the documents attached.
+            subject, body = emails.parts(result.html)
+            eml = staging / f"{written[0].stem}.eml"
+            eml.write_bytes(emails.to_eml(
+                subject, body, emails.to_plain(body),
+                to=str(record.get("ClientEmail") or "").strip()))
+            written = [*written, eml]
         produced[doc] = written
         kept = ", ".join(sorted(result.blocks_kept)) or "none"
         print(f"  {doc:22s} ok   {len(result.fields_used)} fields, blocks kept: {kept}")

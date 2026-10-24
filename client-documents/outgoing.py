@@ -41,6 +41,8 @@ from email.message import EmailMessage
 from email.utils import formatdate
 from pathlib import Path
 
+import emails
+
 CONFIRM = re.compile(r"\[CONFIRM:\s*(.*?)\s*\]", re.S)
 _TOKEN = re.compile(r"<<(\w+)>>")
 
@@ -56,12 +58,17 @@ class OutgoingError(RuntimeError):
 
 @dataclass(frozen=True)
 class Message:
-    """One email, assembled and not yet sent."""
+    """One email, assembled and not yet sent.
+
+    `html` is set when the pack carries an email body (the onboarding email);
+    `body` is then the plain-text version of the same words.
+    """
     to: str
     subject: str
     body: str
     attachments: list[Path] = field(default_factory=list)
     ref: str = ""
+    html: str = ""
 
     def summary(self) -> str:
         return (f"to {self.to} — {self.subject} "
@@ -106,11 +113,34 @@ def attachments_in(pack: Path) -> list[Path]:
             continue
         if path.name.upper().startswith("MANIFEST"):
             continue
+        if path == email_body_in(pack):
+            continue                     # it is the message, not an attachment
         rank = PREFERRED.index(path.suffix.lower())
         held = best.get(path.stem)
         if held is None or rank < PREFERRED.index(held.suffix.lower()):
             best[path.stem] = path
     return [best[k] for k in sorted(best)]
+
+
+def email_body_in(pack: Path | None) -> Path | None:
+    """The pack's email body -- the onboarding email -- or None.
+
+    Since 24 Oct 2026 the onboarding letter is the email itself (the firm:
+    "this is actually supposed to be sent as an email not an attachment"), so
+    the pack carries one HTML file that is a message body rather than a
+    document. Found by what it is, not by its name, which is the client's.
+    """
+    if not pack or not Path(pack).is_dir():
+        return None
+    for path in sorted(Path(pack).glob("*.html")):
+        if path.name.startswith("_"):
+            continue
+        try:
+            if emails.is_email(path.read_text(encoding="utf-8")):
+                return path
+        except OSError:
+            continue
+    return None
 
 
 def compose(record: dict, pack: Path | None, *, registry: dict) -> Message:
@@ -155,6 +185,20 @@ def compose(record: dict, pack: Path | None, *, registry: dict) -> Message:
     # rather than appended: the add-in reads the subject line, and a keyword
     # after eighty characters of subject is a keyword in a truncated field.
     keyword = str((registry or {}).get("secure_keyword", "")).strip()
+    body_file = email_body_in(pack)
+    if body_file is not None:
+        # THE ONBOARDING EMAIL IS THE MESSAGE. Its subject and words were
+        # merged from the record and passed the pre-send gate with the rest of
+        # the pack; the covering note above is what a pack without one gets.
+        subject, html = emails.parts(body_file.read_text(encoding="utf-8"))
+        return Message(
+            to=to,
+            subject=f"{keyword} {subject}".strip() if keyword else subject,
+            body=emails.to_plain(html),
+            attachments=files,
+            ref=str(record.get("EngagementRef", "")),
+            html=html,
+        )
     subject = " ".join(_fill(str(note.get("subject", "")), record).split())
     return Message(
         to=to,
@@ -172,6 +216,12 @@ def as_eml(message: Message, *, sender: str = "", today=None) -> bytes:
     connection, no vendor: the file is the handoff, and the human is the send
     button.
     """
+    if message.html:
+        return emails.to_eml(message.subject, message.html, message.body,
+                             to=message.to, sender=sender,
+                             attachments=message.attachments,
+                             headers={"X-SATC-Engagement": message.ref} if message.ref else None,
+                             today=today)
     mail = EmailMessage()
     mail["To"] = message.to
     if sender:

@@ -109,7 +109,7 @@ def test_a_document_with_no_title_is_left_alone():
 @pytest.mark.parametrize("name", [
     "SATC Engagement Letter - Tax Preparation.html",
     "SATC Fee Estimate.html",
-    "SATC Onboarding Letter.html",
+    "SATC Onboarding Email.html",
 ])
 def test_render_itself_retitles(name):
     """Asserted through `render`, not `_retitle`.
