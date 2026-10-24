@@ -199,7 +199,7 @@ def test_estimator_filing_status_mapping():
     assert _estimator_filing_status("MFJ") == "married_jointly"
     assert _estimator_filing_status("S") == "single"
     assert _estimator_filing_status("HOH") == "head_of_household"
-    assert _estimator_filing_status("QSS") == "married_jointly"     # uses MFJ brackets
+    assert _estimator_filing_status("QSS") == "qualifying_surviving_spouse"
     assert _estimator_filing_status("single") == "single"           # already estimator format
     assert _estimator_filing_status("") == ""
 
@@ -299,10 +299,13 @@ def test_two_blind_people_on_a_single_return_are_refused_on_screen(client):
 
 def test_the_screen_takes_refundable_credits_and_the_2210_prior_year_tax(client):
     """Codex on #451: the refundable part of the education credit had nowhere
-    to go, and last year's tax was asked for as line 24 instead of the Form
-    2210 line 8 figure."""
+    to go, and last year's tax was asked for as line 24 without the refundable
+    credits taken off. Then, Codex again: it was labelled Form 2210 line 8,
+    which already carries the 110% the engine adds, so it must be asked for
+    BEFORE the 110%."""
     page = client.get("/withholding").data
-    assert b'name="refundable_credits"' in page and b"Form 2210 line 8" in page
+    assert b'name="refundable_credits"' in page and b"before any 110%" in page
+    assert b"Form 2210 line 8" not in page
     resp = client.post("/withholding", data={
         "filing_status": "single", "tax_year": "2025", "adjust_job": "0",
         "pay_frequency": "annual", "pay_periods_remaining": "1",
@@ -310,3 +313,27 @@ def test_the_screen_takes_refundable_credits_and_the_2210_prior_year_tax(client)
         "refundable_credits": "1000"})
     assert resp.status_code == 200 and b"Total tax liability" in resp.data
     assert b"Refundable credits entered" in resp.data and b"1,000" in resp.data
+
+
+def test_the_screen_offers_a_surviving_spouse_and_business_tips(client):
+    """Codex on #451: a surviving spouse was run as a joint return, and tips
+    from a business had nowhere to go apart from employee tips."""
+    page = client.get("/withholding").data
+    assert b'value="qualifying_surviving_spouse"' in page
+    assert b'name="qualified_tips_business"' in page
+    resp = client.post("/withholding", data={
+        "filing_status": "qualifying_surviving_spouse", "tax_year": "2025", "adjust_job": "0",
+        "pay_frequency": "annual", "pay_periods_remaining": "1",
+        "gross_pay_per_period": "100000", "federal_tax_withheld_per_period": "0",
+        "qualified_overtime": "20000"})
+    # Single-filer overtime cap, joint brackets: see the engine test.
+    assert b"$12,500" in _text(resp.data) and b"$6,243" in _text(resp.data)
+
+
+def test_spouse_pay_on_a_separate_return_is_refused_on_screen(client):
+    resp = client.post("/withholding", data={
+        "filing_status": "married_separately", "tax_year": "2025", "adjust_job": "0",
+        "pay_frequency": "annual", "pay_periods_remaining": "1", "owner": "spouse",
+        "gross_pay_per_period": "100000", "federal_tax_withheld_per_period": "0"})
+    assert resp.status_code == 200
+    assert b"carries only your own pay" in resp.data and b"Total tax liability" not in resp.data

@@ -219,7 +219,8 @@
       </div>
       <h3>New deductions (2025–2028)</h3>
       <div class="grid2">
-        {{ field('qualified_tips', 'Qualified tips', 'listed occupations only') }}
+        {{ field('qualified_tips', 'Qualified tips as an employee', 'listed occupations only') }}
+        {{ field('qualified_tips_business', 'Qualified tips in your own business', 'already in the Schedule C profit') }}
         {{ field('qualified_overtime', 'Qualified overtime', 'the extra half only') }}
         {{ field('car_loan_interest', 'Car loan interest', 'new US-assembled car') }}
       </div>
@@ -231,7 +232,7 @@
     <div class="body">
       <div class="grid2">
         {{ field('estimated_tax_payments', 'Estimated tax paid so far this year') }}
-        {{ field('prior_year_tax', "Last year's tax for the penalty test", "Form 2210 line 8 — line 24 less refundable credits such as the earned income credit") }}
+        {{ field('prior_year_tax', "Last year's tax for the penalty test", "line 24 less refundable credits such as the earned income credit; before any 110%, which is added for you") }}
         {{ field('prior_year_agi', "Last year's AGI", 'Form 1040 line 11') }}
         {{ field('target_refund', 'Refund wanted', 'blank = break even') }}
         {{ field('other_nonrefundable_credits', 'Other credits that only reduce tax', 'dependent care, the nonrefundable education credit') }}

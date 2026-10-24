@@ -23,6 +23,15 @@ _STATUS_TO_XWALK = {
     "married_jointly": "mfj",
     "married_separately": "mfs",
     "head_of_household": "hoh",
+    # A surviving spouse is NOT a joint filer. It shares the joint brackets
+    # (IRC sec. 1(a)), the joint standard deduction (sec. 63(c)(2)(A)) and the
+    # 3.8% tax threshold (sec. 1411(b)(1)), and those tables carry a qss
+    # value. Everything keyed "mfj"/"other" -- Schedule 1-A's caps and phase-
+    # outs, the child credit's $200,000, the earned income credit, the
+    # nonitemizer charity limit -- gives it "other", as the forms do. It was
+    # mapped to married_jointly until Codex found the overtime cap doubling
+    # on #451.
+    "qualifying_surviving_spouse": "qss",
 }
 _UNMARRIED = {"single", "head_of_household"}
 
@@ -65,7 +74,8 @@ class TaxTables:
 
     # -- ordinary brackets ------------------------------------------------
     def ordinary_brackets(self, status: str) -> list[Bracket]:
-        raw = self._v(f"brackets_{_STATUS_TO_XWALK[status]}")
+        key = "mfj" if status == "qualifying_surviving_spouse" else _STATUS_TO_XWALK[status]
+        raw = self._v(f"brackets_{key}")   # sec. 1(a): joint returns and surviving spouses
         return [Bracket(rate=_dec(b["rate"]),
                         up_to=None if b.get("up_to") is None else _dec(b["up_to"]))
                 for b in raw]

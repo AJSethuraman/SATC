@@ -97,13 +97,13 @@ parameters:
     citation: "Rev. Proc. 2025-32, sec. 4.01, Table 2"
 
   ltcg_0_pct_max:
-    value: {single: 49450, mfj: 98900, mfs: 49450, hoh: 66200}
+    value: {single: 49450, mfj: 98900, mfs: 49450, hoh: 66200, qss: 98900}
     unit: usd
-    citation: "Rev. Proc. 2025-32, sec. 4.03"
+    citation: "Rev. Proc. 2025-32, sec. 4.03; qss = mfj, IRC sec. 1(j)(5)(B)(i), 'joint return or surviving spouse'"
   ltcg_15_pct_max:
-    value: {single: 545500, mfj: 613700, mfs: 306850, hoh: 579600}
+    value: {single: 545500, mfj: 613700, mfs: 306850, hoh: 579600, qss: 613700}
     unit: usd
-    citation: "Rev. Proc. 2025-32, sec. 4.03"
+    citation: "Rev. Proc. 2025-32, sec. 4.03; qss = mfj, IRC sec. 1(j)(5)(B)(ii), 'joint return or surviving spouse'"
   ltcg_rate_0:
     value: 0.00
     unit: ratio
@@ -321,9 +321,9 @@ parameters:
     unit: usd
     citation: "IRC sec. 1402(b)(2); Schedule SE (Form 1040) Part I, line 4c"
   addl_medicare_threshold:
-    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000, qss: 200000}
     unit: usd
-    citation: "IRC sec. 3101(b)(2) (statutory, not indexed)"
+    citation: "IRC sec. 3101(b)(2) (statutory, not indexed); qss = 200,000, the 'any other case' amount in (b)(2)(C)"
   addl_medicare_rate:
     value: 0.009
     unit: ratio
@@ -337,9 +337,9 @@ parameters:
     unit: ratio
     citation: "IRC sec. 1411(a)"
   niit_threshold:
-    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000, qss: 250000}
     unit: usd
-    citation: "IRC sec. 1411(b) (statutory, not indexed)"
+    citation: "IRC sec. 1411(b) (statutory, not indexed); qss = 250,000, sec. 1411(b)(1) (joint return or surviving spouse)"
 
   est_tax_safe_harbor_pct_prior:
     value: 1.00

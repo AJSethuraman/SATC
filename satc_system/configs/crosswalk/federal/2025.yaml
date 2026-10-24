@@ -120,13 +120,13 @@ parameters:
     citation: "Rev. Proc. 2024-40, sec. 2.01"
 
   ltcg_0_pct_max:
-    value: {single: 48350, mfj: 96700, mfs: 48350, hoh: 64750}
+    value: {single: 48350, mfj: 96700, mfs: 48350, hoh: 64750, qss: 96700}
     unit: usd
-    citation: "Rev. Proc. 2024-40, sec. 2.03"
+    citation: "Rev. Proc. 2024-40, sec. 2.03; qss = mfj, IRC sec. 1(j)(5)(B)(i), 'joint return or surviving spouse'"
   ltcg_15_pct_max:
-    value: {single: 533400, mfj: 600050, mfs: 300000, hoh: 566700}
+    value: {single: 533400, mfj: 600050, mfs: 300000, hoh: 566700, qss: 600050}
     unit: usd
-    citation: "Rev. Proc. 2024-40, sec. 2.03"
+    citation: "Rev. Proc. 2024-40, sec. 2.03; qss = mfj, IRC sec. 1(j)(5)(B)(ii), 'joint return or surviving spouse'"
 
   # THE RATES THEMSELVES, which lived as bare literals in `engine.py` until
   # 7 September 2026 -- `Decimal("0.15")` and `Decimal("0.20")`, the only tax
@@ -377,9 +377,9 @@ parameters:
     unit: ratio
     citation: "IRC sec. 1401"
   addl_medicare_threshold:
-    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000, qss: 200000}
     unit: usd
-    citation: "IRC sec. 3101(b)(2)"
+    citation: "IRC sec. 3101(b)(2); qss = 200,000, the 'any other case' amount in (b)(2)(C)"
 
   amt_exemption:
     value: {single: 88100, mfj: 137000, mfs: 68500, hoh: 88100}
@@ -426,9 +426,9 @@ parameters:
     unit: ratio
     citation: "IRC sec. 1411(a) — Net Investment Income Tax"
   niit_threshold:
-    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000, qss: 250000}
     unit: usd
-    citation: "IRC sec. 1411(b) — MAGI thresholds (statutory, not inflation-indexed)"
+    citation: "IRC sec. 1411(b) — MAGI thresholds (statutory, not inflation-indexed); qss = 250,000, sec. 1411(b)(1) (joint return or surviving spouse)"
   se_net_earnings_factor:
     value: 0.9235
     unit: ratio

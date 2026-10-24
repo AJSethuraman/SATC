@@ -591,3 +591,121 @@ def test_spouse_wages_entered_without_a_job_count_against_the_spouses_business()
     r = _run(wages=0, status="married_jointly", household={"self_employment_owner": "spouse"},
              other_income={"self_employment_net": 100000, "spouse_taxable_wages": 180000})
     assert r.breakdown.self_employment_tax == D("2678.15")
+
+
+# ── Codex round 6 on #451 ─────────────────────────────────────────────────────
+
+def test_a_surviving_spouse_has_joint_brackets_and_single_schedule_1a_limits():
+    # 2025, wages 100,000, overtime premium 20,000. Schedule 1-A line 15:
+    # "$12,500 ($25,000 if married filing jointly)" -- a surviving spouse is
+    # not filing jointly, so 12,500 (MAGI 100,000 is under the 150,000 start).
+    # Taxable income 100,000 - 31,500 - 12,500 = 56,000, on the joint brackets
+    # (sec. 1(a)): 10% x 23,850 + 12% x 32,150 = 2,385 + 3,858 = 6,243.
+    r = _run(wages=100000, status="qualifying_surviving_spouse",
+             schedule_1a={"qualified_overtime": 20000})
+    assert r.breakdown.deduction_used == D("31500.00")
+    assert r.breakdown.overtime_deduction == D("12500.00")
+    assert r.breakdown.ordinary_income_tax == D("6243.00")
+    joint = _run(wages=100000, status="married_jointly", schedule_1a={"qualified_overtime": 20000})
+    assert joint.breakdown.overtime_deduction == D("20000.00")
+
+
+def test_a_surviving_spouse_has_the_200000_medicare_and_child_credit_lines():
+    # Wages 220,000, one child. Additional Medicare (sec. 3101(b)(2)(C)):
+    # (220,000 - 200,000) x 0.9% = 180. Child credit (sec. 24(b)(2)): 2,200
+    # less 50 per started 1,000 over 200,000 = 2,200 - 1,000 = 1,200.
+    r = _run(wages=220000, status="qualifying_surviving_spouse",
+             household={"children_under_17": 1})
+    assert r.breakdown.additional_medicare_tax == D("180.00")
+    assert r.breakdown.child_and_dependent_credit == D("1200.00")
+
+
+def test_a_surviving_spouse_has_the_joint_250000_investment_tax_line():
+    # Sec. 1411(b)(1): 250,000 for a joint return or a surviving spouse.
+    # Wages 240,000, interest 30,000: AGI 270,000, over 20,000 -> 760.
+    r = _run(wages=240000, status="qualifying_surviving_spouse", other_income={"interest": 30000})
+    assert r.breakdown.net_investment_income_tax == D("760.00")
+
+
+@pytest.mark.parametrize("status", ["single", "married_separately", "head_of_household",
+                                    "qualifying_surviving_spouse"])
+def test_a_spouses_pay_off_a_joint_return_is_refused(status):
+    # Pub. 504: a separate filer reports their own income. Codex review, PR #451.
+    data = {"filing_status": status, "tax_year": 2025, "jobs": [
+        {"pay_frequency": "annual", "taxable_wages_per_period": 50000, "pay_periods_remaining": 1},
+        {"pay_frequency": "annual", "taxable_wages_per_period": 100000, "pay_periods_remaining": 1,
+         "owner": "spouse", "name": "Acme"}]}
+    with pytest.raises(ValueError, match="Acme marked as the spouse's"):
+        estimate(EstimatorInput.from_dict(data), today=MID_YEAR)
+    with pytest.raises(ValueError, match="spouse wages marked as the spouse's"):
+        _run(wages=50000, status=status, other_income={"spouse_taxable_wages": 100000})
+
+
+def _business_tips(**s1a):
+    # 2025 single, a 100,000 job plus a 50,000 business. SE: 50,000 x .9235 x
+    # 15.3% = 7,064.775, half 3,532.3875. AGI 146,467.6125 (under the 150,000
+    # phase-out start). Taxable income before QBI 146,467.61 - 15,750 - 10,000
+    # tips = 120,717.61, so the 20%-of-taxable-income limit does not bind.
+    return _run(wages=100000, other_income={"self_employment_net": 50000}, schedule_1a=s1a)
+
+
+def test_tips_deducted_from_a_business_come_out_of_its_qbi():
+    # Form 8995 (2025): an amount deductible under sec. 224(a) is not QBI.
+    # QBI 50,000 - 3,532.3875 - 10,000 = 36,467.6125 x 20% = 7,293.52.
+    r = _business_tips(qualified_tips_business=10000)
+    assert r.breakdown.tips_deduction == D("10000.00")
+    assert r.breakdown.qbi_deduction == D("7293.52")
+    # The same tips received as an employee were never in the business's
+    # profit: QBI 46,467.6125 x 20% = 9,293.52.
+    employee = _business_tips(qualified_tips=10000)
+    assert employee.breakdown.qbi_deduction == D("9293.52")
+
+
+def test_business_tips_count_as_deducted_first_when_the_cap_binds():
+    # 20,000 as an employee + 10,000 in the business = 30,000, capped at
+    # 25,000. Taken as all 10,000 of the business's first: the stricter reading.
+    # Taxable income before QBI 146,467.61 - 15,750 - 25,000 = 105,717.61, so
+    # still not binding; QBI 36,467.6125 x 20% = 7,293.52.
+    r = _business_tips(qualified_tips=20000, qualified_tips_business=10000)
+    assert r.breakdown.tips_deduction == D("25000.00")
+    assert r.breakdown.qbi_deduction == D("7293.52")
+
+
+def _deferring(gross, deferral, status="single", **top):
+    data = {"filing_status": status, "tax_year": 2025,
+            "paystub": {"pay_frequency": "annual", "gross_pay_per_period": gross,
+                        "retirement_pretax_per_period": deferral, "pay_periods_remaining": 1}}
+    data.update(top)
+    return estimate(EstimatorInput.from_dict(data), today=MID_YEAR)
+
+
+def test_the_payroll_alternative_counts_a_retirement_deferral():
+    # Codex's example: 40,000 of pay, 20,000 into a 401(k), three children,
+    # dividends 12,000 (over the 11,950 limit, so no EITC). HOH, 2025.
+    # Line 20: Box 1 20,000 -> (20,000 - 2,500) x 15% = 2,625. Line 21 is on
+    # boxes 4 and 6, which tax the whole 40,000: 2,480 + 580 = 3,060.
+    # Income tax: AGI 32,000 - 23,625 = 8,375 x 10% = 837.50; 6,600 - 837.50
+    # leaves 5,762.50, over 3,060; the 3 x 1,700 cap is 5,100. So 3,060.
+    r = _deferring(40000, 20000, status="head_of_household",
+                   household={"children_under_17": 3}, other_income={"ordinary_dividends": 12000})
+    assert r.breakdown.earned_income_credit == ZERO_
+    assert r.breakdown.additional_child_tax_credit == D("3060.00")
+
+
+def test_additional_medicare_is_on_medicare_wages_not_box_1():
+    # 210,000 of pay, 20,000 deferred: Box 1 190,000, Medicare wages 210,000.
+    # Form 8959: (210,000 - 200,000) x 0.9% = 90, and the employer withheld
+    # the same 90 on the pay over 200,000.
+    r = _deferring(210000, 20000)
+    assert r.breakdown.projected_taxable_wages == D("190000.00")
+    assert r.breakdown.additional_medicare_tax == D("90.00")
+    assert r.recommendation.additional_medicare_withheld == D("90.00")
+
+
+def test_schedule_se_line_8a_counts_a_retirement_deferral():
+    # 180,000 of pay with 20,000 deferred: Box 1 160,000, but Social Security
+    # wages 180,000, already past the 176,100 base. A 50,000 business: 46,175
+    # of SE earnings, none left for the 12.4%, so 46,175 x 2.9% = 1,339.075.
+    # On Box 1 it would wrongly have had 16,100 of room (+1,996.40).
+    r = _deferring(180000, 20000, other_income={"self_employment_net": 50000})
+    assert r.breakdown.self_employment_tax == D("1339.08")

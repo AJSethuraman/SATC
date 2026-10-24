@@ -26,6 +26,7 @@ _FILING_LABEL = {
     "married_jointly": "Married filing jointly",
     "married_separately": "Married filing separately",
     "head_of_household": "Head of household",
+    "qualifying_surviving_spouse": "Qualifying surviving spouse",
 }
 
 

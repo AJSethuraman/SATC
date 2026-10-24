@@ -51,13 +51,14 @@ FILING_STATUSES = [
     ("married_jointly", "Married filing jointly"),
     ("married_separately", "Married filing separately"),
     ("head_of_household", "Head of household"),
+    ("qualifying_surviving_spouse", "Qualifying surviving spouse"),
 ]
 PAY_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly", "annual"]
 
 # Stored client filing-status codes (Drake-style) -> estimator codes.
 _DRAKE_TO_ESTIMATOR_STATUS = {
     "S": "single", "MFJ": "married_jointly", "MFS": "married_separately",
-    "HOH": "head_of_household", "QSS": "married_jointly",
+    "HOH": "head_of_household", "QSS": "qualifying_surviving_spouse",
 }
 _ESTIMATOR_STATUSES = {value for value, _ in FILING_STATUSES}
 
@@ -77,10 +78,11 @@ _ESTIMATOR_STATUSES = {value for value, _ in FILING_STATUSES}
 # takes $30,000 and the joint ones, and every figure on the screen still ties out
 # internally, because the arithmetic is right and only the input is wrong.
 _LABEL_TO_ESTIMATOR_STATUS = {label.casefold(): code for code, label in FILING_STATUSES}
-# The interview offers a fifth status this estimator has no separate code for.
-# QSS uses the joint brackets and the joint standard deduction, which is exactly
-# what `_DRAKE_TO_ESTIMATOR_STATUS` already does with the Drake code "QSS".
-_LABEL_TO_ESTIMATOR_STATUS["qualifying surviving spouse"] = "married_jointly"
+# QSS was mapped to married_jointly here, on the reasoning that it shares the
+# joint brackets and standard deduction. It shares little else: Schedule 1-A
+# gives it the single overtime cap and phase-out, the child credit phases out
+# at $200,000, and the Additional Medicare threshold is $200,000. It has its own
+# code now, which FILING_STATUSES above already carries. Codex on #451.
 
 
 def _estimator_filing_status(stored: str) -> str:
@@ -122,7 +124,7 @@ _HOUSEHOLD_KEYS = ("taxpayer_65_or_older", "spouse_65_or_older", "taxpayer_under
                    "spouse_under_25", "lived_apart_from_spouse", "spouse_no_income_not_filing",
                    "self_employment_owner", "blind_count",
                    "children_under_17", "other_dependents", "eitc_children")
-_SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_overtime", "car_loan_interest")
+_SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_tips_business", "qualified_overtime", "car_loan_interest")
 
 _HH_KEYS = ("filing_status", "tax_year", "itemized_total", "extra_standard_deductions",
             "child_tax_credit", "other_nonrefundable_credits", "refundable_credits", "estimated_tax_payments",

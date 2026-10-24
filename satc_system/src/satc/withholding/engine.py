@@ -89,6 +89,7 @@ def estimate(inp: EstimatorInput, *, today: date | None = None) -> EstimateResul
     notes = list(notes)
     status = inp.filing_status or "single"
     ctx = _Context(inp=inp, tables=tables, status=status, today=today)
+    _refuse_spouse_income_off_a_joint_return(inp, status)
     breakdown, extra_notes = _build_breakdown(ctx)
     notes.extend(extra_notes)
     recommendation = _build_recommendation(ctx, breakdown)
@@ -115,6 +116,7 @@ class _Context:
     net_capital: Decimal = ZERO
     investment_income: Decimal = ZERO
     net_investment_income: Decimal = ZERO
+    business_tips_deducted: Decimal = ZERO
     ctc_before_limit: Decimal = ZERO
     eitc_ineligible_reason: str = ""
     qbi_income: Decimal = ZERO
@@ -130,6 +132,11 @@ class _Context:
 class _JobProjection:
     job: Paystub
     projected_wages: Decimal
+    #: Social Security and Medicare wages (W-2 boxes 3 and 5). Box 1 less any
+    #: pre-tax retirement deferral added back: a 401(k) deferral escapes income
+    #: tax but not payroll tax (IRC sec. 3121(v)(1)(A)). Other pre-tax pay --
+    #: health premiums through a cafeteria plan -- escapes both, so it stays out.
+    projected_fica_wages: Decimal
     ytd_withholding: Decimal
     projected_withholding: Decimal
     periods_elapsed: int
@@ -153,6 +160,10 @@ def _project_job(job: Paystub) -> _JobProjection:
     else:
         ytd_wages = per_period * elapsed
     projected_wages = ytd_wages + per_period * remaining
+    # The year-to-date deferral is not asked for, so the per-period one is
+    # taken for every period of the year. A deferral that started mid-year
+    # makes this a little high.
+    projected_fica_wages = projected_wages + _nonneg(job.retirement_pretax_per_period) * periods_per_year
 
     per_period_wh = job.federal_tax_withheld_per_period
     if job.ytd_federal_tax_withheld is not None:
@@ -162,13 +173,35 @@ def _project_job(job: Paystub) -> _JobProjection:
     projected_wh = ytd_wh + per_period_wh * remaining
 
     return _JobProjection(
-        job=job, projected_wages=projected_wages, ytd_withholding=ytd_wh,
+        job=job, projected_wages=projected_wages, projected_fica_wages=projected_fica_wages,
+        ytd_withholding=ytd_wh,
         projected_withholding=projected_wh, periods_elapsed=elapsed,
         periods_remaining=remaining)
 
 
 def _total_projected_wages(inp: EstimatorInput) -> Decimal:
     return sum((_project_job(job).projected_wages for job in inp.jobs), ZERO)
+
+
+def _refuse_spouse_income_off_a_joint_return(inp: EstimatorInput, status: str) -> None:
+    """Only a joint return carries the spouse's pay (Pub. 504: a separate filer
+    reports their own income). A spouse's job used to be added in whatever the
+    status, so a $50,000 job and the spouse's $100,000 one made $150,000 on the
+    taxpayer's separate return. Refused, not dropped: dropping would hide which
+    of the two was meant. Community property states split wages between the
+    spouses (Pub. 555), which this estimator does not model, so that is said
+    too. Found by Codex on #451."""
+    if status == "married_jointly":
+        return
+    oi = inp.other_income
+    spouse_jobs = [job.name or f"Job {i + 1}" for i, job in enumerate(inp.jobs)
+                   if (job.owner or "you") == "spouse"]
+    if spouse_jobs or oi.spouse_taxable_wages or oi.spouse_federal_tax_withheld:
+        what = ", ".join(spouse_jobs) if spouse_jobs else "spouse wages"
+        raise ValueError(
+            f"{what} marked as the spouse's, but a {status.replace('_', ' ')} return "
+            f"carries only your own pay. Mark it as yours, or take it off. In a "
+            f"community property state, enter your own share as your job.")
 
 
 def _se_owner_wages(ctx: _Context) -> Decimal:
@@ -186,7 +219,7 @@ def _se_owner_wages(ctx: _Context) -> Decimal:
             f"Self-employment profit is marked as the spouse's, but a "
             f"{ctx.status.replace('_', ' ')} return carries only your own. "
             f"Mark it as yours, or leave it off.")
-    wages = sum((_project_job(job).projected_wages for job in inp.jobs
+    wages = sum((_project_job(job).projected_fica_wages for job in inp.jobs
                  if (job.owner or "you") == who), ZERO)
     if who == "spouse":
         wages += inp.other_income.spouse_taxable_wages
@@ -267,7 +300,8 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
     cap_gains_tax = _capital_gains_tax(ordinary_ti, preferential, tables, status)
     income_tax_before_credits = ordinary_tax + cap_gains_tax
 
-    add_medicare = _additional_medicare_tax(ctx, projected_wages)
+    add_medicare = _additional_medicare_tax(
+        ctx, sum((_project_job(job).projected_fica_wages for job in inp.jobs), ZERO))
     ctx.investment_income = _nonneg(oi.interest + oi.ordinary_dividends + _nonneg(net_capital)
                                     + _nonneg(oi.rental_and_passive_income))
     # THE 3.8% TAX NETS LOSSES; THE CREDIT TEST ABOVE DOES NOT. Form 8960 line
@@ -461,7 +495,17 @@ def _schedule_1a(ctx: _Context, magi: Decimal) -> tuple[Decimal, Decimal, Decima
     tips = overtime = ZERO
     if joint_ok:
         start = t.tips_overtime_phaseout_start(status)
-        tips = phase_down(min(_nonneg(s1a.qualified_tips), t.tips_max), start)
+        # Line 5 may not exceed the business's net profit; line 6 adds 4c.
+        business = min(_nonneg(s1a.qualified_tips_business),
+                       _nonneg(ctx.inp.other_income.self_employment_net))
+        tips = phase_down(min(_nonneg(s1a.qualified_tips) + business, t.tips_max), start)
+        # TIPS DEDUCTED ARE NOT ALSO QUALIFIED BUSINESS INCOME. Form 8995
+        # (2025 instructions, QBI flow chart): an amount deductible as a
+        # qualified tip under sec. 224(a) is not QBI. When the cap or the
+        # phase-out leaves less than both kinds of tip, the business tips
+        # are taken as deducted first -- the smaller QBI, so the higher tax,
+        # the stricter reading (DESIGN-PRINCIPLES 5a). Found by Codex on #451.
+        ctx.business_tips_deducted = min(business, tips)
         overtime = phase_down(min(_nonneg(s1a.qualified_overtime), t.overtime_max(status)), start)
 
     car = min(_nonneg(s1a.car_loan_interest), t.car_loan_max)      # line 24
@@ -485,7 +529,7 @@ def _qbi_deduction(ctx: _Context, ti_before_qbi: Decimal, net_capital_gain: Deci
     income less net capital gain. Above the threshold the wage and SSTB limits
     of Form 8995-A apply and are NOT modelled -- a check says so."""
     t = ctx.tables
-    qbi = _nonneg(ctx.inp.other_income.self_employment_net - half_se)
+    qbi = _nonneg(ctx.inp.other_income.self_employment_net - half_se - ctx.business_tips_deducted)
     ctx.qbi_income = qbi
     if qbi <= ZERO:
         return ZERO
@@ -530,15 +574,17 @@ def _actc_payroll_alternative(ctx: _Context, half_se: Decimal, eitc: Decimal) ->
     withheld (W-2 boxes 4 and 6, with the Additional Medicare withheld) plus
     HALF the self-employment tax (Schedule 1 line 15), less the earned income
     credit and the excess Social Security credit (Schedule 3 line 11). Each
-    employer's Social Security stops at the wage base; projected Box 1 wages
-    stand in for Social Security and Medicare wages, as everywhere here.
+    employer's Social Security stops at the wage base. Each job's payroll-tax
+    wages are used, not its Box 1 wages: a $20,000 401(k) deferral on $40,000
+    of pay is still taxed for Social Security (Codex on #451). The spouse's
+    single wage figure has no deferral to add back, so it stands as given.
     """
     t, inp = ctx.tables, ctx.inp
     projections = [_project_job(job) for job in inp.jobs]
     addl_withheld, excess_ss = _payroll_credits(ctx, projections)
     ss_rate = t.se_social_security_rate / 2              # 6.2%, sec. 3101(a)
     medicare_rate = t.se_medicare_rate / 2               # 1.45%, sec. 3101(b)(1)
-    wages = [p.projected_wages for p in projections] + [inp.other_income.spouse_taxable_wages]
+    wages = [p.projected_fica_wages for p in projections] + [inp.other_income.spouse_taxable_wages]
     line21 = sum((min(w, t.ss_wage_base) * ss_rate + w * medicare_rate for w in wages), ZERO) + addl_withheld
     return _nonneg(line21 + half_se - eitc - excess_ss)                # lines 23-25
 
@@ -674,12 +720,12 @@ def _self_employment_tax(net_se: Decimal, wages_subject_to_ss: Decimal,
     return se_tax, se_tax / 2
 
 
-def _additional_medicare_tax(ctx: _Context, projected_wages: Decimal) -> Decimal:
+def _additional_medicare_tax(ctx: _Context, medicare_job_wages: Decimal) -> Decimal:
     # Form 8959 line 8 reads Schedule SE line 6, which does not exist when line
     # 4c stopped the schedule -- so the same floor applies here.
     inp, tables = ctx.inp, ctx.tables
     se_base = _se_earnings_subject_to_tax(_nonneg(inp.other_income.self_employment_net), tables)
-    medicare_wages = projected_wages + inp.other_income.spouse_taxable_wages + se_base
+    medicare_wages = medicare_job_wages + inp.other_income.spouse_taxable_wages + se_base   # Form 8959 lines 1 and 8
     ctx.medicare_wages = medicare_wages
     threshold = tables.additional_medicare_threshold(ctx.status)
     excess = _nonneg(medicare_wages - threshold)
@@ -709,17 +755,17 @@ def _payroll_credits(ctx: _Context, projections: list[_JobProjection]) -> tuple[
        on its own, so one person with two employers can overpay; the excess is
        a refundable credit (Schedule 3 line 11). Grouped by whose job it is.
 
-    Both use projected Box 1 wages as the proxy for Medicare / Social Security
-    wages, like the rest of the engine.
+    Both use each job's payroll-tax wages -- Box 1 with the retirement deferral
+    added back -- since that is what the employer withholds on.
     """
     t = ctx.tables
-    addl = sum((_nonneg(p.projected_wages - t.addl_medicare_employer_threshold) * t.additional_medicare_rate
+    addl = sum((_nonneg(p.projected_fica_wages - t.addl_medicare_employer_threshold) * t.additional_medicare_rate
                 for p in projections), ZERO)
     employee_ss_rate = t.se_social_security_rate / 2   # 6.2%, IRC sec. 3101(a)
     excess = ZERO
     owners: dict[str, list[Decimal]] = {}
     for p in projections:
-        owners.setdefault(p.job.owner or "you", []).append(p.projected_wages)
+        owners.setdefault(p.job.owner or "you", []).append(p.projected_fica_wages)
     for wages in owners.values():
         if len(wages) < 2:
             continue
@@ -947,8 +993,8 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
             f"(Form 1040 line 11).")
     if inp.prior_year_tax is None:
         add("Last year's tax", "Not given, so only the 90%-of-this-year test was run",
-            "Enter last year's tax for the penalty test (Form 2210 line 8: Form 1040 line 24 "
-            "less last year's refundable credits) -- paying that much "
+            "Enter last year's tax for the penalty test (Form 1040 line 24 less last year's "
+            "refundable credits, before any 110%) -- paying that much "
             "(110% if last year's AGI was over $150,000) avoids the penalty however this year ends up.")
     for i, job in enumerate(inp.jobs):
         label = job.name or f"Job {i + 1}"
@@ -996,7 +1042,8 @@ def _checks(ctx: _Context, b: TaxBreakdown, rec: WithholdingRecommendation) -> l
         add("info", "More is being withheld than needed",
             f"About {_usd(big_refund)} more than the target refund. Withholding about "
             f"{_usd(cut)} less per paycheck on {rec.adjusted_job_name} would even it out.")
-    if status == "married_separately" and (s1a.qualified_tips or s1a.qualified_overtime
+    if status == "married_separately" and (s1a.qualified_tips or s1a.qualified_tips_business
+                                           or s1a.qualified_overtime
                                            or hh.taxpayer_65_or_older):
         add("act", "Married filing separately loses deductions",
             "The tips, overtime and senior deductions are only allowed on a joint return. "
@@ -1049,7 +1096,7 @@ def _checks(ctx: _Context, b: TaxBreakdown, rec: WithholdingRecommendation) -> l
         add("review", "Earned income credit included",
             f"{_usd(b.earned_income_credit)}, assuming everyone meets the residency, SSN and age rules. "
             "It is a large figure to get wrong; confirm eligibility.")
-    if s1a.qualified_tips or s1a.qualified_overtime:
+    if s1a.qualified_tips or s1a.qualified_tips_business or s1a.qualified_overtime:
         add("review", "Tips and overtime taken as qualifying",
             "Only tips in a listed occupation and only the overtime premium (the half in "
             "time-and-a-half) qualify. The estimator cannot test that.")

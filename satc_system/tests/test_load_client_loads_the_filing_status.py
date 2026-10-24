@@ -55,15 +55,13 @@ def test_the_joint_label_maps_to_the_joint_code():
     assert _estimator_filing_status("Married filing jointly") == "married_jointly"
 
 
-def test_a_qualifying_surviving_spouse_gets_the_joint_brackets():
-    """The interview offers a fifth status the estimator has no code for.
-
-    QSS uses the joint brackets and the joint standard deduction, which is what
-    the Drake mapping already does with the code "QSS" -- so the label must land
-    in the same place rather than falling through to nothing.
+def test_a_qualifying_surviving_spouse_keeps_its_own_status():
+    """The interview's fifth status lands on its own code, not on joint: it
+    shares the joint brackets but not Schedule 1-A's caps or the credits'
+    phase-outs. Codex on #451.
     """
-    assert _estimator_filing_status("Qualifying surviving spouse") == "married_jointly"
-    assert _estimator_filing_status("QSS") == "married_jointly"
+    assert _estimator_filing_status("Qualifying surviving spouse") == "qualifying_surviving_spouse"
+    assert _estimator_filing_status("QSS") == "qualifying_surviving_spouse"
 
 
 def test_the_shapes_it_already_understood_still_work():

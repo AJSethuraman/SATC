@@ -366,7 +366,8 @@ def create_app() -> Flask:
                 "taxpayer_under_25, spouse_under_25, lived_apart_from_spouse, spouse_no_income_not_filing, "
                 "self_employment_owner (you/spouse), blind_count, children_under_17, "
                 "other_dependents, eitc_children",
-                "schedule_1a": "optional dict: qualified_tips, qualified_overtime, car_loan_interest",
+                "schedule_1a": "optional dict: qualified_tips (as an employee), qualified_tips_business "
+                "(in your own business, part of self_employment_net), qualified_overtime, car_loan_interest",
                 "jobs": "list, one entry per job (taxpayer + spouse / second jobs). Each job: "
                 "pay_frequency, gross_pay_per_period, federal_tax_withheld_per_period, "
                 "ytd_taxable_wages, ytd_federal_tax_withheld, pay_periods_remaining (optional).",
@@ -374,8 +375,9 @@ def create_app() -> Flask:
                 "deductions": "optional dict: itemized parts (mortgage_interest, property_taxes, "
                 "state_local_income_or_sales_tax, charitable_cash, charitable_noncash, "
                 "medical_expenses, other_itemized) or itemized_total; none = standard",
-                "prior_year_tax": "optional; Form 2210 line 8 (last year's Form 1040 line 24 less its "
-                "refundable credits); enables safe-harbor guidance",
+                "prior_year_tax": "optional; last year's Form 1040 line 24 less its refundable "
+                "credits, BEFORE any 110% -- the estimator applies that from prior_year_agi. "
+                "Not Form 2210 line 8, which already includes it. Enables safe-harbor guidance",
             },
         }
 

@@ -19,6 +19,7 @@ FilingStatus = Literal[
     "married_jointly",
     "married_separately",
     "head_of_household",
+    "qualifying_surviving_spouse",
 ]
 
 PayFrequency = Literal["weekly", "biweekly", "semimonthly", "monthly", "annual"]
@@ -155,7 +156,12 @@ class Schedule1A:
     income phase-outs; it cannot test eligibility.
     """
 
+    #: Tips received as an employee (line 4c).
     qualified_tips: Decimal = ZERO
+    #: Tips received in your own business (line 5), already inside
+    #: ``self_employment_net``. Kept apart because they come out of qualified
+    #: business income once deducted (Form 8995 instructions, sec. 224(a)).
+    qualified_tips_business: Decimal = ZERO
     qualified_overtime: Decimal = ZERO
     car_loan_interest: Decimal = ZERO
 
@@ -322,7 +328,8 @@ def _build(model: type, data: dict[str, Any], decimal_fields: Any) -> Any:
     return model(**kwargs)
 
 
-_FILING_STATUSES = ("single", "married_jointly", "married_separately", "head_of_household")
+_FILING_STATUSES = ("single", "married_jointly", "married_separately", "head_of_household",
+                    "qualifying_surviving_spouse")
 
 
 def _check_keys(model: type, data: dict[str, Any]) -> None:
