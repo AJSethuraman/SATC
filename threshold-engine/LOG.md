@@ -1181,3 +1181,912 @@ and all 698,135 cells compared equal before and after.
   separate workbooks; it was 27 (KeyBank 14, not 15). An Excel process was
   force-closed during the run; any workbook the firm had open in Excel then
   closed unsaved.
+## 14 October 2026, table slicers without Excel
+
+The bank blocks macros, so a row of a table is picked with slicer buttons,
+and openpyxl cannot write slicers. `slicers.add_table_slicers(path, sheet,
+table, slicers)` adds them to the finished .xlsx by editing the package, in
+the parts and places Excel 16 itself used when it added the same three
+slicers to the Decide table over COM. Not yet wired into the build.
+
+- A table slicer stores no selection. Excel reads it from the table's
+  autoFilter on open and does not re-filter, so the autoFilter is written to
+  the selection and the rows it hides are written hidden, as Excel wrote them.
+- It refuses rather than guess: a value not in the column, a column that is
+  not text (a button shows displayed text, unknowable here for a number), a
+  table already filtered, a sheet that already has slicers.
+- `tools/check_slicers_in_excel.ps1` opens the result as a user would
+  (excel.exe /x, watching for any dialog), then over COM counts every cache,
+  slicer, shape and selection, clicks a different button, checks the rows
+  shown against the cells, saves, and reopens. Passed on a sample with `&`,
+  `<`, quotes and `+` in the names (`tools/slicer_sample.py`), and on
+  core-decide.xlsx.
+- Found on the negative controls: Excel repairs in two ways. A malformed part
+  prompts ("We found a problem...") interactively, and over COM only makes
+  Open fail. A well-formed but wrong part (a cache naming a column that is not
+  there) is dropped silently, with no prompt, no repair log and no
+  "[Repaired]", interactively and over COM. Only counting what survived
+  catches the second.
+- On Decide, the Measure slicer has seven buttons and rows 3-11 at their
+  current height show five, so the selected one can be below the fold.
+  Excel's own run set those rows to 25pt first.
+
+## 14 October 2026, tie-out: KeyBank card nonaccrual, 2026Q2, in the book workbook
+
+`docs/tie-out/keybank-card-nonaccrual-2026-10-14/`, the deliverable
+`TIE-OUT-keybank-card-nonaccrual-2026-10-14.pdf` (checked and rendered by
+canon). The 0.69% on Summary (G11) and in Decide's headline, read in Excel 16
+from a `book` build of d1e353a1, against KeyBank, N.A.'s filed Call Report for
+30 June 2026, fetched again tonight. **TIED**: Excel holds 0.6908132947833397,
+exactly 100 x RC-N 5.a column C (6,401) / RC-C Part I 6.a column A (926,589),
+read off the page and the XBRL.
+
+- **Found:** the FDIC's dictionary names no Call Report line for NACRCD or
+  LNCRCD. Against the FFIEC bulk file for 2026Q2 they equal B577 and B538 for
+  all 4,295 banks in both, 0 differ; neither is a sum.
+- **Found:** Thresholds!J (Latest value) is a value Python writes, not a
+  formula on the Data tab, so a corrected quarter pasted into Data would move
+  the lines but not Latest, the rating, Summary or Decide.
+- **Found:** Thresholds column A is clipped in Excel ("Credit card - Non" on
+  every source of a measure), and Summary H7:H8 read "Not in this workbool".
+- **Found:** Decide's "KeyBank is 0.68 points higher than Peer group" sits
+  beside a measure on which 10 of 16 roster banks file zero card nonaccrual;
+  the warning is only on the Sources tab.
+- `scripts/read_workbook.ps1 -Workbook X` reads any build the same way (the
+  series is a parameter), so the firm's own `book books/consumer-public.json`
+  can be tied out next; that build was not run here.
+- No code changed.
+
+## 14-15 October 2026, the book: one command builds the workbook
+
+The firm, on the meeting workbook assembled by hand that evening: *"assess one
+thing at a time, save decisions, not a guide"*, *"it cannot be a huge list"*,
+then *"i want you to make it work so i can generate this workbook at work with
+the script, it should be debugged and walked through and tied out. you have
+all night basically"*.
+
+- **`book BOOK.json OUT.xlsx`** (book.py): one file says everything the
+  workbook is built from; every key required; with a `peers` section the
+  peers build runs into the same workbook. `books/consumer-public.json`: 105
+  series. `books/README.md`: the steps at work.
+- **Decide** (decide_tab.py): three slicers pick one series; its yellow row is
+  the decision (Accept these lines / Reject, the four settings, a period left
+  out, a note), kept in the file by saving. Assess's typed cells read it;
+  Assess and Chart are hidden in a book. **Summary** (summary_tab.py).
+  Slicers are written into the file (slicers.py, an agent; no Excel needed).
+  Peer tabs inside the same file (into/names, an agent).
+- Asked for while it was built, and done: **life to date** ("we need to allow
+  life to date": a series shorter than the backtest needs keeps its lines;
+  KeyBank's charge-offs are back, 34 and 35 quarters, auto 15); **the axis
+  fits** (named ranges from the first quarter drawn; "Chart shows" last 48 by
+  default, after "maybe the last 48 quarters"); **overlays** ("how do we
+  overlay": On chart per source).
+- **Proof.** Walkthrough in Excel 16 on the full build (peers build inside it,
+  12 min 42 s from the cache): 320 of 320 reads as expected, including save,
+  close and reopen (`docs/walkthrough-book/`, PDF). No repair as a user opens
+  it (tools/check_slicers_in_excel.ps1, RESULT: PASS). Tie-out of KeyBank
+  card nonaccrual 2026Q2, 0.6908%: TIED to the filed Call Report, page and
+  XBRL, difference 0 (`docs/tie-out/keybank-card-nonaccrual-2026-10-14/`).
+- **Answered:** KeyBank's auto series is RC-C 6.c, which by its instructions
+  includes direct and indirect; KeyBank sold its indirect book in 2021Q3 and
+  6.c is $62.2m at 30 Jun 2026.
+- **Open:** the peer analysis as one dashboard tab with filters ("it is
+  annoying to flip between stuff", "peers balances do not follow peer pack
+  stuff", "does this have to go to design again") is being built.
+  Thresholds' latest value is written by the build, not live on Data (the
+  tie-out). 10 of the 16 roster banks file zero card nonaccrual, so KeyBank
+  against the peer group on that measure says little (the tie-out).
+- **Got wrong, corrected:** test mistakes (a rating read as 3.0, a row
+  misplaced); the chart's range ignored the window at first, then its zones
+  vanished when an overlay was off (#N/A in MAX), both seen in Excel's
+  picture and fixed; the peer-tabs agent's tests were written against main's
+  older peers code and failed on this branch (16 and 5 errors), handed to the
+  dashboard work to fix.
+## 14 October 2026, the peers on one tab: a dashboard
+
+The firm, looking at the peer tabs in the built workbook: *"it is annoying to
+flip between stuff for peer analysis - can't they all exist on one tab with
+filters like a dashboard at the top?"*, *"peers balances do not follow peer
+pack stuff so i cant turn off like JPM"*, *"same with peers lagged and
+normalized"*, and *"these views look crazy bad formatting-wise, does this have
+to go to design again"*. Redesigned, not patched.
+
+**What the bank now sees.** One red tab, **Peers**. At the top, yellow cells:
+product, charge-off rate (net or gross), Peer A and Peer B, Chart shows (all,
+last 80, 48 (the start, the firm's own) or 20 quarters), the delinquency
+measure and basis, a Yes/No under each of the fifteen peers, and the ranking
+settings. Under them: headline numbers (KeyBank latest, pack latest, KeyBank's
+rank among the banks switched on, industry latest; the same for delinquency),
+then the views in a two-column grid: charge-offs (band, composite, KeyBank,
+Peer A and B, and now the industry), delinquency, book size, lagged rates,
+how far each rate moved, against the industry, and every bank's row. 16
+columns, 1,100 pixels wide at 100%. The old Pack, Peers, Delinquency,
+Balances, Lagged, Normalisation and Mix tabs are gone; **Workings** (hidden)
+holds the live helpers; Glossary, Data, DelinquencyData and Run stay.
+
+**Why Balances, Lagged and Normalisation ignored JPMorgan switched off.** They
+were values written once by Python: Balances listed every bank, Lagged's
+"All peers, total" and Normalisation's "All-peer composite" were over every
+peer whatever Include said, and none had a formula reading Include. Now:
+the book-size view draws the band and median of the indexes of the banks
+switched on; the lagged pack total is SUMIF over the banks switched on
+(blank if any of them lacks a year, as before); the normalised pack
+composite is worked from the live composite. Mix has no pack in it (KeyBank
+against the industry); it follows the product and Peer A and B.
+
+**Decisions taken here, each the firm's to overturn.**
+- One product picker for every view. A delinquency product the charge-offs
+  were not built for is listed too; the charge-off views then say so in
+  words. Best and worst are ranked on that product's charge-offs.
+- The book-size view's "pack" is the median of the indexes of the banks
+  switched on (each bank once), with the 10th-90th and 25th-75th band: a
+  percentile, as the rate band is, not a new aggregate.
+- Normalisation follows the rate picker (net or gross); Lagged and Mix are
+  net by definition and say so.
+- A base quarter before the first TTM quarter is now refused, in words: the
+  book index is drawn on the TTM quarters.
+- Each bank's acquisition quarters moved to the Run tab (the bank table had
+  First Citizens' nineteen wrapping the rows).
+
+**Proof.**
+- tests/test_peers_workbook.py (rewritten for the dashboard), recalculated
+  with `formulas`: switching JPMorgan off moves the composite, band, best and
+  worst, book-size band and median, lagged pack total, normalised pack
+  composite and the headline numbers, each equal to the module over the
+  other fourteen. 62 passed.
+- tests/test_peers_dashboard.py (new): every view against the builder it
+  replaced (tests/data/peers/peers_workbook_642ff55f.py, copied unchanged),
+  with every bank on: net and gross charge-offs, best/worst and the ranking
+  window, delinquency, the book index, lagged rates and the pack total,
+  normalisation, the mix. And "Chart shows" at 20 changes only the window
+  cells the named ranges read. 9 passed.
+- tests/test_peers_into.py: **the standalone pin is retired** (it compared
+  the .xlsx part for part with d1e353a1's; this change alters the standalone
+  output on purpose, and the pin said to retire it then). It was also failing
+  on this branch before this work (16 failed, 5 errors: written against
+  older signatures). Now: the series CSVs `peers build` writes are byte for
+  byte the old builder's run's (over 100 files, banks/ included); into a host
+  with its own Data, Glossary and Run every peer cell recalculates to the
+  standalone value; refusals and foreign_refs as before. 28 passed.
+- Excel 16 over COM, the real cache with books/consumer-public.json's
+  settings: 0 visible error cells before and after.
+  Headline strip, card net, before -> after JPMorgan is switched off: KeyBank
+  3.76 -> 3.76; pack 3.54 -> 3.81; KeyBank's rank 6 of 11 -> 5 of 10;
+  industry 4.01 -> 4.01; delinquency (card, 30-89, quarter-end) KeyBank 0.92
+  -> 0.92, pack 1.33 -> 1.48, rank 4 of 13 -> 3 of 12, banks with a rate 12
+  -> 11. One value per view: lagged pack total 2025 4.97 -> 5.42; normalised
+  pack ratio 1.14 -> 1.25; book-size pack median 104 -> 101; mix own factor
+  2025 1.09 -> 1.09 (no pack in it); best in pack JPMorgan -> Bank of America.
+  The charge-off chart draws 2014Q3 to 2026Q2, 48 quarters.
+- `book`: the dashboard inside the thresholds workbook (PEER_TAB_NAMES now
+  Peers, Peers workings, Peers glossary, Peers data, Peers delinquency data,
+  Peers run): 17 tabs, Peers fifth, Peers workings hidden at the
+  end; 0 visible error cells on 14 visible tabs before and after; the same
+  reads as standalone, before and after; the notes name "the Peers data tab".
+
+**Not done.** The full suite was not run (an hour); the peers, book and
+launcher tests were. tests/test_launcher.py::test_too_little_history_for_the_
+backtest_comes_back_from_the_real_build fails, and is not about the peers:
+642ff55f ("life to date") made a short series keep its lines instead of
+refusing, and the test still expects the refusal (it fails the same at
+642ff55f, checked in a clean worktree).
+
+## 15 October 2026, Claude Design's round 2, built by the tool
+
+The firm sent Claude Design's hand-off (`docs/design/round-2/`) and answered
+its questions: the internal extract is quarterly by product and measure, then,
+before it was built, *"i will have more granular data ... sometimes we may also
+want to see its components like other consumer is 4 different things ... balances
+and stuff are definitely important too"*: the Internal tabs take the internal
+import layout (segments, $ thousands) instead. Keep the lagged peer view; Excel
+at work is Microsoft 365. Wording to canon's voice (1.23.0, PR #439, not yet
+installed): the analyst register, American spelling.
+
+- Built in four parts, each in its own worktree, then combined: Decide and
+  Thresholds (Thresholds read by meaning through `decide_tab.TH_BOOK`);
+  Summary and the reference tabs; Peers (peer glossary and run folded into
+  Glossary and Run); Internal and Internal data (`internal_tab.py`, a book's
+  required `internal` key).
+- Voice pass over every visible string (1,557, 21,333 words): one tell,
+  fixed; American spelling also in text a book hides.
+- Proof: tests per part (Decide 23, slicers 19, book 11, peers 460, Summary
+  and reference 250 + 115, Internal 19 + 103) and combined (87, then 30);
+  `book` with the peers build inside, 7 min 57 s; walkthrough 328 of 328; no
+  repair as a user opens it.
+- Not run: the complete suite in one run. Not done: right-edge line labels on
+  the Internal chart; slicer buttons sort A-Z (Excel offers no data order).
+
+## 15 October 2026, one set of lines per product and measure
+
+The firm, on Decide: *"we don't need to set thresholds on all 3, we need to
+use all 3 to set appropriate thresholds. industry, competitor, and key
+reported"*. Asked how, they picked "Pick per row": a yellow cell on each
+product and measure naming the source whose history sets its lines, with what
+each source's own history would give side by side, all three on one chart,
+and each source rated on the lines picked.
+
+- Decide: 35 rows (product × measure), two slicers, a required **Lines set
+  from** in the column the source had. A row's settings apply to every
+  source's own lines; its period left out to the source picked. The consumer
+  book starts every row blank (`lines_from: {"part": "Source", "start":
+  null}`): until a source is picked the row has no lines and no ratings, and
+  its Check, Thresholds and Summary say Pick a source.
+- Thresholds is one row per product and measure (`thresholds_tab.py`): the
+  source, what the lines rest on, the four lines (blank while refused), every
+  source's latest value and rating on them, the decision and the Check. The
+  per-series table it reads is the old Thresholds, renamed **Lines by
+  source**; `decide_tab.rename_tab` rewrites every reference to it.
+- Proof: test_decide 31 of 31, test_book 16, test_internal_tab 19,
+  test_slicers 19, test_workbook 71, each run alone. Walkthrough rewritten
+  (`expected.py`) and run in Excel 16: **1,463 of 1,463** reads as expected
+  (B1 to B10; three rows given a source; every series' own lines read on
+  Lines by source); the build took 8 min 48 s. Slicer check: PASS, 0 dialogs
+  opened as a user, 1 of 35 rows shown after a click, kept after save.
+- Two harness fixes found on the way, both timing in Excel's automation, not
+  the workbook: `check_slicers_in_excel.ps1` asks again while Excel is busy
+  recalculating after a click (RPC_E_CALL_REJECTED on save, close, reopen);
+  `walk.ps1` counts visible errors with Excel's own visible-cells set, since
+  asking each cell whether its column is hidden counted a hidden #N/A as
+  visible on one run in two (Decide!AZ65, then Internal!IU50; both in hidden
+  helper columns, checked in Excel).
+
+**Not done.** The complete suite in one run. The peers histories are being
+changed on another branch (pro forma acquisitions); this branch was walked on
+the peers code as it stood at d0aa99a0. The 32 rows not given a source in
+the walk are read only as Pick a source.
+
+## 15 October 2026, afternoon: what each peer's consumer book holds, tied out
+
+The analyst, asking whether peers' other consumer rates say anything about
+unsecured lending: *"I don't know how to prove out that these guys don't have
+much student and stuff. Is there a way to do that"*, then *"Build it in and
+tie it out"*.
+
+- **Peer loan classes**, a new tab in the book (`peers/classes.py`,
+  `peers/loan_classes_tab.py`, the book's required key `loan_classes`): for
+  the 15 peers, KeyCorp and SoFi, each holding company's 10-Q for the quarter
+  ended 30 June 2026: who holds student loans, unsecured or personal loans and
+  lines, and secured non-auto lending; each consumer class as filed; and the
+  filing's words behind every finding. `peers classes-pull` fetches the
+  filings from SEC EDGAR into a cache (SEC requires a contact email in the
+  User-Agent header: a required flag, never stored; the window asks for it).
+- Amounts are never typed in `config/peer-loan-classes.json`: a class the
+  filing tags names its XBRL members and the build reads the amount (18
+  classes); a class printed but not tagged by class gives the figure as
+  printed and where (15). What each class counts as is a judgment, stated per
+  class with the filing's words. The file is written by
+  `docs/tie-out/peer-loan-classes-2026q2/record/make_config.py` from three
+  readers' records of the filings.
+- **Tie-out** (`docs/tie-out/peer-loan-classes-2026q2/`): every class amount
+  read out of the workbook in Excel against the 10-Q as filed, through a
+  different file (the inline-XBRL document, fetched fresh) and a different
+  parser: **33 of 33 TIED**. One figure traced end to end with the filed table
+  photographed: Citizens' Education, $8,044m. Every quote checked against the
+  filed text: 24 found word for word, 27 findings "not stated" (searches).
+- What it found: student loans are a class at Citizens ($8.0bn) and SoFi
+  ($16.9bn, fair value), inside PNC's other consumer since 1 Jan 2026, $182m
+  in KeyCorp's discontinued operations; Capital One's 10-Q says Discover sold
+  its student portfolio before the merger; "student" appears in none of the
+  other twelve. The one clean comparison for unsecured lending: Capital One
+  (personal loans $8.6bn; its Call Report other consumer is these loans).
+  Fifth Third splits out $626m unsecured, but its Call Report other consumer
+  is $10.2bn, mostly solar, RV and marine: first marked Clean, corrected to
+  Mixed the same evening. Solar is counted as unsecured by the analyst's
+  ruling (*"solar might as well be considered unsecured"*, 15 Oct 2026):
+  Fifth Third's unsecured is then $4.9bn, about half its other consumer, and
+  it stays Mixed.
+- What I got wrong: the readers recorded "not stated" for KeyCorp's secured
+  non-auto lending and Capital One's student loans; the tie-out's own search
+  found both sentences, and the file was corrected. The comparison script
+  first misread "$2.8 billion" (3 false DIFFERS; the workbook was right).
+- The peers' minimum book is now 0 (the analyst: *"for peers we should not
+  worry about a $1b minimum if keybank is not held to that standard"*).
+- The whole tool also ships as one file with a window
+  (`tools/make_app.py`, `app.py`), and the complete suite was run once:
+  1,138 passed before this tab was added.
+
+## 15 October 2026, evening: the peer group follows the pack, and a faster pack
+
+The analyst, on Decide: *"this tab needs to adjust with peers and i need a
+faster way to select and de-select peers"*.
+
+- **Banks in the pack**, a new picker on Peers: every peer, regionals only,
+  large banks only (the five the roster does not mark regional), none. Each
+  bank's cell reads **Pack** (follow it), Yes or No (override); a bank out of
+  the pack is gray with its name struck through. Every view reads one
+  switch per peer on Workings, so nothing else changed.
+- **The Peer group series are live** (`book._live_peer_group`): each
+  quarter a series had a value, its Data cell sums Peers data (or Peers
+  delinquency data) over the banks kept that quarter and in the pack now,
+  needing the banks the Peers tab asks for; its latest value and quarter on
+  Lines by source follow. Decide, Thresholds and Summary follow from there.
+  Evidence, Backtest and Decide's "What the history suggests" stay as built.
+  The source keeps its name, "Peer group (15 banks)".
+- Walkthrough, three new steps (B11 to B13): Regionals only, every peer but
+  JPMorgan, then as built; the expected composites are summed in Python from
+  the per-bank rows. **1,514 of 1,514** reads as expected in Excel 16; slicer
+  check PASS. Credit card net, peer group latest: 3.95% as built, 3.79%
+  regionals only, 4.25% without JPMorgan.
+- Tests: the peers files, test_book, test_peer_loan_classes, test_app: 126
+  passed before two tests were updated to the new switch values and the new
+  delinquency data column; those two then passed.
+
+## 15 October 2026, late: What fits the history the lines are set from
+
+The analyst: *"i feel like adjusting those widths should somehow work in such
+a way that it would bring the others into an acceptable range"*, then, on the
+proposal to show every setting's range at once, *"okay your idea works"*.
+
+- Decide, beside "What each setting does when you raise it": for the source
+  picked, the range in which each setting fits that history and whether the
+  setting typed does. Width of Moderate below Moderate-Low begins;
+  Moderate-Low above the width and (floored at zero) below median / yearly
+  move; How rare High is above width x move / spread and up to (worst -
+  median) / spread. The Check's own rules; nothing is changed for the
+  analyst, so each line keeps one meaning.
+- Walkthrough: 8 new reads of the panel's text (B3, B4) against the ranges
+  computed in Python from scale.py; **1,522 of 1,522** in Excel 16, slicer
+  check PASS. test_decide and test_book: 47 passed.
+
+## 16 October 2026, reporting changes marked on every series they touch
+
+The firm, on the commercial proposal's question 13: *"Definitely mark
+reporting changes."* Every change to the Call Report's definitions or forms
+is labelled on every series it touches, in the quarter it took effect, a
+change spread over several quarters included, the consumer book too.
+Built on `commercial-build`, from `threshold-engine-book` (draft PR #442).
+
+- **The registry**, `config/reporting-changes.json`, read and checked by
+  `reporting_changes.py`: one entry per change, every key required (first
+  and last quarter it took effect, the tool's products and measures it
+  touches, the Call Report items for commercial later, one sentence of what
+  changed, its sources with their addresses, and a link to a definition
+  note that already says it). A malformed entry is refused by name, every
+  problem at once, as the book refuses. Twelve changes, each marked verified
+  in `docs/commercial-2026-10/research-breaks.md` or `research-fdic.md` (on
+  main), and each citing its primary source, not those files. Six touch the
+  consumer products: loans classified as trading (2008Q1, all five);
+  FAS 166 and 167 (2010Q1, card and other consumer); auto split out of other
+  consumer (2011Q1, from the FDIC's own LNAUTO definition); CECL (2020Q1);
+  COVID-19 deferrals not reported as past due (2020Q2, the past-due measures,
+  not nonaccrual); and the NDFI and margin-loan revision (2024Q4 to 2025Q2,
+  other consumer, best efforts until 30 June 2025).
+- **Not duplicated:** the card securitization label before 2010 was already
+  in every card series (`books.DEFINITIONS`), and the auto split in every
+  other consumer series. Those two entries link to that note ("The note above
+  that says ... describes this change") with the source, and the registry is
+  refused if the note stops saying it.
+- **The series notes.** `peers build` takes `--reporting-changes FILE`
+  (required; the window's Peers step has the field; the book's new required
+  key `reporting_changes`, null only for a book with no Call Report series).
+  Every file it writes carries a `# reporting-change:` line for each change
+  touching its product and measure within its quarters, so Sources shows it
+  as "Reporting change". The Run tab names the file, the count and its
+  SHA-256.
+- **The table.** The book's workbook has a **Reporting changes** tab after
+  Sources, on the reference-tab template: the registry's own words on what it
+  leaves out, then one row per change (Change, Took effect, Products touched,
+  Measures touched, Call Report items, What changed, Source document). Every
+  heading, the tab and "Reporting change" have Glossary entries, with a test.
+- **The charts.** Carried as one more series of the kind each chart already
+  has, no new machinery. Decide: a diamond along the top of the rating zones
+  in each quarter a change took effect for the row shown, read from its
+  series files' notes, within the window. Peers: a diamond on the pack
+  composite, charge-offs (product and rate picked) and delinquency (product
+  and measure picked), in the legend as "Reporting change". No diamond where
+  the composite has no rate (the test data's other consumer composite is
+  blank in 2011Q1, so the auto split shows no diamond there).
+
+**Left out of the registry, and why** (also in its `_what`): the proposed
+2025 modification-reporting change (final notice not found, NOT CHECKED);
+FAS 141(R) in 2009 (an accounting change the agencies declined to add to
+the report); the 2018 FFIEC 031 scope rule (names no loan category, which
+roster banks switched was not checked); ASC 842 in 2019 (no loan item
+changed); the 2020 drawdowns and PPP (not reporting changes; question 15 is
+open). The 2013Q2 consolidated real estate breakdown is labelled on the
+commercial items only: the record names construction, multifamily, nonfarm
+and farmland, not 1-4 family.
+
+**Proof.** Each test file run on its own (a Python 3.13 environment with
+`openpyxl` and `formulas`): `test_reporting_changes.py` (new) 40 passed: the
+registry in the repository, 18 malformed entries refused by name, every
+problem listed at once, the notes on an affected and an unaffected series
+(other consumer carries the NDFI revision, card does not; 30-89 carries the
+deferrals, nonaccrual does not), a spread change touching a series that
+holds any of its quarters, the link instead of a repeat, Sources, Decide's
+marker recalculated (2020Q1 in the last 48 quarters, 2010Q1 too on every
+quarter, nothing on two rows shown or on mortgage), the book's key and tab.
+`test_peers_workbook.py` 66 passed (the Peers markers recalculated, card net
+2008Q1, 2010Q1 and 2020Q1 where the composite has a rate; card 90+ accruing
+2020Q1 and 2020Q2, nonaccrual 2020Q1 only). `test_peers_cli.py` 125 passed,
+1 skipped, 2 failed: `test_the_regionals_pack_and_no_exemption` and
+`test_pro_forma_adds_the_absorbed_banks_and_leaves_nothing_out` fail the same
+on `threshold-engine-book` as it stands (checked in a clean worktree), from
+the 15 Oct pack picker, not this work. `test_peers_into.py` and
+`test_peers_dashboard.py` 39 passed (the series files byte for byte the same
+under the old and new peer workbook builders). `test_decide.py` 31 and
+`test_workbook.py` 71 passed. `test_book.py`, `test_app.py`,
+`test_launcher.py`, `test_peers_books.py` 184 passed, 4 skipped (Windows and
+window-only). `test_internal_tab.py` and `test_peer_loan_classes.py` 25
+passed; two internal-tab book tests failed before this work too (their test
+book lacked `loan_classes`), fixed with the new key.
+
+- **Got wrong, corrected:** a test first assumed the other consumer
+  composite has a rate in 2011Q1; in the test data it does not, so there is
+  no diamond to draw, and the test now says so.
+
+**Not done.** Not opened in Excel, and the walkthrough was not re-run: the
+diamonds, the tab's layout and the Sources rows are proved by the tests and
+`formulas`, not seen. The book was not built against the real FDIC cache
+(none on this machine), so no consumer series file from real data was read.
+The window's new field was not opened (no display here; the three window
+tests skip). The complete suite was not run in one go. The Peers chart notes
+do not mention the diamond: each note has one 140-character line and it is
+full; the legend and the Glossary carry it.
+
+## 16 October 2026, evening: the commercial data layer
+
+The data every answer to the commercial proposal's open decisions needs, and
+nothing that depends on them: no commercial book file, no segment choice, no
+settings. On `commercial-build`.
+
+- **Six commercial products** that `peers pull` and `peers build` know,
+  beside the consumer five (`books.COMMERCIAL`, `delinquency.FIELDS`): C&I
+  (LNCI; DRCI, CRCI year to date; P3CI, P9CI, NACI), construction
+  (LNRECONS ...), multifamily (LNREMULT ...), nonfarm nonresidential
+  (LNRENRES ...) and its owner-occupied (LNRENROW ...) and other (LNRENROT
+  ...) splits. Every field is one `docs/commercial-2026-10/research-fdic.md`
+  (on main) confirmed; the first-filed quarters are in `delinquency.py`.
+  Built exactly as the consumer products are: year-to-date differencing,
+  the repeated year-to-date and push-down fixes, the jump, the acquisition
+  share, pro forma.
+- **A blank commercial field is not filed, never 0.** The consumer products
+  keep the earlier build's reading (blank = 0), which their tie-outs
+  reproduce; commercial has no earlier build. A bank-quarter with a blank
+  field is out of the bank's book, with its own reason ("a field of the
+  product is not filed (blank) in this window", read over the quarters the
+  jump test reads, i-5 to i) and out of the industry. Read as 0, the splits'
+  2006 quarters would have been a book of 0, 2007Q1 a "jump", and the
+  industry would have written windows over balances of 0.
+- **The 2007 splits: labelled, not started at 2008Q1.** The code's own
+  pattern is the label (card before 2010, other consumer before 2001), so
+  every split series says: 2,925 to 3,044 filers filed the split as 0 and 0
+  in 2007 ($20.1bn to $27.0bn of nonfarm loans), none from 2008Q1, so the
+  industry in 2007 and its windows through 2008Q3 leave those loans out; TFR
+  filers never filed it (838, $64.1bn at 2007Q1; 655 blank at 2011Q4, 17
+  from 2012Q1). Measured on the cache, call forms read from the API.
+- **17 filers on CALLFORM 2** (names of foreign banks) file balances and no
+  charge-off, past-due or nonaccrual field in any quarter since 2006
+  ($77.6bn of C&I at 2026Q2): in no commercial series, said on each.
+- **The reporting-change registry** names the commercial products its
+  entries' own Call Report items touch (none for the 2010 NDFI line, which
+  its source says came out of other loans, not C&I); the 2007Q1 split change
+  links to the splits' "first filed 2007Q1" note.
+- **Fixed on the way:** the peer workbook refused a build of the six (its
+  one-line not-built note listed every product and did not fit); it now
+  counts them when the names do not fit. The window and the internal import
+  keep the consumer five.
+- **Run for real** (cache outside the repository): pull 2006Q1-2026Q2 with
+  `--delinquency yes --mergers 2005-01-01`; build with the consumer book's
+  rule settings, stated as the consumer book's, from 2006Q1 and from 2005Q1
+  (KeyBank's 2006Q4 window needs 2005Q4). The stress table and the Fed
+  comparison are in `docs/commercial-2026-10/stress-tool-rules.md`, every
+  command written out.
+
+**What it found.** Industry within 0.034 points of the as-filed table in
+every segment (0.03 or less on every figure but C&I nonaccrual's worst quarter;
+corrected 17 Oct, the first wording said 0.03 throughout); the C&I gap is the 17 no-flow filers' balances (checked:
+3.1664% with them is the as-filed 3.166%). KeyBank nonaccrual unchanged.
+KeyBank's C&I charge-off series as the workbook would read it is **two
+quarters**: the December 2024 NDFI move (28.6% of its C&I) trips the 25%
+jump for 2024Q4-2025Q4. Over every kept quarter its largest z is 16.4 (2006Q4
+on) and 3.0 (2014Q1 on), against 13.0 and 4.1 as filed. Multifamily's z is
+still in the hundreds. FDIC against the Fed's four-quarter means, 2006Q4 on:
+C&I mean +0.030, largest 0.178 (2010Q1); CRE mean -0.013, largest 0.094
+(2009Q4).
+
+**Proof.** `test_peers_commercial.py` (new): 14 passed, on a fixture taken
+from the real pull (KeyBank, JPMorgan, a TFR filer, a CALLFORM 2 filer, a
+filer that filed the split as 0, 2006Q3-2008Q2), the rates checked against
+arithmetic on the fixture, with the consumer reading shown to give the wrong
+reason. Each file run on its own: peers books 54, delinquency 39, analyses
+33, fdic 45, combinations 36, roster 23, loan classes 6, internal 92,
+reporting changes 40, peers workbook 66, peers into 30, peers dashboard 9,
+internal tab 19, book 16, app 4: all passed. `test_peers_cli.py` 125 passed,
+1 skipped, 2 failed: the same two that fail on the commit before this work
+(checked again today in a detached worktree of 32ce97e4, since removed).
+Also run, after the change: launcher 110 passed, 4 skipped (the window; the
+product test now says it offers the consumer five), compare 6, workbook 71,
+decide 31, synthesis 22, templates 77, workbook synthesis 44. The complete
+suite was not run in one go.
+
+**Not done.** No build before 2005: the 1991Q1-2005Q4 quarters were pulled
+(the pull needed nothing new), but the merger record since 1990 is refused on
+four rows with change codes 213 ("Merger - Assisted") and 225 ("Partial
+Purchase & Assumption - Without Assistance"), which are on neither of
+`fdic.py`'s lists; what they mean is the firm's call. Whether the jump should
+read the December 2024 NDFI move as a book move is the firm's call too;
+nothing was changed. The peer workbook and the series were not opened in
+Excel. The peer dashboard still says "consumer book" in two places. The
+window does not offer the commercial products. The industry delinquency
+effect of the 2007 zero-filed split was not measured.
+
+## 17 October 2026, review fixes to the commercial data layer
+
+A review of the branch raised eight findings. Each was reproduced before it
+was fixed, and each fix has a test in `test_peers_commercial.py` that failed
+before the fix (8 new tests, all red first, for the reason the finding gave).
+
+- **First window marked not filed by the last quarter** (raised twice).
+  `bank_book`'s not-filed test read `range(i - 5, i + 1)`. For the first window
+  that range starts at -1, which Python reads as the last quarter. Now
+  `max(0, i - 5)`.
+- **A 0 where the balance is not filed.** A window with a not-filed quarter
+  among its own four now has no `avg_balance`. Before, a bank that never
+  filed the split showed 0, and KeyBank's owner-occupied 2007Q3 showed three
+  filed balances divided by four (3,244,472) in the Data tab's column G,
+  which the balance charts read. A window where only the quarters the jump
+  test reads (i-5, i-4) are blank keeps its average. `balance_path` now
+  says when an average is missing, rather than failing.
+- **A summed industry written where one of its products was not filed.**
+  `industry` now gives a quarter a flow only if every product in the sum has
+  a filer. Before, any one product was enough. On the real cache (2005Q1 to
+  2026Q2), C&I plus owner-occupied lost the eight windows 2005Q4 to 2007Q3,
+  which had been C&I alone. The CRE sum is unchanged.
+- **Balance kept where the flow was dropped.** In the quarter after a filer
+  left a field blank, its flow was out of the industry but its balance was
+  in. Now both are out (`_counted`). On the real cache this moves 20
+  owner-occupied and 20 other nonfarm windows by at most 0.0010 and 0.0018
+  points. C&I, construction, multifamily and nonfarm are unchanged. **Not
+  changed:** a filer missing from the previous quarter altogether still has
+  its balance counted and its flow left out. That is the earlier build's rule
+  for every product, consumer included, and it was not part of the finding.
+- **An absorbed book that was not filed was read as no book.**
+  `acquired_quarters` now lists the quarter when an absorbed bank's last
+  filing leaves the commercial balance blank, because its share cannot be
+  shown to be under the threshold. The window's reason still reads "an
+  acquisition brought in at least the acquisition share". For these
+  quarters that is stronger than what is known. A separate label would need
+  a new argument through `bank_book` and delinquency, and was not added.
+- **Wrong denominator in the industry notes.** A commercial industry note
+  said "every filer in the cache (4313 in 2026Q2)", but 17 of those file no
+  flow field. Charge-off notes now count the filers whose figures are in
+  the sums (`industry_filers`). Delinquency notes use the industry's own
+  `banks`. On the real cache that is 4,296 of 4,313 for all six commercial
+  products and the CRE sum. Where every filer counts, the wording is
+  unchanged.
+- **2013Q2 real estate breakdown too narrow.** 78 FR 30922 was fetched again
+  today. It says "the nine-category breakdown of loans secured by real
+  estate for the consolidated institution". Three of the nine are 1-4 family
+  (1.c(1), 1.c(2)(a), 1.c(2)(b), recorded in `docs/INTERNAL-IMPORT.md`), so
+  the entry now also labels mortgage and home equity. The 16 Oct entry above
+  ("labelled on the commercial items only ... not 1-4 family") read the
+  research table's category column and not its event text. It was wrong,
+  and it is left in place as written. Whether the FDIC's fields moved is NOT
+  CHECKED, for the 1-4 family lines as for the others.
+
+**Proof.** Each file run on its own (uv, Python 3.13, openpyxl 3.1.5,
+formulas): peers commercial 22, peers books 54, combinations 36, delinquency
+39, analyses 33, peers into 30, peers dashboard 9: all passed. `test_peers_cli.py`:
+125 passed, 1 skipped and 2 failed. The two failures are the same two that
+fail on the commit before these fixes; this was checked today in a detached
+worktree, since removed. Peers workbook: 66 passed, after re-running two
+chart-XML tests with `OPENPYXL_LXML=False`. This machine has lxml, which
+writes `<x/>` where the tests expect `<x />`. Reporting changes: 40
+passed, run with `OPENPYXL_LXML=False`. Before the expectations were
+updated, three tests failed: the registry's product list and mortgage's
+notes, which this change moves on purpose, and the same lxml chart-XML
+difference. The complete suite was not run.
+
+**The review's minor findings, 17 Oct.** Five of the six were fixed, each with
+a test:
+- The registry refuses a line break of any kind (`\r`, U+2028 as well as `\n`)
+  in a name, a sentence or a citation, since a series note is split into
+  lines.
+- A source's address must start `https://`, as its refusal already said.
+- A folder or a file that is not UTF-8, named as the registry, is refused
+  by name instead of crashing.
+- A summed industry series says each definition note once.
+- The stress table's "within 0.03 points" is corrected to 0.034: C&I
+  nonaccrual's worst quarter differs by that much.
+
+Left as found: the 2008Q1 completion of the owner-occupied split is not a
+registry entry. The FDIC's own LNRENROW definition records it, but it is a
+coverage change in the 2007 filings, not a revision, and the split series
+already say so in their notes. `test_reporting_changes.py` and
+`test_peers_commercial.py`: 67 passed. The new duplicate-note assertion was
+not run against the code before its fix.
+
+## 17 October 2026: combined products, All consumer and Credit card + Other consumer
+
+The analyst: *"can we do a composite of all loans as a top line to select
+from? sure, it will only represent what the entire book looks like but who
+else even looks like that? in fact it would be sort of cool to be able to
+somehow combine 2 things to look at ... maybe i want to see unsecured loans +
+credit cards or something"*.
+
+- **A combined product** is `"All consumer"` (the five) or two or more
+  products joined by `" + "` (`books.members`). Its filed fields are its
+  parts' added together before any rate is taken (`books._fields`,
+  `delinquency._fields`), so the rate is dollar-weighted and the jump,
+  acquisition, pro forma and minimum book rules run on the combined book.
+  Every series, the Peers tab, Decide and the live peer group take it as a
+  product. Only KeyBank's share by product on Peers draws the five alone: a
+  combined one would count its parts twice.
+- **The Call Report has no unsecured line.** Other consumer also holds
+  student loans and boats and RVs, so the second product is named for what
+  it is, Credit card + Other consumer. Its peer composite starts 2011Q2.
+- A combined delinquency is written only where every part's fields were
+  filed: All consumer's from 2011Q1, when auto's begin.
+- **KeyBank's own All consumer history runs unbroken from 2007Q1** (78
+  quarters, worst 1.77% at 2010Q1), the first KeyBank series in the book
+  whose history holds the crisis. At the agreed settings the lines fit: High
+  from 1.16%; 2026Q2 is 0.28% (rank 3 of 16 on Peers).
+- Book: 147 series (49 sets of lines), built in 790s. Walkthrough **2,060 of
+  2,060** reads as expected in Excel 16; slicer check PASS. The three Peers
+  notes that listed every product built now say only that none was built:
+  with seven names, two of them ran out of room.
+
+## 18 October 2026: the early-warning dimension, decided from the evidence
+
+Overnight, from the analyst's instruction of 17 October: *"go through
+everything we've been talking about. I want to be able to show why we are
+able to determine some stuff really doesn't matter in these scenarios ...
+get this super hammered out over night. Then when all of it is said and done
+for book 1 we can get book 2 a prompt."*
+
+- **The record** is `docs/early-warning-2026-10/EVIDENCE.html` (and `.pdf`):
+  the decision measure by measure, then the evidence for what was kept and
+  for what was set aside, each drawn from public data by the scripts in
+  `record/` with the data beside them. Refreshed FICO moves with 30-89 and
+  is set aside; card balances under 660 are a peer comparison, not a rating;
+  purchase volume by score, mortgage origination terms and current LTV, and
+  the roll steps on their own are set aside with the chart that decided each.
+- **Built into the book:** for credit card and other consumer, **30+ to
+  charge-off** (industry, peer group, KeyBank; `peers/flows.py`) and
+  KeyBank's **gap to peers** and **gap to industry** on it; for credit card,
+  the large banks' **share paying only the minimum** (Philadelphia Fed;
+  `peers/large_banks.py`, `peers large-banks-pull`). Mortgage stays rated on
+  nonaccrual; the analyst weights it later.
+- **A measure can have no floor at zero.** The workbook's `floor_at_zero`
+  is true of a rate and false of a gap, so the book names the measures that
+  have none under `floor_off`; a name that is not a measure of the book is
+  refused. Each series carries its own flag on Lines by source (hidden
+  column AA, "Floor at zero"), and every rating formula on Decide,
+  Thresholds and Lines by source reads it. `DESIGN-PRINCIPLES.md` §5.
+- **The industry from 1990.** `peers industry-long` writes the industry's
+  card, home equity and other consumer charge-offs over a cache that starts
+  in 1990Q1 as separate series, Source "Industry (every bank) from 1990",
+  committed under `data/industry`; the 2006 series are unchanged. Checked:
+  the six long series equal the 2006 series on every one of their 79
+  overlapping quarters (2006Q4 to 2026Q2), difference 0. Card net peaks
+  at 10.33% in 2010Q2; 1991Q4 4.58%, 2001Q4 5.39%, 2026Q2 4.01%. The
+  registry labels the 2008, 2010, 2011 and 2020 changes on them; the
+  2001 redraw of RC-C item 6 is in the product definitions, not the
+  registry, which has no cited entry for it yet.
+- **`left-out.csv`** beside the series files: every span a series left out
+  as built, with why; its SHA-256 on Run. Book 2 asked for it.
+- The book's title is now **Consumer Industry Analysis**. 164 series.
+- `docs/BOOK2-PROMPT.md` is the prompt for the agent building Book 2, with
+  the coordination note folded in.
+
+**Walkthrough:** book of 164 series built in 858s; **2,258 of 2,258** reads
+as expected in Excel 16; slicer check PASS. **Finding before green:** at
+the agreed settings (width 0.5, Moderate-Low 1.0, z 2.5) the five new
+KeyBank-only rows refuse their own lines, "High would begin beyond the
+worst quarter kept": the four gaps and the minimum-payment share have
+short, narrow histories, so the z that fits is lower (the record's
+section C shows 1.79 for the card gap and 1.56 for the minimum-payment
+share). The book does not pick a z for them; the analyst types one on
+Decide, where What fits says the range. The long industry series rate on
+their own lines (card net 4.01% is 3 Moderate against High from 6.95%).
+
+Settings the analyst has not decided, left as they were: whether the gap
+zones come from the gap's own history or sit around zero (own history as
+built); whether other consumer's lines use the whole history or from 2023
+(whole history; the 2023 step is in the chart); whether the minimum-payment
+share is rated or context (rated, as instructed).
+
+## 18 October 2026, later: the Signals tab
+
+The analyst, on the evidence record: *"i did not want you to simply document
+the evidence we ran, i want the book to include all of the info we have
+found and be able to help show why we might not care"*; *"i do not want it
+to be comparable against only card"*; *"peers should carry throughout the
+workbook"*; *"signals include 30+ nonaccrual"*. A mock-up went three rounds
+(`docs/early-warning-2026-10/record/signals_mock.py`) and then: *"okay put
+this into production and generate a workbook for review"*.
+
+- **Signals** (`signals_tab.py`): the controls (product, measure, source,
+  shift, window; Banks in the pack followed from Peers), where the dollars
+  are, 30+ incl. nonaccrual for every product, 30+ to charge-off with the
+  gap in points (shaded, priced) and the window test, the pipeline, then one
+  section per signal: the raw series, the picked series, the two rescaled
+  and slid on one axis (one grid line = one yearly move, the inputs printed),
+  the fit table against eight fixed series and the pick, and the peer panel
+  in three states (in; out by rule; off under Banks in the pack). Every
+  pick-dependent cell is a formula, on the hidden Signals workings.
+- **Signals data** (`signals_data.py`): the public series behind it, one
+  column each on the book's calendar, with sources and SHA-256 on Run.
+  Fetched by `peers signals-pull` (Philadelphia Fed balances and
+  originations; FRED `DRTSCLCC`), committed under `data/signals` (FHFA NMDB;
+  the 10-Q FICO shares), or computed from the cache (each product's dollars
+  for KeyBank and the industry; the peer group's are summed live on the tab).
+- Dropped from the mock on the analyst's word: the roll step 30-89 to 90+
+  (the pipeline's levels carry it); the dual-axis chart with real units on
+  both axes is not possible live in Excel without macros, so the rescaled
+  chart is on one axis and the units are printed beside it.
+
+## 20 October 2026: design round 3, built
+
+Design's round 3 hand-off (`docs/design/round-3/handoff/`) built in full
+except one point. The analyst: *"Build it, auto axis (Recommended)"*. Design's
+fixed −20..+20 gap axis would have clipped the real Other consumer gap
+(−25.0 in 2019Q2; 7 of 34 quarters outside ±20), so the gap chart's axis
+scales itself.
+
+- **Tabs.** Work (ink): Summary, Decide, Signals, Peers, Thresholds,
+  Internal. Reference (stone): Lines by source, Peer books (was Peer loan
+  classes), Evidence, Glossary, Sources, Run. Data (mist): Data, Signals
+  data, Internal data. Hidden: Peers data, Peers delinquency data, Assess,
+  Chart, Peers workings, Signals workings, and Internal and Internal data
+  when there is no internal file. Backtest is folded into Lines by source
+  (each untested series keeps its reason), and Reporting changes is the
+  last section of Sources. The plain `workbook` command keeps Backtest.
+- **The pack line.** One cell, the workbook name `PackLine`, read by every
+  tab that draws on the peer group. It counts the banks switched on and
+  names those the book's rules took out of 30+ incl. nonaccrual and those
+  switched off on Peers. It first counted only the banks "in", which read 13
+  under a charge-off chart whose tiles counted 14 (the rule is on
+  delinquency data, not charge-offs), so it now counts banks switched on and
+  names the measure the rule reads.
+- **Fine detail, from Excel's pictures of the walk.** Decide: "4
+  Moderate-High" wraps instead of shrinking; the footnotes run to three rows
+  inside column Q; no lines picked reads "—", as on Summary. Summary: the
+  strip is one right-aligned cell (the value's column had opened a gap
+  after it); Needs your attention puts measure, latest and rating under the
+  panel's own columns. Signals: on *fits best*, a best lead below zero is
+  not used, and the overlay's name now says so and gives the lead.
+- **Proof.** Suite 1,356 passed before these fixes; the walkthrough in
+  Excel 16 reads 2,462 of 2,462 as expected, the slicer check passes, no
+  dialogs.
+
+## 20 October 2026, later: Signals follows the product picked
+
+The analyst, reviewing the round-3 book: *"I was hoping the pipeline would
+adjust with the product to show the pipeline in every product we have"*; on
+the gap, *"it says credit card next to it"* when another product was picked;
+*"why would we want silent failure when a function is completely missing"*;
+on Across products, *"Why in the world is it literally just three graphs
+that don't change"*.
+
+- **No silent fallback.** The gap and the pipeline always draw the product
+  picked. A product without the series reads "none for this product in this
+  workbook" in the section's head; nothing falls back to credit card.
+- **The gap, every product.** The peers build already writes 30+ to
+  charge-off for all seven products; the book rates it for credit card and
+  other consumer only (18 Oct). Signals data now carries all seven, so the
+  gap, its price and the window test follow any product. Decide's rows are
+  unchanged. Checked in Excel with each of the seven products picked.
+- **The pipeline and the window test** follow the product; the industry's
+  1, 2 and 3-quarter windows are worked out for all seven.
+- **Across products** is one chart of every product's industry 30-89 days
+  past due, raw, and a table of each against the picked series: the lead
+  that fits best, the fit, the fit without 2020-23, the quarters. The same
+  arithmetic as the signal fit tables; the walkthrough works it out
+  independently.
+- **30+ incl. nonaccrual, every product** now shows all five (auto was
+  missing). The gap's axis reads one decimal: "+0" had labelled half-point
+  steps "+2, +2, +1, +1".
+
+Codex on #466, two findings, both fixed: Across products now takes the two combined products too (All consumer, Credit card + Other consumer, dashed), and Qtrs on every fit table counts the quarters the fit at the lead shown rests on, not both full columns (78 became 75 beside a lead of 3). Walked in Excel: 2,502 of 2,502 reads as expected.
+
+## 20 October 2026, later still: Decide sets the peers and any number of periods left out
+
+Three answers from the analyst, each the recommended one:
+
+- **A source with nothing for the row shown is blank on Decide**, its name too, in Every source on these
+  lines and What each source's own history would give. *"Philadelphia fed is grayed out ... What do we have
+  this for if we don't have it?"* It has one series of the 56 rows (Credit card, share paying only the
+  minimum); Industry from 1990 has six. The row stays (Excel cannot remove one without a macro) and is empty.
+- **Periods left out is a list on Decide**, twelve rows (product, measure, From, To, Why, and a Status read
+  from Assess), Assess's twelve rows read row for row. A product and measure can take any number of them;
+  the table's Leave out from, Leave out to and Why left out became Periods left out and Quarters left out,
+  read from the list. Left out now names every period of the row shown. *"how am I supposed to even
+  address multiple stretches of quarters being left out"* The engine already left out any listed span;
+  only Decide allowed one.
+- **The peer group is set on Decide**: each peer's Pack/Yes/No and Banks in the pack, under the chart, two
+  lists with each bank's state this quarter (in, out by rule, off). Peers' cells read Decide and are no
+  longer inputs. The source is named "Peer group" (it was "Peer group (15 banks)", written at build and
+  never true once a bank was switched off); the pack line carries the live count. *"pure group always
+  says 15 banks ... we should be able to set peers on here probably even an individually"*
+
+Asked why Huntington is out on credit card: only its four-quarter delinquency average, 2026Q1 and 2026Q2,
+by the acquisition share (0.05; certificate 11813 absorbed 2026Q1); its quarter-end rates and its
+charge-offs (pro forma) are in. It returns in 2027Q1. Nothing changed for that; the setting is the book's.
+
+Codex on #467, two findings, both fixed: Quarters left out counted an overlap twice (it now counts the
+series' values on Data less those kept, what the lines lose), and the Glossary still sent readers to Assess.
+
+## 20 October 2026, evening: Saved views
+
+*"the factors on decide are easy to show as proof of threshold work. What about other tabs? Options to
+essentially 'save a view with notes'?"* Proposed three ways (a Saved views tab, a note per tab, pasted
+snapshots); the analyst took the first.
+
+- **Saved views** is a new tab after Peers: for Signals and for Peers, twelve numbered rows, each a note,
+  Data through and the tab's picks, and a Picks now row that reads the tab's own yellow cells to paste from.
+- **Saved view** is a new yellow box on each tab (Signals U5, Peers H5). A number calls up that row: each pick
+  it holds replaces the tab's, which is struck through; a blank cell keeps the tab's pick. The note shows
+  under the box; a row with no picks says so.
+- Peers' rule cells (row 15) and the peer switches on Decide are not part of a view.
+- Built last: every formula that named a pick reads its in-effect cell on Saved views instead. A pick no
+  formula reads is refused at build, not skipped.
+
+Not possible without a macro, and said in the proposal: Excel's own Custom Views are off in a workbook with
+a table, and no formula freezes a value, so a view is its picks; Data through is typed to record when.
+
+Codex on #468 (P1): a rebuild writes a new workbook, so its Saved views start empty. True, and true of
+every cell typed in (Decide's decisions, Periods left out, the peer switches): no build reads the workbook
+it replaces. This entry and the Glossary had said a rebuild keeps the picks; corrected. Carrying typed
+cells across a rebuild is a change to how every input works, put to the analyst rather than made here.
+
+Asked whether a rebuild should carry typed cells forward from the workbook it replaces (every input, Saved
+views only, or neither): the analyst chose to leave it as is. A rebuild starts fresh; the Glossary says so.
+
+## 20 October 2026, night: why a bank is out
+
+*"it should just be more clear why a bank is out, out by rule is one thing but it is hard to keep track of
+all the little rules we have established"* The reason was already on Peers delinquency data (Why no
+four-quarter average); nothing on Decide or Peers said it. The analyst took the recommended layout:
+
+- **The state under each bank names the rule**: out: acquisition, out: jump, out: no rate (out: too few
+  quarters where the data is short). Out by rule stays only for a reason none of these names.
+- **Why out, under the switches on Decide**: each bank out this quarter, in roster order, with one
+  sentence: what happened, in which quarter, the book's setting, and when it is back. Its heading names the
+  measure, the product picked on Peers and the quarter.
+- **The pack line names the rule**: "out by the book's rules on 30+ incl. nonaccrual, 2026Q2: Huntington
+  (acquisition)".
+
+Back in is read from the rule, not assumed: a jump or an acquisition counts while it is one of the
+window's last three quarters (delinquency.bank_delinquency checks k in i-2..i), so the bank is back three
+quarters after the latest one, unless its book moves again. A missing rate counts in any of the four, and
+when a rate returns is not known, so no quarter is given.
+
+**Corrected:** the entry above says Huntington returns on credit card in 2027Q1. It is 2026Q4: the
+acquisition was 2026Q1, and three quarters later it leaves the window. Said in chat on 20 Oct 2026 from a
+four-quarter reading of the window, which the code does not do.
+
+The acquisition share now travels with the delinquency settings (D_KEYS), so the sentence can say it.
+
+Codex on #469, five findings, each fixed before the merge: the acquisition share is refused below 0 or
+not finite, as books.acquired_quarters refuses it; Decide shows no Why out list when delinquency was not
+built, and its heading says "no delinquency was built for this product" when the product picked has none;
+the acquisition sentence reads "at least 5% of its book, or a book not filed", since acquired_quarters
+also lists a quarter whose absorbed book was not filed; and with two jumps or acquisitions in the window
+the sentence names the latest, the one that sets Back in.
+
+## 21 October 2026: how each stage leads the next
+
+*"How do I demonstrate the curved graphs that help show how 30+ leads to 90+ leads to charge off fairly
+reliably"* The pipeline on Signals drew the three stages side by side and measured nothing between them.
+Worked out first on the industry series (CORREL of changes over a year, lead 0 to 8): credit card 30-89 to
+90+ best at 1 quarter (r 0.96), 90+ to gross charge-offs at 3 (0.96), 30-89 to charge-offs at 4 (0.93);
+mortgage 4 / 0 / 4 (0.92, 0.89, 0.91); auto 3 / 0 / 3 (0.62, 0.60, 0.88); home equity 3 / 2 / 5 (0.38,
+0.50, 0.84). The direct 30-89 to charge-off step held in all four; the step through 90+ is weak for auto
+and home equity. The analyst took the recommended form: a lead curve per step.
+
+- **Under The pipeline, for the product drawn**: three charts, 30-89 to 90+ incl. nonaccrual, 90+ to
+  gross charge-offs, 30-89 to gross charge-offs. Each draws the industry, the peer group and KeyBank's Fit
+  (r) at every lead from 4 quarters after to 12 ahead (the leads the signal fit tables use), a dot at each
+  one's best.
+- **A table under each chart**: per source, the best lead, its fit, the fit at that lead without 2020-23,
+  and the quarters it rests on, as the fit tables beside the signals give them.
+- **30-89, not 30+**: 30+ incl. nonaccrual holds the 90+ inside it, so a fit of 30+ against 90+ partly
+  measures the same dollars twice. The Glossary says so under "How each stage leads the next".
+
+Not said on the tab, and true of every fit table here: the changes over a year overlap quarter to
+quarter, so 75 quarters are far fewer independent readings than 75, and an r near 0.9 is less certain
+than the count suggests.
+
+**21 October 2026, Codex on #470.** A fit range where every lead is blank read 0.00 under `MAX`, since Excel's `MAX` of blanks is 0. Fit and Lead now stay blank when `COUNT` of the range is 0, in the stage table and in the two older fit tables (each signal, across products), which had the same formula.

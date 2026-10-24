@@ -11,9 +11,17 @@ holds what it read. The manifest records, per file, the address, when it was fet
 its size and SHA-256, and, per series, how many observations it holds, the
 first and last, and every missing one.
 
-A file the catalog shares (the Fed's spread file, FHFA's mortgage file) is
-downloaded once. A series that fails is recorded with the reason; the pull
+A file the catalog shares (the Fed's spread file, FHFA's mortgage file, the
+NY Fed's household debt workbook) is downloaded once. The household debt
+workbook is named for the quarter it runs to, so its address is read from the
+link on the NY Fed's own page, and recorded. The shown series (the "usable with care" group) are pulled
+with the rest. A series that fails is recorded with the reason; the pull
 does not stop, and it exits non-zero if anything failed.
+
+The bank credit series (fdic_credit.py) are not one download: the threshold
+engine's peers pull fills its FDIC cache (CACHE/fdic, kept across pulls, a
+quarter never fetched twice) and its peers build makes the series, written
+into the day's folder as one file, fdic_credit.json, like any other.
 """
 import datetime
 import hashlib
@@ -23,8 +31,8 @@ import re
 import urllib.parse
 import urllib.request
 
-from . import sources
-from .catalog import SERIES
+from . import fdic_credit, sources
+from .catalog import DERIVED_BY_KEY, SERIES
 
 USER_AGENT = "Mozilla/5.0 (compatible; threshold-engine macro pull; public data)"
 
@@ -43,6 +51,10 @@ def fetch(url, timeout=60):
 def file_name(series):
     if series.source in ("fed_ebp", "fhfa_nmdb"):
         return series.source + (".csv" if series.source == "fed_ebp" else ".zip")
+    if series.source in ("nyfed_sce", "nyfed_hhdc"):
+        return series.source + ".xlsx"
+    if series.source == "fdic":
+        return fdic_credit.FILE
     ext = ".csv" if series.source == "fred" else ".html"
     return "%s-%s%s" % (series.source, series.source_id, ext)
 
@@ -58,26 +70,35 @@ def summarise(points):
             "last": present[-1][0], "last_value": present[-1][1], "missing_after_first": missing}
 
 
-def pull(cache, keys=None, today=None, fetcher=fetch):
-    """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest."""
+def pull(cache, keys=None, today=None, fetcher=fetch, fdic=None):
+    """Fetch the catalog (or ``keys``) into CACHE/<today>/; return the manifest. ``fdic`` builds the bank credit
+    file, ``fdic(cache, today) -> bytes``: the threshold engine's FDIC pull and build by default."""
+    fdic = fdic or fdic_credit.build_file
     today = today or datetime.date.today().isoformat()
+    if keys:
+        # A reading made from two series pulls those two (Fable on #452: `pull mortgage_spread` said "not in
+        # the catalog", pointing at `list`, which lists it).
+        keys = [k for key in keys for k in (DERIVED_BY_KEY[key].inputs if key in DERIVED_BY_KEY else [key])]
+        unknown = sorted(set(keys) - {s.key for s in SERIES})
+        if unknown:
+            # Refused before anything is written: a refused pull used to leave an empty folder for the day,
+            # so the day's real pull went to "-2" (Fable on #452).
+            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
+                             % ", ".join(unknown))
     folder, n = pathlib.Path(cache) / today, 2
     while folder.exists():                  # never write into an earlier pull, even today's
         folder, n = pathlib.Path(cache) / ("%s-%d" % (today, n)), n + 1
     folder.mkdir(parents=True)
     wanted = [s for s in SERIES if keys is None or s.key in keys]
-    if keys:
-        unknown = sorted(set(keys) - {s.key for s in SERIES})
-        if unknown:
-            raise SystemExit("not in the catalog: %s (list them with: python -m threshold_engine.macro list)"
-                             % ", ".join(unknown))
     files, series_out = {}, {}
     for s in wanted:
         name = file_name(s)
         if name not in files:
-            url = sources.url_for(s, today[:4])
+            url = (fdic_credit.URL if s.source == "fdic" else sources.url_for(s, today[:4]))
             try:
-                raw = fetcher(url)
+                if s.source == "nyfed_hhdc":           # the page names the file for the quarter it runs to
+                    url = sources.hhdc_file(fetcher(url))
+                raw = fdic(cache, today) if s.source == "fdic" else fetcher(url)
             except Exception as e:  # recorded, not raised: one bad series must not hide the rest
                 files[name] = {"url": url, "error": "%s: %s" % (type(e).__name__, e)}
             else:
@@ -113,12 +134,22 @@ def latest(cache):
     return max(found)[1] if found else None
 
 
-def load(cache, key, vintage=None):
-    """One series' points from a pull: the newest, or the folder named ``vintage``."""
+def load(cache, key, vintage=None, read=None):
+    """One series' points from a pull: the newest, or the folder named ``vintage``.
+
+    ``read``, when given, keeps the bytes of each file read, by file name. A file is then read once, and every
+    series it holds (FHFA's three, the Fed's three) is parsed from those same bytes, whose fingerprint is the
+    one a run can publish as what it read (Codex on #452)."""
     from .catalog import BY_KEY
     s = BY_KEY[key]
     folder = pathlib.Path(cache) / vintage if vintage else latest(cache)
-    if folder is None or not (folder / file_name(s)).exists():
+    name = file_name(s)
+    if read is not None and name in read:
+        return sources.read(s, read[name]), folder.name
+    if folder is None or not (folder / name).exists():
         raise SystemExit("no pull of %s under %s: run python -m threshold_engine.macro pull --cache %s"
                          % (key, cache, cache))
-    return sources.read(s, (folder / file_name(s)).read_bytes()), folder.name
+    data = (folder / name).read_bytes()
+    if read is not None:
+        read[name] = data
+    return sources.read(s, data), folder.name

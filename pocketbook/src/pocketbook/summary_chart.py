@@ -89,7 +89,10 @@ def vintage(config, table, measures, per_row, labels_of: dict[str, list], booked
     if not years:
         return Vintage(said=SAY_NO_YEARS.format(col=col))
     n = len(years_of)
-    keys = engine.summary_columns(SimpleNamespace(measures=measures, summaries=summaries))
+    # the line-size columns are left off the chart (17 Oct 2026): a year's Summary carries no line figures, and the
+    # firm asked for them on Summary's table and the Line size tab only
+    keys = [k for k in engine.summary_columns(SimpleNamespace(measures=measures, summaries=summaries))
+            if k not in engine.LINE_COLUMNS]
     out = Vintage(years=years, keys=keys)
     for key, whole in summaries.items():
         band, view = key[0], key[1:]

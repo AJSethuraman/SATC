@@ -30,6 +30,16 @@ def _fake(fail=()):
             return b"date,gz_spread,ebp,est_prob\n2026-08-01,1,0.1,0.2\n"
         if "nmdb" in url:
             return nmdb.getvalue()
+        if "hhdc-iframe" in url:
+            from test_macro_sources import hhdc_page
+            return hhdc_page("2026Q1", "2026Q2")
+        if "HHD_C_Report_2026Q2" in url:
+            from test_macro_sources import hhdc_workbook
+            return hhdc_workbook([("25:Q2", 13.0, 0.4, 1.6, 1.2, 1.6, 0.5, 18.3),
+                                  ("26:Q2", 13.1, 0.46, 1.71, 1.26, 1.65, 0.57, 18.77)])
+        if "newyorkfed.org" in url:
+            from test_macro_sources import sce_workbook
+            return sce_workbook([(202607, 12.0), (202608, 13.2), (202609, 12.2)])
         if "data.bls.gov" in url:
             return ('Series Id: CUSR0000SETE <table id="table0"><TR><TH scope="row">2025</TH>'
                     + "<TD>1</TD>" * 9 + "<TD>-(9)</TD><TD></TD><TD>2</TD></TR></table>").encode()
@@ -37,9 +47,16 @@ def _fake(fail=()):
     return fetcher, calls
 
 
+def _fdic(cache, today):
+    """The bank credit file, built by the test rather than by the threshold engine from the FDIC (which a test never
+    reaches): what the pull writes, and how it is read, is what is tested here."""
+    from test_macro_sources import fdic_file
+    return fdic_file()
+
+
 def test_pull_writes_a_dated_folder_with_a_manifest(tmp_path):
     f, calls = _fake()
-    m = P.pull(tmp_path, today="2026-10-15", fetcher=f)
+    m = P.pull(tmp_path, today="2026-10-15", fetcher=f, fdic=_fdic)
     assert m["failed"] == []
     assert len(m["series"]) == len(SERIES)
     u = m["series"]["unemployment"]
@@ -51,14 +68,14 @@ def test_pull_writes_a_dated_folder_with_a_manifest(tmp_path):
 
 def test_a_shared_file_is_downloaded_once(tmp_path):
     f, calls = _fake()
-    P.pull(tmp_path, today="2026-10-15", fetcher=f)
+    P.pull(tmp_path, today="2026-10-15", fetcher=f, fdic=_fdic)
     assert sum("ebp_csv" in c for c in calls) == 1     # three series read the Fed's one file
     assert sum("nmdb" in c for c in calls) == 1
 
 
 def test_one_failure_is_recorded_and_the_rest_still_pull(tmp_path):
     f, _ = _fake(fail=("id=ICSA",))
-    m = P.pull(tmp_path, today="2026-10-15", fetcher=f)
+    m = P.pull(tmp_path, today="2026-10-15", fetcher=f, fdic=_fdic)
     assert m["failed"] == ["initial_claims"]
     assert "refused" in m["series"]["initial_claims"]["error"]
     assert "error" not in m["series"]["unemployment"]
@@ -115,13 +132,24 @@ def test_a_second_pull_the_same_day_gets_its_own_folder(tmp_path):
     assert P.load(tmp_path, "unemployment")[1] == "2026-10-16-10"
 
 
-def test_list_says_where_the_firms_directions_are_and_that_inputs_are_not_rated(capsys):
-    # Walk (W2, W3): list printed "firm sets direction" after the firm had set
-    # them, and said the same of two series that are never rated.
+def test_the_household_debt_file_is_found_on_the_reports_page_fetched_once_and_its_address_recorded(tmp_path):
+    f, calls = _fake()
+    keys = ["household_mortgage", "household_credit_card", "household_total"]
+    m = P.pull(tmp_path, keys=keys, today="2026-10-22", fetcher=f)
+    assert not m["failed"]
+    assert m["files"]["nyfed_hhdc.xlsx"]["url"].endswith("/HHD_C_Report_2026Q2")
+    assert sum("HHD_C_Report" in c for c in calls) == 1 and sum("hhdc-iframe" in c for c in calls) == 1
+    assert m["series"]["household_credit_card"]["last_value"] == 1.26
+
+
+def test_list_names_inputs_and_says_what_the_research_says_of_each_direction(capsys):
+    # Walk (W2, W3): list once printed "firm sets direction" for series that are never rated. Nothing is rated
+    # now: list says which way the research reads stress, where it says, and names the two inputs.
     from threshold_engine.macro.__main__ import main
     main(["list"])
     out = capsys.readouterr().out
-    assert "firm sets direction" not in out
-    assert out.count("the firm's settings") == 9
-    assert all("input, not rated" in line for line in out.splitlines()
+    assert "firm sets" not in out and "the firm's settings" not in out and "rated" not in out
+    assert all("input, not read alone" in line for line in out.splitlines()
                if line.strip().startswith(("income_per_person", "treasury_10y")))
+    assert any(line.strip().startswith("prime_rate") and "research: no direction" in line
+               for line in out.splitlines())

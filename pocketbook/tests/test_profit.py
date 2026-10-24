@@ -460,7 +460,7 @@ def test_the_words_are_p_value_and_not_significant(walk_book):
     assert not found, found
     assert "p-value" in text and "not significant" in text
     ws = walk_book[results.POCKETS]
-    assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == results.CHANCE_HEAD
+    assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == live.SIG_HEAD.format("95%")
     check = tabs.record(walk_book)
     assert check["Standard error"].startswith("The typical distance between a rate calculated from this many loans "
                                               "and its true value.")

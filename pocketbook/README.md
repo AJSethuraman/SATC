@@ -134,7 +134,7 @@ After that, the whole routine is:
    launcher (with a pink line naming each one); after a Run it shows what the
    Run found and the five largest pockets that are worse and material now,
    picked live from Control's lines.
-   - **Control:** three blocks. *Changes now* (solid boxes) holds the lines the
+   - **Control:** four blocks. *Changes now* (solid boxes) holds the lines the
      result tabs read by formula: worse at, better at, the profit line, how
      sure, materiality and what a pocket is judged against; *Comes to* shows
      what an answer amounts to (worse at and better at as a multiple, from Set
@@ -146,7 +146,12 @@ After that, the whole routine is:
      and nothing is picked for you. Beside fewest loans, worse at and better
      at, the value worked out from this extract ("suggested: 69, from this
      extract"). On the right, what each materiality level keeps, live. A test
-     of a new variable isn't asked the profit line.
+     of a new variable isn't asked the profit line. Last, under the launcher's
+     block, *Line size* (17 Oct 2026): the four lines of the Line size tab and
+     the switch *Tripped by being worse on*, live as Changes now's are, each
+     opening on the firm's starting line marked *(suggested)*. A workbook set
+     up before these rows existed still Runs, on the starting lines, and the
+     next Set up writes them.
      One question more, *Treat values ≤ -99,000,000 as missing in every
      column?* (the firm, 30 Sep 2026: *"I can guarantee you that they are the
      bureau missing codes"*). Yes makes every value at or below -99,000,000
@@ -234,13 +239,22 @@ After that, the whole routine is:
      "N worse and material · N worse · N shown". Each row: the pocket, its
      loans, its rate and the rest's, the gap, the excess, **Worse?** (Yes, Not
      sure, No, Too few losses) and **Material?** (Yes, No) in separate columns,
-     the p-value, and the smallest gap a pocket its size could have caught.
+     **Significant at 95%?** (the heading follows How sure on Control: *Yes,
+     worse*, *Yes, better*, *Borderline* or *No* by the p-value alone, or the
+     reason there is none to read, such as *Too few losses to test*; the firm,
+     17 Oct 2026), then the **p-value** beside it, a number shown as a percentage
+     (after the allowance for many tests), so a filter or a slicer on either
+     column sees few values, and the smallest gap a pocket its size could have
+     caught. Excel's filter arrows sit on every heading.
      Control's *Judged against* picks the rest: every other loan in its band,
      or every other loan in the book, for the gap and the dollars alike
-     (OC-44). The worse pockets come first, largest dollars first; the order
-     is the last Run's, the verdicts and dollars are live. On the split view,
-     pockets from grids that don't hold the split's partner fixed come last, in
-     gray, reading "No: may be mostly FICO".
+     (OC-44). The rows come in seven groups for investigation (the firm, 17 Oct
+     2026): Yes, worse; Borderline and No losing more; no test; No and
+     Borderline losing less; Yes, better; each by its excess, largest first, so
+     the pocket that loses least against the rest comes last. The order is the last Run's, the verdicts
+     and dollars are live. On the split view, pockets from grids that don't hold
+     the split's partner fixed read *Mixed with FICO*, sit with the no-test
+     group, in gray, and Holds FICO fixed? reads "No: may be mostly FICO".
    - **RANR vs GCOs** (*Paid, cost, kept* until 30 Sep 2026: the firm, *"I want to
      use the terms I gave you out of the box so it can be understood by
      insiders"*; a Run takes the old tab off a workbook written before): one grid
@@ -265,10 +279,39 @@ After that, the whole routine is:
      add up to. Booked is the booked dollars under RANR (a loan with no
      readable RANR is left out of both), so RANR ÷ Booked is RANR's own rate. Every
      figure is worked out in the Run; the dollars show in thousands only when
-     the whole book's booked would not fit the column, as on Grids. The block ends
-     on each pocket's **Avg line** and **× book**, as on Summary (2 Oct 2026), in
+     the whole book's booked would not fit the column, as on Grids. Each pocket's
+     **Avg line** and **× book** sit right after Booked, as RANR ÷ Booked sits
+     after RANR (2 Oct 2026; moved beside Booked 17 Oct 2026), in
      Loan size's one neutral hue, darker the bigger the line against the book's,
      never red or green; the totals carry them too (Whole book 1.00×).
+   - **Line size** (17 Oct 2026, the firm: *"we give assignments that are too
+     high to these people"*, in a view of its own *"so it isn't all in one spot
+     and too much for a user"*), right after RANR vs GCOs: one grid at a time,
+     each pocket's **Avg line**, **Line × book**, **Line on bad loans ÷ line on
+     good loans** (the average line of its bad loans over its good loans'),
+     **Share of line lost on bad loans** (GCOs over booked, bad loans with both
+     amounts), and with a Charge-off date the **Months to charge-off** straight,
+     **weighted by line** (Σ months × booked ÷ Σ booked) and **Line-weighted ÷
+     straight**; every figure counts only loans with a booked amount, as Avg
+     line does. **Signals** counts the four ratios past their lines on Control
+     and names them ("2 of 4: Bad got bigger lines, Big lines fail sooner"):
+     *Big line* (Line × book at or above 1.25×), *Bad got bigger lines* (1.25×),
+     *Lost the whole line* (80%) and *Big lines fail sooner* (at or below
+     0.90×; only with a Charge-off date, and otherwise the count is out of 3).
+     **Tripped by** says why a pocket counts: *Worse on bad loans* or *Worse on
+     GCOs* (Worse? reads Yes on Pockets, as the switch *Tripped by being worse
+     on* picks: Bad loans, GCOs or Either; a blank switch reads as Either), or
+     *Bad got bigger lines*. A
+     **Show** dropdown picks *Pockets where something tripped* (the default),
+     *2 or more signals* or *All pockets*, by formula from the hidden `_lines`,
+     as Pockets' Show does. Rows are sorted by Line on bad loans ÷ line on good
+     loans, highest first, as of the last Run; each ratio is red past its line,
+     and nothing else is judged. Both months averages count the same loans
+     (a charge-off date and a booked amount), so the straight one can differ
+     from Grids' Months to charge-off (avg), which counts every charged-off
+     loan. Summary carries the two figures that need no dates after % of
+     booked and the two months figures after the median months, and Grids
+     offers the first two as Measures, shown and not compared.
    - **Grids:** a Grid and a Measure dropdown, and four blocks one under
      another from the left column (the firm, 30 Sep 2026: side by side, a
      narrow grid left a blank middle): the rate,
@@ -518,8 +561,8 @@ but flag it somehow"*, and they chose the word). A dollar rate's p-value comes
 from shuffling, so another run could land it a little differently. When the
 p-value that decides a verdict is a shuffled one within 2 of its own standard
 errors of the bar, either side, the verdict says so: *Net drain · borderline
-(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets' Worse?,
-RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
+(p 0.048)*, *Not sure · borderline (p 0.052)*. It shows on Pockets as
+*Borderline* in Significant at 95%?, its p-value beside it, and on RANR vs GCOs' Together, the Split tab's p-values, Start here's five largest
 and tile, the Run's *Worst for* line and Record, which states the rule and
 counts them. The color, order and counts stay the verdict's. A z test's or an
 exact test's p-value is the same on every run, so Bad loans are never

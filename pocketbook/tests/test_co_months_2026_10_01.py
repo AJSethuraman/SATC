@@ -161,7 +161,8 @@ def test_summary_by_channel_ties_to_the_loan_file(made, tmp_path):
     need_soffice()
     b, _, rows = made
     shown, heads = _summary(b, tmp_path / "ch.xlsx", "CHANNEL")
-    assert heads[-2:] == [AVG, MED]
+    # the months close the table, then the line-size columns built on them (17 Oct 2026)
+    assert heads[-4:] == [AVG, MED, results.LINE_HEADS[8], results.LINE_HEADS[9]]
     for lab, got in shown.items():
         rs = rows if lab == "All" else [r for r in rows if (r["CHANNEL"] or "(blank)") == lab]
         avg, med = _want(rs)
@@ -261,11 +262,11 @@ def test_columns_offers_charge_off_date_and_does_not_grey_it(made):
 
 
 def test_without_a_charge_off_date_nothing_changes(made):
-    """The same book without CO_DATE: Summary has its fifteen columns and no more, Grids no new Measure, and no
-    warning names months to charge-off."""
+    """The same book without CO_DATE: Summary has its seventeen columns and no more (the two line-size columns that
+    need no dates, 17 Oct 2026, included), Grids no new Measure, and no warning names months to charge-off."""
     _, b, _ = made
     assert _heads(b) == ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "Avg line", "Line × book",
-                         "% of booked", "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked",
+                         "% of booked", results.LINE_HEADS[5], results.LINE_HEADS[6], "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked",
                          "% of RANR"]
     assert results.CO_MONTHS_NAME not in tabs.options(load_workbook(b), results.GRIDS, "Measure")
     assert "months to charge-off" not in _text(b).lower()

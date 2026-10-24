@@ -1,0 +1,232 @@
+﻿{
+    "excel":  "16.0",
+    "workbook":  "C:\\Users\\ajish\\AppData\\Local\\Temp\\claude\\C--Users-ajish-SATC\\261f7248-3cbc-4aa2-aacf-e4ff9181778a\\scratchpad\\tieout_nac\\book.xlsx",
+    "series":  "Credit card - Nonaccrual - KeyBank",
+    "read_at":  "2026-10-15T00:48:09Z",
+    "summary":  {
+                    "row":  11,
+                    "column":  "G",
+                    "group":  {
+                                  "sheet":  "Summary",
+                                  "cell":  "G5",
+                                  "value":  "KeyBank",
+                                  "text":  "KeyBank",
+                                  "formula":  "KeyBank",
+                                  "value_r17":  "KeyBank"
+                              },
+                    "heading":  {
+                                    "sheet":  "Summary",
+                                    "cell":  "G6",
+                                    "value":  "Latest (%)",
+                                    "text":  "Latest (%)",
+                                    "formula":  "Latest (%)",
+                                    "value_r17":  "Latest (%)"
+                                },
+                    "measure":  {
+                                    "sheet":  "Summary",
+                                    "cell":  "B11",
+                                    "value":  "Nonaccrual",
+                                    "text":  "Nonaccrual",
+                                    "formula":  "Nonaccrual",
+                                    "value_r17":  "Nonaccrual"
+                                },
+                    "latest":  {
+                                   "sheet":  "Summary",
+                                   "cell":  "G11",
+                                   "value":  0.69081329478333975,
+                                   "text":  "0.69",
+                                   "formula":  "=IFERROR(INDEX(Thresholds!$J$5:$J$99,MATCH(\"Credit card - Nonaccrual - KeyBank\",Thresholds!$A$5:$A$99,0)),\"\")",
+                                   "value_r17":  "0.69081329478333975"
+                               },
+                    "rating":  {
+                                   "sheet":  "Summary",
+                                   "cell":  "H11",
+                                   "value":  "5 High",
+                                   "text":  "5 High",
+                                   "formula":  "=IFERROR(IF(INDEX(Thresholds!$K$5:$K$99,MATCH(\"Credit card - Nonaccrual - KeyBank\",Thresholds!$A$5:$A$99,0))=\"\",IF(INDEX(Thresholds!$M$5:$M$99,MATCH(\"Credit card - Nonaccrual - KeyBank\",Thresholds!$A$5:$A$99,0))\u003c\u003e\"\",\"Refused\",\"\"),INDEX(Thresholds!$K$5:$K$99,MATCH(\"Credit card - Nonaccrual - KeyBank\",Thresholds!$A$5:$A$99,0))\u0026\" \"\u0026INDEX(Thresholds!$L$5:$L$99,MATCH(\"Credit card - Nonaccrual - KeyBank\",Thresholds!$A$5:$A$99,0))),\"\")",
+                                   "value_r17":  "5 High"
+                               },
+                    "quarter_line":  {
+                                         "sheet":  "Summary",
+                                         "cell":  "A2",
+                                         "value":  "Latest quarter: 2026Q2. Each rating compares that quarter with the series\u0027 own history: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.",
+                                         "text":  "Latest quarter: 2026Q2. Each rating compares that quarter with the series\u0027 own history: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.",
+                                         "formula":  "=\"Latest quarter: \"\u0026INDEX(Thresholds!$I$5:$I$99,1)\u0026\". Each rating compares that quarter with the series\u0027 own history: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High.\"",
+                                         "value_r17":  "Latest quarter: 2026Q2. Each rating compares that quarter with the series\u0027 own history: 1 Low, 2 Moderate-Low, 3 Moderate, 4 Moderate-High, 5 High."
+                                     }
+                },
+    "thresholds":  {
+                       "row":  17,
+                       "series":  {
+                                      "sheet":  "Thresholds",
+                                      "cell":  "A17",
+                                      "value":  "Credit card - Nonaccrual - KeyBank",
+                                      "text":  "Credit card - Nonaccrual - KeyBank",
+                                      "formula":  "Credit card - Nonaccrual - KeyBank",
+                                      "value_r17":  "Credit card - Nonaccrual - KeyBank"
+                                  },
+                       "quarter":  {
+                                       "sheet":  "Thresholds",
+                                       "cell":  "I17",
+                                       "value":  "2026Q2",
+                                       "text":  "2026Q2",
+                                       "formula":  "2026Q2",
+                                       "value_r17":  "2026Q2"
+                                   },
+                       "latest":  {
+                                      "sheet":  "Thresholds",
+                                      "cell":  "J17",
+                                      "value":  0.69081329478333975,
+                                      "text":  "0.69",
+                                      "formula":  "0.69081329478334",
+                                      "value_r17":  "0.69081329478333975"
+                                  },
+                       "rating":  {
+                                      "sheet":  "Thresholds",
+                                      "cell":  "K17",
+                                      "value":  5,
+                                      "text":  "5",
+                                      "formula":  "=IF($M17\u003c\u003e\"\",\"\",IF(AND(J17\u003c=0,TRUE),1,1+IF(Assess!$R$31=\"worse\",COUNTIF($E17:$H17,\"\u003c=\"\u0026J17),COUNTIF($E17:$H17,\"\u003c\"\u0026J17))))",
+                                      "value_r17":  "5"
+                                  },
+                       "rating_name":  {
+                                           "sheet":  "Thresholds",
+                                           "cell":  "L17",
+                                           "value":  "High",
+                                           "text":  "High",
+                                           "formula":  "=IF(K17=\"\",\"\",CHOOSE(K17,\"Low\",\"Moderate-Low\",\"Moderate\",\"Moderate-High\",\"High\"))",
+                                           "value_r17":  "High"
+                                       },
+                       "check":  {
+                                     "sheet":  "Thresholds",
+                                     "cell":  "M17",
+                                     "value":  "",
+                                     "text":  "",
+                                     "formula":  "=IF(SUMPRODUCT((Assess!$N$117:$N$128=$A17)*(Assess!$AQ$117:$AQ$128=1)*(Assess!$AP$117:$AP$128=0))\u003e0,\"Refused: a period left out for this product is not whole; its Status on Assess says what is missing\",IF(OR(NOT(ISNUMBER(Assess!$O$31)),Assess!$O$31\u003c0),\"Refused: Moderate\u0027s half-width must be 0 or more\",IF(OR(NOT(ISNUMBER(Assess!$Q$31)),Assess!$Q$31\u003c=0),\"Refused: High\u0027s z must be above 0\",IF(NOT(ISNUMBER(Assess!$P$31)),\"Refused: Moderate-Low\u0027s step must be a number\",IF(ISERROR(C17),\"Refused: too little history kept for a typical yearly move\",IF(AND(TRUE,B17\u003c=0),\"Refused: the median is at or below zero\",IF(Assess!$P$31\u003c=Assess!$O$31,\"Refused: Moderate-Low must begin further from the median than Moderate\",IF(1*(H17-G17)\u003c=0,\"Refused: High must begin beyond Moderate-High\u0027s line\",IF(1*(D17-H17)\u003c0,\"Refused: High would begin beyond the worst quarter kept\",IF(AND(TRUE,E17\u003c=0),\"Refused: Moderate-Low would begin at or below zero\",\"\"))))))))))",
+                                     "value_r17":  ""
+                                 },
+                       "header_j":  {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "J4",
+                                        "value":  "Latest value",
+                                        "text":  "Latest value",
+                                        "formula":  "Latest value",
+                                        "value_r17":  "Latest value"
+                                    }
+                   },
+    "data":  {
+                 "column":  "N",
+                 "last_row":  83,
+                 "header":  {
+                                "sheet":  "Data",
+                                "cell":  "N1",
+                                "value":  "Credit card - Nonaccrual - KeyBank",
+                                "text":  "Credit card - Nonaccrual - KeyBank",
+                                "formula":  "Credit card - Nonaccrual - KeyBank",
+                                "value_r17":  "Credit card - Nonaccrual - KeyBank"
+                            },
+                 "quarter":  {
+                                 "sheet":  "Data",
+                                 "cell":  "A83",
+                                 "value":  "2026Q2",
+                                 "text":  "2026Q2",
+                                 "formula":  "2026Q2",
+                                 "value_r17":  "2026Q2"
+                             },
+                 "latest":  {
+                                "sheet":  "Data",
+                                "cell":  "N83",
+                                "value":  0.69081329478333975,
+                                "text":  "0.69",
+                                "formula":  "0.69081329478334",
+                                "value_r17":  "0.69081329478333975"
+                            },
+                 "previous_quarter":  {
+                                          "sheet":  "Data",
+                                          "cell":  "A82",
+                                          "value":  "2026Q1",
+                                          "text":  "2026Q1",
+                                          "formula":  "2026Q1",
+                                          "value_r17":  "2026Q1"
+                                      },
+                 "previous":  {
+                                  "sheet":  "Data",
+                                  "cell":  "N82",
+                                  "value":  0.79814513235253526,
+                                  "text":  "0.80",
+                                  "formula":  "0.798145132352535",
+                                  "value_r17":  "0.79814513235253526"
+                              }
+             },
+    "decide":  {
+                   "selected_series":  {
+                                           "sheet":  "Decide",
+                                           "cell":  "AA1",
+                                           "value":  "Credit card - Nonaccrual - KeyBank",
+                                           "text":  "Credit card - Nonaccrual - KeyBank",
+                                           "formula":  "=IFERROR(INDEX($O$13:$O$107,MATCH(1,$P$13:$P$107,0)),\"\")",
+                                           "value_r17":  "Credit card - Nonaccrual - KeyBank"
+                                       },
+                   "series_shown":  {
+                                        "sheet":  "Decide",
+                                        "cell":  "AA2",
+                                        "value":  1,
+                                        "text":  "",
+                                        "formula":  "=SUM($P$13:$P$107)",
+                                        "value_r17":  "1"
+                                    },
+                   "thresholds_row":  {
+                                          "sheet":  "Decide",
+                                          "cell":  "AA3",
+                                          "value":  13,
+                                          "text":  "",
+                                          "formula":  "=MATCH($AA$1,Thresholds!$A$5:$A$99,0)",
+                                          "value_r17":  "13"
+                                      },
+                   "headline_row":  112,
+                   "headline":  {
+                                    "sheet":  "Decide",
+                                    "cell":  "B112",
+                                    "value":  "KeyBank, nonaccrual, credit card: 0.69% in 2026Q2  ·  rating 5 High",
+                                    "text":  "KeyBank, nonaccrual, credit card: 0.69% in 2026Q2  ·  rating 5 High",
+                                    "formula":  "=IF(NOT(AND($AA$2=1,ISNUMBER($AA$3))),\"\",INDEX($D$13:$D$107,MATCH(1,$P$13:$P$107,0))\u0026\", \"\u0026LOWER(INDEX($C$13:$C$107,MATCH(1,$P$13:$P$107,0)))\u0026\", \"\u0026LOWER(INDEX($B$13:$B$107,MATCH(1,$P$13:$P$107,0)))\u0026\": \"\u0026TEXT(INDEX(Thresholds!$J$5:$J$99,$AA$3),\"0.00\")\u0026\"% in \"\u0026INDEX(Thresholds!$I$5:$I$99,$AA$3)\u0026\"  ·  \"\u0026IF(INDEX(Thresholds!$K$5:$K$99,$AA$3)=\"\",\"no rating: see the Check\",\"rating \"\u0026INDEX(Thresholds!$K$5:$K$99,$AA$3)\u0026\" \"\u0026INDEX(Thresholds!$L$5:$L$99,$AA$3)))",
+                                    "value_r17":  "KeyBank, nonaccrual, credit card: 0.69% in 2026Q2  ·  rating 5 High"
+                                },
+                   "compare_row":  [
+                                       {
+                                           "row":  117,
+                                           "source":  {
+                                                          "sheet":  "Decide",
+                                                          "cell":  "B117",
+                                                          "value":  "KeyBank",
+                                                          "text":  "KeyBank",
+                                                          "formula":  "KeyBank",
+                                                          "value_r17":  "KeyBank"
+                                                      },
+                                           "latest":  {
+                                                          "sheet":  "Decide",
+                                                          "cell":  "E117",
+                                                          "value":  0.69081329478333975,
+                                                          "text":  "0.69",
+                                                          "formula":  "=IF($AA$2\u003c\u003e1,\"\",IFERROR(INDEX(Thresholds!$J$5:$J$99,MATCH(INDEX($B$13:$B$107,MATCH(1,$P$13:$P$107,0))\u0026\" - \"\u0026INDEX($C$13:$C$107,MATCH(1,$P$13:$P$107,0))\u0026\" - KeyBank\",Thresholds!$A$5:$A$99,0)),\"\"))",
+                                                          "value_r17":  "0.69081329478333975"
+                                                      },
+                                           "rating":  {
+                                                          "sheet":  "Decide",
+                                                          "cell":  "F117",
+                                                          "value":  "5 High",
+                                                          "text":  "5 High",
+                                                          "formula":  "=IF($AA$2\u003c\u003e1,\"\",IFERROR(IF(INDEX(Thresholds!$K$5:$K$99,MATCH(INDEX($B$13:$B$107,MATCH(1,$P$13:$P$107,0))\u0026\" - \"\u0026INDEX($C$13:$C$107,MATCH(1,$P$13:$P$107,0))\u0026\" - KeyBank\",Thresholds!$A$5:$A$99,0))=\"\",\"Refused\",INDEX(Thresholds!$K$5:$K$99,MATCH(INDEX($B$13:$B$107,MATCH(1,$P$13:$P$107,0))\u0026\" - \"\u0026INDEX($C$13:$C$107,MATCH(1,$P$13:$P$107,0))\u0026\" - KeyBank\",Thresholds!$A$5:$A$99,0))\u0026\" \"\u0026INDEX(Thresholds!$L$5:$L$99,MATCH(INDEX($B$13:$B$107,MATCH(1,$P$13:$P$107,0))\u0026\" - \"\u0026INDEX($C$13:$C$107,MATCH(1,$P$13:$P$107,0))\u0026\" - KeyBank\",Thresholds!$A$5:$A$99,0))),\"Not in this workbook\"))",
+                                                          "value_r17":  "5 High"
+                                                      }
+                                       }
+                                   ]
+               },
+    "pictures":  [
+                     "ours-summary.png",
+                     "ours-thresholds.png",
+                     "ours-data.png",
+                     "ours-decide-slicers.png",
+                     "ours-decide-headline.png"
+                 ]
+}

@@ -21,6 +21,11 @@ BLS = ("https://data.bls.gov/timeseries/{id}?from_year={start}&to_year={end}"
 FED_EBP = "https://www.federalreserve.gov/econres/notes/feds-notes/ebp_csv.csv"
 FHFA_NMDB = ("https://www.fhfa.gov/document/d/nmdb/"
              "nmdb-mortgage-performance-statistics-national-census-areas-quarterly.zip")
+NYFED_SCE = "https://www.newyorkfed.org/medialibrary/interactives/sce/sce/downloads/data/frbny-sce-data.xlsx"
+#: The household debt report's page. Its data file is named for the quarter it runs to, so the pull reads the
+#: link the page itself gives for "Data" (HHD_C_Report_2026Q2 on 22 Oct 2026, the workbook itself).
+NYFED_HHDC_PAGE = "https://www.newyorkfed.org/householdcredit/hhdc-iframe"
+NYFED_HHDC_LINK = re.compile(r'href="(/medialibrary/interactives/householdcredit/data/xls/HHD_C_Report_(\d{4})Q([1-4]))"')
 
 NUMBER = re.compile(r"-?\d+(\.\d+)?")
 
@@ -35,7 +40,19 @@ def url_for(series, today_year):
         return FED_EBP
     if series.source == "fhfa_nmdb":
         return FHFA_NMDB
+    if series.source == "nyfed_sce":
+        return NYFED_SCE
+    if series.source == "nyfed_hhdc":
+        return NYFED_HHDC_PAGE          # the page; hhdc_file reads the file's address from it
     raise ValueError("no source of kind %r" % series.source)
+
+
+def hhdc_file(page):
+    """The address of the newest data file the household debt report's page links to."""
+    found = sorted((int(y), int(q), path) for path, y, q in NYFED_HHDC_LINK.findall(page.decode("utf-8", "replace")))
+    if not found:
+        raise ValueError("the NY Fed's household debt page links no data file (HHD_C_Report_YYYYQN)")
+    return "https://www.newyorkfed.org" + found[-1][2]
 
 
 def _value(text):
@@ -107,7 +124,95 @@ def read_fhfa_nmdb(raw, selector):
     return sorted(out)
 
 
-READERS = {"fred": read_fred, "bls": read_bls, "fed_ebp": read_fed_ebp, "fhfa_nmdb": read_fhfa_nmdb}
+#: What the SCE file's delinquency sheet says its column holds, checked so another sheet is never read as it.
+SCE_MISSED = "Mean probability of missing minimum debt payment over the next three months"
+
+
+def read_nyfed_sce(raw, sheet):
+    """The NY Fed's Survey of Consumer Expectations workbook: one sheet per question, the month as 201306 in
+    column A and the mean in column B, under four rows of source and title. A month with no number is kept as
+    missing."""
+    from openpyxl import load_workbook
+    try:
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception as e:
+        raise ValueError("not the NY Fed's SCE workbook: %s" % e)
+    if sheet not in wb.sheetnames:
+        raise ValueError("the SCE workbook has no sheet %r" % sheet)
+    rows = list(wb[sheet].iter_rows(values_only=True))
+    heads = [str(c) for r in rows[:6] for c in r if isinstance(c, str)]
+    if SCE_MISSED not in heads:
+        raise ValueError("the SCE sheet %r does not hold %r" % (sheet, SCE_MISSED))
+    out = []
+    for r in rows:
+        month = r[0] if r else None
+        if isinstance(month, (int, float)) and not isinstance(month, bool) and 190001 <= month <= 299912:
+            month = int(month)
+            if not 1 <= month % 100 <= 12:
+                raise ValueError("the SCE sheet %r has %s where a month belongs" % (sheet, r[0]))
+            v = r[1] if len(r) > 1 else None
+            out.append(("%04d-%02d-01" % (month // 100, month % 100),
+                        float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None))
+    if not out:
+        raise ValueError("no months in the SCE sheet %r" % sheet)
+    return out
+
+
+#: What each sheet of the household debt workbook the tool reads says it holds (its title and unit, as on 22 Oct
+#: 2026), checked so another sheet is never read as it. A column named alone is read from Page 3 Data.
+HHDC_SHEET = "Page 3 Data"
+HHDC_SHEETS = {"Page 3 Data": ("Total Debt Balance and Its Composition", "Trillions of $"),
+               "Page 17 Data": ("Number of Consumers with New Foreclosures and Bankruptcies", "Thousands")}
+HHDC_QUARTER = re.compile(r"^(\d{2}):Q([1-4])$")
+
+
+def read_nyfed_hhdc(raw, column):
+    """The NY Fed's household debt workbook: on each sheet, the quarter as 03:Q1 in column A and one column per
+    heading. ``column`` is a heading on Page 3 Data (Mortgage, HE Revolving, Auto Loan, Credit Card, Student
+    Loan, Other, Total, in trillions of dollars), or "<sheet>: <heading>" for another sheet the tool knows
+    (Page 17 Data: bankruptcy, people with a new bankruptcy on their credit report, in thousands). A quarter
+    with no number is kept as missing."""
+    from openpyxl import load_workbook
+    sheet, _, column = column.rpartition(": ")
+    sheet = sheet or HHDC_SHEET
+    if sheet not in HHDC_SHEETS:
+        raise ValueError("the tool reads no household debt sheet %r" % sheet)
+    title, unit = HHDC_SHEETS[sheet]
+    try:
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception as e:
+        raise ValueError("not the NY Fed's household debt workbook: %s" % e)
+    if sheet not in wb.sheetnames:
+        raise ValueError("the household debt workbook has no sheet %r" % sheet)
+    rows = list(wb[sheet].iter_rows(values_only=True))
+    top = [str(c).strip() for r in rows[:3] for c in r if isinstance(c, str)]
+    if title.lower() not in (x.lower() for x in top) or unit not in top:
+        raise ValueError("the sheet %r is not %r in %r" % (sheet, title, unit))
+    head = next((r for r in rows[:8] if column in r), None)
+    if head is None:
+        raise ValueError("the household debt sheet has no column %r" % column)
+    j = head.index(column)
+    out = []
+    for r in rows:
+        m = HHDC_QUARTER.match(r[0]) if r and isinstance(r[0], str) else None
+        if m:
+            v = r[j] if len(r) > j else None
+            out.append(("20%s-%02d-01" % (m.group(1), 3 * int(m.group(2)) - 2),
+                        float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None))
+    if not out:
+        raise ValueError("no quarters in the household debt sheet")
+    if [d for d, _ in out] != sorted({d for d, _ in out}):
+        raise ValueError("the household debt sheet's quarters are not in order or repeat")
+    return out
+
+
+def read_fdic(raw, sid):
+    from . import fdic_credit
+    return fdic_credit.read(raw, sid)
+
+
+READERS = {"fred": read_fred, "bls": read_bls, "fed_ebp": read_fed_ebp, "fhfa_nmdb": read_fhfa_nmdb,
+           "nyfed_sce": read_nyfed_sce, "nyfed_hhdc": read_nyfed_hhdc, "fdic": read_fdic}
 
 
 def read(series, raw):

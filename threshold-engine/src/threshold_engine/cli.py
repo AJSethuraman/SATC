@@ -176,6 +176,11 @@ def _parser():
     _peers_parser(sub)
     _template_parser(sub)
     _internal_parser(sub)
+    bk = sub.add_parser("book", help="one workbook from one book file: Summary, Decide (one series at a time, "
+                                     "decisions kept in the file), Thresholds, Assess and, if the book says so, "
+                                     "the peer tabs. Every setting is in the book; none has a default")
+    bk.add_argument("book", help="the book (.json); its relative paths are read from its own folder")
+    bk.add_argument("out", help="the .xlsx to write")
     sy = sub.add_parser("synthesize", help="internal, industry and peers side by side, line by line; "
                         "each line taken from the source you name")
     g = sy.add_argument_group("the series, all required except the peers")
@@ -210,6 +215,20 @@ def _peer_products():
     return list(PRODUCTS)
 
 
+def _peer_product(text):
+    """A product, or a combined one: "All consumer", or two or more joined by
+    " + " (books.members)."""
+    from .peers.books import members
+    try:
+        members(text)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e))
+    return text
+
+
+_PRODUCTS_HELP = "%s; \"All consumer\"; or two or more joined by \" + \", e.g. \"Credit card + Other consumer\""
+
+
 def _peers_parser(sub):
     """``peers pull`` and ``peers build``: docs/PEERS-SPEC.md, "cli.py additions"."""
     pe = sub.add_parser("peers", help="KeyBank against its peers, from public FDIC Call Reports")
@@ -219,13 +238,47 @@ def _peers_parser(sub):
     pu.add_argument("--cache", required=True, metavar="DIR")
     pu.add_argument("--first", required=True, metavar="YYYYQn")
     pu.add_argument("--last", required=True, metavar="YYYYQn")
-    pu.add_argument("--products", required=True, nargs="+", choices=_peer_products(),
-                    metavar="PRODUCT", help="whose fields to pull: %s" % ", ".join(_peer_products()))
+    pu.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
+                    help="whose fields to pull: " + _PRODUCTS_HELP % ", ".join(_peer_products()))
     pu.add_argument("--mergers", metavar="SINCE",
                     help="also pull the merger record from this date (YYYY-MM-DD) into DIR/mergers.json")
     pu.add_argument("--delinquency", required=True, type=_yes_no, metavar="yes|no",
                     help="yes: also pull the products' delinquency and nonaccrual fields")
     pu.add_argument("--refresh", action="store_true", help="fetch every quarter again, even if cached")
+
+    cp = ps.add_parser("classes-pull", help="each peer's 10-Q (or 10-K) for one quarter from SEC EDGAR into a "
+                                            "cache folder: what its consumer loan classes hold")
+    cp.add_argument("--cache", required=True, metavar="DIR")
+    cp.add_argument("--classes", required=True, metavar="FILE",
+                    help="the loan classes file (config/peer-loan-classes.json): whose filings to fetch")
+    cp.add_argument("--quarter", required=True, metavar="YYYYQn")
+    cp.add_argument("--user-agent", required=True, metavar="\"NAME EMAIL\"",
+                    help="who is asking, with a contact email: SEC's fair-access policy requires it; not stored")
+    cp.add_argument("--refresh", action="store_true", help="fetch again, even if held")
+
+    lb = ps.add_parser("large-banks-pull", help="the Philadelphia Fed's large bank credit card balances file for "
+                                                "one quarter (every quarter since 2012Q3 is in it) into DIR/large-banks")
+    lb.add_argument("--cache", required=True, metavar="DIR")
+    lb.add_argument("--quarter", required=True, metavar="YYYYQn")
+    lb.add_argument("--refresh", action="store_true", help="fetch again, even if held")
+
+    il = ps.add_parser("industry-long", help="the industry's net and gross charge-off series over a cache that "
+                                             "reaches before 2006, as separate series (Source 'Industry (every "
+                                             "bank) from YYYY'), from the cache only")
+    il.add_argument("out_dir", metavar="OUT_DIR")
+    il.add_argument("--cache", required=True, metavar="DIR")
+    il.add_argument("--first", required=True, metavar="YYYYQn")
+    il.add_argument("--last", required=True, metavar="YYYYQn")
+    il.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT")
+    il.add_argument("--absorptions", required=True, metavar="FILE",
+                    help="the absorptions file 'peers pull --mergers' wrote")
+    il.add_argument("--reporting-changes", required=True, metavar="FILE", help="config/reporting-changes.json")
+
+    sp = ps.add_parser("signals-pull", help="the public files behind the Signals tab for one quarter (Philadelphia "
+                                            "Fed card balances and originations; FRED DRTSCLCC) into DIR/signals")
+    sp.add_argument("--cache", required=True, metavar="DIR")
+    sp.add_argument("--quarter", required=True, metavar="YYYYQn")
+    sp.add_argument("--refresh", action="store_true", help="fetch again, even if held")
 
     bu = ps.add_parser("build", help="the peer workbook and the series CSVs, from the cache only")
     bu.add_argument("out", help="the .xlsx to write")
@@ -235,7 +288,8 @@ def _peers_parser(sub):
     w = bu.add_argument_group("what to read, all required")
     w.add_argument("--first", required=True, metavar="YYYYQn")
     w.add_argument("--last", required=True, metavar="YYYYQn")
-    w.add_argument("--products", required=True, nargs="+", choices=_peer_products(), metavar="PRODUCT")
+    w.add_argument("--products", required=True, nargs="+", type=_peer_product, metavar="PRODUCT",
+                   help=_PRODUCTS_HELP % ", ".join(_peer_products()))
     w.add_argument("--mergers", required=True, metavar="FILE",
                    help="{cert: [quarter-end dates]}, as 'peers pull --mergers' writes it")
     w.add_argument("--absorptions", required=True, metavar="FILE",
@@ -244,8 +298,12 @@ def _peers_parser(sub):
                    help="acquisitions the FDIC record does not show, e.g. 6672=2022Q2; "
                         "give the flag with nothing after it to state there are none")
     w.add_argument("--delinquency", required=True, type=_yes_no, metavar="yes|no",
-                   help="yes: also the Delinquency tabs and, per product, measure and basis, the "
+                   help="yes: also the delinquency view on the Peers tab, DelinquencyData and, per product, measure "
+                        "and basis, the "
                         "delinquency CSVs, under the rules below (the cache must hold the fields)")
+    w.add_argument("--reporting-changes", required=True, metavar="FILE",
+                   help="the registry of Call Report changes (config/reporting-changes.json): each series file "
+                        "notes every change touching it, and the charts mark the quarters")
     w.add_argument("--industry-combined", required=True, nargs="*", metavar="PRODUCT+PRODUCT",
                    help="industry series for products summed together, e.g. \"Other consumer+Auto\"; "
                         "give the flag with nothing after it to state there are none")
@@ -262,6 +320,10 @@ def _peers_parser(sub):
                         "the quarter-end balance")
     r.add_argument("--exempt-self", required=True, type=_yes_no,
                    help="yes: the bank itself is drawn whatever its size")
+    r.add_argument("--pro-forma", required=True, type=_yes_no,
+                   help="yes: each bank's charge-offs and balances include those of every bank it "
+                        "absorbed, before the absorption (an acquisition no longer breaks its history); "
+                        "no: each bank as filed")
     r.add_argument("--pack", required=True, choices=["all", "regionals"])
     r.add_argument("--min-banks", required=True, type=int,
                    help="kept banks a composite or band needs")
@@ -286,18 +348,60 @@ def _peers_pull(a):
     return 0
 
 
+def _peers_signals_pull(a):
+    """``peers signals-pull``: signals_data.pull."""
+    from . import signals_data as SD
+    try:
+        SD.pull(a.cache, a.quarter, refresh=a.refresh)
+    except ValueError as e:
+        print("REFUSED: %s" % e, file=sys.stderr)
+        return 2
+    return 0
+
+
+def _peers_industry_long(a):
+    """``peers industry-long``: peers.long_industry.write."""
+    from .peers import long_industry as LI
+    try:
+        LI.write(a.out_dir, cache=a.cache, first=a.first, last=a.last, products=a.products,
+                 absorptions=a.absorptions, reporting_changes=a.reporting_changes)
+    except ValueError as e:
+        print("REFUSED: %s" % e, file=sys.stderr)
+        return 2
+    return 0
+
+
+def _peers_large_banks_pull(a):
+    """``peers large-banks-pull``: peers.large_banks.pull."""
+    from .peers import large_banks as LB
+    try:
+        LB.pull(a.cache, a.quarter, refresh=a.refresh)
+    except ValueError as e:
+        print("REFUSED: %s" % e, file=sys.stderr)
+        return 2
+    return 0
+
+
+def _peers_classes_pull(a):
+    """``peers classes-pull``: peers.classes.pull for the banks the loan classes file names."""
+    from .peers import classes, loan_classes_tab
+    spec = loan_classes_tab.load(a.classes)
+    classes.pull(a.cache, spec["banks"], a.quarter, a.user_agent, refresh=a.refresh)
+    return 0
+
+
 def _peers_build(a):
     """``peers build``: peers.run.build with the flags as stated."""
     from .peers import run
     run.build(a.out, cache=a.cache, roster=a.roster, series_dir=a.series_dir, first=a.first,
               last=a.last, products=a.products, mergers=a.mergers, absorptions=a.absorptions,
               extra_acquisitions=a.extra_acquisitions, industry_combined=a.industry_combined,
-              jump=a.jump, acquisition_share=a.acquisition_share, min_book=a.min_book, exempt_self=a.exempt_self, pack=a.pack,
+              jump=a.jump, acquisition_share=a.acquisition_share, min_book=a.min_book, exempt_self=a.exempt_self, pro_forma=a.pro_forma, pack=a.pack,
               min_banks=a.min_banks, rank_by=a.rank_by, last_n=a.last_n, min_obs=a.min_obs,
               base_quarter=a.base_quarter, index_min_book=a.index_min_book,
               lagged_years=a.lagged_years, lag_years=a.lag_years,
               normalisation_years=a.normalisation_years, mix_base_year=a.mix_base_year,
-              delinquency=a.delinquency)
+              delinquency=a.delinquency, reporting_changes=a.reporting_changes)
     return 0
 
 
@@ -350,8 +454,9 @@ def _template(a):
     # rather than promising a build the check cannot know about.
     n = len(_read(a.file))
     print("OK: %s passes template %s (%s): %d quarters. It is an ordinary series for the workbook "
-          "command's --series, which builds from it only when --min-history + --horizon + "
-          "--smoothing - 1 is %d or less." % (a.file, a.key, T.TEMPLATES[a.key].title, n, n))
+          "command's --series; its backtest runs only when --min-history + --horizon + "
+          "--smoothing - 1 is %d or less, and otherwise says it was not tested." % (a.file, a.key,
+                                                                                     T.TEMPLATES[a.key].title, n, n))
     return 0
 
 
@@ -497,9 +602,21 @@ def main(argv=None):
             return _refused(exc)
     if a.command == "peers":
         try:
-            return _peers_pull(a) if a.peers_command == "pull" else _peers_build(a)
+            return {"pull": _peers_pull, "classes-pull": _peers_classes_pull,
+                    "large-banks-pull": _peers_large_banks_pull,
+                    "industry-long": _peers_industry_long,
+                    "signals-pull": _peers_signals_pull}.get(a.peers_command, _peers_build)(a)
         except (ValueError, OSError, RuntimeError) as exc:
             return _refused(exc)
+    if a.command == "book":
+        try:
+            from .book import build as build_book
+            r = build_book(a.book, a.out)
+        except (SeriesError, ValueError, OSError, RuntimeError) as exc:
+            return _refused(exc)
+        print("Wrote %s: %d series, %d quarters; open it on Summary, decide on Decide"
+              % (r["path"], len(r["products"]), r["quarters"]))
+        return 0
     if a.command == "synthesize":
         try:
             from .synthesis import report as synthesis_report, synthesize

@@ -1,31 +1,9 @@
 {
- "about": "The firm's answers, 16 Oct 2026: \"Good with those recommendations\". Each answer is the recommendation beside it. Only the answers are read; change one here and every rating follows.",
- "cutoffs": {
-  "question": "From which percentile of its own history does a reading take ratings 2, 3, 4 and 5? Four numbers, each above the last, between 0 and 100.",
-  "recommended": [
-   50,
-   75,
-   90,
-   95
-  ],
-  "why": "A reading above the median is at least a 2, and the top two ratings sit in the tail: the Fed's Financial Stability Report speaks of the upper quartile and the 90th percentile, and the Fed staff heat map (Aikman et al. 2015) drew lines at the 65th and 85th, with a red zone at the 80th.",
-  "answer": [
-   50,
-   75,
-   90,
-   95
-  ]
- },
- "on_the_line": {
-  "question": "A reading exactly on a cut-off: does it take the worse rating or the better one? \"worse\" or \"better\".",
-  "recommended": "worse",
-  "why": "The tool exists to warn; a tie goes to the warning. The loss thresholds ask the same question.",
-  "answer": "worse"
- },
+ "about": "The firm's answers. 16 Oct 2026, \"Good with those recommendations\": history, change_months and show_sahm. 22 Oct 2026, when the tool stopped rating (\"We are not rating these. At most these are directional\"): normal_width, \"Typical move (Recommended)\", the median change plus or minus one typical move; left_out, \"None yet\"; axis_cut, \"I will take recommended ways of viewing\", the recommendation being an axis that leaves the top 1% of readings off. Only the answers are read; change one here and every reading follows. 23 Oct 2026, when the Dashboard became the comparison of two series: compare_p, compare_leads, compare_starts and compare_min_pairs, \"As the Excel version (Recommended)\", the settings of the comparison built with the firm in Excel that day.",
  "history": {
   "question": "Which history is each reading measured against? \"full\" for everything the publisher has, or {\"years\": N} for the last N years up to the latest reading.",
   "recommended": "full",
-  "why": "Every series starts in a different year, so a fixed window would cut the long ones short; the start of each history is shown beside every rating, as the regulators do.",
+  "why": "Every series starts in a different year, so a fixed window would cut the long ones short; the start of each history is shown beside every reading, as the regulators do.",
   "answer": "full"
  },
  "change_months": {
@@ -34,84 +12,76 @@
   "why": "A year: it takes out the seasons, and the report reads homeowner's insurance and revolving credit over a year.",
   "answer": 12
  },
+ "normal_width": {
+  "question": "How wide is normal movement? The median change plus or minus this many typical moves, where a typical move is 1.4826 times the median distance of the changes from their median. A number above 0. A change inside reads Stable; one at or past either edge reads Increasing or Decreasing.",
+  "recommended": 1,
+  "why": "One typical move is the measure the loss thresholds use for ordinary year-to-year movement (threshold-engine scale.py). For changes shaped like a bell it holds about two in three of them, and a spike does not widen it, as it would a standard deviation.",
+  "answer": 1
+ },
+ "left_out": {
+  "question": "Which quarters are left out of every history? A list, each entry a quarter such as \"2020Q2\" or a run such as \"2020Q2-2021Q2\"; [] leaves nothing out. A reading in a quarter left out is not measured against, and a change with either end in one is not counted.",
+  "recommended": [],
+  "why": "Nothing until there is a reason to record. The pandemic quarters are the usual candidate: 2020Q2 to 2021Q2 holds the spike in jobless claims and unemployment, and the loss thresholds' evidence was tested with and without 2020Q1 to 2023Q4.",
+  "answer": []
+ },
+ "axis_cut": {
+  "question": "How much of each chart's readings may run off its axis, at each end? A percent from 0 to 10; 0 keeps every reading on the chart. The latest reading and the normal range always stay on it. Only the charts change; no reading does.",
+  "recommended": 1,
+  "why": "A spike such as the 2020 jobless claims flattens the rest of a chart. With 1% at each end it runs off the edge, and a note under the chart names the highest reading and its date.",
+  "answer": 1
+ },
  "show_sahm": {
-  "question": "Show the Sahm reading beside the national unemployment rate? true or false. It is shown, not rated.",
+  "question": "Show the Sahm reading beside the national unemployment rate? true or false.",
   "recommended": true,
-  "why": "It is the best-known published trigger for unemployment (0.50 points, Sahm 2019), and the report records its false alarm of 2024, so a reader should see it beside the rating rather than instead of it.",
+  "why": "It is the best-known published trigger for unemployment (0.50 points, Sahm 2019), and the report records its false alarm of 2024, so a reader should see it beside the change rather than instead of it.",
   "answer": true
  },
- "change_for": {
-  "question": "Which series rated on their place in history also get a rating for their change? \"all\", or a list of series keys. Series rated on their change only always get it.",
-  "recommended": "all",
-  "why": "The report's first rule: unemployment is lowest just before recessions, so its level alone reads 1 Low at the turn; the change carries the signal, and the same holds for spreads and claims.",
-  "answer": "all"
+ "compare_p": {
+  "question": "On the Dashboard, how small must p be for a link between two series' changes to pass? Two-tailed; a number above 0 and below 1.",
+  "recommended": 0.05,
+  "why": "The usual level. A lead is tested at it after allowing for how many leads were tried.",
+  "answer": 0.05
  },
- "directions": {
-  "question": "For each reading the research leaves open: which way is stress? \"higher is worse\", \"lower is worse\" or \"not rated\".",
-  "recommended": {
-   "cpi": {
-    "change": "higher is worse"
-   },
-   "cpi_core": {
-    "change": "higher is worse"
-   },
-   "used_cars": {
-    "change": "higher is worse"
-   },
-   "house_prices": {
-    "change": "lower is worse"
-   },
-   "mortgage_rate": {
-    "position": "higher is worse",
-    "change": "higher is worse"
-   },
-   "revolving_credit": {
-    "change": "higher is worse"
-   },
-   "cre_prices": {
-    "change": "lower is worse"
-   },
-   "ci_demand": {
-    "position": "lower is worse",
-    "change": "lower is worse"
-   },
-   "house_price_to_income": {
-    "position": "higher is worse",
-    "change": "lower is worse"
-   }
-  },
-  "why": "Prices: rising is worse for borrowers. House prices: stretched when high against income, stressed when falling (the report's second rule). Mortgage rate: higher is worse for payments. Revolving credit: faster growth is the build-up. Business loan demand: weaker is worse, the least certain of these.",
-  "answer": {
-   "cpi": {
-    "change": "higher is worse"
-   },
-   "cpi_core": {
-    "change": "higher is worse"
-   },
-   "used_cars": {
-    "change": "higher is worse"
-   },
-   "house_prices": {
-    "change": "lower is worse"
-   },
-   "mortgage_rate": {
-    "position": "higher is worse",
-    "change": "higher is worse"
-   },
-   "revolving_credit": {
-    "change": "higher is worse"
-   },
-   "cre_prices": {
-    "change": "lower is worse"
-   },
-   "ci_demand": {
-    "position": "lower is worse",
-    "change": "lower is worse"
-   },
-   "house_price_to_income": {
-    "position": "higher is worse",
-    "change": "lower is worse"
-   }
-  }
+ "compare_leads": {
+  "question": "On the Dashboard, which leads are tried, in months? A list of whole numbers: a positive lead has the first series moving earlier, a negative one the second.",
+  "recommended": [
+   -24,
+   -18,
+   -12,
+   -6,
+   0,
+   6,
+   12,
+   18,
+   24,
+   30,
+   36
+  ],
+  "why": "Two years either way and three years of the first leading, in steps of six months: the range the comparison was built with.",
+  "answer": [
+   -24,
+   -18,
+   -12,
+   -6,
+   0,
+   6,
+   12,
+   18,
+   24,
+   30,
+   36
+  ]
+ },
+ "compare_starts": {
+  "question": "On the Dashboard, at how many starting points is the one-reading-a-year test run? 1, 2 or 4; the starting months are spread evenly through the year, each the first month of a quarter, so a quarterly series has a reading at every one.",
+  "recommended": 4,
+  "why": "Charge-off rates are trailing four-quarter figures, so neighbouring quarters share most of their data; one reading every 12 months keeps them a year apart. Four starting points (a quarter apart) show whether a link holds whichever quarter the count starts from.",
+  "answer": 4
+ },
+ "compare_min_pairs": {
+  "question": "On the Dashboard, how many one-a-year pairs must a lead have at every starting point to be tested? A whole number of at least 4.",
+  "recommended": 6,
+  "why": "Fewer pairs than that cannot show much either way; a lead with fewer says not tested.",
+  "answer": 6
  }
 }

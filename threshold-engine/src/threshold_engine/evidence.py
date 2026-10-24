@@ -300,5 +300,5 @@ def report(ev: dict) -> str:
         out.append("   The data finds the departure; why it happened is the bank's to record.")
     out += ["", "These are statistics and their consequences, not a recommendation.",
             "The z-scores are distances from the bulk of history, not probabilities:",
-            "neighbouring %ss of a trailing-twelve-month rate are not independent." % per]
+            "neighboring %ss of a trailing-twelve-month rate are not independent." % per]
     return "\n".join(out)

@@ -111,9 +111,11 @@ jobs:
       # PocketBook's workbook judges pockets with live Excel formulas (OC-40), and its
       # tests calculate them through LibreOffice. Without it those tests would skip, and a skipped
       # check is not a passed one: in CI the helper refuses to skip.
+      # python3-uno lets a test sort a built book as the filter arrows do (tests/unosort.py, run with the system
+      # Python); pdftotext reads off a printed page what the p-value column shows
       - name: LibreOffice, to calculate the workbook's formulas
         if: matrix.project == 'pocketbook'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc python3-uno poppler-utils
 
       - name: Xvfb, so the Loan Survival window can be opened and checked
         if: matrix.project == 'loan-survival'
@@ -172,7 +174,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test,scout]"
       - name: LibreOffice, to calculate the workbook's formulas
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc python3-uno poppler-utils
       - name: Every mutation is caught
         run: python tools/mutation_check.py --shard ${{ matrix.shard }}/4
 

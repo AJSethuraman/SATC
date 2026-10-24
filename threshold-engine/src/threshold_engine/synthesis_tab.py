@@ -353,7 +353,7 @@ def build(wb, sy, sd, asx, *, loaded, syn, syn_loaded, grid, n, higher, floor_at
 
     # ---- Synthesis: one block per product ----
     sy.sheet_properties.tabColor = K.KEY_RED
-    K.light_title(sy, 1, 8, "Synthesis · where each colour starts",
+    K.light_title(sy, 1, 8, "Synthesis · where each color starts",
                   "Live: internal, industry and peers side by side for each rating line; you choose where each line "
                   "is taken from. Follows Your settings on Assess. Type only in yellow cells.")
     lead_dv = DataValidation(type="list", formula1='"internal,industry,peers"', showInputMessage=True,
@@ -664,7 +664,7 @@ def _assess_panel(asx, lay, ns, nf):
     last = 3 + ns
     sm = lambda j: "Synthesis!${c}$4:${c}${e}".format(c=L(SUMMARY_COL + j), e=last)   # noqa: E731
     mt = "MATCH($B$5,%s,0)" % sm(0)
-    AT._section(asx, p0, 14, 21, '="Where each colour starts · "&$B$5')
+    AT._section(asx, p0, 14, 21, '="Where each color starts · "&$B$5')
     link = asx.cell(p0, 21, "Synthesis ›")
     link.hyperlink = Hyperlink(ref=link.coordinate, location="Synthesis!A1", display="Synthesis ›")
     link.font = Font(name="Arial", size=9, bold=True, color=K.KEY_RED, underline="single")
