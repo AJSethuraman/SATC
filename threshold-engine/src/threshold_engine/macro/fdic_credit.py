@@ -18,7 +18,7 @@ import tempfile
 from ..peers import books, fdic, run
 from ..peers import delinquency as D
 from ..peers import roster as R
-from .catalog import BANK_MEASURES, BANK_PRODUCTS, BANK_WHO, bank_source_id
+from .catalog import BANK_MEASURES, BANK_MORE, BANK_PRODUCTS, BANK_WHO, bank_source_id
 
 HERE = pathlib.Path(__file__).resolve()
 #: The threshold engine's own files the build reads, inside its folder: the book's settings, the roster, the
@@ -62,6 +62,46 @@ def latest_quarter(today):
 def _step_back(label):
     year, q = int(label[:4]), int(label[-1])
     return "%dQ%d" % ((year, q - 1) if q > 1 else (year - 1, 4))
+
+
+#: 30+ days late, still accruing: not one of the threshold engine's measures (its 30+ counts nonaccrual too), so worked
+#: out here from the same filings with its own arithmetic (delinquency._amounts): 30-89 plus 90+ still accruing over
+#: the balance. All banks: every filer that filed the balance and both, summed; KeyBank: its own filing, with a book
+#: above 0, as the engine reads a bank drawn as itself. Adding the engine's two published rates would not do: each is
+#: summed over the filers of its own field.
+ACCRUING = "30+ accruing"
+
+
+def accruing_30(data, product, cert=None):
+    """[[quarter-end, %]] of loans 30+ days late and still accruing: every filer (``cert`` None) or one bank's."""
+    balance, p3, p9, _ = D._fields(product)
+    qs, snap = books._by_cert(data)
+    out = []
+    for q in qs:
+        rows = list(snap[q].values()) if cert is None else [snap[q][cert]] if cert in snap[q] else []
+        num_ = bal_ = 0.0
+        n = 0
+        for r in rows:
+            num, bal, blank = D._amounts(r, balance, [p3, p9])
+            if blank or bal is None:
+                continue
+            num_, bal_, n = num_ + num, bal_ + bal, n + 1
+        if n and bal_ > 0:
+            out.append([books.quarter_end(q), 100 * num_ / bal_])
+    return out
+
+
+def accruing_note(product, who, cache_words):
+    """The notes the build would write for 30+ still accruing, in its own manner, with its cautions on comparing."""
+    balance, p3, p9, _ = D._fields(product)
+    whose = ("every filer that filed the balance and both fields, summed" if who == "industry"
+             else "KeyBank's own filing, its book above 0")
+    return (["%s, delinquency: 30+ still accruing (30-89 plus 90+ still accruing), quarter-end, %%." % product,
+             "Worked out in the Macrobook, not by the threshold engine, from the filings its build read: 100 x (%s "
+             "+ %s) / %s, %s." % (" + ".join(books.parts(p3)), " + ".join(books.parts(p9)), balance, whose),
+             "Amounts are $ thousands at quarter-end, as filed; a field not filed is never read as 0.",
+             "Source: FDIC BankFind financials, from %s." % cache_words]
+            + D.comparability(product, "90+ accruing"))
 
 
 def build_file(cache_root, today, fetch=None, first=None, say=lambda s: None):
@@ -108,8 +148,17 @@ def build_file(cache_root, today, fetch=None, first=None, say=lambda s: None):
         series = {}
         for product, *_ in BANK_PRODUCTS:
             for who, *_ in BANK_WHO:
-                for measure, *_ in BANK_MEASURES:
+                for measure, *_ in BANK_MEASURES + BANK_MORE:
                     sid = bank_source_id(product, measure, who)
+                    if measure == ACCRUING:
+                        # Only the quarters the build kept for both its parts: it starts a bank's series after
+                        # the bank's last break (KeyBank held no cards from 2010 to mid-2012) and fills no gap.
+                        kept = ({d for d, _ in series[bank_source_id(product, "30-89", who)]["points"]}
+                                & {d for d, _ in series[bank_source_id(product, "90+ accruing", who)]["points"]})
+                        pts = accruing_30(data, product, None if who == "industry" else str(me["cert"]))
+                        series[sid] = {"note": accruing_note(product, who, "the pull's FDIC cache"),
+                                       "points": [pt for pt in pts if pt[0] in kept]}
+                        continue
                     path = pathlib.Path(tmp) / (sid + ".csv")
                     note, points = [], []
                     if path.exists():

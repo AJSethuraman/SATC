@@ -398,16 +398,19 @@ def read_all(cache, settings, vintage=None, pull=None):
     """Every reading the catalog holds, from one pull of CACHE: the core group, then the usable-with-care
     group, each series on its level (where that means something) and its change."""
     pull = pull or Pull(cache, vintage)
-    out, not_read, alongside = [], [], []
+    out, not_read, alongside, picked, picked_not_read = [], [], [], [], []
     for item in READ:
         points = pull.points(item)
+        # A series only the Dashboard and Leads found show (catalog.PICK) keeps its readings apart, so the Overview,
+        # the what-if and the printout read as before.
+        mine, mine_not = (picked, picked_not_read) if getattr(item, "pick_only", False) else (out, not_read)
         for reading in readings_of(item):
             got, why = (None, points) if isinstance(points, str) else describe(item, reading, points, settings)
             if got is None:
-                not_read.append({"key": item.key, "reading": reading, "why": why,
+                mine_not.append({"key": item.key, "reading": reading, "why": why,
                                  "care": bool(getattr(item, "care", ""))})
             else:
-                out.append(got)
+                mine.append(got)
     if settings["show_sahm"]:
         u = pull.points(BY_KEY["unemployment"])
         # Worked from the months kept, as every reading is (Codex on #471: a quarter left out still moved it).
@@ -422,4 +425,5 @@ def read_all(cache, settings, vintage=None, pull=None):
     # The fingerprint of every file as this run read it, kept with the readings it produced, so a workbook built
     # from another Pull can be checked against it (Codex on #452).
     return {"vintage": pull.vintage, "settings": dict(settings), "readings": out, "not_read": not_read,
-            "alongside": alongside, "read_sha": dict(pull.read_sha)}
+            "alongside": alongside, "read_sha": dict(pull.read_sha), "picked": picked,
+            "picked_not_read": picked_not_read}
