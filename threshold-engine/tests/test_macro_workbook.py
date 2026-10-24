@@ -10,11 +10,11 @@ import pytest
 openpyxl = pytest.importorskip("openpyxl")
 
 from threshold_engine.macro import readings as R
-from threshold_engine.macro.catalog import CARE, CARE_DERIVED, CARE_NOT_READ, CORE, SCE_CREDIT, SERIES, STATES
+from threshold_engine.macro.catalog import CARE, CARE_DERIVED, CARE_NOT_READ, CORE, PICK, SCE_CREDIT, SERIES, STATES
 from threshold_engine.macro.settings import Refused, check
 from threshold_engine.macro.workbook import (CARE_NAME, CARE_TAB, CARE_TOPICS, DASH_DATA, DASHBOARD, HOUSEHOLD_KEYS,
-                                             HOUSEHOLD_NAME, SERIES_COLS, TAB, TOPICS, axis_view, build, glossary,
-                                             nice_axis)
+                                             HOUSEHOLD_NAME, LEADS, SERIES_COLS, TAB, TOPICS, axis_view, build,
+                                             glossary, nice_axis)
 
 C = SERIES_COLS
 
@@ -79,7 +79,7 @@ def test_every_care_series_has_one_topic_and_one_tab():
     assert sorted(CARE_TAB) == sorted(in_topics)
 
 
-def test_the_sheets_are_the_overview_and_dashboard_first_then_one_per_series_by_topic(book):
+def test_the_sheets_are_the_overview_dashboard_and_leads_found_first_then_one_per_series_by_topic(book):
     _, _, wb = book
     tabs = []
     for _, keys in TOPICS:
@@ -88,12 +88,12 @@ def test_the_sheets_are_the_overview_and_dashboard_first_then_one_per_series_by_
                 tabs.append(TAB[k])
     care = [CARE_TAB[k] for _, keys in CARE_TOPICS for k in keys]
     # the tab bar follows the Overview's rows, States after the core series (Claude Design, round 1)
-    assert wb.sheetnames == (["Overview", DASHBOARD] + tabs + ["States", CARE_NAME] + care
+    assert wb.sheetnames == (["Overview", DASHBOARD, LEADS] + tabs + ["States", CARE_NAME] + care
                              + ["State data", "Glossary", "Not read", "Run", "Sources", DASH_DATA])
     assert wb[DASH_DATA].sheet_state == "hidden"
     colour = {ws.title: (ws.sheet_properties.tabColor.rgb[-6:] if ws.sheet_properties.tabColor else None)
               for ws in wb.worksheets}
-    assert colour["Overview"] == colour[DASHBOARD] == colour["States"] == "0A0908"           # ink
+    assert colour["Overview"] == colour[DASHBOARD] == colour[LEADS] == colour["States"] == "0A0908"  # ink
     for t, (_, keys) in enumerate(TOPICS):                    # slate and stone in turn, by topic
         assert {colour[TAB[k]] for k in keys} == {("57534B", "B9B4AC")[t % 2]}
     assert {colour[n] for n in care + [CARE_NAME]} == {"E4DFD5"}                              # mist
@@ -342,7 +342,9 @@ def test_the_dashboard_only_looks_up_values_written_on_its_hidden_tab(book):
     col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, series_dv.formula1).group(1)
     names = [c.value for c in data[col][2:] if c.value]
     national = [k for _, keys in TOPICS for k in keys] + [k for _, keys in CARE_TOPICS for k in keys]
-    assert len(names) == len(national) and ws["B5"].value in names and ws["H5"].value in names
+    # every national and care series, and every other bank delinquency measure, which has no tab of its own
+    assert len(names) == len(national) + len(PICK) and ws["B5"].value in names and ws["H5"].value in names
+    assert {i.title for i in PICK} <= set(names) and not {i.key for i in PICK} & set(TAB)
     col = re.match(r"'%s'!\$([A-Z]+)\$" % DASH_DATA, quarter_dv.formula1).group(1)
     quarters = [c.value for c in data[col][2:] if c.value]
     assert quarters[0] == "2000 Q1" and quarters[-1] == "2026 Q3" and len(quarters) == len(set(quarters))
@@ -755,7 +757,7 @@ def _whatif(cache, path, a=None, b=None):  # noqa: F811
 
 def test_the_what_if_tab_sets_every_national_change_side_by_side(cache, tmp_path):  # noqa: F811
     out, c, wb = _whatif(cache, tmp_path / "w.xlsx", {"history": "full"}, {"history": "full", "left_out": ["2026Q3"]})
-    assert wb.sheetnames[:4] == ["Overview", DASHBOARD, "What if", "Unemployment"]
+    assert wb.sheetnames[:5] == ["Overview", DASHBOARD, LEADS, "What if", "Unemployment"]
     ws = wb["What if"]
     text = _text(ws)
     assert "Quarters left out" in text and "2026Q3" in text
@@ -1309,3 +1311,104 @@ def test_a_bank_series_notes_come_from_the_bytes_its_readings_came_from(tmp_path
     wb = openpyxl.load_workbook(build(tmp_path / "bank.xlsx", result, pull))
     tab = _text(wb[TAB["card_losses_all_banks"]])
     assert "a test file" in tab and "changed on disk" not in tab
+
+
+def test_leads_found_screens_every_economic_series_against_every_bank_series_as_values(tmp_path):
+    # The firm, 23 Oct 2026: "Economic vs bank", "Holds, then near misses", and the chance line. The screen itself
+    # is tested in test_macro_screen.py; here, the tab: after the Dashboard, its count line, its two tables.
+    from threshold_engine.macro import pull as P
+    from test_macro_sources import fdic_file
+    P.pull(tmp_path, keys=["unemployment", "cpi", "card_losses_all_banks", "card_late_30_89_keybank"],
+           today="2026-10-15", fetcher=_fetcher(), fdic=lambda root, today: fdic_file())
+    pull = R.Pull(tmp_path)
+    result = R.read_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    wb = openpyxl.load_workbook(build(tmp_path / "leads.xlsx", result, pull))
+    assert wb.sheetnames.index(LEADS) == wb.sheetnames.index(DASHBOARD) + 1
+    ws = wb[LEADS]
+    text = _text(ws)
+    # two economic series with readings (unemployment, prices) against every bank series: the bank file is one
+    # file, so all 56 come with it, the 40 pick-only measures among them
+    assert ws["B4"].value == ("Of 112 pairs of an economic series and a bank series, 0 hold at every starting point "
+                              "and 0 nearly do.")
+    assert "Holds at every starting point" in text and "Near misses" in text and "By chance" in text
+    heads = [ws.cell(7, c).value for c in range(2, 8)]
+    assert heads == ["Economic series", "Bank series", "Lead", "r", "Years", "Holds in"]
+
+
+def test_a_pick_only_series_not_in_the_pull_is_said_on_not_read_and_leads_found_not_left_out(tmp_path):
+    # A bank file missing one of the 40 pick-only measures: the series has no tab and no Overview row, so the Not
+    # read tab, the Run tab's count and Leads found say it could not be had; the Overview reads as before.
+    from threshold_engine.macro import pull as P
+    from threshold_engine.macro.catalog import BY_KEY as CAT
+    from test_macro_sources import fdic_file
+    gone = CAT["card_late_30_89_keybank"]
+    ends = ["2024-09-30", "2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31", "2026-03-31",
+            "2026-06-30"]
+    every = {s.source_id: [(d, 1.0 + i / 10 + (i * i) % 3 / 20) for i, d in enumerate(ends)]
+             for s in SERIES if getattr(s, "source", "") == "fdic"}
+
+    def made(name, series):
+        P.pull(tmp_path / name, keys=["unemployment", "card_losses_all_banks"], today="2026-10-15",
+               fetcher=_fetcher(), fdic=lambda root, today: fdic_file(series))
+        pull = R.Pull(tmp_path / name)
+        result = R.read_all(tmp_path / name, check(answered(show_sahm=False)), pull=pull)
+        wb = openpyxl.load_workbook(build(tmp_path / (name + ".xlsx"), result, pull))
+        tried = re.search(r"Not tried (\d+) of the series the Dashboard lists could not be read", _text(wb[LEADS]))
+        return result, wb, int(tried.group(1))
+
+    full, wb_full, untried = made("full", every)
+    result, wb, untried_now = made("gone", {k: v for k, v in every.items() if k != gone.source_id})
+    assert [x["key"] for x in result["picked_not_read"]] == [gone.key, gone.key]   # its level and its change
+    assert full["picked_not_read"] == []
+    pairs = lambda xs: [(x["key"], x["reading"]) for x in xs]  # noqa: E731
+    assert pairs(result["not_read"]) == pairs(full["not_read"])
+    assert gone.title in _text(wb["Not read"]) and gone.title not in _text(wb_full["Not read"])
+    run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
+    assert run["Readings not read"] == len(result["not_read"]) + 2
+    assert untried_now == untried + 1          # the economic series this test pull left out, and now this one
+
+
+def test_leads_found_lists_a_planted_lead_first_and_says_what_luck_gives(tmp_path):
+    # KeyBank's card 30-89 made to repeat the unemployment rate a year later (the fake pull's unemployment runs
+    # monthly from 2000): the pair holds with the economic series leading by 12 months, and the line at the top
+    # says what the same test gives with the bank series moved out of line in time, held and nearly held.
+    import datetime as dt
+    from threshold_engine.macro import pull as P
+    from threshold_engine.macro.catalog import BY_KEY as CAT
+    from test_macro_sources import fdic_file
+
+    def unrate(y, m):              # test_macro_readings._fetcher's unemployment, month by month from 2000
+        i = (y - 2000) * 12 + m - 1
+        if (y, m) == (2025, 10):
+            return None
+        return 9.0 if dt.date(y, m, 1) >= dt.date(2026, 7, 1) else 4.0 + ((i * i) % 7) / 10
+
+    planted = CAT["card_late_30_89_keybank"]
+    ends = ["2024-09-30", "2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31", "2026-03-31",
+            "2026-06-30"]
+    every = {s.source_id: [(d, 1.0 + i / 10 + (i * i) % 3 / 20) for i, d in enumerate(ends)]
+             for s in SERIES if getattr(s, "source", "") == "fdic"}
+    year_later = []
+    for y in range(2001, 2027):
+        for q in range(4):
+            if (y, q) > (2026, 1):
+                break
+            v = unrate(y - 1, 3 * q + 1)               # the quarter's first month, a year before
+            if v is not None:
+                year_later.append(("%d-%s" % (y, ("03-31", "06-30", "09-30", "12-31")[q]), v))
+    every[planted.source_id] = year_later
+    P.pull(tmp_path, keys=["unemployment", "card_losses_all_banks"], today="2026-10-15", fetcher=_fetcher(),
+           fdic=lambda root, today: fdic_file(every))
+    pull = R.Pull(tmp_path)
+    result = R.read_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    wb = openpyxl.load_workbook(build(tmp_path / "planted.xlsx", result, pull))
+    ws = wb[LEADS]
+    first = [ws.cell(8, c).value for c in range(2, 8)]
+    assert first[:3] == [CAT["unemployment"].title, planted.title, "Economic leads by 12 months"]
+    assert first[3] == pytest.approx(1.0) and first[5] == "4 of 4"
+    assert re.fullmatch(r"Of 56 pairs of an economic series and a bank series, 1 holds at every starting point "
+                        r"and 0 nearly do\. With the bank series moved out of line in time, so that only luck links "
+                        r"them, [\d,]+( to [\d,]+)? holds? and [\d,]+( to [\d,]+)? nearly do(es)?\.",
+                        ws["B4"].value), ws["B4"].value
+    assert re.search(r"Run by run, held and nearly: shifted 4 years [\d,]+ and [\d,]+; shifted 6 years .*; "
+                     r"reversed [\d,]+ and [\d,]+\.", _text(ws))

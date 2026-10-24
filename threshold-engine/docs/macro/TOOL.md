@@ -21,9 +21,10 @@ after all - even if not super useful"*) and is read the same way.
 
 ## The catalog and the pull
 
-- **144 series** in `src/threshold_engine/macro/catalog.py`: 107 core series
+- **184 series** in `src/threshold_engine/macro/catalog.py`: 107 core series
   read on their own (51 of them unemployment by state and 16 of them bank
-  credit), 33 usable with care,
+  credit), 40 more bank credit series shown only in the Dashboard's lists and
+  on Leads found, 33 usable with care,
   and 4 inputs to three readings built from two series. Two are the
   report's: house prices against income (from income per person) and the
   mortgage rate over the Treasury (from the 10-year yield). The third is
@@ -50,8 +51,8 @@ after all - even if not super useful"*) and is read the same way.
   fetched again) and its own peers build makes the series, under the
   settings the consumer book records (`books/consumer-public.json`: jump
   0.25, acquisition share 0.05, KeyBank pro forma with the banks it
-  absorbed), so every figure is the one the threshold workbook shows. The 16
-  series go into the day's folder as one file, `fdic_credit.json`, with the
+  absorbed), so every figure is the one the threshold workbook shows. The 56
+  series (these 16 and the 40 below) go into the day's folder as one file, `fdic_credit.json`, with the
   build's own notes, which each series' tab prints. The build reads the
   book and the roster where they are kept, in `threshold-engine/`: an
   installed copy of the tool (`pip install .`) finds them when it is run
@@ -64,6 +65,19 @@ after all - even if not super useful"*) and is read the same way.
   industry files to the last digit, and KeyBank's card net charge-offs for
   2026 Q2 are 3.76%, as the firm's Excel copy had them. The FDIC's website
   policies page, read 23 Oct 2026, states no terms of reuse for its own data.
+- **Every delinquency measure, for the Dashboard and Leads found** (added 24
+  Oct 2026; the firm: *"i want to bring in all measures - like 30+, 30+ non
+  accrual, 30-89, 90+, 90+ non accrual, etc"*, shown in the pick list and
+  the screen only). For each of the four products, all banks and KeyBank:
+  30 to 89 days late, 90+ days late still accruing, loans on nonaccrual, 90+
+  days late including nonaccrual, and 30+ days late still accruing. That is
+  40 series, with no tab and no Overview row. The first four are the
+  threshold engine's own delinquency series, quarter-end. The engine builds
+  no 30+ still accruing, so the Macrobook works it from the same filings:
+  100 x (30 to 89 + 90+ accruing) / the balance, counting a filer only when
+  it filed the balance and both parts, over the quarters the engine kept for
+  both. It equals the engine's 30 to 89 plus its 90+ accruing to within
+  9e-16 in every product, for all banks and KeyBank (630 quarters).
 - **Gaps stay gaps.** FRED's "." and BLS's dash or blank are read as missing,
   never as zero. October 2025 is missing in every BLS household series and in
   CPI.
@@ -171,7 +185,7 @@ method note ("How this tab works") at the foot of each tab, folded away.
 Every number is a value written by the tool. The Dashboard is the one place
 with formulas, and they only look up values written on its hidden data tab.
 
-The tab bar follows the Overview: Overview, Dashboard, What if, then every
+The tab bar follows the Overview: Overview, Dashboard, Leads found, What if, then every
 core series in the Overview's order (tabs slate and stone in turn, by topic),
 States, Usable with care and its series (mist), then State data, Glossary,
 Not read, Run and Sources.
@@ -231,6 +245,26 @@ Not read, Run and Sources.
   TDIST and SUMPRODUCT among them). Checked on 23 Oct 2026: recalculated in
   LibreOffice, every r, pair count, effective count, p and verdict matched
   an independent computation from the values on the hidden data tab to 5e-13.
+- **Leads found: every economic series against every bank series.** The
+  firm, 23 Oct 2026: *"is there a mathematical and quick way to determine if
+  any of these pass tests we care about"*, then *"ok but how can it be done
+  and shown in the book"*; asked, economic against bank, holds first then
+  near misses, and a line on how many hold by chance. Each economic series
+  in the Dashboard's lists against each of the 56 bank series, on the
+  Dashboard's own test over every quarter the two share. Two tables: the
+  pairs that hold at every starting point, strongest r first, then the near
+  misses, the most starting points passed first. Each row names the two
+  series, the lead in words ("Economic leads by 12 months"), r, the years
+  tested and "2 of 4". The line at the top counts the pairs tried, held and
+  nearly held, and how many hold and nearly hold with every bank series
+  moved out of line in time (shifted round its own span by 4, 6, 8 and 10
+  whole years, and reversed): those can only hold by luck, so that is the
+  count to beat; the note gives each run's. On the 23 Oct pull: 75 of 4,256
+  pairs hold and 825 nearly do; by luck, 2 to 32 hold and 155 to 625 nearly
+  do. The
+  test is worked in Python (`screen.py`) when the workbook is built, so the
+  tab is values; picking a pair on the Dashboard, From and To set to every
+  quarter, shows the same figures.
 - **What if:** only with `--compare`; see below.
 - **States:** unemployment by state, level and change, moving states first,
   in two tables side by side so all 51 fit on one screen.
