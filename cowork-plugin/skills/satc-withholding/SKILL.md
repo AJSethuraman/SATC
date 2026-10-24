@@ -32,9 +32,13 @@ reports it can't reach the app, stop and tell the user to start it
    these — assemble the payload to match.
 
 2. **Get each job's figures.** A household estimate is one `jobs[]` entry per
-   job (taxpayer + spouse, or a second job). For each you need: pay frequency,
-   gross pay per period, federal tax withheld per period, and the year-to-date
-   figures (taxable wages + federal tax withheld) from the latest stub.
+   job (taxpayer + spouse, or a second job). For each you need: **whose job it
+   is** (`owner`: `you` or `spouse`), pay frequency, gross pay per period,
+   pre-tax retirement per period, federal tax withheld per period, and the
+   year-to-date figures (taxable wages + federal tax withheld) from the latest
+   stub. On a joint return, ask whose each job is -- it decides whose Social
+   Security wage base it uses, and a business owner's self-employment tax can be
+   off by thousands if a spouse's salary is counted against it.
    - If the user pastes a paystub, call `satc_read_paystub` on the text, then
      **show them the labeled figures and call out anything in `uncertain`** —
      confirm those before relying on them.
@@ -53,9 +57,12 @@ reports it can't reach the app, stop and tell the user to start it
      **balance** — a refund or an amount owed.
    - The recommended **additional per-paycheck withholding (W-4 line 4c)** and
      how many pay periods that assumes remain.
-   - Any `notes` the estimator returned (e.g. a tax-year fallback to 2025).
-   - State your assumptions explicitly (year, periods remaining, anything you
-     defaulted or read from a paystub).
+   - The result's `headline` first, then every `checks` entry with level
+     `act`, then the `assumptions` list as returned — the estimator records
+     what it filled in itself, so report those rather than inventing your own.
+   - Any `notes` the estimator returned.
+   - A year that is not on file comes back as an error. Do not retry with a
+     different year; say which year is missing.
 
 ## Honesty rules
 - Show parsed paystub figures before trusting them; never silently accept a
