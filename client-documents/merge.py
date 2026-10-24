@@ -332,14 +332,22 @@ def _derived(record: dict) -> dict:
 
 
 def additional_forms_listed(value) -> bool:
-    """Whether `AdditionalForms` names anything, so its line prints.
+    """Whether the "Also included" line prints: anything but an explicit "None".
 
     One answer for the merge and for `consistency`, which checks that the
     letter and the estimate state one scope: if the two decided separately, a
     "None" dropped from both pages would read there as a scope line missing.
+
+    ONLY THE WORD "None" DROPS IT. A record with no `AdditionalForms` at all
+    is incomplete, not empty -- the field spec says a blank and a None are
+    different statements -- so the line stays and the merge refuses on the
+    missing field, as it always did. Found by Codex on PR #477: the first
+    version dropped the line for a missing key and rendered an incomplete
+    record as if it had said "None".
     """
-    extra = str(value or "").strip()
-    return bool(extra) and extra.lower() != "none"
+    if value is None:
+        return True
+    return str(value).strip().lower() != "none"
 
 
 def render(template_html: str, record: dict, *, strict: bool = True,

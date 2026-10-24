@@ -197,9 +197,26 @@ def test_also_included_prints_only_when_something_is(record, filename):
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
     listed = render(template, dict(record), strict=False).html
     assert "Also included:" in listed and record["AdditionalForms"] in listed
-    for nothing in ("None", "none", "  ", ""):
+    for nothing in ("None", "none", " None "):
         empty = render(template, dict(record, AdditionalForms=nothing), strict=False).html
         assert "Also included:" not in empty, (filename, repr(nothing))
+
+
+@pytest.mark.parametrize("filename", ALSO_INCLUDED)
+def test_a_record_with_no_additional_forms_answer_is_refused_not_emptied(record, filename):
+    """Codex on PR #477: a MISSING AdditionalForms is an incomplete record, and
+    the spec says a blank and a "None" are different statements. Only an
+    explicit "None" drops the line; a missing key keeps it, so the strict
+    merge refuses on the field rather than rendering as if it said "None"."""
+    template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+    missing = {k: v for k, v in record.items() if k != "AdditionalForms"}
+    # The line is KEPT (asserted on every template, including the two entity
+    # letters, which refuse this individual record for other reasons too)...
+    kept = render(template, missing, strict=False).html
+    assert "Also included:" in kept, filename
+    # ...so the strict merge refuses on the field itself.
+    with pytest.raises(MergeError, match="AdditionalForms"):
+        render(template, missing)
 
 
 def test_a_dropped_also_included_still_agrees_across_the_pack(record):
