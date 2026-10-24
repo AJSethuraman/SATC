@@ -2763,7 +2763,7 @@ def build(out, result, pull, whatif=None, zoom=None):
     # hidden tab holds, over every quarter each pair shares, so picking a pair on the Dashboard shows the same.
     def month_no(m):
         return int(m[:4]) * 12 + int(m[5:7]) - 1
-    bank_keys = [k for k in pickable if k in monthly and getattr(items[k], "source", "") == "fdic"]
+    bank_keys = [k for k in pickable if k in monthly and getattr(items[k], "bank_credit", False)]
     econ_keys = [k for k in pickable if k in monthly and k not in bank_keys]
     untried = [k for k in pickable if k not in monthly]          # not read from this pull: Not read says why
     changes_ = {items[k].title: {month_no(m): v for m, v in monthly[k]["change"].items()}
@@ -2840,9 +2840,11 @@ def build(out, result, pull, whatif=None, zoom=None):
         row = table(row, "Near misses: the same sign at every starting point, passing at %s of %d"
                     % ("%d to %d" % (lo, hi) if lo < hi else "%d" % lo, s["compare_starts"]), near)
     end = method_note(ws, row, 7, [
-        ("What is tried", "Each of the %d economic series against each of the %d bank credit series (every "
-                          "product's net charge-offs and every delinquency measure, all banks and KeyBank): the "
-                          "first the economic series, the second the bank series." % (len(econ_t), len(bank_t))),
+        ("What is tried", "Each of the %d economic series against each of the %d bank credit series (from the "
+                          "FDIC filings since 2006, every product's net charge-offs and every delinquency measure, "
+                          "all banks and KeyBank; and the Federal Reserve's charge-off and delinquency rates for "
+                          "all banks, from 1985 or 1991): the first the economic series, the second the bank "
+                          "series." % (len(econ_t), len(bank_t))),
         ("The test", "The Dashboard's, on every quarter the two share: one reading a year from %d starting points, "
                      "each lead the settings name, p on the effective pairs, below %g divided by the leads tested; a "
                      "lead holds when all %d starting points pass and agree in sign. The lead shown is the strongest "
