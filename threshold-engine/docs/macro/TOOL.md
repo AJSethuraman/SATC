@@ -253,15 +253,18 @@ Not read, Run and Sources.
   in the Dashboard's lists against each of the 56 bank series, on the
   Dashboard's own test over every quarter the two share. Two tables: the
   pairs that hold at every starting point, strongest r first, then the near
-  misses, the most starting points passed first. Each row names the two
-  series, the lead in words ("Economic leads by 12 months"), r, the years
-  tested and "2 of 4". The line at the top counts the pairs tried, held and
-  nearly held, and how many hold and nearly hold with every bank series
-  moved out of line in time (shifted round its own span by 4, 6, 8 and 10
-  whole years, and reversed): those can only hold by luck, so that is the
-  count to beat; the note gives each run's. On the 23 Oct pull: 75 of 4,256
-  pairs hold and 825 nearly do; by luck, 2 to 32 hold and 155 to 625 nearly
-  do. The
+  misses, the most starting points passed first. A near miss here has the
+  same sign at every starting point and passes at 2 or 3 of the 4 (the
+  firm, 24 Oct 2026: *"i think near miss of 2 or more is fine"*); the
+  Dashboard's line still states a lead passing at 1 of 4 as it is. Each row
+  names the two series, the lead in words ("Economic leads by 12 months"),
+  r, the years tested and "2 of 4". The line at the top counts the pairs
+  tried, held and nearly held, and how many hold and nearly hold with every
+  bank series moved out of line in time (shifted round its own span by 4,
+  6, 8 and 10 whole years, and reversed): those can only hold by luck, so
+  that is the count to beat; the note gives each run's. On the 23 Oct pull:
+  75 of 4,256 pairs hold and 396 nearly do; by luck, 2 to 32 hold and 31 to
+  218 nearly do. The
   test is worked in Python (`screen.py`) when the workbook is built, so the
   tab is values; picking a pair on the Dashboard, From and To set to every
   quarter, shows the same figures.

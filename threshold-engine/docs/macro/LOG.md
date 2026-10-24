@@ -1803,3 +1803,44 @@ the new bank file; its printout is byte for byte the one before. It
 validates against the ISO/IEC 29500 schemas (339 parts, no error), and
 `6-leads-found.png` is the tab's first page as LibreOffice prints it.
 217 tests pass.
+
+## 24 Oct 2026 (afternoon): near misses from 2 of 4
+
+Told that luck alone gives up to 625 near misses, and that 429 of the 825
+pass at only 1 of 4, the firm: *"i think near miss of 2 or more is fine
+but does that mean there wasn't enough to test, or?"*
+
+It does not. A near miss is only ever a lead that was tested at all four
+starting points: each had at least 6 pairs a year apart and a p. "1 of 4"
+means r had the same sign at all four but only one passed the level (0.05
+divided by the leads tested). A lead without enough to test is "not
+tested" on the Dashboard and is never a near miss, on either tab.
+
+Leads found now lists a near miss from 2 passing starting points
+(`screen.NEAR_FROM`), and the chance runs count by the same rule. The
+Dashboard's line is unchanged: it still says "holds in 1 of 4" when that
+is what the strongest lead does. If fewer starting points are set than
+the rule allows (the settings take 1, 2 or 4), the near-miss table is
+left out rather than titled "2 to 1 of 2".
+
+On the 23 Oct pull: 75 hold, as before; **396 nearly do** (267 at 2 of 4,
+129 at 3 of 4). By luck: 2 to 32 hold and 31 to 218 nearly do (shifted 4,
+6, 8 and 10 years: 62, 31, 64 and 145; reversed: 218). The example
+workbook and its picture are rebuilt; the printout is unchanged, and the
+workbook validates (339 parts, no error). Putting the rule back to 1 fails
+two tests.
+
+Codex on b7f917a0, two findings, both real, both fixed:
+
+- When the two series' year-apart correlations multiply to exactly -1 (one
+  repeats each year, the other alternates), the effective pairs divided by
+  zero and the whole build stopped. The Dashboard's IFERROR leaves that
+  cell blank; the screen now does the same, so the lead is not tested.
+- With no pair holding or nearly holding, the chance runs were skipped, so
+  the line could not say whether nothing was unusual. They now run
+  whenever a pair is tried. The test pull, where nothing holds, now reads
+  "0 hold ... and 0 nearly do. With the bank series moved out of line in
+  time, so that only luck links them, ...".
+
+Each fix's test fails on the old code. Rebuilt from the 23 Oct pull, every
+tab of the example is the same as before but for the time it was built.

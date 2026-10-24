@@ -12,7 +12,7 @@ its own a year earlier; p from Student's t on them, two-tailed, with its degrees
 Excel's TDIST does; a lead tested only with a p at every starting point; the firm's level divided by the leads
 tested; a lead holds when every starting point passes and they agree in sign. The lead spoken of is the strongest
 that holds, else the strongest tested. A near miss: no lead holds, but the strongest has the same sign at every
-starting point and passes at one or more.
+starting point and passes at NEAR_FROM or more.
 
 Changes are keyed by month number (year x 12 + month - 1), so a lead of L months is the key L on.
 """
@@ -21,6 +21,10 @@ import math
 #: The chance line: each bank series shifted round its own span by these many whole years, and reversed in time,
 #: so every link to an economic series is by chance while each keeps its own pattern from year to year.
 SHIFTS = (4, 6, 8, 10)
+#: Leads found lists a near miss from this many passing starting points. The firm, 24 Oct 2026, told that luck alone
+#: gives up to 625 near misses and that 429 of the 825 found pass at only 1 of 4: "i think near miss of 2 or more is
+#: fine". The Dashboard's line still states a lead passing at 1 of 4 as it is.
+NEAR_FROM = 2
 
 
 def pearson(xs, ys):
@@ -103,7 +107,9 @@ def lead_test(first, second, leads, starts, p, min_pairs, years=None):
                     ys.append(second[m + lead])
             n = len(xs)
             r = pearson(xs, ys)
-            e = None if (r is None or y1 is None or y2 is None) else min(n, n * (1 - y1 * y2) / (1 + y1 * y2))
+            # None where the Dashboard's IFERROR leaves its cell blank, as when r1 x r2 is -1 (Codex on #473)
+            e = (None if (r is None or y1 is None or y2 is None or 1 + y1 * y2 == 0)
+                 else min(n, n * (1 - y1 * y2) / (1 + y1 * y2)))
             q = None
             if r is not None and e is not None and n >= min_pairs:
                 q = tdist2(abs(r) * math.sqrt(max(e - 2, 0) / max(1 - r * r, 1e-12)), e - 2)
@@ -137,13 +143,13 @@ def strongest(rows):
     return best
 
 
-def verdict(row):
-    """'holds', 'near miss' (the same sign everywhere, passing at one starting point or more) or None."""
+def verdict(row, near_from=NEAR_FROM):
+    """'holds', 'near miss' (the same sign everywhere, passing at ``near_from`` starting points or more) or None."""
     if row is None:
         return None
     if row["holds"]:
         return "holds"
-    if row["same_sign"] and row["holds_in"] >= 1:
+    if row["same_sign"] and row["holds_in"] >= near_from:
         return "near miss"
     return None
 

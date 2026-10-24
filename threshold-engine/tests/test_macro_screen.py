@@ -56,10 +56,11 @@ def test_the_lead_spoken_of_is_one_that_holds_before_a_stronger_one_that_misses(
     assert SC.strongest(rows)["lead"] == 6 and SC.verdict(SC.strongest(rows)) == "near miss"
 
 
-def test_a_near_miss_needs_the_same_sign_everywhere_and_one_pass_at_least():
+def test_a_near_miss_needs_the_same_sign_everywhere_and_two_passes_at_least():
     row = {"holds": False, "same_sign": True, "holds_in": 2}
-    assert SC.verdict(row) == "near miss"
-    assert SC.verdict(dict(row, holds_in=0)) is None                     # the firm: "Only 1 of 4 or more"
+    assert SC.NEAR_FROM == 2 and SC.verdict(row) == "near miss"
+    assert SC.verdict(dict(row, holds_in=1)) is None          # the firm, 24 Oct 2026: "near miss of 2 or more is fine"
+    assert SC.verdict(dict(row, holds_in=1), near_from=1) == "near miss"            # the Dashboard's own rule
     assert SC.verdict(dict(row, same_sign=False)) is None and SC.verdict(None) is None
 
 
@@ -98,3 +99,10 @@ def test_a_bank_series_is_moved_out_of_line_keeping_every_reading_and_its_calend
     mirrored = SC.scrambled(x, "reverse")
     lo, hi = min(x), max(x)
     assert mirrored[lo] == x[hi] and mirrored[hi] == x[lo]
+
+
+def test_two_series_whose_year_apart_correlations_multiply_to_minus_one_are_not_tested_not_a_crash():
+    # Codex on #473: r1 x r2 = -1 put 0 under the effective pairs. The Dashboard's IFERROR leaves the cell blank.
+    rows, _ = SC.lead_test(_quarterly(9), _quarterly(10), [0, 12], STARTS, P, MIN_PAIRS, years=(1.0, -1.0))
+    assert all(not r["tested"] and r["ps"] == [None] * STARTS for r in rows)
+    assert SC.strongest(rows) is None

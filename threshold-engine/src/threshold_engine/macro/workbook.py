@@ -2770,7 +2770,8 @@ def build(out, result, pull, whatif=None, zoom=None):
                 for k in bank_keys + econ_keys}
     econ_t, bank_t = [items[k].title for k in econ_keys], [items[k].title for k in bank_keys]
     found, tried = SCREEN.screen(changes_, econ_t, bank_t, s)
-    chance = SCREEN.by_chance(changes_, econ_t, bank_t, s) if found else {}
+    # Run whenever a pair is tried: none holding means more beside what luck gives (Codex on #473).
+    chance = SCREEN.by_chance(changes_, econ_t, bank_t, s) if tried else {}
     holds = sorted((x for x in found if x["verdict"] == "holds"), key=lambda x: -abs(x["row"]["avg"]))
     near = sorted((x for x in found if x["verdict"] == "near miss"),
                   key=lambda x: (-x["row"]["holds_in"], -abs(x["row"]["avg"])))
@@ -2832,8 +2833,12 @@ def build(out, result, pull, whatif=None, zoom=None):
         return r_ + 1
 
     row = table(6, "Holds at every starting point", holds)
-    row = table(row, "Near misses: the same sign at every starting point, passing at 1 to %d of %d"
-                % (s["compare_starts"] - 1, s["compare_starts"]), near)
+    # From SCREEN.NEAR_FROM passing starting points to one short of all; with fewer starting points than that
+    # allows (the settings take 1, 2 or 4), no lead can be a near miss and the table is left out.
+    lo, hi = SCREEN.NEAR_FROM, s["compare_starts"] - 1
+    if lo <= hi:
+        row = table(row, "Near misses: the same sign at every starting point, passing at %s of %d"
+                    % ("%d to %d" % (lo, hi) if lo < hi else "%d" % lo, s["compare_starts"]), near)
     end = method_note(ws, row, 7, [
         ("What is tried", "Each of the %d economic series against each of the %d bank credit series (every "
                           "product's net charge-offs and every delinquency measure, all banks and KeyBank): the "

@@ -1328,11 +1328,15 @@ def test_leads_found_screens_every_economic_series_against_every_bank_series_as_
     text = _text(ws)
     # two economic series with readings (unemployment, prices) against every bank series: the bank file is one
     # file, so all 56 come with it, the 40 pick-only measures among them
-    assert ws["B4"].value == ("Of 112 pairs of an economic series and a bank series, 0 hold at every starting point "
-                              "and 0 nearly do.")
+    # nothing holds, and the line still says what luck gives, the baseline to read the 0 against (Codex on #473)
+    assert re.fullmatch(r"Of 112 pairs of an economic series and a bank series, 0 hold at every starting point and "
+                        r"0 nearly do\. With the bank series moved out of line in time, so that only luck links "
+                        r"them, [\d,]+( to [\d,]+)? holds? and [\d,]+( to [\d,]+)? nearly do(es)?\.", ws["B4"].value)
     assert "Holds at every starting point" in text and "Near misses" in text and "By chance" in text
     heads = [ws.cell(7, c).value for c in range(2, 8)]
     assert heads == ["Economic series", "Bank series", "Lead", "r", "Years", "Holds in"]
+    # the firm, 24 Oct 2026: "near miss of 2 or more is fine"
+    assert "Near misses: the same sign at every starting point, passing at 2 to 3 of 4" in text
 
 
 def test_a_pick_only_series_not_in_the_pull_is_said_on_not_read_and_leads_found_not_left_out(tmp_path):
