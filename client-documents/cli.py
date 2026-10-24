@@ -2267,7 +2267,7 @@ def _email_draft(doc: str, doc_html: str, produced: dict, record: dict,
     subject, body = emails.parts(doc_html)
     eml = staging / f"{produced[doc][0].stem}.eml"
     eml.write_bytes(emails.to_eml(
-        subject, body, emails.to_plain(body),
+        outgoing.secure_subject(subject, signing._registry()), body, emails.to_plain(body),
         to=str(record.get("ClientEmail") or "").strip(), attachments=files))
     for what in outside:
         print(f"  {doc:22s} before sending, attach: {what}")

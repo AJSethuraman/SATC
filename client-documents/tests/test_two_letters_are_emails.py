@@ -140,3 +140,18 @@ def test_the_organizer_draft_says_to_attach_the_organizer(tmp_path, capsys):
     assert cli.main(["render", str(src), "--docs", "organizer-letter", "--out", str(out),
                      "--no-pdf", "--skip-render"]) == 0
     assert "before sending, attach: The organizer itself, printed from Drake." in capsys.readouterr().out
+
+
+def test_a_render_draft_carries_the_secure_send_keyword(tmp_path, monkeypatch):
+    """Codex on #478: only `outgoing.compose` prefixed the keyword, so with it
+    turned on a draft from `render` would have gone as ordinary email."""
+    import signing
+    real = signing._registry()
+    monkeypatch.setattr(signing, "_registry", lambda: {**real, "secure_keyword": "[secure]"})
+    out = tmp_path / "out"
+    src = _opening_record(tmp_path, TaxYear="2026", FeeChange=False,
+                          Requested=[{"Category": "W-2s", "Detail": "Both employers"}])
+    assert cli.main(["render", str(src), "--docs", "organizer-letter", "--out", str(out),
+                     "--no-pdf", "--skip-render"]) == 0
+    msg = email.message_from_bytes(next(out.glob("*.eml")).read_bytes(), policy=policy.default)
+    assert msg["Subject"] == "[secure] Your 2026 tax organizer"

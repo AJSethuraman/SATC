@@ -143,6 +143,19 @@ def email_body_in(pack: Path | None) -> Path | None:
     return None
 
 
+def secure_subject(subject: str, registry: dict | None) -> str:
+    """The subject with the Outlook add-in's keyword, where the firm turned it on.
+
+    Prefixed rather than appended: the add-in reads the subject line, and a
+    keyword after eighty characters of subject is a keyword in a truncated
+    field. EVERY DRAFT TAKES ITS SUBJECT FROM HERE. `render`'s drafts once
+    used the template's subject raw, so with the keyword on they would have
+    gone as ordinary email -- Codex on #478.
+    """
+    keyword = str((registry or {}).get("secure_keyword", "")).strip()
+    return f"{keyword} {subject}".strip() if keyword else subject
+
+
 def compose(record: dict, pack: Path | None, *, registry: dict) -> Message:
     """The engagement plus its pack -> the message that carries it.
 
@@ -181,10 +194,6 @@ def compose(record: dict, pack: Path | None, *, registry: dict) -> Message:
             f"has to reply to in order to find out what was meant."
         )
 
-    # The Outlook add-in's keyword, where the firm has turned it on. Prefixed
-    # rather than appended: the add-in reads the subject line, and a keyword
-    # after eighty characters of subject is a keyword in a truncated field.
-    keyword = str((registry or {}).get("secure_keyword", "")).strip()
     body_file = email_body_in(pack)
     if body_file is not None:
         # THE ONBOARDING EMAIL IS THE MESSAGE. Its subject and words were
@@ -193,7 +202,7 @@ def compose(record: dict, pack: Path | None, *, registry: dict) -> Message:
         subject, html = emails.parts(body_file.read_text(encoding="utf-8"))
         return Message(
             to=to,
-            subject=f"{keyword} {subject}".strip() if keyword else subject,
+            subject=secure_subject(subject, registry),
             body=emails.to_plain(html),
             attachments=files,
             ref=str(record.get("EngagementRef", "")),
@@ -202,7 +211,7 @@ def compose(record: dict, pack: Path | None, *, registry: dict) -> Message:
     subject = " ".join(_fill(str(note.get("subject", "")), record).split())
     return Message(
         to=to,
-        subject=f"{keyword} {subject}".strip() if keyword else subject,
+        subject=secure_subject(subject, registry),
         body=_fill(str(note.get("body", "")), record).strip() + "\n",
         attachments=files,
         ref=str(record.get("EngagementRef", "")),
