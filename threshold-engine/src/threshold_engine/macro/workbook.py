@@ -43,9 +43,10 @@ import json
 import math
 
 from .catalog import (BANK_MEASURES, BANK_PRODUCTS, BANK_WHO, BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, DERIVED,
-                      HOUSEHOLD_DEBT, READ, SERIES, STATES, bank_key)
+                      HOUSEHOLD_DEBT, PICK, READ, SERIES, STATES, bank_key)
 from .compare import CALLED, NOT_ASKED, plain, row_label, spans, when
 from .fdic_credit import FILE as FDIC_FILE
+from . import screen as SCREEN
 from .readings import (DECREASING, DIRECTIONS, INCREASING, STABLE, changes, kept, percentile, sahm_kept,
                        window_of)
 from .settings import QUESTIONS, Refused, left_out_set, quarter_index, quarter_label, quarter_of, readings_of
@@ -69,6 +70,7 @@ HOUSEHOLD_NAME = "Household debt"
 CARE_NAME = "Usable with care"
 DASHBOARD = "Dashboard"
 DASH_DATA = "Dashboard data"
+LEADS = "Leads found"
 #: The six types of household debt, in the NY Fed's order, coloured from the reference categorical palette
 #: (dataviz skill), checked with its validator for adjacent pairs on 22 Oct 2026: every check passes; three
 #: sit below 3:1 against white, so the tab carries a legend and the table of every type.
@@ -305,10 +307,12 @@ def build(out, result, pull, whatif=None, zoom=None):
     vintage = result["vintage"]
     left = left_out_set(s["left_out"])
     by_key = {}
-    for r in result["readings"]:
+    # The pick-only series' readings (catalog.PICK) are kept apart from the rest; only the Dashboard and Leads found
+    # read them, through these lookups.
+    for r in result["readings"] + result.get("picked", []):
         by_key.setdefault(r["key"], {})[r["reading"]] = r
     missing_by = {}
-    for x in result["not_read"]:
+    for x in result["not_read"] + result.get("picked_not_read", []):
         missing_by.setdefault(x["key"], {})[x["reading"]] = x["why"]
     items = {i.key: i for i in READ}
     state_keys = {"unemployment_" + st.lower() for st in STATES}
@@ -1959,7 +1963,9 @@ def build(out, result, pull, whatif=None, zoom=None):
     ws.freeze_panes = "B4"
 
     # -- Not read -----------------------------------------------------------
-    if result["not_read"]:
+    # The pick-only series too: one the Dashboard and Leads found could not have is said here, not left out.
+    missed = result["not_read"] + result.get("picked_not_read", [])
+    if missed:
         ws = sheet("Not read")
         widths(ws, [44, 24, 110])
         title_band(ws, "Not read", "Each reading the catalog holds that could not be read, and why.", 4,
@@ -1967,7 +1973,7 @@ def build(out, result, pull, whatif=None, zoom=None):
         link(ws.cell(2, 2), "Overview", "Back to Overview", nav=True)
         row = header(ws, 4, ["Series", "Reading", "Why"], height=18)
         record_rows(ws, row, [(items[x["key"]].title, reading_name(x["reading"], months), x["why"])
-                              for x in result["not_read"]], (2, 3, 4), 4)
+                              for x in missed], (2, 3, 4), 4)
         ws.freeze_panes = "A5"
 
     # -- Glossary -----------------------------------------------------------
@@ -2018,7 +2024,7 @@ def build(out, result, pull, whatif=None, zoom=None):
              ("From the pull of", vintage), ("Tool", "threshold-engine %s, economic conditions" % VERSION),
              ("Readings", "%d (%d in the usable-with-care group)" % (
                  len(result["readings"]), sum(1 for r in result["readings"] if r["care"]))),
-             ("Readings not read", len(result["not_read"])),
+             ("Readings not read", len(result["not_read"]) + len(result.get("picked_not_read", []))),
              ("Charts zoomed to", "%s to %s; no reading changes with it" % tuple(zoom) if zoom else
               "not zoomed: every chart draws its whole history"),
              ("Files changed since the pull", "%d: see Sources" % len(changed) if changed else "none"),
@@ -2077,7 +2083,7 @@ def build(out, result, pull, whatif=None, zoom=None):
     # The data tab holds, month by month, every series' level, change, change in typical moves and where its
     # level sits in its history, all values; the Dashboard's formulas only pick two of those columns. A daily or
     # weekly series is drawn at each month's last reading.
-    pickable = [k for k in national] + [k for _, keys in CARE_TOPICS for k in keys]
+    pickable = ([k for k in national] + [i.key for i in PICK] + [k for _, keys in CARE_TOPICS for k in keys])
     monthly = {}
     for key in pickable:
         item = items[key]
@@ -2750,12 +2756,117 @@ def build(out, result, pull, whatif=None, zoom=None):
     ws.print_area = "A1:Y%d" % (end - 1)
     wb.calculation.fullCalcOnLoad = True            # Excel works out the lookups when the file opens
 
+    # -- Leads found: the Dashboard's test over every economic series against every bank series ---------------
+    # The firm, 23 Oct 2026: "is there a mathematical and quick way to determine if any of these pass tests we care
+    # about"; "ok but how can it be done and shown in the book"; then "Economic vs bank", every delinquency measure,
+    # "Holds, then near misses", and the chance line. Worked in Python (screen.py) on the changes the Dashboard's
+    # hidden tab holds, over every quarter each pair shares, so picking a pair on the Dashboard shows the same.
+    def month_no(m):
+        return int(m[:4]) * 12 + int(m[5:7]) - 1
+    bank_keys = [k for k in pickable if k in monthly and getattr(items[k], "source", "") == "fdic"]
+    econ_keys = [k for k in pickable if k in monthly and k not in bank_keys]
+    untried = [k for k in pickable if k not in monthly]          # not read from this pull: Not read says why
+    changes_ = {items[k].title: {month_no(m): v for m, v in monthly[k]["change"].items()}
+                for k in bank_keys + econ_keys}
+    econ_t, bank_t = [items[k].title for k in econ_keys], [items[k].title for k in bank_keys]
+    found, tried = SCREEN.screen(changes_, econ_t, bank_t, s)
+    # Run whenever a pair is tried: none holding means more beside what luck gives (Codex on #473).
+    chance = SCREEN.by_chance(changes_, econ_t, bank_t, s) if tried else {}
+    holds = sorted((x for x in found if x["verdict"] == "holds"), key=lambda x: -abs(x["row"]["avg"]))
+    near = sorted((x for x in found if x["verdict"] == "near miss"),
+                  key=lambda x: (-x["row"]["holds_in"], -abs(x["row"]["avg"])))
+    ws = sheet(LEADS)
+    widths(ws, [55, 49, 26, 9, 9, 12, 2.71])          # the longest titles, 63 and 56 characters, in full
+    title_band(ws, LEADS, "Every economic series against every bank credit series, on the Dashboard's test.", 8,
+               tab=K.INK)
+    link(ws.cell(2, 2), "Overview", "Back to Overview", nav=True)
+    link(ws.cell(2, 3), DASHBOARD, "To the Dashboard", nav=True)
+
+    def held(low, high=None):
+        """'1 holds and', '75 hold and', '2 to 32 hold and': the count and the verb that goes with it."""
+        if high is None or high == low:
+            return "{:,} {}".format(low, "holds" if low == 1 else "hold")
+        return "{:,} to {:,} hold".format(low, high)
+
+    def nearly(low, high=None):
+        if high is None or high == low:
+            return "{:,} nearly {}".format(low, "does" if low == 1 else "do")
+        return "{:,} to {:,} nearly do".format(low, high)
+
+    def luck_span(said):
+        return min(x[said] for x in chance.values()), max(x[said] for x in chance.values())
+    # Near misses too: the firm sees how many of each table luck alone gives.
+    luck = (" With the bank series moved out of line in time, so that only luck links them, %s and %s."
+            % (held(*luck_span("holds")), nearly(*luck_span("near miss"))) if chance else "")
+    chance_words = ("Run by run, held and nearly: %s." % "; ".join(
+        "%s %s and %s" % ("reversed" if how == "reverse" else "shifted %d years" % how,
+                          "{:,}".format(x["holds"]), "{:,}".format(x["near miss"])) for how, x in chance.items())
+                    if chance else "")
+    merged(ws, 4, 2, 7, "Of {:,} pairs of an economic series and a bank series, {} at every starting point and "
+                        "{}.{}".format(tried, held(len(holds)), nearly(len(near)), luck),
+           font=F_DATA, align=Alignment(vertical="center", wrap_text=True, indent=1))
+    ws.row_dimensions[4].height = 33
+
+    def lead_words(lead):
+        return ("At the same time" if lead == 0 else "Economic leads by %d months" % lead if lead > 0
+                else "Bank leads by %d months" % -lead)
+
+    def table(row, title, rows_):
+        section(ws, row, title, 7)
+        header(ws, row + 1, ["Economic series", "Bank series", "Lead", "r", "Years", "Holds in"],
+               right=(3, 4), centre=(5,))
+        r_ = row + 2
+        for x in rows_:
+            got = x["row"]
+            put(ws, r_, 2, x["economic"])
+            put(ws, r_, 3, x["bank"])
+            put(ws, r_, 4, lead_words(got["lead"]))
+            put(ws, r_, 5, got["avg"], "+0.00;-0.00;0.00", align=RIGHT)
+            put(ws, r_, 6, min(got["ns"]), "#,##0", align=RIGHT)
+            put(ws, r_, 7, "%d of %d" % (got["holds_in"], s["compare_starts"]), align=CENTER)
+            ws.row_dimensions[r_].height = 15
+            rule(ws, r_, 2, 7)
+            r_ += 1
+        if not rows_:
+            put(ws, r_, 2, "None.", font=F_NOTE)
+            r_ += 1
+        return r_ + 1
+
+    row = table(6, "Holds at every starting point", holds)
+    # From SCREEN.NEAR_FROM passing starting points to one short of all; with fewer starting points than that
+    # allows (the settings take 1, 2 or 4), no lead can be a near miss and the table is left out.
+    lo, hi = SCREEN.NEAR_FROM, s["compare_starts"] - 1
+    if lo <= hi:
+        row = table(row, "Near misses: the same sign at every starting point, passing at %s of %d"
+                    % ("%d to %d" % (lo, hi) if lo < hi else "%d" % lo, s["compare_starts"]), near)
+    end = method_note(ws, row, 7, [
+        ("What is tried", "Each of the %d economic series against each of the %d bank credit series (every "
+                          "product's net charge-offs and every delinquency measure, all banks and KeyBank): the "
+                          "first the economic series, the second the bank series." % (len(econ_t), len(bank_t))),
+        ("The test", "The Dashboard's, on every quarter the two share: one reading a year from %d starting points, "
+                     "each lead the settings name, p on the effective pairs, below %g divided by the leads tested; a "
+                     "lead holds when all %d starting points pass and agree in sign. The lead shown is the strongest "
+                     "that holds, or for a near miss the strongest tested." % (s["compare_starts"], s["compare_p"],
+                                                                              s["compare_starts"])),
+        ("r and Years", "r is the average of the %d starting points' r; Years the fewest pairs a year apart at any "
+                        "of them." % s["compare_starts"]),
+        ("By chance", "The same test with each bank series shifted round its own span by %s years, and again "
+                      "reversed in time, so any link is luck; the line at the top gives the fewest and the most "
+                      "that held, and that nearly did, over those runs. %s" % (
+                          ", ".join(str(n) for n in SCREEN.SHIFTS), chance_words)),
+        ("To see one", "Pick the two on the Dashboard over every quarter: its tables and chart show the same "
+                       "figures."),
+    ] + ([("Not tried", "%d of the series the Dashboard lists could not be read from this pull, so are not tried; "
+                        "Not read says why." % len(untried))] if untried else []), label_cols=1)
+    ws.freeze_panes = "A4"
+    ws.print_area = "A1:H%d" % (end - 1)
+
     # The tab bar follows the Overview: the front tabs, every core series in its rows' order, States, the
     # usable-with-care group, then the record (Claude Design, round 1).
-    order = (["Overview", DASHBOARD] + (["What if"] if whatif else [])
+    order = (["Overview", DASHBOARD, LEADS] + (["What if"] if whatif else [])
              + list(dict.fromkeys(TAB[k] for _, keys in TOPICS for k in keys)) + ["States", CARE_NAME]
              + [CARE_TAB[k] for _, keys in CARE_TOPICS for k in keys]
-             + ["State data", "Glossary"] + (["Not read"] if result["not_read"] else []) + ["Run", "Sources", DASH_DATA])
+             + ["State data", "Glossary"] + (["Not read"] if missed else []) + ["Run", "Sources", DASH_DATA])
     assert sorted(order) == sorted(wb.sheetnames), (set(order) ^ set(wb.sheetnames))
     wb._sheets.sort(key=lambda ws_: order.index(ws_.title))
     wb.active = 0
