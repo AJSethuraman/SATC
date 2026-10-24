@@ -195,6 +195,18 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
         + oi.rental_and_passive_income + oi.other_taxable_income + oi.spouse_taxable_wages)
 
     adj = inp.adjustments
+    # STUDENT LOAN INTEREST IS ASKED FOR AS THE DEDUCTIBLE AMOUNT (Schedule 1
+    # line 21), after the income limit. Two rules need no income figure and
+    # are refused here rather than deducted: none on a separate return (IRC
+    # sec. 221(e)(2)), and never more than $2,500 (sec. 221(b)(1), not
+    # indexed). Codex on #451: the raw interest was deducted unchecked.
+    if adj.student_loan_interest > ZERO and status == "married_separately":
+        raise ValueError("Student loan interest cannot be deducted on a married filing "
+                         "separately return. Leave it blank.")
+    if adj.student_loan_interest > Decimal("2500"):
+        raise ValueError(f"Student loan interest deduction is at most $2,500; "
+                         f"{_usd(adj.student_loan_interest)} was entered. Enter the deductible "
+                         f"amount from Schedule 1 line 21.")
     adjustments_total = (adj.traditional_ira_deduction + adj.hsa_deduction
                          + adj.student_loan_interest + adj.other_adjustments + half_se)
     agi = _nonneg(total_income - adjustments_total)
@@ -249,6 +261,7 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
     remaining_tax = income_tax_before_credits
     other_nonref = min(cr.other_nonrefundable_credits, remaining_tax)
     remaining_tax -= other_nonref
+    eitc = _earned_income_credit(ctx, agi, earned)     # before the child credit: Part II-B subtracts it
     if cr.child_tax_credit is not None:
         child_credit = min(cr.child_tax_credit, remaining_tax)
         actc = ZERO
@@ -258,11 +271,12 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
                 "used. Leave that box blank and enter the children instead, and the estimator works "
                 "out the refundable part (the additional child tax credit) itself.")
     else:
-        child_credit, actc = _child_tax_credit(ctx, agi, remaining_tax, earned)
+        child_credit, actc = _child_tax_credit(
+            ctx, agi, remaining_tax, earned,
+            payroll_alternative=_actc_payroll_alternative(ctx, half_se, eitc))
     remaining_tax -= child_credit
     nonrefundable_applied = other_nonref + child_credit
 
-    eitc = _earned_income_credit(ctx, agi, earned)
     refundable = cr.refundable_credits + actc + eitc
     tax_after_credits = remaining_tax + se_tax + add_medicare + niit
     total_liability = tax_after_credits - refundable
@@ -440,12 +454,12 @@ def _qbi_deduction(ctx: _Context, ti_before_qbi: Decimal, net_capital_gain: Deci
 
 
 def _child_tax_credit(ctx: _Context, agi: Decimal, tax_room: Decimal,
-                      earned: Decimal) -> tuple[Decimal, Decimal]:
-    """Schedule 8812 (Form 1040) 2025, Parts I and II-A.
+                      earned: Decimal, payroll_alternative: Decimal = ZERO) -> tuple[Decimal, Decimal]:
+    """Schedule 8812 (Form 1040) 2025, Parts I, II-A and II-B.
 
     Returns (credit used against income tax, additional child tax credit).
-    Part II-B -- the Social Security alternative for three or more children --
-    is not modelled; it can only make the refundable part larger.
+    ``payroll_alternative`` is Part II-B's line 25, used for three or more
+    children (line 26 takes the larger). It was left out until Codex on #451.
     """
     t, hh = ctx.tables, ctx.inp.household
     kids = hh.children_under_17 or 0
@@ -460,7 +474,29 @@ def _child_tax_credit(ctx: _Context, agi: Decimal, tax_room: Decimal,
         return used, ZERO
     line17 = min(line12 - used, kids * t.actc_max_per_child)
     line20 = _nonneg(earned - t.actc_earned_income_floor) * t.actc_earned_income_rate
-    return used, min(line17, line20)
+    line26 = max(line20, payroll_alternative) if kids >= 3 else line20
+    return used, min(line17, line26)
+
+
+def _actc_payroll_alternative(ctx: _Context, half_se: Decimal, eitc: Decimal) -> Decimal:
+    """Schedule 8812 Part II-B, lines 21-25: the taxpayer's Social Security taxes
+    less the earned income credit.
+
+    IRC sec. 24(d)(2): the employee's Social Security and Medicare tax
+    withheld (W-2 boxes 4 and 6, with the Additional Medicare withheld) plus
+    HALF the self-employment tax (Schedule 1 line 15), less the earned income
+    credit and the excess Social Security credit (Schedule 3 line 11). Each
+    employer's Social Security stops at the wage base; projected Box 1 wages
+    stand in for Social Security and Medicare wages, as everywhere here.
+    """
+    t, inp = ctx.tables, ctx.inp
+    projections = [_project_job(job) for job in inp.jobs]
+    addl_withheld, excess_ss = _payroll_credits(ctx, projections)
+    ss_rate = t.se_social_security_rate / 2              # 6.2%, sec. 3101(a)
+    medicare_rate = t.se_medicare_rate / 2               # 1.45%, sec. 3101(b)(1)
+    wages = [p.projected_wages for p in projections] + [inp.other_income.spouse_taxable_wages]
+    line21 = sum((min(w, t.ss_wage_base) * ss_rate + w * medicare_rate for w in wages), ZERO) + addl_withheld
+    return _nonneg(line21 + half_se - eitc - excess_ss)                # lines 23-25
 
 
 def _childless_age_ok(ctx: _Context) -> bool:
@@ -857,7 +893,8 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
             f"(Form 1040 line 11).")
     if inp.prior_year_tax is None:
         add("Last year's tax", "Not given, so only the 90%-of-this-year test was run",
-            "Enter last year's total tax (Form 1040 line 24) -- paying that much "
+            "Enter last year's tax for the penalty test (Form 2210 line 8: Form 1040 line 24 "
+            "less last year's refundable credits) -- paying that much "
             "(110% if last year's AGI was over $150,000) avoids the penalty however this year ends up.")
     for i, job in enumerate(inp.jobs):
         label = job.name or f"Job {i + 1}"

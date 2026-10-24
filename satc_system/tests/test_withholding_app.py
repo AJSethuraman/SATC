@@ -260,3 +260,18 @@ def test_two_blind_people_on_a_single_return_are_refused_on_screen(client):
         "blind_count": "2"})
     assert resp.status_code == 200
     assert b"legally blind" in resp.data and b"Total tax liability" not in resp.data
+
+
+def test_the_screen_takes_refundable_credits_and_the_2210_prior_year_tax(client):
+    """Codex on #451: the refundable part of the education credit had nowhere
+    to go, and last year's tax was asked for as line 24 instead of the Form
+    2210 line 8 figure."""
+    page = client.get("/withholding").data
+    assert b'name="refundable_credits"' in page and b"Form 2210 line 8" in page
+    resp = client.post("/withholding", data={
+        "filing_status": "single", "tax_year": "2025", "adjust_job": "0",
+        "pay_frequency": "annual", "pay_periods_remaining": "1",
+        "gross_pay_per_period": "12000", "federal_tax_withheld_per_period": "0",
+        "refundable_credits": "1000"})
+    assert resp.status_code == 200 and b"Total tax liability" in resp.data
+    assert b"Refundable credits entered" in resp.data and b"1,000" in resp.data

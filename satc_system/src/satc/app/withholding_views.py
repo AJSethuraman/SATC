@@ -124,7 +124,7 @@ _HOUSEHOLD_KEYS = ("taxpayer_65_or_older", "spouse_65_or_older", "taxpayer_under
 _SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_overtime", "car_loan_interest")
 
 _HH_KEYS = ("filing_status", "tax_year", "itemized_total", "extra_standard_deductions",
-            "child_tax_credit", "other_nonrefundable_credits", "estimated_tax_payments",
+            "child_tax_credit", "other_nonrefundable_credits", "refundable_credits", "estimated_tax_payments",
             "target_refund", "prior_year_tax", "prior_year_agi",
             *_OTHER_INCOME_KEYS, *_ADJUSTMENT_KEYS, *_ITEMIZED_KEYS, *_HOUSEHOLD_KEYS,
             *_SCHEDULE_1A_KEYS)
@@ -257,7 +257,8 @@ def _estimator_input(jobs: list[dict], hh: dict) -> EstimatorInput:
     if deductions:
         data["deductions"] = deductions
 
-    credits = {k: _clean_num(hh.get(k)) for k in ("child_tax_credit", "other_nonrefundable_credits")}
+    credits = {k: _clean_num(hh.get(k)) for k in ("child_tax_credit", "other_nonrefundable_credits",
+                                                    "refundable_credits")}
     credits = {k: v for k, v in credits.items() if v is not None}
     if credits:
         data["credits"] = credits

@@ -447,3 +447,46 @@ def test_the_earned_income_assumption_is_only_raised_where_the_credit_could_appl
     assert "Earned income credit" not in {a.topic for a in rich.assumptions}
     poor = _run(wages=30000, status="head_of_household", household={"children_under_17": 2})
     assert "Earned income credit" in {a.topic for a in poor.assumptions}
+
+
+def test_three_children_take_the_larger_of_the_two_refundable_child_credits():
+    # Schedule 8812 Part II-B, IRC sec. 24(d)(1)(B)(ii). Codex review, PR #451.
+    # HOH, wages 4,000, dividends 12,000 (over the 11,950 limit, so no EITC),
+    # 2025; no income tax. Line 20: (4,000 - 2,500) x 15% = 225. Line 21:
+    # 4,000 x 6.2% + 4,000 x 1.45% = 248 + 58 = 306. Line 26 takes 306.
+    three = _run(wages=4000, status="head_of_household", household={"children_under_17": 3},
+                 other_income={"ordinary_dividends": 12000})
+    assert three.breakdown.earned_income_credit == ZERO_
+    assert three.breakdown.additional_child_tax_credit == D("306.00")
+    two = _run(wages=4000, status="head_of_household", household={"children_under_17": 2},
+               other_income={"ordinary_dividends": 12000})
+    assert two.breakdown.additional_child_tax_credit == D("225.00")
+    # Line 24 subtracts the earned income credit. Without the dividends the
+    # credit is 4,000 x 45% = 1,800, so line 25 is 306 - 1,800, nothing, and
+    # line 20's 225 stands.
+    with_eitc = _run(wages=4000, status="head_of_household", household={"children_under_17": 3})
+    assert with_eitc.breakdown.earned_income_credit == D("1800.00")
+    assert with_eitc.breakdown.additional_child_tax_credit == D("225.00")
+
+
+def test_the_payroll_alternative_counts_half_the_self_employment_tax():
+    # Codex's example: SE 20,000, dividends 12,000, three children. Sec.
+    # 24(d)(2)(A)(ii) counts HALF the SE tax: 20,000 x .9235 x .153 / 2 =
+    # 1,412.96, under line 20's (20,000 - 1,412.96 - 2,500) x 15% = 2,413.06.
+    # So line 20 stands; the ~2,826 Codex gave counts the whole SE tax.
+    r = _run(wages=0, status="head_of_household", household={"children_under_17": 3},
+             other_income={"ordinary_dividends": 12000, "self_employment_net": 20000})
+    assert r.breakdown.additional_child_tax_credit == D("2413.06")
+
+
+@pytest.mark.parametrize("status,amount", [("married_separately", 1000), ("single", 3000)])
+def test_student_loan_interest_the_law_does_not_allow_is_refused(status, amount):
+    # IRC sec. 221(e)(2): none on a separate return; 221(b)(1): at most 2,500.
+    # Codex review, PR #451.
+    with pytest.raises(ValueError, match="Student loan interest"):
+        _run(wages=60000, status=status, adjustments={"student_loan_interest": amount})
+
+
+def test_student_loan_interest_within_the_limit_is_deducted():
+    r = _run(wages=60000, adjustments={"student_loan_interest": 2500})
+    assert r.breakdown.adjusted_gross_income == D("57500.00")

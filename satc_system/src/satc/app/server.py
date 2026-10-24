@@ -373,7 +373,8 @@ def create_app() -> Flask:
                 "deductions": "optional dict: itemized parts (mortgage_interest, property_taxes, "
                 "state_local_income_or_sales_tax, charitable_cash, charitable_noncash, "
                 "medical_expenses, other_itemized) or itemized_total; none = standard",
-                "prior_year_tax": "optional; enables safe-harbor guidance",
+                "prior_year_tax": "optional; Form 2210 line 8 (last year's Form 1040 line 24 less its "
+                "refundable credits); enables safe-harbor guidance",
             },
         }
 

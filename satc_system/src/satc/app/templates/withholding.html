@@ -189,7 +189,7 @@
       <div class="grid2">
         {{ field('traditional_ira_deduction', 'Deductible IRA contributions') }}
         {{ field('hsa_deduction', 'HSA contributions (not through payroll)') }}
-        {{ field('student_loan_interest', 'Student loan interest', 'up to $2,500') }}
+        {{ field('student_loan_interest', 'Student loan interest you can deduct', 'Schedule 1 line 21: after the income limit, at most $2,500') }}
         {{ field('other_adjustments', 'Other adjustments') }}
       </div>
     </div>
@@ -224,10 +224,11 @@
     <div class="body">
       <div class="grid2">
         {{ field('estimated_tax_payments', 'Estimated tax paid so far this year') }}
-        {{ field('prior_year_tax', "Last year's total tax", "Form 1040 line 24 — sets the penalty test") }}
+        {{ field('prior_year_tax', "Last year's tax for the penalty test", "Form 2210 line 8 — line 24 less refundable credits such as the earned income credit") }}
         {{ field('prior_year_agi', "Last year's AGI", 'Form 1040 line 11') }}
         {{ field('target_refund', 'Refund wanted', 'blank = break even') }}
-        {{ field('other_nonrefundable_credits', 'Other credits you know', 'education, dependent care') }}
+        {{ field('other_nonrefundable_credits', 'Other credits that only reduce tax', 'dependent care, the nonrefundable education credit') }}
+        {{ field('refundable_credits', 'Other refundable credits', 'the refundable education credit, Form 8863 line 8') }}
         {{ field('child_tax_credit', 'Child tax credit, if already worked out', 'blank = worked out from the children') }}
       </div>
       <p style="margin-top:16px"><button class="btn primary" type="submit">Run estimate</button></p>
@@ -317,6 +318,7 @@
           {{ row('Net investment income tax', b.net_investment_income_tax, show_zero=False) }}
           {{ row('Additional child tax credit', -b.additional_child_tax_credit, show_zero=False) }}
           {{ row('Earned income credit', -b.earned_income_credit, show_zero=False) }}
+          {{ row('Refundable credits entered', -(b.refundable_credits - b.additional_child_tax_credit - b.earned_income_credit), show_zero=False) }}
           {{ row('Total tax liability', b.total_tax_liability, strong=True) }}
           <tr><td class="muted">Marginal / effective rate</td><td class="num muted">{{ '{:.1%}'.format(b.marginal_rate) }} / {{ '{:.1%}'.format(b.effective_rate) }}</td></tr>
         </table>
