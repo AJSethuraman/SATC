@@ -252,6 +252,41 @@ def test_the_screen_asks_whether_a_separate_filer_lived_apart(client):
     assert b"4,328" not in blank and b"lived apart" in blank
 
 
+def _text(page: bytes) -> bytes:
+    """The page as a reader sees it: tags dropped, whitespace collapsed."""
+    return re.sub(rb"\s+", b" ", re.sub(rb"<[^>]+>", b" ", page))
+
+
+def test_the_screen_asks_whose_business_it_is(client):
+    """Codex on #451: on a joint return only the owner's wages use up the
+    Social Security wage base on Schedule SE, so the screen has to ask whose
+    business it is. Spouse's job 180,000, business 100,000 (engine test has the
+    working): taxpayer's $14,130, spouse's $2,678, as the screen rounds."""
+    base = {"filing_status": "married_jointly", "tax_year": "2025", "adjust_job": "0",
+            "pay_frequency": "annual", "pay_periods_remaining": "1", "owner": "spouse",
+            "gross_pay_per_period": "180000", "federal_tax_withheld_per_period": "0",
+            "self_employment_net": "100000"}
+    assert b'name="self_employment_owner"' in client.get("/withholding").data
+    mine = client.post("/withholding", data=dict(base, self_employment_owner="you")).data
+    assert b"Self-employment tax $14,130" in _text(mine), mine.decode("utf-8", "replace")[:2000]
+    theirs = client.post("/withholding", data=dict(base, self_employment_owner="spouse")).data
+    assert b"Self-employment tax $2,678" in _text(theirs)
+
+
+def test_the_screen_asks_whether_a_separate_filers_spouse_files_nothing(client):
+    """Codex on #451: Pub. 501 lets a separate return count the spouse's age
+    box when the spouse has no income and files nothing: 15,750 + 1,600."""
+    base = {"filing_status": "married_separately", "tax_year": "2025", "adjust_job": "0",
+            "pay_frequency": "annual", "pay_periods_remaining": "1",
+            "gross_pay_per_period": "60000", "federal_tax_withheld_per_period": "5000",
+            "spouse_65_or_older": "yes"}
+    assert b'name="spouse_no_income_not_filing"' in client.get("/withholding").data
+    told = client.post("/withholding", data=dict(base, spouse_no_income_not_filing="yes")).data
+    assert b"17,350" in told, told.decode("utf-8", "replace")[:2000]
+    blank = client.post("/withholding", data=base).data
+    assert b"17,350" not in blank and b"Spouse&#39;s age" in blank
+
+
 def test_two_blind_people_on_a_single_return_are_refused_on_screen(client):
     resp = client.post("/withholding", data={
         "filing_status": "single", "tax_year": "2025", "adjust_job": "0",

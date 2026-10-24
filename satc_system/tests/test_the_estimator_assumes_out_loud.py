@@ -506,3 +506,88 @@ def test_student_loan_interest_the_law_does_not_allow_is_refused(status, amount)
 def test_student_loan_interest_within_the_limit_is_deducted():
     r = _run(wages=60000, adjustments={"student_loan_interest": 2500})
     assert r.breakdown.adjusted_gross_income == D("57500.00")
+
+
+def _joint_with_spouse_job(spouse_wages, se, **household):
+    data = {"filing_status": "married_jointly", "tax_year": 2025,
+            "jobs": [{"pay_frequency": "annual", "taxable_wages_per_period": spouse_wages,
+                      "pay_periods_remaining": 1, "owner": "spouse"}],
+            "other_income": {"self_employment_net": se}}
+    if household:
+        data["household"] = household
+    return estimate(EstimatorInput.from_dict(data), today=MID_YEAR)
+
+
+def test_only_the_business_owners_wages_use_up_their_wage_base():
+    # Schedule SE is one person's; line 8a is that person's own wages. Codex
+    # review, PR #451. 2025, joint: spouse wages 180,000, taxpayer's business
+    # 100,000. Line 4a: 100,000 x .9235 = 92,350. Taxpayer has no wages, so all
+    # of it is under the 176,100 base: 92,350 x 12.4% = 11,451.40, plus
+    # 92,350 x 2.9% = 2,678.15. Total 14,129.55.
+    mine = _joint_with_spouse_job(180000, 100000, self_employment_owner="you")
+    assert mine.breakdown.self_employment_tax == D("14129.55")
+    # The spouse's business: 180,000 of the spouse's wages already pass the
+    # base, so only the 2.9% is left: 2,678.15.
+    theirs = _joint_with_spouse_job(180000, 100000, self_employment_owner="spouse")
+    assert theirs.breakdown.self_employment_tax == D("2678.15")
+
+
+def test_an_unmarked_business_is_assumed_the_taxpayers_out_loud():
+    r = _joint_with_spouse_job(180000, 100000)
+    assert r.breakdown.self_employment_tax == D("14129.55")
+    assert any(a.topic == "Self-employment" for a in r.assumptions)
+    marked = _joint_with_spouse_job(180000, 100000, self_employment_owner="you")
+    assert not any(a.topic == "Self-employment" for a in marked.assumptions)
+
+
+def test_a_spouses_business_on_a_separate_return_is_refused():
+    with pytest.raises(ValueError, match="Self-employment profit is marked as the spouse's"):
+        _run(wages=0, status="married_separately", household={"self_employment_owner": "spouse"},
+             other_income={"self_employment_net": 50000})
+
+
+@pytest.mark.parametrize("other,expected", [
+    # Form 8960 line 8 combines signed amounts; only line 12 stops at zero.
+    # Codex review, PR #451. 2025 single, threshold 200,000, wages 250,000.
+    # Rental loss: AGI 280,000, over 80,000; NII 50,000 - 20,000 = 30,000;
+    # 30,000 x 3.8% = 1,140.
+    ({"interest": 50000, "rental_and_passive_income": -20000}, "1140.00"),
+    # Capital loss -10,000 enters as the 3,000 allowed (line 5a = 1040 line 7):
+    # AGI 297,000, over 97,000; NII 47,000 x 3.8% = 1,786.
+    ({"interest": 50000, "long_term_capital_gains": -10000}, "1786.00"),
+    # A total below zero is zero, not a negative tax.
+    ({"interest": 5000, "rental_and_passive_income": -20000}, "0.00"),
+])
+def test_the_investment_income_tax_nets_losses(other, expected):
+    r = _run(wages=250000, other_income=other)
+    assert r.breakdown.net_investment_income_tax == D(expected)
+
+
+def test_a_separate_return_counts_the_spouses_boxes_when_the_spouse_files_nothing():
+    # Pub. 501 Table 7, 2025, married filing separately: 1 box 17,350, 4 boxes
+    # 22,150. Codex review, PR #451.
+    one = _run(wages=60000, status="married_separately",
+               household={"spouse_65_or_older": True, "spouse_no_income_not_filing": True})
+    assert one.breakdown.deduction_used == D("17350.00")
+    four = _run(wages=60000, status="married_separately",
+                household={"taxpayer_65_or_older": True, "spouse_65_or_older": True,
+                           "blind_count": 2, "spouse_no_income_not_filing": True})
+    assert four.breakdown.deduction_used == D("22150.00")
+
+
+def test_a_separate_return_leaves_the_spouses_box_out_until_told_out_loud():
+    r = _run(wages=60000, status="married_separately", household={"spouse_65_or_older": True})
+    assert r.breakdown.deduction_used == D("15750.00")
+    assert any(a.topic == "Spouse's age" for a in r.assumptions)
+    no = _run(wages=60000, status="married_separately",
+              household={"spouse_65_or_older": True, "spouse_no_income_not_filing": False})
+    assert no.breakdown.deduction_used == D("15750.00")
+    assert not any(a.topic == "Spouse's age" for a in no.assumptions)
+
+
+def test_spouse_wages_entered_without_a_job_count_against_the_spouses_business():
+    # Same figures as above, with the spouse's 180,000 entered as a single
+    # amount rather than a job: still the spouse's wage base, so 2,678.15.
+    r = _run(wages=0, status="married_jointly", household={"self_employment_owner": "spouse"},
+             other_income={"self_employment_net": 100000, "spouse_taxable_wages": 180000})
+    assert r.breakdown.self_employment_tax == D("2678.15")

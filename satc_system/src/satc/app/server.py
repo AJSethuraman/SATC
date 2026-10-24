@@ -363,7 +363,8 @@ def create_app() -> Flask:
                 "tax_year": "optional; one of tax_years (missing = default_tax_year). A year "
                 "not on file is refused with an error -- never run on another year's figures.",
                 "household": "optional dict: taxpayer_65_or_older, spouse_65_or_older, "
-                "taxpayer_under_25, spouse_under_25, lived_apart_from_spouse, blind_count, children_under_17, "
+                "taxpayer_under_25, spouse_under_25, lived_apart_from_spouse, spouse_no_income_not_filing, "
+                "self_employment_owner (you/spouse), blind_count, children_under_17, "
                 "other_dependents, eitc_children",
                 "schedule_1a": "optional dict: qualified_tips, qualified_overtime, car_loan_interest",
                 "jobs": "list, one entry per job (taxpayer + spouse / second jobs). Each job: "

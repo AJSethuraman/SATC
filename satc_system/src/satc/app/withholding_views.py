@@ -119,7 +119,8 @@ _ADJUSTMENT_KEYS = ("traditional_ira_deduction", "hsa_deduction", "student_loan_
 _ITEMIZED_KEYS = ("medical_expenses", "state_local_income_or_sales_tax", "property_taxes",
                   "mortgage_interest", "charitable_cash", "charitable_noncash", "other_itemized")
 _HOUSEHOLD_KEYS = ("taxpayer_65_or_older", "spouse_65_or_older", "taxpayer_under_25",
-                   "spouse_under_25", "lived_apart_from_spouse", "blind_count",
+                   "spouse_under_25", "lived_apart_from_spouse", "spouse_no_income_not_filing",
+                   "self_employment_owner", "blind_count",
                    "children_under_17", "other_dependents", "eitc_children")
 _SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_overtime", "car_loan_interest")
 

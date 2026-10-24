@@ -161,6 +161,7 @@
         {{ yesno('taxpayer_under_25', 'Taxpayer under 25 by Dec 31') }}
         {{ yesno('spouse_under_25', 'Spouse under 25 (joint return)') }}
         {{ yesno('lived_apart_from_spouse', 'Lived apart from spouse the last 6 months (separate return)') }}
+        {{ yesno('spouse_no_income_not_filing', "Spouse had no income, files no return, and is nobody's dependent (separate return)") }}
         {{ field('children_under_17', 'Children under 17', 'blank = none') }}
         {{ field('other_dependents', 'Other dependents', 'older children, parents') }}
         {{ field('eitc_children', 'Children for the earned income credit', 'blank = the under-17 count') }}
@@ -174,6 +175,12 @@
     <div class="body">
       <div class="grid2">
         {{ field('self_employment_net', 'Self-employment profit (Schedule C)', 'drives SE tax and QBI') }}
+        <p><label class="muted">Whose business <span class="wh-hint">joint return</span></label><br>
+          <select class="field-input" name="self_employment_owner">
+            <option value="" {{ 'selected' if not hh.get('self_employment_owner') }}>Not sure (assume taxpayer)</option>
+            <option value="you" {{ 'selected' if hh.get('self_employment_owner')=='you' }}>Taxpayer</option>
+            <option value="spouse" {{ 'selected' if hh.get('self_employment_owner')=='spouse' }}>Spouse</option>
+          </select></p>
         {{ field('interest', 'Interest') }}
         {{ field('ordinary_dividends', 'Ordinary dividends') }}
         {{ field('qualified_dividends', 'Qualified dividends', 'part of ordinary') }}

@@ -129,6 +129,15 @@ class Household:
     #: with the taxpayer over half the year, that allows the earned income
     #: credit on a separate return (IRC sec. 32(d)(2), Pub. 596).
     lived_apart_from_spouse: bool | None = None
+    #: Married filing separately only: the spouse had no gross income, files
+    #: no return and cannot be claimed as anyone's dependent. Then the
+    #: spouse's age and blindness boxes count on this return (Pub. 501,
+    #: "Spouse 65 or Older or Blind"; Table 7 allows four boxes).
+    spouse_no_income_not_filing: bool | None = None
+    #: "you" or "spouse": whose Schedule C profit ``self_employment_net`` is.
+    #: Schedule SE is one person's, and only that person's own wages use up
+    #: the Social Security wage base on it (line 8a). None = not told.
+    self_employment_owner: str | None = None
     children_under_17: int | None = None
     other_dependents: int | None = None
     #: Children who qualify for the earned income credit (under 19, or under
@@ -360,6 +369,15 @@ def _opt_int(value: Any) -> int | None:
     return n
 
 
+def _opt_owner(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    v = str(value).strip().lower()
+    if v not in ("you", "spouse"):
+        raise ValueError(f"expected 'you' or 'spouse', got {value!r}")
+    return v
+
+
 def _build_household(data: dict[str, Any]) -> Household:
     _check_keys(Household, data)
     return Household(
@@ -369,6 +387,8 @@ def _build_household(data: dict[str, Any]) -> Household:
         spouse_under_25=_opt_bool(data.get("spouse_under_25")),
         blind_count=_opt_int(data.get("blind_count")) or 0,
         lived_apart_from_spouse=_opt_bool(data.get("lived_apart_from_spouse")),
+        spouse_no_income_not_filing=_opt_bool(data.get("spouse_no_income_not_filing")),
+        self_employment_owner=_opt_owner(data.get("self_employment_owner")),
         children_under_17=_opt_int(data.get("children_under_17")),
         other_dependents=_opt_int(data.get("other_dependents")),
         eitc_children=_opt_int(data.get("eitc_children")))

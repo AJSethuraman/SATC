@@ -114,6 +114,7 @@ class _Context:
     agi: Decimal = ZERO
     net_capital: Decimal = ZERO
     investment_income: Decimal = ZERO
+    net_investment_income: Decimal = ZERO
     ctc_before_limit: Decimal = ZERO
     eitc_ineligible_reason: str = ""
     qbi_income: Decimal = ZERO
@@ -170,13 +171,35 @@ def _total_projected_wages(inp: EstimatorInput) -> Decimal:
     return sum((_project_job(job).projected_wages for job in inp.jobs), ZERO)
 
 
+def _se_owner_wages(ctx: _Context) -> Decimal:
+    """The wages on the self-employed person's own Schedule SE line 8a.
+
+    Schedule SE is one person's, so on a joint return only that person's jobs
+    use up their Social Security wage base. The engine used to subtract every
+    wage on the return, so a spouse's $180,000 salary left no room on the
+    taxpayer's $100,000 business and the 12.4% vanished. Found by Codex on #451.
+    """
+    inp = ctx.inp
+    who = inp.household.self_employment_owner or "you"
+    if who == "spouse" and ctx.status != "married_jointly":
+        raise ValueError(
+            f"Self-employment profit is marked as the spouse's, but a "
+            f"{ctx.status.replace('_', ' ')} return carries only your own. "
+            f"Mark it as yours, or leave it off.")
+    wages = sum((_project_job(job).projected_wages for job in inp.jobs
+                 if (job.owner or "you") == who), ZERO)
+    if who == "spouse":
+        wages += inp.other_income.spouse_taxable_wages
+    return wages
+
+
 def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
     inp, tables, status = ctx.inp, ctx.tables, ctx.status
     notes: list[str] = []
     oi = inp.other_income
 
     projected_wages = _total_projected_wages(inp)
-    se_tax, half_se = _self_employment_tax(oi.self_employment_net, projected_wages, tables)
+    se_tax, half_se = _self_employment_tax(oi.self_employment_net, _se_owner_wages(ctx), tables)
 
     # CAPITAL GAINS NET BEFORE THEY ENTER INCOME, AND A NET LOSS IS CAPPED.
     # Schedule D line 21: a net capital loss reduces income by at most $3,000
@@ -247,6 +270,14 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
     add_medicare = _additional_medicare_tax(ctx, projected_wages)
     ctx.investment_income = _nonneg(oi.interest + oi.ordinary_dividends + _nonneg(net_capital)
                                     + _nonneg(oi.rental_and_passive_income))
+    # THE 3.8% TAX NETS LOSSES; THE CREDIT TEST ABOVE DOES NOT. Form 8960 line
+    # 8 combines lines 1-7 as signed amounts: a Schedule E loss goes on line 4a
+    # as a negative, and line 5a is the capital gain or loss on Form 1040 line
+    # 7, so after the $3,000 limit. Only line 12, the total, stops at zero. The
+    # engine used to clamp each piece, so a $20,000 rental loss beside $50,000
+    # of interest was taxed as $50,000. Found by Codex on #451.
+    ctx.net_investment_income = _nonneg(oi.interest + oi.ordinary_dividends + capital_in_income
+                                        + oi.rental_and_passive_income)
     niit = _net_investment_income_tax(ctx, agi)
 
     # -- credits ---------------------------------------------------------------
@@ -346,26 +377,39 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
 def _extra_boxes(inp: EstimatorInput, status: str) -> int:
     """How many age-or-blind boxes the standard deduction gets (Form 1040 page 1).
 
-    The spouse's box counts on a joint return only. ``extra_standard_deductions``
-    is the older single-number input and is added as given.
+    The spouse's boxes count on a joint return, and on a separate return when
+    the spouse had no gross income, files no return and cannot be claimed as a
+    dependent (Pub. 501, Table 7: up to four boxes married filing separately).
+    Until told that, a separate return counts the taxpayer's boxes only, the
+    smaller deduction. ``extra_standard_deductions`` is the older single-number
+    input and is added as given.
     """
     hh = inp.household
-    most = 2 if status == "married_jointly" else 1
+    spouse_counts = _spouse_boxes_count(hh, status)
+    most = 2 if spouse_counts else 1
     if hh.blind_count > most:
-        # REFUSED, NOT TRIMMED. Only the taxpayer, and a spouse on a joint
-        # return, have a blindness box (Pub. 501); a blind dependent adds
+        # REFUSED, NOT TRIMMED. Only the taxpayer, and a spouse whose boxes
+        # count, have a blindness box (Pub. 501); a blind dependent adds
         # nothing. Trimming would hide which of the two the preparer meant.
         # Found by Codex on #451.
         who = "you and your spouse" if most == 2 else "you"
+        also = (" The spouse counts on a separate return only if the spouse had no "
+                "income, files no return and cannot be claimed as a dependent."
+                if status == "married_separately" else "")
         raise ValueError(
             f"{hh.blind_count} people marked legally blind; on a "
             f"{status.replace('_', ' ')} return only {who} can count "
             f"(at most {most}). A blind dependent does not add to the "
-            f"standard deduction.")
+            f"standard deduction.{also}")
     boxes = int(bool(hh.taxpayer_65_or_older)) + hh.blind_count + inp.deductions.extra_standard_deductions
-    if status == "married_jointly" and hh.spouse_65_or_older:
+    if spouse_counts and hh.spouse_65_or_older:
         boxes += 1
     return boxes
+
+
+def _spouse_boxes_count(hh, status: str) -> bool:
+    return status == "married_jointly" or (
+        status == "married_separately" and bool(hh.spouse_no_income_not_filing))
 
 
 def _salt_limit(ctx: _Context, magi: Decimal, paid: Decimal) -> Decimal:
@@ -643,11 +687,10 @@ def _additional_medicare_tax(ctx: _Context, projected_wages: Decimal) -> Decimal
 
 
 def _net_investment_income_tax(ctx: _Context, agi: Decimal) -> Decimal:
-    if ctx.investment_income <= ZERO:
-        return ZERO
+    # No zero test here: the base is floored where it is built, as line 12 is.
     threshold = ctx.tables.niit_threshold(ctx.status)
     over_threshold = _nonneg(agi - threshold)
-    base = min(ctx.investment_income, over_threshold)
+    base = min(ctx.net_investment_income, over_threshold)
     return base * ctx.tables.niit_rate
 
 
@@ -857,7 +900,7 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
         add("Deduction", f"Standard deduction ({_usd(t.standard_deduction(status))})",
             "If mortgage interest, state and property taxes and gifts to charity add up to more, "
             "enter them and the estimator will itemize.")
-    if hh.taxpayer_65_or_older is None or (status == "married_jointly" and hh.spouse_65_or_older is None):
+    if hh.taxpayer_65_or_older is None or (_spouse_boxes_count(hh, status) and hh.spouse_65_or_older is None):
         add("Age", "Nobody on the return is 65 or older",
             f"Each person 65+ adds {_usd(t.extra_standard_deduction(status))} to the standard deduction "
             f"and up to {_usd(t.senior_amount)} more through the senior deduction.")
@@ -885,6 +928,17 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
             "A separate return can claim it if you lived apart from your spouse for the last "
             "six months of the year, or are legally separated and did not live together at "
             "year end, and the child lived with you over half the year.")
+    if (status == "married_separately" and hh.spouse_65_or_older
+            and hh.spouse_no_income_not_filing is None):
+        add("Spouse's age", "Not counted on this separate return",
+            f"If your spouse had no income, files no return and cannot be claimed as a "
+            f"dependent, the spouse's box adds {_usd(t.extra_standard_deduction(status))}.")
+    if (status == "married_jointly" and inp.other_income.self_employment_net > ZERO
+            and hh.self_employment_owner is None):
+        add("Self-employment", "The profit is the taxpayer's",
+            "Only the owner's own wages use up the Social Security wage base on Schedule SE. "
+            "If the business is your spouse's, mark it, or the self-employment tax can be off "
+            "by thousands.")
     if inp.prior_year_tax is not None and inp.prior_year_tax > ZERO and inp.prior_year_agi is None:
         hi = _usd(Decimal(str(t.safe_harbor()["high_income_agi_threshold_mfs" if status == "married_separately"
                                                else "high_income_agi_threshold"])))
