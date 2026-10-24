@@ -1,0 +1,6 @@
+PocketBook's pocket: ('746 - 921', '1 / SYS_FLAG Y') | run seed 15945650194389512214 | run shuffles 10000
+  PocketBook  seed the Run's  gap -0.000133961  hits  192029 of 200000  p 0.96015  se 0.00044
+  PocketBook  seed other 1    gap -0.000133961  hits  191989 of 200000  p 0.95995  se 0.00044
+  PocketBook  seed other 2    gap -0.000133961  hits  192009 of 200000  p 0.96005  se 0.00044
+  PocketBook  seed other 3    gap -0.000133961  hits  192073 of 200000  p 0.96037  se 0.00044
+  PocketBook  seed other 4    gap -0.000133961  hits  191987 of 200000  p 0.95994  se 0.00044

@@ -91,7 +91,8 @@ def as_of() -> str:
     if _as_of_cache:
         return _as_of_cache[0]
     try:
-        titles = json.loads(_fetch("https://www.ecfr.gov/api/versioner/v1/titles.json"))
+        titles = json.loads(_fetch(
+            "https://www.ecfr.gov/api/versioner/v1/titles.json")[0])
         date = next(t["latest_issue_date"] for t in titles["titles"]
                     if t.get("number") == 26)
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
@@ -108,7 +109,26 @@ UA = "satc-desk-tieout (accounting record verification; contact via repository)"
 
 # -- reaching the publishers --------------------------------------------------
 
-def _get(url: str, *, timeout: int = 90) -> bytes:
+def _get(url: str, *, timeout: int = 90) -> tuple[bytes, str]:
+    """The bytes, AND THE URL THEY CAME FROM after redirects.
+
+    THE SECOND HALF EXISTED NOWHERE UNTIL 8 September 2026, and its absence is
+    what let a bounce look like a publisher rewriting the page. `ecfr.gov`
+    redirects any non-browser client -- including this one, whose `UA` is right
+    above -- to an interstitial on `unblock.federalregister.gov` that answers
+    **HTTP 200** with 10,596 bytes that are not the regulation. Measured on the
+    firm's own machine, same URL, same minute:
+
+        UA satc-desk-tieout  ->  10,596 b   an interstitial
+        UA Chrome/140        -> 584,798 b   THE REGULATION
+
+    `proving.prove` compares the landing host against the source's before it
+    compares any text, so a bounce is COULD_NOT rather than
+    `authority_has_moved` -- but only if the transport SAYS where it landed.
+    This one returned bare bytes, and `live_text` filled `Fetched.url` with the
+    URL it had ASKED for, so every proof looked like it had reached the
+    publisher. The guard could not fire on the one tool that needs it.
+    """
     req = urllib.request.Request(url, headers={
         "User-Agent": UA, "Accept-Encoding": "gzip",
     })
@@ -116,7 +136,7 @@ def _get(url: str, *, timeout: int = 90) -> bytes:
         body = r.read()
         if r.headers.get("Content-Encoding") == "gzip":
             body = gzip.decompress(body)
-        return body
+        return body, (r.geturl() or url)
 
 
 def _pdf_text(body: bytes) -> str:
@@ -163,8 +183,17 @@ def _ecfr_url(source_url: str) -> str:
     A desk records `https://www.ecfr.gov/current/title-26/section-1.263(a)-3`,
     which serves a JavaScript shell to a plain client. The versioner publishes
     the same section as XML, dated, which is both fetchable and pinned to a day.
+
+    IT READ ONE URL SHAPE, AND DESKS ONLY EVER HELD THAT ONE. eCFR also serves a
+    section under its full outline path --
+    `/current/title-26/chapter-I/subchapter-A/part-1/subject-group-ECFR…/section-1.162-3`
+    -- and that is the form its own site links and a search engine returns. The
+    old pattern required `section-` to follow `title-26/` immediately, so the
+    outline form fell through to the human page, which is the shell this function
+    exists to avoid. Nothing had ever passed one in until the searcher did: every
+    caller was a source URL a person had typed in the short form.
     """
-    m = re.search(r"title-(\d+)/section-([^/?#]+)", source_url)
+    m = re.search(r"title-(\d+)\b.*?/section-([^/?#]+)", source_url)
     if m:
         title, section = m.group(1), m.group(2)
         return (f"https://www.ecfr.gov/api/versioner/v1/full/{as_of()}/"
@@ -209,13 +238,16 @@ def live_text(source: record.Source, citation: str = "") -> Fetched:
         url = _ecfr_url(url)
     elif "uscode.house.gov" in url:
         url = _statute_url(url, citation)
-    raw = _fetch(url)
+    raw, landed = _fetch(url)
     text = _pdf_text(raw) if url.lower().endswith(".pdf") else _markup_text(raw)
-    return Fetched(text, url, hashlib.sha256(raw).hexdigest(), len(raw),
+    # `landed`, NOT `url`. What we asked for says nothing about where we
+    # arrived, and this field is what `proving.prove` reads to decide whether
+    # it reached the publisher at all.
+    return Fetched(text, landed, hashlib.sha256(raw).hexdigest(), len(raw),
                    datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ"))
 
 
-def _fetch(url: str) -> bytes:
+def _fetch(url: str) -> tuple[bytes, str]:
     """One retry, and only for a transient failure.
 
     `fetch.py` sets the rule this follows: a timeout or a reset is retried with
@@ -413,7 +445,26 @@ def check(desk_name: str, brief_passages: dict, desk: record.Desk) -> list[Line]
     return out
 
 
-_BLOCK = re.compile(r"^### (.+?)\n\n> (.+?)\n", re.M | re.S)
+#: A passage as the brief renders it: a heading LINE, then anything the brief
+#: chooses to put in front of the quotation, then the quotation.
+#:
+#: THE CITATION IS ONE LINE AND THIS USED TO SAY `(.+?)` UNDER `re.S`, which
+#: makes `.` match newlines -- so the citation group swallowed whatever sat
+#: between the heading and the `>`. Nothing sat there until 14 September 2026,
+#: when `dec-examples` put a label on every worked example, and every example in
+#: the corpus came back with the label glued onto its citation and therefore
+#: "not in the record".
+#:
+#: PARSING THE RENDERED BRIEF IS DELIBERATE -- reading `desk.passages` here would
+#: put the intermediate on the `ours` side, which is the failure this exercise is
+#: written against. The cost of that choice is exactly this: the parser tracks
+#: the rendering. So it is written to survive the brief gaining prose, and it
+#: refuses to cross a following heading rather than matching greedily past one.
+_BLOCK = re.compile(
+    r"^### ([^\n]+)\n"          # the citation, and only the heading line
+    r"(?:(?!^### )[\s\S])*?"     # anything the brief prints before the quote
+    r"^> ([\s\S]+?)\n",         # the passage itself
+    re.M)
 
 
 def brief_passages(desk: record.Desk) -> dict:
@@ -428,9 +479,15 @@ def brief_passages(desk: record.Desk) -> dict:
     return {m.group(1).strip(): m.group(2).strip() for m in _BLOCK.finditer(body)}
 
 
-def run(desks_dir: Path = HERE / "desks") -> list[Line]:
+def run(root: Path = HERE) -> list[Line]:
+    """Tie out every passage in the record. ONE CORPUS since 10 September 2026.
+
+    It walked `desks/*/`. The loop is kept over a one-entry list rather than
+    flattened, so a second record — should the firm ever want one — is a change
+    to what this iterates and not a rewrite of what it does.
+    """
     lines: list[Line] = []
-    for d in sorted(desks_dir.iterdir()):
+    for d in [root / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         desk = record.load(d)

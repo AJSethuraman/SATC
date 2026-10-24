@@ -124,7 +124,7 @@ class CommsLibrary:
     def firm_values(self) -> dict[str, str]:
         """The firm block as merge values (``firm_name``, ``preparer_name``, ...)."""
         out = {"preparer_name": self.firm.get("preparer_name", "")}
-        for key in ("name", "short_name", "tagline", "email"):
+        for key in ("name", "short_name", "email"):
             out[f"firm_{key}"] = self.firm.get(key, "")
         return {k: v for k, v in out.items() if v}
 

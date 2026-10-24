@@ -1,0 +1,5 @@
+planted 200, caught 199, missed 1
+semantic plants 98, caught 98, missed 0
+  by kind (caught, missed): {'look': (8, 0), 'look-label': (70, 0), 'look-pline': (20, 0)}
+  by kind (caught, missed): {'look': (54, 1), 'look-bar': (58, 0), 'look-dots': (2, 0), 'look-end': (8, 0), 'look-label': (62, 0), 'look-pline': (14, 0), 'low-values': (1, 0)}
+  missed: Look C93 ['look', 'REV_DEBT against FICO', 'Moves together (correlation)', 3] -0.53 -0.53265

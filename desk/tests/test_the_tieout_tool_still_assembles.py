@@ -34,7 +34,7 @@ sys.path.insert(0, str(HERE))
 import comparing                                            # noqa: E402
 import record                                               # noqa: E402
 import tieout                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 
 def test_every_global_check_reaches_for_exists():
@@ -79,7 +79,7 @@ def test_comparing_reaches_nothing_that_reaches_the_network():
     fetches, so importing it pulls in `ssl`, and this suite replaces the socket
     layer — every test of `proving` failed inside `ssl.py` until the comparison
     moved somewhere that imports neither."""
-    src = (HERE / "comparing.py").read_text()
+    src = (HERE / "comparing.py").read_text(encoding="utf-8")
     for forbidden in ("import urllib", "import ssl", "import socket",
                       "import http", "import requests", "subprocess"):
         assert forbidden not in src, (
@@ -91,7 +91,7 @@ def test_the_brief_is_parsed_back_out_of_real_text():
     """`brief_passages` is the half of the tool with no network in it, and it is
     the half that decides what goes on the `ours` side of every comparison. A
     citation the brief does not carry is a finding in itself."""
-    desk = record.load(DESKS / "cash-and-bank")
+    desk = record.load(CORPUS)
     parsed = tieout.brief_passages(desk)
     assert parsed, "the brief parsed to nothing"
     held = {p.citation for p in desk.passages}
@@ -158,3 +158,35 @@ def test_the_exhibit_generator_still_reaches_a_name_that_exists():
     for name in set(reached):
         assert hasattr(tieout, name), (
             f"tieout_exhibit reaches `tieout.{name}`, which does not exist")
+
+
+def test_ecfr_serves_a_section_under_two_url_shapes_and_both_normalise():
+    """The searcher is what found the second shape, by fetching one.
+
+    A desk records `/current/title-26/section-1.263(a)-3` because a person typed
+    the short form. eCFR's own site links, and a search engine returns, the full
+    outline form with the chapter, subchapter, part and subject group in it — and
+    the old pattern required `section-` to follow `title-26/` immediately, so the
+    outline form fell through to the human page. That page is the JavaScript
+    shell this function exists to route around, so the fall-through did not fail
+    loudly; it fetched something a plain client cannot read.
+    """
+    short = tieout._ecfr_url(
+        "https://www.ecfr.gov/current/title-26/section-1.263(a)-3")
+    outline = tieout._ecfr_url(
+        "https://www.ecfr.gov/current/title-26/chapter-I/subchapter-A/part-1/"
+        "subject-group-ECFRc4930337f38ecfd/section-1.162-3")
+    assert short.endswith("title-26.xml?section=1.263(a)-3")
+    assert outline.endswith("title-26.xml?section=1.162-3")
+    assert "/api/versioner/" in short and "/api/versioner/" in outline
+
+
+def test_a_versioner_url_is_still_re_pointed_rather_than_rewritten():
+    """The widened pattern must not start matching URLs that are already the
+    answer: a versioner url carries `title-26.xml?section=…`, and reading a
+    `section-` out of it would build a nested one."""
+    again = tieout._ecfr_url(
+        "https://www.ecfr.gov/api/versioner/v1/full/2020-01-01/"
+        "title-26.xml?section=1.274-12")
+    assert again.endswith("title-26.xml?section=1.274-12")
+    assert again.count("/full/") == 1 and "2020-01-01" not in again

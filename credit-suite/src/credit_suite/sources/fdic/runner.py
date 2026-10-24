@@ -35,7 +35,7 @@ from credit_suite.engine.gates import EntityCapacityError, WatchlistRefused
 from credit_suite.engine.metrics import MetricError
 from credit_suite.engine.provider import MissingSecret, resolve_secret
 from credit_suite.engine.workbook import OpenpyxlBackend, RawLayoutMismatch
-from credit_suite.sources.fdic import adapter, fields
+from credit_suite.sources.fdic import adapter, fields, layout
 from credit_suite.sources.fdic.engine_api import (DASH_TABS, STATUS_COL,
                                                   STATUS_COL_BY_TAB)
 from credit_suite.sources.fdic.spec import FDIC
@@ -121,6 +121,8 @@ def _to_published_status(status: dict) -> dict:
     out = dict(status)
     out["peer_slots"] = out.pop("entity_slots")
     out["banks_active"] = out.pop("entities_active")
+    out["banks_admitted"] = out.pop("entities_admitted")
+    out["banks_missing"] = out.pop("entities_missing")
     out["banks_landed"] = out.pop("entities_landed")
     out["banks_excluded"] = out.pop("entities_excluded")
     out["alert_banks"] = out.pop("alert_entities")
@@ -175,8 +177,46 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None,
     published = _to_published_status(status)
     backend.write_status_lines(status_lines(published), DASH_TABS,
                                STATUS_COL_BY_TAB, STATUS_COL)
+    published["merger_quarters"] = _write_merger_block(backend, cfg, provider)
     backend.finalize()
     return published
+
+
+def _write_merger_block(backend, cfg, provider) -> int:
+    """Render the provider's merger record onto `_mergers`. Returns the count.
+
+    Three different facts, drawn three different ways, because collapsing them
+    is how a quarter stops being marked:
+      * records -> one row each;
+      * asked and none found -> says so in words;
+      * not asked (demo, or a source that cannot answer) -> says THAT instead,
+        so nobody reads an empty tab as "no mergers".
+    """
+    names = {str(e.entity_key).split(":")[-1]: e.name
+             for e in cfg.entities if getattr(e, "has_entity", False)}
+    record = getattr(provider, "mergers", None)
+    if record is None:
+        rows = [["(this run did not fetch a merger record -- nothing here "
+                 "means UNKNOWN, not 'no mergers')"]]
+        count = 0
+    else:
+        found = []
+        for cert, mergers in sorted(record.items()):
+            for m in mergers:
+                found.append([names.get(str(cert), "cert %s" % cert), str(cert),
+                              m.effective, m.quarter,
+                              # the endpoint leaves OUT_NAME empty; the cert
+                              # is what the record carries, so show that
+                              m.out_name or "CERT %s" % m.out_cert, m.out_cert,
+                              "%d -- %s" % (m.code, m.description), m.meaning,
+                              m.sentence()])
+        found.sort(key=lambda r: (r[0], r[2]), reverse=False)
+        count = len(found)
+        rows = found or [["(the FDIC's history was read for every bank here "
+                          "and reports no mergers in this window)"]]
+    backend.write_block(layout.MERGERS_TAB, layout.MERGERS_FIRST_ROW, rows,
+                        width=len(layout.MERGERS_HEADER))
+    return count
 
 
 # --------------------------------------------------------------------------
@@ -326,7 +366,7 @@ def _describe_source(schedule: str, caption: str) -> List[tuple]:
 
 
 def do_tieout(workbook: str, args: List[str], demo: bool,
-              brief: bool = False) -> int:
+              brief: bool = False, filing: bool = False) -> int:
     """``--tieout CERT [REPDTE]``: sample-verify the feed against the filing.
 
     Contract section 12. The point is that a flagged number can be defended in
@@ -344,9 +384,8 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
 
     from credit_suite.engine.config import EntityRow, norm_key
     from credit_suite.sources.fdic import plain
-    from credit_suite.sources.fdic.engine_api import (assemble_quarters,
-                                                      make_field_spec,
-                                                      metric_value,
+    from credit_suite.sources.fdic import engine_api as R
+    from credit_suite.sources.fdic.engine_api import (metric_value,
                                                       validate_metrics)
 
     cert = norm_key(args[0])
@@ -357,14 +396,15 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
                          '"<bank name>".\n' % args[0])
         return runtime.EXIT_GATE_ERROR
 
-    wb = openpyxl.load_workbook(workbook, read_only=True, data_only=False)
+    wb = openpyxl.load_workbook(workbook, data_only=False)
     try:
         rows = [list(row) for row in wb["_config"].iter_rows(values_only=True)]
         from credit_suite.engine.config import parse_config
         cfg = parse_config(rows, FDIC)
         prov_rows = read_provenance_rows(wb)
-    finally:
+    except Exception:
         wb.close()
+        raise
 
     if not prov_rows:
         sys.stderr.write("--tieout: this workbook has no _provenance tab -- it "
@@ -372,21 +412,33 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
         return runtime.EXIT_RUN_ERROR
 
     validate_metrics(cfg.series)
-    provider = adapter.make_provider(cfg, demo, None)
-    mode = "demo" if isinstance(provider, adapter.FdicDemoProvider) else "live"
-    try:
-        provider.prime([cert], date.today(), names={cert: "cert:%s" % cert})
-        entity = EntityRow(slot=1, key=cert, name="cert:%s" % cert,
-                           group="tieout", active=True, key_prefix="cert")
-        field_rows = {f: provider.fetch_series(make_field_spec(entity, f))
-                      for f in fields.RAW_FIELDS}
-    except Exception as exc:                       # noqa: BLE001
-        sys.stderr.write("--tieout fetch failed for cert %s: %s\n" % (cert, exc))
-        return runtime.EXIT_RUN_ERROR
 
-    quarters = assemble_quarters(field_rows, cfg.raw_slots)
+    # THE WORKBOOK IS THE "OURS" SIDE. Until 5 September 2026 this re-fetched
+    # every field from the provider and compared THAT to the filing, which
+    # proves the provider agrees with the filing and says nothing about the
+    # number in the cell a person opens. The firm: "your doc here needs to
+    # prove the external source to your workbook values not what you said
+    # landed. that's the standard."
+    entity = next((e for e in cfg.entities
+                   if getattr(e, "has_entity", False)
+                   and str(e.entity_key).split(":")[-1] == str(cert)), None)
+    if entity is None:
+        sys.stderr.write(
+            "--tieout: cert %s is not one of this workbook's [PEERS], so the "
+            "workbook holds nothing to tie out. Add it to _config and refresh, "
+            "or tie out a cert it carries.\n" % cert)
+        return runtime.EXIT_RUN_ERROR
+    backend = OpenpyxlBackend(workbook, FDIC, fields.RAW_FIELDS)
+    quarters = backend.read_slot_block(
+        R.slot_block(entity.slot, cfg.raw_slots), fields.RAW_FIELDS)
+    last_run = _last_run_line(wb)
+    mode = "demo" if "(demo)" in (last_run or "") else "live"
     if not quarters:
-        sys.stderr.write("--tieout: no quarters returned for cert %s.\n" % cert)
+        sys.stderr.write(
+            "--tieout: slot %d (cert %s) is empty -- this workbook has never "
+            "been refreshed, so there is nothing of ours to compare. Run the "
+            "refresh first; a tie-out reads the cells, it does not re-fetch "
+            "them.\n" % (entity.slot, cert))
         return runtime.EXIT_RUN_ERROR
 
     if repdte:
@@ -403,8 +455,15 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
     else:
         iso, values = quarters[0]
 
-    print("TIE-OUT  cert %s  REPDTE %s  (pack %s, %s mode)"
-          % (cert, iso, FDIC.pack_version, mode))
+    block = R.slot_block(entity.slot, cfg.raw_slots)
+    print("TIE-OUT  cert %s  REPDTE %s  (pack %s)"
+          % (cert, iso, FDIC.pack_version))
+    print("  OURS: read from %s slot %d (%s), rows %d-%d of %s -- the cells "
+          "this workbook holds, not a fresh fetch"
+          % (R.RAW_TAB, entity.slot, entity.name, block.first_data_row,
+             block.last_data_row, workbook))
+    if last_run:
+        print("  %-22s: %s" % ("The run that filled them", last_run))
     if mode == "demo":
         print("  *** DEMO VALUES -- deterministic FdicDemoProvider fiction, "
               "NOT this bank's filing; the schedule/line/MDRM columns are "
@@ -412,10 +471,12 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
               "values. ***")
     print("  Call Report facsimile : %s" % facsimile_url(cert, iso))
     print("  BankFind (pull check) : %s" % bankfind_url(cert))
-    print("  Data vintage          : %s" % (provider.vintage or "n/a"))
-    print("  Tie-out is two-step: API value <-> BankFind page (pull check) "
-          "<-> CDR facsimile schedule/line (filing check).")
+    print("  Tie-out proves the LAST hop: the cells this workbook holds "
+          "against the bank's own filed Call Report. The provider is not "
+          "consulted -- it is upstream of the cells, so its agreeing with "
+          "the filing would say nothing about what the workbook shows.")
     print()
+    wb.close()
     if not brief:
         print("  WHAT THE TERMS MEAN")
         for term, meaning in plain.GLOSSARY:
@@ -473,7 +534,80 @@ def do_tieout(workbook: str, args: List[str], demo: bool,
     print()
     print("  Per-FIELD rows (every raw input's schedule/line/MDRM) are on "
           "the workbook's _provenance tab.")
+
+    if filing:
+        _tieout_to_filing(cert, iso, values, prov_rows, mode)
     return runtime.EXIT_OK
+
+
+def _last_run_line(wb) -> str:
+    """The status panel's first line: "Last run <when> (<mode>)".
+
+    Written by every refresh onto each dashboard tab. It is how the workbook
+    says what produced the cells a tie-out is about to compare -- a fact about
+    the artifact rather than a claim about this invocation.
+    """
+    for tab in DASH_TABS:
+        if tab not in wb.sheetnames:
+            continue
+        col = STATUS_COL_BY_TAB.get(tab, STATUS_COL)
+        value = wb[tab].cell(1, col).value
+        if value and str(value).startswith("Last run"):
+            return str(value).strip()
+    return ""
+
+
+def _tieout_to_filing(cert: str, iso: str, landed: dict, prov_rows: dict,
+                      mode: str) -> None:
+    """The first link of the chain: the bank's own filed XBRL, from the FFIEC.
+
+    Compares every RAW dollar field the workbook landed against the line(s)
+    the provenance map says it comes from, evaluated in the filing itself.
+    Ratios are skipped -- they are FDIC-computed, and the arithmetic leg above
+    already recomputes them from these same raw lines.
+    """
+    from credit_suite.sources.fdic import filing as F
+
+    print()
+    print("  FILING CHECK -- the bank's own XBRL from cdr.ffiec.gov, not the "
+          "FDIC's republication")
+    if mode == "demo":
+        print("  *** demo values cannot tie to a real filing; this compares the "
+              "filing against fiction and is shown only to exercise the path. ***")
+    try:
+        facts = F.parse_facts(F.fetch_xbrl(cert, iso), iso)
+    except Exception as exc:                          # noqa: BLE001
+        print("  could not fetch the filing: %s" % exc)
+        print("  -> the chain stops at the FDIC API for this bank-quarter; "
+              "that is stated, not hidden.")
+        return
+    expressions = {f: prov_rows[f]["mdrm"] for f in fields.RAW_FIELDS
+                   if f in prov_rows and prov_rows[f]["mdrm"]}
+    rows = F.tie(facts, landed, expressions, units=fields.FIELD_UNITS)
+    checked = [r for r in rows if not r.note]
+    ties = sum(r.verdict == "TIES" for r in checked)
+    differs = [r for r in checked if r.verdict.startswith("DIFFERS")]
+    absent = [r for r in checked if r.verdict == "NOT IN FILING"]
+    print("  %d facts in the filing for %s" % (len(facts), iso))
+    print("  %d raw dollar lines compared: %d tie, %d differ, %d not in the filing; "
+          "%d skipped with a stated reason"
+          % (len(checked), ties, len(differs), len(absent), len(rows) - len(checked)))
+    print("  filed values are DOLLARS; landed values are THOUSANDS -- shown in thousands")
+    print("  %-10s %18s %18s  %-22s %s" % ("field", "filed (k$)",
+                                            "in workbook (k$)",
+                                            "filed as", "verdict"))
+    for r in rows:
+        filed = "-" if r.filed_thousands is None else "{:,}".format(r.filed_thousands)
+        got = "-" if r.landed_thousands is None else "{:,.0f}".format(r.landed_thousands)
+        print("  %-10s %18s %18s  %-22s %s" % (r.field, filed, got, r.used or "-", r.verdict))
+    if differs:
+        print("  DIFFERENCES ARE FINDINGS. Each one is either a line the map cites "
+              "wrongly for this filer, or a real disagreement between the FDIC's "
+              "republication and the filing -- and only reading the form says which.")
+    if any(r.used.startswith("RCFD") for r in rows):
+        print("  RCFD = consolidated (form 031, foreign offices); RCON = domestic only. "
+              "The FDIC's totals are the consolidated ones -- following a bare RCON "
+              "code to the facsimile for this bank lands on the wrong line.")
 
 
 # --------------------------------------------------------------------------
@@ -489,6 +623,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--asof", default=None, help="YYYY-MM-DD (testing)")
     ap.add_argument("--lookup", metavar="NAME", default=None,
                     help="resolve an institution name to its CERT (live only)")
+    ap.add_argument("--filing", action="store_true",
+                    help="with --tieout: also fetch the bank's filed XBRL from "
+                         "cdr.ffiec.gov and tie every raw field to it (network)")
     ap.add_argument("--tieout", nargs="+", metavar="ARG", default=None,
                     help="CERT [REPDTE] -- print each value with its source")
     return ap
@@ -507,7 +644,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return runtime.EXIT_GATE_ERROR
     if args.tieout:
         try:
-            return do_tieout(args.workbook, args.tieout, args.demo)
+            return do_tieout(args.workbook, args.tieout, args.demo,
+                             filing=args.filing)
         except Exception as exc:                   # noqa: BLE001
             print("TIE-OUT ERROR: %s" % exc, file=sys.stderr)
             return runtime.EXIT_RUN_ERROR
@@ -529,9 +667,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("RUN ERROR: %s" % exc, file=sys.stderr)
         return runtime.EXIT_RUN_ERROR
 
-    ok = runtime.run_succeeded({
-        "entities_active": status["banks_active"],
+    # C1: every ADMITTED bank must land, not merely one of them. Measured
+    # against the admitted count and not `banks_active`, which counts the
+    # watchlist refusals that never land by design.
+    landing = runtime.landing_result({
+        "entities_admitted": status["banks_admitted"],
+        "entities_missing": status["banks_missing"],
         "entities_landed": status["banks_landed"]})
+    ok = not landing.blocking
     payload = {"ok": ok, **{k: v for k, v in status.items() if k != "digest"}}
     print(json.dumps(payload))
 
@@ -543,6 +686,7 @@ def main(argv: Optional[List[str]] = None) -> int:
              status["stale_banks"], status["alert_flags"],
              len(status["watchlist_refusals"]), status["vintage"]),
           file=sys.stderr)
+    print(landing.summary(), file=sys.stderr)
     return runtime.EXIT_OK if ok else runtime.EXIT_NOTHING_PULLED
 
 

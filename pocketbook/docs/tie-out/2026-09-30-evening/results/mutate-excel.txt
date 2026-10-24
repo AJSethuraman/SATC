@@ -1,0 +1,2 @@
+{'TIED': 44} 44 (before 42, moved into Excel's block 24, openpyxl alone kept 18, after the Run 42)
+planted 126, caught 126, missed 0

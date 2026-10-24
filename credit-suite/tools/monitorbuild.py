@@ -64,7 +64,8 @@ def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess:
 
 @contextmanager
 def built_monitor(name: str, root: Path | None = None,
-                  run_demo: bool = True) -> Iterator[tuple[Path, str]]:
+                  run_demo: bool = True,
+                  peers: str = "golden") -> Iterator[tuple[Path, str]]:
     """Yield ``(workbook_path, run_stdout)`` for a freshly built monitor.
 
     The scratch directory is removed on exit, so callers that want to keep the
@@ -76,7 +77,7 @@ def built_monitor(name: str, root: Path | None = None,
     workbook_name = str(recipe["workbook"])
 
     if recipe.get("engine"):
-        yield from _built_through_engine(name, recipe, spec, run_demo)
+        yield from _built_through_engine(name, recipe, spec, run_demo, peers)
         return
 
     workdir = Path(tempfile.mkdtemp(prefix="credit-suite-build-"))
@@ -102,7 +103,8 @@ def built_monitor(name: str, root: Path | None = None,
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def _built_through_engine(name: str, recipe: dict, spec: dict, run_demo: bool):
+def _built_through_engine(name: str, recipe: dict, spec: dict, run_demo: bool,
+                          peers: str = "golden"):
     """A migrated monitor: built and run in-process through the shared engine.
 
     No folder to copy and no subprocess -- the engine IS the build. The scratch
@@ -128,9 +130,20 @@ def _built_through_engine(name: str, recipe: dict, spec: dict, run_demo: bool):
         from credit_suite.engine import inline
         bundle_spec = SPECS[name]
         macro = Path(layout.HERE) / "macro.bas"
+        # Built with the roster the golden was captured with, where the spec
+        # names one. The golden pins what the ENGINE does; which banks the firm
+        # watches is data, and a baseline that moves when the data moves stops
+        # being a baseline. Monitors with no frozen roster build from the seed
+        # exactly as before.
+        extra = {}
+        peers_rel = spec.get("demo_peers") if peers == "golden" else None
+        if peers_rel:
+            frozen = json.loads((parity.repo_root() / peers_rel)
+                                .read_text(encoding="utf-8"))
+            extra["peers"] = [tuple(row) for row in frozen["peers"]]
         layout.build(str(base),
                      code_py=inline.render_runner(bundle_spec),
-                     code_vba=macro.read_text(encoding="utf-8"))
+                     code_vba=macro.read_text(encoding="utf-8"), **extra)
         package.assemble(str(base), str(workbook), str(macro),
                          str(recipe["macro_module"]))
 

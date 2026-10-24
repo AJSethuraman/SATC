@@ -224,7 +224,7 @@ def template_body(filename: str) -> str:
     # document in `.doc`; the ten letters use `.letter`. Neither is wrong and
     # renaming a class in twelve approved templates to tidy this up would be
     # changing a client-facing document to please the code that reads it.
-    for marker in ('class="doc"', 'class="letter"'):
+    for marker in ("doc", "letter"):
         doc = _balanced_div(body, marker)
         if doc is not None:
             return doc.strip()
@@ -236,14 +236,20 @@ def template_body(filename: str) -> str:
 
 
 def _balanced_div(markup: str, marker: str) -> str | None:
-    """The `<div ...marker...>` element and its contents, brace-counted.
+    """The first `<div>` carrying class `marker`, and its contents, brace-counted.
 
     A regex cannot do this: `.doc` contains dozens of nested divs and the
     first `</div>` is never the right one.
+
+    THE CLASS IS A WORD, NOT THE WHOLE ATTRIBUTE. This matched the literal
+    `class="doc"`, so the invoice becoming `class="doc invoice"` (13 Oct 2026,
+    to scope its one-page spacing) made the reading copy refuse to build.
     """
-    start = markup.find(f"<div {marker}")
-    if start == -1:
+    m = re.search(r'<div\s+class="(?:[^"]*\s)?' + re.escape(marker) + r'(?:\s[^"]*)?"',
+                  markup)
+    if m is None:
         return None
+    start = m.start()
     depth, i = 0, start
     for m in re.finditer(r"<div\b|</div>", markup[start:]):
         depth += 1 if m.group().startswith("<div") else -1

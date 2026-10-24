@@ -1,0 +1,230 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Threshold Engine On Site</title><style>@page { size: A4; margin: 15mm 13mm; }
+:root { color-scheme: light; }
+body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #1d1d1d; background: #fff;
+       max-width: 900px; margin: 0 auto; padding: 0 16px; }
+h1 { font-size: 19pt; margin: 0 0 6pt; text-wrap: balance; }
+h2 { font-size: 14pt; margin: 18pt 0 6pt; border-bottom: 2px solid #c00; padding-bottom: 3pt; break-after: avoid; }
+h3 { font-size: 11.5pt; margin: 14pt 0 4pt; break-after: avoid; }
+code { font-family: Consolas, monospace; font-size: 9pt; overflow-wrap: anywhere; }
+pre { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 6pt 8pt; white-space: pre-wrap;
+      overflow-wrap: anywhere; break-inside: avoid; }
+table { border-collapse: collapse; margin: 6pt 0; font-size: 9pt; width: 100%; font-variant-numeric: tabular-nums; }
+td, th { border: 1px solid #ccc; padding: 3pt 6pt; text-align: left; vertical-align: top; } th { background: #f1f1f1; }
+tr { break-inside: avoid; }
+hr { border: none; border-top: 1px solid #ddd; margin: 14pt 0; }
+@media screen and (max-width: 600px) { table { display: block; overflow-x: auto; } }</style></head><body><h1>threshold-engine at the bank: the machine checklist</h1>
+<p><strong>Who this is for:</strong> whoever takes threshold-engine to KeyBank's machine for the first time.</p>
+<p><strong>What it proves:</strong> that the bank's machine installs it, builds the practice workbook with the same numbers our own walkthrough read in Excel, and then builds one from an internal file, with nothing internal coming back out.</p>
+<p><strong>Time:</strong> about 30 minutes for Parts 1 to 4. Part 5, the internal file, depends on how long the file takes to prepare.</p>
+<p>Tick each box as you go. Where something differs, write down what you saw and carry on: Part 6 says what to send back, and what must not leave the bank.</p>
+<h2>Words you'll meet</h2>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Command Prompt</strong></td>
+<td>Windows' window for typing commands. Start button, type <code>cmd</code>, press Enter. Every command below is typed there, then Enter.</td>
+</tr>
+<tr>
+<td><strong><code>%USERPROFILE%</code></strong></td>
+<td>Command Prompt's name for your own folder, such as <code>C:\Users\jsmith</code>. Type it as written; Windows fills in yours.</td>
+</tr>
+<tr>
+<td><strong>Python</strong></td>
+<td>The free program threshold-engine is written in. The machine needs it once.</td>
+</tr>
+<tr>
+<td><strong><code>py</code></strong></td>
+<td>The Python starter python.org's installer puts on Windows. <code>py --version</code> asks which Python is there.</td>
+</tr>
+<tr>
+<td><strong>openpyxl</strong></td>
+<td>The one add-on threshold-engine needs: it writes the Excel workbook. It brings <strong>et-xmlfile</strong> with it. Both are in the kit as files, so they install with no internet.</td>
+</tr>
+<tr>
+<td><strong>pip</strong></td>
+<td>Python's own installer for add-ons.</td>
+</tr>
+<tr>
+<td><strong>Template</strong></td>
+<td>An empty file laid out the way threshold-engine reads an internal measure, with questions at the top for who prepared it and how. Seven exist: WAPD, refreshed credit score, early payment default, and four two-book splits.</td>
+</tr>
+<tr>
+<td><strong>Workbook</strong></td>
+<td>The Excel file it writes: the lines where each score begins, live, so they move when you change a setting.</td>
+</tr>
+<tr>
+<td><strong>Check column</strong></td>
+<td>The last column of the Thresholds tab. Blank means the lines stand; otherwise it says, in words, why it refuses.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Part 1 · Before you go (on your own computer)</h2>
+<h3>1.1 Make the kit</h3>
+<p>In the SATC repository folder:</p>
+<pre><code>cd threshold-engine
+python tools/bank_kit.py
+</code></pre>
+<p>☐ It prints <code>Wrote ...\ThresholdEngine-kit\ThresholdEngine.zip</code>, its size (about 500 KB), its SHA-256, and the version lines that also go in the zip's <code>VERSION.txt</code>.</p>
+<p>The zip holds the window (<code>Thresholds.pyw</code>), the code, this checklist, <code>WHAT-IT-DOES.md</code>, the two add-ons as files (<code>add-ons\</code>) and five public practice files (<code>practice\</code>): Federal Reserve and FDIC charge-off rates, nothing of the bank's.</p>
+<h3>1.2 Which Python the bank machine has</h3>
+<p>Ask IT, or ask someone to type <code>py --version</code> in Command Prompt.</p>
+<p>☐ It must say <strong>Python 3.9 or later</strong>. threshold-engine has been run on 3.12 (every test, the walkthrough and this checklist's dry run).</p>
+<p>If there is none, IT installs <strong>Python 3.12, 64-bit, from python.org</strong>. Its installer can install for your account only, which needs no admin rights; tick <strong>Add python.exe to PATH</strong> on its first screen.</p>
+<h3>1.3 Pack</h3>
+<p>☐ <code>ThresholdEngine.zip</code>, on whatever the bank lets files in on. Bank email often strips <code>.zip</code> and <code>.pyw</code> files, and USB sticks are often blocked: ask IT how a file gets onto the machine before you go.</p>
+<p>☐ This checklist, printed.</p>
+<hr />
+<h2>Part 2 · Install (at the bank machine)</h2>
+<h3>2.1 Check Python</h3>
+<pre><code>py --version
+</code></pre>
+<p>☐ <code>Python 3.9</code> or later. If <code>py</code> is not recognised, try <code>python --version</code>, and wherever this checklist says <code>py</code>, type <code>python</code>.</p>
+<h3>2.2 Unzip into your own folder</h3>
+<p>Copy the zip into <strong>Downloads</strong>. Right-click it, <strong>Properties</strong>, and if there is an <strong>Unblock</strong> box, tick it and press <strong>OK</strong>. Then:</p>
+<pre><code>cd /d &quot;%USERPROFILE%&quot;
+tar -xf &quot;Downloads\ThresholdEngine.zip&quot;
+dir &quot;%USERPROFILE%\ThresholdEngine&quot;
+</code></pre>
+<p>☐ It lists <code>Thresholds.pyw</code>, <code>VERSION.txt</code>, <code>README.md</code>, and the folders <code>src</code>, <code>config</code>, <code>docs</code>, <code>practice</code> and <code>add-ons</code>.</p>
+<p>If <code>tar</code> is not recognised, right-click the zip, <strong>Extract All…</strong>, and extract to what <code>echo %USERPROFILE%</code> prints.</p>
+<h3>2.3 Install the add-on</h3>
+<p>With internet through the bank's proxy:</p>
+<pre><code>py -m pip install --user &quot;openpyxl&gt;=3.1&quot;
+</code></pre>
+<p>If that fails (the proxy blocks it), from the files in the kit, with no internet:</p>
+<pre><code>py -m pip install --user --no-index --find-links &quot;%USERPROFILE%\ThresholdEngine\add-ons&quot; openpyxl
+</code></pre>
+<p>☐ It ends <code>Successfully installed et-xmlfile-... openpyxl-...</code> (or says they are already there).</p>
+<h3>2.4 The commands answer</h3>
+<pre><code>cd /d &quot;%USERPROFILE%\ThresholdEngine&quot;
+set PYTHONPATH=src
+py -m threshold_engine --help
+</code></pre>
+<p>☐ It lists six commands: <code>profile, evidence, backtest, workbook, peers, template</code>.</p>
+<p><code>set PYTHONPATH=src</code> lasts until the Command Prompt window closes. In a new window, type the first two lines again.</p>
+<hr />
+<h2>Part 3 · The practice workbook (public data, known answers)</h2>
+<h3>3.1 Build it</h3>
+<p>In the same window:</p>
+<pre><code>py -m threshold_engine workbook practice.xlsx --series &quot;Credit card=practice\cards_nco_ttm.csv&quot; --series &quot;Mortgage=practice\mortgage_nco_ttm.csv&quot; --series &quot;Home equity=practice\home_equity_nco_ttm.csv&quot; --series &quot;Other consumer=practice\other_consumer_as_filed_nco_ttm.csv&quot; --name &quot;Net charge-off rate (TTM)&quot; --unit &quot;%&quot; --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41
+</code></pre>
+<p>☐ It prints <code>Wrote practice.xlsx: Credit card, Mortgage, Home equity, Other consumer, 163 quarters</code>.</p>
+<h3>3.2 Open it and read the Thresholds tab</h3>
+<pre><code>start practice.xlsx
+</code></pre>
+<p>☐ Excel opens it with no message about repairing the file.</p>
+<p>☐ The Thresholds tab reads (to three decimals), and the Check column is blank on every row:</p>
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Median kept</th>
+<th>Typical yearly move</th>
+<th>Worst kept</th>
+<th>2 from</th>
+<th>3 from</th>
+<th>4 from</th>
+<th>5 from</th>
+<th>Latest</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Credit card</td>
+<td>3.978</td>
+<td>0.767</td>
+<td>10.425</td>
+<td>3.211</td>
+<td>3.595</td>
+<td>4.361</td>
+<td>6.684</td>
+<td>3.978</td>
+<td>3 Moderate</td>
+</tr>
+<tr>
+<td>Mortgage</td>
+<td>0.122</td>
+<td>0.058</td>
+<td>2.490</td>
+<td>0.064</td>
+<td>0.093</td>
+<td>0.151</td>
+<td>0.500</td>
+<td>0.000</td>
+<td>1 Low</td>
+</tr>
+<tr>
+<td>Home equity</td>
+<td>0.182</td>
+<td>0.095</td>
+<td>3.140</td>
+<td>0.087</td>
+<td>0.135</td>
+<td>0.230</td>
+<td>0.685</td>
+<td>-0.019</td>
+<td>1 Low</td>
+</tr>
+<tr>
+<td>Other consumer</td>
+<td>1.288</td>
+<td>0.293</td>
+<td>3.335</td>
+<td>0.995</td>
+<td>1.141</td>
+<td>1.434</td>
+<td>2.222</td>
+<td>1.776</td>
+<td>4 Moderate-High</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 One judgement, by hand</h3>
+<p>The workbook opens on the <strong>Assess</strong> tab (red). On the right, in <strong>Periods left out</strong>, fill the first two rows from the lists: Product <code>Credit card</code>, From <code>2007Q4</code>, To <code>2012Q4</code>, Reason <code>financial crisis</code>; then Product <code>Credit card</code>, From <code>2021Q3</code>, To <code>2023Q1</code>, Reason <code>pandemic forbearance</code>. Each Status reads <code>Left out: 21 quarters</code> and <code>Left out: 7 quarters</code>.</p>
+<p>☐ Thresholds, Credit card now reads: median 3.757, move 0.586, worst 6.603, lines <strong>3.171 / 3.464 / 4.050 / 5.981</strong>, latest 3.978, <strong>3 Moderate</strong>. These are the card rehearsal settings the bank accepted; the lines were first recorded on 7 Oct 2026.</p>
+<p>☐ At the top of Assess (Credit card picked in B5): Latest quarter <code>2026Q2</code>, Latest value <code>3.978</code>, Latest rating <code>3 Moderate</code>, and the Check reads <code>Check: OK.</code> In <strong>Ratings for Credit card</strong>, the quarters kept read 25 / 22 / 29 / 55 / 4; the chart shades five bands with two dark strips under the periods left out.</p>
+<p>☐ In <strong>Your settings</strong>, type <code>0</code> as Credit card's How rare High is (z). The Check turns red and reads <code>Refused: High's z must be above 0. To fix: Type a number above 0 in How rare High is.</code>, and Latest rating reads <code>No rating: see Check</code>. Type <code>2.5</code> back.</p>
+<h3>3.4 The window</h3>
+<p>Double-click <code>Thresholds.pyw</code> in the <code>ThresholdEngine</code> folder.</p>
+<p>☐ The <strong>Thresholds</strong> window opens with its steps down the left. Every field starts empty and <strong>Run</strong> names what is missing.</p>
+<p>If nothing opens, type <code>py Thresholds.pyw</code> in the Command Prompt window; a message there says why. Building from the window gives the same workbook as 3.1 when given the same files and values.</p>
+<hr />
+<h2>Part 4 · Peers (public FDIC data)</h2>
+<p><code>peers pull</code> needs <code>api.fdic.gov</code>, which the bank's proxy may block. <strong>The peer workbook is public data</strong>: if the pull fails at the bank, build it on your own computer (commands in <code>docs/WHAT-IT-DOES.md</code>, "Peers") and bring <code>peers.xlsx</code> and its CSVs in with the kit.</p>
+<p>☐ Peers pulled at the bank, or brought in.</p>
+<hr />
+<h2>Part 5 · One internal measure (stays at the bank)</h2>
+<h3>5.1 Pick a template and write it</h3>
+<pre><code>py -m threshold_engine template list
+py -m threshold_engine template write refreshed-score &quot;%USERPROFILE%\refreshed-score.csv&quot;
+</code></pre>
+<p>☐ It writes <code>refreshed-score.csv</code> and <code>refreshed-score.checklist.md</code> beside it.</p>
+<h3>5.2 Fill it</h3>
+<p>Follow the <code>.checklist.md</code>: answer every <code>[STATE: ...]</code> line at the top, then one line per quarter, <code>YYYY-MM-DD,value</code>, quarter-end dates, oldest first, at least nine quarters (the template's minimum; 13 or more lets the build below run as written). Use Notepad, not Excel.</p>
+<h3>5.3 Check it</h3>
+<pre><code>py -m threshold_engine template check refreshed-score &quot;%USERPROFILE%\refreshed-score.csv&quot;
+</code></pre>
+<p>☐ It says the file is OK, or lists every problem at once. Fix and run it again until it is OK.</p>
+<h3>5.4 Build the workbook</h3>
+<p>Every setting is yours; none has a default. For the refreshed score, lower is worse and it is not floored at zero. The starting values below are the card rehearsal's; change them in Your settings on the Assess tab after the build.</p>
+<pre><code>py -m threshold_engine workbook &quot;%USERPROFILE%\refreshed-score.xlsx&quot; --series &quot;Refreshed score=%USERPROFILE%\refreshed-score.csv&quot; --name &quot;Refreshed credit score&quot; --unit &quot;score&quot; --direction lower_is_worse --frequency quarterly --smoothing 1 --floor-at-zero no --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 9
+</code></pre>
+<p>☐ It writes the workbook, or refuses with a reason. The file needs at least <code>--min-history</code> + <code>--horizon</code> quarters: 9 + 4 = 13 as written. With fewer, set <code>--min-history</code> to the number of quarters less 4 (9 quarters: <code>--min-history 5</code>). That only thins the Backtest tab; the lines, scores and Assess do not use it.</p>
+<p>☐ Opened in Excel, Thresholds' lines <strong>fall</strong> from 2 to 5 (lower is worse), and the Check column is blank or says why not.</p>
+<hr />
+<h2>Part 6 · What to send back, and what must not leave</h2>
+<p><strong>Nothing from the bank's books leaves the bank</strong>: no file, no value, no screenshot of an internal workbook, no line of <code>template check</code> output that quotes a value.</p>
+<p>Send back, in words:</p>
+<p>☐ Python version, and whether the add-on installed from the internet or from the kit.</p>
+<p>☐ Part 3: every box ticked, or what differed.</p>
+<p>☐ Part 5: whether the template check passed first time, and if not, which <strong>kind</strong> of problem (a date, a gap, a heading), not the line.</p>
+<p>☐ Part 5: whether the workbook built; if the Check column refused, its words (they hold no values); anything that was unclear.</p>
+<p>Screenshots of the <strong>practice</strong> workbook (Part 3) are fine: it is public data.</p></body></html>

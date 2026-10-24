@@ -98,7 +98,7 @@ def test_the_record_loads_with_no_satc_anywhere_above_it(installed):
                           "print(len(c), len(t))")
     assert got.returncode == 0, got.stderr
     convictions, tenets = got.stdout.split()
-    assert int(tenets) == 35 and int(convictions) >= 2
+    assert int(tenets) == 36 and int(convictions) >= 2
 
 
 def test_no_path_in_the_copy_points_back_at_this_checkout(installed):

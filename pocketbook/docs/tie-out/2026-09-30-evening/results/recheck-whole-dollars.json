@@ -1,0 +1,458 @@
+{
+ "q3": {
+  "labels": [
+   {
+    "column": "FICO",
+    "label": "496 - 653",
+    "workbook": 1556,
+    "loan file": 1556,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "654 - 685",
+    "workbook": 1539,
+    "loan file": 1539,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "686 - 711",
+    "workbook": 1562,
+    "loan file": 1562,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "712 - 745",
+    "workbook": 1611,
+    "loan file": 1611,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "746 - 921",
+    "workbook": 1571,
+    "loan file": 1571,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "5,005 - 15,448",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "15,449 - 26,323",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "26,324 - 37,950",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "37,951 - 49,152",
+    "workbook": 1599,
+    "loan file": 1599,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "49,153 - 59,983",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   }
+  ],
+  "loan of 37,950.99": 1,
+  "its band": "26,324 - 37,950"
+ },
+ "flag": {
+  "labels": [
+   {
+    "column": "FICO",
+    "label": "496 - 653",
+    "workbook": 1556,
+    "loan file": 1556,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "654 - 685",
+    "workbook": 1539,
+    "loan file": 1539,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "686 - 711",
+    "workbook": 1562,
+    "loan file": 1562,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "712 - 745",
+    "workbook": 1611,
+    "loan file": 1611,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "746 - 921",
+    "workbook": 1571,
+    "loan file": 1571,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "5,005 - 15,448",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "15,449 - 26,323",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "26,324 - 37,950",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "37,951 - 49,152",
+    "workbook": 1599,
+    "loan file": 1599,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "49,153 - 59,983",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   }
+  ],
+  "loan of 37,950.99": 1,
+  "its band": "26,324 - 37,950"
+ },
+ "two": {
+  "labels": [
+   {
+    "column": "FICO",
+    "label": "496 - 653",
+    "workbook": 1556,
+    "loan file": 1556,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "654 - 685",
+    "workbook": 1539,
+    "loan file": 1539,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "686 - 711",
+    "workbook": 1562,
+    "loan file": 1562,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "712 - 745",
+    "workbook": 1611,
+    "loan file": 1611,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "746 - 921",
+    "workbook": 1571,
+    "loan file": 1571,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "5,005 - 15,448",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "15,449 - 26,323",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "26,324 - 37,950",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "37,951 - 49,152",
+    "workbook": 1599,
+    "loan file": 1599,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "49,153 - 59,983",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   }
+  ],
+  "loan of 37,950.99": 1,
+  "its band": "26,324 - 37,950"
+ },
+ "grey": {
+  "labels": [
+   {
+    "column": "FICO",
+    "label": "496 - 653",
+    "workbook": 1556,
+    "loan file": 1556,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "654 - 685",
+    "workbook": 1539,
+    "loan file": 1539,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "686 - 711",
+    "workbook": 1562,
+    "loan file": 1562,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "712 - 745",
+    "workbook": 1611,
+    "loan file": 1611,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "746 - 921",
+    "workbook": 1571,
+    "loan file": 1571,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "5,005 - 15,448",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "15,449 - 26,323",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "26,324 - 37,950",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "37,951 - 49,152",
+    "workbook": 1599,
+    "loan file": 1599,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "49,153 - 59,983",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   }
+  ],
+  "loan of 37,950.99": 1,
+  "its band": "26,324 - 37,950"
+ },
+ "year": {
+  "labels": [
+   {
+    "column": "FICO",
+    "label": "496 - 653",
+    "workbook": 1556,
+    "loan file": 1556,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "654 - 685",
+    "workbook": 1539,
+    "loan file": 1539,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "686 - 711",
+    "workbook": 1562,
+    "loan file": 1562,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "712 - 743",
+    "workbook": 1535,
+    "loan file": 1535,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "744 - 838",
+    "workbook": 1586,
+    "loan file": 1586,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "5,005 - 15,448",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "15,449 - 26,323",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "26,324 - 37,950",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "37,951 - 49,152",
+    "workbook": 1599,
+    "loan file": 1599,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "49,153 - 59,983",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   }
+  ],
+  "loan of 37,950.99": 1,
+  "its band": "26,324 - 37,950"
+ },
+ "yearsplit": {
+  "labels": [
+   {
+    "column": "FICO",
+    "label": "496 - 653",
+    "workbook": 1556,
+    "loan file": 1556,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "654 - 685",
+    "workbook": 1539,
+    "loan file": 1539,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "686 - 711",
+    "workbook": 1562,
+    "loan file": 1562,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "712 - 743",
+    "workbook": 1535,
+    "loan file": 1535,
+    "verdict": "TIED"
+   },
+   {
+    "column": "FICO",
+    "label": "744 - 838",
+    "workbook": 1586,
+    "loan file": 1586,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "5,005 - 15,448",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "15,449 - 26,323",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "26,324 - 37,950",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "37,951 - 49,152",
+    "workbook": 1599,
+    "loan file": 1599,
+    "verdict": "TIED"
+   },
+   {
+    "column": "ORIG_BAL",
+    "label": "49,153 - 59,983",
+    "workbook": 1600,
+    "loan file": 1600,
+    "verdict": "TIED"
+   }
+  ],
+  "loan of 37,950.99": 1,
+  "its band": "26,324 - 37,950"
+ }
+}

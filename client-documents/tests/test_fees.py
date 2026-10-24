@@ -303,10 +303,23 @@ def test_the_floor_is_reported_and_never_applied():
 
 def test_a_half_priced_schedule_yields_half_a_budget():
     """Absent, not zero. A schedule that is partly priced is partly budgeted,
-    which is the truth about it."""
+    which is the truth about it.
+
+    THE PLANTED PRICE IS A MULTIPLE OF THE RATE, and that is the point of this
+    comment. It used to be a flat $170 with the answer written in as 1.25 hours
+    -- true only while the hourly rate was $150, because 170/150 rounds to 1.25
+    and 170/175 rounds to 1.00. When the rate moved to $175 on 7 September 2026
+    this test went red, and nothing about budgeting had changed: the test had
+    hard-coded an answer that depended on a number it did not control.
+
+    What it is actually asserting -- that planting one price budgets exactly one
+    more line, and that the budget is the hours the price buys -- never needed
+    the coupling. Planting `rate * 1.25` asserts the same thing at any rate.
+    """
     schedule = copy.deepcopy(pricing.load())
+    rate = schedule["basis"]["rate"]
     before = set(fees.expected_hours(schedule))
-    fees._plant(schedule, "base.1040.tiers.essentials.amount", 170)
+    fees._plant(schedule, "base.1040.tiers.essentials.amount", rate * 1.25)
     budgets = fees.expected_hours(schedule)
     assert set(budgets) == before | {"base.1040.tiers.essentials.amount"}, \
         "planting one price budgets exactly one more line"

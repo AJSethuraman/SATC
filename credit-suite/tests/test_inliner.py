@@ -199,11 +199,22 @@ def test_the_extracted_runner_refreshes_the_workbook_alone(bundle):
 
 
 def test_parity_survives_inlining(bundle):
-    """The bundle-built workbook must still match the pre-consolidation golden.
+    """The bundle-built workbook must match the workbook the engine builds.
 
     Inlining is a change to how the code travels, not to what it computes, and
     this is the assertion that keeps those two things separate.
+
+    It compares the bundle against the ENGINE, not against the golden, and the
+    difference matters. The golden was captured on the roster of the day and
+    the bundle builds on whatever roster ships, so measuring one against the
+    other asked two questions at once -- and answered "inlining moved
+    something" on 7 September 2026, when what had moved was the firm's peer
+    list going from twelve banks to nineteen. That the engine still matches the
+    golden is a separate claim, proved separately in test_parity_spine.py
+    against the roster the golden was recorded with.
     """
+    import monitorbuild
+
     name, spec, folder, path = bundle
     workbook = folder / ("%s.xlsm" % spec.workbook)
     if not workbook.exists():
@@ -211,11 +222,14 @@ def test_parity_survives_inlining(bundle):
         assert result.returncode == 0, result.stdout + result.stderr
 
     baseline = parity.SPINE_BASELINES[name]
-    golden = parity.read_golden(parity.repo_root() / baseline["demo_golden"])
-    current = parity.snapshot_workbook(workbook, source=baseline["workbook"])
-    diffs = parity.diff_snapshots(golden, current, ignore=parity.MIGRATION_IGNORE)
+    inlined = parity.snapshot_workbook(workbook, source=baseline["workbook"])
+    with monitorbuild.built_monitor(name, peers="seed") as (engine_wb, _out):
+        engine = parity.snapshot_workbook(engine_wb,
+                                          source=baseline["workbook"])
 
-    compared = len(set(golden["cells"]) | set(current["cells"]))
+    diffs = parity.diff_snapshots(engine, inlined,
+                                  ignore=parity.MIGRATION_IGNORE)
+    compared = len(set(engine["cells"]) | set(inlined["cells"]))
     assert compared > 20000, "only %d cells compared" % compared
     assert not diffs, "inlining moved something:\n%s" % parity.describe(diffs)
 

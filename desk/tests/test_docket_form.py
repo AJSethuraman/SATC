@@ -41,15 +41,24 @@ def counted():
 #: about itself, checked here against a copy of the previous docket -- and a
 #: POSITION cannot carry that flag at all, because positions come out of `desks/`.
 #: So POS3, which did not exist that morning, counted as old. The generator now
-#: derives "new" by difference against `FIFTH_DOCKET`, and this file asserts the
+#: derives "new" by difference against `ALREADY_OPEN`, and this file asserts the
 #: two sets agree, which is the same independence with the arithmetic in one
 #: place instead of two.
-FIFTH_DOCKET = {
-    "dec-cap-field",
+ALREADY_OPEN = {
+    # Open on the Desk Docket published 14 September 2026 (artifact 642c3276),
+    # read off that page. It carried them as D2, D3, D4 and F4.
+    "dec-caprule",
+    "dec-fasb",
+    "dec-tie",
+    "dec-unitcost",
+    # The sixth docket, 7 September 2026.
     "dec-courts-again",
+    "dec-merge-300",
+    "dec-parser",
+    "dec-register",
+    "dec-searcher-scope",
     "pos-capitalization-and-de-minimis-POS1",
     "pos-capitalization-and-de-minimis-POS2",
-    "pos-personal-or-business-POS1",
     "pos-rewards-and-information-returns-POS3",
 }
 
@@ -61,7 +70,7 @@ def independent():
     it and proved only that the page agreed with itself: two mutations survived
     that way, including the hard-coded preface count this file exists to stop."""
     proposed, ratified = 0, 0
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if not (d / "SOURCES.md").is_file():
             continue
         for q in record.load(d).positions:
@@ -79,6 +88,17 @@ def test_every_total_on_the_page_is_the_number_of_rows_on_it(page, counted, inde
         "the generator's own count disagrees with the record"
     n, pos, dec = independent["n"], independent["pos"], independent["dec"]
     assert n == pos + dec, "a row is neither a position nor a decision"
+    if not n:
+        # AN EMPTY DOCKET MUST SAY SO, not render the form with zeroes in it. The
+        # firm answered the seventh docket and got it back still asking; the
+        # sentence the skill asks for is the one thing this generator could not
+        # produce.
+        assert ">Nothing is waiting on you</h1>" in page
+        assert ">Nothing needs deciding</h2>" in page
+        assert 'class="bar"' not in page, (
+            "the filter bar is rendered above a list with nothing in it")
+        assert "things waiting on you" not in page
+        return
     assert ">%s things waiting on you<" % df._word(n).capitalize() in page
     assert ">0 of %d answered<" % n in page
     assert ">All %d<" % n in page
@@ -91,29 +111,49 @@ def test_the_preface_counts_what_the_cards_actually_are(page, counted, independe
     on the run that wrote it -- the same drift the filter labels had."""
     n = independent["n"]
     fresh, from_tieout = counted["fresh"], counted["from_tieout"]
-    assert "%s of them are new" % df._word(fresh) in page
+    carried = n - fresh
+    # WIDENED 14 SEPTEMBER 2026, AND DELIBERATELY NOT WEAKENED. This pinned the
+    # exact sentence "<word> of them are new", which is a phrasing rather than
+    # the property -- and that phrasing was only ever true of a page where
+    # nothing was carried. Four of today's eight ARE carried, so the preface now
+    # states BOTH halves, and this asserts both AND that they add up to the rows.
+    # A literal typed into the preface still fails: it has to agree with two
+    # derived numbers that sum to a third.
+    if n:
+        if carried:
+            assert "%s are new" % df._word(fresh).capitalize() in page, (
+                "the preface does not say how many cards are new")
+            assert "%s have been waiting" % df._word(carried) in page, (
+                "the preface does not say how many are carried from an earlier "
+                "docket, which is the more useful of the two numbers")
+        else:
+            assert "All %s are new" % df._word(n) in page
+        assert fresh + carried == n, "the split does not account for every card"
+    else:
+        assert "are new" not in page, (
+            "the preface counts how many matters are new on a page with none")
     assert from_tieout <= fresh
 
     # THE SET THE GENERATOR USES IS THE SET THIS FILE HOLDS. Two copies of a
     # thirteen-key list would drift; one copy checked from outside cannot.
-    assert df.FIFTH_DOCKET == FIFTH_DOCKET, (
+    assert df.ALREADY_OPEN == ALREADY_OPEN, (
         f"the generator and this test disagree about what the last docket "
-        f"carried: {sorted(df.FIFTH_DOCKET ^ FIFTH_DOCKET)}")
+        f"carried: {sorted(df.ALREADY_OPEN ^ ALREADY_OPEN)}")
 
     # AND "NEW" IS A DIFFERENCE, NOT A FLAG. Computed here from the rendered
     # rows rather than read off `counted`, so a generator that stopped
     # subtracting would go red.
     keys = {r["key"] for r in counted["rows"]}
-    assert fresh == len(keys - FIFTH_DOCKET), (
+    assert fresh == len(keys - ALREADY_OPEN), (
         f"the page says {fresh} are new; the ones absent from the fourth docket "
-        f"are {sorted(keys - FIFTH_DOCKET)}")
+        f"are {sorted(keys - ALREADY_OPEN)}")
     # A POSITION CAN BE NEW, which a `"new": True` flag could never express --
     # positions come out of `desks/`, not out of `OTHERS`. Asserted as the
     # DERIVATION rather than as a fact about any one docket: this one happens to
     # carry no new position, and the sixth would have gone red on a test that
     # demanded one.
-    assert all(k in keys for k in keys - FIFTH_DOCKET)
-    assert not any(r.get("new") and r["key"] in FIFTH_DOCKET for r in counted["rows"]), (
+    assert all(k in keys for k in keys - ALREADY_OPEN)
+    assert not any(r.get("new") and r["key"] in ALREADY_OPEN for r in counted["rows"]), (
         "a row is flagged new that the last docket already carried; new is a "
         "difference against that set, never a flag somebody typed")
     assert sum(r.get("shape") == "rule" for r in counted["rows"]) == counted["rules"]
@@ -129,6 +169,16 @@ def test_how_many_are_answerable_is_read_off_the_notes(page, counted, independen
     held_back = sum(1 for r in df.items()
                     if "Do not ratify" in (r.get("note") or {}).get("rec", ""))
     assert waiting == held_back, "the held-back count is not read off the notes"
+    if pos == 0:
+        # NO PROPOSED POSITION IS OPEN, for the first time since these dockets
+        # began. The preface must not claim anything about a set with nothing in
+        # it -- "Every one of the no positions" is what the old sentence rendered
+        # -- so what is asserted instead is that the page says they are all
+        # ratified, which is the true statement at zero.
+        if counted["n"]:
+            assert "no position is waiting" in page
+        assert "all %s" % df._word(counted["ratified"]) in page
+        return
     said = ("%s of the %s positions here are answerable today" % (
         df._word(answerable).capitalize(), df._word(pos))) if waiting else (
         "Every one of the %s positions here are answerable today" % df._word(pos))
@@ -143,7 +193,7 @@ def test_no_card_shows_a_position_its_desk_does_not_hold(counted):
     for row in counted["rows"]:
         if row["kind"] != "position":
             continue
-        desk = record.load(HERE / "desks" / row["group"])
+        desk = record.load(HERE / "corpus")
         held = [q for q in desk.positions if q.proposed and q.id == row["tag"].split(" · ")[1]]
         assert held, "%s is on the page and not in the record" % row["key"]
         assert held[0].position == row["position"]
@@ -161,6 +211,9 @@ def test_the_browser_tab_carries_the_same_count_as_the_page(page, independent):
     every test above reads the BODY. A figure is a figure wherever it is
     printed."""
     n = independent["n"]
+    if not n:
+        assert "<title>Docket \u00b7 All Answered</title>" in page
+        return
     assert "<title>Docket \u00b7 %s Open</title>" % df._word(n).capitalize() in page
 
 
@@ -216,3 +269,172 @@ def test_the_test_count_on_the_page_is_the_suite_s_own():
         f"the docket says {said} tests passing; the suite collects {collected} "
         f"with {SKIPPED} skipped, so it should say {collected - SKIPPED}. "
         f"Update `CHANGED` in tools/docket_form.py and republish.")
+
+
+# ── the card must not ask a question it has already answered ─────────────────
+
+def test_every_recommendation_names_a_pick_the_card_actually_offers(counted):
+    """THE FIRM, 7 SEPTEMBER 2026, and it is a defect and not a preference:
+
+        *"i have no clue why you will even ask me things on the docket like
+        'should i ratify this' when your last thing is a recommendation saying
+        'i wouldn't activate this, it is missing a field'"*
+
+    That is what the fifth docket did. Two capitalisation positions carried a
+    recommendation reading "do not ratify until the field exists" and the buttons
+    under them still led with **Ratify it**, because the recommendation was prose
+    and the picks were a constant nothing read. The page argued one way and asked
+    the other.
+    """
+    for row in counted["rows"]:
+        rec = row.get("rec") or (row.get("note") or {}).get("rec", "")
+        if not rec:
+            continue
+        assert row["rec_pick"], f"{row['key']} recommends without naming a pick"
+        assert row["rec_pick"] in row["picks"], (
+            f"{row['key']} recommends {row['rec_pick']!r}, not offered: "
+            f"{row['picks']}")
+
+
+def test_the_recommended_pick_is_the_one_offered_first(counted):
+    for row in counted["rows"]:
+        if row.get("rec_pick"):
+            assert row["picks"][0] == row["rec_pick"], (
+                f"{row['key']} leads with {row['picks'][0]!r} while recommending "
+                f"{row['rec_pick']!r}")
+
+
+def test_a_card_that_argues_one_way_and_asks_the_other_fails_the_build():
+    """A build error, not a review note. A reviewer catching this is a reviewer
+    who has to read every card against its own buttons, which is the work the
+    generator exists to remove."""
+    with pytest.raises(df.DocketError, match="not one of the buttons"):
+        df._ordered({"key": "x", "rec": "Do not ratify this yet.",
+                     "rec_pick": "Hold it", "picks": ["Ratify it", "No"]})
+
+
+def test_a_recommendation_with_no_pick_named_fails_the_build():
+    with pytest.raises(df.DocketError, match="does not say which pick"):
+        df._ordered({"key": "x", "rec": "I would ratify it.",
+                     "picks": ["Ratify it", "No"]})
+
+
+def test_a_card_with_no_recommendation_keeps_its_picks_as_written():
+    """Not every matter has a recommendation, and one is not invented to satisfy
+    the rule — that would be a default where the point is a refusal."""
+    assert df._ordered({"key": "x", "picks": ["A", "B"]}) == ["A", "B"]
+
+
+def test_the_recommendation_is_rendered_above_the_thing_it_is_about(page):
+    """It sat last, under four labelled blocks, and the reader had to assemble
+    the point before reaching it. The firm asked to lead with it."""
+    if not df.items():
+        return  # nothing is open, so no card is rendered and there is no order
+    lead = page.index('class="reclead"')
+    says = page.index('class="says"')
+    assert page.index('${esc(d.title)}') < lead < says, (
+        "the recommendation no longer sits between the title and the position")
+
+
+def test_the_page_marks_which_button_it_recommends(page):
+    assert 'is-rec' in page and 'recommended' in page
+
+
+def test_the_held_back_count_is_read_from_the_structured_field(counted):
+    """It scanned the recommendation prose for the phrase "Do not ratify", so
+    rewording a recommendation silently changed a number in the preface."""
+    src = (HERE / "tools" / "docket_form.py").read_text(encoding="utf-8")
+    body = src.split("def _counted(")[1].split("\ndef ")[0]
+    assert "Do not ratify" not in body, (
+        "the preface's held-back count is back to matching on prose")
+    assert "rec_pick" in body
+
+
+# ---------------------------------------------------------------------------
+# A DOCKET THAT HAS BEEN ANSWERED MUST NOT ASK AGAIN.
+#
+# The firm filled the seventh docket in at 15:49 on 7 September 2026. The page
+# was then republished with a new goal on it and the same four cards -- three
+# showing their answers, one, answered in conversation rather than on the form,
+# still showing as open -- and their reply was *"i am generally confused i have
+# filled this docket out"*. They had. Nothing checked that a matter reported as
+# answered was gone from the questions, because until now nothing on the page
+# could report one as answered at all.
+
+
+def test_a_matter_cannot_be_open_and_answered_at_once():
+    keys = {a["key"] for a in df.ANSWERED}
+    open_keys = {o["key"] for o in df.OTHERS}
+    assert not (keys & open_keys), sorted(keys & open_keys)
+
+
+def test_the_build_refuses_a_matter_that_is_both(monkeypatch):
+    """Not a review note. A reviewer catching this is a reviewer who has to read
+    every card against a second list, which is the work the generator removes."""
+    one = df.ANSWERED[0]
+    monkeypatch.setattr(df, "OTHERS", [{
+        "key": one["key"], "group": "g", "tag": "t", "title": one["title"],
+        "position": "p", "context": "c", "either": [], "rec": "r",
+        "rec_pick": "Not yet", "picks": ["Not yet"]}])
+    with pytest.raises(df.DocketError) as e:
+        df.items()
+    assert one["key"] in str(e.value)
+
+
+def test_every_answered_matter_says_what_the_answer_caused(page):
+    """An answer read back without its consequence is a receipt, not a report."""
+    assert df.ANSWERED, "the page reports nothing about what was answered"
+    for a in df.ANSWERED:
+        for field in ("said", "title", "caused", "where"):
+            assert a[field].strip(), "%s has an empty %s" % (a["key"], field)
+        assert a["said"] in page, "%s: the answer is not on the page" % a["key"]
+        assert a["caused"] in page, "%s: what it caused is not on the page" % a["key"]
+
+
+def test_the_answered_read_back_survives_a_new_matter_arriving(page, monkeypatch):
+    """It used to be rendered only on the empty page, so the record of what the
+    firm's answers CAUSED existed exactly while there was nothing beside it to
+    read, and a docket carrying new matters dropped it silently.
+
+    THE OPEN MATTER IS INJECTED rather than read off today's docket. The first
+    version asserted `df.OTHERS` was non-empty and skipped otherwise -- so it
+    proved the fix on the afternoon it was written and became a no-op three
+    hours later when the firm answered everything."""
+    assert ">What you already answered, and what it did<" in page  # empty page
+
+    monkeypatch.setattr(df, "OTHERS", [{
+        "key": "dec-invented", "group": "g", "tag": "t", "title": "a matter",
+        "position": "p", "context": "c", "either": [], "rec": "r",
+        "rec_pick": "Not yet", "picks": ["Not yet"]}])
+    with_open = df.render()
+    assert ">Waiting on you<" in with_open, "the injected matter did not render"
+    assert ">What you already answered, and what it did<" in with_open, (
+        "the read-back vanished as soon as something was open")
+    for a in df.ANSWERED:
+        assert a["said"] in with_open
+        assert a["caused"] in with_open
+
+def test_no_outcome_block_carries_markup_the_page_will_print_literally(counted):
+    """FOUND BY OPENING THE PAGE IN A BROWSER, 14 September 2026, and findable no
+    other way.
+
+    The card's `context` is inserted as HTML; the two outcome blocks under it are
+    inserted as TEXT. Both are prose written in the same dict by the same hand, so
+    a `<code>` typed into an outcome renders to the firm as the literal characters
+    `<code>Unless:</code>`. Four such tags shipped into the eighth docket's first
+    card and every generator test passed: they check figures against rows, and
+    markup that prints as text is neither.
+
+    PREVENT RATHER THAN DETECT. The alternative was to make the outcomes accept
+    HTML too. Refused: escaping is what stops a card's prose becoming markup, and
+    the outcomes are one or two sentences where a tag earns nothing. So the rule
+    is that they are plain, and it is enforced here rather than remembered.
+    """
+    bad = []
+    for row in counted["rows"]:
+        for pick, text in (row.get("either") or []):
+            for tag in re.findall(r"<[A-Za-z/][^>]*>", text):
+                bad.append("%s / %s: %s" % (row["key"], pick, tag))
+    assert not bad, (
+        "an outcome block carries markup, which the page prints as literal "
+        "characters rather than rendering:\n  " + "\n  ".join(bad))

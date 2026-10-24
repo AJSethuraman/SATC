@@ -1,4 +1,4 @@
-"""Ask the desks the close's real questions — the ones with no answer key.
+"""Ask the corpus the close's real questions — the ones with no answer key.
 
 WHAT THIS IS NOT. `scoreboard.py` scores PROBLEMS: fact patterns whose answer is
 already known because it was read off the authority. That measures a brain
@@ -14,15 +14,17 @@ serve it at all — laid out so the firm can say whether they agree.
     a green scoreboard says nothing about whether a client would be
     correctly advised.
 
-WHAT AN ANSWERER MAY SEE, and why it is not everything in the directory:
+WHAT AN ANSWERER MAY SEE is no longer this tool's business, and that is the
+change `dec-kill` made here. It carried its own `brief()` — a second copy of the
+rules about what an answerer is shown, kept in step with `ask.brief` by nobody.
+The pilot of 8 September measured what that costs: four of twelve answers came
+back `contradicts_ratified_position` while AGREEING with the firm, because this
+copy had never been told to say "copy the position verbatim". A third of a run
+was measuring one instruction's absence from one duplicate.
 
-  SOURCES.md      yes — it must know what it is allowed to rely on
-  extracted/      yes — the authority itself
-  positions/      RATIFIED ONLY — the firm's word is real authority. A PROPOSED
-                  position is an agent's suggestion nobody has said yes to, and
-                  showing it would let one agent's guess become the next one's
-                  premise, which is the whole failure `positions/` exists to stop
-  PROBLEMS.md     NEVER — it is the answer key, and this exercise has no key
+So it calls `ask.consult`, which is what production calls. One brief, from one
+corpus, narrowed to what the question actually reaches — and when the brief is
+wrong here it is wrong in the live path too, where somebody will see it.
 
     python tools/ask_the_desks.py            # write one brief per question
     python tools/ask_the_desks.py --serve answers.json
@@ -37,9 +39,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import ask                                                 # noqa: E402
 import engine                                              # noqa: E402
 import record                                              # noqa: E402
-import routing                                             # noqa: E402
 
 HERE = Path(__file__).resolve().parents[1]
 CORPUS = HERE / "docs" / "CLOSE-QUESTIONS-2026-09-05.md"
@@ -76,77 +78,34 @@ def kind_a() -> list[tuple[int, str, str]]:
     return [(n, titles[n], why.get(n, "")) for n in sorted(a)]
 
 
-def brief(number: int, title: str, why: str, desk: record.Desk) -> str:
-    """Everything an answerer may see, and nothing else."""
-    ratified = [q for q in desk.positions if not q.proposed]
-    out = [
-        f"# Q{number} — {title}",
-        "",
-        f"**Why the close raised it:** {why}",
-        "",
-        f"You are the **{desk.name}** desk. Answer ONLY from the authority below.",
-        "",
-        "## What you must return",
-        "",
-        "```json",
-        '{"position": "<your conclusion, one short line>",',
-        ' "citation": "<one citation, copied EXACTLY from a heading below>",',
-        ' "working": "<why that paragraph settles it>"}',
-        "```",
-        "",
-        "Or, if nothing below settles it:",
-        "",
-        "```json",
-        '{"escalated": true, "reason": "<one of: authority_absent, '
-        'authority_permits_choice, facts_not_established>", "working": "<what is missing>"}',
-        "```",
-        "",
-        "**`facts_not_established`** is the right answer when the rule is clear and",
-        "what you do not know is a fact about the client — what was bought, which",
-        "entity, which period. It is not a failure; it is the answer that says who",
-        "has to be asked.",
-        "",
-        "**Never cite a paragraph that is not printed below.** The engine verifies",
-        "the citation against this desk's record and refuses anything else,",
-        "however real it is.",
-        "",
-        "## Sources this desk may rely on",
-        "",
-    ]
-    for s in desk.sources:
-        out.append(f"- **{s.id}** · {s.title} · tier **{s.tier}**")
-    if ratified:
-        out += ["", "## Positions the firm has already taken (their words, and binding)", ""]
-        for q in ratified:
-            out += [f"### {q.citation}", "", f"> {q.position}", ""]
-    out += ["", "## The authority", ""]
-    for p in desk.passages:
-        out += [f"### {p.citation}", "", f"> {p.text}", ""]
-    return "\n".join(out)
-
-
 def main(argv: list[str]) -> int:
     if argv and argv[0] == "--serve":
         return serve_answers(Path(argv[1]))
 
-    regs = routing.registry(HERE / "desks")
     BRIEFS.mkdir(parents=True, exist_ok=True)
     index = []
     for number, title, why in kind_a():
-        hits = routing.route(f"{title}. {why}", regs)
-        if not hits:
-            print(f"Q{number:<3} NO DESK — not asked")
-            index.append({"q": number, "title": title, "desk": None})
+        question = f"{title}. {why}"
+        text = ask.consult(question)
+        if not text:
+            # SILENCE IS A RESULT AND IT IS WRITTEN DOWN. It used to print
+            # "NO DESK — not asked" and move on, which recorded the question as
+            # having no owner. It has no ANSWER, which is a different fact and
+            # the one `dec-coverage` is about.
+            print(f"Q{number:<3} NOTHING ON FILE — no brief written")
+            index.append({"q": number, "title": title, "brief": None})
             continue
-        for r in hits:
-            desk = record.load(HERE / "desks" / r.desk)
-            path = BRIEFS / f"Q{number}-{r.desk}.md"
-            path.write_text(brief(number, title, why, desk), encoding="utf-8")
-            index.append({"q": number, "title": title, "desk": r.desk,
-                          "brief": str(path.relative_to(HERE))})
-            print(f"Q{number:<3} -> {r.desk:<32} {len(desk.passages):>3} passages")
+        path = BRIEFS / f"Q{number}.md"
+        path.write_text(f"# Q{number} — {title}\n\n"
+                        f"**Why the close raised it:** {why}\n\n{text}",
+                        encoding="utf-8")
+        index.append({"q": number, "title": title,
+                      "brief": str(path.relative_to(HERE))})
+        print(f"Q{number:<3} -> {path.name:<12} {len(text):>7} characters")
     (BRIEFS / "index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
-    print(f"\n{len(index)} brief(s) -> {BRIEFS.relative_to(HERE)}")
+    written = sum(1 for e in index if e["brief"])
+    print(f"\n{written} brief(s) of {len(index)} question(s) "
+          f"-> {BRIEFS.relative_to(HERE)}")
     return 0
 
 
@@ -163,18 +122,50 @@ def serve_answers(path: Path) -> int:
     served = refused = 0
     rows = []
     for a in answers:
-        desk = record.load(HERE / "desks" / a["desk"])
+        # ONE CORPUS. This loaded `desks/<a["desk"]>`, so replaying a run
+        # required the folder the answer named to still exist. `dec-kill`
+        # deleted them; the `desk` key survives in the older run files as a
+        # RECORD of where the answer came from and is carried through to the
+        # output rather than acted on.
+        desk = record.load(ask.CORPUS)
         question = a["question"]
         if a.get("escalated"):
             ans = engine.Answer(position="", citation="", escalated=True,
-                                reason=a["reason"])
+                                reason=a["reason"], working=a.get("working", ""),
+                                ask=a.get("ask", ""))
         else:
             ans = engine.Answer(position=a["position"], citation=a["citation"])
-        out = engine.serve(ans, desk, question=question)
+        # AN ANSWER THE ENGINE WILL NOT EVEN CONSIDER IS A ROW, NOT A CRASH.
+        #
+        # `serve` raises `EngineError` when a caller breaks its contract — an
+        # unknown reason code, or (from 0.9.0) an escalation on a reason a
+        # PERSON can resolve with no follow-up question attached. That is the
+        # right behaviour for one answer and the wrong behaviour for a run:
+        # thirteen answers went in, one was written under an older contract, and
+        # the whole harness died without reporting the twelve that were fine.
+        #
+        # FOUND REPLAYING A REAL RUN. `runs/reasked-2026-09-07-evening` was
+        # recorded before `ask` existed, so its escalations carry none. That
+        # file is a RECORD of what the desks actually did and backfilling
+        # questions into it would be inventing evidence — so the harness has to
+        # be able to say "this answer predates the contract" and carry on.
+        try:
+            out = engine.serve(ans, desk, question=question)
+        except engine.EngineError as e:
+            refused += 1
+            rows.append({
+                "q": a["q"], "desk": a.get("desk", ""), "question": question,
+                "served": False, "position": a.get("position", ""),
+                "citation": a.get("citation", ""), "tier": "",
+                "checked_subject": None, "reason": "not_put_to_the_engine",
+                "detail": str(e), "fact": "", "by_position": "",
+                "working": a.get("working", ""),
+            })
+            continue
         ok = not isinstance(out, engine.Refusal)
         served, refused = served + ok, refused + (not ok)
         rows.append({
-            "q": a["q"], "desk": a["desk"], "question": question,
+            "q": a["q"], "desk": a.get("desk", ""), "question": question,
             "served": ok,
             "position": out.position if ok else a.get("position", ""),
             "citation": out.citation if ok else a.get("citation", ""),
@@ -182,9 +173,26 @@ def serve_answers(path: Path) -> int:
             "checked_subject": out.checked_subject if ok else None,
             "reason": "" if ok else out.reason,
             "detail": "" if ok else out.detail,
+            # THE CHAIN, CARRIED. `engine.Refusal` sets `fact` and
+            # `by_position` together on exactly the refusals that turn on a
+            # fact, and the firm made that pair the CONDITION of a desk being
+            # allowed to ask for a field: *"that seems low stakes and required
+            # and i would approve it fairly easily"* -- on the ask arriving with
+            # which position wanted it. This writer recorded the reason and the
+            # prose and dropped both, so `tools/holes.py` read a run's holes
+            # unable to name the field or the position, and the only way back to
+            # either was parsing `detail`'s sentence -- which is inferring, the
+            # one thing none of this may do.
+            "fact": "" if ok else out.fact,
+            "by_position": "" if ok else out.by_position,
             "working": a.get("working", ""),
         })
-    out_path = BRIEFS / "served.json"
+    # BESIDE THE ANSWERS IT SERVED, not in a directory named after today. This
+    # wrote to `runs/asked-<today>/` whatever it was handed, so re-serving an
+    # earlier run landed its result in a run it was not from, and the evening's
+    # re-ask had to be moved by hand. A record of what the desks did belongs
+    # with the input that produced it, or the two drift.
+    out_path = path.resolve().parent / "served.json"
     out_path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
     print(f"{len(rows)} answers · {served} the engine would serve · "
           f"{refused} it would refuse")
@@ -192,9 +200,15 @@ def serve_answers(path: Path) -> int:
           "say; this only reports what would have left the desk.\n")
     for r in rows:
         mark = "SERVED " if r["served"] else "REFUSED"
-        print(f"  {mark} Q{r['q']:<3} {r['desk']:<32} "
+        print(f"  {mark} Q{r['q']:<3} "
               f"{r['position'] or r['reason']}")
-    print(f"\n-> {out_path.relative_to(HERE)}")
+    # `relative_to` RAISES rather than falling back, and this ran from a path
+    # outside the tree the first time it was pointed at one.
+    try:
+        shown = out_path.relative_to(HERE)
+    except ValueError:
+        shown = out_path
+    print(f"\n-> {shown}")
     return 0
 
 

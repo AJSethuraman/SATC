@@ -1,0 +1,21 @@
+flag  FICO x CHANNEL · SYS_FLAG N vs rest              workbook p 2.49267e-11 df 2 pockets 18 | loan file p 2.49267e-11 df 2 pockets 18 | TIED
+flag  FICO x CHANNEL · SYS_FLAG Y vs rest              workbook p 2.49267e-11 df 2 pockets 18 | loan file p 2.49267e-11 df 2 pockets 18 | TIED
+flag  FICO x CHANNEL · SYS_FLAG (blank) vs rest        workbook p 2.49267e-11 df 2 pockets 18 | loan file p 2.49267e-11 df 2 pockets 18 | TIED
+flag  FICO x ASSET_CLASS · SYS_FLAG N vs rest          workbook p 2.37405e-12 df 2 pockets 24 | loan file p 2.37405e-12 df 2 pockets 24 | TIED
+flag  FICO x ASSET_CLASS · SYS_FLAG Y vs rest          workbook p 2.37405e-12 df 2 pockets 24 | loan file p 2.37405e-12 df 2 pockets 24 | TIED
+flag  FICO x ASSET_CLASS · SYS_FLAG (blank) vs rest    workbook p 2.37405e-12 df 2 pockets 24 | loan file p 2.37405e-12 df 2 pockets 24 | TIED
+flag  ORIG_BAL x CHANNEL · SYS_FLAG N vs rest          workbook p 1.22481e-12 df 2 pockets 15 | loan file p 1.22481e-12 df 2 pockets 15 | TIED
+flag  ORIG_BAL x CHANNEL · SYS_FLAG Y vs rest          workbook p 1.22481e-12 df 2 pockets 15 | loan file p 1.22481e-12 df 2 pockets 15 | TIED
+flag  ORIG_BAL x CHANNEL · SYS_FLAG (blank) vs rest    workbook p 1.22481e-12 df 2 pockets 15 | loan file p 1.22481e-12 df 2 pockets 15 | TIED
+flag  ORIG_BAL x ASSET_CLASS · SYS_FLAG N vs rest      workbook p 1.36435e-12 df 2 pockets 20 | loan file p 1.36435e-12 df 2 pockets 20 | TIED
+flag  ORIG_BAL x ASSET_CLASS · SYS_FLAG Y vs rest      workbook p 1.36435e-12 df 2 pockets 20 | loan file p 1.36435e-12 df 2 pockets 20 | TIED
+flag  ORIG_BAL x ASSET_CLASS · SYS_FLAG (blank) vs rest workbook p 1.36435e-12 df 2 pockets 20 | loan file p 1.36435e-12 df 2 pockets 20 | TIED
+two   FICO x CHANNEL · SYS_FLAG N vs Y                 workbook p 1.1025e-11 df 1 pockets 18 | loan file p 1.1025e-11 df 1 pockets 18 | TIED
+two   FICO x CHANNEL · SYS_FLAG Y vs N                 workbook p 1.1025e-11 df 1 pockets 18 | loan file p 1.1025e-11 df 1 pockets 18 | TIED
+two   FICO x ASSET_CLASS · SYS_FLAG N vs Y             workbook p 1.85097e-12 df 1 pockets 24 | loan file p 1.85097e-12 df 1 pockets 24 | TIED
+two   FICO x ASSET_CLASS · SYS_FLAG Y vs N             workbook p 1.85097e-12 df 1 pockets 24 | loan file p 1.85097e-12 df 1 pockets 24 | TIED
+two   ORIG_BAL x CHANNEL · SYS_FLAG N vs Y             workbook p 5.55792e-13 df 1 pockets 15 | loan file p 5.55792e-13 df 1 pockets 15 | TIED
+two   ORIG_BAL x CHANNEL · SYS_FLAG Y vs N             workbook p 5.55792e-13 df 1 pockets 15 | loan file p 5.55792e-13 df 1 pockets 15 | TIED
+two   ORIG_BAL x ASSET_CLASS · SYS_FLAG N vs Y         workbook p 7.94309e-13 df 1 pockets 20 | loan file p 7.94309e-13 df 1 pockets 20 | TIED
+two   ORIG_BAL x ASSET_CLASS · SYS_FLAG Y vs N         workbook p 7.94309e-13 df 1 pockets 20 | loan file p 7.94309e-13 df 1 pockets 20 | TIED
+largest relative difference 1.1e-14

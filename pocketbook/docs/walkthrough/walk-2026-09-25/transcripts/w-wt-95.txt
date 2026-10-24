@@ -1,0 +1,8 @@
+$ cube init demo/loans.csv -o wt-95.yaml --control wt-95.xlsx
+wrote wt-95.yaml
+  band       FICO, ORIG_BAL, GCO_AMT, RANR_AMT
+  dimension  CHANNEL, BAD_FLAG
+  key        LOAN_NBR
+  2 odd value pattern(s) raised as questions; each is used as recorded until answered
+  Next: answer every [CONFIRM: ...] in the file, then `cube validate`.
+(exit code 0)

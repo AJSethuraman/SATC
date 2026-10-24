@@ -40,15 +40,15 @@ sys.path.insert(0, str(HERE / "tools"))
 import ask                                                   # noqa: E402
 import record                                                # noqa: E402
 import scoreboard_run as sr                                  # noqa: E402
-from conftest import DESKS                                   # noqa: E402
+from conftest import CORPUS                                   # noqa: E402
 
-_HAS_SOURCES = [d for d in sorted(DESKS.iterdir()) if (d / "SOURCES.md").is_file()]
+_HAS_SOURCES = [d for d in [CORPUS] if (d / "SOURCES.md").is_file()]
 
 #: The publisher's own marker, and the reason it is not a judgement of ours: the
 #: passage text opens "Example." because the IRS wrote it that way.
 _OPENS = re.compile(r"^Examples?[.\s]")
 _LEADIN = re.compile(r"(following examples? (illustrate|illustrates)|"
-                     r"illustrated in the following examples)", re.I)
+                     r"illustrated (in|by) the following examples?)", re.I)
 
 _BLOCK = ("## C 1\n\n**Source:** S1 · **Checked:** 2026-09-04{kind}\n\n"
           "> Example. A buys a widget. A must capitalize it.\n")
@@ -129,13 +129,21 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
 
     TWO DESKS STILL HOLD NONE, AND THE REASON IS RECORDED RATHER THAN LEFT TO
     BE REDISCOVERED. `cash-and-bank` (§ 1.446-1), `meals-and-entertainment`
-    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sit on sections
-    that SKIP A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic
-    (a), passing over the (A) level entirely — and `placements()` admits no
-    reading in which a level is skipped. It raises rather than placing a
-    paragraph by preference, which is right: an example whose path is a guess
-    is cited to a rule that may not be its own, the exact defect corrected
-    earlier the same day.
+    (§ 1.274-5, § 1.274-5T) and `vehicle-expense`'s § 1.62-2 sat on sections the
+    reader could not place at all, and it raised rather than placing a paragraph
+    by preference — which was right: an example whose path is a guess is cited
+    to a rule that may not be its own, the exact defect corrected the same day.
+
+    THE STATED CAUSE HERE WAS WRONG AND IS CORRECTED. This paragraph read "SKIP
+    A LEVEL — § 1.446-1 goes from (c)(1)(iv) straight to an italic (a), passing
+    over the (A) level entirely". It does not skip anything. It uses a DIFFERENT
+    ALPHABET at the same level, and both in the same section: (c)(1)(ii)(A),
+    (B), (C) in plain capitals and (c)(1)(iv)(a), (b) in italic lowercase. That
+    diagnosis was corrected in the commit log the same night and this docstring
+    was not, which is how a wrong reason survives in the place people read.
+    § 1.446-1 now reads, with every one of the thirty paths it cites landing;
+    see `test_rules.py`. What these desks hold is a separate question from
+    whether the section can be read, and this count is the one to trust.
 
     § 1.6050W-1 was refused for a DIFFERENT and fixable reason and now places:
     its run-in headings close with a full stop inside the italics rather than
@@ -145,15 +153,25 @@ def test_the_worked_examples_in_the_record_are_where_they_should_be():
     `meals-and-entertainment`'s other three sections and two of the rewards
     desk's simply carry no worked examples at all.
     """
-    per = {}
-    for d, p in _kinds():
-        if p.kind == record.EXAMPLE:
-            per[d] = per.get(d, 0) + 1
-    assert per == {"capitalization-and-de-minimis": 31,
-                   "fixed-assets": 117,
-                   "personal-or-business": 4,
-                   "rewards-and-information-returns": 38,
-                   "vehicle-expense": 10}, per
+    # ONE CORPUS, ONE NUMBER, AND THE ROWS DO NOT ADD UP TO IT — DELIBERATELY.
+    # The seven-desk breakdown was:
+    #
+    #     capitalization-and-de-minimis  31    personal-or-business             4
+    #     cash-and-bank                  19    rewards-and-information-returns 38
+    #     fixed-assets                  117    vehicle-expense                 22
+    #     meals-and-entertainment        32                             TOTAL 263
+    #
+    # 263 rows, 260 DISTINCT citations. Three of § 1.274-5T(c)(3)(ii)(C)'s
+    # examples were stored twice, on `meals-and-entertainment` and on
+    # `vehicle-expense`, and one corpus holds each once. Nothing was lost: the
+    # merge report reconciles all 260 and the missing set is empty.
+    #
+    # 273 SINCE 27 SEPTEMBER 2026: § 1.162-21's thirteen, admitted after desk
+    # trial 1, stored because the extractor places them -- each is its own numbered
+    # paragraph, (f)(1) to (f)(13) -- where S37-S39's could not be placed.
+    examples = [p for _, p in _kinds() if p.kind == record.EXAMPLE]
+    assert len(examples) == 273, len(examples)
+    assert len({p.citation for p in examples}) == 273, "a citation stored twice"
 
 
 def test_a_lead_in_is_a_rule_and_not_an_example():
@@ -163,7 +181,13 @@ def test_a_lead_in_is_a_rule_and_not_an_example():
     this paragraph (c)". That sentence is rule text. What follows it is not
     stored at all, which is the gap this whole change is about."""
     leadins = [(d, p) for d, p in _kinds() if _LEADIN.search(p.text[:220])]
-    assert len(leadins) == 12, f"{len(leadins)} lead-ins, not 12"
+    # THIRTY-SEVEN SINCE 26 SEPTEMBER 2026: twelve, plus the twenty-five the
+    # three sections admitted after Sarcia pilot 3 carry (§ 1.263(a)-4 14,
+    # § 1.163-8T 8, § 1.461-1 3). Their examples are NOT stored -- see S37-S39
+    # -- and this pattern now also reads "illustrated by the following
+    # examples", the way those sections write it. Widened and re-measured: it
+    # took in no passage already on file.
+    assert len(leadins) == 37, f"{len(leadins)} lead-ins, not 37"
     for d, p in leadins:
         assert p.kind == record.RULE, (
             f"{d} · {p.citation} announces examples and is marked as one. A "
@@ -199,7 +223,7 @@ def test_the_grading_brief_carries_no_worked_example_from_any_desk():
 def test_the_answering_brief_does_carry_them():
     """NARROWING, and without it the test above passes on an empty brief.
     The whole point is that the answering side keeps what grading gives up."""
-    desk = record.load(DESKS / "personal-or-business")
+    desk = record.load(CORPUS)
     full = ask.brief("is the greenhouse deductible?", desk)
     grading = ask.brief_for_grading("is the greenhouse deductible?", desk)
     examples = [p for p in desk.passages if p.kind == record.EXAMPLE]
@@ -320,10 +344,25 @@ def test_the_citation_index_is_exactly_what_the_prompt_showed():
 
 def test_that_index_still_carries_the_rules():
     """Narrowing. An empty index would satisfy the test above perfectly."""
-    desk = record.load(DESKS / "fixed-assets")
+    desk = record.load(CORPUS)
     index = sr.citation_index(desk)
     rules = {p.citation for p in desk.passages if p.kind == record.RULE}
-    assert set(index) == rules and len(index) == 172, len(index)
+    # 525 SINCE 10 SEPTEMBER 2026, and it was 176 on `fixed-assets` alone: 172
+    # from § 1.263(a)-3 and the two paragraphs of § 1.162-3 the firm admitted
+    # eCFR for, plus two more added since. One corpus means the index carries
+    # every RULE the record holds, from all seven sets of sources. THAT IS THE
+    # WHOLE POINT AND ALSO THE OPEN PROBLEM: an index of 525 citations is what a
+    # reply is scored against, and `ask.consult` narrows to eight before
+    # anything is shown. What is scored and what is shown are now two different
+    # sizes, which was not true when a desk was the unit.
+    # 907 SINCE 26 SEPTEMBER 2026: 525 plus the 382 rule paragraphs of the five
+    # sections admitted after Sarcia pilot 3.
+    # 978 SINCE 27 SEPTEMBER 2026: plus 56 rule paragraphs of § 1.162-21 and
+    # 15 of § 274(a) and (e), admitted after Sarcia pilot 5 and desk trial 1.
+    # 982: plus § 274(o), (o)(1), (o)(2) and the note that dates (o) -- Codex on
+    # #403 found (e)(1) stored without the limit that overrides it from 2026.
+    # 984: plus § 274(n)(2) and (n)(2)(C), the exception (o) names (Codex, #403).
+    assert set(index) == rules and len(index) == 984, len(index)
 
 
 # ── an example must hang off the paragraph that announces it ─────────────────
@@ -382,7 +421,7 @@ def test_the_four_corrected_examples_are_where_the_section_puts_them():
     rather than only as the rule above, because the rule would also pass if all
     four moved somewhere else wrong.
     """
-    desk = record.load(DESKS / "fixed-assets")
+    desk = record.load(CORPUS)
     moved = [p for p in desk.passages
              if p.citation.startswith("26 CFR 1.263(a)-3(g)(2)(ii) Example")]
     assert len(moved) == 4, [p.citation for p in moved]

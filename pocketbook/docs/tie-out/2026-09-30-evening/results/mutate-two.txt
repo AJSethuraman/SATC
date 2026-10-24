@@ -1,0 +1,5 @@
+planted 200, caught 199, missed 1
+semantic plants 15100, caught 15100, missed 0
+  by kind (caught, missed): {'grid': (2168, 0), 'grid-grey': (11507, 0), 'grid-head': (96, 0), 'look': (8, 0), 'look-label': (50, 0), 'look-pline': (15, 0), 'panel': (48, 0), 'pk-border': (13, 0), 'pk-rule': (1195, 0)}
+  by kind (caught, missed): {'band-label': (2, 0), 'grid': (102, 0), 'grid-bookfig': (2, 0), 'grid-bound': (3, 0), 'grid-grey': (36, 0), 'grid-head': (2, 0), 'groups': (5, 0), 'look': (1, 0), 'panel': (3, 0), 'pck': (4, 0), 'pck-dot': (1, 0), 'pk-border': (8, 0), 'pocket': (19, 1), 'size-median': (3, 0), 'split-pocket': (6, 0), 'split-sum': (1, 0), 'start-top': (1, 0)}
+  missed: Pockets L24 ['pocket', 'Split by SYS_FLAG', 'Charge-offs', 'ORIG_BAL 37,951 - 49,151', 'Broker', 'Y', 'p'] 0.0363963603639636 0.0181981801819818

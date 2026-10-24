@@ -1,0 +1,273 @@
+{
+  "_what": "Changes to the Call Report's definitions and forms, each labeled on every series it touches in the quarter it took effect (the firm, 16 Oct 2026: \"Definitely mark reporting changes.\"). Written 16 Oct 2026 from docs/commercial-2026-10/research-breaks.md and research-fdic.md (on main), keeping only changes those files mark verified in a primary source; each entry cites that source. Left out: the proposed 2025 change to modification reporting (its final notice was not found); FAS 141(R) in 2009 (an accounting change the agencies chose not to add to the report); the 2018 rule that banks of $100bn or more file the FFIEC 031 (it names no loan category, and which roster banks switched was not checked); ASC 842 leases in 2019 (no loan item changed); and the 2020 revolving-line drawdowns and PPP loans, which are not reporting changes (the proposal's question 15, still open). The commercial products were added to the entries later on 16 Oct 2026, each from the entry's own Call Report items: every loan category, every real estate category or C&I where the entry names them; the nonfarm splits, which begin in 2007Q1, under that change; C&I under the December 2024 revision; none under the 2010 NDFI change, which its source says came out of other loans and not out of C&I.",
+  "changes": [
+    {
+      "name": "Construction, nonfarm and lease splits",
+      "first": "2007Q1",
+      "last": "2007Q1",
+      "products": ["Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-C 1.a(1) and 1.a(2): construction, 1-4 family and other",
+        "RC-C 1.e(1) and 1.e(2): nonfarm nonresidential, owner-occupied and other",
+        "RC-C 10: leases, retail and commercial",
+        "RC-N and RI-B: the same splits",
+        "RC-L 1.c(1): commitments, split the same way"
+      ],
+      "what_changed": "Construction was split into 1-4 family and other, nonfarm nonresidential into owner-occupied and other, and leases into retail and commercial, in RC-C, RC-N and RI-B; the totals are continuous across it.",
+      "sources": [
+        {
+          "citation": "71 FR 8649 (17 Feb 2006), Call Report Revisions To Be Implemented March 31, 2007",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2006-02-17/html/06-1495.htm"
+        }
+      ],
+      "already_labelled": {
+        "Owner-occupied nonfarm nonresidential": "first filed 2007Q1",
+        "Other nonfarm nonresidential": "first filed 2007Q1"
+      }
+    },
+    {
+      "name": "Loans classified as trading",
+      "first": "2008Q1",
+      "last": "2008Q1",
+      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto", "C&I", "Construction",
+                   "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-C: every loan category (loans classified as trading are reported in RC-D)"
+      ],
+      "what_changed": "Guidance from the agencies said loans a bank classifies as trading leave RC-C and are reported as trading assets in RC-D; how much moved was not measured.",
+      "sources": [
+        {
+          "citation": "76 FR 5253 (28 Jan 2011), section G.1, describing the March 2008 guidance (the guidance itself was not read)",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2011-01-28/html/2011-1815.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "Secured by real estate, clarified",
+      "first": "2009Q1",
+      "last": "2009Q1",
+      "products": ["C&I", "Construction", "Multifamily", "Nonfarm nonresidential",
+                   "Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "Real estate categories: construction, multifamily, nonfarm nonresidential, farmland",
+        "C&I, agricultural and other loans"
+      ],
+      "what_changed": "A loan is secured by real estate only if the real estate is worth more than 50% of the principal at origination, applied to new loans only, so the move is gradual.",
+      "sources": [
+        {
+          "citation": "74 FR 5028 (28 Jan 2009), section II.B",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2009-01-28/html/E9-1734.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "Securitizations back on the books (FAS 166 and 167)",
+      "first": "2010Q1",
+      "last": "2010Q1",
+      "products": ["Credit card", "Other consumer"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [],
+      "what_changed": "Accounting rules FAS 166 and 167 brought securitization trusts back onto banks' books, consolidating more than $300bn of securitized card balances and adding $28.0bn to other consumer across the industry.",
+      "sources": [
+        {
+          "citation": "FDIC Quarterly Banking Profile, first quarter 2010",
+          "url": "https://www.fdic.gov/analysis/quarterly-banking-profile/qbp/2010mar/qbp.pdf"
+        }
+      ],
+      "already_labelled": {"Credit card": "Securitized cards"}
+    },
+    {
+      "name": "NDFI loans split out of other loans",
+      "first": "2010Q1",
+      "last": "2010Q1",
+      "products": [],
+      "measures": [],
+      "call_report_items": [
+        "RC-C 9.a: loans to nondepository financial institutions (new)",
+        "RC-C 9.b: other loans",
+        "RC-L 1.e(1) to 1.e(3): other unused commitments, split into C&I, financial institutions and all other",
+        "RC-L 1.b: card lines, split into consumer and other"
+      ],
+      "what_changed": "Loans to nondepository financial institutions became their own line, split out of other loans and not out of C&I, and other unused commitments were split three ways.",
+      "sources": [
+        {
+          "citation": "74 FR 68314 (23 Dec 2009), sections II.A and II.B",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2009-12-23/html/E9-30489.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "Construction loans after completion",
+      "first": "2011Q1",
+      "last": "2011Q1",
+      "products": ["Construction", "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-C 1.a: construction",
+        "Multifamily and nonfarm nonresidential, the permanent real estate categories",
+        "RC-C and RC-N: troubled debt restructuring memoranda, by category"
+      ],
+      "what_changed": "A construction loan stays in construction after the work is done while repayment still depends on selling the property, and the troubled debt restructuring memoranda were broken out by category.",
+      "sources": [
+        {
+          "citation": "76 FR 5253 (28 Jan 2011)",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2011-01-28/html/2011-1815.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "Auto loans get their own line",
+      "first": "2011Q1",
+      "last": "2011Q1",
+      "products": ["Other consumer", "Auto"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-C 6.c: auto loans (new)",
+        "RC-C 6.d: other consumer loans"
+      ],
+      "what_changed": "Auto loans got their own line from March 2011; before it they were inside other consumer loans.",
+      "sources": [
+        {
+          "citation": "FDIC BankFind financial data definitions, LNAUTO: \"prior to March 2011, this item was included in other consumer loans (lnconoth)\"",
+          "url": "https://api.fdic.gov/banks/docs/All%20Financial%20Reports.xlsx"
+        }
+      ],
+      "already_labelled": {"Other consumer": "Auto was inside 6.d until 2011Q1"}
+    },
+    {
+      "name": "Real estate breakdown for the whole bank",
+      "first": "2013Q2",
+      "last": "2013Q2",
+      "products": ["Mortgage", "Home equity", "Construction", "Multifamily", "Nonfarm nonresidential",
+                   "Owner-occupied nonfarm nonresidential", "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-C 1, FFIEC 031: the nine-category breakdown of loans secured by real estate for the consolidated bank (construction, farmland, 1-4 family: revolving 1.c(1), closed-end first liens 1.c(2)(a) and junior liens 1.c(2)(b), multifamily, nonfarm nonresidential)"
+      ],
+      "what_changed": "Large and highly complex institutions began reporting the nine-category real estate breakdown, 1-4 family included, for the whole bank, not only domestic offices; whether the FDIC's fields moved with it was not checked.",
+      "sources": [
+        {
+          "citation": "78 FR 30922 (23 May 2013)",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2013-05-23/html/2013-12220.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "CECL: purchased credit-deteriorated loans",
+      "first": "2020Q1",
+      "last": "2020Q1",
+      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto", "C&I", "Construction",
+                   "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-N: nonaccrual and past due, every category",
+        "RC-C: balances of purchased credit-deteriorated loans, grossed up by the allowance"
+      ],
+      "what_changed": "Under CECL, adopted from 1 Jan 2020 by SEC filers, purchased credit-impaired loans became purchased credit-deteriorated loans carried at purchase price plus their allowance, and the nonaccrual exception was not carried over to them.",
+      "sources": [
+        {
+          "citation": "84 FR 4131 (14 Feb 2019)",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2019-02-14/html/2019-02330.htm"
+        },
+        {
+          "citation": "85 FR 44361 (22 Jul 2020), section C.3",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2020-07-22/html/2020-15788.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "COVID-19 deferrals not reported as past due",
+      "first": "2020Q2",
+      "last": "2020Q2",
+      "products": ["Credit card", "Mortgage", "Home equity", "Other consumer", "Auto", "C&I", "Construction",
+                   "Multifamily", "Nonfarm nonresidential", "Owner-occupied nonfarm nonresidential",
+                   "Other nonfarm nonresidential"],
+      "measures": ["30-89", "90+ accruing", "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-N: past due, every category",
+        "RC-C Memoranda 17.a and 17.b: section 4013 loans (confidential)"
+      ],
+      "what_changed": "Loans given COVID-19 deferrals were not reported as past due during the deferral; when that relief ended was not checked.",
+      "sources": [
+        {
+          "citation": "Interagency statement, 7 Apr 2020 (FDIC PR-49-2020)",
+          "url": "https://www.fdic.gov/sites/default/files/2024-03/pr20049a.pdf"
+        },
+        {
+          "citation": "85 FR 44361 (22 Jul 2020), section B",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2020-07-22/html/2020-15788.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "Troubled debt restructuring captions replaced",
+      "first": "2024Q2",
+      "last": "2024Q2",
+      "products": [],
+      "measures": [],
+      "call_report_items": [
+        "RC-C Memorandum 1",
+        "RC-N Memorandum 1"
+      ],
+      "what_changed": "Troubled debt restructuring captions were replaced by loan modifications to borrowers experiencing financial difficulty, so these memoranda are not comparable across the change; the main loan lines are unaffected.",
+      "sources": [
+        {
+          "citation": "89 FR 45046 (22 May 2024), section II.B.1",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2024-05-22/html/2024-11221.htm"
+        }
+      ],
+      "already_labelled": {}
+    },
+    {
+      "name": "NDFI and margin-loan revision",
+      "first": "2024Q4",
+      "last": "2025Q2",
+      "products": ["Other consumer", "C&I"],
+      "measures": ["net charge-offs", "gross charge-offs", "30-89", "90+ accruing", "nonaccrual",
+                   "90+ incl. nonaccrual", "30+ incl. nonaccrual"],
+      "call_report_items": [
+        "RC-C 4: C&I",
+        "RC-C 9.a: loans to nondepository financial institutions",
+        "RC-C 9.b(1): loans for purchasing or carrying securities, including margin loans",
+        "Loans to depository institutions",
+        "RC-C 6.d: other consumer loans",
+        "RC-C Memorandum 10: NDFI split five ways (new; banks over $10bn)",
+        "RC-N Memorandum 9: NDFI past due and nonaccrual (new)",
+        "RC-L 1.e(2) to 1.e(4): depository institutions, NDFI, all other"
+      ],
+      "what_changed": "Loans to nondepository financial institutions were redefined and every securities-based margin loan moved to loans for purchasing or carrying securities, out of C&I and out of other consumer (6.d), with best-efforts reporting until 30 Jun 2025.",
+      "sources": [
+        {
+          "citation": "89 FR 45046 (22 May 2024), section II.C.1: effective as of the December 31, 2024, report date",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2024-05-22/html/2024-11221.htm"
+        },
+        {
+          "citation": "FDIC, Banking Issues in Focus No. 1, Feb 2026, Bank Lending to Nondepository Financial Institutions (best efforts through 30 Jun 2025)",
+          "url": "https://www.fdic.gov/analysis/bank-lending-nondepository-financial-institutions.pdf"
+        }
+      ],
+      "already_labelled": {}
+    }
+  ]
+}

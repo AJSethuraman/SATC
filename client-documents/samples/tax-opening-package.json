@@ -17,7 +17,7 @@
   "SpouseName": "Maria Reyes",
   "JointReturn": true,
   "FederalReturns": "Form 1040 with Schedules A, C, E, and SE",
-  "StateReturns": "Ohio — resident",
+  "StateReturns": "Ohio \u2014 resident",
   "LocalReturns": "Solon municipal",
   "AdditionalForms": "Two K-1s as reported",
   "MaterialsDeadline": "March 25, 2027",
@@ -51,7 +51,7 @@
   ],
   "Assumptions": [
     {
-      "Text": "Records cleanup — your records arrive complete and reconciled. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
+      "Text": "Records cleanup \u2014 your records arrive complete and reconciled. If the records need reconciling before the return can be prepared, the additional time is billed at $175 an hour as it is worked."
     }
   ],
   "EstimateTotal": "$645.00",

@@ -1,0 +1,3 @@
+# What the tool learns stays on the machine that ran it (memory.py).
+memory.yaml
+learned*.xlsx

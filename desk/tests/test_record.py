@@ -12,13 +12,16 @@ import pytest
 
 import record
 from record import RecordError
-from conftest import DESKS, ROOT
+from conftest import CORPUS, ROOT
 
 
 # ── it loads at all ───────────────────────────────────────────────────────────
 
-def test_fixed_assets_desk_loads(fixed_assets):
-    assert fixed_assets.name == "fixed-assets"
+def test_the_corpus_loads(fixed_assets):
+    # THE FIXTURE IS THE CORPUS NOW. It was `desks/fixed-assets`; `dec-kill`
+    # deleted the desks and `conftest.fixed_assets` loads the one record. The
+    # name it keeps is the parameter's, so the tests below read unchanged.
+    assert fixed_assets.name == "corpus"
     assert fixed_assets.sources, "a desk with no authority cannot answer anything"
     assert fixed_assets.problems, "a desk that cannot be scored is a claim"
 
@@ -55,10 +58,15 @@ def test_a_problems_authority_is_a_rule_and_its_conclusion_is_the_examples(
     sys.path.insert(0, str(ROOT / "tools"))
     import extract_ecfr as ex
     xml = ROOT / "tools" / "fixtures" / "1.263a-3.xml"
-    _, kept, _, _, _ = ex.build(xml, DESKS / "fixed-assets", checked="2026-09-04")
+    _, kept, _, _, _ = ex.build(xml, CORPUS, checked="2026-09-04")
     example_of = {e["facts"]: e for e, _ in kept}
-    assert fixed_assets.problems, "no problems; this would pass vacuously"
-    for p in fixed_assets.problems:
+    # THE EXTRACTOR'S OWN PROBLEMS, and only those. One corpus holds 98 from
+    # seven records; sixteen came out of this rebuild and the other 82 were
+    # curated by hand against publications this XML knows nothing about.
+    ours = [p for p in fixed_assets.problems
+            if p.citation.startswith("26 CFR 1.263(a)-3")]
+    assert ours, "no problem cites the section; this would pass vacuously"
+    for p in ours:
         passage = fixed_assets.passage(p.citation)
         assert passage is not None, f"problem {p.id} has no stored authority"
         spellings = [rx for answer, rx in ex.CLASSIFY if answer == p.answer]
@@ -394,7 +402,7 @@ def test_no_shipped_desk_declares_a_subject_this_short_or_this_numeric():
     """Written as a guard over the real record rather than only over a fixture:
     four of six desks were declaring one when this was added."""
     from pathlib import Path
-    for d in sorted((Path(__file__).resolve().parents[1] / "desks").iterdir()):
+    for d in sorted((Path(__file__).resolve().parents[1] / "corpus").iterdir()):
         if not (d / "SUBJECTS.md").is_file():
             continue
         desk = record.load(d)          # raises if any term is degenerate

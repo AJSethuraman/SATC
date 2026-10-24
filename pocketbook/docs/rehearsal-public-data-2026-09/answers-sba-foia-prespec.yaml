@@ -1,0 +1,29 @@
+# The answers for the pre-registered confirmatory test on the SBA 7(a) FOIA extract (prespec-sba-foia-loan-size-term.yaml).
+kind: new_variable
+step: prespec
+prespec: docs/rehearsal-public-data-2026-09/prespec-sba-foia-loan-size-term.yaml
+outcome: CHGOFF_FLAG
+test: [GrossApproval, TermInMonths]
+hold: [BusinessType]
+bands: []
+segments: [BusinessType]
+split: null
+few_values: 12
+many_values: 50
+meanings:
+  ROW_KEY: key
+  GrossApproval: booked
+  CHGOFF_FLAG: outcome
+  GrossChargeOffAmount: gco
+  RANR_NEG_GCO: ranr
+  ApprovalDate: origination_date
+  BusinessType: category
+  TermInMonths: amount
+  NAICS2: category
+treat:
+  RANR_NEG_GCO: Real
+control:
+  worse_at: "1.25 times"
+  confidence: "95% sure"
+  materiality: "1% of the book's total losses"
+checked_every_column: Yes

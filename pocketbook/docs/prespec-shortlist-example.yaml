@@ -1,0 +1,45 @@
+# A shortlist pre-spec (Goal 2 item 3): an outcome plus a shortlist of inputs,
+# each with its bins and reference group, written before anyone looks at the
+# holdout and committed to git so the date it was written is on record.
+#
+# Each input's bins and reference come from scouting the DEVELOPMENT loans
+# (docs/statistics.md B7). The confirmatory run applies exactly these, once, to
+# the HOLDOUT loans (B5, B6), each input with and without the columns held
+# fixed, and allows for testing every input's groups at once (Control's
+# "Allowing for testing many pockets at once", Benjamini-Hochberg by default).
+#
+# Every line is required; none has a default. The format is defined in full at
+# the top of src/pocketbook/prespec.py. A test loads this file. The
+# one-column form (docs/prespec-example.yaml) is still read, as a shortlist of one.
+
+prespec: 1                          # this format's version
+written: 2026-09-27                 # the day it was written
+
+outcome: BAD_FLAG                   # the yes/no column every input is tested against
+
+inputs:
+  # Five cut points make six groups: lowest - 0.09, 0.10 - 0.24, 0.25 - 0.49,
+  # 0.50 - 0.99, 1.00 - 1.99, 2.00 - highest. The reference holds the median.
+  - column: income_to_sales
+    bins: [0.1, 0.25, 0.5, 1.0, 2.0]
+    reference: "0.25 - 0.49"
+  # Revolving utilisation: the reference is the lowest group, by its number.
+  - column: UTIL
+    bins: [0.3, 0.6, 0.9]
+    reference: 0
+  # Years at the address.
+  - column: TENURE
+    bins: [2, 5, 10]
+    reference: "2 - 4"
+
+# The columns held fixed: each input is compared with its reference inside the
+# same pocket, and reported with them and without them. Which to hold is your
+# call, so it is left for you to answer: FICO and CHANNEL, say, as [FICO, CHANNEL],
+# or [] to treat the whole book as one pocket. The file is refused until you do.
+strata: "[CONFIRM: the columns to hold fixed, such as [FICO, CHANNEL]; [] for none]"
+
+confidence: 0.95                    # how sure a difference must be: 95%
+
+# Origination dates. Both ends are included. The two ranges may not share a day.
+holdout: {from: 2024-01-01, to: 2024-12-31}       # kept back for the confirmatory run
+development: {from: 2022-01-01, to: 2023-12-31}   # where the bins were chosen

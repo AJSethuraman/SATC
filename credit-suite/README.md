@@ -35,6 +35,7 @@ credit_suite/
     workbook.py      the openpyxl writer (carries L2 and L7)
     digest.py        per-entity values, statuses and flag counts
     runtime.py       gate -> blank -> fetch -> land -> digest
+    consistency.py   PASS / FAIL / UNKNOWN with the denominator attached
     style.py         the house style; no hardcoded fill or font in a builder
     vba.py           the VBA project container writer
     package.py       .xlsx + macro -> .xlsm, by zip surgery
@@ -126,6 +127,7 @@ python -m pytest -q                    # the whole bar
 python tools/check_parity.py           # values + statuses vs the goldens
 python tools/conformance.py            # has duplication crept back?
 python tools/mutation_check.py         # can each test actually fail?
+python tools/consistency_check.py WB   # does the artifact agree with its source?
 ```
 
 What each one is for:
@@ -136,6 +138,7 @@ What each one is for:
 | `check_parity.py` | builds each monitor, **recomputes every formula**, and diffs cell for cell against the pre-consolidation golden. Statuses are formula-driven, so a raw-cell snapshot would read `=IF(...)` and miss a status moving underneath it — which is carried lesson L8 |
 | `conformance.py` | no copy of an engine module (content-hashed, so renaming does not hide one), no loose source in a migrated folder, tabs match §2, CLI and exit codes match §4 |
 | `mutation_check.py` | breaks each guard on purpose and demands the test go red. A survivor is a finding: either the guard is decoration or the test is too weak |
+| `consistency_check.py` | the data-consistency flags run against a workbook that already exists: the `_config` tab against `series_seed.py` (S1), the vintage (C3), the date grid (C5), the FDIC identity set (I2-I5) and whether a bank-quarter spans a merger (I1). Every line prints its denominator, and a check with nothing to look at prints NONE, never ok. Exit 2 on a failure; an UNKNOWN is printed and never sets the exit code. Design: `docs/prd-data-consistency-flags.md` |
 
 Every one of them reports its denominator. A green check that examined nothing
 looks exactly like a green check that examined everything.

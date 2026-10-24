@@ -1,0 +1,1027 @@
+"""Asking a desk that is somewhere else.
+
+THE FIRM SET THE SHAPE, 8 September 2026, and gave the reason:
+
+    "the final check for this for V1 will be to have Forge - Occam install the
+    new plugin we are designing and run a close from start to finish on Sarcia
+    Services [...] this implies that the skill is able to call for questions and
+    receive back answers from Forge - Desk"
+
+    "this is my solution to getting as much info as possible because the
+    ask-desk session (in this case Forge - Desk) is on the Forge itself so it
+    can use its browser and such."
+
+So the desk stops being a library the doer imports and becomes a session the
+doer asks. `docs/THE-DESK-IS-A-SESSION.md` argues why; this is the wire.
+
+WHAT THIS MODULE IS AND IS NOT. It builds and reads the two envelopes and it
+REFUSES a malformed one. It sends nothing: the transport is `create_trigger` /
+`fire_trigger`, which live in the caller's harness and not in this repository.
+Keeping the composition here and the sending there is what makes the protocol
+testable at all -- every rule below is a test, not a paragraph somebody is
+trusted to have read.
+
+THE THREE RULES, EACH FROM SOMETHING THAT WENT WRONG:
+
+1. A QUESTION CARRIES ITS RETURN ADDRESS OR IT IS NOT A QUESTION. On the first
+   machine round trip the desk had to be TOLD the asking session's id in the
+   prose of the prompt. Leave it out and the answer has nowhere to go, the desk
+   composes a report into its own window, and a person has to carry it -- which
+   is the exact leg V1 exists to remove. So `reply_to` is required and checked.
+
+2. EVERY ENVELOPE CARRIES A REF, BECAUSE DELIVERY IS AT-LEAST-ONCE. A trigger
+   with a `run_once_at` that is then poked DELIVERS TWICE -- measured on this
+   repository's own traffic, 8 September 2026. Poke-only avoids it, and a
+   protocol that assumes nobody will ever get that wrong again is a protocol
+   that will be got wrong again. The ref makes a second copy DETECTABLE rather
+   than answered twice, which on a close is duplicated work at best and
+   duplicated entries at worst.
+
+3. NO CLIENT IDENTIFIER CROSSES THE WIRE. The desks never need a name to answer
+   whether a deposit is a reconciling item. `CLAUDE.md`: real taxpayer PII never
+   belongs in artifacts or logs, and this envelope becomes both -- it is stored
+   on the trigger, echoed in its record, and read back by `list_triggers`. This
+   is a CHOKE POINT and not advice, for the reason LOCAL-LLM-PATTERN rule 6
+   gives: policy written as prose is policy one run in three.
+
+AND THE THING IT DELIBERATELY DOES NOT CARRY: CONTEXT. The first draft of this
+module gave the envelope a free-text `facts` field for the asker to fill in. The
+firm cut it, 8 September 2026:
+
+    "no- we don't add context to it, that defeats the purpose. it falls the same
+    rules and gets the de-identified data so it can ensure it answers and asks
+    things objectively"
+
+Correct, and it was a second facts channel beside one that already exists.
+`record.Context` is how facts reach a desk, and it is not a blob: `ask.brief`
+prints every fact the desk RECORDS, and prints the missing ones BY NAME as
+"NOT ON FILE — do not infer it, and do not answer from a rule that needs it".
+That discipline is what makes `context_not_on_file` a real escalation instead of
+a guess.
+
+A free-text context field bypasses all of it, and worse: it lets the ASKER frame
+the question. A doer that already suspects the answer writes the context that
+gets it, and the desk agrees with a summary of the facts rather than with the
+facts. **The whole reason to put the desk behind a session boundary is so that it
+is not the doer's own reasoning coming back with a citation attached.**
+
+So the envelope carries a QUESTION and a RETURN ADDRESS. Nothing else.
+"""
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import json
+import re
+import unicodedata
+from dataclasses import dataclass
+
+#: A session id as the harness writes it. Checked, because the failure of a
+#: wrong one is silent -- the answer is delivered somewhere, just not here.
+SESSION = re.compile(r"^session_[A-Za-z0-9]{16,}$")
+
+#: A TIN as a person types one: 123-45-6789 (SSN) or 12-3456789 (EIN). NOT a
+#: general PII detector, and it does not pretend to be -- it is the shape of the
+#: identifier this firm handles all day, which is the one most likely to be
+#: pasted into a question by an agent trying to be helpful.
+TIN = re.compile(r"\b(?:\d{3}-\d{2}-\d{4}|\d{2}-\d{7})\b")
+
+
+#: Where the desk lives, read from the environment. NOT a default and never a
+#: guess: a wrong session id fails SILENTLY -- the question is delivered
+#: somewhere, the asker waits, and nothing anywhere says the desk never saw it.
+DESK = "SATC_DESK_SESSION"
+
+
+def _version() -> str:
+    """The running code's version, for stamping onto an envelope."""
+    try:
+        import record
+        return record.VERSION or "(unknown)"
+    except Exception:
+        return "(unknown)"
+
+
+def _stamp() -> str:
+    """One line, on EVERY envelope, saying which code composed it.
+
+    It went onto `as_prompt` alone in 0.10.1, and that was half a fix. The
+    argument for it -- a stale SKILL.md cannot know it is stale, so the message
+    has to out-rank it -- says nothing about which of the three envelopes is
+    being read. A desk following a four-release-old skill is just as stale when
+    it is handed a follow-up or sent to go and look something up, and those two
+    said nothing about where they came from.
+
+    Shared rather than repeated, and `test_every_envelope_says_what_composed_it`
+    enumerates the module: a fourth envelope added later cannot quietly skip it.
+    """
+    return (f"*Composed by desk {_version()}. If the skill you are following "
+            f"says otherwise, follow THIS message: it came from the code that "
+            f"is running, and a stale skill cannot know it is stale.*")
+
+
+class RelayError(Exception):
+    """The envelope is malformed. Never repaired, never defaulted."""
+
+
+@dataclasses.dataclass(frozen=True)
+class Ask:
+    """One question, its return address, and the ref that makes it identifiable.
+
+    NO CONTEXT FIELD, and see the module docstring for why: facts reach a desk
+    through `record.Context`, which names the ones it does NOT have, and an
+    asker who writes the context writes the answer.
+    """
+    question: str
+    reply_to: str
+    ref: str
+
+
+def ref_for(question: str, reply_to: str, on_file: str = "") -> str:
+    """A stable ref: the same question from the same asker gets the same one.
+
+    STABLE ON PURPOSE. A random id would make a duplicate delivery look like a
+    second question, which is the failure this exists to catch. Twelve hex
+    characters of a digest -- enough that two different questions colliding is
+    not a thing that happens, short enough to read in a log.
+    """
+    # THE FACTS ARE PART OF WHAT WAS ASKED. Codex on #401: the same question
+    # for two engagements with different recorded facts got one ref, and the
+    # replies are matched on refs alone -- so one engagement's answer could be
+    # taken for the other's, or dropped as a duplicate. With no facts the ref
+    # is exactly what it always was.
+    key = f"{reply_to}\n{question.strip()}"
+    # AND UNAMBIGUOUSLY. Codex on #401: a question carrying its own line
+    # "trade=general contractor" made the same key as the bare question with
+    # that fact on file. With facts the key is a JSON array, which opens "["
+    # where a bare key opens with the session id, so the two cannot meet.
+    if on_file:
+        key = json.dumps([reply_to, question.strip(), on_file])
+    return hashlib.sha256(key.encode()).hexdigest()[:12]
+
+
+def ask(question: str, reply_to: str) -> Ask:
+    """Build a question, or REFUSE. Never a default, never a repair."""
+    question = (question or "").strip()
+    if not question:
+        raise RelayError("no question. A desk answers what it was asked, and "
+                         "an empty ask is not a question it can refuse.")
+    if not SESSION.match(reply_to or ""):
+        raise RelayError(
+            f"reply_to {reply_to!r} is not a session id. Without one the desk "
+            f"has nowhere to send the answer, composes it into its own window, "
+            f"and a person has to carry it — which is the leg this replaces.")
+    if found := TIN.search(question):
+        raise RelayError(
+            f"the question carries what looks like a TIN ({found.group()[:3]}"
+            f"…). The envelope is stored on the trigger and read back out of "
+            f"its record; no client identifier crosses this wire. Ask the "
+            f"question without it — the desks do not need it to answer.")
+    # A QUESTION MAY NOT WEAR THE FACTS HEADING. Codex on #401: a question
+    # carrying "## On file for this engagement" and a fact line was read by
+    # `on_file` as firm-recorded context -- the asker writing the facts, which
+    # is the one thing the block exists to rule out.
+    if re.search(r"on\s+file\s+for\s+this\s+engagement", question, re.I):
+        raise RelayError(
+            "the question contains the 'On file for this engagement' heading. "
+            "That block carries only what the firm recorded in setup, and "
+            "`ask_many(..., on_file=...)` writes it. A question cannot.")
+    return Ask(question=question, reply_to=reply_to,
+               ref=ref_for(question, reply_to))
+
+
+def as_prompt(a: Ask) -> str:
+    """The message the desk session receives.
+
+    THE PROTOCOL TRAVELS IN THE ENVELOPE, not only in a SKILL.md. Four releases
+    running, the Skill tool served a stale `ask-desk` and an agent following it
+    correctly produced the wrong output. A desk reading this message has what it
+    needs to answer even if its own skill is months old.
+
+    RULES ONLY — THE REASONS LIVE HERE AND IN THE TESTS, NOT IN THE MESSAGE.
+    Until 25 September 2026 this carried the incident behind every rule, and it
+    was 6,082 characters to deliver an 87-character question, 45 per cent of it
+    history. The cost fell on the ASKER: the platform echoes a trigger's prompt
+    back several times on every create and fire, so each question spent roughly
+    20,000 characters of the asking session's context. In Sarcia pilot 2 Occam
+    stopped sending after three questions, and cost was one of its two stated
+    reasons. Every rule the long version stated is still stated; what went is
+    the story of how each one was learned, which the answerer does not act on.
+    The incidents are in this module's docstrings and in
+    `test_asking_a_desk_that_is_somewhere_else.py`, where they are pinned.
+    """
+    return "\n".join(
+        [f"DESK REQUEST {a.ref} - you are the desk. Somebody doing the work "
+         f"has hit something they cannot settle.", "",
+         _stamp(), "",
+         "## The question", "", a.question, "",
+         "No context came with it, deliberately. Read the facts off the record "
+         "through `consult`, where the ones not held are named as such, and "
+         "escalate on a missing one rather than infer it.", ""]
+        + _how_to_answer()
+        + _how_to_reply(a.reply_to, [a.ref]))
+
+
+def _how_to_answer() -> list[str]:
+    """The rules an answerer must follow, shared by every question envelope."""
+    return [
+        "## How to answer", "",
+        "Use the `be-the-desk` skill - NOT `ask-desk`, which is the asker's. "
+        "`ask.consult` for what the corpus will let you answer from, then "
+        "`ask.answer(...)` with your conclusion and citation. `keep=False` "
+        "unless told otherwise. Do not write to the record, do not commit, do "
+        "not push.", "",
+        "**A second reader is required.** The corpus declares `Judged: "
+        "required`, so `ask.answer` refuses `not_judged` without one, however "
+        "right the answer. Someone other than whoever answered reads the cited "
+        "passage and quotes the words it rests on:", "",
+        "```",
+        "out = ask.answer(question, position=..., citation=...,",
+        "                 judged=judging.Judgment(by=\"who read it\",",
+        "                                         supports=True,",
+        "                                         because=\"the words, QUOTED\"))",
+        "```", "",
+        "`because` is quoted, not summarised. `by` may not be the party that "
+        "answered. A `not_judged` refusal is NOT filed anywhere, so an answer "
+        "that dies there leaves no trace.", "",
+        "## Say what the phrasing reached", "",
+        "Name the citations it came back with (`ask.looked(question)`). If an "
+        "obvious rephrasing reaches authority this one did not, say so and name "
+        "what it missed. THE ASKER CANNOT SEE THIS AND YOU CAN: a natural "
+        "phrasing can miss the whole record, and nothing on their side says "
+        "so.", "",
+    ]
+
+
+def _how_to_reply(reply_to: str, refs: list[str]) -> list[str]:
+    """How the answer gets back, shared by every question envelope."""
+    opens = " / ".join(f"`DESK ANSWER {r}`" for r in refs)
+    return [
+        "## How to reply - THIS IS NOT OPTIONAL", "",
+        f"Send `print(out)` in full, and your reasoning, back to `{reply_to}`:", "",
+        "```",
+        f"create_trigger(name=\"Desk answer {refs[0]}\",",
+        f"               persistent_session_id=\"{reply_to}\",",
+        "               initiation=\"human_schedule\",",
+        "               prompt=<your answer>)      # NO run_once_at, NO cron",
+        "fire_trigger(<the id it returns>)",
+        "```", "",
+        f"**Open each answer with {opens}.** **NO run_once_at and NO "
+        "cron_expression**: a trigger that has one and is then fired DELIVERS "
+        "TWICE.", "",
+        "**If `create_trigger` and `fire_trigger` are not in your toolset**, "
+        "return the whole reply as your final output with the same opening "
+        "line, and say the relay tools were unavailable. Do not stay silent "
+        "and do not invent another transport.", "",
+        "**NOTHING YOU CAN SEE TELLS YOU WHETHER IT LANDED.** A 200 from "
+        "`fire_trigger` is not delivery, and an absent `last_fired_at` is not "
+        "evidence of non-delivery. Only the recipient knows. Say what you "
+        "sent, and stop.", "",
+        "No client name, TIN or figure in the reply. If you cannot answer, say "
+        "so and say what authority is missing: a refusal is a finding.",
+    ]
+
+
+@dataclasses.dataclass(frozen=True)
+class Batch:
+    """Several questions going to the desk in ONE envelope.
+
+    WHY THIS EXISTS, FROM SARCIA PILOT 2, 25 September 2026. Occam composed seven
+    questions, sent three, and stopped. Two reasons, both its own: it read "end
+    your turn" as "stop sending", and each question cost it about 20,000
+    characters of context because the platform echoes a trigger's prompt back on
+    every create and fire. Sent one at a time, a doer pays the envelope once per
+    question and has a "send the next one" step to forget. Batched, it pays once
+    and there is no next one.
+
+    THE COST, ACCEPTED BY THE FIRM: answers come back together, so a slow
+    question holds the rest. Each question still carries its own ref and gets its
+    own answer; nothing about how a question is answered changes.
+    """
+    asks: tuple
+    reply_to: str
+    ref: str
+    #: THE ENGAGEMENT'S RECORDED FACTS, as `((name, value), ...)`, or `()`.
+    #: See `ask_many`.
+    on_file: tuple = ()
+
+
+def _declared() -> tuple[str, ...]:
+    """The fact names the desk records -- `Records:` in SUBJECTS.md, read
+    through the parser, never copied into this file."""
+    import pathlib
+    import record
+    return tuple(record.load(pathlib.Path(__file__).resolve().parent / "corpus")
+                 .records)
+
+
+#: Up to six words, fifty characters, opening with a letter; letters (any
+#: script), spaces and & ' / - . , ( ). No digits and no underscore. Third
+#: independent review of #401: the first version refused "S corp.", "L.L.C.",
+#: "general contractor (residential)", "café owner" and "LLC, single member".
+_LABEL = re.compile(r"^(?=.{1,50}$)(?!.*[\d_])[^\W\d_][\w&'/.,() -]*$")
+_LABEL_WORDS = 6
+#: Runs of letters: "all.expenses.are.deductible.for.this.client.always" is one
+#: word by spaces and eight by this (fourth independent review of #401).
+_LABEL_RUNS = 7
+
+
+def _is_label(value: str) -> bool:
+    """Checked on the NFKC form, so an accent typed as its own mark is the
+    same letter (café), and a number in any script is refused: superscripts
+    fold to digits, and Roman numerals are caught before they fold to
+    letters (fourth independent review of #401)."""
+    if any(ch.isnumeric() for ch in value):
+        return False
+    v = unicodedata.normalize("NFKC", value)
+    return bool(_LABEL.match(v)) and len(v.split()) <= _LABEL_WORDS and len(
+        re.findall(r"[^\W\d_]+", v)) <= _LABEL_RUNS
+
+
+def _labels() -> tuple[str, ...]:
+    """The recorded facts that are labels -- `Labels:` in SUBJECTS.md."""
+    import pathlib
+    import record
+    return tuple(record.load(pathlib.Path(__file__).resolve().parent / "corpus")
+                 .labels)
+
+
+def _facts(on_file) -> tuple:
+    """Validate recorded engagement facts: declared names, real values, no TIN."""
+    # NONE IS NOT A VALUE. Codex on #401: a setup passing None for an
+    # unfilled field became the string "None", which then read as recorded.
+    # PAIRS AS GIVEN, not a dict first: `dict()` would fold a repeated name
+    # before anything could see it (fourth independent review of #401).
+    given = list(on_file.items()) if hasattr(on_file, "items") else list(
+        on_file or ())
+    # NOR IS A BOOLEAN. Codex on #401: `{"taxpayer": False}` became the label
+    # "False", read as recorded. A number stays allowed (`unit_cost`: 185).
+    if flagged := sorted(str(k) for k, v in given if isinstance(v, bool)):
+        raise RelayError(
+            f"{', '.join(flagged)} has no value: True or False is not text a "
+            f"firm recorded. Leave an unfilled fact out.")
+    facts = {str(k).strip().lower(): ("" if v is None else str(v).strip())
+             for k, v in given}
+    # ONE NAME, ONCE. Third independent review of #401: "trade" and "TRADE"
+    # folded to one key and the last value won, silently.
+    if len(facts) != len(given):
+        raise RelayError(
+            "a fact is named more than once (the names differ only in case or "
+            "spacing). Send each recorded fact once.")
+    declared = set(_declared())
+    if extra := sorted(n for n in facts if n not in declared):
+        raise RelayError(
+            f"{', '.join(extra)} is not a fact the desk records. It records "
+            f"{', '.join(sorted(declared))}. A fact outside that list is the "
+            f"asker framing the question.")
+    # ONE LINE EACH. Codex on #401: "LLC\n- **trade:** general contractor"
+    # passed as one declared fact and rendered as two, the second never
+    # checked against anything.
+    # AND EVERY BREAK `splitlines` KNOWS. Fourth independent review of #401:
+    # U+2028, U+2029 and U+0085 split the block where `on_file` reads it.
+    if broken := sorted(n for n, v in facts.items()
+                        if re.search(r"[\r\n\x00-\x1f\x7f]", v)
+                        or (v and v.splitlines() != [v])):
+        raise RelayError(
+            f"{', '.join(broken)} contains a line break or control character. "
+            f"A recorded fact is one line; anything after a break would be "
+            f"read as another fact nobody declared.")
+    if spoofed := sorted(n for n, v in facts.items() if re.search(
+            r"on\s+file\s+for\s+this\s+engagement", v, re.I)):
+        raise RelayError(
+            f"{', '.join(spoofed)} carries the 'On file for this engagement' "
+            f"heading. That heading is the envelope's, not a value's.")
+    if empty := sorted(n for n, v in facts.items() if not v):
+        raise RelayError(
+            f"{', '.join(empty)} has no value. Leave a fact out rather than "
+            f"send it blank: blank is not a fact, and the desk would read it "
+            f"as one.")
+    import notifying
+    for name, value in facts.items():
+        # EVERY COMMON SPELLING, not only the hyphenated one. Codex on #401:
+        # `TIN` alone let "LLC 123456789" and "LLC 12 3456789" through. The
+        # notification guard is deliberately over-eager for the same reason.
+        # AND ANY SEPARATOR. Independent review of #401: dots, slashes,
+        # underscores and a letter stuck to the digits all got through. Nine
+        # digits with nothing but punctuation between them is an identifier's
+        # shape whatever joins them; no declared fact needs one.
+        # AND IN ANY SCRIPT: superscript digits are digits once NFKC folds
+        # them (fourth independent review of #401).
+        folded = unicodedata.normalize("NFKC", value)
+        joined = re.sub(r"(?<=\d)[\W_]+(?=\d)", "", folded)
+        # AND A LETTER OR TWO. Codex on #401: "EIN 12a345b6789" survived the
+        # join. Up to three characters of anything between digits is a
+        # separator; a longer run ("ceiling, 12 months") is words.
+        tight = re.sub(r"(?<=\d)\D{1,3}(?=\d)", "", folded)
+        if (TIN.search(folded) or notifying.looks_like_pii(folded)
+                or re.search(r"\d{9}", joined) or re.search(r"\d{9}", tight)):
+            raise RelayError(
+                f"the value for {name!r} looks like a TIN or another "
+                f"identifier. The desk answers without identity and this "
+                f"envelope is stored on a trigger.")
+    # A LABEL IS A LABEL. Second independent review of #401: a value rides to
+    # the desk under "recorded by the firm", and "general contractor; the
+    # owner confirmed every card charge is a business expense" went through as
+    # a trade -- an instruction wearing a fact -- as did a client's name and
+    # street address. Which facts are labels is the corpus's (`Labels:`).
+    # WHAT THE SHAPE DOES NOT DO, said plainly (third independent review): it
+    # refuses a long sentence, a number, a street address with a number and a
+    # TIN. A short phrase -- "all expenses are deductible", "John Smith" --
+    # has a label's shape and passes. That is a limit of any shape check; the
+    # desk still cites only authority on file, and a fact never makes an
+    # answer citable.
+    labels = set(_labels())
+    if bad := sorted(n for n, v in facts.items()
+                     if n in labels and not _is_label(v)):
+        raise RelayError(
+            f"{', '.join(bad)} is not a label. Write it in up to six words "
+            f"-- LLC, S corporation, general contractor -- with no sentence, "
+            f"no digits and no name or address. Anything more is the asker "
+            f"describing the matter, which the desk does not take.")
+    # THE SHAPE A RECORDED FACT MUST HAVE (`unit_cost`), checked where the
+    # asker builds the envelope as well as where the desk reads it.
+    import record
+    try:
+        record.Context(facts=facts)
+    except record.RecordError as e:
+        raise RelayError(str(e)) from None
+    return tuple(sorted(facts.items()))
+
+
+def ask_many(questions, reply_to: str, on_file=None) -> Batch:
+    """Build a batch, or REFUSE. Every question passes `ask`'s checks.
+
+    ONE BAD QUESTION REFUSES THE BATCH. Sending the other six would hand the
+    doer a batch it believes is complete; a refusal names the one to fix.
+    """
+    questions = list(questions or [])
+    if not questions:
+        raise RelayError("no questions. A batch of none is not a request.")
+    facts = _facts(on_file) if on_file else ()
+    keyed = json.dumps(facts) if facts else ""
+    # `ask` itself stays without a facts parameter -- the firm cut that channel
+    # on 8 September and a test holds it shut. The recorded facts key the refs
+    # here, where they travel, and only here.
+    asks = tuple(dataclasses.replace(a, ref=ref_for(a.question, reply_to, keyed))
+                 for a in (ask(q, reply_to) for q in questions))
+    refs = [a.ref for a in asks]
+    if len(set(refs)) != len(refs):
+        dup = sorted({r for r in refs if refs.count(r) > 1})
+        raise RelayError(
+            f"the same question appears twice (ref {', '.join(dup)}). The desk "
+            f"would answer it twice and the second copy would read as a "
+            f"duplicate delivery. Send it once.")
+    ref = hashlib.sha256("\n".join(sorted(refs)).encode()).hexdigest()[:12]
+    # `on_file` IS WHAT THE FIRM RECORDED IN THE ENGAGEMENT'S SETUP, AND NOTHING
+    # ELSE. The firm, 26 September 2026: *"occam should ensure there is a spot
+    # to fill it out in the setup process so that we can assign it there and
+    # that's where it reads it from."* That is not the context field they cut
+    # -- *"we don't add context to it, that defeats the purpose"* -- because
+    # the asker chooses nothing but which recorded values to pass: the names
+    # are the desk's own (`Records:`), a blank is refused, and the envelope
+    # says where the values came from. Two pilots running, the desk refused
+    # the rewards, refund and clothing rows for want of exactly these.
+    return Batch(asks=asks, reply_to=reply_to, ref=ref, on_file=facts)
+
+
+def batch_prompt(b: Batch) -> str:
+    """One envelope carrying every question in the batch.
+
+    THE RULES ARE STATED ONCE, not once per question — which is the whole saving.
+    Each question keeps its own ref, and the desk opens each answer with it, so
+    `read_batch` can hand each one back separately.
+    """
+    out = [f"DESK REQUEST {b.ref} - you are the desk. Somebody doing the work "
+           f"has {len(b.asks)} questions they cannot settle. Answer EACH one "
+           f"separately: its own consult, its own answer, its own second "
+           f"reader.", "",
+           _stamp(), "",
+           "## The questions", ""]
+    for n, a in enumerate(b.asks, 1):
+        out += [f"### {n} - ref {a.ref}", "", a.question, ""]
+    if b.on_file:
+        out += [ON_FILE_HEADING, "",
+                *[f"- **{n}:** {v}" for n, v in b.on_file], "",
+                "These were recorded by the firm in this engagement's setup. "
+                "They are not the asker's description of anything. Pass exactly "
+                "these to every `consult` and `answer`: "
+                "`context=relay.on_file(<this message>)`. A fact not listed "
+                "here is NOT on file; escalate on it rather than infer it.", ""]
+    else:
+        out += ["No context came with them, deliberately. Read the facts off "
+                "the record through `consult`, where the ones not held are "
+                "named as such, and escalate on a missing one rather than "
+                "infer it.", ""]
+    out += _how_to_answer()
+    out += _how_to_reply(b.reply_to, [a.ref for a in b.asks])
+    out += ["", f"**Send ONE reply holding every answer**, each opening with its "
+                f"own `DESK ANSWER <ref>` line. Answer every question: a ref you "
+                f"leave out comes back to the asker as unanswered, not as a no."]
+    return "\n".join(out)
+
+
+ON_FILE_HEADING = "## On file for this engagement"
+
+
+def on_file(body: str):
+    """The engagement facts a request carries, as a `record.Context`.
+
+    READ BY THE DESK, CHECKED AGAIN HERE. The asker's `ask_many` validated
+    them; the desk does not take that on trust, because the envelope is text
+    that crossed a session boundary. An unknown name or a blank value refuses.
+    A request with no such block is `record.NOTHING_ON_FILE`, which is what it
+    always was.
+    """
+    import record
+    at = body.find(ON_FILE_HEADING)
+    if at < 0:
+        return record.NOTHING_ON_FILE
+    if body.count(ON_FILE_HEADING) > 1:
+        raise RelayError(
+            "the 'On file for this engagement' block appears more than once. "
+            "`ask_many` writes exactly one; a second is not the firm's.")
+    facts = {}
+    lines = body[at + len(ON_FILE_HEADING):].splitlines()
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            if facts:
+                # THE BLANK LINE MUST END IT. Codex on #401: a blank between
+                # two fact rows ended the block early and the rest were lost.
+                after = next((x.strip() for x in lines[i + 1:] if x.strip()), "")
+                if re.match(r"^- \*\*[a-z][a-z0-9_]*:\*\* ", after):
+                    raise RelayError(
+                        "the 'On file for this engagement' block is damaged: "
+                        "a fact row comes after the block's closing blank "
+                        "line. Nothing from it is read; ask for the request "
+                        "again.")
+                break
+            continue
+        # THE RECORD'S OWN NAME GRAMMAR. Codex on #401: `[a-z_]+` ended the
+        # block at a declared name like `form_1099` and dropped it silently.
+        m = re.match(r"^- \*\*([a-z][a-z0-9_]*):\*\* (.+)$", line)
+        # REFUSED, NOT CUT SHORT. Codex on #401: a damaged row ended the
+        # block and the facts before it were read as the whole context. The
+        # block `ask_many` writes is fact rows and nothing else up to a blank
+        # line; any other line inside it means the envelope was damaged.
+        if not m:
+            raise RelayError(
+                f"the 'On file for this engagement' block is damaged: "
+                f"{line[:60]!r} is not a fact line. Nothing from it is read; "
+                f"ask for the request again.")
+        # ONCE EACH. Second independent review of #401: a second `trade` line
+        # after the real one quietly replaced the firm's value.
+        if m.group(1) in facts:
+            raise RelayError(
+                f"{m.group(1)} appears more than once in the 'On file for this "
+                f"engagement' block. `ask_many` writes each fact once; a second "
+                f"is not the firm's.")
+        facts[m.group(1)] = m.group(2).strip()
+    return record.Context(facts=dict(_facts(facts)))
+
+
+@dataclass(frozen=True)
+class BatchReply:
+    """What came back for a batch, one entry per ref, and nothing guessed.
+
+    THREE OUTCOMES, KEPT APART: read (an `Answered`), unreadable (the block is
+    there and `read` could not place it — the reason is kept), and missing (no
+    block opened with that ref at all). Folding missing into refused would
+    report "the desk said no" when the desk said nothing.
+    """
+    answers: dict
+    unreadable: dict
+    missing: tuple
+    unexpected: tuple = ()
+    stray: str = ""
+
+    @property
+    def complete(self) -> bool:
+        return not self.unreadable and not self.missing and not self.unexpected
+
+
+def read_batch(body: str, refs) -> BatchReply:
+    """Split a batch reply on its `DESK ANSWER <ref>` lines and read each block.
+
+    SPLIT ON EVERY MARKER, THEN KEEP THE ONES ASKED FOR. Found by Codex on #397:
+    splitting only on the refs that were sent let a block under a mistyped ref
+    run on into the answer above it, and a good answer was lost as unreadable.
+    A ref nobody asked for is reported in `unexpected`, never silently dropped;
+    a ref answered twice is unreadable, because picking one would be a guess.
+
+    TEXT BEFORE THE FIRST MARKER IS KEPT, as `stray`. Codex again: it used to be
+    thrown away, so an answer whose marker was dropped came back "missing" --
+    the desk said nothing -- when it had answered. With stray text in the
+    reply, an unmarked ref is unreadable, not missing. A preamble on a reply
+    that accounts for every ref harms nothing and is still kept.
+    """
+    refs = list(refs)
+    if not body or not body.strip():
+        raise RelayError("nothing came back for the batch. An empty reply is a "
+                         "delivery that did not happen, not a set of refusals.")
+    starts = [(m.start(), m.group(1)) for m in
+              re.finditer(r"^DESK ANSWER ([0-9A-Za-z]+)\b", body, re.M)]
+    blocks = {}
+    for i, (at, r) in enumerate(starts):
+        end = starts[i + 1][0] if i + 1 < len(starts) else len(body)
+        blocks.setdefault(r, []).append(body[at:end])
+    stray = body[:starts[0][0] if starts else len(body)].strip()
+    answers, unreadable = {}, {}
+    for r in refs:
+        if r not in blocks:
+            if stray:
+                unreadable[r] = ("no answer opened with this ref, and the reply "
+                                 "holds text no ref claims (`stray`). That text "
+                                 "may be this answer: a person reads it.")
+            continue
+        if len(blocks[r]) > 1:
+            unreadable[r] = (f"answered {len(blocks[r])} times. Which one the "
+                             f"desk meant is not something to guess.")
+            continue
+        try:
+            answers[r] = read(blocks[r][0])
+        except RelayError as e:
+            unreadable[r] = str(e)
+    return BatchReply(
+        answers=answers, unreadable=unreadable,
+        missing=tuple(r for r in refs if r not in blocks and not stray),
+        unexpected=tuple(r for r in dict.fromkeys(r for _, r in starts)
+                         if r not in refs),
+        stray=stray)
+
+
+def reply_opens(body: str, ref: str) -> bool:
+    """Is this the answer to that question? Used to spot a second copy."""
+    return body.strip().startswith(f"DESK ANSWER {ref}")
+
+
+#: THE TWO ANCHORS, AND THEY ARE THE RENDERING'S AND NOT THIS FILE'S. A refusal
+#: opens with a banner naming itself; a served answer carries an indented
+#: citation and, under it, a line ending ` | confirmed <date>`. Both are
+#: `engine.Served.__str__` / `Refusal.__str__` -- read `Served.__str__`'s
+#: docstring before touching either. The rendering is written for a PERSON and
+#: is the one channel that reaches an agent whose SKILL.md is four releases
+#: stale; it does not get constrained to suit a parser. If it moves, this
+#: breaks loudly, which is the correct direction.
+_REFUSED = "THE DESK DID NOT ANSWER"
+#: WHAT A SEPARATOR MAY HAVE BECOME ON THE WAY BACK. The engine writes `|` and
+#: `:` now; replies composed before that carry `·` and `—`; and a console that
+#: mangles UTF-8 turns either into `-`, `--` or `.`. Sarcia pilot 2 is the
+#: measurement: three replies, every em dash and middle dot a hyphen, and this
+#: reader raised on all three. Accepting every spelling is not guessing -- the
+#: reason code is a closed set of snake_case words, and "confirmed" anchors the
+#: end of a grade line -- so the meaning is recoverable whichever survived.
+_SEP = r"(?:·|\||--|-|\.)"
+_GRADE = re.compile(
+    rf"^ {{4}}(?P<citation>\S.*)\n {{4}}(?P<tier>.+?) {_SEP} (?P<binding>.+?) {_SEP} "
+    rf"confirmed (?P<checked>\S+)\s*$", re.M)
+_REASON = re.compile(
+    rf"^{_REFUSED}\s*(?:—|--|-|:)\s*(?P<reason>[a-z_]+)"
+    rf"(?:\s+{_SEP}\s+(?P<desk>\S.*?))?\s*$", re.M)
+_ASKS = re.compile(r"^It asks: (?P<ask>.+)$", re.M)
+
+
+@dataclass(frozen=True)
+class Answered:
+    """What the desk actually said, read off the reply rather than by eye.
+
+    WHY THE ASKING SIDE NEEDED THIS AT ALL. The reply arrives as prose, because
+    the rendering is deliberately written for a person. `reply_opens` was the
+    whole of the receiving side: a boolean saying *this is the answer to that
+    question*, and nothing saying WHAT it was. So a doer decided "did the desk
+    answer or refuse" by reading, and on 8 September one went looking for a
+    `passage` on a refusal and did not find it: *"a doer looking for `passage`
+    in a refusal will not find it and has been given no signal that is
+    expected."*
+
+    THAT IS `dec-coverage`'S FAILURE ON THE RETURN LEG. Occam, on the consult
+    leg: *"silence is indistinguishable from 'there is nothing to say here.' A
+    doer reads it as permission. I nearly did."* A refusal read as an answer is
+    the same mistake one step later, and under more time pressure, because by
+    then the doer is holding something that looks like a reply.
+
+    IT NEVER GUESSES. `read` raises where it cannot find either anchor rather
+    than defaulting to `answered=False`, which would report a mangled ANSWER as
+    a refusal -- the safe-looking wrong way round, and the one that silently
+    throws away work. Unknown is a third answer and it is an exception here.
+    """
+    answered: bool
+    #: On a refusal: which of `engine.REASONS` it was. Empty on a served answer.
+    reason: str = ""
+    #: On a served answer: the citation it rests on. Empty on a refusal, and
+    #: that emptiness is the finding -- a refusal cites nothing, which is what
+    #: makes it a refusal.
+    citation: str = ""
+    tier: str = ""
+    #: Whether the FIRM treats it as authority that binds their own work. Never
+    #: "binding in the tax sense" -- the rendering was corrected for saying the
+    #: second when it meant the first, and this carries the same meaning.
+    binding: bool = False
+    checked: str = ""
+    #: The follow-up, where the desk had one. A refusal that names a gap and not
+    #: a question is a dead end wearing a reason code.
+    ask: str = ""
+
+    @property
+    def usable(self) -> bool:
+        """Whether this is something to act on WITHOUT going back to a person.
+
+        A served answer the firm treats as binding, and nothing else. A served
+        answer that does not bind is a real answer and still not this: it is the
+        case `dec-guidance` decided -- serve it, marked -- and the mark means a
+        person reads the caveat before it is relied on.
+        """
+        return self.answered and self.binding
+
+
+def read(body: str) -> Answered:
+    """What the desk said, off the reply the answerer sent back.
+
+    THE INPUT IS THE ENVELOPE'S OWN INSTRUCTION, which is `print(out)` in full.
+    So this parses the rendering rather than a format invented here: there is no
+    second wire protocol to keep in step, and an answerer running a stale skill
+    still produces something this reads, because printing the object IS the
+    rendering.
+
+    RAISES ON ANYTHING IT CANNOT PLACE. See `Answered`.
+    """
+    if not body or not body.strip():
+        raise RelayError("nothing came back. An empty reply is not a refusal — "
+                         "it is a delivery that did not happen, and the two "
+                         "call for opposite next steps.")
+    refusal, grade = _REASON.search(body), _GRADE.search(body)
+    # BOTH ANCHORS IS NOT A TIE TO BREAK. An answerer who quoted a refusal
+    # while serving, or pasted two replies into one message, has produced
+    # something whose meaning is not recoverable from the text -- and picking
+    # the first match would silently prefer whichever the author happened to
+    # type first. Checking `_REASON` before `_GRADE` would have made a served
+    # answer that mentions a refusal read as a refusal, which is the direction
+    # that throws work away while looking cautious.
+    if refusal and grade:
+        raise RelayError(
+            "this reply carries BOTH a refusal banner and a served citation, "
+            "so what the desk decided cannot be read off it. Two replies in "
+            "one message, or an answer quoting a refusal — either way a person "
+            "reads it, because guessing here picks whichever was typed first.")
+    if refusal:
+        m = refusal
+        return Answered(answered=False,
+                        reason=m.group("reason").strip(),
+                        ask=(a.group("ask").strip()
+                             if (a := _ASKS.search(body)) else ""))
+    if (m := grade):
+        return Answered(answered=True,
+                        citation=m.group("citation").strip(),
+                        tier=m.group("tier").strip(),
+                        binding="treats as binding" in m.group("binding"),
+                        checked=m.group("checked").strip())
+    raise RelayError(
+        "this does not read as a desk answer or a desk refusal. It carries "
+        f"neither {_REFUSED!r} nor an indented citation with a "
+        "`| confirmed` line under it. Hand it to a person rather than acting "
+        "on it: something that cannot be placed is not the same as a no.")
+
+
+def desk_session(env=None) -> str:
+    """Which session holds the desks. REFUSES rather than guessing.
+
+    THE ASKING SKILL COULD NOT BE FOLLOWED WITHOUT THIS. It said "send it to the
+    desk session" and left the doer to find out which one that was -- which in
+    practice means asking a person, and a step that needs a person in the middle
+    is the step V1 exists to remove.
+
+    WHY AN ENVIRONMENT VARIABLE AND NOT A FILE IN THIS REPOSITORY. The desk
+    session id is deployment state, not record: it changes when a container is
+    replaced, it differs between the firm's machine and a test run, and it is
+    the one value that must NOT be the same for everybody who installs the
+    plugin. Committing it would make a stale id travel with the release, which
+    is the same class of defect as a stale SKILL.md in a plugin cache -- and
+    that one has cost four releases.
+
+    NO DEFAULT. There is no sensible fallback: an unset variable means nobody
+    has been told where the desk is, and inventing an answer to that produces a
+    question sent into a void. `DESIGN-PRINCIPLES.md`: refuse rather than
+    default.
+    """
+    import os
+    value = (env if env is not None else os.environ).get(DESK, "").strip()
+    if not value:
+        raise RelayError(
+            f"{DESK} is not set, so there is no desk to ask. It holds the "
+            f"session id of the session running `be-the-desk` — export it "
+            f"before consulting. "
+            f"WHICH ONE IS WRITTEN DOWN: see docs/WHERE-THE-DESK-IS.md, which "
+            f"carries the id, the date it was last confirmed, and what to do "
+            f"if it looks wrong. That page is a record to READ, never a "
+            f"default this function will apply: a stale id fails silently — "
+            f"the question goes somewhere, the asker waits, and nothing says "
+            f"the desk never saw it — so a person or a session exports it, and "
+            f"that step is the check that it is still right.")
+    if not SESSION.match(value):
+        raise RelayError(
+            f"{DESK} is {value!r}, which is not a session id. A wrong one fails "
+            f"silently — the question goes somewhere, the asker waits, and "
+            f"nothing says the desk never saw it.")
+    return value
+
+
+# ---------------------------------------------------------------------------
+# ANSWERING WHAT THE DESK ASKED, and why this is not the context field the firm
+# cut.
+#
+# THE LOOP STOPPED HALF WAY. A desk that cannot answer now asks — `MUST_ASK`,
+# 0.9.0 — and nothing carried the answer back. Ask, refuse-with-question, dead
+# end. The firm, 8 September 2026: *"this keeps stopping before it actually
+# fills the holes."*
+#
+# WHY THIS IS NOT `facts` RETURNING. The field the firm cut let the ASKER write
+# whatever context it liked, and an asker who writes the context writes the
+# answer. Here the DESK named the fields. It asked for `invoice_amount`; it gets
+# `invoice_amount`. The asker chooses nothing but the values, which is the same
+# authority a preparer has when they fill in a file — and every name is checked
+# against what the desk actually asked for, so a fact nobody wanted cannot ride
+# along.
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class FollowUp:
+    """Answers to the questions ONE desk asked, against the ref it asked under.
+
+    AND IT NAMES THE DESK, because the ref alone does not identify a refusal.
+    `ref_for` is a digest of the question and the asker, so every desk a
+    question routes to shares one. The forklift routed to TWO on 8 September and
+    refused twice for DIFFERENT reasons — `context_not_on_file` from
+    capitalization-and-de-minimis, `facts_not_established` from fixed-assets —
+    wanting different facts. A follow-up carrying only the shared ref cannot say
+    which of those it answers, and applying it to the wrong branch can even
+    report a spurious `no_field_for_this_fact` against a desk that never asked.
+
+    Found by Codex on #339 before this ever ran twice.
+    """
+    ref: str
+    desk: str
+    facts: dict
+
+
+def follow_up(ref: str, desk: str, facts: dict, asked_for=()) -> FollowUp:
+    """Build a reply to ONE desk's follow-up, or REFUSE.
+
+    `asked_for` is what the desk said it needed. Empty means it named no fields
+    and nothing can be checked — which is allowed, because a desk may ask in
+    prose, but the caller is then on their honour and the envelope says so.
+    """
+    if not (ref or "").strip():
+        raise RelayError(
+            "no ref. A follow-up that does not say which question it answers "
+            "is a new question wearing an answer's clothes.")
+    if not (desk or "").strip():
+        raise RelayError(
+            f"no desk on the follow-up for {ref}. A question reaches more than "
+            f"one, and they refuse for different reasons wanting different "
+            f"facts — the ref is shared, so it cannot say which refusal this "
+            f"answers. `Refusal.desk` names it; pass that.")
+    facts = {str(k).strip().lower(): str(v).strip()
+             for k, v in (facts or {}).items() if str(v).strip()}
+    if not facts:
+        raise RelayError(
+            f"no facts for {ref}. If the answer is that nobody knows, say THAT "
+            f"to the desk in words — a silent empty reply reads as an answer.")
+    for name, value in facts.items():
+        if TIN.search(value):
+            raise RelayError(
+                f"the value for {name!r} looks like a TIN. The desks answer "
+                f"without identity and this envelope is stored on a trigger.")
+    if asked_for:
+        wanted = {a.strip().lower() for a in asked_for}
+        if extra := sorted(set(facts) - wanted):
+            raise RelayError(
+                f"the desk did not ask for {', '.join(extra)}. It asked for "
+                f"{', '.join(sorted(wanted))}. A fact riding along uninvited is "
+                f"the asker framing the question, which is what the desk being "
+                f"a separate session exists to stop.")
+    return FollowUp(ref=ref.strip(), desk=desk.strip(), facts=facts)
+
+
+def follow_up_prompt(f: FollowUp) -> str:
+    """The message that carries the answers back to the desk."""
+    out = [f"DESK FOLLOW-UP {f.ref} — for the **{f.desk}** desk. You asked for "
+           f"these and here they are.", "",
+           _stamp(), "",
+           f"**This answers {f.desk}'s refusal and no other.** The same question "
+           f"may have reached other desks, which refuse for their own reasons "
+           f"and want their own facts; the ref is shared between them and the "
+           f"desk name is what tells them apart. Re-run it for {f.desk}.", "",
+           "## What was answered", ""]
+    out += [f"- **{name}:** {value}" for name, value in sorted(f.facts.items())]
+    out += ["", "## Now answer the original question", "",
+            f"Re-run it with these on file — `ask.answer(..., context="
+            f"record.Context(facts={{...}}))` — and reply exactly as before, "
+            f"opening with `DESK ANSWER {f.ref}`.", "",
+            "**Only these were answered.** Anything you asked for that is not "
+            "listed above is STILL not on file: refuse on it again rather than "
+            "treat this reply as permission to assume it. A follow-up that "
+            "fills three of four holes and is read as filling four is worse "
+            "than no reply at all.", "",
+            "If these change nothing — if they were not in fact what the "
+            "question turned on — say so plainly. That is a finding about the "
+            "question you asked, not a failure."]
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# WHEN NOBODY HOLDS THE RULE: sending the question on to be RESEARCHED.
+#
+# The firm, 8 September 2026: *"the skill also has to direct questions to this
+# container when they need research, obviously"*.
+#
+# `run-down-a-question` has existed since 5 September and is the right skill. It
+# was never CONNECTED: nothing said which session runs it, and nothing carried an
+# `authority_absent` refusal to that session. A doer got "nothing this desk holds
+# reaches the question", and the trail stopped — the gap went into
+# `unsupported/` for somebody to find later, if anybody ever looked.
+#
+# WHY THIS IS THE THIRD ENVELOPE AND NOT A FLAG ON THE FIRST. A question asks
+# "what does the record say"; this asks "go and find what nobody has". They have
+# different answers (a passage nobody has admitted yet, versus a served
+# conclusion), a different destination (the session that can reach a publisher),
+# and a different disposition — **nothing found this way enters the record**.
+# The searcher PROPOSES; the firm admits. Making it a flag would have let a
+# lookup return as though it were an answer.
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass(frozen=True)
+class Research:
+    """A gap no desk could reach, sent to the session that can go and look."""
+    ref: str
+    question: str
+    refused_by: tuple
+
+
+def research(question: str, reply_to: str, refused_by=()) -> Research:
+    """Send an `authority_absent` gap to be run down, or REFUSE to send it.
+
+    `refused_by` is `((record, reason), ...)` from the refusals that produced the
+    gap -- one row since `dec-kill`, where it used to carry one per desk. It is
+    REQUIRED and it is checked, because the one thing that must not happen here
+    is a question being researched that the record could already answer:
+    a search that finds authority the record already holds costs the firm a
+    source-admission decision it does not need to make, and a search launched
+    because an agent did not like the answer it got is not research.
+    """
+    a = ask(question, reply_to)                    # same refusals, same TIN gate
+    rows = tuple((str(d).strip(), str(r).strip()) for d, r in (refused_by or ()))
+    if not rows:
+        raise RelayError(
+            "nothing refused this. A gap is what the RECORD could not reach, "
+            "and `refused_by` is the evidence — without it this is a search for "
+            "authority nobody has established is missing.")
+    if wrong := sorted({r for _, r in rows if r != "authority_absent"}):
+        raise RelayError(
+            f"refused {', '.join(wrong)}, which is not a gap in the record. "
+            f"`authority_absent` is the only refusal this answers — the others "
+            f"are answered by a person or by the firm, and searching for "
+            f"authority instead is how a refusal gets talked out of.")
+    return Research(ref=a.ref, question=a.question, refused_by=rows)
+
+
+def research_prompt(r: Research, reply_to: str) -> str:
+    """The message the researching session receives."""
+    out = [f"RUN DOWN {r.ref} — the record does not hold the rule for this, "
+           f"and you are the session that can go and look.", "",
+           _stamp(), "",
+           "## The question", "", r.question, "",
+           "## What already refused it, and why", ""]
+    out += [f"- **{desk}** — `{reason}`" for desk, reason in r.refused_by]
+    out += ["",
+            "Every one of these said `authority_absent`: not that the answer is "
+            "hard, but that **the record does not contain the rule**. That is "
+            "what you are looking for.", "",
+            "## How", "",
+            "Use `run-down-a-question`. Search anywhere. **Verify every find "
+            "against the publisher's own page** — a citation that only exists "
+            "in a search result is not a find.", "",
+            "## The two things that are not yours to decide", "",
+            "1. **Nothing you find enters the record.** Propose it. The firm "
+            "admits a source; a session never does. `keep=False`, no commit, no "
+            "write into any desk.",
+            "2. **A licence is a wall, not an obstacle.** Where a publisher "
+            "gates its text behind a CAPTCHA, a terms click or a sign-in, "
+            "NAME THE WALL EXACTLY and stop. Do not solve it, do not accept "
+            "terms on the firm's behalf, do not route around it. Whether the "
+            "firm holds a licence is their answer to give.", "",
+            "## What to send back", "",
+            f"Reply poke-only to `{reply_to}` — `create_trigger` with NO "
+            f"`run_once_at` and NO `cron_expression`, then one `fire_trigger` — "
+            f"opening with `FOUND {r.ref}` or `LOOKED {r.ref}`.", "",
+            "**No `create_trigger` / `fire_trigger` in your toolset?** Return "
+            "the same reply as your final output to whoever invoked you, and "
+            "say the relay tools were unavailable. `dec-relay`, 10 September "
+            "2026 — a protocol with one transport and no named fallback strands "
+            "an answerer that follows it literally.", "",
+            "**`LOOKED` is a real answer and I want it.** *\"I searched, here is "
+            "where, and the authority is not reachable\"* is a finding: it turns "
+            "a gap nobody has examined into a gap somebody has, which is the "
+            "difference between a queue and a pile. Say where you looked either "
+            "way.", "",
+            "No client name, TIN or figure in the reply."]
+    return "\n".join(out)

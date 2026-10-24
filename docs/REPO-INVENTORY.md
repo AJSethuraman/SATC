@@ -78,6 +78,9 @@ consulting line.
 **Two project folders have arrived since this was written** and are not in
 either row below: **`canon`** — the thirty-five tenets moved in as something
 testable, with its own suite and a plugin manifest — and **`cashew-institute`**.
+*(27 Sep 2026: nor are the analytics line's `portfolio-analysis-pack` and
+`pocketbook` — the latter built as `origination-cube` from 25 Sep and renamed
+PocketBook on 27 Sep; `PROJECTS.md` and `BACKLOG.md` §6c and §6d have both.)*
 
 **Sixteen of the open pull requests are May–June prototypes** that have not
 moved in three months. A triage proposal covering all of them, sorted

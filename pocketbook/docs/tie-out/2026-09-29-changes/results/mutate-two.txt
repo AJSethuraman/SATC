@@ -1,0 +1,2 @@
+planted 200, caught 200, missed 0
+  by kind (caught, missed): {'grid': (115, 0), 'groups': (6, 0), 'ladder': (1, 0), 'line': (2, 0), 'look': (1, 0), 'look-bar': (1, 0), 'panel': (2, 0), 'pck': (8, 0), 'pck-dot': (5, 0), 'pocket': (46, 0), 'split-pocket': (8, 0), 'split-steady': (1, 0), 'split-sum': (3, 0), 'start-tile': (1, 0)}

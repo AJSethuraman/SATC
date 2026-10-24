@@ -1,0 +1,28 @@
+Columns	NAME	4
+Columns	NOT A FIGURE	39
+Columns	TIED	53
+Control	COULD NOT	1
+Control	ECHO	12
+Control	NOT A FIGURE	1
+Control	TIED	3
+Look	ECHO	36
+Look	NAME	4
+Look	NOT A FIGURE	71
+Look	TIED	746
+New variables	ECHO	6
+New variables	NAME	21
+New variables	NOT A FIGURE	13
+New variables	TIED	324
+Record	ECHO	18
+Record	NOT A FIGURE	9
+Record	TIED	48
+Scouting	COULD NOT	3
+Scouting	ECHO	6
+Scouting	NAME	4
+Scouting	NOT A FIGURE	5
+Scouting	TIED	70
+Scouting	TIED-WITHIN-SAMPLING	84
+Start here	ECHO	3
+Start here	NAME	5
+Start here	TIED	30
+{'TIED': 1274, 'ECHO': 81, 'NAME': 38, 'COULD NOT': 4, 'TIED-WITHIN-SAMPLING': 84, 'NOT A FIGURE': 138} 1619

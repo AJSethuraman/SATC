@@ -63,7 +63,7 @@ def test_email_and_cover_letter_are_drafts_with_merge_fields():
     assert "Jordan" in email                    # merge field filled
     assert "{" not in email                     # no unfilled placeholders
     letter = render_cover_letter(summary, salutation="Jordan")
-    assert "Complex work, made clear" in letter
+    assert "Complex work, made clear" not in letter   # retired, 13 Oct 2026
 
 
 def test_seed_populates_mart_line_items_and_carryforwards():

@@ -145,3 +145,60 @@ Get-Process EXCEL -ErrorAction SilentlyContinue | Stop-Process -Force
 
 Nothing here writes into the repository. `live_acceptance.py` builds into a
 temp directory unless you pass `--keep`.
+
+## Before you start: the red banner
+
+If the `.xlsm` arrived by email, download, or chat, Excel will open it with a
+**red** bar — *Microsoft has blocked macros from running because the source of
+this file is untrusted* — and there is no button through it. The ExtractFiles
+button does nothing until this is dealt with. Every recipient hits it; it is
+not a fault in the workbook.
+
+**Mark of the Web** — a hidden tag Windows attaches to any file that arrived
+from the internet. Since 2022 Excel refuses to run macros in a tagged file.
+The tag is a hidden stream on the file called `Zone.Identifier`.
+
+Two fixes. The first is per file; the second is permanent.
+
+### Once, for one file
+
+Right-click the file → **Properties** → tick **Unblock** at the bottom → OK.
+Or in PowerShell, with the real path:
+
+```powershell
+Unblock-File "$env:USERPROFILE\Downloads\Bank_Peer_Monitor.xlsm"
+```
+
+### Permanently: a Trusted Location
+
+**Trusted Location** — a folder you tell Excel to treat as safe. Files opened
+from it skip the macro block entirely, tag or not. Use a folder that holds
+*only* these workbooks — never Downloads or Documents, because everything that
+lands there would be trusted too.
+
+1. Make the folder:
+
+   ```powershell
+   New-Item -ItemType Directory -Force "$env:USERPROFILE\SATC-Monitors"
+   ```
+
+2. Register it with Excel (Command Prompt, your own account):
+
+   ```
+   reg add "HKCU\Software\Microsoft\Office\16.0\Excel\Security\Trusted Locations\LocationSATC" /v Path /t REG_SZ /d "%USERPROFILE%\SATC-Monitors\" /f
+   ```
+
+3. Label it so you recognise it later:
+
+   ```
+   reg add "HKCU\Software\Microsoft\Office\16.0\Excel\Security\Trusted Locations\LocationSATC" /v Description /t REG_SZ /d "SATC credit monitors" /f
+   ```
+
+4. Restart Excel. Move the workbooks into `SATC-Monitors` and open them from
+   there.
+
+Or by hand: **File → Options → Trust Center → Trust Center Settings → Trusted
+Locations → Add new location**.
+
+The chart workbook (`<Monitor>_Charts.xlsx`, from `tools/chartbook.py`) has no
+macros and opens with no banner anywhere. Only the `.xlsm` needs this.

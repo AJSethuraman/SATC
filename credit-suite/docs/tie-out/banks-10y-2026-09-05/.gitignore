@@ -1,0 +1,15 @@
+# The exhibits are not here and must not come back.
+#
+# They live on the Forge, outside any git working tree:
+#
+#     C:\Users\ajish\SATC-evidence\banks-10y-2026-09-05\
+#
+# Outside, deliberately. Ignored files inside a repository are one
+# `git clean -xfd` away from being gone, and 451 MB of photographed regulatory
+# filings is not a thing to lose to a housekeeping command. This file is the
+# second line of defence, not the first.
+#
+# `manifest.csv` is the record of what exists -- one row per exhibit with its
+# value, tie and photograph counts -- and `README.md` says how to rebuild any
+# of them.
+*.pdf

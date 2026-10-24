@@ -17,12 +17,14 @@ WHAT IT REFUSES, rather than working around:
   a citation the desk already holds       re-running must not duplicate
   a section `outline()` cannot place      the citation would be a guess
 
-THE LAST ONE IS THE INTERESTING REFUSAL. Five of this record's eCFR sections --
-§ 1.446-1, § 1.274-5, § 1.274-5T, § 1.62-2, § 1.6050W-1 -- have label sequences
-`outline()` cannot read as a single consistent CFR outline, so it raises. An
-example whose paragraph path is a guess is cited to a rule that may not be its
-own, which is the defect this record spent 7 September 2026 correcting. Leaving
-those sections without their examples is the smaller cost.
+THE LAST ONE USED TO BE THE INTERESTING REFUSAL, AND IT IS NOW EMPTY. Five of
+this record's eCFR sections -- § 1.446-1, § 1.274-5, § 1.274-5T, § 1.62-2,
+§ 1.6050W-1 -- once had label sequences `outline()` could not read as a single
+consistent CFR outline, so it raised, and leaving those sections without their
+examples was the smaller cost. All five read as of 7 September 2026, each landing
+every path it cites. The refusal stays because the reason for it has not changed:
+an example whose paragraph path is a guess is cited to a rule that may not be its
+own, which is a defect this record has already had once.
 
     python tools/add_examples.py <desk-dir> <source-id> <YYYY-MM-DD>
 
@@ -78,9 +80,6 @@ def gather(desk: record.Desk, source_id: str, checked: str) -> list[str]:
         raise Refused(f"{source_id} is not an eCFR section: {source.url}")
 
     raw = tieout._fetch(tieout._ecfr_url(source.url))
-    if not any(c.tag == "EXAMPLE" for c in ET.fromstring(raw)):
-        raise Refused(f"{source_id} ({source.citation_prefix}) carries no worked "
-                      f"examples")
     with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
         f.write(raw)
         tmp = Path(f.name)
@@ -88,6 +87,16 @@ def gather(desk: record.Desk, source_id: str, checked: str) -> list[str]:
         walked = list(ex.examples(tmp))                 # raises if unplaceable
     finally:
         tmp.unlink(missing_ok=True)
+    if not walked:
+        # ASKED OF THE EXTRACTOR, NOT OF THE MARKUP. This tested for an
+        # `<EXAMPLE>` element and refused when it found none -- which was the
+        # right question only while a tagged block was the only kind of example
+        # the extractor could read. Three of the meals desk's regulations write
+        # every one of theirs as an ordinary numbered paragraph, so this refused
+        # 29 real examples with "carries no worked examples", and the sentence
+        # was false about the regulation rather than about the reader.
+        raise Refused(f"{source_id} ({source.citation_prefix}) carries no worked "
+                      f"examples")
 
     held = {p.citation for p in desk.passages}
     # THE SAME WRAP AS THE BUILDER, `break_on_hyphens=False` INCLUDED. The

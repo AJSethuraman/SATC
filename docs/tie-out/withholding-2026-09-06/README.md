@@ -6,15 +6,14 @@ to end; nothing here is confirmed by SATC's own software.
 ## Roster
 
 ```
-Tied out: 60 of 63 checks
-  DIFFERS      3   the 2025 standard deduction, superseded by P.L. 119-21
-                   the $400 floor on Schedule SE, absent from the engine
-                   the 15% and 20% capital-gains rates, uncited literals in code
-  TIED        60   18 printed bracket bases · 1 full computed figure ·
-                   5 safe-harbour parameters · 5 safe-harbour branches ·
-                   5 Schedule SE constants · 8 SE computation cases ·
-                   8 capital-gains breakpoints · 8 stacking cases · 2 rate checks
-  COULD NOT    0
+Tied out: 8 of the 9 computations behind an estimate
+
+  TIED         8   rate brackets · standard deduction · safe harbour ·
+                   Schedule SE · capital-gains stacking · Form 8959 ·
+                   Form 8960 · the W-4 line 4c division
+  COULD NOT    1   the paystub reader -- the IRS publishes no description of a
+                   paystub, so there is nothing to check one against
+  DIFFERS      3   found and fixed the day each was found (below)
 ```
 
 **Both differences are fixed on `main` the day they were found.** Neither was
@@ -99,11 +98,55 @@ income is *below* the 0% breakpoint **and** the gain is large enough to reach
 wages and a $600,000 gain the answer moves by **$1,405.00**. The guard was right
 the whole time; the tests were too weak to say so, and now there are twenty-five.
 
+## The two surtaxes
+
+Forms 8959 and 8960, in `test_the_two_surtaxes_match_their_forms.py`. Their
+thresholds are the same number and not the same thing — $200,000 for a single
+filer, measured against *wages* by one and against *total income* by the other,
+so a client can be over one and under the other.
+
+Both agree with their forms, including 8959's rule that wages consume the
+threshold before self-employment income does, and 8960's lesser-of in both
+directions. **What does not agree is the SCOPE of net investment income**, and it
+runs both ways: Form 8960 also counts rents, royalties, annuities and passive
+business income, and the estimator has no field for any of them, so a landlord is
+understated; it also allows deductions against that income, none modelled, so
+somebody with investment interest expense is overstated. Printed with the
+estimate now — naming which client is too high and which too low, and only when
+the tax applies.
+
+## The W-4 line 4c figure
+
+Pub 505 publishes the method — *"divide that amount by the number of paydays
+remaining"* — and a worked example: $4,459 over 49 paydays is $91.
+
+The check that matters is not the division. It is the **closed loop**: feed the
+recommendation back as the new per-paycheck withholding and see whether the
+client lands where it said. It does, to within four cents over eight paychecks,
+which is the rounding — asserted as a bound rather than as zero.
+
+## The ninth part, which could not be tied
+
+The paystub reader. **The IRS publishes nothing describing a paystub** — no
+federal form, no standard layout; a stub is whatever the employer's payroll
+software prints. Some states legislate the contents (California Labor Code 226,
+New York 195.3) and Ohio does not, which is where most SATC clients are.
+
+The obstacle was attacked before being recorded and it holds. So the estimate
+**says so on the screen** whenever a figure came off a stub, and names the
+action: compare the wages and withholding against the stub before acting on it.
+
+The reader scores **126 of 126, 0 wrong**, on eighteen stub shapes — and that
+corpus was written here, from the shapes of failures seen on the firm's own
+machine. It measures whether the reader handles the shapes somebody thought of.
+Worth having; not an accuracy figure.
+
+**What would close it:** real client stubs, scored on the Forge against files
+that stay there. They cannot enter this repository, so it is a measurement rather
+than a test that can live here.
+
 ## What these still do not prove
 
-The Additional Medicare Tax's own thresholds, the Net Investment Income Tax, the
-per-paycheck W-4 line 4c arithmetic, and the paystub reader. Each has a unit test; each of those tests works out its expected answer
-from the same constants the engine uses.
-
-State withholding is not modelled at all, and most SATC clients file an Ohio
-return.
+**State withholding, which is not modelled at all.** Most SATC clients file an
+Ohio return. That is a build rather than a tie-out, and it is the first thing
+this goal refused.

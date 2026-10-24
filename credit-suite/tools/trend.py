@@ -59,12 +59,12 @@ WORSE_WHEN = {
     "ROAQ": "down",      "NIMY": "down",     "EEFFR": "up",
     "LNDEPR": "up",      "BRODEPR": "up",    "CRECONR": "up",
     "UNINSDEPR": "up",   "UNRLZCAPR": "up",  "FHLBASSR": "up",
-    "P3CRCDR": "up",     "P9CRCDR": "up",    "NACRCDR": "up",  "NTCRCDQR": "up",
-    "P3AUTOR": "up",     "P9AUTOR": "up",    "NAAUTOR": "up",  "NTAUTOQR": "up",
-    "P3CONOTHR": "up",   "P9CONOTHR": "up",  "NACONOTHR": "up", "NTCONOTQR": "up",
-    "P3RERESR": "up",    "P9RERESR": "up",   "NARERESR": "up",
-    "P3RENRESR": "up",   "P9RENRESR": "up",  "NARENRESR": "up",
-    "P3CIR": "up",       "P9CIR": "up",      "NACIR": "up",    "NTCIQR": "up",
+    "P3CRCD_BOOK": "up",     "P9CRCD_BOOK": "up",    "NACRCD_BOOK": "up",  "NTCRCDQ_BOOK": "up",
+    "P3AUTO_BOOK": "up",     "P9AUTO_BOOK": "up",    "NAAUTO_BOOK": "up",  "NTAUTOQ_BOOK": "up",
+    "P3CONOTH_BOOK": "up",   "P9CONOTH_BOOK": "up",  "NACONOTH_BOOK": "up", "NTCONOTQ_BOOK": "up",
+    "P3RERES_BOOK": "up",    "P9RERES_BOOK": "up",   "NARERES_BOOK": "up",
+    "P3RENRES_BOOK": "up",   "P9RENRES_BOOK": "up",  "NARENRES_BOOK": "up",
+    "P3CI_BOOK": "up",       "P9CI_BOOK": "up",      "NACI_BOOK": "up",    "NTCIQ_BOOK": "up",
 }
 
 #: What each headline metric is, in words, so a reader who does not live in
@@ -193,9 +193,182 @@ def read_panel(path: Path, raw_tab: str = "Raw_FDIC",
             periods.append(text[:10])
             rows.append([ws.cell(r, c).value for c in range(1, len(fields) + 1)])
     flush()
+    global LAST_MERGERS_UNKNOWN
+    mergers = read_mergers(wb)
+    LAST_MERGERS_UNKNOWN = mergers is None
     if derive:
         _add_derived(panels, _metric_ids(wb))
+        # two independent guards: the book has to be big enough to read a rate
+        # from, and the quarter has to be one bank's quarter
+        apply_materiality(panels)
+        apply_merger_flags(panels, mergers)
     return panels
+
+
+#: A loan-class ratio is only a ratio when there is a book to ratio.
+#:
+#: Built 4 September 2026, removed 5 September when the firm chose the merger
+#: flag over it, and restored the same day when they saw what the flag alone
+#: ships: the merger flag blanks the two quarters Capital One absorbed a bank,
+#: and leaves 28%, -7.8% and 21% standing on a book of $2-8M. True arithmetic,
+#: unreadable as a trend.
+#:
+#: The two guards are independent and neither is the other. A merger is a
+#: reason a quarter cannot be compared; a near-empty book is a reason a RATE
+#: cannot be read. $100M is the firm's number, set on the docket, and it lives
+#: here as a constant so it can be changed in one place.
+MATERIALITY_FLOOR_K = 100_000
+
+#: What the last `apply_materiality` blanked -- (bank, metric, period,
+#: balance) -- so a sheet can say why the gap is there, with the book size in
+#: it rather than a bare assertion.
+LAST_MATERIALITY_BLANKS: List[tuple] = []
+
+
+def class_balance_field(metric: str) -> Optional[str]:
+    """'NTCONOTQ_BOOK' -> 'LNCONOTH'; 'NCLNLSR' -> None.
+
+    The engine's map, not a second one here: a class ratio stands on the book
+    the engine says it does, so the floor and the workbook's own N/A rule
+    cannot disagree about which balance a ratio is measured against.
+    """
+    from credit_suite.sources.fdic import engine_api as R
+    if metric not in R.LOANBOOK_CLASS:
+        return None
+    return R.balance_field(metric)
+
+
+def apply_materiality(panels: Dict[str, Panel],
+                      floor_k: float = MATERIALITY_FLOOR_K) -> List[tuple]:
+    """Blank every class ratio whose book is under the floor that quarter."""
+    blanked: List[tuple] = []
+    for metric, panel in panels.items():
+        balance_field = class_balance_field(metric)
+        if not balance_field or balance_field not in panels:
+            continue
+        for bank, series in panel.series.items():
+            balances = panels[balance_field].series.get(bank)
+            if balances is None:
+                continue
+            for i, value in enumerate(series.values):
+                if value is None:
+                    continue
+                bal = balances.values[i] if i < len(balances.values) else None
+                if bal is None or bal < floor_k:
+                    series.values[i] = None
+                    blanked.append((bank, metric, series.periods[i], bal))
+    LAST_MATERIALITY_BLANKS[:] = blanked
+    return blanked
+
+
+#: The quarters a merger makes uncomparable, and the metrics it touches.
+#:
+#: 4 September 2026: a chart drew Capital One's other-consumer charge-off rate
+#: at 670% for the quarter ending 31 December 2022. The firm did not believe
+#: it and asked for the cause rather than a threshold. The cause was a merger
+#: -- Capital One Bank (USA), N.A. into Capital One, N.A. on 3 October 2022 --
+#: and the FDIC derives a quarterly flow by subtracting the previous quarter's
+#: year-to-date total, which across a merger spans two banks.
+#:
+#: A size floor was built first and then removed, because it would have hidden
+#: this by luck: on a $500M book the same $5.3M draws a plausible 4.3% that
+#: nobody questions. The guard is the merger record, from the FDIC's own
+#: history, read out of the workbook's `_mergers` tab. This tool never infers
+#: a merger from the shape of the numbers.
+MERGERS_TAB = "_mergers"
+
+
+def read_mergers(wb) -> Optional[Dict[str, List[dict]]]:
+    """`{cert: [{quarter, effective, out_name, why}, ...]}` from the workbook.
+
+    Returns None when the workbook cannot answer -- no `_mergers` tab (an
+    older build), or a tab whose block says the run never fetched one. None is
+    NOT the same as `{}`: one means "nobody asked", the other "asked, none
+    found", and a caller that collapses them is back to the 670.
+    """
+    if MERGERS_TAB not in wb.sheetnames:
+        return None
+    ws = wb[MERGERS_TAB]
+    header = None
+    out: Dict[str, List[dict]] = {}
+    asked = False
+    for row in ws.iter_rows(values_only=True):
+        first = "" if not row or row[0] is None else str(row[0]).strip()
+        if header is None:
+            if first == "bank":
+                header = [str(c).strip() if c else "" for c in row]
+            continue
+        if not first:
+            continue
+        if first.startswith("(this run did not fetch"):
+            return None
+        if first.startswith("("):
+            asked = True                       # "asked, and none found"
+            continue
+        cells = list(row) + [None] * len(header)
+        cert = str(cells[1] or "").strip()
+        if not cert:
+            continue
+        asked = True
+        out.setdefault(cert, []).append({
+            "bank": first,
+            "effective": str(cells[2] or "")[:10],
+            "quarter": str(cells[3] or "")[:10],
+            "out_name": str(cells[4] or ""),
+            "why": str(cells[8] or ""),
+        })
+    return out if (out or asked) else None
+
+
+#: What the last `apply_merger_flags` blanked -- (bank, metric, period, why) --
+#: so a sheet or a report can say why the gap is there. Module-level on
+#: purpose: `read_panel` returns a plain dict of panels, and hiding a
+#: pseudo-panel inside it would miscount every "N metrics" line downstream.
+LAST_MERGER_BLANKS: List[tuple] = []
+
+#: True when the last read could not establish a merger record at all.
+LAST_MERGERS_UNKNOWN = False
+
+
+def flow_metrics() -> frozenset:
+    """The metrics built from a quarterly flow -- the engine's own list."""
+    from credit_suite.sources.fdic import engine_api as R
+    return R.QUARTERLY_FLOW_METRICS
+
+
+def apply_merger_flags(panels: Dict[str, Panel],
+                       mergers: Optional[Dict[str, List[dict]]]
+                       ) -> List[tuple]:
+    """Blank every quarterly-flow rate for a quarter that spans a merger.
+
+    Balances and point-in-time rates are left alone on purpose: they are
+    correct as at the date and simply describe a larger bank. It is the FLOW
+    that mixes two banks.
+    """
+    blanked: List[tuple] = []
+    if not mergers:
+        LAST_MERGER_BLANKS[:] = blanked
+        return blanked
+    by_cert = {str(c): v for c, v in mergers.items()}
+    flows = flow_metrics()
+    for metric, panel in panels.items():
+        if metric not in flows:
+            continue
+        for bank, series in panel.series.items():
+            events = by_cert.get(str(series.cert))
+            if not events:
+                continue
+            for event in events:
+                quarter = event.get("quarter", "")
+                for i, period in enumerate(series.periods):
+                    if period[:10] == quarter and series.values[i] is not None:
+                        series.values[i] = None
+                        blanked.append((bank, metric, period,
+                                        event.get("why") or
+                                        ("quarter spans a merger effective %s"
+                                         % event.get("effective", "?"))))
+    LAST_MERGER_BLANKS[:] = blanked
+    return blanked
 
 
 def _metric_ids(wb) -> List[str]:

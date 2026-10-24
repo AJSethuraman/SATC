@@ -35,6 +35,14 @@ however real it is.
 
 ## Positions the firm has already taken (their words, and binding)
 
+### 26 CFR 1.263(a)-1(f)(5)
+
+> elect the de minimis safe harbor; attach the election statement to the timely filed original return
+
+### IRS Tangible Property Final Regulations, "What is the de minimis safe harbor election?"
+
+> $2,500 per invoice or per item; $5,000 where the client has an applicable financial statement
+
 ### 26 CFR 1.263(a)-1(f)(1)(ii)(B)
 
 > record the client's expensing policy and its effective date at engagement; a policy first written during the close does not support the safe harbour for that year

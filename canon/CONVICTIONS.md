@@ -232,6 +232,25 @@ And where a book figure is simply an error, correcting it IS the right move. Thi
 
 ---
 
+## C15 · Not GAAP, but close enough to become GAAP; on cash basis, tax breaks the tie
+
+**State:** held · **Recorded:** 2026-09-26 · **Applies:** everything the practice books and reports
+
+> *GAAP is a nice place to default to but this isn't GAAP accounting - i just want to follow the rules reasonably closely so they could be GAAP fairly easily. as long as we are doing cash basis, then we might as well follow tax rules for some things like depreciation because we will have to keep track of both anyway*
+> — the firm, 26 September 2026
+
+**Why:** It says where C14's line falls, which C14 did not. C14 — tax treatment does not move the books — was recorded about *bending a figure*: a cash balance made to match a statement or a return. It does not reach the choice of *method* for an entry the books must make anyway. Depreciation is that second kind: there is no single right answer, and on cash basis the tax figure exists regardless because a return is being produced. A second book number beside it manufactures a book/tax difference nobody reads and somebody maintains. The standard set here is not GAAP compliance but GAAP *convertibility* — close enough that moving a client to accrual later is work rather than a rebuild.
+
+**Scope, narrowed on purpose.** A wider version was drafted — *"the rules are the default, depart only where it costs more long-run"* — and the firm declined it the same day: *"i'm good with this narrower scope, i don't want to risk losing sight something i should have thought about."* The wide form would wave through cases that ought to reach them. This entry fires only where the tax figure is being produced anyway; everything else is a judgement, not a default. **Do not re-propose the wider scope.**
+
+**Fires on:** gaap, accrual, cash basis, depreciation, amortisation, method, convention, book/tax, tax basis, two sets, conform, convert
+
+**A challenge looks like:** carrying a second book figure beside a tax one where no reader needs the difference — or the reverse, a shortcut adopted because tax allows it that would have to be unpicked to produce accrual accounts later. Also reading this as "always follow tax" on a basis where the tax number is not being produced anyway, which is the scope the firm declined.
+
+**How it could be wrong:** *"we will have to keep track of both anyway"* is true on cash basis, and the firm said in the same breath that accrual is not — *"we can work in straight line when we work in accrual."* Read as a general rule it would carry a cash-basis convenience somewhere a reader does need the book number. And a book that follows tax inherits statutory change: when a method moves by law, the books move for a reason that has nothing to do with what happened — which is the thing C14 exists to prevent.
+
+---
+
 ## Not convictions
 
 Proposals the firm read and said no to. They are kept for two reasons. The
@@ -261,3 +280,30 @@ because the finding was strong and the conclusion still was not the firm's.
 > *You shouldn’t ever touch the website itself. That is another agents job.*
 
 **Not a conviction because:** it was a call about that week's pull requests, not a standing belief. The lane still holds as an instruction; it is not something the firm wants challenged from. Proposed 3 September 2026, declined the next day.
+
+---
+
+## Rulings by project
+
+Where a project is not the practice's software, the firm decides how each entry
+applies to it — once — and the ruling is kept here so it is not asked again. A
+struck entry does not fire on that project; an upheld one fires as it would
+anywhere. A ruling is permanent for the project unless a held entry re-collides.
+
+### Ember Vault Arena · 2026-09-11
+
+Ember Vault Arena is not the practice's software, and the firm chose how the record applies to it on 11 September 2026: "Case by case on a permanent basis. We strike it done or uphold it once then move on unless something held re-conflicts." A ruling below is permanent for the project unless a held entry re-collides.
+
+| Entry | Ruling | Date | The firm's words |
+|---|---|---|---|
+| C10 · the Forge preference | Struck for Ember Vault Arena. Hosted models are the target; the provider seam stays so a local run remains possible | 2026-09-11 | "Strike for this project" |
+| C11 against the July 2026 non-goal on cross-match memory | Each match starts clean. A brain keeps its identity so it can be resubmitted. A champions round is a later format | 2026-09-11 | "The idea is each setup is new. They aren't recursions. We could resubmit an agent, but that's a future iteration to me. A champions round maybe." |
+
+### Portfolio Analysis Pack · 2026-09-18
+
+Portfolio Analysis Pack is credit-consulting software for the firm's work at a bank, not the practice's own. It was grilled on 18 September 2026 and the firm ruled on the two entries that fired, under the mechanism they set on 11 September 2026: "Case by case on a permanent basis. We strike it done or uphold it once then move on unless something held re-conflicts." A ruling below is permanent for the project unless a held entry re-collides.
+
+| Entry | Ruling | Date | The firm's words |
+|---|---|---|---|
+| C11 · the simplest answer is doing the work once, upfront, when you know it is coming | Struck for Portfolio Analysis Pack. v1 is the ladder plus door one; doors two and three keep a config slot and a plug-in seam and are logged, not built | 2026-09-18 | "Strike for this project (Recommended)" |
+| C9 · the simplest answer is likely the best, raised by hand on placement | Upheld. A new top-level folder that copies only the house-style module; nothing else duplicated, nothing imported across folders | 2026-09-18 | "New top-level folder, copies the style module only (Recommended)" |

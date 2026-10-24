@@ -362,6 +362,17 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
         await go("/payments")
         screens.append(await look(page, "payments", shots))
 
+        # THE PACK SCREEN AGAIN, NOW THAT A BILL EXISTS. `web.py` renders two
+        # different controls for "Put the invoice in too": enabled when there
+        # is a bill, and disabled with its reason on the label when there is
+        # not. Only the second was ever photographed, because this run reached
+        # the pack screen before raising the invoice -- so the walkthrough
+        # registry could describe one state or the other and was wrong either
+        # way. Both are real: the first pack of an engagement has no bill, and
+        # anything billed afterwards does.
+        await go(f"/engagement/{ref}/package")
+        screens.append(await look(page, "package-billed", shots))
+
         # ── the two screens the rest of the app hangs off ─────────────────
         await go("/")
         screens.append(await look(page, "home", shots))

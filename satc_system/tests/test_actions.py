@@ -461,7 +461,9 @@ def test_an_overdue_invoice_names_the_number_the_amount_and_how_late_it_is():
 def test_an_overdue_invoice_is_one_click():
     rows = invoice_overdue([_invoice(issued=TODAY - timedelta(days=40))],
                            client_id="C", today=TODAY)
-    assert rows[0].template_key == "invoice_cover"
+    # A REMINDER, not the draft-return email: an overdue bill's return may
+    # already be filed, and that email asks for an 8879 (Codex on PR #430).
+    assert rows[0].template_key == "overdue_invoice"
     assert rows[0].due is not None
 
 

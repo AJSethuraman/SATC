@@ -1,0 +1,31 @@
+{
+  "desk": "fixed-assets",
+  "question": "Are aircraft engines acquired with the aircraft materials or supplies under § 1.162-3(c)(1)(i)?",
+  "reason": "authority_absent",
+  "detail": "the desk holds § 1.263(a)-3, which points at § 1.162-3 and cannot follow the pointer",
+  "queries": ["materials and supplies definition rotable spare parts 1.162-3(c)(1)"],
+  "hits": [
+    {"url": "https://rsmus.com/insights/tax-alerts/archives/rotable-spare-parts-the-elephant-in-the-room.html", "title": "Rotable spare parts - the elephant in the room", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://www.taxnotes.com/research/federal/cfr26/1.162-3", "title": "Sec. 1.162-3 Materials and supplies. | Tax Notes", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://www.irs.gov/irb/2013-43_IRB", "title": "Internal Revenue Bulletin: 2013-43", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://www.thetaxadviser.com/issues/2015/dec/applying-tangible-property-regulations-for-tax-year-2015/", "title": "Applying the Tangible Property Regulations for Tax Year 2015", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://www.ecfr.gov/current/title-26/chapter-I/subchapter-A/part-1/subject-group-ECFRc4930337f38ecfd/section-1.162-3", "title": "eCFR :: 26 CFR 1.162-3 -- Materials and supplies.", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://codes.findlaw.com/cfr/title-26-internal-revenue/cfr-sect-26-1-162-3/", "title": "26 CFR 1.162-3 | FindLaw", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations", "title": "Tangible property final regulations | IRS", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"},
+    {"url": "https://www.law.cornell.edu/cfr/text/26/1.162-3", "title": "26 CFR 1.162-3 | LII", "query": "materials and supplies definition rotable spare parts 1.162-3(c)(1)"}
+  ],
+  "proposals": [
+    {"citation": "26 CFR 1.162-3(c)(1)(i)", "kind": "rule",
+     "found_at": "https://www.ecfr.gov/current/title-26/chapter-I/subchapter-A/part-1/subject-group-ECFRc4930337f38ecfd/section-1.162-3",
+     "quoted": "Is a component acquired to maintain, repair, or improve a unit of tangible property (as determined under § 1.263(a)-3(e)) owned, leased, or serviced by the taxpayer and that is not acquired as part of any single unit of tangible property;"},
+    {"citation": "26 CFR 1.162-3(c)(2)", "kind": "rule",
+     "found_at": "https://www.law.cornell.edu/cfr/text/26/1.162-3",
+     "quoted": "For purposes of this section, rotable spare parts are materials and supplies under paragraph (c)(1)(i) of this section that are acquired for installation on a unit of property, removable from that unit of property, generally repaired or improved, and either reinstalled on the same or other property or stored for later installation."},
+    {"citation": "26 CFR 1.162-3(c)(2), rotable and temporary spare parts", "kind": "rule",
+     "found_at": "https://www.law.cornell.edu/cfr/text/26/1.162-3",
+     "quoted": "rotable and temporary spare parts"},
+    {"citation": "Applying the Tangible Property Regulations for Tax Year 2015, on rotable spare parts", "kind": "rule",
+     "found_at": "https://www.thetaxadviser.com/issues/2015/dec/applying-tangible-property-regulations-for-tax-year-2015/",
+     "quoted": "Rotable spare parts may meet the definition of a material and supply under Regs. Sec. 1.162-3."}
+  ]
+}

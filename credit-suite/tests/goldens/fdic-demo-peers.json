@@ -1,0 +1,19 @@
+{
+ "_what": "The peer roster the fdic-demo golden was captured with, frozen here so the golden keeps pinning the ENGINE.",
+ "_why": "The golden records what the FDIC monitor produced before consolidation, and the parity test asks whether the shared engine still produces it. The peer roster is not engine behaviour -- it is data the firm changes. Leaving the parity build on the live seed meant the firm adding seven banks on 7 September 2026 broke eleven tests and read as 8,391 numbers moving, when nothing about the engine had moved at all. Frozen here, the golden goes on testing what it was written to test, and the roster is free.",
+ "_do_not": "Do not update this to match the seed. If it ever has to move, the golden moves with it and capture_baselines.py is how.",
+ "peers": [
+  [1, 628, "JPMorgan Chase Bank NA", "peer", "TRUE"],
+  [2, 3511, "Wells Fargo Bank NA", "peer", "TRUE"],
+  [3, 3510, "Bank of America NA", "peer", "TRUE"],
+  [4, 7213, "Citibank NA", "peer", "TRUE"],
+  [5, 6548, "US Bank NA", "peer", "TRUE"],
+  [6, 6384, "PNC Bank NA", "peer", "TRUE"],
+  [7, 9846, "Truist Bank", "peer", "TRUE"],
+  [8, 4297, "Capital One NA", "peer", "TRUE"],
+  [9, 17534, "KeyBank NA", "self", "TRUE"],
+  [10, 639, "Bank of New York Mellon", "counterparty", "TRUE"],
+  [11, 33124, "Goldman Sachs Bank USA", "counterparty", "TRUE"],
+  [12, 32992, "Morgan Stanley Bank NA", "counterparty", "TRUE"]
+ ]
+}

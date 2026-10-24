@@ -283,9 +283,102 @@ def parse_declined(text: str) -> list[Declined]:
     return out
 
 
+# ── rulings by project ────────────────────────────────────────────────────
+#
+# WHY THIS SECTION EXISTS. On 11 September 2026 the firm opened a project that
+# is not the practice's software (Ember Vault Arena) and was asked whether the
+# practice-scoped convictions fire on it. Their answer was a mechanism rather
+# than a yes or no: "Case by case on a permanent basis. We strike it done or
+# uphold it once then move on unless something held re-conflicts." A mechanism
+# that is not written down is re-asked by the next session, which is the exact
+# failure the Not-convictions section was built to stop. So the rulings live
+# here, machine-owned like everything else in this file, and round-trip.
+
+RULINGS_HEAD = "## Rulings by project"
+
+RULINGS_PREAMBLE = """## Rulings by project
+
+Where a project is not the practice's software, the firm decides how each entry
+applies to it — once — and the ruling is kept here so it is not asked again. A
+struck entry does not fire on that project; an upheld one fires as it would
+anywhere. A ruling is permanent for the project unless a held entry re-collides.
+"""
+
+_P_HEAD = re.compile(r"^### (.+?) · ([\d-]+)$", re.M)
+_ROW = re.compile(r"^\| (.+?) \| (.+?) \| ([\d-]+) \| (.+?) \|$", re.M)
+_TABLE_HEAD = "| Entry | Ruling | Date | The firm's words |\n|---|---|---|---|\n"
+
+
+@dataclass(frozen=True)
+class Ruling:
+    entry: str      # which conviction, or which collision, was ruled on
+    ruling: str     # what the firm decided, for this project
+    on: str         # ISO date
+    words: str      # the firm's words, verbatim, that the ruling rests on
+
+
+@dataclass(frozen=True)
+class ProjectRulings:
+    project: str
+    opened: str                     # ISO date the project was first ruled on
+    note: str                       # one paragraph: why this project is outside, quoting the firm
+    rulings: tuple[Ruling, ...]
+
+
+def parse_rulings(text: str) -> list[ProjectRulings]:
+    """The rulings section, if any. An absent section is an empty list, not an
+    error: most repositories carrying canon are the practice's own."""
+    start = text.find(RULINGS_HEAD)
+    if start < 0:
+        return []
+    section = text[start:]
+    out: list[ProjectRulings] = []
+    heads = list(_P_HEAD.finditer(section))
+    for i, head in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(section)
+        block = section[head.end():end]
+        table_at = block.find("| Entry |")
+        if table_at < 0:
+            raise RecordError(f"rulings for {head.group(1)} have no table")
+        note = block[:table_at].strip()
+        if not note:
+            raise RecordError(f"rulings for {head.group(1)} carry no note quoting the firm")
+        rows = []
+        for m in _ROW.finditer(block[table_at:]):
+            if m.group(1) == "Entry":
+                continue
+            words = m.group(4).strip()
+            if not words.strip('"').strip():
+                raise RecordError(f"a ruling on {m.group(1)} for {head.group(1)} "
+                                  f"carries none of the firm's words; a ruling in "
+                                  f"the session's words is not theirs")
+            rows.append(Ruling(entry=m.group(1).strip(), ruling=m.group(2).strip(),
+                               on=m.group(3), words=words))
+        if not rows:
+            raise RecordError(f"rulings for {head.group(1)} have an empty table")
+        out.append(ProjectRulings(project=head.group(1).strip(), opened=head.group(2),
+                                  note=note, rulings=tuple(rows)))
+    if not out:
+        raise RecordError("a rulings section with no project in it")
+    return out
+
+
+def render_rulings(projects: list[ProjectRulings]) -> str:
+    if not projects:
+        return ""
+    parts = ["\n---\n\n" + RULINGS_PREAMBLE]
+    for p in projects:
+        parts.append(f"\n### {p.project} · {p.opened}\n\n{p.note}\n\n")
+        parts.append(_TABLE_HEAD)
+        for r in p.rulings:
+            parts.append(f"| {r.entry} | {r.ruling} | {r.on} | {r.words} |\n")
+    return "".join(parts)
+
+
 def render_convictions(items: list[Conviction],
                        declined: list[Declined] | None = None,
-                       preamble: str = CONVICTIONS_PREAMBLE) -> str:
+                       preamble: str = CONVICTIONS_PREAMBLE,
+                       rulings: list[ProjectRulings] | None = None) -> str:
     parts = [preamble.rstrip() + "\n"]
     for c in items:
         parts.append("\n---\n")
@@ -308,6 +401,7 @@ def render_convictions(items: list[Conviction],
         parts.append(f"\n### {d.cid} · declined {d.on} · {d.source}\n\n")
         parts.append(f"> *{d.quote}*\n\n")
         parts.append(f"**Not a conviction because:** {d.because}\n")
+    parts.append(render_rulings(rulings or []))
     return "".join(parts)
 
 

@@ -1,0 +1,3156 @@
+{
+ "q3": {
+  "cells read on 28 Sep": 15803,
+  "tally": {
+   "figure moved, TIED -> TIED-WITHIN-SAMPLING": 14,
+   "same figure, same verdict": 15681,
+   "not read on this build": 51,
+   "same figure, ECHO -> TIED": 2,
+   "same figure, TIED -> TIED-WITHIN-SAMPLING": 5,
+   "figure moved, same verdict": 50
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "Start here!B17",
+    "Pockets worse and material, charge-offs",
+    "4 of 81",
+    "4 of 81 \u00b7 1 borderline",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Record!E68",
+    "",
+    "2026-09-29 21:04",
+    "2026-09-30 04:02",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!E69",
+    "",
+    "2026-09-29 21:04",
+    "2026-09-30 04:02",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!E15 [view-00]",
+    "FICO x CHANNEL",
+    "This grid holds FICO fixed (REV_DEBT's correlation with it: -0.53). It doesn't hold ORIG_BAL fixed (REV_DEBT's correlation with it: -0.02).",
+    "Holds FICO fixed",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Paid, cost, kept!K21 [view-00]",
+    "FICO x CHANNEL \u00b7 712 - 745 \u00b7 Online \u00b7 together",
+    "Losing more, profit holding",
+    "Losing more, profit holding \u00b7 borderline (p 0.0501)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K27 [view-01]",
+    "Two-way \u00b7 Bad dollars \u00b7 ORIG_BAL 26,324 - 37,950 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.040)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Paid, cost, kept!K20 [view-01]",
+    "FICO x ASSET_CLASS \u00b7 496 - 653 \u00b7 4 \u00b7 together",
+    "Net drain",
+    "Net drain \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K23 [view-02]",
+    "Two-way \u00b7 Charge-offs \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.036)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!K30 [view-02]",
+    "FICO x CHANNEL \u00b7 Charge-offs \u00b7 496 - 653 \u00b7 Online \u00b7 p",
+    "0.0542088648278",
+    "borderline (p 0.054)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J32 [view-02]",
+    "FICO x CHANNEL \u00b7 Charge-offs \u00b7 686 - 711 \u00b7 Broker \u00b7 p",
+    "0.0542088648278",
+    "borderline (p 0.054)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K23 [view-03]",
+    "Two-way \u00b7 Kept after losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K28 [view-03]",
+    "Two-way \u00b7 Kept after losses \u00b7 FICO 686 - 711 \u00b7 Broker \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.057)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J31 [view-03]",
+    "FICO x CHANNEL \u00b7 Kept after losses \u00b7 654 - 685 \u00b7 Broker \u00b7 p",
+    "0.0509949005099",
+    "borderline (p 0.051)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!K31 [view-03]",
+    "FICO x CHANNEL \u00b7 Kept after losses \u00b7 654 - 685 \u00b7 Online \u00b7 p",
+    "0.0509949005099",
+    "borderline (p 0.051)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!I33 [view-03]",
+    "FICO x CHANNEL \u00b7 Kept after losses \u00b7 712 - 745 \u00b7 Branch \u00b7 p",
+    "0.0572942705729",
+    "borderline (p 0.057)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Paid, cost, kept!K20 [view-03]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 37,951 - 49,151 \u00b7 4 \u00b7 together",
+    "Losing more, profit holding",
+    "Losing more, profit holding \u00b7 borderline (p 0.036)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J34 [view-04]",
+    "FICO x CHANNEL \u00b7 Earned before losses \u00b7 746 - 921 \u00b7 Broker \u00b7 p",
+    "0.0524947505249",
+    "borderline (p 0.052)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!E15 [view-05]",
+    "FICO x ASSET_CLASS",
+    "This grid holds FICO fixed (REV_DEBT's correlation with it: -0.53). It doesn't hold ORIG_BAL fixed (REV_DEBT's correlation with it: -0.02).",
+    "Holds FICO fixed",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Pockets!K29 [view-06]",
+    "Split by REV_DEBT \u00b7 Bad dollars \u00b7 FICO 686 - 711 \u00b7 ASSET_CLASS 3 \u00b7 high \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K28 [view-07]",
+    "Split by REV_DEBT \u00b7 Charge-offs \u00b7 FICO 686 - 711 \u00b7 ASSET_CLASS 1 \u00b7 high \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.047)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K31 [view-07]",
+    "Split by REV_DEBT \u00b7 Charge-offs \u00b7 FICO 686 - 711 \u00b7 ASSET_CLASS 3 \u00b7 high \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.052)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K33 [view-07]",
+    "Split by REV_DEBT \u00b7 Charge-offs \u00b7 FICO 746 - 921 \u00b7 ASSET_CLASS 2 \u00b7 high \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.052)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K73 [view-07]",
+    "Split by REV_DEBT \u00b7 Charge-offs \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 Branch \u00b7 high \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.049)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K74 [view-07]",
+    "Split by REV_DEBT \u00b7 Charge-offs \u00b7 ORIG_BAL 26,324 - 37,950 \u00b7 Online \u00b7 high \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.049)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-07]",
+    "FICO x ASSET_CLASS \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!I30 [view-07]",
+    "FICO x ASSET_CLASS \u00b7 Charge-offs \u00b7 496 - 653 \u00b7 1 \u00b7 p",
+    "0.0474238290457",
+    "borderline (p 0.047)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!I31 [view-07]",
+    "FICO x ASSET_CLASS \u00b7 Charge-offs \u00b7 654 - 685 \u00b7 1 \u00b7 p",
+    "0.0474238290457",
+    "borderline (p 0.047)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K22 [view-08]",
+    "Split by REV_DEBT \u00b7 Kept after losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 4 \u00b7 high \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.029)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K23 [view-08]",
+    "Split by REV_DEBT \u00b7 Kept after losses \u00b7 FICO 712 - 745 \u00b7 Branch \u00b7 high \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.044)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K24 [view-08]",
+    "Split by REV_DEBT \u00b7 Kept after losses \u00b7 FICO 654 - 685 \u00b7 ASSET_CLASS 4 \u00b7 high \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.065)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K25 [view-08]",
+    "Split by REV_DEBT \u00b7 Kept after losses \u00b7 FICO 654 - 685 \u00b7 Broker \u00b7 high \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.057)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K26 [view-08]",
+    "Split by REV_DEBT \u00b7 Kept after losses \u00b7 FICO 686 - 711 \u00b7 Broker \u00b7 high \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.053)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K93 [view-08]",
+    "Split by REV_DEBT \u00b7 Kept after losses \u00b7 ORIG_BAL 15,449 - 26,323 \u00b7 Broker \u00b7 low \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.052)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!E15 [view-10]",
+    "ORIG_BAL x CHANNEL",
+    "This grid holds ORIG_BAL fixed (REV_DEBT's correlation with it: -0.02). It doesn't hold FICO fixed (REV_DEBT's correlation with it: -0.53).",
+    "Doesn't hold FICO fixed",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!K31 [view-11]",
+    "ORIG_BAL x CHANNEL \u00b7 Bad dollars \u00b7 15,449 - 26,323 \u00b7 Online \u00b7 p",
+    "0.0463453654635",
+    "borderline (p 0.046)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!E15 [view-15]",
+    "ORIG_BAL x ASSET_CLASS",
+    "This grid holds ORIG_BAL fixed (REV_DEBT's correlation with it: -0.02). It doesn't hold FICO fixed (REV_DEBT's correlation with it: -0.53).",
+    "Doesn't hold FICO fixed",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J30 [view-17]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Charge-offs \u00b7 5,005 - 15,448 \u00b7 2 \u00b7 p",
+    "0.0471619504716",
+    "borderline (p 0.047)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!K30 [view-17]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Charge-offs \u00b7 5,005 - 15,448 \u00b7 3 \u00b7 p",
+    "0.0471619504716",
+    "borderline (p 0.047)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J32 [view-17]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Charge-offs \u00b7 26,324 - 37,950 \u00b7 2 \u00b7 p",
+    "0.0471619504716",
+    "borderline (p 0.047)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-40]",
+    "FICO x CHANNEL \u00b7 Bad loans \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-41]",
+    "FICO x CHANNEL \u00b7 Kept after losses \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-42]",
+    "FICO x CHANNEL \u00b7 Bad loans \u00b7 (marked missing) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 51 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-44]",
+    "FICO x CHANNEL \u00b7 Charge-offs \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-46]",
+    "FICO x ASSET_CLASS \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-47]",
+    "FICO x ASSET_CLASS \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-48]",
+    "FICO x ASSET_CLASS \u00b7 Bad loans \u00b7 (marked missing) \u00b7 1 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 42 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-52]",
+    "ORIG_BAL x CHANNEL \u00b7 Bad loans \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-53]",
+    "ORIG_BAL x CHANNEL \u00b7 Kept after losses \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-55]",
+    "ORIG_BAL x CHANNEL \u00b7 Charge-offs \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-57]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-58]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-60]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-62]",
+    "FICO x CHANNEL / REV_DEBT \u00b7 Bad loans \u00b7 (blank) \u00b7 Broker \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-63]",
+    "FICO x CHANNEL / REV_DEBT \u00b7 Kept after losses \u00b7 (blank) \u00b7 Broker \u00b7 low \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-66]",
+    "FICO x CHANNEL / REV_DEBT \u00b7 Charge-offs \u00b7 (blank) \u00b7 Broker \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-68]",
+    "FICO x ASSET_CLASS / REV_DEBT \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-69]",
+    "FICO x ASSET_CLASS / REV_DEBT \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 low \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-72]",
+    "FICO x ASSET_CLASS / REV_DEBT \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-74]",
+    "ORIG_BAL x CHANNEL / REV_DEBT \u00b7 Bad loans \u00b7 (blank) \u00b7 Branch \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-75]",
+    "ORIG_BAL x CHANNEL / REV_DEBT \u00b7 Kept after losses \u00b7 (blank) \u00b7 Branch \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-78]",
+    "ORIG_BAL x CHANNEL / REV_DEBT \u00b7 Charge-offs \u00b7 (blank) \u00b7 Branch \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-80]",
+    "ORIG_BAL x ASSET_CLASS / REV_DEBT \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-81]",
+    "ORIG_BAL x ASSET_CLASS / REV_DEBT \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-84]",
+    "ORIG_BAL x ASSET_CLASS / REV_DEBT \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 low \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ]
+  ],
+  "not read now": [
+   [
+    "Start here!C1",
+    "",
+    "Consumer book Q3.csv \u00b7 8,000 loans \u00b7 10 columns \u00b7 last Run 2026-09-29 21:04",
+    "TIED"
+   ],
+   [
+    "Start here!C21",
+    "",
+    "ASSET_CLASS 4",
+    "NAME"
+   ],
+   [
+    "Start here!C22",
+    "",
+    "ASSET_CLASS 4",
+    "NAME"
+   ],
+   [
+    "Look!C20",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C21",
+    "",
+    "550",
+    "ECHO"
+   ],
+   [
+    "Look!C22",
+    "",
+    "850",
+    "ECHO"
+   ],
+   [
+    "Look!C39",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C40",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C41",
+    "",
+    "60000",
+    "ECHO"
+   ],
+   [
+    "Look!C58",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C59",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C60",
+    "",
+    "30000",
+    "ECHO"
+   ],
+   [
+    "Pockets!D8 [view-00]",
+    "",
+    "The chance of a gap at least this big if the pocket were no different from the rest, after the allowance for testing many pockets at once (Benjamini-Hochberg, across one grid and one measure). Bad loans: the z test, or the exact test for a pocket under 65 loans. Dollar measures: the loans are shuffled 10,000 times, within the band for the rest of its band, and it is how often a gap as big turned up. Under 5% counts.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Pockets!K14 [view-00]",
+    "",
+    "Order and \"Could have caught\" are from the last Run, 2026-09-29 21:04.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C5 [view-00]",
+    "",
+    "The pocket's rate over the book's: 2.00\u00d7 goes bad twice as often as the book. Kept after losses and Earned before losses are a gap in points instead.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C7 [view-00]",
+    "",
+    "Red is worse, green better, pale in line: 0.5\u00d7 and under the greenest, 2\u00d7 and over the deepest red; for a gap in points, the largest in the grid is the deepest. A blank: alone in its band, or fewer losses than fewest losses on Control, so not compared (a setting for the next Run).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!C7 [view-00]",
+    "",
+    "The chance of a gap at least this big if the two halves were no different. Under 5% counts, and is bold. Bad loans: the gap in standard errors; a dollar measure: the loans dealt into the two halves at random inside their pocket, 10,000 times. The pockets are after the allowance for many tests (Benjamini-Hochberg, across one grid and one measure); a gap that is not significant is in brackets, unshaded. The summary is one pooled test per grid and measure, with no allowance. A blank: a half has fewer loans or losses than the minimums (65 loans, 10 losses).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!I11 [view-00]",
+    "",
+    "The numbers are from the last Run, 2026-09-29 21:04.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Paid, cost, kept!M12 [view-00]",
+    "",
+    "The order is from the last Run, 2026-09-29 21:04.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C16 [view-25]",
+    "",
+    "1 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!D16 [view-25]",
+    "",
+    "1 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!E16 [view-25]",
+    "",
+    "2 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!F16 [view-25]",
+    "",
+    "2 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!G16 [view-25]",
+    "",
+    "3 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!H16 [view-25]",
+    "",
+    "3 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!I16 [view-25]",
+    "",
+    "4 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!J16 [view-25]",
+    "",
+    "4 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!N16 [view-25]",
+    "",
+    "1 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!O16 [view-25]",
+    "",
+    "1 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!P16 [view-25]",
+    "",
+    "2 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!Q16 [view-25]",
+    "",
+    "2 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!R16 [view-25]",
+    "",
+    "3 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!S16 [view-25]",
+    "",
+    "3 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!T16 [view-25]",
+    "",
+    "4 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!U16 [view-25]",
+    "",
+    "4 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!C27 [view-25]",
+    "",
+    "1 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!D27 [view-25]",
+    "",
+    "1 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!E27 [view-25]",
+    "",
+    "2 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!F27 [view-25]",
+    "",
+    "2 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!G27 [view-25]",
+    "",
+    "3 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!H27 [view-25]",
+    "",
+    "3 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!I27 [view-25]",
+    "",
+    "4 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!J27 [view-25]",
+    "",
+    "4 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!N27 [view-25]",
+    "",
+    "1 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!O27 [view-25]",
+    "",
+    "1 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!P27 [view-25]",
+    "",
+    "2 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!Q27 [view-25]",
+    "",
+    "2 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!R27 [view-25]",
+    "",
+    "3 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!S27 [view-25]",
+    "",
+    "3 \u00b7 low",
+    "NAME"
+   ],
+   [
+    "Grids!T27 [view-25]",
+    "",
+    "4 \u00b7 high",
+    "NAME"
+   ],
+   [
+    "Grids!U27 [view-25]",
+    "",
+    "4 \u00b7 low",
+    "NAME"
+   ]
+  ],
+  "new cells on this build": 4591
+ },
+ "flag": {
+  "cells read on 28 Sep": 19731,
+  "tally": {
+   "figure moved, TIED -> TIED-WITHIN-SAMPLING": 11,
+   "same figure, same verdict": 19589,
+   "not read on this build": 57,
+   "same figure, TIED -> TIED-WITHIN-SAMPLING": 7,
+   "figure moved, same verdict": 67
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "Start here!B17",
+    "Pockets worse and material, charge-offs",
+    "4 of 81",
+    "4 of 81 \u00b7 1 borderline",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-00]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG N vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Paid, cost, kept!K21 [view-00]",
+    "FICO x CHANNEL \u00b7 712 - 745 \u00b7 Online \u00b7 together",
+    "Losing more, profit holding",
+    "Losing more, profit holding \u00b7 borderline (p 0.0501)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K26 [view-01]",
+    "Two-way \u00b7 Bad dollars \u00b7 ORIG_BAL 26,324 - 37,950 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.040)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Paid, cost, kept!K20 [view-01]",
+    "FICO x ASSET_CLASS \u00b7 496 - 653 \u00b7 4 \u00b7 together",
+    "Net drain",
+    "Net drain \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K22 [view-02]",
+    "Two-way \u00b7 Charge-offs \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.036)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K22 [view-03]",
+    "Two-way \u00b7 Kept after losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K27 [view-03]",
+    "Two-way \u00b7 Kept after losses \u00b7 FICO 686 - 711 \u00b7 Broker \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.057)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Paid, cost, kept!K20 [view-03]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 37,951 - 49,151 \u00b7 4 \u00b7 together",
+    "Losing more, profit holding",
+    "Losing more, profit holding \u00b7 borderline (p 0.036)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-05]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Pockets!K32 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.060)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K34 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 ASSET_CLASS 1 \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.059)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K40 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 15,449 - 26,323 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.060)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K51 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 5,005 - 15,448 \u00b7 Online \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.060)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!K34 [view-06]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs rest \u00b7 Bad dollars \u00b7 686 - 711 \u00b7 Online \u00b7 p",
+    "0.0461203879612",
+    "borderline (p 0.046)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K31 [view-07]",
+    "Split by SYS_FLAG \u00b7 Charge-offs \u00b7 ORIG_BAL 26,324 - 37,950 \u00b7 ASSET_CLASS 4 \u00b7 Y \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.0496)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K32 [view-07]",
+    "Split by SYS_FLAG \u00b7 Charge-offs \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 Online \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.051)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K33 [view-07]",
+    "Split by SYS_FLAG \u00b7 Charge-offs \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.051)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-07]",
+    "FICO x ASSET_CLASS \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!K34 [view-07]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs rest \u00b7 Charge-offs \u00b7 686 - 711 \u00b7 Online \u00b7 p",
+    "0.0539946005399",
+    "borderline (p 0.054)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K28 [view-08]",
+    "Split by SYS_FLAG \u00b7 Kept after losses \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.065)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-10]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG (blank) vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: not tested: too few pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-15]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 24 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!L32 [view-16]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs rest \u00b7 Bad dollars \u00b7 496 - 653 \u00b7 4 \u00b7 p",
+    "0.0506616005066",
+    "borderline (p 0.051)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J33 [view-17]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs rest \u00b7 Charge-offs \u00b7 654 - 685 \u00b7 2 \u00b7 p",
+    "0.0519948005199",
+    "borderline (p 0.052)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-20]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 24 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-21]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Bad dollars \u00b7 686 - 711 \u00b7 Broker \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 10 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!L32 [view-21]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest \u00b7 Bad dollars \u00b7 496 - 653 \u00b7 4 \u00b7 p",
+    "0.043195680432",
+    "borderline (p 0.043)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J33 [view-22]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest \u00b7 Charge-offs \u00b7 654 - 685 \u00b7 2 \u00b7 p",
+    "0.0519948005199",
+    "borderline (p 0.052)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-23]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Kept after losses \u00b7 712 - 745 \u00b7 Online \u00b7 Y \u00b7 The colour",
+    "vs the book is pale, vs rest of band pale. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "vs the book is light red, vs rest of band pale. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J34 [view-23]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest \u00b7 Kept after losses \u00b7 686 - 711 \u00b7 2 \u00b7 p",
+    "0.04399560044",
+    "borderline (p 0.044)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-24]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Earned before losses \u00b7 746 - 921 \u00b7 Online \u00b7 (blank) \u00b7 The colour",
+    "vs the book is light red, vs rest of band pale. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 4 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-25]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG (blank) vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 24 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: not tested: too few pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-27]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Charge-offs \u00b7 654 - 685 \u00b7 4 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 3 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-28]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Kept after losses \u00b7 686 - 711 \u00b7 2 \u00b7 N \u00b7 The colour",
+    "vs the book is pale, vs rest of band pale. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "vs the book is light green, vs rest of band light green. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-30]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG N vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 15 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: bigger in some pockets than others; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-33]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Kept after losses \u00b7 15,449 - 26,323 \u00b7 Online \u00b7 (blank) \u00b7 The colour",
+    "vs the book is green, vs rest of band green. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 3 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-34]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Earned before losses \u00b7 26,324 - 37,950 \u00b7 Broker \u00b7 N \u00b7 The colour",
+    "vs the book is pale, vs rest of band pale. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "vs the book is light red, vs rest of band light red. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-35]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG Y vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 15 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: bigger in some pockets than others; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-36]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Bad dollars \u00b7 37,951 - 49,151 \u00b7 1 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 4 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J35 [view-38]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG Y vs rest \u00b7 Kept after losses \u00b7 37,951 - 49,151 \u00b7 Broker \u00b7 p",
+    "0.04099590041",
+    "borderline (p 0.041)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-39]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Earned before losses \u00b7 49,152 - 59,984 \u00b7 4 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is pale, vs rest of band pale. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-40]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG (blank) vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 15 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: not tested: too few pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-45]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG N vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 20 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-50]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 20 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-51]",
+    "ORIG_BAL x CHANNEL \u00b7 Bad dollars \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!B25 [view-55]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG (blank) vs rest",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 2 degrees of freedom, 20 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: not tested: too few pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-60]",
+    "FICO x CHANNEL \u00b7 Bad loans \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-61]",
+    "FICO x CHANNEL \u00b7 Kept after losses \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-62]",
+    "FICO x CHANNEL \u00b7 Bad loans \u00b7 (marked missing) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 51 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-64]",
+    "FICO x CHANNEL \u00b7 Charge-offs \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-66]",
+    "FICO x ASSET_CLASS \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-67]",
+    "FICO x ASSET_CLASS \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-68]",
+    "FICO x ASSET_CLASS \u00b7 Bad loans \u00b7 (marked missing) \u00b7 1 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 42 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-72]",
+    "ORIG_BAL x CHANNEL \u00b7 Bad loans \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-73]",
+    "ORIG_BAL x CHANNEL \u00b7 Kept after losses \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-75]",
+    "ORIG_BAL x CHANNEL \u00b7 Charge-offs \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-77]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-78]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-80]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-82]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 Broker \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-83]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 Broker \u00b7 Y \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-84]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 496 - 653 \u00b7 Branch \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 7 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-85]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 496 - 653 \u00b7 Online \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-86]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Charge-offs \u00b7 496 - 653 \u00b7 Online \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-88]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-89]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-90]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 496 - 653 \u00b7 1 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-92]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Charge-offs \u00b7 496 - 653 \u00b7 1 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-94]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 Branch \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-95]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 Branch \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-96]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 5,005 - 15,448 \u00b7 Branch \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 6 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-98]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Charge-offs \u00b7 (blank) \u00b7 Branch \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-100]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-101]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-102]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 5,005 - 15,448 \u00b7 1 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 4 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-103]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 49,152 - 59,984 \u00b7 4 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-104]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Charge-offs \u00b7 49,152 - 59,984 \u00b7 4 \u00b7 (blank) \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ]
+  ],
+  "not read now": [
+   [
+    "Start here!C1",
+    "",
+    "Flag book.csv \u00b7 8,000 loans \u00b7 11 columns \u00b7 last Run 2026-09-29 21:05",
+    "TIED"
+   ],
+   [
+    "Start here!C21",
+    "",
+    "ASSET_CLASS 4",
+    "NAME"
+   ],
+   [
+    "Start here!C22",
+    "",
+    "ASSET_CLASS 4",
+    "NAME"
+   ],
+   [
+    "Look!C20",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C21",
+    "",
+    "550",
+    "ECHO"
+   ],
+   [
+    "Look!C22",
+    "",
+    "850",
+    "ECHO"
+   ],
+   [
+    "Look!C39",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C40",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C41",
+    "",
+    "60000",
+    "ECHO"
+   ],
+   [
+    "Look!C58",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C59",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C60",
+    "",
+    "30000",
+    "ECHO"
+   ],
+   [
+    "Record!E68",
+    "",
+    "2026-09-29 21:05",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!E69",
+    "",
+    "2026-09-29 21:05",
+    "NOT A FIGURE"
+   ],
+   [
+    "Pockets!D8 [view-00]",
+    "",
+    "The chance of a gap at least this big if the pocket were no different from the rest, after the allowance for testing many pockets at once (Benjamini-Hochberg, across one grid and one measure). Bad loans: the z test, or the exact test for a pocket under 65 loans. Dollar measures: the loans are shuffled 10,000 times, within the band for the rest of its band, and it is how often a gap as big turned up. Under 5% counts.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Pockets!K13 [view-00]",
+    "",
+    "Order and \"Could have caught\" are from the last Run, 2026-09-29 21:05.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C5 [view-00]",
+    "",
+    "The pocket's rate over the book's: 2.00\u00d7 goes bad twice as often as the book. Kept after losses and Earned before losses are a gap in points instead.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C7 [view-00]",
+    "",
+    "Red is worse, green better, pale in line: 0.5\u00d7 and under the greenest, 2\u00d7 and over the deepest red; for a gap in points, the largest in the grid is the deepest. A blank: alone in its band, or fewer losses than fewest losses on Control, so not compared (a setting for the next Run).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!C8 [view-00]",
+    "",
+    "The chance of a gap at least this big if the value were no different from the rest. Under 5% counts, and is bold. Bad loans: the gap in standard errors; a dollar measure: the loans dealt at random inside their pocket, 10,000 times. The allowance for many tests (Benjamini-Hochberg) covers every value and pocket of one grid and measure, and the summary's p-values across the values; a gap that is not significant is in brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums (65 loans, 10 losses).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!I12 [view-00]",
+    "",
+    "The numbers are from the last Run, 2026-09-29 21:05.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Paid, cost, kept!M12 [view-00]",
+    "",
+    "The order is from the last Run, 2026-09-29 21:05.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C16 [view-25]",
+    "",
+    "1 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!D16 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!E16 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!F16 [view-25]",
+    "",
+    "2 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!G16 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!H16 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!I16 [view-25]",
+    "",
+    "3 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!J16 [view-25]",
+    "",
+    "3 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!K16 [view-25]",
+    "",
+    "3 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!L16 [view-25]",
+    "",
+    "4 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!M16 [view-25]",
+    "",
+    "4 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!N16 [view-25]",
+    "",
+    "4 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!R16 [view-25]",
+    "",
+    "1 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!S16 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!T16 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!U16 [view-25]",
+    "",
+    "2 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!V16 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!W16 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C27 [view-25]",
+    "",
+    "1 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!D27 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!E27 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!F27 [view-25]",
+    "",
+    "2 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!G27 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!H27 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!I27 [view-25]",
+    "",
+    "3 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!J27 [view-25]",
+    "",
+    "3 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!K27 [view-25]",
+    "",
+    "3 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!L27 [view-25]",
+    "",
+    "4 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!M27 [view-25]",
+    "",
+    "4 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!N27 [view-25]",
+    "",
+    "4 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!R27 [view-25]",
+    "",
+    "1 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!S27 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!T27 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!U27 [view-25]",
+    "",
+    "2 \u00b7 (blank)",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!V27 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!W27 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ]
+  ],
+  "new cells on this build": 5821
+ },
+ "two": {
+  "cells read on 28 Sep": 16543,
+  "tally": {
+   "figure moved, TIED -> TIED-WITHIN-SAMPLING": 12,
+   "same figure, same verdict": 16423,
+   "not read on this build": 53,
+   "same figure, TIED -> TIED-WITHIN-SAMPLING": 4,
+   "figure moved, same verdict": 51
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "Start here!B17",
+    "Pockets worse and material, charge-offs",
+    "4 of 81",
+    "4 of 81 \u00b7 1 borderline",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-00]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG N vs Y",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Paid, cost, kept!K21 [view-00]",
+    "FICO x CHANNEL \u00b7 712 - 745 \u00b7 Online \u00b7 together",
+    "Losing more, profit holding",
+    "Losing more, profit holding \u00b7 borderline (p 0.0501)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K26 [view-01]",
+    "Two-way \u00b7 Bad dollars \u00b7 ORIG_BAL 26,324 - 37,950 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.040)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Paid, cost, kept!K20 [view-01]",
+    "FICO x ASSET_CLASS \u00b7 496 - 653 \u00b7 4 \u00b7 together",
+    "Net drain",
+    "Net drain \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K22 [view-02]",
+    "Two-way \u00b7 Charge-offs \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.036)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!K34 [view-02]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG N vs Y \u00b7 Charge-offs \u00b7 686 - 711 \u00b7 Online \u00b7 p",
+    "0.0539946005399",
+    "borderline (p 0.054)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K22 [view-03]",
+    "Two-way \u00b7 Kept after losses \u00b7 FICO 496 - 653 \u00b7 ASSET_CLASS 4 \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K27 [view-03]",
+    "Two-way \u00b7 Kept after losses \u00b7 FICO 686 - 711 \u00b7 Broker \u00b7 worse",
+    "No",
+    "No \u00b7 borderline (p 0.057)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Paid, cost, kept!K20 [view-03]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 37,951 - 49,151 \u00b7 4 \u00b7 together",
+    "Losing more, profit holding",
+    "Losing more, profit holding \u00b7 borderline (p 0.036)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-05]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs N",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Pockets!K32 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.052)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K33 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 Online \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.058)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K34 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 ASSET_CLASS 1 \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.061)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K40 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 15,449 - 26,323 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.052)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K50 [view-06]",
+    "Split by SYS_FLAG \u00b7 Bad dollars \u00b7 ORIG_BAL 5,005 - 15,448 \u00b7 Online \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.052)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!K34 [view-06]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs N \u00b7 Bad dollars \u00b7 686 - 711 \u00b7 Online \u00b7 p",
+    "0.0461203879612",
+    "borderline (p 0.046)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K28 [view-07]",
+    "Split by SYS_FLAG \u00b7 Charge-offs \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 ASSET_CLASS 4 \u00b7 Y \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.044)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K33 [view-07]",
+    "Split by SYS_FLAG \u00b7 Charge-offs \u00b7 ORIG_BAL 26,324 - 37,950 \u00b7 ASSET_CLASS 4 \u00b7 Y \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.044)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K34 [view-07]",
+    "Split by SYS_FLAG \u00b7 Charge-offs \u00b7 ORIG_BAL 49,152 - 59,984 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Not sure",
+    "Not sure \u00b7 borderline (p 0.055)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-07]",
+    "FICO x ASSET_CLASS \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!K34 [view-07]",
+    "FICO x CHANNEL \u00b7 SYS_FLAG Y vs N \u00b7 Charge-offs \u00b7 686 - 711 \u00b7 Online \u00b7 p",
+    "0.0539946005399",
+    "borderline (p 0.054)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K24 [view-08]",
+    "Split by SYS_FLAG \u00b7 Kept after losses \u00b7 ORIG_BAL 37,951 - 49,151 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.046)",
+    "TIED",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Pockets!K28 [view-08]",
+    "Split by SYS_FLAG \u00b7 Kept after losses \u00b7 ORIG_BAL 15,449 - 26,323 \u00b7 Broker \u00b7 Y \u00b7 worse",
+    "Yes",
+    "Yes \u00b7 borderline (p 0.048)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-10]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs Y",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 24 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!L32 [view-11]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs Y \u00b7 Bad dollars \u00b7 496 - 653 \u00b7 4 \u00b7 p",
+    "0.04199580042",
+    "borderline (p 0.042)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J33 [view-12]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs Y \u00b7 Charge-offs \u00b7 654 - 685 \u00b7 2 \u00b7 p",
+    "0.04599540046",
+    "borderline (p 0.046)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-15]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs N",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 24 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!L32 [view-16]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs N \u00b7 Bad dollars \u00b7 496 - 653 \u00b7 4 \u00b7 p",
+    "0.04199580042",
+    "borderline (p 0.042)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!J33 [view-17]",
+    "FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs N \u00b7 Charge-offs \u00b7 654 - 685 \u00b7 2 \u00b7 p",
+    "0.04599540046",
+    "borderline (p 0.046)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-20]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG N vs Y",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 15 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: bigger in some pockets than others; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J35 [view-23]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG N vs Y \u00b7 Kept after losses \u00b7 37,951 - 49,151 \u00b7 Broker \u00b7 p",
+    "0.04199580042",
+    "borderline (p 0.042)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-25]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG Y vs N",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 15 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: bigger in some pockets than others; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J35 [view-28]",
+    "ORIG_BAL x CHANNEL \u00b7 SYS_FLAG Y vs N \u00b7 Kept after losses \u00b7 37,951 - 49,151 \u00b7 Broker \u00b7 p",
+    "0.04199580042",
+    "borderline (p 0.042)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-30]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG N vs Y",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 20 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J32 [view-33]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG N vs Y \u00b7 Kept after losses \u00b7 5,005 - 15,448 \u00b7 2 \u00b7 p",
+    "0.0519948005199",
+    "borderline (p 0.052)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Split!B25 [view-35]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG Y vs N",
+    "Do the values of SYS_FLAG differ at all? Bad loans: yes (p-value under 0.0001, on 1 degree of freedom, 20 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "Same in every pocket? Bad loans: no sign the gap differs between pockets; Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Split!J32 [view-38]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 SYS_FLAG Y vs N \u00b7 Kept after losses \u00b7 5,005 - 15,448 \u00b7 2 \u00b7 p",
+    "0.0589941005899",
+    "borderline (p 0.059)",
+    "TIED-WITHIN-SAMPLING",
+    "TIED-WITHIN-SAMPLING"
+   ],
+   [
+    "Grids!C45 [view-40]",
+    "FICO x CHANNEL \u00b7 Bad loans \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-41]",
+    "FICO x CHANNEL \u00b7 Kept after losses \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-42]",
+    "FICO x CHANNEL \u00b7 Bad loans \u00b7 (marked missing) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 51 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-44]",
+    "FICO x CHANNEL \u00b7 Charge-offs \u00b7 (blank) \u00b7 Broker \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-46]",
+    "FICO x ASSET_CLASS \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-47]",
+    "FICO x ASSET_CLASS \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-48]",
+    "FICO x ASSET_CLASS \u00b7 Bad loans \u00b7 (marked missing) \u00b7 1 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 42 loans, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-52]",
+    "ORIG_BAL x CHANNEL \u00b7 Bad loans \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-53]",
+    "ORIG_BAL x CHANNEL \u00b7 Kept after losses \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-55]",
+    "ORIG_BAL x CHANNEL \u00b7 Charge-offs \u00b7 (blank) \u00b7 Branch \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-57]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-58]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-60]",
+    "ORIG_BAL x ASSET_CLASS \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-62]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 Broker \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-63]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 Broker \u00b7 Y \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-66]",
+    "FICO x CHANNEL / SYS_FLAG \u00b7 Charge-offs \u00b7 (blank) \u00b7 Broker \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-68]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-69]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is pale, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-72]",
+    "FICO x ASSET_CLASS / SYS_FLAG \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-74]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 Branch \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-75]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 Branch \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-78]",
+    "ORIG_BAL x CHANNEL / SYS_FLAG \u00b7 Charge-offs \u00b7 (blank) \u00b7 Branch \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-80]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Bad loans \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-81]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Kept after losses \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Grids!C45 [view-84]",
+    "ORIG_BAL x ASSET_CLASS / SYS_FLAG \u00b7 Charge-offs \u00b7 (blank) \u00b7 2 \u00b7 Y \u00b7 The colour",
+    "vs the book is blank, vs rest of band blank. Red is worse, green better, deeper a bigger gap. It is the size of the gap, not a test.",
+    "Grey: only 1 loan, fewer than the 65 set on Control, so not coloured.",
+    "TIED",
+    "TIED"
+   ]
+  ],
+  "not read now": [
+   [
+    "Start here!C1",
+    "",
+    "Two-flag book.csv \u00b7 8,000 loans \u00b7 11 columns \u00b7 last Run 2026-09-29 21:05",
+    "TIED"
+   ],
+   [
+    "Start here!C21",
+    "",
+    "ASSET_CLASS 4",
+    "NAME"
+   ],
+   [
+    "Start here!C22",
+    "",
+    "ASSET_CLASS 4",
+    "NAME"
+   ],
+   [
+    "Look!C20",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C21",
+    "",
+    "550",
+    "ECHO"
+   ],
+   [
+    "Look!C22",
+    "",
+    "850",
+    "ECHO"
+   ],
+   [
+    "Look!C39",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C40",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C41",
+    "",
+    "60000",
+    "ECHO"
+   ],
+   [
+    "Look!C58",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C59",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C60",
+    "",
+    "30000",
+    "ECHO"
+   ],
+   [
+    "Record!E68",
+    "",
+    "2026-09-29 21:05",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!E69",
+    "",
+    "2026-09-29 21:05",
+    "NOT A FIGURE"
+   ],
+   [
+    "Pockets!D8 [view-00]",
+    "",
+    "The chance of a gap at least this big if the pocket were no different from the rest, after the allowance for testing many pockets at once (Benjamini-Hochberg, across one grid and one measure). Bad loans: the z test, or the exact test for a pocket under 65 loans. Dollar measures: the loans are shuffled 10,000 times, within the band for the rest of its band, and it is how often a gap as big turned up. Under 5% counts.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Pockets!K13 [view-00]",
+    "",
+    "Order and \"Could have caught\" are from the last Run, 2026-09-29 21:05.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C5 [view-00]",
+    "",
+    "The pocket's rate over the book's: 2.00\u00d7 goes bad twice as often as the book. Kept after losses and Earned before losses are a gap in points instead.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C7 [view-00]",
+    "",
+    "Red is worse, green better, pale in line: 0.5\u00d7 and under the greenest, 2\u00d7 and over the deepest red; for a gap in points, the largest in the grid is the deepest. A blank: alone in its band, or fewer losses than fewest losses on Control, so not compared (a setting for the next Run).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!C8 [view-00]",
+    "",
+    "The chance of a gap at least this big if the value were no different from the rest. Under 5% counts, and is bold. Bad loans: the gap in standard errors; a dollar measure: the loans dealt at random inside their pocket, 10,000 times. The allowance for many tests (Benjamini-Hochberg) covers every value and pocket of one grid and measure, and the summary's p-values across the values; a gap that is not significant is in brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums (65 loans, 10 losses).",
+    "NOT A FIGURE"
+   ],
+   [
+    "Split!I12 [view-00]",
+    "",
+    "The numbers are from the last Run, 2026-09-29 21:05.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Paid, cost, kept!M12 [view-00]",
+    "",
+    "The order is from the last Run, 2026-09-29 21:05.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C16 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!D16 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!E16 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!F16 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!G16 [view-25]",
+    "",
+    "3 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!H16 [view-25]",
+    "",
+    "3 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!I16 [view-25]",
+    "",
+    "4 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!J16 [view-25]",
+    "",
+    "4 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!N16 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!O16 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!P16 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!Q16 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!R16 [view-25]",
+    "",
+    "3 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!S16 [view-25]",
+    "",
+    "3 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!T16 [view-25]",
+    "",
+    "4 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!U16 [view-25]",
+    "",
+    "4 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!C27 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!D27 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!E27 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!F27 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!G27 [view-25]",
+    "",
+    "3 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!H27 [view-25]",
+    "",
+    "3 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!I27 [view-25]",
+    "",
+    "4 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!J27 [view-25]",
+    "",
+    "4 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!N27 [view-25]",
+    "",
+    "1 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!O27 [view-25]",
+    "",
+    "1 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!P27 [view-25]",
+    "",
+    "2 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!Q27 [view-25]",
+    "",
+    "2 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!R27 [view-25]",
+    "",
+    "3 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!S27 [view-25]",
+    "",
+    "3 \u00b7 Y",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!T27 [view-25]",
+    "",
+    "4 \u00b7 N",
+    "NOT A FIGURE"
+   ],
+   [
+    "Grids!U27 [view-25]",
+    "",
+    "4 \u00b7 Y",
+    "NOT A FIGURE"
+   ]
+  ],
+  "new cells on this build": 4622
+ },
+ "bureau": {
+  "cells read on 28 Sep": 159,
+  "tally": {
+   "same figure, same verdict": 145,
+   "same figure, ECHO -> TIED": 2,
+   "not read on this build": 12
+  },
+  "tied then, not now": [],
+  "figures that moved": [],
+  "not read now": [
+   [
+    "Look!C20",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C21",
+    "",
+    "550",
+    "ECHO"
+   ],
+   [
+    "Look!C22",
+    "",
+    "850",
+    "ECHO"
+   ],
+   [
+    "Look!C39",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C40",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C41",
+    "",
+    "60000",
+    "ECHO"
+   ],
+   [
+    "Look!C58",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C59",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C60",
+    "",
+    "30000",
+    "ECHO"
+   ],
+   [
+    "Look!C77",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C78",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C79",
+    "",
+    "450",
+    "ECHO"
+   ]
+  ],
+  "new cells on this build": 153
+ },
+ "scout": {
+  "cells read on 28 Sep": 1192,
+  "tally": {
+   "figure moved, same verdict": 7,
+   "same figure, same verdict": 1141,
+   "not read on this build": 44
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "Start here!C1",
+    "C1",
+    "Scouting book.csv \u00b7 12,000 loans \u00b7 19 columns \u00b7 last Run 2026-09-29 21:02",
+    "Scouting book.csv \u00b7 12,000 loans \u00b7 19 columns \u00b7 last Run 2026-09-30 04:36",
+    "TIED",
+    "TIED"
+   ],
+   [
+    "Record!C21",
+    "C21",
+    "Written by this Run: Scouting book - pre-spec.yaml, beside the workbook, fingerprint 5d4db8ba48be, before any",
+    "Written by this Run: Scouting book - pre-spec.yaml, beside the workbook, fingerprint 374284797598, before any",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!C27",
+    "C27",
+    "5d4db8ba48be: the first 12 characters of the file's SHA-256, so any change to it shows",
+    "374284797598: the first 12 characters of the file's SHA-256, so any change to it shows",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!C28",
+    "C28",
+    "written: 2026-09-29",
+    "written: 2026-09-30",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!C52",
+    "C52",
+    "In order: this run (5d4db8ba48be).",
+    "In order: this run (374284797598).",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!F86",
+    "F86",
+    "2026-09-29: fingerprint 5d4db8ba48be.",
+    "2026-09-30: fingerprint 374284797598.",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ],
+   [
+    "Record!F89",
+    "F89",
+    "Pre-spec Scouting book - pre-spec.yaml written: fingerprint 5d4db8ba48be, dated 2026-09-29 in the file;",
+    "Pre-spec Scouting book - pre-spec.yaml written: fingerprint 374284797598, dated 2026-09-30 in the file;",
+    "NOT A FIGURE",
+    "NOT A FIGURE"
+   ]
+  ],
+  "not read now": [
+   [
+    "Scouting!C16",
+    "",
+    "The last Run, 2026-09-29 21:02. Nothing here follows Control until the next Run.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Scouting!B21",
+    "",
+    "Worked out at the last Run, 2026-09-29 21:02, on the development loans. Ranked by the larger of the two importances.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Scouting!B39",
+    "",
+    "Written by this Run: Scouting book - pre-spec.yaml, beside the workbook, fingerprint 5d4db8ba48be, before any held-back loan was tested. Edit it if you like; Record logs every change.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Scouting!B41",
+    "",
+    "# Written by PocketBook's scouting on 2026-09-29, from 8,394 development loans made 2021-06-30 to 2024-10-31.",
+    "TIED"
+   ],
+   [
+    "Scouting!B44",
+    "",
+    "written: 2026-09-29",
+    "NOT A FIGURE"
+   ],
+   [
+    "New variables!C20",
+    "",
+    "The numbers are the last Run's, 2026-09-29 21:02. Holds up?, Still holds?, Material?, In words, every range and the chart's worse line follow Control.",
+    "NOT A FIGURE"
+   ],
+   [
+    "New variables!B25",
+    "",
+    "The numbers are from the last Run, 2026-09-29 21:02. The verdicts, the materiality line and the chart's worse line follow Control.",
+    "NOT A FIGURE"
+   ],
+   [
+    "Look!C20",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C21",
+    "",
+    "550",
+    "ECHO"
+   ],
+   [
+    "Look!C22",
+    "",
+    "850",
+    "ECHO"
+   ],
+   [
+    "Look!C39",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C40",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C41",
+    "",
+    "60000",
+    "ECHO"
+   ],
+   [
+    "Look!C58",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C59",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C60",
+    "",
+    "30000",
+    "ECHO"
+   ],
+   [
+    "Look!C77",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C78",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C79",
+    "",
+    "800000",
+    "ECHO"
+   ],
+   [
+    "Look!C96",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C97",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C98",
+    "",
+    "1400000",
+    "ECHO"
+   ],
+   [
+    "Look!C115",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C116",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C117",
+    "",
+    "1.2",
+    "ECHO"
+   ],
+   [
+    "Look!C134",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C135",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C136",
+    "",
+    "30",
+    "ECHO"
+   ],
+   [
+    "Look!C153",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C154",
+    "",
+    "10",
+    "ECHO"
+   ],
+   [
+    "Look!C155",
+    "",
+    "90",
+    "ECHO"
+   ],
+   [
+    "Look!C172",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C173",
+    "",
+    "10",
+    "ECHO"
+   ],
+   [
+    "Look!C174",
+    "",
+    "80",
+    "ECHO"
+   ],
+   [
+    "Look!C191",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C192",
+    "",
+    "7.5",
+    "ECHO"
+   ],
+   [
+    "Look!C193",
+    "",
+    "12.5",
+    "ECHO"
+   ],
+   [
+    "Look!C210",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C211",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C212",
+    "",
+    "100",
+    "ECHO"
+   ],
+   [
+    "Look!C229",
+    "",
+    "20",
+    "ECHO"
+   ],
+   [
+    "Look!C230",
+    "",
+    "0",
+    "ECHO"
+   ],
+   [
+    "Look!C231",
+    "",
+    "3.5",
+    "ECHO"
+   ],
+   [
+    "Record!E82",
+    "",
+    "2026-09-29 21:02",
+    "NOT A FIGURE"
+   ]
+  ],
+  "new cells on this build": 471
+ },
+ "excel": {
+  "cells read on 28 Sep": 43,
+  "tally": {
+   "same figure, same verdict": 39,
+   "not read on this build": 3,
+   "figure moved, same verdict": 1
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "_views!A:ZZ [every row]",
+    "every number the result tabs read",
+    "1520 rows, 0 differ",
+    "1915 rows, 0 differ",
+    "TIED",
+    "TIED"
+   ]
+  ],
+  "not read now": [
+   [
+    "Grids!F13 [dropdown]",
+    "list '_choices'!$I$2:$I$6",
+    "Bad loans; Bad dollars; Charge-offs; Kept after losses; Earned before losses",
+    "TIED"
+   ],
+   [
+    "Split!B15 [dropdown]",
+    "list '_choices'!$M$2:$M$5",
+    "FICO x CHANNEL; FICO x ASSET_CLASS; ORIG_BAL x CHANNEL; ORIG_BAL x ASSET_CLASS",
+    "TIED"
+   ],
+   [
+    "Split!B26 [dropdown]",
+    "list '_choices'!$N$2:$N$6",
+    "Bad loans; Bad dollars; Charge-offs; Kept after losses; Earned before losses",
+    "TIED"
+   ]
+  ],
+  "new cells on this build": 4
+ },
+ "excel-flag": {
+  "cells read on 28 Sep": 43,
+  "tally": {
+   "same figure, same verdict": 39,
+   "not read on this build": 3,
+   "figure moved, same verdict": 1
+  },
+  "tied then, not now": [],
+  "figures that moved": [
+   [
+    "_views!A:ZZ [every row]",
+    "every number the result tabs read",
+    "2144 rows, 0 differ",
+    "6687 rows, 0 differ",
+    "TIED",
+    "TIED"
+   ]
+  ],
+  "not read now": [
+   [
+    "Grids!F13 [dropdown]",
+    "list '_choices'!$I$2:$I$6",
+    "Bad loans; Bad dollars; Charge-offs; Kept after losses; Earned before losses",
+    "TIED"
+   ],
+   [
+    "Split!B16 [dropdown]",
+    "list '_choices'!$M$2:$M$13",
+    "FICO x CHANNEL \u00b7 SYS_FLAG N vs rest; FICO x CHANNEL \u00b7 SYS_FLAG Y vs rest; FICO x CHANNEL \u00b7 SYS_FLAG (blank) vs rest; FICO x ASSET_CLASS \u00b7 SYS_FLAG N vs rest; FICO x ASSET_CLASS \u00b7 SYS_FLAG Y vs rest; F",
+    "TIED"
+   ],
+   [
+    "Split!B28 [dropdown]",
+    "list '_choices'!$N$2:$N$6",
+    "Bad loans; Bad dollars; Charge-offs; Kept after losses; Earned before losses",
+    "TIED"
+   ]
+  ],
+  "new cells on this build": 4
+ }
+}

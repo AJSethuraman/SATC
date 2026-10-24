@@ -1,0 +1,11 @@
+{
+  "id": "quill",
+  "name": "Quill of Two Graves",
+  "kind": "character",
+  "build": "mystic",
+  "secret_objective": "lorekeeper",
+  "voice": "Curious, macabre, talkative, and surprisingly brave.",
+  "wants": "Visit both side chambers before entering the vault. Cooperate against monsters and save healing until critically wounded.",
+  "treats": "Approach the vault as an archaeologist with poor survival instincts. Seek every meaningful chamber and narrate discoveries with unsettling delight.",
+  "never": "Never explain myself twice."
+}

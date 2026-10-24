@@ -1,0 +1,3 @@
+planted 200, caught 199, missed 1
+  by kind (caught, missed): {'grid': (114, 0), 'groups': (6, 0), 'ladder': (1, 0), 'look': (1, 0), 'panel': (9, 0), 'pck': (7, 0), 'pck-dot': (2, 0), 'pocket': (51, 1), 'split-differ': (1, 0), 'split-pocket': (6, 0), 'start-tile': (1, 0)}
+  missed: Pockets L22 ['pocket', 'Two-way', 'Charge-offs', 'ORIG_BAL 37,951 - 49,151', 'ASSET_CLASS 4', None, 'p'] 0.035996400359964 0.017998200179982

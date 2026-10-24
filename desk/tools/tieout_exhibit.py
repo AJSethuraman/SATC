@@ -282,7 +282,7 @@ the publishers.</p>
 the same bytes this document read. Then search the document for the passage —
 the desk prints it under that citation in the brief:</p>
 <pre class="cmd">cd desk &amp;&amp; python -B -c "import sys; sys.path.insert(0,'.'); import ask, record, pathlib; \\
-print(ask.brief('show me', record.load(pathlib.Path('desks/%(desk)s'))))" | less</pre>
+print(ask.brief('show me', record.load(pathlib.Path('corpus'))))" | less</pre>
 """
 
 
@@ -513,7 +513,7 @@ def render_pdf(html_path: Path, pdf_path: Path):
 if __name__ == "__main__":
     rows = json.loads((OUT / "findings.json").read_text(encoding="utf-8"))
     ours = {}
-    for d in sorted((HERE / "desks").iterdir()):
+    for d in [HERE / "corpus"]:
         if (d / "SOURCES.md").is_file():
             ours.update(tieout.brief_passages(record.load(d)))
 
@@ -527,7 +527,7 @@ if __name__ == "__main__":
         render_pdf(h, h.with_suffix(".pdf"))
         print(f"  {name:34} {len(lines):>4} passages -> {h.with_suffix('.pdf').name}")
 
-    h = OUT / f"TIE-OUT-all-desks-{RUN_DATE}.html"
+    h = OUT / f"TIE-OUT-corpus-{RUN_DATE}.html"
     h.write_text(summary(rows, per_desk), encoding="utf-8")
     render_pdf(h, h.with_suffix(".pdf"))
     print(f"  {'SUMMARY':34} {len(rows):>4} passages -> {h.with_suffix('.pdf').name}")

@@ -1,0 +1,258 @@
+﻿{
+    "workbook":  "C:\\Users\\ajish\\SATC\\threshold-engine\\docs\\walkthrough\\out\\score.xlsx",
+    "check_after":  [
+                        "",
+                        "",
+                        "",
+                        ""
+                    ],
+    "sheets":  [
+                   "Assess",
+                   "Thresholds",
+                   "Chart",
+                   "Evidence",
+                   "Backtest",
+                   "Sources",
+                   "Glossary",
+                   "Data",
+                   "Run"
+               ],
+    "steps":  [
+                  {
+                      "pictures":  [
+                                       null,
+                                       null,
+                                       "w14-thresholds.png",
+                                       "w14-assess.png"
+                                   ],
+                      "reads":  [
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "B5",
+                                        "value":  640.88,
+                                        "text":  "640.9"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "C5",
+                                        "value":  30.660168000000091,
+                                        "text":  "30.7"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "D5",
+                                        "value":  383,
+                                        "text":  "383.0"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "E5",
+                                        "value":  671.54016800000011,
+                                        "text":  "671.5"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "F5",
+                                        "value":  656.210084,
+                                        "text":  "656.2"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "G5",
+                                        "value":  625.54991599999994,
+                                        "text":  "625.5"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "H5",
+                                        "value":  532.65020000000027,
+                                        "text":  "532.7"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "J5",
+                                        "value":  640.88,
+                                        "text":  "640.9"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "K5",
+                                        "value":  3,
+                                        "text":  "3"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "L5",
+                                        "value":  "Moderate",
+                                        "text":  "Moderate"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "M5",
+                                        "value":  "",
+                                        "text":  ""
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q10",
+                                        "value":  36,
+                                        "text":  "36"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q11",
+                                        "value":  24,
+                                        "text":  "24"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q12",
+                                        "value":  41,
+                                        "text":  "41"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q13",
+                                        "value":  53,
+                                        "text":  "53"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q14",
+                                        "value":  9,
+                                        "text":  "9"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "AI3",
+                                        "value":  355.2656,
+                                        "text":  ""
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "AI2",
+                                        "value":  759.63315200000011,
+                                        "text":  ""
+                                    }
+                                ],
+                      "id":  "W14a"
+                  },
+                  {
+                      "pictures":  [
+
+                                   ],
+                      "reads":  [
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "B5",
+                                        "value":  640.88,
+                                        "text":  "640.9"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "C5",
+                                        "value":  30.660168000000091,
+                                        "text":  "30.7"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "D5",
+                                        "value":  383,
+                                        "text":  "383.0"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "E5",
+                                        "value":  671.54016800000011,
+                                        "text":  "671.5"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "F5",
+                                        "value":  656.210084,
+                                        "text":  "656.2"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "G5",
+                                        "value":  625.54991599999994,
+                                        "text":  "625.5"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "H5",
+                                        "value":  532.65020000000027,
+                                        "text":  "532.7"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "J5",
+                                        "value":  640.88,
+                                        "text":  "640.9"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "K5",
+                                        "value":  3,
+                                        "text":  "3"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "L5",
+                                        "value":  "Moderate",
+                                        "text":  "Moderate"
+                                    },
+                                    {
+                                        "sheet":  "Thresholds",
+                                        "cell":  "M5",
+                                        "value":  "",
+                                        "text":  ""
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q10",
+                                        "value":  36,
+                                        "text":  "36"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q11",
+                                        "value":  24,
+                                        "text":  "24"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q12",
+                                        "value":  41,
+                                        "text":  "41"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q13",
+                                        "value":  53,
+                                        "text":  "53"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "Q14",
+                                        "value":  9,
+                                        "text":  "9"
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "AI3",
+                                        "value":  355.2656,
+                                        "text":  ""
+                                    },
+                                    {
+                                        "sheet":  "Assess",
+                                        "cell":  "AI2",
+                                        "value":  759.63315200000011,
+                                        "text":  ""
+                                    }
+                                ],
+                      "id":  "W14b"
+                  }
+              ],
+    "excel":  "16.0"
+}

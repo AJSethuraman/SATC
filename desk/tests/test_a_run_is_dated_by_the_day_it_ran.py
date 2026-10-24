@@ -85,3 +85,54 @@ def test_the_guard_can_actually_fail():
     assert _TYPED_RUN.search('p = Path("runs/2026-09-04")')
     assert not _TYPED_RUN.search('d = ROOT / "runs" / today.isoformat()')
     assert not _TYPED_RUN.search('f"asked-{RUN_DAY}"')
+
+
+# ---------------------------------------------------------------------------
+# THE SAME BUG, ONE DIRECTORY OVER. The briefs learned to write to the day they
+# ran on; `serve_answers` went on writing to `runs/asked-<today>` whatever
+# answers file it was handed. So re-serving the 5 September answers on the 7th
+# put the result in a run it did not come from, and the evening's re-ask had to
+# be lifted into its own directory by hand.
+#
+# A record of what the desks DID belongs beside the input that produced it. Any
+# other rule makes the two drift, and neither one says which.
+
+
+def test_a_served_run_lands_beside_the_answers_it_served(tmp_path, monkeypatch):
+    answers = tmp_path / "somewhere-else" / "answers.json"
+    answers.parent.mkdir()
+    real = HERE / "runs" / "reasked-2026-09-07-evening" / "answers.json"
+    answers.write_text(real.read_text(encoding="utf-8"), encoding="utf-8")
+
+    assert ask_the_desks.serve_answers(answers) == 0
+    assert (answers.parent / "served.json").is_file()
+    # AND NOT IN TODAY'S RUN, which is the half that was wrong.
+    assert not (ask_the_desks.BRIEFS / "served.json").exists() or (
+        ask_the_desks.BRIEFS / "served.json").read_text(encoding="utf-8") != (
+        answers.parent / "served.json").read_text(encoding="utf-8")
+
+
+def test_a_refusal_records_the_fact_and_the_position_that_asked(tmp_path):
+    """THE CHAIN THE FIRM MADE A CONDITION. `engine.Refusal` sets `fact` and
+    `by_position` together on the refusals that turn on a fact, because the firm
+    approved a desk asking for a field -- *"that seems low stakes and required
+    and i would approve it fairly easily"* -- only on the ask arriving with
+    which position wanted it. This writer kept the reason and the prose and
+    dropped both, so `tools/holes.py` printed a run's holes unable to name
+    either, and the only route back was parsing a sentence."""
+    import json
+
+    answers = tmp_path / "answers.json"
+    real = HERE / "runs" / "reasked-2026-09-07-evening" / "answers.json"
+    answers.write_text(real.read_text(encoding="utf-8"), encoding="utf-8")
+    assert ask_the_desks.serve_answers(answers) == 0
+
+    rows = json.loads((tmp_path / "served.json").read_text(encoding="utf-8"))
+    named = [r for r in rows if r.get("fact")]
+    assert named, "no refusal named a fact; the close run has five"
+    for r in named:
+        assert r["by_position"], (
+            f"Q{r['q']} asks for {r['fact']!r} with no position behind it — "
+            "a field request with no chain is what the condition forbids")
+    assert all(not r["fact"] and not r["by_position"]
+               for r in rows if r["served"]), "a served answer carried a chain"

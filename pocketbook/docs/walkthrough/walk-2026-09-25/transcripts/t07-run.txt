@@ -1,0 +1,404 @@
+$ cube run cube.yaml --data demo/loans.csv
+Cube: loans   (demo/loans.csv, 2,000 rows)
+Tie-out: 44 of 44 checks agree (every grid adds up to the book; medians are not added up, by design)
+
+WARNINGS
+  - `GCO_AMT` is not cut by: it is the top of a rate, so cutting by it would cut the book by its own outcome
+  - `RANR_AMT` is not cut by: it is the top of a rate, so cutting by it would cut the book by its own outcome
+
+Left out of a figure, and counted rather than read as zero
+  outcome_loans: 1 rows (1 x BAD_FLAG flag not 0 or 1)
+  outcome_booked: 2 rows (1 x BAD_FLAG flag not 0 or 1; 1 x ORIG_BAL blank)
+  gco_rate: 2 rows (1 x GCO_AMT not a number; 1 x ORIG_BAL blank)
+  ranr_rate: 1 rows (1 x ORIG_BAL blank)
+
+Topline (the whole book)
+  outcome_loans      4.80%   COUNT(loans where BAD_FLAG = 1) / COUNT(loans)   (1,999 loans)
+  outcome_booked     4.66%   SUM(ORIG_BAL where BAD_FLAG = 1) / SUM(ORIG_BAL)   (1,998 loans)
+  gco_rate           2.58%   SUM(GCO_AMT) / SUM(ORIG_BAL)   (1,998 loans)
+  ranr_rate          0.28%   SUM(RANR_AMT) / SUM(ORIG_BAL)   (1,999 loans)
+  loans              2,000   Loans (rows)
+
+Band edges used
+  fico: 653, 684, 714, 745.4
+  orig_bal: 15327.1, 26463.9, 39152.5, 49789.1
+
+What this book can show (evidence for your settings, not a setting)
+  outcome_loans: about 1,083 loans before a 1.4x gap can be told from luck 80% of the time at 95% confidence (54.2% of this book's loans)
+  outcome_booked: about 1,393 loans before a 1.4x gap can be told from luck 80% of the time at 95% confidence (69.7% of this book's loans)
+  gco_rate: about 1,459 loans before a 1.4x gap can be told from luck 80% of the time at 95% confidence (73.0% of this book's loans)
+  ranr_rate: about 212 loans before a 1.4x gap can be told from luck 80% of the time at 95% confidence (10.6% of this book's loans)
+  A pocket smaller than that can still show a bigger gap; each pocket below says the
+  smallest gap its size could show.
+
+Grid fico x channel - outcome_loans: COUNT(loans where BAD_FLAG = 1) / COUNT(loans)   topline 4.80%, median of cells 3.68%
+  each cell: rate, then rate over topline
+                                      Branch                  Broker                  Online                     All
+under 653                  4.62%       0.96x      17.69%       3.68x       6.35%       1.32x       9.59%       2.00x
+653 to under 684           2.90%       0.60x       8.66%       1.80x       7.14%       1.49x       6.14%       1.28x
+684 to under 714           1.60%       0.33x       3.68%       0.77x       1.49%       0.31x       2.28%       0.47x
+714 to under 745.4         5.34%       1.11x       4.69%       0.98x       2.22%       0.46x       4.06%       0.85x
+745.4 and over             1.48%       0.31x       3.25%       0.68x       2.24%       0.47x       2.30%       0.48x
+(blank)                                                                    0.00%       0.00x       0.00%       0.00x
+(missing by rule)          0.00%       0.00x       5.56%       1.16x       0.00%       0.00x       2.50%       0.52x
+All                        3.14%       0.65x       7.55%       1.57x       3.74%       0.78x       4.80%       1.00x
+  Where it bleeds: excess loans where BAD_FLAG = 1 over the topline rate, largest first
+    under 653 / Broker: 17 over, 130 loans
+      share of losses / share of volume 3.68x
+      vs rest of book 4.53x (p <0.0001): worse than benchmark
+      vs rest of band 3.24x (p 0.0008): worse than benchmark
+      this many loans can show a gap of 2.26x or more
+    653 to under 684 / Broker: 5 over, 127 loans
+      share of losses / share of volume 1.80x
+      vs rest of book 1.91x (p 0.1063): gap could be luck
+      vs rest of band 1.76x (p 0.1880): gap could be luck
+      this many loans can show a gap of 2.28x or more
+    653 to under 684 / Online: 3 over, 126 loans
+      share of losses / share of volume 1.49x
+      vs rest of book 1.54x (p 0.2887): gap could be luck
+      vs rest of band 1.26x (p 0.5840): in line
+      this many loans can show a gap of 2.28x or more
+    under 653 / Online: 2 over, 126 loans
+      share of losses / share of volume 1.32x
+      vs rest of book 1.35x (p 0.4602): in line
+      vs rest of band 0.57x (p 0.1010): gap could be luck
+      this many loans can show a gap of 2.28x or more
+    714 to under 745.4 / Branch: 1 over, 131 loans
+      share of losses / share of volume 1.11x
+      vs rest of book 1.12x (p 0.7758): in line
+      vs rest of band 1.56x (p 0.3973): gap could be luck
+      this many loans can show a gap of 2.25x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (0): 5 pocket(s), 100% of this grid's excess
+     1.0% of book losses (1): 4 pocket(s), 97% of this grid's excess
+     2.0% of book losses (2): 4 pocket(s), 97% of this grid's excess
+     5.0% of book losses (5): 2 pocket(s), 79% of this grid's excess
+    10.0% of book losses (10): 1 pocket(s), 61% of this grid's excess
+
+Grid fico x channel - outcome_booked: SUM(ORIG_BAL where BAD_FLAG = 1) / SUM(ORIG_BAL)   topline 4.66%, median of cells 4.19%
+  each cell: rate, then rate over topline
+                                      Branch                  Broker                  Online                     All
+under 653                  5.94%       1.27x      15.81%       3.39x       6.58%       1.41x       9.52%       2.04x
+653 to under 684           2.75%       0.59x       7.96%       1.71x       5.79%       1.24x       5.40%       1.16x
+684 to under 714           1.30%       0.28x       4.79%       1.03x       0.57%       0.12x       2.20%       0.47x
+714 to under 745.4         5.68%       1.22x       4.19%       0.90x       2.01%       0.43x       3.87%       0.83x
+745.4 and over             2.50%       0.54x       2.44%       0.52x       2.18%       0.47x       2.37%       0.51x
+(blank)                                                                    0.00%       0.00x       0.00%       0.00x
+(missing by rule)          0.00%       0.00x       7.51%       1.61x       0.00%       0.00x       3.98%       0.85x
+All                        3.50%       0.75x       7.14%       1.53x       3.39%       0.73x       4.66%       1.00x
+  Where it bleeds: excess ORIG_BAL on loans where BAD_FLAG = 1 over the topline rate, largest first
+    under 653 / Broker: 484,695 over, 130 loans
+      share of losses / share of volume 3.39x
+      vs rest of book 4.08x (p 0.0007): worse than benchmark
+      vs rest of band 2.52x (p 0.0155): worse than benchmark
+      this many loans can show a gap of 2.45x or more
+    653 to under 684 / Broker: 134,627 over, 127 loans
+      share of losses / share of volume 1.71x
+      vs rest of book 1.79x (p 0.1882): gap could be luck
+      vs rest of band 1.89x (p 0.2056): gap could be luck
+      this many loans can show a gap of 2.47x or more
+    under 653 / Online: 85,648 over, 126 loans
+      share of losses / share of volume 1.41x
+      vs rest of book 1.46x (p 0.4395): gap could be luck
+      vs rest of band 0.59x (p 0.1858): gap could be luck
+      this many loans can show a gap of 2.48x or more
+    under 653 / Branch: 50,741 over, 130 loans
+      share of losses / share of volume 1.27x
+      vs rest of book 1.30x (p 0.5913): in line
+      vs rest of band 0.53x (p 0.1151): gap could be luck
+      this many loans can show a gap of 2.45x or more
+    653 to under 684 / Online: 47,977 over, 126 loans
+      share of losses / share of volume 1.24x
+      vs rest of book 1.26x (p 0.5988): in line
+      vs rest of band 1.11x (p 0.8283): in line
+      this many loans can show a gap of 2.48x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (15,238): 7 pocket(s), 99% of this grid's excess
+     1.0% of book losses (30,476): 6 pocket(s), 97% of this grid's excess
+     2.0% of book losses (60,952): 3 pocket(s), 81% of this grid's excess
+     5.0% of book losses (152,381): 1 pocket(s), 56% of this grid's excess
+    10.0% of book losses (304,761): 1 pocket(s), 56% of this grid's excess
+
+Grid fico x channel - gco_rate: SUM(GCO_AMT) / SUM(ORIG_BAL)   topline 2.58%, median of cells 2.06%
+  each cell: rate, then rate over topline
+                                      Branch                  Broker                  Online                     All
+under 653                  3.12%       1.21x       8.84%       3.42x       3.62%       1.40x       5.24%       2.03x
+653 to under 684           1.37%       0.53x       4.86%       1.88x       3.66%       1.42x       3.24%       1.25x
+684 to under 714           0.63%       0.24x       2.50%       0.97x       0.33%       0.13x       1.14%       0.44x
+714 to under 745.4         2.64%       1.02x       2.06%       0.80x       0.86%       0.33x       1.81%       0.70x
+745.4 and over             1.65%       0.64x       1.20%       0.46x       1.38%       0.54x       1.41%       0.55x
+(blank)                                                                    0.00%       0.00x       0.00%       0.00x
+(missing by rule)          0.00%       0.00x       5.54%       2.14x       0.00%       0.00x       2.93%       1.13x
+All                        1.82%       0.70x       4.00%       1.55x       1.95%       0.75x       2.58%       1.00x
+  Where it bleeds: excess GCO_AMT over the topline rate, largest first
+    under 653 / Broker: 271,988 over, 130 loans
+      share of losses / share of volume 3.42x
+      vs rest of book 4.14x (p 0.0007): worse than benchmark
+      vs rest of band 2.61x (p 0.0132): worse than benchmark
+      this many loans can show a gap of 2.49x or more
+    653 to under 684 / Broker: 93,234 over, 127 loans
+      share of losses / share of volume 1.88x
+      vs rest of book 2.00x (p 0.1370): gap could be luck
+      vs rest of band 1.96x (p 0.1885): gap could be luck
+      this many loans can show a gap of 2.51x or more
+    under 653 / Online: 46,110 over, 126 loans
+      share of losses / share of volume 1.40x
+      vs rest of book 1.44x (p 0.4740): gap could be luck
+      vs rest of band 0.59x (p 0.1989): gap could be luck
+      this many loans can show a gap of 2.52x or more
+    653 to under 684 / Online: 45,774 over, 126 loans
+      share of losses / share of volume 1.42x
+      vs rest of book 1.46x (p 0.4391): gap could be luck
+      vs rest of band 1.21x (p 0.7122): in line
+      this many loans can show a gap of 2.52x or more
+    (missing by rule) / Broker: 23,304 over, 18 loans
+      share of losses / share of volume 2.14x
+      vs rest of book 2.17x (p 0.5831): too few loans to test
+      vs rest of band  (p 0.3089): None
+      this many loans can show a gap of 5.87x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (8,433): 6 pocket(s), 100% of this grid's excess
+     1.0% of book losses (16,865): 6 pocket(s), 100% of this grid's excess
+     2.0% of book losses (33,731): 4 pocket(s), 91% of this grid's excess
+     5.0% of book losses (84,327): 2 pocket(s), 72% of this grid's excess
+    10.0% of book losses (168,654): 1 pocket(s), 54% of this grid's excess
+
+Grid fico x channel - ranr_rate: SUM(RANR_AMT) / SUM(ORIG_BAL)   topline 0.28%, median of cells 0.30%
+  each cell: rate, then rate over topline
+                                      Branch                  Broker                  Online                     All
+under 653                  0.38%       1.35x       0.18%       0.61x       0.24%       0.84x       0.26%       0.92x
+653 to under 684           0.27%       0.95x       0.30%       1.06x       0.31%       1.09x       0.29%       1.03x
+684 to under 714           0.19%       0.67x       0.32%       1.11x       0.31%       1.09x       0.27%       0.95x
+714 to under 745.4         0.31%       1.09x       0.29%       1.01x       0.27%       0.96x       0.29%       1.02x
+745.4 and over             0.28%       0.98x       0.34%       1.20x       0.33%       1.15x       0.32%       1.11x
+(blank)                                                                   -2.17%      -7.61x      -2.17%      -7.61x
+(missing by rule)          0.17%       0.59x       0.23%       0.80x       0.19%       0.68x       0.21%       0.73x
+All                        0.28%       0.99x       0.28%       0.99x       0.29%       1.02x       0.28%       1.00x
+  Where it bleeds: excess RANR_AMT over the topline rate, largest first
+    under 653 / Branch: 3,945 over, 130 loans
+      share of losses / share of volume 1.35x
+      vs rest of book 1.38x (p 0.0510): in line
+      vs rest of band 1.85x (p 0.0038): worse than benchmark
+      this many loans can show a gap of 1.52x or more
+    745.4 and over / Broker: 2,457 over, 123 loans
+      share of losses / share of volume 1.20x
+      vs rest of book 1.22x (p 0.1801): in line
+      vs rest of band 1.13x (p 0.4865): in line
+      this many loans can show a gap of 1.53x or more
+    745.4 and over / Online: 2,003 over, 134 loans
+      share of losses / share of volume 1.15x
+      vs rest of book 1.17x (p 0.3669): in line
+      vs rest of band 1.06x (p 0.7585): in line
+      this many loans can show a gap of 1.51x or more
+    684 to under 714 / Broker: 1,257 over, 136 loans
+      share of losses / share of volume 1.11x
+      vs rest of book 1.12x (p 0.5544): in line
+      vs rest of band 1.27x (p 0.3035): in line
+      this many loans can show a gap of 1.50x or more
+    653 to under 684 / Online: 1,088 over, 126 loans
+      share of losses / share of volume 1.09x
+      vs rest of book 1.10x (p 0.6063): in line
+      vs rest of band 1.09x (p 0.6867): in line
+      this many loans can show a gap of 1.53x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (931): 7 pocket(s), 94% of this grid's excess
+     1.0% of book losses (1,862): 3 pocket(s), 62% of this grid's excess
+     2.0% of book losses (3,724): 1 pocket(s), 29% of this grid's excess
+     5.0% of book losses (9,310): 0 pocket(s), 0% of this grid's excess
+    10.0% of book losses (18,620): 0 pocket(s), 0% of this grid's excess
+
+Grid fico x channel - loans: Loans (rows)
+                          Branch      Broker      Online         All
+under 653                    130         130         126         386
+653 to under 684             138         127         126         391
+684 to under 714             126         136         134         396
+714 to under 745.4           131         128         135         394
+745.4 and over               135         123         134         392
+(blank)                                                1           1
+(missing by rule)             10          18          12          40
+All                          670         662         668       2,000
+
+Grid orig_bal x channel - outcome_loans: COUNT(loans where BAD_FLAG = 1) / COUNT(loans)   topline 4.80%, median of cells 4.07%
+  each cell: rate, then rate over topline
+                                            Branch                  Broker                  Online                     All
+under 15327.1                    3.60%       0.75x       8.26%       1.72x       5.76%       1.20x       5.76%       1.20x
+15327.1 to under 26463.9         0.77%       0.16x       8.16%       1.70x       4.07%       0.85x       4.50%       0.94x
+26463.9 to under 39152.5         2.07%       0.43x       7.69%       1.60x       2.42%       0.50x       4.01%       0.84x
+39152.5 to under 49789.1         6.25%       1.30x       7.75%       1.61x       2.31%       0.48x       5.50%       1.15x
+49789.1 and over                 3.17%       0.66x       5.74%       1.19x       3.95%       0.82x       4.25%       0.88x
+(blank)                          0.00%       0.00x                                                       0.00%       0.00x
+All                              3.14%       0.65x       7.55%       1.57x       3.74%       0.78x       4.80%       1.00x
+  Where it bleeds: excess loans where BAD_FLAG = 1 over the topline rate, largest first
+    15327.1 to under 26463.9 / Broker: 5 over, 147 loans
+      share of losses / share of volume 1.70x
+      vs rest of book 1.80x (p 0.1174): gap could be luck
+      vs rest of band 3.44x (p 0.0186): worse than benchmark
+      this many loans can show a gap of 2.18x or more
+    under 15327.1 / Broker: 4 over, 121 loans
+      share of losses / share of volume 1.72x
+      vs rest of book 1.80x (p 0.1499): gap could be luck
+      vs rest of band 1.77x (p 0.2025): gap could be luck
+      this many loans can show a gap of 2.31x or more
+    39152.5 to under 49789.1 / Broker: 4 over, 142 loans
+      share of losses / share of volume 1.61x
+      vs rest of book 1.69x (p 0.1688): gap could be luck
+      vs rest of band 1.82x (p 0.1770): gap could be luck
+      this many loans can show a gap of 2.20x or more
+    26463.9 to under 39152.5 / Broker: 4 over, 130 loans
+      share of losses / share of volume 1.60x
+      vs rest of book 1.67x (p 0.1970): gap could be luck
+      vs rest of band 3.45x (p 0.0298): worse than benchmark
+      this many loans can show a gap of 2.26x or more
+    39152.5 to under 49789.1 / Branch: 2 over, 128 loans
+      share of losses / share of volume 1.30x
+      vs rest of book 1.33x (p 0.4827): in line
+      vs rest of band 1.21x (p 0.6632): in line
+      this many loans can show a gap of 2.27x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (0): 7 pocket(s), 100% of this grid's excess
+     1.0% of book losses (1): 7 pocket(s), 100% of this grid's excess
+     2.0% of book losses (2): 4 pocket(s), 80% of this grid's excess
+     5.0% of book losses (5): 1 pocket(s), 23% of this grid's excess
+    10.0% of book losses (10): 0 pocket(s), 0% of this grid's excess
+
+Grid orig_bal x channel - outcome_booked: SUM(ORIG_BAL where BAD_FLAG = 1) / SUM(ORIG_BAL)   topline 4.66%, median of cells 4.13%
+  each cell: rate, then rate over topline
+                                            Branch                  Broker                  Online                     All
+under 15327.1                    4.07%       0.87x       8.06%       1.73x       5.01%       1.07x       5.61%       1.20x
+15327.1 to under 26463.9         0.84%       0.18x       8.07%       1.73x       4.13%       0.89x       4.52%       0.97x
+26463.9 to under 39152.5         2.03%       0.44x       7.27%       1.56x       2.53%       0.54x       3.89%       0.83x
+39152.5 to under 49789.1         6.21%       1.33x       7.72%       1.66x       2.37%       0.51x       5.49%       1.18x
+49789.1 and over                 3.19%       0.68x       5.91%       1.27x       4.03%       0.86x       4.34%       0.93x
+(blank)                                                                                                                   
+All                              3.50%       0.75x       7.14%       1.53x       3.39%       0.73x       4.66%       1.00x
+  Where it bleeds: excess ORIG_BAL on loans where BAD_FLAG = 1 over the topline rate, largest first
+    39152.5 to under 49789.1 / Broker: 190,999 over, 142 loans
+      share of losses / share of volume 1.66x
+      vs rest of book 1.78x (p 0.1439): gap could be luck
+      vs rest of band 1.80x (p 0.1831): gap could be luck
+      this many loans can show a gap of 2.38x or more
+    26463.9 to under 39152.5 / Broker: 110,874 over, 130 loans
+      share of losses / share of volume 1.56x
+      vs rest of book 1.62x (p 0.2263): gap could be luck
+      vs rest of band 3.21x (p 0.0387): worse than benchmark
+      this many loans can show a gap of 2.45x or more
+    15327.1 to under 26463.9 / Broker: 105,828 over, 147 loans
+      share of losses / share of volume 1.73x
+      vs rest of book 1.80x (p 0.1237): gap could be luck
+      vs rest of band 3.33x (p 0.0221): worse than benchmark
+      this many loans can show a gap of 2.35x or more
+    39152.5 to under 49789.1 / Branch: 88,832 over, 128 loans
+      share of losses / share of volume 1.33x
+      vs rest of book 1.38x (p 0.4412): in line
+      vs rest of band 1.21x (p 0.6727): in line
+      this many loans can show a gap of 2.46x or more
+    49789.1 and over / Broker: 83,539 over, 122 loans
+      share of losses / share of volume 1.27x
+      vs rest of book 1.31x (p 0.5366): in line
+      vs rest of band 1.62x (p 0.3578): gap could be luck
+      this many loans can show a gap of 2.50x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (15,238): 6 pocket(s), 99% of this grid's excess
+     1.0% of book losses (30,476): 6 pocket(s), 99% of this grid's excess
+     2.0% of book losses (60,952): 5 pocket(s), 92% of this grid's excess
+     5.0% of book losses (152,381): 1 pocket(s), 30% of this grid's excess
+    10.0% of book losses (304,761): 0 pocket(s), 0% of this grid's excess
+
+Grid orig_bal x channel - gco_rate: SUM(GCO_AMT) / SUM(ORIG_BAL)   topline 2.58%, median of cells 2.48%
+  each cell: rate, then rate over topline
+                                            Branch                  Broker                  Online                     All
+under 15327.1                    2.48%       0.96x       4.83%       1.87x       2.93%       1.14x       3.36%       1.30x
+15327.1 to under 26463.9         0.59%       0.23x       5.22%       2.02x       2.40%       0.93x       2.85%       1.10x
+26463.9 to under 39152.5         1.12%       0.43x       4.04%       1.56x       1.52%       0.59x       2.20%       0.85x
+39152.5 to under 49789.1         3.04%       1.18x       3.95%       1.53x       1.26%       0.49x       2.78%       1.08x
+49789.1 and over                 1.64%       0.64x       3.29%       1.27x       2.33%       0.90x       2.41%       0.93x
+(blank)                                                                                                                   
+All                              1.82%       0.70x       4.00%       1.55x       1.95%       0.75x       2.58%       1.00x
+  Where it bleeds: excess GCO_AMT over the topline rate, largest first
+    39152.5 to under 49789.1 / Broker: 85,589 over, 142 loans
+      share of losses / share of volume 1.53x
+      vs rest of book 1.62x (p 0.2220): gap could be luck
+      vs rest of band 1.84x (p 0.1888): gap could be luck
+      this many loans can show a gap of 2.42x or more
+    15327.1 to under 26463.9 / Broker: 81,807 over, 147 loans
+      share of losses / share of volume 2.02x
+      vs rest of book 2.13x (p 0.0721): gap could be luck
+      vs rest of band 3.57x (p 0.0211): worse than benchmark
+      this many loans can show a gap of 2.39x or more
+    26463.9 to under 39152.5 / Broker: 62,091 over, 130 loans
+      share of losses / share of volume 1.56x
+      vs rest of book 1.63x (p 0.2377): gap could be luck
+      vs rest of band 3.09x (p 0.0495): worse than benchmark
+      this many loans can show a gap of 2.49x or more
+    49789.1 and over / Broker: 47,646 over, 122 loans
+      share of losses / share of volume 1.27x
+      vs rest of book 1.32x (p 0.5397): in line
+      vs rest of band 1.63x (p 0.3670): gap could be luck
+      this many loans can show a gap of 2.55x or more
+    under 15327.1 / Broker: 28,005 over, 121 loans
+      share of losses / share of volume 1.87x
+      vs rest of book 1.90x (p 0.1397): gap could be luck
+      vs rest of band 1.78x (p 0.2149): gap could be luck
+      this many loans can show a gap of 2.55x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (8,433): 6 pocket(s), 98% of this grid's excess
+     1.0% of book losses (16,865): 6 pocket(s), 98% of this grid's excess
+     2.0% of book losses (33,731): 4 pocket(s), 82% of this grid's excess
+     5.0% of book losses (84,327): 1 pocket(s), 25% of this grid's excess
+    10.0% of book losses (168,654): 0 pocket(s), 0% of this grid's excess
+
+Grid orig_bal x channel - ranr_rate: SUM(RANR_AMT) / SUM(ORIG_BAL)   topline 0.28%, median of cells 0.28%
+  each cell: rate, then rate over topline
+                                            Branch                  Broker                  Online                     All
+under 15327.1                    0.81%       2.86x       0.81%       2.85x       1.04%       3.67x       0.90%       3.14x
+15327.1 to under 26463.9         0.43%       1.51x       0.46%       1.60x       0.51%       1.77x       0.46%       1.62x
+26463.9 to under 39152.5         0.28%       0.98x       0.26%       0.91x       0.31%       1.09x       0.28%       0.99x
+39152.5 to under 49789.1         0.24%       0.84x       0.23%       0.79x       0.21%       0.73x       0.22%       0.79x
+49789.1 and over                 0.16%       0.55x       0.17%       0.59x       0.14%       0.49x       0.15%       0.54x
+(blank)                                                                                                                   
+All                              0.28%       0.99x       0.28%       0.99x       0.29%       1.02x       0.28%       1.00x
+  Where it bleeds: excess RANR_AMT over the topline rate, largest first
+    under 15327.1 / Online: 11,003 over, 139 loans
+      share of losses / share of volume 3.67x
+      vs rest of book 3.90x (p <0.0001): worse than benchmark
+      vs rest of band 1.28x (p 0.1891): in line
+      this many loans can show a gap of 1.50x or more
+    under 15327.1 / Branch: 7,403 over, 140 loans
+      share of losses / share of volume 2.86x
+      vs rest of book 2.98x (p 0.0002): worse than benchmark
+      vs rest of band 0.87x (p 0.4823): in line
+      this many loans can show a gap of 1.50x or more
+    under 15327.1 / Broker: 6,568 over, 121 loans
+      share of losses / share of volume 2.85x
+      vs rest of book 2.96x (p 0.0002): worse than benchmark
+      vs rest of band 0.87x (p 0.5059): in line
+      this many loans can show a gap of 1.54x or more
+    15327.1 to under 26463.9 / Online: 5,597 over, 123 loans
+      share of losses / share of volume 1.77x
+      vs rest of book 1.83x (p 0.0046): worse than benchmark
+      vs rest of band 1.14x (p 0.5197): in line
+      this many loans can show a gap of 1.53x or more
+    15327.1 to under 26463.9 / Broker: 5,313 over, 147 loans
+      share of losses / share of volume 1.60x
+      vs rest of book 1.65x (p 0.0152): worse than benchmark
+      vs rest of band 0.98x (p 0.9085): in line
+      this many loans can show a gap of 1.48x or more
+  Materiality evidence: what each level would keep (the level is your call)
+     0.5% of book losses (931): 7 pocket(s), 100% of this grid's excess
+     1.0% of book losses (1,862): 6 pocket(s), 97% of this grid's excess
+     2.0% of book losses (3,724): 6 pocket(s), 97% of this grid's excess
+     5.0% of book losses (9,310): 1 pocket(s), 27% of this grid's excess
+    10.0% of book losses (18,620): 0 pocket(s), 0% of this grid's excess
+
+Grid orig_bal x channel - loans: Loans (rows)
+                                Branch      Broker      Online         All
+under 15327.1                      140         121         139         400
+15327.1 to under 26463.9           130         147         123         400
+26463.9 to under 39152.5           145         130         124         399
+39152.5 to under 49789.1           128         142         130         400
+49789.1 and over                   126         122         152         400
+(blank)                              1                                   1
+All                                670         662         668       2,000
+
+(read 0.0s, cube 0.1s)
+(exit code 0)

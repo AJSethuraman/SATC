@@ -55,6 +55,23 @@ class Response:
     body: str = ""
     headers: tuple[tuple[str, str], ...] = ()
     egress_blocked: bool = False        # the proxy refused, not the origin
+    #: WHERE WE ACTUALLY ENDED UP, after redirects. Empty means the transport
+    #: did not say, and then nothing can tell a real fetch from a bounce.
+    #:
+    #: THE INCIDENT, 8 September 2026, found on the firm's own machine. ecfr.gov
+    #: does not block this repository's tie-out by egress — it blocks it by
+    #: USER-AGENT, redirecting `satc-desk-tieout` to an interstitial on
+    #: `unblock.federalregister.gov` which returns **HTTP 200** with 10,596
+    #: bytes that are not the regulation. Same URL under a browser UA: 584,798
+    #: bytes and the passage present, once.
+    #:
+    #: A 200 IS THE DANGEROUS CASE. `prove` turns a network exception into
+    #: COULD_NOT, correctly — but a clean 200 carrying the wrong document falls
+    #: to DIFFERS, which `ask.answer` reads as `authority_has_moved` and uses to
+    #: WITHDRAW the answer. Run a tie-out over these desks today and every
+    #: primary-authority citation is withdrawn as "the publisher no longer
+    #: carries this" when nothing has moved and the text is exactly where it was.
+    url: str = ""
 
     def header(self, name: str) -> str:
         return next((v for k, v in self.headers if k.lower() == name.lower()), "")

@@ -1,0 +1,40 @@
+# The revived rehearsal (3 Oct 2026): scouting on SBAnational.csv, in place of the FOIA scouting Run, because the FOIA
+# file could not be downloaded from the sandbox. A software exercise only: it shows the forest, the pre-spec and the
+# conditional fit run at this size on current code. Term is left out (it depends on the outcome: the report, section
+# 0). Every pocket held fixed by NewExist runs to about 640,000 loans, larger than the FOIA test's 333,786.
+kind: new_variable
+step: scout
+outcome: CHGOFF_FLAG
+test: [DisbursementGross, NoEmp, GrAppv]
+hold: [NewExist]
+bands: []
+segments: [NewExist]
+split: null
+few_values: 12
+many_values: 50
+meanings:
+  LoanNr_ChkDgt: key
+  DisbursementGross: booked
+  CHGOFF_FLAG: outcome
+  ChgOffPrinGr: gco
+  RANR_NEG_GCO: ranr
+  APPROVAL_DATE: origination_date
+  NewExist: category
+  NoEmp: amount
+  GrAppv: amount
+  Term: amount
+  NAICS2: category
+  REAL_ESTATE: category
+  RECESSION: category
+  State: category
+  UrbanRural: category
+  LowDoc: category
+  RevLineCr: category
+treat:
+  RANR_NEG_GCO: Real
+control:
+  cutoff: "The month start nearest 70% of the loans (suggested)"
+  worse_at: "1.25 times"
+  confidence: "95% sure"
+  materiality: "1% of the book's total losses"
+checked_every_column: Yes

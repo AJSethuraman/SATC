@@ -1,0 +1,16 @@
+# Written by PocketBook's scouting on 2026-09-30, from 8,394 development loans made 2021-06-30 to 2024-10-31.
+# The 3,605 loans held back (made 2024-11-01 to 2026-03-30) were not read. Edit it if you like: Record logs every change.
+prespec: 1
+written: 2026-09-30
+outcome: BAD_FLAG
+inputs:
+  - column: UTIL
+    bins: [0.9]
+    reference: 0                  # 0.0 - 0.8, the group holding the median
+  - column: income_to_sales
+    bins: [0.1, 2]
+    reference: 1                  # 0.10 - 1.99, the group holding the median
+strata: [FICO, CHANNEL]
+confidence: 0.95
+holdout: {from: 2024-11-01, to: 2026-03-30}
+development: {from: 2021-06-30, to: 2024-10-31}

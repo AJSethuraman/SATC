@@ -1,0 +1,36 @@
+Columns	NOT A FIGURE	20
+Columns	TIED	22
+Control	ECHO	13
+Control	TIED	29
+Grids	DIFFERS	2
+Grids	NAME	185
+Grids	NOT A FIGURE	553
+Grids	TIED	40253
+Look	ECHO	9
+Look	NOT A FIGURE	22
+Look	TIED	196
+Paid, cost, kept	ECHO	1
+Paid, cost, kept	NAME	102
+Paid, cost, kept	NOT A FIGURE	3
+Paid, cost, kept	TIED	940
+Paid, cost, kept	TIED-WITHIN-SAMPLING	2
+Pockets	ECHO	1
+Pockets	NAME	617
+Pockets	NOT A FIGURE	5
+Pockets	TIED	11221
+Pockets	TIED-WITHIN-SAMPLING	830
+Record	COULD NOT	1
+Record	ECHO	22
+Record	NOT A FIGURE	14
+Record	TIED	61
+Record	TIED-WITHIN-SAMPLING	2
+Split	ECHO	1
+Split	NAME	28
+Split	NOT A FIGURE	8
+Split	TIED	522
+Split	TIED-WITHIN-SAMPLING	297
+Start here	ECHO	3
+Start here	NAME	5
+Start here	TIED	22
+Start here	TIED-WITHIN-SAMPLING	2
+{'TIED': 53266, 'TIED-WITHIN-SAMPLING': 1133, 'ECHO': 50, 'NOT A FIGURE': 625, 'NAME': 937, 'DIFFERS': 2, 'COULD NOT': 1} 56014

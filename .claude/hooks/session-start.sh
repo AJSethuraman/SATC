@@ -13,6 +13,13 @@ fi
 claude plugin marketplace add AJSethuraman/SATC
 claude plugin install canon@satc --yes
 
+# `desk` was NOT installed here until 7 September 2026, and the omission was
+# only found when the firm asked a desk a question in a fresh session and there
+# was no desk to ask. It had to be installed by hand, and then its skills could
+# not be called until the session reloaded. The practice's own tooling should be
+# present wherever the practice's work is done.
+claude plugin install desk@satc --yes
+
 # The install above only takes effect from the *next* session: plugin skills are
 # discovered before SessionStart hooks run, so the session that installs canon
 # is the one session without it. Emit the record directly so Bassy is the
@@ -30,4 +37,28 @@ if [ -f "$CLAUDE_PROJECT_DIR/canon/skills/bassy/SKILL.md" ]; then
   cat "$CLAUDE_PROJECT_DIR/canon/skills/bassy/SKILL.md"
   echo
   cat "$CLAUDE_PROJECT_DIR/canon/CONVICTIONS.md"
+fi
+
+# THE ROLE, read out of the repository rather than pasted into a prompt.
+#
+# A session starts blank, so everything it knows about its job arrives in a
+# prompt somebody types or in a hook — and a pasted prompt dies with the
+# container. That is continuity through memory, which is the exact thing canon
+# exists to replace.
+#
+# NAMED, NEVER ASSUMED. A session building the website must not be told it is
+# the research desk: C7 says the context follows the role, and the challenge it
+# names is "an agent given a role name whose tools and context do not match it".
+# So an unset variable, or a name with no file, prints nothing — refuse rather
+# than default, the same rule the rest of this repository runs on.
+ROLE_FILE="$CLAUDE_PROJECT_DIR/.claude/roles/${SATC_ROLE:-}.md"
+if [ -n "${SATC_ROLE:-}" ] && [ "${SATC_ROLE}" != "README" ] \
+   && [ -f "$ROLE_FILE" ]; then
+  echo
+  echo "# This session has a role: ${SATC_ROLE}"
+  echo
+  echo "Read from \`.claude/roles/${SATC_ROLE}.md\` in this repository, so it"
+  echo "survives the container. It says what this session is FOR."
+  echo
+  cat "$ROLE_FILE"
 fi

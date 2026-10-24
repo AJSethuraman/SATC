@@ -10,7 +10,7 @@ import pytest
 
 import guards
 import record
-from conftest import DESKS
+from conftest import CORPUS
 
 GOOD_SOURCE = ("## S1 · A source\n\n"
                "**Tier:** primary · **Access:** public_fetch · "
@@ -50,13 +50,22 @@ def test_a_well_formed_desk_passes_every_guard(tmp_path):
     assert guards.check(build(tmp_path)).name == "d"
 
 
-def shipped_desks(root=DESKS):
-    """Every desk in the repository, enumerated rather than named.
+def shipped_desks(root=None):
+    """The record in this repository, enumerated rather than named.
 
     COMPARED AGAINST THE RAW DIRECTORY LISTING, because `>= 1` was not enough:
     pinning this to `[fixed-assets]` left the second desk unguarded with the
     suite still green. The count is not the check — the set is.
+
+    ONE CORPUS (`dec-kill`, 10 September 2026), so the default is a one-entry
+    list and there is nothing left to enumerate. THE ENUMERATION STAYS ANYWAY,
+    reachable through `root`, because the four tests below construct trees to
+    prove it names a part-written directory rather than dying in `record.py` —
+    and that machinery is what they check. Deleting it would delete the guards
+    on the guard along with the thing being guarded.
     """
+    if root is None:
+        return [CORPUS]
     desks = sorted(d for d in root.iterdir() if (d / "SOURCES.md").is_file())
     on_disk = {d.name for d in root.iterdir()
                if d.is_dir() and not d.name.startswith("_")}
@@ -139,15 +148,21 @@ def test_every_shipped_desk_passes_every_guard():
         assert guards.check(d).name == d.name
 
 
-def test_every_shipped_desk_is_routable():
-    """A desk nothing routes to is a desk nobody asks. `SUBJECTS.md` is not read
-    by `guards.check`, so without this a desk can be legal and unreachable."""
-    import routing
+def test_the_record_declares_the_subjects_the_engine_checks_against():
+    """`SUBJECTS.md` is not read by `guards.check`, so without this the record
+    can be legal and carry no declaration at all.
 
+    IT USED TO SAY "ROUTABLE" AND IT NO LONGER MEANS THAT. `dec-kill` deleted
+    the word list that decided which desk a question reached. What `fires_on`
+    is now is the UNION OF `answered_from` — the declaration `engine._check`
+    reads to decide whether a citation has anything to do with the question
+    asked. Empty, the engine says it could not check rather than passing the
+    answer as verified, and that is a silent demotion of every answer served.
+    """
     for d in shipped_desks():
-        reg = routing.parse_subjects(
-            (d / "SUBJECTS.md").read_text(encoding="utf-8"), d.name)
-        assert reg.fires_on, f"{d.name} registers no subjects"
+        desk = record.load(d)
+        assert desk.fires_on, f"{d.name} declares no subjects"
+        assert desk.answered_from, f"{d.name} declares no source mapping"
 
 
 def test_a_proposal_does_not_answer_on_any_shipped_desk():
@@ -161,7 +176,7 @@ def test_a_proposal_does_not_answer_on_any_shipped_desk():
     proposals = [(d.name, q) for d in shipped_desks()
                  for q in record.load(d).positions if q.proposed]
     for name, q in proposals:
-        desk = record.load(DESKS / name)
+        desk = record.load(CORPUS)
         assert desk.position(q.citation) is None, (
             f"{name}/{q.id} is a proposal and it answered")
 

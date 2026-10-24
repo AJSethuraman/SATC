@@ -1,0 +1,220 @@
+== q3
+   1 grid-bound TIED 48
+   1 grid-few TIED 48
+   1 grid-grey TIED 2970
+   1 panel: grey TIED 47
+   2 grid-bookfig TIED 48
+   2 grid-head TIED 48
+   4 grid: Loan size TIED 897
+   4 panel: Loan size TIED 126
+   4 size-median TIED 333
+   5 look TIED 15
+   5 look-label TIED 60
+   5 look-pline TIED 15
+   6 pck TIED 5
+   6 pck TIED-WITHIN-SAMPLING 3
+   6 pk-border TIED 2988
+   6 pk-border TIED-WITHIN-SAMPLING 204
+   6 pk-rule TIED 1195
+   6 pocket TIED 631
+   6 pocket TIED-WITHIN-SAMPLING 20
+   6 record ECHO 1
+   6 record TIED 2
+   6 record TIED-WITHIN-SAMPLING 2
+   6 split-pocket TIED 70
+   6 split-pocket TIED-WITHIN-SAMPLING 280
+   6 split-sum TIED 4
+   6 split-sum TIED-WITHIN-SAMPLING 16
+   6 start-tile TIED-WITHIN-SAMPLING 1
+   6 start-top TIED 3
+   6 start-top TIED-WITHIN-SAMPLING 1
+   9 band-label DIFFERS 2
+   9 band-label TIED 11
+   grey cells: 150 of 2970 numbers in vs the book / vs rest of band are grey
+== flag
+   1 grid-bound TIED 192
+   1 grid-few TIED 192
+   1 grid-grey TIED 8736
+   1 panel: grey TIED 87
+   2 grid-bookfig TIED 192
+   2 grid-head TIED 192
+   3 grid: filtered TIED 8280
+   3 panel: filtered TIED 705
+   4 grid: Loan size TIED 2980
+   4 panel: Loan size TIED 280
+   4 size-median TIED 1116
+   5 look TIED 15
+   5 look-label TIED 60
+   5 look-pline TIED 15
+   6 pck TIED 5
+   6 pck TIED-WITHIN-SAMPLING 3
+   6 pk-border DIFFERS 31
+   6 pk-border TIED 3840
+   6 pk-border TIED-WITHIN-SAMPLING 199
+   6 pk-rule TIED 1550
+   6 pocket TIED 833
+   6 pocket TIED-WITHIN-SAMPLING 18
+   6 record ECHO 1
+   6 record TIED 2
+   6 record TIED-WITHIN-SAMPLING 2
+   6 split-pocket TIED 140
+   6 split-pocket TIED-WITHIN-SAMPLING 560
+   6 split-sum TIED 8
+   6 split-sum TIED-WITHIN-SAMPLING 32
+   6 start-tile TIED-WITHIN-SAMPLING 1
+   6 start-top TIED 3
+   6 start-top TIED-WITHIN-SAMPLING 1
+   9 band-label DIFFERS 2
+   9 band-label TIED 11
+   grey cells: 1866 of 8736 numbers in vs the book / vs rest of band are grey
+== two
+   1 grid-bound TIED 144
+   1 grid-few TIED 144
+   1 grid-grey TIED 7200
+   1 panel: grey TIED 48
+   2 grid-bookfig TIED 144
+   2 grid-head TIED 144
+   3 grid: filtered TIED 6228
+   3 panel: filtered TIED 478
+   4 grid: Loan size TIED 2157
+   4 panel: Loan size TIED 221
+   4 size-median TIED 809
+   5 look TIED 15
+   5 look-label TIED 60
+   5 look-pline TIED 15
+   6 pck TIED 5
+   6 pck TIED-WITHIN-SAMPLING 3
+   6 pk-border TIED 3031
+   6 pk-border TIED-WITHIN-SAMPLING 191
+   6 pk-rule TIED 1195
+   6 pocket TIED 658
+   6 pocket TIED-WITHIN-SAMPLING 17
+   6 record ECHO 1
+   6 record TIED 2
+   6 record TIED-WITHIN-SAMPLING 2
+   6 split-pocket TIED 140
+   6 split-pocket TIED-WITHIN-SAMPLING 560
+   6 split-sum TIED 8
+   6 split-sum TIED-WITHIN-SAMPLING 32
+   6 start-tile TIED-WITHIN-SAMPLING 1
+   6 start-top TIED 3
+   6 start-top TIED-WITHIN-SAMPLING 1
+   9 band-label DIFFERS 2
+   9 band-label TIED 11
+   grey cells: 342 of 7200 numbers in vs the book / vs rest of band are grey
+== grey
+   1 grid-bound TIED 48
+   1 grid-few TIED 48
+   1 grid-grey TIED 3020
+   1 panel: grey TIED 55
+   2 grid-bookfig TIED 48
+   2 grid-head TIED 48
+   4 grid: Loan size TIED 928
+   4 panel: Loan size TIED 141
+   4 size-median TIED 345
+   5 look TIED 15
+   5 look-label TIED 60
+   5 look-pline TIED 15
+   6 pck TIED 5
+   6 pck TIED-WITHIN-SAMPLING 3
+   6 pk-border TIED 3062
+   6 pk-border TIED-WITHIN-SAMPLING 211
+   6 pk-rule TIED 1230
+   6 pocket TIED 639
+   6 pocket TIED-WITHIN-SAMPLING 20
+   6 record ECHO 1
+   6 record TIED 1
+   6 record TIED-WITHIN-SAMPLING 3
+   6 split-pocket TIED 70
+   6 split-pocket TIED-WITHIN-SAMPLING 280
+   6 split-sum TIED 4
+   6 split-sum TIED-WITHIN-SAMPLING 16
+   6 start-tile TIED-WITHIN-SAMPLING 1
+   6 start-top TIED 3
+   6 start-top TIED-WITHIN-SAMPLING 1
+   9 band-label DIFFERS 2
+   9 band-label TIED 11
+   grey cells: 200 of 3020 numbers in vs the book / vs rest of band are grey
+== year
+   1 grid-bound TIED 240
+   1 grid-few TIED 240
+   1 grid-grey TIED 11814
+   1 panel: grey TIED 89
+   2 grid-bookfig TIED 240
+   2 grid-head TIED 240
+   3 grid: filtered TIED 14404
+   3 panel: filtered TIED 913
+   4 grid: Loan size TIED 4514
+   4 panel: Loan size TIED 282
+   4 size-median TIED 1668
+   5 look TIED 15
+   5 look-label TIED 60
+   5 look-pline TIED 15
+   6 pck TIED 7
+   6 pck TIED-WITHIN-SAMPLING 2
+   6 pk-border TIED 3161
+   6 pk-border TIED-WITHIN-SAMPLING 237
+   6 pk-rule TIED 1280
+   6 pocket TIED 676
+   6 pocket TIED-WITHIN-SAMPLING 16
+   6 record ECHO 1
+   6 record TIED 2
+   6 record TIED-WITHIN-SAMPLING 2
+   6 split-pocket TIED 70
+   6 split-pocket TIED-WITHIN-SAMPLING 280
+   6 split-sum TIED 4
+   6 split-sum TIED-WITHIN-SAMPLING 16
+   6 start-tile TIED-WITHIN-SAMPLING 1
+   6 start-top TIED 4
+   6 start-top TIED-WITHIN-SAMPLING 1
+   9 band-label DIFFERS 2
+   9 band-label TIED 11
+   grey cells: 3144 of 11814 numbers in vs the book / vs rest of band are grey
+== yearsplit
+   1 grid-bound TIED 48
+   1 grid-few TIED 48
+   1 grid-grey TIED 4272
+   1 panel: grey TIED 55
+   2 grid-bookfig TIED 48
+   2 grid-head TIED 48
+   4 grid: Loan size TIED 1461
+   4 panel: Loan size TIED 134
+   4 size-median TIED 529
+   5 look TIED 15
+   5 look-label TIED 60
+   5 look-pline TIED 15
+   6 pck TIED 7
+   6 pck TIED-WITHIN-SAMPLING 2
+   6 pk-border TIED 4959
+   6 pk-border TIED-WITHIN-SAMPLING 301
+   6 pk-rule TIED 2035
+   6 pocket TIED 1043
+   6 pocket TIED-WITHIN-SAMPLING 12
+   6 record ECHO 1
+   6 record TIED 2
+   6 record TIED-WITHIN-SAMPLING 2
+   6 split-pocket TIED 210
+   6 split-pocket TIED-WITHIN-SAMPLING 840
+   6 split-sum TIED 12
+   6 split-sum TIED-WITHIN-SAMPLING 48
+   6 start-tile TIED-WITHIN-SAMPLING 1
+   6 start-top TIED 4
+   6 start-top TIED-WITHIN-SAMPLING 1
+   8 grid: whole TIED 4806
+   8 line ECHO 1
+   8 line TIED 3
+   8 panel: other TIED 249
+   8 pocket TIED 6655
+   8 pocket TIED-WITHIN-SAMPLING 609
+   8 pockets-count TIED 4
+   8 pockets-count TIED-WITHIN-SAMPLING 1
+   8 record TIED 12
+   8 split-differ TIED 16
+   8 split-pocket TIED 1050
+   8 split-steady TIED 16
+   8 split-sum TIED 304
+   8 words NAME 28
+   8 words NOT A FIGURE 18
+   9 band-label DIFFERS 2
+   9 band-label TIED 11
+   grey cells: 792 of 4272 numbers in vs the book / vs rest of band are grey

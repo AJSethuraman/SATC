@@ -149,13 +149,12 @@ window.SATC_PRICING = {
     'Canceled debt',
     'Digital assets',
     'Marketplace health insurance',
-    'Health savings account',
-    'Early retirement withdrawal'
+    'Health savings account'
   ],
 
   /* Hourly is added to a fixed price or replaces it, depending on what
      turns up. Settled 26 August 2026; the page says exactly that. */
-  hourly: { rate: 150, billedIn: 'the quarter hour' },
+  hourly: { rate: 175, billedIn: 'the quarter hour' },
   hourlyApplies: [
     'Keyed brokerage statements',
     'An interest in a company based abroad',

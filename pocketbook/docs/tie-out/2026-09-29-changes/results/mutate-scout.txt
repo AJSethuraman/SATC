@@ -1,0 +1,3 @@
+planted 200, caught 199, missed 1
+  by kind (caught, missed): {'columns': (12, 0), 'control': (1, 0), 'look': (36, 0), 'look-bar': (60, 0), 'look-end': (5, 0), 'nv-conc': (10, 0), 'nv-group': (13, 0), 'nv-joint': (7, 0), 'nv-main': (10, 0), 'nv-reading': (5, 0), 'nv-test': (17, 0), 'nv-words': (4, 0), 'record': (13, 0), 'sc-text': (1, 0), 'st-row': (3, 0), 'st-text': (2, 1)}
+  missed: Start here C1 ['st-text', 'C1'] Scouting book.csv · 12,000 loans · 19 columns · last Run 2026-09-29 21:02 Scouting book.csv · 12,000 loans · 19 columns · last Run 2026-09-29 21:05

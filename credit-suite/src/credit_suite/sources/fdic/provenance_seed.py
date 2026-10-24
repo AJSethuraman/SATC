@@ -55,6 +55,10 @@ PREAMBLE = [
     "<-> CDR facsimile schedule/line (filing check). From PowerShell: "
     "python runner.py -w <book>.xlsm --tieout <CERT> [REPDTE] (--demo "
     "prints labeled demo values with the same provenance columns).",
+    "A BARE RCON CODE, READ FOR A BANK WITH FOREIGN OFFICES (form 031): try the "
+    "RCFD twin first -- the FDIC's totals are the consolidated ones. Where a "
+    "row shows (RCFDxxxx 031) that twin tied live for CERT 17534 at 2026-06-30; "
+    "where it says the code is RCON on 031 too, that is what tied.",
     "MDRM PREFIXES: RCON (domestic) / RCFD (consolidated, 031 filers) / "
     "RIAD (income) / RCOA-RCFA (RC-R). RIAD amounts are calendar-YTD: the "
     "FDIC's quarterly variants are DIFFERENCED -- Q2-Q4 values tie to (this "
@@ -69,7 +73,8 @@ PREAMBLE = [
     "annualization/differencing).",
 ]
 
-HEADER = ["field", "schedule", "line / caption", "MDRM", "flag", "notes"]
+HEADER = ["field", "schedule", "line / caption", "MDRM", "flag", "notes",
+          "what it is"]
 
 # --------------------------------------------------------------------------
 # Per-FIELD rows (every landed RAW_FIELD + informational DEPINS) --
@@ -82,28 +87,28 @@ FIELD_ROWS = [
      "Deposits in domestic (+foreign) offices",
      "RCON2200 (+RCFN2200 031)", "[V]",
      "FDIC DEP includes foreign for 031 filers"),
-    ("LNLSGR", "RC-C Pt I 12",
-     "Total loans & leases HFI+HFS, net of unearned", "RCON2122", "[V]",
-     "= RC 4.a + 4.b"),
+    ("LNLSGR", "RC 4.a+4.b",
+     "HFS (5369) + HFI (B528), net of unearned", "5369+B528", "[V]",
+     "FDIC-computed as the sum of the two halves, not RC-C Pt I 12. The bank files the total on line 12 as well, rounded once instead of twice; the two disagree by $1k in 9 of 480 bank-quarters and the FDIC follows the halves in all 480"),
     ("LNLSNET", "RC 4.a+4.b-4.c",
      "HFS (5369) + HFI (B528) - allowance (3123)",
      "5369+B528-3123", "[V]", "FDIC-computed; no single filed line"),
-    ("BRO", "RC-E Mem 1.b", "Total brokered deposits", "RCON2365", "[V]", ""),
-    ("EQ", "RC 27.a", "Total bank equity capital", "RCON3210", "[V]",
+    ("BRO", "RC-E Mem 1.b", "Total brokered deposits", "RCON2365", "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
+    ("EQ", "RC 27.a", "Total bank equity capital", "RCON3210 (RCFD3210 031)", "[V]",
      "excludes minority interest (RC 28 / G105)"),
     ("NCLNLS", "RC-N 9 cols B+C",
      "Total loans 90+ still accruing + nonaccrual", "1407+1403", "[V]",
      "the NCLNLSR numerator"),
     ("LNATRES", "RC 4.c", "Allowance for credit losses on loans & leases",
-     "RCON3123", "[V]",
+     "RCON3123 (RCFD3123 031)", "[V]",
      "legacy transfer-risk add-on UNVERIFIED; 3123 is the tie-out line"),
     ("P3LNLS", "RC-N 9 col A", "Total loans 30-89 days, still accruing",
-     "RCON1406", "[V]", ""),
+     "RCON1406 (RCFD1406 031)", "[V]", ""),
     ("DEPUNINS", "RC-O Mem 2", "Estimated uninsured deposits", "RCON5597",
      "[V]",
      "FILED only by banks >= $1B (961/4,724 in 2023Q1); below that the API "
      "value is an FDIC ESTIMATE -- not tie-able; null renders BLANK, "
-     "never 0"),
+     "never 0; RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("DEPINS", "RC-O Mem 1", "Insured-deposit components",
      "F049,F045,F051/F052,F047/F048", "[V]",
      "FDIC-computed estimate; formula UNVERIFIED, components verified. NOT "
@@ -114,62 +119,66 @@ FIELD_ROWS = [
      "-- do NOT add"),
     # ---- B. loan categories (Schedule RC-C Part I, $ outstanding) ----
     ("LNRECONS", "RC-C Pt I 1.a.(1)+(2)",
-     "1-4 fam construction + other construction/land", "F158+F159", "[V]",
-     ""),
+     "1-4 fam construction + other construction/land",
+     "F158+F159 (domestic)", "[V]",
+     "DOMESTIC offices only. The FDIC publishes RC-C real-estate balances from the domestic column; the consolidated column differs at every bank with foreign real-estate lending, and citing it reported 18 false differences across six banks on 5 Sep 2026."),
     ("LNRENRES", "RC-C Pt I 1.e.(1)+(2)",
-     "Owner-occupied + other nonfarm nonresidential", "F160+F161", "[V]",
-     ""),
-    ("LNREMULT", "RC-C Pt I 1.d", "Multifamily (5+)", "RCON1460", "[V]", ""),
+     "Owner-occupied + other nonfarm nonresidential",
+     "F160+F161 (domestic)", "[V]", "DOMESTIC offices only. The FDIC publishes RC-C real-estate balances from the domestic column; the consolidated column differs at every bank with foreign real-estate lending, and citing it reported 18 false differences across six banks on 5 Sep 2026."),
+    ("LNREMULT", "RC-C Pt I 1.d", "Multifamily (5+)", "1460 (domestic)", "[V]",
+     "DOMESTIC offices only. The FDIC publishes RC-C real-estate balances from the domestic column; the consolidated column differs at every bank with foreign real-estate lending, and citing it reported 18 false differences across six banks on 5 Sep 2026. The (RCFD1460 031) twin added on 4 Sep was verified against one bank whose two columns happen to be equal."),
     ("LNRERES", "RC-C Pt I 1.c.(1)+(2)(a)+(2)(b)",
-     "HELOC + 1st lien + junior lien", "1797+5367+5368", "[V]", ""),
+     "HELOC + 1st lien + junior lien",
+     "1797+5367+5368 (domestic)", "[V]", "DOMESTIC offices only. The FDIC publishes RC-C real-estate balances from the domestic column; the consolidated column differs at every bank with foreign real-estate lending, and citing it reported 18 false differences across six banks on 5 Sep 2026."),
     ("LNCI", "RC-C Pt I 4", "Commercial & industrial",
      "RCON1766 (031: RCFD1763+1764)", "[V]", ""),
-    ("LNCRCD", "RC-C Pt I 6.a", "Credit cards", "RCONB538", "[V]", ""),
-    ("LNAUTO", "RC-C Pt I 6.c", "Automobile loans", "RCONK137", "[V]",
+    ("LNCRCD", "RC-C Pt I 6.a", "Credit cards", "RCONB538 (RCFDB538 031)", "[V]", ""),
+    ("LNAUTO", "RC-C Pt I 6.c", "Automobile loans", "RCONK137 (RCFDK137 031)", "[V]",
      "*AUTO fields exist from 2011 only"),
-    ("LNCONOTH", "RC-C Pt I 6.d", "Other consumer", "RCONK207", "[V]",
+    ("LNCONOTH", "RC-C Pt I 6.d", "Other consumer", "RCONK207 (RCFDK207 031)", "[V]",
      "6.b B539 revolving credit plans is a SEPARATE line"),
-    # ---- C. past-due / nonaccrual RATIO TWINS (RC-N over RC-C) ----
-    ("P3CRCDR", "RC-N 5.a col A / RC-C 6.a",
-     "Cards 30-89 still accruing / card balances", "B575 / B538", "[V]",
-     "FDIC-computed ratio twin = 100 x P3CRCD/LNCRCD"),
-    ("P9CRCDR", "RC-N 5.a col B / RC-C 6.a",
-     "Cards 90+ still accruing / card balances", "B576 / B538", "[V]",
-     "ratio twin; col B excludes nonaccrual"),
-    ("NACRCDR", "RC-N 5.a col C / RC-C 6.a",
-     "Cards nonaccrual / card balances", "B577 / B538", "[V]", "ratio twin"),
-    ("P3AUTOR", "RC-N 5.b col A / RC-C 6.c",
-     "Auto 30-89 still accruing / auto balances", "K213 / K137", "[V]",
-     "ratio twin; *AUTO from 2011"),
-    ("P9AUTOR", "RC-N 5.b col B / RC-C 6.c",
-     "Auto 90+ still accruing / auto balances", "K214 / K137", "[V]",
-     "ratio twin"),
-    ("NAAUTOR", "RC-N 5.b col C / RC-C 6.c",
-     "Auto nonaccrual / auto balances", "K215 / K137", "[V]", "ratio twin"),
-    ("P3RERESR", "RC-N 1.c (3 rows) col A / RC-C 1.c",
-     "Resi 30-89 still accruing / resi balances",
-     "(5398+C236+C238) / (1797+5367+5368)", "[V]", "ratio twin"),
-    ("P9RERESR", "RC-N 1.c (3 rows) col B / RC-C 1.c",
-     "Resi 90+ still accruing / resi balances",
-     "(5399+C237+C239) / (1797+5367+5368)", "[V]", "ratio twin"),
-    ("NARERESR", "RC-N 1.c (3 rows) col C / RC-C 1.c",
-     "Resi nonaccrual / resi balances",
-     "(5400+C229+C230) / (1797+5367+5368)", "[V]", "ratio twin"),
-    ("P3RELOCR", "RC-N 1.c.(1) col A / RC-C 1.c.(1)",
-     "HELOC 30-89 still accruing / HELOC balances", "5398 / 1797", "[V]",
-     "ratio twin; the HELOC component row of the resi composite"),
-    ("P9RELOCR", "RC-N 1.c.(1) col B / RC-C 1.c.(1)",
-     "HELOC 90+ still accruing / HELOC balances", "5399 / 1797", "[V]",
-     "ratio twin"),
-    ("NARELOCR", "RC-N 1.c.(1) col C / RC-C 1.c.(1)",
-     "HELOC nonaccrual / HELOC balances", "5400 / 1797", "[V]",
-     "ratio twin"),
-    ("P3CIR", "RC-N 4 col A / RC-C 4", "C&I 30-89 still accruing / C&I",
-     "1606 / 1766", "[V]", "ratio twin; 031 splits 4.a/4.b"),
-    ("P9CIR", "RC-N 4 col B / RC-C 4", "C&I 90+ still accruing / C&I",
-     "1607 / 1766", "[V]", "ratio twin"),
-    ("NACIR", "RC-N 4 col C / RC-C 4", "C&I nonaccrual / C&I",
-     "1608 / 1766", "[V]", "ratio twin"),
+    # ---- C. past-due / nonaccrual DOLLAR triples, consumer + C&I ----
+    # These were landed as the FDIC's ratio TWINS until 5 September 2026.
+    # The twins divide by TOTAL ASSETS, so they could not be compared with
+    # each other or with the thresholds (#268); the dollars are landed
+    # instead and every rate is computed over its own book. The MDRM codes
+    # below are the numerators the twin rows already carried.
+    ("P3CRCD", "RC-N 5.a col A", "Cards 30-89 still accruing",
+     "B575", "[V]", ""),
+    ("P9CRCD", "RC-N 5.a col B", "Cards 90+ still accruing",
+     "B576", "[V]", "col B excludes nonaccrual"),
+    ("NACRCD", "RC-N 5.a col C", "Cards nonaccrual",
+     "B577", "[V]", ""),
+    ("P3AUTO", "RC-N 5.b col A", "Auto 30-89 still accruing",
+     "K213", "[V]", "*AUTO fields exist from 2011 only"),
+    ("P9AUTO", "RC-N 5.b col B", "Auto 90+ still accruing",
+     "K214", "[V]", ""),
+    ("NAAUTO", "RC-N 5.b col C", "Auto nonaccrual",
+     "K215", "[V]", ""),
+    ("P3RERES", "RC-N 1.c (3 rows) col A", "Resi 30-89 still accruing (HELOC + 1st + junior)",
+     "5398+C236+C238", "[V]", ""),
+    ("P9RERES", "RC-N 1.c (3 rows) col B", "Resi 90+ still accruing (3 rows)",
+     "5399+C237+C239", "[V]", ""),
+    ("NARERES", "RC-N 1.c (3 rows) col C", "Resi nonaccrual (3 rows)",
+     "5400+C229+C230", "[V]", ""),
+    ("P3RELOC", "RC-N 1.c.(1) col A", "HELOC 30-89 still accruing",
+     "5398", "[V]", "the HELOC component row of the resi composite"),
+    ("P9RELOC", "RC-N 1.c.(1) col B", "HELOC 90+ still accruing",
+     "5399", "[V]", ""),
+    ("NARELOC", "RC-N 1.c.(1) col C", "HELOC nonaccrual",
+     "5400", "[V]", ""),
+    ("P3CI", "RC-N 4 col A", "C&I 30-89 still accruing",
+     "RCON1606 (031: RCFD1251+1254)", "[V]",
+     "031 splits C&I into 4.a US / 4.b non-US; the 041 code 1606 does not resolve for an 031 filer. Codes read off KeyBank's own filed 031 (CERT 17534, 2026-06-30) and tied: RCFD1251 32,260 + RCFD1254 0."),
+    ("P9CI", "RC-N 4 col B", "C&I 90+ still accruing",
+     "RCON1607 (031: RCFD1252+1255)", "[V]",
+     "031 splits 4.a/4.b; codes tied live for CERT 17534"),
+    ("NACI", "RC-N 4 col C", "C&I nonaccrual",
+     "RCON1608 (031: RCFD1253+1256)", "[V]",
+     "031 splits 4.a/4.b; codes tied live for CERT 17534"),
+    ("LNRELOC", "RC-C Pt I 1.c.(1)", "Home equity lines (the HELOC component of resi)",
+     "1797 (domestic)", "[V]",
+     "landed for #268 so the HELOC rates have a book to stand on. DOMESTIC offices only. The FDIC publishes RC-C real-estate balances from the domestic column; the consolidated column differs at every bank with foreign real-estate lending, and citing it reported 18 false differences across six banks on 5 Sep 2026."),
     # ---- C. past-due / nonaccrual DOLLAR triples (Schedule RC-N) ----
     ("P3RECONS", "RC-N 1.a.(1)+(2) col A",
      "Construction 30-89 still accruing (2 rows)", "F172+F173", "[V]", ""),
@@ -184,53 +193,74 @@ FIELD_ROWS = [
     ("NARENRES", "RC-N 1.e.(1)+(2) col C",
      "Nonfarm nonres nonaccrual (2 rows)", "F182+F183", "[V]", ""),
     ("P3REMULT", "RC-N 1.d col A", "Multifamily 30-89 still accruing",
-     "RCON3499", "[V]", ""),
+     "RCON3499", "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("P9REMULT", "RC-N 1.d col B", "Multifamily 90+ still accruing",
-     "RCON3500", "[V]", ""),
+     "RCON3500", "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("NAREMULT", "RC-N 1.d col C", "Multifamily nonaccrual", "RCON3501",
-     "[V]", ""),
+     "[V]", "RCON on form 031 too -- no consolidated twin; tied live for CERT 17534 (2026-06-30)"),
     ("P3CONOTH", "RC-N 5.c col A", "Other consumer 30-89 still accruing",
-     "(not in tie-out map)", "[~]",
-     "match by caption on the facsimile; MDRM row not captured in "
-     "PROVENANCE_MAP_FDIC.md"),
+     "K216", "[V]", "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     ("P9CONOTH", "RC-N 5.c col B", "Other consumer 90+ still accruing",
-     "(not in tie-out map)", "[~]", "match by caption on the facsimile"),
+     "K217", "[V]", "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     ("NACONOTH", "RC-N 5.c col C", "Other consumer nonaccrual",
-     "(not in tie-out map)", "[~]", "match by caption on the facsimile"),
+     "K218", "[V]", "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     # ---- D. quarterly net charge-off flows (Schedule RI-B Part I) ----
+    # Written FLAT and RIAD-prefixed, deliberately. The expression parser
+    # has no notion of a bracketed group and returns None for anything it
+    # cannot rebuild character-for-character, and a bare code resolves
+    # against RCFD/RCON only -- right for a balance-sheet line, useless for
+    # an income-statement one. Every row here cited a line the software
+    # could not follow until 5 Sep 2026, and nothing noticed because the
+    # tie-out skips flows with a stated reason, so the expression was never
+    # exercised. A citation nobody follows is a citation nobody checks.
     # RIAD cols: A = YTD charge-offs, B = YTD recoveries; NT* = DR-CR;
     # quarterly Q variants are DIFFERENCED YTD (Q2-Q4). 8-char truncation
     # verified: NTRECONQ, never NTRECONSQ.
     ("NTCRCDQ", "RI-B Pt I 5.a cols A-B", "Credit card NCO (qtr differenced)",
-     "B514 - B515", "[V]", "quarterly = YTD differenced (Q2-Q4)"),
+     "RIADB514-RIADB515", "[V]", "quarterly = YTD differenced (Q2-Q4)"),
     ("NTAUTOQ", "RI-B Pt I 5.b cols A-B", "Automobile NCO (qtr differenced)",
-     "K129 - K133", "[V]", ""),
+     "RIADK129-RIADK133", "[V]", ""),
     ("NTRECONQ", "RI-B Pt I 1.a.(1)+(2) cols A-B",
      "Construction NCO (qtr differenced)",
-     "(C891+C893) - (C892+C894)", "[V]",
+     "RIADC891+RIADC893-RIADC892-RIADC894", "[V]",
      "8-char truncated name (NTRECONQ, never NTRECONSQ)"),
+    # 4638/4608 are not on form 031, which every bank in this workbook
+    # files. The correct expression sat in this row's NOTE while the expression
+    # the software reads pointed at a line that does not exist on their form.
+    # Moved into the 031-alternative syntax so it resolves for either form.
     ("NTCIQ", "RI-B Pt I 4 cols A-B", "C&I NCO (qtr differenced)",
-     "4638 - 4608", "[V]", "031: (4645+4646) - (4617+4618)"),
+     "RIAD4638-RIAD4608 (031: RIAD4645+RIAD4646-RIAD4617-RIAD4618)", "[V]",
+     "C&I is split by borrower on 031: 4.a U.S. addressees and 4.b non-U.S.; "
+     "US-only understated ten of twelve banks. Tied live against all 12 "
+     "banks' filed Call Reports, 2026-06-30"),
     ("NTCONOTQ", "RI-B Pt I 5.c cols A-B",
-     "Other consumer NCO (qtr differenced)", "(not in tie-out map)", "[~]",
-     "match by caption; MDRM row not captured in the map"),
-    ("NTRERESQ", "RI-B Pt I 1.c cols A-B", "Resi NCO (qtr differenced)",
-     "(not in tie-out map)", "[~]", "match by caption"),
-    ("NTRENREQ", "RI-B Pt I 1.e cols A-B",
-     "Nonfarm nonres NCO (qtr differenced)", "(not in tie-out map)", "[~]",
-     "match by caption; 8-char truncated name"),
+     "Other consumer NCO (qtr differenced)", "RIADK205-RIADK206", "[V]",
+     "tied live against all 12 banks' filed Call Reports, 2026-06-30"),
+    ("NTRERESQ", "RI-B Pt I 1.c.(1)+1.c.(2) cols A-B",
+     "Resi NCO (qtr differenced)",
+     "RIAD5411+RIADC234+RIADC235-RIAD5412-RIADC217-RIADC218", "[V]",
+     "revolving open-end plus closed-end first and junior liens; tied live against all 12 banks' filed Call Reports, 2026-06-30"),
+    # The FDIC publishes no quarterly variant of this field: the API
+    # returns NTRENRES (year-to-date) and no NTRENREQ, so the column is blank
+    # for every bank. The citation records where the number WOULD come from.
+    ("NTRENREQ", "RI-B Pt I 1.e.(1)+(2) cols A-B",
+     "Nonfarm nonres NCO (qtr differenced)",
+     "RIADC895+RIADC897-RIADC896-RIADC898", "[~]",
+     "owner-occupied plus other nonfarm nonresidential. NOT PUBLISHED by the "
+     "FDIC as a quarterly field -- lands blank for all 12 banks; the filing "
+     "carries the components and they were checked, 2026-06-30"),
     ("NTREMULQ", "RI-B Pt I 1.d cols A-B",
-     "Multifamily NCO (qtr differenced)", "(not in tie-out map)", "[~]",
-     "match by caption; 8-char truncated name"),
+     "Multifamily NCO (qtr differenced)", "RIAD3588-RIAD3589", "[V]",
+     "8-char truncated name; tied live against all 12 banks' filed Call Reports, 2026-06-30"),
     # ---- E. securities (Schedule RC-B line 8, four columns) ----
-    ("SCHA", "RC-B 8 col A", "HTM securities, amortized cost", "RCON1754",
+    ("SCHA", "RC-B 8 col A", "HTM securities, amortized cost", "RCON1754 (RCFD1754 031)",
      "[V]",
      "tie to RC-B; RC 2.a JJ34 is net of ACL post-CECL and DIFFERS"),
-    ("SCHF", "RC-B 8 col B", "HTM securities, fair value", "RCON1771",
+    ("SCHF", "RC-B 8 col B", "HTM securities, fair value", "RCON1771 (RCFD1771 031)",
      "[V]", ""),
-    ("SCAA", "RC-B 8 col C", "AFS securities, amortized cost", "RCON1772",
+    ("SCAA", "RC-B 8 col C", "AFS securities, amortized cost", "RCON1772 (RCFD1772 031)",
      "[V]", ""),
-    ("SCAF", "RC-B 8 col D", "AFS securities, fair value", "RCON1773",
+    ("SCAF", "RC-B 8 col D", "AFS securities, fair value", "RCON1773 (RCFD1773 031)",
      "[V]", "= RC 2.b; equity securities excluded (RC 2.c JA22)"),
     # ---- F. FDIC-computed / filed ratios (direct core metrics) ----
     ("NCLNLSR", "FDIC-computed ratio", "100 x (1407+1403)/2122",
@@ -242,9 +272,9 @@ FIELD_ROWS = [
      "[V]", ""),
     ("LNRESNCR", "FDIC-computed ratio", "100 x 3123/(1407+1403)",
      "3123 / 1407,1403", "[V]", ""),
-    ("RBC1AAJ", "FILED: RC-R Pt I 31", "Leverage ratio", "RCOA7204", "[V]",
+    ("RBC1AAJ", "FILED: RC-R Pt I 31", "Leverage ratio", "RCOA7204 (031: RCFA7204)", "[V]",
      "filed directly by all banks incl. CBLR electors"),
-    ("RBCRWAJ", "FILED: RC-R Pt I ~51", "Total capital ratio", "RCOA7205",
+    ("RBCRWAJ", "FILED: RC-R Pt I ~51", "Total capital ratio", "RCOA7205 (031: RCFA7205)",
      "[V]", "BLANK for CBLR electors (null, never 0); Tier1 = 7206"),
     ("EQV", "FDIC-computed ratio", "100 x 3210/2170", "3210 / 2170", "[V]",
      ""),

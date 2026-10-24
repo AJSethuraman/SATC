@@ -30,8 +30,17 @@ however real it is.
 ## Sources this desk may rely on
 
 - **S1** · Treasury Regulation § 1.263(a)-3 — Amounts paid to improve tangible property · tier **primary**
+- **S2** · Treasury Regulation § 1.162-3 — Materials and supplies · tier **primary**
 
 ## The authority
+
+### 26 CFR 1.162-3(c)(1)(i)
+
+> Is a component acquired to maintain, repair, or improve a unit of tangible property (as determined under § 1.263(a)-3(e)) owned, leased, or serviced by the taxpayer and that is not acquired as part of any single unit of tangible property;
+
+### 26 CFR 1.162-3(c)(2)
+
+> For purposes of this section, rotable spare parts are materials and supplies under paragraph (c)(1)(i) of this section that are acquired for installation on a unit of property, removable from that unit of property, generally repaired or improved, and either reinstalled on the same or other property or stored for later installation.
 
 ### 26 CFR 1.263(a)-3(a)
 

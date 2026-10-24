@@ -1,0 +1,3 @@
+$ cube control --out control.xlsx
+wrote control.xlsx
+(exit code 0)

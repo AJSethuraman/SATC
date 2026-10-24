@@ -1,0 +1,494 @@
+[
+ {
+  "ticker": "KEY",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/91576/000162828026052671/key-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Real estate — residential mortgage",
+    "amount_musd": 18178,
+    "where": "Note 3. Loan Portfolio - 'Loan Portfolio by Portfolio Segment and Class of Financing Receivable' (Notes to Consolidated Financial Statements); same figures in MD&A Financial Condition > Loans and loans held for sale > 'Figure 8. Composition of Loans at June 30, 2026'"
+   },
+   {
+    "name_as_filed": "Home equity loans",
+    "amount_musd": 5408,
+    "where": "Note 3. Loan Portfolio - 'Loan Portfolio by Portfolio Segment and Class of Financing Receivable' (Notes to Consolidated Financial Statements); same figures in MD&A Financial Condition > Loans and loans held for sale > 'Figure 8. Composition of Loans at June 30, 2026'"
+   },
+   {
+    "name_as_filed": "Other consumer loans",
+    "amount_musd": 4349,
+    "where": "Note 3. Loan Portfolio - 'Loan Portfolio by Portfolio Segment and Class of Financing Receivable' (Notes to Consolidated Financial Statements); same figures in MD&A Financial Condition > Loans and loans held for sale > 'Figure 8. Composition of Loans at June 30, 2026'"
+   },
+   {
+    "name_as_filed": "Credit cards",
+    "amount_musd": 927,
+    "where": "Note 3. Loan Portfolio - 'Loan Portfolio by Portfolio Segment and Class of Financing Receivable' (Notes to Consolidated Financial Statements); same figures in MD&A Financial Condition > Loans and loans held for sale > 'Figure 8. Composition of Loans at June 30, 2026'"
+   },
+   {
+    "name_as_filed": "Total consumer loans",
+    "amount_musd": 28862,
+    "where": "Note 3. Loan Portfolio - 'Loan Portfolio by Portfolio Segment and Class of Financing Receivable' (Notes to Consolidated Financial Statements); same figures in MD&A Financial Condition > Loans and loans held for sale > 'Figure 8. Composition of Loans at June 30, 2026'"
+   }
+  ],
+  "student": {
+   "amount_musd": 182,
+   "quote": "At June 30, 2026, and December 31, 2025, approximately $182 million and $205 million, respectively, of education loans are included in discontinued assets on the Consolidated Balance Sheets.",
+   "where": "Note 12. Acquisitions & Discontinued Operations > Discontinued Operations (discontinued, excluded from total loans)",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "offering a variety of deposit and investment products, personal finance and financial wellness services, lending, student loan refinancing, mortgage and home equity, credit card, treasury services, and business advisory services.",
+     "where": "MD&A > Demographics (Consumer Bank description); Note 17. Business Segment Reporting > Consumer Bank has the same list in a different order"
+    },
+    {
+     "amount_musd": null,
+     "quote": "Total loans exclude loans of $182 million at June 30, 2026, and $205 million at December 31, 2025, related to the discontinued operations of the education lending business.",
+     "where": "Note 3. Loan Portfolio, footnote (c) to the loan class table"
+    }
+   ]
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for 'unsecured', 'personal loan', 'installment': only hits concern KeyCorp's own senior unsecured debt ratings and derivative collateral."
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for RV, recreational, marine, solar, point-of-sale, securities-based: no consumer-loan hits. No automobile class is reported either."
+  },
+  "other_consumer_definition": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "No text defines 'Other consumer loans'. Nearest evidence: in Note 4. Asset Quality, the FICO/vintage credit quality table for consumer loans, the rows under the heading 'Other consumer loans' total to a subtotal labelled 'Total consumer direct loans' (4,349).",
+   "also": [
+    {
+     "amount_musd": 4349,
+     "quote": "Total consumer direct loans",
+     "where": "Note 4. Asset Quality > consumer credit quality table by origination year and FICO score, As of June 30, 2026 (subtotal row under 'Other consumer loans')"
+    },
+    {
+     "amount_musd": null,
+     "quote": "Other consumer | Unemployment rate, prime rate and U.S. household income",
+     "where": "Note 4. Asset Quality > ALLL > 'Key Macroeconomic Variables' table"
+    }
+   ]
+  },
+  "notes": "Four consumer classes; no auto class on balance sheet (only 'Consumer indirect' loans administered or serviced: 31 at June 30, 2026, MD&A Figure 13 - off balance sheet). Education loans ($182M) are discontinued operations and excluded from total loans and from Other consumer loans. The Consumer Bank offers student loan refinancing, but the 10-Q does not say which class holds those loans or how much; it does not name Laurel Road. Within Other consumer loans, 577 of 4,349 sit in the Revolving Loans column of the Note 4 FICO table. Other consumer average balance Q2 2026 was 4,410 (MD&A average balance table)."
+ },
+ {
+  "ticker": "CFG",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/759944/000075994426000148/cfg-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgages",
+    "amount_musd": 36374,
+    "where": "NOTE 3 - LOANS AND LEASES, table of loans and leases excluding LHFS (Notes to the Consolidated Financial Statements); same figures in MD&A 'Table 5: Composition of Loans and Leases, Excluding LHFS' under Loans and Leases"
+   },
+   {
+    "name_as_filed": "Home equity",
+    "amount_musd": 20276,
+    "where": "NOTE 3 - LOANS AND LEASES, table of loans and leases excluding LHFS (Notes to the Consolidated Financial Statements); same figures in MD&A 'Table 5: Composition of Loans and Leases, Excluding LHFS' under Loans and Leases"
+   },
+   {
+    "name_as_filed": "Automobile",
+    "amount_musd": 1482,
+    "where": "NOTE 3 - LOANS AND LEASES, table of loans and leases excluding LHFS (Notes to the Consolidated Financial Statements); same figures in MD&A 'Table 5: Composition of Loans and Leases, Excluding LHFS' under Loans and Leases"
+   },
+   {
+    "name_as_filed": "Education",
+    "amount_musd": 8044,
+    "where": "NOTE 3 - LOANS AND LEASES, table of loans and leases excluding LHFS (Notes to the Consolidated Financial Statements); same figures in MD&A 'Table 5: Composition of Loans and Leases, Excluding LHFS' under Loans and Leases"
+   },
+   {
+    "name_as_filed": "Other retail",
+    "amount_musd": 4031,
+    "where": "NOTE 3 - LOANS AND LEASES, table of loans and leases excluding LHFS (Notes to the Consolidated Financial Statements); same figures in MD&A 'Table 5: Composition of Loans and Leases, Excluding LHFS' under Loans and Leases"
+   },
+   {
+    "name_as_filed": "Total retail",
+    "amount_musd": 70207,
+    "where": "NOTE 3 - LOANS AND LEASES, table of loans and leases excluding LHFS (Notes to the Consolidated Financial Statements); same figures in MD&A 'Table 5: Composition of Loans and Leases, Excluding LHFS' under Loans and Leases"
+   }
+  ],
+  "student": {
+   "amount_musd": 8044,
+   "quote": "Our retail banking portfolio is comprised of five categories of loans: residential mortgages, home equity, education, automobile, and other retail.",
+   "where": "MD&A > Risk Management > Credit Risk > Consumer; amount from NOTE 3 table row 'Education | 8,044'",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "During the first quarter of 2025, the Company entered into an agreement to sell $1.9 billion of education loans and subsequently reclassified these loans to LHFS.",
+     "where": "NOTE 4 - CREDIT QUALITY AND THE ALLOWANCE FOR CREDIT LOSSES"
+    },
+    {
+     "amount_musd": 301,
+     "quote": "Education | $301",
+     "where": "NOTE 5 - MORTGAGE BANKING AND OTHER SERVICED LOANS > Other Serviced Loans (unpaid principal balance serviced for others, not on balance sheet)"
+    }
+   ]
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for 'unsecured', 'personal', 'installment': only hits are CFG's own senior unsecured notes and unsecured wholesale funding."
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for RV, recreational, marine, solar, point-of-sale, Citizens Pay, merchant: no hits."
+  },
+  "other_consumer_definition": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "No text in this 10-Q defines 'Other retail'. The only description is the five-category list in MD&A > Risk Management > Credit Risk > Consumer.",
+   "also": [
+    {
+     "amount_musd": 3184,
+     "quote": "Total other retail | 82 | | 276 | | 139 | | 106 | | 145 | | 99 | | 3,184 | — | | 4,031",
+     "where": "NOTE 4 > Credit Quality Indicators > retail loans by vintage date and current FICO score as of June 30, 2026 (3,184 is the 'Within the Revolving Period' column)"
+    }
+   ]
+  },
+  "notes": "No separate credit card class appears in this 10-Q although 'Card fees' are reported in noninterest income; the 10-Q does not say where card balances sit. 3,184 of the 4,031 Other retail balance is revolving ('Within the Revolving Period'); 695 has 'No FICO available'. Other retail is the highest-yielding retail class (Q2 2026 average 4,061 at 9.67% in the MD&A average balance table) and was the driver of lower retail net charge-offs. Automobile is in runoff."
+ },
+ {
+  "ticker": "PNC",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/713676/000162828026053170/pnc-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential real estate",
+    "amount_musd": 48709,
+    "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans > 'Table 8: Loans'; class list in NOTE 4 LOANS AND RELATED ALLOWANCE FOR CREDIT LOSSES > Loan Portfolio"
+   },
+   {
+    "name_as_filed": "Home equity",
+    "amount_musd": 26280,
+    "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans > 'Table 8: Loans'; class list in NOTE 4 LOANS AND RELATED ALLOWANCE FOR CREDIT LOSSES > Loan Portfolio"
+   },
+   {
+    "name_as_filed": "Automobile",
+    "amount_musd": 15872,
+    "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans > 'Table 8: Loans'; class list in NOTE 4 LOANS AND RELATED ALLOWANCE FOR CREDIT LOSSES > Loan Portfolio"
+   },
+   {
+    "name_as_filed": "Credit card",
+    "amount_musd": 7311,
+    "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans > 'Table 8: Loans'; class list in NOTE 4 LOANS AND RELATED ALLOWANCE FOR CREDIT LOSSES > Loan Portfolio"
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 5904,
+    "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans > 'Table 8: Loans'; class list in NOTE 4 LOANS AND RELATED ALLOWANCE FOR CREDIT LOSSES > Loan Portfolio"
+   },
+   {
+    "name_as_filed": "Total consumer",
+    "amount_musd": 104076,
+    "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans > 'Table 8: Loans'; class list in NOTE 4 LOANS AND RELATED ALLOWANCE FOR CREDIT LOSSES > Loan Portfolio"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "Effective January 1, 2026, PNC updated its defined loan classes (classes of financing receivables) as follows: ... (ii) education loans were reclassified to the other consumer loan class based on materiality considerations.",
+   "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans; repeated in NOTE 1 ACCOUNTING POLICIES > Loans. No education amount is disclosed."
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "Lending products include residential mortgages, home equity loans and lines of credit, auto loans, credit cards, personal and small business loans and lines of credit.",
+   "where": "NOTE 15 SEGMENT REPORTING (Retail Banking description). No amount disclosed.",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "Excludes most unsecured consumer loans and lines of credit, which are charged off after 120 to 180 days past due and are not placed on nonperforming status.",
+     "where": "NOTE 4, footnote (a) to the nonperforming assets table; also MD&A Credit Risk Management nonperforming assets table"
+    },
+    {
+     "amount_musd": null,
+     "quote": "Credit card and unsecured lines of credit programs both offer short-term and fully-amortized repayment plans, impacting terms and interest rates.",
+     "where": "NOTE 4 > Loan Modifications to Borrowers Experiencing Financial Difficulty, consumer FDM table footnote (e)"
+    }
+   ]
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "Average total loans increased in the comparison and included growth in securities-based lending and higher commercial loan balances.",
+   "where": "MD&A > BUSINESS SEGMENTS REVIEW > Asset Management Group. Securities-based lending is mentioned; no amount, and the 10-Q does not state which loan class holds it. No RV, marine or solar lending is mentioned.",
+   "also": [
+    {
+     "amount_musd": 3850,
+     "quote": "Other consumer | 3,850",
+     "where": "MD&A > BUSINESS SEGMENTS REVIEW > 'Table 14: Asset Management Group Table', Average Balance Sheet, six months ended June 30, 2026 (an average, not period-end)"
+    }
+   ]
+  },
+  "other_consumer_definition": {
+   "amount_musd": null,
+   "quote": "(ii) education loans were reclassified to the other consumer loan class based on materiality considerations.",
+   "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans. This is the only statement of what Other consumer contains; no fuller definition in the 10-Q.",
+   "also": [
+    {
+     "amount_musd": 3357,
+     "quote": "Other internal credit metrics | 1 | | | — | | 2 | | 29 | | 7 | | 689 | | 2,620 | | 9 | | 3,357",
+     "where": "NOTE 4 > 'Table 53: Credit Quality Indicators for Automobile, Credit Card and Other Consumer Loan Classes', June 30, 2026: Other consumer split 2,547 'Total loans using FICO credit metric' and 3,357 'Other internal credit metrics' (2,620 of it revolving)"
+    },
+    {
+     "amount_musd": 3210,
+     "quote": "Other consumer | 3,210",
+     "where": "MD&A > BUSINESS SEGMENTS REVIEW > 'Table 12: Retail Banking Table', Average Balance Sheet, six months ended June 30, 2026 (average)"
+    }
+   ]
+  },
+  "notes": "Other consumer (5,904) holds education loans since 1 Jan 2026 (amount not given). More than half of it (3,357) is graded on 'Other internal credit metrics' rather than FICO, and 2,819 is revolving. The segment averages split Other consumer between Retail Banking (3,210) and Asset Management Group (3,850), whose loan growth the 10-Q attributes in part to securities-based lending; these are six-month averages and are not stated to reconcile to the period-end class. Other consumer gross charge-offs include deposit overdrafts (Table 53 footnote (d))."
+ },
+ {
+  "ticker": "TFC",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/92230/000009223026000099/tfc-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgage",
+    "amount_musd": 56632,
+    "where": "NOTE 4. Loans and ACL - loans and leases HFI by aging category table, June 30, 2026 ('Total' column). The MD&A 'Table 7: Average Loans and Leases' gives averages only; no period-end class table appears in MD&A, and Note 4 prints no consumer subtotal."
+   },
+   {
+    "name_as_filed": "Home equity",
+    "amount_musd": 9677,
+    "where": "NOTE 4. Loans and ACL - loans and leases HFI by aging category table, June 30, 2026 ('Total' column). The MD&A 'Table 7: Average Loans and Leases' gives averages only; no period-end class table appears in MD&A, and Note 4 prints no consumer subtotal."
+   },
+   {
+    "name_as_filed": "Indirect auto",
+    "amount_musd": 23840,
+    "where": "NOTE 4. Loans and ACL - loans and leases HFI by aging category table, June 30, 2026 ('Total' column). The MD&A 'Table 7: Average Loans and Leases' gives averages only; no period-end class table appears in MD&A, and Note 4 prints no consumer subtotal."
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 33164,
+    "where": "NOTE 4. Loans and ACL - loans and leases HFI by aging category table, June 30, 2026 ('Total' column). The MD&A 'Table 7: Average Loans and Leases' gives averages only; no period-end class table appears in MD&A, and Note 4 prints no consumer subtotal."
+   },
+   {
+    "name_as_filed": "Credit card",
+    "amount_musd": 4806,
+    "where": "NOTE 4. Loans and ACL - loans and leases HFI by aging category table, June 30, 2026 ('Total' column). The MD&A 'Table 7: Average Loans and Leases' gives averages only; no period-end class table appears in MD&A, and Note 4 prints no consumer subtotal."
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for 'student' and 'education': the only hit is 'Educational services', a commercial industry line in the MD&A commercial-loans-by-industry table."
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "Lending solutions include credit cards, personal and unsecured loans originated through the branch network and digital channels;",
+   "where": "NOTE 16. Operating Segments > Consumer and Small Business Banking. No amount disclosed.",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "primarily due to higher indirect lending in the Service Finance portfolio, increases in unsecured lending, and real estate lending.",
+     "where": "MD&A > Segment Results > Consumer and Small Business Banking (CSBB average loans, Q2 2026 vs Q2 2025)"
+    }
+   ]
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "During the second quarter of 2026, we discontinued the origination of certain marine and recreational vehicle loans, and we further reduced originations in less strategic and less profitable consumer lending units such as prime and non-prime auto.",
+   "where": "MD&A > Analysis of Financial Condition > Lending Activities. No amount disclosed.",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "national indirect lending services providing a comprehensive set of technology-enabled consumer lending solutions, including point-of-sale offerings for autos, outdoor power sports, outdoor power equipment, and home improvement;",
+     "where": "NOTE 16. Operating Segments > Consumer and Small Business Banking"
+    }
+   ]
+  },
+  "other_consumer_definition": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "No text defines which products are in the 'Other consumer' class. Nearest evidence is the CSBB lending description (NOTE 16) and the Lending Activities narrative quoted under unsecured and secured_non_auto; neither maps products to the class.",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "Average consumer loans decreased 0.3% primarily due to a decline in the indirect auto portfolio, partially offset by an increase in the other consumer portfolio.",
+     "where": "MD&A > Analysis of Financial Condition > Lending Activities"
+    }
+   ]
+  },
+  "notes": "Other consumer (33,164) is Truist's largest non-mortgage consumer class. The 10-Q does not say what it holds; product evidence (personal/unsecured loans, Service Finance point-of-sale home improvement, power sports, marine and RV) comes from the segment description and is not tied to a class. LightStream is not named. Of Other consumer, 3,069 sits in the revolving column of the Note 4 vintage table. The Note 4 class total is 329,796 for all loans HFI."
+ },
+ {
+  "ticker": "FITB",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/35527/000003552726000202/fitb-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgage loans",
+    "amount_musd": 19713,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   },
+   {
+    "name_as_filed": "Home equity",
+    "amount_musd": 6929,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   },
+   {
+    "name_as_filed": "Indirect secured consumer loans",
+    "amount_musd": 18186,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   },
+   {
+    "name_as_filed": "Credit card",
+    "amount_musd": 1683,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   },
+   {
+    "name_as_filed": "Solar energy installation loans",
+    "amount_musd": 4314,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   },
+   {
+    "name_as_filed": "Other consumer loans",
+    "amount_musd": 2823,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   },
+   {
+    "name_as_filed": "Total consumer loans",
+    "amount_musd": 53648,
+    "where": "6. Loans and Leases (Notes to Condensed Consolidated Financial Statements), Portfolio loans and leases. MD&A BALANCE SHEET ANALYSIS > Loans and Leases > 'TABLE 14: Components of Loans and Leases (including loans and leases held for sale)' prints the same consumer figures except Residential mortgage loans 20,408 and Total consumer loans 54,343 (including held for sale)."
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for 'student' and 'education': no hits."
+  },
+  "unsecured": {
+   "amount_musd": 626,
+   "quote": "Unsecured | 626 | | 22 |",
+   "where": "MD&A > Credit Risk Management > Consumer Portfolio > Other consumer loans portfolio > 'TABLE 44: Other Consumer Portfolio Loans Outstanding by Product Type', June 30, 2026",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "Other consumer portfolio loans are comprised of secured and unsecured loans originated through the Bancorp’s branch network,",
+     "where": "MD&A > Consumer Portfolio > Other consumer loans portfolio"
+    }
+   ]
+  },
+  "secured_non_auto": {
+   "amount_musd": 1299,
+   "quote": "Other secured | $ | 1,299 | | 46 | %",
+   "where": "MD&A > Consumer Portfolio > 'TABLE 44: Other Consumer Portfolio Loans Outstanding by Product Type', June 30, 2026 (other-collateral loans within Other consumer)",
+   "also": [
+    {
+     "amount_musd": 2800,
+     "quote": "As of June 30, 2026 the indirect secured consumer portfolio consisted of $15.4 billion of automobile loans and $2.8 billion primarily comprised of indirect recreational vehicle and marine loans.",
+     "where": "MD&A > Consumer Portfolio > Indirect secured consumer portfolio (printed as $2.8 billion; inside the Indirect secured consumer loans class)"
+    },
+    {
+     "amount_musd": 4314,
+     "quote": "The Bancorp originated point-of-sale solar energy installation loans through a network of approved installers.",
+     "where": "MD&A > Consumer Portfolio > Solar energy installation loans portfolio; amount is the class 'Solar energy installation loans | 4,314'"
+    },
+    {
+     "amount_musd": 613,
+     "quote": "Point-of-sale home improvement | 613 | | 22 |",
+     "where": "MD&A > Consumer Portfolio > TABLE 44 (within Other consumer)"
+    }
+   ]
+  },
+  "other_consumer_definition": {
+   "amount_musd": null,
+   "quote": "Other consumer portfolio loans are comprised of secured and unsecured loans originated through the Bancorp’s branch network, point-of-sale home improvement loans originated through a network of contractors and installers, and other point-of-sale loans originated or purchased in connection with third-party companies.",
+   "where": "MD&A > Credit Risk Management > Consumer Portfolio > Other consumer loans portfolio",
+   "also": [
+    {
+     "amount_musd": 285,
+     "quote": "Third-party point-of-sale | 285 | | 10 |",
+     "where": "TABLE 44, June 30, 2026"
+    },
+    {
+     "amount_musd": null,
+     "quote": "The Bancorp discontinued origination of new loans with this third-party company in September 2022.",
+     "where": "MD&A > Consumer Portfolio > Other consumer loans portfolio"
+    }
+   ]
+  },
+  "notes": "Six consumer classes. Other consumer 2,823 = Other secured 1,299 + Point-of-sale home improvement 613 + Unsecured 626 + Third-party point-of-sale 285 (Table 44). Indirect secured consumer 18,186 = $15.4bn auto + $2.8bn 'primarily' RV and marine (rounded billions in the filing). Solar is its own class (4,314); origination paused July 2026. Comerica (acquired 1 Feb 2026) added 434 of Other consumer loans (Table 15). No student/education lending mentioned."
+ },
+ {
+  "ticker": "HBAN",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/49196/000004919626000066/hban-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgage",
+    "amount_musd": 33221,
+    "where": "5. LOANS AND LEASES (Notes to Unaudited Consolidated Financial Statements), Consumer loan portfolio; same figures in MD&A Credit Risk > Loan and Lease Credit Exposure Mix > 'Table 8 - Loan and Lease Portfolio Composition'"
+   },
+   {
+    "name_as_filed": "Automobile",
+    "amount_musd": 15460,
+    "where": "5. LOANS AND LEASES (Notes to Unaudited Consolidated Financial Statements), Consumer loan portfolio; same figures in MD&A Credit Risk > Loan and Lease Credit Exposure Mix > 'Table 8 - Loan and Lease Portfolio Composition'"
+   },
+   {
+    "name_as_filed": "Home equity",
+    "amount_musd": 11884,
+    "where": "5. LOANS AND LEASES (Notes to Unaudited Consolidated Financial Statements), Consumer loan portfolio; same figures in MD&A Credit Risk > Loan and Lease Credit Exposure Mix > 'Table 8 - Loan and Lease Portfolio Composition'"
+   },
+   {
+    "name_as_filed": "RV and marine",
+    "amount_musd": 5706,
+    "where": "5. LOANS AND LEASES (Notes to Unaudited Consolidated Financial Statements), Consumer loan portfolio; same figures in MD&A Credit Risk > Loan and Lease Credit Exposure Mix > 'Table 8 - Loan and Lease Portfolio Composition'"
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 2602,
+    "where": "5. LOANS AND LEASES (Notes to Unaudited Consolidated Financial Statements), Consumer loan portfolio; same figures in MD&A Credit Risk > Loan and Lease Credit Exposure Mix > 'Table 8 - Loan and Lease Portfolio Composition'"
+   },
+   {
+    "name_as_filed": "Total consumer loan portfolio",
+    "amount_musd": 68873,
+    "where": "5. LOANS AND LEASES (Notes to Unaudited Consolidated Financial Statements), Consumer loan portfolio; same figures in MD&A Credit Risk > Loan and Lease Credit Exposure Mix > 'Table 8 - Loan and Lease Portfolio Composition'"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for 'student' and 'education': the only hit is 'Educational services', a commercial industry line."
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Whole 10-Q searched for 'unsecured', 'personal loan', 'credit card': only hits are senior unsecured notes and credit linked notes; no credit card class or unsecured consumer lending is described."
+  },
+  "secured_non_auto": {
+   "amount_musd": 5706,
+   "quote": "RV and marine | 5,706 |",
+   "where": "5. LOANS AND LEASES, consumer loan portfolio table, At June 30, 2026 (RV is defined in the glossary as 'Recreational Vehicle')",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "RV | Recreational Vehicle",
+     "where": "Glossary of acronyms and terms"
+    }
+   ]
+  },
+  "other_consumer_definition": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "This 10-Q does not define 'Other consumer'; it points to the 10-K instead.",
+   "also": [
+    {
+     "amount_musd": null,
+     "quote": "Refer to the “Loan and Lease Credit Exposure Mix” section of our 2025 Annual Report on Form 10-K for a description of each portfolio segment.",
+     "where": "MD&A > Credit Risk > Loan and Lease Credit Exposure Mix"
+    },
+    {
+     "amount_musd": 1293,
+     "quote": "Total Other consumer | $358 | | $485 | | $240 | | $79 | | $35 | | $83 | | $1,293 | | $29 | | $2,602",
+     "where": "5. LOANS AND LEASES > Credit Quality Indicators vintage table, At June 30, 2026 (1,293 is the 'Revolver Total at Amortized Cost Basis' column)"
+    },
+    {
+     "amount_musd": 264,
+     "quote": "$1.5 billion of home equity loans, and $264 million of other consumer loans.",
+     "where": "MD&A > Loan and Lease Credit Exposure Mix (loans acquired from Cadence at the acquisition date)"
+    }
+   ]
+  },
+  "notes": "No separate credit card class; the 10-Q does not say where card balances sit. Of Other consumer 2,602, 1,293 is revolving (Revolver column). RV and marine (5,706) is the only secured non-auto consumer class disclosed. Cadence (acquired 1 Feb 2026) added $264 million of other consumer loans."
+ }
+]

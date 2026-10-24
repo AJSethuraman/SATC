@@ -58,18 +58,26 @@ def ratio_fn(num: str, den: str, multiplier: float) -> Callable[[Fields], Option
     """Build the function for one row of a source's declarative ratio table."""
     def fn(fields: Fields) -> Optional[float]:
         return ratio(fields.get(num), fields.get(den), multiplier)
+    fn.balance = den          # the book the ratio stands on (balance_field)
     return fn
 
 
 def build_registry(direct: Sequence[str],
                    ratios: Mapping[str, Tuple[str, str, float]],
-                   derived: Mapping[str, Tuple[Tuple[str, ...], MetricFn]]
+                   derived: Mapping[str, Tuple[Tuple[str, ...], MetricFn]],
                    ) -> Registry:
     """Assemble a source's registry from its three kinds of metric.
 
     ``direct``  -- the metric id IS a landed field, passed through.
     ``ratios``  -- the declarative table, which also drives the Excel formulas.
     ``derived`` -- the handful that need real code (multi-leg derivations).
+
+    A fourth kind lived here for one day: a *guarded* direct, a landed rate
+    that only means something against a book, added for #259 when the FDIC's
+    class rates were landed as rates. #268 replaced all fifteen with ratios
+    computed over the book, so nothing used it any more and it went. A ratio
+    already returns None on a zero or missing denominator, which is the same
+    protection by construction.
     """
     registry: Registry = {name: ((name,), None) for name in direct}
     for name, (num, den, multiplier) in ratios.items():
@@ -85,6 +93,20 @@ def metric_value(registry: Registry, metric_id: str,
     if fn is None:
         return fields.get(consumed[0])
     return fn(fields)
+
+
+def balance_field(registry: Registry, metric_id: str) -> Optional[str]:
+    """The landed balance a metric stands on, or None when it stands on none.
+
+    A guarded direct names it; a declarative ratio's denominator is it; a
+    multi-leg derivation (Texas, CRE concentration) has no single book and
+    returns None. The digest and the Watchlist formulas use this to say
+    "N/A" -- a third answer, drawn differently from OK and from blank.
+    """
+    _consumed, fn = registry[metric_id]
+    if fn is None:
+        return None                  # a landed value stands on no book
+    return getattr(fn, "balance", None)
 
 
 def validate_metrics(series: Sequence, registry: Registry,

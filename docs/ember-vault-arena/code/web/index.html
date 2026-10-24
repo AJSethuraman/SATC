@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b12">
+  <title>Ember Vault Arena</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">E</span>
+      <span>EMBER VAULT <small>AGENT ARENA</small></span>
+    </a>
+    <div class="top-actions">
+      <button id="audioButton" class="button ghost" aria-pressed="false">Audio Off</button>
+      <button id="voiceButton" class="button ghost" aria-pressed="false">Narrator Off</button>
+      <button id="labButton" class="button ghost">Agent Lab</button>
+      <button id="demoButton" class="button primary">Run New Trial</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">PROMPTS ENTER. CONSEQUENCES STAY.</p>
+          <h1>One crown. Eight minds.<br><em>No retries.</em></h1>
+      </div>
+      <div class="hero-copy">
+        <p>Eight prompt-defined rivals enter the same deterministic dungeon. Every choice, roll, wound, betrayal, and referee ruling is preserved.</p>
+        <div class="match-picker">
+          <label for="matchSelect">Replay</label>
+          <select id="matchSelect"><option>Loading matches…</option></select>
+          <span id="auditBadge" class="badge">AUDIT PENDING</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="emptyState" class="empty hidden">
+      <div class="sigil">✦</div>
+      <h2>The vault is waiting.</h2>
+      <p>Run the included zero-cost eight-agent trial to generate your first complete match.</p>
+      <button id="emptyDemoButton" class="button primary">Release the agents</button>
+    </section>
+
+    <div id="arena" class="hidden">
+      <section class="match-strip">
+        <div><span>RULESET</span><strong id="ruleset">—</strong></div>
+        <div><span>SEED</span><strong id="seed">—</strong></div>
+        <div><span>ROUND</span><strong id="roundLabel">—</strong></div>
+        <div><span>HASH</span><strong id="stateHash">—</strong></div>
+      </section>
+
+      <section id="agentCards" class="agent-grid"></section>
+
+      <section class="viewer-grid">
+        <article class="panel map-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">LIVE STATE</p>
+              <h2>The Ember Vault</h2>
+            </div>
+            <span id="vaultStatus" class="badge">SEALED</span>
+          </div>
+          <div class="map" id="map">
+            <div class="map-links" aria-hidden="true">
+              <svg viewBox="0 0 800 430" preserveAspectRatio="none">
+                <path d="M90 215 H255"></path>
+                <path d="M330 215 C400 215 390 95 470 95"></path>
+                <path d="M330 215 C400 215 390 335 470 335"></path>
+                <path d="M330 215 H540"></path>
+                <path d="M630 215 H750"></path>
+              </svg>
+            </div>
+            <div class="room threshold" data-room="threshold"><span>01</span><strong>Threshold</strong><div class="occupants"></div></div>
+            <div class="room armory" data-room="ironwood_gate"><span>02A</span><strong>Ironwood Gate</strong><div class="occupants"></div></div>
+            <div class="room shrine" data-room="ossuary_gate"><span>02B</span><strong>Ossuary Gate</strong><div class="occupants"></div></div>
+            <div class="room vault" data-room="vault"><span>03</span><strong>Ember Vault</strong><div class="occupants"></div></div>
+            <div class="room escape" data-room="egress"><span>04</span><strong>Egress</strong><div class="occupants"></div></div>
+          </div>
+          <div id="monsterRow" class="monster-row"></div>
+        </article>
+
+        <article class="panel chronicle-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">CANONICAL FEED</p>
+              <h2>Round Chronicle</h2>
+            </div>
+            <button id="playButton" class="icon-button" aria-label="Play replay">▶</button>
+          </div>
+          <div id="narration" class="narration"></div>
+          <ol id="eventFeed" class="event-feed"></ol>
+        </article>
+      </section>
+
+      <section class="timeline-panel">
+        <button id="previousButton" class="icon-button">←</button>
+        <input id="timeline" type="range" min="0" max="1" value="0" step="1">
+        <button id="nextButton" class="icon-button">→</button>
+      </section>
+
+      <section class="lower-grid">
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">FINAL TABLE</p>
+              <h2>Score & Placement</h2>
+            </div>
+          </div>
+          <div id="scoreboard" class="scoreboard"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">POST-MATCH REVEAL</p>
+              <h2>Inside the Agents</h2>
+            </div>
+          </div>
+          <div id="promptReveal" class="prompt-reveal"></div>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="agentLab">
+    <form method="dialog" class="dialog-shell">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">SUBMISSION DESK</p>
+          <h2>Agent Lab</h2>
+        </div>
+        <button class="icon-button" value="cancel">×</button>
+      </div>
+      <p class="muted">Paste one agent manifest, save it, then select four to eight roster entries for a match.</p>
+      <div id="roster" class="roster"></div>
+      <label class="field">
+        <span>Agent manifest JSON</span>
+        <textarea id="manifestInput" spellcheck="false"></textarea>
+      </label>
+      <p id="labMessage" class="lab-message"></p>
+      <div class="dialog-actions">
+        <button id="saveAgentButton" type="button" class="button ghost">Save Agent</button>
+        <button id="runRosterButton" type="button" class="button primary">Run Selected Agents</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

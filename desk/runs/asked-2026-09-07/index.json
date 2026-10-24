@@ -74,6 +74,12 @@
   {
     "q": 18,
     "title": "Does a hardware-store purchase ever become an asset?",
+    "desk": "fixed-assets",
+    "brief": "runs/asked-2026-09-07/Q18-fixed-assets.md"
+  },
+  {
+    "q": 18,
+    "title": "Does a hardware-store purchase ever become an asset?",
     "desk": "personal-or-business",
     "brief": "runs/asked-2026-09-07/Q18-personal-or-business.md"
   },

@@ -198,7 +198,7 @@
   {
     "key": "question",
     "heading": "Which tax year?",
-    "help": "",
+    "help": "2023 to 2027. A year outside that is more likely a typo than a return we are preparing.",
     "shot": "question.png",
     "controls": [
       {
@@ -442,8 +442,8 @@
       },
       {
         "kind": "checkbox",
-        "shape": "input|checkbox|invoice|/engagement/<ref>/package",
-        "label": "Put the invoice in too",
+        "shape": "input|checkbox|/engagement/<ref>/package",
+        "label": "Put the invoice in too — no bill has been raised on this engagement yet, so there is nothing to put on one",
         "examples": [],
         "count": 1
       },
@@ -464,7 +464,7 @@
     "controls": [
       {
         "kind": "button",
-        "shape": "button|submit|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "shape": "button|submit|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
         "label": "See what changes",
         "examples": [],
         "count": 1
@@ -478,14 +478,14 @@
       },
       {
         "kind": "text",
-        "shape": "input|text|additional_forms|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "shape": "input|text|additional_forms|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
         "label": "the answer to one question",
         "examples": [],
         "count": 1
       },
       {
         "kind": "number",
-        "shape": "input|number|count_k1s|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "shape": "input|number|count_k1s|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
         "label": "the answer to one question",
         "examples": [],
         "count": 1
@@ -498,6 +498,7 @@
           "ANYTHING ELSE FILED ALONGSIDE? TWO K-1S AS REPORTED",
           "APART FROM W-2S, DID ANY OTHER INCOME DOCUMENT ARRIVE? YES",
           "DID ANY OF THESE HAPPEN LAST YEAR? (NOTHING)",
+          "DOES THE ALTERNATIVE MINIMUM TAX APPLY? (NOTHING)",
           "DOES WHAT THEY SENT NEED SORTING BEFORE IT CAN BE WORKED? (NOTHING)",
           "FOR THE MOST INVOLVED OF THOSE BUSINESSES, WHICH IS TRUE? STANDARD",
           "HOW MANY EXTENSIONS NEEDED A PAYMENT ESTIMATE? (NOTHING)",
@@ -507,13 +508,14 @@
           "HOW MANY SCHEDULE C BUSINESSES? 1",
           "HOW MANY STATE RETURNS? 1",
           "IS THE EARNED INCOME CREDIT BEING CLAIMED? (NOTHING)",
+          "IS THERE A CREDIT FOR PRIOR-YEAR MINIMUM TAX? (NOTHING)",
           "ORIGINAL RETURN, OR AN AMENDMENT? ORIGINAL",
           "WHICH FEDERAL RETURN? 1040",
           "WHICH LOCALITIES? SOLON MUNICIPAL",
           "WHICH SCHEDULES DOES THAT COME TO? C, SE, E1, E2, A",
           "WHICH STATES, AND ON WHAT BASIS? OHIO — RESIDENT"
         ],
-        "count": 17
+        "count": 19
       }
     ]
   },
@@ -657,6 +659,42 @@
         "examples": [
           "2026-0001"
         ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "package-billed",
+    "heading": "The signing pack",
+    "help": "Everything this client signs, built in one go. Nothing is written until every document has rendered and every check has passed — so if something is wrong, you get nothing rather than half a pack. One of those checks opens every document in a browser to prove it is readable, so this takes about a minute.",
+    "shot": "package-billed.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/package",
+        "label": "Build the pack",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "checkbox",
+        "shape": "input|checkbox|invoice|/engagement/<ref>/package",
+        "label": "Put the invoice in too",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "checkbox",
+        "shape": "input|checkbox|notes|/engagement/<ref>/package",
+        "label": "Also read the prose and tell me what it notices (nothing here can stop a pack)",
+        "examples": [],
         "count": 1
       }
     ]

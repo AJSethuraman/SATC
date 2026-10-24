@@ -1,0 +1,113 @@
+run,tab,column,cells checked,verdict,cells that don't fit,what doesn't fit,worst,all
+yearsplit,Columns,B,3066,DIFFERS,146,"label, the padding only","Columns!B3 [view-00]: ""Checked every column?"" -- 21 characters x 1.1 + 2 = 25.1 in 24","[[""Checked every column?"", ""21 characters x 1.1 + 2 = 25.1 in 24""]]"
+yearsplit,Columns,C,2628,TIED,0,,,[]
+yearsplit,Columns,D,1752,DIFFERS,146,"label, the padding only","Columns!D27 [view-00]: ""Bottom (divided by)"" -- 19 characters x 1 + 2 = 21.0 in 20","[[""Bottom (divided by)"", ""19 characters x 1 + 2 = 21.0 in 20""]]"
+yearsplit,Columns,E,1606,DIFFERS,584,"prose; prose, the padding only","Columns!E18 [view-00]: ""name contains 'gco'; zero on 92% of loans, never negative"" -- 57 characters x 1 + 2 = 59.0 in 51.3","[[""name contains 'fico'; 98% of values between 300 and 850"", ""55 characters x 1 + 2 = 57.0 in 51.3""], [""name contains 'gco'; zero on 92% of loans, never negative"", ""57 characters x 1 + 2 = 59.0 in 51.3""], [""name contains 'loan'; a different value on every row"", ""52 characters x 1 + 2 = 54.0 in 51.3""], [""picked and confirmed in the launcher as the outcome"", ""51 characters x 1 + 2 = 53.0 in 51.3""]]"
+yearsplit,Columns,F,1460,TIED,0,,,[]
+yearsplit,Columns,G,438,TIED,0,,,[]
+yearsplit,Columns,H,438,DIFFERS,146,"label, the padding only","Columns!H12 [view-00]: ""Treat as ↻"" -- 10 characters x 1 + 2 = 12.0 in 11","[[""Treat as \u21bb"", ""10 characters x 1 + 2 = 12.0 in 11""]]"
+yearsplit,Columns,I,146,TIED,0,,,[]
+yearsplit,Columns,J,1460,TIED,0,,,[]
+yearsplit,Columns,K,1460,DIFFERS,146,"label, the padding only","Columns!K12 [view-00]: ""Forget? ↻"" -- 9 characters x 1 + 2 = 11.0 in 9","[[""Forget? \u21bb"", ""9 characters x 1 + 2 = 11.0 in 9""]]"
+yearsplit,Columns,L,730,DIFFERS,292,"prose, the padding only","Columns!L15 [view-00]: ""suggested as Category from its shape alone (3 different values). If it's something more specific, say so and it will be remembered."" -- 131 characters x 1 + 2 = 133.0 in 60 (+72 empty beside it)","[[""suggested as Category from its shape alone (3 different values). If it's something more specific, say so and it will be remembered."", ""131 characters x 1 + 2 = 133.0 in 60 (+72 empty beside it)""], [""suggested as Category from its shape alone (4 different values). If it's something more specific, say so and it will be remembered."", ""131 characters x 1 + 2 = 133.0 in 60 (+72 empty beside it)""]]"
+yearsplit,Columns,M,146,DIFFERS,146,"label, the padding only","Columns!M12 [view-00]: ""Yes means ↻"" -- 11 characters x 1 + 2 = 13.0 in 12","[[""Yes means \u21bb"", ""11 characters x 1 + 2 = 13.0 in 12""]]"
+yearsplit,Columns,N,146,TIED,0,,,[]
+yearsplit,Columns,O,146,TIED,0,,,[]
+yearsplit,Columns,P,146,TIED,0,,,[]
+yearsplit,Control,B,4818,DIFFERS,146,prose,"Control!B44 [view-00]: ""Text columns: more values than this is too many to cut by (text is never cut into bands)"" -- 88 characters x 1 + 2 = 90.0 in 82","[[""Text columns: more values than this is too many to cut by (text is never cut into bands)"", ""88 characters x 1 + 2 = 90.0 in 82""]]"
+yearsplit,Control,C,4088,DIFFERS,146,prose,"Control!C29 [view-00]: ""Hold down the share of false finds (Benjamini-Hochberg) (recommended)"" -- 69 characters x 1 + 3 = 72.0 in 66","[[""Hold down the share of false finds (Benjamini-Hochberg) (recommended)"", ""69 characters x 1 + 3 = 72.0 in 66""]]"
+yearsplit,Control,D,876,DIFFERS,292,"label, the padding only","Control!D14 [view-00]: ""Or your own"" -- 11 characters x 1 + 2 = 13.0 in 12","[[""Or your own"", ""11 characters x 1 + 2 = 13.0 in 12""]]"
+yearsplit,Control,E,584,TIED,0,,,[]
+yearsplit,Control,F,2190,TIED,0,,,[]
+yearsplit,Control,H,2044,TIED,0,,,[]
+yearsplit,Control,I,730,TIED,0,,,[]
+yearsplit,Control,M,1314,TIED,0,,,[]
+yearsplit,Control,N,876,TIED,0,,,[]
+yearsplit,Control,O,876,TIED,0,,,[]
+yearsplit,Control,P,876,TIED,0,,,[]
+yearsplit,Grids,AA,992,TIED,0,,,[]
+yearsplit,Grids,AB,964,TIED,0,,,[]
+yearsplit,Grids,AC,746,TIED,0,,,[]
+yearsplit,Grids,AD,1134,TIED,0,,,[]
+yearsplit,Grids,AE,1042,TIED,0,,,[]
+yearsplit,Grids,AF,1023,TIED,0,,,[]
+yearsplit,Grids,AG,721,TIED,0,,,[]
+yearsplit,Grids,AH,1147,TIED,0,,,[]
+yearsplit,Grids,AI,487,TIED,0,,,[]
+yearsplit,Grids,AJ,496,TIED,0,,,[]
+yearsplit,Grids,AK,304,TIED,0,,,[]
+yearsplit,Grids,AL,533,TIED,0,,,[]
+yearsplit,Grids,B,7726,TIED,0,,,[]
+yearsplit,Grids,C,5682,TIED,0,,,[]
+yearsplit,Grids,D,3760,TIED,0,,,[]
+yearsplit,Grids,E,3748,TIED,0,,,[]
+yearsplit,Grids,F,3797,TIED,0,,,[]
+yearsplit,Grids,G,3211,TIED,0,,,[]
+yearsplit,Grids,H,2813,TIED,0,,,[]
+yearsplit,Grids,I,2720,TIED,0,,,[]
+yearsplit,Grids,J,3055,TIED,0,,,[]
+yearsplit,Grids,K,2890,TIED,0,,,[]
+yearsplit,Grids,L,2874,TIED,0,,,[]
+yearsplit,Grids,M,2779,TIED,0,,,[]
+yearsplit,Grids,N,982,TIED,0,,,[]
+yearsplit,Grids,O,852,TIED,0,,,[]
+yearsplit,Grids,P,454,TIED,0,,,[]
+yearsplit,Grids,Q,463,TIED,0,,,[]
+yearsplit,Grids,R,582,TIED,0,,,[]
+yearsplit,Grids,S,302,TIED,0,,,[]
+yearsplit,Grids,U,2764,TIED,0,,,[]
+yearsplit,Grids,V,2316,TIED,0,,,[]
+yearsplit,Grids,W,2183,TIED,0,,,[]
+yearsplit,Grids,X,2144,TIED,0,,,[]
+yearsplit,Grids,Y,1940,TIED,0,,,[]
+yearsplit,Grids,Z,1723,TIED,0,,,[]
+yearsplit,Look,B,8906,DIFFERS,438,label,"Look!B26 [view-00]: ""50th percentile (P50), the median"" -- 33 characters x 1 + 2 = 35.0 in 32","[[""50th percentile (P50), the median"", ""33 characters x 1 + 2 = 35.0 in 32""]]"
+yearsplit,Look,C,8030,DIFFERS,584,wrapped prose,"Look!C6 [view-00]: ""Red dashed: the band edges typed on Columns. They follow that tab as you type, so you can try edges here before the next Run; blank edges are cut at the Run, so no lines show. Grey: the 10th, 25th, 50th, 75th and 90th percentile, P10 to P90. A tenth of the loans on the chart lie below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does."" -- wraps to 3 lines of 163 characters; the row is 31 pt, 39 needed","[[""A value that looks like a code, such as a score of -9999, gets a red bar of its own left of the chart, so it doesn't flatten the rest. Columns asks whether it means missing."", ""wraps to 2 lines of 163 characters; the row is 17 pt, 26 needed""], [""How many loans fall in each step between From and To. Pick 10, 20 or 50 bars and change the range; the chart follows. The grey bar at each end holds the loans outside the range."", ""wraps to 2 lines of 163 characters; the row is 17 pt, 26 needed""], [""Red dashed: the band edges typed on Columns. They follow that tab as you type, so you can try edges here before the next Run; blank edges are cut at the Run, so no lines show. Grey: the 10th, 25th, 50th, 75th and 90th percentile, P10 to P90. A tenth of the loans on the chart lie below P10, half below P50 (the median). Worked out as Excel's PERCENTILE.INC does."", ""wraps to 3 lines of 163 characters; the row is 31 pt, 39 needed""], [""The split column against each band column: a random 2,000 loans, the same every time. If the dots slope, the two move together, and part of a gap on Split may belong to the band column."", ""wraps to 2 lines of 163 characters; the row is 17 pt, 26 needed""]]"
+yearsplit,Look,D,1022,TIED,0,,,[]
+yearsplit,Look,H,438,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",B,5110,DIFFERS,146,label,"Paid, cost, kept!B1 [view-00]: ""Paid, cost, kept"" -- 16 characters x 1.8 + 2 = 30.4 in 20","[[""Paid, cost, kept"", ""16 characters x 1.8 + 2 = 30.4 in 20""]]"
+yearsplit,"Paid, cost, kept",C,4672,DIFFERS,146,wrapped prose,"Paid, cost, kept!C9 [view-00]: ""The two sides read at once. Priced for it: more charge-offs and more kept. Net drain: more charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but idle: fewer charge-offs and less kept. Earns less, not from losses: less kept while charge-offs are about the same. Losing more, profit holding: more charge-offs while what we kept is about the same. Blank: nothing to read together. Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way. Together gives the p-value of each side that is, charge-offs first."" -- wraps to 5 lines of 143 characters; the row is 59 pt, 65 needed","[[""The two sides read at once. Priced for it: more charge-offs and more kept. Net drain: more charge-offs and less kept. Strong: fewer charge-offs and more kept. Safe but idle: fewer charge-offs and less kept. Earns less, not from losses: less kept while charge-offs are about the same. Losing more, profit holding: more charge-offs while what we kept is about the same. Blank: nothing to read together. Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way. Together gives the p-value of each side that is, charge-offs first."", ""wraps to 5 lines of 143 characters; the row is 59 pt, 65 needed""]]"
+yearsplit,"Paid, cost, kept",D,3504,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",E,3358,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",F,3504,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",G,3020,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",H,3504,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",I,3358,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",J,3504,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",K,590,TIED,0,,,[]
+yearsplit,"Paid, cost, kept",M,882,TIED,0,,,[]
+yearsplit,Pockets,B,11226,TIED,0,,,[]
+yearsplit,Pockets,C,13270,TIED,0,,,[]
+yearsplit,Pockets,D,13124,TIED,0,,,[]
+yearsplit,Pockets,E,7200,TIED,0,,,[]
+yearsplit,Pockets,F,11664,TIED,0,,,[]
+yearsplit,Pockets,G,11226,DIFFERS,146,"label, the padding only","Pockets!G19 [view-00]: ""This pocket"" -- 11 characters x 1 + 2 = 13.0 in 11","[[""This pocket"", ""11 characters x 1 + 2 = 13.0 in 11""]]"
+yearsplit,Pockets,H,11518,DIFFERS,146,"label, the padding only","Pockets!H19 [view-00]: ""Rest of band"" -- 12 characters x 1 + 2 = 14.0 in 12","[[""Rest of band"", ""12 characters x 1 + 2 = 14.0 in 12""]]"
+yearsplit,Pockets,I,11226,DIFFERS,114,"label, the padding only","Pockets!I19 [view-00]: ""× rest of band"" -- 14 characters x 1 + 2 = 16.0 in 14","[[""\u00d7 rest of band"", ""14 characters x 1 + 2 = 16.0 in 14""]]"
+yearsplit,Pockets,J,11518,DIFFERS,260,"label, the padding only","Pockets!J19 [view-00]: ""Bad loans above share"" -- 21 characters x 1 + 2 = 23.0 in 22","[[""Bad loans above share"", ""21 characters x 1 + 2 = 23.0 in 22""], [""Dollars short of band"", ""21 characters x 1 + 2 = 23.0 in 22""], [""Rest of its band"", ""16 characters x 1.3 + 3 = 24.3 in 22""]]"
+yearsplit,Pockets,K,11372,TIED,0,,,[]
+yearsplit,Pockets,L,10126,TIED,0,,,[]
+yearsplit,Pockets,M,11226,TIED,0,,,[]
+yearsplit,Pockets,N,11066,TIED,0,,,[]
+yearsplit,Record,B,7738,DIFFERS,438,wrapped label; wrapped prose,"Record!B35 [view-00]: ""Smallest gap a typical pocket could show: Earned before losses"" -- wraps to 3 lines of 30 characters; the row is 32 pt, 39 needed","[[""Left out of Earned before losses"", ""wraps to 2 lines of 30 characters; the row is 18 pt, 26 needed""], [""Pockets: ORIG_BAL x ASSET_CLASS"", ""wraps to 2 lines of 30 characters; the row is 18 pt, 26 needed""], [""Smallest gap a typical pocket could show: Earned before losses"", ""wraps to 3 lines of 30 characters; the row is 32 pt, 39 needed""]]"
+yearsplit,Record,C,9198,DIFFERS,1168,wrapped prose,"Record!C45 [view-00]: ""book has 619 (619 ÷ 5 = 123). Fewer in practice, since loans never spread evenly. Each grid cuts the whole book"" -- wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed","[[""16 pockets, against a budget of 123. 15 have at least 10 bad loans and can be tested, holding 100% of the loans"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""21 pockets, against a budget of 123. 15 have at least 10 bad loans and can be tested, holding 97% of the loans"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""21 pockets, against a budget of 123. 20 have at least 10 bad loans and can be tested, holding 100% of the loans"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""28 pockets, against a budget of 123. 20 have at least 10 bad loans and can be tested, holding 97% of the loans"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""4 pockets had no other pocket in its band, so they were compared with the rest of the book."", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""407 pockets across 8 grids. Testable means at least 10 bad loans (fewest losses): that is the only floor that"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""book has 619 (619 \u00f7 5 = 123). Fewer in practice, since loans never spread evenly. Each grid cuts the whole book"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""], [""fewest loans 65 (enough to expect 5 with the outcome at the book's rate of 7.74%); worse at 1.34x; better at"", ""wraps to 2 lines of 89 characters; the row is 18 pt, 26 needed""]]"
+yearsplit,Record,E,5110,DIFFERS,730,wrapped label; wrapped prose,"Record!E18 [view-00]: ""How far profit must move before it counts as more or less"" -- wraps to 3 lines of 30 characters; the row is 32 pt, 39 needed","[[""How far profit must move before it counts as more or less"", ""wraps to 3 lines of 30 characters; the row is 32 pt, 39 needed""], [""How often a real gap should be caught"", ""wraps to 2 lines of 30 characters; the row is 18 pt, 26 needed""], [""Smallest excess loss worth reporting"", ""wraps to 2 lines of 30 characters; the row is 18 pt, 26 needed""], [""The allowance for many tests covers"", ""wraps to 2 lines of 30 characters; the row is 18 pt, 26 needed""], [""What a pocket is judged against"", ""wraps to 2 lines of 30 characters; the row is 18 pt, 26 needed""]]"
+yearsplit,Record,F,9490,DIFFERS,3212,wrapped prose,"Record!F39 [view-00]: ""A verdict is borderline when the p-value that decides it came from shuffling and sits within 2 of its own standard errors of the 5% bar, either side, so another run of the shuffles could read it the other way. The standard error is the square root of p (1 - p) / shuffles, times what the allowance for many tests multiplied the p-value by. The tabs add ""borderline (p 0.048)"" to the verdict; its colour, order and counts stay the verdict's. The z test and the exact test give the same p-value on every run, so they are never borderline."" -- wraps to 7 lines of 85 characters; the row is 88 pt, 91 needed","[[""($1,339,855)\"". A gap its own test doesn't call significant gives the gap and says not significant. In"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""100, holding 3,814 tests: 4 grids x 5 rates x 2 comparisons; 4 three-way grids x 5 rates x 2"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""A verdict is borderline when the p-value that decides it came from shuffling and sits within 2 of its own standard errors of the 5% bar, either side, so another run of the shuffles could read it the other way. The standard error is the square root of p (1 - p) / shuffles, times what the allowance for many tests multiplied the p-value by. The tabs add \""borderline (p 0.048)\"" to the verdict; its colour, order and counts stay the verdict's. The z test and the exact test give the same p-value on every run, so they are never borderline."", ""wraps to 7 lines of 85 characters; the row is 88 pt, 91 needed""], [""As the gap: how many points of booked dollars a pocket is short of or ahead of its band, and the dollars"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Columns!C3: set Checked every column to Yes once you've checked each column's meaning."", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C15: \""How much worse than its comparison a pocket must be\"" needs an answer. Pick one, or enter"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C16: \""How much better than its comparison a pocket must be\"" needs an answer. Pick one, or enter"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C17: \""How far profit must move before it counts as more or less\"" needs an answer. Pick one, or"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C18: \""How sure a difference must be before it counts\"" needs an answer. Pick one, or enter your"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C19: \""Smallest excess loss worth reporting\"" needs an answer. Pick one, or enter your own in"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C20: \""What a pocket is judged against\"" needs an answer. Pick one from the list."", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""], [""Control!C24: \""Fewest loans in a pocket for the usual test (smaller ones get the exact test)\"" needs an"", ""wraps to 2 lines of 85 characters; the row is 18 pt, 26 needed""]]"
+yearsplit,Record,G,1898,DIFFERS,146,wrapped prose,"Record!G11 [view-00]: ""Each band holds about the same number of loans"" -- wraps to 2 lines of 41 characters; the row is 18 pt, 26 needed","[[""Each band holds about the same number of loans"", ""wraps to 2 lines of 41 characters; the row is 18 pt, 26 needed""]]"
+yearsplit,Split,B,4486,DIFFERS,151,"prose; prose, the padding only","Split!B25 [view-00]: ""Do the values of ORIG_YEAR differ at all? Bad loans: no sign they do (p-value 0.6661, on 3 degrees of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate."" -- 215 characters x 1 + 3 = 218.0 in 192","[[""Do the values of ORIG_YEAR differ at all? Bad loans: no sign they do (p-value 0.6313, on 3 degrees of freedom, 24 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate."", ""215 characters x 1 + 3 = 218.0 in 192""], [""Do the values of ORIG_YEAR differ at all? Bad loans: no sign they do (p-value 0.6375, on 3 degrees of freedom, 15 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate."", ""215 characters x 1 + 3 = 218.0 in 192""], [""Do the values of ORIG_YEAR differ at all? Bad loans: no sign they do (p-value 0.6661, on 3 degrees of freedom, 18 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate."", ""215 characters x 1 + 3 = 218.0 in 192""], [""Do the values of ORIG_YEAR differ at all? Bad loans: no sign they do (p-value 0.6897, on 3 degrees of freedom, 20 pockets); Bad dollars, Charge-offs, Kept after losses, Earned before losses: not tested: dollar rate."", ""215 characters x 1 + 3 = 218.0 in 192""], [""ORIG_BAL x ASSET_CLASS \u00b7 ORIG_YEAR (no date) vs rest"", ""52 characters x 1 + 3 = 55.0 in 53""]]"
+yearsplit,Split,C,3112,DIFFERS,146,wrapped prose,"Split!C8 [view-00]: ""The chance of a gap at least this big if the value were no different from the rest. Under 5% counts, and is bold. Bad loans: the gap in standard errors; a dollar measure: the loans dealt at random inside their pocket, 10,000 times. The allowance for many tests (Benjamini-Hochberg) covers every value and pocket of one grid and measure, and the summary's p-values across the values; a gap that is not significant is in brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums (65 loans, 10 losses). Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way."" -- wraps to 5 lines of 167 characters; the row is 59 pt, 65 needed","[[""The chance of a gap at least this big if the value were no different from the rest. Under 5% counts, and is bold. Bad loans: the gap in standard errors; a dollar measure: the loans dealt at random inside their pocket, 10,000 times. The allowance for many tests (Benjamini-Hochberg) covers every value and pocket of one grid and measure, and the summary's p-values across the values; a gap that is not significant is in brackets, unshaded. A blank: the value or the rest has fewer loans or losses than the minimums (65 loans, 10 losses). Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run could read it the other way."", ""wraps to 5 lines of 167 characters; the row is 59 pt, 65 needed""]]"
+yearsplit,Split,D,1944,TIED,0,,,[]
+yearsplit,Split,E,1844,TIED,0,,,[]
+yearsplit,Split,F,1258,TIED,0,,,[]
+yearsplit,Split,G,1068,TIED,0,,,[]
+yearsplit,Split,H,1400,TIED,0,,,[]
+yearsplit,Split,I,1194,TIED,0,,,[]
+yearsplit,Split,J,776,TIED,0,,,[]
+yearsplit,Split,K,776,TIED,0,,,[]
+yearsplit,Split,L,190,TIED,0,,,[]
+yearsplit,Start here,B,3504,TIED,0,,,[]
+yearsplit,Start here,C,1460,DIFFERS,146,label,"Start here!C22 [view-00]: ""ASSET_CLASS 4 · borderline (p 0.036)"" -- 36 characters x 1 + 2 = 38.0 in 16","[[""ASSET_CLASS 4 \u00b7 borderline (p 0.036)"", ""36 characters x 1 + 2 = 38.0 in 16""]]"
+yearsplit,Start here,D,2336,DIFFERS,146,label,"Start here!D16 [view-00]: ""Dollars above their share, in those"" -- 35 characters x 0.9 + 3 = 34.5 in 30","[[""Dollars above their share, in those"", ""35 characters x 0.9 + 3 = 34.5 in 30""]]"
+yearsplit,Start here,E,876,TIED,0,,,[]
+yearsplit,Start here,F,1606,DIFFERS,146,"label, the padding only","Start here!F16 [view-00]: ""Pockets keeping less, worse and material"" -- 40 characters x 0.9 + 3 = 39.0 in 37","[[""Pockets keeping less, worse and material"", ""40 characters x 0.9 + 3 = 39.0 in 37""]]"
+yearsplit,Start here,G,292,TIED,0,,,[]

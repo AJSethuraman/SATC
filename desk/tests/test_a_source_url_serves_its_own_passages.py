@@ -40,11 +40,11 @@ sys.path.insert(0, str(HERE))
 
 import record                                               # noqa: E402
 import tieout                                               # noqa: E402
-from conftest import DESKS                                  # noqa: E402
+from conftest import CORPUS                                  # noqa: E402
 
 
 def _desks():
-    for d in sorted(DESKS.iterdir()):
+    for d in [CORPUS]:
         if (d / "SOURCES.md").is_file():
             yield record.load(d)
 
@@ -117,15 +117,20 @@ def test_the_rewards_desk_holds_the_four_sections_apart():
     `26 USC 6041` is a string prefix of `26 USC 6041A` and only the
     non-alphanumeric boundary rule keeps every 6041A citation off S2.
     """
-    desk = record.load(DESKS / "rewards-and-information-returns")
+    desk = record.load(CORPUS)
     code = {s.id: s for s in desk.sources if "uscode.house.gov" in s.url}
-    assert len(code) == 4, f"{sorted(code)} — the four sections are not four sources"
-    assert len({s.url for s in code.values()}) == 4, "two share a Url"
+    # FIVE SINCE 27 SEPTEMBER 2026: § 274 (S41), admitted after Sarcia pilot 5,
+    # is a fifth section of the Code and a fifth source with its own granule.
+    # The four stay four; the fifth joins the disjointness check below, since
+    # nothing about `26 USC 274` keeps it off `26 USC 2741` but the same rule.
+    assert len(code) == 5, f"{sorted(code)} — five sections are not five sources"
+    assert len({s.url for s in code.values()}) == 5, "two share a Url"
 
     for citation, expect in (("26 USC 6041(a)", "26 USC 6041"),
                              ("26 USC 6041A(a)", "26 USC 6041A"),
                              ("26 USC 6050W(e)", "26 USC 6050W"),
-                             ("26 USC 6071(c)", "26 USC 6071")):
+                             ("26 USC 6071(c)", "26 USC 6071"),
+                             ("26 USC 274(e)(8)", "26 USC 274")):
         hit = [s.citation_prefix for s in code.values()
                if record.from_source(citation, s.citation_prefix)]
         assert hit == [expect], (

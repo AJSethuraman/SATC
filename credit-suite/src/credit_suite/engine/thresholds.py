@@ -21,6 +21,7 @@ OK = "OK"
 WATCH = "WATCH"
 ALERT = "ALERT"
 STALE = "STALE"
+NOT_APPLICABLE = "N/A"     # the book this ratio stands on is zero or missing
 
 
 def status_for(value: Optional[float], threshold: Optional[Threshold]) -> str:

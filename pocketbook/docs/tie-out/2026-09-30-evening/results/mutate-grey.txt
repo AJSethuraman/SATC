@@ -1,0 +1,7 @@
+planted 200, caught 197, missed 3
+semantic plants 9068, caught 9068, missed 0
+  by kind (caught, missed): {'grid': (76, 0), 'grid-bound': (13, 0), 'grid-grey': (7615, 0), 'look': (8, 0), 'look-label': (50, 0), 'look-pline': (15, 0), 'panel': (55, 0), 'pk-border': (6, 0), 'pk-rule': (1230, 0)}
+  by kind (caught, missed): {'band-label': (2, 0), 'grid': (85, 0), 'grid-bookfig': (1, 0), 'grid-grey': (46, 0), 'grid-head': (1, 0), 'groups': (5, 0), 'line': (1, 0), 'look-bar': (1, 0), 'panel': (1, 0), 'pck': (4, 0), 'pck-dot': (1, 0), 'pk-border': (12, 0), 'pocket': (27, 2), 'size-median': (6, 0), 'split-pocket': (3, 1), 'split-sum': (1, 0)}
+  missed: Pockets L75 ['pocket', 'Split by REV_DEBT', 'Bad dollars', 'ORIG_BAL 5,005 - 15,448', 'Broker', 'high', 'p'] 0.00624937506249375 0.003124687531246875
+  missed: Pockets L56 ['pocket', 'Two-way', 'Charge-offs', 'FICO 496 - 653', 'Branch', None, 'p'] 0.002999700029997 0.0014998500149985
+  missed: Split J34 ['split-pocket', 'ORIG_BAL x ASSET_CLASS', 'Kept after losses', '49,152 - 59,984', '2', 'p'] 0.03999600039996 0.01999800019998

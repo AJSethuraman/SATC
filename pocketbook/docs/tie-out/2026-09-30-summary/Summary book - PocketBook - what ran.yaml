@@ -1,0 +1,58 @@
+# Exactly what the last Run used.
+# revenue_line: each pocket's own test (profit counts only when its gap is significant)
+# What was run: Where the book bleeds
+name: summary_book
+schema_version: 1
+columns_confirmed: true
+columns:
+  LOAN_NBR: key
+  FICO: fico
+  CHANNEL: category
+  ORIG_BAL: booked
+  BAD_FLAG: outcome
+  GCO_AMT: gco
+  RANR_AMT: ranr
+  ASSET_CLASS: category
+  REV_DEBT: amount
+  ORIG_DATE: origination_date
+bands:
+- name: fico
+  field: FICO
+  count: 5
+  cut: equal_loans
+- name: rev_debt
+  field: REV_DEBT
+  count: 5
+  cut: equal_loans
+dimensions:
+- name: channel
+  field: CHANNEL
+- name: asset_class
+  field: ASSET_CLASS
+measures:
+- name: loans
+  mode: count
+benchmark:
+  min_units: 30
+  min_events: 10
+  worse_at: 1.25
+  better_at: 0.8
+  confidence: 0.95
+  power: 0.8
+  compare_to: peers
+  many_tests: bh
+  materiality: 1% of losses
+  revenue_line: luck
+  shuffles: 200
+questions:
+- column: FICO
+  pattern: repeated_value
+  value: -9999.0
+  rows: 160
+  answer: missing
+- column: RANR_AMT
+  pattern: negatives
+  value: null
+  rows: 595
+  answer: null
+filter_by: ORIG_YEAR

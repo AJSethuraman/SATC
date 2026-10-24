@@ -1,0 +1,179 @@
+[
+  {
+    "q": 4,
+    "question": "What is the capitalisation threshold?",
+    "desk": "capitalization-and-de-minimis",
+    "position": "Without an applicable financial statement the de minimis safe harbour reaches $2,500 per invoice or per item; with one, $5,000.",
+    "citation": "IRS Tangible Property Final Regulations, \"What is the de minimis safe harbor election?\"",
+    "working": "The passage states both ceilings directly. The regulation's own text at 1.263(a)-1(f)(1)(ii)(D) still reads $500; Notice 2015-82 raised it to $2,500 and this IRS page is where that increase is stated, so it is the passage that settles the number."
+  },
+  {
+    "q": 4,
+    "question": "What is the capitalisation threshold?",
+    "desk": "fixed-assets",
+    "escalated": true,
+    "reason": "wrong_body_of_authority",
+    "working": "This desk holds 1.263(a)-2 and 1.263(a)-3 \u2014 acquisition and improvement of units of property. The de minimis safe harbour lives at 1.263(a)-1(f), which this desk does not hold; 1.263(a)-2(d)(1) only cross-refers to it. Nothing printed here states a threshold.",
+    "ask": "Put the threshold question to the capitalisation-and-de-minimis desk, which holds 1.263(a)-1(f). This desk can say whether a given item is a unit of property, not what the expensing ceiling is."
+  },
+  {
+    "q": 6,
+    "question": "Is a brewery a meal?",
+    "desk": "meals-and-entertainment",
+    "position": "A charge at a brewery or taproom is a food or beverage expense at 50 percent, not entertainment, unless the record shows it was incurred at or during an entertainment activity.",
+    "citation": "26 CFR 1.274-11(b)(1)(i)",
+    "working": "The paragraph names bars among the activities generally considered entertainment, but 1.274-11(b)(1)(ii) removes food and beverages from that term unless they are provided at or during an entertainment activity. A taproom charge on its own is the drink, not an activity. This is also the firm's ratified position on this citation."
+  },
+  {
+    "q": 7,
+    "question": "Are groceries ever deductible?",
+    "desk": "meals-and-entertainment",
+    "position": "Groceries are food or beverages, so where they qualify at all they are limited to 50 percent \u2014 the grocery form of the purchase does not take them outside section 274.",
+    "citation": "26 CFR 1.274-12(a)(1)",
+    "working": "1.274-12(b)(1) defines food or beverages as all food and beverage items regardless of how characterised, which covers supermarket purchases. (a)(1) then sets the three conditions and (a)(2) the 50 percent limit. This is the firm's ratified position on this citation."
+  },
+  {
+    "q": 7,
+    "question": "Are groceries ever deductible?",
+    "desk": "personal-or-business",
+    "escalated": true,
+    "reason": "facts_not_established",
+    "working": "1.262-1(a) disallows personal, living and family expenses, and 1.162-1(a) allows only what is directly connected with the trade. Food is on one side or the other depending on who ate it and where \u2014 the authority is clear and the fact is not.",
+    "ask": "Who consumed these groceries and where? Household food for the owner's family is personal under 1.262-1(a). Food bought to feed a crew at a job site is a business expense \u2014 and if it is, say whether it was provided at the site, because that changes the percentage as well as the answer."
+  },
+  {
+    "q": 8,
+    "question": "Is this clothing deductible?",
+    "desk": "personal-or-business",
+    "escalated": true,
+    "reason": "facts_not_established",
+    "working": "The only clothing test printed here is 1.262-1(b)(8): equipment is deductible to the extent it is especially required by the profession and does not merely take the place of articles required in civilian life \u2014 the sword is deductible, the uniform is not. Applying that test needs the garment.",
+    "ask": "What garment was bought, and does the trade require it as protective or specialised gear that would not be worn in ordinary life? Steel-toed boots or flame-resistant coveralls meet the test; jeans and t-shirts from the same receipt do not. The firm's ratified position on this citation is to ask what the item is \u2014 who sold it is evidence about what was bought, not the answer."
+  },
+  {
+    "q": 9,
+    "question": "Are card rewards income?",
+    "desk": "fixed-assets",
+    "escalated": true,
+    "reason": "wrong_body_of_authority",
+    "working": "This desk holds the capitalisation regulations for acquiring and improving units of property. Whether a rebate is gross income is a section 61 question, and no passage printed here touches it.",
+    "ask": "Put this to the rewards-and-information-returns desk, which holds section 61, the rebate rulings and Pub. 525."
+  },
+  {
+    "q": 9,
+    "question": "Are card rewards income?",
+    "desk": "rewards-and-information-returns",
+    "position": "Card rewards earned on business spending are an adjustment to the purchase price, booked against the cost they arose from, and are not income.",
+    "citation": "PLR 201027015, LAW AND ANALYSIS",
+    "working": "The passage states that a rebate received from the party to whom the buyer paid the purchase price is an adjustment in purchase price, not an accession to wealth, and is not includible in gross income. This is the firm's ratified position on this citation. A Credit Card Rewards income account books the opposite treatment and overstates taxable income."
+  },
+  {
+    "q": 12,
+    "question": "Do payments to individuals create a 1099-NEC obligation?",
+    "desk": "capitalization-and-de-minimis",
+    "escalated": true,
+    "reason": "wrong_body_of_authority",
+    "working": "This desk holds 1.263(a)-1(f) and 1.162-3 \u2014 expensing and capitalising property. Information-return obligations are sections 6041 and 6050W, and no passage printed here reaches them.",
+    "ask": "Put this to the rewards-and-information-returns desk, which holds sections 6041, 6041A and 6050W and the 1099-MISC/NEC instructions."
+  },
+  {
+    "q": 12,
+    "question": "Do payments to individuals create a 1099-NEC obligation?",
+    "desk": "rewards-and-information-returns",
+    "position": "Yes \u2014 payments made in the course of a trade or business to a non-corporate payee for services reach the information-return requirement once they total $2,000 or more in a calendar year, for tax years beginning after 2025.",
+    "citation": "26 USC 6041(a)",
+    "working": "The statute sets the threshold at $2,000 or more in any calendar year for fixed or determinable gains, profits and income paid in the course of a trade or business. The regulation at 1.6041-1(a)(1)(i)(A) still reads $600; the statute is the later word and the 1099-MISC/NEC instructions confirm the $2,000 figure for tax years beginning after 2025, with inflation adjustment from 2027. Whether the software tracks payee totals is a separate matter and not an authority question."
+  },
+  {
+    "q": 16,
+    "question": "Where is the line between a tool and a fixed asset?",
+    "desk": "capitalization-and-de-minimis",
+    "position": "A tool that is a unit of property costing $200 or less, or with an economic useful life of 12 months or less, is materials and supplies rather than an asset; above that it is capitalised unless the de minimis election reaches it.",
+    "citation": "26 CFR 1.162-3(c)(1)(iv)",
+    "working": "The paragraph fixes the materials-and-supplies line at an acquisition cost of $200 or less, and (c)(1)(iii) gives the 12-month alternative. Those are the two routes out of capitalisation that do not require the election; the election under 1.263(a)-1(f) is the third and reaches $2,500."
+  },
+  {
+    "q": 16,
+    "question": "Where is the line between a tool and a fixed asset?",
+    "desk": "fixed-assets",
+    "position": "The default is capitalisation: an amount paid to acquire a unit of property must be capitalised unless it falls under materials and supplies or the de minimis safe harbour election.",
+    "citation": "26 CFR 1.263(a)-2(d)(1)",
+    "working": "The paragraph states the rule and names its own two exits \u2014 1.162-3 for materials and supplies, 1.263(a)-1(f) for the de minimis election. That is the line the question asks for: everything acquired is an asset unless one of those two reaches it."
+  },
+  {
+    "q": 18,
+    "question": "Does a hardware-store purchase ever become an asset?",
+    "desk": "capitalization-and-de-minimis",
+    "escalated": true,
+    "reason": "facts_not_established",
+    "working": "The rule is settled \u2014 1.162-3(c)(1)(iv) expenses a unit of property at $200 or less, the de minimis election reaches $2,500 per invoice or item, and anything above is capitalised. What is missing is the only thing that decides which applies: what was actually on the invoice.",
+    "ask": "Can you get the itemised receipt for this purchase, not just the card total? The de minimis limit is per invoice or per item as substantiated by the invoice, so a $900 hardware-store charge could be one tool that is capitalised or thirty consumables that are expensed, and the bank line cannot tell them apart."
+  },
+  {
+    "q": 18,
+    "question": "Does a hardware-store purchase ever become an asset?",
+    "desk": "cash-and-bank",
+    "escalated": true,
+    "reason": "facts_not_established",
+    "working": "Pub. 583 requires a recordkeeping system that clearly shows income and expenses, supported by documents. A bank feed line carries the merchant and the total and no line detail, so this desk can say the supporting document is missing but cannot supply what is on it.",
+    "ask": "Request the itemised receipt or supplier statement for this charge. Until the line detail is in the file the books cannot show what was bought, and the classification cannot be made from the bank feed alone."
+  },
+  {
+    "q": 18,
+    "question": "Does a hardware-store purchase ever become an asset?",
+    "desk": "fixed-assets",
+    "position": "Yes \u2014 where the purchase is a unit of property rather than a consumable, it must be capitalised, and the supplier's name has no bearing on that.",
+    "citation": "26 CFR 1.263(a)-2(d)(1)",
+    "working": "The paragraph requires capitalising amounts paid to acquire a unit of real or personal property, including machinery and equipment, subject only to 1.162-3 and the de minimis election. Nothing in it turns on the class of vendor, so a trade-supplier account can and will contain assets."
+  },
+  {
+    "q": 18,
+    "question": "Does a hardware-store purchase ever become an asset?",
+    "desk": "personal-or-business",
+    "escalated": true,
+    "reason": "facts_not_established",
+    "working": "Before it can be an asset it has to be the business's at all. 1.162-1(a) allows expenditures directly connected with the trade and 1.262-1(a) disallows personal ones; a hardware-store charge sits on either side depending on where the material went.",
+    "ask": "Which job or property did this purchase go to? Materials for a client job or for business premises are the business's; materials for the owner's own home are personal under 1.262-1(a), whatever card paid for them."
+  },
+  {
+    "q": 29,
+    "question": "Are rewards revenue at all?",
+    "desk": "rewards-and-information-returns",
+    "position": "No \u2014 a rebate on something you bought is not income; it reduces what the thing cost.",
+    "citation": "IRS Pub. 525 (2025), \"Cash rebates\"",
+    "working": "The passage states that a cash rebate from a dealer or manufacturer of an item you buy is not income and that basis is reduced by the rebate. That is the same treatment the firm has ratified on PLR 201027015 \u2014 a price adjustment booked against the cost it arose from \u2014 stated in the plainest terms the record holds."
+  },
+  {
+    "q": 31,
+    "question": "Personal spending on a business card is not excluded \u2014 it is a draw",
+    "desk": "cash-and-bank",
+    "position": "The charge has to be recorded somewhere: reconciling requires the books to reflect every bank charge and the correct balance, so a personal charge left unbooked leaves the account out by exactly its amount.",
+    "citation": "IRS Pub. 583 (12/2024), \"Reconciling the checking account\" \u2014 what the books are updated for",
+    "working": "The passage says reconciling makes the checkbook and books reflect all bank charges and the correct balance in the account. Excluding a charge that actually cleared does not satisfy that; the money left the account and the books have to show it leaving."
+  },
+  {
+    "q": 31,
+    "question": "Personal spending on a business card is not excluded \u2014 it is a draw",
+    "desk": "personal-or-business",
+    "position": "It is not deductible, but do not book it straight to owner draws on the strength of the seller's name \u2014 flag it and ask what was bought.",
+    "citation": "26 CFR 1.262-1(a) \u2014 the general rule",
+    "working": "The paragraph disallows personal, living and family expenses, which settles the deduction. It does not settle the classification: the firm's ratified position on this citation is to flag the charge and ask the client what was bought rather than assume from the merchant, because the same seller supplies both business materials and household goods."
+  },
+  {
+    "q": 33,
+    "question": "Is streaming television ever a business subscription?",
+    "desk": "meals-and-entertainment",
+    "escalated": true,
+    "reason": "facts_not_established",
+    "working": "1.274-11(b)(1)(i) makes entertainment any activity of a type generally considered entertainment, amusement or recreation, and (a) disallows it. Whether this subscription is that activity or a fixture of a client-facing space is a fact about where it plays, not a question the paragraph answers.",
+    "ask": "Where does this subscription play \u2014 a client waiting area or shop floor, or the owner's household devices? A screen running in a waiting room is a cost of the premises; the same service on a home television is personal."
+  },
+  {
+    "q": 33,
+    "question": "Is streaming television ever a business subscription?",
+    "desk": "personal-or-business",
+    "position": "Only if the subscription is directly connected with the trade; an entertainment service that is not is a personal expense.",
+    "citation": "26 CFR 1.162-1(a) \u2014 what a business expense is",
+    "working": "The paragraph allows ordinary and necessary expenditures directly connected with or pertaining to the trade or business. That is the whole test here: the subscription is deductible when the business use is the reason for it, and 1.262-1(a) disallows it otherwise. Nothing about paying with a business card supplies that connection."
+  }
+]

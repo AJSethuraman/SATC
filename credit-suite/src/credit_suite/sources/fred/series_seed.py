@@ -76,16 +76,20 @@ CONSUMER = [
     _co_dr("DRSFRMOBS", "Delinquency Rate on Single-Family Residential Mortgages, Other Banks", "sf_mortgage", "consumer"),
     # Leases
     _co_dr("DRLFRACBS", "Delinquency Rate on Leases, All Commercial Banks", "leases", "consumer"),
-    # G.19 consumer credit (monthly, dollar levels / flow)
+    # G.19 consumer credit (monthly, dollar levels / flow).
+    # MILLIONS, not billions: the Board prints 5,166,907.71 for June 2026
+    # and so does the workbook. These four declared the wrong unit until
+    # 5 Sep 2026 -- a factor of a thousand on the line a reader reads,
+    # with the number itself correct, which is why nothing caught it.
     row("TOTALSL", "Total Consumer Credit Owned and Securitized (SA)", "g19", "consumer", "level",
-        "monthly", "SA", "billions $", "level", "national", True, False, "yoy_pct", "none",
+        "monthly", "SA", "millions $", "level", "national", True, False, "yoy_pct", "none",
         "G.19 dropped the nonfinancial-business sector from the May 2025 release; do not read as a break."),
     row("TOTALNS", "Total Consumer Credit Owned and Securitized (NSA)", "g19", "consumer", "level",
-        "monthly", "NSA", "billions $", "level", "national", True, False, "yoy_pct", "none"),
+        "monthly", "NSA", "millions $", "level", "national", True, False, "yoy_pct", "none"),
     row("REVOLSL", "Revolving Consumer Credit Owned and Securitized (SA)", "g19", "consumer", "level",
-        "monthly", "SA", "billions $", "level", "national", True, False, "yoy_pct", "none"),
+        "monthly", "SA", "millions $", "level", "national", True, False, "yoy_pct", "none"),
     row("NONREVSL", "Nonrevolving Consumer Credit Owned and Securitized (SA)", "g19", "consumer", "level",
-        "monthly", "SA", "billions $", "level", "national", True, False, "yoy_pct", "none"),
+        "monthly", "SA", "millions $", "level", "national", True, False, "yoy_pct", "none"),
     row("TOTALSLAR", "Total Consumer Credit, Percent Change at Annual Rate", "g19", "consumer", "flow",
         "monthly", "SA", "percent (annual rate)", "rate", "national", True, False, "level", "none",
         "Already a rate of change -- passthrough, do not re-difference."),
@@ -103,8 +107,8 @@ CONSUMER = [
     _sloos("DRTSCLCC", "Net % Banks Tightening Standards for Credit Card Loans", "consumer"),
     _sloos("STDSAUTO", "Net % Banks Tightening Standards for Auto Loans", "consumer"),
     _sloos("STDSOTHCONS", "Net % Banks Tightening Standards for Other Consumer Loans", "consumer"),
-    _sloos("DRTSSP", "Net % Banks Tightening Standards for Consumer Loans (subprime)", "consumer"),
-    _sloos("SUBLPDHMSENQ", "Net % Banks Reporting Stronger Demand for Consumer Loans", "consumer", demand=True),
+    _sloos("DRTSSP", "Net % Banks Tightening Standards for Subprime Mortgage Loans", "consumer"),
+    _sloos("SUBLPDHMSENQ", "Net % Banks Tightening Standards for GSE-Eligible Mortgage Loans", "consumer"),
 ]
 
 # --------------------------------------------------------------------------
@@ -129,10 +133,13 @@ COMMERCIAL = [
     _sloos("DRTSCIS", "Net % Tightening Standards for C&I Loans to Small Firms", "commercial"),
     _sloos("DRSDCILM", "Net % Reporting Stronger Demand for C&I Loans, Large/Medium Firms", "commercial", demand=True),
     _sloos("DRSDCIS", "Net % Reporting Stronger Demand for C&I Loans, Small Firms", "commercial", demand=True),
-    _sloos("SUBLPDRCSN", "Net % Tightening Standards for CRE Construction & Land Loans", "commercial"),
+    # SUBLPDRCSN is NONFARM NONRESIDENTIAL and SUBLPDRCSC is CONSTRUCTION.
+    # They carried each other's description until 5 Sep 2026; the values were
+    # always right, which is exactly why nothing noticed.
+    _sloos("SUBLPDRCSN", "Net % Tightening Standards for CRE Nonfarm Nonresidential Loans", "commercial"),
     _sloos("SUBLPDRCSM", "Net % Tightening Standards for CRE Multifamily Loans", "commercial"),
-    _sloos("SUBLPDRCSC", "Net % Tightening Standards for CRE Nonfarm Nonresidential Loans", "commercial"),
-    _sloos("SUBLPDCILSLGNQ", "Net % Increasing Spreads on C&I Loans to Large/Medium Firms", "commercial"),
+    _sloos("SUBLPDRCSC", "Net % Tightening Standards for CRE Construction & Land Loans", "commercial"),
+    _sloos("SUBLPDCILSLGNQ", "Net % of Large Banks Tightening Standards for C&I Loans to Large/Medium Firms", "commercial"),
 ]
 
 # --------------------------------------------------------------------------

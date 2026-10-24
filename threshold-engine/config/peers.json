@@ -1,0 +1,117 @@
+{
+  "_what": "The peer roster. Copied from credit-suite/config/peers.json on 12 Oct 2026, where each certificate was checked against the bank's own filed Call Report. 'regional' is the bank's grouping for the 'Regionals only' pack: every peer except JPMorgan, Wells Fargo, Bank of America, Citi and Capital One (12 Oct 2026, a working grouping, not a definition).",
+  "banks": [
+    {
+      "cert": "628",
+      "name": "JPMorgan Chase Bank NA",
+      "short": "JPMorgan",
+      "group": "peer",
+      "regional": false
+    },
+    {
+      "cert": "3511",
+      "name": "Wells Fargo Bank NA",
+      "short": "Wells Fargo",
+      "group": "peer",
+      "regional": false
+    },
+    {
+      "cert": "3510",
+      "name": "Bank of America NA",
+      "short": "Bank of America",
+      "group": "peer",
+      "regional": false
+    },
+    {
+      "cert": "7213",
+      "name": "Citibank NA",
+      "short": "Citi",
+      "group": "peer",
+      "regional": false
+    },
+    {
+      "cert": "6548",
+      "name": "US Bank NA",
+      "short": "U.S. Bank",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "6384",
+      "name": "PNC Bank NA",
+      "short": "PNC",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "9846",
+      "name": "Truist Bank",
+      "short": "Truist",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "4297",
+      "name": "Capital One NA",
+      "short": "Capital One",
+      "group": "peer",
+      "regional": false
+    },
+    {
+      "cert": "17534",
+      "name": "KeyBank NA",
+      "short": "KeyBank",
+      "group": "self",
+      "regional": false
+    },
+    {
+      "cert": "6672",
+      "name": "Fifth Third Bank NA",
+      "short": "Fifth Third",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "6560",
+      "name": "Huntington National Bank",
+      "short": "Huntington",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "11063",
+      "name": "First-Citizens Bank & Trust",
+      "short": "First Citizens",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "57957",
+      "name": "Citizens Bank NA",
+      "short": "Citizens",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "588",
+      "name": "Manufacturers and Traders Trust",
+      "short": "M&T",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "12368",
+      "name": "Regions Bank",
+      "short": "Regions",
+      "group": "peer",
+      "regional": true
+    },
+    {
+      "cert": "2270",
+      "name": "Zions Bancorporation NA",
+      "short": "Zions",
+      "group": "peer",
+      "regional": true
+    }
+  ]
+}
