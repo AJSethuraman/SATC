@@ -92,3 +92,51 @@ def test_the_organizer_event_writes_a_draft_to_send(tmp_path):
     assert msg["Subject"] == "Your 2026 tax organizer"
     assert "is attached" in msg.get_body(("plain",)).get_content()
     assert not sorted(out.glob("*.pdf"))
+
+
+def _opening_record(tmp_path, **changes):
+    import json
+    record = json.loads((cli.SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+    record.pop("_comment", None)
+    record.update(changes)
+    src = tmp_path / "record.json"
+    src.write_text(json.dumps(record), encoding="utf-8")
+    return src
+
+
+def test_the_onboarding_draft_carries_what_it_says_is_attached(tmp_path):
+    """Found by Codex on #478: `render` of the opening package wrote the
+    onboarding draft with nothing attached, beside the letter and estimate it
+    tells the client are attached."""
+    out = tmp_path / "out"
+    assert cli.main(["render", str(_opening_record(tmp_path)), "--out", str(out),
+                     "--no-pdf", "--skip-render"]) == 0
+    drafts = sorted(out.glob("*.eml"))
+    assert len(drafts) == 1, sorted(p.name for p in out.iterdir())
+    msg = email.message_from_bytes(drafts[0].read_bytes(), policy=policy.default)
+    names = sorted(p.get_filename() for p in msg.iter_attachments())
+    written = sorted(p.name for p in out.glob("*.html") if not emails.is_email(p.read_text(encoding="utf-8")))
+    assert names == written and len(names) >= 2, (names, written)
+    plain = msg.get_body(("plain",)).get_content()
+    if "authorization" in plain:
+        assert any("Release" in n for n in names), names
+
+
+def test_no_draft_promises_a_document_the_run_did_not_render(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert cli.main(["render", str(_opening_record(tmp_path)), "--docs", "onboarding-letter",
+                     "--out", str(out), "--no-pdf", "--skip-render"]) == 0
+    assert not sorted(out.glob("*.eml"))
+    said = capsys.readouterr().out
+    assert "no draft" in said and "engagement letter" in said, said
+
+
+def test_the_organizer_draft_says_to_attach_the_organizer(tmp_path, capsys):
+    """The organizer itself is printed from Drake; this software cannot attach
+    it, so the run says to."""
+    out = tmp_path / "out"
+    src = _opening_record(tmp_path, TaxYear="2026", FeeChange=False,
+                          Requested=[{"Category": "W-2s", "Detail": "Both employers"}])
+    assert cli.main(["render", str(src), "--docs", "organizer-letter", "--out", str(out),
+                     "--no-pdf", "--skip-render"]) == 0
+    assert "before sending, attach: The organizer itself, printed from Drake." in capsys.readouterr().out

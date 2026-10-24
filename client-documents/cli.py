@@ -2222,6 +2222,58 @@ def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool
     return result, written
 
 
+def _email_draft(doc: str, doc_html: str, produced: dict, record: dict,
+                 staging: Path) -> "Path | None":
+    """The draft to open and send, carrying what its words say is attached.
+
+    An email rendered by `render` (the organizer from its event, or the
+    onboarding email with the opening package) is no use as an .html file, so
+    it is also written as a draft the mail client opens addressed and written.
+
+    THE DRAFT ATTACHES WHAT IT SAYS IT ATTACHES. The first version wrote the
+    onboarding draft with nothing attached, beside the letter and estimate it
+    told the client were attached -- found by Codex on #478. The pack's
+    pointer test does not run on a run that names its documents, so nothing
+    else would have noticed. So each promise in the email's `data-encl` marks
+    is resolved against what this run produced, best format first; where one
+    was not rendered, no draft is written and the run says why. Something this
+    software never renders (the organizer itself, printed from Drake) cannot
+    be attached here, so the run names it, to be attached before sending.
+    """
+    files: list[Path] = []
+    outside: list[str] = []
+    missing: list[str] = []
+    for value in presend.promised(doc_html):
+        if value.startswith("attachment:"):
+            key = value.split(":", 1)[1]
+            outside.append(packaging.ATTACHMENTS.get(key, key))
+            continue
+        held = []
+        for d in sorted(presend.documents_for(value)):
+            kinds = [p for p in produced.get(d, [])
+                     if p.suffix.lower() in outgoing.PREFERRED]
+            if kinds:
+                held.append(min(kinds, key=lambda p: outgoing.PREFERRED.index(p.suffix.lower())))
+        if not held:
+            missing.append(value)
+            continue
+        files += [p for p in held if p not in files]
+    if missing:
+        said = ", ".join(v.replace("-", " ") for v in missing)
+        print(f"  {doc:22s} no draft: it says the {said} "
+              f"{'is' if len(missing) == 1 else 'are'} attached, and this run "
+              f"did not render {'it' if len(missing) == 1 else 'them'}")
+        return None
+    subject, body = emails.parts(doc_html)
+    eml = staging / f"{produced[doc][0].stem}.eml"
+    eml.write_bytes(emails.to_eml(
+        subject, body, emails.to_plain(body),
+        to=str(record.get("ClientEmail") or "").strip(), attachments=files))
+    for what in outside:
+        print(f"  {doc:22s} before sending, attach: {what}")
+    return eml
+
+
 # `_render_one` was private while the terminal was its only caller. It has two
 # now, and the tests written against the old name still hold.
 _render_one = render_one
@@ -2368,21 +2420,16 @@ def cmd_render(args) -> int:
             print(f"      {exc}", file=sys.stderr)
             continue
         rendered[doc] = result.html
-        if emails.is_email(result.html) and not args.draft:
-            # THE DRAFT TO OPEN AND SEND. An email rendered on its own (the
-            # organizer, from its event) is no use as an .html file; this is
-            # the same message as a draft the mail client opens addressed and
-            # written. The pack does not come through here: its one email is
-            # composed by `outgoing`, with the documents attached.
-            subject, body = emails.parts(result.html)
-            eml = staging / f"{written[0].stem}.eml"
-            eml.write_bytes(emails.to_eml(
-                subject, body, emails.to_plain(body),
-                to=str(record.get("ClientEmail") or "").strip()))
-            written = [*written, eml]
         produced[doc] = written
         kept = ", ".join(sorted(result.blocks_kept)) or "none"
         print(f"  {doc:22s} ok   {len(result.fields_used)} fields, blocks kept: {kept}")
+
+    if not failures and not args.draft:
+        for doc, doc_html in rendered.items():
+            if emails.is_email(doc_html):
+                eml = _email_draft(doc, doc_html, produced, record, staging)
+                if eml is not None:
+                    produced[doc] = [*produced[doc], eml]
 
     if not failures and rendered:
         outcome = sending.gate_staged(

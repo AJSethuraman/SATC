@@ -775,6 +775,27 @@ def _strip_declared(html: str) -> str:
     return html
 
 
+def promised(html_text: str) -> list[str]:
+    """What a document says goes with it, in the order it says so.
+
+    The declared values that point at something we send: a document key, a
+    role in ``_ROLES``, or ``attachment:<id>``. ``client`` and ``none`` are
+    dropped -- they say the opposite. `cli` reads this to put on an email
+    draft exactly what its words promise.
+    """
+    out: list[str] = []
+    for value, _start, _end in _declared_spans(merge._REF_BLOCK.sub(" ", html_text)):
+        value = value.strip()
+        if value and value not in ("client", "none") and value not in out:
+            out.append(value)
+    return out
+
+
+def documents_for(value: str) -> set[str]:
+    """The document keys that satisfy one declared promise."""
+    return _ROLES.get(value, {value})
+
+
 def pointer_test_counted(pack: Path) -> Counted:
     """A promised enclosure is in the pack, and every promise says what it is."""
     import json
