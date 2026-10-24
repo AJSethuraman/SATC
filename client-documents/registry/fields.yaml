@@ -48,13 +48,13 @@ fields:
   - field: ClientAddress1
     label: "Client — street"
     source: interview
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     notes: >-
       Not collected by the website intake — the interview must ask.
   - field: ClientCity
     label: "Client — city"
     source: interview
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     notes: >-
       Website intake collects city+state together; the interview splits them.
   - field: ClientEmail
@@ -72,13 +72,13 @@ fields:
   - field: ClientState
     label: "Client — state"
     source: interview
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     notes: >-
       Website intake collects city+state together; the interview splits them.
   - field: ClientZip
     label: "Client — ZIP"
     source: interview
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     notes: >-
       Not collected by the website intake — the interview must ask.
   - field: CreditAmount
@@ -109,7 +109,7 @@ fields:
   - field: EngagementRef
     label: "Engagement reference"
     source: engagement
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     notes: >-
       Join key. YYYY-NNNN, byte-identical across letter, estimate, onboarding and every invoice. A lead's number becomes its EngagementRef on conversion.
   - field: EntityType
@@ -161,22 +161,22 @@ fields:
   - field: FirmAddress1
     label: "Firm — street"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # Masthead and footer; the invoice's remit-to block as well.
   - field: FirmCity
     label: "Firm — city"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # With FirmState and FirmZip. Masthead and footer.
   - field: FirmJurisdiction
     label: "Firm — state of registration"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # The state of registration, named in the footer's partnership sentence.
   - field: FirmLegalName
     label: "Firm — registered name"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # The registered name. Footer only — the partnership sentence.
   - field: FirmName
     label: "Firm — short name"
@@ -187,17 +187,17 @@ fields:
   - field: FirmState
     label: "Firm — state"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # With FirmCity and FirmZip. Masthead and footer.
   - field: FirmWebsite
     label: "Firm — website"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # Masthead. No protocol, no www.
   - field: FirmZip
     label: "Firm — ZIP"
     source: firm
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, records-release, tax-letter]
     # With FirmCity and FirmState. Masthead and footer.
   - field: FirstDeliverableTarget
     label: "First deliverable promised by"
@@ -224,7 +224,7 @@ fields:
   - field: LetterDate
     label: "Date on the letter"
     source: computed
-    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, onboarding-letter, organizer-letter, records-release, tax-letter]
+    templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, records-release, tax-letter]
     notes: >-
       Generated at send time. The estimate carries it only in the sentence that
       names the engagement letter -- the estimate's own date is EstimateDate,
@@ -422,6 +422,15 @@ flags:
     label: "A credit is being applied"
     source: invoice
     templates: [invoice]
+  - flag: HasAdditionalForms
+    label: "The scope lists additional forms"
+    source: computed
+    templates: [tax-letter, business-letter, ccorp-letter, fee-estimate]
+    notes: >-
+      Derived in `merge._derived` from AdditionalForms; never asked. False when
+      that field is empty or "None", and the "Also included" scope line is
+      then dropped whole. The firm, 24 Oct 2026: that line "is only necessary
+      if there are inclusions."
   - flag: BilledAboveEstimate
     label: "The bill is above the estimate"
     source: invoice

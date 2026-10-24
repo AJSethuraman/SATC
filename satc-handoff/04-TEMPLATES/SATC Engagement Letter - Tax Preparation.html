@@ -52,7 +52,9 @@
       <li><b>Federal:</b> <span class="f">&lt;&lt;FederalReturns&gt;&gt;</span></li>
       <li><b>State:</b> <span class="f">&lt;&lt;StateReturns&gt;&gt;</span></li>
       <li><b>Local:</b> <span class="f">&lt;&lt;LocalReturns&gt;&gt;</span></li>
+      <li class="mark"><span class="cond">[[IF HasAdditionalForms]]</span></li>
       <li><b>Also included:</b> <span class="f">&lt;&lt;AdditionalForms&gt;&gt;</span></li>
+      <li class="mark"><span class="cond">[[END IF]]</span></li>
     </ul>
     <p>Returns and forms not outlined above are outside of this engagement. If your return requires additional work, a new estimate will be provided in writing. Additional work will not begin without your written consent to the new estimate.</p>
   </div>
@@ -112,41 +114,43 @@
     <p>If you have chosen not to e-file, <strong>filing the returns with the taxing authorities is your responsibility</strong>, on time, with proof of mailing.</p>
   </div>
 
-  <div class="signoff">
-    <p>Sincerely,</p>
-    <div class="sp"></div>
-    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
-  </div>
-
-  <div class="exec">
-    <div class="accept">Acceptance</div>
-    <p class="lead" style="margin-top:12pt">If this letter states your understanding, sign below.</p>
-
-    <div class="sigrow">
-      <div>
-        <div class="sig"></div>
-        <div class="siglab"><b>Taxpayer</b> — <span class="f">&lt;&lt;TaxpayerName&gt;&gt;</span></div>
-      </div>
-      <div>
-        <div class="sig"></div>
-        <div class="siglab">Date</div>
-      </div>
+  <div class="closing">
+    <div class="signoff">
+      <p>Sincerely,</p>
+      <div class="sp"></div>
+      <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+      <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
     </div>
 
-    <span class="cond">[[IF JointReturn]]</span>
-    <div class="sigrow" style="margin-top:10pt">
-      <div>
-        <div class="sig"></div>
-        <div class="siglab"><b>Spouse</b> — <span class="f">&lt;&lt;SpouseName&gt;&gt;</span></div>
+    <div class="exec">
+      <div class="accept">Acceptance</div>
+      <p class="lead" style="margin-top:12pt">If this letter states your understanding, sign below.</p>
+
+      <div class="sigrow">
+        <div>
+          <div class="sig"></div>
+          <div class="siglab"><b>Taxpayer</b> — <span class="f">&lt;&lt;TaxpayerName&gt;&gt;</span></div>
+        </div>
+        <div>
+          <div class="sig"></div>
+          <div class="siglab">Date</div>
+        </div>
       </div>
-      <div>
-        <div class="sig"></div>
-        <div class="siglab">Date</div>
+
+      <span class="cond">[[IF JointReturn]]</span>
+      <div class="sigrow" style="margin-top:10pt">
+        <div>
+          <div class="sig"></div>
+          <div class="siglab"><b>Spouse</b> — <span class="f">&lt;&lt;SpouseName&gt;&gt;</span></div>
+        </div>
+        <div>
+          <div class="sig"></div>
+          <div class="siglab">Date</div>
+        </div>
       </div>
+      <p class="execnote">On a joint return, both spouses are considered clients and must sign. We may share information given by one of you with the other. If your interests diverge, we may have to withdraw and advise you both to obtain separate representation.</p>
+      <span class="cond end">[[END IF]]</span>
     </div>
-    <p class="execnote">On a joint return, both spouses are considered clients and must sign. We may share information given by one of you with the other. If your interests diverge, we may have to withdraw and advise you both to obtain separate representation.</p>
-    <span class="cond end">[[END IF]]</span>
   </div>
 </div>
 

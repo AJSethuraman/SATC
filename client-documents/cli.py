@@ -57,6 +57,7 @@ import intake
 import interview as iv
 import closeout
 import consistency
+import emails
 import merge
 import pricing
 import requote
@@ -78,8 +79,12 @@ DOCUMENTS = {
     "bookkeeping-letter":   ("SATC Engagement Letter - Bookkeeping.html",     "Bookkeeping Engagement Letter"),
     "fee-estimate":         ("SATC Fee Estimate.html",                        "Fee Estimate"),
     "invoice":              ("SATC Invoice.html",                             "Invoice"),
-    "onboarding-letter":    ("SATC Onboarding Letter.html",                   "Onboarding Letter"),
-    "organizer-letter":     ("SATC Organizer Cover Letter.html",              "Organizer Cover Letter"),
+    # EMAILS, NOT LETTERS, since 24 Oct 2026 -- the firm: "this is actually
+    # supposed to be sent as an email not an attachment." The registry names
+    # stay, so nothing that counts documents moves; the templates are email
+    # bodies, and `render_one` writes no PDF for them.
+    "onboarding-letter":    ("SATC Onboarding Email.html",                    "Onboarding Email"),
+    "organizer-letter":     ("SATC Organizer Email.html",                     "Organizer Email"),
     "delivery-letter":      ("SATC Tax Return Delivery Letter.html",          "Return Delivery"),
     "extension-notice":     ("SATC Extension Notice.html",                    "Extension Notice"),
     "disengagement-letter": ("SATC Disengagement Letter.html",                "Disengagement"),
@@ -2207,12 +2212,66 @@ def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool
     written = [outdir / f"{stem}.html"]
     written[0].write_text(html, encoding="utf-8")
 
-    if want_pdf:
+    # AN EMAIL HAS NO PAGE TO PRINT. Its HTML is the message body; a PDF of it
+    # would be an attachment of the email it is the body of.
+    if want_pdf and not emails.is_email(html):
         _, render_pdf = pdf_engine()
         pdf_path = outdir / f"{stem}.pdf"
         render_pdf(html, pdf_path, TEMPLATE_DIR, draft)
         written.append(pdf_path)
     return result, written
+
+
+def _email_draft(doc: str, doc_html: str, produced: dict, record: dict,
+                 staging: Path) -> "Path | None":
+    """The draft to open and send, carrying what its words say is attached.
+
+    An email rendered by `render` (the organizer from its event, or the
+    onboarding email with the opening package) is no use as an .html file, so
+    it is also written as a draft the mail client opens addressed and written.
+
+    THE DRAFT ATTACHES WHAT IT SAYS IT ATTACHES. The first version wrote the
+    onboarding draft with nothing attached, beside the letter and estimate it
+    told the client were attached -- found by Codex on #478. The pack's
+    pointer test does not run on a run that names its documents, so nothing
+    else would have noticed. So each promise in the email's `data-encl` marks
+    is resolved against what this run produced, best format first; where one
+    was not rendered, no draft is written and the run says why. Something this
+    software never renders (the organizer itself, printed from Drake) cannot
+    be attached here, so the run names it, to be attached before sending.
+    """
+    files: list[Path] = []
+    outside: list[str] = []
+    missing: list[str] = []
+    for value in presend.promised(doc_html):
+        if value.startswith("attachment:"):
+            key = value.split(":", 1)[1]
+            outside.append(packaging.ATTACHMENTS.get(key, key))
+            continue
+        held = []
+        for d in sorted(presend.documents_for(value)):
+            kinds = [p for p in produced.get(d, [])
+                     if p.suffix.lower() in outgoing.PREFERRED]
+            if kinds:
+                held.append(min(kinds, key=lambda p: outgoing.PREFERRED.index(p.suffix.lower())))
+        if not held:
+            missing.append(value)
+            continue
+        files += [p for p in held if p not in files]
+    if missing:
+        said = ", ".join(v.replace("-", " ") for v in missing)
+        print(f"  {doc:22s} no draft: it says the {said} "
+              f"{'is' if len(missing) == 1 else 'are'} attached, and this run "
+              f"did not render {'it' if len(missing) == 1 else 'them'}")
+        return None
+    subject, body = emails.parts(doc_html)
+    eml = staging / f"{produced[doc][0].stem}.eml"
+    eml.write_bytes(emails.to_eml(
+        subject, body, emails.to_plain(body),
+        to=str(record.get("ClientEmail") or "").strip(), attachments=files))
+    for what in outside:
+        print(f"  {doc:22s} before sending, attach: {what}")
+    return eml
 
 
 # `_render_one` was private while the terminal was its only caller. It has two
@@ -2364,6 +2423,13 @@ def cmd_render(args) -> int:
         produced[doc] = written
         kept = ", ".join(sorted(result.blocks_kept)) or "none"
         print(f"  {doc:22s} ok   {len(result.fields_used)} fields, blocks kept: {kept}")
+
+    if not failures and not args.draft:
+        for doc, doc_html in rendered.items():
+            if emails.is_email(doc_html):
+                eml = _email_draft(doc, doc_html, produced, record, staging)
+                if eml is not None:
+                    produced[doc] = [*produced[doc], eml]
 
     if not failures and rendered:
         outcome = sending.gate_staged(

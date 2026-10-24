@@ -90,7 +90,7 @@ And conditionally: `records-release` when `PriorFirm`.
 
 - **Engagement Letter** — `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Tax Preparation.html`
 - **Fee Estimate** — `satc-handoff/04-TEMPLATES/SATC Fee Estimate.html`
-- **Onboarding Letter** — `satc-handoff/04-TEMPLATES/SATC Onboarding Letter.html`
+- **Onboarding Email** — `satc-handoff/04-TEMPLATES/SATC Onboarding Email.html`
 - **Business Engagement Letter** — `satc-handoff/04-TEMPLATES/SATC Engagement Letter - Business Return.html`
 - **C Corporation Engagement Letter** — `satc-handoff/04-TEMPLATES/SATC Engagement Letter - C Corporation.html`
 - **Records Release** — `satc-handoff/04-TEMPLATES/SATC Records Release Authorization.html` — only when `PriorFirm` is set on the record
@@ -451,7 +451,7 @@ python cli.py event --kind delivery --engagement <REF>
 | `delivery` | The returns are finished and going to the client | Return Delivery | 3 question(s) + 2 list(s) |
 | `disengagement` | The engagement is ending | Disengagement | 6 question(s) + 2 list(s) |
 | `extension` | An extension has been filed | Extension Notice | 5 question(s) + 2 list(s) |
-| `organizer` | Asking a returning client for this year's papers | Organizer Cover Letter | 4 question(s) + 1 list(s) |
+| `organizer` | Asking a returning client for this year's papers | Organizer Email | 4 question(s) + 1 list(s) |
 
 An event reuses what it recorded last time unless you pass `--again`,
 so re-running one after a correction does not re-ask everything.
@@ -470,7 +470,7 @@ so re-running one after a correction does not re-ask everything.
 
 ### Appendix — when you send the organizer
 
-- **Organizer Cover Letter** — `satc-handoff/04-TEMPLATES/SATC Organizer Cover Letter.html`
+- **Organizer Email** — `satc-handoff/04-TEMPLATES/SATC Organizer Email.html`
 
 ## 8 · Closing an engagement, at the end of the cycle
 
@@ -561,7 +561,7 @@ from `packaging.PACKS`, `packaging.CONDITIONAL` and
 | --- | --- |
 | Engagement Letter | Sending the opening pack |
 | Fee Estimate | Sending the opening pack |
-| Onboarding Letter | Sending the opening pack |
+| Onboarding Email | Sending the opening pack |
 | Business Engagement Letter | Sending the opening pack |
 | C Corporation Engagement Letter | Sending the opening pack |
 | Records Release | Sending the opening pack |
@@ -570,7 +570,7 @@ from `packaging.PACKS`, `packaging.CONDITIONAL` and
 | Return Delivery | When the return is ready to go back |
 | Disengagement | When an engagement has to end |
 | Extension Notice | When the return needs an extension |
-| Organizer Cover Letter | When you send the organizer |
+| Organizer Email | When you send the organizer |
 
 12 template file(s) examined against 11 document(s) named by a procedure.
 
