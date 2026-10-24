@@ -328,6 +328,8 @@ def test_the_screen_offers_a_surviving_spouse_and_business_tips(client):
         "qualified_overtime": "20000"})
     # Single-filer overtime cap, joint brackets: see the engine test.
     assert b"$12,500" in _text(resp.data) and b"$6,243" in _text(resp.data)
+    # The result header names the status (Codex: it rendered blank).
+    assert "Tax year 2025 · Qualifying surviving spouse".encode() in _text(resp.data)
 
 
 def test_spouse_pay_on_a_separate_return_is_refused_on_screen(client):
@@ -337,3 +339,21 @@ def test_spouse_pay_on_a_separate_return_is_refused_on_screen(client):
         "gross_pay_per_period": "100000", "federal_tax_withheld_per_period": "0"})
     assert resp.status_code == 200
     assert b"carries only your own pay" in resp.data and b"Total tax liability" not in resp.data
+
+
+def test_the_screen_takes_qbi_inside_rents_and_credits_after_the_child_credit(client):
+    page = client.get("/withholding").data
+    assert b'name="qbi_from_rental_and_k1"' in page and b'name="credits_after_child_credit"' in page
+    resp = client.post("/withholding", data={
+        "filing_status": "single", "tax_year": "2025", "adjust_job": "0",
+        "pay_frequency": "annual", "pay_periods_remaining": "1",
+        "gross_pay_per_period": "100000", "federal_tax_withheld_per_period": "0",
+        "rental_and_passive_income": "100000", "qbi_from_rental_and_k1": "100000"})
+    assert b"QBI deduction $20,000" in _text(resp.data), _text(resp.data)[:3000]
+    # A later credit is posted and used: 2,071.50 of income tax less 2,000.
+    later = client.post("/withholding", data={
+        "filing_status": "single", "tax_year": "2025", "adjust_job": "0",
+        "pay_frequency": "annual", "pay_periods_remaining": "1",
+        "gross_pay_per_period": "35000", "federal_tax_withheld_per_period": "0",
+        "credits_after_child_credit": "2000"})
+    assert b"Other credits ($2,000) Total tax liability $72" in _text(later.data)

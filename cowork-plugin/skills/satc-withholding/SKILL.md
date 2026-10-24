@@ -32,9 +32,13 @@ reports it can't reach the app, stop and tell the user to start it
    these — assemble the payload to match.
 
 2. **Get each job's figures.** A household estimate is one `jobs[]` entry per
-   job (taxpayer + spouse, or a second job). For each you need: pay frequency,
-   gross pay per period, federal tax withheld per period, and the year-to-date
-   figures (taxable wages + federal tax withheld) from the latest stub.
+   job (taxpayer + spouse, or a second job). For each you need: **whose job it
+   is** (`owner`: `you` or `spouse`), pay frequency, gross pay per period,
+   pre-tax retirement per period, federal tax withheld per period, and the
+   year-to-date figures (taxable wages + federal tax withheld) from the latest
+   stub. On a joint return, ask whose each job is -- it decides whose Social
+   Security wage base it uses, and a business owner's self-employment tax can be
+   off by thousands if a spouse's salary is counted against it.
    - If the user pastes a paystub, call `satc_read_paystub` on the text, then
      **show them the labeled figures and call out anything in `uncertain`** —
      confirm those before relying on them.

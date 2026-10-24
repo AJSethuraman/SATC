@@ -340,7 +340,13 @@ def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
             ctx, agi, remaining_tax, earned,
             payroll_alternative=_actc_payroll_alternative(ctx, half_se, eitc))
     remaining_tax -= child_credit
-    nonrefundable_applied = other_nonref + child_credit
+    # AFTER THE CHILD CREDIT. Credit Limit Worksheet A subtracts only the
+    # Schedule 3 lines it names before the child credit; the rest go on after
+    # it, so they reduce the tax that is left and never feed line 14 or the
+    # refundable part. Found by Codex on #451.
+    after = min(cr.credits_after_child_credit, remaining_tax)
+    remaining_tax -= after
+    nonrefundable_applied = other_nonref + child_credit + after
 
     refundable = cr.refundable_credits + actc + eitc
     tax_after_credits = remaining_tax + se_tax + add_medicare + niit
@@ -529,14 +535,23 @@ def _qbi_deduction(ctx: _Context, ti_before_qbi: Decimal, net_capital_gain: Deci
     income less net capital gain. Above the threshold the wage and SSTB limits
     of Form 8995-A apply and are NOT modelled -- a check says so."""
     t = ctx.tables
-    qbi = _nonneg(ctx.inp.other_income.self_employment_net - half_se - ctx.business_tips_deducted)
+    oi = ctx.inp.other_income
+    # Schedule C less half the SE tax and the deducted business tips, plus any
+    # qualified business income inside the Schedule E figure (Form 8995 line
+    # 1 takes every qualified trade or business, passive or not). A loss there
+    # nets against the Schedule C (line 2), and a total below zero is zero.
+    active = oi.self_employment_net - half_se - ctx.business_tips_deducted
+    qbi = _nonneg(active + (oi.qbi_from_rental_and_k1 or ZERO))
     ctx.qbi_income = qbi
     if qbi <= ZERO:
         return ZERO
     ctx.qbi_over_threshold = ti_before_qbi > t.qbi_threshold(ctx.status)
     deduction = min(qbi * t.qbi_rate, _nonneg(ti_before_qbi - net_capital_gain) * t.qbi_rate)
     minimum, needs = t.qbi_minimum
-    if minimum > ZERO and qbi >= needs:
+    # The 2026 minimum needs $1,000 from businesses the taxpayer MATERIALLY
+    # participates in (sec. 199A(i)); a Schedule E figure is not known to be
+    # one, so only the Schedule C part counts toward it.
+    if minimum > ZERO and min(qbi, _nonneg(active)) >= needs:
         deduction = min(max(deduction, minimum), ti_before_qbi)
     return deduction
 
@@ -979,6 +994,19 @@ def _assumptions(ctx: _Context) -> list[Assumption]:
         add("Spouse's age", "Not counted on this separate return",
             f"If your spouse had no income, files no return and cannot be claimed as a "
             f"dependent, the spouse's box adds {_usd(t.extra_standard_deduction(status))}.")
+    # Whose job only changes a figure with a second job (two employers of one
+    # person) or a business (Schedule SE line 8a), so it is only said then.
+    if status == "married_jointly" and (len(inp.jobs) > 1 or inp.other_income.self_employment_net > ZERO):
+        unmarked = [job.name or f"Job {i + 1}" for i, job in enumerate(inp.jobs) if job.owner is None]
+        if unmarked:
+            add("Whose job", f"{', '.join(unmarked)}: the taxpayer's",
+                "Each person's own jobs share one Social Security wage base, and only the "
+                "business owner's wages count against theirs on Schedule SE. Mark each job.")
+    if (inp.other_income.rental_and_passive_income != ZERO
+            and inp.other_income.qbi_from_rental_and_k1 is None):
+        add("Rents and K-1s", "None of it is qualified business income",
+            "A K-1 with a section 199A statement, or a rental run as a business, counts "
+            "toward the 20% deduction. Enter that part.")
     if (status == "married_jointly" and inp.other_income.self_employment_net > ZERO
             and hh.self_employment_owner is None):
         add("Self-employment", "The profit is the taxpayer's",

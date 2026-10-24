@@ -190,6 +190,7 @@
         {{ field('taxable_social_security', 'Taxable Social Security') }}
         {{ field('unemployment', 'Unemployment') }}
         {{ field('rental_and_passive_income', 'Rents, royalties, passive K-1s', 'net, from Schedule E') }}
+        {{ field('qbi_from_rental_and_k1', 'Of that, qualified business income', 'K-1 section 199A statement, or a rental run as a business') }}
         {{ field('other_taxable_income', 'Other taxable income', 'gambling, prizes, jury pay') }}
       </div>
       <h3>Adjustments</h3>
@@ -235,7 +236,8 @@
         {{ field('prior_year_tax', "Last year's tax for the penalty test", "line 24 less refundable credits such as the earned income credit; before any 110%, which is added for you") }}
         {{ field('prior_year_agi', "Last year's AGI", 'Form 1040 line 11') }}
         {{ field('target_refund', 'Refund wanted', 'blank = break even') }}
-        {{ field('other_nonrefundable_credits', 'Other credits that only reduce tax', 'dependent care, the nonrefundable education credit') }}
+        {{ field('other_nonrefundable_credits', 'Credits taken before the child credit', "child care, education, saver's, foreign tax: Schedule 3 lines 1-4, 5b, 6d, 6f, 6l, 6m") }}
+        {{ field('credits_after_child_credit', 'Other credits that only reduce tax', 'general business, adoption, mortgage interest, clean energy') }}
         {{ field('refundable_credits', 'Other refundable credits', 'the refundable education credit, Form 8863 line 8') }}
         {{ field('child_tax_credit', 'Child tax credit, if already worked out', 'blank = worked out from the children') }}
       </div>
@@ -250,7 +252,7 @@
 {% set acts = result.checks|selectattr('level','equalto','act')|list %}
 <div class="wh-banner {{ 'act' if (acts or rec.projected_balance < 0) else 'ok' }}" id="answer">
   <div class="wh-big">{{ result.headline }}</div>
-  <div class="muted">Tax year {{ result.tax_year_used }} · {{ {'single':'Single','married_jointly':'Married filing jointly','married_separately':'Married filing separately','head_of_household':'Head of household'}[result.filing_status] }} ·
+  <div class="muted">Tax year {{ result.tax_year_used }} · {{ dict(filing_statuses)[result.filing_status] }} ·
     {{ result.assumptions|length }} assumption{{ '' if result.assumptions|length == 1 else 's' }} ·
     <a href="{{ url_for('withholding.audit_tape') }}">⬇ Download audit tape (Excel)</a></div>
 </div>

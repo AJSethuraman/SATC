@@ -68,10 +68,11 @@ class Paystub:
     pay_periods_remaining: int | None = None
     name: str = ""
     adjust_withholding: bool = False
-    #: "you" or "spouse". Only matters when one person has two employers:
-    #: each employer withholds Social Security up to the wage base on its own,
-    #: and the excess comes back as a credit.
-    owner: str = "you"
+    #: "you" or "spouse"; None = not told, taken as the taxpayer's and said so.
+    #: It decides whose Social Security wage base the job uses (two employers
+    #: of one person can overpay it; Schedule SE line 8a counts only the
+    #: owner's wages), and a spouse's job is refused off a joint return.
+    owner: str | None = None
 
     @property
     def periods_per_year(self) -> int:
@@ -103,6 +104,11 @@ class OtherIncome:
     #: from other_taxable_income because it is investment income for the
     #: earned income credit (Pub. 596) and for the 3.8% tax (Form 8960 line 4a).
     rental_and_passive_income: Decimal = ZERO
+    #: The part of ``rental_and_passive_income`` that is qualified business
+    #: income: a K-1's section 199A statement, or a rental that is a trade or
+    #: business (Rev. Proc. 2019-38 safe harbor). Passive is no bar (Form 8995
+    #: instructions). None = not told, and none of it is counted.
+    qbi_from_rental_and_k1: Decimal | None = None
     other_taxable_income: Decimal = ZERO
     spouse_taxable_wages: Decimal = ZERO
     spouse_federal_tax_withheld: Decimal = ZERO
@@ -211,7 +217,15 @@ class Credits:
     children and dependents (Schedule 8812); a figure typed here is used as is."""
 
     child_tax_credit: Decimal | None = None
+    #: Nonrefundable credits Schedule 8812's Credit Limit Worksheet A takes off
+    #: BEFORE the child credit: Schedule 3 lines 1-4, 5b, 6d, 6f, 6l, 6m
+    #: (foreign tax, child care, education, saver's, and the like).
     other_nonrefundable_credits: Decimal = ZERO
+    #: Every other nonrefundable credit -- general business, prior-year minimum
+    #: tax, adoption, mortgage interest, residential clean energy. Worksheet A
+    #: leaves them out, so they come after the child credit and cannot make
+    #: more of it refundable.
+    credits_after_child_credit: Decimal = ZERO
     refundable_credits: Decimal = ZERO
 
 
@@ -319,8 +333,12 @@ def _build(model: type, data: dict[str, Any], decimal_fields: Any) -> Any:
             kwargs[key] = value
         elif key == "adjust_withholding":
             kwargs[key] = bool(value)
-        elif key in ("name", "owner"):
+        elif key == "name":
             kwargs[key] = str(value)
+        elif key == "owner":
+            kwargs[key] = _opt_owner(value)
+        elif key == "qbi_from_rental_and_k1":
+            kwargs[key] = _opt_decimal(None if value == "" else value)
         elif decimal_fields is _ALL or key in decimal_fields:
             kwargs[key] = to_decimal(value)
         else:
@@ -351,6 +369,7 @@ def _build_credits(data: dict[str, Any]) -> Credits:
     return Credits(
         child_tax_credit=_opt_decimal(data.get("child_tax_credit")),
         other_nonrefundable_credits=to_decimal(data.get("other_nonrefundable_credits")),
+        credits_after_child_credit=to_decimal(data.get("credits_after_child_credit")),
         refundable_credits=to_decimal(data.get("refundable_credits")))
 
 

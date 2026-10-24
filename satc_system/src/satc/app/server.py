@@ -370,8 +370,18 @@ def create_app() -> Flask:
                 "(in your own business, part of self_employment_net), qualified_overtime, car_loan_interest",
                 "jobs": "list, one entry per job (taxpayer + spouse / second jobs). Each job: "
                 "pay_frequency, gross_pay_per_period, federal_tax_withheld_per_period, "
-                "ytd_taxable_wages, ytd_federal_tax_withheld, pay_periods_remaining (optional).",
-                "other_income": "optional dict (interest, dividends, self-employment, etc.)",
+                "retirement_pretax_per_period (401(k) and the like: out of income tax, still "
+                "taxed for Social Security), ytd_taxable_wages, ytd_federal_tax_withheld, "
+                "pay_periods_remaining (optional), and owner: 'you' or 'spouse'. Send owner "
+                "for every job on a joint return -- a missing one is taken as the taxpayer's "
+                "and listed in assumptions; a spouse's job on any other status is refused.",
+                "other_income": "optional dict (interest, dividends, self_employment_net, "
+                "rental_and_passive_income, qbi_from_rental_and_k1 -- the part of the rents "
+                "or K-1s that is qualified business income -- spouse_taxable_wages, etc.)",
+                "credits": "optional dict: child_tax_credit (blank = worked out), "
+                "other_nonrefundable_credits (Schedule 3 lines 1-4, 5b, 6d, 6f, 6l, 6m: taken "
+                "before the child credit), credits_after_child_credit (every other "
+                "nonrefundable credit), refundable_credits",
                 "deductions": "optional dict: itemized parts (mortgage_interest, property_taxes, "
                 "state_local_income_or_sales_tax, charitable_cash, charitable_noncash, "
                 "medical_expenses, other_itemized) or itemized_total; none = standard",

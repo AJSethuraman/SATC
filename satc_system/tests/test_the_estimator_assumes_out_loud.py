@@ -709,3 +709,92 @@ def test_schedule_se_line_8a_counts_a_retirement_deferral():
     # On Box 1 it would wrongly have had 16,100 of room (+1,996.40).
     r = _deferring(180000, 20000, other_income={"self_employment_net": 50000})
     assert r.breakdown.self_employment_tax == D("1339.08")
+
+
+# ── Codex round 7 on #451 ─────────────────────────────────────────────────────
+
+def _one_child_35000(**credits):
+    # 2025 single, wages 35,000, one child. Taxable income 35,000 - 15,750 =
+    # 19,250: 10% x 11,925 + 12% x 7,325 = 1,192.50 + 879 = 2,071.50.
+    return _run(wages=35000, household={"children_under_17": 1}, credits=credits)
+
+
+def test_credits_worksheet_a_names_come_before_the_child_credit():
+    # Schedule 8812 Credit Limit Worksheet A line 2 takes Schedule 3 lines
+    # 1-4, 5b, 6d, 6f, 6l, 6m off line 18 FIRST. 2,000 of them leaves 71.50
+    # for the child credit; line 12 - line 14 = 2,128.50, capped at 1,700.
+    r = _one_child_35000(other_nonrefundable_credits=2000)
+    assert r.breakdown.child_and_dependent_credit == D("71.50")
+    assert r.breakdown.additional_child_tax_credit == D("1700.00")
+
+
+def test_every_other_credit_comes_after_the_child_credit():
+    # Codex's example: the child credit takes the whole 2,071.50, so the
+    # refundable part is 2,200 - 2,071.50 = 128.50 and the later credit finds
+    # no tax left.
+    r = _one_child_35000(credits_after_child_credit=2000)
+    assert r.breakdown.child_and_dependent_credit == D("2071.50")
+    assert r.breakdown.additional_child_tax_credit == D("128.50")
+    assert r.breakdown.nonrefundable_credits == D("2071.50")
+    # With tax to spare, it is used: no child, 2,071.50 - 2,000 = 71.50 left.
+    no_kids = _run(wages=35000, credits={"credits_after_child_credit": 2000})
+    assert no_kids.breakdown.nonrefundable_credits == D("2000.00")
+
+
+def _two_joint_jobs(**second):
+    data = {"filing_status": "married_jointly", "tax_year": 2025, "jobs": [
+        {"pay_frequency": "annual", "taxable_wages_per_period": 60000, "pay_periods_remaining": 1},
+        {"pay_frequency": "annual", "taxable_wages_per_period": 40000, "pay_periods_remaining": 1,
+         **second}]}
+    return estimate(EstimatorInput.from_dict(data), today=MID_YEAR)
+
+
+def test_a_joint_job_with_no_owner_is_assumed_the_taxpayers_out_loud():
+    # Codex review, PR #451: an API caller that never sends owner.
+    r = _two_joint_jobs()
+    assert any(a.topic == "Whose job" for a in r.assumptions)
+    marked = estimate(EstimatorInput.from_dict({
+        "filing_status": "married_jointly", "tax_year": 2025, "jobs": [
+            {"pay_frequency": "annual", "taxable_wages_per_period": 60000,
+             "pay_periods_remaining": 1, "owner": "you"},
+            {"pay_frequency": "annual", "taxable_wages_per_period": 40000,
+             "pay_periods_remaining": 1, "owner": "spouse"}]}), today=MID_YEAR)
+    assert not any(a.topic == "Whose job" for a in marked.assumptions)
+    with pytest.raises(ValueError, match="expected 'you' or 'spouse'"):
+        _two_joint_jobs(owner="partner")
+
+
+def test_qualified_income_inside_schedule_e_gets_the_qbi_deduction():
+    # Form 8995 line 1 takes every qualified trade or business, passive or not.
+    # 2025 single, wages 100,000, a K-1 of 100,000 that is all QBI. Taxable
+    # income before QBI 200,000 - 15,750 = 184,250, under 197,300. 20% of
+    # 100,000 = 20,000, under 20% of 184,250.
+    told = _run(wages=100000, other_income={"rental_and_passive_income": 100000,
+                                            "qbi_from_rental_and_k1": 100000})
+    assert told.breakdown.qbi_deduction == D("20000.00")
+    blank = _run(wages=100000, other_income={"rental_and_passive_income": 100000})
+    assert blank.breakdown.qbi_deduction == ZERO_
+    assert any(a.topic == "Rents and K-1s" for a in blank.assumptions)
+
+
+def test_the_2026_minimum_needs_a_business_the_taxpayer_works_in():
+    # Sec. 199A(i): the 400 minimum needs 1,000 of QBI from businesses in which
+    # the taxpayer materially participates. A K-1 of 1,500 is not known to be
+    # one: 20% = 300. A Schedule C of 1,500 is: 1,500 - 105.96 half SE tax =
+    # 1,394.04, so the 400 minimum applies over 278.81.
+    k1 = _run(year=2026, wages=50000, today=date(2026, 7, 1),
+              other_income={"rental_and_passive_income": 1500, "qbi_from_rental_and_k1": 1500})
+    assert k1.breakdown.qbi_deduction == D("300.00")
+    sch_c = _run(year=2026, wages=50000, today=date(2026, 7, 1),
+                 other_income={"self_employment_net": 1500})
+    assert sch_c.breakdown.qbi_deduction == D("400.00")
+
+
+def test_the_2026_qbi_threshold_separate_return_is_201775():
+    # Rev. Proc. 2025-32 sec. 4.26: married filing separately $201,775; all
+    # other returns $201,750; joint $403,500. Codex on #451 read MFS as
+    # 201,750; the table on the page says otherwise.
+    tables, _ = load_tax_tables(2026)
+    assert tables.qbi_threshold("married_separately") == D("201775")
+    assert tables.qbi_threshold("single") == D("201750")
+    assert tables.qbi_threshold("married_jointly") == D("403500")

@@ -115,7 +115,8 @@ _BLANK_JOB = {"pay_frequency": "biweekly", "owner": "you",
 _OTHER_INCOME_KEYS = ("interest", "ordinary_dividends", "qualified_dividends",
                       "long_term_capital_gains", "short_term_capital_gains", "self_employment_net",
                       "taxable_retirement_distributions", "taxable_social_security",
-                      "unemployment", "rental_and_passive_income", "other_taxable_income")
+                      "unemployment", "rental_and_passive_income", "qbi_from_rental_and_k1",
+                      "other_taxable_income")
 _ADJUSTMENT_KEYS = ("traditional_ira_deduction", "hsa_deduction", "student_loan_interest",
                     "other_adjustments")
 _ITEMIZED_KEYS = ("medical_expenses", "state_local_income_or_sales_tax", "property_taxes",
@@ -127,7 +128,8 @@ _HOUSEHOLD_KEYS = ("taxpayer_65_or_older", "spouse_65_or_older", "taxpayer_under
 _SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_tips_business", "qualified_overtime", "car_loan_interest")
 
 _HH_KEYS = ("filing_status", "tax_year", "itemized_total", "extra_standard_deductions",
-            "child_tax_credit", "other_nonrefundable_credits", "refundable_credits", "estimated_tax_payments",
+            "child_tax_credit", "other_nonrefundable_credits", "credits_after_child_credit",
+            "refundable_credits", "estimated_tax_payments",
             "target_refund", "prior_year_tax", "prior_year_agi",
             *_OTHER_INCOME_KEYS, *_ADJUSTMENT_KEYS, *_ITEMIZED_KEYS, *_HOUSEHOLD_KEYS,
             *_SCHEDULE_1A_KEYS)
@@ -261,7 +263,7 @@ def _estimator_input(jobs: list[dict], hh: dict) -> EstimatorInput:
         data["deductions"] = deductions
 
     credits = {k: _clean_num(hh.get(k)) for k in ("child_tax_credit", "other_nonrefundable_credits",
-                                                    "refundable_credits")}
+                                                    "credits_after_child_credit", "refundable_credits")}
     credits = {k: v for k, v in credits.items() if v is not None}
     if credits:
         data["credits"] = credits
