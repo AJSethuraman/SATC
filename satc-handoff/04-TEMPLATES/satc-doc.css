@@ -54,7 +54,15 @@ h1,h2,h3,p{margin:0}
    templates use both; the stylesheet now agrees with the reader. */
 .body strong,.body b{color:var(--navy);font-weight:600}
 /* numbered clauses — numbered so a client, or a court, can point at one */
-.sec{margin-top:13pt;break-inside:avoid}
+/* A SECTION MAY RUN ONTO THE NEXT PAGE. It was `break-inside:avoid`, so any
+   section too long for what was left of a page jumped whole to the next one:
+   the bookkeeping letter's page 1 ended a third empty because section 02 would
+   not start on it. The firm, 24 Oct 2026: *"too much white space on the first
+   page."* The heading still stays with what follows it (doc-page sets
+   `break-after:avoid` on headings, and `orphans/widows:3` on paragraphs and
+   list items), so a break never leaves a heading or a two-line stub behind. */
+.sec{margin-top:13pt}
+.sec>h2{break-after:avoid;page-break-after:avoid}
 .sec>h2{display:flex;align-items:baseline;gap:9pt;font-size:9pt;font-weight:600;color:var(--navy);letter-spacing:0.01em;padding-bottom:5pt;margin-bottom:7pt;border-bottom:0.5pt solid var(--hairline-2)}
 .sec>h2 .n{font-family:var(--mono);font-size:7.5pt;font-weight:500;color:var(--oxblood);letter-spacing:0.1em;flex:none}
 .sec p{margin-bottom:7pt;text-wrap:pretty}
@@ -193,6 +201,16 @@ h1,h2,h3,p{margin:0}
 
 /* ---------- execution / signature ---------- */
 .exec{margin-top:16pt;break-inside:avoid}
+/* THE CLIENT SIGNS WHERE THE FIRM SIGNS. The acceptance block could be pushed
+   to a page of its own while the sign-off stayed behind: the business letter
+   printed "Sincerely" on page 3 and the acceptance alone on page 4. The firm,
+   24 Oct 2026: *"move the signatures to the same place as the salutation
+   because it looks awkward."* `break-before:avoid` on `.exec` was tried first
+   and Chromium ignored it inside doc-page's table cell -- an S corporation
+   letter still printed the acceptance alone. So the two are ONE block that may
+   not split: where they do not both fit, both move. Every letter with an
+   acceptance wraps its sign-off and acceptance in `.closing`. */
+.closing{break-inside:avoid;page-break-inside:avoid;break-before:avoid;page-break-before:avoid}
 .exec .lead{font-size:9.5pt;color:var(--ink-2);margin-bottom:12pt}
 .sigrow{display:flex;gap:0.45in;margin-top:14pt}
 .sigrow>div{flex:1}

@@ -206,8 +206,9 @@ def _dates(freq, start, end):
     while d <= end:
         if freq != "daily" or d.weekday() < 5:
             out.append(d)
-        if freq == "monthly":
-            d = (d.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
+        if freq in ("monthly", "quarterly"):
+            for _ in range(3 if freq == "quarterly" else 1):
+                d = (d.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
         else:
             d += datetime.timedelta(days=7 if freq == "weekly" else 1)
     return out
@@ -251,6 +252,8 @@ def _fetcher():
     series["PSAVERT"] = ("monthly", start, lambda i, d: 1.0 if d >= datetime.date(2026, 9, 1) else
                          5 + ((i * i) % 13) / 6)
     series["DSPIC96"] = ("monthly", start, lambda i, d: round(10000 * 1.002 ** i, 3))
+    # The Fed's card charge-off rate, all commercial banks: quarterly.
+    series["CORCCACBS"] = ("quarterly", start, lambda i, d: round(3 + ((i * i) % 5) / 4, 2))
 
     def fetch(url):
         if "hhdc-iframe" in url:

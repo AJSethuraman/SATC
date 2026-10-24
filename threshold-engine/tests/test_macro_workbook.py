@@ -1362,13 +1362,13 @@ def test_a_pick_only_series_not_in_the_pull_is_said_on_not_read_and_leads_found_
 
     full, wb_full, untried = made("full", every)
     result, wb, untried_now = made("gone", {k: v for k, v in every.items() if k != gone.source_id})
-    assert [x["key"] for x in result["picked_not_read"]] == [gone.key, gone.key]   # its level and its change
-    assert full["picked_not_read"] == []
+    fdic_missed = lambda r: [x["key"] for x in r["picked_not_read"] if CAT[x["key"]].source == "fdic"]  # noqa: E731
+    assert fdic_missed(result) == [gone.key, gone.key] and fdic_missed(full) == []   # its level and its change
     pairs = lambda xs: [(x["key"], x["reading"]) for x in xs]  # noqa: E731
     assert pairs(result["not_read"]) == pairs(full["not_read"])
     assert gone.title in _text(wb["Not read"]) and gone.title not in _text(wb_full["Not read"])
     run = {wb["Run"].cell(r, 2).value: wb["Run"].cell(r, 3).value for r in range(1, wb["Run"].max_row + 1)}
-    assert run["Readings not read"] == len(result["not_read"]) + 2
+    assert run["Readings not read"] == len(result["not_read"]) + len(result["picked_not_read"])
     assert untried_now == untried + 1          # the economic series this test pull left out, and now this one
 
 
@@ -1416,3 +1416,19 @@ def test_leads_found_lists_a_planted_lead_first_and_says_what_luck_gives(tmp_pat
                         ws["B4"].value), ws["B4"].value
     assert re.search(r"Run by run, held and nearly: shifted 4 years [\d,]+ and [\d,]+; shifted 6 years .*; "
                      r"reversed [\d,]+ and [\d,]+\.", _text(ws))
+
+
+def test_the_feds_long_bank_series_are_tried_on_leads_found_as_bank_series_not_economic_ones(tmp_path):
+    # The firm, 24 Oct 2026: "add the readings so we can try and get at least a tested trend". The Fed's card
+    # charge-off rate from 1985 is a bank series: tried against unemployment, never as an economic series.
+    from threshold_engine.macro import pull as P
+    from test_macro_sources import fdic_file
+    P.pull(tmp_path, keys=["unemployment", "cpi", "card_losses_all_banks", "fed_card_losses"], today="2026-10-15",
+           fetcher=_fetcher(), fdic=lambda root, today: fdic_file())
+    pull = R.Pull(tmp_path)
+    result = R.read_all(tmp_path, check(answered(show_sahm=False)), pull=pull)
+    wb = openpyxl.load_workbook(build(tmp_path / "fed.xlsx", result, pull))
+    text = _text(wb[LEADS])
+    # two economic series against the 57 bank series: the FDIC file's 56 and the Fed's card losses
+    assert wb[LEADS]["B4"].value.startswith("Of 114 pairs of an economic series and a bank series")
+    assert "Each of the 2 economic series against each of the 57 bank credit series" in text

@@ -61,6 +61,7 @@ class Series:
     care: str = ""          # in the "usable with care" group: why, for the reader of the workbook
     credit: str = ""        # wording the publisher's licence requires wherever its data are shown
     pick_only: bool = False  # read, but shown only in the Dashboard's pick list and on Leads found: no tab
+    bank_credit: bool = False  # a bank credit series: Leads found tries every economic series against it
 
 
 def _fred(key, sid, title, group, publisher, freq, unit, starts, licence, stress, report, breaks=(), read_alone=True,
@@ -253,10 +254,44 @@ SERIES = [
            # labour section and delinquency in its household section, the two each cites.
            LABOUR if measure == "net" else HOUSE,
            (SECURITIZED,) if pk == "card" and who == "industry" else (), change_in="points",
-           pick_only=measure in [m for m, *_ in BANK_MORE])
+           pick_only=measure in [m for m, *_ in BANK_MORE], bank_credit=True)
     for product, _, pk, words, _ in BANK_PRODUCTS
     for measure, _, _, mwords, _, unit in BANK_MEASURES + BANK_MORE
     for who, _, wwords in BANK_WHO
+] + [
+    # The Federal Reserve's own charge-off and delinquency rates for all commercial banks, from 1985 or 1991, for
+    # the Dashboard and Leads found only. The firm, 24 Oct 2026, told that the FDIC series from 2006 hold one
+    # downturn, so a lead found on them is mostly 2008-10: "I guess add the readings so we can try and get at least
+    # a tested trend". These add the early-1990s and 2001 downturns. The Fed's release page (read 24 Oct 2026):
+    # "Charge-off rates are annualized, net of recoveries. Delinquent loans and leases are those past due thirty
+    # days or more and still accruing interest as well as those in nonaccrual status." Seasonally adjusted; each
+    # FRED page, read 24 Oct 2026, tags it Public Domain: Citation Requested.
+    Series(key, title, "consumer" if group == "c" else "commercial", "Federal Reserve Board (charge-off and "
+           "delinquency rates)", "fred", sid, "quarterly", unit, starts, FRED_PD, None,
+           HOUSE if group == "c" else COMM, (), change_in="points", pick_only=True, bank_credit=True)
+    for key, sid, title, group, unit, starts in [
+        ("fed_card_losses", "CORCCACBS", "Card net charge-offs, all banks (Fed, from 1985)", "c",
+         "% of loans, quarter annualized", "1985-01"),
+        ("fed_card_late", "DRCCLACBS", "Card 30+ days late incl. nonaccrual, all banks (Fed, from 1991)", "c",
+         "% of loans", "1991-01"),
+        ("fed_other_consumer_losses", "COROCLACBS",
+         "Other consumer net charge-offs, all banks (Fed, from 1985)", "c", "% of loans, quarter annualized",
+         "1985-01"),
+        ("fed_other_consumer_late", "DROCLACBS",
+         "Other consumer 30+ days late incl. nonaccrual, all banks (Fed, from 1991)", "c", "% of loans", "1991-01"),
+        ("fed_mortgage_losses", "CORSFRMACBS", "Mortgage net charge-offs, all banks (Fed, from 1991)", "c",
+         "% of loans, quarter annualized", "1991-01"),
+        ("fed_mortgage_late", "DRSFRMACBS", "Mortgage 30+ days late incl. nonaccrual, all banks (Fed, from 1991)",
+         "c", "% of loans", "1991-01"),
+        ("fed_business_losses", "CORBLACBS", "Business loan net charge-offs, all banks (Fed, from 1985)", "b",
+         "% of loans, quarter annualized", "1985-01"),
+        ("fed_business_late", "DRBLACBS", "Business loans 30+ days late incl. nonaccrual, all banks (Fed, from 1987)",
+         "b", "% of loans", "1987-01"),
+        ("fed_cre_losses", "CORCREXFACBS", "Commercial real estate net charge-offs, all banks (Fed, from 1991)",
+         "b", "% of loans, quarter annualized", "1991-01"),
+        ("fed_cre_late", "DRCRELEXFACBS",
+         "Commercial real estate 30+ days late incl. nonaccrual, all banks (Fed, from 1991)", "b", "% of loans",
+         "1991-01")]
 ] + [
     # -- commercial and the economy
     _fred("real_gdp", "GDPC1", "Real GDP", "both", "BEA", "quarterly", "billions of chained 2017 dollars", "1947-01",

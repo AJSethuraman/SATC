@@ -64,11 +64,24 @@ def test_the_usable_with_care_group_says_why_each_needs_care_and_is_kept_apart_f
 def test_every_other_delinquency_measure_is_read_for_the_dashboard_and_leads_found_only():
     # The firm, 23 Oct 2026: "i want to bring in all measures - like 30+, 30+ non accrual, 30-89, 90+, 90+ non
     # accrual, etc", shown only in the Dashboard's pick list and on Leads found ("Pick list + screen").
-    assert len(PICK) == 40 and all(s.source == "fdic" and s.pick_only and s.read_alone for s in PICK)
+    fdic = [s for s in PICK if s.source == "fdic"]
+    assert len(fdic) == 40 and all(s.pick_only and s.read_alone and s.bank_credit for s in fdic)
     assert not {s.key for s in PICK} & {i.key for i in CORE}
-    assert {s.source_id.split("_delinquency-")[1] for s in PICK} == {
+    assert {s.source_id.split("_delinquency-")[1] for s in fdic} == {
         "30-89_quarter-end", "90-plus-accruing_quarter-end", "nonaccrual_quarter-end",
         "90-plus-incl-nonaccrual_quarter-end", "30-plus-accruing_quarter-end"}
+
+
+def test_the_feds_long_bank_series_are_read_for_the_dashboard_and_leads_found_as_bank_credit():
+    # The firm, 24 Oct 2026: "I guess add the readings so we can try and get at least a tested trend". The Fed's
+    # charge-off and delinquency rates, all commercial banks, from 1985 or 1991: the early-1990s and 2001 downturns.
+    fed = {s.source_id: s for s in PICK if s.source == "fred"}
+    assert set(fed) == {"CORCCACBS", "DRCCLACBS", "COROCLACBS", "DROCLACBS", "CORSFRMACBS", "DRSFRMACBS",
+                        "CORBLACBS", "DRBLACBS", "CORCREXFACBS", "DRCRELEXFACBS"}
+    assert all(s.bank_credit and s.pick_only and s.licence == FRED_PD and s.frequency == "quarterly"
+               and s.starts <= "1991-01" for s in fed.values())
+    assert len(PICK) == 50 and all(s.bank_credit for s in PICK)
+    assert all(s.bank_credit for s in SERIES if s.source == "fdic")
 
 
 def test_the_licensed_part_of_the_group_is_named_with_its_reason():

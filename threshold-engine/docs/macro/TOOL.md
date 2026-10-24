@@ -21,10 +21,11 @@ after all - even if not super useful"*) and is read the same way.
 
 ## The catalog and the pull
 
-- **184 series** in `src/threshold_engine/macro/catalog.py`: 107 core series
+- **194 series** in `src/threshold_engine/macro/catalog.py`: 107 core series
   read on their own (51 of them unemployment by state and 16 of them bank
-  credit), 40 more bank credit series shown only in the Dashboard's lists and
-  on Leads found, 33 usable with care,
+  credit), 50 more bank credit series shown only in the Dashboard's lists and
+  on Leads found (40 from the FDIC filings, 10 from the Federal Reserve), 33
+  usable with care,
   and 4 inputs to three readings built from two series. Two are the
   report's: house prices against income (from income per person) and the
   mortgage rate over the Treasury (from the 10-year yield). The third is
@@ -78,6 +79,17 @@ after all - even if not super useful"*) and is read the same way.
   it filed the balance and both parts, over the quarters the engine kept for
   both. It equals the engine's 30 to 89 plus its 90+ accruing to within
   9e-16 in every product, for all banks and KeyBank (630 quarters).
+- **The Federal Reserve's long bank series, for the Dashboard and Leads
+  found** (added 24 Oct 2026). The FDIC series start in 2006 and hold one
+  downturn; the firm, told so: *"I guess add the readings so we can try and
+  get at least a tested trend"*. Ten of the Fed's charge-off and
+  delinquency rates for all commercial banks, read from FRED: card, other
+  consumer, single-family mortgage, business and commercial real estate,
+  each net charge-offs and 30+ days late incl. nonaccrual, from 1985, 1987
+  or 1991, so the early-1990s and 2001 downturns are in. Seasonally
+  adjusted; charge-offs are the quarter's, annualized, not the past year's
+  as in the FDIC series. All ten 2026 Q2 values match the Fed's own release
+  tables.
 - **Gaps stay gaps.** FRED's "." and BLS's dash or blank are read as missing,
   never as zero. October 2025 is missing in every BLS household series and in
   CPI.
@@ -250,7 +262,7 @@ Not read, Run and Sources.
   any of these pass tests we care about"*, then *"ok but how can it be done
   and shown in the book"*; asked, economic against bank, holds first then
   near misses, and a line on how many hold by chance. Each economic series
-  in the Dashboard's lists against each of the 56 bank series, on the
+  in the Dashboard's lists against each of the 66 bank series, on the
   Dashboard's own test over every quarter the two share. Two tables: the
   pairs that hold at every starting point, strongest r first, then the near
   misses, the most starting points passed first. A near miss here has the
@@ -263,8 +275,8 @@ Not read, Run and Sources.
   bank series moved out of line in time (shifted round its own span by 4,
   6, 8 and 10 whole years, and reversed): those can only hold by luck, so
   that is the count to beat; the note gives each run's. On the 23 Oct pull:
-  75 of 4,256 pairs hold and 396 nearly do; by luck, 2 to 32 hold and 31 to
-  218 nearly do. The
+  148 of 5,016 pairs hold and 555 nearly do; by luck, 2 to 48 hold and 31
+  to 272 nearly do. The
   test is worked in Python (`screen.py`) when the workbook is built, so the
   tab is values; picking a pair on the Dashboard, From and To set to every
   quarter, shows the same figures.

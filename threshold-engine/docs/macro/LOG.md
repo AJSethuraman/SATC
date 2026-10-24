@@ -1844,3 +1844,67 @@ Codex on b7f917a0, two findings, both real, both fixed:
 
 Each fix's test fails on the old code. Rebuilt from the 23 Oct pull, every
 tab of the example is the same as before but for the time it was built.
+
+## 24 Oct 2026 (evening): the Fed's long bank series, and what survives without the crisis
+
+Read against the book, the firm asked how much a lead found on the FDIC
+series can be trusted: *"the only real mortgage lates were during the
+crisis right how reliable is that? I guess that's also the only time
+period that has negative direction"*. Tested on the 23 Oct pull with
+2006-11 left out (the FDIC series start in 2006), the mortgage leads on
+KeyBank kept their sign (r about +0.65 to +0.75) but passed at no more
+than 2 of 4; financial conditions against card credit fell apart and
+flipped sign. Only revolving credit growth leading card 30+ still
+accruing held from 2012 on (r +0.87, 4 of 4). The firm: *"I guess add the
+readings so we can try and get at least a tested trend"*.
+
+**Added:** ten of the Federal Reserve's charge-off and delinquency rates
+for all commercial banks, from FRED, pick-only and counted as bank series
+on Leads found (`Series.bank_credit`, which the FDIC series now carry
+too): card, other consumer, single-family mortgage, business and
+commercial real estate, each net charge-offs and 30+ late incl.
+nonaccrual. Card, other consumer and business charge-offs start in 1985,
+business delinquency in 1987, the rest in 1991. The Fed's release page,
+read 24 Oct 2026: *"Charge-off rates are annualized, net of recoveries.
+Delinquent loans and leases are those past due thirty days or more and
+still accruing interest as well as those in nonaccrual status."* Each
+FRED page tags its series Public Domain: Citation Requested, seasonally
+adjusted. Tied out: every 2026 Q2 value is the one in the Fed's own
+tables (charge-offs: card 3.82, other consumer 1.21, mortgage 0.00,
+business 0.58, CRE 0.14; delinquency: 2.85, 2.33, 1.86, 1.27, 1.53).
+
+They were fetched on 24 Oct into the 23 Oct pull, each with its own
+record (url, time, size, hash) and series summary; nothing else in the
+pull changed. The Fed last updated these tables on 25 Aug 2026.
+
+**On Leads found:** 76 economic series against 66 bank series, 5,016
+pairs; 148 hold, 555 nearly do; by luck 2 to 48 hold and 31 to 272 nearly
+do. Of the 148, 73 involve a Fed series.
+
+**What survives without the crisis**, on the long series (worked
+separately, not in the book; the strongest lead each time):
+
+| Pair | Whole span | Without 2007-10 | Also without 2020-21 |
+|---|---|---|---|
+| Revolving credit → card charge-offs (Fed, 1985) | +12, r +0.52, 4 of 4, 40 years | +6, r +0.63, **4 of 4** | +6, r +0.61, **4 of 4**, 33 years |
+| Revolving credit → card 30+ late (Fed, 1991) | +6, r +0.58, 4 of 4 | +6, r +0.63, 3 of 4 | +6, r +0.60, 2 of 4 |
+| Chicago Fed conditions → card 30+ late (Fed) | +6, r +0.71, 4 of 4 | +12, r +0.43, 2 of 4 | +18, r +0.59, 3 of 4 |
+| Chicago Fed conditions (adj.) → card charge-offs | +12, r +0.60, 4 of 4 | r +0.22, 0 of 4 | r +0.29, 0 of 4 |
+| KC Fed stress → card charge-offs | +12, r +0.65, 4 of 4 | r +0.20, 0 of 4 | r +0.35, 0 of 4 |
+| GZ spread → business charge-offs | +6, r +0.62, 4 of 4 | r +0.36, 0 of 4 | r +0.37, 0 of 4 |
+| Mortgages 90+ late → mortgage charge-offs (Fed) | -6, r +0.84, 4 of 4 | 0, r +0.73, 2 of 4 | 0, r +0.75, 2 of 4 |
+| Unemployment → card charge-offs (Fed) | 2 of 4 | wrong sign | 1 of 4 |
+
+So one lead is a tested trend across three downturns and the quiet years
+between: revolving credit growth leads card charge-offs by about 6 to 12
+months, and holds at every starting point with both 2007-10 and 2020-21
+left out. Financial conditions and spreads lead card and business losses
+over the whole span, but that rests on 2008-10. The mortgage link keeps
+its sign without the crisis and does not pass; the NY Fed's mortgage
+series starts in 2002, so it has no earlier downturn to test on.
+
+Two tests: the ten are in the catalog as bank credit and pick-only, and
+on Leads found the Fed's card losses are tried as a bank series (on the
+old rule it was tried as an economic series and the test fails). The
+example is rebuilt; its printout is unchanged.
+220 tests pass.
