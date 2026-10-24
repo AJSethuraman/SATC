@@ -621,7 +621,7 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *{ transition: none !important; } }
 
-/* ---- Simple Filer band (PROPOSED, review only) -------------------------
+/* ---- Simple Filer band -------------------------
    Reuses the page's own tokens and the existing .band/.wrap/.btn chrome so
    this reads as the same site, not a bolt-on. Two columns on desktop, one
    on phone, mirroring .fit-grid's behaviour. */
@@ -657,19 +657,19 @@ section.band.sf { padding: clamp(44px, 5.5vw, 68px) 0; background: var(--cream-2
   .sf-hedge { max-width: none; }
 }
 
-/* ---- likely-fit panel, narrow widths (PROPOSED, review only) -----------
+/* ---- likely-fit and not-sure panels, narrow widths -----------
    Its two actions carry longer labels than the Back/Continue pair .wiz-nav was
    built for, so at 390px they stayed on one row and pushed the document to
    480px. Caught by measuring scrollWidth AFTER the No/No outcome -- the initial
    homepage measured clean, which is why checking only the first screen missed
-   it. Scoped to [data-likely-fit] so no other step's nav is affected. */
+   it. Scoped to [data-likely-fit] and [data-not-sure] so no other step's nav is affected. */
 @media (max-width: 560px) {
-  [data-likely-fit] .wiz-nav { flex-wrap: wrap; }
-  [data-likely-fit] .wiz-nav .btn { flex: 1 1 100%; justify-content: center; text-align: center; }
+  [data-likely-fit] .wiz-nav, [data-not-sure] .wiz-nav { flex-wrap: wrap; }
+  [data-likely-fit] .wiz-nav .btn, [data-not-sure] .wiz-nav .btn { flex: 1 1 100%; justify-content: center; text-align: center; }
 }
-[data-likely-fit] { max-width: 100%; }
-[data-likely-fit] .wiz-q,
-[data-likely-fit] .wiz-help { overflow-wrap: anywhere; }
+[data-likely-fit], [data-not-sure] { max-width: 100%; }
+[data-likely-fit] .wiz-q, [data-likely-fit] .wiz-help,
+[data-not-sure] .wiz-q, [data-not-sure] .wiz-help { overflow-wrap: anywhere; }
 </style>
 <script type="application/ld+json">
 {
@@ -741,8 +741,7 @@ section.band.sf { padding: clamp(44px, 5.5vw, 68px) 0; background: var(--cream-2
   </div>
 </header>
 
-<!-- ===================================================== SIMPLE FILER (PROPOSED)
-     PROPOSED, NOT APPROVED. Shown for review only.
+<!-- ===================================================== SIMPLE FILER
 
      Nothing here is a typed figure. The name, the price, the "who" line, the
      covers bullets and the included-returns sentence are all written at load
@@ -769,7 +768,7 @@ section.band.sf { padding: clamp(44px, 5.5vw, 68px) 0; background: var(--cream-2
         <ul class="sf-covers" id="sfCovers"></ul>
         <p class="sf-included" id="sfIncluded">&nbsp;</p>
         <div class="sf-ctas">
-          <a class="btn" href="#intake" id="sfStart">See if this is you</a>
+          <a class="btn" href="#intake">See if this is you</a>
           <a class="btn ghost" href="pricing.html">All prices</a>
         </div>
       </div>
@@ -1103,7 +1102,7 @@ section.band.sf { padding: clamp(44px, 5.5vw, 68px) 0; background: var(--cream-2
 <!-- Intake: questions and branching rules live in intake-config.js; the
      engine that renders them lives in intake.js. Loaded after SATC_CONFIG
      because intake.js reads contact.formspreeId from it. -->
-<!-- PROPOSED. The generated pricing config, so the band can render a figure
+<!-- The generated pricing config, so the band can render a figure
      the firm's schedule wrote. This is the only sanctioned route to a number on
      a page: index.html does not load this file today. -->
 <script src="pricing-config.js"></script>
@@ -1143,23 +1142,6 @@ section.band.sf { padding: clamp(44px, 5.5vw, 68px) 0; background: var(--cream-2
       var li = document.createElement('li'); li.innerHTML = c; ul.appendChild(li);
     });
   }
-
-  /* The short path is a route into the SAME intake, not a second form. Clicking
-     here records which door the visitor came in, so the notification can say
-     "Simple Filer interest". intake.js reads this before its first render. */
-  /* Enter the short path. Setting the route global alone did NOT work -- the
-     engine had already rendered 'What can we help you with?' by then, so the
-     visitor landed on the full intake's first question. Caught by clicking it
-     in a rendered browser, which no amount of reading would have found. */
-  var cta = document.getElementById('sfStart');
-  if (cta) cta.addEventListener('click', function (ev) {
-    if (typeof window.SATC_ENTER_SIMPLE_FILER === 'function') {
-      ev.preventDefault();
-      window.SATC_ENTER_SIMPLE_FILER();
-    }
-    /* No hook means intake.js did not load: the href="#intake" still carries
-       the visitor to the ordinary form rather than to nothing. */
-  });
 })();
 </script>
 <script src="intake-config.js"></script>
