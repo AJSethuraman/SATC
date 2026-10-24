@@ -100,14 +100,15 @@ def test_a_what_if_with_a_gap_is_refused_naming_its_file_and_the_gap(cache, tmp_
     assert "REFUSED: the what-if settings in %s" % b in err and "normal_width: not answered" in err
 
 
-def test_compare_prints_what_differs_and_writes_the_what_if_tab_after_the_dashboard(cache, tmp_path, capsys):  # noqa: F811,E501
+def test_compare_prints_what_differs_and_writes_the_what_if_tab_after_leads_found(cache, tmp_path, capsys):  # noqa: F811,E501
     openpyxl = pytest.importorskip("openpyxl")
     a, b = _files(tmp_path, answered(history={"years": 3}))
     out = tmp_path / "book.xlsx"
     assert M.main(["read", "--cache", str(cache), "--settings", a, "--compare", b, "--workbook", str(out)]) == 0
     printed = capsys.readouterr().out
     assert printed.startswith("What if: what-if.json against settings.json, both from the pull of 2026-10-15.")
-    assert openpyxl.load_workbook(out).sheetnames[:4] == ["Overview", "Dashboard", "What if", "Unemployment"]
+    assert openpyxl.load_workbook(out).sheetnames[:5] == ["Overview", "Dashboard", "Leads found", "What if",
+                                                          "Unemployment"]
     assert M.main(["read", "--cache", str(cache), "--settings", a, "--compare", b, "--json"]) == 0
     got = json.loads(capsys.readouterr().out)
     assert got["compare"]["b"] == "what-if.json" and got["readings"]

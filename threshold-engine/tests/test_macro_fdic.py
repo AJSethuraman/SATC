@@ -66,7 +66,7 @@ def test_an_unpublished_quarter_steps_the_build_back_one_and_nothing_cached_is_f
 def test_every_bank_series_in_the_catalog_is_in_the_file(built):
     _, _, got, _, _ = built
     ids = {s.source_id for s in SERIES if s.source == "fdic"}
-    assert len(ids) == 16 and ids <= set(got["series"])
+    assert len(ids) == 56 and ids <= set(got["series"])          # every product, both, net and six delinquencies
     assert got["self"] == {"cert": "17534", "name": "KeyBank NA"}
     assert got["settings"]["jump"] == F.book_settings()["jump"]    # the consumer book's answers, as recorded
 
@@ -84,6 +84,28 @@ def test_the_30_plus_rates_are_the_filings_own_arithmetic(built):
     assert late["2026-04-01"] == pytest.approx(mine, abs=1e-9)
     late_all = dict(F.read(json.dumps(got).encode(), BY_KEY["card_late_all_banks"].source_id))
     assert late_all["2026-04-01"] == pytest.approx(industry, abs=1e-9)
+
+
+def test_30_plus_still_accruing_is_worked_from_the_filings_never_by_adding_two_rates(built):
+    # Not one of the threshold engine's measures, so worked out from the same filings: KeyBank's own 100 x (30-89 +
+    # 90+ accruing) / balance, and every filer's that filed all three, summed, worked here from the cache.
+    _, dl, got, _, _ = built
+    rows = dl["20260630"]
+    me = next(r for r in rows if str(r["CERT"]) == "17534")
+    mine = 100 * (me["P3CRCD"] + me["P9CRCD"]) / me["LNCRCD"]
+    every = [r for r in rows if all(r.get(f) is not None for f in ("P3CRCD", "P9CRCD", "LNCRCD"))]
+    industry = 100 * sum(r["P3CRCD"] + r["P9CRCD"] for r in every) / sum(r["LNCRCD"] for r in every)
+    raw = json.dumps(got).encode()
+    assert dict(F.read(raw, BY_KEY["card_late_30_accruing_keybank"].source_id))["2026-04-01"] == \
+        pytest.approx(mine, abs=1e-9)
+    assert dict(F.read(raw, BY_KEY["card_late_30_accruing_all_banks"].source_id))["2026-04-01"] == \
+        pytest.approx(industry, abs=1e-9)
+    # and it is 30+ incl. nonaccrual less the nonaccrual, for KeyBank, whose rates share one balance
+    incl = dict(F.read(raw, BY_KEY["card_late_keybank"].source_id))["2026-04-01"]
+    non = dict(F.read(raw, BY_KEY["card_nonaccrual_keybank"].source_id))["2026-04-01"]
+    assert incl - non == pytest.approx(mine, abs=1e-9)
+    note = got["series"][BY_KEY["card_late_30_accruing_all_banks"].source_id]["note"]
+    assert any("Worked out in the Macrobook" in n for n in note) and any("read with care" in n for n in note)
 
 
 def test_a_quarter_is_dated_by_its_first_month_and_the_cache_path_stays_out(built):
