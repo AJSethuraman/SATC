@@ -2,7 +2,8 @@
 import pathlib
 
 from threshold_engine.macro.catalog import (BY_KEY, CARE, CARE_DERIVED, CARE_NOT_READ, CORE, DERIVED, DERIVED_BY_KEY,
-                                            FRED_PD, HIGHER, HOUSEHOLD_DEBT, LOWER, NOT_YET, READ, SERIES, STATES)
+                                            FRED_PD, HIGHER, HOUSEHOLD_DEBT, LOWER, NOT_YET, PICK, READ, SERIES,
+                                            STATES)
 
 REPORT = (pathlib.Path(__file__).resolve().parents[1] / "docs" / "macro" / "reports"
           / "Macro risk indicators for lending.md")
@@ -57,7 +58,17 @@ def test_a_derived_reading_is_built_from_two_series_the_catalog_pulls():
 def test_the_usable_with_care_group_says_why_each_needs_care_and_is_kept_apart_from_the_core():
     assert CARE and all(s.care and s.stress is None and s.read_alone for s in CARE + CARE_DERIVED)
     assert not {s.key for s in CARE + CARE_DERIVED} & {i.key for i in CORE}
-    assert [s for s in SERIES if s.care] == CARE and READ == CORE + CARE + CARE_DERIVED
+    assert [s for s in SERIES if s.care] == CARE and READ == CORE + PICK + CARE + CARE_DERIVED
+
+
+def test_every_other_delinquency_measure_is_read_for_the_dashboard_and_leads_found_only():
+    # The firm, 23 Oct 2026: "i want to bring in all measures - like 30+, 30+ non accrual, 30-89, 90+, 90+ non
+    # accrual, etc", shown only in the Dashboard's pick list and on Leads found ("Pick list + screen").
+    assert len(PICK) == 40 and all(s.source == "fdic" and s.pick_only and s.read_alone for s in PICK)
+    assert not {s.key for s in PICK} & {i.key for i in CORE}
+    assert {s.source_id.split("_delinquency-")[1] for s in PICK} == {
+        "30-89_quarter-end", "90-plus-accruing_quarter-end", "nonaccrual_quarter-end",
+        "90-plus-incl-nonaccrual_quarter-end", "30-plus-accruing_quarter-end"}
 
 
 def test_the_licensed_part_of_the_group_is_named_with_its_reason():

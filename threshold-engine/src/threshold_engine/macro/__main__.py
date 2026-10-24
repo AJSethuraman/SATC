@@ -151,9 +151,10 @@ def cmd_read(a):
         print()
     for x in result["alongside"]:
         print("  %s\n" % x["sentence"])
-    if result["not_read"]:
+    missed = result["not_read"] + result.get("picked_not_read", [])
+    if missed:
         print("Not read:")
-        for x in result["not_read"]:
+        for x in missed:
             print("  %-26s %-8s %s" % (x["key"], x["reading"], x["why"]))
     for credit in sorted({x["credit"] for x in result["readings"] if x.get("credit")}):
         print("\n  %s" % credit)
