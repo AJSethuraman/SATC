@@ -119,20 +119,52 @@ def _render_each(text: str, record: dict) -> str:
         text = text[:start] + "".join(rendered) + text[end + len(_sentinel("ENDEACH")):]
 
 
+def _swallow_at(text: str, token: str, pos: int, replacement: str) -> str:
+    """Like `_swallow_marker`, for the occurrence at `pos` rather than the first."""
+    for pat in _WRAPPERS:
+        for w in re.finditer(pat.format(tok=re.escape(token)), text):
+            if w.start() <= pos < w.end():
+                return text[:w.start()] + replacement + text[w.end():]
+    bare = f"[[{token}]]"
+    assert text.startswith(bare, pos), (token, pos)
+    return text[:pos] + replacement + text[pos + len(bare):]
+
+
+_IF = re.compile(r"\[\[IF ([A-Za-z0-9_]+)\]\]")
+_END_IF = re.compile(r"\[\[END IF\]\]")
+
+
 def _render_if(text: str, record: dict, kept: set, dropped: set) -> str:
-    """Keep or drop [[IF Flag]] … [[END IF]] blocks."""
+    """Keep or drop [[IF Flag]] … [[END IF]] blocks, innermost first.
+
+    NESTING IS ALLOWED. Until 24 Oct 2026 each IF was paired with the FIRST
+    [[END IF]] after it, so an IF inside another IF closed the OUTER block at
+    the inner END IF -- and refused nothing. The fee estimate's optional
+    "Also included" line sits inside its optional scope box; the box's closing
+    tags were dropped with the line, the box swallowed the rest of the
+    estimate, and the footer was pushed onto a blank second page. Pairing
+    each [[END IF]] with the nearest [[IF]] before it resolves the innermost
+    block first, and an inner block inside a dropped outer one goes with it.
+    """
     while True:
-        m = re.search(r"\[\[IF ([A-Za-z0-9_]+)\]\]", text)
-        if not m:
+        end_m = _END_IF.search(text)
+        ifs = list(_IF.finditer(text))
+        if end_m is None:
+            if ifs:
+                raise MergeError(f"[[IF {ifs[0].group(1)}]] is never closed by an [[END IF]]")
             return text
-        name = m.group(1)
-        text = _swallow_marker(text, f"IF {name}", _sentinel("IF"))
-        text = _swallow_marker(text, "END IF", _sentinel("ENDIF"))
+        before = [m for m in ifs if m.start() < end_m.start()]
+        if not before:
+            raise MergeError("[[END IF]] precedes any [[IF]]")
+        inner = before[-1]
+        name = inner.group(1)
+        # The END IF is later in the text, so replacing it first leaves the
+        # IF's position where it was found.
+        text = _swallow_at(text, "END IF", end_m.start(), _sentinel("ENDIF"))
+        text = _swallow_at(text, f"IF {name}", inner.start(), _sentinel("IF"))
 
         start = text.index(_sentinel("IF"))
         end = text.index(_sentinel("ENDIF"))
-        if end < start:
-            raise MergeError(f"[[END IF]] precedes [[IF {name}]]")
         chunk = text[start + len(_sentinel("IF")):end]
 
         if record.get(name):
@@ -245,7 +277,11 @@ def _retitle(text: str, record: dict) -> str:
     m = _TITLE.search(text)
     if not m:
         return text
-    base = _TEMPLATE_SUFFIX.sub("", m.group(1).strip())
+    # The template's title is HTML already ("Bookkeeping &amp; accounting"),
+    # and the join below escapes it again: the bookkeeping letter printed
+    # "&amp;amp;" in its title until 24 Oct 2026. Read it back to text first,
+    # so every part is escaped exactly once.
+    base = _TEMPLATE_SUFFIX.sub("", html.unescape(m.group(1)).strip())
     # WHAT A PERSON WOULD USE TO TELL TWO OPEN TABS APART: whose it is, which
     # year, and the reference that ties the letter to the estimate and the
     # invoice. Each part is dropped if the record does not have it rather than
@@ -284,7 +320,26 @@ def _derived(record: dict) -> dict:
         billed, quoted = money.parse(record["Subtotal"]), money.parse(record["EstimateTotal"])
         if billed is not None and quoted is not None and round(billed * 100) > round(quoted * 100):
             record = {**record, "BilledAboveEstimate": True}
+    # "ALSO INCLUDED" ONLY WHEN SOMETHING IS. The firm, 24 Oct 2026, on the
+    # engagement letters: *take out "Also Included" that is only necessary if
+    # there are inclusions.* The record still says "None" -- the field spec
+    # wants an explicit None, never a blank, because a blank and a None are
+    # different statements -- so the line is dropped whole on that value
+    # rather than printed empty. Derived, so no record needs a new answer.
+    if "HasAdditionalForms" not in record:
+        record = {**record, "HasAdditionalForms": additional_forms_listed(record.get("AdditionalForms"))}
     return record
+
+
+def additional_forms_listed(value) -> bool:
+    """Whether `AdditionalForms` names anything, so its line prints.
+
+    One answer for the merge and for `consistency`, which checks that the
+    letter and the estimate state one scope: if the two decided separately, a
+    "None" dropped from both pages would read there as a scope line missing.
+    """
+    extra = str(value or "").strip()
+    return bool(extra) and extra.lower() != "none"
 
 
 def render(template_html: str, record: dict, *, strict: bool = True,
