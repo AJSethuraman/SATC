@@ -298,9 +298,14 @@ def test_a_jump_to_a_record_reads_increasing_and_the_level_sits_at_the_top(cache
 def test_every_reading_the_catalog_holds_is_read_or_says_why_not(cache):
     result = R.read_all(cache, check(answered()))
     expected = {(i.key, r) for i in READ for r in readings_of(i)}
-    got = {(r["key"], r["reading"]) for r in result["readings"]} | {(x["key"], x["reading"])
-                                                                   for x in result["not_read"]}
-    assert got == expected and len(result["readings"]) + len(result["not_read"]) == len(expected)
+    every = result["readings"] + result["picked"]
+    missing = result["not_read"] + result["picked_not_read"]
+    got = {(r["key"], r["reading"]) for r in every} | {(x["key"], x["reading"]) for x in missing}
+    assert got == expected and len(every) + len(missing) == len(expected)
+    # the pick-only series' readings are kept apart, so the Overview, the what-if and the printout read as before
+    pick = {i.key for i in READ if getattr(i, "pick_only", False)}
+    assert {x["key"] for x in result["readings"] + result["not_read"]}.isdisjoint(pick)
+    assert {x["key"] for x in result["picked"] + result["picked_not_read"]} <= pick
     why = {(x["key"], x["reading"]): x["why"] for x in result["not_read"]}
     assert why[("gasoline", "change")].startswith("not in the pull of 2026-10-15")
     assert why[("house_price_to_income", "position")].startswith("not in the pull of 2026-10-15")

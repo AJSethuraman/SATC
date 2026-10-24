@@ -1691,3 +1691,156 @@ Codex on 5c73b532, two findings, both fixed:
 
 Each fix's break (the 0 back; the notes read from disk) failed its test.
 203 tests pass.
+
+## 24 Oct 2026: every delinquency measure, and Leads found
+
+The firm, 23 Oct 2026, having opened the book in Excel: *"is there a
+mathematical and quick way to determine if any of these pass tests we care
+about"*, then *"ok but how can it be done and shown in the book"*. Asked,
+they chose: economic series against bank series; *"i want to bring in all
+measures - like 30+, 30+ non accrual, 30-89, 90+, 90+ non accrual, etc"*;
+those in the Dashboard's lists and the screen only ("Pick list + screen");
+the pairs that hold first, then the near misses; a line on how many hold by
+chance; and a new PR after #472.
+
+**The 40 measures.** For card, other consumer, mortgage and home equity,
+all banks and KeyBank: 30 to 89 days late, 90+ still accruing, nonaccrual,
+90+ including nonaccrual, and 30+ still accruing. (I first said 32; it is
+five measures, four products and two groups, 40.) They are in the catalog
+as `pick_only`: read as the core is, but with no tab and no Overview row,
+and kept apart in the readings, so the Overview, the what-if and the
+printout read exactly as before (the 23 Oct printout came out the same,
+line for line). The catalog now holds 184 series.
+
+The first four are the threshold engine's own delinquency series,
+quarter-end, from the same build as the 16. The engine builds no 30+ still
+accruing, so the Macrobook works it from the filings the build read: 100 x
+(30 to 89 + 90+ accruing) / the balance, a filer counted only when it filed
+the balance and both parts. Two things found on the way:
+
+- KeyBank's card series came out from 2008 Q1, 63 quarters, where the
+  engine's other KeyBank card series start in 2012 Q3: the engine starts a
+  bank's series after its last break (KeyBank held no cards from 2010 to
+  mid-2012) and fills no gap. The worked series now keeps only the quarters
+  the engine kept for both its parts, and starts in 2012 Q3.
+- Tied out on the rebuilt file: in all 630 quarters, all four products,
+  both groups, 30+ still accruing equals the engine's 30 to 89 plus its 90+
+  accruing to within 8.9e-16. Adding the engine's two published rates would
+  not be the same thing in general (each sums the filers of its own field);
+  here the filer sets coincide.
+
+The 23 Oct pull's bank file was built again from the same FDIC cache, to
+2026 Q2 (the FDIC holds no filer for Q3 yet), with all 56 series: the 16
+already there are identical, figures and notes. The pull's record gives the
+new file's size (393,157 bytes), hash (`4872a62c…`) and the time it was
+built (24 Oct, 12:39 UTC), and a record for each of the 40; the other 144
+records are untouched. Every series' first quarter in the catalog is the
+file's.
+
+My own find: a pick-only series that could not be read had nowhere to say
+so, having no tab or Overview row. It is now on the Not read tab, in the
+Run tab's count and in the printout, and Leads found says how many of the
+Dashboard's series it could not try. A test takes one measure out of the
+bank file; putting the old Not read rule back fails it.
+
+**Leads found**, a tab after the Dashboard. Each economic series in the
+Dashboard's lists against each bank series, on the Dashboard's own test
+over every quarter the two share, worked in Python (`screen.py`) when the
+book is built, so the tab is values. Its statistics are held to published
+values: Student's t at 2.228139 on 10 degrees of freedom and 2.262157 on 9
+gives p = 0.05 to 1e-6, and the degrees of freedom are cut to a whole
+number as Excel's TDIST does.
+
+On the 23 Oct pull: 76 economic series against 56 bank series, 4,256
+pairs. **75 hold** at every starting point; **825 nearly do** (429 at 1 of
+4, 267 at 2, 129 at 3).
+
+Checked three ways:
+
+- Run again from the workbook's own hidden data tab, the screen gives the
+  tab's 900 rows exactly: lead, r to 1e-12, years and "x of 4".
+- Six pairs set on the Dashboard over every quarter and recalculated in
+  LibreOffice: the lead its line speaks of, r to the last digit, the years
+  and "x of 4" are the tab's in every one, and every row of each lead table
+  matches the separate script from the data tab (largest difference
+  3.9e-14). Three hold, three nearly do: the NY Fed's mortgages 90+ late
+  against KeyBank's mortgage losses (economic leads by 12 months, +0.89);
+  auto loan debt against all banks' mortgage 30+ still accruing (bank leads
+  by 6, -0.93) and commercial real estate prices against KeyBank's (same
+  time, -0.72), both worked series; total household debt against KeyBank's
+  card nonaccrual (2 of 4, 13 years, its short span); mortgages 90+ late
+  against home equity 30 to 89 (3 of 4); unemployment against mortgage 30+
+  still accruing (2 of 4).
+- A test plants a bank series that repeats unemployment a year later: it
+  is the first row, "Economic leads by 12 months", r = +1.00, 4 of 4.
+
+**By chance, and a correction.** The chance line runs the same test with
+every bank series moved out of line in time: shifted round its own span by
+4, 6, 8 and 10 whole years, and reversed. On the 23 Oct pull:
+
+| Bank series | Hold | Nearly |
+|---|---|---|
+| shifted 4 years | 2 | 217 |
+| shifted 6 years | 2 | 155 |
+| shifted 8 years | 4 | 247 |
+| shifted 10 years | 4 | 536 |
+| reversed | 32 | 625 |
+
+So 75 real holds against 2 to 32 by luck, and 825 near misses against 155
+to 625: most of the near misses are what luck gives. Reversal gives the
+most, likely because a reversed 2008-09 peak lands near 2023, within the
+36-month window of the 2020 shock; I have not checked that pair by pair.
+The line gives both counts, the note each run's.
+
+The figure I gave before, 0 to 9 by chance, was wrong. My scratch script
+shifted each series round its span in months, not whole years, so a
+shifted quarterly series landed in months no other series has readings in
+and could never hold; only reversal could. `scrambled()` now wraps over
+whole years, keeping each reading's calendar month; a test holds that.
+
+The example workbook in `examples/` is rebuilt from the 23 Oct pull with
+the new bank file; its printout is byte for byte the one before. It
+validates against the ISO/IEC 29500 schemas (339 parts, no error), and
+`6-leads-found.png` is the tab's first page as LibreOffice prints it.
+217 tests pass.
+
+## 24 Oct 2026 (afternoon): near misses from 2 of 4
+
+Told that luck alone gives up to 625 near misses, and that 429 of the 825
+pass at only 1 of 4, the firm: *"i think near miss of 2 or more is fine
+but does that mean there wasn't enough to test, or?"*
+
+It does not. A near miss is only ever a lead that was tested at all four
+starting points: each had at least 6 pairs a year apart and a p. "1 of 4"
+means r had the same sign at all four but only one passed the level (0.05
+divided by the leads tested). A lead without enough to test is "not
+tested" on the Dashboard and is never a near miss, on either tab.
+
+Leads found now lists a near miss from 2 passing starting points
+(`screen.NEAR_FROM`), and the chance runs count by the same rule. The
+Dashboard's line is unchanged: it still says "holds in 1 of 4" when that
+is what the strongest lead does. If fewer starting points are set than
+the rule allows (the settings take 1, 2 or 4), the near-miss table is
+left out rather than titled "2 to 1 of 2".
+
+On the 23 Oct pull: 75 hold, as before; **396 nearly do** (267 at 2 of 4,
+129 at 3 of 4). By luck: 2 to 32 hold and 31 to 218 nearly do (shifted 4,
+6, 8 and 10 years: 62, 31, 64 and 145; reversed: 218). The example
+workbook and its picture are rebuilt; the printout is unchanged, and the
+workbook validates (339 parts, no error). Putting the rule back to 1 fails
+two tests.
+
+Codex on b7f917a0, two findings, both real, both fixed:
+
+- When the two series' year-apart correlations multiply to exactly -1 (one
+  repeats each year, the other alternates), the effective pairs divided by
+  zero and the whole build stopped. The Dashboard's IFERROR leaves that
+  cell blank; the screen now does the same, so the lead is not tested.
+- With no pair holding or nearly holding, the chance runs were skipped, so
+  the line could not say whether nothing was unusual. They now run
+  whenever a pair is tried. The test pull, where nothing holds, now reads
+  "0 hold ... and 0 nearly do. With the bank series moved out of line in
+  time, so that only luck links them, ...".
+
+Each fix's test fails on the old code. Rebuilt from the 23 Oct pull, every
+tab of the example is the same as before but for the time it was built.

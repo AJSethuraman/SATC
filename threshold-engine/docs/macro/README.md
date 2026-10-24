@@ -17,7 +17,7 @@ scripts and data behind it, are kept below for the record. Public data only.
 | `settings.json` | The firm's answers (16 and 22 Oct 2026), each with where it came from |
 | `what-if-pandemic-left-out.json` | An example what-if, not the firm's settings: theirs with 2020 Q2 to 2021 Q2 left out |
 | `what-if-30-years.json` | Another example what-if: theirs with history set to the last 30 years |
-| `examples/` | The workbook from the pull of 23 Oct 2026 (folder `2026-10-23`, every series including the 16 bank credit series) with the pandemic what-if, its printout, and five pictures of it: the Overview, the Dashboard, household debt, initial claims' charts, and KeyBank's card net charge-offs. |
+| `examples/` | The workbook from the pull of 23 Oct 2026 (folder `2026-10-23`, every series including the 56 bank credit series, the bank file built again on 24 Oct with every delinquency measure) with the pandemic what-if, its printout, and six pictures of it: the Overview, the Dashboard, household debt, initial claims' charts, KeyBank's card net charge-offs, and Leads found. |
 | `design/` | The design of the workbook: the brief sent to Claude Design (`BRIEF-2026-10-22.md`) and what came back, round 1 (`round-1/`: the mock, the build spec, the tokens, the note to the builder, and pictures of the mock) |
 | `walkthrough/` | The walk of the monthly refresh: the procedure as one PDF, and the defects it found |
 | `tie-out/gasoline-change-2026-10-16/` | The workbook's top reading tied to EIA, with three more tied to BLS, FRED and FHFA, as one PDF |

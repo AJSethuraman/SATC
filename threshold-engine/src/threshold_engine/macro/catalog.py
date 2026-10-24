@@ -60,6 +60,7 @@ class Series:
     position: str = ""      # "" its place in its own history is read; otherwise why it is not
     care: str = ""          # in the "usable with care" group: why, for the reader of the workbook
     credit: str = ""        # wording the publisher's licence requires wherever its data are shown
+    pick_only: bool = False  # read, but shown only in the Dashboard's pick list and on Leads found: no tab
 
 
 def _fred(key, sid, title, group, publisher, freq, unit, starts, licence, stress, report, breaks=(), read_alone=True,
@@ -120,6 +121,19 @@ BANK_MEASURES = [("net", "net", "losses", "net charge-offs", "losses",
                   "% of loans, past year"),
                  ("30+", "delinquency-30-plus-incl-nonaccrual_quarter-end", "late", "30+ days late incl. nonaccrual",
                   "30+ late", "% of loans, quarter-end")]
+#: Every other delinquency measure, the firm, 23 Oct 2026: "i want to bring in all measures - like 30+, 30+ non
+#: accrual, 30-89, 90+, 90+ non accrual, etc", for the Dashboard's pick list and Leads found only ("Pick list +
+#: screen"), so the book does not grow by a tab each. The first four are the threshold engine's own measures; 30+
+#: still accruing is not one of them and is worked out in fdic_credit.py from the same filings.
+BANK_MORE = [("30-89", "delinquency-30-89_quarter-end", "late_30_89", "30-89 days late", "", "% of loans, quarter-end"),
+             ("90+ accruing", "delinquency-90-plus-accruing_quarter-end", "late_90_accruing",
+              "90+ days late, still accruing", "", "% of loans, quarter-end"),
+             ("nonaccrual", "delinquency-nonaccrual_quarter-end", "nonaccrual", "loans on nonaccrual", "",
+              "% of loans, quarter-end"),
+             ("90+ incl. nonaccrual", "delinquency-90-plus-incl-nonaccrual_quarter-end", "late_90",
+              "90+ days late incl. nonaccrual", "", "% of loans, quarter-end"),
+             ("30+ accruing", "delinquency-30-plus-accruing_quarter-end", "late_30_accruing",
+              "30+ days late, still accruing", "", "% of loans, quarter-end")]
 #: The first quarter each series holds, as the build of 23 Oct 2026 wrote it (2006Q1 to 2026Q2). KeyBank's card and
 #: other consumer start late: the build writes from the first quarter after the last break and fills no gap.
 #: Each series' first quarter in the build (the 23 Oct 2026 pull, every filer from 2006 Q1): a net charge-off rate is
@@ -130,6 +144,7 @@ BANK_STARTS = {("card", "net", "industry"): "2006Q4", ("other_consumer", "net", 
                ("card", "net", "keybank"): "2013Q4", ("card", "30+", "keybank"): "2012Q3",
                ("other_consumer", "net", "keybank"): "2015Q4", ("mortgage", "net", "keybank"): "2007Q1",
                ("home_equity", "net", "keybank"): "2007Q1"}
+BANK_STARTS.update({("card", m, "keybank"): "2012Q3" for m, *_ in BANK_MORE})
 SECURITIZED = ("2010Q1", "securitized cards came back onto banks' books under FAS 166 and 167 from 1 Jan 2010; "
                          "before it a bank's securitized cards were off its books (the threshold engine's note)")
 
@@ -137,14 +152,14 @@ SECURITIZED = ("2010Q1", "securitized cards came back onto banks' books under FA
 def bank_key(product, measure, who):
     """card_losses_all_banks, mortgage_late_keybank ..."""
     pk = next(k for p, _, k, _, _ in BANK_PRODUCTS if p == product)
-    mk = next(k for m, _, k, *_ in BANK_MEASURES if m == measure)
+    mk = next(k for m, _, k, *_ in BANK_MEASURES + BANK_MORE if m == measure)
     return "%s_%s_%s" % (pk, mk, next(k for w, k, _ in BANK_WHO if w == who))
 
 
 def bank_source_id(product, measure, who):
     """The threshold engine's own series file stem, e.g. credit-card_keybank_net."""
     return "%s_%s_%s" % (next(s for p, s, *_ in BANK_PRODUCTS if p == product), who,
-                         next(t for m, t, *_ in BANK_MEASURES if m == measure))
+                         next(t for m, t, *_ in BANK_MEASURES + BANK_MORE if m == measure))
 
 
 LABOUR = "Labour data carries the only official link to loan losses"
@@ -237,9 +252,10 @@ SERIES = [
            # The firm added these, not the research; the report reads card charge-offs against unemployment in its
            # labour section and delinquency in its household section, the two each cites.
            LABOUR if measure == "net" else HOUSE,
-           (SECURITIZED,) if pk == "card" and who == "industry" else (), change_in="points")
+           (SECURITIZED,) if pk == "card" and who == "industry" else (), change_in="points",
+           pick_only=measure in [m for m, *_ in BANK_MORE])
     for product, _, pk, words, _ in BANK_PRODUCTS
-    for measure, _, _, mwords, _, unit in BANK_MEASURES
+    for measure, _, _, mwords, _, unit in BANK_MEASURES + BANK_MORE
     for who, _, wwords in BANK_WHO
 ] + [
     # -- commercial and the economy
@@ -537,8 +553,11 @@ SERIES = SERIES + CARE
 BY_KEY = {s.key: s for s in SERIES}
 DERIVED_BY_KEY = {d.key: d for d in DERIVED}
 #: The ready-to-rate group as read: the catalog's own series read alone, then the derived readings.
-CORE = [s for s in SERIES if s.read_alone and not s.care] + [d for d in DERIVED if d.read_alone and not d.care]
+CORE = ([s for s in SERIES if s.read_alone and not s.care and not s.pick_only]
+        + [d for d in DERIVED if d.read_alone and not d.care])
+#: Read like the core but shown only in the Dashboard's pick list and on Leads found: no tab, no Overview row.
+PICK = [s for s in SERIES if s.pick_only]
 #: The usable-with-care group's derived readings, read after its own series.
 CARE_DERIVED = [d for d in DERIVED if d.care]
 #: Everything the tool reads: the core, then the usable-with-care group.
-READ = CORE + CARE + CARE_DERIVED
+READ = CORE + PICK + CARE + CARE_DERIVED
