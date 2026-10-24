@@ -566,3 +566,112 @@ def test_standalone_loan_mode_leaves_out_rows_with_no_loan_id():
         "chargeoff_date": ["2024-05-31", None, None], "payoff_date": [None] * 3, "dpd_asof": [0, 0, 0]})
     sheets, used, excl = do.loan_mode(df, _args(), AS_OF)
     assert used == 2 and excl == 1 and "no loan id" in sheets["Excluded"]["exclusion_reason"].iloc[0]
+
+
+# ---- a column that is one column against another (the firm, 17 Oct 2026: "income > sales ... could be anything > anything")
+
+_BOOK = ROOT / "sample" / "fake_book.csv"
+_COLS = "[columns]\nloan_id=loan_id\norig_date=orig_date\nchargeoff_date=chargeoff_date\n"
+
+
+def _run_book(raw, extra, name="flag"):
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "b.csv"
+        raw.to_csv(p, index=False)
+        return ls.run(p, _COLS + extra, Path(tmp) / "o.xlsx"), pd.read_excel(Path(tmp) / "o.xlsx", sheet_name=None)
+
+
+def test_a_flag_built_from_two_columns_is_compared_like_a_column():
+    raw = pd.read_csv(_BOOK)
+    raw["amt_ok"] = np.where(raw["amount"] >= 50000, "Yes", "No")
+    r, _ = _run_book(raw, "\n[test: derived]\ncolumn = amount >= 50000\n")
+    r2, _ = _run_book(raw, "\n[test: explicit]\ncolumn = amt_ok\n")
+    a = r["tests"].set_index("group")["loans"].to_dict()
+    b = r2["tests"].set_index("group")["loans"].to_dict()
+    assert sorted(a.values()) == sorted(b.values()) and len(a) == 2
+    assert all(g.startswith("amount >= 50000 = ") for g in a)
+
+
+def test_a_flag_can_compare_two_columns():
+    raw = pd.read_csv(_BOOK)
+    r, _ = _run_book(raw, "\n[test: two]\ncolumn = net_revenue > amount\n")
+    want = int((raw["net_revenue"] > raw["amount"]).sum())
+    got = {g.split(" = ")[1]: n for g, n in r["tests"].set_index("group")["loans"].items()}
+    assert got.get("Yes", 0) == want
+
+
+def test_a_flag_in_a_model_matches_the_same_flag_as_a_column():
+    raw = pd.read_csv(_BOOK)
+    raw["f700"] = np.where(raw["fico"] >= 700, "Y", "N")
+    _, s1 = _run_book(raw, "\n[test: m]\nmodel = fico >= 700\n")
+    _, s2 = _run_book(raw, "\n[test: m]\nmodel = f700\n")
+    a, b = s1["Models"].iloc[0], s2["Models"].iloc[0]
+    assert a["variable"] == "fico >= 700" and abs(a["HR_alone"] - b["HR_alone"]) < 1e-12 and a["loans"] == b["loans"]
+
+
+def test_a_real_column_with_the_flags_own_name_wins():
+    raw = pd.read_csv(_BOOK)
+    raw["amount > fico"] = np.where(raw.index % 2 == 0, "left", "right")      # nothing like amount > fico
+    r, _ = _run_book(raw, "\n[test: t]\ncolumn = amount > fico\n")
+    assert set(g.split(" = ")[1] for g in r["tests"]["group"]) == {"left", "right"}
+
+
+def test_a_blank_on_either_side_leaves_the_loan_in_blank_not_in_no():
+    raw = pd.read_csv(_BOOK)
+    raw.loc[raw.index[:5], "fico"] = np.nan
+    r, _ = _run_book(raw, "\n[test: t]\ncolumn = fico >= 700\n")
+    got = {g.split(" = ")[1]: n for g, n in r["tests"].set_index("group")["loans"].items()}
+    assert got.get("(blank)") == 5
+
+
+def test_a_flag_on_a_missing_or_text_column_is_refused_in_words():
+    raw = pd.read_csv(_BOOK)
+    for bad in ("nope > 5", "income_gt_sales > 5"):
+        try:
+            _run_book(raw, f"\n[test: t]\ncolumn = {bad}\n")
+            assert False, bad
+        except ls.UserError as e:
+            assert "not found" in str(e), str(e)
+
+
+# ---- a comparison limited to some loans by a column, e.g. a FICO band (the firm, 17 Oct 2026: "FICO X - X")
+
+def test_a_comparison_can_be_limited_to_a_fico_band():
+    raw = pd.read_csv(_BOOK)
+    r, _ = _run_book(raw, "\n[test: band]\ngroup_by = year\nwhere = fico >= 660; fico <= 699\n")
+    want = int(((raw["fico"] >= 660) & (raw["fico"] <= 699)).sum())
+    assert int(r["tests"]["loans"].sum()) == want and want > 0
+    assert "fico >= 660" in r["tests"]["orig_window"].iloc[0] and "fico <= 699" in r["tests"]["orig_window"].iloc[0]
+
+
+def test_a_band_and_an_origination_window_both_apply():
+    raw = pd.read_csv(_BOOK)
+    raw["_o"] = pd.to_datetime(raw["orig_date"])
+    r, _ = _run_book(raw.drop(columns="_o"), "\n[test: both]\ngroup_by = year\norig_from = 2022-01-01\nwhere = fico >= 700\n")
+    want = int(((raw["_o"] >= "2022-01-01") & (raw["fico"] >= 700)).sum())
+    assert int(r["tests"]["loans"].sum()) == want
+
+
+def test_a_loan_blank_in_the_banded_column_is_left_out_of_the_band():
+    raw = pd.read_csv(_BOOK)
+    raw.loc[raw.index[:7], "fico"] = np.nan
+    r, _ = _run_book(raw, "\n[test: band]\ngroup_by = year\nwhere = fico >= 0\n")
+    assert int(r["tests"]["loans"].sum()) == len(raw) - 7
+
+
+def test_the_band_applies_to_a_model_too():
+    raw = pd.read_csv(_BOOK)
+    _, s = _run_book(raw, "\n[test: m]\nmodel = new_business\nwhere = fico >= 700\n")
+    _, s_all = _run_book(raw, "\n[test: m]\nmodel = new_business\n")
+    assert s["Models"]["loans"].iloc[0] == int((raw["fico"] >= 700).sum()) < s_all["Models"]["loans"].iloc[0]
+
+
+def test_a_filter_that_is_not_a_comparison_is_refused_in_words():
+    raw = pd.read_csv(_BOOK)
+    for bad in ("fico", "nope >= 5", "fico between 600 and 700"):
+        try:
+            _run_book(raw, f"\n[test: t]\ngroup_by = year\nwhere = {bad}\n")
+            assert False, bad
+        except ls.UserError as e:
+            assert "Filter" in str(e) and "fico >= 660" in str(e), str(e)
