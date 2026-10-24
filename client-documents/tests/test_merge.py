@@ -182,6 +182,56 @@ def test_the_estimate_and_the_letter_state_the_same_scope(record):
         assert value in estimate, f"{field} is not on the fee estimate"
 
 
+# The four documents that carry the scope's "Also included:" line.
+ALSO_INCLUDED = ("SATC Engagement Letter - Tax Preparation.html",
+                 "SATC Engagement Letter - Business Return.html",
+                 "SATC Engagement Letter - C Corporation.html",
+                 "SATC Fee Estimate.html")
+
+
+@pytest.mark.parametrize("filename", ALSO_INCLUDED)
+def test_also_included_prints_only_when_something_is(record, filename):
+    """The firm, 24 Oct 2026: take out "Also Included" -- "that is only
+    necessary if there are inclusions." The record still holds "None" (the
+    field spec wants an explicit None, never a blank); the line goes whole."""
+    template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+    listed = render(template, dict(record), strict=False).html
+    assert "Also included:" in listed and record["AdditionalForms"] in listed
+    for nothing in ("None", "none", " None "):
+        empty = render(template, dict(record, AdditionalForms=nothing), strict=False).html
+        assert "Also included:" not in empty, (filename, repr(nothing))
+
+
+@pytest.mark.parametrize("filename", ALSO_INCLUDED)
+def test_a_record_with_no_additional_forms_answer_is_refused_not_emptied(record, filename):
+    """Codex on PR #477: a MISSING AdditionalForms is an incomplete record, and
+    the spec says a blank and a "None" are different statements. Only an
+    explicit "None" drops the line; a missing key keeps it, so the strict
+    merge refuses on the field rather than rendering as if it said "None"."""
+    template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+    missing = {k: v for k, v in record.items() if k != "AdditionalForms"}
+    # The line is KEPT (asserted on every template, including the two entity
+    # letters, which refuse this individual record for other reasons too)...
+    kept = render(template, missing, strict=False).html
+    assert "Also included:" in kept, filename
+    # ...so the strict merge refuses on the field itself.
+    with pytest.raises(MergeError, match="AdditionalForms"):
+        render(template, missing)
+
+
+def test_a_dropped_also_included_still_agrees_across_the_pack(record):
+    """`consistency` checks that the letter and the estimate state one scope by
+    finding each scope value on both pages. With "None" on neither, it read the
+    line as missing and refused every opening pack -- exercise.py, 24 Oct 2026."""
+    import consistency
+    rec = dict(record, AdditionalForms="None")
+    pages = {name: render_file(TEMPLATE_DIR / OPENING_PACKAGE[label], rec).html
+             for name, label in (("tax-letter", "tax letter"), ("fee-estimate", "fee estimate"))}
+    checks = [c for c in consistency.report(rec, pages)
+              if c.name == "the letter and the estimate state one scope"]
+    assert checks and all(c.ok for c in checks), [c.detail for c in checks]
+
+
 def test_the_estimate_prices_every_schedule_its_scope_names(record):
     """The failure this pair is guarding against, stated directly.
 
@@ -525,3 +575,41 @@ def test_a_pair_this_document_does_not_use_is_not_its_problem():
     """The delivery letter's EFiled/PaperFiled pair has nothing to do with an
     engagement letter, and requiring it there would block every send."""
     render("<p>Nothing conditional here.</p>", {}, inverse_flags=PAIR)
+
+
+# ── IF inside IF ──────────────────────────────────────────────────────────────
+
+NESTED = ('<div><span class="cond">[[IF Outer]]</span><div class="box"><ul>'
+          '<li>always</li>'
+          '<li class="mark"><span class="cond">[[IF Inner]]</span></li>'
+          '<li>optional</li>'
+          '<li class="mark"><span class="cond">[[END IF]]</span></li>'
+          '</ul></div><span class="cond end">[[END IF]]</span><p>after</p></div>')
+
+
+@pytest.mark.parametrize("outer,inner", [(True, True), (True, False), (False, True), (False, False)])
+def test_an_if_inside_an_if_closes_where_it_should(outer, inner):
+    """24 Oct 2026: the inner [[END IF]] used to close the OUTER block, so a
+    dropped inner line took the box's closing tags with it -- the fee
+    estimate's scope box swallowed the rest of the page and nothing refused."""
+    out = render(NESTED, {"Outer": outer, "Inner": inner}, strict=False).html
+    assert "[[" not in out
+    assert out.endswith("<p>after</p></div>")
+    if outer:
+        assert out.count('<div class="box">') == 1 and "</ul></div>" in out and "always" in out
+        assert ("optional" in out) is inner
+    else:
+        assert "box" not in out and "always" not in out and "optional" not in out
+
+
+def test_an_unclosed_if_refuses():
+    with pytest.raises(MergeError):
+        render('<p><span class="cond">[[IF A]]</span>x</p>', {"A": True}, strict=False)
+
+
+def test_the_estimate_scope_box_closes_with_or_without_also_included(record):
+    estimate = (TEMPLATE_DIR / "SATC Fee Estimate.html").read_text(encoding="utf-8")
+    for extra in ("Two K-1s as reported", "None"):
+        out = render(estimate, dict(record, AdditionalForms=extra, ReturnScope=True), strict=False).html
+        box = out[out.index('<div class="scope">'):]
+        assert box.index("</div>") < box.index('<table class="led">'), extra
