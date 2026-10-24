@@ -240,14 +240,18 @@ def test_every_document_in_a_written_pack_states_the_same_engagement(tmp_path):
     assert write_pack(ref, store, out) == 0
     record = record_for(ref, store)
 
-    pages = {p.name: readable(p.read_text(encoding="utf-8"))
-             for p in out.glob("*.html")}
+    raw = {p.name: p.read_text(encoding="utf-8") for p in out.glob("*.html")}
+    pages = {name: readable(html) for name, html in raw.items()}
     assert len(pages) == 4
 
     for name, page in pages.items():
+        assert record["ClientFullName"] in page, f"{name} names another client"
+        # The onboarding email (24 Oct 2026) has no reference or date line:
+        # its date is the day it is sent. Every page still carries both.
+        if '<div class="email"' in raw[name]:
+            continue
         assert record["EngagementRef"] in page, f"{name} carries another reference"
         assert record["LetterDate"] in page, f"{name} carries another date"
-        assert record["ClientFullName"] in page, f"{name} names another client"
 
     prints_deadline = {n: p for n, p in pages.items()
                        if "complete information by" in p or "send everything by" in p}

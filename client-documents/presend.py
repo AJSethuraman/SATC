@@ -231,14 +231,26 @@ def renders(paths: list[Path]) -> list[Finding]:
                     page.wait_for_timeout(120)
                     seen = page.evaluate("""() => {
                         const dp = document.querySelector('doc-page');
-                        const el = document.querySelector('.mast .wm') || document.body;
-                        return {upgraded: !!(dp && dp.shadowRoot),
+                        const em = document.querySelector('div.email');
+                        const el = document.querySelector('.mast .wm') || em || document.body;
+                        return {upgraded: !!(dp && dp.shadowRoot), email: !!em && !dp,
                                 font: getComputedStyle(el).fontFamily};
                     }""")
                 except Exception as exc:                       # noqa: BLE001
                     out.append(Finding("renders", f.name,
                                        f"the browser could not open it — "
                                        f"{type(exc).__name__}: {exc}"))
+                    continue
+                # AN EMAIL BODY IS NOT A PAGE. The onboarding and organizer
+                # emails (24 Oct 2026) have no page component and are set in
+                # Arial, the firm's email face; what makes one unreadable is
+                # the browser's default serif, so that is still checked.
+                if seen["email"]:
+                    if "Arial" not in seen["font"]:
+                        out.append(Finding(
+                            "renders", f.name,
+                            f"an email body set in {seen['font'][:40]}, not the "
+                            f"firm's Arial -- its inline style did not apply."))
                     continue
                 if not seen["upgraded"] or "Plex" not in seen["font"]:
                     why = ("the page component did not upgrade"
@@ -761,6 +773,27 @@ def _strip_declared(html: str) -> str:
     for _value, start, end in reversed(_declared_spans(html)):
         html = html[:start] + " " + html[end:]
     return html
+
+
+def promised(html_text: str) -> list[str]:
+    """What a document says goes with it, in the order it says so.
+
+    The declared values that point at something we send: a document key, a
+    role in ``_ROLES``, or ``attachment:<id>``. ``client`` and ``none`` are
+    dropped -- they say the opposite. `cli` reads this to put on an email
+    draft exactly what its words promise.
+    """
+    out: list[str] = []
+    for value, _start, _end in _declared_spans(merge._REF_BLOCK.sub(" ", html_text)):
+        value = value.strip()
+        if value and value not in ("client", "none") and value not in out:
+            out.append(value)
+    return out
+
+
+def documents_for(value: str) -> set[str]:
+    """The document keys that satisfy one declared promise."""
+    return _ROLES.get(value, {value})
 
 
 def pointer_test_counted(pack: Path) -> Counted:
