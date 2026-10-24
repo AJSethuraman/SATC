@@ -129,17 +129,35 @@ drafter's to make.
    letter tells clients to use Encyro. The website has never named it. Section
    04 of the individual guide is written without it and reads fine either way.
 
-4. **`[CONFIRM: does a page like this carry a line saying it is general and not
-   advice on a particular return? If so, in whose words?]`** Both drafts are
-   silent. `docs/pricing-for-website.md` §4 forbids inventing legal or
-   assurance wording, so nothing was invented. This is the firm's call and the
-   sentence has to be theirs.
+4. **`[CONFIRM: the not-advice line.]`** — **ANSWERED 7 September 2026.** The
+   firm settled both halves of it: there is one, and all three guides carry it
+   **word for word**. The sentence is
 
-5. **`[CONFIRM: silence on what an S corporation owner pays themselves.]`**
-   `fee-schedule.yaml` puts setting or reviewing officer compensation outside
-   the engagement, so the business guide says nothing about it. An S corp owner
-   searching that phrase is exactly the reader this page would attract, so the
-   silence is worth an explicit yes rather than an assumed one.
+   > This is general information, not advice about a particular return or
+   > business.
+
+   which is what had been live since the guides went up, with the noun opened
+   out. Until that day the builder chose the noun from the page — *"a particular
+   return"* on this guide, *"a particular business"* on the other two — so three
+   pages carried two sentences and nobody had noticed. `build-guides.py` no
+   longer picks a noun; the sentence is a literal in the shell.
+
+   **Nothing was invented to get there**, which is what §4 of
+   `docs/pricing-for-website.md` forbids. The firm was shown the words already
+   on the site and chose them; the only change is the word that made the pages
+   disagree. Their earlier steer stands behind it: *"it should not be taken as
+   advice on a particular return, sure... make the wording fairly generic."*
+
+5. **`[CONFIRM: silence on what an S corporation owner pays themselves.]`** —
+   **ANSWERED 7 September 2026: the silence stays on this page.** The firm chose
+   one bullet on the S-corp guide only, in section 05, pointing at the price
+   page — which already carries *"Setting what an S corporation owner pays
+   themselves"* among the hourly situations. It names no figure.
+
+   This guide stays silent deliberately. Two guides carrying the same sentence
+   is one guide split in half, and `tenets.spec.py` fails on any run of prose
+   shared between a pair of them. The reader who searches the phrase and lands
+   here is sent on by the *"Also here"* link.
 
 6. **`[CONFIRM: the link targets.]`** Both drafts end with `/#intake`, which is
    the anchor `website/index.html` actually carries today. The business guide

@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Tie-out — the $2,000 1099-NEC threshold on satcllp.com</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#132437; --navy-2:#24405C; --ox:#6A2833; --gold:#C0A265; --gold-d:#756228;
+  --ink:#1C2229; --ink-2:#4A5360; --ink-3:#7C8592;
+  --rule:#D8D7D1; --rule-2:#B9B8B1; --wash:#F7F7F5; --ok:#2F5D45;
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI",Arial,sans-serif;
+  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,"Courier New",monospace;
+}
+@page{ size:Letter; margin:14mm 15mm 16mm; }
+*{box-sizing:border-box}
+html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+body{margin:0;background:#fff;color:var(--ink);font-family:var(--serif);
+     font-size:10.6pt;line-height:1.52}
+.wrap{max-width:186mm;margin:0 auto}
+
+/* ── masthead ───────────────────────────────────────── */
+.mast{border-bottom:2.5pt solid var(--navy);padding-bottom:7pt;margin-bottom:16pt;
+      display:flex;justify-content:space-between;align-items:flex-end;gap:14pt}
+.mast .lock{font-family:var(--mono);font-size:8.5pt;letter-spacing:.15em;
+            text-transform:uppercase;color:var(--navy);display:flex;align-items:center;gap:6pt}
+.mast .lock i{width:6pt;height:6pt;background:var(--gold);display:inline-block}
+.mast .cls{font-family:var(--mono);font-size:7.5pt;letter-spacing:.13em;
+           text-transform:uppercase;color:var(--ink-3);text-align:right;line-height:1.5}
+
+h1{font-family:var(--serif);font-weight:600;font-size:21pt;line-height:1.16;color:var(--navy);
+   margin:0 0 7pt;letter-spacing:-.01em}
+.sub{font-size:11pt;color:var(--ink-2);margin:0 0 4pt;max-width:62em}
+.verdictbar{display:flex;align-items:stretch;gap:0;border:1.4pt solid var(--ok);margin:14pt 0 4pt}
+.verdictbar .v{background:var(--ok);color:#fff;font-family:var(--mono);font-size:15pt;
+   font-weight:500;letter-spacing:.09em;padding:11pt 18pt;display:flex;align-items:center}
+/* NOT display:flex. It was, and each <b> inside became a flex item -- the
+   sentence laid itself out in three columns and read as gibberish. Caught by
+   opening the rendered page, which is the only thing that would have. */
+.verdictbar .t{padding:10pt 14pt;font-size:10pt;color:var(--ink);flex:1;line-height:1.5}
+.verdictbar .t b{font-family:var(--mono);font-weight:500;white-space:nowrap}
+
+h2{font-family:var(--sans);font-weight:600;font-size:9.5pt;letter-spacing:.13em;
+   text-transform:uppercase;color:var(--navy);margin:22pt 0 3pt;
+   display:flex;align-items:center;gap:8pt;break-after:avoid}
+h2 .n{font-family:var(--mono);font-weight:400;color:var(--ink-3);font-size:9pt}
+h2::after{content:"";flex:1;height:.7pt;background:var(--rule)}
+h3{font-family:var(--sans);font-weight:600;font-size:10.5pt;color:var(--navy);
+   margin:14pt 0 4pt;break-after:avoid}
+p{margin:0 0 7pt}
+.lead{color:var(--ink-2);margin:0 0 11pt;max-width:62em}
+ul,ol{margin:0 0 8pt;padding-left:16pt}
+li{margin:0 0 3.5pt}
+code,.tt{font-family:var(--mono);font-size:9pt;background:var(--wash);
+         border:.5pt solid var(--rule);padding:.5pt 2.5pt;color:var(--navy)}
+strong{font-weight:600}
+em{font-style:italic;color:var(--ink-2)}
+
+/* ── the diagram ────────────────────────────────────── */
+.diagram{border:.8pt solid var(--rule-2);background:#FCFCFB;padding:12pt 10pt 8pt;margin:0 0 6pt}
+.diagram svg{width:100%;height:auto;display:block}
+.dcap{font-family:var(--sans);font-size:8.4pt;color:var(--ink-2);margin:8pt 2pt 0;
+      line-height:1.5}
+.dcap b{color:var(--navy)}
+
+/* ── link blocks ────────────────────────────────────── */
+.link{border-left:2.2pt solid var(--gold);padding:0 0 0 12pt;margin:0 0 16pt;break-inside:avoid-page}
+.link .lh{font-family:var(--mono);font-size:8pt;letter-spacing:.14em;text-transform:uppercase;
+          color:var(--gold-d);margin:0 0 3pt}
+.link h3{margin-top:0}
+
+.quote{font-family:var(--serif);font-style:italic;background:var(--wash);
+       border:.5pt solid var(--rule);padding:8pt 11pt;margin:0 0 8pt;font-size:10.2pt}
+.quote b{font-style:normal;font-weight:600;background:#FFF0A8;padding:0 2pt}
+
+.cite{display:grid;grid-template-columns:repeat(auto-fit,minmax(88pt,1fr));gap:0;
+      border:.6pt solid var(--rule-2);margin:0 0 9pt;break-inside:avoid}
+.cite div{padding:5pt 8pt;border-right:.5pt solid var(--rule)}
+.cite div:last-child{border-right:0}
+.cite dt{font-family:var(--mono);font-size:6.8pt;letter-spacing:.12em;text-transform:uppercase;
+         color:var(--ink-3);margin:0 0 2pt}
+.cite dd{margin:0;font-family:var(--sans);font-size:8.6pt;color:var(--ink);line-height:1.35}
+
+figure{margin:0 0 10pt;break-inside:avoid-page}
+figure img{width:100%;display:block;border:.6pt solid var(--rule-2)}
+figure img.crop{border:.9pt solid var(--navy);margin-top:5pt}
+figcaption{font-family:var(--sans);font-size:8pt;color:var(--ink-3);margin-top:4pt;line-height:1.45}
+figcaption b{color:var(--navy);font-weight:600}
+.pair{display:grid;grid-template-columns:1fr;gap:0}
+
+/* ── the comparison ─────────────────────────────────── */
+.cmp{font-family:var(--mono);font-size:9.4pt;border:1.2pt solid var(--navy);
+     margin:0 0 8pt;break-inside:avoid}
+.cmp .r{display:flex;justify-content:space-between;gap:10pt;padding:7pt 11pt;
+        border-bottom:.5pt solid var(--rule)}
+.cmp .r:last-child{border-bottom:0}
+.cmp .r.diff{background:var(--navy);color:#fff;font-weight:500}
+.cmp .r .lbl{flex:1}
+.cmp .r .val{font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
+.cmp .r .lbl small{display:block;font-family:var(--sans);font-size:7.6pt;color:var(--ink-3);
+                   margin-top:1.5pt;font-weight:400}
+.cmp .r.diff .lbl small{color:#B9C6D4}
+
+/* ── sameness checks ────────────────────────────────── */
+table{border-collapse:collapse;width:100%;font-size:9pt;margin:0 0 9pt}
+th,td{text-align:left;padding:5pt 8pt 5pt 0;border-bottom:.5pt solid var(--rule);
+      vertical-align:top}
+th{font-family:var(--mono);font-size:7pt;letter-spacing:.13em;text-transform:uppercase;
+   color:var(--ink-3);font-weight:400;border-bottom:.8pt solid var(--rule-2)}
+td.y{font-family:var(--mono);color:var(--ok);font-weight:500;white-space:nowrap}
+td.n{font-family:var(--mono);color:var(--ox);font-weight:500;white-space:nowrap}
+td.q{font-family:var(--mono);color:var(--gold-d);font-weight:500;white-space:nowrap}
+td.k{font-family:var(--mono);font-size:8.4pt;white-space:nowrap;color:var(--navy)}
+
+pre{font-family:var(--mono);font-size:8.4pt;line-height:1.5;background:var(--wash);
+    border:.6pt solid var(--rule-2);padding:7pt 9pt;margin:0 0 8pt;overflow-x:auto;
+    white-space:pre-wrap;word-break:break-word;break-inside:avoid}
+
+.finding{border:.8pt solid var(--ox);border-left:3pt solid var(--ox);padding:9pt 12pt;
+         margin:0 0 11pt;break-inside:avoid}
+.finding .fh{font-family:var(--mono);font-size:8pt;letter-spacing:.13em;text-transform:uppercase;
+             color:var(--ox);margin:0 0 4pt;font-weight:500}
+.finding p:last-child{margin-bottom:0}
+
+.newpage{break-before:page}
+footer{margin-top:20pt;border-top:.8pt solid var(--rule-2);padding-top:7pt;
+       font-family:var(--mono);font-size:7.4pt;letter-spacing:.1em;text-transform:uppercase;
+       color:var(--ink-3);display:flex;justify-content:space-between;gap:12pt}
+a{color:var(--navy-2);word-break:break-all}
+</style>
+</head>
+<body><div class="wrap">
+
+<div class="mast">
+  <span class="lock"><i></i>SAT&thinsp;·&thinsp;C LLP</span>
+  <span class="cls">Tie-out exhibit<br>7 September 2026</span>
+</div>
+
+<h1>The <span style="font-family:var(--mono)">$2,000</span> on satcllp.com, traced to the law that put it there</h1>
+<p class="sub">One figure, one bullet, proved link by link against two federal sources
+neither the firm nor I control. Everything below was executed on 7 September 2026,
+not described.</p>
+
+<div class="verdictbar">
+  <div class="v">TIED</div>
+  <div class="t">All four claims in the bullet agree with the U.S. Code and the IRS
+  instructions. <b>Difference: 0.</b> Three things the page does not say turned up on the
+  way, and they are in <b>&sect;&nbsp;08</b>.</div>
+</div>
+
+<h2><span class="n">01</span> How the dots connect</h2>
+<p class="lead">Two roads carry the same number. The one on the left is how it got onto the
+page. The one on the right is how it was checked. They meet at the bottom, and only the
+right-hand road touches a document the firm does not control &mdash; which is what makes
+this evidence rather than a second opinion from the same source.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 760 372" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, Arial, sans-serif">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4A5360"/>
+    </marker>
+    <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6A2833"/>
+    </marker>
+  </defs>
+
+  <text x="150" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="#132437" letter-spacing="1.6">THE PRODUCTION ROAD</text>
+  <text x="150" y="30" text-anchor="middle" font-size="9" fill="#7C8592">how the number reached a client</text>
+  <text x="600" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="#6A2833" letter-spacing="1.6">THE CHECK</text>
+  <text x="600" y="30" text-anchor="middle" font-size="9" fill="#7C8592">documents the firm does not control</text>
+
+  <line x1="380" y1="6" x2="380" y2="300" stroke="#D8D7D1" stroke-width="1" stroke-dasharray="3 4"/>
+
+  <!-- LEFT ROAD -->
+  <rect x="30" y="44" width="240" height="42" fill="#F7F7F5" stroke="#B9B8B1"/>
+  <text x="42" y="62" font-size="10" font-weight="600" fill="#132437">docs/guides/good-records-business.md</text>
+  <text x="42" y="76" font-size="9" fill="#4A5360">the draft, section 05 &mdash; reviewed as Markdown</text>
+
+  <line x1="150" y1="86" x2="150" y2="112" stroke="#4A5360" stroke-width="1.3" marker-end="url(#ar)"/>
+  <text x="158" y="103" font-size="8.5" fill="#4A5360" font-family="IBM Plex Mono, monospace">python build-guides.py</text>
+
+  <rect x="30" y="116" width="240" height="42" fill="#F7F7F5" stroke="#B9B8B1"/>
+  <text x="42" y="134" font-size="10" font-weight="600" fill="#132437">website/guides/business-records.html</text>
+  <text x="42" y="148" font-size="9" fill="#4A5360">generated, diffed by <tspan font-family="IBM Plex Mono, monospace" font-size="8.5">--check</tspan></text>
+
+  <line x1="150" y1="158" x2="150" y2="184" stroke="#4A5360" stroke-width="1.3" marker-end="url(#ar)"/>
+  <text x="158" y="175" font-size="8.5" fill="#4A5360" font-family="IBM Plex Mono, monospace">merge to main &rarr; Cloudflare</text>
+
+  <rect x="30" y="188" width="240" height="52" fill="#132437"/>
+  <text x="42" y="206" font-size="10" font-weight="600" fill="#fff">satcllp.com/guides/business-records</text>
+  <text x="42" y="220" font-size="9" fill="#B9C6D4">section 05, second bullet &mdash; what a client reads</text>
+  <text x="42" y="234" font-size="9.5" font-weight="600" fill="#C0A265" font-family="IBM Plex Mono, monospace">read out of this page, not recomputed</text>
+
+  <!-- RIGHT ROAD -->
+  <rect x="470" y="44" width="260" height="42" fill="#FBF7F7" stroke="#B9B8B1"/>
+  <text x="482" y="62" font-size="10" font-weight="600" fill="#6A2833">Pub. L. 119&ndash;21, &sect; 70433(a)</text>
+  <text x="482" y="76" font-size="9" fill="#4A5360">4 July 2025 &mdash; 139 Stat. 243</text>
+
+  <line x1="600" y1="86" x2="600" y2="112" stroke="#6A2833" stroke-width="1.3" marker-end="url(#arg)"/>
+  <text x="608" y="103" font-size="8.5" fill="#6A2833" font-family="IBM Plex Mono, monospace">substituted "$2,000" for "$600"</text>
+
+  <rect x="470" y="116" width="260" height="42" fill="#FBF7F7" stroke="#B9B8B1"/>
+  <text x="482" y="134" font-size="10" font-weight="600" fill="#6A2833">26 U.S.C. &sect; 6041(a)</text>
+  <text x="482" y="148" font-size="9" fill="#4A5360">read twice: Cornell LII and uscode.house.gov</text>
+
+  <line x1="600" y1="158" x2="600" y2="184" stroke="#6A2833" stroke-width="1.3" marker-end="url(#arg)"/>
+  <text x="608" y="175" font-size="8.5" fill="#6A2833" font-family="IBM Plex Mono, monospace">agency restates it</text>
+
+  <rect x="470" y="188" width="260" height="52" fill="#6A2833"/>
+  <text x="482" y="206" font-size="10" font-weight="600" fill="#fff">Instructions for 1099-MISC &amp; 1099-NEC</text>
+  <text x="482" y="220" font-size="9" fill="#E8CFD3">Rev. 12/2026 &mdash; &ldquo;at least $2,000&rdquo;</text>
+  <text x="482" y="234" font-size="9.5" font-weight="600" fill="#C0A265" font-family="IBM Plex Mono, monospace">could disagree with us. It does not.</text>
+
+  <!-- MEET -->
+  <path d="M150 240 L150 274 L318 274" fill="none" stroke="#4A5360" stroke-width="1.3"/>
+  <path d="M600 240 L600 274 L442 274" fill="none" stroke="#6A2833" stroke-width="1.3"/>
+  <line x1="318" y1="274" x2="352" y2="274" stroke="#4A5360" stroke-width="1.3" marker-end="url(#ar)"/>
+  <line x1="442" y1="274" x2="408" y2="274" stroke="#6A2833" stroke-width="1.3" marker-end="url(#arg)"/>
+
+  <rect x="288" y="292" width="184" height="52" fill="#2F5D45"/>
+  <text x="380" y="313" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="IBM Plex Mono, monospace">$2,000 = $2,000</text>
+  <text x="380" y="331" text-anchor="middle" font-size="10.5" font-weight="600" fill="#C7E2D2" font-family="IBM Plex Mono, monospace">difference 0</text>
+
+  <text x="380" y="364" text-anchor="middle" font-size="8.6" fill="#7C8592">The left road is entirely ours. Every check that runs in CI lives on it &mdash; which is why none of them could ever have caught a wrong number.</text>
+</svg>
+</div>
+
+<p class="dcap"><b>Why the right-hand road is the whole point.</b> <code>copy.spec.py</code>,
+<code>tenets.spec.py</code> and <code>build-guides.py --check</code> all sit on the left
+road. They prove the published page agrees with the draft. <b>A draft with the wrong number
+in it passes every one of them</b> &mdash; and did: this figure read <code>$600</code> until
+a source pass caught it. Only the right-hand road can disagree.</p>
+
+<h2 class="newpage"><span class="n">02</span> Link 1 &middot; The figure, read off the artifact a client opens</h2>
+
+<div class="link">
+  <p class="lh">Where the reader sees it</p>
+  <p><strong>https://satcllp.com/guides/business-records.html</strong> &mdash; section
+  <em>05 &middot; People you paid</em>, second bullet. Opened in Chrome on 7 September 2026
+  and read off the rendered page. <strong>Not</strong> read out of the Markdown draft, not
+  out of the generated HTML in the repository, and not recomputed: the value on the
+  <code>ours</code> side of link 5 is the one a client's browser painted.</p>
+  <p>How it was located, so a reader can repeat it exactly:</p>
+<pre>document.querySelectorAll('li') &rarr; the one whose text contains "1099-NEC"</pre>
+  <div class="cite">
+    <div><dt>Artifact</dt><dd>Published web page</dd></div>
+    <div><dt>Section</dt><dd>05, bullet 2</dd></div>
+    <div><dt>Read on</dt><dd>7 Sep 2026</dd></div>
+    <div><dt>Figure</dt><dd>$2,000</dd></div>
+  </div>
+  <figure>
+    <img src="IMG:01-ours-satcllp-business-records.jpg" alt="satcllp.com business records guide, section 05, with the 1099-NEC bullet ringed in red">
+    <img class="crop" src="IMG:01-crop-ours.png" alt="Enlarged crop of the 1099-NEC bullet">
+    <figcaption><b>Ours.</b> The live page, with the bullet ringed, and the same bullet
+    enlarged beneath it. Four separate claims sit in these three sentences: the
+    <b>$2,000</b> threshold, a <b>January 31</b> date owed to two different parties, the
+    old <b>$600</b> figure, and indexation <b>from 2027</b>. Each is tied out below.</figcaption>
+  </figure>
+</div>
+
+<h2><span class="n">03</span> Link 2 &middot; The call</h2>
+<p class="lead">There is no API here &mdash; the figure is a sentence on a static page, so
+&ldquo;the call&rdquo; is the request that returns it. Both of these run as they stand:</p>
+<pre>curl -sS https://satcllp.com/guides/business-records.html | grep -o "\$2,000[^&lt;]*"</pre>
+<pre>curl -sS https://www.irs.gov/instructions/i1099mec | grep -o "at least \$2,000 in"</pre>
+
+<h2><span class="n">04</span> Link 3 &middot; The derivation</h2>
+<p class="lead">What happens between the source and the page, stated so a person could redo
+it by hand. &ldquo;The system computes it&rdquo; would be the gap this document exists to close
+&mdash; here there is deliberately no computation at all, and that is the finding of the
+derivation.</p>
+<ol>
+  <li>A human wrote <code>$2,000</code> into <code>docs/guides/good-records-business.md</code>,
+  section 05, after reading the IRS instructions.</li>
+  <li><code>website/build-guides.py</code> renders that Markdown to
+  <code>website/guides/business-records.html</code>. It <strong>escapes and reflows text and
+  changes no numbers</strong> &mdash; there is no arithmetic anywhere in the path.</li>
+  <li>A merge to <code>main</code> publishes through Cloudflare Pages to the live domain.</li>
+</ol>
+<p><strong>So the number is a transcription, and its only failure mode is being out of date
+or mistyped.</strong> That is exactly what happened once already: it read <code>$600</code>
+&mdash; the figure that was correct for twenty-plus years and stopped being correct on
+1 January 2026. No test in this repository can catch that class of error, because every test
+compares the page to the draft, and the draft was the thing that was wrong.</p>
+
+<h2 class="newpage"><span class="n">05</span> Link 4 &middot; The independent sources</h2>
+<p class="lead">Three documents, from two branches of government, none of them the firm's.
+Each was fetched, opened, photographed, and the figure located on it &mdash; not summarised.</p>
+
+<div class="link">
+  <p class="lh">Source A &mdash; the statute, as Congress wrote it</p>
+  <h3>26 U.S.C. &sect; 6041(a) &mdash; Information at source</h3>
+  <p class="quote">All persons engaged in a trade or business and making payment in the
+  course of such trade or business to another person, of rent, salaries, wages &hellip; or
+  other fixed or determinable gains, profits, and income &hellip; <b>of $2,000 or more in any
+  calendar year</b> &hellip; shall render a true and accurate return to the Secretary.</p>
+  <div class="cite">
+    <div><dt>Title</dt><dd>26 &mdash; Internal Revenue Code</dd></div>
+    <div><dt>Section</dt><dd>&sect; 6041</dd></div>
+    <div><dt>Subsection</dt><dd>(a)</dd></div>
+    <div><dt>Heading</dt><dd>Payments exceeding threshold</dd></div>
+    <div><dt>Read on</dt><dd>7 Sep 2026</dd></div>
+  </div>
+  <figure>
+    <img src="IMG:04-usc-6041a-cornell.jpg" alt="Cornell LII page for 26 U.S. Code 6041 with subsection (a) highlighted">
+    <img class="crop" src="IMG:04-crop-6041a.png" alt="Enlarged crop showing the words: of $2,000 or more in any calendar year">
+    <figcaption><b>Legal Information Institute, Cornell Law School.</b> The section's own
+    title is in the same shot as the figure. Note the subsection heading, ringed: it reads
+    <b>&ldquo;Payments exceeding threshold&rdquo;</b>. It used to read
+    &ldquo;Payments of $600 or more&rdquo; &mdash; source C shows the moment it changed.</figcaption>
+  </figure>
+</div>
+
+<div class="link">
+  <p class="lh">Source B &mdash; the agency, restating it for filers</p>
+  <h3>Instructions for Forms 1099-MISC and 1099-NEC (Rev. 12/2026)</h3>
+  <p class="quote">File Form 1099-NEC, Nonemployee Compensation, for each person in the
+  course of your business during the year to whom you have paid <b>at least $2,000</b> in:
+  Services performed by <b>someone who is not your employee</b> (including parts and
+  materials) (box 1a).</p>
+  <div class="cite">
+    <div><dt>Publisher</dt><dd>Internal Revenue Service</dd></div>
+    <div><dt>Revision</dt><dd>12/2026</dd></div>
+    <div><dt>Heading</dt><dd>Specific Instructions for Form 1099-NEC</dd></div>
+    <div><dt>Read on</dt><dd>7 Sep 2026</dd></div>
+  </div>
+  <figure>
+    <img src="IMG:03-irs-i1099mec-specific-instructions.jpg" alt="IRS instructions page, Specific Instructions for Form 1099-NEC, with the threshold sentence ringed">
+    <img class="crop" src="IMG:03-crop-who-must-file.png" alt="Enlarged crop of the filing rule">
+    <figcaption><b>The operative rule.</b> This is the sentence a business owner is actually
+    governed by, and it carries <b>both</b> halves of the guide's first claim: the amount,
+    and that it applies to someone who is not your employee.</figcaption>
+  </figure>
+  <figure>
+    <img src="IMG:02-irs-i1099mec-whats-new.jpg" alt="IRS instructions What's New section with the threshold increase ringed, page title and revision date visible">
+    <img class="crop" src="IMG:02-crop-whats-new.png" alt="Enlarged crop of the What's New paragraph">
+    <figcaption><b>The same page's identity, in the same shot as the change.</b> Title,
+    <b>(12/2026)</b> and <b>Revised: 12/2026</b> are all visible above the ringed paragraph
+    &mdash; which carries the guide's fourth claim in the agency's own words:
+    <em>&ldquo;may be adjusted for inflation beginning in calendar year 2027.&rdquo;</em></figcaption>
+  </figure>
+</div>
+
+<div class="link">
+  <p class="lh">Source C &mdash; the official U.S. Code, with its amendment history</p>
+  <h3>26 U.S.C. &sect; 6041, Editorial Notes &mdash; Office of Law Revision Counsel</h3>
+  <p class="quote"><b>2025</b>&mdash;Subsec. (a). Pub. L. 119&ndash;21, &sect;70433(e),
+  substituted &ldquo;exceeding threshold&rdquo; for <b>&ldquo;of $600 or more&rdquo;</b> in
+  heading &hellip; Pub. L. 119&ndash;21, &sect;70433(a), substituted <b>&ldquo;$2,000&rdquo;
+  for &ldquo;$600&rdquo;</b>.</p>
+  <div class="cite">
+    <div><dt>Publisher</dt><dd>OLRC, U.S. House</dd></div>
+    <div><dt>Edition</dt><dd>prelim, current</dd></div>
+    <div><dt>Public law</dt><dd>119&ndash;21, &sect; 70433</dd></div>
+    <div><dt>Enacted</dt><dd>4 July 2025</dd></div>
+    <div><dt>Statutes</dt><dd>139 Stat. 243</dd></div>
+  </div>
+  <figure>
+    <img src="IMG:05-usc-6041-olrc-amendments.jpg" alt="uscode.house.gov page for section 6041 showing subsection (h) inflation adjustment and the 2025 amendment notes ringed">
+    <img class="crop" src="IMG:05-crop-amendments.png" alt="Enlarged crop of the two 2025 amendment notes">
+    <figcaption><b>One image proves three of the four claims.</b> The breadcrumb across the
+    top carries the full citation &mdash; <b>Title 26 / Subtitle F / Chapter 61 / Subchapter A
+    / Part III / Subpart B / &sect; 6041</b>. The ringed notes say the figure <em>is</em>
+    $2,000 and <em>was</em> $600. The credit line above them names the public law and the
+    date. This is the source <code>website/HANDOFF.md</code> recorded as unfetchable; it was
+    tested and it opened.</figcaption>
+  </figure>
+  <figure>
+    <img class="crop" src="IMG:05b-crop-inflation.png" alt="Enlarged crop of subsection (h), Inflation adjustment">
+    <figcaption><b>&sect; 6041(h), from the upper half of the same page.</b>
+    <em>&ldquo;In the case of any calendar year after 2026&hellip;&rdquo;</em> &mdash; after
+    2026 is 2027 onward, which is what the guide says. The rounding rule is there too: any
+    increase is rounded to the nearest <b>$100</b>, so the next figure a client sees will be
+    $2,000 or $2,100, never $2,043.</figcaption>
+  </figure>
+</div>
+
+<h2 class="newpage"><span class="n">06</span> Link 5 &middot; The comparison</h2>
+<p class="lead">Both numbers adjacent, before any verdict. The verdict below is read off this
+block, not written ahead of it.</p>
+
+<div class="cmp">
+  <div class="r"><span class="lbl">ours<small>satcllp.com/guides/business-records &mdash; section 05, bullet 2, as rendered</small></span><span class="val">$2,000</span></div>
+  <div class="r"><span class="lbl">source A<small>26 U.S.C. &sect; 6041(a), &ldquo;of $2,000 or more in any calendar year&rdquo;</small></span><span class="val">$2,000</span></div>
+  <div class="r"><span class="lbl">source B<small>IRS Instructions 1099-MISC/NEC Rev. 12/2026, &ldquo;at least $2,000&rdquo;</small></span><span class="val">$2,000</span></div>
+  <div class="r diff"><span class="lbl">difference</span><span class="val">0</span></div>
+</div>
+
+<h3>The four sameness checks, before <span style="font-family:var(--mono)">TIED</span> may be written</h3>
+<table>
+  <tr><th style="width:15%">Check</th><th style="width:11%">Same?</th><th>How it was established</th></tr>
+  <tr><td><b>Entity</b></td><td class="y">YES</td><td>Not an entity figure. Both sides describe the same class of payer: a person making payments in the course of a trade or business. The guide's bullet and &sect; 6041(a) use materially the same words.</td></tr>
+  <tr><td><b>Period</b></td><td class="y">YES</td><td>Today is 7 September 2026, inside calendar year 2026. &sect; 70433(f) makes the change apply to <b>payments made after 31 December 2025</b>, so every 2026 payment is in scope. The page carries no year, and needs none while the figure holds.</td></tr>
+  <tr><td><b>Basis</b></td><td class="q">SEE &sect;8</td><td>Both sides mean the same thing for a calendar-year filer, and &sect; 70433(e) changed &sect; 6041(a) from &ldquo;taxable year&rdquo; to <b>&ldquo;calendar year&rdquo;</b>, which is the basis an information return runs on anyway. But the IRS's <em>What's New</em> frames the switchover as &ldquo;tax years beginning after 2025&rdquo; while the statute's effective-date note says &ldquo;payments made after Dec. 31, 2025&rdquo;. Those are different tests. Recorded rather than smoothed over.</td></tr>
+  <tr><td><b>Units</b></td><td class="y">YES</td><td>US dollars, actual, on every side. No thousands, no scaling. The figure is a statutory threshold, not a measured amount.</td></tr>
+</table>
+
+<h3>The other three claims in the same bullet</h3>
+<table>
+  <tr><th style="width:34%">Claim on the page</th><th style="width:12%">Verdict</th><th>Source, located</th></tr>
+  <tr><td>&ldquo;That threshold was <b>$600</b> until recently&rdquo;</td><td class="y">TIED</td><td>OLRC amendment note: <em>Pub. L. 119&ndash;21, &sect;70433(a), substituted &ldquo;$2,000&rdquo; for &ldquo;$600&rdquo;.</em> The word <em>recently</em> is carried by the enactment date, 4 July 2025.</td></tr>
+  <tr><td>&ldquo;it <b>rises with inflation from 2027</b>&rdquo;</td><td class="y">TIED</td><td>&sect; 6041(h): <em>&ldquo;In the case of any calendar year after 2026&hellip;&rdquo;</em> Corroborated by the IRS: <em>&ldquo;may be adjusted for inflation beginning in calendar year 2027.&rdquo;</em></td></tr>
+  <tr><td>&ldquo;due both to <b>them</b> and to the <b>IRS</b> by <b>January 31</b>&rdquo;</td><td class="q">TIED, with a gap</td><td>&sect; 6071(c), restated in the instructions: <em>&ldquo;file Form 1099-NEC on or before January 31.&rdquo;</em> Both halves &mdash; recipient and IRS &mdash; are one date. <b>But see &sect; 8.</b></td></tr>
+</table>
+
+<h2><span class="n">07</span> Roster, with its denominator</h2>
+<p class="lead">This exhibit is a sample of one bullet, not a survey of the guides. The
+denominator matters more than the numerator.</p>
+<pre>Bullet tied out:  1 of 1     section 05, bullet 2, good-records-business.md
+  Claims in it:   4 of 4      TIED  ($2,000 · was $600 · indexes from 2027 · January 31)
+  DIFFERS         0
+  COULD NOT       0
+
+Other numeric claims on the same page:   NOT CHECKED, 5 of them
+   $5,000 consumer products · March 15 entity return · 2% S corp
+   health insurance · payroll records four years · 30-day notice clock
+Other two guides:                        NOT CHECKED</pre>
+<p><strong>Five other figures on this one page were not checked and carry whatever verdict
+the last full <code>verify_sources.py</code> run gave them.</strong> That run was not
+repeated here. &ldquo;Not checked&rdquo; is a different fact from &ldquo;checked and
+clean&rdquo;, and only one of them is true of those five.</p>
+
+<h2 class="newpage"><span class="n">08</span> What running this found</h2>
+
+<div class="finding">
+  <p class="fh">Finding 1 &middot; The page states a date that has moved in each of the last two seasons, and does not say it moves</p>
+  <p>The bullet says the form is due <strong>&ldquo;by January 31&rdquo;</strong> and stops.
+  January 31 is the statutory date and the page is not wrong. But the IRS's own General
+  Instructions, for the season just gone, say:</p>
+  <figure>
+    <img class="crop" src="IMG:06-crop-furnish.png" alt="Enlarged crop: File and furnish a copy of Form 1099-NEC on paper or electronically by February 2, 2026.">
+    <figcaption>General Instructions for Certain Information Returns (2025), section
+    <b>C. When To File</b> &mdash; because 31 January 2026 fell on a Saturday.</figcaption>
+  </figure>
+  <p>And the rule that moved it is on the same page of the same source:</p>
+  <figure>
+    <img class="crop" src="IMG:06b-crop-weekend-rule.png" alt="Enlarged crop: If the regular due date falls on a Saturday, Sunday, or legal holiday, file by the next business day.">
+  </figure>
+  <p><strong>It moves again next season.</strong> 31 January 2027 is a Sunday, so the date a
+  reader of this page will actually face is <strong>Monday 1 February 2027</strong>.</p>
+  <p><strong>Why this is worth raising rather than shrugging at.</strong> The firm gave a
+  standing instruction on exactly this, recorded at C001 in
+  <code>docs/guides/FIRM-REVIEW.md</code>: <em>&ldquo;we can use January 31 and other
+  standard dates and then say that you have to account for weekends and holidays as
+  well.&rdquo;</em> The individual guide obeys it &mdash; <em>&ldquo;These dates move. When
+  one falls on a weekend or a federal holiday it becomes the next working day.&rdquo;</em>
+  And <b>this page obeys it once and not twice</b>: section 06 says <em>&ldquo;If March 15
+  is a weekend or a holiday it moves to the next working day&rdquo;</em>, while section 05's
+  January 31 gets no such note. One page, two dates, one rule stated.</p>
+  <p><strong>Not fixed here.</strong> It is a change to client-facing copy, so it is the
+  firm's, and it is written up as a decision rather than applied.</p>
+</div>
+
+<div class="finding">
+  <p class="fh">Finding 2 &middot; The agency and the statute describe the switchover differently, and the repository quotes the looser one</p>
+  <p><code>docs/guides/SOURCES.md</code> justifies the $2,000 figure by quoting the IRS:
+  <em>&ldquo;For tax years beginning after 2025&hellip;&rdquo;</em>. The statute's own
+  effective-date note says something narrower: the amendment is
+  <em>&ldquo;applicable with respect to <b>payments made after Dec. 31, 2025</b>&rdquo;</em>
+  (&sect; 70433(f)).</p>
+  <p>Those are different tests &mdash; one keys on a tax year, the other on a payment date.
+  <strong>They give the same answer here</strong>, because &sect; 70433(e) simultaneously
+  changed &sect; 6041(a) to read <em>calendar year</em>, and an information return runs on
+  the calendar year regardless of the payer's fiscal year. <strong>The figure is not
+  affected and nothing on the website is wrong.</strong> But the row in
+  <code>SOURCES.md</code> rests on the paraphrase rather than on the rule, and that is the
+  kind of citation that reads as verified right up until a fiscal-year payer asks about it.</p>
+</div>
+
+<div class="finding">
+  <p class="fh">Finding 3 &middot; A source recorded as unreachable was reachable</p>
+  <p><code>website/HANDOFF.md</code> &sect; 6 and <code>docs/guides/SOURCES-entity-choice.md</code>
+  both record <code>uscode.house.gov</code> as blocked &mdash; <em>&ldquo;the only source in
+  either file that still cannot be fetched from here&rdquo;</em>. It was tested once and it
+  opened, and it turned out to be the single most useful document in this exhibit: the
+  amendment notes there prove <em>three</em> of the bullet's four claims in one image, which
+  no other source did. <strong>The obstacle was real when it was written and it is a
+  property of a container, not of the source.</strong> Worth re-testing rather than
+  inheriting.</p>
+</div>
+
+<h2><span class="n">09</span> What I got wrong</h2>
+<p>Recorded because a tie-out that hides its own misses is worth nothing.</p>
+<ul>
+  <li><strong>I read the first source into a wedged browser tab and did not notice for six
+  attempts.</strong> The IRS page would not scroll &mdash; <code>window.scrollTo</code>,
+  <code>scrollIntoView</code>, an anchor and a direct <code>scrollTop</code> all reported
+  success and moved nothing, because the tab's renderer had timed out earlier in the session.
+  A fresh tab worked first time. Had I captured a screenshot without checking where it
+  landed, the exhibit would have carried a photograph of the wrong part of the right page,
+  which looks exactly like evidence.</li>
+  <li><strong>My first attempt at marking the IRS page matched a wrapper element</strong> and
+  highlighted the entire document body yellow, including the federal-website banner. That
+  capture was discarded rather than cropped, because a page that has been restyled wholesale
+  by the person photographing it is not a photograph of that page.</li>
+</ul>
+
+<h2><span class="n">10</span> What this does not prove</h2>
+<ul>
+  <li><strong>That the guides are right.</strong> One bullet on one of three pages was
+  checked. Five other numeric claims sit on this same page untouched by this exercise.</li>
+  <li><strong>That the figure will still be right in January.</strong> &sect; 6041(h) indexes
+  it from calendar year 2027, so a reader in 2027 may be governed by $2,000 or by $2,100, and
+  <b>nothing on the website or in this repository watches for that</b>. The page's hedge
+  &mdash; <em>&ldquo;so ask rather than assume it&rdquo;</em> &mdash; is currently the whole
+  of the control.</li>
+  <li><strong>That $2,000 is the right threshold for every 1099-NEC.</strong> It is the
+  threshold under &sect; 6041(a) for services by a non-employee, which is what the bullet
+  describes. Direct sales are $5,000 and backup withholding has its own rule; neither was
+  checked.</li>
+  <li><strong>That the words around the figure are good copy.</strong> This is an accuracy
+  exercise. The firm has still not read these three pages end to end, and said they would
+  before publication.</li>
+  <li><strong>Anything about the other two guides.</strong> Not opened for this.</li>
+</ul>
+
+<h2 class="newpage"><span class="n">11</span> Run it yourself</h2>
+<p class="lead">Every command below has the real values in it. Nothing to fill in. A reader
+who follows these should land on the same numbers this document reports &mdash; and if they
+do not, the document is wrong and they have found it.</p>
+
+<h3>1 &middot; Read what the page says today</h3>
+<pre>curl -sS https://satcllp.com/guides/business-records.html | grep -o "\$2,000[^&lt;]*"</pre>
+<p>Expect the bullet, beginning <code>$2,000 or more to someone who is not an employee</code>.</p>
+
+<h3>2 &middot; Read what the IRS says today</h3>
+<pre>curl -sS https://www.irs.gov/instructions/i1099mec | grep -o "at least \$2,000 in"</pre>
+<p>Expect one match. If it returns nothing, the instructions have been revised and
+<strong>the page needs re-checking before the next filing season</strong>.</p>
+
+<h3>3 &middot; Read what the law says today</h3>
+<pre>curl -sS "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041&amp;num=0&amp;edition=prelim" | grep -o '\$2,000 or more in any calendar year'</pre>
+
+<h3>4 &middot; Read the amendment that changed it</h3>
+<pre>curl -sS "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title26-section6041&amp;num=0&amp;edition=prelim" | grep -o 'substituted &amp;quot;\$2,000&amp;quot; for &amp;quot;\$600&amp;quot;'</pre>
+<p>Expect: <code>substituted "$2,000" for "$600"</code>. That single line is the proof that
+the old figure was $600 and the new one is $2,000, published by the Office of Law Revision
+Counsel rather than by us.</p>
+
+<h3>5 &middot; Check whether the January 31 date moves this year</h3>
+<pre>python -c "import datetime; d=datetime.date(2027,1,31); print(d.strftime('%A'))"</pre>
+<p>Expect <code>Sunday</code> &mdash; so the real date is Monday 1 February 2027. Change the
+year to check any season.</p>
+
+<h3>6 &middot; Re-cut the evidence from the captures</h3>
+<pre>cd docs/tie-out/1099-nec-threshold-2026-09-07 &amp;&amp; python make-crops.py</pre>
+
+<footer>
+  <span>SAT&thinsp;·&thinsp;C LLP &mdash; tie-out exhibit</span>
+  <span>1099-NEC threshold &middot; verdict TIED &middot; difference 0 &middot; 7 September 2026</span>
+</footer>
+
+</div></body></html>
