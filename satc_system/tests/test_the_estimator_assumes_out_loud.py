@@ -143,6 +143,17 @@ def test_car_loan_interest_phases_per_started_thousand():
     assert _run(wages=100000, schedule_1a={"car_loan_interest": 4000}).breakdown.car_loan_deduction == D("4000.00")
 
 
+def test_car_loan_interest_is_allowed_on_a_separate_return():
+    # Codex on #451 said a separate return cannot take it. The 2025 Schedule
+    # 1-A says otherwise, checked against the form on 24 Oct 2026: Parts II,
+    # III and V each carry "If married, you must file jointly to claim this
+    # deduction"; Part IV's caution has no such sentence -- only "you, or your
+    # spouse if married filing jointly, paid or accrued" the interest. Line 26
+    # puts a separate return at the $100,000 start. MAGI 60,000: no phase-down.
+    r = _run(wages=60000, status="married_separately", schedule_1a={"car_loan_interest": 4000})
+    assert r.breakdown.car_loan_deduction == D("4000.00")
+
+
 def test_senior_deduction_for_each_spouse_and_none_when_filing_separately():
     # MFJ, MAGI 160,000. Line 33: 10,000. Line 34: 600. Line 35: 5,400. Line 37: 10,800.
     r = _run(wages=160000, status="married_jointly",
