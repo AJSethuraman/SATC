@@ -40,7 +40,7 @@ def test_every_skill_is_one_the_harness_can_load():
     skills = sorted(p for p in (CANON / "skills").iterdir() if p.is_dir())
     assert {p.name for p in skills} == {"adversarial", "bassy", "canon-adopt",
                                         "canon-mine", "docket", "how-we-work",
-                                        "tie-out", "walk"}
+                                        "tie-out", "voice", "walk"}
     for skill in skills:
         path = skill / "SKILL.md"
         assert path.is_file(), f"{skill.name} has no SKILL.md"
@@ -337,7 +337,7 @@ def test_a_count_stated_in_a_manifest_is_a_count_somebody_made():
     # not parse, which is the one way a check must never fail.
     stated = 0
     for where, text in texts.items():
-        for m in re.finditer(r"\b([\w-]+) standing behaviours\b", text, re.I):
+        for m in re.finditer(r"\b([\w-]+) standing behaviou?rs\b", text, re.I):
             said = m.group(1).lower()
             stated += 1
             n = NUMBER_WORDS.get(said, int(said) if said.isdigit() else None)
