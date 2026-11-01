@@ -2,6 +2,8 @@
 
 *Working title. 1 November 2026. Status: **design checkpoint. No product code exists.** The only code is a clickable prototype in `prototype/`, built on synthetic data with fictional rules.*
 
+**Shortest version: open `prototype/configurable.html`.** A tool is configuration, so you edit it on the left and the workpaper on the right is generated from it. Four unrelated tools run on the same engine. Everything below is the argument for that.
+
 **Read this first, then `DECISIONS.md`.** This file is the argument; `DECISIONS.md` is the register of what is confirmed, proposed and open; `HANDOFF.md` is how the next session continues.
 
 ---

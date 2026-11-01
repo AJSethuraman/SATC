@@ -1,0 +1,404 @@
+<title>Workpaper Studio Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: left is what a tool designer edits (configuration), right is what a preparer sees (the result). Same engine, different data. */
+:root{
+  --bg:#e9edf2; --surface:#fff; --surface-2:#f4f6f9; --surface-3:#eaeef4; --line:#d5dbe3; --line-strong:#aeb8c5;
+  --ink:#131a23; --ink-2:#434d5a; --ink-3:#5f6a78; --accent:#1c4f8f; --accent-ink:#fff; --accent-soft:#e1ebf8;
+  --calc:#edf1f7; --calc-line:#c9d3e2; --ok:#17673f; --ok-bg:#e0f1e8; --warn:#7f4a00; --warn-bg:#fcefcf; --err:#a1241b; --err-bg:#fbe5e2;
+  --cfg:#f0efe9; --cfg-line:#d6d3c6;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1217; --surface:#161b22; --surface-2:#1b212a; --surface-3:#222a35; --line:#2b3441; --line-strong:#465263;
+  --ink:#e8ecf1; --ink-2:#b3bcc8; --ink-3:#8c98a8; --accent:#86b6f0; --accent-ink:#0a1a2e; --accent-soft:#1a2b43;
+  --calc:#1b2431; --calc-line:#2f3d52; --ok:#62d29b; --ok-bg:#12301f; --warn:#f0bb62; --warn-bg:#392a0d; --err:#ff938a; --err-bg:#3c1815;
+  --cfg:#1d1f1a; --cfg-line:#3a3d33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1217; --surface:#161b22; --surface-2:#1b212a; --surface-3:#222a35; --line:#2b3441; --line-strong:#465263;
+  --ink:#e8ecf1; --ink-2:#b3bcc8; --ink-3:#8c98a8; --accent:#86b6f0; --accent-ink:#0a1a2e; --accent-soft:#1a2b43;
+  --calc:#1b2431; --calc-line:#2f3d52; --ok:#62d29b; --ok-bg:#12301f; --warn:#f0bb62; --warn-bg:#392a0d; --err:#ff938a; --err-bg:#3c1815;
+  --cfg:#1d1f1a; --cfg-line:#3a3d33; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.45 var(--sans);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.top{padding:14px max(16px,env(safe-area-inset-left,0px)) 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.top h1{font-size:20px}
+.levels{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.lv{flex:1 1 260px;border:1px solid var(--line);border-radius:6px;padding:8px 12px;background:var(--surface-2)}
+.lv b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.lv span{color:var(--ink-2)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px max(16px,env(safe-area-inset-left,0px));background:var(--surface-2);border-bottom:1px solid var(--line)}
+.bar label{font-weight:500}
+.sel,.ctl{border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:5px 8px;min-height:30px;max-width:100%}
+.ctl{width:100%}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);background:var(--surface);padding:4px 11px;border-radius:4px;font-weight:500;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--surface-3)} .btn.sm{padding:1px 8px;font-size:12px} .btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{border-color:transparent;background:none;color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:4px 12px}.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:500}
+details.org{margin:0;background:var(--surface);border-bottom:1px solid var(--line)}
+details.org>summary{padding:9px max(16px,env(safe-area-inset-left,0px));cursor:pointer;font-weight:500}
+.orgbody{padding:4px max(16px,env(safe-area-inset-left,0px)) 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.orgbody textarea{width:100%;min-height:84px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:6px 8px}
+.cap{font-size:12px;color:var(--ink-3)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:0;align-items:start}
+.pane{padding:14px max(16px,env(safe-area-inset-left,0px)) 80px;min-width:0}
+.pane.cfg{background:var(--cfg);border-right:1px solid var(--cfg-line)}
+.panehead{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.panehead h2{font-size:15px} .panehead .cap{flex:1 1 200px}
+.tabs{display:none;gap:0;border-bottom:1px solid var(--line);background:var(--surface)}
+.tabs button{flex:1;border:0;border-bottom:3px solid transparent;background:none;padding:10px}
+.tabs button[aria-selected="true"]{border-bottom-color:var(--accent);font-weight:600}
+.sc{background:var(--surface);border:1px solid var(--cfg-line);border-radius:6px;margin-bottom:12px}
+.sc>header{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sc>header .ctl{flex:1 1 140px;font-weight:600}
+.sc .inner{padding:8px 10px;display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+.blk{border:1px solid var(--line);border-radius:4px;padding:6px 8px;background:var(--surface-2)}
+.blk .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.blk .row .ctl{flex:1 1 130px;width:auto}
+.kind{font-size:11px;font-family:var(--mono);color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;min-width:44px}
+.chip{display:inline-flex;font-size:12px;line-height:18px;padding:0 7px;border-radius:9px;background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.err{background:var(--err-bg);color:var(--err)} .chip.acc{background:var(--accent-soft);color:var(--accent)}
+.cols{margin:6px 0 0 8px;display:grid;gap:4px}
+.cols .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.cols .ctl{flex:1 1 110px;width:auto}
+.rule{background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:4px;padding:6px 8px;line-height:2}
+.msg{background:var(--accent-soft);color:var(--accent);padding:8px 12px;border-radius:6px;margin-bottom:10px}
+pre.data{background:var(--surface);border:1px solid var(--cfg-line);border-radius:6px;padding:12px;overflow:auto;font:12px/1.5 var(--mono);max-height:70vh;margin:0}
+/* preview */
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:12px}
+.doc>header{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.doc .body{padding:12px 14px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.doc .body>*,.sc .inner>*{min-width:0}
+.doc .na{padding:12px 14px;color:var(--ink-3)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px 14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--ink-2);margin-bottom:2px}
+.field.miss .ctl{border-style:dashed;border-color:var(--warn);background:color-mix(in srgb,var(--warn-bg) 55%,var(--surface))}
+.field .hint{font-size:12px;color:var(--warn)}
+.rt{border:1px solid var(--line);border-radius:4px;overflow-x:auto}
+.rt table{border-collapse:collapse;width:100%;min-width:420px}
+.rt th{background:var(--surface-2);font-size:12px;font-weight:500;color:var(--ink-3);text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+.rt td{padding:3px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.rt tr:last-child td{border-bottom:0}
+.rt td.m .ctl{border-style:dashed;border-color:var(--warn);background:color-mix(in srgb,var(--warn-bg) 55%,var(--surface))}
+.rt .ctl{padding:3px 6px;min-height:28px}
+.calc{background:var(--calc);border:1px solid var(--calc-line);border-radius:6px;padding:10px 12px}
+.calc .big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.calc .fx{font-family:var(--mono);color:var(--accent)}
+.calc ul{margin:4px 0 0;padding-left:18px;color:var(--ink-2)}
+.empty{padding:28px 16px;text-align:center;color:var(--ink-3)}
+@media (max-width:900px){
+  .split{grid-template-columns:minmax(0,1fr)} .tabs{display:flex}
+  .pane.hide{display:none} .pane.cfg{border-right:0}
+}
+</style>
+
+<header class="top">
+  <h1>Workpaper Studio: one engine, any tool</h1>
+  <div class="levels">
+    <div class="lv"><b>1 · Organization sets</b><span>its words and its lists (open "Organization defaults")</span></div>
+    <div class="lv"><b>2 · A designer builds a tool</b><span>from blocks, on the left</span></div>
+    <div class="lv"><b>3 · People complete it</b><span>on the right, which is made only from the left</span></div>
+  </div>
+</header>
+<div class="bar">
+  <label for="tpl">Start from</label>
+  <select class="sel" id="tpl"></select>
+  <span class="cap" id="tplnote"></span>
+</div>
+<details class="org"><summary>Organization defaults (level 1): change a word or a list and every tool follows</summary>
+  <div class="orgbody" id="org"></div></details>
+<div class="tabs" role="tablist" id="tabs"><button type="button" role="tab" data-tab="cfg" aria-selected="true">Configuration</button><button type="button" role="tab" data-tab="pre" aria-selected="false">What people see</button></div>
+<div class="split">
+  <section class="pane cfg" id="cfgpane" aria-label="Configuration"></section>
+  <section class="pane" id="prepane" aria-label="What people see"></section>
+</div>
+<div id="live" class="sr" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o));
+const num=v=>{const s=String(v==null?'':v).replace(/[$,%\s]/g,'');return /^-?\d+(\.\d+)?$/.test(s)?Number(s):NaN};
+const fmt=n=>'$'+Math.round(n).toLocaleString('en-US'), fmt2=n=>(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), pct=n=>(n*100).toFixed(1)+'%';
+
+/* ---------- level 1: organization defaults ---------- */
+const ORG={terms:{case:'Case',who:'Preparer'},lists:{
+  'Yes / No':['Yes','No'],'Facility types':['Term loan','Line of credit','Equipment loan'],'Filing status':['Single','Married filing jointly','Married filing separately','Head of household'],
+  'Control frequency':['Daily','Weekly','Monthly','Quarterly','Annual']}};
+
+/* ---------- the method library (tested, shipped, fictional here) ---------- */
+const col=(id,label,type,req,extra)=>Object.assign({id,label,type,req:!!req},extra||{});
+const LIB={
+  dti:{name:'Debt-to-income',code:'DTI-DEMO 1.0',limitLabel:'Highest allowed ratio',def:0.4,kind:'pct',
+    needs:[{kind:'table',id:'income',label:'Income sources',req:true,cols:[col('source','Source','text'),col('amount','Amount','number',1),col('per','Per','choice',1,{opts:['Monthly','Annual']})]},
+           {kind:'table',id:'debts',label:'Existing debts',req:true,cols:[col('creditor','Creditor','text'),col('payment','Monthly payment','number',1)]},
+           {kind:'field',id:'proposed',label:'Proposed monthly payment',type:'number',req:true}]},
+  ltv:{name:'Loan-to-value',code:'LTV-DEMO 1.0',limitLabel:'Highest allowed ratio',def:0.8,kind:'pct',
+    needs:[{kind:'field',id:'amount',label:'Requested amount',type:'number',req:true},
+           {kind:'table',id:'collateral',label:'Collateral items',req:true,cols:[col('desc','Description','text'),col('value','Value','number',1)]}]},
+  recon:{name:'Reconciliation difference',code:'REC-DEMO 1.0',limitLabel:'Largest allowed difference ($)',def:0,kind:'usd',
+    needs:[{kind:'field',id:'stmt',label:'Balance per bank statement',type:'number',req:true},{kind:'field',id:'gl',label:'Balance per ledger',type:'number',req:true},
+           {kind:'table',id:'items',label:'Reconciling items',req:true,cols:[col('type','Type','choice',1,{opts:['Deposit in transit','Outstanding check','Bank fee not yet booked','Interest not yet booked']}),col('desc','Description','text'),col('amount','Amount','number',1)]}]},
+  dev:{name:'Deviation rate',code:'DEV-DEMO 1.0',limitLabel:'Highest allowed rate',def:0.05,kind:'pct',
+    needs:[{kind:'table',id:'tests',label:'Items tested',req:true,cols:[col('item','Item','text'),col('result','Result','choice',1,{opts:['Pass','Exception']})]}]}
+};
+const fld=(id,label,type,req,x)=>Object.assign({kind:'field',id,label,type,req:!!req},x||{});
+const withAuto=(m)=>LIB[m].needs.map(b=>Object.assign(clone(b),{auto:true}));
+const calcBlk=(method)=>({kind:'calc',id:'calc_'+method,method,limit:LIB[method].def});
+
+const TEMPLATES={
+  credit:{label:'Small-business credit review',note:'Two calculations, one conditional section.',tool:{name:'Small-business credit review',sections:[
+    {id:'s1',title:'Request & borrower',mode:'required',blocks:[fld('borrower','Borrower','text',1),fld('facility','Facility','list',1,{list:'Facility types'}),fld('amount','Requested amount','number',1),fld('security','Security','choice',1,{opts:['Secured','Unsecured']})]},
+    {id:'s2',title:'Income & debt service',mode:'required',blocks:[].concat(withAuto('dti'),[calcBlk('dti')])},
+    {id:'s3',title:'Collateral',mode:'conditional',rule:{field:'security',values:['Secured']},blocks:[LIB.ltv.needs[1]].map(b=>Object.assign(clone(b),{auto:true})).concat([calcBlk('ltv')])}]}},
+  recon:{label:'Month-end bank reconciliation',note:'One calculation, one conditional section.',tool:{name:'Month-end bank reconciliation',sections:[
+    {id:'s1',title:'Account & balances',mode:'required',blocks:[fld('account','Account','text',1),fld('stmtdate','Statement date','date',1),fld('stmt','Balance per bank statement','number',1),fld('gl','Balance per ledger','number',1),fld('interco','Any intercompany activity?','list',1,{list:'Yes / No'})]},
+    {id:'s2',title:'Reconciling items',mode:'required',blocks:[clone(Object.assign({},LIB.recon.needs[2],{auto:true})),calcBlk('recon')]},
+    {id:'s3',title:'Intercompany items',mode:'conditional',rule:{field:'interco',values:['Yes']},blocks:[{kind:'table',id:'ic',label:'Intercompany items',req:true,cols:[col('party','Counterparty','text',1),col('amt','Amount','number',1)]}]}]}},
+  audit:{label:'Control test (audit)',note:'No money at all. A sample, a rate and a follow-up.',tool:{name:'Control test',sections:[
+    {id:'s1',title:'The control',mode:'required',blocks:[fld('control','Control being tested','text',1),fld('freq','How often it runs','list',1,{list:'Control frequency'}),fld('period','Period tested','text',1),fld('hasexc','Were exceptions found?','list',1,{list:'Yes / No'})]},
+    {id:'s2',title:'Test results',mode:'required',blocks:[].concat(withAuto('dev'),[calcBlk('dev')])},
+    {id:'s3',title:'Follow-up on exceptions',mode:'conditional',rule:{field:'hasexc',values:['Yes']},blocks:[{kind:'table',id:'follow',label:'Exceptions and follow-up',req:true,cols:[col('what','What happened','text',1),col('owner','Owner','text',1),col('due','Due','date')]}]}]}},
+  tax:{label:'Individual return intake checklist',note:'No calculation at all. Only conditions.',tool:{name:'Individual return intake',sections:[
+    {id:'s1',title:'Taxpayer',mode:'required',blocks:[fld('name','Taxpayer','text',1),fld('status','Filing status','list',1,{list:'Filing status'}),fld('rental','Any rental property?','list',1,{list:'Yes / No'}),fld('biz','Any self-employment?','list',1,{list:'Yes / No'})]},
+    {id:'s2',title:'Rental property',mode:'conditional',rule:{field:'rental',values:['Yes']},blocks:[{kind:'table',id:'props',label:'Properties',req:true,cols:[col('addr','Address','text',1),col('days','Days rented','number',1)]}]},
+    {id:'s3',title:'Self-employment',mode:'conditional',rule:{field:'biz',values:['Yes']},blocks:[fld('bizname','Business name','text',1),fld('mileage','Mileage log received?','list',1,{list:'Yes / No'})]},
+    {id:'s4',title:'Documents received',mode:'required',blocks:[{kind:'table',id:'docs',label:'Documents',req:true,cols:[col('doc','Document','text',1),col('got','Received?','list',1,{list:'Yes / No'})]}]}]}},
+  blank:{label:'Blank tool',note:'Start from nothing and add blocks.',tool:{name:'My new tool',sections:[{id:'s1',title:'First section',mode:'required',blocks:[]}]}}
+};
+
+/* ---------- state ---------- */
+let TOOL=clone(TEMPLATES.credit.tool), DATA={fields:{},tables:{}}, MSG='', VIEW='edit', uid=1, CUR='credit';
+const nid=p=>p+(++uid);
+const allBlocks=()=>TOOL.sections.flatMap(s=>s.blocks);
+const findBlock=(id,kind)=>allBlocks().find(b=>b.id===id&&(!kind||b.kind===kind));
+const calcsIn=()=>allBlocks().filter(b=>b.kind==='calc');
+const neededBy=(id,kind)=>calcsIn().filter(c=>LIB[c.method].needs.some(n=>n.id===id&&n.kind===kind)).map(c=>LIB[c.method].name);
+const lockedCols=id=>{const s=new Set();calcsIn().forEach(c=>LIB[c.method].needs.forEach(n=>{if(n.kind==='table'&&n.id===id)n.cols.forEach(x=>s.add(x.id))}));return s};
+const opts=f=>f.type==='list'?(ORG.lists[f.list]||[]):(f.opts||[]);
+const selectFields=()=>allBlocks().filter(b=>b.kind==='field'&&(b.type==='list'||b.type==='choice'));
+
+/* ---------- engine: the same code runs every tool ---------- */
+const val=id=>DATA.fields[id]==null?'':DATA.fields[id];
+const rows=id=>DATA.tables[id]||[];
+function readNum(v,label,r,where){ if(v===''||v==null){r.missing.push({label,where});return null} const n=num(v); if(isNaN(n)||n<0){r.bad.push({label,where});return null} return n }
+const ENGINE={
+  dti(){const r={missing:[],bad:[],steps:[]};let inc=0,debt=0;
+    rows('income').forEach((x,i)=>{const a=readNum(x.amount,'Income '+(i+1)+': amount',r),p=x.per;if(!p)r.missing.push({label:'Income '+(i+1)+': per month or year'});if(a!=null&&p)inc+=p==='Annual'?a/12:a});
+    if(!rows('income').length)r.missing.push({label:'Add at least one income source'});
+    rows('debts').forEach((x,i)=>{const a=readNum(x.payment,'Debt '+(i+1)+': payment',r);if(a!=null)debt+=a});
+    const pr=readNum(val('proposed'),'Proposed monthly payment',r);
+    if(r.missing.length||r.bad.length)return r;
+    if(inc===0){r.cannot='Monthly income totals zero, so there is no ratio. This is not a pass.';return r}
+    r.value=(debt+pr)/inc;r.how=`(${fmt(debt)} existing + ${fmt(pr)} proposed) ÷ ${fmt(inc)} monthly income`;return r},
+  ltv(){const r={missing:[],bad:[]};const a=readNum(val('amount'),'Requested amount',r);let s=0;
+    rows('collateral').forEach((x,i)=>{const v=readNum(x.value,'Collateral '+(i+1)+': value',r);if(v!=null)s+=v});
+    if(!rows('collateral').length)r.missing.push({label:'Add at least one collateral item'});
+    if(r.missing.length||r.bad.length)return r; if(s===0){r.cannot='No collateral value, so there is no ratio. This is not a pass.';return r}
+    r.value=a/s;r.how=`${fmt(a)} requested ÷ ${fmt(s)} collateral`;return r},
+  recon(){const r={missing:[],bad:[]};let bank=readNum(val('stmt'),'Balance per bank statement',r)||0,book=readNum(val('gl'),'Balance per ledger',r)||0;
+    rows('items').forEach((x,i)=>{const a=readNum(x.amount,'Item '+(i+1)+': amount',r);if(!x.type)r.missing.push({label:'Item '+(i+1)+': type'});if(a==null||!x.type)return;
+      if(x.type==='Deposit in transit')bank+=a;else if(x.type==='Outstanding check')bank-=a;else if(x.type==='Bank fee not yet booked')book-=a;else book+=a});
+    if(r.missing.length||r.bad.length)return r; r.value=Math.round((bank-book)*100)/100;r.how=`${fmt2(bank)} adjusted bank − ${fmt2(book)} adjusted ledger`;return r},
+  dev(){const r={missing:[],bad:[]};let n=0,e=0;rows('tests').forEach((x,i)=>{if(!x.result)r.missing.push({label:'Item '+(i+1)+': result'});else{n++;if(x.result==='Exception')e++}});
+    if(!rows('tests').length)r.missing.push({label:'Add at least one item tested'});
+    if(r.missing.length||r.bad.length)return r; r.value=e/n;r.how=`${e} exceptions ÷ ${n} items tested`;return r}
+};
+function ruleState(sec){ if(sec.mode!=='conditional')return true; const v=val(sec.rule.field); if(!v)return null; return sec.rule.values.includes(v) }
+function secStatus(sec){
+  const ap=ruleState(sec); if(ap===false)return {k:'na',t:'Not applicable'}; if(ap===null)return {k:'pend',t:'Waiting on an answer'};
+  let miss=0;
+  sec.blocks.forEach(b=>{
+    if(b.kind==='field'&&b.req&&val(b.id)==='')miss++;
+    if(b.kind==='table'){const rs=rows(b.id); if(b.req&&!rs.length)miss++; rs.forEach(x=>b.cols.forEach(c=>{if(c.req&&(x[c.id]==null||x[c.id]===''))miss++}))}
+    if(b.kind==='calc'){const r=ENGINE[b.method]();if(r.cannot)miss++}
+  });
+  return miss?{k:'inc',t:miss+' missing'}:{k:'ok',t:'Complete'};
+}
+
+/* ---------- rendering: configuration side ---------- */
+function typeOpts(sel){return [['text','Text'],['number','Number'],['date','Date'],['choice','Choice (own options)'],['list','Choice from an organization list']].map(t=>`<option value="${t[0]}"${t[0]===sel?' selected':''}>${t[1]}</option>`).join('')}
+function fieldCfg(b,si,bi){
+  const lock=neededBy(b.id,'field'); const L=lock.length;
+  return `<div class="blk"><div class="row"><span class="kind">field</span>
+    <input class="ctl" aria-label="Field label" data-b="label" data-s="${si}" data-i="${bi}" value="${esc(b.label)}">
+    <select class="sel" aria-label="Field type" data-b="type" data-s="${si}" data-i="${bi}" ${L?'disabled':''}>${typeOpts(b.type)}</select>
+    <label><input type="checkbox" data-b="req" data-s="${si}" data-i="${bi}" ${b.req?'checked':''} ${L?'disabled':''}> required</label>
+    ${L?`<span class="chip acc" title="Needed by ${esc(lock.join(', '))}">needed by ${esc(lock.join(', '))}</span>`:`<button type="button" class="btn sm" data-act="rmblk" data-s="${si}" data-i="${bi}" aria-label="Remove ${esc(b.label)}">Remove</button>`}</div>
+    ${b.type==='choice'?`<div class="row" style="margin-top:4px"><span class="kind"></span><input class="ctl" aria-label="Options, separated by commas" data-b="opts" data-s="${si}" data-i="${bi}" value="${esc((b.opts||[]).join(', '))}" placeholder="Options, separated by commas"></div>`:''}
+    ${b.type==='list'?`<div class="row" style="margin-top:4px"><span class="kind"></span><select class="sel" aria-label="Organization list" data-b="list" data-s="${si}" data-i="${bi}">${Object.keys(ORG.lists).map(l=>`<option${l===b.list?' selected':''}>${esc(l)}</option>`).join('')}</select><span class="cap">changes when the organization edits the list</span></div>`:''}</div>`;
+}
+function tableCfg(b,si,bi){
+  const lock=neededBy(b.id,'table'),L=lock.length,lc=lockedCols(b.id);
+  return `<div class="blk"><div class="row"><span class="kind">table</span><input class="ctl" aria-label="Table label" data-b="label" data-s="${si}" data-i="${bi}" value="${esc(b.label)}">
+    <label><input type="checkbox" data-b="req" data-s="${si}" data-i="${bi}" ${b.req?'checked':''} ${L?'disabled':''}> at least one row</label>
+    ${L?`<span class="chip acc">needed by ${esc(lock.join(', '))}</span>`:`<button type="button" class="btn sm" data-act="rmblk" data-s="${si}" data-i="${bi}">Remove</button>`}</div>
+    <div class="cols">${b.cols.map((c,ci)=>`<div class="row"><span class="kind">col</span><input class="ctl" aria-label="Column label" data-c="label" data-s="${si}" data-i="${bi}" data-ci="${ci}" value="${esc(c.label)}">
+      <select class="sel" aria-label="Column type" data-c="type" data-s="${si}" data-i="${bi}" data-ci="${ci}" ${lc.has(c.id)?'disabled':''}>${typeOpts(c.type)}</select>
+      ${c.type==='choice'?`<input class="ctl" aria-label="Options" data-c="opts" data-s="${si}" data-i="${bi}" data-ci="${ci}" value="${esc((c.opts||[]).join(', '))}" ${lc.has(c.id)?'disabled':''}>`:''}
+      ${c.type==='list'?`<select class="sel" aria-label="List" data-c="list" data-s="${si}" data-i="${bi}" data-ci="${ci}">${Object.keys(ORG.lists).map(l=>`<option${l===c.list?' selected':''}>${esc(l)}</option>`).join('')}</select>`:''}
+      <label><input type="checkbox" data-c="req" data-s="${si}" data-i="${bi}" data-ci="${ci}" ${c.req?'checked':''} ${lc.has(c.id)?'disabled':''}> required</label>
+      ${lc.has(c.id)?`<span class="chip acc">needed</span>`:`<button type="button" class="btn sm" data-act="rmcol" data-s="${si}" data-i="${bi}" data-ci="${ci}" aria-label="Remove column">✕</button>`}</div>`).join('')}
+      <div><button type="button" class="btn sm" data-act="addcol" data-s="${si}" data-i="${bi}">+ Add column</button></div></div></div>`;
+}
+function calcCfg(b,si,bi){
+  const m=LIB[b.method];
+  return `<div class="blk" style="border-color:var(--accent)"><div class="row"><span class="kind" style="color:var(--accent)">calc</span><b>${esc(m.name)}</b><span class="chip">${m.code}</span><span class="chip warn">fictional method</span><button type="button" class="btn sm" style="margin-left:auto" data-act="rmcalc" data-s="${si}" data-i="${bi}">Remove calculation</button></div>
+   <div class="row" style="margin-top:4px"><span class="kind"></span><label>${esc(m.limitLabel)} <span class="cap">(policy, set here, not in the method)</span></label><input class="ctl" style="max-width:110px" aria-label="${esc(m.limitLabel)}" data-b="limit" data-s="${si}" data-i="${bi}" value="${m.kind==='pct'?(b.limit*100).toString():b.limit}"><span class="cap">${m.kind==='pct'?'%':'$'}</span></div>
+   <div class="cap" style="margin-top:4px">Brings its own inputs: ${m.needs.map(n=>esc(n.label)).join(', ')}.</div></div>`;
+}
+function secCfg(s,si){
+  const sf=selectFields();
+  let h=`<div class="sc"><header><input class="ctl" aria-label="Section title" data-sec="title" data-s="${si}" value="${esc(s.title)}">
+    <select class="sel" aria-label="When this section applies" data-sec="mode" data-s="${si}"><option value="required"${s.mode==='required'?' selected':''}>Always</option><option value="optional"${s.mode==='optional'?' selected':''}>Optional</option><option value="conditional"${s.mode==='conditional'?' selected':''}>Only when…</option></select>
+    <button type="button" class="btn sm" data-act="up" data-s="${si}" aria-label="Move section up" ${si===0?'disabled':''}>↑</button><button type="button" class="btn sm" data-act="down" data-s="${si}" aria-label="Move section down" ${si===TOOL.sections.length-1?'disabled':''}>↓</button><button type="button" class="btn sm" data-act="rmsec" data-s="${si}">Remove</button></header><div class="inner">`;
+  if(s.mode==='conditional'){
+    if(!s.rule||!sf.some(f=>f.id===s.rule.field)){s.rule=sf.length?{field:sf[0].id,values:[opts(sf[0])[0]||'']}:null}
+    if(!s.rule)h+=`<div class="rule">Add a choice field first. A section can only depend on a question that has fixed answers.</div>`;
+    else{const f=sf.find(x=>x.id===s.rule.field);h+=`<div class="rule">Applies when <select class="sel" aria-label="Question" data-r="field" data-s="${si}">${sf.map(x=>`<option value="${x.id}"${x.id===s.rule.field?' selected':''}>${esc(x.label)}</option>`).join('')}</select> is ${opts(f).map(o=>`<label style="margin-right:8px;white-space:nowrap"><input type="checkbox" data-r="val" data-s="${si}" value="${esc(o)}" ${s.rule.values.includes(o)?'checked':''}> ${esc(o)}</label>`).join('')}<div class="cap">Otherwise it reads “Not applicable”. Anything already entered is kept.</div></div>`}
+  }
+  s.blocks.forEach((b,bi)=>{h+=b.kind==='field'?fieldCfg(b,si,bi):b.kind==='table'?tableCfg(b,si,bi):calcCfg(b,si,bi)});
+  h+=`<div class="row" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button type="button" class="btn sm" data-act="addfield" data-s="${si}">+ Field</button><button type="button" class="btn sm" data-act="addtable" data-s="${si}">+ Table</button>
+   <span style="margin-left:6px"><label class="sr" for="lib${si}">Calculation</label><select class="sel" id="lib${si}"><option value="">+ Calculation…</option>${Object.keys(LIB).map(k=>`<option value="${k}">${esc(LIB[k].name)} (${LIB[k].code})</option>`).join('')}</select> <button type="button" class="btn sm" data-act="addcalc" data-s="${si}">Add</button></span></div></div></div>`;
+  return h;
+}
+function renderCfg(){
+  const p=$('#cfgpane');
+  let h=`<div class="panehead"><h2>Configuration</h2><span class="cap">What a tool designer edits. Nothing here is code.</span><div class="seg" role="group" aria-label="View"><button type="button" aria-pressed="${VIEW==='edit'}" data-act="view" data-v="edit">Edit</button><button type="button" aria-pressed="${VIEW==='data'}" data-act="view" data-v="data">As data</button></div></div>`;
+  if(VIEW==='data'){
+    h+=`<p class="cap" style="margin-top:0">This is the whole tool. It is a plain file: readable, comparable, and portable. The right side is generated from it and nothing else.</p><pre class="data" tabindex="0" aria-label="Tool as data">${esc(JSON.stringify(TOOL,null,2))}</pre><div style="margin-top:8px"><button type="button" class="btn" data-act="copy">Copy</button></div>`;
+  }else{
+    if(MSG)h+=`<div class="msg" role="status">${MSG}</div>`;
+    h+=`<div class="field" style="margin-bottom:10px"><label for="toolname" style="font-weight:600">Tool name</label><input class="ctl" id="toolname" value="${esc(TOOL.name)}"></div>`;
+    h+=TOOL.sections.map(secCfg).join('');
+    h+=`<button type="button" class="btn" data-act="addsec">+ Add section</button>`;
+  }
+  p.innerHTML=h;
+}
+
+/* ---------- rendering: what people see ---------- */
+function inputFor(key,f,v,cls){
+  const id='p_'+key.replace(/\W/g,'_');
+  if(f.type==='choice'||f.type==='list'){const o=opts(f);return `<select class="ctl ${cls||''}" id="${id}" data-k="${key}"><option value="">Select…</option>${o.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('')}${v&&!o.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`}
+  return `<input class="ctl ${cls||''}" id="${id}" data-k="${key}" type="${f.type==='date'?'date':'text'}" ${f.type==='number'?'inputmode="decimal"':''} value="${esc(v)}" autocomplete="off">`;
+}
+function calcBox(b){
+  const m=LIB[b.method], r=ENGINE[m.id?b.method:b.method](); const f=m.kind==='pct'?pct:fmt2; const lim=b.limit;
+  let big,chip,body='',test='';
+  if(r.value!=null){big=f(r.value);chip='<span class="chip ok">Calculated</span>';body=`<div class="fx">${esc(r.how)}</div>`;
+    const pass=m.kind==='usd'?Math.abs(r.value)<=lim+0.005:r.value<=lim+1e-12;
+    test=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--calc-line)"><span class="chip ${pass?'ok':'err'}">${pass?'Pass':'Fails'}</span> needs ${m.kind==='pct'?'at most '+pct(lim):'a difference of at most '+fmt2(lim)} <span class="cap">(limit set in this tool)</span></div>`}
+  else if(r.cannot){big='Cannot calculate';chip='<span class="chip err">No result</span>';body=`<div>${esc(r.cannot)}</div>`;test=`<div style="margin-top:6px"><span class="chip">Not tested</span></div>`}
+  else{big='Not calculated';chip='<span class="chip warn">Incomplete</span>';const t=r.missing.concat(r.bad);body=`<b>${t.length} input${t.length===1?'':'s'} to fix first</b><ul>${t.slice(0,5).map(x=>`<li>${esc(x.label)}</li>`).join('')}</ul>`;test=`<div style="margin-top:6px"><span class="chip">Not tested</span> <span class="cap">This is not a pass.</span></div>`}
+  return `<div class="calc" role="group" aria-label="${esc(m.name)}"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="fx">ƒ</span><b>${esc(m.name)}</b>${chip}<span class="chip">${m.code}</span></div><div class="big">${big}</div>${body}${test}</div>`;
+}
+function renderPre(){
+  const p=$('#prepane'); const ae=document.activeElement; const key=ae&&ae.dataset&&ae.dataset.k, ss=ae&&ae.selectionStart, se=ae&&ae.selectionEnd;
+  let h=`<div class="panehead"><h2>What people see</h2><span class="cap">The ${esc(ORG.terms.who.toLowerCase())} completing this tool. Generated from the left.</span></div>`;
+  h+=`<h2 style="font-size:20px;margin-bottom:2px">${esc(TOOL.name)}</h2><div class="cap" style="margin-bottom:12px">${esc(ORG.terms.case)} 0147 · ${TOOL.sections.length} section${TOOL.sections.length===1?'':'s'}</div>`;
+  if(!TOOL.sections.length)h+=`<div class="empty"><b>No sections yet.</b><br>Add a section on the left.</div>`;
+  TOOL.sections.forEach(s=>{
+    const st=secStatus(s); const chip={ok:['ok','✓ Complete'],inc:['warn',st.t],na:['','Not applicable'],pend:['warn','Waiting on an answer']}[st.k];
+    h+=`<section class="doc"><header><h3>${esc(s.title)}</h3><span class="chip">${s.mode==='required'?'Always':s.mode==='optional'?'Optional':'Conditional'}</span><span class="chip ${chip[0]}">${esc(chip[1])}</span></header>`;
+    if(st.k==='na'){const f=findBlock(s.rule.field,'field');h+=`<div class="na">Not applicable. “${esc(f?f.label:s.rule.field)}” is “${esc(val(s.rule.field))}”. Anything entered here is kept.</div></section>`;return}
+    if(st.k==='pend'){const f=findBlock(s.rule.field,'field');h+=`<div class="na">The tool cannot tell yet whether this applies. Answer “${esc(f?f.label:s.rule.field)}” first.</div></section>`;return}
+    h+=`<div class="body">`;
+    const fields=s.blocks.filter(b=>b.kind==='field');
+    if(fields.length)h+=`<div class="fields">${fields.map(f=>{const v=val(f.id),miss=f.req&&v==='';return `<div class="field${miss?' miss':''}"><label for="p_f_${f.id}">${esc(f.label)}${f.req?'':' <span class="cap">(optional)</span>'}</label>${inputFor('f:'+f.id,f,v)}${miss?'<div class="hint">Required</div>':''}</div>`}).join('')}</div>`;
+    s.blocks.forEach(b=>{
+      if(b.kind==='table'){const rs=rows(b.id);
+        h+=`<div><div class="cap" style="font-weight:500;margin-bottom:3px">${esc(b.label)}</div><div class="rt"><table><thead><tr><th class="sr">#</th>${b.cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}<th class="sr">Remove</th></tr></thead><tbody>${rs.length?rs.map((x,ri)=>`<tr><td class="cap" style="padding-top:8px">${ri+1}</td>${b.cols.map(c=>{const v=x[c.id]==null?'':x[c.id];return `<td class="${c.req&&v===''?'m':''}">${inputFor('t:'+b.id+':'+ri+':'+c.id,c,v)}</td>`}).join('')}<td><button type="button" class="btn sm" data-act="rmrow" data-t="${b.id}" data-r="${ri}" aria-label="Remove row ${ri+1}">✕</button></td></tr>`).join(''):`<tr><td colspan="${b.cols.length+2}" class="empty" style="padding:14px">${b.req?'No rows yet. At least one is needed.':'No rows.'}</td></tr>`}</tbody></table></div><div style="margin-top:4px"><button type="button" class="btn sm" data-act="addrow" data-t="${b.id}">+ Add row</button></div></div>`}
+      if(b.kind==='calc')h+=calcBox(b);
+    });
+    h+=`</div></section>`;
+  });
+  p.innerHTML=h;
+  if(key){const el=$('[data-k="'+key+'"]');if(el){el.focus({preventScroll:true});try{if(ss!=null)el.setSelectionRange(ss,se)}catch(e){}}}
+}
+function render(){renderCfg();renderPre();const t=$('#tpl');}
+
+/* ---------- actions ---------- */
+function addNeeds(method,sec){
+  const added=[],reused=[];
+  LIB[method].needs.forEach(n=>{ if(findBlock(n.id,n.kind)){reused.push(n.label);return} const b=Object.assign(clone(n),{auto:true}); sec.blocks.push(b); added.push(n.label)});
+  return {added,reused};
+}
+function loadTemplate(k){CUR=k;TOOL=clone(TEMPLATES[k].tool);DATA={fields:{},tables:{}};MSG='';VIEW='edit';$('#tplnote').textContent=TEMPLATES[k].note;render()}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act],[data-tab]'); if(!t)return;
+  if(t.dataset.tab){$$('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b===t)));$('#cfgpane').classList.toggle('hide',t.dataset.tab!=='cfg');$('#prepane').classList.toggle('hide',t.dataset.tab!=='pre');return}
+  const a=t.dataset.act, si=+t.dataset.s, bi=+t.dataset.i, sec=TOOL.sections[si];
+  switch(a){
+    case 'view':VIEW=t.dataset.v;renderCfg();break;
+    case 'copy':{const x=JSON.stringify(TOOL,null,2);(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(x):Promise.reject()).catch(()=>{const r=document.createRange();r.selectNodeContents($('pre.data'));const s=getSelection();s.removeAllRanges();s.addRange(r)});break}
+    case 'addsec':TOOL.sections.push({id:nid('s'),title:'New section',mode:'required',blocks:[]});MSG='';render();break;
+    case 'rmsec':{const n=sec.blocks.length;TOOL.sections.splice(si,1);MSG=`Removed “${esc(sec.title)}”. Anything people had entered is kept, in case the section comes back.`;render();break}
+    case 'up':case 'down':{const j=a==='up'?si-1:si+1;[TOOL.sections[si],TOOL.sections[j]]=[TOOL.sections[j],TOOL.sections[si]];MSG='';render();break}
+    case 'addfield':sec.blocks.push(fld(nid('f'),'New field','text',false));MSG='';render();break;
+    case 'addtable':sec.blocks.push({kind:'table',id:nid('t'),label:'New table',req:false,cols:[col(nid('c'),'Column','text',false)]});MSG='';render();break;
+    case 'addcol':{const b=sec.blocks[bi];b.cols.push(col(nid('c'),'Column','text',false));render();break}
+    case 'rmcol':{sec.blocks[bi].cols.splice(+t.dataset.ci,1);render();break}
+    case 'rmblk':{const b=sec.blocks[bi];sec.blocks.splice(bi,1);MSG=`Removed “${esc(b.label)}”. What people entered is kept.`;render();break}
+    case 'addcalc':{const m=$('#lib'+si).value;if(!m){MSG='Pick a calculation first.';renderCfg();break}
+      if(sec.blocks.some(b=>b.kind==='calc'&&b.method===m)){MSG=`${esc(LIB[m].name)} is already in this section.`;renderCfg();break}
+      const r=addNeeds(m,sec);sec.blocks.push(calcBlk(m));
+      MSG=`Added <b>${esc(LIB[m].name)}</b>. `+(r.added.length?`<b>Added with it:</b> ${r.added.map(esc).join(', ')}. `:'')+(r.reused.length?`<b>Already on this tool, so reused:</b> ${r.reused.map(esc).join(', ')}.`:'');render();break}
+    case 'rmcalc':{const b=sec.blocks[bi];sec.blocks.splice(bi,1);const kept=[],gone=[];
+      LIB[b.method].needs.forEach(n=>{const blk=findBlock(n.id,n.kind);if(!blk)return;const still=neededBy(n.id,n.kind);
+        if(still.length)kept.push(`${esc(n.label)} (still needed by ${esc(still.join(', '))})`);
+        else if(blk.auto){TOOL.sections.forEach(s=>{s.blocks=s.blocks.filter(x=>x!==blk)});gone.push(esc(n.label))}
+        else kept.push(esc(n.label))});
+      MSG=`Removed <b>${esc(LIB[b.method].name)}</b>. `+(gone.length?`<b>Removed with it:</b> ${gone.join(', ')}. `:'')+(kept.length?`<b>Kept, because something else needs it or you added it yourself:</b> ${kept.join(', ')}. `:'')+`Nothing people entered is lost.`;render();break}
+    case 'addrow':{(DATA.tables[t.dataset.t]=DATA.tables[t.dataset.t]||[]).push({});renderPre();break}
+    case 'rmrow':{DATA.tables[t.dataset.t].splice(+t.dataset.r,1);renderPre();break}
+  }
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='toolname'){TOOL.name=t.value;renderPre();return}
+  if(t.dataset.k){const k=t.dataset.k.split(':'); if(k[0]==='f')DATA.fields[k[1]]=t.value; else{DATA.tables[k[1]]=DATA.tables[k[1]]||[];(DATA.tables[k[1]][+k[2]]=DATA.tables[k[1]][+k[2]]||{})[k[3]]=t.value}
+    const ctl=allBlocks().some(b=>b.kind==='field'&&b.id===k[1]); renderPre(); return}
+  if(t.dataset.sec==='title'){TOOL.sections[+t.dataset.s].title=t.value;renderPre();return}
+  const b=t.dataset.b!=null&&TOOL.sections[+t.dataset.s].blocks[+t.dataset.i];
+  if(t.dataset.b==='label'&&b){b.label=t.value;renderPre();return}
+  if(t.dataset.b==='opts'&&b){b.opts=t.value.split(',').map(x=>x.trim()).filter(Boolean);renderPre();return}
+  if(t.dataset.b==='limit'&&b){const n=num(t.value);if(!isNaN(n)){b.limit=LIB[b.method].kind==='pct'?n/100:n;renderPre()}return}
+  if(t.dataset.c==='label'||t.dataset.c==='opts'){const c=TOOL.sections[+t.dataset.s].blocks[+t.dataset.i].cols[+t.dataset.ci];if(t.dataset.c==='label')c.label=t.value;else c.opts=t.value.split(',').map(x=>x.trim()).filter(Boolean);renderPre();return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='tpl'){loadTemplate(t.value);return}
+  if(t.dataset.sec==='mode'){const s=TOOL.sections[+t.dataset.s];s.mode=t.value;if(t.value!=='conditional')delete s.rule;MSG='';render();return}
+  if(t.dataset.r==='field'){const s=TOOL.sections[+t.dataset.s],f=findBlock(t.value,'field');s.rule={field:t.value,values:[opts(f)[0]||'']};render();return}
+  if(t.dataset.r==='val'){const s=TOOL.sections[+t.dataset.s];const vs=$$('[data-r=val][data-s="'+t.dataset.s+'"]').filter(x=>x.checked).map(x=>x.value);if(!vs.length){t.checked=true;MSG='A rule needs at least one answer, or the section could never apply.';renderCfg();return}s.rule.values=vs;render();return}
+  if(t.dataset.b==='type'||t.dataset.b==='req'||t.dataset.b==='list'){const b=TOOL.sections[+t.dataset.s].blocks[+t.dataset.i];
+    if(t.dataset.b==='type'){b.type=t.value;if(t.value==='choice'&&!b.opts)b.opts=['Option 1','Option 2'];if(t.value==='list'&&!b.list)b.list=Object.keys(ORG.lists)[0]}
+    if(t.dataset.b==='req')b.req=t.checked; if(t.dataset.b==='list')b.list=t.value; MSG='';render();return}
+  if(t.dataset.c){const c=TOOL.sections[+t.dataset.s].blocks[+t.dataset.i].cols[+t.dataset.ci];
+    if(t.dataset.c==='type'){c.type=t.value;if(t.value==='choice'&&!c.opts)c.opts=['Option 1','Option 2'];if(t.value==='list'&&!c.list)c.list=Object.keys(ORG.lists)[0]}
+    if(t.dataset.c==='req')c.req=t.checked; if(t.dataset.c==='list')c.list=t.value; render();return}
+  if(t.dataset.org==='term'){ORG.terms[t.dataset.key]=t.value||ORG.terms[t.dataset.key];render();return}
+  if(t.dataset.org==='list'){ORG.lists[t.dataset.key]=t.value.split('\n').map(x=>x.trim()).filter(Boolean);render();return}
+});
+/* organization panel */
+function renderOrg(){
+  $('#org').innerHTML=`<div><label for="o_case" style="font-weight:500">What a unit of work is called</label><input class="ctl" id="o_case" data-org="term" data-key="case" value="${esc(ORG.terms.case)}"></div><div><label for="o_who" style="font-weight:500">The person who completes it</label><input class="ctl" id="o_who" data-org="term" data-key="who" value="${esc(ORG.terms.who)}"></div>`+
+   Object.keys(ORG.lists).map(l=>`<div><label for="ol_${esc(l)}" style="font-weight:500">List: ${esc(l)}</label><textarea id="ol_${esc(l)}" data-org="list" data-key="${esc(l)}">${esc(ORG.lists[l].join('\n'))}</textarea><div class="cap">one per line</div></div>`).join('');
+}
+const tpl=$('#tpl'); tpl.innerHTML=Object.keys(TEMPLATES).map(k=>`<option value="${k}">${esc(TEMPLATES[k].label)}</option>`).join('');
+$('#tplnote').textContent=TEMPLATES.credit.note;
+document.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.org)renderOrg()});
+renderOrg();render();
+window.__builder={get TOOL(){return TOOL},DATA,ENGINE,LIB,loadTemplate};
+})();
+</script>
