@@ -33,3 +33,6 @@ Anything about the user's real workbook, the real feed, accessibility beyond the
 
 ## Added later, 1 Nov 2026: one table primitive (read before adding any "block")
 The owner rejected ranking block types as "counter to the spirit". `table` and `questions` were replaced by one `grid` primitive with configurable axes (P16 in `DECISIONS.md`). **Do not add new block kinds for new table shapes.** Add a pattern (`ORG.patterns` in `journey.html`) or, if a shape cannot be expressed, add an axis option and a test. `check-journey.js` holds ten checks for the primitive.
+
+## Added: example outputs and screen proposals
+The owner asked to see real outputs and how the screens work, not more of the builder. `prototype/outputs.html` shows the four outputs and five proposed screens; `examples/` holds the generator and the files. The testing screen (one question at a time, keys 1 to 4 to rate, J and K to move, comment required only when the rating calls for it, facts panel read-only) is the proposed core of daily use. The outputs come from a demonstration script, not the engine; closing that gap is part of slice 3.

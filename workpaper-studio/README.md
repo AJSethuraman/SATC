@@ -12,6 +12,8 @@ A configurable tool for structured workpapers and linesheets: an organization de
 | `docs/DECISIONS.md` | Decisions needed, confirmed requirements, scope |
 | `docs/HANDOFF.md` | How the next session continues |
 | **`prototype/journey.html`** | **Start here.** The whole path in six live steps: build a tool (configuration on the left, the result on the right), package it as one file, list it for a niche, a buyer installs it and makes it theirs, their staff use and release it, an update arrives. Five unrelated tools from one engine, and every table in them is one primitive configured differently |
+| **`prototype/outputs.html`** | **What comes out, and the screens that produce it**: the signed workpaper, the workbook, the data feed and the quarter roll-up, shown as the files contain them, then five proposed screens (queue, testing a file, review, release, roll-up) |
+| `examples/` | The generator and the real files: PDF, .xlsx, CSV, JSON. See `examples/README.md` |
 | `docs/REFERENCE-WORKBOOK.md` | What the owner's real workbook showed, and the gaps it exposes |
 | `docs/MARKET-AND-PACKS.md` | How this could be sold: packs, niches, models, risks (including who owns the know-how) |
 | `prototype/index.html` | Clickable prototype of the recommended direction. Synthetic data, **fictional methods and thresholds, mocked integrations** |
