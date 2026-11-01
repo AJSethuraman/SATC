@@ -1,0 +1,240 @@
+{
+ "pack": {
+  "name": "Bank reconciliation",
+  "version": "1.0"
+ },
+ "brand": "2D6A3E",
+ "org": {
+  "name": "Bramble Foods (synthetic)",
+  "lists": {
+   "Yes / No": [
+    "Yes",
+    "No"
+   ]
+  }
+ },
+ "tool": {
+  "name": "Bank reconciliation",
+  "sections": [
+   {
+    "id": "s1",
+    "title": "Account & balances",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "account",
+      "label": "Account",
+      "type": "text",
+      "req": true
+     },
+     {
+      "kind": "field",
+      "id": "stmtdate",
+      "label": "Statement date",
+      "type": "date",
+      "req": true
+     },
+     {
+      "kind": "field",
+      "id": "stmt",
+      "label": "Balance per bank statement",
+      "type": "number",
+      "req": true,
+      "money": true
+     },
+     {
+      "kind": "field",
+      "id": "gl",
+      "label": "Balance per ledger",
+      "type": "number",
+      "req": true,
+      "money": true
+     },
+     {
+      "kind": "field",
+      "id": "interco",
+      "label": "Any intercompany activity?",
+      "type": "list",
+      "req": true,
+      "list": "Yes / No"
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "title": "Reconciling items",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "grid",
+      "id": "items",
+      "label": "Reconciling items",
+      "rows": {
+       "from": "entered",
+       "min": 0
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "type",
+         "label": "Type",
+         "type": "choice",
+         "req": true,
+         "opts": [
+          "Deposit in transit",
+          "Outstanding check",
+          "Bank fee not yet booked",
+          "Interest not yet booked"
+         ]
+        },
+        {
+         "key": "desc",
+         "label": "Description",
+         "type": "text",
+         "req": false
+        },
+        {
+         "key": "date",
+         "label": "Date",
+         "type": "date",
+         "req": false
+        },
+        {
+         "key": "amount",
+         "label": "Amount",
+         "type": "number",
+         "req": true,
+         "money": true
+        }
+       ]
+      },
+      "cellsBy": "col"
+     },
+     {
+      "kind": "calc",
+      "id": "calc_rec",
+      "method": "recon",
+      "code": "REC-DEMO 1.0",
+      "limit": 0,
+      "limitLabel": "Largest allowed difference"
+     }
+    ]
+   },
+   {
+    "id": "s3",
+    "title": "Intercompany",
+    "mode": "conditional",
+    "rule": {
+     "field": "interco",
+     "values": [
+      "Yes"
+     ]
+    },
+    "blocks": [
+     {
+      "kind": "grid",
+      "id": "ic",
+      "label": "Intercompany items",
+      "rows": {
+       "from": "entered",
+       "min": 1
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "party",
+         "label": "Counterparty",
+         "type": "text",
+         "req": true
+        },
+        {
+         "key": "amt",
+         "label": "Amount",
+         "type": "number",
+         "req": true,
+         "money": true
+        }
+       ]
+      },
+      "cellsBy": "col"
+     }
+    ]
+   },
+   {
+    "id": "s4",
+    "title": "Sign-off",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "prep",
+      "label": "Prepared by",
+      "type": "text",
+      "req": true
+     },
+     {
+      "kind": "field",
+      "id": "prepdate",
+      "label": "Prepared on",
+      "type": "date",
+      "req": true
+     }
+    ]
+   }
+  ]
+ },
+ "confirmations": {
+  "calc_rec": {
+   "policy": 0,
+   "confirmed": "Yes",
+   "by": "Controller",
+   "date": "2026-01-05"
+  }
+ },
+ "example": {
+  "account": "Operating \u00b7\u00b74821",
+  "stmtdate": "2026-10-31",
+  "stmt": 185600.55,
+  "gl": 173545.35,
+  "interco": "No",
+  "items": {
+   "rows": [
+    {
+     "type": "Deposit in transit",
+     "desc": "Customer deposit",
+     "date": "2026-10-31",
+     "amount": 12400
+    },
+    {
+     "type": "Outstanding check",
+     "desc": "4410 Delta Supply",
+     "date": "2026-10-22",
+     "amount": 18950
+    },
+    {
+     "type": "Outstanding check",
+     "desc": "4418 City Water",
+     "date": "2026-10-29",
+     "amount": 4310.2
+    },
+    {
+     "type": "Outstanding check",
+     "desc": "4102 Harbor Signs (over 90 days)",
+     "date": "2026-07-30",
+     "amount": 1280
+    },
+    {
+     "type": "Bank fee not yet booked",
+     "desc": "October analysis fee",
+     "date": "2026-10-31",
+     "amount": 85
+    }
+   ]
+  },
+  "prep": "R. Lund",
+  "prepdate": "2026-11-01"
+ }
+}

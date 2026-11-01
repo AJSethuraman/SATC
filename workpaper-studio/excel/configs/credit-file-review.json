@@ -1,0 +1,615 @@
+{
+ "pack": {
+  "name": "Credit file review",
+  "version": "1.1"
+ },
+ "brand": "0B5F66",
+ "org": {
+  "name": "Lakeshore Community Bank (synthetic)",
+  "lists": {
+   "Yes / No": [
+    "Yes",
+    "No"
+   ],
+   "Effectiveness": [
+    "Effective",
+    "Partially effective",
+    "Not effective",
+    "Not applicable"
+   ],
+   "Testers": [
+    "A. Rivera",
+    "B. Chen",
+    "C. Okafor"
+   ],
+   "Reviewers": [
+    "D. Patel",
+    "E. Moreau"
+   ],
+   "Quarter ends": [
+    "2026-09-30",
+    "2026-12-31",
+    "2027-03-31"
+   ],
+   "Facility types": [
+    "Term loan",
+    "Line of credit",
+    "Equipment loan",
+    "SBA term loan"
+   ],
+   "Collateral classes": [
+    "Cash",
+    "Marketable securities",
+    "Accounts receivable",
+    "Inventory",
+    "Equipment",
+    "Real estate"
+   ]
+  }
+ },
+ "tool": {
+  "name": "Credit file review",
+  "sections": [
+   {
+    "id": "s1",
+    "title": "Review details",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "tester",
+      "label": "Tester",
+      "type": "list",
+      "req": true,
+      "list": "Testers"
+     },
+     {
+      "kind": "field",
+      "id": "reviewer",
+      "label": "Reviewer",
+      "type": "list",
+      "req": true,
+      "list": "Reviewers"
+     },
+     {
+      "kind": "field",
+      "id": "reviewdate",
+      "label": "Review date",
+      "type": "date",
+      "req": true
+     },
+     {
+      "kind": "field",
+      "id": "quarter",
+      "label": "Quarter end",
+      "type": "list",
+      "req": true,
+      "list": "Quarter ends"
+     },
+     {
+      "kind": "field",
+      "id": "scope",
+      "label": "Scope",
+      "type": "text",
+      "req": false
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "title": "Borrower & facilities",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "borrower",
+      "label": "Borrower",
+      "type": "text",
+      "req": true
+     },
+     {
+      "kind": "field",
+      "id": "security",
+      "label": "Security",
+      "type": "choice",
+      "req": true,
+      "opts": [
+       "Secured",
+       "Unsecured"
+      ]
+     },
+     {
+      "kind": "field",
+      "id": "newmoney",
+      "label": "Is this a new money request?",
+      "type": "list",
+      "req": true,
+      "list": "Yes / No"
+     },
+     {
+      "kind": "grid",
+      "id": "facilities",
+      "label": "Facilities",
+      "rows": {
+       "from": "entered",
+       "min": 1
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "ftype",
+         "label": "Facility type",
+         "type": "list",
+         "req": true,
+         "list": "Facility types"
+        },
+        {
+         "key": "frating",
+         "label": "Rating",
+         "type": "number",
+         "req": false,
+         "noTotal": true
+        },
+        {
+         "key": "commit",
+         "label": "Commitment",
+         "type": "number",
+         "req": true,
+         "money": true
+        },
+        {
+         "key": "out",
+         "label": "Outstanding",
+         "type": "number",
+         "req": true,
+         "money": true
+        }
+       ]
+      },
+      "cellsBy": "col",
+      "totals": true
+     }
+    ]
+   },
+   {
+    "id": "s3",
+    "title": "Test questions",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "grid",
+      "id": "qs1",
+      "label": "Test questions",
+      "rows": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "1.01",
+         "group": "Risk rating",
+         "label": "Is the assigned risk rating supported by the credit file?",
+         "info": "EXAMPLE TEXT. Read the approval document and its attachments. Using your rating guidance and judgment, conclude whether the rating is reasonable.",
+         "when": null
+        },
+        {
+         "key": "1.02",
+         "group": "Risk rating",
+         "label": "Is each facility rating consistent with the borrower rating?",
+         "info": "EXAMPLE TEXT. Compare the two and note any difference the file does not explain.",
+         "when": null
+        },
+        {
+         "key": "2.01",
+         "group": "Data accuracy",
+         "label": "Does the rating in the system of record match the approval document?",
+         "info": "EXAMPLE TEXT. Compare the two. If you cannot reach the system, use the most recent account report.",
+         "when": null
+        },
+        {
+         "key": "2.02",
+         "group": "Data accuracy",
+         "label": "Is the industry code correct in the system of record?",
+         "info": "EXAMPLE TEXT. Compare the code with the approval document.",
+         "when": null
+        },
+        {
+         "key": "3.01",
+         "group": "Policy exceptions",
+         "label": "Are all policy exceptions noted and mitigated in the approval document?",
+         "info": "EXAMPLE TEXT. Confirm each exception has a documented mitigant, or that none was needed.",
+         "when": null
+        },
+        {
+         "key": "4.01",
+         "group": "Approval authority",
+         "label": "Was the credit approved by someone with enough authority?",
+         "info": "EXAMPLE TEXT. Compare the total commitment with the approval authority table.",
+         "when": null
+        },
+        {
+         "key": "5.01",
+         "group": "Repayment analysis",
+         "label": "Were all liabilities considered in the repayment analysis?",
+         "info": "EXAMPLE TEXT. Compare the analysis with the credit report and the borrower statement.",
+         "when": null
+        },
+        {
+         "key": "5.02",
+         "group": "Repayment analysis",
+         "label": "For a new money request, was the required analysis completed with current information?",
+         "info": "EXAMPLE TEXT. Confirm the analysis was required, completed, and used current information.",
+         "when": {
+          "field": "newmoney",
+          "values": [
+           "Yes"
+          ]
+         }
+        },
+        {
+         "key": "6.01",
+         "group": "Collateral",
+         "label": "Was the collateral eligible, valued and documented?",
+         "info": "EXAMPLE TEXT. Confirm the type is allowed, the valuation is current and the lien is documented.",
+         "when": {
+          "field": "security",
+          "values": [
+           "Secured"
+          ]
+         }
+        }
+       ]
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "r",
+         "label": "Rating",
+         "type": "list",
+         "req": true,
+         "list": "Effectiveness"
+        },
+        {
+         "key": "c",
+         "label": "Comment",
+         "type": "longtext",
+         "req": false,
+         "reqWhen": {
+          "key": "r",
+          "values": [
+           "Partially effective",
+           "Not effective"
+          ]
+         }
+        }
+       ]
+      },
+      "cellsBy": "col",
+      "tally": true
+     }
+    ]
+   },
+   {
+    "id": "s4",
+    "title": "Supporting analysis",
+    "mode": "optional",
+    "blocks": [
+     {
+      "kind": "grid",
+      "id": "cashflow",
+      "label": "Owner and guarantor cash flow",
+      "rows": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "inc",
+         "label": "Adjusted personal income",
+         "type": "number",
+         "req": true,
+         "money": true
+        },
+        {
+         "key": "debt",
+         "label": "Existing personal debt payments",
+         "type": "number",
+         "req": true,
+         "money": true
+        },
+        {
+         "key": "left",
+         "label": "Left after debt payments",
+         "type": "number",
+         "money": true,
+         "compute": {
+          "op": "sub",
+          "a": "inc",
+          "b": "debt"
+         }
+        }
+       ]
+      },
+      "cols": {
+       "from": "entered",
+       "min": 1,
+       "addLabel": "Person"
+      },
+      "cellsBy": "row"
+     },
+     {
+      "kind": "grid",
+      "id": "valuation",
+      "label": "Collateral valuation",
+      "rows": {
+       "from": "list",
+       "list": "Collateral classes"
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "value",
+         "label": "Value",
+         "type": "number",
+         "req": false,
+         "money": true
+        },
+        {
+         "key": "adv",
+         "label": "Advance %",
+         "type": "number",
+         "req": false,
+         "noTotal": true
+        },
+        {
+         "key": "adj",
+         "label": "Adjusted value",
+         "type": "number",
+         "req": false,
+         "money": true,
+         "compute": {
+          "op": "pctof",
+          "a": "value",
+          "b": "adv"
+         }
+        }
+       ]
+      },
+      "cellsBy": "col",
+      "totals": true
+     },
+     {
+      "kind": "grid",
+      "id": "income",
+      "label": "Income sources",
+      "rows": {
+       "from": "entered",
+       "min": 1
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "source",
+         "label": "Source",
+         "type": "text",
+         "req": false
+        },
+        {
+         "key": "amount",
+         "label": "Amount",
+         "type": "number",
+         "req": true,
+         "money": true
+        },
+        {
+         "key": "per",
+         "label": "Per",
+         "type": "choice",
+         "req": true,
+         "opts": [
+          "Monthly",
+          "Annual"
+         ]
+        }
+       ]
+      },
+      "cellsBy": "col"
+     },
+     {
+      "kind": "grid",
+      "id": "debts",
+      "label": "Existing debts",
+      "rows": {
+       "from": "entered",
+       "min": 1
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "creditor",
+         "label": "Creditor",
+         "type": "text",
+         "req": false
+        },
+        {
+         "key": "payment",
+         "label": "Monthly payment",
+         "type": "number",
+         "req": true,
+         "money": true
+        }
+       ]
+      },
+      "cellsBy": "col"
+     },
+     {
+      "kind": "field",
+      "id": "proposed",
+      "label": "Proposed monthly payment",
+      "type": "number",
+      "req": true,
+      "money": true
+     },
+     {
+      "kind": "calc",
+      "id": "calc_dti",
+      "method": "dti",
+      "code": "DTI-DEMO 1.0",
+      "limit": 0.4,
+      "limitLabel": "Highest debt-to-income"
+     }
+    ]
+   },
+   {
+    "id": "s5",
+    "title": "Conclusion",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "qualified",
+      "label": "Is the credit qualified?",
+      "type": "list",
+      "req": true,
+      "list": "Yes / No"
+     },
+     {
+      "kind": "field",
+      "id": "summary",
+      "label": "Overall summary",
+      "type": "longtext",
+      "req": true
+     }
+    ]
+   }
+  ]
+ },
+ "confirmations": {
+  "calc_dti": {
+   "policy": 0.4,
+   "confirmed": "Yes",
+   "by": "D. Patel",
+   "date": "2026-10-02"
+  }
+ },
+ "example": {
+  "tester": "A. Rivera",
+  "reviewer": "D. Patel",
+  "reviewdate": "2026-10-14",
+  "quarter": "2026-09-30",
+  "scope": "New money, secured",
+  "borrower": "Harbor Millwork LLC",
+  "security": "Secured",
+  "newmoney": "Yes",
+  "facilities": {
+   "rows": [
+    {
+     "ftype": "Term loan",
+     "frating": 5,
+     "commit": 285000,
+     "out": 285000
+    },
+    {
+     "ftype": "Line of credit",
+     "frating": 5,
+     "commit": 75000,
+     "out": 22500
+    }
+   ]
+  },
+  "qs1": {
+   "1.01": {
+    "r": "Effective",
+    "c": "Rating supported by cash flow and collateral coverage."
+   },
+   "1.02": {
+    "r": "Effective"
+   },
+   "2.01": {
+    "r": "Effective"
+   },
+   "2.02": {
+    "r": "Not effective",
+    "c": "System shows a different industry code from the approval document."
+   },
+   "3.01": {
+    "r": "Partially effective",
+    "c": "One exception noted without a mitigant."
+   },
+   "4.01": {
+    "r": "Effective"
+   },
+   "5.01": {
+    "r": "Effective",
+    "c": "Credit report liabilities match the analysis."
+   },
+   "5.02": {
+    "r": "Partially effective",
+    "c": "Recomputed debt-to-income is 51.3% against our 40% limit. The file does not explain the difference."
+   },
+   "6.01": {}
+  },
+  "cashflow": {
+   "_cols": [
+    "J. Hale",
+    "M. Hale"
+   ],
+   "inc": {
+    "c0": 96000,
+    "c1": 41000
+   },
+   "debt": {
+    "c0": 18600,
+    "c1": 6200
+   }
+  },
+  "valuation": {
+   "Equipment": {
+    "value": 190000,
+    "adv": 70
+   },
+   "Real estate": {
+    "value": 240000,
+    "adv": 80
+   }
+  },
+  "income": {
+   "rows": [
+    {
+     "source": "Owner salary",
+     "amount": 96000,
+     "per": "Annual"
+    },
+    {
+     "source": "Rental, 14 Dock St",
+     "amount": 1450,
+     "per": "Monthly"
+    },
+    {
+     "source": "Spouse wages",
+     "amount": 3200,
+     "per": "Monthly"
+    }
+   ]
+  },
+  "debts": {
+   "rows": [
+    {
+     "creditor": "Auto loan",
+     "payment": 612
+    },
+    {
+     "creditor": "Credit card",
+     "payment": 95
+    },
+    {
+     "creditor": "Student loan (deferred)",
+     "payment": 0
+    }
+   ]
+  },
+  "proposed": 5780,
+  "qualified": "Yes"
+ }
+}

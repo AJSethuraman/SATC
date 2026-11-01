@@ -39,3 +39,6 @@ The owner asked to see real outputs and how the screens work, not more of the bu
 
 ## Added: what a configuration turns into (`prototype/tools.html`)
 The owner did not want printed outputs ("pdf prints… i can figure out") and did not like how they looked. They wanted the tool a creator gets. `tools.html` shows three finished tools sharing one shell, with the configured shape in the middle and the buyer's brand, plus the creator's home for a published tool. This is the visual bar for the product; the earlier pages are below it.
+
+## Added: the output in its own medium (`excel/`)
+The owner, on the HTML mockups: "if you made it in excel i expect the mock up to be in excel". An example output is the real artifact in its real medium, never a picture of one. `excel/build_tool_workbook.py` turns a configuration into a working workbook; `check_tool_workbooks.py` recalculates in LibreOffice and checks 28 values (seen to fail on a broken formula). Next in this direction: the same configuration delivered as a real browser tool, built by a generator, not drawn.
