@@ -3794,6 +3794,20 @@ changed in the code.
     at five lines, half-ways in the format tests, a plain-decimal test. Planted bugs: 4 added, 62 of 62 on these
     lines caught. Full suite in 4 shards: 1,259 passed, 15 skipped.
 
+## 6f · Crit Bridge (`crit-bridge/` — grilled + PRD'd 2026-11-01, not yet built)
+
+Explains the movement in criticized commitments between two snapshots: borrower-level
+bridge, EBU > MBU > SBU tree, concentration (top 1/2/5), breadth, NPL overlay. Runs on
+site; synthetic data only in the repo. Spec: `crit-bridge/docs/prd-crit-bridge.md`.
+
+Deferred or decided against for now:
+- Macro attribution / regression: decided against for v1. Breadth test only, no causal claim.
+- Overlay of public macro series (FRED etc.) next to the bridge: later.
+- Related-group (connected borrowers) rollup: later; v1 credit = borrower ID as given.
+- GUI front door (as `threshold-engine` has `Thresholds.pyw`): later.
+
+---
+
 ## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
