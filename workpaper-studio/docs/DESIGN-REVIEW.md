@@ -2,7 +2,7 @@
 
 *Working title. 1 November 2026. Status: **design checkpoint. No product code exists.** The only code is a clickable prototype in `prototype/`, built on synthetic data with fictional rules.*
 
-**Shortest version: open `prototype/configurable.html`.** A tool is configuration, so you edit it on the left and the workpaper on the right is generated from it. Four unrelated tools run on the same engine. Everything below is the argument for that.
+**Shortest version: open `prototype/journey.html`.** A tool is configuration, so you edit it on the left and the workpaper on the right is generated from it. Four unrelated tools run on the same engine. Everything below is the argument for that.
 
 **Read this first, then `DECISIONS.md`.** This file is the argument; `DECISIONS.md` is the register of what is confirmed, proposed and open; `HANDOFF.md` is how the next session continues.
 
@@ -29,7 +29,7 @@ Also needed, but not blocking design: **the real output feed format** from whoev
 **Inspected.** The whole repo's top level, `CLAUDE.md`, `docs/DESIGN-PRINCIPLES.md`, `docs/REPO-INVENTORY.md`, `canon/CONVICTIONS.md` and `TENETS.md`, `credit-review-os/` (README, a program YAML, the linesheet builder), and `satc_system/configs/line_sheets/`.
 
 **Not available.**
-- **No photographs, and no copy of your Excel linesheet.** Nothing in the repo or the session. I worked from your description. Where I mapped one of its features to a design, that is my reading, and a photograph could correct it (table in §7).
+- **Update, 1 Nov 2026: the photographs arrived** (35 of the working linesheet). They are not committed. What they showed, and what changed because of it, is in `REFERENCE-WORKBOOK.md`. The headline: the questions are the core and the calculations support them. §7 below is my earlier reading from the description and is **superseded** by that file where they differ.
 - **The AI KIT tabs.** Not seen. Treated as development templates, as you said.
 - **Any verified integration contract** for the system your workbook feeds. The feed in the prototype is a labelled mock.
 

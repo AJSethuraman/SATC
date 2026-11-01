@@ -1,7 +1,7 @@
 // Scripted checks for the builder page. Run: node check-builder.js (needs Playwright).
 const { chromium } = require('playwright');
 const path=require('path');
-const URL='file://'+path.resolve(__dirname,'configurable.html');
+const URL='file://'+path.resolve(__dirname,'journey.html');
 let pass=0,fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('PASS',m)}else{fail++;console.log('FAIL',m)} };
 (async()=>{
   const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:1440,height:900}}); const p=await ctx.newPage();
