@@ -17,8 +17,8 @@
   "name": "Bank reconciliation",
   "sections": [
    {
-    "id": "s1",
-    "title": "Account & balances",
+    "id": "acct",
+    "title": "Account",
     "mode": "required",
     "blocks": [
      {
@@ -34,14 +34,22 @@
       "label": "Statement date",
       "type": "date",
       "req": true
-     },
+     }
+    ]
+   },
+   {
+    "id": "bal",
+    "title": "Balances",
+    "mode": "required",
+    "blocks": [
      {
       "kind": "field",
       "id": "stmt",
       "label": "Balance per bank statement",
       "type": "number",
       "req": true,
-      "money": true
+      "money": true,
+      "cents": true
      },
      {
       "kind": "field",
@@ -49,8 +57,16 @@
       "label": "Balance per ledger",
       "type": "number",
       "req": true,
-      "money": true
-     },
+      "money": true,
+      "cents": true
+     }
+    ]
+   },
+   {
+    "id": "act",
+    "title": "Activity",
+    "mode": "required",
+    "blocks": [
      {
       "kind": "field",
       "id": "interco",
@@ -72,7 +88,8 @@
       "label": "Reconciling items",
       "rows": {
        "from": "entered",
-       "min": 0
+       "min": 0,
+       "addLabel": "item"
       },
       "cols": {
        "from": "fixed",
@@ -106,7 +123,8 @@
          "label": "Amount",
          "type": "number",
          "req": true,
-         "money": true
+         "money": true,
+         "cents": true
         }
        ]
       },
@@ -139,7 +157,8 @@
       "label": "Intercompany items",
       "rows": {
        "from": "entered",
-       "min": 1
+       "min": 1,
+       "addLabel": "item"
       },
       "cols": {
        "from": "fixed",
@@ -155,7 +174,8 @@
          "label": "Amount",
          "type": "number",
          "req": true,
-         "money": true
+         "money": true,
+         "cents": true
         }
        ]
       },

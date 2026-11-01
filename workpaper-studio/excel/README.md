@@ -2,9 +2,11 @@
 
 A tool's configuration (the builder's "As data") goes in; a working `.xlsx` comes out. No macros.
 
+**Design language** (taken from the owner's own linesheet, 1 Nov 2026): a navy title band with buttons between screens (links, not macros), no gridlines and no row or column headers, a grey canvas, detail panels side by side with labels right-aligned against tinted input boxes, large navy section headings, each question in its own box with a rating box and a large comment box, and supporting analysis on its own screen. Excel is the engine; it should not look like a spreadsheet.
+
 ```bash
 python3 workpaper-studio/excel/build_tool_workbook.py     # configs/*.json -> out/*.xlsx (blank tool + filled example)
-python3 workpaper-studio/excel/check_tool_workbooks.py    # LibreOffice recalculates; 28 checks against independent arithmetic
+python3 workpaper-studio/excel/check_tool_workbooks.py    # LibreOffice recalculates; 29 checks, read by defined name so the layout can change freely
 ```
 
 | Sheet | What it does |

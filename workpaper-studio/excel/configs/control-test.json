@@ -29,8 +29,8 @@
   "name": "Control test",
   "sections": [
    {
-    "id": "s1",
-    "title": "The control",
+    "id": "ctl",
+    "title": "Control",
     "mode": "required",
     "blocks": [
      {
@@ -46,7 +46,14 @@
       "label": "Control owner",
       "type": "text",
       "req": true
-     },
+     }
+    ]
+   },
+   {
+    "id": "per",
+    "title": "Period",
+    "mode": "required",
+    "blocks": [
      {
       "kind": "field",
       "id": "freq",
@@ -61,7 +68,14 @@
       "label": "Period tested",
       "type": "text",
       "req": true
-     },
+     }
+    ]
+   },
+   {
+    "id": "res",
+    "title": "Result",
+    "mode": "required",
+    "blocks": [
      {
       "kind": "field",
       "id": "hasexc",
@@ -83,7 +97,8 @@
       "label": "Payments tested",
       "rows": {
        "from": "entered",
-       "min": 1
+       "min": 1,
+       "addLabel": "item"
       },
       "cols": {
        "from": "fixed",
@@ -178,7 +193,8 @@
       "label": "Exceptions and follow-up",
       "rows": {
        "from": "entered",
-       "min": 1
+       "min": 1,
+       "addLabel": "exception"
       },
       "cols": {
        "from": "fixed",
