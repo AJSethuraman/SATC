@@ -28,5 +28,8 @@ Anything about the user's real workbook, the real feed, accessibility beyond the
 
 ## Added 1 Nov 2026 (after the photographs)
 - The core building block is a table of **test questions**; calculations are supporting. Built. Gaps still open are listed in `REFERENCE-WORKBOOK.md` (grid blocks for owners × periods, record retrieval, admin screens, sampling).
-- **Do not commit the photographs or copy their wording.** They carry an employer label. D15 asks the owner to settle who owns the know-how before anything is sold.
+- The photographs stay out of the repo. D15 is closed by the owner (original work).
 - The photographs sit at `/tmp/.../scratchpad/ref-linesheet/` in the session that received them; they are gone with it. Ask the owner to re-share if needed.
+
+## Added later, 1 Nov 2026: one table primitive (read before adding any "block")
+The owner rejected ranking block types as "counter to the spirit". `table` and `questions` were replaced by one `grid` primitive with configurable axes (P16 in `DECISIONS.md`). **Do not add new block kinds for new table shapes.** Add a pattern (`ORG.patterns` in `journey.html`) or, if a shape cannot be expressed, add an axis option and a test. `check-journey.js` holds ten checks for the primitive.

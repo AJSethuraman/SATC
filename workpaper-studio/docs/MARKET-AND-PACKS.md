@@ -6,6 +6,10 @@
 
 An expert's way of working (the questions they ask, the test steps, the conditions, the guidance in their words, the calculations they trust, their recommended limits) becomes a **pack**: one file. Another organization installs it, makes it theirs (words, lists, limits), and its own staff run it. The expert stops being the single point of failure, and the organization buys the know-how once instead of hiring for it. `prototype/journey.html` shows every step working.
 
+## Adapting to a niche without building for one
+
+A niche is a starting pack plus a few patterns. Auditors get a sample-with-attributes pattern and a control-test pack; a credit reviewer gets a question framework and line items by guarantor; a close team gets a reconciliation pack. The engine does not change between them, and a buyer can save their own patterns, so every buyer adapts the product further without a code change.
+
 ## What makes a pack sellable
 
 - **One file.** Easy to send, version, list and install.
@@ -27,7 +31,7 @@ An expert's way of working (the questions they ask, the test steps, the conditio
 
 ## Things to settle before selling (honest risks)
 
-1. **Who owns the know-how.** If the pack's questions, test steps, thresholds or structure come from a workbook built at an employer, the employer may have rights to it. Check your employment agreement and any outside-business policy before building a product from it. A safe pattern is to build packs from your own general knowledge and public sources, never from the employer's workbook, policy wording, thresholds, systems or data. *This is not legal advice; ask someone qualified.*
+1. ~~Who owns the know-how.~~ Settled by the owner (D15): the work is original and will be recreated as such.
 2. **Regulated buyers will ask for validation.** A bank or lender using a calculation tool may need documentation of how each method works and was tested. The method page with its test vectors is a start, not a substitute.
 3. **Liability for methods.** A wrong method in a pack is your problem. Keep the library small and tested; label demonstration methods as such.
 4. **Support.** Every buyer is a person with a question. Price for it.
@@ -35,7 +39,7 @@ An expert's way of working (the questions they ask, the test steps, the conditio
 
 ## Open questions for the owner
 
-- Which niche first, and do you know three people in it who would try it?
+- ~~Which niche first~~ Auditors are a confirmed audience; the product adapts through packs and patterns rather than being built for one niche (D17).
 - What would a buyer most want to change? (This decides what to lock.)
 - Do you want to sell packs, a runtime, or your time?
 - Whose rights apply to the existing workbook?

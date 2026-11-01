@@ -76,21 +76,20 @@ let pass=0,fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('PASS',m)}else{fai
   const q=await ctx.newPage(); const qerr=[]; q.on('pageerror',e=>qerr.push(e.message)); await q.goto(URL); await q.waitForTimeout(400);
   const QT=async s=>await q.locator(s).first().innerText();
   ok((await QT('#prepane')).includes('Is the assigned risk rating supported by the credit file?'),'default tool is the test framework, rendered from a table of questions');
-  ok((await q.locator('#p_q_qs1_5_02_r').count())===0,'a question that applies only to new money has no rating box until answered');
+  ok((await q.locator('#p_x_qs1_5_02_r').count())===0,'a question that applies only to new money has no rating box until answered');
   ok((await QT('#prepane')).includes('Waiting on')&&(await QT('#prepane')).includes('Waiting on “Is this a new money request?”'),'it says it is waiting on the answer, not silently hiding or showing');
   await q.selectOption('#p_f_newmoney','Yes'); await q.waitForTimeout(100);
   ok(await q.locator('#prepane >> text=For a new money request').count()>0,'answering Yes brings that question in');
-  await q.selectOption('#p_q_qs1_1_01_r','Not effective'); await q.waitForTimeout(100);
-  ok((await QT('#prepane')).includes('Say why'),'a rating that needs a comment demands one');
-  await q.fill('#p_q_qs1_1_01_c','File does not support the rating.'); await q.waitForTimeout(80);
-  ok(!(await q.locator('#p_q_qs1_1_01_c').evaluate(e=>e.closest('.field').classList.contains('miss'))),'the comment requirement clears once it is given');
+  await q.selectOption('#p_x_qs1_1_01_r','Not effective'); await q.waitForTimeout(100);
+  ok(await q.locator('#p_x_qs1_1_01_c').evaluate(e=>e.closest('.field').classList.contains('miss')),'a rating that needs a comment demands one');
+  await q.fill('#p_x_qs1_1_01_c','File does not support the rating.'); await q.waitForTimeout(80);
+  ok(!(await q.locator('#p_x_qs1_1_01_c').evaluate(e=>e.closest('.field').classList.contains('miss'))),'the comment requirement clears once it is given');
   // paste rows from a spreadsheet
-  await q.locator('[data-qe=addrow]').first().scrollIntoViewIfNeeded();
-  await q.locator('summary:has-text("Paste rows")').click();
-  await q.fill('#qpaste_2_0','Documentation\t8.01\tIs the file complete?\tEXAMPLE steps\nDocumentation\t8.02\tIs it current?\tEXAMPLE steps\nDocumentation\t8.02\tduplicate number\tx');
-  await q.click('[data-qe=paste]'); await q.waitForTimeout(150);
+  await q.locator('details:has(#gpaste_2_0) summary').click();
+  await q.fill('#gpaste_2_0','Documentation\t8.01\tIs the file complete?\tEXAMPLE steps\nDocumentation\t8.02\tIs it current?\tEXAMPLE steps\nDocumentation\t8.02\tduplicate number\tx');
+  await q.click('[data-ge=paste][data-s="2"][data-i="0"]'); await q.waitForTimeout(150);
   ok((await QT('#prepane')).includes('Is the file complete?')&&(await QT('#prepane')).includes('Is it current?'),'pasting spreadsheet rows adds questions to the form');
-  ok((await QT('.msg')).includes('Added 2 questions')&&(await QT('.msg')).includes('Skipped 1'),'a repeated number is skipped and reported, not silently merged');
+  ok((await QT('.msg')).includes('Added 2 rows')&&(await QT('.msg')).includes('Skipped 1'),'a repeated number is skipped and reported, not silently merged');
   // package, install, release, and the flat feed gets a column per question
   await q.evaluate(()=>window.__builder.goto(4)); await q.waitForTimeout(150); await q.click('[data-j=check]'); await q.waitForTimeout(150);
   ok((await QT('#stagepane')).includes('Safe to install'),'a pack with a test framework passes the install checks');
@@ -102,6 +101,35 @@ let pass=0,fail=0; const ok=(c,m)=>{ if(c){pass++;console.log('PASS',m)}else{fai
   ok(cols.length===0||cols.some(c=>c.startsWith('Rating_')),'the flat feed has a rating column per question');
   // update: new question appears as a diff
   await q.click('#strip [data-n="6"]'); await q.click('[data-j=publish11]'); await q.waitForTimeout(150);
-  ok((await QT('#stagepane')).includes('New test question 7.01'),'an update that adds a question shows it in the diff');
+  ok((await QT('#stagepane')).includes('New row 7.01'),'an update that adds a question shows it in the diff');
+
+  // ---- one primitive, many shapes ----
+  const g=await ctx.newPage(); const gerr=[]; g.on('pageerror',e=>gerr.push(e.message)); await g.goto(URL); await g.waitForTimeout(400);
+  const GT=async s=>await g.locator(s).first().innerText();
+  await g.click('[data-act=gaddcol][data-g=cashflow]');
+  const ck=await g.evaluate(()=>window.__builder.DATA.gc.cashflow[0].key);
+  await g.fill(`[data-k="x:cashflow:inc:${ck}"]`,'96000'); await g.fill(`[data-k="x:cashflow:debt:${ck}"]`,'20000'); await g.waitForTimeout(100);
+  ok((await g.locator('#prepane td.calcc').allInnerTexts()).includes('76,000'),'people as columns, line items as rows: a worked-out line computes per person (96,000 − 20,000)');
+  await g.fill('[data-k="x:valuation:Cash:value"]','50000'); await g.fill('[data-k="x:valuation:Cash:adv"]','90'); await g.waitForTimeout(100);
+  ok((await g.locator('#prepane td.calcc').allInnerTexts()).includes('45,000'),'rows from an organization list, a worked-out column (50,000 at 90%)');
+  ok((await GT('#prepane')).includes('Total'),'totals are a setting on the same block');
+  // both sides open is refused, with the reason
+  const sCash=await g.evaluate(()=>{const t=window.__builder.TOOL;for(let si=0;si<t.sections.length;si++){const bi=t.sections[si].blocks.findIndex(b=>b.id==='cashflow');if(bi>=0)return [si,bi]}});
+  await g.selectOption(`[data-ge=from][data-ax=rows][data-s="${sCash[0]}"][data-i="${sCash[1]}"]`,'entered'); await g.waitForTimeout(100);
+  ok((await GT('.msg')).includes('One side has to be a fixed list'),'a table with no fixed side is refused, and says why');
+  // save a pattern, then use it somewhere else
+  await g.fill(`#patname_${sCash[0]}_${sCash[1]}`,'Cash flow by guarantor'); await g.click(`[data-ge=savepat][data-s="${sCash[0]}"][data-i="${sCash[1]}"]`); await g.waitForTimeout(100);
+  ok((await GT('.msg')).includes('Saved “Cash flow by guarantor” as a pattern'),'any table can be saved as a pattern');
+  await g.selectOption('#pat0','Cash flow by guarantor'); await g.click('[data-act=addgrid][data-s="0"]'); await g.waitForTimeout(100);
+  ok(await g.evaluate(()=>window.__builder.TOOL.sections[0].blocks.some(b=>b.kind==='grid'&&b.label==='Owner and guarantor cash flow')),'the saved pattern adds a new table in another section');
+  await g.evaluate(()=>window.__builder.goto(2)); await g.waitForTimeout(100);
+  ok(await g.evaluate(()=>!!window.__builder.PACK.org.patterns['Cash flow by guarantor']),'saved patterns travel inside the pack');
+  // checklist rows can carry their own conditions
+  await g.evaluate(()=>window.__builder.goto(1)); await g.selectOption('#tpl','tax'); await g.waitForTimeout(100);
+  ok((await GT('#prepane')).includes('Rental income and expenses')&&(await GT('#prepane')).includes('Waiting on an answer'),'a checklist row can depend on an answer');
+  ok((await g.locator('#prepane select[data-k="x:docs:rent:got"]').count())===0,'and has no input until it applies');
+  await g.selectOption('#p_f_rental','Yes'); await g.waitForTimeout(100);
+  ok((await g.locator('#prepane select[data-k="x:docs:rent:got"]').count())===1,'answering Yes brings the row in');
+  qerr.push(...gerr);
   console.log('ERRORS',errs.concat(qerr)); console.log('pass',pass,'fail',fail); process.exitCode=fail?1:0; await b.close();
 })();

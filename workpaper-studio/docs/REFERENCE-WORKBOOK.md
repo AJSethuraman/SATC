@@ -10,7 +10,7 @@ A **test linesheet**: a reviewer samples a credit and tests it against a numbere
 
 | In the workbook | What it is, in product terms | Where it lands now |
 |---|---|---|
-| A **framework tab**: section, question number, question, test steps. The form is built from it | The configuration is a **table of questions**. Test steps are the author's know-how, shown beside each question | New **test questions** block with a spreadsheet-style editor and **paste from Excel** (Build) |
+| A **framework tab**: section, question number, question, test steps. The form is built from it | The configuration is a **table of questions**. Test steps are the author's know-how, shown beside each question | A **pattern** of the one table primitive (fixed rows with guidance, rating and comment columns), with a spreadsheet-style editor and **paste from Excel** (Build) |
 | One **rating list** and a **comment** per question | A rating list owned by the organization; comment required for chosen ratings | Built; the comment rule is configurable and the example values are the prototype's own |
 | Questions that apply only to some credits ("for new money requests…", "for SBA credits…") | **Per-question conditions** | Built (“Only when…” per question) |
 | Header: tester, reviewer, scope, dates; a **facilities table** of up to six rows | Fields and a repeating table | Built |
@@ -24,7 +24,7 @@ A **test linesheet**: a reviewer samples a credit and tests it against a numbere
 
 ## Gaps this exposes (not yet in the design)
 
-1. **Matrix blocks.** Cash flow runs across owners and guarantors and across periods, in columns. A repeating table is not enough. A *grid* block (rows are line items, columns are people or periods, totals per column) is needed for this reviewer's calculations.
+1. ~~**Matrix blocks.**~~ **Done differently, 1 Nov 2026:** not a new block but one table primitive with configurable axes (P16). Line items by person, by period, and valuation by class are now patterns of it.
 2. **Record retrieval** by entity, period and subject, with view and edit.
 3. **Admin screens**: change log, diagnostic log, feed audit.
 4. **Sampling.** A reviewer tests a sample; the sampling basis and scope belong on the record.
