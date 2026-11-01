@@ -36,3 +36,6 @@ The owner rejected ranking block types as "counter to the spirit". `table` and `
 
 ## Added: example outputs and screen proposals
 The owner asked to see real outputs and how the screens work, not more of the builder. `prototype/outputs.html` shows the four outputs and five proposed screens; `examples/` holds the generator and the files. The testing screen (one question at a time, keys 1 to 4 to rate, J and K to move, comment required only when the rating calls for it, facts panel read-only) is the proposed core of daily use. The outputs come from a demonstration script, not the engine; closing that gap is part of slice 3.
+
+## Added: what a configuration turns into (`prototype/tools.html`)
+The owner did not want printed outputs ("pdf prints… i can figure out") and did not like how they looked. They wanted the tool a creator gets. `tools.html` shows three finished tools sharing one shell, with the configured shape in the middle and the buyer's brand, plus the creator's home for a published tool. This is the visual bar for the product; the earlier pages are below it.

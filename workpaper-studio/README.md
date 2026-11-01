@@ -11,6 +11,7 @@ A configurable tool for structured workpapers and linesheets: an organization de
 | `docs/DESIGN-REVIEW.md` | Understanding, decisions, architecture options, plan with acceptance criteria |
 | `docs/DECISIONS.md` | Decisions needed, confirmed requirements, scope |
 | `docs/HANDOFF.md` | How the next session continues |
+| **`prototype/tools.html`** | **What a configuration turns into**: three finished tools from very different configurations (credit file review, control test, bank reconciliation), each in its organization's brand, plus the creator's view of a published tool (use, shape, versions, who installed it) |
 | **`prototype/journey.html`** | **Start here.** The whole path in six live steps: build a tool (configuration on the left, the result on the right), package it as one file, list it for a niche, a buyer installs it and makes it theirs, their staff use and release it, an update arrives. Five unrelated tools from one engine, and every table in them is one primitive configured differently |
 | **`prototype/outputs.html`** | **What comes out, and the screens that produce it**: the signed workpaper, the workbook, the data feed and the quarter roll-up, shown as the files contain them, then five proposed screens (queue, testing a file, review, release, roll-up) |
 | `examples/` | The generator and the real files: PDF, .xlsx, CSV, JSON. See `examples/README.md` |
