@@ -20,9 +20,13 @@ from .methods import METHODS
 FIELD_TYPES = {"text", "longtext", "number", "date", "list", "choice"}
 MODES = {"required", "optional", "conditional"}
 OPS = {"mul", "pctof", "add", "sub", "div"}
+# lists the installation fills from its own people, so a tool never carries a stale list of names
+PEOPLE_LISTS = {"@preparers": "enter", "@reviewers": "approve"}
 
 KEYS = {
-    "pack": {"pack", "family", "org", "tool", "confirmations", "example"},
+    "pack": {"pack", "family", "org", "tool", "intake", "confirmations", "example"},
+    "intake": {"key", "fields", "assign", "tables"},
+    "intake.table": {"from", "cols"},
     "pack.pack": {"name", "version"},
     "org": {"name", "lists"},
     "tool": {"name", "subject", "sections"},
@@ -199,6 +203,25 @@ def check(data: dict, file="pack", text=None):
     for fid, b in fields.items():
         if "is" in b and b["is"] != "preparer":
             fail(f"tool.sections[?].blocks[{fid}].is", "a field can only be declared to be the preparer")
+    if "intake" in data:
+        it = data["intake"]
+        keys(it, "intake", "intake")
+        if not it.get("key"):
+            fail("intake.key", "say which column of the master list identifies each line")
+        for fid in (it.get("fields") or {}):
+            if fid not in fields:
+                fail(f"intake.fields.{fid}", f"'{fid}' is not a field in this tool")
+        for k in (it.get("assign") or {}):
+            if k not in ("preparer", "reviewer"):
+                fail(f"intake.assign.{k}", "a line can assign a preparer or a reviewer")
+        for gid, t in (it.get("tables") or {}).items():
+            keys(t, "intake.table", f"intake.tables.{gid}")
+            if gid not in grids or grids[gid]["rows"]["from"] != "entered":
+                fail(f"intake.tables.{gid}", f"'{gid}' is not a table with entered rows in this tool")
+            have = {c["key"] for c in grids[gid]["cols"].get("items") or []}
+            for ck in t.get("cols") or {}:
+                if ck not in have:
+                    fail(f"intake.tables.{gid}.cols.{ck}", f"table '{gid}' has no column '{ck}'")
     # references, now every id is known
     for i, s in enumerate(sections):
         sw = f"tool.sections[{i}]"
@@ -246,7 +269,7 @@ def _check_typed(b, where, lists, fail):
     t = b.get("type")
     if t not in FIELD_TYPES:
         fail(f"{where}.type", f"type must be one of {', '.join(sorted(FIELD_TYPES))}")
-    if t == "list" and b.get("list") not in lists:
+    if t == "list" and b.get("list") not in lists and b.get("list") not in PEOPLE_LISTS:
         fail(f"{where}.list", f"there is no list called '{b.get('list')}'")
     if t == "choice" and not b.get("opts"):
         fail(f"{where}.opts", "a choice needs its options")

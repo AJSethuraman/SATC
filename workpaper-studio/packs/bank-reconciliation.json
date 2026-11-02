@@ -220,6 +220,18 @@
    }
   ]
  },
+ "intake": {
+  "key": "line_id",
+  "fields": {
+   "account": "account",
+   "stmtdate": "statement_date",
+   "prep": "preparer"
+  },
+  "assign": {
+   "preparer": "preparer",
+   "reviewer": "reviewer"
+  }
+ },
  "confirmations": {
   "calc_rec": {
    "policy": 0,

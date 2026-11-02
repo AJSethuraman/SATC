@@ -892,6 +892,9 @@ def main():
     built = []
     for p in sorted(CONFIGS.glob("*.json")):
         cfg = json.loads(p.read_text()); cfg["_file"] = f"packs/{p.name}"
+        from .access import DEFAULT, actions_of     # a demonstration has no installation: use the default people
+        for name, action in {"@preparers": "enter", "@reviewers": "approve"}.items():
+            cfg["org"]["lists"].setdefault(name, [x for x in DEFAULT["people"] if action in actions_of(DEFAULT, x)])
         for fill_ in (False, True):
             if fill_ and "example" not in cfg:
                 continue

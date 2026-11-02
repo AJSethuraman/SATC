@@ -40,7 +40,7 @@ def test_reviewer_cannot_set_an_entry_over_http(app, studio):
     cid = studio.new_case("A. Rivera", "Bank reconciliation")
     r = call(app, "POST", f"/api/case/{cid}/set", {"path": "f/stmt", "value": "100"}, user="D. Patel")
     assert r["status"].startswith("403")
-    assert "Only a preparer" in json.loads(r["body"])["error"]
+    assert "does not let you enter" in json.loads(r["body"])["error"]
     assert studio.case(cid)["data"] == {}
 
 
@@ -118,3 +118,36 @@ def test_an_approver_can_see_a_tool_working_before_approving_it(app, studio):
     body = r["body"].decode()
     assert "Nothing here is saved" in body and "51.3%" in body and "disabled" in body
     assert len(studio.case_ids()) == before
+
+
+def test_access_is_edited_on_its_screen(app, studio):
+    page = call(app, "GET", "/access", user="M. Okafor")["body"].decode()
+    assert "What each level can do" in page and "Always true, whatever is ticked" in page
+    from workpaper_studio.ui import access_from_form
+    _, cur = studio.access()
+    form = {f"lv|{lv}|{a}": "on" for lv, acts in cur["levels"].items() for a in acts}
+    form.update({f"pp|{p}|{lv}": "on" for p, lvs in cur["people"].items() for lv in lvs})
+    form.update({"new_level": "QC lead", "lv|__new__|release": "on", "new_person": "Q. Lead", "pp|__new__|QC lead": "on", "note": "QC lead added"})
+    r = call(app, "POST", "/access", form, user="M. Okafor")
+    assert r["status"].startswith("303")
+    assert studio.can("Q. Lead", "release") and not studio.can("Q. Lead", "approve")
+    assert studio.can("A. Rivera", "enter")        # everyone else exactly as before
+    refused = call(app, "POST", "/access", form, user="A. Rivera")
+    assert refused["status"].startswith("400") and "does not let you change levels" in refused["body"].decode()
+
+
+def test_the_work_list_loads_from_its_screen_and_results_read_the_mart(app, studio, packs, tmp_path):
+    from workpaper_studio import demo
+    demo.write(app.data_dir)
+    home = call(app, "GET", "/", user="M. Okafor")["body"].decode()
+    assert "Work from the master database" in home and "Load the work list" in home
+    r = call(app, "POST", "/work/load", {"tool": "Credit file review"}, user="M. Okafor")
+    assert "4%20line" in r["headers"]["Location"]
+    home = call(app, "GET", "/?view=all", user="M. Okafor")["body"].decode()
+    assert "L-1001" in home and "2 refused" in home and "Bridge loan" in home
+    mine = call(app, "GET", "/?view=mine", user="J. Moss")["body"].decode()
+    assert "L-1002" in mine and "L-1001" not in mine
+    assert call(app, "GET", "/case/CFR-0001", user="J. Moss")["status"].startswith("403")
+    assert "Nothing has been released yet" in call(app, "GET", "/results", user="D. Patel")["body"].decode()
+    assert call(app, "GET", "/results/answers.csv", user="D. Patel")["status"].startswith("200")
+    assert call(app, "GET", "/results/nope.csv", user="D. Patel")["status"].startswith("404")

@@ -41,6 +41,9 @@ def main(argv=None):
 def demo(st):
     """The demonstration organization's setup: each pack proposed by the designer and approved by someone else, and
     the limits each pack's author recommends confirmed by the admin. Synthetic people, fictional limits."""
+    from .demo import write
+    write(Path(st.db_path).parent)
+    print("synthetic master database and sources.json written")
     good, bad = st.pack_files()
     for e in bad:
         print("REFUSED", e)

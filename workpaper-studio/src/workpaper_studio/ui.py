@@ -12,6 +12,7 @@ from .methods import blank
 from .workbook import FAMILIES, mix
 
 GROUND = "#E4E0D9"
+ADMIN_NAV = [("Cases", "/"), ("Results", "/results"), ("Settings", "/settings"), ("Access", "/access"), ("Tools", "/tools")]
 
 
 def family_vars(family):
@@ -205,37 +206,72 @@ this is a local tool for one organization, and the rules about who may do what a
     return page("Sign in · Workpaper Studio", body, band_title="Workpaper Studio", subtitle="Sign in")
 
 
-def home(st, user, cases, flash=""):
+def home(st, user, cases, flash="", q=None, sources_cfg=None):
+    """The worklist: what the master database sent, what is assigned to you, what waits for you. Filters, not a dashboard."""
+    q = q or {}
     roles = st.roles(user)
     pub = st.published()
-    nav = [("Cases", "/")] + ([("Settings", "/settings")] if roles & {"admin"} else [("Settings", "/settings")]) + [("Tools", "/tools")]
-    start = ""
-    if "preparer" in roles:
-        btns = "".join(f'<form method="post" action="/case/new" style="display:inline"><input type="hidden" name="tool" value="{E(t)}">'
-                       f'<button class="act" type="submit">New {E(t.lower())}</button></form> ' for t in sorted(pub))
-        start = f'<div class="strip"><span class="lab">Start a case</span>{btns or "<span class=hint>No tool has been approved yet. A designer proposes one on Tools and an approver approves it.</span>"}</div>'
-
-    def table(title, rows, empty):
-        if not rows:
-            return f'<h2>{E(title)}</h2><p class="hint">{E(empty)}</p>'
-        trs = "".join(f'<tr><td><a href="/case/{E(c["id"])}">{E(c["id"])}</a></td><td>{E(c["tool"])} {E(c["version"])}</td><td>{E(c["subject"])}</td>'
-                      f'<td>{E(c["status"])}</td><td>{_missing_txt(c)}</td><td>{_points_txt(c, user)}</td><td>{E(c["preparer"])}</td><td>{E(c["events"][-1]["at"])}</td></tr>' for c in rows)
-        return (f'<h2>{E(title)}</h2><table class="list"><tr><th>Case</th><th>Tool</th><th>Subject</th><th>Status</th><th>Still missing</th>'
-                f'<th>Open points</th><th>Preparer</th><th>Last change</th></tr>{trs}</table>')
-    mine = [c for c in cases if c["preparer"] == user and c["status"] != "Released"]
-    review = [c for c in cases if "reviewer" in roles and c["status"] in ("In review", "Approved") and c["preparer"] != user]
-    done = [c for c in cases if c["status"] == "Released"]
-    others = [c for c in cases if c not in mine and c not in review and c not in done]
+    cases = [c for c in cases if st.visible(user, c)]
     parts = []
-    if "preparer" in roles:
-        parts.append(table("Your cases", mine, "You have no open cases. Start one above."))
-    if "reviewer" in roles:
-        parts.append(table("Waiting for your review", review, "Nothing is waiting for you."))
-    parts.append(table("Other cases", others, "None."))
-    parts.append(table("Released", done, "Nothing released yet."))
-    fl = f'<div class="flash">{E(flash)}</div>' if flash else ""
-    body = f'<main id="main">{fl}{start}{"".join(parts)}</main>'
-    return page("Cases · Workpaper Studio", body, band_title="Workpaper Studio", subtitle="Cases", nav=nav, user=user, current="Cases")
+    if "load_work" in roles:
+        rows = ""
+        for t in sorted(pub):
+            src = (sources_cfg or {}).get(t)
+            has_intake = bool(st.stored_pack(pub[t]["fingerprint"]).data.get("intake"))
+            last = st.load_history(t)[:1]
+            summary = ""
+            if last:
+                L_ = last[0]
+                refused = "".join(f"<li><b>{E(l)}</b>: {E(r)}</li>" for l, r in L_["refused"])
+                summary = (f'{E(L_["at"])} by {E(L_["by"])}: {len(L_["loaded"])} loaded, {len(L_["skipped"])} already here, '
+                           f'<span class="{"warn-t" if L_["refused"] else ""}">{len(L_["refused"])} refused</span>' +
+                           (f'<details><summary>Why each was refused</summary><ul>{refused}</ul></details>' if refused else ""))
+            btn = (f'<form method="post" action="/work/load" class="inline"><input type="hidden" name="tool" value="{E(t)}"><button class="act" type="submit">Load the work list</button></form>'
+                   if src and has_intake else f'<span class="hint">{"No master database set up for this tool" if not src else "This tool does not say how to read a master list"}</span>')
+            rows += f'<tr><td>{E(t)}</td><td>{E(src and (src.get("path") or src.get("lines")) or "–")}</td><td>{btn}</td><td>{summary}</td></tr>'
+        parts.append(f'<h2>Work from the master database</h2><p class="hint">Each line the master database lists becomes a case, filled with what the database '
+                     f'already knows and assigned as it says. The master database is read, never written. A line that does not fit is refused with the reason.</p>'
+                     f'<table class="list"><tr><th>Tool</th><th>Source</th><th></th><th>Last load</th></tr>{rows}</table>')
+    if "start_case" in roles and pub:
+        btns = "".join(f'<form method="post" action="/case/new" style="display:inline"><input type="hidden" name="tool" value="{E(t)}">'
+                       f'<button class="act secondary" type="submit">New {E(t.lower())}</button></form> ' for t in sorted(pub))
+        parts.append(f'<div class="strip"><span class="lab">Or start one by hand</span>{btns}</div>')
+    view = q.get("view") or ("mine" if ("enter" in roles and "approve" not in roles) else "review" if "approve" in roles else "all")
+    tool, text, status = q.get("tool", ""), (q.get("q") or "").strip().lower(), q.get("status", "")
+
+    def keep(c):
+        if view == "mine" and c["preparer"] != user:
+            return False
+        if view == "review" and not (c["status"] in ("In review", "Approved") and c["preparer"] != user):
+            return False
+        if tool and c["tool"] != tool:
+            return False
+        if status and c["status"] != status:
+            return False
+        if text and text not in " ".join(str(x) for x in (c["id"], c.get("line_id") or "", c["subject"], c["preparer"])).lower():
+            return False
+        return True
+    shown = [c for c in cases if keep(c)]
+    tabs = [("mine", "Assigned to me"), ("review", "Waiting for review"), ("all", "Everything I can see")]
+    tabh = " ".join(f'<a class="act{"" if v == view else " secondary"}" href="/?view={v}">{E(lab)}</a>' for v, lab in tabs)
+    opts = lambda vals, cur: "".join(f'<option{" selected" if v == cur else ""}>{E(v)}</option>' for v in vals)
+    filt = (f'<form method="get" action="/" class="inline" style="margin:8px 0"><input type="hidden" name="view" value="{E(view)}">'
+            f'<select name="tool" aria-label="Tool" style="max-width:220px"><option value="">Every tool</option>{opts(sorted({c["tool"] for c in cases}), tool)}</select>'
+            f'<select name="status" aria-label="Status" style="max-width:160px"><option value="">Any status</option>{opts(["In progress", "Returned", "In review", "Approved", "Released"], status)}</select>'
+            f'<input name="q" aria-label="Search" placeholder="Line, case, subject or person" value="{E(q.get("q", ""))}" style="max-width:260px">'
+            f'<button class="act secondary" type="submit">Filter</button></form>')
+    if shown:
+        trs = "".join(f'<tr><td><a href="/case/{E(c["id"])}">{E(c["id"])}</a></td><td>{E(c.get("line_id") or "–")}</td><td>{E(c["tool"])} {E(c["version"])}</td>'
+                      f'<td>{E(c["subject"])}</td><td>{E(c["status"])}</td><td>{_missing_txt(c)}</td><td>{_points_txt(c, user)}</td>'
+                      f'<td>{E(c["preparer"])}</td><td>{E(c.get("assigned_reviewer") or "–")}</td><td>{E(c["events"][-1]["at"])}</td></tr>' for c in shown)
+        tbl = (f'<table class="list"><tr><th>Case</th><th>Line</th><th>Tool</th><th>Subject</th><th>Status</th><th>Still missing</th>'
+               f'<th>Open points</th><th>Preparer</th><th>Reviewer</th><th>Last change</th></tr>{trs}</table>')
+    else:
+        tbl = '<p class="hint">Nothing here.</p>'
+    parts.append(f'<h2>Cases</h2><div class="strip">{tabh}</div>{filt}{tbl}')
+    fl = f'<div class="flash{" good" if flash.startswith("Done.") else ""}">{E(flash)}</div>' if flash else ""
+    body = f'<main id="main">{fl}{"".join(parts)}</main>'
+    return page("Cases · Workpaper Studio", body, band_title="Workpaper Studio", subtitle="Cases", nav=ADMIN_NAV, user=user, current="Cases")
 
 
 def _points_txt(c, user):
@@ -278,7 +314,7 @@ def case_page(st, user, c, screen="Workpaper", flash=""):
 
 def case_main(st, user, c, screen, flash=""):
     roles = st.roles(user)
-    can_edit = "preparer" in roles and c["status"] in ("In progress", "Returned")
+    can_edit = "enter" in roles and c["status"] in ("In progress", "Returned")
     ev = c["eval"]
     good = flash.startswith("Done.")
     out = [f'<div id="flash" class="flash{" good" if good else ""}" role="alert"{"" if flash else " hidden"}>{E(flash)}</div>', strip(st, user, c)]
@@ -315,11 +351,11 @@ def strip(st, user, c):
     def a(label, action, secondary=False):
         return (f'<form method="post" action="/case/{E(cid)}/{action}" style="display:inline"><button class="act{" secondary" if secondary else ""}" '
                 f'type="submit">{E(label)}</button></form>')
-    if "preparer" in roles and c["status"] in ("In progress", "Returned") and user == c["preparer"]:
+    if "submit" in roles and c["status"] in ("In progress", "Returned") and user == c["preparer"]:
         acts.append(a("Submit for review", "submit"))
-    if "reviewer" in roles and c["status"] == "In review" and user != c["preparer"]:
+    if "approve" in roles and c["status"] == "In review" and user != c["preparer"]:
         acts += [a("Return to preparer", "return", True), a("Approve", "approve")]
-    if roles & {"reviewer", "admin"} and c["status"] == "Approved":
+    if "release" in roles and c["status"] == "Approved":
         acts.append(a("Release", "release"))
     tone = {"In progress": "plain", "Returned": "warn", "In review": "plain", "Approved": "ok", "Released": "ok", "Preview": "warn"}[c["status"]]
     head = (f'<span class="lab">Ready for review</span>{chip("Yes" if ready else "No", "ok" if ready else "warn")}' if c["status"] in ("In progress", "Returned") else "")
@@ -374,7 +410,7 @@ def _anchor(path):
 
 
 def control(c, defn, path, value, edit, missing=False, extra_cls=""):
-    lists = c["pack"].data["org"].get("lists", {})
+    lists = c.get("lists") or c["pack"].data["org"].get("lists", {})
     t = defn.get("type", "text")
     dis = "" if edit else " disabled"
     aid = _anchor(path)
@@ -544,10 +580,10 @@ def exceptions(st, user, c, b, k, can_edit):
     for e in exs:
         ack = f'Acknowledged by {E(e["ack"]["by"])}, {E(e["ack"]["at"])}' if e["ack"] else "Waiting for the reviewer to acknowledge it."
         btn = ""
-        if not e["ack"] and "reviewer" in roles and user != c["preparer"] and c["status"] == "In review":
+        if not e["ack"] and "acknowledge" in roles and user != c["preparer"] and c["status"] == "In review":
             btn = f'<form method="post" action="/case/{E(c["id"])}/ack" class="inline"><input type="hidden" name="id" value="{E(e["id"])}"><button class="act" type="submit">Acknowledge</button></form>'
         out += f'<div class="pt{" closed" if e["ack"] else ""}"><b>{E(e["reason"])}</b>. {E(e["note"])}<div class="meta">Recorded by {E(e["by"])}, {E(e["at"])}. {ack}</div>{btn}</div>'
-    if k["verdict"] == "Above limit" and "preparer" in roles and c["status"] in ("In progress", "Returned", "In review") and not exs:
+    if k["verdict"] == "Above limit" and "record_exception" in roles and c["status"] in ("In progress", "Returned", "In review") and not exs:
         reasons = c["pack"].data["org"]["lists"].get("Exception reasons", [])
         o = "".join(f"<option>{E(r)}</option>" for r in reasons)
         out += (f'<form method="post" action="/case/{E(c["id"])}/exception" class="inline"><input type="hidden" name="calc" value="{E(b["id"])}">'
@@ -559,14 +595,14 @@ def exceptions(st, user, c, b, k, can_edit):
 def points(st, user, c, s):
     pts = [p for p in c["points"].values() if p["section"] == s["id"]]
     roles = st.roles(user)
-    is_rev = "reviewer" in roles and user != c["preparer"]
+    is_rev = "raise_point" in roles and user != c["preparer"]
     if not pts and not (is_rev and c["status"] == "In review"):
         return ""
     out = '<div class="points">'
     for p in pts:
         reps = "".join(f'<div class="reply">{E(r["text"])}<div class="meta">{E(r["by"])}, {E(r["at"])}</div></div>' for r in p["replies"])
         acts = ""
-        if p["open"] and "preparer" in roles and user == c["preparer"]:
+        if p["open"] and "answer_point" in roles and user == c["preparer"]:
             acts += (f'<form method="post" action="/case/{E(c["id"])}/reply" class="inline"><input type="hidden" name="id" value="{E(p["id"])}">'
                      f'<textarea name="text" aria-label="Your answer to {E(p["id"])}" placeholder="Your answer"></textarea><button class="act" type="submit">Answer</button></form>')
         if p["open"] and is_rev:
@@ -627,6 +663,13 @@ def history_page(st, user, c):
         detail = ""
         if e["kind"] == "set":
             detail = f'{E(e["path"])}: {E(_s(e.get("old")))} → <b>{E(_s(e.get("new")))}</b>'
+        elif e["kind"] == "loaded":
+            detail = f'{E(e["path"])}: <b>{E(_s(e.get("new")))}</b> <span class="hint">from {E(e.get("source", "the master database"))}</span>'
+        elif e["kind"] == "created":
+            a = e.get("assigned") or {}
+            detail = (f'{E(e["tool"])} {E(e["version"])}, pack {E(e["fingerprint"])}, limits v{E(str(e["policy_version"]))}'
+                      + (f'; line {E(e["line_id"])} from {E(e.get("source", ""))}; assigned to {E(a.get("preparer") or "")}'
+                         + (f', reviewer {E(a["reviewer"])}' if a.get("reviewer") else "") if e.get("line_id") else ""))
         elif e["kind"] == "mark":
             detail = f'{E(e["path"])}: ' + (f'{"not applicable" if e["state"] == "na" else "excluded"} ({E(e.get("reason") or "")})' if e.get("state") else "cleared")
         else:
@@ -673,7 +716,7 @@ def settings_page(st, user, flash=""):
             confirmed = cur.get("confirmed")
             state = f'<span class="ok-t">Confirmed</span> by {E(cur.get("by", ""))}, {E(cur.get("date", ""))}' if confirmed else '<span class="warn-t">Not confirmed</span>'
             form = ""
-            if "admin" in roles:
+            if "set_limits" in roles:
                 form = (f'<form method="post" action="/settings" class="inline"><input type="hidden" name="tool" value="{E(tool)}"><input type="hidden" name="calc" value="{E(b["id"])}">'
                         f'<input name="limit" aria-label="Our limit" value="{E(shown(cur.get("limit", b["limit"])))}" style="width:90px">{"%" if pct else ""}'
                         f'<button class="act" type="submit">Confirm</button></form>')
@@ -686,7 +729,7 @@ def settings_page(st, user, flash=""):
             f'<table class="list"><tr><th>Tool</th><th>Limit</th><th>Method</th><th>Author recommends</th><th>Ours</th><th>State</th><th></th></tr>{rows}</table>'
             f'<h2>Versions</h2><table class="list"><tr><th>Version</th><th>When</th><th>Who</th><th>Change</th></tr>{hist}</table></main>')
     return page("Settings · Workpaper Studio", body, band_title="Settings", subtitle="Organization limits",
-                nav=[("Cases", "/"), ("Settings", "/settings"), ("Tools", "/tools")], user=user, current="Settings")
+                nav=ADMIN_NAV, user=user, current="Settings")
 
 
 def tools_page(st, user, flash=""):
@@ -699,11 +742,11 @@ def tools_page(st, user, flash=""):
         if not v:
             state = '<span class="warn-t">Not proposed</span>'
             act = (f'<form method="post" action="/tools/propose" class="inline"><input type="hidden" name="file" value="{E(p.file)}"><button class="act" type="submit">Propose for publishing</button></form>'
-                   if "designer" in roles else "")
+                   if "propose_tool" in roles else "")
         elif not v["approved_by"]:
             state = f'<span class="warn-t">Proposed</span> by {E(v["proposed_by"])}, waiting for an approver'
             act = (f'<form method="post" action="/tools/approve" class="inline"><input type="hidden" name="fp" value="{E(p.fingerprint)}"><button class="act" type="submit">Approve</button></form>'
-                   if "approver" in roles else "")
+                   if "approve_tool" in roles else "")
         else:
             state = f'<span class="ok-t">Published</span>: proposed by {E(v["proposed_by"])}, approved by {E(v["approved_by"])}'
             act = ""
@@ -720,7 +763,7 @@ def tools_page(st, user, flash=""):
             f'<table class="list"><tr><th>Tool</th><th>Version</th><th>Fingerprint</th><th>File</th><th>State</th><th></th></tr>{rows}</table>'
             f'<h2>Every version ever proposed</h2><table class="list"><tr><th>Tool</th><th>Fingerprint</th><th>Proposed</th><th>Approved</th></tr>{hist}</table></main>')
     return page("Tools · Workpaper Studio", body, band_title="Tools", subtitle="Tool packs, versions and approvals",
-                nav=[("Cases", "/"), ("Settings", "/settings"), ("Tools", "/tools")], user=user, current="Tools")
+                nav=ADMIN_NAV, user=user, current="Tools")
 
 
 def pack_page(st, user, p):
@@ -743,4 +786,108 @@ def pack_page(st, user, p):
             f'<a href="/tools/{E(p.file)}/preview">See it filled in with the pack’s example</a>.</p>'
             f'{"".join(out)}<h2>Lists</h2><table class="list"><tr><th>List</th><th>Values</th></tr>{lists}</table></main>')
     return page(f"{p.name} · Tools", body, family=p.data.get("family"), band_title=f"{p.name} {p.version}", subtitle="Pack outline",
-                nav=[("Cases", "/"), ("Settings", "/settings"), ("Tools", "/tools")], user=user, current="Tools")
+                nav=ADMIN_NAV, user=user, current="Tools")
+
+
+def access_page(st, user, flash=""):
+    from .access import ACTIONS, RULES
+    v, body = st.access()
+    edit = st.can(user, "manage_access")
+    levels, people = body["levels"], body["people"]
+    dis = "" if edit else " disabled"
+    head = "".join(f"<th>{E(lv)}</th>" for lv in levels) + ("<th>New level</th>" if edit else "")
+    rows = ""
+    for a, words in ACTIONS.items():
+        cells = "".join(f'<td style="text-align:center"><input type="checkbox" name="lv|{E(lv)}|{a}" aria-label="{E(lv)} may {E(words)}"'
+                        f'{" checked" if a in acts else ""}{dis} style="width:auto;min-height:0"></td>' for lv, acts in levels.items())
+        if edit:
+            cells += f'<td style="text-align:center"><input type="checkbox" name="lv|__new__|{a}" aria-label="New level may {E(words)}" style="width:auto;min-height:0"></td>'
+        rows += f"<tr><td>{E(words[0].upper() + words[1:])}</td>{cells}</tr>"
+    newlv = '<tr><td><b>Name of the new level</b></td>' + "<td></td>" * len(levels) + '<td><input name="new_level" aria-label="Name of the new level" placeholder="e.g. QC lead"></td></tr>' if edit else ""
+    prow = ""
+    for p, lvs in list(people.items()) + ([("__new__", [])] if edit else []):
+        name = (f'<input name="new_person" aria-label="New person" placeholder="Add a person">' if p == "__new__" else E(p))
+        cells = "".join(f'<td style="text-align:center"><input type="checkbox" name="pp|{E(p)}|{E(lv)}" aria-label="{E(p)} holds {E(lv)}"'
+                        f'{" checked" if lv in lvs else ""}{dis} style="width:auto;min-height:0"></td>' for lv in levels)
+        prow += f"<tr><td>{name}</td>{cells}</tr>"
+    rules = "".join(f'<label style="display:block;margin:4px 0"><input type="checkbox" name="rule|{k}"{" checked" if body.get("rules", {}).get(k) else ""}{dis} '
+                    f'style="width:auto;min-height:0"> {E(t)}</label>' for k, t in RULES.items())
+    hist = "".join(f'<tr><td>v{h["version"]}</td><td>{E(h["at"])}</td><td>{E(h["by"])}</td><td>{E(h["note"])}</td></tr>' for h in st.access_history())
+    fl = f'<div class="flash{" good" if flash.startswith("Done.") else ""}">{E(flash)}</div>' if flash else ""
+    save = '<p><input name="note" aria-label="What changed and why" placeholder="What changed, and why" style="max-width:520px"> <button class="act" type="submit">Save as a new version</button></p>' if edit else \
+        '<p class="hint">Only someone whose access includes changing levels can edit this.</p>'
+    body_html = (f'<main id="main">{fl}<form method="post" action="/access">'
+                 f'<h2>What each level can do</h2><p class="hint">These are this organization’s own levels. Tick what each may do. Version {v} is current; every change is kept.</p>'
+                 f'<table class="list"><tr><th>Action</th>{head}</tr>{rows}{newlv}</table>'
+                 f'<h2>Who holds which level</h2><table class="list"><tr><th>Person</th>{"".join(f"<th>{E(lv)}</th>" for lv in levels)}</tr>{prow}</table>'
+                 f'<h2>Extra rules</h2>{rules}'
+                 f'<h2>Always true, whatever is ticked</h2><ul class="hint"><li>Nobody reviews or approves a case they prepared or entered anything in.</li>'
+                 f'<li>Nobody approves a tool they proposed.</li><li>Every action is kept in the log; nothing is changed or removed.</li></ul>'
+                 f'{save}</form><h2>Versions</h2><table class="list"><tr><th>Version</th><th>When</th><th>Who</th><th>Change</th></tr>{hist}</table></main>')
+    return page("Access · Workpaper Studio", body_html, band_title="Access", subtitle="Levels, what they can do, and who holds them",
+                nav=ADMIN_NAV, user=user, current="Access")
+
+
+def access_from_form(form, current):
+    from .access import ACTIONS
+    levels = {lv: [] for lv in current["levels"]}
+    new_level = (form.get("new_level") or "").strip()
+    if new_level:
+        levels[new_level] = []
+    for k in form:
+        if k.startswith("lv|"):
+            _, lv, a = k.split("|", 2)
+            lv = new_level if lv == "__new__" else lv
+            if lv and lv in levels and a in ACTIONS:
+                levels[lv].append(a)
+    people = {p: [] for p in current["people"]}
+    new_person = (form.get("new_person") or "").strip()
+    if new_person:
+        people[new_person] = []
+    for k in form:
+        if k.startswith("pp|"):
+            _, p, lv = k.split("|", 2)
+            p = new_person if p == "__new__" else p
+            if p and p in people and lv in levels:
+                people[p].append(lv)
+    rules = {k.split("|", 1)[1]: True for k in form if k.startswith("rule|")}
+    return {"levels": levels, "people": people, "rules": {**{r: False for r in current.get("rules", {})}, **rules}}
+
+
+def results_page(st, user, db):
+    """Across released cases, from the data mart: where questions fail, why, and which results break their limits."""
+    from . import datamart
+    n = db.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
+    if not n:
+        body = '<main id="main"><h2>Results</h2><p class="hint">Nothing has been released yet. Each case joins the data mart when it is released.</p></main>'
+        return page("Results · Workpaper Studio", body, band_title="Results", subtitle="Across released cases", nav=ADMIN_NAV, user=user, current="Results")
+    by_tool = db.execute("SELECT tool, tool_version, COUNT(*) FROM cases GROUP BY tool, tool_version ORDER BY tool").fetchall()
+    tools = "".join(f"<tr><td>{E(t)}</td><td>{E(v)}</td><td>{k}</td></tr>" for t, v, k in by_tool)
+    qrows = db.execute("""SELECT c.tool, a.question, MAX(a.label), SUM(a.value_text='Effective'), SUM(a.value_text='Partially effective'),
+                          SUM(a.value_text='Not effective'), SUM(a.value_text='Not applicable'), SUM(a.state='not_applicable')
+                          FROM answers a JOIN cases c USING (case_id) WHERE a.question IS NOT NULL AND a.path LIKE '%/r'
+                          GROUP BY c.tool, a.question ORDER BY c.tool, a.question""").fetchall()
+    qt = "".join(f'<tr><td>{E(t)}</td><td>{E(qn)}</td><td>{E((lab or "").split(": ")[0][len(qn) + 1:])}</td><td>{e or 0}</td>'
+                 f'<td class="{"warn-t" if p_ else ""}">{p_ or 0}</td><td class="{"bad-t" if ne else ""}">{ne or 0}</td><td>{na or 0}</td><td>{cond or 0}</td></tr>'
+                 for t, qn, lab, e, p_, ne, na, cond in qrows)
+    why = db.execute("""SELECT r.case_id, c.line_id, r.question, r.value_text, cm.value_text FROM answers r JOIN cases c USING (case_id)
+                        LEFT JOIN answers cm ON cm.case_id = r.case_id AND cm.question = r.question AND cm.path LIKE '%/c'
+                        WHERE r.path LIKE '%/r' AND r.value_text IN ('Not effective','Partially effective') ORDER BY r.question, r.case_id""").fetchall()
+    wt = "".join(f'<tr><td><a href="/case/{E(cid)}">{E(cid)}</a></td><td>{E(lid or "–")}</td><td>{E(qn)}</td><td>{E(v)}</td><td>{E(cm or "")}</td></tr>' for cid, lid, qn, v, cm in why)
+    res = db.execute("SELECT method, verdict, COUNT(*) FROM results GROUP BY method, verdict ORDER BY method, verdict").fetchall()
+    rt = "".join(f"<tr><td>{E(m)}</td><td>{E(v)}</td><td>{k}</td></tr>" for m, v, k in res)
+    exc = db.execute("SELECT reason, COUNT(*) FROM exceptions GROUP BY reason ORDER BY COUNT(*) DESC").fetchall()
+    et = "".join(f"<tr><td>{E(r)}</td><td>{k}</td></tr>" for r, k in exc) or '<tr><td colspan="2" class="hint">None recorded.</td></tr>'
+    chg = db.execute("SELECT a.case_id, c.line_id, a.label, a.master_value, a.value_text FROM answers a JOIN cases c USING (case_id) WHERE a.changed_from_master = 1").fetchall()
+    ct = "".join(f'<tr><td><a href="/case/{E(cid)}">{E(cid)}</a></td><td>{E(lid or "–")}</td><td>{E(lab)}</td><td>{E(mv)}</td><td>{E(v)}</td></tr>' for cid, lid, lab, mv, v in chg) \
+        or '<tr><td colspan="5" class="hint">No released answer differs from what the master database sent.</td></tr>'
+    downloads = " ".join(f'<a class="act secondary" href="/results/{E(t)}.csv">{E(t)}</a>' for t in datamart.TABLES + datamart.views(db))
+    body = (f'<main id="main"><p class="hint">Built from the data mart: every released case, every answer with its state. Personal fields are masked here as everywhere they leave.</p>'
+            f'<h2>Released</h2><table class="list"><tr><th>Tool</th><th>Version</th><th>Cases</th></tr>{tools}</table>'
+            f'<h2>How each question was answered</h2><table class="list"><tr><th>Tool</th><th>#</th><th>Question</th><th>Effective</th><th>Partially</th><th>Not effective</th><th>Rated N/A</th><th>Did not apply</th></tr>{qt}</table>'
+            f'<h2>Why: every partially or not effective answer, with its comment</h2><table class="list"><tr><th>Case</th><th>Line</th><th>#</th><th>Rating</th><th>Comment</th></tr>{wt}</table>'
+            f'<h2>Results against limits</h2><table class="list"><tr><th>Method</th><th>Verdict</th><th>Cases</th></tr>{rt}</table>'
+            f'<h2>Exceptions by reason</h2><table class="list"><tr><th>Reason</th><th>Cases</th></tr>{et}</table>'
+            f'<h2>Answers that differ from the master database</h2><table class="list"><tr><th>Case</th><th>Line</th><th>Answer</th><th>Master said</th><th>Released</th></tr>{ct}</table>'
+            f'<h2>Take the data</h2><p class="hint">Each table and each tool’s one-row-per-case view, as CSV, for loading anywhere.</p><p>{downloads}</p></main>')
+    return page("Results · Workpaper Studio", body, band_title="Results", subtitle="Across released cases, from the data mart", nav=ADMIN_NAV, user=user, current="Results")

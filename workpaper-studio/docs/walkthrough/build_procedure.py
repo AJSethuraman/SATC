@@ -95,6 +95,9 @@ ROUTE = [("Tools", "propose · approve"), ("Settings", "confirm limit"), ("Workp
          ("Answer", "preparer replies"), ("Approve", "clear · approve"), ("Release", "files fingerprinted")]
 
 
+WHO = [("Designer, approver, admin", 0, 2), ("Preparer", 2, 5), ("Reviewer and preparer", 5, 7), ("Reviewer", 7, 9)]
+
+
 def md():
     out = ["# Procedure: a credit file review, from tool to released record", "",
            "*Walked through the screens on 2 November 2026. Synthetic people and data; the limit and the method are fictional demonstrations.*",
@@ -132,7 +135,7 @@ def route_svg():
                      + "".join(f'<text x="{x + bw / 2 - 9:.0f}" y="{96 + 13 * k}" fill="#3D3A35" font-size="11" text-anchor="middle">{E(t)}</text>' for k, t in enumerate(b.split(" · "))))
         if i < n - 1:
             parts.append(f'<path d="M{x + bw - 18:.0f} 49 l14 0 m-5 -5 l5 5 l-5 5" stroke="#8C857A" stroke-width="2" fill="none"/>')
-    who = [("Designer, approver, admin", 0, 2), ("Preparer", 2, 5), ("Reviewer and preparer", 5, 7), ("Reviewer", 7, 9)]
+    who = WHO
     for lab, a, b in who:
         x1, x2 = 10 + a * bw + 4, 10 + b * bw - 18
         parts.append(f'<path d="M{x1:.0f} 130 L{x2:.0f} 130" stroke="#CF9A33" stroke-width="3"/><text x="{(x1 + x2) / 2:.0f}" y="146" font-size="11" text-anchor="middle" fill="#8A5A00">{E(lab)}</text>')
@@ -166,8 +169,19 @@ img{max-width:100%;border:1px solid #BDB6A9;margin:6px 0;display:block}.meta{col
 
 
 def main():
-    MD.write_text(md())
-    HTML.write_text(html())
+    build(STEPS, ROUTE, SHOTS, MD, HTML, PDF, "A credit file review, from tool to released record",
+          "Four people take part: a <b>designer</b> who proposes the tool, an <b>approver</b> who approves it, an <b>admin</b> who confirms the organization's limit, "
+          "a <b>preparer</b> who completes the case, and a <b>reviewer</b> who reviews, approves and releases it. Nobody approves their own work.")
+
+
+def build(steps, route, shots, md_path, html_path, pdf_path, title, intro, who=None):
+    global STEPS, ROUTE, SHOTS, MD, HTML, PDF, WHO
+    WHO = who or WHO
+    STEPS, ROUTE, SHOTS, MD, HTML, PDF = steps, route, shots, md_path, html_path, pdf_path
+    MD.write_text(md().replace("# Procedure: a credit file review, from tool to released record", f"# Procedure: {title[0].lower() + title[1:]}"))
+    HTML.write_text(html().replace("<h1>A credit file review, from tool to released record</h1>", f"<h1>{E(title)}</h1>")
+                    .replace("<p>Four people take part: a <b>designer</b> who proposes the tool, an <b>approver</b> who approves it, an <b>admin</b> who confirms the organization's limit, "
+                             "a <b>preparer</b> who completes the case, and a <b>reviewer</b> who reviews, approves and releases it. Nobody approves their own work.</p>", f"<p>{intro}</p>"))
     chrome = shutil.which("chromium") or "/opt/pw-browsers/chromium"
     cands = [chrome] + [str(p) for p in Path("/opt/pw-browsers").glob("chromium*/chrome-linux*/chrome")]
     for c in cands:

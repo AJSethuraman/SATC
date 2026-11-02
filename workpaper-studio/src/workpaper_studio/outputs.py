@@ -7,6 +7,7 @@ receiving system's real format has not been supplied (DECISIONS D7), so treat it
 from __future__ import annotations
 
 import csv
+import json
 import io
 
 from .methods import blank
@@ -34,6 +35,21 @@ def feed(c):
                 values.append({"path": f"f/{b['id']}", "label": b["label"], "section": s["title"], "state": state,
                                "value": (mask(v) if b.get("personal") and not blank(v) else v), "masked": bool(b.get("personal")),
                                "reason": f.get("reason")})
+            elif b["kind"] == "grid" and ev["tables"][b["id"]]["questions"] is not None:
+                # every question is returned, answered or not, with why: the point is to see every result
+                t = ev["tables"][b["id"]]
+                rating, comment = t["cols"][0], (t["cols"][1] if len(t["cols"]) > 1 else None)
+                for r in t["rows"]:
+                    q = t["questions"][r["key"]]
+                    na = q["applies"] == "No" or sec["applies"] == "No"
+                    for col, v in ((rating, q["rating"]), (comment, q["comment"])):
+                        if col is None:
+                            continue
+                        st = ("not_applicable" if na else "waiting" if q["applies"] == "Waiting" else
+                              "entered" if not blank(v) else ("missing" if col is rating or q["need_comment"] else "blank"))
+                        values.append({"path": f"g/{b['id']}/{r['key']}/{col['key']}", "label": f"{r['key']} {r['def'].get('label', '')}: {col['label']}",
+                                       "section": s["title"], "question": r["key"], "group": r["def"].get("group"), "state": st,
+                                       "value": None if na else v, "masked": False, "reason": "condition not met" if q["applies"] == "No" else None})
             elif b["kind"] == "grid":
                 t = ev["tables"][b["id"]]
                 for r in t["rows"]:
@@ -47,10 +63,17 @@ def feed(c):
                         values.append({"path": f"g/{b['id']}/{r['key']}/{col['key']}", "label": f"{b['label']}: {r['label']}: {col['label']}",
                                        "section": s["title"], "state": "excluded" if r["excluded"] else ("calculated" if col.get("compute") else ("zero" if v == 0 else "entered")),
                                        "value": v, "masked": False, "reason": r["reason"]})
+    for v in values:   # where each value came from: the master database, unchanged or corrected, or entered here
+        m = c.get("master", {})
+        if v["path"] in m:
+            changed = v["value"] != (mask(m[v["path"]]) if v["masked"] else m[v["path"]])
+            v.update(source="master", changed_from_master=changed, master_value=(mask(m[v["path"]]) if v["masked"] else m[v["path"]]) if changed else None)
+        else:
+            v.update(source="entered" if v["state"] not in ("calculated",) else "calculated", changed_from_master=False, master_value=None)
     calcs = [{"id": k, "method": v["code"], "status": v["status"], "result": v["value"], "verdict": v["verdict"],
               "limit": v["limit"] if v["confirmed"] else None, "parts": v["parts"], "missing": v["missing"], "disclosures": v["disclosures"]}
              for k, v in ev["calcs"].items()]
-    return {"format": FEED_VERSION, "case": c["id"], "tool": c["tool"], "tool_version": c["version"], "pack_fingerprint": c["fingerprint"],
+    return {"format": FEED_VERSION, "case": c["id"], "line_id": c.get("line_id"), "tool": c["tool"], "tool_version": c["version"], "pack_fingerprint": c["fingerprint"],
             "policy_version": c["policy_version"], "status": c["status"], "preparer": c["preparer"], "approved_by": c["approved_by"],
             "released_by": c.get("released_by"), "released_at": c.get("released_at"),
             "sections": [{"id": s["id"], "title": s["title"], "status": s["status"]} for s in ev["sections"]],
@@ -71,6 +94,26 @@ def feed_csv(fd):
     return buf.getvalue()
 
 
+def wide_csv(c, fd):
+    """Every answer of one case in one row, columns in the pack's order: the shape the master table loads.
+    Built through the data mart's own view, so the file and the mart cannot disagree."""
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+    from . import datamart
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "one.db"
+        name = datamart.publish(p, c, fd)
+        db = sqlite3.connect(str(p))
+        names, rows = datamart.rows(db, f'SELECT * FROM "{name}"')
+        db.close()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(names)
+    w.writerows(rows)
+    return buf.getvalue()
+
+
 def workbook(c, path):
     """The case as the tool's workbook. Excluded rows are left out and values marked not applicable are left blank,
     because a workbook cell cannot carry a state; the About sheet lists both."""
@@ -78,7 +121,8 @@ def workbook(c, path):
     data = _without_excluded(c)
     notes = [f"{p}: {'not applicable' if s['state'] == 'na' else 'excluded'} ({s.get('reason')})" for p, s in sorted(c["states"].items())]
     conf = {k: {"policy": v["limit"], "confirmed": "Yes" if v["confirmed"] else "No", "by": v.get("by"), "date": v.get("date")} for k, v in c["policy"].items()}
-    pack = dict(c["pack"].data)
+    pack = json.loads(json.dumps(c["pack"].data))
+    pack["org"]["lists"] = c.get("lists") or pack["org"]["lists"]
     pack["_notes"] = notes
     pack["_case"] = c["id"]
     pack["_review"] = review_rows(c)

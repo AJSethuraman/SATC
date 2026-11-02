@@ -9,6 +9,12 @@ from workpaper_studio.engine import EntryError
 from workpaper_studio.service import Refused
 
 
+def give(st, person, levels):
+    v, body = st.access()
+    body["people"][person] = levels
+    st.set_access("M. Okafor", body, "test")
+
+
 def credit_case(st, packs, complete=True):
     cid = st.new_case("A. Rivera", "Credit file review")
     ex = json.loads(json.dumps(packs["credit-file-review"].data["example"]))
@@ -42,7 +48,7 @@ def test_blank_is_never_zero_and_bad_entries_are_refused(studio):
 
 def test_reviewer_cannot_change_an_entry(studio, packs):
     cid = credit_case(studio, packs)
-    with pytest.raises(Refused, match="Only a preparer"):
+    with pytest.raises(Refused, match="does not let you enter"):
         studio.set("D. Patel", cid, "f/borrower", "Changed by reviewer")
     with pytest.raises(Refused):
         studio.mark("D. Patel", cid, "f/scope", "na", "x")
@@ -58,9 +64,9 @@ def test_submission_needs_nothing_missing(studio, packs):
 def test_preparer_cannot_review_or_approve_own_case(studio, packs):
     cid = credit_case(studio, packs)
     studio.submit("A. Rivera", cid)
-    with pytest.raises(Refused, match="Only a reviewer"):
+    with pytest.raises(Refused, match="does not let you approve a case"):
         studio.approve("A. Rivera", cid)
-    studio.users["A. Rivera"] = ["preparer", "reviewer"]
+    give(studio, "A. Rivera", ["Preparer", "Reviewer"])
     with pytest.raises(Refused, match="You prepared this case"):
         studio.approve("A. Rivera", cid)
 
@@ -99,7 +105,7 @@ def test_open_review_point_blocks_approval(studio, packs):
     studio.raise_point("D. Patel", cid, "s2", "Item 4 is over 90 days old. Why is it still outstanding?")
     with pytest.raises(Refused, match="Review points"):
         studio.approve("D. Patel", cid)
-    with pytest.raises(Refused, match="Only a reviewer"):
+    with pytest.raises(Refused, match="does not let you clear a review point"):
         studio.clear_point("A. Rivera", cid, "P1")
     studio.reply_point("A. Rivera", cid, "P1", "Vendor confirmed it was lost; reissued in November.")
     studio.clear_point("D. Patel", cid, "P1")
@@ -167,12 +173,12 @@ def test_pack_approval_is_maker_checker(studio, tmp_path):
     d["pack"]["version"] = "2.1"
     p.write_text(json.dumps(d))
     fp = studio.propose("M. Okafor", "control-test.json")
-    with pytest.raises(Refused, match="Only a approver|Only an approver|Only a approver"):
+    with pytest.raises(Refused, match="does not let you approve a tool"):
         studio.approve_pack("M. Okafor", fp)
-    studio.users["M. Okafor"] = ["designer", "approver"]
+    give(studio, "M. Okafor", ["Tool designer", "Tool approver", "Admin"])
     with pytest.raises(Refused, match="You proposed this version.*K. Owens can"):
         studio.approve_pack("M. Okafor", fp)
-    with pytest.raises(Refused, match="Only a designer"):
+    with pytest.raises(Refused, match="does not let you propose a tool"):
         studio.propose("A. Rivera", "control-test.json")
 
 

@@ -22,17 +22,10 @@ import json
 import sqlite3
 from pathlib import Path
 
+from . import access as acc
 from . import engine
 from .pack import Pack, from_data, load_dir
 
-ROLES = ("preparer", "reviewer", "designer", "approver", "admin")
-DEMO_USERS = {
-    "A. Rivera": ["preparer"],
-    "J. Moss": ["preparer"],
-    "D. Patel": ["reviewer"],
-    "K. Owens": ["reviewer", "approver"],
-    "M. Okafor": ["designer", "admin"],
-}
 EDITABLE = ("In progress", "Returned")
 
 SCHEMA = """
@@ -43,8 +36,10 @@ CREATE TABLE IF NOT EXISTS policy (version INTEGER PRIMARY KEY, at TEXT, by TEXT
 CREATE TABLE IF NOT EXISTS events (case_id TEXT, seq INTEGER, at TEXT, actor TEXT, kind TEXT, body TEXT,
     PRIMARY KEY (case_id, seq));
 CREATE TABLE IF NOT EXISTS outputs (case_id TEXT, name TEXT, sha256 TEXT, at TEXT, PRIMARY KEY (case_id, name));
+CREATE TABLE IF NOT EXISTS access (version INTEGER PRIMARY KEY, at TEXT, by TEXT, body TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS loads (at TEXT, by TEXT, tool TEXT, source TEXT, report TEXT);
 """
-FREEZE = ["events", "packs", "pack_approvals", "policy", "outputs"]
+FREEZE = ["events", "packs", "pack_approvals", "policy", "outputs", "access", "loads"]
 
 
 class Refused(PermissionError):
@@ -56,11 +51,12 @@ def now():
 
 
 class Studio:
-    def __init__(self, db_path, packs_dir, users=None, out_dir=None):
+    def __init__(self, db_path, packs_dir, users=None, out_dir=None, mart_path=None):
         self.db_path = str(db_path)
         self.packs_dir = Path(packs_dir)
-        self.users = {k: list(v) for k, v in (users or DEMO_USERS).items()}
+        self._seed_people = users
         self.out_dir = Path(out_dir or Path(db_path).parent / "outputs")
+        self.mart_path = Path(mart_path or Path(db_path).parent / "datamart.db")
         self.db = sqlite3.connect(self.db_path, check_same_thread=False)
         self.db.executescript(SCHEMA)
         for t in FREEZE:
@@ -69,23 +65,66 @@ class Studio:
                                 f"BEGIN SELECT RAISE(ABORT, '{t} are append-only: nothing is changed or removed'); END")
         self.db.commit()
 
-    # ------------------------------------------------------------ people
-    def roles(self, user):
-        if user not in self.users:
-            raise Refused(f"{user!r} is not a person in this installation.")
-        return set(self.users[user])
+    # ------------------------------------------------------------ people and access (access.py)
+    def access(self, version=None):
+        q = "SELECT version, body FROM access " + ("WHERE version=?" if version else "ORDER BY version DESC LIMIT 1")
+        row = self.db.execute(q, (version,) if version else ()).fetchone()
+        if row:
+            return row[0], json.loads(row[1])
+        body = json.loads(json.dumps(acc.DEFAULT))
+        if self._seed_people:                       # an installation started with its own people list
+            body["people"] = {k: list(v) for k, v in self._seed_people.items()}
+        return 0, body
 
-    def need(self, user, role, doing):
-        if role not in self.roles(user):
-            who = [u for u, r in self.users.items() if role in r]
-            raise Refused(f"Only a {role} can {doing}. {', '.join(who) or 'Nobody'} can.")
+    def access_history(self):
+        return [dict(zip(("version", "at", "by", "note"), r)) for r in self.db.execute("SELECT version, at, by, note FROM access ORDER BY version DESC")]
+
+    def set_access(self, user, body, note=""):
+        self.need(user, "manage_access")
+        try:
+            acc.check(body)
+        except ValueError as e:
+            raise Refused(str(e)) from None
+        v, _ = self.access()
+        self.db.execute("INSERT INTO access VALUES (?,?,?,?,?)", (v + 1, now(), user, json.dumps(body, sort_keys=True), note or "Access changed"))
+        self.db.commit()
+        return v + 1
+
+    @property
+    def users(self):
+        """Person -> the levels they hold, as the organization last set them."""
+        return self.access()[1]["people"]
+
+    def actions(self, user):
+        _, body = self.access()
+        if user not in body["people"]:
+            raise Refused(f"{user!r} is not a person in this installation.")
+        return acc.actions_of(body, user)
+
+    def roles(self, user):          # kept for the screens: the actions a person may take
+        return self.actions(user)
+
+    def can(self, user, action):
+        return action in self.actions(user)
+
+    def holders(self, action, but=None):
+        _, body = self.access()
+        return [p for p in body["people"] if action in acc.actions_of(body, p) and p != but]
+
+    def need(self, user, action, doing=None):
+        if action not in self.actions(user):
+            who = self.holders(action)
+            raise Refused(f"Your access does not let you {acc.ACTIONS[action]}. " + (f"{', '.join(who)} can." if who else "Nobody's does; an admin can change that."))
+
+    def rule(self, name):
+        return bool(self.access()[1].get("rules", {}).get(name))
 
     # ------------------------------------------------------------ packs
     def pack_files(self):
         return load_dir(self.packs_dir)
 
     def propose(self, user, file_name):
-        self.need(user, "designer", "propose a tool for publishing")
+        self.need(user, "propose_tool")
         good, bad = self.pack_files()
         for e in bad:
             if e.file == file_name:
@@ -101,13 +140,13 @@ class Studio:
         return p.fingerprint
 
     def approve_pack(self, user, fp):
-        self.need(user, "approver", "approve a tool")
+        self.need(user, "approve_tool")
         row = self.db.execute("SELECT proposed_by FROM packs WHERE fingerprint=?", (fp,)).fetchone()
         if not row:
             raise Refused("That version has not been proposed.")
         if row[0] == user:
-            who = [u for u, r in self.users.items() if "approver" in r and u != user]
-            raise Refused(f"You proposed this version, so you cannot approve it. {', '.join(who) or 'Another approver'} can.")
+            who = self.holders("approve_tool", but=user)
+            raise Refused(f"You proposed this version, so you cannot approve it. {', '.join(who) or 'Another person with tool approval'} can.")
         if self.db.execute("SELECT 1 FROM pack_approvals WHERE fingerprint=?", (fp,)).fetchone():
             return
         self.db.execute("INSERT INTO pack_approvals VALUES (?,?,?)", (fp, user, now()))
@@ -145,10 +184,20 @@ class Studio:
         return [dict(zip(("version", "at", "by", "note"), r)) for r in self.db.execute("SELECT version, at, by, note FROM policy ORDER BY version DESC")]
 
     def confirm_limit(self, user, tool, calc_id, limit, confirmed=True):
-        self.need(user, "admin", "set the organization's limits")
+        self.need(user, "set_limits")
         v, body = self.policy()
         body = json.loads(json.dumps(body))
-        body.setdefault(tool, {})[calc_id] = {"limit": float(limit), "confirmed": bool(confirmed), "by": user, "date": datetime.date.today().isoformat()}
+        cur = body.get(tool, {}).get(calc_id) or {}
+        entry = {"limit": float(limit), "confirmed": bool(confirmed), "by": user, "date": datetime.date.today().isoformat()}
+        if confirmed and self.rule("two_person_limits"):
+            # the organization asked for a second person: the first proposes, a different person confirms the same value
+            if cur.get("proposed_by") and cur["proposed_by"] != user and cur.get("limit") == float(limit) and not cur.get("confirmed"):
+                entry["proposed_by"] = cur["proposed_by"]
+            else:
+                if cur.get("proposed_by") == user and not cur.get("confirmed") and cur.get("limit") == float(limit):
+                    raise Refused(f"You proposed this limit, so someone else confirms it. {', '.join(self.holders('set_limits', but=user)) or 'Another person who sets limits'} can.")
+                entry.update(confirmed=False, proposed_by=user)
+        body.setdefault(tool, {})[calc_id] = entry
         label, shown = calc_id, f"{limit:g}"
         pub = self.published().get(tool)
         if pub:
@@ -157,7 +206,7 @@ class Studio:
                     label = blk["limitLabel"]
                     shown = f"{float(limit) * 100:g}%" if blk["method"] in ("dti", "devrate") else f"${float(limit):,.2f}"
         self.db.execute("INSERT INTO policy VALUES (?,?,?,?,?)", (v + 1, now(), user, json.dumps(body, sort_keys=True),
-                                                                f"{tool}: {label} {'confirmed at' if confirmed else 'set to'} {shown}" + ("" if confirmed else ", not confirmed")))
+                                                                f"{tool}: {label} " + (f"confirmed at {shown}" if entry["confirmed"] else (f"proposed at {shown}, waiting for a second person" if entry.get("proposed_by") else f"set to {shown}, not confirmed"))))
         self.db.commit()
         return v + 1
 
@@ -177,7 +226,7 @@ class Studio:
 
     # ------------------------------------------------------------ cases
     def new_case(self, user, tool):
-        self.need(user, "preparer", "start a case")
+        self.need(user, "start_case")
         v = self.published().get(tool)
         if not v:
             raise Refused(f"{tool} has no approved version yet, so a case cannot be started with it.")
@@ -193,16 +242,22 @@ class Studio:
         evs = self.events(cid)
         if not evs:
             raise KeyError(cid)
-        c = {"id": cid, "data": {}, "states": {}, "status": "In progress", "points": {}, "exceptions": {}, "events": evs,
-             "preparer": evs[0]["actor"], "created_at": evs[0]["at"], "reviewer": None, "approved_by": None}
         first = evs[0]
+        assigned = first.get("assigned") or {}
+        c = {"id": cid, "data": {}, "states": {}, "status": "In progress", "points": {}, "exceptions": {}, "events": evs,
+             "preparer": assigned.get("preparer") or first["actor"], "assigned_reviewer": assigned.get("reviewer"),
+             "line_id": first.get("line_id"), "source": first.get("source"), "master": {},
+             "created_at": first["at"], "reviewer": None, "approved_by": None}
         c.update(tool=first["tool"], fingerprint=first["fingerprint"], version=first["version"], policy_version=first["policy_version"])
         pack = self.stored_pack(first["fingerprint"])
         c["pack"] = pack
+        c["lists"] = self.lists_for(pack)
         for e in evs[1:]:
             k = e["kind"]
-            if k == "set":
+            if k in ("set", "loaded"):
                 engine.set_value(pack, c["data"], e["path"], e["new"])
+                if k == "loaded":
+                    c["master"][e["path"]] = e["new"]
             elif k == "mark":
                 if e.get("state"):
                     c["states"][e["path"]] = {"state": e["state"], "reason": e.get("reason")}
@@ -259,8 +314,116 @@ class Studio:
                 return (v[0] + "•" * 4) if b.get("personal") else v
         return ""
 
+    # ------------------------------------------------------------ the work list (sources.py)
+    def loaded_lines(self, tool):
+        out = {}
+        for cid, body in self.db.execute("SELECT case_id, body FROM events WHERE kind='created'"):
+            b = json.loads(body)
+            if b.get("tool") == tool and b.get("line_id") is not None:
+                out[str(b["line_id"])] = cid
+        return out
+
+    def load_history(self, tool=None):
+        rows = self.db.execute("SELECT at, by, tool, source, report FROM loads ORDER BY at DESC").fetchall()
+        return [dict(at=a, by=b, tool=t, source=s_, **json.loads(r)) for a, b, t, s_, r in rows if tool in (None, t)]
+
+    def load_work(self, user, tool, sources_cfg, data_dir):
+        """Read the master database's lines for one tool and open a case for each new one, filled with what the
+        database already knows and assigned as it says. A line that does not fit is refused, whole, with the reason."""
+        from . import sources
+        self.need(user, "load_work")
+        pub = self.published().get(tool)
+        if not pub:
+            raise Refused(f"{tool} has no approved version, so nothing can be loaded into it.")
+        pack = self.stored_pack(pub["fingerprint"])
+        it = pack.data.get("intake")
+        if not it:
+            raise Refused(f"{tool} does not say how to read a master list (its pack has no intake).")
+        cfg = sources_cfg.get(tool)
+        if not cfg:
+            raise Refused(f"No master database is set up for {tool} in this installation (sources.json).")
+        try:
+            lines, children = sources.read(cfg, data_dir)
+        except sources.SourceError as e:
+            raise Refused(str(e)) from None
+        lists = self.lists_for(pack)
+        need_cols = [it["key"], *(it.get("fields") or {}).values(), *(it.get("assign") or {}).values()]
+        if lines:
+            lack = [col for col in need_cols if col not in lines[0]]
+            if lack:
+                raise Refused(f"The master list has no column {lack[0]!r}, which {tool} reads. Nothing was loaded.")
+        have = self.loaded_lines(tool)
+        seen, report = set(), {"loaded": [], "skipped": [], "refused": []}
+        pv, _ = self.policy()
+        for line in lines:
+            lid = str(line.get(it["key"]) or "").strip()
+            if not lid:
+                report["refused"].append(["(no id)", "the line has no id"]); continue
+            if lid in have:
+                report["skipped"].append(lid); continue
+            if lid in seen:
+                report["refused"].append([lid, "the id appears twice in the list"]); continue
+            seen.add(lid)
+            entries, problems = [], []
+            assigned = {k: (str(line.get(col) or "").strip() or None) for k, col in (it.get("assign") or {}).items()}
+            prep = assigned.get("preparer")
+            unknown_cols = set()
+            if not prep or prep not in self.users or not self.can(prep, "enter"):
+                problems.append(f"the assigned preparer {prep!r} is not a person here who can enter a case")
+                unknown_cols.add(it["assign"]["preparer"])
+            if assigned.get("reviewer") and assigned["reviewer"] not in self.users:
+                problems.append(f"the assigned reviewer {assigned['reviewer']!r} is not a person here")
+                unknown_cols.add(it["assign"]["reviewer"])
+            for fid, col in (it.get("fields") or {}).items():
+                if col in unknown_cols:          # already said once, as the assignment
+                    continue
+                try:
+                    v = engine.parse(pack.field(fid), line.get(col), lists)
+                except engine.EntryError as e:
+                    problems.append(f'{pack.field(fid)["label"]}: {e}'); continue
+                if v is not None:
+                    entries.append((f"f/{fid}", v))
+            for gid, t in (it.get("tables") or {}).items():
+                g = pack.grid(gid)
+                cols = {c["key"]: c for c in g["cols"]["items"]}
+                kids = [r for r in children.get(t["from"], []) if str(r.get(it["key"])) == lid]
+                for i, r in enumerate(kids):
+                    for ck, col in t["cols"].items():
+                        try:
+                            v = engine.parse(cols[ck], r.get(col), lists)
+                        except engine.EntryError as e:
+                            problems.append(f'{g["label"]} row {i + 1}, {cols[ck]["label"]}: {e}'); continue
+                        if v is not None:
+                            entries.append((f"g/{gid}/{i}/{ck}", v))
+            if problems:
+                report["refused"].append([lid, "; ".join(problems)]); continue
+            prefix = "".join(w[0] for w in tool.split()[:3]).upper()
+            cid = f"{prefix}-{1 + sum(1 for x in self.case_ids() if x.startswith(prefix + '-')):04d}"
+            src = f"master database ({sources.describe(cfg)}), line {lid}"
+            self.append(cid, user, "created", tool=tool, fingerprint=pub["fingerprint"], version=pub["version"], policy_version=pv,
+                        line_id=lid, source=src, assigned=assigned)
+            for path, v in entries:
+                self.append(cid, user, "loaded", path=path, new=v, source=src)
+            report["loaded"].append([lid, cid])
+        self.db.execute("INSERT INTO loads VALUES (?,?,?,?,?)", (now(), user, tool, sources.describe(cfg), json.dumps(report)))
+        self.db.commit()
+        return report
+
+    def lists_for(self, pack):
+        """The pack's lists, plus the ones filled from this organization's people as its access now stands."""
+        from .pack import PEOPLE_LISTS
+        out = dict(pack.data["org"].get("lists", {}))
+        for name, action in PEOPLE_LISTS.items():
+            out[name] = self.holders(action)
+        return out
+
+    def visible(self, user, c):
+        return self.can(user, "see_all") or user in (c["preparer"], c.get("assigned_reviewer"))
+
     def _editable(self, user, c):
-        self.need(user, "preparer", "change an entry")
+        self.need(user, "enter")
+        if not self.visible(user, c):
+            raise Refused(f"This case is assigned to {c['preparer']}.")
         if c["status"] not in EDITABLE:
             raise Refused(f"This case is {c['status'].lower()}, so its entries are locked." +
                           (" The reviewer can return it if something needs to change." if c["status"] == "In review" else ""))
@@ -269,7 +432,7 @@ class Studio:
         c = self.case(cid)
         self._editable(user, c)
         defn = engine.defn_for(c["pack"], path)
-        value = engine.parse(defn, text, c["pack"].data["org"].get("lists", {}))
+        value = engine.parse(defn, text, c["lists"])
         old = engine.get_value(c["pack"], c["data"], path)
         if old == value:
             return c
@@ -294,6 +457,7 @@ class Studio:
     def submit(self, user, cid):
         c = self.case(cid)
         self._editable(user, c)
+        self.need(user, "submit")
         ev = c["eval"]
         if ev["missing"]:
             raise Refused(f"{ev['missing']} item(s) are still missing. The release check lists each one.")
@@ -302,15 +466,18 @@ class Studio:
         self.append(cid, user, "submitted")
         return self.case(cid)
 
-    def _reviewer(self, user, c, doing):
-        self.need(user, "reviewer", doing)
-        if user == c["preparer"]:
-            others = [u for u, r in self.users.items() if "reviewer" in r and u != user]
-            raise Refused(f"You prepared this case, so you cannot review it. {', '.join(others)} can.")
+    def _reviewer(self, user, c, action):
+        """Rule 1, which no organization can remove: nobody reviews work they prepared or entered."""
+        self.need(user, action)
+        entered = any(e["actor"] == user and e["kind"] in ("set", "mark", "exception_recorded") for e in c["events"])
+        if user == c["preparer"] or entered:
+            others = self.holders(action, but=user)
+            why = "prepared" if user == c["preparer"] else "entered work in"
+            raise Refused(f"You {why} this case, so you cannot review it. {', '.join(others) or 'Someone else'} can.")
 
     def raise_point(self, user, cid, section, text):
         c = self.case(cid)
-        self._reviewer(user, c, "raise a review point")
+        self._reviewer(user, c, "raise_point")
         if c["status"] != "In review":
             raise Refused("Review points are raised while a case is in review.")
         if not text.strip():
@@ -321,7 +488,7 @@ class Studio:
 
     def reply_point(self, user, cid, pid, text):
         c = self.case(cid)
-        self.need(user, "preparer", "answer a review point")
+        self.need(user, "answer_point")
         if pid not in c["points"] or not text.strip():
             raise Refused("Write the answer to an existing point.")
         self.append(cid, user, "point_replied", id=pid, text=text.strip())
@@ -329,7 +496,7 @@ class Studio:
 
     def clear_point(self, user, cid, pid):
         c = self.case(cid)
-        self._reviewer(user, c, "clear a review point")
+        self._reviewer(user, c, "clear_point")
         if pid not in c["points"]:
             raise Refused("There is no such point.")
         self.append(cid, user, "point_cleared", id=pid)
@@ -337,7 +504,7 @@ class Studio:
 
     def return_case(self, user, cid):
         c = self.case(cid)
-        self._reviewer(user, c, "return a case")
+        self._reviewer(user, c, "return")
         if c["status"] != "In review":
             raise Refused("Only a case in review can be returned.")
         self.append(cid, user, "returned")
@@ -345,7 +512,7 @@ class Studio:
 
     def record_exception(self, user, cid, calc_id, reason, note):
         c = self.case(cid)
-        self.need(user, "preparer", "record an exception")
+        self.need(user, "record_exception")
         if c["status"] in ("Approved", "Released"):
             raise Refused("This case is approved; exceptions are recorded before approval.")
         calc = c["eval"]["calcs"].get(calc_id)
@@ -361,7 +528,7 @@ class Studio:
 
     def acknowledge(self, user, cid, eid):
         c = self.case(cid)
-        self._reviewer(user, c, "acknowledge an exception")
+        self._reviewer(user, c, "acknowledge")
         if eid not in c["exceptions"]:
             raise Refused("There is no such exception.")
         self.append(cid, user, "exception_acknowledged", id=eid)
@@ -369,7 +536,7 @@ class Studio:
 
     def approve(self, user, cid):
         c = self.case(cid)
-        self._reviewer(user, c, "approve a case")
+        self._reviewer(user, c, "approve")
         blockers = [x for x in self.release_check(c) if not x["ok"] and x["stage"] == "approve"]
         if c["status"] != "In review":
             raise Refused("Only a case in review can be approved.")
@@ -409,8 +576,7 @@ class Studio:
 
     def release(self, user, cid):
         c = self.case(cid)
-        if not (self.roles(user) & {"reviewer", "admin"}):
-            raise Refused("Only a reviewer or an admin can release a case.")
+        self.need(user, "release")
         if c["status"] == "Released":
             raise Refused("This case has already been released.")
         bad = [x for x in self.release_check(c) if not x["ok"]]
@@ -422,6 +588,8 @@ class Studio:
         c = dict(c, status="Released", released_by=user, released_at=at,     # the files describe the case as released
                  events=c["events"] + [{"seq": len(c["events"]) + 1, "at": at, "actor": user, "kind": "released"}])
         files = self.write_outputs(c, folder)
+        from . import datamart, outputs
+        datamart.publish(self.mart_path, c, outputs.feed(c))        # the same feed the files were written from
         for name, digest in files.items():
             self.db.execute("INSERT INTO outputs VALUES (?,?,?,?)", (cid, name, digest, now()))
         self.db.commit()
@@ -438,6 +606,7 @@ class Studio:
         feed = outputs.feed(c)
         (folder / f"{c['id']}.feed.json").write_text(json.dumps(feed, indent=1, sort_keys=True))
         (folder / f"{c['id']}.feed.csv").write_text(outputs.feed_csv(feed))
+        (folder / f"{c['id']}.answers-row.csv").write_text(outputs.wide_csv(c, feed))
         try:
             outputs.workbook(c, folder / f"{c['id']}.xlsx")
         except ImportError:

@@ -47,7 +47,7 @@ def parse(defn: dict, text, lists: dict):
         v = -v if neg else v
         if v < 0:
             raise EntryError("Enter 0 or more. A negative amount belongs in a different line.")
-        return int(v) if v == int(v) and "." not in s else v
+        return int(v) if v == int(v) else v     # 22500, 22500.0 and 22,500.00 are one value
     if kind == "date":
         for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
             try:

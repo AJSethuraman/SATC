@@ -125,3 +125,18 @@ The same scripts were walked again against an empty installation, and the proced
 - **The released workbook's admin sheets printed across several pages**, with columns split. Found while checking the Review sheet. Fixed: every admin sheet now prints one page wide, and Review rows are tall enough for their text.
 
 Still not walked: the same list as above.
+
+---
+
+## Third walk: master database to data mart (2 Nov 2026)
+
+Walked through the screens on a fresh installation with the synthetic master database. Procedure: `PROCEDURE-master-to-datamart.md` and its PDF. **Suite: 100 tests.**
+
+| # | Found | Status |
+|---|---|---|
+| 16 | The tool's fixed Testers and Reviewers lists did not match the people with access, so the first load refused real people. Found by the load itself, not by a test | **Fixed**: `@preparers` and `@reviewers` lists are filled from access (P19) |
+| 17 | A line naming an unknown preparer was refused twice over: once as a dropdown value, once as the assignment | **Fixed**: said once |
+| 18 | History showed a loaded value as raw internal fields, and the case's opening entry as a Python dictionary | **Fixed**: shown as *path: value, from the master database, line …* |
+| 19 | A master line that changes *after* it was loaded is not noticed: loading again only says "already here" | **Open, medium.** A load should compare and list what changed in the master since |
+| 20 | Where the master database is (`sources.json`) has no screen; it is a file beside the data | **Open, low** |
+| 21 | Results shows only released cases. That is right for the record, but a manager may want work in progress too | **Open, a decision** |

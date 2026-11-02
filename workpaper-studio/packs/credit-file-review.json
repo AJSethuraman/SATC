@@ -17,15 +17,6 @@
     "Not effective",
     "Not applicable"
    ],
-   "Testers": [
-    "A. Rivera",
-    "B. Chen",
-    "C. Okafor"
-   ],
-   "Reviewers": [
-    "D. Patel",
-    "E. Moreau"
-   ],
    "Quarter ends": [
     "2026-09-30",
     "2026-12-31",
@@ -68,7 +59,7 @@
       "label": "Tester",
       "type": "list",
       "req": true,
-      "list": "Testers",
+      "list": "@preparers",
       "is": "preparer"
      },
      {
@@ -91,7 +82,7 @@
       "label": "Reviewer",
       "type": "list",
       "req": true,
-      "list": "Reviewers"
+      "list": "@reviewers"
      },
      {
       "kind": "field",
@@ -530,6 +521,33 @@
     ]
    }
   ]
+ },
+ "intake": {
+  "key": "line_id",
+  "fields": {
+   "tester": "tester",
+   "reviewer": "reviewer",
+   "quarter": "quarter_end",
+   "scope": "scope",
+   "borrower": "borrower_name",
+   "security": "security",
+   "newmoney": "new_money"
+  },
+  "assign": {
+   "preparer": "tester",
+   "reviewer": "reviewer"
+  },
+  "tables": {
+   "facilities": {
+    "from": "facilities",
+    "cols": {
+     "ftype": "facility_type",
+     "frating": "risk_rating",
+     "commit": "commitment",
+     "out": "outstanding"
+    }
+   }
+  }
  },
  "confirmations": {
   "calc_dti": {

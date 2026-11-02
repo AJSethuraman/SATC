@@ -1,6 +1,6 @@
 # The data record: where work comes from and where it goes
 
-*Proposal, 2 November 2026, answering the owner:*
+*Proposal, 2 November 2026, answering the owner, and **built the same day** (status at the end):*
 
 > *"in my work version employees choose a linesheet from a list created by the master database loading into that excel sheet"*
 >
@@ -58,10 +58,16 @@ From the same work list, **Download as workbook** gives the generated workbook, 
 
 | | |
 |---|---|
-| Built | Cases pinned to versions; the event log; released feed (values with states, as JSON and CSV) and workbook, fingerprinted; personal fields masked |
-| Not built | Loading a work list; line ids; assignment and the filtered worklist; the wide-row and events files; the folder drop; workbook upload |
+| Built (2 Nov 2026) | **In:** the work list read from the master database (a read-only SQLite connection, standing in for any SQL database, or CSV files), mapped by each pack's `intake`, refused line by line with reasons, each line a case pinned and assigned, every loaded value logged as *loaded* with its source, corrections logged and carried as changed-from-master. **Worklist:** Assigned to me / Waiting for review / Everything I can see, filtered by tool, status and text. **Out:** every answer (every question, answered or not, with its state); the one-row `answers-row.csv` at release; the **data mart** (`datamart.db`: cases, answers, results, exceptions, review points, actions, plus one generated wide view per tool version), append-only and de-identified; a **Results** screen reading it, with CSV downloads of every table and view |
+| Not built | A live connection to a server database (the reader is SQLite and CSV; another driver is one function); noticing a master line that changed after it was loaded; a screen for `sources.json`; workbook upload |
 
-## Questions for the owner
+## Answers from the owner, 2 Nov 2026
+
+1. *"the excel file queries the db, which is simple to understand as excel but it does not to be in excel. i understand that excel is not necessarily the best for multiple users"*. Studio now reads the master database itself, read-only, and nobody has to open a workbook to get their list.
+2. *"The feed has to return all answers - the point is to easily see results and it also allows for checks on the outside stuff is done in addition to route cause analysis"*. Every answer is returned, with its state and where it came from. The Results screen shows the root-cause list (every partially or not effective answer, with its comment).
+3. On the data mart: *"this is what we are deciding. it does not need to work exactly like work it should work better if possible"*. **Recommended and built:** Studio holds the record and publishes into a separate mart. The master table's one-row-per-case shape is a **view** generated from the pack, so it cannot drift from the answers. A loader can take the CSVs anywhere.
+
+## Questions the owner has answered (above), kept for the record
 
 1. **What does the master database hand over today?** A file export the sheet opens, or does the sheet query the database itself? This decides whether "in" is a file Studio reads or something that has to be connected.
 2. **What goes back, and in what shape?** Is it the wide row the feed tabs build? The real column list (the feed-schema tab, which was not in the photos) is the format to match.

@@ -75,3 +75,17 @@ The register still lists them as open. **They need the owner's yes.**
 - the feed's real format (D7).
 
 **Run.** `PYTHONPATH=src python -m workpaper_studio serve`, then open port 5077. Port 5060 is blocked by browsers, so do not use it.
+
+## Added: access, the master work list, and the data mart (2 Nov 2026)
+The owner asked for:
+- access the organization defines (R17);
+- work that comes from the master database, as in their work version;
+- a feed that returns every answer and also feeds a data mart (R18).
+
+They invited a better design than the work version (*"it should work better if possible"*). What was built:
+- **`access.py`**: the organization's levels and the Access screen. The two rules no organization can remove are enforced in `service.py`.
+- **`sources.py`, plus `intake` in packs**: the work list is read, read-only, from SQLite or CSV.
+- **`datamart.py`**: the data mart, plus the Results screen.
+- **`demo.py`**: writes a synthetic master database with two lines that are wrong on purpose.
+
+Read `DATA-RECORD.md` for the whole design, and the second procedure PDF to see it working. Open: findings 19–21 in `WALKTHROUGH-DEFECTS.md`.

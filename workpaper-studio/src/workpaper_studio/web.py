@@ -16,7 +16,7 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote
 
-from . import outputs, ui
+from . import datamart, outputs, sources, ui
 from .engine import EntryError
 from .service import Refused, Studio
 
@@ -24,8 +24,9 @@ LOCK = threading.RLock()
 
 
 class App:
-    def __init__(self, studio: Studio, secret: bytes):
+    def __init__(self, studio: Studio, secret: bytes, data_dir=None):
         self.st, self.secret = studio, secret
+        self.data_dir = Path(data_dir or Path(studio.db_path).parent)
 
     # session -------------------------------------------------------
     def sign(self, user):
@@ -91,7 +92,24 @@ class App:
         msg = q.get("msg", "")
         if path == "/":
             cases = [st.case(cid) for cid in st.case_ids()]
-            return self.html(ui.home(st, user, cases, msg))
+            return self.html(ui.home(st, user, cases, msg, q, sources.configured(self.data_dir)))
+        if path == "/work/load" and method == "POST":
+            try:
+                rep = st.load_work(user, f.get("tool", ""), sources.configured(self.data_dir), self.data_dir)
+                return self.flash_to("/?view=all", f"Done. {len(rep['loaded'])} line(s) loaded, {len(rep['skipped'])} already here, {len(rep['refused'])} refused.")
+            except Refused as e:
+                return self.flash_to("/?view=all", str(e))
+        if path == "/results":
+            return self.html(ui.results_page(st, user, datamart.connect(st.mart_path)))
+        if path.startswith("/results/") and path.endswith(".csv"):
+            name = path[len("/results/"):-4]
+            db = datamart.connect(st.mart_path)
+            if name not in datamart.TABLES + datamart.views(db):
+                raise KeyError(name)
+            names, rows = datamart.rows(db, f'SELECT * FROM "{name}"')
+            import csv, io
+            buf = io.StringIO(); w = csv.writer(buf); w.writerow(names); w.writerows(rows)
+            return "200 OK", [("Content-Type", "text/csv"), ("Content-Disposition", f'attachment; filename="{name}.csv"')], buf.getvalue().encode()
         if path == "/settings":
             if method == "POST":
                 try:
@@ -106,6 +124,15 @@ class App:
                 except (Refused, ValueError) as e:
                     return self.html(ui.settings_page(st, user, str(e) if isinstance(e, Refused) else "Enter the limit as a number."), "400 Bad Request")
             return self.html(ui.settings_page(st, user, msg))
+        if path == "/access":
+            if method == "POST":
+                try:
+                    v, cur = st.access()
+                    st.set_access(user, ui.access_from_form(f, cur), f.get("note", ""))
+                    return self.flash_to("/access", "Done. Access saved as a new version.")
+                except Refused as e:
+                    return self.html(ui.access_page(st, user, str(e)), "400 Bad Request")
+            return self.html(ui.access_page(st, user, msg))
         if path == "/tools":
             return self.html(ui.tools_page(st, user, msg))
         if path.startswith("/tools/") and path.endswith("/preview") and method == "GET":
@@ -144,6 +171,9 @@ class App:
             parts = path.split("/")
             cid = parts[2]
             c = st.case(cid)
+            if not st.visible(user, c):
+                return self.html(ui.page("Not yours", f'<main id="main"><div class="flash">This case is assigned to {ui.E(c["preparer"])}. Your access shows only your own cases.</div></main>',
+                                         band_title="Not yours", user=user, nav=ui.ADMIN_NAV), "403 Forbidden")
             sub = parts[3] if len(parts) > 3 else ""
             if method == "POST":
                 return self.case_action(user, c, sub, f)
@@ -260,7 +290,7 @@ def make_app(data_dir, packs_dir, users=None):
     if not sec.exists():
         sec.write_bytes(secrets.token_bytes(32))
     st = Studio(data_dir / "studio.db", packs_dir, users)
-    return App(st, sec.read_bytes())
+    return App(st, sec.read_bytes(), data_dir)
 
 
 def serve(app, host="127.0.0.1", port=5077):
