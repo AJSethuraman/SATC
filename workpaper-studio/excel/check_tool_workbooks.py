@@ -57,6 +57,7 @@ for p in sorted(OUT.glob("*.xlsx")):
         eq(n + " missing", V("Missing"), 2)
     if n == "Credit file review - blank tool.xlsx":
         eq(n + " DTI", V("Result_calc_dti"), "Not calculated")
+        eq(n + " part-built income withheld", V("Calc_calc_dti_Monthly_income"), "Not calculated")
         eq(n + " supporting", V("Status_s4"), "Optional")
         eq(n + " verdict", V("Verdict_calc_dti"), "Not tested: limit not confirmed")
         eq(n + " ready", V("Ready"), "No")

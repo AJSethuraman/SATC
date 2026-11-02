@@ -2,11 +2,13 @@
 
 A tool's configuration (the builder's "As data") goes in; a working `.xlsx` comes out. No macros.
 
-**Design language** (taken from the owner's own linesheet, 1 Nov 2026): a navy title band with buttons between screens (links, not macros), no gridlines and no row or column headers, a grey canvas, detail panels side by side with labels right-aligned against tinted input boxes, large navy section headings, each question in its own box with a rating box and a large comment box, and supporting analysis on its own screen. Excel is the engine; it should not look like a spreadsheet.
+**Design: "Paper"** (2 Nov 2026), specified in `../design/paper/` (open `Paper System.html`; its Build sheet is the spec). It replaced a first pass in the owner's linesheet style, which the firm rejected as *"thick rows, thick fonts, super blocky"*. A soft stone ground, lighter paper cards, inset paper-white fields with a small gap between them, flat recessed computed cells, header bars in the tool's colour family (credit navy, reconciliation forest, control test teal; set by `family` in the config), and colour used only for a state: amber required and empty, green complete or within limit, red above limit, grey not applicable. A part-built figure reads *Not calculated*, never $0. Each logical column is a wide column plus a narrow spacer so fields never touch, and two ground gutters split the width into thirds so side-by-side cards float apart.
+
+**Not yet checked:** the files have only been opened in LibreOffice, never Microsoft Excel. The design package says to build one screen in Excel first and check the field gaps and the bevel borders. Not built from the design: the *excluded* state (no configuration uses it yet) and the *Rate this* hint inside an empty rating (Excel cannot show text in an empty cell through formatting alone).
 
 ```bash
 python3 workpaper-studio/excel/build_tool_workbook.py     # configs/*.json -> out/*.xlsx (blank tool + filled example)
-python3 workpaper-studio/excel/check_tool_workbooks.py    # LibreOffice recalculates; 29 checks, read by defined name so the layout can change freely
+python3 workpaper-studio/excel/check_tool_workbooks.py    # LibreOffice recalculates; 30 checks, read by defined name so the layout can change freely
 ```
 
 | Sheet | What it does |
