@@ -17,7 +17,7 @@
 | D7 | Output feed format | Needs the receiving system's owner | None until supplied. Mock is `workpaper-feed/0.1-draft`, **unverified** | OPEN, external | Slice 3 feed |
 | D8 | Evidence | References only · store files | **References only** | DEFAULT | Storage |
 | D9 | Storage and backup | Local single file · server database | **Local single file; backup owner named at install** | DEFAULT | Slice 0 |
-| D10 | Name; where work is logged | — | Working title "Workpaper Studio"; project log in `docs/`; one-line pointer in `CLAUDE.md` | DEFAULT | Naming |
+| D10 | Name; where work is logged | The owner, 2 Nov 2026: *"workpaper studio is a good name for this - at least some sort of studio sounds good"* | **"Workpaper Studio" is accepted.** "Studio" is settled; the first word may still change. Project log in `docs/`; one-line pointer in `CLAUDE.md` | CONFIRMED | Naming |
 | D11 | Does evidence staleness block or warn | Block · warn | **Warn** (prototype). Organization could choose per document kind | OPEN | Release check |
 | D12 | Workbook export: live formulas or values | Formulas · values · both | **Values plus a formulas sheet**; needs your view on auditor expectations | OPEN | Slice 3 |
 | D13 | Review routing by rule (C8/C12) | One review always · route by exception | **Route by exception**, built later | OPEN | Stages |

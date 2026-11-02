@@ -1,4 +1,4 @@
-# Workpaper Studio (working title)
+# Workpaper Studio
 
 A configurable tool for structured workpapers and linesheets: an organization defines a review once from tested building blocks; its people complete, review and release it as a traceable record. Deterministic. No AI in the product.
 
