@@ -10,6 +10,12 @@
    "Yes / No": [
     "Yes",
     "No"
+   ],
+   "Exception reasons": [
+    "Compensating strength documented",
+    "Approved by a higher authority",
+    "Policy exception on file",
+    "Other (explained in the note)"
    ]
   }
  },
@@ -26,7 +32,8 @@
       "id": "account",
       "label": "Account",
       "type": "text",
-      "req": true
+      "req": true,
+      "personal": true
      },
      {
       "kind": "field",
@@ -136,7 +143,12 @@
       "method": "recon",
       "code": "REC-DEMO 1.0",
       "limit": 0,
-      "limitLabel": "Largest allowed difference"
+      "limitLabel": "Largest allowed difference",
+      "inputs": {
+       "items": "items",
+       "bank": "stmt",
+       "books": "gl"
+      }
      }
     ]
    },
@@ -215,7 +227,7 @@
   }
  },
  "example": {
-  "account": "Operating \u00b7\u00b74821",
+  "account": "Operating ··4821",
   "stmtdate": "2026-10-31",
   "stmt": 185600.55,
   "gl": 173545.35,

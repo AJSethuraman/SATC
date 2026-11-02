@@ -44,6 +44,12 @@
     "Inventory",
     "Equipment",
     "Real estate"
+   ],
+   "Exception reasons": [
+    "Compensating strength documented",
+    "Approved by a higher authority",
+    "Policy exception on file",
+    "Other (explained in the note)"
    ]
   }
  },
@@ -126,7 +132,8 @@
       "id": "borrower",
       "label": "Borrower name",
       "type": "text",
-      "req": true
+      "req": true,
+      "personal": true
      },
      {
       "kind": "field",
@@ -488,7 +495,12 @@
       "method": "dti",
       "code": "DTI-DEMO 1.0",
       "limit": 0.4,
-      "limitLabel": "Highest debt-to-income"
+      "limitLabel": "Highest debt-to-income",
+      "inputs": {
+       "income": "income",
+       "debts": "debts",
+       "proposed": "proposed"
+      }
      }
     ],
     "screen": "Analysis"

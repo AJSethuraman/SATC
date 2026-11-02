@@ -91,6 +91,11 @@ jobs:
           # window under xvfb and compares its workbook to the command line's. A SKIP fails in CI.
           - project: loan-survival
             install: pip install pytest pandas numpy openpyxl scipy statsmodels matplotlib
+          # Workpaper Studio: configured review tools as a local, standard-library web app. Its parity test
+          # recalculates exported workbooks in LibreOffice and compares every status and result with the engine;
+          # in CI that test refuses to skip (a skipped check is not a passed one), so LibreOffice is installed below.
+          - project: workpaper-studio
+            install: pip install -e ".[test]"
     defaults:
       run:
         working-directory: ${{ matrix.project }}
@@ -114,7 +119,7 @@ jobs:
       # python3-uno lets a test sort a built book as the filter arrows do (tests/unosort.py, run with the system
       # Python); pdftotext reads off a printed page what the p-value column shows
       - name: LibreOffice, to calculate the workbook's formulas
-        if: matrix.project == 'pocketbook'
+        if: matrix.project == 'pocketbook' || matrix.project == 'workpaper-studio'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-calc python3-uno poppler-utils
 
       - name: Xvfb, so the Loan Survival window can be opened and checked

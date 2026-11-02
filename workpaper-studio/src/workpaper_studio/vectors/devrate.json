@@ -1,0 +1,326 @@
+{
+ "method": "devrate",
+ "note": "Fictional demonstration vectors. Each names the behaviour it pins.",
+ "vectors": [
+  {
+   "name": "two exceptions in twenty-five",
+   "inputs": {
+    "rows": [
+     {
+      "label": "Item 1",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 2",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 3",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 4",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 5",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 6",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 7",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 8",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 9",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 10",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 11",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 12",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 13",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 14",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 15",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 16",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 17",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 18",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 19",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 20",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 21",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 22",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 23",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 24",
+      "attrs": [
+       "Exception",
+       "Pass",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 25",
+      "attrs": [
+       "Pass",
+       "Exception",
+       "Exception"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.08,
+    "missing": 0
+   }
+  },
+  {
+   "name": "a half-marked item blocks",
+   "inputs": {
+    "rows": [
+     {
+      "label": "Item 1",
+      "attrs": [
+       "Pass",
+       "",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 2",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1
+   }
+  },
+  {
+   "name": "nothing tested is not a zero rate",
+   "inputs": {
+    "rows": [
+     {
+      "label": "Item 1",
+      "attrs": [
+       "",
+       "",
+       ""
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 0
+   }
+  },
+  {
+   "name": "excluded item is left out and disclosed",
+   "inputs": {
+    "rows": [
+     {
+      "label": "Item 1",
+      "attrs": [
+       "Exception",
+       "Pass",
+       "Pass"
+      ],
+      "excluded": true,
+      "reason": "voided payment"
+     },
+     {
+      "label": "Item 2",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.0,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "left out"
+   }
+  },
+  {
+   "name": "N/A as an attribute answer counts as tested, not an exception",
+   "inputs": {
+    "rows": [
+     {
+      "label": "Item 1",
+      "attrs": [
+       "Pass",
+       "N/A",
+       "Pass"
+      ]
+     },
+     {
+      "label": "Item 2",
+      "attrs": [
+       "Pass",
+       "Pass",
+       "Pass"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.0,
+    "missing": 0
+   }
+  }
+ ]
+}

@@ -1,0 +1,438 @@
+{
+ "method": "dti",
+ "note": "Fictional demonstration vectors. Each names the behaviour it pins.",
+ "vectors": [
+  {
+   "name": "all entered",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Owner salary",
+      "amount": 96000,
+      "per": "Annual"
+     },
+     {
+      "label": "Income 2",
+      "source": "Rental",
+      "amount": 1450,
+      "per": "Monthly"
+     },
+     {
+      "label": "Income 3",
+      "source": "Spouse wages",
+      "amount": 3200,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [
+     {
+      "label": "Debt 1",
+      "creditor": "Auto loan",
+      "payment": 612
+     },
+     {
+      "label": "Debt 2",
+      "creditor": "Credit card",
+      "payment": 95
+     },
+     {
+      "label": "Debt 3",
+      "creditor": "Student loan",
+      "payment": 0
+     }
+    ],
+    "proposed": {
+     "state": "entered",
+     "value": 5780
+    }
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.512806324110672,
+    "missing": 0,
+    "disclosures": 1
+   }
+  },
+  {
+   "name": "missing rental amount blocks the result",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Owner salary",
+      "amount": 96000,
+      "per": "Annual"
+     },
+     {
+      "label": "Income 2",
+      "source": "Rental",
+      "amount": "",
+      "per": "Monthly"
+     },
+     {
+      "label": "Income 3",
+      "source": "Spouse wages",
+      "amount": 3200,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [
+     {
+      "label": "Debt 1",
+      "creditor": "Auto loan",
+      "payment": 612
+     },
+     {
+      "label": "Debt 2",
+      "creditor": "Credit card",
+      "payment": 95
+     },
+     {
+      "label": "Debt 3",
+      "creditor": "Student loan",
+      "payment": 0
+     }
+    ],
+    "proposed": {
+     "state": "entered",
+     "value": 5780
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "Rental\" amount is missing"
+   }
+  },
+  {
+   "name": "missing period blocks",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Owner salary",
+      "amount": 96000,
+      "per": ""
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": 5780
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1
+   }
+  },
+  {
+   "name": "a row missing both amount and period is one problem",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Owner salary",
+      "amount": "",
+      "per": ""
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": 1
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1
+   }
+  },
+  {
+   "name": "zero debt payment counts and is disclosed",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 120000,
+      "per": "Annual"
+     }
+    ],
+    "debts": [
+     {
+      "label": "Debt 1",
+      "creditor": "Student loan",
+      "payment": 0
+     }
+    ],
+    "proposed": {
+     "state": "entered",
+     "value": 1000
+    }
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.1,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "counted as zero"
+   }
+  },
+  {
+   "name": "proposed payment not applicable is rejected",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 120000,
+      "per": "Annual"
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "na",
+     "reason": "no new money"
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "not applicable"
+   }
+  },
+  {
+   "name": "excluded income row is left out and disclosed",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 120000,
+      "per": "Annual"
+     },
+     {
+      "label": "Income 2",
+      "source": "Bonus",
+      "amount": 50000,
+      "per": "Annual",
+      "excluded": true,
+      "reason": "not recurring"
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": 2000
+    }
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.2,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "left out"
+   }
+  },
+  {
+   "name": "no income at all",
+   "inputs": {
+    "income": [],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": 100
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1
+   }
+  },
+  {
+   "name": "income of zero gives no ratio, never a pass",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 0,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": 100
+    }
+   },
+   "expect": {
+    "status": "no_result",
+    "value": null,
+    "missing": 0,
+    "disclosures": 1
+   }
+  },
+  {
+   "name": "blank debt payment blocks",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 10000,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [
+     {
+      "label": "Debt 1",
+      "creditor": "Card",
+      "payment": ""
+     }
+    ],
+    "proposed": {
+     "state": "entered",
+     "value": 100
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "payment is missing"
+   }
+  },
+  {
+   "name": "proposed payment blank blocks",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 10000,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": null
+    }
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "is missing"
+   }
+  },
+  {
+   "name": "excluded debt row is left out and disclosed",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 10000,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [
+     {
+      "label": "Debt 1",
+      "creditor": "Card",
+      "payment": 500
+     },
+     {
+      "label": "Debt 2",
+      "creditor": "Paid off",
+      "payment": 900,
+      "excluded": true,
+      "reason": "paid off at closing"
+     }
+    ],
+    "proposed": {
+     "state": "entered",
+     "value": 500
+    }
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.1,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "Debt \"Paid off\" left out: paid off at closing"
+   }
+  },
+  {
+   "name": "zero income row counts as zero",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 10000,
+      "per": "Monthly"
+     },
+     {
+      "label": "Income 2",
+      "source": "Rent",
+      "amount": 0,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [],
+    "proposed": {
+     "state": "entered",
+     "value": 1000
+    }
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.1,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "Income \"Rent\" amount entered as zero and counted as zero"
+   }
+  },
+  {
+   "name": "zero proposed payment counts as zero",
+   "inputs": {
+    "income": [
+     {
+      "label": "Income 1",
+      "source": "Salary",
+      "amount": 10000,
+      "per": "Monthly"
+     }
+    ],
+    "debts": [
+     {
+      "label": "Debt 1",
+      "creditor": "Card",
+      "payment": 1000
+     }
+    ],
+    "proposed": {
+     "state": "entered",
+     "value": 0
+    }
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.1,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "Proposed monthly payment entered as zero and counted as zero"
+   }
+  }
+ ]
+}

@@ -22,6 +22,12 @@
     "Operating effectively",
     "Operating with exceptions",
     "Not operating"
+   ],
+   "Exception reasons": [
+    "Compensating strength documented",
+    "Approved by a higher authority",
+    "Policy exception on file",
+    "Other (explained in the note)"
    ]
   }
  },
