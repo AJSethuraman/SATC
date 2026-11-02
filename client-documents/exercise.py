@@ -276,6 +276,12 @@ LATER_FACTS = {
     "extension-notice": {
         "ExtendedDeadline": "October 15, 2027",
         "PaymentDeadline": "April 15, 2027",
+        # THE EXTENSION-SEASON DATE, which the `extension` event asks for
+        # ("By when do we need the rest of their material?"). Left out, the
+        # notice inherited the opening season's March date and told the client
+        # to send everything by a day already past -- seen on the firm's
+        # template review, 24 Oct 2026. The FIELDS spec's own example value.
+        "MaterialsDeadline": "August 15, 2027",
         "EstimatedPaymentAmount": "$450.00",
         "PaymentEnclosed": True, "NoPaymentRequired": False,
         "ExtendedReturns": [{"Return": "Federal Form 1040", "Detail": "Extended"}],

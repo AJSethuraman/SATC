@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
-from .books import _by_cert, _fields, _follows, _num, label, quarter_end
+from .books import _by_cert, _fields, _follows, _num, filed_amount, label, not_filed, quarter_end
 
 Certs = Union[str, int, Sequence[Union[str, int]]]
 
@@ -35,13 +35,14 @@ def calendar_year(data: Dict[str, list], cert, product: str, year: int) -> dict:
     year. ``gross`` and ``recoveries`` are the Q4 year-to-date figures as
     filed and ``net`` is their difference; ``balance`` is the mean of the
     four quarter-end balances. All four are None unless the bank filed every
-    quarter of the year."""
+    quarter of the year, and, for a commercial product, filed every field of
+    it (a blank is not filed, never 0: ``books.not_filed``)."""
     ln, dr, cr = _fields(product)
     _, snap = _by_cert(data)
     cert = str(cert)
     rows = [snap.get("%d%s" % (year, md), {}).get(cert)
             for md in ("0331", "0630", "0930", "1231")]
-    if any(r is None for r in rows):
+    if any(r is None or not_filed(r, product) for r in rows):
         return {"year": year, "net": None, "gross": None, "recoveries": None,
                 "balance": None}
     q4 = rows[3]
@@ -131,7 +132,8 @@ def balance_trend(data: Dict[str, list], cert, product: str) -> List[dict]:
     """Per quarter-end in the data: ``{quarter, date, balance, change,
     change_pct}``. ``change`` is the move from the quarter before ($000) and
     ``change_pct`` that move as % of the earlier balance; both None when
-    either quarter has no filing, the quarters are not consecutive, or (for
+    either quarter has no filing (or, for a commercial product, a blank
+    balance, which is not filed), the quarters are not consecutive, or (for
     the %) the earlier balance is 0."""
     ln, _, _ = _fields(product)
     qs, snap = _by_cert(data)
@@ -140,7 +142,7 @@ def balance_trend(data: Dict[str, list], cert, product: str) -> List[dict]:
     prev_q, prev_b = None, None
     for q in qs:
         r = snap[q].get(cert)
-        b = _num(r, ln) if r else None
+        b = filed_amount(r, ln) if r else None
         ch = pct = None
         if b is not None and prev_b is not None and _follows(prev_q, q):
             ch = b - prev_b

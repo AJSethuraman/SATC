@@ -66,8 +66,9 @@ Same record, same values. Generate the pair in one call.
 
 **Total: 21 fields + 1 flag.**
 
-Not variables: the list of what to send, the "electronic copies are preferred"
-line, and the not-a-dispute sentence.
+Not variables: the list of what to send and the "electronic copies are fine and
+preferred" line. (A not-a-dispute sentence sat under "Where to send it" until
+24 Oct 2026; the firm took it out: *"i don't want to draw questions."*)
 
 ---
 

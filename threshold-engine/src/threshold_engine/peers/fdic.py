@@ -2,11 +2,11 @@
 
 Public data only: the FDIC BankFind API. Nothing from KeyBank's books.
 
-    financials  https://banks.data.fdic.gov/api/financials -- one request per
+    financials  https://api.fdic.gov/banks/financials -- one request per
                 quarter-end REPDTE (YYYYMMDD), every filer, 10,000 rows a page.
                 A row is a dict: CERT, REPDTE and the fields asked for. Amounts
                 are $ thousands; DR* and CR* are year-to-date, LN* quarter-end.
-    history     https://banks.data.fdic.gov/api/history -- structure changes.
+    history     https://api.fdic.gov/banks/history -- structure changes.
                 Which quarters a whole-bank acquisition makes uncomparable.
 
 The rules, as the earlier pull scripts applied them (pull_peers_2006.py and
@@ -40,8 +40,8 @@ import urllib.request
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-FINANCIALS_URL = "https://banks.data.fdic.gov/api/financials"
-HISTORY_URL = "https://banks.data.fdic.gov/api/history"
+FINANCIALS_URL = "https://api.fdic.gov/banks/financials"
+HISTORY_URL = "https://api.fdic.gov/banks/history"
 PAGE = 10000
 ATTEMPTS = 4
 BACKOFF_SECONDS = 5          # wait 5 x attempt number between attempts
@@ -342,6 +342,26 @@ def classify(rows: Sequence[dict]) -> Dict[str, List[str]]:
     return {cert: sorted(qs) for cert, qs in sorted(out.items())}
 
 
+def absorptions(rows: Sequence[dict]) -> List[dict]:
+    """``[{acquirer, absorbed, quarter}]`` from FDIC history rows: who took in
+    whom, and the quarter-end of the acquirer's first filing that covers both.
+
+    The same allowlist as :func:`classify`; a row counts only when it also
+    names the absorbed bank by certificate, OUT_CERT (a failure's row leaves
+    CERT blank and fills OUT_CERT, so CERT is not read). Two uses read
+    it, both against the filings in the cache: the share of a product's book
+    an acquisition brought in, and, when the two banks had the same parent,
+    the absorbed bank's year-to-date figures that the survivor's filing
+    repeats. Sorted, each link once."""
+    out = set()
+    for row in rows:
+        hit = _acquisition(row)
+        absorbed = str(row.get("OUT_CERT") or "").strip()
+        if hit and absorbed.isascii() and absorbed.isdigit() and absorbed != hit[0]:
+            out.add((hit[1], hit[0], absorbed))
+    return [{"acquirer": a, "absorbed": b, "quarter": q} for q, a, b in sorted(out)]
+
+
 def unrecognised(rows: Sequence[dict]) -> List[dict]:
     """The rows :func:`classify` could not place: a change code on neither
     list, or an allowlisted code with no acquirer or no real effective date
@@ -355,6 +375,14 @@ def pull_mergers(since: str, fetch: Optional[Fetch] = None,
                  sleep: Callable[[float], None] = time.sleep) -> Dict[str, List[str]]:
     """Every whole-bank acquisition by any filer effective on or after
     ``since`` (``YYYY-MM-DD``), classified: ``{cert: [quarter-ends]}``.
+    :func:`history`'s rows, through :func:`classify`."""
+    return classify(history(since, fetch, sleep))
+
+
+def history(since: str, fetch: Optional[Fetch] = None,
+            sleep: Callable[[float], None] = time.sleep) -> List[dict]:
+    """Every FDIC history row effective on or after ``since`` that names an
+    acquirer, once each row is known to be classifiable.
 
     One history query for every row since then that names an acquirer, paged
     and retried like :func:`pull`. It is deliberately NOT narrowed to the
@@ -383,4 +411,4 @@ def pull_mergers(since: str, fetch: Optional[Fetch] = None,
             "record would be incomplete:\n%s\nOnce someone has decided what each "
             "code means, add it to ACQUISITIONS or NOT_AN_ACQUISITION in "
             "peers/fdic.py." % (len(odd), since, listed))
-    return classify(rows)
+    return rows

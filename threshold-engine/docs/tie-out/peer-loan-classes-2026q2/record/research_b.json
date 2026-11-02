@@ -1,0 +1,348 @@
+[
+ {
+  "ticker": "MTB",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/36270/000003627026000050/mtb-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential (d) (e) [under Real estate]",
+    "amount_musd": 25384,
+    "where": "Note 4 'Loans and allowance for loan losses', table of current, past due and nonaccrual loans, June 30, 2026 (Item 1, Notes to Financial Statements)"
+   },
+   {
+    "name_as_filed": "Home equity lines and loans (e)",
+    "amount_musd": 4891,
+    "where": "same table, under 'Consumer:'"
+   },
+   {
+    "name_as_filed": "Recreational finance",
+    "amount_musd": 14856,
+    "where": "same table, under 'Consumer:'"
+   },
+   {
+    "name_as_filed": "Automobile",
+    "amount_musd": 4969,
+    "where": "same table, under 'Consumer:'"
+   },
+   {
+    "name_as_filed": "Other",
+    "amount_musd": 2458,
+    "where": "same table, under 'Consumer:'"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no occurrence of 'student' or 'education loan' anywhere in the 10-Q"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no consumer use of 'unsecured' or 'personal loan' in the 10-Q; 'unsecured' appears only for M&T's own notes and borrowings"
+  },
+  "secured_non_auto": {
+   "amount_musd": 14856,
+   "quote": "The Company primarily originates recreational finance loans and automobile loans indirectly through dealerships across the U.S. At June 30, 2026, the percent of recreational finance loans and automobile loans with FICO scores of 700 or greater at origination date was 99% and 84%, respectively.",
+   "where": "amount: Note 4 table; quote: Item 2 MD&A, 'Asset quality', paragraph before the NONACCRUAL CONSUMER LOANS table"
+  },
+  "other_consumer_definition": {
+   "quote": "not stated",
+   "where": "The consumer 'Other' class (2,458) is not defined in the 10-Q. Nearest text, Item 2 MD&A, Retail Bank segment: \"Credit services offered by this segment include automobile and recreational finance loans (primarily originated indirectly through dealers), home equity loans and lines of credit, credit cards and other loan products.\""
+  },
+  "notes": "$ millions as printed. Recreational finance: the 10-Q does not say what collateral the class holds (no 'RV', 'boat', 'marine' or 'vehicle' wording); it is filed under secured_non_auto only because the class is named recreational finance. M&T has no separate credit-card loan class; 'Credit cards' appears only as $6,762 of commitments to extend credit (commitments table). In the origination-year table the consumer 'Other' class shows $1,763 in the 'Revolving Loans' column of $2,458 total; what those revolving loans are is not stated. MD&A average-balance table: Q2 2026 average Other consumer $2,398, recreational finance $14,483."
+ },
+ {
+  "ticker": "RF",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/1281761/000128176126000055/rf-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential first mortgage",
+    "amount_musd": 19498,
+    "where": "Note 4 'Loans and the Allowance for Credit Losses', LOANS table, distribution of loan portfolio by segment and class, net of unearned income (also MD&A Table 3 - Loan Portfolio)"
+   },
+   {
+    "name_as_filed": "Home equity lines",
+    "amount_musd": 3241,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Home equity loans",
+    "amount_musd": 2263,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Consumer credit card",
+    "amount_musd": 1498,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 5496,
+    "where": "same table"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no occurrence of 'student' or 'education loan' in the 10-Q ('Educational services' appears only as a commercial industry)"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no consumer use of 'unsecured' or 'personal loan'; 'unsecured' appears only for commercial REIT loans and Regions' debt ratings"
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no 'recreational', 'marine', 'boat' or 'vehicle' wording; no auto class is presented"
+  },
+  "other_consumer_definition": {
+   "quote": "Other consumer loans primarily include indirect and direct consumer loans, overdrafts and other revolving loans. Other consumer loans decreased $297 million from year-end 2025 driven by a decline in consumer home improvement lending.",
+   "where": "Item 2 MD&A, Loans, Portfolio Characteristics, 'Other Consumer' subsection"
+  },
+  "notes": "$ millions as printed. Note 4 footnote: \"Other consumer class includes overdrafts which are included in the current vintage year.\" Other consumer by FICO at June 30, 2026: Above 720 $3,906; 681-720 $710; 620-680 $468; Below 620 $259; data not available $153. 'Consumer home improvement lending' is named as a component that declined; its balance is not stated."
+ },
+ {
+  "ticker": "ZION",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/109380/000010938026000111/zions-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "1-4 family residential",
+    "amount_musd": 10293,
+    "where": "Note 6 'Loans, Leases, and Allowance for Credit Losses', 'Loans, Leases, and Loans Held for Sale' schedule by portfolio segment and class, under 'Consumer:' (also MD&A LOAN AND LEASE PORTFOLIO and CONSUMER LENDING PORTFOLIO)"
+   },
+   {
+    "name_as_filed": "Home equity credit line",
+    "amount_musd": 4077,
+    "where": "same schedule"
+   },
+   {
+    "name_as_filed": "Construction and other consumer real estate",
+    "amount_musd": 757,
+    "where": "same schedule"
+   },
+   {
+    "name_as_filed": "Bankcard and other revolving plans",
+    "amount_musd": 537,
+    "where": "same schedule"
+   },
+   {
+    "name_as_filed": "Other",
+    "amount_musd": 114,
+    "where": "same schedule, under 'Consumer:'"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no occurrence of 'student' or 'education loan' ('Educational services' appears only as a commercial industry)"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "the only unsecured-loan amount is commercial real estate, MD&A CRE table footnote 1: \"Included in the total amount of the “Other” commercial and residential categories was approximately $255 million and $232 million of unsecured loans at June 30, 2026 and December 31, 2025, respectively.\""
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no 'recreational', 'marine', 'boat', 'auto' or 'vehicle' consumer wording in the 10-Q"
+  },
+  "other_consumer_definition": {
+   "quote": "not stated",
+   "where": "The consumer 'Other' class (114) is not defined. Nearest text, Note 6 past-due policy: \"open-end credit arrangements, including bankcard and other revolving credit plans, are reported as past due when the minimum required payment has not been received for two or more billing cycles.\""
+  },
+  "notes": "$ millions as printed. Zions has no separate auto or credit-card class; 'Bankcard and other revolving plans' is the card-like class. The MD&A Consumer Lending narrative covers only 1-4 family residential and home equity credit lines."
+ },
+ {
+  "ticker": "FCNCA",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/798941/000079894126000031/fcnca-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgage",
+    "amount_musd": 21566,
+    "where": "Note 5 'Loans and Leases', table 'Loans by Class', under 'Consumer' (also MD&A Table 25 'Loans and Leases')"
+   },
+   {
+    "name_as_filed": "Revolving mortgage",
+    "amount_musd": 2868,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Auto",
+    "amount_musd": 1261,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 801,
+    "where": "same table"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no occurrence of 'student' or 'education loan' in the 10-Q"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "Business credit card loans are subject to automatic charge-off when they become 120 days past due in the same manner as unsecured consumer lines of credit.",
+   "where": "Note 5 'Loans and Leases', Credit Quality Indicators, definition of 'Ungraded'. Names unsecured consumer lines of credit as a policy reference; no balance is stated"
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no 'recreational', 'marine' or 'boat' wording in the 10-Q"
+  },
+  "other_consumer_definition": {
+   "quote": "not stated",
+   "where": "'Other consumer' (801, down from 1,056 at Dec 31, 2025) is not defined anywhere in the 10-Q. MD&A Table 25 shows the change only as numbers: (48) vs Mar 31, 2026 and (255) vs Dec 31, 2025"
+  },
+  "notes": "$ millions as printed. Note 5 'Consumer Loans - Delinquency Status by Class': 'Total consumer other' $801, of which $388 sits in the revolving-loans column; what is in the class is not stated. Business credit cards are in the commercial 'Ungraded' population, not consumer. Consumer loans held for sale were residential mortgages only: \"Consumer loans held for sale at June 30, 2026 and December 31, 2025 consisted of residential mortgage loans that FCB originated with the intent to sell.\""
+ },
+ {
+  "ticker": "USB",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/36104/000003610426000044/usb-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgages",
+    "amount_musd": 112630,
+    "where": "Note 5 'Loans and Allowance for Credit Losses', composition of the loan portfolio by class and underlying specific portfolio type, under 'Residential Mortgages'"
+   },
+   {
+    "name_as_filed": "Home equity loans, first liens",
+    "amount_musd": 4681,
+    "where": "same table, under 'Residential Mortgages'"
+   },
+   {
+    "name_as_filed": "Credit Card",
+    "amount_musd": 39079,
+    "where": "same table (includes small business credit cards reclassified from commercial effective Jan 1, 2026)"
+   },
+   {
+    "name_as_filed": "Retail leasing",
+    "amount_musd": 4087,
+    "where": "same table, under 'Other Retail'"
+   },
+   {
+    "name_as_filed": "Home equity and second mortgages",
+    "amount_musd": 14131,
+    "where": "same table, under 'Other Retail'"
+   },
+   {
+    "name_as_filed": "Revolving credit",
+    "amount_musd": 5409,
+    "where": "same table, under 'Other Retail'"
+   },
+   {
+    "name_as_filed": "Installment",
+    "amount_musd": 15032,
+    "where": "same table, under 'Other Retail'"
+   },
+   {
+    "name_as_filed": "Automobile",
+    "amount_musd": 3248,
+    "where": "same table, under 'Other Retail'"
+   },
+   {
+    "name_as_filed": "Total other retail",
+    "amount_musd": 41907,
+    "where": "same table, subtotal"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no occurrence of 'student' or 'education loan' in the 10-Q"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "the 10-Q does not call any consumer class unsecured. Nearest text, Note 5 Credit Quality: \"Other retail loans not secured by 1-4 family properties are charged-off at 120 days past due, and revolving consumer lines of credit are charged-off at 180 days past due.\""
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no 'recreational', 'marine', 'boat' or 'RV' wording; what the 'Installment' class ($15,032) holds is not stated"
+  },
+  "other_consumer_definition": {
+   "quote": "The consumer lending segment represents loans and leases made to consumer customers, including residential mortgages, consumer and small business credit card loans, and other retail loans such as revolving consumer lines, auto loans and leases and home equity loans and lines.",
+   "where": "Item 2 MD&A, Corporate Risk Profile, Credit Risk Management"
+  },
+  "notes": "$ millions as printed. Consumer delinquency table footnote (b), MD&A Credit Risk Management, on the 'Other' line of other retail: \"Includes revolving credit, installment and automobile loans.\" MD&A Balance Sheet Analysis: \"Other retail loans increased $1.6 billion (3.9 percent) at June 30, 2026, compared with December 31, 2025, primarily due to higher revolving credit balances and retail leasing balances.\" The Installment class ($15,032) is the largest consumer class among the six whose contents this 10-Q does not describe."
+ },
+ {
+  "ticker": "SOFI",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/1818874/000181887426000054/sofi-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Personal loans (loans held for sale, at fair value)",
+    "amount_musd": 27505.29,
+    "where": "Note 4 'Loans', disaggregated loan table, 'Loans held for sale - At fair value'"
+   },
+   {
+    "name_as_filed": "Personal loans(1) (loans held for sale, at lower of amortized cost or fair value)",
+    "amount_musd": 55.841,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Home loans (loans held for sale, at fair value)",
+    "amount_musd": 2176.158,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Student loans(2) (loans held for investment, at fair value)",
+    "amount_musd": 16920.564,
+    "where": "same table, 'Loans held for investment'"
+   },
+   {
+    "name_as_filed": "Secured loans (held for investment, amortized cost)",
+    "amount_musd": 615.195,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Credit card (held for investment, amortized cost)",
+    "amount_musd": 479.972,
+    "where": "same table"
+   },
+   {
+    "name_as_filed": "Residential real estate and other consumer (commercial and consumer banking, amortized cost)",
+    "amount_musd": 12.902,
+    "where": "same table"
+   }
+  ],
+  "student": {
+   "amount_musd": 16920.564,
+   "quote": "Student Loans. We operate in the student loan refinance space, with a focus on prime and super-prime school loans, as well as the “in-school” lending space, which allows members to borrow funds while they attend school.",
+   "where": "amount: Note 4 'Loans' table; quote: Item 2 MD&A, Our Reportable Segments, Lending Segment"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "SoFi holds personal loans ($27,505.290M at fair value + $55.841M at lower of cost or fair value, Note 4) but the 10-Q never describes them as unsecured; 'unsecured' appears only for SoFi's convertible notes and borrowing capacity"
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "no consumer RV/marine/other-collateral lending stated. The 'Secured loans' class is not consumer lending, Note 4 'Secured Loans': \"The borrowers of our secured loans are generally financial institutions, and the underlying collateral are personal loans originated by the Company.\""
+  },
+  "other_consumer_definition": {
+   "quote": "Includes residential real estate loans originated by Golden Pacific for which we did not elect the fair value option.",
+   "where": "Note 4 'Loans', footnote (3) to the amortized-cost delinquency table, on 'Residential real estate and other consumer'"
+  },
+  "fair_value": {
+   "personal_loans_at_fair_value": "yes, except $55.841M held at lower of amortized cost or fair value",
+   "student_loans_at_fair_value": "yes",
+   "personal_quote": "loans held for sale, including personal loans, which are measured at fair value under the fair value option or at lower of amortized cost or fair value",
+   "student_quote": "loans held for investment, including student loans, which are measured at fair value under the fair value option",
+   "where": "Note 4 'Loans', opening paragraph"
+  },
+  "net_charge_off_rates_q2_2026": {
+   "personal_loans_pct": 2.62,
+   "student_loans_pct": 0.61,
+   "personal_quote": "The personal loan annualized charge-off rate decreased to 2.62% from 3.03% in the prior quarter, including the impact of asset sales, new originations and delinquency sales in the quarter.",
+   "student_quote": "The student loan annualized charge-off rate decreased to 61 basis points from 65 basis points in the prior quarter, driven by continued strong credit quality.",
+   "where": "Item 2 MD&A, Fair Value of Loans (trend bullets). The same rates appear in MD&A 'Analysis of Charge-offs', Three Months Ended June 30, 2026 table ('annualized ratio of net charge-offs to average loans outstanding'): Personal loans average $26,183,468K, net charge-offs $171,015K, ratio 2.62%; Student loans average $15,971,158K, net charge-offs $24,266K, ratio 0.61%",
+   "table_footnote_quote": "Excludes the impact of delinquent personal loan sales during the quarter. These loans were sold prior to charge-off during each respective quarter and otherwise would have been charged off as of the quarter-end consistent with our policy."
+  },
+  "notes": "The filing prints SoFi amounts in THOUSANDS ('(In Thousands, Except for Share Data)'; Note 4 prints e.g. Student loans 16,920,564); converted here to $ millions by dividing by 1,000. Note 4 balances are inclusive of fair market value adjustments and accrued interest. Student loans footnote (2): \"Includes $3,667,582 and $4,410,038 of student loans covered by financial guarantees\" (thousands). Personal loans footnote (1): \"Includes loans originated as part of the loan platform business on behalf of third party partners.\" Six-month ratios: personal 2.79%, student 0.63%. The MD&A bullet says the personal 2.62% includes the impact of delinquency sales, while the charge-off table footnote (4) says the ratio excludes it; both quoted verbatim, not reconciled here."
+ }
+]

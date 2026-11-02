@@ -1,0 +1,127 @@
+<title>Refreshed FICO Evidence</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; charts full column width; peers as four small bar columns. */
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #18202a; --muted: #5e6875; --grid: #dde2e8; --bar: #c3ccd6;
+  --key: #c8102e; --c-card: #b4232f; --c-mtg: #2f5d8a; --c-he: #2b8274; --c-oth: #a26e12;
+  --z1: #e2f0e3; --z2: #edf4df; --z3: #fbf2d4; --z4: #fbe1c9; --z5: #f5d0d0;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif; --f-mono: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161b; --panel: #1a2027; --ink: #e6eaef; --muted: #9aa5b1; --grid: #2c343e; --bar: #3d4855;
+  --key: #ff5a6e; --c-card: #ff6b75; --c-mtg: #7fb0e0; --c-he: #63c7b5; --c-oth: #e0aa4a;
+  --z1: #1d3326; --z2: #26331f; --z3: #3a3520; --z4: #42301f; --z5: #46242a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12161b; --panel: #1a2027; --ink: #e6eaef; --muted: #9aa5b1; --grid: #2c343e; --bar: #3d4855;
+  --key: #ff5a6e; --c-card: #ff6b75; --c-mtg: #7fb0e0; --c-he: #63c7b5; --c-oth: #e0aa4a;
+  --z1: #1d3326; --z2: #26331f; --z3: #3a3520; --z4: #42301f; --z5: #46242a; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 760px; margin: 0 auto; padding-block: 28px 56px; display: grid; gap: 28px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-size: 19px; margin: 0 0 4px; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px; }
+h4 { font-size: 13px; margin: 0 0 8px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; max-width: 68ch; }
+.lede { color: var(--muted); }
+.eyebrow { font: 500 12px var(--f-mono); color: var(--muted); letter-spacing: .03em; }
+.facts { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.facts li { padding-left: 14px; border-left: 3px solid var(--grid); }
+.facts b { font-weight: 700; }
+.panel, .box { background: var(--panel); border: 1px solid var(--grid); border-radius: 6px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text.tk { font: 11px var(--f-mono); fill: var(--muted); }
+.chart text.halo { paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
+.chart text.an { font: 11px var(--f-body); fill: var(--muted); }
+.cap { font-size: 13px; color: var(--muted); }
+.verdict { font: 13px/1.5 var(--f-mono); }
+.sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.zones { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; }
+.zones span { padding: 2px 8px; border-radius: 3px; color: var(--ink); }
+.peers { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 28px; }
+.pcol { min-width: 0; }
+.wfc { display: grid; gap: 4px; }
+details.raw { border-left: 3px solid var(--grid); padding-left: 10px; }
+details.raw summary { font-size: 12px; color: var(--muted); cursor: pointer; }
+.pb { display: grid; grid-template-columns: 112px 1fr 48px 56px; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+.pn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt { height: 10px; background: var(--grid); border-radius: 2px; overflow: hidden; }
+.pf { display: block; height: 100%; background: var(--bar); }
+.pb.me .pf { background: var(--key); }
+.pb.me .pn, .pb.me .pv { color: var(--key); font-weight: 700; }
+.pv, .ps { font: 12px var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.ps { color: var(--muted); }
+.notes { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+a { color: var(--c-mtg); }
+@media (max-width: 480px) { .pb { grid-template-columns: 92px 1fr 44px 48px; } h1 { font-size: 24px; } }
+</style>
+<main>
+<header style="display:grid;gap:8px">
+  <div class="eyebrow">CONSUMER INDUSTRY ANALYSIS · FICO EVIDENCE · 17 OCT 2026</div>
+  <h1>What public refreshed FICO shows</h1>
+  <p class="lede">KeyCorp&rsquo;s own refreshed FICO by product from its 10-Qs and 10-Ks, ten competitors from theirs, and the large-bank card and mortgage scores. Every value is read from the filing or series named under Sources. Nothing here is internal.</p>
+</header>
+
+<ul class="facts">
+  <li><b>No bank here publishes an average FICO.</b> KeyCorp reports balances in four refreshed bands (under 660, 660&ndash;749, 750 and above, no score). The share of scored balances under 660 is the closest public stand-in for a weighted-average refreshed FICO; an average would need a midpoint for each band, which the filing does not give.</li>
+  <li><b>Run-off moves it.</b> Home equity under 660 rose from 6.4% to 7.9% as its balance fell from $7.9bn to $5.4bn (2022&ndash;2026). Other consumer fell to 3.4% when indirect auto was sold in 2021Q3, then rose to 6.0% as the book ran off from $6.5bn to $4.0bn.</li>
+  <li><b>At the agreed settings, the book&rsquo;s method fits KeyCorp&rsquo;s own history for mortgage and home equity, and refuses card and other consumer.</b> Card&rsquo;s worst quarter, 12.0% in 2025Q1, is not far enough from its 10.9% median to rate High at z 2.5 (it fits at z &le; 0.92). Other consumer has only 19 quarters since the 2021 sale, none far from the rest (z &le; 0.76). Mortgage and home equity fit because 2020Q1, before the 2020&ndash;21 score rise, sits far above the rest.</li>
+  <li><b>FRED carries twelve score series, all from the Philadelphia Fed&rsquo;s large banks, 2012Q3 on:</b> card and first-lien mortgage, current (refreshed) and at origination, at the 10th, 25th and 50th percentile. FDIC Call Reports carry no score. The free bureau sources are averages of consumers, not of a loan book: VantageScore&rsquo;s monthly CreditGauge (VantageScore 4.0, from 2020) and FICO&rsquo;s national average (published twice a year, not as a data series).</li>
+  <li><b>The large-bank card score has no stress in its history.</b> Its 10th percentile ran from 624 (2019Q4) to 644 (2021Q2). At z 2.5 it is refused; it fits at z &le; {{P10FIT}}.</li>
+</ul>
+
+{{CHANGE}}
+
+<section style="display:grid;gap:14px">
+  <div><h2>KeyCorp, refreshed FICO by product</h2>
+  <p class="cap">2018Q2 to 2026Q2 from 32 filings (2021Q1 not read: its XBRL file was not found, so that quarter is a gap). Rating zones, low to high:</p></div>
+  <div class="zones"><span style="background:var(--z1)">1 Low</span><span style="background:var(--z2)">2 Moderate-Low</span><span style="background:var(--z3)">3 Moderate</span><span style="background:var(--z4)">4 Moderate-High</span><span style="background:var(--z5)">5 High</span></div>
+  {{PANELS}}
+</section>
+
+<section class="box">
+  <h2>Why KeyCorp&rsquo;s share under 660 rose: the waterfall</h2>
+  <p class="cap">Since 2020 each bank&rsquo;s FICO table is also split by the year the loans were made. That separates three things: loans made since the start (new loans), older loans paying off and changing the mix (run-off and mix), and the same loans&rsquo; scores moving (score drift). KeyCorp, end-2023 to mid-2026. Red raises the share under 660; green lowers it.</p>
+  {{WF}}
+  <p class="cap">Score drift also includes better borrowers paying off within the same year&rsquo;s loans; the filing cannot separate the two. Card is all revolving balances, so it has no years to split.</p>
+</section>
+
+{{COMP}}
+
+<section class="box">
+  <h2>Large-bank card: current score of accounts</h2>
+  <div class="legend"><span><i class="sw" style="background:var(--c-card)"></i>10th percentile</span><span><i class="sw" style="background:var(--c-he)"></i>25th</span><span><i class="sw" style="background:var(--c-mtg)"></i>Median</span></div>
+  <div class="chart">{{PHIL}}</div>
+  <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>Industry card net charge-offs, trailing four quarters (the book&rsquo;s series)</span></div>
+  <div class="chart">{{NCO}}</div>
+  <p class="cap">Philadelphia Fed, FR Y-14M banks of $100bn or more, 2012Q3 to 2026Q2. &ldquo;The most recently determined commercially available credit score&rdquo;: not necessarily FICO, and it counts accounts, not balances. Charge-offs rose from 1.8% (2022Q2) to 4.6% (2025Q1) while the 10th percentile fell from 638 to 627. Latest 10th percentile {{P10LAST}}, median of its history {{P10MED}}.</p>
+</section>
+
+<section class="box">
+  <h2>Large-bank mortgages: current score of accounts</h2>
+  <p class="cap">Read it as a ruler. Line up every mortgage account at the large banks from lowest score to highest. The 10th percentile is the score one in ten accounts fall at or below; the 25th, one in four; the median, half. Where a dot sits in the red zone, at least that share of accounts scores under 660.</p>
+  <div class="chart">{{RULER}}</div>
+  <p class="cap">The same three points every quarter:</p>
+  <div class="legend"><span><i class="sw" style="background:var(--c-card)"></i>10th percentile</span><span><i class="sw" style="background:var(--c-he)"></i>25th</span><span><i class="sw" style="background:var(--c-mtg)"></i>Median</span></div>
+  <div class="chart">{{MTG}}</div>
+  <div class="legend"><span><i class="sw" style="background:var(--ink)"></i>Industry mortgage net charge-offs, trailing four quarters (the book&rsquo;s series)</span></div>
+  <div class="chart">{{MNCO}}</div>
+  <p class="cap">Philadelphia Fed, first-lien mortgages at FR Y-14M banks, 2012Q3 to 2026Q2; FRED and the Philadelphia Fed&rsquo;s own file agree in 56 of 56 quarters. The 10th percentile rose from 555 to 697 and has never fallen back: the post-crisis book ran off and newer loans scored higher. Its worst quarter is its first and its best is its latest, so lines from this history rate a trend, not a cycle. At z 2.5 the 10th percentile is refused (fits at z &le; 1.85); the 25th and median fit, with High below 634 and 737.</p>
+</section>
+
+<section class="notes">
+  <h2 style="color:var(--ink)">How it was read, and what was not checked</h2>
+  <ul>
+    <li>KeyCorp: each filing&rsquo;s own quarter-end, bands summed per product; before 2020, purchased credit-impaired and other loans added together, as one book. The 2026Q2 band amounts tie to the printed table (mortgage 15,781 / 1,991 / 391 / 15; home equity 3,808 / 1,168 / 425 / 7; other consumer 2,831 / 952 / 240 / 326, $ millions). Earlier quarters are from the XBRL only.</li>
+    <li>Not explained: KeyCorp mortgage 660&ndash;749 went from 9.1% to 10.9% between 2025Q4 and 2026Q1 with no matching change in balance.</li>
+    <li>Not checked: whether any bank publishes a weighted-average refreshed FICO in its earnings supplement; the FICO version each bank uses; peers before 2026Q2.</li>
+    <li>Lines: the book&rsquo;s method at the agreed settings (width 0.5, Moderate-Low 1.0, z 2.5), every quarter kept, higher share is worse; the score percentile treated as lower is worse.</li>
+  </ul>
+  <p>Sources: KeyCorp 10-Q and 10-K filings, 2018Q2&ndash;2026Q2 (<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0000091576&amp;type=10-Q">SEC EDGAR</a>); Bank of America, Wells Fargo and PNC 2026Q2 10-Qs; <a href="https://philadelphiafed.org/surveys-and-data/large-bank-credit-card-and-mortgage-data">Philadelphia Fed large bank credit card data</a> via FRED (<a href="https://fred.stlouisfed.org/series/RCCCBSCOREPCT10">RCCCBSCOREPCT10</a>, 25, 50); industry card charge-offs from FDIC Call Reports, as built in the workbook.</p>
+</section>
+</main>

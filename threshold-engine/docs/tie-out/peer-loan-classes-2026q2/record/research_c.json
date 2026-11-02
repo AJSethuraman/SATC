@@ -1,0 +1,274 @@
+[
+ {
+  "ticker": "JPM",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026054343/jpm-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential real estate",
+    "amount_musd": 300664,
+    "where": "Note 11 - Loans; table of retained consumer loans, excluding credit card, by class (section: Consumer, excluding credit card loan portfolio)"
+   },
+   {
+    "name_as_filed": "Auto and other",
+    "amount_musd": 66464,
+    "where": "Note 11 - Loans; table of retained consumer loans, excluding credit card, by class (section: Consumer, excluding credit card loan portfolio)"
+   },
+   {
+    "name_as_filed": "Credit card loans (Credit card portfolio segment, retained)",
+    "amount_musd": 249876,
+    "where": "Note 11 - Loans; loan balances by portfolio segment table, June 30, 2026, Retained row, Credit card column"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Full text searched for 'student' and 'education loan': no occurrences"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "The auto and other loan portfolio, including loans at fair value, generally consists of prime-quality scored auto and business banking loans, other consumer unsecured loans, and overdrafts.",
+   "where": "MD&A, Credit Portfolio - Consumer Credit Portfolio, 'Auto and other' subsection"
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "As of June 30, 2026, loans increased by $57.5 billion, predominantly driven by higher loans in CIB and higher securities-based lending in AWM, both as a result of higher client demand.",
+   "where": "MD&A, Wholesale Credit Portfolio (securities-based lending is in the wholesale portfolio, not a consumer class)"
+  },
+  "other_consumer_definition": {
+   "quote": "Includes scored auto, business banking and consumer unsecured loans as well as overdrafts, primarily in CCB.",
+   "where": "Note 11 - Loans, Loan portfolio, classes-of-loans table, footnote (b) to 'Auto and other'"
+  },
+  "notes": "Classes are retained loans ($ millions). Consumer, excluding credit card also has held-for-sale 578 and loans at fair value 24,037 (total 391,743); footnote to the fair-value line: 'Includes scored mortgage loans held in CCB and CIB, and other consumer unsecured loans in CIB.' Auto and other is not split into auto vs business banking vs unsecured anywhere in the 10-Q. Securities-based lending sits in the wholesale 'Other' class; Note 11 wholesale footnote: '$163.1 billion and $141.1 billion, respectively, to individuals and individual entities' (billions; individuals and individual entities, not stated to be all securities-based). Home equity is not a separate class (inside Residential real estate)."
+ },
+ {
+  "ticker": "WFC",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/72971/000007297126000302/wfc-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgage",
+    "amount_musd": 240774,
+    "where": "Note 3: Loans and Related Allowance for Credit Losses, Table 3.1: Loans Outstanding"
+   },
+   {
+    "name_as_filed": "Credit card",
+    "amount_musd": 58394,
+    "where": "Note 3: Loans and Related Allowance for Credit Losses, Table 3.1: Loans Outstanding"
+   },
+   {
+    "name_as_filed": "Auto",
+    "amount_musd": 56924,
+    "where": "Note 3: Loans and Related Allowance for Credit Losses, Table 3.1: Loans Outstanding"
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 38724,
+    "where": "Note 3: Loans and Related Allowance for Credit Losses, Table 3.1: Loans Outstanding"
+   },
+   {
+    "name_as_filed": "Other consumer: Securities-based (sub-line)",
+    "amount_musd": 32231,
+    "where": "MD&A, Risk Management - Credit Risk Management, Table 16: Credit Card, Auto, and Other Consumer Loans"
+   },
+   {
+    "name_as_filed": "Other consumer: Other (sub-line)",
+    "amount_musd": 6493,
+    "where": "MD&A, Risk Management - Credit Risk Management, Table 16: Credit Card, Auto, and Other Consumer Loans"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Full text searched for 'student' and 'education': no consumer-loan occurrences"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "These financial products and services include checking and savings accounts, credit and debit cards, as well as home, auto, personal, and small business lending.",
+   "where": "MD&A, Earnings Performance - Operating Segment Results, Consumer Banking and Lending"
+  },
+  "secured_non_auto": {
+   "amount_musd": 32231,
+   "quote": "Securities-based loans, including margin loans and securities-based credit lines, are originated by the WIM operating segment and are collateralized by securities in client brokerage accounts.",
+   "where": "MD&A, Risk Management - Credit Risk Management, Table 16: Credit Card, Auto, and Other Consumer Loans, 'Other consumer: Securities-based' row and text below it"
+  },
+  "other_consumer_definition": {
+   "quote": "Includes $32.2 billion and $26.2 billion at June 30, 2026, and December 31, 2025, respectively, of securities-based loans, including margin loans and securities-based credit lines, originated by the Wealth and Investment Management (WIM) operating segment.",
+   "where": "Note 3: Loans and Related Allowance for Credit Losses, Table 3.1: Loans Outstanding, footnote (1) to 'Other consumer'"
+  },
+  "notes": "The 6,493 'Other' sub-line of Other consumer is not defined in the 10-Q; the only further description is this footnote to Table 3.12 (Other consumer credit quality): 'Includes charge-offs on overdrafts, which are generally charged-off at 60 days past due.' Personal loans: Table 6b (Consumer Banking and Lending - Balance Sheet) shows a 'Personal Lending' line-of-business period-end loan balance of 13,830 ($ millions); the filing does not call it unsecured and does not map it to a class (it exceeds the 6,493 'Other' sub-line; where the rest sits is not stated). Home equity is not a separate class; residential mortgage includes junior liens. Securities-based lending also appears in commercial loans (Securities-based industry, 28,193 outstanding) - commercial, not consumer."
+ },
+ {
+  "ticker": "BAC",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/70858/000007085826000394/bac-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Residential mortgage",
+    "amount_musd": 236316,
+    "where": "Note 5 - Outstanding Loans and Leases and Allowance for Credit Losses, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+   },
+   {
+    "name_as_filed": "Home equity",
+    "amount_musd": 27114,
+    "where": "Note 5 - Outstanding Loans and Leases and Allowance for Credit Losses, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+   },
+   {
+    "name_as_filed": "Credit card",
+    "amount_musd": 105659,
+    "where": "Note 5 - Outstanding Loans and Leases and Allowance for Credit Losses, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+   },
+   {
+    "name_as_filed": "Direct/Indirect consumer",
+    "amount_musd": 118327,
+    "where": "Note 5 - Outstanding Loans and Leases and Allowance for Credit Losses, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+   },
+   {
+    "name_as_filed": "Other consumer",
+    "amount_musd": 182,
+    "where": "Note 5 - Outstanding Loans and Leases and Allowance for Credit Losses, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+   },
+   {
+    "name_as_filed": "Consumer loans accounted for under the fair value option",
+    "amount_musd": 159,
+    "where": "Note 5 - Outstanding Loans and Leases and Allowance for Credit Losses, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Full text searched for 'student': no occurrences; 'education' appears only as the commercial industry 'Government and public education'"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "Primarily includes amounts related to credit card and unsecured consumer lending portfolios in Consumer Banking.",
+   "where": "MD&A, Allowance for Credit Losses, allowance ratios table, footnote (4)"
+  },
+  "secured_non_auto": {
+   "amount_musd": 65000,
+   "quote": "Direct/indirect consumer includes $65.0 billion of securities-based lending, which is typically supported by highly liquid collateral with market value greater than or equal to the outstanding loan balance and therefore has minimal credit risk at June 30, 2026.",
+   "where": "Note 5, Credit Card and Direct/Indirect Consumer - Credit Quality Indicators By Vintage, footnote (3)"
+  },
+  "other_consumer_definition": {
+   "quote": "Total outstandings primarily includes auto and specialty lending loans and leases of $52.4 billion, U.S. securities-based lending loans of $61.9 billion and non-U.S. consumer loans of $3.2 billion.",
+   "where": "Note 5, aging table, footnote (2) to 'Direct/Indirect consumer'"
+  },
+  "notes": "Secured non-auto amount printed in billions ($65.0 billion, all securities-based lending in Direct/Indirect); the U.S. subset is $61.9 billion (footnote quoted above). RV lending is inside auto and specialty lending, not separately quantified: '44 percent of the direct/indirect portfolio was included in Consumer Banking (consumer auto and recreational vehicle lending) and 56 percent was included in GWIM (principally securities-based lending loans).' (MD&A, Consumer Portfolio Credit Risk Management, Direct/Indirect Consumer). 'Other consumer' class: 'Other consumer primarily consists of deposit overdraft balances.' (MD&A, Other Consumer). No amount for unsecured consumer lending is disclosed."
+ },
+ {
+  "ticker": "C",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/831001/000083100126000045/c-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "In North America offices: Residential first mortgages",
+    "amount_musd": 120516,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   },
+   {
+    "name_as_filed": "In North America offices: Home equity loans",
+    "amount_musd": 2271,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   },
+   {
+    "name_as_filed": "In North America offices: Credit cards",
+    "amount_musd": 177608,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   },
+   {
+    "name_as_filed": "In North America offices: Personal, small business and other",
+    "amount_musd": 34068,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   },
+   {
+    "name_as_filed": "In offices outside North America: Residential mortgages",
+    "amount_musd": 23866,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   },
+   {
+    "name_as_filed": "In offices outside North America: Credit cards",
+    "amount_musd": 14814,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   },
+   {
+    "name_as_filed": "In offices outside North America: Personal, small business and other",
+    "amount_musd": 43479,
+    "where": "Note 12 - Loans, Consumer Loans, 'Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026', Total loans column"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Full text searched for 'student' and 'education loan': no occurrences"
+  },
+  "unsecured": {
+   "amount_musd": 3800,
+   "quote": "Installment Lending includes digitally led personal installment loans and merchant installment lending.",
+   "where": "MD&A, U.S. Consumer Cards (USCC) segment description; amount from MD&A Consumer Credit Portfolio table, USCC 'Installment Lending' row, $3.8 billion"
+  },
+  "secured_non_auto": {
+   "amount_musd": 36500,
+   "quote": "approximately $52 billion, or 25%, of the portfolios were classifiably managed and primarily consisted of securities-based lending, commercial real estate loans, personal and small business loans and other lending products.",
+   "where": "MD&A, Consumer Credit, Wealth; amount from Consumer Credit Portfolio table, Wealth 'Securities-based lending' row, $36.5 billion"
+  },
+  "other_consumer_definition": {
+   "quote": "These personal, small business and other loans without a FICO score available include $26.7 billion and $25.2 billion of loans as of June 30, 2026 and December 31, 2025, respectively, which are classifiably managed within Wealth",
+   "where": "Note 12 - Loans, Consumer Loans, FICO score table, footnote (1)"
+  },
+  "notes": "Unsecured and secured-non-auto amounts are printed in billions ($3.8 billion; $36.5 billion) in the MD&A Consumer Credit Portfolio table (by business: Wealth mortgages 139.9, securities-based lending 36.5, personal small business and other 27.0, cards 4.7; USCC GPCC 149.2, PLCC 28.4, Installment Lending 3.8; Legacy Franchises 27.0; total 416.5). USCC described as: 'U.S. Consumer Cards (USCC) consists of unsecured consumer lending, including General Purpose Credit Cards, Private Label Credit Cards and Installment Lending products'. Which Note 12 class holds Installment Lending is not stated (USCC credit cards total 177.6 = GPCC + PLCC, so it is not in that figure; the ACLL table shows 'North America personal installment loans' EOP $3.8 billion). Citi Flex is not mentioned. No separate auto class. Consumer loans net of unearned income 416,520 after (102) unallocated portfolio-layer basis adjustments."
+ },
+ {
+  "ticker": "COF",
+  "document_url": "https://www.sec.gov/Archives/edgar/data/927628/000092762826000089/cof-20260630.htm",
+  "classes": [
+   {
+    "name_as_filed": "Credit Card: Domestic credit card",
+    "amount_musd": 259005,
+    "where": "Note 4 - Loans, Table 4.1: Loan Portfolio Composition and Aging Analysis, June 30, 2026, Total Loans column"
+   },
+   {
+    "name_as_filed": "Credit Card: Personal loans",
+    "amount_musd": 8619,
+    "where": "Note 4 - Loans, Table 4.1: Loan Portfolio Composition and Aging Analysis, June 30, 2026, Total Loans column"
+   },
+   {
+    "name_as_filed": "Credit Card: International card businesses",
+    "amount_musd": 7784,
+    "where": "Note 4 - Loans, Table 4.1: Loan Portfolio Composition and Aging Analysis, June 30, 2026, Total Loans column"
+   },
+   {
+    "name_as_filed": "Consumer Banking: Auto",
+    "amount_musd": 89311,
+    "where": "Note 4 - Loans, Table 4.1: Loan Portfolio Composition and Aging Analysis, June 30, 2026, Total Loans column"
+   },
+   {
+    "name_as_filed": "Consumer Banking: Retail banking",
+    "amount_musd": 1156,
+    "where": "Note 4 - Loans, Table 4.1: Loan Portfolio Composition and Aging Analysis, June 30, 2026, Total Loans column"
+   }
+  ],
+  "student": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "Full text searched for 'student': no occurrences; 'education' appears only as commercial industry 'Government & Education'"
+  },
+  "unsecured": {
+   "amount_musd": null,
+   "quote": "The Credit Card segment consists of domestic credit card loans, international credit card loans and personal loans.",
+   "where": "Note 4 - Loans, introduction"
+  },
+  "secured_non_auto": {
+   "amount_musd": null,
+   "quote": "not stated",
+   "where": "No securities-based, RV, marine or other-collateral consumer lending found; the only non-card, non-auto consumer class is Retail banking, not further described"
+  },
+  "other_consumer_definition": {
+   "quote": "The Consumer Banking segment consists of auto and retail banking loans.",
+   "where": "Note 4 - Loans, introduction"
+  },
+  "personal_loans_net_charge_off": {
+   "quarter": "three months ended June 30, 2026",
+   "amount_musd": 83,
+   "rate_pct": 3.77,
+   "quote": "Net charge-off rates are calculated based on annualized net charge-offs for the period divided by average loans held for investment for the period.",
+   "where": "MD&A, Credit Risk Profile - Net Charge-Offs, Table 25: Net Charge-Offs (Recoveries), 'Personal loans' row: $83 million, 3.77% (Q2 2025: $42 million, 3.47%; six months 2026: $172 million, 3.79%)"
+  },
+  "notes": "Personal loans 8,619 are a class in the Credit Card segment; the filing does not describe them as unsecured, so the unsecured amount is left null. Retail banking (1,156) is not defined beyond the segment sentence. No residential mortgage or home equity class. Personal loans total delinquent: 151 (Table 4.1)."
+ }
+]

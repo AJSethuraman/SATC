@@ -1,0 +1,8 @@
+# Names of data files that may appear in a message, bare (never as part of a path).
+# These are already public in docs/satc-forge.md. One per line. Adding a name is a
+# one-line change the owner can see in a diff; a test fails if this file and the
+# guard disagree. Product and system names (SATC, Drake, Occam, Ollama, OneDrive,
+# SharePoint, Power Automate, Microsoft 365, Formspree, Cloudflare Pages, Stripe,
+# Playwright, Tesseract, Flask, SQLite, Python) have no extension and need no entry.
+satc_vault.db
+satc_mart.db

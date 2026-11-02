@@ -111,7 +111,8 @@ def test_http_meta_endpoint():
     body = r.get_json()
     assert "single" in body["filing_statuses"]
     assert "biweekly" in body["pay_frequencies"]
-    assert body["default_tax_year"] == 2025
+    assert body["default_tax_year"] == body["tax_years"][-1]
+    assert 2026 in body["tax_years"]
 
 
 def test_an_actor_serialises_to_its_handle_not_its_fields():

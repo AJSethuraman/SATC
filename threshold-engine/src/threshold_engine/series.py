@@ -8,9 +8,10 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 #: Months between consecutive observations, by declared frequency.
 STEP_MONTHS = {"quarterly": 3, "monthly": 1}
@@ -55,6 +56,27 @@ def read_csv(path) -> List[Point]:
                                  % (Path(path).name, r["date"], r["value"]))
             out.append(Point(r["date"], v))
         return out
+
+
+#: The description every file is expected to give of itself: the keys the
+#: internal templates ask for, which the Sources tab prints and marks "not
+#: stated" when missing. Public files carry the same lines.
+CORE_NOTES = ("measure", "as-of", "basis", "source")      # every series has these; a score has no numerator
+
+
+def read_notes(path) -> List[Tuple[str, str]]:
+    """A file's description of itself: every line before the data that starts
+    with '#', as (key, text). '# measure: ...' gives ("measure", "..."); a
+    line with no key gives ("note", text). Nothing is inferred."""
+    out = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if not line.startswith("#"):
+                continue
+            text = line[1:].strip()
+            m = re.match(r"([a-z][a-z0-9-]*):\s*(.*)$", text)
+            out.append((m.group(1), m.group(2)) if m else ("note", text))
+    return out
 
 
 #: What a product label may not hold. The workbook lists the products in a

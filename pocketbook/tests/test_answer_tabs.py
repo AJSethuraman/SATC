@@ -395,7 +395,7 @@ def test_a_blank_answer_and_an_odd_value_are_counted_on_start_here_as_they_are_l
     # the Run's refusal's own count: each blank answer on Control, and Checked every column
     assert _tile(ws, book.NEEDED) == len(judged) + 1 == len(book.read_book(out.book)[1])
     assert _tile(ws, "Odd values to answer") >= 2
-    assert any(str(c.value).startswith("Nothing yet") for row in ws.iter_rows() for c in row)
+    assert any(str(c.value).startswith("No Run yet") for row in ws.iter_rows() for c in row)
 
 
 # --------------------------------------------------------------------------

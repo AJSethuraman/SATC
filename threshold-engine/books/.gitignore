@@ -1,0 +1,3 @@
+# The FDIC cache and what the peers build writes: large, and rebuilt by the commands in README.md.
+ind_cache/
+out/

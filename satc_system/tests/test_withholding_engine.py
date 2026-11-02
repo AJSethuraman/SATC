@@ -15,8 +15,10 @@ def _estimate(**top):
 
 def test_available_years_are_the_fully_published_federal_tables():
     years = available_years()
-    assert 2024 in years and 2025 in years
-    assert 2026 not in years          # the sunset fixture is intentionally not usable
+    assert 2025 in years and 2026 in years
+    # 2024's file predates OBBBA and lacks most of what the engine reads, so it
+    # is not offered rather than run with gaps.
+    assert 2024 not in years
 
 
 def test_single_filer_ordinary_tax_matches_brackets():
@@ -75,12 +77,24 @@ def test_niit_applies_to_investment_income_over_threshold():
     assert r.breakdown.net_investment_income_tax == Decimal("760.00")  # 20000 * 3.8%
 
 
-def test_year_fallback_uses_latest_published_with_a_note():
+def test_a_year_not_on_file_is_refused_never_borrowed():
+    """Until 17 October 2026 this test asserted the opposite: asked for 2026, the
+    engine ran 2025 and left a note. The firm asked for the reverse -- "checks to
+    ensure we don't accidentally use it without updating it for the right year"."""
+    from satc.withholding import TaxYearNotOnFile
+
+    with pytest.raises(TaxYearNotOnFile, match="2027.*will not substitute"):
+        _estimate(filing_status="single", tax_year=2027,
+                  paystub={"pay_frequency": "annual", "taxable_wages_per_period": 50000,
+                           "pay_periods_remaining": 1})
+    with pytest.raises(TaxYearNotOnFile, match="2024"):
+        _estimate(filing_status="single", tax_year=2024,
+                  paystub={"pay_frequency": "annual", "taxable_wages_per_period": 50000,
+                           "pay_periods_remaining": 1})
     r = _estimate(filing_status="single", tax_year=2026,
                   paystub={"pay_frequency": "annual", "taxable_wages_per_period": 50000,
                            "pay_periods_remaining": 1})
-    assert r.tax_year_used == 2025
-    assert any("2026" in n for n in r.notes)
+    assert r.tax_year_used == 2026
 
 
 def test_over_vs_under_withholding_is_household_based():

@@ -15,15 +15,17 @@ from satc.withholding.models import (
     Deductions,
     EstimateResult,
     EstimatorInput,
+    Household,
     OtherIncome,
     OtherPayments,
     Paystub,
+    Schedule1A,
 )
 from satc.withholding.intake import paystub_from_fields
-from satc.withholding.tax_data import available_years
+from satc.withholding.tax_data import TaxYearNotOnFile, available_years, staleness
 
 __all__ = [
-    "estimate", "available_years", "paystub_from_fields",
+    "estimate", "available_years", "staleness", "TaxYearNotOnFile", "paystub_from_fields",
     "EstimatorInput", "EstimateResult",
-    "Paystub", "OtherIncome", "Adjustments", "Deductions", "Credits", "OtherPayments",
+    "Paystub", "Household", "Schedule1A", "OtherIncome", "Adjustments", "Deductions", "Credits", "OtherPayments",
 ]

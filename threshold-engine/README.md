@@ -22,10 +22,11 @@ and `formulas` (`python -m pip install ".[test]"`).
 ## Build the workbook
 
 ```
-threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=tests/data/cards_nco_ttm.csv" --series "Mortgage=tests/data/mortgage_nco_ttm.csv" --series "Home equity=tests/data/home_equity_nco_ttm.csv" --series "Other consumer=tests/data/other_consumer_as_filed_nco_ttm.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41
+threshold-engine workbook consumer-thresholds.xlsx --series "Credit card=data/industry/credit-card_industry_net.csv" --series "Mortgage=data/industry/mortgage_industry_net.csv" --series "Home equity=data/industry/home-equity_industry_net.csv" --series "Other consumer=data/industry/other-consumer_industry_net.csv" --series "Auto=data/industry/auto_industry_net.csv" --name "Net charge-offs, trailing twelve months" --unit % --direction higher_is_worse --frequency quarterly --smoothing 1 --floor-at-zero yes --moderate-halfwidth 0.5 --low-step 1.0 --high-z 2.5 --on-the-line worse --percentiles 50 75 90 95 --horizon 4 --min-history 41
 ```
 
-A CSV has a `date,value` header; lines starting with `#` are notes. Every
+The industry series are the FDIC's, every filer summed (`data/industry/`, its README says how they were
+built and what they were checked against). A CSV has a `date,value` header; lines starting with `#` are notes. Every
 setting that is a judgement must be stated: nothing has a default.
 
 Or double-click `Thresholds.pyw` for a window that asks for the same things

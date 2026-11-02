@@ -84,7 +84,7 @@ def test_same_size_is_not_tested_for_a_dollar_rate(split_book):
     assert line.endswith("Bad dollars, GCOs ($), RANR, RANR + GCOs: not tested: dollar rate."), line
     # the tab still says what the question is, once, in its note
     how = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(4, 11)}
-    assert "Cochran's Q asks whether the gap is the same size in every pocket" in how["High vs low, all"]
+    assert "Cochran's Q tests whether the gap is the same size in every pocket" in how["High vs low, all"]
 
 
 def test_same_size_says_why_the_outcome_was_not_tested(tmp_path):

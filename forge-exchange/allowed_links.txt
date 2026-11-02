@@ -1,0 +1,6 @@
+# Links that may appear in a message: `host` or `host/path-prefix`, one per line.
+# Any link with a query string or fragment is refused even if its host is listed,
+# because a public link can carry identifying text. Add official documentation
+# sites here only on the owner's say.
+github.com/AJSethuraman/SATC
+satcllp.com

@@ -11,8 +11,12 @@ Conventions used throughout:
 - **p-value** is the number the write-up calls *Luck alone*: the probability of a gap at least this big
   arising by chance if there were no real difference. Small means hard to get by chance. The reading is
   **significant** (p-value below the bar) or **not significant**; the cube's "worse, but could be luck"
-  becomes "worse, not significant."
-- **Confidence** 95% means the bar is a p-value below 5%. The 5% is called **α** (alpha).
+  becomes "worse, not significant." The workbook never says luck: Pockets prints the p-value in the column
+  *Significant at 95%?* (the firm, 17 Oct 2026), as *Yes (p = 0.37%)*, *Borderline (p = 4.8%)* or
+  *No (p = 23%)*.
+- **Confidence** 95% means the bar is a p-value below 5%. The 5% is called **α** (alpha). Confidence and the
+  p-value are two sides of one setting: at *How sure* 95% on Control, a gap is significant when a gap that large
+  would arise by chance less than 5% of the time, 1 in 20.
 - **Standard error** is the technical word for the write-up's *wobble*: how far a rate or count computed
   from a sample typically lands from its true value. For a count of rare events it is close to the square
   root of the expected count. 1.96 standard errors is the 95% line, and **z** is a gap measured in

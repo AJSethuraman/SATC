@@ -15,11 +15,13 @@ low = json.load(open(HERE / "out" / "observed-low.json", encoding="utf-8-sig"))
 exp["steps"] += json.load(open(HERE / "steps-low.json", encoding="utf-8"))["steps"]
 obs["steps"] += low["steps"]
 restored_low = all(t == "" for t in low.get("check_after", []))
-SHEETS = ["Thresholds", "Assess", "Chart", "Evidence", "Backtest", "Glossary", "Data", "Run"]
+SHEETS = ["Assess", "Thresholds", "Chart", "Evidence", "Backtest", "Sources", "Glossary", "Data", "Run"]
 
 
 def same(want, got):
     v, t = got.get("value"), got.get("text")
+    if isinstance(want, dict):              # text that must begin so: the Check's "To fix" is worked out live
+        return isinstance(v, str) and v.startswith(want["startswith"]) and len(v) > len(want["startswith"])
     if isinstance(want, bool):
         return v is want or t == str(want).upper()
     if isinstance(want, (int, float)):

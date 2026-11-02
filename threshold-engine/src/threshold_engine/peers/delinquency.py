@@ -15,10 +15,19 @@ Mortgage        LNRERSFM   P3RERSFM     P9RERSFM          NARERSFM
 Home equity     LNRELOC    P3RELOC      P9RELOC           NARELOC
 Other consumer  LNCONOTH   P3CONOTH     P9CONOTH          NACONOTH
 Auto            LNAUTO     P3AUTO       P9AUTO            NAAUTO
+C&I             LNCI       P3CI         P9CI              NACI
+Construction    LNRECONS   P3RECONS     P9RECONS          NARECONS
+Multifamily     LNREMULT   P3REMULT     P9REMULT          NAREMULT
+Nonfarm nonres  LNRENRES   P3RENRES     P9RENRES          NARENRES
+... owner-occ.  LNRENROW   P3RENROW     P9RENROW          NARENROW
+... other       LNRENROT   P3RENROT     P9RENROT          NARENROT
 =============== ========== ============ ================= ==========
 
+(The last three are "Nonfarm nonresidential", "Owner-occupied nonfarm
+nonresidential" and "Other nonfarm nonresidential".)
+
 First quarter each field is filed. Probed against the live API
-(``https://banks.data.fdic.gov/api/financials``, filter ``FIELD:[* TO *]``,
+(``https://api.fdic.gov/banks/financials``, filter ``FIELD:[* TO *]``,
 sorted by REPDTE ascending, every filer) on **12 Oct 2026**. "Filed" means at
 least one filer has a value that quarter; 1984Q1 is the first quarter the API
 holds at all, so a field shown as 1984Q1 may have been filed earlier:
@@ -30,9 +39,24 @@ holds at all, so a field shown as 1984Q1 may have been filed earlier:
   (LNCONOTH 1984Q1). Auto was inside other consumer until it was split out.
 - Auto: P3AUTO, P9AUTO and NAAUTO 2011Q1 (LNAUTO 2011Q1).
 
+The commercial products, from docs/commercial-2026-10/research-fdic.md (on
+main), probed the same way on **16 Oct 2026** (any filer, first value):
+
+- C&I: P3CI 2001Q1; P9CI 1984Q1; NACI 1984Q1 (LNCI 1984Q1).
+- Construction: P3RECONS 2001Q1; P9RECONS 1986Q1; NARECONS 1986Q1
+  (LNRECONS 1984Q1).
+- Multifamily: P3REMULT 2001Q1; P9REMULT 1991Q1; NAREMULT 1991Q1
+  (LNREMULT 1984Q1).
+- Nonfarm nonresidential: P3RENRES 2001Q1; P9RENRES 1991Q1; NARENRES 1991Q1
+  (LNRENRES 1984Q1).
+- Owner-occupied and other nonfarm nonresidential: every field 2007Q1
+  (LNRENROW, LNRENROT 2007Q1), and never filed by savings institutions that
+  filed the TFR (the FDIC: "This item was not available for TFR Reporters").
+
 So a measure that uses the 30-89 field (``30-89`` and ``30+ incl.
 nonaccrual``) starts in 2001Q1 for cards, home equity and other consumer,
-2002Q1 for mortgage and 2011Q1 for auto. Before that the field is blank, and a
+2002Q1 for mortgage and 2011Q1 for auto, 2001Q1 for the four commercial
+totals and 2007Q1 for the two nonfarm splits. Before that the field is blank, and a
 blank field is **not filed**, never 0: the rate is None and ``why`` names the
 field. (``books.py`` counts a blank as 0 because the earlier build did; there
 is no earlier build of delinquency to reproduce, so nothing is filled in.)
@@ -98,7 +122,7 @@ import math
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..profile import percentile
-from .books import _at_least, _by_cert, _contiguous, label, quarter_end
+from .books import _at_least, _by_cert, _contiguous, label, members, parts, quarter_end, raw_fields
 
 #: Product -> (balance, 30-89 days past due, 90+ days still accruing,
 #: nonaccrual) field names. All quarter-end, $ thousands.
@@ -106,8 +130,24 @@ FIELDS = {
     "Credit card": ("LNCRCD", "P3CRCD", "P9CRCD", "NACRCD"),
     "Mortgage": ("LNRERSFM", "P3RERSFM", "P9RERSFM", "NARERSFM"),
     "Home equity": ("LNRELOC", "P3RELOC", "P9RELOC", "NARELOC"),
-    "Other consumer": ("LNCONOTH", "P3CONOTH", "P9CONOTH", "NACONOTH"),
+    "Other consumer": ("LNCONOTH+LNCONRP", "P3CONOTH", "P9CONOTH", "NACONOTH"),
     "Auto": ("LNAUTO", "P3AUTO", "P9AUTO", "NAAUTO"),
+    "C&I": ("LNCI", "P3CI", "P9CI", "NACI"),
+    "Construction": ("LNRECONS", "P3RECONS", "P9RECONS", "NARECONS"),
+    "Multifamily": ("LNREMULT", "P3REMULT", "P9REMULT", "NAREMULT"),
+    "Nonfarm nonresidential": ("LNRENRES", "P3RENRES", "P9RENRES", "NARENRES"),
+    "Owner-occupied nonfarm nonresidential": ("LNRENROW", "P3RENROW", "P9RENROW", "NARENROW"),
+    "Other nonfarm nonresidential": ("LNRENROT", "P3RENROT", "P9RENROT", "NARENROT"),
+}
+
+#: What a product's delinquency notes must say about its definition, where
+#: it differs from the charge-off series' (``books.DEFINITIONS``).
+DEFINITIONS = {
+    "Other consumer": ("Other consumer's balance is RC-C 6.b, other revolving credit plans (LNCONRP), plus "
+                       "6.d (LNCONOTH), matching its past-due lines (RC-N 5.c), which include those plans. "
+                       "The FDIC data has no 6.b before 2001Q1, so no other consumer delinquency rate is "
+                       "written before then. Auto was inside 6.d until 2011Q1, when it got its own line "
+                       "(6.c)."),
 }
 
 #: Measure key -> which of (p3, p9, na) make its numerator.
@@ -130,26 +170,90 @@ WHY_BLANK = "not filed this quarter: %s is blank"
 WHY_JUMP_PREFIX = "book moved more than the jump in this window"
 WHY_JUMP = WHY_JUMP_PREFIX + ": %s %+.1f%% against the quarter before"
 WHY_JUMP_FROM_ZERO = WHY_JUMP_PREFIX + ": %s from 0 to above 0"
+WHY_ACQUIRED_PREFIX = "an acquisition brought in at least the acquisition share in this window"
+WHY_ACQUIRED = WHY_ACQUIRED_PREFIX + ": %s"
+#: A bank whose own four-quarter average is blanked for one of these reasons
+#: is left out of the composite's four-quarter average for that quarter.
+LEFT_OUT = (WHY_JUMP_PREFIX, WHY_ACQUIRED_PREFIX)
 WHY_FEWER_THAN_FOUR = "fewer than four consecutive quarter-ends in the data"
 WHY_RATE_MISSING = "a quarter-end rate in the window is None: %s (%s)"
+
+
+#: The rule a bank's latest four-quarter average was taken out by, as the
+#: state under its name says it (the analyst, 20 Oct 2026: "it should just be
+#: more clear why a bank is out ... it is hard to keep track of all the little
+#: rules we have established").
+RULE_ACQUIRED, RULE_JUMP, RULE_NO_RATE, RULE_FEW = "acquisition", "jump", "no rate", "too few quarters"
+
+
+def _plus(q: str, n: int) -> str:
+    """``YYYYQn`` moved on ``n`` quarters."""
+    k = int(q[:4]) * 4 + int(q[5]) - 1 + n
+    return "%dQ%d" % (k // 4, k % 4 + 1)
+
+
+def why_out(rows: Sequence[dict], acquired: Iterable[str], jump: float, share: float) -> Tuple[str, str]:
+    """Why the last row's four-quarter average is out, as ``(rule, sentence)``;
+    ``("", "")`` when it is in. ``rows`` are ``bank_delinquency``'s, with the
+    same ``acquired`` and ``jump``; ``share`` is the acquisition share those
+    quarters were found with. Said from the rows, never assumed: a jump or an
+    acquisition counts while it is one of the window's last three quarters, so
+    the bank is back three quarters after the latest one in the window, unless
+    its book moves again, and that latest one is the one named (Codex on
+    #469: naming the first beside the latest's return read as wrong); a
+    missing rate counts in any of the four, and when a
+    rate will come back is not known, so no quarter is given. A reason this
+    does not know is said as the data words it."""
+    last = rows[-1]
+    why = last["why_avg4"]
+    if last["avg4"] is not None or not why:
+        return "", ""
+    i = len(rows) - 1
+    pct = lambda x: "%g%%" % round(100 * x, 6)                              # noqa: E731
+    if why.startswith(WHY_JUMP_PREFIX) or why.startswith(WHY_ACQUIRED_PREFIX):
+        # Every event in the window, as bank_delinquency tests it (a jump before an acquisition in
+        # one quarter); the latest sets when the bank is back, so it is the one the sentence names.
+        bought = {label(q) for q in acquired}
+        events = []
+        for k in range(i - 2, i + 1):
+            a, b, q = rows[k - 1]["balance"], rows[k]["balance"], rows[k]["q"]
+            if a is not None and b is not None and a > 0 and abs(b / a - 1) > jump:
+                events.append((RULE_JUMP, q, "Its book moved %+.1f%% in %s, more than the %s jump."
+                               % (100 * (b / a - 1), q, pct(jump))))
+            elif a is not None and b is not None and a == 0 and b > 0:
+                events.append((RULE_JUMP, q, "Its book went from 0 to above 0 in %s." % q))
+            elif q in bought:
+                # books.acquired_quarters also lists a quarter whose absorbed book was not filed.
+                events.append((RULE_ACQUIRED, q, "An acquisition in %s brought in at least %s of its book, "
+                                                 "or a book not filed." % (q, pct(share))))
+        rule, q, said = events[-1]
+        return rule, "%s Back in %s unless it moves again." % (said, _plus(q, 3))
+    if why.startswith(WHY_RATE_MISSING.split(":")[0]):
+        q, rest = why.split(": ", 1)[1].split(" ", 1)
+        return RULE_NO_RATE, "No rate in %s: %s. The average needs all four quarters." % (q, rest[1:-1])
+    if why == WHY_FEWER_THAN_FOUR:
+        return RULE_FEW, "Fewer than four consecutive quarter-ends in the data."
+    return "", why[:1].upper() + why[1:] + "."
 
 
 def fields_for(products: Iterable[str]) -> List[str]:
     """Every delinquency field (balance, P3, P9, NA) of the products named, in
     table order, each once, so ``peers pull`` can add them to its request.
     An unknown product is refused."""
-    out: List[str] = []
-    for p in products:
-        for f in _fields(p):
-            if f not in out:
-                out.append(f)
-    return out
+    return raw_fields(f for p in products for f in _fields(p))
 
 
 def _fields(product: str) -> Tuple[str, str, str, str]:
-    if product not in FIELDS:
-        raise ValueError("product must be one of %s, not %r" % (sorted(FIELDS), product))
-    return FIELDS[product]
+    """(balance, P3, P9, NA) fields; a combined product's are its parts'
+    joined by "+" (``books.members``), and a sum with one part not filed is
+    not filed (``_filed``)."""
+    names = members(product)
+    return tuple("+".join(FIELDS[n][k] for n in names) for k in range(4))
+
+
+#: Said of every combined product's delinquency.
+COMBINED = ("A combined product's delinquency is written only for quarters in which every part's fields "
+            "were filed: auto's past-due and nonaccrual fields begin in 2011Q1.")
 
 
 def _numerator_fields(product: str, measure: str) -> List[str]:
@@ -171,7 +275,12 @@ def basis_key(basis: str) -> str:
 def _filed(row: dict, field: str) -> Optional[float]:
     """A filed amount, or None when the field is absent or blank (not filed).
     An amount that is not a finite number (NaN, infinity) is refused: it is
-    neither a filing nor a blank, and NaN passes every comparison guard."""
+    neither a filing nor a blank, and NaN passes every comparison guard.
+    A sum of fields (``"A+B"``) is filed when every part is; one blank part
+    makes it blank, since the sum would be part of a book."""
+    if "+" in field:
+        vals = [_filed(row, f) for f in parts(field)]
+        return None if any(v is None for v in vals) else sum(vals)
     v = row.get(field)
     if v is None or v == "":
         return None
@@ -188,8 +297,8 @@ def _amounts(row: dict, balance: str, nums: Sequence[str]):
     vals = [_filed(row, f) for f in nums]
     blank = next((f for f, v in zip(nums, vals) if v is None), None)
     num = None if blank else sum(vals)
-    if bal is None:
-        blank = balance
+    if bal is None:                 # name the part not filed, not the sum
+        blank = next((f for f in parts(balance) if _filed(row, f) is None), balance)
     return num, bal, blank
 
 
@@ -204,7 +313,8 @@ def _avg4(rates: Sequence[Optional[float]], follows: Sequence[bool], i: int) -> 
 
 
 def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
-                     jump: float, min_book: float, exempt_min_book: bool) -> List[dict]:
+                     jump: float, min_book: float, exempt_min_book: bool, *,
+                     acquired: Iterable[str]) -> List[dict]:
     """One row per quarter-end in ``data``: ``{q, numerator, balance, rate,
     avg4, kept, why, why_avg4}``, ``q`` labelled ``YYYYQn``.
 
@@ -220,8 +330,16 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
     ``jump`` (0.25 = 25%) and ``min_book`` ($ thousands) are judgements and
     are required; below 0 they are refused. ``exempt_min_book`` lifts the
     minimum for the bank drawn as itself and is required too, since whether a
-    bank is exempt is also a judgement."""
+    bank is exempt is also a judgement.
+
+    ``acquired`` is the bank's quarter-ends (``YYYYMMDD``) in which recorded
+    acquisitions brought in at least the acquisition share of its book
+    (``books.acquired_quarters``): one in i-2..i blanks the average like a
+    jump, never a quarter-end rate. Required; an empty list states none."""
     _at_least("jump", jump, 0)
+    if isinstance(acquired, str):
+        raise ValueError("acquired is a list of quarter-ends, not %r" % (acquired,))
+    bought = {label(q) for q in acquired}
     _at_least("min_book", min_book, 0)
     if not isinstance(exempt_min_book, bool):
         raise ValueError("exempt_min_book must be True or False, not %r" % (exempt_min_book,))
@@ -238,8 +356,8 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
             why = WHY_ABSENT
         else:
             num, bal, blank = _amounts(r, balance_field, nums)
-            if blank == balance_field:
-                why = WHY_BLANK % balance_field
+            if bal is None:                 # the balance, or a part of it, not filed
+                why = WHY_BLANK % blank
             elif bal <= 0:
                 why = WHY_NO_BOOK
             elif bal < min_book and not exempt_min_book:
@@ -267,6 +385,10 @@ def bank_delinquency(data: Dict[str, list], cert, product: str, measure: str,
             if a == 0 and b > 0:
                 jumped = WHY_JUMP_FROM_ZERO % rows[k]["q"]
                 break
+        if not jumped:
+            hit = next((rows[k]["q"] for k in range(i - 2, i + 1) if rows[k]["q"] in bought), None)
+            if hit:
+                jumped = WHY_ACQUIRED % hit
         if jumped:
             row["why_avg4"] = jumped
             continue
@@ -348,7 +470,7 @@ def composite_delinquency(books: Dict[str, List[dict]], certs: Sequence,
         for c in certs:
             own = idx[str(c)]
             mine = own.get(r["q"])
-            if (mine and (mine["why_avg4"] or "").startswith(WHY_JUMP_PREFIX)
+            if (mine and (mine["why_avg4"] or "").startswith(LEFT_OUT)
                     and any(w in own and own[w]["kept"] for w in win)):
                 r["avg4_left_out"].append(str(c))
         if i < 3 or not all(follows[k] for k in range(i - 2, i + 1)):
@@ -414,6 +536,32 @@ def industry_delinquency(data: Dict[str, list], product: str, measure: str) -> L
     for i, r in enumerate(out):
         r["avg4"] = _avg4(rates, follows, i)
     return out
+
+
+#: What the comparability tie-out (14 Oct 2026) found about comparing a
+#: measure across banks. Each is stated in the notes of every series it
+#: touches, so the Sources tab carries it; none changes a number.
+POLICY = ("Across banks, read with care: whether a late consumer or 1-4 family loan stays accruing or "
+          "goes to nonaccrual is partly each bank's policy (the Call Report allows both; at 30 Jun 2026, "
+          "10 of the 16 roster banks filed zero card nonaccrual). Compare banks on 90+ incl. nonaccrual "
+          "or 30+ incl. nonaccrual.")
+GUARANTEED = ("Mortgage: past-due counts include government-guaranteed loans (rebooked GNMA, RC-N items 11 "
+              "to 11.b), at no loss to the bank. At some peers they are most of first-lien 90+ accruing (up "
+              "to 94-103%, an upper bound: the line is not split by loan type). Compare mortgage across "
+              "banks on nonaccrual and charge-offs.")
+
+
+def comparability(product: str, measure: str) -> List[str]:
+    """The note lines on comparing ``product``'s ``measure`` across banks;
+    empty when the tie-out found nothing to say."""
+    if measure not in MEASURES:
+        raise ValueError("measure must be one of %s, not %r" % (list(MEASURES), measure))
+    lines = []
+    if measure in ("90+ accruing", "nonaccrual"):
+        lines.append(POLICY)
+    if "Mortgage" in members(product) and "p9" in MEASURES[measure]:
+        lines.append(GUARANTEED)
+    return lines
 
 
 def values(rows: Iterable[dict], basis: str) -> List[Tuple[str, Optional[float]]]:

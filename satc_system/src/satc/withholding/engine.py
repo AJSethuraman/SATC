@@ -2,15 +2,27 @@
 
 The flow mirrors a Form 1040 projection:
 
-1. Project full-year taxable wages and other income.
+1. Project full-year taxable wages and other income (capital losses limited).
 2. Subtract above-the-line adjustments to reach AGI.
-3. Apply the larger of the standard or itemized deduction.
+3. Take the larger of the standard deduction and Schedule A -- built from its
+   parts with the SALT cap and the medical and charity floors -- then the four
+   Schedule 1-A deductions and the QBI deduction.
 4. Tax ordinary income through the brackets and stack qualified dividends /
    long-term gains through the preferential 0/15/20% capital-gains rates.
-5. Add self-employment tax, the Additional Medicare Tax, and the Net Investment
-   Income Tax; then subtract credits.
-6. Compare projected payments against the liability and translate the gap into a
-   per-paycheck withholding recommendation (Form W-4 line 4c style).
+5. Subtract nonrefundable credits (Schedule 8812 computed from the household)
+   from income tax; add self-employment tax, the Additional Medicare Tax and the
+   Net Investment Income Tax; subtract the refundable credits.
+6. Compare projected payments -- withholding, estimates, and the two credits a
+   paystub's federal line leaves out -- against the liability; translate the gap
+   into a per-paycheck W-4 line 4c change, test the underpayment penalty, and
+   lay out the estimated payments still due.
+
+WHAT IT WAS NOT TOLD, IT ASSUMES OUT LOUD. The firm, 17 October 2026: "maybe we
+won't have certain info and it has to make an assumption as to maybe standard
+deduction instead of itemized". Every such fill-in is an :class:`Assumption` on
+the result, with what would change if it is wrong; every hazard the inputs show
+is a :class:`Check`. A TAX-LAW value is never assumed -- a year that is not on
+file is refused by :mod:`satc.withholding.tax_data`. See DESIGN-PRINCIPLES §5a.
 
 Tax constants come from SATC's dated crosswalk via
 :mod:`satc.withholding.tax_data`.
@@ -19,9 +31,12 @@ Tax constants come from SATC's dated crosswalk via
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from datetime import date
+from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Decimal
 
 from satc.withholding.models import (
+    Assumption,
+    Check,
     EstimateResult,
     EstimatorInput,
     JobProjection,
@@ -33,6 +48,14 @@ from satc.withholding.models import (
 from satc.withholding.tax_data import TaxTables, load_tax_tables
 
 CENTS = Decimal("0.01")
+THOUSAND = Decimal("1000")
+
+_STATUS_LABEL = {
+    "single": "Single",
+    "married_jointly": "Married filing jointly",
+    "married_separately": "Married filing separately",
+    "head_of_household": "Head of household",
+}
 
 
 def _money(value: Decimal) -> Decimal:
@@ -43,16 +66,62 @@ def _nonneg(value: Decimal) -> Decimal:
     return value if value > ZERO else ZERO
 
 
-def estimate(inp: EstimatorInput) -> EstimateResult:
-    """Run a full withholding estimate for the given input."""
+def _usd(value: Decimal) -> str:
+    return f"${value:,.0f}"
+
+
+def _thousands_down(amount: Decimal) -> Decimal:
+    return (amount / THOUSAND).to_integral_value(rounding=ROUND_FLOOR)
+
+
+def _thousands_up(amount: Decimal) -> Decimal:
+    return (amount / THOUSAND).to_integral_value(rounding=ROUND_CEILING)
+
+
+def estimate(inp: EstimatorInput, *, today: date | None = None) -> EstimateResult:
+    """Run a full withholding estimate for the given input.
+
+    ``today`` places the estimate in the year (which estimated-tax due dates
+    are still ahead); it defaults to the real date.
+    """
+    today = today or date.today()
     tables, notes = load_tax_tables(inp.tax_year)
     notes = list(notes)
-    breakdown, extra_notes = _build_breakdown(inp, tables)
+    status = inp.filing_status or "single"
+    ctx = _Context(inp=inp, tables=tables, status=status, today=today)
+    _refuse_spouse_income_off_a_joint_return(inp, status)
+    breakdown, extra_notes = _build_breakdown(ctx)
     notes.extend(extra_notes)
-    recommendation = _build_recommendation(inp, tables, breakdown)
-    return EstimateResult(
-        tax_year_used=tables.tax_year, filing_status=inp.filing_status,
+    recommendation = _build_recommendation(ctx, breakdown)
+    result = EstimateResult(
+        tax_year_used=tables.tax_year, filing_status=status,
         breakdown=breakdown, recommendation=recommendation, notes=notes)
+    result.assumptions = _assumptions(ctx)
+    result.checks = _checks(ctx, breakdown, recommendation)
+    result.headline = _headline(ctx, breakdown, recommendation)
+    return result
+
+
+@dataclass(slots=True)
+class _Context:
+    """What one estimate is working from, plus figures worked out on the way
+    that the checks need to see again."""
+
+    inp: EstimatorInput
+    tables: TaxTables
+    status: str
+    today: date
+    earned_income: Decimal = ZERO
+    agi: Decimal = ZERO
+    net_capital: Decimal = ZERO
+    investment_income: Decimal = ZERO
+    net_investment_income: Decimal = ZERO
+    business_tips_deducted: Decimal = ZERO
+    ctc_before_limit: Decimal = ZERO
+    eitc_ineligible_reason: str = ""
+    qbi_income: Decimal = ZERO
+    qbi_over_threshold: bool = False
+    medicare_wages: Decimal = ZERO
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +132,11 @@ def estimate(inp: EstimatorInput) -> EstimateResult:
 class _JobProjection:
     job: Paystub
     projected_wages: Decimal
+    #: Social Security and Medicare wages (W-2 boxes 3 and 5). Box 1 less any
+    #: pre-tax retirement deferral added back: a 401(k) deferral escapes income
+    #: tax but not payroll tax (IRC sec. 3121(v)(1)(A)). Other pre-tax pay --
+    #: health premiums through a cafeteria plan -- escapes both, so it stays out.
+    projected_fica_wages: Decimal
     ytd_withholding: Decimal
     projected_withholding: Decimal
     periods_elapsed: int
@@ -86,6 +160,10 @@ def _project_job(job: Paystub) -> _JobProjection:
     else:
         ytd_wages = per_period * elapsed
     projected_wages = ytd_wages + per_period * remaining
+    # The year-to-date deferral is not asked for, so the per-period one is
+    # taken for every period of the year. A deferral that started mid-year
+    # makes this a little high.
+    projected_fica_wages = projected_wages + _nonneg(job.retirement_pretax_per_period) * periods_per_year
 
     per_period_wh = job.federal_tax_withheld_per_period
     if job.ytd_federal_tax_withheld is not None:
@@ -95,7 +173,8 @@ def _project_job(job: Paystub) -> _JobProjection:
     projected_wh = ytd_wh + per_period_wh * remaining
 
     return _JobProjection(
-        job=job, projected_wages=projected_wages, ytd_withholding=ytd_wh,
+        job=job, projected_wages=projected_wages, projected_fica_wages=projected_fica_wages,
+        ytd_withholding=ytd_wh,
         projected_withholding=projected_wh, periods_elapsed=elapsed,
         periods_remaining=remaining)
 
@@ -104,57 +183,175 @@ def _total_projected_wages(inp: EstimatorInput) -> Decimal:
     return sum((_project_job(job).projected_wages for job in inp.jobs), ZERO)
 
 
-def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdown, list[str]]:
+def _refuse_spouse_income_off_a_joint_return(inp: EstimatorInput, status: str) -> None:
+    """Only a joint return carries the spouse's pay (Pub. 504: a separate filer
+    reports their own income). A spouse's job used to be added in whatever the
+    status, so a $50,000 job and the spouse's $100,000 one made $150,000 on the
+    taxpayer's separate return. Refused, not dropped: dropping would hide which
+    of the two was meant. Community property states split wages between the
+    spouses (Pub. 555), which this estimator does not model, so that is said
+    too. Found by Codex on #451."""
+    if status == "married_jointly":
+        return
+    oi = inp.other_income
+    spouse_jobs = [job.name or f"Job {i + 1}" for i, job in enumerate(inp.jobs)
+                   if (job.owner or "you") == "spouse"]
+    if spouse_jobs or oi.spouse_taxable_wages or oi.spouse_federal_tax_withheld:
+        what = ", ".join(spouse_jobs) if spouse_jobs else "spouse wages"
+        raise ValueError(
+            f"{what} marked as the spouse's, but a {status.replace('_', ' ')} return "
+            f"carries only your own pay. Mark it as yours, or take it off. In a "
+            f"community property state, enter your own share as your job.")
+
+
+def _se_owner_wages(ctx: _Context) -> Decimal:
+    """The wages on the self-employed person's own Schedule SE line 8a.
+
+    Schedule SE is one person's, so on a joint return only that person's jobs
+    use up their Social Security wage base. The engine used to subtract every
+    wage on the return, so a spouse's $180,000 salary left no room on the
+    taxpayer's $100,000 business and the 12.4% vanished. Found by Codex on #451.
+    """
+    inp = ctx.inp
+    who = inp.household.self_employment_owner or "you"
+    if who == "spouse" and ctx.status != "married_jointly":
+        raise ValueError(
+            f"Self-employment profit is marked as the spouse's, but a "
+            f"{ctx.status.replace('_', ' ')} return carries only your own. "
+            f"Mark it as yours, or leave it off.")
+    wages = sum((_project_job(job).projected_fica_wages for job in inp.jobs
+                 if (job.owner or "you") == who), ZERO)
+    if who == "spouse":
+        wages += inp.other_income.spouse_taxable_wages
+    return wages
+
+
+def _build_breakdown(ctx: _Context) -> tuple[TaxBreakdown, list[str]]:
+    inp, tables, status = ctx.inp, ctx.tables, ctx.status
     notes: list[str] = []
     oi = inp.other_income
-    status = inp.filing_status
 
     projected_wages = _total_projected_wages(inp)
-    se_tax, half_se = _self_employment_tax(oi.self_employment_net, projected_wages, tables)
+    se_tax, half_se = _self_employment_tax(oi.self_employment_net, _se_owner_wages(ctx), tables)
+
+    # CAPITAL GAINS NET BEFORE THEY ENTER INCOME, AND A NET LOSS IS CAPPED.
+    # Schedule D line 21: a net capital loss reduces income by at most $3,000
+    # ($1,500 MFS); the rest carries forward. Until 17 October 2026 the engine
+    # added a loss in full, so a $20,000 loss cut income by $20,000.
+    net_capital = oi.short_term_capital_gains + oi.long_term_capital_gains
+    limit = tables.capital_loss_limit(status)
+    capital_in_income = net_capital if net_capital >= ZERO else max(net_capital, -limit)
+    carryover = _nonneg(-net_capital - limit)
+    ctx.net_capital = net_capital
 
     total_income = (
         projected_wages + oi.interest + oi.ordinary_dividends
         + oi.taxable_retirement_distributions + oi.taxable_social_security
-        + oi.short_term_capital_gains + oi.long_term_capital_gains
-        + oi.self_employment_net + oi.unemployment + oi.other_taxable_income
-        + oi.spouse_taxable_wages)
+        + capital_in_income + oi.self_employment_net + oi.unemployment
+        + oi.rental_and_passive_income + oi.other_taxable_income + oi.spouse_taxable_wages)
 
     adj = inp.adjustments
+    # STUDENT LOAN INTEREST IS ASKED FOR AS THE DEDUCTIBLE AMOUNT (Schedule 1
+    # line 21), after the income limit. Two rules need no income figure and
+    # are refused here rather than deducted: none on a separate return (IRC
+    # sec. 221(e)(2)), and never more than $2,500 (sec. 221(b)(1), not
+    # indexed). Codex on #451: the raw interest was deducted unchecked.
+    if adj.student_loan_interest > ZERO and status == "married_separately":
+        raise ValueError("Student loan interest cannot be deducted on a married filing "
+                         "separately return. Leave it blank.")
+    if adj.student_loan_interest > Decimal("2500"):
+        raise ValueError(f"Student loan interest deduction is at most $2,500; "
+                         f"{_usd(adj.student_loan_interest)} was entered. Enter the deductible "
+                         f"amount from Schedule 1 line 21.")
     adjustments_total = (adj.traditional_ira_deduction + adj.hsa_deduction
                          + adj.student_loan_interest + adj.other_adjustments + half_se)
     agi = _nonneg(total_income - adjustments_total)
+    ctx.agi = agi
+    magi = agi  # equal unless foreign/Puerto Rico income is excluded
 
-    standard = tables.standard_deduction(status)
-    standard += tables.extra_standard_deduction(status) * inp.deductions.extra_standard_deductions
-    if inp.deductions.itemized_total is not None and inp.deductions.itemized_total > standard:
-        deduction_used, deduction_kind = inp.deductions.itemized_total, "itemized"
+    # -- the deduction: the larger of standard and itemized ------------------
+    d = inp.deductions
+    standard = tables.standard_deduction(status) + \
+        tables.extra_standard_deduction(status) * _extra_boxes(inp, status)
+    charity_cash = d.charitable_cash or ZERO
+    nonitemizer_charity = min(charity_cash, tables.charity_nonitemizer_max(status))
+    itemized = _itemized(ctx, agi)
+    if itemized is not None and itemized > standard + nonitemizer_charity:
+        deduction_used, deduction_kind = itemized, "itemized"
     else:
-        deduction_used, deduction_kind = standard, "standard"
+        deduction_used, deduction_kind = standard + nonitemizer_charity, "standard"
 
-    taxable_income = _nonneg(agi - deduction_used)
+    # -- Schedule 1-A (line 13b) ---------------------------------------------
+    tips, overtime, car, senior = _schedule_1a(ctx, magi)
+    sched_1a = tips + overtime + car + senior
 
-    preferential = _nonneg(oi.qualified_dividends + oi.long_term_capital_gains)
-    preferential = min(preferential, taxable_income)
+    # -- preferential income, then QBI ---------------------------------------
+    net_lt = oi.long_term_capital_gains
+    net_capital_gain = _nonneg(min(net_lt, net_capital))
+    preferential_raw = _nonneg(oi.qualified_dividends) + net_capital_gain
+    ti_before_qbi = _nonneg(agi - deduction_used - sched_1a)
+    qbi = _qbi_deduction(ctx, ti_before_qbi, preferential_raw, half_se)
+    taxable_income = _nonneg(ti_before_qbi - qbi)
+
+    preferential = min(preferential_raw, taxable_income)
     ordinary_ti = taxable_income - preferential
 
     ordinary_tax = _bracket_tax(ordinary_ti, tables.ordinary_brackets(status))
     cap_gains_tax = _capital_gains_tax(ordinary_ti, preferential, tables, status)
     income_tax_before_credits = ordinary_tax + cap_gains_tax
 
-    add_medicare = _additional_medicare_tax(inp, tables, projected_wages)
-    niit = _net_investment_income_tax(inp, tables, agi)
-    tax_before_credits = income_tax_before_credits + se_tax + add_medicare + niit
+    add_medicare = _additional_medicare_tax(
+        ctx, sum((_project_job(job).projected_fica_wages for job in inp.jobs), ZERO))
+    ctx.investment_income = _nonneg(oi.interest + oi.ordinary_dividends + _nonneg(net_capital)
+                                    + _nonneg(oi.rental_and_passive_income))
+    # THE 3.8% TAX NETS LOSSES; THE CREDIT TEST ABOVE DOES NOT. Form 8960 line
+    # 8 combines lines 1-7 as signed amounts: a Schedule E loss goes on line 4a
+    # as a negative, and line 5a is the capital gain or loss on Form 1040 line
+    # 7, so after the $3,000 limit. Only line 12, the total, stops at zero. The
+    # engine used to clamp each piece, so a $20,000 rental loss beside $50,000
+    # of interest was taxed as $50,000. Found by Codex on #451.
+    ctx.net_investment_income = _nonneg(oi.interest + oi.ordinary_dividends + capital_in_income
+                                        + oi.rental_and_passive_income)
+    niit = _net_investment_income_tax(ctx, agi)
 
+    # -- credits ---------------------------------------------------------------
+    # NONREFUNDABLE CREDITS OFFSET INCOME TAX ONLY. Form 1040 line 22 subtracts
+    # them from the income tax on line 18; self-employment tax and the other
+    # Schedule 2 taxes are added AFTER, on line 23. The engine used to let them
+    # offset SE tax too, so a sole proprietor with little income tax and a
+    # child credit showed a smaller bill than the return would.
+    earned = _nonneg(projected_wages + oi.spouse_taxable_wages + oi.self_employment_net - half_se)
+    ctx.earned_income = earned
     cr = inp.credits
-    nonrefundable = cr.child_tax_credit + cr.other_nonrefundable_credits
-    nonrefundable_applied = min(nonrefundable, tax_before_credits)
-    refundable = cr.refundable_credits
-    total_liability = tax_before_credits - nonrefundable_applied - refundable
+    remaining_tax = income_tax_before_credits
+    other_nonref = min(cr.other_nonrefundable_credits, remaining_tax)
+    remaining_tax -= other_nonref
+    eitc = _earned_income_credit(ctx, agi, earned)     # before the child credit: Part II-B subtracts it
+    if cr.child_tax_credit is not None:
+        child_credit = min(cr.child_tax_credit, remaining_tax)
+        actc = ZERO
+        if cr.child_tax_credit > child_credit:
+            notes.append(
+                "The child tax credit typed in is more than the income tax, so part of it was not "
+                "used. Leave that box blank and enter the children instead, and the estimator works "
+                "out the refundable part (the additional child tax credit) itself.")
+    else:
+        child_credit, actc = _child_tax_credit(
+            ctx, agi, remaining_tax, earned,
+            payroll_alternative=_actc_payroll_alternative(ctx, half_se, eitc))
+    remaining_tax -= child_credit
+    # AFTER THE CHILD CREDIT. Credit Limit Worksheet A subtracts only the
+    # Schedule 3 lines it names before the child credit; the rest go on after
+    # it, so they reduce the tax that is left and never feed line 14 or the
+    # refundable part. Found by Codex on #451.
+    after = min(cr.credits_after_child_credit, remaining_tax)
+    remaining_tax -= after
+    nonrefundable_applied = other_nonref + child_credit + after
 
-    if nonrefundable > nonrefundable_applied:
-        notes.append(
-            "Nonrefundable credits exceeded tax before credits; the excess was not refunded. "
-            "Some credits (e.g. the Additional Child Tax Credit) may be partly refundable in practice.")
+    refundable = cr.refundable_credits + actc + eitc
+    tax_after_credits = remaining_tax + se_tax + add_medicare + niit
+    total_liability = tax_after_credits - refundable
+
     if oi.self_employment_net > ZERO or add_medicare > ZERO:
         notes.append(
             "SE tax and Additional Medicare Tax use projected Box 1 taxable wages as a proxy for "
@@ -163,20 +360,11 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
     # THE FIGURES THIS RESTS ON WERE READ BY SOFTWARE, and nothing outside this
     # repository can say whether that reading was right.
     #
-    # Eight of the nine computations behind an estimate are now tied to an IRS
-    # document -- the brackets, the standard deduction, safe harbour, Schedule
-    # SE, the capital-gains worksheet, Forms 8959 and 8960, and the W-4 line 4c
-    # division. The ninth is the paystub reader, and it CANNOT be: **the IRS
-    # publishes nothing describing what a paystub looks like.** There is no
-    # federal form and no standard layout; a stub is whatever the employer's
-    # payroll software prints. Some states legislate the contents -- California
-    # Labor Code sec. 226, New York sec. 195.3 -- and Ohio does not.
-    #
-    # So it is MARKED rather than proved. The reader scores 126 of 126 on an
-    # eighteen-stub corpus, and that corpus was written here: it measures whether
-    # the reader handles the shapes we thought of, which is worth having and is
-    # not an accuracy figure. The only authority on whether a figure is right is
-    # the stub in the preparer's hand.
+    # Eight of the nine computations behind an estimate are tied to an IRS
+    # document. The ninth is the paystub reader, and it CANNOT be: **the IRS
+    # publishes nothing describing what a paystub looks like.** So it is MARKED
+    # rather than proved. The reader scores 126 of 126 on an eighteen-stub
+    # corpus written here, which is not an accuracy figure.
     if any(job.ytd_taxable_wages is not None or job.ytd_federal_tax_withheld is not None
            for job in inp.jobs):
         notes.append(
@@ -184,29 +372,18 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
             "machine can confirm a reading is right -- the IRS publishes no description "
             "of a paystub, so there is nothing to check one against. Compare the wages "
             "and withholding above against the stub before acting on this.")
-
     # WHAT THIS ESTIMATOR'S NET INVESTMENT INCOME LEAVES OUT, said when the tax
-    # actually applies rather than in a footnote nobody reaches.
-    #
-    # Tied to Form 8960 on 7 September 2026: the lesser-of rule, the 3.8% rate
-    # and the thresholds all agree with the form. What does NOT agree is the
-    # SCOPE of "net investment income", and it runs in both directions:
-    #
-    #   too LOW   Form 8960 Part I also counts rents, royalties, annuities and
-    #             passive business income. This estimator has no field for any
-    #             of them, so a landlord's NIIT is understated.
-    #   too HIGH  Form 8960 Part II allows deductions AGAINST that income --
-    #             investment interest expense, the state tax allocable to it.
-    #             None are modelled, so somebody with them is overstated.
-    #
-    # And the statute says MAGI where this uses AGI. They are the same figure
-    # unless the taxpayer excludes foreign earned income.
+    # actually applies. Tied to Form 8960 on 7 September 2026: the lesser-of
+    # rule, the 3.8% rate and the thresholds agree with the form; the SCOPE of
+    # "net investment income" does not (no rents, royalties, annuities or
+    # passive business income; no deductions against it). Rents, royalties
+    # and passive K-1 income have had their own field since PR #451.
     if niit > ZERO:
         notes.append(
-            "Net investment income here counts interest, dividends and capital gains only. "
-            "Rents, royalties, annuities and passive business income are NOT included, so a "
-            "landlord's figure is too low; deductions against investment income are not "
-            "modelled either, so somebody with investment interest expense is too high. "
+            "Net investment income here counts interest, dividends, capital gains and the "
+            "rents, royalties and passive income entered. Annuities are NOT included, so "
+            "somebody with a nonqualified annuity is too low; deductions against investment "
+            "income are not modelled, so somebody with investment interest expense is too high. "
             "The threshold test uses AGI, which equals MAGI unless foreign earned income is "
             "excluded.")
 
@@ -223,9 +400,256 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
         self_employment_tax=_money(se_tax), additional_medicare_tax=_money(add_medicare),
         net_investment_income_tax=_money(niit), nonrefundable_credits=_money(nonrefundable_applied),
         refundable_credits=_money(refundable),
-        total_tax_liability=_money(_nonneg(total_liability) if refundable == ZERO else total_liability),
-        marginal_rate=marginal, effective_rate=effective.quantize(Decimal("0.0001")))
+        total_tax_liability=_money(total_liability),
+        marginal_rate=marginal, effective_rate=effective.quantize(Decimal("0.0001")),
+        itemized_computed=None if itemized is None else _money(itemized),
+        standard_computed=_money(standard + nonitemizer_charity),
+        schedule_1a_deduction=_money(sched_1a), tips_deduction=_money(tips),
+        overtime_deduction=_money(overtime), car_loan_deduction=_money(car),
+        senior_deduction=_money(senior), qbi_deduction=_money(qbi),
+        capital_gain_in_income=_money(capital_in_income),
+        capital_loss_carryover=_money(carryover),
+        child_and_dependent_credit=_money(child_credit),
+        additional_child_tax_credit=_money(actc), earned_income_credit=_money(eitc))
     return breakdown, notes
+
+
+def _extra_boxes(inp: EstimatorInput, status: str) -> int:
+    """How many age-or-blind boxes the standard deduction gets (Form 1040 page 1).
+
+    The spouse's boxes count on a joint return, and on a separate return when
+    the spouse had no gross income, files no return and cannot be claimed as a
+    dependent (Pub. 501, Table 7: up to four boxes married filing separately).
+    Until told that, a separate return counts the taxpayer's boxes only, the
+    smaller deduction. ``extra_standard_deductions`` is the older single-number
+    input and is added as given.
+    """
+    hh = inp.household
+    spouse_counts = _spouse_boxes_count(hh, status)
+    most = 2 if spouse_counts else 1
+    if hh.blind_count > most:
+        # REFUSED, NOT TRIMMED. Only the taxpayer, and a spouse whose boxes
+        # count, have a blindness box (Pub. 501); a blind dependent adds
+        # nothing. Trimming would hide which of the two the preparer meant.
+        # Found by Codex on #451.
+        who = "you and your spouse" if most == 2 else "you"
+        also = (" The spouse counts on a separate return only if the spouse had no "
+                "income, files no return and cannot be claimed as a dependent."
+                if status == "married_separately" else "")
+        raise ValueError(
+            f"{hh.blind_count} people marked legally blind; on a "
+            f"{status.replace('_', ' ')} return only {who} can count "
+            f"(at most {most}). A blind dependent does not add to the "
+            f"standard deduction.{also}")
+    boxes = int(bool(hh.taxpayer_65_or_older)) + hh.blind_count + inp.deductions.extra_standard_deductions
+    if spouse_counts and hh.spouse_65_or_older:
+        boxes += 1
+    return boxes
+
+
+def _spouse_boxes_count(hh, status: str) -> bool:
+    return status == "married_jointly" or (
+        status == "married_separately" and bool(hh.spouse_no_income_not_filing))
+
+
+def _salt_limit(ctx: _Context, magi: Decimal, paid: Decimal) -> Decimal:
+    """2025 Instructions for Schedule A, State and Local Tax Deduction Worksheet."""
+    t = ctx.tables
+    mfs = ctx.status == "married_separately"
+    floor = t.salt_floor / 2 if mfs else t.salt_floor
+    if paid <= floor:                                  # worksheet line 1, "No"
+        return paid
+    line1 = t.salt_cap
+    threshold = t.salt_phasedown_threshold / 2 if mfs else t.salt_phasedown_threshold
+    if magi > threshold:
+        line9 = max(line1 - (magi - threshold) * t.salt_phasedown_rate, t.salt_floor)
+    else:
+        line9 = line1
+    return min(line9 / 2 if mfs else line9, paid)      # line 10
+
+
+def _itemized(ctx: _Context, agi: Decimal) -> Decimal | None:
+    """Schedule A from its parts, or the finished figure, or None if neither."""
+    d = ctx.inp.deductions
+    if d.itemized_total is not None:
+        return d.itemized_total
+    if not d.itemized_parts_given():
+        return None
+    t = ctx.tables
+    medical = _nonneg((d.medical_expenses or ZERO) - agi * t.medical_agi_floor)
+    salt = _salt_limit(ctx, agi, (d.state_local_income_or_sales_tax or ZERO) + (d.property_taxes or ZERO))
+    charity = (d.charitable_cash or ZERO) + (d.charitable_noncash or ZERO)
+    charity = _nonneg(charity - agi * t.charity_itemized_floor_pct)
+    return medical + salt + (d.mortgage_interest or ZERO) + charity + (d.other_itemized or ZERO)
+
+
+def _schedule_1a(ctx: _Context, magi: Decimal) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Schedule 1-A (Form 1040) 2025, Parts II-V, line for line.
+
+    Tips, overtime and the senior deduction need a joint return if married
+    (the form's caution on each part); car loan interest does not.
+    """
+    t, status, s1a, hh = ctx.tables, ctx.status, ctx.inp.schedule_1a, ctx.inp.household
+    joint_ok = status != "married_separately"
+
+    def phase_down(amount: Decimal, start: Decimal) -> Decimal:
+        over = magi - start                                        # lines 10 / 18
+        if over <= ZERO:
+            return amount
+        return _nonneg(amount - _thousands_down(over) * t.tips_overtime_phaseout_per_1000)
+
+    tips = overtime = ZERO
+    if joint_ok:
+        start = t.tips_overtime_phaseout_start(status)
+        # Line 5 may not exceed the business's net profit; line 6 adds 4c.
+        business = min(_nonneg(s1a.qualified_tips_business),
+                       _nonneg(ctx.inp.other_income.self_employment_net))
+        tips = phase_down(min(_nonneg(s1a.qualified_tips) + business, t.tips_max), start)
+        # TIPS DEDUCTED ARE NOT ALSO QUALIFIED BUSINESS INCOME. Form 8995
+        # (2025 instructions, QBI flow chart): an amount deductible as a
+        # qualified tip under sec. 224(a) is not QBI. When the cap or the
+        # phase-out leaves less than both kinds of tip, the business tips
+        # are taken as deducted first -- the smaller QBI, so the higher tax,
+        # the stricter reading (DESIGN-PRINCIPLES 5a). Found by Codex on #451.
+        ctx.business_tips_deducted = min(business, tips)
+        overtime = phase_down(min(_nonneg(s1a.qualified_overtime), t.overtime_max(status)), start)
+
+    car = min(_nonneg(s1a.car_loan_interest), t.car_loan_max)      # line 24
+    over = magi - t.car_loan_phaseout_start(status)                # line 27
+    if over > ZERO:
+        car = _nonneg(car - _thousands_up(over) * t.car_loan_phaseout_per_1000)
+
+    senior = ZERO
+    if joint_ok:
+        people = int(bool(hh.taxpayer_65_or_older))
+        if status == "married_jointly" and hh.spouse_65_or_older:
+            people += 1
+        each = _nonneg(t.senior_amount - _nonneg(magi - t.senior_phaseout_start(status)) * t.senior_phaseout_rate)
+        senior = each * people
+    return tips, overtime, car, senior
+
+
+def _qbi_deduction(ctx: _Context, ti_before_qbi: Decimal, net_capital_gain: Decimal,
+                   half_se: Decimal) -> Decimal:
+    """Form 8995 for a sole proprietor: 20% of QBI, limited to 20% of taxable
+    income less net capital gain. Above the threshold the wage and SSTB limits
+    of Form 8995-A apply and are NOT modelled -- a check says so."""
+    t = ctx.tables
+    oi = ctx.inp.other_income
+    # Schedule C less half the SE tax and the deducted business tips, plus any
+    # qualified business income inside the Schedule E figure (Form 8995 line
+    # 1 takes every qualified trade or business, passive or not). A loss there
+    # nets against the Schedule C (line 2), and a total below zero is zero.
+    active = oi.self_employment_net - half_se - ctx.business_tips_deducted
+    qbi = _nonneg(active + (oi.qbi_from_rental_and_k1 or ZERO))
+    ctx.qbi_income = qbi
+    if qbi <= ZERO:
+        return ZERO
+    ctx.qbi_over_threshold = ti_before_qbi > t.qbi_threshold(ctx.status)
+    deduction = min(qbi * t.qbi_rate, _nonneg(ti_before_qbi - net_capital_gain) * t.qbi_rate)
+    minimum, needs = t.qbi_minimum
+    # The 2026 minimum needs $1,000 from businesses the taxpayer MATERIALLY
+    # participates in (sec. 199A(i)); a Schedule E figure is not known to be
+    # one, so only the Schedule C part counts toward it.
+    if minimum > ZERO and min(qbi, _nonneg(active)) >= needs:
+        deduction = min(max(deduction, minimum), ti_before_qbi)
+    return deduction
+
+
+def _child_tax_credit(ctx: _Context, agi: Decimal, tax_room: Decimal,
+                      earned: Decimal, payroll_alternative: Decimal = ZERO) -> tuple[Decimal, Decimal]:
+    """Schedule 8812 (Form 1040) 2025, Parts I, II-A and II-B.
+
+    Returns (credit used against income tax, additional child tax credit).
+    ``payroll_alternative`` is Part II-B's line 25, used for three or more
+    children (line 26 takes the larger). It was left out until Codex on #451.
+    """
+    t, hh = ctx.tables, ctx.inp.household
+    kids = hh.children_under_17 or 0
+    others = hh.other_dependents or 0
+    line8 = kids * t.ctc_per_child + others * t.odc_per_dependent
+    over = agi - t.ctc_phaseout_threshold(ctx.status)                # line 10
+    reduction = _thousands_up(over) * t.ctc_phaseout_per_1000 if over > ZERO else ZERO
+    line12 = _nonneg(line8 - reduction)
+    ctx.ctc_before_limit = line12
+    used = min(line12, _nonneg(tax_room))                             # line 14
+    if kids == 0 or line12 <= used:
+        return used, ZERO
+    line17 = min(line12 - used, kids * t.actc_max_per_child)
+    line20 = _nonneg(earned - t.actc_earned_income_floor) * t.actc_earned_income_rate
+    line26 = max(line20, payroll_alternative) if kids >= 3 else line20
+    return used, min(line17, line26)
+
+
+def _actc_payroll_alternative(ctx: _Context, half_se: Decimal, eitc: Decimal) -> Decimal:
+    """Schedule 8812 Part II-B, lines 21-25: the taxpayer's Social Security taxes
+    less the earned income credit.
+
+    IRC sec. 24(d)(2): the employee's Social Security and Medicare tax
+    withheld (W-2 boxes 4 and 6, with the Additional Medicare withheld) plus
+    HALF the self-employment tax (Schedule 1 line 15), less the earned income
+    credit and the excess Social Security credit (Schedule 3 line 11). Each
+    employer's Social Security stops at the wage base. Each job's payroll-tax
+    wages are used, not its Box 1 wages: a $20,000 401(k) deferral on $40,000
+    of pay is still taxed for Social Security (Codex on #451). The spouse's
+    single wage figure has no deferral to add back, so it stands as given.
+    """
+    t, inp = ctx.tables, ctx.inp
+    projections = [_project_job(job) for job in inp.jobs]
+    addl_withheld, excess_ss = _payroll_credits(ctx, projections)
+    ss_rate = t.se_social_security_rate / 2              # 6.2%, sec. 3101(a)
+    medicare_rate = t.se_medicare_rate / 2               # 1.45%, sec. 3101(b)(1)
+    wages = [p.projected_fica_wages for p in projections] + [inp.other_income.spouse_taxable_wages]
+    line21 = sum((min(w, t.ss_wage_base) * ss_rate + w * medicare_rate for w in wages), ZERO) + addl_withheld
+    return _nonneg(line21 + half_se - eitc - excess_ss)                # lines 23-25
+
+
+def _childless_age_ok(ctx: _Context) -> bool:
+    """With no qualifying child, the taxpayer -- or the spouse, on a joint
+    return -- must be 25 through 64 at the end of the year. An age not given
+    is assumed in range, and that is said in the assumptions."""
+    hh = ctx.inp.household
+    people = [(hh.taxpayer_under_25, hh.taxpayer_65_or_older)]
+    if ctx.status == "married_jointly":
+        people.append((hh.spouse_under_25, hh.spouse_65_or_older))
+    return any(not under and not over for under, over in people)
+
+
+def _earned_income_credit(ctx: _Context, agi: Decimal, earned: Decimal) -> Decimal:
+    """IRC sec. 32 from the revenue procedure's table.
+
+    The phase-in rate is the maximum credit over the earned income amount, and
+    the phase-out rate the maximum credit over the phase-out range -- both read
+    off the published columns rather than carried as constants. The IRS tables
+    in the 1040 instructions work in $50 bands, so this can differ from them
+    by a few dollars.
+    """
+    t, hh = ctx.tables, ctx.inp.household
+    if earned <= ZERO:
+        return ZERO
+    kids = hh.eitc_children if hh.eitc_children is not None else (hh.children_under_17 or 0)
+    # A SEPARATE RETURN CAN CLAIM IT, ON CONDITIONS. Every one used to be
+    # refused, which can cost a separated parent thousands (Codex on #451).
+    # Not told is not eligible, and `_assumptions` says so.
+    if ctx.status == "married_separately" and not (kids > 0 and hh.lived_apart_from_spouse):
+        ctx.eitc_ineligible_reason = (
+            "married filing separately with no qualifying child" if kids == 0 else
+            "married filing separately and not marked as living apart from the spouse")
+        return ZERO
+    if ctx.investment_income > t.eitc_investment_income_limit:
+        ctx.eitc_ineligible_reason = (f"investment income over {_usd(t.eitc_investment_income_limit)}")
+        return ZERO
+    if kids == 0 and not _childless_age_ok(ctx):
+        ctx.eitc_ineligible_reason = "no qualifying children and nobody on the return aged 25 to 64"
+        return ZERO
+    row = t.eitc_row(ctx.status, kids)
+    phase_in = row["max_credit"] / row["earned_income_amount"]
+    phase_out = row["max_credit"] / (row["completed"] - row["threshold"])
+    credit = min(earned * phase_in, row["max_credit"])
+    over = max(agi, earned) - row["threshold"]
+    if over > ZERO:
+        credit -= over * phase_out
+    return _nonneg(credit)
 
 
 def _bracket_tax(amount: Decimal, brackets) -> Decimal:
@@ -284,19 +708,13 @@ def _se_earnings_subject_to_tax(net_se: Decimal, tables: TaxTables) -> Decimal:
 
     Found on 7 September 2026 by tying the computation to the form rather than
     to our own constants: the engine charged **$56.52 on net earnings of $400**,
-    where the form charges nothing. Small money, common case -- a side gig, a
-    little 1099 income -- and it overstated the client's tax, the same direction
-    as the standard-deduction defect found the day before.
+    where the form charges nothing.
 
     One function because TWO places need the answer, and they must not disagree:
     the SE tax itself, and the Additional Medicare Tax, whose Form 8959 line 8
     reads *"Enter your self-employment income from Schedule SE (Form 1040),
-    Part I, line 6"* -- a line you never reach if 4c stopped you.
-
-    THE SECOND OF THOSE IS A CONSEQUENCE, NOT A PRINTED RULE. Form 8959's
-    instructions do not say what to do when Schedule SE was not required; this
-    follows from line 8 naming a line that does not exist in that case. Recorded
-    as an inference rather than presented as a citation.
+    Part I, line 6"* -- a line you never reach if 4c stopped you. That second
+    use is an inference from the form, not a printed rule.
     """
     if net_se <= ZERO:
         return ZERO
@@ -317,45 +735,97 @@ def _self_employment_tax(net_se: Decimal, wages_subject_to_ss: Decimal,
     return se_tax, se_tax / 2
 
 
-def _additional_medicare_tax(inp: EstimatorInput, tables: TaxTables,
-                             projected_wages: Decimal) -> Decimal:
+def _additional_medicare_tax(ctx: _Context, medicare_job_wages: Decimal) -> Decimal:
     # Form 8959 line 8 reads Schedule SE line 6, which does not exist when line
-    # 4c stopped the schedule -- so the same floor applies here. See
-    # `_se_earnings_subject_to_tax`, which is shared so the two cannot disagree.
-    se_base = _se_earnings_subject_to_tax(
-        _nonneg(inp.other_income.self_employment_net), tables)
-    medicare_wages = projected_wages + inp.other_income.spouse_taxable_wages + se_base
-    threshold = tables.additional_medicare_threshold(inp.filing_status)
+    # 4c stopped the schedule -- so the same floor applies here.
+    inp, tables = ctx.inp, ctx.tables
+    se_base = _se_earnings_subject_to_tax(_nonneg(inp.other_income.self_employment_net), tables)
+    medicare_wages = medicare_job_wages + inp.other_income.spouse_taxable_wages + se_base   # Form 8959 lines 1 and 8
+    ctx.medicare_wages = medicare_wages
+    threshold = tables.additional_medicare_threshold(ctx.status)
     excess = _nonneg(medicare_wages - threshold)
     return excess * tables.additional_medicare_rate
 
 
-def _net_investment_income_tax(inp: EstimatorInput, tables: TaxTables, agi: Decimal) -> Decimal:
-    oi = inp.other_income
-    investment_income = _nonneg(
-        oi.interest + oi.ordinary_dividends + oi.short_term_capital_gains
-        + oi.long_term_capital_gains)
-    if investment_income <= ZERO:
-        return ZERO
-    threshold = tables.niit_threshold(inp.filing_status)
+def _net_investment_income_tax(ctx: _Context, agi: Decimal) -> Decimal:
+    # No zero test here: the base is floored where it is built, as line 12 is.
+    threshold = ctx.tables.niit_threshold(ctx.status)
     over_threshold = _nonneg(agi - threshold)
-    base = min(investment_income, over_threshold)
-    return base * tables.niit_rate
+    base = min(ctx.net_investment_income, over_threshold)
+    return base * ctx.tables.niit_rate
 
 
 # ---------------------------------------------------------------------------
-# Withholding recommendation
+# Withholding recommendation and the penalty test
 # ---------------------------------------------------------------------------
 
-def _build_recommendation(inp: EstimatorInput, tables: TaxTables,
-                          breakdown: TaxBreakdown) -> WithholdingRecommendation:
+def _payroll_credits(ctx: _Context, projections: list[_JobProjection]) -> tuple[Decimal, Decimal]:
+    """Two payments the paystub's federal-tax line does not show.
+
+    1. ADDITIONAL MEDICARE TAX WITHHELD. An employer withholds 0.9% on wages it
+       pays over $200,000, whatever the filing status (IRC sec. 3102(f)). It is
+       a payment on Form 1040 line 25c via Form 8959. Without it, anyone paid
+       more than $200,000 by one employer showed a balance due they do not owe.
+    2. EXCESS SOCIAL SECURITY. Each employer withholds 6.2% up to the wage base
+       on its own, so one person with two employers can overpay; the excess is
+       a refundable credit (Schedule 3 line 11). Grouped by whose job it is.
+
+    Both use each job's payroll-tax wages -- Box 1 with the retirement deferral
+    added back -- since that is what the employer withholds on.
+    """
+    t = ctx.tables
+    addl = sum((_nonneg(p.projected_fica_wages - t.addl_medicare_employer_threshold) * t.additional_medicare_rate
+                for p in projections), ZERO)
+    employee_ss_rate = t.se_social_security_rate / 2   # 6.2%, IRC sec. 3101(a)
+    excess = ZERO
+    owners: dict[str, list[Decimal]] = {}
+    for p in projections:
+        owners.setdefault(p.job.owner or "you", []).append(p.projected_fica_wages)
+    for wages in owners.values():
+        if len(wages) < 2:
+            continue
+        withheld = sum((min(w, t.ss_wage_base) for w in wages), ZERO) * employee_ss_rate
+        owed = min(sum(wages, ZERO), t.ss_wage_base) * employee_ss_rate
+        excess += _nonneg(withheld - owed)
+    return addl, excess
+
+
+def _installment_plan(ctx: _Context, required: Decimal, withholding: Decimal,
+                      estimated_paid: Decimal) -> list[tuple[str, Decimal]]:
+    """The 1040-ES payments still due, each bringing the total up to date.
+
+    Form 1040-ES: a quarter of the required annual payment is due by each
+    date, cumulatively. Withholding counts as paid evenly through the year
+    (IRC sec. 6654(g)(1)); estimated payments already made count from the
+    start. A date already passed is not spread over the dates left -- it is
+    owed now, so it goes into the next payment. Spreading it left somebody
+    starting in August a quarter short until January (Codex review, PR #451).
+    """
+    dates = ctx.tables.est_tax_due_dates
+    plan: list[tuple[str, Decimal]] = []
+    paid_in_plan = ZERO
+    for k, d in enumerate(dates, start=1):
+        if date.fromisoformat(d) < ctx.today:
+            continue
+        due_by_now = _nonneg((required - withholding) * k / len(dates) - estimated_paid)
+        payment = _money(_nonneg(due_by_now - paid_in_plan))
+        paid_in_plan += payment
+        if payment > ZERO:
+            plan.append((d, payment))
+    return plan
+
+
+def _build_recommendation(ctx: _Context, breakdown: TaxBreakdown) -> WithholdingRecommendation:
+    inp, tables = ctx.inp, ctx.tables
     projections = [_project_job(job) for job in inp.jobs]
     total_ytd_wh = sum((p.ytd_withholding for p in projections), ZERO)
     total_projected_wh = sum((p.projected_withholding for p in projections), ZERO)
+    addl_medicare_wh, excess_ss = _payroll_credits(ctx, projections)
 
-    other_payments_total = (inp.other_payments.estimated_tax_payments
-                            + inp.other_payments.other_withholding
-                            + inp.other_income.spouse_federal_tax_withheld)
+    withholding_like = (inp.other_payments.other_withholding
+                        + inp.other_income.spouse_federal_tax_withheld
+                        + addl_medicare_wh + excess_ss)
+    other_payments_total = inp.other_payments.estimated_tax_payments + withholding_like
 
     liability = breakdown.total_tax_liability
     projected_total_payments = total_projected_wh + other_payments_total
@@ -378,17 +848,23 @@ def _build_recommendation(inp: EstimatorInput, tables: TaxTables,
 
     recommended_per_period = required_from_adjusted / a_remaining if a_remaining > 0 else ZERO
     additional_per_period = recommended_per_period - a_per_period_wh
-    # Household-based: are projected payments already above the target refund?
     is_over = projected_balance > target
 
+    # -- the penalty test: IRC sec. 6654, Pub. 505 chapter 4 -------------------
+    required, basis = _required_annual_payment(ctx, liability)
     safe_harbor_target = None
     safe_harbor_additional = None
     if inp.prior_year_tax is not None:
-        safe_harbor_target = _safe_harbor_target(inp, tables, liability)
-        sh_required = safe_harbor_target - already_secured - others_future_wh
+        safe_harbor_target = required
+        sh_required = required - already_secured - others_future_wh
         if a_remaining > 0:
-            sh_per_period = sh_required / a_remaining
-            safe_harbor_additional = _money(_nonneg(sh_per_period - a_per_period_wh))
+            safe_harbor_additional = _money(_nonneg(sh_required / a_remaining - a_per_period_wh))
+    withholding_total = total_projected_wh + withholding_like
+    shortfall = _nonneg(required - projected_total_payments)
+    penalty_risk = (liability - withholding_total >= tables.underpayment_penalty_floor
+                    and shortfall > ZERO)
+    plan = _installment_plan(ctx, required, withholding_total,
+                             inp.other_payments.estimated_tax_payments) if penalty_risk else []
 
     job_breakdown = [
         JobProjection(
@@ -415,20 +891,272 @@ def _build_recommendation(inp: EstimatorInput, tables: TaxTables,
         adjusted_job_name=job_breakdown[adjusted_idx].name,
         adjusted_job_pay_frequency=adjusted.pay_frequency,
         adjusted_job_withholding_per_period=_money(a_per_period_wh),
-        job_breakdown=job_breakdown)
+        job_breakdown=job_breakdown,
+        additional_medicare_withheld=_money(addl_medicare_wh),
+        excess_social_security_credit=_money(excess_ss),
+        required_annual_payment=_money(required), required_annual_payment_basis=basis,
+        penalty_risk=penalty_risk, safe_harbor_shortfall=_money(shortfall),
+        estimated_payments_remaining=plan)
 
 
-def _safe_harbor_target(inp: EstimatorInput, tables: TaxTables,
-                        current_liability: Decimal) -> Decimal:
-    sh = tables.safe_harbor()
-    current_target = current_liability * Decimal(str(sh["current_year_pct"]))
-    prior_tax = inp.prior_year_tax or ZERO
-    if inp.filing_status == "married_separately":
+def _required_annual_payment(ctx: _Context, current_liability: Decimal) -> tuple[Decimal, str]:
+    """The smaller of 90% of this year's tax and 100%/110% of last year's.
+
+    Pub. 505: no penalty if last year's tax was zero. Without last year's tax
+    only the 90% test can be run, and an assumption says so.
+    """
+    inp = ctx.inp
+    sh = ctx.tables.safe_harbor()
+    current = _nonneg(current_liability) * Decimal(str(sh["current_year_pct"]))
+    if inp.prior_year_tax is None:
+        return current, "90% of this year's tax; last year's tax was not given"
+    if inp.prior_year_tax <= ZERO:
+        return ZERO, "last year's tax was zero"
+    pct = _prior_year_pct(inp, sh, ctx.status)
+    prior = inp.prior_year_tax * pct
+    if prior <= current:
+        return prior, f"{pct * 100:.0f}% of last year's tax"
+    return current, "90% of this year's tax"
+
+
+def _prior_year_pct(inp: EstimatorInput, sh: dict, status: str) -> Decimal:
+    if status == "married_separately":
         high_threshold = Decimal(str(sh["high_income_agi_threshold_mfs"]))
     else:
         high_threshold = Decimal(str(sh["high_income_agi_threshold"]))
-    prior_pct = Decimal(str(sh["prior_year_pct"]))
-    if inp.prior_year_agi is not None and inp.prior_year_agi > high_threshold:
-        prior_pct = Decimal(str(sh["prior_year_pct_high_income"]))
-    prior_target = prior_tax * prior_pct
+    # NOT GIVEN IS THE STRICTER RULE. Blank used to fall through to 100%, so
+    # a taxpayer over the AGI line could be told they were safe on a target
+    # 10% short (Codex on #451). `_assumptions` says this was assumed.
+    if inp.prior_year_agi is None or inp.prior_year_agi > high_threshold:
+        return Decimal(str(sh["prior_year_pct_high_income"]))
+    return Decimal(str(sh["prior_year_pct"]))
+
+
+def _safe_harbor_target(inp: EstimatorInput, tables: TaxTables,
+                        current_liability: Decimal, status: str | None = None) -> Decimal:
+    """Pub. 505 safe harbour: the smaller of 90% of this year and 100/110% of last."""
+    status = status or inp.filing_status or "single"
+    sh = tables.safe_harbor()
+    current_target = _nonneg(current_liability) * Decimal(str(sh["current_year_pct"]))
+    prior_target = (inp.prior_year_tax or ZERO) * _prior_year_pct(inp, sh, status)
     return min(current_target, prior_target)
+
+
+# ---------------------------------------------------------------------------
+# What it assumed, what it noticed, and the one-line answer
+# ---------------------------------------------------------------------------
+
+def _assumptions(ctx: _Context) -> list[Assumption]:
+    inp, t, status = ctx.inp, ctx.tables, ctx.status
+    hh, d = inp.household, inp.deductions
+    out: list[Assumption] = []
+    add = lambda topic, assumed, if_wrong: out.append(Assumption(topic, assumed, if_wrong))  # noqa: E731
+
+    if inp.filing_status is None:
+        add("Filing status", "Single",
+            "Married filing jointly roughly doubles the brackets and the standard deduction.")
+    if inp.tax_year is None:
+        add("Tax year", f"{t.tax_year}, the newest year on file", "Pick the year on the form.")
+    if d.itemized_total is None and not d.itemized_parts_given():
+        add("Deduction", f"Standard deduction ({_usd(t.standard_deduction(status))})",
+            "If mortgage interest, state and property taxes and gifts to charity add up to more, "
+            "enter them and the estimator will itemize.")
+    if hh.taxpayer_65_or_older is None or (_spouse_boxes_count(hh, status) and hh.spouse_65_or_older is None):
+        add("Age", "Nobody on the return is 65 or older",
+            f"Each person 65+ adds {_usd(t.extra_standard_deduction(status))} to the standard deduction "
+            f"and up to {_usd(t.senior_amount)} more through the senior deduction.")
+    if hh.children_under_17 is None and hh.other_dependents is None and inp.credits.child_tax_credit is None:
+        add("Dependents", "No children or other dependents",
+            f"Each child under 17 is worth up to {_usd(t.ctc_per_child)} in credit; "
+            f"each other dependent {_usd(t.odc_per_dependent)}.")
+    kids = hh.children_under_17 or 0
+    ek = hh.eitc_children if hh.eitc_children is not None else kids
+    mfs_apart = status == "married_separately" and ek > 0 and bool(hh.lived_apart_from_spouse)
+    eitc_reachable = ctx.earned_income > ZERO and (status != "married_separately" or mfs_apart) and         max(ctx.agi, ctx.earned_income) < t.eitc_row(status, max(kids, 3))["completed"]
+    if hh.eitc_children is None and kids > 0 and eitc_reachable:
+        add("Earned income credit", "The children under 17 are the qualifying children",
+            "Children under 19, or under 24 and a student, also count for this credit.")
+    eitc_kids = hh.eitc_children if hh.eitc_children is not None else kids
+    joint = status == "married_jointly"
+    if (eitc_kids == 0 and eitc_reachable and not ctx.eitc_ineligible_reason
+            and (hh.taxpayer_under_25 is None or (joint and hh.spouse_under_25 is None))):
+        add("Earned income credit", "Somebody on the return is 25 or older",
+            "With no qualifying child the credit needs somebody aged 25 to 64. "
+            "If everyone is under 25, it is zero.")
+    if (status == "married_separately" and eitc_kids > 0 and ctx.earned_income > ZERO
+            and hh.lived_apart_from_spouse is None):
+        add("Earned income credit", "Not claimed: not told the spouses lived apart",
+            "A separate return can claim it if you lived apart from your spouse for the last "
+            "six months of the year, or are legally separated and did not live together at "
+            "year end, and the child lived with you over half the year.")
+    if (status == "married_separately" and hh.spouse_65_or_older
+            and hh.spouse_no_income_not_filing is None):
+        add("Spouse's age", "Not counted on this separate return",
+            f"If your spouse had no income, files no return and cannot be claimed as a "
+            f"dependent, the spouse's box adds {_usd(t.extra_standard_deduction(status))}.")
+    # Whose job only changes a figure with a second job (two employers of one
+    # person) or a business (Schedule SE line 8a), so it is only said then.
+    if status == "married_jointly" and (len(inp.jobs) > 1 or inp.other_income.self_employment_net > ZERO):
+        unmarked = [job.name or f"Job {i + 1}" for i, job in enumerate(inp.jobs) if job.owner is None]
+        if unmarked:
+            add("Whose job", f"{', '.join(unmarked)}: the taxpayer's",
+                "Each person's own jobs share one Social Security wage base, and only the "
+                "business owner's wages count against theirs on Schedule SE. Mark each job.")
+    if (inp.other_income.rental_and_passive_income != ZERO
+            and inp.other_income.qbi_from_rental_and_k1 is None):
+        add("Rents and K-1s", "None of it is qualified business income",
+            "A K-1 with a section 199A statement, or a rental run as a business, counts "
+            "toward the 20% deduction. Enter that part.")
+    if (status == "married_jointly" and inp.other_income.self_employment_net > ZERO
+            and hh.self_employment_owner is None):
+        add("Self-employment", "The profit is the taxpayer's",
+            "Only the owner's own wages use up the Social Security wage base on Schedule SE. "
+            "If the business is your spouse's, mark it, or the self-employment tax can be off "
+            "by thousands.")
+    if inp.prior_year_tax is not None and inp.prior_year_tax > ZERO and inp.prior_year_agi is None:
+        hi = _usd(Decimal(str(t.safe_harbor()["high_income_agi_threshold_mfs" if status == "married_separately"
+                                               else "high_income_agi_threshold"])))
+        add("Last year's income", "Over the line, so the target is 110% of last year's tax",
+            f"If last year's AGI was {hi} or less, 100% is enough. Enter last year's AGI "
+            f"(Form 1040 line 11).")
+    if inp.prior_year_tax is None:
+        add("Last year's tax", "Not given, so only the 90%-of-this-year test was run",
+            "Enter last year's tax for the penalty test (Form 1040 line 24 less last year's "
+            "refundable credits, before any 110%) -- paying that much "
+            "(110% if last year's AGI was over $150,000) avoids the penalty however this year ends up.")
+    for i, job in enumerate(inp.jobs):
+        label = job.name or f"Job {i + 1}"
+        if job.ytd_taxable_wages is None and job.pay_periods_remaining is None:
+            add(f"{label}: pay so far", "Every paycheck this year matches this one, all year",
+                "Enter the year-to-date figures from the latest paystub for a mid-year projection.")
+        elif job.ytd_taxable_wages is None or job.ytd_federal_tax_withheld is None:
+            add(f"{label}: pay so far", "Year-to-date wages or withholding were worked out from this paycheck",
+                "A raise, bonus or W-4 change earlier in the year would make that wrong.")
+    return out
+
+
+def _checks(ctx: _Context, b: TaxBreakdown, rec: WithholdingRecommendation) -> list[Check]:
+    inp, t, status = ctx.inp, ctx.tables, ctx.status
+    oi, hh, s1a = inp.other_income, inp.household, inp.schedule_1a
+    out: list[Check] = []
+    add = lambda level, title, detail: out.append(Check(level, title, detail))  # noqa: E731
+
+    # -- money on the line ---------------------------------------------------
+    if rec.penalty_risk:
+        plan = "; ".join(f"{_usd(a)} by {date.fromisoformat(dt):%b %d, %Y}"
+                         for dt, a in rec.estimated_payments_remaining)
+        how = (f"Either add about {_usd(rec.safe_harbor_shortfall / rec.periods_remaining)} per paycheck "
+               f"(withholding counts as paid evenly through the year, so it also covers the months "
+               f"already gone)" if rec.periods_remaining > 0 else "Withholding cannot fix it now")
+        how += f", or pay estimated tax: {plan}." if plan else \
+            ". Every estimated-tax due date for this year has passed; pay the balance with the return."
+        add("act", "Underpayment penalty likely",
+            f"Payments of {_usd(rec.projected_total_payments)} fall {_usd(rec.safe_harbor_shortfall)} short "
+            f"of the {_usd(rec.required_annual_payment)} needed to avoid it "
+            f"({rec.required_annual_payment_basis}). {how} Estimated payments made late in the "
+            f"year may not avoid the penalty for earlier quarters.")
+    if oi.self_employment_net > ZERO and inp.other_payments.estimated_tax_payments == ZERO \
+            and b.self_employment_tax > ZERO:
+        add("act" if rec.penalty_risk else "review", "Self-employment income with no estimated payments",
+            f"Nothing withholds the {_usd(b.self_employment_tax)} of self-employment tax. "
+            f"It has to come from estimated payments or extra withholding on a job.")
+    if len(inp.jobs) >= 2 and rec.projected_balance < -t.underpayment_penalty_floor:
+        add("act", "Two or more jobs and a balance due",
+            "Each employer withholds as if its job were the only one. Ticking Step 2 on each "
+            "W-4, or using the line 4(c) amount above, fixes that.")
+    big_refund = rec.projected_balance - rec.target_refund
+    if big_refund > THOUSAND and rec.periods_remaining > 0:
+        cut = big_refund / rec.periods_remaining
+        add("info", "More is being withheld than needed",
+            f"About {_usd(big_refund)} more than the target refund. Withholding about "
+            f"{_usd(cut)} less per paycheck on {rec.adjusted_job_name} would even it out.")
+    if status == "married_separately" and (s1a.qualified_tips or s1a.qualified_tips_business
+                                           or s1a.qualified_overtime
+                                           or hh.taxpayer_65_or_older):
+        add("act", "Married filing separately loses deductions",
+            "The tips, overtime and senior deductions are only allowed on a joint return. "
+            "Compare a joint estimate before choosing.")
+    if ctx.ctc_before_limit > b.child_and_dependent_credit + b.additional_child_tax_credit \
+            and inp.credits.child_tax_credit is None and (hh.children_under_17 or 0) > 0:
+        add("info", "Part of the child tax credit goes unused",
+            f"{_usd(ctx.ctc_before_limit - b.child_and_dependent_credit - b.additional_child_tax_credit)} "
+            "more than the income tax and the refundable limit allow.")
+
+    # -- figures that may be wrong -------------------------------------------
+    for i, job in enumerate(inp.jobs):
+        p = rec.job_breakdown[i]
+        if p.projected_taxable_wages > ZERO and p.projected_withholding == ZERO:
+            add("review", f"No federal tax withheld on {p.name}",
+                "Confirm against the paystub. An exempt W-4 stops all withholding.")
+        if job.ytd_federal_tax_withheld is not None and p.periods_elapsed > 0 \
+                and job.federal_tax_withheld_per_period > ZERO:
+            avg = job.ytd_federal_tax_withheld / p.periods_elapsed
+            ratio = avg / job.federal_tax_withheld_per_period
+            if ratio < Decimal("0.75") or ratio > Decimal("1.33"):
+                add("review", f"Withholding on {p.name} changed this year",
+                    f"Year to date averages {_usd(avg)} a paycheck; the latest is "
+                    f"{_usd(job.federal_tax_withheld_per_period)}. The projection uses the latest "
+                    f"for the rest of the year.")
+    if status == "married_jointly" and len(inp.jobs) == 1 and oi.spouse_taxable_wages == ZERO:
+        add("review", "One paycheck on a joint return",
+            "If the spouse works, add their paystub as a second job. Their wages change the bracket.")
+    if b.capital_loss_carryover > ZERO:
+        add("info", "Capital loss carries forward",
+            f"Only {_usd(t.capital_loss_limit(status))} of the net loss counts this year; "
+            f"{_usd(b.capital_loss_carryover)} carries to next year.")
+    if ctx.qbi_over_threshold:
+        add("review", "Business income above the QBI threshold",
+            "The wage and service-business limits of Form 8995-A are not modelled, so the QBI "
+            "deduction may be too large and the tax too low.")
+    if oi.self_employment_net > ZERO and t.qbi_minimum[0] > ZERO and b.qbi_deduction == t.qbi_minimum[0]:
+        add("review", "QBI minimum deduction applied",
+            f"The {_usd(t.qbi_minimum[0])} minimum needs active participation in the business.")
+    if b.itemized_computed is not None and b.deduction_kind == "standard" and \
+            b.standard_computed - b.itemized_computed < THOUSAND:
+        add("info", "Itemizing is close",
+            f"Schedule A comes to {_usd(b.itemized_computed)} against a standard deduction of "
+            f"{_usd(b.standard_computed)}. A little more deductible spending would tip it.")
+    if inp.deductions.itemized_total is not None:
+        add("review", "Itemized total taken as given",
+            "The SALT cap and the medical and charity floors were not checked against it. "
+            "Enter the parts instead to have them applied.")
+    if b.earned_income_credit > ZERO:
+        add("review", "Earned income credit included",
+            f"{_usd(b.earned_income_credit)}, assuming everyone meets the residency, SSN and age rules. "
+            "It is a large figure to get wrong; confirm eligibility.")
+    if s1a.qualified_tips or s1a.qualified_tips_business or s1a.qualified_overtime:
+        add("review", "Tips and overtime taken as qualifying",
+            "Only tips in a listed occupation and only the overtime premium (the half in "
+            "time-and-a-half) qualify. The estimator cannot test that.")
+    if rec.additional_medicare_withheld > ZERO or rec.excess_social_security_credit > ZERO:
+        parts = []
+        if rec.additional_medicare_withheld > ZERO:
+            parts.append(f"{_usd(rec.additional_medicare_withheld)} of Additional Medicare Tax the employer withholds")
+        if rec.excess_social_security_credit > ZERO:
+            parts.append(f"{_usd(rec.excess_social_security_credit)} of Social Security withheld twice by two employers")
+        add("info", "Counted payments the paystub's federal line leaves out", "; ".join(parts) + ".")
+    if b.additional_medicare_tax > rec.additional_medicare_withheld + Decimal("100") and status == "married_jointly":
+        add("info", "Additional Medicare Tax is under-withheld",
+            f"Employers withhold it only above $200,000 per job, so about "
+            f"{_usd(b.additional_medicare_tax - rec.additional_medicare_withheld)} of it is owed at filing.")
+
+    # -- what this estimator does not cover ------------------------------------
+    add("info", "Federal only",
+        "State and city income tax, the alternative minimum tax, education and dependent-care "
+        "credits are not computed. Enter credits you know in the credit boxes.")
+    return out
+
+
+def _headline(ctx: _Context, b: TaxBreakdown, rec: WithholdingRecommendation) -> str:
+    bal = rec.projected_balance
+    year = ctx.tables.tax_year
+    if bal >= ZERO:
+        line = f"On track for {year}: about {_usd(bal)} refund."
+    else:
+        line = f"Short for {year}: about {_usd(-bal)} due at filing."
+        if rec.periods_remaining > 0 and rec.additional_withholding_per_period > ZERO:
+            line += (f" Add {_usd(rec.additional_withholding_per_period)} per paycheck on "
+                     f"{rec.adjusted_job_name} (W-4 line 4(c)) to break even.")
+    if rec.penalty_risk:
+        line += " An underpayment penalty is likely as things stand."
+    return line

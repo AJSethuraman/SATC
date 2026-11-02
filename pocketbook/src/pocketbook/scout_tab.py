@@ -60,9 +60,10 @@ def _method(sc, stamp: str) -> list[tuple[str, str]]:
     n = len(sc.candidates)
     auc = f"{sc.auc:.3f}" if sc.auc is not None else "not worked out"
     out = [
-        ("What it is", f"Scouting: which of the {n} candidates the book leans on, and where each one bends. It "
-                       f"nominates; it never confirms (statistics.md B7). The confirmation is the New variables tab, "
-                       f"on loans scouting never read."),
+        ("What it is", f"Scouting ranks the {n} candidates by how much the forest relies on each, and shows where "
+                       f"the forest's bad rate steps along each one. It proposes candidates and never confirms them "
+                       f"(statistics.md B7); the confirmation is on the New variables tab, on loans scouting never "
+                       f"read."),
         ("Found on", f"{sc.n_dev:,} development loans made {sc.development.text()}, {sc.n_dev_bad:,} of them bad: "
                      f"every loan made before the cutoff on Control, {sc.cutoff.isoformat()}. The "
                      f"{sc.n_held_back:,} loans made on or after it are held back. Only their dates were read to "
@@ -78,19 +79,19 @@ def _method(sc, stamp: str) -> list[tuple[str, str]]:
                        f"best separates bad from good, and the forest averages their votes. It writes no formula and "
                        f"assumes no shape. The same extract gives the same forest; another version of scikit-learn "
                        f"may not."),
-        ("Importance", f"How far the forest's AUC drops when the column is shuffled, on loans it did not train on. "
-                       f"AUC is the chance a random bad loan scores above a random good one; 0.5 is a coin flip. The "
-                       f"development loans are cut into {scout.FOLDS} runs by date; each run is scored by a forest "
-                       f"grown on the other two, with {scout.REPEATS} shuffles of each column, and the drops are "
-                       f"averaged. The forest's own AUC is {auc}. It is a ranking: no direction, no size and no "
-                       f"range, and it leans towards columns with many distinct values."),
+        ("Importance", f"How far the forest's area under the curve (AUC) drops when the column is shuffled, on loans it did not train on. "
+                       f"AUC is the probability that a random bad loan scores above a random good one; 0.5 is no "
+                       f"better than chance. The development loans are cut into {scout.FOLDS} folds by date; each "
+                       f"fold is scored by a forest grown on the other two, with {scout.REPEATS} shuffles of each "
+                       f"column, and the drops are averaged. The forest's own AUC is {auc}. The importance ranks "
+                       f"columns only: it gives no direction, size or range, and it is biased towards columns with "
+                       f"many distinct values."),
     ]
     if sc.hold:
         auc_h = f"{sc.auc_held:.3f}" if sc.auc_held is not None else "not worked out"
         out.append(("With and without", f"Importance is from a forest given the candidates alone. The next column "
-                                         f"is from a forest given {held} as well (AUC {auc_h}): a candidate that "
-                                         f"drops there was mostly telling you {held}. Their own importance is under "
-                                         f"the table."))
+                                         f"is from a forest given {held} as well (AUC {auc_h}). The held-fixed "
+                                         f"columns' own importance is under the table."))
     else:
         out.append(("With and without", "No column was chosen to Hold fixed in the launcher, so there is one "
                                          "forest, with the candidates alone."))
@@ -100,7 +101,8 @@ def _method(sc, stamp: str) -> list[tuple[str, str]]:
                         f"development loans with their outcomes shuffled among them, so that no column could matter "
                         f"({sc.draws:,} tries). It is what a column scores by chance."),
         ("Proposed?", "Yes for a number column whose importance is above the noise floor, with the held-fixed columns "
-                      "in the forest or without them, and whose shape bends somewhere to cut. A category is ranked "
+                      "in the forest or without them, and whose partial dependence curve has a step large enough to "
+                      "cut. A category is ranked "
                       "and not proposed: the pre-spec cuts a number at its bins."),
         ("Suggested bins", f"From the shape: the forest's bad rate with the column set to one value for every loan "
                            f"(partial dependence, on {scout.PD_ROWS:,} development loans drawn by seed), over the "
@@ -110,15 +112,15 @@ def _method(sc, stamp: str) -> list[tuple[str, str]]:
                            f"{scout.MIN_SHARE:.0%} of the loans, at most {scout.MAX_GROUPS} groups. Inside each step "
                            f"the edge sits where the forest itself split the column most, rounded to two figures. "
                            f"The shapes are under the table."),
-        ("Reference", "The group holding the development loans' median value: the ordinary case, which every other "
-                      "group is compared with."),
+        ("Reference", "The group holding the development loans' median value. Every other group is compared with "
+                      "it."),
         ("Correlated with", f"Candidates, and held-fixed number columns, whose values rise and fall together with "
                             f"this one: a rank correlation (Spearman's) of {scout.CORRELATED:.1f} or more either way, "
-                            f"on the development loans with both. Importance splits between such columns, and the "
-                            f"shape of one can borrow the other's."),
-        ("The pre-spec", "PocketBook writes the pre-spec from the proposed candidates beside the workbook, when there "
-                         "is none, and the confirmation reads it. One that is there already is confirmed as it "
-                         "stands: an edit is yours to make, and Record logs it. The file is under the table."),
+                            f"on the development loans with both. Importance is shared between such columns, and the "
+                            f"partial dependence of one can reflect the other."),
+        ("The pre-spec", "When there is no pre-spec beside the workbook, PocketBook writes one from the proposed "
+                         "candidates, and the confirmation reads it. An existing pre-spec is confirmed as it stands; "
+                         "any edit is made by hand, and Record logs it. The file is shown under the table."),
         ("As of", f"The last Run, {stamp}. Nothing here follows Control until the next Run."),
     ]
     return out
@@ -134,8 +136,9 @@ def write(wb, res, stamp: str = "") -> None:
     for c, w in WIDTHS.items():
         ws.column_dimensions[house._letter(c)].width = w
     held = _held(sc)
-    house.title_band(ws, SHEET, f"Which of the {len(sc.candidates) or 'ticked'} candidates does the book lean on, "
-                                f"and where does each one bend? On the development loans only.", FIRST, LAST,
+    house.title_band(ws, SHEET, f"Which of the {len(sc.candidates) or 'ticked'} candidates does the forest rely on "
+                                f"most, and where does its bad rate step along each one? On the development loans "
+                                f"only.", FIRST, LAST,
                      tab=house.TAB_RESULT)
     if sc.problem:
         r = house.method_note(ws, 3, FIRST, LAST, [("Not run", f"Scouting couldn't be run: {sc.problem}.")])

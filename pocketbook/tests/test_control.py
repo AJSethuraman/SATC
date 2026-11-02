@@ -32,7 +32,12 @@ def test_judgment_settings_recommend_nothing_and_method_settings_recommend_one()
     # answered for the firm either
     assert {s.key for s in settings if s.optional} == {"bureau_codes", "audit_book"}
     for s in settings:
-        assert sum(o.recommended for o in s.options) == (0 if s.judgment or s.optional else 1), s.key
+        # a line-size line (the firm, 17 Oct 2026) opens on its starting line, marked suggested in its own label,
+        # in place of a recommendation: one or the other, never both
+        assert sum(o.recommended or o.starts for o in s.options) == (0 if s.judgment or s.optional else 1), s.key
+        assert not any(o.recommended and o.starts for o in s.options), s.key
+        assert all(o.label.endswith("(suggested)") for o in s.options if o.starts), s.key
+    assert {s.key for s in settings if any(o.starts for o in s.options)} == set(control.LINE_KEYS)
 
 
 def test_every_setting_has_options_and_short_explanations():
@@ -83,7 +88,11 @@ def test_unanswered_cells_are_shaded_by_a_rule_not_labelled(book):
     assert len(shaded) == len(answered)
     r = _row(ws, "materiality")
     assert f"C{r}:D{r}" in shaded
-    assert "re-run" not in text and "live" not in text.split()   # results are worked out on Run, not live
+    # results are worked out on Run, not live. The one exception is said in words: the materiality levels panel
+    # follows the answer (the wording pass of 14 Oct 2026, proposal 25: "It updates live with your answer.")
+    levels = dict(control.METHOD)["Materiality levels"]
+    assert levels in text
+    assert "re-run" not in text and "live" not in text.replace(levels, "").split()
 
 
 def test_method_settings_open_on_their_recommendation(book):
@@ -93,7 +102,7 @@ def test_method_settings_open_on_their_recommendation(book):
         if s.optional:
             assert s.key not in got                  # blank: not answered, nothing assumed
         elif not s.judgment:
-            assert got[s.key] == s.recommended().value
+            assert got[s.key] == s.start().value
 
 
 def test_your_own_value_wins(book):

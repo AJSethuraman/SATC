@@ -1026,7 +1026,8 @@ def _steps(res) -> list[tuple]:
          "{gco|$#,##0} ÷ {gco_bk|$#,##0} = {gco_rate|0.000%}",
          '=IFERROR({gco}/{gco_bk},"")', "gco_rate", PCT, "Divide GCOs by booked dollars (the two rows above)."),
         ("ranr_bk", "Booked, loans with a RANR", "Booked dollars for loans in the pocket that have both a booked "
-         "amount and a RANR amount. This is the Booked figure on the RANR vs GCOs tab.", "{ranr_bk|$#,##0.00}",
+         "amount and a risk-adjusted net revenue (RANR) amount. This is the Booked figure on the RANR vs GCOs tab.",
+         "{ranr_bk|$#,##0.00}",
          f"=SUMIFS(Loan_Booked,{IP},Loan_RANR,{NUM})", "ranr_bk", USD,
          by_hand("pocket", ("RANR",), "Sum of the booked column")),
         ("ranr", "RANR", "RANR dollars for the same loans.",
@@ -1336,8 +1337,8 @@ def pick_words(pick: Pick, dgrid: str) -> str:
     where = f"{dgrid}: {pick.key[0]}, {pick.key[1]}"
     if not pick.population:
         return f"{where}. No pocket was tested, so the workbook opens on the first pocket of the first grid."
-    return (f"{where}, selected at random from the {pick.population:,} tested pockets (every pocket with a GCO "
-            f"p-value, across the Run's grids); seed {pick.seed}.")
+    return (f"{where}, selected at random from the {pick.population:,} tested pockets (every pocket with a gross "
+            f"charge-off (GCO) p-value, across the Run's grids); seed {pick.seed}.")
 
 
 def _row_lines(text: str, chars: int) -> int:
@@ -1507,7 +1508,8 @@ def _shuffle(res, dg, dk, dgrid: str, one: dict, figs, families: dict) -> Canvas
         ("The test", "The test reassigns the pocket's label to loans at random many times, and counts the "
                      "shuffles that produce a gap at least as large as the actual one."),
         ("What is shuffled", "The assignment of loans to the pocket. The pocket keeps the same number of loans in "
-                             "every shuffle. When pockets are judged against the book, every loan in the GCO rate is "
+                             "every shuffle. When pockets are judged against the book, every loan in the gross "
+                             "charge-off (GCO) rate is "
                              "reshuffled. When they are judged against their band, only the loans in the pocket's "
                              "band are reshuffled, so the pocket is never compared with another band."),
         ("The gap", "The pocket's GCO rate (GCOs ÷ booked) less the rate for the rest. This is the same gap shown on "

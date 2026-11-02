@@ -103,8 +103,7 @@ def test_a_pocket_alone_in_its_band_is_explained_once_not_on_its_row():
     ws = v[results.POCKETS]
     note = {ws.cell(row=r, column=results.K_BAND).value: ws.cell(row=r, column=results.K_BAND + 1).value
             for r in range(3, 14)}
-    assert "A pocket alone in its band has nothing beside it to compare with, so it is judged against the rest " \
-           "of the book" in note["Rest of band"]
+    assert "A pocket that is the only one in its band is judged against the rest of the book" in note["Rest of band"]
     rows = tabs.pockets(ws)
     said = [x for x in rows if x["band"] == f"SCORE {lone}"]
     assert said and all(x["worse"] == "Yes" for x in said), said

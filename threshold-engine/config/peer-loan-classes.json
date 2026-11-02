@@ -1,0 +1,779 @@
+{
+ "_what": "What each peer's consumer book holds, from its own quarterly filing with the SEC, for the Peer loan classes tab (src/threshold_engine/peers/loan_classes_tab.py). Amounts are never typed here for a class the filing tags: 'members' names the XBRL members and the build reads the amount from the cached filing. A class the filing prints but does not tag by class gives 'amount_musd' as printed and 'where'. 'is' is a judgement: what the class is counted as. Every finding quotes the filing verbatim (checked by script against the filing's text, 15 Oct 2026) and says where.",
+ "_built": "15 Oct 2026, from the three readers' records (docs/tie-out/peer-loan-classes-2026q2/record/research_a/b/c.json) and the judgements in make_config.py; 'not stated' quotes mean the terms named in 'where' were searched for and not found.",
+ "quarter": "2026Q2",
+ "banks": [
+  {
+   "short": "KeyBank",
+   "cik": 91576,
+   "holding_company": "KeyCorp",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/91576/000162828026052671/key-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "key:OtherConsumerLoansMember"
+     ],
+     "name": "Other consumer loans",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "Education loans of $182 million sit in discontinued operations, outside loans; the 10-Q also lists student loan refinancing among the Consumer Bank's products, with no class or amount",
+     "short": "$182m discontinued",
+     "quote": "At June 30, 2026, and December 31, 2025, approximately $182 million and $205 million, respectively, of education loans are included in discontinued assets on the Consolidated Balance Sheets.",
+     "where": "Note 12. Acquisitions & Discontinued Operations > Discontinued Operations (discontinued, excluded from total loans)"
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for 'unsecured', 'personal loan', 'installment': only hits concern KeyCorp's own senior unsecured debt ratings and derivative collateral."
+    },
+    "secured_non_auto": {
+     "answer": "Boats and RVs are named as collateral for its consumer loans; no amount given",
+     "short": "Boats, RVs named",
+     "quote": "Our consumer loans have collateral that includes residential real estate, automobiles, boats, and RVs.",
+     "where": "Credit quality note, the paragraph on collateral-dependent loans"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Other consumer loans ($4.3bn) is not defined in the 10-Q; KeyCorp names student loan refinancing among its products and boats and RVs among its consumer collateral, with no split."
+   }
+  },
+  {
+   "short": "Citizens",
+   "cik": 759944,
+   "holding_company": "Citizens Financial Group, Inc.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/759944/000075994426000148/cfg-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "us-gaap:StudentLoanMember"
+     ],
+     "name": "Education",
+     "is": "Student"
+    },
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "cfg:ConsumerOtherRetailMember"
+     ],
+     "name": "Other retail",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "Yes: Education is a class of its own",
+     "short": "Own class",
+     "quote": "Our retail banking portfolio is comprised of five categories of loans: residential mortgages, home equity, education, automobile, and other retail.",
+     "where": "MD&A > Risk Management > Credit Risk > Consumer; amount from NOTE 3 table row 'Education | 8,044'"
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for 'unsecured', 'personal', 'installment': only hits are CFG's own senior unsecured notes and unsecured wholesale funding."
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for RV, recreational, marine, solar, point-of-sale, Citizens Pay, merchant: no hits."
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Education ($8.0bn) is twice Other retail ($4.0bn), and both sit in the Call Report's other consumer."
+   }
+  },
+  {
+   "short": "PNC",
+   "cik": 713676,
+   "holding_company": "The PNC Financial Services Group, Inc.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/713676/000162828026053170/pnc-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "pnc:OtherConsumerLoansMember"
+     ],
+     "name": "Other consumer",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "Yes: education loans were folded into Other consumer from 1 Jan 2026; no amount given",
+     "short": "In other consumer",
+     "quote": "Effective January 1, 2026, PNC updated its defined loan classes (classes of financing receivables) as follows: ... (ii) education loans were reclassified to the other consumer loan class based on materiality considerations.",
+     "where": "MD&A > CONSOLIDATED BALANCE SHEET REVIEW > Loans; repeated in NOTE 1 ACCOUNTING POLICIES > Loans. No education amount is disclosed."
+    },
+    "unsecured": {
+     "answer": "Yes, named among Retail Banking's products; no amount given",
+     "short": "Named, no amount",
+     "quote": "Lending products include residential mortgages, home equity loans and lines of credit, auto loans, credit cards, personal and small business loans and lines of credit.",
+     "where": "NOTE 15 SEGMENT REPORTING (Retail Banking description). No amount disclosed."
+    },
+    "secured_non_auto": {
+     "answer": "Securities-based lending is named; no amount or class given",
+     "short": "Named, no amount",
+     "quote": "Average total loans increased in the comparison and included growth in securities-based lending and higher commercial loan balances.",
+     "where": "MD&A > BUSINESS SEGMENTS REVIEW > Asset Management Group. Securities-based lending is mentioned; no amount, and the 10-Q does not state which loan class holds it. No RV, marine or solar lending is mentioned."
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Other consumer ($5.9bn) holds education loans and, on the segment averages, securities-based lending as well as personal loans and lines."
+   }
+  },
+  {
+   "short": "Truist",
+   "cik": 92230,
+   "holding_company": "Truist Financial Corporation",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/92230/000009223026000099/tfc-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "tfc:OtherConsumerLendingMember"
+     ],
+     "name": "Other consumer",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for 'student' and 'education': the only hit is 'Educational services', a commercial industry line in the MD&A commercial-loans-by-industry table."
+    },
+    "unsecured": {
+     "answer": "Yes, named among the segment's products; no amount given",
+     "short": "Named, no amount",
+     "quote": "Lending solutions include credit cards, personal and unsecured loans originated through the branch network and digital channels;",
+     "where": "NOTE 16. Operating Segments > Consumer and Small Business Banking. No amount disclosed."
+    },
+    "secured_non_auto": {
+     "answer": "Yes: marine and RV (originations stopped in 2026Q2) and point-of-sale power sports and home improvement; no amount given",
+     "short": "Named, no amount",
+     "quote": "During the second quarter of 2026, we discontinued the origination of certain marine and recreational vehicle loans, and we further reduced originations in less strategic and less profitable consumer lending units such as prime and non-prime auto.",
+     "where": "MD&A > Analysis of Financial Condition > Lending Activities. No amount disclosed."
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Other consumer ($33.2bn) holds unsecured personal loans beside point-of-sale home improvement, power sports, marine and RV lending, with no split."
+   }
+  },
+  {
+   "short": "Fifth Third",
+   "cik": 35527,
+   "holding_company": "Fifth Third Bancorp",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/35527/000003552726000202/fitb-20260630.htm",
+   "classes": [
+    {
+     "name": "Unsecured (in Other consumer loans)",
+     "amount_musd": 626,
+     "is": "Unsecured or personal",
+     "where": "MD&A, Credit Risk Management, Table 44: Other Consumer Portfolio Loans Outstanding by Product Type, June 30, 2026"
+    },
+    {
+     "name": "Other secured (in Other consumer loans)",
+     "amount_musd": 1299,
+     "is": "Secured non-auto",
+     "where": "MD&A, Table 44, June 30, 2026"
+    },
+    {
+     "name": "Point-of-sale home improvement (in Other consumer loans)",
+     "amount_musd": 613,
+     "is": "Mixed other consumer",
+     "where": "MD&A, Table 44, June 30, 2026"
+    },
+    {
+     "name": "Third-party point-of-sale (in Other consumer loans)",
+     "amount_musd": 285,
+     "is": "Mixed other consumer",
+     "where": "MD&A, Table 44, June 30, 2026"
+    },
+    {
+     "name": "Indirect RV and marine, primarily (in Indirect secured consumer loans)",
+     "amount_musd": 2800,
+     "is": "Secured non-auto",
+     "where": "MD&A, Consumer Portfolio, Indirect secured consumer portfolio: \"$2.8 billion primarily comprised of indirect recreational vehicle and marine loans\""
+    },
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "fitb:SolarEnergyInstallationLoansMember"
+     ],
+     "name": "Solar energy installation loans",
+     "is": "Unsecured or personal"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for 'student' and 'education': no hits."
+    },
+    "unsecured": {
+     "answer": "Yes: $626 million of unsecured loans, split out in Table 44; and solar energy installation loans, $4,314 million, counted as unsecured by the analyst's ruling of 15 Oct 2026 (\"solar might as well be considered unsecured\"), not by the filing",
+     "short": "Own lines",
+     "quote": "Unsecured | 626 | | 22 |",
+     "where": "MD&A > Credit Risk Management > Consumer Portfolio > Other consumer loans portfolio > 'TABLE 44: Other Consumer Portfolio Loans Outstanding by Product Type', June 30, 2026"
+    },
+    "secured_non_auto": {
+     "answer": "Yes: other secured $1,299 million, and about $2.8 billion of RV and marine",
+     "short": "Own lines",
+     "quote": "Other secured | $ | 1,299 | | 46 | %",
+     "where": "MD&A > Consumer Portfolio > 'TABLE 44: Other Consumer Portfolio Loans Outstanding by Product Type', June 30, 2026 (other-collateral loans within Other consumer)"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Unsecured ($626m) and solar ($4.3bn, counted as unsecured) are about half its Call Report other consumer ($10.2bn average, 2026Q2); the rest is RV and marine ($2.8bn), other secured and point-of-sale, so its rate is not an unsecured rate."
+   }
+  },
+  {
+   "short": "Huntington",
+   "cik": 49196,
+   "holding_company": "Huntington Bancshares Incorporated",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/49196/000004919626000066/hban-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "hban:RVandMarineFinanceLoanMember"
+     ],
+     "name": "RV and marine",
+     "is": "Secured non-auto"
+    },
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "hban:OtherConsumerLoanMember"
+     ],
+     "name": "Other consumer",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for 'student' and 'education': the only hit is 'Educational services', a commercial industry line."
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Whole 10-Q searched for 'unsecured', 'personal loan', 'credit card': only hits are senior unsecured notes and credit linked notes; no credit card class or unsecured consumer lending is described."
+    },
+    "secured_non_auto": {
+     "answer": "Yes: RV and marine is a class of its own",
+     "short": "Own class",
+     "quote": "RV and marine | 5,706 |",
+     "where": "5. LOANS AND LEASES, consumer loan portfolio table, At June 30, 2026 (RV is defined in the glossary as 'Recreational Vehicle')"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "RV and marine ($5.7bn) is twice Other consumer ($2.6bn), which is not defined in the 10-Q; both sit in the Call Report's other consumer."
+   }
+  },
+  {
+   "short": "M&T",
+   "cik": 36270,
+   "holding_company": "M&T Bank Corporation",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/36270/000003627026000050/mtb-20260630.htm",
+   "classes": [
+    {
+     "name": "Recreational finance",
+     "amount_musd": 14856,
+     "is": "Secured non-auto",
+     "where": "Note 4, Loans and allowance for loan losses, table of current, past due and nonaccrual loans, June 30, 2026"
+    },
+    {
+     "name": "Other (consumer)",
+     "amount_musd": 2458,
+     "is": "Mixed other consumer",
+     "where": "Note 4, same table, under Consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no occurrence of 'student' or 'education loan' anywhere in the 10-Q"
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no consumer use of 'unsecured' or 'personal loan' in the 10-Q; 'unsecured' appears only for M&T's own notes and borrowings"
+    },
+    "secured_non_auto": {
+     "answer": "Yes: recreational finance, a class of its own",
+     "short": "Own class",
+     "quote": "The Company primarily originates recreational finance loans and automobile loans indirectly through dealerships across the U.S. At June 30, 2026, the percent of recreational finance loans and automobile loans with FICO scores of 700 or greater at origination date was 99% and 84%, respectively.",
+     "where": "amount: Note 4 table; quote: Item 2 MD&A, 'Asset quality', paragraph before the NONACCRUAL CONSUMER LOANS table"
+    }
+   },
+   "comparison": {
+    "answer": "Not comparable",
+    "why": "Recreational finance ($14.9bn) is six times the undefined Other ($2.5bn): M&T's other consumer is mostly loans secured by RVs and boats."
+   }
+  },
+  {
+   "short": "Regions",
+   "cik": 1281761,
+   "holding_company": "Regions Financial Corporation",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/1281761/000128176126000055/rf-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "rf:OtherConsumerFinancingReceivableMember"
+     ],
+     "name": "Other consumer",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no occurrence of 'student' or 'education loan' in the 10-Q ('Educational services' appears only as a commercial industry)"
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no consumer use of 'unsecured' or 'personal loan'; 'unsecured' appears only for commercial REIT loans and Regions' debt ratings"
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no 'recreational', 'marine', 'boat' or 'vehicle' wording; no auto class is presented"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Other consumer ($5.5bn) is indirect and direct consumer loans, overdrafts and revolving loans, with home improvement lending named; no split."
+   }
+  },
+  {
+   "short": "Zions",
+   "cik": 109380,
+   "holding_company": "Zions Bancorporation, N.A.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/109380/000010938026000111/zions-20260630.htm",
+   "classes": [
+    {
+     "name": "Other (consumer)",
+     "amount_musd": 114,
+     "is": "Mixed other consumer",
+     "where": "Note 6, Loans, Leases, and Loans Held for Sale schedule, under Consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no occurrence of 'student' or 'education loan' ('Educational services' appears only as a commercial industry)"
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "the only unsecured-loan amount is commercial real estate, MD&A CRE table footnote 1: \"Included in the total amount of the “Other” commercial and residential categories was approximately $255 million and $232 million of unsecured loans at June 30, 2026 and December 31, 2025, respectively.\""
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no 'recreational', 'marine', 'boat', 'auto' or 'vehicle' consumer wording in the 10-Q"
+    }
+   },
+   "comparison": {
+    "answer": "Not comparable",
+    "why": "Other consumer is $114m, too small to compare with."
+   }
+  },
+  {
+   "short": "First Citizens",
+   "cik": 798941,
+   "holding_company": "First Citizens BancShares, Inc.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/798941/000079894126000031/fcnca-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "fcnca:ConsumerLoanOtherMember"
+     ],
+     "name": "Other consumer",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no occurrence of 'student' or 'education loan' in the 10-Q"
+    },
+    "unsecured": {
+     "answer": "Unsecured consumer lines of credit are named in its charge-off policy; no amount given",
+     "short": "Named, no amount",
+     "quote": "Business credit card loans are subject to automatic charge-off when they become 120 days past due in the same manner as unsecured consumer lines of credit.",
+     "where": "Note 5 'Loans and Leases', Credit Quality Indicators, definition of 'Ungraded'. Names unsecured consumer lines of credit as a policy reference; no balance is stated"
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no 'recreational', 'marine' or 'boat' wording in the 10-Q"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Other consumer ($0.8bn) is not defined in the 10-Q, and $388m of it is revolving."
+   }
+  },
+  {
+   "short": "U.S. Bank",
+   "cik": 36104,
+   "holding_company": "U.S. Bancorp",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/36104/000003610426000044/usb-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "usb:ConsumerRevolvingCreditLoanMember"
+     ],
+     "name": "Revolving credit",
+     "is": "Mixed other consumer"
+    },
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "usb:ConsumerInstallmentLoanMember"
+     ],
+     "name": "Installment",
+     "is": "Mixed other consumer"
+    },
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "usb:ConsumerRetailLeasingLoanMember"
+     ],
+     "name": "Retail leasing",
+     "is": "Other"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no occurrence of 'student' or 'education loan' in the 10-Q"
+    },
+    "unsecured": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "the 10-Q does not call any consumer class unsecured. Nearest text, Note 5 Credit Quality: \"Other retail loans not secured by 1-4 family properties are charged-off at 120 days past due, and revolving consumer lines of credit are charged-off at 180 days past due.\""
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no 'recreational', 'marine', 'boat' or 'RV' wording; what the 'Installment' class ($15,032) holds is not stated"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Revolving credit ($5.4bn) and Installment ($15.0bn) are split, but the 10-Q does not say what Installment holds or whether either is unsecured."
+   }
+  },
+  {
+   "short": "JPMorgan",
+   "cik": 19617,
+   "holding_company": "JPMorgan Chase & Co.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026054343/jpm-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "jpm:ConsumerExcludingCreditCardLoanPortfolioSegmentMember",
+      "us-gaap:AutomobileLoanMember"
+     ],
+     "name": "Auto and other",
+     "is": "Mixed other consumer"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Full text searched for 'student' and 'education loan': no occurrences"
+    },
+    "unsecured": {
+     "answer": "Yes, inside Auto and other with scored auto and business banking; no amount given",
+     "short": "In Auto and other",
+     "quote": "The auto and other loan portfolio, including loans at fair value, generally consists of prime-quality scored auto and business banking loans, other consumer unsecured loans, and overdrafts.",
+     "where": "MD&A, Credit Portfolio - Consumer Credit Portfolio, 'Auto and other' subsection"
+    },
+    "secured_non_auto": {
+     "answer": "Securities-based lending sits in the wholesale portfolio, not a consumer class",
+     "short": "Wholesale, not consumer",
+     "quote": "As of June 30, 2026, loans increased by $57.5 billion, predominantly driven by higher loans in CIB and higher securities-based lending in AWM, both as a result of higher client demand.",
+     "where": "MD&A, Wholesale Credit Portfolio (securities-based lending is in the wholesale portfolio, not a consumer class)"
+    }
+   },
+   "comparison": {
+    "answer": "Not comparable",
+    "why": "Its consumer class Auto and other ($66.5bn) is mostly auto and business banking; consumer unsecured loans are inside it with no amount."
+   }
+  },
+  {
+   "short": "Wells Fargo",
+   "cik": 72971,
+   "holding_company": "Wells Fargo & Company",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/72971/000007297126000302/wfc-20260630.htm",
+   "classes": [
+    {
+     "name": "Securities-based (in Other consumer)",
+     "amount_musd": 32231,
+     "is": "Secured non-auto",
+     "where": "MD&A, Risk Management, Credit Risk Management, Table 16: Credit Card, Auto, and Other Consumer Loans"
+    },
+    {
+     "name": "Other (in Other consumer)",
+     "amount_musd": 6493,
+     "is": "Mixed other consumer",
+     "where": "MD&A, Table 16"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Full text searched for 'student' and 'education': no consumer-loan occurrences"
+    },
+    "unsecured": {
+     "answer": "Personal lending is named; the filing does not tie it to a class or call it unsecured",
+     "short": "Named, no class",
+     "quote": "These financial products and services include checking and savings accounts, credit and debit cards, as well as home, auto, personal, and small business lending.",
+     "where": "MD&A, Earnings Performance - Operating Segment Results, Consumer Banking and Lending"
+    },
+    "secured_non_auto": {
+     "answer": "Yes: $32.2 billion of securities-based loans in Other consumer",
+     "short": "Own line",
+     "quote": "Securities-based loans, including margin loans and securities-based credit lines, are originated by the WIM operating segment and are collateralized by securities in client brokerage accounts.",
+     "where": "MD&A, Risk Management - Credit Risk Management, Table 16: Credit Card, Auto, and Other Consumer Loans, 'Other consumer: Securities-based' row and text below it"
+    }
+   },
+   "comparison": {
+    "answer": "Not comparable",
+    "why": "Five sixths of Other consumer ($32.2bn of $38.7bn) is securities-based lending, secured by brokerage accounts."
+   }
+  },
+  {
+   "short": "Bank of America",
+   "cik": 70858,
+   "holding_company": "Bank of America Corporation",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/70858/000007085826000394/bac-20260630.htm",
+   "classes": [
+    {
+     "name": "U.S. securities-based lending (in Direct/Indirect consumer)",
+     "amount_musd": 61900,
+     "is": "Secured non-auto",
+     "where": "Note 5, aging table, footnote (2) to Direct/Indirect consumer: \"U.S. securities-based lending loans of $61.9 billion\""
+    },
+    {
+     "name": "Non-U.S. consumer loans (in Direct/Indirect consumer)",
+     "amount_musd": 3200,
+     "is": "Other",
+     "where": "Note 5, aging table, footnote (2) to Direct/Indirect consumer: \"non-U.S. consumer loans of $3.2 billion\""
+    },
+    {
+     "name": "Other consumer",
+     "amount_musd": 182,
+     "is": "Other",
+     "where": "Note 5, aging table by class of financing receivables, June 30, 2026, Total Outstandings column"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Full text searched for 'student': no occurrences; 'education' appears only as the commercial industry 'Government and public education'"
+    },
+    "unsecured": {
+     "answer": "Unsecured consumer lending is named; no amount given",
+     "short": "Named, no amount",
+     "quote": "Primarily includes amounts related to credit card and unsecured consumer lending portfolios in Consumer Banking.",
+     "where": "MD&A, Allowance for Credit Losses, allowance ratios table, footnote (4)"
+    },
+    "secured_non_auto": {
+     "answer": "Yes: $65.0 billion of securities-based lending in Direct/Indirect consumer",
+     "short": "In a sentence",
+     "quote": "Direct/indirect consumer includes $65.0 billion of securities-based lending, which is typically supported by highly liquid collateral with market value greater than or equal to the outstanding loan balance and therefore has minimal credit risk at June 30, 2026.",
+     "where": "Note 5, Credit Card and Direct/Indirect Consumer - Credit Quality Indicators By Vintage, footnote (3)"
+    }
+   },
+   "comparison": {
+    "answer": "Not comparable",
+    "why": "Its non-card, non-mortgage consumer book is securities-based lending ($61.9bn U.S.) and auto and specialty ($52.4bn); Other consumer ($182m) is mainly overdrafts."
+   }
+  },
+  {
+   "short": "Citi",
+   "cik": 831001,
+   "holding_company": "Citigroup Inc.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/831001/000083100126000045/c-20260630.htm",
+   "classes": [
+    {
+     "name": "Personal, small business and other (North America offices)",
+     "amount_musd": 34068,
+     "is": "Mixed other consumer",
+     "where": "Note 12, Loans, Consumer Loans, Delinquencies and Non-Accrual Status at June 30, 2026, Total loans column"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Full text searched for 'student' and 'education loan': no occurrences"
+    },
+    "unsecured": {
+     "answer": "Yes: $3.8 billion of Installment Lending (personal installment loans); the filing does not say which class holds it",
+     "short": "$3.8bn, no class",
+     "quote": "Installment Lending includes digitally led personal installment loans and merchant installment lending.",
+     "where": "MD&A, U.S. Consumer Cards (USCC) segment description; amount from MD&A Consumer Credit Portfolio table, USCC 'Installment Lending' row, $3.8 billion"
+    },
+    "secured_non_auto": {
+     "answer": "Yes: $36.5 billion of securities-based lending in Wealth",
+     "short": "$36.5bn, no class",
+     "quote": "approximately $52 billion, or 25%, of the portfolios were classifiably managed and primarily consisted of securities-based lending, commercial real estate loans, personal and small business loans and other lending products.",
+     "where": "MD&A, Consumer Credit, Wealth; amount from Consumer Credit Portfolio table, Wealth 'Securities-based lending' row, $36.5 billion"
+    }
+   },
+   "comparison": {
+    "answer": "Mixed",
+    "why": "Personal, small business and other ($34.1bn in North America) mixes Wealth's securities-based lending with personal installment loans ($3.8bn) and small business."
+   }
+  },
+  {
+   "short": "Capital One",
+   "cik": 927628,
+   "holding_company": "Capital One Financial Corporation",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/927628/000092762826000089/cof-20260630.htm",
+   "classes": [
+    {
+     "members": [
+      "cof:PersonalLoansPortfolioSegmentMember"
+     ],
+     "name": "Personal loans",
+     "is": "Unsecured or personal"
+    },
+    {
+     "members": [
+      "us-gaap:ConsumerPortfolioSegmentMember",
+      "cof:RetailBankingMember"
+     ],
+     "name": "Retail banking",
+     "is": "Other"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "No: Discover sold its student loan portfolio before the merger closed",
+     "short": "Sold before merger",
+     "quote": "Although Discover sold its student loan portfolio and ceased servicing student loans prior to the closing of the Transaction",
+     "where": "Legal and regulatory matters, the paragraph on Discover's 2020 CFPB consent order"
+    },
+    "unsecured": {
+     "answer": "Yes: Personal loans, $8.6 billion, a class of its own (the filing does not call them unsecured)",
+     "short": "Own class",
+     "quote": "The Credit Card segment consists of domestic credit card loans, international credit card loans and personal loans.",
+     "where": "Note 4 - Loans, introduction"
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "No securities-based, RV, marine or other-collateral consumer lending found; the only non-card, non-auto consumer class is Retail banking, not further described"
+    }
+   },
+   "comparison": {
+    "answer": "Clean",
+    "why": "Personal loans ($8.6bn, from Discover) are a class of their own, and Discover's student loans were sold before the merger; its Call Report other consumer is these loans."
+   }
+  },
+  {
+   "short": "SoFi",
+   "cik": 1818874,
+   "holding_company": "SoFi Technologies, Inc.",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/1818874/000181887426000054/sofi-20260630.htm",
+   "classes": [
+    {
+     "name": "Personal loans (held for sale, at fair value)",
+     "amount_musd": 27505.29,
+     "is": "Unsecured or personal",
+     "where": "Note 4, Loans, disaggregated loan table, loans held for sale at fair value (printed in thousands: 27,505,290)"
+    },
+    {
+     "name": "Personal loans (held for sale, at lower of cost or fair value)",
+     "amount_musd": 55.841,
+     "is": "Unsecured or personal",
+     "where": "Note 4, same table (printed in thousands: 55,841)"
+    },
+    {
+     "name": "Student loans (held for investment, at fair value)",
+     "amount_musd": 16920.564,
+     "is": "Student",
+     "where": "Note 4, same table (printed in thousands: 16,920,564)"
+    }
+   ],
+   "findings": {
+    "student": {
+     "answer": "Yes: $16.9 billion, at fair value",
+     "short": "Own class",
+     "quote": "Student Loans. We operate in the student loan refinance space, with a focus on prime and super-prime school loans, as well as the “in-school” lending space, which allows members to borrow funds while they attend school.",
+     "where": "amount: Note 4 'Loans' table; quote: Item 2 MD&A, Our Reportable Segments, Lending Segment"
+    },
+    "unsecured": {
+     "answer": "Personal loans of $27.6 billion, at fair value; the 10-Q does not call them unsecured",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "Note 4, Loans: personal loans are not described as unsecured anywhere in the 10-Q"
+    },
+    "secured_non_auto": {
+     "answer": "None stated in the 10-Q",
+     "short": "Not stated",
+     "quote": "not stated",
+     "where": "no consumer RV/marine/other-collateral lending stated. The 'Secured loans' class is not consumer lending, Note 4 'Secured Loans': \"The borrowers of our secured loans are generally financial institutions, and the underlying collateral are personal loans originated by the Company.\""
+    }
+   },
+   "comparison": {
+    "answer": "Not comparable",
+    "why": "Personal and student loans are carried at fair value, so its Call Report files no charge-offs on them; its 10-Q gives 2.62% (personal) and 0.61% (student) for 2026Q2."
+   }
+  }
+ ]
+}

@@ -367,22 +367,28 @@ def test_a_setting_for_the_next_run_changes_nothing_on_the_result_tabs(ran, tmp_
             assert [d for d in diff if z[d[0]].column not in cols] == [], diff[:5]
         else:
             assert diff == [], (tab, diff[:5])
-    # each setting sits in the block that says when a change to it shows: Changes now or Needs a Run
+    # each setting sits in the block that says when a change to it shows: Changes now or Needs a Run, or Line size's
+    # own block, live as Changes now is, under the launcher's (17 Oct 2026)
     ws = load_workbook(b)[control.SHEET]
     now, run = control.row_of(ws, control.BLOCK_NOW), control.row_of(ws, control.BLOCK_RUN)
     launcher_head = control.row_of(ws, "launcher|head")
+    lines = control.row_of(ws, control.BLOCK_LINES)
     for s in control.load_settings():
         r = control.row_of(ws, s.key)
         if s.key in live.LIVE_KEYS:
             assert now < r < run, s.key
+        elif s.key in control.LINE_KEYS:
+            assert launcher_head < lines < r, s.key
         elif s.in_launcher:
-            assert r > launcher_head, s.key     # chosen in the launcher: its block's note says how to change it
+            assert launcher_head < r < lines, s.key
         else:
             assert run < r < launcher_head, s.key
 
 
 def test_the_live_settings_are_the_ones_settings_yaml_marks_live():
-    assert {s.key for s in control.load_settings() if s.takes_effect == "live"} == set(live.LIVE_KEYS)
+    # and the Line size tab's lines and switch (17 Oct 2026), live in a block of their own
+    assert {s.key for s in control.load_settings() if s.takes_effect == "live"} == \
+        set(live.LIVE_KEYS) | set(control.LINE_KEYS)
 
 
 def test_the_tabs_say_what_stays_as_of_the_run(ran):

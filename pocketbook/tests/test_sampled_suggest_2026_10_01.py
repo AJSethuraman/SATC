@@ -162,7 +162,7 @@ def test_set_up_builds_only_the_sampled_grids_and_says_so_on_control(set_up_wide
     wb = load_workbook(out.book)
     said = _suggest_cells(wb)
     for key in book.SAMPLED_KEYS:
-        assert said[key].startswith("suggested: ") and "a quick estimate from 30 of its 36 grids" in said[key], said
+        assert said[key].startswith("suggested: ") and "estimated from 30 of its 36 grids and recalculated on all grids at Run" in said[key], said
     assert said["min_loans"].endswith(", from this extract")          # never sampled, so never called an estimate
     assert wb[book.ABOUT]["A5"].value == book.QUICK
     quick = book._quick_of(wb)
@@ -187,7 +187,7 @@ def test_run_says_where_every_grid_disagrees_with_set_ups_estimate(set_up_wide):
                       used={"worse_at": 1.32, "better_at": "luck"})
     said = _suggest_cells(wb)
     assert said["worse_at"] == (f"suggested: 1.33x, {when}. The answer chosen, 1.32x, is Set up's quick estimate "
-                                f"from 30 of 36 grids: every grid says 1.33x")
+                                f"from 30 of 36 grids; all grids give 1.33x")
     assert said["better_at"] == f"suggested: 0.75x, {when}. Set up's quick estimate, from 30 of 36 grids, was 0.76x"
     assert said["min_loans"] == f"suggested: 70, {when}"
 
@@ -214,4 +214,4 @@ def test_a_run_on_the_estimate_says_every_grid_disagrees(set_up_wide, tmp_path):
     said = _suggest_cells(load_workbook(path))["worse_at"]
     every = said.split()[1].rstrip(",")
     assert said == (f"suggested: {every}, from this extract at the last Run. The answer chosen, 9.99x, is Set up's "
-                    f"quick estimate from 30 of 36 grids: every grid says {every}")
+                    f"quick estimate from 30 of 36 grids; all grids give {every}")

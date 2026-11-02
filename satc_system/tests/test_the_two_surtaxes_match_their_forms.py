@@ -118,7 +118,9 @@ def test_neither_threshold_is_inflation_indexed(tables):
     """IRC 1411(b) and 3101(b)(2) fix these in statute. If a future crosswalk
     year indexes them, that is a change to the law and not a table refresh —
     this test is where somebody finds out."""
-    for year in (2024, 2025):
+    # 2024 dropped out of this loop on 17 Oct 2026: its table lacks the
+    # parameters the estimator now reads, so it is no longer offered.
+    for year in (2025, 2026):
         got, _ = load_tax_tables(year)
         assert got.niit_threshold("single") == Decimal("200000"), year
         assert got.additional_medicare_threshold("single") == Decimal("200000"), year
@@ -225,7 +227,7 @@ def test_the_estimate_says_what_its_investment_income_leaves_out():
     open, and the omission runs in BOTH directions — so the note has to say
     which client is too high and which is too low."""
     said = " ".join(_estimate(wages=300000, interest=50000).notes)
-    assert "Rents, royalties" in said
+    assert "Annuities are NOT included" in said
     assert "too low" in said and "too high" in said
     assert "MAGI" in said
 
@@ -233,7 +235,7 @@ def test_the_estimate_says_what_its_investment_income_leaves_out():
 def test_the_note_is_absent_when_the_tax_does_not_apply():
     """A caveat printed on every estimate is a caveat nobody reads."""
     said = " ".join(_estimate(wages=80000).notes)
-    assert "Rents, royalties" not in said
+    assert "Annuities are NOT included" not in said
 
 
 # ── the denominator ───────────────────────────────────────────────────────────

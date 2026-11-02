@@ -245,12 +245,47 @@ def add_chargeoff(rows: list[dict], seed: int = 7) -> list[dict]:
     return rows
 
 
+# --------------------------------------------------------------------------
+# Line size (the firm, 17 Oct 2026: "we give assignments that are too high to these people"): bigger lines on the
+# bad loans of one pocket.
+#
+# Applied last, to the rows as drawn, and to nothing outside the pocket, so every other loan is the same with or
+# without it. In BIG_LINES, every bad loan's booked amount is BIG_LINE_TIMES what was drawn, its RANR + GCOs grows with
+# it, and its GCO is LOST_SHARE of the new line. With CO_DATE, a bad loan whose drawn line is above SOONER_ABOVE
+# charges off in a third of the months it was drawn with (one at least), so the bigger lines fail sooner.
+
+BIG_LINES = ("Branch", 620, 680)          # channel, lowest score, first score above
+BIG_LINE_TIMES, LOST_SHARE, SOONER_ABOVE = 1.8, 0.92, 32500.0
+
+
+def add_big_lines(rows: list[dict]) -> list[dict]:
+    """The Line size plant (see above). Nothing is drawn, so the rows are the same however often it is applied to
+    a fresh draw."""
+    ch, lo, hi = BIG_LINES
+    for r in rows:
+        if r.get("BAD_FLAG") != 1 or r.get("CHANNEL") != ch or not isinstance(r.get("FICO"), int) \
+                or not lo <= r["FICO"] < hi or not isinstance(r.get("ORIG_BAL"), float):
+            continue
+        drawn = r["ORIG_BAL"]
+        bal = round(drawn * BIG_LINE_TIMES, 2)
+        before = (r["RANR_AMT"] + r["GCO_AMT"]) * BIG_LINE_TIMES       # RANR + GCOs, on the bigger line
+        r["ORIG_BAL"], r["GCO_AMT"] = bal, round(bal * LOST_SHARE, 2)
+        r["RANR_AMT"] = round(before - r["GCO_AMT"], 2)
+        if r.get("CO_DATE") and drawn > SOONER_ABOVE:
+            made, was = date.fromisoformat(r["ORIG_DATE"]), date.fromisoformat(r["CO_DATE"])
+            k = max(1, ((was.year - made.year) * 12 + was.month - made.month) // 3)
+            y, m = divmod(made.month - 1 + k, 12)
+            r["CO_DATE"] = min(date(made.year + y, m + 1, min(was.day, 28)), AS_OF).isoformat()
+    return rows
+
+
 def write_extract(out: str | Path, n: int = 20000, seed: int = 7, ratio: bool = False,
-                  shortlist: bool = False, chargeoff: bool = False) -> Path:
+                  shortlist: bool = False, chargeoff: bool = False, big_lines: bool = False) -> Path:
     """The extract alone, for the demo: the analyst's route starts from
     `pocketbook init` on it, so no call is made for them (walkthrough defect 14).
     `ratio` adds INCOME and SALES (add_ratio); `shortlist` adds UTIL and TENURE
-    (add_shortlist); `chargeoff` adds CO_DATE (add_chargeoff)."""
+    (add_shortlist); `chargeoff` adds CO_DATE (add_chargeoff); `big_lines` plants
+    bigger lines on one pocket's bad loans (add_big_lines)."""
     d = Path(out)
     d.mkdir(parents=True, exist_ok=True)
     data = d / "loans.csv"
@@ -259,6 +294,8 @@ def write_extract(out: str | Path, n: int = 20000, seed: int = 7, ratio: bool = 
         rows = add_shortlist(rows, seed)
     if chargeoff:
         rows = add_chargeoff(rows, seed)
+    if big_lines:
+        rows = add_big_lines(rows)
     with data.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS + (RATIO_COLUMNS if ratio else [])
                            + (SHORTLIST_COLUMNS if shortlist else []) + (CHARGEOFF_COLUMNS if chargeoff else []))

@@ -158,7 +158,7 @@ def test_an_unexpected_error_in_run_is_shown_on_the_page_with_its_details(tmp_pa
     assert [n.says for n in f.needs] == [
         "Something went wrong that PocketBook didn't expect.",
         "KeyError: 'GCO_AMT'",
-        "Press Copy details and send what it copies, to get it fixed.",
+        "Press Copy details and send the copied text so it can be fixed.",
         f"A copy is kept in {log}."]
     assert "Traceback" in c.details and "boom" in c.details and 'raise KeyError("GCO_AMT")' in c.details
     assert log.read_text(encoding="utf-8") == c.details            # the file copy is still kept
@@ -201,8 +201,8 @@ def test_a_run_that_stopped_on_the_tie_out_still_offers_the_details(tmp_path, mo
         raise engine.TieOutError("grid x: rows adds up to 7999 across the cells, but the book says 8000")
     monkeypatch.setattr(engine, "tie_out", fails)
     f.run()
-    assert f.needs[0].says.startswith("Run stopped: the grids didn't add up to the book")
-    assert f.needs[1].says.endswith("Press Copy details and send what it copies, to get it fixed.")
+    assert f.needs[0].says.startswith("Run stopped: the grids did not reconcile to the book")
+    assert f.needs[1].says.endswith("Press Copy details and send the copied text so it can be fixed.")
     assert f.crash is not None and f.crash.kind == "TieOutError" and "Traceback" in f.crash.details
 
 

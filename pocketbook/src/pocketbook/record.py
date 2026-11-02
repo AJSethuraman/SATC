@@ -60,11 +60,11 @@ NEXT_LINE, SAME_LINE = "nl", "sp"
 WARNINGS = ("Warning", "Changed pre-spec", "Couldn't run")
 
 METHOD = [
-    ("What it holds", "What the last Run was, whether it adds up, which tests it used, what it left out, and every "
-                      "Run and refusal. Nothing here is a result: the result tabs hold those."),
-    ("Settings", "Each Control setting: the answer in use now, and what the last Run used. A setting changed since "
-                 "the Run is shaded; the result tabs follow a Changes-now setting at once, and a Needs-a-Run one at "
-                 "the next Run."),
+    ("What it holds", "What the last Run was, whether its figures reconcile, which tests it used, what it excluded, "
+                      "and every Run and refusal. Nothing here is a result; the results are on the result tabs."),
+    ("Settings", "Each Control setting, with the answer in use now and the answer the last Run used. A setting "
+                 "changed since the Run is shaded. The result tabs reflect a Changes now setting immediately and a "
+                 "Needs a Run setting at the next Run."),
     ("Every Run", "Newest first. Each entry is what that Run used, and a refusal says what it was waiting for."),
 ]
 
@@ -324,7 +324,7 @@ def write(wb, rows: dict[str, list] | None) -> None:
     ws = wb.create_sheet(SHEET, at) if at is not None else wb.create_sheet(SHEET)
     for c, w in WIDTHS.items():
         ws.column_dimensions[_col(c)].width = w
-    house.title_band(ws, SHEET, "What ran, whether it adds up, what was left out, and every Run. For the reviewer.",
+    house.title_band(ws, SHEET, "What ran, whether it reconciles, what was excluded, and every Run.",
                      L_LABEL, R_B, tab=house.TAB_RECORD, fill_hex=house.SLATE, rule=house.STONE,
                      sub_color=house.MIST)
     r = house.method_note(ws, 3, L_LABEL, R_B, METHOD)

@@ -64,7 +64,7 @@ def test_a_new_column_made_from_an_outcome_is_not_cut_by(book):
              {"name": "a", "field": "AGAIN", "edges": [0.001]}]
     res = engine.run(cube(derived=gco, bands=bands), table(book))
     assert [g.band for g in res.grids] == ["score"]
-    assert any("`GCO_TO_BAL` is not cut by: it is made from `GCO`, the top of a rate" in w for w in res.warnings)
+    assert any("`GCO_TO_BAL` is not cut by: it is made from `GCO`, the numerator of a rate" in w for w in res.warnings)
     assert any("`AGAIN` is not cut by: it is made from `GCO`" in w for w in res.warnings)
     with pytest.raises(engine.DataRefused, match="splitting by it would split the book by its own outcome"):
         engine.run(cube(derived=gco, split={"field": "GCO_TO_BAL", "how": "own_median"}), table(book))

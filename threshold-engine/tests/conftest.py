@@ -6,6 +6,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from threshold_engine import Point  # noqa: E402
+from threshold_engine import internal_tab as _internal_tab  # noqa: E402
+
+# Every workbook with a Decide tab carries the Internal data slot, 2,000 rows
+# of helper formulas whose COUNTIFS run row against row. Excel calculates them
+# in a fraction of a second; the test engine (formulas) takes many minutes per
+# workbook. No test outside test_internal_tab.py reads the slot, and that file
+# sets its own size, so the tests build a 40-row slot.
+_internal_tab.CAPACITY = 40
 
 DATA = ROOT / "tests" / "data"
 
@@ -29,3 +37,12 @@ def quarters(values, first_year=2000):
 
 #: The workbook's scale at the settings agreed for cards (7 Oct 2026).
 SCALE = dict(halfwidth=0.5, low_step=1.0, high_z=2.5, on_the_line="worse")
+
+
+def as_earlier_build(data):
+    """Roster data as the 6 Oct 2026 build read it. That build divided other
+    consumer by RC-C 6.d alone; the balance is now 6.b + 6.d (LNCONRP +
+    LNCONOTH, books.PRODUCTS). The acceptance numbers it produced are
+    reproduced on this copy, which has 6.b at 0; the data itself is not
+    changed."""
+    return {q: [dict(r, LNCONRP=0) if "LNCONRP" in r else r for r in rows] for q, rows in data.items()}

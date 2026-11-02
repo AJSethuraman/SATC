@@ -1,0 +1,65 @@
+# Credit card, delinquency: nonaccrual, quarter-end rate: 100 x NACRCD / LNCRCD, both from the same filing, %.
+# Amounts are $ thousands at quarter-end, as filed; a field not filed is never read as 0.
+# KeyBank (certificate 17534), its own book.
+# Source: FDIC BankFind financials, 2006Q1 to 2026Q2, from the cache C:\Users\ajish\AppData\Local\Temp\claude\C--Users-ajish-SATC\261f7248-3cbc-4aa2-aacf-e4ff9181778a\scratchpad\ind_cache.
+# Rules: minimum book 1,000,000 ($000), read against the quarter-end balance, KeyBank exempt; the jump 0.25 blanks a four-quarter average when the book moved by more than that in any of its last three quarters, and so does an acquisition bringing in 0.05 of the book or more, never a quarter-end rate, which is one filing's; at least 5 banks in a composite.
+# Across banks, read with care: whether a late consumer or 1-4 family loan stays accruing or goes to nonaccrual is partly each bank's policy (the Call Report allows both; at 30 Jun 2026, 10 of the 16 roster banks filed zero card nonaccrual). Compare banks on 90+ incl. nonaccrual or 30+ incl. nonaccrual.
+# Securitized cards: before 2010, cards a bank had securitized were off its books, so quarters before 2010Q1, and four-quarter windows holding one (through 2010Q3), exclude them. From 1 Jan 2010 the accounting rules (FAS 166 and 167) brought them back on. The firm chose to label these quarters, not drop them (14 Oct 2026); the comparability tie-out measured the break in the industry rate at about +0.9 points.
+# Written from 2012Q3, the first quarter after the last break; 26 earlier quarters (2006Q1 to 2012Q2) are left out, because the workbook refuses a gap and a gap is not filled.
+date,value
+2012-09-30,1.0403527785254951
+2012-12-31,1.5157354238011056
+2013-03-31,1.8086714674791118
+2013-06-30,1.6342848826508118
+2013-09-30,0.5643397439845537
+2013-12-31,0.5064995698355678
+2014-03-31,0.13066183370702808
+2014-06-30,0.1369498866405664
+2014-09-30,0.17614633270243013
+2014-12-31,0.2752145054233447
+2015-03-31,0.32368204844496373
+2015-06-30,0.28194615823481806
+2015-09-30,0.2822478562015982
+2015-12-31,0.29912743126334507
+2016-03-31,0.23056472372514844
+2016-06-30,0.21597208976070784
+2016-09-30,0.23467517521479417
+2016-12-31,0.1869427926266452
+2017-03-31,0.25962156758210664
+2017-06-30,0.20124175309009
+2017-09-30,0.14404026240960421
+2017-12-31,0.18240818577071527
+2018-03-31,0.21974134534486195
+2018-06-30,0.1775103037327437
+2018-09-30,0.14632604102413652
+2018-12-31,0.1774138996361704
+2019-03-31,0.23661216328357632
+2019-06-30,0.18974812510781144
+2019-09-30,0.20128828120262507
+2019-12-31,0.2020210962433106
+2020-03-31,0.3168276895299925
+2020-06-30,0.24263548944320082
+2020-09-30,0.25334564674258103
+2020-12-31,0.1820040465566351
+2021-03-31,0.3141970434465117
+2021-06-30,0.2729315601630438
+2021-09-30,0.28796415487749394
+2021-12-31,0.2934924156247909
+2022-03-31,0.2914746618098308
+2022-06-30,0.24910774323695237
+2022-09-30,0.2612126369164826
+2022-12-31,0.2713033577080667
+2023-03-31,0.32781604305902445
+2023-06-30,0.34916152268000955
+2023-09-30,0.4254681617609098
+2023-12-31,0.5090786355733925
+2024-03-31,0.6598877260241149
+2024-06-30,0.6541728641315094
+2024-09-30,0.6906044101524975
+2024-12-31,0.7316497768201994
+2025-03-31,0.7963873403274658
+2025-06-30,0.7575830677075125
+2025-09-30,0.7721354055050276
+2025-12-31,0.7186410235966042
+2026-03-31,0.7981451323525353
+2026-06-30,0.6908132947833397

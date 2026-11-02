@@ -716,15 +716,17 @@ def out_of_time(res, sc: Scouting) -> OutOfTime | None:
     return oot
 
 
-def auc_words(sc: Scouting) -> str | None:
+def auc_words(sc: Scouting, spell: bool = True) -> str | None:
     """The one plain line: "Built on loans made 2022-01-01 to 2023-12-31: AUC 0.71. On loans made 2024-01-01 to
     2024-12-31, unseen: 0.69." With columns held fixed, the forest with them in it is said too. None when the check
-    didn't run."""
+    didn't run. `spell`: AUC is spelled out (area under the curve), as on a tab or the launcher's lines where this is
+    its first use; New variables has already spelled it out in its method note."""
     o = getattr(sc, "oot", None)
     if o is None or o.problem or o.auc is None:
         return None
     built = f"{sc.auc:.2f}" if sc.auc is not None else "not worked out"
-    said = (f"Built on loans made {sc.development.text()}: AUC {built}. On loans made {o.held_back.text()}, "
+    auc = "area under the curve (AUC)" if spell else "AUC"
+    said = (f"Built on loans made {sc.development.text()}: {auc} {built}. On loans made {o.held_back.text()}, "
             f"unseen: {o.auc:.2f}.")
     if o.auc_held is not None:
         bh = f"{sc.auc_held:.2f}" if sc.auc_held is not None else "not worked out"

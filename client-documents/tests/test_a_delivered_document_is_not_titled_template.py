@@ -124,3 +124,15 @@ def test_render_itself_retitles(name):
     got = _title(result.html)
     assert "(template)" not in got, f"{name} still ships as a template"
     assert "Priya Raghavan" in got
+
+
+def test_an_ampersand_in_the_title_is_escaped_once():
+    """Found on the firm's template review, 24 Oct 2026: the bookkeeping letter
+    rendered as "bookkeeping &amp;amp; accounting services". The template's
+    title is HTML already and the rewrite escaped it a second time."""
+    page = merge.render("<html><head><title>SATC &mdash; bookkeeping &amp; accounting "
+                        "services engagement letter (template)</title></head><body>"
+                        "<p>x</p></body></html>", RECORD, strict=False).html
+    title = _title(page)
+    assert "&amp;amp;" not in title
+    assert "bookkeeping &amp; accounting" in title

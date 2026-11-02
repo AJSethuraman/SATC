@@ -294,7 +294,7 @@ def test_the_segment_and_band_columns_fit_the_runs_labels(runs, kind):
     assert _width(sh, 2) >= len("Largest, worse and material") + 2
     # P2: a heading longer than its values sets its column
     assert _width(pk, results.K_CAUGHT) >= len("Could have caught") + 2
-    assert _width(pk, results.K_P) >= len("Rarer than 1 in 10,000") + 2
+    assert _width(pk, results.K_PV) >= len(results.P_WIDEST) + 2
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -309,11 +309,14 @@ def test_look_labels_fit_their_column(runs, kind):
 @pytest.mark.parametrize("kind", KINDS)
 def test_worse_and_together_fit_the_borderline_flag(runs, kind):
     """Borderline landed with the widths (29 Sep 2026, evening): Together can read "Earns less, not from losses ·
-    borderline (p 0.048)"; on Pockets it reads "Too close to call" in How often by chance (5 Oct 2026). Each column
+    borderline (p 0.048)"; on Pockets it reads "Borderline (p = 4.8%)" in Significant at N%? (17 Oct 2026). Each column
     fits the widest it can print."""
     from pocketbook import live, stats
     wb = runs[kind]["wb"]
-    widest = max(len(w) for w in (live.CLOSE, live.FEW_LOSSES, live.NO_REST, live.UNDER_WORSE, live.CHANCE))
+    # the category, and beside it the p-value: at 99.9% sure one just under the 0.1% line takes two more decimals
+    widest = max(len(w) for w in live.SIG_READINGS)
+    assert _width(wb[results.POCKETS], results.K_PV) >= len(live.p_words(0.000996, 0.001)[4:]) + 2
+    assert live.p_words(0.000996, 0.001)[4:] == results.P_WIDEST
     assert _width(wb[results.POCKETS], results.K_P) >= widest
     assert _width(wb[results.POCKETS], results.K_WORSE) >= len(live.TOO_FEW)
     longest = max(len(f"{t} · {stats.borderline_words(0.048, 0.95)}") for t in results.TOGETHER.values())

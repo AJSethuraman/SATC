@@ -1,0 +1,118 @@
+{
+ "files": {
+  "economic-conditions.xlsx": "41b8edf53387b62ec96d4b086ab9387e6a4d26b637551b4dad99da4a7af156b5",
+  "eia-EMM_EPMR_PTE_NUS_DPGw.csv": "3640fb182407156fac2cdb76d381c83eea2f01d35487aa3d8528831163390ddc",
+  "bls-LNS14000000.html": "bb07164fe35b7e7dd02fa189f6eca0e92d705a56a8dd2eaf2acbbe84d2555cf5",
+  "fred-SAHMCURRENT.csv": "49749abbcb211861c1b749be9a676619508d9f8a682434a355ec1fa78253a192",
+  "fhfa-nmdb.zip": "2083c4e1b5273fd2f471d2e58057b17b82b86ef3ac7ed13c58925b4453ec4e89",
+  "settings.json": "3248c16c95a7358b4d8d89e7a6148aed1f5c655ef14737a78248b11f8cf8a9a0"
+ },
+ "ours": {
+  "gasoline_latest": [
+   4.331,
+   "#,##0.0#"
+  ],
+  "gasoline_latest_date": "2026-10-12",
+  "gasoline_change": [
+   0.414897092453,
+   "+#,##0.0#%;-#,##0.0#%;0%"
+  ],
+  "gasoline_rating": "4 Moderate-High",
+  "gasoline_percentile": [
+   0.9458720612356478,
+   "0.0%"
+  ],
+  "gasoline_tab_2025_10_13": [
+   "N1852",
+   3.061
+  ],
+  "gasoline_tab_2026_10_12": [
+   "N1904",
+   4.331
+  ],
+  "unemployment": [
+   4.2,
+   "#,##0.0#"
+  ],
+  "unemployment_date": "2026-09-01",
+  "gov_90_level": [
+   2.8,
+   "#,##0.0#"
+  ],
+  "gov_90_change": [
+   0.9,
+   "+#,##0.0#;-#,##0.0#;0"
+  ],
+  "gov_90_date": "2026-04-01",
+  "sahm_text": "Ratings!C6: 0.00 in Sep 2026. Sahm's published trigger is 0.50; shown, not rated.",
+  "sources_tab_gasreg_sha256": "8398f482c6043d6b02c988a268e57024d4427c46afce639be665a746488e061f",
+  "run": {
+   "built": "2026-10-16 05:17 UTC",
+   "pull": "2026-10-16"
+  }
+ },
+ "eia_rows": {
+  "rows": 1887,
+  "blank_rows": 6,
+  "changes": 1829,
+  "percentile": 94.58720612356478,
+  "first_row_date": "08/20/1990",
+  "last_row_date": "10/12/2026",
+  "weeks_reading_3.061": [
+   "12/03/2007",
+   "10/13/2025",
+   "11/24/2025"
+  ]
+ },
+ "eia": {
+  "weeks": 1881,
+  "first": "1990-08-20",
+  "latest": "2026-10-12",
+  "latest_value": 4.331,
+  "year_before": "2025-10-13",
+  "year_before_value": 3.061,
+  "change_pct": 41.48970924534468,
+  "changes": 1829,
+  "first_change": "1991-08-19",
+  "at_or_below": 1730,
+  "percentile": 94.58720612356478,
+  "cutoffs": [
+   50,
+   75,
+   90,
+   95
+  ],
+  "on_the_line": "worse",
+  "rating": 4,
+  "exact_52_weeks": "2025-10-13"
+ },
+ "fred_vs_eia": {
+  "fred_file_sha256": "8398f482c6043d6b02c988a268e57024d4427c46afce639be665a746488e061f",
+  "fred_weeks": 1881,
+  "eia_weeks": 1881,
+  "in_both": 1881,
+  "differ": [],
+  "only_fred": [],
+  "only_eia": []
+ },
+ "bls": {
+  "series": "LNS14000000",
+  "2026_sep": "4.2"
+ },
+ "sahm": {
+  "2026-09-01": "0.00",
+  "latest": "2026-09-01"
+ },
+ "fhfa": {
+  "csv": "nmdb-mortgage-performance-statistics-national-census-areas-quarterly.csv",
+  "2025Q2": [
+   "1.9",
+   "0"
+  ],
+  "2026Q2": [
+   "2.8",
+   "0"
+  ],
+  "change_points": 0.9
+ }
+}

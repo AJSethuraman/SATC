@@ -52,7 +52,9 @@
       <li><b>Federal:</b> <span class="f">&lt;&lt;FederalReturns&gt;&gt;</span></li>
       <li><b>State:</b> <span class="f">&lt;&lt;StateReturns&gt;&gt;</span></li>
       <li><b>Local:</b> <span class="f">&lt;&lt;LocalReturns&gt;&gt;</span></li>
+      <li class="mark"><span class="cond">[[IF HasAdditionalForms]]</span></li>
       <li><b>Also included:</b> <span class="f">&lt;&lt;AdditionalForms&gt;&gt;</span></li>
+      <li class="mark"><span class="cond">[[END IF]]</span></li>
       <span class="cond">[[IF EntityIssuesK1s]]</span><li><b>Schedules K-1:</b> <span class="f">&lt;&lt;OwnerCount&gt;&gt;</span>, one for each owner</li><span class="cond end">[[END IF]]</span>
     </ul>
     <p>Returns and forms not outlined above are outside of this engagement. If the return requires additional work, a new estimate will be provided in writing. Additional work will not begin without your written consent to the new estimate.</p>
@@ -132,28 +134,30 @@
     <p>If you have chosen not to e-file, <strong>filing the returns with the taxing authorities is the entity's responsibility</strong>, on time, with proof of mailing.</p>
   </div>
 
-  <div class="signoff">
-    <p>Sincerely,</p>
-    <div class="sp"></div>
-    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
-  </div>
-
-  <div class="exec">
-    <div class="accept">Acceptance</div>
-    <p class="lead" style="margin-top:12pt">If this letter states the entity's understanding, sign below. The person signing must be authorized to bind the entity.</p>
-
-    <div class="sigrow">
-      <div>
-        <div class="sig"></div>
-        <div class="siglab"><b><span class="f">&lt;&lt;SignerName&gt;&gt;</span></b> — <span class="f">&lt;&lt;SignerTitle&gt;&gt;</span>, for <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></div>
-      </div>
-      <div>
-        <div class="sig"></div>
-        <div class="siglab">Date</div>
-      </div>
+  <div class="closing">
+    <div class="signoff">
+      <p>Sincerely,</p>
+      <div class="sp"></div>
+      <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+      <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
     </div>
-    <p class="execnote">One signature binds the entity, not its owners.</p>
+
+    <div class="exec">
+      <div class="accept">Acceptance</div>
+      <p class="lead" style="margin-top:12pt">If this letter states the entity's understanding, sign below. The person signing must be authorized to bind the entity.</p>
+
+      <div class="sigrow">
+        <div>
+          <div class="sig"></div>
+          <div class="siglab"><b><span class="f">&lt;&lt;SignerName&gt;&gt;</span></b> — <span class="f">&lt;&lt;SignerTitle&gt;&gt;</span>, for <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></div>
+        </div>
+        <div>
+          <div class="sig"></div>
+          <div class="siglab">Date</div>
+        </div>
+      </div>
+      <p class="execnote">One signature binds the entity, not its owners.</p>
+    </div>
   </div>
 </div>
 

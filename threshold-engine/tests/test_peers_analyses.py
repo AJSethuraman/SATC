@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from conftest import DATA
+from conftest import DATA, as_earlier_build
 from threshold_engine.peers.analyses import (
     annual_means, balance_trend, calendar_year, lagged_rate, mix_factor, normalisation,
     organic_index)
@@ -31,7 +31,7 @@ CARD, OTHER = "Credit card", "Other consumer"
 
 @pytest.fixture(scope="module")
 def data():
-    return json.loads((PEERS / "roster_2006.json").read_text())
+    return as_earlier_build(json.loads((PEERS / "roster_2006.json").read_text()))
 
 
 @pytest.fixture(scope="module")
@@ -44,7 +44,7 @@ def acquisitions(mergers, cert):
 
 
 def card_book(data, cert):
-    return bank_book(data, cert, CARD, JUMP, MIN_BOOK, exempt_min_book=cert == KEYBANK)
+    return bank_book(data, cert, CARD, JUMP, MIN_BOOK, exempt_min_book=cert == KEYBANK, acquired=())
 
 
 # --- acceptance: lagged rates -------------------------------------------------

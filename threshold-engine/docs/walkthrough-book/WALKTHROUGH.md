@@ -1,0 +1,95 @@
+# The book walkthrough: one command, then Excel
+
+What the firm asked for, 14 Oct 2026: *"i want you to make it work so i can
+generate this workbook at work with the script, it should be debugged and
+walked through and tied out."*
+
+This is the walk: the workbook built the way it is built at work, then used in
+Excel 16 the way a person uses it (clicking the buttons, typing in the yellow
+row, saving, closing and opening it again), and every answer read back from
+Excel and set beside an answer written down beforehand from the source files.
+
+## 1. Build
+
+From `threshold-engine/`:
+
+```
+python -m threshold_engine peers pull --cache books/ind_cache --first 2006Q1 --last 2026Q2 --products "Credit card" Mortgage "Home equity" "Other consumer" Auto --delinquency yes --mergers 2005-01-01
+python -m threshold_engine book books/consumer-public.json consumer-credit.xlsx
+```
+
+The walkthrough ran the second command on a copy of the book whose only
+change is where the cache is (`prepare.py`): the cache pulled on 14 Oct 2026
+was used rather than pulled again. Expected: `Wrote consumer-credit.xlsx: 164
+series, 143 quarters; open it on Summary, decide on Decide`. It took 21 min 40 s
+on the round 3 run of 19 Oct 2026, with the full test suite running beside it
+(8 min 48 s alone before round 3), almost all of it the peers build reading
+the cache.
+
+## 2. The steps
+
+The steps are cumulative, as a session is: what is typed in one step is still
+there in the next.
+
+One set of lines per product and measure (the firm, 15 Oct 2026: *"we don't
+need to set thresholds on all 3, we need to use all 3 to set appropriate
+thresholds"*): Decide has 35 rows, and each row's **Lines set from** picks the
+source whose history sets its lines.
+
+| Step | What you do | What it shows |
+|---|---|---|
+| B1 | Open the workbook | It opens on Summary; the tabs in round 3's order (Peers data, Peers delinquency data, Internal, Internal data, Assess, Chart and both workings tabs hidden); two slicers, one button each; Decide shows the first product and measure, no source picked, nothing decided; the counts, the Large banks strip, Needs your attention empty, the pack line on Peers, Decide and Signals, Reporting changes last on Sources; no links, no errors |
+| B2 | Read Summary and Lines by source | Every series Summary shows: its latest value, a dash where its rating goes; every series' own lines equal the reference; the backtest folded into Lines by source for two series, one too short to test |
+| B3 | On Decide, click Credit card and Nonaccrual, and pick KeyBank under Lines set from | One row; the lines are KeyBank's own; every source rated on them, beside what its own history would give; Thresholds holds the same |
+| B4 | Type 3.5 under How rare High is (z) | High's line moves for every source of the row; Thresholds and Summary follow |
+| B5 | Leave out 2012Q3 to 2013Q4, the period Decide suggests, with a reason | KeyBank's lines move as the reference says, the industry's own lines do not; Assess lists the period under KeyBank's series, whole |
+| B6, B6b | Clear the reason; type it back | Refused, in words, on Decide and Thresholds; then the lines as in B5 |
+| B7 | Accept these lines, with a note | Decided: 1 of 35; the decision on Thresholds, and on Lines by source beside KeyBank only |
+| B8 | Click Auto and Net charge-offs, and pick Industry (every bank) | KeyBank's life-to-date history rated on the lines the industry's longer history gives |
+| B9 | Click Mortgage and Net charge-offs, and pick Industry (every bank) | Refused, with the number that would fix it |
+| B10 | Save, close, open again | Every pick, decision and setting still there, and the lines with them; Summary's counts and Needs your attention |
+| B11 to B13 | On Peers: Regionals only; Every peer with JPMorgan off; JPMorgan back | The peer group's latest values are the composite over the banks left in, and the pack line names those switched off |
+| B14 | Open Signals | The controls and Picked, the pack line, where the dollars are, two fit tables |
+
+A step passes when every cell it reads says what `steps.json` says: a number
+within 1e-9, text exactly.
+
+## 3. How it was run
+
+```
+python docs/walkthrough-book/prepare.py PATH-TO-CACHE
+python -m threshold_engine book docs/walkthrough-book/out/book.json docs/walkthrough-book/out/consumer-credit.xlsx
+python docs/walkthrough-book/expected.py docs/walkthrough-book/out/book.json
+copy docs\walkthrough-book\out\consumer-credit.xlsx docs\walkthrough-book\out\walk.xlsx
+powershell -NoProfile -ExecutionPolicy Bypass -File docs\walkthrough-book\walk.ps1
+python docs/walkthrough-book/compare.py
+```
+
+`expected.py` writes the answers from the series CSVs and `scale.py`, never
+from the workbook. `walk.ps1` does each step in Excel through Excel's own
+automation and reads each answer back. `compare.py` writes `RESULT.md`.
+
+And, separately, that the file opens without Excel repairing it:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\check_slicers_in_excel.ps1 -Path docs\walkthrough-book\out\consumer-credit.xlsx -Sheet Decide -Table Decisions -Shapes 3 -Expect "Slicer_Product=Credit card|Slicer_Measure=Net charge-offs" -SwitchCache Slicer_Measure -SwitchTo "Gross charge-offs"
+```
+
+"No errors" in B1 means none a reader can see: on the visible tabs, outside
+hidden rows and columns. The rest are counted by kind and are all #N/A, the
+gap a chart leaves where a quarter has no value (on the run of 15 Oct 2026:
+Assess 169, Chart 8,470, Decide 249, Peers workings 1,556).
+
+## 4. What it does not prove
+
+- The peer tabs are counted for errors and links (B1) but their numbers are
+  not checked against a reference here; `tests/test_peers*.py` hold them.
+- One series is tied to the filing (`../tie-out/keybank-card-nonaccrual-2026-10-14/`);
+  the other 104 rest on the same code and the reference, not on a filing each.
+- Three of the 35 rows have a source picked in the walk (Credit card
+  nonaccrual, Auto and Mortgage net charge-offs); the other 32 are read blank
+  (a dash) on Summary, and every source's own lines are read for all
+  105 on Lines by source.
+- Thresholds' latest value is written by the build, not a live formula on
+  Data: pasting a corrected quarter into Data moves the lines but not the
+  latest value (found by the tie-out).

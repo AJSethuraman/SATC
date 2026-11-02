@@ -181,6 +181,10 @@ def report(record: dict, rendered: dict[str, str]) -> list[Check]:
             value = (record.get(field) or "").strip()
             if not value:
                 continue
+            # "Also included" prints only when it lists something (the firm,
+            # 24 Oct 2026); a "None" is on neither page, which is agreement.
+            if field == "AdditionalForms" and not merge.additional_forms_listed(value):
+                continue
             for name in (letter, "fee-estimate"):
                 if value not in text[name]:
                     wrong.append(f"{field} not on the {name}")

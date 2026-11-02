@@ -40,7 +40,8 @@ from satc.ingest.readers.paystub import (
     LABEL_PAY_FREQUENCY,
     LABEL_RETIREMENT_CURRENT,
 )
-from satc.withholding import EstimatorInput, available_years, estimate, paystub_from_fields
+from satc.withholding import (EstimatorInput, TaxYearNotOnFile, available_years, estimate,
+                              paystub_from_fields, staleness)
 from satc.withholding.audit_tape import build_audit_tape
 
 bp = Blueprint("withholding", __name__)
@@ -50,13 +51,14 @@ FILING_STATUSES = [
     ("married_jointly", "Married filing jointly"),
     ("married_separately", "Married filing separately"),
     ("head_of_household", "Head of household"),
+    ("qualifying_surviving_spouse", "Qualifying surviving spouse"),
 ]
 PAY_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly", "annual"]
 
 # Stored client filing-status codes (Drake-style) -> estimator codes.
 _DRAKE_TO_ESTIMATOR_STATUS = {
     "S": "single", "MFJ": "married_jointly", "MFS": "married_separately",
-    "HOH": "head_of_household", "QSS": "married_jointly",
+    "HOH": "head_of_household", "QSS": "qualifying_surviving_spouse",
 }
 _ESTIMATOR_STATUSES = {value for value, _ in FILING_STATUSES}
 
@@ -76,10 +78,11 @@ _ESTIMATOR_STATUSES = {value for value, _ in FILING_STATUSES}
 # takes $30,000 and the joint ones, and every figure on the screen still ties out
 # internally, because the arithmetic is right and only the input is wrong.
 _LABEL_TO_ESTIMATOR_STATUS = {label.casefold(): code for code, label in FILING_STATUSES}
-# The interview offers a fifth status this estimator has no separate code for.
-# QSS uses the joint brackets and the joint standard deduction, which is exactly
-# what `_DRAKE_TO_ESTIMATOR_STATUS` already does with the Drake code "QSS".
-_LABEL_TO_ESTIMATOR_STATUS["qualifying surviving spouse"] = "married_jointly"
+# QSS was mapped to married_jointly here, on the reasoning that it shares the
+# joint brackets and standard deduction. It shares little else: Schedule 1-A
+# gives it the single overtime cap and phase-out, the child credit phases out
+# at $200,000, and the Additional Medicare threshold is $200,000. It has its own
+# code now, which FILING_STATUSES above already carries. Codex on #451.
 
 
 def _estimator_filing_status(stored: str) -> str:
@@ -101,18 +104,35 @@ _HH_KEY = "wh_household"       # household-level fields (filing status, other in
 
 _JOB_KEYS = ("name", "pay_frequency", "gross_pay_per_period",
              "federal_tax_withheld_per_period", "retirement_pretax_per_period",
-             "ytd_taxable_wages", "ytd_federal_tax_withheld", "pay_periods_remaining")
+             "ytd_taxable_wages", "ytd_federal_tax_withheld", "pay_periods_remaining", "owner")
 
-_BLANK_JOB = {"pay_frequency": "biweekly", **{k: "" for k in _JOB_KEYS if k != "pay_frequency"}}
+_BLANK_JOB = {"pay_frequency": "biweekly", "owner": "you",
+              **{k: "" for k in _JOB_KEYS if k not in ("pay_frequency", "owner")}}
 
-_HH_KEYS = ("filing_status", "tax_year", "interest", "ordinary_dividends",
-            "qualified_dividends", "long_term_capital_gains", "short_term_capital_gains",
-            "self_employment_net", "itemized_total", "extra_standard_deductions",
-            "child_tax_credit", "other_nonrefundable_credits", "estimated_tax_payments",
-            "target_refund", "prior_year_tax", "prior_year_agi")
-
+# Each household field, grouped by the section of EstimatorInput it feeds. A
+# blank box sends nothing, so the engine sees "not told" and says what it
+# assumed instead -- the screen never turns a blank into a zero on its own.
 _OTHER_INCOME_KEYS = ("interest", "ordinary_dividends", "qualified_dividends",
-                      "long_term_capital_gains", "short_term_capital_gains", "self_employment_net")
+                      "long_term_capital_gains", "short_term_capital_gains", "self_employment_net",
+                      "taxable_retirement_distributions", "taxable_social_security",
+                      "unemployment", "rental_and_passive_income", "qbi_from_rental_and_k1",
+                      "other_taxable_income")
+_ADJUSTMENT_KEYS = ("traditional_ira_deduction", "hsa_deduction", "student_loan_interest",
+                    "other_adjustments")
+_ITEMIZED_KEYS = ("medical_expenses", "state_local_income_or_sales_tax", "property_taxes",
+                  "mortgage_interest", "charitable_cash", "charitable_noncash", "other_itemized")
+_HOUSEHOLD_KEYS = ("taxpayer_65_or_older", "spouse_65_or_older", "taxpayer_under_25",
+                   "spouse_under_25", "lived_apart_from_spouse", "spouse_no_income_not_filing",
+                   "self_employment_owner", "blind_count",
+                   "children_under_17", "other_dependents", "eitc_children")
+_SCHEDULE_1A_KEYS = ("qualified_tips", "qualified_tips_business", "qualified_overtime", "car_loan_interest")
+
+_HH_KEYS = ("filing_status", "tax_year", "itemized_total", "extra_standard_deductions",
+            "child_tax_credit", "other_nonrefundable_credits", "credits_after_child_credit",
+            "refundable_credits", "estimated_tax_payments",
+            "target_refund", "prior_year_tax", "prior_year_agi",
+            *_OTHER_INCOME_KEYS, *_ADJUSTMENT_KEYS, *_ITEMIZED_KEYS, *_HOUSEHOLD_KEYS,
+            *_SCHEDULE_1A_KEYS)
 
 
 def _clean_num(raw) -> str | None:
@@ -182,6 +202,7 @@ def _job_from_read(read) -> dict:
         "ytd_taxable_wages": _str(stub.ytd_taxable_wages),
         "ytd_federal_tax_withheld": _str(stub.ytd_federal_tax_withheld),
         "pay_periods_remaining": "" if stub.pay_periods_remaining is None else str(stub.pay_periods_remaining),
+        "owner": "you",
     }
 
 
@@ -202,23 +223,36 @@ def _estimator_input(jobs: list[dict], hh: dict) -> EstimatorInput:
             paystub["pay_periods_remaining"] = int(float(remaining))
         if (job.get("name") or "").strip():
             paystub["name"] = job["name"].strip()
+        if job.get("owner") in ("you", "spouse"):
+            paystub["owner"] = job["owner"]
         if i == adjust:
             paystub["adjust_withholding"] = True
         job_inputs.append(paystub)
     if not job_inputs:
         job_inputs = [{"pay_frequency": "biweekly"}]
 
-    data: dict = {"filing_status": hh.get("filing_status", "single"), "jobs": job_inputs}
+    data: dict = {"jobs": job_inputs}
+    if (hh.get("filing_status") or "").strip():
+        data["filing_status"] = hh["filing_status"].strip()
     year = _clean_num(hh.get("tax_year"))
     if year is not None:
         data["tax_year"] = int(float(year))
 
-    other_income = {k: _clean_num(hh.get(k)) for k in _OTHER_INCOME_KEYS}
-    other_income = {k: v for k, v in other_income.items() if v is not None}
-    if other_income:
-        data["other_income"] = other_income
+    def section(keys) -> dict:
+        found = {k: _clean_num(hh.get(k)) for k in keys}
+        return {k: v for k, v in found.items() if v is not None}
 
-    deductions: dict = {}
+    for name, keys in (("other_income", _OTHER_INCOME_KEYS), ("adjustments", _ADJUSTMENT_KEYS),
+                       ("schedule_1a", _SCHEDULE_1A_KEYS)):
+        found = section(keys)
+        if found:
+            data[name] = found
+    household = {k: (hh.get(k) or "").strip() for k in _HOUSEHOLD_KEYS}
+    household = {k: v for k, v in household.items() if v}
+    if household:
+        data["household"] = household
+
+    deductions: dict = section(_ITEMIZED_KEYS)
     itemized = _clean_num(hh.get("itemized_total"))
     if itemized is not None:
         deductions["itemized_total"] = itemized
@@ -228,7 +262,8 @@ def _estimator_input(jobs: list[dict], hh: dict) -> EstimatorInput:
     if deductions:
         data["deductions"] = deductions
 
-    credits = {k: _clean_num(hh.get(k)) for k in ("child_tax_credit", "other_nonrefundable_credits")}
+    credits = {k: _clean_num(hh.get(k)) for k in ("child_tax_credit", "other_nonrefundable_credits",
+                                                    "credits_after_child_credit", "refundable_credits")}
     credits = {k: v for k, v in credits.items() if v is not None}
     if credits:
         data["credits"] = credits
@@ -278,6 +313,7 @@ def _render(*, result=None, teach=None, teach_layout=None, notes=None):
         teach=teach,
         teach_layout=teach_layout,
         prefill_notes=notes or [],
+        stale=staleness(),
     )
 
 
@@ -392,6 +428,8 @@ def withholding():
     _sync(request.form)
     try:
         result = estimate(_estimator_input(_jobs(), _household()))
+    except TaxYearNotOnFile as exc:
+        return _render(notes=[str(exc)])
     except Exception as exc:  # noqa: BLE001 - surface bad input as a message, not a 500
         return _render(notes=[f"Couldn’t run the estimate: {exc}"])
     return _render(result=result)

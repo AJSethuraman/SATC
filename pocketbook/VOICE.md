@@ -50,6 +50,16 @@ particular, there is no ban on terms a reader might look up, and no rule to "say
 
 - **No filler.** A sentence that tells the reader nothing comes out.
 - **No self-protective sentences.** Say what the figure is; don't hedge to protect the tool.
+  - This holds where canon's voice would add a "Note:" saying what a result does not mean. The firm, 14 Oct
+    2026, on cutting *"That is not proof there is none."* after a test that isn't significant: *"keep this as we
+    have it"*.
+- **An acronym is spelled out the first time a tab uses it.** The firm, 14 Oct 2026, on canon's rule *"Every
+  acronym is spelled out the first time, then used"*: *"Add this"*. GCO is gross charge-off, the catalog's own
+  label. RANR is risk-adjusted net revenue (the firm, 14 Oct 2026: *"Ranr is risk adjusted net revenue"*).
+- **A key term gets its full name, not an everyday gloss.** The firm, 14 Oct 2026: *"The audience knows what they
+  mean they don't need to be spelled out like 'this is what we keep'"*. Write *Risk-adjusted net revenue (RANR)*, or
+  the calculation where one is asked for, never *what a loan earned after its losses* or *the pocket lost money
+  outright*.
 - **Facts, calculations and rules only — no advice or interpretation.** The firm, 3 Oct 2026, on a Glossary line
   telling the reader to compare loans within a vintage because older loans have had more time on book: *"this is
   the kind of garbage i do not want at all. it should not saying things that imply seasoning and such because that
@@ -139,8 +149,9 @@ Say what to do, to what, and where to read the answer.
 
 ## Spelling
 
-Match what the tabs already use (*grey*, *coloured*) until the firm says otherwise. Sheet and column names are
-written exactly as they appear in the workbook.
+American spelling: *gray*, *color*, *colored*, *labeled*, sheet and column names included (the firm, 14 Oct 2026,
+on the wording review's spelling item: yes; canon's voice: *"American spelling"*). Sheet and column names are written
+exactly as they appear in the workbook, so a name changes in the code and in every reference to it at once.
 
 ## How to check a sentence
 

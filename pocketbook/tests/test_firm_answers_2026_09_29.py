@@ -112,7 +112,7 @@ def test_nothing_is_picked_as_the_outcome_and_a_pick_is_asked_about_in_counts(tm
     f.click("CHANNEL", "b")
     f.pick_outcome("EVER GCO")
     c = next(c for c in f.outcome_choices() if c.name == "EVER GCO")
-    assert f"{c.yes:,} loans" in f.outcome_question() and f"{c.no:,}." in f.outcome_question()
+    assert f"{c.yes:,} loans" in f.outcome_question() and f"({c.no:,} loans)" in f.outcome_question()
     f.answer_outcome(True)
     assert f.outcome == "EVER GCO"
     rows = {r["name"]: r for r in f.rows()}
@@ -741,9 +741,9 @@ def test_one_cell_reads_the_blocks_own_numbers_in_words_for_a_multiple_and_a_gap
         bound = max([abs(x) for blk in (bk, bd) for k, x in blk.items() if isinstance(x, (int, float))
                      and isinstance(loans.get(k), (int, float)) and loans[k] >= few] + [0.01])
         if n < few:
-            assert said["The colour"] == f"Grey: only {n:,} loans, fewer than the {few:,} set on Control, so not coloured."
+            assert said["The color"] == f"Gray: only {n:,} loans, fewer than the {few:,} set on Control, so not colored."
         else:
-            assert said["The colour"].startswith(f"vs the book is {_shade(v, kind, bound)}, vs rest of band "
+            assert said["The color"].startswith(f"vs the book is {_shade(v, kind, bound)} and vs rest of band is "
                                                  f"{_shade(w, kind, bound)}.")
 
 
@@ -760,7 +760,8 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
     assert bd[alone] is None
     for measure in ("GCOs ($)", "RANR"):
         _, _, said = _grids(b, tmp_path / f"alone-{measure[0]}.xlsx", measure=measure, row=alone[0], column=alone[1])
-        assert said["vs rest of band"] == f"Blank: alone in its band. Nothing else in {alone[0]} to compare with."
+        assert said["vs rest of band"] == (f"Blank: this is the only pocket in its band, so there is nothing else in "
+                                           f"{alone[0]} to compare with.")
     _, _, said = _grids(b, tmp_path / "alone.xlsx", measure="GCOs ($)", row=alone[0], column=alone[1])
     if loans[alone] == 1:                                         # one loan reads as one, not "1 loans"
         assert said["Rate"].startswith("This one loan: GCOs were ") and said["Rate"].endswith(" of its booked "
@@ -770,8 +771,8 @@ def test_one_cell_says_why_a_blank_is_blank_alone_in_its_band_or_too_few_losses(
         assert said["vs the book"] == few                        # only one reason a comparison with the book is blank
     _, _, said = _grids(b, tmp_path / "few.xlsx", measure="GCOs ($)", row=thin[0], column=thin[1])
     assert said["vs the book"] == few and said["vs rest of band"] == few
-    assert "alone" not in said["The colour"] and said["The colour"].startswith("vs the book is blank, vs rest of band "
-                                                                               "blank.")
+    assert "alone" not in said["The color"] and said["The color"].startswith("vs the book is blank and vs rest of band "
+                                                                               "is blank.")
     ws = load_workbook(b)[results.GRIDS]
     notes = [c.value for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("A blank")]
     assert notes == ["A blank: alone in its band, or fewer losses than the minimum, so not compared."]
@@ -1011,10 +1012,10 @@ def test_grids_grey_a_cell_under_the_fewest_loans_and_leave_it_out_of_the_scale(
         assert coloured and all(f.startswith(f"AND(NOT({grey})") for f in coloured)
     # what one cell says, and the note
     _, _, said = _grids(b, tmp_path / "k1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK)
-    assert said["The colour"] == f"Grey: only 3 loans, fewer than the {few} set on Control, so not coloured."
+    assert said["The color"] == f"Gray: only 3 loans, fewer than the {few} set on Control, so not colored."
     note = {ws.cell(row=r, column=2).value: ws.cell(row=r, column=3).value for r in range(3, 16)}
-    assert note["Colour"].endswith(f"Grey: fewer loans than the {few} in Fewest loans in a pocket on Control, so "
-                                   f"not coloured, and left out of the largest gap.")
+    assert note["Color"].endswith(f"Gray cells have fewer loans than the {few} set in Fewest loans in a pocket on "
+                                   f"Control; they are not colored and are left out of the largest gap.")
 
 
 def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_all_loans(tmp_path, monkeypatch):
@@ -1046,10 +1047,10 @@ def test_grids_fewest_loans_is_the_number_the_run_used_and_no_filter_by_offers_a
     thin = next(k for k, v in _pockets(blocks["Loans"]).items() if v < want)
     _, _, said = _grids(out.book, tmp_path / "f1.xlsx", row=thin[0], column=thin[1])
     n = blocks["Loans"][thin]
-    assert said["The colour"] == (f"Grey: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
-                                  f"so not coloured.")
-    assert f"Grey: fewer loans than the {want} in Fewest loans" in \
-        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Colour")
+    assert said["The color"] == (f"Gray: only {n} loan{'' if n == 1 else 's'}, fewer than the {want} set on Control, "
+                                  f"so not colored.")
+    assert f"Gray cells have fewer loans than the {want} set in Fewest loans" in \
+        next(ws.cell(row=r, column=3).value for r in range(3, 16) if ws.cell(row=r, column=2).value == "Color")
 
 
 def test_grids_the_books_own_figure_heads_vs_the_book(grids_book, tmp_path):
@@ -1113,7 +1114,7 @@ def test_grids_only_loans_where_shows_one_values_grid_against_the_whole_book(gri
     kiosk = next(k for k in cells if k[1] == KIOSK and k[0] != "All")
     _, _, said = _grids(b, tmp_path / "y1.xlsx", measure="RANR", row=kiosk[0], column=KIOSK,
                         **{ONLY: "Y"})
-    assert said["The colour"].startswith("Grey: only 3 loans, ")
+    assert said["The color"].startswith("Gray: only 3 loans, ")
 
 
 def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_book, tmp_path):
@@ -1143,7 +1144,7 @@ def test_grids_loan_size_is_booked_per_loan_described_never_red_or_green(grids_b
     avg, med = _size(got)
     assert said["Rate"] == f"These {len(got):,} loans averaged ${avg:,.0f} booked, median ${med:,.0f}."
     assert said["vs the book"] == f"{avg / book_avg:.2f}× the average loan of the whole book."
-    assert said["The colour"] == results.SAY_SIZE
+    assert said["The color"] == results.SAY_SIZE
     fills = {r.dxf.fill.fgColor.rgb[-6:] for r, *_ in _rules_at(ws, _coord(ws, "vs the book", k))
              if r.dxf.fill is not None and '="size"' in r.formula[0]}
     assert fills == {c for _, c in results.SIZE_STEPS}
@@ -1185,8 +1186,8 @@ def test_grids_loan_size_is_not_offered_without_a_booked_amount(tmp_path):
 # exact test's p-value is the same on every run, so it is never borderline.
 
 UNDER, OVER, FAR, NEAR_Z, TINY = 0.048, 0.052, 0.3, 0.049, 0.001
-BORDER_SAID = ("Borderline: the test's p-value is within the shuffle's own margin of the 5% bar, so another run "
-               "could read it the other way.")
+BORDER_SAID = ("Borderline: the shuffle test's p-value is within 2 standard errors of the 5% threshold, on either "
+               "side.")
 
 
 def test_borderline_is_two_of_the_shuffles_own_standard_errors_either_side_of_the_bar():
@@ -1359,7 +1360,7 @@ def _note(ws) -> dict:
     return out
 
 
-def test_borderline_pockets_says_too_close_to_call_and_worse_keeps_the_words_colour(border_book, tmp_path):
+def test_borderline_pockets_reads_borderline_in_significant_and_worse_keeps_the_words_colour(border_book, tmp_path):
     import tabs
     from pocketbook import live, results
     res, calc = border_book["res"], border_book["calc"]
@@ -1378,15 +1379,18 @@ def test_borderline_pockets_says_too_close_to_call_and_worse_keeps_the_words_col
     # the Pockets tab: charge-offs, a pass and a fail, each flagged; Bad loans at 0.049 by the z test, never
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "gco.xlsx", results.POCKETS,
                                      measure="GCOs ($)"), results.POCKETS)
-    # 5 Oct 2026: Worse? is the word alone, and a borderline pocket reads "Too close to call" in How often by chance
+    # 5 Oct 2026: Worse? is the word alone; a borderline pocket reads "Borderline (p = 4.8%)" in Significant at N%?
+    # (17 Oct 2026; "Too close to call" in How often by chance from 5 Oct). Since the review of 17 Oct the column
+    # says Borderline for any shuffled p-value that near the line, whatever Worse? reads
     rows = tabs.pockets(ws)
-    close = {x["worse"] for x in rows if x["chance"] == live.CLOSE}
-    assert close == {"Yes", "Not sure"}, close
+    close = {x["worse"] for x in rows if x["chance"] == live.SIG_BORDER}
+    assert {"Yes", "Not sure"} <= close, close
     assert not any("borderline" in str(x["worse_said"]) or " · " in str(x["worse_said"]) for x in rows)
     ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / "bad.xlsx", results.POCKETS,
                                      measure="Bad loans"), results.POCKETS)
     rows = tabs.pockets(ws)
-    assert any(x["worse"] == "Yes" for x in rows) and not any(x["chance"] == live.CLOSE for x in rows)
+    assert any(x["worse"] == "Yes" for x in rows) and not any(x["chance"] == live.SIG_BORDER
+                                                              for x in rows)
     # its colour is the word's, borderline or not: every rule on Worse? compares the word without the flag
     written = load_workbook(border_book["b"])[results.POCKETS]
     col = results.col(results.K_WORSE)
@@ -1396,8 +1400,8 @@ def test_borderline_pockets_says_too_close_to_call_and_worse_keeps_the_words_col
     # the method note says what it means, in the firm's plain words and under 25, at the end of its p-value item
     # so that no row of the tab moves
     note = _note(calc[results.POCKETS])
-    assert "Too close to call (the shuffled p-value is within the shuffle's own margin of the bar" in \
-        note[results.CHANCE_HEAD]
+    assert "Borderline means the shuffled p-value is within 2 standard errors of the threshold, on either side." \
+        in note[live.SIG_HEAD.format("95%")]
 
 
 def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_stay_the_words(border_book, tmp_path):
@@ -1426,7 +1430,7 @@ def test_borderline_paid_cost_kept_together_says_it_and_its_colour_and_chart_sta
     named = [f for f in tog if "Net drain" in f or "Strong" in f]
     assert named and all(results.col(results.C_H_TOG) in f for f in named)
     note = _note(ws)
-    assert note["Together"].endswith(f" {BORDER_SAID} Together gives the p-value of each side that is, GCOs "
+    assert note["Together"].endswith(f" {BORDER_SAID} Where a side is borderline, Together gives its p-value, GCOs "
                                      f"first.")
 
 
@@ -1491,7 +1495,7 @@ def test_borderline_start_here_record_and_the_launcher_count_and_name_them(borde
         assert seg == live.flagged(tabs.word(seg), want[(band, tabs.word(seg))]), (band, seg)
     # Record: the rule, and the count now; the Run's line names the worst with its flag
     rec = tabs.record(calc)
-    assert "within 2 of its own standard errors of the 5% bar" in rec["Borderline"]
+    assert "within 2 standard errors of the 5% threshold, on either side" in rec["Borderline"]
     assert "never borderline" in rec["Borderline"]
     n = len(gco)
     assert rec["Borderline now: GCOs ($)"] == (f"{sum(1 for x in gco if x[3].borderline)} of {n:,} pockets on "
@@ -2048,8 +2052,8 @@ def test_pck_gross_every_pockets_booked_gco_ranr_and_rate_are_the_loan_files_for
     for grid, ws in gross_book["calc"].items():
         rows = tabs.pck(ws)
         head = tabs.header_row(ws, results.C_TOG, "Together")
-        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "GCOs", "RANR",
-                                                                         "RANR ÷ Booked"]
+        assert tabs.heads(ws, head, results.C_LOANS, results.C_RATE) == ["Loans", "Booked", "Avg line", "Line × book",
+                                                                         "GCOs", "RANR", "RANR ÷ Booked"]
         assert ws.cell(row=head - 1, column=results.C_BOOK).value == "Gross · this pocket alone"
         want = _gross_by_pocket(gross_book["x"], grid, _pck_labels(rows))
         assert len(rows) > 10, grid
@@ -2124,15 +2128,15 @@ def test_pck_gross_a_pocket_that_lost_money_outright_is_red_and_counted_above_th
         s = tabs.dropdown(ws, "Grid").row
         n = len(neg)
         assert ws.cell(row=s, column=results.C_LOANS).value == (
-            f"{n} pocket{'s' if n != 1 else ''} lost money outright, totalling ${lost:,.0f}: RANR below zero, in red."
-            if n else "No pocket listed lost money outright: every one's RANR is zero or more.")
+            f"{n} pocket{'s' if n != 1 else ''} listed {'have' if n != 1 else 'has'} RANR below zero, with combined "
+            f"RANR of -${lost:,.0f}, shown in red." if n else "No pocket listed has RANR below zero.")
         rules = [r for rng in ws.formulas.conditional_formatting
                  if str(rng.sqref) == f"{results.col(results.C_LOANS)}{s}" for r in rng.rules]
         assert rules and rules[0].dxf.font.color.rgb[-6:] == house.CRIMSON
         assert ws.cell(row=s, column=results.C_H_UN).value == n                # the rule's cell: red above 0
     assert kiosks >= 5                          # the planted Kiosk pockets, one in each score band
     note = _note(gross_book["calc"]["FICO x CHANNEL"])
-    assert "Negative RANR: the pocket lost money outright, before comparing it with anyone." in note["RANR"]
+    assert "Negative RANR: a pocket with RANR below zero shows its RANR and RANR ÷ Booked in red." in note["RANR"]
 
 
 def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_add_up():
@@ -2160,10 +2164,11 @@ def test_pck_gross_a_pocket_not_listed_gets_its_own_total_and_the_three_still_ad
 
 def test_pck_gross_no_negative_pocket_says_so_and_one_says_it_in_the_singular():
     from pocketbook import results
-    assert results.negative_line([{"ranr": 5.0}, {"ranr": 0.0}]) == (
-        "No pocket listed lost money outright: every one's RANR is zero or more.")
+    assert results.negative_line([{"ranr": 5.0}, {"ranr": 0.0}]) == "No pocket listed has RANR below zero."
     assert results.negative_line([{"ranr": -1234.4}, {"ranr": 3.0}]) == (
-        "1 pocket lost money outright, totalling $1,234: RANR below zero, in red.")
+        "1 pocket listed has RANR below zero, with combined RANR of -$1,234, shown in red.")
+    assert results.negative_line([{"ranr": -1000.0}, {"ranr": -234.4}]) == (
+        "2 pockets listed have RANR below zero, with combined RANR of -$1,234, shown in red.")
 
 
 def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(gross_book):
@@ -2189,9 +2194,11 @@ def test_pck_gross_dollars_fit_their_columns_and_turn_to_thousands_past_the_cap(
 # They'd be across the top." The ratio: "Charged off / booked". Bad loans columns: "Yes do this".
 
 SUMMARY_ONLY = f"Only loans where {ch.ORIG_YEAR} is"
+#: Line size's two figures that need no dates close the booked block (the firm, 17 Oct 2026)
+LINE_BAD, LINE_LOST = "Line on bad loans ÷ line on good loans", "Share of line lost on bad loans"
 SUMMARY_HEADS = ["Loans", "% of loans", "Bad loans", "Bad loans %", "Booked $", "Avg line", "Line × book",
-                 "% of booked", "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $", "RANR ÷ Booked",
-                 "% of RANR"]
+                 "% of booked", LINE_BAD, LINE_LOST, "GCOs ($)", "GCOs ÷ Booked", "× book", "% of GCOs", "RANR $",
+                 "RANR ÷ Booked", "% of RANR"]
 SHARES = ("% of loans", "% of booked", "% of GCOs", "% of RANR")
 SPECIAL = ("(blank)", "(not a number)", "(marked missing)")
 
@@ -2271,9 +2278,16 @@ def _road2(rows, field, labels, whole_rows, label_of=None) -> dict:
         k = [(a, c) for a, c in k if a is not None and c is not None]
         gco, gden = sum(a for a, _ in g), sum(c for _, c in g)
         ranr, rden = sum(a for a, _ in k), sum(c for _, c in k)
+        # Line size's figures: lines of the bad loans against the good, and GCOs on the bad over their lines
+        bl = [f(r["ORIG_BAL"]) for r in rs if r["BAD_FLAG"] == "1" and f(r["ORIG_BAL"]) is not None]
+        gl = [f(r["ORIG_BAL"]) for r in rs if r["BAD_FLAG"] == "0" and f(r["ORIG_BAL"]) is not None]
+        lost = [(f(r["GCO_AMT"]), f(r["ORIG_BAL"])) for r in rs if r["BAD_FLAG"] == "1"]
+        lost = [(a, c) for a, c in lost if a is not None and c is not None]
         return {"Loans": len(rs), "Bad loans": bad, "Bad loans %": bad / len(read) if read else None,
                 "Booked $": booked, "GCOs ($)": gco, "GCOs ÷ Booked": gco / gden if gden else None,
-                "RANR $": ranr, "RANR ÷ Booked": ranr / rden if rden else None}
+                "RANR $": ranr, "RANR ÷ Booked": ranr / rden if rden else None,
+                LINE_BAD: (sum(bl) / len(bl)) / (sum(gl) / len(gl)) if bl and gl else None,
+                LINE_LOST: sum(a for a, _ in lost) / sum(c for _, c in lost) if lost else None}
 
     by: dict = {}
     for r in rows:
@@ -2504,7 +2518,11 @@ def test_few_values_the_run_says_so_and_columns_suggests_category_while_the_answ
     assert said[:-1] in warn                                              # and Record
     wb = load_workbook(b)
     why = wb["Columns"][at(wb, DEROGS, book.C_WHY)].value
-    assert why.endswith(" Few values (0 to 8): Category may read better.") and why.count("Few values") == 1
+    assert why.endswith(" Few values (0 to 8): the last Run gave each value its own band.")
+    assert why.count("Few values") == 1
+    # a workbook written before 14 Oct 2026 carries the earlier wording; the next Run replaces it, never adds to it
+    assert book._FEW_VALUES_RE.sub("", "From its name. Few values (0 to 8): Category may read better.") == \
+        "From its name."
     assert wb["Columns"][at(wb, DEROGS, book.C_MEANS)].value == "Amount or number"   # a suggestion, never a change
     assert "Few values" not in str(wb["Columns"][at(wb, "FICO", book.C_WHY)].value)
     # the setting the launcher chose rides with the band: Control's 12
@@ -2661,66 +2679,65 @@ def test_few_values_prevalence_counts_value_bands_as_the_grids_cut_them(tmp_path
 
 
 # --------------------------------------------------------------------------
-# How often by chance (the firm, 5 Oct 2026: "the p value stuff is not simple for a laymen's user" ... "it should
-# indicate a 1 in X number ... but if we can't rely on it it should say something instead of the 1 in X that
-# explains easily why it can't calculate"; approved: "I think that's more clear to a normal user")
+# Significant at N%? (the firm, 17 Oct 2026: "i don't like how often by chance or could be chance as much as luck at
+# this point. or another sort of standard term, i just think could be chance is too vague for a typical user").
+# It replaces How often by chance (5 Oct 2026: "1 in X" on a Yes pocket, else the reason there is no number); the
+# reasons that were already specific are kept. tests/test_significant_at_2026_10_17.py holds its new tests.
 
 
-@pytest.mark.parametrize("p, said", [(0.0025, "1 in 400"), (0.00377, "1 in 270"), (0.04, "1 in 25"),
-                                     (0.0123, "1 in 81"), (0.000151, "1 in 6,600"), (0.0001, "1 in 10,000"),
-                                     (0.0000999, "Rarer than 1 in 10,000"), (0.0, "Rarer than 1 in 10,000")])
-def test_chance_one_in_x_is_two_significant_figures(p, said):
-    from pocketbook import live
-    assert live.one_in(p) == said
-
-
-def test_chance_says_why_there_is_no_number_for_every_reading():
+def test_sig_says_why_there_is_no_test_for_every_reading():
+    """Since the review of 17 Oct 2026 the column answers its own question: every pocket with a p-value reads Yes, No
+    or Borderline by that p-value alone, a Yes saying which side it is on (the firm, 17 Oct 2026); only a pocket
+    with no p-value gets a reason."""
     from pocketbook import engine, live
-    said = live.chance_said
-    assert said(engine.WORSE, 1.6, 0.0025, None, False) == "1 in 400"
-    assert said(engine.WORSE, 1.6, 0.048, "0.048", False) == live.CLOSE
-    assert said(engine.UNSURE_WORSE, 1.6, 0.052, "0.052", False) == live.CLOSE
-    assert said(engine.UNSURE_WORSE, 1.6, 0.2, None, False) == live.CHANCE
-    assert said(engine.FEW, 3.0, None, None, False) == live.FEW_LOSSES
-    assert said(engine.THIN, 3.0, None, None, False) == live.FEW_LOANS
-    assert said(engine.IN_LINE, None, None, None, False) == live.NO_REST
-    assert said(engine.IN_LINE, 1.1, 0.001, None, False) == live.UNDER_WORSE
-    assert said(engine.IN_LINE, 0.9, 0.3, None, False) == live.NOT_MORE
-    assert said(engine.BETTER, 0.5, 0.001, None, False) == live.NOT_MORE
-    assert said(engine.UNSURE_BETTER, 0.8, 0.3, None, False) == live.NOT_MORE
-    # profit: the gap is in points, short of the rest when below 0
-    assert said(engine.IN_LINE, -0.002, 0.3, None, True, "test") == live.CHANCE
-    assert said(engine.IN_LINE, -0.002, 0.3, None, True, "points") == live.UNDER_PROFIT
-    assert said(engine.IN_LINE, 0.002, 0.3, None, True, "points") == live.NOT_MORE
+    said = lambda *a: live.sig_said(*a, bar=0.05)                          # noqa: E731
+    assert said(engine.WORSE, 1.6, 0.0025, False, False) == live.SIG_WORSE
+    assert said(engine.WORSE, 1.6, 0.048, True, False) == live.SIG_BORDER
+    assert said(engine.UNSURE_WORSE, 1.6, 0.052, True, False) == live.SIG_BORDER
+    assert said(engine.UNSURE_WORSE, 1.6, 0.2, False, False) == live.SIG_NO
+    assert said(engine.FEW, 3.0, None, False, False) == live.FEW_LOSSES
+    assert said(engine.IN_LINE, None, None, False, False) == live.NO_REST
+    # under the Worse at line, or not losing more: Worse? says so, and this column says whether the gap is significant
+    assert said(engine.IN_LINE, 1.1, 0.00001, False, False) == live.SIG_WORSE
+    assert said(engine.IN_LINE, 0.9, 0.3, False, False) == live.SIG_NO
+    assert said(engine.BETTER, 0.5, 0.001, False, False) == live.SIG_BETTER
+    assert said(engine.UNSURE_BETTER, 0.8, 0.3, False, False) == live.SIG_NO
+    assert said(engine.IN_LINE, -0.002, 0.3, False, True) == live.SIG_NO
+    # no p-value: not losing more, or too few losses to test
+    assert said(engine.IN_LINE, 0.9, None, False, False) == live.NOT_MORE
+    assert said(engine.IN_LINE, 1.2, None, False, False) == live.FEW_LOSSES
 
 
-def test_chance_on_every_pocket_matches_the_python_reading_and_only_yes_gets_a_number(border_book, tmp_path):
-    """Every row of _pockets, calculated, against chance_said over the same row's flag, gap, p-value and borderline
-    words; then the Pockets tab: "1 in X" on Yes rows only, a reason everywhere else, and the header."""
+def test_sig_on_every_pocket_matches_the_python_reading(border_book, tmp_path):
+    """Every row of _pockets, calculated, against sig_said over the same row's flag, gap, p-value and borderline
+    words; then the Pockets tab: every row reads, a Worse? Yes is a significant Yes, and the header."""
     import tabs
-    from pocketbook import live, results
+    from pocketbook import live, results, stats
     pk = border_book["calc"][live.POCKETS]
     seen = set()
     for r in range(live.P_FIRST, pk.max_row + 1):
         v = lambda c: pk.cell(row=r, column=c).value                        # noqa: E731
         if v(live.P_MEASURE) in (None, ""):
             continue
-        flag, gap, p, wb = v(live.P_FLAG), v(live.P_GAP), v(live.P_P), v(live.P_WBTXT)
+        flag, gap, p = v(live.P_FLAG), v(live.P_GAP), v(live.P_P)
+        se = v(live.P_SE_BAND) if v(live.P_BY_BAND) else v(live.P_SE_BOOK)
+        num = lambda x: x if isinstance(x, float | int) and not isinstance(x, bool) else None   # noqa: E731
+        near = stats.borderline(num(p), num(se), 0.95)
         profit = v(live.P_MEASURE) in ("ranr_rate", "contribution_rate")
-        want = live.chance_said(flag or None, gap if isinstance(gap, float | int) else None,
-                                p if isinstance(p, float | int) else None, wb or None, profit)
-        assert v(live.P_CHANCE) == want, (r, flag, gap, p, wb, v(live.P_CHANCE))
-        seen.add(want if not want.startswith("1 in") else "1 in")
-    assert {"1 in", live.CLOSE, live.CHANCE, live.NOT_MORE} <= seen, seen
+        want = live.sig_said(flag or None, num(gap), num(p), near, profit, bar=0.05)
+        assert v(live.P_SIG) == want, (r, flag, gap, p, wb, v(live.P_SIG))
+        seen.add(want)
+    assert {live.SIG_WORSE, live.SIG_BETTER, live.SIG_BORDER, live.SIG_NO, live.FEW_LOSSES} <= seen, seen
     for measure in ("GCOs ($)", "Bad loans"):
         ws = tabs.calculated(tabs.choose(border_book["b"], tmp_path / f"{measure[:3]}.xlsx", results.POCKETS,
                                          measure=measure), results.POCKETS)
-        assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == "How often by chance"
+        assert ws.cell(row=tabs.header_row(ws, results.K_NUM, "#"), column=results.K_P).value == \
+            "Significant at 95%?"
         rows = tabs.pockets(ws)
         assert rows and all(x["chance"] for x in rows)
         for x in rows:
-            number = str(x["chance"]).startswith(("1 in", "Rarer than"))
+            yes = x["chance"] == live.SIG_WORSE
             if str(x["holds"] or "").startswith("No:"):
                 assert x["chance"].startswith(results.MIXED), x            # the gap may be the partner's
-            elif x["chance"] != live.CLOSE:
-                assert number == (x["worse"] == "Yes"), x
+            elif x["worse"] == "Yes" and x["chance"] != live.SIG_BORDER:
+                assert yes, x                                               # a worse pocket is a significant one

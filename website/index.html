@@ -620,6 +620,56 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
   .foot-bottom { flex-direction: column; align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *{ transition: none !important; } }
+
+/* ---- Simple Filer band (PROPOSED, review only) -------------------------
+   Reuses the page's own tokens and the existing .band/.wrap/.btn chrome so
+   this reads as the same site, not a bolt-on. Two columns on desktop, one
+   on phone, mirroring .fit-grid's behaviour. */
+section.band.sf { padding: clamp(44px, 5.5vw, 68px) 0; background: var(--cream-2); border-top: 1px solid var(--hairline-2);
+                  border-bottom: 1px solid var(--hairline-2); }
+.sf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(26px, 4vw, 56px);
+           align-items: center; }   /* center, not start: at `start` the shorter
+           left column left a stranded block of white beside the taller card --
+           Tenet 2, and the firm's own fix for it was to centre rather than to
+           add prose. */
+.sf-left .h2 { margin: 6px 0 10px; }
+.sf-who { font-family: var(--serif); font-size: clamp(17px, 2vw, 20px);
+          color: var(--charcoal-2); margin: 0 0 14px; }
+.sf-hedge { font-size: 14px; color: var(--mute); margin: 0; max-width: 34ch;
+            padding-left: 13px; border-left: 2px solid var(--gold); }
+.sf-right { background: var(--paper); border: 1px solid var(--hairline-2);
+            padding: clamp(18px, 2.4vw, 26px); }
+.sf-price { font-family: var(--mono); font-size: clamp(34px, 5vw, 46px); font-weight: 500;
+            color: var(--navy); line-height: 1; letter-spacing: -.02em;
+            font-variant-numeric: tabular-nums; }
+.sf-covers { list-style: none; margin: 16px 0 0; padding: 0;
+             display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; }
+.sf-covers li { font-size: 14.5px; color: var(--charcoal); padding-left: 15px;
+                position: relative; line-height: 1.45; }
+.sf-covers li::before { content: ""; position: absolute; left: 0; top: .55em;
+                        width: 6px; height: 6px; background: var(--gold); }
+.sf-included { font-size: 13.5px; color: var(--charcoal-2); margin: 16px 0 0;
+               padding-top: 14px; border-top: 1px solid var(--hairline); }
+.sf-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+@media (max-width: 820px) {
+  .sf-grid { grid-template-columns: 1fr; }
+  .sf-covers { grid-template-columns: 1fr; }
+  .sf-hedge { max-width: none; }
+}
+
+/* ---- likely-fit panel, narrow widths (PROPOSED, review only) -----------
+   Its two actions carry longer labels than the Back/Continue pair .wiz-nav was
+   built for, so at 390px they stayed on one row and pushed the document to
+   480px. Caught by measuring scrollWidth AFTER the No/No outcome -- the initial
+   homepage measured clean, which is why checking only the first screen missed
+   it. Scoped to [data-likely-fit] so no other step's nav is affected. */
+@media (max-width: 560px) {
+  [data-likely-fit] .wiz-nav { flex-wrap: wrap; }
+  [data-likely-fit] .wiz-nav .btn { flex: 1 1 100%; justify-content: center; text-align: center; }
+}
+[data-likely-fit] { max-width: 100%; }
+[data-likely-fit] .wiz-q,
+[data-likely-fit] .wiz-help { overflow-wrap: anywhere; }
 </style>
 <script type="application/ld+json">
 {
@@ -690,6 +740,43 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
     </aside>
   </div>
 </header>
+
+<!-- ===================================================== SIMPLE FILER (PROPOSED)
+     PROPOSED, NOT APPROVED. Shown for review only.
+
+     Nothing here is a typed figure. The name, the price, the "who" line, the
+     covers bullets and the included-returns sentence are all written at load
+     time from window.SATC_PRICING, which is generated from
+     client-documents/registry/fee-schedule.yaml. See the inline script at the
+     foot of this file.
+
+     pricing.spec.py:370-372 forbids a hardcoded package name in markup, which
+     is why even the word "Simple Filer" is a mount point rather than text.
+-->
+<section class="band tight sf" id="simple-filer">
+  <div class="wrap">
+    <div class="sf-grid">
+
+      <div class="sf-left">
+        <p class="eyebrow">If your return is simple</p>
+        <h2 class="h2"><span id="sfName">&nbsp;</span>.</h2>
+        <p class="sf-who" id="sfWho">&nbsp;</p>
+        <p class="sf-hedge" id="sfHedge">&nbsp;</p>
+      </div>
+
+      <div class="sf-right">
+        <div class="sf-price"><span id="sfPrice">&nbsp;</span></div>
+        <ul class="sf-covers" id="sfCovers"></ul>
+        <p class="sf-included" id="sfIncluded">&nbsp;</p>
+        <div class="sf-ctas">
+          <a class="btn" href="#intake" id="sfStart">See if this is you</a>
+          <a class="btn ghost" href="pricing.html">All prices</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
 
 <!-- ============================================================ SERVICES -->
 <section class="band" id="services">
@@ -1016,6 +1103,65 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
 <!-- Intake: questions and branching rules live in intake-config.js; the
      engine that renders them lives in intake.js. Loaded after SATC_CONFIG
      because intake.js reads contact.formspreeId from it. -->
+<!-- PROPOSED. The generated pricing config, so the band can render a figure
+     the firm's schedule wrote. This is the only sanctioned route to a number on
+     a page: index.html does not load this file today. -->
+<script src="pricing-config.js"></script>
+<script>
+/* Fill the Simple Filer band from window.SATC_PRICING. Nothing is typed: if the
+   config is missing the band removes itself rather than showing an empty frame
+   or a stale number. Tenet 2 -- nothing may look unfinished. */
+(function () {
+  var P = window.SATC_PRICING;
+  var band = document.getElementById('simple-filer');
+  if (!band) return;
+  var pkg = P && P.packages && P.packages[0];
+  if (!pkg) { band.remove(); return; }
+
+  /* Same formatter the price page uses, so $100 renders identically here. */
+  function money(n) {
+    return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+  /* innerHTML, not textContent, and the reason matters: the generated config
+     stores typography as HTML entities -- `W&#8209;2` is a non-breaking hyphen.
+     textContent printed the entity source at the reader, which is the same bug
+     that shipped `&mdash;` on the business-records guide. pricing.html already
+     renders these through innerHTML in card(); this matches it. The source is
+     our own generated file, never visitor input. */
+  var set = function (id, v) { var e = document.getElementById(id); if (e) e.innerHTML = v; };
+
+  set('sfName',  pkg.name);
+  set('sfPrice', money(pkg.price));
+  set('sfWho',   pkg.who);
+  set('sfIncluded', P.includedInEvery || '');
+  set('sfHedge', 'Price confirmed upon review.');
+
+  var ul = document.getElementById('sfCovers');
+  if (ul) {
+    ul.innerHTML = '';
+    (pkg.covers || []).forEach(function (c) {
+      var li = document.createElement('li'); li.innerHTML = c; ul.appendChild(li);
+    });
+  }
+
+  /* The short path is a route into the SAME intake, not a second form. Clicking
+     here records which door the visitor came in, so the notification can say
+     "Simple Filer interest". intake.js reads this before its first render. */
+  /* Enter the short path. Setting the route global alone did NOT work -- the
+     engine had already rendered 'What can we help you with?' by then, so the
+     visitor landed on the full intake's first question. Caught by clicking it
+     in a rendered browser, which no amount of reading would have found. */
+  var cta = document.getElementById('sfStart');
+  if (cta) cta.addEventListener('click', function (ev) {
+    if (typeof window.SATC_ENTER_SIMPLE_FILER === 'function') {
+      ev.preventDefault();
+      window.SATC_ENTER_SIMPLE_FILER();
+    }
+    /* No hook means intake.js did not load: the href="#intake" still carries
+       the visitor to the ordinary form rather than to nothing. */
+  });
+})();
+</script>
 <script src="intake-config.js"></script>
 <script src="intake.js"></script>
 </body>

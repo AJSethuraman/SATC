@@ -99,7 +99,7 @@ py --version
 
 ☐ It says `Python 3.12.` something (any 3.10 or later is fine).
 
-If it says `'py' is not recognized`, try `python --version`. If that opens the Microsoft Store or isn't recognised either, Python isn't installed: see 1.2. Wherever this checklist says `py`, type `python` instead on this machine.
+If it says `'py' is not recognized`, try `python --version`. If that opens the Microsoft Store or isn't recognized either, Python isn't installed: see 1.2. Wherever this checklist says `py`, type `python` instead on this machine.
 
 ### 2.2 Unzip PocketBook into your own folder
 
@@ -131,7 +131,7 @@ dir "%USERPROFILE%\PocketBook"
 
 It lists `PocketBook.pyw`, `Install add-ons.bat`, `Install add-ons from this folder.bat`, `VERSION.txt`, `README.md`, and the folders `src` and `docs`.
 
-If `tar` isn't recognised, right-click the zip, choose **Extract All…**, and change the folder in the box to what `echo %USERPROFILE%` prints.
+If `tar` isn't recognized, right-click the zip, choose **Extract All…**, and change the folder in the box to what `echo %USERPROFILE%` prints.
 
 ### 2.3 Open the window
 
@@ -272,7 +272,7 @@ Do these on the practice workbook, `%USERPROFILE%\PocketBook\practice\Consumer b
 2. Set **Within** to *Workbook* and **Look in** to *Values*.
 3. Type each of these in **Find what** and press **Find All**: `#NAME`, `#REF!`, `#VALUE!`, `#DIV/0!`, `#N/A`, `#NUM!`, `#SPILL!`.
 
-☐ Each one says *Excel cannot find the data you're searching for*. On LibreOffice, all eleven tabs you can see are clear.
+☐ Each one says *Excel cannot find the data you're searching for*. On LibreOffice, all twelve tabs you can see are clear.
 
 The hidden tabs `_look` and `_chart` hold `#N/A` on purpose: it tells a chart to leave a gap. If Find lists cells on those two only, that's expected. **Check this:** whether Excel's Find looks inside hidden tabs at all.
 
@@ -287,7 +287,8 @@ Click each cell. A small arrow should appear beside it; press it.
 | Control C15 | 4 choices, from *The smallest significant gap in a typical pocket (suggested)* to *2 times* |
 | Pockets C18, D18, E18 | Measure (5: Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs); Pockets (Two-way, Split by REV_DEBT); Show (All, Worse and material, Worse or not sure) |
 | RANR vs GCOs B16 | the 4 grids, from FICO x CHANNEL |
-| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size |
+| Line size B17 and D17 | the 4 grids, from FICO x CHANNEL; Show (Pockets where something tripped, 2 or more signals, All pockets) |
+| Grids B13 and F13 | 8 grids (4, then the same 4 / REV_DEBT); the 5 measures (Bad loans, Bad dollars, GCOs ($), RANR, RANR + GCOs), then Loan size, Line on bad loans ÷ line on good loans and Share of line lost on bad loans |
 | Split B15 and B26 | the 4 grids; the 5 measures |
 | Look C20 | 10, 20, 50 |
 
@@ -301,7 +302,7 @@ Click each cell. A small arrow should appear beside it; press it.
 
 Put Pockets back to **Bad loans** and **All** when done.
 
-### 4.4 A "Changes now" answer: verdicts, colours and dollars follow without a Run
+### 4.4 A "Changes now" answer: verdicts, colors and dollars follow without a Run
 
 On Control, pick **2 times** in C15.
 
@@ -312,6 +313,8 @@ On Control, pick **2 times** in C15.
 ![Start here after the change: 2 of 81](walkthrough/2026-09-27/step-19-live-change-start-here.png)
 
 Put C15 back to *The smallest significant gap in a typical pocket (suggested)*. ☐ Start here reads 4 of 81 and $2,287,240 again.
+
+☐ Pick **99% sure** in C18 (*How sure a difference must be before it counts*). On Pockets the column **Significant at 95%?** now reads **Significant at 99%?**, without a Run, and a *Yes, worse* or *Yes, better* needs a **p-value** (the column beside it) under 1%. Put C18 back to *95% sure*.
 
 ### 4.5 A "Needs a Run" answer: the waiting banner
 
@@ -329,7 +332,7 @@ On Control, pick **100 loans** in C24. Press **Ctrl+S** to save.
 
 With the workbook still open in Excel, look at the PocketBook window.
 
-☐ A pink bar says **The workbook is open in Excel**, and **Run** is grey. **Check this:** PocketBook looks for the lock Excel puts on the file. That's only been seen with a stand-in.
+☐ A pink bar says **The workbook is open in Excel**, and **Run** is gray. **Check this:** PocketBook looks for the lock Excel puts on the file. That's only been seen with a stand-in.
 
 ☐ Save and close the workbook. Within a couple of seconds the bar goes and **Run** turns red.
 
@@ -341,7 +344,7 @@ Open the workbook again and go to **Look**. The first block is FICO.
 
 ☐ In C20 (**Bars**), pick **10**: the chart regroups into 10 bars.
 
-☐ Type `600` in C21 (**From**) and `800` in C22 (**To**): the chart spans 600 to 800, with a grey bar at each end for the loans outside.
+☐ Type `600` in C21 (**From**) and `800` in C22 (**To**): the chart spans 600 to 800, with a gray bar at each end for the loans outside.
 
 ☐ On **Columns**, type `620; 680; 740` in I14 (FICO's band edges). Back on Look, three red dashed lines appear on the FICO chart, at 620, 680 and 740, and the line over the chart reads *FICO · edges now 620; 680; 740*.
 
@@ -365,13 +368,13 @@ Each tab opens with **How this tab works**.
 
 ☐ **Look:** a chart for each band column chosen in the launcher and for the split column (FICO and ORIG_BAL, then REV_DEBT; not GCO_AMT or RANR_AMT), and a red bar on its own left of FICO's for the -9999s. A band column or split changed on Control is drawn at the next Run.
 
-☐ **Split** and **Grids:** the shaded tables have their colours (pink worse, green better, deeper for bigger gaps).
+☐ **Split** and **Grids:** the shaded tables have their colors (pink worse, green better, deeper for bigger gaps).
 
 **Check this** for all three: every chart has only been seen in LibreOffice.
 
 ### 4.10 The Glossary
 
-☐ **Glossary** is the second tab, after Start here. It lists 27 terms, one a row (26 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
+☐ **Glossary** is the second tab, after Start here. It lists 73 terms, one a row (69 when the book has no charge-off date column): what each means, and an example in the practice book's own figures from the Run. Its note says which Run.
 
 ☐ On Start here, under **The tabs**, *Glossary: every term, with an example* opens it.
 

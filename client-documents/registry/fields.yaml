@@ -422,6 +422,15 @@ flags:
     label: "A credit is being applied"
     source: invoice
     templates: [invoice]
+  - flag: HasAdditionalForms
+    label: "The scope lists additional forms"
+    source: computed
+    templates: [tax-letter, business-letter, ccorp-letter, fee-estimate]
+    notes: >-
+      Derived in `merge._derived` from AdditionalForms; never asked. False when
+      that field is empty or "None", and the "Also included" scope line is
+      then dropped whole. The firm, 24 Oct 2026: that line "is only necessary
+      if there are inclusions."
   - flag: BilledAboveEstimate
     label: "The bill is above the estimate"
     source: invoice

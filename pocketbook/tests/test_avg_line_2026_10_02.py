@@ -219,11 +219,10 @@ def test_ranr_vs_gcos_shows_them_in_the_gross_block_from_its_own_row(made):
     b, _ = made
     ws = load_workbook(b)[results.PCK]
     head = tabs.header_row(ws, results.C_TOG, "Together")
-    assert [ws.cell(row=head, column=c).value for c in (results.C_RATE, results.C_AVG, results.C_AVGX,
-                                                         results.C_PAID)] == ["RANR ÷ Booked", "Avg line", "Line × book",
-                                                                              "Gap pts"]
+    assert [ws.cell(row=head, column=c).value for c in (results.C_BOOK, results.C_AVG, results.C_AVGX,
+                                                         results.C_GCO)] == ["Booked", "Avg line", "Line × book", "GCOs"]
     group = [str(m) for m in ws.merged_cells.ranges if m.min_row == head - 1 and m.min_col == results.C_BOOK]
-    assert group == [f"{results.col(results.C_BOOK)}{head - 1}:{results.col(results.C_AVGX)}{head - 1}"]
+    assert group == [f"{results.col(results.C_BOOK)}{head - 1}:{results.col(results.C_RATE)}{head - 1}"]
     for rr in (head + 1, head + 5):
         v = f"${results.col(results.C_H_ROW)}{rr}"
         for c, j in ((results.C_AVG, 12), (results.C_AVGX, 13)):

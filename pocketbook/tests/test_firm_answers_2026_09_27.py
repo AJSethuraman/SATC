@@ -220,34 +220,27 @@ def test_the_launcher_start_here_and_the_refusal_give_one_count_of_answers_neede
 # ---- F
 
 
-def test_the_launcher_says_what_each_term_means_where_it_first_uses_it(tmp_path, monkeypatch):
-    """F: GCO dollars, RANR dollars, worse at 1.34x, grids with five measures each, and scouting were first read on
-    the window, and explained only on a tab. A short plain line under each, with no term of art in it."""
+def test_the_launcher_draws_no_line_of_meanings_under_its_terms(tmp_path, monkeypatch):
+    """F, reversed: from 27 Sep 2026 the window put a plain meaning under each term it used first (GCO dollars, RANR
+    dollars, a grid, five measures, worse at 1.34x, scouting). The firm, 14 Oct 2026, on the wording review's
+    proposal 3: "Drop the lines". The analysts know the terms, and the Glossary tab defines each one. The window
+    still says what will run and what Set up calculated; it says nothing more under them."""
     monkeypatch.setattr(launcher.Path, "home", lambda: tmp_path)
     monkeypatch.setenv("POCKETBOOK_MEMORY", str(tmp_path / "memory.yaml"))
+    assert not hasattr(launcher, "TERMS") and not hasattr(launcher, "plain_words")
+    assert not hasattr(launcher.Flow, "meanings")
+    source = Path(launcher.__file__).read_text(encoding="utf-8")
+    assert "words_under" not in source and 'widgets["meanings"]' not in source
     f = _read(tmp_path)
     f.pick_outcome("BAD_FLAG")                       # 29 Sep 2026: nothing is picked for the analyst
     f.answer_outcome(True)
-    got = f.meanings()
-    assert [x.split(":")[0] for x in got] == ["GCO dollars", "RANR dollars", "A grid", "Five measures"], got
-    f.gate.optional = ["scikit-learn"]
-    f.set_mode("new")
-    assert "(scouting)" in f.summary()[1] and [x.split(":")[0] for x in f.meanings()][-1] == "Scouting"
-    f.gate.optional = []
-    f.set_mode("bleed")
+    ok, said = f.summary()
+    assert ok and "five measures" in said
     f.next()
-    worse = [x for x in f.meanings() if x.startswith("worse at ")]
-    assert len(worse) == 1 and f.suggested_line() and worse[0].split(":")[0] in f.suggested_line()
-    every = got + f.meanings() + launcher.plain_words("scouting")
-    jargon = ("GCO", "RANR", "pocket", "multiple", "p-value", "significan", "topline", "holdout", "pre-spec", "×")
-    long_ = [x for x in every if len(x.split()) > 15]
-    # the measures' own names are the firm's terms since 30 Sep 2026 ("I want to use the terms I gave you out of the
-    # box so it can be understood by insiders"), and GCO and RANR are explained on the lines above: the Five measures
-    # line may name them, and nothing else may use a term of art
-    names = sorted(results.PLAIN.values(), key=len, reverse=True)
-    bare = lambda s: [s := s.replace(m, "").replace(m.lower(), "") for m in names][-1]          # noqa: E731
-    loose = [x for x in every if any(j in bare(x.split(": ", 1)[1]) for j in jargon)]
-    assert long_ == [] and loose == []
+    assert "worse at " in f.suggested_line()
+    glosses = ("what a loan earned after its losses", "what a loan charged off", "the tree's first look",
+               "times as much as the rest counts as")
+    assert not [g for g in glosses if g in source or g in said or g in f.suggested_line()]
 
 
 # ---- G
@@ -338,7 +331,7 @@ def test_the_finished_screen_shows_the_runs_first_two_lines(bled, tmp_path):
     lines = ["Ran on 8,000 loans from loans.csv.", "Follows pre-spec held.yaml.", changed,
              "Open loans - PocketBook.xlsx: start with New variables."]
     assert book.first_lines(lines) == [lines[-1], changed]
-    split = "Split by REV_DEBT: each pocket halved at its own median."
+    split = "Split by REV_DEBT: each pocket is halved at its own median."
     assert book.first_lines([lines[0], split, lines[-1]]) == [lines[-1], split]
 
 

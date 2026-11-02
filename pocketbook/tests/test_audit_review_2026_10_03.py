@@ -219,8 +219,8 @@ def test_more_loans_than_an_excel_sheet_holds_skips_the_audit_workbook(tmp_path,
     ran = book.run(b)
     assert ran.ok, ran.lines
     said = [x for x in ran.lines if audit.path_for(b).name in x]
-    assert said == [f"Didn't write {audit.path_for(b).name}: the book has {N:,} loans, and its Loans sheet holds at "
-                    f"most {N - 1:,}, one a row under the header."]
+    assert said == [f"Didn't write {audit.path_for(b).name}: the book has {N:,} loans, and the audit workbook's Loans "
+                    f"sheet holds at most {N - 1:,}, one loan per row."]
     assert not audit.path_for(b).exists() and _record(b).exists()
     # at the limit exactly, it is written
     monkeypatch.setattr(audit, "MOST_LOANS", N)
