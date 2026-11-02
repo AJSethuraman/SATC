@@ -273,8 +273,12 @@ class Case:
         C, rows = self.table(g)
         totals = {}
         if g.get("totals") and g.get("cellsBy", "col") == "col":
+            live = self.table_used(g, C, rows) if g["rows"]["from"] == "entered" else [r for r in rows if not r["excluded"]]
             for c in C:
                 if (c.get("type") == "number" or c.get("compute")) and not c.get("noTotal"):
+                    if c.get("req") and not c.get("compute") and any(blank(r["cells"].get(c["key"])) for r in live):
+                        totals[c["key"]] = None      # a required gap: the total is withheld, never shown as a smaller number
+                        continue
                     vals = [(r["computed"].get(c["key"]) if c.get("compute") else r["cells"].get(c["key"])) for r in rows if not r["excluded"]]
                     totals[c["key"]] = sum(v for v in vals if isinstance(v, (int, float)))
         return {"cols": C, "rows": rows, "totals": totals, "questions": getattr(self, "_questions", {}).get(g["id"])}

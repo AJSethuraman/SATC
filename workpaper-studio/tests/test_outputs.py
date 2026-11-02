@@ -9,7 +9,7 @@ from workpaper_studio import outputs
 
 def released_bank(studio, packs):
     cid = studio.new_case("A. Rivera", "Bank reconciliation")
-    fill(studio, cid, "A. Rivera", packs["bank-reconciliation"].data["example"], packs["bank-reconciliation"])
+    fill(studio, cid, "A. Rivera", dict(packs["bank-reconciliation"].data["example"], prep="A. Rivera"), packs["bank-reconciliation"])
     return cid
 
 
@@ -63,3 +63,36 @@ def test_workbook_export_opens_and_carries_the_case(studio, packs, tmp_path):
     # the excluded row is not in the workbook's items
     sheet, coord = next(iter(wb.defined_names["Field_stmt"].destinations))
     assert wb[sheet][coord.replace("$", "")].value == 185600.55
+
+
+def _all_text(xlsx):
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.load_workbook(xlsx)
+    return " ".join(str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value is not None), wb
+
+
+def test_released_files_carry_no_personal_value_and_say_released(studio, packs):
+    cid = studio.new_case("A. Rivera", "Credit file review")
+    ex = json.loads(json.dumps(packs["credit-file-review"].data["example"]))
+    ex["qs1"]["6.01"] = {"r": "Effective"}
+    ex["summary"] = "Synthetic summary."
+    fill(studio, cid, "A. Rivera", ex, packs["credit-file-review"])
+    studio.record_exception("A. Rivera", cid, "calc_dti", "Compensating strength documented", "Liquidity covers two years (synthetic).")
+    studio.submit("A. Rivera", cid)
+    studio.raise_point("D. Patel", cid, "fac", "Confirm the balance date.")
+    studio.reply_point("A. Rivera", cid, "P1", "October statement.")
+    studio.clear_point("D. Patel", cid, "P1")
+    studio.acknowledge("D. Patel", cid, "E1")
+    studio.approve("D. Patel", cid)
+    studio.release("D. Patel", cid)
+    folder = studio.out_dir / cid
+    secret = ex["borrower"]
+    for f in folder.iterdir():
+        text = _all_text(f)[0] if f.suffix == ".xlsx" else f.read_text()
+        assert secret not in text, f.name
+    fd = json.loads((folder / f"{cid}.feed.json").read_text())
+    assert fd["status"] == "Released" and fd["released_by"] == "D. Patel"
+    text, wb = _all_text(folder / f"{cid}.xlsx")
+    assert "Review" in wb.sheetnames
+    for said in ("Liquidity covers two years", "Acknowledged by D. Patel", "Confirm the balance date", "October statement", "Cleared by D. Patel", "Approved"):
+        assert said in text, said

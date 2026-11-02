@@ -2,7 +2,7 @@
 
     python3 workpaper-studio/docs/walkthrough/build_procedure.py
 
-The steps are the route walked on 2 November 2026; the screenshots are that walk's. Walk it again after a change and
+The steps are the route walked on 2 November 2026; the screenshots are from the second walk that day, after the fixes. Walk it again after a change and
 each step either matches its picture or does not.
 """
 import base64
@@ -28,9 +28,9 @@ STEPS = [
      "The row's state changes to “Proposed by M. Okafor, waiting for an approver”. You will not see an Approve button: nobody approves their own proposal.",
      ["step-02-tools-not-proposed-zoom.png", "step-03-proposed.png"]),
     ("Set up the tool", "Approver (K. Owens)", "Read the tool and approve it",
-     "Sign in as the approver. On **Tools**, click the tool's name to read its outline, then go back and click **Approve**.",
-     "The state reads “Published: proposed by M. Okafor, approved by K. Owens”. New cases now use this version; the fingerprint identifies it exactly.",
-     ["step-04-approver-reads-outline.png", "step-05-approve-zoom.png", "step-06-published.png"]),
+     "Sign in as the approver. On **Tools**, click the tool's name to read its outline, and **Preview it filled in** to see it working on the pack's own example. Then go back and click **Approve**.",
+     "The preview says nothing in it is saved. After approval the state reads “Published: proposed by M. Okafor, approved by K. Owens”. New cases now use this version; the fingerprint identifies it exactly.",
+     ["step-04-approver-reads-outline.png", "step-04b-approver-previews.png", "step-05-approve-zoom.png", "step-06-published.png"]),
     ("Set up the tool", "Admin (M. Okafor)", "Confirm the organization's limit",
      "Go to **Settings**. The debt-to-income limit is *Not confirmed*. Type your organization's limit (40 for this demonstration) and click **Confirm**.",
      "State reads “Confirmed by M. Okafor” with the date, and a new version appears under Versions. Until a limit is confirmed, no result is tested against it. The 40% is fictional.",
@@ -42,12 +42,12 @@ STEPS = [
     ("Prepare the case", "Preparer", "Fill the detail panels",
      "Fill Tester, Test date, Reviewer, Quarter end, Scope, Borrower name, Security and New money request. Each entry saves when you leave the box.",
      "Each panel's footer turns to a green Complete. “Saved” appears at the foot of the page. Still missing drops to 12. "
-     "**Watch out:** after you press Tab, the cursor returns to the box you just left (defect 3). Click the next box rather than tabbing.",
+     "Tab moves on as you would expect; each box's small N/A button is one Tab stop of its own.",
      ["step-11-details-filled-zoom.png"]),
     ("Prepare the case", "Preparer", "Enter the facilities",
      "Enter each facility on its own row: type, rating, commitment, outstanding. A new empty row appears as you use the last one.",
-     "A row that is started but incomplete shows its missing box in amber, and the section says “1 missing”. When every row is complete the footer reads Complete. "
-     "(The total under an incomplete column still shows a number; see defect 4.)",
+     "A row that is started but incomplete shows its missing box in amber, the section says “1 missing”, and the total under that column reads "
+     "**Not calculated** until the gap is filled. When every row is complete the footer reads Complete.",
      ["step-12-facility-row-incomplete-zoom.png", "step-13-facilities-complete-zoom.png"]),
     ("Prepare the case", "Preparer", "Answer the test questions",
      "Rate each question from the list. Open *How to test* under a question to read its steps. Write a comment where you have one.",
@@ -76,12 +76,13 @@ STEPS = [
      "The exception reads “Acknowledged by D. Patel” with the time.",
      ["step-28-approve-refused-zoom.png", "step-29-acknowledge-zoom.png"]),
     ("Review", "Preparer", "Answer the point",
-     "Sign in as the preparer and open the case (it does not say on the Cases list that a point is waiting; see defect 7). Write your answer under the point and click **Answer**.",
+     "Sign in as the preparer. Your Cases list shows “1 (waiting for your answer)” under Open points. Open the case: a banner at the top links to the point. Write your answer under it and click **Answer**.",
      "Your answer appears under the point with your name and the time.",
-     ["step-31-answer-point-zoom.png"]),
+     ["step-30-preparer-home-zoom.png", "step-31-answer-point-zoom.png"]),
     ("Approve and release", "Reviewer", "Clear the point, approve, release",
      "Sign in as the reviewer. Click **Clear point P1**, then **Approve**, then **Release**.",
-     "The point reads Cleared. The status goes to Approved, then Released, and Outputs lists the released files, each with its SHA-256 fingerprint: the data feed (JSON and CSV) and the workbook.",
+     "The point reads Cleared. Each action confirms itself in a green banner. The status goes to Approved, then Released, and Outputs lists the released files, each with its SHA-256 fingerprint: "
+     "the data feed (JSON and CSV) and the workbook. The workbook has an Exceptions and review sheet; the borrower's name is masked in every released file.",
      ["step-32-point-cleared-zoom.png", "step-33-approved.png", "step-35-outputs-zoom.png"]),
     ("Approve and release", "Anyone", "Read the record",
      "Click **History**.",

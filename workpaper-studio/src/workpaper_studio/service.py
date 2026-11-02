@@ -149,8 +149,15 @@ class Studio:
         v, body = self.policy()
         body = json.loads(json.dumps(body))
         body.setdefault(tool, {})[calc_id] = {"limit": float(limit), "confirmed": bool(confirmed), "by": user, "date": datetime.date.today().isoformat()}
+        label, shown = calc_id, f"{limit:g}"
+        pub = self.published().get(tool)
+        if pub:
+            for _, blk in self.stored_pack(pub["fingerprint"]).calcs():
+                if blk["id"] == calc_id:
+                    label = blk["limitLabel"]
+                    shown = f"{float(limit) * 100:g}%" if blk["method"] in ("dti", "devrate") else f"${float(limit):,.2f}"
         self.db.execute("INSERT INTO policy VALUES (?,?,?,?,?)", (v + 1, now(), user, json.dumps(body, sort_keys=True),
-                                                                f"{tool}: {calc_id} {'confirmed at' if confirmed else 'unconfirmed,'} {limit}"))
+                                                                f"{tool}: {label} {'confirmed at' if confirmed else 'set to'} {shown}" + ("" if confirmed else ", not confirmed")))
         self.db.commit()
         return v + 1
 
@@ -227,8 +234,25 @@ class Studio:
         c["subject"] = self._subject(pack, c["data"])
         return c
 
+    def preview(self, pack):
+        """A tool shown working before anyone approves it: the pack's own example, evaluated by the same engine,
+        with nothing written anywhere. Limits are the pack's demonstration confirmations, labelled as such."""
+        data = json.loads(json.dumps(pack.data.get("example") or {}))
+        pol = {k: {"limit": v["policy"], "confirmed": v["confirmed"] == "Yes", "by": f'{v.get("by")} (example)', "date": v.get("date")}
+               for k, v in (pack.data.get("confirmations") or {}).items()}
+        return {"id": "PREVIEW", "data": data, "states": {}, "status": "Preview", "points": {}, "exceptions": {},
+                "events": [{"seq": 0, "at": "", "actor": "", "kind": "preview"}], "preparer": "", "approved_by": None,
+                "tool": pack.name, "version": pack.version, "fingerprint": pack.fingerprint, "policy_version": "example",
+                "pack": pack, "policy": pol, "eval": engine.evaluate(pack, data, {}, pol), "subject": self._subject(pack, data),
+                "_preview": f"/tools/{pack.file}/preview"}
+
     @staticmethod
     def _subject(pack, data):
+        sid = pack.data["tool"].get("subject")
+        if sid:
+            b = pack.field(sid)
+            v = data.get(sid)
+            return "" if v in (None, "") else ((str(v)[0] + "•" * 4) if b.get("personal") else str(v))
         for _, b in pack.blocks():
             if b["kind"] == "field" and b.get("type") == "text" and data.get(b["id"]):
                 v = str(data[b["id"]])
@@ -370,6 +394,12 @@ class Studio:
                 ok = bool(acked)
                 out.append({"check": f"{calc['name']} above limit: exception", "ok": ok, "stage": "approve", "link": f"calc/{cid_}",
                             "detail": "OK, acknowledged by " + acked[0]["ack"]["by"] if ok else ("Recorded, waiting for the reviewer" if exs else "Record an exception, or correct the entries")})
+        for _, b in c["pack"].blocks():         # the form's own record of who did the work must agree with the log's
+            if b["kind"] == "field" and b.get("is") == "preparer":
+                v = c["data"].get(b["id"])
+                ok = v == c["preparer"]
+                out.append({"check": f'{b["label"]} is the preparer', "ok": ok, "stage": "approve", "link": f"f/{b['id']}",
+                            "detail": "" if ok else f'The form names {v or "nobody"}; the case was prepared by {c["preparer"]}. The person who did the work signs in as themselves.'})
         open_pts = [p for p in c["points"].values() if p["open"]]
         out.append({"check": "Review points", "ok": not open_pts, "stage": "approve", "link": f"point/{open_pts[0]['id']}" if open_pts else None,
                     "detail": "OK" if not open_pts else f"{len(open_pts)} open"})
@@ -388,6 +418,9 @@ class Studio:
             raise Refused("The release check is not clear: " + "; ".join(f"{b['check']} ({b['detail']})" for b in bad))
         folder = self.out_dir / cid
         folder.mkdir(parents=True, exist_ok=True)
+        at = now()
+        c = dict(c, status="Released", released_by=user, released_at=at,     # the files describe the case as released
+                 events=c["events"] + [{"seq": len(c["events"]) + 1, "at": at, "actor": user, "kind": "released"}])
         files = self.write_outputs(c, folder)
         for name, digest in files.items():
             self.db.execute("INSERT INTO outputs VALUES (?,?,?,?)", (cid, name, digest, now()))

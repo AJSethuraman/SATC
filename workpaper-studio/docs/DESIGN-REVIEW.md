@@ -1,6 +1,6 @@
 # Workpaper Studio — design review checkpoint
 
-*Working title. 1 November 2026. Status: **design checkpoint. No product code exists.** The only code is a clickable prototype in `prototype/`, built on synthetic data with fictional rules.*
+*Working title. 1 November 2026. Status then: design checkpoint. **Update 2 Nov 2026: a first build of the application now exists (`src/`), built on the recommended answers to D1–D5, which are still awaiting the owner's yes. See `HANDOFF.md`.***
 
 **Shortest version: open `prototype/journey.html`.** A tool is configuration, so you edit it on the left and the workpaper on the right is generated from it. Four unrelated tools run on the same engine. Everything below is the argument for that.
 

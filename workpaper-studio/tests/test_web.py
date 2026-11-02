@@ -79,3 +79,42 @@ def test_a_broken_pack_is_shown_refused_not_hidden(app, studio):
     (studio.packs_dir / "broken.json").write_text('{"pack": {"name": "x", "version": "1"}, "org": {"name": "x"}, "tool": {"name": "x", "sections": []}}')
     body = call(app, "GET", "/tools", user="M. Okafor")["body"].decode()
     assert "Refused" in body and "broken.json" in body
+
+
+def test_limit_history_speaks_the_screens_words(app, studio):
+    call(app, "POST", "/settings", {"tool": "Credit file review", "calc": "calc_dti", "limit": "45"}, user="M. Okafor")
+    body = call(app, "GET", "/settings", user="M. Okafor")["body"].decode()
+    hist = body.split("<h2>Versions</h2>")[1]
+    assert "Highest debt-to-income confirmed at 45%" in hist and "calc_dti" not in hist
+
+
+def test_preparer_is_told_a_point_is_waiting(app, studio, packs):
+    from conftest import fill
+    cid = studio.new_case("A. Rivera", "Bank reconciliation")
+    fill(studio, cid, "A. Rivera", dict(packs["bank-reconciliation"].data["example"], prep="A. Rivera"), packs["bank-reconciliation"])
+    studio.submit("A. Rivera", cid)
+    studio.raise_point("D. Patel", cid, "s2", "Why is item 4 still outstanding?")
+    home = call(app, "GET", "/", user="A. Rivera")["body"].decode()
+    assert "waiting for your answer" in home
+    page = call(app, "GET", f"/case/{cid}", user="A. Rivera")["body"].decode()
+    assert "Waiting for your answer" in page and "#point-P1" in page
+
+
+def test_actions_confirm_what_they_did(app, studio, packs):
+    from conftest import fill
+    cid = studio.new_case("A. Rivera", "Bank reconciliation")
+    fill(studio, cid, "A. Rivera", dict(packs["bank-reconciliation"].data["example"], prep="A. Rivera"), packs["bank-reconciliation"])
+    r = call(app, "POST", f"/case/{cid}/submit", user="A. Rivera")
+    assert "Sent%20for%20review" in r["headers"]["Location"]
+    page = call(app, "GET", r["headers"]["Location"], user="A. Rivera")["body"].decode()
+    assert 'class="flash good"' in page
+
+
+def test_an_approver_can_see_a_tool_working_before_approving_it(app, studio):
+    before = len(studio.case_ids())
+    for screen in ("Workpaper", "Analysis"):
+        r = call(app, "GET", f"/tools/credit-file-review.json/preview?screen={screen}", user="K. Owens")
+        assert r["status"].startswith("200")
+    body = r["body"].decode()
+    assert "Nothing here is saved" in body and "51.3%" in body and "disabled" in body
+    assert len(studio.case_ids()) == before

@@ -33,6 +33,7 @@
  },
  "tool": {
   "name": "Control test",
+  "subject": "control",
   "sections": [
    {
     "id": "ctl",

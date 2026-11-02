@@ -55,6 +55,7 @@
  },
  "tool": {
   "name": "Credit file review",
+  "subject": "borrower",
   "sections": [
    {
     "id": "tester",
@@ -67,7 +68,8 @@
       "label": "Tester",
       "type": "list",
       "req": true,
-      "list": "Testers"
+      "list": "Testers",
+      "is": "preparer"
      },
      {
       "kind": "field",

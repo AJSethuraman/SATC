@@ -541,9 +541,20 @@ class Book:
             r = scr.r
             scr.height(r, 18)
             scr.put(r, FIRST, "Total", FIRST + lab_w - 1, font=F(10, True, st.dark), align=Alignment(vertical="center", indent=1))
+            inputs_all = [L(a) for c, (a, b) in zip(C, cols) if not c.get("compute")]
+            used_rng = "((" + "+".join(f'({x}{first}:{x}{last}<>"")' for x in inputs_all) + ")>0)"
             for c, (a, b) in zip(C, cols):
                 if by == "col" and (c.get("type") == "number" or c.get("compute")) and not c.get("noTotal"):
-                    self.calc(scr, r, a, b, f"=SUM({L(a)}{first}:{L(a)}{last})", (NUMF["money2"] if c.get("cents") else NUMF["money"]) if c.get("money") else NUMF["number"], bold=True)
+                    x = L(a)
+                    total = f"SUM({x}{first}:{x}{last})"
+                    if c.get("req") and not c.get("compute"):      # a total over a column with a required gap is not a total
+                        gap = (f'SUMPRODUCT({used_rng}*({x}{first}:{x}{last}=""))>0' if rows_from == "entered"
+                               else "OR(" + ",".join(f'{x}{rr}=""' for rr in rows_at) + ")")
+                        total = f'IF({gap},"Not calculated",{total})'
+                    cell = self.calc(scr, r, a, b, "=" + total, (NUMF["money2"] if c.get("cents") else NUMF["money"]) if c.get("money") else NUMF["number"], bold=True)
+                    scr.ws.conditional_formatting.add(cell.coordinate, FormulaRule(formula=[f'NOT(ISNUMBER({cell.coordinate}))'], fill=fill(CARD), border=st.nc,
+                                                                                   font=Font(name=FONT, color=MUTE, italic=True, bold=False)))
+                    self.name(f"Total_{sname(g['id'])}_{sname(c['key'])}", scr.name, cell.coordinate)
             scr.r += 1
         scr.height(scr.r, 6); scr.r += 1
         return terms
@@ -742,6 +753,9 @@ class Book:
         ws.sheet_view.showGridLines = False
         ws.sheet_view.showRowColHeaders = False
         ws.freeze_panes = "A6"
+        ws.page_setup.orientation = "landscape"          # print one page wide, like the screens
+        ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
         ws.protection.sheet = True
         ws.protection.formatColumns = ws.protection.formatRows = ws.protection.formatCells = False
         return ws
@@ -806,6 +820,20 @@ class Book:
         ws = self.table_sheet("Record", "Record", "One row for the database. It builds itself from the screens. A new question in the framework becomes a new column.", heads, [16] * len(heads), [vals])
         ws.row_dimensions[5].height = 44
 
+    def review_sheet(self):
+        """What the reviewer and preparer settled: exceptions beside results, review points and answers, sign-offs.
+        Only a case exported from the application has these; a blank tool has none."""
+        rows = self.cfg.get("_review")
+        if rows is None:
+            return False
+        rows = rows or [["", "", "Nothing recorded.", "", "", ""]]
+        ws = self.table_sheet("Review", "Exceptions and review", "Recorded in the application. A result above its limit keeps its value; the exception explains it.",
+                              ["Kind", "Item", "What was recorded", "By", "When", "Settled"], [14, 22, 70, 14, 18, 26], rows, heights=34)
+        for i, row in enumerate(rows, start=6):      # tall enough for every line of what was recorded
+            lines = sum(1 + len(part) // 80 for part in str(row[2]).split("\n"))
+            ws.row_dimensions[i].height = max(34, 14 * lines + 8)
+        return True
+
     def about(self):
         rows = [["Tool", self.tool["name"]], ["Pack", f'{self.cfg["pack"]["name"]} {self.cfg["pack"]["version"]}'], ["Organization", self.org["name"]],
                 ["Generated from", self.cfg["_file"]],
@@ -833,6 +861,7 @@ class Book:
         for scr in self.screens.values():
             self.status_strip(scr)
         self.record_sheet()
+        has_review = self.review_sheet()
         self.about()
         screens = list(self.screens)
         admin = ["Check", "Settings"] + (["Framework"] if "Framework" in self.wb.sheetnames else [])
@@ -840,7 +869,7 @@ class Book:
             buttons = [(x, x) for x in screens if x != n] + [(x, x) for x in admin]
             scr.band(f'{self.org["name"]}  ·  {self.cfg["pack"]["name"]} {self.cfg["pack"]["version"]}', buttons[:4])
             scr.finish(scr.r)
-        order = screens + admin + ["Lists", "Record", "About"]
+        order = screens + (["Review"] if has_review else []) + admin + ["Lists", "Record", "About"]
         self.wb._sheets = [self.wb[n] for n in order]
         for n in order:
             self.wb[n].sheet_properties.tabColor = self.st.dark if n in screens else (OK if n == "Check" else self.st.bar)

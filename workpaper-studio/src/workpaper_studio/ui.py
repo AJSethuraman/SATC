@@ -125,16 +125,26 @@ async function post(url, body){
   if (!r.ok && r.status >= 500) throw new Error('server');
   return r.json();
 }
-function apply(res, focusPath){
-  if (res.main){ const keep = focusPath || (document.activeElement && document.activeElement.dataset.path);
+function selectorOf(a){
+  if (!a || !a.dataset || !main().contains(a)) return null;
+  if (a.dataset.path) return '[data-path="'+CSS.escape(a.dataset.path)+'"]';
+  if (a.dataset.target) return '[data-target="'+CSS.escape(a.dataset.target)+'"][data-mark="'+CSS.escape(a.dataset.mark)+'"]';
+  return a.id ? '#'+CSS.escape(a.id) : null;
+}
+function apply(res){
+  // Focus goes back to wherever the person is now (they may have tabbed on), with anything they have typed there
+  // since, so a save never pulls them back to the field they left or loses what they are in the middle of.
+  if (res.main){ const a = document.activeElement, keep = selectorOf(a);
+    const typed = keep && a.dataset.path && 'value' in a ? a.value : null, sel = typed !== null && a.selectionStart != null ? [a.selectionStart, a.selectionEnd] : null;
     main().innerHTML = res.main; bind();
-    if (keep){ const el = main().querySelector('[data-path="'+CSS.escape(keep)+'"]'); if (el) el.focus(); } }
+    if (keep){ const el = main().querySelector(keep);
+      if (el){ if (typed !== null && el.value !== typed) el.value = typed; el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch(e){} } } }
   const f = document.getElementById('flash');
   if (f){ f.textContent = res.error || ''; f.className = res.error ? 'flash' : ''; f.hidden = !res.error; }
 }
 async function send(kind, body, focusPath){
   saving('Saving…');
-  try { const res = await post('/api/case/'+CASE+'/'+kind, body); apply(res, focusPath); saving(res.error ? 'Not saved: see the message above' : 'Saved'); return true; }
+  try { const res = await post('/api/case/'+CASE+'/'+kind, body); apply(res); saving(res.error ? 'Not saved: see the message above' : 'Saved'); return true; }
   catch(e){ const q = pending(); q.push([kind, body]); setPending(q); saving('Not saved yet: the connection failed. It will be retried, and nothing you typed is lost.'); return false; }
 }
 async function flush(){
@@ -209,9 +219,9 @@ def home(st, user, cases, flash=""):
         if not rows:
             return f'<h2>{E(title)}</h2><p class="hint">{E(empty)}</p>'
         trs = "".join(f'<tr><td><a href="/case/{E(c["id"])}">{E(c["id"])}</a></td><td>{E(c["tool"])} {E(c["version"])}</td><td>{E(c["subject"])}</td>'
-                      f'<td>{E(c["status"])}</td><td>{_missing_txt(c)}</td><td>{E(c["preparer"])}</td><td>{E(c["events"][-1]["at"])}</td></tr>' for c in rows)
+                      f'<td>{E(c["status"])}</td><td>{_missing_txt(c)}</td><td>{_points_txt(c, user)}</td><td>{E(c["preparer"])}</td><td>{E(c["events"][-1]["at"])}</td></tr>' for c in rows)
         return (f'<h2>{E(title)}</h2><table class="list"><tr><th>Case</th><th>Tool</th><th>Subject</th><th>Status</th><th>Still missing</th>'
-                f'<th>Preparer</th><th>Last change</th></tr>{trs}</table>')
+                f'<th>Open points</th><th>Preparer</th><th>Last change</th></tr>{trs}</table>')
     mine = [c for c in cases if c["preparer"] == user and c["status"] != "Released"]
     review = [c for c in cases if "reviewer" in roles and c["status"] in ("In review", "Approved") and c["preparer"] != user]
     done = [c for c in cases if c["status"] == "Released"]
@@ -228,6 +238,15 @@ def home(st, user, cases, flash=""):
     return page("Cases · Workpaper Studio", body, band_title="Workpaper Studio", subtitle="Cases", nav=nav, user=user, current="Cases")
 
 
+def _points_txt(c, user):
+    open_ = [p for p in c["points"].values() if p["open"]]
+    if not open_:
+        return "0"
+    waiting = [p for p in open_ if not p["replies"]]
+    who = " (waiting for your answer)" if user == c["preparer"] and waiting else ""
+    return f'<span class="warn-t">{len(open_)}{E(who)}</span>'
+
+
 def _missing_txt(c):
     n = c["eval"]["missing"]
     return f'<span class="warn-t">{n}</span>' if n else '<span class="ok-t">0</span>'
@@ -240,13 +259,17 @@ def case_nav(c, current):
         sc = s.get("screen", "Workpaper")
         if sc not in screens:
             screens.append(sc)
+    if c.get("_preview"):
+        return [(sc, f'{c["_preview"]}?screen={sc}') for sc in screens] + [("Tools", "/tools")]
     nav = [(sc, f'/case/{c["id"]}?screen={sc}') for sc in screens]
     nav += [("Check", f'/case/{c["id"]}/check'), ("History", f'/case/{c["id"]}/history'), ("Outputs", f'/case/{c["id"]}/outputs'), ("Cases", "/")]
     return nav
 
 
 def case_page(st, user, c, screen="Workpaper", flash=""):
-    body = f'<main id="main">{case_main(st, user, c, screen, flash)}</main>'
+    banner = ('<div class="flash" style="background:var(--warnT);color:var(--warn);border-color:var(--warnE)">Preview of this version, filled with the pack’s '
+              'own example. Nothing here is saved or becomes a case.</div>' if c.get("_preview") else "")
+    body = f'<main id="main">{banner}{case_main(st, user, c, screen, flash)}</main>'
     sub = f'{c["pack"].data["org"]["name"]}  ·  {c["tool"]} {c["version"]}  ·  {c["id"]}  ·  pack {c["fingerprint"]}  ·  limits v{c["policy_version"]}'
     title = c["tool"] if screen == "Workpaper" else f'{c["tool"]}: {screen}'
     return page(f'{c["id"]} · {title}', body, family=c["pack"].data.get("family"), case_id=c["id"], band_title=title,
@@ -257,7 +280,15 @@ def case_main(st, user, c, screen, flash=""):
     roles = st.roles(user)
     can_edit = "preparer" in roles and c["status"] in ("In progress", "Returned")
     ev = c["eval"]
-    out = [f'<div id="flash" class="flash" role="alert"{"" if flash else " hidden"}>{E(flash)}</div>', strip(st, user, c)]
+    good = flash.startswith("Done.")
+    out = [f'<div id="flash" class="flash{" good" if good else ""}" role="alert"{"" if flash else " hidden"}>{E(flash)}</div>', strip(st, user, c)]
+    if user == c["preparer"]:
+        waiting = [p for p in c["points"].values() if p["open"] and not p["replies"]]
+        if waiting:
+            secs = {x["id"]: x for x in c["pack"].sections}
+            links = "; ".join(f'<a href="/case/{E(c["id"])}?screen={E(secs[p["section"]].get("screen", "Workpaper"))}#point-{E(p["id"])}">{E(p["id"])}, {E(secs[p["section"]]["title"])}</a>'
+                              for p in waiting)
+            out.append(f'<div class="flash" style="background:var(--warnT);color:var(--warn);border-color:var(--warnE)">Waiting for your answer: {links}</div>')
     secs = [s for s in c["pack"].sections if s.get("screen", "Workpaper") == screen]
     i = 0
     while i < len(secs):
@@ -290,8 +321,9 @@ def strip(st, user, c):
         acts += [a("Return to preparer", "return", True), a("Approve", "approve")]
     if roles & {"reviewer", "admin"} and c["status"] == "Approved":
         acts.append(a("Release", "release"))
-    tone = {"In progress": "plain", "Returned": "warn", "In review": "plain", "Approved": "ok", "Released": "ok"}[c["status"]]
-    return (f'<div class="strip" aria-label="Where this case stands"><span class="lab">Ready for review</span>{chip("Yes" if ready else "No", "ok" if ready else "warn")}'
+    tone = {"In progress": "plain", "Returned": "warn", "In review": "plain", "Approved": "ok", "Released": "ok", "Preview": "warn"}[c["status"]]
+    head = (f'<span class="lab">Ready for review</span>{chip("Yes" if ready else "No", "ok" if ready else "warn")}' if c["status"] in ("In progress", "Returned") else "")
+    return (f'<div class="strip" aria-label="Where this case stands">{head}'
             f'<span class="lab">Still missing</span><b>{ev["missing"]}</b><span class="lab">Sections complete</span><b>{ev["sections_done"]} of {ev["sections_total"]}</b>'
             f'<span class="lab">Status</span>{chip(c["status"], tone)}<span class="actions">{"".join(acts)}</span></div>')
 
@@ -357,7 +389,7 @@ def control(c, defn, path, value, edit, missing=False, extra_cls=""):
     if t == "date":
         return f'<input type="date" id="{aid}" data-path="{E(path)}" aria-label="{lab}" value="{E(value or "")}"{dis}>'
     if t == "number":
-        shown = "" if blank(value) else fmt_value(value, defn).replace("$", "")
+        shown = "" if blank(value) else fmt_value(value, defn)
         return f'<input class="num" inputmode="decimal" id="{aid}" data-path="{E(path)}" aria-label="{lab}" value="{E(shown)}"{dis}{ph}>'
     return f'<input id="{aid}" data-path="{E(path)}" aria-label="{lab}" value="{E("" if blank(value) else str(value))}"{dis}{ph}>'
 
@@ -427,8 +459,11 @@ def grid(c, g, edit, s, only):
     if t["totals"]:
         tr = '<tr class="tot"><td class="rl">Total</td>'
         for col in C:
-            v = t["totals"].get(col["key"])
-            tr += f'<td><div class="calc">{E(fmt_value(v, dict(col, type="number")))}</div></td>' if v is not None else "<td></td>"
+            if col["key"] not in t["totals"]:
+                tr += "<td></td>"
+                continue
+            v = t["totals"][col["key"]]
+            tr += f'<td><div class="calc">{E(fmt_value(v, dict(col, type="number")))}</div></td>' if v is not None else '<td><div class="nc">Not calculated</div></td>'
         body += tr + "</tr>"
     ex = [r for r in rows if r["excluded"]]
     exn = "".join(f'<div class="note">{E(r["label"])} is left out: {E(r["reason"] or "")}.</div>' for r in ex)
@@ -551,7 +586,7 @@ def check_page(st, user, c, flash=""):
     rows = ""
     for x in st.release_check(c):
         link = ""
-        if x["link"]:
+        if x["link"] and not x["ok"]:
             if x["link"].startswith(("f/", "g/")):
                 sec = _section_of(c, x["link"])
                 link = f'<a href="/case/{E(c["id"])}?screen={E(sec.get("screen", "Workpaper"))}#{_anchor(x["link"])}">Go to it</a>'
@@ -561,8 +596,9 @@ def check_page(st, user, c, flash=""):
             elif x["link"].startswith("point/"):
                 link = f'<a href="/case/{E(c["id"])}#point-{E(x["link"][6:])}">Go to it</a>'
         cls = "ok-t" if x["ok"] else "warn-t"
-        rows += f'<tr><td>{E(x["check"])}</td><td class="{cls}">{"OK" if x["ok"] else "Not yet"}</td><td>{E(x["detail"])}</td><td>{link}</td></tr>'
-    fl = f'<div class="flash">{E(flash)}</div>' if flash else ""
+        detail = "" if x["detail"] == "OK" else x["detail"]
+        rows += f'<tr><td>{E(x["check"])}</td><td class="{cls}">{"OK" if x["ok"] else "Not yet"}</td><td>{E(detail)}</td><td>{link}</td></tr>'
+    fl = f'<div class="flash{" good" if flash.startswith("Done.") else ""}">{E(flash)}</div>' if flash else ""
     body = (f'<main id="main">{fl}{strip(st, user, c)}<p class="hint">Every line must read OK before the case is approved and released. '
             f'Each line that is not says what is needed and links to it.</p><table class="list"><tr><th>Check</th><th>Result</th><th>Detail</th><th></th></tr>{rows}</table></main>')
     return page(f'{c["id"]} · Release check', body, family=c["pack"].data.get("family"), band_title=f'{c["tool"]}: release check',
@@ -606,18 +642,19 @@ def _s(v):
     return "(blank)" if v is None or v == "" else str(v)
 
 
-def outputs_page(st, user, c):
+def outputs_page(st, user, c, flash=""):
     rel = st.released_outputs(c["id"])
     if rel:
         rows = "".join(f'<tr><td><a href="/case/{E(c["id"])}/file/{E(o["name"])}">{E(o["name"])}</a></td><td><code>{E(o["sha256"][:16])}</code></td><td>{E(o["at"])}</td></tr>' for o in rel)
         released = f'<h2>Released</h2><p class="hint">Written once at release and fingerprinted. These are the record.</p><table class="list"><tr><th>File</th><th>SHA-256</th><th>Written</th></tr>{rows}</table>'
     else:
         released = '<h2>Released</h2><p class="hint">Nothing yet. Outputs are written once, when the case is released.</p>'
-    draft = (f'<h2>Drafts</h2><p class="hint">Built now from the case as it stands. Marked as drafts: they are not the record.</p>'
+    draft = "" if rel else (f'<h2>Drafts</h2><p class="hint">Built now from the case as it stands. Marked as drafts: they are not the record.</p>'
              f'<p><a class="act" href="/case/{E(c["id"])}/draft/feed.json">Data feed (JSON)</a> <a class="act" href="/case/{E(c["id"])}/draft/feed.csv">Data feed (CSV)</a> '
              f'<a class="act" href="/case/{E(c["id"])}/draft/workbook.xlsx">Workbook</a> <a class="act secondary" href="/case/{E(c["id"])}?print=1" target="_blank">Print the workpaper</a></p>'
              f'<p class="hint">The data feed’s layout is this application’s own proposal: the receiving system’s format has not been supplied yet. Fields marked personal are masked in it.</p>')
-    body = f'<main id="main">{strip(st, user, c)}{released}{draft}</main>'
+    fl = f'<div class="flash{" good" if flash.startswith("Done.") else ""}">{E(flash)}</div>' if flash else ""
+    body = f'<main id="main">{fl}{strip(st, user, c)}{released}{draft}</main>'
     return page(f'{c["id"]} · Outputs', body, family=c["pack"].data.get("family"), band_title=f'{c["tool"]}: outputs',
                 subtitle=c["id"], nav=case_nav(c, "Outputs"), user=user, current="Outputs")
 
@@ -670,7 +707,7 @@ def tools_page(st, user, flash=""):
         else:
             state = f'<span class="ok-t">Published</span>: proposed by {E(v["proposed_by"])}, approved by {E(v["approved_by"])}'
             act = ""
-        rows += (f'<tr><td><a href="/tools/{E(p.file)}">{E(p.name)}</a></td><td>{E(p.version)}</td><td><code>{E(p.fingerprint)}</code></td><td>{E(p.file)}</td>'
+        rows += (f'<tr><td><a href="/tools/{E(p.file)}">{E(p.name)}</a><br><a class="hint" href="/tools/{E(p.file)}/preview">Preview it filled in</a></td><td>{E(p.version)}</td><td><code>{E(p.fingerprint)}</code></td><td>{E(p.file)}</td>'
                  f'<td>{state}</td><td>{act}</td></tr>')
     for e in bad:
         rows += f'<tr><td colspan="4">{E(e.file)}</td><td class="bad-t" colspan="2">Refused: {E(str(e))}</td></tr>'
@@ -702,7 +739,8 @@ def pack_page(st, user, p):
         out.append(f'<section class="card"><div class="bar">{E(s["title"])}</div><div class="note">{E(mode)}{" · screen " + E(s["screen"]) if s.get("screen") else ""}</div>'
                    f'<div class="body"><ul>{"".join(f"<li>{x}</li>" for x in items)}</ul></div></section>')
     lists = "".join(f'<tr><td>{E(k)}</td><td>{E(", ".join(v))}</td></tr>' for k, v in p.data["org"]["lists"].items())
-    body = (f'<main id="main"><p class="hint">{E(p.file)} · fingerprint <code>{E(p.fingerprint)}</code>. This is the configuration; the case screens are generated from it.</p>'
+    body = (f'<main id="main"><p class="hint">{E(p.file)} · fingerprint <code>{E(p.fingerprint)}</code>. This is the configuration; the case screens are generated from it. '
+            f'<a href="/tools/{E(p.file)}/preview">See it filled in with the pack’s example</a>.</p>'
             f'{"".join(out)}<h2>Lists</h2><table class="list"><tr><th>List</th><th>Values</th></tr>{lists}</table></main>')
     return page(f"{p.name} · Tools", body, family=p.data.get("family"), band_title=f"{p.name} {p.version}", subtitle="Pack outline",
                 nav=[("Cases", "/"), ("Settings", "/settings"), ("Tools", "/tools")], user=user, current="Tools")

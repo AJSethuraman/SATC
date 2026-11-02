@@ -21,6 +21,7 @@
  },
  "tool": {
   "name": "Bank reconciliation",
+  "subject": "account",
   "sections": [
    {
     "id": "acct",
@@ -205,7 +206,8 @@
       "id": "prep",
       "label": "Prepared by",
       "type": "text",
-      "req": true
+      "req": true,
+      "is": "preparer"
      },
      {
       "kind": "field",

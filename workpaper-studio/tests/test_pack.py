@@ -84,3 +84,8 @@ def test_fingerprint_ignores_demo_data_but_not_the_tool(packs):
     assert fingerprint(d) == f0
     d["tool"]["sections"][0]["title"] = "Tester"
     assert fingerprint(d) != f0
+
+
+def test_subject_must_be_a_field(tmp_path):
+    with pytest.raises(PackError, match="'nobody' is not a field"):
+        load(mutate(tmp_path, lambda d: d["tool"].update(subject="nobody")))

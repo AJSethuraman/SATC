@@ -52,6 +52,7 @@ def feed(c):
              for k, v in ev["calcs"].items()]
     return {"format": FEED_VERSION, "case": c["id"], "tool": c["tool"], "tool_version": c["version"], "pack_fingerprint": c["fingerprint"],
             "policy_version": c["policy_version"], "status": c["status"], "preparer": c["preparer"], "approved_by": c["approved_by"],
+            "released_by": c.get("released_by"), "released_at": c.get("released_at"),
             "sections": [{"id": s["id"], "title": s["title"], "status": s["status"]} for s in ev["sections"]],
             "values": values, "calculations": calcs,
             "exceptions": [{"calc": e["calc"], "reason": e["reason"], "note": e["note"], "by": e["by"], "acknowledged_by": (e["ack"] or {}).get("by")} for e in c["exceptions"].values()],
@@ -80,7 +81,28 @@ def workbook(c, path):
     pack = dict(c["pack"].data)
     pack["_notes"] = notes
     pack["_case"] = c["id"]
+    pack["_review"] = review_rows(c)
+    for _, b in c["pack"].blocks():         # personal values leave masked, in the workbook as in the feed
+        if b["kind"] == "field" and b.get("personal") and not blank(data.get(b["id"])):
+            data[b["id"]] = mask(data[b["id"]])
     return build_workbook(pack, data, conf, path, f"case {c['id']}, pack {c['fingerprint']}")
+
+
+def review_rows(c):
+    titles = {x["id"]: x["title"] for x in c["pack"].sections}
+    rows = []
+    for e in c["exceptions"].values():
+        calc = c["eval"]["calcs"].get(e["calc"], {})
+        rows.append(["Exception", f'{calc.get("name", e["calc"])}: {calc.get("display", "")} ({calc.get("verdict", "")})', f'{e["reason"]}. {e["note"]}',
+                     e["by"], e["at"], f'Acknowledged by {e["ack"]["by"]}, {e["ack"]["at"]}' if e["ack"] else "Not acknowledged"])
+    for p in c["points"].values():
+        text = p["text"] + "".join(f'\nAnswer ({r["by"]}): {r["text"]}' for r in p["replies"])
+        rows.append(["Review point", f'{p["id"]}, {titles.get(p["section"], p["section"])}', text, p["by"], p["at"],
+                     f'Cleared by {p.get("cleared_by")}' if not p["open"] else "Open"])
+    for e in c["events"]:
+        if e["kind"] in ("submitted", "returned", "approved", "released"):
+            rows.append(["Sign-off", e["kind"].capitalize(), "", e["actor"], e["at"], ""])
+    return rows
 
 
 def _without_excluded(c):

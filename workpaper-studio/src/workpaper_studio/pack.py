@@ -25,10 +25,10 @@ KEYS = {
     "pack": {"pack", "family", "org", "tool", "confirmations", "example"},
     "pack.pack": {"name", "version"},
     "org": {"name", "lists"},
-    "tool": {"name", "sections"},
+    "tool": {"name", "subject", "sections"},
     "section": {"id", "title", "mode", "blocks", "rule", "screen"},
     "rule": {"field", "values"},
-    "field": {"kind", "id", "label", "type", "req", "list", "opts", "money", "cents", "personal", "info"},
+    "field": {"kind", "id", "label", "type", "req", "list", "opts", "money", "cents", "personal", "info", "is"},
     "grid": {"kind", "id", "label", "cellsBy", "totals", "tally", "rows", "cols"},
     "calc": {"kind", "id", "method", "code", "limit", "limitLabel", "grid", "attributes", "inputs"},
     "axis": {"from", "items", "min", "addLabel", "list"},
@@ -193,6 +193,12 @@ def check(data: dict, file="pack", text=None):
                                 _check_typed(it, iw, lists, fail)
                 if b.get("cellsBy", "col") not in ("col", "row"):
                     fail(f"{bw}.cellsBy", "cellsBy must be col or row")
+    subj = data["tool"].get("subject")
+    if subj is not None and subj not in fields:
+        fail("tool.subject", f"'{subj}' is not a field in this tool, so cases could not be told apart by it")
+    for fid, b in fields.items():
+        if "is" in b and b["is"] != "preparer":
+            fail(f"tool.sections[?].blocks[{fid}].is", "a field can only be declared to be the preparer")
     # references, now every id is known
     for i, s in enumerate(sections):
         sw = f"tool.sections[{i}]"

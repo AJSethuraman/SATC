@@ -6,7 +6,7 @@
 
 The job walked: a designer proposed the credit file review tool and an approver approved it. An admin confirmed the debt-to-income limit. A preparer completed a case and recorded an exception for a result above the limit, then submitted it. A reviewer raised a point and acknowledged the exception. The preparer answered the point. The reviewer cleared it, approved the case and released it, and the released files were opened.
 
-Ranked by what each would cost a real client. Status for each: **open** (nothing was fixed during the walk, by rule).
+Ranked by what each would cost a real client. Nothing was fixed during the walk, by rule. **Each defect's status after the fixes and the second walk is in the table at the end.**
 
 ---
 
@@ -94,3 +94,34 @@ These are not claimed either way:
 - phone width;
 - printing the workpaper;
 - a second person editing the same case at the same time.
+
+---
+
+## After the fixes: second walk, same day
+
+The same scripts were walked again against an empty installation, and the procedure's screenshots now come from that second walk. **The suite now has 82 tests: the original 73 plus tests written for these defects.**
+
+| # | Defect | Status | Pinned by |
+|---|---|---|---|
+| 1 | Released workbook carried the borrower's name | **Fixed.** Personal fields are masked in the workbook, as in the feed | `test_released_files_carry_no_personal_value_and_say_released` scans every released file |
+| 2 | Workbook had no exceptions, points or sign-offs | **Fixed.** New *Exceptions and review* sheet | same test reads the sheet for each recorded item |
+| 3 | Tab returned focus to the field just left | **Fixed.** Focus is restored to wherever the person is now, and text typed during the save is kept | seen in the browser (`walk/focus.js`): after Tab from Borrower the focus is on the next control; a value typed ahead survives the save. *No CI test: the suite has no browser* |
+| 4 | Total over an incomplete column shown as a number | **Fixed.** Engine and workbook formula both read *Not calculated* | `test_a_total_over_a_required_gap_is_withheld`; the parity test now compares every total by defined name |
+| 5 | Released feed said "Approved" | **Fixed.** Files are written as Released, with `released_by` and `released_at` | the released-files test |
+| 6 | Subject showed the scope | **Fixed.** A pack names its `subject`; masked when personal; a dangling subject is refused | `test_worklist_subject_is_the_named_field_masked`, `test_subject_must_be_a_field` |
+| 7 | Preparer not told a point was waiting | **Fixed.** "Open points" column with *waiting for your answer*, and a banner on the case linking to each point | `test_preparer_is_told_a_point_is_waiting` |
+| 8 | Tester field not tied to the signed-in preparer | **Fixed.** A field can be declared `"is": "preparer"`; a disagreement blocks approval and says who is named and who did the work | `test_the_form_cannot_name_someone_else_as_preparer` |
+| 9 | Approver approved from a text outline | **Fixed.** *Preview it filled in*: the pack's own example run by the same engine, nothing saved | `test_an_approver_can_see_a_tool_working_before_approving_it` |
+| 10 | One person wrote the tool and confirmed its limit | **Open. Firm decision**: should limits need a second person? | — |
+| 11 | Limit history spoke code | **Fixed.** *"Highest debt-to-income confirmed at 45%"* | `test_limit_history_speaks_the_screens_words` |
+| 12 | No confirmation after actions | **Fixed.** A green *Done.* banner after every action | `test_actions_confirm_what_they_did` |
+| 13 | "OK" twice on the check page | **Fixed** | seen on the second walk |
+| 14 | Released case said "Ready for review" and offered drafts | **Fixed.** The strip shows readiness only while the case can be edited; drafts are hidden once released | seen on the second walk |
+| 15 | Money inputs lacked $ | **Fixed** | seen on the second walk |
+
+**Found on the second walk:**
+- **The release check offered *Go to it* beside lines that already read OK.** Fixed.
+- **Each field's small N/A button is a Tab stop of its own**, so tabbing through a form takes two presses per field. **Open, low.** The fix is a design choice: a keyboard shortcut, or one menu per section.
+- **The released workbook's admin sheets printed across several pages**, with columns split. Found while checking the Review sheet. Fixed: every admin sheet now prints one page wide, and Review rows are tall enough for their text.
+
+Still not walked: the same list as above.

@@ -106,6 +106,9 @@ def test_engine_and_workbook_agree(packs, tmp_path):
             for lab, v in k["parts"].items():
                 nm = f"Calc_{cid}_" + "".join(ch if ch.isalnum() else "_" for ch in lab)
                 same(f"{cid} {lab}", read(wf, wv, nm), "Not calculated" if v is None else (float(v) if not isinstance(v, int) or lab != "Inputs still missing" else v))
+        for gid, t in ev["tables"].items():
+            for ck, v in t["totals"].items():
+                same(f"total {gid}.{ck}", read(wf, wv, f"Total_{gid}_{ck}"), "Not calculated" if v is None else float(v))
         same("ready", read(wf, wv, "Ready"), "Yes" if ev["ready"] else "No")
         same("missing", read(wf, wv, "Missing"), ev["missing"])
     assert compared > 300

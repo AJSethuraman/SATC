@@ -94,7 +94,7 @@ def test_above_limit_needs_an_acknowledged_exception_and_the_result_is_untouched
 
 def test_open_review_point_blocks_approval(studio, packs):
     cid = studio.new_case("A. Rivera", "Bank reconciliation")
-    fill(studio, cid, "A. Rivera", packs["bank-reconciliation"].data["example"], packs["bank-reconciliation"])
+    fill(studio, cid, "A. Rivera", dict(packs["bank-reconciliation"].data["example"], prep="A. Rivera"), packs["bank-reconciliation"])
     studio.submit("A. Rivera", cid)
     studio.raise_point("D. Patel", cid, "s2", "Item 4 is over 90 days old. Why is it still outstanding?")
     with pytest.raises(Refused, match="Review points"):
@@ -108,7 +108,7 @@ def test_open_review_point_blocks_approval(studio, packs):
 
 def test_release_only_after_approval_and_outputs_are_fingerprinted(studio, packs):
     cid = studio.new_case("A. Rivera", "Bank reconciliation")
-    fill(studio, cid, "A. Rivera", packs["bank-reconciliation"].data["example"], packs["bank-reconciliation"])
+    fill(studio, cid, "A. Rivera", dict(packs["bank-reconciliation"].data["example"], prep="A. Rivera"), packs["bank-reconciliation"])
     with pytest.raises(Refused, match="release check is not clear"):
         studio.release("D. Patel", cid)
     studio.submit("A. Rivera", cid)
@@ -192,7 +192,7 @@ def test_conditional_section_keeps_entries_while_it_does_not_apply(studio, packs
 
 def test_not_applicable_and_excluded_need_a_reason_and_are_honoured(studio, packs):
     cid = studio.new_case("A. Rivera", "Bank reconciliation")
-    fill(studio, cid, "A. Rivera", packs["bank-reconciliation"].data["example"], packs["bank-reconciliation"])
+    fill(studio, cid, "A. Rivera", dict(packs["bank-reconciliation"].data["example"], prep="A. Rivera"), packs["bank-reconciliation"])
     with pytest.raises(Refused, match="needs a reason"):
         studio.mark("A. Rivera", cid, "g/items/4", "excluded", " ")
     c = studio.mark("A. Rivera", cid, "g/items/4", "excluded", "Fee reversed by the bank")
@@ -214,3 +214,29 @@ def test_replaying_the_log_reconstructs_the_case(studio, packs):
         if e["kind"] == "set":
             engine.set_value(c["pack"], data, e["path"], e["new"])
     assert data == c["data"]
+
+
+def test_a_total_over_a_required_gap_is_withheld(studio):
+    cid = studio.new_case("A. Rivera", "Credit file review")
+    for k, v in (("ftype", "Term loan"), ("commit", "285000"), ("out", "285000")):
+        studio.set("A. Rivera", cid, f"g/facilities/0/{k}", v)
+    for k, v in (("ftype", "Line of credit"), ("commit", "75000")):
+        studio.set("A. Rivera", cid, f"g/facilities/1/{k}", v)
+    t = studio.case(cid)["eval"]["tables"]["facilities"]["totals"]
+    assert t["commit"] == 360000 and t["out"] is None
+    studio.set("A. Rivera", cid, "g/facilities/1/out", "22500")
+    assert studio.case(cid)["eval"]["tables"]["facilities"]["totals"]["out"] == 307500
+
+
+def test_the_form_cannot_name_someone_else_as_preparer(studio, packs):
+    cid = studio.new_case("A. Rivera", "Bank reconciliation")
+    fill(studio, cid, "A. Rivera", packs["bank-reconciliation"].data["example"], packs["bank-reconciliation"])   # names R. Lund
+    studio.submit("A. Rivera", cid)
+    with pytest.raises(Refused, match="The form names R. Lund; the case was prepared by A. Rivera"):
+        studio.approve("D. Patel", cid)
+
+
+def test_worklist_subject_is_the_named_field_masked(studio, packs):
+    cid = studio.new_case("A. Rivera", "Credit file review")
+    fill(studio, cid, "A. Rivera", packs["credit-file-review"].data["example"], packs["credit-file-review"])
+    assert studio.case(cid)["subject"] == "H••••"

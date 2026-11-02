@@ -108,6 +108,13 @@ class App:
             return self.html(ui.settings_page(st, user, msg))
         if path == "/tools":
             return self.html(ui.tools_page(st, user, msg))
+        if path.startswith("/tools/") and path.endswith("/preview") and method == "GET":
+            name = path.split("/")[2]
+            good, _ = st.pack_files()
+            p = next((p for p in good if p.file == name), None)
+            if p is None:
+                raise KeyError(name)
+            return self.html(ui.case_page(st, user, st.preview(p), q.get("screen", "Workpaper")))
         if path.startswith("/tools/") and method == "GET":
             name = path.split("/", 2)[2]
             good, _ = st.pack_files()
@@ -151,7 +158,7 @@ class App:
             if sub == "history":
                 return self.html(ui.history_page(st, user, c))
             if sub == "outputs":
-                return self.html(ui.outputs_page(st, user, c))
+                return self.html(ui.outputs_page(st, user, c, msg))
             if sub == "draft":
                 return self.draft(c, parts[4])
             if sub == "file":
@@ -204,7 +211,10 @@ class App:
                 st.acknowledge(user, cid, f.get("id", ""))
             else:
                 raise KeyError(act)
-            return self.redirect(back if act not in ("point", "reply", "clear", "exception", "ack") else self._screen_for(c, act, f))
+            done = {"submit": "Done. Sent for review.", "return": "Done. Returned to the preparer.", "approve": f"Done. Approved by {user}.",
+                    "release": "Done. Released. These files are now the record.", "point": "Done. Point raised.", "reply": "Done. Answer recorded.",
+                    "clear": "Done. Point cleared.", "exception": "Done. Exception recorded beside the result.", "ack": "Done. Exception acknowledged."}[act]
+            return self.flash_to(back if act not in ("point", "reply", "clear", "exception", "ack") else self._screen_for(c, act, f), done)
         except Refused as e:
             return self.flash_to(back if act in ("approve", "release", "submit") else self._screen_for(c, act, f), str(e))
 
