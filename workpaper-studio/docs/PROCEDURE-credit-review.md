@@ -1,178 +1,221 @@
-# Procedure: a credit file review, from tool to released record
+# Workpaper Studio: Credit File Review Procedure
 
-*Walked through the screens on 2 November 2026. Synthetic people and data; the limit and the method are fictional demonstrations.*
-*Rendered copy with every screenshot embedded: `walkthrough/credit-review-2026-11-02/PROCEDURE-credit-review-2026-11-02.pdf`.*
+| | |
+|---|---|
+| Document | Procedure for completing, reviewing and releasing a credit file review in Workpaper Studio |
+| Effective date | [CONFIRM: effective date] |
+| Owner | [CONFIRM: procedure owner] |
+| Applies to | Credit file review, version 1.1 |
+| Data | Synthetic. The debt-to-income (DTI) limit and method are fictional demonstrations. |
 
-**The route:** Tools (propose · approve) → Settings (confirm limit) → Workpaper (details · facilities · questions) → Analysis (inputs · result · exception) → Check (submit) → Review (point · acknowledge) → Answer (preparer replies) → Approve (clear · approve) → Release (files fingerprinted)
+## Purpose
 
-## Set up the tool
+This procedure explains how a credit file review is set up, completed, reviewed and released in Workpaper Studio. It is written so that a third party can follow what each person did and why.
 
-### 1. Sign in
-*Anyone*
+## Scope
 
-**Do.** Open the app (http://127.0.0.1:5077). Choose your name on “Who is working?”.
+It covers publishing the tool, confirming the organization's limit, completing a case, recording an exception for a result above the limit, review points, approval and release. Loading cases from the master database is covered in a separate procedure.
 
-**A correct screen.** A list of five people, each with what they can do. Choosing a name is not a password check; it is how the record knows who did what.
+## Before you start
 
-![Sign in](walkthrough/credit-review-2026-11-02/step-01-sign-in.png)
+| System | Access needed |
+|---|---|
+| Workpaper Studio | A name set up on the Access screen |
+| Tool designer | Propose tools |
+| Tool approver | Approve tools, and not the person who proposed the tool |
+| Admin | Set limits |
+| Preparer | Start cases, Edit case entries, Submit for review |
+| Reviewer | Approve cases and Release cases, and not the preparer of the case |
 
-### 2. Propose the tool for publishing
-*Designer (M. Okafor)*
+## Route
 
-**Do.** Go to **Tools**. On the Credit file review row, click **Propose for publishing**.
+Tools → Settings → Workpaper → Analysis → Check → Review → Answer → Approve → Release
 
-**A correct screen.** The row's state changes to “Proposed by M. Okafor, waiting for an approver”. You will not see an Approve button: nobody approves their own proposal.
+## Steps
 
-![Propose the tool for publishing](walkthrough/credit-review-2026-11-02/step-02-tools-not-proposed-zoom.png)
-![Propose the tool for publishing](walkthrough/credit-review-2026-11-02/step-03-proposed.png)
+### A. Sign in
+*Everyone*
 
-### 3. Read the tool and approve it
-*Approver (K. Owens)*
+- Open Workpaper Studio.
+- Select your name.
 
-**Do.** Sign in as the approver. On **Tools**, click the tool's name to read its outline, and **Preview** to see it working on the pack's own example. Then go back and click **Approve**.
+**Expected result.** Cases opens. The menu shows only what your access allows.
 
-**A correct screen.** The preview says nothing in it is saved. After approval the state reads “Published: proposed by M. Okafor, approved by K. Owens”. New cases now use this version; the fingerprint identifies it exactly.
+(i) ![Sign in](walkthrough/credit-review-2026-11-02/step-01-sign-in.png)
 
-![Read the tool and approve it](walkthrough/credit-review-2026-11-02/step-04-approver-reads-outline.png)
-![Read the tool and approve it](walkthrough/credit-review-2026-11-02/step-04b-approver-previews.png)
-![Read the tool and approve it](walkthrough/credit-review-2026-11-02/step-05-approve-zoom.png)
-![Read the tool and approve it](walkthrough/credit-review-2026-11-02/step-06-published.png)
+### B. Propose the tool
+*Tool designer*
 
-### 4. Confirm the organization's limit
-*Admin (M. Okafor)*
+- Select **Tools**.
+- On the Credit file review row, select **Propose for publishing**.
 
-**Do.** Go to **Settings**. The debt-to-income limit is *Not confirmed*. Type your organization's limit (40 for this demonstration) and click **Confirm**.
+**Expected result.** Status reads *Proposed by M. Okafor · awaiting approval*.
 
-**A correct screen.** State reads “Confirmed by M. Okafor” with the date, and a new version appears under Versions. Until a limit is confirmed, no result is tested against it. The 40% is fictional.
+**Note:** The person who proposes a tool cannot approve it, so no Approve button appears for them.
 
-![Confirm the organization's limit](walkthrough/credit-review-2026-11-02/step-07-settings-unconfirmed-zoom.png)
-![Confirm the organization's limit](walkthrough/credit-review-2026-11-02/step-08-limit-confirmed.png)
+(i) ![Propose the tool](walkthrough/credit-review-2026-11-02/step-02-tools-not-proposed-zoom.png)
+(ii) ![Propose the tool](walkthrough/credit-review-2026-11-02/step-03-proposed.png)
 
-## Prepare the case
+### C. Review and approve the tool
+*Tool approver*
 
-### 5. Start a case
-*Preparer (A. Rivera)*
+- Select the tool name to review its sections, fields and calculations.
+- Select **Preview** to see the tool completed with example data.
+- Return to **Tools** and select **Approve**.
 
-**Do.** Sign in as the preparer. On **Cases**, click **New credit file review**.
+**Expected result.** Status reads *Published*, with who proposed and who approved it. New cases use this version.
 
-**A correct screen.** A new case opens (CFR-0001). Every required box is amber. The strip shows Ready for review: No and Missing items: 19.
+(i) ![Review and approve the tool](walkthrough/credit-review-2026-11-02/step-04b-approver-previews.png)
+(ii) ![Review and approve the tool](walkthrough/credit-review-2026-11-02/step-05-approve-zoom.png)
 
-![Start a case](walkthrough/credit-review-2026-11-02/step-09-cases-start-zoom.png)
-![Start a case](walkthrough/credit-review-2026-11-02/step-10-new-case-zoom.png)
-![Start a case](walkthrough/credit-review-2026-11-02/step-10-new-case.png)
+### D. Confirm the limit
+*Admin*
 
-### 6. Fill the detail panels
+- Select **Settings**.
+- Enter the organization's limit for Highest debt-to-income (40 for this demonstration).
+- Select **Confirm**.
+
+**Expected result.** Status reads *Confirmed by M. Okafor* with the date, and the change is added to Limit history.
+
+**Note:** A result is not tested until its limit is confirmed. A case keeps the limits in force when it was started.
+
+(i) ![Confirm the limit](walkthrough/credit-review-2026-11-02/step-07-settings-unconfirmed-zoom.png)
+(ii) ![Confirm the limit](walkthrough/credit-review-2026-11-02/step-08-limit-confirmed.png)
+
+### E. Start the case
 *Preparer*
 
-**Do.** Fill Tester, Test date, Reviewer, Quarter end, Scope, Borrower name, Security and New money request. Each entry saves when you leave the box.
+- On **Cases**, under New case, select **Credit file review**.
 
-**A correct screen.** Each panel's footer turns to a green Complete. “Saved” appears at the foot of the page. Missing items drops to 12. Tab moves on as you would expect; each box's small N/A button is one Tab stop of its own.
+**Expected result.** The case opens with every required field highlighted. The status strip shows Ready for review: No and the number of missing items.
 
-![Fill the detail panels](walkthrough/credit-review-2026-11-02/step-11-details-filled-zoom.png)
+(i) ![Start the case](walkthrough/credit-review-2026-11-02/step-09-cases-start-zoom.png)
+(ii) ![Start the case](walkthrough/credit-review-2026-11-02/step-10-new-case-zoom.png)
 
-### 7. Enter the facilities
+### F. Complete the details
 *Preparer*
 
-**Do.** Enter each facility on its own row: type, rating, commitment, outstanding. A new empty row appears as you use the last one.
+- Complete Tester details, Reviewer details, Scope and Borrower details.
+- Use **N/A** beside a field only where it does not apply, and give the reason.
 
-**A correct screen.** A row that is started but incomplete shows its missing box in amber, the section says “1 missing”, and the total under that column reads **Not calculated** until the gap is filled. When every row is complete the footer reads Complete.
+**Expected result.** Each panel shows *Complete* when its required fields are filled. Entries save when you leave each field.
 
-![Enter the facilities](walkthrough/credit-review-2026-11-02/step-12-facility-row-incomplete-zoom.png)
-![Enter the facilities](walkthrough/credit-review-2026-11-02/step-13-facilities-complete-zoom.png)
+**Note:** The Tester must be the person signed in. A different name stops the case at approval.
 
-### 8. Answer the test questions
+(i) ![Complete the details](walkthrough/credit-review-2026-11-02/step-11-details-filled-zoom.png)
+
+### G. Enter the facilities
 *Preparer*
 
-**Do.** Rate each question from the list. Open *How to test* under a question to read its steps. Write a comment where you have one.
+- Enter each facility on its own row: type, rating, commitment and outstanding.
+- Use **Exclude** to leave a row out, and give the reason.
 
-**A correct screen.** Ratings show in green, amber or red. A rating of Partially or Not effective makes the comment box amber and required until you write one. Questions that depend on an answer (for example 5.02, only for new money) say so under the number.
+**Expected result.** An incomplete row highlights its missing cell, and the column total reads *Not calculated* until it is complete.
 
-![Answer the test questions](walkthrough/credit-review-2026-11-02/step-14-question-needs-comment-zoom.png)
+(i) ![Enter the facilities](walkthrough/credit-review-2026-11-02/step-12-facility-row-incomplete-zoom.png)
+(ii) ![Enter the facilities](walkthrough/credit-review-2026-11-02/step-13-facilities-complete-zoom.png)
 
-### 9. Complete the supporting analysis
+### H. Answer the test questions
 *Preparer*
 
-**Do.** Click **Analysis** in the band. Enter income sources, existing debts and the proposed monthly payment. The cash flow and collateral tables are optional.
+- Rate each question. Open **Test steps** under a question for the steps to perform.
+- Comment on every rating of Partially effective or Not effective.
 
-**A correct screen.** While any input is missing, debt-to-income reads **Not calculated**, never 0. The reason is listed under “Why there is no result”. When every input is in, the result shows (51.3% here) with its verdict against the confirmed limit. A zero payment is disclosed, not hidden.
+**Expected result.** A rating of Partially effective or Not effective highlights the comment box until a comment is entered. A question that depends on another answer shows the condition under its number.
 
-![Complete the supporting analysis](walkthrough/credit-review-2026-11-02/step-15-analysis-empty-zoom.png)
-![Complete the supporting analysis](walkthrough/credit-review-2026-11-02/step-16-dti-not-calculated-zoom.png)
-![Complete the supporting analysis](walkthrough/credit-review-2026-11-02/step-17-dti-above-limit-zoom.png)
+(i) ![Answer the test questions](walkthrough/credit-review-2026-11-02/step-14-question-needs-comment-zoom.png)
 
-### 10. Record an exception for a result above the limit
+### I. Complete the supporting analysis
 *Preparer*
 
-**Do.** Under the result, choose a reason, explain it, and click **Record exception**.
+- Select **Analysis**.
+- Enter income sources, existing debts and the proposed monthly payment.
 
-**A correct screen.** The exception is listed beside the result, “Waiting for the reviewer to acknowledge it”. The result itself does not change.
+**Expected result.** Debt-to-income reads *Not calculated* until every input is entered, with each missing input listed. When complete, the ratio and its result against the limit are shown, and any zero amount is listed under Disclosures.
 
-![Record an exception for a result above the limit](walkthrough/credit-review-2026-11-02/step-18-record-exception-zoom.png)
-![Record an exception for a result above the limit](walkthrough/credit-review-2026-11-02/step-19-exception-recorded-zoom.png)
+(i) ![Complete the supporting analysis](walkthrough/credit-review-2026-11-02/step-15-analysis-empty-zoom.png)
+(ii) ![Complete the supporting analysis](walkthrough/credit-review-2026-11-02/step-16-dti-not-calculated-zoom.png)
+(iii) ![Complete the supporting analysis](walkthrough/credit-review-2026-11-02/step-17-dti-above-limit-zoom.png)
 
-### 11. Submit for review
+### J. Record the exception
 *Preparer*
 
-**Do.** Click **Submit for review**. If anything is missing you land on the release check with a message; click **Open** on each line, fill it, and submit again.
+- Where the result is *Above limit*, select a reason, enter an explanation, and select **Record exception**.
 
-**A correct screen.** When it goes through, the Status chip reads **In review** and your boxes lock. Every line on the release check is OK except the exception (pending acknowledgment) and the approval.
+**Expected result.** The exception is listed under the result as *Pending acknowledgment*. The calculated result does not change.
 
-![Submit for review](walkthrough/credit-review-2026-11-02/step-20-submit-refused-zoom.png)
-![Submit for review](walkthrough/credit-review-2026-11-02/step-22-conclusion-zoom.png)
-![Submit for review](walkthrough/credit-review-2026-11-02/step-23-submitted.png)
+(i) ![Record the exception](walkthrough/credit-review-2026-11-02/step-18-record-exception-zoom.png)
+(ii) ![Record the exception](walkthrough/credit-review-2026-11-02/step-19-exception-recorded-zoom.png)
 
-## Review
+### K. Submit for review
+*Preparer*
 
-### 12. Open the case and raise a point
-*Reviewer (D. Patel)*
+- Select **Submit for review**.
+- If the release check lists missing items, select **Open** on each, complete it, and submit again.
 
-**Do.** Sign in as the reviewer. Open the case from **For review**. Under the section concerned, write the point and click **Raise point**.
+**Expected result.** Status reads *In review* and the case's fields are locked for the preparer.
 
-**A correct screen.** Your boxes are read-only: a reviewer never changes the preparer's entries. The point shows as Open with your name and the time.
+(i) ![Submit for review](walkthrough/credit-review-2026-11-02/step-20-submit-refused-zoom.png)
+(ii) ![Submit for review](walkthrough/credit-review-2026-11-02/step-23-submitted.png)
 
-![Open the case and raise a point](walkthrough/credit-review-2026-11-02/step-24-reviewer-home-zoom.png)
-![Open the case and raise a point](walkthrough/credit-review-2026-11-02/step-25-reviewer-case-zoom.png)
-![Open the case and raise a point](walkthrough/credit-review-2026-11-02/step-26-raise-point-zoom.png)
-![Open the case and raise a point](walkthrough/credit-review-2026-11-02/step-27-point-raised-zoom.png)
-
-### 13. Acknowledge the exception
+### L. Raise review points
 *Reviewer*
 
-**Do.** Clicking **Approve** now is refused, and the message names what is open. Go to **Analysis** and click **Acknowledge** on the exception.
+- Open the case from **For review**.
+- Under the section concerned, enter the point and select **Raise point**.
 
-**A correct screen.** The exception reads “Acknowledged by D. Patel” with the time.
+**Expected result.** The point is listed as Open with the reviewer's name and time. The reviewer cannot change the preparer's entries.
 
-![Acknowledge the exception](walkthrough/credit-review-2026-11-02/step-28-approve-refused-zoom.png)
-![Acknowledge the exception](walkthrough/credit-review-2026-11-02/step-29-acknowledge-zoom.png)
+(i) ![Raise review points](walkthrough/credit-review-2026-11-02/step-24-reviewer-home-zoom.png)
+(ii) ![Raise review points](walkthrough/credit-review-2026-11-02/step-27-point-raised-zoom.png)
 
-### 14. Answer the point
-*Preparer*
-
-**Do.** Sign in as the preparer. Your Cases list shows “1 (awaiting your answer)” under Open points. Open the case: a banner at the top links to the point. Write your answer under it and click **Answer**.
-
-**A correct screen.** Your answer appears under the point with your name and the time.
-
-![Answer the point](walkthrough/credit-review-2026-11-02/step-30-preparer-home-zoom.png)
-![Answer the point](walkthrough/credit-review-2026-11-02/step-31-answer-point-zoom.png)
-
-## Approve and release
-
-### 15. Clear the point, approve, release
+### M. Acknowledge the exception
 *Reviewer*
 
-**Do.** Sign in as the reviewer. Click **Clear point P1**, then **Approve**, then **Release**.
+- Select **Analysis**.
+- Select **Acknowledge** on the exception.
 
-**A correct screen.** The point reads Cleared. Each action confirms itself in a green banner. The status goes to Approved, then Released, and Outputs lists the released files, each with its SHA-256 fingerprint: the data feed (JSON and CSV) and the workbook. The workbook has an Exceptions and review sheet; the borrower's name is masked in every released file.
+**Expected result.** The exception reads *Acknowledged by D. Patel* with the time.
 
-![Clear the point, approve, release](walkthrough/credit-review-2026-11-02/step-32-point-cleared-zoom.png)
-![Clear the point, approve, release](walkthrough/credit-review-2026-11-02/step-33-approved.png)
-![Clear the point, approve, release](walkthrough/credit-review-2026-11-02/step-35-outputs-zoom.png)
+**Note:** Approval is refused while a point is open or an exception is unacknowledged, and the message lists each one.
 
-### 16. Read the record
-*Anyone*
+(i) ![Acknowledge the exception](walkthrough/credit-review-2026-11-02/step-28-approve-refused-zoom.png)
+(ii) ![Acknowledge the exception](walkthrough/credit-review-2026-11-02/step-29-acknowledge-zoom.png)
 
-**Do.** Click **History**.
+### N. Answer the review point
+*Preparer*
 
-**A correct screen.** Every entry and every action, newest first, with who and when. Nothing in it can be changed or removed; the case on screen is rebuilt from it.
+- Open the case. Cases shows the open point under Open points.
+- Enter the answer under the point and select **Answer**.
 
-![Read the record](walkthrough/credit-review-2026-11-02/step-36-history.png)
+**Expected result.** The answer is listed under the point with the preparer's name and time.
+
+(i) ![Answer the review point](walkthrough/credit-review-2026-11-02/step-30-preparer-home-zoom.png)
+(ii) ![Answer the review point](walkthrough/credit-review-2026-11-02/step-31-answer-point-zoom.png)
+
+### O. Clear, approve and release
+*Reviewer*
+
+- Select **Clear point**.
+- Select **Approve**.
+- Select **Release**.
+
+**Expected result.** Status reads *Released*. Outputs lists the released files with their SHA-256 fingerprints: the data feed (JSON and CSV), the one-row answers file and the workbook.
+
+(i) ![Clear, approve and release](walkthrough/credit-review-2026-11-02/step-32-point-cleared-zoom.png)
+(ii) ![Clear, approve and release](walkthrough/credit-review-2026-11-02/step-35-outputs-zoom.png)
+
+### P. Review the history
+*Anyone with access to the case*
+
+- Select **History**.
+
+**Expected result.** Every entry and action is listed with who and when, newest first.
+
+(i) ![Review the history](walkthrough/credit-review-2026-11-02/step-36-history.png)
+
+## Best practices
+
+- Comment on every Partially effective or Not effective rating, with enough detail for a third party to follow.
+- Record an exception rather than changing entries to bring a result within its limit.
+- Answer review points in the case, so the answer stays with the record.

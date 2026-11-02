@@ -1,8 +1,20 @@
 # Workpaper Studio voice
 
-How the product's own words read: every heading, column, button, banner, note and message on its screens, and the
-same words in the workbooks it generates. It does not cover the words an organization writes into its own tools
-(questions, field labels, guidance). Those are theirs.
+**The firm's voice is canon's `VOICE.md`** (installed with the canon plugin; read it from the plugin, not from a copy).
+The firm, 2 Nov 2026: *"not necessary to assign a conviction for this, but use it in this project"*. This file says
+which of canon's registers applies where in Workpaper Studio, and adds the one rule specific to it.
+
+| What | Canon register | In this project |
+|---|---|---|
+| Screens, workbooks, exports | *An analyst, reviewer or auditor reading a tool's output* | The industry's vocabulary; headings are labels (below) |
+| Procedures (`docs/PROCEDURE-*.md` and their PDFs) | *A procedure, methodology or guidance document* | Header block, Purpose, Scope, Before you start, lettered steps that start with a verb, screenshots as sub-steps, "Note:" for the exception. Built by `docs/walkthrough/procedure.py` |
+| Messages to the firm, the handoff, the defects list | *Talking to the firm* | Lead with what happened, then what changes |
+
+Run canon's tells over anything written for a person: `python "<canon plugin>/voice.py" FILE`.
+
+The rest of this file covers the product's own words: every heading, column, button, banner, note and message on its
+screens, and the same words in the workbooks it generates. It does not cover the words an organization writes into
+its own tools (questions, field labels, guidance). Those are theirs.
 
 ## Why this file exists
 
