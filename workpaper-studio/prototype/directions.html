@@ -1,0 +1,162 @@
+<title>Workpaper Studio Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;600&display=swap">
+<style>
+/* Layout: one comparison page. Each direction renders the same slice (Income & debt service) so differences are structural, not cosmetic. */
+:root{
+  --bg:#e9edf2; --surface:#fff; --surface-2:#f4f6f9; --line:#d5dbe3;
+  --ink:#131a23; --ink-2:#434d5a; --ink-3:#5f6a78; --accent:#1c4f8f; --accent-soft:#e1ebf8;
+  --ok:#17673f; --ok-bg:#e0f1e8; --warn:#7f4a00; --warn-bg:#fcefcf; --err:#a1241b; --err-bg:#fbe5e2;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --serif:'IBM Plex Serif',Georgia,serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1217; --surface:#161b22; --surface-2:#1b212a; --line:#2b3441; --ink:#e8ecf1; --ink-2:#b3bcc8; --ink-3:#8c98a8;
+  --accent:#86b6f0; --accent-soft:#1a2b43; --ok:#62d29b; --ok-bg:#12301f; --warn:#f0bb62; --warn-bg:#392a0d; --err:#ff938a; --err-bg:#3c1815; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1217; --surface:#161b22; --surface-2:#1b212a; --line:#2b3441; --ink:#e8ecf1; --ink-2:#b3bcc8; --ink-3:#8c98a8;
+  --accent:#86b6f0; --accent-soft:#1a2b43; --ok:#62d29b; --ok-bg:#12301f; --warn:#f0bb62; --warn-bg:#392a0d; --err:#ff938a; --err-bg:#3c1815; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:28px}
+h1{font-size:26px;margin:0 0 6px;font-weight:600;text-wrap:balance} h2{font-size:19px;margin:0;font-weight:600} h3{font-size:13px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);font-weight:500}
+p{margin:0 0 8px;max-width:68ch} .lead{color:var(--ink-2);font-size:16px}
+.reco{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:16px 18px}
+.reco b{color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.card>header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.tag{font-size:12px;padding:1px 9px;border-radius:10px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.tag.rec{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.stage{padding:18px;background:var(--surface-2);overflow-x:auto}
+.mock{min-width:820px;margin:0 auto;max-width:900px;box-shadow:0 4px 18px rgba(15,25,40,.14);border-radius:4px;overflow:hidden}
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:16px 18px}
+.notes ul{margin:0;padding-left:18px;color:var(--ink-2)} .notes li{margin:3px 0}
+table.cmp{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+.cmp th,.cmp td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.cmp th{font-weight:500;color:var(--ink-3);font-size:12px;background:var(--surface-2)}
+.cmp td.g{color:var(--ok)} .cmp td.b{color:var(--err)} .cmp td.m{color:var(--warn)}
+.scroll{overflow-x:auto}
+@media (max-width:820px){.notes{grid-template-columns:1fr}}
+
+/* ===== Direction A: Workpaper ===== */
+.da{--bg:#f6f7f9;--pane:#fff;--ink:#141a22;--mute:#5b6674;--line:#d4d9e0;--acc:#1c4f8f;--accs:#e1ebf8;--calc:#edf1f7;--warn:#7f4a00;--warnbg:#fcefcf;--err:#a1241b;--ok:#17673f;
+  background:var(--bg);color:var(--ink);font:13px/1.45 'IBM Plex Sans',sans-serif;display:grid;grid-template-columns:170px 1fr 220px}
+.da .rail{padding:14px 10px;border-right:1px solid var(--line);background:#eef1f5}
+.da .rail div{padding:5px 8px;border-radius:4px;display:flex;gap:8px;align-items:flex-start}.da .rail .on{background:var(--accs)}
+.da .g{width:14px;height:14px;border-radius:50%;border:1.5px solid #9aa6b5;margin-top:2px;flex:none;font-size:9px;display:grid;place-items:center}
+.da .g.ok{background:var(--ok);border-color:var(--ok);color:#fff}.da .g.w{border-color:var(--warn)}
+.da .doc{padding:20px 24px;background:var(--pane)} .da h4{font:600 17px 'IBM Plex Serif',serif;margin:0 0 2px}
+.da .sub{color:var(--mute);font-size:12px;margin-bottom:12px}
+.da table{width:100%;border-collapse:collapse;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+.da th{font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+.da td{padding:6px;border-bottom:1px solid var(--line)} .da tr:last-child td{border-bottom:0} .da .n{text-align:right;font-variant-numeric:tabular-nums}
+.da .miss{border:1px dashed var(--warn);background:var(--warnbg);color:var(--warn);padding:1px 8px;border-radius:3px;display:inline-block;min-width:70px;text-align:right}
+.da .calc{background:var(--calc);margin-top:12px;padding:10px 12px;border:1px solid #c9d3e2;border-radius:4px}.da .calc b.big{font-size:20px;display:block}
+.da .margin{padding:20px 14px;background:#f1f3f6;border-left:1px solid var(--line);font-size:12px}
+.da .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--acc);padding:8px 10px;border-radius:3px;margin-top:70px}
+.da .note small{color:var(--mute);display:block;margin-bottom:2px}
+
+/* ===== Direction B: Console ===== */
+.db{--chrome:#26364a;--chrome2:#1e2b3b;--ct:#d7e0ec;--pane:#f3f5f8;--cell:#fff;--ink:#17202b;--mute:#5d6877;--line:#cfd6df;--acc:#1b57c4;--warn:#8a5200;--warnbg:#fdf0d2;
+  display:grid;grid-template-columns:200px 1fr 250px;background:var(--pane);color:var(--ink);font:12px/1.4 'IBM Plex Sans',sans-serif}
+.db .tree{background:var(--chrome);color:var(--ct);padding:10px 0}
+.db .tree div{padding:3px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap}.db .tree .on{background:var(--chrome2);border-left:3px solid #7aa2f0;padding-left:9px}.db .tree .i{padding-left:26px;color:#9fb1c8}
+.db .tree h5{margin:8px 12px 4px;font:500 10px 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:#8aa0bd}
+.db .center{padding:12px}.db .bar{display:flex;gap:8px;margin-bottom:8px;align-items:center}.db .bar b{font-size:13px}
+.db .grid{border:1px solid var(--line);background:var(--cell)} .db .grid .r{display:grid;grid-template-columns:24px 1.6fr 1fr 1fr .9fr .9fr 1fr;border-bottom:1px solid var(--line);align-items:center}
+.db .grid .r>*{padding:4px 6px;border-right:1px solid #e5e9ef;min-height:26px;display:flex;align-items:center}.db .grid .r>*:last-child{border-right:0}
+.db .grid .h{background:#e6ebf2;font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.db .grid .calc{background:#e9eef7;justify-content:flex-end;font-variant-numeric:tabular-nums}.db .grid .mis{background:var(--warnbg);color:var(--warn);justify-content:flex-end;outline:1px dashed var(--warn);outline-offset:-2px}
+.db .insp{background:#fff;border-left:1px solid var(--line);padding:10px 12px}.db .insp h5{margin:0 0 6px;font:500 10px 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.db .step{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 0;display:flex;justify-content:space-between;border-bottom:1px dotted var(--line)}
+.db .rp{margin-top:10px;background:#eef3fd;border:1px solid #c5d4f3;padding:7px 9px;border-radius:3px}
+.db .kb{display:inline-block;font:10px 'IBM Plex Mono';border:1px solid var(--line);border-radius:3px;padding:0 4px;background:#fff;color:var(--mute)}
+
+/* ===== Direction C: Guide ===== */
+.dc{--bg:#f3f6f3;--ink:#16221d;--mute:#52635b;--line:#cfdad3;--acc:#1f6f5b;--accs:#dcefe8;--warn:#7a4a00;--warnbg:#fdf0d4;
+  background:var(--bg);color:var(--ink);font:15px/1.5 'Atkinson Hyperlegible',sans-serif;padding:22px 20px 26px}
+.dc .steps{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:18px;font-size:13px;color:var(--mute)}
+.dc .steps i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;background:#fff;border:2px solid var(--line)}
+.dc .steps i.d{background:var(--acc);border-color:var(--acc);color:#fff}.dc .steps i.n{border-color:var(--acc);color:var(--acc)}
+.dc .steps span{width:34px;height:2px;background:var(--line)}
+.dc .main{max-width:600px;margin:0 auto}.dc h4{font-size:22px;margin:0 0 4px}.dc .main>p{color:var(--mute);margin-bottom:14px}
+.dc .src{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.dc .src label{font-size:13px;color:var(--mute);display:block;margin-bottom:2px}.dc .src .v{border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;background:#fff;font-size:16px}
+.dc .src .v.m{border:2px dashed var(--warn);background:var(--warnbg);color:var(--warn)}
+.dc .btns{display:flex;justify-content:space-between;margin-top:14px}.dc .b1{padding:9px 18px;border-radius:6px;border:1.5px solid var(--acc);color:var(--acc);font-weight:700;background:#fff}.dc .b2{padding:9px 18px;border-radius:6px;background:var(--acc);color:#fff;font-weight:700}
+.dc .bubble{background:var(--accs);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Three visual directions</h1>
+  <p class="lead">The same slice of the same workpaper, drawn three ways: a credit review's income and debt section with one calculation that cannot run yet and one question from the reviewer. All three show synthetic data.</p>
+</header>
+
+<div class="reco">
+  <p style="margin:0"><b>Recommended: A, the workpaper.</b> The person doing the work and the person checking it both end up reading the finished page, so the screen should be that page. Direction B's side panel is worth borrowing, as something you open when you want to trace a number. Its density suits the setup screens. Direction C is a good way to learn a tool and a slow way to use one every day, so it only earns a place as a first-run walkthrough.</p>
+</div>
+
+<section class="card" aria-labelledby="a">
+  <header><h2 id="a">A. Workpaper</h2><span class="tag rec">Recommended</span><span class="tag">Document first</span></header>
+  <div class="stage"><div class="mock da" role="img" aria-label="Direction A mock: section rail, a ruled ledger table, and a review note in the right margin">
+    <div class="rail"><div><span class="g ok">✓</span>Request &amp; borrower</div><div class="on"><span class="g w"></span><span>Income &amp; debt service<br><small style="color:#7f4a00">2 missing</small></span></div><div><span class="g w"></span>Collateral</div><div><span class="g ok">✓</span>Evidence index</div><div><span class="g"></span>Results</div></div>
+    <div class="doc"><h4>Income &amp; debt service</h4><div class="sub">Required · DTI-DEMO 1.0 · Case HB-2026-0147</div>
+      <table><thead><tr><th>Source</th><th>Type</th><th class="n">Amount</th><th>Per</th><th class="n">Monthly</th></tr></thead><tbody>
+      <tr><td>Owner salary (W-2)</td><td>Wages</td><td class="n">96,000</td><td>Annual</td><td class="n">$8,000</td></tr>
+      <tr><td>Rental, 14 Dock St</td><td>Rental</td><td class="n"><span class="miss">Missing</span></td><td>Monthly</td><td class="n" style="color:#5b6674">needs amount</td></tr>
+      <tr><td>Spouse wages</td><td>Wages</td><td class="n">3,200</td><td>Monthly</td><td class="n">$3,200</td></tr></tbody></table>
+      <div class="calc"><span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5b6674">Debt-to-income · calculated</span><b class="big">Not calculated</b>1 input needs attention. This is not a pass.</div></div>
+    <div class="margin"><div style="color:#5b6674;text-transform:uppercase;letter-spacing:.08em;font-size:10px">Review points</div><div class="note"><small>Marcus Olsen · Oct 31</small>What supports counting the rental income? The 2025 return shows a loss.</div></div>
+  </div></div>
+  <div class="notes"><div><h3>Strengths</h3><ul><li>What you see is what prints, so review and output cannot disagree</li><li>Review notes sit beside the entry they question</li><li>Dense tables stay readable; the ruled ledger looks like work people already trust</li></ul></div>
+  <div><h3>Costs</h3><ul><li>Conservative; no delight to sell</li><li>Needs a second column for trace and guidance, which is B's idea</li><li>A narrow phone shows the document, not a tool</li></ul></div>
+  <div><h3>Best for</h3><ul><li>Daily preparers and reviewers</li><li>Anything that is signed or exported</li></ul></div></div>
+</section>
+
+<section class="card" aria-labelledby="b">
+  <header><h2 id="b">B. Console</h2><span class="tag">Three panes, always visible</span></header>
+  <div class="stage"><div class="mock db" role="img" aria-label="Direction B mock: dark-slate field tree, a spreadsheet-style grid, and a permanent inspector showing the calculation trace">
+    <div class="tree"><h5>Sections</h5><div>request</div><div class="on">income_debt</div><div class="i">income[ ]</div><div class="i">debts[ ]</div><div class="i">proposed</div><div>collateral</div><div>evidence</div><div>results</div></div>
+    <div class="center"><div class="bar"><b>Income sources</b><span class="kb">Enter</span> next row <span class="kb">Alt+↓</span> add</div>
+      <div class="grid"><div class="r h"><span>#</span><span>Source</span><span>Type</span><span>Amount</span><span>Per</span><span>Monthly</span><span>Evidence</span></div>
+      <div class="r"><span>1</span><span>Owner salary (W-2)</span><span>Wages</span><span style="justify-content:flex-end">96,000</span><span>Annual</span><span class="calc">$8,000</span><span>EV-02</span></div>
+      <div class="r"><span>2</span><span>Rental, 14 Dock St</span><span>Rental</span><span class="mis">missing</span><span>Monthly</span><span class="calc">—</span><span>none</span></div>
+      <div class="r"><span>3</span><span>Spouse wages</span><span>Wages</span><span style="justify-content:flex-end">3,200</span><span>Monthly</span><span class="calc">$3,200</span><span>EV-03</span></div></div></div>
+    <div class="insp"><h5>Trace · Debt-to-income</h5><div class="step"><span>Owner salary</span><span>8,000</span></div><div class="step"><span>Rental</span><span style="color:#8a5200">missing</span></div><div class="step"><span>Spouse wages</span><span>3,200</span></div><div class="step"><span>Proposed pmt</span><span>5,780</span></div><div class="step" style="border:0"><b>Result</b><b>not calculated</b></div>
+      <div class="rp"><b>Marcus · row 2</b><br>What supports counting the rental income?</div></div>
+  </div></div>
+  <div class="notes"><div><h3>Strengths</h3><ul><li>Fast for experts: keyboard first, everything visible</li><li>Trace is always one glance away</li><li>Same layout works for the setup builder</li></ul></div>
+  <div><h3>Costs</h3><ul><li>Looks like developer tooling to a first-time preparer</li><li>Pulls configuration vocabulary (field ids, brackets) into everyday work</li><li>Screen and printed page diverge</li></ul></div>
+  <div><h3>Best for</h3><ul><li>Tool designers and method owners</li><li>Reviewers who audit calculations</li></ul></div></div>
+</section>
+
+<section class="card" aria-labelledby="c">
+  <header><h2 id="c">C. Guide</h2><span class="tag">One step at a time</span></header>
+  <div class="stage"><div class="mock dc" role="img" aria-label="Direction C mock: a numbered stepper and a single question screen with each income source as a card">
+    <div class="steps"><i class="d">✓</i><span></span><i class="n">2</i><span></span><i>3</i><span></span><i>4</i><span></span><i>5</i></div>
+    <div class="main"><h4>Where does the borrower's income come from?</h4><p>Add each source. We convert yearly amounts to monthly for you.</p>
+      <div class="src"><div><label>Source</label><div class="v">Owner salary (W-2)</div></div><div><label>Amount, per year</label><div class="v">$96,000</div></div></div>
+      <div class="src"><div><label>Source</label><div class="v">Rental, 14 Dock St</div></div><div><label>Amount, per month</label><div class="v m">Needed</div></div></div>
+      <div class="bubble"><b>Marcus asks:</b> What supports counting the rental income?</div>
+      <div class="btns"><span class="b1">Back</span><span class="b2">Continue to debts</span></div></div>
+  </div></div>
+  <div class="notes"><div><h3>Strengths</h3><ul><li>Easiest first hour; nobody is lost</li><li>Large targets, high legibility</li><li>Fits a phone</li></ul></div>
+  <div><h3>Costs</h3><ul><li>You cannot see the whole workpaper while filling it in, which is what review needs</li><li>Repeating tables become stacks of cards and slow down</li><li>Print is a different layout from the screen</li></ul></div>
+  <div><h3>Best for</h3><ul><li>A first-run walkthrough</li><li>Occasional contributors</li></ul></div></div>
+</section>
+
+<section class="card" aria-labelledby="cmp">
+  <header><h2 id="cmp">Side by side</h2></header>
+  <div class="scroll"><table class="cmp"><thead><tr><th>What matters</th><th>A Workpaper</th><th>B Console</th><th>C Guide</th></tr></thead><tbody>
+    <tr><td>Daily speed for a practiced preparer</td><td class="g">Good</td><td class="g">Best</td><td class="b">Slow</td></tr>
+    <tr><td>First hour for a new preparer</td><td class="m">Fine</td><td class="b">Steep</td><td class="g">Best</td></tr>
+    <tr><td>Reviewing the whole file</td><td class="g">Best</td><td class="g">Good</td><td class="b">Poor</td></tr>
+    <tr><td>Dense repeating tables</td><td class="g">Good</td><td class="g">Best</td><td class="b">Poor</td></tr>
+    <tr><td>Screen matches the printed page</td><td class="g">Yes</td><td class="b">No</td><td class="b">No</td></tr>
+    <tr><td>Keeps setup vocabulary out of daily work</td><td class="g">Yes</td><td class="b">Leaks</td><td class="g">Yes</td></tr>
+    <tr><td>Works for the setup builder</td><td class="m">With B's density</td><td class="g">Yes</td><td class="b">No</td></tr>
+    <tr><td>Phone and tablet</td><td class="m">Reads, edits awkwardly</td><td class="b">No</td><td class="g">Yes</td></tr>
+    <tr><td>Build cost</td><td class="g">One layout</td><td class="m">One layout, more panels</td><td class="m">A second flow to keep in step</td></tr>
+  </tbody></table></div>
+</section>
+</div>

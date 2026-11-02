@@ -1,0 +1,500 @@
+{
+ "pack": {
+  "name": "Control test",
+  "version": "2.0"
+ },
+ "family": "teal",
+ "org": {
+  "name": "Northgate Audit (synthetic)",
+  "lists": {
+   "Yes / No": [
+    "Yes",
+    "No"
+   ],
+   "Frequency": [
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Quarterly",
+    "Annual"
+   ],
+   "Conclusions": [
+    "Operating effectively",
+    "Operating with exceptions",
+    "Not operating"
+   ],
+   "Exception reasons": [
+    "Compensating strength documented",
+    "Approved by a higher authority",
+    "Policy exception on file",
+    "Other (explained in the note)"
+   ]
+  }
+ },
+ "tool": {
+  "name": "Control test",
+  "subject": "control",
+  "sections": [
+   {
+    "id": "ctl",
+    "title": "Control",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "control",
+      "label": "Control",
+      "type": "text",
+      "req": true
+     },
+     {
+      "kind": "field",
+      "id": "owner",
+      "label": "Control owner",
+      "type": "text",
+      "req": true
+     }
+    ]
+   },
+   {
+    "id": "per",
+    "title": "Period",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "freq",
+      "label": "How often it runs",
+      "type": "list",
+      "req": true,
+      "list": "Frequency"
+     },
+     {
+      "kind": "field",
+      "id": "period",
+      "label": "Period tested",
+      "type": "text",
+      "req": true
+     }
+    ]
+   },
+   {
+    "id": "res",
+    "title": "Result",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "hasexc",
+      "label": "Were exceptions found?",
+      "type": "list",
+      "req": true,
+      "list": "Yes / No"
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "title": "Sample",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "grid",
+      "id": "sample",
+      "label": "Payments tested",
+      "rows": {
+       "from": "entered",
+       "min": 1,
+       "addLabel": "item"
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "id",
+         "label": "Payment",
+         "type": "text",
+         "req": true
+        },
+        {
+         "key": "date",
+         "label": "Date",
+         "type": "date",
+         "req": false
+        },
+        {
+         "key": "amount",
+         "label": "Amount",
+         "type": "number",
+         "req": false,
+         "money": true,
+         "noTotal": true
+        },
+        {
+         "key": "a1",
+         "label": "A1 Authorized approver",
+         "type": "choice",
+         "req": true,
+         "opts": [
+          "Pass",
+          "Exception",
+          "N/A"
+         ]
+        },
+        {
+         "key": "a2",
+         "label": "A2 Approved first",
+         "type": "choice",
+         "req": true,
+         "opts": [
+          "Pass",
+          "Exception",
+          "N/A"
+         ]
+        },
+        {
+         "key": "a3",
+         "label": "A3 Invoice on file",
+         "type": "choice",
+         "req": true,
+         "opts": [
+          "Pass",
+          "Exception",
+          "N/A"
+         ]
+        }
+       ]
+      },
+      "cellsBy": "col"
+     },
+     {
+      "kind": "calc",
+      "id": "calc_dev",
+      "method": "devrate",
+      "grid": "sample",
+      "attributes": [
+       "a1",
+       "a2",
+       "a3"
+      ],
+      "code": "DEV-DEMO 1.0",
+      "limit": 0.05,
+      "limitLabel": "Highest deviation rate (tolerance)"
+     }
+    ]
+   },
+   {
+    "id": "s3",
+    "title": "Exceptions",
+    "mode": "conditional",
+    "rule": {
+     "field": "hasexc",
+     "values": [
+      "Yes"
+     ]
+    },
+    "blocks": [
+     {
+      "kind": "grid",
+      "id": "exc",
+      "label": "Exceptions and follow-up",
+      "rows": {
+       "from": "entered",
+       "min": 1,
+       "addLabel": "exception"
+      },
+      "cols": {
+       "from": "fixed",
+       "items": [
+        {
+         "key": "pay",
+         "label": "Payment",
+         "type": "text",
+         "req": true
+        },
+        {
+         "key": "what",
+         "label": "What happened",
+         "type": "text",
+         "req": true
+        },
+        {
+         "key": "who",
+         "label": "Owner",
+         "type": "text",
+         "req": true
+        },
+        {
+         "key": "due",
+         "label": "Due",
+         "type": "date",
+         "req": false
+        }
+       ]
+      },
+      "cellsBy": "col"
+     }
+    ]
+   },
+   {
+    "id": "s4",
+    "title": "Conclusion",
+    "mode": "required",
+    "blocks": [
+     {
+      "kind": "field",
+      "id": "concl",
+      "label": "Conclusion",
+      "type": "list",
+      "req": true,
+      "list": "Conclusions"
+     },
+     {
+      "kind": "field",
+      "id": "summary",
+      "label": "Summary",
+      "type": "longtext",
+      "req": true
+     }
+    ]
+   }
+  ]
+ },
+ "confirmations": {
+  "calc_dev": {
+   "policy": 0.05,
+   "confirmed": "Yes",
+   "by": "Audit manager",
+   "date": "2026-07-01"
+  }
+ },
+ "example": {
+  "control": "P2P-07 Payments approved before release",
+  "owner": "Accounts payable",
+  "freq": "Monthly",
+  "period": "Q3 2026",
+  "hasexc": "Yes",
+  "sample": {
+   "rows": [
+    {
+     "id": "PAY-30140",
+     "date": "2026-07-02",
+     "amount": 21590.06,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30167",
+     "date": "2026-07-05",
+     "amount": 10484.52,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30194",
+     "date": "2026-07-08",
+     "amount": 42589.99,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30221",
+     "date": "2026-07-11",
+     "amount": 5450.41,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30248",
+     "date": "2026-07-14",
+     "amount": 35203.62,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30275",
+     "date": "2026-07-17",
+     "amount": 24277.23,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30302",
+     "date": "2026-07-20",
+     "amount": 4523.53,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30329",
+     "date": "2026-07-23",
+     "amount": 33377.37,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30356",
+     "date": "2026-07-26",
+     "amount": 3207.22,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30383",
+     "date": "2026-08-02",
+     "amount": 28640.05,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30410",
+     "date": "2026-08-05",
+     "amount": 5284.72,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30437",
+     "date": "2026-08-08",
+     "amount": 6623.78,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30464",
+     "date": "2026-08-11",
+     "amount": 28054.13,
+     "a1": "Exception",
+     "a2": "Exception",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30491",
+     "date": "2026-08-14",
+     "amount": 53883.91,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "N/A"
+    },
+    {
+     "id": "PAY-30518",
+     "date": "2026-08-17",
+     "amount": 8748.09,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30545",
+     "date": "2026-08-20",
+     "amount": 15131.94,
+     "a1": "Pass",
+     "a2": "Exception",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30572",
+     "date": "2026-08-23",
+     "amount": 41081.21,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30599",
+     "date": "2026-08-26",
+     "amount": 61642.91,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30626",
+     "date": "2026-09-02",
+     "amount": 37850.01,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30653",
+     "date": "2026-09-05",
+     "amount": 26266.89,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30680",
+     "date": "2026-09-08",
+     "amount": 63475.58,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30707",
+     "date": "2026-09-11",
+     "amount": 3790.61,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30734",
+     "date": "2026-09-14",
+     "amount": 55913.68,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30761",
+     "date": "2026-09-17",
+     "amount": 19392.92,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    },
+    {
+     "id": "PAY-30788",
+     "date": "2026-09-20",
+     "amount": 10061.18,
+     "a1": "Pass",
+     "a2": "Pass",
+     "a3": "Pass"
+    }
+   ]
+  },
+  "exc": {
+   "rows": [
+    {
+     "pay": "PAY-30464",
+     "what": "Released before approval; approver limit $25,000",
+     "who": "AP manager",
+     "due": "2026-11-15"
+    },
+    {
+     "pay": "PAY-30545",
+     "what": "Released one day before approval",
+     "who": "AP manager",
+     "due": "2026-11-15"
+    }
+   ]
+  },
+  "concl": "Operating with exceptions",
+  "summary": "Two of 25 payments were released before approval; one also exceeded the approver's limit. The deviation rate is above tolerance."
+ }
+}

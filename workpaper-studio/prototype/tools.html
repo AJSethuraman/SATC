@@ -1,0 +1,423 @@
+<title>Workpaper Studio Tools</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: four finished tools, each shown as the software its users get, with the configuration that produced it alongside.
+   The page frame is quiet; each tool carries its own organization's brand colour, because branding is part of the output. */
+:root{
+  --canvas:#eef1f4; --page:#ffffff; --ink:#0f1824; --ink-2:#465263; --ink-3:#6b7685; --hair:#dfe4ea; --hair-2:#eef1f5;
+  --frame-ink:#c7ced8;
+  --good:#127a4c; --good-bg:#e3f4ec; --warn:#8a5a00; --warn-bg:#fdf1d6; --bad:#b4372c; --bad-bg:#fce8e6; --na:#7c8796; --na-bg:#eef0f3;
+  --sans:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--canvas:#0d1117;--page:#151b23;--ink:#e9eef4;--ink-2:#b2bccb;--ink-3:#8793a3;--hair:#28313d;--hair-2:#1d242e;--frame-ink:#2c3644;
+  --good:#5fd39c;--good-bg:#11301f;--warn:#f1bf63;--warn-bg:#382a0e;--bad:#ff8f84;--bad-bg:#3b1814;--na:#9aa5b4;--na-bg:#222a35;color-scheme:dark}}
+:root[data-theme="dark"]{--canvas:#0d1117;--page:#151b23;--ink:#e9eef4;--ink-2:#b2bccb;--ink-3:#8793a3;--hair:#28313d;--hair-2:#1d242e;--frame-ink:#2c3644;
+  --good:#5fd39c;--good-bg:#11301f;--warn:#f1bf63;--warn-bg:#382a0e;--bad:#ff8f84;--bad-bg:#3b1814;--na:#9aa5b4;--na-bg:#222a35;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font:400 15px/1.5 var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:36px 90px}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:30px;line-height:1.15;margin:0 0 8px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.lead{color:var(--ink-2);font-size:16.5px;max-width:70ch;margin:0}
+.toc{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 34px}
+.toc a{color:var(--ink);text-decoration:none;border:1px solid var(--hair);background:var(--page);border-radius:999px;padding:5px 14px;font-size:13.5px}
+.mono{font-family:var(--mono)}
+.num{font-variant-numeric:tabular-nums}
+section.tool{margin-bottom:56px;scroll-margin-top:20px}
+.thead{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:end;margin-bottom:14px}
+.thead h2{font-size:22px;margin:0;font-weight:600}
+.thead p{margin:4px 0 0;color:var(--ink-2);max-width:62ch}
+.cfg{background:var(--page);border:1px solid var(--hair);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink-2)}
+.cfg b{color:var(--ink);font-weight:600}
+.cfg ul{margin:4px 0 0;padding-left:18px}.cfg li{margin:1px 0}
+.cfg .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.scroller{overflow-x:auto;padding:6px 6px 14px;margin:0 -6px}
+@media (max-width:860px){.thead{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- the app shell every generated tool shares ---------- */
+.app{--brand:#0b6e75;--brand-ink:#fff;--brand-soft:#e2f2f3;--brand-deep:#08494e;
+  min-width:1160px;background:var(--page);border:1px solid var(--frame-ink);border-radius:14px;overflow:hidden;
+  box-shadow:0 1px 0 rgba(0,0,0,.02),0 18px 48px -18px rgba(15,24,36,.28);display:grid;grid-template-columns:232px minmax(0,1fr);min-height:640px;font-size:13.5px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .app{--brand-soft:color-mix(in srgb,var(--brand) 22%,#151b23)}}
+:root[data-theme="dark"] .app{--brand-soft:color-mix(in srgb,var(--brand) 22%,#151b23)}
+.side{background:color-mix(in srgb,var(--brand) 6%,var(--page));border-right:1px solid var(--hair);padding:14px 10px;display:flex;flex-direction:column;gap:14px}
+.org{display:flex;gap:10px;align-items:center;padding:2px 6px}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:700;font-size:13px;letter-spacing:.02em}
+.org b{display:block;font-size:13.5px;line-height:1.2}.org span{font-size:11.5px;color:var(--ink-3)}
+.navg{display:grid;gap:1px}
+.navg .lab{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:6px 8px 3px}
+.nav{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;color:var(--ink-2)}
+.nav.on{background:var(--brand-soft);color:var(--brand-deep);font-weight:600}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .nav.on{color:var(--ink)}}
+:root[data-theme="dark"] .nav.on{color:var(--ink)}
+.nav .ct{margin-left:auto;font-size:11.5px;color:var(--ink-3)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--hair)}
+.dot.g{background:var(--good)}.dot.w{background:var(--warn)}.dot.b{background:var(--bad)}
+.side .foot{margin-top:auto;font-size:11px;color:var(--ink-3);padding:0 8px;line-height:1.4}
+.main{display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--hair)}
+.top h3{margin:0;font-size:19px;font-weight:600;letter-spacing:-.005em}
+.top .sub{font-size:12.5px;color:var(--ink-3)}
+.sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--na-bg);color:var(--na);white-space:nowrap}
+.pill.g{background:var(--good-bg);color:var(--good)}.pill.w{background:var(--warn-bg);color:var(--warn)}.pill.b{background:var(--bad-bg);color:var(--bad)}.pill.br{background:var(--brand-soft);color:var(--brand-deep)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);border-radius:8px;padding:6px 13px;font-weight:600;font-size:13px;background:var(--page);color:var(--ink);white-space:nowrap}
+.btn.p{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.dis{opacity:.5}
+kbd{font:500 10.5px var(--mono);border:1px solid var(--hair);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--ink-3);background:var(--page)}
+.ring{--p:78;width:34px;height:34px;border-radius:50%;background:conic-gradient(var(--brand) calc(var(--p)*1%),var(--hair-2) 0);display:grid;place-items:center}
+.ring::after{content:attr(data-l);width:26px;height:26px;border-radius:50%;background:var(--page);display:grid;place-items:center;font-size:10px;font-weight:700}
+.body{display:grid;gap:0;flex:1;min-height:0}
+.card{border:1px solid var(--hair);border-radius:10px;background:var(--page)}
+.card h4{margin:0;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.big{font-size:28px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.1}
+.muted{color:var(--ink-3)}
+table.g{border-collapse:collapse;width:100%}
+table.g th{font-size:11.5px;font-weight:600;color:var(--ink-3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--hair);white-space:nowrap;background:var(--page);position:sticky;top:0}
+table.g td{padding:8px 10px;border-bottom:1px solid var(--hair-2);vertical-align:middle}
+table.g td.n,table.g th.n{text-align:right;font-variant-numeric:tabular-nums}
+.res{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.res.g{color:var(--good);background:var(--good-bg)}.res.w{color:var(--warn);background:var(--warn-bg)}.res.b{color:var(--bad);background:var(--bad-bg)}.res.n{color:var(--na);background:var(--na-bg)}.res.e{color:var(--ink-3);border:1px dashed var(--hair);background:none}
+
+/* ---------- tool 1: credit file review ---------- */
+.t1 .body{grid-template-columns:minmax(0,1fr) 300px}
+.qlist{padding:6px 22px 22px;overflow:hidden}
+.sect{display:flex;align-items:center;gap:8px;margin:16px 0 4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.sect .ln{flex:1;height:1px;background:var(--hair)}
+.q{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:9px}
+.q .no{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.q .tx{color:var(--ink)}
+.q .cm{display:block;font-size:12px;color:var(--ink-3);margin-top:1px}
+.q.open{background:color-mix(in srgb,var(--brand) 5%,var(--page));outline:1.5px solid var(--brand);outline-offset:-1.5px;align-items:start;padding:12px 12px 14px}
+.q.open .tx{font-size:15.5px;font-weight:600}
+.q.skip{opacity:.62}
+.steps{font-size:12.5px;color:var(--ink-2);margin:6px 0 10px;padding-left:10px;border-left:2px solid var(--hair)}
+.rate{display:flex;gap:6px;flex-wrap:wrap}
+.rate span{border:1px solid var(--hair);border-radius:8px;padding:6px 11px;font-size:13px;display:inline-flex;gap:6px;align-items:center;background:var(--page)}
+.rate span.sel{border-color:var(--warn);background:var(--warn-bg);color:var(--warn);font-weight:600}
+.cbox{margin-top:10px;border:1px solid var(--hair);border-radius:8px;padding:9px 11px;font-size:13px;background:var(--page);min-height:52px}
+.cbox .need{float:right;font-size:11px;font-weight:600;color:var(--warn)}
+.refs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;font-size:12px;align-items:center}
+.refs .r{font-family:var(--mono);font-size:11.5px;padding:2px 7px;border-radius:5px;background:var(--brand-soft);color:var(--brand-deep)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .refs .r{color:var(--ink)}}
+:root[data-theme="dark"] .refs .r{color:var(--ink)}
+.rail{border-left:1px solid var(--hair);background:color-mix(in srgb,var(--brand) 3%,var(--page));padding:16px;display:grid;gap:12px;align-content:start}
+.rail .card{padding:12px}
+.kv{display:grid;grid-template-columns:auto auto;gap:3px 10px;font-size:12.5px;margin-top:6px}
+.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.mini{height:6px;border-radius:3px;background:var(--hair-2);margin-top:8px;position:relative}
+.mini i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--bad)}
+.mini b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+
+/* ---------- tool 2: control test ---------- */
+.t2{--brand:#3d4fc4;--brand-soft:#e6e9fb;--brand-deep:#2a378f}
+.t2 .body{grid-template-columns:minmax(0,1fr) 250px}
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:16px 22px 6px}
+.strip .card{padding:11px 13px}
+.strip .lbl{font-size:12px;color:var(--ink-3)}
+.gridwrap{padding:10px 22px 22px;overflow-x:auto}
+.gridwrap td{white-space:nowrap}
+.gridwrap td,.gridwrap th{padding-left:7px;padding-right:7px}
+.cell{display:inline-grid;place-items:center;width:30px;height:24px;border-radius:6px;font-size:12px;font-weight:700}
+.cell.p{color:var(--good);background:var(--good-bg)}.cell.x{color:#fff;background:var(--bad)}.cell.na{color:var(--na);background:var(--na-bg)}
+.cell.cur{outline:2px solid var(--brand);outline-offset:1px}
+tr.selrow td{background:color-mix(in srgb,var(--brand) 6%,var(--page))}
+.drawer{border-left:1px solid var(--hair);padding:16px;display:grid;gap:12px;align-content:start;background:color-mix(in srgb,var(--brand) 3%,var(--page))}
+.att{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--hair-2)}
+
+/* ---------- tool 3: bank reconciliation ---------- */
+.t3{--brand:#2d6a3e;--brand-soft:#e3f1e6;--brand-deep:#1f4b2b}
+.t3 .body{grid-template-columns:minmax(0,1fr) 280px}
+.recon{padding:18px 22px;display:grid;gap:16px}
+.sides{display:grid;grid-template-columns:1fr 150px 1fr;gap:14px;align-items:stretch}
+.side2{border:1px solid var(--hair);border-radius:10px;padding:12px 14px}
+.side2 h4{margin:0 0 8px}
+.ln2{display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;font-variant-numeric:tabular-nums}
+.ln2.tot{border-top:1.5px solid var(--ink);margin-top:6px;padding-top:7px;font-weight:700}
+.ln2 .lbl{color:var(--ink-2)}
+.diff{border-radius:10px;background:var(--good-bg);color:var(--good);display:grid;place-items:center;text-align:center;padding:10px}
+.diff .big{color:var(--good)}
+.age{font-size:11.5px;font-weight:600}
+.age.old{color:var(--bad)}
+.sign{display:grid;gap:8px}
+.who{display:flex;gap:10px;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--hair-2)}
+.av{width:28px;height:28px;border-radius:50%;background:var(--brand-soft);color:var(--brand-deep);display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+
+/* ---------- tool 4: the creator's home ---------- */
+.t4{--brand:#0f1824;--brand-soft:#e7eaef;--brand-deep:#0f1824;--brand-ink:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .t4{--brand:#e9eef4;--brand-ink:#0f1824;--brand-deep:#e9eef4}}
+:root[data-theme="dark"] .t4{--brand:#e9eef4;--brand-ink:#0f1824;--brand-deep:#e9eef4}
+.home{padding:18px 22px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;align-content:start}
+.home .card{padding:14px 16px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin:10px 0 6px}
+.stack i{display:block}
+.lg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.lg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--c);margin-right:5px}
+.ver{display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair-2);font-size:13px}
+.inst{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair-2);font-size:13px}
+.shape{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--hair-2);font-size:13px}
+.shape .ico{width:28px;height:22px;border:1.5px solid var(--ink-3);border-radius:4px;display:grid;flex:none}
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 26px;margin-top:14px;font-size:14px;color:var(--ink-2)}
+.notes b{color:var(--ink)}
+@media (max-width:860px){.notes{grid-template-columns:minmax(0,1fr)}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>What a configuration turns into</h1>
+  <p class="lead">Four finished tools. Each is the software a creator gets after configuring, and what their people use every day, shown with the configuration that produced it. Three come from very different configurations. The fourth is the creator's own view of a tool they have published. Every name and number is synthetic.</p>
+  <nav class="toc" aria-label="Tools"><a href="#credit">Credit file review</a><a href="#control">Control test</a><a href="#recon">Bank reconciliation</a><a href="#home">The creator's view</a></nav>
+</header>
+
+<!-- ======================= TOOL 1 ======================= -->
+<section class="tool" id="credit">
+  <div class="thead">
+    <div><h2>Credit file review</h2><p>Testing a sampled credit against a framework of rated questions, with supporting numbers beside the question they inform.</p></div>
+    <div class="cfg"><span class="k">Configured as</span><ul>
+      <li><b>Rated rows</b>: 9 questions in 6 groups, each with test steps; rating from the organization's list; comment required for two ratings</li>
+      <li><b>Two conditions</b>: 5.02 only for new money, 6.01 only when secured</li>
+      <li><b>Supporting tables</b>: cash flow with people as columns, collateral by class</li>
+      <li><b>One calculation</b>: debt-to-income, limit confirmed by the organization</li></ul></div>
+  </div>
+  <div class="scroller"><div class="app t1" role="img" aria-label="Credit file review tool, testing screen">
+    <aside class="side">
+      <div class="org"><span class="logo">LC</span><div><b>Lakeshore Credit</b><span>Risk review</span></div></div>
+      <div class="navg"><div class="lab">2026-Q3 sample</div>
+        <div class="nav"><span class="dot"></span>All files<span class="ct">12</span></div>
+        <div class="nav on"><span class="dot w"></span>My files<span class="ct">4</span></div>
+        <div class="nav"><span class="dot"></span>Waiting for review<span class="ct">2</span></div>
+        <div class="nav"><span class="dot"></span>Quarter results</div></div>
+      <div class="navg"><div class="lab">This file</div>
+        <div class="nav"><span class="dot g"></span>Review details</div>
+        <div class="nav"><span class="dot g"></span>Borrower &amp; facilities</div>
+        <div class="nav on"><span class="dot w"></span>Test questions<span class="ct">7/9</span></div>
+        <div class="nav"><span class="dot g"></span>Supporting numbers</div>
+        <div class="nav"><span class="dot"></span>Conclusion</div></div>
+      <div class="foot">Credit file review 1.1<br>Saved 11:42</div>
+    </aside>
+    <div class="main">
+      <div class="top"><div><h3>Harbor Millwork LLC</h3><div class="sub"><span class="mono">CR-2026Q3-07</span> · term loan and line · secured · new money</div></div><span class="sp"></span>
+        <span class="pill w">Testing</span><div class="ring" style="--p:78" data-l="7/9"></div><span class="btn dis">Send for review</span></div>
+      <div class="body">
+        <div class="qlist">
+          <div class="sect">Risk rating<span class="ln"></span></div>
+          <div class="q"><span class="no">1.01</span><span class="tx">Is the assigned risk rating supported by the credit file?<span class="cm">Rating supported by cash flow and collateral coverage.</span></span><span class="res g">✓ Effective</span></div>
+          <div class="q"><span class="no">1.02</span><span class="tx">Is each facility rating consistent with the borrower rating?</span><span class="res g">✓ Effective</span></div>
+          <div class="sect">Data accuracy<span class="ln"></span></div>
+          <div class="q"><span class="no">2.01</span><span class="tx">Does the rating in the system of record match the approval?</span><span class="res g">✓ Effective</span></div>
+          <div class="q"><span class="no">2.02</span><span class="tx">Is the industry code correct in the system of record?<span class="cm">System shows a different code from the approval document.</span></span><span class="res b">✕ Not effective</span></div>
+          <div class="sect">Policy exceptions<span class="ln"></span></div>
+          <div class="q"><span class="no">3.01</span><span class="tx">Are all policy exceptions noted and mitigated?<span class="cm">One exception noted without a mitigant.</span></span><span class="res w">◐ Partially</span></div>
+          <div class="sect">Repayment analysis<span class="ln"></span></div>
+          <div class="q"><span class="no">5.01</span><span class="tx">Were all liabilities considered in the repayment analysis?</span><span class="res g">✓ Effective</span></div>
+          <div class="q open"><span class="no">5.02</span><div><span class="tx">For a new money request, was the required analysis completed with current information?</span>
+            <div class="steps">Confirm the analysis was required, was completed, and used current information. <span class="muted">· applies because this is new money</span></div>
+            <div class="rate"><span><kbd>1</kbd> Effective</span><span class="sel"><kbd>2</kbd> Partially effective</span><span><kbd>3</kbd> Not effective</span><span><kbd>4</kbd> Not applicable</span></div>
+            <div class="cbox"><span class="need">needed for this rating</span>Recomputed debt-to-income is 51.3% against our 40% limit. The file does not explain the difference.</div>
+            <div class="refs"><span class="muted">Looked at</span><span class="r">Credit memo p.4</span><span class="r">Tax return Sch. E</span><span class="r">Credit report</span></div></div>
+            <span class="res e">Rating…</span></div>
+          <div class="sect">Collateral<span class="ln"></span></div>
+          <div class="q"><span class="no">6.01</span><span class="tx">Was the collateral eligible, valued and documented?</span><span class="res e">Not rated</span></div>
+        </div>
+        <aside class="rail">
+          <div class="card"><h4>Debt-to-income</h4><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span class="big">51.3%</span><span class="pill b">above 40%</span></div>
+            <div class="mini" aria-hidden="true"><i style="width:51.3%"></i><b style="left:40%"></b></div>
+            <div class="muted" style="font-size:12px;margin-top:6px">($707 + $5,780) ÷ $12,650 a month</div></div>
+          <div class="card"><h4>Cash left after debt</h4><div class="kv"><span>J. Hale</span><span>$77,400</span><span>M. Hale</span><span>$34,800</span></div></div>
+          <div class="card"><h4>Collateral, adjusted</h4><div class="kv"><span>Equipment at 70%</span><span>$133,000</span><span>Real estate at 80%</span><span>$192,000</span><span><b>Total</b></span><span><b>$325,000</b></span></div></div>
+          <div class="card"><h4>Facilities</h4><div class="kv"><span>Committed</span><span>$360,000</span><span>Outstanding</span><span>$307,500</span></div></div>
+        </aside>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= TOOL 2 ======================= -->
+<section class="tool" id="control">
+  <div class="thead">
+    <div><h2>Control test</h2><p>An internal auditor tests a sample of payments against three attributes and sees the deviation rate move as they go.</p></div>
+    <div class="cfg"><span class="k">Configured as</span><ul>
+      <li><b>A sample</b>: rows the auditor adds (payment, date, amount); <b>three attributes</b> as columns, each Pass, Exception or N/A</li>
+      <li><b>Answer counts</b> per attribute, and a <b>detail panel</b> for the selected row</li>
+      <li><b>One calculation</b>: deviation rate against a tolerance the organization confirmed</li></ul></div>
+  </div>
+  <div class="scroller"><div class="app t2" role="img" aria-label="Control test tool, sample screen">
+    <aside class="side">
+      <div class="org"><span class="logo">NA</span><div><b>Northgate Audit</b><span>Internal audit</span></div></div>
+      <div class="navg"><div class="lab">FY2026 plan</div>
+        <div class="nav"><span class="dot g"></span>Revenue cycle<span class="ct">6</span></div>
+        <div class="nav on"><span class="dot w"></span>Purchase to pay<span class="ct">4</span></div>
+        <div class="nav"><span class="dot"></span>Payroll<span class="ct">3</span></div>
+        <div class="nav"><span class="dot"></span>IT general controls<span class="ct">9</span></div></div>
+      <div class="navg"><div class="lab">This test</div>
+        <div class="nav"><span class="dot g"></span>The control</div>
+        <div class="nav on"><span class="dot w"></span>Sample<span class="ct">25</span></div>
+        <div class="nav"><span class="dot"></span>Exceptions</div>
+        <div class="nav"><span class="dot"></span>Conclusion</div></div>
+      <div class="foot">Control test 2.0<br>Saved 14:05</div>
+    </aside>
+    <div class="main">
+      <div class="top"><div><h3>P2P-07 · Payments approved before release</h3><div class="sub">Q3 2026 · monthly control · owner: Accounts payable</div></div><span class="sp"></span>
+        <span class="pill w">Testing</span><span class="btn dis">Send for review</span></div>
+      <div class="body">
+        <div style="min-width:0">
+          <div class="strip">
+            <div class="card"><div class="lbl">Tested</div><div class="big">25<span class="muted" style="font-size:15px"> / 25</span></div></div>
+            <div class="card"><div class="lbl">Deviation rate</div><div class="big" style="color:var(--bad)">8.0%</div><div class="lbl">tolerance 5% · <b style="color:var(--bad)">exceeded</b></div></div>
+            <div class="card"><div class="lbl">Exceptions</div><div class="big">2</div><div class="lbl">in 2 payments</div></div>
+            <div class="card"><div class="lbl">By attribute</div><div style="font-size:13px;margin-top:4px" class="num">A1 <b>1</b> · A2 <b>2</b> · A3 <b>0</b></div></div>
+          </div>
+          <div class="gridwrap"><table class="g">
+            <thead><tr><th>#</th><th>Payment</th><th>Date</th><th class="n">Amount</th><th>A1 Authorized approver</th><th>A2 Approved first</th><th>A3 Invoice on file</th></tr></thead>
+            <tbody>
+            <tr><td class="muted">11</td><td class="mono">PAY-30418</td><td>Jul 22</td><td class="n">$4,210.00</td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td></tr>
+            <tr><td class="muted">12</td><td class="mono">PAY-30455</td><td>Jul 29</td><td class="n">$18,900.00</td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td></tr>
+            <tr class="selrow"><td class="muted">13</td><td class="mono">PAY-30502</td><td>Aug 03</td><td class="n">$62,375.00</td><td><span class="cell x">E</span></td><td><span class="cell x cur">E</span></td><td><span class="cell p">P</span></td></tr>
+            <tr><td class="muted">14</td><td class="mono">PAY-30511</td><td>Aug 05</td><td class="n">$1,140.50</td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td><td><span class="cell na">–</span></td></tr>
+            <tr><td class="muted">15</td><td class="mono">PAY-30560</td><td>Aug 12</td><td class="n">$9,800.00</td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td></tr>
+            <tr><td class="muted">16</td><td class="mono">PAY-30601</td><td>Aug 19</td><td class="n">$27,450.00</td><td><span class="cell p">P</span></td><td><span class="cell x">E</span></td><td><span class="cell p">P</span></td></tr>
+            <tr><td class="muted">17</td><td class="mono">PAY-30633</td><td>Aug 26</td><td class="n">$3,325.00</td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td></tr>
+            <tr><td class="muted">18</td><td class="mono">PAY-30690</td><td>Sep 02</td><td class="n">$14,060.00</td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td><td><span class="cell p">P</span></td></tr>
+            </tbody></table>
+            <div class="muted" style="font-size:12px;margin-top:8px">Showing 11–18 of 25 · <kbd>P</kbd> <kbd>E</kbd> <kbd>N</kbd> set the selected cell · arrows move</div></div>
+        </div>
+        <aside class="drawer">
+          <div><div class="muted" style="font-size:12px">Payment 13</div><div style="font-weight:600;font-size:15px" class="mono">PAY-30502</div><div class="muted" style="font-size:12.5px">$62,375.00 · Aug 03 · Delta Supply Co.</div></div>
+          <div class="card" style="padding:10px 12px"><h4>Attributes</h4>
+            <div class="att"><span>A1 Approved by an authorized person</span><span class="res b">Exception</span></div>
+            <div class="att"><span>A2 Approved before release</span><span class="res b">Exception</span></div>
+            <div class="att" style="border:0"><span>A3 Invoice on file</span><span class="res g">Pass</span></div></div>
+          <div><div style="font-size:12.5px;font-weight:600">What happened</div><div class="cbox" style="margin-top:4px">Released Aug 03; approved Aug 05 by a clerk whose limit is $25,000.</div></div>
+          <div class="refs"><span class="muted">Evidence</span><span class="r">AP log row 1844</span><span class="r">Approval email</span></div>
+        </aside>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= TOOL 3 ======================= -->
+<section class="tool" id="recon">
+  <div class="thead">
+    <div><h2>Month-end bank reconciliation</h2><p>A close team reconciles each account. The tool lays the work out the way a reconciliation reads, bank side against book side.</p></div>
+    <div class="cfg"><span class="k">Configured as</span><ul>
+      <li><b>Reconciling items</b>: rows the preparer adds, typed so each item lands on the right side</li>
+      <li><b>One calculation</b>: the difference, tolerance $0.00</li>
+      <li><b>A condition</b>: the intercompany section only when there was activity</li>
+      <li><b>Two stages</b>: prepared, then reviewed</li></ul></div>
+  </div>
+  <div class="scroller"><div class="app t3" role="img" aria-label="Bank reconciliation tool">
+    <aside class="side">
+      <div class="org"><span class="logo">BF</span><div><b>Bramble Foods</b><span>Finance · close</span></div></div>
+      <div class="navg"><div class="lab">October 2026 close</div>
+        <div class="nav on"><span class="dot g"></span>Bank reconciliations<span class="ct">4/5</span></div>
+        <div class="nav"><span class="dot w"></span>Accruals<span class="ct">6/9</span></div>
+        <div class="nav"><span class="dot"></span>Fixed assets<span class="ct">0/2</span></div>
+        <div class="nav"><span class="dot"></span>Intercompany<span class="ct">0/3</span></div></div>
+      <div class="navg"><div class="lab">Accounts</div>
+        <div class="nav on"><span class="dot g"></span>Operating ··4821</div>
+        <div class="nav"><span class="dot g"></span>Payroll ··7730</div>
+        <div class="nav"><span class="dot g"></span>Reserve ··1196</div>
+        <div class="nav"><span class="dot g"></span>Lockbox ··2054</div>
+        <div class="nav"><span class="dot"></span>Card clearing ··6610</div></div>
+      <div class="foot">Bank reconciliation 1.0<br>Saved 16:20</div>
+    </aside>
+    <div class="main">
+      <div class="top"><div><h3>Operating ··4821</h3><div class="sub">Statement 31 Oct 2026 · First Lakes Bank</div></div><span class="sp"></span>
+        <span class="pill g">Reconciled</span><span class="btn p">Send for review</span></div>
+      <div class="body">
+        <div class="recon">
+          <div class="sides">
+            <div class="side2"><h4>Bank</h4>
+              <div class="ln2"><span class="lbl">Balance per statement</span><span>$185,600.55</span></div>
+              <div class="ln2"><span class="lbl">+ Deposits in transit</span><span>$12,400.00</span></div>
+              <div class="ln2"><span class="lbl">− Outstanding checks</span><span>($24,540.20)</span></div>
+              <div class="ln2 tot"><span>Adjusted bank</span><span>$173,460.35</span></div></div>
+            <div class="diff"><div><div style="font-size:12px;font-weight:600">Difference</div><div class="big">$0.00</div><div style="font-size:12px">within $0.00</div></div></div>
+            <div class="side2"><h4>Books</h4>
+              <div class="ln2"><span class="lbl">Balance per ledger</span><span>$173,545.35</span></div>
+              <div class="ln2"><span class="lbl">− Bank fees not yet booked</span><span>($85.00)</span></div>
+              <div class="ln2"><span class="lbl">+ Interest not yet booked</span><span>$0.00</span></div>
+              <div class="ln2 tot"><span>Adjusted books</span><span>$173,460.35</span></div></div>
+          </div>
+          <div class="card" style="overflow:hidden"><table class="g">
+            <thead><tr><th>Type</th><th>Description</th><th>Date</th><th>Age</th><th class="n">Amount</th><th>Evidence</th></tr></thead>
+            <tbody>
+              <tr><td>Deposit in transit</td><td>Customer deposit</td><td>Oct 31</td><td><span class="age">1 day</span></td><td class="n">$12,400.00</td><td><span class="refs"><span class="r">Stmt Nov p.1</span></span></td></tr>
+              <tr><td>Outstanding check</td><td>4410 · Delta Supply</td><td>Oct 22</td><td><span class="age">10 days</span></td><td class="n">$18,950.00</td><td><span class="refs"><span class="r">Register</span></span></td></tr>
+              <tr><td>Outstanding check</td><td>4418 · City Water</td><td>Oct 29</td><td><span class="age">3 days</span></td><td class="n">$4,310.20</td><td><span class="refs"><span class="r">Register</span></span></td></tr>
+              <tr><td>Outstanding check</td><td>4102 · Harbor Signs</td><td>Jul 30</td><td><span class="age old">94 days · stale</span></td><td class="n">$1,280.00</td><td><span class="muted">Over 90 days: flagged for follow-up</span></td></tr>
+              <tr><td>Bank fee not yet booked</td><td>October analysis fee</td><td>Oct 31</td><td><span class="age">1 day</span></td><td class="n">$85.00</td><td><span class="refs"><span class="r">Stmt Oct p.3</span></span></td></tr>
+            </tbody></table></div>
+        </div>
+        <aside class="rail">
+          <div class="card sign"><h4>Sign-off</h4>
+            <div class="who"><span class="av">RL</span><div>Prepared<br><span class="muted">R. Lund · today 16:20</span></div></div>
+            <div class="who" style="border:0"><span class="av" style="background:var(--hair-2);color:var(--ink-3)">?</span><div>Review<br><span class="muted">not yet sent</span></div></div></div>
+          <div class="card"><h4>Close progress</h4><div class="kv"><span>Reconciliations</span><span>4 of 5</span><span>Accruals</span><span>6 of 9</span><span>Due</span><span>Nov 5</span></div></div>
+          <div class="card"><h4>Intercompany</h4><div class="muted" style="font-size:12.5px;margin-top:4px">Not applicable. No intercompany activity this month.</div></div>
+        </aside>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= TOOL 4 ======================= -->
+<section class="tool" id="home">
+  <div class="thead">
+    <div><h2>The creator's view of a published tool</h2><p>What the person who built a tool sees after publishing: how it is used, what its shape is, which versions are live, and who has installed it.</p></div>
+    <div class="cfg"><span class="k">Comes from</span><ul>
+      <li>The configuration itself (its shapes, conditions and calculations)</li>
+      <li>Every case people have opened with it, and its versions</li>
+      <li>Every organization that installed it as a pack</li></ul></div>
+  </div>
+  <div class="scroller"><div class="app t4" role="img" aria-label="The creator's home for a published tool">
+    <aside class="side">
+      <div class="org"><span class="logo">AS</span><div><b>A. Sethuraman</b><span>Tool author</span></div></div>
+      <div class="navg"><div class="lab">My tools</div>
+        <div class="nav on"><span class="dot g"></span>Credit file review<span class="ct">1.1</span></div>
+        <div class="nav"><span class="dot g"></span>Control test<span class="ct">2.0</span></div>
+        <div class="nav"><span class="dot w"></span>Covenant tracker<span class="ct">draft</span></div></div>
+      <div class="navg"><div class="lab">Library</div>
+        <div class="nav"><span class="dot"></span>Patterns<span class="ct">9</span></div>
+        <div class="nav"><span class="dot"></span>Calculations<span class="ct">4</span></div>
+        <div class="nav"><span class="dot"></span>Lists<span class="ct">11</span></div></div>
+      <div class="foot">Workpaper Studio</div>
+    </aside>
+    <div class="main">
+      <div class="top"><div><h3>Credit file review</h3><div class="sub">Version 1.1 live since Oct 2 · fingerprint 7c1e04a2</div></div><span class="sp"></span>
+        <span class="btn">Open in builder</span><span class="btn p">Share as a pack</span></div>
+      <div class="home">
+        <div class="card c4"><h4>In use this quarter</h4><div class="big" style="margin-top:6px">47 <span class="muted" style="font-size:15px">files</span></div>
+          <div class="stack" aria-hidden="true"><i style="flex:29;background:var(--good)"></i><i style="flex:6;background:var(--brand)"></i><i style="flex:8;background:var(--warn)"></i><i style="flex:4;background:var(--hair)"></i></div>
+          <div class="lg"><span style="--c:var(--good)">29 signed off</span><span style="--c:var(--brand)">6 in review</span><span style="--c:var(--warn)">8 testing</span><span style="--c:var(--hair)">4 not started</span></div></div>
+        <div class="card c4"><h4>Where testers struggle</h4>
+          <div class="kv" style="grid-template-columns:1fr auto"><span>3.01 Policy exceptions</span><span>48% effective</span><span>2.02 Industry code</span><span>58% effective</span><span>5.02 New money analysis</span><span>63% effective</span></div>
+          <div class="muted" style="font-size:12px;margin-top:8px">Across every organization using it, from their released rows.</div></div>
+        <div class="card c4"><h4>Asked most in review</h4>
+          <div class="kv" style="grid-template-columns:1fr auto"><span>5.02 “Was rental income counted?”</span><span>9×</span><span>1.01 “Which rating grid?”</span><span>6×</span><span>6.01 “Is the valuation current?”</span><span>4×</span></div>
+          <div class="muted" style="font-size:12px;margin-top:8px">A question asked often is guidance you have not written yet.</div></div>
+        <div class="card c7"><h4>Shape of this tool</h4>
+          <div class="shape"><span class="ico" style="grid-template-rows:repeat(3,1fr);border-top-width:4px"></span><div><b>Test questions</b> · 9 rated rows in 6 groups · 2 conditions</div></div>
+          <div class="shape"><span class="ico" style="grid-template-columns:1fr 1fr;border-left-width:4px"></span><div><b>Cash flow</b> · line items × people the tester adds · 1 worked-out line</div></div>
+          <div class="shape"><span class="ico" style="border-left-width:4px;border-top-width:4px"></span><div><b>Collateral</b> · classes from a list × value, advance, adjusted</div></div>
+          <div class="shape"><span class="ico" style="border-style:dashed"></span><div><b>Facilities</b> · rows the tester adds, with totals</div></div>
+          <div class="shape" style="border:0"><span class="ico" style="border-radius:50%"></span><div><b>Debt-to-income</b> · DTI-DEMO 1.0 · each organization confirms its own limit</div></div></div>
+        <div class="card c5"><h4>Versions</h4>
+          <div class="ver"><span class="pill g">1.1 live</span><span>Added 7.01 Guarantees; moved the DTI recommendation</span><span class="muted">31 files</span></div>
+          <div class="ver"><span class="pill">1.0</span><span>First release</span><span class="muted">16 files stay on it</span></div>
+          <div class="ver" style="border:0"><span class="pill br">1.2 draft</span><span>Rewording 3.01 test steps after review questions</span><span class="muted">not live</span></div></div>
+        <div class="card c12"><h4>Installed by</h4>
+          <div class="inst"><div><b>Lakeshore Community Bank</b><div class="muted" style="font-size:12px">4 testers · their own words, lists and DTI limit</div></div><span class="pill g">on 1.1</span><span class="muted">since Sep 2026</span></div>
+          <div class="inst"><div><b>Prairie State Credit Union</b><div class="muted" style="font-size:12px">2 testers · renamed “Test questions” to “Attributes”</div></div><span class="pill w">on 1.0 · update offered</span><span class="muted">since Oct 2026</span></div>
+          <div class="inst" style="border:0"><div><b>Riverbend Bank</b><div class="muted" style="font-size:12px">Trial · has not confirmed its limits yet, so DTI is not tested</div></div><span class="pill">trial</span><span class="muted">since Oct 28</span></div></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="notes">
+    <div><b>Every tool shares one shell.</b> Navigation, saving, review and sign-off behave the same everywhere, so a person who knows one tool knows them all.</div>
+    <div><b>The middle is the configuration.</b> A question framework reads as questions, a sample reads as a grid, and a reconciliation reads bank against books. Same engine, different shapes.</div>
+    <div><b>The brand is the buyer's.</b> Each organization's name and colour carry through, because the tool should feel like theirs, not ours.</div>
+  </div>
+</section>
+</div>
