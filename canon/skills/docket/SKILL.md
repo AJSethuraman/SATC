@@ -10,7 +10,7 @@ them**. Not a summary of what happened: the shortest thing the firm can act on,
 as a page they fill in, with everything they do not need to act on underneath
 it.
 
-Behaviour 14 says keep the log where the work is. This is how the log gets read
+Behavior 14 says keep the log where the work is. This is how the log gets read
 back out.
 
 ## Where it reads from
@@ -44,7 +44,7 @@ not, and the page has to say so in those words** — otherwise it reads as one m
 thing waiting on them, which is the pile the docket exists to shrink. Objecting
 is a line; agreeing is nothing.
 
-Behaviour 19 is the rule; this is where it is agreed and where it survives the
+Behavior 19 is the rule; this is where it is agreed and where it survives the
 session. The next goal goes into the log with the answers, so the next session
 reads its job instead of inventing one — continuity through the record, not
 through a session's memory, which is the same mechanism that makes the
@@ -108,7 +108,7 @@ remove.
 
 **Show the jargon, then say what it means.** Both, always — never one instead of
 the other. Stripping the term out leaves them unable to search for it, ask
-anyone about it, or recognise it the next time it appears on a screen. Leaving
+anyone about it, or recognize it the next time it appears on a screen. Leaving
 it bare assumes an expertise they never claimed. The shape is the term, then
 plain English:
 

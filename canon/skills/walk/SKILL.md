@@ -52,7 +52,7 @@ none, and that is the finding.
 **Write both as you go, not at the end.** A procedure reconstructed from memory
 records the route you remember rather than the one you walked, and the fumbles
 are the first thing to vanish — which is exactly where the next person will get
-stuck. Behaviour 14 is the same rule for the same reason.
+stuck. Behavior 14 is the same rule for the same reason.
 
 ## Screenshots
 
@@ -65,7 +65,7 @@ docs/walkthrough/<job>-<date>/step-03-import-mapped.png
 ```
 
 Reference them inline in the procedure. A step without its screenshot is a step
-somebody has to guess at, and behaviour 11 applies to your own output: open the
+somebody has to guess at, and behavior 11 applies to your own output: open the
 document and look at it before calling it done.
 
 **Mark the screenshot to the step.** Ring the control the step is about, and

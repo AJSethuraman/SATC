@@ -123,7 +123,7 @@ def test_a_typed_answer_is_surfaced_without_needing_a_marker(corpus):
 def test_the_report_labels_the_guessed_half_as_a_guess(corpus, convictions):
     s = M.survey(*corpus)
     text = M.report(*M.surfaced(*corpus), s, convictions)
-    assert "no judgement in this list" in text
+    assert "no judgment in this list" in text
     assert "THIS HALF IS A GUESS" in text
 
 

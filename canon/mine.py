@@ -309,7 +309,7 @@ def report(certain: list[Passage],
     declined = declined or []
     lines = [s.say(), ""]
     lines.append(f"— {len(certain)} answer(s) you typed rather than picked. "
-                 f"Rejecting the framing is the signal; no judgement in this list.")
+                 f"Rejecting the framing is the signal; no judgment in this list.")
     for p in certain:
         no = already_declined(declined, p)
         if no:

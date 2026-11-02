@@ -1110,3 +1110,171 @@ repo-root `CLAUDE.md`. The historical ones stay — the ratification on
 **Released as 1.22.0** (1.21.0 went to C15 on main the same day) on the firm's go-ahead, the same day (*"Go ahead"*). The version
 moved in both manifests and `release.py` rewrote the digest. Without the bump, installed
 sessions would never have fetched S36: that is the C11 incident this check exists for.
+
+## 1.23.0 — the firm's voice, and a lighter hand outside the practice (14 October 2026)
+
+The firm: *"Bassy I want to make an update to canon. I want you to talk to me
+like me and I want things drafted for me to sound like me"*. With it they sent
+a writing profile Microsoft Copilot built from their work email, and photos of
+two procedures they wrote: a 2024 testing procedure and a 2025 methodology
+guide.
+
+They'd asked before. On 26 August about the client templates, and on
+3 October about PocketBook, where they compared agents' writing to Copilot's
+and found ours worse. Both fixes went into that project's own file
+(`website/TENETS.md`, `pocketbook/VOICE.md`), so every new project started
+over. This puts it in canon so it travels.
+
+**What was built.**
+
+- `VOICE.md`: how they talk and write. Evidence is ranked: their sentences,
+  then their rewrites of a draft, then Copilot's profile (kept and labeled as
+  another AI's reading), and never a session's impression. A register table
+  says how a draft should read by who reads it. Client copy still follows the
+  project's own rules, and this file never overrides them.
+- `voice.py`: five mechanical tells, each carrying the quote it rests on.
+  British spelling, "honestly", lines about how upfront we are, padding before
+  the point, ceremonial courtesy.
+- `skills/voice/`: the drafting procedure.
+- Behavior 23 in `how-we-work`, and a talking-to-the-firm list in Bassy's
+  standing behavior, which the SATC session-start hook prints every session.
+
+**Kept out on purpose.** The photos, colleagues' names, the employer's name,
+figures, system names and anything marked internal. About thirty short
+sentences with none of that in them are quoted to show the shape. Their own
+procedure has the rule: "Avoid referencing actual names."
+
+**The firm's own words are the test fixture.** `voice.py` has to find nothing
+in the sentences quoted under *Their sentences*. That guard earned its place
+before it was written: "frankly" and "upfront" both looked like obvious tells
+and both turn up in the firm's own writing. "honestly" turns up too, twice, in
+their messages to agents. It stays a tell because their objection was to
+drafts using it to sound candid, and `VOICE.md` says that.
+
+**Checked by mutation. 6 planted, 6 killed:** word boundaries removed, the
+honesty tell deleted, empty input read as clean, "frankly" banned, a source
+reworded so it no longer matches `VOICE.md`, and the denominator dropped from
+the output.
+
+**Mid-session, a second instruction.** *"Also Bassy should understand that if
+it is not a SATC project we don't as critically apply our firm's rules"*. It's
+in Bassy's skill beside the 11 September case-by-case mechanism, quoted, with
+this session's reading of it labeled as such: the practice's own software is
+what counts as a SATC project (the line the record already drew for Portfolio
+Analysis Pack), practice-specific entries don't come up elsewhere, general
+ones get one line once and the work carries on, and existing rulings stand.
+Not added to `CONVICTIONS.md`, because it says how Bassy behaves, not what the
+firm believes, and the reading hasn't had their yes.
+
+**Three questions went to the firm, and they answered all three the same day:**
+*"1. Right 2. Yes 3. Yes"*.
+
+1. **The reading of "not as critically" was right.** Bassy's skill now says so,
+   and the reading is labeled as a session's, confirmed with their word.
+2. **Respell canon to American.** Done across `CONVICTIONS.md`, `TENETS.md`,
+   `README.md`, `VOICE.md`, every skill, both manifests, and the four report
+   strings the firm reads in `mine.py`, `adopt.py` and `intake.py`. Quoted text
+   was left exactly as written. "Fires on" lines carry both spellings on
+   purpose (`judgment, judgement`; `amortization, amortisation`), because
+   matching is whole-word, and a decision written the old way still has to
+   bring the entry into play. `record.py` renders the convictions header, so its
+   template moved with it. A test now holds canon's prose and manifests to
+   American spelling. Code comments and identifiers were left alone; nobody
+   reads them except a session editing that file. The tell list grew to cover
+   the -ise words canon actually used (`mechanise`, `generalised`, `optimises`
+   and others); the firm's own words still trip nothing.
+3. **Load the talking rules in every repository.** canon now ships one hook,
+   `hooks/hooks.json`, which prints `hooks/session-start.md` at every session
+   start: a new one, a resumed or forked one, after `/clear`, and after a
+   compaction. It first skipped resumed and forked chats, to avoid printing
+   twice; Codex pointed out that a chat begun before canon was installed then
+   never sees it, so the matcher went. That file is generated from `VOICE.md` by
+   `voice.py --write-hook`, and a test fails if the two differ, so there is
+   still one source. It runs `cat`, not Python, because which Python name
+   exists differs by machine, and `cat` works in sh, Git Bash and PowerShell.
+   It's 2,120 characters, well under the 10,000 Claude Code shows in full.
+   SATC prints the same file from its own hook command,
+   `session-start.sh talking`, because the session that installs canon may
+   not run canon's hooks. If both fire, the text appears twice, identical.
+   Bassy's skill and the voice skill now point at `VOICE.md` instead of
+   carrying their own copies of the list.
+
+**Codex on the first push:** `claude plugin marketplace update satc` only
+refreshes the listing. Every skill that told another machine how to pick up a
+change named only that command. All five places now name
+`claude plugin update canon@satc` as the step that installs, and the tests
+require it.
+
+**Checked by mutation, before the review: 11 planted, 11 killed.** The six on
+`voice.py` above, plus: the install command dropped from the voice skill, the
+spelling guard's exemptions widened to swallow ordinary prose, a hand edit to
+the generated hook text, the hook file stripped of its `hooks` wrapper (caught
+by the test, and separately by `claude plugin validate`), and a matcher put
+back on the hook.
+
+**A stand-in review, because Codex was out of usage** (the firm: *"Skip codex
+it's out of usage right now. Spawn a sonnet agent stand in for quick
+review"*). It found nothing blocking. What it did find, and what changed:
+
+- **SATC's session-start output is mostly unseen.** Claude Code shows a hook's
+  stdout in full only up to 10,000 characters; past that it saves the output
+  and shows a 2,000-character preview. `session-start.sh` prints Bassy and the
+  whole of `CONVICTIONS.md`, about 37,000 characters, so the talking rules
+  first appended there could never be read. This session started exactly that
+  way, and so did the resumed one: the talking rules, printed by their own
+  command, came through whole while Bassy's part came through as a preview of
+  36.5KB. **Bassy and the record had been cut to that preview since before this
+  release.** Fixing it changes what every SATC session loads, so it went to the
+  firm as a question. Their answer: *"Ok fix it"*. `session-start.sh` now
+  prints one part per hook command, each with its own cap: `bassy` (9,081
+  characters), `record` (5,936), `role` (3,562 for the research desk, nothing
+  when no role is set) and `talking` (2,120). The record cannot fit whole at
+  28,000 characters, so its part prints every held conviction's own quote,
+  verbatim, with what brings it into play, and names the file for the rest. A
+  summary of the convictions would have been the paraphrase the hook's own
+  comment forbids. Any part that outgrows the cap now says so on its first
+  line, which is the line the preview keeps, and a canon test holds Bassy's
+  skill under the size that keeps its part whole.
+- **The British list missed derived forms:** "behaviourally" in Bassy's own
+  skill, plus organiser, enrolment, practising, centred and others. The
+  families now take their suffixes, and the list says it is closed.
+- **Phrases wrapped across a line, and curly apostrophes, slipped through.**
+  The checker now searches the whole text and reads ’ as '.
+- **"are transparent" flagged ordinary tax sentences,** like "pass-through
+  entities are transparent for tax purposes." The tell now needs us as the
+  subject.
+- **A wrong path or a UTF-16 file came back as findings, with a traceback.**
+  An empty draft beside a full one came back clean. Both now report "not a
+  clean result" and exit 2, per source. `--help` works.
+- **The hook text pointed at `${CLAUDE_PLUGIN_ROOT}/VOICE.md`,** which `cat`
+  prints literally. It now names canon's `VOICE.md` and `/canon:voice`.
+- **"84 British spellings" was wrong.** The first checker found 82 British
+  spellings and two "honestly"s, and 84 was the total. Corrected everywhere it
+  was quoted.
+- **`VOICE.md` lost four borderline details:** a materiality threshold, a tool's
+  tab name and a review step's name (bracketed now), and one sentence from the
+  2025 guide, which was marked internal.
+- **The test that keeps the employer's name out named it.** It checks hashes
+  now.
+- The install command no longer breaks across a line inside backticks, and the
+  adversarial skill's "fifteen behaviors" no longer gives a count.
+
+**Checked by mutation after the review: 6 more planted, 6 killed:** the
+per-line search restored, curly quotes not normalized, an unreadable file
+crashing, an empty source counted, the British tell made case-sensitive (the
+review's one surviving mutant), and the open tell widened back to "are".
+**The whole release: 18 planted, 18 killed**, the last being the Bassy size
+guard set below Bassy's own size.
+
+**The two readings in VOICE.md were confirmed.** *Talking to the firm* carried
+two lines labeled as a session's reading, not the firm's words: don't mirror
+their lowercase chat back at them, and don't talk to them in canon's slogan
+style. Asked to strike either if wrong, the firm: *"I’m good with those"*. The
+label now says confirmed, with their words.
+
+**And one more rule for talking to them**, added while CI ran. The session
+reported every PR notification, including previews rebuilding and CI finishing
+on commits already replaced. The firm: *"Stop notifying me on non events"*. It
+is in *Talking to the firm*, so it prints at the start of every session.
+
+1.22.0 → **1.23.0**. 228 → 267 passing.

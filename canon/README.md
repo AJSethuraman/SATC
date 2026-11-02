@@ -4,12 +4,13 @@
 what the firm believes about running a business — carried into every project
 instead of being trapped in the one that learned it.
 
-Two records and one behaviour.
+Three records and one behavior.
 
 | | |
 |---|---|
 | **`TENETS.md`** | How to build. Each rule carries the incidents that proved it, tagged by project. Evidence **accumulates**: the third time a rule bites in a third codebase, it carries three citations and is visibly a law rather than a local quirk |
 | **`CONVICTIONS.md`** | What the firm believes and why, in their own words. Held or retired — never deleted. Proposals they turned down are kept too, so the same question is not asked twice. Ends with *Rulings by project*: for a project outside the practice, which entries the firm struck or upheld for it, once |
+| **`VOICE.md`** | How the firm talks and writes, with their own sentences, so a session talks to them the way they talk and drafts what they send the way they write. Its *Talking to the firm* section is printed at the start of every session in every repository, by the plugin's own hook (`hooks/`). `voice.py` catches the mechanical tells, each one cited to where the firm objected to it |
 | **Count Bassy** | Called **Bassy**. The role any session steps into. Challenges the firm **from their own record and never from its own opinion** |
 
 ## What Bassy does, and does not
@@ -24,7 +25,7 @@ disagree, because all it can observe is that both were selected. Where they
 genuinely do pull against each other, that disagreement is the finding, and a
 disagreement resolved fluently is a finding destroyed.
 
-Silence is a behaviour, not an absence. A decision that contradicts nothing
+Silence is a behavior, not an absence. A decision that contradicts nothing
 produces nothing, and there is a test for it. A thing that challenges everything
 is a nag you learn to click past.
 
@@ -60,10 +61,16 @@ without the ref, a session went and looked at `main`, found neither, and
 reported — correctly for what it could see — that canon did not exist. Once the
 pull request merges, drop the `@…` and the plain form works.
 
-To pick up a change to the record on a machine that already has it:
+To pick up a change to the record on a machine that already has it, run both.
+The first only refreshes the listing; the second is what installs the new
+version, and a machine that ran only the first was found nine releases behind:
 
 ```powershell
 claude plugin marketplace update satc
+```
+
+```powershell
+claude plugin update canon@satc
 ```
 
 Inside a running session, the same two steps are `/plugin marketplace add …` and
@@ -74,7 +81,8 @@ Then, in any repo:
 
 ```
 /canon:bassy            what does the record say about what I'm about to do
-/canon:how-we-work      the twenty standing behaviours
+/canon:how-we-work      the twenty-three standing behaviors
+/canon:voice            draft it so it sounds like the firm wrote it
 /canon:docket           open decisions as a form you fill in, with denominators
 /canon:canon-mine       read the corpus and propose a conviction
 /canon:canon-adopt      read a repo canon has never seen
@@ -138,10 +146,13 @@ a repository that predates canon can be adopted.
 | `mine.py` | reads the corpus, proposes, **never writes** |
 | `adopt.py` | reads a repo it has never seen; proposes; writes nothing |
 | `check_record.py` | nothing sensitive lives here — with its denominator |
+| `voice.py` | the tells that give a draft away as not the firm's, each with its source; also writes `hooks/session-start.md` from `VOICE.md` |
+| `hooks/` | the one hook canon ships: at session start, it prints how to talk to the firm |
 | `LOG.md` | the running log: roadmap, deferred work, known gaps |
 | `projects/REGISTER.md` | one thin identity card per adopted project |
 | `skills/bassy/` | the challenge role |
-| `skills/how-we-work/` | the twenty standing behaviours |
+| `skills/how-we-work/` | the twenty-three standing behaviors |
+| `skills/voice/` | drafting in the firm's voice, and talking to them in it |
 | `skills/canon-mine/` | mining the corpus, one proposal at a time |
 | `skills/canon-adopt/` | adopting a repository, and writing its card |
 | `skills/docket/` | the standing check-in, published as a form: open decisions, denominators, gaps, in plain English |
@@ -149,7 +160,7 @@ a repository that predates canon can be adopted.
 | `skills/walk/` | walking the product in a browser: the procedure a person follows, and the defects only a screen shows |
 | `skills/tie-out/` | one figure traced to an independent authority, reproducible by a skeptic |
 
-`python -m pytest -q tests` — 138 tests, including one that copies the whole
+`python -m pytest -q tests` — 267 tests, including one that copies the whole
 tree into a fresh repository with no SATC above it and runs everything there.
 Every guard has been mutation-checked: break it on purpose, and a test must go
 red. **55 mutants planted, 55 killed**, after five survivors that were each the

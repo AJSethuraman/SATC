@@ -95,7 +95,7 @@ def test_history_this_branch_cannot_see_is_reported_not_ignored(repo):
 def test_the_reading_says_what_it_did_not_examine(repo):
     got = A.read_repo(repo)
     joined = " ".join(got.unread)
-    assert "never behaviour" in joined, "it must say it did not read the code"
+    assert "never behavior" in joined, "it must say it did not read the code"
     assert "whether any test in this repository actually passes" in joined
     assert "NOT examined" in got.say()
 

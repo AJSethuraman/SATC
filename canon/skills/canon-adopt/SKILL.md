@@ -34,7 +34,9 @@ nothing on any machine without it.
 so anything recorded into it is thrown away the next time canon updates. To add,
 retire, or decline a conviction, change `CONVICTIONS.md` in the **canon
 repository** and open a pull request; other machines pick it up with
-`claude plugin marketplace update satc`. The plugin is how the record is read
+`claude plugin marketplace update satc` and then
+`claude plugin update canon@satc`. The first only refreshes the listing; the second is what installs
+the new version. The plugin is how the record is read
 everywhere. The repository is the only place it is written.
 
 ## Run the reading
@@ -54,9 +56,9 @@ never found out whether a single test passes.
 Then two lists that are never merged:
 
 - **Commits that changed a test and a source file together.** A mistake
-  somebody thought worth pinning. A fact about the commit, not a judgement.
+  somebody thought worth pinning. A fact about the commit, not a judgment.
 - **Commits whose subject carries a fix-word.** A guess about relevance,
-  labelled as one.
+  labeled as one.
 
 ## Two things the first real run taught
 
@@ -72,7 +74,7 @@ that team writes commits, not a clean bill of health.
 
 ## Propose, one at a time
 
-A candidate's text is the **commit's own subject**. Generalising it into a rule
+A candidate's text is the **commit's own subject**. Generalizing it into a rule
 is the step that turns *"this repo fixed a thing"* into *"this repo proves a
 law"*, and that step belongs to a person — it is exactly where a plausible,
 wrong tenet would enter the record and never leave.

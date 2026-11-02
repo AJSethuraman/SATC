@@ -159,7 +159,7 @@ the build catches them"* (`8e1fab3`). The firm:
 The guard is a property, not an example:
 `test_the_firm_block_reaches_every_document_from_settings_alone` **moves the firm to Cleveland in
 settings and asserts all ten documents follow, with nothing of the old address left behind.** `PM-5`
-generalised.
+generalized.
 
 ---
 
@@ -403,9 +403,9 @@ commented `# the interview would not ask`.
 > Self-Employed client whose scope happens to name a Schedule C." —
 > `tests/test_scenarios_agreement.py`
 
-`cli.py check` exited 1 on the itemising couple, the landlord, the K-1 client, the brokerage client
+`cli.py check` exited 1 on the itemizing couple, the landlord, the K-1 client, the brokerage client
 — every ordinary Standard engagement. Likewise *"Nothing caught it because every end-to-end test in
-the suite drove a 1040"* (`test_scenarios.py`). **Operationally:** parameterise over the shapes an
+the suite drove a 1040"* (`test_scenarios.py`). **Operationally:** parameterize over the shapes an
 ordinary week produces, and cover each boundary from **both sides** — `exercise.py` runs 3 rentals
 against 4 and 4 foreign accounts against 5, which is how the soft cap was shown to *say* it was a
 cap rather than merely to be one (`31837a8`).
@@ -640,14 +640,14 @@ had to move `registry/fee-schedule.yaml`, and the sweep went on to `website/pric
 which publishes the note and needed **no** change, and knowing that is the point —
 `docs/sign-off-register.md`, `docs/pricing-open-threads.md`, whose whole argument rested on a figure
 read off the engine at a time the engine was wrong, and `tests/test_pricing.py`. The one thing still
-describing the old behaviour was the **last sentence of the fee schedule's own header**, three
+describing the old behavior was the **last sentence of the fee schedule's own header**, three
 hundred lines from the number it contradicted. *"Found by fanning rather than by a test, which is
 the point."*
 
 **It also caught the earlier records-release/onboarding divergence** — two documents stating one
 rule about the same act, edited apart.
 
-**The shape underneath it, which the firm named plainly: a claim in one place, behaviour in another,
+**The shape underneath it, which the firm named plainly: a claim in one place, behavior in another,
 and nothing comparing them.** Four instances in one session: `count_k1s` against the
 additional-forms scope line, seen live billing four K-1s under a line reading "Two K-1s as
 reported"; `count_states` and `count_localities` against the lists that name them; six places
@@ -825,7 +825,7 @@ a check for the impossible is that same failure, chosen on purpose.
   they will be looking.
 * *No?* → make it structurally impossible, **then** delete the check.
 
-**Worked example, corrected.** "Quotes get no link" is the firm's judgement and
+**Worked example, corrected.** "Quotes get no link" is the firm's judgment and
 one template edit from being broken. The test was still deleted, because a test
 does not stop a person who is editing the template on purpose — it only makes
 them delete a test on the way past. What replaced it is the reason, in the
@@ -836,7 +836,7 @@ arrives before the edit rather than after it.
 
 ---
 
-## S31 · A claim and the behaviour it describes are two things. Build the third: something that compares them.
+## S31 · A claim and the behavior it describes are two things. Build the third: something that compares them.
 
 **Evidence: 2** *(SATC ×2)*
 
@@ -854,7 +854,7 @@ bill would be marked settled, and the e-file gate that every engagement letter
 promises stays shut until the invoice is paid would open.
 
 Twenty-four tests covered that module. None of them compared the claim to the
-behaviour, because nothing in the code did either.
+behavior, because nothing in the code did either.
 
 ### SATC · 2026-09-03 · a refusal message that contradicted itself
 
@@ -1030,7 +1030,7 @@ Concretely, for anything a generated document asserts:
   first run.
 * **A count?** Count it. "Nine carry" was true of one sample; `CARRIES` holds
   fifteen.
-* **A behaviour?** Ask the code. Section 4 said `sign` could not know whether an
+* **A behavior?** Ask the code. Section 4 said `sign` could not know whether an
   invoice was settled; `signing._unsettled` blocks on exactly that. The sentence
   had been transcribed from that function's own stale docstring.
 * **A completeness claim?** Compare both directions with a looser second reading
@@ -1102,7 +1102,7 @@ objects to any. A checker proved only against synthetic examples is a checker
 proved against nothing.
 
 *(Related: **S2**, it reports 241 strings examined so a rename cannot leave it
-reading none; **S31**, the thing that compares a claim to behaviour — here the
+reading none; **S31**, the thing that compares a claim to behavior — here the
 claim is "our software speaks plainly" and nothing had ever asked.)*
 
 ---
@@ -1163,4 +1163,4 @@ bar not rounded"* — the `round` taken out — and all four go red.
 
 *(Related: **S3**, two halves of one tool must make the same call — here five
 sites, and the fix is the same: one of them is the rest; **S31**, a claim in
-one place and the behaviour in another with nothing comparing them.)*
+one place and the behavior in another with nothing comparing them.)*

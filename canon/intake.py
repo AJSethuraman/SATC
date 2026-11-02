@@ -90,7 +90,7 @@ class Result:
                          " which is not the same as nothing being wrong.")
         else:
             lines.append(f"  {self.findings} reproduce against this code — these are the findings")
-            lines.append(f"  {self.not_findings} pass, so the behaviour they assert is already correct")
+            lines.append(f"  {self.not_findings} pass, so the behavior they assert is already correct")
             if self.errors:
                 lines.append(f"  {self.errors} could not run — the test itself is broken, "
                              f"which is neither a finding nor a clean result")
