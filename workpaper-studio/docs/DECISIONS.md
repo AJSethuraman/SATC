@@ -47,10 +47,20 @@
 | R14 | Synthetic data; mocked integrations and unverified behaviour labelled. No deploy, no real systems, no client data, no purchases, no production changes. |
 | R15 | Address ownership, storage, permissions, audit, portability. Do not assume a stack, cloud or multi-tenant model. |
 | R16 | Stop at a design-review checkpoint; document scope and decisions for the next session. |
+| R17 | **Access is defined by the organization.** The owner, 2 Nov 2026: *"i like the idea of having users but it should be definable by the organization for what each level of access can actually do"*. |
+| R18 | **Work starts from a list the master database supplies, and the finished record goes back the same way.** The owner, 2 Nov 2026: *"in my work version employees choose a linesheet from a list created by the master database loading into that excel sheet"*, and *"this would also be the method for feeding any associated "datamart" with it"*. The proposal is in `DATA-RECORD.md`. |
 
 ## C · Proposed choices (mine)
 
 P1 five roles (preparer, reviewer, tool designer, method approver, org admin) · P2 a method library as its own level between organization and tool · P3 five value states plus *Calculated* · P4 tests return Pass, Fail or Not tested, never a silent pass · P5 exceptions sit beside a calculated value · P6 reviewers are read-only and raise points (C7) · P7 tool packs as portable data · P8 release check as a blocking gate (modelled on the pre-send gate) · P9 direction A with B's inspector and density · P10 sections that stop applying keep their entries hidden · P11 case statuses: drafting, in review, returned, approved, released · P12 two kinds of "error log": inline issues for users, a diagnostic log for admins · P13 a **pack** is one portable file carrying the author's know-how; recommended limits must be confirmed by the buyer; structure can be locked so updates apply cleanly · P14 a **test questions** block (a table of numbered questions with test steps, a rating list and comments) is a first-class building block · P15 the feed can be a flat row generated from the configuration, with missing values counted beside it · **P16 one table primitive, never a catalogue of special blocks.** Rows and columns are each a fixed list, entries the preparer adds, or an organization list; cells take their type from whichever side is fixed; worked-out lines come from a short list of operations; totals and answer counts are settings. A repeating table, a question framework, line items by person or by period, a checklist, a sample and a valuation by class are all this one block. Organizations save their own shapes as **patterns**, which travel inside packs. *A request for a new kind of block is a request for a new pattern, or a missing axis option, and is answered by configuration, not code.*
+
+**P17 · Organization-defined access** (answers R17). The organization names its own levels, for example "Tester", "QC reviewer" or "Credit admin". It ticks what each level may do from a fixed list of actions: enter, mark not applicable or excluded, submit, raise points, answer points, clear points, return, record exceptions, acknowledge exceptions, approve, release, propose a tool, approve a tool, set limits, manage people and levels, and see all cases or only assigned ones. People hold one or more levels. Two rules are **not** configurable, because they are what makes the record worth trusting:
+- nobody approves work they entered, or a tool or limit they proposed;
+- every action stays in the log.
+
+An organization can add second-person rules, for example on limits (walk defect 10), but cannot remove these two. A change to levels is itself a logged, versioned event.
+
+**P18 · The data record** (answers R18). See `DATA-RECORD.md`.
 
 ## D · Unresolved questions
 
