@@ -47,7 +47,7 @@ def feed(c):
                             continue
                         st = ("not_applicable" if na else "waiting" if q["applies"] == "Waiting" else
                               "entered" if not blank(v) else ("missing" if col is rating or q["need_comment"] else "blank"))
-                        values.append({"path": f"g/{b['id']}/{r['key']}/{col['key']}", "label": f"{r['key']} {r['def'].get('label', '')}: {col['label']}",
+                        values.append({"path": f"g/{b['id']}/{r['key']}/{col['key']}", "label": f"{r['key']} {r['def'].get('label', '')} · {col['label']}",
                                        "section": s["title"], "question": r["key"], "group": r["def"].get("group"), "state": st,
                                        "value": None if na else v, "masked": False, "reason": "condition not met" if q["applies"] == "No" else None})
             elif b["kind"] == "grid":
@@ -60,7 +60,7 @@ def feed(c):
                             v = r["cells"].get(col["key"])
                         if blank(v) and not r["excluded"]:
                             continue
-                        values.append({"path": f"g/{b['id']}/{r['key']}/{col['key']}", "label": f"{b['label']}: {r['label']}: {col['label']}",
+                        values.append({"path": f"g/{b['id']}/{r['key']}/{col['key']}", "label": f"{b['label']} · {r['label']} · {col['label']}",
                                        "section": s["title"], "state": "excluded" if r["excluded"] else ("calculated" if col.get("compute") else ("zero" if v == 0 else "entered")),
                                        "value": v, "masked": False, "reason": r["reason"]})
     for v in values:   # where each value came from: the master database, unchanged or corrected, or entered here

@@ -48,7 +48,7 @@ def test_blank_is_never_zero_and_bad_entries_are_refused(studio):
 
 def test_reviewer_cannot_change_an_entry(studio, packs):
     cid = credit_case(studio, packs)
-    with pytest.raises(Refused, match="does not let you enter"):
+    with pytest.raises(Refused, match="Permission required: Edit case entries"):
         studio.set("D. Patel", cid, "f/borrower", "Changed by reviewer")
     with pytest.raises(Refused):
         studio.mark("D. Patel", cid, "f/scope", "na", "x")
@@ -64,7 +64,7 @@ def test_submission_needs_nothing_missing(studio, packs):
 def test_preparer_cannot_review_or_approve_own_case(studio, packs):
     cid = credit_case(studio, packs)
     studio.submit("A. Rivera", cid)
-    with pytest.raises(Refused, match="does not let you approve a case"):
+    with pytest.raises(Refused, match="Permission required: Approve cases"):
         studio.approve("A. Rivera", cid)
     give(studio, "A. Rivera", ["Preparer", "Reviewer"])
     with pytest.raises(Refused, match="You prepared this case"):
@@ -84,12 +84,12 @@ def test_entries_lock_in_review_and_unlock_when_returned(studio, packs):
 def test_above_limit_needs_an_acknowledged_exception_and_the_result_is_untouched(studio, packs):
     cid = credit_case(studio, packs)
     studio.submit("A. Rivera", cid)
-    with pytest.raises(Refused, match="Record an exception"):
+    with pytest.raises(Refused, match="No exception recorded"):
         studio.approve("D. Patel", cid)
     with pytest.raises(Refused, match="organization's list"):
         studio.record_exception("A. Rivera", cid, "calc_dti", "Because", "note")
     studio.record_exception("A. Rivera", cid, "calc_dti", "Compensating strength documented", "Strong liquidity (synthetic).")
-    with pytest.raises(Refused, match="waiting for the reviewer"):
+    with pytest.raises(Refused, match="Pending acknowledgment"):
         studio.approve("D. Patel", cid)
     studio.acknowledge("D. Patel", cid, "E1")
     c = studio.approve("D. Patel", cid)
@@ -105,7 +105,7 @@ def test_open_review_point_blocks_approval(studio, packs):
     studio.raise_point("D. Patel", cid, "s2", "Item 4 is over 90 days old. Why is it still outstanding?")
     with pytest.raises(Refused, match="Review points"):
         studio.approve("D. Patel", cid)
-    with pytest.raises(Refused, match="does not let you clear a review point"):
+    with pytest.raises(Refused, match="Permission required: Clear review points"):
         studio.clear_point("A. Rivera", cid, "P1")
     studio.reply_point("A. Rivera", cid, "P1", "Vendor confirmed it was lost; reissued in November.")
     studio.clear_point("D. Patel", cid, "P1")
@@ -118,7 +118,7 @@ def test_release_only_after_approval_and_outputs_are_fingerprinted(studio, packs
     with pytest.raises(Refused, match="release check is not clear"):
         studio.release("D. Patel", cid)
     studio.submit("A. Rivera", cid)
-    with pytest.raises(Refused, match="Approved by a reviewer"):
+    with pytest.raises(Refused, match="Reviewer approval"):
         studio.release("D. Patel", cid)
     studio.approve("D. Patel", cid)
     with pytest.raises(Refused):
@@ -173,12 +173,12 @@ def test_pack_approval_is_maker_checker(studio, tmp_path):
     d["pack"]["version"] = "2.1"
     p.write_text(json.dumps(d))
     fp = studio.propose("M. Okafor", "control-test.json")
-    with pytest.raises(Refused, match="does not let you approve a tool"):
+    with pytest.raises(Refused, match="Permission required: Approve tools"):
         studio.approve_pack("M. Okafor", fp)
     give(studio, "M. Okafor", ["Tool designer", "Tool approver", "Admin"])
     with pytest.raises(Refused, match="You proposed this version.*K. Owens can"):
         studio.approve_pack("M. Okafor", fp)
-    with pytest.raises(Refused, match="does not let you propose a tool"):
+    with pytest.raises(Refused, match="Permission required: Propose tools"):
         studio.propose("A. Rivera", "control-test.json")
 
 
@@ -238,7 +238,7 @@ def test_the_form_cannot_name_someone_else_as_preparer(studio, packs):
     cid = studio.new_case("A. Rivera", "Bank reconciliation")
     fill(studio, cid, "A. Rivera", packs["bank-reconciliation"].data["example"], packs["bank-reconciliation"])   # names R. Lund
     studio.submit("A. Rivera", cid)
-    with pytest.raises(Refused, match="The form names R. Lund; the case was prepared by A. Rivera"):
+    with pytest.raises(Refused, match="Form shows R. Lund; prepared by A. Rivera"):
         studio.approve("D. Patel", cid)
 
 

@@ -8,7 +8,7 @@ A configurable tool for structured workpapers and linesheets: an organization de
 cd workpaper-studio
 PYTHONPATH=src python -m workpaper_studio demo     # publish the three demo tools and confirm their limits (optional)
 PYTHONPATH=src python -m workpaper_studio serve    # http://127.0.0.1:5077
-python -m pytest -q                                # 100 tests; the parity test needs LibreOffice
+python -m pytest -q                                # 102 tests; the parity test needs LibreOffice
 ```
 
 Standard library only. `openpyxl` is needed only to export a workbook. It runs locally, makes no network calls and uses no model.
@@ -19,8 +19,9 @@ Standard library only. `openpyxl` is needed only to export a workbook. It runs l
 |---|---|
 | **`src/workpaper_studio/`** | **The application.** `pack.py` loads and refuses packs; `methods.py` + `vectors/` the method library; `engine.py` decides every status and result; `service.py` the append-only record and who may do what; `web.py`/`ui.py` the screens in the Paper design; `outputs.py` and `workbook.py` the feed and the workbook |
 | **`packs/`** | **The three tools as data**: credit file review, control test, bank reconciliation. Synthetic examples; fictional limits |
-| **`tests/`** | 100 tests, including a parity test that recalculates exported workbooks in LibreOffice and compares every status, result and total with the engine |
+| **`tests/`** | 102 tests, including a parity test that recalculates exported workbooks in LibreOffice and compares every status, result and total with the engine |
 | **`docs/WALKTHROUGH-DEFECTS.md`**, **`docs/PROCEDURE-credit-review.md`** | The walk: 15 defects against 73 passing tests, what was fixed, and the procedure (rendered as one PDF with every screenshot) |
+| **`VOICE.md`** | How the product's own words read: labels a reviewer understands from the title, no explanation on the screen. Held by `tests/test_voice.py` |
 | `design/paper/` | The Paper design package the screens and workbooks are built to |
 | `docs/DESIGN-REVIEW.md` | Understanding, decisions, architecture options, plan with acceptance criteria |
 | `docs/DECISIONS.md` | Decisions needed, confirmed requirements, scope |

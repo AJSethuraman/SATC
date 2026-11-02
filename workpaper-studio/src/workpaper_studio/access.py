@@ -11,26 +11,26 @@ An organization can add strictness (a second person to confirm a limit) but cann
 """
 from __future__ import annotations
 
-ACTIONS = {   # key: what it lets a person do, in the words the screens use
-    "start_case": "start a case",
-    "enter": "enter and change a case's answers",
-    "submit": "send a case for review",
-    "answer_point": "answer a review point",
-    "record_exception": "record an exception beside a result",
-    "raise_point": "raise a review point",
-    "clear_point": "clear a review point",
-    "return": "return a case to its preparer",
-    "acknowledge": "acknowledge an exception",
-    "approve": "approve a case",
-    "release": "release a case",
-    "see_all": "see every case, not only their own",
-    "load_work": "load the work list from the master database",
-    "propose_tool": "propose a tool for publishing",
-    "approve_tool": "approve a tool",
-    "set_limits": "set the organization's limits",
-    "manage_access": "change levels and who holds them",
+ACTIONS = {   # key: the permission's name as the Access screen shows it
+    "start_case": "Start cases",
+    "enter": "Edit case entries",
+    "submit": "Submit for review",
+    "answer_point": "Answer review points",
+    "record_exception": "Record exceptions",
+    "raise_point": "Raise review points",
+    "clear_point": "Clear review points",
+    "return": "Return cases",
+    "acknowledge": "Acknowledge exceptions",
+    "approve": "Approve cases",
+    "release": "Release cases",
+    "see_all": "View all cases",
+    "load_work": "Load work lists",
+    "propose_tool": "Propose tools",
+    "approve_tool": "Approve tools",
+    "set_limits": "Set limits",
+    "manage_access": "Manage access",
 }
-RULES = {"two_person_limits": "A limit needs a second person to confirm it"}
+RULES = {"two_person_limits": "Second approver for limits"}
 
 DEFAULT = {
     "levels": {

@@ -96,7 +96,7 @@ class App:
         if path == "/work/load" and method == "POST":
             try:
                 rep = st.load_work(user, f.get("tool", ""), sources.configured(self.data_dir), self.data_dir)
-                return self.flash_to("/?view=all", f"Done. {len(rep['loaded'])} line(s) loaded, {len(rep['skipped'])} already here, {len(rep['refused'])} refused.")
+                return self.flash_to("/?view=all", f"Done. Work list loaded: {len(rep['loaded'])} new, {len(rep['skipped'])} existing, {len(rep['refused'])} refused.")
             except Refused as e:
                 return self.flash_to("/?view=all", str(e))
         if path == "/results":
@@ -129,7 +129,7 @@ class App:
                 try:
                     v, cur = st.access()
                     st.set_access(user, ui.access_from_form(f, cur), f.get("note", ""))
-                    return self.flash_to("/access", "Done. Access saved as a new version.")
+                    return self.flash_to("/access", "Done. Access saved.")
                 except Refused as e:
                     return self.html(ui.access_page(st, user, str(e)), "400 Bad Request")
             return self.html(ui.access_page(st, user, msg))
@@ -242,8 +242,8 @@ class App:
             else:
                 raise KeyError(act)
             done = {"submit": "Done. Sent for review.", "return": "Done. Returned to the preparer.", "approve": f"Done. Approved by {user}.",
-                    "release": "Done. Released. These files are now the record.", "point": "Done. Point raised.", "reply": "Done. Answer recorded.",
-                    "clear": "Done. Point cleared.", "exception": "Done. Exception recorded beside the result.", "ack": "Done. Exception acknowledged."}[act]
+                    "release": "Done. Released.", "point": "Done. Point raised.", "reply": "Done. Answer recorded.",
+                    "clear": "Done. Point cleared.", "exception": "Done. Exception recorded.", "ack": "Done. Exception acknowledged."}[act]
             return self.flash_to(back if act not in ("point", "reply", "clear", "exception", "ack") else self._screen_for(c, act, f), done)
         except Refused as e:
             return self.flash_to(back if act in ("approve", "release", "submit") else self._screen_for(c, act, f), str(e))

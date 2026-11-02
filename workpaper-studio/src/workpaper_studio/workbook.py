@@ -307,7 +307,7 @@ class Book:
         return f'IF({a}="","Waiting",IF({cond},"Yes","No"))'
 
     def rule_text(self, rule):
-        return f'“{self.labels.get(rule["field"], rule["field"])}” is {" or ".join(rule["values"])}'
+        return f'{self.labels.get(rule["field"], rule["field"]).rstrip("?")} is {" or ".join(rule["values"])}'
 
     def screen_for(self, s):
         nm = s.get("screen", "Workpaper")
@@ -326,11 +326,11 @@ class Book:
         scr.r += 1
         if rule:
             scr.height(scr.r, 15)
-            scr.put(scr.r, c1, f"Shown only when {self.rule_text(rule)}", c2, font=F(9, False, MUTE, True), align=Alignment(vertical="center"))
+            scr.put(scr.r, c1, f"Applies when {self.rule_text(rule)}", c2, font=F(9, False, MUTE, True), align=Alignment(vertical="center"))
             scr.r += 1
         elif s["mode"] == "optional":
             scr.height(scr.r, 15)
-            scr.put(scr.r, c1, "Optional: complete it if it helps the review", c2, font=F(9, False, MUTE, True), align=Alignment(vertical="center"))
+            scr.put(scr.r, c1, "Optional", c2, font=F(9, False, MUTE, True), align=Alignment(vertical="center"))
             scr.r += 1
         scr.req = []
         return r, f"${L(ha)}${r}"
@@ -631,7 +631,7 @@ class Book:
             ws.conditional_formatting.add(vc, FormulaRule(formula=[f'{vc}="{t_}"'], font=Font(name=FONT, color=col, bold=True)))
         ws.conditional_formatting.add(vc, FormulaRule(formula=[f'LEFT({vc},10)="Not tested"'], font=Font(name=FONT, color=MUTE, italic=True, bold=False)))
         scr.height(r + 1, 15)
-        scr.put(r + 1, FIRST + 9, "The limit is on Settings, confirmed by the organization. It is not part of the method.", LAST,
+        scr.put(r + 1, FIRST + 9, "Limit: see Settings", LAST,
                 font=F(9, False, MUTE, True), align=Alignment(vertical="center", indent=1))
         self.name(f"Result_{sname(b['id'])}", scr.name, rc)
         self.name(f"Verdict_{sname(b['id'])}", scr.name, vc)
@@ -770,7 +770,7 @@ class Book:
                         self.framework_rows[qd["key"]] = 6 + len(rows)
                         rows.append([qd.get("group", ""), qd["key"], qd["label"], qd.get("info", "")])
         if rows:
-            self.table_sheet("Framework", f'{self.tool["name"]}: framework', "The questions and how to test each. The workpaper reads its wording from here.",
+            self.table_sheet("Framework", f'{self.tool["name"]}: framework', "",
                              ["Section", "#", "Question", "How to test"], [20, 7, 52, 78], rows, unlock_cols=(3, 4), heights=46)
         lrows = []
         conf = self.cfg.get("confirmations", {}) if self.cfg.get("_fill") else {}
@@ -783,8 +783,8 @@ class Book:
                     pct = pct or b["method"] in ("dti", "devrate", "ltv")
                     lrows.append([b["limitLabel"], b.get("code", ""), b["limit"], cf.get("policy", b["limit"]), cf.get("confirmed", "No"), cf.get("by"), datetime.date.fromisoformat(d) if d else None])
                     self.limits[b["id"]] = {"policy": f"$E${5 + len(lrows)}", "confirmed": f"$F${5 + len(lrows)}"}
-        ws = self.table_sheet("Settings", "Settings", "Limits belong to this organization, not to the method. Until a limit is confirmed here, nothing is tested against it.",
-                              ["Limit", "Method", "Author recommends", "Our policy", "Confirmed?", "Confirmed by", "Date"], [36, 16, 18, 14, 12, 18, 13], lrows,
+        ws = self.table_sheet("Settings", "Settings", "",
+                              ["Limit", "Method", "Recommended", "Current", "Confirmed", "Confirmed by", "Date"], [36, 16, 18, 14, 12, 18, 13], lrows,
                               unlock_cols=(4, 5, 6, 7), fmts={3: "0.0%" if pct else NUMF["money2"], 4: "0.0%" if pct else NUMF["money2"], 7: NUMF["date"]})
         dv = DataValidation(type="list", formula1='"Yes,No"', allow_blank=True); ws.add_data_validation(dv)
         for i in range(len(lrows)):
@@ -792,7 +792,7 @@ class Book:
         lists = self.org["lists"]
         longest = max(len(v) for v in lists.values())
         grid = [[(vals[i] if i < len(vals) else None) for vals in lists.values()] for i in range(longest + 10)]
-        self.table_sheet("Lists", "Lists", "Every dropdown reads from these lists. Add values at the end of a list.", list(lists),
+        self.table_sheet("Lists", "Lists", "Add new values at the end of a list.", list(lists),
                          [max(18, len(nm) + 4) for nm in lists], grid, unlock_cols=tuple(range(1, len(lists) + 1)))
         for j, (nm, vals) in enumerate(lists.items(), start=2):
             self.wb.defined_names[f"List_{sname(nm)}"] = DefinedName(f"List_{sname(nm)}", attr_text=f"Lists!${RAW(j)}$6:${RAW(j)}${5 + len(vals) + 10}")
@@ -800,7 +800,7 @@ class Book:
     def check_sheet(self):
         rows = [[s["title"], f'=IF(OR({s["status"]}="Complete",{s["status"]}="Not applicable",{s["status"]}="Optional"),"OK",{s["status"]})', None] for s in self.sections]
         rows += [[f"Limit confirmed ({lid.replace('calc_', '').upper()})", f'=IF(Settings!{ref["confirmed"]}="Yes","OK","Not confirmed")', None] for lid, ref in self.limits.items()]
-        ws = self.table_sheet("Check", "Release check", "Every line must read OK before this goes for review. Each line says where to go.", ["Check", "Result", "Where to go"], [40, 30, 44], rows)
+        ws = self.table_sheet("Check", "Release check", "", ["Check", "Result", "Link"], [40, 30, 44], rows)
         for i, s in enumerate(self.sections, start=6):
             ws.cell(i, 4, f'=IF(C{i}="OK","",HYPERLINK("#\'{s["screen"]}\'!A1","Go to {s["title"]}"))').font = F(10, False, self.st.dark)
         for k in range(6 + len(self.sections), 6 + len(rows)):
@@ -817,7 +817,7 @@ class Book:
     def record_sheet(self):
         heads = [h for h, _ in self.record] + ["_missing"]
         vals = [f for _, f in self.record] + ["=Missing"]
-        ws = self.table_sheet("Record", "Record", "One row for the database. It builds itself from the screens. A new question in the framework becomes a new column.", heads, [16] * len(heads), [vals])
+        ws = self.table_sheet("Record", "Record", "", heads, [16] * len(heads), [vals])
         ws.row_dimensions[5].height = 44
 
     def review_sheet(self):
@@ -827,7 +827,7 @@ class Book:
         if rows is None:
             return False
         rows = rows or [["", "", "Nothing recorded.", "", "", ""]]
-        ws = self.table_sheet("Review", "Exceptions and review", "Recorded in the application. A result above its limit keeps its value; the exception explains it.",
+        ws = self.table_sheet("Review", "Exceptions and review", "",
                               ["Kind", "Item", "What was recorded", "By", "When", "Settled"], [14, 22, 70, 14, 18, 26], rows, heights=34)
         for i, row in enumerate(rows, start=6):      # tall enough for every line of what was recorded
             lines = sum(1 + len(part) // 80 for part in str(row[2]).split("\n"))

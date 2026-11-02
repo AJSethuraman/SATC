@@ -29,7 +29,7 @@
 ### 3. Read the tool and approve it
 *Approver (K. Owens)*
 
-**Do.** Sign in as the approver. On **Tools**, click the tool's name to read its outline, and **Preview it filled in** to see it working on the pack's own example. Then go back and click **Approve**.
+**Do.** Sign in as the approver. On **Tools**, click the tool's name to read its outline, and **Preview** to see it working on the pack's own example. Then go back and click **Approve**.
 
 **A correct screen.** The preview says nothing in it is saved. After approval the state reads “Published: proposed by M. Okafor, approved by K. Owens”. New cases now use this version; the fingerprint identifies it exactly.
 
@@ -55,7 +55,7 @@
 
 **Do.** Sign in as the preparer. On **Cases**, click **New credit file review**.
 
-**A correct screen.** A new case opens (CFR-0001). Every required box is amber. The strip says Ready for review: No, Still missing: 19.
+**A correct screen.** A new case opens (CFR-0001). Every required box is amber. The strip shows Ready for review: No and Missing items: 19.
 
 ![Start a case](walkthrough/credit-review-2026-11-02/step-09-cases-start-zoom.png)
 ![Start a case](walkthrough/credit-review-2026-11-02/step-10-new-case-zoom.png)
@@ -66,7 +66,7 @@
 
 **Do.** Fill Tester, Test date, Reviewer, Quarter end, Scope, Borrower name, Security and New money request. Each entry saves when you leave the box.
 
-**A correct screen.** Each panel's footer turns to a green Complete. “Saved” appears at the foot of the page. Still missing drops to 12. Tab moves on as you would expect; each box's small N/A button is one Tab stop of its own.
+**A correct screen.** Each panel's footer turns to a green Complete. “Saved” appears at the foot of the page. Missing items drops to 12. Tab moves on as you would expect; each box's small N/A button is one Tab stop of its own.
 
 ![Fill the detail panels](walkthrough/credit-review-2026-11-02/step-11-details-filled-zoom.png)
 
@@ -113,9 +113,9 @@
 ### 11. Submit for review
 *Preparer*
 
-**Do.** Click **Submit for review**. If anything is missing you land on the release check with a message; click **Go to it** on each line, fill it, and submit again.
+**Do.** Click **Submit for review**. If anything is missing you land on the release check with a message; click **Open** on each line, fill it, and submit again.
 
-**A correct screen.** When it goes through, the Status chip reads **In review** and your boxes lock. Every line on the release check is OK except the exception (waiting for the reviewer) and the approval.
+**A correct screen.** When it goes through, the Status chip reads **In review** and your boxes lock. Every line on the release check is OK except the exception (pending acknowledgment) and the approval.
 
 ![Submit for review](walkthrough/credit-review-2026-11-02/step-20-submit-refused-zoom.png)
 ![Submit for review](walkthrough/credit-review-2026-11-02/step-22-conclusion-zoom.png)
@@ -126,7 +126,7 @@
 ### 12. Open the case and raise a point
 *Reviewer (D. Patel)*
 
-**Do.** Sign in as the reviewer. The case is under **Waiting for your review**; open it. Under the section concerned, write the point and click **Raise point**.
+**Do.** Sign in as the reviewer. Open the case from **For review**. Under the section concerned, write the point and click **Raise point**.
 
 **A correct screen.** Your boxes are read-only: a reviewer never changes the preparer's entries. The point shows as Open with your name and the time.
 
@@ -148,7 +148,7 @@
 ### 14. Answer the point
 *Preparer*
 
-**Do.** Sign in as the preparer. Your Cases list shows “1 (waiting for your answer)” under Open points. Open the case: a banner at the top links to the point. Write your answer under it and click **Answer**.
+**Do.** Sign in as the preparer. Your Cases list shows “1 (awaiting your answer)” under Open points. Open the case: a banner at the top links to the point. Write your answer under it and click **Answer**.
 
 **A correct screen.** Your answer appears under the point with your name and the time.
 

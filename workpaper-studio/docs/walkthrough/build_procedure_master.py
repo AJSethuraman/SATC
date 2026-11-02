@@ -8,13 +8,13 @@ HERE = b.HERE
 SHOTS = HERE / "master-to-datamart-2026-11-02"
 STEPS = [
     ("Set who can do what", "Admin (M. Okafor)", "Read or change the access levels",
-     "Go to **Access**. Each column is one of this organization's levels; tick what it may do. Add a level or a person in the last column or row, then **Save as a new version**.",
-     "The levels and people as the organization set them, the extra rules (such as a second person for limits), and what is always true whatever is ticked: "
+     "Go to **Access**. Each column is one of this organization's levels; tick what it may do. Add a level or a person in the last column or row, then **Save**.",
+     "The levels and people as the organization set them, additional controls (such as a second approver for limits), and the fixed controls: "
      "nobody reviews work they entered or approves a tool they proposed, and every action is logged.",
      ["step-01-access-zoom.png"]),
     ("Load the work", "Admin", "Load the work list from the master database",
-     "On **Cases**, under *Work from the master database*, click **Load the work list** on the tool's row.",
-     "A green banner counts what happened: loaded, already here, refused. Open *Why each was refused* to read each refused line's reason, in words. "
+     "On **Cases**, under *Work list*, click **Load work list** on the tool's row.",
+     "A green banner counts what happened: loaded, already here, refused. Open *Refused lines* for each line's reason. "
      "Here one line names a facility type the tool's list does not have, and one names a preparer nobody has heard of. The master database is only read.",
      ["step-02-work-from-master-zoom.png", "step-03-loaded.png"]),
     ("Do the work", "Preparer (A. Rivera)", "Pick a case from Assigned to me",
@@ -35,8 +35,8 @@ STEPS = [
      ["step-07-released-files-zoom.png"]),
     ("See the results", "Anyone with access", "Read the results across cases",
      "Click **Results**.",
-     "From the data mart, across released cases: how each question was answered; every partially or not effective answer with its comment (the root-cause list); "
-     "results against limits; exceptions by reason; every answer that differs from what the master database sent. **Take the data** downloads each table as CSV.",
+     "From the data mart, across released cases: ratings by question; every ineffective or partially effective rating with its comment; "
+     "limit tests; exceptions by reason; changes to master data. **Downloads (CSV)** gives each table.",
      ["step-08-results.png"]),
     ("See the results", "Anyone", "Trace where each value came from",
      "Open the case's **History**.",

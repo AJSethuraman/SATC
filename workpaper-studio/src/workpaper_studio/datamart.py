@@ -83,9 +83,13 @@ def publish(path, c, feed):
     return name
 
 
+def wide_name(tool, version):
+    return f"wide_{slug(tool)}_v{slug(version)}"
+
+
 def wide_view(db, pack, version, rows_shown=6):
     """One row per case and one column per field, question and result: the master-table shape, generated from the pack."""
-    name = f"wide_{slug(pack.name)}_v{slug(version)}"
+    name = wide_name(pack.name, version)
     cols, used = ["c.case_id AS case_id", "c.line_id AS line_id", "c.status AS status", "c.preparer AS preparer",
                   "c.approved_by AS approved_by", "c.released_at AS released_at"], set()
 

@@ -28,7 +28,7 @@ def test_the_organization_names_levels_and_what_they_do(studio, packs):
     cid = bank_case(studio, packs)
     studio.submit("A. Rivera", cid)
     studio.approve("D. Patel", cid)
-    with pytest.raises(Refused, match="does not let you approve"):
+    with pytest.raises(Refused, match="Permission required: Approve cases"):
         studio.approve("Q. Lead", cid)
     assert studio.release("Q. Lead", cid)["status"] == "Released"
 
@@ -37,7 +37,7 @@ def test_taking_an_action_away_takes_it_away_everywhere(studio, packs):
     edit(studio, lambda b: b["levels"]["Preparer"].remove("record_exception"))
     cid = studio.new_case("A. Rivera", "Credit file review")
     fill(studio, cid, "A. Rivera", packs["credit-file-review"].data["example"], packs["credit-file-review"])
-    with pytest.raises(Refused, match="does not let you record an exception.*Nobody"):
+    with pytest.raises(Refused, match="Permission required: Record exceptions.*Not granted to anyone"):
         studio.record_exception("A. Rivera", cid, "calc_dti", "Compensating strength documented", "x")
 
 
@@ -70,7 +70,7 @@ def test_access_cannot_lock_everyone_out_or_name_nonsense(studio):
         edit(studio, lambda b: b["levels"]["Admin"].remove("manage_access"))
     with pytest.raises(Refused, match="does not exist"):
         edit(studio, lambda b: b["people"].update({"X": ["Wizard"]}))
-    with pytest.raises(Refused, match="does not let you change levels"):
+    with pytest.raises(Refused, match="Permission required: Manage access"):
         edit(studio, lambda b: None, by="A. Rivera")
 
 

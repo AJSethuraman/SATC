@@ -114,7 +114,7 @@ class Studio:
     def need(self, user, action, doing=None):
         if action not in self.actions(user):
             who = self.holders(action)
-            raise Refused(f"Your access does not let you {acc.ACTIONS[action]}. " + (f"{', '.join(who)} can." if who else "Nobody's does; an admin can change that."))
+            raise Refused(f"Permission required: {acc.ACTIONS[action]}. " + (f"Granted to {', '.join(who)}." if who else "Not granted to anyone. An admin can grant it on Access."))
 
     def rule(self, name):
         return bool(self.access()[1].get("rules", {}).get(name))
@@ -358,21 +358,21 @@ class Studio:
         for line in lines:
             lid = str(line.get(it["key"]) or "").strip()
             if not lid:
-                report["refused"].append(["(no id)", "the line has no id"]); continue
+                report["refused"].append(["(no id)", "No line ID"]); continue
             if lid in have:
                 report["skipped"].append(lid); continue
             if lid in seen:
-                report["refused"].append([lid, "the id appears twice in the list"]); continue
+                report["refused"].append([lid, "Duplicate line ID"]); continue
             seen.add(lid)
             entries, problems = [], []
             assigned = {k: (str(line.get(col) or "").strip() or None) for k, col in (it.get("assign") or {}).items()}
             prep = assigned.get("preparer")
             unknown_cols = set()
             if not prep or prep not in self.users or not self.can(prep, "enter"):
-                problems.append(f"the assigned preparer {prep!r} is not a person here who can enter a case")
+                problems.append(f"Preparer “{prep or ''}” is not set up in Access")
                 unknown_cols.add(it["assign"]["preparer"])
             if assigned.get("reviewer") and assigned["reviewer"] not in self.users:
-                problems.append(f"the assigned reviewer {assigned['reviewer']!r} is not a person here")
+                problems.append(f"Reviewer “{assigned['reviewer']}” is not set up in Access")
                 unknown_cols.add(it["assign"]["reviewer"])
             for fid, col in (it.get("fields") or {}).items():
                 if col in unknown_cols:          # already said once, as the assignment
@@ -553,25 +553,25 @@ class Studio:
             out.append({"check": s["title"], "ok": ok, "detail": "OK" if ok else s["status"] + ": " + "; ".join(i["label"] for i in s["items"]),
                         "link": s["items"][0]["path"] if s["items"] else None, "stage": "approve"})
         for cid_, calc in ev["calcs"].items():
-            out.append({"check": f"{calc['limit_label']} confirmed", "ok": calc["confirmed"], "stage": "approve", "link": None,
-                        "detail": "OK" if calc["confirmed"] else "Not confirmed. An admin confirms it on Settings."})
+            out.append({"check": f"Limit confirmed: {calc['limit_label']}", "ok": calc["confirmed"], "stage": "approve", "link": None,
+                        "detail": "OK" if calc["confirmed"] else "Not confirmed"})
             if calc["verdict"] == "Above limit":
                 exs = [e for e in c["exceptions"].values() if e["calc"] == cid_]
                 acked = [e for e in exs if e["ack"]]
                 ok = bool(acked)
-                out.append({"check": f"{calc['name']} above limit: exception", "ok": ok, "stage": "approve", "link": f"calc/{cid_}",
-                            "detail": "OK, acknowledged by " + acked[0]["ack"]["by"] if ok else ("Recorded, waiting for the reviewer" if exs else "Record an exception, or correct the entries")})
+                out.append({"check": f"{calc['name']} exception", "ok": ok, "stage": "approve", "link": f"calc/{cid_}",
+                            "detail": "Acknowledged by " + acked[0]["ack"]["by"] if ok else ("Pending acknowledgment" if exs else "No exception recorded")})
         for _, b in c["pack"].blocks():         # the form's own record of who did the work must agree with the log's
             if b["kind"] == "field" and b.get("is") == "preparer":
                 v = c["data"].get(b["id"])
                 ok = v == c["preparer"]
-                out.append({"check": f'{b["label"]} is the preparer', "ok": ok, "stage": "approve", "link": f"f/{b['id']}",
-                            "detail": "" if ok else f'The form names {v or "nobody"}; the case was prepared by {c["preparer"]}. The person who did the work signs in as themselves.'})
+                out.append({"check": f'{b["label"]} matches preparer', "ok": ok, "stage": "approve", "link": f"f/{b['id']}",
+                            "detail": "" if ok else f'Form shows {v or "no name"}; prepared by {c["preparer"]}'})
         open_pts = [p for p in c["points"].values() if p["open"]]
         out.append({"check": "Review points", "ok": not open_pts, "stage": "approve", "link": f"point/{open_pts[0]['id']}" if open_pts else None,
                     "detail": "OK" if not open_pts else f"{len(open_pts)} open"})
-        out.append({"check": "Approved by a reviewer", "ok": c["status"] in ("Approved", "Released"), "stage": "release", "link": None,
-                    "detail": f"OK, {c['approved_by']}" if c["approved_by"] else "Not yet"})
+        out.append({"check": "Reviewer approval", "ok": c["status"] in ("Approved", "Released"), "stage": "release", "link": None,
+                    "detail": f"Approved by {c['approved_by']}" if c["approved_by"] else "Not yet"})
         return out
 
     def release(self, user, cid):

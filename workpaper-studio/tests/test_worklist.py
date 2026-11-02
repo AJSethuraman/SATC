@@ -21,7 +21,7 @@ def test_loading_opens_a_case_per_line_filled_and_assigned(studio, master):
     assert [l for l, _ in rep["loaded"]] == ["L-1001", "L-1002", "L-1003", "L-1006"]
     refused = dict(rep["refused"])
     assert "Bridge loan" in refused["L-1004"] and "not one of the choices" in refused["L-1004"]
-    assert refused["L-1005"] == "the assigned preparer 'Z. Nobody' is not a person here who can enter a case"   # said once
+    assert refused["L-1005"] == "Preparer “Z. Nobody” is not set up in Access"   # said once
     cid = dict(rep["loaded"])["L-1001"]
     c = studio.case(cid)
     assert c["preparer"] == "A. Rivera" and c["assigned_reviewer"] == "D. Patel" and c["line_id"] == "L-1001"
@@ -61,7 +61,7 @@ def test_a_list_missing_a_column_loads_nothing(studio, master):
 
 def test_only_access_that_includes_it_loads_and_only_the_assigned_see_their_case(studio, master):
     d, cfg = master
-    with pytest.raises(Refused, match="does not let you load the work list"):
+    with pytest.raises(Refused, match="Permission required: Load work lists"):
         studio.load_work("A. Rivera", "Credit file review", cfg, d)
     rep = studio.load_work("M. Okafor", "Credit file review", cfg, d)
     moss = dict(rep["loaded"])["L-1002"]
