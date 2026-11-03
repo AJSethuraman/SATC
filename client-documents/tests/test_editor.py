@@ -307,7 +307,10 @@ def workshop(tmp_path):
     return d
 
 
-ONBOARDING = "SATC Onboarding Letter.html"
+# THE EXTENSION NOTICE, since 24 Oct 2026. These tests used the onboarding
+# letter until it became an email, which has no numbered sections to edit.
+EXTENSION = "SATC Extension Notice.html"
+DELIVERY = "SATC Tax Return Delivery Letter.html"
 
 
 def _numbers(html):
@@ -360,11 +363,11 @@ def test_renumbering_a_template_nobody_touched_changes_nothing(path):
 def test_removing_a_section_renumbers_the_rest():
     """Every FIELDS doc says it: a client should never see 03 followed by 05.
     The numbers exist so somebody can point at a clause on the phone."""
-    html = (editor.TEMPLATE_DIR / ONBOARDING).read_text(encoding="utf-8")
+    html = (editor.TEMPLATE_DIR / EXTENSION).read_text(encoding="utf-8")
     before = editor.outline(html)
     after, _ = editor.remove_section(html, "03")
     assert _numbers(after) == [f"{i:02d}" for i in range(1, len(before))]
-    assert "Your previous accountant" not in editor.body_of(after)
+    assert "What we still need from you" not in editor.body_of(after)
 
 
 def test_two_branches_of_one_clause_keep_sharing_their_number():
@@ -384,18 +387,18 @@ def test_two_branches_of_one_clause_keep_sharing_their_number():
 
 
 def test_removing_a_conditional_section_takes_its_markers_with_it():
-    """Section 03 of the onboarding letter is wrapped in `[[IF PriorFirm]]`.
+    """Section 04 of the delivery letter is wrapped in `[[IF EstimatedPayments]]`.
     Leaving the markers behind would wrap whatever followed it instead."""
-    html = (editor.TEMPLATE_DIR / ONBOARDING).read_text(encoding="utf-8")
-    after, taken = editor.remove_section(html, "03")
-    assert "[[IF PriorFirm]]" not in editor.body_of(after)
-    assert "PriorFirm" in taken, "the flag was not reported as removed"
+    html = (editor.TEMPLATE_DIR / DELIVERY).read_text(encoding="utf-8")
+    after, taken = editor.remove_section(html, "04")
+    assert "[[IF EstimatedPayments]]" not in editor.body_of(after)
+    assert "EstimatedPayments" in taken, "the flag was not reported as removed"
 
 
 def test_removing_a_section_reports_the_fields_it_took():
-    html = (editor.TEMPLATE_DIR / ONBOARDING).read_text(encoding="utf-8")
+    html = (editor.TEMPLATE_DIR / EXTENSION).read_text(encoding="utf-8")
     _, taken = editor.remove_section(html, "03")
-    assert "PriorFirmName" in taken
+    assert "MaterialsDeadline" in taken
 
 
 def test_the_registry_stops_claiming_a_template_that_no_longer_uses_a_field(tmp_path):
@@ -416,30 +419,30 @@ def test_the_registry_stops_claiming_a_template_that_no_longer_uses_a_field(tmp_
 
 
 def test_a_removal_that_would_orphan_a_field_is_refused(workshop, tmp_path):
-    """Section 02 of the onboarding letter holds the only `<<ClientEmail>>` in
-    it. Removing it is a decision about whether the field is retired, and that
+    """Section 02 of the extension notice holds the only
+    `<<EstimatedPaymentAmount>>` in any template. Removing it is a decision about whether the field is retired, and that
     is not a change to this document."""
     with pytest.raises(editor.EditError, match="used by no template at all"):
-        editor.save_section(ONBOARDING, "onboarding-letter", remove="02",
+        editor.save_section(EXTENSION, "extension-notice", remove="02",
                             template_dir=workshop)
-    assert "ClientEmail" in (workshop / ONBOARDING).read_text(encoding="utf-8"), \
+    assert "EstimatedPaymentAmount" in (workshop / EXTENSION).read_text(encoding="utf-8"), \
         "a refused removal still edited the file"
 
 
 def test_removing_an_unknown_section_is_refused(workshop):
     with pytest.raises(editor.EditError, match="no section"):
-        editor.save_section(ONBOARDING, "onboarding-letter", remove="99",
+        editor.save_section(EXTENSION, "extension-notice", remove="99",
                             template_dir=workshop)
 
 
 # ── adding ────────────────────────────────────────────────────────────────
 
 def test_a_new_section_lands_where_it_was_asked_for(workshop):
-    editor.save_section(ONBOARDING, "onboarding-letter",
+    editor.save_section(EXTENSION, "extension-notice",
                         title="How we keep in touch",
                         text="We email once when it is ready.", after="02",
                         template_dir=workshop)
-    secs = editor.outline((workshop / ONBOARDING).read_text(encoding="utf-8"))
+    secs = editor.outline((workshop / EXTENSION).read_text(encoding="utf-8"))
     assert [s["title"] for s in secs][2] == "How we keep in touch"
     assert [s["number"] for s in secs] == [f"{i:02d}" for i in range(1, len(secs) + 1)]
 
@@ -447,10 +450,10 @@ def test_a_new_section_lands_where_it_was_asked_for(workshop):
 def test_a_new_section_is_editable_like_any_other(workshop):
     """It is not a special block. Whatever was typed must come back through
     the same round trip as prose that was there all along."""
-    editor.save_section(ONBOARDING, "onboarding-letter", title="A heading",
+    editor.save_section(EXTENSION, "extension-notice", title="A heading",
                         text="Something **important** to say.",
                         template_dir=workshop)
-    html = (workshop / ONBOARDING).read_text(encoding="utf-8")
+    html = (workshop / EXTENSION).read_text(encoding="utf-8")
     block = next(b for s in editor.sections(html) for b in s.blocks
                  if "important" in b.text)
     assert block.editable and block.text == "Something **important** to say."
@@ -460,32 +463,32 @@ def test_a_new_section_cannot_carry_a_merge_field(workshop):
     """It would be registered against no template, and the render would refuse
     at the client's document rather than in this form."""
     with pytest.raises(editor.EditError, match="merge field"):
-        editor.save_section(ONBOARDING, "onboarding-letter", title="Fees",
+        editor.save_section(EXTENSION, "extension-notice", title="Fees",
                             text="Your fee is <<EstimateTotal>>.",
                             template_dir=workshop)
 
 
 def test_a_new_section_cannot_carry_a_conditional(workshop):
     with pytest.raises(editor.EditError, match="structure|conditional"):
-        editor.save_section(ONBOARDING, "onboarding-letter", title="Maybe",
+        editor.save_section(EXTENSION, "extension-notice", title="Maybe",
                             text="[[IF JointReturn]] Both of you sign.",
                             template_dir=workshop)
 
 
 def test_a_section_needs_a_heading_and_something_to_say(workshop):
     with pytest.raises(editor.EditError, match="heading"):
-        editor.save_section(ONBOARDING, "onboarding-letter", title="",
+        editor.save_section(EXTENSION, "extension-notice", title="",
                             text="words", template_dir=workshop)
     with pytest.raises(editor.EditError, match="gap"):
-        editor.save_section(ONBOARDING, "onboarding-letter", title="A heading",
+        editor.save_section(EXTENSION, "extension-notice", title="A heading",
                             text="  ", template_dir=workshop)
 
 
 def test_html_typed_into_a_new_section_is_escaped(workshop):
-    editor.save_section(ONBOARDING, "onboarding-letter", title="Notes",
+    editor.save_section(EXTENSION, "extension-notice", title="Notes",
                         text="Use <script>alert(1)</script> carefully.",
                         template_dir=workshop)
-    html = (workshop / ONBOARDING).read_text(encoding="utf-8")
+    html = (workshop / EXTENSION).read_text(encoding="utf-8")
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
 
