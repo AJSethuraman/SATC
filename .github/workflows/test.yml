@@ -91,6 +91,11 @@ jobs:
           # window under xvfb and compares its workbook to the command line's. A SKIP fails in CI.
           - project: loan-survival
             install: pip install pytest pandas numpy openpyxl scipy statsmodels matplotlib
+          # Forever Guild Bot: a Discord bot for the owner's WoW guild, not practice software. Its suite
+          # is offline (mocked Blizzard data, no Discord login), so it needs no token and no network.
+          # Added after it merged with its tests running only on the machine that wrote them.
+          - project: forever-guild-bot
+            install: pip install -r requirements.txt pytest
     defaults:
       run:
         working-directory: ${{ matrix.project }}
