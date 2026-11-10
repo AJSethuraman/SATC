@@ -32,10 +32,10 @@ def rel(iso: str | None) -> str:
     return f"<t:{int(datetime.fromisoformat(iso).timestamp())}:R>"
 
 
-def data_as_of(rows, fallback: str | None) -> str:
+def data_as_of(rows, fallback: str | None, key: str = "fetched_at") -> str:
     """Footer for lists built from per-row fetch times: the oldest row shown, so stale data is not
     presented as fresh just because a later sync ran."""
-    times = [r["fetched_at"] for r in rows if r["fetched_at"]]
+    times = [r[key] for r in rows if r[key]]
     return f"Data as of {min(times) if times else (fallback or 'never')} UTC (oldest shown)"
 
 
@@ -276,7 +276,7 @@ def register_commands(bot: GuildBot) -> None:
         rows = db.roster(class_name, min_level)
         lines = [f"**{r['name']}**: L{r['level'] or '?'} {r['class_name'] or ''}" for r in rows]
         e = discord.Embed(title=f"Roster ({len(rows)})", description=clip(lines, 4000) or "Nobody found.")
-        e.set_footer(text=f"Synced {db.get_meta('last_sync_at') or 'never'} UTC")
+        e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at'), key="profile_at"))
         await interaction.response.send_message(embed=e)
 
     @tree.command(name="professions", description="Who has which profession (leave blank for all)")
@@ -305,7 +305,7 @@ def register_commands(bot: GuildBot) -> None:
                            dps="Max DPS (blank = no limit)")
     @app_commands.guild_only()
     @officer
-    async def raid_create(interaction: discord.Interaction, title: str, date: str, time: str,
+    async def raid_create(interaction: discord.Interaction, title: app_commands.Range[str, 1, 100], date: str, time: str,
                           size: app_commands.Range[int, 1, 40],
                           tanks: app_commands.Range[int, 1, 40] | None = None,
                           healers: app_commands.Range[int, 1, 40] | None = None,
@@ -352,7 +352,7 @@ def register_commands(bot: GuildBot) -> None:
                            dps="Max DPS (0 removes the limit)")
     @app_commands.guild_only()
     @officer
-    async def raid_edit(interaction: discord.Interaction, raid_id: int, title: str | None = None,
+    async def raid_edit(interaction: discord.Interaction, raid_id: int, title: app_commands.Range[str, 1, 100] | None = None,
                         date: str | None = None, time: str | None = None,
                         size: app_commands.Range[int, 1, 40] | None = None,
                         tanks: app_commands.Range[int, 0, 40] | None = None,

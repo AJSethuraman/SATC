@@ -266,6 +266,8 @@ def test_data_as_of_uses_oldest_row_not_last_sync():
     rows = [{"fetched_at": "2026-11-10T10:00:00+00:00"}, {"fetched_at": "2026-11-09T08:00:00+00:00"}]
     assert "2026-11-09T08:00:00" in data_as_of(rows, "2026-11-10T12:00:00+00:00")
     assert "never" in data_as_of([], None)
+    assert "2026-11-01" in data_as_of([{"profile_at": "2026-11-01T00:00:00+00:00"}, {"profile_at": None}],
+                                      "2026-11-10", key="profile_at")
 
 
 def test_unparsable_response_is_not_marked_ok_and_older_good_snapshot_survives(tmp_path):
@@ -339,3 +341,12 @@ def test_profession_listed_twice_keeps_highest_skill():
                "professions": [{"profession": {"name": "Alchemy"}, "skill_points": 250, "max_skill_points": 300}]}
     profs = bz.parse_professions(payload)
     assert [(p.name, p.skill) for p in profs] == [("Alchemy", 250)]
+
+
+def test_raid_titles_are_limited_to_what_discord_accepts(tmp_path):
+    from guildbot.bot import GuildBot
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
+    for name in ("raid-create", "raid-edit"):
+        title = next(p for p in bot.tree.get_command(name).parameters if p.name == "title")
+        assert (title.min_value, title.max_value) == (1, 100)
