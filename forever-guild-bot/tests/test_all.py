@@ -203,3 +203,16 @@ def test_sync_reports_denominator_including_not_found(tmp_path):
     res = asyncio.run(sync_guild(db, Missing(ROSTER), "g"))
     assert "profile: 0 of 2 loaded, 2 not found" in res.summary()
     assert res.failures == [] or all(k != "profile" for _, k, _ in res.failures)
+
+
+def test_snapshots_keep_newest_two_per_character_and_kind(tmp_path):
+    db = make_db(tmp_path)
+    for i in range(4):
+        db.save_snapshot("a-b", "profile", "ok", f"p{i}", utcnow())
+        db.save_snapshot("a-b", "equipment", "ok", f"e{i}", utcnow())
+        db.save_snapshot(None, "roster", "ok", f"r{i}", utcnow())
+    assert db.prune_snapshots(keep=2) == 6
+    rows = db.conn.execute("SELECT kind, payload FROM snapshots ORDER BY id").fetchall()
+    assert sorted((r["kind"], r["payload"]) for r in rows) == [
+        ("equipment", "e2"), ("equipment", "e3"), ("profile", "p2"), ("profile", "p3"),
+        ("roster", "r2"), ("roster", "r3")]

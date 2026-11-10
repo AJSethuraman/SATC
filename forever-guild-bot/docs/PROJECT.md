@@ -68,7 +68,7 @@ Players connect Discord to characters with `/link`; the main character is the on
 - Test the whole raid flow in the real server: create, sign up, change role, remind, cancel.
 - Done 2026-11-10: `/raid-edit` (title/time/size), unit-tested, not yet tried in a real server.
 - Done 2026-11-10: raids close at start time; a full raid sends new slot signups to Bench; `/sync` shows loaded/not-found counts per kind.
-- Open: keep or prune old `snapshots` (unanswered; nothing is pruned).
+- Snapshots: owner only needs the latest data (10 Nov). After each sync only the newest 2 raw responses per character and kind are kept, enough to fix a parser from real data.
 - Likely needs: role caps (needs the owner's numbers per raid size), let a member pick which linked character signs up, post raid summary after.
 
 **Phase 2: lookup database ("Wowhead in our bot")**

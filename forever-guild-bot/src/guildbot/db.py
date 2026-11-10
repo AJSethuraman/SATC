@@ -106,6 +106,17 @@ class Database:
             (level, class_name, race_name, faction, now, slug))
         self.conn.commit()
 
+    def prune_snapshots(self, keep: int = 2) -> int:
+        """Keep only the newest `keep` raw responses per (character, kind). Returns rows deleted."""
+        cur = self.conn.execute(
+            """DELETE FROM snapshots WHERE id IN (
+                 SELECT id FROM (
+                   SELECT id, ROW_NUMBER() OVER (
+                     PARTITION BY COALESCE(slug, ''), kind ORDER BY id DESC) AS rn
+                   FROM snapshots) WHERE rn > ?)""", (keep,))
+        self.conn.commit()
+        return cur.rowcount
+
     def save_snapshot(self, slug, kind, status, payload, now) -> None:
         self.conn.execute(
             "INSERT INTO snapshots (slug, kind, fetched_at, status, payload) VALUES (?,?,?,?,?)",

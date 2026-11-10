@@ -83,6 +83,7 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
                          lambda s, d, ts: db.replace_equipment(s, bz.parse_equipment(d), ts)))
     await asyncio.gather(*tasks)
 
+    db.prune_snapshots()
     db.set_meta("last_sync_at", utcnow())
     db.set_meta("last_sync_failures", str(len(res.failures)))
     return res
