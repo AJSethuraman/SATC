@@ -41,6 +41,11 @@ separate consulting line, are governed by `PROJECTS.md`, `BACKLOG.md` and
 `TEMPLATE_CONTRACT.md`, and are unrelated to the practice-ops work above. Log
 work on them to `BACKLOG.md`, not `PLAN.md`.
 
+**Also here, and not SATC:** `forever-guild-bot/` is a Discord bot for the owner's WoW: Forever guild
+(roster from the Blizzard API, raid signups from Discord). Its own `CLAUDE.md` governs it and the practice
+rules above do not. Merged 10 Nov 2026 from PR #482; **never run live yet**, so start at its
+`docs/PROJECT.md` "Phase 0". Tests: `cd forever-guild-bot && pytest -q` (28, offline, in CI).
+
 > **Before starting anything substantial, read `docs/REPO-INVENTORY.md`.** It
 > maps what works, what is stranded on the 76 branches, what is blocked on a
 > human, and which documents are stale. It exists because this table used to
