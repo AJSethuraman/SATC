@@ -108,10 +108,12 @@ class Database:
         self.conn.commit()
 
     def prune_snapshots(self, keep: int = 2) -> int:
-        """Keep the newest `keep` raw responses per (character, kind), plus the latest successful one.
+        """Keep the newest `keep` raw responses per (character, kind), plus the latest "ok" one and the
+        latest "parse_error" one.
 
-        The parsed tables come from the last successful fetch, so its raw response must survive
-        even when the newest attempts were errors or 404s. Returns rows deleted.
+        "ok" means fetched and successfully parsed, so the parsed tables come from it and it must
+        survive newer errors or 404s. The latest "parse_error" is the raw response needed to fix a
+        parser. Returns rows deleted.
         """
         cur = self.conn.execute(
             """DELETE FROM snapshots WHERE id IN (
@@ -121,7 +123,7 @@ class Database:
                      ROW_NUMBER() OVER (
                        PARTITION BY COALESCE(slug, ''), kind, status ORDER BY id DESC) AS rn_status
                    FROM snapshots)
-                 WHERE rn > ? AND NOT (status = 'ok' AND rn_status = 1))""", (keep,))
+                 WHERE rn > ? AND NOT (status IN ('ok', 'parse_error') AND rn_status = 1))""", (keep,))
         self.conn.commit()
         return cur.rowcount
 

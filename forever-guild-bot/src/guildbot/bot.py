@@ -386,18 +386,35 @@ def register_commands(bot: GuildBot) -> None:
         if not raid or raid["status"] != "open":
             await interaction.response.send_message("No open raid with that number.", ephemeral=True)
             return
-        db.cancel_raid(raid_id)
-        raid = db.get_raid(raid_id)
+        # Tidy Discord first and cancel only once that worked, so a failure can be retried by running
+        # /raid-cancel again. A message or event that is already gone counts as tidy.
+        cancelled = dict(raid) | {"status": "cancelled"}
         try:
-            chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
-            msg = await chan.fetch_message(raid["message_id"])
-            await msg.edit(embed=raid_embed(db, raid), view=None)
+            if raid["channel_id"] and raid["message_id"]:
+                chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
+                msg = await chan.fetch_message(raid["message_id"])
+                await msg.edit(embed=raid_embed(db, cancelled), view=None)
+        except discord.NotFound:
+            pass
+        except discord.HTTPException:
+            log.exception("could not update the post for raid %s", raid_id)
+            await interaction.response.send_message(
+                f"Couldn't update the raid post, so #{raid_id} is not cancelled yet. Try again.", ephemeral=True)
+            return
+        try:
             if raid["discord_event_id"]:
                 ev = interaction.guild.get_scheduled_event(raid["discord_event_id"])
                 if ev:
                     await ev.delete()
+        except discord.NotFound:
+            pass
         except discord.HTTPException:
-            log.exception("could not tidy cancelled raid %s", raid_id)
+            log.exception("could not delete the event for raid %s", raid_id)
+            await interaction.response.send_message(
+                f"Couldn't remove the Discord event, so #{raid_id} is not cancelled yet. Try again.",
+                ephemeral=True)
+            return
+        db.cancel_raid(raid_id)
         await interaction.response.send_message(f"Raid #{raid_id} cancelled.", ephemeral=True)
 
     @tree.command(name="raids", description="List upcoming raids")

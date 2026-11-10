@@ -266,3 +266,18 @@ def test_data_as_of_uses_oldest_row_not_last_sync():
     rows = [{"fetched_at": "2026-11-10T10:00:00+00:00"}, {"fetched_at": "2026-11-09T08:00:00+00:00"}]
     assert "2026-11-09T08:00:00" in data_as_of(rows, "2026-11-10T12:00:00+00:00")
     assert "never" in data_as_of([], None)
+
+
+def test_unparsable_response_is_not_marked_ok_and_older_good_snapshot_survives(tmp_path):
+    class Wrapped(FakeClient):
+        async def character_profile(self, slug):
+            return {"data": {"level": 1}}
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))                       # good profile saved
+    for _ in range(3):
+        asyncio.run(sync_guild(db, Wrapped(ROSTER), "g"))                      # malformed 200s
+    rows = db.conn.execute(
+        "SELECT status, payload FROM snapshots WHERE slug='anduin-wrynn' AND kind='profile'").fetchall()
+    statuses = [r["status"] for r in rows]
+    assert "ok" in statuses and "parse_error" in statuses
+    assert any(r["status"] == "ok" and "Paladin" in r["payload"] for r in rows)   # source of cached data

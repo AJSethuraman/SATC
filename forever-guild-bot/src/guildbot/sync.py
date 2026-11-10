@@ -35,8 +35,12 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
     res = SyncResult(started_at=now)
 
     payload = await client.guild_roster(guild_slug)
+    try:
+        members = bz.parse_roster(payload)
+    except Exception:
+        db.save_snapshot(None, "roster", "parse_error", json.dumps(payload), now)   # keep the raw response
+        raise
     db.save_snapshot(None, "roster", "ok", json.dumps(payload), now)
-    members = bz.parse_roster(payload)
     res.members = len(members)
     for m in members:
         db.upsert_member(m.slug, m.name, m.surname, m.level, m.rank, now)
@@ -62,13 +66,15 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
                 tally(kind, "error")
                 return
             ts = utcnow()
-            db.save_snapshot(slug, kind, "ok", json.dumps(data), ts)
             try:
                 handle(slug, data, ts)
-                tally(kind, "ok")
-            except Exception as e:  # noqa: BLE001 - a parser mismatch, raw data is saved
+            except Exception as e:  # noqa: BLE001 - a parser mismatch; the raw response is kept
+                db.save_snapshot(slug, kind, "parse_error", json.dumps(data), ts)
                 res.failures.append((slug, kind, f"parse: {e}"))
                 tally(kind, "error")
+            else:
+                db.save_snapshot(slug, kind, "ok", json.dumps(data), ts)   # "ok" = parsed and stored
+                tally(kind, "ok")
 
     def on_profile(slug, data, ts):
         p = bz.parse_profile(data)
