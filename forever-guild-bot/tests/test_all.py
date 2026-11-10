@@ -350,3 +350,15 @@ def test_raid_titles_are_limited_to_what_discord_accepts(tmp_path):
     for name in ("raid-create", "raid-edit"):
         title = next(p for p in bot.tree.get_command(name).parameters if p.name == "title")
         assert (title.min_value, title.max_value) == (1, 100)
+
+
+def test_roster_returns_every_matching_member(tmp_path):
+    db = make_db(tmp_path)
+    for i in range(250):
+        db.upsert_member(f"p{i}-x", f"P{i}", "X", 60, 1, utcnow())
+    assert len(db.roster()) == 250
+    assert len(db.roster(limit=10)) == 10
+    lines = [f"**P{i}**: L60 Paladin" for i in range(500)]
+    from guildbot.bot import clip
+    out = clip(lines, 4000)
+    assert "more" in out and out.count("**P") < 500       # long lists are cut with an honest "and N more"

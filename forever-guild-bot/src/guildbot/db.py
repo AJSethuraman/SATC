@@ -178,13 +178,15 @@ class Database:
             "SELECT * FROM characters WHERE in_guild=1 AND (lower(name) LIKE ? OR slug LIKE ?) "
             "ORDER BY name LIMIT ?", (prefix.lower() + "%", prefix.lower() + "%", limit)).fetchall()
 
-    def roster(self, class_name=None, min_level=None, limit=200):
+    def roster(self, class_name=None, min_level=None, limit=None):
         q, args = "SELECT * FROM characters WHERE in_guild=1", []
         if class_name:
             q += " AND lower(class_name)=?"; args.append(class_name.lower())
         if min_level:
             q += " AND level>=?"; args.append(min_level)
-        q += " ORDER BY level DESC, name LIMIT ?"; args.append(limit)
+        q += " ORDER BY level DESC, name"
+        if limit:
+            q += " LIMIT ?"; args.append(limit)
         return self.conn.execute(q, args).fetchall()
 
     def professions_for(self, slug):
