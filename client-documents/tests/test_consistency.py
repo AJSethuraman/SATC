@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import cli  # noqa: E402
-import consistency  # noqa: E402
+import consistency
+import emails  # noqa: E402
 
 SAMPLES = ROOT / "samples"
 
@@ -93,12 +94,25 @@ def test_a_total_that_is_not_the_sum_of_the_lines_is_caught(record):
 
 
 def test_a_reference_that_does_not_reach_every_document_is_caught(record):
+    # On a PAGE. The onboarding letter was the target until it became an email
+    # (24 Oct 2026), which carries no reference line by design.
     rendered = consistency.render_package(record, cli.DOCUMENTS, cli.TEMPLATE_DIR)
-    rendered["onboarding-letter"] = rendered["onboarding-letter"].replace(
+    rendered["fee-estimate"] = rendered["fee-estimate"].replace(
         record["EngagementRef"], "2027-9999")
     checks = {c.name: c for c in consistency.report(record, rendered)}
     check = checks["one engagement reference"]
-    assert not check.ok and "onboarding-letter" in check.detail
+    assert not check.ok and "fee-estimate" in check.detail
+
+
+def test_an_email_body_is_not_asked_for_letter_furniture(record):
+    """The onboarding and organizer emails carry no date line and no
+    reference line, as no email does; the two checks compare pages."""
+    rendered = consistency.render_package(record, cli.DOCUMENTS, cli.TEMPLATE_DIR)
+    assert emails.is_email(rendered["onboarding-letter"])
+    checks = {c.name: c for c in consistency.report(record, rendered)}
+    for name in ("one engagement reference", "one letter date"):
+        assert checks[name].ok, checks[name].detail
+        assert "onboarding-letter" not in checks[name].detail
 
 
 def test_two_dates_on_one_package_are_caught(record):

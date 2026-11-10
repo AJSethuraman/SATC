@@ -76,7 +76,11 @@ def test_the_firm_block_reaches_every_document_from_settings_alone():
         template = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
         html = merge.render(template, record, strict=False).html
         assert "SATC Group LLP" in html, f"{name}: the firm name did not follow"
-        assert "1 Public Square" in html, f"{name}: the address did not follow"
+        # An email carries no letterhead or footer, so no address to follow
+        # (the onboarding and organizer emails, since 24 Oct 2026). What it
+        # must not do is carry the OLD one, asserted below for every template.
+        if '<div class="email"' not in template:
+            assert "1 Public Square" in html, f"{name}: the address did not follow"
         assert "6544 Copley" not in html, f"{name}: the old address is still typed in"
         assert "SAT-C LLP" not in html, f"{name}: the old name is still typed in"
 
@@ -359,7 +363,11 @@ def test_the_opening_package_reaches_pdf(tmp_path):
     assert rc == 0
     pdfs = sorted(tmp_path.glob("*.pdf"))
     record = cli.build_record(_load("tax-opening-package.json"))
-    assert len(pdfs) == len(cli.opening_package(record)), [p.name for p in pdfs]
+    # Every document but the onboarding email, which is the message the pack
+    # travels in and has no page to print (24 Oct 2026).
+    printed = [d for d in cli.opening_package(record) if d != "onboarding-letter"]
+    assert len(pdfs) == len(printed), [p.name for p in pdfs]
+    assert sorted(tmp_path.glob("*Onboarding Email*.eml")), "no draft for the onboarding email"
     for p in pdfs:
         assert p.stat().st_size > 4000, f"{p.name} is too small to be a document"
         assert p.read_bytes().startswith(b"%PDF"), f"{p.name} is not a PDF"

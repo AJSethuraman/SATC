@@ -224,13 +224,15 @@ def template_body(filename: str) -> str:
     # document in `.doc`; the ten letters use `.letter`. Neither is wrong and
     # renaming a class in twelve approved templates to tidy this up would be
     # changing a client-facing document to please the code that reads it.
-    for marker in ("doc", "letter"):
+    # A THIRD SINCE 24 OCT 2026: `.email`, the onboarding and organizer
+    # emails' body (the firm: "sent as an email not an attachment").
+    for marker in ("doc", "letter", "email"):
         doc = _balanced_div(body, marker)
         if doc is not None:
             return doc.strip()
     raise RuntimeError(
-        f"{filename} wraps its client document in neither `.doc` nor "
-        f"`.letter`, so this cannot tell where the document ends and the "
+        f"{filename} wraps its client document in none of `.doc`, "
+        f"`.letter` or `.email`, so this cannot tell where the document ends and the "
         f"authoring notes begin. Embedding the whole file instead would put "
         f"the merge-field table into the firm's operating procedures.")
 

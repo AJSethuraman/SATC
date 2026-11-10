@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — new client onboarding email (template)</title>
+</head>
+<body>
+
+<div class="email" style="font-family:Arial,sans-serif;font-size:12pt;color:#242C36">
+
+<div class="subject">Your <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> engagement letter</div>
+
+<p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
+
+<p><span data-encl="engagement-letter">Attached is your engagement letter</span>, <span data-encl="fee-estimate">with the fee estimate</span>. Please thoroughly review and sign.</p>
+
+<p>Thank you for choosing <span class="f">&lt;&lt;FirmName&gt;&gt;</span>. Below is what to send us, where to send it, and what happens next.</p>
+
+<p><b>Please send everything by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>.</b> Your point of contact is <span class="f">&lt;&lt;PreparerName&gt;&gt;</span>.</p>
+
+<p><b>What to send us</b></p>
+<ul>
+  <li class="mark"><span class="cond">[[EACH RequestList]]</span></li>
+  <li><b><span class="f">&lt;&lt;Item.Document&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+  <li class="mark"><span class="cond">[[END EACH]]</span></li>
+</ul>
+<p>If something on this list does not apply to you, just tell us.</p>
+
+<p><b>Where to send it</b></p>
+<p>We will email a secure upload link to <span class="f">&lt;&lt;ClientEmail&gt;&gt;</span>. Use it to send us everything listed above. Scans and clear photographs are both fine, and we prefer one document per file.</p>
+<p>Anything for signature comes to you by email, encrypted through Encyro, at the same address.</p>
+<p><b>Emailing or otherwise transmitting unprotected documents is done at your own risk.</b></p>
+
+<span class="cond">[[IF PriorFirm]]</span>
+<p><b>Your previous accountant</b></p>
+<p><span data-encl="records-release">We have attached a short authorization for you to sign.</span> Sign it and we will send it to <span class="f">&lt;&lt;PriorFirmName&gt;&gt;</span>, who will release your prior records to us. We will not wait on them to start, so send us what you already have either way.</p>
+<span class="cond end">[[END IF]]</span>
+
+<p><b>What happens next</b></p>
+<p>Once your documents are in, we can start. We will come back to you if something is missing. Our target for your first deliverable is <span class="f">&lt;&lt;FirstDeliverableTarget&gt;&gt;</span>.</p>
+
+<p><b>Questions</b></p>
+<p>Ask us early rather than guessing. Reach us at <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
+
+<p>Sincerely,<br/><span class="f">&lt;&lt;PreparerName&gt;&gt;</span><br/><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span>, <span class="f">&lt;&lt;FirmName&gt;&gt;</span></p>
+
+</div>
+
+<div class="ref">
+  <h3>What this is</h3>
+  <p>The body of the email that carries the opening pack: the engagement letter and fee estimate, and the records release where there was a previous accountant. It was a PDF letter attached to that email until 24 October 2026, when the firm said it "is actually supposed to be sent as an email not an attachment". The words are the letter's, with what the change forces: no letterhead, address block or footer; "This letter tells you" became "Below is"; "We have included" became "We have attached"; and the covering note's first lines, which the firm wrote on 31 August 2026, open it. Fields are in <code>FIELDS - Onboarding Email.md</code>.</p>
+  <p>Arial 12pt with real lists: the format the firm set for client email in Outlook on 13 October 2026.</p>
+</div>
+
+</body>
+</html>
