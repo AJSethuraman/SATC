@@ -153,4 +153,19 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
     names = {c.name for c in bot.tree.get_commands()}
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
-                     "raid-create", "raid-cancel", "raids", "sync"}
+                     "raid-create", "raid-edit", "raid-cancel", "raids", "sync"}
+
+
+def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
+    db = make_db(tmp_path)
+    now = datetime.now(timezone.utc)
+    soon = (now + timedelta(minutes=30)).isoformat(timespec="seconds")
+    rid = db.create_raid("Hyjal", soon, 10, 99)
+    db.mark_reminded(rid)
+    db.update_raid(rid, size=25)                       # size only: reminder stays done
+    r = db.get_raid(rid)
+    assert (r["title"], r["starts_at"], r["size"], r["reminded"]) == ("Hyjal", soon, 25, 1)
+    later = (now + timedelta(days=1)).isoformat(timespec="seconds")
+    db.update_raid(rid, title="Hyjal 2", starts_at_utc_iso=later)   # new time: reminder re-armed
+    r = db.get_raid(rid)
+    assert (r["title"], r["starts_at"], r["size"], r["reminded"]) == ("Hyjal 2", later, 25, 0)

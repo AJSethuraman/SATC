@@ -65,7 +65,8 @@ Players connect Discord to characters with `/link`; the main character is the on
 
 **Phase 1: make raids good**
 - Test the whole raid flow in the real server: create, sign up, change role, remind, cancel.
-- Likely needs: edit raid (time/size), role caps, let a member pick which linked character signs up, post raid summary after.
+- Done 2026-11-10: `/raid-edit` (title/time/size), unit-tested, not yet tried in a real server.
+- Likely needs: role caps (needs the owner's numbers per raid size), let a member pick which linked character signs up, post raid summary after.
 
 **Phase 2: lookup database ("Wowhead in our bot")**
 - Import open data into SQLite: CMaNGOS classic-db (GPL-3.0) and QuestieDB (an October 10 Forever snapshot exists in a published Questie archive). **Check licenses first** (Questie's repo has `LICENSE.md` and `gpl-3.0.md`; one mirror says MIT; unconfirmed).

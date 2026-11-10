@@ -288,6 +288,50 @@ def register_commands(bot: GuildBot) -> None:
         if note:
             await interaction.followup.send(note, ephemeral=True)
 
+    @tree.command(name="raid-edit", description="Change a raid's title, time or size")
+    @app_commands.describe(date="YYYY-MM-DD (give date and time together)", time="HH:MM, guild timezone")
+    @app_commands.guild_only()
+    @officer
+    async def raid_edit(interaction: discord.Interaction, raid_id: int, title: str | None = None,
+                        date: str | None = None, time: str | None = None,
+                        size: app_commands.Range[int, 1, 40] | None = None):
+        raid = db.get_raid(raid_id)
+        if not raid or raid["status"] != "open":
+            await interaction.response.send_message("No open raid with that number.", ephemeral=True)
+            return
+        if (date is None) != (time is None):
+            await interaction.response.send_message("Give the date and the time together.", ephemeral=True)
+            return
+        start = None
+        if date:
+            try:
+                start = R.parse_start(date, time, bot.cfg.timezone)
+            except ValueError:
+                await interaction.response.send_message(
+                    "Couldn't read that date/time. Use `2026-11-15` and `20:00`.", ephemeral=True)
+                return
+            if start <= datetime.now(timezone.utc):
+                await interaction.response.send_message("That time is in the past.", ephemeral=True)
+                return
+        if not (title or start or size):
+            await interaction.response.send_message("Nothing to change.", ephemeral=True)
+            return
+        db.update_raid(raid_id, title, start.isoformat(timespec="seconds") if start else None, size)
+        raid = db.get_raid(raid_id)
+        note = ""
+        try:
+            chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
+            msg = await chan.fetch_message(raid["message_id"])
+            await msg.edit(embed=raid_embed(db, raid))
+            ev = interaction.guild.get_scheduled_event(raid["discord_event_id"]) if raid["discord_event_id"] else None
+            if ev:
+                new_start = datetime.fromisoformat(raid["starts_at"])
+                await ev.edit(name=raid["title"], start_time=new_start, end_time=new_start + timedelta(hours=3))
+        except discord.HTTPException:
+            log.exception("could not refresh edited raid %s", raid_id)
+            note = " Saved, but I couldn't refresh the post or event."
+        await interaction.response.send_message(f"Raid #{raid_id} updated.{note}", ephemeral=True)
+
     @tree.command(name="raid-cancel", description="Cancel a raid")
     @app_commands.guild_only()
     @officer

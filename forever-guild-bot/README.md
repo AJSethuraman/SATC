@@ -21,6 +21,7 @@ Run tests: `PYTHONPATH=src python -m pytest -q`
 | `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what |
 | `/raids` | anyone | upcoming raids |
 | `/raid-create title date time size` | Manage Events | posts signup buttons + a Discord event. Date `2026-11-15`, time `20:00` (guild timezone) |
+| `/raid-edit id [title] [date time] [size]` | Manage Events | changes a raid; a new time re-arms the reminder and moves the Discord event |
 | `/raid-cancel id` | Manage Events | cancels and removes the Discord event |
 | `/sync` | Manage Events | refresh from Blizzard now |
 

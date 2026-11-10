@@ -248,6 +248,16 @@ class Database:
         return self.conn.execute(
             "SELECT * FROM raids WHERE status='open' ORDER BY starts_at").fetchall()
 
+    def update_raid(self, raid_id, title=None, starts_at_utc_iso=None, size=None) -> None:
+        """Change only the fields given. A new start time re-arms the reminder."""
+        raid = self.get_raid(raid_id)
+        new_start = starts_at_utc_iso or raid["starts_at"]
+        reminded = 0 if new_start != raid["starts_at"] else raid["reminded"]
+        self.conn.execute(
+            "UPDATE raids SET title=?, starts_at=?, size=?, reminded=? WHERE id=?",
+            (title or raid["title"], new_start, size or raid["size"], reminded, raid_id))
+        self.conn.commit()
+
     def cancel_raid(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='cancelled' WHERE id=?", (raid_id,))
         self.conn.commit()
