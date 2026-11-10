@@ -134,18 +134,28 @@ class Database:
         self.conn.commit()
 
     def replace_professions(self, slug, profs, now) -> None:
-        self.conn.execute("DELETE FROM professions WHERE slug=?", (slug,))
-        self.conn.executemany(
-            "INSERT INTO professions VALUES (?,?,?,?,?)",
-            [(slug, p.name, p.skill, p.max_skill, now) for p in profs])
-        self.conn.commit()
+        """Swap a character's professions in one transaction. If anything fails the old rows stay."""
+        try:
+            self.conn.execute("DELETE FROM professions WHERE slug=?", (slug,))
+            self.conn.executemany(
+                "INSERT INTO professions VALUES (?,?,?,?,?)",
+                [(slug, p.name, p.skill, p.max_skill, now) for p in profs])
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def replace_equipment(self, slug, items, now) -> None:
-        self.conn.execute("DELETE FROM equipment WHERE slug=?", (slug,))
-        self.conn.executemany(
-            "INSERT OR REPLACE INTO equipment VALUES (?,?,?,?,?,?)",
-            [(slug, i.slot, i.item_id, i.name, i.quality, now) for i in items])
-        self.conn.commit()
+        """Swap a character's gear in one transaction. If anything fails the old rows stay."""
+        try:
+            self.conn.execute("DELETE FROM equipment WHERE slug=?", (slug,))
+            self.conn.executemany(
+                "INSERT INTO equipment VALUES (?,?,?,?,?,?)",
+                [(slug, i.slot, i.item_id, i.name, i.quality, now) for i in items])
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def set_meta(self, key, value) -> None:
         self.conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?)", (key, value))

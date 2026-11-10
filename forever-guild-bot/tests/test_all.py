@@ -320,3 +320,22 @@ def test_who_footer_dates_each_part_separately():
     assert "Profile 2026-11-10T12:00:00" in out
     assert "professions 2026-11-09T08:00:00" in out      # the older row, not the newer profile time
     assert "gear never" in out
+
+
+def test_failed_profession_replacement_keeps_old_rows(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    before = [(r["profession"], r["skill"]) for r in db.professions_for("anduin-wrynn")]
+    assert before
+    dup = [bz.Profession("Alchemy", 1, 1), bz.Profession("Alchemy", 2, 2)]   # violates the primary key
+    with pytest.raises(Exception):
+        db.replace_professions("anduin-wrynn", dup, utcnow())
+    db.save_snapshot("anduin-wrynn", "professions", "parse_error", "x", utcnow())   # commits the connection
+    assert [(r["profession"], r["skill"]) for r in db.professions_for("anduin-wrynn")] == before
+
+
+def test_profession_listed_twice_keeps_highest_skill():
+    payload = {"primaries": [{"profession": {"name": "Alchemy"}, "skill_points": 100, "max_skill_points": 300}],
+               "professions": [{"profession": {"name": "Alchemy"}, "skill_points": 250, "max_skill_points": 300}]}
+    profs = bz.parse_professions(payload)
+    assert [(p.name, p.skill) for p in profs] == [("Alchemy", 250)]

@@ -121,7 +121,11 @@ def parse_professions(payload: dict) -> list[Profession]:
                 best = max(tiers, key=lambda t: t.get("skill_points", 0))
                 skill, mx = best.get("skill_points", 0), best.get("max_skill_points", 0)
             out.append(Profession(name=name, skill=int(skill), max_skill=int(mx or 0)))
-    return out
+    best: dict[str, Profession] = {}                 # one row per profession: keep the highest skill
+    for p in out:
+        if p.name not in best or p.skill > best[p.name].skill:
+            best[p.name] = p
+    return list(best.values())
 
 
 def parse_equipment(payload: dict) -> list[Item]:

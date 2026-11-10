@@ -380,6 +380,7 @@ def register_commands(bot: GuildBot) -> None:
         if not (title or start or size or caps):
             await interaction.response.send_message("Nothing to change.", ephemeral=True)
             return
+        await interaction.response.defer(ephemeral=True)     # Discord calls below can exceed the 3-second limit
         db.update_raid(raid_id, title, start.isoformat(timespec="seconds") if start else None, size, caps)
         raid = db.get_raid(raid_id)
         note = ""
@@ -399,7 +400,7 @@ def register_commands(bot: GuildBot) -> None:
             note = " Saved, but I couldn't refresh the post or event."
         if caps:
             note += " Lower limits don't remove anyone already signed up; they only block new signups."
-        await interaction.response.send_message(f"Raid #{raid_id} updated.{note}", ephemeral=True)
+        await interaction.followup.send(f"Raid #{raid_id} updated.{note}", ephemeral=True)
 
     @tree.command(name="raid-cancel", description="Cancel a raid")
     @app_commands.guild_only()
@@ -409,6 +410,7 @@ def register_commands(bot: GuildBot) -> None:
         if not raid or raid["status"] != "open":
             await interaction.response.send_message("No open raid with that number.", ephemeral=True)
             return
+        await interaction.response.defer(ephemeral=True)     # Discord calls below can exceed the 3-second limit
         # Tidy Discord first and cancel only once that worked, so a failure can be retried by running
         # /raid-cancel again. The event goes first: if it fails, the post is untouched and still
         # matches the open raid. A message or event that is already gone counts as tidy.
@@ -420,7 +422,7 @@ def register_commands(bot: GuildBot) -> None:
             pass                                  # already gone
         except discord.HTTPException:
             log.exception("could not delete the event for raid %s", raid_id)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Couldn't remove the Discord event, so #{raid_id} is not cancelled yet. Try again.",
                 ephemeral=True)
             return
@@ -434,11 +436,11 @@ def register_commands(bot: GuildBot) -> None:
             pass
         except discord.HTTPException:
             log.exception("could not update the post for raid %s", raid_id)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Couldn't update the raid post, so #{raid_id} is not cancelled yet. Try again.", ephemeral=True)
             return
         db.cancel_raid(raid_id)
-        await interaction.response.send_message(f"Raid #{raid_id} cancelled.", ephemeral=True)
+        await interaction.followup.send(f"Raid #{raid_id} cancelled.", ephemeral=True)
 
     @tree.command(name="raids", description="List upcoming raids")
     @app_commands.guild_only()
