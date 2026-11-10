@@ -310,3 +310,13 @@ def test_signups_carry_profile_time_for_the_footer(tmp_path):
     rid = db.create_raid("Hyjal", soon, 10, 99)
     db.upsert_signup(rid, 1, "anduin-wrynn", "tank", utcnow())
     assert db.signups(rid)[0]["profile_at"]
+
+
+def test_who_footer_dates_each_part_separately():
+    from guildbot.bot import who_footer
+    char = {"profile_at": "2026-11-10T12:00:00+00:00"}
+    profs = [{"fetched_at": "2026-11-09T08:00:00+00:00"}, {"fetched_at": "2026-11-10T12:00:00+00:00"}]
+    out = who_footer(char, profs, [])
+    assert "Profile 2026-11-10T12:00:00" in out
+    assert "professions 2026-11-09T08:00:00" in out      # the older row, not the newer profile time
+    assert "gear never" in out

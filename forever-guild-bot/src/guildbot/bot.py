@@ -39,6 +39,15 @@ def data_as_of(rows, fallback: str | None) -> str:
     return f"Data as of {min(times) if times else (fallback or 'never')} UTC (oldest shown)"
 
 
+def who_footer(char, profs, gear) -> str:
+    """Date each part of /who separately: they are fetched separately and can be different ages."""
+    def oldest(rows):
+        times = [x["fetched_at"] for x in rows if x["fetched_at"]]
+        return min(times) if times else "never"
+    return (f"Profile {char['profile_at'] or 'never'} · professions {oldest(profs)} · "
+            f"gear {oldest(gear)} (UTC)")
+
+
 def clip(lines: list[str], limit: int) -> str:
     out, used = [], 0
     for i, line in enumerate(lines):
@@ -257,7 +266,7 @@ def register_commands(bot: GuildBot) -> None:
             gear = db.equipment_for(r["slug"])
             e.add_field(name="Gear", value=clip([f"{g['slot']}: {g['item_name']}" for g in gear], 1024) or "—",
                         inline=False)
-            e.set_footer(text=f"Profile fetched {r['profile_at'] or 'never'} UTC")
+            e.set_footer(text=who_footer(r, profs, gear))
             embeds.append(e)
         await interaction.response.send_message(embeds=embeds)
 
@@ -317,7 +326,12 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message(embed=raid_embed(db, raid), view=RaidView(bot, raid_id))
             msg = await interaction.original_response()
         except Exception:
-            db.delete_raid(raid_id)      # never posted: don't leave a raid with no message behind
+            # Not recorded: take the post down if it went out, and remove the row, so a retry starts clean.
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
+                pass
+            db.delete_raid(raid_id)
             raise
         event_id, note = None, ""
         try:
@@ -373,10 +387,13 @@ def register_commands(bot: GuildBot) -> None:
             chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
             msg = await chan.fetch_message(raid["message_id"])
             await msg.edit(embed=raid_embed(db, raid))
-            ev = interaction.guild.get_scheduled_event(raid["discord_event_id"]) if raid["discord_event_id"] else None
-            if ev:
-                new_start = datetime.fromisoformat(raid["starts_at"])
-                await ev.edit(name=raid["title"], start_time=new_start, end_time=new_start + timedelta(hours=3))
+            if raid["discord_event_id"]:
+                try:
+                    ev = await interaction.guild.fetch_scheduled_event(raid["discord_event_id"])
+                    new_start = datetime.fromisoformat(raid["starts_at"])
+                    await ev.edit(name=raid["title"], start_time=new_start, end_time=new_start + timedelta(hours=3))
+                except discord.NotFound:
+                    pass                          # event was deleted by hand
         except discord.HTTPException:
             log.exception("could not refresh edited raid %s", raid_id)
             note = " Saved, but I couldn't refresh the post or event."
@@ -397,11 +414,10 @@ def register_commands(bot: GuildBot) -> None:
         # matches the open raid. A message or event that is already gone counts as tidy.
         try:
             if raid["discord_event_id"]:
-                ev = interaction.guild.get_scheduled_event(raid["discord_event_id"])
-                if ev:
-                    await ev.delete()
+                ev = await interaction.guild.fetch_scheduled_event(raid["discord_event_id"])
+                await ev.delete()
         except discord.NotFound:
-            pass
+            pass                                  # already gone
         except discord.HTTPException:
             log.exception("could not delete the event for raid %s", raid_id)
             await interaction.response.send_message(
