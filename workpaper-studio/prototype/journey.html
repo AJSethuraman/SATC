@@ -1,0 +1,927 @@
+<title>Workpaper Studio Journey</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: left is what a tool designer edits (configuration), right is what a preparer sees (the result). Same engine, different data. */
+:root{
+  --bg:#e9edf2; --surface:#fff; --surface-2:#f4f6f9; --surface-3:#eaeef4; --line:#d5dbe3; --line-strong:#aeb8c5;
+  --ink:#131a23; --ink-2:#434d5a; --ink-3:#5f6a78; --accent:#1c4f8f; --accent-ink:#fff; --accent-soft:#e1ebf8;
+  --calc:#edf1f7; --calc-line:#c9d3e2; --ok:#17673f; --ok-bg:#e0f1e8; --warn:#7f4a00; --warn-bg:#fcefcf; --err:#a1241b; --err-bg:#fbe5e2;
+  --cfg:#f0efe9; --cfg-line:#d6d3c6;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1217; --surface:#161b22; --surface-2:#1b212a; --surface-3:#222a35; --line:#2b3441; --line-strong:#465263;
+  --ink:#e8ecf1; --ink-2:#b3bcc8; --ink-3:#8c98a8; --accent:#86b6f0; --accent-ink:#0a1a2e; --accent-soft:#1a2b43;
+  --calc:#1b2431; --calc-line:#2f3d52; --ok:#62d29b; --ok-bg:#12301f; --warn:#f0bb62; --warn-bg:#392a0d; --err:#ff938a; --err-bg:#3c1815;
+  --cfg:#1d1f1a; --cfg-line:#3a3d33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1217; --surface:#161b22; --surface-2:#1b212a; --surface-3:#222a35; --line:#2b3441; --line-strong:#465263;
+  --ink:#e8ecf1; --ink-2:#b3bcc8; --ink-3:#8c98a8; --accent:#86b6f0; --accent-ink:#0a1a2e; --accent-soft:#1a2b43;
+  --calc:#1b2431; --calc-line:#2f3d52; --ok:#62d29b; --ok-bg:#12301f; --warn:#f0bb62; --warn-bg:#392a0d; --err:#ff938a; --err-bg:#3c1815;
+  --cfg:#1d1f1a; --cfg-line:#3a3d33; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.45 var(--sans);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.top{padding:14px max(16px,env(safe-area-inset-left,0px)) 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.top h1{font-size:20px}
+.levels{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.lv{flex:1 1 260px;border:1px solid var(--line);border-radius:6px;padding:8px 12px;background:var(--surface-2)}
+.lv b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.lv span{color:var(--ink-2)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px max(16px,env(safe-area-inset-left,0px));background:var(--surface-2);border-bottom:1px solid var(--line)}
+.bar label{font-weight:500}
+.sel,.ctl{border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:5px 8px;min-height:30px;max-width:100%}
+.ctl{width:100%}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);background:var(--surface);padding:4px 11px;border-radius:4px;font-weight:500;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--surface-3)} .btn.sm{padding:1px 8px;font-size:12px} .btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{border-color:transparent;background:none;color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:4px 12px}.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:500}
+details.org{margin:0;background:var(--surface);border-bottom:1px solid var(--line)}
+details.org>summary{padding:9px max(16px,env(safe-area-inset-left,0px));cursor:pointer;font-weight:500}
+.orgbody{padding:4px max(16px,env(safe-area-inset-left,0px)) 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.orgbody textarea{width:100%;min-height:84px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:6px 8px}
+.cap{font-size:12px;color:var(--ink-3)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:0;align-items:start}
+.pane{padding:14px max(16px,env(safe-area-inset-left,0px)) 80px;min-width:0}
+.pane.cfg{background:var(--cfg);border-right:1px solid var(--cfg-line)}
+.panehead{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.panehead h2{font-size:15px} .panehead .cap{flex:1 1 200px}
+.tabs{display:none;gap:0;border-bottom:1px solid var(--line);background:var(--surface)}
+.tabs button{flex:1;border:0;border-bottom:3px solid transparent;background:none;padding:10px}
+.tabs button[aria-selected="true"]{border-bottom-color:var(--accent);font-weight:600}
+.sc{background:var(--surface);border:1px solid var(--cfg-line);border-radius:6px;margin-bottom:12px}
+.sc>header{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sc>header .ctl{flex:1 1 140px;font-weight:600}
+.sc .inner{padding:8px 10px;display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+.blk{border:1px solid var(--line);border-radius:4px;padding:6px 8px;background:var(--surface-2)}
+.blk .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.blk .row .ctl{flex:1 1 130px;width:auto}
+.kind{font-size:11px;font-family:var(--mono);color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;min-width:44px}
+.chip{display:inline-flex;font-size:12px;line-height:18px;padding:0 7px;border-radius:9px;background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.err{background:var(--err-bg);color:var(--err)} .chip.acc{background:var(--accent-soft);color:var(--accent)}
+.cols{margin:6px 0 0 8px;display:grid;gap:4px}
+.cols .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.cols .ctl{flex:1 1 110px;width:auto}
+.rule{background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:4px;padding:6px 8px;line-height:2}
+.msg{background:var(--accent-soft);color:var(--accent);padding:8px 12px;border-radius:6px;margin-bottom:10px}
+pre.data{background:var(--surface);border:1px solid var(--cfg-line);border-radius:6px;padding:12px;overflow:auto;font:12px/1.5 var(--mono);max-height:70vh;margin:0}
+/* preview */
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:12px}
+.doc>header{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.doc .body{padding:12px 14px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.doc .body>*,.sc .inner>*{min-width:0}
+.doc .na{padding:12px 14px;color:var(--ink-3)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px 14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--ink-2);margin-bottom:2px}
+.field.miss .ctl{border-style:dashed;border-color:var(--warn);background:color-mix(in srgb,var(--warn-bg) 55%,var(--surface))}
+.field .hint{font-size:12px;color:var(--warn)}
+.rt{border:1px solid var(--line);border-radius:4px;overflow-x:auto}
+.rt table{border-collapse:collapse;width:100%;min-width:420px}
+.rt th{background:var(--surface-2);font-size:12px;font-weight:500;color:var(--ink-3);text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+.rt td{padding:3px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.rt tr:last-child td{border-bottom:0}
+.rt td.m .ctl{border-style:dashed;border-color:var(--warn);background:color-mix(in srgb,var(--warn-bg) 55%,var(--surface))}
+.rt .ctl{padding:3px 6px;min-height:28px}
+.calc{background:var(--calc);border:1px solid var(--calc-line);border-radius:6px;padding:10px 12px}
+.calc .big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.calc .fx{font-family:var(--mono);color:var(--accent)}
+.calc ul{margin:4px 0 0;padding-left:18px;color:var(--ink-2)}
+.empty{padding:28px 16px;text-align:center;color:var(--ink-3)}
+
+.strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.strip button{flex:1 1 150px;text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:7px 10px}
+.strip button b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.strip button span{color:var(--ink-3);font-size:12px}
+.strip button[aria-current="step"]{border-color:var(--accent);background:var(--accent-soft)}
+.strip button[aria-current="step"] b{color:var(--accent)}
+.story{background:var(--accent-soft);border-radius:6px;padding:10px 14px;margin:0 0 14px}
+.story b{color:var(--accent)}
+.wrap{max-width:1120px;margin:0 auto;padding:14px max(16px,env(safe-area-inset-left,0px)) 90px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:14px;min-width:0}
+.card>header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card>header h2,.card>header h3{font-size:15px}
+.card .cb{padding:12px 14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;align-items:start}
+.checks{list-style:none;margin:0;padding:0}
+.checks li{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.checks li:last-child{border-bottom:0}
+.checks .i{flex:none;width:18px;font-weight:700;text-align:center}
+.checks .ok .i{color:var(--ok)} .checks .no .i{color:var(--err)} .checks .wn .i{color:var(--warn)}
+.shelf{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:10px}
+.pk{border:1px solid var(--line);border-radius:6px;background:var(--surface-2);padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.pk.mine{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);background:var(--surface)}
+.pk h4{margin:0;font-size:14px}
+.listing{padding:22px;display:grid;gap:14px}
+.listing h2{font-size:24px;line-height:1.2}
+.listing .tag{font-size:16px;color:var(--ink-2);max-width:60ch}
+.listing ul{margin:4px 0 0;padding-left:18px;color:var(--ink-2)}
+.hl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:14px}
+.hl h3{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin-bottom:4px}
+table.t{border-collapse:collapse;width:100%;font-size:13px;min-width:420px}
+table.t th{text-align:left;font-weight:500;font-size:12px;color:var(--ink-3);padding:5px 8px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+table.t td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+textarea.pack{width:100%;min-height:150px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);padding:8px;font:12px/1.5 var(--mono)}
+.lock{color:var(--ink-3)}
+.row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.diff li{margin:3px 0}
+@media (max-width:900px){
+  .split{grid-template-columns:minmax(0,1fr)} .tabs{display:flex}
+  .pane.hide{display:none} .pane.cfg{border-right:0}
+}
+</style>
+
+<header class="top">
+  <h1>Workpaper Studio: from your know-how to someone else's tool</h1>
+  <div class="cap" style="margin-top:2px">Your way of working, packaged so another organization can run it. Every step below is live.</div>
+  <div class="strip" id="strip" role="tablist" aria-label="Journey"></div>
+</header>
+<div id="st1">
+<div class="wrap" style="padding-bottom:0"><div class="story"><b>You, the expert.</b> Turn how you work into a tool: the questions, the guidance, the conditions, the calculations you choose and your recommended limits. Pick a starting point, change anything, and watch what people will see.</div></div>
+<div class="bar">
+  <label for="tpl">Start from</label>
+  <select class="sel" id="tpl"></select>
+  <span class="cap" id="tplnote"></span>
+</div>
+<details class="org"><summary>Organization defaults (level 1): change a word or a list and every tool follows</summary>
+  <div class="orgbody" id="org"></div></details>
+<div class="tabs" role="tablist" id="tabs"><button type="button" role="tab" data-tab="cfg" aria-selected="true">Configuration</button><button type="button" role="tab" data-tab="pre" aria-selected="false">What people see</button></div>
+<div class="split">
+  <section class="pane cfg" id="cfgpane" aria-label="Configuration"></section>
+  <section class="pane" id="prepane" aria-label="What people see"></section>
+</div>
+<div class="wrap" style="padding-top:0"><button type="button" class="btn pri" data-j="goto" data-n="2">Next: package it →</button></div>
+</div>
+<div id="stagepane" class="wrap" hidden></div>
+<div id="live" class="sr" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o));
+const num=v=>{const s=String(v==null?'':v).replace(/[$,%\s]/g,'');return /^-?\d+(\.\d+)?$/.test(s)?Number(s):NaN};
+const fmt=n=>'$'+Math.round(n).toLocaleString('en-US'), fmt2=n=>(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), pct=n=>(n*100).toFixed(1)+'%';
+
+/* ---------- level 1: organization defaults ---------- */
+let ORG={terms:{case:'Case',who:'Preparer'},lists:{
+  'Yes / No':['Yes','No'],'Facility types':['Term loan','Line of credit','Equipment loan'],'Filing status':['Single','Married filing jointly','Married filing separately','Head of household'],
+  'Control frequency':['Daily','Weekly','Monthly','Quarterly','Annual'],
+  'Effectiveness':['Effective','Partially effective','Not effective','Not applicable'],
+  'Testers':['A. Rivera','B. Chen','C. Okafor'],'Reviewers':['D. Patel','E. Moreau'],
+  'Quarter ends':['2026-09-30','2026-12-31','2027-03-31'],
+  'Collateral classes':['Cash','Marketable securities','Accounts receivable','Inventory','Equipment','Real estate']}};
+
+/* ---------- the method library (tested, shipped, fictional here) ---------- */
+const colk=(key,label,type,req,x)=>Object.assign({key,label,type,req:!!req},x||{});
+const G=(id,label,cols,min,x)=>Object.assign({kind:'grid',id,label,rows:{from:'entered',min:min||0},cols:{from:'fixed',items:cols},cellsBy:'col'},x||{});
+ORG.patterns={
+  'Rows people add':{label:'Entries',rows:{from:'entered',min:1,addLabel:'entry'},cols:{from:'fixed',items:[colk('item','Item','text',1),colk('amount','Amount','number',1)]},cellsBy:'col',totals:true},
+  'Questions to rate':{label:'Questions',rows:{from:'fixed',items:[{key:'1.01',group:'First section',label:'First question',info:'How to test it.'}]},cols:{from:'fixed',items:[colk('r','Rating','list',1,{list:'Effectiveness'}),colk('c','Comment','longtext',0,{reqWhen:{key:'r',values:['Partially effective','Not effective']}})]},cellsBy:'col',tally:true},
+  'Line items by person':{label:'Cash flow by person',rows:{from:'fixed',items:[{key:'inc',label:'Total personal income',type:'number',req:true},{key:'adj',label:'Adjustments',type:'number',req:false},{key:'debt',label:'Existing personal debt payments',type:'number',req:true},{key:'left',label:'Left after debt payments',type:'number',compute:{op:'sub',a:'inc',b:'debt'}}]},cols:{from:'entered',min:1,addLabel:'Person'},cellsBy:'row'},
+  'Line items by period':{label:'By period',rows:{from:'fixed',items:[{key:'rev',label:'Revenue',type:'number',req:true},{key:'exp',label:'Expenses',type:'number',req:true},{key:'net',label:'Net',type:'number',compute:{op:'sub',a:'rev',b:'exp'}}]},cols:{from:'fixed',items:[{key:'p1',label:'Two years ago'},{key:'p2',label:'Last year'},{key:'p3',label:'Interim'}]},cellsBy:'row'},
+  'Checklist':{label:'Checklist',rows:{from:'fixed',items:[{key:'d1',label:'First document'},{key:'d2',label:'Second document'}]},cols:{from:'fixed',items:[colk('got','Received?','list',1,{list:'Yes / No'}),colk('when','Date','date',0)]},cellsBy:'col',tally:true},
+  'Sample with attributes':{label:'Sample',rows:{from:'entered',min:1,addLabel:'item'},cols:{from:'fixed',items:[colk('id','Item','text',1),colk('a1','Attribute A','choice',1,{opts:['Pass','Exception','N/A']}),colk('a2','Attribute B','choice',1,{opts:['Pass','Exception','N/A']})]},cellsBy:'col',tally:true},
+  'Valued by class':{label:'Valuation',rows:{from:'list',list:'Collateral classes'},cols:{from:'fixed',items:[colk('value','Value','number',0),colk('adv','Advance %','number',0,{noTotal:true}),colk('adj','Adjusted value','number',0,{compute:{op:'pctof',a:'value',b:'adv'}})]},cellsBy:'col',totals:true}
+};
+const LIB={
+  dti:{name:'Debt-to-income',code:'DTI-DEMO 1.0',limitLabel:'Highest allowed ratio',def:0.4,kind:'pct',
+    needs:[G('income','Income sources',[colk('source','Source','text'),colk('amount','Amount','number',1),colk('per','Per','choice',1,{opts:['Monthly','Annual']})],1,{rows:{from:'entered',min:1,addLabel:'income source'}}),
+           G('debts','Existing debts',[colk('creditor','Creditor','text'),colk('payment','Monthly payment','number',1)],1,{rows:{from:'entered',min:1,addLabel:'debt'}}),
+           {kind:'field',id:'proposed',label:'Proposed monthly payment',type:'number',req:true}]},
+  ltv:{name:'Loan-to-value',code:'LTV-DEMO 1.0',limitLabel:'Highest allowed ratio',def:0.8,kind:'pct',
+    needs:[{kind:'field',id:'amount',label:'Requested amount',type:'number',req:true},
+           G('collateral','Collateral items',[colk('desc','Description','text'),colk('value','Value','number',1)],1)]},
+  recon:{name:'Reconciliation difference',code:'REC-DEMO 1.0',limitLabel:'Largest allowed difference ($)',def:0,kind:'usd',
+    needs:[{kind:'field',id:'stmt',label:'Balance per bank statement',type:'number',req:true},{kind:'field',id:'gl',label:'Balance per ledger',type:'number',req:true},
+           G('items','Reconciling items',[colk('type','Type','choice',1,{opts:['Deposit in transit','Outstanding check','Bank fee not yet booked','Interest not yet booked']}),colk('desc','Description','text'),colk('amount','Amount','number',1)],1)]},
+  dev:{name:'Deviation rate',code:'DEV-DEMO 1.0',limitLabel:'Highest allowed rate',def:0.05,kind:'pct',
+    needs:[G('tests','Items tested',[colk('item','Item','text'),colk('result','Result','choice',1,{opts:['Pass','Exception']})],1)]}
+};
+const fld=(id,label,type,req,x)=>Object.assign({kind:'field',id,label,type,req:!!req},x||{});
+const withAuto=(m)=>LIB[m].needs.map(b=>Object.assign(clone(b),{auto:true}));
+const calcBlk=(method)=>({kind:'calc',id:'calc_'+method,method,limit:LIB[method].def});
+const calcBox0=calcBlk;
+
+const Q=(n,section,q,steps,applies)=>({key:n,group:section,label:q,info:steps,when:applies||null});
+const REVIEW_QS=[
+ Q('1.01','Risk rating','Is the assigned risk rating supported by the credit file?','EXAMPLE TEXT, replace with your own. Read the approval document and its attachments. Using your rating guidance and judgment, conclude whether the rating is reasonable.'),
+ Q('1.02','Risk rating','Is each facility rating consistent with the borrower rating?','EXAMPLE TEXT. Compare the two and note any difference that the file does not explain.'),
+ Q('2.01','Data accuracy','Does the rating in the system of record match the approval document?','EXAMPLE TEXT. Compare the two. If you cannot reach the system, use the most recent account report.'),
+ Q('2.02','Data accuracy','Is the industry code correct in the system of record?','EXAMPLE TEXT. Compare the code with the approval document.'),
+ Q('3.01','Policy exceptions','Are all policy exceptions noted and mitigated in the approval document?','EXAMPLE TEXT. Read the exceptions section. Confirm each one has a documented mitigant, or that none was needed.'),
+ Q('4.01','Approval authority','Was the credit approved by someone with enough authority?','EXAMPLE TEXT. Compare the total commitment with the approval authority table for the line of business.'),
+ Q('5.01','Repayment analysis','Were all liabilities considered in the repayment analysis?','EXAMPLE TEXT. Compare the liabilities in the analysis with the credit report and the borrower statement.'),
+ Q('5.02','Repayment analysis','For a new money request, was the required analysis completed with current information?','EXAMPLE TEXT. Confirm the analysis was required, was completed, and used current information.',{field:'newmoney',values:['Yes']}),
+ Q('6.01','Collateral','Was the collateral eligible, valued and documented?','EXAMPLE TEXT. Confirm the collateral type is allowed, the valuation is current and the lien is documented.',{field:'security',values:['Secured']})];
+const fromPattern=(name,id,x)=>Object.assign(clone(ORG.patterns[name]),{kind:'grid',id},x||{});
+const TEMPLATES={
+  review:{label:'Credit file review (test framework)',note:'A table of rated questions drives the review. The supporting tables are the same block set up differently.',tool:{name:'Credit file review',sections:[
+    {id:'s1',title:'Review details',mode:'required',blocks:[fld('tester','Tester','list',1,{list:'Testers'}),fld('reviewer','Reviewer','list',1,{list:'Reviewers'}),fld('reviewdate','Review date','date',1),fld('quarter','Quarter end','list',1,{list:'Quarter ends'}),fld('scope','Scope','text',0)]},
+    {id:'s2',title:'Borrower & facilities',mode:'required',blocks:[fld('borrower','Borrower','text',1),fld('security','Security','choice',1,{opts:['Secured','Unsecured']}),fld('newmoney','Is this a new money request?','list',1,{list:'Yes / No'}),G('facilities','Facilities',[colk('ftype','Facility type','list',1,{list:'Facility types'}),colk('frating','Rating','number',0,{noTotal:true}),colk('commit','Commitment','number',1),colk('out','Outstanding','number',1)],1,{rows:{from:'entered',min:1,addLabel:'facility'},totals:true})]},
+    {id:'s3',title:'Test questions',mode:'required',blocks:[fromPattern('Questions to rate','qs1',{label:'Test questions',rows:{from:'fixed',items:clone(REVIEW_QS)}})]},
+    {id:'s4',title:'Supporting analysis',mode:'optional',blocks:[fromPattern('Line items by person','cashflow',{label:'Owner and guarantor cash flow'}),fromPattern('Valued by class','valuation',{label:'Collateral valuation'})].concat(withAuto('dti'),[calcBlk('dti')])},
+    {id:'s5',title:'Conclusion',mode:'required',blocks:[fld('qualified','Is the credit qualified?','list',1,{list:'Yes / No'}),fld('summary','Overall summary','longtext',1)]}]}},
+  credit:{label:'Small-business credit review',note:'Two calculations, one conditional section.',tool:{name:'Small-business credit review',sections:[
+    {id:'s1',title:'Request & borrower',mode:'required',blocks:[fld('borrower','Borrower','text',1),fld('facility','Facility','list',1,{list:'Facility types'}),fld('amount','Requested amount','number',1),fld('security','Security','choice',1,{opts:['Secured','Unsecured']})]},
+    {id:'s2',title:'Income & debt service',mode:'required',blocks:[].concat(withAuto('dti'),[calcBlk('dti')])},
+    {id:'s3',title:'Collateral',mode:'conditional',rule:{field:'security',values:['Secured']},blocks:[LIB.ltv.needs[1]].map(b=>Object.assign(clone(b),{auto:true})).concat([calcBlk('ltv')])}]}},
+  recon:{label:'Month-end bank reconciliation',note:'One calculation, one conditional section.',tool:{name:'Month-end bank reconciliation',sections:[
+    {id:'s1',title:'Account & balances',mode:'required',blocks:[fld('account','Account','text',1),fld('stmtdate','Statement date','date',1),fld('stmt','Balance per bank statement','number',1),fld('gl','Balance per ledger','number',1),fld('interco','Any intercompany activity?','list',1,{list:'Yes / No'})]},
+    {id:'s2',title:'Reconciling items',mode:'required',blocks:[clone(Object.assign({},LIB.recon.needs[2],{auto:true})),calcBlk('recon')]},
+    {id:'s3',title:'Intercompany items',mode:'conditional',rule:{field:'interco',values:['Yes']},blocks:[G('ic','Intercompany items',[colk('party','Counterparty','text',1),colk('amt','Amount','number',1)],1,{totals:true})]}]}},
+  audit:{label:'Control test (audit)',note:'A sample, a rate and a follow-up. The sample is the same block as a facilities list.',tool:{name:'Control test',sections:[
+    {id:'s1',title:'The control',mode:'required',blocks:[fld('control','Control being tested','text',1),fld('freq','How often it runs','list',1,{list:'Control frequency'}),fld('period','Period tested','text',1),fld('hasexc','Were exceptions found?','list',1,{list:'Yes / No'})]},
+    {id:'s2',title:'Test results',mode:'required',blocks:[].concat(withAuto('dev'),[calcBlk('dev')])},
+    {id:'s3',title:'Follow-up on exceptions',mode:'conditional',rule:{field:'hasexc',values:['Yes']},blocks:[G('follow','Exceptions and follow-up',[colk('what','What happened','text',1),colk('owner','Owner','text',1),colk('due','Due','date')],1)]}]}},
+  tax:{label:'Individual return intake checklist',note:'No calculation at all. A checklist is the same block with fixed rows.',tool:{name:'Individual return intake',sections:[
+    {id:'s1',title:'Taxpayer',mode:'required',blocks:[fld('name','Taxpayer','text',1),fld('status','Filing status','list',1,{list:'Filing status'}),fld('rental','Any rental property?','list',1,{list:'Yes / No'}),fld('biz','Any self-employment?','list',1,{list:'Yes / No'})]},
+    {id:'s2',title:'Rental property',mode:'conditional',rule:{field:'rental',values:['Yes']},blocks:[G('props','Properties',[colk('addr','Address','text',1),colk('days','Days rented','number',1,{noTotal:true})],1)]},
+    {id:'s3',title:'Self-employment',mode:'conditional',rule:{field:'biz',values:['Yes']},blocks:[fld('bizname','Business name','text',1),fld('mileage','Mileage log received?','list',1,{list:'Yes / No'})]},
+    {id:'s4',title:'Documents received',mode:'required',blocks:[fromPattern('Checklist','docs',{label:'Documents',rows:{from:'fixed',items:[{key:'w2',label:'Wage statements'},{key:'int',label:'Interest and dividend statements'},{key:'py',label:'Last year’s return'},{key:'rent',label:'Rental income and expenses',when:{field:'rental',values:['Yes']}}]}})]}]}},
+  blank:{label:'Blank tool',note:'Start from nothing and add blocks.',tool:{name:'My new tool',sections:[{id:'s1',title:'First section',mode:'required',blocks:[]}]}}
+};
+
+
+/* ---------- state ---------- */
+let TOOL=clone(TEMPLATES.review.tool), DATA={fields:{},tables:{}}, MSG='', VIEW='edit', uid=1, CUR='review', LIMIT_OVERRIDE=null, PRE=$('#prepane');
+const nid=p=>p+(++uid);
+const allBlocks=()=>TOOL.sections.flatMap(s=>s.blocks);
+const findBlock=(id,kind)=>allBlocks().find(b=>b.id===id&&(!kind||b.kind===kind));
+const calcsIn=()=>allBlocks().filter(b=>b.kind==='calc');
+const neededBy=(id,kind)=>calcsIn().filter(c=>LIB[c.method].needs.some(n=>n.id===id&&n.kind===kind)).map(c=>LIB[c.method].name);
+const lockedCols=id=>{const s=new Set();calcsIn().forEach(c=>LIB[c.method].needs.forEach(n=>{if(n.kind==='grid'&&n.id===id)(n.cols.items||[]).forEach(x=>s.add(x.key))}));return s};
+const opts=f=>f.type==='list'?(ORG.lists[f.list]||[]):(f.opts||[]);
+const selectFields=()=>allBlocks().filter(b=>b.kind==='field'&&(b.type==='list'||b.type==='choice'));
+
+/* ---------- engine: the same code runs every tool ---------- */
+const val=id=>DATA.fields[id]==null?'':DATA.fields[id];
+const rows=id=>DATA.tables[id]||[];
+function readNum(v,label,r,where){ if(v===''||v==null){r.missing.push({label,where});return null} const n=num(v); if(isNaN(n)||n<0){r.bad.push({label,where});return null} return n }
+const ENGINE={
+  dti(){const r={missing:[],bad:[],steps:[]};let inc=0,debt=0;
+    rows('income').forEach((x,i)=>{const a=readNum(x.amount,'Income '+(i+1)+': amount',r),p=x.per;if(!p)r.missing.push({label:'Income '+(i+1)+': per month or year'});if(a!=null&&p)inc+=p==='Annual'?a/12:a});
+    if(!rows('income').length)r.missing.push({label:'Add at least one income source'});
+    rows('debts').forEach((x,i)=>{const a=readNum(x.payment,'Debt '+(i+1)+': payment',r);if(a!=null)debt+=a});
+    const pr=readNum(val('proposed'),'Proposed monthly payment',r);
+    if(r.missing.length||r.bad.length)return r;
+    if(inc===0){r.cannot='Monthly income totals zero, so there is no ratio. This is not a pass.';return r}
+    r.value=(debt+pr)/inc;r.how=`(${fmt(debt)} existing + ${fmt(pr)} proposed) ÷ ${fmt(inc)} monthly income`;return r},
+  ltv(){const r={missing:[],bad:[]};const a=readNum(val('amount'),'Requested amount',r);let s=0;
+    rows('collateral').forEach((x,i)=>{const v=readNum(x.value,'Collateral '+(i+1)+': value',r);if(v!=null)s+=v});
+    if(!rows('collateral').length)r.missing.push({label:'Add at least one collateral item'});
+    if(r.missing.length||r.bad.length)return r; if(s===0){r.cannot='No collateral value, so there is no ratio. This is not a pass.';return r}
+    r.value=a/s;r.how=`${fmt(a)} requested ÷ ${fmt(s)} collateral`;return r},
+  recon(){const r={missing:[],bad:[]};let bank=readNum(val('stmt'),'Balance per bank statement',r)||0,book=readNum(val('gl'),'Balance per ledger',r)||0;
+    rows('items').forEach((x,i)=>{const a=readNum(x.amount,'Item '+(i+1)+': amount',r);if(!x.type)r.missing.push({label:'Item '+(i+1)+': type'});if(a==null||!x.type)return;
+      if(x.type==='Deposit in transit')bank+=a;else if(x.type==='Outstanding check')bank-=a;else if(x.type==='Bank fee not yet booked')book-=a;else book+=a});
+    if(r.missing.length||r.bad.length)return r; r.value=Math.round((bank-book)*100)/100;r.how=`${fmt2(bank)} adjusted bank − ${fmt2(book)} adjusted ledger`;return r},
+  dev(){const r={missing:[],bad:[]};let n=0,e=0;rows('tests').forEach((x,i)=>{if(!x.result)r.missing.push({label:'Item '+(i+1)+': result'});else{n++;if(x.result==='Exception')e++}});
+    if(!rows('tests').length)r.missing.push({label:'Add at least one item tested'});
+    if(r.missing.length||r.bad.length)return r; r.value=e/n;r.how=`${e} exceptions ÷ ${n} items tested`;return r}
+};
+
+/* ---------- one table primitive: you configure its two axes ----------
+   Rows and columns are each one of: a fixed list you write, entries the preparer adds,
+   or an organization list. Cells take their type from the column or from the row,
+   whichever axis is a fixed list. A repeating table, a question framework, line items
+   by person, a checklist and a sample are all this one block with different settings. */
+function ruleOf(r){ if(!r)return true; const v=val(r.field); if(!v)return null; return r.values.includes(v) }
+function gstore(id){DATA.fx=DATA.fx||{};DATA.gc=DATA.gc||{};return {fx:(DATA.fx[id]=DATA.fx[id]||{}),gc:(DATA.gc[id]=DATA.gc[id]||[])}}
+function axis(g,which){const a=g[which];
+  if(a.from==='fixed')return a.items||[];
+  if(a.from==='list')return (ORG.lists[a.list]||[]).map(v=>({key:v,label:v}));
+  if(which==='rows')return rows(g.id).map((r,i)=>({key:i,label:String(i+1),_entered:true}));
+  return gstore(g.id).gc.map(c=>({key:c.key,label:c.label,_entered:true}));
+}
+const cellDef=(g,r,c)=>g.cellsBy==='row'?r:c;
+function cellVal(g,r,c){
+  if(g.rows.from==='entered'){const x=rows(g.id)[r.key]||{};return x[c.key]==null?'':x[c.key]}
+  const fx=(DATA.fx&&DATA.fx[g.id]&&DATA.fx[g.id][r.key])||{}; return fx[c.key]==null?'':fx[c.key];
+}
+const cellKey=(g,r,c)=>g.rows.from==='entered'?`t:${g.id}:${r.key}:${c.key}`:`x:${g.id}:${r.key}:${c.key}`;
+const OPS={mul:['A × B',(a,b)=>a*b],pctof:['A × B%',(a,b)=>a*b/100],add:['A + B',(a,b)=>a+b],sub:['A − B',(a,b)=>a-b],div:['A ÷ B',(a,b)=>b===0?null:a/b]};
+function computeCell(g,r,c){
+  const d=cellDef(g,r,c),cc=d.compute; let A,B;
+  if(g.cellsBy==='col'){A=cellVal(g,r,{key:cc.a});B=cellVal(g,r,{key:cc.b})}
+  else{const ra=axis(g,'rows').find(x=>x.key===cc.a),rb=axis(g,'rows').find(x=>x.key===cc.b);
+    A=ra&&ra.compute?computeCell(g,ra,c):cellVal(g,{key:cc.a},c);B=rb&&rb.compute?computeCell(g,rb,c):cellVal(g,{key:cc.b},c)}
+  const a=typeof A==='number'?A:num(A), b=typeof B==='number'?B:num(B);
+  if(A===null||B===null||isNaN(a)||isNaN(b))return null; const f=OPS[cc.op]; return f?f[1](a,b):null;
+}
+function cellNeeded(g,r,c){
+  const d=cellDef(g,r,c); if(!d||d.compute)return false; if(d.req)return true;
+  const rw=d.reqWhen; if(!rw)return false;
+  const v=g.cellsBy==='col'?cellVal(g,r,{key:rw.key}):cellVal(g,{key:rw.key},c);
+  return (rw.values||[]).includes(v);
+}
+const rowOn=r=>ruleOf(r.when);
+function gridMissing(g){
+  let m=0; const R=axis(g,'rows'),C=axis(g,'cols');
+  if(g.rows.from==='entered'&&R.length<(g.rows.min||0))m++;
+  if(g.cols.from==='entered'&&C.length<(g.cols.min||0))m++;
+  R.forEach(r=>{if(rowOn(r)!==true)return;C.forEach(c=>{if(cellNeeded(g,r,c)&&String(cellVal(g,r,c)).trim()==='')m++})});
+  return m;
+}
+function gridHasData(g){const R=axis(g,'rows'),C=axis(g,'cols');return (g.rows.from==='entered'&&R.length>0)||(g.cols.from==='entered'&&C.length>0)||R.some(r=>C.some(c=>String(cellVal(g,r,c)).trim()!==''))}
+const fmtNum=v=>Math.abs(v)>=1000?v.toLocaleString('en-US',{maximumFractionDigits:0}):v.toLocaleString('en-US',{maximumFractionDigits:2});
+function cellTd(g,r,c){
+  const d=cellDef(g,r,c); if(!d)return '<td></td>';
+  if(d.compute){const v=computeCell(g,r,c);return `<td class="calcc" style="background:var(--calc);text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums" title="${esc(OPS[d.compute.op]?OPS[d.compute.op][0]:'')}">${v==null?'<span class="cap">—</span>':fmtNum(v)}</td>`}
+  const v=cellVal(g,r,c), need=cellNeeded(g,r,c)&&String(v).trim()==='';
+  return `<td class="${need?'m':''}">${inputFor(cellKey(g,r,c),d,v)}</td>`;
+}
+function tallyHTML(g){
+  if(!g.tally)return ''; const t={};let done=0,tot=0;
+  axis(g,'rows').forEach(r=>{if(rowOn(r)!==true)return;axis(g,'cols').forEach(c=>{const d=cellDef(g,r,c);if(d&&!d.compute&&(d.type==='list'||d.type==='choice')){tot++;const v=cellVal(g,r,c);if(v){done++;t[v]=(t[v]||0)+1}}})});
+  return `<span class="chip">${done} of ${tot} answered</span> `+Object.keys(t).map(k=>`<span class="chip">${esc(k)}: ${t[k]}</span>`).join(' ');
+}
+function renderGrid(g){
+  const R=axis(g,'rows'),C=axis(g,'cols'),eR=g.rows.from==='entered',eC=g.cols.from==='entered';
+  let h=`<div><div class="cap" style="font-weight:500;margin-bottom:4px">${esc(g.label)} ${tallyHTML(g)}</div>`;
+  const cards=!eR&&g.cellsBy==='col'&&R.some(r=>r.info||r.group);
+  if(cards){
+    if(!R.length)h+=`<div class="empty">No rows yet.</div>`;
+    let last=null;
+    R.forEach(r=>{
+      if(r.group&&r.group!==last){h+=`<h3 style="font-size:13px;margin:12px 0 6px">${esc(r.group)}</h3>`;last=r.group}
+      const ap=rowOn(r), f=r.when&&findBlock(r.when.field,'field');
+      if(ap===false){h+=`<div class="cap" style="padding:6px 8px;border:1px dashed var(--line-strong);border-radius:6px;margin-bottom:6px"><b>${esc(r.key)}</b> Not applicable: “${esc(f?f.label:r.when.field)}” is “${esc(val(r.when.field))}”. ${esc(r.label)}</div>`;return}
+      if(ap===null){h+=`<div class="cap" style="padding:6px 8px;border:1px dashed var(--warn);border-radius:6px;margin-bottom:6px"><b>${esc(r.key)}</b> Waiting on “${esc(f?f.label:r.when.field)}” to know if this applies. ${esc(r.label)}</div>`;return}
+      h+=`<div class="doc" style="margin-bottom:8px"><div class="body" style="padding:10px 12px;gap:8px"><div style="display:flex;gap:8px"><span class="chip acc" style="align-self:flex-start">${esc(r.key)}</span><div style="flex:1;min-width:0"><div style="font-weight:500">${esc(r.label)}</div>${r.info?`<details style="margin-top:3px"><summary class="cap" style="cursor:pointer">How to do this</summary><div class="cap" style="margin-top:3px;white-space:pre-wrap">${esc(r.info)}</div></details>`:''}</div></div><div class="fields" style="grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));align-items:start">`;
+      C.forEach(c=>{const d=cellDef(g,r,c);if(d.compute){h+=`<div class="field"><label>${esc(c.label)}</label><div class="ctl" style="background:var(--calc)">${(v=>v==null?'—':fmtNum(v))(computeCell(g,r,c))}</div></div>`;return}
+        const v=cellVal(g,r,c),need=cellNeeded(g,r,c),miss=need&&String(v).trim()==='',key=cellKey(g,r,c);
+        h+=`<div class="field${miss?' miss':''}"><label for="p_${key.replace(/\W/g,'_')}">${esc(c.label)}${need?'':' <span class="cap">(optional)</span>'}</label>${inputFor(key,d,v)}${miss?'<div class="hint">Required</div>':''}</div>`});
+      h+=`</div></div></div>`;
+    });
+    return h+`</div>`;
+  }
+  h+=`<div class="rt"><table><thead><tr>${eR?'<th class="sr">Row</th>':'<th><span class="sr">Line</span></th>'}${C.map(c=>`<th>${eC?`<span style="display:flex;gap:4px;align-items:center"><input class="ctl" style="min-width:80px" aria-label="Column name" data-k="gl:${g.id}:${c.key}" value="${esc(c.label)}"><button type="button" class="btn sm" data-act="grmcol" data-g="${g.id}" data-c="${c.key}" aria-label="Remove ${esc(c.label)}">✕</button></span>`:esc(c.label)}</th>`).join('')}${eR?'<th class="sr">Remove</th>':''}</tr></thead><tbody>`;
+  if(!R.length||(!C.length&&eC))h+=`<tr><td colspan="${C.length+2}" class="empty" style="padding:14px">${!R.length?(g.rows.min?'No rows yet. At least one is needed.':'No rows.'):'No columns yet. Add one.'}</td></tr>`;
+  else R.forEach((r,ri)=>{
+    const ap=rowOn(r);
+    if(ap!==true){h+=`<tr><th scope="row" style="text-align:left;font-weight:500;padding:6px 8px">${esc(r.label)}</th><td colspan="${C.length+1}" class="cap" style="padding:6px 8px">${ap===false?'Not applicable':'Waiting on an answer'}</td></tr>`;return}
+    h+=`<tr>${eR?`<td class="cap" style="padding-top:8px">${ri+1}</td>`:`<th scope="row" style="text-align:left;font-weight:500;padding:6px 8px;white-space:nowrap">${esc(r.label)}${(g.cellsBy==='row'&&r.req)?'':''}</th>`}${C.map(c=>cellTd(g,r,c)).join('')}${eR?`<td><button type="button" class="btn sm" data-act="rmrow" data-t="${g.id}" data-r="${ri}" aria-label="Remove row ${ri+1}">✕</button></td>`:''}</tr>`;
+  });
+  if(g.totals&&R.length&&C.length){
+    h+=`<tr style="background:var(--surface-2)"><th scope="row" style="text-align:left;padding:6px 8px">Total</th>${C.map(c=>{let s=0,any=false,ok=true;R.forEach(r=>{if(rowOn(r)!==true)return;const d=cellDef(g,r,c);if(!d||d.noTotal||!(d.type==='number'||d.compute)){ok=g.cellsBy==='col'?false:ok;return}const v=d.compute?computeCell(g,r,c):num(cellVal(g,r,c));if(v!=null&&!isNaN(v)){s+=v;any=true}});return `<td style="text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums">${ok&&any?fmtNum(s):''}</td>`}).join('')}${eR?'<td></td>':''}</tr>`;
+  }
+  h+=`</tbody></table></div><div class="row2" style="margin-top:4px">${eR?`<button type="button" class="btn sm" data-act="addrow" data-t="${g.id}">+ Add ${esc(g.rows.addLabel||'row')}</button>`:''}${eC?`<button type="button" class="btn sm" data-act="gaddcol" data-g="${g.id}">+ Add ${esc((g.cols.addLabel||'column').toLowerCase())}</button>`:''}</div></div>`;
+  return h;
+}
+
+/* ---------- configuring the primitive ---------- */
+const AXIS_FROM=[['fixed','A fixed list you write'],['entered','Added by the person filling it in'],['list','An organization list']];
+function choiceCols(g,except){return (g.cols.from==='fixed'?g.cols.items:[]).filter(c=>c.key!==except&&(c.type==='list'||c.type==='choice'))}
+function itemEditor(g,which,si,bi){
+  const it=g[which].items||[], typed=(which==='rows'&&g.cellsBy==='row')||(which==='cols'&&g.cellsBy==='col');
+  const lc=which==='cols'?lockedCols(g.id):new Set(); const sel=selectFields(), combos=[]; sel.forEach(f=>opts(f).forEach(o=>combos.push([f.id+'|'+o,f.label+' is '+o])));
+  const numericSibs=it.filter(x=>x.type==='number'||x.compute);
+  const A=(ii,f,v,lab,w)=>`<input class="ctl" style="min-width:${w||90}px" aria-label="${lab}" data-ge="item" data-ax="${which}" data-ii="${ii}" data-f="${f}" data-s="${si}" data-i="${bi}" value="${esc(v||'')}">`;
+  let h=`<div class="scroll" style="margin-top:4px"><table class="t" style="min-width:560px"><thead><tr>${which==='rows'?'<th>#</th>':''}<th>${which==='rows'?'Row':'Column'}</th>${which==='rows'?'<th>Group</th><th>Guidance</th><th>Only when</th>':''}${typed?'<th>Type</th><th>Required</th><th>Required when</th><th>Worked out as</th>':''}<th></th></tr></thead><tbody>`;
+  it.forEach((x,ii)=>{const L=lc.has(x.key);
+    h+=`<tr>${which==='rows'?`<td>${A(ii,'key',x.key,'Row number',58)}</td>`:''}<td>${which==='rows'?`<textarea class="ctl" rows="2" style="min-width:160px" aria-label="Row label" data-ge="item" data-ax="rows" data-ii="${ii}" data-f="label" data-s="${si}" data-i="${bi}">${esc(x.label)}</textarea>`:A(ii,'label',x.label,'Column label',120)}</td>`;
+    if(which==='rows')h+=`<td>${A(ii,'group',x.group,'Group',90)}</td><td><textarea class="ctl" rows="2" style="min-width:150px" aria-label="Guidance" data-ge="item" data-ax="rows" data-ii="${ii}" data-f="info" data-s="${si}" data-i="${bi}">${esc(x.info||'')}</textarea></td><td><select class="sel" style="max-width:150px" aria-label="Only when" data-ge="when" data-ax="rows" data-ii="${ii}" data-s="${si}" data-i="${bi}"><option value="">Always</option>${combos.map(c=>`<option value="${esc(c[0])}"${x.when&&x.when.field+'|'+x.when.values[0]===c[0]?' selected':''}>${esc(c[1])}</option>`).join('')}</select></td>`;
+    if(typed){
+      const sib=which==='cols'?choiceCols(g,x.key):[];
+      h+=`<td><select class="sel" aria-label="Type" data-ge="type" data-ax="${which}" data-ii="${ii}" data-s="${si}" data-i="${bi}" ${L||x.compute?'disabled':''}>${typeOpts(x.type)}</select>${x.type==='choice'&&!x.compute?`<input class="ctl" style="margin-top:3px" aria-label="Options" data-ge="item" data-ax="${which}" data-ii="${ii}" data-f="opts" data-s="${si}" data-i="${bi}" value="${esc((x.opts||[]).join(', '))}" ${L?'disabled':''}>`:''}${x.type==='list'&&!x.compute?`<select class="sel" style="margin-top:3px" aria-label="List" data-ge="list" data-ax="${which}" data-ii="${ii}" data-s="${si}" data-i="${bi}">${Object.keys(ORG.lists).map(l=>`<option${l===x.list?' selected':''}>${esc(l)}</option>`).join('')}</select>`:''}</td>
+        <td><input type="checkbox" aria-label="Required" data-ge="req" data-ax="${which}" data-ii="${ii}" data-s="${si}" data-i="${bi}" ${x.req?'checked':''} ${L||x.compute?'disabled':''}></td>
+        <td>${which==='cols'&&sib.length&&!x.compute?`<select class="sel" aria-label="Required when column" data-ge="rwcol" data-ax="cols" data-ii="${ii}" data-s="${si}" data-i="${bi}"><option value="">Never</option>${sib.map(s=>`<option value="${esc(s.key)}"${x.reqWhen&&x.reqWhen.key===s.key?' selected':''}>${esc(s.label)} is…</option>`).join('')}</select>${x.reqWhen?`<div style="margin-top:3px">${opts(sib.find(s=>s.key===x.reqWhen.key)||{}).map(o=>`<label style="display:block;white-space:nowrap"><input type="checkbox" data-ge="rwval" data-ax="cols" data-ii="${ii}" data-s="${si}" data-i="${bi}" value="${esc(o)}" ${x.reqWhen.values.includes(o)?'checked':''}> ${esc(o)}</label>`).join('')}</div>`:''}`:'<span class="cap">—</span>'}</td>
+        <td>${(x.type==='number'||x.compute)&&!L?`<select class="sel" aria-label="Worked out as" data-ge="cop" data-ax="${which}" data-ii="${ii}" data-s="${si}" data-i="${bi}"><option value="">Entered</option>${Object.keys(OPS).map(o=>`<option value="${o}"${x.compute&&x.compute.op===o?' selected':''}>${OPS[o][0]}</option>`).join('')}</select>${x.compute?['a','b'].map(p=>`<select class="sel" style="margin-top:3px;display:block" aria-label="${p.toUpperCase()}" data-ge="carg" data-p="${p}" data-ax="${which}" data-ii="${ii}" data-s="${si}" data-i="${bi}">${numericSibs.filter(s=>s.key!==x.key).map(s=>`<option value="${esc(s.key)}"${x.compute[p]===s.key?' selected':''}>${p.toUpperCase()} = ${esc(s.label)}</option>`).join('')}</select>`).join(''):''}`:'<span class="cap">—</span>'}</td>`;
+    }
+    h+=`<td>${L?'<span class="chip acc">needed</span>':`<button type="button" class="btn sm" data-ge="rmitem" data-ax="${which}" data-ii="${ii}" data-s="${si}" data-i="${bi}" aria-label="Remove">✕</button>`}</td></tr>`;
+  });
+  h+=`</tbody></table></div><div class="row2" style="margin-top:4px"><button type="button" class="btn sm" data-ge="additem" data-ax="${which}" data-s="${si}" data-i="${bi}">+ ${which==='rows'?'Row':'Column'}</button>`;
+  if(which==='rows')h+=`<details style="flex:1 1 260px"><summary class="btn sm" style="display:inline-flex;cursor:pointer">Paste rows from a spreadsheet</summary><div style="margin-top:6px"><div class="cap">Four columns, in this order: group, number, row, guidance. Copy them straight from Excel.</div><textarea class="pack" id="gpaste_${si}_${bi}" rows="4"></textarea><button type="button" class="btn sm pri" data-ge="paste" data-s="${si}" data-i="${bi}">Add these rows</button></div></details>`;
+  return h+`</div>`;
+}
+function gridCfg(g,si,bi){
+  const lock=neededBy(g.id,'grid'),L=lock.length;
+  const ax=(which)=>{const a=g[which];return `<div class="row" style="margin-top:6px"><span class="kind">${which}</span><label>${which==='rows'?'Rows are':'Columns are'} <select class="sel" data-ge="from" data-ax="${which}" data-s="${si}" data-i="${bi}" ${L&&which==='cols'?'disabled':''}>${AXIS_FROM.map(o=>`<option value="${o[0]}"${a.from===o[0]?' selected':''}>${o[1]}</option>`).join('')}</select></label>${a.from==='list'?`<select class="sel" aria-label="Which list" data-ge="axlist" data-ax="${which}" data-s="${si}" data-i="${bi}">${Object.keys(ORG.lists).map(l=>`<option${l===a.list?' selected':''}>${esc(l)}</option>`).join('')}</select>`:''}${a.from==='entered'?`<label>at least <input class="ctl" style="width:52px" aria-label="Minimum" data-ge="min" data-ax="${which}" data-s="${si}" data-i="${bi}" value="${a.min||0}"></label><label>called <input class="ctl" style="width:110px" aria-label="What one is called" data-ge="addlabel" data-ax="${which}" data-s="${si}" data-i="${bi}" value="${esc(a.addLabel||(which==='rows'?'row':'column'))}"></label>`:''}</div>${a.from==='fixed'?itemEditor(g,which,si,bi):''}`};
+  const bothFixed=g.rows.from==='fixed'&&g.cols.from==='fixed';
+  return `<div class="blk" style="border-color:var(--accent)"><div class="row"><span class="kind" style="color:var(--accent)">table</span><input class="ctl" aria-label="Table name" data-ge="label" data-s="${si}" data-i="${bi}" value="${esc(g.label)}">${L?`<span class="chip acc">needed by ${esc(lock.join(', '))}</span>`:`<button type="button" class="btn sm" data-act="rmblk" data-s="${si}" data-i="${bi}">Remove</button>`}</div>
+   ${ax('rows')}${ax('cols')}
+   <div class="row" style="margin-top:6px"><span class="kind">cells</span><label>Each cell's type comes from <select class="sel" data-ge="cellsBy" data-s="${si}" data-i="${bi}" ${bothFixed?'':'disabled'}><option value="col"${g.cellsBy==='col'?' selected':''}>its column</option><option value="row"${g.cellsBy==='row'?' selected':''}>its row</option></select></label>${bothFixed?'':'<span class="cap">set by whichever side is a fixed list</span>'}<label><input type="checkbox" data-ge="totals" data-s="${si}" data-i="${bi}" ${g.totals?'checked':''}> totals</label><label><input type="checkbox" data-ge="tally" data-s="${si}" data-i="${bi}" ${g.tally?'checked':''}> count answers</label></div>
+   <div class="row" style="margin-top:6px"><span class="kind"></span><input class="ctl" style="max-width:220px" id="patname_${si}_${bi}" aria-label="Pattern name" placeholder="Name this pattern"><button type="button" class="btn sm" data-ge="savepat" data-s="${si}" data-i="${bi}">Save as a pattern</button><span class="cap">Anyone in your organization can then add a table like this one.</span></div></div>`;
+}
+function newGridFromPattern(name){const p=ORG.patterns[name];const g=Object.assign(clone(p),{kind:'grid',id:nid('g')});if(!g.label)g.label=name;return g}
+const itemsOf=(g,ax)=>g[ax].items=g[ax].items||[];
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-ge],[data-act=gaddcol],[data-act=grmcol]'); if(!t)return;
+  if(t.dataset.act==='gaddcol'){const g=findBlock(t.dataset.g,'grid'),gc=gstore(g.id).gc;gc.push({key:'c'+(++uid),label:(g.cols.addLabel||'Column')+' '+(gc.length+1)});renderPre();if(typeof refreshGate==='function')refreshGate();return}
+  if(t.dataset.act==='grmcol'){const gc=gstore(t.dataset.g).gc;const i=gc.findIndex(x=>x.key===t.dataset.c);if(i>=0)gc.splice(i,1);renderPre();return}
+  const a=t.dataset.ge; if(!['additem','rmitem','paste','savepat'].includes(a))return;
+  const sec=TOOL.sections[+t.dataset.s], g=sec.blocks[+t.dataset.i];
+  if(a==='additem'){const ax=t.dataset.ax,it=itemsOf(g,ax),typed=(ax==='rows'&&g.cellsBy==='row')||(ax==='cols'&&g.cellsBy==='col');const last=it[it.length-1];
+    const x=ax==='rows'?{key:last?bumpN(String(last.key)):'1',label:'New row',group:last?last.group:'',info:''}:{key:nid('c'),label:'New column'};
+    if(typed){x.type=ax==='rows'?'number':'text';x.req=false} it.push(x);render()}
+  else if(a==='rmitem'){itemsOf(g,t.dataset.ax).splice(+t.dataset.ii,1);MSG='Removed. Anything already entered against it is kept.';render()}
+  else if(a==='paste'){const ta=$('#gpaste_'+t.dataset.s+'_'+t.dataset.i);const lines=(ta.value||'').split(/\r?\n/).map(x=>x.split('\t')).filter(c=>c.length>=3&&c.some(x=>x.trim()));
+    if(!lines.length){MSG='Nothing to add. Paste four columns from a spreadsheet: group, number, row, guidance.';renderCfg();return}
+    const it=itemsOf(g,'rows'),have=new Set(it.map(r=>String(r.key)));let added=0,skipped=0;
+    lines.forEach(c=>{const k=(c[1]||'').trim();if(!k||have.has(k)){skipped++;return}have.add(k);const x={key:k,group:(c[0]||'').trim(),label:(c[2]||'').trim(),info:(c[3]||'').trim()};if(g.cellsBy==='row'){x.type='number';x.req=false}it.push(x);added++});
+    MSG=`Added ${added} row${added===1?'':'s'}.`+(skipped?` Skipped ${skipped} with a missing or repeated number.`:'')+' The form, the feed columns and the pack all follow.';render()}
+  else if(a==='savepat'){const inp=$('#patname_'+t.dataset.s+'_'+t.dataset.i);const name=(inp.value||'').trim();
+    if(!name){MSG='Give the pattern a name first.';renderCfg();return}
+    const p=clone(g);delete p.id;delete p.auto;ORG.patterns[name]=p;MSG=`Saved “${esc(name)}” as a pattern. It is now in every section's “Table from a pattern” list, and it travels inside your packs.`;render();renderOrg()}
+});
+document.addEventListener('input',e=>{
+  const t=e.target; if(!t.dataset.ge)return; const sec=TOOL.sections[+t.dataset.s],g=sec&&sec.blocks[+t.dataset.i]; if(!g)return;
+  if(t.dataset.ge==='label'){g.label=t.value;renderPre()}
+  else if(t.dataset.ge==='item'){const x=itemsOf(g,t.dataset.ax)[+t.dataset.ii],f=t.dataset.f;if(f==='opts')x.opts=t.value.split(',').map(s=>s.trim()).filter(Boolean);else x[f]=t.value;renderPre()}
+  else if(t.dataset.ge==='addlabel'){g[t.dataset.ax].addLabel=t.value;renderPre()}
+});
+document.addEventListener('change',e=>{
+  const t=e.target, a=t.dataset.ge; if(!a||['label','item','addlabel'].includes(a))return;
+  const sec=TOOL.sections[+t.dataset.s],g=sec&&sec.blocks[+t.dataset.i]; if(!g)return; const ax=t.dataset.ax;
+  const x=ax&&t.dataset.ii!=null?itemsOf(g,ax)[+t.dataset.ii]:null;
+  if(a==='from'){const other=ax==='rows'?'cols':'rows';
+    if(t.value!=='fixed'&&g[other].from!=='fixed'){MSG='One side has to be a fixed list you write, so the tool knows what goes in each cell.';render();return}
+    g[ax].from=t.value; if(t.value==='list'&&!g[ax].list)g[ax].list=Object.keys(ORG.lists)[0]; if(t.value==='fixed')itemsOf(g,ax);
+    if(g.rows.from!=='fixed')g.cellsBy='col'; else if(g.cols.from!=='fixed')g.cellsBy='row';
+    const owner=g.cellsBy==='row'?'rows':'cols'; itemsOf(g,owner).forEach(i=>{if(!i.type){i.type=owner==='rows'?'number':'text'}});
+    MSG='';render()}
+  else if(a==='axlist'){g[ax].list=t.value;render()}
+  else if(a==='min'){g[ax].min=Math.max(0,parseInt(t.value,10)||0);render()}
+  else if(a==='cellsBy'){g.cellsBy=t.value;const owner=t.value==='row'?'rows':'cols';itemsOf(g,owner).forEach(i=>{if(!i.type)i.type=owner==='rows'?'number':'text'});render()}
+  else if(a==='totals'||a==='tally'){g[a]=t.checked;renderPre()}
+  else if(a==='type'){x.type=t.value;if(t.value==='choice'&&!x.opts)x.opts=['Option 1','Option 2'];if(t.value==='list'&&!x.list)x.list=Object.keys(ORG.lists)[0];render()}
+  else if(a==='req'){x.req=t.checked;renderPre()}
+  else if(a==='list'){x.list=t.value;render()}
+  else if(a==='when'){if(!t.value)x.when=null;else{const [f,v]=t.value.split('|');x.when={field:f,values:[v]}}render()}
+  else if(a==='rwcol'){if(!t.value)delete x.reqWhen;else{const s=itemsOf(g,'cols').find(c=>c.key===t.value);x.reqWhen={key:t.value,values:opts(s).slice(1,2)}}render()}
+  else if(a==='rwval'){x.reqWhen.values=$$('[data-ge=rwval][data-s="'+t.dataset.s+'"][data-i="'+t.dataset.i+'"][data-ii="'+t.dataset.ii+'"]').filter(c=>c.checked).map(c=>c.value);renderPre()}
+  else if(a==='cop'){if(!t.value){delete x.compute;x.type='number'}else{const sib=itemsOf(g,ax).filter(s=>s.key!==x.key&&(s.type==='number'||s.compute));x.compute={op:t.value,a:(x.compute&&x.compute.a)||(sib[0]&&sib[0].key),b:(x.compute&&x.compute.b)||(sib[1]&&sib[1].key)||(sib[0]&&sib[0].key)};x.type='number';x.req=false}render()}
+  else if(a==='carg'){x.compute[t.dataset.p]=t.value;renderPre()}
+});
+
+function ruleState(sec){ if(sec.mode!=='conditional')return true; const v=val(sec.rule.field); if(!v)return null; return sec.rule.values.includes(v) }
+function secStatus(sec){
+  const ap=ruleState(sec); if(ap===false)return {k:'na',t:'Not applicable'}; if(ap===null)return {k:'pend',t:'Waiting on an answer'};
+  let miss=0;
+  if(sec.mode==='optional'&&!sec.blocks.some(b=>(b.kind==='field'&&val(b.id)!=='')||(b.kind==='grid'&&gridHasData(b))))return {k:'ok',t:'Optional'};
+  sec.blocks.forEach(b=>{
+    if(b.kind==='grid')miss+=gridMissing(b);
+    if(b.kind==='field'&&b.req&&val(b.id)==='')miss++;
+    if(b.kind==='calc'){const r=ENGINE[b.method]();if(r.cannot)miss++}
+  });
+  return miss?{k:'inc',t:miss+' missing'}:{k:'ok',t:'Complete'};
+}
+
+/* ---------- rendering: configuration side ---------- */
+function typeOpts(sel){return [['text','Text'],['longtext','Long text'],['number','Number'],['date','Date'],['choice','Choice (own options)'],['list','Choice from an organization list']].map(t=>`<option value="${t[0]}"${t[0]===sel?' selected':''}>${t[1]}</option>`).join('')}
+function fieldCfg(b,si,bi){
+  const lock=neededBy(b.id,'field'); const L=lock.length;
+  return `<div class="blk"><div class="row"><span class="kind">field</span>
+    <input class="ctl" aria-label="Field label" data-b="label" data-s="${si}" data-i="${bi}" value="${esc(b.label)}">
+    <select class="sel" aria-label="Field type" data-b="type" data-s="${si}" data-i="${bi}" ${L?'disabled':''}>${typeOpts(b.type)}</select>
+    <label><input type="checkbox" data-b="req" data-s="${si}" data-i="${bi}" ${b.req?'checked':''} ${L?'disabled':''}> required</label>
+    ${L?`<span class="chip acc" title="Needed by ${esc(lock.join(', '))}">needed by ${esc(lock.join(', '))}</span>`:`<button type="button" class="btn sm" data-act="rmblk" data-s="${si}" data-i="${bi}" aria-label="Remove ${esc(b.label)}">Remove</button>`}</div>
+    ${b.type==='choice'?`<div class="row" style="margin-top:4px"><span class="kind"></span><input class="ctl" aria-label="Options, separated by commas" data-b="opts" data-s="${si}" data-i="${bi}" value="${esc((b.opts||[]).join(', '))}" placeholder="Options, separated by commas"></div>`:''}
+    ${b.type==='list'?`<div class="row" style="margin-top:4px"><span class="kind"></span><select class="sel" aria-label="Organization list" data-b="list" data-s="${si}" data-i="${bi}">${Object.keys(ORG.lists).map(l=>`<option${l===b.list?' selected':''}>${esc(l)}</option>`).join('')}</select><span class="cap">changes when the organization edits the list</span></div>`:''}</div>`;
+}
+function calcCfg(b,si,bi){
+  const m=LIB[b.method];
+  return `<div class="blk" style="border-color:var(--accent)"><div class="row"><span class="kind" style="color:var(--accent)">calc</span><b>${esc(m.name)}</b><span class="chip">${m.code}</span><span class="chip warn">fictional method</span><button type="button" class="btn sm" style="margin-left:auto" data-act="rmcalc" data-s="${si}" data-i="${bi}">Remove calculation</button></div>
+   <div class="row" style="margin-top:4px"><span class="kind"></span><label>${esc(m.limitLabel)} <span class="cap">(policy, set here, not in the method)</span></label><input class="ctl" style="max-width:110px" aria-label="${esc(m.limitLabel)}" data-b="limit" data-s="${si}" data-i="${bi}" value="${m.kind==='pct'?(b.limit*100).toString():b.limit}"><span class="cap">${m.kind==='pct'?'%':'$'}</span></div>
+   <div class="cap" style="margin-top:4px">Brings its own inputs: ${m.needs.map(n=>esc(n.label)).join(', ')}.</div></div>`;
+}
+function secCfg(s,si){
+  const sf=selectFields();
+  let h=`<div class="sc"><header><input class="ctl" aria-label="Section title" data-sec="title" data-s="${si}" value="${esc(s.title)}">
+    <select class="sel" aria-label="When this section applies" data-sec="mode" data-s="${si}"><option value="required"${s.mode==='required'?' selected':''}>Always</option><option value="optional"${s.mode==='optional'?' selected':''}>Optional</option><option value="conditional"${s.mode==='conditional'?' selected':''}>Only when…</option></select>
+    <button type="button" class="btn sm" data-act="up" data-s="${si}" aria-label="Move section up" ${si===0?'disabled':''}>↑</button><button type="button" class="btn sm" data-act="down" data-s="${si}" aria-label="Move section down" ${si===TOOL.sections.length-1?'disabled':''}>↓</button><button type="button" class="btn sm" data-act="rmsec" data-s="${si}">Remove</button></header><div class="inner">`;
+  if(s.mode==='conditional'){
+    if(!s.rule||!sf.some(f=>f.id===s.rule.field)){s.rule=sf.length?{field:sf[0].id,values:[opts(sf[0])[0]||'']}:null}
+    if(!s.rule)h+=`<div class="rule">Add a choice field first. A section can only depend on a question that has fixed answers.</div>`;
+    else{const f=sf.find(x=>x.id===s.rule.field);h+=`<div class="rule">Applies when <select class="sel" aria-label="Question" data-r="field" data-s="${si}">${sf.map(x=>`<option value="${x.id}"${x.id===s.rule.field?' selected':''}>${esc(x.label)}</option>`).join('')}</select> is ${opts(f).map(o=>`<label style="margin-right:8px;white-space:nowrap"><input type="checkbox" data-r="val" data-s="${si}" value="${esc(o)}" ${s.rule.values.includes(o)?'checked':''}> ${esc(o)}</label>`).join('')}<div class="cap">Otherwise it reads “Not applicable”. Anything already entered is kept.</div></div>`}
+  }
+  s.blocks.forEach((b,bi)=>{h+=b.kind==='field'?fieldCfg(b,si,bi):b.kind==='grid'?gridCfg(b,si,bi):calcCfg(b,si,bi)});
+  h+=`<div class="row" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button type="button" class="btn sm" data-act="addfield" data-s="${si}">+ Field</button><span><label class="sr" for="pat${si}">Table pattern</label><select class="sel" id="pat${si}"><option value="">+ Table from a pattern…</option>${Object.keys(ORG.patterns).map(k=>`<option>${esc(k)}</option>`).join('')}</select> <button type="button" class="btn sm" data-act="addgrid" data-s="${si}">Add</button></span>
+   <span style="margin-left:6px"><label class="sr" for="lib${si}">Calculation</label><select class="sel" id="lib${si}"><option value="">+ Calculation…</option>${Object.keys(LIB).map(k=>`<option value="${k}">${esc(LIB[k].name)} (${LIB[k].code})</option>`).join('')}</select> <button type="button" class="btn sm" data-act="addcalc" data-s="${si}">Add</button></span></div></div></div>`;
+  return h;
+}
+function renderCfg(){
+  const p=$('#cfgpane');
+  let h=`<div class="panehead"><h2>Configuration</h2><span class="cap">What a tool designer edits. Nothing here is code.</span><div class="seg" role="group" aria-label="View"><button type="button" aria-pressed="${VIEW==='edit'}" data-act="view" data-v="edit">Edit</button><button type="button" aria-pressed="${VIEW==='data'}" data-act="view" data-v="data">As data</button></div></div>`;
+  if(VIEW==='data'){
+    h+=`<p class="cap" style="margin-top:0">This is the whole tool. It is a plain file: readable, comparable, and portable. The right side is generated from it and nothing else.</p><pre class="data" tabindex="0" aria-label="Tool as data">${esc(JSON.stringify(TOOL,null,2))}</pre><div style="margin-top:8px"><button type="button" class="btn" data-act="copy">Copy</button></div>`;
+  }else{
+    if(MSG)h+=`<div class="msg" role="status">${MSG}</div>`;
+    h+=`<div class="field" style="margin-bottom:10px"><label for="toolname" style="font-weight:600">Tool name</label><input class="ctl" id="toolname" value="${esc(TOOL.name)}"></div>`;
+    h+=TOOL.sections.map(secCfg).join('');
+    h+=`<button type="button" class="btn" data-act="addsec">+ Add section</button>`;
+  }
+  p.innerHTML=h;
+}
+
+/* ---------- rendering: what people see ---------- */
+function inputFor(key,f,v,cls){
+  const id='p_'+key.replace(/\W/g,'_');
+  if(f.type==='choice'||f.type==='list'){const o=opts(f);return `<select class="ctl ${cls||''}" id="${id}" data-k="${key}"><option value="">Select…</option>${o.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('')}${v&&!o.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`}
+  if(f.type==='longtext')return `<textarea class="ctl ${cls||''}" id="${id}" data-k="${key}" rows="3">${esc(v)}</textarea>`;
+  return `<input class="ctl ${cls||''}" id="${id}" data-k="${key}" type="${f.type==='date'?'date':'text'}" ${f.type==='number'?'inputmode="decimal"':''} value="${esc(v)}" autocomplete="off">`;
+}
+function calcBox(b){
+  const m=LIB[b.method], r=ENGINE[b.method](); const f=m.kind==='pct'?pct:fmt2; const LO=LIMIT_OVERRIDE&&LIMIT_OVERRIDE[b.id]; const lim=LO?LO.value:b.limit; const unconf=LO&&!LO.confirmed;
+  let big,chip,body='',test='';
+  if(r.value!=null){big=f(r.value);chip='<span class="chip ok">Calculated</span>';body=`<div class="fx">${esc(r.how)}</div>`;
+    const pass=m.kind==='usd'?Math.abs(r.value)<=lim+0.005:r.value<=lim+1e-12;
+    test=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--calc-line)"><span class="chip ${pass?'ok':'err'}">${pass?'Pass':'Fails'}</span> needs ${m.kind==='pct'?'at most '+pct(lim):'a difference of at most '+fmt2(lim)} <span class="cap">(limit set in this tool)</span></div>`}
+  else if(r.cannot){big='Cannot calculate';chip='<span class="chip err">No result</span>';body=`<div>${esc(r.cannot)}</div>`;test=`<div style="margin-top:6px"><span class="chip">Not tested</span></div>`}
+  else{big='Not calculated';chip='<span class="chip warn">Incomplete</span>';const t=r.missing.concat(r.bad);body=`<b>${t.length} input${t.length===1?'':'s'} to fix first</b><ul>${t.slice(0,5).map(x=>`<li>${esc(x.label)}</li>`).join('')}</ul>`;test=`<div style="margin-top:6px"><span class="chip">Not tested</span> <span class="cap">This is not a pass.</span></div>`}
+  if(unconf&&r.value!=null)test=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--calc-line)"><span class="chip warn">Not tested</span> The limit has not been confirmed yet. Confirm it under Install &amp; adapt. This is not a pass.</div>`;
+  return `<div class="calc" role="group" aria-label="${esc(m.name)}"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="fx">ƒ</span><b>${esc(m.name)}</b>${chip}<span class="chip">${m.code}</span></div><div class="big">${big}</div>${body}${test}</div>`;
+}
+function renderPre(){
+  const p=PRE; if(!p)return; const ae=document.activeElement; const key=ae&&ae.dataset&&ae.dataset.k, ss=ae&&ae.selectionStart, se=ae&&ae.selectionEnd;
+  let h=CTX==='buyer'?'':`<div class="panehead"><h2>What people see</h2><span class="cap">The ${esc(ORG.terms.who.toLowerCase())} completing this tool. Generated from the left.</span></div>`;
+  h+=`<h2 style="font-size:20px;margin-bottom:2px">${esc(TOOL.name)}</h2><div class="cap" style="margin-bottom:12px">${esc(ORG.terms.case)} 0147 · ${TOOL.sections.length} section${TOOL.sections.length===1?'':'s'}</div>`;
+  if(!TOOL.sections.length)h+=`<div class="empty"><b>No sections yet.</b><br>Add a section on the left.</div>`;
+  TOOL.sections.forEach(s=>{
+    const st=secStatus(s); const chip={ok:['ok','✓ Complete'],inc:['warn',st.t],na:['','Not applicable'],pend:['warn','Waiting on an answer']}[st.k];
+    h+=`<section class="doc"><header><h3>${esc(s.title)}</h3><span class="chip">${s.mode==='required'?'Always':s.mode==='optional'?'Optional':'Conditional'}</span><span class="chip ${chip[0]}">${esc(chip[1])}</span></header>`;
+    if(st.k==='na'){const f=findBlock(s.rule.field,'field');h+=`<div class="na">Not applicable. “${esc(f?f.label:s.rule.field)}” is “${esc(val(s.rule.field))}”. Anything entered here is kept.</div></section>`;return}
+    if(st.k==='pend'){const f=findBlock(s.rule.field,'field');h+=`<div class="na">The tool cannot tell yet whether this applies. Answer “${esc(f?f.label:s.rule.field)}” first.</div></section>`;return}
+    h+=`<div class="body">`;
+    const fields=s.blocks.filter(b=>b.kind==='field');
+    if(fields.length)h+=`<div class="fields">${fields.map(f=>{const v=val(f.id),miss=f.req&&v==='';return `<div class="field${miss?' miss':''}"><label for="p_f_${f.id}">${esc(f.label)}${f.req?'':' <span class="cap">(optional)</span>'}</label>${inputFor('f:'+f.id,f,v)}${miss?'<div class="hint">Required</div>':''}</div>`}).join('')}</div>`;
+    s.blocks.forEach(b=>{
+      if(b.kind==='grid')h+=renderGrid(b);
+      if(b.kind==='calc')h+=calcBox(b);
+    });
+    h+=`</div></section>`;
+  });
+  p.innerHTML=h;
+  if(key){const el=$('[data-k="'+key+'"]');if(el){el.focus({preventScroll:true});try{if(ss!=null)el.setSelectionRange(ss,se)}catch(e){}}}
+}
+function render(){renderCfg();renderPre();const t=$('#tpl');}
+
+/* ---------- actions ---------- */
+function addNeeds(method,sec){
+  const added=[],reused=[];
+  LIB[method].needs.forEach(n=>{ if(findBlock(n.id,n.kind)){reused.push(n.label);return} const b=Object.assign(clone(n),{auto:true}); sec.blocks.push(b); added.push(n.label)});
+  return {added,reused};
+}
+function loadTemplate(k){CUR=k;TOOL=clone(TEMPLATES[k].tool);DATA={fields:{},tables:{}};MSG='';VIEW='edit';$('#tplnote').textContent=TEMPLATES[k].note;render()}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act],[data-tab]'); if(!t)return;
+  if(t.dataset.tab){$$('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b===t)));$('#cfgpane').classList.toggle('hide',t.dataset.tab!=='cfg');$('#prepane').classList.toggle('hide',t.dataset.tab!=='pre');return}
+  const a=t.dataset.act, si=+t.dataset.s, bi=+t.dataset.i, sec=TOOL.sections[si];
+  switch(a){
+    case 'view':VIEW=t.dataset.v;renderCfg();break;
+    case 'copy':{const x=JSON.stringify(TOOL,null,2);(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(x):Promise.reject()).catch(()=>{const r=document.createRange();r.selectNodeContents($('pre.data'));const s=getSelection();s.removeAllRanges();s.addRange(r)});break}
+    case 'addsec':TOOL.sections.push({id:nid('s'),title:'New section',mode:'required',blocks:[]});MSG='';render();break;
+    case 'rmsec':{const n=sec.blocks.length;TOOL.sections.splice(si,1);MSG=`Removed “${esc(sec.title)}”. Anything people had entered is kept, in case the section comes back.`;render();break}
+    case 'up':case 'down':{const j=a==='up'?si-1:si+1;[TOOL.sections[si],TOOL.sections[j]]=[TOOL.sections[j],TOOL.sections[si]];MSG='';render();break}
+    case 'addfield':sec.blocks.push(fld(nid('f'),'New field','text',false));MSG='';render();break;
+    case 'addgrid':{const nm=$('#pat'+si).value;if(!nm){MSG='Pick a pattern first. Every table starts from one, and you can change everything after.';renderCfg();break}sec.blocks.push(newGridFromPattern(nm));MSG=`Added a table from “${esc(nm)}”. Change its rows, columns and cells below.`;render();break}
+    case 'rmblk':{const b=sec.blocks[bi];sec.blocks.splice(bi,1);MSG=`Removed “${esc(b.label)}”. What people entered is kept.`;render();break}
+    case 'addcalc':{const m=$('#lib'+si).value;if(!m){MSG='Pick a calculation first.';renderCfg();break}
+      if(sec.blocks.some(b=>b.kind==='calc'&&b.method===m)){MSG=`${esc(LIB[m].name)} is already in this section.`;renderCfg();break}
+      const r=addNeeds(m,sec);sec.blocks.push(calcBlk(m));
+      MSG=`Added <b>${esc(LIB[m].name)}</b>. `+(r.added.length?`<b>Added with it:</b> ${r.added.map(esc).join(', ')}. `:'')+(r.reused.length?`<b>Already on this tool, so reused:</b> ${r.reused.map(esc).join(', ')}.`:'');render();break}
+    case 'rmcalc':{const b=sec.blocks[bi];sec.blocks.splice(bi,1);const kept=[],gone=[];
+      LIB[b.method].needs.forEach(n=>{const blk=findBlock(n.id,n.kind);if(!blk)return;const still=neededBy(n.id,n.kind);
+        if(still.length)kept.push(`${esc(n.label)} (still needed by ${esc(still.join(', '))})`);
+        else if(blk.auto){TOOL.sections.forEach(s=>{s.blocks=s.blocks.filter(x=>x!==blk)});gone.push(esc(n.label))}
+        else kept.push(esc(n.label))});
+      MSG=`Removed <b>${esc(LIB[b.method].name)}</b>. `+(gone.length?`<b>Removed with it:</b> ${gone.join(', ')}. `:'')+(kept.length?`<b>Kept, because something else needs it or you added it yourself:</b> ${kept.join(', ')}. `:'')+`Nothing people entered is lost.`;render();break}
+    case 'addrow':{(DATA.tables[t.dataset.t]=DATA.tables[t.dataset.t]||[]).push({});renderPre();if(typeof refreshGate==='function')refreshGate();break}
+    case 'rmrow':{DATA.tables[t.dataset.t].splice(+t.dataset.r,1);renderPre();if(typeof refreshGate==='function')refreshGate();break}
+  }
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='toolname'){TOOL.name=t.value;renderPre();return}
+  if(t.dataset.k){const k=t.dataset.k.split(':'); if(k[0]==='gl'){const c=gstore(k[1]).gc.find(x=>x.key===k[2]);if(c)c.label=t.value;return} if(k[0]==='x'){const fx=gstore(k[1]).fx;(fx[k[2]]=fx[k[2]]||{})[k[3]]=t.value} else if(k[0]==='f')DATA.fields[k[1]]=t.value; else{DATA.tables[k[1]]=DATA.tables[k[1]]||[];(DATA.tables[k[1]][+k[2]]=DATA.tables[k[1]][+k[2]]||{})[k[3]]=t.value}
+    const ctl=allBlocks().some(b=>b.kind==='field'&&b.id===k[1]); renderPre(); if(typeof refreshGate==='function')refreshGate(); return}
+  if(t.dataset.sec==='title'){TOOL.sections[+t.dataset.s].title=t.value;renderPre();return}
+  const b=t.dataset.b!=null&&TOOL.sections[+t.dataset.s].blocks[+t.dataset.i];
+  if(t.dataset.b==='label'&&b){b.label=t.value;renderPre();return}
+  if(t.dataset.b==='opts'&&b){b.opts=t.value.split(',').map(x=>x.trim()).filter(Boolean);renderPre();return}
+  if(t.dataset.b==='limit'&&b){const n=num(t.value);if(!isNaN(n)){b.limit=LIB[b.method].kind==='pct'?n/100:n;renderPre()}return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='tpl'){loadTemplate(t.value);return}
+  if(t.dataset.sec==='mode'){const s=TOOL.sections[+t.dataset.s];s.mode=t.value;if(t.value!=='conditional')delete s.rule;MSG='';render();return}
+  if(t.dataset.r==='field'){const s=TOOL.sections[+t.dataset.s],f=findBlock(t.value,'field');s.rule={field:t.value,values:[opts(f)[0]||'']};render();return}
+  if(t.dataset.r==='val'){const s=TOOL.sections[+t.dataset.s];const vs=$$('[data-r=val][data-s="'+t.dataset.s+'"]').filter(x=>x.checked).map(x=>x.value);if(!vs.length){t.checked=true;MSG='A rule needs at least one answer, or the section could never apply.';renderCfg();return}s.rule.values=vs;render();return}
+  if(t.dataset.b==='type'||t.dataset.b==='req'||t.dataset.b==='list'){const b=TOOL.sections[+t.dataset.s].blocks[+t.dataset.i];
+    if(t.dataset.b==='type'){b.type=t.value;if(t.value==='choice'&&!b.opts)b.opts=['Option 1','Option 2'];if(t.value==='list'&&!b.list)b.list=Object.keys(ORG.lists)[0]}
+    if(t.dataset.b==='req')b.req=t.checked; if(t.dataset.b==='list')b.list=t.value; MSG='';render();return}
+  if(t.dataset.org==='term'){ORG.terms[t.dataset.key]=t.value||ORG.terms[t.dataset.key];render();return}
+  if(t.dataset.org==='list'){ORG.lists[t.dataset.key]=t.value.split('\n').map(x=>x.trim()).filter(Boolean);render();return}
+});
+/* organization panel */
+function renderOrg(){
+  $('#org').innerHTML=`<div><label for="o_case" style="font-weight:500">What a unit of work is called</label><input class="ctl" id="o_case" data-org="term" data-key="case" value="${esc(ORG.terms.case)}"></div><div><label for="o_who" style="font-weight:500">The person who completes it</label><input class="ctl" id="o_who" data-org="term" data-key="who" value="${esc(ORG.terms.who)}"></div>`+
+   `<div style="grid-column:1/-1"><span style="font-weight:500">Table patterns</span> <span class="cap">(every table starts from one; save your own from any table)</span><div class="row2" style="margin-top:4px">${Object.keys(ORG.patterns).map(p=>`<span class="chip">${esc(p)}</span>`).join('')}</div></div>`+Object.keys(ORG.lists).map(l=>`<div><label for="ol_${esc(l)}" style="font-weight:500">List: ${esc(l)}</label><textarea id="ol_${esc(l)}" data-org="list" data-key="${esc(l)}">${esc(ORG.lists[l].join('\n'))}</textarea><div class="cap">one per line</div></div>`).join('');
+}
+const tpl=$('#tpl'); tpl.innerHTML=Object.keys(TEMPLATES).map(k=>`<option value="${k}">${esc(TEMPLATES[k].label)}</option>`).join('');
+$('#tplnote').textContent=TEMPLATES.review.note;
+document.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.org)renderOrg()});
+
+/* ================= the journey: expert -> pack -> listing -> buyer -> use -> update ================= */
+const fp=str=>{let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=(h+((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24)))>>>0}return h.toString(16).padStart(8,'0')};
+const fmtLimit=c=>LIB[c.method].kind==='pct'?pct(c.limit):fmt2(c.limit);
+const META={name:'',niche:'',version:'1.0',tagline:'',price:'',adjust:{terms:true,lists:true,limits:true,structure:false}};
+const NICHES={review:'Credit risk review and loan review teams',credit:'Community lenders and credit analysts',recon:'Small finance teams closing the month',audit:'Internal audit and controls testers',tax:'Solo tax preparers',blank:''};
+const FORMAT='workpaper-pack/0.1-draft';
+const STAGES=[['Build','You'],['Package','You'],['List','You'],['Install & adapt','The buyer'],['Use & release','The buyer'],['Update','You, then the buyer']];
+let STAGE=1, CTX='author', AUTH=null, PACK=null, PACKTEXT='', REPORT=null, PACK11=null, BUYER=null, PENDING_MSG='';
+const uniq=a=>a.filter((x,i)=>a.indexOf(x)===i);
+
+/* test vectors: the library ships with the proof that each method works */
+const VEC={
+  dti:[{n:'Typical case',d:{fields:{proposed:'2000'},tables:{income:[{amount:'96000',per:'Annual'}],debts:[{payment:'612'}]}},e:{value:0.3265}},
+       {n:'A missing amount gives no result',d:{fields:{proposed:'100'},tables:{income:[{amount:'',per:'Monthly'}],debts:[]}},e:{state:'incomplete'}},
+       {n:'Zero income gives no result, never a pass',d:{fields:{proposed:'100'},tables:{income:[{amount:'0',per:'Monthly'}],debts:[]}},e:{state:'cannot'}}],
+  ltv:[{n:'Typical case',d:{fields:{amount:'300000'},tables:{collateral:[{value:'400000'}]}},e:{value:0.75}},
+       {n:'A missing value gives no result',d:{fields:{amount:'300000'},tables:{collateral:[{value:''}]}},e:{state:'incomplete'}}],
+  recon:[{n:'Balanced',d:{fields:{stmt:'1000',gl:'900'},tables:{items:[{type:'Outstanding check',amount:'100'}]}},e:{value:0}},
+         {n:'An item with no amount gives no result',d:{fields:{stmt:'1000',gl:'900'},tables:{items:[{type:'Outstanding check',amount:''}]}},e:{state:'incomplete'}}],
+  dev:[{n:'One exception in two',d:{fields:{},tables:{tests:[{result:'Pass'},{result:'Exception'}]}},e:{value:0.5}},
+       {n:'A blank result gives no rate',d:{fields:{},tables:{tests:[{result:''}]}},e:{state:'incomplete'}}]
+};
+function runVectors(methods){
+  const keep=DATA; let ok=0,n=0,bad=[];
+  methods.forEach(m=>(VEC[m]||[]).forEach(v=>{n++;DATA=v.d;let r;try{r=ENGINE[m]()}catch(e){r={missing:[1]}}DATA=keep;
+    const st=r.value!=null?'value':r.cannot?'cannot':'incomplete';
+    const good=v.e.value!=null?(r.value!=null&&Math.abs(r.value-v.e.value)<5e-5):st===v.e.state; if(good)ok++;else bad.push(LIB[m].name+': '+v.n)}));
+  DATA=keep; return {ok,n,bad};
+}
+
+/* ---------- packaging ---------- */
+function toolStats(t){let f=0,tb=0,cc=0,cond=0,qs=0;t.sections.forEach(s=>{if(s.mode==='conditional')cond++;s.blocks.forEach(b=>{if(b.kind==='field')f++;if(b.kind==='grid'){tb++;if(b.rows.from==='fixed')qs+=(b.rows.items||[]).length}if(b.kind==='calc')cc++})});return {sections:t.sections.length,fields:f,tables:tb,calcs:cc,cond,qs}}
+function calcsOf(t){return t.sections.flatMap(s=>s.blocks.filter(b=>b.kind==='calc'))}
+function buildPack(tool,org,meta){
+  const calcs=calcsOf(tool);
+  const o={format:FORMAT,meta:{name:meta.name,niche:meta.niche,version:meta.version,tagline:meta.tagline,builtWith:'demo engine'},
+    tool:clone(tool),org:clone({terms:org.terms,lists:org.lists,patterns:org.patterns}),
+    methods:uniq(calcs.map(c=>c.method)).map(m=>({id:m,code:LIB[m].code,name:LIB[m].name})),
+    policy:calcs.map(c=>({block:c.id,method:LIB[c.method].code,label:LIB[c.method].limitLabel,recommended:c.limit,kind:LIB[c.method].kind,status:'the author recommends; the buyer must confirm'})),
+    adjustable:clone(meta.adjust)};
+  o.checksum=fp(JSON.stringify(o)); return o;
+}
+function validatePack(p){
+  const C=[]; const add=(ok,text,fix)=>C.push({ok,text,fix});
+  if(!p||typeof p!=='object'||p.format!==FORMAT){add(false,'This is not a Workpaper Studio pack file.','Open the file the author gave you, unedited.');return {C,fail:true}}
+  const copy=Object.assign({},p);delete copy.checksum;const calc=fp(JSON.stringify(copy));
+  add(calc===p.checksum,calc===p.checksum?'The file is exactly as the author packaged it (fingerprint '+p.checksum+')':'The file was changed after it was packaged','Ask the author for a fresh copy. Nothing was installed.');
+  const t=p.tool; if(!t||!Array.isArray(t.sections)){add(false,'The pack has no tool in it','Ask the author for a fresh copy.');return {C,fail:true}}
+  const blocks=t.sections.flatMap(s=>s.blocks), has=(id,kind)=>blocks.some(b=>b.id===id&&b.kind===kind);
+  let miss=[];blocks.filter(b=>b.kind==='calc').forEach(c=>{const m=LIB[c.method];if(!m){miss.push('unknown calculation '+c.method);return}m.needs.forEach(n=>{if(!has(n.id,n.kind))miss.push(m.name+' needs “'+n.label+'”')})});
+  add(!miss.length,miss.length?'Some calculations are missing their inputs: '+miss.join('; '):'Every calculation has all of its inputs','Ask the author to repair the pack.');
+  let badq=[];const L=(p.org&&p.org.lists)||{};blocks.filter(b=>b.kind==='grid').forEach(g=>{['rows','cols'].forEach(ax=>{const a=g[ax];if(a.from==='list'&&!L[a.list])badq.push('“'+g.label+'” takes its '+ax+' from a list that is not in the pack');(a.items||[]).forEach(x=>{if(x.type==='list'&&!L[x.list])badq.push('“'+g.label+'” uses a list that is not in the pack: '+x.list);if(x.when&&!blocks.some(b=>b.kind==='field'&&b.id===x.when.field))badq.push('“'+g.label+'” row '+x.key+' depends on a question that is not in the tool')})});if(g.rows.from!=='fixed'&&g.cols.from!=='fixed')badq.push('“'+g.label+'” has no fixed side, so no cell has a type')});
+  add(!badq.length,badq.length?badq.join('; '):'Every table has its lists, its conditions and a fixed side that types its cells','Ask the author to repair the pack.');
+  let badr=[];t.sections.forEach(s=>{if(s.mode==='conditional'){const f=blocks.find(b=>b.kind==='field'&&b.id===(s.rule||{}).field);if(!f)badr.push('“'+s.title+'” depends on a question that is not in the tool');}});
+  add(!badr.length,badr.length?badr.join('; '):'Every “applies only when” rule points at a real question','Ask the author to repair the pack.');
+  const ms=(p.methods||[]).map(m=>m.id), unk=(p.methods||[]).filter(m=>!LIB[m.id]||LIB[m.id].code!==m.code);
+  add(!unk.length,unk.length?'This install does not have: '+unk.map(m=>m.code).join(', '):'This install has every method the pack uses, at the same version','Update the software, or ask the author for a pack built for this version.');
+  const v=runVectors(ms); add(v.ok===v.n&&v.n>0,v.n?`Test cases: ${v.ok} of ${v.n} pass`+(v.bad.length?' (failed: '+v.bad.join('; ')+')':''):'The pack uses no calculations, so there is nothing to test',  'Do not install. Report this to the author.');
+  const fail=C.some(c=>!c.ok);
+  const lim=(p.policy||[]).length; if(lim)C.push({ok:null,text:`${lim} limit${lim===1?'':'s'} in this pack ${lim===1?'is':'are'} the author's recommendation. You will confirm each one before anything is tested against it.`});
+  return {C,fail};
+}
+
+/* ---------- context swap: author vs buyer ---------- */
+function ctx(who){
+  if(who===CTX)return;
+  if(CTX==='author')AUTH={TOOL,DATA,ORG};
+  else if(BUYER){BUYER.data=DATA;BUYER.org=ORG;BUYER.tool=TOOL}
+  CTX=who;
+  if(who==='author'){TOOL=AUTH.TOOL;DATA=AUTH.DATA;ORG=AUTH.ORG;LIMIT_OVERRIDE=null}
+  else{TOOL=BUYER.tool;DATA=BUYER.data;ORG=BUYER.org;LIMIT_OVERRIDE=BUYER.limits}
+}
+
+/* ---------- stage chrome ---------- */
+function renderStrip(){
+  $('#strip').innerHTML=STAGES.map((s,i)=>`<button type="button" role="tab" data-j="goto" data-n="${i+1}" ${STAGE===i+1?'aria-current="step"':''}><b>${i+1} · ${s[0]}</b><span>${s[1]}</span></button>`).join('');
+}
+function ensureMeta(){ if(!META.name)META.name=TOOL.name+' pack'; if(!META.niche)META.niche=NICHES[CUR]||'' }
+function rebuild(){ctx('author');ensureMeta();PACK=buildPack(TOOL,ORG,META);PACKTEXT=JSON.stringify(PACK,null,2)}
+function ensurePack(n){ if(((n===2||n===3)&&!PACK11)||(n>=4&&!PACK))rebuild() }
+function goto(n){
+  STAGE=n;
+  ensurePack(n);
+  if(n===1){ctx('author');$('#st1').hidden=false;$('#stagepane').hidden=true;PRE=$('#prepane');render();renderStrip();window.scrollTo(0,0);return}
+  $('#st1').hidden=true;$('#stagepane').hidden=false;$('#cfgpane').innerHTML='';$('#prepane').innerHTML='';
+  if(n===5&&BUYER)ctx('buyer'); else ctx('author');
+  PRE=null;
+  renderStage();renderStrip();window.scrollTo(0,0);
+}
+const chk=(c)=>`<li class="${c.ok===true?'ok':c.ok===false?'no':'wn'}"><span class="i" aria-hidden="true">${c.ok===true?'✓':c.ok===false?'✕':'!'}</span><span><span class="sr">${c.ok===true?'Passed: ':c.ok===false?'Failed: ':'Notice: '}</span>${esc(c.text)}${c.ok===false&&c.fix?`<br><span class="cap">Next: ${esc(c.fix)}</span>`:''}</span></li>`;
+const nextBtn=(back,fwd,label)=>`<div class="row2" style="margin-top:6px"><button type="button" class="btn" data-j="goto" data-n="${back}">← Back</button><button type="button" class="btn pri" data-j="goto" data-n="${fwd}">${label}</button></div>`;
+
+function renderStage(){
+  const p=$('#stagepane'); let h='';
+  if(STAGE===2)h=stage2(); else if(STAGE===3)h=stage3(); else if(STAGE===4)h=stage4(); else if(STAGE===5)h=stage5(); else if(STAGE===6)h=stage6();
+  p.innerHTML=h;
+  if(STAGE===5){PRE=$('#usepre');renderPre()}
+}
+
+/* ----- 2 · Package ----- */
+function stage2(){
+  const st=toolStats(TOOL), v=runVectors(PACK.methods.map(m=>m.id));
+  const checks=[{ok:v.n===0||v.ok===v.n,text:v.n?`Test cases for the methods you used: ${v.ok} of ${v.n} pass`:'No calculations used, so no test cases'},
+    {ok:null,text:'Your limits ship as recommendations. The buyer must confirm each before it is used.'},
+    {ok:true,text:'No client data is in the pack. It holds structure, wording, lists and methods only.'}];
+  return `<div class="story"><b>You, packaging it.</b> The pack is one file. It carries the questions, the guidance, the conditions, the methods you chose, your recommended limits, and the lists. Decide what a buyer may change. Whatever you lock is what keeps updates safe.</div>
+  <div class="g2"><div class="card"><header><h2>Describe the pack</h2></header><div class="cb">
+    <div class="field" style="margin-bottom:8px"><label for="m_name" style="font-weight:500">Pack name</label><input class="ctl" id="m_name" data-m="name" value="${esc(META.name)}"></div>
+    <div class="field" style="margin-bottom:8px"><label for="m_niche" style="font-weight:500">Who it is for</label><input class="ctl" id="m_niche" data-m="niche" value="${esc(META.niche)}" placeholder="The narrower the better"></div>
+    <div class="field" style="margin-bottom:8px"><label for="m_tag" style="font-weight:500">What it lets them do, in one sentence</label><textarea class="ctl" id="m_tag" data-m="tagline" rows="2">${esc(META.tagline)}</textarea></div>
+    <div class="field" style="margin-bottom:8px;max-width:160px"><label for="m_ver" style="font-weight:500">Version</label><input class="ctl" id="m_ver" data-m="version" value="${esc(META.version)}"></div>
+    <fieldset style="border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:10px 0 0"><legend style="font-weight:500;padding:0 4px">What the buyer may change</legend>
+      ${[['terms','Words (what a case, a preparer and a reviewer are called)'],['lists','Lists (choices such as facility types)'],['limits','Limits (they confirm or replace your recommendation)'],['structure','Sections, fields and calculations']].map(a=>`<label style="display:flex;gap:8px;align-items:baseline;padding:2px 0"><input type="checkbox" data-m="adj" data-key="${a[0]}" ${META.adjust[a[0]]?'checked':''}> <span>${a[1]}${a[0]==='structure'?' <span class="cap">Locking this is what lets you send updates that apply cleanly.</span>':''}</span></label>`).join('')}</fieldset></div></div>
+  <div class="card"><header><h2>Checked before it can leave</h2></header><div class="cb"><ul class="checks">${checks.map(chk).join('')}</ul></div></div></div>
+  <div class="card"><header><h2>What is in the pack</h2><span class="chip acc">${PACK.checksum}</span><span class="cap">fingerprint, changes if anything inside changes</span></header><div class="cb scroll"><table class="t"><tbody>
+    <tr><th>Structure</th><td>${st.sections} sections (${st.cond} conditional), ${st.fields} fields, ${st.tables} tables</td></tr>
+    <tr><th>Methods</th><td>${PACK.methods.length?PACK.methods.map(m=>esc(m.name)+' <span class="chip">'+m.code+'</span>').join(' '):'None'}</td></tr>
+    <tr><th>Your recommended limits</th><td>${PACK.policy.length?PACK.policy.map(x=>esc(x.label)+': <b>'+(x.kind==='pct'?pct(x.recommended):fmt2(x.recommended))+'</b>').join('<br>'):'None'}</td></tr>
+    <tr><th>Lists</th><td>${Object.keys(PACK.org.lists).map(esc).join(', ')}</td></tr>
+    <tr><th>Size</th><td>${(PACKTEXT.length/1024).toFixed(1)} KB, one file</td></tr></tbody></table>
+    <details style="margin-top:8px"><summary style="cursor:pointer">See the file itself</summary><pre class="data" tabindex="0" style="margin-top:8px;max-height:300px">${esc(PACKTEXT)}</pre></details></div></div>
+  ${nextBtn(1,3,'Next: list it →')}`;
+}
+
+/* ----- 3 · List ----- */
+function stage3(){
+  const st=toolStats(TOOL), calcs=calcsOf(TOOL), meta=META;
+  return `<div class="story"><b>You, listing it.</b> This page writes itself from the pack, so what you promise matches what is in the file. A narrow niche sells better than a general tool, and the same engine can serve several niches. Below is what a shelf of packs looks like.</div>
+  <div class="card"><header><h2>A shelf of packs, one engine</h2></header><div class="cb"><div class="shelf">
+    ${Object.keys(TEMPLATES).filter(k=>k!=='blank').map(k=>{const mine=k===CUR;return `<div class="pk ${mine?'mine':''}"><h4>${esc(TEMPLATES[k].label)}</h4><span class="cap">${esc(NICHES[k])}</span><span>${toolStats(TEMPLATES[k].tool).sections} sections · ${calcsOf(TEMPLATES[k].tool).map(c=>LIB[c.method].name).join(', ')||'no calculation'}</span>${mine?'<span class="chip acc">The one you built</span>':`<button type="button" class="btn sm" data-j="tpl" data-tk="${k}">Open in builder</button>`}</div>`}).join('')}</div></div></div>
+  <div class="card"><header><h2>The page for your pack</h2><span class="cap">Generated from the pack file. Edit the promise and the price in Package.</span></header>
+  <div class="listing">
+    <div><span class="chip acc">${esc(meta.niche||'Choose who it is for')}</span><h2 style="margin-top:6px">${esc(meta.name)}</h2><p class="tag" style="margin:6px 0 0">${esc(meta.tagline||'Add a one-sentence promise in Package.')}</p></div>
+    <div class="hl">
+      <div><h3>What you get</h3><ul><li>${st.sections} sections, ${st.fields} fields and ${st.tables} tables, with guidance</li>${st.qs?`<li>${st.qs} prepared rows (questions, line items, documents), with guidance where you wrote it</li>`:''}${st.cond?`<li>${st.cond} section${st.cond===1?'':'s'} that appear only when they apply</li>`:''}${calcs.map(c=>`<li>${esc(LIB[c.method].name)}, tested (${(VEC[c.method]||[]).length} cases)</li>`).join('')}<li>Review, exceptions, an audit trail and a release check</li><li>Output as a workpaper, a workbook and a data file</li></ul></div>
+      <div><h3>What you can make your own</h3><ul>${Object.keys(meta.adjust).filter(k=>meta.adjust[k]).map(k=>`<li>${{terms:'Your own words',lists:'Your own lists',limits:'Your own limits',structure:'The sections and calculations themselves'}[k]}</li>`).join('')||'<li>Nothing. The pack is used as it is.</li>'}</ul></div>
+      <div><h3>What it will not do</h3><ul><li>It will not decide for you. Every judgment stays with your people.</li><li>It does not ship with your policy. You confirm every limit before it is used.</li><li>It uses no AI. The same entries give the same results.</li><li>Your data stays with you.</li></ul></div></div>
+    <div class="row2"><span class="chip">Version ${esc(meta.version)}</span><span class="chip">Fingerprint ${PACK?PACK.checksum:''}</span><span class="chip warn">Price: ${esc(meta.price||'you decide')}</span></div></div></div>
+  <div class="card"><header><h3>How people could buy it</h3></header><div class="cb"><label for="m_price" style="font-weight:500">Price or model (free text, yours to set)</label><input class="ctl" id="m_price" data-m="price" value="${esc(meta.price)}" placeholder="For example: one-time per pack, or per seat per year" style="max-width:520px"><p class="cap" style="margin:6px 0 0">Options are in docs/MARKET-AND-PACKS.md. Nothing here invents a price.</p></div></div>
+  ${nextBtn(2,4,'Next: a buyer installs it →')}`;
+}
+
+/* ----- 4 · Install & adapt (buyer) ----- */
+function stage4(){
+  let h=`<div class="story"><b>The buyer.</b> They received one file. The install checks it before it lets anything in, and refuses with a next step if something is wrong. Then they make it theirs, and confirm every limit, because the author's numbers are a recommendation and not their policy.</div>`;
+  h+=`<div class="card"><header><h2>Open the pack</h2></header><div class="cb"><p class="cap" style="margin-top:0">This is the file you packaged. You can edit it here to see what a damaged file does, or choose a different one.</p><textarea class="pack" id="packtext" aria-label="Pack file contents">${esc(PACKTEXT)}</textarea><div class="row2" style="margin-top:8px"><button type="button" class="btn pri" data-j="check">Check and install</button><label class="btn">Choose a file…<input type="file" id="packfile" accept=".json,application/json" class="sr"></label><button type="button" class="btn" data-j="breakit">Edit one character</button></div></div></div>`;
+  if(REPORT){h+=`<div class="card"><header><h2>${REPORT.fail?'Refused. Nothing was installed.':'Safe to install'}</h2></header><div class="cb"><ul class="checks">${REPORT.C.map(chk).join('')}</ul>${REPORT.fail?'':`<div style="margin-top:8px">${BUYER?'<span class="chip ok">Installed</span>':'<button type="button" class="btn pri" data-j="install">Install</button>'}</div>`}</div></div>`}
+  if(BUYER)h+=adaptHTML();
+  return h;
+}
+function adaptHTML(){
+  const B=BUYER, adj=B.adjust, pk=B.pack;
+  const lockChip='<span class="chip lock">locked by the author</span>';
+  let h=`<div class="card"><header><h2>Make it yours</h2><span class="chip">${esc(pk.meta.name)} ${esc(pk.meta.version)}</span></header><div class="cb"><div class="g2">`;
+  h+=`<div><div class="lbl" style="font-weight:600;margin-bottom:4px">Words ${adj.terms?'':lockChip}</div>${[['case','A unit of work is called'],['who','The person who completes it is called']].map(t=>`<div class="field" style="margin-bottom:6px"><label for="bt_${t[0]}">${t[1]}</label><input class="ctl" id="bt_${t[0]}" data-bo="term" data-key="${t[0]}" value="${esc(B.org.terms[t[0]])}" ${adj.terms?'':'disabled'}></div>`).join('')}</div>`;
+  h+=`<div><div class="lbl" style="font-weight:600;margin-bottom:4px">Lists ${adj.lists?'':lockChip}</div>${Object.keys(B.org.lists).map(l=>`<div class="field" style="margin-bottom:6px"><label for="bl_${esc(l)}">${esc(l)} <span class="cap">one per line</span></label><textarea class="ctl" id="bl_${esc(l)}" data-bo="list" data-key="${esc(l)}" rows="3" ${adj.lists?'':'disabled'}>${esc(B.org.lists[l].join('\n'))}</textarea></div>`).join('')}</div></div>`;
+  h+=`<div style="margin-top:12px"><div class="lbl" style="font-weight:600;margin-bottom:4px">Limits ${adj.limits?'':lockChip}</div>`;
+  if(!pk.policy.length)h+='<p class="cap">This pack has no limits to confirm.</p>';
+  else h+=`<div class="scroll"><table class="t"><thead><tr><th>Limit</th><th>Author recommends</th><th>Your policy</th><th>Status</th></tr></thead><tbody>${pk.policy.map(x=>{const L=B.limits[x.block],isp=x.kind==='pct';return `<tr><td>${esc(x.label)}<br><span class="cap">${esc(x.method)}</span></td><td>${isp?pct(x.recommended):fmt2(x.recommended)}</td><td style="min-width:140px"><div class="row2"><input class="ctl" style="width:90px" aria-label="Your ${esc(x.label)}" data-bo="limit" data-id="${x.block}" value="${isp?+(L.value*100).toFixed(4):L.value}" ${adj.limits?'':'disabled'}><span class="cap">${isp?'%':'$'}</span></div></td><td><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-bo="conf" data-id="${x.block}" ${L.confirmed?'checked':''}> This is our policy</label>${L.confirmed?'<span class="chip ok">Confirmed</span>':'<span class="chip warn">Not confirmed</span>'}</td></tr>`}).join('')}</tbody></table></div>`;
+  h+=`</div>${adj.structure?'':`<p class="cap" style="margin:10px 0 0">The sections, fields and calculations are locked by the author. To change them, ask the author for a custom pack.</p>`}</div></div>`;
+  h+=nextBtn(3,5,'Next: use it →');
+  return h;
+}
+function checkInstall(text){
+  let p=null; try{p=JSON.parse(text)}catch(e){REPORT={C:[{ok:false,text:'This is not a readable pack file.',fix:'Open the file the author gave you, unedited.'}],fail:true,pack:null};return}
+  REPORT=validatePack(p); REPORT.pack=REPORT.fail?null:p;
+}
+function installPack(){
+  const p=REPORT.pack; if(!p)return;
+  BUYER={pack:p,tool:clone(p.tool),data:{fields:{},tables:{}},org:clone(p.org),adjust:clone(p.adjustable),limits:{},version:p.meta.version,caseVersion:p.meta.version,released:false};
+  p.policy.forEach(x=>{BUYER.limits[x.block]={value:x.recommended,confirmed:false}});
+  BUYER.tool.name=p.tool.name;
+}
+
+/* ----- 5 · Use & release ----- */
+function gateList(){
+  const B=BUYER, g=[]; const un=Object.keys(B.limits).filter(k=>!B.limits[k].confirmed);
+  g.push({ok:!un.length,text:un.length?`${un.length} limit${un.length===1?'':'s'} not confirmed. Confirm under Install & adapt.`:'Every limit is confirmed by this organization'});
+  let inc=0;TOOL.sections.forEach(s=>{const x=secStatus(s);if(x.k==='inc'||x.k==='pend')inc++});
+  g.push({ok:!inc,text:inc?`${inc} section${inc===1?'':'s'} still incomplete`:'Every applicable section is complete'});
+  const calcs=calcsOf(TOOL).map(c=>({c,r:ENGINE[c.method]()})), nr=calcs.filter(x=>x.r.value==null).length;
+  g.push({ok:!nr,text:nr?`${nr} calculation${nr===1?'':'s'} without a result. Not a pass.`:'Every calculation has a result'});
+  return g;
+}
+function stage5(){
+  const B=BUYER; if(!B)return `<div class="story"><b>The buyer.</b> Nothing is installed yet.</div><button type="button" class="btn pri" data-j="goto" data-n="4">Go to Install & adapt</button>`;
+  return `<div class="story"><b>The buyer's staff.</b> The tool is the pack. Entries, calculations and conditions work as in Build, but the limits are the buyer's own, and the case remembers which version of the pack it was done under.</div>
+  <div class="row2" style="margin-bottom:10px"><span class="chip">${esc(B.pack.meta.name)}</span><span class="chip ver">pack ${esc(B.caseVersion)}</span><span class="chip">fingerprint ${B.pack.checksum}</span><span class="cap">${esc(B.org.terms.case)} HB-0147 is saved under pack ${esc(B.caseVersion)}.</span></div>
+  <div class="g2"><div id="usepre" style="min-width:0"></div>
+  <div style="min-width:0"><div class="card"><header><h2>Release check</h2></header><div class="cb"><p class="cap" style="margin-top:0">Nothing leaves until every line passes. This blocks.</p><div id="gatebox">${gateBox()}</div></div></div>
+   ${B.released?`<div class="card"><header><h3>What went out</h3></header><div class="cb"><div class="lbl" style="font-weight:600">One flat row, for a database load</div><p class="cap" style="margin:2px 0 6px">One column per field and per question, so adding a question adds a column. A flat row cannot say why a value is empty, so the count of missing values is written beside it.</p><div class="scroll"><table class="t" style="min-width:0"><thead><tr>${Object.keys(flatRow()).map(k=>`<th>${esc(k)}</th>`).join('')}</tr></thead><tbody><tr>${Object.values(flatRow()).map(v=>`<td>${v==null?'<span class="cap">empty</span>':esc(v)}</td>`).join('')}</tr></tbody></table></div><div class="lbl" style="font-weight:600;margin-top:10px">Or the same record with every state spelled out</div><pre class="data" tabindex="0" style="max-height:240px">${esc(JSON.stringify(feed(),null,2))}</pre></div></div>`:''}</div></div>`;
+}
+function gateBox(){const B=BUYER,gate=gateList(),pass=gate.every(x=>x.ok);return `<ul class="checks" id="gate">${gate.map(g=>chk({ok:g.ok,text:g.text})).join('')}</ul><div style="margin-top:8px">${B.released?'<span class="chip ok">Released to the outbox (mock)</span>':`<button type="button" class="btn pri" ${pass?'':'aria-disabled="true"'} data-j="${pass?'release':'whynot'}">Release (mock)</button>`}</div>`}
+function refreshGate(){const g=$('#gatebox');if(g&&STAGE===5)g.innerHTML=gateBox()}
+function flatRow(){
+  const o={},missing=[];
+  TOOL.sections.forEach(s=>s.blocks.forEach(b=>{
+    if(b.kind==='field'){const v=val(b.id);o[b.label]=v===''?null:(b.type==='number'?num(v):v);if(v==='')missing.push(b.id)}
+    if(b.kind==='grid'){const R=axis(b,'rows'),C=axis(b,'cols');
+      if(b.rows.from==='entered'||b.cols.from==='entered'){o[b.label+' (rows)']=R.length;if(b.cols.from==='entered')o[b.label+' (columns)']=C.length}
+      else R.forEach(r=>{const on=rowOn(r);C.forEach(c=>{const nm=c.label+'_'+r.key;if(on===false){o[nm]='Not applicable';return}const d=cellDef(b,r,c);const v=d&&d.compute?computeCell(b,r,c):cellVal(b,r,c);o[nm]=v===''||v==null?null:v;if((v===''||v==null)&&cellNeeded(b,r,c))missing.push(nm)})})}
+    if(b.kind==='calc'){const r=ENGINE[b.method]();o[LIB[b.method].name]=r.value!=null?Math.round(r.value*10000)/10000:null}
+  }));
+  o['_missing']=missing.length;return o;
+}
+function feed(){
+  const B=BUYER,o={schema:'workpaper-feed/0.1-draft (unverified mock)',pack:{name:B.pack.meta.name,version:B.caseVersion,fingerprint:B.pack.checksum},facts:{},tables:{},results:[]};
+  TOOL.sections.forEach(s=>s.blocks.forEach(b=>{
+    if(b.kind==='field'){const v=val(b.id);o.facts[b.id]=v===''?{state:'missing'}:{state:'entered',value:b.type==='number'?num(v):v}}
+    if(b.kind==='grid')o.tables[b.id]={rows:axis(b,'rows').length,columns:axis(b,'cols').length};
+    if(b.kind==='calc'){const r=ENGINE[b.method](),L=B.limits[b.id];o.results.push({method:LIB[b.method].code,state:r.value!=null?'calculated':'not calculated',value:r.value!=null?Math.round(r.value*10000)/10000:null,limit:L.value,limitConfirmed:L.confirmed})}
+  }));return o;
+}
+
+/* ----- 6 · Update ----- */
+function flat(t){const m={};t.sections.forEach(s=>s.blocks.forEach(b=>{m[b.kind+':'+b.id]={b,sec:s.title}}));return m}
+function diffTools(a,b){
+  const A=flat(a),B=flat(b),out=[]; const nm=x=>x.label||LIB[x.method].name;
+  Object.keys(B).forEach(k=>{if(!A[k])out.push({t:'add',text:`New ${B[k].b.kind}: “${nm(B[k].b)}” in ${B[k].sec}`});else{const x=A[k].b,y=B[k].b;
+    if(x.kind==='grid'){['rows','cols'].forEach(ax=>{if(x[ax].from!==y[ax].from)out.push({t:'chg',text:`“${y.label}”: ${ax} now come from ${({fixed:'a fixed list',entered:'the person filling it in',list:'an organization list'})[y[ax].from]}`});const XA={},YA={};(x[ax].items||[]).forEach(r=>XA[r.key]=r);(y[ax].items||[]).forEach(r=>YA[r.key]=r);const w=ax==='rows'?'row':'column';Object.keys(YA).forEach(n=>{if(!XA[n])out.push({t:'add',text:`New ${w} ${ax==='rows'?n+' ':''}in “${y.label}”: “${YA[n].label}”`});else{['label','info','group','type','req'].forEach(p=>{if(JSON.stringify(XA[n][p])!==JSON.stringify(YA[n][p]))out.push({t:'chg',text:`“${y.label}” ${w} ${ax==='rows'?n:'“'+YA[n].label+'”'}: ${({label:'wording',info:'guidance',group:'group',type:'type',req:'required'})[p]} changed`})})}});Object.keys(XA).forEach(n=>{if(!YA[n])out.push({t:'rm',text:`Removed ${w} ${ax==='rows'?n:'“'+XA[n].label+'”'} from “${x.label}”`})})})}
+    else if(x.kind!=='calc'){['label','type','req'].forEach(p=>{if(JSON.stringify(x[p])!==JSON.stringify(y[p]))out.push({t:'chg',text:`“${nm(x)}”: ${p} changed from ${x[p]} to ${y[p]}`})})}
+    else if(x.limit!==y.limit)out.push({t:'lim',block:y.id,to:y.limit,text:`${nm(x)}: the author's recommended limit moved from ${fmtLimit(x)} to ${fmtLimit(y)}. Your confirmed limit is not touched.`})}});
+  Object.keys(A).forEach(k=>{if(!B[k])out.push({t:'rm',text:`Removed ${A[k].b.kind}: “${nm(A[k].b)}”`})});
+  return out;
+}
+function makeSampleChange(){
+  const t=TOOL; const first=t.sections[0];
+  const qb=t.sections.flatMap(s=>s.blocks).find(b=>b.kind==='grid'&&b.rows.from==='fixed'&&b.cellsBy==='col'&&(b.rows.items||[]).some(r=>r.group)); if(qb&&!qb.rows.items.some(r=>r.key==='7.01'))qb.rows.items.push({key:'7.01',group:'Guarantees',label:'Was a guarantee obtained where one was required?',info:'EXAMPLE TEXT: confirm the requirement, then the guarantee on file.'});
+  if(!first.blocks.some(b=>b.id==='note11')&&!qb)first.blocks.push({kind:'field',id:'note11',label:'Anything the reviewer should know first?',type:'text',req:false});
+  const c=calcsOf(t)[0]; if(c&&LIB[c.method].kind==='pct')c.limit=Math.round((c.limit+0.03)*1000)/1000;
+  META.version='1.1'; PACK11=buildPack(t,ORG,META);
+}
+function stage6(){
+  const have=!!BUYER, up=PACK11&&BUYER&&PACK11.meta.version!==BUYER.version;
+  let h=`<div class="story"><b>An update.</b> You improve the pack and publish 1.1. The buyer sees exactly what changed and chooses when to take it. Their confirmed limits and everything they entered stay as they are, and a case stays on the version it was done under until someone upgrades it on purpose.</div>`;
+  h+=`<div class="card"><header><h2>You, publishing 1.1</h2></header><div class="cb">${PACK11?`<span class="chip ok">1.1 published</span> <span class="cap">fingerprint ${PACK11.checksum}. Your builder now holds the 1.1 tool.</span>`:`<p style="margin-top:0">For the demonstration this makes one sample change: a new optional question in the first section, and a moved recommendation on the first limit.</p><button type="button" class="btn pri" data-j="publish11">Make the change and publish 1.1</button>`}</div></div>`;
+  if(PACK11){
+    if(!have)h+=`<div class="card"><div class="cb">No buyer has installed the pack yet. Go back to step 4.</div></div>`;
+    else{const d=diffTools(BUYER.pack.tool,PACK11.tool);
+      h+=`<div class="card"><header><h2>The buyer, seeing the update</h2>${BUYER.version===PACK11.meta.version?'<span class="chip ok">On 1.1</span>':'<span class="chip warn">Update available</span>'}</header><div class="cb">
+      <p style="margin-top:0">${esc(BUYER.pack.meta.name)}: <b>${esc(BUYER.version)} → ${esc(PACK11.meta.version)}</b></p>
+      <ul class="diff">${d.length?d.map(x=>`<li><span class="chip ${x.t==='add'?'ok':x.t==='rm'?'err':'warn'}">${{add:'New',rm:'Removed',chg:'Changed',lim:'Recommendation'}[x.t]}</span> ${esc(x.text)}</li>`).join(''):'<li>No differences.</li>'}</ul>
+      <p class="cap">${BUYER.version===PACK11.meta.version?`${esc(BUYER.org.terms.case)} HB-0147 is now on 1.1.`:`${esc(BUYER.org.terms.case)} HB-0147 stays on ${esc(BUYER.caseVersion)} until you upgrade it. Upgrading adds new questions as missing. Nothing is filled in for you.`}</p>
+      ${BUYER.version===PACK11.meta.version?'':`<div class="row2"><button type="button" class="btn pri" data-j="upgrade">Upgrade to ${esc(PACK11.meta.version)}</button><button type="button" class="btn" data-j="stay">Stay on ${esc(BUYER.version)}</button></div>`}
+      ${PENDING_MSG?`<div class="msg" style="margin-top:8px" role="status">${PENDING_MSG}</div>`:''}</div></div>`;}
+  }
+  return h+`<div class="row2"><button type="button" class="btn" data-j="goto" data-n="1">Start again at Build</button><button type="button" class="btn" data-j="goto" data-n="5">← Back to Use</button></div>`;
+}
+function upgradeBuyer(){
+  const B=BUYER,np=PACK11,old=B.pack;
+  B.pack=np;B.tool=clone(np.tool);B.version=np.meta.version;B.caseVersion=np.meta.version;
+  const nl={};np.policy.forEach(x=>{nl[x.block]=B.limits[x.block]||{value:x.recommended,confirmed:false}});B.limits=nl;
+  B.tool.name=np.tool.name; PENDING_MSG='Upgraded. Your confirmed limits and entries were kept. New questions show as missing.';
+}
+
+
+function bumpN(n){const m=/^(.*?)(\d+)$/.exec(n);if(!m)return n+'.1';return m[1]+String(+m[2]+1).padStart(m[2].length,'0')}
+/* ---------- journey events ---------- */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-j]'); if(!t)return; const a=t.dataset.j;
+  if(a==='goto'){PENDING_MSG='';goto(+t.dataset.n)}
+  else if(a==='tpl'){const k=t.dataset.tk;const key=Object.keys(TEMPLATES).find(x=>x===k||TEMPLATES[x].label===k);META.name='';META.niche='';META.tagline='';CUR=key;ctx('author');loadTemplate(key);goto(1)}
+  else if(a==='check'){const el=$('#packtext');PACKTEXT=el?el.value:PACKTEXT;BUYER=null;checkInstall(PACKTEXT);renderStage()}
+  else if(a==='breakit'){const el=$('#packtext');const s=el.value;const i=s.indexOf('"recommended"');PACKTEXT=s.slice(0,i)+s.slice(i).replace(/("recommended":\s*)([\d.]+)/,(m,p,n)=>p+(+n+0.1).toFixed(2));BUYER=null;REPORT=null;renderStage();toast('Changed one recommended limit in the file. Now press Check and install.')}
+  else if(a==='install'){installPack();renderStage()}
+  else if(a==='release'){BUYER.released=true;renderStage()}
+  else if(a==='whynot'){const g=gateList().filter(x=>!x.ok);alertBox(t,'Release is blocked',g.map(x=>x.text))}
+  else if(a==='publish11'){makeSampleChange();renderStage()}
+  else if(a==='upgrade'){upgradeBuyer();renderStage()}
+  else if(a==='stay'){PENDING_MSG='Staying on '+esc(BUYER.version)+'. The update stays available.';renderStage()}
+});
+function toast(m){let t=$('#jtoast');if(!t){t=document.createElement('div');t.id='jtoast';t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);color:var(--surface);padding:8px 14px;border-radius:6px;z-index:50;max-width:90vw';document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(()=>t.hidden=true,4000)}
+function alertBox(anchor,title,lines){toast(title+': '+lines.join(' · '))}
+document.addEventListener('input',e=>{
+  const t=e.target; if(t.dataset.m){ if(t.dataset.m==='adj'){META.adjust[t.dataset.key]=t.checked;} else META[t.dataset.m]=t.value; if(STAGE===2){rebuild()} return }
+  if(t.id==='packtext'){PACKTEXT=t.value;return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.m==='adj'||t.dataset.m==='version'||t.dataset.m==='name'){if(STAGE===2){const y=window.scrollY;renderStage();window.scrollTo(0,y)}return}
+  if(t.id==='packfile'&&t.files[0]){const r=new FileReader();r.onload=()=>{PACKTEXT=String(r.result);BUYER=null;REPORT=null;renderStage()};r.readAsText(t.files[0]);return}
+  const bo=t.dataset.bo; if(!bo||!BUYER)return;
+  if(bo==='term')BUYER.org.terms[t.dataset.key]=t.value||BUYER.org.terms[t.dataset.key];
+  if(bo==='list')BUYER.org.lists[t.dataset.key]=t.value.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(bo==='limit'){const L=BUYER.limits[t.dataset.id];const pk=BUYER.pack.policy.find(x=>x.block===t.dataset.id);const n=num(t.value);if(!isNaN(n)){L.value=pk.kind==='pct'?n/100:n;L.confirmed=false}}
+  if(bo==='conf')BUYER.limits[t.dataset.id].confirmed=t.checked;
+  const y=window.scrollY; renderStage(); window.scrollTo(0,y);
+});
+/* keep the case's checks live in stage 5 */
+
+renderOrg();render();renderStrip();
+window.__builder={flatRow,get TOOL(){return TOOL},get DATA(){return DATA},ENGINE,LIB,loadTemplate,goto,get BUYER(){return BUYER},get PACK(){return PACK},validatePack,runVectors,diffTools};
+})();
+</script>

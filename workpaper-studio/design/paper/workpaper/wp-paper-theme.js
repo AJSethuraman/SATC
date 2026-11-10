@@ -1,0 +1,4 @@
+const _h=a=>'#'+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('').toUpperCase();
+const _sh=(h,d)=>_h([1,3,5].map(i=>parseInt(h.slice(i,i+2),16)+d));
+window.PSURF={ground:'#E4E0D9',card:_sh('#E4E0D9',7),field:_sh('#E4E0D9',19),recess:_sh('#E4E0D9',-7),na:_sh('#E4E0D9',-16),hair:_sh('#E4E0D9',-17),line:_sh('#E4E0D9',-42),edgeD:_sh('#E4E0D9',-62),edgeL:_sh('#E4E0D9',21),mute:'#6D6A63',hatch1:_sh('#E4E0D9',-25),hatch2:_sh('#E4E0D9',7)};
+window.themeSheets=()=>{document.querySelectorAll('.frame').forEach(f=>{const c=f.querySelector('.cap').textContent.toLowerCase(),fam=c.includes('reconciliation')?'forest':c.includes('control')?'teal':'navy';const t={...THEMES.find(x=>x.id===fam),...PSURF};f.querySelectorAll('.sheet').forEach(s=>applyTheme(s,t,'theme'))})};

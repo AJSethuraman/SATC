@@ -1,0 +1,306 @@
+{
+ "method": "recon",
+ "note": "Fictional demonstration vectors. Each names the behaviour it pins.",
+ "vectors": [
+  {
+   "name": "ties to the cent",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 185600.55
+    },
+    "books": {
+     "state": "entered",
+     "value": 173545.35
+    },
+    "items": [
+     {
+      "label": "Item 1",
+      "type": "Deposit in transit",
+      "amount": 12400
+     },
+     {
+      "label": "Item 2",
+      "type": "Outstanding check",
+      "amount": 18950
+     },
+     {
+      "label": "Item 3",
+      "type": "Outstanding check",
+      "amount": 4310.2
+     },
+     {
+      "label": "Item 4",
+      "type": "Outstanding check",
+      "amount": 1280
+     },
+     {
+      "label": "Item 5",
+      "type": "Bank fee not yet booked",
+      "amount": 85
+     }
+    ]
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.0,
+    "missing": 0
+   }
+  },
+  {
+   "name": "an item with no amount blocks",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 185600.55
+    },
+    "books": {
+     "state": "entered",
+     "value": 173545.35
+    },
+    "items": [
+     {
+      "label": "Item 1",
+      "type": "Deposit in transit",
+      "amount": 12400
+     },
+     {
+      "label": "Item 2",
+      "type": "Outstanding check",
+      "amount": 18950
+     },
+     {
+      "label": "Item 3",
+      "type": "Outstanding check",
+      "amount": 4310.2
+     },
+     {
+      "label": "Item 4",
+      "type": "Outstanding check",
+      "amount": 1280
+     },
+     {
+      "label": "Item 5",
+      "type": "Bank fee not yet booked",
+      "amount": ""
+     }
+    ]
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "amount is missing"
+   }
+  },
+  {
+   "name": "an amount with no type blocks",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 100
+    },
+    "books": {
+     "state": "entered",
+     "value": 100
+    },
+    "items": [
+     {
+      "label": "Item 1",
+      "type": "",
+      "amount": 5
+     }
+    ]
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1
+   }
+  },
+  {
+   "name": "missing ledger balance blocks",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 100
+    },
+    "books": {
+     "state": "entered",
+     "value": null
+    },
+    "items": []
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "is missing"
+   }
+  },
+  {
+   "name": "zero balance counts and is disclosed",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 0
+    },
+    "books": {
+     "state": "entered",
+     "value": 0
+    },
+    "items": []
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.0,
+    "missing": 0,
+    "disclosures": 2,
+    "says": [
+     "Balance per bank statement entered as zero",
+     "Balance per ledger entered as zero"
+    ]
+   }
+  },
+  {
+   "name": "ledger balance not applicable is rejected",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 10
+    },
+    "books": {
+     "state": "na",
+     "reason": "new account"
+    },
+    "items": []
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "not applicable"
+   }
+  },
+  {
+   "name": "excluded item is left out and disclosed",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 1000
+    },
+    "books": {
+     "state": "entered",
+     "value": 900
+    },
+    "items": [
+     {
+      "label": "Item 1",
+      "type": "Outstanding check",
+      "amount": 100
+     },
+     {
+      "label": "Item 2",
+      "type": "Outstanding check",
+      "amount": 50,
+      "excluded": true,
+      "reason": "cleared before period end"
+     }
+    ]
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.0,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "left out"
+   }
+  },
+  {
+   "name": "unreconciled difference is reported, not hidden",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 1000
+    },
+    "books": {
+     "state": "entered",
+     "value": 990.01
+    },
+    "items": []
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 9.99,
+    "missing": 0
+   }
+  },
+  {
+   "name": "missing bank balance blocks",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": ""
+    },
+    "books": {
+     "state": "entered",
+     "value": 5
+    },
+    "items": []
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "Balance per bank statement is missing"
+   }
+  },
+  {
+   "name": "bank balance not applicable is rejected",
+   "inputs": {
+    "bank": {
+     "state": "na",
+     "reason": "closed"
+    },
+    "books": {
+     "state": "entered",
+     "value": 5
+    },
+    "items": []
+   },
+   "expect": {
+    "status": "not_calculated",
+    "value": null,
+    "missing": 1,
+    "says": "Balance per bank statement is marked not applicable"
+   }
+  },
+  {
+   "name": "zero item amount counts as zero",
+   "inputs": {
+    "bank": {
+     "state": "entered",
+     "value": 100
+    },
+    "books": {
+     "state": "entered",
+     "value": 100
+    },
+    "items": [
+     {
+      "label": "Item 1",
+      "type": "Outstanding check",
+      "amount": 0
+     }
+    ]
+   },
+   "expect": {
+    "status": "calculated",
+    "value": 0.0,
+    "missing": 0,
+    "disclosures": 1,
+    "says": "Item 1 (Outstanding check) amount entered as zero"
+   }
+  }
+ ]
+}
