@@ -69,7 +69,8 @@ Players connect Discord to characters with `/link`; the main character is the on
 - Done 2026-11-10: `/raid-edit` (title/time/size), unit-tested, not yet tried in a real server.
 - Done 2026-11-10: raids close at start time; a full raid sends new slot signups to Bench; `/sync` shows loaded/not-found counts per kind.
 - Snapshots: owner only needs the latest data (10 Nov). After each sync only the newest 2 raw responses per character and kind are kept, enough to fix a parser from real data.
-- Likely needs: role caps (needs the owner's numbers per raid size), let a member pick which linked character signs up, post raid summary after.
+- Done 2026-11-10: role limits are per raid, set by the organizer on `/raid-create` and `/raid-edit` (no built-in numbers).
+- Likely needs: let a member pick which linked character signs up, post raid summary after.
 
 **Phase 2: lookup database ("Wowhead in our bot")**
 - Import open data into SQLite: CMaNGOS classic-db (GPL-3.0) and QuestieDB (an October 10 Forever snapshot exists in a published Questie archive). **Check licenses first** (Questie's repo has `LICENSE.md` and `gpl-3.0.md`; one mirror says MIT; unconfirmed).

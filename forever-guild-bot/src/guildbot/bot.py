@@ -55,7 +55,8 @@ def raid_embed(db: Database, raid) -> discord.Embed:
     )
     for role in R.ROLES:
         lines = [R.format_entry(s) for s in g[role]]
-        e.add_field(name=f"{R.ROLE_LABEL[role]} ({len(lines)})",
+        cap = R.caps_of(raid).get(role)
+        e.add_field(name=f"{R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
                     value=clip(lines, 1024) or "—", inline=role in ("tank", "healer", "dps"))
     e.set_footer(text=f"Character data as of {db.get_meta('last_sync_at') or 'never'} UTC")
     return e
@@ -144,12 +145,14 @@ class GuildBot(discord.Client):
             return
         # A signup is a Discord account plus a role. A linked main is shown if there is one; none is needed.
         main = self.db.main_for(interaction.user.id)
-        landed = R.resolve_role(role, R.group_signups(self.db.signups(raid_id)), raid["size"], interaction.user.id)
+        landed = R.resolve_role(role, R.group_signups(self.db.signups(raid_id)), raid["size"],
+                               interaction.user.id, R.caps_of(raid))
         self.db.upsert_signup(raid_id, interaction.user.id, main["slug"] if main else None, landed, utcnow())
         await interaction.response.edit_message(embed=raid_embed(self.db, raid))
         if landed != role:
+            where = "the bench" if landed == "bench" else f"{R.ROLE_LABEL[landed].lower()}"
             await interaction.followup.send(
-                f"The raid is full ({raid['size']}), so you're on the bench.", ephemeral=True)
+                f"{R.ROLE_LABEL.get(role, role)} (or the raid) is full, so you're on {where}.", ephemeral=True)
 
 
 def register_commands(bot: GuildBot) -> None:
@@ -271,11 +274,16 @@ def register_commands(bot: GuildBot) -> None:
 
     # ---- raids ----------------------------------------------------------
     @tree.command(name="raid-create", description="Create a raid with signup buttons")
-    @app_commands.describe(date="YYYY-MM-DD", time="HH:MM, 24-hour, in the guild timezone", size="Raid size")
+    @app_commands.describe(date="YYYY-MM-DD", time="HH:MM, 24-hour, in the guild timezone", size="Raid size",
+                           tanks="Max tanks (leave blank for no limit)", healers="Max healers (blank = no limit)",
+                           dps="Max DPS (blank = no limit)")
     @app_commands.guild_only()
     @officer
     async def raid_create(interaction: discord.Interaction, title: str, date: str, time: str,
-                          size: app_commands.Range[int, 1, 40]):
+                          size: app_commands.Range[int, 1, 40],
+                          tanks: app_commands.Range[int, 1, 40] | None = None,
+                          healers: app_commands.Range[int, 1, 40] | None = None,
+                          dps: app_commands.Range[int, 1, 40] | None = None):
         try:
             start = R.parse_start(date, time, bot.cfg.timezone)
         except ValueError:
@@ -285,7 +293,8 @@ def register_commands(bot: GuildBot) -> None:
         if start <= datetime.now(timezone.utc):
             await interaction.response.send_message("That time is in the past.", ephemeral=True)
             return
-        raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id)
+        raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id,
+                                 {"tank": tanks, "healer": healers, "dps": dps})
         raid = db.get_raid(raid_id)
         await interaction.response.send_message(embed=raid_embed(db, raid), view=RaidView(bot, raid_id))
         msg = await interaction.original_response()
@@ -303,12 +312,17 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.followup.send(note, ephemeral=True)
 
     @tree.command(name="raid-edit", description="Change a raid's title, time or size")
-    @app_commands.describe(date="YYYY-MM-DD (give date and time together)", time="HH:MM, guild timezone")
+    @app_commands.describe(date="YYYY-MM-DD (give date and time together)", time="HH:MM, guild timezone",
+                           tanks="Max tanks (0 removes the limit)", healers="Max healers (0 removes the limit)",
+                           dps="Max DPS (0 removes the limit)")
     @app_commands.guild_only()
     @officer
     async def raid_edit(interaction: discord.Interaction, raid_id: int, title: str | None = None,
                         date: str | None = None, time: str | None = None,
-                        size: app_commands.Range[int, 1, 40] | None = None):
+                        size: app_commands.Range[int, 1, 40] | None = None,
+                        tanks: app_commands.Range[int, 0, 40] | None = None,
+                        healers: app_commands.Range[int, 0, 40] | None = None,
+                        dps: app_commands.Range[int, 0, 40] | None = None):
         raid = db.get_raid(raid_id)
         if not raid or raid["status"] != "open":
             await interaction.response.send_message("No open raid with that number.", ephemeral=True)
@@ -327,10 +341,11 @@ def register_commands(bot: GuildBot) -> None:
             if start <= datetime.now(timezone.utc):
                 await interaction.response.send_message("That time is in the past.", ephemeral=True)
                 return
-        if not (title or start or size):
+        caps = {r: n for r, n in (("tank", tanks), ("healer", healers), ("dps", dps)) if n is not None}
+        if not (title or start or size or caps):
             await interaction.response.send_message("Nothing to change.", ephemeral=True)
             return
-        db.update_raid(raid_id, title, start.isoformat(timespec="seconds") if start else None, size)
+        db.update_raid(raid_id, title, start.isoformat(timespec="seconds") if start else None, size, caps)
         raid = db.get_raid(raid_id)
         note = ""
         try:
@@ -344,6 +359,8 @@ def register_commands(bot: GuildBot) -> None:
         except discord.HTTPException:
             log.exception("could not refresh edited raid %s", raid_id)
             note = " Saved, but I couldn't refresh the post or event."
+        if caps:
+            note += " Lower limits don't remove anyone already signed up; they only block new signups."
         await interaction.response.send_message(f"Raid #{raid_id} updated.{note}", ephemeral=True)
 
     @tree.command(name="raid-cancel", description="Cancel a raid")

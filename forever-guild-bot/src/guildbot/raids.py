@@ -38,14 +38,24 @@ def format_entry(s) -> str:
     return f"<@{s['discord_id']}>"
 
 
-def resolve_role(role: str, groups: dict[str, list], size: int, discord_id: int) -> str:
-    """Role a signup actually lands in. A full raid sends new tank/healer/DPS signups to the bench.
+def caps_of(raid) -> dict[str, int | None]:
+    """Per-role limits on a raid row; None means no limit."""
+    return {"tank": raid["cap_tank"], "healer": raid["cap_healer"], "dps": raid["cap_dps"]}
 
-    Someone already holding a raid slot keeps it when switching between slot roles.
+
+def resolve_role(role: str, groups: dict[str, list], size: int, discord_id: int,
+                 caps: dict[str, int | None] | None = None) -> str:
+    """Role a signup actually lands in.
+
+    A new tank/healer/DPS signup goes to the bench when the raid is full or that role is at its limit.
+    Someone already holding a slot who asks for a full role stays where they are.
     """
     if role not in COUNTED:
         return role
-    already_in = any(s["discord_id"] == discord_id for r in COUNTED for s in groups[r])
-    if not already_in and filled(groups) >= size:
-        return "bench"
-    return role
+    caps = caps or {}
+    mine = next((r for r in COUNTED for s in groups[r] if s["discord_id"] == discord_id), None)
+    cap = caps.get(role)
+    role_full = cap is not None and sum(1 for s in groups[role] if s["discord_id"] != discord_id) >= cap
+    if mine is None:
+        return "bench" if role_full or filled(groups) >= size else role
+    return mine if role_full else role

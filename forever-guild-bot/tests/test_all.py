@@ -216,3 +216,19 @@ def test_snapshots_keep_newest_two_per_character_and_kind(tmp_path):
     assert sorted((r["kind"], r["payload"]) for r in rows) == [
         ("equipment", "e2"), ("equipment", "e3"), ("profile", "p2"), ("profile", "p3"),
         ("roster", "r2"), ("roster", "r3")]
+
+
+def test_role_caps_set_per_raid_and_changeable(tmp_path):
+    g = R.group_signups([_s(1, "tank"), _s(2, "tank"), _s(3, "healer")])
+    caps = {"tank": 2, "healer": None, "dps": None}
+    assert R.resolve_role("tank", g, 25, 9, caps) == "bench"      # newcomer, tanks full
+    assert R.resolve_role("healer", g, 25, 9, caps) == "healer"   # no healer limit
+    assert R.resolve_role("tank", g, 25, 3, caps) == "healer"     # holds a slot, tanks full: stays put
+    assert R.resolve_role("tank", g, 25, 1, caps) == "tank"       # already a tank: not blocked by own seat
+    assert R.resolve_role("tank", g, 25, 9, {"tank": 3}) == "tank"  # limit raised
+    db = make_db(tmp_path)
+    soon = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(timespec="seconds")
+    rid = db.create_raid("Hyjal", soon, 25, 99, {"tank": 2, "healer": 5})
+    assert R.caps_of(db.get_raid(rid)) == {"tank": 2, "healer": 5, "dps": None}
+    db.update_raid(rid, caps={"tank": 3, "healer": 0})            # raise tanks, clear healers
+    assert R.caps_of(db.get_raid(rid)) == {"tank": 3, "healer": None, "dps": None}

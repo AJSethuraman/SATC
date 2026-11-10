@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS raids (
     title TEXT NOT NULL,
     starts_at TEXT NOT NULL,          -- UTC ISO-8601
     size INTEGER NOT NULL,
+    cap_tank INTEGER, cap_healer INTEGER, cap_dps INTEGER,   -- NULL = no limit for that role
     created_by INTEGER NOT NULL,
     channel_id INTEGER, message_id INTEGER, discord_event_id INTEGER,
     status TEXT NOT NULL DEFAULT 'open',   -- open | closed | cancelled
@@ -239,10 +240,13 @@ class Database:
         return r["discord_id"] if r else None
 
     # ---- raids --------------------------------------------------------
-    def create_raid(self, title, starts_at_utc_iso, size, created_by) -> int:
+    def create_raid(self, title, starts_at_utc_iso, size, created_by, caps: dict | None = None) -> int:
+        caps = caps or {}
         cur = self.conn.execute(
-            "INSERT INTO raids (title, starts_at, size, created_by) VALUES (?,?,?,?)",
-            (title, starts_at_utc_iso, size, created_by))
+            """INSERT INTO raids (title, starts_at, size, cap_tank, cap_healer, cap_dps, created_by)
+               VALUES (?,?,?,?,?,?,?)""",
+            (title, starts_at_utc_iso, size, caps.get("tank") or None, caps.get("healer") or None,
+             caps.get("dps") or None, created_by))
         self.conn.commit()
         return cur.lastrowid
 
@@ -259,9 +263,14 @@ class Database:
         return self.conn.execute(
             "SELECT * FROM raids WHERE status='open' ORDER BY starts_at").fetchall()
 
-    def update_raid(self, raid_id, title=None, starts_at_utc_iso=None, size=None) -> None:
-        """Change only the fields given. A new start time re-arms the reminder."""
+    def update_raid(self, raid_id, title=None, starts_at_utc_iso=None, size=None, caps: dict | None = None) -> None:
+        """Change only the fields given. A new start time re-arms the reminder.
+
+        caps: {"tank": n, ...} for the roles to change; 0 removes that role's limit.
+        """
         raid = self.get_raid(raid_id)
+        for role, n in (caps or {}).items():
+            self.conn.execute(f"UPDATE raids SET cap_{role}=? WHERE id=?", (n or None, raid_id))
         new_start = starts_at_utc_iso or raid["starts_at"]
         reminded = 0 if new_start != raid["starts_at"] else raid["reminded"]
         self.conn.execute(

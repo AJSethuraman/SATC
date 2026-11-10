@@ -20,12 +20,12 @@ Run tests: `PYTHONPATH=src python -m pytest -q`
 | `/link` `/unlink` `/main` | anyone | connect your Discord account to your characters |
 | `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what |
 | `/raids` | anyone | upcoming raids |
-| `/raid-create title date time size` | Manage Events | posts signup buttons + a Discord event. Date `2026-11-15`, time `20:00` (guild timezone) |
-| `/raid-edit id [title] [date time] [size]` | Manage Events | changes a raid; a new time re-arms the reminder and moves the Discord event |
+| `/raid-create title date time size [tanks] [healers] [dps]` | Manage Events | posts signup buttons + a Discord event. Date `2026-11-15`, time `20:00` (guild timezone) |
+| `/raid-edit id [title] [date time] [size] [tanks] [healers] [dps]` | Manage Events | changes a raid; a new time re-arms the reminder and moves the Discord event |
 | `/raid-cancel id` | Manage Events | cancels and removes the Discord event |
 | `/sync` | Manage Events | refresh from Blizzard now |
 
-Raid signup buttons: Tank / Healer / DPS / Bench / Can't make it. A signup is your Discord account plus a role; no `/link` needed (a linked main is shown if you have one). When the raid is full, new Tank/Healer/DPS signups go to the bench. Signed-up players are pinged 60 minutes before start. At start time the buttons come off and signups close.
+Raid signup buttons: Tank / Healer / DPS / Bench / Can't make it. A signup is your Discord account plus a role; no `/link` needed (a linked main is shown if you have one). The optional tank/healer/DPS limits are set by whoever creates the raid and changed with `/raid-edit` (0 removes a limit); blank means no limit. When the raid or a role is full, new Tank/Healer/DPS signups go to the bench. Signed-up players are pinged 60 minutes before start. At start time the buttons come off and signups close.
 
 `/sync` reports how many of each kind loaded (e.g. `profile: 280 of 300 loaded, 20 not found`).
 
