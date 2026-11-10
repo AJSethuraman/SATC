@@ -47,10 +47,11 @@ def raid_embed(db: Database, raid) -> discord.Embed:
     g = R.group_signups(db.signups(raid["id"]))
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
     cancelled = raid["status"] == "cancelled"
+    started = raid["status"] == "closed"
     e = discord.Embed(
-        title=f"{'CANCELLED: ' if cancelled else ''}{raid['title']}  (#{raid['id']})",
+        title=f"{'CANCELLED: ' if cancelled else 'STARTED: ' if started else ''}{raid['title']}  (#{raid['id']})",
         description=f"<t:{ts}:F> · <t:{ts}:R>\nSlots filled: **{R.filled(g)}/{raid['size']}**",
-        color=discord.Color.dark_grey() if cancelled else discord.Color.blurple(),
+        color=discord.Color.dark_grey() if cancelled or started else discord.Color.blurple(),
     )
     for role in R.ROLES:
         lines = [R.format_entry(s) for s in g[role]]
@@ -98,6 +99,8 @@ class GuildBot(discord.Client):
         self.sync_job.start()
         self.reminder_job = tasks.loop(minutes=1)(self._send_reminders)
         self.reminder_job.start()
+        self.close_job = tasks.loop(minutes=1)(self._close_started)
+        self.close_job.start()
 
     # ---- background jobs ---------------------------------------------
     async def run_sync(self):
@@ -123,19 +126,30 @@ class GuildBot(discord.Client):
             except Exception:
                 log.exception("reminder failed for raid %s", raid["id"])
 
+    async def _close_started(self) -> None:
+        for raid in self.db.close_started(datetime.now(timezone.utc)):
+            try:
+                chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+                msg = await chan.fetch_message(raid["message_id"])
+                await msg.edit(embed=raid_embed(self.db, self.db.get_raid(raid["id"])), view=None)
+            except Exception:
+                log.exception("could not remove buttons from started raid %s", raid["id"])
+
     # ---- raid signup --------------------------------------------------
     async def handle_signup(self, interaction: discord.Interaction, raid_id: int, role: str) -> None:
         raid = self.db.get_raid(raid_id)
-        if not raid or raid["status"] != "open":
+        if not raid or raid["status"] != "open" or \
+                datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
             await interaction.response.send_message("This raid is closed.", ephemeral=True)
             return
+        # A signup is a Discord account plus a role. A linked main is shown if there is one; none is needed.
         main = self.db.main_for(interaction.user.id)
-        if role != "absent" and not main:
-            await interaction.response.send_message(
-                "Link your character first with `/link`, then press the button again.", ephemeral=True)
-            return
-        self.db.upsert_signup(raid_id, interaction.user.id, main["slug"] if main else None, role, utcnow())
+        landed = R.resolve_role(role, R.group_signups(self.db.signups(raid_id)), raid["size"], interaction.user.id)
+        self.db.upsert_signup(raid_id, interaction.user.id, main["slug"] if main else None, landed, utcnow())
         await interaction.response.edit_message(embed=raid_embed(self.db, raid))
+        if landed != role:
+            await interaction.followup.send(
+                f"The raid is full ({raid['size']}), so you're on the bench.", ephemeral=True)
 
 
 def register_commands(bot: GuildBot) -> None:
@@ -371,7 +385,8 @@ def register_commands(bot: GuildBot) -> None:
     async def sync_cmd(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
         res = await bot.run_sync()
-        msg = f"Synced {res.members} members, {res.removed} left the roster, {len(res.failures)} fetch problems."
+        msg = (f"Synced {res.members} members, {res.removed} left the roster, {len(res.failures)} fetch problems."
+               f"\n{res.summary()}")
         if res.failures:
             msg += "\n" + "\n".join(f"`{s}` {k}: {e}" for s, k, e in res.failures[:8])
         await interaction.followup.send(msg, ephemeral=True)

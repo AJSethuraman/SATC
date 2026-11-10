@@ -36,3 +36,16 @@ def format_entry(s) -> str:
             bits.append(f"L{s['level']}")
         return " ".join(bits)
     return f"<@{s['discord_id']}>"
+
+
+def resolve_role(role: str, groups: dict[str, list], size: int, discord_id: int) -> str:
+    """Role a signup actually lands in. A full raid sends new tank/healer/DPS signups to the bench.
+
+    Someone already holding a raid slot keeps it when switching between slot roles.
+    """
+    if role not in COUNTED:
+        return role
+    already_in = any(s["discord_id"] == discord_id for r in COUNTED for s in groups[r])
+    if not already_in and filled(groups) >= size:
+        return "bench"
+    return role

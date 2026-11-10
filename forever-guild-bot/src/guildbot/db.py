@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS raids (
     size INTEGER NOT NULL,
     created_by INTEGER NOT NULL,
     channel_id INTEGER, message_id INTEGER, discord_event_id INTEGER,
-    status TEXT NOT NULL DEFAULT 'open',   -- open | cancelled
+    status TEXT NOT NULL DEFAULT 'open',   -- open | closed | cancelled
     reminded INTEGER NOT NULL DEFAULT 0
 );
 
@@ -257,6 +257,14 @@ class Database:
             "UPDATE raids SET title=?, starts_at=?, size=?, reminded=? WHERE id=?",
             (title or raid["title"], new_start, size or raid["size"], reminded, raid_id))
         self.conn.commit()
+
+    def close_started(self, now_utc: datetime):
+        """Mark open raids whose start time has passed as closed. Returns the rows closed."""
+        out = [r for r in self.open_raids() if datetime.fromisoformat(r["starts_at"]) <= now_utc]
+        for r in out:
+            self.conn.execute("UPDATE raids SET status='closed' WHERE id=?", (r["id"],))
+        self.conn.commit()
+        return out
 
     def cancel_raid(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='cancelled' WHERE id=?", (raid_id,))

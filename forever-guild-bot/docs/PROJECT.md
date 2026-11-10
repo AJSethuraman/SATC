@@ -26,6 +26,7 @@ Later (not built): Wowhead-style lookups from our own database, and a "Tonight's
 | Don't scrape Wowhead | It has no API and tries to block parsing; its terms page couldn't be read. Link out instead. Possible later: ask Wowhead for permission. |
 | Build our own lookup data from open sources | See "Data sources" below. Curated FAQ rejected as too much work. |
 | Python, discord.py, httpx, SQLite | Small, local, easy for Claude Code to maintain. |
+| Signup = Discord account + role, no character needed | The Blizzard app token can't tell which account owns a character or who a Discord user is; linking would need each member to log in with Battle.net. `/link` stays optional, for `/who` and display. |
 | Raid times typed as `YYYY-MM-DD` and `HH:MM` in guild timezone | Deterministic parsing; natural language rejected. |
 
 ## Architecture
@@ -66,6 +67,8 @@ Players connect Discord to characters with `/link`; the main character is the on
 **Phase 1: make raids good**
 - Test the whole raid flow in the real server: create, sign up, change role, remind, cancel.
 - Done 2026-11-10: `/raid-edit` (title/time/size), unit-tested, not yet tried in a real server.
+- Done 2026-11-10: raids close at start time; a full raid sends new slot signups to Bench; `/sync` shows loaded/not-found counts per kind.
+- Open: keep or prune old `snapshots` (unanswered; nothing is pruned).
 - Likely needs: role caps (needs the owner's numbers per raid size), let a member pick which linked character signs up, post raid summary after.
 
 **Phase 2: lookup database ("Wowhead in our bot")**

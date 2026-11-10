@@ -169,3 +169,37 @@ def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
     db.update_raid(rid, title="Hyjal 2", starts_at_utc_iso=later)   # new time: reminder re-armed
     r = db.get_raid(rid)
     assert (r["title"], r["starts_at"], r["size"], r["reminded"]) == ("Hyjal 2", later, 25, 0)
+
+
+def _s(did, role):
+    return {"discord_id": did, "role": role}
+
+
+def test_full_raid_sends_new_slot_signups_to_bench():
+    g = R.group_signups([_s(1, "tank"), _s(2, "dps")])
+    assert R.resolve_role("dps", g, 2, 3) == "bench"       # full, newcomer
+    assert R.resolve_role("healer", g, 2, 2) == "healer"   # already in a slot: keeps it
+    assert R.resolve_role("dps", g, 3, 3) == "dps"         # room left
+    assert R.resolve_role("absent", g, 2, 3) == "absent"   # non-slot roles untouched
+    assert R.resolve_role("bench", g, 2, 3) == "bench"
+
+
+def test_started_raids_are_closed_once(tmp_path):
+    db = make_db(tmp_path)
+    now = datetime.now(timezone.utc)
+    past = db.create_raid("Gone", (now - timedelta(minutes=1)).isoformat(timespec="seconds"), 10, 99)
+    ahead = db.create_raid("Ahead", (now + timedelta(hours=1)).isoformat(timespec="seconds"), 10, 99)
+    assert [r["id"] for r in db.close_started(now)] == [past]
+    assert db.close_started(now) == []
+    assert db.get_raid(past)["status"] == "closed"
+    assert [r["id"] for r in db.open_raids()] == [ahead]
+
+
+def test_sync_reports_denominator_including_not_found(tmp_path):
+    class Missing(FakeClient):
+        async def character_profile(self, slug):
+            raise bz.NotFound(slug)
+    db = make_db(tmp_path)
+    res = asyncio.run(sync_guild(db, Missing(ROSTER), "g"))
+    assert "profile: 0 of 2 loaded, 2 not found" in res.summary()
+    assert res.failures == [] or all(k != "profile" for _, k, _ in res.failures)
