@@ -184,13 +184,15 @@ def test_full_raid_sends_new_slot_signups_to_bench():
     assert R.resolve_role("bench", g, 2, 3) == "bench"
 
 
-def test_started_raids_are_closed_once(tmp_path):
+def test_started_raids_stay_pending_until_marked_closed(tmp_path):
     db = make_db(tmp_path)
     now = datetime.now(timezone.utc)
     past = db.create_raid("Gone", (now - timedelta(minutes=1)).isoformat(timespec="seconds"), 10, 99)
     ahead = db.create_raid("Ahead", (now + timedelta(hours=1)).isoformat(timespec="seconds"), 10, 99)
-    assert [r["id"] for r in db.close_started(now)] == [past]
-    assert db.close_started(now) == []
+    assert [r["id"] for r in db.started_open(now)] == [past]
+    assert [r["id"] for r in db.started_open(now)] == [past]     # Discord failed: still pending, retried
+    db.mark_closed(past)
+    assert db.started_open(now) == []
     assert db.get_raid(past)["status"] == "closed"
     assert [r["id"] for r in db.open_raids()] == [ahead]
 
@@ -232,3 +234,35 @@ def test_role_caps_set_per_raid_and_changeable(tmp_path):
     assert R.caps_of(db.get_raid(rid)) == {"tank": 2, "healer": 5, "dps": None}
     db.update_raid(rid, caps={"tank": 3, "healer": 0})            # raise tanks, clear healers
     assert R.caps_of(db.get_raid(rid)) == {"tank": 3, "healer": None, "dps": None}
+
+
+def test_prune_keeps_last_successful_snapshot_when_newest_attempts_failed(tmp_path):
+    db = make_db(tmp_path)
+    db.save_snapshot("a-b", "profile", "ok", "good", utcnow())
+    for _ in range(3):
+        db.save_snapshot("a-b", "profile", "not_found", None, utcnow())
+    db.prune_snapshots(keep=2)
+    kept = [(r["status"], r["payload"]) for r in db.conn.execute("SELECT * FROM snapshots ORDER BY id")]
+    assert ("ok", "good") in kept and len(kept) == 3
+
+
+def test_unrecognised_payloads_raise_instead_of_wiping_cached_data(tmp_path):
+    for fn in (bz.parse_profile, bz.parse_professions, bz.parse_equipment):
+        with pytest.raises(bz.BlizzardError):
+            fn({"renamed": {}})
+    class Wrapped(FakeClient):
+        async def character_profile(self, slug):
+            return {"data": {"level": 1}}
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    before = db.find_character("anduin")["class_name"]
+    res = asyncio.run(sync_guild(db, Wrapped(ROSTER), "g"))
+    assert db.find_character("anduin")["class_name"] == before          # not cleared
+    assert "profile: 0 of 2 loaded, 2 failed" in res.summary()
+
+
+def test_data_as_of_uses_oldest_row_not_last_sync():
+    from guildbot.bot import data_as_of
+    rows = [{"fetched_at": "2026-11-10T10:00:00+00:00"}, {"fetched_at": "2026-11-09T08:00:00+00:00"}]
+    assert "2026-11-09T08:00:00" in data_as_of(rows, "2026-11-10T12:00:00+00:00")
+    assert "never" in data_as_of([], None)

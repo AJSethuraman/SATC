@@ -93,6 +93,8 @@ def parse_roster(payload: dict) -> list[Member]:
 
 
 def parse_profile(payload: dict) -> Profile:
+    if not any(k in payload for k in ("level", "character_class", "race", "faction")):
+        raise BlizzardError(f"profile response not recognised (keys: {sorted(payload)})")
     return Profile(
         level=payload.get("level"),
         class_name=_name(payload.get("character_class")),
@@ -102,6 +104,8 @@ def parse_profile(payload: dict) -> Profile:
 
 
 def parse_professions(payload: dict) -> list[Profession]:
+    if not any(k in payload for k in ("primaries", "secondaries", "professions")):
+        raise BlizzardError(f"professions response not recognised (keys: {sorted(payload)})")
     out: list[Profession] = []
     for group in ("primaries", "secondaries", "professions"):
         for p in payload.get(group) or []:
@@ -121,6 +125,8 @@ def parse_professions(payload: dict) -> list[Profession]:
 
 
 def parse_equipment(payload: dict) -> list[Item]:
+    if "equipped_items" not in payload:
+        raise BlizzardError(f"equipment response not recognised (keys: {sorted(payload)})")
     out: list[Item] = []
     for it in payload.get("equipped_items") or []:
         name = _name(it.get("name")) or _name(it.get("item"))

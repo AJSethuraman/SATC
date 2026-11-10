@@ -32,6 +32,13 @@ def rel(iso: str | None) -> str:
     return f"<t:{int(datetime.fromisoformat(iso).timestamp())}:R>"
 
 
+def data_as_of(rows, fallback: str | None) -> str:
+    """Footer for lists built from per-row fetch times: the oldest row shown, so stale data is not
+    presented as fresh just because a later sync ran."""
+    times = [r["fetched_at"] for r in rows if r["fetched_at"]]
+    return f"Data as of {min(times) if times else (fallback or 'never')} UTC (oldest shown)"
+
+
 def clip(lines: list[str], limit: int) -> str:
     out, used = [], 0
     for i, line in enumerate(lines):
@@ -128,13 +135,20 @@ class GuildBot(discord.Client):
                 log.exception("reminder failed for raid %s", raid["id"])
 
     async def _close_started(self) -> None:
-        for raid in self.db.close_started(datetime.now(timezone.utc)):
+        """Take the buttons off raids that have started. A raid is only marked closed once its
+        message is updated (or is gone), so a Discord hiccup is retried on the next pass."""
+        for raid in self.db.started_open(datetime.now(timezone.utc)):
             try:
-                chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
-                msg = await chan.fetch_message(raid["message_id"])
-                await msg.edit(embed=raid_embed(self.db, self.db.get_raid(raid["id"])), view=None)
+                if raid["channel_id"] and raid["message_id"]:
+                    chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+                    msg = await chan.fetch_message(raid["message_id"])
+                    closed = dict(raid) | {"status": "closed"}
+                    await msg.edit(embed=raid_embed(self.db, closed), view=None)
+                self.db.mark_closed(raid["id"])
+            except discord.NotFound:
+                self.db.mark_closed(raid["id"])      # message or channel deleted: nothing left to tidy
             except Exception:
-                log.exception("could not remove buttons from started raid %s", raid["id"])
+                log.exception("could not remove buttons from started raid %s; will retry", raid["id"])
 
     # ---- raid signup --------------------------------------------------
     async def handle_signup(self, interaction: discord.Interaction, raid_id: int, role: str) -> None:
@@ -256,12 +270,13 @@ def register_commands(bot: GuildBot) -> None:
 
     @tree.command(name="professions", description="Who has which profession (leave blank for all)")
     async def professions(interaction: discord.Interaction, profession: str = ""):
+        rows = db.who_has_profession(profession)
         by: dict[str, list[str]] = {}
-        for r in db.who_has_profession(profession):
+        for r in rows:
             by.setdefault(r["profession"], []).append(f"{r['name']} {r['skill']}/{r['max_skill']}")
         lines = [f"**{p}** ({len(v)}): {', '.join(v)}" for p, v in sorted(by.items())]
         e = discord.Embed(title="Professions", description=clip(lines, 4000) or "Nobody found.")
-        e.set_footer(text=f"Synced {db.get_meta('last_sync_at') or 'never'} UTC")
+        e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)
 
     @tree.command(name="whohas", description="Who has an item equipped")
@@ -269,7 +284,7 @@ def register_commands(bot: GuildBot) -> None:
         rows = db.search_items(item)
         lines = [f"**{r['name']}**: {r['item_name']} ({r['slot']})" for r in rows]
         e = discord.Embed(title=f"Equipped: {item}", description=clip(lines, 4000) or "Nobody has it equipped.")
-        e.set_footer(text=f"Synced {db.get_meta('last_sync_at') or 'never'} UTC")
+        e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)
 
     # ---- raids ----------------------------------------------------------
@@ -388,7 +403,8 @@ def register_commands(bot: GuildBot) -> None:
     @tree.command(name="raids", description="List upcoming raids")
     @app_commands.guild_only()
     async def raids(interaction: discord.Interaction):
-        rows = db.open_raids()
+        now = datetime.now(timezone.utc)
+        rows = [r for r in db.open_raids() if datetime.fromisoformat(r["starts_at"]) > now]
         lines = []
         for r in rows:
             ts = int(datetime.fromisoformat(r["starts_at"]).timestamp())

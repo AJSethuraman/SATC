@@ -108,13 +108,20 @@ class Database:
         self.conn.commit()
 
     def prune_snapshots(self, keep: int = 2) -> int:
-        """Keep only the newest `keep` raw responses per (character, kind). Returns rows deleted."""
+        """Keep the newest `keep` raw responses per (character, kind), plus the latest successful one.
+
+        The parsed tables come from the last successful fetch, so its raw response must survive
+        even when the newest attempts were errors or 404s. Returns rows deleted.
+        """
         cur = self.conn.execute(
             """DELETE FROM snapshots WHERE id IN (
                  SELECT id FROM (
-                   SELECT id, ROW_NUMBER() OVER (
-                     PARTITION BY COALESCE(slug, ''), kind ORDER BY id DESC) AS rn
-                   FROM snapshots) WHERE rn > ?)""", (keep,))
+                   SELECT id, status, ROW_NUMBER() OVER (
+                       PARTITION BY COALESCE(slug, ''), kind ORDER BY id DESC) AS rn,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY COALESCE(slug, ''), kind, status ORDER BY id DESC) AS rn_status
+                   FROM snapshots)
+                 WHERE rn > ? AND NOT (status = 'ok' AND rn_status = 1))""", (keep,))
         self.conn.commit()
         return cur.rowcount
 
@@ -278,13 +285,13 @@ class Database:
             (title or raid["title"], new_start, size or raid["size"], reminded, raid_id))
         self.conn.commit()
 
-    def close_started(self, now_utc: datetime):
-        """Mark open raids whose start time has passed as closed. Returns the rows closed."""
-        out = [r for r in self.open_raids() if datetime.fromisoformat(r["starts_at"]) <= now_utc]
-        for r in out:
-            self.conn.execute("UPDATE raids SET status='closed' WHERE id=?", (r["id"],))
+    def started_open(self, now_utc: datetime):
+        """Open raids whose start time has passed and that still need their buttons removed."""
+        return [r for r in self.open_raids() if datetime.fromisoformat(r["starts_at"]) <= now_utc]
+
+    def mark_closed(self, raid_id) -> None:
+        self.conn.execute("UPDATE raids SET status='closed' WHERE id=?", (raid_id,))
         self.conn.commit()
-        return out
 
     def cancel_raid(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='cancelled' WHERE id=?", (raid_id,))
