@@ -208,21 +208,29 @@ class Database:
         self.conn.commit()
         return not has_main
 
+    def _promote_alt(self, discord_id: int) -> None:
+        """If this member has links but no main, make the first alt (by slug) their main."""
+        if self.conn.execute("SELECT 1 FROM links WHERE discord_id=? AND is_main=1", (discord_id,)).fetchone():
+            return
+        nxt = self.conn.execute(
+            "SELECT slug FROM links WHERE discord_id=? ORDER BY slug LIMIT 1", (discord_id,)).fetchone()
+        if nxt:
+            self.conn.execute("UPDATE links SET is_main=1 WHERE discord_id=? AND slug=?",
+                              (discord_id, nxt["slug"]))
+
     def release(self, slug: str) -> None:
-        """Remove every Discord link to a character (officer override)."""
+        """Remove every Discord link to a character (officer override). A previous owner who lost
+        their main keeps a main: one of their remaining characters is promoted."""
+        owners = [r["discord_id"] for r in self.conn.execute(
+            "SELECT discord_id FROM links WHERE slug=?", (slug,))]
         self.conn.execute("DELETE FROM links WHERE slug=?", (slug,))
+        for d in owners:
+            self._promote_alt(d)
         self.conn.commit()
 
     def unlink(self, discord_id: int, slug: str) -> None:
-        was_main = self.conn.execute(
-            "SELECT is_main FROM links WHERE discord_id=? AND slug=?", (discord_id, slug)).fetchone()
         self.conn.execute("DELETE FROM links WHERE discord_id=? AND slug=?", (discord_id, slug))
-        if was_main and was_main["is_main"]:
-            nxt = self.conn.execute(
-                "SELECT slug FROM links WHERE discord_id=? ORDER BY slug LIMIT 1", (discord_id,)).fetchone()
-            if nxt:
-                self.conn.execute("UPDATE links SET is_main=1 WHERE discord_id=? AND slug=?",
-                                  (discord_id, nxt["slug"]))
+        self._promote_alt(discord_id)
         self.conn.commit()
 
     def set_main(self, discord_id: int, slug: str) -> bool:
@@ -258,6 +266,12 @@ class Database:
              caps.get("dps") or None, created_by))
         self.conn.commit()
         return cur.lastrowid
+
+    def delete_raid(self, raid_id) -> None:
+        """Remove a raid that never got posted (and any signups on it)."""
+        self.conn.execute("DELETE FROM signups WHERE raid_id=?", (raid_id,))
+        self.conn.execute("DELETE FROM raids WHERE id=?", (raid_id,))
+        self.conn.commit()
 
     def set_raid_posted(self, raid_id, channel_id, message_id, event_id) -> None:
         self.conn.execute(
@@ -309,7 +323,7 @@ class Database:
 
     def signups(self, raid_id):
         return self.conn.execute(
-            """SELECT s.*, c.name, c.level, c.class_name FROM signups s
+            """SELECT s.*, c.name, c.level, c.class_name, c.profile_at FROM signups s
                LEFT JOIN characters c ON c.slug=s.slug
                WHERE s.raid_id=? ORDER BY s.updated_at""", (raid_id,)).fetchall()
 

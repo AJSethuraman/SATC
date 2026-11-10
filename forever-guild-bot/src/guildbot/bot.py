@@ -65,7 +65,9 @@ def raid_embed(db: Database, raid) -> discord.Embed:
         cap = R.caps_of(raid).get(role)
         e.add_field(name=f"{R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
                     value=clip(lines, 1024) or "—", inline=role in ("tank", "healer", "dps"))
-    e.set_footer(text=f"Character data as of {db.get_meta('last_sync_at') or 'never'} UTC")
+    times = [x["profile_at"] for rows in g.values() for x in rows if x["profile_at"]]
+    e.set_footer(text=f"Character data as of {min(times)} UTC (oldest shown)" if times
+                 else "No linked characters shown")
     return e
 
 
@@ -311,8 +313,12 @@ def register_commands(bot: GuildBot) -> None:
         raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id,
                                  {"tank": tanks, "healer": healers, "dps": dps})
         raid = db.get_raid(raid_id)
-        await interaction.response.send_message(embed=raid_embed(db, raid), view=RaidView(bot, raid_id))
-        msg = await interaction.original_response()
+        try:
+            await interaction.response.send_message(embed=raid_embed(db, raid), view=RaidView(bot, raid_id))
+            msg = await interaction.original_response()
+        except Exception:
+            db.delete_raid(raid_id)      # never posted: don't leave a raid with no message behind
+            raise
         event_id, note = None, ""
         try:
             ev = await interaction.guild.create_scheduled_event(
@@ -387,20 +393,8 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message("No open raid with that number.", ephemeral=True)
             return
         # Tidy Discord first and cancel only once that worked, so a failure can be retried by running
-        # /raid-cancel again. A message or event that is already gone counts as tidy.
-        cancelled = dict(raid) | {"status": "cancelled"}
-        try:
-            if raid["channel_id"] and raid["message_id"]:
-                chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
-                msg = await chan.fetch_message(raid["message_id"])
-                await msg.edit(embed=raid_embed(db, cancelled), view=None)
-        except discord.NotFound:
-            pass
-        except discord.HTTPException:
-            log.exception("could not update the post for raid %s", raid_id)
-            await interaction.response.send_message(
-                f"Couldn't update the raid post, so #{raid_id} is not cancelled yet. Try again.", ephemeral=True)
-            return
+        # /raid-cancel again. The event goes first: if it fails, the post is untouched and still
+        # matches the open raid. A message or event that is already gone counts as tidy.
         try:
             if raid["discord_event_id"]:
                 ev = interaction.guild.get_scheduled_event(raid["discord_event_id"])
@@ -413,6 +407,19 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message(
                 f"Couldn't remove the Discord event, so #{raid_id} is not cancelled yet. Try again.",
                 ephemeral=True)
+            return
+        cancelled = dict(raid) | {"status": "cancelled"}
+        try:
+            if raid["channel_id"] and raid["message_id"]:
+                chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
+                msg = await chan.fetch_message(raid["message_id"])
+                await msg.edit(embed=raid_embed(db, cancelled), view=None)
+        except discord.NotFound:
+            pass
+        except discord.HTTPException:
+            log.exception("could not update the post for raid %s", raid_id)
+            await interaction.response.send_message(
+                f"Couldn't update the raid post, so #{raid_id} is not cancelled yet. Try again.", ephemeral=True)
             return
         db.cancel_raid(raid_id)
         await interaction.response.send_message(f"Raid #{raid_id} cancelled.", ephemeral=True)

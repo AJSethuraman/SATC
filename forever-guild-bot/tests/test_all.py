@@ -281,3 +281,32 @@ def test_unparsable_response_is_not_marked_ok_and_older_good_snapshot_survives(t
     statuses = [r["status"] for r in rows]
     assert "ok" in statuses and "parse_error" in statuses
     assert any(r["status"] == "ok" and "Paladin" in r["payload"] for r in rows)   # source of cached data
+
+
+def test_officer_release_promotes_an_alt_for_the_previous_owner(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    db.link(1, "anduin-wrynn")                 # main
+    db.link(1, "judy-judgement")               # alt
+    db.release("anduin-wrynn")                 # officer hands the main to someone else
+    assert db.main_for(1)["name"] == "Judy"
+    db.release("judy-judgement")               # last link gone: no main, and no error
+    assert db.main_for(1) is None
+
+
+def test_unposted_raid_can_be_removed(tmp_path):
+    db = make_db(tmp_path)
+    soon = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(timespec="seconds")
+    rid = db.create_raid("Hyjal", soon, 10, 99)
+    db.upsert_signup(rid, 5, None, "dps", utcnow())
+    db.delete_raid(rid)
+    assert db.get_raid(rid) is None and db.signups(rid) == [] and db.open_raids() == []
+
+
+def test_signups_carry_profile_time_for_the_footer(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    soon = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(timespec="seconds")
+    rid = db.create_raid("Hyjal", soon, 10, 99)
+    db.upsert_signup(rid, 1, "anduin-wrynn", "tank", utcnow())
+    assert db.signups(rid)[0]["profile_at"]
