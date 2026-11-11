@@ -155,7 +155,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help"}
+                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -1163,6 +1163,8 @@ def test_help_lists_every_command_and_shows_officer_ones_only_to_officers(tmp_pa
     assert [f.name for f in help_embed(False).fields] == ["Claim and sign up", "Look stuff up"]
     assert help_embed(True).fields[-1].name == "Officers"
     for c in bot.tree.get_commands():
+        if c.name == "commands":                                              # an alias of /help
+            continue
         assert f"`/{c.name}`" in officer, f"/{c.name} is missing from /help"                 # nothing can be forgotten
     assert "/raid-create" not in member and "/wanted" not in member
 

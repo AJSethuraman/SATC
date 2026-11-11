@@ -1243,10 +1243,17 @@ def register_commands(bot: GuildBot) -> None:
         e = discord.Embed(title="Most wanted, and nobody has it", description=clip(lines, 4000))
         await interaction.response.send_message(embed=e, ephemeral=True)
 
-    @tree.command(name="help", description="Every command, in a message only you can see")
-    async def help_cmd(interaction: discord.Interaction):
+    async def send_help(interaction: discord.Interaction):
         await interaction.response.send_message(
             embed=help_embed(bool(interaction.permissions.manage_events)), ephemeral=True)
+
+    @tree.command(name="help", description="Every command, in a message only you can see")
+    async def help_cmd(interaction: discord.Interaction):
+        await send_help(interaction)
+
+    @tree.command(name="commands", description="Same as /help: every command, only you see it")
+    async def commands_cmd(interaction: discord.Interaction):
+        await send_help(interaction)
 
     @tree.command(name="whocan", description="Who in the guild can craft something (type a few letters)")
     @app_commands.autocomplete(recipe=recipe_ac)
