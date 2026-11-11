@@ -68,4 +68,4 @@ Click-to-move top-down arena, one town screen, one dungeon level. One class, 4 s
 - Ship small. Stop if Test 1 or 2 fails.
 
 ## Check the logic
-`pip install lupa pytest && python -m pytest -q tests` (they run `Sim.lua`, `Skills.lua` and `Tree.lua` under plain Lua). The drawing and the sound calls can only be checked in game.
+`pip install lupa pytest && python -m pytest -q tests`. Every test runs **twice**, on the newer Lua that lupa defaults to and on **Lua 5.1, which is what WoW runs** (see `tests/conftest.py`): a function may use at most 60 outside variables there, and the first version of the window passed everything on the newer Lua and would not have loaded in the game. The window and the typed commands are driven through a stand-in client (`tests/test_game_smoke.py`), the network probe through a stand-in friend (`tests/test_net.py`). None of this shows how it looks; only the game does.

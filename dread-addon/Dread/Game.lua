@@ -327,7 +327,8 @@ local function model_pool(parent, n, w, h)
   return pool
 end
 
-local function build()
+-- Lua 5.1 (what WoW runs) lets one function use at most 60 outside variables, so the window is built in four steps.
+local function build_window()
   frame = CreateFrame("Frame", "DreadGameFrame", UIParent, "BackdropTemplate")
   frame:SetSize(VW + 20, VH + HUD_H + TITLE_H + 14)
   frame:SetPoint("CENTER")
@@ -358,6 +359,9 @@ local function build()
   reset_btn:SetSize(86, 20); reset_btn:SetPoint("RIGHT", handle, "RIGHT", -6, 0); reset_btn:SetText("New game")
   reset_btn:SetScript("OnClick", function() Game.press_reset() end)
 
+end
+
+local function build_arena()
   arena = CreateFrame("Frame", nil, frame)
   arena:SetSize(VW, VH)
   arena:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -TITLE_H - 2)
@@ -420,6 +424,9 @@ local function build()
   toast_text = fstr(arena, "GameFontNormalLarge")
   toast_text:SetPoint("TOP", arena, "TOP", 0, -30)
 
+end
+
+local function build_hud()
   hud = CreateFrame("Frame", nil, frame)
   hud:SetSize(VW, HUD_H)
   hud:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 6)
@@ -443,6 +450,9 @@ local function build()
   hint_text:SetWidth(SLOTS * 42 + 40)
   hint_text:SetJustifyH("LEFT")
 
+end
+
+local function build_input()
   frame:SetScript("OnMouseDown", function(_, button)
     if world.over then new_world(); return end
     local x, y = world_xy()
@@ -483,6 +493,13 @@ local function build()
     self:SetPropagateKeyboardInput(not handled)
   end)
   frame:SetScript("OnUpdate", function(_, dt) Game.tick(dt) end)
+end
+
+local function build()
+  build_window()
+  build_arena()
+  build_hud()
+  build_input()
   build_tree()
   frame:Hide()
 end
