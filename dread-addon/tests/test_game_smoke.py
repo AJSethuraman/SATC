@@ -18,6 +18,7 @@ local function obj(name)
     if k == "Hide" then return function(self) self.shown = false end end
     if k == "SetShown" then return function(self, b) self.shown = b and true or false end end
     if k == "IsShown" then return function(self) return self.shown end end
+    if k == "SetScale" then return function(self, v) self.scale = v end end
     if k == "SetPropagateKeyboardInput" then return function(self, v) PROPAGATE[#PROPAGATE + 1] = v end end
     if k == "CreateTexture" or k == "CreateFontString" then return function() return obj() end end
     if k == "CreateLine" then return function() if NO_LINES then error("no lines here") end return obj() end end
@@ -196,6 +197,8 @@ def test_window_scale_is_set_saved_and_kept_sane():
     lua, ns = boot()
     ns.Game.toggle()
     assert lua.eval("DreadDB.scale") == pytest.approx(1.6)            # bigger than the 640 x 400 it is built at
+    assert lua.eval("FRAMES.DreadGameFrame.scale") == pytest.approx(1.6)      # and the window really is resized
     assert ns.Game.set_scale(2.0) == 2.0 and lua.eval("DreadDB.scale") == 2.0
+    assert lua.eval("FRAMES.DreadGameFrame.scale") == 2.0 and lua.eval("FRAMES.DreadTreeFrame.scale") == 2.0
     assert ns.Game.set_scale(50) == 3 and ns.Game.set_scale(0.1) == 0.8
     assert ns.Game.set_scale("nonsense") == pytest.approx(1.6)
