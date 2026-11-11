@@ -15,22 +15,44 @@ Run tests: `PYTHONPATH=src python -m pytest -q`
 
 ## Commands
 
+Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot answers privately anywhere else). "Officer" means the Discord permission **Manage Events**: give a role that permission and everyone with the role is an officer.
+
 | Command | Who | What |
 |---|---|---|
-| `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5) |
-| `/claim-panel` `/claims` `/unlink-member` `/release` | Manage Events | post the claim button, see who claimed what, purge a troll, free one character |
-| `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what |
+| `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5). You must claim one before you can sign up for a raid |
+| `/claim-panel` `/claims` `/unlink-member` `/release` | officer | post the claim button, see who claimed what, purge a troll, free one character |
+| `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what (gear names link to a Wowhead search) |
+| `/recipes` `/whocan` | anyone | what a profession can make and which guildies know each recipe; who can craft a recipe. A recipe nobody knows shows as a gap |
+| `/craftable` | anyone | guided search: pick kind, type, slot and level, see who in the guild can make it (private) |
+| `/gaps` | anyone | profession coverage, and the recipes nobody in the guild has |
+| `/wanted` | officer | searches that found nobody who can make the item |
 | `/raids` | anyone | upcoming raids |
-| `/raid-create title date time size [tanks] [healers] [dps]` | Manage Events | posts signup buttons + a Discord event. Date `2026-11-15`, time `20:00` (guild timezone) |
-| `/raid-edit id [title] [date time] [size] [tanks] [healers] [dps]` | Manage Events | changes a raid; a new time re-arms the reminder and moves the Discord event |
-| `/raid-cancel id` | Manage Events | cancels and removes the Discord event |
-| `/guild-sync` | Manage Events | refresh from Blizzard now |
+| `/raid-create` | officer | no options: a guided menu (day, time, size, then name and role limits). Or fill in `title date time size [tanks] [healers] [dps]` to skip it |
+| `/raid-edit id ...` | officer | change title, time, size or limits. When tanks, healers and DPS are all limited, the size is their total |
+| `/raid-cancel id` | officer | removes the post and event and messages everyone signed up |
+| `/raid-end id` | officer | ends a raid now: post marked COMPLETED and unpinned, roster sent to you |
+| `/guild-sync` | officer | refresh from Blizzard now |
 
-Raid signup buttons: Tank / Healer / DPS / Bench / Can't make it. A signup is your Discord account plus a role; no `/link` needed (a linked main is shown if you have one). The optional tank/healer/DPS limits are set by whoever creates the raid and changed with `/raid-edit` (0 removes a limit); blank means no limit. When the raid or a role is full, new Tank/Healer/DPS signups go to the bench. Signed-up players are pinged 60 minutes before start. At start time the buttons come off and signups close.
+## How a raid runs
+
+- **Posting.** The raid post is pinned while the raid is live. A Discord event is created with it.
+- **Signing up.** Tank / Healer / DPS / Bench / Can't make it. You need a claimed character. With several, a pop-up asks which one you are bringing.
+- **Bench is a queue.** A full role sends you to the bench and the bot remembers what you wanted. When a slot opens, the next person in line gets a DM: Take it / Pass. How long they have is 30% of the time left until the raid (15 minutes at least, 3 days at most). The last third of that is a "last call" @ in the raid channel, which is removed once they answer. Nobody is asked twice for the same role.
+- **Reminder.** Everyone signed up (slots and bench) gets a DM an hour before.
+- **Start.** The buttons come off, the post says STARTED, and the organizer gets a DM with the roster.
+- **End.** Three hours after the start (or `/raid-end`, or ending the Discord event by hand) the post says COMPLETED, is unpinned, and stays in the channel. Deleting the post or event by hand is noticed and the raid is closed.
+
+## Recipes and items
+
+The recipe list (about 2,500 recipes) and what each makes come from Blizzard's static data, fetched once and refreshed weekly. Known recipes come from each character's professions. The list includes everything in Blizzard's data, not only what can be learned in game today. Blizzard does not say where a recipe is learned, so each item links to a Wowhead search.
 
 `/guild-sync` reports how many of each kind loaded (e.g. `profile: 280 of 300 loaded, 20 not found`).
 
-## Known unknowns (first run)
+## Running it on the Forge
 
-Blizzard's Forever API is undocumented. Field names in `blizzard.py` follow community reports and have not been checked against a live response.
-On first run, use `/guild-sync`: it lists any fetch problems. Every raw API response is saved in the `snapshots` table, so a parser can be fixed from real data without refetching.
+The Forge is Windows. The bot runs as the scheduled task `ForeverGuildBot` (starts at logon, restarts if it exits with an error). Logs go to `forge-setup\bot.log` next to the repo, outside it.
+
+## Known unknowns
+
+Blizzard's Forever API is undocumented. The field names in `blizzard.py` were checked against live responses on 2026-11-11 (see `docs/PROJECT.md`, Verified), but Blizzard can change them; parsers fail loudly when a shape changes.
+If a sync reports problems, `/guild-sync` lists them. Raw API responses are saved in the `snapshots` table, so a parser can be fixed from real data without refetching.

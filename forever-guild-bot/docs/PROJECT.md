@@ -1,6 +1,6 @@
 # Project: Forever Guild Bot
 
-Status as of 2026-11-11: running on the Forge (Windows, Task Scheduler task `ForeverGuildBot`) against the real Discord server and the real Blizzard API. Roster, profile, professions and equipment parsers are confirmed against real responses. Raid flow still being walked in the real server.
+Status as of 2026-11-11: running on the Forge (Windows, Task Scheduler task `ForeverGuildBot`) against the real Discord server and the real Blizzard API. Parsers are confirmed against real responses. The raid flow, claiming, recipes and the bench queue have been walked in the real server by the owner. See README for the commands.
 
 ## Goal
 A Discord bot for the owner's WoW: Forever guild (launched Nov 4, 2026; a separate third version of WoW alongside modern and Classic). Two jobs:
@@ -49,7 +49,12 @@ Players connect Discord to characters with `/link`; the main character is the on
 - Quests: `GET /profile/wow/character/{slug}/quests` returns `in_progress[]` (quest name + id) and `completed` (a link); `GET .../quests/completed` returns `quests[]` (name + id). So **completed and open are both available** with an app token. Not used by the bot yet.
 - A static-data namespace exists: item, quest and class links in the responses point at `static-1.60.1_70399-forever-us`. Not tested by us yet.
 - Raw responses are saved in the `snapshots` table; trimmed, name-anonymised copies are in `tests/fixtures/forever_*.json` and tested in `tests/test_all.py`.
-- Windows needs the `tzdata` package for `zoneinfo`; added to `requirements.txt`.
+- Static data works with an app token and **needs no version number**: namespace `static-forever-us` (the responses name `static-1.60.1_70399-forever-us`, which also works, but that suffix will change with patches). `GET /data/wow/profession/index` lists professions (plus a Blizzard test entry "[DNT]", skipped); `/data/wow/profession/{id}` lists `skill_tiers`; `/data/wow/profession/{id}/skill-tier/{tier}` lists `categories[].recipes[]` (id + name). About 2,490 recipes across 12 professions. Includes everything in the data, not only what is learnable in game now.
+- `GET /data/wow/recipe/{id}` has `crafted_item` (id + name; absent for recipes that make no item, such as enchants), `reagents`, `crafted_quantity`. `GET /data/wow/item/{id}` has `quality`, `level`, `required_level`, `item_class`, `item_subclass`, `inventory_type`. About 1,850 distinct crafted items. Item ids for classic-origin items match Classic ids (for example 2847 Copper Shortsword).
+- Professions response: each tier has `known_recipes[]` (id + name). The profession's own entry (for example "Skinning") appears as a known recipe and is dropped.
+- Blizzard does **not** say where a recipe is learned (no trainer, vendor or drop data). The bot links to a Wowhead name search instead. Whether Wowhead has Forever's item pages is unconfirmed, so no item-number links.
+- Discord: a bot cannot start a private (ephemeral) message; only a reply to a click can be private. "Whispers" are used for replies and DMs elsewhere. Pinning a message adds a "pinned a message" line to the channel; the bot deletes that line itself. `discord.py` 2.7 supports a select menu inside a pop-up (used for the character choice at signup).
+- Windows needs the `tzdata` package for `zoneinfo`.
 
 **Verified from sources (community reports and Blizzard forum threads, Nov 2026; not tested by us):**
 - Forever API namespaces: `profile-forever-{region}`, `dynamic-forever-{region}`.
@@ -69,19 +74,23 @@ Players connect Discord to characters with `/link`; the main character is the on
 
 ## Roadmap
 
-**Phase 0: first run (do this first)**
+**Phase 0: first run (done 2026-11-11)**
 1. Owner supplies Discord bot token, Blizzard client ID/secret, guild slug in `.env` on the Forge.
 2. Run the bot, run `/guild-sync`, read the failures list. Fix `blizzard.py` parsers against the saved raw snapshots. Add fixtures from real responses to tests.
 3. Record what is now verified in this file.
 
-**Phase 1: make raids good**
-- Done 2026-11-11: command renamed `/sync` -> `/guild-sync` (another bot on the server already has `/sync`). `BOT_CHANNEL_IDS` limits commands to #raids and #bot-fuckery.
-- Test the whole raid flow in the real server: create, sign up, change role, remind, cancel.
-- Done 2026-11-10: `/raid-edit` (title/time/size), unit-tested, not yet tried in a real server.
-- Done 2026-11-10: raids close at start time; a full raid sends new slot signups to Bench; `/guild-sync` shows loaded/not-found counts per kind.
-- Snapshots: owner only needs the latest data (10 Nov). After each sync only the newest 2 raw responses per character and kind are kept, enough to fix a parser from real data.
-- Done 2026-11-10: role limits are per raid, set by the organizer on `/raid-create` and `/raid-edit` (no built-in numbers).
-- Likely needs: let a member pick which linked character signs up, post raid summary after.
+**Phase 1: make raids good** (done 2026-11-11, walked in the real server)
+- Raid creation is guided (`/raid-create` with no options). Limits are per raid; with all three roles limited, the size is their total.
+- Claiming characters: first claim wins, max 5 each, officers can purge (`/unlink-member`) or free one (`/release`). Signing up needs a claimed character; with several, a pop-up asks which. Ownership cannot be proven (the app token cannot tell who owns a character), so this is trust plus officer cleanup.
+- Bench is a queue with offers by DM, a last-call @ in the channel, and a window that scales with the time left. Reminders, cancellations and roster summaries are DMs, not channel posts, so the channel stays clean.
+- Raid posts are pinned while live, marked COMPLETED and unpinned when done, and kept as the record. Hand-made deletions of the post or event are noticed.
+- Commands are limited to `BOT_CHANNEL_IDS`. The sync command is `/guild-sync` because another bot on the server already has `/sync`.
+- Owner decisions: Discord permission **Manage Events** defines an officer (role "<it was us> Admin"); everything "noisy" is private; links to items go to a Wowhead name search.
+- Not yet tried live: a full role pushing a second real person to the bench and back, a non-officer refused an officer command, DMs-closed fallback, `/raid-end`.
+
+**Done 2026-11-11 (Phase 2, partly):** `/recipes`, `/whocan`, `/craftable`, `/gaps`, `/wanted` from Blizzard's static data. Not built: creatures, NPCs, drop rates, quest chains (still the open-data plan below).
+
+**Next (owner picked):** class roles from claimed mains (a Discord role per class; `/unlink-member` removes them), an item level board, quest buddies and "Tonight's plan" (quests endpoint is verified), weekly chronicle and level-up feed, inactive report from `last_login_timestamp`.
 
 **Phase 2: lookup database ("Wowhead in our bot")**
 - Import open data into SQLite: CMaNGOS classic-db (GPL-3.0) and QuestieDB (an October 10 Forever snapshot exists in a published Questie archive). **Check licenses first** (Questie's repo has `LICENSE.md` and `gpl-3.0.md`; one mirror says MIT; unconfirmed).
