@@ -17,7 +17,7 @@ no Blizzard D2 assets, no copied code.
 3. Whether Forever restricts addon APIs in a way that blocks a game window. A game window not loading at all is a fail of Test 1.
 
 ## Run the tests
-1. Copy `Dread/` into the Forever `Interface/AddOns/` folder.
+1. Double-click `dist/Install-Dread.bat` (Windows; asks for administrator permission, copies the addon into `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Dread`). Rebuild it with `python build_installer.py` after any change to `Dread/`. Or copy `Dread/` there by hand.
 2. The `.toc` uses `## Interface: 16001`, which is what `/dump select(4, GetBuildInfo())` returned on Forever (11 Nov 2026).
 3. **Test 1:** `/dread`. Leave the window open 5 minutes, with WoW in front (the client caps background FPS at about 30, which would read as a fail). Pass: FPS stays above 30 and Lua memory grows no more than 10% between minute 1 and minute 5 (both measured after a full garbage collect). The addon prints PASS or FAIL.
 4. **Test 2:** `/dread assets`. Look at the 20 icons for green or blank squares. Listen to the 5 sounds and the music track. The addon prints what the client returned, but a `true` is not proof you heard it, so write down what you heard.
