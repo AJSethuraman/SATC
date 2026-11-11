@@ -117,7 +117,7 @@ local function enter(name, arrive)
   if arrive then world.player.x, world.player.y = arrive.x, arrive.y end
   target = nil
   doodad_slot = {}
-  for _, f in ipairs(doodad_f) do f:Hide(); f.did = nil end
+  for _, f in ipairs(doodad_f) do f:Hide(); f.owner = nil end      -- free every scenery frame for the new area
   local fl = area.floor
   ground:SetTexture(fl.base, "REPEAT", "REPEAT")
   ground:SetVertexColor(fl.tint[1], fl.tint[2], fl.tint[3])
@@ -694,6 +694,17 @@ function Game.set_cam(kind, n)
     if d.kind == kind then try(f.SetCamDistanceScale, f, n) end
   end
   return n
+end
+
+-- Start the character over: forget the save, and if the game is already built, replace the live world too
+-- (otherwise closing the window would simply save the old character back).
+function Game.reset()
+  DreadDB = DreadDB or {}
+  DreadDB.char, DreadDB.bar = nil, nil
+  if frame then
+    new_world()
+    if Tree.points_spent(world.player.st) == 0 and tree_frame then refresh_tree(); tree_frame:Show() end
+  end
 end
 
 function Game.toggle_tree()

@@ -203,7 +203,7 @@ SlashCmdList.DREAD = function(arg)
     say(v and (kind .. " camera distance " .. v) or ("/dread cam <tree|fallen|bush|grave|rock> <number>: " .. tostring(why)))
   elseif arg:match("^facing") then say("model facing nudge " .. ns.Game.set_facing(arg:match("^facing%s*(%S*)")) .. " radians")
   elseif arg:match("^scale") then say("window scale " .. ns.Game.set_scale(arg:match("^scale%s*(%S*)")))
-  elseif arg == "reset" then DreadDB.char = nil; say("character reset; it starts fresh next time you /dread play")
+  elseif arg == "reset" then ns.Game.reset(); say("character reset: level 1, no skills, quest undone")
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end

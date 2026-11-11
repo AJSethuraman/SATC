@@ -426,3 +426,58 @@ def test_a_client_without_models_or_lines_still_plays():
     click_world(lua, ns, "LeftButton", m.x, m.y)
     tick(lua, 60)                                                       # nothing raised; the monster still got hit
     assert m.awake is True
+
+
+# ---------------------------------------------------------------- two bugs found in review
+def scenery_frames_showing(lua):
+    return [o for o in lua.eval("ALL").values() if o.owner is not None and o.camscale is not None and o.shown]
+
+
+def test_going_back_and_forth_does_not_use_up_the_scenery_frames():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    for trip in range(8):                                              # moor -> cave -> moor, over and over
+        ex = ns.Game.area().exits[1]
+        w.player.x, w.player.y = ex.x, ex.y
+        tick(lua, 2)
+        assert ns.Game.area().name == "cave"
+        tick(lua, 2)
+        back = ns.Game.area().exits[1]
+        w.player.x, w.player.y = back.x, back.y
+        tick(lua, 2)
+        assert ns.Game.area().name == "moor"
+        tick(lua, 2)
+        assert len(scenery_frames_showing(lua)) >= 3, f"scenery vanished on trip {trip + 1}"
+    # none of the frames is owned by a piece of scenery from an area we are no longer in
+    here = {(d.x, d.y, d.id) for d in ns.Game.area().doodads.values()}
+    assert all((o.owner.x, o.owner.y, o.owner.id) in here for o in scenery_frames_showing(lua))
+
+
+def test_reset_starts_the_live_character_over_and_stays_reset():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch", "frostbolt")
+    key(lua, "K")
+    w = ns.Game.world()
+    w.flags.den = True
+    assert w.player.level == 12 and ns.Game.bar()[0][1] == "scorch"
+    ns.Game.reset()                                                    # the window is open and the world is live
+    w2 = ns.Game.world()
+    assert w2.player.level == 1 and w2.player.xp == 0 and ns.Tree.points_spent(w2.player.st) == 0
+    assert w2.flags.den is None and w2.player.st.quest_points == 0
+    assert ns.Game.bar()[0][1] is None and ns.Game.area().name == "moor"
+    ns.Game.toggle()                                                   # hide: this saves, and must save the NEW character
+    saved = lua.eval("DreadDB.char")
+    assert saved.level == 1 and saved.points.scorch is None
+    ns.Game.toggle()                                                   # and showing it again keeps the new character
+    assert ns.Game.world().player.level == 1
+
+
+def test_reset_before_the_window_exists_just_clears_the_save():
+    lua, ns = boot()
+    lua.execute("DreadDB = { char = { level = 9, xp = 0, points = { scorch = 3 } }, bar = { 'scorch' } }")
+    ns.Game.reset()
+    assert lua.eval("DreadDB.char") is None and lua.eval("DreadDB.bar") is None
+    ns.Game.toggle()
+    assert ns.Game.world().player.level == 1
