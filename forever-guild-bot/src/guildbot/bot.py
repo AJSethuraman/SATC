@@ -678,7 +678,8 @@ class GuildBot(discord.Client):
             return False
         try:
             chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
-            msg = await chan.send(R.ping_text(raid, offer["role"], offer["discord_id"]), view=OfferView(self, offer_id),
+            last = offer["dm_msg_id"] is not None                      # they got a DM already: this is the last call
+            msg = await chan.send(R.ping_text(raid, offer["role"], offer["discord_id"], last), view=OfferView(self, offer_id),
                                   allowed_mentions=discord.AllowedMentions(users=[discord.Object(id=offer["discord_id"])]))
             self.db.set_offer_messages(offer_id, chan=msg.id)
             return True

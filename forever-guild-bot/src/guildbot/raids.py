@@ -9,7 +9,7 @@ ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Benc
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
 OFFER_MINUTES = 20    # how long a bench player has to answer "a spot opened up"
-PING_AFTER_MINUTES = 5   # unanswered by DM for this long: ping them in the raid channel as well
+PING_AFTER_MINUTES = 15  # unanswered by DM for this long: a last-call ping in the raid channel (then OFFER_MINUTES is up)
 
 
 def parse_start(date_s: str, time_s: str, tz_name: str) -> datetime:
@@ -181,5 +181,10 @@ def offer_text(raid, role: str) -> str:
             f"Want it? You've got {OFFER_MINUTES} minutes.")
 
 
-def ping_text(raid, role: str, discord_id: int) -> str:
+def ping_text(raid, role: str, discord_id: int, last_call: bool = False) -> str:
+    """The @ in the raid channel. last_call: they were already DMed and did not answer; this is the final nudge."""
+    left = OFFER_MINUTES - PING_AFTER_MINUTES
+    if last_call:
+        return (f"<@{discord_id}> last call: a spot is open in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
+                f"Want it? It goes to the next person in {left} minutes.")
     return f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. Want it?"

@@ -911,6 +911,10 @@ def test_next_offers_follows_the_queue_and_respects_limits_and_pending_offers():
     two = dict(raid, size=5)
     assert R.next_offers(two, full, []) == [(5, "healer"), (6, "tank")]          # 6 (any role) gets the next open role
     assert "Want it?" in R.offer_text(raid | {"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps")
+    assert R.PING_AFTER_MINUTES < R.OFFER_MINUTES                                 # the ping comes before the offer runs out
+    last = R.ping_text({"title": "T"}, "dps", 7, last_call=True)
+    assert last == "<@7> last call: a spot is open in **T**: **DPS**. Want it? It goes to the next person in 5 minutes."
+    assert "last call" not in R.ping_text({"title": "T"}, "dps", 7)
 
 
 def test_bench_queue_end_to_end_offer_accept_and_pass(tmp_path):
