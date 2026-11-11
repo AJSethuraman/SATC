@@ -859,3 +859,31 @@ def test_finish_raid_keeps_the_post_as_a_completed_record_unpins_it_and_dms_the_
     assert len(msg.edits) == 1 and msg.edits[0]["view"] is None
     assert msg.edits[0]["embed"].title == "COMPLETED: Test Raid  (#1)"
     assert len(sent) == 2 and sent[0].startswith("Done.\n**Test Raid**") and "DPS (1)" in sent[0]   # users 9 and 8, once each
+
+
+def test_ending_the_event_by_hand_ends_a_started_raid_and_tells_the_organizer(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Test Raid", "2026-11-11T20:30:00+00:00", 5, 9)
+    db.set_raid_posted(rid, 10, 20, 30)
+    db.upsert_signup(rid, 1, "anduin-wrynn", "dps", utcnow())
+    db.mark_closed(rid)                                                    # already started
+    msg, sent = _Msg(), []
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: _Chan(msg)
+        bot.get_user = lambda uid: _User(sent)
+        running = SimpleNamespace(id=30, status=discord.EventStatus.active)
+        await bot.on_scheduled_event_update(None, running)                # still running: nothing happens
+        assert db.get_raid(rid)["status"] == "closed"
+        await bot.on_scheduled_event_update(None, SimpleNamespace(id=30, status=discord.EventStatus.completed))
+        await bot.on_scheduled_event_update(None, SimpleNamespace(id=30, status=discord.EventStatus.completed))  # twice is fine
+    asyncio.run(run())
+    assert db.get_raid(rid)["status"] == "ended" and msg.unpinned == 1 and len(msg.edits) == 1
+    assert len(sent) == 1 and "removed by hand" in sent[0] and "DPS (1)" in sent[0]
+

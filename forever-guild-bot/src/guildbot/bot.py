@@ -705,7 +705,7 @@ class GuildBot(discord.Client):
     async def on_scheduled_event_update(self, before: discord.ScheduledEvent, after: discord.ScheduledEvent) -> None:
         if after.status in (discord.EventStatus.completed, discord.EventStatus.cancelled):
             raid = self.db.raid_by_event(after.id)
-            if raid and raid["status"] == "open":      # ended early by hand; a normal end after the start is ignored
+            if raid:       # ended by hand, or Discord ended it at the 3-hour mark: either way the raid is over
                 await self._handled_by_hand(raid, "Discord event")
 
     # ---- raid signup --------------------------------------------------
