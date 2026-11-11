@@ -577,12 +577,36 @@ def register_commands(bot: GuildBot) -> None:
 
 
     # ---- claiming characters (officers moderate) ----------------------
+    async def unclaimed_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=char_label(r), value=r["slug"])
+                for r in db.unclaimed_characters(current)[:25]]
+
+    @tree.command(name="claim", description="Claim your character: type a few letters of its name")
+    @app_commands.autocomplete(character=unclaimed_ac)
+    @app_commands.guild_only()
+    async def claim(interaction: discord.Interaction, character: str):
+        row = db.find_character(character)
+        if not row:
+            await interaction.response.send_message("Pick a name from the list that appears as you type.", ephemeral=True)
+            return
+        res = db.claim(interaction.user.id, [row["slug"]])
+        if res["linked"]:
+            msg = f"Linked **{R.full_name(row)}**."
+        elif res["taken"]:
+            msg = f"**{R.full_name(row)}** is already claimed. Ask a Moderator if that is wrong."
+        elif res["over_cap"]:
+            msg = f"You can claim up to {db.MAX_CLAIMS} characters; ask a Moderator for more."
+        else:
+            msg = f"**{R.full_name(row)}** is already yours."
+        log.info("claim by %s: %s", interaction.user.id, res)
+        await interaction.response.send_message(msg, ephemeral=True)
+
     @tree.command(name="claim-panel", description="Post the 'claim your characters' button in this channel")
     @app_commands.guild_only()
     @officer
     async def claim_panel(interaction: discord.Interaction):
         await interaction.response.send_message(
-            "**Claim your characters.** Tap the button, pick yours from the list (only you see it).",
+            "**Claim your characters.**\nTap the button, pick yours from the list, or type `/claim` and a few letters of the name.\nMissing? `/guild-sync` or ask a Moderator.",
             view=ClaimPanel(bot))
 
     @tree.command(name="claims", description="Who has claimed which characters (officers)")
