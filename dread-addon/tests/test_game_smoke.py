@@ -56,6 +56,14 @@ def click(lua, button, x, y):
     f.scripts.OnMouseDown(f, button)
 
 
+def choose_scorch_and_close_the_tree(lua, ns):
+    b = ns.Game.tree_buttons.scorch
+    b.scripts.OnClick(b)
+    f = lua.eval("FRAMES.DreadGameFrame")
+    f.scripts.OnKeyDown(f, "K")                                       # close the tree: now the fight can start
+    assert lua.eval("FRAMES.DreadTreeFrame.shown") is False
+
+
 def test_opening_with_no_spells_shows_the_tree_and_a_point_can_be_spent():
     lua, ns = boot()
     ns.Game.toggle()
@@ -74,8 +82,7 @@ def test_opening_with_no_spells_shows_the_tree_and_a_point_can_be_spent():
 def test_walk_cast_kill_and_the_keys():
     lua, ns = boot()
     ns.Game.toggle()
-    b = ns.Game.tree_buttons.scorch
-    b.scripts.OnClick(b)
+    choose_scorch_and_close_the_tree(lua, ns)
     tick(lua, 3)
     w = ns.Game.world()
     assert len(list(w.monsters.keys())) == 4                          # wave 1
@@ -111,8 +118,7 @@ def test_walk_cast_kill_and_the_keys():
 def test_dying_then_a_click_starts_again_and_keeps_the_character():
     lua, ns = boot()
     ns.Game.toggle()
-    b = ns.Game.tree_buttons.scorch
-    b.scripts.OnClick(b)
+    choose_scorch_and_close_the_tree(lua, ns)
     tick(lua, 3)
     w = ns.Game.world()
     w.player.life = 0.5
@@ -139,6 +145,7 @@ def test_a_client_without_lines_or_models_still_opens():
 def test_clearing_the_field_brings_the_next_wave_and_it_is_bigger():
     lua, ns = boot()
     ns.Game.toggle()
+    choose_scorch_and_close_the_tree(lua, ns)
     tick(lua, 2)
     w = ns.Game.world()
     assert ns.Game.wave() == 1 and len(list(w.monsters.keys())) == 4
@@ -148,3 +155,47 @@ def test_clearing_the_field_brings_the_next_wave_and_it_is_bigger():
     tick(lua, 2)
     assert ns.Game.wave() == 2
     assert len(list(w.monsters.keys())) == 4 + 6                      # wave 2 is 2 + 2*2 = 6 more
+
+
+def test_nothing_attacks_while_you_are_still_choosing(env=None):
+    # What happened on the first real run: the window opened on the tree, a wave spawned and killed the player
+    # before the first point was spent.
+    lua, ns = boot()
+    ns.Game.toggle()
+    tick(lua, 900)                                                    # thirty seconds of dithering over the tree
+    w = ns.Game.world()
+    assert w.over is False and w.player.life == w.player.maxlife
+    assert len(list(w.monsters.keys())) == 0 and ns.Game.wave() == 0
+
+
+def test_the_fight_waits_for_a_spell_even_with_the_tree_closed():
+    lua, ns = boot()
+    ns.Game.toggle()
+    lua.eval("FRAMES.DreadTreeFrame:Hide()")                          # closed without choosing anything
+    tick(lua, 300)
+    assert ns.Game.wave() == 0 and ns.Game.world().over is False
+
+
+def test_opening_the_tree_mid_fight_pauses_it():
+    lua, ns = boot()
+    ns.Game.toggle()
+    choose_scorch_and_close_the_tree(lua, ns)
+    tick(lua, 5)
+    w = ns.Game.world()
+    f = lua.eval("FRAMES.DreadGameFrame")
+    f.scripts.OnKeyDown(f, "K")
+    t = w.time
+    tick(lua, 60)
+    assert w.time == t                                                # frozen while the tree is up
+    f.scripts.OnKeyDown(f, "K")
+    tick(lua, 5)
+    assert w.time > t
+
+
+def test_window_scale_is_set_saved_and_kept_sane():
+    lua, ns = boot()
+    ns.Game.toggle()
+    assert lua.eval("DreadDB.scale") == pytest.approx(1.6)            # bigger than the 640 x 400 it is built at
+    assert ns.Game.set_scale(2.0) == 2.0 and lua.eval("DreadDB.scale") == 2.0
+    assert ns.Game.set_scale(50) == 3 and ns.Game.set_scale(0.1) == 0.8
+    assert ns.Game.set_scale("nonsense") == pytest.approx(1.6)

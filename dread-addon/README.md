@@ -29,7 +29,7 @@ no Blizzard D2 assets, no copied code.
 
 ## Play it (beta, first playable)
 `/dread play` opens the game window. Your own character is the player and the monsters are WoW's own 3D models.
-- **Left click** walk. **Right click** cast the selected spell at the cursor. **1 to 9** pick a spell. **K** skill tree.
+- **Left click** walk. The window is scaled up (`/dread scale 2` for bigger, `/dread scale 1.2` for smaller). Nothing moves while the skill tree is open or before you have a spell. **Right click** cast the selected spell at the cursor. **1 to 9** pick a spell. **K** skill tree.
 - Waves come from the top of the field. Kill them for experience; each level gives a skill point and refills life and mana.
 - A new character has one point: press K and spend it. Your level and points are saved; `/dread reset` starts over.
 - Castable so far: Scorch, Frostbolt, Ice Lance, Arcing Bolts, Lightning Bolt, Fireball, Glacial Spike, Frost Nova, Thunder Nova. The other skills show "Not castable yet" in their tooltip.

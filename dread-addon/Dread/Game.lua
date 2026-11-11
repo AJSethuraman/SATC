@@ -152,7 +152,8 @@ end
 local function build_tree()
   tree_frame = CreateFrame("Frame", "DreadTreeFrame", UIParent, "BackdropTemplate")
   tree_frame:SetSize(3 * 4 * 50 + 40, 6 * 56 + 70)
-  tree_frame:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
+  tree_frame:SetPoint("TOPLEFT", frame, "TOPRIGHT", 8, 0)
+  tree_frame:SetClampedToScreen(true)
   tree_frame:SetFrameStrata("DIALOG")
   tree_frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
   tree_frame:SetBackdropColor(0, 0, 0, 0.92)
@@ -161,6 +162,9 @@ local function build_tree()
   tree_frame:RegisterForDrag("LeftButton")
   tree_frame:SetScript("OnDragStart", tree_frame.StartMoving)
   tree_frame:SetScript("OnDragStop", tree_frame.StopMovingOrSizing)
+  local close = CreateFrame("Button", nil, tree_frame, "UIPanelButtonTemplate")
+  close:SetSize(70, 20); close:SetPoint("TOPRIGHT", tree_frame, "TOPRIGHT", -8, -6); close:SetText("Close (K)")
+  close:SetScript("OnClick", function() tree_frame:Hide() end)
   tree_frame.title = fstr(tree_frame)
   tree_frame.title:SetPoint("TOPLEFT", 14, -10)
   local gates = { [1] = 1, [6] = 2, [12] = 3, [18] = 4, [24] = 5, [30] = 6 }
@@ -264,6 +268,9 @@ local function build()
     b:Hide()
     slots[i] = b
   end
+  local sk = CreateFrame("Button", nil, hud, "UIPanelButtonTemplate")
+  sk:SetSize(80, 22); sk:SetPoint("TOPLEFT", hud, "TOPLEFT", 270 + 9 * 42 + 6, -9); sk:SetText("Skills (K)")
+  sk:SetScript("OnClick", function() Game.toggle_tree() end)
   over_text = fstr(arena, "GameFontNormalLarge")
   over_text:SetPoint("CENTER", arena, "CENTER", 0, 0)
   over_text:Hide()
@@ -301,7 +308,9 @@ local function place(f, x, y, w, h) f:ClearAllPoints(); f:SetPoint("BOTTOM", are
 
 function Game.tick(dt)
   if dt > 0.1 then dt = 0.1 end
-  if not world.over then
+  -- Nothing moves while you are choosing skills, or before you have a spell to fight with.
+  Game.paused = tree_frame:IsShown() or #learned_spells() == 0
+  if not world.over and not Game.paused then
     Combat.step(world, dt)
     if Combat.alive_monsters(world) == 0 then spawn_wave() end
   end
@@ -402,7 +411,8 @@ function Game.tick(dt)
       b:Hide()
     end
   end
-  if #list == 0 then hint_text:SetText("No spells yet. Press K and spend your skill point.")
+  if #list == 0 then hint_text:SetText("No spells yet. Press K (or the Skills button) and spend your skill point.")
+  elseif Game.paused then hint_text:SetText("Paused while the skill tree is open. Press K or Close to fight.")
   elseif world.over then hint_text:SetText("")
   end
   if world.over then
@@ -414,17 +424,28 @@ function Game.tick(dt)
   if tree_frame:IsShown() then refresh_tree() end
 end
 
+-- The window is built at 640 x 400 and scaled up; the mouse maths already accounts for scale.
+Game.DEFAULT_SCALE = 1.6
+function Game.set_scale(x)
+  x = tonumber(x) or Game.DEFAULT_SCALE
+  if x < 0.8 then x = 0.8 elseif x > 3 then x = 3 end
+  DreadDB = DreadDB or {}
+  DreadDB.scale = x
+  if frame then frame:SetScale(x) end
+  if tree_frame then tree_frame:SetScale(x) end
+  return x
+end
+
 function Game.toggle_tree()
   if tree_frame:IsShown() then tree_frame:Hide() else refresh_tree(); tree_frame:Show() end
 end
 
 function Game.toggle()
-  if not frame then build() end
+  if not frame then build(); Game.set_scale(DreadDB and DreadDB.scale or Game.DEFAULT_SCALE) end
   if frame:IsShown() then
     save(); frame:Hide(); tree_frame:Hide()
   else
     if not world or world.over then new_world() end
-    if Combat.alive_monsters(world) == 0 then spawn_wave() end
     frame:Show()
     if #learned_spells() == 0 then
       refresh_tree(); tree_frame:Show()
