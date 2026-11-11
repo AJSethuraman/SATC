@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS wanted (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, profession TEXT, discord_id INTEGER, asked_at TEXT NOT NULL
 );
 
+-- Milestones already announced, so a restart or a repeat sync never announces one twice.
+CREATE TABLE IF NOT EXISTS milestones (
+    slug TEXT NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL, value INTEGER NOT NULL, announced_at TEXT NOT NULL,
+    PRIMARY KEY (slug, kind, detail, value)
+);
+
 CREATE TABLE IF NOT EXISTS equipment (
     slug TEXT NOT NULL, slot TEXT NOT NULL, item_id INTEGER, item_name TEXT NOT NULL,
     quality TEXT, fetched_at TEXT NOT NULL,
@@ -223,6 +229,24 @@ class Database:
         except Exception:
             self.conn.rollback()
             raise
+
+    def level_snapshot(self) -> dict:
+        return {r["slug"]: r["level"] for r in self.conn.execute(
+            "SELECT slug, level FROM characters WHERE in_guild=1 AND level IS NOT NULL")}
+
+    def skill_snapshot(self) -> dict:
+        return {(r["slug"], r["profession"]): r["skill"] for r in self.conn.execute(
+            "SELECT slug, profession, skill FROM professions")}
+
+    def new_milestones(self, found, now: str):
+        """Record milestones not announced before; returns just the new ones."""
+        fresh = []
+        for kind, slug, detail, value in found:
+            cur = self.conn.execute("INSERT OR IGNORE INTO milestones VALUES (?,?,?,?,?)", (slug, kind, detail, value, now))
+            if cur.rowcount:
+                fresh.append((kind, slug, detail, value))
+        self.conn.commit()
+        return fresh
 
     def set_meta(self, key, value) -> None:
         self.conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?)", (key, value))

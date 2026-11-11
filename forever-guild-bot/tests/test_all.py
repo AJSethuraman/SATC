@@ -1296,3 +1296,32 @@ def test_level_pop_up_offers_dropdowns_in_steps_of_five(tmp_path):
         assert [o.value for o in none.lo.options if o.default] == ["*"] and [o.value for o in none.hi.options if o.default] == ["*"]
         assert LevelModal(CraftWizard(SimpleNamespaceBot(db))).to_dict()["components"][0]["type"] == 18
     asyncio.run(build())
+
+
+def test_milestones_only_count_marks_crossed_by_known_characters():
+    from guildbot import milestones as M
+    assert M.crossed(29, 30, M.LEVEL_MARKS) == 30 and M.crossed(30, 31, M.LEVEL_MARKS) is None
+    assert M.crossed(8, 43, M.LEVEL_MARKS) == 40                         # several marks at once: the highest
+    assert M.crossed(None, 30, M.LEVEL_MARKS) is None and M.crossed(30, 30, M.LEVEL_MARKS) is None
+    assert M.crossed(70, 75, M.SKILL_MARKS) == 75 and M.crossed(200, 300, M.SKILL_MARKS) == 300
+    before_l, after_l = {"a": 29, "b": 5}, {"a": 30, "b": 5, "new": 60}      # "new" was not there before
+    before_s, after_s = {("a", "Tailoring"): 220}, {("a", "Tailoring"): 226, ("new", "Cooking"): 300}
+    assert M.find(before_l, after_l, before_s, after_s) == [("level", "a", "", 30), ("skill", "a", "Tailoring", 225)]
+    assert M.line("level", "Based Gaymer", "Hunter", "", 30) == "**Based Gaymer** (Hunter) hit level 30."
+    assert M.line("skill", "Ms Tique", None, "Tailoring", 225) == "**Ms Tique** reached 225 in Tailoring."
+
+
+def test_sync_reports_new_milestones_once(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))                   # first sync: nobody was known: nothing to announce
+    db.conn.execute("UPDATE characters SET level=50 WHERE slug='anduin-wrynn'")      # they were level 50, are now 60
+    db.conn.execute("UPDATE professions SET skill=200 WHERE slug='anduin-wrynn' AND profession='Alchemy'")
+    db.conn.commit()
+    res = asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    assert res.milestones == [("level", "anduin-wrynn", "", 60), ("skill", "anduin-wrynn", "Alchemy", 300)]
+    db.conn.execute("UPDATE characters SET level=50 WHERE slug='anduin-wrynn'")
+    db.conn.commit()
+    again = asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    assert again.milestones == []                                           # already announced: never twice
+    assert load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g",
+                 "ACHIEVEMENTS_CHANNEL_ID": "123"}).achievements_channel_id == 123

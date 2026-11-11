@@ -6,6 +6,7 @@ import json
 from dataclasses import dataclass, field
 
 from . import blizzard as bz
+from . import milestones as M
 from .db import Database, utcnow
 
 
@@ -17,6 +18,7 @@ class SyncResult:
     started_at: str = ""
     # per kind ("profile", "professions", "equipment"): how many came back ok / not_found / error
     counts: dict[str, dict[str, int]] = field(default_factory=dict)
+    milestones: list = field(default_factory=list)   # (kind, slug, detail, value) reached since the last sync
 
     def summary(self) -> str:
         """One line per kind with the denominator, e.g. 'profile: 280 of 300 loaded, 20 not found'."""
@@ -33,6 +35,7 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
     """Full sync. One bad character never stops the rest; failures are reported."""
     now = utcnow()
     res = SyncResult(started_at=now)
+    before_levels, before_skills = db.level_snapshot(), db.skill_snapshot()
 
     payload = await client.guild_roster(guild_slug)
     try:
@@ -89,6 +92,8 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
                          lambda s, d, ts: db.replace_equipment(s, bz.parse_equipment(d), ts)))
     await asyncio.gather(*tasks)
 
+    res.milestones = db.new_milestones(
+        M.find(before_levels, db.level_snapshot(), before_skills, db.skill_snapshot()), utcnow())
     db.prune_snapshots()
     db.set_meta("last_sync_at", utcnow())
     db.set_meta("last_sync_failures", str(len(res.failures)))

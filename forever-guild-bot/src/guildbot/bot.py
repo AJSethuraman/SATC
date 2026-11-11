@@ -11,6 +11,7 @@ from discord.ext import tasks
 
 from . import raids as R
 from . import craft as C
+from . import milestones as M
 from .links import item_link
 from .config import Config
 from .db import Database, utcnow
@@ -666,7 +667,26 @@ class GuildBot(discord.Client):
     # ---- background jobs ---------------------------------------------
     async def run_sync(self):
         async with self._sync_lock:
-            return await sync_guild(self.db, self.blizzard, self.cfg.guild_slug)
+            res = await sync_guild(self.db, self.blizzard, self.cfg.guild_slug)
+        await self.announce_milestones(res)
+        return res
+
+    async def announce_milestones(self, res) -> None:
+        """One short post in the guild-achievements channel for whatever was reached since the last sync."""
+        if not res.milestones or not self.cfg.achievements_channel_id:
+            return
+        lines = []
+        for kind, slug, detail, value in res.milestones[:15]:
+            c = self.db.find_character(slug)
+            if c:
+                lines.append(M.line(kind, R.full_name(c), c["class_name"], detail, value))
+        if not lines:
+            return
+        try:
+            chan = self.get_channel(self.cfg.achievements_channel_id) or await self.fetch_channel(self.cfg.achievements_channel_id)
+            await chan.send("\n".join(lines))
+        except discord.HTTPException:
+            log.exception("could not post guild achievements")
 
     async def _sync_once(self) -> None:
         try:
