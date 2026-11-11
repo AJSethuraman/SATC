@@ -104,6 +104,7 @@ local function save()
   for i = 1, SLOTS do b[i] = bar[i] or false end
   DreadDB.bar = b
 end
+ns.Gear.on_change = save                                      -- wearing or throwing away from the gear window is saved too
 
 local function castable(id) return Combat.SHAPES[id] ~= nil and id ~= "wand" end
 
@@ -159,7 +160,7 @@ local function enter(name, arrive)
   ground3:SetTexture(fl.patch, "REPEAT", "REPEAT")
   ground3:SetVertexColor(fl.patch_tint[1], fl.patch_tint[2], fl.patch_tint[3])
   ground3:SetAlpha(fl.patch_alpha)
-  toast_text:SetText(area.title); toast_t = 3
+  toast_text:SetTextColor(1, 1, 1); toast_text:SetText(area.title); toast_t = 3
 end
 
 local function new_world()
@@ -599,13 +600,18 @@ local function build_input()
         bar[n], sel = hover_id, n
         hint_text:SetText(Skills.byId[hover_id].name .. " is now on slot " .. n)
         save()
-      elseif bar[n] then sel = n
+      elseif bar[n] then
+        sel = n
+        if Combat.self_cast(bar[n]) and not world.over then               -- no aim needed: the key is the whole cast
+          local ok, why = Combat.cast(world, bar[n], world.player.x, world.player.y)
+          if not ok then hint_text:SetText(Skills.byId[bar[n]].name .. ": " .. tostring(why)) end
+        end
       end
       handled = true
     elseif key == "TAB" then rotate(1); handled = true
     elseif key == "K" then Game.toggle_tree(); handled = true
     elseif key == "M" then Game.toggle_map(); handled = true
-    elseif key == "I" then ns.Gear.toggle(world.player.gear); handled = true
+    elseif key == "I" then ns.Gear.toggle(world); handled = true
     end
     self:SetPropagateKeyboardInput(not handled)
   end)
@@ -940,6 +946,18 @@ local function draw_actors(p)
 
 end
 
+-- The detail goes to the Dread log (coloured by tier); the screen only gets a short line, louder the rarer it is.
+local TOAST = { common = { "Found an item", 1.5, 0.8, 0.8, 0.8 }, magic = { "Found an item", 1.5, 0.55, 0.7, 1 },
+                rare = { "Rare item found!", 3, 1, 0.85, 0.3 }, unique = { "UNIQUE ITEM FOUND!", 5, 1, 0.6, 0.18 } }
+local function announce_item(e)
+  local it, c = e.item, ns.Gear.COLOR[e.item.rarity] or ""
+  say("Found " .. c .. ns.Items.name(it) .. "|r (" .. it.rarity .. ", level " .. it.ilvl .. "): " .. table.concat(ns.Items.lines(it), ", ")
+      .. (e.how == "bagged" and "  [bag, I to wear]" or "  [worn]"))
+  local t = TOAST[it.rarity] or TOAST.common
+  toast_text:SetText(t[1] .. (it.rarity == "unique" and ("  " .. ns.Items.name(it)) or "")); toast_text:SetTextColor(t[3], t[4], t[5]); toast_t = t[2]
+  if (it.rarity == "rare" or it.rarity == "unique") and PlaySound then pcall(PlaySound, 888) end      -- the level-up chime
+end
+
 local function draw_world_and_events(dt, p)
   -- spell effects
   draw_effects(dt, p)
@@ -998,22 +1016,21 @@ local function draw_world_and_events(dt, p)
         end
       end
     elseif e.k == "level" then
-      toast_text:SetText("Level " .. e.level .. "!  Press K to spend a skill point."); toast_t = 4
+      toast_text:SetTextColor(1, 1, 1); toast_text:SetText("Level " .. e.level .. "!  Press K to spend a skill point."); toast_t = 4
       save()
     elseif e.k == "item" then
-      say("Found " .. ns.Items.name(e.item) .. ": " .. table.concat(ns.Items.lines(e.item), ", "))
-      toast_text:SetText("Found " .. ns.Items.name(e.item) .. "  (I = gear)"); toast_t = 4
-      ns.Gear.refresh(world.player.gear)
+      announce_item(e)
+      ns.Gear.refresh(world)
       save()
-    elseif e.k == "junk" then
-      toast_text:SetText(ns.Items.name(e.item) .. ": yours is better, left it"); toast_t = 2.5
+    elseif e.k == "full" then
+      toast_text:SetTextColor(1, 1, 1); toast_text:SetText("Bag full: open it with I and throw something away"); toast_t = 3
     elseif e.k == "kill" or e.k == "pickup" then
       save()
     elseif e.k == "boss_dead" then
       if not world.flags.den then
         world.flags.den = true
         world.player.st.quest_points = world.player.st.quest_points + 1
-        toast_text:SetText("Quest complete!  +1 skill point.  Press K."); toast_t = 6
+        toast_text:SetTextColor(1, 1, 1); toast_text:SetText("Quest complete!  +1 skill point.  Press K."); toast_t = 6
         save()
       end
     end

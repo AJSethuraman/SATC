@@ -44,6 +44,13 @@ Combat.SHAPES = {
   -- the free basic attack (a mage's wand): no mana, a short cooldown, plain damage that grows with level
   wand           = { shape = "bolt", speed = 450, range = 360, radius = 8 },
 }
+-- Skills that need no aim: they act on you or on everything around you. The window casts these the moment you press their key.
+local SELF_SHAPES = { static = true, pull = true, buff = true, toggle = true, trail = true, storm = true }
+function Combat.self_cast(id)
+  local sh = Combat.SHAPES[id]
+  if not sh or id == "wand" then return false end
+  return SELF_SHAPES[sh.shape] == true or (sh.shape == "aoe" and sh.at == "self")
+end
 Combat.WAND_COOLDOWN = 0.7
 function Combat.wand_damage(level) return 2 + level, 4 + 2 * level end
 
@@ -72,32 +79,75 @@ local function push(ev, w, e) w.events[#w.events + 1] = e end
 function Combat.base_life(level) return 60 + 6 * (level - 1) end
 function Combat.base_mana(level) return 33 + 3 * (level - 1) end
 
+-- Everything gear adds up to, worked out in one place: attributes first (intelligence: +2 mana and +0.5% spell damage each,
+-- vitality: +3 life, strength: +1% wand damage, dexterity: +0.3% walking speed), then the plain bonuses on top.
+function Combat.derived(level, gear)
+  local t = Items.totals(gear)
+  local int, vit, str, dex = t.int or 0, t.vit or 0, t.str or 0, t.dex or 0
+  local general = t.dmg_pct or 0
+  return {
+    life = Combat.base_life(level) + (t.life or 0) + 3 * vit,
+    mana = Combat.base_mana(level) + (t.mana or 0) + 2 * int,
+    spell_pct = general + 0.5 * int, wand_pct = general + str,
+    fire_pct = t.fire_pct or 0, cold_pct = t.cold_pct or 0, lightning_pct = t.lightning_pct or 0,
+    regen_pct = t.mana_regen_pct or 0, speed_pct = 0.3 * dex,
+  }
+end
+
 -- Re-total max life and mana from level and gear. Life and mana keep their share of the maximum.
 function Combat.recalc(w)
   local p = w.player
-  local t = Items.totals(p.gear)
+  local d = Combat.derived(p.level, p.gear)
   local lf, mf = p.life / p.maxlife, p.mana / p.maxmana
-  p.maxlife, p.maxmana = Combat.base_life(p.level) + (t.life or 0), Combat.base_mana(p.level) + (t.mana or 0)
+  p.maxlife, p.maxmana = d.life, d.mana
   p.life, p.mana = math.min(p.maxlife, lf * p.maxlife), math.min(p.maxmana, mf * p.maxmana)
 end
 
--- Percent damage the gear adds to a spell of this element (the wand is physical and gets only the general bonus).
+-- Percent damage the gear adds to a spell of this element; the wand is physical and gets the wand bonus instead.
 function Combat.gear_dmg_pct(p, element)
-  local t = Items.totals(p.gear)
-  return (t.dmg_pct or 0) + (t[(element or "") .. "_pct"] or 0)
+  local d = Combat.derived(p.level, p.gear)
+  if element == "physical" or element == nil then return d.wand_pct end
+  return d.spell_pct + (d[element .. "_pct"] or 0)
 end
 
--- Pick an item up: wear it if it is better. Returns "worn", or "left" when what you have is as good.
+-- What putting this bag item on would change, as differences in the derived numbers.
+function Combat.compare(w, index)
+  local p = w.player
+  local item = p.bag[index]
+  if not item then return nil end
+  local trial = {}
+  for k, v in pairs(p.gear) do trial[k] = v end
+  trial[item.slot] = item
+  local a, b = Combat.derived(p.level, p.gear), Combat.derived(p.level, trial)
+  local diff = {}
+  for k, v in pairs(b) do diff[k] = v - a[k] end
+  return diff
+end
+
+-- Pick an item up. An empty slot wears it at once (nothing to choose); otherwise it goes in the bag, if there is room.
+-- Returns "worn", "bagged" or "full".
 function Combat.take_item(w, item)
   local p = w.player
-  local worn, old = Items.consider(p.gear, item)
-  if worn then
+  if not p.gear[item.slot] then
+    p.gear[item.slot] = item
     Combat.recalc(w)
-    push(nil, w, { k = "item", item = item, replaced = old })
+    push(nil, w, { k = "item", item = item, how = "worn", rarity = item.rarity })
     return "worn"
   end
-  push(nil, w, { k = "junk", item = item })
-  return "left"
+  if #p.bag >= Items.BAG_MAX then return "full" end
+  p.bag[#p.bag + 1] = item
+  push(nil, w, { k = "item", item = item, how = "bagged", rarity = item.rarity })
+  return "bagged"
+end
+
+function Combat.equip(w, index)
+  if Items.equip(w.player.gear, w.player.bag, index) then Combat.recalc(w); return true end
+  return false
+end
+
+function Combat.trash(w, index)
+  if w.player.bag[index] then table.remove(w.player.bag, index); return true end
+  return false
 end
 
 function Combat.xp_for_next(level) return level * level * 10 end
@@ -109,7 +159,7 @@ function Combat.new(opts)
     w = opts.w or 600, h = opts.h or 400, time = 0, over = false,
     rng = Sim.rng(opts.seed or 1),
     player = { x = 300, y = 40, tx = nil, ty = nil, level = 1, xp = 0, st = st,
-               maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10, buffs = {}, gear = {} },
+               maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10, buffs = {}, gear = {}, bag = {} },
     monsters = {}, projectiles = {}, events = {}, drops = {}, obstacles = {}, flags = {}, effects = {},
   }
   return w
@@ -214,7 +264,7 @@ local function hit(w, id, m, scale)
     do                                                   -- gear: bosses always, the rest now and then; items are as good as you are
       local n = m.boss and Combat.BOSS_ITEMS or ((w.rng() < Combat.ITEM_CHANCE) and 1 or 0)
       for i = 1, n do
-        local item = Items.roll(w.rng, p.level + (m.boss and 2 or 0), m.boss and true or false)
+        local item = Items.roll(w.rng, p.level + (m.boss and 2 or 0), m.boss and "boss" or nil)
         local a = (i / math.max(1, n)) * 2 * math.pi
         w.drops[#w.drops + 1] = { kind = "item", item = item, x = m.x + math.cos(a) * 14 * (n - 1), y = m.y + math.sin(a) * 14 * (n - 1), t = Combat.DROP_LIFETIME * 2 }
         push(nil, w, { k = "drop", kind = "item", x = m.x, y = m.y })
@@ -550,10 +600,15 @@ local function step_drops(w, dt)
   for _, d in ipairs(w.drops) do
     d.t = d.t - dt
     if dist(p.x, p.y, d.x, d.y) <= Combat.PICKUP_RADIUS then
-      if d.kind == "item" then Combat.take_item(w, d.item)
-      elseif d.kind == "mana" then p.mana = math.min(p.maxmana, p.mana + Combat.DROP_RESTORE * p.maxmana)
-      else p.life = math.min(p.maxlife, p.life + Combat.DROP_RESTORE * p.maxlife) end
-      push(nil, w, { k = "pickup", kind = d.kind, x = d.x, y = d.y })
+      if d.kind == "item" and #p.bag >= Items.BAG_MAX and p.gear[d.item.slot] then   -- no room: leave it where it lies and say so now and then
+        keep[#keep + 1] = d
+        if (p.full_warn or -99) + 3 < w.time then p.full_warn = w.time; push(nil, w, { k = "full", item = d.item }) end
+      else
+        if d.kind == "item" then Combat.take_item(w, d.item)
+        elseif d.kind == "mana" then p.mana = math.min(p.maxmana, p.mana + Combat.DROP_RESTORE * p.maxmana)
+        else p.life = math.min(p.maxlife, p.life + Combat.DROP_RESTORE * p.maxlife) end
+        push(nil, w, { k = "pickup", kind = d.kind, x = d.x, y = d.y })
+      end
     elseif d.t > 0 then
       keep[#keep + 1] = d
     end
@@ -570,7 +625,7 @@ function Combat.step(w, dt)
   if p.tx then
     local d = dist(p.x, p.y, p.tx, p.ty)
     local bs = p.buffs.blazing_speed
-    local stepd = Combat.PLAYER_SPEED * (bs and (1 + bs.pct / 100) or 1) * dt
+    local stepd = Combat.PLAYER_SPEED * (bs and (1 + bs.pct / 100) or 1) * (1 + Combat.derived(p.level, p.gear).speed_pct / 100) * dt
     if bs then
       bs.drop = bs.drop - dt
       if bs.drop <= 0 then                                           -- it leaves a trail of fire while you run
@@ -582,7 +637,7 @@ function Combat.step(w, dt)
     else p.x, p.y = walk(w, p.x, p.y, p.tx, p.ty, stepd, Combat.PLAYER_RADIUS) end
   end
   -- mana comes back; Evocation speeds it up
-  local regen = p.maxmana * Combat.MANA_REGEN * (1 + (Tree.bonus(p.st, "mana_regen_pct", "fire") + (Items.totals(p.gear).mana_regen_pct or 0)) / 100)
+  local regen = p.maxmana * Combat.MANA_REGEN * (1 + (Tree.bonus(p.st, "mana_regen_pct", "fire") + Combat.derived(p.level, p.gear).regen_pct) / 100)
   p.mana = math.min(p.maxmana, p.mana + regen * dt)
   step_projectiles(w, dt)
   step_effects(w, dt)
@@ -662,11 +717,17 @@ function Combat.snapshot(w)
     if it then
       local stats = {}
       for k, v in pairs(it.stats) do stats[k] = v end
-      gear[slot] = { slot = it.slot, rarity = it.rarity, ilvl = it.ilvl, base = it.base, stats = stats }
+      gear[slot] = { slot = it.slot, rarity = it.rarity, ilvl = it.ilvl, base = it.base, stats = stats, title = it.title }
     end
   end
+  local bag = {}
+  for i, it in ipairs(w.player.bag) do
+    local stats = {}
+    for k, v in pairs(it.stats) do stats[k] = v end
+    bag[i] = { slot = it.slot, rarity = it.rarity, ilvl = it.ilvl, base = it.base, stats = stats, title = it.title }
+  end
   return { level = w.player.level, xp = w.player.xp, points = pts,
-           quest_points = w.player.st.quest_points, flags = flags, gear = gear }
+           quest_points = w.player.st.quest_points, flags = flags, gear = gear, bag = bag }
 end
 
 -- Restore a snapshot. Anything unknown or out of range is dropped rather than trusted.
@@ -678,6 +739,13 @@ function Combat.restore(w, snap)
   for _, slot in ipairs(Items.SLOTS) do
     local it = type(snap.gear) == "table" and Items.clean(snap.gear[slot]) or nil
     if it and it.slot == slot then w.player.gear[slot] = it end
+  end
+  w.player.bag = {}
+  if type(snap.bag) == "table" then
+    for i = 1, Items.BAG_MAX do
+      local it = Items.clean(snap.bag[i])
+      if it then w.player.bag[#w.player.bag + 1] = it end
+    end
   end
   Combat.set_level(w, level, math.max(0, tonumber(snap.xp) or 0))
   local q = math.floor(tonumber(snap.quest_points) or 0)

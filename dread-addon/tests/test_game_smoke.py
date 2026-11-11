@@ -1349,7 +1349,9 @@ def test_walking_onto_an_item_wears_it_tells_you_and_the_gear_window_lists_it():
     w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
     tick(lua, 2)
     assert w.player.gear.ring.stats.life == 12 and w.player.maxlife == 72
-    assert any("Found Rare Ring of Life" in str(o.text) for o in lua.eval("ALL").values() if o.text)      # the toast says so
+    assert any("Rare item found!" in str(o.text) for o in lua.eval("ALL").values() if o.text)          # a short line on screen
+    assert any("Rare Ring of Life" in l and "+12 Life" in l for l in said(lua))                         # the detail is in the log
+    assert not lua.eval("FRAMES.DreadGearFrame") or not lua.eval("FRAMES.DreadGearFrame").shown          # and no window opened by itself
     key(lua, "I")
     frame = lua.eval("FRAMES.DreadGearFrame")
     assert frame.shown
@@ -1366,7 +1368,69 @@ def test_the_gear_text_names_every_slot_and_totals_the_bonuses():
     for label in ("Weapon:", "Head:", "Body:", "Ring:", "Amulet:"):
         assert label in t
     assert "Magic Band of Life, Spell damage" in t and "Total:  +9 Life,  +4% Spell damage" in t
+    assert "You:" not in t                                                      # the summary line needs the player
     assert "nothing yet" in ns.Gear.text(lua.table())
+
+
+def gear_rows(lua):
+    """The bag rows: (Wear button, x button, label) in order, as the window made them."""
+    allo = list(lua.eval("ALL").values())
+    wear = [o for o in allo if o.kind == "Button" and o.text == "Wear"]
+    trash = [o for o in allo if o.kind == "Button" and o.text == "x"]
+    return wear, trash
+
+
+def bag_labels(lua):
+    return [str(o.text) for o in lua.eval("ALL").values() if o.text and ("Magic " in str(o.text) or "Rare " in str(o.text)) and "Weapon:" not in str(o.text) and "Found" not in str(o.text)]
+
+
+def test_the_bag_lists_what_you_did_not_wear_with_what_wearing_it_would_change_and_wear_swaps_it():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    for it in ({"slot": "ring", "stats": {"str": 10}}, {"slot": "ring", "stats": {"int": 10}}):
+        it = lua.table_from({"slot": it["slot"], "rarity": "magic", "ilvl": 5, "base": "Ring", "stats": lua.table_from(it["stats"])})
+        w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+        tick(lua, 2)
+    assert w.player.gear.ring.stats.str == 10 and len(list(w.player.bag.values())) == 1     # the first was worn, the second waits
+    key(lua, "I")
+    labels = bag_labels(lua)
+    assert any("Intelligence" in l and "+20 mana" in l and "+5% spell" in l and "-10% wand" in l for l in labels)
+    wear, trash = gear_rows(lua)
+    shown = [b for b in wear if b.shown]
+    assert len(shown) == 1
+    shown[0].scripts.OnClick(shown[0])
+    assert w.player.gear.ring.stats.int == 10 and w.player.bag[1].stats.str == 10        # swapped by your choice
+    assert w.player.maxmana == 33 + 20
+    assert lua.eval("DreadDB.char.gear.ring.stats.int") == 10                              # and saved
+
+
+def test_the_x_button_throws_a_bag_item_away():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    for stats in ({"str": 3}, {"vit": 3}):
+        it = lua.table_from({"slot": "head", "rarity": "magic", "ilvl": 5, "base": "Hood", "stats": lua.table_from(stats)})
+        w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+        tick(lua, 2)
+    key(lua, "I")
+    wear, trash = gear_rows(lua)
+    [b for b in trash if b.shown][0].scripts.OnClick([b for b in trash if b.shown][0])
+    assert len(list(w.player.bag.values())) == 0 and w.player.gear.head.stats.str == 3
+
+
+def test_a_full_bag_tells_you_to_make_room():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.gear.ring = lua.table_from({"slot": "ring", "rarity": "magic", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"life": 1})})
+    for i in range(16):
+        w.player.bag[i + 1] = lua.table_from({"slot": "ring", "rarity": "magic", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"life": i + 2})})
+    it = lua.table_from({"slot": "ring", "rarity": "magic", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"int": 3})})
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+    tick(lua, 3)
+    assert any("Bag full" in str(o.text) for o in lua.eval("ALL").values() if o.text)
+    assert len(list(w.drops.values())) == 1
 
 
 def test_an_open_gear_window_updates_when_you_pick_up_something_better():
@@ -1381,3 +1445,166 @@ def test_an_open_gear_window_updates_when_you_pick_up_something_better():
     w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
     tick(lua, 2)
     assert "+7 Mana" in gear_text()
+
+
+# ---------------------------------------------------------------- quiet for ordinary finds, loud for the good ones
+def pick_up(lua, ns, rarity, slot="head", **stats):
+    w = ns.Game.world()
+    it = lua.table_from({"slot": slot, "rarity": rarity, "ilvl": 5, "base": {"head": "Hood", "ring": "Ring", "body": "Robe"}[slot],
+                         "title": "Seal of Cinders" if rarity == "unique" else None, "stats": lua.table_from(stats or {"life": 4})})
+    if rarity == "unique":
+        it.slot, it.base = "ring", "Ring"
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+    tick(lua, 2)
+
+
+def toast(lua):
+    return [str(o.text) for o in lua.eval("ALL").values() if o.text and ("item" in str(o.text).lower() and "found" in str(o.text).lower())]
+
+
+def test_a_common_or_magic_find_is_one_quiet_line_and_never_opens_a_window():
+    lua, ns = boot("SOUNDS = {}\nfunction PlaySound(id) SOUNDS[#SOUNDS + 1] = id end")
+    open_game(lua, ns)
+    pick_up(lua, ns, "common")
+    assert toast(lua) == ["Found an item"]
+    pick_up(lua, ns, "magic", slot="body")
+    assert toast(lua) == ["Found an item"]
+    gf = lua.eval("FRAMES.DreadGearFrame")
+    assert gf is None or not gf.shown
+    assert len(list(lua.eval("SOUNDS").values())) == 0                                       # no chime for ordinary finds
+    assert any("Plain Hood" in l for l in said(lua)) and any("Magic Robe" in l for l in said(lua))
+
+
+def test_a_rare_is_announced_louder_and_a_unique_loudest_with_a_chime():
+    lua, ns = boot("SOUNDS = {}\nfunction PlaySound(id) SOUNDS[#SOUNDS + 1] = id end")
+    open_game(lua, ns)
+    pick_up(lua, ns, "rare")
+    assert toast(lua) == ["Rare item found!"] and len(list(lua.eval("SOUNDS").values())) == 1
+    pick_up(lua, ns, "unique", life=9)
+    assert toast(lua) == ["UNIQUE ITEM FOUND!  Seal of Cinders"] and len(list(lua.eval("SOUNDS").values())) == 2
+    assert any("Seal of Cinders" in l and "unique" in l for l in said(lua))
+
+
+def test_the_bag_filters_only_change_what_is_listed():
+    lua, ns = boot()
+    G = ns.Gear
+    bag = lua.table_from([
+        lua.table_from({"slot": "ring", "rarity": "common", "ilvl": 1, "base": "Ring", "stats": lua.table_from({"life": 1})}),
+        lua.table_from({"slot": "head", "rarity": "rare", "ilvl": 1, "base": "Hood", "stats": lua.table_from({"life": 1})}),
+        lua.table_from({"slot": "ring", "rarity": "unique", "ilvl": 1, "base": "Ring", "stats": lua.table_from({"life": 1})}),
+        lua.table_from({"slot": "ring", "rarity": "magic", "ilvl": 1, "base": "Ring", "stats": lua.table_from({"life": 1})}),
+    ])
+    G.slot_filter, G.min_rank = 0, 1
+    assert list(G.visible(bag).values()) == [1, 2, 3, 4]
+    G.cycle_rank(); G.cycle_rank()                                              # common -> magic -> rare and better
+    assert G.min_rank == 3 and list(G.visible(bag).values()) == [2, 3]
+    G.min_rank = 1
+    for _ in range(4): G.cycle_slot()                                           # all, weapon, head, body, ring
+    assert G.slot_filter == 4 and list(G.visible(bag).values()) == [1, 3, 4]
+    G.cycle_slot(); assert G.slot_filter == 5
+    G.cycle_slot(); assert G.slot_filter == 0                                    # wraps back to every slot
+    G.cycle_rank(); G.cycle_rank(); G.cycle_rank(); G.cycle_rank()
+    assert G.min_rank == 1                                                       # and so does the quality filter
+
+
+def test_wearing_from_a_filtered_bag_picks_the_item_you_see_not_the_row_number():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ns.Gear.slot_filter, ns.Gear.min_rank = 0, 1
+    for slot, stats in (("head", {"str": 3}), ("head", {"vit": 3}), ("ring", {"str": 1}), ("ring", {"int": 5})):
+        it = lua.table_from({"slot": slot, "rarity": "magic", "ilvl": 5, "base": {"head": "Hood", "ring": "Ring"}[slot], "stats": lua.table_from(stats)})
+        w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+        tick(lua, 2)
+    assert len(list(w.player.bag.values())) == 2          # head vit and ring int wait; head str and ring str are worn
+    key(lua, "I")
+    ns.Gear.cycle_slot(); ns.Gear.cycle_slot(); ns.Gear.cycle_slot(); ns.Gear.cycle_slot()      # ring only
+    ns.Gear.refresh(w)
+    wear, _ = gear_rows(lua)
+    shown = [b for b in wear if b.shown]
+    assert len(shown) == 1
+    shown[0].scripts.OnClick(shown[0])                     # it is the first VISIBLE row, which is bag place 2
+    assert w.player.gear.ring.stats.int == 5 and w.player.bag[1].slot == "head"
+    ns.Gear.slot_filter, ns.Gear.min_rank = 0, 1
+
+
+# ---------------------------------------------------------------- skills that need no aim cast from their key
+NO_AIM = ["static_shock", "force_pull", "frost_nova", "thunder_nova", "combustion", "ice_barrier", "frost_armor", "icicle_cloak",
+          "mana_shield", "blazing_speed", "storm_cloud"]
+AIMED = ["scorch", "fireball", "frostbolt", "ice_lance", "glacial_spike", "blizzard", "flamestrike", "meteor", "frozen_orb",
+         "lightning_bolt", "chain_lightning", "arcing_bolts", "dragons_breath", "blink", "flame_spirit"]
+
+
+def test_the_split_between_aimed_and_no_aim_skills_is_exactly_this():
+    lua, ns = boot()
+    assert [s for s in ACTIVE if ns.Combat.self_cast(s)] == [s for s in ACTIVE if s in NO_AIM]
+    assert sorted(AIMED + NO_AIM) == sorted(ACTIVE)                      # every skill is in exactly one list
+    assert ns.Combat.self_cast("wand") is False and ns.Combat.self_cast("nonsense") is False
+
+
+def slot_one(lua, ns, sid):
+    w = ns.Game.world()
+    ns.Combat.set_level(w, 30, 0)
+    w.player.st.points[sid] = 1
+    w.player.mana = w.player.maxmana = 500
+    bar, _ = ns.Game.bar()
+    for i in range(1, 9):
+        bar[i] = None
+    bar[1] = sid
+    tick(lua, 2)
+    return w
+
+
+@pytest.mark.parametrize("sid", NO_AIM)
+def test_pressing_the_key_of_a_no_aim_skill_casts_it_without_a_click(sid):
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = slot_one(lua, ns, sid)
+    mana = w.player.mana
+    key(lua, "1")
+    assert w.player.mana < mana, f"{sid} did not cast from its key"
+
+
+@pytest.mark.parametrize("sid", AIMED)
+def test_pressing_the_key_of_an_aimed_skill_only_selects_it(sid):
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = slot_one(lua, ns, sid)
+    mana = w.player.mana
+    key(lua, "1")
+    assert w.player.mana == mana and ns.Game.bar()[1] == 1
+
+
+def test_static_shock_from_the_key_hurts_what_is_close_and_not_what_is_far():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = slot_one(lua, ns, "static_shock")
+    near, far = w.monsters[1], w.monsters[2]
+    near.x, near.y, far.x, far.y = w.player.x + 60, w.player.y, w.player.x + 400, w.player.y
+    near.life = far.life = 100
+    key(lua, "1")
+    assert near.life < 100 and far.life == 100
+
+
+def test_a_failed_key_cast_says_why_and_does_not_stop_the_game():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = slot_one(lua, ns, "static_shock")
+    w.player.mana = 0
+    key(lua, "1")
+    assert any("Static Shock" in str(o.text) for o in lua.eval("ALL").values() if o.text)
+    assert w.player.mana == 0
+
+
+def test_assigning_from_the_tree_does_not_also_cast_it():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "frostbolt", "frost_nova", level=30)          # frost nova needs no aim
+    w = ns.Game.world()
+    w.player.mana = w.player.maxmana
+    mana = w.player.mana
+    b = ns.Game.tree_buttons["frost_nova"]
+    b.scripts.OnEnter(b)
+    key(lua, "5")
+    bar, _ = ns.Game.bar()
+    assert bar[5] == "frost_nova" and w.player.mana == mana

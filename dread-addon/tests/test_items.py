@@ -40,34 +40,53 @@ def monster(env, w, x, y, life=100, **kw):
 # ---------------------------------------------------------------- rolling
 def test_a_roll_with_the_generator_pinned_at_half_gives_exactly_this_robe(env):
     lua, ns = env
-    it = ns.Items.roll(fixed(lua, 0.5), 10, False)
-    # slot: 1+floor(.5*5)=3 -> body. Not rare (.5 >= .2): 1-2 affixes, 1+floor(.5*2)=2. Body can take life and mana only.
-    # first pick index 2 -> mana: floor(3 + 3*.5 + .8*10 + .5) = 13. then life: floor(4 + 4*.5 + 1.2*10 + .5) = 18.
+    it = ns.Items.roll(fixed(lua, 0.5), 10, "magic")
+    # slot: 1+floor(.5*5)=3 -> body. Not rare (.5 >= .2): 1-2 bonuses, 1+floor(.5*2)=2. A body can carry life, mana and the four
+    # attributes (6 choices). First pick 1+floor(.5*6)=4 -> vitality: floor(2 + 2*.5 + .4*10 + .5) = 7.
+    # Then 5 left, 1+floor(.5*5)=3 -> intelligence (life, mana, int, str, dex): the same range, 7.
     assert it.slot == "body" and it.rarity == "magic" and it.ilvl == 10 and it.base == "Vestment"
-    assert it.stats.mana == 13 and it.stats.life == 18
+    assert it.stats.vit == 7 and it.stats.int == 7 and len(list(it.stats.keys())) == 2
 
 
 def lcg(lua, seed):
     return lua.eval(f"(function() local s = {seed + 1}; return function() s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648 end end)()")
 
 
-def test_rare_means_three_or_four_bonuses_where_the_slot_can_hold_them_and_magic_one_or_two(env):
+def test_each_tier_carries_its_own_number_of_bonuses_and_unique_has_a_name(env):
     lua, ns = env
     for seed in range(60):
-        it = ns.Items.roll(lcg(lua, seed), 8, True)
-        n = len(list(it.stats.keys()))
-        assert it.rarity == "rare"
-        assert (n == 2) if it.slot == "body" else (3 <= n <= 4)         # a robe can only carry life and mana
-    for seed in range(60):
-        it = ns.Items.roll(fixed(lua, 0.5), 8, False)                  # a pinned half never beats the 20% rare chance
-        assert it.rarity == "magic" and 1 <= len(list(it.stats.keys())) <= 2
+        n = lambda tier: ns.Items.roll(lcg(lua, seed), 8, tier)
+        c, m, r, u = n("common"), n("magic"), n("rare"), n("unique")
+        assert (c.rarity, m.rarity, r.rarity, u.rarity) == ("common", "magic", "rare", "unique")
+        assert len(list(c.stats.keys())) == 1 and 1 <= len(list(m.stats.keys())) <= 2
+        assert 3 <= len(list(r.stats.keys())) <= 4 and 4 <= len(list(u.stats.keys())) <= 5
+        assert u.title in list(ns.Items.UNIQUE_NAMES[u.slot].values()) and c.title is None and r.title is None
+        assert ns.Items.name(u) == u.title
+
+
+def test_the_roll_picks_the_tier_from_the_cut_points_and_a_boss_is_rare_or_unique(env):
+    lua, ns = env
+    for pinned, tier in ((0.005, "unique"), (0.05, "rare"), (0.3, "magic"), (0.7, "common")):
+        assert ns.Items.roll(fixed(lua, pinned), 5).rarity == tier
+    assert ns.Items.roll(fixed(lua, 0.5), 5, "boss").rarity == "rare"
+    assert ns.Items.roll(fixed(lua, 0.1), 5, "boss").rarity == "unique"      # under the boss's 25%
+
+
+def test_a_common_bonus_is_weaker_than_a_magic_one_at_the_same_level_and_unique_is_stronger(env):
+    lua, ns = env
+    c = ns.Items.roll(fixed(lua, 0.5), 20, "common")
+    m = ns.Items.roll(fixed(lua, 0.5), 20, "magic")
+    u = ns.Items.roll(fixed(lua, 0.5), 20, "unique")
+    top = lambda it: max(it.stats.values())
+    assert top(c) < top(m) < top(u)
 
 
 def test_bonuses_only_appear_on_slots_that_may_carry_them(env):
     lua, ns = env
-    allowed = {"weapon": {"dmg_pct", "fire_pct", "cold_pct", "lightning_pct"},
-               "head": {"life", "mana", "mana_regen_pct"}, "body": {"life", "mana"},
-               "ring": {"life", "mana", "dmg_pct", "mana_regen_pct"}, "amulet": {"life", "mana", "dmg_pct", "fire_pct", "cold_pct", "lightning_pct"}}
+    attrs = {"int", "vit", "str", "dex"}
+    allowed = {"weapon": {"dmg_pct", "fire_pct", "cold_pct", "lightning_pct"} | attrs,
+               "head": {"life", "mana", "mana_regen_pct"} | attrs, "body": {"life", "mana"} | attrs,
+               "ring": {"life", "mana", "dmg_pct", "mana_regen_pct"} | attrs, "amulet": {"life", "mana", "dmg_pct", "fire_pct", "cold_pct", "lightning_pct"} | attrs}
     for seed in range(300):
         it = ns.Items.roll(lcg(lua, seed), 12, seed % 3 == 0)
         assert set(it.stats.keys()) <= allowed[str(it.slot)]
@@ -77,20 +96,19 @@ def test_higher_item_level_means_bigger_numbers(env):
     lua, ns = env
     lo = ns.Items.roll(fixed(lua, 0.5), 2, False)
     hi = ns.Items.roll(fixed(lua, 0.5), 30, False)
-    assert hi.stats.life > lo.stats.life and hi.stats.mana > lo.stats.mana
+    assert sum(hi.stats.values()) > sum(lo.stats.values())
 
 
 # ---------------------------------------------------------------- wearing
-def test_a_better_item_replaces_the_worn_one_and_a_worse_one_is_left(env):
+def test_equipping_from_the_bag_swaps_with_what_is_worn_and_keeps_the_place(env):
     lua, ns = env
-    gear = lua.table()
-    a = item(lua, life=10)
-    b = item(lua, life=30)
-    c = item(lua, life=20)
-    assert ns.Items.consider(gear, a)[0] is True and gear.body.stats.life == 10
-    ok, old = ns.Items.consider(gear, b)
-    assert ok is True and old.stats.life == 10 and gear.body.stats.life == 30
-    assert ns.Items.consider(gear, c)[0] is False and gear.body.stats.life == 30
+    gear = lua.table_from({"body": item(lua, life=10)})
+    bag = lua.table_from([item(lua, life=30), item(lua, "ring", life=1)])
+    assert ns.Items.equip(gear, bag, 1) is True
+    assert gear.body.stats.life == 30 and bag[1].stats.life == 10 and bag[2].slot == "ring"   # the old robe took the bag place
+    assert ns.Items.equip(gear, bag, 2) is True                                            # an empty slot: nothing swaps back
+    assert gear.ring.stats.life == 1 and len(list(bag.values())) == 1
+    assert ns.Items.equip(gear, bag, 5) is False
 
 
 def test_totals_add_every_worn_piece(env):
@@ -197,18 +215,90 @@ def test_item_level_follows_the_player_level_and_the_boss_is_two_higher(env):
     assert list(drops_of(w, "item"))[0].item.ilvl == 11
 
 
-def test_walking_over_an_item_wears_it_if_better_and_leaves_it_if_not(env):
+def test_an_item_for_an_empty_slot_is_worn_and_one_for_a_full_slot_goes_in_the_bag(env):
     lua, ns = env
     w = world(env)
     p = w.player
     w.drops[1] = lua.table_from({"kind": "item", "item": item(lua, life=20), "x": p.x, "y": p.y, "t": 30})
     ns.Combat.step(w, 1 / 60)
-    assert p.gear.body.stats.life == 20 and p.maxlife == 80
-    w.drops[1] = lua.table_from({"kind": "item", "item": item(lua, life=5), "x": p.x, "y": p.y, "t": 30})
+    assert p.gear.body.stats.life == 20 and p.maxlife == 80 and len(list(p.bag.values())) == 0
+    w.drops[1] = lua.table_from({"kind": "item", "item": item(lua, int=9), "x": p.x, "y": p.y, "t": 30})
     ns.Combat.step(w, 1 / 60)
-    assert p.gear.body.stats.life == 20                        # the worse one did not replace it
-    kinds = [e.k for e in ns.Combat.drain(w).values()]
-    assert "item" in kinds and "junk" in kinds
+    assert p.gear.body.stats.life == 20                        # your choice: the new one waits in the bag
+    assert len(list(p.bag.values())) == 1 and p.bag[1].stats.int == 9
+    ev = [(e.k, e.how) for e in ns.Combat.drain(w).values() if e.k == "item"]
+    assert ev == [("item", "worn"), ("item", "bagged")]
+
+
+def test_a_full_bag_leaves_the_item_on_the_ground_and_tells_you_only_now_and_then(env):
+    lua, ns = env
+    w = world(env)
+    p = w.player
+    p.gear.body = item(lua, life=1)
+    for i in range(16):
+        p.bag[i + 1] = item(lua, life=i + 2)
+    w.drops[1] = lua.table_from({"kind": "item", "item": item(lua, int=9), "x": p.x, "y": p.y, "t": 30})
+    for _ in range(30):                                         # half a second standing on it
+        ns.Combat.step(w, 1 / 60)
+    assert len(list(w.drops.values())) == 1 and len(list(p.bag.values())) == 16
+    assert [e.k for e in ns.Combat.drain(w).values()].count("full") == 1
+    ns.Combat.trash(w, 16)                                      # make room and it is taken
+    ns.Combat.step(w, 1 / 60)
+    assert len(list(w.drops.values())) == 0 and p.bag[16].stats.int == 9
+
+
+def test_attributes_do_what_they_say(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.take_item(w, item(lua, "ring", int=10))          # +20 mana, +5% spell damage
+    ns.Combat.take_item(w, item(lua, "head", vit=10))          # +30 life
+    ns.Combat.take_item(w, item(lua, "amulet", str=8, dex=10))  # +8% wand damage, +3% speed
+    d = ns.Combat.derived(1, w.player.gear)
+    assert d.mana == 33 + 20 and d.life == 60 + 30
+    assert d.spell_pct == pytest.approx(5) and d.wand_pct == pytest.approx(8) and d.speed_pct == pytest.approx(3)
+    assert ns.Combat.gear_dmg_pct(w.player, "fire") == pytest.approx(5) and ns.Combat.gear_dmg_pct(w.player, "physical") == pytest.approx(8)
+
+
+def test_strength_does_nothing_for_a_spell_but_intelligence_does(env):
+    lua, ns = env
+    strong, clever = world(env), world(env)
+    ns.Combat.take_item(strong, item(lua, "ring", str=20))
+    ns.Combat.take_item(clever, item(lua, "ring", int=20))
+    assert ns.Combat.gear_dmg_pct(strong.player, "cold") == 0 and ns.Combat.gear_dmg_pct(clever.player, "cold") == pytest.approx(10)
+    assert ns.Combat.gear_dmg_pct(strong.player, "physical") == pytest.approx(20) and ns.Combat.gear_dmg_pct(clever.player, "physical") == 0
+
+
+def test_dexterity_makes_you_walk_faster(env):
+    lua, ns = env
+    slow, quick = world(env), world(env)
+    ns.Combat.take_item(quick, item(lua, "ring", dex=100))     # +30%
+    for w in (slow, quick):
+        w.player.x, w.player.y = 100, 500
+        ns.Combat.move_to(w, 1000, 500)
+        for _ in range(60):
+            ns.Combat.step(w, 1 / 60)
+    assert (quick.player.x - 100) == pytest.approx(1.3 * (slow.player.x - 100), rel=0.01)
+
+
+def test_compare_shows_what_wearing_a_bag_item_would_change(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.take_item(w, item(lua, "ring", str=10))          # worn
+    ns.Combat.take_item(w, item(lua, "ring", int=10, life=5))  # bag
+    diff = ns.Combat.compare(w, 1)
+    assert diff.mana == 20 and diff.life == 5 and diff.spell_pct == pytest.approx(5) and diff.wand_pct == pytest.approx(-10)
+    assert ns.Combat.compare(w, 9) is None
+
+
+def test_equip_and_trash_change_the_character_and_the_bag(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.take_item(w, item(lua, "ring", str=10))
+    ns.Combat.take_item(w, item(lua, "ring", vit=10))
+    assert ns.Combat.equip(w, 1) is True
+    assert w.player.maxlife == 90 and w.player.bag[1].stats.str == 10
+    assert ns.Combat.trash(w, 1) is True and len(list(w.player.bag.values())) == 0
+    assert ns.Combat.equip(w, 1) is False and ns.Combat.trash(w, 1) is False
 
 
 def test_area_monsters_are_tougher_than_the_zone_table_says(env):
@@ -227,10 +317,12 @@ def test_gear_survives_a_save_and_a_load(env):
     lua, ns = env
     w = world(env)
     ns.Combat.take_item(w, item(lua, "ring", ilvl=10, life=15, dmg_pct=5))
+    ns.Combat.take_item(w, item(lua, "ring", ilvl=10, int=7))
     snap = ns.Combat.snapshot(w)
     w2 = world(env)
     assert ns.Combat.restore(w2, snap) is True
     assert w2.player.gear.ring.stats.life == 15 and w2.player.maxlife == 75
+    assert w2.player.bag[1].stats.int == 7                     # the bag comes back too
 
 
 def test_a_tampered_save_is_cleaned_not_trusted(env):
@@ -243,5 +335,32 @@ def test_a_tampered_save_is_cleaned_not_trusted(env):
     w = world(env)
     ns.Combat.restore(w, snap)
     ring = w.player.gear.ring
-    assert ring.stats.life <= 9 and ring.stats.bogus is None and ring.stats.fire_pct is None   # capped at what level 1 can roll; unknown and not-allowed dropped
+    assert ring.stats.life == 12 and ring.stats.bogus is None and ring.stats.fire_pct is None   # capped at the most a level-1 roll can give; unknown and not-allowed dropped
     assert w.player.gear.body is None and w.player.gear.head is None and w.player.gear.amulet is None
+
+
+def test_a_unique_with_an_unknown_name_is_only_a_rare_and_a_real_one_keeps_its_name(env):
+    lua, ns = env
+    fake = ns.Items.clean(lua.table_from({"slot": "ring", "base": "Ring", "ilvl": 3, "rarity": "unique", "title": "Totally Fake Thing", "stats": lua.table_from({"life": 4})}))
+    assert fake.rarity == "rare" and fake.title is None
+    real = ns.Items.clean(lua.table_from({"slot": "ring", "base": "Ring", "ilvl": 3, "rarity": "unique", "title": "Seal of Cinders", "stats": lua.table_from({"life": 4})}))
+    assert real.rarity == "unique" and ns.Items.name(real) == "Seal of Cinders"
+    assert ns.Items.clean(lua.table_from({"slot": "ring", "base": "Ring", "ilvl": 3, "rarity": "godly", "stats": lua.table_from({"life": 4})})).rarity == "magic"
+
+
+def test_a_unique_survives_save_and_load(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.take_item(w, lua.table_from({"slot": "ring", "rarity": "unique", "title": "Seal of Cinders", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"int": 6})}))
+    w2 = world(env)
+    ns.Combat.restore(w2, ns.Combat.snapshot(w))
+    assert w2.player.gear.ring.rarity == "unique" and w2.player.gear.ring.title == "Seal of Cinders"
+
+
+def test_take_item_itself_refuses_when_the_bag_is_full(env):
+    lua, ns = env
+    w = world(env)
+    w.player.gear.ring = item(lua, "ring", life=1)
+    for i in range(16):
+        w.player.bag[i + 1] = item(lua, "ring", life=i + 2)
+    assert ns.Combat.take_item(w, item(lua, "ring", int=3)) == "full" and len(list(w.player.bag.values())) == 16

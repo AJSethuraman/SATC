@@ -196,7 +196,7 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "stop" then ns.Visuals.hide(); if running then stopTest1("cancelled") elseif frame then frame:Hide() end
   elseif arg == "sound" then runSounds()
   elseif arg == "skills" then showSkills()
-  elseif arg == "gear" then ns.Gear.toggle(ns.Game.world() and ns.Game.world().player.gear or {})
+  elseif arg == "gear" then if ns.Game.world() then ns.Gear.toggle(ns.Game.world()) else say("start the game first: /dread play") end
   elseif arg == "visuals" then ns.Visuals.run()
   elseif arg:match("^spells") then ns.Spells.show(tonumber(arg:match("^spells%s*(%d*)")) or 1)
   elseif arg == "play" then ns.Game.toggle()

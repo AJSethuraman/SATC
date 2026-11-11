@@ -20,11 +20,30 @@ Items.STATS = {
   cold_pct        = { "Cold damage",               4, 8,  0.6,  2.0, "%", { "weapon", "amulet" } },
   lightning_pct   = { "Lightning damage",          4, 8,  0.6,  2.0, "%", { "weapon", "amulet" } },
   mana_regen_pct  = { "Mana regeneration",         5, 10, 0.5,  1.5, "%", { "head", "ring" } },
+  -- attributes (any slot). What they do is in Combat.derived: int = mana and spell damage, vit = life, str = wand damage, dex = speed.
+  int             = { "Intelligence",              2, 4,  0.4,  3.0, "",  nil },
+  vit             = { "Vitality",                  2, 4,  0.4,  3.0, "",  nil },
+  str             = { "Strength",                  2, 4,  0.4,  1.0, "",  nil },
+  dex             = { "Dexterity",                 2, 4,  0.4,  1.0, "",  nil },
 }
-Items.STAT_ORDER = { "life", "mana", "dmg_pct", "fire_pct", "cold_pct", "lightning_pct", "mana_regen_pct" }
+Items.STAT_ORDER = { "life", "mana", "dmg_pct", "fire_pct", "cold_pct", "lightning_pct", "mana_regen_pct", "int", "vit", "str", "dex" }
+Items.BAG_MAX = 16
 
-Items.MAGIC_AFFIXES, Items.RARE_AFFIXES = { 1, 2 }, { 3, 4 }
-Items.RARE_SHARE = 0.2                          -- of ordinary drops; bosses always drop rare
+-- Four tiers. common: one small bonus. magic: 1-2. rare: 3-4. unique: 4-5, a bit bigger, and a name of its own.
+Items.RARITIES = { "common", "magic", "rare", "unique" }
+Items.RANK = { common = 1, magic = 2, rare = 3, unique = 4 }
+Items.AFFIXES = { common = { 1, 1 }, magic = { 1, 2 }, rare = { 3, 4 }, unique = { 4, 5 } }
+Items.POWER = { common = 0.7, magic = 1, rare = 1, unique = 1.25 }            -- multiplier on each bonus
+-- Chance an ordinary drop is each tier, as a running total: under .01 unique, under .10 rare, under .45 magic, else common.
+Items.CUT = { unique = 0.01, rare = 0.10, magic = 0.45 }
+Items.BOSS_UNIQUE = 0.25                        -- a boss drop is rare, or this often unique
+Items.UNIQUE_NAMES = {
+  weapon = { "Emberthorn Staff", "Frostglass Rod", "Stormcaller's Wand", "Gloamwood Scepter" },
+  head = { "Crown of the Tides", "Ashen Cowl", "Moonveil Circlet" },
+  body = { "Dawnweave Robe", "Embershroud", "Gravewind Vestment" },
+  ring = { "Seal of Cinders", "Band of the Deep", "Stormglass Ring" },
+  amulet = { "Heart of the Moor", "Starfall Pendant", "Wyrmtooth Charm" },
+}
 Items.MAX_ILVL = 99
 
 local function allowed(stat, slot)
@@ -36,12 +55,18 @@ end
 
 local function irand(rng, lo, hi) return lo + math.floor(rng() * (hi - lo + 1)) end
 
--- Roll one item. `rng` is the world's seeded generator; `rare` forces rare.
-function Items.roll(rng, ilvl, rare)
+-- Roll one item. `rng` is the world's seeded generator. `force`: nil = a normal drop, "boss" = rare (sometimes unique), or a tier name.
+function Items.roll(rng, ilvl, force)
   ilvl = math.max(1, math.min(Items.MAX_ILVL, math.floor(ilvl or 1)))
   local slot = Items.SLOTS[irand(rng, 1, #Items.SLOTS)]
-  local is_rare = rare or rng() < Items.RARE_SHARE
-  local range = is_rare and Items.RARE_AFFIXES or Items.MAGIC_AFFIXES
+  local tier = force
+  if force == true then tier = "rare" end
+  if force == "boss" then tier = (rng() < Items.BOSS_UNIQUE) and "unique" or "rare"
+  elseif not Items.RANK[tier or ""] then
+    local r = rng()
+    tier = (r < Items.CUT.unique and "unique") or (r < Items.CUT.rare and "rare") or (r < Items.CUT.magic and "magic") or "common"
+  end
+  local range = Items.AFFIXES[tier]
   local want = irand(rng, range[1], range[2])
   local pool = {}
   for _, k in ipairs(Items.STAT_ORDER) do if allowed(k, slot) then pool[#pool + 1] = k end end
@@ -50,24 +75,21 @@ function Items.roll(rng, ilvl, rare)
   for _ = 1, want do
     local i = irand(rng, 1, #pool)
     local k = table.remove(pool, i)
-    local s = Items.STATS[k]
-    stats[k] = math.floor(s[2] + (s[3] - s[2]) * rng() + s[4] * ilvl + 0.5)
+    local st = Items.STATS[k]
+    stats[k] = math.max(1, math.floor((st[2] + (st[3] - st[2]) * rng() + st[4] * ilvl) * Items.POWER[tier] + 0.5))
   end
   local bases = Items.BASES[slot]
-  return { slot = slot, rarity = is_rare and "rare" or "magic", ilvl = ilvl, base = bases[irand(rng, 1, #bases)], stats = stats }
+  local item = { slot = slot, rarity = tier, ilvl = ilvl, base = bases[irand(rng, 1, #bases)], stats = stats }
+  if tier == "unique" then item.title = Items.UNIQUE_NAMES[slot][irand(rng, 1, #Items.UNIQUE_NAMES[slot])] end
+  return item
 end
 
-function Items.score(item)
-  local total = 0
-  for k, v in pairs(item.stats) do total = total + v * Items.STATS[k][5] end
-  return total
-end
-
--- A name that says what is on it: "Rare Robe of Life and Mana".
+-- A name that says what is on it: "Rare Robe of Life, Intelligence". A unique has its own name.
 function Items.name(item)
+  if item.rarity == "unique" and item.title then return item.title end
   local parts = {}
   for _, k in ipairs(Items.STAT_ORDER) do if item.stats[k] then parts[#parts + 1] = Items.STATS[k][1] end end
-  local tag = (item.rarity == "rare") and "Rare " or "Magic "
+  local tag = ({ common = "Plain ", magic = "Magic ", rare = "Rare " })[item.rarity] or ""
   if #parts == 0 then return tag .. item.base end
   return tag .. item.base .. " of " .. table.concat(parts, ", ", 1, math.min(2, #parts)) .. (#parts > 2 and " & more" or "")
 end
@@ -91,12 +113,14 @@ function Items.totals(gear)
   return t
 end
 
--- Wear it if it beats what is in that slot. Returns true/false, and the item that was replaced (if any).
-function Items.consider(gear, item)
-  local cur = gear[item.slot]
-  if cur and Items.score(cur) >= Items.score(item) then return false, nil end
+-- Put the bag item at `index` on, swapping with what is in that slot (which goes into the same bag place). True if it worked.
+function Items.equip(gear, bag, index)
+  local item = bag[index]
+  if not item then return false end
+  local old = gear[item.slot]
   gear[item.slot] = item
-  return true, cur
+  if old then bag[index] = old else table.remove(bag, index) end
+  return true
 end
 
 -- Untrusted data (SavedVariables): rebuild a clean item or return nil. Unknown stats and impossible numbers are dropped.
@@ -117,13 +141,19 @@ function Items.clean(raw)
     for _, k in ipairs(Items.STAT_ORDER) do
       local v = raw.stats[k]
       if type(v) == "number" and v >= 1 and allowed(k, slot) then
-        local cap = math.floor(Items.STATS[k][3] + Items.STATS[k][4] * ilvl + 0.5)    -- the most a roll can give at that level
+        local cap = math.floor((Items.STATS[k][3] + Items.STATS[k][4] * ilvl) * Items.POWER.unique + 0.5)   -- the most any roll can give at that level
         stats[k] = math.min(math.floor(v), cap); n = n + 1
       end
     end
   end
   if n == 0 then return nil end
-  return { slot = slot, rarity = (raw.rarity == "rare") and "rare" or "magic", ilvl = ilvl, base = base, stats = stats }
+  local rarity = Items.RANK[raw.rarity or ""] and raw.rarity or "magic"
+  local title
+  if rarity == "unique" then
+    for _, n in ipairs(Items.UNIQUE_NAMES[slot]) do if n == raw.title then title = n end end
+    if not title then rarity = "rare" end                                         -- a unique with a name we do not know is just a rare
+  end
+  return { slot = slot, rarity = rarity, ilvl = ilvl, base = base, stats = stats, title = title }
 end
 
 return Items
