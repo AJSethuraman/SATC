@@ -18,7 +18,7 @@ no Blizzard D2 assets, no copied code.
 
 ## Run the tests
 1. Copy `Dread/` into the Forever `Interface/AddOns/` folder.
-2. In game, run `/dump select(4, GetBuildInfo())` and add `## Interface: <number>` to `Dread.toc`. The number is not confirmed here, so it is left out.
+2. The `.toc` uses `## Interface: 16001`, which is what `/dump select(4, GetBuildInfo())` returned on Forever (11 Nov 2026).
 3. **Test 1:** `/dread`. Leave the window open 5 minutes. Pass: FPS stays above 30 and Lua memory grows no more than 10% between minute 1 and minute 5 (both measured after a full garbage collect). The addon prints PASS or FAIL.
 4. **Test 2:** `/dread assets`. Look at the 20 icons for green or blank squares. Listen to the 5 sounds and the music track. The addon prints what the client returned, but a `true` is not proof you heard it, so write down what you heard.
 5. `/dread results` reprints both. They are also saved in `DreadDB.results` in `WTF/.../SavedVariables/Dread.lua`.

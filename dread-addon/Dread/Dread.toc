@@ -1,3 +1,4 @@
+## Interface: 16001
 ## Title: Dread (feasibility tests)
 ## Notes: Test 1 loop speed, Test 2 assets. Not a game yet.
 ## SavedVariables: DreadDB
