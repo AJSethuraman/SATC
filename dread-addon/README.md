@@ -2,7 +2,9 @@
 
 Status: **idea; two tests written, neither run in game yet.** Decision: go / no-go after both.
 
-Goal: an original action RPG inside an addon window. Click-to-move, kill, loot, build. WoW's own art and sounds,
+Goal (updated 11 Nov 2026): a beta with **one full Mage with a 30-skill, three-tree skill system with synergies, and a Blood Moor-style first zone**. See `docs/BETA-SCOPE.md`.
+
+Original goal: an original action RPG inside an addon window. Click-to-move, kill, loot, build. WoW's own art and sounds,
 no Blizzard D2 assets, no copied code.
 
 ## What is known
@@ -44,9 +46,9 @@ Click-to-move top-down arena, one town screen, one dungeon level. One class, 4 s
 `forever-guild-bot` can read the addon's SavedVariables through the opt-in uploader tier (see its `docs/PROJECT.md`, Phase 3): weekly leaderboard post, shared guild stash or trade board. That needs the same uploader the bot's loot tracking needs, so it adds no new install.
 
 ## Rules for the build
-- Original code and names. No D2 art, names or text.
-- Game logic in pure Lua with no WoW API calls (`Dread/Sim.lua`), unit tested outside the game.
+- Original code. WoW names and art are fine; no D2 art, names or text (changed 11 Nov 2026, was "original names").
+- Game logic in pure Lua with no WoW API calls (`Dread/Sim.lua`, `Dread/Skills.lua`, `Dread/Tree.lua`), unit tested outside the game.
 - Ship small. Stop if Test 1 or 2 fails.
 
 ## Check the logic
-`pip install lupa pytest && python -m pytest -q tests` (4 tests; they run `Sim.lua` under plain Lua). The drawing and the sound calls can only be checked in game.
+`pip install lupa pytest && python -m pytest -q tests` (they run `Sim.lua`, `Skills.lua` and `Tree.lua` under plain Lua). The drawing and the sound calls can only be checked in game.

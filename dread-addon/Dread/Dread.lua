@@ -3,7 +3,7 @@
 -- /dread stop   stop whatever is running
 -- Results are printed and also saved to DreadDB.results (SavedVariables).
 local ADDON, ns = ...
-local Sim = ns.Sim
+local Sim, Skills, Tree = ns.Sim, ns.Skills, ns.Tree
 
 DreadDB = DreadDB or {}
 DreadDB.results = DreadDB.results or {}
@@ -167,6 +167,23 @@ local function runSounds()
   C_Timer.After(#steps * 3, function() say("done. Tell me which numbers you heard. /dread stopmusic to stop music.") end)
 end
 
+-- /dread skills: check the skill table loaded and is well formed, then list it.
+local function showSkills()
+  local problems = Tree.validate()
+  say(#Skills .. " skills loaded, " .. (#problems == 0 and "table is well formed" or (#problems .. " PROBLEMS")))
+  for _, p in ipairs(problems) do say("   " .. p) end
+  for _, tree in ipairs(Skills.trees) do
+    say("|cffffd100" .. tree .. "|r")
+    for _, sk in ipairs(Skills) do
+      if sk.tree == tree then
+        local pre = {}
+        for _, id in ipairs(sk.prereqs) do pre[#pre + 1] = Skills.byId[id].name end
+        say(string.format("  L%-2d %s%s", sk.req, sk.name, #pre > 0 and ("  <- " .. table.concat(pre, ", ")) or ""))
+      end
+    end
+  end
+end
+
 ---------------------------------------------------------------- slash command
 SLASH_DREAD1 = "/dread"
 SlashCmdList.DREAD = function(arg)
@@ -175,8 +192,9 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "assets" then runTest2()
   elseif arg == "stop" then if running then stopTest1("cancelled") elseif frame then frame:Hide() end
   elseif arg == "sound" then runSounds()
+  elseif arg == "skills" then showSkills()
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread skills | /dread stop | /dread stopmusic | /dread results") end
 end
