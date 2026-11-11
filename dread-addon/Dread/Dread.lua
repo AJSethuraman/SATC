@@ -54,6 +54,9 @@ end
 local function startTest1()
   buildFrame()
   world = Sim.new(N, W, H, 42)
+  -- Test 2 hides the squares and shows icons; put things back so Test 1 always draws all N squares.
+  for _, t in ipairs(squares) do t:Show() end
+  for _, t in ipairs(frame.icons or {}) do t:Hide() end
   frame:Show()
   local elapsed, tick, fps, memEarly = 0, 0, {}, nil
   running = true

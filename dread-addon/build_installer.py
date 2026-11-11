@@ -68,7 +68,9 @@ def main():
         fh.write(text.replace("\n", "\r\n"))
     with open("dist/Dread.zip", "wb") as fh:
         fh.write(buf.getvalue())
-    print("wrote dist/Install-Dread.bat and dist/Dread.zip")
+    with zipfile.ZipFile("dist/Install-Dread.zip", "w", zipfile.ZIP_DEFLATED) as z:
+        z.write("dist/Install-Dread.bat", "Install-Dread.bat")
+    print("wrote dist/Install-Dread.bat, dist/Install-Dread.zip and dist/Dread.zip")
 
 if __name__ == "__main__":
     main()
