@@ -154,7 +154,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     names = {c.name for c in bot.tree.get_commands()}
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
-                     "claim-panel", "claim", "claims", "unlink-member", "release"}
+                     "claim-panel", "claims", "unlink-member", "release"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):

@@ -299,6 +299,10 @@ def register_commands(bot: GuildBot) -> None:
                     value=r["slug"])
                 for r in db.search_characters(current)]
 
+    async def unclaimed_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=char_label(r), value=r["slug"])
+                for r in db.unclaimed_characters(current)[:25]]
+
     @tree.error
     async def on_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
@@ -312,8 +316,8 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message(msg, ephemeral=True)
 
     # ---- who is who ---------------------------------------------------
-    @tree.command(name="link", description="Link one of your in-game characters to your Discord account")
-    @app_commands.autocomplete(character=char_ac)
+    @tree.command(name="link", description="Claim your character: type a few letters of its name")
+    @app_commands.autocomplete(character=unclaimed_ac)
     @app_commands.guild_only()
     async def link(interaction: discord.Interaction, character: str):
         row = db.find_character(character)
@@ -323,13 +327,21 @@ def register_commands(bot: GuildBot) -> None:
                 ephemeral=True)
             return
         owner = db.owner_of(row["slug"])
+        if not interaction.permissions.manage_events:       # members: first come, capped, never steal
+            res = db.claim(interaction.user.id, [row["slug"]])
+            log.info("link by %s: %s", interaction.user.id, res)
+            if res["linked"]:
+                msg = f"Linked **{R.full_name(row)}**."
+            elif res["taken"]:
+                msg = f"**{R.full_name(row)}** is already claimed. Ask a Moderator if that is wrong."
+            elif res["over_cap"]:
+                msg = f"You can claim up to {db.MAX_CLAIMS} characters; ask a Moderator for more."
+            else:
+                msg = f"**{R.full_name(row)}** is already yours."
+            await interaction.response.send_message(msg, ephemeral=True)
+            return
         if owner and owner != interaction.user.id:
-            if not interaction.permissions.manage_events:
-                await interaction.response.send_message(
-                    f"**{R.full_name(row)}** is already linked to <@{owner}>. Ask an officer to fix it.",
-                    ephemeral=True)
-                return
-            db.release(row["slug"])
+            db.release(row["slug"])                          # officers may take over a claimed character
         became_main = db.link(interaction.user.id, row["slug"])
         await interaction.response.send_message(
             f"Linked **{R.full_name(row)}**" + (" as your main." if became_main else ". Use `/main` to make it your main."),
@@ -577,36 +589,12 @@ def register_commands(bot: GuildBot) -> None:
 
 
     # ---- claiming characters (officers moderate) ----------------------
-    async def unclaimed_ac(interaction: discord.Interaction, current: str):
-        return [app_commands.Choice(name=char_label(r), value=r["slug"])
-                for r in db.unclaimed_characters(current)[:25]]
-
-    @tree.command(name="claim", description="Claim your character: type a few letters of its name")
-    @app_commands.autocomplete(character=unclaimed_ac)
-    @app_commands.guild_only()
-    async def claim(interaction: discord.Interaction, character: str):
-        row = db.find_character(character)
-        if not row:
-            await interaction.response.send_message("Pick a name from the list that appears as you type.", ephemeral=True)
-            return
-        res = db.claim(interaction.user.id, [row["slug"]])
-        if res["linked"]:
-            msg = f"Linked **{R.full_name(row)}**."
-        elif res["taken"]:
-            msg = f"**{R.full_name(row)}** is already claimed. Ask a Moderator if that is wrong."
-        elif res["over_cap"]:
-            msg = f"You can claim up to {db.MAX_CLAIMS} characters; ask a Moderator for more."
-        else:
-            msg = f"**{R.full_name(row)}** is already yours."
-        log.info("claim by %s: %s", interaction.user.id, res)
-        await interaction.response.send_message(msg, ephemeral=True)
-
     @tree.command(name="claim-panel", description="Post the 'claim your characters' button in this channel")
     @app_commands.guild_only()
     @officer
     async def claim_panel(interaction: discord.Interaction):
         await interaction.response.send_message(
-            "**Claim your characters.**\nTap the button, pick yours from the list, or type `/claim` and a few letters of the name.\nMissing? `/guild-sync` or ask a Moderator.",
+            "**Claim your characters.**\nTap the button, pick yours from the list, or type `/link` and a few letters of the name.\nMissing? `/guild-sync` or ask a Moderator.",
             view=ClaimPanel(bot))
 
     @tree.command(name="claims", description="Who has claimed which characters (officers)")

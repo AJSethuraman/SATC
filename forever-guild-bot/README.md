@@ -17,7 +17,8 @@ Run tests: `PYTHONPATH=src python -m pytest -q`
 
 | Command | Who | What |
 |---|---|---|
-| `/link` `/unlink` `/main` | anyone | connect your Discord account to your characters |
+| `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5) |
+| `/claim-panel` `/claims` `/unlink-member` `/release` | Manage Events | post the claim button, see who claimed what, purge a troll, free one character |
 | `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what |
 | `/raids` | anyone | upcoming raids |
 | `/raid-create title date time size [tanks] [healers] [dps]` | Manage Events | posts signup buttons + a Discord event. Date `2026-11-15`, time `20:00` (guild timezone) |
