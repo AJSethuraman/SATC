@@ -315,6 +315,8 @@ class Database:
     # ---- raids --------------------------------------------------------
     def create_raid(self, title, starts_at_utc_iso, size, created_by, caps: dict | None = None) -> int:
         caps = caps or {}
+        from .raids import size_from_limits
+        size = size_from_limits(caps.get("tank"), caps.get("healer"), caps.get("dps")) or size
         cur = self.conn.execute(
             """INSERT INTO raids (title, starts_at, size, cap_tank, cap_healer, cap_dps, created_by)
                VALUES (?,?,?,?,?,?,?)""",
@@ -352,9 +354,12 @@ class Database:
             self.conn.execute(f"UPDATE raids SET cap_{role}=? WHERE id=?", (n or None, raid_id))
         new_start = starts_at_utc_iso or raid["starts_at"]
         reminded = 0 if new_start != raid["starts_at"] else raid["reminded"]
+        now = self.get_raid(raid_id)
+        from .raids import size_from_limits
+        total = size_from_limits(now["cap_tank"], now["cap_healer"], now["cap_dps"])
         self.conn.execute(
             "UPDATE raids SET title=?, starts_at=?, size=?, reminded=? WHERE id=?",
-            (title or raid["title"], new_start, size or raid["size"], reminded, raid_id))
+            (title or raid["title"], new_start, total or size or raid["size"], reminded, raid_id))
         self.conn.commit()
 
     def started_open(self, now_utc: datetime):

@@ -108,3 +108,11 @@ def cancel_notice(raid, cancelled_by: int) -> str:
     """The private message sent to each signed-up player when a raid is cancelled."""
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
     return f"**{raid['title']}** (<t:{ts}:F>) was cancelled by <@{cancelled_by}>."
+
+
+def size_from_limits(tanks, healers, dps) -> int | None:
+    """When all three role limits are set, the raid has exactly that many slots; otherwise None
+    (the typed size applies). Keeps the size from disagreeing with the limits."""
+    if tanks and healers and dps:
+        return int(tanks) + int(healers) + int(dps)
+    return None

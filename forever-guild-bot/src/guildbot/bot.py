@@ -596,6 +596,11 @@ def register_commands(bot: GuildBot) -> None:
         if not (title or start or size or caps):
             await interaction.response.send_message("Nothing to change.", ephemeral=True)
             return
+        if size and not caps and R.size_from_limits(raid["cap_tank"], raid["cap_healer"], raid["cap_dps"]):
+            await interaction.response.send_message(
+                "This raid's size comes from its tank, healer and DPS limits. To add a spot, raise one of them "
+                "(for example `dps:4`) and the total updates by itself.", ephemeral=True)
+            return
         await interaction.response.defer(ephemeral=True)     # Discord calls below can exceed the 3-second limit
         db.update_raid(raid_id, title, start.isoformat(timespec="seconds") if start else None, size, caps)
         raid = db.get_raid(raid_id)

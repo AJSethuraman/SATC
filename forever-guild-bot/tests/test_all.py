@@ -478,3 +478,16 @@ def test_raid_wizard_and_details_modal_build(tmp_path):
 def test_cancel_notice_is_a_short_private_message():
     raid = {"title": "Test Raid", "starts_at": "2026-11-11T20:05:00+00:00"}
     assert R.cancel_notice(raid, 9) == "**Test Raid** (<t:1794427500:F>) was cancelled by <@9>."
+
+
+def test_size_follows_role_limits_when_all_three_are_set(tmp_path):
+    assert R.size_from_limits(1, 1, 3) == 5 and R.size_from_limits(1, None, 3) is None
+    db = make_db(tmp_path)
+    rid = db.create_raid("t", "2030-01-01T00:00:00+00:00", 9, 1, {"tank": 2, "healer": 2, "dps": 6})
+    assert db.get_raid(rid)["size"] == 10                                   # typed 9, limits say 10
+    db.update_raid(rid, caps={"dps": 7})
+    assert db.get_raid(rid)["size"] == 11                                   # raising a limit adds a spot
+    db.update_raid(rid, caps={"healer": 0})                                 # a limit removed: typed size rules
+    assert db.get_raid(rid)["size"] == 11
+    partial = db.create_raid("p", "2030-01-01T00:00:00+00:00", 9, 1, {"tank": 2})
+    assert db.get_raid(partial)["size"] == 9
