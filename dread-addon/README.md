@@ -82,4 +82,13 @@ Click-to-move top-down arena, one town screen, one dungeon level. One class, 4 s
 A skill can hold (your level - its required level + 3) points, up to 20, so saving points does not let you pour them all into a new skill. `/dread anim off` stops model animation switching.
 
 ## Gear
-Kills drop gear about one time in eight, and a boss always drops two rare pieces. Walk over it and it is worn if it beats what is in that slot (otherwise it is left). Five slots: weapon, head, body, ring, amulet. Magic pieces carry 1-2 bonuses, rare ones 3-4, and the numbers grow with the item level (your level when it dropped; a boss's drops are 2 higher). Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regeneration %. `I` or `/dread gear` shows what you wear. Monsters in the areas have 30% more life and bite 25% harder, so gear is what keeps you ahead.
+Press **I** (or `/dread gear`) for the gear window, laid out like a paper doll: **Helm** on top, **Weapon / Armor / Amulet** across, **Gloves / Belt / Boots**, then **two Ring** places. Click a worn item to take it off (it goes in the bag); hover it for everything on it.
+
+Kills drop gear about one time in eight; a boss always drops two rare pieces and sometimes a unique. Walk over a drop: if its place on you is empty it is worn at once, otherwise it goes in your **bag** (16 places; when it is full the drop stays on the ground and a short line tells you). In the bag, each item shows what wearing it would change, in green and red (`+20 mana  +5% spell  -10% wand`). **Wear** swaps it with what is on you, **x** throws it away. Two filters (by type, and by quality) only change what is listed.
+
+Tiers: common (grey, one small bonus), magic (blue, 1-2), rare (gold, 3-4), unique (orange, 4-5 bigger bonuses and a name of its own). Finding one is announced quietly for common and magic (a short line, no window; the details are in the Dread log), louder for rare, and loudest for a unique, with the level-up chime.
+
+Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regeneration %, and four attributes: **Intelligence** (+2 mana, +0.5% spell damage each), **Vitality** (+3 life), **Strength** (+1% wand damage, nothing for spells) and **Dexterity** (+0.3% walking speed). Item level is your level when it dropped (a boss's drops are 2 higher). Monsters have 30% more life and bite 25% harder, so gear is what keeps you ahead.
+
+## Casting without a click
+Skills that need no aim (Static Shock, Force Pull, the novas, the shields and armors, Combustion, Blazing Speed, Storm Cloud) cast the moment you press their number key. Aimed skills (bolts, Fireball, Blizzard, Meteor, Blink...) still select on the key and cast with right click, or shift-left-click.

@@ -4,22 +4,39 @@ local _, ns = ...
 local Items = {}
 ns.Items = Items
 
-Items.SLOTS = { "weapon", "head", "body", "ring", "amulet" }
-Items.SLOT_LABEL = { weapon = "Weapon", head = "Head", body = "Body", ring = "Ring", amulet = "Amulet" }
+-- What an item is (its type), and where it goes on you. Two rings: a ring goes to the free ring place, or swaps ring 1.
+Items.SLOTS = { "weapon", "head", "body", "ring", "amulet", "gloves", "belt", "boots" }
+Items.GEAR_SLOTS = { "head", "amulet", "weapon", "body", "gloves", "belt", "boots", "ring1", "ring2" }
+Items.SLOT_LABEL = { weapon = "Weapon", head = "Helm", body = "Armor", ring = "Ring", amulet = "Amulet", gloves = "Gloves", belt = "Belt", boots = "Boots",
+                     ring1 = "Ring", ring2 = "Ring" }
 Items.BASES = {
   weapon = { "Staff", "Wand", "Scepter", "Rod" }, head = { "Hood", "Cowl", "Circlet" },
   body = { "Robe", "Vestment", "Tunic" }, ring = { "Ring", "Band", "Signet" }, amulet = { "Amulet", "Pendant", "Charm" },
+  gloves = { "Gloves", "Mitts", "Gauntlets" }, belt = { "Belt", "Sash", "Cord" }, boots = { "Boots", "Sandals", "Treads" },
 }
+
+-- The place on you that an item of this type goes to: its own, or for a ring the empty ring place (else ring 1).
+function Items.place(gear, item_slot)
+  if item_slot ~= "ring" then return item_slot end
+  if not gear.ring1 then return "ring1" end
+  if not gear.ring2 then return "ring2" end
+  return "ring1"
+end
+
+-- Which item types may sit in a place.
+function Items.fits(place, item_slot)
+  return place == item_slot or ((place == "ring1" or place == "ring2") and item_slot == "ring")
+end
 
 -- stat id -> { label, per_item_lo, per_item_hi at item level 1, growth per item level, weight for "is it better", suffix, slots allowed (nil = any) }
 Items.STATS = {
-  life            = { "Life",                      4, 8,  1.2,  1.0, "",  { "head", "body", "ring", "amulet" } },
-  mana            = { "Mana",                      3, 6,  0.8,  0.7, "",  { "head", "body", "ring", "amulet" } },
-  dmg_pct         = { "Spell damage",              3, 6,  0.5,  3.0, "%", { "weapon", "ring", "amulet" } },
+  life            = { "Life",                      4, 8,  1.2,  1.0, "",  { "head", "body", "ring", "amulet", "gloves", "belt", "boots" } },
+  mana            = { "Mana",                      3, 6,  0.8,  0.7, "",  { "head", "body", "ring", "amulet", "belt", "boots" } },
+  dmg_pct         = { "Spell damage",              3, 6,  0.5,  3.0, "%", { "weapon", "ring", "amulet", "gloves" } },
   fire_pct        = { "Fire damage",               4, 8,  0.6,  2.0, "%", { "weapon", "amulet" } },
   cold_pct        = { "Cold damage",               4, 8,  0.6,  2.0, "%", { "weapon", "amulet" } },
   lightning_pct   = { "Lightning damage",          4, 8,  0.6,  2.0, "%", { "weapon", "amulet" } },
-  mana_regen_pct  = { "Mana regeneration",         5, 10, 0.5,  1.5, "%", { "head", "ring" } },
+  mana_regen_pct  = { "Mana regeneration",         5, 10, 0.5,  1.5, "%", { "head", "ring", "gloves", "belt" } },
   -- attributes (any slot). What they do is in Combat.derived: int = mana and spell damage, vit = life, str = wand damage, dex = speed.
   int             = { "Intelligence",              2, 4,  0.4,  3.0, "",  nil },
   vit             = { "Vitality",                  2, 4,  0.4,  3.0, "",  nil },
@@ -43,6 +60,7 @@ Items.UNIQUE_NAMES = {
   body = { "Dawnweave Robe", "Embershroud", "Gravewind Vestment" },
   ring = { "Seal of Cinders", "Band of the Deep", "Stormglass Ring" },
   amulet = { "Heart of the Moor", "Starfall Pendant", "Wyrmtooth Charm" },
+  gloves = { "Cinderpalm Mitts", "Rimeclasp Gloves" }, belt = { "Girdle of Tides", "Thornwoven Sash" }, boots = { "Windstep Treads", "Marshwalkers" },
 }
 Items.MAX_ILVL = 99
 
@@ -106,19 +124,22 @@ end
 -- Add up what the worn items give. gear: slot -> item.
 function Items.totals(gear)
   local t = {}
-  for _, slot in ipairs(Items.SLOTS) do
-    local it = gear and gear[slot]
+  for _, place in ipairs(Items.GEAR_SLOTS) do
+    local it = gear and gear[place]
     if it then for k, v in pairs(it.stats) do t[k] = (t[k] or 0) + v end end
   end
   return t
 end
 
--- Put the bag item at `index` on, swapping with what is in that slot (which goes into the same bag place). True if it worked.
-function Items.equip(gear, bag, index)
+-- Put the bag item at `index` on, in `place` (a ring may be sent to ring1 or ring2; otherwise it picks), swapping with what is
+-- there; the old item takes the bag place. True if it worked.
+function Items.equip(gear, bag, index, place)
   local item = bag[index]
   if not item then return false end
-  local old = gear[item.slot]
-  gear[item.slot] = item
+  place = place or Items.place(gear, item.slot)
+  if not Items.fits(place, item.slot) then return false end
+  local old = gear[place]
+  gear[place] = item
   if old then bag[index] = old else table.remove(bag, index) end
   return true
 end

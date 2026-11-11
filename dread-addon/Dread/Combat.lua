@@ -117,7 +117,7 @@ function Combat.compare(w, index)
   if not item then return nil end
   local trial = {}
   for k, v in pairs(p.gear) do trial[k] = v end
-  trial[item.slot] = item
+  trial[Items.place(p.gear, item.slot)] = item
   local a, b = Combat.derived(p.level, p.gear), Combat.derived(p.level, trial)
   local diff = {}
   for k, v in pairs(b) do diff[k] = v - a[k] end
@@ -128,8 +128,9 @@ end
 -- Returns "worn", "bagged" or "full".
 function Combat.take_item(w, item)
   local p = w.player
-  if not p.gear[item.slot] then
-    p.gear[item.slot] = item
+  local place = Items.place(p.gear, item.slot)
+  if not p.gear[place] then
+    p.gear[place] = item
     Combat.recalc(w)
     push(nil, w, { k = "item", item = item, how = "worn", rarity = item.rarity })
     return "worn"
@@ -140,9 +141,20 @@ function Combat.take_item(w, item)
   return "bagged"
 end
 
-function Combat.equip(w, index)
-  if Items.equip(w.player.gear, w.player.bag, index) then Combat.recalc(w); return true end
+function Combat.equip(w, index, place)
+  if Items.equip(w.player.gear, w.player.bag, index, place) then Combat.recalc(w); return true end
   return false
+end
+
+-- Take what is worn in a place off, into the bag. False if the place is empty or the bag is full.
+function Combat.unequip(w, place)
+  local p = w.player
+  local it = p.gear[place]
+  if not it or #p.bag >= Items.BAG_MAX then return false end
+  p.gear[place] = nil
+  p.bag[#p.bag + 1] = it
+  Combat.recalc(w)
+  return true
 end
 
 function Combat.trash(w, index)
@@ -600,7 +612,7 @@ local function step_drops(w, dt)
   for _, d in ipairs(w.drops) do
     d.t = d.t - dt
     if dist(p.x, p.y, d.x, d.y) <= Combat.PICKUP_RADIUS then
-      if d.kind == "item" and #p.bag >= Items.BAG_MAX and p.gear[d.item.slot] then   -- no room: leave it where it lies and say so now and then
+      if d.kind == "item" and #p.bag >= Items.BAG_MAX and (p.gear[Items.place(p.gear, d.item.slot)] ~= nil) then   -- no room: leave it where it lies and say so now and then
         keep[#keep + 1] = d
         if (p.full_warn or -99) + 3 < w.time then p.full_warn = w.time; push(nil, w, { k = "full", item = d.item }) end
       else
@@ -712,7 +724,7 @@ function Combat.snapshot(w)
   for id, n in pairs(w.player.st.points) do if n > 0 then pts[id] = n end end
   for k, v in pairs(w.flags) do if v then flags[k] = true end end
   local gear = {}
-  for _, slot in ipairs(Items.SLOTS) do
+  for _, slot in ipairs(Items.GEAR_SLOTS) do
     local it = w.player.gear[slot]
     if it then
       local stats = {}
@@ -736,9 +748,9 @@ function Combat.restore(w, snap)
   local level = math.floor(tonumber(snap.level) or 1)
   if level < 1 then level = 1 end
   w.player.gear = {}
-  for _, slot in ipairs(Items.SLOTS) do
-    local it = type(snap.gear) == "table" and Items.clean(snap.gear[slot]) or nil
-    if it and it.slot == slot then w.player.gear[slot] = it end
+  for _, place in ipairs(Items.GEAR_SLOTS) do
+    local it = type(snap.gear) == "table" and Items.clean(snap.gear[place]) or nil
+    if it and Items.fits(place, it.slot) then w.player.gear[place] = it end
   end
   w.player.bag = {}
   if type(snap.bag) == "table" then
