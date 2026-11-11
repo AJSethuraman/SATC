@@ -36,6 +36,7 @@ local function obj(parent)
     if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id end end
     if k == "SetCreature" then return function(self, id) if NO_MODELS then error("no models here") end self.creature = id end end
     if k == "SetTexture" then return function(self, id) self.texture = id end end
+    if k == "SetModelScale" then return function(self, v) self.modelscale = v end end
     if k == "SetRotation" then return function(self, v) self.rotation = v end end
     if k == "SetTexCoord" then return function(self, ...) self.coords = { ... } end end
     if k == "SetCamDistanceScale" then return function(self, v) self.camscale = v end end
@@ -1241,3 +1242,61 @@ def test_a_ring_is_drawn_under_the_target_and_goes_when_there_is_none():
     click_world(lua, ns, "LeftButton", w.player.x - 60, w.player.y)
     tick(lua, 2)
     assert ring() == []
+
+
+# ---------------------------------------------------------------- the boss that changed size
+def boss_frame(lua, ns):
+    w = ns.Game.world()
+    boss = [m for m in w.monsters.values() if m.boss][0]
+    return boss, [o for o in lua.eval("ALL").values() if o.owner is not None and o.creature == boss.cid and o.size is not None and o.size[1] > 100][0]
+
+
+def test_the_boss_is_made_big_by_its_frame_alone_and_never_scaled_twice():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[1]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    assert ns.Game.area().name == "cave"
+    boss = [m for m in w.monsters.values() if m.boss][0]
+    teleport(ns, lua, w, boss.x - 200, boss.y, ticks=6)
+    b, f = boss_frame(lua, ns)
+    assert f.size[1] == pytest.approx(64 * 1.8) and f.size[2] == pytest.approx(80 * 1.8)
+    assert f.modelscale == 1                                                # not scaled a second time by the model
+
+
+def test_the_bosss_size_does_not_change_while_it_fights():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[1]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    boss = [m for m in w.monsters.values() if m.boss][0]
+    boss.awake = True
+    boss.speed = 0
+    teleport(ns, lua, w, boss.x - 20, boss.y, ticks=2)                      # right beside it: it bites, walks and stands in turn
+    sizes = set()
+    for _ in range(150):
+        tick(lua, 1)
+        b, f = boss_frame(lua, ns)
+        sizes.add((round(f.size[1], 3), round(f.size[2], 3), f.modelscale))
+    assert len(sizes) == 1                                                  # whatever it is doing, the frame and scale never move
+
+
+def test_animation_switching_can_be_turned_off_and_back_on_and_is_saved():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "play")
+    tick(lua, 2)
+    w = ns.Game.world()
+    pm = lua.eval("player_model()")
+    click_world(lua, ns, "LeftButton", w.player.x + 200, w.player.y)
+    tick(lua, 3)
+    assert pm.last_anim == 5                                                # running
+    slash(lua, "anim off")
+    assert lua.eval("DreadDB.anim") is False and any("model animations: off" in l for l in said(lua))
+    click_world(lua, ns, "LeftButton", w.player.x + 100, w.player.y)
+    tick(lua, 5)
+    assert pm.last_anim == 0                                                # everything just stands
+    slash(lua, "anim on")
+    tick(lua, 5)
+    assert pm.last_anim == 5 and lua.eval("DreadDB.anim") is True

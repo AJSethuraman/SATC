@@ -192,6 +192,7 @@ end
 local function depth(f, wy) f:SetFrameLevel(arena:GetFrameLevel() + 3 + math.floor((area.h - wy) / 6)) end
 
 local function set_anim(f, id)
+  if DreadDB and DreadDB.anim == false then id = Game.ANIM.STAND end        -- /dread anim off: every model just stands
   if f.anim ~= id then try(f.SetAnimation, f, id); f.anim = id end
 end
 
@@ -909,7 +910,7 @@ local function draw_actors(p)
         f.owner, f.anim = m, nil
         local ok = try(f.SetCreature, f, m.cid)
         f.fallback:SetShown(not ok)
-        if m.scale then try(f.SetModelScale, f, m.scale) else try(f.SetModelScale, f, 1) end
+        try(f.SetModelScale, f, 1)                              -- size comes from the frame alone (below); scaling the model as well made the boss twice as big as meant
       end
       local size = (m.scale or 1)
       f:SetSize(64 * size, 80 * size)
@@ -1207,6 +1208,11 @@ end
 function Game.view() return vw, vh end
 function Game.target_info()
   if target and not target.dead then return { name = target.name, x = target.x, y = target.y } end
+end
+function Game.set_anim_switching(on)
+  DreadDB = DreadDB or {}
+  if on == "on" or on == true then DreadDB.anim = true elseif on == "off" or on == false then DreadDB.anim = false end
+  return DreadDB.anim ~= false
 end
 function Game.solid() return solid_on end
 function Game.buffs_shown() return buff_shown end

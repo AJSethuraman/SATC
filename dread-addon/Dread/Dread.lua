@@ -199,6 +199,9 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "visuals" then ns.Visuals.run()
   elseif arg == "play" then ns.Game.toggle()
   elseif arg == "animtest" then ns.Game.animtest()
+  elseif arg:match("^anim ") then
+    local w = arg:match("^anim%s+(%a+)")
+    say("model animations: " .. (ns.Game.set_anim_switching(w) and "on" or "off"))
   elseif arg == "map" then say("minimap " .. (ns.Game.toggle_map() and "on" or "off"))
   elseif arg:match("^zoom") then say("zoom " .. ns.Game.set_zoom(arg:match("^zoom%s*(%S*)")) .. " (1 = closest, 2.6 = furthest)")
   elseif arg:match("^fx") then say("particle detail: " .. ns.Game.set_fx(arg:match("^fx%s*(%a*)")))
@@ -220,5 +223,5 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread map | /dread zoom 1.4 | /dread fx off|low|full | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread anim on|off | /dread map | /dread zoom 1.4 | /dread fx off|low|full | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
 end
