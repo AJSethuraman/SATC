@@ -6,4 +6,6 @@
 Sim.lua
 Skills.lua
 Tree.lua
+Combat.lua
+Visuals.lua
 Dread.lua

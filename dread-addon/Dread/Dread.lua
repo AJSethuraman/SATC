@@ -190,11 +190,12 @@ SlashCmdList.DREAD = function(arg)
   arg = (arg or ""):lower():match("^%s*(.-)%s*$")
   if arg == "" then startTest1()
   elseif arg == "assets" then runTest2()
-  elseif arg == "stop" then if running then stopTest1("cancelled") elseif frame then frame:Hide() end
+  elseif arg == "stop" then ns.Visuals.hide(); if running then stopTest1("cancelled") elseif frame then frame:Hide() end
   elseif arg == "sound" then runSounds()
   elseif arg == "skills" then showSkills()
+  elseif arg == "visuals" then ns.Visuals.run()
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread skills | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread skills | /dread visuals | /dread stop | /dread stopmusic | /dread results") end
 end
