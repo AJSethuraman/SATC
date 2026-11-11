@@ -136,6 +136,32 @@ function Log.toggle()
   return frame:IsShown()
 end
 
+-- Open the log next to another window (the game): to its right, or its left if there is no room. A position you chose by
+-- dragging the log wins; this only places it when it has none saved.
+function Log.open_beside(anchor)
+  pcall(build)
+  if not frame then return false end
+  cfg().hidden = nil
+  if type(cfg().point) ~= "table" and anchor then
+    local ok, right = pcall(anchor.GetRight, anchor)
+    local sw = UIParent and UIParent.GetWidth and UIParent:GetWidth() or nil
+    local w = frame:GetWidth() or 440
+    frame:ClearAllPoints()
+    if ok and type(right) == "number" and type(sw) == "number" and type(anchor.GetScale) == "function" and right * (anchor:GetScale() or 1) + w + 16 > sw then
+      frame:SetPoint("TOPRIGHT", anchor, "TOPLEFT", -8, 0)
+    else
+      frame:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 8, 0)
+    end
+  end
+  frame:Show()
+  return true
+end
+
+-- Close it for now. Marked hidden so the next message does not pop it straight back open; Log.toggle or Log.open_beside reopens.
+function Log.close()
+  if frame then cfg().hidden = true; frame:Hide() end
+end
+
 function Log.clear()
   lines = {}
   if msgframe then msgframe:Clear() end

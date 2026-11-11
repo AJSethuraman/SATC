@@ -227,3 +227,60 @@ def test_an_error_inside_the_window_does_not_stop_the_command_that_logged():
     lua, ns = boot("NO_FONTS = true")
     ns.log("one"); ns.log("two"); ns.log("three")                        # none of these raises
     assert len(lines(ns)) == 3
+
+
+# ---------------------------------------------------------------- opening beside the game
+def same(lua, a, b):
+    return lua.eval("rawequal")(a, b)
+
+
+def anchor(lua, right=None):
+    a = lua.eval("CreateFrame('Frame', 'Game', UIParent)")
+    if right is not None:
+        a.GetRight = lua.eval(f"function() return {right} end")
+        a.GetScale = lua.eval("function() return 1 end")
+    return a
+
+
+def test_open_beside_puts_the_log_at_the_right_of_the_game_when_it_has_no_saved_place():
+    lua, ns = boot()
+    a = anchor(lua)
+    assert ns.Log.open_beside(a) is True
+    w = window(lua)
+    assert w.shown and w.pts[1] == "TOPLEFT" and same(lua, w.pts[2], a) and w.pts[3] == "TOPRIGHT" and w.pts[4] == 8
+
+
+def test_open_beside_uses_the_left_when_there_is_no_room_on_the_right():
+    lua, ns = boot("UIParent:SetSize(1920, 1080)")
+    a = anchor(lua, right=1800)                                           # 1800 + 440 + 16 is past 1920
+    ns.Log.open_beside(a)
+    w = window(lua)
+    assert w.pts[1] == "TOPRIGHT" and same(lua, w.pts[2], a) and w.pts[3] == "TOPLEFT" and w.pts[4] == -8
+    a2 = anchor(lua, right=600)
+    ns.Log.close(); ns.Log.open_beside(a2)
+    assert window(lua).pts[1] == "TOPLEFT"                                # plenty of room: back to the right
+
+
+def test_a_place_you_chose_is_kept_and_not_overridden():
+    lua, ns = boot("DreadDB = { log = { point = { 'TOPLEFT', 'TOPLEFT', 300, -400 } } }")
+    ns.Log.open_beside(anchor(lua))
+    w = window(lua)
+    assert w.shown and same(lua, w.pts[2], lua.eval("UIParent")) and w.pts[4] == 300 and w.pts[5] == -400     # still anchored to the screen, not the game
+
+
+def test_close_hides_it_and_the_next_message_does_not_pop_it_back_open_until_reopened():
+    lua, ns = boot()
+    ns.Log.open_beside(anchor(lua))
+    ns.Log.close()
+    w = window(lua)
+    assert not w.shown and lua.eval("DreadDB.log.hidden") is True
+    lua.eval("function(f) f('hello while closed') end")(ns.log)
+    assert not w.shown
+    ns.Log.open_beside(anchor(lua))
+    assert w.shown and lua.eval("DreadDB.log.hidden") is None
+
+
+def test_close_before_the_window_exists_does_nothing():
+    lua, ns = boot()
+    ns.Log.close()
+    assert window(lua) is None

@@ -1659,3 +1659,17 @@ def test_hovering_a_worn_place_lists_everything_on_the_item():
     assert t and "+6 Vitality" in t[0] and "+4 Mana" in t[0]
     b.scripts.OnLeave(b)
     assert not [o for o in lua.eval("ALL").values() if o.text and "(magic, level 5)" in str(o.text)]
+
+
+# ---------------------------------------------------------------- the log goes with the game
+def test_playing_opens_the_log_beside_the_window_and_closing_the_game_closes_it():
+    lua, ns = boot()
+    lua.execute("LOGCALLS = {}")
+    ns.Log = lua.eval("{ open_beside = function(a) LOGCALLS[#LOGCALLS + 1] = 'open' LOGANCHOR = a end, close = function() LOGCALLS[#LOGCALLS + 1] = 'close' end }")
+    ns.Game.toggle()                                                       # play
+    assert list(lua.eval("LOGCALLS").values()) == ["open"]
+    assert lua.eval("rawequal")(lua.eval("LOGANCHOR"), lua.eval("FRAMES.DreadGameFrame"))      # beside the game window itself
+    ns.Game.toggle()                                                       # close
+    assert list(lua.eval("LOGCALLS").values()) == ["open", "close"]
+    ns.Game.toggle()
+    assert list(lua.eval("LOGCALLS").values()) == ["open", "close", "open"]

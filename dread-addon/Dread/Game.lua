@@ -1203,9 +1203,11 @@ function Game.toggle()
   end
   if frame:IsShown() then
     save(); frame:Hide(); tree_frame:Hide()
+    if ns.Log then ns.Log.close() end                              -- the log goes with the game
   else
     if world.over then new_world() end
     frame:Show()
+    if ns.Log then ns.Log.open_beside(frame) end                   -- and the log opens at its side
     if Tree.points_spent(world.player.st) == 0 then refresh_tree(); tree_frame:Show() end
   end
 end
