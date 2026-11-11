@@ -71,13 +71,14 @@ Players connect Discord to characters with `/link`; the main character is the on
 
 **Phase 0: first run (do this first)**
 1. Owner supplies Discord bot token, Blizzard client ID/secret, guild slug in `.env` on the Forge.
-2. Run the bot, run `/sync`, read the failures list. Fix `blizzard.py` parsers against the saved raw snapshots. Add fixtures from real responses to tests.
+2. Run the bot, run `/guild-sync`, read the failures list. Fix `blizzard.py` parsers against the saved raw snapshots. Add fixtures from real responses to tests.
 3. Record what is now verified in this file.
 
 **Phase 1: make raids good**
+- Done 2026-11-11: command renamed `/sync` -> `/guild-sync` (another bot on the server already has `/sync`). `BOT_CHANNEL_IDS` limits commands to #raids and #bot-fuckery.
 - Test the whole raid flow in the real server: create, sign up, change role, remind, cancel.
 - Done 2026-11-10: `/raid-edit` (title/time/size), unit-tested, not yet tried in a real server.
-- Done 2026-11-10: raids close at start time; a full raid sends new slot signups to Bench; `/sync` shows loaded/not-found counts per kind.
+- Done 2026-11-10: raids close at start time; a full raid sends new slot signups to Bench; `/guild-sync` shows loaded/not-found counts per kind.
 - Snapshots: owner only needs the latest data (10 Nov). After each sync only the newest 2 raw responses per character and kind are kept, enough to fix a parser from real data.
 - Done 2026-11-10: role limits are per raid, set by the organizer on `/raid-create` and `/raid-edit` (no built-in numbers).
 - Likely needs: let a member pick which linked character signs up, post raid summary after.

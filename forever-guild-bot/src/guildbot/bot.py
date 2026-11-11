@@ -97,11 +97,23 @@ class RaidView(discord.ui.View):
         return callback
 
 
+class GuildTree(app_commands.CommandTree):
+    """Slash commands only run in the channels named in BOT_CHANNEL_IDS (if any are set)."""
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        allowed = self.client.cfg.channel_ids
+        if not allowed or interaction.channel_id in allowed:
+            return True
+        where = " or ".join(f"<#{c}>" for c in sorted(allowed))
+        await interaction.response.send_message(f"Use me in {where}.", ephemeral=True)
+        return False
+
+
 class GuildBot(discord.Client):
     def __init__(self, cfg: Config, db: Database, blizzard):
         super().__init__(intents=discord.Intents.default())
         self.cfg, self.db, self.blizzard = cfg, db, blizzard
-        self.tree = app_commands.CommandTree(self)
+        self.tree = GuildTree(self)
         self._sync_lock = asyncio.Lock()
         register_commands(self)
 
@@ -454,7 +466,7 @@ def register_commands(bot: GuildBot) -> None:
             lines.append(f"#{r['id']} [{r['title']}]({url}) <t:{ts}:F>")
         await interaction.response.send_message("\n".join(lines) or "No upcoming raids.")
 
-    @tree.command(name="sync", description="Refresh guild data from Blizzard now")
+    @tree.command(name="guild-sync", description="Refresh guild data from Blizzard now")
     @app_commands.guild_only()
     @officer
     async def sync_cmd(interaction: discord.Interaction):

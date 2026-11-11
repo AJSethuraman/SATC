@@ -153,7 +153,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
     names = {c.name for c in bot.tree.get_commands()}
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
-                     "raid-create", "raid-edit", "raid-cancel", "raids", "sync"}
+                     "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -390,3 +390,24 @@ def test_real_forever_rings_have_distinct_slot_names():
     items = bz.parse_equipment(_fx("equipment"))
     assert [i.slot for i in items] == ["Neck", "Ring 1", "Ring 2", "Main Hand"]
     assert items[0].name == "Roadwatcher's Confidence" and items[0].item_id == 281265
+
+
+def test_commands_are_limited_to_the_configured_channels(tmp_path):
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    base = {"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"}
+    assert load(base).channel_ids == frozenset()
+    cfg = load({**base, "BOT_CHANNEL_IDS": "11, 22"})
+    assert cfg.channel_ids == frozenset({11, 22})
+    sent = []
+
+    async def send_message(text, ephemeral):
+        sent.append((text, ephemeral))
+    def ix(channel_id):
+        return SimpleNamespace(channel_id=channel_id, response=SimpleNamespace(send_message=send_message))
+    bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
+    assert asyncio.run(bot.tree.interaction_check(ix(11))) is True
+    assert asyncio.run(bot.tree.interaction_check(ix(99))) is False
+    assert sent == [("Use me in <#11> or <#22>.", True)]
+    open_bot = GuildBot(load(base), make_db(tmp_path), blizzard=None)
+    assert asyncio.run(open_bot.tree.interaction_check(ix(99))) is True

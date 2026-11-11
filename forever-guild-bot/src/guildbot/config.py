@@ -20,6 +20,7 @@ class Config:
     db_path: Path
     sync_minutes: int
     timezone: str  # how raid dates/times typed in Discord are read
+    channel_ids: frozenset[int] = frozenset()  # commands only work in these channels; empty = anywhere
 
 
 def load(env: Mapping[str, str] | None = None) -> Config:
@@ -38,4 +39,5 @@ def load(env: Mapping[str, str] | None = None) -> Config:
         db_path=Path(env.get("DB_PATH", "guildbot.sqlite3")),
         sync_minutes=int(env.get("SYNC_MINUTES", "60")),
         timezone=env.get("TIMEZONE", "America/New_York"),
+        channel_ids=frozenset(int(x) for x in env.get("BOT_CHANNEL_IDS", "").replace(";", ",").split(",") if x.strip()),
     )
