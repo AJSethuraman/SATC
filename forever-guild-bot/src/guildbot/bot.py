@@ -193,6 +193,65 @@ class ClaimPanel(discord.ui.View):
         await interaction.response.send_message(view.header(), view=view, ephemeral=True)
 
 
+class RaidDetails(discord.ui.Modal, title="Raid details"):
+    name = discord.ui.TextInput(label="Name", default="Raid", min_length=1, max_length=100)
+    tanks = discord.ui.TextInput(label="Max tanks (blank = no limit)", required=False, max_length=2)
+    healers = discord.ui.TextInput(label="Max healers (blank = no limit)", required=False, max_length=2)
+    dps = discord.ui.TextInput(label="Max DPS (blank = no limit)", required=False, max_length=2)
+
+    def __init__(self, bot: "GuildBot", day: str, time: str, size: int):
+        super().__init__()
+        self.bot, self.day, self.time, self.size = bot, day, time, size
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        try:
+            caps = {"tank": R.parse_cap(self.tanks.value), "healer": R.parse_cap(self.healers.value),
+                    "dps": R.parse_cap(self.dps.value)}
+        except ValueError:
+            await interaction.response.send_message("Limits must be whole numbers from 1 to 40 (or blank).", ephemeral=True)
+            return
+        start = R.parse_start(self.day, self.time, self.bot.cfg.timezone)
+        await self.bot.post_raid(interaction, str(self.name.value).strip(), start, self.size, caps)
+
+
+class RaidWizard(discord.ui.View):
+    """Step-by-step raid creation: pick the day, the time and the size, then name it."""
+
+    def __init__(self, bot: "GuildBot"):
+        super().__init__(timeout=600)
+        self.bot, self.day, self.time, self.size = bot, None, None, None
+        days = R.day_options(datetime.now(timezone.utc), bot.cfg.timezone)
+        self._add_select("day", "1. Day", [(l, v) for l, v in days])
+        self._add_select("time", "2. Time (" + bot.cfg.timezone.split("/")[-1].replace("_", " ") + ")", R.time_options())
+        self._add_select("size", "3. How many players", [(f"{n} players", str(n)) for n in R.SIZE_CHOICES])
+        nxt = discord.ui.Button(label="Next: name and limits", style=discord.ButtonStyle.success, row=3)
+        nxt.callback = self._next
+        self.add_item(nxt)
+
+    def _add_select(self, attr: str, placeholder: str, options) -> None:
+        sel = discord.ui.Select(placeholder=placeholder, row={"day": 0, "time": 1, "size": 2}[attr],
+                                options=[discord.SelectOption(label=l, value=v) for l, v in options])
+
+        async def picked(interaction: discord.Interaction, sel=sel, attr=attr) -> None:
+            value = sel.values[0]
+            setattr(self, attr, int(value) if attr == "size" else value)
+            for o in sel.options:
+                o.default = o.value == value
+            await interaction.response.edit_message(view=self)
+        sel.callback = picked
+        self.add_item(sel)
+
+    async def _next(self, interaction: discord.Interaction) -> None:
+        if not (self.day and self.time and self.size):
+            await interaction.response.send_message("Pick the day, the time and the size first.", ephemeral=True)
+            return
+        start = R.parse_start(self.day, self.time, self.bot.cfg.timezone)
+        if start <= datetime.now(timezone.utc):
+            await interaction.response.send_message("That time has already passed. Pick a later time.", ephemeral=True)
+            return
+        await interaction.response.send_modal(RaidDetails(self.bot, self.day, self.time, self.size))
+
+
 class GuildTree(app_commands.CommandTree):
     """Slash commands only run in the channels named in BOT_CHANNEL_IDS (if any are set)."""
 
@@ -229,6 +288,40 @@ class GuildBot(discord.Client):
         self.reminder_job.start()
         self.close_job = tasks.loop(minutes=1)(self._close_started)
         self.close_job.start()
+
+    async def post_raid(self, interaction: discord.Interaction, title: str, start: datetime, size: int,
+                        caps: dict) -> None:
+        """Create the raid row, post the signup message and make the Discord event. Used by the wizard
+        and by /raid-create."""
+        db = self.db
+        if start <= datetime.now(timezone.utc):
+            await interaction.response.send_message("That time is in the past.", ephemeral=True)
+            return
+        raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id, caps)
+        raid = db.get_raid(raid_id)
+        try:
+            await interaction.response.send_message(embed=raid_embed(db, raid), view=RaidView(self, raid_id))
+            msg = await interaction.original_response()
+        except Exception:
+            # Not recorded: take the post down if it went out, and remove the row, so a retry starts clean.
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
+                pass
+            db.delete_raid(raid_id)
+            raise
+        event_id, note = None, ""
+        try:
+            ev = await interaction.guild.create_scheduled_event(
+                name=title, start_time=start, end_time=start + timedelta(hours=3),
+                entity_type=discord.EntityType.external, location="In game (WoW Forever)",
+                privacy_level=discord.PrivacyLevel.guild_only)
+            event_id = ev.id
+        except discord.HTTPException:
+            note = "Raid posted, but I couldn't create the Discord event (check my Manage Events permission)."
+        db.set_raid_posted(raid_id, msg.channel.id, msg.id, event_id)
+        if note:
+            await interaction.followup.send(note, ephemeral=True)
 
     # ---- background jobs ---------------------------------------------
     async def run_sync(self):
@@ -420,52 +513,31 @@ def register_commands(bot: GuildBot) -> None:
         await interaction.response.send_message(embed=e)
 
     # ---- raids ----------------------------------------------------------
-    @tree.command(name="raid-create", description="Create a raid with signup buttons")
-    @app_commands.describe(date="YYYY-MM-DD", time="HH:MM, 24-hour, in the guild timezone", size="Raid size",
+    @tree.command(name="raid-create", description="Create a raid (step by step, or fill in everything at once)")
+    @app_commands.describe(title="Leave everything blank to be walked through it", date="YYYY-MM-DD",
+                           time="HH:MM, 24-hour, in the guild timezone", size="Raid size",
                            tanks="Max tanks (leave blank for no limit)", healers="Max healers (blank = no limit)",
                            dps="Max DPS (blank = no limit)")
     @app_commands.guild_only()
     @officer
-    async def raid_create(interaction: discord.Interaction, title: app_commands.Range[str, 1, 100], date: str, time: str,
-                          size: app_commands.Range[int, 1, 40],
+    async def raid_create(interaction: discord.Interaction, title: app_commands.Range[str, 1, 100] | None = None,
+                          date: str | None = None, time: str | None = None,
+                          size: app_commands.Range[int, 1, 40] | None = None,
                           tanks: app_commands.Range[int, 1, 40] | None = None,
                           healers: app_commands.Range[int, 1, 40] | None = None,
                           dps: app_commands.Range[int, 1, 40] | None = None):
+        if not (title and date and time and size):
+            await interaction.response.send_message(
+                "Let's set up a raid. Pick the day, time and size, then tap **Next**.",
+                view=RaidWizard(bot), ephemeral=True)
+            return
         try:
             start = R.parse_start(date, time, bot.cfg.timezone)
         except ValueError:
             await interaction.response.send_message(
                 "Couldn't read that date/time. Use `2026-11-15` and `20:00`.", ephemeral=True)
             return
-        if start <= datetime.now(timezone.utc):
-            await interaction.response.send_message("That time is in the past.", ephemeral=True)
-            return
-        raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id,
-                                 {"tank": tanks, "healer": healers, "dps": dps})
-        raid = db.get_raid(raid_id)
-        try:
-            await interaction.response.send_message(embed=raid_embed(db, raid), view=RaidView(bot, raid_id))
-            msg = await interaction.original_response()
-        except Exception:
-            # Not recorded: take the post down if it went out, and remove the row, so a retry starts clean.
-            try:
-                await interaction.delete_original_response()
-            except discord.HTTPException:
-                pass
-            db.delete_raid(raid_id)
-            raise
-        event_id, note = None, ""
-        try:
-            ev = await interaction.guild.create_scheduled_event(
-                name=title, start_time=start, end_time=start + timedelta(hours=3),
-                entity_type=discord.EntityType.external, location="In game (WoW Forever)",
-                privacy_level=discord.PrivacyLevel.guild_only)
-            event_id = ev.id
-        except discord.HTTPException:
-            note = "Raid posted, but I couldn't create the Discord event (check my Manage Events permission)."
-        db.set_raid_posted(raid_id, msg.channel.id, msg.id, event_id)
-        if note:
-            await interaction.followup.send(note, ephemeral=True)
+        await bot.post_raid(interaction, title, start, size, {"tank": tanks, "healer": healers, "dps": dps})
 
     @tree.command(name="raid-edit", description="Change a raid's title, time or size")
     @app_commands.describe(date="YYYY-MM-DD (give date and time together)", time="HH:MM, guild timezone",

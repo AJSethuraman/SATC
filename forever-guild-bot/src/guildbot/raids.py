@@ -1,7 +1,7 @@
 """Pure raid logic (no Discord, no network) so it can be tested directly."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 ROLES = ("tank", "healer", "dps", "bench", "absent")
@@ -64,3 +64,39 @@ def resolve_role(role: str, groups: dict[str, list], size: int, discord_id: int,
     if mine is None:
         return "bench" if role_full or filled(groups) >= size else role
     return mine if role_full else role
+
+
+def day_options(now_utc: datetime, tz_name: str, days: int = 14) -> list[tuple[str, str]]:
+    """Next `days` calendar days in the guild timezone as (label, 'YYYY-MM-DD') for a dropdown."""
+    tz = ZoneInfo(tz_name)
+    today = now_utc.astimezone(tz).date()
+    out = []
+    for i in range(days):
+        d = today + timedelta(days=i)
+        lead = "Today" if i == 0 else "Tomorrow" if i == 1 else d.strftime("%a")
+        out.append((f"{lead} - {d.strftime('%a %b')} {d.day}", d.isoformat()))
+    return out
+
+
+def time_options() -> list[tuple[str, str]]:
+    """12:00 PM to 11:30 PM in half hours as (label, 'HH:MM')."""
+    out = []
+    for h in range(12, 24):
+        for m in (0, 30):
+            hh = h - 12 if h > 12 else h
+            out.append((f"{hh}:{m:02d} {'PM'}", f"{h:02d}:{m:02d}"))
+    return out
+
+
+SIZE_CHOICES = (2, 3, 5, 10, 20, 25, 40)
+
+
+def parse_cap(text: str) -> int | None:
+    """Blank means no limit. Otherwise a whole number from 1 to 40. Raises ValueError."""
+    t = (text or "").strip()
+    if not t:
+        return None
+    n = int(t)
+    if not 1 <= n <= 40:
+        raise ValueError(t)
+    return n
