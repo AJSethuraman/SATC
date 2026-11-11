@@ -155,7 +155,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end"}
+                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -1150,3 +1150,15 @@ def test_tentative_is_a_maybe_that_takes_no_slot_and_bench_is_only_overflow(tmp_
     assert names == ["Tanks (0)", "Healers (0)", "DPS (0)", "Bench (1)", "Tentative (1)", "Can't make it (1)"]
     assert "**Tentative (1):**" in R.roster_summary(raid, db.signups(rid))
 
+
+def test_help_lists_every_command_and_shows_officer_ones_only_to_officers(tmp_path):
+    from guildbot.bot import GuildBot, help_embed
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
+    member = " ".join(f.value for f in help_embed(False).fields)
+    officer = " ".join(f.value for f in help_embed(True).fields)
+    assert [f.name for f in help_embed(False).fields] == ["Claim and sign up", "Look stuff up"]
+    assert help_embed(True).fields[-1].name == "Officers"
+    for c in bot.tree.get_commands():
+        assert f"`/{c.name}`" in officer, f"/{c.name} is missing from /help"                 # nothing can be forgotten
+    assert "/raid-create" not in member and "/wanted" not in member

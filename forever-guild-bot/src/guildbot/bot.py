@@ -378,6 +378,46 @@ class CraftWizard(discord.ui.View):
                                                 embed=embed, view=CraftWizard(self.bot, **self._state()))
 
 
+HELP_MEMBER = [
+    ("Claim and sign up", [
+        ("/link", "claim your character: type a few letters of its name"),
+        ("/unlink", "let go of a character"),
+        ("/main", "pick which of your characters is your main"),
+        ("/raids", "upcoming raids"),
+        ("/help", "this list"),
+    ]),
+    ("Look stuff up", [
+        ("/who", "a character, or yours"),
+        ("/roster", "everyone in the guild"),
+        ("/professions", "who has which profession"),
+        ("/whohas", "who's wearing an item"),
+        ("/recipes", "what a profession can make, and who can make it"),
+        ("/whocan", "who can craft something"),
+        ("/craftable", "find gear by kind, type, slot and level, and who can make it"),
+        ("/gaps", "what the guild is missing in professions"),
+    ]),
+]
+HELP_OFFICER = ("Officers", [
+    ("/raid-create", "make a raid"),
+    ("/raid-edit", "change a raid"),
+    ("/raid-end", "wrap one up"),
+    ("/raid-cancel", "call one off and tell everyone"),
+    ("/guild-sync", "refresh from Blizzard now"),
+    ("/claim-panel", "post the claim button"),
+    ("/claims", "who has claimed what"),
+    ("/unlink-member", "clear everything someone claimed"),
+    ("/release", "free one character"),
+    ("/wanted", "what people searched for that nobody can make"),
+])
+
+
+def help_embed(is_officer: bool) -> discord.Embed:
+    e = discord.Embed(title="Commands")
+    for title, rows in HELP_MEMBER + ([HELP_OFFICER] if is_officer else []):
+        e.add_field(name=title, value="\n".join(f"`{c}` {d}" for c, d in rows), inline=False)
+    return e
+
+
 def gaps_overview(db: Database) -> discord.Embed:
     rows = db.profession_coverage()
     lines, none = [], []
@@ -1185,6 +1225,11 @@ def register_commands(bot: GuildBot) -> None:
                  for r in rows]
         e = discord.Embed(title="Most wanted, and nobody has it", description=clip(lines, 4000))
         await interaction.response.send_message(embed=e, ephemeral=True)
+
+    @tree.command(name="help", description="Every command, in a message only you can see")
+    async def help_cmd(interaction: discord.Interaction):
+        await interaction.response.send_message(
+            embed=help_embed(bool(interaction.permissions.manage_events)), ephemeral=True)
 
     @tree.command(name="whocan", description="Who in the guild can craft something (type a few letters)")
     @app_commands.autocomplete(recipe=recipe_ac)
