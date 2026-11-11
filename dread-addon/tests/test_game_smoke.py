@@ -971,7 +971,7 @@ def test_a_saved_zoom_is_used_when_the_window_is_built():
     assert ns.Game.view()[0] == pytest.approx(640 * 1.9)
 
 
-def test_the_camera_and_ground_follow_the_bigger_view_and_never_leave_the_map():
+def test_the_camera_and_ground_follow_the_bigger_view_and_keep_you_in_the_middle():
     lua, ns = boot()
     open_game(lua, ns)
     w = ns.Game.world()
@@ -980,7 +980,7 @@ def test_the_camera_and_ground_follow_the_bigger_view_and_never_leave_the_map():
         w.player.x, w.player.y = x, y
         tick(lua, 2)
         cam = ns.Game.camera()
-        assert cam.x >= 0 and cam.y >= 0 and cam.x + vw <= 2400 + 1e-6 and cam.y + vh <= 1500 + 1e-6
+        assert cam.x + vw / 2 == pytest.approx(w.player.x) and cam.y + vh / 2 == pytest.approx(w.player.y)     # dead centre, even in a corner
     base = [o for o in lua.eval("ALL").values() if o.texture == 187126][0]
     c = list(base.coords.values())
     assert c[1] - c[0] == pytest.approx(vw / 512)                          # the ground texture covers the whole bigger field

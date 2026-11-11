@@ -92,3 +92,5 @@ Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regenera
 
 ## Casting without a click
 Skills that need no aim (Static Shock, Force Pull, the novas, the shields and armors, Combustion, Blazing Speed, Storm Cloud) cast the moment you press their number key. Aimed skills (bolts, Fireball, Blizzard, Meteor, Blink...) still select on the key and cast with right click, or shift-left-click.
+
+The view is locked on you (like Diablo II): you stay in the centre and the room moves around you, including at the edge of the map.

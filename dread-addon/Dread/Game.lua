@@ -861,8 +861,8 @@ local function advance(dt, p)
   end
 
   -- the camera follows you
-  cam.x = math.max(0, math.min(area.w - vw, p.x - vw / 2))
-  cam.y = math.max(0, math.min(area.h - vh, p.y - vh / 2))
+  cam.x = p.x - vw / 2                                            -- locked on you, like Diablo II: the room moves around you, even at the map's edge
+  cam.y = p.y - vh / 2
   local fl = area.floor
   local T = (DreadDB and DreadDB.tile) or fl.tile
   ground:SetTexCoord(cam.x / T, (cam.x + vw) / T, -(cam.y + vh) / T, -cam.y / T)
