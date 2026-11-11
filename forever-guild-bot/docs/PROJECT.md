@@ -92,6 +92,8 @@ Players connect Discord to characters with `/link`; the main character is the on
 
 **Done 2026-11-11 (Phase 2, partly):** `/recipes`, `/whocan`, `/craftable`, `/gaps`, `/wanted` from Blizzard's static data. Not built: creatures, NPCs, drop rates, quest chains (still the open-data plan below).
 
+**Done 2026-11-11:** guild achievements (levels and profession skill marks, own channel), raid history and attendance (credit at the start, `/raid-attendance`, `/history`, `/attendance`), repeating raids that ask last week's regulars back. Owner on craft requests with materials: interesting but maybe annoying, iterate later.
+
 **Next (owner picked):** class roles from claimed mains (a Discord role per class; `/unlink-member` removes them), an item level board, quest buddies and "Tonight's plan" (quests endpoint is verified), weekly chronicle and level-up feed, inactive report from `last_login_timestamp`.
 
 **Phase 2: lookup database ("Wowhead in our bot")**
