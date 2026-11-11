@@ -400,7 +400,7 @@ def gaps_for(db: Database, profession: str) -> discord.Embed:
     lines = []
     for r in miss:
         lvl = "" if not r["required_level"] else f" (L{r['required_level']})"
-        kind = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x)
+        kind = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x and x != "Non-equippable")
         lines.append(f"{item_link(r['name'])}{lvl}" + (f" - {kind}" if kind else ""))
     head = f"**Best in the guild:** {who}\n**Nobody knows these {len(miss)}** (lowest level first). " \
            "Click a name to see on Wowhead where it is learned.\n"

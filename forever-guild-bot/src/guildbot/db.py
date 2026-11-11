@@ -360,15 +360,16 @@ class Database:
                WHERE c.in_guild=1 AND p.profession=? ORDER BY p.skill DESC, c.name LIMIT ?""",
             (profession, limit)).fetchall()
 
-    def missing_recipes(self, profession: str, limit: int = 400):
-        """Recipes of a profession that nobody in the guild knows, lowest level first (no-level last)."""
+    def missing_recipes(self, profession: str, limit: int = 5000):
+        """Recipes of a profession that nobody in the guild knows: items with a level requirement first, lowest
+        first, then the ones with none."""
         return self.conn.execute(
             """SELECT r.recipe_id, r.name, r.category, i.required_level, i.item_class, i.item_subclass, i.inventory_type
                FROM recipes r LEFT JOIN items i ON i.item_id=r.item_id
                WHERE r.profession=? AND NOT EXISTS (
                  SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
                   WHERE c.in_guild=1 AND k.profession=r.profession AND k.recipe_id=r.recipe_id)
-               ORDER BY i.required_level IS NULL, i.required_level, r.name LIMIT ?""", (profession, limit)).fetchall()
+               ORDER BY COALESCE(NULLIF(i.required_level, 0), 999), r.name LIMIT ?""", (profession, limit)).fetchall()
 
     def recipes_for(self, profession: str, match: str = ""):
         """Catalogue recipes of a profession (name contains `match`), each with the guild members who know it."""
