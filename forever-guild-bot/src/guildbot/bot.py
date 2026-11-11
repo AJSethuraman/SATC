@@ -199,9 +199,9 @@ class RaidDetails(discord.ui.Modal, title="Raid details"):
     healers = discord.ui.TextInput(label="Max healers (blank = no limit)", required=False, max_length=2)
     dps = discord.ui.TextInput(label="Max DPS (blank = no limit)", required=False, max_length=2)
 
-    def __init__(self, bot: "GuildBot", day: str, time: str, size: int):
+    def __init__(self, bot: "GuildBot", day: str, time: str, size: int, origin=None):
         super().__init__()
-        self.bot, self.day, self.time, self.size = bot, day, time, size
+        self.bot, self.day, self.time, self.size, self.origin = bot, day, time, size, origin
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         try:
@@ -211,16 +211,22 @@ class RaidDetails(discord.ui.Modal, title="Raid details"):
             await interaction.response.send_message("Limits must be whole numbers from 1 to 40 (or blank).", ephemeral=True)
             return
         start = R.parse_start(self.day, self.time, self.bot.cfg.timezone)
-        await self.bot.post_raid(interaction, str(self.name.value).strip(), start, self.size, caps)
+        posted = await self.bot.post_raid(interaction, str(self.name.value).strip(), start, self.size, caps)
+        if posted and self.origin is not None:
+            try:
+                await self.origin.delete_original_response()      # the private menu has done its job
+            except discord.HTTPException:
+                pass
 
 
 class RaidWizard(discord.ui.View):
     """Step-by-step raid creation: pick the day, the time and the size, then name it.
     The day list shows 14 days at a time; Earlier/Later move it, so any date is reachable."""
 
-    def __init__(self, bot: "GuildBot", page: int = 0, day=None, time=None, size=None):
+    def __init__(self, bot: "GuildBot", page: int = 0, day=None, time=None, size=None, origin=None):
         super().__init__(timeout=900)
         self.bot, self.page, self.day, self.time, self.size = bot, page, day, time, size
+        self.origin = origin          # the /raid-create interaction that opened this menu
         days = R.day_options(datetime.now(timezone.utc), bot.cfg.timezone, page=page)
         first, last = days[0][0].split(" - ")[1], days[-1][0].split(" - ")[1]
         self._add_select("day", f"1. Day  ({first} to {last})", days, 0)
@@ -254,7 +260,7 @@ class RaidWizard(discord.ui.View):
         self.add_item(sel)
 
     async def _turn(self, interaction: discord.Interaction, step: int) -> None:
-        view = RaidWizard(self.bot, max(0, self.page + step), self.day, self.time, self.size)
+        view = RaidWizard(self.bot, max(0, self.page + step), self.day, self.time, self.size, self.origin)
         await interaction.response.edit_message(view=view)
 
     async def _next(self, interaction: discord.Interaction) -> None:
@@ -265,7 +271,7 @@ class RaidWizard(discord.ui.View):
         if start <= datetime.now(timezone.utc):
             await interaction.response.send_message("That time has already passed. Pick a later time.", ephemeral=True)
             return
-        await interaction.response.send_modal(RaidDetails(self.bot, self.day, self.time, self.size))
+        await interaction.response.send_modal(RaidDetails(self.bot, self.day, self.time, self.size, self.origin))
 
 
 class GuildTree(app_commands.CommandTree):
@@ -306,13 +312,13 @@ class GuildBot(discord.Client):
         self.close_job.start()
 
     async def post_raid(self, interaction: discord.Interaction, title: str, start: datetime, size: int,
-                        caps: dict) -> None:
+                        caps: dict) -> bool:
         """Create the raid row, post the signup message and make the Discord event. Used by the wizard
-        and by /raid-create."""
+        and by /raid-create. Returns True once the raid is posted."""
         db = self.db
         if start <= datetime.now(timezone.utc):
             await interaction.response.send_message("That time is in the past.", ephemeral=True)
-            return
+            return False
         raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id, caps)
         raid = db.get_raid(raid_id)
         try:
@@ -338,6 +344,7 @@ class GuildBot(discord.Client):
         db.set_raid_posted(raid_id, msg.channel.id, msg.id, event_id)
         if note:
             await interaction.followup.send(note, ephemeral=True)
+        return True
 
     # ---- background jobs ---------------------------------------------
     async def run_sync(self):
@@ -545,7 +552,7 @@ def register_commands(bot: GuildBot) -> None:
         if not (title and date and time and size):
             await interaction.response.send_message(
                 "Let's set up a raid. Pick the day, time and size, then tap **Next**.",
-                view=RaidWizard(bot), ephemeral=True)
+                view=RaidWizard(bot, origin=interaction), ephemeral=True)
             return
         try:
             start = R.parse_start(date, time, bot.cfg.timezone)
