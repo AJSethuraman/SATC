@@ -9,7 +9,7 @@ ns = ns or {}
 local Combat = {}
 ns.Combat = Combat
 
-local Skills, Tree, Sim = ns.Skills, ns.Tree, ns.Sim
+local Skills, Tree, Sim, Items = ns.Skills, ns.Tree, ns.Sim, ns.Items
 
 -- bolt: flies from the player toward the target point and hits the first monster in its path
 -- aoe : explodes where it lands (at = "target") or around the player (at = "self"), hitting all within `radius`
@@ -55,6 +55,9 @@ Combat.PLAYER_SPEED = 140
 Combat.CHILL_SECONDS, Combat.FREEZE_SECONDS = 3, 2
 Combat.MONSTER_REACH, Combat.MONSTER_COOLDOWN = 22, 1.0
 Combat.MAX_QUEST_POINTS = 12
+Combat.ITEM_CHANCE, Combat.BOSS_ITEMS = 0.12, 2       -- an ordinary kill drops gear one time in eight; a boss always drops two
+Combat.MONSTER_LIFE_MULT, Combat.MONSTER_DMG_MULT = 1.3, 1.25   -- area monsters are tougher, so gear is what keeps you ahead
+
 
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 
@@ -65,6 +68,38 @@ end
 
 local function push(ev, w, e) w.events[#w.events + 1] = e end
 
+-- Life and mana before gear, from level alone.
+function Combat.base_life(level) return 60 + 6 * (level - 1) end
+function Combat.base_mana(level) return 33 + 3 * (level - 1) end
+
+-- Re-total max life and mana from level and gear. Life and mana keep their share of the maximum.
+function Combat.recalc(w)
+  local p = w.player
+  local t = Items.totals(p.gear)
+  local lf, mf = p.life / p.maxlife, p.mana / p.maxmana
+  p.maxlife, p.maxmana = Combat.base_life(p.level) + (t.life or 0), Combat.base_mana(p.level) + (t.mana or 0)
+  p.life, p.mana = math.min(p.maxlife, lf * p.maxlife), math.min(p.maxmana, mf * p.maxmana)
+end
+
+-- Percent damage the gear adds to a spell of this element (the wand is physical and gets only the general bonus).
+function Combat.gear_dmg_pct(p, element)
+  local t = Items.totals(p.gear)
+  return (t.dmg_pct or 0) + (t[(element or "") .. "_pct"] or 0)
+end
+
+-- Pick an item up: wear it if it is better. Returns "worn", or "left" when what you have is as good.
+function Combat.take_item(w, item)
+  local p = w.player
+  local worn, old = Items.consider(p.gear, item)
+  if worn then
+    Combat.recalc(w)
+    push(nil, w, { k = "item", item = item, replaced = old })
+    return "worn"
+  end
+  push(nil, w, { k = "junk", item = item })
+  return "left"
+end
+
 function Combat.xp_for_next(level) return level * level * 10 end
 
 function Combat.new(opts)
@@ -74,7 +109,7 @@ function Combat.new(opts)
     w = opts.w or 600, h = opts.h or 400, time = 0, over = false,
     rng = Sim.rng(opts.seed or 1),
     player = { x = 300, y = 40, tx = nil, ty = nil, level = 1, xp = 0, st = st,
-               maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10, buffs = {} },
+               maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10, buffs = {}, gear = {} },
     monsters = {}, projectiles = {}, events = {}, drops = {}, obstacles = {}, flags = {}, effects = {},
   }
   return w
@@ -153,7 +188,7 @@ local function hit(w, id, m, scale)
     element = sk.element
   end
   local resist = Tree.effective_resist(p.st, element, m.resist[element] or 0)
-  local amount = roll(w, lo, hi) * (scale or 1)
+  local amount = roll(w, lo, hi) * (scale or 1) * (1 + Combat.gear_dmg_pct(p, element) / 100)
   if element == "fire" and p.buffs.combustion then amount = amount * (1 + p.buffs.combustion.pct / 100) end
   local dmg = math.max(0, Tree.after_resist(amount, resist))
   m.life = m.life - dmg
@@ -176,12 +211,21 @@ local function hit(w, id, m, scale)
       w.drops[#w.drops + 1] = { kind = kind, x = m.x, y = m.y, t = Combat.DROP_LIFETIME }
       push(nil, w, { k = "drop", kind = kind, x = m.x, y = m.y })
     end
+    do                                                   -- gear: bosses always, the rest now and then; items are as good as you are
+      local n = m.boss and Combat.BOSS_ITEMS or ((w.rng() < Combat.ITEM_CHANCE) and 1 or 0)
+      for i = 1, n do
+        local item = Items.roll(w.rng, p.level + (m.boss and 2 or 0), m.boss and true or false)
+        local a = (i / math.max(1, n)) * 2 * math.pi
+        w.drops[#w.drops + 1] = { kind = "item", item = item, x = m.x + math.cos(a) * 14 * (n - 1), y = m.y + math.sin(a) * 14 * (n - 1), t = Combat.DROP_LIFETIME * 2 }
+        push(nil, w, { k = "drop", kind = "item", x = m.x, y = m.y })
+      end
+    end
     p.xp = p.xp + m.xp
     while p.xp >= Combat.xp_for_next(p.level) do
       p.xp = p.xp - Combat.xp_for_next(p.level)
       p.level = p.level + 1
       p.st.level = p.level
-      p.maxlife, p.maxmana = p.maxlife + 6, p.maxmana + 3
+      Combat.recalc(w)
       p.life, p.mana = p.maxlife, p.maxmana          -- a level-up refills both
       push(nil, w, { k = "level", level = p.level })
     end
@@ -506,7 +550,8 @@ local function step_drops(w, dt)
   for _, d in ipairs(w.drops) do
     d.t = d.t - dt
     if dist(p.x, p.y, d.x, d.y) <= Combat.PICKUP_RADIUS then
-      if d.kind == "mana" then p.mana = math.min(p.maxmana, p.mana + Combat.DROP_RESTORE * p.maxmana)
+      if d.kind == "item" then Combat.take_item(w, d.item)
+      elseif d.kind == "mana" then p.mana = math.min(p.maxmana, p.mana + Combat.DROP_RESTORE * p.maxmana)
       else p.life = math.min(p.maxlife, p.life + Combat.DROP_RESTORE * p.maxlife) end
       push(nil, w, { k = "pickup", kind = d.kind, x = d.x, y = d.y })
     elseif d.t > 0 then
@@ -537,7 +582,7 @@ function Combat.step(w, dt)
     else p.x, p.y = walk(w, p.x, p.y, p.tx, p.ty, stepd, Combat.PLAYER_RADIUS) end
   end
   -- mana comes back; Evocation speeds it up
-  local regen = p.maxmana * Combat.MANA_REGEN * (1 + Tree.bonus(p.st, "mana_regen_pct", "fire") / 100)
+  local regen = p.maxmana * Combat.MANA_REGEN * (1 + (Tree.bonus(p.st, "mana_regen_pct", "fire") + (Items.totals(p.gear).mana_regen_pct or 0)) / 100)
   p.mana = math.min(p.maxmana, p.mana + regen * dt)
   step_projectiles(w, dt)
   step_effects(w, dt)
@@ -580,7 +625,12 @@ function Combat.enter(w, area)
   w.obstacles, w.projectiles, w.drops, w.monsters, w.effects = area.obstacles or {}, {}, {}, {}, {}
   local p = w.player
   p.x, p.y, p.tx, p.ty = area.spawn.x, area.spawn.y, nil, nil
-  for _, t in ipairs(area.monsters or {}) do Combat.add_monster(w, copy(t)) end
+  for _, t in ipairs(area.monsters or {}) do
+    local m = copy(t)
+    m.life = m.life * Combat.MONSTER_LIFE_MULT
+    if m.dmg then m.dmg = { m.dmg[1] * Combat.MONSTER_DMG_MULT, m.dmg[2] * Combat.MONSTER_DMG_MULT } end
+    Combat.add_monster(w, m)
+  end
 end
 
 -- Hand over what happened since the last call (hits, blasts, kills, level-ups...) so the screen can show it.
@@ -594,7 +644,9 @@ end
 function Combat.set_level(w, level, xp)
   local p = w.player
   p.level, p.xp, p.st.level = level, xp or 0, level
-  p.maxlife, p.maxmana = 60 + 6 * (level - 1), 33 + 3 * (level - 1)
+  p.maxlife, p.maxmana = Combat.base_life(level), Combat.base_mana(level)
+  p.life, p.mana = p.maxlife, p.maxmana
+  Combat.recalc(w)
   p.life, p.mana = p.maxlife, p.maxmana
 end
 
@@ -604,8 +656,17 @@ function Combat.snapshot(w)
   local pts, flags = {}, {}
   for id, n in pairs(w.player.st.points) do if n > 0 then pts[id] = n end end
   for k, v in pairs(w.flags) do if v then flags[k] = true end end
+  local gear = {}
+  for _, slot in ipairs(Items.SLOTS) do
+    local it = w.player.gear[slot]
+    if it then
+      local stats = {}
+      for k, v in pairs(it.stats) do stats[k] = v end
+      gear[slot] = { slot = it.slot, rarity = it.rarity, ilvl = it.ilvl, base = it.base, stats = stats }
+    end
+  end
   return { level = w.player.level, xp = w.player.xp, points = pts,
-           quest_points = w.player.st.quest_points, flags = flags }
+           quest_points = w.player.st.quest_points, flags = flags, gear = gear }
 end
 
 -- Restore a snapshot. Anything unknown or out of range is dropped rather than trusted.
@@ -613,6 +674,11 @@ function Combat.restore(w, snap)
   if type(snap) ~= "table" then return false end
   local level = math.floor(tonumber(snap.level) or 1)
   if level < 1 then level = 1 end
+  w.player.gear = {}
+  for _, slot in ipairs(Items.SLOTS) do
+    local it = type(snap.gear) == "table" and Items.clean(snap.gear[slot]) or nil
+    if it and it.slot == slot then w.player.gear[slot] = it end
+  end
   Combat.set_level(w, level, math.max(0, tonumber(snap.xp) or 0))
   local q = math.floor(tonumber(snap.quest_points) or 0)
   w.player.st.quest_points = math.max(0, math.min(Combat.MAX_QUEST_POINTS, q))

@@ -2,6 +2,7 @@
 --   Left click   walk; click a monster to attack it with your wand (free, no mana)
 --   Right click  cast the selected skill at the cursor      Shift + left click  cast without moving
 --   1-8          select a skill slot                         Tab / mouse wheel   rotate to the next slot
+--   I            gear (what you have found and wear)
 --   K            skill tree: hover a skill and press 1-8 to put it on that slot
 -- Drag the window by its title bar. The rules all live in Combat.lua / Tree.lua; this file draws and listens.
 local ADDON, ns = ...
@@ -604,6 +605,7 @@ local function build_input()
     elseif key == "TAB" then rotate(1); handled = true
     elseif key == "K" then Game.toggle_tree(); handled = true
     elseif key == "M" then Game.toggle_map(); handled = true
+    elseif key == "I" then ns.Gear.toggle(world.player.gear); handled = true
     end
     self:SetPropagateKeyboardInput(not handled)
   end)
@@ -998,6 +1000,13 @@ local function draw_world_and_events(dt, p)
     elseif e.k == "level" then
       toast_text:SetText("Level " .. e.level .. "!  Press K to spend a skill point."); toast_t = 4
       save()
+    elseif e.k == "item" then
+      say("Found " .. ns.Items.name(e.item) .. ": " .. table.concat(ns.Items.lines(e.item), ", "))
+      toast_text:SetText("Found " .. ns.Items.name(e.item) .. "  (I = gear)"); toast_t = 4
+      ns.Gear.refresh(world.player.gear)
+      save()
+    elseif e.k == "junk" then
+      toast_text:SetText(ns.Items.name(e.item) .. ": yours is better, left it"); toast_t = 2.5
     elseif e.k == "kill" or e.k == "pickup" then
       save()
     elseif e.k == "boss_dead" then
@@ -1032,7 +1041,13 @@ local function draw_world_and_events(dt, p)
   for i = 1, MAX_DROP do
     local d, t = world.drops[i], drop_f[i]
     if d then
-      t:SetVertexColor(d.kind == "mana" and 0.3 or 1, d.kind == "mana" and 0.5 or 0.2, d.kind == "mana" and 1 or 0.2)
+      if d.kind == "item" then
+        t:SetTexture("Interface\\Icons\\INV_Misc_Bag_08"); t:SetDesaturated(false); t:SetSize(26, 26)
+        if d.item.rarity == "rare" then t:SetVertexColor(1, 0.85, 0.3) else t:SetVertexColor(0.5, 0.65, 1) end
+      else
+        t:SetTexture("Interface\\Icons\\INV_Potion_54"); t:SetDesaturated(true); t:SetSize(22, 22)
+        t:SetVertexColor(d.kind == "mana" and 0.3 or 1, d.kind == "mana" and 0.5 or 0.2, d.kind == "mana" and 1 or 0.2)
+      end
       t:ClearAllPoints(); t:SetPoint("CENTER", arena, "BOTTOMLEFT", d.x - cam.x, d.y - cam.y); t:Show()
     else
       t:Hide()

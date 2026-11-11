@@ -80,3 +80,6 @@ Click-to-move top-down arena, one town screen, one dungeon level. One class, 4 s
 
 ## Skill points
 A skill can hold (your level - its required level + 3) points, up to 20, so saving points does not let you pour them all into a new skill. `/dread anim off` stops model animation switching.
+
+## Gear
+Kills drop gear about one time in eight, and a boss always drops two rare pieces. Walk over it and it is worn if it beats what is in that slot (otherwise it is left). Five slots: weapon, head, body, ring, amulet. Magic pieces carry 1-2 bonuses, rare ones 3-4, and the numbers grow with the item level (your level when it dropped; a boss's drops are 2 higher). Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regeneration %. `I` or `/dread gear` shows what you wear. Monsters in the areas have 30% more life and bite 25% harder, so gear is what keeps you ahead.

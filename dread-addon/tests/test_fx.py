@@ -11,7 +11,7 @@ def env():
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat", "Fx"):
+    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Fx"):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
 

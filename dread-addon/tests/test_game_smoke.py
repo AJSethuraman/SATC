@@ -36,6 +36,7 @@ local function obj(parent)
     if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id end end
     if k == "SetCreature" then return function(self, id) if NO_MODELS then error("no models here") end self.creature = id end end
     if k == "SetTexture" then return function(self, id) self.texture = id end end
+    if k == "SetVertexColor" then return function(self, r, g, b) self.color = { r, g, b } end end
     if k == "SetModelScale" then return function(self, v) self.modelscale = v end end
     if k == "SetRotation" then return function(self, v) self.rotation = v end end
     if k == "SetTexCoord" then return function(self, ...) self.coords = { ... } end end
@@ -75,7 +76,7 @@ def boot(prelude="", with_slash=False):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Map", "Fx", "Game") + (("Visuals", "Dread") if with_slash else ()):
+    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
 
@@ -1312,3 +1313,57 @@ def test_a_third_ground_layer_tiles_hugely_so_the_floor_has_patches_not_one_repe
     cam = ns.Game.camera()
     assert list(patch.coords.values())[0] == pytest.approx(cam.x / 1700)
     assert patch.alpha == pytest.approx(0.3)
+
+
+# ---------------------------------------------------------------- gear on screen
+def put_item_at_player(lua, ns, w, rarity="rare", **stats):
+    it = lua.table_from({"slot": "ring", "rarity": rarity, "ilvl": 5, "base": "Ring", "stats": lua.table_from(stats or {"life": 12})})
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x + 300, "y": w.player.y, "t": 30})
+
+
+def drop_icons(lua):
+    return [o for o in lua.eval("ALL").values() if o.texture == "Interface\\Icons\\INV_Misc_Bag_08"]
+
+
+def test_a_dropped_item_is_drawn_as_a_bag_in_its_rarity_colour_and_a_potion_is_not(env=None):
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    put_item_at_player(lua, ns, w, "rare")
+    tick(lua, 2)
+    bag = drop_icons(lua)
+    assert len(bag) == 1 and bag[0].shown and tuple(round(c, 2) for c in bag[0].color.values()) == (1, 0.85, 0.3)
+    put_item_at_player(lua, ns, w, "magic")
+    tick(lua, 2)
+    assert tuple(round(c, 2) for c in drop_icons(lua)[0].color.values()) == (0.5, 0.65, 1)
+    w.drops[1] = lua.table_from({"kind": "life", "x": w.player.x + 300, "y": w.player.y, "t": 30})
+    tick(lua, 2)
+    assert bag[0].texture == "Interface\\Icons\\INV_Potion_54"             # the same frame goes back to being a potion
+
+
+def test_walking_onto_an_item_wears_it_tells_you_and_the_gear_window_lists_it():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    it = lua.table_from({"slot": "ring", "rarity": "rare", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"life": 12})})
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+    tick(lua, 2)
+    assert w.player.gear.ring.stats.life == 12 and w.player.maxlife == 72
+    assert any("Found Rare Ring of Life" in str(o.text) for o in lua.eval("ALL").values() if o.text)      # the toast says so
+    key(lua, "I")
+    frame = lua.eval("FRAMES.DreadGearFrame")
+    assert frame.shown
+    texts = [str(o.text) for o in lua.eval("ALL").values() if o.text and "Weapon:" in str(o.text)]
+    assert texts and "Rare Ring of Life" in texts[0] and "+12 Life" in texts[0]
+    key(lua, "I")
+    assert not frame.shown
+
+
+def test_the_gear_text_names_every_slot_and_totals_the_bonuses():
+    lua, ns = boot()
+    gear = lua.table_from({"ring": lua.table_from({"slot": "ring", "rarity": "magic", "ilvl": 3, "base": "Band", "stats": lua.table_from({"life": 9, "dmg_pct": 4})})})
+    t = ns.Gear.text(gear)
+    for label in ("Weapon:", "Head:", "Body:", "Ring:", "Amulet:"):
+        assert label in t
+    assert "Magic Band of Life, Spell damage" in t and "Total:  +9 Life,  +4% Spell damage" in t
+    assert "nothing yet" in ns.Gear.text(lua.table())

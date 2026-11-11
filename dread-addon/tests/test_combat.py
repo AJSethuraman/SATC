@@ -11,7 +11,7 @@ def env():
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat"):
+    for f in ("Sim", "Skills", "Tree", "Items", "Combat"):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
 
@@ -247,7 +247,7 @@ def test_same_seed_same_fight(env):
         lua2 = lupa.LuaRuntime(unpack_returned_tuples=True)
         ns2 = lua2.table()
         ld = lua2.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-        for f in ("Sim", "Skills", "Tree", "Combat"):
+        for f in ("Sim", "Skills", "Tree", "Items", "Combat"):
             ld(str(DREAD / f"{f}.lua"), ns2)
         w = ns2.Combat.new(lua2.table_from({"seed": 7}))
         w.player.st.points["scorch"] = 3
@@ -457,7 +457,7 @@ def test_entering_an_area_swaps_the_map_and_monsters_and_copies_them(env):
     monster(env, w, 1, 1, life=5)
     ns.Combat.enter(w, area)
     assert w.area == "cave" and w.w == 900 and w.player.x == 50 and w.player.y == 350
-    assert len(w.monsters) == 1 and w.monsters[1].life == 40 and w.monsters[1].awake is False
+    assert len(w.monsters) == 1 and w.monsters[1].life == pytest.approx(40 * ns.Combat.MONSTER_LIFE_MULT) and w.monsters[1].awake is False
     w.monsters[1].life = 1
     w.monsters[1].resist.fire = 99
     assert area.monsters[1].life == 40 and area.monsters[1].resist.fire == 10     # the area itself is untouched
