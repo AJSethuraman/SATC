@@ -13,7 +13,7 @@ from . import raids as R
 from .links import item_link
 from .config import Config
 from .db import Database, utcnow
-from .sync import sync_guild, sync_recipe_catalog
+from .sync import sync_guild, sync_item_catalog, sync_recipe_catalog
 
 log = logging.getLogger("guildbot")
 
@@ -378,6 +378,12 @@ class GuildBot(discord.Client):
                 log.info("recipe catalogue refreshed: %d recipes", n)
         except Exception:
             log.exception("recipe catalogue refresh failed")
+        try:
+            r, i = await sync_item_catalog(self.db, self.blizzard)
+            if r or i:
+                log.info("item catalogue: looked up %d recipes and %d items", r, i)
+        except Exception:
+            log.exception("item catalogue refresh failed")
 
     async def _send_reminders(self) -> None:
         """Private reminder to everyone signed up (slots and bench). Nothing is posted in the channel.
@@ -654,6 +660,51 @@ def register_commands(bot: GuildBot) -> None:
             head = "\n".join(f"{item_link(r['name'])}" + (f": {r['knowers']}" if r["knowers"] else "") for r in rows)
         e = discord.Embed(title=title[:256], description=clip(head.split("\n"), 4000))
         e.set_footer(text="Recipe list is everything in Blizzard's data, not only what is learnable in game yet. "
+                          f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
+        await interaction.response.send_message(embed=e)
+
+    async def facet_ac(column: str, interaction: discord.Interaction, current: str):
+        chosen = getattr(interaction.namespace, "kind", None) if column == "item_subclass" else None
+        return [app_commands.Choice(name=f"{r['name']} ({r['n']})", value=r["name"])
+                for r in db.item_facets(column, current, chosen)]
+
+    async def kind_ac(interaction: discord.Interaction, current: str):
+        return await facet_ac("item_class", interaction, current)
+
+    async def type_ac(interaction: discord.Interaction, current: str):
+        return await facet_ac("item_subclass", interaction, current)
+
+    async def slot_ac(interaction: discord.Interaction, current: str):
+        return await facet_ac("inventory_type", interaction, current)
+
+    @tree.command(name="craftable", description="Find who can craft gear: pick a kind, type, slot or level range")
+    @app_commands.describe(kind="Weapon, Armor, ...", type="Sword, Plate, Cloth, ...", slot="Head, Chest, One-Hand, ...",
+                           min_level="Lowest level needed to use it", max_level="Highest level needed to use it",
+                           profession="Only this profession", show_all="Also show items nobody in the guild can make")
+    @app_commands.autocomplete(kind=kind_ac, type=type_ac, slot=slot_ac, profession=catalog_profession_ac)
+    async def craftable(interaction: discord.Interaction, kind: str | None = None, type: str | None = None,
+                        slot: str | None = None, min_level: int | None = None, max_level: int | None = None,
+                        profession: str | None = None, show_all: bool = False):
+        rows = db.craftable(kind, type, slot, min_level, max_level, profession, only_known=not show_all, limit=400)
+        if not rows:
+            msg = "Nobody in the guild can craft anything that matches. Loosen a filter" + \
+                  (", or set show_all to see what exists." if not show_all else ".")
+            if not db.item_facets("item_class", limit=1):
+                msg = "I'm still looking up what recipes make (first run takes a few minutes). Try again shortly."
+            await interaction.response.send_message(msg, ephemeral=True)
+            return
+        lines = []
+        for r in rows:
+            tags = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x)
+            who = r["knowers"] or "nobody yet"
+            lines.append(f"{item_link(r['name'])} (L{r['required_level'] or '?'}, {tags or r['item_class'] or 'item'}): "
+                         f"**{r['profession']}** - {who}")
+        shown = clip(lines, 4000)
+        filt = ", ".join(f"{k}: {v}" for k, v in (("kind", kind), ("type", type), ("slot", slot),
+                         ("from level", min_level), ("to level", max_level), ("profession", profession)) if v is not None)
+        e = discord.Embed(title=f"Craftable by the guild ({len(rows)})" if not show_all else f"All craftable ({len(rows)})",
+                          description=(f"*{filt}*\n" if filt else "") + shown)
+        e.set_footer(text="Items from Blizzard's data, not only what is learnable in game yet. "
                           f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
         await interaction.response.send_message(embed=e)
 

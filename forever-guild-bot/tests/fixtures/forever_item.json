@@ -1,0 +1,53 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/data/wow/item/2847?namespace=static-1.60.1_70399-forever-us"
+  }
+ },
+ "id": 2847,
+ "name": "Copper Shortsword",
+ "quality": {
+  "type": "UNCOMMON",
+  "name": "Uncommon"
+ },
+ "level": 10,
+ "required_level": 4,
+ "media": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/media/item/2847?namespace=static-1.60.1_70399-forever-us"
+  },
+  "id": 2847
+ },
+ "item_class": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/item-class/2?namespace=static-1.60.1_70399-forever-us"
+  },
+  "name": "Weapon",
+  "id": 2
+ },
+ "item_subclass": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/item-class/2/item-subclass/7?namespace=static-1.60.1_70399-forever-us"
+  },
+  "name": "Sword",
+  "id": 7
+ },
+ "inventory_type": {
+  "type": "WEAPON",
+  "name": "One-Hand"
+ },
+ "purchase_price": 551,
+ "sell_price": 110,
+ "max_count": 0,
+ "is_equippable": true,
+ "is_stackable": false,
+ "purchase_quantity": 1,
+ "appearances": [
+  {
+   "key": {
+    "href": "https://us.api.blizzard.com/data/wow/item-appearance/64051?namespace=static-1.60.1_70399-forever-us"
+   },
+   "id": 64051
+  }
+ ]
+}

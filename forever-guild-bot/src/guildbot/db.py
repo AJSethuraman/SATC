@@ -49,7 +49,14 @@ CREATE TABLE IF NOT EXISTS known_recipes (
 CREATE TABLE IF NOT EXISTS recipes (
     profession TEXT NOT NULL, recipe_id INTEGER NOT NULL, name TEXT NOT NULL, category TEXT,
     fetched_at TEXT NOT NULL,
+    item_id INTEGER,            -- the item this recipe makes: NULL = not looked up yet, 0 = makes no item
     PRIMARY KEY (profession, recipe_id)
+);
+
+-- What recipes make, from Blizzard's static data.
+CREATE TABLE IF NOT EXISTS items (
+    item_id INTEGER PRIMARY KEY, name TEXT NOT NULL, quality TEXT, level INTEGER, required_level INTEGER,
+    item_class TEXT, item_subclass TEXT, inventory_type TEXT
 );
 
 CREATE TABLE IF NOT EXISTS equipment (
@@ -93,6 +100,10 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(SCHEMA)
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(recipes)")}
+        if "item_id" not in cols:                       # database created before recipes knew their item
+            self.conn.execute("ALTER TABLE recipes ADD COLUMN item_id INTEGER")
+            self.conn.commit()
 
     # ---- roster -------------------------------------------------------
     def upsert_member(self, slug, name, surname, level, rank, now) -> None:
@@ -248,15 +259,76 @@ class Database:
 
     # ---- recipes ------------------------------------------------------
     def replace_recipes(self, rows, now) -> None:
-        """Swap the whole recipe catalogue in one transaction. rows: (profession, recipe_id, name, category)."""
+        """Bring the recipe catalogue up to date in one transaction, keeping what we already looked up
+        (the item each recipe makes). rows: (profession, recipe_id, name, category)."""
         try:
-            self.conn.execute("DELETE FROM recipes")
-            self.conn.executemany("INSERT OR REPLACE INTO recipes VALUES (?,?,?,?,?)",
-                                  [(p, rid, n, cat, now) for p, rid, n, cat in rows])
+            self.conn.executemany(
+                """INSERT INTO recipes (profession, recipe_id, name, category, fetched_at) VALUES (?,?,?,?,?)
+                   ON CONFLICT(profession, recipe_id) DO UPDATE SET name=excluded.name,
+                     category=excluded.category, fetched_at=excluded.fetched_at""",
+                [(p, rid, n, cat, now) for p, rid, n, cat in rows])
+            self.conn.execute("DELETE FROM recipes WHERE fetched_at<>?", (now,))      # gone from Blizzard's list
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
+
+    def recipes_needing_item(self):
+        return self.conn.execute(
+            "SELECT DISTINCT recipe_id FROM recipes WHERE item_id IS NULL ORDER BY recipe_id").fetchall()
+
+    def set_recipe_item(self, recipe_id: int, item_id: int | None) -> None:
+        self.conn.execute("UPDATE recipes SET item_id=? WHERE recipe_id=?", (item_id or 0, recipe_id))
+        self.conn.commit()
+
+    def items_needed(self):
+        """Item ids that recipes make and that we have no item row for."""
+        return self.conn.execute(
+            """SELECT DISTINCT item_id FROM recipes WHERE item_id>0
+               AND item_id NOT IN (SELECT item_id FROM items) ORDER BY item_id""").fetchall()
+
+    def save_item(self, it) -> None:
+        self.conn.execute("INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?,?)",
+                          (it.item_id, it.name, it.quality, it.level, it.required_level,
+                           it.item_class, it.item_subclass, it.inventory_type))
+        self.conn.commit()
+
+    def item_facets(self, column: str, text: str = "", item_class: str | None = None, limit: int = 25):
+        """Distinct values (item_class / item_subclass / inventory_type) among craftable items, for dropdowns."""
+        assert column in ("item_class", "item_subclass", "inventory_type")
+        q = f"SELECT {column} AS name, COUNT(*) AS n FROM items WHERE {column} IS NOT NULL AND lower({column}) LIKE ?"
+        args: list = ["%" + text.strip().lower() + "%"]
+        if item_class:
+            q += " AND item_class=?"
+            args.append(item_class)
+        return self.conn.execute(q + f" GROUP BY {column} ORDER BY {column} LIMIT ?", (*args, limit)).fetchall()
+
+    def craftable(self, item_class=None, item_subclass=None, slot=None, min_level=None, max_level=None,
+                  profession=None, only_known=True, limit=200):
+        """Items that recipes make, filtered, each with the guild members who can make it. Highest level first."""
+        q = """SELECT i.item_id, i.name, i.quality, i.required_level, i.item_class, i.item_subclass, i.inventory_type,
+                 r.profession,
+                 (SELECT GROUP_CONCAT(c.name || COALESCE(' ' || c.surname, ''), ', ')
+                    FROM known_recipes k JOIN characters c ON c.slug=k.slug
+                   WHERE k.profession=r.profession AND k.recipe_id=r.recipe_id AND c.in_guild=1) AS knowers
+               FROM recipes r JOIN items i ON i.item_id=r.item_id WHERE 1=1"""
+        args: list = []
+        for col, val in (("i.item_class", item_class), ("i.item_subclass", item_subclass),
+                         ("i.inventory_type", slot), ("r.profession", profession)):
+            if val:
+                q += f" AND lower({col})=?"
+                args.append(val.strip().lower())
+        if min_level is not None:
+            q += " AND COALESCE(i.required_level,0)>=?"
+            args.append(min_level)
+        if max_level is not None:
+            q += " AND COALESCE(i.required_level,0)<=?"
+            args.append(max_level)
+        if only_known:
+            q += """ AND EXISTS (SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
+                                  WHERE k.profession=r.profession AND k.recipe_id=r.recipe_id AND c.in_guild=1)"""
+        return self.conn.execute(q + " ORDER BY COALESCE(i.required_level,0) DESC, i.name LIMIT ?",
+                                 (*args, limit)).fetchall()
 
     def catalog_professions(self, text: str = ""):
         return self.conn.execute(

@@ -123,3 +123,44 @@ async def sync_recipe_catalog(db: Database, client, force: bool = False) -> int:
     db.replace_recipes(rows, now)
     db.set_meta("recipes_at", now)
     return len(rows)
+
+
+async def sync_item_catalog(db: Database, client, concurrency: int = 8, budget: int = 6000) -> tuple[int, int]:
+    """Look up, for every recipe, the item it makes and that item's class, slot and level. Only what is
+    still missing is fetched, so after the first run this is a handful of calls. Returns (recipes, items)
+    looked up this time. A single bad response is logged and skipped; it never stops the rest."""
+    import logging
+    log = logging.getLogger("guildbot")
+    sem = asyncio.Semaphore(concurrency)
+    done = {"recipes": 0, "items": 0}
+    calls = {"n": 0}
+
+    async def guarded(fetch, arg):
+        async with sem:
+            calls["n"] += 1
+            return await fetch(arg)
+
+    async def one_recipe(rid: int) -> None:
+        try:
+            db.set_recipe_item(rid, bz.parse_recipe_item(await guarded(client.recipe, rid)))
+            done["recipes"] += 1
+        except bz.NotFound:
+            db.set_recipe_item(rid, None)             # no such recipe in the data: do not ask again
+        except Exception as e:  # noqa: BLE001
+            log.warning("recipe %s skipped: %s", rid, e)
+
+    todo = [r["recipe_id"] for r in db.recipes_needing_item()][:budget]
+    await asyncio.gather(*(one_recipe(r) for r in todo))
+
+    async def one_item(iid: int) -> None:
+        try:
+            db.save_item(bz.parse_catalog_item(await guarded(client.item, iid)))
+            done["items"] += 1
+        except bz.NotFound:
+            db.save_item(bz.CatalogItem(iid, f"Item {iid}", None, None, None, None, None, None))
+        except Exception as e:  # noqa: BLE001
+            log.warning("item %s skipped: %s", iid, e)
+
+    todo_items = [r["item_id"] for r in db.items_needed()][:max(0, budget - calls["n"])]
+    await asyncio.gather(*(one_item(i) for i in todo_items))
+    return done["recipes"], done["items"]

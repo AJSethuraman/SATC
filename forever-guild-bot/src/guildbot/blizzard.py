@@ -60,6 +60,19 @@ class Item:
     quality: str | None
 
 
+@dataclass(frozen=True)
+class CatalogItem:
+    """An item from Blizzard's static data (what a recipe makes), not something a character wears."""
+    item_id: int
+    name: str
+    quality: str | None
+    level: int | None
+    required_level: int | None
+    item_class: str | None        # Weapon, Armor, Consumable, ...
+    item_subclass: str | None     # Sword, Plate, Cloth, ...
+    inventory_type: str | None    # One-Hand, Chest, Head, ...
+
+
 def _name(v: Any) -> str | None:
     """Blizzard names are sometimes a string, sometimes {'en_US': ...}, sometimes {'name': ...}."""
     if v is None:
@@ -143,6 +156,25 @@ def parse_professions(payload: dict) -> list[Profession]:
         merged[p.name].update(dict(p.recipes))
     return [Profession(p.name, p.skill, p.max_skill, tuple(sorted(merged[p.name].items())))
             for p in best.values()]
+
+
+def parse_recipe_item(payload: dict) -> int | None:
+    """The item a recipe makes, or None when it makes none (enchants and the like)."""
+    if "id" not in payload or "name" not in payload:
+        raise BlizzardError(f"recipe response not recognised (keys: {sorted(payload)})")
+    ci = payload.get("crafted_item")
+    return int(ci["id"]) if isinstance(ci, dict) and ci.get("id") is not None else None
+
+
+def parse_catalog_item(payload: dict) -> CatalogItem:
+    if "id" not in payload or "name" not in payload:
+        raise BlizzardError(f"item response not recognised (keys: {sorted(payload)})")
+    return CatalogItem(
+        item_id=int(payload["id"]), name=_name(payload["name"]) or "?",
+        quality=_name(payload.get("quality")), level=payload.get("level"),
+        required_level=payload.get("required_level"),
+        item_class=_name(payload.get("item_class")), item_subclass=_name(payload.get("item_subclass")),
+        inventory_type=_name(payload.get("inventory_type")))
 
 
 # ---- static data: every profession and every recipe it has, same for all players ----------------
@@ -252,3 +284,9 @@ class BlizzardClient:
 
     async def skill_tier(self, profession_id: int, tier_id: int) -> dict:
         return await self.get(f"/data/wow/profession/{profession_id}/skill-tier/{tier_id}", self.static_namespace)
+
+    async def recipe(self, recipe_id: int) -> dict:
+        return await self.get(f"/data/wow/recipe/{recipe_id}", self.static_namespace)
+
+    async def item(self, item_id: int) -> dict:
+        return await self.get(f"/data/wow/item/{item_id}", self.static_namespace)

@@ -155,7 +155,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan"}
+                     "recipes", "whocan", "craftable"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -641,3 +641,47 @@ def test_recipe_catalogue_and_who_can_craft(tmp_path):
     assert db.who_can_craft("Nothing") == []
     db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225)], utcnow())   # a re-sync with none
     assert db.who_can_craft("camp chair") == []
+
+
+def test_real_forever_recipe_and_item_shapes():
+    assert bz.parse_recipe_item(_fx("recipe")) == 2847
+    it = bz.parse_catalog_item(_fx("item"))
+    assert (it.item_id, it.name, it.quality, it.required_level) == (2847, "Copper Shortsword", "Uncommon", 4)
+    assert (it.item_class, it.item_subclass, it.inventory_type) == ("Weapon", "Sword", "One-Hand")
+    assert bz.parse_recipe_item({"id": 1, "name": "Enchant Thing"}) is None          # makes no item
+    for fn in (bz.parse_recipe_item, bz.parse_catalog_item):
+        with pytest.raises(bz.BlizzardError):
+            fn({"renamed": 1})
+
+
+class ItemClient(RecipeClient):
+    async def recipe(self, rid):
+        r = dict(_fx("recipe")); r["id"] = rid
+        if rid == 57017:
+            r.pop("crafted_item")                                                       # a recipe that makes nothing
+        return r
+
+    async def item(self, iid):
+        return _fx("item")
+
+
+def test_craftable_finds_items_by_kind_and_level_with_who_can_make_them(tmp_path):
+    from guildbot.sync import sync_item_catalog, sync_recipe_catalog
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    client = ItemClient(ROSTER)
+    asyncio.run(sync_recipe_catalog(db, client))
+    db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225, ((52644, "Camp Chair"),))], utcnow())
+    assert asyncio.run(sync_item_catalog(db, client)) == (3, 1)          # 3 distinct recipe ids, 1 distinct item
+    assert asyncio.run(sync_item_catalog(db, client)) == (0, 0)          # nothing left to look up
+    assert [r["name"] for r in db.item_facets("item_class")] == ["Weapon"]
+    assert [r["name"] for r in db.item_facets("item_subclass", "sw")] == ["Sword"]
+    rows = db.craftable("Weapon", "Sword", "One-Hand", 1, 10, only_known=True)
+    assert [(r["name"], r["profession"], r["knowers"]) for r in rows] == [("Copper Shortsword", "Skinning", "Anduin Wrynn")]
+    assert db.craftable("Armor") == [] and db.craftable("Weapon", min_level=5) == []
+    assert db.craftable("Weapon", profession="Mining") == []                 # nobody known for Mining
+    assert len(db.craftable("Weapon", only_known=False)) >= 2               # everything that exists
+    # the recipe list refresh keeps what was already looked up
+    asyncio.run(sync_recipe_catalog(db, client, force=True))
+    assert db.recipes_needing_item() == []
+    assert len(db.craftable("Weapon", min_level=1, only_known=False)) >= 2
