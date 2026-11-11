@@ -91,7 +91,7 @@ def raid_embed(db: Database, raid) -> discord.Embed:
         lines = [R.format_entry(s) + (f" (wants {R.ROLE_SINGULAR[s['wanted']]})" if role == "bench" and s["wanted"] else "")
                  for s in g[role]]
         cap = R.caps_of(raid).get(role)
-        e.add_field(name=f"{R.ROLE_EMOJI[role]} {R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
+        e.add_field(name=f"{R.ROLE_EMOJI[role] + ' ' if R.ROLE_EMOJI[role] else ''}{R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
                     value=clip(lines, 1024) or "—", inline=role in ("tank", "healer", "dps"))
     times = [x["profile_at"] for rows in g.values() for x in rows if x["profile_at"]]
     e.set_footer(text=f"Character data as of {min(times)} UTC (oldest shown)" if times

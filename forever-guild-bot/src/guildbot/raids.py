@@ -10,8 +10,8 @@ ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Benc
               "absent": "Can't make it"}
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
-ROLE_EMOJI = {"tank": "🟦", "healer": "🟩", "dps": "🟥", "bench": "🪑",
-              "tentative": "🟨", "absent": "⬜"}      # blue, green, red, chair, yellow, white
+ROLE_EMOJI = {"tank": "🟦", "healer": "🟩", "dps": "🟥", "bench": "",
+              "tentative": "🟨", "absent": "⬜"}      # blue, green, red, (none), yellow, white
 # How long a bench player has to answer "a spot opened up" depends on how far off the raid is:
 OFFER_SHARE = 0.30            # 30% of the time left until the start ...
 OFFER_MIN_MINUTES = 15        # ... but never less than this ...
