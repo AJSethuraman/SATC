@@ -46,7 +46,7 @@ function Combat.new(opts)
     rng = Sim.rng(opts.seed or 1),
     player = { x = 300, y = 40, tx = nil, ty = nil, level = 1, xp = 0, st = st,
                maxlife = 60, life = 60, maxmana = 33, mana = 33 },
-    monsters = {}, projectiles = {}, log = {},
+    monsters = {}, projectiles = {}, events = {},
   }
   return w
 end
@@ -74,6 +74,7 @@ local function hit(w, id, m)
   local resist = Tree.effective_resist(p.st, sk.element, m.resist[sk.element] or 0)
   local dmg = math.max(0, Tree.after_resist(roll(w, lo, hi), resist))
   m.life = m.life - dmg
+  w.events[#w.events + 1] = { k = "hit", id = id, x = m.x, y = m.y, dmg = dmg }
   if dmg > 0 and sk.effect then
     local lvl = Tree.points_in(p.st, id)
     local val = sk.effect.base + sk.effect.per_level * (lvl - 1)
@@ -81,7 +82,8 @@ local function hit(w, id, m)
     elseif sk.effect.type == "freeze_chance_pct" and w.rng() * 100 < val then m.freeze = Combat.FREEZE_SECONDS end
   end
   if m.life <= 0 and not m.dead then
-    m.dead = true
+    m.dead, m.died_at = true, w.time
+    w.events[#w.events + 1] = { k = "kill", x = m.x, y = m.y, xp = m.xp }
     p.xp = p.xp + m.xp
     while p.xp >= Combat.xp_for_next(p.level) do
       p.xp = p.xp - Combat.xp_for_next(p.level)
@@ -89,6 +91,7 @@ local function hit(w, id, m)
       p.st.level = p.level
       p.maxlife, p.maxmana = p.maxlife + 6, p.maxmana + 3
       p.life, p.mana = p.maxlife, p.maxmana          -- a level-up refills both
+      w.events[#w.events + 1] = { k = "level", level = p.level }
     end
   end
   return dmg
@@ -96,6 +99,7 @@ end
 
 local function explode(w, id, cx, cy)
   local radius = Combat.SHAPES[id].radius
+  w.events[#w.events + 1] = { k = "blast", id = id, x = cx, y = cy, r = radius }
   for _, m in ipairs(w.monsters) do
     if not m.dead and dist(cx, cy, m.x, m.y) <= radius + m.radius then hit(w, id, m) end
   end
@@ -217,6 +221,13 @@ function Combat.restore(w, snap)
     end
   end
   return true
+end
+
+-- Hand over what happened since the last call (hits, blasts, kills, level-ups) so the screen can show it.
+function Combat.drain(w)
+  local e = w.events
+  w.events = {}
+  return e
 end
 
 function Combat.alive_monsters(w)

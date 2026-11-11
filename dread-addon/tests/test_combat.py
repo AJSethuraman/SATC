@@ -291,3 +291,31 @@ def test_restore_does_not_trust_a_hand_edited_save(env):
     assert st.points["made_up"] is None and st.points["frostbolt"] is None
     assert ns.Tree.points_spent(st) <= ns.Tree.points_total(st)
     assert ns.Combat.restore(w, "garbage") is False
+
+
+# ---------------------------------------------------------------- what the screen is told
+def kinds(ns, w):
+    ev = ns.Combat.drain(w)
+    return [ev[i].k for i in range(1, len(ev) + 1)], ev
+
+
+def test_events_report_hits_blasts_kills_and_levels(env):
+    lua, ns = env
+    w = world(env, rng=0, fireball=1)
+    monster(env, w, 300, 200, life=1, xp=10, speed=0)
+    cast(ns, w, "fireball", 300, 200)
+    run(ns, w, 1.0)
+    ks, ev = kinds(ns, w)
+    assert ks.count("blast") == 1 and ks.count("hit") == 1 and ks.count("kill") == 1 and ks.count("level") == 1
+    hit = [ev[i] for i in range(1, len(ev) + 1) if ev[i].k == "hit"][0]
+    assert hit.dmg == pytest.approx(30.0) and hit.x == 300 and hit.y == 200
+
+
+def test_draining_empties_the_list(env):
+    lua, ns = env
+    w = world(env, scorch=1)
+    monster(env, w, 300, 120, life=50, speed=0)
+    cast(ns, w, "scorch", 300, 120)
+    run(ns, w, 1.0)
+    assert len(kinds(ns, w)[0]) >= 1
+    assert kinds(ns, w)[0] == []

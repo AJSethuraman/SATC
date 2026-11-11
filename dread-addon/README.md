@@ -27,12 +27,20 @@ no Blizzard D2 assets, no copied code.
 6. `/dread results` reprints both. They are also saved in `DreadDB.results` in `WTF/.../SavedVariables/Dread.lua`.
 7. Paste the results below.
 
+## Play it (beta, first playable)
+`/dread play` opens the game window. Your own character is the player and the monsters are WoW's own 3D models.
+- **Left click** walk. **Right click** cast the selected spell at the cursor. **1 to 9** pick a spell. **K** skill tree.
+- Waves come from the top of the field. Kill them for experience; each level gives a skill point and refills life and mana.
+- A new character has one point: press K and spend it. Your level and points are saved; `/dread reset` starts over.
+- Castable so far: Scorch, Frostbolt, Ice Lance, Arcing Bolts, Lightning Bolt, Fireball, Glacial Spike, Frost Nova, Thunder Nova. The other skills show "Not castable yet" in their tooltip.
+
 ## Results (fill in)
 | Test | Date | Result | Notes |
 |---|---|---|---|
 | 1 loop speed | 11 Nov 2026 | **PASS** | FPS avg 71.2, min 57.4, 299 samples (cap 72). Lua memory 210,071 -> 210,465 KB (+0.2%). The memory figure is all addons together, not just Dread. |
 | 2 icons | 11 Nov 2026 | **PASS** | 20/20 drew, no green squares (screenshot). |
 | 2 sounds | 11 Nov 2026 | **PASS by ID, FAIL by path** | `PlaySound` with SOUNDKIT: 3 of 3 returned true and were heard. `PlaySoundFile` with a path: 2 of 2 returned nil (guessed paths, so maybe just wrong). v0.1 uses sound IDs. |
+| 3 visuals | 11 Nov 2026 | **PASS for models, FAIL for spell-effect paths** | Your character, your target and 6 creature ids drew as 3D models (they need a few seconds to load). `SetModel` with a spell-effect path failed ("Invalid model file: FileData ID 0"). Texture paths all drew; the two world-map ones are parchment art, not terrain. |
 | 2 music | 11 Nov 2026 | **UNCONFIRMED, not needed** | Undercity path returned true. Not confirmed by ear (music volume 0.4 on master 0.1, and the track wasn't known). Left out of v0.1. |
 
 **Decision, 11 Nov 2026: GO.** Loop speed has a lot of room (71 FPS with 100 moving objects), icons all draw, and sound works by ID. Start v0.1, with sound by ID only and no music.
