@@ -30,8 +30,10 @@ no Blizzard D2 assets, no copied code.
 |---|---|---|---|
 | 1 loop speed | 11 Nov 2026 | **PASS** | FPS avg 71.2, min 57.4, 299 samples (cap 72). Lua memory 210,071 -> 210,465 KB (+0.2%). The memory figure is all addons together, not just Dread. |
 | 2 icons | 11 Nov 2026 | **PASS** | 20/20 drew, no green squares (screenshot). |
-| 2 sounds | 11 Nov 2026 | **PARTIAL** | By ID (`PlaySound` with SOUNDKIT): 3 of 3 returned true. By path (`PlaySoundFile`): 2 of 2 returned nil, which may just be wrong guessed paths. Whether the ID sounds were heard is not yet confirmed. |
-| 2 music | 11 Nov 2026 | **UNCONFIRMED** | Undercity path returned true. Not yet confirmed by ear. |
+| 2 sounds | 11 Nov 2026 | **PASS by ID, FAIL by path** | `PlaySound` with SOUNDKIT: 3 of 3 returned true and were heard. `PlaySoundFile` with a path: 2 of 2 returned nil (guessed paths, so maybe just wrong). v0.1 uses sound IDs. |
+| 2 music | 11 Nov 2026 | **UNCONFIRMED, not needed** | Undercity path returned true. Not confirmed by ear (music volume 0.4 on master 0.1, and the track wasn't known). Left out of v0.1. |
+
+**Decision, 11 Nov 2026: GO.** Loop speed has a lot of room (71 FPS with 100 moving objects), icons all draw, and sound works by ID. Start v0.1, with sound by ID only and no music.
 
 The icon, sound and music names in `Dread/Dread.lua` are candidates, not known-good paths. Failing ones are the finding. If paths fail, list which, and fall back to shipping our own art.
 
