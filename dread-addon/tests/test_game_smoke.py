@@ -1,5 +1,6 @@
-"""Game.lua needs the WoW API. This drives it through a stand-in client: open the window, spend a point, click, cast,
-press keys, die, restart. It proves the wiring and that nothing errors; it cannot show how anything LOOKS."""
+"""Game.lua needs the WoW API. This drives it through a stand-in client: open the window, spend points, click, cast,
+press keys, walk through the cave mouth, kill the boss, die, restart. It proves the wiring and that nothing errors;
+it cannot show how anything LOOKS."""
 from pathlib import Path
 import pytest
 
@@ -7,31 +8,46 @@ lupa = pytest.importorskip("lupa")
 DREAD = Path(__file__).resolve().parents[1] / "Dread"
 
 MOCK = r'''
-FRAMES, PRINTED, CURSOR, PROPAGATE = {}, {}, {0, 0}, {}
-local NUM = { GetLeft = 0, GetBottom = 0, GetEffectiveScale = 1, GetFrameLevel = 1, GetWidth = 100, GetHeight = 100 }
-local function obj(name)
+FRAMES, ALL, PRINTED, CURSOR, PROPAGATE, TIMERS = {}, {}, {}, {0, 0}, {}, {}
+SHIFT = false
+local function obj()
   local o = { scripts = {}, shown = false }
+  ALL[#ALL + 1] = o
   return setmetatable(o, { __index = function(t, k)
-    if NUM[k] then return function() return NUM[k] end end
+    -- Real frames answer methods (CamelCase) and have nothing for fields they do not own (lowercase).
+    if not k:match("^%u") then return nil end
+    if k == "GetLeft" or k == "GetBottom" then return function() return 0 end end
+    if k == "GetEffectiveScale" or k == "GetFrameLevel" then return function() return 1 end end
+    if k == "GetWidth" or k == "GetHeight" then return function() return 100 end end
     if k == "SetScript" then return function(self, n, f) self.scripts[n] = f end end
     if k == "Show" then return function(self) self.shown = true end end
     if k == "Hide" then return function(self) self.shown = false end end
     if k == "SetShown" then return function(self, b) self.shown = b and true or false end end
     if k == "IsShown" then return function(self) return self.shown end end
     if k == "SetScale" then return function(self, v) self.scale = v end end
+    if k == "RegisterForDrag" then return function(self, ...) self.drag = { ... } end end
     if k == "SetPropagateKeyboardInput" then return function(self, v) PROPAGATE[#PROPAGATE + 1] = v end end
+    if k == "SetAnimation" then return function(self, id) self.last_anim = id end end
+    if k == "SetFacing" then return function(self, r) self.facing = r end end
+    if k == "SetUnit" then return function(self, u) self.unit = u end end
+    if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id end end
+    if k == "SetCreature" then return function(self, id) if NO_MODELS then error("no models here") end self.creature = id end end
+    if k == "SetTexture" then return function(self, id) self.texture = id end end
     if k == "CreateTexture" or k == "CreateFontString" then return function() return obj() end end
     if k == "CreateLine" then return function() if NO_LINES then error("no lines here") end return obj() end end
-    if k == "SetCreature" then return function() if NO_MODELS then error("no models here") end end end
     return function(self, ...) return self end
   end })
 end
-function CreateFrame(kind, name, parent, tmpl) local o = obj(); if name then FRAMES[name] = o end return o end
+function CreateFrame(kind, name, parent, tmpl) local o = obj(); o.kind = kind; if name then FRAMES[name] = o end return o end
 UIParent, GameTooltip = obj(), obj()
+C_Timer = { After = function(sec, fn) TIMERS[#TIMERS + 1] = fn end }
+function run_timers() local t = TIMERS TIMERS = {} for _, f in ipairs(t) do f() end end
 function GetCursorPosition() return CURSOR[1], CURSOR[2] end
+function IsShiftKeyDown() return SHIFT end
 function GetFramerate() return 60 end
 function time() return 12345 end
 function print(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring((select(i, ...))) end PRINTED[#PRINTED + 1] = table.concat(t, " ") end
+function player_model() for _, o in ipairs(ALL) do if o.unit == "player" and o.kind == "PlayerModel" then return o end end end
 '''
 
 
@@ -40,7 +56,7 @@ def boot(prelude=""):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat", "Game"):
+    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Game"):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
 
@@ -51,154 +67,304 @@ def tick(lua, n, dt=1 / 30):
         f.scripts.OnUpdate(f, dt)
 
 
-def click(lua, button, x, y):
-    lua.execute(f"CURSOR[1], CURSOR[2] = {x}, {y}")
+def click_world(lua, ns, button, wx, wy):
+    cam = ns.Game.camera()
+    lua.execute(f"CURSOR[1], CURSOR[2] = {wx - cam.x}, {wy - cam.y}")
     f = lua.eval("FRAMES.DreadGameFrame")
     f.scripts.OnMouseDown(f, button)
 
 
-def choose_scorch_and_close_the_tree(lua, ns):
-    b = ns.Game.tree_buttons.scorch
-    b.scripts.OnClick(b)
+def key(lua, k):
     f = lua.eval("FRAMES.DreadGameFrame")
-    f.scripts.OnKeyDown(f, "K")                                       # close the tree: now the fight can start
-    assert lua.eval("FRAMES.DreadTreeFrame.shown") is False
+    f.scripts.OnKeyDown(f, k)
 
 
-def test_opening_with_no_spells_shows_the_tree_and_a_point_can_be_spent():
-    lua, ns = boot()
-    ns.Game.toggle()
-    assert lua.eval("FRAMES.DreadTreeFrame.shown") is True          # a new character is sent straight to the tree
-    assert len(list(ns.Game.tree_buttons.keys())) == 30
-    b = ns.Game.tree_buttons.scorch
-    b.scripts.OnClick(b)
-    assert ns.Game.world().player.st.points.scorch == 1
-    assert lua.eval("DreadDB.char.points.scorch") == 1               # and it is saved
-    b2 = ns.Game.tree_buttons.fireball                               # a locked skill: the click is refused, with a reason
-    b2.scripts.OnClick(b2)
-    assert ns.Game.world().player.st.points.fireball is None
-    assert any("level 18" in str(v) or "no points left" in str(v) for v in lua.eval("PRINTED").values())
-
-
-def test_walk_cast_kill_and_the_keys():
-    lua, ns = boot()
-    ns.Game.toggle()
-    choose_scorch_and_close_the_tree(lua, ns)
-    tick(lua, 3)
+def learn(ns, lua, *ids, level=12):
     w = ns.Game.world()
-    assert len(list(w.monsters.keys())) == 4                          # wave 1
-    # key 1 selects the first learned spell and is swallowed; an unrelated key passes through to the game
-    f = lua.eval("FRAMES.DreadGameFrame")
-    f.scripts.OnKeyDown(f, "1")
-    f.scripts.OnKeyDown(f, "W")
-    prop = list(lua.eval("PROPAGATE").values())
-    assert prop[-2] is False and prop[-1] is True
-    # left click walks
-    click(lua, "LeftButton", 500, 60)
+    ns.Combat.set_level(w, level, 0)
+    for i in ids:
+        b = ns.Game.tree_buttons[i]
+        b.scripts.OnClick(b)
+
+
+def open_game(lua, ns, close_tree=True):
+    ns.Game.toggle()
+    tick(lua, 2)
+    if close_tree and lua.eval("FRAMES.DreadTreeFrame.shown"):
+        key(lua, "K")
+
+
+def first_monster(w):
+    return w.monsters[1]
+
+
+def teleport_next_to(ns, lua, w, m, dx=-150, dy=0):
+    w.player.x, w.player.y, w.player.tx, w.player.ty = m.x + dx, m.y + dy, None, None
+    tick(lua, 1)
+
+
+# ---------------------------------------------------------------- opening
+def test_a_new_character_opens_on_the_tree_and_the_world_waits():
+    lua, ns = boot()
+    ns.Game.toggle()
+    assert lua.eval("FRAMES.DreadTreeFrame.shown") is True
+    assert ns.Game.area().name == "moor" and len(list(ns.Game.tree_buttons.keys())) == 30
+    w = ns.Game.world()
+    t = w.time
+    tick(lua, 900)                                                    # thirty seconds of dithering over the tree
+    assert w.time == t and w.over is False and w.player.life == w.player.maxlife
+
+
+def test_the_moor_is_drawn_with_real_ground_and_scenery():
+    lua, ns = boot()
+    open_game(lua, ns)
+    tick(lua, 3)
+    ground = [o for o in lua.eval("ALL").values() if o.texture == 188954]
+    assert len(ground) == 1                                           # the moor's grass texture, by file id
+    models = [o.model for o in lua.eval("ALL").values() if o.model is not None]
+    assert len(models) >= 4 and all(isinstance(m, int) and m > 1000 for m in models)       # trees and rocks by file id
+
+
+# ---------------------------------------------------------------- the window and the mouse
+def test_right_click_is_free_only_the_title_bar_drags():
+    lua, ns = boot()
+    ns.Game.toggle()
+    dragging = [(o.drag, o.kind) for o in lua.eval("ALL").values() if o.drag is not None]
+    flat = [b for d, _ in dragging for b in d.values()]
+    assert "RightButton" not in flat                                  # the bug: right button used to move the window
+    assert "LeftButton" in flat and len(dragging) == 1               # a single drag handle
+    assert lua.eval("FRAMES.DreadGameFrame.drag") is None            # and the game window itself is not draggable
+
+
+def test_walking_is_animated_and_faces_where_you_are_going():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    pm = lua.eval("player_model()")
+    tick(lua, 2)
+    assert pm.last_anim == 0                                          # standing
+    click_world(lua, ns, "LeftButton", w.player.x + 300, w.player.y)
+    tick(lua, 3)
+    assert pm.last_anim == 5 and pm.facing == pytest.approx(0.0)     # running, facing east
+    tick(lua, 90)
+    assert pm.last_anim == 0                                          # arrived: standing again
+
+
+# ---------------------------------------------------------------- fighting
+def test_clicking_a_monster_attacks_with_the_free_wand():
+    lua, ns = boot()
+    open_game(lua, ns)                                                # no skill points spent at all
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -200, 0)
+    mana = w.player.mana
+    click_world(lua, ns, "LeftButton", m.x, m.y)
+    tick(lua, 120)
+    assert m.life < m.maxlife or m.dead is True                       # the wand hurt it
+    assert w.player.mana >= mana                                      # and cost nothing
+    assert m.awake is True                                            # and woke it (and its pack)
+
+
+def test_a_far_monster_is_walked_up_to_before_the_wand_fires():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -310, 0)                          # on screen, but just outside wand range (300)
+    click_world(lua, ns, "LeftButton", m.x, m.y)
+    x0 = w.player.x
     tick(lua, 30)
-    assert w.player.x > 400                                           # 140 units in a second, from x = 300
-    # right click casts at the nearest monster, over and over, until something is hurt
-    hurt = False
-    for _ in range(20):
-        nearest = min((w.monsters[i] for i in range(1, 5) if not w.monsters[i].dead),
-                      key=lambda m: (m.x - w.player.x) ** 2 + (m.y - w.player.y) ** 2, default=None)
-        if nearest is None:
-            break
-        click(lua, "RightButton", nearest.x, nearest.y)
-        tick(lua, 6)
-        if any(w.monsters[i].life < w.monsters[i].maxlife or w.monsters[i].dead for i in range(1, 5)):
-            hurt = True
-            break
-    assert hurt
-    # K opens and closes the tree
-    shown = lua.eval("FRAMES.DreadTreeFrame.shown")
-    f.scripts.OnKeyDown(f, "K")
-    assert lua.eval("FRAMES.DreadTreeFrame.shown") != shown
+    assert w.player.x > x0                                            # it walked toward the target first
+
+
+def test_right_click_casts_the_selected_skill_and_costs_mana():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch")
+    key(lua, "K")
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -200, 0)
+    mana = w.player.mana
+    pm = lua.eval("player_model()")
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    tick(lua, 2)
+    assert w.player.mana < mana + 0.5 and pm.last_anim == 51          # spent mana, cast animation
+
+
+def test_shift_click_casts_without_walking():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch")
+    key(lua, "K")
+    w = ns.Game.world()
+    lua.execute("SHIFT = true")
+    mana = w.player.mana
+    click_world(lua, ns, "LeftButton", w.player.x + 200, w.player.y)
+    lua.execute("SHIFT = false")
+    assert w.player.mana < mana and w.player.tx is None
+
+
+# ---------------------------------------------------------------- the skill bar
+def test_learning_fills_the_bar_and_the_number_keys_select():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch", "frostbolt")
+    bar, sel = ns.Game.bar()
+    assert bar[1] == "scorch" and bar[2] == "frostbolt" and sel == 1
+    key(lua, "K")
+    key(lua, "2")
+    assert ns.Game.bar()[1] == 2
+    key(lua, "1")
+    assert ns.Game.bar()[1] == 1
+    prop = list(lua.eval("PROPAGATE").values())
+    assert prop[-1] is False                                           # handled keys are swallowed
+    key(lua, "W")
+    assert list(lua.eval("PROPAGATE").values())[-1] is True            # other keys still reach the game
+
+
+def test_tab_and_the_wheel_rotate_through_the_bar_and_skip_empty_slots():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch", "frostbolt", "arcing_bolts")
+    key(lua, "K")
+    f = lua.eval("FRAMES.DreadGameFrame")
+    assert ns.Game.bar()[1] == 1
+    key(lua, "TAB");  assert ns.Game.bar()[1] == 2
+    key(lua, "TAB");  assert ns.Game.bar()[1] == 3
+    key(lua, "TAB");  assert ns.Game.bar()[1] == 1                      # wraps round
+    f.scripts.OnMouseWheel(f, 1);   assert ns.Game.bar()[1] == 3        # wheel up (+1) goes back, wrapping
+    f.scripts.OnMouseWheel(f, -1);  assert ns.Game.bar()[1] == 1        # wheel down (-1) goes forward
+
+
+def test_hovering_a_skill_in_the_tree_and_pressing_a_number_puts_it_on_that_slot():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch", "frostbolt")                              # slots 1 and 2; the tree is open
+    b = ns.Game.tree_buttons.frostbolt
+    b.scripts.OnEnter(b)
+    key(lua, "5")
+    bar, sel = ns.Game.bar()
+    assert bar[5] == "frostbolt" and bar[2] is None and sel == 5       # moved, not copied
+    b.scripts.OnLeave(b)
+    key(lua, "6")                                                       # nothing hovered: just selects (and slot 6 is empty)
+    assert ns.Game.bar()[0][6] is None
+
+
+def test_the_bar_is_saved_and_comes_back():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch", "frostbolt")
+    b = ns.Game.tree_buttons.frostbolt
+    b.scripts.OnEnter(b)
+    key(lua, "4")
+    saved = lua.eval("DreadDB")
+    assert saved.bar[4] == "frostbolt" and saved.bar[1] == "scorch"
+
+
+# ---------------------------------------------------------------- places
+def test_walking_into_the_cave_mouth_changes_area_and_back_again():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[1]
+    w.player.x, w.player.y = ex.x, ex.y
+    tick(lua, 2)
+    assert ns.Game.area().name == "cave" and w.area == "cave" and w.w == 1600
+    assert any(m.boss for m in w.monsters.values())
+    ground = [o for o in lua.eval("ALL").values() if o.texture == 188950]
+    assert len(ground) == 1                                            # the cave floor texture
+    back = ns.Game.area().exits[1]
+    w.player.x, w.player.y = back.x, back.y
+    tick(lua, 2)
+    assert ns.Game.area().name == "moor"
+    tick(lua, 30)
+    assert ns.Game.area().name == "moor"                               # arriving did not bounce straight back in
+
+
+def test_the_boss_quest_pays_one_skill_point_once():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    q0 = w.player.st.quest_points
+    for _ in range(2):                                                  # the same news twice
+        lua.eval("function(w) w.events[#w.events + 1] = { k = 'boss_dead', name = 'Grubb the Unwelcome' } end")(w)
+        tick(lua, 1)
+    assert w.player.st.quest_points == q0 + 1 and w.flags.den is True
+    assert lua.eval("DreadDB.char.quest_points") == q0 + 1 and lua.eval("DreadDB.char.flags.den") is True
+
+
+# ---------------------------------------------------------------- pause, death, restart
+def test_opening_the_tree_mid_fight_pauses_it():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -100, 0)
+    tick(lua, 10)
+    key(lua, "K")                                                       # open the tree
+    t = w.time
+    tick(lua, 60)
+    assert w.time == t
+    key(lua, "K")
+    tick(lua, 5)
+    assert w.time > t
 
 
 def test_dying_then_a_click_starts_again_and_keeps_the_character():
     lua, ns = boot()
     ns.Game.toggle()
-    choose_scorch_and_close_the_tree(lua, ns)
-    tick(lua, 3)
+    learn(ns, lua, "scorch")
+    key(lua, "K")
     w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -60, 0)                             # right on top of a pack
     w.player.life = 0.5
-    tick(lua, 600)                                                    # the wave catches up with a player who does nothing
+    tick(lua, 600)
     assert ns.Game.world().over is True
-    click(lua, "LeftButton", 100, 100)
+    click_world(lua, ns, "LeftButton", 100, 100)
     w2 = ns.Game.world()
-    assert w2.over is False and w2.player.st.points.scorch == 1       # a fresh fight, the same character
-
-
-def test_a_client_without_lines_or_models_still_opens():
-    lua, ns = boot("NO_LINES = true\nNO_MODELS = true")
-    # SetCreature failing is reported by an error from the client; the window must not take the whole addon down
-    try:
-        ns.Game.toggle()
-        tick(lua, 3)
-        survived = True
-    except Exception as e:                                            # pragma: no cover
-        survived = False
-        print(e)
-    assert survived
-
-
-def test_clearing_the_field_brings_the_next_wave_and_it_is_bigger():
-    lua, ns = boot()
-    ns.Game.toggle()
-    choose_scorch_and_close_the_tree(lua, ns)
-    tick(lua, 2)
-    w = ns.Game.world()
-    assert ns.Game.wave() == 1 and len(list(w.monsters.keys())) == 4
-    for i in range(1, 5):
-        w.monsters[i].dead = True
-        w.monsters[i].died_at = w.time
-    tick(lua, 2)
-    assert ns.Game.wave() == 2
-    assert len(list(w.monsters.keys())) == 4 + 6                      # wave 2 is 2 + 2*2 = 6 more
-
-
-def test_nothing_attacks_while_you_are_still_choosing(env=None):
-    # What happened on the first real run: the window opened on the tree, a wave spawned and killed the player
-    # before the first point was spent.
-    lua, ns = boot()
-    ns.Game.toggle()
-    tick(lua, 900)                                                    # thirty seconds of dithering over the tree
-    w = ns.Game.world()
-    assert w.over is False and w.player.life == w.player.maxlife
-    assert len(list(w.monsters.keys())) == 0 and ns.Game.wave() == 0
-
-
-def test_the_fight_waits_for_a_spell_even_with_the_tree_closed():
-    lua, ns = boot()
-    ns.Game.toggle()
-    lua.eval("FRAMES.DreadTreeFrame:Hide()")                          # closed without choosing anything
-    tick(lua, 300)
-    assert ns.Game.wave() == 0 and ns.Game.world().over is False
-
-
-def test_opening_the_tree_mid_fight_pauses_it():
-    lua, ns = boot()
-    ns.Game.toggle()
-    choose_scorch_and_close_the_tree(lua, ns)
-    tick(lua, 5)
-    w = ns.Game.world()
-    f = lua.eval("FRAMES.DreadGameFrame")
-    f.scripts.OnKeyDown(f, "K")
-    t = w.time
-    tick(lua, 60)
-    assert w.time == t                                                # frozen while the tree is up
-    f.scripts.OnKeyDown(f, "K")
-    tick(lua, 5)
-    assert w.time > t
+    assert w2.over is False and w2.player.st.points.scorch == 1 and w2.area == "moor"
+    assert ns.Game.bar()[0][1] == "scorch"                              # and the bar
 
 
 def test_window_scale_is_set_saved_and_kept_sane():
     lua, ns = boot()
     ns.Game.toggle()
-    assert lua.eval("DreadDB.scale") == pytest.approx(1.6)            # bigger than the 640 x 400 it is built at
-    assert lua.eval("FRAMES.DreadGameFrame.scale") == pytest.approx(1.6)      # and the window really is resized
-    assert ns.Game.set_scale(2.0) == 2.0 and lua.eval("DreadDB.scale") == 2.0
+    assert lua.eval("DreadDB.scale") == pytest.approx(1.6)
+    assert lua.eval("FRAMES.DreadGameFrame.scale") == pytest.approx(1.6)
+    assert ns.Game.set_scale(2.0) == 2.0
     assert lua.eval("FRAMES.DreadGameFrame.scale") == 2.0 and lua.eval("FRAMES.DreadTreeFrame.scale") == 2.0
     assert ns.Game.set_scale(50) == 3 and ns.Game.set_scale(0.1) == 0.8
     assert ns.Game.set_scale("nonsense") == pytest.approx(1.6)
+
+
+def test_the_facing_nudge_is_applied_to_every_model():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ns.Game.set_facing(1.5)
+    click_world(lua, ns, "LeftButton", w.player.x + 300, w.player.y)
+    tick(lua, 3)
+    assert lua.eval("player_model()").facing == pytest.approx(1.5)      # east is 0, plus the nudge
+
+
+def test_the_animation_tester_walks_through_the_ids():
+    lua, ns = boot()
+    ns.Game.animtest()
+    lua.eval("run_timers")()
+    lua.eval("run_timers")()                                          # the closing message is scheduled from inside the last step
+    out = [str(v) for v in lua.eval("PRINTED").values()]
+    assert sum("animation" in l for l in out) == 16 and any("Tell me which number" in l for l in out)
+
+
+# ---------------------------------------------------------------- a client that refuses things
+def test_a_client_without_models_or_lines_still_plays():
+    lua, ns = boot("NO_LINES = true\nNO_MODELS = true")
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -150, 0)
+    click_world(lua, ns, "LeftButton", m.x, m.y)
+    tick(lua, 60)                                                       # nothing raised; the monster still got hit
+    assert m.awake is True

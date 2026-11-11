@@ -1,17 +1,27 @@
--- The playable window: draws the fight from Combat.lua with WoW's own art and takes the mouse and keys.
--- Left click walks. Right click casts the selected spell at the cursor. 1-9 select a spell. K opens the skill tree.
--- Everything about the rules lives in Combat.lua / Tree.lua; this file only draws and listens.
+-- The playable window: draws the world from Combat.lua / Zone.lua with WoW's own art and takes the mouse and keys.
+--   Left click   walk; click a monster to attack it with your wand (free, no mana)
+--   Right click  cast the selected skill at the cursor      Shift + left click  cast without moving
+--   1-8          select a skill slot                         Tab / mouse wheel   rotate to the next slot
+--   K            skill tree: hover a skill and press 1-8 to put it on that slot
+-- Drag the window by its title bar. The rules all live in Combat.lua / Tree.lua; this file draws and listens.
 local ADDON, ns = ...
-local Combat, Tree, Skills = ns.Combat, ns.Tree, ns.Skills
+local Combat, Tree, Skills, Zone = ns.Combat, ns.Tree, ns.Skills, ns.Zone
 
 local Game = {}
 ns.Game = Game
 
-local AW, AH = 640, 400            -- the arena, in the same units Combat.lua uses
-local HUD_H = 78
-local MAX_MONSTER_FRAMES = 16
+local VW, VH = 640, 400            -- the viewport, in the same units Combat.lua uses
+local HUD_H, TITLE_H = 92, 22
+local MAX_MON, MAX_DOODAD, MAX_PROJ, MAX_BLAST, MAX_FLOAT, MAX_DROP = 14, 22, 16, 6, 20, 8
+local SLOTS = 8
+local ATTACK_RANGE = 300           -- how close you get to a clicked monster before the wand starts firing
+local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 
--- Spell icons: guesses from memory of WoW's icon names, to be fixed from a screenshot if any draw as a green square.
+-- Animation ids (AnimationData). 0 stand, 1 death, 4 walk, 5 run, 16 unarmed attack are standard; the cast id is a
+-- guess to be corrected with /dread animtest.
+Game.ANIM = { STAND = 0, DEATH = 1, WALK = 4, RUN = 5, ATTACK = 16, CAST = 51 }
+
+-- Spell icons: guesses from memory of WoW's icon names.
 local ICONS = {
   scorch="Spell_Fire_SoulBurn", evocation="Spell_Nature_Purge", dragons_breath="Spell_Fire_Incinerate",
   blazing_speed="Spell_Fire_BurningSpeed", fireball="Spell_Fire_FlameBolt", flamestrike="Spell_Fire_SelfDestruct",
@@ -24,28 +34,32 @@ local ICONS = {
   arcing_bolts="Spell_Nature_Lightning", static_shock="Spell_Nature_LightningShield", force_pull="Spell_Nature_WispSplode",
   thunder_nova="Spell_Nature_ThunderClap", lightning_bolt="Spell_Nature_Lightning", chain_lightning="Spell_Nature_ChainLightning",
   blink="Spell_Arcane_Blink", storm_cloud="Spell_Nature_CallStorm", mana_shield="Spell_Shadow_DetectLesserInvisibility",
-  conductor="Spell_Nature_StormReach",
+  conductor="Spell_Nature_StormReach", wand="INV_Wand_07",
 }
 local function icon_path(id) return "Interface\\Icons\\" .. (ICONS[id] or "INV_Misc_QuestionMark") end
 
-local COLORS = { fire = {1, 0.45, 0.1}, cold = {0.45, 0.75, 1}, lightning = {0.75, 0.6, 1} }
+local COLORS = { fire = { 1, 0.45, 0.1 }, cold = { 0.45, 0.75, 1 }, lightning = { 0.75, 0.6, 1 }, physical = { 0.9, 0.9, 0.9 } }
+local function element_of(id) if id == "wand" then return "physical" end return Skills.byId[id].element end
 
--- The monsters of the moor. Models are WoW creature ids that drew in Test 3; names and numbers are placeholders.
-local BESTIARY = {
-  { name = "Moor Wolf",  cid = 299,  life = 20, speed = 75, dmg = { 2, 4 }, xp = 8 },
-  { name = "Tusker",     cid = 3098, life = 34, speed = 52, dmg = { 3, 6 }, xp = 12 },
-  { name = "Mudfin",     cid = 46,   life = 26, speed = 62, dmg = { 2, 5 }, xp = 11, resist = { cold = 50 } },
-  { name = "Brute",      cid = 6,    life = 44, speed = 55, dmg = { 3, 7 }, xp = 16 },
-  { name = "Gloom Imp",  cid = 3101, life = 22, speed = 78, dmg = { 2, 5 }, xp = 15, resist = { fire = 75 } },
-}
+-- Spell-effect models by fileDataID (from the community listfile; modern clients want ids, not paths).
+local PROJ_MODEL = { scorch = 166129, fireball = 166129, frostbolt = 166214, ice_lance = 166214, glacial_spike = 166214,
+                     arcing_bolts = 166497, lightning_bolt = 166497 }
+local PROJ_SCALE = { scorch = 0.6, ice_lance = 0.7, arcing_bolts = 0.5, glacial_spike = 1.3 }
+local BLAST_MODEL = { fire = 166114, cold = 166210, lightning = 166496 }
 
-local world, wave, selected = nil, 0, nil
-local frame, arena, hud, tree_frame
-local mframes, projs, floaters, flashes = {}, {}, {}, {}
-local player_model, player_bar
-local life_bar, mana_bar, xp_bar, info_text, hint_text, over_text
+local world, area, cam = nil, nil, { x = 0, y = 0 }
+local bar, sel = {}, 1
+local target, hover_id
+local toast_t = 0
+local frame, arena, hud, tree_frame, handle
+local ground
+local mon_f, doodad_f, proj_f, blast_f, float_f, drop_f = {}, {}, {}, {}, {}, {}
+local doodad_slot = {}                -- scenery piece -> its frame, so models are not reassigned as you walk
+local player_model
+local life_bar, mana_bar, xp_bar, info_text, hint_text, over_text, zone_text, toast_text, exit_marks
 local slots = {}
 Game.tree_buttons = {}
+Game.paused = false
 
 local function say(msg) print("|cffff5555Dread|r " .. msg) end
 
@@ -54,49 +68,99 @@ local function save()
   if not world then return end
   DreadDB = DreadDB or {}
   DreadDB.char = Combat.snapshot(world)
+  local b = {}
+  for i = 1, SLOTS do b[i] = bar[i] or false end
+  DreadDB.bar = b
 end
 
-local function new_world()
-  local seed = (time and time() or 1) % 2147483647
-  world = Combat.new({ w = AW, h = AH, seed = seed })
-  if DreadDB and DreadDB.char then Combat.restore(world, DreadDB.char) end
-  wave = 0
-  selected = nil
-end
-
----------------------------------------------------------------- monsters
-local function spawn_wave()
-  wave = wave + 1
-  local n = math.min(14, 2 + wave * 2)
-  for i = 1, n do
-    local t = BESTIARY[1 + math.floor(world.rng() * #BESTIARY)]
-    local res = { fire = 0, cold = 0, lightning = 0 }
-    for k, v in pairs(t.resist or {}) do res[k] = v end
-    local grow = 1 + (wave - 1) * 0.15           -- later waves hit harder and last longer
-    local m = Combat.add_monster(world, {
-      x = 40 + world.rng() * (AW - 80), y = AH - 20 - world.rng() * 60, life = math.floor(t.life * grow),
-      speed = t.speed, dmg = { t.dmg[1] * grow, t.dmg[2] * grow }, xp = t.xp, resist = res, radius = 14,
-    })
-    m.cid, m.name = t.cid, t.name
-  end
-end
-
----------------------------------------------------------------- drawing helpers
-local function tex(parent, layer) local t = parent:CreateTexture(nil, layer or "ARTWORK"); return t end
-local function fstr(parent, size) local f = parent:CreateFontString(nil, "OVERLAY", size or "GameFontNormal"); return f end
-
-local function arena_xy()
-  local cx, cy = GetCursorPosition()
-  local s = frame:GetEffectiveScale()
-  return cx / s - arena:GetLeft(), cy / s - arena:GetBottom()
-end
+local function castable(id) return Combat.SHAPES[id] ~= nil and id ~= "wand" end
 
 local function learned_spells()
   local list = {}
   for _, sk in ipairs(Skills) do
-    if Tree.points_in(world.player.st, sk.id) > 0 and Combat.SHAPES[sk.id] then list[#list + 1] = sk.id end
+    if Tree.points_in(world.player.st, sk.id) > 0 and castable(sk.id) then list[#list + 1] = sk.id end
   end
   return list
+end
+
+-- New spells go into the first empty slot; spells you no longer have leave the bar.
+local function sync_bar()
+  local changed = false
+  local have = {}
+  for i = 1, SLOTS do
+    local id = bar[i]
+    if id and Tree.points_in(world.player.st, id) < 1 then bar[i], changed = nil, true end
+    if bar[i] then have[bar[i]] = true end
+  end
+  for _, id in ipairs(learned_spells()) do
+    if not have[id] then
+      for i = 1, SLOTS do if not bar[i] then bar[i], have[id], changed = id, true, true; break end end
+    end
+  end
+  if not bar[sel] then
+    for i = 1, SLOTS do if bar[i] then sel = i; break end end
+  end
+  if changed then save() end
+end
+
+local function rotate(dir)
+  for step = 1, SLOTS do
+    local i = ((sel - 1 + dir * step) % SLOTS) + 1
+    if bar[i] then sel = i; return end
+  end
+end
+
+---------------------------------------------------------------- worlds and areas
+local function enter(name, arrive)
+  area = Zone.get(name)
+  Combat.enter(world, area)
+  if arrive then world.player.x, world.player.y = arrive.x, arrive.y end
+  target = nil
+  doodad_slot = {}
+  for _, f in ipairs(doodad_f) do f:Hide(); f.did = nil end
+  ground:SetTexture(area.ground, "REPEAT", "REPEAT")
+  ground:SetVertexColor(area.ground_tint[1], area.ground_tint[2], area.ground_tint[3])
+  toast_text:SetText(area.title); toast_t = 3
+end
+
+local function new_world()
+  local seed = (time and time() or 1) % 2147483647
+  world = Combat.new({ w = 2400, h = 1500, seed = seed })
+  if DreadDB and DreadDB.char then Combat.restore(world, DreadDB.char) end
+  bar = {}
+  if DreadDB and type(DreadDB.bar) == "table" then
+    for i = 1, SLOTS do local id = DreadDB.bar[i]; if type(id) == "string" and Skills.byId[id] then bar[i] = id end end
+  end
+  sel = 1
+  hover_id = nil
+  if frame then enter(Zone.START) end
+  sync_bar()
+end
+
+---------------------------------------------------------------- small helpers
+local function tex(parent, layer) return parent:CreateTexture(nil, layer or "ARTWORK") end
+local function fstr(parent, size) return parent:CreateFontString(nil, "OVERLAY", size or "GameFontNormal") end
+local function try(fn, ...) return pcall(fn, ...) end
+
+local function world_xy()                 -- the cursor, in world coordinates
+  local cx, cy = GetCursorPosition()
+  local s = frame:GetEffectiveScale()
+  return cx / s - arena:GetLeft() + cam.x, cy / s - arena:GetBottom() + cam.y
+end
+
+local function place(f, wx, wy, h)       -- feet of a model at a world position
+  f:ClearAllPoints()
+  f:SetPoint("BOTTOM", arena, "BOTTOMLEFT", wx - cam.x, wy - cam.y - h * 0.15)
+end
+
+local function depth(f, wy) f:SetFrameLevel(arena:GetFrameLevel() + 3 + math.floor((area.h - wy) / 6)) end
+
+local function set_anim(f, id)
+  if f.anim ~= id then try(f.SetAnimation, f, id); f.anim = id end
+end
+
+local function face(f, dx, dy)
+  if dx ~= 0 or dy ~= 0 then try(f.SetFacing, f, atan2(dy, dx) + (DreadDB and DreadDB.facing or 0)) end
 end
 
 ---------------------------------------------------------------- the tree window
@@ -113,16 +177,17 @@ local function tooltip(btn, id)
     for _, p in ipairs(sk.prereqs) do names[#names + 1] = Skills.byId[p].name end
     GameTooltip:AddLine("Needs: " .. table.concat(names, ", "), 0.9, 0.6, 0.6)
   end
-  if not Combat.SHAPES[id] and sk.kind ~= "passive" and sk.kind ~= "mastery" then
+  if castable(id) then
+    GameTooltip:AddLine("Hover and press 1-8 to put it on that slot of your bar", 0.5, 1, 0.5)
+  elseif sk.kind ~= "passive" and sk.kind ~= "mastery" then
     GameTooltip:AddLine("Not castable yet in this build", 1, 0.3, 0.3)
   end
   if sk.dmg then
     local lo, hi = Tree.damage(st, id)
     if lo then GameTooltip:AddLine(string.format("Damage now: %d - %d", math.floor(lo), math.floor(hi)), 0.6, 1, 0.6) end
-    local n = math.min(Skills.MAX_POINTS, pts + 1)
     local s2 = { points = {}, level = 99, quest_points = 0 }
     for k, v in pairs(st.points) do s2.points[k] = v end
-    s2.points[id] = n
+    s2.points[id] = math.min(Skills.MAX_POINTS, pts + 1)
     local lo2, hi2 = Tree.damage(s2, id)
     if lo2 then GameTooltip:AddLine(string.format("Next point: %d - %d", math.floor(lo2), math.floor(hi2)), 0.6, 0.8, 1) end
   end
@@ -139,7 +204,7 @@ end
 local function refresh_tree()
   if not tree_frame then return end
   local st = world.player.st
-  tree_frame.title:SetText(string.format("Skills   points to spend: %d   (click to add one)", Tree.points_free(st)))
+  tree_frame.title:SetText(string.format("Skills   points to spend: %d", Tree.points_free(st)))
   for id, b in pairs(Game.tree_buttons) do
     local pts = Tree.points_in(st, id)
     local ok = Tree.can_allocate(st, id)
@@ -158,10 +223,7 @@ local function build_tree()
   tree_frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
   tree_frame:SetBackdropColor(0, 0, 0, 0.92)
   tree_frame:SetBackdropBorderColor(0.6, 0.1, 0.1, 1)
-  tree_frame:SetMovable(true); tree_frame:EnableMouse(true)
-  tree_frame:RegisterForDrag("LeftButton")
-  tree_frame:SetScript("OnDragStart", tree_frame.StartMoving)
-  tree_frame:SetScript("OnDragStop", tree_frame.StopMovingOrSizing)
+  tree_frame:EnableMouse(true)
   local close = CreateFrame("Button", nil, tree_frame, "UIPanelButtonTemplate")
   close:SetSize(70, 20); close:SetPoint("TOPRIGHT", tree_frame, "TOPRIGHT", -8, -6); close:SetText("Close (K)")
   close:SetScript("OnClick", function() tree_frame:Hide() end)
@@ -173,25 +235,23 @@ local function build_tree()
   for _, sk in ipairs(Skills) do
     local key = sk.tree .. sk.req
     seen[key] = (seen[key] or 0) + 1
-    local x = 20 + col_of[sk.tree] * 200 + (seen[key] - 1) * 50
-    local y = -34 - (gates[sk.req] - 1) * 56
     local b = CreateFrame("Button", nil, tree_frame)
     b:SetSize(42, 42)
-    b:SetPoint("TOPLEFT", tree_frame, "TOPLEFT", x, y)
+    b:SetPoint("TOPLEFT", tree_frame, "TOPLEFT", 20 + col_of[sk.tree] * 200 + (seen[key] - 1) * 50, -34 - (gates[sk.req] - 1) * 56)
     b.icon = tex(b); b.icon:SetAllPoints(b); b.icon:SetTexture(icon_path(sk.id))
     b.count = fstr(b, "GameFontHighlight"); b.count:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -2, 2)
     b:SetScript("OnClick", function()
       local ok, why = Tree.allocate(world.player.st, sk.id)
-      if not ok then say(sk.name .. ": " .. tostring(why)) else save() end
+      if not ok then say(sk.name .. ": " .. tostring(why)) else sync_bar(); save() end
       refresh_tree()
     end)
-    b:SetScript("OnEnter", function(self) tooltip(self, sk.id) end)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnEnter", function(self) hover_id = sk.id; tooltip(self, sk.id) end)
+    b:SetScript("OnLeave", function() hover_id = nil; GameTooltip:Hide() end)
     Game.tree_buttons[sk.id] = b
   end
-  for _, sk in ipairs(Skills) do                     -- arrows to prerequisites, where the client can draw lines
+  for _, sk in ipairs(Skills) do                     -- lines to prerequisites, where the client can draw lines
     for _, p in ipairs(sk.prereqs) do
-      pcall(function()
+      try(function()
         local l = tree_frame:CreateLine(nil, "BACKGROUND")
         l:SetThickness(2)
         l:SetColorTexture(COLORS[sk.element][1], COLORS[sk.element][2], COLORS[sk.element][3], 0.5)
@@ -204,98 +264,149 @@ local function build_tree()
 end
 
 ---------------------------------------------------------------- the main window
+local function model_pool(parent, n, w, h)
+  local pool = {}
+  for i = 1, n do
+    local m = CreateFrame("PlayerModel", nil, parent)
+    m:SetSize(w, h)
+    m:Hide()
+    pool[i] = m
+  end
+  return pool
+end
+
 local function build()
   frame = CreateFrame("Frame", "DreadGameFrame", UIParent, "BackdropTemplate")
-  frame:SetSize(AW + 20, AH + HUD_H + 24)
+  frame:SetSize(VW + 20, VH + HUD_H + TITLE_H + 14)
   frame:SetPoint("CENTER")
+  frame:SetClampedToScreen(true)
   frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
   frame:SetBackdropColor(0, 0, 0, 0.95)
   frame:SetBackdropBorderColor(0.6, 0.1, 0.1, 1)
-  frame:SetMovable(true); frame:EnableMouse(true); frame:EnableKeyboard(true)
-  frame:RegisterForDrag("RightButton")
-  frame:SetScript("OnDragStart", frame.StartMoving)
-  frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+  frame:SetMovable(true); frame:EnableMouse(true); frame:EnableKeyboard(true); frame:EnableMouseWheel(true)
+
+  -- only the title bar drags the window, so right click is free for casting
+  handle = CreateFrame("Frame", nil, frame)
+  handle:SetSize(VW + 20, TITLE_H)
+  handle:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+  handle:EnableMouse(true)
+  handle:RegisterForDrag("LeftButton")
+  handle:SetScript("OnDragStart", function() frame:StartMoving() end)
+  handle:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+  local title = fstr(handle, "GameFontNormalSmall")
+  title:SetPoint("LEFT", handle, "LEFT", 10, 0)
+  title:SetText("Dread   (drag here to move)")
+  zone_text = fstr(handle, "GameFontHighlightSmall")
+  zone_text:SetPoint("RIGHT", handle, "RIGHT", -10, 0)
 
   arena = CreateFrame("Frame", nil, frame)
-  arena:SetSize(AW, AH)
-  arena:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
+  arena:SetSize(VW, VH)
+  arena:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -TITLE_H - 2)
   arena:SetClipsChildren(true)
-  local ground = tex(arena, "BACKGROUND")
+  ground = tex(arena, "BACKGROUND")
   ground:SetAllPoints(arena)
-  ground:SetTexture("Interface\\FrameGeneral\\UI-Background-Rock", "REPEAT", "REPEAT")
   ground:SetHorizTile(true); ground:SetVertTile(true)
-  ground:SetVertexColor(0.55, 0.62, 0.38)             -- a dull moor green until proper terrain art is found
 
-  player_model = CreateFrame("PlayerModel", nil, arena)
-  player_model:SetSize(70, 90)
-  player_model:SetUnit("player")
-  player_model:SetFrameLevel(arena:GetFrameLevel() + 5)
-
-  for i = 1, MAX_MONSTER_FRAMES do
-    local m = CreateFrame("PlayerModel", nil, arena)
-    m:SetSize(64, 80)
-    m:Hide()
+  doodad_f = model_pool(arena, MAX_DOODAD, 140, 170)
+  mon_f = model_pool(arena, MAX_MON, 64, 80)
+  for _, m in ipairs(mon_f) do
     m.fallback = tex(m, "ARTWORK"); m.fallback:SetAllPoints(m); m.fallback:SetColorTexture(0.7, 0.2, 0.2, 0.8); m.fallback:Hide()
     m.bar = tex(m, "OVERLAY"); m.bar:SetSize(40, 4); m.bar:SetPoint("BOTTOM", m, "TOP", 0, -2); m.bar:SetColorTexture(0.9, 0.1, 0.1, 1)
-    mframes[i] = m
   end
-  for i = 1, 24 do
-    local t = tex(arena, "OVERLAY"); t:SetSize(26, 26); t:SetBlendMode("ADD"); t:Hide(); projs[i] = t
+  player_model = CreateFrame("PlayerModel", nil, arena)
+  player_model:SetSize(70, 90)
+  try(player_model.SetUnit, player_model, "player")
+
+  for i = 1, MAX_PROJ do
+    local f = CreateFrame("PlayerModel", nil, arena); f:SetSize(70, 70); f:Hide()
+    f.icon = tex(f, "OVERLAY"); f.icon:SetSize(26, 26); f.icon:SetPoint("CENTER"); f.icon:SetBlendMode("ADD")
+    proj_f[i] = f
   end
-  for i = 1, 24 do
-    local f = fstr(arena, "GameFontHighlight"); f:Hide(); floaters[i] = { fs = f, t = 0 }
+  for i = 1, MAX_BLAST do
+    local f = CreateFrame("PlayerModel", nil, arena); f:SetSize(150, 150); f:Hide()
+    f.icon = tex(f, "OVERLAY"); f.icon:SetPoint("CENTER"); f.icon:SetBlendMode("ADD")
+    f.life, f.max = 0, 0.6
+    blast_f[i] = f
   end
-  for i = 1, 12 do
-    local t = tex(arena, "OVERLAY"); t:SetBlendMode("ADD"); t:Hide(); flashes[i] = { t = t, life = 0 }
+  for i = 1, MAX_DROP do
+    local t = tex(arena, "OVERLAY"); t:SetSize(22, 22); t:SetTexture(icon_path("wand")); t:Hide()
+    t:SetTexture("Interface\\Icons\\INV_Potion_54"); t:SetDesaturated(true); drop_f[i] = t
   end
+  for i = 1, MAX_FLOAT do
+    local fs = fstr(arena, "GameFontHighlight"); fs:Hide(); float_f[i] = { fs = fs, t = 0 }
+  end
+  exit_marks = {}
+  for i = 1, 2 do
+    local t = tex(arena, "ARTWORK"); t:SetSize(56, 56); t:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    t:SetDesaturated(true); t:SetVertexColor(0.7, 0.4, 1); t:SetBlendMode("ADD"); t:Hide()
+    local l = fstr(arena, "GameFontNormalSmall"); l:Hide()
+    exit_marks[i] = { t = t, l = l }
+  end
+  over_text = fstr(arena, "GameFontNormalLarge")
+  over_text:SetPoint("CENTER", arena, "CENTER", 0, 0); over_text:Hide()
+  toast_text = fstr(arena, "GameFontNormalLarge")
+  toast_text:SetPoint("TOP", arena, "TOP", 0, -30)
 
   hud = CreateFrame("Frame", nil, frame)
-  hud:SetSize(AW, HUD_H)
+  hud:SetSize(VW, HUD_H)
   hud:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 8)
-  life_bar = tex(hud); life_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, 0); life_bar:SetSize(250, 14); life_bar:SetColorTexture(0.8, 0.1, 0.1, 1)
-  mana_bar = tex(hud); mana_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -18); mana_bar:SetSize(250, 14); mana_bar:SetColorTexture(0.15, 0.3, 0.9, 1)
-  xp_bar = tex(hud); xp_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -36); xp_bar:SetSize(250, 5); xp_bar:SetColorTexture(0.9, 0.8, 0.2, 1)
+  life_bar = tex(hud); life_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, 0); life_bar:SetSize(220, 14); life_bar:SetColorTexture(0.8, 0.1, 0.1, 1)
+  mana_bar = tex(hud); mana_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -18); mana_bar:SetSize(220, 14); mana_bar:SetColorTexture(0.15, 0.3, 0.9, 1)
+  xp_bar = tex(hud); xp_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -36); xp_bar:SetSize(220, 5); xp_bar:SetColorTexture(0.9, 0.8, 0.2, 1)
   info_text = fstr(hud, "GameFontHighlight"); info_text:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -46)
-  hint_text = fstr(hud, "GameFontNormalSmall"); hint_text:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -62)
-  for i = 1, 9 do
+  hint_text = fstr(hud, "GameFontNormalSmall"); hint_text:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -64)
+  hint_text:SetWidth(VW)
+  for i = 1, SLOTS do
     local b = CreateFrame("Button", nil, hud)
     b:SetSize(40, 40)
-    b:SetPoint("TOPLEFT", hud, "TOPLEFT", 270 + (i - 1) * 42, 0)
+    b:SetPoint("TOPLEFT", hud, "TOPLEFT", 236 + (i - 1) * 42, 0)
+    b.bg = tex(b, "BACKGROUND"); b.bg:SetAllPoints(b); b.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
     b.icon = tex(b); b.icon:SetAllPoints(b)
     b.key = fstr(b, "GameFontHighlightSmall"); b.key:SetPoint("TOPLEFT", 2, -2); b.key:SetText(tostring(i))
-    b.sel = tex(b, "OVERLAY"); b.sel:SetAllPoints(b); b.sel:SetColorTexture(1, 1, 1, 0.25); b.sel:Hide()
-    b:SetScript("OnClick", function() local l = learned_spells(); if l[i] then selected = l[i] end end)
-    b:Hide()
+    b.sel = tex(b, "OVERLAY"); b.sel:SetAllPoints(b); b.sel:SetColorTexture(1, 1, 1, 0.3); b.sel:Hide()
+    b:SetScript("OnClick", function() if bar[i] then sel = i end end)
     slots[i] = b
   end
   local sk = CreateFrame("Button", nil, hud, "UIPanelButtonTemplate")
-  sk:SetSize(80, 22); sk:SetPoint("TOPLEFT", hud, "TOPLEFT", 270 + 9 * 42 + 6, -9); sk:SetText("Skills (K)")
+  sk:SetSize(80, 22); sk:SetPoint("TOPLEFT", hud, "TOPLEFT", 236 + SLOTS * 42 + 6, -9); sk:SetText("Skills (K)")
   sk:SetScript("OnClick", function() Game.toggle_tree() end)
-  over_text = fstr(arena, "GameFontNormalLarge")
-  over_text:SetPoint("CENTER", arena, "CENTER", 0, 0)
-  over_text:Hide()
 
   frame:SetScript("OnMouseDown", function(_, button)
-    if world.over then
-      new_world(); return
-    end
-    local x, y = arena_xy()
-    if x < 0 or y < 0 or x > AW or y > AH then return end
-    if button == "LeftButton" then
-      Combat.move_to(world, x, y)
-    elseif button == "RightButton" and selected then
-      local ok, why = Combat.cast(world, selected, x, y)
-      if not ok then hint_text:SetText(Skills.byId[selected].name .. ": " .. tostring(why)) end
+    if world.over then new_world(); return end
+    local x, y = world_xy()
+    if x < cam.x or y < cam.y or x > cam.x + VW or y > cam.y + VH then return end
+    if button == "RightButton" then
+      local id = bar[sel]
+      if not id then hint_text:SetText("No skill on that slot. Open the tree (K), spend a point, hover the skill and press 1-8."); return end
+      local ok, why = Combat.cast(world, id, x, y)
+      if not ok then hint_text:SetText(Skills.byId[id].name .. ": " .. tostring(why)) end
+    elseif button == "LeftButton" then
+      if IsShiftKeyDown and IsShiftKeyDown() and bar[sel] then
+        Combat.cast(world, bar[sel], x, y)
+        return
+      end
+      target = nil
+      for _, m in ipairs(world.monsters) do
+        if not m.dead and math.sqrt((m.x - x) ^ 2 + (m.y - y) ^ 2) <= m.radius + 24 then target = m; break end
+      end
+      if not target then Combat.move_to(world, x, y) end
     end
   end)
+  frame:SetScript("OnMouseWheel", function(_, delta) rotate(delta > 0 and -1 or 1) end)
   frame:SetScript("OnKeyDown", function(self, key)
     local handled = false
     local n = tonumber(key)
-    if n and n >= 1 and n <= 9 then
-      local l = learned_spells()
-      if l[n] then selected = l[n]; handled = true end
-    elseif key == "K" then
-      Game.toggle_tree(); handled = true
+    if n and n >= 1 and n <= SLOTS then
+      if tree_frame:IsShown() and hover_id and castable(hover_id) and Tree.points_in(world.player.st, hover_id) > 0 then
+        for i = 1, SLOTS do if bar[i] == hover_id then bar[i] = nil end end
+        bar[n], sel = hover_id, n
+        hint_text:SetText(Skills.byId[hover_id].name .. " is now on slot " .. n)
+        save()
+      elseif bar[n] then sel = n
+      end
+      handled = true
+    elseif key == "TAB" then rotate(1); handled = true
+    elseif key == "K" then Game.toggle_tree(); handled = true
     end
     self:SetPropagateKeyboardInput(not handled)
   end)
@@ -304,127 +415,232 @@ local function build()
   frame:Hide()
 end
 
-local function place(f, x, y, w, h) f:ClearAllPoints(); f:SetPoint("BOTTOM", arena, "BOTTOMLEFT", x, y - h * 0.15) end
+---------------------------------------------------------------- one frame of the game
+local function vis(sx, sy, mx, my) return sx > -mx and sx < VW + mx and sy > -my and sy < VH + my end
+
+local function draw_scenery()
+  -- keep a scenery piece on the frame it already has; hand free frames to pieces that have just come into view
+  local seen = {}
+  for _, d in ipairs(area.doodads) do
+    if vis(d.x - cam.x, d.y - cam.y, 80, 100) then
+      seen[d] = true
+      if not doodad_slot[d] then
+        for _, f in ipairs(doodad_f) do
+          if not f.owner then
+            f.owner, doodad_slot[d] = d, f
+            f:SetSize(d.w, d.h)
+            try(f.SetModel, f, d.id)
+            f.fallback_missing = false
+            f:Show()
+            break
+          end
+        end
+      end
+    end
+  end
+  for d, f in pairs(doodad_slot) do
+    if not seen[d] then f.owner, doodad_slot[d] = nil, nil; f:Hide() end
+  end
+  for d, f in pairs(doodad_slot) do
+    place(f, d.x, d.y, d.h); depth(f, d.y)
+  end
+end
 
 function Game.tick(dt)
   if dt > 0.1 then dt = 0.1 end
-  -- Nothing moves while you are choosing skills, or before you have a spell to fight with.
-  Game.paused = tree_frame:IsShown() or #learned_spells() == 0
-  if not world.over and not Game.paused then
-    Combat.step(world, dt)
-    if Combat.alive_monsters(world) == 0 then spawn_wave() end
-  end
+  Game.paused = tree_frame:IsShown()
   local p = world.player
-  -- player
-  place(player_model, p.x, p.y, 70, 90)
-  player_model:SetFrameLevel(arena:GetFrameLevel() + 5 + math.floor((AH - p.y) / 4))
-  -- monsters
-  local idx = 0
-  for _, m in ipairs(world.monsters) do
-    local show = (not m.dead) or (world.time - (m.died_at or 0) < 1.0)
-    if show and idx < MAX_MONSTER_FRAMES then
-      idx = idx + 1
-      local f = mframes[idx]
-      if f.cid ~= m.cid then
-        local ok = pcall(f.SetCreature, f, m.cid)       -- if the client refuses a model, show a plain square instead
-        f.fallback:SetShown(not ok)
-        f.cid = m.cid
+  -- walk up to a clicked monster and keep using the wand on it
+  if target and not world.over and not Game.paused then
+    if target.dead then target = nil
+    else
+      local d = math.sqrt((target.x - p.x) ^ 2 + (target.y - p.y) ^ 2)
+      if d > ATTACK_RANGE then Combat.move_to(world, target.x, target.y)
+      else p.tx, p.ty = nil, nil; Combat.attack(world, target.x, target.y) end
+    end
+  end
+  if not world.over and not Game.paused then Combat.step(world, dt) end
+  sync_bar()
+
+  -- leave through an exit?
+  if not Game.paused and not world.over then
+    for _, ex in ipairs(area.exits) do
+      if math.sqrt((p.x - ex.x) ^ 2 + (p.y - ex.y) ^ 2) <= ex.r then
+        local dest = Zone.get(ex.to)
+        enter(ex.to, ex.arrive or dest.spawn)
+        break
       end
-      place(f, m.x, m.y, 64, 80)
-      f:SetFrameLevel(arena:GetFrameLevel() + 5 + math.floor((AH - m.y) / 4))
-      f:SetAlpha(m.dead and 0.35 or ((m.freeze > 0) and 0.6 or 1))
+    end
+  end
+
+  -- the camera follows you
+  cam.x = math.max(0, math.min(area.w - VW, p.x - VW / 2))
+  cam.y = math.max(0, math.min(area.h - VH, p.y - VH / 2))
+  local T = 256
+  ground:SetTexCoord(cam.x / T, (cam.x + VW) / T, -(cam.y + VH) / T, -cam.y / T)
+  draw_scenery()
+
+  -- you
+  place(player_model, p.x, p.y, 90); depth(player_model, p.y)
+  local casting = (world.time - p.cast_at) < 0.5
+  if world.over then set_anim(player_model, Game.ANIM.DEATH)
+  elseif casting then set_anim(player_model, Game.ANIM.CAST)
+  elseif p.tx then set_anim(player_model, Game.ANIM.RUN)
+  else set_anim(player_model, Game.ANIM.STAND) end
+  if p.tx then face(player_model, p.tx - p.x, p.ty - p.y)
+  elseif target and not target.dead then face(player_model, target.x - p.x, target.y - p.y) end
+
+  -- monsters: the nearest ones that are on screen
+  local shown, n = {}, 0
+  for _, m in ipairs(world.monsters) do
+    local gone = m.dead and (world.time - (m.died_at or 0) > 3)
+    if not gone and vis(m.x - cam.x, m.y - cam.y, 60, 80) then shown[#shown + 1] = m end
+  end
+  for i = 1, MAX_MON do
+    local m, f = shown[i], mon_f[i]
+    if m then
+      if f.owner ~= m then
+        f.owner, f.anim = m, nil
+        local ok = try(f.SetCreature, f, m.cid)
+        f.fallback:SetShown(not ok)
+        if m.scale then try(f.SetModelScale, f, m.scale) else try(f.SetModelScale, f, 1) end
+      end
+      local size = (m.scale or 1)
+      f:SetSize(64 * size, 80 * size)
+      place(f, m.x, m.y, 80 * size); depth(f, m.y)
+      f:SetAlpha(m.dead and 0.5 or ((m.freeze > 0) and 0.6 or 1))
       f.bar:SetWidth(math.max(1, 40 * math.max(0, m.life) / m.maxlife))
       f.bar:SetShown(not m.dead)
+      if m.dead then set_anim(f, Game.ANIM.DEATH)
+      elseif m.bite_at and world.time - m.bite_at < 0.45 then set_anim(f, Game.ANIM.ATTACK)
+      elseif m.moving then set_anim(f, Game.ANIM.WALK)
+      else set_anim(f, Game.ANIM.STAND) end
+      if not m.dead and m.awake then face(f, p.x - m.x, p.y - m.y) end
       f:Show()
-    end
-  end
-  for i = idx + 1, MAX_MONSTER_FRAMES do mframes[i]:Hide(); mframes[i].cid = nil end
-  -- projectiles
-  for i = 1, #projs do
-    local pr, t = world.projectiles[i], projs[i]
-    if pr then
-      local c = COLORS[Skills.byId[pr.id].element]
-      t:SetTexture(icon_path(pr.id)); t:SetVertexColor(c[1], c[2], c[3])
-      t:ClearAllPoints(); t:SetPoint("CENTER", arena, "BOTTOMLEFT", pr.x, pr.y); t:Show()
     else
-      t:Hide()
+      f.owner = nil; f:Hide()
     end
   end
-  -- events: damage numbers and blasts
+
+  -- spell effects
+  for i = 1, MAX_PROJ do
+    local pr, f = world.projectiles[i], proj_f[i]
+    if pr then
+      local el = element_of(pr.id)
+      local c = COLORS[el]
+      if f.pid ~= pr.id then
+        f.pid = pr.id
+        f.icon:SetTexture(icon_path(pr.id)); f.icon:SetVertexColor(c[1], c[2], c[3])
+        local mid = PROJ_MODEL[pr.id]
+        if mid then try(f.SetModel, f, mid); try(f.SetModelScale, f, PROJ_SCALE[pr.id] or 1) end
+      end
+      f:ClearAllPoints(); f:SetPoint("CENTER", arena, "BOTTOMLEFT", pr.x - cam.x, pr.y - cam.y)
+      face(f, pr.vx, pr.vy)
+      f:SetFrameLevel(arena:GetFrameLevel() + 300)
+      f:Show()
+    else
+      f.pid = nil; f:Hide()
+    end
+  end
   for _, e in ipairs(Combat.drain(world)) do
     if e.k == "hit" and e.dmg > 0 then
-      for _, fl in ipairs(floaters) do
+      for _, fl in ipairs(float_f) do
         if fl.t <= 0 then
-          fl.t, fl.x, fl.y = 0.8, e.x, e.y + 30
+          fl.t, fl.x, fl.y = 0.8, e.x, e.y + 40
           fl.fs:SetText(tostring(math.floor(e.dmg + 0.5)))
-          local c = COLORS[Skills.byId[e.id].element]; fl.fs:SetTextColor(c[1], c[2], c[3])
+          local c = COLORS[element_of(e.id)]; fl.fs:SetTextColor(c[1], c[2], c[3])
           break
         end
       end
     elseif e.k == "blast" then
-      for _, fx in ipairs(flashes) do
-        if fx.life <= 0 then
-          fx.life, fx.max, fx.x, fx.y, fx.r, fx.id = 0.35, 0.35, e.x, e.y, e.r, e.id
-          fx.t:SetTexture(icon_path(e.id))
-          local c = COLORS[Skills.byId[e.id].element]; fx.t:SetVertexColor(c[1], c[2], c[3])
+      for _, f in ipairs(blast_f) do
+        if f.life <= 0 then
+          local el = element_of(e.id)
+          f.life, f.x, f.y, f.r = f.max, e.x, e.y, e.r
+          f.icon:SetTexture(icon_path(e.id)); f.icon:SetVertexColor(COLORS[el][1], COLORS[el][2], COLORS[el][3])
+          if BLAST_MODEL[el] then try(f.SetModel, f, BLAST_MODEL[el]) end
           break
         end
       end
     elseif e.k == "level" then
-      hint_text:SetText("Level " .. e.level .. "!  Press K to spend your new skill point.")
+      toast_text:SetText("Level " .. e.level .. "!  Press K to spend a skill point."); toast_t = 4
       save()
-    elseif e.k == "kill" then
+    elseif e.k == "kill" or e.k == "pickup" then
       save()
+    elseif e.k == "boss_dead" then
+      if not world.flags.den then
+        world.flags.den = true
+        world.player.st.quest_points = world.player.st.quest_points + 1
+        toast_text:SetText("Quest complete!  +1 skill point.  Press K."); toast_t = 6
+        save()
+      end
     end
   end
-  for _, fl in ipairs(floaters) do
+  for _, fl in ipairs(float_f) do
     if fl.t > 0 then
       fl.t = fl.t - dt; fl.y = fl.y + 40 * dt
-      fl.fs:ClearAllPoints(); fl.fs:SetPoint("CENTER", arena, "BOTTOMLEFT", fl.x, fl.y)
+      fl.fs:ClearAllPoints(); fl.fs:SetPoint("CENTER", arena, "BOTTOMLEFT", fl.x - cam.x, fl.y - cam.y)
       fl.fs:SetAlpha(math.min(1, fl.t / 0.4)); fl.fs:Show()
       if fl.t <= 0 then fl.fs:Hide() end
     end
   end
-  for _, fx in ipairs(flashes) do
-    if fx.life > 0 then
-      fx.life = fx.life - dt
-      local k = 1 - fx.life / fx.max
-      fx.t:SetSize(fx.r * 2 * (0.4 + 0.6 * k), fx.r * 2 * (0.4 + 0.6 * k))
-      fx.t:ClearAllPoints(); fx.t:SetPoint("CENTER", arena, "BOTTOMLEFT", fx.x, fx.y)
-      fx.t:SetAlpha(1 - k); fx.t:Show()
-      if fx.life <= 0 then fx.t:Hide() end
+  for _, f in ipairs(blast_f) do
+    if f.life > 0 then
+      f.life = f.life - dt
+      local k = 1 - f.life / f.max
+      f.icon:SetSize(f.r * 2 * (0.4 + 0.6 * k), f.r * 2 * (0.4 + 0.6 * k)); f.icon:SetAlpha(1 - k)
+      f:ClearAllPoints(); f:SetPoint("CENTER", arena, "BOTTOMLEFT", f.x - cam.x, f.y - cam.y)
+      f:SetFrameLevel(arena:GetFrameLevel() + 290)
+      f:Show()
+      if f.life <= 0 then f:Hide() end
     end
   end
-  -- HUD
-  life_bar:SetWidth(math.max(1, 250 * p.life / p.maxlife))
-  mana_bar:SetWidth(math.max(1, 250 * p.mana / p.maxmana))
-  xp_bar:SetWidth(math.max(1, 250 * p.xp / Combat.xp_for_next(p.level)))
-  info_text:SetText(string.format("Life %d/%d   Mana %d/%d   Level %d   Points %d   Wave %d   %d FPS",
-    math.floor(p.life), p.maxlife, math.floor(p.mana), p.maxmana, p.level, Tree.points_free(p.st), wave, math.floor(GetFramerate())))
-  local list = learned_spells()
-  if selected == nil or Tree.points_in(p.st, selected) < 1 then selected = list[1] end
-  for i = 1, 9 do
-    local b, id = slots[i], list[i]
-    if id then
-      b.icon:SetTexture(icon_path(id)); b.sel:SetShown(id == selected); b:Show()
+  for i = 1, MAX_DROP do
+    local d, t = world.drops[i], drop_f[i]
+    if d then
+      t:SetVertexColor(d.kind == "mana" and 0.3 or 1, d.kind == "mana" and 0.5 or 0.2, d.kind == "mana" and 1 or 0.2)
+      t:ClearAllPoints(); t:SetPoint("CENTER", arena, "BOTTOMLEFT", d.x - cam.x, d.y - cam.y); t:Show()
     else
-      b:Hide()
+      t:Hide()
     end
   end
-  if #list == 0 then hint_text:SetText("No spells yet. Press K (or the Skills button) and spend your skill point.")
-  elseif Game.paused then hint_text:SetText("Paused while the skill tree is open. Press K or Close to fight.")
-  elseif world.over then hint_text:SetText("")
+  for i, ex in ipairs(area.exits) do
+    local mk = exit_marks[i]
+    mk.t:ClearAllPoints(); mk.t:SetPoint("CENTER", arena, "BOTTOMLEFT", ex.x - cam.x, ex.y - cam.y)
+    mk.l:ClearAllPoints(); mk.l:SetPoint("BOTTOM", mk.t, "TOP", 0, 2); mk.l:SetText(ex.label)
+    local on = vis(ex.x - cam.x, ex.y - cam.y, 40, 40)
+    mk.t:SetShown(on); mk.l:SetShown(on)
+  end
+
+  -- HUD
+  life_bar:SetWidth(math.max(1, 220 * p.life / p.maxlife))
+  mana_bar:SetWidth(math.max(1, 220 * p.mana / p.maxmana))
+  xp_bar:SetWidth(math.max(1, 220 * p.xp / Combat.xp_for_next(p.level)))
+  info_text:SetText(string.format("Life %d/%d  Mana %d/%d  Lv %d  Points %d  %d FPS",
+    math.floor(p.life), p.maxlife, math.floor(p.mana), p.maxmana, p.level, Tree.points_free(p.st), math.floor(GetFramerate())))
+  zone_text:SetText(area.title .. (area.quest and (world.flags.den and "   Quest done" or ("   " .. area.quest.title)) or ""))
+  for i = 1, SLOTS do
+    local b, id = slots[i], bar[i]
+    if id then b.icon:SetTexture(icon_path(id)); b.icon:SetAlpha(1) else b.icon:SetTexture(nil) end
+    b.sel:SetShown(i == sel and id ~= nil)
+  end
+  if toast_t > 0 then
+    toast_t = toast_t - dt
+    toast_text:SetAlpha(math.min(1, toast_t)); toast_text:Show()
+    if toast_t <= 0 then toast_text:Hide() end
+  end
+  if Game.paused then hint_text:SetText("Paused while the skill tree is open. Hover a skill and press 1-8 to put it on your bar. K closes it.")
+  elseif Tree.points_spent(p.st) == 0 then hint_text:SetText("Left click: walk, or attack a monster with your wand (free). Press K to spend your first skill point. Tab or wheel rotates skills.")
   end
   if world.over then
-    over_text:SetText("You died.  Click to start again.\n(your level and skill points are kept)")
-    over_text:Show()
+    over_text:SetText("You died.  Click to start again.\n(your level, skills and quest progress are kept)"); over_text:Show()
   else
     over_text:Hide()
   end
   if tree_frame:IsShown() then refresh_tree() end
 end
 
--- The window is built at 640 x 400 and scaled up; the mouse maths already accounts for scale.
+---------------------------------------------------------------- opening, closing, settings
 Game.DEFAULT_SCALE = 1.6
 function Game.set_scale(x)
   x = tonumber(x) or Game.DEFAULT_SCALE
@@ -436,24 +652,51 @@ function Game.set_scale(x)
   return x
 end
 
+-- Which way the models face is not known until seen; this nudges it (radians), saved.
+function Game.set_facing(r)
+  DreadDB = DreadDB or {}
+  DreadDB.facing = tonumber(r) or 0
+  return DreadDB.facing
+end
+
 function Game.toggle_tree()
   if tree_frame:IsShown() then tree_frame:Hide() else refresh_tree(); tree_frame:Show() end
 end
 
 function Game.toggle()
-  if not frame then build(); Game.set_scale(DreadDB and DreadDB.scale or Game.DEFAULT_SCALE) end
+  if not frame then
+    build()
+    Game.set_scale(DreadDB and DreadDB.scale or Game.DEFAULT_SCALE)
+    new_world()
+  end
   if frame:IsShown() then
     save(); frame:Hide(); tree_frame:Hide()
   else
-    if not world or world.over then new_world() end
+    if world.over then new_world() end
     frame:Show()
-    if #learned_spells() == 0 then
-      refresh_tree(); tree_frame:Show()
-    end
+    if Tree.points_spent(world.player.st) == 0 then refresh_tree(); tree_frame:Show() end
+  end
+end
+
+-- /dread animtest: plays animation ids on your own model one at a time so the right ones can be picked by eye.
+function Game.animtest()
+  local ids = { 0, 1, 2, 4, 5, 6, 16, 17, 26, 32, 33, 34, 51, 52, 53, 54 }
+  local f = CreateFrame("PlayerModel", nil, UIParent)
+  f:SetSize(200, 260); f:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+  try(f.SetUnit, f, "player")
+  f:Show()
+  for i, id in ipairs(ids) do
+    C_Timer.After(i * 2.5, function()
+      try(f.SetAnimation, f, id)
+      say(string.format("[%d/%d] animation %d", i, #ids, id))
+      if i == #ids then C_Timer.After(2.5, function() f:Hide(); say("done. Tell me which number looked like casting a spell, and which like an attack.") end) end
+    end)
   end
 end
 
 function Game.world() return world end
-function Game.wave() return wave end
+function Game.camera() return cam end
+function Game.area() return area end
+function Game.bar() return bar, sel end
 
 return Game

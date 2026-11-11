@@ -67,14 +67,24 @@ def test_casting_spends_mana_and_runs_dry(env):
 
 def test_mana_comes_back_and_evocation_speeds_it_up(env):
     lua, ns = env
+    # 4% of max mana a second: a 33 mana pool regains 1.32 a second. Evocation level 1 is +30% -> 1.716.
     w = world(env, scorch=1)
     w.player.mana = 0
     run(ns, w, 1.0)
-    assert w.player.mana == pytest.approx(1.0, abs=0.02)                 # 1 per second
+    assert w.player.mana == pytest.approx(1.32, abs=0.02)
     w2 = world(env, scorch=1, evocation=1)
     w2.player.mana = 0
     run(ns, w2, 1.0)
-    assert w2.player.mana == pytest.approx(1.3, abs=0.02)                # +30% at level 1
+    assert w2.player.mana == pytest.approx(1.716, abs=0.02)
+
+
+def test_regen_grows_with_the_pool(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.set_level(w, 11, 0)                        # max mana 33 + 3*10 = 63 -> 2.52 a second
+    w.player.mana = 0
+    run(ns, w, 1.0)
+    assert w.player.mana == pytest.approx(2.52, abs=0.03)
 
 
 # ---------------------------------------------------------------- a bolt in flight
@@ -319,3 +329,175 @@ def test_draining_empties_the_list(env):
     run(ns, w, 1.0)
     assert len(kinds(ns, w)[0]) >= 1
     assert kinds(ns, w)[0] == []
+
+
+# ---------------------------------------------------------------- the free attack
+def test_the_wand_is_free_and_has_a_cooldown(env):
+    lua, ns = env
+    w = world(env)                                           # no skill points at all
+    m = monster(env, w, 300, 120, life=50, speed=0)
+    assert cast(ns, w, "wand", 300, 120) == (False, "no such skill")      # it is not a spell
+    r = ns.Combat.attack(w, 300, 120)
+    assert r is True and w.player.mana == 33                 # costs nothing
+    assert ns.Combat.attack(w, 300, 120) == (False, "cooling down")
+    run(ns, w, 1.0)
+    assert m.life == pytest.approx(50 - 4.5)                 # level 1 wand = 3..6, middle roll 4.5
+    assert ns.Combat.attack(w, 300, 120) is True             # ready again after 0.7 s
+
+
+def test_wand_damage_grows_with_level(env):
+    lua, ns = env
+    lo, hi = ns.Combat.wand_damage(1)
+    lo10, hi10 = ns.Combat.wand_damage(10)
+    assert (lo, hi) == (3, 6) and (lo10, hi10) == (12, 24)
+
+
+def test_physical_resist_applies_to_the_wand(env):
+    lua, ns = env
+    w = world(env)
+    m = monster(env, w, 300, 120, life=50, speed=0, resist=lua.table_from({"fire": 0, "cold": 0, "lightning": 0, "physical": 50}))
+    ns.Combat.attack(w, 300, 120)
+    run(ns, w, 1.0)
+    assert m.life == pytest.approx(50 - 2.25)
+
+
+# ---------------------------------------------------------------- globes
+def test_a_kill_can_drop_a_globe_and_walking_over_it_restores_35_percent(env):
+    lua, ns = env
+    w = world(env, rng=0)                                    # rng 0: always drops, always a mana globe
+    w.player.mana = 0
+    monster(env, w, 300, 60, life=1, speed=0)                # dies next to the player
+    ns.Combat.attack(w, 300, 60)
+    run(ns, w, 0.3)
+    ks, ev = kinds(ns, w)
+    assert "drop" in ks and "pickup" in ks                   # it landed within pickup range and was collected
+    assert w.player.mana > 0.3 * w.player.maxmana            # 35% of 36 (it levelled up) plus a little regen
+    assert len(w.drops) == 0
+
+
+def test_a_globe_out_of_reach_waits_then_expires(env):
+    lua, ns = env
+    w = world(env)
+    w.drops[1] = lua.table_from({"kind": "life", "x": 500, "y": 300, "t": 25})
+    run(ns, w, 10)
+    assert len(w.drops) == 1                                 # still there
+    run(ns, w, 16)
+    assert len(w.drops) == 0                                 # gone after 25 s
+
+
+# ---------------------------------------------------------------- waking up
+def test_monsters_sleep_until_you_come_close(env):
+    lua, ns = env
+    w = world(env)
+    m = monster(env, w, 300, 360, life=50, speed=60, aggro=150)        # 320 away, notices at 150
+    run(ns, w, 2.0)
+    assert m.awake is False and m.y == 360
+    ns.Combat.move_to(w, 300, 260)
+    run(ns, w, 2.0)
+    assert m.awake is True and m.y < 360
+
+
+def test_waking_one_wakes_its_pack(env):
+    lua, ns = env
+    w = world(env)
+    a = monster(env, w, 300, 150, life=50, speed=0, aggro=200, pack=1)         # 110 from the player: notices
+    b = monster(env, w, 900, 900, life=50, speed=0, aggro=50, pack=1)          # far away, same pack
+    c = monster(env, w, 900, 800, life=50, speed=0, aggro=50, pack=2)          # far away, another pack
+    run(ns, w, 0.1)
+    assert a.awake is True and b.awake is True and c.awake is False
+
+
+def test_being_hit_wakes_a_sleeping_monster(env):
+    lua, ns = env
+    w = world(env, scorch=1)
+    m = monster(env, w, 300, 360, life=200, speed=60, aggro=10, pack=7)
+    cast(ns, w, "scorch", 300, 360)
+    run(ns, w, 1.5)
+    assert m.awake is True
+
+
+# ---------------------------------------------------------------- trees and rocks
+def test_you_cannot_walk_through_a_tree_but_you_do_get_round_it(env):
+    lua, ns = env
+    w = world(env)
+    tree = (300, 120, 20)
+    w.obstacles[1] = lua.table_from({"x": tree[0], "y": tree[1], "r": tree[2]})
+    ns.Combat.move_to(w, 300, 250)                           # straight through it
+    closest = 1e9
+    for _ in range(360):
+        ns.Combat.step(w, 1 / 60)
+        closest = min(closest, ((w.player.x - 300) ** 2 + (w.player.y - 120) ** 2) ** 0.5)
+    assert closest >= 20 + 10 - 0.5                          # never inside the trunk (tree + the player's own size)
+    assert w.player.y == pytest.approx(250, abs=0.5)         # and it still got to the clicked spot
+
+
+def test_monsters_go_round_trees_too(env):
+    lua, ns = env
+    w = world(env)
+    w.obstacles[1] = lua.table_from({"x": 300, "y": 200, "r": 30})
+    m = monster(env, w, 300, 300, life=50, speed=80)
+    closest = 1e9
+    for _ in range(240):                                     # watch every step, not just where it ends up
+        ns.Combat.step(w, 1 / 60)
+        closest = min(closest, ((m.x - 300) ** 2 + (m.y - 200) ** 2) ** 0.5)
+    assert closest >= 30 + 12 * 0.6 - 0.5                    # never inside the trunk
+    assert m.y < 200                                         # and it did get past, to the player
+
+
+# ---------------------------------------------------------------- areas, quests, events
+def test_entering_an_area_swaps_the_map_and_monsters_and_copies_them(env):
+    lua, ns = env
+    w = world(env)
+    area = lua.table_from({"name": "cave", "w": 900, "h": 700,
+                           "spawn": lua.table_from({"x": 50, "y": 350}),
+                           "obstacles": lua.table_from([lua.table_from({"x": 400, "y": 300, "r": 20})]),
+                           "monsters": lua.table_from([lua.table_from({"x": 800, "y": 350, "life": 40, "resist": lua.table_from({"fire": 10, "cold": 0, "lightning": 0})})])})
+    monster(env, w, 1, 1, life=5)
+    ns.Combat.enter(w, area)
+    assert w.area == "cave" and w.w == 900 and w.player.x == 50 and w.player.y == 350
+    assert len(w.monsters) == 1 and w.monsters[1].life == 40 and w.monsters[1].awake is False
+    w.monsters[1].life = 1
+    w.monsters[1].resist.fire = 99
+    assert area.monsters[1].life == 40 and area.monsters[1].resist.fire == 10     # the area itself is untouched
+
+
+def test_quest_points_and_flags_survive_a_save(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.set_level(w, 5, 0)
+    w.player.st.quest_points = 1
+    w.flags.den = True
+    snap = ns.Combat.snapshot(w)
+    w2 = world(env)
+    ns.Combat.restore(w2, snap)
+    assert w2.player.st.quest_points == 1 and w2.flags.den is True
+    assert ns.Tree.points_total(w2.player.st) == 6                         # level 5 + 1 quest point
+
+
+def test_a_hand_edited_save_cannot_claim_unlimited_quest_points(env):
+    lua, ns = env
+    w = world(env)
+    ns.Combat.restore(w, lua.table_from({"level": 1, "quest_points": 500, "flags": lua.table_from({"den": True, "x": "yes"})}))
+    assert w.player.st.quest_points == 12 and w.flags.den is True and w.flags.x is None
+
+
+def test_events_for_cast_and_bite(env):
+    lua, ns = env
+    w = world(env, scorch=1)
+    monster(env, w, 300, 50, life=500, speed=0, dmg=lua.table_from([1, 1]))       # 10 away and healthy: it bites
+    cast(ns, w, "scorch", 300, 50)
+    run(ns, w, 0.1)
+    ks, ev = kinds(ns, w)
+    assert "cast" in ks and "bite" in ks and "hit" in ks
+
+
+def test_killing_a_boss_says_so(env):
+    lua, ns = env
+    w = world(env, scorch=1)
+    monster(env, w, 300, 120, life=1, speed=0, boss=True, name="Big One")
+    monster(env, w, 400, 120, life=1, speed=0, name="Small One")
+    cast(ns, w, "scorch", 300, 120)
+    run(ns, w, 1.0)
+    ks, ev = kinds(ns, w)
+    boss = [ev[i] for i in range(1, len(ev) + 1) if ev[i].k == "boss_dead"]
+    assert len(boss) == 1 and boss[0].name == "Big One"       # the ordinary kill does not announce itself as a boss

@@ -195,10 +195,12 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "skills" then showSkills()
   elseif arg == "visuals" then ns.Visuals.run()
   elseif arg == "play" then ns.Game.toggle()
+  elseif arg == "animtest" then ns.Game.animtest()
+  elseif arg:match("^facing") then say("model facing nudge " .. ns.Game.set_facing(arg:match("^facing%s*(%S*)")) .. " radians")
   elseif arg:match("^scale") then say("window scale " .. ns.Game.set_scale(arg:match("^scale%s*(%S*)")))
   elseif arg == "reset" then DreadDB.char = nil; say("character reset; it starts fresh next time you /dread play")
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread play | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread play | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
 end

@@ -27,12 +27,15 @@ no Blizzard D2 assets, no copied code.
 6. `/dread results` reprints both. They are also saved in `DreadDB.results` in `WTF/.../SavedVariables/Dread.lua`.
 7. Paste the results below.
 
-## Play it (beta, first playable)
-`/dread play` opens the game window. Your own character is the player and the monsters are WoW's own 3D models.
-- **Left click** walk. The window is scaled up (`/dread scale 2` for bigger, `/dread scale 1.2` for smaller). Nothing moves while the skill tree is open or before you have a spell. **Right click** cast the selected spell at the cursor. **1 to 9** pick a spell. **K** skill tree.
-- Waves come from the top of the field. Kill them for experience; each level gives a skill point and refills life and mana.
-- A new character has one point: press K and spend it. Your level and points are saved; `/dread reset` starts over.
-- Castable so far: Scorch, Frostbolt, Ice Lance, Arcing Bolts, Lightning Bolt, Fireball, Glacial Spike, Frost Nova, Thunder Nova. The other skills show "Not castable yet" in their tooltip.
+## Play it (beta)
+`/dread play` opens the game. Your own character is the player; the monsters, trees, rocks, graves and spell effects are WoW's own models, and the ground is a WoW terrain texture. All by file ID, from the community listfile.
+- **The world:** The Gloam Moor (2400 x 1500) with a camp where you start, nine packs of monsters that sleep until you come close (and wake together), trees and rocks you walk round, and a cave mouth in the far corner. Walk in and you are in The Hollow Den, with a boss. Killing it finishes the quest and pays one skill point (once).
+- **Mouse:** left click walks; left click a monster to walk up and attack it with your **wand** (free, no mana, level-scaled damage). Right click casts the selected skill at the cursor. Shift + left click casts without moving. Drag the window by its **title bar** only.
+- **Skill bar (8 slots):** keys **1-8** select a slot; **Tab** or the **mouse wheel** rotate to the next one. Open the tree with **K**, hover a skill and press **1-8** to put it on that slot. New skills fill the first empty slot. The bar is saved.
+- **Mana and life:** mana comes back at 4% of your pool a second (more with Evocation). Monsters sometimes drop a mana or life globe: walk over it for 35%.
+- **Nothing moves while the tree is open.** `/dread scale 2` makes the window bigger. `/dread reset` starts over.
+- Castable so far: Scorch, Frostbolt, Ice Lance, Arcing Bolts, Lightning Bolt, Fireball, Glacial Spike, Frost Nova, Thunder Nova. The others show "Not castable yet" in their tooltip.
+- **Unverified in the client:** the animation id for casting (a guess: `/dread animtest` lets you pick it by eye), which way models face (`/dread facing <radians>` nudges it), and whether every file ID in `Zone.lua` and `Game.lua` exists in Forever.
 
 ## Results (fill in)
 | Test | Date | Result | Notes |
