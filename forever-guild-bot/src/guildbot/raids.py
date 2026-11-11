@@ -8,8 +8,11 @@ ROLES = ("tank", "healer", "dps", "bench", "absent")
 ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Bench", "absent": "Can't make it"}
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
-OFFER_MINUTES = 20    # how long a bench player has to answer "a spot opened up"
-PING_AFTER_MINUTES = 15  # unanswered by DM for this long: a last-call ping in the raid channel (then OFFER_MINUTES is up)
+# How long a bench player has to answer "a spot opened up" depends on how far off the raid is:
+OFFER_SHARE = 0.10            # a tenth of the time left until the start ...
+OFFER_MIN_MINUTES = 15        # ... but never less than this ...
+OFFER_MAX_MINUTES = 6 * 60    # ... and never more than this
+LAST_CALL_SHARE = 0.25        # the last quarter of the window is the "last call" ping in the raid channel
 
 
 def parse_start(date_s: str, time_s: str, tz_name: str) -> datetime:
@@ -175,16 +178,25 @@ def next_offers(raid, rows, offers) -> list[tuple[int, str]]:
     return out
 
 
-def offer_text(raid, role: str) -> str:
+def offer_window(now: datetime, start: datetime) -> tuple[datetime, datetime]:
+    """(last-call time, expiry time) for an offer made at `now` for a raid that starts at `start`.
+    A raid days away gives hours to answer; a raid starting soon gives the minimum. It never runs past the start."""
+    left = (start - now).total_seconds() / 60
+    total = min(max(left * OFFER_SHARE, OFFER_MIN_MINUTES), OFFER_MAX_MINUTES)
+    total = min(total, max(left - 1, 1))
+    return now + timedelta(minutes=total * (1 - LAST_CALL_SHARE)), now + timedelta(minutes=total)
+
+
+def offer_text(raid, role: str, expires_at: datetime) -> str:
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
     return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>): **{ROLE_SINGULAR[role]}**. "
-            f"Want it? You've got {OFFER_MINUTES} minutes.")
+            f"Want it? Answer by <t:{int(expires_at.timestamp())}:t>.")
 
 
-def ping_text(raid, role: str, discord_id: int, last_call: bool = False) -> str:
+def ping_text(raid, role: str, discord_id: int, expires_at: datetime, last_call: bool = False) -> str:
     """The @ in the raid channel. last_call: they were already DMed and did not answer; this is the final nudge."""
-    left = OFFER_MINUTES - PING_AFTER_MINUTES
     if last_call:
         return (f"<@{discord_id}> last call: a spot is open in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
-                f"Want it? It goes to the next person in {left} minutes.")
-    return f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. Want it?"
+                f"Want it? It goes to the next person <t:{int(expires_at.timestamp())}:R>.")
+    return (f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
+            f"Want it? Answer by <t:{int(expires_at.timestamp())}:t>.")

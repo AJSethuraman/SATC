@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
     state TEXT NOT NULL DEFAULT 'pending',      -- pending | accepted | declined | expired
     sent_at TEXT NOT NULL,
+    ping_at TEXT, expires_at TEXT,             -- when to send the last-call ping, and when the offer lapses
     dm_msg_id INTEGER, chan_msg_id INTEGER,     -- the DM, and the ping in the raid channel (if one was sent)
     cleaned INTEGER NOT NULL DEFAULT 0          -- 1 once those messages have been tidied up
 );
@@ -120,10 +121,15 @@ class Database:
             self.conn.execute("ALTER TABLE recipes ADD COLUMN item_id INTEGER")
             self.conn.commit()
         ocols = {r["name"] for r in self.conn.execute("PRAGMA table_info(offers)")}
-        for col, ddl in (("dm_msg_id", "INTEGER"), ("chan_msg_id", "INTEGER"), ("cleaned", "INTEGER NOT NULL DEFAULT 0")):
+        for col, ddl in (("dm_msg_id", "INTEGER"), ("chan_msg_id", "INTEGER"), ("cleaned", "INTEGER NOT NULL DEFAULT 0"),
+                         ("ping_at", "TEXT"), ("expires_at", "TEXT")):
             if col not in ocols:                        # database created before offers had messages to tidy
                 self.conn.execute(f"ALTER TABLE offers ADD COLUMN {col} {ddl}")
                 self.conn.commit()
+        self.conn.execute(                              # offers made before windows were stored: 15 / 20 minutes
+            """UPDATE offers SET ping_at=strftime('%Y-%m-%dT%H:%M:%S+00:00', sent_at, '+15 minutes'),
+                 expires_at=strftime('%Y-%m-%dT%H:%M:%S+00:00', sent_at, '+20 minutes') WHERE expires_at IS NULL""")
+        self.conn.commit()
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
@@ -652,9 +658,10 @@ class Database:
         self.conn.commit()
 
     # ---- bench queue offers ------------------------------------------------
-    def create_offer(self, raid_id, discord_id, role, now) -> int:
-        cur = self.conn.execute("INSERT INTO offers (raid_id, discord_id, role, sent_at) VALUES (?,?,?,?)",
-                                (raid_id, discord_id, role, now))
+    def create_offer(self, raid_id, discord_id, role, now, ping_at, expires_at) -> int:
+        cur = self.conn.execute(
+            "INSERT INTO offers (raid_id, discord_id, role, sent_at, ping_at, expires_at) VALUES (?,?,?,?,?,?)",
+            (raid_id, discord_id, role, now, ping_at, expires_at))
         self.conn.commit()
         return cur.lastrowid
 
@@ -671,10 +678,10 @@ class Database:
     def pending_offers(self):
         return self.conn.execute("SELECT * FROM offers WHERE state='pending' ORDER BY id").fetchall()
 
-    def expire_old_offers(self, cutoff_iso: str):
-        """Pending offers sent before the cutoff become expired. Returns the ones that did."""
-        rows = self.conn.execute("SELECT * FROM offers WHERE state='pending' AND sent_at<?", (cutoff_iso,)).fetchall()
-        self.conn.execute("UPDATE offers SET state='expired' WHERE state='pending' AND sent_at<?", (cutoff_iso,))
+    def expire_old_offers(self, now_iso: str):
+        """Pending offers whose time is up become expired. Returns the ones that did."""
+        rows = self.conn.execute("SELECT * FROM offers WHERE state='pending' AND expires_at<=?", (now_iso,)).fetchall()
+        self.conn.execute("UPDATE offers SET state='expired' WHERE state='pending' AND expires_at<=?", (now_iso,))
         self.conn.commit()
         return rows
 
@@ -685,11 +692,11 @@ class Database:
             self.conn.execute("UPDATE offers SET chan_msg_id=? WHERE id=?", (chan, offer_id))
         self.conn.commit()
 
-    def offers_to_ping(self, cutoff_iso: str):
-        """Pending offers asked before the cutoff that have no ping in the raid channel yet."""
+    def offers_to_ping(self, now_iso: str):
+        """Pending offers whose last-call time has come and that have no ping in the raid channel yet."""
         return self.conn.execute(
-            "SELECT * FROM offers WHERE state='pending' AND chan_msg_id IS NULL AND sent_at<? ORDER BY id",
-            (cutoff_iso,)).fetchall()
+            "SELECT * FROM offers WHERE state='pending' AND chan_msg_id IS NULL AND ping_at<=? ORDER BY id",
+            (now_iso,)).fetchall()
 
     def offers_to_clean(self):
         """Answered or expired offers whose messages are still lying around."""

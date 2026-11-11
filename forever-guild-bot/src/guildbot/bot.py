@@ -654,15 +654,19 @@ class GuildBot(discord.Client):
             picks = R.next_offers(raid, self.db.signups(raid_id), self.db.offers_for_raid(raid_id))
             if not picks:
                 return
+            now = datetime.now(timezone.utc)
+            ping_at, expires_at = R.offer_window(now, datetime.fromisoformat(raid["starts_at"]))
             for uid, role in picks:
-                offer_id = self.db.create_offer(raid_id, uid, role, utcnow())
+                offer_id = self.db.create_offer(raid_id, uid, role, now.isoformat(timespec="seconds"),
+                                                ping_at.isoformat(timespec="seconds"),
+                                                expires_at.isoformat(timespec="seconds"))
                 sent = False
                 try:
                     user = self.get_user(uid) or await self.fetch_user(uid)
                     if user.bot:
                         self.db.set_offer_state(offer_id, "expired")
                         continue
-                    msg = await user.send(R.offer_text(raid, role), view=OfferView(self, offer_id))
+                    msg = await user.send(R.offer_text(raid, role, expires_at), view=OfferView(self, offer_id))
                     self.db.set_offer_messages(offer_id, dm=msg.id)
                     sent = True
                 except discord.HTTPException:
@@ -679,7 +683,8 @@ class GuildBot(discord.Client):
         try:
             chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
             last = offer["dm_msg_id"] is not None                      # they got a DM already: this is the last call
-            msg = await chan.send(R.ping_text(raid, offer["role"], offer["discord_id"], last), view=OfferView(self, offer_id),
+            expires = datetime.fromisoformat(offer["expires_at"])
+            msg = await chan.send(R.ping_text(raid, offer["role"], offer["discord_id"], expires, last), view=OfferView(self, offer_id),
                                   allowed_mentions=discord.AllowedMentions(users=[discord.Object(id=offer["discord_id"])]))
             self.db.set_offer_messages(offer_id, chan=msg.id)
             return True
@@ -757,16 +762,14 @@ class GuildBot(discord.Client):
         await self.refresh_raid_post(raid["id"])
 
     async def _expire_offers(self) -> None:
-        """An offer nobody answered within OFFER_MINUTES goes to the next person in line."""
-        from datetime import timedelta
-        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=R.OFFER_MINUTES)).isoformat(timespec="seconds")
-        for o in self.db.expire_old_offers(cutoff):
+        """An offer nobody answered in time goes to the next person in line; quiet ones get a last-call ping."""
+        now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        for o in self.db.expire_old_offers(now_iso):
             try:
                 await self.fill_open_slots(o["raid_id"])
             except Exception:
                 log.exception("could not pass on an expired offer for raid %s", o["raid_id"])
-        ping_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=R.PING_AFTER_MINUTES)).isoformat(timespec="seconds")
-        for o in self.db.offers_to_ping(ping_cutoff):          # no answer to the DM yet: also ask in the channel
+        for o in self.db.offers_to_ping(now_iso):              # no answer to the DM yet: last call in the channel
             await self.ping_offer(o["id"])
         await self.sweep_offer_messages()
 

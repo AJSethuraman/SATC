@@ -910,11 +910,25 @@ def test_next_offers_follows_the_queue_and_respects_limits_and_pending_offers():
     assert R.next_offers(bigger, full, []) == [(5, "healer")]                    # room added: first eligible in line
     two = dict(raid, size=5)
     assert R.next_offers(two, full, []) == [(5, "healer"), (6, "tank")]          # 6 (any role) gets the next open role
-    assert "Want it?" in R.offer_text(raid | {"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps")
-    assert R.PING_AFTER_MINUTES < R.OFFER_MINUTES                                 # the ping comes before the offer runs out
-    last = R.ping_text({"title": "T"}, "dps", 7, last_call=True)
-    assert last == "<@7> last call: a spot is open in **T**: **DPS**. Want it? It goes to the next person in 5 minutes."
-    assert "last call" not in R.ping_text({"title": "T"}, "dps", 7)
+    when = datetime(2026, 11, 11, 20, 45, tzinfo=timezone.utc)
+    assert "Want it? Answer by <t:" in R.offer_text(raid | {"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps", when)
+    last = R.ping_text({"title": "T"}, "dps", 7, when, last_call=True)
+    assert last == f"<@7> last call: a spot is open in **T**: **DPS**. Want it? It goes to the next person <t:{int(when.timestamp())}:R>."
+    assert "last call" not in R.ping_text({"title": "T"}, "dps", 7, when)
+
+
+def test_offer_window_scales_with_time_until_the_raid():
+    now = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
+
+    def window(minutes_left):
+        ping, end = R.offer_window(now, now + timedelta(minutes=minutes_left))
+        return (ping - now).total_seconds() / 60, (end - now).total_seconds() / 60
+    assert window(2 * 24 * 60) == (216.0, 288.0)          # two days out: 288 minutes, last call after 216
+    assert window(10 * 24 * 60) == (270.0, 360.0)         # far off: capped at six hours
+    assert window(4 * 60) == (18.0, 24.0)                 # four hours out: 24 minutes
+    assert window(60) == (11.25, 15.0)                    # an hour out: the 15-minute floor
+    assert window(10) == (6.75, 9.0)                      # starting very soon: never past the start
+    assert window(1)[1] == 1.0 and window(0)[1] == 1.0
 
 
 def test_bench_queue_end_to_end_offer_accept_and_pass(tmp_path):
@@ -980,9 +994,9 @@ def test_bench_queue_end_to_end_offer_accept_and_pass(tmp_path):
 def test_offers_expire_with_time_and_when_the_raid_starts(tmp_path):
     db = make_db(tmp_path)
     rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    a = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00")
-    b = db.create_offer(rid, 4, "dps", "2026-11-11T20:30:00+00:00")
-    assert [o["id"] for o in db.expire_old_offers("2026-11-11T20:15:00+00:00")] == [a]
+    a = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00", "2026-11-11T20:10:00+00:00", "2026-11-11T20:15:00+00:00")
+    b = db.create_offer(rid, 4, "dps", "2026-11-11T20:30:00+00:00", "2026-11-11T20:40:00+00:00", "2026-11-11T20:45:00+00:00")
+    assert [o["id"] for o in db.expire_old_offers("2026-11-11T20:20:00+00:00")] == [a]
     assert db.get_offer(a)["state"] == "expired" and db.get_offer(b)["state"] == "pending"
     db.mark_closed(rid)
     assert db.get_offer(b)["state"] == "expired" and db.pending_offers() == []
@@ -1096,13 +1110,14 @@ def _whisper(log):
     return send_message
 
 
-def test_a_quiet_dm_offer_also_gets_a_channel_ping_after_five_minutes(tmp_path):
+def test_a_quiet_dm_offer_also_gets_a_channel_ping_at_its_last_call_time(tmp_path):
     db = make_db(tmp_path)
     rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    old = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00")
-    new = db.create_offer(rid, 4, "dps", "2026-11-11T20:04:00+00:00")
+    old = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00", "2026-11-11T20:03:00+00:00", "2026-11-11T20:20:00+00:00")
+    new = db.create_offer(rid, 4, "dps", "2026-11-11T20:04:00+00:00", "2026-11-11T20:05:00+00:00", "2026-11-11T20:20:00+00:00")
     assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:05:00+00:00")] == [old, new]
     assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:03:00+00:00")] == [old]
+    assert db.offers_to_ping("2026-11-11T20:02:00+00:00") == []                              # not yet time for either
     db.set_offer_messages(old, chan=77)
     assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:05:00+00:00")] == [new]       # already pinged: not again
     db.set_offer_state(old, "declined")
