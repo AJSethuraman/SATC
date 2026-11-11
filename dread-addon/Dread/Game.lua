@@ -11,7 +11,7 @@ local Game = {}
 ns.Game = Game
 
 local VW, VH = 640, 400            -- the viewport, in the same units Combat.lua uses
-local HUD_H, TITLE_H = 92, 22
+local HUD_H, TITLE_H = 104, 24
 local MAX_MON, MAX_DOODAD, MAX_PROJ, MAX_BLAST, MAX_FLOAT, MAX_DROP = 14, 22, 16, 6, 20, 8
 local SLOTS = 8
 local ATTACK_RANGE = 300           -- how close you get to a clicked monster before the wand starts firing
@@ -56,7 +56,9 @@ local ground, ground2
 local mon_f, doodad_f, proj_f, blast_f, float_f, drop_f = {}, {}, {}, {}, {}, {}
 local doodad_slot = {}                -- scenery piece -> its frame, so models are not reassigned as you walk
 local player_model
-local life_bar, mana_bar, xp_bar, info_text, hint_text, over_text, zone_text, toast_text, exit_marks
+local life_orb, mana_orb, xp_bar, info_text, hint_text, over_text, zone_text, toast_text, exit_marks
+local reset_btn, reset_armed
+local solid_f, solid_on, solid_sizes = {}, false, {}
 local slots = {}
 Game.tree_buttons = {}
 Game.paused = false
@@ -267,6 +269,52 @@ local function build_tree()
   tree_frame:Hide()
 end
 
+---------------------------------------------------------------- the orbs
+local ORB, MASK = 84, "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+
+-- A round gauge in the Diablo style: gold rim, dark glass, a fill that rises from the bottom, a little shine, the numbers in the middle.
+-- The circle comes from a mask texture; if the client refuses masks the orb is simply square, it still works.
+local function build_orb(parent, x, r, g, b)
+  local frame_ = CreateFrame("Frame", nil, parent)
+  frame_:SetSize(ORB + 12, ORB + 12)
+  frame_:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", x, 4)
+  local function disc(layer, size, cr, cg, cb, alpha)
+    local t = frame_:CreateTexture(nil, layer)
+    t:SetSize(size, size); t:SetPoint("CENTER", frame_, "CENTER", 0, 0)
+    t:SetColorTexture(cr, cg, cb, alpha or 1)
+    try(function()
+      local m = frame_:CreateMaskTexture()
+      m:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+      m:SetSize(size, size); m:SetPoint("CENTER", frame_, "CENTER", 0, 0)
+      t:AddMaskTexture(m)
+    end)
+    return t
+  end
+  disc("BACKGROUND", ORB + 12, 0.62, 0.5, 0.2)          -- gold rim
+  disc("BACKGROUND", ORB + 6, 0.05, 0.03, 0.03)        -- dark glass
+  local fill = frame_:CreateTexture(nil, "ARTWORK")
+  fill:SetColorTexture(r, g, b, 1)
+  fill:SetPoint("BOTTOM", frame_, "BOTTOM", 0, 6); fill:SetSize(ORB, 1)
+  try(function()
+    local m = frame_:CreateMaskTexture()
+    m:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    m:SetSize(ORB, ORB); m:SetPoint("CENTER", frame_, "CENTER", 0, 0)
+    fill:AddMaskTexture(m)
+  end)
+  local shine = disc("OVERLAY", ORB * 0.5, 1, 1, 1, 0.12)
+  shine:ClearAllPoints(); shine:SetPoint("CENTER", frame_, "CENTER", -ORB * 0.16, ORB * 0.2)
+  local text = frame_:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  text:SetPoint("CENTER", frame_, "CENTER", 0, 0)
+  local orb_ = { frame = frame_, text = text, fill = fill, frac = 0 }
+  function orb_.set(frac, label)
+    frac = math.max(0, math.min(1, frac))
+    orb_.frac = frac
+    fill:SetHeight(math.max(1, ORB * frac))
+    text:SetText(label)
+  end
+  return orb_
+end
+
 ---------------------------------------------------------------- the main window
 local function model_pool(parent, n, w, h)
   local pool = {}
@@ -299,9 +347,16 @@ local function build()
   handle:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
   local title = fstr(handle, "GameFontNormalSmall")
   title:SetPoint("LEFT", handle, "LEFT", 10, 0)
-  title:SetText("Dread   (drag here to move)")
+  title:SetText("Dread " .. (ns.BUILD and ("(" .. ns.BUILD .. ")  ") or "") .. "drag here to move")
   zone_text = fstr(handle, "GameFontHighlightSmall")
-  zone_text:SetPoint("RIGHT", handle, "RIGHT", -10, 0)
+  zone_text:SetPoint("CENTER", handle, "CENTER", -20, 0)
+  local skills_btn = CreateFrame("Button", nil, handle, "UIPanelButtonTemplate")
+  skills_btn:SetSize(86, 20); skills_btn:SetPoint("RIGHT", handle, "RIGHT", -100, 0); skills_btn:SetText("Skills (K)")
+  skills_btn:SetScript("OnClick", function() Game.toggle_tree() end)
+  -- reset asks twice, so a stray click cannot wipe a character
+  reset_btn = CreateFrame("Button", nil, handle, "UIPanelButtonTemplate")
+  reset_btn:SetSize(86, 20); reset_btn:SetPoint("RIGHT", handle, "RIGHT", -6, 0); reset_btn:SetText("New game")
+  reset_btn:SetScript("OnClick", function() Game.press_reset() end)
 
   arena = CreateFrame("Frame", nil, frame)
   arena:SetSize(VW, VH)
@@ -349,6 +404,17 @@ local function build()
     local l = fstr(arena, "GameFontNormalSmall"); l:Hide()
     exit_marks[i] = { t = t, l = l }
   end
+  for i = 1, 48 do                                              -- the /dread solid circles
+    local t = arena:CreateTexture(nil, "OVERLAY", nil, 3)
+    t:SetColorTexture(1, 0.1, 0.1, 0.4); t:Hide()
+    try(function()
+      local m = arena:CreateMaskTexture()
+      m:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+      m:SetAllPoints(t)
+      t:AddMaskTexture(m)
+    end)
+    solid_f[i] = t
+  end
   over_text = fstr(arena, "GameFontNormalLarge")
   over_text:SetPoint("CENTER", arena, "CENTER", 0, 0); over_text:Hide()
   toast_text = fstr(arena, "GameFontNormalLarge")
@@ -356,27 +422,26 @@ local function build()
 
   hud = CreateFrame("Frame", nil, frame)
   hud:SetSize(VW, HUD_H)
-  hud:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 8)
-  life_bar = tex(hud); life_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, 0); life_bar:SetSize(220, 14); life_bar:SetColorTexture(0.8, 0.1, 0.1, 1)
-  mana_bar = tex(hud); mana_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -18); mana_bar:SetSize(220, 14); mana_bar:SetColorTexture(0.15, 0.3, 0.9, 1)
-  xp_bar = tex(hud); xp_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -36); xp_bar:SetSize(220, 5); xp_bar:SetColorTexture(0.9, 0.8, 0.2, 1)
-  info_text = fstr(hud, "GameFontHighlight"); info_text:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -46)
-  hint_text = fstr(hud, "GameFontNormalSmall"); hint_text:SetPoint("TOPLEFT", hud, "TOPLEFT", 0, -64)
-  hint_text:SetWidth(VW)
+  hud:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 6)
+  life_orb = build_orb(hud, 0, 0.78, 0.08, 0.08)
+  mana_orb = build_orb(hud, VW - (ORB + 12), 0.12, 0.28, 0.9)
+  local mid = ORB + 12 + (VW - 2 * (ORB + 12) - SLOTS * 42) / 2      -- the skill bar sits centred between the orbs
   for i = 1, SLOTS do
     local b = CreateFrame("Button", nil, hud)
     b:SetSize(40, 40)
-    b:SetPoint("TOPLEFT", hud, "TOPLEFT", 236 + (i - 1) * 42, 0)
-    b.bg = tex(b, "BACKGROUND"); b.bg:SetAllPoints(b); b.bg:SetColorTexture(0.1, 0.1, 0.1, 0.9)
+    b:SetPoint("TOPLEFT", hud, "TOPLEFT", mid + (i - 1) * 42, -6)
+    b.bg = tex(b, "BACKGROUND"); b.bg:SetAllPoints(b); b.bg:SetColorTexture(0.12, 0.1, 0.08, 0.95)
     b.icon = tex(b); b.icon:SetAllPoints(b)
     b.key = fstr(b, "GameFontHighlightSmall"); b.key:SetPoint("TOPLEFT", 2, -2); b.key:SetText(tostring(i))
-    b.sel = tex(b, "OVERLAY"); b.sel:SetAllPoints(b); b.sel:SetColorTexture(1, 1, 1, 0.3); b.sel:Hide()
+    b.sel = tex(b, "OVERLAY"); b.sel:SetAllPoints(b); b.sel:SetColorTexture(1, 0.85, 0.3, 0.35); b.sel:Hide()
     b:SetScript("OnClick", function() if bar[i] then sel = i end end)
     slots[i] = b
   end
-  local sk = CreateFrame("Button", nil, hud, "UIPanelButtonTemplate")
-  sk:SetSize(80, 22); sk:SetPoint("TOPLEFT", hud, "TOPLEFT", 236 + SLOTS * 42 + 6, -9); sk:SetText("Skills (K)")
-  sk:SetScript("OnClick", function() Game.toggle_tree() end)
+  xp_bar = tex(hud); xp_bar:SetPoint("TOPLEFT", hud, "TOPLEFT", mid, -52); xp_bar:SetSize(SLOTS * 42 - 2, 5); xp_bar:SetColorTexture(0.9, 0.8, 0.2, 1)
+  info_text = fstr(hud, "GameFontHighlightSmall"); info_text:SetPoint("TOPLEFT", hud, "TOPLEFT", mid, -62)
+  hint_text = fstr(hud, "GameFontNormalSmall"); hint_text:SetPoint("TOPLEFT", hud, "TOPLEFT", mid - 20, -76)
+  hint_text:SetWidth(SLOTS * 42 + 40)
+  hint_text:SetJustifyH("LEFT")
 
   frame:SetScript("OnMouseDown", function(_, button)
     if world.over then new_world(); return end
@@ -491,6 +556,22 @@ function Game.tick(dt)
   local T2 = fl.overlay_tile
   ground2:SetTexCoord(cam.x / T2, (cam.x + VW) / T2, -(cam.y + VH) / T2, -cam.y / T2)
   draw_scenery()
+  do                                                              -- the blocking circles, when asked for
+    local n = 0
+    solid_sizes = {}
+    if solid_on then
+      for _, o in ipairs(world.obstacles) do
+        local sx, sy = o.x - cam.x, o.y - cam.y
+        if n < #solid_f and vis(sx, sy, 40, 40) then
+          n = n + 1
+          local t = solid_f[n]
+          t:SetSize(o.r * 2, o.r * 2); t:ClearAllPoints(); t:SetPoint("CENTER", arena, "BOTTOMLEFT", sx, sy); t:Show()
+          solid_sizes[#solid_sizes + 1] = o.r * 2
+        end
+      end
+    end
+    for i = n + 1, #solid_f do solid_f[i]:Hide() end
+  end
 
   -- you
   place(player_model, p.x, p.y, 90); depth(player_model, p.y)
@@ -625,11 +706,10 @@ function Game.tick(dt)
   end
 
   -- HUD
-  life_bar:SetWidth(math.max(1, 220 * p.life / p.maxlife))
-  mana_bar:SetWidth(math.max(1, 220 * p.mana / p.maxmana))
-  xp_bar:SetWidth(math.max(1, 220 * p.xp / Combat.xp_for_next(p.level)))
-  info_text:SetText(string.format("Life %d/%d  Mana %d/%d  Lv %d  Points %d  %d FPS",
-    math.floor(p.life), p.maxlife, math.floor(p.mana), p.maxmana, p.level, Tree.points_free(p.st), math.floor(GetFramerate())))
+  life_orb.set(p.life / p.maxlife, math.floor(p.life) .. "/" .. p.maxlife)
+  mana_orb.set(p.mana / p.maxmana, math.floor(p.mana) .. "/" .. p.maxmana)
+  xp_bar:SetWidth(math.max(1, (SLOTS * 42 - 2) * p.xp / Combat.xp_for_next(p.level)))
+  info_text:SetText(string.format("Level %d    Skill points %d    %d FPS", p.level, Tree.points_free(p.st), math.floor(GetFramerate())))
   zone_text:SetText(area.title .. (area.quest and (world.flags.den and "   Quest done" or ("   " .. area.quest.title)) or ""))
   for i = 1, SLOTS do
     local b, id = slots[i], bar[i]
@@ -707,6 +787,22 @@ function Game.reset()
   end
 end
 
+-- The in-game button: the first click arms it, a second click within three seconds does it.
+function Game.press_reset()
+  if reset_armed then
+    reset_armed = false
+    reset_btn:SetText("New game")
+    Game.reset()
+    hint_text:SetText("New character: level 1, no skills.")
+    return
+  end
+  reset_armed = true
+  reset_btn:SetText("Sure? Click")
+  C_Timer.After(3, function()
+    if reset_armed then reset_armed = false; reset_btn:SetText("New game") end
+  end)
+end
+
 function Game.toggle_tree()
   if tree_frame:IsShown() then tree_frame:Hide() else refresh_tree(); tree_frame:Show() end
 end
@@ -742,6 +838,10 @@ function Game.animtest()
   end
 end
 
+function Game.solid() return solid_on end
+function Game.solid_sizes() return solid_sizes end
+function Game.set_solid(on) solid_on = on and true or false; return solid_on end
+function Game.orbs() return life_orb, mana_orb end
 function Game.world() return world end
 function Game.camera() return cam end
 function Game.area() return area end

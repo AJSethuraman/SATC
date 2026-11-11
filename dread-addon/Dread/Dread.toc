@@ -8,6 +8,8 @@ Skills.lua
 Tree.lua
 Combat.lua
 Zone.lua
+Build.lua
 Game.lua
 Visuals.lua
+Net.lua
 Dread.lua

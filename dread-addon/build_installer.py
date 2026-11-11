@@ -55,7 +55,16 @@ exit /b
 
 """
 
+def stamp():
+    """Dread/Build.lua says when this install was built, and the window title shows it, so 'which version do you have' has an answer."""
+    import datetime
+    when = datetime.datetime.now(datetime.timezone.utc).strftime("%d %b %H:%M UTC")
+    with open("Dread/Build.lua", "w") as fh:
+        fh.write('-- Written by build_installer.py. Do not edit.\nlocal _, ns = ...\nns = ns or {}\nns.BUILD = "%s"\n' % when)
+
+
 def main():
+    stamp()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for f in sorted(os.listdir("Dread")):

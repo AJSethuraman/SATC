@@ -130,3 +130,30 @@ def test_scenery_is_spaced_out_so_it_does_not_pile_up(env):
         for i, a in enumerate(d):
             for b in d[i + 1:]:
                 assert dist(a, b) >= 69.9, f"{a.kind} and {b.kind} overlap in {name}"
+
+
+def test_what_blocks_you_fits_inside_what_you_see(env):
+    # The first look at the moor had trees drawn about six times wider than the circle that stopped you,
+    # so you seemed to walk through them. The solid part must be a real share of the visible footprint.
+    lua, ns = env
+    for kind in ("tree", "fallen", "rock"):
+        spec = ns.Zone.SCENERY[kind]
+        assert spec.r > 0
+        assert 0.25 * spec.w <= spec.r * 2 <= spec.w, f"{kind}: solid width {spec.r * 2} against a visible width of {spec.w}"
+    for kind in ("bush", "grave"):
+        assert ns.Zone.SCENERY[kind].r == 0                                  # things you may walk over stay walkable
+
+
+def test_the_camera_distance_shrinks_the_frame_back_to_the_footprint(env):
+    # A model fills its frame at camera distance 1, so frame / cam is how big it looks. Frame = footprint x frame, so cam must equal frame.
+    lua, ns = env
+    for kind in ("tree", "fallen", "bush", "grave", "rock"):
+        spec = ns.Zone.SCENERY[kind]
+        assert spec.cam == spec.frame >= 1.5, f"{kind} would not look {spec.w} wide"
+
+
+def test_the_build_stamp_is_a_real_string(env):
+    lua, ns = env
+    ns2 = lua.table()
+    lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")(str(DREAD / "Build.lua"), ns2)
+    assert isinstance(ns2.BUILD, str) and "UTC" in ns2.BUILD

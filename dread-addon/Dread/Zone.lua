@@ -34,11 +34,14 @@ Zone.GROUND = {
            overlay = 187140, overlay_tint = { 0.6, 0.55, 0.5 }, overlay_alpha = 0.3, overlay_tile = 560 },
 }
 Zone.SCENERY = {
-  tree   = { ids = { 204124, 204129 },                   w = 150, h = 190, r = 16, frame = 2.0, cam = 2.2 },   -- tirisfalgladetree01, canopytree02
-  fallen = { ids = { 204125, 204126, 204127, 204128 },   w = 170, h = 100, r = 20, frame = 1.8, cam = 1.8 },   -- tirisfallfallentree01-04
-  bush   = { ids = { 204097, 204098, 204099 },           w = 60,  h = 50,  r = 0,  frame = 1.8, cam = 1.5 },
-  grave  = { ids = { 204105, 204106, 204107, 204108 },   w = 60,  h = 60,  r = 0,  frame = 1.6, cam = 1.4 },   -- brillgraves01-04
-  rock   = { ids = { 189499, 189500, 189501 },           w = 100, h = 80,  r = 26, frame = 1.8, cam = 1.6 },   -- duskwoodboulder01-03
+  -- w, h: how big it should LOOK, in world units. r: the solid part you cannot walk through (always inside w).
+  -- frame: the model's frame is this many times w, so nothing is cut off; cam: the camera distance that shrinks it back
+  -- to w (a model fills its frame at distance 1, so it looks about frame/cam times w/frame = w).
+  tree   = { ids = { 204124, 204129 },                   w = 80,  h = 100, r = 18, frame = 2.2, cam = 2.2 },   -- tirisfalgladetree01, canopytree02
+  fallen = { ids = { 204125, 204126, 204127, 204128 },   w = 110, h = 60,  r = 18, frame = 2.0, cam = 2.0 },   -- tirisfallfallentree01-04
+  bush   = { ids = { 204097, 204098, 204099 },           w = 44,  h = 36,  r = 0,  frame = 2.0, cam = 2.0 },
+  grave  = { ids = { 204105, 204106, 204107, 204108 },   w = 40,  h = 44,  r = 0,  frame = 2.0, cam = 2.0 },   -- brillgraves01-04
+  rock   = { ids = { 189499, 189500, 189501 },           w = 70,  h = 56,  r = 22, frame = 2.0, cam = 2.0 },   -- duskwoodboulder01-03
 }
 
 local function pick(rand, list) return list[1 + math.floor(rand() * #list)] end

@@ -9,9 +9,10 @@ DREAD = Path(__file__).resolve().parents[1] / "Dread"
 
 MOCK = r'''
 FRAMES, ALL, PRINTED, CURSOR, PROPAGATE, TIMERS = {}, {}, {}, {0, 0}, {}, {}
+SlashCmdList = {}
 SHIFT = false
-local function obj()
-  local o = { scripts = {}, shown = false }
+local function obj(parent)
+  local o = { scripts = {}, shown = false, parent = parent }
   ALL[#ALL + 1] = o
   return setmetatable(o, { __index = function(t, k)
     -- Real frames answer methods (CamelCase) and have nothing for fields they do not own (lowercase).
@@ -36,13 +37,21 @@ local function obj()
     if k == "SetTexCoord" then return function(self, ...) self.coords = { ... } end end
     if k == "SetCamDistanceScale" then return function(self, v) self.camscale = v end end
     if k == "SetSize" then return function(self, w, h) self.size = { w, h } end end
+    if k == "SetHeight" then return function(self, h) self.height = h end end
+    if k == "SetWidth" then return function(self, w) self.width = w end end
+    if k == "SetText" then return function(self, t) self.text = t end end
+    if k == "ClearAllPoints" then return function(self) self.pts = nil end end
+    if k == "SetPoint" then return function(self, point, rel, rp, x, y)
+      if type(rel) == "number" or rel == nil then x, y, rel, rp = rel or 0, rp or 0, nil, point
+      elseif x == nil then x, y = 0, 0 end
+      self.pts = { point = point, rel = rel, rp = rp, x = x or 0, y = y or 0 } end end
     if k == "SetAlpha" then return function(self, v) self.alpha = v end end
-    if k == "CreateTexture" or k == "CreateFontString" then return function() return obj() end end
+    if k == "CreateTexture" or k == "CreateFontString" or k == "CreateMaskTexture" then return function(self) return obj(self) end end
     if k == "CreateLine" then return function() if NO_LINES then error("no lines here") end return obj() end end
     return function(self, ...) return self end
   end })
 end
-function CreateFrame(kind, name, parent, tmpl) local o = obj(); o.kind = kind; if name then FRAMES[name] = o end return o end
+function CreateFrame(kind, name, parent, tmpl) local o = obj(parent); o.kind = kind; if name then FRAMES[name] = o end return o end
 UIParent, GameTooltip = obj(), obj()
 C_Timer = { After = function(sec, fn) TIMERS[#TIMERS + 1] = fn end }
 function run_timers() local t = TIMERS TIMERS = {} for _, f in ipairs(t) do f() end end
@@ -55,14 +64,22 @@ function player_model() for _, o in ipairs(ALL) do if o.unit == "player" and o.k
 '''
 
 
-def boot(prelude=""):
+def boot(prelude="", with_slash=False):
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Game"):
+    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
+
+
+def slash(lua, text):
+    lua.eval("SlashCmdList.DREAD")(text)
+
+
+def said(lua):
+    return [str(v) for v in lua.eval("PRINTED").values()]
 
 
 def tick(lua, n, dt=1 / 30):
@@ -481,3 +498,189 @@ def test_reset_before_the_window_exists_just_clears_the_save():
     assert lua.eval("DreadDB.char") is None and lua.eval("DreadDB.bar") is None
     ns.Game.toggle()
     assert ns.Game.world().player.level == 1
+
+
+# ---------------------------------------------------------------- the bottom bar and the title bar
+def extent(lua, o):
+    """Left and right edge of a widget inside its parent, from its anchor and size; None if it cannot be worked out."""
+    if o.pts is None or o.size is None or o.parent is None or o.parent.size is None:
+        return None
+    same = lua.eval("function(a, b) return a == b end")                  # Lua's own ==; Python wrappers are new on every access
+    if o.pts.rel is not None and not same(o.pts.rel, o.parent):
+        return None
+    pw, w, x, pt = o.parent.size[1], o.size[1], o.pts.x, o.pts.point
+    if pt in ("TOPLEFT", "BOTTOMLEFT", "LEFT"):
+        left = x
+    elif pt in ("TOPRIGHT", "BOTTOMRIGHT", "RIGHT"):
+        left = pw + x - w
+    else:
+        left = pw / 2 + x - w / 2
+    return left, left + w, pw
+
+
+def test_nothing_in_the_bottom_bar_or_title_bar_hangs_off_the_window():
+    # The Skills button once sat past the right edge of the window. Every button and orb must lie inside its parent.
+    lua, ns = boot()
+    ns.Game.toggle()
+    tick(lua, 2)
+    checked = 0
+    for o in lua.eval("ALL").values():
+        if o.kind in ("Button", "Frame") and o.parent is not None and o.parent.size is not None:
+            e = extent(lua, o)
+            if e is None:
+                continue
+            left, right, pw = e
+            assert left >= -0.5 and right <= pw + 0.5, f"a {o.kind} sticks out: {left:.0f}..{right:.0f} of {pw:.0f}"
+            checked += 1
+    assert checked >= 12                                               # 8 slots, 2 orbs, 2 buttons at least
+
+
+def test_the_two_orbs_show_life_and_mana_as_fractions_and_numbers():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    life, mana = ns.Game.orbs()
+    tick(lua, 2)
+    assert life.frac == pytest.approx(1.0) and life.text.text == f"{w.player.maxlife}/{w.player.maxlife}"
+    w.player.life = w.player.maxlife / 2
+    w.player.mana = 0
+    tick(lua, 1)
+    assert life.frac == pytest.approx(0.5, abs=0.02) and mana.frac < 0.1
+    assert life.text.text == f"{int(w.player.maxlife / 2)}/{w.player.maxlife}" and mana.text.text.endswith(f"/{w.player.maxmana}")
+    assert life.fill.height == pytest.approx(84 * life.frac, abs=0.5)           # the fill really is that tall
+
+
+def test_the_orbs_sit_at_opposite_ends_with_the_skill_bar_between_them():
+    lua, ns = boot()
+    ns.Game.toggle()
+    life, mana = ns.Game.orbs()
+    assert life.frame.pts.x < 5 and mana.frame.pts.x > 500
+    slots_x = sorted(o.pts.x for o in lua.eval("ALL").values() if o.kind == "Button" and o.size is not None and o.size[1] == 40 and o.pts is not None)
+    assert len(slots_x) == 8 and slots_x[0] > life.frame.pts.x + 96 - 1 and slots_x[-1] + 40 < mana.frame.pts.x + 1
+
+
+# ---------------------------------------------------------------- the New game button
+def find_button(lua, text):
+    for o in lua.eval("ALL").values():
+        if o.kind == "Button" and o.text == text:
+            return o
+
+
+def test_the_new_game_button_needs_two_clicks_and_then_really_resets():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch")
+    key(lua, "K")
+    btn = find_button(lua, "New game")
+    assert btn is not None
+    btn.scripts.OnClick(btn)                                           # first click only arms it
+    assert btn.text == "Sure? Click" and ns.Game.world().player.level == 12
+    btn.scripts.OnClick(btn)                                           # second click does it
+    assert btn.text == "New game" and ns.Game.world().player.level == 1
+    assert ns.Tree.points_spent(ns.Game.world().player.st) == 0
+
+
+def test_an_armed_new_game_button_disarms_itself():
+    lua, ns = boot()
+    ns.Game.toggle()
+    learn(ns, lua, "scorch")
+    btn = find_button(lua, "New game")
+    btn.scripts.OnClick(btn)
+    assert btn.text == "Sure? Click"
+    lua.eval("run_timers")()                                           # three seconds pass
+    assert btn.text == "New game"
+    btn.scripts.OnClick(btn)                                           # so the next click is a first click again
+    assert ns.Game.world().player.level == 12
+
+
+def test_skills_and_new_game_live_in_the_title_bar():
+    lua, ns = boot()
+    ns.Game.toggle()
+    for text in ("Skills (K)", "New game"):
+        b = find_button(lua, text)
+        assert b is not None and b.size[2] <= 22                       # fits inside the 24-high title bar
+        assert b.parent.size[2] == 24
+
+
+# ---------------------------------------------------------------- the blocking circles and scenery size
+def test_the_solid_circles_match_the_obstacles_on_screen():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 1200, 700
+    tick(lua, 2)
+    assert ns.Game.solid() is False and len(list(ns.Game.solid_sizes().values())) == 0     # nothing drawn by default
+    ns.Game.set_solid(True)
+    tick(lua, 2)
+    cam = ns.Game.camera()
+    on_screen = [o for o in w.obstacles.values() if -40 < o.x - cam.x < 680 and -40 < o.y - cam.y < 440]
+    assert on_screen
+    drawn = sorted(ns.Game.solid_sizes().values())
+    assert drawn == sorted(o.r * 2 for o in on_screen)                  # one circle per obstacle in view, as wide as it blocks
+    shown = [o for o in lua.eval("ALL").values() if o.shown and o.pts is not None and o.pts.point == "CENTER" and o.size is not None
+             and o.size[1] == o.size[2] and o.size[1] in set(drawn)]
+    assert len(shown) >= len(drawn)
+    ns.Game.set_solid(False)
+    tick(lua, 2)
+    assert len(list(ns.Game.solid_sizes().values())) == 0
+
+
+# ---------------------------------------------------------------- the typed commands (the path the player actually uses)
+def test_slash_reset_really_resets_a_live_game():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "play")
+    learn(ns, lua, "scorch", "frostbolt")
+    key(lua, "K")
+    w = ns.Game.world()
+    w.flags.den = True
+    assert w.player.level == 12
+    slash(lua, "reset")                                                 # typed, with the window open
+    w2 = ns.Game.world()
+    assert w2.player.level == 1 and ns.Tree.points_spent(w2.player.st) == 0 and w2.flags.den is None
+    assert ns.Game.bar()[0][1] is None
+    assert any("character reset" in l for l in said(lua))
+    slash(lua, "play")                                                  # close: saves the NEW character
+    assert lua.eval("DreadDB.char.level") == 1
+    slash(lua, "play")
+    assert ns.Game.world().player.level == 1                            # and it stays that way
+
+
+def test_slash_reset_before_playing_and_after_a_reload_style_state():
+    lua, ns = boot(with_slash=True)
+    lua.execute("DreadDB = { char = { level = 9, xp = 0, points = { scorch = 3 } } }")
+    slash(lua, "reset")
+    assert lua.eval("DreadDB.char") is None
+    slash(lua, "play")
+    assert ns.Game.world().player.level == 1
+
+
+def test_slash_commands_reach_the_game_settings():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "play")
+    slash(lua, "scale 2")
+    assert lua.eval("DreadDB.scale") == 2 and lua.eval("FRAMES.DreadGameFrame.scale") == 2
+    slash(lua, "tile 128");  assert lua.eval("DreadDB.tile") == 128
+    slash(lua, "tile");      assert lua.eval("DreadDB.tile") is None
+    slash(lua, "cam tree 3"); assert lua.eval("DreadDB.cam.tree") == 3
+    slash(lua, "cam tree banana")
+    assert lua.eval("DreadDB.cam.tree") == 3 and any("/dread cam" in l for l in said(lua))
+    slash(lua, "facing 1.5"); assert lua.eval("DreadDB.facing") == 1.5
+    assert ns.Game.solid() is False
+    slash(lua, "solid");  assert ns.Game.solid() is True
+    slash(lua, "solid");  assert ns.Game.solid() is False
+
+
+def test_an_unknown_command_prints_the_list_and_includes_every_command():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "banana")
+    text = " ".join(said(lua))
+    for word in ("play", "reset", "scale", "solid", "tile", "cam", "facing", "animtest", "skills", "visuals", "assets", "sound", "net", "version"):
+        assert word in text, f"/dread {word} is missing from the help line"
+
+
+def test_the_window_title_shows_which_build_this_is():
+    lua, ns = boot()
+    ns.BUILD = "11 Nov 21:00 UTC"
+    ns.Game.toggle()
+    titles = [o.text for o in lua.eval("ALL").values() if o.text is not None and "drag here to move" in str(o.text)]
+    assert titles and "11 Nov 21:00 UTC" in titles[0]

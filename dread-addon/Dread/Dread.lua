@@ -196,6 +196,9 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "visuals" then ns.Visuals.run()
   elseif arg == "play" then ns.Game.toggle()
   elseif arg == "animtest" then ns.Game.animtest()
+  elseif arg == "net" then ns.Net.start()
+  elseif arg == "version" then say("build " .. tostring(ns.BUILD))
+  elseif arg == "solid" then say("blocking circles " .. (ns.Game.set_solid(not ns.Game.solid()) and "on" or "off"))
   elseif arg:match("^tile") then say("ground tile size " .. tostring(ns.Game.set_tile(arg:match("^tile%s*(%S*)"))))
   elseif arg:match("^cam") then
     local kind, n = arg:match("^cam%s+(%a+)%s+(%S+)")
@@ -207,5 +210,5 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread play | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
 end

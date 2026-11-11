@@ -33,10 +33,15 @@ no Blizzard D2 assets, no copied code.
 - **Mouse:** left click walks; left click a monster to walk up and attack it with your **wand** (free, no mana, level-scaled damage). Right click casts the selected skill at the cursor. Shift + left click casts without moving. Drag the window by its **title bar** only.
 - **Skill bar (8 slots):** keys **1-8** select a slot; **Tab** or the **mouse wheel** rotate to the next one. Open the tree with **K**, hover a skill and press **1-8** to put it on that slot. New skills fill the first empty slot. The bar is saved.
 - **Mana and life:** mana comes back at 4% of your pool a second (more with Evocation). Monsters sometimes drop a mana or life globe: walk over it for 35%.
+- **The bottom bar:** a red life orb on the left, a blue mana orb on the right, your 8 skill slots between them with the experience bar underneath. **Skills (K)** and **New game** (click it twice) are in the title bar, which also shows the build time.
+- **Solid things:** trees, fallen logs and rocks block you and the monsters; bushes and graves do not. `/dread solid` draws the blocking circles over the scenery so you can see exactly what stops you, and `/dread cam` / `/dread tile` tune how big things look.
 - **Nothing moves while the tree is open.** `/dread scale 2` makes the window bigger. `/dread reset` starts over.
 - Castable so far: Scorch, Frostbolt, Ice Lance, Arcing Bolts, Lightning Bolt, Fireball, Glacial Spike, Frost Nova, Thunder Nova. The others show "Not castable yet" in their tooltip.
 - **Tuning without reinstalling:** `/dread tile 128` changes how big the ground texture tiles (`/dread tile` alone resets it). `/dread cam tree 3` moves the camera away from the trees (or `fallen`, `bush`, `grave`, `rock`) if they look cut off or too big or small. Both are saved.
 - **Unverified in the client:** the animation id for casting (a guess: `/dread animtest` lets you pick it by eye), which way models face (`/dread facing <radians>` nudges it), and whether every file ID in `Zone.lua` and `Game.lua` exists in Forever.
+
+## Multiplayer: what is known and what is not
+Nothing is built. The idea: the game rules (`Combat.lua`) are deterministic, so every player can run the same simulation and only **inputs** (a click, a cast) need to cross the network, a few bytes each. That fits addon messages (255 bytes each, throttled). It needs the combat core to handle several players, a lobby (party leader hosts) and a desync check. **Unknown, and it decides everything:** whether Forever lets two players exchange addon messages at all, how fast, and how many before it throttles. `/dread net` (in a party with a friend who also has Dread) measures exactly that: 10 pings for round-trip time, then a burst of 40 messages to see what gets through. Results are saved in `DreadDB.results.net`.
 
 ## Results (fill in)
 | Test | Date | Result | Notes |
