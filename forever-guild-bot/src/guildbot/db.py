@@ -293,14 +293,19 @@ class Database:
                            it.item_class, it.item_subclass, it.inventory_type))
         self.conn.commit()
 
-    def item_facets(self, column: str, text: str = "", item_class: str | None = None, limit: int = 25):
-        """Distinct values (item_class / item_subclass / inventory_type) among craftable items, for dropdowns."""
+    def item_facets(self, column: str, text: str = "", item_class: str | None = None, limit: int = 25,
+                    item_subclass: str | None = None):
+        """Distinct values (item_class / item_subclass / inventory_type) among craftable items, for dropdowns,
+        optionally narrowed to one kind and/or type."""
         assert column in ("item_class", "item_subclass", "inventory_type")
         q = f"SELECT {column} AS name, COUNT(*) AS n FROM items WHERE {column} IS NOT NULL AND lower({column}) LIKE ?"
         args: list = ["%" + text.strip().lower() + "%"]
         if item_class:
             q += " AND item_class=?"
             args.append(item_class)
+        if item_subclass:
+            q += " AND item_subclass=?"
+            args.append(item_subclass)
         return self.conn.execute(q + f" GROUP BY {column} ORDER BY {column} LIMIT ?", (*args, limit)).fetchall()
 
     def craftable(self, item_class=None, item_subclass=None, slot=None, min_level=None, max_level=None,

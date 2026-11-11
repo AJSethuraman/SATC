@@ -685,3 +685,46 @@ def test_craftable_finds_items_by_kind_and_level_with_who_can_make_them(tmp_path
     asyncio.run(sync_recipe_catalog(db, client, force=True))
     assert db.recipes_needing_item() == []
     assert len(db.craftable("Weapon", min_level=1, only_known=False)) >= 2
+
+
+def test_level_bands_cover_zero_to_top_without_gaps():
+    from guildbot import craft as C
+    bands = C.level_bands(60)
+    assert bands[0] == ("Level 1-10", "0-10") and bands[1] == ("Level 11-20", "11-20") and bands[-1] == ("Level 51-60", "51-60")
+    edges = [C.parse_band(v) for _, v in bands]
+    assert edges[0][0] == 0 and edges[-1][1] == 60
+    assert all(edges[i][1] + 1 == edges[i + 1][0] for i in range(len(edges) - 1))      # no gaps, no overlaps
+    assert C.parse_band("*") == (None, None) and C.parse_band(None) == (None, None) and C.parse_band("20-29") == (20, 29)
+
+
+def test_craft_wizard_dropdowns_follow_the_choices(tmp_path):
+    from guildbot.bot import CraftWizard, craftable_result
+    from guildbot.sync import sync_item_catalog, sync_recipe_catalog
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    client = ItemClient(ROSTER)
+    asyncio.run(sync_recipe_catalog(db, client))
+    asyncio.run(sync_item_catalog(db, client))
+    db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225, ((52644, "Camp Chair"),))], utcnow())
+
+    async def build():
+        bot = SimpleNamespaceBot(db)
+        w = CraftWizard(bot)
+        selects = [c for c in w.children if type(c).__name__ == "Select"]
+        assert [o.label for o in selects[0].options] == ["Any", "Weapon"]
+        assert [o.label for o in selects[1].options] == ["Any"]                    # no kind yet: no types
+        w2 = CraftWizard(bot, kind="Weapon")
+        s2 = [c for c in w2.children if type(c).__name__ == "Select"]
+        assert [o.label for o in s2[1].options] == ["Any", "Sword"] and [o.label for o in s2[2].options] == ["Any", "One-Hand"]
+        assert sum(o.default for o in s2[0].options) == 1
+        assert len(selects[3].options) == 7 and len(w.children) == 7                # 4 dropdowns + 3 buttons
+    asyncio.run(build())
+    embed, msg = craftable_result(db, "Weapon", "Sword", "One-Hand", 0, 10, None, False)
+    assert msg is None and "Copper Shortsword" in embed.description and "Anduin Wrynn" in embed.description
+    embed, msg = craftable_result(db, "Armor", None, None, None, None, None, False)
+    assert embed is None and "Nobody in the guild" in msg
+
+
+class SimpleNamespaceBot:
+    def __init__(self, db):
+        self.db = db
