@@ -1149,7 +1149,7 @@ def test_tentative_is_a_maybe_that_takes_no_slot_and_bench_is_only_overflow(tmp_
     bot.apply_signup(raid, 1, "absent", None)                                    # the slot opens: the queue, not the maybe
     assert R.next_offers(raid, db.signups(rid), []) == [(3, "dps")]
     names = [f.name for f in raid_embed(db, raid).fields]
-    assert names == ["\U0001F7E6 Tanks (0)", "\U0001F7E9 Healers (0)", "\U0001F7E5 DPS (0)", "\U0001FA91 Bench (1)",
+    assert names == ["\U0001F7E6 Tanks (0)", "\U0001F7E9 Healers (0)", "\U0001F7E5 DPS (0)", "Bench (1)",
                      "\U0001F7E8 Tentative (1)", "\u2B1C Can't make it (1)"]
     assert "**Tentative (1):**" in R.roster_summary(raid, db.signups(rid))
 
