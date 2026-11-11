@@ -11,7 +11,7 @@ ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
 # How long a bench player has to answer "a spot opened up" depends on how far off the raid is:
 OFFER_SHARE = 0.10            # a tenth of the time left until the start ...
 OFFER_MIN_MINUTES = 15        # ... but never less than this ...
-OFFER_MAX_MINUTES = 6 * 60    # ... and never more than this
+OFFER_MAX_MINUTES = 48 * 60   # ... and never more than two days
 LAST_CALL_SHARE = 0.25        # the last quarter of the window is the "last call" ping in the raid channel
 
 
