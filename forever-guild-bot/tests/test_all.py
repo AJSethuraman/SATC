@@ -475,9 +475,6 @@ def test_raid_wizard_and_details_modal_build(tmp_path):
     asyncio.run(build())
 
 
-def test_cancel_notice_mentions_each_signed_up_player_once():
+def test_cancel_notice_is_a_short_private_message():
     raid = {"title": "Test Raid", "starts_at": "2026-11-11T20:05:00+00:00"}
-    msg = R.cancel_notice(raid, [5, 7, 5], 9)
-    assert msg.startswith("**Test Raid** (<t:1794427500:F>) was cancelled by <@9>.")
-    assert msg.endswith("\n<@5> <@7>")
-    assert "\n" not in R.cancel_notice(raid, [], 9)
+    assert R.cancel_notice(raid, 9) == "**Test Raid** (<t:1794427500:F>) was cancelled by <@9>."

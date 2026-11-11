@@ -650,14 +650,23 @@ def register_commands(bot: GuildBot) -> None:
             return
         who = [s["discord_id"] for s in db.signups(raid_id) if s["role"] != "absent"]   # everyone involved
         db.cancel_raid(raid_id)                         # the row stays, marked cancelled, as a record
-        notice = R.cancel_notice(raid, who, interaction.user.id)
-        try:
-            await (chan or interaction.channel).send(
-                notice, allowed_mentions=discord.AllowedMentions(users=True, roles=False, everyone=False))
-        except discord.HTTPException:
-            log.exception("could not post the cancel notice for raid %s", raid_id)
-        await interaction.followup.send(f"Raid #{raid_id} cancelled. The post is gone and {len(who)} signed-up "
-                                        f"player(s) were told.", ephemeral=True)
+        notice = R.cancel_notice(raid, interaction.user.id)
+        told, blocked = 0, []
+        for uid in dict.fromkeys(who):
+            if uid == interaction.user.id:
+                continue                                # the officer who cancelled it already knows
+            try:
+                user = bot.get_user(uid) or await bot.fetch_user(uid)
+                if user.bot:
+                    continue
+                await user.send(notice)
+                told += 1
+            except discord.HTTPException:               # DMs closed, or the account is gone
+                blocked.append(uid)
+        msg = f"Raid #{raid_id} cancelled. The post and event are gone; {told} player(s) were messaged privately."
+        if blocked:
+            msg += " Couldn't message (their DMs are closed): " + " ".join(f"<@{u}>" for u in blocked)
+        await interaction.followup.send(msg, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @tree.command(name="raids", description="List upcoming raids")
     @app_commands.guild_only()
