@@ -293,25 +293,36 @@ class RaidWizard(discord.ui.View):
         await interaction.response.send_modal(RaidDetails(self.bot, self.day, self.time, self.size, self.origin))
 
 
+def _craft_line(r, gap: bool) -> str:
+    tags = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x)
+    lvl = "any level" if not r["required_level"] else f"L{r['required_level']}"
+    what = f"{item_link(r['name'])} ({lvl}, {tags or r['item_class'] or 'item'})"
+    return f"*{what}*: **{r['profession']}**" if gap else f"{what}: **{r['profession']}**, {r['knowers']}"
+
+
 def craftable_result(db: Database, kind, sub, slot, lo, hi, profession, show_all, stat=None):
-    """(embed, None) with the results, or (None, message) when there is nothing to show."""
+    """(embed, None) with the results, or (None, message) when there is nothing to show. What the guild can
+    make comes first; with show_all, the gaps (nobody can make it) follow, set apart and in italics."""
     if not db.item_facets("item_class", limit=1):
         return None, "I'm still looking up what recipes make (the first run takes a few minutes). Try again shortly."
-    rows = db.craftable(kind, sub, slot, lo, hi, profession, only_known=not show_all, limit=400, stat=stat)
-    if not rows:
-        return None, ("Nobody in the guild can craft anything that matches. Loosen a filter"
-                      + (", or switch the toggle to see gaps." if not show_all else "."))
-    lines = []
-    for r in rows:
-        tags = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x)
-        lvl = "any level" if not r["required_level"] else f"L{r['required_level']}"
-        lines.append(f"{item_link(r['name'])} ({lvl}, {tags or r['item_class'] or 'item'}): "
-                     f"**{r['profession']}** - {r['knowers'] or 'gap'}")
+    have = db.craftable(kind, sub, slot, lo, hi, profession, only_known=True, limit=400, stat=stat)
+    gaps = db.craftable(kind, sub, slot, lo, hi, profession, only_known=False, limit=400, stat=stat,
+                        gaps_only=True) if show_all else []
+    if not have and not gaps:
+        return None, ("Nothing matches. Loosen a filter" + (", or switch gaps on to see what nobody can make."
+                                                            if not show_all else "."))
     filt = ", ".join(f"{k}: {v}" for k, v in (("kind", kind), ("type", sub), ("slot", slot), ("from level", lo),
                      ("to level", hi), ("profession", profession),
                      ("stat", stat.replace("_", " ").title() if stat else None)) if v is not None)
-    e = discord.Embed(title=f"Craftable by the guild ({len(rows)})" if not show_all else f"All craftable ({len(rows)})",
-                      description=(f"*{filt}*\n" if filt else "") + clip(lines, 4000))
+    parts = [f"*{filt}*"] if filt else []
+    have_text = clip([_craft_line(r, False) for r in have], 2300 if gaps else 3800) if have else \
+        "*Nobody in the guild can make anything that matches.*"
+    parts.append(f"**\u2705 The guild can make ({len(have)})**\n{have_text}")
+    if show_all:
+        room = max(500, 3900 - len("\n\n".join(parts)) - 120)
+        gap_text = clip([_craft_line(r, True) for r in gaps], room) if gaps else "*No gaps here.*"
+        parts.append(f"**\u26A0\uFE0F Gaps ({len(gaps)})**: nobody in the guild can make these\n{gap_text}")
+    e = discord.Embed(title="Who can craft it", description="\n\n".join(parts))
     e.set_footer(text="Items from Blizzard's data, not only what is learnable in game yet. "
                       f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
     return e, None
@@ -320,7 +331,7 @@ def craftable_result(db: Database, kind, sub, slot, lo, hi, profession, show_all
 class CraftWizard(discord.ui.View):
     """Guided search: pick the kind of gear, slot, level and stat, then show who can make it. Private to the asker."""
 
-    def __init__(self, bot: "GuildBot", kind=None, sub=None, slot=None, band=None, show_all=False, stat=None):
+    def __init__(self, bot: "GuildBot", kind=None, sub=None, slot=None, band=None, show_all=True, stat=None):
         super().__init__(timeout=900)
         self.bot, self.kind, self.sub, self.slot, self.band = bot, kind, sub, slot, band
         self.show_all, self.stat = show_all, stat
@@ -337,8 +348,8 @@ class CraftWizard(discord.ui.View):
         go.callback = self._go
         self.add_item(go)
         tog = discord.ui.Button(
-            label="Guild-craftable only: ON" if not show_all else "Guild-craftable only: OFF (gaps shown too)",
-            style=discord.ButtonStyle.primary if not show_all else discord.ButtonStyle.secondary, row=4)
+            label="Gaps: shown" if show_all else "Gaps: hidden",
+            style=discord.ButtonStyle.primary if show_all else discord.ButtonStyle.secondary, row=4)
         tog.callback = self._toggle
         self.add_item(tog)
         reset = discord.ui.Button(label="Start over", style=discord.ButtonStyle.secondary, row=4)
@@ -502,7 +513,7 @@ def gap_card(db: Database, name: str, discord_id: int):
 
 
 CRAFT_PROMPT = ("Find who can craft something. Pick what you want, then tap the green button. Skip anything you don't care about.\n"
-                "The blue/grey button switches between items the guild can make and everything, gaps included.")
+                "The Gaps button shows or hides items nobody in the guild can make; the guild's own come first.")
 
 
 class OfferView(discord.ui.View):
@@ -1199,13 +1210,13 @@ def register_commands(bot: GuildBot) -> None:
     @tree.command(name="craftable", description="Find who can craft gear (guided; or fill in the options to skip it)")
     @app_commands.describe(kind="Weapon, Armor, ...", type="Sword, Plate, Cloth, ...", slot="Head, Chest, One-Hand, ...",
                            min_level="Lowest level needed to use it", max_level="Highest level needed to use it",
-                           profession="Only this profession", show_all="Also show gaps: items nobody in the guild can make",
+                           profession="Only this profession", hide_gaps="Leave out items nobody in the guild can make",
                            stat="Intellect, Agility, Strength, Stamina, ...")
     @app_commands.autocomplete(kind=kind_ac, type=type_ac, slot=slot_ac, profession=catalog_profession_ac, stat=stat_ac)
     async def craftable(interaction: discord.Interaction, kind: str | None = None, type: str | None = None,
                         slot: str | None = None, min_level: int | None = None, max_level: int | None = None,
-                        profession: str | None = None, show_all: bool = False, stat: str | None = None):
-        if not any(v is not None for v in (kind, type, slot, min_level, max_level, profession, stat)) and not show_all:
+                        profession: str | None = None, hide_gaps: bool = False, stat: str | None = None):
+        if not any(v is not None for v in (kind, type, slot, min_level, max_level, profession, stat)) and not hide_gaps:
             if not db.item_facets("item_class", limit=1):
                 await interaction.response.send_message(
                     "I'm still looking up what recipes make (the first run takes a few minutes). Try again shortly.",
@@ -1213,7 +1224,7 @@ def register_commands(bot: GuildBot) -> None:
                 return
             await interaction.response.send_message(CRAFT_PROMPT, view=CraftWizard(bot), ephemeral=True)
             return
-        embed, msg = craftable_result(db, kind, type, slot, min_level, max_level, profession, show_all, stat)
+        embed, msg = craftable_result(db, kind, type, slot, min_level, max_level, profession, not hide_gaps, stat)
         if msg:
             await interaction.response.send_message(msg, ephemeral=True)
         else:

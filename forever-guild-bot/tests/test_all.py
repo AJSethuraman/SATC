@@ -716,9 +716,9 @@ def test_craft_wizard_dropdowns_follow_the_choices(tmp_path):
         assert len(selects[2].options) == 7 and [o.label for o in selects[3].options] == ["Any", "Strength"]
         assert len(w.children) == 7                                                  # 4 dropdowns + 3 buttons
         on = [c for c in w.children if type(c).__name__ == "Button"]
-        assert on[1].label == "Guild-craftable only: ON"
-        off = [c for c in CraftWizard(bot, show_all=True).children if type(c).__name__ == "Button"]
-        assert off[1].label.startswith("Guild-craftable only: OFF") and off[1].style != on[1].style
+        assert on[1].label == "Gaps: shown"                                          # gaps are on by default
+        off = [c for c in CraftWizard(bot, show_all=False).children if type(c).__name__ == "Button"]
+        assert off[1].label == "Gaps: hidden" and off[1].style != on[1].style
         picked = [c for c in CraftWizard(bot, kind="Weapon", sub="Sword", stat="STRENGTH").children if type(c).__name__ == "Select"]
         assert [o.value for o in picked[0].options if o.default] == ["Weapon|Sword"]
         assert [o.value for o in picked[3].options if o.default] == ["STRENGTH"]
@@ -726,12 +726,16 @@ def test_craft_wizard_dropdowns_follow_the_choices(tmp_path):
     embed, msg = craftable_result(db, "Weapon", "Sword", "One-Hand", 0, 10, None, False)
     assert msg is None and "Copper Shortsword" in embed.description and "Anduin Wrynn" in embed.description
     embed, msg = craftable_result(db, "Weapon", None, None, None, None, None, True, "STRENGTH")
-    assert "Copper Shortsword" in embed.description and "**Mining** - gap" in embed.description     # gaps are called gaps
-    assert "stat: Strength" in embed.description
+    text = embed.description
+    assert text.index("The guild can make (1)") < text.index("Gaps (") < len(text)                   # what we have comes first
+    assert "*[Copper Shortsword](" in text and "**Mining**" in text and "nobody in the guild can make these" in text
+    assert "**Skinning**, Anduin Wrynn" in text and "stat: Strength" in text
+    only, _ = craftable_result(db, "Weapon", None, None, None, None, None, False, "STRENGTH")
+    assert "Gaps" not in only.description and "The guild can make (1)" in only.description
     embed, msg = craftable_result(db, "Weapon", None, None, None, None, None, True, "INTELLECT")
     assert embed is None
     embed, msg = craftable_result(db, "Armor", None, None, None, None, None, False)
-    assert embed is None and "Nobody in the guild" in msg
+    assert embed is None and "Nothing matches" in msg
 
 
 def test_item_stats_are_read_stored_and_filterable(tmp_path):

@@ -364,7 +364,7 @@ class Database:
         return self.conn.execute(q + f" GROUP BY {column} ORDER BY {column} LIMIT ?", (*args, limit)).fetchall()
 
     def craftable(self, item_class=None, item_subclass=None, slot=None, min_level=None, max_level=None,
-                  profession=None, only_known=True, limit=200, stat=None):
+                  profession=None, only_known=True, limit=200, stat=None, gaps_only=False):
         """Items that recipes make, filtered, each with the guild members who can make it. Highest level first."""
         q = """SELECT i.item_id, i.name, i.quality, i.required_level, i.item_class, i.item_subclass, i.inventory_type,
                  r.profession,
@@ -387,8 +387,8 @@ class Database:
         if stat:
             q += " AND EXISTS (SELECT 1 FROM item_stats st WHERE st.item_id=i.item_id AND st.stat=?)"
             args.append(stat)
-        if only_known:
-            q += """ AND EXISTS (SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
+        if only_known or gaps_only:
+            q += (" AND NOT" if gaps_only else " AND") + """ EXISTS (SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
                                   WHERE k.profession=r.profession AND k.recipe_id=r.recipe_id AND c.in_guild=1)"""
         return self.conn.execute(q + " ORDER BY COALESCE(i.required_level,0) DESC, i.name LIMIT ?",
                                  (*args, limit)).fetchall()
