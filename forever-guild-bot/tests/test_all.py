@@ -155,7 +155,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan", "craftable"}
+                     "recipes", "whocan", "craftable", "gaps"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -728,3 +728,29 @@ def test_craft_wizard_dropdowns_follow_the_choices(tmp_path):
 class SimpleNamespaceBot:
     def __init__(self, db):
         self.db = db
+
+
+def test_profession_gaps_coverage_and_missing_recipes(tmp_path):
+    from guildbot.bot import GapsView, gaps_for, gaps_overview
+    from guildbot.sync import sync_item_catalog, sync_recipe_catalog
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    client = ItemClient(ROSTER)
+    asyncio.run(sync_recipe_catalog(db, client))
+    asyncio.run(sync_item_catalog(db, client))
+    db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225, ((52644, "Camp Chair"),))], utcnow())
+    cov = {r["name"]: (r["total"], r["members"], r["best"], r["known"]) for r in db.profession_coverage()}
+    assert cov == {"Skinning": (3, 1, 200, 1), "Mining": (3, 0, None, 0)}            # nobody has Mining
+    assert [r["name"] for r in db.missing_recipes("Skinning")] == ["Field Guide", "Trapper's Workbench"] or \
+        {r["name"] for r in db.missing_recipes("Skinning")} == {"Field Guide", "Trapper's Workbench"}
+    assert len(db.missing_recipes("Mining")) == 3
+    assert [(b["skill"]) for b in db.best_in_profession("Skinning")] == [200] and db.best_in_profession("Mining") == []
+    assert "Nobody has:** Mining" in gaps_overview(db).description
+    assert "Anduin Wrynn 200/225" in gaps_for(db, "Skinning").description
+    assert "nobody in the guild has this profession" in gaps_for(db, "Mining").description
+
+    async def build():
+        v = GapsView(SimpleNamespaceBot(db), "Skinning")
+        assert [type(c).__name__ for c in v.children] == ["Select", "Button"]
+        assert [o.label for o in v.children[0].options] == ["Mining", "Skinning"]
+    asyncio.run(build())

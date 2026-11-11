@@ -340,6 +340,36 @@ class Database:
             """SELECT profession AS name, COUNT(*) AS n FROM recipes WHERE lower(profession) LIKE ?
                GROUP BY profession ORDER BY profession""", ("%" + text.strip().lower() + "%",)).fetchall()
 
+    def profession_coverage(self):
+        """Per profession in the catalogue: how many guildies have it, the best skill, and how many of its
+        recipes anyone in the guild knows."""
+        return self.conn.execute(
+            """SELECT r.profession AS name, COUNT(*) AS total,
+                 (SELECT COUNT(*) FROM professions p JOIN characters c ON c.slug=p.slug
+                   WHERE c.in_guild=1 AND p.profession=r.profession) AS members,
+                 (SELECT MAX(p.skill) FROM professions p JOIN characters c ON c.slug=p.slug
+                   WHERE c.in_guild=1 AND p.profession=r.profession) AS best,
+                 (SELECT COUNT(*) FROM recipes r2 WHERE r2.profession=r.profession AND EXISTS (
+                    SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
+                     WHERE c.in_guild=1 AND k.profession=r2.profession AND k.recipe_id=r2.recipe_id)) AS known
+               FROM recipes r GROUP BY r.profession ORDER BY r.profession""").fetchall()
+
+    def best_in_profession(self, profession: str, limit: int = 3):
+        return self.conn.execute(
+            """SELECT c.name, c.surname, p.skill, p.max_skill FROM professions p JOIN characters c ON c.slug=p.slug
+               WHERE c.in_guild=1 AND p.profession=? ORDER BY p.skill DESC, c.name LIMIT ?""",
+            (profession, limit)).fetchall()
+
+    def missing_recipes(self, profession: str, limit: int = 400):
+        """Recipes of a profession that nobody in the guild knows, lowest level first (no-level last)."""
+        return self.conn.execute(
+            """SELECT r.recipe_id, r.name, r.category, i.required_level, i.item_class, i.item_subclass, i.inventory_type
+               FROM recipes r LEFT JOIN items i ON i.item_id=r.item_id
+               WHERE r.profession=? AND NOT EXISTS (
+                 SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
+                  WHERE c.in_guild=1 AND k.profession=r.profession AND k.recipe_id=r.recipe_id)
+               ORDER BY i.required_level IS NULL, i.required_level, r.name LIMIT ?""", (profession, limit)).fetchall()
+
     def recipes_for(self, profession: str, match: str = ""):
         """Catalogue recipes of a profession (name contains `match`), each with the guild members who know it."""
         rows = self.conn.execute(

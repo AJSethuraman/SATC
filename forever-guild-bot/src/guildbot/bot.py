@@ -375,6 +375,65 @@ class CraftWizard(discord.ui.View):
                                                 embed=embed, view=CraftWizard(self.bot, **self._state()))
 
 
+def gaps_overview(db: Database) -> discord.Embed:
+    rows = db.profession_coverage()
+    lines, none = [], []
+    for r in rows:
+        if not r["members"]:
+            none.append(r["name"])
+            continue
+        lines.append(f"**{r['name']}**: {r['members']} guildie(s), best {r['best']}; "
+                     f"guild knows {r['known']} of {r['total']} recipes")
+    text = "\n".join(lines)
+    if none:
+        text += "\n\n**Nobody has:** " + ", ".join(none)
+    e = discord.Embed(title="Profession gaps", description=clip(text.split("\n"), 4000))
+    e.set_footer(text="Totals include everything in Blizzard's data, not only what is learnable in game yet. "
+                      f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
+    return e
+
+
+def gaps_for(db: Database, profession: str) -> discord.Embed:
+    miss = db.missing_recipes(profession)
+    best = db.best_in_profession(profession)
+    who = ", ".join(f"{R.full_name(b)} {b['skill']}/{b['max_skill']}" for b in best) or "nobody in the guild has this profession"
+    lines = []
+    for r in miss:
+        lvl = "" if not r["required_level"] else f" (L{r['required_level']})"
+        kind = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x)
+        lines.append(f"{item_link(r['name'])}{lvl}" + (f" - {kind}" if kind else ""))
+    head = f"**Best in the guild:** {who}\n**Nobody knows these {len(miss)}** (lowest level first). " \
+           "Click a name to see on Wowhead where it is learned.\n"
+    e = discord.Embed(title=f"{profession}: recipes the guild doesn't have", description=head + clip(lines, 3700 - len(head)))
+    e.set_footer(text="Blizzard's data doesn't say where a recipe is learned, so that part is on Wowhead. "
+                      f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
+    return e
+
+
+class GapsView(discord.ui.View):
+    """Overview of every profession, with a dropdown to see what is missing in one."""
+
+    def __init__(self, bot: "GuildBot", chosen=None):
+        super().__init__(timeout=900)
+        self.bot = bot
+        names = [r["name"] for r in bot.db.profession_coverage()][:25]
+        sel = discord.ui.Select(placeholder="See what's missing in a profession",
+                                options=[discord.SelectOption(label=n, value=n, default=(n == chosen)) for n in names])
+        sel.callback = self._picked
+        self.add_item(sel)
+        if chosen:
+            back = discord.ui.Button(label="Back to overview", style=discord.ButtonStyle.secondary)
+            back.callback = self._back
+            self.add_item(back)
+
+    async def _picked(self, interaction: discord.Interaction) -> None:
+        pick = interaction.data["values"][0]
+        await interaction.response.edit_message(embed=gaps_for(self.bot.db, pick), view=GapsView(self.bot, pick))
+
+    async def _back(self, interaction: discord.Interaction) -> None:
+        await interaction.response.edit_message(embed=gaps_overview(self.bot.db), view=GapsView(self.bot))
+
+
 CRAFT_PROMPT = "Find who can craft something. Pick what you want, then tap the green button. Skip anything you don't care about."
 
 
@@ -787,6 +846,22 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message(msg, ephemeral=True)
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @tree.command(name="gaps", description="What the guild is missing in professions, and where to look it up")
+    @app_commands.describe(profession="Leave blank for an overview of every profession")
+    @app_commands.autocomplete(profession=catalog_profession_ac)
+    async def gaps(interaction: discord.Interaction, profession: str | None = None):
+        if not db.catalog_professions():
+            await interaction.response.send_message(
+                "I'm still loading the recipe list (the first run takes a few minutes). Try again shortly.", ephemeral=True)
+            return
+        if profession:
+            if not db.catalog_professions(profession):
+                await interaction.response.send_message("Pick a profession from the list.", ephemeral=True)
+                return
+            await interaction.response.send_message(embed=gaps_for(db, profession), ephemeral=True)
+            return
+        await interaction.response.send_message(embed=gaps_overview(db), view=GapsView(bot), ephemeral=True)
 
     @tree.command(name="whocan", description="Who in the guild can craft something (type a few letters)")
     @app_commands.autocomplete(recipe=recipe_ac)
