@@ -14,5 +14,7 @@ Fx.lua
 Build.lua
 Game.lua
 Visuals.lua
+SpellData.lua
+Spells.lua
 Net.lua
 Dread.lua
