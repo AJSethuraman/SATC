@@ -33,9 +33,10 @@ local function obj(parent)
     if k == "SetAnimation" then return function(self, id) self.last_anim = id end end
     if k == "SetFacing" then return function(self, r) self.facing = r end end
     if k == "SetUnit" then return function(self, u) self.unit = u end end
-    if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id end end
+    if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id; self.model_calls = (self.model_calls or 0) + 1 end end
     if k == "SetCreature" then return function(self, id) if NO_MODELS then error("no models here") end self.creature = id end end
     if k == "SetTexture" then return function(self, id) self.texture = id end end
+    if k == "SetDesaturated" then return function(self, v) self.desaturated = v and true or false end end
     if k == "SetVertexColor" then return function(self, r, g, b) self.color = { r, g, b } end end
     if k == "SetModelScale" then return function(self, v) self.modelscale = v end end
     if k == "SetRotation" then return function(self, v) self.rotation = v end end
@@ -374,7 +375,7 @@ def test_the_boss_quest_pays_one_skill_point_once():
     w = ns.Game.world()
     q0 = w.player.st.quest_points
     for _ in range(2):                                                  # the same news twice
-        lua.eval("function(w) w.events[#w.events + 1] = { k = 'boss_dead', name = 'Grubb the Unwelcome' } end")(w)
+        lua.eval("function(w) w.events[#w.events + 1] = { k = 'boss_dead', name = 'Rottenmaw the Unwelcome' } end")(w)
         tick(lua, 1)
     assert w.player.st.quest_points == q0 + 1 and w.flags.den is True
     assert lua.eval("DreadDB.char.quest_points") == q0 + 1 and lua.eval("DreadDB.char.flags.den") is True
@@ -1145,7 +1146,7 @@ def test_when_the_target_dies_it_carries_on_with_the_nearest_monster_that_is_fig
         m.awake = True
     a.life, b.x, b.y, c.x, c.y = 20, a.x + 40, a.y, a.x + 200, a.y
     click_world(lua, ns, "LeftButton", a.x, a.y)
-    for _ in range(150):
+    for _ in range(300):
         tick(lua, 1)
         if a.dead:
             break
@@ -1249,7 +1250,7 @@ def test_a_ring_is_drawn_under_the_target_and_goes_when_there_is_none():
 def boss_frame(lua, ns):
     w = ns.Game.world()
     boss = [m for m in w.monsters.values() if m.boss][0]
-    return boss, [o for o in lua.eval("ALL").values() if o.owner is not None and o.creature == boss.cid and o.size is not None and o.size[1] > 100][0]
+    return boss, [o for o in lua.eval("ALL").values() if o.owner is not None and o.model == boss.model and o.size is not None and o.size[1] > 100][0]
 
 
 def test_the_boss_is_made_big_by_its_frame_alone_and_never_scaled_twice():
@@ -1355,20 +1356,17 @@ def test_walking_onto_an_item_wears_it_tells_you_and_the_gear_window_lists_it():
     key(lua, "I")
     frame = lua.eval("FRAMES.DreadGearFrame")
     assert frame.shown
-    allt = [str(o.text) for o in lua.eval("ALL").values() if o.text]
-    assert any("Ring: " in t and "Rare Ring of Life" in t for t in allt)                    # in its place on the doll
-    assert any(t.startswith("Total:") and "+12 Life" in t for t in allt)
+    c = ns.Gear.doll.ring1
+    assert c.item.stats.life == 12 and c.icon.texture == "Interface\\Icons\\INV_Jewelry_Ring_01"      # in its place on the doll
+    assert tuple(round(v, 2) for v in c.border.values()) == (1, 0.82, 0.25)                                 # rare is gold
+    assert any(str(o.text).startswith("Total:") and "+12 Life" in str(o.text) for o in lua.eval("ALL").values() if o.text)
     key(lua, "I")
     assert not frame.shown
 
 
-def test_the_doll_labels_name_every_place_and_the_totals_add_up():
+def test_the_totals_under_the_doll_add_up_and_say_so_when_there_is_nothing():
     lua, ns = boot()
     gear = lua.table_from({"ring2": lua.table_from({"slot": "ring", "rarity": "magic", "ilvl": 3, "base": "Band", "stats": lua.table_from({"life": 9, "dmg_pct": 4})})})
-    labels = {p: ns.Gear.slot_label(p, gear) for p in ("head", "amulet", "weapon", "body", "gloves", "belt", "boots", "ring1", "ring2")}
-    assert "Magic Band of Life, Spell damage" in labels["ring2"] and labels["ring2"].startswith("Ring: ")
-    assert "Helm" in labels["head"] and "Armor" in labels["body"] and "Gloves" in labels["gloves"] and "Boots" in labels["boots"]
-    assert all("|cff888888" in labels[p] for p in labels if p != "ring2")             # empty places are dim
     t = ns.Gear.text(gear)
     assert "Total:  +9 Life,  +4% Spell damage" in t and "You:" not in t                # the summary line needs the player
     assert "nothing yet" in ns.Gear.text(lua.table())
@@ -1378,22 +1376,34 @@ def test_every_place_has_a_spot_on_the_doll_and_no_two_share_one():
     lua, ns = boot()
     spots = [(int(ns.Gear.LAYOUT[p][1]), int(ns.Gear.LAYOUT[p][2])) for p in ns.Items.GEAR_SLOTS.values()]
     assert len(spots) == 9 and len(set(spots)) == 9
-    assert ns.Gear.LAYOUT.head[2] == 0 and ns.Gear.LAYOUT.weapon[2] == 1 and ns.Gear.LAYOUT.ring1[2] == 3     # helm on top, rings at the bottom
+    L = ns.Gear.LAYOUT
+    assert L.head[2] == 0 and L.amulet[2] == 0 and L.weapon[2] == 1 and L.body[2] == 1       # helm and amulet on top, weapon and armor in the middle
+    assert L.ring1[2] == L.belt[2] == L.ring2[2] == L.gloves[2] == L.boots[2] == 2            # the bottom row
+    assert L.ring1[1] < L.belt[1] < L.ring2[1]                                                # a ring either side of the belt
 
 
-def gear_rows(lua):
-    """The bag rows: (Wear button, x button, label) in order, as the window made them."""
-    allo = list(lua.eval("ALL").values())
-    wear = [o for o in allo if o.kind == "Button" and o.text == "Wear"]
-    trash = [o for o in allo if o.kind == "Button" and o.text == "x"]
-    return wear, trash
+def detail_text(lua):
+    """The reading panel under the bag."""
+    return [str(o.text) for o in lua.eval("ALL").values() if o.text and str(o.text).startswith("|cff888888Hover") or (o.text and "level" in str(o.text) and "\n" in str(o.text))]
 
 
-def bag_labels(lua):
-    return [str(o.text) for o in lua.eval("ALL").values() if o.text and ("Magic " in str(o.text) or "Rare " in str(o.text)) and "Weapon:" not in str(o.text) and "Found" not in str(o.text)]
+def cell_items(ns):
+    return [c.item for c in ns.Gear.bagcells.values()]
 
 
-def test_the_bag_lists_what_you_did_not_wear_with_what_wearing_it_would_change_and_wear_swaps_it():
+def hover(cell):
+    cell.scripts.OnEnter(cell)
+
+
+def click(cell, shift=False, lua=None):
+    if lua is not None:
+        lua.execute("SHIFT = " + ("true" if shift else "false"))
+    cell.scripts.OnClick(cell, "LeftButton")
+    if lua is not None:
+        lua.execute("SHIFT = false")
+
+
+def test_the_bag_shows_icons_with_a_tier_coloured_edge_and_reading_one_says_what_wearing_it_would_change():
     lua, ns = boot()
     open_game(lua, ns)
     w = ns.Game.world()
@@ -1403,18 +1413,21 @@ def test_the_bag_lists_what_you_did_not_wear_with_what_wearing_it_would_change_a
         tick(lua, 2)
     assert w.player.gear.head.stats.str == 10 and len(list(w.player.bag.values())) == 1     # the first was worn, the second waits
     key(lua, "I")
-    labels = bag_labels(lua)
-    assert any("Intelligence" in l and "+20 mana" in l and "+5% spell" in l and "-10% wand" in l for l in labels)
-    wear, trash = gear_rows(lua)
-    shown = [b for b in wear if b.shown]
-    assert len(shown) == 1
-    shown[0].scripts.OnClick(shown[0])
-    assert w.player.gear.head.stats.int == 10 and w.player.bag[1].stats.str == 10        # swapped by your choice
+    c = ns.Gear.bagcells[1]
+    assert c.item.stats.int == 10 and c.icon.texture == "Interface\\Icons\\INV_Helmet_01"
+    assert tuple(round(v, 2) for v in c.border.values()) == (0.4, 0.55, 1)                   # magic is blue
+    assert ns.Gear.bagcells[2].item is None                                                  # the rest of the grid is empty
+    hover(c)
+    t = [str(o.text) for o in lua.eval("ALL").values() if o.text and "If you wear it" in str(o.text)]
+    assert t and "Intelligence" in t[0] and "+20 mana" in t[0] and "+5% spell" in t[0] and "-10% wand" in t[0]
+    click(c)                                                                                 # wear it
+    assert w.player.gear.head.stats.int == 10 and w.player.bag[1].stats.str == 10           # swapped by your choice
     assert w.player.maxmana == 33 + 20
-    assert lua.eval("DreadDB.char.gear.head.stats.int") == 10                              # and saved
+    assert lua.eval("DreadDB.char.gear.head.stats.int") == 10                                # and saved
+    assert ns.Gear.bagcells[1].item.stats.str == 10                                          # the window shows it at once
 
 
-def test_the_x_button_throws_a_bag_item_away():
+def test_shift_click_throws_a_bag_item_away_and_a_plain_click_does_not():
     lua, ns = boot()
     open_game(lua, ns)
     w = ns.Game.world()
@@ -1423,9 +1436,9 @@ def test_the_x_button_throws_a_bag_item_away():
         w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
         tick(lua, 2)
     key(lua, "I")
-    wear, trash = gear_rows(lua)
-    [b for b in trash if b.shown][0].scripts.OnClick([b for b in trash if b.shown][0])
+    click(ns.Gear.bagcells[1], shift=True, lua=lua)
     assert len(list(w.player.bag.values())) == 0 and w.player.gear.head.stats.str == 3
+    assert ns.Gear.bagcells[1].item is None
 
 
 def test_a_full_bag_tells_you_to_make_room():
@@ -1529,10 +1542,8 @@ def test_wearing_from_a_filtered_bag_picks_the_item_you_see_not_the_row_number()
     key(lua, "I")
     ns.Gear.cycle_slot(); ns.Gear.cycle_slot(); ns.Gear.cycle_slot()      # armor only (weapon, helm, armor)
     ns.Gear.refresh(w)
-    wear, _ = gear_rows(lua)
-    shown = [b for b in wear if b.shown]
-    assert len(shown) == 1
-    shown[0].scripts.OnClick(shown[0])                     # it is the first VISIBLE row, which is bag place 2
+    assert ns.Gear.bagcells[1].item.slot == "body" and ns.Gear.bagcells[2].item is None       # only the armor is listed
+    click(ns.Gear.bagcells[1])                              # the first VISIBLE cell, which is bag place 2
     assert w.player.gear.body.stats.int == 5 and w.player.bag[1].slot == "head"
     ns.Gear.slot_filter, ns.Gear.min_rank = 0, 1
 
@@ -1619,10 +1630,6 @@ def test_assigning_from_the_tree_does_not_also_cast_it():
     assert bar[5] == "frost_nova" and w.player.mana == mana
 
 
-def doll_button(lua, label_start):
-    return [o for o in lua.eval("ALL").values() if o.kind == "Button" and o.text and str(o.text).startswith(label_start)][0]
-
-
 def wear(lua, ns, w, slot, base, **stats):
     it = lua.table_from({"slot": slot, "rarity": "magic", "ilvl": 5, "base": base, "stats": lua.table_from(stats)})
     w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
@@ -1637,27 +1644,27 @@ def test_the_doll_shows_both_rings_and_clicking_a_worn_place_takes_it_off():
     wear(lua, ns, w, "ring", "Band", vit=4)
     wear(lua, ns, w, "head", "Hood", int=5)
     key(lua, "I")
-    rings = [o for o in lua.eval("ALL").values() if o.kind == "Button" and o.text and str(o.text).startswith("Ring: ")]
-    assert len(rings) == 2                                                           # two ring places, both filled
-    helm = doll_button(lua, "Helm: ")
-    assert "Hood" in str(helm.text) and w.player.maxmana == 33 + 10
-    helm.scripts.OnClick(helm)
+    D = ns.Gear.doll
+    assert D.ring1.item.stats.life == 3 and D.ring2.item.stats.vit == 4                      # two ring places, both filled
+    assert D.head.item.stats.int == 5 and w.player.maxmana == 33 + 10
+    assert D.body.item is None and D.body.icon.texture == "Interface\\Icons\\INV_Chest_Cloth_01" and D.body.icon.desaturated is True   # an empty place shows its dim icon
+    assert tuple(round(v, 2) for v in D.body.border.values()) == (0.28, 0.24, 0.22)
+    click(D.head)
     assert w.player.gear.head is None and w.player.bag[1].stats.int == 5 and w.player.maxmana == 33
-    assert str(doll_button(lua, "|cff888888Helm").text).startswith("|cff888888")      # and the place shows empty
-    assert lua.eval("DreadDB.char.gear.head") is None                                  # saved that way
+    assert D.head.item is None and ns.Gear.bagcells[1].item.stats.int == 5                    # it moved from the doll to the bag on screen
+    assert lua.eval("DreadDB.char.gear.head") is None                                        # saved that way
 
 
-def test_hovering_a_worn_place_lists_everything_on_the_item():
+def test_hovering_a_worn_place_lists_everything_on_the_item_and_leaving_clears_it():
     lua, ns = boot()
     open_game(lua, ns)
     w = ns.Game.world()
     wear(lua, ns, w, "body", "Robe", vit=6, mana=4)
     key(lua, "I")
-    b = doll_button(lua, "Armor: ")
-    b.scripts.OnEnter(b)
+    hover(ns.Gear.doll.body)
     t = [str(o.text) for o in lua.eval("ALL").values() if o.text and "(magic, level 5)" in str(o.text)]
-    assert t and "+6 Vitality" in t[0] and "+4 Mana" in t[0]
-    b.scripts.OnLeave(b)
+    assert t and "+6 Vitality" in t[0] and "+4 Mana" in t[0] and "click to take it off" in t[0]
+    ns.Gear.doll.body.scripts.OnLeave(ns.Gear.doll.body)
     assert not [o for o in lua.eval("ALL").values() if o.text and "(magic, level 5)" in str(o.text)]
 
 
@@ -1673,3 +1680,46 @@ def test_playing_opens_the_log_beside_the_window_and_closing_the_game_closes_it(
     assert list(lua.eval("LOGCALLS").values()) == ["open", "close"]
     ns.Game.toggle()
     assert list(lua.eval("LOGCALLS").values()) == ["open", "close", "open"]
+
+
+# ---------------------------------------------------------------- crowds: the boss is always drawn, and frames stay put
+def crowd_into_view(lua, ns, w, n):
+    p = w.player
+    for i, m in enumerate(list(w.monsters.values())[:n]):
+        m.x, m.y = p.x + 60 + (i % 6) * 40, p.y - 120 + (i // 6) * 40
+        m.dead = False
+
+
+def test_the_boss_is_drawn_even_when_more_monsters_than_frames_are_on_screen():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[1]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    crowd_into_view(lua, ns, w, 18)                                          # eighteen monsters around you, more than the 14 frames
+    boss = [m for m in w.monsters.values() if m.boss][0]
+    boss.x, boss.y = w.player.x + 300, w.player.y                            # and the boss, last in the list, farther than any of them
+    tick(lua, 3)
+    owners = [o.owner for o in lua.eval("ALL").values() if o.owner is not None and o.owner.name is not None]
+    assert any(o.boss for o in owners)
+    assert len([o for o in lua.eval("ALL").values() if o.owner is not None and o.owner.name is not None and o.shown]) == 14
+
+
+def test_a_monster_keeps_its_frame_while_the_order_around_it_changes():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ms = list(w.monsters.values())
+    for m in ms[:6]:
+        m.awake = False
+    crowd_into_view(lua, ns, w, 6)
+    tick(lua, 2)
+    def frame_of(m):
+        return [o for o in lua.eval("ALL").values() if o.owner is not None and lua.eval("rawequal")(o.owner, m)]
+    f0 = frame_of(ms[0])[0]
+    before = f0.model_calls
+    for k in range(10):                                                        # the others shuffle about; ms[0] stays in the set
+        ms[3].x += 7 * (-1) ** k
+        tick(lua, 1)
+    assert lua.eval("rawequal")(f0.owner, ms[0]) and f0.shown
+    assert f0.model_calls == before                                            # never told to load its model again

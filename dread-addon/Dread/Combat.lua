@@ -665,7 +665,13 @@ function Combat.step(w, dt)
       m.moving = false
       if m.awake and m.freeze <= 0 then
         local d = dist(m.x, m.y, p.x, p.y)
-        if d > Combat.MONSTER_REACH then
+        if m.ranged and d <= m.ranged.range and d > Combat.MONSTER_REACH then       -- a quill rat stops and throws from where it stands
+          if m.cd <= 0 then
+            hurt(w, roll(w, m.dmg[1], m.dmg[2]), m)
+            m.cd, m.bite_at = m.ranged.cd, w.time
+            push(nil, w, { k = "zap", id = "wand", x1 = m.x, y1 = m.y + 10, x2 = p.x, y2 = p.y + 10 })
+          end
+        elseif d > Combat.MONSTER_REACH then
           local sp = m.speed * ((m.chill > 0) and (1 - (m.chill_pct or 0) / 100) or 1) * dt
           m.x, m.y = walk(w, m.x, m.y, p.x, p.y, sp, m.radius * 0.6)
           m.moving = true

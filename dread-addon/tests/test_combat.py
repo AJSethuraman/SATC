@@ -547,3 +547,48 @@ def test_a_bolt_still_flies_past_the_click_point(env):
     run(ns, w, 0.5)                                                      # 160 units flown: well past 100
     assert len(w.projectiles) == 1 and w.projectiles[1].y > 150          # bolts are not aimed at a point, only a direction
     assert first_blast(ns, w) is None
+
+
+# ---------------------------------------------------------------- ranged monsters (quill rats)
+def test_a_ranged_monster_stops_at_range_and_hurts_you_from_there(env):
+    lua, ns = env
+    w = world(env)
+    p = w.player
+    p.x, p.y = 300, 300
+    m = monster(env, w, 300 + 150, 300, life=100, speed=60, dmg=lua.table_from({1: 4, 2: 4}), ranged=lua.table_from({"range": 210, "cd": 1.7}))
+    m.awake = True
+    life = p.life
+    x0 = m.x
+    run(ns, w, 0.1)
+    assert m.x == x0 and p.life == life - 4                         # in range already: it did not walk closer, it threw
+    ev = [(e.k, e.id) for e in ns.Combat.drain(w).values()]
+    assert ("zap", "wand") in ev and ("bite", None) not in ev       # drawn as a thrown spine, not a bite
+    run(ns, w, 1.0)
+    assert p.life == life - 4                                       # the cooldown (1.7 s) has not run out yet
+    run(ns, w, 1.0)
+    assert p.life == life - 8
+
+
+def test_a_ranged_monster_walks_up_until_it_is_in_range_then_stops(env):
+    lua, ns = env
+    w = world(env)
+    p = w.player
+    p.x, p.y = 300, 300
+    m = monster(env, w, 300 + 600, 300, life=100, speed=100, dmg=lua.table_from({1: 1, 2: 1}), ranged=lua.table_from({"range": 210, "cd": 5}))
+    m.awake = True
+    run(ns, w, 6)
+    d = abs(m.x - p.x)
+    assert 195 < d <= 210.5 and m.moving is False                    # it stopped at the edge of its range, not on top of you
+
+
+def test_a_melee_monster_still_has_to_walk_up_and_bite(env):
+    lua, ns = env
+    w = world(env)
+    p = w.player
+    p.x, p.y = 300, 300
+    m = monster(env, w, 300 + 150, 300, life=100, speed=100, dmg=lua.table_from({1: 4, 2: 4}))
+    m.awake = True
+    run(ns, w, 0.1)
+    assert p.life == 60                                             # nothing at range
+    run(ns, w, 2)
+    assert p.life < 60 and abs(m.x - p.x) <= 25

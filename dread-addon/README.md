@@ -82,9 +82,9 @@ Click-to-move top-down arena, one town screen, one dungeon level. One class, 4 s
 A skill can hold (your level - its required level + 3) points, up to 20, so saving points does not let you pour them all into a new skill. `/dread anim off` stops model animation switching.
 
 ## Gear
-Press **I** (or `/dread gear`) for the gear window, laid out like a paper doll: **Helm** on top, **Weapon / Armor / Amulet** across, **Gloves / Belt / Boots**, then **two Ring** places. Click a worn item to take it off (it goes in the bag); hover it for everything on it.
+Press **I** (or `/dread gear`) for the Equipment window: square icon cells edged in the item's tier colour, laid out like Diablo II (Helm and Amulet on top, Weapon and Armor, then Gloves / Ring / Belt / Ring / Boots). Hover anything to read it; click a worn item to take it off.
 
-Kills drop gear about one time in eight; a boss always drops two rare pieces and sometimes a unique. Walk over a drop: if its place on you is empty it is worn at once, otherwise it goes in your **bag** (16 places; when it is full the drop stays on the ground and a short line tells you). In the bag, each item shows what wearing it would change, in green and red (`+20 mana  +5% spell  -10% wand`). **Wear** swaps it with what is on you, **x** throws it away. Two filters (by type, and by quality) only change what is listed.
+Kills drop gear about one time in eight; a boss always drops two rare pieces and sometimes a unique. Walk over a drop: if its place on you is empty it is worn at once, otherwise it goes in your **bag** (16 places; when it is full the drop stays on the ground and a short line tells you). The bag is a grid of icons; hovering one shows what wearing it would change, in green and red (`+20 mana  +5% spell  -10% wand`). Click to wear it (it swaps with what is on you); shift-click to throw it away. Two filters (by type, and by quality) only change what is listed.
 
 Tiers: common (grey, one small bonus), magic (blue, 1-2), rare (gold, 3-4), unique (orange, 4-5 bigger bonuses and a name of its own). Finding one is announced quietly for common and magic (a short line, no window; the details are in the Dread log), louder for rare, and loudest for a unique, with the level-up chime.
 
@@ -94,3 +94,6 @@ Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regenera
 Skills that need no aim (Static Shock, Force Pull, the novas, the shields and armors, Combustion, Blazing Speed, Storm Cloud) cast the moment you press their number key. Aimed skills (bolts, Fireball, Blizzard, Meteor, Blink...) still select on the key and cast with right click, or shift-left-click.
 
 The view is locked on you (like Diablo II): you stay in the centre and the room moves around you, including at the edge of the map.
+
+## The moor
+Act-1 style enemies, all WoW models: Rotting Dead (slow, tough zombies), Hungry Ghouls (quick, in numbers), Quill Rats (they throw spines from a distance), Bone Walkers (cold barely hurts them, fire hurts more) and Carrion Birds (fast). The cave boss, Rottenmaw the Unwelcome, is a big Rotting Dead. The boss is always drawn, even in a crowd.

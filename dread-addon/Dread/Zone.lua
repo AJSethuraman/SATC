@@ -17,11 +17,12 @@ Zone.START = "moor"
 
 -- Model ids that drew in Test 3 (SetCreature). Names and numbers are placeholders.
 Zone.BESTIARY = {
-  wolf   = { name = "Moor Wolf", cid = 299,  life = 20, speed = 75, dmg = { 2, 4 }, xp = 8 },
-  tusker = { name = "Tusker",    cid = 3098, life = 34, speed = 52, dmg = { 3, 6 }, xp = 12 },
-  mudfin = { name = "Mudfin",    cid = 46,   life = 26, speed = 62, dmg = { 2, 5 }, xp = 11, resist = { cold = 50 } },
-  brute  = { name = "Brute",     cid = 6,    life = 44, speed = 55, dmg = { 3, 7 }, xp = 16 },
-  imp    = { name = "Gloom Imp", cid = 3101, life = 22, speed = 78, dmg = { 2, 5 }, xp = 15, resist = { fire = 75 } },
+  -- model: a fileDataID (community listfile) drawn with SetModel. Undead and vermin, in the spirit of a first-act moor.
+  zombie  = { name = "Rotting Dead",  model = 126570, life = 54, speed = 36, dmg = { 4, 9 }, xp = 14, resist = { cold = 25 } },     -- slow and tough
+  ghoul   = { name = "Hungry Ghoul",  model = 124160, life = 18, speed = 82, dmg = { 2, 4 }, xp = 8 },                             -- quick, comes in numbers
+  quillrat = { name = "Quill Rat",    model = 125576, life = 14, speed = 62, dmg = { 2, 4 }, xp = 9, ranged = { range = 210, cd = 1.7 } },   -- throws spines from a distance
+  bonewalker = { name = "Bone Walker", model = 125942, life = 32, speed = 58, dmg = { 3, 7 }, xp = 13, resist = { cold = 60, fire = -25 } }, -- cold shrugs off, fire does not
+  carrion = { name = "Carrion Bird",  model = 123137, life = 15, speed = 96, dmg = { 2, 4 }, xp = 10 },                            -- fast flyer
 }
 
 -- Terrain textures and scenery models (fileDataIDs). Size is how big to draw the model; r is how big the part you bump into is.
@@ -83,7 +84,7 @@ local function add_pack(rand, area, pack_id, cx, cy, kinds, aggro, extra)
     local t = Zone.BESTIARY[key]
     local a = (i / #kinds) * 2 * math.pi + rand()
     local m = {
-      x = cx + math.cos(a) * 36, y = cy + math.sin(a) * 36, name = t.name, cid = t.cid, life = t.life, speed = t.speed,
+      x = cx + math.cos(a) * 36, y = cy + math.sin(a) * 36, name = t.name, cid = t.cid, model = t.model, ranged = t.ranged and { range = t.ranged.range, cd = t.ranged.cd } or nil, life = t.life, speed = t.speed,
       dmg = { t.dmg[1], t.dmg[2] }, xp = t.xp, radius = 14, pack = pack_id, aggro = aggro or 190,
       resist = { fire = (t.resist and t.resist.fire) or 0, cold = (t.resist and t.resist.cold) or 0,
                  lightning = (t.resist and t.resist.lightning) or 0, physical = (t.resist and t.resist.physical) or 0 },
@@ -102,15 +103,15 @@ local function build_moor()
   area.exits = { { x = 2270, y = 1340, r = 50, to = "cave", label = "Cave mouth", arrive = nil } }
   -- packs of rising danger, from the camp out to the cave
   local packs = {
-    { 700, 330, { "wolf", "wolf", "wolf" } },
-    { 1150, 260, { "tusker", "tusker" } },
-    { 520, 760, { "wolf", "wolf", "mudfin" } },
-    { 1000, 700, { "brute", "tusker", "tusker" } },
-    { 1550, 430, { "mudfin", "mudfin", "imp" } },
-    { 1400, 950, { "brute", "brute", "wolf", "wolf" } },
-    { 820, 1150, { "imp", "imp", "wolf" } },
-    { 1850, 1000, { "brute", "imp", "imp", "tusker" } },
-    { 2000, 1230, { "brute", "brute", "imp", "imp" } },
+    { 700, 330, { "ghoul", "ghoul", "ghoul", "ghoul" } },
+    { 1150, 260, { "quillrat", "quillrat", "quillrat" } },
+    { 520, 760, { "carrion", "carrion", "ghoul" } },
+    { 1000, 700, { "zombie", "zombie" } },
+    { 1550, 430, { "quillrat", "quillrat", "ghoul", "ghoul" } },
+    { 1400, 950, { "zombie", "zombie", "quillrat", "quillrat" } },
+    { 820, 1150, { "bonewalker", "bonewalker", "carrion" } },
+    { 1850, 1000, { "zombie", "bonewalker", "bonewalker", "quillrat" } },
+    { 2000, 1230, { "zombie", "zombie", "bonewalker", "bonewalker" } },
   }
   local clear = { { x = area.spawn.x, y = area.spawn.y, r = 190 }, { x = 2270, y = 1340, r = 140 } }
   for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end   -- keep trees out of the packs
@@ -126,24 +127,24 @@ local function build_cave()
                  floor = Zone.GROUND.cave, spawn = { x = 150, y = 500 }, monsters = {} }
   area.exits = { { x = 50, y = 500, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2200, y = 1290 } } }
   local packs = {
-    { 520, 300, { "wolf", "wolf", "imp" } },
-    { 600, 720, { "mudfin", "tusker", "tusker" } },
-    { 1000, 500, { "brute", "imp", "imp" } },
-    { 1250, 280, { "brute", "brute", "wolf" } },
-    { 1250, 760, { "brute", "imp", "imp", "wolf" } },
+    { 520, 300, { "ghoul", "ghoul", "quillrat", "quillrat" } },
+    { 600, 720, { "zombie", "zombie", "bonewalker" } },
+    { 1000, 500, { "bonewalker", "bonewalker", "quillrat", "quillrat" } },
+    { 1250, 280, { "zombie", "zombie", "ghoul", "ghoul" } },
+    { 1250, 760, { "zombie", "bonewalker", "bonewalker", "quillrat" } },
   }
   local clear = { { x = area.spawn.x, y = area.spawn.y, r = 150 }, { x = 1450, y = 500, r = 170 } }
   for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end
   scatter(rand, area, { rock = 30, fallen = 4 }, clear)
   for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
   -- the boss and two guards, one pack
-  add_pack(rand, area, 6, 1450, 500, { "brute", "brute" }, 260)
+  add_pack(rand, area, 6, 1450, 500, { "zombie", "zombie" }, 260)
   area.monsters[#area.monsters + 1] = {
-    x = 1470, y = 500, name = "Grubb the Unwelcome", cid = 6, life = 260, speed = 58, dmg = { 6, 12 }, xp = 120,
+    x = 1470, y = 500, name = "Rottenmaw the Unwelcome", model = 126570, life = 260, speed = 58, dmg = { 6, 12 }, xp = 120,
     radius = 24, scale = 1.8, pack = 6, aggro = 260, boss = true,
     resist = { fire = 0, cold = 0, lightning = 0, physical = 0 },
   }
-  area.quest = { id = "den", title = "Clear the cave", boss = "Grubb the Unwelcome", reward_points = 1 }
+  area.quest = { id = "den", title = "Clear the cave", boss = "Rottenmaw the Unwelcome", reward_points = 1 }
   return area
 end
 

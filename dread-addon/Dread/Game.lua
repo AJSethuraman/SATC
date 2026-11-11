@@ -912,21 +912,43 @@ local function draw_actors(p)
   if p.tx then face(player_model, p.tx - p.x, p.ty - p.y)
   elseif target and not target.dead then face(player_model, target.x - p.x, target.y - p.y) end
 
-  -- monsters: the nearest ones that are on screen
-  local shown, n = {}, 0
+  -- monsters: the boss first, then the nearest on screen. A frame stays with its monster until that monster drops out of the
+  -- chosen set, so a model is not reassigned (and re-sized) every time the order shifts.
+  local cand = {}
   for _, m in ipairs(world.monsters) do
     local gone = m.dead and (world.time - (m.died_at or 0) > 3)
-    if not gone and vis(m.x - cam.x, m.y - cam.y, 60, 80) then shown[#shown + 1] = m end
+    if not gone and vis(m.x - cam.x, m.y - cam.y, 60, 80) then cand[#cand + 1] = m end
+  end
+  table.sort(cand, function(a, b)
+    if (a.boss and true or false) ~= (b.boss and true or false) then return a.boss and true or false end
+    return (a.x - p.x) ^ 2 + (a.y - p.y) ^ 2 < (b.x - p.x) ^ 2 + (b.y - p.y) ^ 2
+  end)
+  local want, have = {}, {}
+  for i = 1, math.min(MAX_MON, #cand) do want[cand[i]] = true end
+  for _, f in ipairs(mon_f) do
+    if f.owner and not want[f.owner] then f.owner = nil end
+    if f.owner then have[f.owner] = f end
+  end
+  for i = 1, math.min(MAX_MON, #cand) do
+    local m = cand[i]
+    if not have[m] then
+      for _, f in ipairs(mon_f) do
+        if not f.owner then
+          f.owner, f.anim = m, nil
+          local ok
+          if m.model then ok = try(f.SetModel, f, m.model) else ok = try(f.SetCreature, f, m.cid) end
+          f.fallback:SetShown(not ok)
+          try(f.SetModelScale, f, 1)                            -- size comes from the frame alone (below); scaling the model as well made the boss twice as big as meant
+          have[m] = f
+          break
+        end
+      end
+    end
   end
   for i = 1, MAX_MON do
-    local m, f = shown[i], mon_f[i]
+    local f = mon_f[i]
+    local m = f.owner
     if m then
-      if f.owner ~= m then
-        f.owner, f.anim = m, nil
-        local ok = try(f.SetCreature, f, m.cid)
-        f.fallback:SetShown(not ok)
-        try(f.SetModelScale, f, 1)                              -- size comes from the frame alone (below); scaling the model as well made the boss twice as big as meant
-      end
       local size = (m.scale or 1)
       f:SetSize(64 * size, 80 * size)
       place(f, m.x, m.y, 80 * size); depth(f, m.y)

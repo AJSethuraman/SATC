@@ -65,7 +65,7 @@ def test_every_pack_is_a_pack_and_everything_is_in_bounds(env):
         for m in items(area.monsters):
             by_pack.setdefault(m.pack, []).append(m)
             assert 0 < m.x < area.w and 0 < m.y < area.h
-            assert m.cid > 0 and m.life > 0 and m.aggro > 0 and m.name
+            assert ((m.cid or 0) > 0 or (m.model or 0) > 0) and m.life > 0 and m.aggro > 0 and m.name
             assert m.resist is not None
         assert all(len(v) >= 2 for v in by_pack.values())
         for d in items(area.doodads):
@@ -157,3 +157,29 @@ def test_the_build_stamp_is_a_real_string(env):
     ns2 = lua.table()
     lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")(str(DREAD / "Build.lua"), ns2)
     assert isinstance(ns2.BUILD, str) and "UTC" in ns2.BUILD
+
+
+def test_the_moor_is_populated_with_undead_and_vermin_and_the_cave_boss_is_a_big_zombie(env):
+    lua, ns = env
+    kinds = set(str(k) for k in ns.Zone.BESTIARY.keys())
+    assert kinds == {"zombie", "ghoul", "quillrat", "bonewalker", "carrion"}
+    names = {str(m.name) for a in ("moor", "cave") for m in items(ns.Zone.get(a).monsters)}
+    assert {"Rotting Dead", "Hungry Ghoul", "Quill Rat", "Bone Walker", "Carrion Bird"} <= names
+    boss = [m for m in items(ns.Zone.get("cave").monsters) if m.boss][0]
+    assert boss.model == ns.Zone.BESTIARY.zombie.model and boss.scale == 1.8 and boss.name == "Rottenmaw the Unwelcome"
+
+
+def test_quill_rats_carry_their_range_and_the_rest_do_not(env):
+    lua, ns = env
+    for a in ("moor", "cave"):
+        for m in items(ns.Zone.get(a).monsters):
+            if m.name == "Quill Rat":
+                assert m.ranged.range == 210 and m.ranged.cd == pytest.approx(1.7)
+            else:
+                assert m.ranged is None
+
+
+def test_every_monster_has_a_model_to_draw(env):
+    lua, ns = env
+    for a in ("moor", "cave"):
+        assert all(isinstance(m.model, int) and m.model > 1000 for m in items(ns.Zone.get(a).monsters))
