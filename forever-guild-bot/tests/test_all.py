@@ -155,7 +155,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan", "craftable", "gaps"}
+                     "recipes", "whocan", "craftable", "gaps", "wanted"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -754,3 +754,27 @@ def test_profession_gaps_coverage_and_missing_recipes(tmp_path):
         assert [type(c).__name__ for c in v.children] == ["Select", "Button"]
         assert [o.label for o in v.children[0].options] == ["Mining", "Skinning"]
     asyncio.run(build())
+
+
+def test_a_search_for_something_nobody_can_make_becomes_a_recorded_gap(tmp_path):
+    from guildbot.bot import gap_card
+    from guildbot.sync import sync_item_catalog, sync_recipe_catalog
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    client = ItemClient(ROSTER)
+    asyncio.run(sync_recipe_catalog(db, client))
+    asyncio.run(sync_item_catalog(db, client))
+    db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225, ((52644, "Camp Chair"),))], utcnow())
+    names = {(r["name"], r["profession"]): r["n"] for r in db.recipe_names_all("")}
+    assert names[("Camp Chair", "Skinning")] == 1 and names[("Field Guide", "Skinning")] == 0   # known first, then unknown
+    assert db.who_can_craft("Field Guide") == []
+    card = gap_card(db, "Field Guide", 99)
+    assert card.title == "Gap: nobody in the guild can make Field Guide"
+    assert "Anduin Wrynn 200/225" in card.description and "wowhead.com/search?q=Field%20Guide" in card.fields[0].value
+    assert gap_card(db, "No Such Recipe", 99) is None                                           # not a real recipe: no gap
+    gap_card(db, "Field Guide", 100)
+    gap_card(db, "Trapper's Workbench", 99)
+    top = {(r["name"], r["profession"]): (r["n"], r["people"]) for r in db.wanted_top()}
+    # the fixtures give the same three recipes to both professions, so each search is recorded once per profession
+    assert top == {("Field Guide", "Skinning"): (2, 2), ("Field Guide", "Mining"): (2, 2),
+                   ("Trapper's Workbench", "Skinning"): (1, 1), ("Trapper's Workbench", "Mining"): (1, 1)}

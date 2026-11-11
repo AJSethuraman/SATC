@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS items (
     item_class TEXT, item_subclass TEXT, inventory_type TEXT
 );
 
+-- Searches that found nothing the guild can make: what people want and we lack.
+CREATE TABLE IF NOT EXISTS wanted (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, profession TEXT, discord_id INTEGER, asked_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS equipment (
     slug TEXT NOT NULL, slot TEXT NOT NULL, item_id INTEGER, item_name TEXT NOT NULL,
     quality TEXT, fetched_at TEXT NOT NULL,
@@ -339,6 +344,41 @@ class Database:
         return self.conn.execute(
             """SELECT profession AS name, COUNT(*) AS n FROM recipes WHERE lower(profession) LIKE ?
                GROUP BY profession ORDER BY profession""", ("%" + text.strip().lower() + "%",)).fetchall()
+
+    def recipe_names_all(self, text: str, limit: int = 25):
+        """Type-ahead for /whocan: recipes someone knows first (with how many), then catalogue recipes nobody
+        knows (n = 0). Rows: name, profession, n."""
+        rows = [dict(name=r["name"], profession=r["profession"], n=r["n"]) for r in self.recipe_names(text, limit)]
+        if len(rows) < limit:
+            have = {(r["name"], r["profession"]) for r in rows}
+            more = self.conn.execute(
+                """SELECT r.name AS name, r.profession AS profession FROM recipes r
+                   WHERE lower(r.name) LIKE ? AND NOT EXISTS (
+                     SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
+                      WHERE c.in_guild=1 AND k.profession=r.profession AND k.recipe_id=r.recipe_id)
+                   ORDER BY r.name LIMIT ?""", ("%" + text.strip().lower() + "%", limit * 2)).fetchall()
+            for r in more:
+                if (r["name"], r["profession"]) not in have and len(rows) < limit:
+                    rows.append(dict(name=r["name"], profession=r["profession"], n=0))
+                    have.add((r["name"], r["profession"]))
+        return rows
+
+    def catalog_recipe(self, name: str):
+        """Catalogue entries (one per profession) for an exact recipe name."""
+        return self.conn.execute(
+            """SELECT r.profession, r.recipe_id, r.name, r.category, i.required_level, i.item_subclass, i.inventory_type
+               FROM recipes r LEFT JOIN items i ON i.item_id=r.item_id WHERE lower(r.name)=? ORDER BY r.profession""",
+            (name.strip().lower(),)).fetchall()
+
+    def add_wanted(self, name: str, profession, discord_id: int, now: str) -> None:
+        self.conn.execute("INSERT INTO wanted (name, profession, discord_id, asked_at) VALUES (?,?,?,?)",
+                          (name, profession, discord_id, now))
+        self.conn.commit()
+
+    def wanted_top(self, limit: int = 20):
+        return self.conn.execute(
+            """SELECT name, profession, COUNT(*) AS n, COUNT(DISTINCT discord_id) AS people, MAX(asked_at) AS last_at
+               FROM wanted GROUP BY name, profession ORDER BY n DESC, last_at DESC LIMIT ?""", (limit,)).fetchall()
 
     def profession_coverage(self):
         """Per profession in the catalogue: how many guildies have it, the best skill, and how many of its

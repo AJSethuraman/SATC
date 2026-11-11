@@ -434,6 +434,29 @@ class GapsView(discord.ui.View):
         await interaction.response.edit_message(embed=gaps_overview(self.bot.db), view=GapsView(self.bot))
 
 
+def gap_card(db: Database, name: str, discord_id: int):
+    """A 'nobody in the guild has this yet' card for a recipe that exists, or None if there is no such recipe.
+    Records the miss so officers can see what people keep looking for."""
+    entries = db.catalog_recipe(name)
+    if not entries:
+        return None
+    lines = []
+    for en in entries:
+        best = db.best_in_profession(en["profession"], 2)
+        who = ", ".join(f"{R.full_name(b)} {b['skill']}/{b['max_skill']}" for b in best) \
+            or "nobody in the guild has this profession"
+        extra = ", ".join(x for x in (en["item_subclass"], en["inventory_type"]) if x and x != "Non-equippable")
+        lvl = f", L{en['required_level']}" if en["required_level"] else ""
+        lines.append(f"**{en['profession']}**{lvl}{(' - ' + extra) if extra else ''}\nClosest in the guild: {who}")
+        db.add_wanted(name, en["profession"], discord_id, utcnow())
+    e = discord.Embed(title=f"Gap: nobody in the guild can make {name}",
+                      description="\n\n".join(lines))
+    e.add_field(name="Where to get it", value=f"{item_link(name)} (Blizzard's data doesn't say where it is learned)",
+                inline=False)
+    e.set_footer(text="Noted as something people are looking for. Officers can see the list with /wanted.")
+    return e
+
+
 CRAFT_PROMPT = "Find who can craft something. Pick what you want, then tap the green button. Skip anything you don't care about."
 
 
@@ -779,8 +802,11 @@ def register_commands(bot: GuildBot) -> None:
                 for r in db.catalog_professions(current)]
 
     async def recipe_ac(interaction: discord.Interaction, current: str):
-        return [app_commands.Choice(name=f"{r['name']} - {r['profession']} ({r['n']})"[:100], value=r["name"][:100])
-                for r in db.recipe_names(current)]
+        return [app_commands.Choice(
+                    name=(f"{r['name']} - {r['profession']} ({r['n']})" if r["n"]
+                          else f"{r['name']} - {r['profession']} (nobody yet)")[:100],
+                    value=r["name"][:100])
+                for r in db.recipe_names_all(current)]
 
     @tree.command(name="recipes", description="What a profession can make, and which guildies can make it")
     @app_commands.describe(profession="Pick a profession", match="Part of a recipe name (blank = overview)")
@@ -863,13 +889,31 @@ def register_commands(bot: GuildBot) -> None:
             return
         await interaction.response.send_message(embed=gaps_overview(db), view=GapsView(bot), ephemeral=True)
 
+    @tree.command(name="wanted", description="What people searched for that nobody in the guild can make (officers)")
+    @app_commands.guild_only()
+    @officer
+    async def wanted(interaction: discord.Interaction):
+        rows = db.wanted_top()
+        if not rows:
+            await interaction.response.send_message("Nothing yet. Searches that find nobody show up here.", ephemeral=True)
+            return
+        lines = [f"{item_link(r['name'])} ({r['profession']}): searched {r['n']}x by {r['people']} "
+                 f"person{'s' if r['people'] != 1 else ''}, last <t:{int(datetime.fromisoformat(r['last_at']).timestamp())}:R>"
+                 for r in rows]
+        e = discord.Embed(title="Most wanted, and nobody has it", description=clip(lines, 4000))
+        await interaction.response.send_message(embed=e, ephemeral=True)
+
     @tree.command(name="whocan", description="Who in the guild can craft something (type a few letters)")
     @app_commands.autocomplete(recipe=recipe_ac)
     async def whocan(interaction: discord.Interaction, recipe: str):
         rows = db.who_can_craft(recipe)
         if not rows:
-            await interaction.response.send_message(
-                "Nobody in the guild knows that recipe (or I don't have it yet).", ephemeral=True)
+            card = gap_card(db, recipe, interaction.user.id)
+            if card:
+                await interaction.response.send_message(embed=card, ephemeral=True)
+            else:
+                await interaction.response.send_message(
+                    f"I don't know a recipe called \"{recipe}\". Look it up: {item_link(recipe)}", ephemeral=True)
             return
         lines = [f"**{R.full_name(r)}**: {r['profession']} {r['skill']}/{r['max_skill']}" for r in rows]
         e = discord.Embed(title=f"Who can make {recipe}", description=clip(lines, 4000))
