@@ -424,10 +424,10 @@ class GuildBot(discord.Client):
             await interaction.response.send_message("This raid is closed.", ephemeral=True)
             return
         # A signup is a Discord account, a role and (if they have one) a character. With several linked
-        # characters the bot asks which one, the first time and whenever they tap the role they already hold.
+        # characters the bot asks which one on every tap (their last choice is pre-selected).
         chars = self.db.characters_for(interaction.user.id)
         prior = next((s for s in self.db.signups(raid_id) if s["discord_id"] == interaction.user.id), None)
-        if len(chars) > 1 and role != "absent" and (prior is None or prior["role"] == role):
+        if len(chars) > 1 and role != "absent":
             view = SignupCharacterPicker(self, raid_id, role, chars,
                                          current=prior["slug"] if prior else None)
             await interaction.response.send_message(
