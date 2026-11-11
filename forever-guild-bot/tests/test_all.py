@@ -1274,3 +1274,22 @@ def test_one_hand_two_hand_groups_and_level_pop_up_helpers(tmp_path):
     assert [r["name"] for r in db.craftable(slot=C.slot_filter("@1H"), only_known=False)] == ["Off", "Short"]
     assert [r["name"] for r in db.craftable(slot=C.slot_filter("@2H"), only_known=False)] == ["Long"]
     assert [r["name"] for r in db.craftable(slot="Head", only_known=False)] == []
+
+
+def test_level_pop_up_offers_dropdowns_in_steps_of_five(tmp_path):
+    from guildbot import craft as C
+    from guildbot.bot import CraftWizard, LevelModal
+    frm, to = C.level_choices()
+    assert [v for _, v in frm][:5] == ["*", "1", "5", "10", "15"] and [v for _, v in frm][-1] == "55" and len(frm) == 13
+    assert [v for _, v in to][:3] == ["*", "5", "10"] and [v for _, v in to][-1] == "60" and len(to) == 13
+
+    async def build():
+        db = make_db(tmp_path)
+        wiz = CraftWizard(SimpleNamespaceBot(db), band="20-40")
+        m = LevelModal(wiz)
+        assert [o.value for o in m.lo.options if o.default] == ["20"]                      # the current range is pre-picked
+        assert [o.value for o in m.hi.options if o.default] == ["40"]
+        none = LevelModal(CraftWizard(SimpleNamespaceBot(db)))
+        assert [o.value for o in none.lo.options if o.default] == ["*"] and [o.value for o in none.hi.options if o.default] == ["*"]
+        assert LevelModal(CraftWizard(SimpleNamespaceBot(db))).to_dict()["components"][0]["type"] == 18
+    asyncio.run(build())

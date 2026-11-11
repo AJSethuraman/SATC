@@ -330,18 +330,29 @@ def craftable_result(db: Database, kind, sub, slot, lo, hi, profession, show_all
 
 
 class LevelModal(discord.ui.Modal, title="What level?"):
-    lo = discord.ui.TextInput(label="From level (blank = any)", required=False, max_length=2)
-    hi = discord.ui.TextInput(label="To level (blank = any)", required=False, max_length=2)
+    """Two dropdowns, no typing: the lowest and the highest level the item can need."""
 
     def __init__(self, wizard: "CraftWizard"):
         super().__init__()
         self.wizard = wizard
+        lo, hi = C.parse_band(wizard.band)
+        frm, to = C.level_choices()
+
+        def build(choices, current):
+            cur = str(current) if current is not None else C.ANY
+            return discord.ui.Select(
+                options=[discord.SelectOption(label=l, value=v, default=(v == cur)) for l, v in choices], required=False)
+        self.lo, self.hi = build(frm, lo if lo else None), build(to, hi if hi is not None and hi < 60 else None)
+        self.add_item(discord.ui.Label(text="From level", component=self.lo))
+        self.add_item(discord.ui.Label(text="To level", component=self.hi))
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        pick = lambda sel: (sel.values[0] if sel.values else C.ANY)
         try:
-            lo, hi = C.parse_level_range(self.lo.value, self.hi.value)
+            lo, hi = C.parse_level_range("" if pick(self.lo) == C.ANY else pick(self.lo),
+                                         "" if pick(self.hi) == C.ANY else pick(self.hi))
         except ValueError:
-            await interaction.response.send_message("Levels are whole numbers from 0 to 60, and 'from' can't be above 'to'.",
+            await interaction.response.send_message("'From' can't be higher than 'to'. Open Level again and pick again.",
                                                     ephemeral=True)
             return
         state = self.wizard._state()

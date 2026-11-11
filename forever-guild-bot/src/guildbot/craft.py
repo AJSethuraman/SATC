@@ -38,6 +38,14 @@ def slot_label(value: str) -> str:
     return SLOT_GROUP_LABELS.get(value, value)
 
 
+def level_choices(top: int = 60) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """(from-choices, to-choices) for the level pop-up, in steps of five. 'From' starts at 1 (then 5, 10, ...)
+    and 'to' ends at the top, so any range of five-level steps can be picked without typing."""
+    frm = [("Any", ANY), ("Level 1", "1")] + [(f"Level {n}", str(n)) for n in range(5, top, 5)]
+    to = [("Any", ANY)] + [(f"Level {n}", str(n)) for n in range(5, top + 1, 5)]
+    return frm, to
+
+
 def parse_level_range(lo_text: str, hi_text: str, top: int = 60) -> tuple[int | None, int | None]:
     """Two optional whole numbers from the level pop-up. Raises ValueError for anything else."""
     def one(t: str) -> int | None:
