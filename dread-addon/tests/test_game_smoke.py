@@ -1367,3 +1367,17 @@ def test_the_gear_text_names_every_slot_and_totals_the_bonuses():
         assert label in t
     assert "Magic Band of Life, Spell damage" in t and "Total:  +9 Life,  +4% Spell damage" in t
     assert "nothing yet" in ns.Gear.text(lua.table())
+
+
+def test_an_open_gear_window_updates_when_you_pick_up_something_better():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    key(lua, "I")
+    def gear_text():
+        return [str(o.text) for o in lua.eval("ALL").values() if o.text and "Weapon:" in str(o.text)][0]
+    assert "nothing yet" in gear_text()
+    it = lua.table_from({"slot": "head", "rarity": "magic", "ilvl": 4, "base": "Hood", "stats": lua.table_from({"mana": 7})})
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+    tick(lua, 2)
+    assert "+7 Mana" in gear_text()
