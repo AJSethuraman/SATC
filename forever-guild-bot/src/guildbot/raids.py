@@ -10,6 +10,8 @@ ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Benc
               "absent": "Can't make it"}
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
+ROLE_EMOJI = {"tank": "🟦", "healer": "🟩", "dps": "🟥", "bench": "🪑",
+              "tentative": "🟨", "absent": "⬜"}      # blue, green, red, chair, yellow, white
 # How long a bench player has to answer "a spot opened up" depends on how far off the raid is:
 OFFER_SHARE = 0.30            # 30% of the time left until the start ...
 OFFER_MIN_MINUTES = 15        # ... but never less than this ...
@@ -191,14 +193,16 @@ def offer_window(now: datetime, start: datetime) -> tuple[datetime, datetime]:
 
 def offer_text(raid, role: str, expires_at: datetime) -> str:
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
-    return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>): **{ROLE_SINGULAR[role]}**. "
-            f"Want it? Answer by <t:{int(expires_at.timestamp())}:t>.")
+    return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>): **{ROLE_SINGULAR[role]}**.\n"
+            f"Take it or pass. If you don't answer by <t:{int(expires_at.timestamp())}:t> "
+            f"I'll remind you once more, then take you off the bench.")
 
 
 def ping_text(raid, role: str, discord_id: int, expires_at: datetime, last_call: bool = False) -> str:
-    """The @ in the raid channel. last_call: they were already DMed and did not answer; this is the final nudge."""
+    """The @ in the raid channel. last_call: they were already DMed and did not answer; this is the reminder."""
+    when = int(expires_at.timestamp())
     if last_call:
-        return (f"<@{discord_id}> last call: a spot is open in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
-                f"Want it? It goes to the next person <t:{int(expires_at.timestamp())}:R>.")
+        return (f"<@{discord_id}> still want the **{ROLE_SINGULAR[role]}** spot in **{raid['title']}**? "
+                f"Answer <t:{when}:R> or you come off the bench.")
     return (f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
-            f"Want it? Answer by <t:{int(expires_at.timestamp())}:t>.")
+            f"Take it or pass by <t:{when}:t> or you come off the bench.")

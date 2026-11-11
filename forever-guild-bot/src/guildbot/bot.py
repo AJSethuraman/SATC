@@ -91,7 +91,7 @@ def raid_embed(db: Database, raid) -> discord.Embed:
         lines = [R.format_entry(s) + (f" (wants {R.ROLE_SINGULAR[s['wanted']]})" if role == "bench" and s["wanted"] else "")
                  for s in g[role]]
         cap = R.caps_of(raid).get(role)
-        e.add_field(name=f"{R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
+        e.add_field(name=f"{R.ROLE_EMOJI[role]} {R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
                     value=clip(lines, 1024) or "—", inline=role in ("tank", "healer", "dps"))
     times = [x["profile_at"] for rows in g.values() for x in rows if x["profile_at"]]
     e.set_footer(text=f"Character data as of {min(times)} UTC (oldest shown)" if times
@@ -782,7 +782,9 @@ class GuildBot(discord.Client):
             return
         if not yes:
             db.set_offer_state(offer_id, "declined")
-            await self._reply_to_offer(interaction, offer, "No problem, you're still on the bench.")
+            await self._drop_from_bench(offer)
+            await self._reply_to_offer(interaction, offer,
+                                       "Okay, you're off the bench. Tap a role on the raid post if you change your mind.")
             await self.sweep_offer_messages()
             await self.fill_open_slots(raid["id"])
             return
@@ -801,11 +803,26 @@ class GuildBot(discord.Client):
         await self.sweep_offer_messages()
         await self.refresh_raid_post(raid["id"])
 
+    async def _drop_from_bench(self, offer) -> bool:
+        """Take someone off the bench (their signup is removed) when they pass or do not answer. Only if they
+        are still on the bench: someone who has since changed to another role is left alone."""
+        mine = next((s for s in self.db.signups(offer["raid_id"]) if s["discord_id"] == offer["discord_id"]), None)
+        if not mine or mine["role"] != "bench":
+            return False
+        self.db.remove_signup(offer["raid_id"], offer["discord_id"])
+        await self.refresh_raid_post(offer["raid_id"])
+        return True
+
     async def _expire_offers(self) -> None:
         """An offer nobody answered in time goes to the next person in line; quiet ones get a last-call ping."""
         now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
         for o in self.db.expire_old_offers(now_iso):
             try:
+                if await self._drop_from_bench(o):               # no answer: off the bench, and they are told
+                    raid = self.db.get_raid(o["raid_id"])
+                    await self.dm_user(o["discord_id"],
+                                       f"You didn't answer, so I took you off the bench for **{raid['title']}**. "
+                                       "Tap a role on the raid post if you still want in.")
                 await self.fill_open_slots(o["raid_id"])
             except Exception:
                 log.exception("could not pass on an expired offer for raid %s", o["raid_id"])

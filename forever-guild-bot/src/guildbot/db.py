@@ -657,6 +657,10 @@ class Database:
             (raid_id, discord_id, slug, role, now, wanted))
         self.conn.commit()
 
+    def remove_signup(self, raid_id, discord_id) -> None:
+        self.conn.execute("DELETE FROM signups WHERE raid_id=? AND discord_id=?", (raid_id, discord_id))
+        self.conn.commit()
+
     # ---- bench queue offers ------------------------------------------------
     def create_offer(self, raid_id, discord_id, role, now, ping_at, expires_at) -> int:
         cur = self.conn.execute(
