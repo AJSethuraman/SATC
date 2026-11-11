@@ -374,14 +374,29 @@ class GuildBot(discord.Client):
             log.exception("roster sync failed")
 
     async def _send_reminders(self) -> None:
+        """Private reminder to everyone signed up (slots and bench). Nothing is posted in the channel.
+        Anyone whose DMs are closed is reported privately to whoever created the raid."""
         for raid in self.db.due_reminders(datetime.now(timezone.utc), 60):
             try:
-                chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
                 g = R.group_signups(self.db.signups(raid["id"]))
-                pings = " ".join(f"<@{s['discord_id']}>" for r in R.COUNTED for s in g[r])
-                ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
-                await chan.send(f"Reminder: **{raid['title']}** starts <t:{ts}:R>. {pings}".strip())
+                ids = list(dict.fromkeys(s["discord_id"] for r in (*R.COUNTED, "bench") for s in g[r]))
+                text = R.reminder_text(raid)
+                blocked = []
+                for uid in ids:
+                    try:
+                        user = self.get_user(uid) or await self.fetch_user(uid)
+                        if not user.bot:
+                            await user.send(text)
+                    except discord.HTTPException:
+                        blocked.append(uid)
                 self.db.mark_reminded(raid["id"])
+                if blocked and raid["created_by"]:
+                    try:
+                        owner = self.get_user(raid["created_by"]) or await self.fetch_user(raid["created_by"])
+                        await owner.send(f"Couldn't remind these players about **{raid['title']}** (their DMs are "
+                                         "closed): " + " ".join(f"<@{u}>" for u in blocked))
+                    except discord.HTTPException:
+                        log.warning("could not tell the raid creator about blocked reminders")
             except Exception:
                 log.exception("reminder failed for raid %s", raid["id"])
 

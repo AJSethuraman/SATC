@@ -524,3 +524,8 @@ def test_signup_asks_for_a_character_only_when_there_are_several(tmp_path):
     row = [s for s in db.signups(rid) if s["discord_id"] == 7][0]
     assert (row["slug"], row["role"]) == ("anduin-wrynn", "dps")            # the chosen character, not the main
     assert bot.apply_signup(raid, 7, "healer", "anduin-wrynn") == "healer"  # role change keeps the character
+
+
+def test_reminder_is_a_short_private_message():
+    raid = {"title": "Test Raid", "starts_at": "2026-11-11T20:05:00+00:00"}
+    assert R.reminder_text(raid) == "Reminder: **Test Raid** starts <t:1794427500:R> (<t:1794427500:t>)."

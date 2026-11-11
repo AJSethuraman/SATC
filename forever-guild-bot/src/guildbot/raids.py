@@ -116,3 +116,9 @@ def size_from_limits(tanks, healers, dps) -> int | None:
     if tanks and healers and dps:
         return int(tanks) + int(healers) + int(dps)
     return None
+
+
+def reminder_text(raid) -> str:
+    """The private reminder sent an hour before start."""
+    ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
+    return f"Reminder: **{raid['title']}** starts <t:{ts}:R> (<t:{ts}:t>)."
