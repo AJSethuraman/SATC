@@ -177,9 +177,13 @@ local function fire(w, id, tx, ty)
   local p, shape = w.player, Combat.SHAPES[id]
   local d = dist(p.x, p.y, tx, ty)
   if d < 1 then d = 1 end
+  -- A bolt is aimed in a direction and flies its full range. An area spell is aimed at a point: it lands there,
+  -- or at its maximum range if you clicked further away.
+  local left = shape.range
+  if shape.shape == "aoe" then left = math.min(shape.range, d) end
   w.projectiles[#w.projectiles + 1] = {
     id = id, x = p.x, y = p.y, vx = (tx - p.x) / d * shape.speed, vy = (ty - p.y) / d * shape.speed,
-    left = shape.range,
+    left = left,
   }
 end
 

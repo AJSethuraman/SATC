@@ -11,7 +11,8 @@ IN_GROUP, RAID = true, false
 FRIEND_DROPS = 0          -- the friend's client loses every Nth burst message
 SEND_RESULT = 0           -- what the send call returns
 FRIEND_REPLIES = true
-local friend_count, friend_seen = 0, 0
+FRIENDS = { "Friend-Realm" }
+local friend_count, friend_seen = {}, {}
 function print(...) local t = {} for i = 1, select("#", ...) do t[#t + 1] = tostring((select(i, ...))) end PRINTED[#PRINTED + 1] = table.concat(t, " ") end
 function GetTime() NOW = NOW + 0.05 return NOW end
 function IsInGroup() return IN_GROUP end
@@ -21,18 +22,23 @@ C_Timer = { After = function(sec, fn) TIMERS[#TIMERS + 1] = { sec, fn } end }
 function run_timers() table.sort(TIMERS, function(a, b) return a[1] < b[1] end) local t = TIMERS TIMERS = {} for _, e in ipairs(t) do e[2]() end end
 local frame
 function CreateFrame() frame = { scripts = {}, RegisterEvent = function() end, SetScript = function(self, n, f) self.scripts[n] = f end } return frame end
-local function from_friend(text, channel) frame.scripts.OnEvent(frame, "CHAT_MSG_ADDON", "DREADNET", text, channel, "Friend-Realm") end
+local function from_friend(text, channel, name) frame.scripts.OnEvent(frame, "CHAT_MSG_ADDON", "DREADNET", text, channel, name) end
 C_ChatInfo = {
   RegisterAddonMessagePrefix = function() return true end,
   SendAddonMessage = function(prefix, text, channel)
     SENT[#SENT + 1] = text
     if not FRIEND_REPLIES then return SEND_RESULT end
     local kind, a, b = text:match("^(%u+)|([^|]*)|?(.*)$")
-    if kind == "PING" then from_friend("PONG|" .. a .. "|" .. b, channel)
-    elseif kind == "BURST" then
-      friend_seen = friend_seen + 1
-      if FRIEND_DROPS > 0 and friend_seen % FRIEND_DROPS == 0 then else friend_count = friend_count + 1 end
-    elseif kind == "END" then from_friend("STAT|" .. friend_count .. "|" .. a, channel) end
+    for i, name in ipairs(FRIENDS) do
+      friend_count[name], friend_seen[name] = friend_count[name] or 0, friend_seen[name] or 0
+      if kind == "PING" then from_friend("PONG|" .. a .. "|" .. b, channel, name)
+      elseif kind == "BURST" then
+        friend_seen[name] = friend_seen[name] + 1
+        -- the first friend gets everything (less FRIEND_DROPS); every later friend gets only half of it
+        local keep = (i == 1) and not (FRIEND_DROPS > 0 and friend_seen[name] % FRIEND_DROPS == 0) or (i > 1 and friend_seen[name] % 2 == 0)
+        if keep then friend_count[name] = friend_count[name] + 1 end
+      elseif kind == "END" then from_friend("STAT|" .. friend_count[name] .. "|" .. a, channel, name) end
+    end
     return SEND_RESULT
   end,
 }
@@ -157,3 +163,21 @@ def test_two_bursts_from_a_friend_are_counted_separately():
     event("END|3")
     stats = [str(t) for t in lua.eval("SENT").values() if str(t).startswith("STAT")]
     assert stats == ["STAT|5|5", "STAT|3|3"]                            # the second report is not 8
+
+
+def test_with_two_friends_only_the_first_to_answer_is_measured():
+    lua, ns = boot('FRIENDS = { "Friend-Realm", "Other-Realm" }')       # both have Dread and both answer everything
+    ns.Net.start()
+    lua.eval("run_timers")()
+    out = " ".join(said(lua))
+    assert "10 of 10 answered" in out                                    # not 20 of 10
+    assert "the friend received 40 of 40" in out                         # the first friend's count, not overwritten by the second's 20
+    assert "Friend-Realm" in out                                         # and the report says whose numbers these are
+
+
+def test_every_burst_message_is_exactly_the_size_the_report_claims():
+    lua, ns = boot()
+    ns.Net.start()
+    lua.eval("run_timers")()
+    bursts = [str(t) for t in lua.eval("SENT").values() if str(t).startswith("BURST|")]
+    assert len(bursts) == 40 and {len(t) for t in bursts} == {200}       # not 196 for the first nine and 197 for the rest

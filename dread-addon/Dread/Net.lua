@@ -47,7 +47,10 @@ function Net.receive(prefix, text, channel, sender)
     send("PONG|" .. a .. "|" .. b, channel)
   elseif kind == "PONG" then
     if run and run.sent_at[tonumber(a)] then
-      run.rtts[#run.rtts + 1] = (GetTime() - run.sent_at[tonumber(a)]) * 1000
+      run.peer = run.peer or sender                         -- the first to answer is the one measured; everyone else is ignored
+      if sender == run.peer then
+        run.rtts[#run.rtts + 1] = (GetTime() - run.sent_at[tonumber(a)]) * 1000
+      end
     end
   elseif kind == "BURST" then
     counts[sender] = (counts[sender] or 0) + 1
@@ -55,7 +58,10 @@ function Net.receive(prefix, text, channel, sender)
     send("STAT|" .. (counts[sender] or 0) .. "|" .. a, channel)
     counts[sender] = 0
   elseif kind == "STAT" then
-    if run then run.peer_got, run.peer_of = tonumber(a), tonumber(b) end
+    if run then
+      run.peer = run.peer or sender
+      if sender == run.peer then run.peer_got, run.peer_of = tonumber(a), tonumber(b) end
+    end
   end
 end
 
@@ -67,6 +73,7 @@ local function report()
                          or string.format("pings: 0 of %d answered", Net.PING_COUNT)
   parts[#parts + 1] = string.format("burst: sent %d messages of %d bytes, %d accepted by the client, the friend received %s",
     Net.BURST_COUNT, Net.BURST_BYTES, r.accepted, r.peer_got and (r.peer_got .. " of " .. tostring(r.peer_of)) or "no report back")
+  if r.peer then parts[#parts + 1] = "measured against " .. tostring(r.peer) .. " (the first to answer; any others are ignored)" end
   if r.first_error then parts[#parts + 1] = "the client said: " .. tostring(r.first_error) end
   DreadDB = DreadDB or {}
   DreadDB.results = DreadDB.results or {}
@@ -89,9 +96,9 @@ function Net.start()
     end)
   end
   C_Timer.After(Net.PING_COUNT * 0.5 + 1.5, function()
-    local payload = string.rep("x", Net.BURST_BYTES - 12)
     for i = 1, Net.BURST_COUNT do
-      local ok, detail = send("BURST|" .. i .. "|" .. payload, channel)
+      local head = "BURST|" .. i .. "|"
+      local ok, detail = send(head .. string.rep("x", Net.BURST_BYTES - #head), channel)       -- exactly BURST_BYTES long
       -- a 0 / true / Enum "Success" result means the client took it; anything else is a refusal or a throttle
       if ok and (detail == nil or detail == 0 or detail == true or detail == "Success") then run.accepted = run.accepted + 1
       elseif not run.first_error then run.first_error = detail end

@@ -501,3 +501,47 @@ def test_killing_a_boss_says_so(env):
     ks, ev = kinds(ns, w)
     boss = [ev[i] for i in range(1, len(ev) + 1) if ev[i].k == "boss_dead"]
     assert len(boss) == 1 and boss[0].name == "Big One"       # the ordinary kill does not announce itself as a boss
+
+
+# ---------------------------------------------------------------- area spells land where you click
+def first_blast(ns, w):
+    ev = ns.Combat.drain(w)
+    blasts = [ev[i] for i in range(1, len(ev) + 1) if ev[i].k == "blast"]
+    return blasts[0] if blasts else None
+
+
+def test_a_fireball_cast_at_empty_ground_explodes_there_not_at_full_range(env):
+    lua, ns = env
+    w = world(env, fireball=1)                                           # player at (300, 40); nothing to hit
+    cast(ns, w, "fireball", 300, 200)                                    # 160 away; the spell's range is 440
+    run(ns, w, 2.0)
+    b = first_blast(ns, w)
+    assert b is not None and b.x == pytest.approx(300, abs=0.5) and b.y == pytest.approx(200, abs=6)    # one step of 5 units, no more
+
+
+def test_a_fireball_aimed_past_its_range_explodes_at_its_range(env):
+    lua, ns = env
+    w = world(env, fireball=1)
+    w.h = 2000
+    cast(ns, w, "fireball", 300, 1900)                                   # far beyond 440
+    run(ns, w, 3.0)
+    b = first_blast(ns, w)
+    assert b is not None and b.y == pytest.approx(40 + 440, abs=6)
+
+
+def test_glacial_spike_also_lands_on_the_click(env):
+    lua, ns = env
+    w = world(env, glacial_spike=1)
+    cast(ns, w, "glacial_spike", 300, 150)
+    run(ns, w, 2.0)
+    b = first_blast(ns, w)
+    assert b is not None and b.y == pytest.approx(150, abs=7)
+
+
+def test_a_bolt_still_flies_past_the_click_point(env):
+    lua, ns = env
+    w = world(env, scorch=1)
+    cast(ns, w, "scorch", 300, 100)                                      # 60 away
+    run(ns, w, 0.5)                                                      # 160 units flown: well past 100
+    assert len(w.projectiles) == 1 and w.projectiles[1].y > 150          # bolts are not aimed at a point, only a direction
+    assert first_blast(ns, w) is None
