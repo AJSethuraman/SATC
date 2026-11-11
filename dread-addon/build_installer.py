@@ -12,20 +12,12 @@ setlocal
 set "ADDONS=__TARGET__"
 title Install Dread
 
-rem Program Files needs administrator rights. Ask for them and run this file again.
-net session >nul 2>&1
-if errorlevel 1 (
-  echo Asking for administrator permission to write to Program Files...
-  powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-  exit /b
-)
+rem No parenthesised blocks anywhere in this file: the ")" in "(x86)" ends a block early and
+rem closes the window with a syntax error. Everything branches with goto instead.
 
-if not exist "%ADDONS%" (
-  echo Could not find: %ADDONS%
-  echo Edit the ADDONS line at the top of this file to your AddOns folder, then run it again.
-  pause
-  exit /b 1
-)
+net session >nul 2>&1
+if errorlevel 1 goto elevate
+if not exist "%ADDONS%" goto nofolder
 
 echo Installing Dread into %ADDONS%\Dread ...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -37,16 +29,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
  "Expand-Archive -LiteralPath $zip -DestinationPath '%ADDONS%' -Force;" ^
  "Remove-Item -LiteralPath $zip;" ^
  "Get-ChildItem -LiteralPath (Join-Path '%ADDONS%' 'Dread') | Select-Object -ExpandProperty Name"
-if errorlevel 1 (
-  echo.
-  echo Something went wrong. Copy the message above and send it over.
-  pause
-  exit /b 1
-)
+if errorlevel 1 goto failed
 echo.
 echo Done. In WoW, type /reload and then /dread
+goto finish
+
+:elevate
+echo Asking for administrator permission to write to Program Files...
+powershell -NoProfile -Command "Start-Process -FilePath cmd.exe -ArgumentList '/k','\"%~f0\"' -Verb RunAs"
+exit /b
+
+:nofolder
+echo Could not find: %ADDONS%
+echo Edit the ADDONS line at the top of this file to your AddOns folder, then run it again.
+goto finish
+
+:failed
+echo.
+echo Something went wrong. Copy the message above and send it over.
+
+:finish
+echo.
 pause
-exit /b 0
+exit /b
 
 """
 
