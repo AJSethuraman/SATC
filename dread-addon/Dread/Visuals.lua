@@ -5,7 +5,10 @@ local ADDON, ns = ...
 local V = {}
 ns.Visuals = V
 
-local function say(msg) print("|cffff5555Dread|r " .. msg) end
+local function say(msg)
+  msg = "|cffff5555Dread|r " .. msg
+  if ns.log then ns.log(msg) else print(msg) end
+end
 
 -- Creature ids to try with SetCreature. Chosen from memory of Classic NPCs; what matters is whether
 -- *any* model draws, not which animal it is.

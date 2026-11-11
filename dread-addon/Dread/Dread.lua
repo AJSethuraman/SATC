@@ -8,7 +8,10 @@ local Sim, Skills, Tree = ns.Sim, ns.Skills, ns.Tree
 DreadDB = DreadDB or {}
 DreadDB.results = DreadDB.results or {}
 
-local function say(msg) print("|cffff5555Dread|r " .. msg) end
+local function say(msg)
+  msg = "|cffff5555Dread|r " .. msg
+  if ns.log then ns.log(msg) else print(msg) end
+end
 local function record(key, value) DreadDB.results[key] = value; say(key .. ": " .. value) end
 
 local function mem() return collectgarbage("count") end
@@ -196,6 +199,10 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "visuals" then ns.Visuals.run()
   elseif arg == "play" then ns.Game.toggle()
   elseif arg == "animtest" then ns.Game.animtest()
+  elseif arg == "log" then ns.Log.toggle()
+  elseif arg == "log clear" then ns.Log.clear()
+  elseif arg == "log copy" then ns.Log.copy()
+  elseif arg == "log chat" then say("Dread messages also go to the General tab: " .. (ns.Log.set_chat(not ns.Log.chat_on()) and "on" or "off"))
   elseif arg == "net" then ns.Net.start()
   elseif arg == "version" then say("build " .. tostring(ns.BUILD))
   elseif arg == "solid" then say("blocking circles " .. (ns.Game.set_solid(not ns.Game.solid()) and "on" or "off"))
@@ -210,5 +217,5 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
 end
