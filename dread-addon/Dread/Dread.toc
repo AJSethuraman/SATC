@@ -9,6 +9,7 @@ Skills.lua
 Tree.lua
 Combat.lua
 Zone.lua
+Fx.lua
 Build.lua
 Game.lua
 Visuals.lua

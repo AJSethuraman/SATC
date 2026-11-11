@@ -5,7 +5,7 @@
 --   K            skill tree: hover a skill and press 1-8 to put it on that slot
 -- Drag the window by its title bar. The rules all live in Combat.lua / Tree.lua; this file draws and listens.
 local ADDON, ns = ...
-local Combat, Tree, Skills, Zone = ns.Combat, ns.Tree, ns.Skills, ns.Zone
+local Combat, Tree, Skills, Zone, Fx = ns.Combat, ns.Tree, ns.Skills, ns.Zone, ns.Fx
 
 local Game = {}
 ns.Game = Game
@@ -13,7 +13,7 @@ ns.Game = Game
 local VW, VH = 640, 400            -- the viewport, in the same units Combat.lua uses
 local HUD_H, TITLE_H = 104, 24
 local MAX_MON, MAX_DOODAD, MAX_PROJ, MAX_BLAST, MAX_FLOAT, MAX_DROP = 14, 22, 16, 6, 20, 8
-local MAX_EFF, MAX_ZAP, MAX_BUFF, ZAP_DOTS = 40, 10, 8, 8
+local MAX_EFF, MAX_ZAP, MAX_BUFF, ZAP_DOTS, MAX_PART = 40, 10, 8, 8, 320
 local SLOTS = 8
 local ATTACK_RANGE = 300           -- how close you get to a clicked monster before the wand starts firing
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
@@ -80,6 +80,7 @@ local life_orb, mana_orb, xp_bar, info_text, hint_text, over_text, zone_text, to
 local reset_btn, reset_armed
 local solid_f, solid_on, solid_sizes = {}, false, {}
 local eff_f, zap_f, buff_f, buff_shown = {}, {}, {}, {}
+local fx, part_f, fx_drawn = nil, {}, 0
 local slots = {}
 Game.tree_buttons = {}
 Game.paused = false
@@ -462,6 +463,18 @@ local function build_arena()
     tx:SetPoint("TOP", ic, "BOTTOM", 0, 0); tx:Hide()
     buff_f[i] = { icon = ic, text = tx }
   end
+  fx = Fx.new(7)
+  for i = 1, MAX_PART do                                         -- sparks, flames, snow, shield rings: small glowing dots
+    local d = arena:CreateTexture(nil, "OVERLAY", nil, 4)
+    d:SetColorTexture(1, 1, 1, 1); d:SetBlendMode("ADD"); d:Hide()
+    try(function()
+      local m = arena:CreateMaskTexture()
+      m:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+      m:SetAllPoints(d)
+      d:AddMaskTexture(m)
+    end)
+    part_f[i] = d
+  end
   for i = 1, 48 do                                              -- the /dread solid circles
     local t = arena:CreateTexture(nil, "OVERLAY", nil, 3)
     t:SetColorTexture(1, 0.1, 0.1, 0.4); t:Hide()
@@ -626,6 +639,7 @@ local function draw_effects(dt, p)
         f.disc:SetSize(size, size); f.disc:ClearAllPoints(); f.disc:SetPoint("CENTER", arena, "BOTTOMLEFT", x - cam.x, y - cam.y); f.disc:Show()
         if icon or e.kind == "orb" then
           f.icon:SetTexture(icon_path(icon or e.id)); f.icon:SetVertexColor(c[1], c[2], c[3])
+          try(f.icon.SetRotation, f.icon, world.time * ((e.kind == "orb") and 5 or 2))
           f.icon:ClearAllPoints(); f.icon:SetPoint("CENTER", arena, "BOTTOMLEFT", x - cam.x, y - cam.y + ((e.kind == "summon") and 18 or 0)); f.icon:Show()
         else
           f.icon:Hide()
@@ -665,10 +679,33 @@ local function draw_effects(dt, p)
   end
 end
 
-function Game.tick(dt)
-  if dt > 0.1 then dt = 0.1 end
-  Game.paused = tree_frame:IsShown()
-  local p = world.player
+-- Move the particles on and draw them, plus the rings around you while a shield or buff is up.
+local function draw_fx(dt)
+  local level = (DreadDB and DreadDB.fx) or 1
+  fx.scale = level
+  if not Game.paused then Fx.update(fx, world, dt) end
+  local n = 0
+  local function dot(x, y, size, alpha, r, g, b)
+    local sx, sy = x - cam.x, y - cam.y
+    if n < MAX_PART and sx > -30 and sx < VW + 30 and sy > -30 and sy < VH + 30 then
+      n = n + 1
+      local d = part_f[n]
+      d:SetVertexColor(r, g, b); d:SetAlpha(alpha); d:SetSize(size, size)
+      d:ClearAllPoints(); d:SetPoint("CENTER", arena, "BOTTOMLEFT", sx, sy); d:Show()
+    end
+  end
+  if level > 0 then
+    for _, q in ipairs(fx.list) do
+      local k = q.t / q.max
+      dot(q.x, q.y, q.s0 + (q.s1 - q.s0) * k, q.a0 * (1 - k), q.r, q.g, q.b)
+    end
+    for _, a in ipairs(Fx.auras(fx, world)) do dot(a.x, a.y, a.size, a.alpha, a.r, a.g, a.b) end
+  end
+  for i = n + 1, MAX_PART do part_f[i]:Hide() end
+  fx_drawn = n
+end
+
+local function advance(dt, p)
   -- walk up to a clicked monster and keep using the wand on it
   if target and not world.over and not Game.paused then
     if target.dead then target = nil
@@ -718,6 +755,9 @@ function Game.tick(dt)
     for i = n + 1, #solid_f do solid_f[i]:Hide() end
   end
 
+end
+
+local function draw_actors(p)
   -- you
   place(player_model, p.x, p.y, 90); depth(player_model, p.y)
   local casting = (world.time - p.cast_at) < 0.5
@@ -760,6 +800,9 @@ function Game.tick(dt)
     end
   end
 
+end
+
+local function draw_world_and_events(dt, p)
   -- spell effects
   draw_effects(dt, p)
   for i = 1, MAX_PROJ do
@@ -774,6 +817,8 @@ function Game.tick(dt)
         if mid then try(f.SetModel, f, mid); try(f.SetModelScale, f, PROJ_SCALE[pr.id] or 1) end
       end
       f:ClearAllPoints(); f:SetPoint("CENTER", arena, "BOTTOMLEFT", pr.x - cam.x, pr.y - cam.y)
+      try(f.icon.SetRotation, f.icon, world.time * 9)                -- the glow spins
+      f.icon:SetSize(24 + 6 * math.sin(world.time * 14), 24 + 6 * math.sin(world.time * 14))
       face(f, pr.vx, pr.vy)
       f:SetFrameLevel(arena:GetFrameLevel() + 300)
       f:Show()
@@ -782,6 +827,7 @@ function Game.tick(dt)
     end
   end
   for _, e in ipairs(Combat.drain(world)) do
+    Fx.on_event(fx, e, world)
     if e.k == "hit" and e.dmg > 0 then
       for _, fl in ipairs(float_f) do
         if fl.t <= 0 then
@@ -827,6 +873,7 @@ function Game.tick(dt)
       end
     end
   end
+  draw_fx(dt)
   for _, fl in ipairs(float_f) do
     if fl.t > 0 then
       fl.t = fl.t - dt; fl.y = fl.y + 40 * dt
@@ -863,6 +910,9 @@ function Game.tick(dt)
     mk.t:SetShown(on); mk.l:SetShown(on)
   end
 
+end
+
+local function update_hud(dt, p)
   -- HUD
   life_orb.set(p.life / p.maxlife, math.floor(p.life) .. "/" .. p.maxlife)
   mana_orb.set(p.mana / p.maxmana, math.floor(p.mana) .. "/" .. p.maxmana)
@@ -888,6 +938,16 @@ function Game.tick(dt)
     over_text:Hide()
   end
   if tree_frame:IsShown() then refresh_tree() end
+end
+
+function Game.tick(dt)
+  if dt > 0.1 then dt = 0.1 end
+  Game.paused = tree_frame:IsShown()
+  local p = world.player
+  advance(dt, p)
+  draw_actors(p)
+  draw_world_and_events(dt, p)
+  update_hud(dt, p)
 end
 
 ---------------------------------------------------------------- opening, closing, settings
@@ -996,6 +1056,15 @@ function Game.animtest()
   end
 end
 
+-- Particle detail: 'off', 'low' (half) or 'full'. Saved. Useful if the frame rate drops in a big fight.
+function Game.set_fx(level)
+  local map = { off = 0, low = 0.5, full = 1 }
+  DreadDB = DreadDB or {}
+  if map[level] ~= nil then DreadDB.fx = map[level] end
+  local v = DreadDB.fx or 1
+  return v == 0 and "off" or (v == 1 and "full" or "low")
+end
+function Game.particles_drawn() return fx_drawn end
 function Game.solid() return solid_on end
 function Game.buffs_shown() return buff_shown end
 function Game.solid_sizes() return solid_sizes end

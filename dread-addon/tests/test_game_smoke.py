@@ -34,6 +34,7 @@ local function obj(parent)
     if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id end end
     if k == "SetCreature" then return function(self, id) if NO_MODELS then error("no models here") end self.creature = id end end
     if k == "SetTexture" then return function(self, id) self.texture = id end end
+    if k == "SetRotation" then return function(self, v) self.rotation = v end end
     if k == "SetTexCoord" then return function(self, ...) self.coords = { ... } end end
     if k == "SetCamDistanceScale" then return function(self, v) self.camscale = v end end
     if k == "SetSize" then return function(self, w, h) self.size = { w, h } end end
@@ -71,7 +72,7 @@ def boot(prelude="", with_slash=False):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Game") + (("Visuals", "Dread") if with_slash else ()):
+    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Fx", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
 
@@ -784,3 +785,140 @@ def test_every_active_skill_has_a_description():
     lua, ns = boot()
     for sid in ACTIVE:
         assert ns.Game.DESC[sid] is not None and len(str(ns.Game.DESC[sid])) > 10, sid
+
+
+# ---------------------------------------------------------------- movement: particles, shield rings, spinning glows
+def ready(lua, ns, sid):
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ns.Combat.set_level(w, 30, 0)
+    w.player.st.points[sid] = 1
+    w.player.mana = w.player.maxmana = 500
+    bar, sel = ns.Game.bar()
+    for i in range(1, 9):
+        bar[i] = None
+    bar[1] = sid
+    tick(lua, 2)
+    return w
+
+
+def shown_dots(lua, size):
+    return [o for o in lua.eval("ALL").values() if o.shown and o.size is not None and o.size[1] == size and o.size[2] == size
+            and o.pts is not None and o.pts.point == "CENTER"]
+
+
+def test_a_flying_bolt_is_drawn_with_a_trail_of_sparks():
+    lua, ns = boot()
+    w = ready(lua, ns, "scorch")
+    assert ns.Game.particles_drawn() == 0                                    # nothing is going on
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -250, 0)
+    click_world(lua, ns, "RightButton", w.player.x + 300, w.player.y)        # inside the view; the bolt keeps flying past the click
+    tick(lua, 8)
+    assert ns.Game.particles_drawn() >= 4                                    # sparks behind it
+
+
+def test_a_shield_draws_a_ring_of_dots_around_you_and_it_turns():
+    lua, ns = boot()
+    w = ready(lua, ns, "ice_barrier")
+    click_world(lua, ns, "RightButton", w.player.x + 50, w.player.y)
+    tick(lua, 3)
+    cam = ns.Game.camera()
+    px, py = w.player.x - cam.x, w.player.y - cam.y + 20
+    ring = shown_dots(lua, 8)                                                # the ice barrier's dots are exactly 8 wide
+    assert len(ring) == 10
+    assert all(((d.pts.x - px) ** 2 + ((d.pts.y - py) / 0.8) ** 2) ** 0.5 == pytest.approx(26, abs=0.5) for d in ring)
+    before = sorted((round(d.pts.x), round(d.pts.y)) for d in ring)
+    tick(lua, 15)
+    after = sorted((round(d.pts.x), round(d.pts.y)) for d in shown_dots(lua, 8))
+    assert before != after                                                   # the ring has moved on
+
+
+def test_the_ring_goes_away_when_the_shield_does():
+    lua, ns = boot()
+    w = ready(lua, ns, "ice_barrier")
+    click_world(lua, ns, "RightButton", w.player.x + 50, w.player.y)
+    tick(lua, 3)
+    assert len(shown_dots(lua, 8)) == 10
+    w.player.buffs.ice_barrier = None
+    tick(lua, 2)
+    assert len(shown_dots(lua, 8)) == 0
+
+
+def test_particle_detail_off_low_full_is_saved_and_obeyed():
+    lua, ns = boot()
+    w = ready(lua, ns, "combustion")
+    click_world(lua, ns, "RightButton", w.player.x + 50, w.player.y)
+    tick(lua, 30)
+    full = ns.Game.particles_drawn()
+    assert full > 10
+    assert ns.Game.set_fx("off") == "off" and lua.eval("DreadDB.fx") == 0
+    tick(lua, 30)
+    assert ns.Game.particles_drawn() == 0                                    # even the shield rings are gone
+    assert ns.Game.set_fx("low") == "low" and lua.eval("DreadDB.fx") == 0.5
+    tick(lua, 60)
+    low = ns.Game.particles_drawn()
+    assert 0 < low < full
+    assert ns.Game.set_fx("full") == "full"
+    assert ns.Game.set_fx("banana") == "full" and lua.eval("DreadDB.fx") == 1      # nonsense changes nothing
+
+
+def test_typed_fx_command_changes_the_detail_and_names_it():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "play")
+    slash(lua, "fx low")
+    assert lua.eval("DreadDB.fx") == 0.5 and any("particle detail: low" in l for l in said(lua))
+    slash(lua, "fx off");  assert lua.eval("DreadDB.fx") == 0
+    slash(lua, "fx")                                                         # no word: just says what it is now
+    assert any("particle detail: off" in l for l in said(lua))
+
+
+def test_nothing_moves_while_the_tree_is_open():
+    lua, ns = boot()
+    w = ready(lua, ns, "combustion")
+    click_world(lua, ns, "RightButton", w.player.x + 50, w.player.y)
+    tick(lua, 20)
+    key(lua, "K")                                                            # pause
+    seen = sorted((round(d.pts.x), round(d.pts.y)) for d in shown_dots(lua, 9))
+    tick(lua, 30)
+    assert sorted((round(d.pts.x), round(d.pts.y)) for d in shown_dots(lua, 9)) == seen
+
+
+def test_a_blast_makes_a_burst_and_it_dies_down():
+    lua, ns = boot()
+    w = ready(lua, ns, "fireball")
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -200, 0)
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    peak = 0
+    for _ in range(40):
+        tick(lua, 1)
+        peak = max(peak, ns.Game.particles_drawn())
+    assert peak >= 30                                                        # the burst and ring when it lands
+    tick(lua, 120)
+    assert ns.Game.particles_drawn() <= 5                                    # and it has died down (a pack nearby may still glitter)
+
+
+def test_projectile_glows_spin():
+    lua, ns = boot()
+    w = ready(lua, ns, "fireball")
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -250, 0)
+    click_world(lua, ns, "RightButton", w.player.x + 300, w.player.y)
+    tick(lua, 3)
+    spinning = [o for o in lua.eval("ALL").values() if o.rotation is not None]                 # (a texture inside a frame is shown with it)
+    assert spinning
+    r1 = {id(o): o.rotation for o in spinning}
+    tick(lua, 3)
+    assert any(o.rotation != r1.get(id(o)) for o in spinning)
+
+
+def test_every_active_skill_can_still_be_cast_and_drawn_with_particles_on():
+    # the whole list again, with detail at full: nothing in the particle code may raise for any skill
+    for sid in ACTIVE:
+        lua, ns = boot()
+        w = ready(lua, ns, sid)
+        m = first_monster(w)
+        teleport_next_to(ns, lua, w, m, -180, 0)
+        click_world(lua, ns, "RightButton", m.x, m.y)
+        tick(lua, 60)

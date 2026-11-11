@@ -17,9 +17,11 @@ local function obj(parent)
     if k == "Show" then return function(self) self.shown = true end end
     if k == "Hide" then return function(self) self.shown = false end end
     if k == "IsShown" then return function(self) return self.shown end end
-    if k == "AddMessage" then return function(self, m) self.lines[#self.lines + 1] = m end end
+    if k == "SetFontObject" then return function(self, f) if f == nil then error("font object is nil") end if NO_FONTS then error("no such font") end self.fontset = true end end
+    if k == "SetFont" then return function(self, path, size, flags) if NO_FONTS or NO_FONT_FILE then error("cannot load font") end self.fontset = true end end
+    if k == "AddMessage" then return function(self, m) if not self.fontset then error("Font not set") end self.lines[#self.lines + 1] = m end end
     if k == "Clear" then return function(self) self.lines = {} self.cleared = (self.cleared or 0) + 1 end end
-    if k == "SetText" then return function(self, t) self.text = t end end
+    if k == "SetText" then return function(self, t) if (self.kind == "EditBox" or self.kind == "ScrollingMessageFrame") and not self.fontset then error("Font not set") end self.text = t end end
     if k == "SetSize" then return function(self, w, h) self.size = { w, h } end end
     if k == "GetWidth" then return function(self) return self.size and self.size[1] or 100 end end
     if k == "GetHeight" then return function(self) return self.size and self.size[2] or 100 end end
@@ -180,3 +182,48 @@ def test_every_modules_messages_go_to_the_log_not_to_chat_and_the_toc_loads_the_
         src = (DREAD / f).read_text()
         assert "ns.log(msg)" in src, f"{f} does not use the log"
         assert not re.search(r'^\s*print\(', src, re.M), f"{f} prints straight to chat"
+
+
+# ---------------------------------------------------------------- "I no longer see any text"
+def test_a_message_window_with_no_chat_font_still_shows_text_by_using_a_font_file():
+    # ChatFontNormal is not defined in the stand-in, like a client where it is missing: the old code never set a font
+    # and WoW raised "Font not set" from AddMessage, so every message vanished.
+    lua, ns = boot()
+    ns.log("visible please")
+    assert msgframe(lua).fontset is True
+    assert [l.split(" ", 1)[1] for l in msgframe(lua).lines.values()] == ["visible please"]
+    assert printed(lua) == []                                            # and it did not need the chat tab
+
+
+def test_the_chat_font_is_used_when_there_is_one():
+    lua, ns = boot("ChatFontNormal = {}")
+    ns.log("x")
+    assert msgframe(lua).fontset is True and len(list(msgframe(lua).lines.values())) == 1
+
+
+def test_when_no_font_can_be_set_at_all_messages_go_to_the_chat_tab_instead_of_vanishing():
+    lua, ns = boot("NO_FONTS = true")
+    ns.log("must not be lost")
+    assert printed(lua) == ["must not be lost"]                          # the fallback
+    assert lines(ns)[0].endswith("must not be lost")                     # and the buffer has it
+
+
+def test_with_chat_mirroring_on_a_failed_window_does_not_print_twice():
+    lua, ns = boot("NO_FONTS = true")
+    ns.Log.set_chat(True)
+    ns.log("once")
+    assert printed(lua) == ["once"]
+
+
+def test_the_copy_box_gets_a_font_too():
+    lua, ns = boot()
+    ns.log("copy me")
+    ns.Log.copy()                                                        # SetText on an EditBox with no font raises in the real client
+    edit = lua.eval("(function() for _, o in ipairs(ALL) do if o.kind == 'EditBox' then return o end end end)()")
+    assert edit.fontset is True and "copy me" in str(edit.text)
+
+
+def test_an_error_inside_the_window_does_not_stop_the_command_that_logged():
+    lua, ns = boot("NO_FONTS = true")
+    ns.log("one"); ns.log("two"); ns.log("three")                        # none of these raises
+    assert len(lines(ns)) == 3

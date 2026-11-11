@@ -33,6 +33,15 @@ function Log.plain()
   return table.concat(out, "\n")
 end
 
+-- WoW draws no text, and raises "Font not set" from AddMessage / SetText, until a widget has a font. Try the chat font,
+-- then a font file every client has, then the game's own text font. Returns whether any of them worked.
+local function set_font(widget)
+  if ChatFontNormal and pcall(widget.SetFontObject, widget, ChatFontNormal) then return true end
+  if pcall(widget.SetFont, widget, "Fonts\\FRIZQT__.TTF", 13, "") then return true end
+  if GameFontNormal and pcall(widget.SetFontObject, widget, GameFontNormal) then return true end
+  return false
+end
+
 local function save_place()
   local c = cfg()
   local ok, p, _, rp, x, y = pcall(frame.GetPoint, frame, 1)
@@ -81,7 +90,7 @@ local function build()
   msgframe = CreateFrame("ScrollingMessageFrame", nil, frame)
   msgframe:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -24)
   msgframe:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
-  pcall(msgframe.SetFontObject, msgframe, ChatFontNormal)
+  set_font(msgframe)
   msgframe:SetMaxLines(MAX)
   msgframe:SetFading(false)
   msgframe:SetJustifyH("LEFT")
@@ -108,10 +117,12 @@ function ns.log(msg)
   lines[#lines + 1] = line
   if #lines > MAX then table.remove(lines, 1) end
   if Log.chat_on() then print(msg) end
+  local shown = false
   if ok and frame then
-    msgframe:AddMessage(line)
-    if not cfg().hidden and not frame:IsShown() then frame:Show() end
+    shown = pcall(msgframe.AddMessage, msgframe, line)
+    if shown and not cfg().hidden and not frame:IsShown() then frame:Show() end
   end
+  if not shown and not Log.chat_on() then print(msg) end       -- if the window cannot show it, the chat tab does: never lose a message
 end
 
 function Log.toggle()
@@ -140,7 +151,7 @@ function Log.copy()
     hint:SetPoint("TOPLEFT", 10, -8); hint:SetText("Ctrl+A, then Ctrl+C, then paste. Esc closes.")
     box.edit = CreateFrame("EditBox", nil, box)
     box.edit:SetMultiLine(true); box.edit:SetPoint("TOPLEFT", 10, -26); box.edit:SetSize(500, 262)
-    pcall(box.edit.SetFontObject, box.edit, ChatFontNormal)
+    set_font(box.edit)
     box.edit:SetAutoFocus(true)
     box.edit:SetScript("OnEscapePressed", function() box:Hide() end)
   end
