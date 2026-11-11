@@ -10,6 +10,7 @@ from discord import app_commands
 from discord.ext import tasks
 
 from . import raids as R
+from .links import item_link
 from .config import Config
 from .db import Database, utcnow
 from .sync import sync_guild
@@ -46,6 +47,20 @@ def who_footer(char, profs, gear) -> str:
         return min(times) if times else "never"
     return (f"Profile {char['profile_at'] or 'never'} · professions {oldest(profs)} · "
             f"gear {oldest(gear)} (UTC)")
+
+
+def chunk_lines(lines: list[str], limit: int) -> list[list[str]]:
+    """Split lines into groups whose joined length stays under `limit` (one embed field each)."""
+    out, cur, used = [], [], 0
+    for line in lines:
+        if cur and used + len(line) + 1 > limit:
+            out.append(cur)
+            cur, used = [], 0
+        cur.append(line)
+        used += len(line) + 1
+    if cur:
+        out.append(cur)
+    return out
 
 
 def clip(lines: list[str], limit: int) -> str:
@@ -393,16 +408,71 @@ class GuildBot(discord.Client):
                 datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
             await interaction.response.send_message("This raid is closed.", ephemeral=True)
             return
-        # A signup is a Discord account plus a role. A linked main is shown if there is one; none is needed.
+        # A signup is a Discord account, a role and (if they have one) a character. With several linked
+        # characters the bot asks which one, the first time and whenever they tap the role they already hold.
+        chars = self.db.characters_for(interaction.user.id)
+        prior = next((s for s in self.db.signups(raid_id) if s["discord_id"] == interaction.user.id), None)
+        if len(chars) > 1 and role != "absent" and (prior is None or prior["role"] == role):
+            view = SignupCharacterPicker(self, raid_id, role, chars,
+                                         current=prior["slug"] if prior else None)
+            await interaction.response.send_message(
+                f"Which character are you signing up as ({R.ROLE_LABEL[role]})?", view=view, ephemeral=True)
+            return
+        slugs = {c["slug"] for c in chars}
         main = self.db.main_for(interaction.user.id)
-        landed = R.resolve_role(role, R.group_signups(self.db.signups(raid_id)), raid["size"],
-                               interaction.user.id, R.caps_of(raid))
-        self.db.upsert_signup(raid_id, interaction.user.id, main["slug"] if main else None, landed, utcnow())
+        slug = prior["slug"] if prior and prior["slug"] in slugs else (main["slug"] if main else None)
+        landed = self.apply_signup(raid, interaction.user.id, role, slug)
         await interaction.response.edit_message(embed=raid_embed(self.db, raid))
         if landed != role:
             where = "the bench" if landed == "bench" else f"{R.ROLE_LABEL[landed].lower()}"
             await interaction.followup.send(
                 f"{R.ROLE_LABEL.get(role, role)} (or the raid) is full, so you're on {where}.", ephemeral=True)
+
+    def apply_signup(self, raid, discord_id: int, role: str, slug) -> str:
+        """Record the signup; returns the role they actually landed in (bench when full)."""
+        landed = R.resolve_role(role, R.group_signups(self.db.signups(raid["id"])), raid["size"],
+                                discord_id, R.caps_of(raid))
+        self.db.upsert_signup(raid["id"], discord_id, slug, landed, utcnow())
+        return landed
+
+
+class SignupCharacterPicker(discord.ui.View):
+    """Private 'which of your characters?' list shown when someone with several links signs up."""
+
+    def __init__(self, bot: GuildBot, raid_id: int, role: str, chars, current=None):
+        super().__init__(timeout=300)
+        self.bot, self.raid_id, self.role = bot, raid_id, role
+        pre = current or next((c["slug"] for c in chars if c["is_main"]), chars[0]["slug"])
+        sel = discord.ui.Select(
+            placeholder="Pick a character",
+            options=[discord.SelectOption(label=char_label(c), value=c["slug"], default=(c["slug"] == pre))
+                     for c in chars[:25]])
+        sel.callback = self._picked
+        self.add_item(sel)
+
+    async def _picked(self, interaction: discord.Interaction) -> None:
+        bot, db = self.bot, self.bot.db
+        raid = db.get_raid(self.raid_id)
+        if not raid or raid["status"] != "open" or \
+                datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
+            await interaction.response.edit_message(content="This raid is closed.", view=None)
+            return
+        slug = interaction.data["values"][0]
+        if slug not in {c["slug"] for c in db.characters_for(interaction.user.id)}:
+            await interaction.response.edit_message(content="That character isn't linked to you.", view=None)
+            return
+        landed = bot.apply_signup(raid, interaction.user.id, self.role, slug)
+        row = db.find_character(slug)
+        note = f"Signed up as **{R.full_name(row)}**: {R.ROLE_LABEL[landed]}."
+        if landed != self.role:
+            note += f" ({R.ROLE_LABEL[self.role]} is full, so you're on the bench.)"
+        await interaction.response.edit_message(content=note, view=None)
+        try:
+            chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
+            msg = await chan.fetch_message(raid["message_id"])
+            await msg.edit(embed=raid_embed(db, raid))
+        except discord.HTTPException:
+            log.exception("could not refresh the post for raid %s", self.raid_id)
 
 
 def register_commands(bot: GuildBot) -> None:
@@ -501,8 +571,9 @@ def register_commands(bot: GuildBot) -> None:
             e.add_field(name="Professions",
                         value="\n".join(f"{p['profession']} {p['skill']}/{p['max_skill']}" for p in profs) or "—")
             gear = db.equipment_for(r["slug"])
-            e.add_field(name="Gear", value=clip([f"{g['slot']}: {g['item_name']}" for g in gear], 1024) or "—",
-                        inline=False)
+            gear_lines = [f"{g['slot']}: {item_link(g['item_name'])}" for g in gear]
+            for n, chunk in enumerate(chunk_lines(gear_lines, 1000) or [["—"]]):
+                e.add_field(name="Gear" if n == 0 else "Gear (cont.)", value="\n".join(chunk), inline=False)
             e.set_footer(text=who_footer(r, profs, gear))
             embeds.append(e)
         await interaction.response.send_message(embeds=embeds)
@@ -530,7 +601,7 @@ def register_commands(bot: GuildBot) -> None:
     @tree.command(name="whohas", description="Who has an item equipped")
     async def whohas(interaction: discord.Interaction, item: str):
         rows = db.search_items(item)
-        lines = [f"**{R.full_name(r)}**: {r['item_name']} ({r['slot']})" for r in rows]
+        lines = [f"**{R.full_name(r)}**: {item_link(r['item_name'])} ({r['slot']})" for r in rows]
         e = discord.Embed(title=f"Equipped: {item}", description=clip(lines, 4000) or "Nobody has it equipped.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)

@@ -491,3 +491,36 @@ def test_size_follows_role_limits_when_all_three_are_set(tmp_path):
     assert db.get_raid(rid)["size"] == 11
     partial = db.create_raid("p", "2030-01-01T00:00:00+00:00", 9, 1, {"tank": 2})
     assert db.get_raid(partial)["size"] == 9
+
+
+def test_item_links_search_by_exact_name_and_show_only_the_name():
+    from guildbot.links import item_link, item_url
+    assert item_url("Roadwatcher's Confidence") == "https://www.wowhead.com/search?q=Roadwatcher%27s%20Confidence"
+    assert item_link("Loop of Sacrifice") == "[Loop of Sacrifice](https://www.wowhead.com/search?q=Loop%20of%20Sacrifice)"
+    assert item_link("Odd [Name] (x)").startswith("[Odd (Name) (x)](https://www.wowhead.com/search?q=Odd%20%5BName%5D%20%28x%29)")
+
+
+def test_long_gear_lists_are_split_so_no_field_passes_discords_limit():
+    from guildbot.bot import chunk_lines
+    from guildbot.links import item_link
+    lines = [f"Slot {i}: {item_link('A Fairly Long Item Name Number ' + str(i))}" for i in range(14)]
+    chunks = chunk_lines(lines, 1000)
+    assert sum(len(c) for c in chunks) == 14 and len(chunks) >= 2
+    assert all(len("\n".join(c)) <= 1024 for c in chunks)
+    assert chunk_lines([], 1000) == []
+
+
+def test_signup_asks_for_a_character_only_when_there_are_several(tmp_path):
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    bot = GuildBot(cfg, db, blizzard=None)
+    rid = db.create_raid("t", "2030-01-01T00:00:00+00:00", 5, 1)
+    raid = db.get_raid(rid)
+    db.claim(7, ["anduin-wrynn", "judy-judgement"])
+    db.set_main(7, "judy-judgement")
+    assert bot.apply_signup(raid, 7, "dps", "anduin-wrynn") == "dps"
+    row = [s for s in db.signups(rid) if s["discord_id"] == 7][0]
+    assert (row["slug"], row["role"]) == ("anduin-wrynn", "dps")            # the chosen character, not the main
+    assert bot.apply_signup(raid, 7, "healer", "anduin-wrynn") == "healer"  # role change keeps the character
