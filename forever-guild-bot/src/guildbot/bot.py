@@ -296,7 +296,7 @@ class RaidWizard(discord.ui.View):
 def _craft_line(r, gap: bool) -> str:
     tags = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x)
     lvl = "any level" if not r["required_level"] else f"L{r['required_level']}"
-    what = f"{item_link(r['name'])} ({lvl}, {tags or r['item_class'] or 'item'})"
+    what = f"{item_link(r['name'], r['item_id'])} ({lvl}, {tags or r['item_class'] or 'item'})"
     return f"*{what}*: **{r['profession']}**" if gap else f"{what}: **{r['profession']}**, {r['knowers']}"
 
 
@@ -501,7 +501,7 @@ def gaps_for(db: Database, profession: str) -> discord.Embed:
     for r in miss:
         lvl = "" if not r["required_level"] else f" (L{r['required_level']})"
         kind = ", ".join(x for x in (r["item_subclass"], r["inventory_type"]) if x and x != "Non-equippable")
-        lines.append(f"{item_link(r['name'])}{lvl}" + (f" - {kind}" if kind else ""))
+        lines.append(f"{item_link(r['name'], r['item_id'])}{lvl}" + (f" - {kind}" if kind else ""))
     head = f"**Best in the guild:** {who}\n**Nobody knows these {len(miss)}** (lowest level first). " \
            "Click a name to see on Wowhead where it is learned.\n"
     e = discord.Embed(title=f"{profession}: recipes the guild doesn't have", description=head + clip(lines, 3700 - len(head)))
@@ -551,7 +551,8 @@ def gap_card(db: Database, name: str, discord_id: int):
         db.add_wanted(name, en["profession"], discord_id, utcnow())
     e = discord.Embed(title=f"Gap: nobody in the guild can make {name}",
                       description="\n\n".join(lines))
-    e.add_field(name="Where to get it", value=f"{item_link(name)} (Blizzard's data doesn't say where it is learned)",
+    e.add_field(name="Where to get it",
+                value=f"{item_link(name, entries[0]['item_id'])} (Blizzard's data doesn't say where it is learned)",
                 inline=False)
     e.set_footer(text="Noted as something people are looking for. Officers can see the list with /wanted.")
     return e
@@ -1159,7 +1160,7 @@ def register_commands(bot: GuildBot) -> None:
             e.add_field(name="Professions",
                         value="\n".join(f"{p['profession']} {p['skill']}/{p['max_skill']}" for p in profs) or "—")
             gear = db.equipment_for(r["slug"])
-            gear_lines = [f"{g['slot']}: {item_link(g['item_name'])}" for g in gear]
+            gear_lines = [f"{g['slot']}: {item_link(g['item_name'], g['item_id'])}" for g in gear]
             for n, chunk in enumerate(chunk_lines(gear_lines, 1000) or [["—"]]):
                 e.add_field(name="Gear" if n == 0 else "Gear (cont.)", value="\n".join(chunk), inline=False)
             e.set_footer(text=who_footer(r, profs, gear))
@@ -1225,11 +1226,11 @@ def register_commands(bot: GuildBot) -> None:
             lines = [f"**{cat}** - {len(rs)} recipes" for cat, rs in by.items()]
             head = "\n".join(lines)
             head += (f"\n\n**Known in the guild ({len(known)}):**\n" +
-                     "\n".join(f"{item_link(r['name'])}: {r['knowers']}" for r in known)) if known else \
+                     "\n".join(f"{item_link(r['name'], r['item_id'])}: {r['knowers']}" for r in known)) if known else \
                 "\n\nNobody in the guild has learned any of these yet."
             head += "\n\nAdd a search word to list the recipes themselves."
         else:
-            head = "\n".join(f"{item_link(r['name'])}" + (f": {r['knowers']}" if r["knowers"] else "") for r in rows)
+            head = "\n".join(f"{item_link(r['name'], r['item_id'])}" + (f": {r['knowers']}" if r["knowers"] else "") for r in rows)
         e = discord.Embed(title=title[:256], description=clip(head.split("\n"), 4000))
         e.set_footer(text="Recipe list is everything in Blizzard's data, not only what is learnable in game yet. "
                           f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
@@ -1333,7 +1334,8 @@ def register_commands(bot: GuildBot) -> None:
             return
         lines = [f"**{R.full_name(r)}**: {r['profession']} {r['skill']}/{r['max_skill']}" for r in rows]
         e = discord.Embed(title=f"Who can make {recipe}", description=clip(lines, 4000))
-        e.add_field(name="Look it up", value=item_link(recipe), inline=False)
+        found = db.catalog_recipe(recipe)
+        e.add_field(name="Look it up", value=item_link(recipe, found[0]["item_id"] if found else None), inline=False)
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)
 
@@ -1341,7 +1343,7 @@ def register_commands(bot: GuildBot) -> None:
     @app_commands.autocomplete(item=item_ac)
     async def whohas(interaction: discord.Interaction, item: str):
         rows = db.search_items(item)
-        lines = [f"**{R.full_name(r)}**: {item_link(r['item_name'])} ({r['slot']})" for r in rows]
+        lines = [f"**{R.full_name(r)}**: {item_link(r['item_name'], r['item_id'])} ({r['slot']})" for r in rows]
         e = discord.Embed(title=f"Equipped: {item}", description=clip(lines, 4000) or "Nobody has it equipped.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)

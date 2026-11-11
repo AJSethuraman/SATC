@@ -21,7 +21,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 |---|---|---|
 | `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5). You must claim one before you can sign up for a raid |
 | `/claim-panel` `/claims` `/unlink-member` `/release` | officer | post the claim button, see who claimed what, purge a troll, free one character |
-| `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what (gear names link to a Wowhead search) |
+| `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what (item names link to Wowhead's Forever database) |
 | `/recipes` `/whocan` | anyone | what a profession can make and which guildies know each recipe; who can craft a recipe. A recipe nobody knows shows as a gap |
 | `/craftable` | anyone | guided search: pick kind, type, slot and level, see who in the guild can make it (private) |
 | `/gaps` | anyone | profession coverage, and the recipes nobody in the guild has |
@@ -44,7 +44,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 
 ## Recipes and items
 
-The recipe list (about 2,500 recipes) and what each makes come from Blizzard's static data, fetched once and refreshed weekly. Known recipes come from each character's professions. The list includes everything in Blizzard's data, not only what can be learned in game today. Blizzard does not say where a recipe is learned, so each item links to a Wowhead search.
+The recipe list (about 2,500 recipes) and what each makes come from Blizzard's static data, fetched once and refreshed weekly. Known recipes come from each character's professions. The list includes everything in Blizzard's data, not only what can be learned in game today. Blizzard does not say where a recipe is learned, so each item links to Wowhead's Forever section.
 
 `/guild-sync` reports how many of each kind loaded (e.g. `profile: 280 of 300 loaded, 20 not found`).
 

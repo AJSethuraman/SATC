@@ -273,7 +273,7 @@ class Database:
 
     def search_items(self, text: str):
         return self.conn.execute(
-            """SELECT c.name, c.surname, c.level, e.slot, e.item_name, e.quality, e.fetched_at
+            """SELECT c.name, c.surname, c.level, e.slot, e.item_id, e.item_name, e.quality, e.fetched_at
                FROM equipment e JOIN characters c ON c.slug=e.slug
                WHERE c.in_guild=1 AND lower(e.item_name) LIKE ?
                ORDER BY c.name, c.surname""", ("%" + text.lower() + "%",)).fetchall()
@@ -424,7 +424,8 @@ class Database:
     def catalog_recipe(self, name: str):
         """Catalogue entries (one per profession) for an exact recipe name."""
         return self.conn.execute(
-            """SELECT r.profession, r.recipe_id, r.name, r.category, i.required_level, i.item_subclass, i.inventory_type
+            """SELECT r.profession, r.recipe_id, r.name, r.category, r.item_id, i.required_level, i.item_subclass,
+                 i.inventory_type
                FROM recipes r LEFT JOIN items i ON i.item_id=r.item_id WHERE lower(r.name)=? ORDER BY r.profession""",
             (name.strip().lower(),)).fetchall()
 
@@ -462,7 +463,8 @@ class Database:
         """Recipes of a profession that nobody in the guild knows: items with a level requirement first, lowest
         first, then the ones with none."""
         return self.conn.execute(
-            """SELECT r.recipe_id, r.name, r.category, i.required_level, i.item_class, i.item_subclass, i.inventory_type
+            """SELECT r.recipe_id, r.name, r.category, r.item_id, i.required_level, i.item_class, i.item_subclass,
+                 i.inventory_type
                FROM recipes r LEFT JOIN items i ON i.item_id=r.item_id
                WHERE r.profession=? AND NOT EXISTS (
                  SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
@@ -472,7 +474,7 @@ class Database:
     def recipes_for(self, profession: str, match: str = ""):
         """Catalogue recipes of a profession (name contains `match`), each with the guild members who know it."""
         rows = self.conn.execute(
-            """SELECT r.recipe_id, r.name, r.category,
+            """SELECT r.recipe_id, r.name, r.category, r.item_id,
                  (SELECT GROUP_CONCAT(c.name || COALESCE(' ' || c.surname, ''), ', ')
                     FROM known_recipes k JOIN characters c ON c.slug=k.slug
                    WHERE k.profession=r.profession AND k.recipe_id=r.recipe_id AND c.in_guild=1) AS knowers

@@ -496,9 +496,12 @@ def test_size_follows_role_limits_when_all_three_are_set(tmp_path):
 
 def test_item_links_search_by_exact_name_and_show_only_the_name():
     from guildbot.links import item_link, item_url
-    assert item_url("Roadwatcher's Confidence") == "https://www.wowhead.com/search?q=Roadwatcher%27s%20Confidence"
-    assert item_link("Loop of Sacrifice") == "[Loop of Sacrifice](https://www.wowhead.com/search?q=Loop%20of%20Sacrifice)"
-    assert item_link("Odd [Name] (x)").startswith("[Odd (Name) (x)](https://www.wowhead.com/search?q=Odd%20%5BName%5D%20%28x%29)")
+    assert item_url("Roadwatcher's Confidence") == "https://www.wowhead.com/forever/search?q=Roadwatcher%27s%20Confidence"
+    assert item_link("Loop of Sacrifice") == "[Loop of Sacrifice](https://www.wowhead.com/forever/search?q=Loop%20of%20Sacrifice)"
+    assert item_link("Odd [Name] (x)").startswith("[Odd (Name) (x)](https://www.wowhead.com/forever/search?q=Odd%20%5BName%5D%20%28x%29)")
+    assert item_url("Copper Shortsword", 2847) == "https://www.wowhead.com/forever/item=2847"      # an item number beats a search
+    assert item_link("Copper Shortsword", 2847) == "[Copper Shortsword](https://www.wowhead.com/forever/item=2847)"
+    assert item_link("No Number", 0) == "[No Number](https://www.wowhead.com/forever/search?q=No%20Number)"     # 0 = none
 
 
 def test_long_gear_lists_are_split_so_no_field_passes_discords_limit():
@@ -811,7 +814,7 @@ def test_a_search_for_something_nobody_can_make_becomes_a_recorded_gap(tmp_path)
     assert db.who_can_craft("Field Guide") == []
     card = gap_card(db, "Field Guide", 99)
     assert card.title == "Gap: nobody in the guild can make Field Guide"
-    assert "Anduin Wrynn 200/225" in card.description and "wowhead.com/search?q=Field%20Guide" in card.fields[0].value
+    assert "Anduin Wrynn 200/225" in card.description and "wowhead.com/forever/" in card.fields[0].value
     assert gap_card(db, "No Such Recipe", 99) is None                                           # not a real recipe: no gap
     gap_card(db, "Field Guide", 100)
     gap_card(db, "Trapper's Workbench", 99)
