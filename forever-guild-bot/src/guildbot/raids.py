@@ -100,3 +100,11 @@ def parse_cap(text: str) -> int | None:
     if not 1 <= n <= 40:
         raise ValueError(t)
     return n
+
+
+def cancel_notice(raid, discord_ids, cancelled_by: int) -> str:
+    """The message that replaces a cancelled raid's post, mentioning everyone who was signed up."""
+    ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
+    who = " ".join(f"<@{d}>" for d in dict.fromkeys(discord_ids))
+    text = f"**{raid['title']}** (<t:{ts}:F>) was cancelled by <@{cancelled_by}>."
+    return f"{text}\n{who}" if who else text

@@ -595,7 +595,7 @@ def register_commands(bot: GuildBot) -> None:
             note += " Lower limits don't remove anyone already signed up; they only block new signups."
         await interaction.followup.send(f"Raid #{raid_id} updated.{note}", ephemeral=True)
 
-    @tree.command(name="raid-cancel", description="Cancel a raid")
+    @tree.command(name="raid-cancel", description="Cancel a raid: removes the post and event and tells everyone signed up")
     @app_commands.guild_only()
     @officer
     async def raid_cancel(interaction: discord.Interaction, raid_id: int):
@@ -619,21 +619,29 @@ def register_commands(bot: GuildBot) -> None:
                 f"Couldn't remove the Discord event, so #{raid_id} is not cancelled yet. Try again.",
                 ephemeral=True)
             return
-        cancelled = dict(raid) | {"status": "cancelled"}
+        chan = None
         try:
             if raid["channel_id"] and raid["message_id"]:
                 chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
                 msg = await chan.fetch_message(raid["message_id"])
-                await msg.edit(embed=raid_embed(db, cancelled), view=None)
+                await msg.delete()                      # the signup post goes away entirely
         except discord.NotFound:
             pass
         except discord.HTTPException:
-            log.exception("could not update the post for raid %s", raid_id)
+            log.exception("could not delete the post for raid %s", raid_id)
             await interaction.followup.send(
-                f"Couldn't update the raid post, so #{raid_id} is not cancelled yet. Try again.", ephemeral=True)
+                f"Couldn't remove the raid post, so #{raid_id} is not cancelled yet. Try again.", ephemeral=True)
             return
-        db.cancel_raid(raid_id)
-        await interaction.followup.send(f"Raid #{raid_id} cancelled.", ephemeral=True)
+        who = [s["discord_id"] for s in db.signups(raid_id) if s["role"] != "absent"]   # everyone involved
+        db.cancel_raid(raid_id)                         # the row stays, marked cancelled, as a record
+        notice = R.cancel_notice(raid, who, interaction.user.id)
+        try:
+            await (chan or interaction.channel).send(
+                notice, allowed_mentions=discord.AllowedMentions(users=True, roles=False, everyone=False))
+        except discord.HTTPException:
+            log.exception("could not post the cancel notice for raid %s", raid_id)
+        await interaction.followup.send(f"Raid #{raid_id} cancelled. The post is gone and {len(who)} signed-up "
+                                        f"player(s) were told.", ephemeral=True)
 
     @tree.command(name="raids", description="List upcoming raids")
     @app_commands.guild_only()
