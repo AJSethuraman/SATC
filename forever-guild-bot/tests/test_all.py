@@ -711,17 +711,24 @@ def test_craft_wizard_dropdowns_follow_the_choices(tmp_path):
         bot = SimpleNamespaceBot(db)
         w = CraftWizard(bot)
         selects = [c for c in w.children if type(c).__name__ == "Select"]
-        assert [o.label for o in selects[0].options] == ["Any", "Any weapon", "Weapon: Sword"]
-        assert [o.label for o in selects[1].options] == ["Any", "One-Hand"]
-        assert len(selects[2].options) == 7 and [o.label for o in selects[3].options] == ["Any", "Strength"]
-        assert len(w.children) == 7                                                  # 4 dropdowns + 3 buttons
-        on = [c for c in w.children if type(c).__name__ == "Button"]
-        assert on[1].label == "Gaps: shown"                                          # gaps are on by default
+        assert [o.label for o in selects[0].options] == ["Any", "Weapon"]                    # the broad pick first
+        assert [o.label for o in selects[1].options] == ["Any"]                              # types wait for it
+        assert [o.label for o in selects[2].options] == ["Any", "Any 1H", "Any 2H", "One-Hand"]
+        assert [o.label for o in selects[3].options] == ["Any", "Strength"]
+        assert len(w.children) == 8                                                          # 4 dropdowns + 4 buttons
+        buttons = [c for c in w.children if type(c).__name__ == "Button"]
+        assert [b.label for b in buttons] == ["Show who can make it", "Gaps: shown", "Level: any", "Start over"]
+        narrowed = [c for c in CraftWizard(bot, kind="Weapon", band="11-20").children if type(c).__name__ == "Select"]
+        assert [o.label for o in narrowed[1].options] == ["Any", "Sword"]                    # then it narrows
         off = [c for c in CraftWizard(bot, show_all=False).children if type(c).__name__ == "Button"]
-        assert off[1].label == "Gaps: hidden" and off[1].style != on[1].style
-        picked = [c for c in CraftWizard(bot, kind="Weapon", sub="Sword", stat="STRENGTH").children if type(c).__name__ == "Select"]
-        assert [o.value for o in picked[0].options if o.default] == ["Weapon|Sword"]
+        assert off[1].label == "Gaps: hidden" and off[1].style != buttons[1].style
+        assert [b.label for b in CraftWizard(bot, band="11-20").children if type(b).__name__ == "Button"][2] == "Level: 11-20"
+        picked = [c for c in CraftWizard(bot, kind="Weapon", sub="Sword", slot="@2H", stat="STRENGTH").children
+                  if type(c).__name__ == "Select"]
+        assert [o.value for o in picked[0].options if o.default] == ["Weapon"]
+        assert [o.value for o in picked[2].options if o.default] == ["@2H"]
         assert [o.value for o in picked[3].options if o.default] == ["STRENGTH"]
+        assert [o.label for o in CraftWizard(bot, kind="Armor").children[0].options][:2] != []
     asyncio.run(build())
     embed, msg = craftable_result(db, "Weapon", "Sword", "One-Hand", 0, 10, None, False)
     assert msg is None and "Copper Shortsword" in embed.description and "Anduin Wrynn" in embed.description
@@ -749,11 +756,6 @@ def test_item_stats_are_read_stored_and_filterable(tmp_path):
     assert [(r["code"], r["name"], r["n"]) for r in db.stat_facets()] == [
         ("BONUS_STAT_FROST_DAMAGE_DONE", "Frost Damage", 1), ("INTELLECT", "Intellect", 1), ("STRENGTH", "Strength", 1)]
     assert [r["name"] for r in db.stat_facets("intel")] == ["Intellect"]
-    from guildbot import craft as C
-    assert C.what_options(db.kind_pairs() and [(r["item_class"], r["item_subclass"], r["n"]) for r in db.kind_pairs()]) == [
-        ("Any armor", "Armor|*"), ("Armor: Cloth", "Armor|Cloth"), ("Any weapon", "Weapon|*"), ("Weapon: Sword", "Weapon|Sword")]
-    assert C.parse_what("Armor|Cloth") == ("Armor", "Cloth") and C.parse_what("Armor|*") == ("Armor", None)
-    assert C.parse_what("*") == (None, None) and C.what_value("Armor", None) == "Armor|*" and C.what_value(None, None) == "*"
     db.conn.execute("INSERT INTO recipes (profession, recipe_id, name, category, fetched_at, item_id) VALUES ('P',1,'a','c','x',2)")
     db.conn.execute("INSERT INTO recipes (profession, recipe_id, name, category, fetched_at, item_id) VALUES ('P',2,'b','c','x',9)")
     db.conn.commit()
@@ -1250,3 +1252,25 @@ def test_no_answer_takes_you_off_the_bench_and_asks_the_next_person(tmp_path):
     rows = {s["discord_id"]: s["role"] for s in db.signups(rid)}
     assert 2 not in rows and rows[3] == "bench"                                 # 2 is off the bench, 3 is next in line
     assert [u for u, _ in sent] == [2, 2, 3] and "took you off the bench" in sent[1][1]
+
+
+def test_one_hand_two_hand_groups_and_level_pop_up_helpers(tmp_path):
+    from guildbot import craft as C
+    assert C.slot_filter("@1H") == ("One-Hand", "Main Hand", "Off Hand") and C.slot_filter("@2H") == ("Two-Hand",)
+    assert C.slot_filter("Head") == "Head" and C.slot_filter(None) is None and C.slot_filter("*") is None
+    assert C.slot_label("@1H") == "Any 1H" and C.slot_label("Head") == "Head"
+    assert C.parse_level_range("", "") == (None, None) and C.parse_level_range(" 20", "30") == (20, 30)
+    assert C.parse_level_range("", "30") == (None, 30) and C.level_text(None, 30) == "0-30" and C.level_text(None, None) == "any"
+    for bad in (("x", ""), ("-1", ""), ("61", ""), ("40", "30")):
+        with pytest.raises(ValueError):
+            C.parse_level_range(*bad)
+    db = make_db(tmp_path)
+    db.conn.execute("INSERT INTO items (item_id,name,required_level,item_class,item_subclass,inventory_type,stats_loaded) VALUES "
+                    "(1,'Short',5,'Weapon','Sword','One-Hand',1),(2,'Long',9,'Weapon','Sword','Two-Hand',1),"
+                    "(3,'Off',7,'Weapon','Dagger','Off Hand',1)")
+    db.conn.executemany("INSERT INTO recipes (profession, recipe_id, name, category, fetched_at, item_id) VALUES ('Smithing',?,?,'c','x',?)",
+                        [(1, "Short", 1), (2, "Long", 2), (3, "Off", 3)])
+    db.conn.commit()
+    assert [r["name"] for r in db.craftable(slot=C.slot_filter("@1H"), only_known=False)] == ["Off", "Short"]
+    assert [r["name"] for r in db.craftable(slot=C.slot_filter("@2H"), only_known=False)] == ["Long"]
+    assert [r["name"] for r in db.craftable(slot="Head", only_known=False)] == []

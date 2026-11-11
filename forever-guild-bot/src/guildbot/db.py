@@ -375,7 +375,12 @@ class Database:
         args: list = []
         for col, val in (("i.item_class", item_class), ("i.item_subclass", item_subclass),
                          ("i.inventory_type", slot), ("r.profession", profession)):
-            if val:
+            if not val:
+                continue
+            if isinstance(val, (tuple, list)):                  # several allowed values, e.g. every one-hand slot
+                q += f" AND lower({col}) IN ({','.join('?' * len(val))})"
+                args.extend(v.strip().lower() for v in val)
+            else:
                 q += f" AND lower({col})=?"
                 args.append(val.strip().lower())
         if min_level is not None:

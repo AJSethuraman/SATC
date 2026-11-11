@@ -22,27 +22,39 @@ def parse_band(value: str | None) -> tuple[int | None, int | None]:
     return int(lo), int(hi)
 
 
-def what_options(pairs) -> list[tuple[str, str]]:
-    """The 'what kind of gear' dropdown: (label, 'Class|Subclass') for armor types, weapon types, and a couple
-    of other kinds. pairs: (item_class, item_subclass, count) rows. 'Class|*' means any type of that class."""
-    out: list[tuple[str, str]] = []
-    for cls in ("Armor", "Weapon"):
-        subs = sorted(((s, n) for c, s, n in pairs if c == cls and s and s != "Cosmetic"), key=lambda x: -x[1])
-        if subs:
-            out.append((f"Any {cls.lower()}", f"{cls}|*"))
-            out += [(f"{cls}: {s}", f"{cls}|{s}") for s, _ in subs]
-    for cls in ("Consumable", "Trade Goods"):
-        if any(c == cls for c, _, _ in pairs):
-            out.append((cls, f"{cls}|*"))
-    return out[:24]
+# "Any 1H" / "Any 2H" for weapons: groups of inventory types the slot dropdown can pick in one go.
+SLOT_GROUPS = {"@1H": ("One-Hand", "Main Hand", "Off Hand"), "@2H": ("Two-Hand",)}
+SLOT_GROUP_LABELS = {"@1H": "Any 1H", "@2H": "Any 2H"}
 
 
-def parse_what(value: str | None) -> tuple[str | None, str | None]:
-    if not value or value == ANY or "|" not in value:
-        return None, None
-    kind, sub = value.split("|", 1)
-    return kind, (None if sub == "*" else sub)
+def slot_filter(value):
+    """A slot dropdown value as what the database takes: one inventory type, a tuple of them, or None."""
+    if not value or value == ANY:
+        return None
+    return SLOT_GROUPS.get(value, value)
 
 
-def what_value(kind, sub) -> str:
-    return ANY if not kind else f"{kind}|{sub or '*'}"
+def slot_label(value: str) -> str:
+    return SLOT_GROUP_LABELS.get(value, value)
+
+
+def parse_level_range(lo_text: str, hi_text: str, top: int = 60) -> tuple[int | None, int | None]:
+    """Two optional whole numbers from the level pop-up. Raises ValueError for anything else."""
+    def one(t: str) -> int | None:
+        t = (t or "").strip()
+        if not t:
+            return None
+        n = int(t)
+        if not 0 <= n <= top:
+            raise ValueError(t)
+        return n
+    lo, hi = one(lo_text), one(hi_text)
+    if lo is not None and hi is not None and lo > hi:
+        raise ValueError("from is above to")
+    return lo, hi
+
+
+def level_text(lo: int | None, hi: int | None) -> str:
+    if lo is None and hi is None:
+        return "any"
+    return f"{lo if lo is not None else 0}-{hi if hi is not None else 60}"

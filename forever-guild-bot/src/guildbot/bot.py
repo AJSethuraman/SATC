@@ -305,13 +305,14 @@ def craftable_result(db: Database, kind, sub, slot, lo, hi, profession, show_all
     make comes first; with show_all, the gaps (nobody can make it) follow, set apart and in italics."""
     if not db.item_facets("item_class", limit=1):
         return None, "I'm still looking up what recipes make (the first run takes a few minutes). Try again shortly."
-    have = db.craftable(kind, sub, slot, lo, hi, profession, only_known=True, limit=400, stat=stat)
-    gaps = db.craftable(kind, sub, slot, lo, hi, profession, only_known=False, limit=400, stat=stat,
+    slot_f = C.slot_filter(slot)
+    have = db.craftable(kind, sub, slot_f, lo, hi, profession, only_known=True, limit=400, stat=stat)
+    gaps = db.craftable(kind, sub, slot_f, lo, hi, profession, only_known=False, limit=400, stat=stat,
                         gaps_only=True) if show_all else []
     if not have and not gaps:
         return None, ("Nothing matches. Loosen a filter" + (", or switch gaps on to see what nobody can make."
                                                             if not show_all else "."))
-    filt = ", ".join(f"{k}: {v}" for k, v in (("kind", kind), ("type", sub), ("slot", slot), ("from level", lo),
+    filt = ", ".join(f"{k}: {v}" for k, v in (("kind", kind), ("type", sub), ("slot", C.slot_label(slot) if slot else None), ("from level", lo),
                      ("to level", hi), ("profession", profession),
                      ("stat", stat.replace("_", " ").title() if stat else None)) if v is not None)
     parts = [f"*{filt}*"] if filt else []
@@ -328,8 +329,29 @@ def craftable_result(db: Database, kind, sub, slot, lo, hi, profession, show_all
     return e, None
 
 
+class LevelModal(discord.ui.Modal, title="What level?"):
+    lo = discord.ui.TextInput(label="From level (blank = any)", required=False, max_length=2)
+    hi = discord.ui.TextInput(label="To level (blank = any)", required=False, max_length=2)
+
+    def __init__(self, wizard: "CraftWizard"):
+        super().__init__()
+        self.wizard = wizard
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        try:
+            lo, hi = C.parse_level_range(self.lo.value, self.hi.value)
+        except ValueError:
+            await interaction.response.send_message("Levels are whole numbers from 0 to 60, and 'from' can't be above 'to'.",
+                                                    ephemeral=True)
+            return
+        state = self.wizard._state()
+        state["band"] = None if lo is None and hi is None else f"{lo if lo is not None else 0}-{hi if hi is not None else 60}"
+        await interaction.response.edit_message(view=CraftWizard(self.wizard.bot, **state))
+
+
 class CraftWizard(discord.ui.View):
-    """Guided search: pick the kind of gear, slot, level and stat, then show who can make it. Private to the asker."""
+    """Guided search. A broad pick first (Armor, Weapon, ...), then it narrows: type, slot, stat. Level is a
+    pop-up. Private to the asker."""
 
     def __init__(self, bot: "GuildBot", kind=None, sub=None, slot=None, band=None, show_all=True, stat=None):
         super().__init__(timeout=900)
@@ -337,12 +359,17 @@ class CraftWizard(discord.ui.View):
         self.show_all, self.stat = show_all, stat
         db = bot.db
         any_opt = [("Any", C.ANY)]
-        what = C.what_options([(r["item_class"], r["item_subclass"], r["n"]) for r in db.kind_pairs()])
-        slots = [(r["name"], r["name"]) for r in db.item_facets("inventory_type", item_class=kind, item_subclass=sub)]
+        kinds = [(r["name"], r["name"]) for r in db.item_facets("item_class", limit=24)]
+        subs = [(r["name"], r["name"]) for r in db.item_facets("item_subclass", item_class=kind, limit=24)
+                if r["name"] != "Cosmetic"] if kind else []
+        slots = [(r["name"], r["name"]) for r in db.item_facets("inventory_type", item_class=kind, item_subclass=sub, limit=24)]
+        if kind in (None, "Weapon"):                       # Any 1H / Any 2H come first for weapons
+            slots = [(C.SLOT_GROUP_LABELS[g], g) for g in C.SLOT_GROUPS] + slots
         stats = [(r["name"], r["code"]) for r in db.stat_facets(limit=24)]
-        self._select("what", "1. What kind of gear?", any_opt + what, 0, C.what_value(kind, sub))
-        self._select("slot", "2. Which slot?", any_opt + slots, 1, slot)
-        self._select("band", "3. What level?", any_opt + [(l, v) for l, v in C.level_bands()], 2, band)
+        self._select("kind", "1. Armor, weapon, ...?", any_opt + kinds, 0, kind)
+        self._select("sub", "2. What type? (Cloth, Sword, ...)" if kind else "2. What type? (pick armor, weapon, ... first)",
+                     any_opt + subs, 1, sub)
+        self._select("slot", "3. Which slot? (Head, Any 1H, ...)", any_opt + slots[:24], 2, slot)
         self._select("stat", "4. Which stat? (Intellect, Agility, ...)", any_opt + stats, 3, stat)
         go = discord.ui.Button(label="Show who can make it", style=discord.ButtonStyle.success, row=4)
         go.callback = self._go
@@ -352,6 +379,10 @@ class CraftWizard(discord.ui.View):
             style=discord.ButtonStyle.primary if show_all else discord.ButtonStyle.secondary, row=4)
         tog.callback = self._toggle
         self.add_item(tog)
+        lo, hi = C.parse_band(band)
+        lvl = discord.ui.Button(label=f"Level: {C.level_text(lo, hi)}", style=discord.ButtonStyle.secondary, row=4)
+        lvl.callback = self._level
+        self.add_item(lvl)
         reset = discord.ui.Button(label="Start over", style=discord.ButtonStyle.secondary, row=4)
         reset.callback = self._reset
         self.add_item(reset)
@@ -363,11 +394,11 @@ class CraftWizard(discord.ui.View):
         async def picked(interaction: discord.Interaction, attr=attr, sel=sel) -> None:
             v = sel.values[0]
             state = self._state()
-            if attr == "what":
-                state["kind"], state["sub"] = C.parse_what(v)
-                state["slot"] = None                  # a new kind makes the old slot meaningless
-            else:
-                state[attr] = None if v == C.ANY else v
+            state[attr] = None if v == C.ANY else v
+            if attr == "kind":                       # a new kind makes the old type and slot meaningless
+                state["sub"] = state["slot"] = None
+            elif attr == "sub":
+                state["slot"] = None
             await interaction.response.edit_message(view=CraftWizard(self.bot, **state))
         sel.callback = picked
         self.add_item(sel)
@@ -379,6 +410,9 @@ class CraftWizard(discord.ui.View):
         state = self._state()
         state["show_all"] = not self.show_all
         await interaction.response.edit_message(view=CraftWizard(self.bot, **state))
+
+    async def _level(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_modal(LevelModal(self))
 
     async def _reset(self, interaction: discord.Interaction) -> None:
         await interaction.response.edit_message(content=CRAFT_PROMPT, embed=None, view=CraftWizard(self.bot))
@@ -1202,7 +1236,9 @@ def register_commands(bot: GuildBot) -> None:
         return await facet_ac("item_subclass", interaction, current)
 
     async def slot_ac(interaction: discord.Interaction, current: str):
-        return await facet_ac("inventory_type", interaction, current)
+        groups = [app_commands.Choice(name=lab, value=g) for g, lab in C.SLOT_GROUP_LABELS.items()
+                  if current.strip().lower() in lab.lower()]
+        return groups + await facet_ac("inventory_type", interaction, current)
 
     async def stat_ac(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(name=f"{r['name']} ({r['n']})", value=r["code"]) for r in db.stat_facets(current)]
