@@ -362,3 +362,31 @@ def test_roster_returns_every_matching_member(tmp_path):
     from guildbot.bot import clip
     out = clip(lines, 4000)
     assert "more" in out and out.count("**P") < 500       # long lists are cut with an honest "and N more"
+
+
+# ---- real Forever responses (saved 2026-11-11, character names replaced) ---------------------------
+def _fx(name):
+    from pathlib import Path
+    return json.loads((Path(__file__).parent / "fixtures" / f"forever_{name}.json").read_text())
+
+
+def test_real_forever_roster_carries_slug_surname_rank_and_faction_type():
+    ms = bz.parse_roster(_fx("roster"))
+    assert [(m.slug, m.name, m.surname, m.level, m.rank) for m in ms] == [
+        ("testa-example", "Testa", "Example", 27, 2), ("testb-example", "Testb", "Example", 25, 3)]
+
+
+def test_real_forever_profile_has_class_and_race_names():
+    p = bz.parse_profile(_fx("profile"))
+    assert (p.level, p.class_name, p.race_name, p.faction) == (25, "Paladin", "Undead", "Horde")
+
+
+def test_real_forever_professions_read_skill_from_tiers():
+    got = {x.name: (x.skill, x.max_skill) for x in bz.parse_professions(_fx("professions"))}
+    assert got == {"Skinning": (161, 225), "Herbalism": (128, 150), "Cooking": (2, 75), "Fishing": (1, 75)}
+
+
+def test_real_forever_rings_have_distinct_slot_names():
+    items = bz.parse_equipment(_fx("equipment"))
+    assert [i.slot for i in items] == ["Neck", "Ring 1", "Ring 2", "Main Hand"]
+    assert items[0].name == "Roadwatcher's Confidence" and items[0].item_id == 281265

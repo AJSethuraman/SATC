@@ -1,6 +1,6 @@
 # Project: Forever Guild Bot
 
-Status as of 2026-11-10: minimum version written and unit-tested with mocked data. **Never run against live Discord or Blizzard yet.**
+Status as of 2026-11-11: running on the Forge (Windows, Task Scheduler task `ForeverGuildBot`) against the real Discord server and the real Blizzard API. Roster, profile, professions and equipment parsers are confirmed against real responses. Raid flow still being walked in the real server.
 
 ## Goal
 A Discord bot for the owner's WoW: Forever guild (launched Nov 4, 2026; a separate third version of WoW alongside modern and Classic). Two jobs:
@@ -40,22 +40,32 @@ Players connect Discord to characters with `/link`; the main character is the on
 
 ## What is verified vs. unverified
 
+**Verified by running it (2026-11-11, US region, guild slug `it-was-us`, 16 members):**
+- An **app (client-credentials) token reads public characters**: profile, professions and equipment returned 200 for 13 of 16 members, with no Battle.net link needed. The other 3 returned 404 on all three endpoints. They are the lowest-level members (levels 1, 6 and 9, all rank 5 or 3). Cause not known (not yet logged out, or private). The bot reports them as "not found", not as failures.
+- Guild roster path is right: `GET /data/wow/guild/it-was-us/roster?namespace=profile-forever-us` (realmless, guild slug is the lowercased guild name with dashes). Each roster member has `character.name`, `surname`, `slug`, `level`, `faction.type`, and class/race as **ids only**; `rank` is on the member. Class and race names come from the character profile.
+- Profile: `character_class.name`, `race.name`, `faction.name`, `level`, `last_login_timestamp` (ms), `average_item_level`, `guild`. Matches `parse_profile` with no change.
+- Professions: `primaries` and `secondaries`, each with `tiers[]` holding `skill_points`, `max_skill_points` and `known_recipes[]`. Classic-style caps (75/150/225). Matches `parse_professions`.
+- Equipment: `equipped_items[]` with `slot.type` and `slot.name`, `name`, `quality`, `item.id`. **Rings are named "Ring 1" and "Ring 2"** (types `FINGER_1`/`FINGER_2`), so the slot key does not collide. Trinkets were not seen in this sample (no member had one equipped); expected "Trinket 1/2" by the same pattern, unconfirmed.
+- Quests: `GET /profile/wow/character/{slug}/quests` returns `in_progress[]` (quest name + id) and `completed` (a link); `GET .../quests/completed` returns `quests[]` (name + id). So **completed and open are both available** with an app token. Not used by the bot yet.
+- A static-data namespace exists: item, quest and class links in the responses point at `static-1.60.1_70399-forever-us`. Not tested by us yet.
+- Raw responses are saved in the `snapshots` table; trimmed, name-anonymised copies are in `tests/fixtures/forever_*.json` and tested in `tests/test_all.py`.
+- Windows needs the `tzdata` package for `zoneinfo`; added to `requirements.txt`.
+
 **Verified from sources (community reports and Blizzard forum threads, Nov 2026; not tested by us):**
 - Forever API namespaces: `profile-forever-{region}`, `dynamic-forever-{region}`.
 - Characters have no realm; they have a name and surname. Slug is `{name}-{surname}` lowercase.
 - Guild endpoints realmless: `/data/wow/guild/{guild-slug}` plus `/roster`, `/activity`, `/achievements` (profile namespace); roster members carry surname and slug.
 - Character sub-endpoints reported working: achievements, appearance, collections, encounters, equipment, media, Mythic Keystone, professions, PvP summary, quests, reputations, specializations, statistics, titles.
 - Account summary (user token) can lag the character profile by 20 to 40 minutes.
-- Public character lookups returned 404 on launch day (Nov 4); later reports say they work. Re-test.
+- Public character lookups returned 404 on launch day (Nov 4); later reports say they work. Re-tested 2026-11-11: they work (see Verified).
 - Forever shares Mainline UI architecture and Midnight's addon restrictions (secrets). Addons cannot read the combat log in Forever, per the DOINK addon page.
 - Blizzard's native Discord guild-chat link (patch 12.1) also works in Forever. A bot in the linked channel could read guild chat (our inference; untested).
 
 **Unverified. Test first:**
-- Exact JSON field names in roster, profile, professions, equipment responses. `blizzard.py` is written defensively but from guesses. Raw responses are saved in `snapshots`, so fix parsers from real data.
-- That a client-credentials (app) token can read public characters' professions/equipment without each member linking Battle.net.
-- That the quests endpoint returns what "Tonight's plan" would need (completed vs. open quests).
-- Whether a Forever static-data namespace (items, creatures) exists.
 - Whether the API exposes Forever's new "Legacy" system.
+- Why 3 of 16 low-level members return 404 (see Verified).
+- Whether trinket slots are named "Trinket 1/2".
+- Whether the static namespace has usable item and creature data (a namespace exists).
 
 ## Roadmap
 

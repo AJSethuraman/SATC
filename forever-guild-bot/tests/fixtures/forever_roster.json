@@ -1,0 +1,77 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/data/wow/guild/it-was-us/roster?namespace=profile-forever-us"
+  }
+ },
+ "guild": {
+  "key": {
+   "href": "https://us.api.blizzard.com/data/wow/guild/it-was-us?namespace=profile-forever-us"
+  },
+  "name": "it was us",
+  "id": 433002,
+  "faction": {
+   "type": "HORDE",
+   "name": "Horde"
+  },
+  "slug": "it-was-us"
+ },
+ "members": [
+  {
+   "character": {
+    "key": {
+     "href": "https://us.api.blizzard.com/profile/wow/character/testa-example?namespace=profile-forever-us"
+    },
+    "name": "Testa",
+    "id": 4661563,
+    "level": 27,
+    "playable_class": {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/playable-class/11?namespace=static-1.60.1_70399-forever-us"
+     },
+     "id": 11
+    },
+    "playable_race": {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/playable-race/96?namespace=static-1.60.1_70399-forever-us"
+     },
+     "id": 96
+    },
+    "faction": {
+     "type": "HORDE"
+    },
+    "surname": "Example",
+    "slug": "testa-example"
+   },
+   "rank": 2
+  },
+  {
+   "character": {
+    "key": {
+     "href": "https://us.api.blizzard.com/profile/wow/character/testb-example?namespace=profile-forever-us"
+    },
+    "name": "Testb",
+    "id": 5147748,
+    "level": 25,
+    "playable_class": {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/playable-class/2?namespace=static-1.60.1_70399-forever-us"
+     },
+     "id": 2
+    },
+    "playable_race": {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/playable-race/5?namespace=static-1.60.1_70399-forever-us"
+     },
+     "id": 5
+    },
+    "faction": {
+     "type": "HORDE"
+    },
+    "surname": "Example",
+    "slug": "testb-example"
+   },
+   "rank": 3
+  }
+ ]
+}

@@ -1,0 +1,153 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/profile/wow/character/testa-example/professions?namespace=profile-forever-us"
+  }
+ },
+ "character": {
+  "key": {
+   "href": "https://us.api.blizzard.com/profile/wow/character/testa-example?namespace=profile-forever-us"
+  },
+  "name": "Testa",
+  "id": 5147748,
+  "surname": "Example",
+  "slug": "testa-example"
+ },
+ "primaries": [
+  {
+   "profession": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/profession/393?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Skinning",
+    "id": 393
+   },
+   "tiers": [
+    {
+     "skill_points": 161,
+     "max_skill_points": 225,
+     "tier": {
+      "name": "Skinning",
+      "id": 2947
+     },
+     "known_recipes": [
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/52644?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Camp Chair",
+       "id": 52644
+      },
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/4768?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Skinning",
+       "id": 4768
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "profession": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/profession/182?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Herbalism",
+    "id": 182
+   },
+   "tiers": [
+    {
+     "skill_points": 128,
+     "max_skill_points": 150,
+     "tier": {
+      "name": "Herbalism",
+      "id": 2944
+     },
+     "known_recipes": [
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/1419?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Herbalism",
+       "id": 1419
+      },
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/54115?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Herbalism",
+       "id": 54115
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "secondaries": [
+  {
+   "profession": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/profession/185?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Cooking",
+    "id": 185
+   },
+   "tiers": [
+    {
+     "skill_points": 2,
+     "max_skill_points": 75,
+     "tier": {
+      "name": "Cooking",
+      "id": 2939
+     },
+     "known_recipes": [
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/4786?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Herb Baked Egg",
+       "id": 4786
+      },
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/52640?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Basic Campfire",
+       "id": 52640
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "profession": {
+    "key": {
+     "href": "https://us.api.blizzard.com/data/wow/profession/356?namespace=static-1.60.1_70399-forever-us"
+    },
+    "name": "Fishing",
+    "id": 356
+   },
+   "tiers": [
+    {
+     "skill_points": 1,
+     "max_skill_points": 75,
+     "tier": {
+      "name": "Fishing",
+      "id": 2943
+     },
+     "known_recipes": [
+      {
+       "key": {
+        "href": "https://us.api.blizzard.com/data/wow/recipe/4344?namespace=static-1.60.1_70399-forever-us"
+       },
+       "name": "Fishing",
+       "id": 4344
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
