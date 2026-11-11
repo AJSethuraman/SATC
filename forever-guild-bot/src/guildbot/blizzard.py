@@ -71,6 +71,7 @@ class CatalogItem:
     item_class: str | None        # Weapon, Armor, Consumable, ...
     item_subclass: str | None     # Sword, Plate, Cloth, ...
     inventory_type: str | None    # One-Hand, Chest, Head, ...
+    stats: tuple = ()             # ((code, label, value), ...) e.g. ("INTELLECT", "Intellect", 9)
 
 
 def _name(v: Any) -> str | None:
@@ -174,7 +175,10 @@ def parse_catalog_item(payload: dict) -> CatalogItem:
         quality=_name(payload.get("quality")), level=payload.get("level"),
         required_level=payload.get("required_level"),
         item_class=_name(payload.get("item_class")), item_subclass=_name(payload.get("item_subclass")),
-        inventory_type=_name(payload.get("inventory_type")))
+        inventory_type=_name(payload.get("inventory_type")),
+        stats=tuple((str(s["type"]["type"]), str(s["type"].get("name") or s["type"]["type"]), int(s.get("value") or 0))
+                    for s in (payload.get("preview_item") or {}).get("stats") or []
+                    if isinstance(s.get("type"), dict) and s["type"].get("type")))
 
 
 # ---- static data: every profession and every recipe it has, same for all players ----------------

@@ -711,18 +711,53 @@ def test_craft_wizard_dropdowns_follow_the_choices(tmp_path):
         bot = SimpleNamespaceBot(db)
         w = CraftWizard(bot)
         selects = [c for c in w.children if type(c).__name__ == "Select"]
-        assert [o.label for o in selects[0].options] == ["Any", "Weapon"]
-        assert [o.label for o in selects[1].options] == ["Any"]                    # no kind yet: no types
-        w2 = CraftWizard(bot, kind="Weapon")
-        s2 = [c for c in w2.children if type(c).__name__ == "Select"]
-        assert [o.label for o in s2[1].options] == ["Any", "Sword"] and [o.label for o in s2[2].options] == ["Any", "One-Hand"]
-        assert sum(o.default for o in s2[0].options) == 1
-        assert len(selects[3].options) == 7 and len(w.children) == 7                # 4 dropdowns + 3 buttons
+        assert [o.label for o in selects[0].options] == ["Any", "Any weapon", "Weapon: Sword"]
+        assert [o.label for o in selects[1].options] == ["Any", "One-Hand"]
+        assert len(selects[2].options) == 7 and [o.label for o in selects[3].options] == ["Any", "Strength"]
+        assert len(w.children) == 7                                                  # 4 dropdowns + 3 buttons
+        on = [c for c in w.children if type(c).__name__ == "Button"]
+        assert on[1].label == "Guild-craftable only: ON"
+        off = [c for c in CraftWizard(bot, show_all=True).children if type(c).__name__ == "Button"]
+        assert off[1].label.startswith("Guild-craftable only: OFF") and off[1].style != on[1].style
+        picked = [c for c in CraftWizard(bot, kind="Weapon", sub="Sword", stat="STRENGTH").children if type(c).__name__ == "Select"]
+        assert [o.value for o in picked[0].options if o.default] == ["Weapon|Sword"]
+        assert [o.value for o in picked[3].options if o.default] == ["STRENGTH"]
     asyncio.run(build())
     embed, msg = craftable_result(db, "Weapon", "Sword", "One-Hand", 0, 10, None, False)
     assert msg is None and "Copper Shortsword" in embed.description and "Anduin Wrynn" in embed.description
+    embed, msg = craftable_result(db, "Weapon", None, None, None, None, None, True, "STRENGTH")
+    assert "Copper Shortsword" in embed.description and "**Mining** - gap" in embed.description     # gaps are called gaps
+    assert "stat: Strength" in embed.description
+    embed, msg = craftable_result(db, "Weapon", None, None, None, None, None, True, "INTELLECT")
+    assert embed is None
     embed, msg = craftable_result(db, "Armor", None, None, None, None, None, False)
     assert embed is None and "Nobody in the guild" in msg
+
+
+def test_item_stats_are_read_stored_and_filterable(tmp_path):
+    it = bz.parse_catalog_item(_fx("item"))
+    assert it.stats == (("STRENGTH", "Strength", 1),)
+    assert bz.parse_catalog_item({"id": 1, "name": "Plain"}).stats == ()                  # no stats block: none
+    db = make_db(tmp_path)
+    db.save_item(it)
+    db.save_item(bz.CatalogItem(2, "Silk Cap", "Uncommon", 20, 15, "Armor", "Cloth", "Head",
+                                (("INTELLECT", "Intellect", 9), ("BONUS_STAT_FROST_DAMAGE_DONE", "Frost Damage", 7))))
+    assert [(r["code"], r["name"], r["n"]) for r in db.stat_facets()] == [
+        ("BONUS_STAT_FROST_DAMAGE_DONE", "Frost Damage", 1), ("INTELLECT", "Intellect", 1), ("STRENGTH", "Strength", 1)]
+    assert [r["name"] for r in db.stat_facets("intel")] == ["Intellect"]
+    from guildbot import craft as C
+    assert C.what_options(db.kind_pairs() and [(r["item_class"], r["item_subclass"], r["n"]) for r in db.kind_pairs()]) == [
+        ("Any armor", "Armor|*"), ("Armor: Cloth", "Armor|Cloth"), ("Any weapon", "Weapon|*"), ("Weapon: Sword", "Weapon|Sword")]
+    assert C.parse_what("Armor|Cloth") == ("Armor", "Cloth") and C.parse_what("Armor|*") == ("Armor", None)
+    assert C.parse_what("*") == (None, None) and C.what_value("Armor", None) == "Armor|*" and C.what_value(None, None) == "*"
+    db.conn.execute("INSERT INTO recipes (profession, recipe_id, name, category, fetched_at, item_id) VALUES ('P',1,'a','c','x',2)")
+    db.conn.execute("INSERT INTO recipes (profession, recipe_id, name, category, fetched_at, item_id) VALUES ('P',2,'b','c','x',9)")
+    db.conn.commit()
+    assert [r["item_id"] for r in db.items_needed()] == [9]                               # 2 is done; 9 has no row
+    db.conn.execute("UPDATE items SET stats_loaded=0 WHERE item_id=2")                    # an item fetched before stats
+    assert [r["item_id"] for r in db.items_needed()] == [2, 9]
+    assert [r["name"] for r in db.craftable(stat="INTELLECT", only_known=False)] == ["Silk Cap"]
+    assert db.craftable(stat="AGILITY", only_known=False) == []
 
 
 class SimpleNamespaceBot:

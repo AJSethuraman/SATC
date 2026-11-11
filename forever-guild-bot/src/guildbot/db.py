@@ -56,7 +56,14 @@ CREATE TABLE IF NOT EXISTS recipes (
 -- What recipes make, from Blizzard's static data.
 CREATE TABLE IF NOT EXISTS items (
     item_id INTEGER PRIMARY KEY, name TEXT NOT NULL, quality TEXT, level INTEGER, required_level INTEGER,
-    item_class TEXT, item_subclass TEXT, inventory_type TEXT
+    item_class TEXT, item_subclass TEXT, inventory_type TEXT,
+    stats_loaded INTEGER NOT NULL DEFAULT 0      -- 1 once this item's stats have been read
+);
+
+-- The stats an item gives (Intellect, Stamina, Spell Power, ...), for the /craftable stat filter.
+CREATE TABLE IF NOT EXISTS item_stats (
+    item_id INTEGER NOT NULL, stat TEXT NOT NULL, label TEXT NOT NULL, value INTEGER NOT NULL,
+    PRIMARY KEY (item_id, stat)
 );
 
 -- Searches that found nothing the guild can make: what people want and we lack.
@@ -130,6 +137,9 @@ class Database:
             """UPDATE offers SET ping_at=strftime('%Y-%m-%dT%H:%M:%S+00:00', sent_at, '+15 minutes'),
                  expires_at=strftime('%Y-%m-%dT%H:%M:%S+00:00', sent_at, '+20 minutes') WHERE expires_at IS NULL""")
         self.conn.commit()
+        if "stats_loaded" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(items)")}:
+            self.conn.execute("ALTER TABLE items ADD COLUMN stats_loaded INTEGER NOT NULL DEFAULT 0")   # fetched before stats
+            self.conn.commit()
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
@@ -311,16 +321,32 @@ class Database:
         self.conn.commit()
 
     def items_needed(self):
-        """Item ids that recipes make and that we have no item row for."""
+        """Item ids that recipes make and that we have no row for, or whose stats we have not read yet."""
         return self.conn.execute(
-            """SELECT DISTINCT item_id FROM recipes WHERE item_id>0
-               AND item_id NOT IN (SELECT item_id FROM items) ORDER BY item_id""").fetchall()
+            """SELECT DISTINCT r.item_id FROM recipes r LEFT JOIN items i ON i.item_id=r.item_id
+               WHERE r.item_id>0 AND (i.item_id IS NULL OR i.stats_loaded=0) ORDER BY r.item_id""").fetchall()
 
     def save_item(self, it) -> None:
-        self.conn.execute("INSERT OR REPLACE INTO items VALUES (?,?,?,?,?,?,?,?)",
-                          (it.item_id, it.name, it.quality, it.level, it.required_level,
-                           it.item_class, it.item_subclass, it.inventory_type))
+        self.conn.execute(
+            """INSERT OR REPLACE INTO items (item_id, name, quality, level, required_level, item_class, item_subclass,
+                 inventory_type, stats_loaded) VALUES (?,?,?,?,?,?,?,?,1)""",
+            (it.item_id, it.name, it.quality, it.level, it.required_level,
+             it.item_class, it.item_subclass, it.inventory_type))
+        self.conn.execute("DELETE FROM item_stats WHERE item_id=?", (it.item_id,))
+        self.conn.executemany("INSERT OR REPLACE INTO item_stats VALUES (?,?,?,?)",
+                              [(it.item_id, code, label, value) for code, label, value in it.stats])
         self.conn.commit()
+
+    def kind_pairs(self):
+        return self.conn.execute(
+            "SELECT item_class, item_subclass, COUNT(*) AS n FROM items GROUP BY item_class, item_subclass").fetchall()
+
+    def stat_facets(self, text: str = "", limit: int = 25):
+        """Stats that craftable items give, most common first. Rows: code, name, n."""
+        return self.conn.execute(
+            """SELECT stat AS code, MIN(label) AS name, COUNT(DISTINCT item_id) AS n FROM item_stats
+               WHERE lower(label) LIKE ? GROUP BY stat ORDER BY n DESC, name LIMIT ?""",
+            ("%" + text.strip().lower() + "%", limit)).fetchall()
 
     def item_facets(self, column: str, text: str = "", item_class: str | None = None, limit: int = 25,
                     item_subclass: str | None = None):
@@ -338,7 +364,7 @@ class Database:
         return self.conn.execute(q + f" GROUP BY {column} ORDER BY {column} LIMIT ?", (*args, limit)).fetchall()
 
     def craftable(self, item_class=None, item_subclass=None, slot=None, min_level=None, max_level=None,
-                  profession=None, only_known=True, limit=200):
+                  profession=None, only_known=True, limit=200, stat=None):
         """Items that recipes make, filtered, each with the guild members who can make it. Highest level first."""
         q = """SELECT i.item_id, i.name, i.quality, i.required_level, i.item_class, i.item_subclass, i.inventory_type,
                  r.profession,
@@ -358,6 +384,9 @@ class Database:
         if max_level is not None:
             q += " AND COALESCE(i.required_level,0)<=?"
             args.append(max_level)
+        if stat:
+            q += " AND EXISTS (SELECT 1 FROM item_stats st WHERE st.item_id=i.item_id AND st.stat=?)"
+            args.append(stat)
         if only_known:
             q += """ AND EXISTS (SELECT 1 FROM known_recipes k JOIN characters c ON c.slug=k.slug
                                   WHERE k.profession=r.profession AND k.recipe_id=r.recipe_id AND c.in_guild=1)"""

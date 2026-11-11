@@ -49,5 +49,25 @@
    },
    "id": 64051
   }
- ]
+ ],
+ "preview_item": {
+  "stats": [
+   {
+    "type": {
+     "type": "STRENGTH",
+     "name": "Strength"
+    },
+    "value": 1,
+    "display": {
+     "display_string": "+1 Strength",
+     "color": {
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "a": 1.0
+     }
+    }
+   }
+  ]
+ }
 }
