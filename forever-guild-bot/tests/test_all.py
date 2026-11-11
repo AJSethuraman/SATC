@@ -570,3 +570,17 @@ def test_tapping_a_role_with_several_characters_opens_the_picker(tmp_path):
         calls = await tap(7, "dps", bot)                              # one character: no question
         assert calls[0][0] == "edit"
     asyncio.run(run())
+
+
+def test_item_and_profession_typeahead_lists_names_with_counts(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    for slug in ("anduin-wrynn", "judy-judgement"):
+        db.replace_equipment(slug, [bz.Item("Head", 1, "Lionheart Helm", "Epic"),
+                                    bz.Item("Neck", 2, "Lionheart Amulet" if slug == "anduin-wrynn" else "Plain Charm", None)],
+                             utcnow())
+        db.replace_professions(slug, [bz.Profession("Alchemy", 300, 300)], utcnow())
+    assert [(r["name"], r["n"]) for r in db.item_names("lion")] == [("Lionheart Helm", 2), ("Lionheart Amulet", 1)]
+    assert [r["name"] for r in db.item_names("CHARM")] == ["Plain Charm"]                 # any part, any case
+    assert len(db.item_names("")) == 3 and db.item_names("zzz") == []
+    assert [(r["name"], r["n"]) for r in db.profession_names("alch")] == [("Alchemy", 2)]

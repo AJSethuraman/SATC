@@ -594,7 +594,16 @@ def register_commands(bot: GuildBot) -> None:
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at'), key="profile_at"))
         await interaction.response.send_message(embed=e)
 
+    async def item_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=f"{r['name']} ({r['n']})"[:100], value=r["name"][:100])
+                for r in db.item_names(current)]
+
+    async def profession_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=f"{r['name']} ({r['n']})", value=r["name"])
+                for r in db.profession_names(current)]
+
     @tree.command(name="professions", description="Who has which profession (leave blank for all)")
+    @app_commands.autocomplete(profession=profession_ac)
     async def professions(interaction: discord.Interaction, profession: str = ""):
         rows = db.who_has_profession(profession)
         by: dict[str, list[str]] = {}
@@ -605,7 +614,8 @@ def register_commands(bot: GuildBot) -> None:
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)
 
-    @tree.command(name="whohas", description="Who has an item equipped")
+    @tree.command(name="whohas", description="Who has an item equipped (type a few letters of its name)")
+    @app_commands.autocomplete(item=item_ac)
     async def whohas(interaction: discord.Interaction, item: str):
         rows = db.search_items(item)
         lines = [f"**{R.full_name(r)}**: {item_link(r['item_name'])} ({r['slot']})" for r in rows]

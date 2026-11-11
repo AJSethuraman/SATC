@@ -211,6 +211,24 @@ class Database:
                WHERE c.in_guild=1 AND lower(e.item_name) LIKE ?
                ORDER BY c.name, c.surname""", ("%" + text.lower() + "%",)).fetchall()
 
+    def item_names(self, text: str, limit: int = 25):
+        """Distinct equipped item names containing `text`, with how many guild members wear each.
+        Feeds the type-ahead on /whohas."""
+        return self.conn.execute(
+            """SELECT e.item_name AS name, COUNT(*) AS n
+               FROM equipment e JOIN characters c ON c.slug=e.slug
+               WHERE c.in_guild=1 AND lower(e.item_name) LIKE ?
+               GROUP BY e.item_name ORDER BY n DESC, e.item_name LIMIT ?""",
+            ("%" + text.strip().lower() + "%", limit)).fetchall()
+
+    def profession_names(self, text: str, limit: int = 25):
+        return self.conn.execute(
+            """SELECT p.profession AS name, COUNT(*) AS n
+               FROM professions p JOIN characters c ON c.slug=p.slug
+               WHERE c.in_guild=1 AND lower(p.profession) LIKE ?
+               GROUP BY p.profession ORDER BY p.profession LIMIT ?""",
+            ("%" + text.strip().lower() + "%", limit)).fetchall()
+
     # ---- discord <-> character links ---------------------------------
     def link(self, discord_id: int, slug: str) -> bool:
         """Link a character. Returns True if it became the main."""
