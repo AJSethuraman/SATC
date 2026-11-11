@@ -33,6 +33,10 @@ local function obj()
     if k == "SetModel" then return function(self, id) if NO_MODELS then error("no models here") end self.model = id end end
     if k == "SetCreature" then return function(self, id) if NO_MODELS then error("no models here") end self.creature = id end end
     if k == "SetTexture" then return function(self, id) self.texture = id end end
+    if k == "SetTexCoord" then return function(self, ...) self.coords = { ... } end end
+    if k == "SetCamDistanceScale" then return function(self, v) self.camscale = v end end
+    if k == "SetSize" then return function(self, w, h) self.size = { w, h } end end
+    if k == "SetAlpha" then return function(self, v) self.alpha = v end end
     if k == "CreateTexture" or k == "CreateFontString" then return function() return obj() end end
     if k == "CreateLine" then return function() if NO_LINES then error("no lines here") end return obj() end end
     return function(self, ...) return self end
@@ -119,10 +123,64 @@ def test_the_moor_is_drawn_with_real_ground_and_scenery():
     lua, ns = boot()
     open_game(lua, ns)
     tick(lua, 3)
-    ground = [o for o in lua.eval("ALL").values() if o.texture == 188954]
-    assert len(ground) == 1                                           # the moor's grass texture, by file id
-    models = [o.model for o in lua.eval("ALL").values() if o.model is not None]
-    assert len(models) >= 4 and all(isinstance(m, int) and m > 1000 for m in models)       # trees and rocks by file id
+    allo = list(lua.eval("ALL").values())
+    base = [o for o in allo if o.texture == 187126]
+    over = [o for o in allo if o.texture == 187113]
+    assert len(base) == 1 and len(over) == 1                          # grass, and the big dirt layer over it
+    assert over[0].alpha == pytest.approx(0.3)                         # faded, so it only breaks up the tiling
+    models = [o for o in allo if o.model is not None and o.kind == "PlayerModel" and o.camscale is not None]
+    assert len(models) >= 4                                            # scenery frames got a model AND a camera distance
+    assert all(isinstance(o.model, int) and o.model > 1000 for o in models)
+
+
+def test_the_ground_scrolls_with_the_camera_and_the_two_layers_tile_differently():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    allo = list(lua.eval("ALL").values())
+    base = [o for o in allo if o.texture == 187126][0]
+    over = [o for o in allo if o.texture == 187113][0]
+    w.player.x, w.player.y = 1200, 700
+    tick(lua, 2)
+    cam = ns.Game.camera()
+    b, o = list(base.coords.values()), list(over.coords.values())
+    assert b[0] == pytest.approx(cam.x / 256) and b[1] == pytest.approx((cam.x + 640) / 256)
+    assert o[0] == pytest.approx(cam.x / 640)                          # the dirt layer tiles at 640 units, not 256
+
+
+def test_tile_size_and_scenery_camera_can_be_tuned_live_and_are_saved():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    base = [o for o in lua.eval("ALL").values() if o.texture == 187126][0]
+    w.player.x, w.player.y = 1200, 700
+    assert ns.Game.set_tile(128) == 128
+    tick(lua, 2)
+    cam = ns.Game.camera()
+    assert list(base.coords.values())[0] == pytest.approx(cam.x / 128)
+    assert ns.Game.set_tile("rubbish") == "default" and ns.Game.set_tile(5) == "default"      # nonsense falls back, does not break
+    tick(lua, 2)
+    assert list(base.coords.values())[0] == pytest.approx(cam.x / 256)
+    # scenery camera: default from the zone, then tuned, applied to frames already showing
+    frames = [o for o in lua.eval("ALL").values() if o.camscale is not None]
+    assert frames and ns.Game.cam_for("tree") == pytest.approx(2.2)
+    assert ns.Game.set_cam("tree", 3) == 3
+    assert any(o.camscale == 3 for o in frames)
+    assert lua.eval("DreadDB.cam.tree") == 3 and ns.Game.cam_for("tree") == 3
+    assert ns.Game.set_cam("spaceship", 2)[0] is None and ns.Game.set_cam("tree", 99)[0] is None
+
+
+def test_scenery_frames_are_bigger_than_the_model_so_nothing_is_cut_off():
+    lua, ns = boot()
+    open_game(lua, ns)
+    tick(lua, 3)
+    spec = ns.Zone.SCENERY.tree
+    assert spec.frame >= 1.5 and spec.cam > 1                          # the screenshot showed trees clipped at the frame edge
+    shown = [o for o in lua.eval("ALL").values() if o.owner is not None and o.camscale is not None]
+    assert shown
+    for o in shown:                                                    # and the frames really are that much bigger than the model
+        k = ns.Zone.SCENERY[o.owner.kind].frame
+        assert o.size[1] == pytest.approx(o.owner.w * k) and o.size[2] == pytest.approx(o.owner.h * k)
 
 
 # ---------------------------------------------------------------- the window and the mouse

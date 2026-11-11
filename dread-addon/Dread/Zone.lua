@@ -25,13 +25,20 @@ Zone.BESTIARY = {
 }
 
 -- Terrain textures and scenery models (fileDataIDs). Size is how big to draw the model; r is how big the part you bump into is.
-Zone.GROUND = { moor = 188954, cave = 188950 }           -- tileset/tirisfall: grass01, dirtrock02
+-- Ground: a base texture tiled every `tile` units, with a second, much bigger dirt layer faded over it so the tiling is hard to see.
+-- 187126 elwynn grass, 187113 elwynn dirt, 188950 tirisfall dirt-rock, 187140 elwynn gravel.
+Zone.GROUND = {
+  moor = { base = 187126, tint = { 0.72, 0.82, 0.55 }, tile = 256,
+           overlay = 187113, overlay_tint = { 0.8, 0.7, 0.5 }, overlay_alpha = 0.3, overlay_tile = 640 },
+  cave = { base = 188950, tint = { 0.5, 0.45, 0.45 }, tile = 256,
+           overlay = 187140, overlay_tint = { 0.6, 0.55, 0.5 }, overlay_alpha = 0.3, overlay_tile = 560 },
+}
 Zone.SCENERY = {
-  tree   = { ids = { 204124, 204129 },                   w = 150, h = 190, r = 16 },   -- tirisfalgladetree01, canopytree02
-  fallen = { ids = { 204125, 204126, 204127, 204128 },   w = 170, h = 100, r = 20 },   -- tirisfallfallentree01-04
-  bush   = { ids = { 204097, 204098, 204099 },           w = 60,  h = 50,  r = 0 },
-  grave  = { ids = { 204105, 204106, 204107, 204108 },   w = 60,  h = 60,  r = 0 },    -- brillgraves01-04
-  rock   = { ids = { 189499, 189500, 189501 },           w = 100, h = 80,  r = 26 },   -- duskwoodboulder01-03
+  tree   = { ids = { 204124, 204129 },                   w = 150, h = 190, r = 16, frame = 2.0, cam = 2.2 },   -- tirisfalgladetree01, canopytree02
+  fallen = { ids = { 204125, 204126, 204127, 204128 },   w = 170, h = 100, r = 20, frame = 1.8, cam = 1.8 },   -- tirisfallfallentree01-04
+  bush   = { ids = { 204097, 204098, 204099 },           w = 60,  h = 50,  r = 0,  frame = 1.8, cam = 1.5 },
+  grave  = { ids = { 204105, 204106, 204107, 204108 },   w = 60,  h = 60,  r = 0,  frame = 1.6, cam = 1.4 },   -- brillgraves01-04
+  rock   = { ids = { 189499, 189500, 189501 },           w = 100, h = 80,  r = 26, frame = 1.8, cam = 1.6 },   -- duskwoodboulder01-03
 }
 
 local function pick(rand, list) return list[1 + math.floor(rand() * #list)] end
@@ -85,8 +92,8 @@ local built = {}
 
 local function build_moor()
   local rand = Sim.rng(4242)
-  local area = { name = "moor", title = "The Gloam Moor", w = 2400, h = 1500, ground = Zone.GROUND.moor,
-                 ground_tint = { 0.55, 0.62, 0.4 }, spawn = { x = 170, y = 150 }, monsters = {} }
+  local area = { name = "moor", title = "The Gloam Moor", w = 2400, h = 1500, ground = Zone.GROUND.moor.base,
+                 floor = Zone.GROUND.moor, spawn = { x = 170, y = 150 }, monsters = {} }
   area.exits = { { x = 2270, y = 1340, r = 50, to = "cave", label = "Cave mouth", arrive = nil } }
   -- packs of rising danger, from the camp out to the cave
   local packs = {
@@ -110,8 +117,8 @@ end
 
 local function build_cave()
   local rand = Sim.rng(9001)
-  local area = { name = "cave", title = "The Hollow Den", w = 1600, h = 1000, ground = Zone.GROUND.cave,
-                 ground_tint = { 0.45, 0.4, 0.4 }, spawn = { x = 150, y = 500 }, monsters = {} }
+  local area = { name = "cave", title = "The Hollow Den", w = 1600, h = 1000, ground = Zone.GROUND.cave.base,
+                 floor = Zone.GROUND.cave, spawn = { x = 150, y = 500 }, monsters = {} }
   area.exits = { { x = 50, y = 500, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2200, y = 1290 } } }
   local packs = {
     { 520, 300, { "wolf", "wolf", "imp" } },

@@ -35,6 +35,7 @@ no Blizzard D2 assets, no copied code.
 - **Mana and life:** mana comes back at 4% of your pool a second (more with Evocation). Monsters sometimes drop a mana or life globe: walk over it for 35%.
 - **Nothing moves while the tree is open.** `/dread scale 2` makes the window bigger. `/dread reset` starts over.
 - Castable so far: Scorch, Frostbolt, Ice Lance, Arcing Bolts, Lightning Bolt, Fireball, Glacial Spike, Frost Nova, Thunder Nova. The others show "Not castable yet" in their tooltip.
+- **Tuning without reinstalling:** `/dread tile 128` changes how big the ground texture tiles (`/dread tile` alone resets it). `/dread cam tree 3` moves the camera away from the trees (or `fallen`, `bush`, `grave`, `rock`) if they look cut off or too big or small. Both are saved.
 - **Unverified in the client:** the animation id for casting (a guess: `/dread animtest` lets you pick it by eye), which way models face (`/dread facing <radians>` nudges it), and whether every file ID in `Zone.lua` and `Game.lua` exists in Forever.
 
 ## Results (fill in)

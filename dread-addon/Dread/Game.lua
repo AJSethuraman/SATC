@@ -52,7 +52,7 @@ local bar, sel = {}, 1
 local target, hover_id
 local toast_t = 0
 local frame, arena, hud, tree_frame, handle
-local ground
+local ground, ground2
 local mon_f, doodad_f, proj_f, blast_f, float_f, drop_f = {}, {}, {}, {}, {}, {}
 local doodad_slot = {}                -- scenery piece -> its frame, so models are not reassigned as you walk
 local player_model
@@ -118,8 +118,12 @@ local function enter(name, arrive)
   target = nil
   doodad_slot = {}
   for _, f in ipairs(doodad_f) do f:Hide(); f.did = nil end
-  ground:SetTexture(area.ground, "REPEAT", "REPEAT")
-  ground:SetVertexColor(area.ground_tint[1], area.ground_tint[2], area.ground_tint[3])
+  local fl = area.floor
+  ground:SetTexture(fl.base, "REPEAT", "REPEAT")
+  ground:SetVertexColor(fl.tint[1], fl.tint[2], fl.tint[3])
+  ground2:SetTexture(fl.overlay, "REPEAT", "REPEAT")
+  ground2:SetVertexColor(fl.overlay_tint[1], fl.overlay_tint[2], fl.overlay_tint[3])
+  ground2:SetAlpha(fl.overlay_alpha)
   toast_text:SetText(area.title); toast_t = 3
 end
 
@@ -306,6 +310,9 @@ local function build()
   ground = tex(arena, "BACKGROUND")
   ground:SetAllPoints(arena)
   ground:SetHorizTile(true); ground:SetVertTile(true)
+  ground2 = arena:CreateTexture(nil, "BACKGROUND", nil, 1)         -- a big dirt layer over the grass, to hide the tiling
+  ground2:SetAllPoints(arena)
+  ground2:SetHorizTile(true); ground2:SetVertTile(true)
 
   doodad_f = model_pool(arena, MAX_DOODAD, 140, 170)
   mon_f = model_pool(arena, MAX_MON, 64, 80)
@@ -428,8 +435,10 @@ local function draw_scenery()
         for _, f in ipairs(doodad_f) do
           if not f.owner then
             f.owner, doodad_slot[d] = d, f
-            f:SetSize(d.w, d.h)
+            local spec = Zone.SCENERY[d.kind]
+            f:SetSize(d.w * spec.frame, d.h * spec.frame)           -- bigger than the model, or it is cut off at the frame edge
             try(f.SetModel, f, d.id)
+            try(f.SetCamDistanceScale, f, Game.cam_for(d.kind))
             f.fallback_missing = false
             f:Show()
             break
@@ -476,8 +485,11 @@ function Game.tick(dt)
   -- the camera follows you
   cam.x = math.max(0, math.min(area.w - VW, p.x - VW / 2))
   cam.y = math.max(0, math.min(area.h - VH, p.y - VH / 2))
-  local T = 256
+  local fl = area.floor
+  local T = (DreadDB and DreadDB.tile) or fl.tile
   ground:SetTexCoord(cam.x / T, (cam.x + VW) / T, -(cam.y + VH) / T, -cam.y / T)
+  local T2 = fl.overlay_tile
+  ground2:SetTexCoord(cam.x / T2, (cam.x + VW) / T2, -(cam.y + VH) / T2, -cam.y / T2)
   draw_scenery()
 
   -- you
@@ -657,6 +669,31 @@ function Game.set_facing(r)
   DreadDB = DreadDB or {}
   DreadDB.facing = tonumber(r) or 0
   return DreadDB.facing
+end
+
+-- Live tuning, saved: how big the ground texture tiles (units), and how far the camera sits from each kind of scenery.
+function Game.set_tile(n)
+  DreadDB = DreadDB or {}
+  n = tonumber(n)
+  DreadDB.tile = (n and n >= 32 and n <= 2048) and n or nil
+  return DreadDB.tile or "default"
+end
+
+function Game.cam_for(kind)
+  return (DreadDB and DreadDB.cam and DreadDB.cam[kind]) or Zone.SCENERY[kind].cam
+end
+
+function Game.set_cam(kind, n)
+  if not Zone.SCENERY[kind] then return nil, "unknown kind (tree, fallen, bush, grave, rock)" end
+  n = tonumber(n)
+  if not n or n < 0.3 or n > 10 then return nil, "pick a number between 0.3 and 10" end
+  DreadDB = DreadDB or {}
+  DreadDB.cam = DreadDB.cam or {}
+  DreadDB.cam[kind] = n
+  for d, f in pairs(doodad_slot) do
+    if d.kind == kind then try(f.SetCamDistanceScale, f, n) end
+  end
+  return n
 end
 
 function Game.toggle_tree()

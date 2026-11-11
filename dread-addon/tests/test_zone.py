@@ -34,6 +34,10 @@ def test_both_areas_exist_and_have_the_right_shape(env):
     assert moor.w == 2400 and moor.h == 1500 and cave.w == 1600 and cave.h == 1000
     assert ns.Zone.get("nowhere") is None and ns.Zone.START == "moor"
     assert moor.ground > 0 and cave.ground > 0 and moor.ground != cave.ground
+    for fl in (moor.floor, cave.floor):                               # grass/dirt layering: two textures, the top one faded
+        assert fl.base > 1000 and fl.overlay > 1000 and fl.base != fl.overlay
+        assert 0 < fl.overlay_alpha < 1 and fl.overlay_tile > fl.tile >= 32
+        assert len(items(fl.tint)) == 3 and len(items(fl.overlay_tint)) == 3
 
 
 def test_the_layout_is_the_same_every_time(env):
