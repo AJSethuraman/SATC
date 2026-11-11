@@ -478,6 +478,7 @@ class GuildBot(discord.Client):
         self.cfg, self.db, self.blizzard = cfg, db, blizzard
         self.tree = GuildTree(self)
         self._sync_lock = asyncio.Lock()
+        self._busy: set[int] = set()      # raids the bot itself is changing right now (ignore our own deletions)
         register_commands(self)
 
     async def setup_hook(self) -> None:
@@ -496,6 +497,8 @@ class GuildBot(discord.Client):
         self.reminder_job.start()
         self.close_job = tasks.loop(minutes=1)(self._close_started)
         self.close_job.start()
+        self.end_job = tasks.loop(minutes=1)(self._end_old_raids)
+        self.end_job.start()
 
     async def post_raid(self, interaction: discord.Interaction, title: str, start: datetime, size: int,
                         caps: dict) -> bool:
@@ -594,10 +597,95 @@ class GuildBot(discord.Client):
                     closed = dict(raid) | {"status": "closed"}
                     await msg.edit(embed=raid_embed(self.db, closed), view=None)
                 self.db.mark_closed(raid["id"])
+                await self.dm_user(raid["created_by"], R.roster_summary(raid, self.db.signups(raid["id"])))
             except discord.NotFound:
                 self.db.mark_closed(raid["id"])      # message or channel deleted: nothing left to tidy
             except Exception:
                 log.exception("could not remove buttons from started raid %s; will retry", raid["id"])
+
+    # ---- end of a raid --------------------------------------------------
+    def busy(self, raid_id: int):
+        """`with bot.busy(id):` while the bot itself removes a raid's post or event, so the listeners below
+        do not mistake our own deletions for someone doing it by hand."""
+        bot = self
+
+        class _Guard:
+            def __enter__(self_inner):
+                bot._busy.add(raid_id)
+
+            def __exit__(self_inner, *exc):
+                bot._busy.discard(raid_id)
+        return _Guard()
+
+    async def dm_user(self, user_id: int, text: str) -> bool:
+        try:
+            user = self.get_user(user_id) or await self.fetch_user(user_id)
+            if user.bot:
+                return False
+            await user.send(text)
+            return True
+        except discord.HTTPException:
+            return False
+
+    async def finish_raid(self, raid_id: int, *, remove_event: bool, dm_ids=(), note: str = "") -> bool:
+        """Take a raid's post (and optionally its event) down, mark it ended, and send the roster to dm_ids.
+        Safe to repeat: anything already gone counts as done."""
+        db = self.db
+        raid = db.get_raid(raid_id)
+        if not raid or raid["status"] not in ("open", "closed"):
+            return False
+        with self.busy(raid_id):
+            roster = R.roster_summary(raid, db.signups(raid_id))
+            if remove_event and raid["discord_event_id"]:
+                try:
+                    guild = self.get_guild(self.cfg.discord_guild_id) if self.cfg.discord_guild_id else None
+                    if guild:
+                        await (await guild.fetch_scheduled_event(raid["discord_event_id"])).delete()
+                except discord.NotFound:
+                    pass
+                except discord.HTTPException:
+                    log.exception("could not delete the event for raid %s", raid_id)
+            if raid["channel_id"] and raid["message_id"]:
+                try:
+                    chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+                    await (await chan.fetch_message(raid["message_id"])).delete()
+                except discord.NotFound:
+                    pass
+                except discord.HTTPException:
+                    log.exception("could not delete the post for raid %s", raid_id)
+            db.mark_ended(raid_id)
+        for uid in dict.fromkeys(dm_ids):
+            await self.dm_user(uid, (note + "\n" if note else "") + roster)
+        return True
+
+    async def _end_old_raids(self) -> None:
+        """Remove the post of a raid three hours after it started. The record stays."""
+        for raid in self.db.closed_ended_before(datetime.now(timezone.utc), R.END_AFTER_HOURS):
+            try:
+                await self.finish_raid(raid["id"], remove_event=False)
+            except Exception:
+                log.exception("could not clean up raid %s", raid["id"])
+
+    async def _handled_by_hand(self, raid, what: str) -> None:
+        """Someone removed a raid's post or event in Discord itself: close the raid and tell its organizer."""
+        if not raid or raid["id"] in self._busy or raid["status"] not in ("open", "closed"):
+            return
+        note = f"I noticed the {what} for **{raid['title']}** was removed by hand, so I closed the raid."
+        if raid["status"] == "open" and datetime.fromisoformat(raid["starts_at"]) > datetime.now(timezone.utc):
+            note += " Players weren't told; use /raid-cancel next time to message them."
+        await self.finish_raid(raid["id"], remove_event=True, dm_ids=[raid["created_by"]], note=note)
+
+    async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
+        await self._handled_by_hand(self.db.raid_by_message(payload.message_id), "signup post")
+
+    async def on_scheduled_event_delete(self, event: discord.ScheduledEvent) -> None:
+        await self._handled_by_hand(self.db.raid_by_event(event.id), "Discord event")
+
+    async def on_scheduled_event_update(self, before: discord.ScheduledEvent, after: discord.ScheduledEvent) -> None:
+        if after.status in (discord.EventStatus.completed, discord.EventStatus.cancelled):
+            raid = self.db.raid_by_event(after.id)
+            if raid and raid["status"] == "open":      # ended early by hand; a normal end after the start is ignored
+                await self._handled_by_hand(raid, "Discord event")
 
     # ---- raid signup --------------------------------------------------
     async def handle_signup(self, interaction: discord.Interaction, raid_id: int, role: str) -> None:
@@ -1022,6 +1110,24 @@ def register_commands(bot: GuildBot) -> None:
     @app_commands.guild_only()
     @officer
     async def raid_cancel(interaction: discord.Interaction, raid_id: int):
+        with bot.busy(raid_id):
+            await cancel_raid_flow(interaction, raid_id)
+
+    @tree.command(name="raid-end", description="End a raid now: removes the post and event and sends the roster to you")
+    @app_commands.guild_only()
+    @officer
+    async def raid_end(interaction: discord.Interaction, raid_id: int):
+        raid = db.get_raid(raid_id)
+        if not raid or raid["status"] not in ("open", "closed"):
+            await interaction.response.send_message("No running or open raid with that number.", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        who = [interaction.user.id, raid["created_by"]]
+        await bot.finish_raid(raid_id, remove_event=True, dm_ids=who, note="You ended the raid.")
+        await interaction.followup.send(f"Raid #{raid_id} ended. The post and event are gone; the roster is in your DMs.",
+                                        ephemeral=True)
+
+    async def cancel_raid_flow(interaction: discord.Interaction, raid_id: int):
         raid = db.get_raid(raid_id)
         if not raid or raid["status"] != "open":
             await interaction.response.send_message("No open raid with that number.", ephemeral=True)

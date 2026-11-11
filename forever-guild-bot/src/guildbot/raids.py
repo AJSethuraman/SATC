@@ -122,3 +122,17 @@ def reminder_text(raid) -> str:
     """The private reminder sent an hour before start."""
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
     return f"Reminder: **{raid['title']}** starts <t:{ts}:R> (<t:{ts}:t>)."
+
+
+END_AFTER_HOURS = 3     # how long after the start the raid post is removed (matches the Discord event length)
+
+
+def roster_summary(raid, signup_rows) -> str:
+    """Who signed up, by role, as a plain message for the organizer."""
+    g = group_signups(signup_rows)
+    ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
+    parts = [f"**{raid['title']}** (<t:{ts}:F>) roster:"]
+    for role in ROLES:
+        entries = [format_entry(s) for s in g[role]]
+        parts.append(f"**{ROLE_LABEL[role]} ({len(entries)}):** " + (", ".join(entries) if entries else "-"))
+    return "\n".join(parts)

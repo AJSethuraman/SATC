@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS raids (
     cap_tank INTEGER, cap_healer INTEGER, cap_dps INTEGER,   -- NULL = no limit for that role
     created_by INTEGER NOT NULL,
     channel_id INTEGER, message_id INTEGER, discord_event_id INTEGER,
-    status TEXT NOT NULL DEFAULT 'open',   -- open | closed | cancelled
+    status TEXT NOT NULL DEFAULT 'open',   -- open | closed (started) | ended (post removed) | cancelled
     reminded INTEGER NOT NULL DEFAULT 0
 );
 
@@ -600,6 +600,23 @@ class Database:
     def mark_closed(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='closed' WHERE id=?", (raid_id,))
         self.conn.commit()
+
+    def closed_ended_before(self, now_utc: datetime, hours: int):
+        """Started raids that began more than `hours` ago and whose post is still up."""
+        from datetime import timedelta
+        cutoff = now_utc - timedelta(hours=hours)
+        return [r for r in self.conn.execute("SELECT * FROM raids WHERE status='closed'").fetchall()
+                if datetime.fromisoformat(r["starts_at"]) <= cutoff]
+
+    def mark_ended(self, raid_id) -> None:
+        self.conn.execute("UPDATE raids SET status='ended' WHERE id=?", (raid_id,))
+        self.conn.commit()
+
+    def raid_by_message(self, message_id: int):
+        return self.conn.execute("SELECT * FROM raids WHERE message_id=?", (message_id,)).fetchone()
+
+    def raid_by_event(self, event_id: int):
+        return self.conn.execute("SELECT * FROM raids WHERE discord_event_id=?", (event_id,)).fetchone()
 
     def cancel_raid(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='cancelled' WHERE id=?", (raid_id,))

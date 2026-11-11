@@ -155,7 +155,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan", "craftable", "gaps", "wanted"}
+                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -778,3 +778,74 @@ def test_a_search_for_something_nobody_can_make_becomes_a_recorded_gap(tmp_path)
     # the fixtures give the same three recipes to both professions, so each search is recorded once per profession
     assert top == {("Field Guide", "Skinning"): (2, 2), ("Field Guide", "Mining"): (2, 2),
                    ("Trapper's Workbench", "Skinning"): (1, 1), ("Trapper's Workbench", "Mining"): (1, 1)}
+
+
+def test_roster_summary_and_end_of_raid_bookkeeping(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    rid = db.create_raid("Test Raid", "2026-11-11T20:30:00+00:00", 5, 9)
+    db.upsert_signup(rid, 1, "anduin-wrynn", "tank", utcnow())
+    db.upsert_signup(rid, 2, None, "bench", utcnow())
+    db.upsert_signup(rid, 3, None, "absent", utcnow())
+    text = R.roster_summary(db.get_raid(rid), db.signups(rid))
+    assert text.splitlines()[0] == "**Test Raid** (<t:1794429000:F>) roster:"
+    assert "**Tanks (1):** **Anduin Wrynn** Paladin L60" in text and "**Bench (1):** <@2>" in text
+    assert "**Healers (0):** -" in text and "**Can't make it (1):** <@3>" in text
+    db.mark_closed(rid)
+    start = datetime(2026, 11, 11, 20, 30, tzinfo=timezone.utc)
+    assert db.closed_ended_before(start + timedelta(hours=2, minutes=59), 3) == []
+    assert [r["id"] for r in db.closed_ended_before(start + timedelta(hours=3), 3)] == [rid]
+    db.set_raid_posted(rid, 10, 20, 30)
+    assert db.raid_by_message(20)["id"] == rid and db.raid_by_event(30)["id"] == rid and db.raid_by_message(99) is None
+    db.mark_ended(rid)
+    assert db.closed_ended_before(start + timedelta(days=1), 3) == [] and db.get_raid(rid)["status"] == "ended"
+
+
+class _Msg:
+    def __init__(self):
+        self.deleted = 0
+
+    async def delete(self):
+        self.deleted += 1
+
+
+class _Chan:
+    def __init__(self, msg):
+        self.msg = msg
+
+    async def fetch_message(self, mid):
+        return self.msg
+
+
+class _User:
+    bot = False
+
+    def __init__(self, log):
+        self.log = log
+
+    async def send(self, text):
+        self.log.append(text)
+
+
+def test_finish_raid_removes_the_post_marks_it_ended_and_dms_the_roster(tmp_path):
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Test Raid", "2026-11-11T20:30:00+00:00", 5, 9)
+    db.set_raid_posted(rid, 10, 20, None)
+    db.upsert_signup(rid, 1, "anduin-wrynn", "dps", utcnow())
+    msg, sent = _Msg(), []
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: _Chan(msg)
+        bot.get_user = lambda uid: _User(sent)
+        assert await bot.finish_raid(rid, remove_event=False, dm_ids=[9, 9, 8], note="Done.") is True
+        assert await bot.finish_raid(rid, remove_event=False, dm_ids=[9]) is False        # already ended: nothing repeats
+        raid = db.get_raid(rid)
+        await bot._handled_by_hand(raid, "signup post")                                     # ended raids are left alone
+        assert 9 not in bot._busy
+    asyncio.run(run())
+    assert msg.deleted == 1 and db.get_raid(rid)["status"] == "ended"
+    assert len(sent) == 2 and sent[0].startswith("Done.\n**Test Raid**") and "DPS (1)" in sent[0]   # users 9 and 8, once each
