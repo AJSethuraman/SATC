@@ -1,0 +1,7 @@
+## Title: Dread (feasibility tests)
+## Notes: Test 1 loop speed, Test 2 assets. Not a game yet.
+## SavedVariables: DreadDB
+# Interface line left out on purpose: the Forever build number is not confirmed.
+# In game, run  /dump select(4, GetBuildInfo())  and add  ## Interface: <that number>
+Sim.lua
+Dread.lua
