@@ -52,7 +52,9 @@ local function obj(parent)
   end })
 end
 function CreateFrame(kind, name, parent, tmpl) local o = obj(parent); o.kind = kind; if name then FRAMES[name] = o end return o end
-UIParent, GameTooltip = obj(), obj()
+UIParent = obj()
+TIPS = {}
+GameTooltip = { SetOwner = function(self) TIPS = {} end, AddLine = function(self, t) TIPS[#TIPS + 1] = t end, Show = function() end, Hide = function() end }
 C_Timer = { After = function(sec, fn) TIMERS[#TIMERS + 1] = fn end }
 function run_timers() local t = TIMERS TIMERS = {} for _, f in ipairs(t) do f() end end
 function GetCursorPosition() return CURSOR[1], CURSOR[2] end
@@ -678,9 +680,107 @@ def test_an_unknown_command_prints_the_list_and_includes_every_command():
         assert word in text, f"/dread {word} is missing from the help line"
 
 
-def test_the_window_title_shows_which_build_this_is():
+def test_the_window_title_shows_which_build_this_is_and_does_not_collide_with_the_zone_name():
     lua, ns = boot()
     ns.BUILD = "11 Nov 21:00 UTC"
     ns.Game.toggle()
-    titles = [o.text for o in lua.eval("ALL").values() if o.text is not None and "drag here to move" in str(o.text)]
-    assert titles and "11 Nov 21:00 UTC" in titles[0]
+    titles = [o for o in lua.eval("ALL").values() if o.text is not None and str(o.text).startswith("Dread")]
+    assert titles and "11 Nov 21:00 UTC" in titles[0].text and "drag here" not in titles[0].text     # short enough to leave room
+    same = lua.eval("function(a, b) return a == b end")
+    skills_btn = find_button(lua, "Skills (K)")
+    zone = [o for o in lua.eval("ALL").values() if o.pts is not None and o.pts.point == "RIGHT" and o.pts.rel is not None and same(o.pts.rel, skills_btn)]
+    assert len(zone) == 1                                                  # the zone name is pinned to the left edge of the Skills button
+
+
+# ---------------------------------------------------------------- every skill through the real window
+ACTIVE = ["scorch", "dragons_breath", "blazing_speed", "fireball", "flamestrike", "combustion", "meteor", "flame_spirit",
+          "frostbolt", "ice_barrier", "frost_nova", "ice_lance", "frost_armor", "glacial_spike", "blizzard", "icicle_cloak", "frozen_orb",
+          "arcing_bolts", "static_shock", "force_pull", "thunder_nova", "lightning_bolt", "chain_lightning", "blink", "storm_cloud", "mana_shield"]
+BUFFS = ["blazing_speed", "combustion", "ice_barrier", "frost_armor", "icicle_cloak", "mana_shield"]
+
+
+@pytest.mark.parametrize("sid", ACTIVE)
+def test_every_active_skill_can_be_cast_from_the_window_and_drawn(sid):
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ns.Combat.set_level(w, 30, 0)
+    w.player.st.points[sid] = 1
+    w.player.mana = w.player.maxmana = 500
+    bar, sel = ns.Game.bar()
+    for i in range(1, 9):
+        bar[i] = None
+    bar[1] = sid
+    tick(lua, 2)
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -180, 0)
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    mana_after = w.player.mana
+    tick(lua, 90)                                                           # three seconds of drawing whatever it made
+    assert ns.Combat.SHAPES[sid] is not None
+    if sid in BUFFS:
+        assert any(b.startswith(sid + ":") for b in ns.Game.buffs_shown().values()), f"{sid} shows no buff icon"
+    click_world(lua, ns, "RightButton", m.x + 40, m.y)
+    tick(lua, 60)
+
+
+def test_zones_and_orbs_are_drawn_as_glowing_discs_in_the_right_place_and_size():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.st.points["flamestrike"] = 1
+    w.player.mana = 500
+    bar, sel = ns.Game.bar()
+    bar[1] = "flamestrike"
+    tick(lua, 2)
+    click_world(lua, ns, "RightButton", w.player.x + 100, w.player.y)
+    tick(lua, 3)
+    cam = ns.Game.camera()
+    zone = [e for e in w.effects.values() if e.kind == "zone"][0]
+    discs = [o for o in lua.eval("ALL").values() if o.shown and o.size is not None and o.size[1] == o.size[2] == zone.r * 2
+             and o.pts is not None and o.pts.point == "CENTER"]
+    assert discs, "the zone is not drawn"
+    d = discs[0]
+    assert d.pts.x == pytest.approx(zone.x - cam.x) and d.pts.y == pytest.approx(zone.y - cam.y)
+
+
+def test_beams_are_drawn_for_chain_lightning_and_fade():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.st.points["chain_lightning"] = 1
+    w.player.mana = 500
+    bar, sel = ns.Game.bar()
+    bar[1] = "chain_lightning"
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -150, 0)
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    seen = 0
+    for _ in range(40):                                                     # a beam lasts 0.3 s, so look at every frame
+        tick(lua, 1)
+        seen = max(seen, len([o for o in lua.eval("ALL").values() if o.size is not None and o.size[1] == 16 and o.shown]))
+    assert seen >= 8, "chain lightning drew no beam"                        # one beam is a row of 8 dots; the first pack has neighbours in jump range
+    tick(lua, 60)
+    assert not [o for o in lua.eval("ALL").values() if o.size is not None and o.size[1] == 16 and o.shown]    # and they fade away
+
+
+def test_every_tooltip_says_what_the_skill_does_and_none_says_not_castable():
+    lua, ns = boot()
+    ns.Game.toggle()
+    for i in range(1, 31):
+        sid = str(ns.Skills[i].id)
+        b = ns.Game.tree_buttons[sid]
+        b.scripts.OnEnter(b)
+        tips = " | ".join(str(t) for t in lua.eval("TIPS").values())
+        assert "Not castable yet" not in tips, sid
+        if sid in ACTIVE:
+            assert str(ns.Game.DESC[sid]) in tips and "press 1-8" in tips, sid
+        else:
+            assert "Always on" in tips, sid
+        b.scripts.OnLeave(b)
+
+
+def test_every_active_skill_has_a_description():
+    lua, ns = boot()
+    for sid in ACTIVE:
+        assert ns.Game.DESC[sid] is not None and len(str(ns.Game.DESC[sid])) > 10, sid

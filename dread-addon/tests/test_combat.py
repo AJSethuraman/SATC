@@ -48,12 +48,14 @@ def test_cannot_cast_what_you_have_no_points_in(env):
     assert cast(ns, w, "scorch", 300, 200) == (False, "no points in Scorch")
 
 
-def test_unknown_and_unimplemented_spells_are_refused_not_ignored(env):
+def test_unknown_unimplemented_and_always_on_skills_are_refused_not_ignored(env):
     lua, ns = env
-    w = world(env, meteor=1, scorch=1)
+    w = world(env, scorch=1, meteor=1, evocation=1)
     assert cast(ns, w, "nonsense", 0, 0) == (False, "no such skill")
+    assert cast(ns, w, "evocation", 300, 200) == (False, "always on, nothing to cast")    # a passive has nothing to cast
+    ns.Combat.SHAPES.meteor = None                                                          # pretend a skill had no behaviour yet
     assert cast(ns, w, "meteor", 300, 200) == (False, "not implemented yet")
-    assert w.player.mana == 33            # a refused cast costs nothing
+    assert w.player.mana == 33                                                              # a refused cast costs nothing
 
 
 def test_casting_spends_mana_and_runs_dry(env):

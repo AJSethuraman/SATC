@@ -17,12 +17,30 @@ Combat.SHAPES = {
   scorch         = { shape = "bolt", speed = 320, range = 420, radius = 10 },
   frostbolt      = { shape = "bolt", speed = 300, range = 420, radius = 10 },
   ice_lance      = { shape = "bolt", speed = 420, range = 460, radius = 8 },
-  arcing_bolts   = { shape = "bolt", speed = 380, range = 380, radius = 8 },
+  arcing_bolts   = { shape = "volley", count = 3, spread = 0.22, speed = 380, range = 380, radius = 8 },
   lightning_bolt = { shape = "bolt", speed = 700, range = 520, radius = 8 },
+  chain_lightning = { shape = "bolt", speed = 700, range = 520, radius = 8, chain = 3, chain_range = 150 },
   fireball       = { shape = "aoe", at = "target", radius = 55, speed = 300, range = 440 },
   glacial_spike  = { shape = "aoe", at = "target", radius = 50, speed = 340, range = 440 },
-  frost_nova     = { shape = "aoe", at = "self", radius = 90 },
+  frost_nova     = { shape = "aoe", at = "self", radius = 90, chill_pct = 40 },
   thunder_nova   = { shape = "aoe", at = "self", radius = 100 },
+  -- the rest of the skills, one behaviour each (see CASTERS below)
+  dragons_breath = { shape = "cone", range = 150, half = 0.6, duration = 1.0, tick = 0.2 },
+  blazing_speed  = { shape = "trail", duration = 6 },
+  flamestrike    = { shape = "zone", range = 440, radius = 70, duration = 4, tick = 0.5 },
+  combustion     = { shape = "buff", duration = 10 },
+  meteor         = { shape = "delayed", range = 440, delay = 1.0, radius = 85, burn_t = 3 },
+  flame_spirit   = { shape = "summon", range = 260, place_range = 200, duration = 15, interval = 0.8 },
+  ice_barrier    = { shape = "buff", duration = 15 },
+  frost_armor    = { shape = "buff", duration = 20 },
+  blizzard       = { shape = "zone", range = 440, radius = 110, duration = 5, tick = 0.4, chill_pct = 35 },
+  icicle_cloak   = { shape = "buff", duration = 15 },
+  frozen_orb     = { shape = "orb", range = 440, speed = 160, radius = 75, tick = 0.3, scale = 0.35, linger = 0.4 },
+  static_shock   = { shape = "static", radius = 130 },
+  force_pull     = { shape = "pull", radius = 320, push_radius = 140, push = 90 },
+  blink          = { shape = "blink", range = 360 },
+  storm_cloud    = { shape = "storm", duration = 8, tick = 0.6, radius = 170 },
+  mana_shield    = { shape = "toggle" },
   -- the free basic attack (a mage's wand): no mana, a short cooldown, plain damage that grows with level
   wand           = { shape = "bolt", speed = 450, range = 360, radius = 8 },
 }
@@ -37,6 +55,8 @@ Combat.PLAYER_SPEED = 140
 Combat.CHILL_SECONDS, Combat.FREEZE_SECONDS = 3, 2
 Combat.MONSTER_REACH, Combat.MONSTER_COOLDOWN = 22, 1.0
 Combat.MAX_QUEST_POINTS = 12
+
+local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
 
 local function dist(ax, ay, bx, by)
   local dx, dy = ax - bx, ay - by
@@ -54,8 +74,8 @@ function Combat.new(opts)
     w = opts.w or 600, h = opts.h or 400, time = 0, over = false,
     rng = Sim.rng(opts.seed or 1),
     player = { x = 300, y = 40, tx = nil, ty = nil, level = 1, xp = 0, st = st,
-               maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10 },
-    monsters = {}, projectiles = {}, events = {}, drops = {}, obstacles = {}, flags = {},
+               maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10, buffs = {} },
+    monsters = {}, projectiles = {}, events = {}, drops = {}, obstacles = {}, flags = {}, effects = {},
   }
   return w
 end
@@ -121,7 +141,7 @@ local function walk(w, x, y, tx, ty, len, rad)
 end
 
 -- Apply one spell's (or the wand's) damage to one monster, after resists. Returns the damage dealt.
-local function hit(w, id, m)
+local function hit(w, id, m, scale)
   local p = w.player
   local lo, hi, element, sk
   if id == "wand" then
@@ -133,7 +153,9 @@ local function hit(w, id, m)
     element = sk.element
   end
   local resist = Tree.effective_resist(p.st, element, m.resist[element] or 0)
-  local dmg = math.max(0, Tree.after_resist(roll(w, lo, hi), resist))
+  local amount = roll(w, lo, hi) * (scale or 1)
+  if element == "fire" and p.buffs.combustion then amount = amount * (1 + p.buffs.combustion.pct / 100) end
+  local dmg = math.max(0, Tree.after_resist(amount, resist))
   m.life = m.life - dmg
   wake(w, m)
   push(nil, w, { k = "hit", id = id, x = m.x, y = m.y, dmg = dmg })
@@ -143,6 +165,8 @@ local function hit(w, id, m)
     if sk.effect.type == "chill_pct" then m.chill = Combat.CHILL_SECONDS m.chill_pct = val
     elseif sk.effect.type == "freeze_chance_pct" and w.rng() * 100 < val then m.freeze = Combat.FREEZE_SECONDS end
   end
+  local shp = Combat.SHAPES[id]
+  if dmg > 0 and shp and shp.chill_pct then m.chill, m.chill_pct = Combat.CHILL_SECONDS, shp.chill_pct end
   if m.life <= 0 and not m.dead then
     m.dead, m.died_at = true, w.time
     push(nil, w, { k = "kill", x = m.x, y = m.y, xp = m.xp, name = m.name })
@@ -165,12 +189,64 @@ local function hit(w, id, m)
   return dmg
 end
 
-local function explode(w, id, cx, cy)
-  local radius = Combat.SHAPES[id].radius
+local function explode(w, id, cx, cy, radius)
+  radius = radius or Combat.SHAPES[id].radius
   push(nil, w, { k = "blast", id = id, x = cx, y = cy, r = radius })
   for _, m in ipairs(w.monsters) do
     if not m.dead and dist(cx, cy, m.x, m.y) <= radius + m.radius then hit(w, id, m) end
   end
+end
+
+-- A buff or skill number at the player's level in it (the `effect` line of its table entry).
+local function eff(w, id)
+  local sk, n = Skills.byId[id], Tree.points_in(w.player.st, id)
+  if not sk.effect or n < 1 then return 0 end
+  return sk.effect.base + sk.effect.per_level * (n - 1)
+end
+
+-- Everything that hurts the player goes through here, so shields and armour apply to all of it.
+local function hurt(w, amount, attacker)
+  local p, b = w.player, w.player.buffs
+  if b.frost_armor then
+    amount = amount * (1 - math.min(75, b.frost_armor.pct) / 100)
+    if attacker then attacker.chill, attacker.chill_pct = Combat.CHILL_SECONDS, 40 end
+  end
+  if b.mana_shield and p.mana > 0 then
+    local take = math.min(p.mana, amount * b.mana_shield.pct / 100)
+    p.mana, amount = p.mana - take, amount - take
+  end
+  if b.ice_barrier and b.ice_barrier.amount > 0 then
+    local soak = math.min(b.ice_barrier.amount, amount)
+    b.ice_barrier.amount, amount = b.ice_barrier.amount - soak, amount - soak
+  end
+  if b.icicle_cloak and attacker and not attacker.dead then hit(w, "icicle_cloak", attacker, 1) end
+  p.life = p.life - amount
+  if p.life <= 0 then p.life, w.over = 0, true end
+end
+
+-- Lightning that jumps: from a monster that was just hit to the nearest others in range.
+local function chain(w, id, from, n, range)
+  local done, cur = { [from] = true }, from
+  for _ = 1, n do
+    local best, bd = nil, range
+    for _, m in ipairs(w.monsters) do
+      if not m.dead and not done[m] then
+        local d = dist(cur.x, cur.y, m.x, m.y)
+        if d <= bd then best, bd = m, d end
+      end
+    end
+    if not best then return end
+    push(nil, w, { k = "zap", id = id, x1 = cur.x, y1 = cur.y, x2 = best.x, y2 = best.y })
+    hit(w, id, best, 1)
+    done[best], cur = true, best
+  end
+end
+
+local function fire_angle(w, id, ang)
+  local p, shape = w.player, Combat.SHAPES[id]
+  w.projectiles[#w.projectiles + 1] = {
+    id = id, x = p.x, y = p.y, vx = math.cos(ang) * shape.speed, vy = math.sin(ang) * shape.speed, left = shape.range,
+  }
 end
 
 local function fire(w, id, tx, ty)
@@ -187,23 +263,118 @@ local function fire(w, id, tx, ty)
   }
 end
 
+local function clamp_target(p, tx, ty, range)
+  local d = dist(p.x, p.y, tx, ty)
+  if d <= range or d < 0.001 then return tx, ty end
+  return p.x + (tx - p.x) / d * range, p.y + (ty - p.y) / d * range
+end
+
+local function add_effect(w, e) w.effects[#w.effects + 1] = e; return e end
+
+-- One entry per kind of skill. Each gets the world, the skill id, where you clicked and the skill's table entry.
+local CASTERS = {}
+CASTERS.bolt = function(w, id, tx, ty) fire(w, id, tx, ty) end
+CASTERS.aoe = function(w, id, tx, ty, shape)
+  if shape.at == "self" then explode(w, id, w.player.x, w.player.y) else fire(w, id, tx, ty) end
+end
+CASTERS.volley = function(w, id, tx, ty, shape)
+  local p = w.player
+  local base = atan2(ty - p.y, tx - p.x)
+  for i = 1, shape.count do fire_angle(w, id, base + (i - (shape.count + 1) / 2) * shape.spread) end
+end
+CASTERS.cone = function(w, id, tx, ty, shape)
+  local p = w.player
+  local d = math.max(1, dist(p.x, p.y, tx, ty))
+  add_effect(w, { kind = "cone", id = id, x = p.x, y = p.y, dx = (tx - p.x) / d, dy = (ty - p.y) / d,
+                  range = shape.range, half = shape.half, t = shape.duration, tick = shape.tick, next = 0 })
+end
+CASTERS.trail = function(w, id, tx, ty, shape)
+  w.player.buffs[id] = { t = shape.duration, pct = eff(w, id), drop = 0 }
+end
+CASTERS.zone = function(w, id, tx, ty, shape)
+  local x, y = clamp_target(w.player, tx, ty, shape.range)
+  add_effect(w, { kind = "zone", id = id, x = x, y = y, r = shape.radius, t = shape.duration, tick = shape.tick, next = 0 })
+end
+CASTERS.buff = function(w, id, tx, ty, shape)
+  local v = eff(w, id)
+  w.player.buffs[id] = { t = shape.duration, pct = v, amount = v }
+end
+CASTERS.toggle = function(w, id)
+  local b = w.player.buffs
+  if b[id] then b[id] = nil else b[id] = { pct = math.min(80, eff(w, id)) } end
+end
+CASTERS.delayed = function(w, id, tx, ty, shape)
+  local x, y = clamp_target(w.player, tx, ty, shape.range)
+  add_effect(w, { kind = "delayed", id = id, x = x, y = y, r = shape.radius, t = shape.delay, burn_t = shape.burn_t })
+end
+CASTERS.summon = function(w, id, tx, ty, shape)
+  for _, e in ipairs(w.effects) do if e.kind == "summon" then e.t = 0 end end      -- only one at a time
+  local x, y = clamp_target(w.player, tx, ty, shape.place_range)
+  add_effect(w, { kind = "summon", id = id, x = x, y = y, range = shape.range, t = shape.duration, cd = 0.3, interval = shape.interval })
+end
+CASTERS.orb = function(w, id, tx, ty, shape)
+  local p = w.player
+  local x, y = clamp_target(p, tx, ty, shape.range)
+  local d = dist(p.x, p.y, x, y)
+  add_effect(w, { kind = "orb", id = id, x = p.x, y = p.y, tx = x, ty = y, speed = shape.speed, r = shape.radius,
+                  t = d / shape.speed + shape.linger, tick = shape.tick, next = 0, scale = shape.scale })
+end
+CASTERS.storm = function(w, id, tx, ty, shape)
+  add_effect(w, { kind = "storm", id = id, r = shape.radius, t = shape.duration, tick = shape.tick, next = 0.3 })
+end
+CASTERS.static = function(w, id, tx, ty, shape)
+  local p = w.player
+  push(nil, w, { k = "blast", id = id, x = p.x, y = p.y, r = shape.radius })
+  local pct = eff(w, id) / 100
+  for _, m in ipairs(w.monsters) do
+    if not m.dead and dist(p.x, p.y, m.x, m.y) <= shape.radius + m.radius then
+      local cut = m.life * (m.boss and pct / 3 or pct)               -- a share of what is left; bosses lose a third of that
+      cut = math.max(0, math.min(cut, m.life - 1))                   -- it can wound, never kill
+      m.life = m.life - cut
+      wake(w, m)
+      push(nil, w, { k = "hit", id = id, x = m.x, y = m.y, dmg = cut })
+    end
+  end
+end
+CASTERS.pull = function(w, id, tx, ty, shape)
+  local p = w.player
+  push(nil, w, { k = "blast", id = id, x = p.x, y = p.y, r = shape.push_radius })
+  for _, d in ipairs(w.drops) do
+    if dist(p.x, p.y, d.x, d.y) <= shape.radius then d.x, d.y = p.x, p.y end        -- globes come to you
+  end
+  for _, m in ipairs(w.monsters) do
+    local d = dist(p.x, p.y, m.x, m.y)
+    if not m.dead and d <= shape.push_radius + m.radius then
+      local ux, uy = (m.x - p.x) / math.max(d, 1), (m.y - p.y) / math.max(d, 1)
+      m.x, m.y = slide(w, m.x + ux * shape.push, m.y + uy * shape.push, m.radius * 0.6)
+      m.freeze = math.max(m.freeze, 0.6)                              -- and what was near is knocked back and stunned
+      wake(w, m)
+    end
+  end
+end
+CASTERS.blink = function(w, id, tx, ty, shape)
+  local p = w.player
+  local x, y = clamp_target(p, tx, ty, shape.range)
+  x, y = slide(w, x, y, Combat.PLAYER_RADIUS)
+  push(nil, w, { k = "blink", id = id, x0 = p.x, y0 = p.y, x1 = x, y1 = y })
+  p.x, p.y, p.tx, p.ty = x, y, nil, nil
+end
+
 -- true, or false plus why. Spends mana at cast time.
 function Combat.cast(w, id, tx, ty)
   local p, shape = w.player, Combat.SHAPES[id]
   if w.over then return false, "you are dead" end
   if id == "wand" or not Skills.byId[id] then return false, "no such skill" end
   if Tree.points_in(p.st, id) < 1 then return false, "no points in " .. Skills.byId[id].name end
+  local kind = Skills.byId[id].kind
+  if kind == "passive" or kind == "mastery" then return false, "always on, nothing to cast" end
   if not shape then return false, "not implemented yet" end
   local cost = Tree.mana_cost(p.st, id)
   if p.mana < cost then return false, "not enough mana" end
   p.mana = p.mana - cost
   p.cast_at = w.time
   push(nil, w, { k = "cast", id = id, x = tx, y = ty })
-  if shape.shape == "aoe" and shape.at == "self" then
-    explode(w, id, p.x, p.y)
-  else
-    fire(w, id, tx, ty)
-  end
+  CASTERS[shape.shape](w, id, tx, ty, shape)
   return true
 end
 
@@ -227,7 +398,11 @@ local function step_projectiles(w, dt)
     local touch = (shape.shape == "aoe") and Combat.CORE or shape.radius
     for _, m in ipairs(w.monsters) do
       if not m.dead and dist(nx, ny, m.x, m.y) <= touch + m.radius then
-        if shape.shape == "aoe" then explode(w, pr.id, nx, ny) else hit(w, pr.id, m) end
+        if shape.shape == "aoe" then explode(w, pr.id, nx, ny)
+        else
+          hit(w, pr.id, m)
+          if shape.chain then chain(w, pr.id, m, shape.chain, shape.chain_range) end
+        end
         gone = true
         break
       end
@@ -242,6 +417,88 @@ local function step_projectiles(w, dt)
     if not gone then keep[#keep + 1] = pr end
   end
   w.projectiles = keep
+end
+
+local function tick_effect(w, e)
+  local p = w.player
+  if e.kind == "zone" or e.kind == "orb" then
+    for _, m in ipairs(w.monsters) do
+      if not m.dead and dist(e.x, e.y, m.x, m.y) <= e.r + m.radius then hit(w, e.id, m, e.scale or 1) end
+    end
+  elseif e.kind == "cone" then
+    local cosh = math.cos(e.half)
+    for _, m in ipairs(w.monsters) do
+      local d = dist(p.x, p.y, m.x, m.y)
+      if not m.dead and d <= e.range + m.radius then
+        local dot = d < 1 and 1 or ((m.x - p.x) * e.dx + (m.y - p.y) * e.dy) / d
+        if dot >= cosh then hit(w, e.id, m, 1) end
+      end
+    end
+  elseif e.kind == "storm" then
+    local near = {}
+    for _, m in ipairs(w.monsters) do
+      if not m.dead and dist(p.x, p.y, m.x, m.y) <= e.r then near[#near + 1] = m end
+    end
+    if #near > 0 then
+      local m = near[1 + math.floor(w.rng() * #near)]
+      push(nil, w, { k = "zap", id = e.id, x1 = m.x, y1 = m.y + 160, x2 = m.x, y2 = m.y })
+      hit(w, e.id, m, 1)
+    end
+  end
+end
+
+local function step_effects(w, dt)
+  local p, keep, later = w.player, {}, {}
+  for _, e in ipairs(w.effects) do
+    e.t = e.t - dt
+    if e.kind == "cone" or e.kind == "storm" then e.x, e.y = p.x, p.y end         -- these travel with you
+    if e.kind == "orb" then
+      local d = dist(e.x, e.y, e.tx, e.ty)
+      local stepd = e.speed * dt
+      if d <= stepd then e.x, e.y = e.tx, e.ty else e.x, e.y = e.x + (e.tx - e.x) / d * stepd, e.y + (e.ty - e.y) / d * stepd end
+    end
+    if e.kind == "delayed" then
+      if e.t <= 0 then
+        explode(w, e.id, e.x, e.y, e.r)
+        later[#later + 1] = { kind = "zone", id = e.id, x = e.x, y = e.y, r = e.r, t = e.burn_t, tick = 0.5, next = 0.5, scale = 0.25 }
+      end
+    elseif e.kind == "summon" then
+      e.cd = e.cd - dt
+      if e.cd <= 0 and e.t > 0 then
+        local best, bd = nil, e.range
+        for _, m in ipairs(w.monsters) do
+          if not m.dead then
+            local d = dist(e.x, e.y, m.x, m.y)
+            if d <= bd then best, bd = m, d end
+          end
+        end
+        if best then
+          push(nil, w, { k = "zap", id = e.id, x1 = e.x, y1 = e.y, x2 = best.x, y2 = best.y })
+          hit(w, e.id, best, 1)
+          e.cd = e.interval
+        end
+      end
+    else
+      e.next = e.next - dt
+      while e.next <= 0 do
+        e.next = e.next + e.tick
+        tick_effect(w, e)
+      end
+    end
+    if e.t > 0 then keep[#keep + 1] = e end
+  end
+  for _, e in ipairs(later) do keep[#keep + 1] = e end
+  w.effects = keep
+end
+
+local function step_buffs(w, dt)
+  local p = w.player
+  for id, b in pairs(p.buffs) do
+    if b.t then
+      b.t = b.t - dt
+      if b.t <= 0 or (id == "ice_barrier" and b.amount <= 0) then p.buffs[id] = nil end
+    end
+  end
 end
 
 local function step_drops(w, dt)
@@ -267,7 +524,15 @@ function Combat.step(w, dt)
   -- walk toward the clicked point
   if p.tx then
     local d = dist(p.x, p.y, p.tx, p.ty)
-    local stepd = Combat.PLAYER_SPEED * dt
+    local bs = p.buffs.blazing_speed
+    local stepd = Combat.PLAYER_SPEED * (bs and (1 + bs.pct / 100) or 1) * dt
+    if bs then
+      bs.drop = bs.drop - dt
+      if bs.drop <= 0 then                                           -- it leaves a trail of fire while you run
+        bs.drop = 0.2
+        add_effect(w, { kind = "zone", id = "blazing_speed", x = p.x, y = p.y, r = 22, t = 2, tick = 0.4, next = 0 })
+      end
+    end
     if d <= stepd then p.x, p.y, p.tx, p.ty = p.tx, p.ty, nil, nil
     else p.x, p.y = walk(w, p.x, p.y, p.tx, p.ty, stepd, Combat.PLAYER_RADIUS) end
   end
@@ -275,6 +540,8 @@ function Combat.step(w, dt)
   local regen = p.maxmana * Combat.MANA_REGEN * (1 + Tree.bonus(p.st, "mana_regen_pct", "fire") / 100)
   p.mana = math.min(p.maxmana, p.mana + regen * dt)
   step_projectiles(w, dt)
+  step_effects(w, dt)
+  step_buffs(w, dt)
   step_drops(w, dt)
   -- monsters
   for _, m in ipairs(w.monsters) do
@@ -291,10 +558,9 @@ function Combat.step(w, dt)
           m.x, m.y = walk(w, m.x, m.y, p.x, p.y, sp, m.radius * 0.6)
           m.moving = true
         elseif m.cd <= 0 then
-          p.life = p.life - roll(w, m.dmg[1], m.dmg[2])
+          hurt(w, roll(w, m.dmg[1], m.dmg[2]), m)
           m.cd, m.bite_at = Combat.MONSTER_COOLDOWN, w.time
           push(nil, w, { k = "bite", x = m.x, y = m.y })
-          if p.life <= 0 then p.life, w.over = 0, true end
         end
       end
     end
@@ -311,7 +577,7 @@ end
 function Combat.enter(w, area)
   local function copy(t) local c = {} for k, v in pairs(t) do c[k] = (type(v) == "table") and copy(v) or v end return c end
   w.area, w.w, w.h = area.name, area.w, area.h
-  w.obstacles, w.projectiles, w.drops, w.monsters = area.obstacles or {}, {}, {}, {}
+  w.obstacles, w.projectiles, w.drops, w.monsters, w.effects = area.obstacles or {}, {}, {}, {}, {}
   local p = w.player
   p.x, p.y, p.tx, p.ty = area.spawn.x, area.spawn.y, nil, nil
   for _, t in ipairs(area.monsters or {}) do Combat.add_monster(w, copy(t)) end

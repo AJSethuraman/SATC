@@ -13,6 +13,7 @@ ns.Game = Game
 local VW, VH = 640, 400            -- the viewport, in the same units Combat.lua uses
 local HUD_H, TITLE_H = 104, 24
 local MAX_MON, MAX_DOODAD, MAX_PROJ, MAX_BLAST, MAX_FLOAT, MAX_DROP = 14, 22, 16, 6, 20, 8
+local MAX_EFF, MAX_ZAP, MAX_BUFF, ZAP_DOTS = 40, 10, 8, 8
 local SLOTS = 8
 local ATTACK_RANGE = 300           -- how close you get to a clicked monster before the wand starts firing
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
@@ -38,6 +39,25 @@ local ICONS = {
 }
 local function icon_path(id) return "Interface\\Icons\\" .. (ICONS[id] or "INV_Misc_QuestionMark") end
 
+
+-- One line each, so a tooltip always says what the skill does.
+local DESC = {
+  scorch = "A bolt of fire.", dragons_breath = "A cone of flame in front of you for a second.",
+  blazing_speed = "Run faster for 6 seconds, leaving burning ground behind you.", fireball = "A fireball that explodes where you click.",
+  flamestrike = "Sets the chosen ground on fire for 4 seconds.", combustion = "Your fire spells hit harder for 10 seconds.",
+  meteor = "A meteor lands where you click after a second, and the ground burns.", flame_spirit = "A spirit of fire that shoots the nearest monster for 15 seconds.",
+  frostbolt = "A bolt of frost that chills.", ice_barrier = "Absorbs damage for 15 seconds.", frost_nova = "A ring of frost around you that chills everything it hits.",
+  ice_lance = "A fast frost lance that can freeze.", frost_armor = "Take less damage for 20 seconds; whatever hits you is chilled.",
+  glacial_spike = "A frost spike that explodes where you click.", blizzard = "An icy storm over the chosen ground for 5 seconds.",
+  icicle_cloak = "For 15 seconds, whatever bites you takes frost damage.", frozen_orb = "An orb of frost that rolls to the target, hurting everything it passes.",
+  arcing_bolts = "Three bolts of lightning in a spread.", static_shock = "Takes a share of the life of every monster near you. Wounds, never kills.",
+  force_pull = "Pulls globes to you and throws nearby monsters back, stunned.", thunder_nova = "A ring of lightning around you.",
+  lightning_bolt = "A fast bolt of lightning.", chain_lightning = "Lightning that jumps to up to three more monsters.",
+  blink = "Teleport to where you click (up to 360 units).", storm_cloud = "For 8 seconds, lightning strikes monsters near you.",
+  mana_shield = "Turn on and off: part of the damage you take comes out of your mana instead of your life.",
+}
+Game.DESC = DESC
+
 local COLORS = { fire = { 1, 0.45, 0.1 }, cold = { 0.45, 0.75, 1 }, lightning = { 0.75, 0.6, 1 }, physical = { 0.9, 0.9, 0.9 } }
 local function element_of(id) if id == "wand" then return "physical" end return Skills.byId[id].element end
 
@@ -59,6 +79,7 @@ local player_model
 local life_orb, mana_orb, xp_bar, info_text, hint_text, over_text, zone_text, toast_text, exit_marks
 local reset_btn, reset_armed
 local solid_f, solid_on, solid_sizes = {}, false, {}
+local eff_f, zap_f, buff_f, buff_shown = {}, {}, {}, {}
 local slots = {}
 Game.tree_buttons = {}
 Game.paused = false
@@ -183,10 +204,11 @@ local function tooltip(btn, id)
     for _, p in ipairs(sk.prereqs) do names[#names + 1] = Skills.byId[p].name end
     GameTooltip:AddLine("Needs: " .. table.concat(names, ", "), 0.9, 0.6, 0.6)
   end
+  if DESC[id] then GameTooltip:AddLine(DESC[id], 0.9, 0.9, 0.9, true) end
   if castable(id) then
     GameTooltip:AddLine("Hover and press 1-8 to put it on that slot of your bar", 0.5, 1, 0.5)
-  elseif sk.kind ~= "passive" and sk.kind ~= "mastery" then
-    GameTooltip:AddLine("Not castable yet in this build", 1, 0.3, 0.3)
+  elseif sk.kind == "passive" or sk.kind == "mastery" then
+    GameTooltip:AddLine("Always on: nothing to cast", 0.6, 0.8, 1)
   end
   if sk.dmg then
     local lo, hi = Tree.damage(st, id)
@@ -348,12 +370,12 @@ local function build_window()
   handle:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
   local title = fstr(handle, "GameFontNormalSmall")
   title:SetPoint("LEFT", handle, "LEFT", 10, 0)
-  title:SetText("Dread " .. (ns.BUILD and ("(" .. ns.BUILD .. ")  ") or "") .. "drag here to move")
+  title:SetText("Dread" .. (ns.BUILD and ("  (" .. ns.BUILD .. ")") or ""))
   zone_text = fstr(handle, "GameFontHighlightSmall")
-  zone_text:SetPoint("CENTER", handle, "CENTER", -20, 0)
   local skills_btn = CreateFrame("Button", nil, handle, "UIPanelButtonTemplate")
   skills_btn:SetSize(86, 20); skills_btn:SetPoint("RIGHT", handle, "RIGHT", -100, 0); skills_btn:SetText("Skills (K)")
   skills_btn:SetScript("OnClick", function() Game.toggle_tree() end)
+  zone_text:SetPoint("RIGHT", skills_btn, "LEFT", -12, 0)
   -- reset asks twice, so a stray click cannot wipe a character
   reset_btn = CreateFrame("Button", nil, handle, "UIPanelButtonTemplate")
   reset_btn:SetSize(86, 20); reset_btn:SetPoint("RIGHT", handle, "RIGHT", -6, 0); reset_btn:SetText("New game")
@@ -407,6 +429,35 @@ local function build_arena()
     t:SetDesaturated(true); t:SetVertexColor(0.7, 0.4, 1); t:SetBlendMode("ADD"); t:Hide()
     local l = fstr(arena, "GameFontNormalSmall"); l:Hide()
     exit_marks[i] = { t = t, l = l }
+  end
+  for i = 1, MAX_EFF do                                          -- zones, trails, orbs, cones, markers
+    local d = arena:CreateTexture(nil, "ARTWORK", nil, 2)
+    d:SetColorTexture(1, 1, 1, 1); d:SetBlendMode("ADD"); d:Hide()
+    try(function()
+      local m = arena:CreateMaskTexture()
+      m:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+      m:SetAllPoints(d)
+      d:AddMaskTexture(m)
+    end)
+    local ic = arena:CreateTexture(nil, "ARTWORK", nil, 3)
+    ic:SetSize(30, 30); ic:SetBlendMode("ADD"); ic:Hide()
+    eff_f[i] = { disc = d, icon = ic }
+  end
+  for i = 1, MAX_ZAP do                                          -- a beam is a row of small glowing dots
+    local z = { dots = {}, life = 0 }
+    for j = 1, ZAP_DOTS do
+      local t = arena:CreateTexture(nil, "OVERLAY", nil, 2)
+      t:SetSize(16, 16); t:SetBlendMode("ADD"); t:Hide()
+      z.dots[j] = t
+    end
+    zap_f[i] = z
+  end
+  for i = 1, MAX_BUFF do                                         -- active buffs, top left, with their timers
+    local ic = arena:CreateTexture(nil, "OVERLAY", nil, 3)
+    ic:SetSize(26, 26); ic:SetPoint("TOPLEFT", arena, "TOPLEFT", 6 + (i - 1) * 32, -6); ic:Hide()
+    local tx = arena:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    tx:SetPoint("TOP", ic, "BOTTOM", 0, 0); tx:Hide()
+    buff_f[i] = { icon = ic, text = tx }
   end
   for i = 1, 48 do                                              -- the /dread solid circles
     local t = arena:CreateTexture(nil, "OVERLAY", nil, 3)
@@ -537,6 +588,80 @@ local function draw_scenery()
   end
 end
 
+-- A beam between two points: a row of dots that fades.
+local function start_zap(e)
+  local el = element_of(e.id)
+  for _, z in ipairs(zap_f) do
+    if z.life <= 0 then
+      z.life, z.max, z.x1, z.y1, z.x2, z.y2 = 0.3, 0.3, e.x1, e.y1, e.x2, e.y2
+      for _, t in ipairs(z.dots) do t:SetTexture(icon_path(e.id)); t:SetVertexColor(COLORS[el][1], COLORS[el][2], COLORS[el][3]) end
+      return
+    end
+  end
+end
+
+-- Timed effects (zones, trails, orbs, cones, markers, the spirit, the storm), beams, and the buff icons.
+local function draw_effects(dt, p)
+  local n = 0
+  for _, e in ipairs(world.effects) do
+    if n < MAX_EFF then
+      local el = element_of(e.id)
+      local c = COLORS[el]
+      local x, y, size, alpha, icon = e.x, e.y, 0, 0.3 + 0.1 * math.sin(world.time * 8), nil
+      if e.kind == "zone" or e.kind == "orb" then size = e.r * 2
+      elseif e.kind == "cone" then
+        size, x, y = e.range, e.x + e.dx * e.range / 2, e.y + e.dy * e.range / 2
+      elseif e.kind == "delayed" then
+        size, alpha, icon = e.r * 2, 0.15 + 0.35 * (1 - math.max(0, e.t)), "meteor"
+      elseif e.kind == "summon" then size, icon = 30, e.id
+      elseif e.kind == "storm" then size, y, icon, alpha = e.r * 2, e.y + 70, e.id, 0.12
+      end
+      if vis(x - cam.x, y - cam.y, size, size) then
+        n = n + 1
+        local f = eff_f[n]
+        f.disc:SetVertexColor(c[1], c[2], c[3]); f.disc:SetAlpha(alpha)
+        f.disc:SetSize(size, size); f.disc:ClearAllPoints(); f.disc:SetPoint("CENTER", arena, "BOTTOMLEFT", x - cam.x, y - cam.y); f.disc:Show()
+        if icon or e.kind == "orb" then
+          f.icon:SetTexture(icon_path(icon or e.id)); f.icon:SetVertexColor(c[1], c[2], c[3])
+          f.icon:ClearAllPoints(); f.icon:SetPoint("CENTER", arena, "BOTTOMLEFT", x - cam.x, y - cam.y + ((e.kind == "summon") and 18 or 0)); f.icon:Show()
+        else
+          f.icon:Hide()
+        end
+      end
+    end
+  end
+  for i = n + 1, MAX_EFF do eff_f[i].disc:Hide(); eff_f[i].icon:Hide() end
+  for _, z in ipairs(zap_f) do
+    if z.life > 0 then
+      z.life = z.life - dt
+      for j, t in ipairs(z.dots) do
+        local k = (j - 1) / (ZAP_DOTS - 1)
+        t:ClearAllPoints()
+        t:SetPoint("CENTER", arena, "BOTTOMLEFT", z.x1 + (z.x2 - z.x1) * k - cam.x, z.y1 + (z.y2 - z.y1) * k - cam.y)
+        t:SetAlpha(math.max(0, z.life / z.max)); t:Show()
+      end
+      if z.life <= 0 then for _, t in ipairs(z.dots) do t:Hide() end end
+    end
+  end
+  -- buff icons with what is left of each
+  local names = {}
+  for id in pairs(p.buffs) do names[#names + 1] = id end
+  table.sort(names)
+  buff_shown = {}
+  for i = 1, MAX_BUFF do
+    local b, f = p.buffs[names[i] or ""], buff_f[i]
+    if b then
+      local label = b.t and tostring(math.ceil(b.t)) or "on"
+      if names[i] == "ice_barrier" then label = tostring(math.floor(b.amount)) end
+      f.icon:SetTexture(icon_path(names[i])); f.icon:Show()
+      f.text:SetText(label); f.text:Show()
+      buff_shown[#buff_shown + 1] = names[i] .. ":" .. label
+    else
+      f.icon:Hide(); f.text:Hide()
+    end
+  end
+end
+
 function Game.tick(dt)
   if dt > 0.1 then dt = 0.1 end
   Game.paused = tree_frame:IsShown()
@@ -633,6 +758,7 @@ function Game.tick(dt)
   end
 
   -- spell effects
+  draw_effects(dt, p)
   for i = 1, MAX_PROJ do
     local pr, f = world.projectiles[i], proj_f[i]
     if pr then
@@ -670,6 +796,18 @@ function Game.tick(dt)
           f.icon:SetTexture(icon_path(e.id)); f.icon:SetVertexColor(COLORS[el][1], COLORS[el][2], COLORS[el][3])
           if BLAST_MODEL[el] then try(f.SetModel, f, BLAST_MODEL[el]) end
           break
+        end
+      end
+    elseif e.k == "zap" then
+      start_zap(e)
+    elseif e.k == "blink" then
+      for _, at in ipairs({ { e.x0, e.y0 }, { e.x1, e.y1 } }) do
+        for _, f in ipairs(blast_f) do
+          if f.life <= 0 then
+            f.life, f.x, f.y, f.r = f.max, at[1], at[2], 36
+            f.icon:SetTexture(icon_path("blink")); f.icon:SetVertexColor(COLORS.lightning[1], COLORS.lightning[2], COLORS.lightning[3])
+            break
+          end
         end
       end
     elseif e.k == "level" then
@@ -739,7 +877,7 @@ function Game.tick(dt)
     if toast_t <= 0 then toast_text:Hide() end
   end
   if Game.paused then hint_text:SetText("Paused while the skill tree is open. Hover a skill and press 1-8 to put it on your bar. K closes it.")
-  elseif Tree.points_spent(p.st) == 0 then hint_text:SetText("Left click: walk, or attack a monster with your wand (free). Press K to spend your first skill point. Tab or wheel rotates skills.")
+  elseif Tree.points_spent(p.st) == 0 then hint_text:SetText("Left click: walk, or attack a monster with your wand (free). Press K to spend your first skill point. Drag the title bar to move the window.")
   end
   if world.over then
     over_text:SetText("You died.  Click to start again.\n(your level, skills and quest progress are kept)"); over_text:Show()
@@ -856,6 +994,7 @@ function Game.animtest()
 end
 
 function Game.solid() return solid_on end
+function Game.buffs_shown() return buff_shown end
 function Game.solid_sizes() return solid_sizes end
 function Game.set_solid(on) solid_on = on and true or false; return solid_on end
 function Game.orbs() return life_orb, mana_orb end
