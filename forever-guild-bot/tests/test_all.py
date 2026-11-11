@@ -533,7 +533,7 @@ def test_reminder_is_a_short_private_message():
 
 def test_tapping_a_role_with_several_characters_opens_the_picker(tmp_path):
     from types import SimpleNamespace
-    from guildbot.bot import GuildBot, SignupCharacterPicker
+    from guildbot.bot import GuildBot, SignupModal
     db = make_db(tmp_path)
     asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
     cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
@@ -545,10 +545,13 @@ def test_tapping_a_role_with_several_characters_opens_the_picker(tmp_path):
         async def send_message(text=None, **kw):
             calls.append(("send", text, kw))
 
+        async def send_modal(modal):
+            calls.append(("modal", None, {"modal": modal}))
+
         async def edit_message(**kw):
             calls.append(("edit", None, kw))
         ix = SimpleNamespace(user=SimpleNamespace(id=user_id),
-                             response=SimpleNamespace(send_message=send_message, edit_message=edit_message),
+                             response=SimpleNamespace(send_message=send_message, edit_message=edit_message, send_modal=send_modal),
                              followup=SimpleNamespace(send=send_message))
         await bot.handle_signup(ix, rid, role)
         return calls
@@ -558,8 +561,9 @@ def test_tapping_a_role_with_several_characters_opens_the_picker(tmp_path):
         db.claim(7, ["anduin-wrynn", "judy-judgement"])
         for role in ("dps", "healer", "dps"):                       # first tap, a different role, the same role
             calls = await tap(7, role, bot)
-            assert calls[0][0] == "send" and isinstance(calls[0][2]["view"], SignupCharacterPicker), role
-            assert calls[0][2]["ephemeral"] is True
+            assert calls[0][0] == "modal" and isinstance(calls[0][2]["modal"], SignupModal), role
+            options = calls[0][2]["modal"].choice.options
+            assert [o.value for o in options] == ["anduin-wrynn", "judy-judgement"] and sum(o.default for o in options) == 1
         assert db.signups(rid) == []                                  # nothing is recorded until they pick
         db.claim(8, ["x"])                                            # unknown slug: no links
         db.conn.execute("DELETE FROM links WHERE discord_id=7 AND slug='judy-judgement'")

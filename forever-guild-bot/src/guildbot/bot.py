@@ -428,10 +428,8 @@ class GuildBot(discord.Client):
         chars = self.db.characters_for(interaction.user.id)
         prior = next((s for s in self.db.signups(raid_id) if s["discord_id"] == interaction.user.id), None)
         if len(chars) > 1 and role != "absent":
-            view = SignupCharacterPicker(self, raid_id, role, chars,
-                                         current=prior["slug"] if prior else None)
-            await interaction.response.send_message(
-                f"Which character are you signing up as ({R.ROLE_LABEL[role]})?", view=view, ephemeral=True)
+            await interaction.response.send_modal(
+                SignupModal(self, raid_id, role, chars, current=prior["slug"] if prior else None))
             return
         slugs = {c["slug"] for c in chars}
         main = self.db.main_for(interaction.user.id)
@@ -451,43 +449,37 @@ class GuildBot(discord.Client):
         return landed
 
 
-class SignupCharacterPicker(discord.ui.View):
-    """Private 'which of your characters?' list shown when someone with several links signs up."""
+class SignupModal(discord.ui.Modal):
+    """Pop-up in the middle of the screen: which of your characters are you signing up as?"""
 
     def __init__(self, bot: GuildBot, raid_id: int, role: str, chars, current=None):
-        super().__init__(timeout=300)
+        super().__init__(title=f"Sign up as {R.ROLE_LABEL[role]}"[:45], timeout=300)
         self.bot, self.raid_id, self.role = bot, raid_id, role
         pre = current or next((c["slug"] for c in chars if c["is_main"]), chars[0]["slug"])
-        sel = discord.ui.Select(
+        self.choice = discord.ui.Select(
             placeholder="Pick a character",
             options=[discord.SelectOption(label=char_label(c), value=c["slug"], default=(c["slug"] == pre))
                      for c in chars[:25]])
-        sel.callback = self._picked
-        self.add_item(sel)
+        self.add_item(discord.ui.Label(text="Which character?", component=self.choice))
 
-    async def _picked(self, interaction: discord.Interaction) -> None:
-        bot, db = self.bot, self.bot.db
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        db = self.bot.db
         raid = db.get_raid(self.raid_id)
         if not raid or raid["status"] != "open" or \
                 datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
-            await interaction.response.edit_message(content="This raid is closed.", view=None)
+            await interaction.response.send_message("This raid is closed.", ephemeral=True)
             return
-        slug = interaction.data["values"][0]
+        slug = self.choice.values[0]
         if slug not in {c["slug"] for c in db.characters_for(interaction.user.id)}:
-            await interaction.response.edit_message(content="That character isn't linked to you.", view=None)
+            await interaction.response.send_message("That character isn't linked to you.", ephemeral=True)
             return
-        landed = bot.apply_signup(raid, interaction.user.id, self.role, slug)
-        row = db.find_character(slug)
-        note = f"Signed up as **{R.full_name(row)}**: {R.ROLE_LABEL[landed]}."
+        landed = self.bot.apply_signup(raid, interaction.user.id, self.role, slug)
+        await interaction.response.edit_message(embed=raid_embed(db, raid))    # updates the raid post itself
         if landed != self.role:
-            note += f" ({R.ROLE_LABEL[self.role]} is full, so you're on the bench.)"
-        await interaction.response.edit_message(content=note, view=None)
-        try:
-            chan = bot.get_channel(raid["channel_id"]) or await bot.fetch_channel(raid["channel_id"])
-            msg = await chan.fetch_message(raid["message_id"])
-            await msg.edit(embed=raid_embed(db, raid))
-        except discord.HTTPException:
-            log.exception("could not refresh the post for raid %s", self.raid_id)
+            where = "the bench" if landed == "bench" else R.ROLE_LABEL[landed].lower()
+            await interaction.followup.send(
+                f"{R.ROLE_LABEL.get(self.role, self.role)} (or the raid) is full, so you're on {where}.",
+                ephemeral=True)
 
 
 def register_commands(bot: GuildBot) -> None:
