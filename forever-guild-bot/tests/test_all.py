@@ -153,7 +153,8 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
     names = {c.name for c in bot.tree.get_commands()}
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
-                     "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync"}
+                     "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
+                     "claim-panel", "claims", "unlink-member", "release"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -411,3 +412,20 @@ def test_commands_are_limited_to_the_configured_channels(tmp_path):
     assert sent == [("Use me in <#11> or <#22>.", True)]
     open_bot = GuildBot(load(base), make_db(tmp_path), blizzard=None)
     assert asyncio.run(open_bot.tree.interaction_check(ix(99))) is True
+
+
+def test_claim_is_first_come_capped_and_officer_purge_frees_characters(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    a, b = "anduin-wrynn", "judy-judgement"
+    assert len(db.unclaimed_characters()) == 2
+    assert db.claim(1, [a]) == {"linked": [a], "taken": [], "over_cap": []}
+    assert db.main_for(1)["slug"] == a
+    assert db.claim(2, [a, b]) == {"linked": [b], "taken": [a], "over_cap": []}   # a troll cannot take a claimed one
+    assert db.owner_of(a) == 1 and [r["slug"] for r in db.unclaimed_characters()] == []
+    assert len(db.claims()) == 2
+    assert db.unlink_all(2) == 1                                                   # officer purge
+    assert [r["slug"] for r in db.unclaimed_characters()] == [b]
+    db.MAX_CLAIMS = 1
+    assert db.claim(3, [b]) == {"linked": [b], "taken": [], "over_cap": []}
+    assert db.claim(3, ["nobody-here"]) == {"linked": [], "taken": [], "over_cap": []}

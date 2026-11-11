@@ -97,6 +97,73 @@ class RaidView(discord.ui.View):
         return callback
 
 
+CLAIM_PAGE = 25   # Discord allows 25 options in one dropdown
+
+
+def char_label(r) -> str:
+    return f"{r['name']} {r['surname'] or ''} · L{r['level'] or '?'} {r['class_name'] or ''}".replace("  ", " ").strip()[:100]
+
+
+class ClaimPicker(discord.ui.View):
+    """Private (ephemeral) dropdown of unclaimed characters, paged 25 at a time."""
+
+    def __init__(self, bot: "GuildBot", page: int = 0):
+        super().__init__(timeout=300)
+        self.bot = bot
+        rows = bot.db.unclaimed_characters()
+        pages = max(1, -(-len(rows) // CLAIM_PAGE))
+        self.page = min(page, pages - 1)
+        self._pages = pages
+        chunk = rows[self.page * CLAIM_PAGE:(self.page + 1) * CLAIM_PAGE]
+        if chunk:
+            sel = discord.ui.Select(
+                placeholder=f"Pick your character(s)  ·  page {self.page + 1} of {pages}",
+                min_values=1, max_values=min(len(chunk), bot.db.MAX_CLAIMS),
+                options=[discord.SelectOption(label=char_label(r), value=r["slug"]) for r in chunk])
+            sel.callback = self._picked
+            self.add_item(sel)
+        if pages > 1:
+            nxt = discord.ui.Button(label="Next page", style=discord.ButtonStyle.secondary)
+            nxt.callback = self._next
+            self.add_item(nxt)
+
+    async def _next(self, interaction: discord.Interaction) -> None:
+        view = ClaimPicker(self.bot, (self.page + 1) % self._pages)
+        await interaction.response.edit_message(content=view.header(), view=view)
+
+    def header(self) -> str:
+        n = len(self.bot.db.unclaimed_characters())
+        return (f"Pick yours from the list ({n} unclaimed)." if n
+                else "Every character is already claimed. Ask an officer if one is wrong.")
+
+    async def _picked(self, interaction: discord.Interaction) -> None:
+        res = self.bot.db.claim(interaction.user.id, interaction.data["values"])
+        names = {r["slug"]: r["name"] for r in self.bot.db.roster()}
+        parts = []
+        if res["linked"]:
+            parts.append("Linked: " + ", ".join(f"**{names[s]}**" for s in res["linked"]) + ".")
+        if res["taken"]:
+            parts.append("Already claimed by someone else: " + ", ".join(names[s] for s in res["taken"])
+                         + ". Ask an officer if that is wrong.")
+        if res["over_cap"]:
+            parts.append(f"You can claim up to {self.bot.db.MAX_CLAIMS} characters; ask an officer for more.")
+        log.info("claim by %s: %s", interaction.user.id, res)
+        await interaction.response.edit_message(content=" ".join(parts) or "Nothing changed.", view=None)
+
+
+class ClaimPanel(discord.ui.View):
+    """The public 'claim your characters' button. Persistent across restarts."""
+
+    def __init__(self, bot: "GuildBot"):
+        super().__init__(timeout=None)
+        self.bot = bot
+
+    @discord.ui.button(label="Claim my characters", style=discord.ButtonStyle.primary, custom_id="claim:open")
+    async def open(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        view = ClaimPicker(self.bot)
+        await interaction.response.send_message(view.header(), view=view, ephemeral=True)
+
+
 class GuildTree(app_commands.CommandTree):
     """Slash commands only run in the channels named in BOT_CHANNEL_IDS (if any are set)."""
 
@@ -118,6 +185,7 @@ class GuildBot(discord.Client):
         register_commands(self)
 
     async def setup_hook(self) -> None:
+        self.add_view(ClaimPanel(self))
         for raid in self.db.open_raids():
             self.add_view(RaidView(self, raid["id"]))
         if self.cfg.discord_guild_id:
@@ -477,3 +545,48 @@ def register_commands(bot: GuildBot) -> None:
         if res.failures:
             msg += "\n" + "\n".join(f"`{s}` {k}: {e}" for s, k, e in res.failures[:8])
         await interaction.followup.send(msg, ephemeral=True)
+
+
+    # ---- claiming characters (officers moderate) ----------------------
+    @tree.command(name="claim-panel", description="Post the 'claim your characters' button in this channel")
+    @app_commands.guild_only()
+    @officer
+    async def claim_panel(interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "**Claim your characters.** Tap the button, pick yours from the list (only you see it).",
+            view=ClaimPanel(bot))
+
+    @tree.command(name="claims", description="Who has claimed which characters (officers)")
+    @app_commands.guild_only()
+    @officer
+    async def claims(interaction: discord.Interaction):
+        by: dict[int, list[str]] = {}
+        for r in db.claims():
+            by.setdefault(r["discord_id"], []).append(f"{r['name']}{'*' if r['is_main'] else ''}")
+        lines = [f"<@{d}>: {', '.join(n)}" for d, n in by.items()]
+        left = len(db.unclaimed_characters())
+        text = clip(lines, 1800) or "No claims yet."
+        await interaction.response.send_message(
+            f"{text}\n\n{left} character(s) unclaimed. `*` = main.", ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none())
+
+    @tree.command(name="unlink-member", description="Remove every character link a Discord member holds (officers)")
+    @app_commands.guild_only()
+    @officer
+    async def unlink_member(interaction: discord.Interaction, member: discord.Member):
+        n = db.unlink_all(member.id)
+        await interaction.response.send_message(
+            f"Removed {n} link(s) from {member.display_name}. Their characters can be claimed again.",
+            ephemeral=True)
+
+    @tree.command(name="release", description="Free a character so its rightful owner can claim it (officers)")
+    @app_commands.autocomplete(character=char_ac)
+    @app_commands.guild_only()
+    @officer
+    async def release(interaction: discord.Interaction, character: str):
+        row = db.find_character(character)
+        if not row:
+            await interaction.response.send_message("No such character.", ephemeral=True)
+            return
+        db.release(row["slug"])
+        await interaction.response.send_message(f"**{row['name']}** is free to claim again.", ephemeral=True)

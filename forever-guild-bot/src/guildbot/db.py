@@ -268,6 +268,46 @@ class Database:
                               (slug,)).fetchone()
         return r["discord_id"] if r else None
 
+    MAX_CLAIMS = 5   # characters one Discord account may claim itself (officers can link more)
+
+    def unclaimed_characters(self):
+        return self.conn.execute(
+            """SELECT * FROM characters WHERE in_guild=1
+               AND slug NOT IN (SELECT slug FROM links) ORDER BY name""").fetchall()
+
+    def claim(self, discord_id: int, slugs) -> dict:
+        """Self-service claim. First claim wins; a taken character is skipped, never stolen, and one
+        account is capped at MAX_CLAIMS. Returns {'linked': [...], 'taken': [...], 'over_cap': [...]}."""
+        out = {"linked": [], "taken": [], "over_cap": []}
+        have = len(self.characters_for(discord_id))
+        for slug in slugs:
+            if not self.conn.execute("SELECT 1 FROM characters WHERE slug=? AND in_guild=1", (slug,)).fetchone():
+                continue
+            owner = self.owner_of(slug)
+            if owner == discord_id:
+                continue
+            if owner:
+                out["taken"].append(slug)
+            elif have >= self.MAX_CLAIMS:
+                out["over_cap"].append(slug)
+            else:
+                self.link(discord_id, slug)
+                out["linked"].append(slug)
+                have += 1
+        return out
+
+    def unlink_all(self, discord_id: int) -> int:
+        """Officer purge: remove every link a Discord account holds. Returns how many were removed."""
+        n = self.conn.execute("DELETE FROM links WHERE discord_id=?", (discord_id,)).rowcount
+        self.conn.commit()
+        return n
+
+    def claims(self):
+        return self.conn.execute(
+            """SELECT l.discord_id, l.is_main, c.name, c.surname, c.level, c.class_name
+               FROM links l JOIN characters c ON c.slug=l.slug
+               ORDER BY l.discord_id, l.is_main DESC, c.name""").fetchall()
+
     # ---- raids --------------------------------------------------------
     def create_raid(self, title, starts_at_utc_iso, size, created_by, caps: dict | None = None) -> int:
         caps = caps or {}
