@@ -442,6 +442,7 @@ HELP_MEMBER = [
         ("/unlink", "let go of a character"),
         ("/main", "pick which of your characters is your main"),
         ("/raids", "upcoming raids"),
+        ("/history", "your raid history"),
         ("/help", "this list"),
     ]),
     ("Look stuff up", [
@@ -459,6 +460,8 @@ HELP_OFFICER = ("Officers", [
     ("/raid-create", "make a raid"),
     ("/raid-edit", "change a raid"),
     ("/raid-end", "wrap one up"),
+    ("/raid-attendance", "correct who showed up"),
+    ("/attendance", "who shows up and who drops late"),
     ("/raid-cancel", "call one off and tell everyone"),
     ("/guild-sync", "refresh from Blizzard now"),
     ("/claim-panel", "post the claim button"),
@@ -745,7 +748,9 @@ class GuildBot(discord.Client):
                     closed = dict(raid) | {"status": "closed"}
                     await msg.edit(embed=raid_embed(self.db, closed), view=None)
                 self.db.mark_closed(raid["id"])
-                await self.dm_user(raid["created_by"], R.roster_summary(raid, self.db.signups(raid["id"])))
+                await self.dm_user(raid["created_by"], R.roster_summary(raid, self.db.signups(raid["id"])) +
+                                   f"\nEveryone in a slot is credited for showing up. If someone didn't make it, use "
+                                   f"`/raid-attendance raid_id:{raid['id']}`.")
             except discord.NotFound:
                 self.db.mark_closed(raid["id"])      # message or channel deleted: nothing left to tidy
             except Exception:
@@ -1463,6 +1468,60 @@ def register_commands(bot: GuildBot) -> None:
     async def raid_cancel(interaction: discord.Interaction, raid_id: int):
         with bot.busy(raid_id):
             await cancel_raid_flow(interaction, raid_id)
+
+    @tree.command(name="raid-attendance", description="Correct who showed up to a raid (officers)")
+    @app_commands.describe(raid_id="The raid number", member="The person", showed="True if they were there, False if not")
+    @app_commands.guild_only()
+    @officer
+    async def raid_attendance(interaction: discord.Interaction, raid_id: int, member: discord.Member, showed: bool):
+        raid = db.get_raid(raid_id)
+        if not raid or raid["status"] not in ("closed", "ended"):
+            await interaction.response.send_message("That raid hasn't started yet, or doesn't exist.", ephemeral=True)
+            return
+        db.set_attendance(raid_id, member.id, showed)
+        await interaction.response.send_message(
+            f"{member.display_name} marked as {'there' if showed else 'not there'} for **{raid['title']}**.", ephemeral=True)
+
+    def history_embed(discord_id: int, who: str) -> discord.Embed:
+        h = db.history(discord_id)
+        lines = [f"**Raids attended:** {h['attended']} of {h['signed_up']} signed up",
+                 f"**No-shows:** {h['no_shows']}", f"**Late drops** (out of a slot within {R.LATE_DROP_HOURS}h): {h['late_drops']}"]
+        if h["recent"]:
+            lines.append("\n**Recent**")
+            for title, starts, role, credited in h["recent"]:
+                ts = int(datetime.fromisoformat(starts).timestamp())
+                lines.append(f"<t:{ts}:d> {title}: " + (R.ROLE_SINGULAR.get(role, role or "?") if credited else "no-show"))
+        e = discord.Embed(title=f"Raid history: {who}", description="\n".join(lines))
+        e.set_footer(text="Credit goes to whoever was in a slot when the raid started, adjusted by the organizer.")
+        return e
+
+    @tree.command(name="history", description="Your raid history (officers can look up anyone)")
+    @app_commands.guild_only()
+    async def history(interaction: discord.Interaction, member: discord.Member | None = None):
+        target = member or interaction.user
+        if target.id != interaction.user.id and not interaction.permissions.manage_events:
+            await interaction.response.send_message("You can look up your own history. Officers can see anyone's.", ephemeral=True)
+            return
+        await interaction.response.send_message(embed=history_embed(target.id, target.display_name), ephemeral=True)
+
+    @tree.command(name="attendance", description="Who shows up, who drops late (officers)")
+    @app_commands.guild_only()
+    @officer
+    async def attendance(interaction: discord.Interaction):
+        rows = db.attendance_board()
+        if not rows:
+            await interaction.response.send_message("No raids have started yet.", ephemeral=True)
+            return
+        lines = []
+        for x in rows[:25]:
+            main = db.main_for(x["discord_id"])
+            who = f"**{R.full_name(main)}**" if main else f"<@{x['discord_id']}>"
+            lines.append(f"{who}: {x['attended']}/{x['signed_up']} attended"
+                         + (f", {x['no_shows']} no-show" if x["no_shows"] else "")
+                         + (f", {x['late_drops']} late drop" if x["late_drops"] else ""))
+        await interaction.response.send_message(
+            embed=discord.Embed(title="Attendance", description=clip(lines, 4000)), ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none())
 
     @tree.command(name="raid-end", description="End a raid now: marks the post completed, unpins it and sends the roster to you")
     @app_commands.guild_only()

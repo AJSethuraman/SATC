@@ -155,7 +155,8 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
-                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands"}
+                     "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands", "raid-attendance",
+                     "history", "attendance"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -1325,3 +1326,32 @@ def test_sync_reports_new_milestones_once(tmp_path):
     assert again.milestones == []                                           # already announced: never twice
     assert load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g",
                  "ACHIEVEMENTS_CHANNEL_ID": "123"}).achievements_channel_id == 123
+
+
+def test_attendance_is_credited_at_the_start_and_history_tells_drops_from_no_shows(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    start = "2026-11-11T20:00:00+00:00"
+    rid = db.create_raid("Run", start, 5, 9)
+    db.upsert_signup(rid, 1, "anduin-wrynn", "tank", "2026-11-10T12:00:00+00:00")
+    db.upsert_signup(rid, 2, None, "dps", "2026-11-10T12:00:00+00:00")
+    db.upsert_signup(rid, 3, None, "healer", "2026-11-10T12:00:00+00:00")
+    db.upsert_signup(rid, 3, None, "absent", "2026-11-11T19:00:00+00:00")        # 3 dropped an hour before: a late drop
+    db.upsert_signup(rid, 4, None, "tentative", "2026-11-10T12:00:00+00:00")     # a maybe: not in a slot, not a drop
+    db.mark_closed(rid)                                                           # the raid starts
+    assert sorted((r["discord_id"], r["credited"]) for r in db.conn.execute("SELECT * FROM attendance")) == [(1, 1), (2, 1)]
+    db.set_attendance(rid, 2, False)                                              # the organizer: 2 didn't show
+    db.set_attendance(rid, 5, True)                                               # 5 turned up unlisted
+    assert db.history(1)["attended"] == 1 and db.history(1)["signed_up"] == 1
+    assert (db.history(2)["attended"], db.history(2)["no_shows"]) == (0, 1)
+    assert db.history(3) == {"signed_up": 1, "attended": 0, "no_shows": 0, "late_drops": 1, "recent": []}
+    assert db.history(4)["signed_up"] == 0 and db.history(5)["attended"] == 1
+    board = db.attendance_board()
+    assert [x["discord_id"] for x in board][:2] == [1, 5] and 4 not in [x["discord_id"] for x in board]
+    rid2 = db.create_raid("Run 2", "2026-11-18T20:00:00+00:00", 5, 9)
+    db.upsert_signup(rid2, 1, "anduin-wrynn", "dps", "2026-11-17T12:00:00+00:00")
+    db.upsert_signup(rid2, 6, None, "dps", "2026-11-12T12:00:00+00:00")
+    db.upsert_signup(rid2, 6, None, "absent", "2026-11-13T12:00:00+00:00")         # dropped five days out: not a late drop
+    db.mark_closed(rid2)
+    assert db.history(1)["attended"] == 2 and [r[0] for r in db.history(1)["recent"]] == ["Run 2", "Run"]
+    assert db.history(6) == {"signed_up": 1, "attended": 0, "no_shows": 0, "late_drops": 0, "recent": []}

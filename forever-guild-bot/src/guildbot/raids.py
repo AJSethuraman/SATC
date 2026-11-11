@@ -134,6 +134,7 @@ def reminder_text(raid) -> str:
     return f"Reminder: **{raid['title']}** starts <t:{ts}:R> (<t:{ts}:t>)."
 
 
+LATE_DROP_HOURS = 24     # dropping out of a slot this close to the start counts as a late drop
 END_AFTER_HOURS = 3     # how long after the start the raid post is removed (matches the Discord event length)
 
 
@@ -146,6 +147,27 @@ def roster_summary(raid, signup_rows) -> str:
         entries = [format_entry(s) for s in g[role]]
         parts.append(f"**{ROLE_LABEL[role]} ({len(entries)}):** " + (", ".join(entries) if entries else "-"))
     return "\n".join(parts)
+
+
+def summarize_history(raids) -> dict:
+    """One member's record from their per-raid facts. Each item: dict(starts_at, role_log, credited) where
+    role_log is [(iso time, role), ...] in order, and credited is 1, 0 or None (None = no attendance row, they
+    were not in a slot when it started). Returns counts of raids attended, no-shows and late drops."""
+    attended = noshow = late = signed = 0
+    for x in raids:
+        counted = [(t, ro) for t, ro in x["role_log"] if ro in COUNTED]
+        if x["credited"] is not None:
+            signed += 1
+            attended += 1 if x["credited"] else 0
+            noshow += 0 if x["credited"] else 1
+        elif counted:
+            signed += 1
+            start = datetime.fromisoformat(x["starts_at"])
+            t_last, role_last = x["role_log"][-1]
+            if role_last not in COUNTED and \
+                    (start - datetime.fromisoformat(t_last)).total_seconds() <= LATE_DROP_HOURS * 3600:
+                late += 1
+    return {"signed_up": signed, "attended": attended, "no_shows": noshow, "late_drops": late}
 
 
 def next_offers(raid, rows, offers) -> list[tuple[int, str]]:

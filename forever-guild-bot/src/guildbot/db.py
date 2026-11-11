@@ -107,6 +107,18 @@ CREATE TABLE IF NOT EXISTS signups (
     PRIMARY KEY (raid_id, discord_id)
 );
 
+-- Every change to a signup, in order, so late drops can be told from steady players.
+CREATE TABLE IF NOT EXISTS signup_log (
+    id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL, at TEXT NOT NULL
+);
+
+-- Who was in a slot when a raid started (credited = 1), adjusted by the organizer afterwards.
+CREATE TABLE IF NOT EXISTS attendance (
+    raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, slug TEXT, role TEXT,
+    credited INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (raid_id, discord_id)
+);
+
 -- "A spot opened up, want it?" questions sent to people waiting on the bench.
 CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
@@ -683,6 +695,7 @@ class Database:
 
     def mark_closed(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='closed' WHERE id=?", (raid_id,))
+        self.record_attendance(raid_id)                    # the raid has started: whoever is in a slot gets credit
         self._expire_raid_offers(raid_id)                  # the raid has started: no more spots to give out
         self.conn.commit()
 
@@ -715,11 +728,66 @@ class Database:
                ON CONFLICT(raid_id, discord_id) DO UPDATE SET slug=excluded.slug,
                  role=excluded.role, updated_at=excluded.updated_at, wanted=excluded.wanted""",
             (raid_id, discord_id, slug, role, now, wanted))
+        self.conn.execute("INSERT INTO signup_log (raid_id, discord_id, role, at) VALUES (?,?,?,?)",
+                          (raid_id, discord_id, role, now))
         self.conn.commit()
 
     def remove_signup(self, raid_id, discord_id) -> None:
         self.conn.execute("DELETE FROM signups WHERE raid_id=? AND discord_id=?", (raid_id, discord_id))
+        self.conn.execute("INSERT INTO signup_log (raid_id, discord_id, role, at) VALUES (?,?,?,?)",
+                          (raid_id, discord_id, "removed", utcnow()))
         self.conn.commit()
+
+    # ---- attendance and history --------------------------------------------
+    def record_attendance(self, raid_id) -> None:
+        """At the start of a raid: everyone in a tank, healer or DPS slot is credited."""
+        self.conn.execute(
+            """INSERT OR IGNORE INTO attendance (raid_id, discord_id, slug, role, credited)
+               SELECT raid_id, discord_id, slug, role, 1 FROM signups
+               WHERE raid_id=? AND role IN ('tank','healer','dps')""", (raid_id,))
+        self.conn.commit()
+
+    def set_attendance(self, raid_id, discord_id, present: bool) -> None:
+        """Organizer correction: someone credited did not show (present=False), or someone showed unlisted."""
+        s = self.conn.execute("SELECT slug, role FROM signups WHERE raid_id=? AND discord_id=?",
+                              (raid_id, discord_id)).fetchone()
+        self.conn.execute(
+            """INSERT INTO attendance (raid_id, discord_id, slug, role, credited) VALUES (?,?,?,?,?)
+               ON CONFLICT(raid_id, discord_id) DO UPDATE SET credited=excluded.credited""",
+            (raid_id, discord_id, s["slug"] if s else None, s["role"] if s else None, 1 if present else 0))
+        self.conn.commit()
+
+    def history(self, discord_id: int, recent: int = 5) -> dict:
+        """One member's record over every raid that has started."""
+        from .raids import summarize_history
+        raids = self.conn.execute(
+            """SELECT id, title, starts_at FROM raids WHERE status IN ('closed','ended')
+               AND (id IN (SELECT raid_id FROM signup_log WHERE discord_id=?)
+                    OR id IN (SELECT raid_id FROM attendance WHERE discord_id=?)) ORDER BY starts_at""",
+            (discord_id, discord_id)).fetchall()
+        facts = []
+        for r in raids:
+            log = [(x["at"], x["role"]) for x in self.conn.execute(
+                "SELECT at, role FROM signup_log WHERE raid_id=? AND discord_id=? ORDER BY id", (r["id"], discord_id))]
+            a = self.conn.execute("SELECT credited, role FROM attendance WHERE raid_id=? AND discord_id=?",
+                                  (r["id"], discord_id)).fetchone()
+            facts.append({"title": r["title"], "starts_at": r["starts_at"], "role_log": log,
+                          "credited": a["credited"] if a else None, "role": a["role"] if a else None})
+        out = summarize_history(facts)
+        out["recent"] = [(f["title"], f["starts_at"], f["role"], f["credited"]) for f in facts[::-1] if f["credited"] is not None][:recent]
+        return out
+
+    def attendance_board(self):
+        """Everyone who has signed up for a started raid, with their record, most attended first."""
+        ids = [r["discord_id"] for r in self.conn.execute(
+            """SELECT discord_id FROM signup_log WHERE raid_id IN (SELECT id FROM raids WHERE status IN ('closed','ended'))
+               UNION SELECT discord_id FROM attendance""")]
+        rows = []
+        for uid in ids:
+            h = self.history(uid, 0)
+            if h["signed_up"]:
+                rows.append({"discord_id": uid, **h})
+        return sorted(rows, key=lambda x: (-x["attended"], x["no_shows"] + x["late_drops"], x["discord_id"]))
 
     # ---- bench queue offers ------------------------------------------------
     def create_offer(self, raid_id, discord_id, role, now, ping_at, expires_at) -> int:
