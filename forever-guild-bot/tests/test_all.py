@@ -802,11 +802,19 @@ def test_roster_summary_and_end_of_raid_bookkeeping(tmp_path):
 
 
 class _Msg:
+    pinned = True
+
     def __init__(self):
-        self.deleted = 0
+        self.deleted, self.edits, self.unpinned = 0, [], 0
 
     async def delete(self):
         self.deleted += 1
+
+    async def edit(self, **kw):
+        self.edits.append(kw)
+
+    async def unpin(self):
+        self.unpinned += 1
 
 
 class _Chan:
@@ -827,7 +835,7 @@ class _User:
         self.log.append(text)
 
 
-def test_finish_raid_removes_the_post_marks_it_ended_and_dms_the_roster(tmp_path):
+def test_finish_raid_keeps_the_post_as_a_completed_record_unpins_it_and_dms_the_roster(tmp_path):
     from guildbot.bot import GuildBot
     db = make_db(tmp_path)
     asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
@@ -847,5 +855,7 @@ def test_finish_raid_removes_the_post_marks_it_ended_and_dms_the_roster(tmp_path
         await bot._handled_by_hand(raid, "signup post")                                     # ended raids are left alone
         assert 9 not in bot._busy
     asyncio.run(run())
-    assert msg.deleted == 1 and db.get_raid(rid)["status"] == "ended"
+    assert msg.deleted == 0 and msg.unpinned == 1 and db.get_raid(rid)["status"] == "ended"      # the post stays
+    assert len(msg.edits) == 1 and msg.edits[0]["view"] is None
+    assert msg.edits[0]["embed"].title == "COMPLETED: Test Raid  (#1)"
     assert len(sent) == 2 and sent[0].startswith("Done.\n**Test Raid**") and "DPS (1)" in sent[0]   # users 9 and 8, once each

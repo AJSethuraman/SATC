@@ -80,10 +80,12 @@ def raid_embed(db: Database, raid) -> discord.Embed:
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
     cancelled = raid["status"] == "cancelled"
     started = raid["status"] == "closed"
+    ended = raid["status"] == "ended"
     e = discord.Embed(
-        title=f"{'CANCELLED: ' if cancelled else 'STARTED: ' if started else ''}{raid['title']}  (#{raid['id']})",
+        title=f"{'CANCELLED: ' if cancelled else 'STARTED: ' if started else 'COMPLETED: ' if ended else ''}"
+              f"{raid['title']}  (#{raid['id']})",
         description=f"<t:{ts}:F> · <t:{ts}:R>\nSlots filled: **{R.filled(g)}/{raid['size']}**",
-        color=discord.Color.dark_grey() if cancelled or started else discord.Color.blurple(),
+        color=discord.Color.dark_grey() if cancelled or started or ended else discord.Color.blurple(),
     )
     for role in R.ROLES:
         lines = [R.format_entry(s) for s in g[role]]
@@ -531,6 +533,10 @@ class GuildBot(discord.Client):
         except discord.HTTPException:
             note = "Raid posted, but I couldn't create the Discord event (check my Manage Events permission)."
         db.set_raid_posted(raid_id, msg.channel.id, msg.id, event_id)
+        try:
+            await msg.pin()                          # live raids stay pinned until they end
+        except discord.HTTPException:
+            log.warning("could not pin raid %s (check my Manage Messages permission)", raid_id)
         if note:
             await interaction.followup.send(note, ephemeral=True)
         return True
@@ -628,8 +634,8 @@ class GuildBot(discord.Client):
             return False
 
     async def finish_raid(self, raid_id: int, *, remove_event: bool, dm_ids=(), note: str = "") -> bool:
-        """Take a raid's post (and optionally its event) down, mark it ended, and send the roster to dm_ids.
-        Safe to repeat: anything already gone counts as done."""
+        """End a raid: the post stays as the record (marked COMPLETED, buttons off, unpinned), the event is
+        ended (or removed if it never started), and the roster goes to dm_ids. Safe to repeat."""
         db = self.db
         raid = db.get_raid(raid_id)
         if not raid or raid["status"] not in ("open", "closed"):
@@ -640,26 +646,33 @@ class GuildBot(discord.Client):
                 try:
                     guild = self.get_guild(self.cfg.discord_guild_id) if self.cfg.discord_guild_id else None
                     if guild:
-                        await (await guild.fetch_scheduled_event(raid["discord_event_id"])).delete()
+                        ev = await guild.fetch_scheduled_event(raid["discord_event_id"])
+                        if ev.status == discord.EventStatus.active:
+                            await ev.end()
+                        elif ev.status == discord.EventStatus.scheduled:
+                            await ev.delete()
                 except discord.NotFound:
                     pass
                 except discord.HTTPException:
-                    log.exception("could not delete the event for raid %s", raid_id)
+                    log.exception("could not close the event for raid %s", raid_id)
+            db.mark_ended(raid_id)
             if raid["channel_id"] and raid["message_id"]:
                 try:
                     chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
-                    await (await chan.fetch_message(raid["message_id"])).delete()
+                    msg = await chan.fetch_message(raid["message_id"])
+                    await msg.edit(embed=raid_embed(db, db.get_raid(raid_id)), view=None)
+                    if getattr(msg, "pinned", True):
+                        await msg.unpin()
                 except discord.NotFound:
                     pass
                 except discord.HTTPException:
-                    log.exception("could not delete the post for raid %s", raid_id)
-            db.mark_ended(raid_id)
+                    log.exception("could not update the post for raid %s", raid_id)
         for uid in dict.fromkeys(dm_ids):
             await self.dm_user(uid, (note + "\n" if note else "") + roster)
         return True
 
     async def _end_old_raids(self) -> None:
-        """Remove the post of a raid three hours after it started. The record stays."""
+        """Three hours after a raid started, mark its post COMPLETED and unpin it. The post stays as the record."""
         for raid in self.db.closed_ended_before(datetime.now(timezone.utc), R.END_AFTER_HOURS):
             try:
                 await self.finish_raid(raid["id"], remove_event=False)
@@ -674,6 +687,14 @@ class GuildBot(discord.Client):
         if raid["status"] == "open" and datetime.fromisoformat(raid["starts_at"]) > datetime.now(timezone.utc):
             note += " Players weren't told; use /raid-cancel next time to message them."
         await self.finish_raid(raid["id"], remove_event=True, dm_ids=[raid["created_by"]], note=note)
+
+    async def on_message(self, message: discord.Message) -> None:
+        """Discord adds a 'the bot pinned a message' line to the channel each time we pin a raid; remove it."""
+        if message.type == discord.MessageType.pins_add and self.user and message.author.id == self.user.id:
+            try:
+                await message.delete()
+            except discord.HTTPException:
+                pass
 
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent) -> None:
         await self._handled_by_hand(self.db.raid_by_message(payload.message_id), "signup post")
@@ -1113,7 +1134,7 @@ def register_commands(bot: GuildBot) -> None:
         with bot.busy(raid_id):
             await cancel_raid_flow(interaction, raid_id)
 
-    @tree.command(name="raid-end", description="End a raid now: removes the post and event and sends the roster to you")
+    @tree.command(name="raid-end", description="End a raid now: marks the post completed, unpins it and sends the roster to you")
     @app_commands.guild_only()
     @officer
     async def raid_end(interaction: discord.Interaction, raid_id: int):
@@ -1124,7 +1145,7 @@ def register_commands(bot: GuildBot) -> None:
         await interaction.response.defer(ephemeral=True)
         who = [interaction.user.id, raid["created_by"]]
         await bot.finish_raid(raid_id, remove_event=True, dm_ids=who, note="You ended the raid.")
-        await interaction.followup.send(f"Raid #{raid_id} ended. The post and event are gone; the roster is in your DMs.",
+        await interaction.followup.send(f"Raid #{raid_id} ended. The post stays as the record (unpinned); the roster is in your DMs.",
                                         ephemeral=True)
 
     async def cancel_raid_flow(interaction: discord.Interaction, raid_id: int):
