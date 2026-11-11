@@ -5,12 +5,13 @@
 --   K            skill tree: hover a skill and press 1-8 to put it on that slot
 -- Drag the window by its title bar. The rules all live in Combat.lua / Tree.lua; this file draws and listens.
 local ADDON, ns = ...
-local Combat, Tree, Skills, Zone, Fx = ns.Combat, ns.Tree, ns.Skills, ns.Zone, ns.Fx
+local Combat, Tree, Skills, Zone, Fx, Map = ns.Combat, ns.Tree, ns.Skills, ns.Zone, ns.Fx, ns.Map
 
 local Game = {}
 ns.Game = Game
 
-local VW, VH = 640, 400            -- the viewport, in the same units Combat.lua uses
+local VW, VH = 640, 400            -- the field as it sits on screen, in the same units Combat.lua uses
+local zoom, vw, vh = 1.4, 640 * 1.4, 400 * 1.4   -- how much world the field shows (units); zoom 1 = VW x VH, more = further out
 local HUD_H, TITLE_H = 104, 24
 local MAX_MON, MAX_DOODAD, MAX_PROJ, MAX_BLAST, MAX_FLOAT, MAX_DROP = 14, 22, 16, 6, 20, 8
 local MAX_EFF, MAX_ZAP, MAX_BUFF, ZAP_DOTS, MAX_PART = 40, 10, 8, 8, 320
@@ -81,6 +82,9 @@ local reset_btn, reset_armed
 local solid_f, solid_on, solid_sizes = {}, false, {}
 local eff_f, zap_f, buff_f, buff_shown = {}, {}, {}, {}
 local fx, part_f, fx_drawn = nil, {}, 0
+local mini, mini_cells, mini_dots, maps, mini_area, mini_clock = nil, {}, {}, {}, nil, 0
+local target_ring
+local RETARGET, MINI_W, MINI_H, MINI_DOTS = 300, 168, 105, 150
 local slots = {}
 Game.tree_buttons = {}
 Game.paused = false
@@ -164,6 +168,7 @@ local function new_world()
   end
   sel = 1
   hover_id = nil
+  target = nil
   if frame then enter(Zone.START) end
   sync_bar()
 end
@@ -175,7 +180,7 @@ local function try(fn, ...) return pcall(fn, ...) end
 
 local function world_xy()                 -- the cursor, in world coordinates
   local cx, cy = GetCursorPosition()
-  local s = frame:GetEffectiveScale()
+  local s = arena:GetEffectiveScale()                  -- the field has its own scale when zoomed
   return cx / s - arena:GetLeft() + cam.x, cy / s - arena:GetBottom() + cam.y
 end
 
@@ -354,6 +359,34 @@ local function model_pool(parent, n, w, h)
 end
 
 -- Lua 5.1 (what WoW runs) lets one function use at most 60 outside variables, so the window is built in four steps.
+local function build_minimap()
+  mini = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+  mini:SetSize(MINI_W + 4, MINI_H + 4)
+  mini:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -(TITLE_H + 6))
+  mini:SetFrameLevel(frame:GetFrameLevel() + 400)
+  mini:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+  mini:SetBackdropColor(0, 0, 0, 0.55)
+  mini:SetBackdropBorderColor(0.62, 0.5, 0.2, 1)
+  for i = 1, MINI_DOTS do
+    local d = mini:CreateTexture(nil, "OVERLAY")
+    d:Hide()
+    mini_dots[i] = d
+  end
+  if DreadDB and DreadDB.map == false then mini:Hide() else mini:Show() end
+end
+
+-- Zooming out shows more world: the field frame is made `zoom` times bigger and scaled down by the same factor, so it keeps
+-- its size on screen while everything drawn in it (models, particles, ground) is smaller. The bottom bar is not affected.
+local function apply_zoom(z)
+  zoom, vw, vh = z, VW * z, VH * z
+  if arena then
+    arena:SetSize(vw, vh)
+    arena:SetScale(1 / z)
+    arena:ClearAllPoints()
+    arena:SetPoint("TOPLEFT", frame, "TOPLEFT", 10 * z, -(TITLE_H + 2) * z)    -- anchor offsets are in the field's own (scaled) units
+  end
+end
+
 local function build_window()
   frame = CreateFrame("Frame", "DreadGameFrame", UIParent, "BackdropTemplate")
   frame:SetSize(VW + 20, VH + HUD_H + TITLE_H + 14)
@@ -389,8 +422,7 @@ end
 
 local function build_arena()
   arena = CreateFrame("Frame", nil, frame)
-  arena:SetSize(VW, VH)
-  arena:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -TITLE_H - 2)
+  apply_zoom(zoom)
   arena:SetClipsChildren(true)
   ground = tex(arena, "BACKGROUND")
   ground:SetAllPoints(arena)
@@ -409,6 +441,14 @@ local function build_arena()
   player_model:SetSize(70, 90)
   try(player_model.SetUnit, player_model, "player")
 
+  target_ring = arena:CreateTexture(nil, "ARTWORK", nil, 1)
+  target_ring:SetColorTexture(1, 0.15, 0.1, 1); target_ring:SetBlendMode("ADD"); target_ring:Hide()
+  try(function()
+    local m = arena:CreateMaskTexture()
+    m:SetTexture(MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    m:SetAllPoints(target_ring)
+    target_ring:AddMaskTexture(m)
+  end)
   for i = 1, MAX_PROJ do
     local f = CreateFrame("PlayerModel", nil, arena); f:SetSize(70, 70); f:Hide()
     f.icon = tex(f, "OVERLAY"); f.icon:SetSize(26, 26); f.icon:SetPoint("CENTER"); f.icon:SetBlendMode("ADD")
@@ -523,7 +563,7 @@ local function build_input()
   frame:SetScript("OnMouseDown", function(_, button)
     if world.over then new_world(); return end
     local x, y = world_xy()
-    if x < cam.x or y < cam.y or x > cam.x + VW or y > cam.y + VH then return end
+    if x < cam.x or y < cam.y or x > cam.x + vw or y > cam.y + vh then return end
     if button == "RightButton" then
       local id = bar[sel]
       if not id then hint_text:SetText("No skill on that slot. Open the tree (K), spend a point, hover the skill and press 1-8."); return end
@@ -556,6 +596,7 @@ local function build_input()
       handled = true
     elseif key == "TAB" then rotate(1); handled = true
     elseif key == "K" then Game.toggle_tree(); handled = true
+    elseif key == "M" then Game.toggle_map(); handled = true
     end
     self:SetPropagateKeyboardInput(not handled)
   end)
@@ -568,11 +609,76 @@ local function build()
   build_hud()
   build_input()
   build_tree()
+  build_minimap()
   frame:Hide()
 end
 
+---------------------------------------------------------------- the minimap
+local function mini_cell_color()
+  if area.name == "cave" then return 0.42, 0.36, 0.3, 0.75 end
+  return 0.22, 0.42, 0.2, 0.75
+end
+
+-- Reveal what you can see now, show only this area's revealed cells, then place the dots.
+local function update_minimap(dt, p)
+  local m = maps[area.name]
+  if not m then m = Map.new(area.w, area.h); maps[area.name] = m end
+  if mini_area ~= area.name then                                  -- changed area: swap which area's cells are showing
+    for _, set in pairs(mini_cells) do for _, t in pairs(set) do t:Hide() end end
+    mini_area = area.name
+    for _, t in pairs(mini_cells[area.name] or {}) do t:Show() end
+  end
+  mini_cells[area.name] = mini_cells[area.name] or {}
+  for _, c in ipairs(Map.reveal(m, p.x, p.y, 260)) do
+    local t = mini:CreateTexture(nil, "ARTWORK")
+    local l, b, w, h = Map.cell_rect(m, c.ix, c.iy, MINI_W, MINI_H)
+    t:SetColorTexture(mini_cell_color())
+    t:SetSize(w + 0.6, h + 0.6); t:SetPoint("BOTTOMLEFT", mini, "BOTTOMLEFT", 2 + l, 2 + b)
+    mini_cells[area.name][c.iy * m.cols + c.ix] = t
+  end
+  mini_clock = mini_clock + dt
+  if mini_clock < 0.15 then return end                            -- the dots do not need to move every frame
+  mini_clock = 0
+  local n, stats = 0, { obstacles = 0, monsters = 0, exits = 0 }
+  local function dot(x, y, size, r, g, b, kind)
+    if n < MINI_DOTS then
+      n = n + 1
+      local d, mx, my = mini_dots[n], Map.to_mini(m, x, y, MINI_W, MINI_H)
+      d:SetColorTexture(r, g, b, 1); d:SetSize(size, size)
+      d:ClearAllPoints(); d:SetPoint("CENTER", mini, "BOTTOMLEFT", 2 + mx, 2 + my); d:Show()
+      if kind then stats[kind] = stats[kind] + 1 end
+    end
+  end
+  for _, o in ipairs(world.obstacles) do
+    if Map.is_seen(m, o.x, o.y) and n < MINI_DOTS - 50 then dot(o.x, o.y, 2, 0.1, 0.25, 0.1, "obstacles") end
+  end
+  for _, ex in ipairs(area.exits) do
+    if Map.is_seen(m, ex.x, ex.y) then dot(ex.x, ex.y, 6, 0.8, 0.4, 1, "exits") end
+  end
+  for _, mon in ipairs(world.monsters) do
+    if not mon.dead and (mon.x - p.x) ^ 2 + (mon.y - p.y) ^ 2 <= 380 * 380 then dot(mon.x, mon.y, 3, 1, 0.2, 0.2, "monsters") end
+  end
+  dot(p.x, p.y, 5, 1, 0.9, 0.2)                                  -- you
+  for i = n + 1, MINI_DOTS do mini_dots[i]:Hide() end
+  stats.seen = m.count
+  Game._mini_stats = stats
+end
+
+function Game.toggle_map()
+  DreadDB = DreadDB or {}
+  if mini:IsShown() then mini:Hide(); DreadDB.map = false else mini:Show(); DreadDB.map = true end
+  return mini:IsShown()
+end
+
+function Game.minimap()
+  local st = Game._mini_stats or { obstacles = 0, monsters = 0, exits = 0, seen = 0 }
+  local cells = 0
+  for _ in pairs(mini_cells[area and area.name or ""] or {}) do cells = cells + 1 end
+  return { shown = mini ~= nil and mini:IsShown(), cells = cells, obstacles = st.obstacles, monsters = st.monsters, exits = st.exits, seen = st.seen }
+end
+
 ---------------------------------------------------------------- one frame of the game
-local function vis(sx, sy, mx, my) return sx > -mx and sx < VW + mx and sy > -my and sy < VH + my end
+local function vis(sx, sy, mx, my) return sx > -mx and sx < vw + mx and sy > -my and sy < vh + my end
 
 local function draw_scenery()
   -- keep a scenery piece on the frame it already has; hand free frames to pieces that have just come into view
@@ -687,7 +793,7 @@ local function draw_fx(dt)
   local n = 0
   local function dot(x, y, size, alpha, r, g, b)
     local sx, sy = x - cam.x, y - cam.y
-    if n < MAX_PART and sx > -30 and sx < VW + 30 and sy > -30 and sy < VH + 30 then
+    if n < MAX_PART and sx > -30 and sx < vw + 30 and sy > -30 and sy < vh + 30 then
       n = n + 1
       local d = part_f[n]
       d:SetVertexColor(r, g, b); d:SetAlpha(alpha); d:SetSize(size, size)
@@ -705,10 +811,21 @@ local function draw_fx(dt)
   fx_drawn = n
 end
 
+local function next_target(p)
+  local best, bd = nil, RETARGET
+  for _, m in ipairs(world.monsters) do
+    if not m.dead and m.awake then                                -- only what is already fighting: it never wakes a sleeping pack
+      local d = math.sqrt((m.x - p.x) ^ 2 + (m.y - p.y) ^ 2)
+      if d <= bd then best, bd = m, d end
+    end
+  end
+  return best
+end
+
 local function advance(dt, p)
   -- walk up to a clicked monster and keep using the wand on it
   if target and not world.over and not Game.paused then
-    if target.dead then target = nil
+    if target.dead then target = next_target(p)                 -- the last one is down: carry on with whoever is fighting you
     else
       local d = math.sqrt((target.x - p.x) ^ 2 + (target.y - p.y) ^ 2)
       if d > ATTACK_RANGE then Combat.move_to(world, target.x, target.y)
@@ -730,13 +847,13 @@ local function advance(dt, p)
   end
 
   -- the camera follows you
-  cam.x = math.max(0, math.min(area.w - VW, p.x - VW / 2))
-  cam.y = math.max(0, math.min(area.h - VH, p.y - VH / 2))
+  cam.x = math.max(0, math.min(area.w - vw, p.x - vw / 2))
+  cam.y = math.max(0, math.min(area.h - vh, p.y - vh / 2))
   local fl = area.floor
   local T = (DreadDB and DreadDB.tile) or fl.tile
-  ground:SetTexCoord(cam.x / T, (cam.x + VW) / T, -(cam.y + VH) / T, -cam.y / T)
+  ground:SetTexCoord(cam.x / T, (cam.x + vw) / T, -(cam.y + vh) / T, -cam.y / T)
   local T2 = fl.overlay_tile
-  ground2:SetTexCoord(cam.x / T2, (cam.x + VW) / T2, -(cam.y + VH) / T2, -cam.y / T2)
+  ground2:SetTexCoord(cam.x / T2, (cam.x + vw) / T2, -(cam.y + vh) / T2, -cam.y / T2)
   draw_scenery()
   do                                                              -- the blocking circles, when asked for
     local n = 0
@@ -757,7 +874,18 @@ local function advance(dt, p)
 
 end
 
+local function draw_target_ring()
+  if target and not target.dead and vis(target.x - cam.x, target.y - cam.y, 40, 40) then
+    local size = (target.radius + 12) * 2 * (1 + 0.06 * math.sin(world.time * 6))
+    target_ring:SetSize(size, size); target_ring:SetAlpha(0.35)
+    target_ring:ClearAllPoints(); target_ring:SetPoint("CENTER", arena, "BOTTOMLEFT", target.x - cam.x, target.y - cam.y - 4); target_ring:Show()
+  else
+    target_ring:Hide()
+  end
+end
+
 local function draw_actors(p)
+  draw_target_ring()
   -- you
   place(player_model, p.x, p.y, 90); depth(player_model, p.y)
   local casting = (world.time - p.cast_at) < 0.5
@@ -913,6 +1041,7 @@ local function draw_world_and_events(dt, p)
 end
 
 local function update_hud(dt, p)
+  update_minimap(dt, p)
   -- HUD
   life_orb.set(p.life / p.maxlife, math.floor(p.life) .. "/" .. p.maxlife)
   mana_orb.set(p.mana / p.maxmana, math.floor(p.mana) .. "/" .. p.maxmana)
@@ -1029,6 +1158,7 @@ function Game.toggle()
   if not frame then
     build()
     Game.set_scale(DreadDB and DreadDB.scale or Game.DEFAULT_SCALE)
+    Game.set_zoom(DreadDB and DreadDB.zoom or Game.DEFAULT_ZOOM)
     new_world()
   end
   if frame:IsShown() then
@@ -1065,6 +1195,19 @@ function Game.set_fx(level)
   return v == 0 and "off" or (v == 1 and "full" or "low")
 end
 function Game.particles_drawn() return fx_drawn end
+Game.DEFAULT_ZOOM = 1.4
+function Game.set_zoom(x)
+  x = tonumber(x) or Game.DEFAULT_ZOOM
+  if x < 1 then x = 1 elseif x > 2.6 then x = 2.6 end
+  DreadDB = DreadDB or {}
+  DreadDB.zoom = x
+  apply_zoom(x)
+  return x
+end
+function Game.view() return vw, vh end
+function Game.target_info()
+  if target and not target.dead then return { name = target.name, x = target.x, y = target.y } end
+end
 function Game.solid() return solid_on end
 function Game.buffs_shown() return buff_shown end
 function Game.solid_sizes() return solid_sizes end

@@ -18,7 +18,9 @@ local function obj(parent)
     -- Real frames answer methods (CamelCase) and have nothing for fields they do not own (lowercase).
     if not k:match("^%u") then return nil end
     if k == "GetLeft" or k == "GetBottom" then return function() return 0 end end
-    if k == "GetEffectiveScale" or k == "GetFrameLevel" then return function() return 1 end end
+    if k == "GetFrameLevel" then return function() return 1 end end
+    -- like WoW: a frame's effective scale is its own scale times its parent's
+    if k == "GetEffectiveScale" then return function(self) return (self.scale or 1) * (self.parent and self.parent:GetEffectiveScale() or 1) end end
     if k == "GetWidth" or k == "GetHeight" then return function() return 100 end end
     if k == "SetScript" then return function(self, n, f) self.scripts[n] = f end end
     if k == "Show" then return function(self) self.shown = true end end
@@ -72,7 +74,7 @@ def boot(prelude="", with_slash=False):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Fx", "Game") + (("Visuals", "Dread") if with_slash else ()):
+    for f in ("Sim", "Skills", "Tree", "Combat", "Zone", "Map", "Fx", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
     return lua, ns
 
@@ -93,7 +95,10 @@ def tick(lua, n, dt=1 / 30):
 
 def click_world(lua, ns, button, wx, wy):
     cam = ns.Game.camera()
-    lua.execute(f"CURSOR[1], CURSOR[2] = {wx - cam.x}, {wy - cam.y}")
+    vw, vh = ns.Game.view()
+    field = [o for o in lua.eval("ALL").values() if o.kind == "Frame" and o.size is not None and abs(o.size[1] - vw) < 0.01 and abs(o.size[2] - vh) < 0.01][0]
+    sc = field.GetEffectiveScale(field)                                  # pixels per field unit
+    lua.execute(f"CURSOR[1], CURSOR[2] = {(wx - cam.x) * sc}, {(wy - cam.y) * sc}")
     f = lua.eval("FRAMES.DreadGameFrame")
     f.scripts.OnMouseDown(f, button)
 
@@ -164,7 +169,8 @@ def test_the_ground_scrolls_with_the_camera_and_the_two_layers_tile_differently(
     tick(lua, 2)
     cam = ns.Game.camera()
     b, o = list(base.coords.values()), list(over.coords.values())
-    assert b[0] == pytest.approx(cam.x / 256) and b[1] == pytest.approx((cam.x + 640) / 256)
+    vw, vh = ns.Game.view()
+    assert b[0] == pytest.approx(cam.x / 256) and b[1] == pytest.approx((cam.x + vw) / 256)
     assert o[0] == pytest.approx(cam.x / 640)                          # the dirt layer tiles at 640 units, not 256
 
 
@@ -511,7 +517,8 @@ def extent(lua, o):
     same = lua.eval("function(a, b) return a == b end")                  # Lua's own ==; Python wrappers are new on every access
     if o.pts.rel is not None and not same(o.pts.rel, o.parent):
         return None
-    pw, w, x, pt = o.parent.size[1], o.size[1], o.pts.x, o.pts.point
+    sc = o.scale or 1                                                    # a scaled frame draws its size and offsets that much bigger or smaller
+    pw, w, x, pt = o.parent.size[1], o.size[1] * sc, o.pts.x * sc, o.pts.point
     if pt in ("TOPLEFT", "BOTTOMLEFT", "LEFT"):
         left = x
     elif pt in ("TOPRIGHT", "BOTTOMRIGHT", "RIGHT"):
@@ -616,7 +623,8 @@ def test_the_solid_circles_match_the_obstacles_on_screen():
     ns.Game.set_solid(True)
     tick(lua, 2)
     cam = ns.Game.camera()
-    on_screen = [o for o in w.obstacles.values() if -40 < o.x - cam.x < 680 and -40 < o.y - cam.y < 440]
+    vw, vh = ns.Game.view()
+    on_screen = [o for o in w.obstacles.values() if -40 < o.x - cam.x < vw + 40 and -40 < o.y - cam.y < vh + 40]
     assert on_screen
     drawn = sorted(ns.Game.solid_sizes().values())
     assert drawn == sorted(o.r * 2 for o in on_screen)                  # one circle per obstacle in view, as wide as it blocks
@@ -922,3 +930,314 @@ def test_every_active_skill_can_still_be_cast_and_drawn_with_particles_on():
         teleport_next_to(ns, lua, w, m, -180, 0)
         click_world(lua, ns, "RightButton", m.x, m.y)
         tick(lua, 60)
+
+
+# ---------------------------------------------------------------- zoom: the field shows more of the world
+def arena_frame(lua, ns):
+    """The field: the frame exactly as wide and tall as the view."""
+    vw, vh = ns.Game.view()
+    for o in lua.eval("ALL").values():
+        if o.kind == "Frame" and o.size is not None and abs(o.size[1] - vw) < 0.01 and abs(o.size[2] - vh) < 0.01:
+            return o
+
+
+def test_the_default_zoom_shows_more_world_in_the_same_space_on_screen():
+    lua, ns = boot()
+    ns.Game.toggle()
+    vw, vh = ns.Game.view()
+    assert (vw, vh) == (pytest.approx(640 * 1.4), pytest.approx(400 * 1.4))
+    a = arena_frame(lua, ns)
+    assert a.size[1] == pytest.approx(vw) and a.scale == pytest.approx(1 / 1.4)
+    assert a.size[1] * a.scale == pytest.approx(640)                       # it still takes 640 units on screen
+    assert a.pts.x == pytest.approx(10 * 1.4) and a.pts.y == pytest.approx(-(24 + 2) * 1.4)     # offsets are in the field's own units
+
+
+def test_zoom_is_clamped_saved_and_applied_live():
+    lua, ns = boot()
+    ns.Game.toggle()
+    assert ns.Game.set_zoom(2.0) == 2.0 and lua.eval("DreadDB.zoom") == 2.0
+    assert ns.Game.view()[0] == pytest.approx(1280) and arena_frame(lua, ns).scale == pytest.approx(0.5)
+    assert ns.Game.set_zoom(0.2) == 1 and ns.Game.set_zoom(40) == 2.6
+    assert ns.Game.set_zoom("banana") == pytest.approx(1.4)                # nonsense falls back to the default
+    ns.Game.set_zoom(1)
+    assert ns.Game.view()[0] == 640 and arena_frame(lua, ns).scale == 1
+
+
+def test_a_saved_zoom_is_used_when_the_window_is_built():
+    lua, ns = boot("DreadDB = { zoom = 1.9 }")
+    ns.Game.toggle()
+    assert ns.Game.view()[0] == pytest.approx(640 * 1.9)
+
+
+def test_the_camera_and_ground_follow_the_bigger_view_and_never_leave_the_map():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    vw, vh = ns.Game.view()
+    for (x, y) in ((10, 10), (2390, 1490), (1200, 750)):
+        w.player.x, w.player.y = x, y
+        tick(lua, 2)
+        cam = ns.Game.camera()
+        assert cam.x >= 0 and cam.y >= 0 and cam.x + vw <= 2400 + 1e-6 and cam.y + vh <= 1500 + 1e-6
+    base = [o for o in lua.eval("ALL").values() if o.texture == 187126][0]
+    c = list(base.coords.values())
+    assert c[1] - c[0] == pytest.approx(vw / 256)                          # the ground texture covers the whole bigger field
+
+
+def test_a_click_anywhere_in_the_bigger_view_works_and_one_outside_it_does_not():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 1200, 750
+    tick(lua, 2)
+    vw, vh = ns.Game.view()
+    cam = ns.Game.camera()
+    click_world(lua, ns, "LeftButton", cam.x + vw - 20, cam.y + 40)           # near the far edge of the bigger view
+    assert w.player.tx == pytest.approx(cam.x + vw - 20)
+    w.player.tx = None
+    click_world(lua, ns, "LeftButton", cam.x + vw + 20, cam.y + 40)           # just outside
+    assert w.player.tx is None
+
+
+def test_the_typed_zoom_command_sets_it_and_says_so():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "play")
+    slash(lua, "zoom 1.8")
+    assert lua.eval("DreadDB.zoom") == 1.8 and any("zoom 1.8" in l for l in said(lua))
+    slash(lua, "zoom 99")
+    assert lua.eval("DreadDB.zoom") == 2.6
+
+
+# ---------------------------------------------------------------- the minimap
+def teleport(ns, lua, w, x, y, ticks=8):
+    w.player.x, w.player.y, w.player.tx, w.player.ty = x, y, None, None
+    tick(lua, ticks)
+
+
+def test_the_minimap_shows_what_you_have_seen_and_you_in_the_right_place():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 8)
+    mm = ns.Game.minimap()
+    assert mm.shown is True and mm.cells > 15                              # the patch round the camp is revealed
+    assert mm.monsters == 0 and mm.exits == 0                              # nothing near, and the cave mouth is far away
+    me = [o for o in lua.eval("ALL").values() if o.shown and o.size is not None and o.size[1] == 5 and o.pts is not None and o.pts.point == "CENTER"]
+    assert len(me) == 1                                                    # one yellow dot: you
+    assert me[0].pts.x == pytest.approx(2 + w.player.x / 2400 * 168, abs=0.01) and me[0].pts.y == pytest.approx(2 + w.player.y / 1500 * 105, abs=0.01)
+
+
+def test_walking_reveals_more_and_the_fog_stays_where_you_have_not_been():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 8)
+    first = ns.Game.minimap().cells
+    teleport(ns, lua, w, 800, 500)
+    second = ns.Game.minimap().cells
+    assert second > first
+    teleport(ns, lua, w, 800, 500)
+    assert ns.Game.minimap().cells == second                               # standing still reveals nothing new
+    assert ns.Game.minimap().cells < 200                                   # two patches of a 1000-cell map: most is still fog
+
+
+def test_the_cave_mouth_appears_on_the_map_only_once_you_have_seen_it():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 8)
+    assert ns.Game.minimap().exits == 0
+    teleport(ns, lua, w, 2100, 1200)                                       # within sight of the mouth at (2270, 1340)
+    assert ns.Game.minimap().exits == 1
+    teleport(ns, lua, w, 170, 150)                                         # and it stays known after you walk away
+    assert ns.Game.minimap().exits == 1
+
+
+def test_monsters_show_as_dots_only_when_close_and_alive():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport(ns, lua, w, m.x - 150, m.y)
+    near = ns.Game.minimap().monsters
+    assert near >= 1
+    for mm_ in list(w.monsters.values())[:6]:
+        mm_.dead = True
+    teleport(ns, lua, w, m.x - 150, m.y)
+    assert ns.Game.minimap().monsters < near
+
+
+def test_m_and_the_typed_command_toggle_the_map_and_it_is_remembered():
+    lua, ns = boot(with_slash=True)
+    slash(lua, "play")
+    tick(lua, 2)
+    assert ns.Game.minimap().shown is True
+    key(lua, "M")
+    assert ns.Game.minimap().shown is False and lua.eval("DreadDB.map") is False
+    slash(lua, "map")
+    assert ns.Game.minimap().shown is True and any("minimap on" in l for l in said(lua))
+    key(lua, "M")                                                          # off again, then a fresh session
+    lua2, ns2 = boot("DreadDB = { map = false }")
+    ns2.Game.toggle()
+    assert ns2.Game.minimap().shown is False                               # off from last time stays off
+
+
+def test_each_area_has_its_own_map():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 8)
+    moor_cells = ns.Game.minimap().cells
+    ex = ns.Game.area().exits[1]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    assert ns.Game.area().name == "cave"
+    tick(lua, 8)
+    cave = ns.Game.minimap()
+    assert 0 < cave.cells < moor_cells + 40                                # only the cave's own cells, not the moor's
+    back = ns.Game.area().exits[1]
+    teleport(ns, lua, w, back.x, back.y, ticks=3)
+    assert ns.Game.area().name == "moor"
+    tick(lua, 8)
+    assert ns.Game.minimap().cells >= moor_cells                           # the moor remembers where you had been
+
+
+# ---------------------------------------------------------------- auto attack keeps going
+def count_wand_shots(ns, w, ticks_run, lua):
+    """How many wand shots really left: wrap Combat.attack and count the calls that succeeded."""
+    lua.execute("SHOTS = 0")
+    lua.eval("function(c) local orig = c.attack; c.attack = function(...) local r = orig(...) if r == true then SHOTS = SHOTS + 1 end return r end end")(ns.Combat)
+    tick(lua, ticks_run)
+    return lua.eval("SHOTS")
+
+
+def stand_off(env_lua, ns, count=3):
+    """Put the player near the first pack with its members awake, tough enough to last, and return (world, monsters)."""
+    lua = env_lua
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ms = [w.monsters[i] for i in range(1, count + 1)]
+    for m in ms:
+        m.life = m.maxlife = 400
+        m.speed = 0
+    w.player.x, w.player.y = ms[0].x - 150, ms[0].y
+    tick(lua, 2)
+    return w, ms
+
+
+def test_clicking_a_monster_keeps_the_wand_going_until_it_is_dead():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 1)
+    for m in list(w.monsters.values())[1:]:
+        m.dead = True                                                      # pack-mates standing in front would take the bolts instead
+    ms[0].life = 30
+    click_world(lua, ns, "LeftButton", ms[0].x, ms[0].y)
+    shots = count_wand_shots(ns, w, 300, lua)                              # ten seconds: 30 life at 3..6 a shot, one every 0.7 s
+    assert ms[0].dead is True and shots >= 5                               # no more clicks needed
+
+
+def test_when_the_target_dies_it_carries_on_with_the_nearest_monster_that_is_fighting():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 3)
+    a, b, c = ms
+    for m in ms:
+        m.awake = True
+    a.life, b.x, b.y, c.x, c.y = 20, a.x + 40, a.y, a.x + 200, a.y
+    click_world(lua, ns, "LeftButton", a.x, a.y)
+    for _ in range(150):
+        tick(lua, 1)
+        if a.dead:
+            break
+    assert a.dead is True
+    tick(lua, 2)
+    info = ns.Game.target_info()
+    assert info is not None and info.name == b.name and round(info.x) == round(b.x)      # the nearer of the two left
+    assert count_wand_shots(ns, w, 60, lua) >= 1                                        # and it is being shot
+
+
+def test_it_does_not_go_after_sleeping_monsters_on_its_own():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 2)
+    a, b = ms
+    a.awake, b.awake = True, False
+    b.aggro, b.pack = 1, 9999                                              # b really is asleep, and not in a's pack (which would wake with it)
+    for m in list(w.monsters.values()):
+        if m is not a and m is not b:
+            m.dead = True                                                  # the rest of the pack is out of the picture
+    b.x, b.y = a.x + 60, a.y
+    a.life = 20
+    click_world(lua, ns, "LeftButton", a.x, a.y)
+    for _ in range(150):
+        tick(lua, 1)
+        if a.dead:
+            break
+    tick(lua, 3)
+    assert ns.Game.target_info() is None and b.life == b.maxlife
+
+
+def test_nothing_in_range_means_it_stops():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 1)
+    for m in list(w.monsters.values())[1:]:
+        m.dead = True                                                      # no one else is fighting
+    ms[0].life = 20
+    click_world(lua, ns, "LeftButton", ms[0].x, ms[0].y)
+    for _ in range(150):
+        tick(lua, 1)
+        if ms[0].dead:
+            break
+    tick(lua, 3)
+    assert ns.Game.target_info() is None
+
+
+def test_casting_shift_casting_and_opening_the_tree_do_not_drop_the_target():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 1)
+    ns.Combat.set_level(w, 30, 0)
+    w.player.st.points["scorch"] = 1
+    w.player.mana = w.player.maxmana = 500
+    bar, sel = ns.Game.bar()
+    bar[1] = "scorch"
+    click_world(lua, ns, "LeftButton", ms[0].x, ms[0].y)
+    assert ns.Game.target_info() is not None
+    click_world(lua, ns, "RightButton", ms[0].x, ms[0].y)                 # a spell
+    assert ns.Game.target_info() is not None
+    lua.execute("SHIFT = true")
+    click_world(lua, ns, "LeftButton", ms[0].x + 30, ms[0].y)              # a spell without moving
+    lua.execute("SHIFT = false")
+    assert ns.Game.target_info() is not None
+    key(lua, "K"); tick(lua, 20); key(lua, "K")                            # tree open and shut
+    assert ns.Game.target_info() is not None
+
+
+def test_clicking_the_ground_or_dying_does_drop_the_target():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 1)
+    click_world(lua, ns, "LeftButton", ms[0].x, ms[0].y)
+    assert ns.Game.target_info() is not None
+    click_world(lua, ns, "LeftButton", w.player.x - 60, w.player.y)       # walk away: you meant it
+    assert ns.Game.target_info() is None
+    click_world(lua, ns, "LeftButton", ms[0].x, ms[0].y)
+    w.player.life = 0.1
+    ms[0].awake = True
+    ms[0].x, ms[0].y = w.player.x + 10, w.player.y
+    tick(lua, 90)
+    assert ns.Game.world().over is True
+    click_world(lua, ns, "LeftButton", 100, 100)                           # start again
+    assert ns.Game.target_info() is None
+
+
+def test_a_ring_is_drawn_under_the_target_and_goes_when_there_is_none():
+    lua, ns = boot()
+    w, ms = stand_off(lua, ns, 1)
+    ring = lambda: [o for o in lua.eval("ALL").values() if o.shown and o.size is not None and o.size[1] == o.size[2]
+                    and o.pts is not None and o.pts.point == "CENTER" and o.alpha == 0.35 and abs(o.size[1] - (ms[0].radius + 12) * 2) < 4]
+    assert ring() == []
+    click_world(lua, ns, "LeftButton", ms[0].x, ms[0].y)
+    tick(lua, 2)
+    r = ring()
+    assert len(r) == 1
+    cam = ns.Game.camera()
+    assert r[0].pts.x == pytest.approx(ms[0].x - cam.x, abs=1) and r[0].pts.y == pytest.approx(ms[0].y - cam.y - 4, abs=1)
+    click_world(lua, ns, "LeftButton", w.player.x - 60, w.player.y)
+    tick(lua, 2)
+    assert ring() == []
