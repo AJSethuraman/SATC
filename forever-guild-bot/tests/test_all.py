@@ -922,13 +922,13 @@ def test_offer_window_scales_with_time_until_the_raid():
 
     def window(minutes_left):
         ping, end = R.offer_window(now, now + timedelta(minutes=minutes_left))
-        return (ping - now).total_seconds() / 60, (end - now).total_seconds() / 60
-    assert window(2 * 24 * 60) == (216.0, 288.0)          # two days out: 288 minutes, last call after 216
-    assert window(10 * 24 * 60) == (1080.0, 1440.0)       # ten days out: a full day, last call after 18 hours
-    assert window(30 * 24 * 60) == (2160.0, 2880.0)       # a month out: capped at two days
-    assert window(4 * 60) == (18.0, 24.0)                 # four hours out: 24 minutes
-    assert window(60) == (11.25, 15.0)                    # an hour out: the 15-minute floor
-    assert window(10) == (6.75, 9.0)                      # starting very soon: never past the start
+        return round((ping - now).total_seconds() / 60, 2), round((end - now).total_seconds() / 60, 2)
+    assert window(10 * 24 * 60) == (2880.0, 4320.0)       # ten days out: two days, last call, then one more day
+    assert window(30 * 24 * 60) == (2880.0, 4320.0)       # a month out: the same, capped at three days
+    assert window(2 * 24 * 60) == (576.0, 864.0)          # two days out: about 14 hours, last call after 9.6
+    assert window(4 * 60) == (48.0, 72.0)                 # four hours out: 72 minutes
+    assert window(60) == (12.0, 18.0)                     # an hour out: 18 minutes
+    assert window(10) == (6.0, 9.0)                       # starting very soon: never past the start
     assert window(1)[1] == 1.0 and window(0)[1] == 1.0
 
 

@@ -9,10 +9,10 @@ ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Benc
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
 # How long a bench player has to answer "a spot opened up" depends on how far off the raid is:
-OFFER_SHARE = 0.10            # a tenth of the time left until the start ...
+OFFER_SHARE = 0.30            # 30% of the time left until the start ...
 OFFER_MIN_MINUTES = 15        # ... but never less than this ...
-OFFER_MAX_MINUTES = 48 * 60   # ... and never more than two days
-LAST_CALL_SHARE = 0.25        # the last quarter of the window is the "last call" ping in the raid channel
+OFFER_MAX_MINUTES = 72 * 60   # ... and never more than three days (two to answer, then one after the last call)
+LAST_CALL_SHARE = 1 / 3       # the last third of the window follows the "last call" ping in the raid channel
 
 
 def parse_start(date_s: str, time_s: str, tz_name: str) -> datetime:
