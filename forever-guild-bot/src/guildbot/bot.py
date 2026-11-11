@@ -13,7 +13,7 @@ from . import raids as R
 from .links import item_link
 from .config import Config
 from .db import Database, utcnow
-from .sync import sync_guild
+from .sync import sync_guild, sync_recipe_catalog
 
 log = logging.getLogger("guildbot")
 
@@ -372,6 +372,12 @@ class GuildBot(discord.Client):
             log.info("sync ok: %d members, %d failures", res.members, len(res.failures))
         except Exception:
             log.exception("roster sync failed")
+        try:
+            n = await sync_recipe_catalog(self.db, self.blizzard)
+            if n:
+                log.info("recipe catalogue refreshed: %d recipes", n)
+        except Exception:
+            log.exception("recipe catalogue refresh failed")
 
     async def _send_reminders(self) -> None:
         """Private reminder to everyone signed up (slots and bench). Nothing is posted in the channel.
@@ -611,6 +617,57 @@ def register_commands(bot: GuildBot) -> None:
             by.setdefault(r["profession"], []).append(f"{R.full_name(r)} {r['skill']}/{r['max_skill']}")
         lines = [f"**{p}** ({len(v)}): {', '.join(v)}" for p, v in sorted(by.items())]
         e = discord.Embed(title="Professions", description=clip(lines, 4000) or "Nobody found.")
+        e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
+        await interaction.response.send_message(embed=e)
+
+    async def catalog_profession_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=f"{r['name']} ({r['n']} recipes)", value=r["name"])
+                for r in db.catalog_professions(current)]
+
+    async def recipe_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=f"{r['name']} - {r['profession']} ({r['n']})"[:100], value=r["name"][:100])
+                for r in db.recipe_names(current)]
+
+    @tree.command(name="recipes", description="What a profession can make, and which guildies can make it")
+    @app_commands.describe(profession="Pick a profession", match="Part of a recipe name (blank = overview)")
+    @app_commands.autocomplete(profession=catalog_profession_ac)
+    async def recipes(interaction: discord.Interaction, profession: str, match: str = ""):
+        rows = db.recipes_for(profession, match)
+        if not rows:
+            await interaction.response.send_message(
+                "No recipes found. Pick a profession from the list" + (" or try a different search word." if match else "."),
+                ephemeral=True)
+            return
+        title = f"{profession}: {len(rows)} recipe(s)" + (f" matching '{match}'" if match else "")
+        if not match:
+            by: dict[str, list] = {}
+            for r in rows:
+                by.setdefault(r["category"] or "Other", []).append(r)
+            known = [r for r in rows if r["knowers"]]
+            lines = [f"**{cat}** - {len(rs)} recipes" for cat, rs in by.items()]
+            head = "\n".join(lines)
+            head += (f"\n\n**Known in the guild ({len(known)}):**\n" +
+                     "\n".join(f"{item_link(r['name'])}: {r['knowers']}" for r in known)) if known else \
+                "\n\nNobody in the guild has learned any of these yet."
+            head += "\n\nAdd a search word to list the recipes themselves."
+        else:
+            head = "\n".join(f"{item_link(r['name'])}" + (f": {r['knowers']}" if r["knowers"] else "") for r in rows)
+        e = discord.Embed(title=title[:256], description=clip(head.split("\n"), 4000))
+        e.set_footer(text="Recipe list is everything in Blizzard's data, not only what is learnable in game yet. "
+                          f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
+        await interaction.response.send_message(embed=e)
+
+    @tree.command(name="whocan", description="Who in the guild can craft something (type a few letters)")
+    @app_commands.autocomplete(recipe=recipe_ac)
+    async def whocan(interaction: discord.Interaction, recipe: str):
+        rows = db.who_can_craft(recipe)
+        if not rows:
+            await interaction.response.send_message(
+                "Nobody in the guild knows that recipe (or I don't have it yet).", ephemeral=True)
+            return
+        lines = [f"**{R.full_name(r)}**: {r['profession']} {r['skill']}/{r['max_skill']}" for r in rows]
+        e = discord.Embed(title=f"Who can make {recipe}", description=clip(lines, 4000))
+        e.add_field(name="Look it up", value=item_link(recipe), inline=False)
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)
 

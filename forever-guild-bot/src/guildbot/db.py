@@ -39,6 +39,19 @@ CREATE TABLE IF NOT EXISTS professions (
     PRIMARY KEY (slug, profession)
 );
 
+-- Recipes each character knows (from the character's professions response).
+CREATE TABLE IF NOT EXISTS known_recipes (
+    slug TEXT NOT NULL, profession TEXT NOT NULL, recipe_id INTEGER NOT NULL, name TEXT NOT NULL,
+    PRIMARY KEY (slug, profession, recipe_id)
+);
+
+-- Every recipe each profession has, from Blizzard's static data (same for all players).
+CREATE TABLE IF NOT EXISTS recipes (
+    profession TEXT NOT NULL, recipe_id INTEGER NOT NULL, name TEXT NOT NULL, category TEXT,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (profession, recipe_id)
+);
+
 CREATE TABLE IF NOT EXISTS equipment (
     slug TEXT NOT NULL, slot TEXT NOT NULL, item_id INTEGER, item_name TEXT NOT NULL,
     quality TEXT, fetched_at TEXT NOT NULL,
@@ -140,6 +153,10 @@ class Database:
             self.conn.executemany(
                 "INSERT INTO professions VALUES (?,?,?,?,?)",
                 [(slug, p.name, p.skill, p.max_skill, now) for p in profs])
+            self.conn.execute("DELETE FROM known_recipes WHERE slug=?", (slug,))
+            self.conn.executemany(
+                "INSERT OR REPLACE INTO known_recipes VALUES (?,?,?,?)",
+                [(slug, p.name, rid, rname) for p in profs for rid, rname in p.recipes])
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -228,6 +245,54 @@ class Database:
                WHERE c.in_guild=1 AND lower(p.profession) LIKE ?
                GROUP BY p.profession ORDER BY p.profession LIMIT ?""",
             ("%" + text.strip().lower() + "%", limit)).fetchall()
+
+    # ---- recipes ------------------------------------------------------
+    def replace_recipes(self, rows, now) -> None:
+        """Swap the whole recipe catalogue in one transaction. rows: (profession, recipe_id, name, category)."""
+        try:
+            self.conn.execute("DELETE FROM recipes")
+            self.conn.executemany("INSERT OR REPLACE INTO recipes VALUES (?,?,?,?,?)",
+                                  [(p, rid, n, cat, now) for p, rid, n, cat in rows])
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def catalog_professions(self, text: str = ""):
+        return self.conn.execute(
+            """SELECT profession AS name, COUNT(*) AS n FROM recipes WHERE lower(profession) LIKE ?
+               GROUP BY profession ORDER BY profession""", ("%" + text.strip().lower() + "%",)).fetchall()
+
+    def recipes_for(self, profession: str, match: str = ""):
+        """Catalogue recipes of a profession (name contains `match`), each with the guild members who know it."""
+        rows = self.conn.execute(
+            """SELECT r.recipe_id, r.name, r.category,
+                 (SELECT GROUP_CONCAT(c.name || COALESCE(' ' || c.surname, ''), ', ')
+                    FROM known_recipes k JOIN characters c ON c.slug=k.slug
+                   WHERE k.profession=r.profession AND k.recipe_id=r.recipe_id AND c.in_guild=1) AS knowers
+               FROM recipes r WHERE lower(r.profession)=? AND lower(r.name) LIKE ?
+               ORDER BY r.category, r.name""", (profession.strip().lower(), "%" + match.strip().lower() + "%")).fetchall()
+        return rows
+
+    def recipe_names(self, text: str, limit: int = 25):
+        """Recipe names someone in the guild knows, with how many know each (type-ahead for /whocan)."""
+        return self.conn.execute(
+            """SELECT k.name AS name, k.profession AS profession, COUNT(DISTINCT k.slug) AS n
+               FROM known_recipes k JOIN characters c ON c.slug=k.slug
+               WHERE c.in_guild=1 AND lower(k.name) LIKE ?
+               GROUP BY k.name, k.profession ORDER BY n DESC, k.name LIMIT ?""",
+            ("%" + text.strip().lower() + "%", limit)).fetchall()
+
+    def who_can_craft(self, name: str, profession: str | None = None):
+        q = """SELECT c.name, c.surname, c.level, k.profession, p.skill, p.max_skill, p.fetched_at
+               FROM known_recipes k JOIN characters c ON c.slug=k.slug
+               LEFT JOIN professions p ON p.slug=k.slug AND p.profession=k.profession
+               WHERE c.in_guild=1 AND lower(k.name)=?"""
+        args = [name.strip().lower()]
+        if profession:
+            q += " AND k.profession=?"
+            args.append(profession)
+        return self.conn.execute(q + " ORDER BY p.skill DESC, c.name, c.surname", args).fetchall()
 
     # ---- discord <-> character links ---------------------------------
     def link(self, discord_id: int, slug: str) -> bool:

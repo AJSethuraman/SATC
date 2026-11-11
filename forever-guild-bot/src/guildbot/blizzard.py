@@ -49,6 +49,7 @@ class Profession:
     name: str
     skill: int
     max_skill: int
+    recipes: tuple = ()          # ((recipe_id, recipe_name), ...) this character knows
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,16 @@ def parse_profile(payload: dict) -> Profile:
     )
 
 
+def _known_recipes(entry: dict) -> list[tuple[int, str]]:
+    """Recipes a character knows, from `known_recipes` on the entry or on any of its tiers."""
+    out: list[tuple[int, str]] = []
+    for holder in [entry, *(entry.get("tiers") or [])]:
+        for r in holder.get("known_recipes") or []:
+            if isinstance(r, dict) and r.get("id") is not None and r.get("name"):
+                out.append((int(r["id"]), str(r["name"])))
+    return out
+
+
 def parse_professions(payload: dict) -> list[Profession]:
     if not any(k in payload for k in ("primaries", "secondaries", "professions")):
         raise BlizzardError(f"professions response not recognised (keys: {sorted(payload)})")
@@ -120,12 +131,40 @@ def parse_professions(payload: dict) -> list[Profession]:
                     continue
                 best = max(tiers, key=lambda t: t.get("skill_points", 0))
                 skill, mx = best.get("skill_points", 0), best.get("max_skill_points", 0)
-            out.append(Profession(name=name, skill=int(skill), max_skill=int(mx or 0)))
+            out.append(Profession(name=name, skill=int(skill), max_skill=int(mx or 0),
+                                  recipes=tuple(r for r in _known_recipes(p) if r[1] != name)))   # not the profession's own entry
     best: dict[str, Profession] = {}                 # one row per profession: keep the highest skill
     for p in out:
         if p.name not in best or p.skill > best[p.name].skill:
             best[p.name] = p
-    return list(best.values())
+    merged = {}                                      # ...but keep every recipe seen for it
+    for p in out:
+        merged.setdefault(p.name, {})
+        merged[p.name].update(dict(p.recipes))
+    return [Profession(p.name, p.skill, p.max_skill, tuple(sorted(merged[p.name].items())))
+            for p in best.values()]
+
+
+# ---- static data: every profession and every recipe it has, same for all players ----------------
+def parse_profession_index(payload: dict) -> list[tuple[int, str]]:
+    if "professions" not in payload:
+        raise BlizzardError(f"profession index not recognised (keys: {sorted(payload)})")
+    return [(int(p["id"]), p["name"]) for p in payload["professions"] if p.get("id") and p.get("name")]
+
+
+def parse_profession_tiers(payload: dict) -> list[tuple[int, str]]:
+    if "skill_tiers" not in payload:
+        raise BlizzardError(f"profession response has no 'skill_tiers' (keys: {sorted(payload)})")
+    return [(int(t["id"]), t["name"]) for t in payload["skill_tiers"] if t.get("id") and t.get("name")]
+
+
+def parse_skill_tier(payload: dict) -> list[tuple[str, int, str]]:
+    """(category, recipe_id, recipe_name) for every recipe in one skill tier."""
+    if "categories" not in payload:
+        raise BlizzardError(f"skill tier not recognised (keys: {sorted(payload)})")
+    return [(c.get("name") or "Other", int(r["id"]), r["name"])
+            for c in payload["categories"] for r in c.get("recipes") or []
+            if r.get("id") is not None and r.get("name")]
 
 
 def parse_equipment(payload: dict) -> list[Item]:
@@ -151,6 +190,7 @@ class BlizzardClient:
                  http: httpx.AsyncClient | None = None):
         self.client_id, self.client_secret, self.region = client_id, client_secret, region
         self.namespace = f"profile-forever-{region}"
+        self.static_namespace = f"static-forever-{region}"   # same for every player; verified 2026-11-11
         self.base = f"https://{region}.api.blizzard.com"
         self._http = http or httpx.AsyncClient(timeout=20)
         self._token: str | None = None
@@ -171,13 +211,13 @@ class BlizzardClient:
         self._token_expiry = time.time() + int(body.get("expires_in", 3600))
         return self._token
 
-    async def get(self, path: str) -> dict:
-        """GET a profile-namespace path. Returns parsed JSON. Raises NotFound on 404."""
+    async def get(self, path: str, namespace: str | None = None) -> dict:
+        """GET a path (profile namespace unless told otherwise). Returns parsed JSON. Raises NotFound on 404."""
         for attempt in range(4):
             token = await self._ensure_token()
             r = await self._http.get(
                 self.base + path,
-                params={"namespace": self.namespace, "locale": "en_US"},
+                params={"namespace": namespace or self.namespace, "locale": "en_US"},
                 headers={"Authorization": f"Bearer {token}"},
             )
             if r.status_code == 200:
@@ -203,3 +243,12 @@ class BlizzardClient:
 
     async def equipment(self, slug: str) -> dict:
         return await self.get(f"/profile/wow/character/{slug}/equipment")
+
+    async def profession_index(self) -> dict:
+        return await self.get("/data/wow/profession/index", self.static_namespace)
+
+    async def profession(self, profession_id: int) -> dict:
+        return await self.get(f"/data/wow/profession/{profession_id}", self.static_namespace)
+
+    async def skill_tier(self, profession_id: int, tier_id: int) -> dict:
+        return await self.get(f"/data/wow/profession/{profession_id}/skill-tier/{tier_id}", self.static_namespace)

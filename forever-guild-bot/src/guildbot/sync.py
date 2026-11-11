@@ -93,3 +93,33 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
     db.set_meta("last_sync_at", utcnow())
     db.set_meta("last_sync_failures", str(len(res.failures)))
     return res
+
+
+RECIPES_MAX_AGE_DAYS = 7
+
+
+async def sync_recipe_catalog(db: Database, client, force: bool = False) -> int:
+    """Fetch every profession's recipes from Blizzard's static data (about forty calls) and store them.
+    Skipped when the stored copy is newer than a week. Returns the number of recipes stored (0 = skipped)."""
+    from datetime import datetime, timedelta, timezone
+    last = db.get_meta("recipes_at")
+    if last and not force and datetime.fromisoformat(last) > datetime.now(timezone.utc) - timedelta(days=RECIPES_MAX_AGE_DAYS):
+        return 0
+    now = utcnow()
+    index = bz.parse_profession_index(await client.profession_index())
+    rows = []
+    for pid, pname in index:
+        if "[DNT]" in pname:                       # Blizzard's own "do not translate" test entry
+            continue
+        for tid, _tname in bz.parse_profession_tiers(await client.profession(pid)):
+            data = await client.skill_tier(pid, tid)
+            try:
+                found = bz.parse_skill_tier(data)
+            except Exception:
+                db.save_snapshot(None, f"skill-tier:{pid}:{tid}", "parse_error", json.dumps(data), now)
+                raise
+            db.save_snapshot(None, f"skill-tier:{pid}:{tid}", "ok", json.dumps(data), now)
+            rows.extend((pname, rid, rname, cat) for cat, rid, rname in found)
+    db.replace_recipes(rows, now)
+    db.set_meta("recipes_at", now)
+    return len(rows)

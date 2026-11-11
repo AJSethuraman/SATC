@@ -154,7 +154,8 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
     names = {c.name for c in bot.tree.get_commands()}
     assert names == {"link", "unlink", "main", "who", "roster", "professions", "whohas",
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
-                     "claim-panel", "claims", "unlink-member", "release"}
+                     "claim-panel", "claims", "unlink-member", "release",
+                     "recipes", "whocan"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -584,3 +585,59 @@ def test_item_and_profession_typeahead_lists_names_with_counts(tmp_path):
     assert [r["name"] for r in db.item_names("CHARM")] == ["Plain Charm"]                 # any part, any case
     assert len(db.item_names("")) == 3 and db.item_names("zzz") == []
     assert [(r["name"], r["n"]) for r in db.profession_names("alch")] == [("Alchemy", 2)]
+
+
+def test_real_forever_professions_carry_known_recipes():
+    profs = {p.name: p for p in bz.parse_professions(_fx("professions"))}
+    skinning = profs["Skinning"]
+    assert (skinning.skill, skinning.max_skill) == (161, 225)
+    assert skinning.recipes == ((52644, "Camp Chair"),)          # the profession's own "Skinning" entry is dropped
+
+
+def test_real_forever_static_profession_and_recipe_shapes():
+    assert bz.parse_profession_index(_fx("profession_index")) == [(186, "Mining"), (393, "Skinning")] or \
+        sorted(bz.parse_profession_index(_fx("profession_index"))) == [(186, "Mining"), (393, "Skinning")]
+    assert bz.parse_profession_tiers(_fx("profession")) == [(2947, "Skinning")]
+    got = bz.parse_skill_tier(_fx("skill_tier"))
+    assert got == [("Camping", 52644, "Camp Chair"), ("Camping", 57017, "Field Guide"), ("Camping", 57029, "Trapper's Workbench")]
+    for fn in (bz.parse_profession_index, bz.parse_profession_tiers, bz.parse_skill_tier):
+        with pytest.raises(bz.BlizzardError):
+            fn({"renamed": 1})
+
+
+class RecipeClient(FakeClient):
+    def __init__(self, roster):
+        super().__init__(roster)
+        self.calls = 0
+
+    async def profession_index(self):
+        self.calls += 1
+        return _fx("profession_index")
+
+    async def profession(self, pid):
+        return _fx("profession")
+
+    async def skill_tier(self, pid, tid):
+        return _fx("skill_tier")
+
+
+def test_recipe_catalogue_and_who_can_craft(tmp_path):
+    from guildbot.sync import sync_recipe_catalog
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225, ((52644, "Camp Chair"),))], utcnow())
+    client = RecipeClient(ROSTER)
+    assert asyncio.run(sync_recipe_catalog(db, client)) == 6          # 2 professions x 3 recipes in the fixtures
+    assert asyncio.run(sync_recipe_catalog(db, client)) == 0          # fresh copy: not fetched again
+    assert client.calls == 1
+    assert [r["name"] for r in db.catalog_professions("skin")] == ["Skinning"]
+    rows = db.recipes_for("Skinning")
+    assert [(r["name"], r["knowers"]) for r in rows] == [("Camp Chair", "Anduin Wrynn"), ("Field Guide", None),
+                                                          ("Trapper's Workbench", None)]
+    assert [r["name"] for r in db.recipes_for("skinning", "FIELD")] == ["Field Guide"]
+    assert [(r["name"], r["n"]) for r in db.recipe_names("camp")] == [("Camp Chair", 1)]
+    who = db.who_can_craft("camp chair")
+    assert [(R.full_name(r), r["skill"]) for r in who] == [("Anduin Wrynn", 200)]
+    assert db.who_can_craft("Nothing") == []
+    db.replace_professions("anduin-wrynn", [bz.Profession("Skinning", 200, 225)], utcnow())   # a re-sync with none
+    assert db.who_can_craft("camp chair") == []
