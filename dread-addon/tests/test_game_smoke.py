@@ -153,7 +153,7 @@ def test_the_moor_is_drawn_with_real_ground_and_scenery():
     base = [o for o in allo if o.texture == 187126]
     over = [o for o in allo if o.texture == 187113]
     assert len(base) == 1 and len(over) == 1                          # grass, and the big dirt layer over it
-    assert over[0].alpha == pytest.approx(0.3)                         # faded, so it only breaks up the tiling
+    assert over[0].alpha == pytest.approx(0.22)                        # faded, so it only breaks up the tiling
     models = [o for o in allo if o.model is not None and o.kind == "PlayerModel" and o.camscale is not None]
     assert len(models) >= 4                                            # scenery frames got a model AND a camera distance
     assert all(isinstance(o.model, int) and o.model > 1000 for o in models)
@@ -171,8 +171,8 @@ def test_the_ground_scrolls_with_the_camera_and_the_two_layers_tile_differently(
     cam = ns.Game.camera()
     b, o = list(base.coords.values()), list(over.coords.values())
     vw, vh = ns.Game.view()
-    assert b[0] == pytest.approx(cam.x / 256) and b[1] == pytest.approx((cam.x + vw) / 256)
-    assert o[0] == pytest.approx(cam.x / 640)                          # the dirt layer tiles at 640 units, not 256
+    assert b[0] == pytest.approx(cam.x / 512) and b[1] == pytest.approx((cam.x + vw) / 512)
+    assert o[0] == pytest.approx(cam.x / 1100)                         # the dirt layer tiles at 1100 units, not 512
 
 
 def test_tile_size_and_scenery_camera_can_be_tuned_live_and_are_saved():
@@ -187,7 +187,7 @@ def test_tile_size_and_scenery_camera_can_be_tuned_live_and_are_saved():
     assert list(base.coords.values())[0] == pytest.approx(cam.x / 128)
     assert ns.Game.set_tile("rubbish") == "default" and ns.Game.set_tile(5) == "default"      # nonsense falls back, does not break
     tick(lua, 2)
-    assert list(base.coords.values())[0] == pytest.approx(cam.x / 256)
+    assert list(base.coords.values())[0] == pytest.approx(cam.x / 512)
     # scenery camera: default from the zone, then tuned, applied to frames already showing
     frames = [o for o in lua.eval("ALL").values() if o.camscale is not None]
     assert frames and ns.Game.cam_for("tree") == pytest.approx(2.2)
@@ -982,7 +982,7 @@ def test_the_camera_and_ground_follow_the_bigger_view_and_never_leave_the_map():
         assert cam.x >= 0 and cam.y >= 0 and cam.x + vw <= 2400 + 1e-6 and cam.y + vh <= 1500 + 1e-6
     base = [o for o in lua.eval("ALL").values() if o.texture == 187126][0]
     c = list(base.coords.values())
-    assert c[1] - c[0] == pytest.approx(vw / 256)                          # the ground texture covers the whole bigger field
+    assert c[1] - c[0] == pytest.approx(vw / 512)                          # the ground texture covers the whole bigger field
 
 
 def test_a_click_anywhere_in_the_bigger_view_works_and_one_outside_it_does_not():
@@ -1300,3 +1300,15 @@ def test_animation_switching_can_be_turned_off_and_back_on_and_is_saved():
     slash(lua, "anim on")
     tick(lua, 5)
     assert pm.last_anim == 5 and lua.eval("DreadDB.anim") is True
+
+
+def test_a_third_ground_layer_tiles_hugely_so_the_floor_has_patches_not_one_repeating_look():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    patch = [o for o in lua.eval("ALL").values() if o.texture == 187070][0]
+    w.player.x, w.player.y = 1200, 700
+    tick(lua, 2)
+    cam = ns.Game.camera()
+    assert list(patch.coords.values())[0] == pytest.approx(cam.x / 1700)
+    assert patch.alpha == pytest.approx(0.3)

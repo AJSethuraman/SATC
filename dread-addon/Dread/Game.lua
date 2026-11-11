@@ -73,7 +73,7 @@ local bar, sel = {}, 1
 local target, hover_id
 local toast_t = 0
 local frame, arena, hud, tree_frame, handle
-local ground, ground2
+local ground, ground2, ground3
 local mon_f, doodad_f, proj_f, blast_f, float_f, drop_f = {}, {}, {}, {}, {}, {}
 local doodad_slot = {}                -- scenery piece -> its frame, so models are not reassigned as you walk
 local player_model
@@ -155,6 +155,9 @@ local function enter(name, arrive)
   ground2:SetTexture(fl.overlay, "REPEAT", "REPEAT")
   ground2:SetVertexColor(fl.overlay_tint[1], fl.overlay_tint[2], fl.overlay_tint[3])
   ground2:SetAlpha(fl.overlay_alpha)
+  ground3:SetTexture(fl.patch, "REPEAT", "REPEAT")
+  ground3:SetVertexColor(fl.patch_tint[1], fl.patch_tint[2], fl.patch_tint[3])
+  ground3:SetAlpha(fl.patch_alpha)
   toast_text:SetText(area.title); toast_t = 3
 end
 
@@ -431,6 +434,9 @@ local function build_arena()
   ground2 = arena:CreateTexture(nil, "BACKGROUND", nil, 1)         -- a big dirt layer over the grass, to hide the tiling
   ground2:SetAllPoints(arena)
   ground2:SetHorizTile(true); ground2:SetVertTile(true)
+  ground3 = arena:CreateTexture(nil, "BACKGROUND", nil, 2)         -- a third, huge layer of a different ground: patches of variety instead of one repeating look
+  ground3:SetAllPoints(arena)
+  ground3:SetHorizTile(true); ground3:SetVertTile(true)
 
   doodad_f = model_pool(arena, MAX_DOODAD, 140, 170)
   mon_f = model_pool(arena, MAX_MON, 64, 80)
@@ -732,14 +738,13 @@ local function draw_effects(dt, p)
       local c = COLORS[el]
       local x, y, size, alpha, icon = e.x, e.y, 0, 0.3 + 0.1 * math.sin(world.time * 8), nil
       if e.kind == "zone" or e.kind == "orb" then size = e.r * 2
-      elseif e.kind == "cone" then
-        size, x, y = e.range, e.x + e.dx * e.range / 2, e.y + e.dy * e.range / 2
+      elseif e.kind == "cone" then size = 0                        -- the flames are the particles; a square under them looked wrong
       elseif e.kind == "delayed" then
         size, alpha, icon = e.r * 2, 0.15 + 0.35 * (1 - math.max(0, e.t)), "meteor"
       elseif e.kind == "summon" then size, icon = 30, e.id
       elseif e.kind == "storm" then size, y, icon, alpha = e.r * 2, e.y + 70, e.id, 0.12
       end
-      if vis(x - cam.x, y - cam.y, size, size) then
+      if size > 0 and vis(x - cam.x, y - cam.y, size, size) then
         n = n + 1
         local f = eff_f[n]
         f.disc:SetVertexColor(c[1], c[2], c[3]); f.disc:SetAlpha(alpha)
@@ -855,6 +860,8 @@ local function advance(dt, p)
   ground:SetTexCoord(cam.x / T, (cam.x + vw) / T, -(cam.y + vh) / T, -cam.y / T)
   local T2 = fl.overlay_tile
   ground2:SetTexCoord(cam.x / T2, (cam.x + vw) / T2, -(cam.y + vh) / T2, -cam.y / T2)
+  local T3 = fl.patch_tile
+  ground3:SetTexCoord(cam.x / T3, (cam.x + vw) / T3, -(cam.y + vh) / T3, -cam.y / T3)
   draw_scenery()
   do                                                              -- the blocking circles, when asked for
     local n = 0

@@ -33,6 +33,8 @@ function Tree.points_free(st) return Tree.points_total(st) - Tree.points_spent(s
 function Tree.points_in(st, id) return st.points[id] or 0 end
 
 -- true, or false plus the reason a point cannot go in.
+Tree.HEADROOM = 3
+
 function Tree.can_allocate(st, id)
   local sk = skills().byId[id]
   if not sk then return false, "no such skill" end
@@ -41,6 +43,8 @@ function Tree.can_allocate(st, id)
     if Tree.points_in(st, p) < 1 then return false, "needs a point in " .. skills().byId[p].name end
   end
   if Tree.points_in(st, id) >= skills().MAX_POINTS then return false, "already at the maximum" end
+  local cap = st.level - sk.req + Tree.HEADROOM                -- a skill keeps growing as you do: saving points up cannot pour them all into one new skill
+  if Tree.points_in(st, id) >= cap then return false, "can take " .. cap .. " points at character level " .. st.level .. " (more as you level)" end
   if Tree.points_free(st) < 1 then return false, "no points left" end
   return true
 end

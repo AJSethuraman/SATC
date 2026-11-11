@@ -76,3 +76,7 @@ Click-to-move top-down arena, one town screen, one dungeon level. One class, 4 s
 
 ## Check the logic
 `pip install lupa pytest && python -m pytest -q tests`. Every test runs **twice**, on the newer Lua that lupa defaults to and on **Lua 5.1, which is what WoW runs** (see `tests/conftest.py`): a function may use at most 60 outside variables there, and the first version of the window passed everything on the newer Lua and would not have loaded in the game. The window and the typed commands are driven through a stand-in client (`tests/test_game_smoke.py`), the network probe through a stand-in friend (`tests/test_net.py`). None of this shows how it looks; only the game does.
+
+
+## Skill points
+A skill can hold (your level - its required level + 3) points, up to 20, so saving points does not let you pour them all into a new skill. `/dread anim off` stops model animation switching.

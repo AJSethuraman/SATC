@@ -223,3 +223,18 @@ def test_damage_after_resist(env):
     assert ns.Tree.after_resist(100, 25) == pytest.approx(75.0)
     assert ns.Tree.after_resist(100, -50) == pytest.approx(150.0)
     assert ns.Tree.after_resist(100, 100) == pytest.approx(0.0)
+
+
+def test_saved_points_cannot_all_go_into_one_new_skill(env):
+    lua, ns = env
+    st = char(env, level=6, quest=30, scorch=1)                # 30 spare points, Dragon's Breath only just unlocked
+    got = 0
+    while alloc(ns, st, "dragons_breath")[0]:
+        got += 1
+    assert got == 3                                            # level 6 - req 6 + 3
+    ok, why = can(ns, st, "dragons_breath")
+    assert ok is False and "3 points" in why
+    st.level = 10
+    while alloc(ns, st, "dragons_breath")[0]:
+        got += 1
+    assert got == 7                                            # four levels later, four more ranks

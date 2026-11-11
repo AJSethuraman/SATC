@@ -259,3 +259,15 @@ def test_buffs_with_flames_throw_sparks_and_chilled_monsters_glitter(env):
     ps = plist(fx2)
     assert len(ps) >= 3 and all(abs(q.x - 340) < 40 for q in ps)                         # only the near chilled one, and blue
     assert all(q.b > q.r for q in ps)
+
+
+def test_dragons_breath_throws_hot_flame_particles_that_grow(env):
+    lua, ns = env
+    w = world(env, dragons_breath=1)
+    fx = ns.Fx.new()
+    assert cast(ns, w, "dragons_breath", w.player.x + 300, w.player.y)
+    run_fx(ns, fx, w, 0.3)
+    ps = plist(fx)
+    assert len(ps) > 30                                       # a stream, not a few dots
+    assert all(p.r == 1 and p.g >= 0.35 for p in ps)          # red-orange to yellow, never the old flat colour
+    assert all(p.s1 > p.s0 for p in ps)                       # each puff swells as it flies

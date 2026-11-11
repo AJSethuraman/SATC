@@ -28,10 +28,12 @@ Zone.BESTIARY = {
 -- Ground: a base texture tiled every `tile` units, with a second, much bigger dirt layer faded over it so the tiling is hard to see.
 -- 187126 elwynn grass, 187113 elwynn dirt, 188950 tirisfall dirt-rock, 187140 elwynn gravel.
 Zone.GROUND = {
-  moor = { base = 187126, tint = { 0.72, 0.82, 0.55 }, tile = 256,
-           overlay = 187113, overlay_tint = { 0.8, 0.7, 0.5 }, overlay_alpha = 0.3, overlay_tile = 640 },
-  cave = { base = 188950, tint = { 0.5, 0.45, 0.45 }, tile = 256,
-           overlay = 187140, overlay_tint = { 0.6, 0.55, 0.5 }, overlay_alpha = 0.3, overlay_tile = 560 },
+  moor = { base = 187126, tint = { 0.72, 0.82, 0.55 }, tile = 512,
+           overlay = 187113, overlay_tint = { 0.8, 0.7, 0.5 }, overlay_alpha = 0.22, overlay_tile = 1100,
+           patch = 187070, patch_tint = { 0.6, 0.75, 0.45 }, patch_alpha = 0.3, patch_tile = 1700 },   -- duskwood grass: darker patches
+  cave = { base = 188950, tint = { 0.5, 0.45, 0.45 }, tile = 512,
+           overlay = 187140, overlay_tint = { 0.6, 0.55, 0.5 }, overlay_alpha = 0.22, overlay_tile = 1000,
+           patch = 187113, patch_tint = { 0.45, 0.4, 0.38 }, patch_alpha = 0.3, patch_tile = 1500 },
 }
 Zone.SCENERY = {
   -- w, h: how big it should LOOK, in world units. r: the solid part you cannot walk through (always inside w).

@@ -130,9 +130,11 @@ local function emit_effect(fx, e, world, dt)
     end)
   elseif e.kind == "cone" then
     local base = math.atan2 and math.atan2(e.dy, e.dx) or math.atan(e.dy, e.dx)
-    rate(fx, e, 120, dt, function()
-      local a, sp = base + rnd(fx, -e.half, e.half), rnd(fx, 120, 220)
-      Fx.spark(fx, p.x, p.y, math.cos(a) * sp, math.sin(a) * sp, c, 0.35, 10, 3, 0.9, 0)
+    rate(fx, e, 220, dt, function()
+      local a, sp = base + rnd(fx, -e.half * 0.8, e.half * 0.8), rnd(fx, 150, 260)
+      local hot = rnd(fx, 0, 1)                                           -- yellow in the middle, red at the edge
+      local col = { 1, 0.35 + 0.5 * hot, 0.1 + 0.2 * hot }
+      Fx.spark(fx, p.x, p.y, math.cos(a) * sp, math.sin(a) * sp, col, 0.45, 8, 16, 0.85, 0)
     end)
   elseif e.kind == "storm" then
     rate(fx, e, 25, dt, function()
