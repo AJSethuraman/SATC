@@ -85,7 +85,8 @@ def raid_embed(db: Database, raid) -> discord.Embed:
     e = discord.Embed(
         title=f"{'CANCELLED: ' if cancelled else 'STARTED: ' if started else 'COMPLETED: ' if ended else ''}"
               f"{raid['title']}  (#{raid['id']})",
-        description=f"<t:{ts}:F> · <t:{ts}:R>\nSlots filled: **{R.filled(g)}/{raid['size']}**",
+        description=f"<t:{ts}:F> · <t:{ts}:R>\nSlots filled: **{R.filled(g)}/{raid['size']}**"
+                    + ("\nRepeats every week" if "series_id" in raid.keys() and raid["series_id"] else ""),
         color=discord.Color.dark_grey() if cancelled or started or ended else discord.Color.blurple(),
     )
     for role in R.ROLES:
@@ -219,9 +220,10 @@ class RaidDetails(discord.ui.Modal, title="Raid details"):
     healers = discord.ui.TextInput(label="Max healers (blank = no limit)", required=False, max_length=2)
     dps = discord.ui.TextInput(label="Max DPS (blank = no limit)", required=False, max_length=2)
 
-    def __init__(self, bot: "GuildBot", day: str, time: str, size: int, origin=None):
+    def __init__(self, bot: "GuildBot", day: str, time: str, size: int, origin=None, repeat: bool = False):
         super().__init__()
         self.bot, self.day, self.time, self.size, self.origin = bot, day, time, size, origin
+        self.repeat = repeat
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         try:
@@ -231,7 +233,7 @@ class RaidDetails(discord.ui.Modal, title="Raid details"):
             await interaction.response.send_message("Limits must be whole numbers from 1 to 40 (or blank).", ephemeral=True)
             return
         start = R.parse_start(self.day, self.time, self.bot.cfg.timezone)
-        posted = await self.bot.post_raid(interaction, str(self.name.value).strip(), start, self.size, caps)
+        posted = await self.bot.post_raid(interaction, str(self.name.value).strip(), start, self.size, caps, self.repeat)
         if posted and self.origin is not None:
             try:
                 await self.origin.delete_original_response()      # the private menu has done its job
@@ -243,9 +245,10 @@ class RaidWizard(discord.ui.View):
     """Step-by-step raid creation: pick the day, the time and the size, then name it.
     The day list shows 14 days at a time; Earlier/Later move it, so any date is reachable."""
 
-    def __init__(self, bot: "GuildBot", page: int = 0, day=None, time=None, size=None, origin=None):
+    def __init__(self, bot: "GuildBot", page: int = 0, day=None, time=None, size=None, origin=None, repeat="once"):
         super().__init__(timeout=900)
         self.bot, self.page, self.day, self.time, self.size = bot, page, day, time, size
+        self.repeat = repeat
         self.origin = origin          # the /raid-create interaction that opened this menu
         days = R.day_options(datetime.now(timezone.utc), bot.cfg.timezone, page=page)
         first, last = days[0][0].split(" - ")[1], days[-1][0].split(" - ")[1]
@@ -253,14 +256,15 @@ class RaidWizard(discord.ui.View):
         self._add_select("time", "2. Time (" + bot.cfg.timezone.split("/")[-1].replace("_", " ") + ")",
                          R.time_options(), 1)
         self._add_select("size", "3. How many players", [(f"{n} players", str(n)) for n in R.SIZE_CHOICES], 2)
+        self._add_select("repeat", "4. Repeat?", [("Just this once", "once"), ("Every week", "weekly")], 3)
         if page > 0:
-            earlier = discord.ui.Button(label="< Earlier days", style=discord.ButtonStyle.secondary, row=3)
+            earlier = discord.ui.Button(label="< Earlier days", style=discord.ButtonStyle.secondary, row=4)
             earlier.callback = lambda i: self._turn(i, -1)
             self.add_item(earlier)
-        later = discord.ui.Button(label="Later days >", style=discord.ButtonStyle.secondary, row=3)
+        later = discord.ui.Button(label="Later days >", style=discord.ButtonStyle.secondary, row=4)
         later.callback = lambda i: self._turn(i, 1)
         self.add_item(later)
-        nxt = discord.ui.Button(label="Next: name and limits", style=discord.ButtonStyle.success, row=3)
+        nxt = discord.ui.Button(label="Next: name and limits", style=discord.ButtonStyle.success, row=4)
         nxt.callback = self._next
         self.add_item(nxt)
 
@@ -280,7 +284,7 @@ class RaidWizard(discord.ui.View):
         self.add_item(sel)
 
     async def _turn(self, interaction: discord.Interaction, step: int) -> None:
-        view = RaidWizard(self.bot, max(0, self.page + step), self.day, self.time, self.size, self.origin)
+        view = RaidWizard(self.bot, max(0, self.page + step), self.day, self.time, self.size, self.origin, self.repeat)
         await interaction.response.edit_message(view=view)
 
     async def _next(self, interaction: discord.Interaction) -> None:
@@ -291,7 +295,8 @@ class RaidWizard(discord.ui.View):
         if start <= datetime.now(timezone.utc):
             await interaction.response.send_message("That time has already passed. Pick a later time.", ephemeral=True)
             return
-        await interaction.response.send_modal(RaidDetails(self.bot, self.day, self.time, self.size, self.origin))
+        await interaction.response.send_modal(
+            RaidDetails(self.bot, self.day, self.time, self.size, self.origin, self.repeat == "weekly"))
 
 
 def _craft_line(r, gap: bool) -> str:
@@ -460,6 +465,7 @@ HELP_OFFICER = ("Officers", [
     ("/raid-create", "make a raid"),
     ("/raid-edit", "change a raid"),
     ("/raid-end", "wrap one up"),
+    ("/raid-repeat-stop", "stop a raid repeating every week"),
     ("/raid-attendance", "correct who showed up"),
     ("/attendance", "who shows up and who drops late"),
     ("/raid-cancel", "call one off and tell everyone"),
@@ -584,6 +590,25 @@ class OfferView(discord.ui.View):
         return callback
 
 
+class RepeatView(discord.ui.View):
+    """Same as last time / Tentative / Can't make it, on the DM that asks someone back for next week's raid."""
+
+    def __init__(self, bot: "GuildBot", raid_id: int):
+        super().__init__(timeout=None)
+        self.bot, self.raid_id = bot, raid_id
+        for choice, label, style in (("same", "Same as last time", discord.ButtonStyle.success),
+                                     ("tent", "Tentative", discord.ButtonStyle.secondary),
+                                     ("no", "Can't make it", discord.ButtonStyle.secondary)):
+            btn = discord.ui.Button(label=label, style=style, custom_id=f"again:{raid_id}:{choice}")
+            btn.callback = self._make(choice)
+            self.add_item(btn)
+
+    def _make(self, choice: str):
+        async def callback(interaction: discord.Interaction):
+            await self.bot.answer_repeat(interaction, self.raid_id, choice)
+        return callback
+
+
 class GuildTree(app_commands.CommandTree):
     """Slash commands only run in the channels named in BOT_CHANNEL_IDS (if any are set)."""
 
@@ -607,6 +632,9 @@ class GuildBot(discord.Client):
 
     async def setup_hook(self) -> None:
         self.add_view(ClaimPanel(self))
+        for r in self.db.open_raids():
+            if r["series_id"]:
+                self.add_view(RepeatView(self, r["id"]))
         for o in self.db.pending_offers():
             self.add_view(OfferView(self, o["id"]))
         for raid in self.db.open_raids():
@@ -629,7 +657,7 @@ class GuildBot(discord.Client):
         self.offer_job.start()
 
     async def post_raid(self, interaction: discord.Interaction, title: str, start: datetime, size: int,
-                        caps: dict) -> bool:
+                        caps: dict, repeat: bool = False) -> bool:
         """Create the raid row, post the signup message and make the Discord event. Used by the wizard
         and by /raid-create. Returns True once the raid is posted."""
         db = self.db
@@ -659,6 +687,12 @@ class GuildBot(discord.Client):
         except discord.HTTPException:
             note = "Raid posted, but I couldn't create the Discord event (check my Manage Events permission)."
         db.set_raid_posted(raid_id, msg.channel.id, msg.id, event_id)
+        if repeat:
+            db.create_series(db.get_raid(raid_id), msg.channel.id)
+            try:
+                await msg.edit(embed=raid_embed(db, db.get_raid(raid_id)))     # now says it repeats
+            except discord.HTTPException:
+                pass
         try:
             await msg.pin()                          # live raids stay pinned until they end
         except discord.HTTPException:
@@ -755,6 +789,79 @@ class GuildBot(discord.Client):
                 self.db.mark_closed(raid["id"])      # message or channel deleted: nothing left to tidy
             except Exception:
                 log.exception("could not remove buttons from started raid %s; will retry", raid["id"])
+
+    # ---- repeating raids ------------------------------------------------
+    async def publish_raid(self, raid_id: int, channel) -> None:
+        """Post a raid that was created by the bot itself (not from a command): message, event, pin."""
+        db = self.db
+        raid = db.get_raid(raid_id)
+        msg = await channel.send(embed=raid_embed(db, raid), view=RaidView(self, raid_id))
+        event_id = None
+        start = datetime.fromisoformat(raid["starts_at"])
+        try:
+            ev = await channel.guild.create_scheduled_event(
+                name=raid["title"], start_time=start, end_time=start + timedelta(hours=3),
+                entity_type=discord.EntityType.external, location="In game (WoW Forever)",
+                privacy_level=discord.PrivacyLevel.guild_only)
+            event_id = ev.id
+        except discord.HTTPException:
+            log.warning("could not create the Discord event for repeated raid %s", raid_id)
+        db.set_raid_posted(raid_id, msg.channel.id, msg.id, event_id)
+        try:
+            await msg.pin()
+        except discord.HTTPException:
+            log.warning("could not pin repeated raid %s", raid_id)
+
+    async def spawn_next(self, raid_id: int):
+        """When a repeating raid ends (or is cancelled), post next week's and ask last week's regulars back.
+        Returns the new raid's number, or None. Safe to call twice."""
+        db = self.db
+        raid = db.get_raid(raid_id)
+        if not raid or not raid["series_id"]:
+            return None
+        series = db.get_series(raid["series_id"])
+        if not series or not series["active"] or db.series_has_later(series["id"], raid["starts_at"]):
+            return None
+        nxt = R.next_occurrence(datetime.fromisoformat(raid["starts_at"]), self.cfg.timezone)
+        new_id = db.create_raid(series["title"], nxt.isoformat(timespec="seconds"), series["size"], series["created_by"],
+                                {"tank": series["cap_tank"], "healer": series["cap_healer"], "dps": series["cap_dps"]})
+        db.set_raid_series(new_id, series["id"])
+        try:
+            chan = self.get_channel(series["channel_id"]) or await self.fetch_channel(series["channel_id"])
+            await self.publish_raid(new_id, chan)
+        except discord.HTTPException:
+            log.exception("could not post the next raid in series %s", series["id"])
+            db.delete_raid(new_id)
+            return None
+        new = db.get_raid(new_id)
+        self.add_view(RepeatView(self, new_id))
+        for uid, role, slug in db.invitees(raid_id):          # ask them back; nobody is signed up automatically
+            db.add_invite(new_id, uid, role, slug)
+            await self.dm_user(uid, R.invite_text(new, role), RepeatView(self, new_id))
+        return new_id
+
+    async def answer_repeat(self, interaction: discord.Interaction, raid_id: int, choice: str) -> None:
+        db = self.db
+        inv = db.get_invite(raid_id, interaction.user.id)
+        raid = db.get_raid(raid_id)
+        started = raid and datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc)
+        if not inv or not raid or raid["status"] != "open" or started:
+            await interaction.response.edit_message(content="That raid isn't open any more.", view=None)
+            return
+        chars = db.characters_for(interaction.user.id)
+        if not chars:
+            await interaction.response.send_message(
+                "Claim a character first (the pinned post in the raids channel), then tap again.", ephemeral=True)
+            return
+        slug = inv["slug"] if inv["slug"] in {c["slug"] for c in chars} else (db.main_for(interaction.user.id) or chars[0])["slug"]
+        role = {"same": inv["role"], "tent": "tentative", "no": "absent"}[choice]
+        landed = self.apply_signup(raid, interaction.user.id, role, slug)
+        text = {"absent": "Got it, you're out.", "tentative": "Marked as tentative."}.get(
+            landed, f"You're in as {R.ROLE_SINGULAR.get(landed, landed)}." if landed != "bench"
+            else "That role is full, so you're on the bench. I'll message you if a spot opens.")
+        await interaction.response.edit_message(content=text, view=None)
+        await self.refresh_raid_post(raid_id)
+        await self.fill_open_slots(raid_id)
 
     # ---- bench queue ----------------------------------------------------
     async def refresh_raid_post(self, raid_id: int) -> None:
@@ -928,12 +1035,15 @@ class GuildBot(discord.Client):
                 bot._busy.discard(raid_id)
         return _Guard()
 
-    async def dm_user(self, user_id: int, text: str) -> bool:
+    async def dm_user(self, user_id: int, text: str, view=None) -> bool:
         try:
             user = self.get_user(user_id) or await self.fetch_user(user_id)
             if user.bot:
                 return False
-            await user.send(text)
+            if view is not None:
+                await user.send(text, view=view)
+            else:
+                await user.send(text)
             return True
         except discord.HTTPException:
             return False
@@ -974,6 +1084,10 @@ class GuildBot(discord.Client):
                     log.exception("could not update the post for raid %s", raid_id)
         for uid in dict.fromkeys(dm_ids):
             await self.dm_user(uid, (note + "\n" if note else "") + roster)
+        try:
+            await self.spawn_next(raid_id)              # a repeating raid posts next week's
+        except Exception:
+            log.exception("could not start the next raid after %s", raid_id)
         return True
 
     async def _end_old_raids(self) -> None:
@@ -1378,7 +1492,7 @@ def register_commands(bot: GuildBot) -> None:
     @app_commands.describe(title="Leave everything blank to be walked through it", date="YYYY-MM-DD",
                            time="HH:MM, 24-hour, in the guild timezone", size="Raid size",
                            tanks="Max tanks (leave blank for no limit)", healers="Max healers (blank = no limit)",
-                           dps="Max DPS (blank = no limit)")
+                           dps="Max DPS (blank = no limit)", repeat="Post it again every week")
     @app_commands.guild_only()
     @officer
     async def raid_create(interaction: discord.Interaction, title: app_commands.Range[str, 1, 100] | None = None,
@@ -1386,7 +1500,7 @@ def register_commands(bot: GuildBot) -> None:
                           size: app_commands.Range[int, 1, 40] | None = None,
                           tanks: app_commands.Range[int, 1, 40] | None = None,
                           healers: app_commands.Range[int, 1, 40] | None = None,
-                          dps: app_commands.Range[int, 1, 40] | None = None):
+                          dps: app_commands.Range[int, 1, 40] | None = None, repeat: bool = False):
         if not (title and date and time and size):
             await interaction.response.send_message(
                 "Let's set up a raid. Pick the day, time and size, then tap **Next**.",
@@ -1398,7 +1512,7 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message(
                 "Couldn't read that date/time. Use `2026-11-15` and `20:00`.", ephemeral=True)
             return
-        await bot.post_raid(interaction, title, start, size, {"tank": tanks, "healer": healers, "dps": dps})
+        await bot.post_raid(interaction, title, start, size, {"tank": tanks, "healer": healers, "dps": dps}, repeat)
 
     @tree.command(name="raid-edit", description="Change a raid's title, time or size")
     @app_commands.describe(date="YYYY-MM-DD (give date and time together)", time="HH:MM, guild timezone",
@@ -1468,6 +1582,18 @@ def register_commands(bot: GuildBot) -> None:
     async def raid_cancel(interaction: discord.Interaction, raid_id: int):
         with bot.busy(raid_id):
             await cancel_raid_flow(interaction, raid_id)
+
+    @tree.command(name="raid-repeat-stop", description="Stop a raid from repeating every week (officers)")
+    @app_commands.guild_only()
+    @officer
+    async def raid_repeat_stop(interaction: discord.Interaction, raid_id: int):
+        raid = db.get_raid(raid_id)
+        if not raid or not raid["series_id"]:
+            await interaction.response.send_message("That raid doesn't repeat.", ephemeral=True)
+            return
+        db.stop_series(raid["series_id"])
+        await interaction.response.send_message(
+            f"**{raid['title']}** won't repeat any more. This one still runs as planned.", ephemeral=True)
 
     @tree.command(name="raid-attendance", description="Correct who showed up to a raid (officers)")
     @app_commands.describe(raid_id="The raid number", member="The person", showed="True if they were there, False if not")
@@ -1573,6 +1699,10 @@ def register_commands(bot: GuildBot) -> None:
             return
         who = [s["discord_id"] for s in db.signups(raid_id) if s["role"] != "absent"]   # everyone involved
         db.cancel_raid(raid_id)                         # the row stays, marked cancelled, as a record
+        try:
+            await bot.spawn_next(raid_id)               # a repeating raid carries on next week
+        except Exception:
+            log.exception("could not start the next raid after cancelling %s", raid_id)
         notice = R.cancel_notice(raid, interaction.user.id)
         told, blocked = 0, []
         for uid in dict.fromkeys(who):

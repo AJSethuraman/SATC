@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS raids (
     cap_tank INTEGER, cap_healer INTEGER, cap_dps INTEGER,   -- NULL = no limit for that role
     created_by INTEGER NOT NULL,
     channel_id INTEGER, message_id INTEGER, discord_event_id INTEGER,
-    status TEXT NOT NULL DEFAULT 'open',   -- open | closed (started) | ended (post removed) | cancelled
+    status TEXT NOT NULL DEFAULT 'open',   -- open | closed (started) | ended (completed) | cancelled
     reminded INTEGER NOT NULL DEFAULT 0
 );
 
@@ -104,6 +104,19 @@ CREATE TABLE IF NOT EXISTS signups (
     raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL,
     slug TEXT, role TEXT NOT NULL, updated_at TEXT NOT NULL,
     wanted TEXT,                      -- on the bench: the role they asked for (NULL = any role)
+    PRIMARY KEY (raid_id, discord_id)
+);
+
+-- A raid that repeats every week: when one ends, the next is posted and last week's regulars are asked back.
+CREATE TABLE IF NOT EXISTS series (
+    id INTEGER PRIMARY KEY, title TEXT NOT NULL, size INTEGER NOT NULL,
+    cap_tank INTEGER, cap_healer INTEGER, cap_dps INTEGER,
+    channel_id INTEGER NOT NULL, created_by INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1
+);
+
+-- Who was asked back for a repeated raid, and what they played last time.
+CREATE TABLE IF NOT EXISTS invites (
+    raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL, slug TEXT,
     PRIMARY KEY (raid_id, discord_id)
 );
 
@@ -157,6 +170,9 @@ class Database:
         self.conn.commit()
         if "stats_loaded" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(items)")}:
             self.conn.execute("ALTER TABLE items ADD COLUMN stats_loaded INTEGER NOT NULL DEFAULT 0")   # fetched before stats
+            self.conn.commit()
+        if "series_id" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(raids)")}:
+            self.conn.execute("ALTER TABLE raids ADD COLUMN series_id INTEGER")       # created before repeating raids
             self.conn.commit()
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
@@ -737,6 +753,52 @@ class Database:
         self.conn.execute("INSERT INTO signup_log (raid_id, discord_id, role, at) VALUES (?,?,?,?)",
                           (raid_id, discord_id, "removed", utcnow()))
         self.conn.commit()
+
+    # ---- repeating raids ---------------------------------------------------
+    def create_series(self, raid, channel_id: int) -> int:
+        cur = self.conn.execute(
+            """INSERT INTO series (title, size, cap_tank, cap_healer, cap_dps, channel_id, created_by)
+               VALUES (?,?,?,?,?,?,?)""",
+            (raid["title"], raid["size"], raid["cap_tank"], raid["cap_healer"], raid["cap_dps"], channel_id, raid["created_by"]))
+        self.conn.execute("UPDATE raids SET series_id=? WHERE id=?", (cur.lastrowid, raid["id"]))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def get_series(self, series_id):
+        return self.conn.execute("SELECT * FROM series WHERE id=?", (series_id,)).fetchone()
+
+    def stop_series(self, series_id) -> None:
+        self.conn.execute("UPDATE series SET active=0 WHERE id=?", (series_id,))
+        self.conn.commit()
+
+    def set_raid_series(self, raid_id, series_id) -> None:
+        self.conn.execute("UPDATE raids SET series_id=? WHERE id=?", (series_id, raid_id))
+        self.conn.commit()
+
+    def series_has_later(self, series_id, starts_at_iso: str) -> bool:
+        """True if the series already has a raid after this one that was not cancelled (so none is made twice)."""
+        return bool(self.conn.execute(
+            "SELECT 1 FROM raids WHERE series_id=? AND starts_at>? AND status<>'cancelled'",
+            (series_id, starts_at_iso)).fetchone())
+
+    def invitees(self, raid_id):
+        """Who to ask back: everyone credited at the start, plus anyone still signed up as a slot, bench or maybe.
+        Returns (discord_id, role to offer, slug)."""
+        from .raids import COUNTED, invite_role
+        out: dict[int, tuple[str, str | None]] = {}
+        for a in self.conn.execute("SELECT * FROM attendance WHERE raid_id=? AND credited=1", (raid_id,)):
+            out[a["discord_id"]] = (invite_role(a["role"], None), a["slug"])
+        for s in self.conn.execute("SELECT * FROM signups WHERE raid_id=?", (raid_id,)):
+            if s["discord_id"] not in out and s["role"] in (*COUNTED, "bench", "tentative"):
+                out[s["discord_id"]] = (invite_role(s["role"], s["wanted"]), s["slug"])
+        return [(uid, role, slug) for uid, (role, slug) in out.items()]
+
+    def add_invite(self, raid_id, discord_id, role, slug) -> None:
+        self.conn.execute("INSERT OR REPLACE INTO invites VALUES (?,?,?,?)", (raid_id, discord_id, role, slug))
+        self.conn.commit()
+
+    def get_invite(self, raid_id, discord_id):
+        return self.conn.execute("SELECT * FROM invites WHERE raid_id=? AND discord_id=?", (raid_id, discord_id)).fetchone()
 
     # ---- attendance and history --------------------------------------------
     def record_attendance(self, raid_id) -> None:

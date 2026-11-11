@@ -228,3 +228,27 @@ def ping_text(raid, role: str, discord_id: int, expires_at: datetime, last_call:
                 f"Answer <t:{when}:R> or you come off the bench.")
     return (f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
             f"Take it or pass by <t:{when}:t> or you come off the bench.")
+
+
+def next_occurrence(start_utc: datetime, tz_name: str, weeks: int = 1) -> datetime:
+    """The same wall-clock time `weeks` later in the guild timezone, as UTC. 8 PM stays 8 PM across a
+    daylight-saving change, which a plain +7 days in UTC would not."""
+    tz = ZoneInfo(tz_name)
+    local = start_utc.astimezone(tz)
+    nxt = datetime.combine(local.date() + timedelta(weeks=weeks), local.timetz().replace(tzinfo=None), tzinfo=tz)
+    return nxt.astimezone(timezone.utc)
+
+
+def invite_role(role: str | None, wanted: str | None) -> str:
+    """The role to offer someone back for next week: what they played, what they were waiting for, or a maybe."""
+    if role in COUNTED:
+        return role
+    if role == "bench" and wanted in COUNTED:
+        return wanted
+    return "tentative"
+
+
+def invite_text(raid, role: str) -> str:
+    ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
+    what = "a maybe" if role == "tentative" else f"**{ROLE_SINGULAR[role]}**"
+    return f"**{raid['title']}** is on again: <t:{ts}:F>. Same as last time ({what})?"

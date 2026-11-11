@@ -156,7 +156,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
                      "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands", "raid-attendance",
-                     "history", "attendance"}
+                     "history", "attendance", "raid-repeat-stop"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -471,7 +471,7 @@ def test_raid_wizard_and_details_modal_build(tmp_path):
         cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
         bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
         w = RaidWizard(bot)
-        assert [type(c).__name__ for c in w.children] == ["Select", "Select", "Select", "Button", "Button"]
+        assert [type(c).__name__ for c in w.children] == ["Select", "Select", "Select", "Select", "Button", "Button"]
         assert all(len(c.options) <= 25 for c in w.children[:3])
         assert RaidDetails(bot, "2026-11-15", "20:00", 10).name.default == "Raid"
     asyncio.run(build())
@@ -1355,3 +1355,85 @@ def test_attendance_is_credited_at_the_start_and_history_tells_drops_from_no_sho
     db.mark_closed(rid2)
     assert db.history(1)["attended"] == 2 and [r[0] for r in db.history(1)["recent"]] == ["Run 2", "Run"]
     assert db.history(6) == {"signed_up": 1, "attended": 0, "no_shows": 0, "late_drops": 0, "recent": []}
+
+
+def test_next_occurrence_keeps_the_wall_clock_time_across_daylight_saving():
+    start = datetime(2026, 10, 29, 0, 0, tzinfo=timezone.utc)                 # Oct 28, 8 PM in New York (EDT)
+    assert R.next_occurrence(start, "America/New_York") == datetime(2026, 11, 5, 1, 0, tzinfo=timezone.utc)   # 8 PM EST
+    assert R.next_occurrence(datetime(2026, 11, 5, 1, 0, tzinfo=timezone.utc), "America/New_York") == \
+        datetime(2026, 11, 12, 1, 0, tzinfo=timezone.utc)
+    assert R.invite_role("tank", None) == "tank" and R.invite_role("bench", "dps") == "dps"
+    assert R.invite_role("bench", None) == "tentative" and R.invite_role("tentative", None) == "tentative"
+    assert "Same as last time (**DPS**)?" in R.invite_text({"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps")
+
+
+def test_repeating_raid_posts_next_week_and_asks_last_weeks_regulars_back(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    first = db.create_raid("Weekly Run", "2026-11-12T01:00:00+00:00", 5, 9, {"dps": 3})          # Wed 8 PM New York
+    db.set_raid_posted(first, 10, 20, None)
+    db.create_series(db.get_raid(first), 10)
+    db.claim(1, ["anduin-wrynn"])
+    db.upsert_signup(first, 1, "anduin-wrynn", "dps", "2026-11-10T12:00:00+00:00")
+    db.upsert_signup(first, 2, None, "tentative", "2026-11-10T12:00:00+00:00")
+    db.upsert_signup(first, 3, None, "absent", "2026-11-10T12:00:00+00:00")                     # out: not asked back
+    db.mark_closed(first)                                                                        # 1 is credited
+    sent, posts = [], []
+
+    class Chan:
+        class guild:
+            @staticmethod
+            async def create_scheduled_event(**kw):
+                return SimpleNamespace(id=777)
+
+        async def send(self, embed=None, view=None):
+            posts.append(embed.title)
+            return SimpleNamespace(id=900, channel=SimpleNamespace(id=10), pin=_apin)
+
+    async def _apin():
+        return None
+
+    class U:
+        bot = False
+
+        def __init__(self, uid):
+            self.uid = uid
+
+        async def send(self, text, view=None):
+            sent.append((self.uid, text, view is not None))
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: Chan()
+        bot.get_user = lambda uid: U(uid)
+        new_id = await bot.spawn_next(first)
+        assert await bot.spawn_next(first) is None                                               # not made twice
+        assert new_id and posts == ["Weekly Run  (#2)"]
+        new = db.get_raid(new_id)
+        assert new["starts_at"] == "2026-11-19T01:00:00+00:00" and new["series_id"] == db.get_raid(first)["series_id"]
+        assert (new["size"], new["cap_dps"], new["message_id"], new["discord_event_id"]) == (5, 3, 900, 777)
+        assert sorted((u, "on again" in t, v) for u, t, v in sent) == [(1, True, True), (2, True, True)]   # 3 said no: not asked
+        assert db.get_invite(new_id, 1)["role"] == "dps" and db.get_invite(new_id, 2)["role"] == "tentative"
+        assert db.signups(new_id) == []                                                           # nobody is signed up for them
+        bot.refresh_raid_post = lambda rid: _anoop()
+        replies = []
+
+        async def edit_message(content=None, view=None):
+            replies.append(content)
+        ix = SimpleNamespace(user=SimpleNamespace(id=1), response=SimpleNamespace(edit_message=edit_message))
+        await bot.answer_repeat(ix, new_id, "same")
+        assert replies == ["You're in as DPS."] and [(s["discord_id"], s["role"]) for s in db.signups(new_id)] == [(1, "dps")]
+        stranger = SimpleNamespace(user=SimpleNamespace(id=99), response=SimpleNamespace(edit_message=edit_message))
+        await bot.answer_repeat(stranger, new_id, "same")                                         # not invited: nothing
+        assert replies[-1] == "That raid isn't open any more." and len(db.signups(new_id)) == 1
+        db.stop_series(db.get_raid(first)["series_id"])
+        assert await bot.spawn_next(new_id) is None                                               # stopped: no third raid
+    asyncio.run(run())
+
+
+async def _anoop():
+    return None
