@@ -145,6 +145,25 @@ local function runTest2()
   end)
 end
 
+
+-- /dread sound: one at a time, each announced in chat just before it plays.
+local function runSounds()
+  local function cv(n) return n .. "=" .. tostring(GetCVar(n)) end
+  say("sound settings: " .. table.concat({ cv("Sound_EnableAllSound"), cv("Sound_EnableSFX"), cv("Sound_EnableMusic"),
+    cv("Sound_MasterVolume"), cv("Sound_SFXVolume"), cv("Sound_MusicVolume") }, ", "))
+  local steps = {}
+  for _, snd in ipairs(SOUNDS) do steps[#steps + 1] = snd end
+  steps[#steps + 1] = { "music: " .. MUSIC, function() return PlayMusic(MUSIC) end }
+  for i, st in ipairs(steps) do
+    C_Timer.After((i - 1) * 3, function()
+      say(string.format("[%d/%d] NOW: %s", i, #steps, st[1]))
+      local ok, r = pcall(st[2])
+      say("   returned " .. (ok and tostring(r) or "ERROR"))
+    end)
+  end
+  C_Timer.After(#steps * 3, function() say("done. Tell me which numbers you heard. /dread stopmusic to stop music.") end)
+end
+
 ---------------------------------------------------------------- slash command
 SLASH_DREAD1 = "/dread"
 SlashCmdList.DREAD = function(arg)
@@ -152,8 +171,9 @@ SlashCmdList.DREAD = function(arg)
   if arg == "" then startTest1()
   elseif arg == "assets" then runTest2()
   elseif arg == "stop" then if running then stopTest1("cancelled") elseif frame then frame:Hide() end
+  elseif arg == "sound" then runSounds()
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread stop | /dread stopmusic | /dread results") end
 end
