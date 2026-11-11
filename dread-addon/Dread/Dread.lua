@@ -77,7 +77,8 @@ local function startTest1()
       collectgarbage("collect")
       local verdict, detail = Sim.verdict(fps, memEarly or memStart, mem())
       stopTest1("finished")
-      record("test1", verdict .. " | " .. detail)
+      record("test1", verdict .. " | " .. detail .. string.format(" | caps: foreground %s, background %s (keep WoW in front)",
+        tostring(GetCVar("maxFPS")), tostring(GetCVar("maxFPSBk"))))
     end
   end)
   say("test 1 running for " .. DURATION .. " s. Leave the window open. /dread stop to cancel.")
