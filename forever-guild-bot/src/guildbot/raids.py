@@ -4,8 +4,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-ROLES = ("tank", "healer", "dps", "bench", "absent")
-ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Bench", "absent": "Can't make it"}
+# bench is not a button: it is where a full role sends you, and the queue for a spot. tentative is the "maybe".
+ROLES = ("tank", "healer", "dps", "bench", "tentative", "absent")
+ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Bench", "tentative": "Tentative",
+              "absent": "Can't make it"}
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
 # How long a bench player has to answer "a spot opened up" depends on how far off the raid is:

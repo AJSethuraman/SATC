@@ -82,6 +82,7 @@ Players connect Discord to characters with `/link`; the main character is the on
 **Phase 1: make raids good** (done 2026-11-11, walked in the real server)
 - Raid creation is guided (`/raid-create` with no options). Limits are per raid; with all three roles limited, the size is their total.
 - Claiming characters: first claim wins, max 5 each, officers can purge (`/unlink-member`) or free one (`/release`). Signing up needs a claimed character; with several, a pop-up asks which. Ownership cannot be proven (the app token cannot tell who owns a character), so this is trust plus officer cleanup.
+- Buttons are Tank / Healer / DPS / Tentative / Can't make it. Bench is not a button: it is where a full role sends you automatically, and it is the queue for a spot. Tentative is a maybe that takes no slot (owner decision 2026-11-11).
 - Bench is a queue with offers by DM, a last-call @ in the channel, and a window that scales with the time left. Reminders, cancellations and roster summaries are DMs, not channel posts, so the channel stays clean.
 - Raid posts are pinned while live, marked COMPLETED and unpinned when done, and kept as the record. Hand-made deletions of the post or event are noticed.
 - Commands are limited to `BOT_CHANNEL_IDS`. The sync command is `/guild-sync` because another bot on the server already has `/sync`.

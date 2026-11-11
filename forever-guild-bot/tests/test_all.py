@@ -126,7 +126,7 @@ def test_raid_signups_roles_and_reminders(tmp_path):
     db.upsert_signup(rid, 3, None, "absent", utcnow())
     db.upsert_signup(rid, 2, "judy-judgement", "healer", utcnow())   # changing role replaces
     g = R.group_signups(db.signups(rid))
-    assert [len(g[r]) for r in R.ROLES] == [1, 1, 0, 0, 1]
+    assert [len(g[r]) for r in R.ROLES] == [1, 1, 0, 0, 0, 1]
     assert R.filled(g) == 2
     assert R.format_entry(g["tank"][0]) == "**Anduin Wrynn** Paladin L60"
     assert R.format_entry(g["absent"][0]) == "<@3>"
@@ -1125,3 +1125,28 @@ def test_a_quiet_dm_offer_also_gets_a_channel_ping_at_its_last_call_time(tmp_pat
     assert [o["id"] for o in db.offers_to_clean()] == [old]
     db.mark_offer_cleaned(old)
     assert db.offers_to_clean() == []
+
+
+def test_tentative_is_a_maybe_that_takes_no_slot_and_bench_is_only_overflow(tmp_path):
+    from guildbot.bot import BUTTONS, GuildBot, raid_embed
+    assert [b[0] for b in BUTTONS] == ["tank", "healer", "dps", "tentative", "absent"]     # no Bench button
+    assert R.ROLES.index("tentative") > R.ROLES.index("bench")
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 1, 9)
+    raid = db.get_raid(rid)
+    bot = GuildBot(cfg, db, blizzard=None)
+    assert bot.apply_signup(raid, 1, "dps", None) == "dps"
+    assert bot.apply_signup(raid, 2, "tentative", None) == "tentative"           # a maybe: no slot taken, no queue place
+    assert bot.apply_signup(raid, 3, "dps", None) == "bench"                     # a full role sends you to the bench
+    rows = {s["discord_id"]: (s["role"], s["wanted"]) for s in db.signups(rid)}
+    assert rows == {1: ("dps", None), 2: ("tentative", None), 3: ("bench", "dps")}
+    g = R.group_signups(db.signups(rid))
+    assert R.filled(g) == 1 and [s["discord_id"] for s in g["tentative"]] == [2]
+    bot.apply_signup(raid, 1, "absent", None)                                    # the slot opens: the queue, not the maybe
+    assert R.next_offers(raid, db.signups(rid), []) == [(3, "dps")]
+    names = [f.name for f in raid_embed(db, raid).fields]
+    assert names == ["Tanks (0)", "Healers (0)", "DPS (0)", "Bench (1)", "Tentative (1)", "Can't make it (1)"]
+    assert "**Tentative (1):**" in R.roster_summary(raid, db.signups(rid))
+

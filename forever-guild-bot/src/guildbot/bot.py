@@ -22,7 +22,7 @@ BUTTONS = [
     ("tank", "Tank", discord.ButtonStyle.primary),
     ("healer", "Healer", discord.ButtonStyle.success),
     ("dps", "DPS", discord.ButtonStyle.danger),
-    ("bench", "Bench", discord.ButtonStyle.secondary),
+    ("tentative", "Tentative", discord.ButtonStyle.secondary),
     ("absent", "Can't make it", discord.ButtonStyle.secondary),
 ]
 
@@ -589,12 +589,12 @@ class GuildBot(discord.Client):
             log.exception("item catalogue refresh failed")
 
     async def _send_reminders(self) -> None:
-        """Private reminder to everyone signed up (slots and bench). Nothing is posted in the channel.
+        """Private reminder to everyone signed up (slots, bench and tentative). Nothing is posted in the channel.
         Anyone whose DMs are closed is reported privately to whoever created the raid."""
         for raid in self.db.due_reminders(datetime.now(timezone.utc), 60):
             try:
                 g = R.group_signups(self.db.signups(raid["id"]))
-                ids = list(dict.fromkeys(s["discord_id"] for r in (*R.COUNTED, "bench") for s in g[r]))
+                ids = list(dict.fromkeys(s["discord_id"] for r in (*R.COUNTED, "bench", "tentative") for s in g[r]))
                 text = R.reminder_text(raid)
                 blocked = []
                 for uid in ids:
