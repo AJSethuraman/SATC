@@ -170,13 +170,14 @@ class Database:
         t = text.strip().lower()
         return self.conn.execute(
             """SELECT * FROM characters WHERE in_guild=1
-               AND (slug=? OR lower(name)=?) ORDER BY (slug=?) DESC LIMIT 1""",
-            (t.replace(" ", "-"), t, t.replace(" ", "-"))).fetchone()
+               AND (slug=? OR lower(name)=? OR lower((name || COALESCE(' ' || surname, '')))=?) ORDER BY (slug=?) DESC LIMIT 1""",
+            (t.replace(" ", "-"), t, t, t.replace(" ", "-"))).fetchone()
 
     def search_characters(self, prefix: str, limit: int = 25):
         return self.conn.execute(
-            "SELECT * FROM characters WHERE in_guild=1 AND (lower(name) LIKE ? OR slug LIKE ?) "
-            "ORDER BY name LIMIT ?", (prefix.lower() + "%", prefix.lower() + "%", limit)).fetchall()
+            "SELECT * FROM characters WHERE in_guild=1 AND (lower(" + "(name || COALESCE(' ' || surname, ''))" + ") LIKE ? OR slug LIKE ?) "
+            "ORDER BY (lower(name) LIKE ?) DESC, name, surname LIMIT ?",
+            ("%" + prefix.lower() + "%", "%" + prefix.lower().replace(" ", "-") + "%", prefix.lower() + "%", limit)).fetchall()
 
     def roster(self, class_name=None, min_level=None, limit=None):
         q, args = "SELECT * FROM characters WHERE in_guild=1", []
@@ -184,7 +185,7 @@ class Database:
             q += " AND lower(class_name)=?"; args.append(class_name.lower())
         if min_level:
             q += " AND level>=?"; args.append(min_level)
-        q += " ORDER BY level DESC, name"
+        q += " ORDER BY level DESC, name, surname"
         if limit:
             q += " LIMIT ?"; args.append(limit)
         return self.conn.execute(q, args).fetchall()
@@ -198,17 +199,17 @@ class Database:
 
     def who_has_profession(self, text: str):
         return self.conn.execute(
-            """SELECT c.name, c.level, p.profession, p.skill, p.max_skill, p.fetched_at
+            """SELECT c.name, c.surname, c.level, p.profession, p.skill, p.max_skill, p.fetched_at
                FROM professions p JOIN characters c ON c.slug=p.slug
                WHERE c.in_guild=1 AND lower(p.profession) LIKE ?
-               ORDER BY p.skill DESC, c.name""", ("%" + text.lower() + "%",)).fetchall()
+               ORDER BY p.skill DESC, c.name, c.surname""", ("%" + text.lower() + "%",)).fetchall()
 
     def search_items(self, text: str):
         return self.conn.execute(
-            """SELECT c.name, c.level, e.slot, e.item_name, e.quality, e.fetched_at
+            """SELECT c.name, c.surname, c.level, e.slot, e.item_name, e.quality, e.fetched_at
                FROM equipment e JOIN characters c ON c.slug=e.slug
                WHERE c.in_guild=1 AND lower(e.item_name) LIKE ?
-               ORDER BY c.name""", ("%" + text.lower() + "%",)).fetchall()
+               ORDER BY c.name, c.surname""", ("%" + text.lower() + "%",)).fetchall()
 
     # ---- discord <-> character links ---------------------------------
     def link(self, discord_id: int, slug: str) -> bool:
@@ -261,7 +262,7 @@ class Database:
     def characters_for(self, discord_id: int):
         return self.conn.execute(
             """SELECT c.*, l.is_main FROM links l JOIN characters c ON c.slug=l.slug
-               WHERE l.discord_id=? ORDER BY l.is_main DESC, c.name""", (discord_id,)).fetchall()
+               WHERE l.discord_id=? ORDER BY l.is_main DESC, c.name, c.surname""", (discord_id,)).fetchall()
 
     def owner_of(self, slug: str):
         r = self.conn.execute("SELECT discord_id FROM links WHERE slug=? ORDER BY is_main DESC LIMIT 1",
@@ -270,10 +271,13 @@ class Database:
 
     MAX_CLAIMS = 5   # characters one Discord account may claim itself (officers can link more)
 
-    def unclaimed_characters(self):
+    def unclaimed_characters(self, query: str = ""):
+        """Unclaimed guild characters, alphabetical by full name; `query` keeps names containing it."""
         return self.conn.execute(
             """SELECT * FROM characters WHERE in_guild=1
-               AND slug NOT IN (SELECT slug FROM links) ORDER BY name""").fetchall()
+               AND slug NOT IN (SELECT slug FROM links)
+               AND lower((name || COALESCE(' ' || surname, ''))) LIKE ? ORDER BY lower(name), lower(COALESCE(surname, ''))""",
+            ("%" + query.strip().lower() + "%",)).fetchall()
 
     def claim(self, discord_id: int, slugs) -> dict:
         """Self-service claim. First claim wins; a taken character is skipped, never stolen, and one
@@ -306,7 +310,7 @@ class Database:
         return self.conn.execute(
             """SELECT l.discord_id, l.is_main, c.name, c.surname, c.level, c.class_name
                FROM links l JOIN characters c ON c.slug=l.slug
-               ORDER BY l.discord_id, l.is_main DESC, c.name""").fetchall()
+               ORDER BY l.discord_id, l.is_main DESC, c.name, c.surname""").fetchall()
 
     # ---- raids --------------------------------------------------------
     def create_raid(self, title, starts_at_utc_iso, size, created_by, caps: dict | None = None) -> int:
@@ -375,7 +379,7 @@ class Database:
 
     def signups(self, raid_id):
         return self.conn.execute(
-            """SELECT s.*, c.name, c.level, c.class_name, c.profile_at FROM signups s
+            """SELECT s.*, c.name, c.surname, c.level, c.class_name, c.profile_at FROM signups s
                LEFT JOIN characters c ON c.slug=s.slug
                WHERE s.raid_id=? ORDER BY s.updated_at""", (raid_id,)).fetchall()
 

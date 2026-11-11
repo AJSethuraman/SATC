@@ -101,16 +101,16 @@ CLAIM_PAGE = 25   # Discord allows 25 options in one dropdown
 
 
 def char_label(r) -> str:
-    return f"{r['name']} {r['surname'] or ''} · L{r['level'] or '?'} {r['class_name'] or ''}".replace("  ", " ").strip()[:100]
+    return f"{R.full_name(r)} · L{r['level'] or '?'} {r['class_name'] or ''}".strip()[:100]
 
 
 class ClaimPicker(discord.ui.View):
     """Private (ephemeral) dropdown of unclaimed characters, paged 25 at a time."""
 
-    def __init__(self, bot: "GuildBot", page: int = 0):
+    def __init__(self, bot: "GuildBot", page: int = 0, query: str = ""):
         super().__init__(timeout=300)
-        self.bot = bot
-        rows = bot.db.unclaimed_characters()
+        self.bot, self.query = bot, query
+        rows = bot.db.unclaimed_characters(query)
         pages = max(1, -(-len(rows) // CLAIM_PAGE))
         self.page = min(page, pages - 1)
         self._pages = pages
@@ -126,19 +126,36 @@ class ClaimPicker(discord.ui.View):
             nxt = discord.ui.Button(label="Next page", style=discord.ButtonStyle.secondary)
             nxt.callback = self._next
             self.add_item(nxt)
+        find = discord.ui.Button(label="Search by name", style=discord.ButtonStyle.primary)
+        find.callback = self._search
+        self.add_item(find)
+        if query:
+            allb = discord.ui.Button(label="Show everyone", style=discord.ButtonStyle.secondary)
+            allb.callback = self._show_all
+            self.add_item(allb)
 
     async def _next(self, interaction: discord.Interaction) -> None:
-        view = ClaimPicker(self.bot, (self.page + 1) % self._pages)
+        view = ClaimPicker(self.bot, (self.page + 1) % self._pages, self.query)
+        await interaction.response.edit_message(content=view.header(), view=view)
+
+    async def _search(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_modal(ClaimSearch(self.bot))
+
+    async def _show_all(self, interaction: discord.Interaction) -> None:
+        view = ClaimPicker(self.bot)
         await interaction.response.edit_message(content=view.header(), view=view)
 
     def header(self) -> str:
-        n = len(self.bot.db.unclaimed_characters())
+        n = len(self.bot.db.unclaimed_characters(self.query))
+        if self.query:
+            return (f"{n} match(es) for \"{self.query}\". Pick yours." if n
+                    else f"No unclaimed character matches \"{self.query}\". Try less of the name, or tap Show everyone.")
         return (f"Pick yours from the list ({n} unclaimed)." if n
                 else "Every character is already claimed. Ask an officer if one is wrong.")
 
     async def _picked(self, interaction: discord.Interaction) -> None:
         res = self.bot.db.claim(interaction.user.id, interaction.data["values"])
-        names = {r["slug"]: r["name"] for r in self.bot.db.roster()}
+        names = {r["slug"]: R.full_name(r) for r in self.bot.db.roster()}
         parts = []
         if res["linked"]:
             parts.append("Linked: " + ", ".join(f"**{names[s]}**" for s in res["linked"]) + ".")
@@ -149,6 +166,18 @@ class ClaimPicker(discord.ui.View):
             parts.append(f"You can claim up to {self.bot.db.MAX_CLAIMS} characters; ask an officer for more.")
         log.info("claim by %s: %s", interaction.user.id, res)
         await interaction.response.edit_message(content=" ".join(parts) or "Nothing changed.", view=None)
+
+
+class ClaimSearch(discord.ui.Modal, title="Find your character"):
+    text = discord.ui.TextInput(label="Part of your character's name", min_length=1, max_length=40)
+
+    def __init__(self, bot: "GuildBot"):
+        super().__init__()
+        self.bot = bot
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        view = ClaimPicker(self.bot, 0, str(self.text.value).strip())
+        await interaction.response.edit_message(content=view.header(), view=view)
 
 
 class ClaimPanel(discord.ui.View):
@@ -266,7 +295,7 @@ def register_commands(bot: GuildBot) -> None:
 
     async def char_ac(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(
-                    name=f"{r['name']} (L{r['level'] or '?'} {r['class_name'] or ''})".strip()[:100],
+                    name=f"{R.full_name(r)} (L{r['level'] or '?'} {r['class_name'] or ''})".strip()[:100],
                     value=r["slug"])
                 for r in db.search_characters(current)]
 
@@ -297,13 +326,13 @@ def register_commands(bot: GuildBot) -> None:
         if owner and owner != interaction.user.id:
             if not interaction.permissions.manage_events:
                 await interaction.response.send_message(
-                    f"**{row['name']}** is already linked to <@{owner}>. Ask an officer to fix it.",
+                    f"**{R.full_name(row)}** is already linked to <@{owner}>. Ask an officer to fix it.",
                     ephemeral=True)
                 return
             db.release(row["slug"])
         became_main = db.link(interaction.user.id, row["slug"])
         await interaction.response.send_message(
-            f"Linked **{row['name']}**" + (" as your main." if became_main else ". Use `/main` to make it your main."),
+            f"Linked **{R.full_name(row)}**" + (" as your main." if became_main else ". Use `/main` to make it your main."),
             ephemeral=True)
 
     @tree.command(name="unlink", description="Remove a character link from your Discord account")
@@ -320,7 +349,7 @@ def register_commands(bot: GuildBot) -> None:
         row = db.find_character(character)
         ok = bool(row) and db.set_main(interaction.user.id, row["slug"])
         await interaction.response.send_message(
-            f"**{row['name']}** is now your main." if ok else "Link that character first with `/link`.",
+            f"**{R.full_name(row)}** is now your main." if ok else "Link that character first with `/link`.",
             ephemeral=True)
 
     @tree.command(name="who", description="Show a character, a member's characters, or your own")
@@ -338,7 +367,7 @@ def register_commands(bot: GuildBot) -> None:
             return
         embeds = []
         for r in rows[:5]:
-            e = discord.Embed(title=f"{r['name']}" + (f" {r['surname']}" if r["surname"] else ""),
+            e = discord.Embed(title=R.full_name(r),
                               description=f"L{r['level'] or '?'} {r['race_name'] or ''} {r['class_name'] or ''}".strip())
             profs = db.professions_for(r["slug"])
             e.add_field(name="Professions",
@@ -354,7 +383,7 @@ def register_commands(bot: GuildBot) -> None:
     async def roster(interaction: discord.Interaction, class_name: str | None = None,
                      min_level: int | None = None):
         rows = db.roster(class_name, min_level)
-        lines = [f"**{r['name']}**: L{r['level'] or '?'} {r['class_name'] or ''}" for r in rows]
+        lines = [f"**{R.full_name(r)}**: L{r['level'] or '?'} {r['class_name'] or ''}" for r in rows]
         e = discord.Embed(title=f"Roster ({len(rows)})", description=clip(lines, 4000) or "Nobody found.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at'), key="profile_at"))
         await interaction.response.send_message(embed=e)
@@ -364,7 +393,7 @@ def register_commands(bot: GuildBot) -> None:
         rows = db.who_has_profession(profession)
         by: dict[str, list[str]] = {}
         for r in rows:
-            by.setdefault(r["profession"], []).append(f"{r['name']} {r['skill']}/{r['max_skill']}")
+            by.setdefault(r["profession"], []).append(f"{R.full_name(r)} {r['skill']}/{r['max_skill']}")
         lines = [f"**{p}** ({len(v)}): {', '.join(v)}" for p, v in sorted(by.items())]
         e = discord.Embed(title="Professions", description=clip(lines, 4000) or "Nobody found.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
@@ -373,7 +402,7 @@ def register_commands(bot: GuildBot) -> None:
     @tree.command(name="whohas", description="Who has an item equipped")
     async def whohas(interaction: discord.Interaction, item: str):
         rows = db.search_items(item)
-        lines = [f"**{r['name']}**: {r['item_name']} ({r['slot']})" for r in rows]
+        lines = [f"**{R.full_name(r)}**: {r['item_name']} ({r['slot']})" for r in rows]
         e = discord.Embed(title=f"Equipped: {item}", description=clip(lines, 4000) or "Nobody has it equipped.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e)
@@ -562,7 +591,7 @@ def register_commands(bot: GuildBot) -> None:
     async def claims(interaction: discord.Interaction):
         by: dict[int, list[str]] = {}
         for r in db.claims():
-            by.setdefault(r["discord_id"], []).append(f"{r['name']}{'*' if r['is_main'] else ''}")
+            by.setdefault(r["discord_id"], []).append(f"{R.full_name(r)}{'*' if r['is_main'] else ''}")
         lines = [f"<@{d}>: {', '.join(n)}" for d, n in by.items()]
         left = len(db.unclaimed_characters())
         text = clip(lines, 1800) or "No claims yet."
@@ -589,4 +618,4 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message("No such character.", ephemeral=True)
             return
         db.release(row["slug"])
-        await interaction.response.send_message(f"**{row['name']}** is free to claim again.", ephemeral=True)
+        await interaction.response.send_message(f"**{R.full_name(row)}** is free to claim again.", ephemeral=True)

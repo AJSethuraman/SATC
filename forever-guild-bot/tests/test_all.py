@@ -128,7 +128,7 @@ def test_raid_signups_roles_and_reminders(tmp_path):
     g = R.group_signups(db.signups(rid))
     assert [len(g[r]) for r in R.ROLES] == [1, 1, 0, 0, 1]
     assert R.filled(g) == 2
-    assert R.format_entry(g["tank"][0]) == "**Anduin** Paladin L60"
+    assert R.format_entry(g["tank"][0]) == "**Anduin Wrynn** Paladin L60"
     assert R.format_entry(g["absent"][0]) == "<@3>"
     assert [r["id"] for r in db.due_reminders(now)] == [rid]
     db.mark_reminded(rid)
@@ -429,3 +429,14 @@ def test_claim_is_first_come_capped_and_officer_purge_frees_characters(tmp_path)
     db.MAX_CLAIMS = 1
     assert db.claim(3, [b]) == {"linked": [b], "taken": [], "over_cap": []}
     assert db.claim(3, ["nobody-here"]) == {"linked": [], "taken": [], "over_cap": []}
+
+
+def test_full_names_alphabetical_and_searchable_unclaimed_list(tmp_path):
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    assert R.full_name(db.find_character("anduin")) == "Anduin Wrynn"
+    assert db.find_character("Judy Judgement")["slug"] == "judy-judgement"            # full name works too
+    assert [R.full_name(r) for r in db.unclaimed_characters()] == ["Anduin Wrynn", "Judy Judgement"]
+    assert [R.full_name(r) for r in db.unclaimed_characters("dgem")] == ["Judy Judgement"]   # search inside the name
+    assert db.unclaimed_characters("zzz") == []
+    assert [r["slug"] for r in db.search_characters("wrynn")] == ["anduin-wrynn"]

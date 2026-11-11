@@ -27,9 +27,14 @@ def filled(groups: dict[str, list]) -> int:
     return sum(len(groups[r]) for r in COUNTED)
 
 
+def full_name(r) -> str:
+    """'First Last'. Forever characters are known by both."""
+    return f"{r['name']} {r['surname']}" if "surname" in r.keys() and r["surname"] else r["name"]
+
+
 def format_entry(s) -> str:
     if s["name"]:
-        bits = [f"**{s['name']}**"]
+        bits = [f"**{full_name(s)}**"]
         if s["class_name"]:
             bits.append(s["class_name"])
         if s["level"]:
