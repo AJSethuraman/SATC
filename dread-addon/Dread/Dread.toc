@@ -2,7 +2,6 @@
 ## Title: Dread (feasibility tests)
 ## Notes: Test 1 loop speed, Test 2 assets. Not a game yet.
 ## SavedVariables: DreadDB
-# Interface line left out on purpose: the Forever build number is not confirmed.
-# In game, run  /dump select(4, GetBuildInfo())  and add  ## Interface: <that number>
+# 16001 is what /dump select(4, GetBuildInfo()) returned on Forever (owner screenshot, 11 Nov 2026).
 Sim.lua
 Dread.lua
