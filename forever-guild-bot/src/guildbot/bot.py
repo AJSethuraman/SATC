@@ -215,22 +215,34 @@ class RaidDetails(discord.ui.Modal, title="Raid details"):
 
 
 class RaidWizard(discord.ui.View):
-    """Step-by-step raid creation: pick the day, the time and the size, then name it."""
+    """Step-by-step raid creation: pick the day, the time and the size, then name it.
+    The day list shows 14 days at a time; Earlier/Later move it, so any date is reachable."""
 
-    def __init__(self, bot: "GuildBot"):
-        super().__init__(timeout=600)
-        self.bot, self.day, self.time, self.size = bot, None, None, None
-        days = R.day_options(datetime.now(timezone.utc), bot.cfg.timezone)
-        self._add_select("day", "1. Day", [(l, v) for l, v in days])
-        self._add_select("time", "2. Time (" + bot.cfg.timezone.split("/")[-1].replace("_", " ") + ")", R.time_options())
-        self._add_select("size", "3. How many players", [(f"{n} players", str(n)) for n in R.SIZE_CHOICES])
+    def __init__(self, bot: "GuildBot", page: int = 0, day=None, time=None, size=None):
+        super().__init__(timeout=900)
+        self.bot, self.page, self.day, self.time, self.size = bot, page, day, time, size
+        days = R.day_options(datetime.now(timezone.utc), bot.cfg.timezone, page=page)
+        first, last = days[0][0].split(" - ")[1], days[-1][0].split(" - ")[1]
+        self._add_select("day", f"1. Day  ({first} to {last})", days, 0)
+        self._add_select("time", "2. Time (" + bot.cfg.timezone.split("/")[-1].replace("_", " ") + ")",
+                         R.time_options(), 1)
+        self._add_select("size", "3. How many players", [(f"{n} players", str(n)) for n in R.SIZE_CHOICES], 2)
+        if page > 0:
+            earlier = discord.ui.Button(label="< Earlier days", style=discord.ButtonStyle.secondary, row=3)
+            earlier.callback = lambda i: self._turn(i, -1)
+            self.add_item(earlier)
+        later = discord.ui.Button(label="Later days >", style=discord.ButtonStyle.secondary, row=3)
+        later.callback = lambda i: self._turn(i, 1)
+        self.add_item(later)
         nxt = discord.ui.Button(label="Next: name and limits", style=discord.ButtonStyle.success, row=3)
         nxt.callback = self._next
         self.add_item(nxt)
 
-    def _add_select(self, attr: str, placeholder: str, options) -> None:
-        sel = discord.ui.Select(placeholder=placeholder, row={"day": 0, "time": 1, "size": 2}[attr],
-                                options=[discord.SelectOption(label=l, value=v) for l, v in options])
+    def _add_select(self, attr: str, placeholder: str, options, row: int) -> None:
+        current = getattr(self, attr)
+        sel = discord.ui.Select(
+            placeholder=placeholder, row=row,
+            options=[discord.SelectOption(label=l, value=v, default=(str(current) == v)) for l, v in options])
 
         async def picked(interaction: discord.Interaction, sel=sel, attr=attr) -> None:
             value = sel.values[0]
@@ -240,6 +252,10 @@ class RaidWizard(discord.ui.View):
             await interaction.response.edit_message(view=self)
         sel.callback = picked
         self.add_item(sel)
+
+    async def _turn(self, interaction: discord.Interaction, step: int) -> None:
+        view = RaidWizard(self.bot, max(0, self.page + step), self.day, self.time, self.size)
+        await interaction.response.edit_message(view=view)
 
     async def _next(self, interaction: discord.Interaction) -> None:
         if not (self.day and self.time and self.size):

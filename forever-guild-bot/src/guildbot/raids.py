@@ -66,15 +66,17 @@ def resolve_role(role: str, groups: dict[str, list], size: int, discord_id: int,
     return mine if role_full else role
 
 
-def day_options(now_utc: datetime, tz_name: str, days: int = 14) -> list[tuple[str, str]]:
-    """Next `days` calendar days in the guild timezone as (label, 'YYYY-MM-DD') for a dropdown."""
+def day_options(now_utc: datetime, tz_name: str, days: int = 14, page: int = 0) -> list[tuple[str, str]]:
+    """`days` calendar days in the guild timezone as (label, 'YYYY-MM-DD') for a dropdown. `page` 0 starts
+    today; each page after it moves `days` further out, so any date is reachable."""
     tz = ZoneInfo(tz_name)
     today = now_utc.astimezone(tz).date()
     out = []
-    for i in range(days):
+    for i in range(page * days, (page + 1) * days):
         d = today + timedelta(days=i)
         lead = "Today" if i == 0 else "Tomorrow" if i == 1 else d.strftime("%a")
-        out.append((f"{lead} - {d.strftime('%a %b')} {d.day}", d.isoformat()))
+        year = f" {d.year}" if d.year != today.year else ""
+        out.append((f"{lead} - {d.strftime('%a %b')} {d.day}{year}", d.isoformat()))
     return out
 
 

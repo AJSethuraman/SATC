@@ -447,6 +447,9 @@ def test_wizard_helpers_days_times_sizes_and_caps():
     days = R.day_options(now, "America/New_York")
     assert len(days) == 14 and days[0] == ("Today - Wed Nov 11", "2026-11-11")
     assert days[1][1] == "2026-11-12" and days[1][0].startswith("Tomorrow")
+    p3 = R.day_options(now, "America/New_York", page=3)                  # any date is reachable by paging
+    assert p3[0][1] == "2026-12-23" and len(p3) == 14 and p3[-1][1] == "2027-01-05" and "2027" in p3[-1][0]
+    assert [v for _, v in R.day_options(now, "America/New_York", page=1)][0] == "2026-11-25"
     late = datetime(2026, 11, 12, 3, 0, tzinfo=timezone.utc)           # 10 PM on the 11th in New York
     assert R.day_options(late, "America/New_York")[0][1] == "2026-11-11"
     times = R.time_options()
@@ -466,7 +469,7 @@ def test_raid_wizard_and_details_modal_build(tmp_path):
         cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
         bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
         w = RaidWizard(bot)
-        assert [type(c).__name__ for c in w.children] == ["Select", "Select", "Select", "Button"]
+        assert [type(c).__name__ for c in w.children] == ["Select", "Select", "Select", "Button", "Button"]
         assert all(len(c.options) <= 25 for c in w.children[:3])
         assert RaidDetails(bot, "2026-11-15", "20:00", 10).name.default == "Raid"
     asyncio.run(build())
