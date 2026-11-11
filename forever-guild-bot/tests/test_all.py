@@ -887,3 +887,122 @@ def test_ending_the_event_by_hand_ends_a_started_raid_and_tells_the_organizer(tm
     assert db.get_raid(rid)["status"] == "ended" and msg.unpinned == 1 and len(msg.edits) == 1
     assert len(sent) == 1 and "removed by hand" in sent[0] and "DPS (1)" in sent[0]
 
+
+def _row(uid, role, at, wanted=None):
+    return {"discord_id": uid, "role": role, "updated_at": at, "wanted": wanted,
+            "name": None, "surname": None, "level": None, "class_name": None}
+
+
+def test_next_offers_follows_the_queue_and_respects_limits_and_pending_offers():
+    raid = {"size": 3, "cap_tank": None, "cap_healer": None, "cap_dps": 2}
+    full = [_row(1, "tank", "1"), _row(2, "dps", "2"), _row(3, "dps", "3"),
+            _row(4, "bench", "4", "dps"), _row(5, "bench", "5", "healer"), _row(6, "bench", "6")]
+    assert R.next_offers(raid, full, []) == []                                   # raid is full: nobody is asked
+    open_one = [r for r in full if r["discord_id"] != 3]                         # a DPS left: one slot
+    assert R.next_offers(raid, open_one, []) == [(4, "dps")]                     # first in line, and DPS has room
+    assert R.next_offers(dict(raid, cap_dps=1), open_one, []) == [(5, "healer")]  # DPS capped: skip to someone else
+    pend = [{"discord_id": 4, "role": "dps", "state": "pending"}]
+    assert R.next_offers(raid, open_one, pend) == []                             # the slot is already promised
+    gone = [{"discord_id": 4, "role": "dps", "state": "declined"}]
+    assert R.next_offers(raid, open_one, gone) == [(5, "healer")]                # 4 said no; 5 is next
+    assert R.next_offers(raid, open_one, gone + [{"discord_id": 5, "role": "healer", "state": "declined"}]) == [(6, "tank")]                  # 6 tapped plain Bench: any role will do
+    bigger = dict(raid, size=4)
+    assert R.next_offers(bigger, full, []) == [(5, "healer")]                    # room added: first eligible in line
+    two = dict(raid, size=5)
+    assert R.next_offers(two, full, []) == [(5, "healer"), (6, "tank")]          # 6 (any role) gets the next open role
+    assert "Want it?" in R.offer_text(raid | {"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps")
+
+
+def test_bench_queue_end_to_end_offer_accept_and_pass(tmp_path):
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
+    sent, edits = [], []
+
+    class U:
+        bot = False
+
+        def __init__(self, uid):
+            self.uid = uid
+
+        async def send(self, text, view=None):
+            sent.append((self.uid, text, view))
+
+    def ix(uid):
+        async def edit_message(**kw):
+            edits.append((uid, kw))
+        return SimpleNamespace(user=SimpleNamespace(id=uid), response=SimpleNamespace(edit_message=edit_message))
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_user = lambda uid: U(uid)
+        raid = db.get_raid(rid)
+        for uid, role in ((1, "dps"), (2, "dps"), (3, "dps"), (4, "dps")):           # 1, 2 in; 3 then 4 bounced to the bench
+            bot.apply_signup(raid, uid, role, None)
+        rows = {s["discord_id"]: (s["role"], s["wanted"]) for s in db.signups(rid)}
+        assert rows == {1: ("dps", None), 2: ("dps", None), 3: ("bench", "dps"), 4: ("bench", "dps")}
+        await bot.fill_open_slots(rid)
+        assert sent == []                                                            # full: nobody is asked
+        bot.apply_signup(raid, 2, "absent", None)                                    # 2 backs out
+        await bot.fill_open_slots(rid)
+        assert [(u, "Want it?" in t) for u, t, _ in sent] == [(3, True)]             # 3 is first in line
+        await bot.fill_open_slots(rid)
+        assert len(sent) == 1                                                        # not asked twice for one slot
+        offer = db.offers_for_raid(rid)[0]
+        await bot.answer_offer(ix(3), offer["id"], False)                            # 3 passes: 4 is asked
+        assert [u for u, _, _ in sent] == [3, 4] and db.get_offer(offer["id"])["state"] == "declined"
+        offer4 = db.offers_for_raid(rid)[1]
+        await bot.answer_offer(ix(4), offer4["id"], True)
+        assert db.get_offer(offer4["id"])["state"] == "accepted"
+        await bot.answer_offer(ix(4), offer4["id"], True)                            # a second tap does nothing
+    asyncio.run(run())
+    final = {s["discord_id"]: (s["role"], s["wanted"]) for s in db.signups(rid)}
+    assert final[4] == ("dps", None) and final[3] == ("bench", "dps")
+    assert "You're in as DPS" in edits[-2][1]["content"] and edits[-1][1]["content"] == "That offer has expired."
+
+
+def test_offers_expire_with_time_and_when_the_raid_starts(tmp_path):
+    db = make_db(tmp_path)
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
+    a = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00")
+    b = db.create_offer(rid, 4, "dps", "2026-11-11T20:30:00+00:00")
+    assert [o["id"] for o in db.expire_old_offers("2026-11-11T20:15:00+00:00")] == [a]
+    assert db.get_offer(a)["state"] == "expired" and db.get_offer(b)["state"] == "pending"
+    db.mark_closed(rid)
+    assert db.get_offer(b)["state"] == "expired" and db.pending_offers() == []
+
+
+def test_signing_up_needs_a_claimed_character(tmp_path):
+    from types import SimpleNamespace
+    from guildbot.bot import ClaimPicker, GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 5, 9)
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        calls = []
+
+        async def send_message(text=None, **kw):
+            calls.append(("send", text, kw))
+
+        async def edit_message(**kw):
+            calls.append(("edit", None, kw))
+        ix = SimpleNamespace(user=SimpleNamespace(id=5), response=SimpleNamespace(
+            send_message=send_message, edit_message=edit_message), followup=SimpleNamespace(send=send_message))
+        for role in ("tank", "dps", "absent"):                              # every button, even "can't make it"
+            calls.clear()
+            await bot.handle_signup(ix, rid, role)
+            assert calls[0][0] == "send" and "who you are" in calls[0][1] and isinstance(calls[0][2]["view"], ClaimPicker)
+            assert calls[0][2]["ephemeral"] is True
+        assert db.signups(rid) == []                                         # nothing was recorded
+        db.claim(5, ["anduin-wrynn"])
+        calls.clear()
+        await bot.handle_signup(ix, rid, "dps")
+        assert calls[0][0] == "edit"
+    asyncio.run(run())
+    assert [(s["discord_id"], s["role"], s["slug"]) for s in db.signups(rid)] == [(5, "dps", "anduin-wrynn")]

@@ -7,6 +7,8 @@ from zoneinfo import ZoneInfo
 ROLES = ("tank", "healer", "dps", "bench", "absent")
 ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Bench", "absent": "Can't make it"}
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
+ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
+OFFER_MINUTES = 20    # how long a bench player has to answer "a spot opened up"
 
 
 def parse_start(date_s: str, time_s: str, tz_name: str) -> datetime:
@@ -136,3 +138,43 @@ def roster_summary(raid, signup_rows) -> str:
         entries = [format_entry(s) for s in g[role]]
         parts.append(f"**{ROLE_LABEL[role]} ({len(entries)}):** " + (", ".join(entries) if entries else "-"))
     return "\n".join(parts)
+
+
+def next_offers(raid, rows, offers) -> list[tuple[int, str]]:
+    """Who the bench queue should ask about an open slot right now, as (discord_id, role).
+
+    rows: the raid's signups (discord_id, role, wanted, updated_at). offers: its offers so far
+    (discord_id, role, state). The bench is a queue in the order people joined it. Each person is asked
+    about the role they wanted (any role, if they just tapped Bench), at most once per role per raid, and
+    never while another question to them is still pending. Open slots already promised to someone who
+    has not answered yet are not offered again."""
+    g = group_signups(rows)
+    caps = caps_of(raid)
+    pending = [o for o in offers if o["state"] == "pending"]
+    asked = {(o["discord_id"], o["role"]) for o in offers}
+    busy = {o["discord_id"] for o in pending}
+    count = {role: len(g[role]) + sum(1 for o in pending if o["role"] == role) for role in COUNTED}
+    room = raid["size"] - filled(g) - len(pending)
+    out: list[tuple[int, str]] = []
+    for s in sorted(g["bench"], key=lambda x: x["updated_at"]):
+        if room <= 0:
+            break
+        if s["discord_id"] in busy:
+            continue
+        wanted = s["wanted"] if "wanted" in s.keys() else None
+        for role in ([wanted] if wanted else list(COUNTED)):
+            cap = caps.get(role)
+            if (s["discord_id"], role) in asked or (cap is not None and count[role] >= cap):
+                continue
+            out.append((s["discord_id"], role))
+            busy.add(s["discord_id"])
+            count[role] += 1
+            room -= 1
+            break
+    return out
+
+
+def offer_text(raid, role: str) -> str:
+    ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
+    return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>): **{ROLE_SINGULAR[role]}**. "
+            f"Want it? You've got {OFFER_MINUTES} minutes.")

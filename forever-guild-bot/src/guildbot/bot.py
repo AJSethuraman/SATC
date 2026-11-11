@@ -88,7 +88,8 @@ def raid_embed(db: Database, raid) -> discord.Embed:
         color=discord.Color.dark_grey() if cancelled or started or ended else discord.Color.blurple(),
     )
     for role in R.ROLES:
-        lines = [R.format_entry(s) for s in g[role]]
+        lines = [R.format_entry(s) + (f" (wants {R.ROLE_SINGULAR[s['wanted']]})" if role == "bench" and s["wanted"] else "")
+                 for s in g[role]]
         cap = R.caps_of(raid).get(role)
         e.add_field(name=f"{R.ROLE_LABEL[role]} ({len(lines)}{'/' + str(cap) if cap else ''})",
                     value=clip(lines, 1024) or "—", inline=role in ("tank", "healer", "dps"))
@@ -176,7 +177,7 @@ class ClaimPicker(discord.ui.View):
         names = {r["slug"]: R.full_name(r) for r in self.bot.db.roster()}
         parts = []
         if res["linked"]:
-            parts.append("Linked: " + ", ".join(f"**{names[s]}**" for s in res["linked"]) + ".")
+            parts.append("Linked: " + ", ".join(f"**{names[s]}**" for s in res["linked"]) + ". Now tap your role again.")
         if res["taken"]:
             parts.append("Already claimed by someone else: " + ", ".join(names[s] for s in res["taken"])
                          + ". Ask an officer if that is wrong.")
@@ -462,6 +463,24 @@ def gap_card(db: Database, name: str, discord_id: int):
 CRAFT_PROMPT = "Find who can craft something. Pick what you want, then tap the green button. Skip anything you don't care about."
 
 
+class OfferView(discord.ui.View):
+    """Take it / Pass buttons on a 'a spot opened up' message. Persistent: custom_ids carry the offer number."""
+
+    def __init__(self, bot: "GuildBot", offer_id: int):
+        super().__init__(timeout=None)
+        self.bot, self.offer_id = bot, offer_id
+        for answer, label, style in (("yes", "Take it", discord.ButtonStyle.success),
+                                     ("no", "Pass", discord.ButtonStyle.secondary)):
+            b = discord.ui.Button(label=label, style=style, custom_id=f"offer:{offer_id}:{answer}")
+            b.callback = self._make(answer == "yes")
+            self.add_item(b)
+
+    def _make(self, yes: bool):
+        async def callback(interaction: discord.Interaction):
+            await self.bot.answer_offer(interaction, self.offer_id, yes)
+        return callback
+
+
 class GuildTree(app_commands.CommandTree):
     """Slash commands only run in the channels named in BOT_CHANNEL_IDS (if any are set)."""
 
@@ -485,6 +504,8 @@ class GuildBot(discord.Client):
 
     async def setup_hook(self) -> None:
         self.add_view(ClaimPanel(self))
+        for o in self.db.pending_offers():
+            self.add_view(OfferView(self, o["id"]))
         for raid in self.db.open_raids():
             self.add_view(RaidView(self, raid["id"]))
         if self.cfg.discord_guild_id:
@@ -501,6 +522,8 @@ class GuildBot(discord.Client):
         self.close_job.start()
         self.end_job = tasks.loop(minutes=1)(self._end_old_raids)
         self.end_job.start()
+        self.offer_job = tasks.loop(minutes=1)(self._expire_offers)
+        self.offer_job.start()
 
     async def post_raid(self, interaction: discord.Interaction, title: str, start: datetime, size: int,
                         caps: dict) -> bool:
@@ -609,6 +632,82 @@ class GuildBot(discord.Client):
             except Exception:
                 log.exception("could not remove buttons from started raid %s; will retry", raid["id"])
 
+    # ---- bench queue ----------------------------------------------------
+    async def refresh_raid_post(self, raid_id: int) -> None:
+        raid = self.db.get_raid(raid_id)
+        if not raid or not raid["channel_id"] or not raid["message_id"]:
+            return
+        try:
+            chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+            msg = await chan.fetch_message(raid["message_id"])
+            await msg.edit(embed=raid_embed(self.db, raid))
+        except discord.HTTPException:
+            log.exception("could not refresh the post for raid %s", raid_id)
+
+    async def fill_open_slots(self, raid_id: int) -> None:
+        """If a slot is free and people are waiting on the bench, ask the next one in line (by DM)."""
+        for _ in range(6):                                  # someone with DMs closed is skipped, then the next is asked
+            raid = self.db.get_raid(raid_id)
+            if not raid or raid["status"] != "open" or \
+                    datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
+                return
+            picks = R.next_offers(raid, self.db.signups(raid_id), self.db.offers_for_raid(raid_id))
+            if not picks:
+                return
+            for uid, role in picks:
+                offer_id = self.db.create_offer(raid_id, uid, role, utcnow())
+                sent = False
+                try:
+                    user = self.get_user(uid) or await self.fetch_user(uid)
+                    if not user.bot:
+                        await user.send(R.offer_text(raid, role), view=OfferView(self, offer_id))
+                        sent = True
+                except discord.HTTPException:
+                    pass
+                if not sent:
+                    self.db.set_offer_state(offer_id, "expired")
+
+    async def answer_offer(self, interaction: discord.Interaction, offer_id: int, yes: bool) -> None:
+        db = self.db
+        offer = db.get_offer(offer_id)
+        if not offer or offer["state"] != "pending":
+            await interaction.response.edit_message(content="That offer has expired.", view=None)
+            return
+        raid = db.get_raid(offer["raid_id"])
+        started = raid and datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc)
+        if not raid or raid["status"] != "open" or started:
+            db.set_offer_state(offer_id, "expired")
+            await interaction.response.edit_message(content="That raid has already started or was cancelled.", view=None)
+            return
+        if not yes:
+            db.set_offer_state(offer_id, "declined")
+            await interaction.response.edit_message(content="No problem, you're still on the bench.", view=None)
+            await self.fill_open_slots(raid["id"])
+            return
+        uid, role = offer["discord_id"], offer["role"]
+        mine = next((s for s in db.signups(raid["id"]) if s["discord_id"] == uid), None)
+        groups = R.group_signups(db.signups(raid["id"]))
+        if mine is None or R.resolve_role(role, groups, raid["size"], uid, R.caps_of(raid)) != role:
+            db.set_offer_state(offer_id, "expired")
+            await interaction.response.edit_message(content="Sorry, that spot just got taken.", view=None)
+            await self.fill_open_slots(raid["id"])
+            return
+        db.upsert_signup(raid["id"], uid, mine["slug"], role, utcnow(), None)
+        db.set_offer_state(offer_id, "accepted")
+        await interaction.response.edit_message(
+            content=f"You're in as {R.ROLE_SINGULAR[role]} for **{raid['title']}**.", view=None)
+        await self.refresh_raid_post(raid["id"])
+
+    async def _expire_offers(self) -> None:
+        """An offer nobody answered within OFFER_MINUTES goes to the next person in line."""
+        from datetime import timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=R.OFFER_MINUTES)).isoformat(timespec="seconds")
+        for o in self.db.expire_old_offers(cutoff):
+            try:
+                await self.fill_open_slots(o["raid_id"])
+            except Exception:
+                log.exception("could not pass on an expired offer for raid %s", o["raid_id"])
+
     # ---- end of a raid --------------------------------------------------
     def busy(self, raid_id: int):
         """`with bot.busy(id):` while the bot itself removes a raid's post or event, so the listeners below
@@ -715,9 +814,15 @@ class GuildBot(discord.Client):
                 datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
             await interaction.response.send_message("This raid is closed.", ephemeral=True)
             return
-        # A signup is a Discord account, a role and (if they have one) a character. With several linked
-        # characters the bot asks which one on every tap (their last choice is pre-selected).
+        # A signup is a Discord account, a role and a character: the bot has to know who you are in the guild.
+        # With several linked characters it asks which one on every tap (their last choice is pre-selected).
         chars = self.db.characters_for(interaction.user.id)
+        if not chars:
+            picker = ClaimPicker(self)
+            await interaction.response.send_message(
+                "To sign up I need to know who you are in the guild. Claim your character first, then tap your role "
+                "again.\n" + picker.header(), view=picker, ephemeral=True)
+            return
         prior = next((s for s in self.db.signups(raid_id) if s["discord_id"] == interaction.user.id), None)
         if len(chars) > 1 and role != "absent":
             await interaction.response.send_modal(
@@ -731,13 +836,16 @@ class GuildBot(discord.Client):
         if landed != role:
             where = "the bench" if landed == "bench" else f"{R.ROLE_LABEL[landed].lower()}"
             await interaction.followup.send(
-                f"{R.ROLE_LABEL.get(role, role)} (or the raid) is full, so you're on {where}.", ephemeral=True)
+                f"{R.ROLE_LABEL.get(role, role)} (or the raid) is full, so you're on {where}. "
+                "If a spot opens up I'll message you.", ephemeral=True)
+        await self.fill_open_slots(raid["id"])         # they may have just left a slot someone is waiting for
 
     def apply_signup(self, raid, discord_id: int, role: str, slug) -> str:
         """Record the signup; returns the role they actually landed in (bench when full)."""
         landed = R.resolve_role(role, R.group_signups(self.db.signups(raid["id"])), raid["size"],
                                 discord_id, R.caps_of(raid))
-        self.db.upsert_signup(raid["id"], discord_id, slug, landed, utcnow())
+        wanted = role if landed == "bench" and role in R.COUNTED else None     # bounced to the bench: remember why
+        self.db.upsert_signup(raid["id"], discord_id, slug, landed, utcnow(), wanted)
         return landed
 
 
@@ -770,8 +878,9 @@ class SignupModal(discord.ui.Modal):
         if landed != self.role:
             where = "the bench" if landed == "bench" else R.ROLE_LABEL[landed].lower()
             await interaction.followup.send(
-                f"{R.ROLE_LABEL.get(self.role, self.role)} (or the raid) is full, so you're on {where}.",
-                ephemeral=True)
+                f"{R.ROLE_LABEL.get(self.role, self.role)} (or the raid) is full, so you're on {where}. "
+                "If a spot opens up I'll message you.", ephemeral=True)
+        await self.bot.fill_open_slots(raid["id"])
 
 
 def register_commands(bot: GuildBot) -> None:
@@ -1126,6 +1235,7 @@ def register_commands(bot: GuildBot) -> None:
         if caps:
             note += " Lower limits don't remove anyone already signed up; they only block new signups."
         await interaction.followup.send(f"Raid #{raid_id} updated.{note}", ephemeral=True)
+        await bot.fill_open_slots(raid_id)             # more room? ask the bench
 
     @tree.command(name="raid-cancel", description="Cancel a raid: removes the post and event and tells everyone signed up")
     @app_commands.guild_only()

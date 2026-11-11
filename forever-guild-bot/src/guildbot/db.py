@@ -90,7 +90,15 @@ CREATE TABLE IF NOT EXISTS raids (
 CREATE TABLE IF NOT EXISTS signups (
     raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL,
     slug TEXT, role TEXT NOT NULL, updated_at TEXT NOT NULL,
+    wanted TEXT,                      -- on the bench: the role they asked for (NULL = any role)
     PRIMARY KEY (raid_id, discord_id)
+);
+
+-- "A spot opened up, want it?" questions sent to people waiting on the bench.
+CREATE TABLE IF NOT EXISTS offers (
+    id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',      -- pending | accepted | declined | expired
+    sent_at TEXT NOT NULL
 );
 """
 
@@ -108,6 +116,9 @@ class Database:
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(recipes)")}
         if "item_id" not in cols:                       # database created before recipes knew their item
             self.conn.execute("ALTER TABLE recipes ADD COLUMN item_id INTEGER")
+            self.conn.commit()
+        if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
+            self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
 
     # ---- roster -------------------------------------------------------
@@ -599,6 +610,7 @@ class Database:
 
     def mark_closed(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='closed' WHERE id=?", (raid_id,))
+        self._expire_raid_offers(raid_id)                  # the raid has started: no more spots to give out
         self.conn.commit()
 
     def closed_ended_before(self, now_utc: datetime, hours: int):
@@ -610,6 +622,7 @@ class Database:
 
     def mark_ended(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='ended' WHERE id=?", (raid_id,))
+        self._expire_raid_offers(raid_id)
         self.conn.commit()
 
     def raid_by_message(self, message_id: int):
@@ -620,15 +633,46 @@ class Database:
 
     def cancel_raid(self, raid_id) -> None:
         self.conn.execute("UPDATE raids SET status='cancelled' WHERE id=?", (raid_id,))
+        self._expire_raid_offers(raid_id)
         self.conn.commit()
 
-    def upsert_signup(self, raid_id, discord_id, slug, role, now) -> None:
+    def upsert_signup(self, raid_id, discord_id, slug, role, now, wanted=None) -> None:
         self.conn.execute(
-            """INSERT INTO signups (raid_id, discord_id, slug, role, updated_at) VALUES (?,?,?,?,?)
+            """INSERT INTO signups (raid_id, discord_id, slug, role, updated_at, wanted) VALUES (?,?,?,?,?,?)
                ON CONFLICT(raid_id, discord_id) DO UPDATE SET slug=excluded.slug,
-                 role=excluded.role, updated_at=excluded.updated_at""",
-            (raid_id, discord_id, slug, role, now))
+                 role=excluded.role, updated_at=excluded.updated_at, wanted=excluded.wanted""",
+            (raid_id, discord_id, slug, role, now, wanted))
         self.conn.commit()
+
+    # ---- bench queue offers ------------------------------------------------
+    def create_offer(self, raid_id, discord_id, role, now) -> int:
+        cur = self.conn.execute("INSERT INTO offers (raid_id, discord_id, role, sent_at) VALUES (?,?,?,?)",
+                                (raid_id, discord_id, role, now))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def get_offer(self, offer_id):
+        return self.conn.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()
+
+    def set_offer_state(self, offer_id, state) -> None:
+        self.conn.execute("UPDATE offers SET state=? WHERE id=?", (state, offer_id))
+        self.conn.commit()
+
+    def offers_for_raid(self, raid_id):
+        return self.conn.execute("SELECT * FROM offers WHERE raid_id=? ORDER BY id", (raid_id,)).fetchall()
+
+    def pending_offers(self):
+        return self.conn.execute("SELECT * FROM offers WHERE state='pending' ORDER BY id").fetchall()
+
+    def expire_old_offers(self, cutoff_iso: str):
+        """Pending offers sent before the cutoff become expired. Returns the ones that did."""
+        rows = self.conn.execute("SELECT * FROM offers WHERE state='pending' AND sent_at<?", (cutoff_iso,)).fetchall()
+        self.conn.execute("UPDATE offers SET state='expired' WHERE state='pending' AND sent_at<?", (cutoff_iso,))
+        self.conn.commit()
+        return rows
+
+    def _expire_raid_offers(self, raid_id) -> None:
+        self.conn.execute("UPDATE offers SET state='expired' WHERE raid_id=? AND state='pending'", (raid_id,))
 
     def signups(self, raid_id):
         return self.conn.execute(
