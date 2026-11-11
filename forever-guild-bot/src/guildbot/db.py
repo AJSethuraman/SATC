@@ -98,7 +98,9 @@ CREATE TABLE IF NOT EXISTS signups (
 CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
     state TEXT NOT NULL DEFAULT 'pending',      -- pending | accepted | declined | expired
-    sent_at TEXT NOT NULL
+    sent_at TEXT NOT NULL,
+    dm_msg_id INTEGER, chan_msg_id INTEGER,     -- the DM, and the ping in the raid channel (if one was sent)
+    cleaned INTEGER NOT NULL DEFAULT 0          -- 1 once those messages have been tidied up
 );
 """
 
@@ -117,6 +119,11 @@ class Database:
         if "item_id" not in cols:                       # database created before recipes knew their item
             self.conn.execute("ALTER TABLE recipes ADD COLUMN item_id INTEGER")
             self.conn.commit()
+        ocols = {r["name"] for r in self.conn.execute("PRAGMA table_info(offers)")}
+        for col, ddl in (("dm_msg_id", "INTEGER"), ("chan_msg_id", "INTEGER"), ("cleaned", "INTEGER NOT NULL DEFAULT 0")):
+            if col not in ocols:                        # database created before offers had messages to tidy
+                self.conn.execute(f"ALTER TABLE offers ADD COLUMN {col} {ddl}")
+                self.conn.commit()
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
@@ -670,6 +677,29 @@ class Database:
         self.conn.execute("UPDATE offers SET state='expired' WHERE state='pending' AND sent_at<?", (cutoff_iso,))
         self.conn.commit()
         return rows
+
+    def set_offer_messages(self, offer_id, dm=None, chan=None) -> None:
+        if dm is not None:
+            self.conn.execute("UPDATE offers SET dm_msg_id=? WHERE id=?", (dm, offer_id))
+        if chan is not None:
+            self.conn.execute("UPDATE offers SET chan_msg_id=? WHERE id=?", (chan, offer_id))
+        self.conn.commit()
+
+    def offers_to_ping(self, cutoff_iso: str):
+        """Pending offers asked before the cutoff that have no ping in the raid channel yet."""
+        return self.conn.execute(
+            "SELECT * FROM offers WHERE state='pending' AND chan_msg_id IS NULL AND sent_at<? ORDER BY id",
+            (cutoff_iso,)).fetchall()
+
+    def offers_to_clean(self):
+        """Answered or expired offers whose messages are still lying around."""
+        return self.conn.execute(
+            """SELECT * FROM offers WHERE state<>'pending' AND cleaned=0
+               AND (dm_msg_id IS NOT NULL OR chan_msg_id IS NOT NULL) ORDER BY id""").fetchall()
+
+    def mark_offer_cleaned(self, offer_id) -> None:
+        self.conn.execute("UPDATE offers SET cleaned=1 WHERE id=?", (offer_id,))
+        self.conn.commit()
 
     def _expire_raid_offers(self, raid_id) -> None:
         self.conn.execute("UPDATE offers SET state='expired' WHERE raid_id=? AND state='pending'", (raid_id,))

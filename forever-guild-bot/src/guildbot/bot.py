@@ -659,29 +659,85 @@ class GuildBot(discord.Client):
                 sent = False
                 try:
                     user = self.get_user(uid) or await self.fetch_user(uid)
-                    if not user.bot:
-                        await user.send(R.offer_text(raid, role), view=OfferView(self, offer_id))
-                        sent = True
+                    if user.bot:
+                        self.db.set_offer_state(offer_id, "expired")
+                        continue
+                    msg = await user.send(R.offer_text(raid, role), view=OfferView(self, offer_id))
+                    self.db.set_offer_messages(offer_id, dm=msg.id)
+                    sent = True
                 except discord.HTTPException:
                     pass
-                if not sent:
+                if not sent and not await self.ping_offer(offer_id):    # DMs closed: ask in the channel instead
                     self.db.set_offer_state(offer_id, "expired")
+
+    async def ping_offer(self, offer_id: int) -> bool:
+        """Ask in the raid channel with an @ and the same buttons. Deleted again once it is answered."""
+        offer = self.db.get_offer(offer_id)
+        raid = self.db.get_raid(offer["raid_id"]) if offer else None
+        if not raid or not raid["channel_id"]:
+            return False
+        try:
+            chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+            msg = await chan.send(R.ping_text(raid, offer["role"], offer["discord_id"]), view=OfferView(self, offer_id),
+                                  allowed_mentions=discord.AllowedMentions(users=[discord.Object(id=offer["discord_id"])]))
+            self.db.set_offer_messages(offer_id, chan=msg.id)
+            return True
+        except discord.HTTPException:
+            log.exception("could not ping offer %s in the raid channel", offer_id)
+            return False
+
+    async def sweep_offer_messages(self) -> None:
+        """Delete finished pings from the channel and close the buttons on finished DMs."""
+        for o in self.db.offers_to_clean():
+            try:
+                raid = self.db.get_raid(o["raid_id"])
+                if o["chan_msg_id"] and raid and raid["channel_id"]:
+                    chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+                    try:
+                        await chan.get_partial_message(o["chan_msg_id"]).delete()
+                    except discord.NotFound:
+                        pass
+                if o["dm_msg_id"]:
+                    try:
+                        user = self.get_user(o["discord_id"]) or await self.fetch_user(o["discord_id"])
+                        dm = user.dm_channel or await user.create_dm()
+                        text = {"accepted": "You took it.", "declined": "You passed."}.get(o["state"], "This offer is closed.")
+                        await dm.get_partial_message(o["dm_msg_id"]).edit(content=text, view=None)
+                    except discord.NotFound:
+                        pass
+                self.db.mark_offer_cleaned(o["id"])
+            except discord.HTTPException:
+                log.exception("could not tidy offer %s; will retry", o["id"])
+
+    async def _reply_to_offer(self, interaction: discord.Interaction, offer, text: str) -> None:
+        """Answer where they clicked: edit the DM, or whisper (ephemeral) if they clicked the channel ping."""
+        msg = getattr(interaction, "message", None)
+        if offer and offer["chan_msg_id"] and msg is not None and msg.id == offer["chan_msg_id"]:
+            await interaction.response.send_message(text, ephemeral=True)
+        else:
+            await interaction.response.edit_message(content=text, view=None)
 
     async def answer_offer(self, interaction: discord.Interaction, offer_id: int, yes: bool) -> None:
         db = self.db
         offer = db.get_offer(offer_id)
+        if offer and interaction.user.id != offer["discord_id"]:
+            await interaction.response.send_message("That spot was offered to someone else.", ephemeral=True)
+            return
         if not offer or offer["state"] != "pending":
-            await interaction.response.edit_message(content="That offer has expired.", view=None)
+            await self._reply_to_offer(interaction, offer, "That offer has expired.")
+            await self.sweep_offer_messages()
             return
         raid = db.get_raid(offer["raid_id"])
         started = raid and datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc)
         if not raid or raid["status"] != "open" or started:
             db.set_offer_state(offer_id, "expired")
-            await interaction.response.edit_message(content="That raid has already started or was cancelled.", view=None)
+            await self._reply_to_offer(interaction, offer, "That raid has already started or was cancelled.")
+            await self.sweep_offer_messages()
             return
         if not yes:
             db.set_offer_state(offer_id, "declined")
-            await interaction.response.edit_message(content="No problem, you're still on the bench.", view=None)
+            await self._reply_to_offer(interaction, offer, "No problem, you're still on the bench.")
+            await self.sweep_offer_messages()
             await self.fill_open_slots(raid["id"])
             return
         uid, role = offer["discord_id"], offer["role"]
@@ -689,13 +745,14 @@ class GuildBot(discord.Client):
         groups = R.group_signups(db.signups(raid["id"]))
         if mine is None or R.resolve_role(role, groups, raid["size"], uid, R.caps_of(raid)) != role:
             db.set_offer_state(offer_id, "expired")
-            await interaction.response.edit_message(content="Sorry, that spot just got taken.", view=None)
+            await self._reply_to_offer(interaction, offer, "Sorry, that spot just got taken.")
+            await self.sweep_offer_messages()
             await self.fill_open_slots(raid["id"])
             return
         db.upsert_signup(raid["id"], uid, mine["slug"], role, utcnow(), None)
         db.set_offer_state(offer_id, "accepted")
-        await interaction.response.edit_message(
-            content=f"You're in as {R.ROLE_SINGULAR[role]} for **{raid['title']}**.", view=None)
+        await self._reply_to_offer(interaction, offer, f"You're in as {R.ROLE_SINGULAR[role]} for **{raid['title']}**.")
+        await self.sweep_offer_messages()
         await self.refresh_raid_post(raid["id"])
 
     async def _expire_offers(self) -> None:
@@ -707,6 +764,10 @@ class GuildBot(discord.Client):
                 await self.fill_open_slots(o["raid_id"])
             except Exception:
                 log.exception("could not pass on an expired offer for raid %s", o["raid_id"])
+        ping_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=R.PING_AFTER_MINUTES)).isoformat(timespec="seconds")
+        for o in self.db.offers_to_ping(ping_cutoff):          # no answer to the DM yet: also ask in the channel
+            await self.ping_offer(o["id"])
+        await self.sweep_offer_messages()
 
     # ---- end of a raid --------------------------------------------------
     def busy(self, raid_id: int):

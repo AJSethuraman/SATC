@@ -928,8 +928,17 @@ def test_bench_queue_end_to_end_offer_accept_and_pass(tmp_path):
         def __init__(self, uid):
             self.uid = uid
 
+        dm_channel = None
+
         async def send(self, text, view=None):
             sent.append((self.uid, text, view))
+            return SimpleNamespace(id=1000 + len(sent))
+
+        async def create_dm(self):
+            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_noop))
+
+    async def _noop(**kw):
+        return None
 
     def ix(uid):
         async def edit_message(**kw):
@@ -1006,3 +1015,93 @@ def test_signing_up_needs_a_claimed_character(tmp_path):
         assert calls[0][0] == "edit"
     asyncio.run(run())
     assert [(s["discord_id"], s["role"], s["slug"]) for s in db.signups(rid)] == [(5, "dps", "anduin-wrynn")]
+
+
+def test_unanswered_or_undeliverable_offers_get_an_at_ping_in_the_raid_channel(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
+    db.set_raid_posted(rid, 10, 20, None)
+    pings, deleted, whispers, dms = [], [], [], []
+
+    class Chan:
+        async def send(self, text, view=None, allowed_mentions=None):
+            pings.append((text, allowed_mentions))
+            return SimpleNamespace(id=500 + len(pings))
+
+        def get_partial_message(self, mid):
+            async def delete():
+                deleted.append(mid)
+            return SimpleNamespace(delete=delete)
+
+        async def fetch_message(self, mid):                                   # the raid post, refreshed after a take
+            async def edit(**kw):
+                return None
+            return SimpleNamespace(edit=edit)
+
+    class ClosedDMs:
+        bot = False
+        async def send(self, *a, **k):
+            raise discord.Forbidden(SimpleNamespace(status=403, reason="x"), "Cannot send messages to this user")
+
+    class OpenDMs:
+        bot = False
+        dm_channel = None
+
+        async def send(self, text, view=None):
+            dms.append(text)
+            return SimpleNamespace(id=700 + len(dms))
+
+        async def create_dm(self):
+            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_ok))
+
+    async def _ok(**kw):
+        return None
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: Chan()
+        raid = db.get_raid(rid)
+        for uid in (1, 2, 3, 4):
+            bot.apply_signup(raid, uid, "dps", None)
+        bot.get_user = lambda uid: ClosedDMs() if uid == 3 else OpenDMs()
+        bot.apply_signup(raid, 2, "absent", None)
+        await bot.fill_open_slots(rid)                                       # 3 has DMs closed: pinged in the channel at once
+        assert len(pings) == 1 and pings[0][0].startswith("<@3> a spot opened up in **Run**") and dms == []
+        offer = db.offers_for_raid(rid)[0]
+        assert offer["chan_msg_id"] == 501 and offer["state"] == "pending"
+        wrong = SimpleNamespace(user=SimpleNamespace(id=4), response=SimpleNamespace(send_message=_whisper(whispers)))
+        await bot.answer_offer(wrong, offer["id"], True)                     # someone else's button does nothing
+        assert whispers == [("That spot was offered to someone else.", True)] and db.get_offer(offer["id"])["state"] == "pending"
+        mine = SimpleNamespace(user=SimpleNamespace(id=3), message=SimpleNamespace(id=501),
+                               response=SimpleNamespace(send_message=_whisper(whispers)))
+        await bot.answer_offer(mine, offer["id"], True)                      # clicked in the channel: answer is a whisper
+        assert whispers[-1][0].startswith("You're in as DPS") and whispers[-1][1] is True
+        assert deleted == [501]                                              # and the ping is removed
+        assert db.get_offer(offer["id"])["cleaned"] == 1
+    asyncio.run(run())
+
+
+def _whisper(log):
+    async def send_message(text, ephemeral=False):
+        log.append((text, ephemeral))
+    return send_message
+
+
+def test_a_quiet_dm_offer_also_gets_a_channel_ping_after_five_minutes(tmp_path):
+    db = make_db(tmp_path)
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
+    old = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00")
+    new = db.create_offer(rid, 4, "dps", "2026-11-11T20:04:00+00:00")
+    assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:05:00+00:00")] == [old, new]
+    assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:03:00+00:00")] == [old]
+    db.set_offer_messages(old, chan=77)
+    assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:05:00+00:00")] == [new]       # already pinged: not again
+    db.set_offer_state(old, "declined")
+    assert [o["id"] for o in db.offers_to_clean()] == [old]
+    db.mark_offer_cleaned(old)
+    assert db.offers_to_clean() == []

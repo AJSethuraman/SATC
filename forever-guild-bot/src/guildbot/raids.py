@@ -9,6 +9,7 @@ ROLE_LABEL = {"tank": "Tanks", "healer": "Healers", "dps": "DPS", "bench": "Benc
 COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
 OFFER_MINUTES = 20    # how long a bench player has to answer "a spot opened up"
+PING_AFTER_MINUTES = 5   # unanswered by DM for this long: ping them in the raid channel as well
 
 
 def parse_start(date_s: str, time_s: str, tz_name: str) -> datetime:
@@ -178,3 +179,7 @@ def offer_text(raid, role: str) -> str:
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
     return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>): **{ROLE_SINGULAR[role]}**. "
             f"Want it? You've got {OFFER_MINUTES} minutes.")
+
+
+def ping_text(raid, role: str, discord_id: int) -> str:
+    return f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. Want it?"
