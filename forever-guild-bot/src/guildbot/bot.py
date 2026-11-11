@@ -1304,7 +1304,7 @@ def register_commands(bot: GuildBot) -> None:
                 e.add_field(name="Gear" if n == 0 else "Gear (cont.)", value="\n".join(chunk), inline=False)
             e.set_footer(text=who_footer(r, profs, gear))
             embeds.append(e)
-        await interaction.response.send_message(embeds=embeds)
+        await interaction.response.send_message(embeds=embeds, ephemeral=True)
 
     @tree.command(name="roster", description="List guild characters")
     async def roster(interaction: discord.Interaction, class_name: str | None = None,
@@ -1313,7 +1313,7 @@ def register_commands(bot: GuildBot) -> None:
         lines = [f"**{R.full_name(r)}**: L{r['level'] or '?'} {r['class_name'] or ''}" for r in rows]
         e = discord.Embed(title=f"Roster ({len(rows)})", description=clip(lines, 4000) or "Nobody found.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at'), key="profile_at"))
-        await interaction.response.send_message(embed=e)
+        await interaction.response.send_message(embed=e, ephemeral=True)
 
     async def item_ac(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(name=f"{r['name']} ({r['n']})"[:100], value=r["name"][:100])
@@ -1333,7 +1333,7 @@ def register_commands(bot: GuildBot) -> None:
         lines = [f"**{p}** ({len(v)}): {', '.join(v)}" for p, v in sorted(by.items())]
         e = discord.Embed(title="Professions", description=clip(lines, 4000) or "Nobody found.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
-        await interaction.response.send_message(embed=e)
+        await interaction.response.send_message(embed=e, ephemeral=True)
 
     async def catalog_profession_ac(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(name=f"{r['name']} ({r['n']} recipes)", value=r["name"])
@@ -1373,7 +1373,7 @@ def register_commands(bot: GuildBot) -> None:
         e = discord.Embed(title=title[:256], description=clip(head.split("\n"), 4000))
         e.set_footer(text="Recipe list is everything in Blizzard's data, not only what is learnable in game yet. "
                           f"Known recipes as of {db.get_meta('last_sync_at') or 'never'} UTC.")
-        await interaction.response.send_message(embed=e)
+        await interaction.response.send_message(embed=e, ephemeral=True)
 
     async def facet_ac(column: str, interaction: discord.Interaction, current: str):
         chosen = getattr(interaction.namespace, "kind", None) if column == "item_subclass" else None
@@ -1476,7 +1476,7 @@ def register_commands(bot: GuildBot) -> None:
         found = db.catalog_recipe(recipe)
         e.add_field(name="Look it up", value=item_link(recipe, found[0]["item_id"] if found else None), inline=False)
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
-        await interaction.response.send_message(embed=e)
+        await interaction.response.send_message(embed=e, ephemeral=True)
 
     @tree.command(name="whohas", description="Who has an item equipped (type a few letters of its name)")
     @app_commands.autocomplete(item=item_ac)
@@ -1485,7 +1485,7 @@ def register_commands(bot: GuildBot) -> None:
         lines = [f"**{R.full_name(r)}**: {item_link(r['item_name'], r['item_id'])} ({r['slot']})" for r in rows]
         e = discord.Embed(title=f"Equipped: {item}", description=clip(lines, 4000) or "Nobody has it equipped.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
-        await interaction.response.send_message(embed=e)
+        await interaction.response.send_message(embed=e, ephemeral=True)
 
     # ---- raids ----------------------------------------------------------
     @tree.command(name="raid-create", description="Create a raid (step by step, or fill in everything at once)")
@@ -1731,7 +1731,7 @@ def register_commands(bot: GuildBot) -> None:
             ts = int(datetime.fromisoformat(r["starts_at"]).timestamp())
             url = f"https://discord.com/channels/{interaction.guild_id}/{r['channel_id']}/{r['message_id']}"
             lines.append(f"#{r['id']} [{r['title']}]({url}) <t:{ts}:F>")
-        await interaction.response.send_message("\n".join(lines) or "No upcoming raids.")
+        await interaction.response.send_message("\n".join(lines) or "No upcoming raids.", ephemeral=True)
 
     @tree.command(name="guild-sync", description="Refresh guild data from Blizzard now")
     @app_commands.guild_only()
