@@ -87,7 +87,7 @@ Players connect Discord to characters with `/link`; the main character is the on
 - Bench is a queue with offers by DM, a last-call @ in the channel, and a window that scales with the time left. Reminders, cancellations and roster summaries are DMs, not channel posts, so the channel stays clean.
 - Raid posts are pinned while live, marked COMPLETED and unpinned when done, and kept as the record. Hand-made deletions of the post or event are noticed.
 - Commands are limited to `BOT_CHANNEL_IDS`. The sync command is `/guild-sync` because another bot on the server already has `/sync`.
-- Owner decisions: Discord permission **Manage Events** defines an officer (role "<it was us> Admin"); everything "noisy" is private; links to items go to a Wowhead name search.
+- Owner decisions: Discord permission **Manage Events** defines an officer (role "<it was us> Admin"); everything "noisy" is private; links to items go to Wowhead's Forever section (the item page when we have its number, a Forever search otherwise).
 - Not yet tried live: a full role pushing a second real person to the bench and back, a non-officer refused an officer command, DMs-closed fallback, `/raid-end`.
 
 **Done 2026-11-11 (Phase 2, partly):** `/recipes`, `/whocan`, `/craftable`, `/gaps`, `/wanted` from Blizzard's static data. Not built: creatures, NPCs, drop rates, quest chains (still the open-data plan below).
