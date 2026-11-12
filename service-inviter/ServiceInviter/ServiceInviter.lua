@@ -353,22 +353,21 @@ end
 local function LiveTargets(g)
     g = g or GroupSnapshot()
     local T = { sum = {}, port = {}, items = {}, dests = DESTS }
-    local fallback = OptTargets()
     for _, it in ipairs(Core.OnSale(ServiceInviterDB, g, Faction())) do
         if it.setting.invite then
             if it.def.kind == "summon" then
+                -- each warlock summons to where they stand; unknown = no summon invites (never assume)
                 local d = DestFor(it.where)
                 if d then T.sum[d.key] = true
                 elseif it.where then
                     -- a zone that isn't on the list: match its own name
-                    local extra = { key = "here", label = it.where, words = { it.where:lower() } }
-                    T.dests = {}
-                    for _, x in ipairs(DESTS) do T.dests[#T.dests + 1] = x end
-                    T.dests[#T.dests + 1] = extra
-                    T.sum.here = true
-                else
-                    -- we don't know where the warlock is: use the places ticked on the Warlock tab
-                    T.sum, T.sumAny = fallback.sum, fallback.sumAny
+                    local key = "zone:" .. it.where:lower()
+                    if T.dests == DESTS then
+                        T.dests = {}
+                        for _, x in ipairs(DESTS) do T.dests[#T.dests + 1] = x end
+                    end
+                    T.dests[#T.dests + 1] = { key = key, label = it.where, words = { it.where:lower() } }
+                    T.sum[key] = true
                 end
             elseif it.def.kind == "portal" then
                 for _, city in ipairs(it.cities) do local d = DestFor(city) if d then T.port[d.key] = true end end
@@ -457,7 +456,7 @@ end
 local function PayeeFor(j, g)
     g = g or GroupSnapshot()
     local key = (j and j.service) or "summons"
-    local p = Core.Provider(g, key)
+    local p = Core.Provider(g, key, key == "summons" and j and j.dest or nil)
     local here = (j and j.dest) or (p and p.zone)
     local payee = Core.Payee(ServiceInviterDB, g, key, p, here)
     local me = UnitName and UnitName("player")
@@ -1086,7 +1085,7 @@ local function ArrivalText(job)
     if not job then return nil end
     local g = GroupSnapshot()
     local key = job.service or "summons"
-    local p = Core.Provider(g, key)
+    local p = Core.Provider(g, key, key == "summons" and job.dest or nil)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
     if custom == DEFAULT_OFFERMSG then custom = nil end
@@ -1669,6 +1668,61 @@ end
 ----------------------------------------------------------------------
 local setupWin
 
+-- Pick list for "who gets paid": default, me, and everyone in the group (where they are).
+-- One shared frame; the box keeps working for a typed name.
+local picker
+local function ShowPicker(box, withDefaults)
+    if not picker then
+        local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
+        picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent, template)
+        picker:SetFrameStrata("FULLSCREEN_DIALOG")
+        picker:EnableMouse(true)
+        local bg = picker:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints() bg:SetColorTexture(0, 0, 0, 1)
+        picker.buttons = {}
+        picker:Hide()
+    end
+    if picker:IsShown() and picker.box == box then picker:Hide() return end
+    picker.box = box
+    local entries = {}
+    if withDefaults then
+        entries[#entries + 1] = { "Default (General tab)", "" }
+        entries[#entries + 1] = { "Me", "me" }
+    end
+    for _, m in ipairs(GroupSnapshot()) do
+        if not m.me then entries[#entries + 1] = { m.name .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+    end
+    if #entries == 0 then entries[1] = { "Nobody else in the group", nil } end
+    for i, e in ipairs(entries) do
+        local b = picker.buttons[i]
+        if not b then
+            b = CreateFrame("Button", nil, picker, "UIPanelButtonTemplate")
+            b:SetSize(220, 22)
+            picker.buttons[i] = b
+        end
+        b:ClearAllPoints() b:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 24)
+        b:SetText(e[1])
+        b:SetScript("OnClick", function() if e[2] then box:SetText(e[2]) end picker:Hide() end)
+        b:Show()
+    end
+    for i = #entries + 1, #picker.buttons do picker.buttons[i]:Hide() end
+    picker:SetSize(228, 8 + #entries * 24)
+    picker:ClearAllPoints() picker:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -4, -2)
+    picker:Show()
+end
+local function PickButton(parent, box, withDefaults)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(24, 24)
+    b:SetPoint("LEFT", box, "RIGHT", 2, 0)
+    if b.SetNormalTexture then
+        b:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+        b:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
+        b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    end
+    b:SetScript("OnClick", function() ShowPicker(box, withDefaults) end)
+    return b
+end
+
 local function BuildSetupUI()
     local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
     local W, H = 900, 690
@@ -1766,8 +1820,9 @@ local function BuildSetupUI()
             dy = dy + 28
         end
         Label(x + 4, y - dy, "Who gets paid:")
-        Box(k .. "payee", x + 112, y - dy + 4, 130, 40)
-        Label(x + 250, y - dy - 1, "blank = default, me, or a name", "GameFontHighlightSmall")
+        local pb = Box(k .. "payee", x + 112, y - dy + 4, 130, 40)
+        PickButton(page, pb, true)
+        Label(x + 276, y - dy - 1, "blank = default", "GameFontHighlightSmall")
         return dy + 28
     end
 
@@ -1828,7 +1883,8 @@ local function BuildSetupUI()
     Label(R + 30, -100, "You if you're there, otherwise the person doing the service.", "GameFontHighlightSmall")
     Radio("pay", "pay_me", R, -116, "Always me", SyncTradeBox)
     Radio("pay", "pay_name", R, -142, "Always:", SyncTradeBox)
-    Box("payname", R + 100, -144, 160, 40)
+    local pn = Box("payname", R + 100, -144, 160, 40)
+    PickButton(page, pn, false)
     Check("autotrade", R, -172, "Open trade by itself when it's me and they're in range")
     Label(R, -202, "Each service can name its own payee on its tab.", "GameFontHighlightSmall")
     Header(R, -232, "Messages")
@@ -1852,15 +1908,9 @@ local function BuildSetupUI()
     Header(L, -168, "Who summons")
     Radio("role", "rolelock", L, -192, "I do (I'm the warlock)")
     Radio("role", "rolehelper", L, -218, "A friend in the group does; I click the portal")
-    Label(L, -254, "Summons go to where the warlock is standing. If the game can't tell where that is, summon to:", "GameFontHighlightSmall", 410)
-    local places = {}
-    for _, d in ipairs(DESTS) do places[#places + 1] = { d.label, d.key } end
-    places[#places + 1] = { "Anywhere", "any" }
-    local perCol = math.ceil(#places / 2)
-    for i, pl in ipairs(places) do
-        local col, row = math.floor((i - 1) / perCol), (i - 1) % perCol
-        Check("sum_" .. pl[2], L + col * 210, -286 - row * 24, pl[1], true)
-    end
+    Header(L, -256, "Summons go to")
+    w.locks = Label(L, -282, "", "GameFontHighlight", 410)
+    Label(L, -330, "Each warlock summons to wherever they're standing. If the game can't tell where a warlock is, nobody is invited for their summons.", "GameFontHighlightSmall", 410)
     Header(R, -50, "When the warlock starts summoning")
     Check("raidalert", R, -74, "Say in raid:")
     Box("alertmsg", R + 4, -102, 396)
@@ -1928,7 +1978,7 @@ local function BuildSetupUI()
         local parts = {}
         for _, it in ipairs(items) do
             local what = it.def.label
-            if it.def.kind == "summon" then what = "summons to " .. Core.Short(it.where or "?") end
+            if it.def.kind == "summon" then what = it.where and ("summons to " .. Core.Short(it.where)) or "summons (where? not invited)" end
             if it.def.kind == "portal" then
                 local c = {}
                 for _, city in ipairs(it.cities) do c[#c + 1] = Core.Short(city) end
@@ -1937,6 +1987,11 @@ local function BuildSetupUI()
             parts[#parts + 1] = what .. " (" .. (it.provider.me and "you" or it.provider.name) .. ")"
         end
         w.onsale:SetText(#parts > 0 and table.concat(parts, ", ") or "Nothing. Nobody in the group can do what's ticked on the class tabs.")
+        local locks = {}
+        for _, m in ipairs(Core.Providers(GroupSnapshot(), "summons")) do
+            locks[#locks + 1] = (m.me and "You" or m.name) .. ": " .. (m.zone or "where? (the game didn't say)")
+        end
+        w.locks:SetText(#locks > 0 and table.concat(locks, "\n") or "No warlock in the group who can summon.")
         local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
         w.adpreview:SetText(text or ("(no ad: " .. tostring(why) .. ")"))
         local label, ready = AdLabel()
@@ -2061,7 +2116,7 @@ local function BuildSetupUI()
     local acc = 0
     w:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0) if acc >= 1 then acc = 0 Refresh() end end)
     w:SetScript("OnShow", function() Fit() w.Load() ShowTab(w.tab or 1) end)
-    w:SetScript("OnHide", function() w.Save() end)
+    w:SetScript("OnHide", function() w.Save() if picker then picker:Hide() end end)
     w.checks, w.boxes = checks, boxes
     return w
 end
@@ -2327,5 +2382,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { ShowPicker = function(box, d) return ShowPicker(box, d) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

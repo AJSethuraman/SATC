@@ -53,6 +53,24 @@ overall facilitator of defaults ... or it is zone dependent".
 - {payee} in every message is filled from this, so customers are told who to pay.
 - Trade opens by itself only when the payee is you and the customer is in range.
 
+## Summons: one per warlock, never a guessed place
+
+The owner, 12 Nov 2026, on the Warlock tab's fallback list of places ("if the game can't tell
+where the warlock is, summon to:"): "what's the point in this, like we might as well just not try
+to identify their location for this if we check it for safety anyway. also what if we had multiple
+warlocks". So:
+
+- Each warlock in the group sells summons to wherever **that warlock** is standing. Two warlocks
+  in TB and UC: the ad says `summons to TB/UC`, both are invited for, and each customer's welcome
+  and payee name the warlock in the place they asked for.
+- If the game can't say where a warlock is, nobody is invited for that warlock's summons. The
+  fallback list is gone. The Warlock tab and `/si status` show each warlock and where they are.
+
+## Who gets paid is picked from the group
+
+The owner: "can 'who gets paid' be a suggestion/drop down from the raid/party?". Every payee box has
+a pick list: Default, Me, and each party or raid member with where they are. A typed name still works.
+
 ## When a customer joins
 
 The owner, 12 Nov 2026: "when they join basically it knows why i invited them and tells them who

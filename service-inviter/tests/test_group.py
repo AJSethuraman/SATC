@@ -77,10 +77,46 @@ def test_summons_follow_the_warlock():
     assert job(g, "Kaldrok", "dest") == "Undercity"
 
 
-def test_where_the_warlock_is_unknown_the_ticked_places_are_used():
+def test_where_the_warlock_is_unknown_nobody_is_invited_for_summons():
+    """The owner, 12 Nov 2026, on the old fallback list: "what's the point in this ... we might as
+    well just not try to identify their location". We never assume a place."""
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, None)})
     say_trade(g, "Kaldrok", "WTB summon to TB")
-    assert invited(g) == ["Kaldrok"]
+    assert invited(g) == []
+
+
+TWO_LOCKS = {"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+             "party2": ("Ashfel", "WARLOCK", 60, "Undercity")}
+
+
+def test_two_warlocks_take_requests_for_both_places():
+    """The owner: "also what if we had multiple warlocks"."""
+    g = world(TWO_LOCKS)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    say_trade(g, "Thrall", "WTB summon to Org")
+    assert invited(g) == ["Kaldrok", "Mirasha"]
+
+
+def test_each_customer_is_told_their_own_warlock():
+    g = world(TWO_LOCKS)
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
+    assert sent == ["Hi Mirasha! Ashfel will summon you to UC. 25s. Pay Ashfel when you land."]
+
+
+def test_the_ad_lists_both_places():
+    g = world(TWO_LOCKS)
+    g.run("ServiceInviter_Test.PostAd()")
+    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB/UC 25s | whisper inv"]
+
+
+def test_two_warlocks_in_one_place_are_one_offer():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+               "party2": ("Ashfel", "WARLOCK", 60, "Thunder Bluff")})
+    g.run("ServiceInviter_Test.PostAd()")
+    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB 25s | whisper inv"]
 
 
 def test_no_warlock_no_summon_invites():
@@ -173,3 +209,24 @@ def test_old_extras_become_offered_services_that_dont_invite():
     assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "lockpick").invite') is False
     assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "water").on') is True
     assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == 150
+
+
+# -- Setup: who gets paid is picked from the group; who summons is shown ------------------------
+
+def test_payee_pick_list_offers_the_group_and_fills_the_box():
+    """The owner: "can 'who gets paid' be a suggestion/drop down from the raid/party?"."""
+    g = world(TWO_LOCKS)
+    g.run('''SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show()
+             BOX = ServiceInviter_Test.SetupBoxes().svc_summons_payee
+             ServiceInviter_Test.ShowPicker(BOX, true)''')
+    labels = [g.eval(f"ServiceInviterPicker.buttons[{i}]:GetText()") for i in range(1, 5)]
+    assert labels == ["Default (General tab)", "Me", "Grimtotem  (Thunder Bluff)", "Ashfel  (Undercity)"]
+    g.run("ServiceInviterPicker.buttons[4]._scripts.OnClick()")
+    assert g.eval("BOX:GetText()") == "Ashfel"
+
+
+def test_warlock_tab_says_where_each_warlock_summons_to():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+               "party2": ("Ashfel", "WARLOCK", 60, None)})
+    g.run("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show() SETUP.Refresh()")
+    assert g.eval("SETUP.locks:GetText()") == "Grimtotem: Thunder Bluff\nAshfel: where? (the game didn't say)"

@@ -109,7 +109,13 @@ function C.Providers(group, key)
     end
     return out
 end
-function C.Provider(group, key) return C.Providers(group, key)[1] end
+-- The one to do it; with `where`, the one standing there (two warlocks in two places
+-- each summon to their own).
+function C.Provider(group, key, where)
+    local list = C.Providers(group, key)
+    if where then for _, m in ipairs(list) do if m.zone == where then return m end end end
+    return list[1]
+end
 
 -- The cities a mage can portal a customer to: what you know (your spellbook) or, for a
 -- friend, what faction and level give; never the city they are standing in; minus any the
@@ -127,12 +133,23 @@ function C.PortalCities(mage, faction, untick)
 end
 
 -- What is on sale right now, given the group: a list of { key, def, setting, provider, where,
--- cities (portals) }. A service with nobody to do it is not on sale.
+-- cities (portals) }. A service with nobody to do it is not on sale. Summons are one entry
+-- per warlock, each to where that warlock stands (where = nil: the game didn't say, so
+-- nothing is invited for it; we never assume a place).
 function C.OnSale(db, group, faction)
     local out = {}
     for _, def in ipairs(C.SERVICES) do
         local st = C.Setting(db, def.key)
-        if st.on then
+        if st.on and def.kind == "summon" then
+            local seen = {}
+            for _, p in ipairs(C.Providers(group, def.key)) do
+                local k = p.zone or ("?" .. p.name)
+                if not seen[k] then
+                    seen[k] = true
+                    out[#out + 1] = { key = def.key, def = def, setting = st, provider = p, where = p.zone }
+                end
+            end
+        elseif st.on then
             local p = C.Provider(group, def.key)
             if p then
                 local item = { key = def.key, def = def, setting = st, provider = p, where = p.zone }
@@ -188,11 +205,21 @@ local function priceText(silver) return C.Money(silver) end
 -- The ad: built from what is on sale. Returns text or nil, why.
 function C.BuildAd(db, group, faction, template)
     local parts, anyPaid = {}, false
+    local places, summonSt = {}, nil
+    for _, it in ipairs(C.OnSale(db, group, faction)) do
+        if it.def.kind == "summon" and it.where then places[#places + 1] = C.Short(it.where) summonSt = it.setting end
+    end
+    if #places > 0 then
+        local m = priceText(summonSt.price)
+        if m then anyPaid = true end
+        parts[#parts + 1] = "summons to " .. table.concat(places, "/") .. (m and (" " .. m) or "")
+        if not m then parts[#parts] = "free " .. parts[#parts] end
+    end
     for _, it in ipairs(C.OnSale(db, group, faction)) do
         local def, st = it.def, it.setting
         local text
         if def.kind == "summon" then
-            text = "summons to " .. C.Short(it.where or "?")
+            text = nil
         elseif def.kind == "portal" then
             local short = {}
             for _, c in ipairs(it.cities) do short[#short + 1] = C.Short(c) end
@@ -200,7 +227,7 @@ function C.BuildAd(db, group, faction, template)
         else
             text = def.label
         end
-        if def.kind ~= "buff" then
+        if text and def.kind ~= "buff" then
             local m = priceText(st.price)
             if m then anyPaid = true text = text .. " " .. m else text = "free " .. text end
             if def.kind ~= "summon" and it.where then text = text .. " (at " .. C.Short(it.where) .. ")" end
@@ -221,7 +248,7 @@ end
 function C.JoinWelcome(db, group, faction, key, name, dest)
     local def = C.BY_KEY[key]
     if not def then return nil, "unknown service" end
-    local p = C.Provider(group, key)
+    local p = C.Provider(group, key, def.kind == "summon" and dest or nil)
     if not p then return nil, "nobody in the group can do it any more" end
     local st = C.Setting(db, key)
     local me
