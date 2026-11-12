@@ -144,3 +144,85 @@ def test_the_board_covers_unclaimed_characters_and_marks_the_guess(tmp_path):
     db.claim(7, ["judy-judgement"])
     asyncio.run(board(ix))
     assert sent[-1][1].description.splitlines() == ["<@7> (+ probably Anduin Wrynn): 1 of 2"]
+
+
+def _member(uid):
+    """A fake interaction that records what the bot says back, privately or not."""
+    said = []
+
+    async def followup(text, view=None, ephemeral=False):
+        said.append(("followup", text, view, ephemeral))
+
+    async def edit(content=None, view=None):
+        said.append(("edit", content, view, None))
+    ix = SimpleNamespace(user=SimpleNamespace(id=uid, display_name="Me"), guild=object(),
+                         permissions=SimpleNamespace(manage_events=False),
+                         response=SimpleNamespace(is_done=lambda: True, edit_message=edit),
+                         followup=SimpleNamespace(send=followup))
+    return ix, said
+
+
+def test_a_member_whose_claim_is_grouped_is_asked_privately_once_a_week(tmp_path):
+    from guildbot.bot import AltView, GuildBot
+    from guildbot.sync import alt_question
+    db, _ = _setup(tmp_path)
+    db.claim(5, ["anduin-wrynn"])
+    now = utcnow()
+    later = (datetime.now(timezone.utc) + timedelta(days=8)).isoformat(timespec="seconds")
+    assert alt_question(db, 5, now) == "judy-judgement" and alt_question(db, 6, now) is None   # only the claimer
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    asyncio.run(bot.on_app_command_completion(ix, None))          # after any command they run
+    kind, text, view, private = said[-1]
+    assert kind == "followup" and private is True and isinstance(view, AltView)
+    assert text.startswith("Is **Judy Judgement** yours too?")
+    asyncio.run(bot.on_app_command_completion(ix, None))
+    assert len(said) == 1                                         # not again the same week
+    assert alt_question(db, 5, later) == "judy-judgement"         # a week on, if never answered
+    asyncio.run(bot.answer_alt(ix, "judy-judgement", True))
+    assert said[-1][:2] == ("edit", "Linked **Judy Judgement**. Use `/main` if it should be the one that signs up.")
+    assert db.owner_of("judy-judgement") == 5 and alt_question(db, 5, later) is None
+
+
+def test_no_means_never_asked_or_grouped_again(tmp_path):
+    from guildbot.bot import GuildBot
+    from guildbot.sync import alt_question, board_players, likely_alt_news
+    db, _ = _setup(tmp_path)
+    db.claim(5, ["anduin-wrynn"])
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    asyncio.run(bot.answer_alt(ix, "judy-judgement", False))
+    assert "isn't yours" in said[-1][1] and db.owner_of("judy-judgement") is None
+    later = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(timespec="seconds")
+    assert alt_question(db, 5, later) is None and likely_alt_news(db) == []
+    assert [p["guessed"] for p in board_players(db)] == [[], []]     # shown apart on the board
+
+
+def test_linking_a_character_asks_about_its_likely_alt_straight_away(tmp_path):
+    from guildbot.bot import GuildBot
+    db, _ = _setup(tmp_path)
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    sent = []
+
+    async def send_message(text=None, **kw):
+        sent.append(text)
+    ix.response.send_message = send_message
+    link = bot.tree.get_command("link")
+    asyncio.run(link.callback(ix, "anduin-wrynn"))
+    asyncio.run(bot.on_app_command_completion(ix, link))          # what discord.py does once /link has answered
+    assert sent == ["Linked **Anduin Wrynn**."] and said[-1][1].startswith("Is **Judy Judgement** yours too?")
+
+
+def test_claiming_from_the_signup_menu_asks_too(tmp_path):
+    from guildbot.bot import ClaimPicker, GuildBot
+    db, _ = _setup(tmp_path)
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, said = _member(5)
+    ix.data = {"values": ["anduin-wrynn"]}
+
+    async def run():
+        await ClaimPicker(bot)._picked(ix)
+    asyncio.run(run())
+    assert said[0][1].startswith("Linked: **Anduin Wrynn**")
+    assert said[-1][0] == "followup" and said[-1][1].startswith("Is **Judy Judgement** yours too?")

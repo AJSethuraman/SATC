@@ -131,6 +131,36 @@ def legacy_milestones(db: Database, known_before: set[str]) -> list:
     return found
 
 
+def likely_alts(db: Database) -> list[dict]:
+    """legacy.likely_alts over what is stored, honouring every "not mine" answer."""
+    return L.likely_alts(db.legacy_completions(), db.account_items(), db.owners(), db.alt_rejections())
+
+
+def board_players(db: Database) -> list[dict]:
+    """legacy.players over what is stored: claims, the likely-alts guess, and every guild character with Legacy data."""
+    in_guild = {r["slug"] for r in db.roster()}
+    return L.players(db.claimed_by_member(), likely_alts(db), db.achievement_slugs() & in_guild)
+
+
+ASK_AGAIN_DAYS = 7
+
+
+def alt_question(db: Database, discord_id: int, now: str) -> str | None:
+    """A character the likely-alts guess puts with this member's claim that they have not answered about,
+    or None. Not asked again within a week of the last time."""
+    from datetime import datetime, timedelta
+    asked = db.alt_asked(discord_id)
+    cutoff = (datetime.fromisoformat(now) - timedelta(days=ASK_AGAIN_DAYS)).isoformat(timespec="seconds")
+    for p in board_players(db):
+        if p["owner"] != discord_id:
+            continue
+        for slug in p["guessed"]:
+            a = asked.get(slug)
+            if a is None or (a["answer"] is None and a["asked_at"] < cutoff):
+                return slug
+    return None
+
+
 def likely_alt_news(db: Database) -> list[tuple[dict, list[tuple[str, str]]]]:
     """Groups of characters that are probably one player, with the pairs in each the owner has not been told
     about yet. A pair both claimed by the same member is not news. Mark pairs told with add_likely_alts_seen
@@ -138,7 +168,7 @@ def likely_alt_news(db: Database) -> list[tuple[dict, list[tuple[str, str]]]]:
     owners = db.owners()
     seen = db.likely_alts_seen()
     out = []
-    for g in L.likely_alts(db.legacy_completions(), db.account_items(), owners):
+    for g in likely_alts(db):
         s = g["slugs"]
         pairs = [(a, b) for i, a in enumerate(s) for b in s[i + 1:]
                  if (a, b) not in seen and not (owners.get(a) and owners.get(a) == owners.get(b))]

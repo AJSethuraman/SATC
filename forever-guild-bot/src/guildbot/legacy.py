@@ -129,7 +129,7 @@ def _who(ch) -> str:
 SOLO_CATEGORIES = ("Classes", "Tradeskills")
 
 
-def likely_alts(completions, items: dict, owners: dict) -> list[dict]:
+def likely_alts(completions, items: dict, owners: dict, rejected=frozenset()) -> list[dict]:
     """Groups of guild characters that are probably one player, worked out from three checks that must all agree:
       1. they share a solo Legacy point finished in the same minute (an account point shows on every character
          of the account with one time);
@@ -137,7 +137,7 @@ def likely_alts(completions, items: dict, owners: dict) -> list[dict]:
       3. nothing contradicts it: no Legacy point both hold at different times, and not claimed by two members.
     A group in which any two members fail 2 or 3 is dropped whole rather than split by guesswork.
     completions: rows with slug, challenge_id, name, category, completed_at. items: slug -> text or None.
-    owners: slug -> Discord id. Returns [{"slugs": [...], "shared": [(name, completed_at), ...]}], sorted."""
+    owners: slug -> Discord id. rejected: (member, slug) pairs where the member said "not mine". Returns [{"slugs": [...], "shared": [(name, completed_at), ...]}], sorted."""
     done: dict[str, dict[int, str]] = {}
     solo: dict[tuple[int, str], set[str]] = {}
     names: dict[int, str] = {}
@@ -151,6 +151,8 @@ def likely_alts(completions, items: dict, owners: dict) -> list[dict]:
         if items.get(a) is None or items.get(a) != items.get(b):
             return False
         if owners.get(a) and owners.get(b) and owners[a] != owners[b]:
+            return False
+        if (owners.get(a), b) in rejected or (owners.get(b), a) in rejected:
             return False
         da, db_ = done.get(a, {}), done.get(b, {})
         return all(da[c] == db_[c] for c in da.keys() & db_.keys())

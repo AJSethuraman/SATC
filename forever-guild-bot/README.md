@@ -19,7 +19,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 
 | Command | Who | What |
 |---|---|---|
-| `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5). You must claim one before you can sign up for a raid |
+| `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5). You must claim one before you can sign up for a raid. If another guild character looks like it's on the same account, the bot privately asks "Is it yours too?" after your next command |
 | `/claim-panel` `/claims` `/unlink-member` `/release` | officer | post the claim button, see who claimed what, purge a troll, free one character |
 | `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what (item names link to Wowhead's Forever database) |
 | `/recipes` `/whocan` | anyone | what a profession can make and which guildies know each recipe; who can craft a recipe. A recipe nobody knows shows as a gap |

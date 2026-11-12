@@ -17,7 +17,8 @@ from .links import item_link
 from .config import Config
 from .db import Database, utcnow
 from . import legacy as L
-from .sync import likely_alt_news, sync_guild, sync_item_catalog, sync_legacy_catalog, sync_recipe_catalog
+from .sync import (alt_question, board_players, likely_alt_news, sync_guild, sync_item_catalog, sync_legacy_catalog,
+                   sync_recipe_catalog)
 
 log = logging.getLogger("guildbot")
 
@@ -189,6 +190,8 @@ class ClaimPicker(discord.ui.View):
             parts.append(f"You can claim up to {self.bot.db.MAX_CLAIMS} characters; ask an officer for more.")
         log.info("claim by %s: %s", interaction.user.id, res)
         await interaction.response.edit_message(content=" ".join(parts) or "Nothing changed.", view=None)
+        if res["linked"]:
+            await self.bot.ask_about_alts(interaction)
 
 
 class ClaimSearch(discord.ui.Modal, title="Find your character"):
@@ -677,6 +680,24 @@ class OfferView(discord.ui.View):
         return callback
 
 
+class AltView(discord.ui.View):
+    """Yes, mine / No, not mine, under "Is this character yours too?". Private and short-lived."""
+
+    def __init__(self, bot: "GuildBot", slug: str):
+        super().__init__(timeout=900)
+        self.bot, self.slug = bot, slug
+        for yes, label, style in ((True, "Yes, mine", discord.ButtonStyle.success),
+                                  (False, "No, not mine", discord.ButtonStyle.secondary)):
+            b = discord.ui.Button(label=label, style=style)
+            b.callback = self._make(yes)
+            self.add_item(b)
+
+    def _make(self, yes: bool):
+        async def callback(interaction: discord.Interaction):
+            await self.bot.answer_alt(interaction, self.slug, yes)
+        return callback
+
+
 class RepeatView(discord.ui.View):
     """Same as last time / Tentative / Can't make it, on the DM that asks someone back for next week's raid."""
 
@@ -821,6 +842,50 @@ class GuildBot(discord.Client):
         return (f"Possible alts spotted: {who} look like the same player. They got **{point}** in the same "
                 f"minute (<t:{ts}:f>){more} and have the same account mounts and toys. It's a guess; "
                 "a `/link` claim always wins.")
+
+    async def ask_about_alts(self, interaction: discord.Interaction) -> None:
+        """If the likely-alts guess puts an unclaimed character with this member's claim, ask them privately,
+        right after whatever they just did. Never a DM; at most once a week per character until answered."""
+        try:
+            slug = alt_question(self.db, interaction.user.id, utcnow())
+            if not slug:
+                return
+            c = self.db.find_character(slug)
+            text = (f"Is **{R.full_name(c) if c else slug}** yours too? It looks like it's on your account. "
+                    "If it is, I'll link it so you can sign up with it.")
+            self.db.set_alt_asked(interaction.user.id, slug, utcnow())
+            if interaction.response.is_done():
+                await interaction.followup.send(text, view=AltView(self, slug), ephemeral=True)
+            else:
+                await interaction.response.send_message(text, view=AltView(self, slug), ephemeral=True)
+        except Exception:
+            log.exception("could not ask about a likely alt")
+
+    async def answer_alt(self, interaction: discord.Interaction, slug: str, yes: bool) -> None:
+        c = self.db.find_character(slug)
+        name = f"**{R.full_name(c) if c else slug}**"
+        if not yes:
+            self.db.set_alt_answer(interaction.user.id, slug, "no", utcnow())
+            text = f"Got it, {name} isn't yours. I won't ask again."
+        else:
+            res = self.db.claim(interaction.user.id, [slug])
+            log.info("alt claim by %s: %s", interaction.user.id, res)
+            if res["linked"]:
+                self.db.set_alt_answer(interaction.user.id, slug, "yes", utcnow())
+                text = f"Linked {name}. Use `/main` if it should be the one that signs up."
+            elif res["taken"]:
+                text = f"{name} was claimed by someone else in the meantime. Ask an officer if that's wrong."
+            elif res["over_cap"]:
+                text = f"You can claim up to {self.db.MAX_CLAIMS} characters; ask an officer for more."
+            else:
+                self.db.set_alt_answer(interaction.user.id, slug, "yes", utcnow())
+                text = f"{name} is already yours."
+        await interaction.response.edit_message(content=text, view=None)
+
+    async def on_app_command_completion(self, interaction: discord.Interaction, command) -> None:
+        """After any command a member runs (including /link), maybe ask about a likely alt."""
+        if interaction.guild is not None:
+            await self.ask_about_alts(interaction)
 
     async def announce_likely_alts(self) -> None:
         """DM the server owner each time the bot first works out that characters are probably one player.
@@ -1914,8 +1979,7 @@ def register_commands(bot: GuildBot) -> None:
         catalog = db.legacy_catalog()
         in_guild = {r["slug"]: r for r in db.roster()}
         with_data = db.achievement_slugs() & set(in_guild)
-        people = L.players(db.claimed_by_member(), L.likely_alts(db.legacy_completions(), db.account_items(), db.owners()),
-                           with_data)
+        people = board_players(db)
         if not catalog or not people:
             await interaction.response.send_message(
                 "Nothing to show yet: " + ("the Legacy list hasn't loaded." if not catalog else "no Legacy data from Blizzard yet."),

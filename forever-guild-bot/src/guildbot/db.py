@@ -174,6 +174,13 @@ CREATE TABLE IF NOT EXISTS likely_alts_seen (
     PRIMARY KEY (a, b)
 );
 
+-- "Is this character yours too?" asked of a member whose claim is in a likely-alts group.
+-- answer: NULL = asked, not answered yet; 'yes' (then linked); 'no' (never grouped with them again).
+CREATE TABLE IF NOT EXISTS alt_answers (
+    discord_id INTEGER NOT NULL, slug TEXT NOT NULL, answer TEXT, asked_at TEXT NOT NULL,
+    PRIMARY KEY (discord_id, slug)
+);
+
 -- "A spot opened up, want it?" questions sent to people waiting on the bench.
 CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
@@ -377,6 +384,25 @@ class Database:
     def add_likely_alts_seen(self, pairs, now) -> None:
         self.conn.executemany("INSERT OR IGNORE INTO likely_alts_seen VALUES (?,?,?)", [(a, b, now) for a, b in pairs])
         self.conn.commit()
+
+    def alt_asked(self, discord_id: int) -> dict:
+        return {r["slug"]: r for r in self.conn.execute("SELECT * FROM alt_answers WHERE discord_id=?", (discord_id,))}
+
+    def set_alt_asked(self, discord_id: int, slug: str, now: str) -> None:
+        self.conn.execute("""INSERT INTO alt_answers (discord_id, slug, answer, asked_at) VALUES (?,?,NULL,?)
+                             ON CONFLICT(discord_id, slug) DO UPDATE SET asked_at=excluded.asked_at""",
+                          (discord_id, slug, now))
+        self.conn.commit()
+
+    def set_alt_answer(self, discord_id: int, slug: str, answer: str, now: str) -> None:
+        self.conn.execute("""INSERT INTO alt_answers (discord_id, slug, answer, asked_at) VALUES (?,?,?,?)
+                             ON CONFLICT(discord_id, slug) DO UPDATE SET answer=excluded.answer""",
+                          (discord_id, slug, answer, now))
+        self.conn.commit()
+
+    def alt_rejections(self) -> set[tuple[int, str]]:
+        """(member, character) pairs where the member said the character is not theirs."""
+        return {(r["discord_id"], r["slug"]) for r in self.conn.execute("SELECT * FROM alt_answers WHERE answer='no'")}
 
     def owners(self) -> dict[str, int]:
         """slug -> the Discord id that claimed it (the same choice owner_of makes)."""
