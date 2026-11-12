@@ -51,7 +51,7 @@ Zone.SCENERY = {
   fallen = { ids = { 204125, 204126, 204127, 204128 },   w = 110, h = 60,  r = 18, frame = 2.0, cam = 2.0 },   -- tirisfallfallentree01-04
   bush   = { ids = { 204097, 204098, 204099 },           w = 44,  h = 36,  r = 0,  frame = 2.0, cam = 2.0 },
   grave  = { ids = { 204105, 204106, 204107, 204108 },   w = 40,  h = 44,  r = 0,  frame = 2.0, cam = 2.0 },   -- brillgraves01-04
-  rock   = { ids = { 189499, 189500, 189501 },           w = 70,  h = 56,  r = 22, frame = 2.0, cam = 2.0 },   -- duskwoodboulder01-03
+  rock   = { ids = { 204135, 204112, 204113 },           w = 56,  h = 48,  r = 16, frame = 2.0, cam = 2.0 },   -- a stump and two dirt mounds (tirisfall): the boulder models came out as grey squares
   pine   = { ids = { 202855, 202856 },                   w = 70,  h = 100, r = 16, frame = 2.2, cam = 2.2 },   -- winterspring trees
   icerock = { ids = { 202845, 202846 },                  w = 70,  h = 56,  r = 22, frame = 2.0, cam = 2.0 },   -- winterspringrock01-02
 }
@@ -156,7 +156,7 @@ local function build_cave()
   }
   local clear = { { x = area.spawn.x, y = area.spawn.y, r = 150 }, { x = 1450, y = 500, r = 170 } }
   for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end
-  scatter(rand, area, { rock = 30, fallen = 4 }, clear)
+  scatter(rand, area, { rock = 36 }, clear)
   for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
   -- the boss and two guards, one pack
   add_pack(rand, area, 6, 1450, 500, { "zombie", "zombie" }, 260)
@@ -176,15 +176,15 @@ local function build_fields()
   area.exits = { { x = 50, y = 300, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2250, y = 220 } },
                  { x = 2740, y = 1220, r = 50, to = "burial", label = "The burial ground", arrive = nil } }
   local packs = {
-    { 600, 420, { "ghoul", "ghoul", "ghoul", "carrion", "carrion" } },
-    { 950, 900, { "quillrat", "quillrat", "quillrat", "ghoul" } },
-    { 1250, 300, { "bonewalker", "bonewalker", "quillrat" } },
-    { 1500, 1050, { "zombie", "zombie", "quillrat", "quillrat" } },
-    { 1700, 560, { "bonewalker", "bonewalker", "bonewalker" } },
-    { 2000, 1250, { "zombie", "bonewalker", "bonewalker", "carrion" } },
-    { 2100, 420, { "zombie", "zombie", "zombie" } },
-    { 2400, 800, { "bonewalker", "bonewalker", "quillrat", "quillrat", "zombie" } },
-    { 2600, 1150, { "zombie", "zombie", "bonewalker", "bonewalker" } },
+    { 600, 420, { "ghoul", "ghoul", "ghoul", "ghoul", "carrion", "carrion" } },
+    { 950, 900, { "quillrat", "quillrat", "quillrat", "quillrat" } },
+    { 1250, 300, { "bonewalker", "bonewalker", "quillrat", "quillrat", "carrion" } },
+    { 1500, 1050, { "zombie", "zombie", "quillrat", "quillrat", "quillrat" } },
+    { 1700, 560, { "bonewalker", "bonewalker", "bonewalker", "ghoul", "ghoul" } },
+    { 2000, 1250, { "zombie", "bonewalker", "bonewalker", "carrion", "carrion", "carrion" } },
+    { 2100, 420, { "zombie", "zombie", "zombie", "quillrat", "quillrat" } },
+    { 2400, 800, { "bonewalker", "bonewalker", "quillrat", "quillrat", "quillrat", "zombie" } },
+    { 2600, 1150, { "zombie", "zombie", "bonewalker", "bonewalker", "carrion", "carrion" } },
   }
   local clear = { { x = area.spawn.x, y = area.spawn.y, r = 190 }, { x = 2740, y = 1220, r = 150 } }
   for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end
@@ -212,7 +212,7 @@ local function build_burial()
   -- the boss, with her guard: she throws from a distance, so she has to be closed on
   add_pack(rand, area, 6, 1780, 700, { "bonewalker", "bonewalker", "bonewalker" }, 300)
   area.monsters[#area.monsters + 1] = {
-    x = 1800, y = 700, name = "The Marrowmother", model = 125947, life = 150, speed = 50, dmg = { 5, 9 }, xp = 260,
+    x = 1800, y = 700, name = "The Marrowmother", model = 125947, life = 150, speed = 50, dmg = { 4, 7 }, xp = 260,
     radius = 20, scale = 1.6, pack = 6, aggro = 300, boss = true, ranged = { range = 300, cd = 1.8, wind = 0.8, speed = 220 },
     resist = { fire = 0, cold = 75, lightning = 0, physical = 0 },
   }

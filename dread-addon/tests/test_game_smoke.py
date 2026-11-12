@@ -78,8 +78,9 @@ def boot(prelude="", with_slash=False):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Capture", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
+    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Capture", "Finder", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
+    ns.Game.autofind = False                                                # the creature search is tested on its own
     ns.Game.rethrow = True                                                  # an error in a frame must fail the test, not be swallowed
     return lua, ns
 
@@ -2122,3 +2123,46 @@ def test_with_rethrow_on_a_bug_in_a_frame_fails_loudly_so_the_tests_cannot_hide_
     ns.Game.world().monsters = None
     with pytest.raises(Exception):
         tick(lua, 2)
+
+
+# ---------------------------------------------------------------- monsters get their skins
+def monster_frames(lua):
+    return [o for o in lua.eval("ALL").values() if o.owner is not None and o.owner.name is not None]
+
+
+def test_a_monster_is_drawn_from_a_creature_id_once_one_has_been_found_and_from_the_bare_model_before():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -150, 0)
+    mine = [f for f in monster_frames(lua) if lua.eval("rawequal")(f.owner, m)][0]
+    assert mine.model == m.model and mine.creature is None                         # nothing found yet: the bare model
+    lua.execute("DreadDB.found = { [124160] = { 4242 } }")                         # a ghoul's model has a creature id now
+    w2 = ns.Game.world()
+    for f in monster_frames(lua):
+        f.owner = None                                                              # as if the frames were handed out afresh
+    tick(lua, 2)
+    mine = [f for f in monster_frames(lua) if lua.eval("rawequal")(f.owner, m)][0]
+    assert mine.creature == 4242
+
+
+def test_the_creature_search_starts_by_itself_the_first_time_the_game_opens_and_not_again_once_done():
+    lua, ns = boot()
+    ns.Game.autofind = True
+    open_game(lua, ns)
+    assert ns.Finder.running() is True
+    ns.Finder.stop()
+    lua.execute("run_timers()")
+    lua.execute("run_timers()")
+    assert ns.Finder.running() is False
+    lua.execute("DreadDB.found_scan = { first = 1, last = 25000, at = 99, done = true }")
+    ns.Game.toggle(); ns.Game.toggle()                                               # close and reopen
+    assert ns.Finder.running() is False                                              # it had finished: no second search
+
+
+def test_autofind_can_be_switched_off():
+    lua, ns = boot()
+    ns.Game.autofind = False
+    open_game(lua, ns)
+    assert ns.Finder.running() is False

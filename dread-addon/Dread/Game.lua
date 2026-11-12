@@ -116,6 +116,16 @@ function Game.capture_enter(name)
   if s.areas[name].entered == 1 then Game.shot("arrived " .. name) end        -- the first look at each place
 end
 
+-- Monsters drawn from a bare model are white. The first time the game opens, quietly look for creature ids that give them their skins
+-- (it stops as soon as every monster is covered, or at the end of the range, and is not repeated once it has finished).
+Game.autofind = true
+function Game.maybe_find()
+  if not Game.autofind then return false end
+  DreadDB = DreadDB or {}
+  if ns.Finder.complete(DreadDB.found) or (DreadDB.found_scan and DreadDB.found_scan.done) or ns.Finder.running() then return false end
+  return ns.Finder.start(nil, nil, say)
+end
+
 function Game.set_shots(on)
   DreadDB = DreadDB or {}
   if on == "on" or on == true then DreadDB.shots = true elseif on == "off" or on == false then DreadDB.shots = false end
@@ -1009,7 +1019,8 @@ local function draw_actors(p)
         if not f.owner then
           f.owner, f.anim = m, nil
           local ok
-          if m.model then ok = try(f.SetModel, f, m.model) else ok = try(f.SetCreature, f, m.cid) end
+          local cid = m.cid or ns.Finder.npc_for(DreadDB and DreadDB.found, m.model)       -- a creature id gives the model its skin; a bare model comes out white
+          if cid then ok = try(f.SetCreature, f, cid) else ok = try(f.SetModel, f, m.model) end
           f.fallback:SetShown(not ok)
           try(f.SetModelScale, f, 1)                            -- size comes from the frame alone (below); scaling the model as well made the boss twice as big as meant
           have[m] = f
@@ -1354,6 +1365,7 @@ function Game.toggle()
     if world.over then new_world(area and area.name) end
     frame:Show()
     if ns.Log then ns.Log.open_beside(frame) end                   -- and the log opens at its side
+    Game.maybe_find()
     if Tree.points_spent(world.player.st) == 0 then refresh_tree(); tree_frame:Show() end
   end
 end

@@ -197,6 +197,14 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "sound" then runSounds()
   elseif arg == "skills" then showSkills()
   elseif arg == "gear" then if ns.Game.world() then ns.Gear.toggle(ns.Game.world()) else say("start the game first: /dread play") end
+  elseif arg:match("^find") then
+    local a, b = arg:match("^find%s+(%d+)%s+(%d+)")
+    if arg == "find stop" then ns.Finder.stop(); say("stopping the model search")
+    elseif ns.Finder.running() then say("the model search is already running (/dread find stop)")
+    else
+      ns.Finder.start(tonumber(a), tonumber(b), say)
+      say("looking for the creature ids that give the monsters their skins; this runs in the background and reports as it goes")
+    end
   elseif arg == "report" then
     local G = ns.Game
     local s = G.session()
@@ -244,5 +252,5 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread anim on|off | /dread map | /dread zoom 1.4 | /dread fx off|low|full | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread report | /dread shots on|off | /dread gear | /dread spells [page] | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread anim on|off | /dread map | /dread zoom 1.4 | /dread fx off|low|full | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread find | /dread report | /dread shots on|off | /dread gear | /dread spells [page] | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
 end

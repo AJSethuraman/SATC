@@ -271,5 +271,16 @@ def test_the_two_bosses_are_about_the_same_size_of_fight_once_the_area_scaling_i
         ns.Combat.enter(w, ns.Zone.get(area))
         return [m.life for m in items(w.monsters) if m.boss][0]
     first, second = boss_life("cave"), boss_life("burial")
-    assert first == pytest.approx(260 * 2.0 * 1.5) and second == pytest.approx(150 * 2.0 * 2.3)
+    assert first == pytest.approx(260 * 2.6 * 1.5) and second == pytest.approx(150 * 2.6 * 2.3)
     assert 0.8 * first < second < 1.2 * first                                    # she has less life but throws from range and brings guards: the same sort of fight, not a wall
+
+
+def test_rocks_are_the_tirisfall_stump_and_mounds_not_the_boulders_that_drew_as_grey_squares_and_the_cave_has_no_logs(env):
+    lua, ns = env
+    assert [int(i) for i in items(ns.Zone.SCENERY.rock.ids)] == [204135, 204112, 204113]
+    cave = ns.Zone.get("cave")
+    kinds = {d.kind for d in items(cave.doodads)}
+    assert kinds == {"rock"}                                                  # logs came out with a missing-texture patch: none in the cave
+    assert len([d for d in items(cave.doodads) if d.kind == "rock"]) >= 30
+    for d in items(cave.doodads):
+        assert d.id in (204135, 204112, 204113)

@@ -14,6 +14,7 @@ Map.lua
 Fx.lua
 Build.lua
 Capture.lua
+Finder.lua
 Gear.lua
 Game.lua
 Visuals.lua
