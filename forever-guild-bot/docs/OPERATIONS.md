@@ -10,7 +10,7 @@ No secret appears in this file and none should: tokens live only in `.env`.
 | Code | `C:\Users\ajish\SATC-forever\forever-guild-bot` (a git worktree of the SATC repo, branch `forever-bot-phase0` until PR #485 merges) |
 | Python | `.venv\Scripts\python.exe` inside that folder. The system Python has no `httpx`, so tests fail with it |
 | Secrets | `.env` in that folder (gitignored, access restricted). Keys: `DISCORD_TOKEN`, `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `GUILD_SLUG`, `ACHIEVEMENTS_CHANNEL_ID`, `BOT_CHANNEL_IDS` (empty on purpose: commands work anywhere because every answer is private) |
-| Database | `guildbot.sqlite3` in the same folder (WAL mode, gitignored). **No backup exists yet.** Setting one up is a good first job (a nightly `sqlite3 guildbot.sqlite3 ".backup ..."` to a dated file) |
+| Database | `guildbot.sqlite3` in the same folder (WAL mode, gitignored). **Backed up nightly** at 3:30 AM by the scheduled task **ForeverGuildBotBackup** (`forge-setup\backup_db.py`, Python's SQLite backup, safe while the bot runs, integrity-checked, last 14 kept in `forge-setup\backups\guildbot-YYYY-MM-DD.sqlite3`). Run it by hand any time with `Start-ScheduledTask ForeverGuildBotBackup` before a risky change. Restore: stop the bot (see below), copy a backup over `guildbot.sqlite3`, start it |
 | Log | `C:\Users\ajish\forge-setup\bot.log` (appended forever; the bot's own output and every Blizzard request) |
 | Launcher | `C:\Users\ajish\forge-setup\run-bot.cmd` |
 | Persistence | Windows scheduled task **ForeverGuildBot**: runs at logon, restarts every minute if it dies (999 tries), no time limit |
@@ -34,7 +34,7 @@ Two `guildbot` processes after a start is normal (the venv launcher and the real
 
 - Tests (must pass before anything counts as done, 82 at last count): `cd forever-guild-bot; $env:PYTHONPATH='src'; .venv\Scripts\python.exe -m pytest -q`
 - Add or update a test with every behaviour change. Parsers get a fixture from a real saved response (`tests/fixtures/forever_*.json`).
-- Database changes are idempotent `ALTER`s in `Database.__init__`, so an existing file upgrades itself. Test on a copy first; there is no backup.
+- Database changes are idempotent `ALTER`s in `Database.__init__`, so an existing file upgrades itself. Run the backup task first, and test on a copy.
 - Git: the repo's root `CLAUDE.md` is the workflow (feature branch, draft PR, merge once CI is green on the merged head and the Codex review reads Completed). Check `git status` before every commit so `.env` and `*.sqlite3` never go in. End commits with the attribution lines your session gives you.
 - CI is slow (a long Actions queue). Every push restarts it, so batch changes into one push.
 
