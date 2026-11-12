@@ -61,7 +61,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             python3 .github/ci/select_jobs.py --all
-          elif files=$(git diff --name-only HEAD^1 HEAD); then
+          # --no-renames: a moved file lists both its old and new path, so the
+          # project it left is tested too (found by Codex on #490).
+          elif files=$(git diff --no-renames --name-only HEAD^1 HEAD); then
             echo "$files"
             echo "$files" | python3 .github/ci/select_jobs.py
           else
