@@ -25,6 +25,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 | `/recipes` `/whocan` | anyone | what a profession can make and which guildies know each recipe; who can craft a recipe. A recipe nobody knows shows as a gap |
 | `/craftable` | anyone | guided search: pick kind, type, slot and level, see who in the guild can make it (private) |
 | `/gaps` | anyone | profession coverage, and the recipes nobody in the guild has |
+| `/skillup` | anyone | what to craft to level a profession, guaranteed (orange) first and cheapest in raw materials, plus a shopping list |
 | `/wanted` | officer | searches that found nobody who can make the item |
 | `/raids` | anyone | upcoming raids |
 | `/history` | anyone (officers can look up anyone) | your raids attended, no-shows and late drops |

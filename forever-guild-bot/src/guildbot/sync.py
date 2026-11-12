@@ -147,7 +147,8 @@ async def sync_item_catalog(db: Database, client, concurrency: int = 8, budget: 
 
     async def one_recipe(rid: int) -> None:
         try:
-            db.set_recipe_item(rid, bz.parse_recipe_item(await guarded(client.recipe, rid)))
+            item, made, reagents = bz.parse_recipe(await guarded(client.recipe, rid))
+            db.set_recipe_item(rid, item, made, reagents)
             done["recipes"] += 1
         except bz.NotFound:
             db.set_recipe_item(rid, None)             # no such recipe in the data: do not ask again

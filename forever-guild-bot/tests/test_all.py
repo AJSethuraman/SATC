@@ -156,7 +156,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
                      "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands", "raid-attendance",
-                     "history", "attendance", "raid-repeat-stop"}
+                     "history", "attendance", "raid-repeat-stop", "skillup"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -1437,3 +1437,81 @@ def test_repeating_raid_posts_next_week_and_asks_last_weeks_regulars_back(tmp_pa
 
 async def _anoop():
     return None
+
+
+def test_parse_recipe_reads_materials_and_quantity_made():
+    item, made, reagents = bz.parse_recipe(_fx("recipe"))
+    assert item == 2847 and made == 1.0
+    assert reagents == [(2840, "Copper Bar", 6), (2880, "Weak Flux", 1), (2589, "Linen Cloth", 2)]
+    item, made, reagents = bz.parse_recipe({"id": 1, "name": "x", "crafted_quantity": {"minimum": 2, "maximum": 4}})
+    assert (item, made, reagents) == (None, 3.0, [])
+
+
+def test_skill_ranges_file_matches_the_game_table_and_colors_follow_them():
+    from guildbot import skillup as S
+    ranges = S.load_ranges()
+    assert ranges[1652] == (40, 65, 105)                                  # Copper Shortsword: 40 / 65 / 85 / 105
+    assert [S.color(k, 65, 105) for k in (40, 64, 65, 84, 85, 104, 105)] == \
+        ["orange", "orange", "yellow", "yellow", "green", "green", "gray"]
+    assert len(ranges) > 2000
+
+
+def test_raw_cost_counts_what_you_gather_not_the_bar():
+    from guildbot import skillup as S
+    reagents = {1: [(10, "Bronze Bar", 4), (11, "Weak Flux", 1)],          # the item: 4 bars + a flux
+                2: [(20, "Copper Bar", 1), (21, "Tin Bar", 1)],            # Bronze Bar: makes 2 per craft
+                3: [(30, "Copper Ore", 1)], 4: [(31, "Tin Ore", 1)]}
+    makes = {1: 1, 2: 2, 3: 1, 4: 1}
+    maker = {10: 2, 20: 3, 21: 4}
+    raw = S.raw_cost(1, reagents, makes, maker)
+    assert raw == {"Copper Ore": 2.0, "Tin Ore": 2.0, "Weak Flux": 1.0} and S.effort(raw) == 5.0
+    loop = {1: [(10, "A", 1)], 2: [(11, "B", 1)]}
+    assert S.raw_cost(1, loop, {1: 1, 2: 1}, {10: 2, 11: 1}) == {"B": 1.0}     # a cycle must stop, not hang
+
+
+def test_plan_takes_the_cheapest_guaranteed_recipe_and_prices_the_gamble():
+    from guildbot import skillup as S
+
+    def c(rid, name, learn, yellow, gray, cost):
+        return {"recipe_id": rid, "name": name, "learn_at": learn, "yellow_at": yellow, "gray_at": gray,
+                "effort": cost, "reagents": [(1, "Bar", int(cost))]}
+    a, b, d = c(1, "Dear", 100, 150, 180, 6), c(2, "Cheap", 100, 145, 175, 2), c(3, "Mid", 140, 170, 200, 3)
+    p = S.plan(140, 165, [a, b, d])
+    assert [(s["recipe"]["name"], s["start"], s["end"], s["crafts"], s["kind"]) for s in p["steps"]] == \
+        [("Cheap", 140, 145, 5, "orange"), ("Mid", 145, 165, 20, "orange")]       # at 145 Mid (3) beats Dear (6)
+    assert not p["stuck"] and S.shopping_list(p["steps"]) == [("Bar", 70)]         # 5*2 + 20*3
+    # nothing orange left: fall back to yellow and count the misses
+    y = c(4, "Yellowish", 100, 120, 160, 4)
+    q = S.plan(130, 140, [y])
+    assert q["steps"][0]["kind"] == "yellow" and q["steps"][0]["crafts"] == 14       # ceil(10 / 0.75)
+    assert S.plan(130, 160, [y])["stuck"] and S.plan(130, 160, [y])["reached"] == 140     # green from 140: stops there
+    # the gamble is offered only when it is cheaper per point even with misses
+    cheapy = c(5, "CheapYellow", 100, 120, 200, 1)
+    assert S.cheaper_gamble(130, [cheapy], c(6, "Orange", 100, 160, 200, 5))["name"] == "CheapYellow"
+    assert S.cheaper_gamble(130, [cheapy], c(6, "Orange", 100, 160, 200, 1)) is None
+
+
+def test_skillup_card_uses_real_ranges_known_recipes_and_stored_materials(tmp_path):
+    from guildbot import skillup as S
+    from guildbot.bot import skillup_card
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    other = next(rid for rid, (l, y, g) in S.load_ranges().items() if l <= 50 < y and rid != 1652)
+    now = utcnow()
+    db.replace_professions("anduin-wrynn", [bz.Profession("Blacksmithing", 50, 75, ((1652, "Copper Shortsword"), (other, "Other Thing")))], now)
+    db.replace_recipes([("Blacksmithing", 1652, "Copper Shortsword", "Swords"), ("Blacksmithing", other, "Other Thing", "Misc")], now)
+    db.set_recipe_item(1652, 2847, 1.0, [(2840, "Copper Bar", 6), (2880, "Weak Flux", 1), (2589, "Linen Cloth", 2)])
+    db.set_recipe_item(other, 9999, 1.0, [(2840, "Copper Bar", 1)])
+    row, prof = db.find_character("anduin"), db.professions_for("anduin-wrynn")[0]
+    card = skillup_card(db, row, prof)
+    desc = card.description
+    assert "Other Thing" in desc and "guaranteed" in desc and card.title.endswith("Blacksmithing 50 to 75")
+    assert "1 Copper Bar" in desc                                         # the 1-bar recipe, not the 6-bar one, is first
+    assert "Copper Shortsword" not in desc.split("**65")[0] or desc.index("Other Thing") < desc.index("Copper Shortsword")
+    assert any(f.name == "Bring" and "Copper Bar" in f.value for f in card.fields)
+    db.replace_professions("anduin-wrynn", [bz.Profession("Blacksmithing", 75, 75, ())], now)
+    capped = skillup_card(db, row, db.professions_for("anduin-wrynn")[0])
+    assert isinstance(capped, str) and "cap" in capped
+    db.replace_professions("anduin-wrynn", [bz.Profession("Blacksmithing", 50, 75, ())], now)
+    assert "no Blacksmithing recipes" in skillup_card(db, row, db.professions_for("anduin-wrynn")[0])
+

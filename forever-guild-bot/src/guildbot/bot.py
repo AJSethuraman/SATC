@@ -12,6 +12,7 @@ from discord.ext import tasks
 from . import raids as R
 from . import craft as C
 from . import milestones as M
+from . import skillup as S
 from .links import item_link
 from .config import Config
 from .db import Database, utcnow
@@ -459,6 +460,7 @@ HELP_MEMBER = [
         ("/whocan", "who can craft something"),
         ("/craftable", "find gear by kind, type, slot and level, and who can make it"),
         ("/gaps", "what the guild is missing in professions"),
+        ("/skillup", "what to craft to level a profession, cheapest first"),
     ]),
 ]
 HELP_OFFICER = ("Officers", [
@@ -542,6 +544,52 @@ class GapsView(discord.ui.View):
 
     async def _back(self, interaction: discord.Interaction) -> None:
         await interaction.response.edit_message(embed=gaps_overview(self.bot.db), view=GapsView(self.bot))
+
+
+def skillup_card(db: Database, row, prof, target: int | None = None):
+    """The skill-up plan for one character and profession: an embed, or a plain sentence when there is nothing to plan."""
+    who, name, skill = R.full_name(row), prof["profession"], prof["skill"]
+    cap = prof["max_skill"]
+    if skill >= cap:
+        return f"**{who}** is at the {name} cap ({skill}/{cap}). Nothing to level until the cap goes up."
+    known = {r["recipe_id"]: r["name"] for r in db.known_recipe_rows(row["slug"], name)}
+    if not known:
+        return f"**{who}** has no {name} recipes on record, so there is nothing to craft. Try again after a `/guild-sync`."
+    reagents, makes, maker = db.recipe_graph()
+    ranges = S.load_ranges()
+    cands = []
+    for rid, rname in known.items():
+        if rid not in ranges or rid not in reagents:
+            continue
+        learn, yellow, gray = ranges[rid]
+        cands.append({"recipe_id": rid, "name": rname, "learn_at": learn, "yellow_at": yellow, "gray_at": gray,
+                      "reagents": reagents[rid], "effort": S.effort(S.raw_cost(rid, reagents, makes, maker))})
+    goal = min(cap, target if target and target > skill else skill + S.DEFAULT_STRETCH)
+    p = S.plan(skill, goal, cands)
+    e = discord.Embed(title=f"{who}: {name} {skill} to {goal}", color=0xD2B48C)
+    lines = []
+    for st in p["steps"]:
+        r = st["recipe"]
+        how = "**guaranteed**" if st["kind"] == "orange" else "**likely** (a few may miss)"
+        lines.append(f"**{st['start']} to {st['end']}**: craft {st['crafts']} x **{r['name']}** - {how}\n"
+                     f"-# each: {S.materials_text(r['reagents'])}")
+    if not lines:
+        lines.append("Nothing this character knows gives a skill-up at this level. Time to learn something new.")
+    e.description = "\n\n".join(lines)
+    if p["stuck"] and p["steps"]:
+        e.description += f"\n\nThe plan stops at **{p['reached']}**: nothing known gives a skill-up past that."
+    need = S.shopping_list(p["steps"])
+    if need:
+        e.add_field(name="Bring", value="\n".join(f"{q} x {n}" for n, q in need[:15]), inline=False)
+    orange_now = [c for c in cands if c["learn_at"] <= skill < c["yellow_at"]]
+    gamble = S.cheaper_gamble(skill, cands, min(orange_now, key=lambda c: c["effort"]) if orange_now else None)
+    if gamble:
+        e.add_field(name="Cheaper, but a gamble",
+                    value=f"**{gamble['name']}** is yellow at {skill}: {S.materials_text(gamble['reagents'])}. "
+                          "Cheaper than the guaranteed pick even counting the misses.", inline=False)
+    e.set_footer(text=f"Skill ranges from the Forever game data (not confirmed by Blizzard's API). Cost = raw materials, not gold. "
+                      f"Skill as of {str(prof['fetched_at'])[:10]}.")
+    return e
 
 
 def gap_card(db: Database, name: str, discord_id: int):
@@ -1334,6 +1382,38 @@ def register_commands(bot: GuildBot) -> None:
         e = discord.Embed(title="Professions", description=clip(lines, 4000) or "Nobody found.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e, ephemeral=True)
+
+    @tree.command(name="skillup", description="What to craft to level a profession, cheapest first")
+    @app_commands.describe(profession="Which profession", character="Which character (blank = yours)",
+                           to="Skill to aim for (blank = 25 ahead)")
+    @app_commands.autocomplete(profession=profession_ac, character=char_ac)
+    async def skillup(interaction: discord.Interaction, profession: str, character: str | None = None,
+                      to: int | None = None):
+        want = profession.strip().lower()
+        if character:
+            rows = [db.find_character(character)]
+        else:
+            rows = db.characters_for(interaction.user.id)
+        pick = None
+        for r in rows:
+            if r is None:
+                continue
+            for pr in db.professions_for(r["slug"]):
+                if pr["profession"].lower() == want:
+                    pick = (r, pr)
+                    break
+            if pick:
+                break
+        if not pick:
+            await interaction.response.send_message(
+                "Couldn't find that profession on your characters. Pick a profession from the list, and `/link` "
+                "your character first (or give a character name).", ephemeral=True)
+            return
+        card = skillup_card(db, pick[0], pick[1], to)
+        if isinstance(card, str):
+            await interaction.response.send_message(card, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=card, ephemeral=True)
 
     async def catalog_profession_ac(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(name=f"{r['name']} ({r['n']} recipes)", value=r["name"])

@@ -112,6 +112,12 @@ Players connect Discord to characters with `/link`; the main character is the on
 
 **Ideas not chosen yet:** help matching (find guildies who finished a quest), weekly guild chronicle, Legacy-system co-pilot, who-can-craft, upgrade finder, deaths board once Hardcore ships.
 
+## Skill-up planner (`/skillup`)
+- Orange, yellow, green and gray are not in Blizzard's API. They come from the game's own `SkillLineAbility` table (learn / yellow / gray skill per recipe), saved as `src/guildbot/data/skill_ranges.csv`. Source: wago.tools, WoW Forever build 1.60.1.70888 (covers 2,490 of the 2,493 catalogue recipes; Blizzard recipe id = that table's row ID). Blizzard's own static namespace is build 70399, so a recipe changed between the two builds could be off. Not confirmed by Blizzard's API.
+- **Licence of that table is unchecked** (CLAUDE.md rule 4). It is raw game data extracted from the client and wago.tools is not Wowhead, and nothing was scraped from a page, but the owner should decide whether to keep it committed.
+- "Cheap" means raw materials, never gold: a recipe's materials are expanded to what is gathered (a Bronze Bar counts as the copper and tin behind it). Within a stretch the planner always crafts the cheapest recipe that is still orange (every craft is a skill-up, so cheapest per craft is cheapest per point); it falls back to yellow only when nothing orange is left, counted at a rough 75% chance (not published). Assumes one skill point per craft.
+- Needs each recipe's materials, which the item-catalogue sync now stores (`recipe_reagents`); an existing database refetches them once.
+
 ## Open questions for the owner
 1. Guild name/slug and region (US assumed).
 2. How many members will realistically install an uploader? Decides how much to invest in Phase 3.

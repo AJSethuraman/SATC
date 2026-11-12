@@ -53,6 +53,12 @@ CREATE TABLE IF NOT EXISTS recipes (
     PRIMARY KEY (profession, recipe_id)
 );
 
+-- The materials each recipe uses, from Blizzard's static data.
+CREATE TABLE IF NOT EXISTS recipe_reagents (
+    recipe_id INTEGER NOT NULL, item_id INTEGER NOT NULL, name TEXT NOT NULL, quantity INTEGER NOT NULL,
+    PRIMARY KEY (recipe_id, item_id)
+);
+
 -- What recipes make, from Blizzard's static data.
 CREATE TABLE IF NOT EXISTS items (
     item_id INTEGER PRIMARY KEY, name TEXT NOT NULL, quality TEXT, level INTEGER, required_level INTEGER,
@@ -158,6 +164,10 @@ class Database:
         if "item_id" not in cols:                       # database created before recipes knew their item
             self.conn.execute("ALTER TABLE recipes ADD COLUMN item_id INTEGER")
             self.conn.commit()
+        for col, ddl in (("makes_qty", "REAL NOT NULL DEFAULT 1"), ("reagents_done", "INTEGER NOT NULL DEFAULT 0")):
+            if col not in cols:                         # database created before recipes knew their materials
+                self.conn.execute(f"ALTER TABLE recipes ADD COLUMN {col} {ddl}")
+                self.conn.commit()
         ocols = {r["name"] for r in self.conn.execute("PRAGMA table_info(offers)")}
         for col, ddl in (("dm_msg_id", "INTEGER"), ("chan_msg_id", "INTEGER"), ("cleaned", "INTEGER NOT NULL DEFAULT 0"),
                          ("ping_at", "TEXT"), ("expires_at", "TEXT")):
@@ -366,11 +376,32 @@ class Database:
 
     def recipes_needing_item(self):
         return self.conn.execute(
-            "SELECT DISTINCT recipe_id FROM recipes WHERE item_id IS NULL ORDER BY recipe_id").fetchall()
+            "SELECT DISTINCT recipe_id FROM recipes WHERE item_id IS NULL OR reagents_done=0 ORDER BY recipe_id").fetchall()
 
-    def set_recipe_item(self, recipe_id: int, item_id: int | None) -> None:
-        self.conn.execute("UPDATE recipes SET item_id=? WHERE recipe_id=?", (item_id or 0, recipe_id))
+    def set_recipe_item(self, recipe_id: int, item_id: int | None, makes: float = 1.0, reagents=()) -> None:
+        self.conn.execute("UPDATE recipes SET item_id=?, makes_qty=?, reagents_done=1 WHERE recipe_id=?",
+                          (item_id or 0, makes, recipe_id))
+        self.conn.execute("DELETE FROM recipe_reagents WHERE recipe_id=?", (recipe_id,))
+        self.conn.executemany("INSERT OR REPLACE INTO recipe_reagents VALUES (?,?,?,?)",
+                              [(recipe_id, i, n, q) for i, n, q in reagents])
         self.conn.commit()
+
+    def recipe_graph(self):
+        """What the skill-up planner needs: (reagents, makes, maker). reagents: recipe_id -> [(item_id, name, qty)];
+        makes: recipe_id -> items made per craft; maker: item_id -> the recipe that makes it."""
+        reagents: dict = {}
+        for r in self.conn.execute("SELECT recipe_id, item_id, name, quantity FROM recipe_reagents ORDER BY recipe_id, name"):
+            reagents.setdefault(r["recipe_id"], []).append((r["item_id"], r["name"], r["quantity"]))
+        makes, maker = {}, {}
+        for r in self.conn.execute("SELECT recipe_id, item_id, makes_qty FROM recipes WHERE item_id>0 ORDER BY recipe_id"):
+            makes[r["recipe_id"]] = r["makes_qty"]
+            maker.setdefault(r["item_id"], r["recipe_id"])
+        return reagents, makes, maker
+
+    def known_recipe_rows(self, slug: str, profession: str):
+        return self.conn.execute(
+            "SELECT recipe_id, name FROM known_recipes WHERE slug=? AND profession=? ORDER BY name",
+            (slug, profession)).fetchall()
 
     def items_needed(self):
         """Item ids that recipes make and that we have no row for, or whose stats we have not read yet."""

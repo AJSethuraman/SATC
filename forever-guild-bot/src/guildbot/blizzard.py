@@ -167,6 +167,24 @@ def parse_recipe_item(payload: dict) -> int | None:
     return int(ci["id"]) if isinstance(ci, dict) and ci.get("id") is not None else None
 
 
+def parse_recipe(payload: dict):
+    """(item made or None, items made per craft, [(reagent item id, name, quantity)]) from a recipe response."""
+    item = parse_recipe_item(payload)
+    cq = payload.get("crafted_quantity") or {}
+    if cq.get("value") is not None:
+        made = float(cq["value"])
+    elif cq.get("minimum") is not None and cq.get("maximum") is not None:
+        made = (float(cq["minimum"]) + float(cq["maximum"])) / 2
+    else:
+        made = 1.0
+    reagents = []
+    for r in payload.get("reagents") or []:
+        ri = r.get("reagent") or {}
+        if ri.get("id") is not None and r.get("quantity"):
+            reagents.append((int(ri["id"]), _name(ri.get("name")) or f"Item {ri['id']}", int(r["quantity"])))
+    return item, made, reagents
+
+
 def parse_catalog_item(payload: dict) -> CatalogItem:
     if "id" not in payload or "name" not in payload:
         raise BlizzardError(f"item response not recognised (keys: {sorted(payload)})")
