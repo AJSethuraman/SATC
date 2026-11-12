@@ -13,6 +13,8 @@
   .flat.ghost { background: #1b1710; color: #f0c05a; border: 1px solid #f0c05a; font-weight: 600; }
   .flat.plain { background: #221d15; color: #ece4d2; border: 1px solid #3a3226; }
   .flat.bare { background: transparent; color: #8a8171; border: 0; }
+  .flat.rail { background: transparent; color: #ece4d2; border: 0; justify-content: flex-start; padding-left: 20px; }
+  .flat.railOn { background: #1b1710; color: #f0c05a; border: 0; justify-content: flex-start; padding-left: 20px; font-weight: 600; }
   .flat.off { opacity: .45; }
   .close { background: #5a0e09; border: 1px solid #c9a24a; border-radius: 50%; color: #ffd100; display: flex; align-items: center; justify-content: center; font-weight: bold; }
   .chk { border: 2px solid #a8a8a8; background: #111; border-radius: 3px; margin: 3px; width: 20px !important; height: 20px !important; }
@@ -60,6 +62,7 @@ function render(scene, highlights) {
     } else if (it.kind === "CheckButton") { d.classList.add("chk"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
     else if (it.kind === "EditBox") { d.classList.add("eb"); d.textContent = it.text; }
     else if (it.template.includes("UIPanelCloseButton")) { d.classList.add("close"); d.textContent = "×"; it.w = it.w || 26; it.h = it.h || 26; }
+    else if (it.kind === "Page") { /* a box for its children, nothing to draw */ }
     else if (it.kind === "Button" && it.style) { d.classList.add("flat", it.style); if (it.disabled) d.classList.add("off");
       if (it.fontsize) d.style.fontSize = it.fontsize + "px"; d.innerHTML = wowText(it.text); }
     else if (it.kind === "Button") { d.classList.add("btn"); d.innerHTML = wowText(it.text); }
@@ -94,7 +97,7 @@ function render(scene, highlights) {
   }
   // overlap report: any two visible text-bearing items whose boxes intersect
   // an empty label draws nothing, so it can't cover anything
-  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" &&
+  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" && els[id].it.kind !== "Page" &&
     !(els[id].it.kind === "FontString" && !els[id].it.text));
   const overlaps = [];
   for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {

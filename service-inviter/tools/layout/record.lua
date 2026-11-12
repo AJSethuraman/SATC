@@ -10,7 +10,7 @@ local function New(kind, parent, template, font)
   nextId = nextId + 1
   local o = { _id = nextId, _kind = kind, _parent = parent or false, _color = false, _justify = false, _fontsize = false, _name = "", _disabled = false, _nowrap = false, _template = template or "", _font = font or "",
               _points = {}, _scripts = {}, _attr = {}, _text = "", _checked = false, _hidden = false,
-              _shown = false, _w = false, _h = false, _tc = false, _siStyle = false, _siSize = false }
+              _shown = false, _w = false, _h = false, _tc = false, _siStyle = false, _siSize = false, _fs = false }
   ALL[#ALL + 1] = o
   local m = {}
   function m.SetPoint(self, p, a, b, c, d)
@@ -25,7 +25,7 @@ local function New(kind, parent, template, font)
   function m.SetSize(self, w, h) self._w, self._h = w, h end
   function m.SetWidth(self, w) self._w = w end
   function m.SetHeight(self, h) self._h = h end
-  function m.SetText(self, s) self._text = s if rawget(self, "_fs") then self._fs._text = s end end
+  function m.SetText(self, s) self._text = s if self._fs then self._fs._text = s end end
   function m.GetText(self) return self._text end
   function m.SetChecked(self, v) self._checked = v and true or false end
   function m.GetChecked(self) return self._checked end
@@ -36,6 +36,7 @@ local function New(kind, parent, template, font)
   function m.SetFontObject(self, f) self._font = f end
   function m.SetTextColor(self, r, g, b) self._tc = { r, g, b } end
   function m.SetFontString(self, fs) self._fs = fs end
+  function m.GetFontString(self) if not self._fs then self._fs = New("FontString", self) end return self._fs end
   function m.SetWordWrap(self, v) self._nowrap = not v end
   function m.SetFont(self, f, size) self._fontsize = size end
   function m.GetFont() return "font", 12, "" end

@@ -154,5 +154,8 @@ def test_setup_background_is_solid_black(game):
     src = ADDON.read_text()
     start = src.index("local function BuildSetupUI()")
     block = src[start:src.index("w:Hide()", start)]
-    assert "bg:SetColorTexture(0, 0, 0, 1)" in block
+    assert 'local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()' in block   # solid, full size
     assert "UI-DialogBox-Background" not in block   # the lighter tiled texture is gone
+    ground = src[src.index("local INK = {"):].split('ground = "', 1)[1][:6]
+    r, g, b = (int(ground[i:i + 2], 16) for i in (0, 2, 4))
+    assert max(r, g, b) <= 0x20                      # basically completely dark (#14110d)

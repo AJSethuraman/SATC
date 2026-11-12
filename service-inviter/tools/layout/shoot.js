@@ -7,7 +7,7 @@ const scenes = JSON.parse(fs.readFileSync(`${out}/scenes.json`));
   const b = await chromium.launch();
   let bad = 0;
   for (const [name, sc] of Object.entries(scenes)) {
-    const pg = await b.newPage({ deviceScaleFactor: 2, viewport: { width: 960, height: 1000 } });
+    const pg = await b.newPage({ deviceScaleFactor: 2, viewport: { width: 1200, height: 1000 } });
     await pg.goto(`file://${render}`);
     const res = await pg.evaluate(([s]) => render(s, []), [sc]);
     const bb = await pg.locator("#win").boundingBox();

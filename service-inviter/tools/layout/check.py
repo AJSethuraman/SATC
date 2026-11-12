@@ -46,11 +46,18 @@ def export(L, win, page=None):
     for j in range(1, len(allv) + 1):
         o = allv[j]
         par = o._parent
-        if not par or par._id not in (wid, pid):
+        if not par or (par._id not in (wid, pid) and o._id != pid):
+            continue
+        if o._id == pid:   # the page itself: a box its children are placed in, drawn as nothing
+            pts = [dict(p=pt.p, rel=0, rp=pt.rp, x=pt.x, y=pt.y) for pt in o._points.values()]
+            items.insert(0, dict(id=o._id, kind="Page", template="", font="", points=pts[:1], w=o._w or None, h=o._h or None,
+                                 text="", checked=False, hidden=False, disabled=False, nowrap=False, color=None,
+                                 justify=None, fontsize=None, tc=None, style=None))
             continue
         if page is not None and par._id == wid and o._kind == "Frame":
             continue
-        pts = [dict(p=pt.p, rel=0 if pt.rel in (wid, pid) else pt.rel, rp=pt.rp, x=pt.x, y=pt.y) for pt in o._points.values()]
+        # a point with no frame named is relative to the parent: the page, for the page's children
+        pts = [dict(p=pt.p, rel=0 if (pt.rel or par._id) == wid else (pt.rel or par._id), rp=pt.rp, x=pt.x, y=pt.y) for pt in o._points.values()]
         items.append(dict(id=o._id, kind=o._kind, template=o._template or "", font=o._font or "", points=pts,
                           w=o._w or None, h=o._h or None, text=o._text or "", checked=bool(o._checked),
                           hidden=bool(o._hidden), disabled=bool(o._disabled), nowrap=bool(o._nowrap),

@@ -1910,7 +1910,7 @@ end
 -- Flat buttons: gold (the one main action), ghost (a row's action), plain, bare (the x).
 local BUTTON_LOOK = {
     gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
-    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" },
+    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" }, rail = { nil, nil, INK.text },
 }
 local function FlatButton(parent, w, h, style, size, secure, name)
     local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
@@ -2319,21 +2319,14 @@ local function DefaultPayeeText(key)
 end
 local function ShowPicker(box, withDefaults, title, key)
     if not picker then
-        local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-        picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent, template)
+        picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent)
         picker:SetFrameStrata("FULLSCREEN_DIALOG")
         picker:EnableMouse(true)
-        if picker.SetBackdrop then
-            picker:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
-                                 insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-            if picker.SetBackdropBorderColor then picker:SetBackdropBorderColor(1, 0.82, 0) end
-        end
-        local bg = picker:CreateTexture(nil, "BACKGROUND")
-        bg:SetPoint("TOPLEFT", 3, -3) bg:SetPoint("BOTTOMRIGHT", -3, 3)
-        bg:SetColorTexture(0, 0, 0, 1)
-        picker.title = picker:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local edge = Fill(picker, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(picker, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        picker.title = Text(picker, 14, INK.gold, "GameFontNormal")
         picker.title:SetPoint("TOPLEFT", 10, -9)
-        picker.sub = picker:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        picker.sub = Text(picker, 11, INK.muted, "GameFontHighlightSmall")
         picker.sub:SetPoint("TOPLEFT", 10, -26)
         picker.note = picker:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         picker.buttons = {}
@@ -2359,7 +2352,8 @@ local function ShowPicker(box, withDefaults, title, key)
     for i, e in ipairs(entries) do
         local b = picker.buttons[i]
         if not b then
-            b = CreateFrame("Button", nil, picker, "UIPanelButtonTemplate")
+            b = FlatButton(picker, W - 20, 22, "plain", 13)
+            b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("LEFT", 10, 0)
             picker.buttons[i] = b
         end
         b:SetSize(W - 20, 22)
@@ -2391,9 +2385,9 @@ local function PickButton(parent, box, withDefaults, title, key)
 end
 
 local function BuildSetupUI()
-    local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-    local W, H = 900, 690
-    local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent, template)
+    local RAIL, PW, H = 168, 900, 690          -- the side menu, then the 900-wide page
+    local W = RAIL + PW
+    local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent)
     w:SetSize(W, H)
     w:SetPoint("CENTER", 0, 20)
     w:SetFrameStrata("DIALOG")
@@ -2402,24 +2396,22 @@ local function BuildSetupUI()
     w:RegisterForDrag("LeftButton")
     w:SetScript("OnDragStart", function(self) self:StartMoving() end)
     w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-    if w.SetBackdrop then
-        w:SetBackdrop({
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true, tileSize = 32, edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 },
-        })
-    end
-    -- solid black, so the setup is easy to read over anything behind it (the owner, 12 Nov 2026)
-    local bg = w:CreateTexture(nil, "BACKGROUND", nil, 7)
-    bg:SetPoint("TOPLEFT", 6, -6) bg:SetPoint("BOTTOMRIGHT", -6, 6)
-    bg:SetColorTexture(0, 0, 0, 1)
+    -- solid and near black, so the setup is easy to read over anything behind it (the owner,
+    -- 12 Nov 2026), in the customer list's dark and gold
+    local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
     w.bg = bg
+    local rail = Fill(w, INK.deep, "BACKGROUND", -6) rail:SetPoint("TOPLEFT", 0, 0) rail:SetSize(RAIL, H)
+    local railLine = Fill(w, INK.soft, "BORDER") railLine:SetPoint("TOPLEFT", RAIL, 0) railLine:SetSize(1, H)
     w:Hide()
 
-    local title = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -16) title:SetText("Service Inviter setup")
-    local close = CreateFrame("Button", nil, w, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
+    local brand = Text(w, 16, INK.gold, "GameFontNormalLarge")
+    brand:SetPoint("TOPLEFT", 20, -22) brand:SetText("Service Inviter")
+    local title = Text(w, 20, INK.text, "GameFontHighlightLarge")
+    title:SetPoint("TOPLEFT", RAIL + 28, -18) title:SetText("General")
+    local close = FlatButton(w, 36, 36, "bare", 16)
+    close:SetPoint("TOPRIGHT", -12, -10) close:SetText("X")
+    close:SetScript("OnClick", function() w:Hide() end)
 
     local boxes, checks, radios = {}, {}, {}
     local optKeys = {}     -- checkboxes that simply map to an option
@@ -2496,23 +2488,36 @@ local function BuildSetupUI()
     -- tabs ----------------------------------------------------------------
     local TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
     local pages, tabBtns = {}, {}
+    -- the side menu: the page you're on is gold, with a bar beside it
+    local railBar
     local function ShowTab(i)
         for j, pg in ipairs(pages) do
-            if j == i then pg:Show() tabBtns[j]:LockHighlight() else pg:Hide() tabBtns[j]:UnlockHighlight() end
+            local on = j == i
+            if on then pg:Show() else pg:Hide() end
+            local b = tabBtns[j]
+            b._siStyle = on and "railOn" or "rail"
+            b:GetFontString():SetTextColor(RGB(on and INK.gold or INK.text))
+            if on then b.sel:Show() else b.sel:Hide() end
         end
+        railBar:ClearAllPoints() railBar:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44)
+        title:SetText(TABS[i])
         w.tab = i
     end
     for i, name in ipairs(TABS) do
         local pg = CreateFrame("Frame", nil, w)
-        pg:SetPoint("TOPLEFT", 0, 0) pg:SetPoint("BOTTOMRIGHT", 0, 0)
+        pg:SetPoint("TOPLEFT", RAIL, -14) pg:SetSize(PW, H - 14)   -- below the page title
         pages[i] = pg
-        local b = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        b:SetSize(120, 26) b:SetPoint("TOPLEFT", w, "BOTTOMLEFT", 18 + (i - 1) * 124, 4)
+        local sel = Fill(w, INK.panel, "BACKGROUND", -5) sel:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44) sel:SetSize(RAIL, 40)
+        local b = FlatButton(w, RAIL, 40, "rail", 15)
+        b:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44)
+        b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("LEFT", 20, 0)
         b:SetText(name)
         b:SetScript("OnClick", function() ShowTab(i) end)
+        b.sel = sel
         tabBtns[i] = b
     end
-    w.pages, w.tabBtns, w.ShowTab = pages, tabBtns, ShowTab
+    railBar = Fill(w, INK.gold, "ARTWORK") railBar:SetSize(3, 40)
+    w.pages, w.tabBtns, w.ShowTab, w.tab = pages, tabBtns, ShowTab, 1
 
     local L, R = 28, 470
 
@@ -2567,8 +2572,8 @@ local function BuildSetupUI()
     Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
     Header(R, -506, "This session")
     local sessText = Label(R, -532, "", "GameFontHighlight", 270)
-    local sessBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -526) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
+    local sessBtn = FlatButton(page, 120, 30, "plain")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -526) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
@@ -2636,8 +2641,8 @@ local function BuildSetupUI()
     Label(L + 280, -206, "minutes")
     Label(L, -240, "Preview:")
     w.adpreview = Label(L + 72, -240, "", "GameFontHighlight", 760)
-    local post = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-    post:SetPoint("TOPLEFT", L, -282) post:SetSize(220, 30) post:SetText("Post ad")
+    local post = FlatButton(page, 220, 34, "gold", 15)
+    post:SetPoint("TOPLEFT", L, -282) post:SetText("Post ad")
     post:SetScript("OnClick", function() w.Save() PostAd() w.Load() end)
     w.adpost = post
     Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
@@ -2775,17 +2780,17 @@ local function BuildSetupUI()
         RefreshJobs()
     end
 
-    local save = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    save:SetPoint("BOTTOMLEFT", 28, 22) save:SetSize(110, 28) save:SetText("Save")
+    local save = FlatButton(w, 120, 34, "gold", 15)
+    save:SetPoint("BOTTOMLEFT", RAIL + 28, 20) save:SetText("Save")
     save:SetScript("OnClick", function() w.Save() w.Load() P("setup saved") end)
-    local test = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    test:SetPoint("LEFT", save, "RIGHT", 10, 0) test:SetSize(130, 28) test:SetText("Test banner")
-    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)") end)
     -- Preview: what this tab's messages look like, in your chat only (sends nothing)
-    local prev = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    prev:SetPoint("LEFT", test, "RIGHT", 10, 0) prev:SetSize(200, 28) prev:SetText("Preview this tab")
+    local prev = FlatButton(w, 180, 34, "plain", 14)
+    prev:SetPoint("BOTTOMLEFT", RAIL + 160, 20) prev:SetText("Preview this tab")
     prev:SetScript("OnClick", function() w.Save() w.Load() PrintPreview(TABS[w.tab or 1]) end)
     w.preview = prev
+    local test = FlatButton(w, 140, 34, "plain", 14)
+    test:SetPoint("BOTTOMLEFT", RAIL + 352, 20) test:SetText("Test banner")
+    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)") end)
 
     -- shrink to fit small screens so nothing runs off
     local function Fit()
