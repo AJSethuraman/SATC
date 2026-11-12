@@ -53,6 +53,29 @@ overall facilitator of defaults ... or it is zone dependent".
 - {payee} in every message is filled from this, so customers are told who to pay.
 - Trade opens by itself only when the payee is you and the customer is in range.
 
+## When a customer arrives
+
+The owner, 12 Nov 2026: "when people land after we summon them to me i would also want to say what
+else we offer in the area".
+
+On arrival the group says what else is on offer **in the zone where the customer landed**, leaving
+out what they came for. Only providers standing in that zone count, so a mage in Orgrimmar is not
+offered to someone who just landed in Thunder Bluff. Paid services show their price; free ones say
+free. Nothing else on offer there means no message. (1.6.0 already posts ticked extras on arrival,
+but whether or not anyone who does them is there.)
+
+Prototype output, 12 Nov 2026, summoned to Thunder Bluff with a rogue and a priest there and the
+mage in Orgrimmar: `Welcome to TB, Kaldrok! Also here: free lockpicking, free healthstones, free
+Fortitude. Just ask!`
+
+## Advertising
+
+The game lets an addon or a macro post in Trade, General, Say or Yell only from a key press, so an
+ad always needs one press. The addon writes the ad from who is in the group and what is offered
+(`{wts}{services} | whisper inv`), lights a keybound button when the per-channel wait is over, turns
+it off when nothing can be sold, and invites a whispered "inv" as an answer to the ad. A mage never
+advertises a portal to the city he is standing in (caught by the prototype).
+
 ## Facts the design relies on, and where they come from
 
 WoW: Forever is a third version of the game (launched 4 Nov 2026), levels 1-60, Classic-era
@@ -96,4 +119,6 @@ Each slice ships on its own and keeps every earlier test passing.
    the payee rules (default plus per-service override) and {payee}. Summons behave as in 1.6.0.
 2. Mage, rogue and warlock services: portals (spellbook for you, faction and level for a friend),
    food & water, lockpicking, stones; matching tested against real request lines.
-3. Providers: services follow who is in the group; summons go to the warlock's zone.
+3. Providers: services follow who is in the group; summons go to the warlock's zone; the arrival
+   message lists what is on offer where they landed.
+4. Advertising: the ad built from the group, the keybound button, per-channel wait, answers to the ad.
