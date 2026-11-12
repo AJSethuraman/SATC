@@ -1,4 +1,4 @@
--- Service Inviter v2.0.8
+-- Service Inviter v2.0.9
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -49,6 +49,11 @@ local function MigrateServices()
         if db.services.summons.price == nil then db.services.summons.price = db.price end
     end
 end
+
+-- Declared here, defined further down: the event handler and the buff queue use them
+-- before the file reaches their definitions.
+local IsSecret, SpellNameOf, jobsWin
+local BuffAsk, BuffCastDone, BuffTooLow, RefreshBuff, QueueAllMyBuffs, buffDirty
 
 local FRAGMENT_WINDOW = 25
 local MAX_FRAGMENTS   = 3
@@ -948,7 +953,18 @@ f:RegisterEvent("TRADE_CLOSED")
 f:RegisterEvent("UNIT_SPELLCAST_START")
 f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+f:RegisterEvent("CHAT_MSG_PARTY")
+f:RegisterEvent("CHAT_MSG_PARTY_LEADER")
+f:RegisterEvent("CHAT_MSG_RAID")
+f:RegisterEvent("CHAT_MSG_RAID_LEADER")
 f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
+    if event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
+        pcall(BuffAsk, text, sender)
+        return
+    end
+    if event == "UNIT_SPELLCAST_SUCCEEDED" and text == "player" then
+        pcall(BuffCastDone, (type(channelName) == "string" and channelName) or SpellNameOf(arg3))
+    end
     if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_SUCCEEDED" then
         if OnCast then
             local ok, err = pcall(OnCast, event, text, arg3)
@@ -1013,12 +1029,16 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         return
     end
     if event == "UI_ERROR_MESSAGE" then
+        local emsg = type(sender) == "string" and sender or (type(text) == "string" and text or "")
+        local low = (type(SPELL_FAILED_LOWLEVEL) == "string" and SPELL_FAILED_LOWLEVEL ~= "") and SPELL_FAILED_LOWLEVEL or "too low level"
+        if not IsSecret(emsg) and emsg:lower():find(low:lower(), 1, true) then pcall(BuffTooLow) end
         diag.uierr = { t = GetTime(), msg = tostring(sender or text) }
         if debugOn then D("game error: " .. tostring(text) .. (sender and (" / " .. tostring(sender)) or "")) end
         return
     end
     if event == "PLAYER_REGEN_ENABLED" then
         if jobsDirty then RefreshJobs() end
+        if buffDirty then RefreshBuff() end
         return
     end
     if event == "PLAYER_LOGIN" then
@@ -1058,6 +1078,7 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         if not Opt("yell") then return end
     elseif event == "CHAT_MSG_WHISPER" then
         curChannel = "whisper"
+        pcall(BuffAsk, text, sender)
         if not KeywordHit(text, true) and not Opt("enabled") then return end
     end
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
@@ -1141,9 +1162,99 @@ adKey:SetScript("OnClick", function() PostAd() end)
 adKey:Hide()
 
 ----------------------------------------------------------------------
+-- The buff button: one key (/si bind buff F8) that casts the right buff on the next person
+-- who needs it. The game only casts from a key press, so it's one press per buff; the addon
+-- aims the button. Who is queued: customers landing where you are, and anyone in the group
+-- who asks ("fort pls"). Out of combat only (the game won't let an addon re-aim it in combat).
+----------------------------------------------------------------------
+local buffQueue = {}   -- { name, key, rank }
+local function MyBuffs()
+    local okc, _, cls = pcall(UnitClass, "player")
+    local out = {}
+    if not okc then return out end
+    for _, def in ipairs(Core.SERVICES) do
+        if def.kind == "buff" and def.class == cls and Core.Setting(ServiceInviterDB, def.key).on then out[#out + 1] = def end
+    end
+    return out
+end
+local function InGroupByName(name)
+    return (UnitInParty and UnitInParty(name)) or (UnitInRaid and UnitInRaid(name)) or false
+end
+local buffKey = CreateFrame("Button", "ServiceInviterBuffButton", UIParent, "SecureActionButtonTemplate")
+buffKey:SetAttribute("type", "macro")
+buffKey:RegisterForClicks("AnyUp", "AnyDown")
+buffKey:Hide()
+buffDirty = false
+local function BuffMacro(e)
+    if not e then return "" end
+    local st = Core.Setting(ServiceInviterDB, e.key)
+    return "/cast [@" .. e.name .. "] " .. (st.spell or "") .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
+end
+local function BuffLabel()
+    local e = buffQueue[1]
+    if not e then return "No buffs waiting" end
+    local def = Core.BY_KEY[e.key]
+    return def.label:gsub("^a ", "") .. " -> " .. e.name .. (#buffQueue > 1 and (" (+" .. (#buffQueue - 1) .. ")") or "")
+end
+RefreshBuff = function()
+    -- drop anyone who left the group
+    for i = #buffQueue, 1, -1 do if not InGroupByName(buffQueue[i].name) then table.remove(buffQueue, i) end end
+    if InCombatLockdown and InCombatLockdown() then buffDirty = true return end
+    buffDirty = false
+    local m = BuffMacro(buffQueue[1])
+    buffKey:SetAttribute("macrotext", m)
+    if jobsWin and jobsWin.buffBtn then
+        jobsWin.buffBtn:SetAttribute("macrotext", m)
+        jobsWin.buffBtn:SetText(BuffLabel())
+        if #MyBuffs() > 0 then jobsWin.buffBtn:Show() else jobsWin.buffBtn:Hide() end
+    end
+end
+local function QueueBuff(name, key)
+    if not name or name == "" then return end
+    for _, e in ipairs(buffQueue) do if e.name == name and e.key == key then return end end
+    buffQueue[#buffQueue + 1] = { name = name, key = key }
+    D("buff queued: " .. key .. " for " .. name)
+    RefreshBuff()
+end
+QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(name, def.key) end end
+-- "fort pls" from someone in the group
+BuffAsk = function(text, sender)
+    if type(text) ~= "string" or IsSecret(text) or not sender then return end
+    local name = Ambiguate and Ambiguate(sender, "none") or sender
+    if name == (UnitName and UnitName("player")) or not InGroupByName(name) then return end
+    local norm = Norm(text)
+    for _, def in ipairs(MyBuffs()) do
+        local words = Core.SplitWords(Core.Setting(ServiceInviterDB, def.key).words)
+        if HasAny(norm, words) then QueueBuff(name, def.key) end
+    end
+end
+BuffCastDone = function(spellName)
+    local e = buffQueue[1]
+    if not e or type(spellName) ~= "string" then return end
+    if spellName == Core.Setting(ServiceInviterDB, e.key).spell then table.remove(buffQueue, 1) RefreshBuff() end
+end
+-- "Target is too low level": step down a rank and let the next press try again
+BuffTooLow = function()
+    local e = buffQueue[1]
+    if not e then return end
+    if not e.rank then
+        local spell = Core.Setting(ServiceInviterDB, e.key).spell
+        local ok, sub = pcall(function() return (GetSpellSubtext and GetSpellSubtext(spell)) or (C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(spell)) end)
+        local top = ok and type(sub) == "string" and tonumber(sub:match("(%d+)")) or nil
+        e.rank = top and (top - 1) or 1
+    else
+        e.rank = e.rank - 1
+    end
+    if e.rank < 1 then
+        P(e.name .. " is too low level for " .. Core.BY_KEY[e.key].label .. ". Skipped.")
+        table.remove(buffQueue, 1)
+    end
+    RefreshBuff()
+end
+
+----------------------------------------------------------------------
 -- Customer list window (/si jobs)
 ----------------------------------------------------------------------
-local jobsWin
 local ROWS = 6
 local ARRIVE_FALLBACK = 40   -- seconds after Summon before we assume they have arrived
 local CLEAN_AFTER = 30       -- finished rows disappear after this many seconds
@@ -1311,14 +1422,14 @@ local function AlertMsg(name)
     return (m:gsub("{price}", function() return price and PriceLong(price) or "NOTHING (IT'S FREE)" end))
 end
 
-local function IsSecret(v)
+IsSecret = function(v)
     if issecretvalue then
         local ok, r = pcall(issecretvalue, v)
         if ok and r then return true end
     end
     return false
 end
-local function SpellNameOf(spellID)
+SpellNameOf = function(spellID)
     if spellID == nil or IsSecret(spellID) then return nil end
     local ok, r = pcall(function()
         if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(spellID) end
@@ -1463,6 +1574,7 @@ local function CheckArrivals()
             local visible = u and UnitIsVisible and UnitIsVisible(u)
             if visible or (j.tsummon and now - j.tsummon > ARRIVE_FALLBACK) then
                 Jobs.Set(j.name, "arrived")
+                if visible then QueueAllMyBuffs(j.name) end
                 -- tell them what else is on offer where they landed; nothing there = no message
                 if not j.offered then
                     j.offered = true
@@ -1570,6 +1682,7 @@ RefreshJobs = function()
         if j.status == "joined" then wait = wait + 1 elseif j.status == "summoned" then going = going + 1 end
     end
     jobsWin.footer:SetText("Session: " .. SessionText() .. "\nWaiting: " .. wait .. "    Being summoned: " .. going)
+    RefreshBuff()   -- the buff button shows whoever is next, even if they asked before the list was open
     if jobsWin.adBtn then
         local label, ready = AdLabel()
         jobsWin.adBtn:SetText(label)
@@ -1722,6 +1835,13 @@ local function BuildJobsUI()
     end
 
     w.footer = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local bb = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    bb:SetPoint("BOTTOMLEFT", 22, 74) bb:SetSize(300, 26)
+    bb:RegisterForClicks("AnyUp", "AnyDown")
+    bb:SetAttribute("type", "macro")
+    bb:SetText("No buffs waiting")
+    bb:Hide()
+    w.buffBtn = bb
     w.footer:SetPoint("BOTTOMLEFT", 24, 18)
     w.footer:SetJustifyH("LEFT") w.footer:SetWidth(310)
     local newBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
@@ -2064,7 +2184,10 @@ local function BuildSetupUI()
     Service("fort", L, -76)
     Service("motw", R, -76)
     Service("ai", L, -236)
-    Service("blessing", R, -236)
+    local bh = Service("blessing", R, -236)
+    Label(R + 4, -236 - bh - 4, "Blessing to cast:")
+    Box("blessing_spell", R + 130, -236 - bh, 200, 60)
+    Label(L, -420, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
 
     -- Advertise --------------------------------------------------------------
     page = pages[6]
@@ -2167,6 +2290,7 @@ local function BuildSetupUI()
             if boxes[k .. "words"] then boxes[k .. "words"]:SetText(st.words or "") boxes[k .. "words"]:SetCursorPosition(0) end
             boxes[k .. "payee"]:SetText(st.payee or "")
         end
+        boxes.blessing_spell:SetText(Core.Setting(db, "blessing").spell or "")
         local untick = Core.Setting(db, "portals").untick
         for _, city in ipairs(w.portalChecks) do checks["portal_" .. city]:SetChecked(not untick[city]) end
         SyncTradeBox()
@@ -2213,6 +2337,8 @@ local function BuildSetupUI()
         local untick = {}
         for _, city in ipairs(w.portalChecks) do if not checks["portal_" .. city]:GetChecked() then untick[city] = true end end
         db.services.portals.untick = untick
+        local bs = boxes.blessing_spell:GetText():gsub("^%s+", ""):gsub("%s+$", "")
+        db.services.blessing.spell = (bs ~= "") and bs or nil
         RefreshJobs()
     end
 
@@ -2377,15 +2503,16 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
     elseif cmd == "bind" then
         -- /si bind F  (the big button)   or   /si bind ad F7  (post the ad)
         local forAd = rest:lower():match("^ad%s+") ~= nil
-        local key = (forAd and rest:gsub("^%S+%s+", "") or rest):upper():gsub("%s+", "")
+        local forBuff = rest:lower():match("^buff%s+") ~= nil
+        local key = ((forAd or forBuff) and rest:gsub("^%S+%s+", "") or rest):upper():gsub("%s+", "")
         if key == "" then P("usage: /si bind <key>  (big button)   or   /si bind ad <key>  (post the ad)")
         elseif InCombatLockdown and InCombatLockdown() then P("can't change keys in combat")
         else
             jobsWin = jobsWin or BuildJobsUI()
-            local target = forAd and "ServiceInviterAdButton" or "ServiceInviterNext"
+            local target = forBuff and "ServiceInviterBuffButton" or (forAd and "ServiceInviterAdButton" or "ServiceInviterNext")
             if SetBindingClick and SetBindingClick(key, target) then
                 if SaveBindings and GetCurrentBindingSet then SaveBindings(GetCurrentBindingSet()) end
-                P(key .. (forAd and " now posts the ad (when it's ready)" or " now presses the big button (does the next thing for your next customer)"))
+                P(key .. (forBuff and " now casts the next buff in line" or (forAd and " now posts the ad (when it's ready)" or " now presses the big button (does the next thing for your next customer)")))
             else
                 P("couldn't bind " .. key .. " (try another key)")
             end
@@ -2501,5 +2628,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { ApplyMarks = function() return ApplyMarks() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ApplyMarks = function() return ApplyMarks() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

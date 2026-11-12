@@ -90,6 +90,10 @@ for name, before, after in [
         ch("Kaldrok", "WTB summon to TB") ch("Mirasha", "WTB summon to UC") ch("Thrandor", "wtb summ uc")
         UNITS.party3 = {"Kaldrok","ROGUE",44,"Orgrimmar"} UNITS.party4 = {"Mirasha","PRIEST",52,"Orgrimmar"}
         ServiceInviter_Test.Jobs.Joined("Kaldrok") ServiceInviter_Test.Jobs.Joined("Mirasha")'''),
+    ("customers_priest_with_buffs_waiting", GROUP.replace('"Me","SHAMAN",60,"Orgrimmar"', '"Me","PRIEST",60,"Thunder Bluff"').replace('party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Kaldrok","ROGUE",44,"Thunder Bluff"}').replace('GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { Grimtotem = true, Kaldrok = true }') + '\nServiceInviterDB = { services = { fort = { on = true } } }',
+     '''local f for _, o in ipairs(ALL) do if o._kind == "Frame" and rawget(o._scripts, "OnEvent") then f = o break end end
+        f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+        f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "can i get stam buff", "Kaldrok", "", "", "", "", "", "", "")'''),
     ("customers_busy_as_the_lock", GROUP.replace('"Me","SHAMAN"', '"Me","WARLOCK"') + '\nServiceInviterDB = { role = "lock" }', BUSY),
 ]:
     L = load(before)

@@ -42,13 +42,13 @@ C.SERVICES = {
       words = "mage water, mage food, conjured water, conjured food, water" },
     { key = "lockpick",    class = "ROGUE",   level = 16, tab = "Rogue",   kind = "item",   label = "lockpicking",       on = false, invite = true,
       words = "lockpick, lockpicking, lockbox, lockboxes, lock box, junkbox, open box, open my box, pick lock" },
-    { key = "fort",        class = "PRIEST",  level = 1,  tab = "Buffs",   kind = "buff",   label = "Fortitude",         on = false, invite = false,
+    { key = "fort",        class = "PRIEST",  level = 1,  tab = "Buffs",   kind = "buff",   label = "Fortitude",         on = false, invite = false, spell = "Power Word: Fortitude",
       words = "fort, fortitude, stam buff" },
-    { key = "motw",        class = "DRUID",   level = 1,  tab = "Buffs",   kind = "buff",   label = "Mark of the Wild",  on = false, invite = false,
+    { key = "motw",        class = "DRUID",   level = 1,  tab = "Buffs",   kind = "buff",   label = "Mark of the Wild",  on = false, invite = false, spell = "Mark of the Wild",
       words = "motw, mark of the wild" },
-    { key = "ai",          class = "MAGE",    level = 1,  tab = "Buffs",   kind = "buff",   label = "Arcane Intellect",  on = false, invite = false,
+    { key = "ai",          class = "MAGE",    level = 1,  tab = "Buffs",   kind = "buff",   label = "Arcane Intellect",  on = false, invite = false, spell = "Arcane Intellect",
       words = "arcane intellect, int buff" },
-    { key = "blessing",    class = "PALADIN", level = 1,  tab = "Buffs",   kind = "buff",   label = "a blessing",        on = false, invite = false,
+    { key = "blessing",    class = "PALADIN", level = 1,  tab = "Buffs",   kind = "buff",   label = "a blessing",        on = false, invite = false, spell = "Blessing of Might",
       words = "blessing, kings, might, wisdom" },
 }
 C.BY_KEY = {}
@@ -70,6 +70,7 @@ function C.Setting(db, key)
         words = pick("words"),
         payee = saved.payee or "",          -- "" = the default from the General tab
         untick = saved.untick or {},        -- portals the mage has not trained
+        spell = saved.spell or def.spell,   -- buffs: the spell the buff button casts (a paladin picks the blessing)
     }
 end
 

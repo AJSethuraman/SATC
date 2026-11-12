@@ -66,6 +66,17 @@ warlocks". So:
 - If the game can't say where a warlock is, nobody is invited for that warlock's summons. The
   fallback list is gone. The Warlock tab and `/si status` show each warlock and where they are.
 
+## The buff button
+
+The owner, 12 Nov 2026: "can it be like... queued to a single button somehow that always goes to the
+last person or someone who asks for it" and "it would not need to be in combat used ever really -
+this is really just for buffs". The game only casts from a key press, so it is one press per buff;
+the addon aims a secure button (`/si bind buff F8`, and a button on the customer list) at the next
+person in a queue. Queued: customers who land where you can see them, and anyone in the group who
+asks in party, raid or a whisper, for each buff you offer and your class casts. A successful cast
+moves to the next; "too low level" steps down a rank for the next press; leaving the group drops
+them. Not re-aimed in combat (the game forbids it). A paladin picks the blessing on the Buffs tab.
+
 ## Who gets paid is picked from the group
 
 The owner: "can 'who gets paid' be a suggestion/drop down from the raid/party?". Every payee box has
