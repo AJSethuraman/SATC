@@ -770,22 +770,38 @@ class GuildBot(discord.Client):
         await self.announce_milestones(res)
         return res
 
-    async def announce_milestones(self, res) -> None:
-        """One short post in the guild-achievements channel for whatever was reached since the last sync."""
-        if not res.milestones or not self.cfg.achievements_channel_id:
+    MILESTONES_PER_POST = 15
+    MILESTONES_KEEP_DAYS = 7
+
+    async def announce_milestones(self, res=None) -> None:
+        """Post whatever milestones are waiting, 15 to a message, in the guild-achievements channel.
+        A milestone counts as posted only once Discord has accepted the message, so a failed post is
+        retried on the next sync. Waiting longer than a week, it is dropped instead of posted late."""
+        if not self.cfg.achievements_channel_id:
             return
-        lines = []
-        for kind, slug, detail, value in res.milestones[:15]:
-            c = self.db.find_character(slug)
-            if c:
-                lines.append(M.line(kind, R.full_name(c), c["class_name"], detail, value))
-        if not lines:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=self.MILESTONES_KEEP_DAYS)).isoformat(timespec="seconds")
+        pending = self.db.pending_milestones(cutoff)
+        if not pending:
             return
         try:
             chan = self.get_channel(self.cfg.achievements_channel_id) or await self.fetch_channel(self.cfg.achievements_channel_id)
-            await chan.send("\n".join(lines))
         except discord.HTTPException:
-            log.exception("could not post guild achievements")
+            log.exception("could not find the guild achievements channel")
+            return
+        for i in range(0, len(pending), self.MILESTONES_PER_POST):
+            batch = pending[i:i + self.MILESTONES_PER_POST]
+            lines = []
+            for kind, slug, detail, value in batch:
+                c = self.db.find_character(slug)
+                if c:
+                    lines.append(M.line(kind, R.full_name(c), c["class_name"], detail, value))
+            try:
+                if lines:
+                    await chan.send("\n".join(lines))
+            except discord.HTTPException:
+                log.exception("could not post guild achievements; will retry next sync")
+                return
+            self.db.mark_milestones_posted(batch)
 
     async def _sync_once(self) -> None:
         try:

@@ -1339,6 +1339,44 @@ def test_sync_reports_new_milestones_once(tmp_path):
                  "ACHIEVEMENTS_CHANNEL_ID": "123"}).achievements_channel_id == 123
 
 
+def test_milestones_count_as_posted_only_after_discord_accepts_them(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    now = utcnow()
+    found = [("skill", "anduin-wrynn", f"Prof{i:02d}", 75) for i in range(20)]         # 20: more than one post holds
+    db.new_milestones(found, now)
+    db.new_milestones([("level", "judy-judgement", "", 30)], "2020-01-01T00:00:00+00:00")   # long ago: dropped, not posted
+    posts, fail = [], {"n": 1}
+
+    class Chan:
+        async def send(self, text):
+            if fail["n"]:
+                fail["n"] -= 1
+                raise discord.HTTPException(SimpleNamespace(status=500, reason="down"), "down")
+            posts.append(text)
+
+    async def run(channel_id):
+        env = {"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"}
+        if channel_id:
+            env["ACHIEVEMENTS_CHANNEL_ID"] = channel_id
+        bot = GuildBot(load(env), db, blizzard=None)
+        bot.get_channel = lambda cid: Chan()
+        await bot.announce_milestones()
+
+    asyncio.run(run(None))                                   # no channel set: nothing posted, nothing lost
+    assert len(db.pending_milestones("2000-01-01")) == 21
+    asyncio.run(run("123"))                                  # Discord fails: still waiting
+    assert posts == [] and len(db.pending_milestones("2000-01-01")) == 20    # the old one was dropped
+    asyncio.run(run("123"))                                  # next sync: posted, 15 then 5
+    assert [p.count("\n") + 1 for p in posts] == [15, 5]
+    assert db.pending_milestones("2000-01-01") == []
+    asyncio.run(run("123"))
+    assert len(posts) == 2                                   # never twice
+
+
 def test_attendance_is_credited_at_the_start_and_history_tells_drops_from_no_shows(tmp_path):
     db = make_db(tmp_path)
     asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))

@@ -187,6 +187,10 @@ class Database:
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
+        if "posted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(milestones)")}:
+            # 0 = found, not yet posted; 1 = posted; 2 = too old to post. Rows from before this column were posted.
+            self.conn.execute("ALTER TABLE milestones ADD COLUMN posted INTEGER NOT NULL DEFAULT 1")
+            self.conn.commit()
 
     # ---- roster -------------------------------------------------------
     def upsert_member(self, slug, name, surname, level, rank, now) -> None:
@@ -277,14 +281,30 @@ class Database:
             "SELECT slug, profession, skill FROM professions")}
 
     def new_milestones(self, found, now: str):
-        """Record milestones not announced before; returns just the new ones."""
+        """Record milestones not seen before, as waiting to be posted; returns just the new ones.
+        `announced_at` is when the milestone was found."""
         fresh = []
         for kind, slug, detail, value in found:
-            cur = self.conn.execute("INSERT OR IGNORE INTO milestones VALUES (?,?,?,?,?)", (slug, kind, detail, value, now))
+            cur = self.conn.execute(
+                "INSERT OR IGNORE INTO milestones (slug, kind, detail, value, announced_at, posted) VALUES (?,?,?,?,?,0)",
+                (slug, kind, detail, value, now))
             if cur.rowcount:
                 fresh.append((kind, slug, detail, value))
         self.conn.commit()
         return fresh
+
+    def pending_milestones(self, found_after: str):
+        """Milestones found but not yet posted. Anything found before `found_after` is marked too old
+        and dropped, so a channel set up months later does not get a flood. Oldest first."""
+        self.conn.execute("UPDATE milestones SET posted=2 WHERE posted=0 AND announced_at < ?", (found_after,))
+        self.conn.commit()
+        return [(r["kind"], r["slug"], r["detail"], r["value"]) for r in self.conn.execute(
+            "SELECT kind, slug, detail, value FROM milestones WHERE posted=0 ORDER BY announced_at, rowid")]
+
+    def mark_milestones_posted(self, rows) -> None:
+        self.conn.executemany("UPDATE milestones SET posted=1 WHERE kind=? AND slug=? AND detail=? AND value=?",
+                              list(rows))
+        self.conn.commit()
 
     def set_meta(self, key, value) -> None:
         self.conn.execute("INSERT OR REPLACE INTO meta VALUES (?,?)", (key, value))

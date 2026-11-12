@@ -5,7 +5,7 @@ Tracks who is who and who has what in the guild (official Blizzard API, hourly s
 ## Setup (on the Forge)
 
 1. **Discord bot.** https://discord.com/developers/applications -> New Application -> Bot -> copy the token.
-   Invite it with scopes `bot` and `applications.commands`, permissions: View Channels, Send Messages, Embed Links, Manage Events.
+   Invite it with scopes `bot` and `applications.commands`, permissions: View Channels, Send Messages, Embed Links, Manage Events, Manage Messages (to pin and unpin raid posts and remove Discord's "pinned a message" line).
 2. **Blizzard API client.** https://develop.battle.net -> API Access -> Create Client. Copy the client ID and secret.
 3. `cp .env.example .env` and fill it in. `GUILD_SLUG` is your guild's name lowercased with dashes. `BOT_CHANNEL_IDS` (optional, comma-separated channel IDs) limits the slash commands to those channels; anywhere else the bot answers privately "Use me in #channel".
 4. `python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt`
