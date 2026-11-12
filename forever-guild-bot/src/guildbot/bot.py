@@ -17,7 +17,7 @@ from .links import item_link
 from .config import Config
 from .db import Database, utcnow
 from . import legacy as L
-from .sync import sync_guild, sync_item_catalog, sync_legacy_catalog, sync_recipe_catalog
+from .sync import likely_alt_news, sync_guild, sync_item_catalog, sync_legacy_catalog, sync_recipe_catalog
 
 log = logging.getLogger("guildbot")
 
@@ -798,7 +798,45 @@ class GuildBot(discord.Client):
         async with self._sync_lock:
             res = await sync_guild(self.db, self.blizzard, self.cfg.guild_slug)
         await self.announce_milestones(res)
+        await self.announce_likely_alts()
         return res
+
+    def _server(self):
+        """The bot's server: the configured one, or the only one it is in."""
+        if self.cfg.discord_guild_id:
+            return self.get_guild(self.cfg.discord_guild_id)
+        return self.guilds[0] if len(self.guilds) == 1 else None
+
+    def likely_alt_text(self, group: dict) -> str:
+        owners = self.db.owners()
+        names = []
+        for s in group["slugs"]:
+            c = self.db.find_character(s)
+            name = f"**{R.full_name(c) if c else s}**"
+            names.append(name + (f" (<@{owners[s]}>)" if owners.get(s) else ""))
+        who = ", ".join(names[:-1]) + " and " + names[-1]
+        point, at = group["shared"][0]
+        ts = int(datetime.fromisoformat(at).timestamp())
+        more = f" (and {len(group['shared']) - 1} more)" if len(group["shared"]) > 1 else ""
+        return (f"Possible alts spotted: {who} look like the same player. They got **{point}** in the same "
+                f"minute (<t:{ts}:f>){more} and have the same account mounts and toys. It's a guess; "
+                "a `/link` claim always wins.")
+
+    async def announce_likely_alts(self) -> None:
+        """DM the server owner each time the bot first works out that characters are probably one player.
+        A pair counts as told only once the DM has gone, so a failed DM is tried again next sync."""
+        news = likely_alt_news(self.db)
+        if not news:
+            return
+        server = self._server()
+        if not server or not server.owner_id:
+            log.warning("found %d likely alt group(s) but don't know whom to tell", len(news))
+            return
+        for group, pairs in news:
+            log.info("likely alts: %s", ", ".join(group["slugs"]))
+            if not await self.dm_user(server.owner_id, self.likely_alt_text(group)):
+                return
+            self.db.add_likely_alts_seen(pairs, utcnow())
 
     MILESTONES_PER_POST = 15
     MILESTONES_KEEP_DAYS = 7
@@ -1874,28 +1912,43 @@ def register_commands(bot: GuildBot) -> None:
     @officer
     async def legacy_board(interaction: discord.Interaction):
         catalog = db.legacy_catalog()
-        claims = db.claimed_by_member()
-        if not catalog or not claims:
+        in_guild = {r["slug"]: r for r in db.roster()}
+        with_data = db.achievement_slugs() & set(in_guild)
+        people = L.players(db.claimed_by_member(), L.likely_alts(db.legacy_completions(), db.account_items(), db.owners()),
+                           with_data)
+        if not catalog or not people:
             await interaction.response.send_message(
-                "Nothing to show yet: " + ("the Legacy list hasn't loaded." if not catalog else "nobody has claimed a character."),
+                "Nothing to show yet: " + ("the Legacy list hasn't loaded." if not catalog else "no Legacy data from Blizzard yet."),
                 ephemeral=True)
             return
+
+        def name(s):
+            return R.full_name(in_guild[s]) if s in in_guild else s
+
         raids = [c for c in catalog if c["category"] == "Raids"]
-        rows, need = [], {c["challenge_id"]: [] for c in raids}
-        for did, slugs in claims.items():
-            done = {p["challenge_id"] for p in db.legacy_progress(slugs) if p["completed_at"]}
-            rows.append((len(done & {c["challenge_id"] for c in catalog}), did))
+        ids = {c["challenge_id"] for c in catalog}
+        rows, need = [], {c["challenge_id"]: 0 for c in raids}
+        for p in people:
+            done = {x["challenge_id"] for x in db.legacy_progress(p["slugs"]) if x["completed_at"]}
+            if p["owner"]:
+                label = f"<@{p['owner']}>" + (" (+ probably " + ", ".join(map(name, p["guessed"])) + ")"
+                                              if p["guessed"] else "")
+            else:
+                label = " + ".join(name(s) for s in p["slugs"]) + (" *(probably one player)*" if p["guessed"] else "")
+            rows.append((len(done & ids), label))
             for c in raids:
                 if c["challenge_id"] not in done:
-                    need[c["challenge_id"]].append(did)
+                    need[c["challenge_id"]] += 1
         rows.sort(key=lambda x: (-x[0], x[1]))
-        lines = [f"<@{did}>: {n} of {len(catalog)}" for n, did in rows]
+        lines = [f"{label}: {n} of {len(catalog)}" for n, label in rows]
         e = discord.Embed(title="Legacy points", description=clip(lines, 3000))
         for c in raids:
             e.add_field(name=f"{c['name']}: {L.raid_place(c['description'])}",
-                        value=f"{len(need[c['challenge_id']])} of {len(claims)} still need it", inline=False)
-        e.set_footer(text=f"Members who have claimed a character only ({len(claims)}). "
-                          "Points come from Blizzard as of each character's last logout.")
+                        value=f"{need[c['challenge_id']]} of {len(people)} still need it", inline=False)
+        missing = len(set(in_guild) - with_data - {s for p in people for s in p["slugs"]})
+        e.set_footer(text="Whole guild. \"Probably\" = same solo Legacy point in the same minute and the same account "
+                          "mounts and toys; a claim always wins. Points as of each character's last logout."
+                          + (f" {missing} character(s) have no Legacy data from Blizzard yet." if missing else ""))
         await interaction.response.send_message(embed=e, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @tree.command(name="inactive", description="Who hasn't logged in lately (officers)")

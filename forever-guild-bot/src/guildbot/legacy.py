@@ -124,6 +124,96 @@ def _who(ch) -> str:
     return " ".join(p for p in (ch["name"], ch["surname"]) if p)
 
 
+# Points one character earns alone (levelling a class, raising a skill). Group content (dungeons, raids,
+# PvP) is left out: a whole group finishes it in the same minute, and they are different players.
+SOLO_CATEGORIES = ("Classes", "Tradeskills")
+
+
+def likely_alts(completions, items: dict, owners: dict) -> list[dict]:
+    """Groups of guild characters that are probably one player, worked out from three checks that must all agree:
+      1. they share a solo Legacy point finished in the same minute (an account point shows on every character
+         of the account with one time);
+      2. they have the same account items (mounts and toys that come with the account), and both are known;
+      3. nothing contradicts it: no Legacy point both hold at different times, and not claimed by two members.
+    A group in which any two members fail 2 or 3 is dropped whole rather than split by guesswork.
+    completions: rows with slug, challenge_id, name, category, completed_at. items: slug -> text or None.
+    owners: slug -> Discord id. Returns [{"slugs": [...], "shared": [(name, completed_at), ...]}], sorted."""
+    done: dict[str, dict[int, str]] = {}
+    solo: dict[tuple[int, str], set[str]] = {}
+    names: dict[int, str] = {}
+    for r in completions:
+        done.setdefault(r["slug"], {})[r["challenge_id"]] = r["completed_at"]
+        names[r["challenge_id"]] = r["name"]
+        if r["category"] in SOLO_CATEGORIES:
+            solo.setdefault((r["challenge_id"], r["completed_at"]), set()).add(r["slug"])
+
+    def compatible(a: str, b: str) -> bool:
+        if items.get(a) is None or items.get(a) != items.get(b):
+            return False
+        if owners.get(a) and owners.get(b) and owners[a] != owners[b]:
+            return False
+        da, db_ = done.get(a, {}), done.get(b, {})
+        return all(da[c] == db_[c] for c in da.keys() & db_.keys())
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        while parent.setdefault(x, x) != x:
+            x = parent[x]
+        return x
+
+    for slugs in solo.values():
+        ordered = sorted(slugs)
+        for i, a in enumerate(ordered):
+            for b in ordered[i + 1:]:
+                if compatible(a, b):
+                    parent[find(a)] = find(b)
+    groups: dict[str, list[str]] = {}
+    for s in parent:
+        groups.setdefault(find(s), []).append(s)
+    out = []
+    for members in groups.values():
+        members.sort()
+        if len(members) < 2:
+            continue
+        if not all(compatible(a, b) for i, a in enumerate(members) for b in members[i + 1:]):
+            continue
+        shared = sorted((names[c], t) for (c, t), slugs in solo.items() if len(slugs & set(members)) > 1)
+        out.append({"slugs": members, "shared": shared})
+    return sorted(out, key=lambda g: g["slugs"])
+
+
+def players(claims: dict, groups: list[dict], with_data: set[str]) -> list[dict]:
+    """Everyone on the board, one entry per player:
+      {"owner": discord_id or None, "slugs": [...], "guessed": [slugs placed by the likely-alts guess]}.
+    A claim decides. A likely-alts group joins the member who claimed one of its characters; a group nobody claimed
+    is one entry (all of it guessed); any other character with Legacy data is its own entry.
+    Characters without Legacy data (Blizzard returns nothing for them yet) only appear through a claim."""
+    out, placed = [], set()
+    by_owner = {}
+    for did, slugs in claims.items():
+        entry = {"owner": did, "slugs": list(slugs), "guessed": []}
+        by_owner[did] = entry
+        out.append(entry)
+        placed.update(slugs)
+    owner_of = {s: did for did, slugs in claims.items() for s in slugs}
+    for g in groups:
+        owners = {owner_of[s] for s in g["slugs"] if s in owner_of}
+        extra = [s for s in g["slugs"] if s not in placed]
+        if not extra or len(owners) > 1:
+            continue
+        if owners:
+            entry = by_owner[owners.pop()]
+            entry["slugs"] += extra
+            entry["guessed"] += extra
+        else:
+            out.append({"owner": None, "slugs": extra, "guessed": extra if len(extra) > 1 else []})
+        placed.update(extra)
+    for s in sorted(with_data - placed):
+        out.append({"owner": None, "slugs": [s], "guessed": []})
+    return out
+
+
 def raid_place(description: str | None) -> str:
     """'Defeat the following encounters in Hyjal Summit.' -> 'Hyjal Summit'; 'Defeat Onyxia.' -> 'Onyxia'."""
     d = (description or "").strip().rstrip(".")

@@ -28,7 +28,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 | `/skillup` | anyone | what to craft to level a profession, guaranteed (orange) first and cheapest in raw materials, plus a shopping list |
 | `/wanted` | officer | searches that found nobody who can make the item |
 | `/legacy` | anyone (officers can look up anyone) | your account's Legacy points from Blizzard, by category, and what's next for your claimed characters |
-| `/legacy-board` | officer | each member's Legacy points, and how many still need each raid point |
+| `/legacy-board` | officer | the whole guild's Legacy points, one line per player, and how many still need each raid point. Unclaimed characters are included; ones that look like the same player are grouped and marked "probably" |
 | `/inactive [days]` | officer | who hasn't logged in for that many days (default 7), with who claimed them |
 | `/raids` | anyone | upcoming raids |
 | `/history` | anyone (officers can look up anyone) | your raids attended, no-shows and late drops |

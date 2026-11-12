@@ -168,6 +168,12 @@ CREATE TABLE IF NOT EXISTS character_history (
     PRIMARY KEY (slug, at)
 );
 
+-- Pairs of characters the bot worked out are probably one player, and when it first said so.
+CREATE TABLE IF NOT EXISTS likely_alts_seen (
+    a TEXT NOT NULL, b TEXT NOT NULL, at TEXT NOT NULL,
+    PRIMARY KEY (a, b)
+);
+
 -- "A spot opened up, want it?" questions sent to people waiting on the bench.
 CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
@@ -233,7 +239,8 @@ class Database:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
         ccols = {r["name"] for r in self.conn.execute("PRAGMA table_info(characters)")}
-        for col, ddl in (("last_login_at", "TEXT"), ("item_level", "INTEGER")):
+        for col, ddl in (("last_login_at", "TEXT"), ("item_level", "INTEGER"),
+                         ("account_items", "TEXT")):   # mounts and toys that come with the account; NULL = unknown
             if col not in ccols:                        # database created before profiles kept these
                 self.conn.execute(f"ALTER TABLE characters ADD COLUMN {col} {ddl}")
                 self.conn.commit()
@@ -355,6 +362,26 @@ class Database:
     def add_legacy_seen(self, keys) -> None:
         self.conn.executemany("INSERT OR IGNORE INTO legacy_seen VALUES (?,?)", list(keys))
         self.conn.commit()
+
+    def set_account_items(self, slug, items: str) -> None:
+        self.conn.execute("UPDATE characters SET account_items=? WHERE slug=?", (items, slug))
+        self.conn.commit()
+
+    def account_items(self) -> dict[str, str | None]:
+        return {r["slug"]: r["account_items"]
+                for r in self.conn.execute("SELECT slug, account_items FROM characters WHERE in_guild=1")}
+
+    def likely_alts_seen(self) -> set[tuple[str, str]]:
+        return {(r["a"], r["b"]) for r in self.conn.execute("SELECT a, b FROM likely_alts_seen")}
+
+    def add_likely_alts_seen(self, pairs, now) -> None:
+        self.conn.executemany("INSERT OR IGNORE INTO likely_alts_seen VALUES (?,?,?)", [(a, b, now) for a, b in pairs])
+        self.conn.commit()
+
+    def owners(self) -> dict[str, int]:
+        """slug -> the Discord id that claimed it (the same choice owner_of makes)."""
+        return {r["slug"]: r["discord_id"] for r in self.conn.execute(
+            "SELECT slug, discord_id FROM links ORDER BY is_main ASC, discord_id DESC")}
 
     def claimed_by_member(self) -> dict[int, list[str]]:
         out: dict[int, list[str]] = {}

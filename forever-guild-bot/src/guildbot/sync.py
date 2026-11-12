@@ -96,6 +96,9 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
         if hasattr(client, "achievements"):
             tasks.append(one(m.slug, "achievements", client.achievements,
                              lambda s, d, ts: db.replace_achievements(s, bz.parse_achievements(d), ts)))
+        if hasattr(client, "collections"):
+            tasks.append(one(m.slug, "collections", client.collections,
+                             lambda s, d, ts: db.set_account_items(s, bz.account_items(d["mounts"], d["toys"]))))
     await asyncio.gather(*tasks)
 
     found = M.find(before_levels, db.level_snapshot(), before_skills, db.skill_snapshot())
@@ -126,6 +129,22 @@ def legacy_milestones(db: Database, known_before: set[str]) -> list:
                                        datetime.now(timezone.utc))
     db.add_legacy_seen(handled)
     return found
+
+
+def likely_alt_news(db: Database) -> list[tuple[dict, list[tuple[str, str]]]]:
+    """Groups of characters that are probably one player, with the pairs in each the owner has not been told
+    about yet. A pair both claimed by the same member is not news. Mark pairs told with add_likely_alts_seen
+    once the message has gone."""
+    owners = db.owners()
+    seen = db.likely_alts_seen()
+    out = []
+    for g in L.likely_alts(db.legacy_completions(), db.account_items(), owners):
+        s = g["slugs"]
+        pairs = [(a, b) for i, a in enumerate(s) for b in s[i + 1:]
+                 if (a, b) not in seen and not (owners.get(a) and owners.get(a) == owners.get(b))]
+        if pairs:
+            out.append((g, pairs))
+    return out
 
 
 LEGACY_MAX_AGE_DAYS = 7

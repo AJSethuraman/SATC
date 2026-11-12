@@ -169,6 +169,25 @@ def parse_achievements(payload: dict) -> list[Achievement]:
     return out
 
 
+def parse_collection(payload: dict, kind: str) -> list[int]:
+    """Ids from a character's mount or toy collection (kind "mounts" or "toys"). Blizzard leaves the list out
+    entirely when it is empty. On Forever these hold what came with the account (an edition mount and toy, a
+    veteran mount), not things earned in play, so two characters with different lists are not one account."""
+    if "_links" not in payload and kind not in payload:
+        raise BlizzardError(f"{kind} response has an unexpected shape (keys: {sorted(payload)})")
+    entries = payload.get(kind, [])
+    if not isinstance(entries, list):
+        raise BlizzardError(f"{kind} is not a list")
+    one = kind[:-1]                                   # "mounts" -> "mount", "toys" -> "toy"
+    return sorted(int((e.get(one) or {})["id"]) for e in entries)
+
+
+def account_items(mounts: dict, toys: dict) -> str:
+    """The account's collection as one comparable text, e.g. "mount:3111,mount:3130,toy:1761"."""
+    return ",".join([f"mount:{i}" for i in parse_collection(mounts, "mounts")]
+                    + [f"toy:{i}" for i in parse_collection(toys, "toys")])
+
+
 def parse_achievement_category_index(payload: dict) -> list[tuple[int, str]]:
     """Top-level achievement categories (Classes, Tradeskills, Dungeons, Raids, Player vs. Player, Adventure).
     Blizzard's hidden "Do Not Display" category is skipped."""
@@ -392,6 +411,11 @@ class BlizzardClient:
 
     async def achievements(self, slug: str) -> dict:
         return await self.get(f"/profile/wow/character/{slug}/achievements")
+
+    async def collections(self, slug: str) -> dict:
+        """Mounts and toys together: {"mounts": <response>, "toys": <response>}."""
+        return {"mounts": await self.get(f"/profile/wow/character/{slug}/collections/mounts"),
+                "toys": await self.get(f"/profile/wow/character/{slug}/collections/toys")}
 
     async def achievement_category_index(self) -> dict:
         return await self.get("/data/wow/achievement-category/index", self.static_namespace)
