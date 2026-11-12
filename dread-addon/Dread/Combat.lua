@@ -63,7 +63,7 @@ Combat.CHILL_SECONDS, Combat.FREEZE_SECONDS = 3, 2
 Combat.MONSTER_REACH, Combat.MONSTER_COOLDOWN = 22, 1.0
 Combat.MAX_QUEST_POINTS = 12
 Combat.ITEM_CHANCE, Combat.BOSS_ITEMS = 0.12, 2       -- an ordinary kill drops gear one time in eight; a boss always drops two
-Combat.MONSTER_LIFE_MULT, Combat.MONSTER_DMG_MULT = 2.0, 1.6   -- area monsters are tough: measured with a naive bot, a clear of the moor costs it about half its life
+Combat.MONSTER_LIFE_MULT, Combat.MONSTER_DMG_MULT = 2.0, 2.2   -- area monsters are tough: measured with a naive bot, a clear of the moor costs it about half its life
 
 
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
@@ -706,7 +706,7 @@ function Combat.enter(w, area)
       local k = Combat.MONSTER_DMG_MULT * (1 + (tier - 1) / 2)
       m.dmg = { m.dmg[1] * k, m.dmg[2] * k }
     end
-    if m.xp then m.xp = m.xp * tier end
+    if m.xp then m.xp = m.xp * tier ^ 1.5 end                  -- experience grows faster than the danger, so you out-level the area you have just cleared
     Combat.add_monster(w, m)
   end
 end

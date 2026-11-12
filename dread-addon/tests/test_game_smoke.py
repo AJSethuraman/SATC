@@ -1909,3 +1909,31 @@ def test_an_exit_mark_from_the_last_area_does_not_stay_on_screen_in_one_with_few
     assert len(marks()) == 1                                           # only "Back to the fields"; nothing follows you around
     labels = [str(o.text) for o in lua.eval("ALL").values() if o.text and o.shown and str(o.text) in ("The burial ground", "Back to the fields", "Back to the moor")]
     assert labels == ["Back to the fields"]
+
+
+# ---------------------------------------------------------------- dying: you get up where you fell
+def test_after_dying_in_a_far_area_you_start_again_in_that_area_not_back_in_the_moor():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    assert ns.Game.area().name == "fields"
+    w.player.level = 5
+    w.over = True
+    tick(lua, 2)
+    click_world(lua, ns, "LeftButton", w.player.x + 50, w.player.y)               # "Click to start again"
+    w2 = ns.Game.world()
+    assert not w2.over and ns.Game.area().name == "fields"
+    assert w2.player.x == ns.Game.area().spawn.x and w2.player.y == ns.Game.area().spawn.y
+    assert w2.player.life == w2.player.maxlife
+
+
+def test_new_game_still_goes_back_to_the_moor():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    ns.Game.reset()
+    assert ns.Game.area().name == "moor" and ns.Game.world().player.level == 1

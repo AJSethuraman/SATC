@@ -207,7 +207,7 @@ def test_every_exit_leads_to_a_real_area_that_leads_back_and_nothing_overlaps_an
 def test_the_areas_are_a_line_each_a_step_harder_than_the_one_before_it(env):
     lua, ns = env
     tiers = [ns.Zone.get(n).tier for n in ("moor", "cave", "fields", "burial")]
-    assert tiers == [1, 1.2, 1.5, 1.8]
+    assert tiers == [1, 1.5, 1.9, 2.3]
     assert tiers == sorted(tiers)
     assert ns.Zone.get("moor").exits[2].to == "fields" and ns.Zone.get("fields").exits[2].to == "burial"
 
@@ -218,10 +218,10 @@ def test_the_second_boss_is_a_ranged_caster_who_is_resistant_to_cold_and_pays_a_
     bosses = [m for m in items(b.monsters) if m.boss]
     assert len(bosses) == 1 and bosses[0].name == "The Marrowmother" == b.quest.boss
     boss = bosses[0]
-    assert boss.ranged.range == 300 and boss.resist.cold == 75 and boss.life >= 400 and boss.scale == 1.6
+    assert boss.ranged.range == 300 and boss.resist.cold == 75 and boss.scale == 1.6
     assert b.quest.id == "burial" and b.quest.reward_points == 1
     guards = [m for m in items(b.monsters) if m.pack == boss.pack and not m.boss]
-    assert len(guards) == 4                                                     # she does not come alone
+    assert len(guards) == 3                                                     # she does not come alone
     assert not any(m.boss for m in items(ns.Zone.get("fields").monsters))     # the fields have no boss, only packs
 
 
@@ -258,6 +258,17 @@ def test_tougher_tiers_give_more_life_more_bite_and_more_experience(env):
                                "monsters": lua.table_from([lua.table_from({"x": 400, "y": 400, "life": 100, "xp": 10, "dmg": lua.table_from([4, 8])})])})
         ns.Combat.enter(w, area)
         return w.monsters[1]
-    a, b = entered(1), entered(1.8)
-    assert b.life == pytest.approx(a.life * 1.8) and b.xp == pytest.approx(a.xp * 1.8)
-    assert b.dmg[1] == pytest.approx(a.dmg[1] * 1.4) and b.dmg[2] == pytest.approx(a.dmg[2] * 1.4)       # bite grows by half of the extra
+    a, b = entered(1), entered(2.3)
+    assert b.life == pytest.approx(a.life * 2.3) and b.xp == pytest.approx(a.xp * 2.3 ** 1.5)           # experience grows faster than the danger
+    assert b.dmg[1] == pytest.approx(a.dmg[1] * 1.65) and b.dmg[2] == pytest.approx(a.dmg[2] * 1.65)     # bite grows by half of the extra
+
+
+def test_the_two_bosses_are_about_the_same_size_of_fight_once_the_area_scaling_is_applied(env):
+    lua, ns = env
+    def boss_life(area):
+        w = ns.Combat.new(lua.table_from({"seed": 1}))
+        ns.Combat.enter(w, ns.Zone.get(area))
+        return [m.life for m in items(w.monsters) if m.boss][0]
+    first, second = boss_life("cave"), boss_life("burial")
+    assert first == pytest.approx(260 * 2.0 * 1.5) and second == pytest.approx(150 * 2.0 * 2.3)
+    assert 0.8 * first < second < 1.2 * first                                    # she has less life but throws from range and brings guards: the same sort of fight, not a wall

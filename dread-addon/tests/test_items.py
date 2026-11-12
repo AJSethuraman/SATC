@@ -311,7 +311,7 @@ def test_area_monsters_are_tougher_than_the_zone_table_says(env):
     area.monsters[1].dmg = lua.table_from([4, 8])
     ns.Combat.enter(w, area)
     m = w.monsters[1]
-    assert m.life == pytest.approx(200) and m.dmg[1] == pytest.approx(6.4) and m.dmg[2] == pytest.approx(12.8)     # x2 life, x1.6 bite
+    assert m.life == pytest.approx(200) and m.dmg[1] == pytest.approx(8.8) and m.dmg[2] == pytest.approx(17.6)     # x2 life, x2.2 bite
 
 
 # ---------------------------------------------------------------- saving

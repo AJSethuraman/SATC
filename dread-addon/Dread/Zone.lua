@@ -145,7 +145,7 @@ local function build_cave()
   local rand = Sim.rng(9001)
   local area = { name = "cave", title = "The Hollow Den", w = 1600, h = 1000, ground = Zone.GROUND.cave.base,
                  floor = Zone.GROUND.cave, spawn = { x = 150, y = 500 }, monsters = {} }
-  area.tier = 1.2
+  area.tier = 1.5
   area.exits = { { x = 50, y = 500, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2200, y = 1290 } } }
   local packs = {
     { 520, 300, { "ghoul", "ghoul", "quillrat", "quillrat" } },
@@ -172,7 +172,7 @@ end
 local function build_fields()
   local rand = Sim.rng(5150)
   local area = { name = "fields", title = "The Frostbitten Fields", w = 2800, h = 1500, ground = Zone.GROUND.fields.base,
-                 floor = Zone.GROUND.fields, spawn = { x = 120, y = 300 }, monsters = {}, tier = 1.5 }
+                 floor = Zone.GROUND.fields, spawn = { x = 120, y = 300 }, monsters = {}, tier = 1.9 }
   area.exits = { { x = 50, y = 300, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2250, y = 220 } },
                  { x = 2740, y = 1220, r = 50, to = "burial", label = "The burial ground", arrive = nil } }
   local packs = {
@@ -196,7 +196,7 @@ end
 local function build_burial()
   local rand = Sim.rng(6660)
   local area = { name = "burial", title = "The Forsaken Burial Ground", w = 2200, h = 1400, ground = Zone.GROUND.burial.base,
-                 floor = Zone.GROUND.burial, spawn = { x = 120, y = 700 }, monsters = {}, tier = 1.8 }
+                 floor = Zone.GROUND.burial, spawn = { x = 120, y = 700 }, monsters = {}, tier = 2.3 }
   area.exits = { { x = 50, y = 700, r = 45, to = "fields", label = "Back to the fields", arrive = { x = 2680, y = 1150 } } }
   local packs = {
     { 520, 420, { "ghoul", "ghoul", "ghoul", "ghoul", "quillrat" } },
@@ -210,9 +210,9 @@ local function build_burial()
   scatter(rand, area, { grave = 60, rock = 14, fallen = 8, tree = 8 }, clear)
   for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
   -- the boss, with her guard: she throws from a distance, so she has to be closed on
-  add_pack(rand, area, 6, 1780, 700, { "bonewalker", "bonewalker", "bonewalker", "bonewalker" }, 300)
+  add_pack(rand, area, 6, 1780, 700, { "bonewalker", "bonewalker", "bonewalker" }, 300)
   area.monsters[#area.monsters + 1] = {
-    x = 1800, y = 700, name = "The Marrowmother", model = 125947, life = 420, speed = 50, dmg = { 7, 13 }, xp = 260,
+    x = 1800, y = 700, name = "The Marrowmother", model = 125947, life = 150, speed = 50, dmg = { 5, 9 }, xp = 260,
     radius = 20, scale = 1.6, pack = 6, aggro = 300, boss = true, ranged = { range = 300, cd = 1.3 },
     resist = { fire = 0, cold = 75, lightning = 0, physical = 0 },
   }

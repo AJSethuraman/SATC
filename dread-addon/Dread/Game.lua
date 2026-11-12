@@ -163,7 +163,7 @@ local function enter(name, arrive)
   toast_text:SetTextColor(1, 1, 1); toast_text:SetText(area.title); toast_t = 3
 end
 
-local function new_world()
+local function new_world(into)                               -- into: the area to start in; none means the start of the game
   local seed = (time and time() or 1) % 2147483647
   world = Combat.new({ w = 2400, h = 1500, seed = seed })
   if DreadDB and DreadDB.char then Combat.restore(world, DreadDB.char) end
@@ -174,7 +174,7 @@ local function new_world()
   sel = 1
   hover_id = nil
   target = nil
-  if frame then enter(Zone.START) end
+  if frame then enter(into or Zone.START) end
   sync_bar()
 end
 
@@ -576,7 +576,7 @@ end
 
 local function build_input()
   frame:SetScript("OnMouseDown", function(_, button)
-    if world.over then new_world(); return end
+    if world.over then new_world(area and area.name); return end                -- you get up where you fell, not back at the start of the game
     local x, y = world_xy()
     if x < cam.x or y < cam.y or x > cam.x + vw or y > cam.y + vh then return end
     if button == "RightButton" then
@@ -1272,7 +1272,7 @@ function Game.toggle()
     save(); frame:Hide(); tree_frame:Hide()
     if ns.Log then ns.Log.close() end                              -- the log goes with the game
   else
-    if world.over then new_world() end
+    if world.over then new_world(area and area.name) end
     frame:Show()
     if ns.Log then ns.Log.open_beside(frame) end                   -- and the log opens at its side
     if Tree.points_spent(world.player.st) == 0 then refresh_tree(); tree_frame:Show() end
