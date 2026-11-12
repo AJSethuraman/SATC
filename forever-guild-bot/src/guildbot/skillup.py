@@ -16,6 +16,7 @@ from math import ceil
 from pathlib import Path
 
 YELLOW_CHANCE = 0.75          # a rough, commonly quoted figure; the game does not publish it
+LEARNABLE_WITHIN = 20        # an unlearned recipe is only suggested when its orange stretch ends within this many points
 DEFAULT_STRETCH = 25          # how far ahead a plan goes unless told otherwise
 
 DATA = Path(__file__).parent / "data" / "skill_ranges.csv"
@@ -109,6 +110,16 @@ def cheaper_gamble(skill: int, cands: list[dict], orange_pick: dict | None) -> d
     if orange_pick is None or best["effort"] / YELLOW_CHANCE < orange_pick["effort"]:
         return best
     return None
+
+
+def worth_learning(skill: int, cands: list[dict], limit: int = 4) -> list[dict]:
+    """Recipes the character does not know that would still give skill-ups at `skill` (orange first, then yellow,
+    cheapest first). Their `learn_at` is not used: the game data's number for it is not the trainer's requirement."""
+    # The table says nothing true about where a recipe starts being learnable (its learn_at is 1 for trainer recipes), so
+    # an unlearned recipe only counts when its orange stretch ends soon: far-off recipes are not learnable yet.
+    pool = [c for c in cands if color(skill, c["yellow_at"], c["gray_at"]) in ("orange", "yellow")
+            and c["yellow_at"] - skill <= LEARNABLE_WITHIN]
+    return sorted(pool, key=lambda c: (color(skill, c["yellow_at"], c["gray_at"]) != "orange", c["effort"], c["name"]))[:limit]
 
 
 def materials_text(reagents: list[tuple[int, str, int]]) -> str:

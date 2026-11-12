@@ -557,13 +557,15 @@ def skillup_card(db: Database, row, prof, target: int | None = None):
         return f"**{who}** has no {name} recipes on record, so there is nothing to craft. Try again after a `/guild-sync`."
     reagents, makes, maker = db.recipe_graph()
     ranges = S.load_ranges()
-    cands = []
-    for rid, rname in known.items():
+    cands, unknown = [], []
+    for r in db.catalog_recipe_rows(name):
+        rid = r["recipe_id"]
         if rid not in ranges or rid not in reagents:
             continue
         learn, yellow, gray = ranges[rid]
-        cands.append({"recipe_id": rid, "name": rname, "learn_at": learn, "yellow_at": yellow, "gray_at": gray,
-                      "reagents": reagents[rid], "effort": S.effort(S.raw_cost(rid, reagents, makes, maker))})
+        c = {"recipe_id": rid, "name": r["name"], "learn_at": learn, "yellow_at": yellow, "gray_at": gray,
+             "reagents": reagents[rid], "effort": S.effort(S.raw_cost(rid, reagents, makes, maker))}
+        (cands if rid in known else unknown).append(c)
     goal = min(cap, target if target and target > skill else skill + S.DEFAULT_STRETCH)
     p = S.plan(skill, goal, cands)
     e = discord.Embed(title=f"{who}: {name} {skill} to {goal}", color=0xD2B48C)
@@ -574,10 +576,16 @@ def skillup_card(db: Database, row, prof, target: int | None = None):
         lines.append(f"**{st['start']} to {st['end']}**: craft {st['crafts']} x **{r['name']}** - {how}\n"
                      f"-# each: {S.materials_text(r['reagents'])}")
     if not lines:
-        lines.append("Nothing this character knows gives a skill-up at this level. Time to learn something new.")
+        lines.append(f"Nothing **{who}** knows gives a skill-up at {skill} any more.")
     e.description = "\n\n".join(lines)
     if p["stuck"] and p["steps"]:
         e.description += f"\n\nThe plan stops at **{p['reached']}**: nothing known gives a skill-up past that."
+    if p["stuck"]:
+        learn = S.worth_learning(p["reached"], unknown)
+        if learn:
+            e.add_field(name=f"Learn next (they'd give skill-ups at {p['reached']})",
+                        value="\n".join(f"**{c['name']}**: {S.materials_text(c['reagents'])}" for c in learn)
+                              + "\n-# Blizzard's data doesn't say where each one is learned.", inline=False)
     need = S.shopping_list(p["steps"])
     if need:
         e.add_field(name="Bring", value="\n".join(f"{q} x {n}" for n, q in need[:15]), inline=False)

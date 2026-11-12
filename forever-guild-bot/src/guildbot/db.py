@@ -398,6 +398,10 @@ class Database:
             maker.setdefault(r["item_id"], r["recipe_id"])
         return reagents, makes, maker
 
+    def catalog_recipe_rows(self, profession: str):
+        return self.conn.execute(
+            "SELECT recipe_id, name FROM recipes WHERE profession=? ORDER BY name", (profession,)).fetchall()
+
     def known_recipe_rows(self, slug: str, profession: str):
         return self.conn.execute(
             "SELECT recipe_id, name FROM known_recipes WHERE slug=? AND profession=? ORDER BY name",

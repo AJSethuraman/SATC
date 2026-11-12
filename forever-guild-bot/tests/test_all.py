@@ -1515,3 +1515,11 @@ def test_skillup_card_uses_real_ranges_known_recipes_and_stored_materials(tmp_pa
     db.replace_professions("anduin-wrynn", [bz.Profession("Blacksmithing", 50, 75, ())], now)
     assert "no Blacksmithing recipes" in skillup_card(db, row, db.professions_for("anduin-wrynn")[0])
 
+def test_worth_learning_skips_recipes_that_are_not_learnable_yet():
+    from guildbot import skillup as S
+
+    def c(name, yellow, gray, cost):
+        return {"recipe_id": hash(name) % 1000, "name": name, "learn_at": 1, "yellow_at": yellow, "gray_at": gray, "effort": cost, "reagents": []}
+    iron, gold, bronze = c("Smelt Iron", 130, 140, 1), c("Smelt Gold", 170, 185, 1), c("Smelt Bronze", 65, 115, 1)
+    assert [x["name"] for x in S.worth_learning(125, [gold, iron, bronze])] == ["Smelt Iron"]     # gold is too far off; bronze is gray
+
