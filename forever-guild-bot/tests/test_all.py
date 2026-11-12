@@ -406,12 +406,16 @@ def test_commands_are_limited_to_the_configured_channels(tmp_path):
 
     async def send_message(text, ephemeral):
         sent.append((text, ephemeral))
-    def ix(channel_id):
-        return SimpleNamespace(channel_id=channel_id, response=SimpleNamespace(send_message=send_message))
+    import discord
+
+    def ix(channel_id, kind=discord.InteractionType.application_command):
+        return SimpleNamespace(channel_id=channel_id, type=kind, response=SimpleNamespace(send_message=send_message))
     bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
     assert asyncio.run(bot.tree.interaction_check(ix(11))) is True
     assert asyncio.run(bot.tree.interaction_check(ix(99))) is False
     assert sent == [("Use me in <#11> or <#22>.", True)]
+    assert asyncio.run(bot.tree.interaction_check(ix(99, discord.InteractionType.autocomplete))) is False
+    assert len(sent) == 1                                                  # a type-ahead is refused quietly: it cannot take a message
     open_bot = GuildBot(load(base), make_db(tmp_path), blizzard=None)
     assert asyncio.run(open_bot.tree.interaction_check(ix(99))) is True
 
@@ -1522,4 +1526,3 @@ def test_worth_learning_skips_recipes_that_are_not_learnable_yet():
         return {"recipe_id": hash(name) % 1000, "name": name, "learn_at": 1, "yellow_at": yellow, "gray_at": gray, "effort": cost, "reagents": []}
     iron, gold, bronze = c("Smelt Iron", 130, 140, 1), c("Smelt Gold", 170, 185, 1), c("Smelt Bronze", 65, 115, 1)
     assert [x["name"] for x in S.worth_learning(125, [gold, iron, bronze])] == ["Smelt Iron"]     # gold is too far off; bronze is gray
-

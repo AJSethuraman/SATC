@@ -672,6 +672,8 @@ class GuildTree(app_commands.CommandTree):
         allowed = self.client.cfg.channel_ids
         if not allowed or interaction.channel_id in allowed:
             return True
+        if interaction.type is discord.InteractionType.autocomplete:      # a type-ahead can't be answered with a message
+            return False
         where = " or ".join(f"<#{c}>" for c in sorted(allowed))
         await interaction.response.send_message(f"Use me in {where}.", ephemeral=True)
         return False
