@@ -1137,20 +1137,10 @@ class GuildBot(discord.Client):
             if raid["status"] == "open" and datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
                 db.record_attendance(raid_id)      # it started, but the once-a-minute job hadn't marked it yet
             roster = R.roster_summary(raid, db.signups(raid_id))
-            if remove_event and raid["discord_event_id"]:
-                try:
-                    guild = await self._raid_guild(raid)
-                    if guild:
-                        ev = await guild.fetch_scheduled_event(raid["discord_event_id"])
-                        if ev.status == discord.EventStatus.active:
-                            await ev.end()
-                        elif ev.status == discord.EventStatus.scheduled:
-                            await ev.delete()
-                except discord.NotFound:
-                    pass
-                except discord.HTTPException:
-                    log.exception("could not close the event for raid %s", raid_id)
+            event_closed = not remove_event or await self._close_event(raid)
             db.mark_ended(raid_id)
+            if not event_closed:
+                db.set_event_pending(raid_id, True)       # retried by the minute job until Discord takes it
             if not await self._tidy_post(raid_id):
                 db.set_post_pending(raid_id, True)        # retried by the minute job until Discord takes it
         for uid in dict.fromkeys(dm_ids):
@@ -1172,6 +1162,27 @@ class GuildBot(discord.Client):
             chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
             return getattr(chan, "guild", None)
         return None
+
+    async def _close_event(self, raid) -> bool:
+        """End the raid's Discord event if it is running, or remove it if it never started. True when done
+        (or there is nothing to close); False when Discord failed, so it can be tried again."""
+        if not raid["discord_event_id"]:
+            return True
+        try:
+            guild = await self._raid_guild(raid)
+            if not guild:
+                return False
+            ev = await guild.fetch_scheduled_event(raid["discord_event_id"])
+            if ev.status == discord.EventStatus.active:
+                await ev.end()
+            elif ev.status == discord.EventStatus.scheduled:
+                await ev.delete()
+        except discord.NotFound:
+            return True
+        except discord.HTTPException:
+            log.exception("could not close the event for raid %s; will retry", raid["id"])
+            return False
+        return True
 
     async def _tidy_post(self, raid_id: int) -> bool:
         """Mark an ended raid's post COMPLETED, take the buttons off and unpin it. True when done (or the
@@ -1206,6 +1217,12 @@ class GuildBot(discord.Client):
                     self.db.set_post_pending(raid["id"], False)
             except Exception:
                 log.exception("could not retry the post for raid %s", raid["id"])
+        for raid in self.db.events_pending():
+            try:
+                if await self._close_event(raid):
+                    self.db.set_event_pending(raid["id"], False)
+            except Exception:
+                log.exception("could not retry the event for raid %s", raid["id"])
 
     async def _handled_by_hand(self, raid, what: str) -> None:
         """Someone removed a raid's post or event in Discord itself: close the raid and tell its organizer."""
