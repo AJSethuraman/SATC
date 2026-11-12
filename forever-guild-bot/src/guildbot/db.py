@@ -208,6 +208,8 @@ class Database:
     def __init__(self, path: str | Path):
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        # SQLite's lower() only folds A-Z; names like Élodie need Python's, to match what people type.
+        self.conn.create_function("pylower", 1, lambda s: s.lower() if isinstance(s, str) else s, deterministic=True)
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(SCHEMA)
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(recipes)")}
@@ -241,6 +243,11 @@ class Database:
         if "event_pending" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(raids)")}:
             # 1 = the raid has ended but Discord failed when we tried to end or remove its event: retry it
             self.conn.execute("ALTER TABLE raids ADD COLUMN event_pending INTEGER NOT NULL DEFAULT 0")
+            self.conn.commit()
+        if "started" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(raids)")}:
+            # 1 = the raid reached its start time (attendance was taken). A raid ended before then never ran.
+            self.conn.execute("ALTER TABLE raids ADD COLUMN started INTEGER NOT NULL DEFAULT 0")
+            self.conn.execute("UPDATE raids SET started=1 WHERE status IN ('closed','ended')")   # as counted before
             self.conn.commit()
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
@@ -512,17 +519,31 @@ class Database:
         return r["value"] if r else None
 
     # ---- lookups ------------------------------------------------------
-    def find_character(self, text: str):
+    def find_characters(self, text: str, owner: int | None = None):
+        """Every character the text could mean: its slug, full name or first name. An exact slug or full name
+        comes first. owner: only that member's claimed characters, in the guild or not (to let one go)."""
         t = text.strip().lower()
+        full = "pylower(name || COALESCE(' ' || surname, ''))"
+        where = "slug IN (SELECT slug FROM links WHERE discord_id=?)" if owner is not None else "in_guild=1"
+        args = [owner] if owner is not None else []
         return self.conn.execute(
-            """SELECT * FROM characters WHERE in_guild=1
-               AND (slug=? OR lower(name)=? OR lower((name || COALESCE(' ' || surname, '')))=?) ORDER BY (slug=?) DESC LIMIT 1""",
-            (t.replace(" ", "-"), t, t, t.replace(" ", "-"))).fetchone()
+            f"""SELECT * FROM characters WHERE {where}
+               AND (slug=? OR pylower(name)=? OR {full}=?) ORDER BY (slug=? OR {full}=?) DESC, name, surname""",
+            (*args, t.replace(" ", "-"), t, t, t.replace(" ", "-"), t)).fetchall()
+
+    def find_character(self, text: str, owner: int | None = None):
+        """The one character the text means, or None. Never guesses between two with the same first name."""
+        rows = self.find_characters(text, owner)
+        t = text.strip().lower()
+        if rows and (len(rows) == 1 or rows[0]["slug"] == t.replace(" ", "-")
+                     or " ".join(p for p in (rows[0]["name"], rows[0]["surname"]) if p).lower() == t):
+            return rows[0]
+        return None
 
     def search_characters(self, prefix: str, limit: int = 25):
         return self.conn.execute(
-            "SELECT * FROM characters WHERE in_guild=1 AND (lower(" + "(name || COALESCE(' ' || surname, ''))" + ") LIKE ? OR slug LIKE ?) "
-            "ORDER BY (lower(name) LIKE ?) DESC, name, surname LIMIT ?",
+            "SELECT * FROM characters WHERE in_guild=1 AND (pylower(" + "(name || COALESCE(' ' || surname, ''))" + ") LIKE ? OR slug LIKE ?) "
+            "ORDER BY (pylower(name) LIKE ?) DESC, name, surname LIMIT ?",
             ("%" + prefix.lower() + "%", "%" + prefix.lower().replace(" ", "-") + "%", prefix.lower() + "%", limit)).fetchall()
 
     def roster(self, class_name=None, min_level=None, limit=None):
@@ -871,7 +892,7 @@ class Database:
         return self.conn.execute(
             """SELECT * FROM characters WHERE in_guild=1
                AND slug NOT IN (SELECT slug FROM links)
-               AND lower((name || COALESCE(' ' || surname, ''))) LIKE ? ORDER BY lower(name), lower(COALESCE(surname, ''))""",
+               AND pylower((name || COALESCE(' ' || surname, ''))) LIKE ? ORDER BY lower(name), lower(COALESCE(surname, ''))""",
             ("%" + query.strip().lower() + "%",)).fetchall()
 
     def claim(self, discord_id: int, slugs) -> dict:
@@ -1071,6 +1092,7 @@ class Database:
     # ---- attendance and history --------------------------------------------
     def record_attendance(self, raid_id) -> None:
         """At the start of a raid: everyone in a tank, healer or DPS slot is credited."""
+        self.conn.execute("UPDATE raids SET started=1 WHERE id=?", (raid_id,))
         self.conn.execute(
             """INSERT OR IGNORE INTO attendance (raid_id, discord_id, slug, role, credited)
                SELECT raid_id, discord_id, slug, role, 1 FROM signups
@@ -1091,7 +1113,7 @@ class Database:
         """One member's record over every raid that has started."""
         from .raids import summarize_history
         raids = self.conn.execute(
-            """SELECT id, title, starts_at FROM raids WHERE status IN ('closed','ended')
+            """SELECT id, title, starts_at FROM raids WHERE status IN ('closed','ended') AND started=1
                AND (id IN (SELECT raid_id FROM signup_log WHERE discord_id=?)
                     OR id IN (SELECT raid_id FROM attendance WHERE discord_id=?)) ORDER BY starts_at""",
             (discord_id, discord_id)).fetchall()
@@ -1110,7 +1132,7 @@ class Database:
     def attendance_board(self):
         """Everyone who has signed up for a started raid, with their record, most attended first."""
         ids = [r["discord_id"] for r in self.conn.execute(
-            """SELECT discord_id FROM signup_log WHERE raid_id IN (SELECT id FROM raids WHERE status IN ('closed','ended'))
+            """SELECT discord_id FROM signup_log WHERE raid_id IN (SELECT id FROM raids WHERE status IN ('closed','ended') AND started=1)
                UNION SELECT discord_id FROM attendance""")]
         rows = []
         for uid in ids:

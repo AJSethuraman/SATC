@@ -158,10 +158,12 @@ def summarize_history(raids) -> dict:
         elif counted:
             signed += 1
             start = datetime.fromisoformat(x["starts_at"])
-            t_last, role_last = x["role_log"][-1]
-            if role_last not in COUNTED and \
-                    (start - datetime.fromisoformat(t_last)).total_seconds() <= LATE_DROP_HOURS * 3600:
-                late += 1
+            log = x["role_log"]
+            last_in = max(i for i, (_t, ro) in enumerate(log) if ro in COUNTED)
+            if last_in + 1 < len(log):                    # they left their slot: when, not when they last tapped
+                t_left = log[last_in + 1][0]
+                if (start - datetime.fromisoformat(t_left)).total_seconds() <= LATE_DROP_HOURS * 3600:
+                    late += 1
     return {"signed_up": signed, "attended": attended, "no_shows": noshow, "late_drops": late}
 
 
