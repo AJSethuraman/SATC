@@ -53,6 +53,18 @@ overall facilitator of defaults ... or it is zone dependent".
 - {payee} in every message is filled from this, so customers are told who to pay.
 - Trade opens by itself only when the payee is you and the customer is in range.
 
+## When a customer joins
+
+The owner, 12 Nov 2026: "when they join basically it knows why i invited them and tells them who
+and what". The invite remembers the request that caused it, so the welcome on joining says what
+they're getting, who does it, where to go, the price (or free), and who to pay, by the payee rules
+above. When you are the one doing it, it speaks in the first person.
+
+Prototype output, 12 Nov 2026 (you in Orgrimmar, the warlock in Thunder Bluff):
+`Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land.` With you in TB as
+well, the last sentence becomes `Pay me when you land.` A free service: `Hi Kaldrok! I do
+lockpicking, come to me in TB. Free, tips welcome.`
+
 ## When a customer arrives
 
 The owner, 12 Nov 2026: "when people land after we summon them to me i would also want to say what
