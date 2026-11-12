@@ -546,7 +546,7 @@ class GapsView(discord.ui.View):
         await interaction.response.edit_message(embed=gaps_overview(self.bot.db), view=GapsView(self.bot))
 
 
-def skillup_card(db: Database, row, prof, target: int | None = None):
+def skillup_card(db: Database, row, prof):
     """The skill-up plan for one character and profession: an embed, or a plain sentence when there is nothing to plan."""
     who, name, skill = R.full_name(row), prof["profession"], prof["skill"]
     cap = prof["max_skill"]
@@ -566,7 +566,7 @@ def skillup_card(db: Database, row, prof, target: int | None = None):
         c = {"recipe_id": rid, "name": r["name"], "learn_at": learn, "yellow_at": yellow, "gray_at": gray,
              "reagents": reagents[rid], "effort": S.effort(S.raw_cost(rid, reagents, makes, maker))}
         (cands if rid in known else unknown).append(c)
-    goal = min(cap, target if target and target > skill else skill + S.DEFAULT_STRETCH)
+    goal = cap                                   # as far as this tier goes
     p = S.plan(skill, goal, cands)
     e = discord.Embed(title=f"{who}: {name} {skill} to {goal}", color=0xD2B48C)
     lines = []
@@ -1396,33 +1396,42 @@ def register_commands(bot: GuildBot) -> None:
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e, ephemeral=True)
 
-    @tree.command(name="skillup", description="What to craft to level a profession, cheapest first")
-    @app_commands.describe(profession="Which profession", character="Which character (blank = yours)",
-                           to="Skill to aim for (blank = 25 ahead)")
-    @app_commands.autocomplete(profession=profession_ac, character=char_ac)
-    async def skillup(interaction: discord.Interaction, profession: str, character: str | None = None,
-                      to: int | None = None):
-        want = profession.strip().lower()
-        if character:
-            rows = [db.find_character(character)]
-        else:
-            rows = db.characters_for(interaction.user.id)
+    async def my_profession_ac(interaction: discord.Interaction, current: str):
+        rows = db.characters_for(interaction.user.id)
+        out = []
+        for r in rows:
+            for pr in db.professions_for(r["slug"]):
+                label = f"{pr['profession']} {pr['skill']}/{pr['max_skill']}" + (f" ({R.full_name(r)})" if len(rows) > 1 else "")
+                if current.lower() in label.lower():
+                    out.append(app_commands.Choice(name=label[:100], value=f"{r['slug']}:{pr['profession']}"[:100]))
+        return out[:25]
+
+    @tree.command(name="skillup", description="What to craft to level one of your professions, cheapest first")
+    @app_commands.describe(profession="Pick one of your professions")
+    @app_commands.autocomplete(profession=my_profession_ac)
+    async def skillup(interaction: discord.Interaction, profession: str):
+        rows = db.characters_for(interaction.user.id)
+        if not rows:
+            await interaction.response.send_message("Claim your character first with `/link`, then this works from your profession levels.",
+                                                    ephemeral=True)
+            return
+        slug, _, want = profession.partition(":")
+        if not want:
+            slug, want = "", profession
         pick = None
         for r in rows:
-            if r is None:
+            if slug and r["slug"] != slug:
                 continue
             for pr in db.professions_for(r["slug"]):
-                if pr["profession"].lower() == want:
+                if pr["profession"].lower() == want.strip().lower():
                     pick = (r, pr)
                     break
             if pick:
                 break
         if not pick:
-            await interaction.response.send_message(
-                "Couldn't find that profession on your characters. Pick a profession from the list, and `/link` "
-                "your character first (or give a character name).", ephemeral=True)
+            await interaction.response.send_message("Pick one of your professions from the list.", ephemeral=True)
             return
-        card = skillup_card(db, pick[0], pick[1], to)
+        card = skillup_card(db, pick[0], pick[1])
         if isinstance(card, str):
             await interaction.response.send_message(card, ephemeral=True)
         else:

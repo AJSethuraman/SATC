@@ -1533,3 +1533,29 @@ def test_worth_learning_skips_recipes_that_are_not_learnable_yet():
         return {"recipe_id": hash(name) % 1000, "name": name, "learn_at": 1, "yellow_at": yellow, "gray_at": gray, "effort": cost, "reagents": []}
     iron, gold, bronze = c("Smelt Iron", 130, 140, 1), c("Smelt Gold", 170, 185, 1), c("Smelt Bronze", 65, 115, 1)
     assert [x["name"] for x in S.worth_learning(125, [gold, iron, bronze])] == ["Smelt Iron"]     # gold is too far off; bronze is gray
+
+def test_skillup_command_needs_a_claimed_character_and_plans_to_the_tier_cap(tmp_path):
+    from types import SimpleNamespace
+    from guildbot import skillup as S
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    bot = GuildBot(load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"}), db, blizzard=None)
+    sent = []
+
+    async def send_message(text=None, embed=None, ephemeral=False):
+        sent.append((text, embed, ephemeral))
+    ix = SimpleNamespace(user=SimpleNamespace(id=42), response=SimpleNamespace(send_message=send_message))
+    cmd = bot.tree.get_command("skillup")
+    assert {p.name for p in cmd.parameters} == {"profession"}                    # one dropdown, nothing else to fill in
+    asyncio.run(cmd.callback(ix, "Blacksmithing"))
+    assert "/link" in sent[0][0] and sent[0][2] is True                           # no character claimed: told to claim one
+    other = next(rid for rid, (l, y, g) in S.load_ranges().items() if l <= 50 < y)
+    now = utcnow()
+    db.replace_professions("anduin-wrynn", [bz.Profession("Blacksmithing", 50, 75, ((other, "Thing"),))], now)
+    db.replace_recipes([("Blacksmithing", other, "Thing", "Misc")], now)
+    db.set_recipe_item(other, 9999, 1.0, [(2840, "Copper Bar", 1)])
+    assert db.claim(42, ["anduin-wrynn"])["linked"]
+    asyncio.run(cmd.callback(ix, "anduin-wrynn:Blacksmithing"))
+    assert sent[1][1].title.endswith("Blacksmithing 50 to 75") and sent[1][2] is True    # plan runs to the tier cap
+

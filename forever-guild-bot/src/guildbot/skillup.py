@@ -17,7 +17,6 @@ from pathlib import Path
 
 YELLOW_CHANCE = 0.75          # a rough, commonly quoted figure; the game does not publish it
 LEARNABLE_WITHIN = 20        # an unlearned recipe is only suggested when its orange stretch ends within this many points
-DEFAULT_STRETCH = 25          # how far ahead a plan goes unless told otherwise
 
 DATA = Path(__file__).parent / "data" / "skill_ranges.csv"
 
