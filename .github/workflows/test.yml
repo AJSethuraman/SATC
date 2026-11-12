@@ -19,88 +19,66 @@ on:
     branches: [main]
   pull_request:
 
+# A PR RUNS ONLY WHAT IT TOUCHES (12 Nov 2026). A PR that changed nothing but
+# service-inviter/ -- a one-second suite -- waited over an hour per push, because
+# every push queued the whole matrix behind the last one. The `changes` job now
+# asks .github/ci/select_jobs.py which jobs the diff needs: each project's own
+# folder, plus whatever its tests read from outside it (the fee schedule, canon,
+# the templates), each listed there with the line that reads it. A change to CI
+# itself, an unmapped root file, or a push to main runs everything.
+#
+# A newer push to the same PR cancels the older run: its result could no longer
+# be merged anyway. Pushes to main are never cancelled -- each merge is verified,
+# so each gets a group of its own (keyed by commit): GitHub keeps only one QUEUED
+# run per group even without cancel-in-progress, and two quick merges sharing a
+# group would drop the verification of the first.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    name: which tests this change needs
+    runs-on: ubuntu-latest
+    outputs:
+      pytest_matrix: ${{ steps.select.outputs.pytest_matrix }}
+      run_pytest: ${{ steps.select.outputs.run_pytest }}
+      run: ${{ steps.select.outputs.run }}
+    steps:
+      # The PR's merge commit and its first parent (the base it was merged
+      # onto), so `HEAD^1..HEAD` is exactly what this PR changes against the
+      # main it would land on.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: The selector's own tests
+        run: python3 -m unittest discover -s .github/ci -p "test_*.py"
+
+      - name: Select
+        id: select
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            python3 .github/ci/select_jobs.py --all
+          elif files=$(git diff --name-only HEAD^1 HEAD); then
+            echo "$files"
+            echo "$files" | python3 .github/ci/select_jobs.py
+          else
+            echo "could not compute the diff; running everything"
+            python3 .github/ci/select_jobs.py --all
+          fi
+
   pytest:
     name: pytest (${{ matrix.project }})
+    needs: changes
+    if: needs.changes.outputs.run_pytest == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - project: satc_system
-            install: pip install -e ".[dev]"
-          - project: client-documents
-            # Chromium too: the pipeline tests render real PDFs, and a suite
-            # that skips the one step a client actually receives is not
-            # testing the pipeline.
-            install: pip install -r requirements.txt && playwright install --with-deps chromium
-          - project: invoice-generator
-            install: pip install -r requirements.txt pytest
-          # canon has no dependencies beyond pytest, deliberately: it is built
-          # to be lifted out and installed into projects that share nothing
-          # with this one. Its own suite copies the tree into a fresh git
-          # repository and runs itself there, which is why `git` matters more
-          # here than any package. Where the `claude` CLI is absent -- as on a
-          # runner -- the two tests that call the real plugin validator SKIP
-          # and say so, rather than passing quietly.
-          - project: canon
-            install: pip install pytest
-          # desk depends on canon and, like it, deliberately has no dependency
-          # beyond pytest: a plugin that lifts out whole is worth more than one
-          # with conveniences, and that is why its record is Markdown rather
-          # than YAML. Its suite is offline by construction -- conftest replaces
-          # the socket layer -- so a government website being down never turns
-          # this red.
-          - project: desk
-            install: pip install pytest
-          # credit-suite had NO CI entry until 4 September 2026, which meant its
-          # 240 tests, 68 mutations and cell-for-cell parity checks ran only on
-          # the one machine that built them. A verification bar nobody else can
-          # run is a claim, not a check -- and the branch that added the package
-          # also carried a stale workflow naming a folder it had itself deleted,
-          # which is exactly the kind of thing this entry is here to catch.
-          #
-          # Offline only: every test uses the deterministic demo provider, so
-          # there is no network and no FRED key. The live pulls and the
-          # real-Excel acceptance are `tools/` scripts run at the desk, marked
-          # `live`, and never collected.
-          - project: credit-suite
-            install: pip install -e ".[test]"
-          # Ember Vault Arena is staged under docs/ for migration to its own
-          # repository and is not the practice's software; it runs here so the
-          # golden replay (PRD §5.40) is verified on every PR with no model call.
-          # Standard library only, by design: the two hosted adapters import
-          # their SDKs lazily and the suite drives them through fakes.
-          - project: docs/ember-vault-arena/code
-            install: pip install pytest
-          # Portfolio Analysis Pack: a loan extract in, one analysis workbook
-          # out, for the credit consulting line. The suite builds a 40,000-loan
-          # synthetic book and reads the workbook back through the `formulas`
-          # engine, so every Excel formula is checked against Python here on
-          # every PR. The render harness (LibreOffice) is desk-run, not CI.
-          - project: portfolio-analysis-pack
-            install: pip install -e ".[test]"
-          # PocketBook (was origination-cube until 27 Sep 2026): pockets against the topline, replacing the firm's
-          # origination VBA. Each finding from the VBA review has a test here.
-          # scikit-learn (the `scout` extra) is optional for the analyst and installed here, so the scouting
-          # path runs in CI (canon S14: unreachable code is unchecked); its refusal without it is tested too.
-          - project: pocketbook
-            install: pip install -e ".[test,scout]"
-          # Loan Survival: Kaplan-Meier loan-group comparisons for credit review, with a tkinter front
-          # door. validate.py checks the math against SciPy and statsmodels; gui_check.py drives the real
-          # window under xvfb and compares its workbook to the command line's. A SKIP fails in CI.
-          - project: loan-survival
-            install: pip install pytest pandas numpy openpyxl scipy statsmodels matplotlib
-          # Forever Guild Bot: a Discord bot for the owner's WoW guild, not practice software. Its suite
-          # is offline (mocked Blizzard data, no Discord login), so it needs no token and no network.
-          # Added after it merged with its tests running only on the machine that wrote them.
-          - project: forever-guild-bot
-            install: pip install -r requirements.txt pytest
-          # Service Inviter: the owner's WoW addon, not practice software. The tests run the real
-          # Lua file in Lua 5.1 (lupa) against stubbed game functions, and check the installer
-          # is built from the source.
-          - project: service-inviter
-            install: pip install -r requirements.txt
+      # The project list, install commands and the notes on each now live in
+      # .github/ci/select_jobs.py (PYTEST), filtered to what this change needs.
+      matrix: ${{ fromJSON(needs.changes.outputs.pytest_matrix) }}
     defaults:
       run:
         working-directory: ${{ matrix.project }}
@@ -141,6 +119,8 @@ jobs:
   # Its own job because it re-runs parts of the suite nine times.
   mutation:
     name: mutation check (portfolio-analysis-pack)
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.run), 'mutation')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -163,6 +143,8 @@ jobs:
   # and the test named for it must go red. Seconds, not minutes.
   mutation-pocketbook:
     name: mutation check (pocketbook, part ${{ matrix.shard }} of 4)
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.run), 'mutation-pocketbook')
     runs-on: ubuntu-latest
     # four jobs, each putting back every fourth bug: one job of all of them ran past two hours
     strategy:
@@ -193,6 +175,8 @@ jobs:
   # rather than setup-python. Then each planted bug must turn the tests red.
   excel-macros:
     name: macros in LibreOffice (excel-macros)
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.run), 'excel-macros')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -253,6 +237,8 @@ jobs:
   # the step's command -- rather than at whether a failure could actually fail.
   pricing:
     name: published prices match the fee schedule
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.run), 'pricing')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -291,6 +277,8 @@ jobs:
   # two that became code were never broken again. That is the whole argument.
   copy:
     name: every page reads the way the firm asked for
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.run), 'copy')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -312,3 +300,28 @@ jobs:
       - name: Check the copy against the tenets
         working-directory: website
         run: python3 copy.spec.py
+
+  # One check that stands for the lot, for a branch rule to require: main has
+  # no required checks today (12 Nov 2026), and a rule naming "pytest (canon)"
+  # would wait forever on a PR that never selects canon. A job skipped because
+  # its project did not change counts as passing here; failed or cancelled does not.
+  passed:
+    name: every selected test passed
+    if: always()
+    needs: [changes, pytest, mutation, mutation-pocketbook, excel-macros, pricing, copy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          needs = json.loads(os.environ["NEEDS"])
+          for job, n in needs.items():
+              print(f"{job}: {n['result']}")
+          ok = {"changes": ("success",)}
+          bad = {job: n["result"] for job, n in needs.items()
+                 if n["result"] not in ok.get(job, ("success", "skipped"))}
+          sys.exit(f"not passed: {bad}" if bad else 0)
+          PY
