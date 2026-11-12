@@ -1,4 +1,4 @@
--- Service Inviter v1.4.1
+-- Service Inviter v1.5.0
 -- Watches chat for people asking to BUY a summon or port to a destination you
 -- choose, and sends them a group invite. It also talks in your group and may
 -- whisper (welcome, summon alert, extras on offer, the ritual whisper): turn
@@ -332,6 +332,13 @@ local ShowAlert         -- set below: big on-screen "click the portal" banner
 local ToggleSetup       -- set below: opens the Setup window
 local function AutoTradeOn()
     return ServiceInviterDB.autotrade ~= false
+end
+-- Who takes the money is a setting, not the role: some nights the lock collects,
+-- some nights you do. Until it is set, the lock collects.
+local function Collects()
+    local c = ServiceInviterDB.collect
+    if c == nil then return Role() == "lock" end
+    return c and true or false
 end
 local function Money(silver)
     local g, s = math.floor(silver / 100), silver % 100
@@ -956,8 +963,7 @@ end
 
 local function WhisperTo()
     local w = ServiceInviterDB.whisperto
-    if w == nil then return "ttantitanti" end
-    if w == false or w == "" then return nil end
+    if not w or w == "" then return nil end
     return w
 end
 
@@ -1120,7 +1126,7 @@ local function CheckArrivals()
                     if ch then pcall(SendChatMessage, OfferText(j.name), ch) end
                 end
             end
-        elseif j.status == "arrived" and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
+        elseif j.status == "arrived" and Collects() and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
             local u = UnitFor(j.name)
             if u and CheckInteractDistance and CheckInteractDistance(u, 2) then
                 j.tradeTried = true
@@ -1152,16 +1158,16 @@ local function ApplyRow(row, job)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     row.trade:SetAttribute("macrotext", "/target " .. n .. "\n/run InitiateTrade(\"target\")")
     local step = NextStep(job)
+    local lock = Role() == "lock"
     if job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
         row.reinvite:Show()
-    elseif Role() == "helper" then
-        -- helper: the lock summons and gets paid, so no buttons except remove
     elseif step == "summon" then
-        row.summon:Show()
+        if lock then row.summon:Show() end
     elseif step == "offer" then
-        row.offer:Show() row.paid:Show()
+        if lock then row.offer:Show() elseif Collects() then row.trade:Show() end
+        if Collects() then row.paid:Show() end
     elseif step == "finish" then
-        row.trade:Show() row.paid:Show()
+        if Collects() then row.trade:Show() row.paid:Show() end
     end
     row.remove:Show()
 end
@@ -1489,7 +1495,8 @@ local function BuildSetupUI()
     Preview("whispermsg", -416)
 
     Header(30, -446, "4", "Customer arrives")
-    Check("autotrade", 40, -470, "Open the trade window by itself when they are in range (you click Accept)")
+    Check("collect", 40, -470, "I collect the payment")
+    Check("autotrade", 220, -470, "Open trade by itself in range")
     Label(40, -504, "Price per customer (gold and/or silver):")
     Box("pricegold", -524, 60, 5)
     Label(112, -521, "gold")
@@ -1511,7 +1518,7 @@ local function BuildSetupUI()
     local X = 525
     Header(X, -78, nil, "Your role")
     Check("rolehelper", X, -102, "Helper: I click the portal (banner, raid line, whisper)")
-    Check("rolelock", X, -128, "Warlock: I summon (Summon, Offer, Trade and Paid buttons)")
+    Check("rolelock", X, -128, "Warlock: I summon (Summon and Offer buttons)")
     checks.rolehelper:SetScript("OnClick", function() checks.rolehelper:SetChecked(true) checks.rolelock:SetChecked(false) end)
     checks.rolelock:SetScript("OnClick", function() checks.rolelock:SetChecked(true) checks.rolehelper:SetChecked(false) end)
 
@@ -1608,6 +1615,7 @@ local function BuildSetupUI()
         boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or DEFAULT_CHANNELS) boxes.chanextra:SetCursorPosition(0)
         checks.raidalert:SetChecked(db.raidalert ~= false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
+        checks.collect:SetChecked(Collects())
         checks.welcome:SetChecked(Opt("welcome") and true or false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")
@@ -1633,6 +1641,7 @@ local function BuildSetupUI()
         if pg or ps then db.price = (pg or 0) * 100 + (ps or 0) end
         db.raidalert = checks.raidalert:GetChecked() and true or false
         db.autotrade = checks.autotrade:GetChecked() and true or false
+        db.collect = checks.collect:GetChecked() and true or false
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == DEFAULT_KEYWORDS) and nil or kws end
@@ -1673,6 +1682,7 @@ local function BuildSetupUI()
         end
         w:SetScale(sc)
     end
+    w.checks = checks
     w:SetScript("OnShow", function() Fit() w.Load() end)
     w:SetScript("OnHide", function() w.Save() end)
     return w
@@ -1864,8 +1874,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         else P("session: " .. SessionText() .. "   (/si session new to start over)") end
     elseif cmd == "role" then
         local r = rest:lower()
-        if r == "lock" or r == "warlock" then ServiceInviterDB.role = "lock" P("role: lock. Summon, Offer, Trade and Paid buttons are back; trade opens by itself when a customer arrives (/si autotrade to turn that off).")
-        elseif r == "helper" then ServiceInviterDB.role = "helper" P("role: helper. Alerts you to click the portal; the lock does the summoning and gets paid.")
+        if r == "lock" or r == "warlock" then ServiceInviterDB.role = "lock" P("role: lock. Summon and Offer buttons are back. Who takes the money is separate: /si collect.")
+        elseif r == "helper" then ServiceInviterDB.role = "helper" P("role: helper. Alerts you to click the portal; the lock does the summoning. Who takes the money is separate: /si collect.")
         else P("role is " .. Role() .. ". Use /si role helper  or  /si role lock") end
         RefreshJobs()
     elseif cmd == "alert" then
@@ -1896,6 +1906,10 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         if r == "" then P("ritual whisper goes to: " .. (WhisperTo() or "nobody") .. "   (/si whisper <name>  or  /si whisper off)")
         elseif r:lower() == "off" then ServiceInviterDB.whisperto = false P("ritual whisper off")
         else ServiceInviterDB.whisperto = r P("ritual whisper goes to " .. r) end
+    elseif cmd == "collect" then
+        ServiceInviterDB.collect = not Collects()
+        P("payment: " .. (Collects() and "YOU collect (Trade and Paid buttons; trade opens by itself unless /si autotrade is off)" or "someone else collects (no trade window, no Trade/Paid buttons)"))
+        RefreshJobs()
     elseif cmd == "autotrade" then
         ServiceInviterDB.autotrade = not AutoTradeOn()
         P("auto-open trade (and auto Paid) " .. (AutoTradeOn() and "ON: opens when a customer arrives in range; you click Accept" or "off"))
@@ -1911,10 +1925,10 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si status = what it hears | /si simcast = test the alert | /si session new | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }
