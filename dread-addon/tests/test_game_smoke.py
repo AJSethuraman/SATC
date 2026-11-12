@@ -78,8 +78,9 @@ def boot(prelude="", with_slash=False):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
+    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Capture", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
+    ns.Game.rethrow = True                                                  # an error in a frame must fail the test, not be swallowed
     return lua, ns
 
 
@@ -1976,3 +1977,148 @@ def test_a_monster_winding_up_plays_its_attack_animation():
     tick(lua, 2)
     f = [o for o in lua.eval("ALL").values() if o.owner is not None and lua.eval("rawequal")(o.owner, m)][0]
     assert f.last_anim == ns.Game.ANIM.ATTACK
+
+
+# ---------------------------------------------------------------- capture: what happens is recorded without anyone writing it down
+SHOTS = "SHOTCOUNT = 0\nfunction Screenshot() SHOTCOUNT = SHOTCOUNT + 1 end"
+
+
+def run_timers(lua):
+    lua.execute("local t = TIMERS; TIMERS = {}; for _, f in ipairs(t) do f() end")
+
+
+def shots(lua):
+    run_timers(lua)
+    return lua.eval("SHOTCOUNT")
+
+
+def test_playing_records_time_casts_kills_damage_and_fps_without_being_asked():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    s = ns.Game.session()
+    assert s.areas.moor.entered == 1
+    m = first_monster(w)
+    m.life = 1
+    teleport_next_to(ns, lua, w, m, -100, 0)
+    w.player.st.points["scorch"] = 1
+    w.player.mana = w.player.maxmana
+    bar, _ = ns.Game.bar()
+    bar[1] = "scorch"
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    tick(lua, 120)
+    assert s.casts.scorch == 1 and s.areas.moor.kills >= 1 and s.areas.moor.dealt > 0
+    assert s.areas.moor.time > 3 and s.fps_n >= 1 and s.fps_min == 60                     # the stand-in's frame rate is 60
+
+
+def test_time_does_not_count_while_the_skill_tree_has_the_game_paused():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    s = ns.Game.session()
+    tick(lua, 30)
+    t = s.play
+    key(lua, "K")
+    tick(lua, 60)
+    assert s.play == t
+
+
+def test_the_first_look_at_each_new_area_takes_a_picture_and_going_back_does_not():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    assert shots(lua) == 1                                                                 # the moor, on arrival
+    tick(lua, 600)                                                                         # past the gap between pictures
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    assert ns.Game.area().name == "fields" and shots(lua) == 2
+    tick(lua, 600)
+    back = ns.Game.area().exits[1]
+    teleport(ns, lua, w, back.x, back.y, ticks=3)
+    assert ns.Game.area().name == "moor"
+    tick(lua, 600)
+    assert shots(lua) == 2                                                                 # the moor was already seen this session
+    assert [r.reason for r in ns.Game.session().shot_reasons.values()] == ["arrived moor", "arrived fields"]
+
+
+def test_dying_records_what_killed_you_and_takes_a_picture():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 600)
+    shots(lua)
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -20, 0)
+    m.awake = True
+    w.player.life = 1
+    for _ in range(200):
+        tick(lua, 1)
+        if w.over:
+            break
+    assert w.over
+    tick(lua, 2)
+    s = ns.Game.session()
+    assert len(list(s.deaths.values())) == 1 and s.deaths[1].area == "moor"
+    assert s.deaths[1].hits[1]["from"] == m.name
+    assert shots(lua) == 2                                                                 # arrival and death
+    tick(lua, 30)
+    assert len(list(s.deaths.values())) == 1                                               # one death is one record, however long you stay dead
+
+
+def test_screenshots_can_be_turned_off_and_the_rest_is_still_recorded():
+    lua, ns = boot(SHOTS)
+    assert ns.Game.set_shots("off") is False and lua.eval("DreadDB.shots") is False
+    open_game(lua, ns)
+    tick(lua, 30)
+    assert shots(lua) == 0 and ns.Game.session().areas.moor.entered == 1
+    assert ns.Game.set_shots("on") is True
+
+
+def test_a_rare_find_and_a_level_up_each_take_a_picture():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 600)
+    shots(lua)
+    it = lua.table_from({"slot": "ring", "rarity": "rare", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"life": 12})})
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+    tick(lua, 2)
+    assert shots(lua) == 2
+    tick(lua, 600)
+    lua.eval("function(w) w.events[#w.events + 1] = { k = 'level', level = 9 } end")(w)
+    tick(lua, 2)
+    assert shots(lua) == 3
+
+
+def test_an_error_in_a_frame_is_recorded_once_and_shown_once_and_the_game_goes_on():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    ns.Game.rethrow = False
+    lua.execute("local w = ...")
+    w = ns.Game.world()
+    w.monsters = None                                                                     # something breaks every frame from now on
+    tick(lua, 50)
+    s = ns.Game.session()
+    assert len(list(s.errors.values())) == 1 and s.errors[1].n == 50
+    said_it = [l for l in said(lua) if "error" in l and "/dread report" in l]
+    assert len(said_it) == 1
+
+
+def test_the_report_command_gives_the_report_to_copy_and_screenshots_show_in_it():
+    lua, ns = boot(SHOTS, with_slash=True)                      # no Log window in this stand-in, so the report is printed
+    slash(lua, "play")
+    tick(lua, 30)
+    slash(lua, "report")
+    texts = [t for t in said(lua) if t.startswith("DREAD REPORT")]
+    assert texts and "AREAS" in texts[0] and "DEATHS: 0" in texts[0] and "screenshots on" in texts[0]
+    assert "Character: level 1   60 life, 33 mana, 0% spell, 0% wand; wearing 0 of 9, bag 0" in texts[0]
+    slash(lua, "shots off")
+    slash(lua, "report")
+    assert any("screenshots off" in t for t in said(lua) if t.startswith("DREAD REPORT"))
+
+
+def test_with_rethrow_on_a_bug_in_a_frame_fails_loudly_so_the_tests_cannot_hide_one():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    ns.Game.world().monsters = None
+    with pytest.raises(Exception):
+        tick(lua, 2)

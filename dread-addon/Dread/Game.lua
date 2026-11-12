@@ -95,6 +95,33 @@ local function say(msg)
   if ns.log then ns.log(msg) else print(msg) end
 end
 
+---------------------------------------------------------------- what happened, recorded as it happens (Capture.lua)
+function Game.session()
+  if not Game._cap then
+    DreadDB = DreadDB or {}
+    Game._cap = ns.Capture.session(DreadDB, ns.BUILD, time and time() or 0)
+  end
+  return Game._cap
+end
+
+function Game.shot(why)                                           -- a screenshot of this moment, if the budget and the setting allow
+  if DreadDB and DreadDB.shots == false then return false end
+  if ns.Capture.shot_allowed(Game.session(), why) then return ns.Capture.shot() end
+  return false
+end
+
+function Game.capture_enter(name)
+  local s = Game.session()
+  ns.Capture.enter(s, name)
+  if s.areas[name].entered == 1 then Game.shot("arrived " .. name) end        -- the first look at each place
+end
+
+function Game.set_shots(on)
+  DreadDB = DreadDB or {}
+  if on == "on" or on == true then DreadDB.shots = true elseif on == "off" or on == false then DreadDB.shots = false end
+  return DreadDB.shots ~= false
+end
+
 ---------------------------------------------------------------- the save
 local function save()
   if not world then return end
@@ -146,6 +173,7 @@ end
 ---------------------------------------------------------------- worlds and areas
 local function enter(name, arrive)
   area = Zone.get(name)
+  Game.capture_enter(name)
   Combat.enter(world, area)
   if arrive then world.player.x, world.player.y = arrive.x, arrive.y end
   target = nil
@@ -1063,6 +1091,9 @@ local function draw_world_and_events(dt, p)
   end
   for _, e in ipairs(Combat.drain(world)) do
     Fx.on_event(fx, e, world)
+    local why = ns.Capture.event(Game.session(), e)
+    if why then Game.shot(why) end
+    if e.k == "level" then Game.shot("level " .. e.level) end
     if e.k == "hit" and e.dmg > 0 then
       for _, fl in ipairs(float_f) do
         if fl.t <= 0 then
@@ -1193,14 +1224,45 @@ local function update_hud(dt, p)
   if tree_frame:IsShown() then refresh_tree() end
 end
 
-function Game.tick(dt)
+local function tick_body(dt)
   if dt > 0.1 then dt = 0.1 end
   Game.paused = tree_frame:IsShown()
   local p = world.player
+  local cap = Game.session()
+  if not Game.paused then
+    ns.Capture.tick(cap, dt)
+    Game._fps_t = (Game._fps_t or 0) + dt
+    if Game._fps_t >= 2 then Game._fps_t = 0; ns.Capture.sample_fps(cap, GetFramerate and GetFramerate() or nil) end
+    if ns.Capture.combat_shot_due(cap) then Game.shot("combat") end
+  end
+  if world.over and not Game._died then                              -- the moment of death, with what killed you
+    Game._died = true
+    local awake, boss_awake = 0, false
+    for _, m in ipairs(world.monsters) do
+      if not m.dead and m.awake then awake = awake + 1; if m.boss then boss_awake = true end end
+    end
+    ns.Capture.death(cap, { level = p.level, maxlife = p.maxlife, awake = awake, boss_awake = boss_awake })
+    Game.shot("death")
+  elseif not world.over then
+    Game._died = false
+  end
   advance(dt, p)
   draw_actors(p)
   draw_world_and_events(dt, p)
   update_hud(dt, p)
+end
+
+-- An error in a frame must not stop the game, and must not be lost: it is recorded (once per kind, with a count) and shown once.
+-- `Game.rethrow` (set by the tests) lets the error through, so a bug cannot hide behind this.
+function Game.tick(dt)
+  if Game.rethrow then return tick_body(dt) end
+  local ok, err = pcall(tick_body, dt)
+  if not ok then
+    local s = Game.session()
+    local before = #s.errors
+    ns.Capture.error(s, err)
+    if #s.errors > before then say("|cffff5555error|r " .. tostring(err):sub(1, 200) .. "   (/dread report has it)") end
+  end
 end
 
 ---------------------------------------------------------------- opening, closing, settings

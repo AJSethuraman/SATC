@@ -104,3 +104,8 @@ Four areas in a line: the Gloam Moor (start), the Hollow Den (cave off the moor,
 When you die you start again at the entrance of the area you fell in, not back at the start of the game (New game still goes back to the moor). Area monsters come back; quest points you have been paid stay paid.
 
 What monsters throw is visible and can be dodged: a Quill Rat or the Marrowmother gathers light around itself for about half a second to nearly a second (and plays its attack animation), then throws a glowing bolt (a boss's is bigger and purple) that flies at where you were. Step sideways and it misses; a tree or rock in the way stops it.
+
+## Reports without writing them (Capture)
+While you play, Dread records what happens: time, kills, damage dealt and taken per area, every death with the last hits that caused it, bosses, casts per skill, items found, level-ups, frame rate, and any error (once per kind, with a count). It also takes screenshots by itself at the moments worth seeing: the first look at each new area, every death, each boss kill, rare and unique finds, level-ups, and now and then mid-fight (at least 15 seconds apart, at most 30 a session; `/dread shots off` turns them off).
+
+To hand it over: type `/reload` in WoW (that writes the data to disk), then double-click `Collect-Dread-Report.bat` (it comes in the install zip). It puts one `Dread-report.zip` on the Desktop with Dread's saved data and the newest 20 screenshots. For text only, `/dread report` opens a box with a plain-text report to select and paste. An error in a frame no longer stops the game: it is shown once and kept in the report.

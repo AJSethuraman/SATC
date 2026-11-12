@@ -13,6 +13,7 @@ Zone.lua
 Map.lua
 Fx.lua
 Build.lua
+Capture.lua
 Gear.lua
 Game.lua
 Visuals.lua

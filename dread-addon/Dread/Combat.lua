@@ -312,7 +312,7 @@ local function eff(w, id)
 end
 
 -- Everything that hurts the player goes through here, so shields and armour apply to all of it.
-local function hurt(w, amount, attacker)
+local function hurt(w, amount, attacker, how)
   local p, b = w.player, w.player.buffs
   if b.frost_armor then
     amount = amount * (1 - math.min(75, b.frost_armor.pct) / 100)
@@ -328,6 +328,7 @@ local function hurt(w, amount, attacker)
   end
   if b.icicle_cloak and attacker and not attacker.dead then hit(w, "icicle_cloak", attacker, 1) end
   p.life = p.life - amount
+  push(nil, w, { k = "hurt", amount = amount, from = attacker and attacker.name or "?", how = how or "melee", boss = attacker and attacker.boss and true or false })
   if p.life <= 0 then p.life, w.over = 0, true end
 end
 
@@ -622,7 +623,7 @@ local function step_mproj(w, dt)
       end
     end
     if not gone and dist(q.x, q.y, p.x, p.y) <= Combat.MPROJ_RADIUS + Combat.PLAYER_RADIUS then
-      hurt(w, q.dmg, q.from)
+      hurt(w, q.dmg, q.from, "thrown")
       push(nil, w, { k = "mhit", x = q.x, y = q.y, boss = q.boss })
       gone = true
     end

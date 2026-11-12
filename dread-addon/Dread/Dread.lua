@@ -197,6 +197,25 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "sound" then runSounds()
   elseif arg == "skills" then showSkills()
   elseif arg == "gear" then if ns.Game.world() then ns.Gear.toggle(ns.Game.world()) else say("start the game first: /dread play") end
+  elseif arg == "report" then
+    local G = ns.Game
+    local s = G.session()
+    local w = G.world()
+    local gear = ""
+    if w then
+      local d = ns.Combat.derived(w.player.level, w.player.gear)
+      local function r(x) return math.floor(x + 0.5) end
+      local worn = 0
+      for _ in pairs(w.player.gear) do worn = worn + 1 end
+      gear = string.format("%d life, %d mana, %d%% spell, %d%% wand; wearing %d of 9, bag %d", r(d.life), r(d.mana), r(d.spell_pct), r(d.wand_pct), worn, #w.player.bag)
+    end
+    local lines, all = {}, ns.Log and ns.Log.lines() or {}
+    for i = math.max(1, #all - 39), #all do lines[#lines + 1] = (all[i]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+    local settings = string.format("zoom %s, scale %s, fx %s, screenshots %s", tostring(DreadDB and DreadDB.zoom), tostring(DreadDB and DreadDB.scale), tostring(DreadDB and DreadDB.fx), (DreadDB and DreadDB.shots == false) and "off" or "on")
+    local text = ns.Capture.report(s, { level = w and w.player.level, gear = gear, settings = settings, log = lines })
+    if ns.Log then ns.Log.copy(text) else print(text) end
+  elseif arg:match("^shots") then
+    say("automatic screenshots: " .. (ns.Game.set_shots(arg:match("^shots%s+(%a+)")) and "on" or "off"))
   elseif arg == "visuals" then ns.Visuals.run()
   elseif arg:match("^spells") then ns.Spells.show(tonumber(arg:match("^spells%s*(%d*)")) or 1)
   elseif arg == "play" then ns.Game.toggle()
@@ -225,5 +244,5 @@ SlashCmdList.DREAD = function(arg)
   elseif arg == "stopmusic" then StopMusic()
   elseif arg == "results" then
     for k, v in pairs(DreadDB.results) do say(k .. ": " .. v) end
-  else say("/dread | /dread assets | /dread sound | /dread anim on|off | /dread map | /dread zoom 1.4 | /dread fx off|low|full | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread gear | /dread spells [page] | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
+  else say("/dread | /dread assets | /dread sound | /dread anim on|off | /dread map | /dread zoom 1.4 | /dread fx off|low|full | /dread log | /dread play | /dread net | /dread version | /dread solid | /dread tile 256 | /dread cam tree 2.2 | /dread animtest | /dread facing 0 | /dread scale 1.6 | /dread skills | /dread report | /dread shots on|off | /dread gear | /dread spells [page] | /dread visuals | /dread reset | /dread stop | /dread stopmusic | /dread results") end
 end
