@@ -550,23 +550,102 @@ def test_a_bolt_still_flies_past_the_click_point(env):
 
 
 # ---------------------------------------------------------------- ranged monsters (quill rats)
-def test_a_ranged_monster_stops_at_range_and_hurts_you_from_there(env):
+def rng_monster(env, w, dx=150, **ranged):
     lua, ns = env
-    w = world(env)
     p = w.player
     p.x, p.y = 300, 300
-    m = monster(env, w, 300 + 150, 300, life=100, speed=60, dmg=lua.table_from({1: 4, 2: 4}), ranged=lua.table_from({"range": 210, "cd": 1.7}))
+    r = {"range": 210, "cd": 1.7, "wind": 0.5, "speed": 250}
+    r.update(ranged)
+    m = monster(env, w, 300 + dx, 300, life=100, speed=60, dmg=lua.table_from({1: 4, 2: 4}), ranged=lua.table_from(r))
     m.awake = True
-    life = p.life
+    return m
+
+
+def test_a_ranged_monster_winds_up_in_view_then_throws_something_that_travels(env):
+    lua, ns = env
+    w = world(env)
+    m = rng_monster(env, w)
+    p, life, x0 = w.player, w.player.life, None
     x0 = m.x
     run(ns, w, 0.1)
-    assert m.x == x0 and p.life == life - 4                         # in range already: it did not walk closer, it threw
-    ev = [(e.k, e.id) for e in ns.Combat.drain(w).values()]
-    assert ("zap", "wand") in ev and ("bite", None) not in ev       # drawn as a thrown spine, not a bite
-    run(ns, w, 1.0)
-    assert p.life == life - 4                                       # the cooldown (1.7 s) has not run out yet
-    run(ns, w, 1.0)
-    assert p.life == life - 8
+    ev = [e.k for e in ns.Combat.drain(w).values()]
+    assert "windup" in ev and m.x == x0 and len(list(w.mproj.values())) == 0 and p.life == life     # it stands still and nothing has left it yet
+    run(ns, w, 0.45)                                                                                  # 0.55 s: the wind-up (0.5) is over
+    assert len(list(w.mproj.values())) == 1 and p.life == life                                         # thrown, in the air, has not landed
+    ev = [e.k for e in ns.Combat.drain(w).values()]
+    assert "mshot" in ev
+    q = w.mproj[1]
+    x_a = q.x
+    run(ns, w, 0.1)
+    assert (x_a - w.mproj[1].x) == pytest.approx(25, abs=1.5)                                          # 250 units a second, towards you
+    run(ns, w, 0.6)
+    assert p.life == life - 4 and len(list(w.mproj.values())) == 0                                     # it landed after about 0.6 s of flight
+    assert "mhit" in [e.k for e in ns.Combat.drain(w).values()]
+
+
+def test_you_can_step_out_of_the_way_of_a_thrown_spine(env):
+    lua, ns = env
+    w = world(env)
+    m = rng_monster(env, w)
+    p, life = w.player, w.player.life
+    run(ns, w, 0.55)                                                                                  # it has just been thrown
+    assert len(list(w.mproj.values())) == 1
+    ns.Combat.move_to(w, p.x, p.y + 400)                                                              # sidestep: up, at right angles to it
+    run(ns, w, 0.75)
+    assert p.life == life                                                                             # it flew on past where you were
+    run(ns, w, 0.7)
+    assert p.life == life and len(list(w.mproj.values())) == 0                                         # and ran out of range without ever hurting you
+
+
+def test_a_tree_between_you_and_the_thrower_stops_the_spine(env):
+    lua, ns = env
+    w = world(env)
+    m = rng_monster(env, w)
+    w.obstacles[1] = lua.table_from({"x": 375, "y": 300, "r": 20})
+    p, life = w.player, w.player.life
+    run(ns, w, 1.5)
+    assert p.life == life and len(list(w.mproj.values())) == 0                                         # cover works
+
+
+def test_a_throw_is_cancelled_if_you_leave_its_range_or_it_is_frozen(env):
+    lua, ns = env
+    w = world(env)
+    m = rng_monster(env, w)
+    run(ns, w, 0.2)
+    assert m.windup is not None
+    w.player.x = 300 - 200                                                                           # now 350 away, past its 210
+    run(ns, w, 0.1)
+    assert m.windup is None and len(list(w.mproj.values())) == 0
+    w2 = world(env)
+    m2 = rng_monster(env, w2)
+    run(ns, w2, 0.2)
+    m2.freeze = 1
+    run(ns, w2, 0.1)
+    assert m2.windup is None
+
+
+def test_it_throws_again_only_when_its_cooldown_is_up(env):
+    lua, ns = env
+    w = world(env)
+    m = rng_monster(env, w, cd=3.0)
+    p, life = w.player, w.player.life
+    ns.Combat.move_to(w, p.x, p.y)
+    run(ns, w, 1.3)                                                                                   # first throw landed
+    assert p.life == life - 4
+    run(ns, w, 1.9)                                                                                   # 3.2 s in: thrown at 0.5, so a 3.0 cooldown is not up until 3.5
+    assert p.life == life - 4 and m.windup is None and len(list(w.mproj.values())) == 0
+    run(ns, w, 0.4)                                                                                   # 3.6 s: it has started the next one
+    assert m.windup is not None
+
+
+def test_a_new_area_has_nothing_in_the_air_from_the_last_one(env):
+    lua, ns = env
+    w = world(env)
+    rng_monster(env, w)
+    run(ns, w, 0.6)
+    assert len(list(w.mproj.values())) == 1
+    ns.Combat.enter(w, lua.table_from({"name": "x", "w": 500, "h": 500, "spawn": lua.table_from({"x": 10, "y": 10}), "monsters": lua.table_from([])}))
+    assert len(list(w.mproj.values())) == 0
 
 
 def test_a_ranged_monster_walks_up_until_it_is_in_range_then_stops(env):

@@ -1937,3 +1937,42 @@ def test_new_game_still_goes_back_to_the_moor():
     teleport(ns, lua, w, ex.x, ex.y, ticks=3)
     ns.Game.reset()
     assert ns.Game.area().name == "moor" and ns.Game.world().player.level == 1
+
+
+# ---------------------------------------------------------------- the throw is drawn
+def mp_textures(lua):
+    return [o for o in lua.eval("ALL").values() if o.texture == "Interface\\Icons\\Spell_Shadow_ShadowBolt" and o.shown]
+
+
+def test_a_thrown_bolt_is_drawn_where_it_is_and_bigger_and_purple_for_a_boss():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.mproj[1] = lua.table_from({"x": w.player.x + 150, "y": w.player.y, "vx": 0, "vy": 0, "dmg": 1, "left": 999, "boss": False})
+    w.mproj[2] = lua.table_from({"x": w.player.x - 100, "y": w.player.y + 60, "vx": 0, "vy": 0, "dmg": 1, "left": 999, "boss": True})
+    tick(lua, 1)
+    shown = mp_textures(lua)
+    assert len(shown) == 2
+    cam = ns.Game.camera()
+    by_size = sorted(shown, key=lambda o: o.size[1])
+    small, big = by_size
+    assert small.size[1] == 22 and big.size[1] == 40
+    assert small.pts.x == pytest.approx(w.player.x + 150 - cam.x) and small.pts.y == pytest.approx(w.player.y - cam.y)
+    assert tuple(round(v, 2) for v in big.color.values()) == (0.75, 0.35, 1)                  # the boss's is purple
+    w.mproj = lua.table()
+    tick(lua, 1)
+    assert mp_textures(lua) == []                                                           # gone when it lands
+
+
+def test_a_monster_winding_up_plays_its_attack_animation():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -150, 0)
+    m.speed = 0
+    m.awake = True
+    m.windup = 0.5
+    tick(lua, 2)
+    f = [o for o in lua.eval("ALL").values() if o.owner is not None and lua.eval("rawequal")(o.owner, m)][0]
+    assert f.last_anim == ns.Game.ANIM.ATTACK

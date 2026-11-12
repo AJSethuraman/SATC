@@ -177,7 +177,7 @@ def test_quill_rats_carry_their_range_and_the_rest_do_not(env):
     for a in ("moor", "cave"):
         for m in items(ns.Zone.get(a).monsters):
             if m.name == "Quill Rat":
-                assert m.ranged.range == 210 and m.ranged.cd == pytest.approx(1.7)
+                assert m.ranged.range == 210 and m.ranged.cd == pytest.approx(1.9) and m.ranged.wind == pytest.approx(0.45) and m.ranged.speed == 250
             else:
                 assert m.ranged is None
 
@@ -218,7 +218,8 @@ def test_the_second_boss_is_a_ranged_caster_who_is_resistant_to_cold_and_pays_a_
     bosses = [m for m in items(b.monsters) if m.boss]
     assert len(bosses) == 1 and bosses[0].name == "The Marrowmother" == b.quest.boss
     boss = bosses[0]
-    assert boss.ranged.range == 300 and boss.resist.cold == 75 and boss.scale == 1.6
+    assert boss.ranged.range == 300 and boss.ranged.cd == pytest.approx(1.8) and boss.ranged.wind == pytest.approx(0.8) and boss.ranged.speed == 220
+    assert boss.resist.cold == 75 and boss.scale == 1.6
     assert b.quest.id == "burial" and b.quest.reward_points == 1
     guards = [m for m in items(b.monsters) if m.pack == boss.pack and not m.boss]
     assert len(guards) == 3                                                     # she does not come alone

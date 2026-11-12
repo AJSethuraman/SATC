@@ -94,6 +94,10 @@ function Fx.on_event(fx, e, world)
       local k = i / 4
       Fx.spark(fx, e.x1 + (e.x2 - e.x1) * k, e.y1 + (e.y2 - e.y1) * k, rnd(fx, -30, 30), rnd(fx, -30, 30), c, 0.25, 7, 1, 1, 0)
     end
+  elseif e.k == "mhit" then
+    Fx.burst(fx, e.x, e.y, e.boss and { 0.7, 0.3, 1 } or { 0.95, 0.8, 0.5 }, e.boss and 14 or 8, 90, 0.35, 8, 1)
+  elseif e.k == "mshot" then
+    Fx.burst(fx, e.x, e.y, e.boss and { 0.7, 0.3, 1 } or { 0.95, 0.8, 0.5 }, e.boss and 10 or 5, 60, 0.25, 7, 1)
   elseif e.k == "pickup" then
     Fx.burst(fx, e.x, e.y, e.kind == "mana" and { 0.3, 0.5, 1 } or { 1, 0.3, 0.3 }, 8, 60, 0.4, 6, 1)
   end
@@ -185,6 +189,19 @@ function Fx.update(fx, world, dt)
     for _, pr in ipairs(world.projectiles) do emit_projectile(fx, pr, dt) end
     for _, e in ipairs(world.effects) do emit_effect(fx, e, world, dt) end
     emit_buffs(fx, world, dt)
+    for _, q in ipairs(world.mproj or {}) do                            -- a trail behind each thing monsters throw
+      local c = q.boss and { 0.7, 0.3, 1 } or { 0.95, 0.8, 0.5 }
+      Fx.spark(fx, q.x, q.y, rnd(fx, -15, 15), rnd(fx, -15, 15), c, 0.3, q.boss and 9 or 5, 1, 0.8, 0)
+    end
+    for _, m in ipairs(world.monsters) do                                -- a monster about to throw gathers light around it, so you see it coming
+      if m.windup and not m.dead then
+        local c = m.boss and { 0.7, 0.3, 1 } or { 0.95, 0.8, 0.5 }
+        local n = m.boss and 3 or 1
+        for _ = 1, n do
+          Fx.spark(fx, m.x + rnd(fx, -22, 22), m.y + rnd(fx, 0, 30), 0, rnd(fx, 40, 90), c, 0.45, m.boss and 10 or 6, 1, 0.9, 0)
+        end
+      end
+    end
   end
   local keep = {}
   for _, q in ipairs(fx.list) do

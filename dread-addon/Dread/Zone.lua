@@ -21,7 +21,7 @@ Zone.BESTIARY = {
   -- model: a fileDataID (community listfile) drawn with SetModel. Undead and vermin, in the spirit of a first-act moor.
   zombie  = { name = "Rotting Dead",  model = 126570, life = 54, speed = 36, dmg = { 4, 9 }, xp = 14, resist = { cold = 25 } },     -- slow and tough
   ghoul   = { name = "Hungry Ghoul",  model = 124160, life = 18, speed = 82, dmg = { 2, 4 }, xp = 8 },                             -- quick, comes in numbers
-  quillrat = { name = "Quill Rat",    model = 125576, life = 14, speed = 62, dmg = { 2, 4 }, xp = 9, ranged = { range = 210, cd = 1.7 } },   -- throws spines from a distance
+  quillrat = { name = "Quill Rat",    model = 125576, life = 14, speed = 62, dmg = { 2, 4 }, xp = 9, ranged = { range = 210, cd = 1.9, wind = 0.45, speed = 250 } },   -- throws spines from a distance: wind-up, then a spine you can sidestep
   bonewalker = { name = "Bone Walker", model = 125942, life = 32, speed = 58, dmg = { 3, 7 }, xp = 13, resist = { cold = 60, fire = -25 } }, -- cold shrugs off, fire does not
   carrion = { name = "Carrion Bird",  model = 123137, life = 15, speed = 96, dmg = { 2, 4 }, xp = 10 },                            -- fast flyer
 }
@@ -102,7 +102,7 @@ local function add_pack(rand, area, pack_id, cx, cy, kinds, aggro, extra)
     local t = Zone.BESTIARY[key]
     local a = (i / #kinds) * 2 * math.pi + rand()
     local m = {
-      x = cx + math.cos(a) * 36, y = cy + math.sin(a) * 36, name = t.name, cid = t.cid, model = t.model, ranged = t.ranged and { range = t.ranged.range, cd = t.ranged.cd } or nil, life = t.life, speed = t.speed,
+      x = cx + math.cos(a) * 36, y = cy + math.sin(a) * 36, name = t.name, cid = t.cid, model = t.model, ranged = t.ranged and { range = t.ranged.range, cd = t.ranged.cd, wind = t.ranged.wind, speed = t.ranged.speed } or nil, life = t.life, speed = t.speed,
       dmg = { t.dmg[1], t.dmg[2] }, xp = t.xp, radius = 14, pack = pack_id, aggro = aggro or 190,
       resist = { fire = (t.resist and t.resist.fire) or 0, cold = (t.resist and t.resist.cold) or 0,
                  lightning = (t.resist and t.resist.lightning) or 0, physical = (t.resist and t.resist.physical) or 0 },
@@ -213,7 +213,7 @@ local function build_burial()
   add_pack(rand, area, 6, 1780, 700, { "bonewalker", "bonewalker", "bonewalker" }, 300)
   area.monsters[#area.monsters + 1] = {
     x = 1800, y = 700, name = "The Marrowmother", model = 125947, life = 150, speed = 50, dmg = { 5, 9 }, xp = 260,
-    radius = 20, scale = 1.6, pack = 6, aggro = 300, boss = true, ranged = { range = 300, cd = 1.3 },
+    radius = 20, scale = 1.6, pack = 6, aggro = 300, boss = true, ranged = { range = 300, cd = 1.8, wind = 0.8, speed = 220 },
     resist = { fire = 0, cold = 75, lightning = 0, physical = 0 },
   }
   area.quest = Zone.QUESTS.burial

@@ -271,3 +271,50 @@ def test_dragons_breath_throws_hot_flame_particles_that_grow(env):
     assert len(ps) > 30                                       # a stream, not a few dots
     assert all(p.r == 1 and p.g >= 0.35 for p in ps)          # red-orange to yellow, never the old flat colour
     assert all(p.s1 > p.s0 for p in ps)                       # each puff swells as it flies
+
+
+# ---------------------------------------------------------------- what monsters throw can be seen
+def thrower(env, w, boss=False):
+    lua, ns = env
+    p = w.player
+    p.x, p.y = 300, 300
+    m = ns.Combat.add_monster(w, lua.table_from({"x": 450, "y": 300, "life": 100, "speed": 0, "dmg": lua.table_from({1: 4, 2: 4}),
+                                                 "boss": boss, "ranged": lua.table_from({"range": 210, "cd": 5, "wind": 0.6, "speed": 200})}))
+    m.awake = True
+    return m
+
+
+def test_a_monster_winding_up_throws_light_around_itself_so_you_see_it_coming(env):
+    lua, ns = env
+    w = world(env)
+    m = thrower(env, w)
+    fx = ns.Fx.new()
+    run_fx(ns, fx, w, 0.3)
+    near = [p for p in plist(fx) if abs(p.x - m.x) < 40 and p.y > m.y - 5]
+    assert len(near) >= 5 and all(p.vy > 0 for p in near)                           # rising sparks around the monster
+    quiet = ns.Fx.new()
+    w2 = world(env)
+    run_fx(ns, quiet, w2, 0.3)
+    assert len(plist(quiet)) == 0                                                    # and nothing without a wind-up
+
+
+def test_the_boss_gathers_more_light_than_a_rat_and_in_purple(env):
+    lua, ns = env
+    wr, wb = world(env), world(env)
+    rat, boss = thrower(env, wr), thrower(env, wb, boss=True)
+    fr, fb = ns.Fx.new(), ns.Fx.new()
+    run_fx(ns, fr, wr, 0.3)
+    run_fx(ns, fb, wb, 0.3)
+    assert len(plist(fb)) > len(plist(fr)) and all(p.b > p.g for p in plist(fb))   # purple: more blue than green
+
+
+def test_a_thrown_spine_leaves_a_trail_that_follows_it(env):
+    lua, ns = env
+    w = world(env)
+    thrower(env, w)
+    fx = ns.Fx.new()
+    run_fx(ns, fx, w, 0.75)                                                          # thrown at 0.6 s
+    assert len(list(w.mproj.values())) == 1
+    q = w.mproj[1]
+    behind = [p for p in plist(fx) if p.x > q.x + 3 and abs(p.y - q.y) < 40 and p.max == pytest.approx(0.3)]
+    assert behind                                                                     # sparks lie along the path it has flown

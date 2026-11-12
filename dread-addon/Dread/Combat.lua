@@ -57,6 +57,7 @@ function Combat.wand_damage(level) return 2 + level, 4 + 2 * level end
 Combat.MANA_REGEN = 0.04          -- fraction of max mana per second, before Evocation
 Combat.DROP_CHANCE, Combat.DROP_RESTORE, Combat.PICKUP_RADIUS, Combat.DROP_LIFETIME = 0.18, 0.35, 26, 25
 Combat.PLAYER_RADIUS = 10
+Combat.MPROJ_RADIUS = 9                 -- how wide a thrown spine or bolt is
 Combat.CORE = 10                  -- an exploding spell touches with a small core, then the blast spreads
 Combat.PLAYER_SPEED = 140
 Combat.CHILL_SECONDS, Combat.FREEZE_SECONDS = 3, 2
@@ -172,7 +173,7 @@ function Combat.new(opts)
     rng = Sim.rng(opts.seed or 1),
     player = { x = 300, y = 40, tx = nil, ty = nil, level = 1, xp = 0, st = st,
                maxlife = 60, life = 60, maxmana = 33, mana = 33, wand_cd = 0, cast_at = -10, buffs = {}, gear = {}, bag = {} },
-    monsters = {}, projectiles = {}, events = {}, drops = {}, obstacles = {}, flags = {}, effects = {},
+    monsters = {}, projectiles = {}, mproj = {}, events = {}, drops = {}, obstacles = {}, flags = {}, effects = {},
   }
   return w
 end
@@ -607,6 +608,29 @@ local function step_buffs(w, dt)
   end
 end
 
+-- What monsters throw: it flies straight at where you were when it left, and only hurts if it is still there on arrival.
+local function step_mproj(w, dt)
+  local p, keep = w.player, {}
+  for _, q in ipairs(w.mproj) do
+    local dx, dy = q.vx * dt, q.vy * dt
+    q.x, q.y = q.x + dx, q.y + dy
+    q.left = q.left - math.sqrt(dx * dx + dy * dy)
+    local gone = q.left <= 0
+    if not gone then
+      for _, o in ipairs(w.obstacles) do                              -- a tree or a rock stops it: cover
+        if dist(q.x, q.y, o.x, o.y) <= o.r then gone = true break end
+      end
+    end
+    if not gone and dist(q.x, q.y, p.x, p.y) <= Combat.MPROJ_RADIUS + Combat.PLAYER_RADIUS then
+      hurt(w, q.dmg, q.from)
+      push(nil, w, { k = "mhit", x = q.x, y = q.y, boss = q.boss })
+      gone = true
+    end
+    if not gone then keep[#keep + 1] = q end
+  end
+  w.mproj = keep
+end
+
 local function step_drops(w, dt)
   local p, keep = w.player, {}
   for _, d in ipairs(w.drops) do
@@ -655,6 +679,7 @@ function Combat.step(w, dt)
   step_effects(w, dt)
   step_buffs(w, dt)
   step_drops(w, dt)
+  step_mproj(w, dt)
   -- monsters
   for _, m in ipairs(w.monsters) do
     if not m.dead then
@@ -663,13 +688,23 @@ function Combat.step(w, dt)
       if m.freeze > 0 then m.freeze = m.freeze - dt end
       m.cd = math.max(0, m.cd - dt)
       m.moving = false
+      if m.windup and (not m.awake or m.freeze > 0 or (m.ranged and dist(m.x, m.y, p.x, p.y) > m.ranged.range)) then m.windup = nil end      -- frozen or out of range: the throw is cancelled
       if m.awake and m.freeze <= 0 then
         local d = dist(m.x, m.y, p.x, p.y)
-        if m.ranged and d <= m.ranged.range and d > Combat.MONSTER_REACH then       -- a quill rat stops and throws from where it stands
-          if m.cd <= 0 then
-            hurt(w, roll(w, m.dmg[1], m.dmg[2]), m)
-            m.cd, m.bite_at = m.ranged.cd, w.time
-            push(nil, w, { k = "zap", id = "wand", x1 = m.x, y1 = m.y + 10, x2 = p.x, y2 = p.y + 10 })
+        if m.ranged and d <= m.ranged.range and d > Combat.MONSTER_REACH then       -- a ranged monster stops, winds up where everyone can see it, then throws something you can step out of the way of
+          if m.windup then
+            m.windup = m.windup - dt
+            if m.windup <= 0 then
+              m.windup = nil
+              local k = (m.ranged.speed or 260) / math.max(d, 1)
+              w.mproj[#w.mproj + 1] = { x = m.x, y = m.y + 10, vx = (p.x - m.x) * k, vy = (p.y + 0 - m.y - 10) * k, dmg = roll(w, m.dmg[1], m.dmg[2]),
+                                        left = m.ranged.range + 120, boss = m.boss and true or false, from = m }
+              m.cd, m.bite_at = m.ranged.cd, w.time
+              push(nil, w, { k = "mshot", x = m.x, y = m.y, boss = m.boss and true or false })
+            end
+          elseif m.cd <= 0 then
+            m.windup = m.ranged.wind or 0.4
+            push(nil, w, { k = "windup", x = m.x, y = m.y, boss = m.boss and true or false, t = m.windup })
           end
         elseif d > Combat.MONSTER_REACH then
           local sp = m.speed * ((m.chill > 0) and (1 - (m.chill_pct or 0) / 100) or 1) * dt
@@ -695,7 +730,7 @@ end
 function Combat.enter(w, area)
   local function copy(t) local c = {} for k, v in pairs(t) do c[k] = (type(v) == "table") and copy(v) or v end return c end
   w.area, w.w, w.h = area.name, area.w, area.h
-  w.obstacles, w.projectiles, w.drops, w.monsters, w.effects = area.obstacles or {}, {}, {}, {}, {}
+  w.obstacles, w.projectiles, w.drops, w.monsters, w.effects, w.mproj = area.obstacles or {}, {}, {}, {}, {}, {}
   local p = w.player
   p.x, p.y, p.tx, p.ty = area.spawn.x, area.spawn.y, nil, nil
   for _, t in ipairs(area.monsters or {}) do

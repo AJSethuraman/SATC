@@ -469,6 +469,11 @@ local function build_arena()
     f.icon = tex(f, "OVERLAY"); f.icon:SetSize(26, 26); f.icon:SetPoint("CENTER"); f.icon:SetBlendMode("ADD")
     proj_f[i] = f
   end
+  Game._mp = {}                                                    -- what monsters throw: a glowing bolt each, drawn where the rules say it is
+  for i = 1, 12 do
+    local t = tex(arena, "OVERLAY"); t:SetTexture("Interface\\Icons\\Spell_Shadow_ShadowBolt"); t:SetBlendMode("ADD"); t:Hide()
+    Game._mp[i] = t
+  end
   for i = 1, MAX_BLAST do
     local f = CreateFrame("PlayerModel", nil, arena); f:SetSize(150, 150); f:Hide()
     f.icon = tex(f, "OVERLAY"); f.icon:SetPoint("CENTER"); f.icon:SetBlendMode("ADD")
@@ -996,7 +1001,7 @@ local function draw_actors(p)
       f.bar:SetWidth(math.max(1, 40 * math.max(0, m.life) / m.maxlife))
       f.bar:SetShown(not m.dead)
       if m.dead then set_anim(f, Game.ANIM.DEATH)
-      elseif m.bite_at and world.time - m.bite_at < 0.45 then set_anim(f, Game.ANIM.ATTACK)
+      elseif m.windup or (m.bite_at and world.time - m.bite_at < 0.45) then set_anim(f, Game.ANIM.ATTACK)           -- the wind-up shows: it is about to throw
       elseif m.moving then set_anim(f, Game.ANIM.WALK)
       else set_anim(f, Game.ANIM.STAND) end
       if not m.dead and m.awake then face(f, p.x - m.x, p.y - m.y) end
@@ -1042,6 +1047,18 @@ local function draw_world_and_events(dt, p)
       f:Show()
     else
       f.pid = nil; f:Hide()
+    end
+  end
+  for i = 1, 12 do
+    local q, t = world.mproj[i], Game._mp[i]
+    if q then
+      local size = q.boss and 40 or 22
+      if q.boss then t:SetVertexColor(0.75, 0.35, 1) else t:SetVertexColor(1, 0.85, 0.5) end
+      t:SetSize(size, size); t:ClearAllPoints(); t:SetPoint("CENTER", arena, "BOTTOMLEFT", q.x - cam.x, q.y - cam.y)
+      try(t.SetRotation, t, world.time * 8)
+      t:Show()
+    else
+      t:Hide()
     end
   end
   for _, e in ipairs(Combat.drain(world)) do
