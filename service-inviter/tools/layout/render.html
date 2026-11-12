@@ -7,7 +7,7 @@
   .fs.wrap { white-space: normal; }
   .fs.cut { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .btn { background: linear-gradient(#8b1a12, #5a0e09); border: 1px solid #c9a24a; border-radius: 3px; color: #ffd100;
-         font-size: 12px; display: flex; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; }
+         font-size: 12px; display: flex; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; white-space: nowrap; overflow: hidden; }
   .close { background: #5a0e09; border: 1px solid #c9a24a; border-radius: 50%; color: #ffd100; display: flex; align-items: center; justify-content: center; font-weight: bold; }
   .chk { border: 2px solid #a8a8a8; background: #111; border-radius: 3px; margin: 3px; width: 20px !important; height: 20px !important; }
   .chk.off { opacity: .4; }
@@ -94,6 +94,11 @@ function render(scene, highlights) {
   for (const [id, r] of Object.entries(rects)) {
     const e = els[id]; if (!e || e.it.kind !== "FontString" || !e.it.w || e.it.nowrap) continue;
     if (e.d.scrollWidth > e.d.clientWidth + 1) overlaps.push(["FontString:" + e.it.text.slice(0, 40), "(runs past its own box)"]);
+  }
+  // button text wider than the button
+  for (const [id, r] of Object.entries(rects)) {
+    const e = els[id]; if (!e || e.it.kind !== "Button" || !e.it.text) continue;
+    if (e.d.scrollWidth > e.d.clientWidth + 1) overlaps.push(["Button:" + e.it.text.slice(0, 40), "(text wider than the button)"]);
   }
   return { overlaps, rects };
 }

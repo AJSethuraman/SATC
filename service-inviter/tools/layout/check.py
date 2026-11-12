@@ -68,6 +68,12 @@ for i, name in enumerate(["General", "Warlock", "Mage", "Rogue", "Buffs", "Adver
     L.execute(f"SETUP.ShowTab({i}) SETUP.Refresh()")
     scenes[f"setup_{name}"] = export(L, win, win.pages[i])
 
+for name, before in [("picker_alone", ""), ("picker_in_a_group", GROUP)]:
+    L = load(before)
+    L.execute("""S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(2)
+        ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().svc_summons_payee, true, "Who gets paid for summons?")""")
+    scenes[name] = export(L, L.globals().ServiceInviterPicker)
+
 BUSY = '''local J = ServiceInviter_Test.Jobs
   J.New("Aldric","x","t","Trade") J.New("Brenna","x","t","Trade") J.Joined("Brenna")
   J.New("Corvin","x","t","Trade") J.Joined("Corvin") J.Set("Corvin","summoned")
