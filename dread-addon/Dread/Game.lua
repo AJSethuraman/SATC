@@ -74,7 +74,7 @@ local bar, sel = {}, 1
 local target, hover_id
 local toast_t = 0
 local frame, arena, hud, tree_frame, handle
-local ground, ground2, ground3
+local ground, ground2, ground3, edge
 local mon_f, doodad_f, proj_f, blast_f, float_f, drop_f = {}, {}, {}, {}, {}, {}
 local doodad_slot = {}                -- scenery piece -> its frame, so models are not reassigned as you walk
 local player_model
@@ -439,6 +439,12 @@ local function build_arena()
   ground3 = arena:CreateTexture(nil, "BACKGROUND", nil, 2)         -- a third, huge layer of a different ground: patches of variety instead of one repeating look
   ground3:SetAllPoints(arena)
   ground3:SetHorizTile(true); ground3:SetVertTile(true)
+  edge = {}                                                        -- beyond the map: near-black void, with a lighter wall right at the boundary so the edge reads as an edge
+  for i = 1, 4 do
+    local v = arena:CreateTexture(nil, "BACKGROUND", nil, 3); v:SetColorTexture(0.01, 0.01, 0.02, 1); v:Hide()
+    local wl = arena:CreateTexture(nil, "BACKGROUND", nil, 4); wl:SetColorTexture(0.42, 0.34, 0.22, 1); wl:Hide()
+    edge[i] = { void = v, wall = wl }
+  end
 
   doodad_f = model_pool(arena, MAX_DOODAD, 140, 170)
   mon_f = model_pool(arena, MAX_MON, 64, 80)
@@ -836,6 +842,36 @@ local function next_target(p)
   return best
 end
 
+-- Draw the void and the boundary wall for whatever part of the view lies outside the map. Sides: 1 left, 2 right, 3 below, 4 above.
+local WALL = 10
+function Game.draw_edges(cx, cy)
+  local rects = {                                                  -- x, y, w, h in view units, from the arena's bottom-left
+    { 0, 0, math.max(0, -cx), vh },                                  -- left of x = 0
+    { area.w - cx, 0, math.max(0, vw - (area.w - cx)), vh },        -- right of x = area.w
+    { 0, 0, vw, math.max(0, -cy) },                                  -- below y = 0
+    { 0, area.h - cy, vw, math.max(0, vh - (area.h - cy)) },        -- above y = area.h
+  }
+  local walls = {
+    { -cx - WALL, 0, WALL, vh }, { area.w - cx, 0, WALL, vh }, { 0, -cy - WALL, vw, WALL }, { 0, area.h - cy, vw, WALL },
+  }
+  Game._edges = {}
+  for i = 1, 4 do
+    local r, wl, e = rects[i], walls[i], edge[i]
+    if r[3] > 0 and r[4] > 0 then
+      e.void:ClearAllPoints(); e.void:SetPoint("BOTTOMLEFT", arena, "BOTTOMLEFT", r[1], r[2]); e.void:SetSize(r[3], r[4]); e.void:Show()
+    else
+      e.void:Hide()
+    end
+    local inside = (i == 1 and cx < 0) or (i == 2 and cx + vw > area.w) or (i == 3 and cy < 0) or (i == 4 and cy + vh > area.h)
+    if inside then
+      e.wall:ClearAllPoints(); e.wall:SetPoint("BOTTOMLEFT", arena, "BOTTOMLEFT", wl[1], wl[2]); e.wall:SetSize(wl[3], wl[4]); e.wall:Show()
+    else
+      e.wall:Hide()
+    end
+    Game._edges[i] = { void = e.void:IsShown(), x = r[1], y = r[2], w = r[3], h = r[4] }
+  end
+end
+
 local function advance(dt, p)
   -- walk up to a clicked monster and keep using the wand on it
   if target and not world.over and not Game.paused then
@@ -870,6 +906,7 @@ local function advance(dt, p)
   ground2:SetTexCoord(cam.x / T2, (cam.x + vw) / T2, -(cam.y + vh) / T2, -cam.y / T2)
   local T3 = fl.patch_tile
   ground3:SetTexCoord(cam.x / T3, (cam.x + vw) / T3, -(cam.y + vh) / T3, -cam.y / T3)
+  Game.draw_edges(cam.x, cam.y)
   draw_scenery()
   do                                                              -- the blocking circles, when asked for
     local n = 0
@@ -1049,10 +1086,12 @@ local function draw_world_and_events(dt, p)
     elseif e.k == "kill" or e.k == "pickup" then
       save()
     elseif e.k == "boss_dead" then
-      if not world.flags.den then
-        world.flags.den = true
-        world.player.st.quest_points = world.player.st.quest_points + 1
-        toast_text:SetTextColor(1, 1, 1); toast_text:SetText("Quest complete!  +1 skill point.  Press K."); toast_t = 6
+      local q = Zone.quest_by_boss(e.name)
+      if q and not world.flags[q.id] then
+        world.flags[q.id] = true
+        world.player.st.quest_points = world.player.st.quest_points + q.reward_points
+        toast_text:SetTextColor(1, 0.85, 0.3); toast_text:SetText("Quest complete: " .. q.title .. ".  +" .. q.reward_points .. " skill point.  Press K."); toast_t = 6
+        say("Quest complete: " .. q.title .. " (+" .. q.reward_points .. " skill point)")
         save()
       end
     end
@@ -1109,7 +1148,7 @@ local function update_hud(dt, p)
   mana_orb.set(p.mana / p.maxmana, math.floor(p.mana) .. "/" .. p.maxmana)
   xp_bar:SetWidth(math.max(1, (SLOTS * 42 - 2) * p.xp / Combat.xp_for_next(p.level)))
   info_text:SetText(string.format("Level %d    Skill points %d    %d FPS", p.level, Tree.points_free(p.st), math.floor(GetFramerate())))
-  zone_text:SetText(area.title .. (area.quest and (world.flags.den and "   Quest done" or ("   " .. area.quest.title)) or ""))
+  zone_text:SetText(area.title .. (area.quest and (world.flags[area.quest.id] and "   Quest done" or ("   " .. area.quest.title)) or ""))
   for i = 1, SLOTS do
     local b, id = slots[i], bar[i]
     if id then b.icon:SetTexture(icon_path(id)); b.icon:SetAlpha(1) else b.icon:SetTexture(nil) end

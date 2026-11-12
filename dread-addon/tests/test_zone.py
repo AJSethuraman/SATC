@@ -59,7 +59,7 @@ def test_the_moor_has_enough_packs_and_the_camp_is_safe(env):
 
 def test_every_pack_is_a_pack_and_everything_is_in_bounds(env):
     lua, ns = env
-    for name in ("moor", "cave"):
+    for name in ALL_AREAS:
         area = ns.Zone.get(name)
         by_pack = {}
         for m in items(area.monsters):
@@ -74,11 +74,14 @@ def test_every_pack_is_a_pack_and_everything_is_in_bounds(env):
 
 def test_no_monster_starts_inside_a_tree_or_rock(env):
     lua, ns = env
-    for name in ("moor", "cave"):
+    for name in ALL_AREAS:
         area = ns.Zone.get(name)
         for m in items(area.monsters):
             for o in items(area.obstacles):
                 assert dist(m, o) > o.r + m.radius * 0.6 - 0.1, f"{m.name} stands in an obstacle in {name}"
+
+
+ALL_AREAS = ("moor", "cave", "fields", "burial")
 
 
 def test_the_cave_has_exactly_one_boss_and_a_quest(env):
@@ -105,7 +108,7 @@ def test_the_exits_link_both_ways_and_land_somewhere_open(env):
 
 def test_scenery_ids_are_numbers_the_game_can_use(env):
     lua, ns = env
-    for kind in ("tree", "fallen", "bush", "grave", "rock"):
+    for kind in ("tree", "fallen", "bush", "grave", "rock", "pine", "icerock"):
         spec = ns.Zone.SCENERY[kind]
         assert all(isinstance(i, int) and i > 1000 for i in items(spec.ids))
     # only things that are meant to block (trunks, boulders) are obstacles
@@ -125,7 +128,7 @@ def test_a_built_area_loads_into_a_fight_and_the_boss_is_the_boss(env):
 
 def test_scenery_is_spaced_out_so_it_does_not_pile_up(env):
     lua, ns = env
-    for name in ("moor", "cave"):
+    for name in ALL_AREAS:
         d = items(ns.Zone.get(name).doodads)
         for i, a in enumerate(d):
             for b in d[i + 1:]:
@@ -147,7 +150,7 @@ def test_what_blocks_you_fits_inside_what_you_see(env):
 def test_the_camera_distance_shrinks_the_frame_back_to_the_footprint(env):
     # A model fills its frame at camera distance 1, so frame / cam is how big it looks. Frame = footprint x frame, so cam must equal frame.
     lua, ns = env
-    for kind in ("tree", "fallen", "bush", "grave", "rock"):
+    for kind in ("tree", "fallen", "bush", "grave", "rock", "pine", "icerock"):
         spec = ns.Zone.SCENERY[kind]
         assert spec.cam == spec.frame >= 1.5, f"{kind} would not look {spec.w} wide"
 
@@ -183,3 +186,78 @@ def test_every_monster_has_a_model_to_draw(env):
     lua, ns = env
     for a in ("moor", "cave"):
         assert all(isinstance(m.model, int) and m.model > 1000 for m in items(ns.Zone.get(a).monsters))
+
+
+# ---------------------------------------------------------------- four areas, a second boss
+def test_every_exit_leads_to_a_real_area_that_leads_back_and_nothing_overlaps_an_arrival(env):
+    lua, ns = env
+    for name in ALL_AREAS:
+        a = ns.Zone.get(name)
+        for ex in items(a.exits):
+            dest = ns.Zone.get(ex.to)
+            assert dest is not None, f"{name} exits to a missing area {ex.to}"
+            back = [e for e in items(dest.exits) if e.to == name]
+            assert back, f"{ex.to} has no way back to {name}"
+            land = ex.arrive or dest.spawn
+            assert 0 < land.x < dest.w and 0 < land.y < dest.h
+            assert all(dist(land, e) > e.r + 10 for e in items(dest.exits)), f"you would arrive on an exit in {ex.to}"
+            assert all(dist(o, land) > o.r + 10 for o in items(dest.obstacles)), f"you would arrive inside scenery in {ex.to}"
+
+
+def test_the_areas_are_a_line_each_a_step_harder_than_the_one_before_it(env):
+    lua, ns = env
+    tiers = [ns.Zone.get(n).tier for n in ("moor", "cave", "fields", "burial")]
+    assert tiers == [1, 1.2, 1.5, 1.8]
+    assert tiers == sorted(tiers)
+    assert ns.Zone.get("moor").exits[2].to == "fields" and ns.Zone.get("fields").exits[2].to == "burial"
+
+
+def test_the_second_boss_is_a_ranged_caster_who_is_resistant_to_cold_and_pays_a_point(env):
+    lua, ns = env
+    b = ns.Zone.get("burial")
+    bosses = [m for m in items(b.monsters) if m.boss]
+    assert len(bosses) == 1 and bosses[0].name == "The Marrowmother" == b.quest.boss
+    boss = bosses[0]
+    assert boss.ranged.range == 300 and boss.resist.cold == 75 and boss.life >= 400 and boss.scale == 1.6
+    assert b.quest.id == "burial" and b.quest.reward_points == 1
+    guards = [m for m in items(b.monsters) if m.pack == boss.pack and not m.boss]
+    assert len(guards) == 4                                                     # she does not come alone
+    assert not any(m.boss for m in items(ns.Zone.get("fields").monsters))     # the fields have no boss, only packs
+
+
+def test_each_quest_is_found_by_its_boss_and_there_are_two(env):
+    lua, ns = env
+    assert sorted(str(k) for k in ns.Zone.QUESTS.keys()) == ["burial", "den"]
+    assert ns.Zone.quest_by_boss("Rottenmaw the Unwelcome").id == "den"
+    assert ns.Zone.quest_by_boss("The Marrowmother").id == "burial"
+    assert ns.Zone.quest_by_boss("Moor Wolf") is None
+
+
+def test_the_new_areas_are_bigger_and_more_crowded_as_you_go_on(env):
+    lua, ns = env
+    n = {a: len(items(ns.Zone.get(a).monsters)) for a in ALL_AREAS}
+    assert n["fields"] > n["moor"] > 20 and n["burial"] > 15
+    assert ns.Zone.get("fields").w > ns.Zone.get("moor").w
+
+
+def test_the_cold_ground_and_the_graveyard_use_their_own_art_and_scenery(env):
+    lua, ns = env
+    for a in ("fields", "burial"):
+        f = ns.Zone.get(a).floor
+        assert all(isinstance(f[k], int) and f[k] > 1000 for k in ("base", "overlay", "patch"))
+    assert ns.Zone.get("fields").floor.base != ns.Zone.get("moor").floor.base
+    kinds = lambda a: [d.kind for d in items(ns.Zone.get(a).doodads)]
+    assert kinds("fields").count("pine") > 20 and kinds("burial").count("grave") > 30
+
+
+def test_tougher_tiers_give_more_life_more_bite_and_more_experience(env):
+    lua, ns = env
+    def entered(tier):
+        w = ns.Combat.new(lua.table_from({"seed": 1}))
+        area = lua.table_from({"name": "x", "w": 500, "h": 500, "tier": tier, "spawn": lua.table_from({"x": 10, "y": 10}),
+                               "monsters": lua.table_from([lua.table_from({"x": 400, "y": 400, "life": 100, "xp": 10, "dmg": lua.table_from([4, 8])})])})
+        ns.Combat.enter(w, area)
+        return w.monsters[1]
+    a, b = entered(1), entered(1.8)
+    assert b.life == pytest.approx(a.life * 1.8) and b.xp == pytest.approx(a.xp * 1.8)
+    assert b.dmg[1] == pytest.approx(a.dmg[1] * 1.4) and b.dmg[2] == pytest.approx(a.dmg[2] * 1.4)       # bite grows by half of the extra

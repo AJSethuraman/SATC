@@ -88,7 +88,7 @@ Kills drop gear about one time in eight; a boss always drops two rare pieces and
 
 Tiers: common (grey, one small bonus), magic (blue, 1-2), rare (gold, 3-4), unique (orange, 4-5 bigger bonuses and a name of its own). Finding one is announced quietly for common and magic (a short line, no window; the details are in the Dread log), louder for rare, and loudest for a unique, with the level-up chime.
 
-Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regeneration %, and four attributes: **Intelligence** (+2 mana, +0.5% spell damage each), **Vitality** (+3 life), **Strength** (+1% wand damage, nothing for spells) and **Dexterity** (+0.3% walking speed). Item level is your level when it dropped (a boss's drops are 2 higher). Monsters have 30% more life and bite 25% harder, so gear is what keeps you ahead.
+Bonuses: life, mana, spell damage %, fire/cold/lightning damage %, mana regeneration %, and four attributes: **Intelligence** (+2 mana, +0.5% spell damage each), **Vitality** (+3 life), **Strength** (+1% wand damage, nothing for spells) and **Dexterity** (+0.3% walking speed). Item level is your level when it dropped (a boss's drops are 2 higher). Monsters have twice the life and bite 60% harder than their base numbers, and each area further on is a step harder again (more life, more bite, more experience), so gear and potions matter.
 
 ## Casting without a click
 Skills that need no aim (Static Shock, Force Pull, the novas, the shields and armors, Combustion, Blazing Speed, Storm Cloud) cast the moment you press their number key. Aimed skills (bolts, Fireball, Blizzard, Meteor, Blink...) still select on the key and cast with right click, or shift-left-click.
@@ -97,3 +97,6 @@ The view is locked on you (like Diablo II): you stay in the centre and the room 
 
 ## The moor
 Act-1 style enemies, all WoW models: Rotting Dead (slow, tough zombies), Hungry Ghouls (quick, in numbers), Quill Rats (they throw spines from a distance), Bone Walkers (cold barely hurts them, fire hurts more) and Carrion Birds (fast). The cave boss, Rottenmaw the Unwelcome, is a big Rotting Dead. The boss is always drawn, even in a crowd.
+
+## Areas and bosses
+Four areas in a line: the Gloam Moor (start), the Hollow Den (cave off the moor, boss Rottenmaw the Unwelcome), and from the moor east along the frozen road the Frostbitten Fields (snow, bigger, packs of bone walkers and zombies) and the Forsaken Burial Ground (graves everywhere, boss The Marrowmother: she throws from 300 units away and cold barely hurts her, so close in and use fire or lightning). Each boss pays one skill point once. The map's edge is a near-black void with a lit wall at the boundary, and the view stays locked on you.

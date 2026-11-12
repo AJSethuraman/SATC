@@ -69,7 +69,7 @@ def test_casting_spends_mana_and_runs_dry(env):
 
 def test_mana_comes_back_and_evocation_speeds_it_up(env):
     lua, ns = env
-    # 4% of max mana a second: a 33 mana pool regains 1.32 a second. Evocation level 1 is +30% -> 1.716.
+    # 4% of max mana a second: a 33 mana pool regains 1.32 a second. Evocation level 1 is +20% -> 1.584.
     w = world(env, scorch=1)
     w.player.mana = 0
     run(ns, w, 1.0)
@@ -77,7 +77,7 @@ def test_mana_comes_back_and_evocation_speeds_it_up(env):
     w2 = world(env, scorch=1, evocation=1)
     w2.player.mana = 0
     run(ns, w2, 1.0)
-    assert w2.player.mana == pytest.approx(1.716, abs=0.02)
+    assert w2.player.mana == pytest.approx(1.584, abs=0.02)
 
 
 def test_regen_grows_with_the_pool(env):

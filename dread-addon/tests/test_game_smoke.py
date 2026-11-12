@@ -52,6 +52,7 @@ local function obj(parent)
       elseif x == nil then x, y = 0, 0 end
       self.pts = { point = point, rel = rel, rp = rp, x = x or 0, y = y or 0 } end end
     if k == "SetAlpha" then return function(self, v) self.alpha = v end end
+    if k == "SetColorTexture" then return function(self, r, g, b, a) self.flat = { r, g, b, a } end end
     if k == "CreateTexture" or k == "CreateFontString" or k == "CreateMaskTexture" then return function(self) return obj(self) end end
     if k == "CreateLine" then return function() if NO_LINES then error("no lines here") end return obj() end end
     return function(self, ...) return self end
@@ -728,10 +729,11 @@ def test_every_active_skill_can_be_cast_from_the_window_and_drawn(sid):
     teleport_next_to(ns, lua, w, m, -180, 0)
     click_world(lua, ns, "RightButton", m.x, m.y)
     mana_after = w.player.mana
-    tick(lua, 90)                                                           # three seconds of drawing whatever it made
-    assert ns.Combat.SHAPES[sid] is not None
-    if sid in BUFFS:
+    tick(lua, 2)
+    if sid in BUFFS:                                                        # look at once: a barrier can be used up by the fight that follows
         assert any(b.startswith(sid + ":") for b in ns.Game.buffs_shown().values()), f"{sid} shows no buff icon"
+    tick(lua, 88)                                                           # three seconds of drawing whatever it made
+    assert ns.Combat.SHAPES[sid] is not None
     click_world(lua, ns, "RightButton", m.x + 40, m.y)
     tick(lua, 60)
 
@@ -1119,9 +1121,10 @@ def stand_off(env_lua, ns, count=3):
     open_game(lua, ns)
     w = ns.Game.world()
     ms = [w.monsters[i] for i in range(1, count + 1)]
+    for m in w.monsters.values():
+        m.speed = 0                                                         # none of the others (a pack's fourth ghoul) comes to bite
     for m in ms:
         m.life = m.maxlife = 400
-        m.speed = 0
     w.player.x, w.player.y = ms[0].x - 150, ms[0].y
     tick(lua, 2)
     return w, ms
@@ -1723,3 +1726,138 @@ def test_a_monster_keeps_its_frame_while_the_order_around_it_changes():
         tick(lua, 1)
     assert lua.eval("rawequal")(f0.owner, ms[0]) and f0.shown
     assert f0.model_calls == before                                            # never told to load its model again
+
+
+# ---------------------------------------------------------------- the edge of the map is unmistakable
+def edge_pieces(lua, which):
+    """The void (near black) or wall (lit) strips, that are showing, as (x, y, w, h) from the arena's bottom-left."""
+    want = (0.01, 0.01, 0.02, 1) if which == "void" else (0.42, 0.34, 0.22, 1)
+    out = []
+    for o in lua.eval("ALL").values():
+        if o.flat is not None and tuple(round(v, 2) for v in o.flat.values()) == want and o.shown:
+            out.append((o.pts.x, o.pts.y, o.size[1], o.size[2]))
+    return out
+
+
+def test_nothing_is_drawn_outside_the_map_while_you_are_well_inside_it():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 1200, 750
+    tick(lua, 2)
+    assert edge_pieces(lua, "void") == [] and edge_pieces(lua, "wall") == []
+
+
+def test_in_the_corner_the_part_past_the_map_is_a_dark_void_with_a_lit_wall_at_the_boundary():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 100, 80
+    tick(lua, 2)
+    vw, vh = ns.Game.view()
+    cam = ns.Game.camera()
+    assert cam.x == pytest.approx(100 - vw / 2) and cam.y == pytest.approx(80 - vh / 2)
+    void = edge_pieces(lua, "void")
+    left = [v for v in void if v[2] == pytest.approx(vw / 2 - 100)]            # everything left of x = 0
+    below = [v for v in void if v[3] == pytest.approx(vh / 2 - 80)]            # everything below y = 0
+    assert len(void) == 2 and len(left) == 1 and len(below) == 1
+    assert left[0][0] == 0 and left[0][1] == 0 and left[0][2] == pytest.approx(-cam.x) and left[0][3] == pytest.approx(vh)   # from the view's left edge up to x = 0
+    assert below[0][1] == 0 and below[0][3] == pytest.approx(-cam.y) and below[0][2] == pytest.approx(vw)
+    walls = edge_pieces(lua, "wall")
+    assert len(walls) == 2                                                         # a lit band at each visible boundary, not just a colour change
+    assert any(wl[2] == 10 and wl[0] == pytest.approx(-cam.x - 10) for wl in walls)
+    assert any(wl[3] == 10 and wl[1] == pytest.approx(-cam.y - 10) for wl in walls)
+
+
+def test_the_far_corner_shows_the_right_and_top_edges():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 2390, 1490
+    tick(lua, 2)
+    vw, vh = ns.Game.view()
+    cam = ns.Game.camera()
+    void = edge_pieces(lua, "void")
+    right = [v for v in void if v[0] == pytest.approx(2400 - cam.x)]
+    above = [v for v in void if v[1] == pytest.approx(1500 - cam.y)]
+    assert len(void) == 2 and len(right) == 1 and len(above) == 1
+    assert right[0][2] == pytest.approx(vw - (2400 - cam.x)) and above[0][3] == pytest.approx(vh - (1500 - cam.y))
+    assert len(edge_pieces(lua, "wall")) == 2
+
+
+def test_the_void_goes_away_again_when_you_walk_back_in():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 100, 80
+    tick(lua, 2)
+    assert edge_pieces(lua, "void")
+    w.player.x, w.player.y = 1200, 750
+    tick(lua, 2)
+    assert edge_pieces(lua, "void") == [] and edge_pieces(lua, "wall") == []
+
+
+# ---------------------------------------------------------------- the longer road: moor -> fields -> burial ground
+def boss_dies(lua, ns, w, name):
+    lua.eval("function(w, n) w.events[#w.events + 1] = { k = 'boss_dead', name = n } end")(w, name)
+    tick(lua, 1)
+
+
+def test_you_can_walk_from_the_moor_to_the_fields_to_the_burial_ground_and_all_the_way_back_without_bouncing():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    route = [(2, "fields"), (2, "burial"), (1, "fields"), (1, "moor")]          # which exit of the current area, and where it leads
+    for idx, to in route:
+        ex = ns.Game.area().exits[idx]
+        teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+        assert ns.Game.area().name == to
+        tick(lua, 30)
+        assert ns.Game.area().name == to                                         # arriving did not bounce you straight back
+    assert ns.Game.area().tier == 1
+
+
+def test_each_boss_pays_its_own_point_once_and_the_title_shows_the_quest_state():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    q0 = w.player.st.quest_points
+    boss_dies(lua, ns, w, "The Marrowmother")
+    boss_dies(lua, ns, w, "The Marrowmother")
+    assert w.player.st.quest_points == q0 + 1 and w.flags.burial is True and w.flags.den is None
+    boss_dies(lua, ns, w, "Rottenmaw the Unwelcome")
+    assert w.player.st.quest_points == q0 + 2 and w.flags.den is True            # the second boss is a second point, not the same one
+    assert lua.eval("DreadDB.char.flags.burial") is True and lua.eval("DreadDB.char.quest_points") == q0 + 2
+    boss_dies(lua, ns, w, "Moor Wolf")                                           # something that is not a quest boss pays nothing
+    assert w.player.st.quest_points == q0 + 2
+
+
+def test_the_zone_title_says_quest_done_only_in_the_area_whose_boss_is_dead():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    b = ns.Game.area().exits[2]
+    teleport(ns, lua, w, b.x, b.y, ticks=3)
+    assert ns.Game.area().name == "burial"
+    title = lambda: [str(o.text) for o in lua.eval("ALL").values() if o.text and "Forsaken Burial Ground" in str(o.text)][0]
+    assert "Lay the Marrowmother to rest" in title()
+    boss_dies(lua, ns, w, "The Marrowmother")
+    assert "Quest done" in title()
+
+
+def test_the_new_areas_draw_their_own_ground_and_the_burial_boss_is_drawn_big():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    allo = list(lua.eval("ALL").values())
+    assert [o for o in allo if o.texture == 189053]                              # the snow
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    boss = [m for m in w.monsters.values() if m.boss][0]
+    teleport(ns, lua, w, boss.x - 200, boss.y, ticks=6)
+    frames = [o for o in lua.eval("ALL").values() if o.owner is not None and o.model == boss.model and o.size is not None and o.size[1] > 90]
+    assert frames and frames[0].size[1] == pytest.approx(64 * 1.6) and frames[0].size[2] == pytest.approx(80 * 1.6)

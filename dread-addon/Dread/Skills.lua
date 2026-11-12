@@ -25,7 +25,7 @@ skill{ id="scorch", name="Scorch", tree="fire", element="fire", req=1, prereqs={
   mana={3,0.2}, dmg={6,10,3,4},
   syn={ {from="fireball",pct=14}, {from="meteor",pct=8}, {from="flame_spirit",pct=6} } }
 skill{ id="evocation", name="Evocation", tree="fire", element="fire", req=6, prereqs={}, kind="passive",
-  effect={type="mana_regen_pct", base=30, per_level=15} }
+  effect={type="mana_regen_pct", base=20, per_level=10} }
 skill{ id="dragons_breath", name="Dragon's Breath", tree="fire", element="fire", req=6, prereqs={"scorch"}, kind="cone",
   mana={2,0.3}, dmg={4,8,2,3},
   syn={ {from="flamestrike",pct=9}, {from="flame_spirit",pct=6}, {from="scorch",pct=6} } }

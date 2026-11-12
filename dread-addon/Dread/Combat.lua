@@ -63,7 +63,7 @@ Combat.CHILL_SECONDS, Combat.FREEZE_SECONDS = 3, 2
 Combat.MONSTER_REACH, Combat.MONSTER_COOLDOWN = 22, 1.0
 Combat.MAX_QUEST_POINTS = 12
 Combat.ITEM_CHANCE, Combat.BOSS_ITEMS = 0.12, 2       -- an ordinary kill drops gear one time in eight; a boss always drops two
-Combat.MONSTER_LIFE_MULT, Combat.MONSTER_DMG_MULT = 1.3, 1.25   -- area monsters are tougher, so gear is what keeps you ahead
+Combat.MONSTER_LIFE_MULT, Combat.MONSTER_DMG_MULT = 2.0, 1.6   -- area monsters are tough: measured with a naive bot, a clear of the moor costs it about half its life
 
 
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
@@ -700,8 +700,13 @@ function Combat.enter(w, area)
   p.x, p.y, p.tx, p.ty = area.spawn.x, area.spawn.y, nil, nil
   for _, t in ipairs(area.monsters or {}) do
     local m = copy(t)
-    m.life = m.life * Combat.MONSTER_LIFE_MULT
-    if m.dmg then m.dmg = { m.dmg[1] * Combat.MONSTER_DMG_MULT, m.dmg[2] * Combat.MONSTER_DMG_MULT } end
+    local tier = area.tier or 1                                   -- each area further on is harder again: more life, a bit more bite, more experience
+    m.life = m.life * Combat.MONSTER_LIFE_MULT * tier
+    if m.dmg then
+      local k = Combat.MONSTER_DMG_MULT * (1 + (tier - 1) / 2)
+      m.dmg = { m.dmg[1] * k, m.dmg[2] * k }
+    end
+    if m.xp then m.xp = m.xp * tier end
     Combat.add_monster(w, m)
   end
 end
