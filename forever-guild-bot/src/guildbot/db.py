@@ -162,6 +162,13 @@ CREATE TABLE IF NOT EXISTS legacy_seen (
     PRIMARY KEY (challenge_id, completed_at)
 );
 
+-- A group Legacy point (dungeon, raid, PvP) is everyone's in the group, and each player's character
+-- logs out at a different time: which characters' share has been posted (or belongs to a posted player).
+CREATE TABLE IF NOT EXISTS legacy_posted (
+    challenge_id INTEGER NOT NULL, completed_at TEXT NOT NULL, slug TEXT NOT NULL,
+    PRIMARY KEY (challenge_id, completed_at, slug)
+);
+
 -- Level, item level and last login over time, one row whenever one of them changes.
 CREATE TABLE IF NOT EXISTS character_history (
     slug TEXT NOT NULL, at TEXT NOT NULL, level INTEGER, item_level INTEGER, last_login_at TEXT,
@@ -374,8 +381,15 @@ class Database:
         return {(r["challenge_id"], r["completed_at"]) for r in self.conn.execute("SELECT * FROM legacy_seen")}
 
     def add_legacy_seen(self, keys) -> None:
-        self.conn.executemany("INSERT OR IGNORE INTO legacy_seen VALUES (?,?)", list(keys))
+        """(challenge_id, completed_at) marks a whole point handled; (challenge_id, completed_at, slug) marks
+        one character's share of a group point."""
+        keys = list(keys)
+        self.conn.executemany("INSERT OR IGNORE INTO legacy_seen VALUES (?,?)", [k for k in keys if len(k) == 2])
+        self.conn.executemany("INSERT OR IGNORE INTO legacy_posted VALUES (?,?,?)", [k for k in keys if len(k) == 3])
         self.conn.commit()
+
+    def legacy_posted(self) -> set[tuple[int, str, str]]:
+        return {(r["challenge_id"], r["completed_at"], r["slug"]) for r in self.conn.execute("SELECT * FROM legacy_posted")}
 
     def set_account_items(self, slug, items: str) -> None:
         self.conn.execute("UPDATE characters SET account_items=? WHERE slug=?", (items, slug))

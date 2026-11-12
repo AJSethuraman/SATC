@@ -254,6 +254,31 @@ def test_a_raid_kill_posts_a_legacy_point_for_every_player_not_one_for_the_whole
     assert SY.legacy_milestones(db, known_before=set(raiders)) == []          # and never twice
 
 
+
+def test_raiders_who_log_out_at_different_times_each_get_their_line(tmp_path):
+    """Blizzard only updates a character when it logs out, so after a kill one raider's point shows this
+    sync and another's next hour. The first post must not mark the kill done for everyone: each player
+    is posted when their character shows it, once, and a player's alt showing it later is not posted again."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    chars = {"tanka-ironwall": 101, "healia-dawnsong": 102, "tankalt-ironwall": 101}   # 101 claims two
+    for slug, member in chars.items():
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+        db.set_profile(slug, 60, "Warrior", "Human", "Alliance", utcnow())
+        db.claim(member, [slug])
+        db.replace_achievements(slug, [], utcnow())
+    db.set_meta("legacy_seeded", utcnow())
+    kill = bz.Achievement(684, "Conqueror of the Lair",
+                          int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()) * 1000, 1, 1, None)
+    db.replace_achievements("tanka-ironwall", [kill], utcnow())                 # the tank logs out first
+    assert [slug for _k, slug, _n, _c in SY.legacy_milestones(db, set(chars))] == ["tanka-ironwall"]
+    db.replace_achievements("healia-dawnsong", [kill], utcnow())                # the healer an hour later
+    assert [slug for _k, slug, _n, _c in SY.legacy_milestones(db, set(chars))] == ["healia-dawnsong"]
+    db.replace_achievements("tankalt-ironwall", [kill], utcnow())               # the tank's alt shows it too
+    assert SY.legacy_milestones(db, set(chars)) == []
+
 def test_saying_no_and_then_claiming_the_character_does_not_hide_the_rest_of_the_account():
     """A member who said "not mine" about a likely alt and later claimed it owns it: the old answer no longer
     splits the group, so the account's third character is still grouped with them."""

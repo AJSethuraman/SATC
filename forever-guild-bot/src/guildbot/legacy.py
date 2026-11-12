@@ -40,7 +40,8 @@ def pick_earner(category: str, subcategory: str, name: str, holders: list[dict])
     return sorted(fit, key=lambda h: (-(h.get("level") or 0), h["slug"]))[0]
 
 
-def new_completions(completions, seen: set, known_before: set, holders: dict, now: datetime, player_of=None):
+def new_completions(completions, seen: set, known_before: set, holders: dict, now: datetime, player_of=None,
+                    posted: set = frozenset()):
     """Which Legacy completions to announce.
 
     completions: rows with slug, challenge_id, name, category, subcategory, completed_at (ISO).
@@ -50,8 +51,11 @@ def new_completions(completions, seen: set, known_before: set, holders: dict, no
     player_of: slug -> who plays it (a claim or a likely-alts group); a slug not in it is its own player.
     A solo point (class, tradeskill) showing on several characters at one time is one account's point.
     A group point (dungeon, raid, PvP) lands on the whole group in the same second, so it is posted once
-    per player: only characters known to be one player share a post.
-    Returns (milestones to add as ('legacy', slug, name, challenge_id), keys to mark seen)."""
+    per player: only characters known to be one player share a post. Each player's character logs out at
+    its own time, so a group point is never marked handled as a whole: posted holds (challenge_id,
+    completed_at, slug) for the characters whose player has had their line.
+    Returns (milestones to add as ('legacy', slug, name, challenge_id), keys to mark seen: whole points as
+    (challenge_id, completed_at), a player's share of a group point as (challenge_id, completed_at, slug))."""
     groups: dict[tuple, list] = {}
     for r in completions:
         groups.setdefault((r["challenge_id"], r["completed_at"]), []).append(r)
@@ -62,20 +66,33 @@ def new_completions(completions, seen: set, known_before: set, holders: dict, no
             continue
         rows = groups[key]
         first = rows[0]
+        group = first["category"] not in SOLO_CATEGORIES
+        if group:
+            rows = [r for r in rows if (*key, r["slug"]) not in posted]     # players already posted for this one
+            if not rows:
+                continue
         if not any(r["slug"] in known_before for r in rows) or datetime.fromisoformat(key[1]) < cutoff:
-            handled.append(key)                       # old news, or nobody was known before: never announce
+            handled += [(*key, r["slug"]) for r in rows] if group else [key]   # old news or new members: never announce
             continue
         parts: dict = {}
         for r in rows:
-            who = None if first["category"] in SOLO_CATEGORIES else (player_of or {}).get(r["slug"], ("slug", r["slug"]))
+            who = (player_of or {}).get(r["slug"], ("slug", r["slug"])) if group else None
             parts.setdefault(who, []).append(r)
-        earners = [pick_earner(first["category"], first["subcategory"], first["name"],
-                               [holders[r["slug"]] for r in part if r["slug"] in holders]) for part in parts.values()]
-        earners = sorted((e for e in earners if e is not None), key=lambda e: e["slug"])
+        earners = []
+        for who, part in parts.items():
+            e = pick_earner(first["category"], first["subcategory"], first["name"],
+                            [holders[r["slug"]] for r in part if r["slug"] in holders])
+            if e is None:
+                continue                              # the right character may log out later
+            earners.append(e)
+            if group:                                 # this player is done, whichever of their characters shows it next
+                mates = {r["slug"] for r in part} | {s for s, k in (player_of or {}).items() if k == who}
+                handled += [(*key, s) for s in sorted(mates)]
         if not earners:
-            continue                                  # not seen yet: the right character may log out later
-        handled.append(key)
-        found += [("legacy", e["slug"], first["name"], first["challenge_id"]) for e in earners]
+            continue
+        if not group:
+            handled.append(key)
+        found += [("legacy", e["slug"], first["name"], first["challenge_id"]) for e in sorted(earners, key=lambda e: e["slug"])]
     return found, handled
 
 
