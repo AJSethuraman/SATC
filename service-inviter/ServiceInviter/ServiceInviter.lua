@@ -1531,8 +1531,8 @@ local function BuildJobsUI()
     setupBtn:SetSize(80, 24) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
     local adBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    adBtn:SetPoint("LEFT", setupBtn, "RIGHT", 8, 0)
-    adBtn:SetSize(150, 24) adBtn:SetText("Post ad")
+    adBtn:SetPoint("TOPRIGHT", -34, -14)
+    adBtn:SetSize(140, 24) adBtn:SetText("Post ad")
     adBtn:SetScript("OnClick", function() PostAd() end)
     w.adBtn = adBtn
 
@@ -1564,6 +1564,7 @@ local function BuildJobsUI()
         row.name = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         row.name:SetPoint("TOPLEFT", 24, y - 6)
         row.name:SetWidth(120) row.name:SetJustifyH("LEFT")
+        if row.name.SetWordWrap then row.name:SetWordWrap(false) end   -- long names end in "...", never run into the status
         row.status = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.status:SetPoint("TOPLEFT", 150, y - 7)
         row.status:SetWidth(96) row.status:SetJustifyH("LEFT")
@@ -1636,7 +1637,7 @@ local function BuildJobsUI()
 
     w.footer = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     w.footer:SetPoint("BOTTOMLEFT", 24, 18)
-    w.footer:SetJustifyH("LEFT") w.footer:SetWidth(330)
+    w.footer:SetJustifyH("LEFT") w.footer:SetWidth(310)
     local newBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
     newBtn:SetPoint("BOTTOMRIGHT", -20, 22) newBtn:SetSize(110, 26) newBtn:SetText("New session")
     newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") end)
@@ -1682,15 +1683,16 @@ local function BuildSetupUI()
     w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     if w.SetBackdrop then
         w:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
             edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
             tile = true, tileSize = 32, edgeSize = 32,
             insets = { left = 8, right = 8, top = 8, bottom = 8 },
         })
     end
-    local bg = w:CreateTexture(nil, "BACKGROUND", nil, -8)
+    -- solid black, so the setup is easy to read over anything behind it (the owner, 12 Nov 2026)
+    local bg = w:CreateTexture(nil, "BACKGROUND", nil, 7)
     bg:SetPoint("TOPLEFT", 6, -6) bg:SetPoint("BOTTOMRIGHT", -6, 6)
-    bg:SetColorTexture(0, 0, 0, 0.92)
+    bg:SetColorTexture(0, 0, 0, 1)
+    w.bg = bg
     w:Hide()
 
     local title = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

@@ -143,3 +143,16 @@ def test_finished_rows_give_way_to_waiting_customers(game):
         ServiceInviter_Test.Refresh()''')
     shown = [game.eval(f"ServiceInviterJobs.rows[{i}].name:GetText()") for i in range(1, 7)]
     assert "Done" not in shown and shown[0] == "Cust1"
+
+
+def test_setup_background_is_solid_black(game):
+    """The owner, 12 Nov 2026: "i want the background to be basically completely dark so it is
+    always easy to see on the setup"."""
+    color = game.eval("ServiceInviter_Test.BuildSetup().bg")
+    assert color is not None
+    from conftest import ADDON
+    src = ADDON.read_text()
+    start = src.index("local function BuildSetupUI()")
+    block = src[start:src.index("w:Hide()", start)]
+    assert "bg:SetColorTexture(0, 0, 0, 1)" in block
+    assert "UI-DialogBox-Background" not in block   # the lighter tiled texture is gone
