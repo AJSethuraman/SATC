@@ -1140,25 +1140,12 @@ class Database:
     def pending_offers(self):
         return self.conn.execute("SELECT * FROM offers WHERE state='pending' ORDER BY id").fetchall()
 
-    def expire_old_offers(self, now_iso: str):
-        """Pending offers whose time is up become expired. Returns the ones that did."""
-        rows = self.conn.execute("SELECT * FROM offers WHERE state='pending' AND expires_at<=?", (now_iso,)).fetchall()
-        self.conn.execute("UPDATE offers SET state='expired' WHERE state='pending' AND expires_at<=?", (now_iso,))
-        self.conn.commit()
-        return rows
-
     def set_offer_messages(self, offer_id, dm=None, chan=None) -> None:
         if dm is not None:
             self.conn.execute("UPDATE offers SET dm_msg_id=? WHERE id=?", (dm, offer_id))
         if chan is not None:
             self.conn.execute("UPDATE offers SET chan_msg_id=? WHERE id=?", (chan, offer_id))
         self.conn.commit()
-
-    def offers_to_ping(self, now_iso: str):
-        """Pending offers whose last-call time has come and that have no ping in the raid channel yet."""
-        return self.conn.execute(
-            "SELECT * FROM offers WHERE state='pending' AND chan_msg_id IS NULL AND ping_at<=? ORDER BY id",
-            (now_iso,)).fetchall()
 
     def offers_to_clean(self):
         """Answered or expired offers whose messages are still lying around."""
@@ -1168,6 +1155,22 @@ class Database:
 
     def mark_offer_cleaned(self, offer_id) -> None:
         self.conn.execute("UPDATE offers SET cleaned=1 WHERE id=?", (offer_id,))
+        self.conn.commit()
+
+    def pending_offer(self, raid_id, discord_id):
+        """Their promotion from the bench that they have not acted on yet, if any."""
+        return self.conn.execute("SELECT * FROM offers WHERE raid_id=? AND discord_id=? AND state='pending' "
+                                 "ORDER BY id DESC LIMIT 1", (raid_id, discord_id)).fetchone()
+
+    def undo_promotion(self, raid_id, discord_id, since_iso) -> None:
+        """They were moved up from the bench without being asked and are giving the slot back: drop the slot
+        from their signup history, so it is not counted as a late drop."""
+        self.conn.execute("DELETE FROM signup_log WHERE raid_id=? AND discord_id=? AND at>=? "
+                          "AND role IN ('tank','healer','dps')", (raid_id, discord_id, since_iso))
+        self.conn.commit()
+
+    def expire_all_pending_offers(self) -> None:
+        self.conn.execute("UPDATE offers SET state='expired' WHERE state='pending'")
         self.conn.commit()
 
     def expire_member_offers(self, raid_id, discord_id) -> None:

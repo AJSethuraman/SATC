@@ -663,21 +663,18 @@ CRAFT_PROMPT = ("Find who can craft something. Pick what you want, then tap the 
 
 
 class OfferView(discord.ui.View):
-    """Take it / Pass buttons on a 'a spot opened up' message. Persistent: custom_ids carry the offer number."""
+    """"Can't make it" under the "you're in" DM sent to someone moved up from the bench.
+    Persistent: the custom_id carries the promotion's number (an `offers` row)."""
 
     def __init__(self, bot: "GuildBot", offer_id: int):
         super().__init__(timeout=None)
         self.bot, self.offer_id = bot, offer_id
-        for answer, label, style in (("yes", "Take it", discord.ButtonStyle.success),
-                                     ("no", "Pass", discord.ButtonStyle.secondary)):
-            b = discord.ui.Button(label=label, style=style, custom_id=f"offer:{offer_id}:{answer}")
-            b.callback = self._make(answer == "yes")
-            self.add_item(b)
+        b = discord.ui.Button(label="Can't make it", style=discord.ButtonStyle.secondary, custom_id=f"offer:{offer_id}:no")
+        b.callback = self._give_back
+        self.add_item(b)
 
-    def _make(self, yes: bool):
-        async def callback(interaction: discord.Interaction):
-            await self.bot.answer_offer(interaction, self.offer_id, yes)
-        return callback
+    async def _give_back(self, interaction: discord.Interaction):
+        await self.bot.give_back(interaction, self.offer_id)
 
 
 class AltView(discord.ui.View):
@@ -745,6 +742,9 @@ class GuildBot(discord.Client):
 
     async def setup_hook(self) -> None:
         self.add_view(ClaimPanel(self))
+        if not self.db.get_meta("bench_promotes"):          # timed offers from before the bench promoted people directly
+            self.db.expire_all_pending_offers()
+            self.db.set_meta("bench_promotes", utcnow())
         for r in self.db.open_raids():
             if r["series_id"]:
                 self.add_view(RepeatView(self, r["id"]))
@@ -766,8 +766,8 @@ class GuildBot(discord.Client):
         self.close_job.start()
         self.end_job = tasks.loop(minutes=1)(self._end_old_raids)
         self.end_job.start()
-        self.offer_job = tasks.loop(minutes=1)(self._expire_offers)
-        self.offer_job.start()
+        self.bench_job = tasks.loop(minutes=1)(self._tidy_bench)
+        self.bench_job.start()
 
     async def post_raid(self, interaction: discord.Interaction, title: str, start: datetime, size: int,
                         caps: dict, repeat: bool = False) -> bool:
@@ -1093,56 +1093,32 @@ class GuildBot(discord.Client):
             log.exception("could not refresh the post for raid %s", raid_id)
 
     async def fill_open_slots(self, raid_id: int) -> None:
-        """If a slot is free and people are waiting on the bench, ask the next one in line (by DM)."""
-        await self.sweep_offer_messages()                   # close the buttons on offers voided by a signup change
-        for _ in range(6):                                  # someone with DMs closed is skipped, then the next is asked
-            raid = self.db.get_raid(raid_id)
-            if not raid or raid["status"] != "open" or \
-                    datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
-                return
-            picks = R.next_offers(raid, self.db.signups(raid_id), self.db.offers_for_raid(raid_id))
-            if not picks:
-                return
-            now = datetime.now(timezone.utc)
-            ping_at, expires_at = R.offer_window(now, datetime.fromisoformat(raid["starts_at"]))
-            for uid, role in picks:
-                offer_id = self.db.create_offer(raid_id, uid, role, now.isoformat(timespec="seconds"),
-                                                ping_at.isoformat(timespec="seconds"),
-                                                expires_at.isoformat(timespec="seconds"))
-                sent = False
-                try:
-                    user = self.get_user(uid) or await self.fetch_user(uid)
-                    if user.bot:
-                        self.db.set_offer_state(offer_id, "expired")
-                        continue
-                    msg = await user.send(R.offer_text(raid, role, expires_at), view=OfferView(self, offer_id))
-                    self.db.set_offer_messages(offer_id, dm=msg.id)
-                    sent = True
-                except discord.HTTPException:
-                    pass
-                if not sent and not await self.ping_offer(offer_id):    # DMs closed: ask in the channel instead
-                    self.db.set_offer_state(offer_id, "expired")
-
-    async def ping_offer(self, offer_id: int) -> bool:
-        """Ask in the raid channel with an @ and the same buttons. Deleted again once it is answered."""
-        offer = self.db.get_offer(offer_id)
-        raid = self.db.get_raid(offer["raid_id"]) if offer else None
-        if not raid or not raid["channel_id"]:
-            return False
-        try:
-            chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
-            last = offer["dm_msg_id"] is not None                      # they got a DM already: this is the last call
-            expires = datetime.fromisoformat(offer["expires_at"])
-            msg = await chan.send(R.ping_text(raid, offer["role"], offer["discord_id"], expires, last), view=OfferView(self, offer_id),
-                                  allowed_mentions=discord.AllowedMentions(users=[discord.Object(id=offer["discord_id"])]))
-            self.db.set_offer_messages(offer_id, chan=msg.id)
-            return True
-        except discord.HTTPException:
-            log.exception("could not ping offer %s in the raid channel", offer_id)
-            return False
+        """Slots free and people waiting on the bench: move the next in line up and tell them by DM.
+        They are in at once; the DM has a "Can't make it" button that passes the slot to the next person."""
+        await self.sweep_offer_messages()                   # close the buttons on promotions that are settled
+        raid = self.db.get_raid(raid_id)
+        if not raid or raid["status"] != "open" or \
+                datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
+            return
+        rows = self.db.signups(raid_id)
+        picks = R.next_promotions(raid, rows)
+        if not picks:
+            return
+        slug_of = {s["discord_id"]: s["slug"] for s in rows}
+        now = utcnow()
+        for uid, role in picks:
+            self.db.upsert_signup(raid_id, uid, slug_of.get(uid), role, now, None)
+            offer_id = self.db.create_offer(raid_id, uid, role, now, raid["starts_at"], raid["starts_at"])
+            try:
+                user = self.get_user(uid) or await self.fetch_user(uid)
+                msg = await user.send(R.promotion_text(raid, role), view=OfferView(self, offer_id))
+                self.db.set_offer_messages(offer_id, dm=msg.id)
+            except discord.HTTPException:
+                log.info("could not DM %s about moving up in raid %s; they are in all the same", uid, raid_id)
+        await self.refresh_raid_post(raid_id)
 
     async def sweep_offer_messages(self) -> None:
-        """Delete finished pings from the channel and close the buttons on finished DMs."""
+        """Take the button off settled promotion DMs (and old offer pings in the channel)."""
         for o in self.db.offers_to_clean():
             try:
                 raid = self.db.get_raid(o["raid_id"])
@@ -1156,87 +1132,47 @@ class GuildBot(discord.Client):
                     try:
                         user = self.get_user(o["discord_id"]) or await self.fetch_user(o["discord_id"])
                         dm = user.dm_channel or await user.create_dm()
-                        text = {"accepted": "You took it.", "declined": "You passed."}.get(o["state"], "This offer is closed.")
-                        await dm.get_partial_message(o["dm_msg_id"]).edit(content=text, view=None)
+                        edit = {"view": None}
+                        if o["state"] == "declined":
+                            edit["content"] = "You gave the spot back."
+                        await dm.get_partial_message(o["dm_msg_id"]).edit(**edit)
                     except discord.NotFound:
                         pass
                 self.db.mark_offer_cleaned(o["id"])
             except discord.HTTPException:
                 log.exception("could not tidy offer %s; will retry", o["id"])
 
-    async def _reply_to_offer(self, interaction: discord.Interaction, offer, text: str) -> None:
-        """Answer where they clicked: edit the DM, or whisper (ephemeral) if they clicked the channel ping."""
-        msg = getattr(interaction, "message", None)
-        if offer and offer["chan_msg_id"] and msg is not None and msg.id == offer["chan_msg_id"]:
-            await interaction.response.send_message(text, ephemeral=True)
-        else:
-            await interaction.response.edit_message(content=text, view=None)
-
-    async def answer_offer(self, interaction: discord.Interaction, offer_id: int, yes: bool) -> None:
+    async def give_back(self, interaction: discord.Interaction, offer_id: int) -> None:
+        """"Can't make it" on a promotion DM: out of the raid, not a late drop, and the next person moves up."""
         db = self.db
         offer = db.get_offer(offer_id)
         if offer and interaction.user.id != offer["discord_id"]:
-            await interaction.response.send_message("That spot was offered to someone else.", ephemeral=True)
+            await interaction.response.send_message("That spot isn't yours.", ephemeral=True)
             return
-        if not offer or offer["state"] != "pending":
-            await self._reply_to_offer(interaction, offer, "That offer has expired.")
-            await self.sweep_offer_messages()
-            return
-        raid = db.get_raid(offer["raid_id"])
+        raid = db.get_raid(offer["raid_id"]) if offer else None
         started = raid and datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc)
-        if not raid or raid["status"] != "open" or started:
-            db.set_offer_state(offer_id, "expired")
-            await self._reply_to_offer(interaction, offer, "That raid has already started or was cancelled.")
-            await self.sweep_offer_messages()
+        if not offer or offer["state"] != "pending" or not raid or raid["status"] != "open" or started:
+            await interaction.response.edit_message(
+                content="This has already moved on (the raid started, or you changed your signup on the raid post). "
+                        "Use the raid post to change it.", view=None)
             return
-        if not yes:
-            db.set_offer_state(offer_id, "declined")
-            await self._drop_from_bench(offer)
-            await self._reply_to_offer(interaction, offer,
-                                       "Okay, you're off the bench. Tap a role on the raid post if you change your mind.")
-            await self.sweep_offer_messages()
-            await self.fill_open_slots(raid["id"])
-            return
-        uid, role = offer["discord_id"], offer["role"]
-        mine = next((s for s in db.signups(raid["id"]) if s["discord_id"] == uid), None)
-        groups = R.group_signups(db.signups(raid["id"]))
-        if mine is None or R.resolve_role(role, groups, raid["size"], uid, R.caps_of(raid)) != role:
-            db.set_offer_state(offer_id, "expired")
-            await self._reply_to_offer(interaction, offer, "Sorry, that spot just got taken.")
-            await self.sweep_offer_messages()
-            await self.fill_open_slots(raid["id"])
-            return
-        db.upsert_signup(raid["id"], uid, mine["slug"], role, utcnow(), None)
-        db.set_offer_state(offer_id, "accepted")
-        await self._reply_to_offer(interaction, offer, f"You're in as {R.ROLE_SINGULAR[role]} for **{raid['title']}**.")
-        await self.sweep_offer_messages()
+        db.undo_promotion(raid["id"], offer["discord_id"], offer["sent_at"])
+        db.remove_signup(raid["id"], offer["discord_id"])
+        db.set_offer_state(offer_id, "declined")
+        db.mark_offer_cleaned(offer_id)                    # this DM is edited right here
+        await interaction.response.edit_message(
+            content="Okay, the spot goes to the next person on the bench. Tap a role on the raid post if your plans change.",
+            view=None)
         await self.refresh_raid_post(raid["id"])
+        await self.fill_open_slots(raid["id"])
 
-    async def _drop_from_bench(self, offer) -> bool:
-        """Take someone off the bench (their signup is removed) when they pass or do not answer. Only if they
-        are still on the bench: someone who has since changed to another role is left alone."""
-        mine = next((s for s in self.db.signups(offer["raid_id"]) if s["discord_id"] == offer["discord_id"]), None)
-        if not mine or mine["role"] != "bench":
-            return False
-        self.db.remove_signup(offer["raid_id"], offer["discord_id"])
-        await self.refresh_raid_post(offer["raid_id"])
-        return True
-
-    async def _expire_offers(self) -> None:
-        """An offer nobody answered in time goes to the next person in line; quiet ones get a last-call ping."""
-        now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        for o in self.db.expire_old_offers(now_iso):
+    async def _tidy_bench(self) -> None:
+        """Every minute: move people up into any free slot (an edit or a cancel can free one) and tidy DMs."""
+        for raid in self.db.open_raids():
             try:
-                if await self._drop_from_bench(o):               # no answer: off the bench, and they are told
-                    raid = self.db.get_raid(o["raid_id"])
-                    await self.dm_user(o["discord_id"],
-                                       f"You didn't answer, so I took you off the bench for **{raid['title']}**. "
-                                       "Tap a role on the raid post if you still want in.")
-                await self.fill_open_slots(o["raid_id"])
+                await self.fill_open_slots(raid["id"])
             except Exception:
-                log.exception("could not pass on an expired offer for raid %s", o["raid_id"])
-        for o in self.db.offers_to_ping(now_iso):              # no answer to the DM yet: last call in the channel
-            await self.ping_offer(o["id"])
+                log.exception("could not fill open slots for raid %s", raid["id"])
         await self.sweep_offer_messages()
 
     # ---- end of a raid --------------------------------------------------
@@ -1443,9 +1379,14 @@ class GuildBot(discord.Client):
         landed = R.resolve_role(role, R.group_signups(self.db.signups(raid["id"])), raid["size"],
                                 discord_id, R.caps_of(raid))
         wanted = role if landed == "bench" and role in R.COUNTED else None     # bounced to the bench: remember why
-        self.db.upsert_signup(raid["id"], discord_id, slug, landed, utcnow(), wanted)
-        if landed != "bench":                       # off the bench some other way: their offer is void
-            self.db.expire_member_offers(raid["id"], discord_id)
+        prior = next((s for s in self.db.signups(raid["id"]) if s["discord_id"] == discord_id), None)
+        promo = self.db.pending_offer(raid["id"], discord_id)
+        if promo and landed not in R.COUNTED:       # moved up without asking, now leaving: not a late drop
+            self.db.undo_promotion(raid["id"], discord_id, promo["sent_at"])
+        # Back on the bench from the bench (a re-tap, or a new character): keep their place in the queue.
+        when = prior["updated_at"] if prior and prior["role"] == "bench" and landed == "bench" else utcnow()
+        self.db.upsert_signup(raid["id"], discord_id, slug, landed, when, wanted)
+        self.db.expire_member_offers(raid["id"], discord_id)   # any change settles a promotion
         return landed
 
 

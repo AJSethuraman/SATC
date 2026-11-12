@@ -12,11 +12,6 @@ COUNTED = ("tank", "healer", "dps")  # roles that fill raid slots
 ROLE_SINGULAR = {"tank": "tank", "healer": "healer", "dps": "DPS"}
 ROLE_EMOJI = {"tank": "🟦", "healer": "🟩", "dps": "🟥", "bench": "",
               "tentative": "🟨", "absent": "⬜"}      # blue, green, red, (none), yellow, white
-# How long a bench player has to answer "a spot opened up" depends on how far off the raid is:
-OFFER_SHARE = 0.30            # 30% of the time left until the start ...
-OFFER_MIN_MINUTES = 15        # ... but never less than this ...
-OFFER_MAX_MINUTES = 72 * 60   # ... and never more than three days (two to answer, then one after the last call)
-LAST_CALL_SHARE = 1 / 3       # the last third of the window follows the "last call" ping in the raid channel
 
 
 def parse_start(date_s: str, time_s: str, tz_name: str) -> datetime:
@@ -170,64 +165,38 @@ def summarize_history(raids) -> dict:
     return {"signed_up": signed, "attended": attended, "no_shows": noshow, "late_drops": late}
 
 
-def next_offers(raid, rows, offers) -> list[tuple[int, str]]:
-    """Who the bench queue should ask about an open slot right now, as (discord_id, role).
+def next_promotions(raid, rows) -> list[tuple[int, str]]:
+    """Who moves up from the bench right now, as (discord_id, role).
 
-    rows: the raid's signups (discord_id, role, wanted, updated_at). offers: its offers so far
-    (discord_id, role, state). The bench is a queue in the order people joined it. Each person is asked
-    about the role they wanted (any role, if they just tapped Bench), at most once per role per raid, and
-    never while another question to them is still pending. Open slots already promised to someone who
-    has not answered yet are not offered again."""
+    rows: the raid's signups (discord_id, role, wanted, updated_at). The bench is a queue in the order
+    people joined it. Each person goes into the role they wanted (any open role, if they tapped plain
+    Bench), as long as the raid has room and that role is under its limit. Someone whose role is full
+    keeps their place and the next person in line may move past them into a different role."""
     g = group_signups(rows)
     caps = caps_of(raid)
-    pending = [o for o in offers if o["state"] == "pending"]
-    asked = {(o["discord_id"], o["role"]) for o in offers}
-    busy = {o["discord_id"] for o in pending}
-    count = {role: len(g[role]) + sum(1 for o in pending if o["role"] == role) for role in COUNTED}
-    room = raid["size"] - filled(g) - len(pending)
+    count = {role: len(g[role]) for role in COUNTED}
+    room = raid["size"] - filled(g)
     out: list[tuple[int, str]] = []
     for s in sorted(g["bench"], key=lambda x: x["updated_at"]):
         if room <= 0:
             break
-        if s["discord_id"] in busy:
-            continue
         wanted = s["wanted"] if "wanted" in s.keys() else None
         for role in ([wanted] if wanted else list(COUNTED)):
             cap = caps.get(role)
-            if (s["discord_id"], role) in asked or (cap is not None and count[role] >= cap):
+            if cap is not None and count[role] >= cap:
                 continue
             out.append((s["discord_id"], role))
-            busy.add(s["discord_id"])
             count[role] += 1
             room -= 1
             break
     return out
 
 
-def offer_window(now: datetime, start: datetime) -> tuple[datetime, datetime]:
-    """(last-call time, expiry time) for an offer made at `now` for a raid that starts at `start`.
-    A raid days away gives hours to answer; a raid starting soon gives the minimum. It never runs past the start."""
-    left = (start - now).total_seconds() / 60
-    total = min(max(left * OFFER_SHARE, OFFER_MIN_MINUTES), OFFER_MAX_MINUTES)
-    total = min(total, max(left - 1, 1))
-    return now + timedelta(minutes=total * (1 - LAST_CALL_SHARE)), now + timedelta(minutes=total)
-
-
-def offer_text(raid, role: str, expires_at: datetime) -> str:
+def promotion_text(raid, role: str) -> str:
+    """The DM to someone just moved up from the bench."""
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
-    return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>): **{ROLE_SINGULAR[role]}**.\n"
-            f"Take it or pass. If you don't answer by <t:{int(expires_at.timestamp())}:t> "
-            f"I'll remind you once more, then take you off the bench.")
-
-
-def ping_text(raid, role: str, discord_id: int, expires_at: datetime, last_call: bool = False) -> str:
-    """The @ in the raid channel. last_call: they were already DMed and did not answer; this is the reminder."""
-    when = int(expires_at.timestamp())
-    if last_call:
-        return (f"<@{discord_id}> still want the **{ROLE_SINGULAR[role]}** spot in **{raid['title']}**? "
-                f"Answer <t:{when}:R> or you come off the bench.")
-    return (f"<@{discord_id}> a spot opened up in **{raid['title']}**: **{ROLE_SINGULAR[role]}**. "
-            f"Take it or pass by <t:{when}:t> or you come off the bench.")
+    return (f"A spot opened up in **{raid['title']}** (<t:{ts}:F>), so you're in as **{ROLE_SINGULAR[role]}**.\n"
+            "Nothing to do if you're coming. Can't make it? Tap the button and it goes to the next person on the bench.")
 
 
 def next_occurrence(start_utc: datetime, tz_name: str, weeks: int = 1) -> datetime:

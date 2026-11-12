@@ -949,116 +949,186 @@ def _row(uid, role, at, wanted=None):
             "name": None, "surname": None, "level": None, "class_name": None}
 
 
-def test_next_offers_follows_the_queue_and_respects_limits_and_pending_offers():
-    raid = {"size": 3, "cap_tank": None, "cap_healer": None, "cap_dps": 2}
-    full = [_row(1, "tank", "1"), _row(2, "dps", "2"), _row(3, "dps", "3"),
-            _row(4, "bench", "4", "dps"), _row(5, "bench", "5", "healer"), _row(6, "bench", "6")]
-    assert R.next_offers(raid, full, []) == []                                   # raid is full: nobody is asked
-    open_one = [r for r in full if r["discord_id"] != 3]                         # a DPS left: one slot
-    assert R.next_offers(raid, open_one, []) == [(4, "dps")]                     # first in line, and DPS has room
-    assert R.next_offers(dict(raid, cap_dps=1), open_one, []) == [(5, "healer")]  # DPS capped: skip to someone else
-    pend = [{"discord_id": 4, "role": "dps", "state": "pending"}]
-    assert R.next_offers(raid, open_one, pend) == []                             # the slot is already promised
-    gone = [{"discord_id": 4, "role": "dps", "state": "declined"}]
-    assert R.next_offers(raid, open_one, gone) == [(5, "healer")]                # 4 said no; 5 is next
-    assert R.next_offers(raid, open_one, gone + [{"discord_id": 5, "role": "healer", "state": "declined"}]) == [(6, "tank")]                  # 6 tapped plain Bench: any role will do
-    bigger = dict(raid, size=4)
-    assert R.next_offers(bigger, full, []) == [(5, "healer")]                    # room added: first eligible in line
-    two = dict(raid, size=5)
-    assert R.next_offers(two, full, []) == [(5, "healer"), (6, "tank")]          # 6 (any role) gets the next open role
-    when = datetime(2026, 11, 11, 20, 45, tzinfo=timezone.utc)
-    text = R.offer_text(raid | {"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps", when)
-    assert "Take it or pass." in text and "remind you once more, then take you off the bench" in text
-    last = R.ping_text({"title": "T"}, "dps", 7, when, last_call=True)
-    assert last == f"<@7> still want the **DPS** spot in **T**? Answer <t:{int(when.timestamp())}:R> or you come off the bench."
-    assert "still want" not in R.ping_text({"title": "T"}, "dps", 7, when)
-
-
-def test_offer_window_scales_with_time_until_the_raid():
-    now = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
-
-    def window(minutes_left):
-        ping, end = R.offer_window(now, now + timedelta(minutes=minutes_left))
-        return round((ping - now).total_seconds() / 60, 2), round((end - now).total_seconds() / 60, 2)
-    assert window(10 * 24 * 60) == (2880.0, 4320.0)       # ten days out: two days, last call, then one more day
-    assert window(30 * 24 * 60) == (2880.0, 4320.0)       # a month out: the same, capped at three days
-    assert window(2 * 24 * 60) == (576.0, 864.0)          # two days out: about 14 hours, last call after 9.6
-    assert window(4 * 60) == (48.0, 72.0)                 # four hours out: 72 minutes
-    assert window(60) == (12.0, 18.0)                     # an hour out: 18 minutes
-    assert window(10) == (6.0, 9.0)                       # starting very soon: never past the start
-    assert window(1)[1] == 1.0 and window(0)[1] == 1.0
-
-
-def test_bench_queue_end_to_end_offer_accept_and_pass(tmp_path):
+def _bench(tmp_path, size=2, start="2030-01-01T20:30:00+00:00"):
+    """A bot, a raid of `size` and a log of the DMs it sends: (db, raid id, bot, dms, edits)."""
     from types import SimpleNamespace
     from guildbot.bot import GuildBot
     db = make_db(tmp_path)
     asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
     cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
-    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    sent, edits = [], []
+    rid = db.create_raid("Run", start, size, 9)
+    dms, edits = [], []
+
+    async def _edit(**kw):
+        edits.append(kw)
 
     class U:
         bot = False
+        dm_channel = None
 
         def __init__(self, uid):
             self.uid = uid
 
-        dm_channel = None
-
         async def send(self, text, view=None):
-            sent.append((self.uid, text, view))
-            return SimpleNamespace(id=1000 + len(sent))
+            dms.append((self.uid, text, view))
+            return SimpleNamespace(id=1000 + len(dms))
 
         async def create_dm(self):
-            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_noop))
+            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_edit))
 
-    async def _noop(**kw):
-        return None
+    bot = GuildBot(cfg, db, blizzard=None)
+    bot.get_user = lambda uid: U(uid)
+    return db, rid, bot, dms, edits
 
-    def ix(uid):
-        async def edit_message(**kw):
-            edits.append((uid, kw))
-        return SimpleNamespace(user=SimpleNamespace(id=uid), response=SimpleNamespace(edit_message=edit_message))
+
+def _soon():
+    """Two hours from now: inside the late-drop window, so a drop would count."""
+    return (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(timespec="seconds")
+
+
+def _tap(uid):
+    """A button press by `uid` on a DM; records what the DM was edited to."""
+    from types import SimpleNamespace
+    seen = []
+
+    async def edit_message(**kw):
+        seen.append(kw)
+
+    async def send_message(text=None, **kw):
+        seen.append(dict(kw, content=text))
+    return SimpleNamespace(user=SimpleNamespace(id=uid), message=None,
+                           response=SimpleNamespace(edit_message=edit_message, send_message=send_message)), seen
+
+
+def test_next_promotions_follows_the_queue_and_respects_limits():
+    raid = {"size": 3, "cap_tank": None, "cap_healer": None, "cap_dps": 2}
+    full = [_row(1, "tank", "1"), _row(2, "dps", "2"), _row(3, "dps", "3"),
+            _row(4, "bench", "4", "dps"), _row(5, "bench", "5", "healer"), _row(6, "bench", "6")]
+    assert R.next_promotions(raid, full) == []                                   # raid is full: nobody moves up
+    open_one = [r for r in full if r["discord_id"] != 3]                         # a DPS left: one slot
+    assert R.next_promotions(raid, open_one) == [(4, "dps")]                     # first in line, and DPS has room
+    assert R.next_promotions(dict(raid, cap_dps=1), open_one) == [(5, "healer")]  # DPS capped: next person who fits
+    no_four = [r for r in open_one if r["discord_id"] != 4]
+    assert R.next_promotions(raid, no_four) == [(5, "healer")]
+    assert R.next_promotions(raid, [r for r in no_four if r["discord_id"] != 5]) == [(6, "tank")]   # plain Bench: any role
+    assert R.next_promotions(dict(raid, size=4), full) == [(5, "healer")]        # room added: first who fits
+    assert R.next_promotions(dict(raid, size=5), full) == [(5, "healer"), (6, "tank")]
+    text = R.promotion_text(raid | {"title": "T", "starts_at": "2026-11-11T20:30:00+00:00"}, "dps")
+    assert "you're in as **DPS**" in text and "Can't make it?" in text and "off the bench" not in text
+
+
+def test_a_free_slot_goes_straight_to_the_first_on_the_bench_who_can_give_it_back(tmp_path):
+    """Owner, 12 Nov 2026: "promote and nudge and then if they don't want it repeat the process"."""
+    db, rid, bot, dms, edits = _bench(tmp_path, start=_soon())
 
     async def run():
-        bot = GuildBot(cfg, db, blizzard=None)
-        bot.get_user = lambda uid: U(uid)
         raid = db.get_raid(rid)
-        for uid, role in ((1, "dps"), (2, "dps"), (3, "dps"), (4, "dps")):           # 1, 2 in; 3 then 4 bounced to the bench
-            bot.apply_signup(raid, uid, role, None)
-        rows = {s["discord_id"]: (s["role"], s["wanted"]) for s in db.signups(rid)}
-        assert rows == {1: ("dps", None), 2: ("dps", None), 3: ("bench", "dps"), 4: ("bench", "dps")}
+        for uid in (1, 2, 3, 4):                                                   # 1, 2 in; 3 then 4 on the bench
+            bot.apply_signup(raid, uid, "dps", None)
         await bot.fill_open_slots(rid)
-        assert sent == []                                                            # full: nobody is asked
-        bot.apply_signup(raid, 2, "absent", None)                                    # 2 backs out
+        assert dms == []                                                           # full: nobody moves
+        bot.apply_signup(raid, 2, "absent", None)                                  # 2 backs out
         await bot.fill_open_slots(rid)
-        assert [(u, "Take it or pass" in t) for u, t, _ in sent] == [(3, True)]             # 3 is first in line
+        assert [u for u, _, _ in dms] == [3]                                       # 3 is in, and told
+        assert {s["discord_id"]: s["role"] for s in db.signups(rid)}[3] == "dps"
         await bot.fill_open_slots(rid)
-        assert len(sent) == 1                                                        # not asked twice for one slot
-        offer = db.offers_for_raid(rid)[0]
-        await bot.answer_offer(ix(3), offer["id"], False)                            # 3 passes: 4 is asked
-        assert [u for u, _, _ in sent] == [3, 4] and db.get_offer(offer["id"])["state"] == "declined"
-        assert 3 not in {s["discord_id"] for s in db.signups(rid)}                    # passing takes you off the bench
-        offer4 = db.offers_for_raid(rid)[1]
-        await bot.answer_offer(ix(4), offer4["id"], True)
-        assert db.get_offer(offer4["id"])["state"] == "accepted"
-        await bot.answer_offer(ix(4), offer4["id"], True)                            # a second tap does nothing
+        assert len(dms) == 1                                                       # nothing more to do
+        promo = db.offers_for_raid(rid)[0]
+        other, said = _tap(4)
+        await bot.give_back(other, promo["id"])                                    # not 4's button
+        assert said[-1]["content"] == "That spot isn't yours." and db.get_offer(promo["id"])["state"] == "pending"
+        mine, said = _tap(3)
+        await bot.give_back(mine, promo["id"])                                     # 3 can't make it after all
+        assert "next person on the bench" in said[-1]["content"] and said[-1]["view"] is None
+        assert [u for u, _, _ in dms] == [3, 4]                                    # and 4 moves up
+        await bot.give_back(mine, promo["id"])                                     # a second tap does nothing
+        assert "already moved on" in said[-1]["content"]
     asyncio.run(run())
-    final = {s["discord_id"]: (s["role"], s["wanted"]) for s in db.signups(rid)}
-    assert final[4] == ("dps", None) and 3 not in final
-    assert "You're in as DPS" in edits[-2][1]["content"] and edits[-1][1]["content"] == "That offer has expired."
+    final = {s["discord_id"]: s["role"] for s in db.signups(rid)}
+    assert final == {1: "dps", 2: "absent", 4: "dps"}                              # 3 is out, not benched again
+    db.mark_closed(rid)
+    assert db.history(3)["late_drops"] == 0 and db.history(3)["signed_up"] == 0                                 # giving back a promotion is not a late drop
 
 
-def test_offers_expire_with_time_and_when_the_raid_starts(tmp_path):
+def test_saying_nothing_keeps_the_spot_and_closed_dms_still_get_it(tmp_path):
+    """No timer, no public @ and no removal: someone moved up stays in unless they say otherwise. With DMs
+    closed they are still moved up (the raid post shows it); nothing is posted in the channel."""
+    import discord
+    from types import SimpleNamespace
+    db, rid, bot, dms, edits = _bench(tmp_path, size=1)
+
+    class Closed:
+        bot = False
+
+        async def send(self, *a, **k):
+            raise discord.Forbidden(SimpleNamespace(status=403, reason="x"), "Cannot send messages to this user")
+    bot.get_channel = lambda cid: (_ for _ in ()).throw(AssertionError("nothing goes in the channel"))
+
+    async def run():
+        raid = db.get_raid(rid)
+        for uid in (1, 2):
+            bot.apply_signup(raid, uid, "dps", None)
+        bot.get_user = lambda uid: Closed()
+        bot.apply_signup(raid, 1, "absent", None)
+        await bot.fill_open_slots(rid)
+        await bot._tidy_bench()                                                    # the minute job: no expiry, no ping
+    asyncio.run(run())
+    assert {s["discord_id"]: s["role"] for s in db.signups(rid)}[2] == "dps"
+    assert db.offers_for_raid(rid)[0]["state"] == "pending"
+
+
+def test_the_minute_job_moves_people_up_when_a_slot_opens_some_other_way(tmp_path):
+    """An officer raising the size, or a signup changed outside the buttons, frees a slot: the next minute fills it."""
+    db, rid, bot, dms, edits = _bench(tmp_path, size=1)
+
+    async def run():
+        raid = db.get_raid(rid)
+        for uid in (1, 2):
+            bot.apply_signup(raid, uid, "dps", None)
+        db.conn.execute("UPDATE raids SET size=2 WHERE id=?", (rid,))
+        db.conn.commit()
+        await bot._tidy_bench()
+    asyncio.run(run())
+    assert [u for u, _, _ in dms] == [2]
+
+
+def test_starting_up_settles_timed_offers_from_before(tmp_path):
+    """Offers made under the old timed system are closed once, on the first start with promote-and-tell."""
+    from guildbot.bot import GuildBot
     db = make_db(tmp_path)
     rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    a = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00", "2026-11-11T20:10:00+00:00", "2026-11-11T20:15:00+00:00")
-    b = db.create_offer(rid, 4, "dps", "2026-11-11T20:30:00+00:00", "2026-11-11T20:40:00+00:00", "2026-11-11T20:45:00+00:00")
-    assert [o["id"] for o in db.expire_old_offers("2026-11-11T20:20:00+00:00")] == [a]
-    assert db.get_offer(a)["state"] == "expired" and db.get_offer(b)["state"] == "pending"
+    old = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00", "2026-11-11T20:10:00+00:00", "2026-11-11T20:15:00+00:00")
+    bot = GuildBot(load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"}), db, blizzard=None)
+
+    async def run():
+        bot.tree.sync = _async_none
+        try:
+            await bot.setup_hook()
+        finally:
+            for job in ("sync_job", "reminder_job", "close_job", "end_job", "bench_job"):
+                getattr(bot, job).cancel()
+    asyncio.run(run())
+    assert db.get_offer(old)["state"] == "expired" and db.get_meta("bench_promotes")
+    new = db.create_offer(rid, 4, "dps", "2026-11-12T20:00:00+00:00", "2030-01-01T20:30:00+00:00", "2030-01-01T20:30:00+00:00")
+    asyncio.run(run())
+    assert db.get_offer(new)["state"] == "pending"                                # only once
+
+
+async def _async_none(*a, **k):
+    return None
+
+
+def test_promotions_close_when_the_raid_starts(tmp_path):
+    db = make_db(tmp_path)
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
+    b = db.create_offer(rid, 4, "dps", "2026-11-11T20:30:00+00:00", "2030-01-01T20:30:00+00:00", "2030-01-01T20:30:00+00:00")
     db.mark_closed(rid)
     assert db.get_offer(b)["state"] == "expired" and db.pending_offers() == []
+    assert [o["id"] for o in db.offers_to_clean()] == []                          # never sent: nothing to tidy
+    db.set_offer_messages(b, dm=5)
+    assert [o["id"] for o in db.offers_to_clean()] == [b]
+    db.mark_offer_cleaned(b)
+    assert db.offers_to_clean() == []
 
 
 def test_signing_up_needs_a_claimed_character(tmp_path):
@@ -1094,97 +1164,6 @@ def test_signing_up_needs_a_claimed_character(tmp_path):
     assert [(s["discord_id"], s["role"], s["slug"]) for s in db.signups(rid)] == [(5, "dps", "anduin-wrynn")]
 
 
-def test_unanswered_or_undeliverable_offers_get_an_at_ping_in_the_raid_channel(tmp_path):
-    import discord
-    from types import SimpleNamespace
-    from guildbot.bot import GuildBot
-    db = make_db(tmp_path)
-    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
-    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
-    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    db.set_raid_posted(rid, 10, 20, None)
-    pings, deleted, whispers, dms = [], [], [], []
-
-    class Chan:
-        async def send(self, text, view=None, allowed_mentions=None):
-            pings.append((text, allowed_mentions))
-            return SimpleNamespace(id=500 + len(pings))
-
-        def get_partial_message(self, mid):
-            async def delete():
-                deleted.append(mid)
-            return SimpleNamespace(delete=delete)
-
-        async def fetch_message(self, mid):                                   # the raid post, refreshed after a take
-            async def edit(**kw):
-                return None
-            return SimpleNamespace(edit=edit)
-
-    class ClosedDMs:
-        bot = False
-        async def send(self, *a, **k):
-            raise discord.Forbidden(SimpleNamespace(status=403, reason="x"), "Cannot send messages to this user")
-
-    class OpenDMs:
-        bot = False
-        dm_channel = None
-
-        async def send(self, text, view=None):
-            dms.append(text)
-            return SimpleNamespace(id=700 + len(dms))
-
-        async def create_dm(self):
-            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_ok))
-
-    async def _ok(**kw):
-        return None
-
-    async def run():
-        bot = GuildBot(cfg, db, blizzard=None)
-        bot.get_channel = lambda cid: Chan()
-        raid = db.get_raid(rid)
-        for uid in (1, 2, 3, 4):
-            bot.apply_signup(raid, uid, "dps", None)
-        bot.get_user = lambda uid: ClosedDMs() if uid == 3 else OpenDMs()
-        bot.apply_signup(raid, 2, "absent", None)
-        await bot.fill_open_slots(rid)                                       # 3 has DMs closed: pinged in the channel at once
-        assert len(pings) == 1 and pings[0][0].startswith("<@3> a spot opened up in **Run**") and dms == []
-        offer = db.offers_for_raid(rid)[0]
-        assert offer["chan_msg_id"] == 501 and offer["state"] == "pending"
-        wrong = SimpleNamespace(user=SimpleNamespace(id=4), response=SimpleNamespace(send_message=_whisper(whispers)))
-        await bot.answer_offer(wrong, offer["id"], True)                     # someone else's button does nothing
-        assert whispers == [("That spot was offered to someone else.", True)] and db.get_offer(offer["id"])["state"] == "pending"
-        mine = SimpleNamespace(user=SimpleNamespace(id=3), message=SimpleNamespace(id=501),
-                               response=SimpleNamespace(send_message=_whisper(whispers)))
-        await bot.answer_offer(mine, offer["id"], True)                      # clicked in the channel: answer is a whisper
-        assert whispers[-1][0].startswith("You're in as DPS") and whispers[-1][1] is True
-        assert deleted == [501]                                              # and the ping is removed
-        assert db.get_offer(offer["id"])["cleaned"] == 1
-    asyncio.run(run())
-
-
-def _whisper(log):
-    async def send_message(text, ephemeral=False):
-        log.append((text, ephemeral))
-    return send_message
-
-
-def test_a_quiet_dm_offer_also_gets_a_channel_ping_at_its_last_call_time(tmp_path):
-    db = make_db(tmp_path)
-    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    old = db.create_offer(rid, 3, "dps", "2026-11-11T20:00:00+00:00", "2026-11-11T20:03:00+00:00", "2026-11-11T20:20:00+00:00")
-    new = db.create_offer(rid, 4, "dps", "2026-11-11T20:04:00+00:00", "2026-11-11T20:05:00+00:00", "2026-11-11T20:20:00+00:00")
-    assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:05:00+00:00")] == [old, new]
-    assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:03:00+00:00")] == [old]
-    assert db.offers_to_ping("2026-11-11T20:02:00+00:00") == []                              # not yet time for either
-    db.set_offer_messages(old, chan=77)
-    assert [o["id"] for o in db.offers_to_ping("2026-11-11T20:05:00+00:00")] == [new]       # already pinged: not again
-    db.set_offer_state(old, "declined")
-    assert [o["id"] for o in db.offers_to_clean()] == [old]
-    db.mark_offer_cleaned(old)
-    assert db.offers_to_clean() == []
-
-
 def test_tentative_is_a_maybe_that_takes_no_slot_and_bench_is_only_overflow(tmp_path):
     from guildbot.bot import BUTTONS, GuildBot, raid_embed
     assert [b[0] for b in BUTTONS] == ["tank", "healer", "dps", "tentative", "absent"]     # no Bench button
@@ -1203,7 +1182,7 @@ def test_tentative_is_a_maybe_that_takes_no_slot_and_bench_is_only_overflow(tmp_
     g = R.group_signups(db.signups(rid))
     assert R.filled(g) == 1 and [s["discord_id"] for s in g["tentative"]] == [2]
     bot.apply_signup(raid, 1, "absent", None)                                    # the slot opens: the queue, not the maybe
-    assert R.next_offers(raid, db.signups(rid), []) == [(3, "dps")]
+    assert R.next_promotions(raid, db.signups(rid)) == [(3, "dps")]
     names = [f.name for f in raid_embed(db, raid).fields]
     assert names == ["\U0001F7E6 Tanks (0)", "\U0001F7E9 Healers (0)", "\U0001F7E5 DPS (0)", "Bench (1)",
                      "\U0001F7E8 Tentative (1)", "\u2B1C Can't make it (1)"]
@@ -1223,50 +1202,6 @@ def test_help_lists_every_command_and_shows_officer_ones_only_to_officers(tmp_pa
             continue
         assert f"`/{c.name}`" in officer, f"/{c.name} is missing from /help"                 # nothing can be forgotten
     assert "/raid-create" not in member and "/wanted" not in member
-
-
-def test_no_answer_takes_you_off_the_bench_and_asks_the_next_person(tmp_path):
-    from types import SimpleNamespace
-    from guildbot.bot import GuildBot
-    db = make_db(tmp_path)
-    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
-    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
-    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 1, 9)
-    sent = []
-
-    async def _noop2(**kw):
-        return None
-
-    class U:
-        bot = False
-        dm_channel = None
-
-        def __init__(self, uid):
-            self.uid = uid
-
-        async def send(self, text, view=None):
-            sent.append((self.uid, text))
-            return SimpleNamespace(id=900 + len(sent))
-
-        async def create_dm(self):
-            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_noop2))
-
-    async def run():
-        bot = GuildBot(cfg, db, blizzard=None)
-        bot.get_user = lambda uid: U(uid)
-        raid = db.get_raid(rid)
-        for uid in (1, 2, 3):                                                  # 1 holds the slot; 2 then 3 wait
-            bot.apply_signup(raid, uid, "dps", None)
-        bot.apply_signup(raid, 1, "absent", None)
-        await bot.fill_open_slots(rid)
-        assert [u for u, _ in sent] == [2] and "take you off the bench" in sent[0][1]
-        db.conn.execute("UPDATE offers SET expires_at='2000-01-01T00:00:00+00:00'")      # time runs out
-        db.conn.commit()
-        await bot._expire_offers()
-    asyncio.run(run())
-    rows = {s["discord_id"]: s["role"] for s in db.signups(rid)}
-    assert 2 not in rows and rows[3] == "bench"                                 # 2 is off the bench, 3 is next in line
-    assert [u for u, _ in sent] == [2, 2, 3] and "took you off the bench" in sent[1][1]
 
 
 def test_one_hand_two_hand_groups_and_level_pop_up_helpers(tmp_path):
@@ -1756,61 +1691,70 @@ def test_a_deleted_raid_channel_does_not_count_as_a_closed_event(tmp_path):
     assert deleted == [30] and db.events_pending() == []
 
 
-def test_a_bench_offer_is_voided_when_its_holder_changes_their_signup(tmp_path):
-    """Codex on #485: someone with an offer pending who taps "Can't make it" (or a role) must free the
-    reserved slot for the next person in line straight away, not after the offer runs out (up to 3 days),
-    and a stale Take it must not put them back in."""
-    from types import SimpleNamespace
-    from guildbot.bot import GuildBot
-    db = make_db(tmp_path)
-    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
-    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
-    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
-    sent, edits = [], []
-
-    async def _noop(**kw):
-        return None
-
-    class U:
-        bot = False
-        dm_channel = None
-
-        def __init__(self, uid):
-            self.uid = uid
-
-        async def send(self, text, view=None):
-            sent.append(self.uid)
-            return SimpleNamespace(id=1000 + len(sent))
-
-        async def create_dm(self):
-            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_noop))
-
-    def ix(uid):
-        async def edit_message(**kw):
-            edits.append((uid, kw))
-        return SimpleNamespace(user=SimpleNamespace(id=uid), response=SimpleNamespace(edit_message=edit_message))
+def test_any_signup_change_settles_a_promotion_and_leaving_it_is_not_a_late_drop(tmp_path):
+    """Someone moved up who then taps "Can't make it" on the raid post instead of the DM has given the slot
+    back: the next person moves up, the DM loses its button, and it is not a late drop. Tapping the
+    promoted role on the post settles it as kept."""
+    db, rid, bot, dms, edits = _bench(tmp_path, start=_soon())
 
     async def run():
-        bot = GuildBot(cfg, db, blizzard=None)
-        bot.get_user = lambda uid: U(uid)
         raid = db.get_raid(rid)
-        for uid in (1, 2, 3, 4):                                    # 1, 2 in; 3 then 4 on the bench
+        for uid in (1, 2, 3, 4, 5):                                 # 1, 2 in; 3, 4, 5 on the bench
             bot.apply_signup(raid, uid, "dps", None)
         bot.apply_signup(raid, 2, "absent", None)
         await bot.fill_open_slots(rid)
-        assert sent == [3]                                          # 3 is offered the slot
-        offer3 = db.offers_for_raid(rid)[0]
+        promo3 = db.offers_for_raid(rid)[0]
+        assert promo3["discord_id"] == 3
         bot.apply_signup(raid, 3, "absent", None)                   # 3 says Can't make it from the raid post
-        assert db.get_offer(offer3["id"])["state"] == "expired"
+        assert db.get_offer(promo3["id"])["state"] == "expired"
         await bot.fill_open_slots(rid)
-        assert sent == [3, 4]                                       # 4 is asked now, not in three days
-        assert db.get_offer(offer3["id"])["cleaned"] == 1           # and 3's old DM has its buttons closed
-        await bot.answer_offer(ix(3), offer3["id"], True)           # 3's old DM button does nothing
-        bot.apply_signup(raid, 4, "bench", None)                    # tapping Bench again keeps 4's offer alive
-        assert db.offers_for_raid(rid)[1]["state"] == "pending"
+        assert [u for u, _, _ in dms] == [3, 4]                     # 4 moves up straight away
+        assert db.get_offer(promo3["id"])["cleaned"] == 1 and edits[-1] == {"view": None}   # 3's DM button is gone
+        promo4 = db.offers_for_raid(rid)[1]
+        bot.apply_signup(raid, 4, "dps", None)                      # 4 confirms on the post: settled, still in
+        assert db.get_offer(promo4["id"])["state"] == "expired"
+        assert {s["discord_id"]: s["role"] for s in db.signups(rid)}[4] == "dps"
     asyncio.run(run())
-    final = {s["discord_id"]: s["role"] for s in db.signups(rid)}
-    assert final[3] == "absent" and edits[-1][1]["content"] == "That offer has expired."
+    db.mark_closed(rid)
+    assert db.history(3)["late_drops"] == 0 and db.history(3)["signed_up"] == 0
+
+
+def test_a_re_tap_on_the_bench_keeps_your_place_in_the_queue(tmp_path, monkeypatch):
+    """Found by the adversarial review: every tap rewrote the time the queue is sorted by, so a double tap
+    (or a new character picked in the pop-up) sent the first in line to the back."""
+    db, rid, bot, dms, edits = _bench(tmp_path)
+    clock = iter(f"2026-12-01T12:00:{s:02d}+00:00" for s in range(60))
+    monkeypatch.setattr("guildbot.bot.utcnow", lambda: next(clock))
+
+    async def run():
+        raid = db.get_raid(rid)
+        for uid in (1, 2, 3, 4):                                    # 1, 2 in; 3 then 4 on the bench
+            bot.apply_signup(raid, uid, "dps", None)
+        bot.apply_signup(raid, 3, "dps", None)                      # 3 taps DPS again while waiting
+        bot.apply_signup(raid, 2, "absent", None)
+        await bot.fill_open_slots(rid)
+    asyncio.run(run())
+    assert [u for u, _, _ in dms] == [3]
+
+
+def test_someone_who_gave_a_spot_back_and_rejoined_the_bench_moves_up_again(tmp_path):
+    """Found by the adversarial review (in the old design nobody was ever asked twice about one role)."""
+    db, rid, bot, dms, edits = _bench(tmp_path)
+
+    async def run():
+        raid = db.get_raid(rid)
+        for uid in (1, 2, 3):
+            bot.apply_signup(raid, uid, "dps", None)
+        bot.apply_signup(raid, 2, "absent", None)
+        await bot.fill_open_slots(rid)                              # 3 moves up ...
+        ix, _ = _tap(3)
+        await bot.give_back(ix, db.offers_for_raid(rid)[0]["id"])   # ... and gives it back
+        bot.apply_signup(raid, 4, "dps", None)                      # 4 takes the open slot: full again
+        assert bot.apply_signup(raid, 3, "dps", None) == "bench"    # 3 changes their mind
+        bot.apply_signup(raid, 1, "absent", None)
+        await bot.fill_open_slots(rid)
+    asyncio.run(run())
+    assert [u for u, _, _ in dms] == [3, 3]
 
 
 def test_slot_autocomplete_never_offers_more_than_discord_allows(tmp_path):
