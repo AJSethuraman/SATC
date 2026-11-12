@@ -793,7 +793,7 @@ local function Handle(text, sender, guid)
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     if Opt("announce") then
         local what = JobWhere(job)
-        if what == "" then what = answered and "answered your ad" or why end
+        if what == "" then what = answered and "(answered your ad)" or why end
         P((direct and "invited " or "suggested invite (you're not the leader): ") .. short .. "  " .. what)
         D("  because [" .. curChannel .. "] \"" .. text .. "\" = " .. why)
     end
