@@ -95,3 +95,65 @@ def test_opening_the_list_later_still_shows_the_buff_button():
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterJobs.buffBtn:IsShown()") is True
     assert g.eval("ServiceInviterJobs.buffBtn:GetText()") == "Fortitude -> Grimtotem"
+
+
+# -- Paladins: the word picks the blessing --------------------------------------------------
+# The owner: "so if im a paladin how will it work? can they say wisdom or something and it knows
+# to queue that".
+
+PALADIN_TB = {"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+              "party2": ("Kaldrok", "ROGUE", 44, "Thunder Bluff")}
+KNOWN = SPELLS + """
+KNOWN = { ["Blessing of Might"] = true, ["Blessing of Wisdom"] = true, ["Blessing of Salvation"] = true }
+function GetSpellInfo(s) if type(s) == "string" and KNOWN[s] then return s end end
+"""
+
+
+def party(g, who, text):
+    g.event("CHAT_MSG_PARTY", text, who, "", "", "", "", "", "", "")
+
+
+def test_wisdom_queues_blessing_of_wisdom():
+    g = world(PALADIN_TB, "blessing = { on = true }", extra=KNOWN)
+    party(g, "Grimtotem", "can i get wisdom pls")
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Wisdom"
+    assert label(g) == "Wisdom -> Grimtotem"
+
+
+def test_each_person_gets_the_blessing_they_asked_for():
+    g = world(PALADIN_TB, "blessing = { on = true }", extra=KNOWN)
+    party(g, "Grimtotem", "wisdom?")
+    party(g, "Kaldrok", "might pls")
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Wisdom"
+    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "g", 0, "Blessing of Wisdom")
+    assert macro(g) == "/cast [@Kaldrok] Blessing of Might"
+
+
+def test_just_blessing_gets_the_one_set_on_the_buffs_tab():
+    g = world(PALADIN_TB, 'blessing = { on = true, spell = "Blessing of Salvation" }', extra=KNOWN)
+    party(g, "Grimtotem", "blessing pls")
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Salvation"
+
+
+def test_asking_again_switches_their_blessing_instead_of_adding_one():
+    g = world(PALADIN_TB, "blessing = { on = true }", extra=KNOWN)
+    party(g, "Grimtotem", "wisdom pls")
+    party(g, "Grimtotem", "actually might")
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Might"
+    assert label(g) == "Might -> Grimtotem"
+
+
+def test_a_blessing_you_dont_have_is_not_queued_and_you_are_told():
+    g = world(PALADIN_TB, "blessing = { on = true }", extra=KNOWN)
+    party(g, "Grimtotem", "kings pls")
+    assert label(g) == "No buffs waiting"
+    assert any("Blessing of Kings" in line for line in g.printed())
+
+
+def test_everyday_sentences_with_might_or_light_are_not_requests():
+    g = world(PALADIN_TB, "blessing = { on = true }", extra=KNOWN)
+    party(g, "Grimtotem", "i might be afk for a few minutes")
+    party(g, "Kaldrok", "it is getting light out here in the barrens")
+    assert label(g) == "No buffs waiting"
+    party(g, "Kaldrok", "might pls")          # control: a short ask still counts
+    assert label(g) == "Might -> Kaldrok"

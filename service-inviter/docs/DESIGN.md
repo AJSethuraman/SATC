@@ -77,6 +77,13 @@ asks in party, raid or a whisper, for each buff you offer and your class casts. 
 moves to the next; "too low level" steps down a rank for the next press; leaving the group drops
 them. Not re-aimed in combat (the game forbids it). A paladin picks the blessing on the Buffs tab.
 
+Paladins (the owner: "can they say wisdom or something and it knows to queue that"): the word picks
+the blessing (wisdom, might, kings, salvation, light, sanctuary); plain "blessing" or "buff" gets
+the one set on the Buffs tab. Asking again switches that person's blessing rather than adding one
+(a paladin's blessing replaces their last on a target). A blessing you don't have (Kings is a
+talent) is not queued; you're told. Only short messages count as asks, so "I might be afk for a bit"
+doesn't queue Might.
+
 ## Who gets paid is picked from the group
 
 The owner: "can 'who gets paid' be a suggestion/drop down from the raid/party?". Every payee box has

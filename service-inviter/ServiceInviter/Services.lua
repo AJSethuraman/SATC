@@ -49,7 +49,15 @@ C.SERVICES = {
     { key = "ai",          class = "MAGE",    level = 1,  tab = "Buffs",   kind = "buff",   label = "Arcane Intellect",  on = false, invite = false, spell = "Arcane Intellect",
       words = "arcane intellect, int buff" },
     { key = "blessing",    class = "PALADIN", level = 1,  tab = "Buffs",   kind = "buff",   label = "a blessing",        on = false, invite = false, spell = "Blessing of Might",
-      words = "blessing, kings, might, wisdom" },
+      words = "blessing, bless, kings, might, wisdom, salvation, salv, light, sanctuary, sanc" },
+}
+-- Paladin blessings by the word a buyer uses ("wisdom pls" = Blessing of Wisdom). Plain
+-- "blessing" or "buff" gets the one set on the Buffs tab.
+C.BLESSINGS = {
+    { word = "wisdom", spell = "Blessing of Wisdom" }, { word = "might", spell = "Blessing of Might" },
+    { word = "kings", spell = "Blessing of Kings" }, { word = "salvation", spell = "Blessing of Salvation" },
+    { word = "salv", spell = "Blessing of Salvation" }, { word = "light", spell = "Blessing of Light" },
+    { word = "sanctuary", spell = "Blessing of Sanctuary" }, { word = "sanc", spell = "Blessing of Sanctuary" },
 }
 C.BY_KEY = {}
 for _, s in ipairs(C.SERVICES) do C.BY_KEY[s.key] = s end

@@ -1,4 +1,4 @@
--- Service Inviter v2.0.9
+-- Service Inviter v2.0.10
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1167,7 +1167,7 @@ adKey:Hide()
 -- aims the button. Who is queued: customers landing where you are, and anyone in the group
 -- who asks ("fort pls"). Out of combat only (the game won't let an addon re-aim it in combat).
 ----------------------------------------------------------------------
-local buffQueue = {}   -- { name, key, rank }
+local buffQueue = {}   -- { name, key, spell, rank }
 local function MyBuffs()
     local okc, _, cls = pcall(UnitClass, "player")
     local out = {}
@@ -1187,14 +1187,15 @@ buffKey:Hide()
 buffDirty = false
 local function BuffMacro(e)
     if not e then return "" end
-    local st = Core.Setting(ServiceInviterDB, e.key)
-    return "/cast [@" .. e.name .. "] " .. (st.spell or "") .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
+    local spell = e.spell or Core.Setting(ServiceInviterDB, e.key).spell or ""
+    return "/cast [@" .. e.name .. "] " .. spell .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
 end
 local function BuffLabel()
     local e = buffQueue[1]
     if not e then return "No buffs waiting" end
     local def = Core.BY_KEY[e.key]
-    return def.label:gsub("^a ", "") .. " -> " .. e.name .. (#buffQueue > 1 and (" (+" .. (#buffQueue - 1) .. ")") or "")
+    local what = e.spell and e.spell:gsub("^Blessing of ", "") or def.label:gsub("^a ", "")
+    return what .. " -> " .. e.name .. (#buffQueue > 1 and (" (+" .. (#buffQueue - 1) .. ")") or "")
 end
 RefreshBuff = function()
     -- drop anyone who left the group
@@ -1209,11 +1210,26 @@ RefreshBuff = function()
         if #MyBuffs() > 0 then jobsWin.buffBtn:Show() else jobsWin.buffBtn:Hide() end
     end
 end
-local function QueueBuff(name, key)
+-- Do you have this spell? (Kings is a talent.) If the game can't say, assume yes.
+local function KnowSpell(spell)
+    if not spell then return false end
+    local get = (C_Spell and C_Spell.GetSpellInfo) or GetSpellInfo
+    if not get then return true end
+    local ok, info = pcall(get, spell)
+    if not ok then return true end
+    return info ~= nil
+end
+local function QueueBuff(name, key, spell)
     if not name or name == "" then return end
-    for _, e in ipairs(buffQueue) do if e.name == name and e.key == key then return end end
-    buffQueue[#buffQueue + 1] = { name = name, key = key }
-    D("buff queued: " .. key .. " for " .. name)
+    for _, e in ipairs(buffQueue) do
+        if e.name == name and e.key == key then
+            -- a paladin's blessing replaces their last one on that person: switch, don't add
+            if spell and e.spell ~= spell then e.spell, e.rank = spell, nil RefreshBuff() end
+            return
+        end
+    end
+    buffQueue[#buffQueue + 1] = { name = name, key = key, spell = spell }
+    D("buff queued: " .. (spell or key) .. " for " .. name)
     RefreshBuff()
 end
 QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(name, def.key) end end
@@ -1223,22 +1239,40 @@ BuffAsk = function(text, sender)
     local name = Ambiguate and Ambiguate(sender, "none") or sender
     if name == (UnitName and UnitName("player")) or not InGroupByName(name) then return end
     local norm = Norm(text)
+    -- asks are short ("wisdom pls", "can i get fort"); "i might be afk for a bit" is not one
+    local count = 0
+    for _ in norm:gmatch("%S+") do count = count + 1 end
+    if count > 6 then return end
     for _, def in ipairs(MyBuffs()) do
         local words = Core.SplitWords(Core.Setting(ServiceInviterDB, def.key).words)
-        if HasAny(norm, words) then QueueBuff(name, def.key) end
+        if HasAny(norm, words) then
+            if def.key == "blessing" then
+                -- the word picks the blessing; the last one named wins ("wisdom... actually might")
+                local spell, at = nil, 0
+                for _, b in ipairs(Core.BLESSINGS) do
+                    local i = norm:find(" " .. b.word .. " ", 1, true)
+                    if i and i > at then spell, at = b.spell, i end
+                end
+                spell = spell or Core.Setting(ServiceInviterDB, "blessing").spell
+                if KnowSpell(spell) then QueueBuff(name, def.key, spell)
+                else P(name .. " asked for " .. spell .. ", which you don't have. Not queued.") end
+            else
+                QueueBuff(name, def.key)
+            end
+        end
     end
 end
 BuffCastDone = function(spellName)
     local e = buffQueue[1]
     if not e or type(spellName) ~= "string" then return end
-    if spellName == Core.Setting(ServiceInviterDB, e.key).spell then table.remove(buffQueue, 1) RefreshBuff() end
+    if spellName == (e.spell or Core.Setting(ServiceInviterDB, e.key).spell) then table.remove(buffQueue, 1) RefreshBuff() end
 end
 -- "Target is too low level": step down a rank and let the next press try again
 BuffTooLow = function()
     local e = buffQueue[1]
     if not e then return end
     if not e.rank then
-        local spell = Core.Setting(ServiceInviterDB, e.key).spell
+        local spell = e.spell or Core.Setting(ServiceInviterDB, e.key).spell
         local ok, sub = pcall(function() return (GetSpellSubtext and GetSpellSubtext(spell)) or (C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(spell)) end)
         local top = ok and type(sub) == "string" and tonumber(sub:match("(%d+)")) or nil
         e.rank = top and (top - 1) or 1
