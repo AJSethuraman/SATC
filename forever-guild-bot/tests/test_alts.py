@@ -279,6 +279,26 @@ def test_raiders_who_log_out_at_different_times_each_get_their_line(tmp_path):
     db.replace_achievements("tankalt-ironwall", [kill], utcnow())               # the tank's alt shows it too
     assert SY.legacy_milestones(db, set(chars)) == []
 
+
+def test_a_new_member_who_shares_a_raid_point_with_an_old_one_is_not_announced(tmp_path):
+    """Codex on #489: the new-member guard must hold per player. A member whose achievements load for the
+    first time in the same sync as an established raider's kill had that point before joining: old news."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    for slug, member in {"oldie-stone": 101, "newbie-fresh": 102}.items():
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+        db.set_profile(slug, 60, "Warrior", "Human", "Alliance", utcnow())
+        db.claim(member, [slug])
+    db.set_meta("legacy_seeded", utcnow())
+    kill = bz.Achievement(684, "Conqueror of the Lair",
+                          int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()) * 1000, 1, 1, None)
+    for slug in ("oldie-stone", "newbie-fresh"):
+        db.replace_achievements(slug, [kill], utcnow())
+    assert [slug for _k, slug, _n, _c in SY.legacy_milestones(db, {"oldie-stone"})] == ["oldie-stone"]
+    assert SY.legacy_milestones(db, {"oldie-stone", "newbie-fresh"}) == []      # and not later either
+
 def test_saying_no_and_then_claiming_the_character_does_not_hide_the_rest_of_the_account():
     """A member who said "not mine" about a likely alt and later claimed it owns it: the old answer no longer
     splits the group, so the account's third character is still grouped with them."""

@@ -80,6 +80,9 @@ def new_completions(completions, seen: set, known_before: set, holders: dict, no
             parts.setdefault(who, []).append(r)
         earners = []
         for who, part in parts.items():
+            if group and not any(r["slug"] in known_before for r in part):
+                handled += [(*key, r["slug"]) for r in part]   # a new member's old point: never announce
+                continue
             e = pick_earner(first["category"], first["subcategory"], first["name"],
                             [holders[r["slug"]] for r in part if r["slug"] in holders])
             if e is None:
