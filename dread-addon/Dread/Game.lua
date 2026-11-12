@@ -607,10 +607,13 @@ local function build_input()
         hint_text:SetText(Skills.byId[hover_id].name .. " is now on slot " .. n)
         save()
       elseif bar[n] then
-        sel = n
-        if Combat.self_cast(bar[n]) and not world.over then               -- no aim needed: the key is the whole cast
-          local ok, why = Combat.cast(world, bar[n], world.player.x, world.player.y)
-          if not ok then hint_text:SetText(Skills.byId[bar[n]].name .. ": " .. tostring(why)) end
+        if Combat.self_cast(bar[n]) then                                  -- no aim needed: the key is the whole cast, and right click stays on what it was
+          if not world.over then
+            local ok, why = Combat.cast(world, bar[n], world.player.x, world.player.y)
+            if not ok then hint_text:SetText(Skills.byId[bar[n]].name .. ": " .. tostring(why)) end
+          end
+        else
+          sel = n
         end
       end
       handled = true
@@ -1137,6 +1140,9 @@ local function draw_world_and_events(dt, p)
     mk.l:ClearAllPoints(); mk.l:SetPoint("BOTTOM", mk.t, "TOP", 0, 2); mk.l:SetText(ex.label)
     local on = vis(ex.x - cam.x, ex.y - cam.y, 40, 40)
     mk.t:SetShown(on); mk.l:SetShown(on)
+  end
+  for i = #area.exits + 1, #exit_marks do                                  -- an area with fewer exits than the last one: hide the marks left over, or they sit on the screen where they were
+    exit_marks[i].t:Hide(); exit_marks[i].l:Hide()
   end
 
 end

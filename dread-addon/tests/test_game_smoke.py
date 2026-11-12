@@ -1861,3 +1861,51 @@ def test_the_new_areas_draw_their_own_ground_and_the_burial_boss_is_drawn_big():
     teleport(ns, lua, w, boss.x - 200, boss.y, ticks=6)
     frames = [o for o in lua.eval("ALL").values() if o.owner is not None and o.model == boss.model and o.size is not None and o.size[1] > 90]
     assert frames and frames[0].size[1] == pytest.approx(64 * 1.6) and frames[0].size[2] == pytest.approx(80 * 1.6)
+
+
+def test_a_no_aim_key_casts_it_but_right_click_stays_on_the_skill_you_had_selected():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ns.Combat.set_level(w, 30, 0)
+    w.player.st.points["scorch"] = 1
+    w.player.st.points["frostbolt"] = 1
+    w.player.st.points["frost_nova"] = 1
+    w.player.mana = w.player.maxmana = 500
+    bar, _ = ns.Game.bar()
+    for i in range(1, 9):
+        bar[i] = None
+    bar[1], bar[2], bar[3] = "scorch", "frost_nova", "frostbolt"
+    key(lua, "1")
+    tick(lua, 2)
+    mana = w.player.mana
+    key(lua, "2")                                                              # nova: cast at once
+    assert w.player.mana < mana
+    assert ns.Game.bar()[1] == 1                                               # and the selection did not move to it
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -180, 0)
+    before = len(list(w.projectiles.values()))
+    mana = w.player.mana
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    assert len(list(w.projectiles.values())) == before + 1                     # right click threw the scorch bolt, not another nova
+    assert mana - w.player.mana == pytest.approx(ns.Tree.mana_cost(w.player.st, "scorch"))
+    key(lua, "3")                                                              # an aimed skill still just selects, as before
+    assert ns.Game.bar()[1] == 3
+
+
+def test_an_exit_mark_from_the_last_area_does_not_stay_on_screen_in_one_with_fewer_exits():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)                          # the fields: two exits, both marked
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x - 60, ex.y, ticks=3)                      # beside the burial-ground exit, so its mark (the second one) is on screen
+    marks = lambda: [o for o in lua.eval("ALL").values() if o.texture == "Interface\\Icons\\INV_Misc_QuestionMark" and o.shown]
+    assert len(marks()) == 1 and [str(o.text) for o in lua.eval("ALL").values() if o.text and o.shown and str(o.text) == "The burial ground"]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)                          # into the burial ground: one exit
+    assert ns.Game.area().name == "burial"
+    tick(lua, 5)
+    assert len(marks()) == 1                                           # only "Back to the fields"; nothing follows you around
+    labels = [str(o.text) for o in lua.eval("ALL").values() if o.text and o.shown and str(o.text) in ("The burial ground", "Back to the fields", "Back to the moor")]
+    assert labels == ["Back to the fields"]
