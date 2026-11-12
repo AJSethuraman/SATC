@@ -1,4 +1,4 @@
--- Service Inviter v2.0.4
+-- Service Inviter v2.0.5
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -343,6 +343,21 @@ local function GroupSnapshot()
     end
     return g
 end
+-- Class colors, so a busy list reads at a glance (the owner: "can this use class colors and
+-- stuff to avoid a mass of confusing text"). The game's own colors when it has them.
+local CLASS_HEX = { WARLOCK = "ff8788ee", MAGE = "ff3fc7eb", ROGUE = "fffff569", PRIEST = "ffffffff",
+    DRUID = "ffff7c0a", PALADIN = "fff58cba", HUNTER = "ffaad372", SHAMAN = "ff0070dd", WARRIOR = "ffc69b6d" }
+local function ClassHex(cls)
+    local c = cls and RAID_CLASS_COLORS and RAID_CLASS_COLORS[cls]
+    if type(c) == "table" and type(c.colorStr) == "string" then return c.colorStr end
+    return cls and CLASS_HEX[cls] or nil
+end
+local function Colored(name, cls)
+    local h = ClassHex(cls)
+    return h and ("|c" .. h .. name .. "|r") or name
+end
+local function MemberName(m) return Colored(m.me and "you" or m.name, m.class) end
+
 local function DestFor(zone)
     if not zone then return nil end
     local z = zone:lower()
@@ -399,6 +414,19 @@ local function CanInvite()
         end
     end
     return true, direct
+end
+
+local function JobWhere(job, g)
+    if not (job and job.service) then return "" end
+    g = g or GroupSnapshot()
+    local def = Core.BY_KEY[job.service]
+    if not def then return "" end
+    local p = Core.Provider(g, job.service, def.kind == "summon" and job.dest or nil)
+    local what
+    if def.kind == "summon" then what = "-> " .. Core.Short(job.dest or (p and p.zone) or "?")
+    elseif def.kind == "portal" then what = "portal -> " .. Core.Short(job.dest or "?")
+    else what = def.label end
+    return p and (what .. "  ·  " .. MemberName(p)) or what
 end
 
 local function DoInvite(name)
@@ -764,8 +792,10 @@ local function Handle(text, sender, guid)
     job.service, job.dest = svc, dest
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     if Opt("announce") then
-        local what = " because [" .. curChannel .. "] \"" .. text .. "\" = " .. why
-        P(direct and ("invited " .. short .. what) or ("suggested invite for " .. short .. " (you are not the leader)" .. what))
+        local what = JobWhere(job)
+        if what == "" then what = answered and "answered your ad" or why end
+        P((direct and "invited " or "suggested invite (you're not the leader): ") .. short .. "  " .. what)
+        D("  because [" .. curChannel .. "] \"" .. text .. "\" = " .. why)
     end
 end
 
@@ -1420,11 +1450,16 @@ local function ApplyRow(row, job)
     row.job = job
     row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide()
     if not job then
-        row.name:SetText("") row.status:SetText("")
+        row.name:SetText("") row.status:SetText("") row.where:SetText("")
         return
     end
     local st = JOB_STATUS[job.status] or { job.status, "" }
-    row.name:SetText(job.name)
+    if not job.class then
+        local u = UnitFor(job.name)
+        if u then local ok, _, cls = pcall(UnitClass, u) if ok then job.class = cls end end
+    end
+    row.name:SetText(Colored(job.name, job.class))
+    row.where:SetText(JobWhere(job))
     row.status:SetText(st[2] .. st[1] .. "|r")
     local n = UnitFor(job.name) or CleanName(job.name)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
@@ -1569,6 +1604,10 @@ local function BuildJobsUI()
         row.name:SetPoint("TOPLEFT", 24, y - 6)
         row.name:SetWidth(120) row.name:SetJustifyH("LEFT")
         if row.name.SetWordWrap then row.name:SetWordWrap(false) end   -- long names end in "...", never run into the status
+        row.where = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.where:SetPoint("TOPLEFT", 26, y - 26)
+        row.where:SetWidth(220) row.where:SetJustifyH("LEFT")
+        if row.where.SetWordWrap then row.where:SetWordWrap(false) end
         row.status = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.status:SetPoint("TOPLEFT", 150, y - 7)
         row.status:SetWidth(96) row.status:SetJustifyH("LEFT")
@@ -1722,7 +1761,7 @@ local function ShowPicker(box, withDefaults, title, key)
         entries[#entries + 1] = { "Me (" .. me .. ")", me }
     end
     for _, m in ipairs(GroupSnapshot()) do
-        if not m.me then entries[#entries + 1] = { m.name .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+        if not m.me then entries[#entries + 1] = { Colored(m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
     end
     local W = 300
     for i, e in ipairs(entries) do
@@ -2020,12 +2059,12 @@ local function BuildSetupUI()
                 for _, city in ipairs(it.cities) do c[#c + 1] = Core.Short(city) end
                 what = "portals to " .. table.concat(c, "/")
             end
-            parts[#parts + 1] = what .. " (" .. (it.provider.me and "you" or it.provider.name) .. ")"
+            parts[#parts + 1] = what .. " (" .. MemberName(it.provider) .. ")"
         end
         w.onsale:SetText(#parts > 0 and table.concat(parts, ", ") or "Nothing. Nobody in the group can do what's ticked on the class tabs.")
         local locks = {}
         for _, m in ipairs(Core.Providers(GroupSnapshot(), "summons")) do
-            locks[#locks + 1] = (m.me and "You" or m.name) .. ": " .. (m.zone or "where? (the game didn't say)")
+            locks[#locks + 1] = Colored(m.me and "You" or m.name, m.class) .. ": " .. (m.zone or "where? (the game didn't say)")
         end
         w.locks:SetText(#locks > 0 and table.concat(locks, "\n") or "No warlock in the group who can summon.")
         local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)

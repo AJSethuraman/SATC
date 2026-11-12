@@ -84,6 +84,12 @@ for name, before, after in [
     ("customers_nothing_to_sell", "", ""),
     ("customers_ready_to_post", GROUP, ""),
     ("customers_waiting_for_next_ad", GROUP, "ServiceInviter_Test.PostAd() CLOCK = CLOCK + 1"),
+    ("customers_two_warlocks", GROUP.replace('party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Ashfel","WARLOCK",60,"Undercity"}').replace('GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { Grimtotem = true, Ashfel = true }'),
+     '''local function ch(n, t) local f for _, o in ipairs(ALL) do if o._kind == "Frame" and rawget(o._scripts, "OnEvent") then f = o break end end
+          f._scripts.OnEvent(nil, "CHAT_MSG_CHANNEL", t, n, "", "2. Trade - City", "", "", "", "", "Trade") end
+        ch("Kaldrok", "WTB summon to TB") ch("Mirasha", "WTB summon to UC") ch("Thrandor", "wtb summ uc")
+        UNITS.party3 = {"Kaldrok","ROGUE",44,"Orgrimmar"} UNITS.party4 = {"Mirasha","PRIEST",52,"Orgrimmar"}
+        ServiceInviter_Test.Jobs.Joined("Kaldrok") ServiceInviter_Test.Jobs.Joined("Mirasha")'''),
     ("customers_busy_as_the_lock", GROUP.replace('"Me","SHAMAN"', '"Me","WARLOCK"') + '\nServiceInviterDB = { role = "lock" }', BUSY),
 ]:
     L = load(before)

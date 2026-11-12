@@ -221,7 +221,7 @@ def test_payee_pick_list_offers_the_group_and_fills_the_box():
              ServiceInviter_Test.ShowPicker(BOX, true)''')
     labels = [g.eval(f"ServiceInviterPicker.buttons[{i}]:GetText()") for i in range(1, 5)]
     assert labels == ["Default", "Me (Me)",
-                      "Grimtotem  (Thunder Bluff)", "Ashfel  (Undercity)"]
+                      "|cff8788eeGrimtotem|r  (Thunder Bluff)", "|cff8788eeAshfel|r  (Undercity)"]
     g.run("ServiceInviterPicker.buttons[4]._scripts.OnClick()")
     assert g.eval("BOX:GetText()") == "Ashfel"
 
@@ -230,7 +230,7 @@ def test_warlock_tab_says_where_each_warlock_summons_to():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
                "party2": ("Ashfel", "WARLOCK", 60, None)})
     g.run("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show() SETUP.Refresh()")
-    assert g.eval("SETUP.locks:GetText()") == "Grimtotem: Thunder Bluff\nAshfel: where? (the game didn't say)"
+    assert g.eval("SETUP.locks:GetText()") == "|cff8788eeGrimtotem|r: Thunder Bluff\n|cff8788eeAshfel|r: where? (the game didn't say)"
 
 
 def test_a_warlocks_ritual_is_for_their_own_customer():
@@ -257,3 +257,23 @@ def test_payee_pick_list_alone_says_where_party_members_go():
     assert g.eval("ServiceInviterPicker.note:GetText()") == "Party and raid members show up here."
     # the owner: "so basically that would mean the warlock in general or what i am confused"
     assert g.eval("ServiceInviterPicker.sub:GetText()") == "Default: the warlock"
+
+
+# -- Class colors and short lines -------------------------------------------------------------
+
+def test_each_customer_row_says_where_and_who_in_class_color():
+    """The owner: "can this use class colors and stuff to avoid a mass of confusing text"."""
+    g = world(TWO_LOCKS)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.run("ServiceInviter_Test.Refresh()")
+    rows = [g.eval(f"ServiceInviterJobs.rows[{i}].where:GetText()") for i in (1, 2)]
+    assert rows == ["-> TB  ·  |cff8788eeGrimtotem|r", "-> UC  ·  |cff8788eeAshfel|r"]
+
+
+def test_the_invite_line_is_short():
+    g = world(TWO_LOCKS)
+    say_trade(g, "Kaldrok", "WTB summon to TB, will tip, pst")
+    lines = [l for l in g.printed() if "invited" in l]
+    assert lines and lines[0].endswith("invited Kaldrok  -> TB  ·  |cff8788eeGrimtotem|r")
+    assert "because" not in lines[0]
