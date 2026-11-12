@@ -279,23 +279,7 @@ def test_the_invite_line_is_short():
     assert "because" not in lines[0]
 
 
-def test_names_in_party_lines_are_class_colored_on_your_screen():
-    """The owner, looking at the party lines: "i do not see class colors or anything"."""
-    g = world(TWO_LOCKS)
-    out = g.eval('ServiceInviter_Test.ColorNames("SUMMONING Kaldrok! PAY Grimtotem 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!")')
-    assert out == "SUMMONING Kaldrok! PAY |cff8788eeGrimtotem|r 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!"
-
-
-def test_coloring_leaves_links_and_partial_words_alone():
-    g = world(TWO_LOCKS)
-    assert g.eval('ServiceInviter_Test.ColorNames("Grimtotemish is not a name")') == "Grimtotemish is not a name"
-    link = "|cff71d5ff|Hspell:698|h[Ritual of Summoning]|h|r Grimtotem"
-    assert g.eval(f'ServiceInviter_Test.ColorNames("{link}")') == link
-
-
-def test_the_chat_filter_is_registered_and_can_be_turned_off():
+def test_chat_lines_are_not_recolored():
+    """The owner, on recoloring names only on their own screen: "no point if other cannot see it"."""
     g = world(TWO_LOCKS, extra="FILTERS = {} function ChatFrame_AddMessageEventFilter(ev, fn) FILTERS[ev] = fn end")
-    r = g.eval('{ FILTERS.CHAT_MSG_PARTY(nil, "CHAT_MSG_PARTY", "Pay Ashfel now", "Me") }')
-    assert r[2] == "Pay |cff8788eeAshfel|r now"
-    g.run("ServiceInviterDB.opts = { colornames = false }")
-    assert g.eval('FILTERS.CHAT_MSG_PARTY(nil, "CHAT_MSG_PARTY", "Pay Ashfel now", "Me")') is False
+    assert g.eval("next(FILTERS)") is None
