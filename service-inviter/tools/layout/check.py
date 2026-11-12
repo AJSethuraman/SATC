@@ -55,7 +55,8 @@ def export(L, win, page=None):
                           w=o._w or None, h=o._h or None, text=o._text or "", checked=bool(o._checked),
                           hidden=bool(o._hidden), disabled=bool(o._disabled), nowrap=bool(o._nowrap),
                           color=list(o._color.values()) if o._color else None,
-                          justify=o._justify or None, fontsize=o._fontsize or None))
+                          justify=o._justify or None, fontsize=o._fontsize or o._siSize or None,
+                          tc=list(o._tc.values()) if o._tc else None, style=o._siStyle or None))
     return {"w": win._w, "h": win._h, "items": items}
 
 
@@ -79,7 +80,9 @@ BUSY = '''local J = ServiceInviter_Test.Jobs
   J.New("Corvin","x","t","Trade") J.Joined("Corvin") J.Set("Corvin","summoned")
   J.New("Dahlia","x","t","Trade") J.Joined("Dahlia") J.Set("Dahlia","summoned") J.Set("Dahlia","arrived") J.Get("Dahlia").offered = true
   J.New("Edric","x","t","Trade") J.Busy("Edric")
-  J.New("Fennamaraqu","x","t","Trade") J.Declined("Fennamaraqu")'''
+  J.New("Fennamaraqu","x","t","Trade") J.Declined("Fennamaraqu")
+  for _, j in ipairs(J.All()) do j.service = "summons" j.dest = "Thunder Bluff" j.ts = CLOCK - 80 end
+  CLOCK = CLOCK + 5'''
 for name, before, after in [
     ("customers_nothing_to_sell", "", ""),
     ("customers_ready_to_post", GROUP, ""),

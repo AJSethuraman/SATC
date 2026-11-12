@@ -584,7 +584,7 @@ function Jobs.New(name, text, why, channel)
     if old then
         for i, j in ipairs(jobs) do if j == old then table.remove(jobs, i) break end end
     end
-    local job = { name = name, text = text, why = why, channel = channel, status = "invited", t = GetTime() }
+    local job = { name = name, text = text, why = why, channel = channel, status = "invited", t = GetTime(), ts = GetTime() }
     jobs[#jobs + 1] = job
     jobByName[name] = job
     while #jobs > MAX_JOBS do
@@ -603,6 +603,7 @@ function Jobs.Set(name, status)
     if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or JobPrice(j) or 0) end
     if status == "paid" or status == "done" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
     j.status = status
+    j.ts = GetTime()   -- when it got to this status, for "waiting 1m 20s"
     jobsChanged()
     return j
 end
@@ -1876,21 +1877,111 @@ local function FinishJob(name)
     RemoveFromGroup(name)
 end
 
+----------------------------------------------------------------------
+-- Customer list look (the design review of 12 Nov 2026): dark and gold, flat, one filled
+-- button. Colors are the review's tokens; status pills always carry the word, never color alone.
+----------------------------------------------------------------------
+local INK = {
+    ground = "14110d", deep = "100e0a", panel = "1b1710", line = "3a3226", soft = "2a241b",
+    text = "ece4d2", muted = "a39a86", gold = "f0c05a", goldInk = "1a1408", plain = "221d15",
+}
+local PILL = {   -- status -> fill, text
+    invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
+    arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
+    busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
+    left = { "2e2a22", "c9c0a8" },
+}
+local function RGB(hex)
+    hex = tostring(hex):gsub("^ff", "", 1)
+    if #hex ~= 6 then return 1, 1, 1 end
+    return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
+end
+local function Fill(parent, hex, layer, sub)
+    local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
+    t:SetColorTexture(RGB(hex))
+    return t
+end
+local function Text(parent, size, hex, font)
+    local fs = parent:CreateFontString(nil, "OVERLAY", font or "GameFontHighlight")
+    pcall(function() local f, _, fl = fs:GetFont() if f then fs:SetFont(f, size, fl) end end)
+    fs:SetTextColor(RGB(hex or INK.text))
+    return fs
+end
+-- Flat buttons: gold (the one main action), ghost (a row's action), plain, bare (the x).
+local BUTTON_LOOK = {
+    gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
+    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" },
+}
+local function FlatButton(parent, w, h, style, size, secure, name)
+    local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
+    b:SetSize(w, h)
+    local look = BUTTON_LOOK[style]
+    if look[2] then local edge = Fill(b, look[2], "BACKGROUND", -1) edge:SetAllPoints() end
+    if look[1] then
+        local bg = Fill(b, look[1], "BACKGROUND", 0)
+        bg:SetPoint("TOPLEFT", 1, -1) bg:SetPoint("BOTTOMRIGHT", -1, 1)
+    end
+    local hl = b:CreateTexture(nil, "HIGHLIGHT") hl:SetAllPoints() hl:SetColorTexture(1, 1, 1, 0.08)
+    local fs = Text(b, size or 14, look[3])
+    fs:SetPoint("CENTER")
+    b:SetFontString(fs)
+    b._siStyle, b._siSize = style, size or 14
+    return b
+end
+local function Since(t)
+    local s = math.max(0, math.floor(GetTime() - (t or GetTime())))
+    if s < 60 then return s .. "s" end
+    return math.floor(s / 60) .. "m " .. (s % 60) .. "s"
+end
+-- "Summons to Thunder Bluff", "Portal to Undercity", "Lockpicking"
+local function ServiceLine(job)
+    local def = job.service and Core.BY_KEY[job.service]
+    if not def then return job.why and ("Joined: " .. job.why) or "Joined your group" end
+    if def.kind == "summon" then return "Summons to " .. (job.dest or "?") end
+    if def.kind == "portal" then return "Portal to " .. (job.dest or "?") end
+    local l = def.label:gsub("^a ", "")
+    return l:sub(1, 1):upper() .. l:sub(2)
+end
+-- Who does it and where, or what went wrong with the invite.
+local function WhoLine(job, g)
+    if job.status == "busy" then return "Invite failed, already in a group" end
+    if job.status == "declined" then return "Declined the invite" end
+    if job.status == "noanswer" then return "Didn't answer the invite" end
+    if job.status == "left" then return "Left the group" end
+    local def = job.service and Core.BY_KEY[job.service]
+    if not def then return "" end
+    local p = Core.Provider(g, job.service, def.kind == "summon" and job.dest or nil)
+    if not p then return "Nobody in the group can do this now" end
+    local who = p.me and "You" or Colored(p.name, p.class)
+    return who .. (p.zone and (" in " .. p.zone) or "")
+end
+
 local function ApplyRow(row, job)
     row.job = job
     row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide()
     if not job then
-        row.name:SetText("") row.status:SetText("") row.where:SetText("")
+        for _, t in ipairs(row.paint) do t:Hide() end
+        row.name:SetText("") row.status:SetText("") row.where:SetText("") row.service:SetText("") row.age:SetText("") row.note:SetText("")
         return
     end
+    for _, t in ipairs(row.paint) do t:Show() end
     local st = JOB_STATUS[job.status] or { job.status, "" }
     if not job.class then
         local u = UnitFor(job.name)
         if u then local ok, _, cls = pcall(UnitClass, u) if ok then job.class = cls end end
     end
+    local g = GroupSnapshot()
     row.name:SetText(Colored(job.name, job.class))
-    row.where:SetText(JobWhere(job))
-    row.status:SetText(st[2] .. st[1] .. "|r")
+    row.bar:SetColorTexture(RGB(ClassHex(job.class) or INK.muted))
+    row.service:SetText(ServiceLine(job))
+    row.where:SetText(WhoLine(job, g))
+    row.status:SetText(st[1])
+    local pill = PILL[job.status] or PILL.left
+    row.pill:SetColorTexture(RGB(pill[1]))
+    row.status:SetTextColor(RGB(pill[2]))
+    local waiting = job.status == "invited" or job.status == "joined"
+    row.age:SetText(waiting and ("waiting " .. Since(job.ts or job.t)) or (Since(job.ts or job.t) .. " ago"))
+    row.note:SetText("")
     local n = UnitFor(job.name) or CleanName(job.name)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     row.trade:SetAttribute("macrotext", "/target " .. n .. "\n/run InitiateTrade(\"target\")")
@@ -1899,7 +1990,11 @@ local function ApplyRow(row, job)
     if job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
         row.reinvite:Show()
     elseif step == "summon" then
-        if YouSummon(job) then row.summon:Show() end
+        if YouSummon(job) then row.summon:Show()
+        else
+            local p = Core.Provider(g, "summons", job.dest)
+            row.note:SetText(p and (p.me and "Your summon" or (p.name .. " is up")) or "")
+        end
     elseif step == "arriving" then
         row.paid:Show()
     elseif step == "offer" then
@@ -1924,19 +2019,32 @@ local function ApplyNext()
         w.nextText:Show()
         local nxt, waiting = nil, 0
         for _, j in ipairs(jobs) do if NextStep(j) == "summon" then nxt = nxt or j waiting = waiting + 1 end end
-        w.nextText:SetText(nxt and ("Next up: |cffffd100" .. nxt.name .. "|r" .. (waiting > 1 and ("  (+" .. (waiting - 1) .. " waiting)") or "")) or "Nobody waiting")
+        w.nextText:SetText(nxt and ("Next up: |cff" .. INK.gold .. nxt.name .. "|r" .. (waiting > 1 and ("  (+" .. (waiting - 1) .. " waiting)") or "")) or "Nobody waiting")
+        w.nextMore:SetText("")
+        w.nextSub:SetText(nxt and ("The warlock summons; you click the portal.") or "")
         return
     end
     w.nextBtn:Show()
     w.nextText:Hide()
     local job, step = NextJob()
     w.nextBtn.step, w.nextBtn.job = step, job
+    -- how many more of yours are waiting after this one
+    local more = 0
+    for _, j in ipairs(jobs) do
+        if j ~= job then
+            local st = NextStep(j)
+            if (st == "summon" and YouSummon(j)) or st == "offer" or ((st == "finish" or (st == "serve" and JobPrice(j))) and CollectsFor(j)) then more = more + 1 end
+        end
+    end
+    w.nextMore:SetText(more > 0 and (more .. " more of yours waiting") or "")
     if not job then
         w.nextBtn:SetText("Nothing to do")
         w.nextBtn:SetAttribute("macrotext", "")
+        w.nextSub:SetText("")
         return
     end
     local n = UnitFor(job.name) or CleanName(job.name)
+    w.nextSub:SetText(ServiceLine(job) .. ", waiting " .. Since(job.ts or job.t))
     if step == "summon" then
         w.nextBtn:SetText("Summon " .. job.name)
         w.nextBtn:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
@@ -1955,16 +2063,22 @@ RefreshJobs = function()
     jobsDirty = false
     CheckArrivals()
 
-    local lock = Role() == "lock"
     local list = VisibleJobs()
     for i = 1, ROWS do ApplyRow(jobsWin.rows[i], list[i]) end
+    if #list == 0 then jobsWin.empty:Show() else jobsWin.empty:Hide() end
     ApplyNext()
-    local wait, going = 0, 0
+    local wait, going, active = 0, 0, 0
     for _, j in ipairs(jobs) do
         if j.status == "joined" then wait = wait + 1 elseif j.status == "summoned" then going = going + 1 end
+        if ACTIVE[j.status] then active = active + 1 end
     end
-    jobsWin.footer:SetText("Session: " .. SessionText() .. "\nWaiting: " .. wait .. "    Being summoned: " .. going)
+    jobsWin.count:SetText(active > 0 and (active .. " active") or "")
+    local st = Stats()
+    jobsWin.statSession:SetText(Money(st.silver or 0) .. "  (" .. (st.paid or 0) .. " paid)")
+    jobsWin.statWait:SetText(tostring(wait))
+    jobsWin.statTransit:SetText(tostring(going))
     RefreshBuff()   -- the buff button shows whoever is next, even if they asked before the list was open
+    jobsWin.Fit(#list, jobsWin.buffBtn:IsShown())
     if jobsWin.adBtn then
         local label, ready = AdLabel()
         jobsWin.adBtn:SetText(label)
@@ -1973,10 +2087,13 @@ RefreshJobs = function()
 end
 
 local function BuildJobsUI()
-    local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-    local w = CreateFrame("Frame", "ServiceInviterJobs", UIParent, template)
-    w:SetSize(480, 210 + ROWS * 38)
-    w:SetPoint("CENTER", 0, 120)
+    local W, ROW_H, GAP = 600, 80, 8
+    local TOP = 204                                   -- where the first row starts
+    local FOOT, FOOT_BUFF = 76, 126              -- the footer grows when you have a buff button
+    local H = TOP + ROWS * (ROW_H + GAP) + 4 + FOOT
+    local w = CreateFrame("Frame", "ServiceInviterJobs", UIParent)
+    w:SetSize(W, H)
+    w:SetPoint("CENTER", 0, 60)
     w:SetFrameStrata("DIALOG")
     w:SetClampedToScreen(true)
     w:SetMovable(true)
@@ -1984,40 +2101,36 @@ local function BuildJobsUI()
     w:RegisterForDrag("LeftButton")
     w:SetScript("OnDragStart", function(self) self:StartMoving() end)
     w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-    if w.SetBackdrop then
-        w:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true, tileSize = 32, edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 },
-        })
-    end
-    local bg = w:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetPoint("TOPLEFT", 6, -6)
-    bg:SetPoint("BOTTOMRIGHT", -6, 6)
-    bg:SetColorTexture(0, 0, 0, 0.92)
+    local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
     w:Hide()
+    local function Line(y) local t = Fill(w, INK.soft, "BORDER") t:SetPoint("TOPLEFT", 0, y) t:SetSize(W, 1) return t end
 
-    local title = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -18)
-    title:SetText("Customers")
-    local close = CreateFrame("Button", nil, w, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-    local setupBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    setupBtn:SetPoint("TOPLEFT", 16, -14)
-    setupBtn:SetSize(80, 24) setupBtn:SetText("Setup")
+    -- header: title, how many active, Post ad, Setup, close
+    local title = Text(w, 20, INK.gold, "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 24, -21) title:SetText("Customers")
+    w.count = Text(w, 13, INK.muted)
+    w.count:SetPoint("TOPLEFT", 146, -26)
+    local close = FlatButton(w, 36, 36, "bare", 16)
+    close:SetPoint("TOPRIGHT", -12, -14) close:SetText("X")
+    close:SetScript("OnClick", function() w:Hide() end)
+    local setupBtn = FlatButton(w, 72, 36, "plain")
+    setupBtn:SetPoint("TOPRIGHT", -56, -14) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
-    local adBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    adBtn:SetPoint("TOPRIGHT", -34, -14)
-    adBtn:SetSize(140, 24) adBtn:SetText("Post ad")
+    local adBtn = FlatButton(w, 170, 36, "plain")
+    adBtn:SetPoint("TOPRIGHT", -136, -14) adBtn:SetText("Post ad")
     adBtn:SetScript("OnClick", function() PostAd() end)
     w.adBtn = adBtn
+    Line(-64)
 
-    -- The big button: always does the next thing for whoever has waited longest.
-    -- Secure buttons must listen for press AND release: newer clients fire them on press.
-    local nb = CreateFrame("Button", "ServiceInviterNext", w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-    nb:SetPoint("TOP", 0, -50)
-    nb:SetSize(300, 40)
+    -- your next job: the one big button. Secure buttons must listen for press AND release:
+    -- newer clients fire them on press.
+    local lbl = Text(w, 12, INK.muted)
+    lbl:SetPoint("TOPLEFT", 24, -86) lbl:SetText("YOUR NEXT JOB")
+    w.nextMore = Text(w, 13, INK.muted)
+    w.nextMore:SetPoint("TOPRIGHT", -24, -86) w.nextMore:SetJustifyH("RIGHT")
+    local nb = FlatButton(w, W - 48, 56, "gold", 20, true, "ServiceInviterNext")
+    nb:SetPoint("TOPLEFT", 24, -106)
     nb:RegisterForClicks("AnyUp", "AnyDown")
     nb:SetAttribute("type", "macro")
     nb:SetText("Nothing to do")
@@ -2030,36 +2143,56 @@ local function BuildJobsUI()
         RefreshJobs()
     end)
     w.nextBtn = nb
-    w.nextText = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-    w.nextText:SetPoint("TOP", 0, -58)
+    w.nextText = Text(w, 18, INK.text)
+    w.nextText:SetPoint("TOPLEFT", 24, -122)
     w.nextText:SetText("Nobody waiting")
+    w.nextSub = Text(w, 13, INK.muted)
+    w.nextSub:SetPoint("TOPLEFT", 24, -172) w.nextSub:SetWidth(W - 48) w.nextSub:SetJustifyH("LEFT")
+    if w.nextSub.SetWordWrap then w.nextSub:SetWordWrap(false) end
 
+    -- the rows
     w.rows = {}
     for i = 1, ROWS do
-        local y = -104 - (i - 1) * 38
-        local row = {}
-        row.name = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-        row.name:SetPoint("TOPLEFT", 24, y - 6)
-        row.name:SetWidth(120) row.name:SetJustifyH("LEFT")
-        if row.name.SetWordWrap then row.name:SetWordWrap(false) end   -- long names end in "...", never run into the status
-        row.where = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        row.where:SetPoint("TOPLEFT", 26, y - 26)
-        row.where:SetWidth(220) row.where:SetJustifyH("LEFT")
-        if row.where.SetWordWrap then row.where:SetWordWrap(false) end
-        row.status = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.status:SetPoint("TOPLEFT", 150, y - 7)
-        row.status:SetWidth(96) row.status:SetJustifyH("LEFT")
+        local y = -TOP - (i - 1) * (ROW_H + GAP)
+        local row = { paint = {} }
+        local rEdge = Fill(w, INK.soft, "BACKGROUND", -6) rEdge:SetPoint("TOPLEFT", 24, y) rEdge:SetSize(W - 48, ROW_H)
+        local rBg = Fill(w, INK.panel, "BACKGROUND", -5) rBg:SetPoint("TOPLEFT", 25, y - 1) rBg:SetSize(W - 50, ROW_H - 2)
+        row.bar = Fill(w, INK.muted, "BORDER") row.bar:SetPoint("TOPLEFT", 25, y - 1) row.bar:SetSize(4, ROW_H - 2)
+        row.pill = Fill(w, PILL.joined[1], "BORDER") row.pill:SetPoint("TOPLEFT", 292, y - 16) row.pill:SetSize(96, 22)
+        row.paint = { rEdge, rBg, row.bar, row.pill }
 
-        row.summon = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        row.summon:SetPoint("TOPLEFT", 252, y)
-        row.summon:SetSize(100, 28) row.summon:SetText("Summon")
+        row.name = Text(w, 16, INK.text, "GameFontHighlightLarge")
+        row.name:SetPoint("TOPLEFT", 42, y - 12)
+        row.name:SetWidth(236) row.name:SetJustifyH("LEFT")
+        if row.name.SetWordWrap then row.name:SetWordWrap(false) end
+        row.service = Text(w, 13, INK.text)
+        row.service:SetPoint("TOPLEFT", 42, y - 36)
+        row.service:SetWidth(236) row.service:SetJustifyH("LEFT")
+        if row.service.SetWordWrap then row.service:SetWordWrap(false) end
+        row.where = Text(w, 13, INK.muted)
+        row.where:SetPoint("TOPLEFT", 42, y - 56)
+        row.where:SetWidth(236) row.where:SetJustifyH("LEFT")
+        if row.where.SetWordWrap then row.where:SetWordWrap(false) end
+        row.status = Text(w, 12, INK.text)
+        row.status:SetPoint("TOPLEFT", 292, y - 20)
+        row.status:SetWidth(96)
+        row.age = Text(w, 12, INK.muted)
+        row.age:SetPoint("TOPLEFT", 294, y - 48)
+        row.age:SetWidth(96) row.age:SetJustifyH("LEFT")
+        row.note = Text(w, 13, INK.muted)
+        row.note:SetPoint("TOPLEFT", 396, y - 32)
+        row.note:SetWidth(140) row.note:SetJustifyH("RIGHT")
+        if row.note.SetWordWrap then row.note:SetWordWrap(false) end
+
+        local AX, AY = 396, y - 22          -- the action slot; Paid sits right of it
+        row.summon = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.summon:SetPoint("TOPLEFT", AX, AY) row.summon:SetText("Summon")
         row.summon:RegisterForClicks("AnyUp", "AnyDown")
         row.summon:SetAttribute("type", "macro")
         row.summon:HookScript("PostClick", function() if row.job then Jobs.Set(row.job.name, "summoned") RefreshJobs() end end)
 
-        row.offer = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        row.offer:SetPoint("TOPLEFT", 252, y)
-        row.offer:SetSize(100, 28) row.offer:SetText("Offer")
+        row.offer = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.offer:SetPoint("TOPLEFT", AX, AY) row.offer:SetText("Offer")
         row.offer:RegisterForClicks("AnyUp", "AnyDown")
         row.offer:SetAttribute("type", "macro")
         row.offer:HookScript("PreClick", function()
@@ -2067,57 +2200,81 @@ local function BuildJobsUI()
         end)
         row.offer:HookScript("PostClick", function() if row.job then row.job.offered = true RefreshJobs() end end)
 
-        row.trade = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        row.trade:SetPoint("TOPLEFT", 252, y)
-        row.trade:SetSize(100, 28) row.trade:SetText("Trade")
+        row.trade = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.trade:SetPoint("TOPLEFT", AX, AY) row.trade:SetText("Trade")
         row.trade:RegisterForClicks("AnyUp", "AnyDown")
         row.trade:SetAttribute("type", "macro")
         row.trade:HookScript("PostClick", function()
             if row.job then pendingTrade = row.job.name D("Trade clicked for " .. row.job.name .. " (macro: " .. tostring(row.trade:GetAttribute("macrotext")) .. ")") end
         end)
 
-        row.paid = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        row.paid:SetPoint("TOPLEFT", 358, y)
-        row.paid:SetSize(70, 28) row.paid:SetText("Paid")
-        row.paid:SetScript("OnClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
-
-        row.reinvite = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        row.reinvite:SetPoint("TOPLEFT", 252, y)
-        row.reinvite:SetSize(100, 28) row.reinvite:SetText("Re-invite")
+        row.reinvite = FlatButton(w, 84, 36, "ghost", 14)
+        row.reinvite:SetPoint("TOPLEFT", AX, AY) row.reinvite:SetText("Re-invite")
         row.reinvite:SetScript("OnClick", function()
             if not row.job then return end
             local name = row.job.name
-            local j = Jobs.New(name, row.job.text, "re-invited", row.job.channel or "-")
+            Jobs.New(name, row.job.text, "re-invited", row.job.channel or "-")
             lastInvite[name] = GetTime() pending[name] = GetTime()
             DoInvite(name)
             RefreshJobs()
         end)
 
-        row.remove = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        row.remove:SetPoint("TOPLEFT", 436, y)
-        row.remove:SetSize(28, 28) row.remove:SetText("x")
+        row.paid = FlatButton(w, 56, 36, "plain")
+        row.paid:SetPoint("TOPLEFT", AX + 88, AY) row.paid:SetText("Paid")
+        row.paid:SetScript("OnClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
+
+        row.remove = FlatButton(w, 28, 36, "bare", 14)
+        row.remove:SetPoint("TOPLEFT", AX + 148, AY) row.remove:SetText("x")
         row.remove:SetScript("OnClick", function()
             if not row.job then return end
-            local name = row.job.name
             -- x = done with this customer: take them out of the group too, if allowed
-            RemoveFromGroup(name)
-            Jobs.Remove(name)
+            RemoveFromGroup(row.job.name)
+            Jobs.Remove(row.job.name)
         end)
         w.rows[i] = row
     end
 
-    w.footer = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    local bb = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-    bb:SetPoint("BOTTOMLEFT", 22, 74) bb:SetSize(300, 26)
+    w.empty = Text(w, 14, INK.muted)
+    w.empty:SetPoint("TOPLEFT", 24, -TOP - 30) w.empty:SetWidth(W - 48)
+    w.empty:SetText("Nobody yet. Post an ad, or wait for someone to ask in chat.")
+
+    -- footer: the session and New session, then the buff button when you have buffs to cast.
+    -- The window is as tall as the customers it shows. Fit runs out of combat only
+    -- (RefreshJobs never runs in combat, when the window can't be resized).
+    local deep = Fill(w, INK.deep, "BACKGROUND", -6)
+    local footLine = Fill(w, INK.soft, "BORDER")
+    local bb = FlatButton(w, W - 48, 36, "plain", 14, true)
+    bb:SetPoint("BOTTOMLEFT", 24, 16)
     bb:RegisterForClicks("AnyUp", "AnyDown")
     bb:SetAttribute("type", "macro")
     bb:SetText("No buffs waiting")
     bb:Hide()
     w.buffBtn = bb
-    w.footer:SetPoint("BOTTOMLEFT", 24, 18)
-    w.footer:SetJustifyH("LEFT") w.footer:SetWidth(310)
-    local newBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    newBtn:SetPoint("BOTTOMRIGHT", -20, 22) newBtn:SetSize(110, 26) newBtn:SetText("New session")
+    local stats = {}
+    local function Stat(x, label)
+        local l = Text(w, 12, INK.muted) l:SetText(label)
+        local v = Text(w, 16, label == "Session" and INK.gold or INK.text, "GameFontHighlightLarge")
+        stats[#stats + 1] = { l, v, x }
+        return v
+    end
+    w.statSession = Stat(24, "Session")
+    w.statWait = Stat(230, "Waiting")
+    w.statTransit = Stat(330, "In transit")
+    local newBtn = FlatButton(w, 130, 36, "plain")
+    newBtn:SetText("New session")
+    function w.Fit(shown, withBuff)
+        local body = TOP + math.max(1, shown) * (ROW_H + GAP) + 4
+        local f = withBuff and FOOT_BUFF or FOOT
+        w:SetHeight(body + f)
+        deep:ClearAllPoints() deep:SetPoint("TOPLEFT", 0, -body) deep:SetSize(W, f)
+        footLine:ClearAllPoints() footLine:SetPoint("TOPLEFT", 0, -body) footLine:SetSize(W, 1)
+        for _, st in ipairs(stats) do
+            st[1]:ClearAllPoints() st[1]:SetPoint("TOPLEFT", st[3], -body - 14)
+            st[2]:ClearAllPoints() st[2]:SetPoint("TOPLEFT", st[3], -body - 32)
+        end
+        newBtn:ClearAllPoints() newBtn:SetPoint("TOPRIGHT", -24, -body - 20)
+    end
+    w.Fit(1, false)
     newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") end)
 
     local acc = 0

@@ -267,8 +267,9 @@ def test_each_customer_row_says_where_and_who_in_class_color():
     say_trade(g, "Kaldrok", "WTB summon to TB")
     say_trade(g, "Mirasha", "WTB summon to UC")
     g.run("ServiceInviter_Test.Refresh()")
-    rows = [g.eval(f"ServiceInviterJobs.rows[{i}].where:GetText()") for i in (1, 2)]
-    assert rows == ["-> TB  ·  |cff8788eeGrimtotem|r", "-> UC  ·  |cff8788eeAshfel|r"]
+    rows = [(g.eval(f"ServiceInviterJobs.rows[{i}].service:GetText()"), g.eval(f"ServiceInviterJobs.rows[{i}].where:GetText()")) for i in (1, 2)]
+    assert rows == [("Summons to Thunder Bluff", "|cff8788eeGrimtotem|r in Thunder Bluff"),
+                    ("Summons to Undercity", "|cff8788eeAshfel|r in Undercity")]
 
 
 def test_the_invite_line_is_short():

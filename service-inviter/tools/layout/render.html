@@ -8,6 +8,12 @@
   .fs.cut { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .btn { background: linear-gradient(#8b1a12, #5a0e09); border: 1px solid #c9a24a; border-radius: 3px; color: #ffd100;
          font-size: 12px; display: flex; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; white-space: nowrap; overflow: hidden; }
+  .flat { display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; font-size: 14px; border-radius: 4px; }
+  .flat.gold { background: #f0c05a; color: #1a1408; border: 1px solid #f0c05a; font-weight: 600; }
+  .flat.ghost { background: #1b1710; color: #f0c05a; border: 1px solid #f0c05a; font-weight: 600; }
+  .flat.plain { background: #221d15; color: #ece4d2; border: 1px solid #3a3226; }
+  .flat.bare { background: transparent; color: #8a8171; border: 0; }
+  .flat.off { opacity: .45; }
   .close { background: #5a0e09; border: 1px solid #c9a24a; border-radius: 50%; color: #ffd100; display: flex; align-items: center; justify-content: center; font-weight: bold; }
   .chk { border: 2px solid #a8a8a8; background: #111; border-radius: 3px; margin: 3px; width: 20px !important; height: 20px !important; }
   .chk.off { opacity: .4; }
@@ -43,16 +49,19 @@ function render(scene, highlights) {
     const d = document.createElement("div"); d.className = "it";
     if (it.kind === "FontString") {
       const [size, color] = FONTS[it.font] || [12, "#fff"];
-      d.classList.add("fs"); d.style.fontSize = (it.fontsize || size) + "px"; d.style.color = color;
+      d.classList.add("fs"); d.style.fontSize = (it.fontsize || size) + "px";
+      d.style.color = it.tc ? `rgb(${it.tc[0]*255},${it.tc[1]*255},${it.tc[2]*255})` : color;
       if (it.w) { d.classList.add(it.nowrap ? "cut" : "wrap"); d.style.width = it.w + "px";
         d.style.textAlign = (it.justify || "CENTER").toLowerCase(); }
       d.innerHTML = wowText(it.text);
     } else if (it.kind === "Texture") {
       const [r, g, b, a] = it.color; d.style.background = `rgba(${r*255},${g*255},${b*255},${a})`;
-      if (it.points.length === 2) continue;   // the window background: already drawn by #win
+      if (it.points.length === 2) { win.style.background = d.style.background; continue; }   // the window background
     } else if (it.kind === "CheckButton") { d.classList.add("chk"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
     else if (it.kind === "EditBox") { d.classList.add("eb"); d.textContent = it.text; }
     else if (it.template.includes("UIPanelCloseButton")) { d.classList.add("close"); d.textContent = "×"; it.w = it.w || 26; it.h = it.h || 26; }
+    else if (it.kind === "Button" && it.style) { d.classList.add("flat", it.style); if (it.disabled) d.classList.add("off");
+      if (it.fontsize) d.style.fontSize = it.fontsize + "px"; d.innerHTML = wowText(it.text); }
     else if (it.kind === "Button") { d.classList.add("btn"); d.innerHTML = wowText(it.text); }
     if (it.w) d.style.width = it.w + "px";
     if (it.h) d.style.height = it.h + "px";
@@ -84,7 +93,9 @@ function render(scene, highlights) {
       Object.assign(n.style, { left: (r.l - 34) + "px", top: (r.t + r.h + pad + 8) + "px" }); win.appendChild(n); }
   }
   // overlap report: any two visible text-bearing items whose boxes intersect
-  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture");
+  // an empty label draws nothing, so it can't cover anything
+  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" &&
+    !(els[id].it.kind === "FontString" && !els[id].it.text));
   const overlaps = [];
   for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
     const [ia, a] = vis[i], [ib, b] = vis[j];
