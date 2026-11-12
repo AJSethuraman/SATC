@@ -1,4 +1,4 @@
--- Service Inviter v2.0.13
+-- Service Inviter v2.1.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -122,7 +122,8 @@ local lastInvite = {}
 local diag = { casts = {} }   -- what we last heard / saw, for /si status
 local paused = false   -- true while the old Trade Inviter is also loaded (avoids double invites)
 local pending = {}   -- invited players we are waiting to see join
-local DEFAULT_WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
+local MSG = {}   -- the default text of every message you can change
+MSG.WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
 local fragments = {}
 local inviteTimes = {}
 
@@ -187,11 +188,11 @@ local function HasAny(norm, list)
 end
 
 -- Your own channels from Setup ("+ other channels"): usually dedicated summon channels.
-local DEFAULT_CHANNELS = "summons"
+MSG.CHANNELS = "summons"
 local function InExtraChannel(ch)
     ch = (ch or ""):lower()
     local list = ServiceInviterDB.chanextra
-    if type(list) ~= "string" then list = DEFAULT_CHANNELS end
+    if type(list) ~= "string" then list = MSG.CHANNELS end
     for name in list:lower():gmatch("[^,]+") do
         name = name:gsub("^%s+", ""):gsub("%s+$", "")
         if name ~= "" and ch:find(name, 1, true) then return true end
@@ -543,8 +544,8 @@ local function ParsePrice(text)
     return n
 end
 local function Role() return ServiceInviterDB.role == "lock" and "lock" or "helper" end
-local DEFAULT_WHISPERMSG = "Summoning {name}. Next: {next}"   -- {name} = who we summon, {next} = who has waited longest after
-local DEFAULT_ALERTMSG = "SUMMONING {name}! PAY {payee} {price} IN THE TRADE WINDOW ON ARRIVAL!"
+MSG.WHISPERMSG = "Summoning {name}. Next: {next}"   -- {name} = who we summon, {next} = who has waited longest after
+MSG.ALERTMSG = "SUMMONING {name}! PAY {payee} {price} IN THE TRADE WINDOW ON ARRIVAL!"
 local OnCast            -- set below: reacts to a group member starting Ritual of Summoning
 local ShowAlert         -- set below: big on-screen "click the portal" banner
 local ToggleSetup       -- set below: opens the Setup window
@@ -653,11 +654,11 @@ function Jobs.Clear() wipe(jobs) wipe(jobByName) jobsChanged(true) end
 
 -- Thanks when they're done (the owner, 12 Nov 2026: "Paid should also remove from party and
 -- maybe send a thank you"). A whisper, so it still reaches them after they leave the group.
-local DEFAULT_THANKS = "Thanks {name}! Enjoy."
+MSG.THANKS = "Thanks {name}! Enjoy."
 local function ThanksText(name)
     if ServiceInviterDB.thanks == false then return nil end
     local m = ServiceInviterDB.thanksmsg
-    if m == nil then m = DEFAULT_THANKS end
+    if m == nil then m = MSG.THANKS end
     if m == "" then return nil end
     return (m:gsub("{name}", function() return name end))
 end
@@ -732,7 +733,7 @@ local function IsBlocked(short, guid)
 end
 
 local curChannel = ""
-local DEFAULT_KEYWORDS = "inv, invite"
+MSG.KEYWORDS = "inv, invite"
 -- Keywords are for short, plain "inv" requests. Anything that reads like an ad or a
 -- summon/port line (seller words, port/summon words, long text) goes to the normal matcher.
 local lastAdAt                 -- when you last posted an ad (see Advertise)
@@ -745,7 +746,7 @@ local function KeywordHit(text, whisper, force)
     if count > (whisper and 3 or 2) then return nil end
     if HasAny(norm, SELLER) or HasAny(norm, SOFTSELLER) or HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS) then return nil end
     local list = ServiceInviterDB.kwwords
-    if type(list) ~= "string" or list:gsub("[%s,]", "") == "" then list = DEFAULT_KEYWORDS end
+    if type(list) ~= "string" or list:gsub("[%s,]", "") == "" then list = MSG.KEYWORDS end
     local words = {}
     for w in (text:lower():gsub("[^%w%s]", " ")):gmatch("%S+") do words[w] = true end
     for k in list:lower():gmatch("[^,]+") do
@@ -854,7 +855,7 @@ local function WelcomeText(name, job)
     job = job or Jobs.Get(name)
     local g, fac = GroupSnapshot(), Faction()
     local custom = ServiceInviterDB.welcomemsg
-    if custom and custom ~= "" and custom ~= DEFAULT_WELCOME then
+    if custom and custom ~= "" and custom ~= MSG.WELCOME then
         local key = (job and job.service) or "summons"
         local payee, mine = PayeeFor(job, g)
         local price = PriceText(JobPrice(job))
@@ -1103,7 +1104,7 @@ local function ToggleUI() if ToggleSetup then ToggleSetup() end end
 -- one press. The text is built from what is on sale; the button tells you when you can
 -- post again in each channel (so you don't get reported for spam).
 ----------------------------------------------------------------------
-local DEFAULT_AD = "{wts}{services} | whisper inv"
+MSG.AD = "{wts}{services} | whisper inv"
 local lastAdIn = {}   -- channel key -> when you last posted there
 local function AdWait() return math.max(1, tonumber(ServiceInviterDB.adwait) or 5) * 60 end
 local function AdChannels()
@@ -1303,7 +1304,7 @@ local ARRIVE_FALLBACK = 40   -- seconds after Summon before we assume they have 
 local CLEAN_AFTER = 30       -- finished rows disappear after this many seconds
 
 -- (The 1.x extras list is now the services in Services.lua: see MigrateServices.)
-local DEFAULT_OFFERMSG = "Welcome {name}! Also on offer today: {offers}. Just ask!"
+MSG.OFFERMSG = "Welcome {name}! Also on offer today: {offers}. Just ask!"
 
 -- What else is on offer where this customer landed (nil = nothing, say nothing).
 local function ArrivalText(job)
@@ -1313,7 +1314,7 @@ local function ArrivalText(job)
     local p = Core.Provider(g, key, key == "summons" and job.dest or nil)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
-    if custom == DEFAULT_OFFERMSG then custom = nil end
+    if custom == MSG.OFFERMSG then custom = nil end
     return (Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, job.name, custom))
 end
 
@@ -1398,44 +1399,113 @@ local alertWin
 local lastCastAt = 0
 local RITUAL_ID = 698
 
-ShowAlert = function(title, sub)
+----------------------------------------------------------------------
+-- Customer list look (the design review of 12 Nov 2026): dark and gold, flat, one filled
+-- button. Colors are the review's tokens; status pills always carry the word, never color alone.
+----------------------------------------------------------------------
+local INK = {
+    ground = "14110d", deep = "100e0a", panel = "1b1710", line = "3a3226", soft = "2a241b",
+    text = "ece4d2", muted = "a39a86", gold = "f0c05a", goldInk = "1a1408", plain = "221d15",
+}
+INK.PILL = {   -- status -> fill, text
+    invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
+    arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
+    busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
+    left = { "2e2a22", "c9c0a8" },
+}
+local function RGB(hex)
+    hex = tostring(hex):gsub("^ff", "", 1)
+    if #hex ~= 6 then return 1, 1, 1 end
+    return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
+end
+local function Fill(parent, hex, layer, sub)
+    local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
+    t:SetColorTexture(RGB(hex))
+    return t
+end
+local function Text(parent, size, hex, font)
+    local fs = parent:CreateFontString(nil, "OVERLAY", font or "GameFontHighlight")
+    pcall(function() local f, _, fl = fs:GetFont() if f then fs:SetFont(f, size, fl) end end)
+    fs:SetTextColor(RGB(hex or INK.text))
+    return fs
+end
+-- Flat buttons: gold (the one main action), ghost (a row's action), plain, bare (the x).
+INK.LOOK = {
+    gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
+    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" }, rail = { nil, nil, INK.text },
+}
+local function FlatButton(parent, w, h, style, size, secure, name)
+    local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
+    b:SetSize(w, h)
+    local look = INK.LOOK[style]
+    if look[2] then local edge = Fill(b, look[2], "BACKGROUND", -1) edge:SetAllPoints() end
+    if look[1] then
+        local bg = Fill(b, look[1], "BACKGROUND", 0)
+        bg:SetPoint("TOPLEFT", 1, -1) bg:SetPoint("BOTTOMRIGHT", -1, 1)
+    end
+    local hl = b:CreateTexture(nil, "HIGHLIGHT") hl:SetAllPoints() hl:SetColorTexture(1, 1, 1, 0.08)
+    local fs = Text(b, size or 14, look[3])
+    fs:SetPoint("CENTER")
+    b:SetFontString(fs)
+    b._siStyle, b._siSize = style, size or 14
+    return b
+end
+-- The banner: a small label naming the event, the instruction as the loudest line, who is
+-- being summoned, to where and who gets paid, and a bar for the 14 seconds it stays up.
+-- Pulses for the first two seconds only (the design review of 12 Nov 2026).
+local BANNER = { W = 560, SECS = 14 }
+ShowAlert = function(title, sub, label)
     if not alertWin then
-        local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-        local a = CreateFrame("Frame", "ServiceInviterAlert", UIParent, template)
-        a:SetSize(560, 96)
+        local a = CreateFrame("Frame", "ServiceInviterAlert", UIParent)
+        a:SetSize(BANNER.W, 104)
         a:SetPoint("TOP", 0, -150)
         a:SetFrameStrata("FULLSCREEN_DIALOG")
-        local bg = a:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(0.55, 0.05, 0.05, 0.92)
-        a.title = a:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        pcall(function() local f, _, fl = a.title:GetFont() if f then a.title:SetFont(f, 34, "OUTLINE") end end)
-        a.title:SetPoint("TOP", 0, -14)
-        a.sub = a:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-        a.sub:SetPoint("TOP", a.title, "BOTTOM", 0, -8)
+        local edge = Fill(a, "d9504a", "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(a, "8a1414", "BACKGROUND", -7) bg:SetAllPoints()
+        a.label = Text(a, 12, "ffd9d4")
+        a.label:SetPoint("TOP", 0, -14)
+        a.title = Text(a, 34, "ffffff", "GameFontNormalLarge")
+        pcall(function() local f = a.title:GetFont() if f then a.title:SetFont(f, 34, "OUTLINE") end end)
+        a.title:SetPoint("TOP", 0, -32)
+        a.sub = Text(a, 14, "ffe9e5", "GameFontHighlight")
+        a.sub:SetPoint("TOP", 0, -74)
+        local track = Fill(a, "5a0c0c", "BORDER") track:SetPoint("BOTTOMLEFT", 0, 0) track:SetSize(BANNER.W, 4)
+        a.bar = Fill(a, "ffd9d4", "ARTWORK") a.bar:SetPoint("BOTTOMLEFT", 0, 0) a.bar:SetSize(BANNER.W, 4)
         a.t = 0
         a:SetScript("OnUpdate", function(self, el)
             self.t = self.t + (el or 0)
-            if self.t > 14 then self:Hide() return end
-            self:SetAlpha(0.7 + 0.3 * math.abs(math.sin(self.t * 5)))
+            if self.t > BANNER.SECS then self:Hide() return end
+            self.barWidth = math.max(1, BANNER.W * (1 - self.t / BANNER.SECS))
+            self.bar:SetWidth(self.barWidth)
+            self.alpha = (self.t < 2) and (0.7 + 0.3 * math.abs(math.sin(self.t * 5))) or 1
+            self:SetAlpha(self.alpha)
         end)
         a:EnableMouse(true)
         a:SetScript("OnMouseDown", function(self) self:Hide() end)
         a:Hide()
         alertWin = a
     end
+    alertWin.label:SetText(label or "")
     alertWin.title:SetText(title)
     alertWin.sub:SetText(sub or "")
     alertWin.t = 0
+    alertWin.bar:SetWidth(BANNER.W)
     alertWin:Show()
     if PlaySound then
         pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959)
     end
 end
+-- "Summoning Kaldrok to Thunder Bluff. Pay Grimtotem."
+local function BannerSub(who, job)
+    local dest = job and job.dest
+    local payee, mine = PayeeFor(job or { service = "summons" })
+    local pay = (not JobPrice(job or { service = "summons" })) and " Free." or (mine and " Pay: you." or (" Pay " .. tostring(payee) .. "."))
+    return "Summoning " .. who .. (dest and (" to " .. dest) or "") .. "." .. pay
+end
 
 local function WhisperText(who, nxt)
     local m = ServiceInviterDB.whispermsg
-    if not m or m == "" then m = DEFAULT_WHISPERMSG end
+    if not m or m == "" then m = MSG.WHISPERMSG end
     m = m:gsub("{name}", function() return who end)
     return (m:gsub("{next}", function() return nxt or "nobody" end))
 end
@@ -1475,7 +1545,7 @@ end
 
 local function AlertMsg(name, job)
     local m = ServiceInviterDB.alertmsg
-    if not m or m == "" then m = DEFAULT_ALERTMSG end
+    if not m or m == "" then m = MSG.ALERTMSG end
     job = job or Jobs.Get(name)
     local payee, mine = PayeeFor(job or { service = "summons" })
     local price = JobPrice(job or { service = "summons" })
@@ -1491,13 +1561,14 @@ end
 -- When nobody in the group can do a service, it says so and shows an example with a
 -- stand-in of the right class standing with you.
 ----------------------------------------------------------------------
-local PREVIEW_TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
-local PREVIEW_KEYS = {
+local PV = {}
+PV.TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
+PV.KEYS = {
     Warlock = { "summons", "healthstone", "soulstone" }, Mage = { "portals", "water" },
     Rogue = { "lockpick" }, Buffs = { "fort", "motw", "ai", "blessing" },
 }
-local BUYER = "Kaldrok"
-local CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
+PV.BUYER = "Kaldrok"
+PV.CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
 
 -- What's on sale, as the setup's General tab shows it.
 local function OnSaleText(items)
@@ -1525,7 +1596,7 @@ local function WithStandIns(g, keys)
     for _, key in ipairs(keys) do
         local def = Core.BY_KEY[key]
         if not Core.Provider(out, key) then
-            local m = { name = CLASS_WORD[def.class] or def.class, class = def.class, level = 60, zone = here, standIn = true }
+            local m = { name = PV.CLASS_WORD[def.class] or def.class, class = def.class, level = 60, zone = here, standIn = true }
             out[#out + 1] = m
             added[#added + 1] = m
         end
@@ -1545,18 +1616,18 @@ local function Preview(tab)
         local st, def = Core.Setting(db, job.service), Core.BY_KEY[job.service]
         if full then
             if not st.invite then Note(def.label .. ": buyers aren't invited (Invite buyers is off), so there's no invite or welcome; it's only offered when someone lands.")
-            elseif Opt("announce") then Say("When you invite, your chat only", "invited " .. BUYER .. "  " .. JobWhere(job)) end
+            elseif Opt("announce") then Say("When you invite, your chat only", "invited " .. PV.BUYER .. "  " .. JobWhere(job)) end
         end
         if not st.invite then
             -- nobody joins for it, so nothing to welcome
         elseif Opt("welcome") then
-            Say("When they join, " .. chat, WelcomeText(BUYER, job) or "(nothing to say)")
+            Say("When they join, " .. chat, WelcomeText(PV.BUYER, job) or "(nothing to say)")
         elseif full then Note("No welcome (Welcome them when they join is off, General tab).") end
         if not full then return end
         if def.kind == "summon" then
-            if db.raidalert ~= false then Say("When the summon starts, " .. chat, AlertMsg(BUYER, job)) end
+            if db.raidalert ~= false then Say("When the summon starts, " .. chat, AlertMsg(PV.BUYER, job)) end
             local to = WhisperTo()
-            if to then Say("When the summon starts, whisper to " .. to, WhisperText(BUYER, nil)) end
+            if to then Say("When the summon starts, whisper to " .. to, WhisperText(PV.BUYER, nil)) end
         end
         local a = ArrivalText(job)
         local p = Core.Provider(GroupSnapshot(), job.service, def.kind == "summon" and job.dest or nil)
@@ -1579,7 +1650,7 @@ local function Preview(tab)
         local g = GroupSnapshot()
         if #Core.Providers(g, key) == 0 then
             local _, added, here = WithStandIns(g, { key })
-            local why = "it takes a level " .. def.level .. "+ " .. (CLASS_WORD[def.class] or def.class):lower()
+            local why = "it takes a level " .. def.level .. "+ " .. (PV.CLASS_WORD[def.class] or def.class):lower()
             for _, m in ipairs(g) do
                 if m.me and def.kind == "summon" and m.class == def.class and m.notSummoner then why = why .. "; you're set as the helper, not the warlock" end
             end
@@ -1598,9 +1669,9 @@ local function Preview(tab)
             if def.kind == "summon" and not it.where then
                 Note("Nobody is invited for " .. it.provider.name .. "'s summons: the game doesn't say where they are.")
             elseif def.kind == "portal" then
-                for i, city in ipairs(it.cities) do ShowJob({ name = BUYER, service = key, dest = city }, i == 1) end
+                for i, city in ipairs(it.cities) do ShowJob({ name = PV.BUYER, service = key, dest = city }, i == 1) end
             else
-                ShowJob({ name = BUYER, service = key, dest = def.kind == "summon" and it.where or nil }, true)
+                ShowJob({ name = PV.BUYER, service = key, dest = def.kind == "summon" and it.where or nil }, true)
             end
         end
         previewGroup = nil
@@ -1619,9 +1690,9 @@ local function Preview(tab)
                 Head("Welcome when they join, for each")
                 for _, it in ipairs(items) do
                     if it.def.kind == "portal" then
-                        for _, city in ipairs(it.cities) do ShowJob({ name = BUYER, service = it.key, dest = city }, false) end
+                        for _, city in ipairs(it.cities) do ShowJob({ name = PV.BUYER, service = it.key, dest = city }, false) end
                     elseif it.where or it.def.kind ~= "summon" then
-                        ShowJob({ name = BUYER, service = it.key, dest = it.def.kind == "summon" and it.where or nil }, false)
+                        ShowJob({ name = PV.BUYER, service = it.key, dest = it.def.kind == "summon" and it.where or nil }, false)
                     end
                 end
                 if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
@@ -1647,7 +1718,7 @@ local function Preview(tab)
                 if ex then Say("Example, with someone who can do each ticked service standing with you", ex) end
             end
         elseif tab == "Buffs" then
-            for _, key in ipairs(PREVIEW_KEYS.Buffs) do ServicePreview(key) end
+            for _, key in ipairs(PV.KEYS.Buffs) do ServicePreview(key) end
             Head("Buff button")
             Say("Buff button", BuffLabel())
             local mine = {}
@@ -1662,7 +1733,7 @@ local function Preview(tab)
                 Note(table.concat(parts, "; ") .. "; plain \"blessing\" queues " .. tostring(Core.Setting(db, "blessing").spell) .. ".")
             end
         else
-            for _, key in ipairs(PREVIEW_KEYS[tab] or {}) do ServicePreview(key) end
+            for _, key in ipairs(PV.KEYS[tab] or {}) do ServicePreview(key) end
         end
     end)
     previewGroup = nil
@@ -1674,7 +1745,7 @@ local function Preview(tab)
     return out
 end
 local function PrintPreview(tab)
-    P("|cffffd100Preview of the " .. tab .. " tab.|r Nothing is sent; only you see this. Pretend buyer: " .. BUYER .. ".")
+    P("|cffffd100Preview of the " .. tab .. " tab.|r Nothing is sent; only you see this. Pretend buyer: " .. PV.BUYER .. ".")
     for _, line in ipairs(Preview(tab)) do P(line) end
 end
 
@@ -1788,9 +1859,10 @@ OnCast = function(event, unit, spellID, spellName)
 
     -- 2) the banner
     if portalUp then
-        trace.banner = select(2, pcall(ShowAlert, "PORTAL IS UP - CLICK IT!", "Summoning " .. who .. "  (" .. caster .. ")")) and "error" or "shown"
+        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL", BannerSub(who, job), "PORTAL IS UP")
+        trace.banner = ok and "shown" or ("error: " .. tostring(err))
     elseif first then
-        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL!", "Summoning " .. who .. "  (" .. caster .. ")")
+        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL", BannerSub(who, job), "RITUAL OF SUMMONING STARTED")
         trace.banner = ok and "shown" or ("error: " .. tostring(err))
     end
 
@@ -1877,57 +1949,6 @@ local function FinishJob(name)
     RemoveFromGroup(name)
 end
 
-----------------------------------------------------------------------
--- Customer list look (the design review of 12 Nov 2026): dark and gold, flat, one filled
--- button. Colors are the review's tokens; status pills always carry the word, never color alone.
-----------------------------------------------------------------------
-local INK = {
-    ground = "14110d", deep = "100e0a", panel = "1b1710", line = "3a3226", soft = "2a241b",
-    text = "ece4d2", muted = "a39a86", gold = "f0c05a", goldInk = "1a1408", plain = "221d15",
-}
-local PILL = {   -- status -> fill, text
-    invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
-    arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
-    busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
-    left = { "2e2a22", "c9c0a8" },
-}
-local function RGB(hex)
-    hex = tostring(hex):gsub("^ff", "", 1)
-    if #hex ~= 6 then return 1, 1, 1 end
-    return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
-end
-local function Fill(parent, hex, layer, sub)
-    local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
-    t:SetColorTexture(RGB(hex))
-    return t
-end
-local function Text(parent, size, hex, font)
-    local fs = parent:CreateFontString(nil, "OVERLAY", font or "GameFontHighlight")
-    pcall(function() local f, _, fl = fs:GetFont() if f then fs:SetFont(f, size, fl) end end)
-    fs:SetTextColor(RGB(hex or INK.text))
-    return fs
-end
--- Flat buttons: gold (the one main action), ghost (a row's action), plain, bare (the x).
-local BUTTON_LOOK = {
-    gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
-    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" }, rail = { nil, nil, INK.text },
-}
-local function FlatButton(parent, w, h, style, size, secure, name)
-    local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
-    b:SetSize(w, h)
-    local look = BUTTON_LOOK[style]
-    if look[2] then local edge = Fill(b, look[2], "BACKGROUND", -1) edge:SetAllPoints() end
-    if look[1] then
-        local bg = Fill(b, look[1], "BACKGROUND", 0)
-        bg:SetPoint("TOPLEFT", 1, -1) bg:SetPoint("BOTTOMRIGHT", -1, 1)
-    end
-    local hl = b:CreateTexture(nil, "HIGHLIGHT") hl:SetAllPoints() hl:SetColorTexture(1, 1, 1, 0.08)
-    local fs = Text(b, size or 14, look[3])
-    fs:SetPoint("CENTER")
-    b:SetFontString(fs)
-    b._siStyle, b._siSize = style, size or 14
-    return b
-end
 local function Since(t)
     local s = math.max(0, math.floor(GetTime() - (t or GetTime())))
     if s < 60 then return s .. "s" end
@@ -1976,7 +1997,7 @@ local function ApplyRow(row, job)
     row.service:SetText(ServiceLine(job))
     row.where:SetText(WhoLine(job, g))
     row.status:SetText(st[1])
-    local pill = PILL[job.status] or PILL.left
+    local pill = INK.PILL[job.status] or INK.PILL.left
     row.pill:SetColorTexture(RGB(pill[1]))
     row.status:SetTextColor(RGB(pill[2]))
     local waiting = job.status == "invited" or job.status == "joined"
@@ -2158,7 +2179,7 @@ local function BuildJobsUI()
         local rEdge = Fill(w, INK.soft, "BACKGROUND", -6) rEdge:SetPoint("TOPLEFT", 24, y) rEdge:SetSize(W - 48, ROW_H)
         local rBg = Fill(w, INK.panel, "BACKGROUND", -5) rBg:SetPoint("TOPLEFT", 25, y - 1) rBg:SetSize(W - 50, ROW_H - 2)
         row.bar = Fill(w, INK.muted, "BORDER") row.bar:SetPoint("TOPLEFT", 25, y - 1) row.bar:SetSize(4, ROW_H - 2)
-        row.pill = Fill(w, PILL.joined[1], "BORDER") row.pill:SetPoint("TOPLEFT", 292, y - 16) row.pill:SetSize(96, 22)
+        row.pill = Fill(w, INK.PILL.joined[1], "BORDER") row.pill:SetPoint("TOPLEFT", 292, y - 16) row.pill:SetSize(96, 22)
         row.paint = { rEdge, rBg, row.bar, row.pill }
 
         row.name = Text(w, 16, INK.text, "GameFontHighlightLarge")
@@ -2648,7 +2669,7 @@ local function BuildSetupUI()
     Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
 
     local DEFAULTS_BY_KEY = {
-        welcomemsg = "", offermsg = "", thanksmsg = DEFAULT_THANKS, alertmsg = DEFAULT_ALERTMSG, whispermsg = DEFAULT_WHISPERMSG, admsg = DEFAULT_AD,
+        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
     }
 
     local function Refresh()
@@ -2683,13 +2704,13 @@ local function BuildSetupUI()
         local db = ServiceInviterDB
         for key, def in pairs(DEFAULTS_BY_KEY) do
             local v = db[key]
-            if key == "welcomemsg" and v == DEFAULT_WELCOME then v = nil end
-            if key == "offermsg" and v == DEFAULT_OFFERMSG then v = nil end
+            if key == "welcomemsg" and v == MSG.WELCOME then v = nil end
+            if key == "offermsg" and v == MSG.OFFERMSG then v = nil end
             boxes[key]:SetText(v or def) boxes[key]:SetCursorPosition(0)
         end
         boxes.whisperto:SetText(WhisperTo() or "")
-        boxes.kwwords:SetText(db.kwwords or DEFAULT_KEYWORDS) boxes.kwwords:SetCursorPosition(0)
-        boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or DEFAULT_CHANNELS) boxes.chanextra:SetCursorPosition(0)
+        boxes.kwwords:SetText(db.kwwords or MSG.KEYWORDS) boxes.kwwords:SetCursorPosition(0)
+        boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or MSG.CHANNELS) boxes.chanextra:SetCursorPosition(0)
         boxes.adextra:SetText(db.adextra or "")
         boxes.adwait:SetText(tostring(tonumber(db.adwait) or 5))
         local adch = type(db.adchans) == "table" and db.adchans or { trade = true }
@@ -2747,7 +2768,7 @@ local function BuildSetupUI()
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
         db.thanks = checks.thanks:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
-        do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == DEFAULT_KEYWORDS) and nil or kws end
+        do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == MSG.KEYWORDS) and nil or kws end
         db.chanextra = boxes.chanextra:GetText()
         db.adextra = boxes.adextra:GetText()
         db.adwait = tonumber(boxes.adwait:GetText()) or 5
@@ -2790,7 +2811,7 @@ local function BuildSetupUI()
     w.preview = prev
     local test = FlatButton(w, 140, 34, "plain", 14)
     test:SetPoint("BOTTOMLEFT", RAIL + 352, 20) test:SetText("Test banner")
-    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)") end)
+    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL", "Summoning Testy to Thunder Bluff. Pay: you.", "TEST: RITUAL OF SUMMONING STARTED") end)
 
     -- shrink to fit small screens so nothing runs off
     local function Fit()
@@ -2929,7 +2950,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         local ok, why = Evaluate(Norm(rest))
         P((ok and "WOULD invite" or "would NOT invite") .. " (" .. why .. ")")
     elseif cmd == "msg" then
-        if rest == "" then P("welcome message: " .. (ServiceInviterDB.welcomemsg or DEFAULT_WELCOME))
+        if rest == "" then P("welcome message: " .. (ServiceInviterDB.welcomemsg or MSG.WELCOME))
         else ServiceInviterDB.welcomemsg = rest P("welcome message set") end
     elseif cmd == "cooldown" then
         local n = tonumber(rest)
@@ -2963,8 +2984,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
     elseif cmd == "ad" then PostAd()
     elseif cmd == "preview" then
         local want = rest:lower()
-        local tab = (setupWin and setupWin.tab and PREVIEW_TABS[setupWin.tab]) or "General"
-        for _, t in ipairs(PREVIEW_TABS) do if want ~= "" and t:lower():find(want, 1, true) == 1 then tab = t end end
+        local tab = (setupWin and setupWin.tab and PV.TABS[setupWin.tab]) or "General"
+        for _, t in ipairs(PV.TABS) do if want ~= "" and t:lower():find(want, 1, true) == 1 then tab = t end end
         PrintPreview(tab)
     elseif cmd == "status" then
         do
@@ -3015,7 +3036,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         else P("role is " .. Role() .. ". Use /si role helper  or  /si role lock") end
         RefreshJobs()
     elseif cmd == "alert" then
-        ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)")
+        ShowAlert("CLICK THE PORTAL", "Summoning Testy to Thunder Bluff. Pay: you.", "TEST: RITUAL OF SUMMONING STARTED")
     elseif cmd == "whispertest" then
         local to = WhisperTo()
         if not to then P("no whisper recipient set (/si whisper <name>)") return end
@@ -3032,7 +3053,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             P("simcast as " .. u .. ": " .. (ok and "ran (see /si status)" or ("|cffff4040error:|r " .. tostring(err))))
         end
     elseif cmd == "alertmsg" then
-        if rest == "" then P("raid alert: " .. (ServiceInviterDB.alertmsg or DEFAULT_ALERTMSG) .. "   ({name} and {price} are filled in)")
+        if rest == "" then P("raid alert: " .. (ServiceInviterDB.alertmsg or MSG.ALERTMSG) .. "   ({name} and {price} are filled in)")
         else ServiceInviterDB.alertmsg = rest P("raid alert message set") end
     elseif cmd == "raidalert" then
         ServiceInviterDB.raidalert = not (ServiceInviterDB.raidalert ~= false)
@@ -3054,7 +3075,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB.autotrade = not AutoTradeOn()
         P("auto-open trade (and auto Paid) " .. (AutoTradeOn() and "ON: opens when a customer arrives in range; you click Accept" or "off"))
     elseif cmd == "offermsg" then
-        if rest == "" then P("offer message: " .. (ServiceInviterDB.offermsg or DEFAULT_OFFERMSG) .. "   ({name} and {offers} are filled in)")
+        if rest == "" then P("offer message: " .. (ServiceInviterDB.offermsg or MSG.OFFERMSG) .. "   ({name} and {offers} are filled in)")
         else ServiceInviterDB.offermsg = rest P("offer message set") end
     elseif cmd == "clear" then Jobs.Clear() P("customer list cleared")
     elseif cmd == "price" then

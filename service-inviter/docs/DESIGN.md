@@ -218,3 +218,25 @@ Not built, on the owner's agreement: the "Tell Mireth" button (the welcome alrea
 message), filter chips and the "nobody can do this" strip. Addon-to-addon messages (so several
 people running it share one customer list and say what they really know) wait until a second
 person runs it.
+
+## The look (2.1.0)
+
+From the design review of 12 Nov 2026 (mockups for the owner, who liked them): dark and gold,
+flat, one filled gold button per window.
+
+- **Customers:** header with Post ad and Setup; "Your next job" with the one gold button, what it
+  is and how long they've waited; rows with a class-colour bar, the service, who does it and
+  where, a status pill (always with the word) and its age, and the row's action. Someone else's
+  job says who is up instead of offering a button. The window is as tall as the customers it
+  shows; the footer holds the session and, for classes with buffs, the buff button.
+- **Setup:** a side menu instead of tab buttons hanging under the frame, the page name as a
+  header, Save as the gold button. Same fixed 1068 x 690 window, shrunk to fit small screens.
+- **Banner:** a small label naming the event, CLICK THE PORTAL, then "Summoning Kaldrok to
+  Thunder Bluff. Pay Grimtotem." and a bar counting down the 14 seconds. It pulses for two
+  seconds, then holds.
+
+Every secure button keeps its macro; nothing is moved or resized in combat. Built on the game's
+own fonts at set sizes and plain colour textures.
+
+Lua 5.1 allows 200 local names at the top of a file, and over that the addon does not load at
+all. This round hit it; a test now keeps 10 spare.

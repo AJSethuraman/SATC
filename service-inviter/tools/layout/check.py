@@ -116,6 +116,11 @@ for name, before, after in [
     L.execute("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     scenes[name] = export(L, L.globals().ServiceInviterJobs)
 
+# the click-the-portal banner, half way through its 14 seconds
+L = load(GROUP)
+L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')
+scenes["banner"] = export(L, L.globals().ServiceInviterAlert)
+
 OUT.mkdir(parents=True, exist_ok=True)
 (OUT / "scenes.json").write_text(json.dumps(scenes))
 r = subprocess.run(["node", str(HERE / "shoot.js"), str(HERE / "render.html"), str(OUT)], capture_output=True, text=True)

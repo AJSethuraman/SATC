@@ -48,3 +48,13 @@ def test_its_own_path_is_quoted_safely_for_powershell():
     head = BAT.read_bytes().decode().split("#PS-BEGIN")[0]
     assert "set \"SELF=%SELF:'=''%\"" in head
     assert "'%~f0'" not in head
+
+
+def test_the_addon_has_room_for_more_top_level_names():
+    """WoW's Lua 5.1 refuses a file with more than 200 local names at its top level, and the addon
+    then does not load at all. 2.0.13's banner work hit exactly that (12 Nov 2026), caught only
+    because the tests load the file. Keep at least 10 spare."""
+    from lupa import lua51
+    from conftest import ADDON
+    src = ADDON.read_text() + "\n" + "\n".join(f"local _spare{i} = {i}" for i in range(10)) + "\n"
+    lua51.LuaRuntime().compile(src)   # raises if the limit is crossed
