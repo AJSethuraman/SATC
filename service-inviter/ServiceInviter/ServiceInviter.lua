@@ -1,4 +1,4 @@
--- Service Inviter v2.0.5
+-- Service Inviter v2.0.6
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -82,6 +82,7 @@ local DEFAULTS = {
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
+    colornames = true,   -- color group members' names by class in chat lines, on your screen
     welcome   = true,    -- send a message to the group when an invited player joins
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
@@ -960,7 +961,7 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
             if silver > 0 and silver >= (need or 0) then
                 Jobs.Get(who).amount = silver
                 Jobs.Set(who, "paid")
-                P(who .. (need and " paid " or " tipped ") .. Money(silver) .. ". Marked Paid.")
+                P(Colored(who, Jobs.Get(who).class) .. (need and " paid " or " tipped ") .. Money(silver) .. ". Marked Paid.")
             elseif silver > 0 then
                 P(who .. " traded " .. Money(silver) .. ", less than the " .. Money(need) .. " price. Not marked Paid.")
             end
@@ -1712,6 +1713,38 @@ end
 ----------------------------------------------------------------------
 local setupWin
 
+----------------------------------------------------------------------
+-- Names in class colors inside chat lines, on YOUR screen. Messages sent to party or raid
+-- can't carry colors (the game strips them), so this recolors them as they arrive in your
+-- chat window. Others see plain text unless they run this addon too.
+----------------------------------------------------------------------
+local COLOR_EVENTS = { "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER",
+    "CHAT_MSG_RAID_WARNING", "CHAT_MSG_CHANNEL", "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_SYSTEM",
+    "CHAT_MSG_SAY", "CHAT_MSG_YELL" }
+local function ColorNamesInText(msg)
+    if type(msg) ~= "string" or IsSecret(msg) or msg:find("|", 1, true) then return msg end
+    local known = {}
+    for _, m in ipairs(GroupSnapshot()) do if m.class then known[m.name] = m.class end end
+    for _, j in ipairs(jobs) do if j.class then known[j.name] = j.class end end
+    local out = msg
+    for name, cls in pairs(known) do
+        local hex = ClassHex(cls)
+        if hex and #name > 2 then
+            out = out:gsub("%f[%w]" .. name .. "%f[%W]", "|c" .. hex .. name .. "|r")
+        end
+    end
+    return out
+end
+local function ColorNamesFilter(_, _, msg, ...)
+    if not Opt("colornames") then return false end
+    local ok, out = pcall(ColorNamesInText, msg)
+    if ok and out ~= msg then return false, out, ... end
+    return false
+end
+if ChatFrame_AddMessageEventFilter then
+    for _, ev in ipairs(COLOR_EVENTS) do pcall(ChatFrame_AddMessageEventFilter, ev, ColorNamesFilter) end
+end
+
 -- Pick list for "who gets paid": a titled menu with plain choices, the group listed below.
 -- One shared frame; the box keeps working for a typed name.
 local picker
@@ -1970,10 +2003,11 @@ local function BuildSetupUI()
     Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
     Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
     Box("offermsg", R + 4, -378, 396)
-    Header(R, -420, "This session")
-    local sessText = Label(R, -446, "", "GameFontHighlight", 270)
+    Check("colornames", R, -410, "Color names by class in chat (on my screen)", true)
+    Header(R, -446, "This session")
+    local sessText = Label(R, -472, "", "GameFontHighlight", 270)
     local sessBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -440) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -466) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
@@ -2457,5 +2491,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { ColorNames = function(m) return ColorNamesInText(m) end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }
