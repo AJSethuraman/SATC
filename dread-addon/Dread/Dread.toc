@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: Dread (feasibility tests)
+## Notes: Test 1 loop speed, Test 2 assets. Not a game yet.
+## SavedVariables: DreadDB
+# 16001 is what /dump select(4, GetBuildInfo()) returned on Forever (owner screenshot, 11 Nov 2026).
+Log.lua
+Sim.lua
+Skills.lua
+Tree.lua
+Items.lua
+Combat.lua
+Zone.lua
+Map.lua
+Fx.lua
+Build.lua
+Gear.lua
+Game.lua
+Visuals.lua
+SpellData.lua
+Spells.lua
+Net.lua
+Dread.lua
