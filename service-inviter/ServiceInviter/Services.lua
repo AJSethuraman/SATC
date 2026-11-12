@@ -165,8 +165,10 @@ function C.OnSale(db, group, faction)
 end
 
 -- Who gets paid for a customer of this service, landing in `here`.
--- Default (db.payee): { mode = "place" | "me" | "name", name = "..." }.
---   place: you if you are in `here`, otherwise the person doing the service.
+-- Default (db.payee): { mode = "provider" | "me" | "name", name = "..." }.
+--   provider: the person doing the service. You only when you picked "me" (the owner,
+--   12 Nov 2026: "but only when i select they pay me, right?"). An old saved "place"
+--   means provider too.
 -- Per service (setting.payee): "" = default, "me", "provider", or a name.
 function C.Payee(db, group, key, provider, here)
     local me
@@ -181,11 +183,11 @@ function C.Payee(db, group, key, provider, here)
             -- 1.5/1.6 setting "I collect the payment" still means what it said
             if db.collect == true then mode = "me" elseif db.collect == false then mode = "notme" end
         end
-        mode = mode or "place"
+        mode = mode or "provider"
         if mode == "me" then rule = "me"
         elseif mode == "name" and d.name and d.name ~= "" then rule = d.name
         elseif mode == "provider" or mode == "notme" then rule = mode
-        else rule = "place" end
+        else rule = "provider" end
     end
     if rule == "me" then return myName end
     if rule == "provider" then return provider and provider.name or myName end
@@ -193,10 +195,7 @@ function C.Payee(db, group, key, provider, here)
         if provider and not provider.me then return provider.name end
         return "someone else"
     end
-    if rule == "place" then
-        if me and here and me.zone == here then return myName end
-        return provider and provider.name or myName
-    end
+    if rule == "place" then return provider and provider.name or myName end
     return rule
 end
 

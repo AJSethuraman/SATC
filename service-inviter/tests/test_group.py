@@ -256,4 +256,4 @@ def test_payee_pick_list_alone_says_where_party_members_go():
     assert g.eval("ServiceInviterPicker.title:GetText()") == "Who gets paid for summons?"
     assert g.eval("ServiceInviterPicker.note:GetText()") == "Party and raid members show up here."
     # the owner: "so basically that would mean the warlock in general or what i am confused"
-    assert g.eval("ServiceInviterPicker.sub:GetText()") == "Default: the warlock, or you if you're with them"
+    assert g.eval("ServiceInviterPicker.sub:GetText()") == "Default: the warlock"

@@ -53,7 +53,7 @@ def test_there_is_no_option_for_it(game):
     assert "nodest" not in ADDON.read_text()
 
 
-@pytest.mark.parametrize("mode, greyed", [("place", False), ("me", False), ("name", True)])
+@pytest.mark.parametrize("mode, greyed", [("provider", False), ("me", False), ("name", True)])
 def test_auto_trade_box_is_greyed_out_when_someone_named_always_gets_paid(game, mode, greyed):
     """Trade opens only for the payee. Paid to a fixed other person, it can never be you."""
     game.run(f'ServiceInviterDB.payee = {{ mode = "{mode}", name = "Banker" }} ServiceInviter_Test.BuildSetup():Show()')

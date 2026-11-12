@@ -1684,8 +1684,7 @@ local function DefaultPayeeText(key)
     if d.mode == "me" then return "you" end
     if d.mode == "name" and d.name and d.name ~= "" then return d.name end
     local def = key and Core.BY_KEY[key]
-    local doer = def and DOER[def.class] or "whoever does it"
-    return doer .. ", or you if you're with them"
+    return def and DOER[def.class] or "whoever does it"
 end
 local function ShowPicker(box, withDefaults, title, key)
     if not picker then
@@ -1917,7 +1916,7 @@ local function BuildSetupUI()
         if checks.autotrade.label then checks.autotrade.label:SetFontObject(named and "GameFontDisable" or "GameFontHighlight") end
     end
     Radio("pay", "pay_place", R, -74, "Whoever does it (the warlock, mage, rogue...)", SyncTradeBox)
-    Label(R + 30, -100, "or you, if you're standing with them when the customer arrives.", "GameFontHighlightSmall")
+    Label(R + 30, -100, "You get paid only if you pick 'Always me' (or 'Me' on a service).", "GameFontHighlightSmall")
     Radio("pay", "pay_me", R, -116, "Always me", SyncTradeBox)
     Radio("pay", "pay_name", R, -142, "Always:", SyncTradeBox)
     local pn = Box("payname", R + 100, -144, 160, 40)
@@ -2065,7 +2064,7 @@ local function BuildSetupUI()
         checks.debug:SetChecked(db.debug and true or false)
         -- who gets paid by default
         local d = type(db.payee) == "table" and db.payee or {}
-        local mode = d.mode or (db.collect == true and "me") or (db.collect == false and "notme") or "place"
+        local mode = d.mode or (db.collect == true and "me") or (db.collect == false and "notme") or "provider"
         checks.pay_place:SetChecked(mode == "place" or mode == "notme" or mode == "provider")
         checks.pay_me:SetChecked(mode == "me")
         checks.pay_name:SetChecked(mode == "name")
@@ -2113,7 +2112,7 @@ local function BuildSetupUI()
         db.near = checks.near:GetChecked() and true or false
         db.debug = checks.debug:GetChecked() and true or false
         debugOn = db.debug
-        local mode = checks.pay_me:GetChecked() and "me" or (checks.pay_name:GetChecked() and "name" or "place")
+        local mode = checks.pay_me:GetChecked() and "me" or (checks.pay_name:GetChecked() and "name" or "provider")
         db.payee = { mode = mode, name = (boxes.payname:GetText():gsub("^%s+", ""):gsub("%s+$", "")) }
         db.collect = nil   -- replaced by "who gets paid"
         db.services = db.services or {}
@@ -2388,10 +2387,10 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
     elseif cmd == "collect" then
         -- toggles "who gets paid" between always you and whoever is where the customer lands
         local d = type(ServiceInviterDB.payee) == "table" and ServiceInviterDB.payee or {}
-        local mode = d.mode or (ServiceInviterDB.collect == true and "me") or "place"
-        ServiceInviterDB.payee = { mode = (mode == "me") and "place" or "me", name = d.name }
+        local mode = d.mode or (ServiceInviterDB.collect == true and "me") or "provider"
+        ServiceInviterDB.payee = { mode = (mode == "me") and "provider" or "me", name = d.name }
         ServiceInviterDB.collect = nil
-        P("who gets paid: " .. (ServiceInviterDB.payee.mode == "me" and "always YOU (trade opens by itself when they're in range)" or "whoever is where the customer ends up"))
+        P("who gets paid: " .. (ServiceInviterDB.payee.mode == "me" and "always YOU (trade opens by itself when they're in range)" or "whoever does it (the warlock, mage, rogue...)"))
         RefreshJobs()
     elseif cmd == "autotrade" then
         ServiceInviterDB.autotrade = not AutoTradeOn()

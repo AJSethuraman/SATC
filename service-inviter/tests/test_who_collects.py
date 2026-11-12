@@ -40,7 +40,7 @@ def test_si_collect_toggles_always_me(game):
     game.eval('SlashCmdList.SERVICEINVITER("collect")')
     assert game.eval("ServiceInviterDB.payee.mode") == "me"
     game.eval('SlashCmdList.SERVICEINVITER("collect")')
-    assert game.eval("ServiceInviterDB.payee.mode") == "place"
+    assert game.eval("ServiceInviterDB.payee.mode") == "provider"
 
 
 def test_no_whisper_until_someone_is_named(party):

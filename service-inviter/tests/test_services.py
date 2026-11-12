@@ -120,10 +120,13 @@ def payee(core, dbx, grp, key="summons", provider=LOCK_TB, here="Thunder Bluff")
     return core.eval(f'ServiceInviterCore.Payee({dbx}, {grp}, "{key}", {provider}, "{here}")')
 
 
-def test_default_payee_is_whoever_is_where_they_land(core):
+def test_default_payee_is_whoever_does_it_even_when_im_standing_with_them(core):
+    """The owner, 12 Nov 2026: "but only when i select they pay me, right?". Being next to the
+    warlock no longer makes you the payee; only picking "Me" does."""
     assert payee(core, ON, group(ME_ORG, LOCK_TB)) == "Grimtotem"
     me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
-    assert payee(core, ON, group(me_tb, LOCK_TB)) == "Me"
+    assert payee(core, ON, group(me_tb, LOCK_TB)) == "Grimtotem"
+    assert payee(core, '{ payee = { mode = "place" } }', group(me_tb, LOCK_TB)) == "Grimtotem"   # an old saved setting
 
 
 def test_default_payee_always_me(core):
@@ -154,9 +157,15 @@ def test_welcome_summon_pay_the_warlock(core):
     assert welcome(core, group(ME_ORG, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land."
 
 
-def test_welcome_summon_pay_me_when_im_there(core):
+def test_welcome_summon_pay_the_warlock_even_when_im_there(core):
     me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
-    assert welcome(core, group(me_tb, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay me when you land."
+    assert welcome(core, group(me_tb, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land."
+
+
+def test_welcome_summon_pay_me_when_i_picked_me(core):
+    me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
+    d = '{ payee = { mode = "me" } }'
+    assert welcome(core, group(me_tb, LOCK_TB), d=d) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay me when you land."
 
 
 def test_welcome_im_the_warlock(core):
@@ -170,9 +179,9 @@ def test_welcome_portal_pay_the_mage_when_im_elsewhere(core):
         "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20s. Pay Velenne there."
 
 
-def test_welcome_portal_pay_me_when_im_with_the_mage(core):
+def test_welcome_portal_pay_the_mage_even_when_im_with_the_mage(core):
     assert welcome(core, group(ME_ORG, LOCK_TB, MAGE_47), "portals", '"Undercity"') == \
-        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20s. Pay me there."
+        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20s. Pay Velenne there."
 
 
 def test_welcome_free_lockpicking(core):
