@@ -1,7 +1,8 @@
--- Service Inviter v1.4.0
+-- Service Inviter v1.4.1
 -- Watches chat for people asking to BUY a summon or port to a destination you
--- choose, and sends them a group invite. Sends NO chat or whispers, so it is
--- safe while silenced.
+-- choose, and sends them a group invite. It also talks in your group and may
+-- whisper (welcome, summon alert, extras on offer, the ritual whisper): turn
+-- each off in /si setup if you are silenced.
 --
 -- Open the settings window with /si. /si jobs opens the customer list.
 -- /si selftest runs a built-in check. /si dryrun shows who it WOULD invite.
@@ -70,9 +71,12 @@ local SUMMON_WORDS = { "summon", "summons", "summoning", "summoned", "summ", "su
 local PORT_WORDS   = { "port", "ports", "portal", "portals", "tp", "teleport" }
 -- ANY of these rejects the message outright. Safer to skip a real buyer than to invite a seller.
 local SELLER = {
-    "wts", "selling", "sell", "sale", "offering", "wtt", "lfm", "recruiting", "guild",
-    "service", "services", "tips", "tip", "porting",
+    "wts", "selling", "sell", "sale", "offering", "wtt", "lfm", "recruiting",
+    "service", "services", "porting",
 }
+-- Ad words that buyers use too ("wtb summ tb, will tip", "for guild group"):
+-- they only reject the message when there is no clear WTB/buying word.
+local SOFTSELLER = { "tip", "tips", "guild" }
 -- "Contact" words: sellers use them, but so do buyers ("wtb summ tb pst").
 -- They only reject the message when there is no clear WTB/buying word.
 local CONTACT = { "pst", "inv", "invite", "whisper", "pm", "msg" }
@@ -123,11 +127,12 @@ local function SetOpt(key, value)
 end
 
 local function Norm(s)
-    s = (s or ""):lower()
+    s = s or ""
     s = s:gsub("|c%x%x%x%x%x%x%x%x", "")
     s = s:gsub("|r", "")
-    s = s:gsub("|h(.-)|h", "%1")
-    s = s:gsub("|H.-|h", "")
+    s = s:gsub("|H.-|h", "")   -- link payload ("|Hspell:698|h"); the [text] stays
+    s = s:gsub("|h", "")
+    s = s:lower()
     s = s:gsub("{.-}", " ")
     s = s:gsub("[^%w]+", " ")
     s = s:gsub("^%s+", ""):gsub("%s+$", "")
@@ -168,6 +173,8 @@ local function Evaluate(norm, dedicated)
     local buy = HasAny(norm, Opt("strictbuy") and STRICTBUY or BUY)
     if not buy then return false, "no buy word" end
     if not HasAny(norm, STRICTBUY) then
+        local soft = HasAny(norm, SOFTSELLER)
+        if soft then return false, "seller/ad word '" .. soft .. "' without a WTB/buying word" end
         local c = HasAny(norm, CONTACT)
         if c then return false, "contact word '" .. c .. "' without a WTB/buying word" end
     end
@@ -312,8 +319,8 @@ end
 -- "1g 25s", "2g", "150s", "25" (a bare number = silver)  ->  silver, or nil
 local function ParsePrice(text)
     text = (text or ""):lower()
-    local g, sv = text:match("(%d+)%s*g"), text:match("(%d+)%s*s")
-    if g or sv then return (tonumber(g) or 0) * 100 + (tonumber(sv) or 0) end
+    local g, sv = text:match("(%d*%.?%d+)%s*g"), text:match("(%d+)%s*s")
+    if g or sv then return math.floor((tonumber(g) or 0) * 100 + 0.5) + (tonumber(sv) or 0) end
     local n = tonumber(text:match("^%s*(%d+)%s*$"))
     return n
 end
@@ -490,7 +497,7 @@ local function KeywordHit(text, whisper)
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
     if count > (whisper and 3 or 2) then return nil end
-    if HasAny(norm, SELLER) or HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS) then return nil end
+    if HasAny(norm, SELLER) or HasAny(norm, SOFTSELLER) or HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS) then return nil end
     local list = ServiceInviterDB.kwwords
     if type(list) ~= "string" or list:gsub("[%s,]", "") == "" then list = DEFAULT_KEYWORDS end
     local words = {}
@@ -700,6 +707,11 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
             dealName = who
             dealMoney = (GetTargetTradeMoney and GetTargetTradeMoney()) or 0
             D("trade accepted by both: " .. tostring(dealName) .. " pays " .. Money(math.floor(dealMoney / 100)))
+        else
+            -- someone took their Accept back (changed the money, moved an item): what we
+            -- noted no longer stands, or a trade cancelled after this would count as Paid
+            if dealName then D("trade accept taken back: " .. tostring(dealName) .. " not paid yet") end
+            dealName, dealMoney = nil, 0
         end
         return
     end
@@ -841,7 +853,7 @@ local function UnitFor(name)
     return nil
 end
 
-local function CleanName(n) return (tostring(n):gsub("[^%w%-]", "")) end
+local function CleanName(n) return (tostring(n):gsub("[%s%c%p]", function(c) return c == "-" and c or "" end)) end
 
 local ACTIVE = { invited = true, joined = true, summoned = true, arrived = true, busy = true }
 
@@ -980,7 +992,7 @@ end
 -- cast or channel (the lock is the summoner in this service).
 local function RitualCast(unit, spellID, nm, event)
     if spellID ~= nil and not IsSecret(spellID) then
-        if spellID == RITUAL_ID then return true end
+        return spellID == RITUAL_ID
     elseif spellID ~= nil then
         -- the ritual is a channel; ordinary warlock casts (Shadow Bolt etc.) never fire
         -- CHANNEL_START, so only that event counts, and only with a customer waiting
@@ -1727,7 +1739,7 @@ local function SelfTest()
     local color = (fail == 0) and "|cff00ff00" or "|cffff4040"
     P(color .. pass .. " passed, " .. fail .. " failed|r")
     if fail == 0 then
-        P("Next: /si dryrun, then have a friend say 'wtb summon tb' in Say (tick Say in /ti).")
+        P("Next: /si dryrun, then have a friend say 'wtb summon tb' in Say (tick Say in /si setup).")
     end
 end
 

@@ -96,6 +96,11 @@ jobs:
           # Added after it merged with its tests running only on the machine that wrote them.
           - project: forever-guild-bot
             install: pip install -r requirements.txt pytest
+          # Service Inviter: the owner's WoW addon, not practice software. The tests run the real
+          # Lua file in Lua 5.1 (lupa) against stubbed game functions, and check the installer
+          # is built from the source.
+          - project: service-inviter
+            install: pip install -r requirements.txt
     defaults:
       run:
         working-directory: ${{ matrix.project }}

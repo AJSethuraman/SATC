@@ -53,3 +53,7 @@ function GetTargetTradeMoney() return TRADEMONEY or 0 end
 function InitiateTrade(u) TRADES[#TRADES + 1] = u end
 SlashCmdList = {}
 NUM_CHAT_WINDOWS = 10
+function UnitIsVisible() return false end
+function SetBindingClick() return true end
+function SaveBindings() end
+function GetCurrentBindingSet() return 1 end

@@ -1,17 +1,25 @@
 @echo off
 title Service Inviter installer
+rem This file's path, with ' doubled so a folder like O'Brien survives PowerShell's quotes.
+set "SELF=%~f0"
+set "SELF=%SELF:'=''%"
 net session >nul 2>&1
 if %errorlevel% neq 0 (
   echo Asking for administrator permission to write to Program Files...
   if "%~1"=="" (
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    powershell -NoProfile -Command "Start-Process -FilePath '%SELF%' -Verb RunAs"
   ) else (
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList '%~1' -Verb RunAs"
+    powershell -NoProfile -Command "Start-Process -FilePath '%SELF%' -ArgumentList '%~1' -Verb RunAs"
+  )
+  if errorlevel 1 (
+    echo.
+    echo Nothing was installed: Windows did not get administrator permission.
+    pause
   )
   exit /b
 )
 set TI_ACTION=%~1
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=[IO.File]::ReadAllText('%~f0'); $i=$t.IndexOf('#PS'+'-BEGIN'); Invoke-Expression $t.Substring($i)"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=[IO.File]::ReadAllText('%SELF%'); $i=$t.IndexOf('#PS'+'-BEGIN'); Invoke-Expression $t.Substring($i)"
 echo.
 pause
 exit /b
@@ -59,15 +67,11 @@ if ((Test-Path -LiteralPath $toc) -and (Test-Path -LiteralPath $lua)) {
   Write-Host "  $target"
   Write-Host ""
   Write-Host "In game: type /reload (or restart WoW), then /si setup for every message and option, /si for the customer list."
-  # Retire the old Trade Inviter: move it OUT of AddOns into a backup folder (nothing is deleted).
+  # Service Inviter replaces the old Trade Inviter: remove it from AddOns.
   $old = Join-Path $dest 'TradeInviter'
   if (Test-Path -LiteralPath $old) {
-    $backup = Join-Path (Split-Path -Parent $dest) 'TradeInviter-backup'
-    if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
-    Move-Item -LiteralPath $old -Destination $backup
-    Write-Host "Trade Inviter was moved out of AddOns to:" -ForegroundColor Green
-    Write-Host "  $backup"
-    Write-Host "Service Inviter now does the inviting itself. Your old settings were already copied over."
+    Remove-Item -LiteralPath $old -Recurse -Force
+    Write-Host "Removed the old Trade Inviter from AddOns. Service Inviter does the inviting now." -ForegroundColor Green
     Write-Host "Make sure 'Invite people who ask for a summon/port' is ticked in /si setup."
   }
   Write-Host "If it is greyed out in the AddOns list, tick 'Load out of date AddOns'."
