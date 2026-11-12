@@ -1,4 +1,4 @@
--- Service Inviter v1.5.0
+-- Service Inviter v1.6.0
 -- Watches chat for people asking to BUY a summon or port to a destination you
 -- choose, and sends them a group invite. It also talks in your group and may
 -- whisper (welcome, summon alert, extras on offer, the ritual whisper): turn
@@ -50,7 +50,7 @@ local DEFAULTS = {
     kwon = false,        -- keyword auto-invite ("inv", "invite") on/off
     strictbuy = false,   -- only WTB/buying count (ignore LF / need / looking)
     fragments = true,
-    nodest    = true,    -- "WTB summon" with no place named counts as Thunder Bluff
+    nodest    = false,   -- "WTB summon" with no place named: invite anyway (they say where), if you summon anywhere
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
@@ -212,17 +212,24 @@ local function Evaluate(norm, dedicated)
     for _, d in ipairs(DESTS) do
         if (not anyTo or toKeys[d.key]) and HasAny(norm, d.words) then
             sawDest = true
-            if wantsSum and Opt("sum_" .. d.key) then return true, "summon to " .. d.label .. ", buy=" .. buy end
+            -- a summon fetches them from anywhere, so it answers a port request too;
+            -- a port (a mage) needs them to come to you, so it does not answer a summon request
+            if Opt("sum_" .. d.key) then
+                if wantsSum then return true, "summon to " .. d.label .. ", buy=" .. buy end
+                if wantsPort then return true, "port request to " .. d.label .. ", you summon there, buy=" .. buy end
+            end
             if wantsPort and Opt("port_" .. d.key) then return true, "port to " .. d.label .. ", buy=" .. buy end
         end
     end
     if waived and not sawDest then return false, "no place named (needs one when there is no summon/port word)" end
-    if wantsSum and Opt("sum_any") then return true, "summon (any destination), buy=" .. buy end
+    if (wantsSum or wantsPort) and Opt("sum_any") then return true, "summon (any destination), buy=" .. buy end
     if wantsPort and Opt("port_any") then return true, "port (any destination), buy=" .. buy end
     if strippedFrom and not sawDest then sawDest = true end
     if not sawDest and Opt("nodest") then
-        if wantsSum and Opt("sum_tb") then return true, "summon, no place named: assuming Thunder Bluff, buy=" .. buy end
-        if wantsPort and Opt("port_tb") then return true, "port, no place named: assuming Thunder Bluff, buy=" .. buy end
+        -- nothing says where they want to go: invite only if you summon somewhere, and let them say
+        local summonsSomewhere = Opt("sum_any")
+        for _, d in ipairs(DESTS) do if Opt("sum_" .. d.key) then summonsSomewhere = true end end
+        if summonsSomewhere then return true, "no place named, invited to ask where, buy=" .. buy end
     end
     return false, sawDest and "that destination/service is not checked" or "no checked destination"
 end
@@ -1474,6 +1481,7 @@ local function BuildSetupUI()
         if text then
             local fs = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
             fs:SetPoint("LEFT", cb, "RIGHT", 2, 0) fs:SetText(text)
+            cb.label = fs
         end
         checks[key] = cb
         if isOpt then optKeys[#optKeys + 1] = key end
@@ -1500,6 +1508,13 @@ local function BuildSetupUI()
     Header(30, -446, "4", "Customer arrives")
     Check("collect", 40, -470, "I collect the payment")
     Check("autotrade", 220, -470, "Open trade by itself in range")
+    -- trade only ever opens for the one who collects: grey the box out otherwise
+    local function SyncTradeBox()
+        local on = checks.collect:GetChecked() and true or false
+        if on then checks.autotrade:Enable() else checks.autotrade:Disable() end
+        if checks.autotrade.label then checks.autotrade.label:SetFontObject(on and "GameFontHighlight" or "GameFontDisable") end
+    end
+    checks.collect:SetScript("OnClick", SyncTradeBox)
     Label(40, -504, "Price per customer (gold and/or silver):")
     Box("pricegold", -524, 60, 5)
     Label(112, -521, "gold")
@@ -1563,7 +1578,7 @@ local function BuildSetupUI()
     Header(X, -448, nil, "Matching")
     Check("strictbuy", X, -472, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
     Check("fragments", X, -498, "Combine a person's split messages", true)
-    Check("nodest", X, -524, "No place named (\"WTB summ\") = assume Thunder Bluff", true)
+    Check("nodest", X, -524, "No place named (\"WTB summ\"): invite, they say where", true)
 
     Header(X, -562, nil, "Other")
     Check("skipafk", X, -586, "Skip while I'm AFK", true)
@@ -1580,7 +1595,7 @@ local function BuildSetupUI()
 
     local note = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     note:SetPoint("TOPLEFT", X, -792) note:SetWidth(450) note:SetJustifyH("LEFT")
-    note:SetText("Sellers/ads (WTS, selling, service, tips...) are always skipped. pst/inv is fine if they say WTB.")
+    note:SetText("A ticked Summon also takes port requests to that place. Sellers/ads are always skipped; tips/pst/inv are fine if they say WTB.")
 
     Header(X, -826, nil, "This session")
     local sessText = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -1619,6 +1634,7 @@ local function BuildSetupUI()
         checks.raidalert:SetChecked(db.raidalert ~= false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
         checks.collect:SetChecked(Collects())
+        SyncTradeBox()
         checks.welcome:SetChecked(Opt("welcome") and true or false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")

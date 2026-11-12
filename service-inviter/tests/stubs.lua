@@ -22,6 +22,10 @@ local function Stub()
       SetAttribute = function(self, k2, v) self._attr[k2] = v end,
       GetAttribute = function(self, k2) return self._attr[k2] end,
       GetFont = function() return "font", 12, "" end,
+      Disable = function(self) self._disabled = true end,
+      Enable = function(self) self._disabled = false end,
+      IsEnabled = function(self) return not self._disabled end,
+      SetFontObject = function(self, f) self._font = f end,
     }
     return m[k] or function() end
   end })
