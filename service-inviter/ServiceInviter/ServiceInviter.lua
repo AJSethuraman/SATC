@@ -50,7 +50,6 @@ local DEFAULTS = {
     kwon = false,        -- keyword auto-invite ("inv", "invite") on/off
     strictbuy = false,   -- only WTB/buying count (ignore LF / need / looking)
     fragments = true,
-    nodest    = false,   -- "WTB summon" with no place named: invite anyway (they say where), if you summon anywhere
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
@@ -189,12 +188,11 @@ local function Evaluate(norm, dedicated)
 
     -- A place after "from" / "in" / "at" is where they ARE, not where they want to go:
     -- "port to UC from TB" is a UC request. Drop "from <place>" before matching.
-    local strippedFrom = false
     for _, d in ipairs(DESTS) do
         for _, w in ipairs(d.words) do
             for _, pre in ipairs({ " from ", " in ", " at " }) do
                 local n, count = norm:gsub(pre .. w .. " ", " ")
-                if count > 0 then norm = n strippedFrom = true end
+                if count > 0 then norm = n end
             end
         end
     end
@@ -224,14 +222,8 @@ local function Evaluate(norm, dedicated)
     if waived and not sawDest then return false, "no place named (needs one when there is no summon/port word)" end
     if (wantsSum or wantsPort) and Opt("sum_any") then return true, "summon (any destination), buy=" .. buy end
     if wantsPort and Opt("port_any") then return true, "port (any destination), buy=" .. buy end
-    if strippedFrom and not sawDest then sawDest = true end
-    if not sawDest and Opt("nodest") then
-        -- nothing says where they want to go: invite only if you summon somewhere, and let them say
-        local summonsSomewhere = Opt("sum_any")
-        for _, d in ipairs(DESTS) do if Opt("sum_" .. d.key) then summonsSomewhere = true end end
-        if summonsSomewhere then return true, "no place named, invited to ask where, buy=" .. buy end
-    end
-    return false, sawDest and "that destination/service is not checked" or "no checked destination"
+    -- No place named ("WTB summon"): never assume where they want to go.
+    return false, sawDest and "that destination/service is not checked" or "no place named"
 end
 
 -- Returns true if we are the one who can invite directly (leader, or raid assistant).
@@ -1578,7 +1570,6 @@ local function BuildSetupUI()
     Header(X, -448, nil, "Matching")
     Check("strictbuy", X, -472, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
     Check("fragments", X, -498, "Combine a person's split messages", true)
-    Check("nodest", X, -524, "No place named (\"WTB summ\"): invite, they say where", true)
 
     Header(X, -562, nil, "Other")
     Check("skipafk", X, -586, "Skip while I'm AFK", true)

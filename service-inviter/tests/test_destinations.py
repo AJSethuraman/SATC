@@ -37,28 +37,20 @@ def test_a_summon_to_one_place_does_not_take_requests_for_another(game):
     assert not ok, why
 
 
-def test_no_place_named_is_skipped_by_default(game):
+@pytest.mark.parametrize("saved", ["", "nodest = true"])
+def test_no_place_named_is_never_invited(game, saved):
+    """The owner, 12 Nov 2026: "just delete it like we would never assume". A tick saved by
+    an older version must do nothing either."""
+    if saved:
+        opts(game, nodest=True, sum_uc=True)
     ok, why = game.evaluate("WTB summon")
     assert not ok, why
 
 
-def test_no_place_named_is_invited_when_turned_on_whatever_you_summon_to(game):
-    opts(game, nodest=True, sum_tb=False, sum_uc=True)
-    ok, why = game.evaluate("WTB summon")
-    assert ok, why
-    assert "thunder bluff" not in why.lower()
-
-
-def test_no_place_named_needs_a_summon_ticked(game):
-    """Port-only with no place named: nothing says where they want to go."""
-    opts(game, nodest=True, sum_tb=False, port_org=True)
-    ok, why = game.evaluate("WTB port")
-    assert not ok, why
-
-
-def test_the_setup_label_does_not_name_a_city(game):
+def test_there_is_no_option_for_it(game):
+    assert game.eval('ServiceInviter_Test.SetupChecks().nodest') is None
     from conftest import ADDON
-    assert "assume Thunder Bluff" not in ADDON.read_text()
+    assert "nodest" not in ADDON.read_text()
 
 
 @pytest.mark.parametrize("collect", [False, True])
