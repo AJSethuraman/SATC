@@ -1,6 +1,7 @@
 -- Service Inviter v2.0.0
--- Watches chat for people asking to BUY a summon or port to a destination you
--- choose, and sends them a group invite. It also talks in your group and may
+-- Watches chat for people asking to BUY what your group sells right now (summons to
+-- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
+-- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
 -- whisper (welcome, summon alert, extras on offer, the ritual whisper): turn
 -- each off in /si setup if you are silenced.
 --

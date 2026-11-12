@@ -1,6 +1,6 @@
 # Service Inviter: services, providers and tabs (design for 2.0)
 
-Written 12 Nov 2026 from the owner's asks the same day. Nothing here is built yet.
+Written 12 Nov 2026 from the owner's asks the same day. **Built as 2.0.0 the same day** (the owner: "i like the idea"); not yet run in the game.
 
 ## What the owner asked for
 
