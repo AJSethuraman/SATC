@@ -1547,7 +1547,7 @@ def test_skillup_command_needs_a_claimed_character_and_plans_to_the_tier_cap(tmp
         sent.append((text, embed, ephemeral))
     ix = SimpleNamespace(user=SimpleNamespace(id=42), response=SimpleNamespace(send_message=send_message))
     cmd = bot.tree.get_command("skillup")
-    assert {p.name for p in cmd.parameters} == {"profession"}                    # one dropdown, nothing else to fill in
+    assert {p.name for p in cmd.parameters} == {"profession", "skill"}           # a dropdown, and an optional skill number
     asyncio.run(cmd.callback(ix, "Blacksmithing"))
     assert "/link" in sent[0][0] and sent[0][2] is True                           # no character claimed: told to claim one
     from guildbot.bot import register_commands  # noqa: F401  (the dropdown is built inside; check it through the app command)
@@ -1562,4 +1562,6 @@ def test_skillup_command_needs_a_claimed_character_and_plans_to_the_tier_cap(tmp
     assert db.claim(42, ["anduin-wrynn"])["linked"]
     asyncio.run(cmd.callback(ix, "anduin-wrynn:Blacksmithing"))
     assert sent[1][1].title.endswith("Blacksmithing 50 to 75") and sent[1][2] is True    # plan runs to the tier cap
+    asyncio.run(cmd.callback(ix, "anduin-wrynn:Blacksmithing", 60))                       # typed skill beats the stored one
+    assert sent[2][1].title.endswith("Blacksmithing 60 to 75") and "you entered (60)" in sent[2][1].footer.text
 

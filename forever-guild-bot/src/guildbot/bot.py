@@ -546,9 +546,9 @@ class GapsView(discord.ui.View):
         await interaction.response.edit_message(embed=gaps_overview(self.bot.db), view=GapsView(self.bot))
 
 
-def skillup_card(db: Database, row, prof):
+def skillup_card(db: Database, row, prof, skill_now: int | None = None):
     """The skill-up plan for one character and profession: an embed, or a plain sentence when there is nothing to plan."""
-    who, name, skill = R.full_name(row), prof["profession"], prof["skill"]
+    who, name, skill = R.full_name(row), prof["profession"], (skill_now or prof["skill"])
     cap = prof["max_skill"]
     if skill >= cap:
         return f"**{who}** is at the {name} cap ({skill}/{cap}). Nothing to level until the cap goes up."
@@ -595,8 +595,9 @@ def skillup_card(db: Database, row, prof):
         e.add_field(name="Cheaper, but a gamble",
                     value=f"**{gamble['name']}** is yellow at {skill}: {S.materials_text(gamble['reagents'])}. "
                           "Cheaper than the guaranteed pick even counting the misses.", inline=False)
-    e.set_footer(text=f"Skill ranges from the Forever game data (not confirmed by Blizzard's API). Cost = raw materials, not gold. "
-                      f"Skill as of {str(prof['fetched_at'])[:10]}.")
+    start = (f"Starting from the skill you entered ({skill}); Blizzard's last read was {prof['skill']}." if skill_now
+             else f"Skill as of {str(prof['fetched_at'])[:10]} (Blizzard updates when you log out; type your skill to use today's).")
+    e.set_footer(text=f"{start} Skill ranges from the Forever game data (not confirmed by Blizzard's API). Cost = raw materials, not gold.")
     return e
 
 
@@ -1409,9 +1410,11 @@ def register_commands(bot: GuildBot) -> None:
         return out[:25] or [app_commands.Choice(name="No professions found on your characters yet", value="-")]
 
     @tree.command(name="skillup", description="What to craft to level one of your professions, cheapest first")
-    @app_commands.describe(profession="Pick one of your professions")
+    @app_commands.describe(profession="Pick one of your professions",
+                           skill="Your skill right now (blank = what Blizzard saw when you last logged out)")
     @app_commands.autocomplete(profession=my_profession_ac)
-    async def skillup(interaction: discord.Interaction, profession: str):
+    async def skillup(interaction: discord.Interaction, profession: str,
+                      skill: app_commands.Range[int, 1, 300] | None = None):
         rows = db.characters_for(interaction.user.id)
         if not rows:
             await interaction.response.send_message("Claim your character first with `/link`, then this works from your profession levels.",
@@ -1435,7 +1438,7 @@ def register_commands(bot: GuildBot) -> None:
                 "Pick one of your professions from the list. If the list is empty, your characters have no professions on record yet.",
                 ephemeral=True)
             return
-        card = skillup_card(db, pick[0], pick[1])
+        card = skillup_card(db, pick[0], pick[1], skill)
         if isinstance(card, str):
             await interaction.response.send_message(card, ephemeral=True)
         else:
