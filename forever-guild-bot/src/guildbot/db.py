@@ -138,6 +138,36 @@ CREATE TABLE IF NOT EXISTS attendance (
     PRIMARY KEY (raid_id, discord_id)
 );
 
+-- The Legacy challenges: achievements whose reward is "Earn 1 Legacy Point." (Blizzard's static data).
+-- Blizzard lists each one twice under two ids; challenge_id is the lower one, so both count as one challenge.
+CREATE TABLE IF NOT EXISTS legacy_challenges (
+    achievement_id INTEGER PRIMARY KEY, challenge_id INTEGER NOT NULL, name TEXT NOT NULL,
+    category TEXT NOT NULL, subcategory TEXT NOT NULL, description TEXT, display_order INTEGER,
+    fetched_at TEXT NOT NULL
+);
+
+-- Each character's achievements, finished (completed_at set) or in progress. Completions are shared
+-- across a Battle.net account, as of that character's last logout.
+CREATE TABLE IF NOT EXISTS achievements (
+    slug TEXT NOT NULL, achievement_id INTEGER NOT NULL, name TEXT NOT NULL, completed_at TEXT,
+    steps_done INTEGER NOT NULL DEFAULT 0, steps_total INTEGER NOT NULL DEFAULT 0, amount INTEGER,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (slug, achievement_id)
+);
+
+-- Legacy completions already handled (announced, or seen before announcing started). One completion
+-- shows on every character of the account with the same time, so this keeps it to one announcement.
+CREATE TABLE IF NOT EXISTS legacy_seen (
+    challenge_id INTEGER NOT NULL, completed_at TEXT NOT NULL,
+    PRIMARY KEY (challenge_id, completed_at)
+);
+
+-- Level, item level and last login over time, one row whenever one of them changes.
+CREATE TABLE IF NOT EXISTS character_history (
+    slug TEXT NOT NULL, at TEXT NOT NULL, level INTEGER, item_level INTEGER, last_login_at TEXT,
+    PRIMARY KEY (slug, at)
+);
+
 -- "A spot opened up, want it?" questions sent to people waiting on the bench.
 CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY, raid_id INTEGER NOT NULL, discord_id INTEGER NOT NULL, role TEXT NOT NULL,
@@ -152,6 +182,13 @@ CREATE TABLE IF NOT EXISTS offers (
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def ms_to_iso(ms: int | None) -> str | None:
+    """Blizzard's millisecond timestamps as UTC ISO-8601 text, like every other time in the database."""
+    if ms is None:
+        return None
+    return datetime.fromtimestamp(ms / 1000, timezone.utc).isoformat(timespec="seconds")
 
 
 class Database:
@@ -187,6 +224,11 @@ class Database:
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
+        ccols = {r["name"] for r in self.conn.execute("PRAGMA table_info(characters)")}
+        for col, ddl in (("last_login_at", "TEXT"), ("item_level", "INTEGER")):
+            if col not in ccols:                        # database created before profiles kept these
+                self.conn.execute(f"ALTER TABLE characters ADD COLUMN {col} {ddl}")
+                self.conn.commit()
         if "posted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(milestones)")}:
             # 0 = found, not yet posted; 1 = posted; 2 = too old to post. Rows from before this column were posted.
             self.conn.execute("ALTER TABLE milestones ADD COLUMN posted INTEGER NOT NULL DEFAULT 1")
@@ -211,12 +253,106 @@ class Database:
         self.conn.commit()
         return len(gone)
 
-    def set_profile(self, slug, level, class_name, race_name, faction, now) -> None:
+    def set_profile(self, slug, level, class_name, race_name, faction, now,
+                    last_login_at: str | None = None, item_level: int | None = None) -> None:
         self.conn.execute(
             """UPDATE characters SET level=COALESCE(?, level), class_name=?, race_name=?,
-               faction=?, profile_at=? WHERE slug=?""",
-            (level, class_name, race_name, faction, now, slug))
+               faction=?, profile_at=?, last_login_at=COALESCE(?, last_login_at),
+               item_level=COALESCE(?, item_level) WHERE slug=?""",
+            (level, class_name, race_name, faction, now, last_login_at, item_level, slug))
+        last = self.conn.execute(
+            "SELECT level, item_level, last_login_at FROM character_history WHERE slug=? ORDER BY rowid DESC LIMIT 1",
+            (slug,)).fetchone()
+        cur = self.conn.execute("SELECT level, item_level, last_login_at FROM characters WHERE slug=?", (slug,)).fetchone()
+        if cur and (last is None or tuple(last) != tuple(cur)):   # keep a row only when something changed
+            self.conn.execute("INSERT OR REPLACE INTO character_history VALUES (?,?,?,?,?)",
+                              (slug, now, cur["level"], cur["item_level"], cur["last_login_at"]))
         self.conn.commit()
+
+    def history_of(self, slug):
+        return self.conn.execute("SELECT * FROM character_history WHERE slug=? ORDER BY at", (slug,)).fetchall()
+
+    def inactive(self, before: str):
+        """Guild characters whose last login is older than `before`, oldest first, then those with no
+        login known at all (Blizzard returns nothing for them), each with whoever claimed it."""
+        return self.conn.execute(
+            """SELECT c.*, (SELECT l.discord_id FROM links l WHERE l.slug=c.slug LIMIT 1) AS owner
+               FROM characters c WHERE c.in_guild=1 AND (c.last_login_at IS NULL OR c.last_login_at < ?)
+               ORDER BY (c.last_login_at IS NULL), c.last_login_at, c.name, c.surname""", (before,)).fetchall()
+
+    # ---- Legacy -------------------------------------------------------
+    def replace_achievements(self, slug, achievements, now) -> None:
+        """Swap a character's achievements in one transaction. If anything fails the old rows stay."""
+        try:
+            self.conn.execute("DELETE FROM achievements WHERE slug=?", (slug,))
+            self.conn.executemany(
+                "INSERT OR REPLACE INTO achievements VALUES (?,?,?,?,?,?,?,?)",
+                [(slug, a.id, a.name, ms_to_iso(a.completed_ms), a.steps_done, a.steps_total, a.amount, now)
+                 for a in achievements])
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def achievement_slugs(self) -> set[str]:
+        return {r["slug"] for r in self.conn.execute("SELECT DISTINCT slug FROM achievements")}
+
+    def replace_legacy_catalog(self, rows, now) -> None:
+        """rows: (achievement_id, name, category, subcategory, description, display_order). Two ids with the
+        same category, subcategory and name are one challenge; the lower id stands for both."""
+        first: dict[tuple, int] = {}
+        for aid, name, cat, sub, *_ in sorted(rows):
+            first.setdefault((cat, sub, name), aid)
+        try:
+            self.conn.execute("DELETE FROM legacy_challenges")
+            self.conn.executemany(
+                "INSERT INTO legacy_challenges VALUES (?,?,?,?,?,?,?,?)",
+                [(aid, first[(cat, sub, name)], name, cat, sub, desc, order, now)
+                 for aid, name, cat, sub, desc, order in rows])
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def legacy_catalog(self):
+        """One row per challenge (the lower of its two ids), in Blizzard's display order."""
+        return self.conn.execute(
+            """SELECT challenge_id, name, category, subcategory, description, display_order
+               FROM legacy_challenges WHERE achievement_id=challenge_id
+               ORDER BY category, subcategory, display_order, challenge_id""").fetchall()
+
+    def legacy_progress(self, slugs):
+        """Every Legacy-challenge entry on these characters: (slug, challenge_id, completed_at, steps_done,
+        steps_total, amount, fetched_at)."""
+        if not slugs:
+            return []
+        q = ",".join("?" * len(slugs))
+        return self.conn.execute(
+            f"""SELECT a.slug, lc.challenge_id, a.completed_at, a.steps_done, a.steps_total, a.amount, a.fetched_at
+                FROM achievements a JOIN legacy_challenges lc ON lc.achievement_id=a.achievement_id
+                WHERE a.slug IN ({q})""", list(slugs)).fetchall()
+
+    def legacy_completions(self):
+        """Every finished Legacy challenge on a guild character: (slug, challenge_id, name, category,
+        subcategory, completed_at)."""
+        return self.conn.execute(
+            """SELECT a.slug, lc.challenge_id, lc.name, lc.category, lc.subcategory, a.completed_at
+               FROM achievements a JOIN legacy_challenges lc ON lc.achievement_id=a.achievement_id
+               JOIN characters c ON c.slug=a.slug
+               WHERE a.completed_at IS NOT NULL AND c.in_guild=1""").fetchall()
+
+    def legacy_seen(self) -> set[tuple[int, str]]:
+        return {(r["challenge_id"], r["completed_at"]) for r in self.conn.execute("SELECT * FROM legacy_seen")}
+
+    def add_legacy_seen(self, keys) -> None:
+        self.conn.executemany("INSERT OR IGNORE INTO legacy_seen VALUES (?,?)", list(keys))
+        self.conn.commit()
+
+    def claimed_by_member(self) -> dict[int, list[str]]:
+        out: dict[int, list[str]] = {}
+        for r in self.conn.execute("SELECT discord_id, slug FROM links ORDER BY discord_id, is_main DESC, slug"):
+            out.setdefault(r["discord_id"], []).append(r["slug"])
+        return out
 
     def prune_snapshots(self, keep: int = 2) -> int:
         """Keep the newest `keep` raw responses per (character, kind), plus the latest "ok" one and the

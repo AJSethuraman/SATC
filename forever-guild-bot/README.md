@@ -27,6 +27,9 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 | `/gaps` | anyone | profession coverage, and the recipes nobody in the guild has |
 | `/skillup` | anyone | what to craft to level a profession, guaranteed (orange) first and cheapest in raw materials, plus a shopping list |
 | `/wanted` | officer | searches that found nobody who can make the item |
+| `/legacy` | anyone (officers can look up anyone) | your account's Legacy points from Blizzard, by category, and what's next for your claimed characters |
+| `/legacy-board` | officer | each member's Legacy points, and how many still need each raid point |
+| `/inactive [days]` | officer | who hasn't logged in for that many days (default 7), with who claimed them |
 | `/raids` | anyone | upcoming raids |
 | `/history` | anyone (officers can look up anyone) | your raids attended, no-shows and late drops |
 | `/raid-create` | officer | no options: a guided menu (day, time, size, then name and role limits). Or fill in `title date time size [tanks] [healers] [dps]` to skip it |
@@ -47,7 +50,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 - **Start.** The buttons come off, the post says STARTED, and the organizer gets a DM with the roster.
 - **Repeating.** The raid wizard asks "Repeat?". A weekly raid posts next week's by itself when this one ends (same time on the clock, daylight saving included) or is cancelled, and DMs last week's regulars (credited, tentative or bench) asking if it's the same again: Same as last time / Tentative / Can't make it. Nobody is signed up automatically.
 - **Attendance.** Whoever is in a tank, healer or DPS slot when the raid starts is credited; the organizer corrects it with `/raid-attendance`. A late drop is leaving a slot within 24 hours of the start.
-- **Guild achievements.** Each sync, the bot posts level 10/20/30/40/50/60 and profession 75/150/225/300 milestones in the achievements channel (`ACHIEVEMENTS_CHANNEL_ID`). New members and the first sync announce nothing.
+- **Guild achievements.** Each sync, the bot posts level 10/20/30/40/50/60 and profession 75/150/225/300 milestones, and every Legacy point earned, in the achievements channel (`ACHIEVEMENTS_CHANNEL_ID`). New members and the first sync announce nothing. A Legacy point shows on every character of an account, so it is posted once, under the character that earned it. A post that fails is retried next sync; anything over a week old is dropped.
 - **End.** Three hours after the start (or `/raid-end`, or ending the Discord event by hand) the post says COMPLETED, is unpinned, and stays in the channel. Deleting the post or event by hand is noticed and the raid is closed.
 
 ## Recipes and items

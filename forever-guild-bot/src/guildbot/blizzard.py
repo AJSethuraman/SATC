@@ -42,6 +42,34 @@ class Profile:
     class_name: str | None
     race_name: str | None
     faction: str | None
+    last_login_ms: int | None = None      # `last_login_timestamp`, milliseconds since 1970 (verified 2026-11-11)
+    item_level: int | None = None         # `average_item_level`
+
+
+@dataclass(frozen=True)
+class Achievement:
+    """One entry of a character's /achievements. The list holds finished AND in-progress entries;
+    only `completed_ms` set means earned. Completions are shared across a Battle.net account
+    (verified 2026-11-12, docs/PROJECT.md)."""
+    id: int
+    name: str
+    completed_ms: int | None
+    steps_done: int               # child criteria completed (for example dungeons cleared)
+    steps_total: int
+    amount: int | None            # progress on a single-step one (for example skill points)
+
+
+LEGACY_REWARD = "Legacy Point"     # reward_description reads "Earn 1 Legacy Point." (verified 2026-11-12)
+
+
+@dataclass(frozen=True)
+class AchievementInfo:
+    """An achievement from Blizzard's static data."""
+    id: int
+    name: str
+    description: str | None
+    legacy_point: bool
+    display_order: int | None
 
 
 @dataclass(frozen=True)
@@ -110,12 +138,61 @@ def parse_roster(payload: dict) -> list[Member]:
 def parse_profile(payload: dict) -> Profile:
     if not any(k in payload for k in ("level", "character_class", "race", "faction")):
         raise BlizzardError(f"profile response not recognised (keys: {sorted(payload)})")
+    login, ilvl = payload.get("last_login_timestamp"), payload.get("average_item_level")
     return Profile(
         level=payload.get("level"),
         class_name=_name(payload.get("character_class")),
         race_name=_name(payload.get("race")),
         faction=_name(payload.get("faction")),
+        last_login_ms=int(login) if isinstance(login, (int, float)) else None,
+        item_level=int(ilvl) if isinstance(ilvl, (int, float)) else None,
     )
+
+
+def parse_achievements(payload: dict) -> list[Achievement]:
+    if "achievements" not in payload:
+        raise BlizzardError(f"achievements response has no 'achievements' (keys: {sorted(payload)})")
+    out: list[Achievement] = []
+    for e in payload["achievements"]:
+        a = e.get("achievement") or {}
+        aid = e.get("id", a.get("id"))
+        if aid is None:
+            continue
+        kids = (e.get("criteria") or {}).get("child_criteria") or []
+        done = sum(1 for k in kids if k.get("is_completed"))
+        amount = kids[0].get("amount") if len(kids) == 1 else None
+        ts = e.get("completed_timestamp")
+        out.append(Achievement(id=int(aid), name=_name(a) or f"Achievement {aid}",
+                               completed_ms=int(ts) if ts else None,
+                               steps_done=done, steps_total=len(kids),
+                               amount=int(amount) if isinstance(amount, (int, float)) else None))
+    return out
+
+
+def parse_achievement_category_index(payload: dict) -> list[tuple[int, str]]:
+    """Top-level achievement categories (Classes, Tradeskills, Dungeons, Raids, Player vs. Player, Adventure).
+    Blizzard's hidden "Do Not Display" category is skipped."""
+    if "root_categories" not in payload:
+        raise BlizzardError(f"achievement category index has no 'root_categories' (keys: {sorted(payload)})")
+    return [(int(c["id"]), _name(c) or "") for c in payload["root_categories"]
+            if _name(c) and _name(c) != "Do Not Display"]
+
+
+def parse_achievement_category(payload: dict) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
+    """(achievements, subcategories) of one category, each as (id, name)."""
+    if "id" not in payload:
+        raise BlizzardError(f"achievement category not recognised (keys: {sorted(payload)})")
+    ach = [(int(a["id"]), _name(a) or "") for a in payload.get("achievements") or []]
+    subs = [(int(s["id"]), _name(s) or "") for s in payload.get("subcategories") or []]
+    return ach, subs
+
+
+def parse_achievement(payload: dict) -> AchievementInfo:
+    if "id" not in payload or "name" not in payload:
+        raise BlizzardError(f"achievement not recognised (keys: {sorted(payload)})")
+    reward = payload.get("reward_description") or ""
+    return AchievementInfo(id=int(payload["id"]), name=_name(payload) or "", description=payload.get("description"),
+                           legacy_point=LEGACY_REWARD in reward, display_order=payload.get("display_order"))
 
 
 def _known_recipes(entry: dict) -> list[tuple[int, str]]:
@@ -312,3 +389,15 @@ class BlizzardClient:
 
     async def item(self, item_id: int) -> dict:
         return await self.get(f"/data/wow/item/{item_id}", self.static_namespace)
+
+    async def achievements(self, slug: str) -> dict:
+        return await self.get(f"/profile/wow/character/{slug}/achievements")
+
+    async def achievement_category_index(self) -> dict:
+        return await self.get("/data/wow/achievement-category/index", self.static_namespace)
+
+    async def achievement_category(self, category_id: int) -> dict:
+        return await self.get(f"/data/wow/achievement-category/{category_id}", self.static_namespace)
+
+    async def achievement(self, achievement_id: int) -> dict:
+        return await self.get(f"/data/wow/achievement/{achievement_id}", self.static_namespace)

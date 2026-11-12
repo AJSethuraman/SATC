@@ -16,7 +16,8 @@ from . import skillup as S
 from .links import item_link
 from .config import Config
 from .db import Database, utcnow
-from .sync import sync_guild, sync_item_catalog, sync_recipe_catalog
+from . import legacy as L
+from .sync import sync_guild, sync_item_catalog, sync_legacy_catalog, sync_recipe_catalog
 
 log = logging.getLogger("guildbot")
 
@@ -461,6 +462,7 @@ HELP_MEMBER = [
         ("/craftable", "find gear by kind, type, slot and level, and who can make it"),
         ("/gaps", "what the guild is missing in professions"),
         ("/skillup", "what to craft to level a profession, cheapest first"),
+        ("/legacy", "your Legacy points and what's next"),
     ]),
 ]
 HELP_OFFICER = ("Officers", [
@@ -477,7 +479,26 @@ HELP_OFFICER = ("Officers", [
     ("/unlink-member", "clear everything someone claimed"),
     ("/release", "free one character"),
     ("/wanted", "what people searched for that nobody can make"),
+    ("/legacy-board", "everyone's Legacy points, and who still needs each raid"),
+    ("/inactive", "who hasn't logged in lately"),
 ])
+
+
+def legacy_embed(db: Database, chars, who: str) -> discord.Embed:
+    """The /legacy card for one member's claimed characters."""
+    slugs = [c["slug"] for c in chars]
+    progress = db.legacy_progress(slugs)
+    skills = {s: {p["profession"]: p["skill"] for p in db.professions_for(s)} for s in slugs}
+    card = L.account_card(db.legacy_catalog(), progress, chars, skills)
+    e = discord.Embed(title=f"Legacy: {who}",
+                      description=f"**{card['earned']} of {card['total']}** points. "
+                                  f"Each character can spend up to {L.SPEND_CAP}.")
+    for title, lines in card["sections"]:
+        e.add_field(name=title, value=clip(lines, 1024), inline=False)
+    times = [p["fetched_at"] for p in progress if p["fetched_at"]]
+    e.set_footer(text=f"From Blizzard, as of {min(times) if times else 'never'} UTC. Points belong to the "
+                      "account; a character shows new ones after it logs out. Spent perks aren't in Blizzard's data.")
+    return e
 
 
 def help_embed(is_officer: bool) -> discord.Embed:
@@ -804,6 +825,12 @@ class GuildBot(discord.Client):
             self.db.mark_milestones_posted(batch)
 
     async def _sync_once(self) -> None:
+        try:
+            n = await sync_legacy_catalog(self.db, self.blizzard)     # first, so /legacy works from the first sync
+            if n:
+                log.info("legacy catalogue refreshed: %d achievements", n)
+        except Exception:
+            log.exception("legacy catalogue refresh failed")
         try:
             res = await self.run_sync()
             log.info("sync ok: %d members, %d failures", res.members, len(res.failures))
@@ -1371,8 +1398,12 @@ def register_commands(bot: GuildBot) -> None:
             return
         embeds = []
         for r in rows[:5]:
-            e = discord.Embed(title=R.full_name(r),
-                              description=f"L{r['level'] or '?'} {r['race_name'] or ''} {r['class_name'] or ''}".strip())
+            desc = f"L{r['level'] or '?'} {r['race_name'] or ''} {r['class_name'] or ''}".strip()
+            if r["item_level"]:
+                desc += f" · item level {r['item_level']}"
+            if r["last_login_at"]:
+                desc += f"\nLast on {rel(r['last_login_at'])}"
+            e = discord.Embed(title=R.full_name(r), description=desc)
             profs = db.professions_for(r["slug"])
             e.add_field(name="Professions",
                         value="\n".join(f"{p['profession']} {p['skill']}/{p['max_skill']}" for p in profs) or "—")
@@ -1388,7 +1419,8 @@ def register_commands(bot: GuildBot) -> None:
     async def roster(interaction: discord.Interaction, class_name: str | None = None,
                      min_level: int | None = None):
         rows = db.roster(class_name, min_level)
-        lines = [f"**{R.full_name(r)}**: L{r['level'] or '?'} {r['class_name'] or ''}" for r in rows]
+        lines = [f"**{R.full_name(r)}**: L{r['level'] or '?'} {r['class_name'] or ''}"
+                 + (f", ilvl {r['item_level']}" if r["item_level"] else "") for r in rows]
         e = discord.Embed(title=f"Roster ({len(rows)})", description=clip(lines, 4000) or "Nobody found.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at'), key="profile_at"))
         await interaction.response.send_message(embed=e, ephemeral=True)
@@ -1754,6 +1786,74 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message("You can look up your own history. Officers can see anyone's.", ephemeral=True)
             return
         await interaction.response.send_message(embed=history_embed(target.id, target.display_name), ephemeral=True)
+
+    @tree.command(name="legacy", description="Your Legacy points and what's next (officers can look up anyone)")
+    @app_commands.guild_only()
+    async def legacy(interaction: discord.Interaction, member: discord.Member | None = None):
+        target = member or interaction.user
+        if target.id != interaction.user.id and not interaction.permissions.manage_events:
+            await interaction.response.send_message("You can look up your own. Officers can see anyone's.", ephemeral=True)
+            return
+        if not db.legacy_catalog():
+            await interaction.response.send_message("I haven't loaded the Legacy list from Blizzard yet. "
+                                                    "Try again after the next sync.", ephemeral=True)
+            return
+        chars = db.characters_for(target.id)
+        if not chars:
+            mine = target.id == interaction.user.id
+            await interaction.response.send_message(
+                "Claim your character with `/link` first, then I can read its Legacy points." if mine
+                else f"{target.display_name} hasn't claimed a character.", ephemeral=True)
+            return
+        await interaction.response.send_message(embed=legacy_embed(db, chars, target.display_name), ephemeral=True)
+
+    @tree.command(name="legacy-board", description="Everyone's Legacy points, and who still needs each raid (officers)")
+    @app_commands.guild_only()
+    @officer
+    async def legacy_board(interaction: discord.Interaction):
+        catalog = db.legacy_catalog()
+        claims = db.claimed_by_member()
+        if not catalog or not claims:
+            await interaction.response.send_message(
+                "Nothing to show yet: " + ("the Legacy list hasn't loaded." if not catalog else "nobody has claimed a character."),
+                ephemeral=True)
+            return
+        raids = [c for c in catalog if c["category"] == "Raids"]
+        rows, need = [], {c["challenge_id"]: [] for c in raids}
+        for did, slugs in claims.items():
+            done = {p["challenge_id"] for p in db.legacy_progress(slugs) if p["completed_at"]}
+            rows.append((len(done & {c["challenge_id"] for c in catalog}), did))
+            for c in raids:
+                if c["challenge_id"] not in done:
+                    need[c["challenge_id"]].append(did)
+        rows.sort(key=lambda x: (-x[0], x[1]))
+        lines = [f"<@{did}>: {n} of {len(catalog)}" for n, did in rows]
+        e = discord.Embed(title="Legacy points", description=clip(lines, 3000))
+        for c in raids:
+            e.add_field(name=f"{c['name']}: {L.raid_place(c['description'])}",
+                        value=f"{len(need[c['challenge_id']])} of {len(claims)} still need it", inline=False)
+        e.set_footer(text=f"Members who have claimed a character only ({len(claims)}). "
+                          "Points come from Blizzard as of each character's last logout.")
+        await interaction.response.send_message(embed=e, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+
+    @tree.command(name="inactive", description="Who hasn't logged in lately (officers)")
+    @app_commands.guild_only()
+    @officer
+    @app_commands.describe(days="Not logged in for at least this many days (default 7)")
+    async def inactive(interaction: discord.Interaction, days: app_commands.Range[int, 1, 365] = 7):
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+        rows = db.inactive(cutoff)
+        quiet = [r for r in rows if r["last_login_at"]]
+        unknown = [r for r in rows if not r["last_login_at"]]
+        lines = [f"**{R.full_name(r)}** L{r['level'] or '?'} {r['class_name'] or ''}: last on {rel(r['last_login_at'])}"
+                 + (f" · <@{r['owner']}>" if r["owner"] else "") for r in quiet]
+        text = clip(lines, 3000) or f"Everyone has logged in within {days} days."
+        if unknown:
+            text += ("\n\nNo login time from Blizzard (under level 10, or not logged out since joining): "
+                     + ", ".join(R.full_name(r) for r in unknown))
+        e = discord.Embed(title=f"Not on for {days}+ days", description=text[:4000])
+        e.set_footer(text=f"Blizzard updates a character's last login when it logs out. Last sync {db.get_meta('last_sync_at') or 'never'} UTC.")
+        await interaction.response.send_message(embed=e, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
 
     @tree.command(name="attendance", description="Who shows up, who drops late (officers)")
     @app_commands.guild_only()

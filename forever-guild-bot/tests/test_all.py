@@ -156,7 +156,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
                      "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands", "raid-attendance",
-                     "history", "attendance", "raid-repeat-stop", "skillup"}
+                     "history", "attendance", "raid-repeat-stop", "skillup", "legacy", "legacy-board", "inactive"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):

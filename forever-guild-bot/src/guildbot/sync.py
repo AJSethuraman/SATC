@@ -6,8 +6,9 @@ import json
 from dataclasses import dataclass, field
 
 from . import blizzard as bz
+from . import legacy as L
 from . import milestones as M
-from .db import Database, utcnow
+from .db import Database, ms_to_iso, utcnow
 
 
 @dataclass
@@ -81,8 +82,10 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
 
     def on_profile(slug, data, ts):
         p = bz.parse_profile(data)
-        db.set_profile(slug, p.level, p.class_name, p.race_name, p.faction, ts)
+        db.set_profile(slug, p.level, p.class_name, p.race_name, p.faction, ts,
+                       last_login_at=ms_to_iso(p.last_login_ms), item_level=p.item_level)
 
+    known_achievements = db.achievement_slugs()
     tasks = []
     for m in members:
         tasks.append(one(m.slug, "profile", client.character_profile, on_profile))
@@ -90,14 +93,79 @@ async def sync_guild(db: Database, client, guild_slug: str, concurrency: int = 5
                          lambda s, d, ts: db.replace_professions(s, bz.parse_professions(d), ts)))
         tasks.append(one(m.slug, "equipment", client.equipment,
                          lambda s, d, ts: db.replace_equipment(s, bz.parse_equipment(d), ts)))
+        if hasattr(client, "achievements"):
+            tasks.append(one(m.slug, "achievements", client.achievements,
+                             lambda s, d, ts: db.replace_achievements(s, bz.parse_achievements(d), ts)))
     await asyncio.gather(*tasks)
 
-    res.milestones = db.new_milestones(
-        M.find(before_levels, db.level_snapshot(), before_skills, db.skill_snapshot()), utcnow())
+    found = M.find(before_levels, db.level_snapshot(), before_skills, db.skill_snapshot())
+    found += legacy_milestones(db, known_achievements)
+    res.milestones = db.new_milestones(found, utcnow())
     db.prune_snapshots()
     db.set_meta("last_sync_at", utcnow())
     db.set_meta("last_sync_failures", str(len(res.failures)))
     return res
+
+
+def legacy_milestones(db: Database, known_before: set[str]) -> list:
+    """New Legacy completions worth announcing. The first time there is anything to compare (catalogue
+    loaded, achievements stored), everything already finished is marked as seen and nothing is announced."""
+    from datetime import datetime, timezone
+    if not db.legacy_catalog():
+        return []
+    completions = db.legacy_completions()
+    if db.get_meta("legacy_seeded") is None:
+        db.add_legacy_seen({(r["challenge_id"], r["completed_at"]) for r in completions})
+        db.set_meta("legacy_seeded", utcnow())
+        return []
+    holders = {}
+    for r in db.roster():
+        holders[r["slug"]] = {"slug": r["slug"], "level": r["level"], "class_name": r["class_name"],
+                              "skills": {p["profession"]: p["skill"] for p in db.professions_for(r["slug"])}}
+    found, handled = L.new_completions(completions, db.legacy_seen(), known_before, holders,
+                                       datetime.now(timezone.utc))
+    db.add_legacy_seen(handled)
+    return found
+
+
+LEGACY_MAX_AGE_DAYS = 7
+
+
+async def sync_legacy_catalog(db: Database, client, force: bool = False) -> int:
+    """Fetch the Legacy challenges from Blizzard's static achievement data (about 190 calls) and store the
+    ones whose reward is a Legacy point. Skipped while the stored copy is under a week old. Returns how
+    many achievements were stored (0 = skipped)."""
+    from datetime import datetime, timedelta, timezone
+    last = db.get_meta("legacy_at")
+    if last and not force and datetime.fromisoformat(last) > datetime.now(timezone.utc) - timedelta(days=LEGACY_MAX_AGE_DAYS):
+        return 0
+    now = utcnow()
+    found: list[tuple[int, str, str]] = []          # (achievement_id, category, subcategory)
+
+    async def walk(cid: int, root: str, sub: str, depth: int) -> None:
+        ach, subs = bz.parse_achievement_category(await client.achievement_category(cid))
+        found.extend((aid, root, sub) for aid, _ in ach)
+        if depth < 3:
+            for sid, sname in subs:
+                await walk(sid, root, sname, depth + 1)
+
+    for cid, name in bz.parse_achievement_category_index(await client.achievement_category_index()):
+        await walk(cid, name, name, 0)
+    sem = asyncio.Semaphore(8)
+    rows = []
+
+    async def one(aid: int, root: str, sub: str) -> None:
+        async with sem:
+            info = bz.parse_achievement(await client.achievement(aid))
+        if info.legacy_point:
+            rows.append((info.id, info.name, root, sub, info.description, info.display_order))
+
+    await asyncio.gather(*(one(*x) for x in dict.fromkeys(found)))
+    if not rows:
+        raise bz.BlizzardError("no Legacy-point achievements found: Blizzard's data may have changed")
+    db.replace_legacy_catalog(rows, now)
+    db.set_meta("legacy_at", now)
+    return len(rows)
 
 
 RECIPES_MAX_AGE_DAYS = 7

@@ -1,0 +1,132 @@
+"""Legacy points: which challenges a member's account has finished, what is next, and which new
+completions to announce. Pure logic, no Discord and no database.
+
+What is known (docs/PROJECT.md, "Verified", 2026-11-12): each Legacy challenge is an achievement whose
+reward reads "Earn 1 Legacy Point."; there are 65 (Classes 27, Tradeskills 18, Player vs. Player 12,
+Dungeons 3, Raids 3, Adventure 2). Completions are shared across a Battle.net account and show on a
+character only after it logs out. Which perks a character spent its points on is not in Blizzard's data.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+
+CATEGORIES = ("Classes", "Tradeskills", "Dungeons", "Raids", "Player vs. Player", "Adventure")
+CLASS_MARKS = {"Novice": 25, "Experienced": 45, "Master": 60}            # "Level 25 Druid", from the criteria
+TRADE_MARKS = {"Journeyman": 150, "Expert": 225, "Artisan": 300}         # "Reach 150 skill in Alchemy ..."
+SPEND_CAP = 16                                                            # per character, Blizzard's article
+ANNOUNCE_MAX_AGE_DAYS = 7
+
+
+def mark(name: str) -> int | None:
+    """The level or skill a class or tradeskill challenge asks for, from its first word."""
+    first = name.split(" ", 1)[0]
+    return CLASS_MARKS.get(first) or TRADE_MARKS.get(first)
+
+
+def pick_earner(category: str, subcategory: str, name: str, holders: list[dict]) -> dict | None:
+    """Of the guild characters showing one completion (all on one account), the one that earned it.
+    A class point goes to a character of that class at the level; a tradeskill point to one with the skill.
+    If none fits, a character outside the guild (or one not logged out yet) earned it: None, decide later.
+    Anything else goes to the highest level holder (they are all the same player)."""
+    need = mark(name)
+    if category == "Classes":
+        fit = [h for h in holders if h.get("class_name") == subcategory and (h.get("level") or 0) >= (need or 0)]
+    elif category == "Tradeskills":
+        fit = [h for h in holders if (h.get("skills") or {}).get(subcategory, 0) >= (need or 0)]
+    else:
+        fit = list(holders)
+    if not fit:
+        return None
+    return sorted(fit, key=lambda h: (-(h.get("level") or 0), h["slug"]))[0]
+
+
+def new_completions(completions, seen: set, known_before: set, holders: dict, now: datetime):
+    """Which Legacy completions to announce.
+
+    completions: rows with slug, challenge_id, name, category, subcategory, completed_at (ISO).
+    seen: (challenge_id, completed_at) already handled. known_before: characters whose achievements were
+    stored before this sync (a new member, or the first sync, announces nothing). holders: slug -> dict
+    with slug, level, class_name, skills {profession: skill}.
+    Returns (milestones to add as ('legacy', slug, name, challenge_id), keys to mark seen)."""
+    groups: dict[tuple, list] = {}
+    for r in completions:
+        groups.setdefault((r["challenge_id"], r["completed_at"]), []).append(r)
+    found, handled = [], []
+    cutoff = now - timedelta(days=ANNOUNCE_MAX_AGE_DAYS)
+    for key in sorted(groups, key=lambda k: (k[1], k[0])):
+        if key in seen:
+            continue
+        rows = groups[key]
+        first = rows[0]
+        if not any(r["slug"] in known_before for r in rows) or datetime.fromisoformat(key[1]) < cutoff:
+            handled.append(key)                       # old news, or nobody was known before: never announce
+            continue
+        earner = pick_earner(first["category"], first["subcategory"], first["name"],
+                             [holders[r["slug"]] for r in rows if r["slug"] in holders])
+        if earner is None:
+            continue                                  # not seen yet: the right character may log out later
+        handled.append(key)
+        found.append(("legacy", earner["slug"], first["name"], first["challenge_id"]))
+    return found, handled
+
+
+def account_card(catalog, progress, characters, skills) -> dict:
+    """What /legacy shows for one member.
+
+    catalog: challenge rows (challenge_id, name, category, subcategory, description).
+    progress: rows (slug, challenge_id, completed_at, steps_done, steps_total, amount) on their characters.
+    characters: their claimed characters (slug, name, surname, level, class_name).
+    skills: slug -> {profession: skill}.
+    Returns {'earned': n, 'total': n, 'sections': [(title, [lines])]}."""
+    by_id = {c["challenge_id"]: c for c in catalog}
+    earned = {p["challenge_id"] for p in progress if p["completed_at"]}
+    best: dict[int, tuple[int, int]] = {}
+    for p in progress:
+        if not p["completed_at"] and p["steps_total"] > 1 and p["steps_done"] > 0:   # real progress only
+            cur = best.get(p["challenge_id"], (0, p["steps_total"]))
+            if p["steps_done"] > cur[0]:
+                cur = (p["steps_done"], p["steps_total"])
+            best[p["challenge_id"]] = cur
+    sections = []
+    for cat in CATEGORIES:
+        rows = [c for c in catalog if c["category"] == cat]
+        if not rows:
+            continue
+        got = [c for c in rows if c["challenge_id"] in earned]
+        lines = [f"✅ {c['name']}" for c in got]
+        nxt = []
+        if cat == "Classes":
+            for ch in characters:
+                todo = [c for c in rows if c["subcategory"] == ch["class_name"] and c["challenge_id"] not in earned]
+                todo.sort(key=lambda c: mark(c["name"]) or 0)
+                if todo:
+                    nxt.append(f"Next: {todo[0]['name']} at level {mark(todo[0]['name'])} "
+                               f"({_who(ch)} is {ch['level'] or '?'})")
+        elif cat == "Tradeskills":
+            for ch in characters:
+                for prof, skill in sorted((skills.get(ch["slug"]) or {}).items()):
+                    todo = [c for c in rows if c["subcategory"] == prof and c["challenge_id"] not in earned]
+                    todo.sort(key=lambda c: mark(c["name"]) or 0)
+                    if todo:
+                        nxt.append(f"Next: {todo[0]['name']} at {mark(todo[0]['name'])} ({_who(ch)} has {skill})")
+        elif cat == "Raids":
+            nxt = [f"{c['name']}: {raid_place(c['description'])}" for c in rows if c["challenge_id"] not in earned]
+        else:
+            for c in rows:
+                if c["challenge_id"] not in earned and c["challenge_id"] in best:
+                    d, t = best[c["challenge_id"]]
+                    nxt.append(f"Next: {c['name']}, {d} of {t} " + ("dungeons" if cat == "Dungeons" else "done"))
+        sections.append((f"{cat}: {len(got)} of {len(rows)}", lines + nxt or ["Nothing yet."]))
+    return {"earned": len(earned & set(by_id)), "total": len(by_id), "sections": sections}
+
+
+def _who(ch) -> str:
+    return " ".join(p for p in (ch["name"], ch["surname"]) if p)
+
+
+def raid_place(description: str | None) -> str:
+    """'Defeat the following encounters in Hyjal Summit.' -> 'Hyjal Summit'; 'Defeat Onyxia.' -> 'Onyxia'."""
+    d = (description or "").strip().rstrip(".")
+    if " in " in d:
+        return d.rsplit(" in ", 1)[1].removeprefix("the ")
+    return d.removeprefix("Defeat ") or "?"

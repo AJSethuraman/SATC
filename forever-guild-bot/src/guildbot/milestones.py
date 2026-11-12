@@ -34,4 +34,6 @@ def find(before_levels: dict, after_levels: dict, before_skills: dict, after_ski
 
 def line(kind: str, name: str, class_name: str | None, detail: str, value: int) -> str:
     who = f"**{name}**" + (f" ({class_name})" if class_name else "")
+    if kind == "legacy":                                   # detail is the challenge, value its id
+        return f"{who} earned a Legacy point: {detail}."
     return f"{who} hit level {value}." if kind == "level" else f"{who} reached {value} in {detail}."
