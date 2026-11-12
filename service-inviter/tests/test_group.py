@@ -285,7 +285,7 @@ def test_chat_lines_are_not_recolored():
     assert g.eval("next(FILTERS)") is None
 
 
-# -- Raid icons: who does it, marked in chat and over their head -------------------------------
+# -- Raid icons: who does it, marked in chat -------------------------------
 # The owner, on the mockup (star for the first warlock, diamond for the second): "I think that works fine".
 
 MARKS = """
@@ -316,33 +316,26 @@ def test_the_summon_alert_carries_the_icon():
     assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!"]
 
 
-def test_icons_go_over_their_heads():
+def test_icons_are_never_put_over_heads():
+    """SetRaidTarget is protected since patch 12.0 (Forever runs on those rules): calling it from
+    a timer is what put up the "blocked from an action only available to the Blizzard UI" popup
+    the owner saw on 12 Nov 2026. Icons stay in chat, which is only text."""
     g = world(TWO_LOCKS, extra=MARKS)
-    g.run("ServiceInviter_Test.ApplyMarks()")
-    assert sorted(g.g.MARKS_SET.values()) == ["party1=1", "party2=3"]
-    g.run("ServiceInviter_Test.ApplyMarks()")          # already marked: no flicker, no re-set
-    assert len(g.g.MARKS_SET) == 2
+    for _ in range(5):
+        g.run("CLOCK = CLOCK + 3 ServiceInviter_Test.CheckArrivals()")
+    assert len(g.g.MARKS_SET) == 0
 
 
 def test_an_icon_someone_already_put_on_the_warlock_is_kept_and_used():
     g = world(TWO_LOCKS, extra=MARKS + 'CURRENT["party1"] = 6')
-    g.run("ServiceInviter_Test.ApplyMarks()")
-    assert "party1=1" not in g.g.MARKS_SET.values()
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     assert "Pay {rt6}Grimtotem" in [m for ch, _, m in g.sent() if ch == "PARTY"][0]
 
 
-def test_in_a_raid_only_leader_or_assistant_marks():
-    g = world(TWO_LOCKS, extra=MARKS + "function IsInRaid() return true end function UnitIsGroupLeader() return false end function UnitIsGroupAssistant() return false end")
-    g.run("ServiceInviter_Test.ApplyMarks()")
-    assert len(g.g.MARKS_SET) == 0
-
-
 def test_icons_can_be_turned_off():
     g = world(TWO_LOCKS, extra=MARKS)
-    g.run("ServiceInviterDB.opts = { marks = false } ServiceInviter_Test.ApplyMarks()")
-    assert len(g.g.MARKS_SET) == 0
+    g.run("ServiceInviterDB.opts = { marks = false }")
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     assert "{rt" not in [m for ch, _, m in g.sent() if ch == "PARTY"][0]
@@ -352,3 +345,25 @@ def test_the_ad_in_trade_never_has_icons():
     g = world(TWO_LOCKS, extra=MARKS)
     g.run("ServiceInviter_Test.PostAd()")
     assert "{rt" not in [m for ch, _, m in g.sent() if ch == "CHANNEL"][0]
+
+
+# -- When the game blocks a call -----------------------------------------------------------------
+
+def test_a_blocked_call_is_named_and_never_retried():
+    """The owner, 12 Nov 2026, with the game's "blocked from an action only available to the
+    Blizzard UI" popup: "idk what caused this". Next time the addon says which call it was."""
+    g = world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")}, extra="TRADED = {} function InitiateTrade(u) TRADED[#TRADED + 1] = u end")
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.payee = { mode = "me" }')
+    g.event("ADDON_ACTION_FORBIDDEN", "ServiceInviter", "InitiateTrade()")
+    assert any("blocked InitiateTrade()" in p for p in g.printed())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.run('''local J = ServiceInviter_Test.Jobs J.Joined("Kaldrok") J.Set("Kaldrok", "summoned")
+             UNITS.party1 = { "Kaldrok", "MAGE", 44, "Thunder Bluff" } GROUP["Kaldrok"] = true
+             CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals() CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()''')
+    assert len(g.g.TRADED) == 0
+
+
+def test_another_addons_block_is_not_ours():
+    g = world({"player": ("Me", "SHAMAN", 60, "Orgrimmar")})
+    g.event("ADDON_ACTION_FORBIDDEN", "SomeOtherAddon", "CastSpellByName()")
+    assert not any("blocked" in p for p in g.printed())

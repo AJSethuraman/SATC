@@ -170,3 +170,25 @@ Each slice ships on its own and keeps every earlier test passing.
 3. Providers: services follow who is in the group; summons go to the warlock's zone; the arrival
    message lists what is on offer where they landed.
 4. Advertising: the ad built from the group, the keybound button, per-channel wait, answers to the ad.
+
+## Preview on every tab
+
+The owner, 12 Nov 2026: "i should be able to press debug buttons in each panel for things like
+seeing what the message should look like and stuff". Each setup tab has **Preview this tab**
+(also `/si preview warlock`, etc.). It prints, in your own chat window only, every line that tab's
+settings would make for a pretend buyer: the invite line, the welcome, the summon alert and
+whisper, the arrival offer, who gets paid, the ad and when it can go. It runs the same code that
+sends the real messages, so what it shows is what goes out; it sends nothing, invites nobody and
+queues nothing. When nobody in the group can do a service it says so, and shows an example with a
+level 60 stand-in of that class standing with you.
+
+## Raid icons stay in chat, not over heads
+
+On 12 Nov 2026 the game put up "ServiceInviter has been blocked from an action only available to
+the Blizzard UI". The cause was 2.0.8 putting raid icons over heads from a timer: `SetRaidTarget`
+has been protected since patch 12.0 (warcraft.wiki.gg/wiki/API:SetRaidTarget), and Forever runs on
+those addon rules. 2.0.11 no longer calls it; `{rt1}` icons in party and raid chat are text and
+still work. The addon now listens for the game blocking any of its calls, names the call in your
+chat, and never makes it again that session. `InitiateTrade` (auto-trade on arrival) is listed as
+callable only by Blizzard's code on the current game (warcraft.wiki.gg/wiki/API_InitiateTrade);
+if Forever blocks it, auto-trade stops for the session and the addon says so.

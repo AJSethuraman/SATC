@@ -1,4 +1,4 @@
--- Service Inviter v2.0.10
+-- Service Inviter v2.0.11
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -13,6 +13,8 @@
 -- lines (fragments), and ALWAYS rejects anything that looks like a seller or ad.
 
 ServiceInviterDB = ServiceInviterDB or {}
+local ADDON_NAME = "ServiceInviter"
+local blockedCalls = {}   -- calls the game refused this session (ADDON_ACTION_FORBIDDEN): never retried
 
 -- One-time copy of settings from the old Trade Inviter addon.
 local function MigrateLegacy()
@@ -87,7 +89,7 @@ local DEFAULTS = {
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
-    marks     = true,    -- a raid icon on whoever does a service, in party/raid chat and over their head
+    marks     = true,    -- a raid icon on whoever does a service, in party/raid chat (text only: the game no longer lets addons put icons over heads)
     welcome   = true,    -- send a message to the group when an invited player joins
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
@@ -323,7 +325,9 @@ local function MyKnownPortals(cls)
 end
 local MARK_ORDER = { 1, 3, 4, 5, 6, 2, 7, 8 }   -- star, diamond, triangle, moon, square, circle, cross, skull
 local assignedMarks = {}                         -- name -> icon we gave them, kept steady while they stay
+local previewGroup                               -- set only while a Preview runs: a pretend group
 local function GroupSnapshot()
+    if previewGroup then return previewGroup end
     local g = {}
     local function add(unit, isMe)
         if not isMe and not (UnitExists and UnitExists(unit)) then return end
@@ -376,18 +380,6 @@ local function GroupSnapshot()
         end
     end
     return g
-end
--- Put the icons over their heads. In a raid that takes leader or assistant; never re-sets
--- an icon already there (setting the same one again would take it off).
-local function ApplyMarks()
-    if not (Opt("marks") and SetRaidTarget) then return end
-    if IsInRaid and IsInRaid() and not (UnitIsGroupLeader("player") or (UnitIsGroupAssistant and UnitIsGroupAssistant("player"))) then return end
-    for _, m in ipairs(GroupSnapshot()) do
-        if m.markOurs and m.unit then
-            local ok, cur = pcall(function() return GetRaidTargetIndex and GetRaidTargetIndex(m.unit) end)
-            if not (ok and cur == m.mark) then pcall(SetRaidTarget, m.unit, m.mark) end
-        end
-    end
 end
 -- Class colors, so a busy list reads at a glance (the owner: "can this use class colors and
 -- stuff to avoid a mass of confusing text"). The game's own colors when it has them.
@@ -856,8 +848,8 @@ local JOIN_PATTERNS = {
     PatternFrom(ERR_RAID_MEMBER_ADDED_S, "%s has joined the raid group."),
 }
 
-local function WelcomeText(name)
-    local job = Jobs.Get(name)
+local function WelcomeText(name, job)
+    job = job or Jobs.Get(name)
     local g, fac = GroupSnapshot(), Faction()
     local custom = ServiceInviterDB.welcomemsg
     if custom and custom ~= "" and custom ~= DEFAULT_WELCOME then
@@ -945,6 +937,8 @@ f:RegisterEvent("CHAT_MSG_SYSTEM")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("PLAYER_REGEN_ENABLED")
 f:RegisterEvent("UI_ERROR_MESSAGE")
+f:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+f:RegisterEvent("ADDON_ACTION_BLOCKED")
 f:RegisterEvent("CHAT_MSG_BN_WHISPER_INFORM")
 f:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 f:RegisterEvent("TRADE_SHOW")
@@ -1026,6 +1020,18 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
     end
     if event == "CHAT_MSG_BN_WHISPER_INFORM" or event == "CHAT_MSG_WHISPER_INFORM" then
         diag.echo = { t = GetTime(), kind = event == "CHAT_MSG_BN_WHISPER_INFORM" and "Battle.net" or "normal" }
+        return
+    end
+    -- The game stopped one of our calls (its "blocked from an action only available to the
+    -- Blizzard UI" popup). Say which, and never make that call again this session.
+    if event == "ADDON_ACTION_FORBIDDEN" or event == "ADDON_ACTION_BLOCKED" then
+        if text == ADDON_NAME and type(sender) == "string" then
+            local fn = sender:gsub("%(%)$", "")
+            if not blockedCalls[fn] then
+                blockedCalls[fn] = true
+                P("the game blocked " .. fn .. "(), which only Blizzard's own code may call. Service Inviter won't try it again this session. Please report it.")
+            end
+        end
         return
     end
     if event == "UI_ERROR_MESSAGE" then
@@ -1446,14 +1452,209 @@ local function WhisperTo()
     return w
 end
 
-local function AlertMsg(name)
+local function AlertMsg(name, job)
     local m = ServiceInviterDB.alertmsg
     if not m or m == "" then m = DEFAULT_ALERTMSG end
-    local job = Jobs.Get(name)
+    job = job or Jobs.Get(name)
     local payee, mine = PayeeFor(job or { service = "summons" })
     local price = JobPrice(job or { service = "summons" })
     m = m:gsub("{name}", function() return name end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
     return (m:gsub("{price}", function() return price and PriceLong(price) or "NOTHING (IT'S FREE)" end))
+end
+
+----------------------------------------------------------------------
+-- Preview: what each tab's messages will look like, printed in your own chat window only.
+-- The owner, 12 Nov 2026: "i should be able to press debug buttons in each panel for things
+-- like seeing what the message should look like". It runs the same code that sends the real
+-- messages, for a pretend buyer (Kaldrok); it sends nothing, invites nobody, queues nothing.
+-- When nobody in the group can do a service, it says so and shows an example with a
+-- stand-in of the right class standing with you.
+----------------------------------------------------------------------
+local PREVIEW_TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
+local PREVIEW_KEYS = {
+    Warlock = { "summons", "healthstone", "soulstone" }, Mage = { "portals", "water" },
+    Rogue = { "lockpick" }, Buffs = { "fort", "motw", "ai", "blessing" },
+}
+local BUYER = "Kaldrok"
+local CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
+
+-- What's on sale, as the setup's General tab shows it.
+local function OnSaleText(items)
+    local parts = {}
+    for _, it in ipairs(items) do
+        local what = it.def.label
+        if it.def.kind == "summon" then what = it.where and ("summons to " .. Core.Short(it.where)) or "summons (where? not invited)" end
+        if it.def.kind == "portal" then
+            local c = {}
+            for _, city in ipairs(it.cities) do c[#c + 1] = Core.Short(city) end
+            what = "portals to " .. table.concat(c, "/")
+        end
+        parts[#parts + 1] = what .. " (" .. MemberName(it.provider) .. ")"
+    end
+    return #parts > 0 and table.concat(parts, ", ") or nil
+end
+
+-- The group plus a level 60 stand-in, in your zone, for each service nobody can do.
+local function WithStandIns(g, keys)
+    local out, added = {}, {}
+    for _, m in ipairs(g) do out[#out + 1] = m end
+    local here
+    for _, m in ipairs(g) do if m.me then here = m.zone end end
+    here = here or ((Faction() == "Alliance") and "Stormwind City" or "Orgrimmar")
+    for _, key in ipairs(keys) do
+        local def = Core.BY_KEY[key]
+        if not Core.Provider(out, key) then
+            local m = { name = CLASS_WORD[def.class] or def.class, class = def.class, level = 60, zone = here, standIn = true }
+            out[#out + 1] = m
+            added[#added + 1] = m
+        end
+    end
+    return out, added, here
+end
+
+local function Preview(tab)
+    local out = {}
+    local function Head(t) out[#out + 1] = "|cffffd100" .. t .. "|r" end
+    local function Say(where, text) out[#out + 1] = "|cff999999" .. where .. ":|r " .. tostring(text) end
+    local function Note(t) out[#out + 1] = "|cffbbbbbb" .. t .. "|r" end
+    local db, fac = ServiceInviterDB, Faction()
+    local chat = (IsInRaid and IsInRaid()) and "raid chat" or "party chat"
+
+    local function ShowJob(job, full)
+        local st, def = Core.Setting(db, job.service), Core.BY_KEY[job.service]
+        if full then
+            if not st.invite then Note(def.label .. ": buyers aren't invited (Invite buyers is off), so there's no invite or welcome; it's only offered when someone lands.")
+            elseif Opt("announce") then Say("When you invite, your chat only", "invited " .. BUYER .. "  " .. JobWhere(job)) end
+        end
+        if not st.invite then
+            -- nobody joins for it, so nothing to welcome
+        elseif Opt("welcome") then
+            Say("When they join, " .. chat, WelcomeText(BUYER, job) or "(nothing to say)")
+        elseif full then Note("No welcome (Welcome them when they join is off, General tab).") end
+        if not full then return end
+        if def.kind == "summon" then
+            if db.raidalert ~= false then Say("When the summon starts, " .. chat, AlertMsg(BUYER, job)) end
+            local to = WhisperTo()
+            if to then Say("When the summon starts, whisper to " .. to, WhisperText(BUYER, nil)) end
+        end
+        local a = ArrivalText(job)
+        local p = Core.Provider(GroupSnapshot(), job.service, def.kind == "summon" and job.dest or nil)
+        local here = (def.kind == "summon" and job.dest) or (p and p.zone)
+        if a then Say("When they land, " .. chat, a)
+        else Note("When they land: no message (nothing else on offer in " .. Core.Short(here or "?") .. ")") end
+        local payee, mine = PayeeFor(job)
+        if not st.price then Note("Free, so nobody collects.") return end
+        Note("Paid to: " .. (mine and "you" or tostring(payee)) ..
+            ((mine and AutoTradeOn()) and ". Trade opens by itself when they're in range." or ". Trade won't open by itself."))
+    end
+
+    local function ServicePreview(key)
+        local def, st = Core.BY_KEY[key], Core.Setting(db, key)
+        Head(def.label)
+        if not st.on then
+            Note(def.label .. ": not offered. Tick '" .. (def.kind == "buff" and "We offer " or "We sell ") .. def.label .. "' to " .. (def.kind == "buff" and "offer" or "sell") .. " it.")
+            return
+        end
+        local g = GroupSnapshot()
+        if #Core.Providers(g, key) == 0 then
+            local _, added, here = WithStandIns(g, { key })
+            local why = "it takes a level " .. def.level .. "+ " .. (CLASS_WORD[def.class] or def.class):lower()
+            for _, m in ipairs(g) do
+                if m.me and def.kind == "summon" and m.class == def.class and m.notSummoner then why = why .. "; you're set as the helper, not the warlock" end
+            end
+            Note("Nobody in your group can do " .. def.label .. " right now (" .. why .. "). This example pretends a level 60 " ..
+                added[1].name:lower() .. " is with you in " .. Core.Short(here) .. ".")
+            g = WithStandIns(g, { key })
+        end
+        previewGroup = g
+        local items = {}
+        for _, it in ipairs(Core.OnSale(db, g, fac)) do if it.key == key then items[#items + 1] = it end end
+        if #items == 0 then
+            if def.kind == "portal" then Note("No portal to offer: every city is unticked, or the mage is standing in the only city they can port to.")
+            else Note("Can't sell it: the game doesn't say where they are.") end
+        end
+        for _, it in ipairs(items) do
+            if def.kind == "summon" and not it.where then
+                Note("Nobody is invited for " .. it.provider.name .. "'s summons: the game doesn't say where they are.")
+            elseif def.kind == "portal" then
+                for i, city in ipairs(it.cities) do ShowJob({ name = BUYER, service = key, dest = city }, i == 1) end
+            else
+                ShowJob({ name = BUYER, service = key, dest = def.kind == "summon" and it.where or nil }, true)
+            end
+        end
+        previewGroup = nil
+    end
+
+    local ok, err = pcall(function()
+        if tab == "General" then
+            Head("On sale")
+            local items = Core.OnSale(db, GroupSnapshot(), fac)
+            local text = OnSaleText(items)
+            if not text then
+                Note("Nothing on sale, so nobody is invited. Tick a service on a class tab, and have someone in the group who can do it.")
+            else
+                Say("On sale now", text)
+                if not Opt("enabled") then Note("Inviting is off (Invite buyers of what we sell).") end
+                Head("Welcome when they join, for each")
+                for _, it in ipairs(items) do
+                    if it.def.kind == "portal" then
+                        for _, city in ipairs(it.cities) do ShowJob({ name = BUYER, service = it.key, dest = city }, false) end
+                    elseif it.where or it.def.kind ~= "summon" then
+                        ShowJob({ name = BUYER, service = it.key, dest = it.def.kind == "summon" and it.where or nil }, false)
+                    end
+                end
+                if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
+            end
+        elseif tab == "Advertise" then
+            Head("The ad")
+            local g = GroupSnapshot()
+            local text = Core.BuildAd(db, g, fac, db.admsg)
+            local state, a = AdState()
+            local chans = AdChannels()
+            local first = chans[1] and (chans[1]:sub(1, 1):upper() .. chans[1]:sub(2)) or "No channel ticked"
+            if text then
+                Say(first .. ", when you press the key", text)
+                Note(#text .. " of 255 letters")
+            end
+            if state == "ready" then Note("Ready to post in " .. a:sub(1, 1):upper() .. a:sub(2) .. ".")
+            elseif state == "wait" then Note(("Can post again in %d:%02d."):format(math.floor(a / 60), math.floor(a % 60)))
+            else Note("No ad right now: " .. tostring(a)) end
+            if not text then
+                local keys = {}
+                for _, def in ipairs(Core.SERVICES) do if Core.Setting(db, def.key).on then keys[#keys + 1] = def.key end end
+                local ex = #keys > 0 and Core.BuildAd(db, (WithStandIns(g, keys)), fac, db.admsg)
+                if ex then Say("Example, with someone who can do each ticked service standing with you", ex) end
+            end
+        elseif tab == "Buffs" then
+            for _, key in ipairs(PREVIEW_KEYS.Buffs) do ServicePreview(key) end
+            Head("Buff button")
+            Say("Buff button", BuffLabel())
+            local mine = {}
+            for _, def in ipairs(MyBuffs()) do mine[#mine + 1] = def.label end
+            Note(#mine > 0 and ("You cast: " .. table.concat(mine, ", ") .. ". Asking in party, raid or a whisper queues them.")
+                or "None of the ticked buffs are yours to cast, so nothing gets queued for you.")
+            if Core.Setting(db, "blessing").on then
+                local parts = {}
+                for _, b in ipairs(Core.BLESSINGS) do
+                    parts[#parts + 1] = "\"" .. b.word .. "\" queues " .. b.spell .. (KnowSpell(b.spell) and "" or " (you don't have it)")
+                end
+                Note(table.concat(parts, "; ") .. "; plain \"blessing\" queues " .. tostring(Core.Setting(db, "blessing").spell) .. ".")
+            end
+        else
+            for _, key in ipairs(PREVIEW_KEYS[tab] or {}) do ServicePreview(key) end
+        end
+    end)
+    previewGroup = nil
+    if not ok then out[#out + 1] = "|cffff4040Preview failed: " .. tostring(err) .. "|r" end
+    -- raid icons show as icons here; in party/raid chat the game draws {rt1} itself
+    for i, s in ipairs(out) do
+        out[i] = s:gsub("{rt(%d)}", "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%1:0|t")
+    end
+    return out
+end
+local function PrintPreview(tab)
+    P("|cffffd100Preview of the " .. tab .. " tab.|r Nothing is sent; only you see this. Pretend buyer: " .. BUYER .. ".")
+    for _, line in ipairs(Preview(tab)) do P(line) end
 end
 
 IsSecret = function(v)
@@ -1581,10 +1782,8 @@ OnCast = function(event, unit, spellID, spellName)
 end
 
 -- Arrival (and, for the lock, auto-open trade). Runs every second, window open or not.
-local lastMarks = 0
 local function CheckArrivals()
     local now = GetTime()
-    if now - lastMarks >= 3 then lastMarks = now pcall(ApplyMarks) end
     Jobs.Expire(now)
     -- one automatic retry for people who were already in another group
     for _, j in ipairs(jobs) do
@@ -1617,7 +1816,7 @@ local function CheckArrivals()
                     if text and ch then pcall(SendChatMessage, text, ch) end
                 end
             end
-        elseif j.status == "arrived" and CollectsFor(j) and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
+        elseif j.status == "arrived" and not blockedCalls.InitiateTrade and CollectsFor(j) and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
             local u = UnitFor(j.name)
             if u and CheckInteractDistance and CheckInteractDistance(u, 2) then
                 j.tradeTried = true
@@ -2167,7 +2366,7 @@ local function BuildSetupUI()
     Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
     Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
     Box("offermsg", R + 4, -378, 396)
-    Check("marks", R, -410, "Raid icon on whoever does it (chat + over their head)", true)
+    Check("marks", R, -410, "Raid icon on whoever does it, in party and raid chat", true)
     Header(R, -446, "This session")
     local sessText = Label(R, -472, "", "GameFontHighlight", 270)
     local sessBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
@@ -2382,6 +2581,11 @@ local function BuildSetupUI()
     local test = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
     test:SetPoint("LEFT", save, "RIGHT", 10, 0) test:SetSize(130, 28) test:SetText("Test banner")
     test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)") end)
+    -- Preview: what this tab's messages look like, in your chat only (sends nothing)
+    local prev = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
+    prev:SetPoint("LEFT", test, "RIGHT", 10, 0) prev:SetSize(200, 28) prev:SetText("Preview this tab")
+    prev:SetScript("OnClick", function() w.Save() w.Load() PrintPreview(TABS[w.tab or 1]) end)
+    w.preview = prev
 
     -- shrink to fit small screens so nothing runs off
     local function Fit()
@@ -2552,6 +2756,11 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             end
         end
     elseif cmd == "ad" then PostAd()
+    elseif cmd == "preview" then
+        local want = rest:lower()
+        local tab = (setupWin and setupWin.tab and PREVIEW_TABS[setupWin.tab]) or "General"
+        for _, t in ipairs(PREVIEW_TABS) do if want ~= "" and t:lower():find(want, 1, true) == 1 then tab = t end end
+        PrintPreview(tab)
     elseif cmd == "status" then
         do
             local items, parts = Core.OnSale(ServiceInviterDB, GroupSnapshot(), Faction()), {}
@@ -2662,5 +2871,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ApplyMarks = function() return ApplyMarks() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { Preview = function(t) return Preview(t) end, PrintPreview = function(t) return PrintPreview(t) end, BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }
