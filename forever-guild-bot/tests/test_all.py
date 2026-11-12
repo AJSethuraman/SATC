@@ -1827,3 +1827,216 @@ def test_slot_autocomplete_never_offers_more_than_discord_allows(tmp_path):
     ix = SimpleNamespace(namespace=SimpleNamespace())
     choices = asyncio.run(bot.tree.get_command("craftable")._params["slot"].autocomplete(ix, ""))
     assert len(choices) == 25
+
+
+# ---- adversarial findings, fixed (helpers for the tests below) ---------------------------------------
+_CFG = {"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"}
+_FUTURE = "2030-01-01T20:30:00+00:00"
+
+
+def _char(db, name, surname, level=30, class_name="Hunter", slug=None):
+    slug = slug or f"{name}-{surname}".lower()
+    db.upsert_member(slug, name, surname, level, 3, utcnow())
+    db.set_profile(slug, level, class_name, "Human", "Alliance", utcnow())
+    return slug
+
+
+def _bot(db):
+    from guildbot.bot import GuildBot
+    return GuildBot(load(dict(_CFG)), db, blizzard=None)
+
+
+class _DmUser:
+    """A Discord user whose DMs are open; everything sent is appended to `log` as (user id, text)."""
+    bot = False
+    dm_channel = None
+
+    def __init__(self, uid, log):
+        self.uid, self.log = uid, log
+
+    async def send(self, text, view=None):
+        from types import SimpleNamespace
+        self.log.append((self.uid, text))
+        return SimpleNamespace(id=5000 + len(self.log))
+
+
+def _cmd_ix(uid, officer=False):
+    """A slash-command interaction that records what the bot answers. Returns (interaction, sent)."""
+    from types import SimpleNamespace
+    sent = []
+
+    async def send_message(content=None, **kw):
+        sent.append(dict(kw, content=content))
+    ix = SimpleNamespace(user=SimpleNamespace(id=uid, display_name="Member"),
+                         permissions=SimpleNamespace(manage_events=officer), namespace=SimpleNamespace(),
+                         response=SimpleNamespace(send_message=send_message, is_done=lambda: False))
+    return ix, sent
+
+
+def test_going_from_maybe_to_cant_make_it_on_raid_day_is_not_a_late_drop(tmp_path):
+    """A late drop is leaving a slot within 24 hours of the start, timed from when the slot was left. Giving it
+    up two days out (to Tentative) and confirming "Can't make it" on raid day is not one; leaving on raid day is."""
+    db = make_db(tmp_path)
+    start = datetime(2026, 12, 10, 1, 0, tzinfo=timezone.utc)
+    rid = db.create_raid("Barrow Deeps", start.isoformat(timespec="seconds"), 10, 9)
+    at = lambda hours: (start - timedelta(hours=hours)).isoformat(timespec="seconds")
+    db.upsert_signup(rid, 7, None, "dps", at(96))
+    db.upsert_signup(rid, 7, None, "tentative", at(48))
+    db.upsert_signup(rid, 7, None, "absent", at(2))
+    db.upsert_signup(rid, 8, None, "dps", at(96))
+    db.upsert_signup(rid, 8, None, "tentative", at(5))      # left the slot on raid day
+    db.upsert_signup(rid, 8, None, "absent", at(2))
+    db.mark_closed(rid)
+    assert db.history(7)["late_drops"] == 0
+    assert db.history(8)["late_drops"] == 1
+
+
+def test_a_raid_closed_before_it_started_does_not_count_against_anyones_attendance(tmp_path):
+    """A raid ended before its start time (an officer deleting the event or post by hand) never took place,
+    so it adds nothing to "raids attended X of Y signed up"."""
+    db = make_db(tmp_path)
+    rid = db.create_raid("Hyjal Summit", _FUTURE, 20, 9)
+    db.upsert_signup(rid, 7, None, "healer", utcnow())
+    bot = _bot(db)
+    bot.get_user = lambda uid: _DmUser(uid, [])
+    asyncio.run(bot._handled_by_hand(db.get_raid(rid), "Discord event"))
+    assert db.get_raid(rid)["status"] == "ended"
+    h = db.history(7)
+    assert (h["signed_up"], h["attended"]) == (0, 0)
+    assert db.attendance_board() == []
+
+
+def test_a_weekly_raid_never_reposts_itself_in_the_past(tmp_path):
+    """When a repeating raid ends long after it ran (the bot was off for weeks), the next one is posted for
+    the next time that weekday and hour comes round, which is always in the future."""
+    from types import SimpleNamespace
+    db = make_db(tmp_path)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    first = db.create_raid("Weekly Deeps", (now - timedelta(days=15)).isoformat(timespec="seconds"), 10, 9)
+    db.set_raid_posted(first, 10, 20, None)
+    db.create_series(db.get_raid(first), 10)
+    db.upsert_signup(first, 1, None, "dps", (now - timedelta(days=17)).isoformat(timespec="seconds"))
+    db.mark_closed(first)
+
+    class Chan:
+        class guild:
+            @staticmethod
+            async def create_scheduled_event(**kw):
+                return SimpleNamespace(id=777)
+
+        async def send(self, embed=None, view=None):
+            async def pin():
+                return None
+            return SimpleNamespace(id=900, channel=SimpleNamespace(id=10), pin=pin)
+
+    bot = _bot(db)
+    bot.get_channel = lambda cid: Chan()
+    bot.get_user = lambda uid: _DmUser(uid, [])
+    new_id = asyncio.run(bot.spawn_next(first))
+    starts = datetime.fromisoformat(db.get_raid(new_id)["starts_at"])
+    assert now < starts <= now + timedelta(days=7, hours=2)
+
+
+def test_a_member_can_unlink_a_character_that_has_left_the_guild(tmp_path):
+    """/unlink finds the member's own claimed characters even after they left the guild (rerolled, deleted),
+    so the dead claim stops counting toward the cap. Something they never claimed is not "Done."."""
+    db = make_db(tmp_path)
+    slug = _char(db, "Rerolled", "Alt", 12)
+    _char(db, "Stays", "Here", 30)
+    db.claim(42, [slug])
+    db.mark_absent({"stays-here"})
+    bot = _bot(db)
+    ix, sent = _cmd_ix(42)
+    asyncio.run(bot.tree.get_command("unlink").callback(ix, "stays-here"))
+    assert sent[-1]["content"] != "Done."
+    asyncio.run(bot.tree.get_command("unlink").callback(ix, slug))
+    assert sent[-1]["content"] == "Done."
+    assert [c["slug"] for c in db.characters_for(42)] == []
+
+
+def test_purging_a_trolls_claims_also_takes_their_characters_out_of_open_raids(tmp_path):
+    """/unlink-member purges a troll's claims and takes them off open raids, so the real player's character
+    stops holding a slot under the troll's account."""
+    from types import SimpleNamespace
+    db = make_db(tmp_path)
+    slug = _char(db, "Realmain", "Tank", 60, "Warrior")
+    rid = db.create_raid("Onyxia", _FUTURE, 40, 9, {"tank": 1})
+    db.claim(666, [slug])
+    db.upsert_signup(rid, 666, slug, "tank", utcnow())
+    bot = _bot(db)
+    ix, sent = _cmd_ix(9, officer=True)
+    asyncio.run(bot.tree.get_command("unlink-member").callback(ix, SimpleNamespace(id=666, display_name="Troll")))
+    assert db.characters_for(666) == []
+    assert [s["slug"] for s in db.signups(rid)] == []
+    assert sent[-1]["ephemeral"] is True
+
+
+def test_link_does_not_guess_between_two_characters_with_the_same_first_name(tmp_path):
+    """Two characters may share a first name. `/link Asha` with two Ashas links neither and privately lists
+    both; the full name links the right one."""
+    db = make_db(tmp_path)
+    _char(db, "Asha", "Brightvale", 31, "Priest")
+    _char(db, "Asha", "Stormhollow", 28, "Mage")
+    bot = _bot(db)
+    ix, sent = _cmd_ix(42)
+    asyncio.run(bot.tree.get_command("link").callback(ix, "Asha"))
+    assert db.characters_for(42) == []
+    assert "Asha Brightvale" in sent[-1]["content"] and "Asha Stormhollow" in sent[-1]["content"]
+    assert sent[-1]["ephemeral"] is True
+    assert db.find_character("Asha") is None
+    asyncio.run(bot.tree.get_command("link").callback(ix, "Asha Stormhollow"))
+    assert [c["slug"] for c in db.characters_for(42)] == ["asha-stormhollow"]
+
+
+def test_characters_with_accented_capitals_can_be_found_by_typing_their_name(tmp_path):
+    """Names may start with an accented capital. Typing "Élo" in the claim search finds Élodie, and
+    `/link Élodie` finds her by first name like any other character."""
+    db = make_db(tmp_path)
+    _char(db, "Élodie", "Dupont", 22, "Mage", slug="élodie-dupont")
+    assert [r["slug"] for r in db.unclaimed_characters("Élo")] == ["élodie-dupont"]
+    assert [r["slug"] for r in db.search_characters("Élo")] == ["élodie-dupont"]
+    assert db.find_character("Élodie")["slug"] == "élodie-dupont"
+
+
+def test_who_for_a_member_with_five_geared_characters_fits_in_one_discord_message(tmp_path):
+    """`/who` with five fully geared characters stays within Discord's 6,000 characters across one message's
+    embeds (gear drops its links when it has to), and one character still gets its Wowhead links."""
+    db = make_db(tmp_path)
+    now = utcnow()
+    slots = ("Head", "Neck", "Shoulders", "Back", "Chest", "Shirt", "Wrist", "Hands", "Waist", "Legs", "Feet",
+             "Ring 1", "Ring 2", "Main Hand", "Off Hand", "Ranged")
+    for i, name in enumerate(("Aldric", "Berenice", "Caspian", "Delphine", "Evander")):
+        slug = _char(db, name, "Thornfield", 60 - i, "Warrior")
+        db.replace_equipment(slug, [bz.Item(slot, 10000 + n, f"Stormforged {slot}", "Rare")
+                                    for n, slot in enumerate(slots)], now)
+        db.replace_professions(slug, [bz.Profession("Blacksmithing", 300, 300), bz.Profession("Mining", 300, 300)], now)
+        db.link(42, slug)
+    bot = _bot(db)
+    ix, sent = _cmd_ix(42)
+    asyncio.run(bot.tree.get_command("who").callback(ix))
+    embeds = sent[-1]["embeds"]
+    assert len(embeds) == 5
+    assert sum(len(e) for e in embeds) <= 6000
+    asyncio.run(bot.tree.get_command("who").callback(ix, "aldric-thornfield"))
+    assert "wowhead.com" in str(sent[-1]["embeds"][0].fields)
+
+
+def test_skillup_bring_list_does_not_ask_for_parts_the_plan_itself_just_made(tmp_path):
+    """The "Bring" list is what to have in your bags before you start. Bolts crafted in an early step and spent
+    in a later one are not on it: the 79 Copper Bars behind them are the whole need. Real Forever recipes."""
+    from guildbot.bot import skillup_card
+    db = make_db(tmp_path)
+    slug = _char(db, "Gizmo", "Sprocket", 20, "Rogue")
+    now = utcnow()
+    bolts, bomb = (2417, "Handful of Copper Bolts"), (2418, "Rough Copper Bomb")
+    db.replace_professions(slug, [bz.Profession("Engineering", 1, 75, (bolts, bomb))], now)
+    db.replace_recipes([("Engineering", *bolts, "Parts"), ("Engineering", *bomb, "Explosives")], now)
+    db.set_recipe_item(2417, 4359, 1.0, [(2840, "Copper Bar", 1)])
+    db.set_recipe_item(2418, 4360, 2.0, [(2589, "Linen Cloth", 1), (2840, "Copper Bar", 1),
+                                         (4357, "Rough Blasting Powder", 2), (4359, "Handful of Copper Bolts", 1)])
+    card = skillup_card(db, db.find_character(slug), db.professions_for(slug)[0])
+    assert "craft 44 x **Handful of Copper Bolts**" in card.description
+    assert "x **Rough Copper Bomb**" in card.description
+    bring = next(f.value for f in card.fields if f.name == "Bring")
+    assert "Handful of Copper Bolts" not in bring, bring
+    assert "79 x Copper Bar" in bring, bring

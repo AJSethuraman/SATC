@@ -619,7 +619,7 @@ def skillup_card(db: Database, row, prof, skill_now: int | None = None):
             e.add_field(name=f"Learn next (they'd give skill-ups at {p['reached']})",
                         value="\n".join(f"**{c['name']}**: {S.materials_text(c['reagents'])}" for c in learn)
                               + "\n-# Blizzard's data doesn't say where each one is learned.", inline=False)
-    need = S.shopping_list(p["steps"])
+    need = S.shopping_list(p["steps"], makes, maker)
     if need:
         e.add_field(name="Bring", value="\n".join(f"{q} x {n}" for n, q in need[:15]), inline=False)
     orange_now = [c for c in cands if c["learn_at"] <= skill < c["yellow_at"]]
@@ -1040,6 +1040,8 @@ class GuildBot(discord.Client):
         if not series or not series["active"] or db.series_has_later(series["id"], raid["starts_at"]):
             return None
         nxt = R.next_occurrence(datetime.fromisoformat(raid["starts_at"]), self.cfg.timezone)
+        while nxt <= datetime.now(timezone.utc):              # the bot was off for weeks: skip to the next one to come
+            nxt = R.next_occurrence(nxt, self.cfg.timezone)
         new_id = db.create_raid(series["title"], nxt.isoformat(timespec="seconds"), series["size"], series["created_by"],
                                 {"tank": series["cap_tank"], "healer": series["cap_healer"], "dps": series["cap_dps"]})
         db.set_raid_series(new_id, series["id"])
@@ -1497,6 +1499,11 @@ def register_commands(bot: GuildBot) -> None:
         return [app_commands.Choice(name=char_label(r), value=r["slug"])
                 for r in db.unclaimed_characters(current)[:25]]
 
+    async def mine_ac(interaction: discord.Interaction, current: str):
+        return [app_commands.Choice(name=char_label(r), value=r["slug"])
+                for r in db.characters_for(interaction.user.id)
+                if current.strip().lower() in R.full_name(r).lower()][:25]
+
     @tree.error
     async def on_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.MissingPermissions):
@@ -1516,7 +1523,11 @@ def register_commands(bot: GuildBot) -> None:
     async def link(interaction: discord.Interaction, character: str):
         row = db.find_character(character)
         if not row:
+            several = db.find_characters(character)
             await interaction.response.send_message(
+                f"More than one character is called `{character}`: "
+                + ", ".join(f"**{R.full_name(r)}**" for r in several[:10]) + ". Type the full name."
+                if len(several) > 1 else
                 f"No guild member found for `{character}`. Roster last synced {rel(db.get_meta('last_sync_at'))}.",
                 ephemeral=True)
             return
@@ -1542,11 +1553,14 @@ def register_commands(bot: GuildBot) -> None:
             ephemeral=True)
 
     @tree.command(name="unlink", description="Remove a character link from your Discord account")
-    @app_commands.autocomplete(character=char_ac)
+    @app_commands.autocomplete(character=mine_ac)
     async def unlink(interaction: discord.Interaction, character: str):
-        row = db.find_character(character)
-        if row:
-            db.unlink(interaction.user.id, row["slug"])
+        row = db.find_character(character, owner=interaction.user.id)   # yours, even if it has left the guild
+        if not row:
+            await interaction.response.send_message(
+                f"You haven't claimed `{character}`. `/who` shows your characters.", ephemeral=True)
+            return
+        db.unlink(interaction.user.id, row["slug"])
         await interaction.response.send_message("Done.", ephemeral=True)
 
     @tree.command(name="main", description="Choose which of your linked characters signs up for raids")
@@ -1571,23 +1585,31 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message(
                 "Nothing found. Link a character with `/link`, or give a character name.", ephemeral=True)
             return
-        embeds = []
-        for r in rows[:5]:
-            desc = f"L{r['level'] or '?'} {r['race_name'] or ''} {r['class_name'] or ''}".strip()
-            if r["item_level"]:
-                desc += f" · item level {r['item_level']}"
-            if r["last_login_at"]:
-                desc += f"\nLast on {rel(r['last_login_at'])}"
-            e = discord.Embed(title=R.full_name(r), description=desc)
-            profs = db.professions_for(r["slug"])
-            e.add_field(name="Professions",
-                        value="\n".join(f"{p['profession']} {p['skill']}/{p['max_skill']}" for p in profs) or "—")
-            gear = db.equipment_for(r["slug"])
-            gear_lines = [f"{g['slot']}: {item_link(g['item_name'], g['item_id'])}" for g in gear]
-            for n, chunk in enumerate(chunk_lines(gear_lines, 1000) or [["—"]]):
-                e.add_field(name="Gear" if n == 0 else "Gear (cont.)", value="\n".join(chunk), inline=False)
-            e.set_footer(text=who_footer(r, profs, gear))
-            embeds.append(e)
+        # Discord takes at most 6,000 characters across a message's embeds: with several geared characters,
+        # gear drops its Wowhead links, then (if still too long) points to /who for one character.
+        for gear_style in ("links", "names", "none"):
+            embeds = []
+            for r in rows[:5]:
+                desc = f"L{r['level'] or '?'} {r['race_name'] or ''} {r['class_name'] or ''}".strip()
+                if r["item_level"]:
+                    desc += f" · item level {r['item_level']}"
+                if r["last_login_at"]:
+                    desc += f"\nLast on {rel(r['last_login_at'])}"
+                e = discord.Embed(title=R.full_name(r), description=desc)
+                profs = db.professions_for(r["slug"])
+                e.add_field(name="Professions",
+                            value="\n".join(f"{p['profession']} {p['skill']}/{p['max_skill']}" for p in profs) or "—")
+                gear = db.equipment_for(r["slug"])
+                gear_lines = [f"{g['slot']}: " + (item_link(g['item_name'], g['item_id']) if gear_style == "links"
+                                                  else g["item_name"]) for g in gear]
+                if gear_style == "none" and gear:
+                    gear_lines = [f"{len(gear)} items: `/who character:{r['slug']}` for the list"]
+                for n, chunk in enumerate(chunk_lines(gear_lines, 1000) or [["—"]]):
+                    e.add_field(name="Gear" if n == 0 else "Gear (cont.)", value="\n".join(chunk), inline=False)
+                e.set_footer(text=who_footer(r, profs, gear))
+                embeds.append(e)
+            if sum(len(e) for e in embeds) <= 6000:
+                break
         await interaction.response.send_message(embeds=embeds, ephemeral=True)
 
     @tree.command(name="roster", description="List guild characters")
@@ -1938,7 +1960,7 @@ def register_commands(bot: GuildBot) -> None:
     @officer
     async def raid_attendance(interaction: discord.Interaction, raid_id: int, member: discord.Member, showed: bool):
         raid = db.get_raid(raid_id)
-        if not raid or raid["status"] not in ("closed", "ended"):
+        if not raid or raid["status"] not in ("closed", "ended") or not raid["started"]:
             await interaction.response.send_message("That raid hasn't started yet, or doesn't exist.", ephemeral=True)
             return
         db.set_attendance(raid_id, member.id, showed)
@@ -2195,9 +2217,18 @@ def register_commands(bot: GuildBot) -> None:
     @officer
     async def unlink_member(interaction: discord.Interaction, member: discord.Member):
         n = db.unlink_all(member.id)
+        raids = [r["id"] for r in db.open_raids()
+                 if any(s["discord_id"] == member.id for s in db.signups(r["id"]))]
+        for rid in raids:                                  # the characters were not theirs: out of every open raid
+            db.remove_signup(rid, member.id)
+            db.expire_member_offers(rid, member.id)
         await interaction.response.send_message(
-            f"Removed {n} link(s) from {member.display_name}. Their characters can be claimed again.",
+            f"Removed {n} link(s) from {member.display_name}. Their characters can be claimed again."
+            + (f" Also took them off {len(raids)} open raid(s)." if raids else ""),
             ephemeral=True)
+        for rid in raids:
+            await bot.refresh_raid_post(rid)
+            await bot.fill_open_slots(rid)                 # a freed slot goes to the bench
 
     @tree.command(name="release", description="Free a character so its rightful owner can claim it (officers)")
     @app_commands.autocomplete(character=char_ac)

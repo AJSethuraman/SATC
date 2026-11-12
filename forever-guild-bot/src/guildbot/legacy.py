@@ -40,13 +40,17 @@ def pick_earner(category: str, subcategory: str, name: str, holders: list[dict])
     return sorted(fit, key=lambda h: (-(h.get("level") or 0), h["slug"]))[0]
 
 
-def new_completions(completions, seen: set, known_before: set, holders: dict, now: datetime):
+def new_completions(completions, seen: set, known_before: set, holders: dict, now: datetime, player_of=None):
     """Which Legacy completions to announce.
 
     completions: rows with slug, challenge_id, name, category, subcategory, completed_at (ISO).
     seen: (challenge_id, completed_at) already handled. known_before: characters whose achievements were
     stored before this sync (a new member, or the first sync, announces nothing). holders: slug -> dict
     with slug, level, class_name, skills {profession: skill}.
+    player_of: slug -> who plays it (a claim or a likely-alts group); a slug not in it is its own player.
+    A solo point (class, tradeskill) showing on several characters at one time is one account's point.
+    A group point (dungeon, raid, PvP) lands on the whole group in the same second, so it is posted once
+    per player: only characters known to be one player share a post.
     Returns (milestones to add as ('legacy', slug, name, challenge_id), keys to mark seen)."""
     groups: dict[tuple, list] = {}
     for r in completions:
@@ -61,12 +65,17 @@ def new_completions(completions, seen: set, known_before: set, holders: dict, no
         if not any(r["slug"] in known_before for r in rows) or datetime.fromisoformat(key[1]) < cutoff:
             handled.append(key)                       # old news, or nobody was known before: never announce
             continue
-        earner = pick_earner(first["category"], first["subcategory"], first["name"],
-                             [holders[r["slug"]] for r in rows if r["slug"] in holders])
-        if earner is None:
+        parts: dict = {}
+        for r in rows:
+            who = None if first["category"] in SOLO_CATEGORIES else (player_of or {}).get(r["slug"], ("slug", r["slug"]))
+            parts.setdefault(who, []).append(r)
+        earners = [pick_earner(first["category"], first["subcategory"], first["name"],
+                               [holders[r["slug"]] for r in part if r["slug"] in holders]) for part in parts.values()]
+        earners = sorted((e for e in earners if e is not None), key=lambda e: e["slug"])
+        if not earners:
             continue                                  # not seen yet: the right character may log out later
         handled.append(key)
-        found.append(("legacy", earner["slug"], first["name"], first["challenge_id"]))
+        found += [("legacy", e["slug"], first["name"], first["challenge_id"]) for e in earners]
     return found, handled
 
 
@@ -147,12 +156,16 @@ def likely_alts(completions, items: dict, owners: dict, rejected=frozenset()) ->
         if r["category"] in SOLO_CATEGORIES:
             solo.setdefault((r["challenge_id"], r["completed_at"]), set()).add(r["slug"])
 
+    def rejects(a: str, b: str) -> bool:
+        """a's owner said b is not theirs, and has not claimed b since (a claim beats an old answer)."""
+        return (owners.get(a), b) in rejected and owners.get(b) != owners.get(a)
+
     def compatible(a: str, b: str) -> bool:
         if items.get(a) is None or items.get(a) != items.get(b):
             return False
         if owners.get(a) and owners.get(b) and owners[a] != owners[b]:
             return False
-        if (owners.get(a), b) in rejected or (owners.get(b), a) in rejected:
+        if rejects(a, b) or rejects(b, a):
             return False
         da, db_ = done.get(a, {}), done.get(b, {})
         return all(da[c] == db_[c] for c in da.keys() & db_.keys())

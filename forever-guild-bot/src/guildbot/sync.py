@@ -125,8 +125,9 @@ def legacy_milestones(db: Database, known_before: set[str]) -> list:
     for r in db.roster():
         holders[r["slug"]] = {"slug": r["slug"], "level": r["level"], "class_name": r["class_name"],
                               "skills": {p["profession"]: p["skill"] for p in db.professions_for(r["slug"])}}
+    player_of = {s: n for n, p in enumerate(board_players(db)) for s in p["slugs"]}   # claims, then likely alts
     found, handled = L.new_completions(completions, db.legacy_seen(), known_before, holders,
-                                       datetime.now(timezone.utc))
+                                       datetime.now(timezone.utc), player_of)
     db.add_legacy_seen(handled)
     return found
 

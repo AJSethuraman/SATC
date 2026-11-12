@@ -112,6 +112,7 @@ def test_a_legacy_point_is_announced_once_for_the_character_that_earned_it(tmp_p
     druid_at = now - timedelta(hours=2)
     druid = _done(61502, "Novice Druid", druid_at)              # earned by a Druid that is not in the guild
     client.ach = {"anduin-wrynn": [lair, druid], "judy-judgement": [lair, druid]}   # one account: same time on both
+    db.claim(1, ["anduin-wrynn", "judy-judgement"])     # and known to be one player (same time alone is not enough)
     res = asyncio.run(sync_guild(db, client, "g"))
     assert res.milestones == [("legacy", "anduin-wrynn", "Conqueror of the Lair", 684)]   # once, not once per character
     assert (61502, druid_at.isoformat(timespec="seconds")) not in db.legacy_seen()        # no Druid here: left open

@@ -226,3 +226,41 @@ def test_claiming_from_the_signup_menu_asks_too(tmp_path):
     asyncio.run(run())
     assert said[0][1].startswith("Linked: **Anduin Wrynn**")
     assert said[-1][0] == "followup" and said[-1][1].startswith("Is **Judy Judgement** yours too?")
+
+
+def test_a_raid_kill_posts_a_legacy_point_for_every_player_not_one_for_the_whole_raid(tmp_path):
+    """A boss kill completes a group Legacy point for the whole raid in the same second. Three players (three
+    claims, different account items) each get their own post: only a claim or a likely-alts group merges
+    characters into one post, never the same time alone."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    db.replace_legacy_catalog([(684, "Conqueror of the Lair", "Raids", "Raids", "Defeat Onyxia.", 6)], utcnow())
+    raiders = {"tanka-ironwall": (101, "Warrior", "mount:3111,toy:1761"),
+               "healia-dawnsong": (102, "Priest", ""),
+               "pewpew-farshot": (103, "Hunter", "mount:3111,mount:3130,toy:1761")}
+    for slug, (member, cls, items) in raiders.items():
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+        db.set_profile(slug, 60, cls, "Human", "Alliance", utcnow())
+        db.claim(member, [slug])
+        db.set_account_items(slug, items)
+        db.replace_achievements(slug, [], utcnow())
+    db.set_meta("legacy_seeded", utcnow())
+    kill_ms = int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()) * 1000
+    for slug in raiders:
+        db.replace_achievements(slug, [bz.Achievement(684, "Conqueror of the Lair", kill_ms, 1, 1, None)], utcnow())
+    found = SY.legacy_milestones(db, known_before=set(raiders))
+    assert sorted(slug for _kind, slug, _name, _cid in found) == sorted(raiders)
+    assert SY.legacy_milestones(db, known_before=set(raiders)) == []          # and never twice
+
+
+def test_saying_no_and_then_claiming_the_character_does_not_hide_the_rest_of_the_account():
+    """A member who said "not mine" about a likely alt and later claimed it owns it: the old answer no longer
+    splits the group, so the account's third character is still grouped with them."""
+    t = "2026-11-12T03:00:00+00:00"
+    done = [_c(s, 61502, "Novice Druid", "Classes", t) for s in ("main-one", "alt-two", "alt-three")]
+    items = {s: "mount:3111,toy:1761" for s in ("main-one", "alt-two", "alt-three")}
+    owners = {"main-one": 42, "alt-two": 42}
+    groups = L.likely_alts(done, items, owners, rejected={(42, "alt-two")})
+    assert [g["slugs"] for g in groups] == [["alt-three", "alt-two", "main-one"]]
+    assert L.likely_alts(done, items, {"main-one": 42}, rejected={(42, "alt-two")}) == []   # a live "no" still holds

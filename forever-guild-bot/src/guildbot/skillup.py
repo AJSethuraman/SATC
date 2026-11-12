@@ -90,13 +90,26 @@ def plan(skill: int, target: int, cands: list[dict]) -> dict:
     return {"steps": steps, "reached": s, "stuck": s < target}
 
 
-def shopping_list(steps: list[dict]) -> list[tuple[str, int]]:
-    """What to have in the bag, as the materials the recipes list (a Bronze Bar stays a Bronze Bar)."""
-    need: dict[str, int] = {}
+def shopping_list(steps: list[dict], makes: dict | None = None, maker: dict | None = None) -> list[tuple[str, int]]:
+    """What to have in the bag, as the materials the recipes list (a Bronze Bar stays a Bronze Bar).
+    A part an earlier step crafts (makes: recipe_id -> items per craft; maker: item_id -> recipe) is used up
+    first by later steps and is not on the list: you just made it."""
+    made_by = {}
+    for iid, rid in (maker or {}).items():
+        made_by.setdefault(rid, []).append(iid)
+    need: dict[str, float] = {}
+    stock: dict[int, float] = {}
     for st in steps:
-        for _iid, name, qty in st["recipe"]["reagents"]:
-            need[name] = need.get(name, 0) + qty * st["crafts"]
-    return sorted(need.items(), key=lambda kv: (-kv[1], kv[0]))
+        for iid, name, qty in st["recipe"]["reagents"]:
+            want = qty * st["crafts"]
+            used = min(stock.get(iid, 0.0), want)
+            stock[iid] = stock.get(iid, 0.0) - used
+            if want - used > 0:
+                need[name] = need.get(name, 0.0) + want - used
+        rid = st["recipe"]["recipe_id"]
+        for iid in made_by.get(rid, ()):
+            stock[iid] = stock.get(iid, 0.0) + st["crafts"] * max((makes or {}).get(rid, 1), 1)
+    return sorted(((n, ceil(q)) for n, q in need.items()), key=lambda kv: (-kv[1], kv[0]))
 
 
 def cheaper_gamble(skill: int, cands: list[dict], orange_pick: dict | None) -> dict | None:
