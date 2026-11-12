@@ -1,0 +1,3 @@
+# Test-only. The addon itself is plain Lua and runs in the game client.
+lupa>=2.0     # Lua 5.1 (the game's Lua) inside Python, to run the addon offline
+pytest
