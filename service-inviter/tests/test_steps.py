@@ -122,3 +122,18 @@ def test_the_big_button_still_summons_your_own_summon_customer():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterNext:GetText()") == "Summon Kaldrok"
+
+
+def test_the_big_button_only_summons_people_coming_to_where_you_stand():
+    """The owner, 12 Nov 2026: "like it knows that i can only summon to uc and to only let me try
+    to do that with the next person in queue?". You in UC, a second warlock in TB; the TB buyer
+    asked first, but the button skips them for the UC buyer."""
+    g = world({"player": ("Me", "WARLOCK", 60, "Undercity"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}, extra=KICK)
+    g.run('ServiceInviterDB.role = "lock"')
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    assert g.eval("ServiceInviterNext:GetText()") == "Summon Mirasha"
+    assert row(g, "summon")._shown is False          # Kaldrok's row: Grimtotem's customer
