@@ -1299,10 +1299,15 @@ OnCast = function(event, unit, spellID, spellName)
     local tname = UnitName and UnitName(unit .. "target")
     if tname and Ambiguate then tname = Ambiguate(tname, "none") end
     local job = tname and Jobs.Get(tname)
-    if not (job and job.status == "joined") and not event:find("SUCCE", 1, true) then
-        -- target is not someone waiting (stale/other target): use whoever has waited longest
+    -- With more than one warlock, a ritual is for a customer going to where THIS warlock stands.
+    local castZone = ZoneOf(unit)
+    local function forThisLock(j)
+        return j.status == "joined" and (not castZone or not j.dest or j.dest == castZone)
+    end
+    if not (job and forThisLock(job)) and not event:find("SUCCE", 1, true) then
+        -- target is not someone waiting for this warlock: use whoever has waited longest for them
         local waiting
-        for _, j in ipairs(jobs) do if j.status == "joined" then waiting = j break end end
+        for _, j in ipairs(jobs) do if forThisLock(j) then waiting = j break end end
         job = waiting or job
     end
     local who = job and job.name or tname or "someone"
@@ -1324,7 +1329,7 @@ OnCast = function(event, unit, spellID, spellName)
         local to = WhisperTo()
         if to and ((UnitName and UnitName("player")) ~= to) then
             local nxt
-            for _, j in ipairs(jobs) do if j.status == "joined" and j ~= job then nxt = j.name break end end
+            for _, j in ipairs(jobs) do if forThisLock(j) and j ~= job then nxt = j.name break end end
             local ok, err = pcall(SendWhisperTo, to, WhisperText(who, nxt))
             trace.whisper = ok and ("sent to " .. tostring(err)) or ("failed: " .. tostring(err))
         else

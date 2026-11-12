@@ -230,3 +230,18 @@ def test_warlock_tab_says_where_each_warlock_summons_to():
                "party2": ("Ashfel", "WARLOCK", 60, None)})
     g.run("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show() SETUP.Refresh()")
     assert g.eval("SETUP.locks:GetText()") == "Grimtotem: Thunder Bluff\nAshfel: where? (the game didn't say)"
+
+
+def test_a_warlocks_ritual_is_for_their_own_customer():
+    """Ashfel (Undercity) starts summoning: the alert is for the customer going to Undercity,
+    and says to pay Ashfel; Grimtotem's customer keeps waiting."""
+    g = world(TWO_LOCKS)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
+    alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
+    assert alerts == ["SUMMONING Mirasha! PAY Ashfel 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert g.status("Mirasha") in ("summoned", "arrived")
+    assert g.status("Kaldrok") == "joined"
