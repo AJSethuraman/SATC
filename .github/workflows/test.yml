@@ -305,9 +305,11 @@ jobs:
   # no required checks today (12 Nov 2026), and a rule naming "pytest (canon)"
   # would wait forever on a PR that never selects canon. A job skipped because
   # its project did not change counts as passing here; failed or cancelled does not.
+  # `!cancelled()` rather than `always()`: a run cancelled by a newer push has
+  # nothing to report, and its newer run carries the check for the new commit.
   passed:
     name: every selected test passed
-    if: always()
+    if: ${{ !cancelled() }}
     needs: [changes, pytest, mutation, mutation-pocketbook, excel-macros, pricing, copy]
     runs-on: ubuntu-latest
     steps:
