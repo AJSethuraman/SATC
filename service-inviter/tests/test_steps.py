@@ -137,3 +137,14 @@ def test_the_big_button_only_summons_people_coming_to_where_you_stand():
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterNext:GetText()") == "Summon Mirasha"
     assert row(g, "summon")._shown is False          # Kaldrok's row: Grimtotem's customer
+
+
+def test_trade_opens_by_itself_for_a_paid_lockpick_when_you_collect():
+    """Codex review, 12 Nov 2026: auto-trade only ever fired for summon customers, because only
+    they reach "arrived"; a lockpick customer you collect from, in range, never got a trade."""
+    g = lockpick_customer(price="20")
+    g.run('ServiceInviterDB.payee = { mode = "me" } ServiceInviterDB.autotrade = true')
+    g.run("CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()")
+    assert list(g.g.TRADES.values()) == ["party2"]
+    g.run("CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()")
+    assert len(g.g.TRADES) == 1                       # once, not every second

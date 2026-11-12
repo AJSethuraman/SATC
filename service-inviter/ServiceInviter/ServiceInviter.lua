@@ -460,7 +460,7 @@ local function JobWhere(job, g)
     g = g or GroupSnapshot()
     local def = Core.BY_KEY[job.service]
     if not def then return "" end
-    local p = Core.Provider(g, job.service, def.kind == "summon" and job.dest or nil)
+    local p = Core.Provider(g, job.service, job.dest)
     local what
     if def.kind == "summon" then what = "-> " .. Core.Short(job.dest or (p and p.zone) or "?")
     elseif def.kind == "portal" then what = "portal -> " .. Core.Short(job.dest or "?")
@@ -524,7 +524,7 @@ end
 local function PayeeFor(j, g)
     g = g or GroupSnapshot()
     local key = (j and j.service) or "summons"
-    local p = Core.Provider(g, key, key == "summons" and j and j.dest or nil)
+    local p = Core.Provider(g, key, j and j.dest or nil)
     local here = (j and j.dest) or (p and p.zone)
     local payee = Core.Payee(ServiceInviterDB, g, key, p, here)
     local me = UnitName and UnitName("player")
@@ -1311,7 +1311,7 @@ local function ArrivalText(job)
     if not job then return nil end
     local g = GroupSnapshot()
     local key = job.service or "summons"
-    local p = Core.Provider(g, key, key == "summons" and job.dest or nil)
+    local p = Core.Provider(g, key, job.dest)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
     if custom == MSG.OFFERMSG then custom = nil end
@@ -1630,7 +1630,7 @@ local function Preview(tab)
             if to then Say("When the summon starts, whisper to " .. to, WhisperText(PV.BUYER, nil)) end
         end
         local a = ArrivalText(job)
-        local p = Core.Provider(GroupSnapshot(), job.service, def.kind == "summon" and job.dest or nil)
+        local p = Core.Provider(GroupSnapshot(), job.service, job.dest)
         local here = (def.kind == "summon" and job.dest) or (p and p.zone)
         if a then Say("When they land, " .. chat, a)
         else Note("When they land: no message (nothing else on offer in " .. Core.Short(here or "?") .. ")") end
@@ -1909,7 +1909,11 @@ local function CheckArrivals()
                     if text and ch then pcall(SendChatMessage, text, ch) end
                 end
             end
-        elseif j.status == "arrived" and not blockedCalls.InitiateTrade and CollectsFor(j) and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
+        elseif not blockedCalls.InitiateTrade and not j.tradeTried and AutoTradeOn() and CollectsFor(j)
+            -- summons: just landed; anything else paid (portals, lockpicking...): in the group a
+            -- while, and they come to you (the Codex review, 12 Nov 2026)
+            and ((j.status == "arrived" and j.tarrive and now - j.tarrive < 60)
+              or (NextStep(j) == "serve" and JobPrice(j) and j.ts and now - j.ts < 600)) then
             local u = UnitFor(j.name)
             if u and CheckInteractDistance and CheckInteractDistance(u, 2) then
                 j.tradeTried = true
@@ -1971,7 +1975,7 @@ local function WhoLine(job, g)
     if job.status == "left" then return "Left the group" end
     local def = job.service and Core.BY_KEY[job.service]
     if not def then return "" end
-    local p = Core.Provider(g, job.service, def.kind == "summon" and job.dest or nil)
+    local p = Core.Provider(g, job.service, job.dest)
     if not p then return "Nobody in the group can do this now" end
     local who = p.me and "You" or Colored(p.name, p.class)
     return who .. (p.zone and (" in " .. p.zone) or "")

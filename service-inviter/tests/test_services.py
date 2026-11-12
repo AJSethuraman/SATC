@@ -233,3 +233,34 @@ def test_old_price_carries_over_to_summons(core):
 def test_nobody_to_do_it_means_not_on_sale(core):
     items = core.eval(f'ServiceInviterCore.OnSale({ON}, {group(ME_ORG)}, "Horde")')
     assert len(items) == 0
+
+
+# -- Codex review of 12 Nov 2026 ------------------------------------------------------------------
+
+def test_a_zero_price_is_free(core):
+    """1.x's `/si price 0` was free; Lua treats 0 as true, so it read as "0s" and "WTS"."""
+    assert core.eval('ServiceInviterCore.Setting({ price = 0 }, "summons").price') is None
+    assert core.eval('ServiceInviterCore.Setting({ services = { lockpick = { price = 0 } } }, "lockpick").price') is None
+    rogue = member("Me", "ROGUE", zone="Thunder Bluff", me=True)
+    text, _ = call(core, "BuildAd", "{ services = { lockpick = { on = true, price = 0 } } }", group(rogue), '"Horde"')
+    assert text == "Free lockpicking (at TB) | whisper inv"
+
+
+def test_every_mage_counts_for_portals(core):
+    """A level 40 mage listed first must not hide a level 60 mage's Thunder Bluff portal."""
+    low = member("Velenne", "MAGE", 40, zone="Orgrimmar")
+    high = member("Aldris", "MAGE", 60, zone="Undercity")
+    d = db(portals={"on": True, "price": 20})
+    text, _ = call(core, "BuildAd", d, group(ME_ORG, low, high), '"Horde"')
+    assert text == "WTS portals to UC 20s (at Org), portals to Org/TB 20s (at UC) | whisper inv"
+    # each city goes to a mage who can do it
+    assert core.eval(f'ServiceInviterCore.Provider({group(ME_ORG, low, high)}, "portals", "Thunder Bluff").name') == "Aldris"
+    assert core.eval(f'ServiceInviterCore.Provider({group(ME_ORG, low, high)}, "portals", "Undercity").name') == "Velenne"
+
+
+def test_the_welcome_names_the_mage_who_can_do_that_city(core):
+    low = member("Velenne", "MAGE", 40, zone="Orgrimmar")
+    high = member("Aldris", "MAGE", 60, zone="Undercity")
+    d = db(portals={"on": True, "price": 20})
+    assert welcome(core, group(ME_ORG, low, high), "portals", '"Thunder Bluff"', d=d) == \
+        "Hi Kaldrok! Aldris will do a portal to TB, come to Aldris in UC. 20s. Pay Aldris there."

@@ -70,6 +70,7 @@ function C.Setting(db, key)
     local price = def.price
     if key == "summons" and saved.price == nil and type(db) == "table" and type(db.price) == "number" then price = db.price end
     if saved.price ~= nil then price = saved.price or nil end
+    if type(price) == "number" and price <= 0 then price = nil end   -- 0 is free (Lua counts 0 as true)
     local function pick(field) if saved[field] ~= nil then return saved[field] end return def[field] end
     return {
         on = pick("on") and true or false,
@@ -120,18 +121,30 @@ function C.Providers(group, key)
 end
 -- The one to do it; with `where`, the one standing there (two warlocks in two places
 -- each summon to their own).
+-- For portals, `where` is the city they want: the first mage who can portal there.
 function C.Provider(group, key, where)
     local list = C.Providers(group, key)
+    if where and C.BY_KEY[key].kind == "portal" then
+        for _, m in ipairs(list) do
+            for _, city in ipairs(C.PortalCities(m)) do if city == where then return m end end
+        end
+        return nil
+    end
     if where then for _, m in ipairs(list) do if m.zone == where then return m end end end
     return list[1]
 end
 
 -- The cities a mage can portal a customer to: what you know (your spellbook) or, for a
 -- friend, what faction and level give; never the city they are standing in; minus any the
--- owner unticked.
+-- owner unticked. With no faction, either faction's list (the city names differ).
 function C.PortalCities(mage, faction, untick)
     local out = {}
-    for _, pl in ipairs(C.PORTALS[faction] or {}) do
+    local list = C.PORTALS[faction]
+    if not list then
+        list = {}
+        for _, f in ipairs({ "Horde", "Alliance" }) do for _, pl in ipairs(C.PORTALS[f]) do list[#list + 1] = pl end end
+    end
+    for _, pl in ipairs(list) do
         local city, lvl = pl[1], pl[2]
         local has
         if mage.me and mage.knows then has = mage.knows[C.PORTAL_SPELL[city]] and true or false
@@ -158,16 +171,21 @@ function C.OnSale(db, group, faction)
                     out[#out + 1] = { key = def.key, def = def, setting = st, provider = p, where = p.zone }
                 end
             end
+        elseif st.on and def.kind == "portal" then
+            -- every mage counts: each sells the cities no mage before them already covers
+            local covered = {}
+            for _, p in ipairs(C.Providers(group, def.key)) do
+                local cities = {}
+                for _, city in ipairs(C.PortalCities(p, faction, st.untick)) do
+                    if not covered[city] then covered[city] = true cities[#cities + 1] = city end
+                end
+                if #cities > 0 then
+                    out[#out + 1] = { key = def.key, def = def, setting = st, provider = p, where = p.zone, cities = cities }
+                end
+            end
         elseif st.on then
             local p = C.Provider(group, def.key)
-            if p then
-                local item = { key = def.key, def = def, setting = st, provider = p, where = p.zone }
-                if def.kind == "portal" then
-                    item.cities = C.PortalCities(p, faction, st.untick)
-                    if #item.cities == 0 then item = nil end
-                end
-                if item then out[#out + 1] = item end
-            end
+            if p then out[#out + 1] = { key = def.key, def = def, setting = st, provider = p, where = p.zone } end
         end
     end
     return out
@@ -265,7 +283,7 @@ end
 function C.JoinWelcome(db, group, faction, key, name, dest)
     local def = C.BY_KEY[key]
     if not def then return nil, "unknown service" end
-    local p = C.Provider(group, key, def.kind == "summon" and dest or nil)
+    local p = C.Provider(group, key, (def.kind == "summon" or def.kind == "portal") and dest or nil)
     if not p then return nil, "nobody in the group can do it any more" end
     local st = C.Setting(db, key)
     local me
