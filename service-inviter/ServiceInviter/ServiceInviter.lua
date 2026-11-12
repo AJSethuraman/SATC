@@ -1,4 +1,4 @@
--- Service Inviter v2.0.3
+-- Service Inviter v2.0.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1676,13 +1676,18 @@ local setupWin
 -- Pick list for "who gets paid": a titled menu with plain choices, the group listed below.
 -- One shared frame; the box keeps working for a typed name.
 local picker
-local function DefaultPayeeText()
+-- The default payee in plain words, naming who that is for this service.
+local DOER = { WARLOCK = "the warlock", MAGE = "the mage", ROGUE = "the rogue",
+               PRIEST = "the priest", DRUID = "the druid", PALADIN = "the paladin" }
+local function DefaultPayeeText(key)
     local d = type(ServiceInviterDB.payee) == "table" and ServiceInviterDB.payee or {}
     if d.mode == "me" then return "you" end
     if d.mode == "name" and d.name and d.name ~= "" then return d.name end
-    return "whoever is where they land"
+    local def = key and Core.BY_KEY[key]
+    local doer = def and DOER[def.class] or "whoever does it"
+    return doer .. ", or you if you're with them"
 end
-local function ShowPicker(box, withDefaults, title)
+local function ShowPicker(box, withDefaults, title, key)
     if not picker then
         local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
         picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent, template)
@@ -1709,10 +1714,10 @@ local function ShowPicker(box, withDefaults, title)
     picker.title:SetText(title or "Who gets paid?")
     local me = UnitName and UnitName("player") or "me"
     local entries = {}
-    picker.sub:SetText(withDefaults and ("General tab says: " .. DefaultPayeeText()) or "")
+    picker.sub:SetText(withDefaults and ("Default: " .. DefaultPayeeText(key)) or "")
     local top = withDefaults and 44 or 30
     if withDefaults then
-        entries[#entries + 1] = { "Same as General tab", "" }
+        entries[#entries + 1] = { "Default", "" }
         entries[#entries + 1] = { "Me (" .. me .. ")", "me" }
     else
         entries[#entries + 1] = { "Me (" .. me .. ")", me }
@@ -1742,7 +1747,7 @@ local function ShowPicker(box, withDefaults, title)
     picker:ClearAllPoints() picker:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -2)
     picker:Show()
 end
-local function PickButton(parent, box, withDefaults, title)
+local function PickButton(parent, box, withDefaults, title, key)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(24, 24)
     b:SetPoint("LEFT", box, "RIGHT", 2, 0)
@@ -1751,7 +1756,7 @@ local function PickButton(parent, box, withDefaults, title)
         b:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
         b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
     end
-    b:SetScript("OnClick", function() ShowPicker(box, withDefaults, title) end)
+    b:SetScript("OnClick", function() ShowPicker(box, withDefaults, title, key) end)
     return b
 end
 
@@ -1853,7 +1858,7 @@ local function BuildSetupUI()
         end
         Label(x + 4, y - dy, "Who gets paid:")
         local pb = Box(k .. "payee", x + 112, y - dy + 4, 130, 40)
-        PickButton(page, pb, true, "Who gets paid for " .. def.label .. "?")
+        PickButton(page, pb, true, "Who gets paid for " .. def.label .. "?", key)
         Label(x + 276, y - dy - 1, "blank = General tab", "GameFontHighlightSmall")
         return dy + 28
     end
@@ -1911,8 +1916,8 @@ local function BuildSetupUI()
         if named then checks.autotrade:Disable() else checks.autotrade:Enable() end
         if checks.autotrade.label then checks.autotrade.label:SetFontObject(named and "GameFontDisable" or "GameFontHighlight") end
     end
-    Radio("pay", "pay_place", R, -74, "Whoever is where the customer ends up", SyncTradeBox)
-    Label(R + 30, -100, "You if you're there, otherwise the person doing the service.", "GameFontHighlightSmall")
+    Radio("pay", "pay_place", R, -74, "Whoever does it (the warlock, mage, rogue...)", SyncTradeBox)
+    Label(R + 30, -100, "or you, if you're standing with them when the customer arrives.", "GameFontHighlightSmall")
     Radio("pay", "pay_me", R, -116, "Always me", SyncTradeBox)
     Radio("pay", "pay_name", R, -142, "Always:", SyncTradeBox)
     local pn = Box("payname", R + 100, -144, 160, 40)
@@ -2414,5 +2419,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { ShowPicker = function(box, d, t) return ShowPicker(box, d, t) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

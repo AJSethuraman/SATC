@@ -220,7 +220,7 @@ def test_payee_pick_list_offers_the_group_and_fills_the_box():
              BOX = ServiceInviter_Test.SetupBoxes().svc_summons_payee
              ServiceInviter_Test.ShowPicker(BOX, true)''')
     labels = [g.eval(f"ServiceInviterPicker.buttons[{i}]:GetText()") for i in range(1, 5)]
-    assert labels == ["Same as General tab", "Me (Me)",
+    assert labels == ["Default", "Me (Me)",
                       "Grimtotem  (Thunder Bluff)", "Ashfel  (Undercity)"]
     g.run("ServiceInviterPicker.buttons[4]._scripts.OnClick()")
     assert g.eval("BOX:GetText()") == "Ashfel"
@@ -252,7 +252,8 @@ def test_payee_pick_list_alone_says_where_party_members_go():
     """The owner, seeing it alone: "wtf does this mean". It has a title and says what's missing."""
     g = world({"player": ME_ORG_SHAMAN})
     g.run('''SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show()
-             ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().svc_summons_payee, true, "Who gets paid for summons?")''')
+             ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().svc_summons_payee, true, "Who gets paid for summons?", "summons")''')
     assert g.eval("ServiceInviterPicker.title:GetText()") == "Who gets paid for summons?"
     assert g.eval("ServiceInviterPicker.note:GetText()") == "Party and raid members show up here."
-    assert g.eval("ServiceInviterPicker.sub:GetText()") == "General tab says: whoever is where they land"
+    # the owner: "so basically that would mean the warlock in general or what i am confused"
+    assert g.eval("ServiceInviterPicker.sub:GetText()") == "Default: the warlock, or you if you're with them"

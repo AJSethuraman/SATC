@@ -71,7 +71,7 @@ for i, name in enumerate(["General", "Warlock", "Mage", "Rogue", "Buffs", "Adver
 for name, before in [("picker_alone", ""), ("picker_in_a_group", GROUP)]:
     L = load(before)
     L.execute("""S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(2)
-        ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().svc_summons_payee, true, "Who gets paid for summons?")""")
+        ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().svc_summons_payee, true, "Who gets paid for summons?", "summons")""")
     scenes[name] = export(L, L.globals().ServiceInviterPicker)
 
 BUSY = '''local J = ServiceInviter_Test.Jobs
