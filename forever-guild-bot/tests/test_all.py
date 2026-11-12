@@ -1712,3 +1712,45 @@ def test_an_event_discord_refused_to_close_is_retried_until_it_is_gone(tmp_path)
         await bot._end_old_raids()                                        # next minute: the event is removed
     asyncio.run(run())
     assert deleted == [30] and db.events_pending() == []
+
+
+def test_a_deleted_raid_channel_does_not_count_as_a_closed_event(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    start = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(timespec="seconds")
+    rid = db.create_raid("Test Raid", start, 5, 9)
+    db.set_raid_posted(rid, 10, 20, 30)
+    deleted = []
+
+    class Ev:
+        status = discord.EventStatus.scheduled
+
+        async def delete(self):
+            deleted.append(30)
+
+    class Guild:
+        async def fetch_scheduled_event(self, eid):
+            return Ev()
+
+    async def gone(cid):
+        raise discord.NotFound(SimpleNamespace(status=404, reason="gone"), "Unknown Channel")
+    servers = []
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: None
+        bot.fetch_channel = gone                                          # the raid channel was deleted
+        bot._only_guild = lambda: servers[0] if servers else None
+        bot.get_user = lambda uid: _User([])
+        assert await bot.finish_raid(rid, remove_event=True) is True
+        assert deleted == [] and len(db.events_pending()) == 1            # server unknown: not "gone", kept to retry
+        await bot._end_old_raids()
+        assert len(db.events_pending()) == 1
+        servers.append(Guild())                                           # the bot's one server
+        await bot._end_old_raids()
+    asyncio.run(run())
+    assert deleted == [30] and db.events_pending() == []

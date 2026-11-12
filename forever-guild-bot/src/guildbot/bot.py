@@ -1152,26 +1152,38 @@ class GuildBot(discord.Client):
         return True
 
     async def _raid_guild(self, raid):
-        """The server a raid lives in: the configured one, or else the raid channel's own server
-        (DISCORD_GUILD_ID is optional)."""
+        """The server a raid lives in: the configured one, else the raid channel's own server (DISCORD_GUILD_ID
+        is optional), else the only server the bot is in (the raid channel may have been deleted)."""
         if self.cfg.discord_guild_id:
             guild = self.get_guild(self.cfg.discord_guild_id)
             if guild:
                 return guild
         if raid["channel_id"]:
-            chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
-            return getattr(chan, "guild", None)
-        return None
+            try:
+                chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+                if getattr(chan, "guild", None):
+                    return chan.guild
+            except discord.NotFound:
+                pass                                   # channel deleted: the event may still be there
+        return self._only_guild()
+
+    def _only_guild(self):
+        return self.guilds[0] if len(self.guilds) == 1 else None
 
     async def _close_event(self, raid) -> bool:
         """End the raid's Discord event if it is running, or remove it if it never started. True when done
-        (or there is nothing to close); False when Discord failed, so it can be tried again."""
+        (or there is nothing to close); False when Discord failed or the server can't be found, so it is
+        tried again. Only Discord saying the event itself is gone counts as gone."""
         if not raid["discord_event_id"]:
             return True
         try:
             guild = await self._raid_guild(raid)
-            if not guild:
-                return False
+        except discord.HTTPException:
+            log.exception("could not find the server for raid %s; will retry", raid["id"])
+            return False
+        if not guild:
+            return False
+        try:
             ev = await guild.fetch_scheduled_event(raid["discord_event_id"])
             if ev.status == discord.EventStatus.active:
                 await ev.end()
