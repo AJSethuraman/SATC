@@ -1170,10 +1170,12 @@ class GuildBot(discord.Client):
         if not raid or raid["status"] not in ("open", "closed"):
             return False
         with self.busy(raid_id):
+            if raid["status"] == "open" and datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
+                db.record_attendance(raid_id)      # it started, but the once-a-minute job hadn't marked it yet
             roster = R.roster_summary(raid, db.signups(raid_id))
             if remove_event and raid["discord_event_id"]:
                 try:
-                    guild = self.get_guild(self.cfg.discord_guild_id) if self.cfg.discord_guild_id else None
+                    guild = await self._raid_guild(raid)
                     if guild:
                         ev = await guild.fetch_scheduled_event(raid["discord_event_id"])
                         if ev.status == discord.EventStatus.active:
@@ -1185,17 +1187,8 @@ class GuildBot(discord.Client):
                 except discord.HTTPException:
                     log.exception("could not close the event for raid %s", raid_id)
             db.mark_ended(raid_id)
-            if raid["channel_id"] and raid["message_id"]:
-                try:
-                    chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
-                    msg = await chan.fetch_message(raid["message_id"])
-                    await msg.edit(embed=raid_embed(db, db.get_raid(raid_id)), view=None)
-                    if getattr(msg, "pinned", True):
-                        await msg.unpin()
-                except discord.NotFound:
-                    pass
-                except discord.HTTPException:
-                    log.exception("could not update the post for raid %s", raid_id)
+            if not await self._tidy_post(raid_id):
+                db.set_post_pending(raid_id, True)        # retried by the minute job until Discord takes it
         for uid in dict.fromkeys(dm_ids):
             await self.dm_user(uid, (note + "\n" if note else "") + roster)
         try:
@@ -1204,13 +1197,51 @@ class GuildBot(discord.Client):
             log.exception("could not start the next raid after %s", raid_id)
         return True
 
+    async def _raid_guild(self, raid):
+        """The server a raid lives in: the configured one, or else the raid channel's own server
+        (DISCORD_GUILD_ID is optional)."""
+        if self.cfg.discord_guild_id:
+            guild = self.get_guild(self.cfg.discord_guild_id)
+            if guild:
+                return guild
+        if raid["channel_id"]:
+            chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+            return getattr(chan, "guild", None)
+        return None
+
+    async def _tidy_post(self, raid_id: int) -> bool:
+        """Mark an ended raid's post COMPLETED, take the buttons off and unpin it. True when done (or the
+        post is gone); False when Discord failed, so it can be tried again."""
+        raid = self.db.get_raid(raid_id)
+        if not (raid["channel_id"] and raid["message_id"]):
+            return True
+        try:
+            chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
+            msg = await chan.fetch_message(raid["message_id"])
+            await msg.edit(embed=raid_embed(self.db, raid), view=None)
+            if getattr(msg, "pinned", True):
+                await msg.unpin()
+        except discord.NotFound:
+            return True
+        except discord.HTTPException:
+            log.exception("could not update the post for raid %s; will retry", raid_id)
+            return False
+        return True
+
     async def _end_old_raids(self) -> None:
-        """Three hours after a raid started, mark its post COMPLETED and unpin it. The post stays as the record."""
+        """Three hours after a raid started, mark its post COMPLETED and unpin it. The post stays as the record.
+        Posts that Discord refused to update earlier are retried here."""
         for raid in self.db.closed_ended_before(datetime.now(timezone.utc), R.END_AFTER_HOURS):
             try:
                 await self.finish_raid(raid["id"], remove_event=False)
             except Exception:
                 log.exception("could not clean up raid %s", raid["id"])
+        for raid in self.db.posts_pending():
+            try:
+                if await self._tidy_post(raid["id"]):
+                    self.db.set_post_pending(raid["id"], False)
+            except Exception:
+                log.exception("could not retry the post for raid %s", raid["id"])
 
     async def _handled_by_hand(self, raid, what: str) -> None:
         """Someone removed a raid's post or event in Discord itself: close the raid and tell its organizer."""

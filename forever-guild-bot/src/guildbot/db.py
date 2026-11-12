@@ -221,6 +221,10 @@ class Database:
         if "series_id" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(raids)")}:
             self.conn.execute("ALTER TABLE raids ADD COLUMN series_id INTEGER")       # created before repeating raids
             self.conn.commit()
+        if "post_pending" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(raids)")}:
+            # 1 = the raid has ended but its post could not be marked COMPLETED and unpinned yet: retry it
+            self.conn.execute("ALTER TABLE raids ADD COLUMN post_pending INTEGER NOT NULL DEFAULT 0")
+            self.conn.commit()
         if "wanted" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(signups)")}:
             self.conn.execute("ALTER TABLE signups ADD COLUMN wanted TEXT")     # database created before the bench queue
             self.conn.commit()
@@ -917,6 +921,14 @@ class Database:
         self.conn.execute("UPDATE raids SET status='ended' WHERE id=?", (raid_id,))
         self._expire_raid_offers(raid_id)
         self.conn.commit()
+
+    def set_post_pending(self, raid_id, pending: bool) -> None:
+        self.conn.execute("UPDATE raids SET post_pending=? WHERE id=?", (1 if pending else 0, raid_id))
+        self.conn.commit()
+
+    def posts_pending(self):
+        """Ended raids whose post still shows the old state because Discord failed when we tried."""
+        return self.conn.execute("SELECT * FROM raids WHERE status='ended' AND post_pending=1").fetchall()
 
     def raid_by_message(self, message_id: int):
         return self.conn.execute("SELECT * FROM raids WHERE message_id=?", (message_id,)).fetchone()
