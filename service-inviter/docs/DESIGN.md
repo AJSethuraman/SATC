@@ -38,8 +38,20 @@ mage leaves, portal invites stop.
   customer has to come to the mage. Port requests only, never summon requests.
 - **Food & water, lockpicking, stones, buffs** need the customer to come to the provider.
 
-**Who gets paid** defaults to whoever does the service ({payee} in messages). "I collect the
-payment" overrides that and sends everything to you.
+**Who gets paid** is set at two levels. The owner, 12 Nov 2026: "otherwise pay could be anyone,
+not just the warlock ... what happens when they are summoned somewhere without me/the guy, it is
+possible that individual tabs need an override to who the payee is, but payment can be the
+overall facilitator of defaults ... or it is zone dependent".
+
+- **Default** (General tab), one of:
+  - *Whoever is where the customer ends up* (the default): you if you're in the zone the customer
+    arrives in, otherwise the person doing the service. Someone is always there to collect: the
+    warlock at a summon, the mage at a portal, the rogue at a lockbox.
+  - *Always me*.
+  - *Always* a named person: any group member, or a typed name.
+- **Per service**: "Default", or any of the above for that service only.
+- {payee} in every message is filled from this, so customers are told who to pay.
+- Trade opens by itself only when the payee is you and the customer is in range.
 
 ## Facts the design relies on, and where they come from
 
@@ -69,16 +81,19 @@ possible (see "Checked in game").
 
 ## Tabs
 
-By class, because a provider is a person of a class: **Inviting** (channels, matching, what's
-being sold right now), **Warlock**, **Mage**, **Rogue**, **Buffs** (free extras by default),
-**Payment** (who collects, the messages). Each class tab lists who in the group can do it.
+By class, because a provider is a person of a class: **General**, **Warlock**, **Mage**, **Rogue**,
+**Buffs** (free unless priced). Each class tab lists who in the group can do it and where they are.
+
+General holds inviting *and* payment together. The owner: "payment and inviting can be in one tab
+because there are downstream impacts from both": what someone asked for sets the {service},
+{price} and {payee} in the welcome they get on joining.
 
 ## Build order
 
 Each slice ships on its own and keeps every earlier test passing.
 
 1. Services: the per-service settings (offer, price/free, invite, buyers say), the tabbed window,
-   Payment with {payee}. Summons behave as in 1.6.0.
+   the payee rules (default plus per-service override) and {payee}. Summons behave as in 1.6.0.
 2. Mage, rogue and warlock services: portals (spellbook for you, faction and level for a friend),
    food & water, lockpicking, stones; matching tested against real request lines.
 3. Providers: services follow who is in the group; summons go to the warlock's zone.
