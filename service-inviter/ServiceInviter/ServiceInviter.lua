@@ -529,27 +529,10 @@ local function PayeeFor(j, g)
     return payee, (payee == me), p
 end
 local function CollectsFor(j) local _, mine = PayeeFor(j) return mine end
-local function PriceParts(total)
-    total = math.floor(tonumber(total) or Price())
-    return math.floor(total / 100), total % 100
-end
--- {price} in messages: "25S" / "1G 25S" / "2G"   and   "25 SILVER" / "1 GOLD 25 SILVER" / "2 GOLD"
-local function PriceShort(total)
-    local g, sv = PriceParts(total)
-    if g == 0 and sv == 0 then return "FREE" end
-    local t = {}
-    if g > 0 then t[#t + 1] = g .. "G" end
-    if sv > 0 then t[#t + 1] = sv .. "S" end
-    return table.concat(t, " ")
-end
-local function PriceLong(total)
-    local g, sv = PriceParts(total)
-    if g == 0 and sv == 0 then return "FREE" end
-    local t = {}
-    if g > 0 then t[#t + 1] = g .. " GOLD" end
-    if sv > 0 then t[#t + 1] = sv .. " SILVER" end
-    return table.concat(t, " ")
-end
+-- {price} in every message you write: the same everywhere, the way the ad says it ("30s",
+-- "1g50s", "free"). The owner, 12 Nov 2026, seeing "30s" in the welcome and "30 SILVER" in the
+-- summon alert: "why does price say 30s on one and 30 silver on the other".
+local function PriceText(silver) return Core.Money(silver) or "free" end
 -- "1g 25s", "2g", "150s", "25" (a bare number = silver)  ->  silver, or nil
 local function ParsePrice(text)
     text = (text or ""):lower()
@@ -855,7 +838,7 @@ local function WelcomeText(name, job)
     if custom and custom ~= "" and custom ~= DEFAULT_WELCOME then
         local key = (job and job.service) or "summons"
         local payee, mine = PayeeFor(job, g)
-        local price = Core.Money(JobPrice(job)) or "FREE"
+        local price = PriceText(JobPrice(job))
         local label = Core.BY_KEY[key].label
         custom = custom:gsub("{name}", function() return name end):gsub("{price}", function() return price end)
         custom = custom:gsub("{payee}", function() return mine and "me" or payee end):gsub("{service}", function() return label end)
@@ -1459,7 +1442,7 @@ local function AlertMsg(name, job)
     local payee, mine = PayeeFor(job or { service = "summons" })
     local price = JobPrice(job or { service = "summons" })
     m = m:gsub("{name}", function() return name end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
-    return (m:gsub("{price}", function() return price and PriceLong(price) or "NOTHING (IT'S FREE)" end))
+    return (m:gsub("{price}", function() return PriceText(price) end))
 end
 
 ----------------------------------------------------------------------

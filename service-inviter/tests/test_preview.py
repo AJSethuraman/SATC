@@ -32,7 +32,7 @@ def test_warlock_tab_shows_the_welcome_and_the_raid_alert_for_the_real_warlock()
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     lines = preview(g, "Warlock")
     assert has(lines, "When they join, party chat: Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land.")
-    assert has(lines, "When the summon starts, party chat: SUMMONING Kaldrok! PAY Grimtotem 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!")
+    assert has(lines, "When the summon starts, party chat: SUMMONING Kaldrok! PAY Grimtotem 25s IN THE TRADE WINDOW ON ARRIVAL!")
     assert has(lines, "When you invite, your chat only: invited Kaldrok")
     nothing_happened(g)
 
@@ -139,3 +139,17 @@ def test_every_tab_has_a_preview_button():
     assert w.preview is not None
     for tab in ("General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise"):
         assert preview(g, tab)
+
+
+def test_price_reads_the_same_in_the_welcome_and_the_summon_alert():
+    """The owner, 12 Nov 2026: "why does price say 30s on one and 30 silver on the other"."""
+    g = world({"player": ME_ORG, "party1": LOCK_TB}, "summons = { price = 30 }")
+    g.run('ServiceInviterDB.welcomemsg = "THE COST IS {price}." ServiceInviterDB.alertmsg = "PAY {payee} {price}!"')
+    lines = preview(g, "Warlock")
+    assert has(lines, "THE COST IS 30s.") and has(lines, "PAY Grimtotem 30s!")
+    g.run("ServiceInviterDB.services.summons.price = 150")
+    lines = preview(g, "Warlock")
+    assert has(lines, "THE COST IS 1g50s.") and has(lines, "PAY Grimtotem 1g50s!")
+    g.run("ServiceInviterDB.services.summons.price = false")
+    lines = preview(g, "Warlock")
+    assert has(lines, "THE COST IS free.") and has(lines, "PAY Grimtotem free!")

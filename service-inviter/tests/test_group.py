@@ -243,7 +243,7 @@ def test_a_warlocks_ritual_is_for_their_own_customer():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25s IN THE TRADE WINDOW ON ARRIVAL!"]
     assert g.status("Mirasha") in ("summoned", "arrived")
     assert g.status("Kaldrok") == "joined"
 
@@ -313,7 +313,7 @@ def test_the_summon_alert_carries_the_icon():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 SILVER IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25s IN THE TRADE WINDOW ON ARRIVAL!"]
 
 
 def test_icons_are_never_put_over_heads():
