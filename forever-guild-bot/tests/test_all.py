@@ -1672,3 +1672,43 @@ def test_a_post_discord_refused_to_update_is_retried_until_it_is_marked_complete
     asyncio.run(run())
     assert db.posts_pending() == [] and msg.unpinned == 1
     assert msg.edits[-1]["embed"].title.startswith("COMPLETED")
+
+
+def test_an_event_discord_refused_to_close_is_retried_until_it_is_gone(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    start = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(timespec="seconds")
+    rid = db.create_raid("Test Raid", start, 5, 9)
+    db.set_raid_posted(rid, 10, 20, 30)
+    deleted = []
+    fails = [1]                                                           # Discord down for the /raid-end attempt
+
+    class Ev:
+        status = discord.EventStatus.scheduled
+
+        async def delete(self):
+            if fails[0]:
+                fails[0] -= 1
+                raise discord.HTTPException(SimpleNamespace(status=503, reason="down"), "down")
+            deleted.append(30)
+
+    class Guild:
+        async def fetch_scheduled_event(self, eid):
+            return Ev()
+
+    chan = _Chan(_Msg())
+    chan.guild = Guild()
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: chan
+        bot.get_user = lambda uid: _User([])
+        assert await bot.finish_raid(rid, remove_event=True) is True
+        assert db.get_raid(rid)["status"] == "ended" and len(db.events_pending()) == 1 and deleted == []
+        await bot._end_old_raids()                                        # next minute: the event is removed
+    asyncio.run(run())
+    assert deleted == [30] and db.events_pending() == []
