@@ -32,8 +32,10 @@ def find(before_levels: dict, after_levels: dict, before_skills: dict, after_ski
     return out
 
 
-def line(kind: str, name: str, class_name: str | None, detail: str, value: int) -> str:
-    who = f"**{name}**" + (f" ({class_name})" if class_name else "")
+def line(kind: str, name: str, class_name: str | None, detail: str, value: int, owner: int | None = None) -> str:
+    """One announcement line. `owner` is the Discord member who claimed the character: shown by name
+    (posted with pings switched off), so claimed characters get credited to their player."""
+    who = f"**{name}**" + (f" ({class_name})" if class_name else "") + (f" · <@{owner}>" if owner else "")
     if kind == "legacy":                                   # detail is the challenge, value its id
         return f"{who} earned a Legacy point: {detail}."
     return f"{who} hit level {value}." if kind == "level" else f"{who} reached {value} in {detail}."

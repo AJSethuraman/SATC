@@ -484,6 +484,15 @@ HELP_OFFICER = ("Officers", [
 ])
 
 
+CLAIM_HINT = ("Not claimed yet? `/link` your character to sign up for raids, see your Legacy points, "
+              "and get your name on your shout-outs in the achievements channel.")
+
+
+def claim_hint(db: Database, discord_id: int) -> str | None:
+    """A line for people who haven't claimed a character, in replies only they see. Never sent on its own."""
+    return None if db.characters_for(discord_id) else CLAIM_HINT
+
+
 def legacy_embed(db: Database, chars, who: str) -> discord.Embed:
     """The /legacy card for one member's claimed characters."""
     slugs = [c["slug"] for c in chars]
@@ -815,10 +824,10 @@ class GuildBot(discord.Client):
             for kind, slug, detail, value in batch:
                 c = self.db.find_character(slug)
                 if c:
-                    lines.append(M.line(kind, R.full_name(c), c["class_name"], detail, value))
+                    lines.append(M.line(kind, R.full_name(c), c["class_name"], detail, value, self.db.owner_of(slug)))
             try:
                 if lines:
-                    await chan.send("\n".join(lines))
+                    await chan.send("\n".join(lines), allowed_mentions=discord.AllowedMentions.none())   # credit, no ping
             except discord.HTTPException:
                 log.exception("could not post guild achievements; will retry next sync")
                 return
@@ -1421,7 +1430,9 @@ def register_commands(bot: GuildBot) -> None:
         rows = db.roster(class_name, min_level)
         lines = [f"**{R.full_name(r)}**: L{r['level'] or '?'} {r['class_name'] or ''}"
                  + (f", ilvl {r['item_level']}" if r["item_level"] else "") for r in rows]
-        e = discord.Embed(title=f"Roster ({len(rows)})", description=clip(lines, 4000) or "Nobody found.")
+        hint = claim_hint(db, interaction.user.id)
+        e = discord.Embed(title=f"Roster ({len(rows)})",
+                          description=((hint + "\n\n") if hint else "") + (clip(lines, 3700) or "Nobody found."))
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at'), key="profile_at"))
         await interaction.response.send_message(embed=e, ephemeral=True)
 
@@ -1605,8 +1616,11 @@ def register_commands(bot: GuildBot) -> None:
         await interaction.response.send_message(embed=e, ephemeral=True)
 
     async def send_help(interaction: discord.Interaction):
-        await interaction.response.send_message(
-            embed=help_embed(bool(interaction.permissions.manage_events)), ephemeral=True)
+        e = help_embed(bool(interaction.permissions.manage_events))
+        hint = claim_hint(db, interaction.user.id)
+        if hint:
+            e.description = hint
+        await interaction.response.send_message(embed=e, ephemeral=True)
 
     @tree.command(name="help", description="Every command, in a message only you can see")
     async def help_cmd(interaction: discord.Interaction):
@@ -1956,7 +1970,9 @@ def register_commands(bot: GuildBot) -> None:
             ts = int(datetime.fromisoformat(r["starts_at"]).timestamp())
             url = f"https://discord.com/channels/{interaction.guild_id}/{r['channel_id']}/{r['message_id']}"
             lines.append(f"#{r['id']} [{r['title']}]({url}) <t:{ts}:F>")
-        await interaction.response.send_message("\n".join(lines) or "No upcoming raids.", ephemeral=True)
+        text = "\n".join(lines) or "No upcoming raids."
+        hint = claim_hint(db, interaction.user.id)
+        await interaction.response.send_message(text + (f"\n\n{hint}" if hint else ""), ephemeral=True)
 
     @tree.command(name="guild-sync", description="Refresh guild data from Blizzard now")
     @app_commands.guild_only()

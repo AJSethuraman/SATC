@@ -1352,7 +1352,7 @@ def test_milestones_count_as_posted_only_after_discord_accepts_them(tmp_path):
     posts, fail = [], {"n": 1}
 
     class Chan:
-        async def send(self, text):
+        async def send(self, text, **kw):
             if fail["n"]:
                 fail["n"] -= 1
                 raise discord.HTTPException(SimpleNamespace(status=500, reason="down"), "down")

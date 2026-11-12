@@ -236,3 +236,39 @@ def test_last_login_and_item_level_are_kept_with_history_and_inactive_list(tmp_p
     db.conn.execute("UPDATE characters SET last_login_at=NULL WHERE slug='anduin-wrynn'")
     db.conn.commit()
     assert [r["slug"] for r in db.inactive("2026-11-01T00:00:00+00:00")] == ["judy-judgement", "anduin-wrynn"]   # unknown last
+
+
+def test_milestone_posts_credit_the_player_who_claimed_without_pinging(tmp_path):
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    db.claim(77, ["anduin-wrynn"])
+    db.new_milestones([("level", "anduin-wrynn", "", 60), ("level", "judy-judgement", "", 50)], utcnow())
+    posts = []
+
+    class Chan:
+        async def send(self, text, allowed_mentions=None):
+            posts.append((text, allowed_mentions))
+    bot = GuildBot(load(dict(CFG, ACHIEVEMENTS_CHANNEL_ID="123")), db, blizzard=None)
+    bot.get_channel = lambda cid: Chan()
+    asyncio.run(bot.announce_milestones())
+    text, mentions = posts[0]
+    assert "**Anduin Wrynn** (Paladin) · <@77> hit level 60." in text      # claimed: the player gets the credit
+    assert "**Judy Judgement** (Paladin) hit level 50." in text                   # unclaimed: just the character
+    assert mentions.users is False and mentions.everyone is False                 # shown by name, nobody pinged
+
+
+def test_people_without_a_claim_see_what_claiming_gets_them_in_private_replies(tmp_path):
+    from guildbot.bot import GuildBot, CLAIM_HINT
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    bot = GuildBot(load(CFG), db, blizzard=None)
+    ix, sent = _ix(42)
+    raids = bot.tree.get_command("raids").callback
+    asyncio.run(raids(ix))
+    assert sent[-1][0].endswith(CLAIM_HINT) and sent[-1][2] is True
+    asyncio.run(bot.tree.get_command("help").callback(ix))
+    assert sent[-1][1].description == CLAIM_HINT and sent[-1][2] is True
+    db.claim(42, ["anduin-wrynn"])
+    asyncio.run(raids(ix))
+    assert CLAIM_HINT not in sent[-1][0]                                          # claimed: no more hint
