@@ -1,4 +1,4 @@
--- Service Inviter v2.0.7
+-- Service Inviter v2.0.8
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -82,6 +82,7 @@ local DEFAULTS = {
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
+    marks     = true,    -- a raid icon on whoever does a service, in party/raid chat and over their head
     welcome   = true,    -- send a message to the group when an invited player joins
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
@@ -315,6 +316,8 @@ local function MyKnownPortals(cls)
     end
     return any and knows or nil
 end
+local MARK_ORDER = { 1, 3, 4, 5, 6, 2, 7, 8 }   -- star, diamond, triangle, moon, square, circle, cross, skull
+local assignedMarks = {}                         -- name -> icon we gave them, kept steady while they stay
 local function GroupSnapshot()
     local g = {}
     local function add(unit, isMe)
@@ -324,7 +327,7 @@ local function GroupSnapshot()
         name = Ambiguate and Ambiguate(name, "none") or name
         local okc, _, cls = pcall(UnitClass, unit)
         local okl, lvl = pcall(function() return UnitLevel and UnitLevel(unit) end)
-        local m = { name = name, class = okc and cls or nil, level = (okl and type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
+        local m = { name = name, unit = unit, class = okc and cls or nil, level = (okl and type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
         if isMe then
             m.me = true
             m.knows = MyKnownPortals(m.class)
@@ -341,7 +344,45 @@ local function GroupSnapshot()
     else
         for i = 1, 4 do add("party" .. i) end
     end
+    -- Raid icons for whoever does a service (the owner: "I think that works fine"). An icon
+    -- someone already put on them is kept and used; otherwise star, diamond, triangle, moon,
+    -- square, circle, then cross and skull (groups use those two for kill targets).
+    if Opt("marks") then
+        local used = {}
+        for _, m in ipairs(g) do
+            local ok, idx = pcall(function() return GetRaidTargetIndex and GetRaidTargetIndex(m.unit) end)
+            if ok and type(idx) == "number" and idx >= 1 and idx <= 8 then m.mark = idx used[idx] = true end
+        end
+        for _, m in ipairs(g) do
+            if not m.mark then
+                local provides = false
+                for _, def in ipairs(Core.SERVICES) do
+                    if Core.Setting(ServiceInviterDB, def.key).on and Core.CanDo(m, def) then provides = true break end
+                end
+                if provides then
+                    local want = assignedMarks[m.name]
+                    if not want or used[want] then
+                        want = nil
+                        for _, idx in ipairs(MARK_ORDER) do if not used[idx] then want = idx break end end
+                    end
+                    if want then m.mark, m.markOurs = want, true used[want] = true assignedMarks[m.name] = want end
+                end
+            end
+        end
+    end
     return g
+end
+-- Put the icons over their heads. In a raid that takes leader or assistant; never re-sets
+-- an icon already there (setting the same one again would take it off).
+local function ApplyMarks()
+    if not (Opt("marks") and SetRaidTarget) then return end
+    if IsInRaid and IsInRaid() and not (UnitIsGroupLeader("player") or (UnitIsGroupAssistant and UnitIsGroupAssistant("player"))) then return end
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.markOurs and m.unit then
+            local ok, cur = pcall(function() return GetRaidTargetIndex and GetRaidTargetIndex(m.unit) end)
+            if not (ok and cur == m.mark) then pcall(SetRaidTarget, m.unit, m.mark) end
+        end
+    end
 end
 -- Class colors, so a busy list reads at a glance (the owner: "can this use class colors and
 -- stuff to avoid a mass of confusing text"). The game's own colors when it has them.
@@ -1266,7 +1307,7 @@ local function AlertMsg(name)
     local job = Jobs.Get(name)
     local payee, mine = PayeeFor(job or { service = "summons" })
     local price = JobPrice(job or { service = "summons" })
-    m = m:gsub("{name}", function() return name end):gsub("{payee}", function() return mine and "ME" or payee end)
+    m = m:gsub("{name}", function() return name end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
     return (m:gsub("{price}", function() return price and PriceLong(price) or "NOTHING (IT'S FREE)" end))
 end
 
@@ -1395,8 +1436,10 @@ OnCast = function(event, unit, spellID, spellName)
 end
 
 -- Arrival (and, for the lock, auto-open trade). Runs every second, window open or not.
+local lastMarks = 0
 local function CheckArrivals()
     local now = GetTime()
+    if now - lastMarks >= 3 then lastMarks = now pcall(ApplyMarks) end
     Jobs.Expire(now)
     -- one automatic retry for people who were already in another group
     for _, j in ipairs(jobs) do
@@ -1970,10 +2013,11 @@ local function BuildSetupUI()
     Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
     Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
     Box("offermsg", R + 4, -378, 396)
-    Header(R, -420, "This session")
-    local sessText = Label(R, -446, "", "GameFontHighlight", 270)
+    Check("marks", R, -410, "Raid icon on whoever does it (chat + over their head)", true)
+    Header(R, -446, "This session")
+    local sessText = Label(R, -472, "", "GameFontHighlight", 270)
     local sessBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -440) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -466) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
@@ -2457,5 +2501,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { ApplyMarks = function() return ApplyMarks() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

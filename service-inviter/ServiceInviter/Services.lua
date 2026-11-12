@@ -201,6 +201,15 @@ end
 
 local function priceText(silver) return C.Money(silver) end
 
+-- A name as said in party/raid chat: with its raid icon ({rt1} = star ...) when the member
+-- has one, so everyone can match the message to the person (the icon is over their head too).
+function C.Label(group, name)
+    for _, m in ipairs(group or {}) do
+        if m.name == name and m.mark then return "{rt" .. m.mark .. "}" .. name end
+    end
+    return name
+end
+
 -- The ad: built from what is on sale. Returns text or nil, why.
 function C.BuildAd(db, group, faction, template)
     local parts, anyPaid = {}, false
@@ -254,17 +263,17 @@ function C.JoinWelcome(db, group, faction, key, name, dest)
     for _, m in ipairs(group or {}) do if m.me then me = m end end
     local here = p.zone
     local payee = C.Payee(db, group, key, p, here)
-    local payWord = (me and payee == me.name) and "me" or payee
+    local payWord = (me and payee == me.name) and "me" or C.Label(group, payee)
     local mine = me and p.name == me.name
     local price = priceText(st.price)
     if def.kind == "summon" then
-        local doer = mine and "I'll" or (p.name .. " will")
+        local doer = mine and "I'll" or (C.Label(group, p.name) .. " will")
         return ("Hi %s! %s summon you to %s. %s. Pay %s when you land."):format(name, doer, C.Short(here or "us"), price or "Free", payWord)
     end
     local what = def.label
     if def.kind == "portal" then what = "a portal to " .. C.Short(dest or "your city") end
-    local doer = mine and "I'll do" or (p.name .. " will do")
-    local to = mine and "come to me" or ("come to " .. p.name)
+    local doer = mine and "I'll do" or (C.Label(group, p.name) .. " will do")
+    local to = mine and "come to me" or ("come to " .. C.Label(group, p.name))
     if here then to = to .. " in " .. C.Short(here) end
     if not price then return ("Hi %s! %s %s, %s. Free, tips welcome."):format(name, doer, what, to) end
     return ("Hi %s! %s %s, %s. %s. Pay %s there."):format(name, doer, what, to, price, payWord)
