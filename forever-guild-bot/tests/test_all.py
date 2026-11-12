@@ -1603,3 +1603,72 @@ def test_skillup_command_needs_a_claimed_character_and_plans_to_the_tier_cap(tmp
     asyncio.run(cmd.callback(ix, "anduin-wrynn:Blacksmithing", 60))                       # typed skill beats the stored one
     assert sent[2][1].title.endswith("Blacksmithing 60 to 75") and "you entered (60)" in sent[2][1].footer.text
 
+
+def test_ending_a_raid_that_just_started_still_credits_attendance_and_closes_the_event(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    assert cfg.discord_guild_id is None                                   # optional setting left blank
+    start = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(timespec="seconds")
+    rid = db.create_raid("Test Raid", start, 5, 9)
+    db.set_raid_posted(rid, 10, 20, 30)
+    db.upsert_signup(rid, 1, "anduin-wrynn", "tank", utcnow())          # still 'open': the minute job has not run
+    ended = []
+
+    class Ev:
+        status = discord.EventStatus.active
+
+        async def end(self):
+            ended.append(30)
+
+    class Guild:
+        async def fetch_scheduled_event(self, eid):
+            assert eid == 30
+            return Ev()
+
+    chan = _Chan(_Msg())
+    chan.guild = Guild()
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: chan
+        bot.get_user = lambda uid: _User([])
+        assert await bot.finish_raid(rid, remove_event=True) is True
+    asyncio.run(run())
+    assert ended == [30]                                                  # the event found through the raid channel
+    assert db.conn.execute("SELECT credited FROM attendance WHERE raid_id=? AND discord_id=1", (rid,)).fetchone()["credited"] == 1
+
+
+def test_a_post_discord_refused_to_update_is_retried_until_it_is_marked_completed(tmp_path):
+    import discord
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Test Raid", "2026-11-11T20:30:00+00:00", 5, 9)
+    db.set_raid_posted(rid, 10, 20, None)
+    db.mark_closed(rid)
+
+    class Flaky(_Msg):
+        fails = 2                                                         # down for the first pass and its retry
+
+        async def edit(self, **kw):
+            if Flaky.fails:
+                Flaky.fails -= 1
+                raise discord.HTTPException(SimpleNamespace(status=503, reason="down"), "down")
+            await super().edit(**kw)
+    msg = Flaky()
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_channel = lambda cid: _Chan(msg)
+        await bot._end_old_raids()                                        # Discord down: raid ends, post left to retry
+        assert db.get_raid(rid)["status"] == "ended" and len(db.posts_pending()) == 1
+        await bot._end_old_raids()                                        # next minute: done
+    asyncio.run(run())
+    assert db.posts_pending() == [] and msg.unpinned == 1
+    assert msg.edits[-1]["embed"].title.startswith("COMPLETED")
