@@ -1,4 +1,4 @@
--- Service Inviter v2.1.0
+-- Service Inviter v2.1.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -224,6 +224,14 @@ local function Evaluate(norm, dedicated, T)
     if sell then return false, "seller/ad word: " .. sell end
 
     local buy = HasAny(norm, Opt("strictbuy") and STRICTBUY or BUY)
+    -- "summon me" / "port me" asks for one, and no seller says it ("can summon you" is a
+    -- seller). The owner's screenshot, 12 Nov 2026: "hey anyone able to summon me to barrens
+    -- or org?" had no WTB/LF word and was missed.
+    if not buy and not Opt("strictbuy") then
+        for _, list in ipairs({ SUMMON_WORDS, PORT_WORDS }) do
+            for _, w in ipairs(list) do if not buy and Has(norm, w .. " me") then buy = w .. " me" end end
+        end
+    end
     if not buy then return false, "no buy word" end
     if not HasAny(norm, STRICTBUY) then
         local soft = HasAny(norm, SOFTSELLER)
@@ -420,7 +428,11 @@ local function LiveTargets(g)
                         T.dests = {}
                         for _, x in ipairs(DESTS) do T.dests[#T.dests + 1] = x end
                     end
-                    T.dests[#T.dests + 1] = { key = key, label = it.where, words = { it.where:lower() } }
+                    -- "The Barrens" is just "barrens" in chat
+                    local name = it.where:lower()
+                    local words = { name }
+                    if name:find("^the ") then words[2] = name:gsub("^the ", "") end
+                    T.dests[#T.dests + 1] = { key = key, label = it.where, words = words }
                     T.sum[key] = true
                 end
             elseif it.def.kind == "portal" then

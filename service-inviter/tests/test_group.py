@@ -368,3 +368,42 @@ def test_another_addons_block_is_not_ours():
     g = world({"player": ("Me", "SHAMAN", 60, "Orgrimmar")})
     g.event("ADDON_ACTION_FORBIDDEN", "SomeOtherAddon", "CastSpellByName()")
     assert not any("blocked" in p for p in g.printed())
+
+
+# -- "hey anyone able to summon me to barrens or org?" (the owner's screenshot, 12 Nov 2026) --------
+
+SUMMONS_CH = ("", "6. summons", "", "", "", "", "summons")
+TRIPLE = "hey anyone able to summon me to barrens or org?"
+
+
+def ask_in_summons(units, text=TRIPLE, sender="Triple"):
+    g = world(units, extra='function GetChannelList() return 6, "summons", false end')
+    g.event("CHAT_MSG_CHANNEL", text, sender, *SUMMONS_CH)
+    return g
+
+
+def test_summon_me_is_a_request_with_a_warlock_in_org():
+    g = ask_in_summons({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Orgrimmar")})
+    assert invited(g) == ["Triple"]
+    assert job(g, "Triple", "dest") == "Orgrimmar"
+
+
+def test_the_barrens_is_matched_without_the():
+    g = ask_in_summons({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "The Barrens")})
+    assert invited(g) == ["Triple"]
+    assert job(g, "Triple", "dest") == "The Barrens"
+
+
+def test_summon_me_somewhere_nobody_is_still_not_invited():
+    g = ask_in_summons({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
+    assert invited(g) == []
+
+
+def test_port_me_is_a_request_too():
+    g = ask_in_summons({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Orgrimmar")}, "can someone port me to org")
+    assert invited(g) == ["Triple"]
+
+
+def test_a_seller_offering_to_summon_you_is_not_a_request():
+    g = ask_in_summons({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Orgrimmar")}, "can summon you to org, 5g, whisper me")
+    assert invited(g) == []
