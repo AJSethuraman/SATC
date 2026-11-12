@@ -6,6 +6,7 @@ from lupa import lua51
 
 HERE = Path(__file__).parent
 ADDON = HERE.parent / "ServiceInviter" / "ServiceInviter.lua"
+CORE = HERE.parent / "ServiceInviter" / "Services.lua"
 
 # A party of two others: the lock and a customer, both targetable and in range.
 GROUP = """
@@ -25,6 +26,7 @@ class Game:
         self.lua.execute((HERE / "stubs.lua").read_text())
         if before:
             self.lua.execute(before)
+        self.lua.execute(CORE.read_text())
         self.lua.execute(ADDON.read_text())
         self.g = self.lua.globals()
 
@@ -38,8 +40,9 @@ class Game:
         self.g.FRAMES[1]._scripts.OnEvent(None, name, *args)
 
     def evaluate(self, message):
-        ok, why = self.eval("function(m) return ServiceInviter_Test.Evaluate(ServiceInviter_Test.Norm(m)) end")(message)
-        return bool(ok), why
+        r = self.eval("function(m) return ServiceInviter_Test.Evaluate(ServiceInviter_Test.Norm(m)) end")(message)
+        r = r if isinstance(r, tuple) else (r,)
+        return bool(r[0]), r[1] if len(r) > 1 else None
 
     def sent(self):
         s = self.g.SENT

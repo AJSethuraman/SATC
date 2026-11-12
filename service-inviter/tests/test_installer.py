@@ -28,7 +28,7 @@ def test_the_committed_installer_is_built_from_this_source():
 def test_the_installer_carries_exactly_this_addon():
     b64 = re.search(r"\$b64 = @'\r\n(.*?)\r\n'@", BAT.read_bytes().decode(), re.S).group(1)
     z = zipfile.ZipFile(io.BytesIO(base64.b64decode(re.sub(r"\s", "", b64))))
-    for name in ("ServiceInviter.toc", "ServiceInviter.lua"):
+    for name in ("ServiceInviter.toc", "Services.lua", "ServiceInviter.lua"):
         src = (ROOT / "ServiceInviter" / name).read_bytes().replace(b"\r\n", b"\n")
         assert z.read(f"ServiceInviter/{name}") == src
 

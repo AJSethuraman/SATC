@@ -103,7 +103,7 @@ def test_summon_button_keeps_accented_letters_in_the_name(game):
 @pytest.mark.parametrize("typed, silver", [("1.5g", 150), ("1g 25s", 125), ("25", 25), ("2g", 200), ("0.25g", 25)])
 def test_price_command(game, typed, silver):
     game.eval(f'SlashCmdList.SERVICEINVITER("price {typed}")')
-    assert game.eval("ServiceInviterDB.price") == silver
+    assert game.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == silver
 
 
 def test_selftest_points_at_this_addons_command(game):

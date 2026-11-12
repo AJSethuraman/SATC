@@ -1,4 +1,4 @@
--- Service Inviter v1.6.0
+-- Service Inviter v2.0.0
 -- Watches chat for people asking to BUY a summon or port to a destination you
 -- choose, and sends them a group invite. It also talks in your group and may
 -- whisper (welcome, summon alert, extras on offer, the ritual whisper): turn
@@ -24,6 +24,31 @@ local function MigrateLegacy()
     end
 end
 
+-- One-time carry-over from 1.x: the old "extras offered on arrival" become those services,
+-- offered but not invited for (they were never invite triggers), and the old price becomes the
+-- summons price.
+local function MigrateServices()
+    local db = ServiceInviterDB
+    if db.servicesMigrated then return end
+    db.servicesMigrated = true
+    db.services = db.services or {}
+    local map = { healthstone = "healthstone", soulstone = "soulstone", food = "water", lockpick = "lockpick",
+                  stam = "fort", motw = "motw", int = "ai", paladin = "blessing", portal = "portals" }
+    if type(db.offers) == "table" then
+        for old, new in pairs(map) do
+            if db.offers[old] then
+                db.services[new] = db.services[new] or {}
+                if db.services[new].on == nil then db.services[new].on = true end
+                if db.services[new].invite == nil then db.services[new].invite = false end
+            end
+        end
+    end
+    if type(db.price) == "number" then
+        db.services.summons = db.services.summons or {}
+        if db.services.summons.price == nil then db.services.summons.price = db.price end
+    end
+end
+
 local FRAGMENT_WINDOW = 25
 local MAX_FRAGMENTS   = 3
 local MAX_PER_MINUTE  = 6
@@ -39,6 +64,9 @@ local DESTS = {
     { key = "everlook", label = "Everlook", words = { "everlook" } },
     { key = "ratchet", label = "Ratchet",   words = { "ratchet" } },
     { key = "xroads", label = "Crossroads", words = { "crossroads", "xroads", "cross roads" } },
+    { key = "sw", label = "Stormwind City", words = { "sw", "stormwind", "stormwind city" } },
+    { key = "ironforge", label = "Ironforge", words = { "ironforge" } },
+    { key = "darn", label = "Darnassus", words = { "darnassus", "darn" } },
 }
 
 local DEFAULTS = {
@@ -165,7 +193,23 @@ end
 -- Returns true, reason or false, reason.
 -- dedicated = the message came from one of your own channels, where everybody is asking for
 -- summons/ports anyway: "wtb uc" is enough, no summon/port word needed.
-local function Evaluate(norm, dedicated)
+-- What can be bought right now. From the old checkboxes when nothing else is given
+-- (and in the self-test), or from the group via LiveTargets (see below).
+local function OptTargets()
+    local T = { sum = {}, port = {}, items = {}, dests = DESTS }
+    for _, d in ipairs(DESTS) do
+        T.sum[d.key] = Opt("sum_" .. d.key) and true or false
+        T.port[d.key] = Opt("port_" .. d.key) and true or false
+    end
+    T.sumAny = Opt("sum_any") and true or false
+    T.portAny = Opt("port_any") and true or false
+    return T
+end
+
+-- Returns ok, why, service key, place (a destination label) .
+local function Evaluate(norm, dedicated, T)
+    T = T or OptTargets()
+    local dests = T.dests or DESTS
     local sell = HasAny(norm, SELLER)
     if sell then return false, "seller/ad word: " .. sell end
 
@@ -178,6 +222,12 @@ local function Evaluate(norm, dedicated)
         if c then return false, "contact word '" .. c .. "' without a WTB/buying word" end
     end
 
+    -- Lockpicking, water, stones, buffs: their own words, if someone here can do them.
+    for _, it in ipairs(T.items or {}) do
+        local w = HasAny(norm, it.words)
+        if w then return true, it.label .. " ('" .. w .. "'), buy=" .. buy, it.key end
+    end
+
     local wantsSum  = HasAny(norm, SUMMON_WORDS) ~= nil
     local wantsPort = HasAny(norm, PORT_WORDS) ~= nil
     local waived = false
@@ -188,7 +238,7 @@ local function Evaluate(norm, dedicated)
 
     -- A place after "from" / "in" / "at" is where they ARE, not where they want to go:
     -- "port to UC from TB" is a UC request. Drop "from <place>" before matching.
-    for _, d in ipairs(DESTS) do
+    for _, d in ipairs(dests) do
         for _, w in ipairs(d.words) do
             for _, pre in ipairs({ " from ", " in ", " at " }) do
                 local n, count = norm:gsub(pre .. w .. " ", " ")
@@ -200,30 +250,133 @@ local function Evaluate(norm, dedicated)
     -- "port to TB in UC": an explicit "to <place>" is the destination; any other place
     -- named (in/at UC) is where they are standing, so it does not count.
     local toKeys, anyTo = {}, false
-    for _, d in ipairs(DESTS) do
+    for _, d in ipairs(dests) do
         for _, w in ipairs(d.words) do
             if norm:find(" to " .. w .. " ", 1, true) or norm:find(" 2 " .. w .. " ", 1, true) then toKeys[d.key] = true anyTo = true end
         end
     end
 
     local sawDest = false
-    for _, d in ipairs(DESTS) do
+    for _, d in ipairs(dests) do
         if (not anyTo or toKeys[d.key]) and HasAny(norm, d.words) then
             sawDest = true
             -- a summon fetches them from anywhere, so it answers a port request too;
             -- a port (a mage) needs them to come to you, so it does not answer a summon request
-            if Opt("sum_" .. d.key) then
-                if wantsSum then return true, "summon to " .. d.label .. ", buy=" .. buy end
-                if wantsPort then return true, "port request to " .. d.label .. ", you summon there, buy=" .. buy end
+            if T.sum[d.key] then
+                if wantsSum then return true, "summon to " .. d.label .. ", buy=" .. buy, "summons", d.label end
+                if wantsPort then return true, "port request to " .. d.label .. ", you summon there, buy=" .. buy, "summons", d.label end
             end
-            if wantsPort and Opt("port_" .. d.key) then return true, "port to " .. d.label .. ", buy=" .. buy end
+            if wantsPort and T.port[d.key] then return true, "port to " .. d.label .. ", buy=" .. buy, "portals", d.label end
         end
     end
     if waived and not sawDest then return false, "no place named (needs one when there is no summon/port word)" end
-    if (wantsSum or wantsPort) and Opt("sum_any") then return true, "summon (any destination), buy=" .. buy end
-    if wantsPort and Opt("port_any") then return true, "port (any destination), buy=" .. buy end
+    if (wantsSum or wantsPort) and T.sumAny then return true, "summon (any destination), buy=" .. buy, "summons" end
+    if wantsPort and T.portAny then return true, "port (any destination), buy=" .. buy, "portals" end
     -- No place named ("WTB summon"): never assume where they want to go.
     return false, sawDest and "that destination/service is not checked" or "no place named"
+end
+
+----------------------------------------------------------------------
+-- The group: who is here, what class and level, and where they are standing.
+----------------------------------------------------------------------
+local Core = ServiceInviterCore
+local function Faction()
+    local ok, f = pcall(function() return UnitFactionGroup and UnitFactionGroup("player") end)
+    return (ok and (f == "Horde" or f == "Alliance")) and f or "Horde"
+end
+local function ZoneOf(unit)
+    if unit == "player" then
+        local ok, z = pcall(function() return GetRealZoneText and GetRealZoneText() end)
+        if ok and type(z) == "string" and z ~= "" then return z end
+        return nil
+    end
+    local ok, z = pcall(function()
+        local id = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit(unit)
+        local info = id and C_Map.GetMapInfo and C_Map.GetMapInfo(id)
+        return info and info.name
+    end)
+    if ok and type(z) == "string" and z ~= "" then return z end
+    return nil
+end
+-- Your own portals, from your spellbook (Forever spell ids; Portal: Undercity 11418 is
+-- confirmed for Forever, the rest are Classic's). If none are found the ids may differ on
+-- this client, so the level rule is used instead.
+local PORTAL_IDS = { ["Portal: Orgrimmar"] = 11417, ["Portal: Undercity"] = 11418, ["Portal: Thunder Bluff"] = 11420,
+    ["Portal: Stormwind"] = 10059, ["Portal: Ironforge"] = 11416, ["Portal: Darnassus"] = 11419 }
+local function MyKnownPortals(cls)
+    if cls ~= "MAGE" then return nil end
+    local knows, any = {}, false
+    for name, id in pairs(PORTAL_IDS) do
+        local k = false
+        if IsPlayerSpell then local ok, r = pcall(IsPlayerSpell, id) k = ok and r and true or false end
+        if not k and IsSpellKnown then local ok, r = pcall(IsSpellKnown, id) k = ok and r and true or false end
+        if k then knows[name] = true any = true end
+    end
+    return any and knows or nil
+end
+local function GroupSnapshot()
+    local g = {}
+    local function add(unit, isMe)
+        if not isMe and not (UnitExists and UnitExists(unit)) then return end
+        local name = UnitName and UnitName(unit)
+        if type(name) ~= "string" then return end
+        name = Ambiguate and Ambiguate(name, "none") or name
+        local okc, _, cls = pcall(UnitClass, unit)
+        local okl, lvl = pcall(function() return UnitLevel and UnitLevel(unit) end)
+        local m = { name = name, class = okc and cls or nil, level = (okl and type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
+        if isMe then
+            m.me = true
+            m.knows = MyKnownPortals(m.class)
+            if ServiceInviterDB.role == "lock" then m.summoner = true else m.notSummoner = true end
+        end
+        g[#g + 1] = m
+    end
+    add("player", true)
+    if IsInRaid and IsInRaid() then
+        for i = 1, 40 do
+            local u = "raid" .. i
+            if not (UnitIsUnit and UnitIsUnit(u, "player")) then add(u) end
+        end
+    else
+        for i = 1, 4 do add("party" .. i) end
+    end
+    return g
+end
+local function DestFor(zone)
+    if not zone then return nil end
+    local z = zone:lower()
+    for _, d in ipairs(DESTS) do if d.label:lower() == z then return d end end
+    return nil
+end
+-- What can be bought right now, from who is in the group (see docs/DESIGN.md).
+local function LiveTargets(g)
+    g = g or GroupSnapshot()
+    local T = { sum = {}, port = {}, items = {}, dests = DESTS }
+    local fallback = OptTargets()
+    for _, it in ipairs(Core.OnSale(ServiceInviterDB, g, Faction())) do
+        if it.setting.invite then
+            if it.def.kind == "summon" then
+                local d = DestFor(it.where)
+                if d then T.sum[d.key] = true
+                elseif it.where then
+                    -- a zone that isn't on the list: match its own name
+                    local extra = { key = "here", label = it.where, words = { it.where:lower() } }
+                    T.dests = {}
+                    for _, x in ipairs(DESTS) do T.dests[#T.dests + 1] = x end
+                    T.dests[#T.dests + 1] = extra
+                    T.sum.here = true
+                else
+                    -- we don't know where the warlock is: use the places ticked on the Warlock tab
+                    T.sum, T.sumAny = fallback.sum, fallback.sumAny
+                end
+            elseif it.def.kind == "portal" then
+                for _, city in ipairs(it.cities) do local d = DestFor(city) if d then T.port[d.key] = true end end
+            elseif it.setting.words then
+                T.items[#T.items + 1] = { key = it.key, label = it.def.label, words = Core.SplitWords(it.setting.words) }
+            end
+        end
+    end
+    return T
 end
 
 -- Returns true if we are the one who can invite directly (leader, or raid assistant).
@@ -293,7 +446,23 @@ local function Stats()
     st.ev = st.ev or 0   -- expected silver: price of everyone summoned
     return st
 end
-local function Price() return ServiceInviterDB.price or 25 end   -- stored in silver (100 silver = 1 gold)
+-- The summons price (silver; 100 silver = 1 gold). Each service has its own: see JobPrice.
+local function Price() return Core.Setting(ServiceInviterDB, "summons").price or 0 end
+-- What one customer pays: their service's price, nil when it's free.
+local function JobPrice(j)
+    return Core.Setting(ServiceInviterDB, (j and j.service) or "summons").price
+end
+-- Who gets paid for this customer, and whether that's you.
+local function PayeeFor(j, g)
+    g = g or GroupSnapshot()
+    local key = (j and j.service) or "summons"
+    local p = Core.Provider(g, key)
+    local here = (j and j.dest) or (p and p.zone)
+    local payee = Core.Payee(ServiceInviterDB, g, key, p, here)
+    local me = UnitName and UnitName("player")
+    return payee, (payee == me), p
+end
+local function CollectsFor(j) local _, mine = PayeeFor(j) return mine end
 local function PriceParts(total)
     total = math.floor(tonumber(total) or Price())
     return math.floor(total / 100), total % 100
@@ -325,7 +494,7 @@ local function ParsePrice(text)
 end
 local function Role() return ServiceInviterDB.role == "lock" and "lock" or "helper" end
 local DEFAULT_WHISPERMSG = "Summoning {name}. Next: {next}"   -- {name} = who we summon, {next} = who has waited longest after
-local DEFAULT_ALERTMSG = "SUMMONING {name}! PAY ME {price} IN THE TRADE WINDOW ON ARRIVAL!"
+local DEFAULT_ALERTMSG = "SUMMONING {name}! PAY {payee} {price} IN THE TRADE WINDOW ON ARRIVAL!"
 local OnCast            -- set below: reacts to a group member starting Ritual of Summoning
 local ShowAlert         -- set below: big on-screen "click the portal" banner
 local ToggleSetup       -- set below: opens the Setup window
@@ -334,7 +503,7 @@ local function AutoTradeOn()
 end
 -- Who takes the money is a setting, not the role: some nights the lock collects,
 -- some nights you do. Until it is set, the lock collects.
-local function Collects()
+local function Collects()   -- 1.5 setting, still read by /si collect's first toggle
     local c = ServiceInviterDB.collect
     if c == nil then return Role() == "lock" end
     return c and true or false
@@ -351,6 +520,7 @@ local function SessionText()
     if st.ev > 0 then text = text .. "   " .. math.floor(st.silver * 100 / st.ev + 0.5) .. "% collected" end
     local hours = (Now() - st.start) / 3600
     if hours >= 0.083 and st.silver > 0 then text = text .. "  (" .. Money(math.floor(st.silver / hours)) .. "/hr)" end
+    if (st.ads or 0) > 0 then text = text .. "   ads " .. st.ads .. ", answered " .. (st.answers or 0) end
     return text
 end
 local function NewSession() ServiceInviterDB.stats = nil return Stats() end
@@ -378,9 +548,9 @@ end
 function Jobs.Set(name, status)
     local j = jobByName[name]
     if not j or j.status == status then return j end
-    if status == "summoned" then Stats().summoned = Stats().summoned + 1 Stats().ev = Stats().ev + Price() j.tsummon = GetTime() end
+    if status == "summoned" then Stats().summoned = Stats().summoned + 1 Stats().ev = Stats().ev + (JobPrice(j) or 0) j.tsummon = GetTime() end
     if status == "arrived" then j.tarrive = GetTime() end
-    if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or Price()) end
+    if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or JobPrice(j) or 0) end
     if status == "paid" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
     j.status = status
     jobsChanged()
@@ -497,8 +667,10 @@ local curChannel = ""
 local DEFAULT_KEYWORDS = "inv, invite"
 -- Keywords are for short, plain "inv" requests. Anything that reads like an ad or a
 -- summon/port line (seller words, port/summon words, long text) goes to the normal matcher.
-local function KeywordHit(text, whisper)
-    if not Opt("kwon") or type(text) ~= "string" or #text > 30 then return nil end
+local lastAdAt                 -- when you last posted an ad (see Advertise)
+local AD_ANSWER_WINDOW = 600   -- a whispered "inv" within 10 minutes of your ad answers it
+local function KeywordHit(text, whisper, force)
+    if not (Opt("kwon") or force) or type(text) ~= "string" or #text > 30 then return nil end
     local norm = Norm(text)
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
@@ -516,7 +688,9 @@ end
 
 local function Handle(text, sender, guid)
     if paused then return end
-    if not (Opt("enabled") or Opt("kwon")) or not sender or sender == "" then D("skip: addon off or no sender") return end
+    local now0 = GetTime()
+    local adOpen = lastAdAt and (now0 - lastAdAt) < AD_ANSWER_WINDOW
+    if not (Opt("enabled") or Opt("kwon") or (adOpen and curChannel == "whisper")) or not sender or sender == "" then D("skip: addon off or no sender") return end
     if Opt("skipafk") and UnitIsAFK and UnitIsAFK("player") then D("skip: you are AFK (see 'Skip while I'm AFK')") return end
     local short = Ambiguate and Ambiguate(sender, "none") or sender
     if short == UnitName("player") then return end
@@ -529,10 +703,17 @@ local function Handle(text, sender, guid)
 
     local norm = Norm(text)
     local kw = KeywordHit(text, curChannel == "whisper")
+    local answered
+    if not kw and adOpen and curChannel == "whisper" then
+        kw = KeywordHit(text, true, true)
+        answered = kw and math.floor(now - lastAdAt) or nil
+    end
     local ded = InExtraChannel(curChannel)
-    local ok, why
-    if kw then ok, why = true, "keyword '" .. kw .. "'"
-    elseif Opt("enabled") then ok, why = Evaluate(norm, ded)
+    local T = LiveTargets()
+    local ok, why, svc, dest
+    if answered then ok, why = true, "answered your ad " .. answered .. "s ago"
+    elseif kw then ok, why = true, "keyword '" .. kw .. "'"
+    elseif Opt("enabled") then ok, why, svc, dest = Evaluate(norm, ded, T)
     else ok, why = false, "invites are off (only keywords are on)" end
     diag.eval = { who = short, ok = ok, why = why, t = GetTime() }
 
@@ -549,7 +730,7 @@ local function Handle(text, sender, guid)
         if not ok and #fresh > 1 then
             local parts = {}
             for _, f in ipairs(fresh) do parts[#parts + 1] = f.n end
-            ok, why = Evaluate(" " .. table.concat(parts, " ") .. " ", ded)
+            ok, why, svc, dest = Evaluate(" " .. table.concat(parts, " ") .. " ", ded, T)
             if ok then why = "fragments: " .. why end
         end
     end
@@ -579,7 +760,9 @@ local function Handle(text, sender, guid)
     inviteTimes[#inviteTimes + 1] = now
     DoInvite(short)
     pending[short] = now
-    Jobs.New(short, text, why, curChannel)
+    local job = Jobs.New(short, text, why, curChannel)
+    job.service, job.dest = svc, dest
+    if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     if Opt("announce") then
         local what = " because [" .. curChannel .. "] \"" .. text .. "\" = " .. why
         P(direct and ("invited " .. short .. what) or ("suggested invite for " .. short .. " (you are not the leader)" .. what))
@@ -598,10 +781,25 @@ local JOIN_PATTERNS = {
 }
 
 local function WelcomeText(name)
-    local msg = ServiceInviterDB.welcomemsg
-    if not msg or msg == "" then msg = DEFAULT_WELCOME end
-    msg = msg:gsub("{name}", name)
-    return (msg:gsub("{price}", PriceShort()))
+    local job = Jobs.Get(name)
+    local g, fac = GroupSnapshot(), Faction()
+    local custom = ServiceInviterDB.welcomemsg
+    if custom and custom ~= "" and custom ~= DEFAULT_WELCOME then
+        local key = (job and job.service) or "summons"
+        local payee, mine = PayeeFor(job, g)
+        local price = Core.Money(JobPrice(job)) or "FREE"
+        local label = Core.BY_KEY[key].label
+        custom = custom:gsub("{name}", function() return name end):gsub("{price}", function() return price end)
+        custom = custom:gsub("{payee}", function() return mine and "me" or payee end):gsub("{service}", function() return label end)
+        return custom
+    end
+    if job and job.service then
+        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, name, job.dest)
+        if text then return text end
+    end
+    local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
+    if list then return "Hi " .. name .. "! We have " .. list .. ". What can we do for you?" end
+    return nil
 end
 
 local LEAVE_PATTERNS = {
@@ -648,8 +846,10 @@ local function OnSystem(text)
     pending[short] = nil
     if GetTime() - t > 180 then return end   -- stale invite, ignore
     local channel = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+    local welcome = WelcomeText(short)
+    if not welcome then D(short .. " joined; nothing on sale to welcome them with") return end
     D(short .. " joined, sending welcome to " .. channel)
-    SendChatMessage(WelcomeText(short), channel)
+    SendChatMessage(welcome, channel)
 end
 
 local function ChannelAllowed(ch)
@@ -726,12 +926,13 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         dealName, dealMoney = nil, 0
         if who and Jobs.Get(who) then
             local silver = math.floor(money / 100)
-            if silver >= Price() then
+            local need = JobPrice(Jobs.Get(who))
+            if silver > 0 and silver >= (need or 0) then
                 Jobs.Get(who).amount = silver
                 Jobs.Set(who, "paid")
-                P(who .. " paid " .. Money(silver) .. ". Marked Paid.")
+                P(who .. (need and " paid " or " tipped ") .. Money(silver) .. ". Marked Paid.")
             elseif silver > 0 then
-                P(who .. " traded " .. Money(silver) .. ", less than your " .. Money(Price()) .. " price. Not marked Paid.")
+                P(who .. " traded " .. Money(silver) .. ", less than the " .. Money(need) .. " price. Not marked Paid.")
             end
         end
         return
@@ -751,6 +952,7 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
     end
     if event == "PLAYER_LOGIN" then
         MigrateLegacy()
+        MigrateServices()
         local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
         if isLoaded and isLoaded("TradeInviter") then
             paused = true
@@ -796,6 +998,78 @@ end)
 local function ToggleUI() if ToggleSetup then ToggleSetup() end end
 
 ----------------------------------------------------------------------
+-- Advertise: the game lets an ad go out only from a key press or click, so each ad is
+-- one press. The text is built from what is on sale; the button tells you when you can
+-- post again in each channel (so you don't get reported for spam).
+----------------------------------------------------------------------
+local DEFAULT_AD = "{wts}{services} | whisper inv"
+local lastAdIn = {}   -- channel key -> when you last posted there
+local function AdWait() return math.max(1, tonumber(ServiceInviterDB.adwait) or 5) * 60 end
+local function AdChannels()
+    local db, out = ServiceInviterDB, {}
+    local ch = type(db.adchans) == "table" and db.adchans or { trade = true }
+    if ch.trade then out[#out + 1] = "trade" end
+    if ch.general then out[#out + 1] = "general" end
+    for name in tostring(db.adextra or ""):lower():gmatch("[^,]+") do
+        name = name:gsub("^%s+", ""):gsub("%s+$", "")
+        if name ~= "" then out[#out + 1] = name end
+    end
+    return out
+end
+local function ChannelId(key)
+    if not GetChannelList then return nil end
+    local list = { GetChannelList() }
+    for i = 1, #list, 3 do
+        local id, name = list[i], list[i + 1]
+        if type(name) == "string" and name:lower():find(key, 1, true) then return id, name end
+    end
+    return nil
+end
+-- "ready", key, id, name, text  |  "wait", seconds  |  "off", why
+local function AdState()
+    local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
+    if not text then return "off", why end
+    if UnitIsAFK and UnitIsAFK("player") then return "off", "you're AFK" end
+    local now, soonest, any = GetTime(), nil, false
+    for _, key in ipairs(AdChannels()) do
+        local id, name = ChannelId(key)
+        if id then
+            any = true
+            local last = lastAdIn[key]
+            local left = last and (AdWait() - (now - last)) or 0
+            if left <= 0 then return "ready", key, id, name, text end
+            if not soonest or left < soonest then soonest = left end
+        end
+    end
+    if not any then return "off", "you're not in any of the ad channels" end
+    return "wait", soonest
+end
+local function AdLabel()
+    local state, a = AdState()
+    if state == "ready" then return "Post ad in " .. a:sub(1, 1):upper() .. a:sub(2), true end
+    if state == "wait" then return ("Next ad in %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
+    return (a and a:find("nothing to sell", 1, true)) and "Nothing to sell" or "No ad", false
+end
+local function PostAd()
+    local state, key, id, name, text = AdState()
+    if state ~= "ready" then
+        P(state == "wait" and ("next ad in " .. math.ceil(key) .. "s") or ("no ad: " .. tostring(key)))
+        return
+    end
+    SendChatMessage(text, "CHANNEL", nil, id)
+    local now = GetTime()
+    lastAdIn[key] = now
+    lastAdAt = now
+    Stats().ads = (Stats().ads or 0) + 1
+    D("ad posted in " .. tostring(name))
+    if RefreshJobs then RefreshJobs() end
+end
+-- A named button so a key can press it: /si bind ad F7
+local adKey = CreateFrame("Button", "ServiceInviterAdButton", UIParent)
+adKey:SetScript("OnClick", function() PostAd() end)
+adKey:Hide()
+
+----------------------------------------------------------------------
 -- Customer list window (/si jobs)
 ----------------------------------------------------------------------
 local jobsWin
@@ -803,27 +1077,19 @@ local ROWS = 6
 local ARRIVE_FALLBACK = 40   -- seconds after Summon before we assume they have arrived
 local CLEAN_AFTER = 30       -- finished rows disappear after this many seconds
 
--- Extras you can offer. Tick the ones you can do right now (on by happenstance).
-local OFFERS = {
-    { key = "healthstone", label = "Healthstone" },
-    { key = "lockpick",    label = "Lockpicking" },
-    { key = "food",        label = "Mage food & water" },
-    { key = "paladin",     label = "Paladin blessing" },
-    { key = "stam",        label = "Stamina buff" },
-    { key = "motw",        label = "Mark of the Wild" },
-    { key = "int",         label = "Intellect buff" },
-    { key = "soulstone",   label = "Soulstone" },
-    { key = "portal",      label = "Mage portal" },
-}
+-- (The 1.x extras list is now the services in Services.lua: see MigrateServices.)
 local DEFAULT_OFFERMSG = "Welcome {name}! Also on offer today: {offers}. Just ask!"
 
-local function OffersOn()
-    local on = {}
-    local o = ServiceInviterDB.offers or {}
-    for _, x in ipairs(OFFERS) do if o[x.key] then on[#on + 1] = x.label end end
-    local other = ServiceInviterDB.offerother
-    if type(other) == "string" and other:gsub("%s+", "") ~= "" then on[#on + 1] = other end
-    return on
+-- What else is on offer where this customer landed (nil = nothing, say nothing).
+local function ArrivalText(job)
+    if not job then return nil end
+    local g = GroupSnapshot()
+    local key = job.service or "summons"
+    local p = Core.Provider(g, key)
+    local here = job.dest or (p and p.zone)
+    local custom = ServiceInviterDB.offermsg
+    if custom == DEFAULT_OFFERMSG then custom = nil end
+    return (Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, job.name, custom))
 end
 
 -- The one thing to do next for a customer:
@@ -834,18 +1100,13 @@ local function NextStep(job)
     if job.status == "joined" then return "summon" end
     if job.status == "summoned" then return "arriving" end
     if job.status == "arrived" then
-        if #OffersOn() > 0 and not job.offered then return "offer" end
+        if not job.offered and ArrivalText(job) then return "offer" end
         return "finish"
     end
     return "none"
 end
 
-local function OfferText(name)
-    local msg = ServiceInviterDB.offermsg or DEFAULT_OFFERMSG
-    msg = msg:gsub("{name}", name)
-    msg = msg:gsub("{offers}", table.concat(OffersOn(), ", "))
-    return msg
-end
+local function OfferText(name) return ArrivalText(Jobs.Get(name)) or "" end
 
 local function UnitFor(name)
     local function same(u)
@@ -972,8 +1233,11 @@ end
 local function AlertMsg(name)
     local m = ServiceInviterDB.alertmsg
     if not m or m == "" then m = DEFAULT_ALERTMSG end
-    m = m:gsub("{name}", name)
-    return (m:gsub("{price}", PriceLong()))
+    local job = Jobs.Get(name)
+    local payee, mine = PayeeFor(job or { service = "summons" })
+    local price = JobPrice(job or { service = "summons" })
+    m = m:gsub("{name}", function() return name end):gsub("{payee}", function() return mine and "ME" or payee end)
+    return (m:gsub("{price}", function() return price and PriceLong(price) or "NOTHING (IT'S FREE)" end))
 end
 
 local function IsSecret(v)
@@ -1121,14 +1385,15 @@ local function CheckArrivals()
             local visible = u and UnitIsVisible and UnitIsVisible(u)
             if visible or (j.tsummon and now - j.tsummon > ARRIVE_FALLBACK) then
                 Jobs.Set(j.name, "arrived")
-                -- tell them what else is on offer; nothing ticked = no message
-                if #OffersOn() > 0 and not j.offered then
+                -- tell them what else is on offer where they landed; nothing there = no message
+                if not j.offered then
                     j.offered = true
+                    local text = ArrivalText(j)
                     local ch = (IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY" or nil)
-                    if ch then pcall(SendChatMessage, OfferText(j.name), ch) end
+                    if text and ch then pcall(SendChatMessage, text, ch) end
                 end
             end
-        elseif j.status == "arrived" and Collects() and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
+        elseif j.status == "arrived" and CollectsFor(j) and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
             local u = UnitFor(j.name)
             if u and CheckInteractDistance and CheckInteractDistance(u, 2) then
                 j.tradeTried = true
@@ -1166,10 +1431,11 @@ local function ApplyRow(row, job)
     elseif step == "summon" then
         if lock then row.summon:Show() end
     elseif step == "offer" then
-        if lock then row.offer:Show() elseif Collects() then row.trade:Show() end
-        if Collects() then row.paid:Show() end
+        local mine = CollectsFor(job)
+        if lock then row.offer:Show() elseif mine then row.trade:Show() end
+        if mine then row.paid:Show() end
     elseif step == "finish" then
-        if Collects() then row.trade:Show() row.paid:Show() end
+        if CollectsFor(job) then row.trade:Show() row.paid:Show() end
     end
     row.remove:Show()
 end
@@ -1221,6 +1487,11 @@ RefreshJobs = function()
         if j.status == "joined" then wait = wait + 1 elseif j.status == "summoned" then going = going + 1 end
     end
     jobsWin.footer:SetText("Session: " .. SessionText() .. "\nWaiting: " .. wait .. "    Being summoned: " .. going)
+    if jobsWin.adBtn then
+        local label, ready = AdLabel()
+        jobsWin.adBtn:SetText(label)
+        if ready then jobsWin.adBtn:Enable() else jobsWin.adBtn:Disable() end
+    end
 end
 
 local function BuildJobsUI()
@@ -1258,6 +1529,11 @@ local function BuildJobsUI()
     setupBtn:SetPoint("TOPLEFT", 16, -14)
     setupBtn:SetSize(80, 24) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
+    local adBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
+    adBtn:SetPoint("LEFT", setupBtn, "RIGHT", 8, 0)
+    adBtn:SetSize(150, 24) adBtn:SetText("Post ad")
+    adBtn:SetScript("OnClick", function() PostAd() end)
+    w.adBtn = adBtn
 
     -- The big button: always does the next thing for whoever has waited longest.
     -- Secure buttons must listen for press AND release: newer clients fire them on press.
@@ -1391,18 +1667,12 @@ end
 ----------------------------------------------------------------------
 local setupWin
 
-local function Fill(msg, name, nxt, price)
-    msg = msg:gsub("{name}", function() return name end)
-    msg = msg:gsub("{price}", function() return price end)
-    msg = msg:gsub("{next}", function() return nxt or "nobody" end)
-    return msg
-end
-
 local function BuildSetupUI()
     local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
+    local W, H = 900, 690
     local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent, template)
-    w:SetSize(1010, 910)
-    w:SetPoint("CENTER", 0, 0)
+    w:SetSize(W, H)
+    w:SetPoint("CENTER", 0, 20)
     w:SetFrameStrata("DIALOG")
     w:SetClampedToScreen(true)
     w:SetMovable(true) w:EnableMouse(true)
@@ -1426,34 +1696,26 @@ local function BuildSetupUI()
     title:SetPoint("TOP", 0, -16) title:SetText("Service Inviter setup")
     local close = CreateFrame("Button", nil, w, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
-    local hint = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    hint:SetPoint("TOPLEFT", 30, -44) hint:SetWidth(950) hint:SetJustifyH("LEFT")
-    hint:SetText("Everything in one place. Left: what happens, in order, and what is said. Right: who gets invited. In messages {name} = the customer, {price} = your price. Press Save when done.")
 
-    -- the flow line down the left side, and a divider between the columns
-    local line = w:CreateTexture(nil, "ARTWORK")
-    line:SetColorTexture(0.9, 0.7, 0.1, 0.6)
-    line:SetPoint("TOPLEFT", 18, -86) line:SetSize(2, 700)
-    local divider = w:CreateTexture(nil, "ARTWORK")
-    divider:SetColorTexture(0.5, 0.5, 0.5, 0.5)
-    divider:SetPoint("TOPLEFT", 505, -86) divider:SetSize(1, 720)
-
-    local boxes, checks, previews = {}, {}, {}
+    local boxes, checks, radios = {}, {}, {}
     local optKeys = {}     -- checkboxes that simply map to an option
+    local page             -- the tab being built
 
-    local function Header(x, y, num, text)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        fs:SetPoint("TOPLEFT", x, y)
-        fs:SetText(num and ("|cffffd100" .. num .. "|r  " .. text) or ("|cffffd100" .. text .. "|r"))
-    end
-    local function Label(x, y, text)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local function Header(x, y, text)
+        local fs = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         fs:SetPoint("TOPLEFT", x, y) fs:SetText(text)
+        return fs
     end
-    local function Box(key, y, width, maxLetters, x)
-        local eb = CreateFrame("EditBox", nil, w, "InputBoxTemplate")
-        eb:SetPoint("TOPLEFT", x or 46, y)
-        eb:SetSize(width or 440, 22)
+    local function Label(x, y, text, font, width)
+        local fs = page:CreateFontString(nil, "OVERLAY", font or "GameFontNormal")
+        fs:SetPoint("TOPLEFT", x, y) fs:SetText(text)
+        if width then fs:SetWidth(width) fs:SetJustifyH("LEFT") end
+        return fs
+    end
+    local function Box(key, x, y, width, maxLetters)
+        local eb = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
+        eb:SetPoint("TOPLEFT", x, y)
+        eb:SetSize(width or 400, 22)
         eb:SetAutoFocus(false)
         eb:SetMaxLetters(maxLetters or 255)
         eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -1461,182 +1723,277 @@ local function BuildSetupUI()
         boxes[key] = eb
         return eb
     end
-    local function Preview(key, y)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-        fs:SetPoint("TOPLEFT", 50, y) fs:SetWidth(440) fs:SetJustifyH("LEFT")
-        previews[key] = fs
-    end
-    -- a checkbox; text is optional (the places grid has none)
     local function Check(key, x, y, text, isOpt)
-        local cb = CreateFrame("CheckButton", nil, w, "UICheckButtonTemplate")
+        local cb = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
         cb:SetSize(26, 26) cb:SetPoint("TOPLEFT", x, y)
         if text then
-            local fs = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            local fs = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
             fs:SetPoint("LEFT", cb, "RIGHT", 2, 0) fs:SetText(text)
             cb.label = fs
         end
         checks[key] = cb
         if isOpt then optKeys[#optKeys + 1] = key end
+        return cb
     end
-
-    -- LEFT: the flow ------------------------------------------------
-    Header(30, -78, "1", "Customer joins your group")
-    Check("welcome", 40, -100, "Say this in raid / party when an invited person joins")
-    Box("welcomemsg", -128)
-    Preview("welcomemsg", -154)
-
-    Header(30, -190, "2", "The lock starts summoning (banner: click the portal)")
-    Check("raidalert", 40, -212, "Also say this in raid")
-    Box("alertmsg", -242)
-    Preview("alertmsg", -268)
-
-    Header(30, -298, "3", "Whisper who is being summoned")
-    Label(40, -322, "Whisper to (blank = no whisper):")
-    Box("whisperto", -342, 200, 40)
-    Label(40, -370, "Whisper text ({name} = who, {next} = who waits longest):")
-    Box("whispermsg", -390)
-    Preview("whispermsg", -416)
-
-    Header(30, -446, "4", "Customer arrives")
-    Check("collect", 40, -470, "I collect the payment")
-    Check("autotrade", 220, -470, "Open trade by itself in range")
-    -- trade only ever opens for the one who collects: grey the box out otherwise
-    local function SyncTradeBox()
-        local on = checks.collect:GetChecked() and true or false
-        if on then checks.autotrade:Enable() else checks.autotrade:Disable() end
-        if checks.autotrade.label then checks.autotrade.label:SetFontObject(on and "GameFontHighlight" or "GameFontDisable") end
+    -- radio: checkboxes in a group where ticking one unticks the others
+    local function Radio(group, key, x, y, text, onPick)
+        local cb = Check(key, x, y, text)
+        radios[group] = radios[group] or {}
+        radios[group][#radios[group] + 1] = cb
+        cb:SetScript("OnClick", function()
+            for _, other in ipairs(radios[group]) do other:SetChecked(other == cb) end
+            if onPick then onPick() end
+        end)
+        return cb
     end
-    checks.collect:SetScript("OnClick", SyncTradeBox)
-    Label(40, -504, "Price per customer (gold and/or silver):")
-    Box("pricegold", -524, 60, 5)
-    Label(112, -521, "gold")
-    Box("pricesilver", -524, 50, 2, 170)
-    Label(228, -521, "silver")
-
-    Header(30, -558, "5", "Extras you can offer on arrival")
-    Label(40, -582, "Tick what you offer. Sent on arrival; none ticked = no message.")
-    for i, x in ipairs(OFFERS) do
-        local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
-        Check("offer_" .. x.key, 40 + col * 150, -604 - row * 24, x.label)
-    end
-    Label(40, -682, "Other (your own, e.g. Lockbox opening):")
-    Box("offerother", -702, 440, 60)
-    Label(40, -734, "Offer message ({offers} = everything above):")
-    Box("offermsg", -754)
-
-    -- RIGHT: role, who gets invited, advanced ----------------------
-    local X = 525
-    Header(X, -78, nil, "Your role")
-    Check("rolehelper", X, -102, "Helper: I click the portal (banner, raid line, whisper)")
-    Check("rolelock", X, -128, "Warlock: I summon (Summon and Offer buttons)")
-    checks.rolehelper:SetScript("OnClick", function() checks.rolehelper:SetChecked(true) checks.rolelock:SetChecked(false) end)
-    checks.rolelock:SetScript("OnClick", function() checks.rolelock:SetChecked(true) checks.rolehelper:SetChecked(false) end)
-
-    Header(X, -166, nil, "Who gets invited")
-    Check("enabled", X, -190, "Invite people who ask for a summon/port", true)
-
-    Label(X, -222, "Listen in:")
-    Label(X + 120, -222, "+ other channels:")
-    Box("chanextra", -224, 190, 100, X + 270)
-    Check("trade", X + 10, -244, "Trade", true)
-    Check("general", X + 100, -244, "General", true)
-    Check("say", X + 210, -244, "Say", true)
-    Check("yell", X + 290, -244, "Yell", true)
-
-    Label(X, -280, "Which requests do you want?")
-    local function Col(text, x)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        fs:SetPoint("TOPLEFT", x, -302) fs:SetText(text)
-    end
-    local places = {}
-    for _, d in ipairs(DESTS) do places[#places + 1] = { d.label, d.key } end
-    places[#places + 1] = { "Any other", "any" }
-    local perBlock = math.ceil(#places / 2)
-    for blk = 0, 1 do
-        local bx = X + blk * 235
-        Col("Summon", bx + 98) Col("Port", bx + 150)
-        for r = 1, perBlock do
-            local pl = places[blk * perBlock + r]
-            if pl then
-                local y = -318 - (r - 1) * 24
-                local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                fs:SetPoint("TOPLEFT", bx + 6, y - 5) fs:SetText(pl[1])
-                Check("sum_" .. pl[2], bx + 104, y, nil, true)
-                Check("port_" .. pl[2], bx + 152, y, nil, true)
-            end
+    -- one service: offer it, price (blank = free), invite, words, who gets paid
+    local function Service(key, x, y)
+        local def = Core.BY_KEY[key]
+        local k = "svc_" .. key .. "_"
+        Check(k .. "on", x, y, (def.kind == "buff" and "We offer " or "We sell ") .. def.label)
+        Label(x + 4, y - 32, "Price:")
+        Box(k .. "g", x + 52, y - 28, 44, 5) Label(x + 100, y - 32, "g")
+        Box(k .. "s", x + 116, y - 28, 30, 2) Label(x + 150, y - 32, "s", nil)
+        Label(x + 166, y - 33, "blank = free", "GameFontHighlightSmall")
+        Check(k .. "invite", x, y - 54, "Invite buyers who ask for it")
+        local dy = 86
+        if def.words then
+            Label(x + 4, y - dy, "Buyers say:")
+            Box(k .. "words", x + 92, y - dy + 4, 300, 200)
+            dy = dy + 28
         end
+        Label(x + 4, y - dy, "Who gets paid:")
+        Box(k .. "payee", x + 112, y - dy + 4, 130, 40)
+        Label(x + 250, y - dy - 1, "blank = default, me, or a name", "GameFontHighlightSmall")
+        return dy + 28
     end
 
-    Header(X, -448, nil, "Matching")
-    Check("strictbuy", X, -472, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
-    Check("fragments", X, -498, "Combine a person's split messages", true)
+    -- tabs ----------------------------------------------------------------
+    local TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
+    local pages, tabBtns = {}, {}
+    local function ShowTab(i)
+        for j, pg in ipairs(pages) do
+            if j == i then pg:Show() tabBtns[j]:LockHighlight() else pg:Hide() tabBtns[j]:UnlockHighlight() end
+        end
+        w.tab = i
+    end
+    for i, name in ipairs(TABS) do
+        local pg = CreateFrame("Frame", nil, w)
+        pg:SetPoint("TOPLEFT", 0, 0) pg:SetPoint("BOTTOMRIGHT", 0, 0)
+        pages[i] = pg
+        local b = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
+        b:SetSize(120, 26) b:SetPoint("TOPLEFT", w, "BOTTOMLEFT", 18 + (i - 1) * 124, 4)
+        b:SetText(name)
+        b:SetScript("OnClick", function() ShowTab(i) end)
+        tabBtns[i] = b
+    end
+    w.pages, w.tabBtns, w.ShowTab = pages, tabBtns, ShowTab
 
-    Header(X, -562, nil, "Other")
-    Check("skipafk", X, -586, "Skip while I'm AFK", true)
-    Check("announce", X, -612, "Show a line in chat when I invite", true)
-    Check("autoshow", X, -638, "Open the customer list when I invite someone", true)
+    local L, R = 28, 470
 
-    Check("kwon", X, -664, "Auto-invite anyone who says:", true)
-    Box("kwwords", -666, 170, 60, X + 262)
+    -- General: who gets invited, who gets paid, the messages ---------------
+    page = pages[1]
+    Header(L, -50, "Who gets invited")
+    Check("enabled", L, -74, "Invite buyers of what we sell", true)
+    Label(L, -108, "Listen in:")
+    Check("trade", L + 76, -102, "Trade", true)
+    Check("general", L + 156, -102, "General", true)
+    Check("say", L + 246, -102, "Say", true)
+    Check("yell", L + 316, -102, "Yell", true)
+    Label(L, -138, "+ other channels:")
+    Box("chanextra", L + 140, -134, 250, 100)
+    Check("strictbuy", L, -162, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
+    Check("fragments", L, -188, "Combine a person's split messages", true)
+    Check("skipafk", L, -214, "Skip while I'm AFK", true)
+    Check("announce", L, -240, "Show a line in chat when I invite", true)
+    Check("autoshow", L, -266, "Open the customer list when I invite someone", true)
+    Check("kwon", L, -292, "Auto-invite anyone who says:", true)
+    Box("kwwords", L + 236, -294, 170, 60)
+    Check("dryrun", L, -322, "Dry run")
+    Check("near", L + 110, -322, "Near-miss lines")
+    Check("debug", L + 270, -322, "Debug")
+    Header(L, -362, "On sale right now")
+    w.onsale = Label(L, -388, "", "GameFontHighlight", 410)
 
-    Header(X, -706, nil, "Troubleshooting")
-    Check("dryrun", X, -730, "Dry run (only say who it would invite)")
-    Check("near", X, -756, "Near-miss lines")
-    Check("debug", X + 215, -756, "Debug")
-
-    local note = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    note:SetPoint("TOPLEFT", X, -792) note:SetWidth(450) note:SetJustifyH("LEFT")
-    note:SetText("A ticked Summon also takes port requests to that place. Sellers/ads are always skipped; tips/pst/inv are fine if they say WTB.")
-
-    Header(X, -826, nil, "This session")
-    local sessText = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    sessText:SetPoint("TOPLEFT", X, -852) sessText:SetWidth(300) sessText:SetJustifyH("LEFT")
-    local sessBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    sessBtn:SetPoint("TOPLEFT", X + 320, -846) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
+    Header(R, -50, "Who gets paid (default)")
+    local function SyncTradeBox()
+        local named = checks.pay_name and checks.pay_name:GetChecked()
+        if named then checks.autotrade:Disable() else checks.autotrade:Enable() end
+        if checks.autotrade.label then checks.autotrade.label:SetFontObject(named and "GameFontDisable" or "GameFontHighlight") end
+    end
+    Radio("pay", "pay_place", R, -74, "Whoever is where the customer ends up", SyncTradeBox)
+    Label(R + 30, -100, "You if you're there, otherwise the person doing the service.", "GameFontHighlightSmall")
+    Radio("pay", "pay_me", R, -116, "Always me", SyncTradeBox)
+    Radio("pay", "pay_name", R, -142, "Always:", SyncTradeBox)
+    Box("payname", R + 100, -144, 160, 40)
+    Check("autotrade", R, -172, "Open trade by itself when it's me and they're in range")
+    Label(R, -202, "Each service can name its own payee on its tab.", "GameFontHighlightSmall")
+    Header(R, -232, "Messages")
+    Check("welcome", R, -256, "Welcome them when they join")
+    Label(R, -286, "Welcome text, blank = automatic (what, who, where, price, who to pay).", "GameFontHighlightSmall", 400)
+    Label(R, -300, "Yours can use {name} {service} {price} {payee}.", "GameFontHighlightSmall", 400)
+    Box("welcomemsg", R + 4, -316, 396)
+    Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
+    Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
+    Box("offermsg", R + 4, -378, 396)
+    Header(R, -420, "This session")
+    local sessText = Label(R, -446, "", "GameFontHighlight", 270)
+    local sessBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -440) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
+    -- Warlock --------------------------------------------------------------
+    page = pages[2]
+    Service("summons", L, -50)
+    Header(L, -168, "Who summons")
+    Radio("role", "rolelock", L, -192, "I do (I'm the warlock)")
+    Radio("role", "rolehelper", L, -218, "A friend in the group does; I click the portal")
+    Label(L, -254, "Summons go to where the warlock is standing. If the game can't tell where that is, summon to:", "GameFontHighlightSmall", 410)
+    local places = {}
+    for _, d in ipairs(DESTS) do places[#places + 1] = { d.label, d.key } end
+    places[#places + 1] = { "Anywhere", "any" }
+    local perCol = math.ceil(#places / 2)
+    for i, pl in ipairs(places) do
+        local col, row = math.floor((i - 1) / perCol), (i - 1) % perCol
+        Check("sum_" .. pl[2], L + col * 210, -286 - row * 24, pl[1], true)
+    end
+    Header(R, -50, "When the warlock starts summoning")
+    Check("raidalert", R, -74, "Say in raid:")
+    Box("alertmsg", R + 4, -102, 396)
+    Label(R, -134, "Whisper to (blank = nobody):")
+    Box("whisperto", R + 210, -130, 150, 40)
+    Label(R, -162, "Whisper text ({name}, {next} = who waits longest):", "GameFontHighlightSmall")
+    Box("whispermsg", R + 4, -178, 396)
+    local y = -216
+    y = y - Service("healthstone", R, y) - 8
+    Service("soulstone", R, y)
+
+    -- Mage -----------------------------------------------------------------
+    page = pages[3]
+    Service("portals", L, -50)
+    Header(L, -168, "Portals")
+    Label(L, -194, "Read from your spellbook if you're the mage, otherwise from the mage's level. A mage never offers the city he's standing in. Untick any they haven't trained:", "GameFontHighlightSmall", 410)
+    w.portalChecks = {}
+    for i, pl in ipairs(Core.PORTALS[Faction()] or {}) do
+        local city = pl[1]
+        Check("portal_" .. city, L, -236 - (i - 1) * 26, city .. "  (level " .. pl[2] .. ")")
+        w.portalChecks[#w.portalChecks + 1] = city
+    end
+    Service("water", R, -50)
+
+    -- Rogue ----------------------------------------------------------------
+    page = pages[4]
+    Service("lockpick", L, -50)
+
+    -- Buffs ----------------------------------------------------------------
+    page = pages[5]
+    Label(L, -50, "Buffs are free unless you set a price. Offered once when a customer arrives where you are.", "GameFontHighlightSmall", 840)
+    Service("fort", L, -76)
+    Service("motw", R, -76)
+    Service("ai", L, -236)
+    Service("blessing", R, -236)
+
+    -- Advertise --------------------------------------------------------------
+    page = pages[6]
+    Header(L, -50, "Advertise")
+    Label(L, -78, "The game only lets an ad go out when you press a key or click, so it's one press per ad. The text comes from what is on sale; a whispered 'inv' within 10 minutes counts as an answer to your ad.", "GameFontHighlightSmall", 840)
+    Label(L, -118, "Ad ({wts} = 'WTS ' when anything is paid, {services} = what's on sale):")
+    Box("admsg", L + 4, -136, 600)
+    Label(L, -172, "Post in:")
+    Check("adch_trade", L + 70, -166, "Trade")
+    Check("adch_general", L + 160, -166, "General")
+    Label(L + 270, -172, "+ other channels:")
+    Box("adextra", L + 410, -168, 180, 100)
+    Label(L, -206, "Wait between ads in a channel:")
+    Box("adwait", L + 230, -202, 40, 3)
+    Label(L + 280, -206, "minutes")
+    Label(L, -240, "Preview:")
+    w.adpreview = Label(L + 72, -240, "", "GameFontHighlight", 760)
+    local post = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+    post:SetPoint("TOPLEFT", L, -282) post:SetSize(220, 30) post:SetText("Post ad")
+    post:SetScript("OnClick", function() w.Save() PostAd() w.Load() end)
+    w.adpost = post
+    Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
+
     local DEFAULTS_BY_KEY = {
-        welcomemsg = DEFAULT_WELCOME, alertmsg = DEFAULT_ALERTMSG,
-        whispermsg = DEFAULT_WHISPERMSG, offermsg = DEFAULT_OFFERMSG,
+        welcomemsg = "", offermsg = "", alertmsg = DEFAULT_ALERTMSG, whispermsg = DEFAULT_WHISPERMSG, admsg = DEFAULT_AD,
     }
 
-    local function UpdatePreviews()
-        local n = (tonumber(boxes.pricegold:GetText()) or 0) * 100 + (tonumber(boxes.pricesilver:GetText()) or 0)
-        local pr = PriceLong(n)
-        previews.welcomemsg:SetText("Preview: " .. Fill(boxes.welcomemsg:GetText(), "Bob", nil, PriceShort(n)))
-        previews.alertmsg:SetText("Preview: " .. Fill(boxes.alertmsg:GetText(), "Bob", nil, pr))
-        previews.whispermsg:SetText("Preview: " .. Fill(boxes.whispermsg:GetText(), "Bob", "Cat", pr))
+    local function Refresh()
+        local items = Core.OnSale(ServiceInviterDB, GroupSnapshot(), Faction())
+        local parts = {}
+        for _, it in ipairs(items) do
+            local what = it.def.label
+            if it.def.kind == "summon" then what = "summons to " .. Core.Short(it.where or "?") end
+            if it.def.kind == "portal" then
+                local c = {}
+                for _, city in ipairs(it.cities) do c[#c + 1] = Core.Short(city) end
+                what = "portals to " .. table.concat(c, "/")
+            end
+            parts[#parts + 1] = what .. " (" .. (it.provider.me and "you" or it.provider.name) .. ")"
+        end
+        w.onsale:SetText(#parts > 0 and table.concat(parts, ", ") or "Nothing. Nobody in the group can do what's ticked on the class tabs.")
+        local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
+        w.adpreview:SetText(text or ("(no ad: " .. tostring(why) .. ")"))
+        local label, ready = AdLabel()
+        w.adpost:SetText(label)
+        if ready then w.adpost:Enable() else w.adpost:Disable() end
+        sessText:SetText(SessionText())
     end
-    for _, k in ipairs({ "welcomemsg", "alertmsg", "whispermsg", "pricegold", "pricesilver" }) do
-        boxes[k]:SetScript("OnTextChanged", UpdatePreviews)
-    end
+    w.Refresh = Refresh
 
     function w.Load()
         local db = ServiceInviterDB
-        for key, def in pairs(DEFAULTS_BY_KEY) do boxes[key]:SetText(db[key] or def) boxes[key]:SetCursorPosition(0) end
+        for key, def in pairs(DEFAULTS_BY_KEY) do
+            local v = db[key]
+            if key == "welcomemsg" and v == DEFAULT_WELCOME then v = nil end
+            if key == "offermsg" and v == DEFAULT_OFFERMSG then v = nil end
+            boxes[key]:SetText(v or def) boxes[key]:SetCursorPosition(0)
+        end
         boxes.whisperto:SetText(WhisperTo() or "")
-        local pg, ps = PriceParts(Price())
-        boxes.pricegold:SetText(tostring(pg))
-        boxes.pricesilver:SetText(tostring(ps))
-        boxes.offerother:SetText(db.offerother or "")
         boxes.kwwords:SetText(db.kwwords or DEFAULT_KEYWORDS) boxes.kwwords:SetCursorPosition(0)
         boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or DEFAULT_CHANNELS) boxes.chanextra:SetCursorPosition(0)
+        boxes.adextra:SetText(db.adextra or "")
+        boxes.adwait:SetText(tostring(tonumber(db.adwait) or 5))
+        local adch = type(db.adchans) == "table" and db.adchans or { trade = true }
+        checks.adch_trade:SetChecked(adch.trade and true or false)
+        checks.adch_general:SetChecked(adch.general and true or false)
         checks.raidalert:SetChecked(db.raidalert ~= false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
-        checks.collect:SetChecked(Collects())
-        SyncTradeBox()
         checks.welcome:SetChecked(Opt("welcome") and true or false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")
         checks.rolelock:SetChecked(Role() == "lock")
-        local offers = db.offers or {}
-        for _, x in ipairs(OFFERS) do checks["offer_" .. x.key]:SetChecked(offers[x.key] and true or false) end
         checks.dryrun:SetChecked(db.dryrun and true or false)
         checks.near:SetChecked(db.near ~= false)
         checks.debug:SetChecked(db.debug and true or false)
-        UpdatePreviews()
-        sessText:SetText(SessionText())
+        -- who gets paid by default
+        local d = type(db.payee) == "table" and db.payee or {}
+        local mode = d.mode or (db.collect == true and "me") or (db.collect == false and "notme") or "place"
+        checks.pay_place:SetChecked(mode == "place" or mode == "notme" or mode == "provider")
+        checks.pay_me:SetChecked(mode == "me")
+        checks.pay_name:SetChecked(mode == "name")
+        boxes.payname:SetText(d.name or "")
+        -- every service
+        for _, def in ipairs(Core.SERVICES) do
+            local st, k = Core.Setting(db, def.key), "svc_" .. def.key .. "_"
+            checks[k .. "on"]:SetChecked(st.on)
+            checks[k .. "invite"]:SetChecked(st.invite)
+            if st.price then
+                local g, sv = math.floor(st.price / 100), st.price % 100
+                boxes[k .. "g"]:SetText(g > 0 and tostring(g) or "")
+                boxes[k .. "s"]:SetText((sv > 0 or g == 0) and tostring(sv) or "")
+            else
+                boxes[k .. "g"]:SetText("") boxes[k .. "s"]:SetText("")
+            end
+            if boxes[k .. "words"] then boxes[k .. "words"]:SetText(st.words or "") boxes[k .. "words"]:SetCursorPosition(0) end
+            boxes[k .. "payee"]:SetText(st.payee or "")
+        end
+        local untick = Core.Setting(db, "portals").untick
+        for _, city in ipairs(w.portalChecks) do checks["portal_" .. city]:SetChecked(not untick[city]) end
+        SyncTradeBox()
+        Refresh()
     end
 
     function w.Save()
@@ -1647,54 +2004,62 @@ local function BuildSetupUI()
         end
         local who = (boxes.whisperto:GetText():gsub("%s+", ""))
         db.whisperto = (who == "") and false or who
-        local pg, ps = tonumber(boxes.pricegold:GetText()), tonumber(boxes.pricesilver:GetText())
-        if pg or ps then db.price = (pg or 0) * 100 + (ps or 0) end
         db.raidalert = checks.raidalert:GetChecked() and true or false
         db.autotrade = checks.autotrade:GetChecked() and true or false
-        db.collect = checks.collect:GetChecked() and true or false
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == DEFAULT_KEYWORDS) and nil or kws end
-        db.chanextra = boxes.chanextra:GetText()   -- empty = none (kept as ""), so the default only applies before first save
-        local oth = boxes.offerother:GetText()
-        db.offerother = (oth:gsub("%s+", "") == "") and nil or oth
+        db.chanextra = boxes.chanextra:GetText()
+        db.adextra = boxes.adextra:GetText()
+        db.adwait = tonumber(boxes.adwait:GetText()) or 5
+        db.adchans = { trade = checks.adch_trade:GetChecked() and true or false, general = checks.adch_general:GetChecked() and true or false }
         db.role = checks.rolelock:GetChecked() and "lock" or "helper"
-        db.offers = db.offers or {}
-        for _, x in ipairs(OFFERS) do db.offers[x.key] = checks["offer_" .. x.key]:GetChecked() and true or false end
         db.dryrun = checks.dryrun:GetChecked() and true or false
         db.near = checks.near:GetChecked() and true or false
         db.debug = checks.debug:GetChecked() and true or false
         debugOn = db.debug
+        local mode = checks.pay_me:GetChecked() and "me" or (checks.pay_name:GetChecked() and "name" or "place")
+        db.payee = { mode = mode, name = (boxes.payname:GetText():gsub("^%s+", ""):gsub("%s+$", "")) }
+        db.collect = nil   -- replaced by "who gets paid"
+        db.services = db.services or {}
+        for _, def in ipairs(Core.SERVICES) do
+            local k = "svc_" .. def.key .. "_"
+            local g, sv = tonumber(boxes[k .. "g"]:GetText()), tonumber(boxes[k .. "s"]:GetText())
+            local saved = db.services[def.key] or {}
+            saved.on = checks[k .. "on"]:GetChecked() and true or false
+            saved.invite = checks[k .. "invite"]:GetChecked() and true or false
+            saved.price = (g or sv) and ((g or 0) * 100 + (sv or 0)) or false
+            if boxes[k .. "words"] then saved.words = boxes[k .. "words"]:GetText() end
+            saved.payee = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
+            db.services[def.key] = saved
+        end
+        local untick = {}
+        for _, city in ipairs(w.portalChecks) do if not checks["portal_" .. city]:GetChecked() then untick[city] = true end end
+        db.services.portals.untick = untick
         RefreshJobs()
     end
 
     local save = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    save:SetPoint("BOTTOMLEFT", 30, 24) save:SetSize(110, 28) save:SetText("Save")
+    save:SetPoint("BOTTOMLEFT", 28, 22) save:SetSize(110, 28) save:SetText("Save")
     save:SetScript("OnClick", function() w.Save() w.Load() P("setup saved") end)
     local test = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
     test:SetPoint("LEFT", save, "RIGHT", 10, 0) test:SetSize(130, 28) test:SetText("Test banner")
     test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)") end)
-    local reset = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    reset:SetPoint("LEFT", test, "RIGHT", 10, 0) reset:SetSize(150, 28) reset:SetText("Reset messages")
-    reset:SetScript("OnClick", function()
-        local db = ServiceInviterDB
-        db.welcomemsg, db.alertmsg, db.whispermsg, db.offermsg = nil, nil, nil, nil
-        db.whisperto, db.raidalert, db.autotrade, db.price = nil, nil, nil, nil
-        w.Load() P("messages back to defaults")
-    end)
 
     -- shrink to fit small screens so nothing runs off
     local function Fit()
         local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
         local sc = 1
         if type(sw) == "number" and type(sh) == "number" and sw > 0 and sh > 0 then
-            sc = math.min(1, sw / (1010 + 40), sh / (910 + 40))
+            sc = math.min(1, sw / (W + 40), sh / (H + 80))
         end
         w:SetScale(sc)
     end
-    w.checks = checks
-    w:SetScript("OnShow", function() Fit() w.Load() end)
+    local acc = 0
+    w:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0) if acc >= 1 then acc = 0 Refresh() end end)
+    w:SetScript("OnShow", function() Fit() w.Load() ShowTab(w.tab or 1) end)
     w:SetScript("OnHide", function() w.Save() end)
+    w.checks, w.boxes = checks, boxes
     return w
 end
 
@@ -1833,19 +2198,28 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         if ServiceInviterDB.blocked then ServiceInviterDB.blocked[rest:lower()] = nil end
         P("unblocked " .. rest)
     elseif cmd == "bind" then
-        local key = rest:upper():gsub("%s+", "")
-        if key == "" then P("usage: /si bind <key>   e.g. /si bind F   or /si bind CTRL-F") 
+        -- /si bind F  (the big button)   or   /si bind ad F7  (post the ad)
+        local forAd = rest:lower():match("^ad%s+") ~= nil
+        local key = (forAd and rest:gsub("^%S+%s+", "") or rest):upper():gsub("%s+", "")
+        if key == "" then P("usage: /si bind <key>  (big button)   or   /si bind ad <key>  (post the ad)")
         elseif InCombatLockdown and InCombatLockdown() then P("can't change keys in combat")
         else
             jobsWin = jobsWin or BuildJobsUI()
-            if SetBindingClick and SetBindingClick(key, "ServiceInviterNext") then
+            local target = forAd and "ServiceInviterAdButton" or "ServiceInviterNext"
+            if SetBindingClick and SetBindingClick(key, target) then
                 if SaveBindings and GetCurrentBindingSet then SaveBindings(GetCurrentBindingSet()) end
-                P(key .. " now presses the big button (does the next thing for your next customer)")
+                P(key .. (forAd and " now posts the ad (when it's ready)" or " now presses the big button (does the next thing for your next customer)"))
             else
                 P("couldn't bind " .. key .. " (try another key)")
             end
         end
+    elseif cmd == "ad" then PostAd()
     elseif cmd == "status" then
+        do
+            local items, parts = Core.OnSale(ServiceInviterDB, GroupSnapshot(), Faction()), {}
+            for _, it in ipairs(items) do parts[#parts + 1] = it.def.label .. " (" .. (it.provider.me and "you" or it.provider.name) .. ", " .. tostring(it.where or "where?") .. ")" end
+            P("on sale: " .. (#parts > 0 and table.concat(parts, ", ") or "nothing (nobody in the group can do what's ticked)"))
+        end
         local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
         local ti = isLoaded and isLoaded("TradeInviter")
         P("invites: " .. (paused and "|cffff8040PAUSED (Trade Inviter is loaded)|r" or (Opt("enabled") and "|cff00ff00ON|r" or "|cffff4040OFF|r (tick it in /si setup or /si on)")) ..
@@ -1917,8 +2291,12 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         elseif r:lower() == "off" then ServiceInviterDB.whisperto = false P("ritual whisper off")
         else ServiceInviterDB.whisperto = r P("ritual whisper goes to " .. r) end
     elseif cmd == "collect" then
-        ServiceInviterDB.collect = not Collects()
-        P("payment: " .. (Collects() and "YOU collect (Trade and Paid buttons; trade opens by itself unless /si autotrade is off)" or "someone else collects (no trade window, no Trade/Paid buttons)"))
+        -- toggles "who gets paid" between always you and whoever is where the customer lands
+        local d = type(ServiceInviterDB.payee) == "table" and ServiceInviterDB.payee or {}
+        local mode = d.mode or (ServiceInviterDB.collect == true and "me") or "place"
+        ServiceInviterDB.payee = { mode = (mode == "me") and "place" or "me", name = d.name }
+        ServiceInviterDB.collect = nil
+        P("who gets paid: " .. (ServiceInviterDB.payee.mode == "me" and "always YOU (trade opens by itself when they're in range)" or "whoever is where the customer ends up"))
         RefreshJobs()
     elseif cmd == "autotrade" then
         ServiceInviterDB.autotrade = not AutoTradeOn()
@@ -1929,7 +2307,13 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
     elseif cmd == "clear" then Jobs.Clear() P("customer list cleared")
     elseif cmd == "price" then
         local n = ParsePrice(rest)
-        if n and n >= 0 then ServiceInviterDB.price = n P("price " .. Money(n) .. " per customer") else P("usage: /si price 25   or   /si price 1g 25s   or   /si price 2g") end
+        if n and n >= 0 then
+            ServiceInviterDB.services = ServiceInviterDB.services or {}
+            ServiceInviterDB.services.summons = ServiceInviterDB.services.summons or {}
+            ServiceInviterDB.services.summons.price = (n > 0) and n or false
+            ServiceInviterDB.price = nil
+            P("summons price " .. (n > 0 and Money(n) or "free") .. " (other services: their tab in /si setup)")
+        else P("usage: /si price 25   or   /si price 1g 25s   or   /si price 2g") end
     elseif cmd == "reset" then
         wipe(lastInvite) wipe(pending) wipe(fragments) inviteTimes = {}
         ServiceInviterDB = {}
@@ -1940,5 +2324,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

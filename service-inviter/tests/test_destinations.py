@@ -53,15 +53,17 @@ def test_there_is_no_option_for_it(game):
     assert "nodest" not in ADDON.read_text()
 
 
-@pytest.mark.parametrize("collect", [False, True])
-def test_auto_trade_box_is_greyed_out_unless_you_collect(game, collect):
-    game.run(f'ServiceInviterDB.collect = {str(collect).lower()} ServiceInviter_Test.BuildSetup():Show()')
+@pytest.mark.parametrize("mode, greyed", [("place", False), ("me", False), ("name", True)])
+def test_auto_trade_box_is_greyed_out_when_someone_named_always_gets_paid(game, mode, greyed):
+    """Trade opens only for the payee. Paid to a fixed other person, it can never be you."""
+    game.run(f'ServiceInviterDB.payee = {{ mode = "{mode}", name = "Banker" }} ServiceInviter_Test.BuildSetup():Show()')
     disabled = game.eval('rawget(ServiceInviter_Test.SetupChecks().autotrade, "_disabled") == true')
-    assert disabled is (not collect)
+    assert disabled is greyed
 
 
-def test_ticking_collect_ungreys_it_straight_away(game):
-    game.run('ServiceInviterDB.collect = false ServiceInviter_Test.BuildSetup():Show()')
+def test_picking_a_named_payee_greys_it_straight_away(game):
+    game.run('ServiceInviter_Test.BuildSetup():Show()')
     game.run('''local c = ServiceInviter_Test.SetupChecks()
-        c.collect:SetChecked(true) c.collect._scripts.OnClick(c.collect)''')
-    assert game.eval('rawget(ServiceInviter_Test.SetupChecks().autotrade, "_disabled") == true') is False
+        c.pay_name._scripts.OnClick(c.pay_name)''')
+    assert game.eval('rawget(ServiceInviter_Test.SetupChecks().autotrade, "_disabled") == true') is True
+    assert game.eval('ServiceInviter_Test.SetupChecks().pay_place:GetChecked()') is False

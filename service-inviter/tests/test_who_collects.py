@@ -30,17 +30,17 @@ def test_trade_and_paid_buttons_follow_who_collects(party, collect):
     assert row.trade._shown is collect
 
 
-def test_the_setup_window_saves_it(party):
+def test_the_setup_window_saves_who_gets_paid(party):
     party.run('''local w = ServiceInviter_Test.BuildSetup() w:Show()
-        ServiceInviter_Test.SetupChecks().collect:SetChecked(true) w:Hide()''')
-    assert party.eval("ServiceInviterDB.collect") is True
+        local c = ServiceInviter_Test.SetupChecks() c.pay_me._scripts.OnClick(c.pay_me) w:Hide()''')
+    assert party.eval("ServiceInviterDB.payee.mode") == "me"
 
 
-def test_si_collect_toggles_it(game):
+def test_si_collect_toggles_always_me(game):
     game.eval('SlashCmdList.SERVICEINVITER("collect")')
-    assert game.eval("ServiceInviterDB.collect") is True   # helper default was off
+    assert game.eval("ServiceInviterDB.payee.mode") == "me"
     game.eval('SlashCmdList.SERVICEINVITER("collect")')
-    assert game.eval("ServiceInviterDB.collect") is False
+    assert game.eval("ServiceInviterDB.payee.mode") == "place"
 
 
 def test_no_whisper_until_someone_is_named(party):
