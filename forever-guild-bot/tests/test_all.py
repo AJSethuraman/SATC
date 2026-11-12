@@ -1550,6 +1550,10 @@ def test_skillup_command_needs_a_claimed_character_and_plans_to_the_tier_cap(tmp
     assert {p.name for p in cmd.parameters} == {"profession"}                    # one dropdown, nothing else to fill in
     asyncio.run(cmd.callback(ix, "Blacksmithing"))
     assert "/link" in sent[0][0] and sent[0][2] is True                           # no character claimed: told to claim one
+    from guildbot.bot import register_commands  # noqa: F401  (the dropdown is built inside; check it through the app command)
+    ac = cmd._params["profession"].autocomplete
+    hint = asyncio.run(ac(ix, ""))
+    assert len(hint) == 1 and "/link" in hint[0].name                              # an empty list says why
     other = next(rid for rid, (l, y, g) in S.load_ranges().items() if l <= 50 < y)
     now = utcnow()
     db.replace_professions("anduin-wrynn", [bz.Profession("Blacksmithing", 50, 75, ((other, "Thing"),))], now)

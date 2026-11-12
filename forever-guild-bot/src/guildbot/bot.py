@@ -1398,13 +1398,15 @@ def register_commands(bot: GuildBot) -> None:
 
     async def my_profession_ac(interaction: discord.Interaction, current: str):
         rows = db.characters_for(interaction.user.id)
+        if not rows:
+            return [app_commands.Choice(name="You have no character yet: claim one with /link first", value="-")]
         out = []
         for r in rows:
             for pr in db.professions_for(r["slug"]):
                 label = f"{pr['profession']} {pr['skill']}/{pr['max_skill']}" + (f" ({R.full_name(r)})" if len(rows) > 1 else "")
                 if current.lower() in label.lower():
                     out.append(app_commands.Choice(name=label[:100], value=f"{r['slug']}:{pr['profession']}"[:100]))
-        return out[:25]
+        return out[:25] or [app_commands.Choice(name="No professions found on your characters yet", value="-")]
 
     @tree.command(name="skillup", description="What to craft to level one of your professions, cheapest first")
     @app_commands.describe(profession="Pick one of your professions")
@@ -1429,7 +1431,9 @@ def register_commands(bot: GuildBot) -> None:
             if pick:
                 break
         if not pick:
-            await interaction.response.send_message("Pick one of your professions from the list.", ephemeral=True)
+            await interaction.response.send_message(
+                "Pick one of your professions from the list. If the list is empty, your characters have no professions on record yet.",
+                ephemeral=True)
             return
         card = skillup_card(db, pick[0], pick[1])
         if isinstance(card, str):
