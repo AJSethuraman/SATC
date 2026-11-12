@@ -408,14 +408,21 @@ def test_commands_are_limited_to_the_configured_channels(tmp_path):
         sent.append((text, ephemeral))
     import discord
 
+    hints = []
+
+    async def hint(choices):
+        hints.append([c.name for c in choices])
+
     def ix(channel_id, kind=discord.InteractionType.application_command):
-        return SimpleNamespace(channel_id=channel_id, type=kind, response=SimpleNamespace(send_message=send_message))
+        return SimpleNamespace(channel_id=channel_id, type=kind,
+                               response=SimpleNamespace(send_message=send_message, autocomplete=hint))
     bot = GuildBot(cfg, make_db(tmp_path), blizzard=None)
     assert asyncio.run(bot.tree.interaction_check(ix(11))) is True
     assert asyncio.run(bot.tree.interaction_check(ix(99))) is False
     assert sent == [("Use me in <#11> or <#22>.", True)]
     assert asyncio.run(bot.tree.interaction_check(ix(99, discord.InteractionType.autocomplete))) is False
-    assert len(sent) == 1                                                  # a type-ahead is refused quietly: it cannot take a message
+    assert len(sent) == 1                                                  # a type-ahead cannot take a message
+    assert len(hints) == 1 and hints[0][0].startswith("Commands only work in")      # it gets a readable hint instead
     open_bot = GuildBot(load(base), make_db(tmp_path), blizzard=None)
     assert asyncio.run(open_bot.tree.interaction_check(ix(99))) is True
 
