@@ -22,11 +22,13 @@ def test_auto_trade_follows_who_collects(party, role, collect, opens_trade):
 
 
 @pytest.mark.parametrize("collect", [True, False])
-def test_trade_and_paid_buttons_follow_who_collects(party, collect):
+def test_trade_follows_who_collects_and_paid_is_always_there(party, collect):
+    """Trade only when you collect. Paid shows either way: whoever collects, the inviter marks
+    it (design review, 12 Nov 2026), and Paid then thanks and removes them."""
     party.run(f'ServiceInviterDB.role = "helper" ServiceInviterDB.collect = {str(collect).lower()}')
     party.run(ARRIVE + ' ServiceInviter_Test.Refresh()')
     row = party.eval('ServiceInviterJobs.rows[1]')
-    assert row.paid._shown is collect
+    assert row.paid._shown is True
     assert row.trade._shown is collect
 
 

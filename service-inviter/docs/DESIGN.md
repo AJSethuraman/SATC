@@ -192,3 +192,29 @@ still work. The addon now listens for the game blocking any of its calls, names 
 chat, and never makes it again that session. `InitiateTrade` (auto-trade on arrival) is listed as
 callable only by Blizzard's code on the current game (warcraft.wiki.gg/wiki/API_InitiateTrade);
 if Forever blocks it, auto-trade stops for the session and the addon says so.
+
+## Rows follow the service; Paid finishes the job (2.0.13)
+
+The design review of 12 Nov 2026 (a separate session that read the code and made mockups)
+found the customer rows only knew summons. Reproduced: as the warlock, a rogue friend's
+lockpicking buyer put "Summon Kaldrok" on the big button, and a portal or lockpick customer
+could never be marked Paid. Now:
+
+- Summon customers: Summon, Summoning, Arrived, as before.
+- Everyone else (portals, lockpicking, water, stones, buffs): In group, then **Paid**, or
+  **Done** when the service is free. The welcome in party or raid chat already tells the
+  provider (the review's G1 was mostly wrong on that).
+- The big button only offers what you can do: a summon to where you stand, as the warlock;
+  the arrival offer; a trade when you collect. Never someone else's customer.
+- Paid shows for every customer once they're served, whoever collects. Pressing it (the owner:
+  "Paid should also remove from party and maybe send a thank you") whispers "Thanks {name}!
+  Enjoy." (editable, General tab) and removes them from the group if you're the leader (or an
+  assistant in a raid); otherwise it says to ask the leader. A trade that pays thanks them too,
+  but removal waits for your click (x), since removing someone without a click risks the game's
+  block popup.
+- Invites keep working when you're not the leader: the game turns them into a suggestion.
+
+Not built, on the owner's agreement: the "Tell Mireth" button (the welcome already is that
+message), filter chips and the "nobody can do this" strip. Addon-to-addon messages (so several
+people running it share one customer list and say what they really know) wait until a second
+person runs it.

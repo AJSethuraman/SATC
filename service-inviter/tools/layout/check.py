@@ -95,6 +95,11 @@ for name, before, after in [
         f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
         f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "can i get stam buff", "Kaldrok", "", "", "", "", "", "", "")'''),
     ("customers_busy_as_the_lock", GROUP.replace('"Me","SHAMAN"', '"Me","WARLOCK"') + '\nServiceInviterDB = { role = "lock" }', BUSY),
+    # the lock, with a rogue friend's lockpick customers: Paid/Done, never Summon
+    ("customers_lock_with_lockpick_buyers", GROUP.replace('"Me","SHAMAN",60,"Orgrimmar"', '"Me","WARLOCK",60,"Thunder Bluff"').replace('party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Sly","ROGUE",60,"Thunder Bluff"}').replace('GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { Grimtotem = true, Sly = true }') + '\nServiceInviterDB = { role = "lock", services = { lockpick = { on = true, price = 20 }, water = { on = false } } }',
+     '''local J = ServiceInviter_Test.Jobs
+        J.New("Kaldrok","x","t","Trade") J.Get("Kaldrok").service = "lockpick" J.Joined("Kaldrok")
+        J.New("Mirasha","x","t","Trade") J.Get("Mirasha").service = "summons" J.Get("Mirasha").dest = "Thunder Bluff" J.Joined("Mirasha")'''),
 ]:
     L = load(before)
     L.execute(after)

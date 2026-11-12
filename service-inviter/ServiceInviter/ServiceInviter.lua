@@ -1,4 +1,4 @@
--- Service Inviter v2.0.12
+-- Service Inviter v2.0.13
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -486,6 +486,7 @@ local JOB_STATUS = {
     summoned  = { "Summoning", "|cff8fbff0" },
     arrived   = { "Arrived",   "|cff8fe3f0" },
     paid      = { "Paid",      "|cffb6d98a" },
+    done      = { "Done",      "|cffb6d98a" },   -- a free service, finished
     busy      = { "Has a group", "|cffffa040" },   -- invite failed: they are already in another group
     declined  = { "Declined",  "|cffff8080" },
     noanswer  = { "No answer", "|cffa89c78" },
@@ -600,7 +601,7 @@ function Jobs.Set(name, status)
     if status == "summoned" then Stats().summoned = Stats().summoned + 1 Stats().ev = Stats().ev + (JobPrice(j) or 0) j.tsummon = GetTime() end
     if status == "arrived" then j.tarrive = GetTime() end
     if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or JobPrice(j) or 0) end
-    if status == "paid" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
+    if status == "paid" or status == "done" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
     j.status = status
     jobsChanged()
     return j
@@ -648,6 +649,23 @@ function Jobs.Remove(name)
     jobsChanged(true)
 end
 function Jobs.Clear() wipe(jobs) wipe(jobByName) jobsChanged(true) end
+
+-- Thanks when they're done (the owner, 12 Nov 2026: "Paid should also remove from party and
+-- maybe send a thank you"). A whisper, so it still reaches them after they leave the group.
+local DEFAULT_THANKS = "Thanks {name}! Enjoy."
+local function ThanksText(name)
+    if ServiceInviterDB.thanks == false then return nil end
+    local m = ServiceInviterDB.thanksmsg
+    if m == nil then m = DEFAULT_THANKS end
+    if m == "" then return nil end
+    return (m:gsub("{name}", function() return name end))
+end
+local function Thank(j)
+    if not j or j.thanked then return end
+    j.thanked = true
+    local t = ThanksText(j.name)
+    if t then pcall(SendChatMessage, t, "WHISPER", nil, j.name) end
+end
 
 -- Companion mode: remember what each person last said, and when ANY invite goes
 -- out (Trade Inviter, another addon, or you by hand) add that person to the list.
@@ -994,7 +1012,8 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
             if silver > 0 and silver >= (need or 0) then
                 Jobs.Get(who).amount = silver
                 Jobs.Set(who, "paid")
-                P(Colored(who, Jobs.Get(who).class) .. (need and " paid " or " tipped ") .. Money(silver) .. ". Marked Paid.")
+                Thank(Jobs.Get(who))
+                P(Colored(who, Jobs.Get(who).class) .. (need and " paid " or " tipped ") .. Money(silver) .. ". Marked Paid. Press x on their row to remove them.")
             elseif silver > 0 then
                 P(who .. " traded " .. Money(silver) .. ", less than the " .. Money(need) .. " price. Not marked Paid.")
             end
@@ -1302,6 +1321,12 @@ end
 local function NextStep(job)
     if not job then return "none" end
     if job.status == "invited" then return "wait" end
+    local def = Core.BY_KEY[job.service or "summons"]
+    if def and def.kind ~= "summon" then
+        -- portals, lockpicking, water, stones, buffs: the provider does it where they stand
+        if job.status == "joined" or job.status == "arrived" then return "serve" end
+        return "none"
+    end
     if job.status == "joined" then return "summon" end
     if job.status == "summoned" then return "arriving" end
     if job.status == "arrived" then
@@ -1345,10 +1370,22 @@ local function VisibleJobs()
 end
 
 -- The first customer who needs something from you.
+-- Can you summon this customer? Only as the warlock, and only one coming to where you stand.
+local function YouSummon(j)
+    if Role() ~= "lock" then return false end
+    local def = Core.BY_KEY[(j and j.service) or "summons"]
+    if not def or def.kind ~= "summon" then return false end
+    local p = Core.Provider(GroupSnapshot(), "summons", j.dest)
+    return p == nil or p.me == true
+end
+-- The first customer who needs something from YOU (the big button never offers a job
+-- someone else does: a lockpick buyer is not yours to summon).
 local function NextJob()
     for _, j in ipairs(jobs) do
         local st = NextStep(j)
-        if st == "summon" or st == "offer" or st == "finish" then return j, st end
+        if st == "summon" and YouSummon(j) then return j, st end
+        if st == "offer" then return j, st end
+        if (st == "finish" or (st == "serve" and JobPrice(j))) and CollectsFor(j) then return j, "finish" end
     end
     return nil, "none"
 end
@@ -1817,6 +1854,28 @@ ticker:SetScript("OnUpdate", function(_, el)
     if tacc >= 1 then tacc = 0 pcall(CheckArrivals) end
 end)
 
+-- Take a customer out of the group: a click only (Paid, Done or x), and only as leader (or an
+-- assistant in a raid); otherwise the leader has to.
+local function RemoveFromGroup(name)
+    if not InGroupByName(name) then return end
+    local lead = UnitIsGroupLeader and UnitIsGroupLeader("player")
+    local assist = IsInRaid and IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player")
+    if (lead or assist) and not blockedCalls.UninviteUnit then
+        pcall(UninviteUnit, name)
+        P("removed " .. name .. " from the group")
+    else
+        P(name .. " is done. You're not the leader, so ask the leader to remove them.")
+    end
+end
+-- Paid (or Done, for a free service): thank them, then take them out of the group.
+local function FinishJob(name)
+    local j = Jobs.Get(name)
+    if not j then return end
+    Jobs.Set(name, JobPrice(j) and "paid" or "done")
+    Thank(j)
+    RemoveFromGroup(name)
+end
+
 local function ApplyRow(row, job)
     row.job = job
     row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide()
@@ -1840,14 +1899,21 @@ local function ApplyRow(row, job)
     if job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
         row.reinvite:Show()
     elseif step == "summon" then
-        if lock then row.summon:Show() end
+        if YouSummon(job) then row.summon:Show() end
+    elseif step == "arriving" then
+        row.paid:Show()
     elseif step == "offer" then
         local mine = CollectsFor(job)
         if lock then row.offer:Show() elseif mine then row.trade:Show() end
-        if mine then row.paid:Show() end
+        row.paid:Show()
     elseif step == "finish" then
-        if CollectsFor(job) then row.trade:Show() row.paid:Show() end
+        if CollectsFor(job) then row.trade:Show() end
+        row.paid:Show()
+    elseif step == "serve" then
+        if JobPrice(job) and CollectsFor(job) then row.trade:Show() end
+        row.paid:Show()
     end
+    row.paid:SetText(JobPrice(job) and "Paid" or "Done")
     row.remove:Show()
 end
 
@@ -1857,7 +1923,7 @@ local function ApplyNext()
         w.nextBtn:Hide()
         w.nextText:Show()
         local nxt, waiting = nil, 0
-        for _, j in ipairs(jobs) do if j.status == "joined" then nxt = nxt or j waiting = waiting + 1 end end
+        for _, j in ipairs(jobs) do if NextStep(j) == "summon" then nxt = nxt or j waiting = waiting + 1 end end
         w.nextText:SetText(nxt and ("Next up: |cffffd100" .. nxt.name .. "|r" .. (waiting > 1 and ("  (+" .. (waiting - 1) .. " waiting)") or "")) or "Nobody waiting")
         return
     end
@@ -2013,7 +2079,7 @@ local function BuildJobsUI()
         row.paid = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
         row.paid:SetPoint("TOPLEFT", 358, y)
         row.paid:SetSize(70, 28) row.paid:SetText("Paid")
-        row.paid:SetScript("OnClick", function() if row.job then Jobs.Set(row.job.name, "paid") end end)
+        row.paid:SetScript("OnClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
 
         row.reinvite = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
         row.reinvite:SetPoint("TOPLEFT", 252, y)
@@ -2034,17 +2100,7 @@ local function BuildJobsUI()
             if not row.job then return end
             local name = row.job.name
             -- x = done with this customer: take them out of the group too, if allowed
-            local u = UnitFor(name)
-            if u and (UnitInParty and UnitInParty(u) or UnitInRaid and UnitInRaid(u)) then
-                local lead = UnitIsGroupLeader and UnitIsGroupLeader("player")
-                local assist = UnitIsGroupAssistant and UnitIsGroupAssistant("player")
-                if lead or assist then
-                    pcall(UninviteUnit, name)
-                    P("removed " .. name .. " from the group")
-                else
-                    P("removed " .. name .. " from the list (you are not leader/assist, so they stay in the group)")
-                end
-            end
+            RemoveFromGroup(name)
             Jobs.Remove(name)
         end)
         w.rows[i] = row
@@ -2349,11 +2405,13 @@ local function BuildSetupUI()
     Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
     Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
     Box("offermsg", R + 4, -378, 396)
-    Check("marks", R, -410, "Raid icon on whoever does it, in party and raid chat", true)
-    Header(R, -446, "This session")
-    local sessText = Label(R, -472, "", "GameFontHighlight", 270)
+    Check("thanks", R, -410, "When they're done, whisper ({name}):")
+    Box("thanksmsg", R + 4, -438, 396)
+    Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
+    Header(R, -506, "This session")
+    local sessText = Label(R, -532, "", "GameFontHighlight", 270)
     local sessBtn = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -466) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -526) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
@@ -2428,7 +2486,7 @@ local function BuildSetupUI()
     Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
 
     local DEFAULTS_BY_KEY = {
-        welcomemsg = "", offermsg = "", alertmsg = DEFAULT_ALERTMSG, whispermsg = DEFAULT_WHISPERMSG, admsg = DEFAULT_AD,
+        welcomemsg = "", offermsg = "", thanksmsg = DEFAULT_THANKS, alertmsg = DEFAULT_ALERTMSG, whispermsg = DEFAULT_WHISPERMSG, admsg = DEFAULT_AD,
     }
 
     local function Refresh()
@@ -2478,6 +2536,7 @@ local function BuildSetupUI()
         checks.raidalert:SetChecked(db.raidalert ~= false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
         checks.welcome:SetChecked(Opt("welcome") and true or false)
+        checks.thanks:SetChecked(db.thanks ~= false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")
         checks.rolelock:SetChecked(Role() == "lock")
@@ -2524,6 +2583,7 @@ local function BuildSetupUI()
         db.raidalert = checks.raidalert:GetChecked() and true or false
         db.autotrade = checks.autotrade:GetChecked() and true or false
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
+        db.thanks = checks.thanks:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == DEFAULT_KEYWORDS) and nil or kws end
         db.chanextra = boxes.chanextra:GetText()
