@@ -955,6 +955,7 @@ class GuildBot(discord.Client):
 
     async def fill_open_slots(self, raid_id: int) -> None:
         """If a slot is free and people are waiting on the bench, ask the next one in line (by DM)."""
+        await self.sweep_offer_messages()                   # close the buttons on offers voided by a signup change
         for _ in range(6):                                  # someone with DMs closed is skipped, then the next is asked
             raid = self.db.get_raid(raid_id)
             if not raid or raid["status"] != "open" or \
@@ -1304,6 +1305,8 @@ class GuildBot(discord.Client):
                                 discord_id, R.caps_of(raid))
         wanted = role if landed == "bench" and role in R.COUNTED else None     # bounced to the bench: remember why
         self.db.upsert_signup(raid["id"], discord_id, slug, landed, utcnow(), wanted)
+        if landed != "bench":                       # off the bench some other way: their offer is void
+            self.db.expire_member_offers(raid["id"], discord_id)
         return landed
 
 
@@ -1574,7 +1577,7 @@ def register_commands(bot: GuildBot) -> None:
     async def slot_ac(interaction: discord.Interaction, current: str):
         groups = [app_commands.Choice(name=lab, value=g) for g, lab in C.SLOT_GROUP_LABELS.items()
                   if current.strip().lower() in lab.lower()]
-        return groups + await facet_ac("inventory_type", interaction, current)
+        return (groups + await facet_ac("inventory_type", interaction, current))[:25]   # Discord's limit
 
     async def stat_ac(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(name=f"{r['name']} ({r['n']})", value=r["code"]) for r in db.stat_facets(current)]

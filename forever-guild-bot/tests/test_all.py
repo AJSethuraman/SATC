@@ -1754,3 +1754,76 @@ def test_a_deleted_raid_channel_does_not_count_as_a_closed_event(tmp_path):
         await bot._end_old_raids()
     asyncio.run(run())
     assert deleted == [30] and db.events_pending() == []
+
+
+def test_a_bench_offer_is_voided_when_its_holder_changes_their_signup(tmp_path):
+    """Codex on #485: someone with an offer pending who taps "Can't make it" (or a role) must free the
+    reserved slot for the next person in line straight away, not after the offer runs out (up to 3 days),
+    and a stale Take it must not put them back in."""
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    cfg = load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"})
+    rid = db.create_raid("Run", "2030-01-01T20:30:00+00:00", 2, 9)
+    sent, edits = [], []
+
+    async def _noop(**kw):
+        return None
+
+    class U:
+        bot = False
+        dm_channel = None
+
+        def __init__(self, uid):
+            self.uid = uid
+
+        async def send(self, text, view=None):
+            sent.append(self.uid)
+            return SimpleNamespace(id=1000 + len(sent))
+
+        async def create_dm(self):
+            return SimpleNamespace(get_partial_message=lambda mid: SimpleNamespace(edit=_noop))
+
+    def ix(uid):
+        async def edit_message(**kw):
+            edits.append((uid, kw))
+        return SimpleNamespace(user=SimpleNamespace(id=uid), response=SimpleNamespace(edit_message=edit_message))
+
+    async def run():
+        bot = GuildBot(cfg, db, blizzard=None)
+        bot.get_user = lambda uid: U(uid)
+        raid = db.get_raid(rid)
+        for uid in (1, 2, 3, 4):                                    # 1, 2 in; 3 then 4 on the bench
+            bot.apply_signup(raid, uid, "dps", None)
+        bot.apply_signup(raid, 2, "absent", None)
+        await bot.fill_open_slots(rid)
+        assert sent == [3]                                          # 3 is offered the slot
+        offer3 = db.offers_for_raid(rid)[0]
+        bot.apply_signup(raid, 3, "absent", None)                   # 3 says Can't make it from the raid post
+        assert db.get_offer(offer3["id"])["state"] == "expired"
+        await bot.fill_open_slots(rid)
+        assert sent == [3, 4]                                       # 4 is asked now, not in three days
+        assert db.get_offer(offer3["id"])["cleaned"] == 1           # and 3's old DM has its buttons closed
+        await bot.answer_offer(ix(3), offer3["id"], True)           # 3's old DM button does nothing
+        bot.apply_signup(raid, 4, "bench", None)                    # tapping Bench again keeps 4's offer alive
+        assert db.offers_for_raid(rid)[1]["state"] == "pending"
+    asyncio.run(run())
+    final = {s["discord_id"]: s["role"] for s in db.signups(rid)}
+    assert final[3] == "absent" and edits[-1][1]["content"] == "That offer has expired."
+
+
+def test_slot_autocomplete_never_offers_more_than_discord_allows(tmp_path):
+    """Codex on #485: the two 1H/2H groups plus up to 25 slots from the catalogue made 27 choices,
+    and Discord rejects an autocomplete answer with more than 25."""
+    from types import SimpleNamespace
+    from guildbot.bot import GuildBot
+    db = make_db(tmp_path)
+    bot = GuildBot(load({"DISCORD_TOKEN": "a", "BLIZZARD_CLIENT_ID": "b", "BLIZZARD_CLIENT_SECRET": "c", "GUILD_SLUG": "g"}), db, blizzard=None)
+    for i in range(30):
+        db.conn.execute("INSERT INTO items (item_id, name, item_class, item_subclass, inventory_type) VALUES (?,?,?,?,?)",
+                        (i + 1, f"Item {i}", "Armor", "Cloth", f"Slot {i:02d}"))
+    db.conn.commit()
+    ix = SimpleNamespace(namespace=SimpleNamespace())
+    choices = asyncio.run(bot.tree.get_command("craftable")._params["slot"].autocomplete(ix, ""))
+    assert len(choices) == 25

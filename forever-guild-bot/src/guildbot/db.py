@@ -981,6 +981,12 @@ class Database:
         self.conn.execute("UPDATE offers SET cleaned=1 WHERE id=?", (offer_id,))
         self.conn.commit()
 
+    def expire_member_offers(self, raid_id, discord_id) -> None:
+        """Their signup changed off the bench: an offer still waiting on them no longer holds a slot."""
+        self.conn.execute("UPDATE offers SET state='expired' WHERE raid_id=? AND discord_id=? AND state='pending'",
+                          (raid_id, discord_id))
+        self.conn.commit()
+
     def _expire_raid_offers(self, raid_id) -> None:
         self.conn.execute("UPDATE offers SET state='expired' WHERE raid_id=? AND state='pending'", (raid_id,))
 
