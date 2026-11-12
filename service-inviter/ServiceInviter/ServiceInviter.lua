@@ -868,11 +868,14 @@ local ACTIVE = { invited = true, joined = true, summoned = true, arrived = true,
 -- fair), then recently finished ones for a moment.
 local function VisibleJobs()
     local now = GetTime()
-    local list = {}
+    local list, done = {}, {}
     for _, j in ipairs(jobs) do
-        if ACTIVE[j.status] or (j.tdone and now - j.tdone < CLEAN_AFTER) then list[#list + 1] = j end
+        if ACTIVE[j.status] then list[#list + 1] = j
+        elseif j.tdone and now - j.tdone < CLEAN_AFTER then done[#done + 1] = j end
     end
-    while #list > ROWS do table.remove(list, 1) end
+    for _, j in ipairs(done) do list[#list + 1] = j end
+    -- too many to show: the newest wait off-screen, never the one who has waited longest
+    while #list > ROWS do table.remove(list) end
     return list
 end
 

@@ -124,3 +124,22 @@ def test_keyword_invites_still_skip_guild_and_tip_lines(game):
     invited = list(game.g.INVITED.values())
     assert "Randy" not in invited
     assert "Wanda" in invited   # control: the keyword path still works
+
+
+def test_the_list_keeps_the_longest_waiting_customers_on_screen(game):
+    """Seven waiting, six rows: the newest is the one that waits off-screen (Codex on #487)."""
+    game.run('''ServiceInviterDB.role = "lock"
+        for i = 1, 7 do local n = "Cust" .. i
+            ServiceInviter_Test.Jobs.New(n, "wtb summon tb", "t", "Trade") ServiceInviter_Test.Jobs.Joined(n) end
+        ServiceInviter_Test.Refresh()''')
+    shown = [game.eval(f"ServiceInviterJobs.rows[{i}].name:GetText()") for i in range(1, 7)]
+    assert shown == [f"Cust{i}" for i in range(1, 7)]
+
+
+def test_finished_rows_give_way_to_waiting_customers(game):
+    game.run('''local J = ServiceInviter_Test.Jobs
+        J.New("Done", "x", "t", "Trade") J.Joined("Done") J.Set("Done", "paid")
+        for i = 1, 6 do local n = "Cust" .. i J.New(n, "x", "t", "Trade") J.Joined(n) end
+        ServiceInviter_Test.Refresh()''')
+    shown = [game.eval(f"ServiceInviterJobs.rows[{i}].name:GetText()") for i in range(1, 7)]
+    assert "Done" not in shown and shown[0] == "Cust1"
