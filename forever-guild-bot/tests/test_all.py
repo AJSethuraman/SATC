@@ -156,7 +156,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
                      "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands", "raid-attendance",
-                     "history", "attendance", "raid-repeat-stop", "skillup", "legacy", "legacy-board", "inactive"}
+                     "history", "attendance", "raid-repeat-stop", "skillup", "legacy", "legacy-board", "inactive", "weapons"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -2308,3 +2308,59 @@ def test_one_bench_pass_fills_every_open_slot(tmp_path):
         await bot.fill_open_slots(rid)
     asyncio.run(run())
     assert [u for u, _, _ in dms] == [3, 4]
+
+
+def test_weapon_skills_come_from_the_item_type_and_its_hand():
+    from guildbot import weapons as W
+    assert W.skill_for("Mace", "Two-Hand") == "Two-Handed Maces"
+    assert W.skill_for("Mace", "Main Hand") == "One-Handed Maces"
+    assert W.skill_for("Sword", "One-Hand") == "One-Handed Swords"
+    assert W.skill_for("Staff", "Two-Hand") == "Staves"
+    assert W.skill_for("Leather", "Chest") is None and W.skill_for("Miscellaneous", "Finger") is None
+    assert W.skill_for("Warglaives", "One-Hand") == "Warglaives"      # Forever-only type: shown, not dropped
+    assert all(W.CLASSIC[c] <= set(W.SKILLS) for c in W.CLASSES)
+
+
+def test_real_forever_gear_keeps_its_weapon_type():
+    items = bz.parse_equipment(_fx("equipment"))
+    assert (items[-1].item_subclass, items[-1].inventory_type) == ("Mace", "Main Hand")
+
+
+def test_weapons_marks_what_members_wield_and_flags_what_classic_does_not_allow(tmp_path):
+    """Blizzard has no class weapon rules for Forever, so /weapons shows Classic's list as unconfirmed. A weapon a
+    member of that class has equipped proves it works here; one off the list is called out, not hidden."""
+    db = make_db(tmp_path)
+    oak = _char(db, "Oak", "Leaf", 40, "Druid")
+    fern = _char(db, "Fern", "Moss", 30, "Druid")
+    pal = _char(db, "Tank", "Light", 40, "Paladin")
+    now = utcnow()
+    db.replace_equipment(oak, [bz.Item("Main Hand", 1, "Big Maul", "Rare", "Mace", "Two-Hand")], now)
+    db.replace_equipment(fern, [bz.Item("Main Hand", 2, "Pointy", "Common", "Polearm", "Two-Hand"),
+                                bz.Item("Chest", 3, "Vest", "Common", "Leather", "Chest")], now)
+    db.replace_equipment(pal, [bz.Item("Main Hand", 4, "Cleaver", "Common", "Axe", "One-Hand")], now)
+    db.link(9, oak)
+    bot = _bot(db)
+    ix, sent = _cmd_ix(9)
+    asyncio.run(bot.tree.get_command("weapons").callback(ix))           # blank: the main's class
+    e = sent[-1]["embed"]
+    assert sent[-1]["ephemeral"] and e.title.startswith("Druid")
+    assert "✓ Two-Handed Maces: Oak Leaf" in e.description and "· Daggers" in e.description
+    assert "Axes" not in e.description and "Tank Light" not in e.description   # a Paladin's axe is not a Druid's
+    assert "not on Classic's list" in e.description and "✓ Polearms: Fern Moss" in e.description
+    assert "not confirmed for Forever" in e.footer.text and "✓ = a guild member" in e.footer.text
+    ix, sent = _cmd_ix(10)                                               # no main, no class picked
+    asyncio.run(bot.tree.get_command("weapons").callback(ix))
+    assert sent[-1]["content"] == "Pick a class."
+
+
+def test_gear_stored_before_weapon_types_upgrades_in_place(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.sqlite3"
+    con = sqlite3.connect(path)
+    con.execute("""CREATE TABLE equipment (slug TEXT NOT NULL, slot TEXT NOT NULL, item_id INTEGER,
+                   item_name TEXT NOT NULL, quality TEXT, fetched_at TEXT NOT NULL, PRIMARY KEY (slug, slot))""")
+    con.execute("INSERT INTO equipment VALUES ('a-b', 'Head', 1, 'Hat', 'Common', '2026-11-01T00:00:00+00:00')")
+    con.commit(); con.close()
+    db = Database(path)
+    db.replace_equipment("a-b", [bz.Item("Main Hand", 2, "Stick", "Common", "Staff", "Two-Hand")], utcnow())
+    assert [tuple(r)[6:] for r in db.equipment_for("a-b")] == [("Staff", "Two-Hand")]

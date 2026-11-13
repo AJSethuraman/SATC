@@ -86,6 +86,8 @@ class Item:
     item_id: int | None
     name: str
     quality: str | None
+    item_subclass: str | None = None      # Sword, Leather, ... (Forever names one- and two-handed alike)
+    inventory_type: str | None = None     # One-Hand, Two-Hand, Main Hand, ...
 
 
 @dataclass(frozen=True)
@@ -331,6 +333,8 @@ def parse_equipment(payload: dict) -> list[Item]:
             item_id=item.get("id") if isinstance(item, dict) else None,
             name=name,
             quality=_name(it.get("quality")),
+            item_subclass=_name(it.get("item_subclass")),
+            inventory_type=_name(it.get("inventory_type")),
         ))
     return out
 

@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS milestones (
 
 CREATE TABLE IF NOT EXISTS equipment (
     slug TEXT NOT NULL, slot TEXT NOT NULL, item_id INTEGER, item_name TEXT NOT NULL,
-    quality TEXT, fetched_at TEXT NOT NULL,
+    quality TEXT, fetched_at TEXT NOT NULL, item_subclass TEXT, inventory_type TEXT,
     PRIMARY KEY (slug, slot)
 );
 
@@ -240,6 +240,11 @@ class Database:
         if "stats_loaded" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(items)")}:
             self.conn.execute("ALTER TABLE items ADD COLUMN stats_loaded INTEGER NOT NULL DEFAULT 0")   # fetched before stats
             self.conn.commit()
+        ecols = {r["name"] for r in self.conn.execute("PRAGMA table_info(equipment)")}
+        for col in ("item_subclass", "inventory_type"):
+            if col not in ecols:                        # gear stored before weapon types were kept: next sync fills it
+                self.conn.execute(f"ALTER TABLE equipment ADD COLUMN {col} TEXT")
+                self.conn.commit()
         if "series_id" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(raids)")}:
             self.conn.execute("ALTER TABLE raids ADD COLUMN series_id INTEGER")       # created before repeating raids
             self.conn.commit()
@@ -487,8 +492,9 @@ class Database:
         try:
             self.conn.execute("DELETE FROM equipment WHERE slug=?", (slug,))
             self.conn.executemany(
-                "INSERT INTO equipment VALUES (?,?,?,?,?,?)",
-                [(slug, i.slot, i.item_id, i.name, i.quality, now) for i in items])
+                "INSERT INTO equipment (slug, slot, item_id, item_name, quality, fetched_at, item_subclass,"
+                " inventory_type) VALUES (?,?,?,?,?,?,?,?)",
+                [(slug, i.slot, i.item_id, i.name, i.quality, now, i.item_subclass, i.inventory_type) for i in items])
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -595,6 +601,14 @@ class Database:
                FROM equipment e JOIN characters c ON c.slug=e.slug
                WHERE c.in_guild=1 AND lower(e.item_name) LIKE ?
                ORDER BY c.name, c.surname""", ("%" + text.lower() + "%",)).fetchall()
+
+    def wielded_by_class(self, class_name: str):
+        """Every equipped item with a known type on guild characters of one class (feeds /weapons)."""
+        return self.conn.execute(
+            """SELECT c.name, c.surname, e.item_subclass, e.inventory_type, e.fetched_at
+               FROM equipment e JOIN characters c ON c.slug=e.slug
+               WHERE c.in_guild=1 AND c.class_name=? AND e.item_subclass IS NOT NULL
+               ORDER BY c.name, c.surname""", (class_name,)).fetchall()
 
     def item_names(self, text: str, limit: int = 25):
         """Distinct equipped item names containing `text`, with how many guild members wear each.

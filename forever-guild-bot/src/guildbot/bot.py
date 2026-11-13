@@ -17,6 +17,7 @@ from .links import item_link
 from .config import Config
 from .db import Database, utcnow
 from . import legacy as L
+from . import weapons as W
 from .sync import (alt_question, board_players, likely_alt_news, sync_guild, sync_item_catalog, sync_legacy_catalog,
                    sync_recipe_catalog)
 
@@ -467,6 +468,7 @@ HELP_MEMBER = [
         ("/roster", "everyone in the guild"),
         ("/professions", "who has which profession"),
         ("/whohas", "who's wearing an item"),
+        ("/weapons", "which weapons a class can train"),
         ("/recipes", "what a profession can make, and who can make it"),
         ("/whocan", "who can craft something"),
         ("/craftable", "find gear by kind, type, slot and level, and who can make it"),
@@ -1844,6 +1846,30 @@ def register_commands(bot: GuildBot) -> None:
         lines = [f"**{R.full_name(r)}**: {item_link(r['item_name'], r['item_id'])} ({r['slot']})" for r in rows]
         e = discord.Embed(title=f"Equipped: {item}", description=clip(lines, 4000) or "Nobody has it equipped.")
         e.set_footer(text=data_as_of(rows, db.get_meta('last_sync_at')))
+        await interaction.response.send_message(embed=e, ephemeral=True)
+
+    @tree.command(name="weapons", description="Which weapons a class can train (leave blank for your main's class)")
+    @app_commands.describe(cls="The class (default: your main's)")
+    @app_commands.rename(cls="class")
+    @app_commands.choices(cls=[app_commands.Choice(name=c, value=c) for c in W.CLASSES])
+    async def weapons(interaction: discord.Interaction, cls: app_commands.Choice[str] | None = None):
+        name = cls.value if cls else ((db.main_for(interaction.user.id) or {"class_name": None})["class_name"])
+        if name not in W.CLASSIC:
+            await interaction.response.send_message("Pick a class.", ephemeral=True)
+            return
+        rows = db.wielded_by_class(name)
+        listed, extra = W.report(name, [(R.full_name(r), r["item_subclass"], r["inventory_type"]) for r in rows])
+        lines = [("✓ " if who else "· ") + skill + (f" ({note})" if note else "")
+                 + (f": {', '.join(who[:3])}" + (f" +{len(who) - 3}" if len(who) > 3 else "") if who else "")
+                 for skill, note, who in listed]
+        text = "\n".join(lines)
+        if extra:
+            text += ("\n\n**Seen in the guild but not on Classic's list** (so Forever differs here):\n"
+                     + "\n".join(f"✓ {s}: {', '.join(who[:3])}" for s, who in extra))
+        e = discord.Embed(title=f"{name}: weapons it can train", description=text[:4000])
+        e.set_footer(text="List from Classic, not confirmed for Forever (Blizzard does not publish it). "
+                          "✓ = a guild member of this class has one equipped, so it works here. "
+                          + data_as_of(rows, db.get_meta('last_sync_at')))
         await interaction.response.send_message(embed=e, ephemeral=True)
 
     # ---- raids ----------------------------------------------------------
