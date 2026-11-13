@@ -2076,3 +2076,42 @@ def test_stopping_a_repeating_raid_updates_its_post(tmp_path):
     asyncio.run(bot.tree.get_command("raid-repeat-stop").callback(ix, rid))
     assert "Repeats every week" not in raid_embed(db, db.get_raid(rid)).description
     assert refreshed == [rid]
+
+
+def _started_raid(tmp_path):
+    db = make_db(tmp_path)
+    slug = _char(db, "Ontime", "Tank", 60, "Warrior")
+    past = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat(timespec="seconds")
+    rid = db.create_raid("Onyxia", past, 40, 9, {"tank": 1})
+    db.claim(5, [slug])
+    db.upsert_signup(rid, 5, slug, "tank", utcnow())
+    return db, rid
+
+
+def test_attendance_is_taken_at_the_start_even_when_discord_fails(tmp_path):
+    """Codex on #489: if Discord refuses the post edit at the start, the raid stays open for a retry, but who
+    held a slot at the start is already recorded, so a later change to the signups can't alter it."""
+    db, rid = _started_raid(tmp_path)
+    db.set_raid_posted(rid, 1, 2, None)
+    bot = _bot(db)
+
+    class Down:
+        async def fetch_message(self, _id):
+            raise RuntimeError("Discord is down")
+    bot.get_channel = lambda _id: Down()
+    asyncio.run(bot._close_started())
+    assert db.get_raid(rid)["status"] == "open"            # retried next minute
+    db.remove_signup(rid, 5)                               # e.g. /release in the retry window
+    credited = [r["discord_id"] for r in db.conn.execute("SELECT discord_id FROM attendance WHERE raid_id=? AND credited=1", (rid,))]
+    assert credited == [5]
+
+
+def test_a_raid_that_has_started_cannot_be_cancelled(tmp_path):
+    """Codex on #489: cancelling a raid that already started would drop its attendance from history.
+    /raid-cancel refuses and points to /raid-end."""
+    db, rid = _started_raid(tmp_path)
+    bot = _bot(db)
+    ix, sent = _cmd_ix(9, officer=True)
+    asyncio.run(bot.tree.get_command("raid-cancel").callback(ix, rid))
+    assert db.get_raid(rid)["status"] == "open"
+    assert "/raid-end" in sent[-1]["content"] and sent[-1]["ephemeral"] is True

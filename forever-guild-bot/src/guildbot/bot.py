@@ -999,6 +999,7 @@ class GuildBot(discord.Client):
         """Take the buttons off raids that have started. A raid is only marked closed once its
         message is updated (or is gone), so a Discord hiccup is retried on the next pass."""
         for raid in self.db.started_open(datetime.now(timezone.utc)):
+            self.db.record_attendance(raid["id"])    # who held a slot at the start, even if Discord fails below
             try:
                 if raid["channel_id"] and raid["message_id"]:
                     chan = self.get_channel(raid["channel_id"]) or await self.fetch_channel(raid["channel_id"])
@@ -2065,6 +2066,10 @@ def register_commands(bot: GuildBot) -> None:
         raid = db.get_raid(raid_id)
         if not raid or raid["status"] != "open":
             await interaction.response.send_message("No open raid with that number.", ephemeral=True)
+            return
+        if datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
+            await interaction.response.send_message(          # it ran: cancelling would wipe its attendance
+                "That raid has already started. Use `/raid-end` to end it.", ephemeral=True)
             return
         await interaction.response.defer(ephemeral=True)     # Discord calls below can exceed the 3-second limit
         # Tidy Discord first and cancel only once that worked, so a failure can be retried by running

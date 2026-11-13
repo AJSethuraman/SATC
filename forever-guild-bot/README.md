@@ -34,7 +34,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 | `/history` | anyone (officers can look up anyone) | your raids attended, no-shows and late drops |
 | `/raid-create` | officer | no options: a guided menu (day, time, size, then name and role limits). Or fill in `title date time size [tanks] [healers] [dps]` to skip it |
 | `/raid-edit id ...` | officer | change title, time, size or limits. When tanks, healers and DPS are all limited, the size is their total |
-| `/raid-cancel id` | officer | removes the post and event and messages everyone signed up |
+| `/raid-cancel id` | officer | removes the post and event and messages everyone signed up. Only before it starts; after that, `/raid-end` |
 | `/raid-end id` | officer | ends a raid now: post marked COMPLETED and unpinned, roster sent to you |
 | `/raid-repeat-stop id` | officer | stops a raid repeating every week |
 | `/raid-attendance id member showed` | officer | correct who showed up |
