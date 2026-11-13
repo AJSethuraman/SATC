@@ -141,6 +141,7 @@ end
 -- warlock (notSummoner); as the lock you are the first choice (summoner).
 function C.CanDo(member, def)
     if not member or member.class ~= def.class then return false end
+    if member.customer or member.notProvider then return false end   -- a customer, or not one of "ours"
     if member.level and member.level < def.level then return false end
     if def.kind == "summon" and member.notSummoner then return false end
     return true

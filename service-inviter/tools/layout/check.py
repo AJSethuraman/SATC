@@ -116,6 +116,16 @@ for name, before, after in [
     L.execute("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     scenes[name] = export(L, L.globals().ServiceInviterJobs)
 
+# "Our warlocks": the Warlock tab with the box filled, and the pick list from the group
+STRAY = GROUP.replace('party1 = {"Grimtotem","WARLOCK",60,"Thunder Bluff"}', 'party1 = {"Yeet Lock","WARLOCK",60,"Thunder Bluff"}').replace(
+    'party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Random","WARLOCK",60,"Undercity"}').replace(
+    'GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { ["Yeet Lock"] = true, Random = true }')
+L = load(STRAY + '\nServiceInviterDB = { providers = { WARLOCK = "Yeet Lock" } }')
+L.execute("S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(2) S.Refresh()")
+scenes["setup_our_warlocks"] = export(L, L.globals().S, L.globals().S.pages[2])
+L.execute('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().prov_WARLOCK, false, "Our warlocks (from your group)", "class:WARLOCK")')
+scenes["picker_our_warlocks"] = export(L, L.globals().ServiceInviterPicker)
+
 # the click-the-portal banner, half way through its 14 seconds
 L = load(GROUP)
 L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')

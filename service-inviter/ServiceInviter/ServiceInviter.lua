@@ -55,6 +55,7 @@ end
 -- Declared here, defined further down: the event handler and the buff queue use them
 -- before the file reaches their definitions.
 local IsSecret, SpellNameOf, jobsWin
+local Jobs = {}   -- the customers (filled in further down; the group reading needs it)
 local BuffAsk, BuffCastDone, BuffTooLow, RefreshBuff, QueueAllMyBuffs, buffDirty
 
 local LIMIT = { FRAGMENT_WINDOW = 25, MAX_FRAGMENTS = 3, MAX_PER_MINUTE = 6, MAX_PARTY = 5 }
@@ -373,6 +374,20 @@ local function GroupSnapshot()
         local okl, lvl = pcall(function() return UnitLevel and UnitLevel(unit) end)
         cls, lvl = okc and plain(cls) or nil, okl and plain(lvl) or nil
         local m = { name = name, unit = unit, class = cls, level = (type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
+        -- Who may provide (the owner, 13 Nov 2026: "so if a random lock were to join my party
+        -- sitting in UC would it assume they can summon there?"). A customer (someone who asked
+        -- for something) never does; with names given for a class, only those do (and you).
+        local j = Jobs.Get and Jobs.Get(name)
+        if j and j.service and j.status ~= "paid" and j.status ~= "done" and j.status ~= "left" then m.customer = true end
+        local only = type(ServiceInviterDB.providers) == "table" and ServiceInviterDB.providers[cls]
+        if type(only) == "string" and only:find("%S") then
+            local listed = false
+            for nm in only:gmatch("[^,]+") do
+                nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
+                if nm:lower() == name:lower() then listed = true end
+            end
+            if listed then m.customer = nil elseif not isMe then m.notProvider = true end
+        end
         if isMe then
             m.me = true
             m.knows = MyKnownPortals(m.class)
@@ -611,7 +626,6 @@ local function SessionText()
 end
 local function NewSession() ServiceInviterDB.stats = nil return Stats() end
 
-local Jobs = {}
 function Jobs.All() return jobs end
 function Jobs.Get(name) return jobByName[name] end
 
@@ -2502,6 +2516,7 @@ local function DefaultPayeeText(key)
     return def and DOER[def.class] or "whoever does it"
 end
 local function ShowPicker(box, withDefaults, title, key)
+    local only = type(key) == "string" and key:match("^class:(%u+)$")   -- "Our warlocks": that class, added to the list
     if not picker then
         picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent)
         picker:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -2523,14 +2538,21 @@ local function ShowPicker(box, withDefaults, title, key)
     local entries = {}
     picker.sub:SetText(withDefaults and ("Default: " .. DefaultPayeeText(key)) or "")
     local top = withDefaults and 44 or 30
-    if withDefaults then
+    if only then
+        -- that class only, from the group or raid; a pick is added to the list
+        for _, m in ipairs(GroupSnapshot()) do
+            if m.class == only then entries[#entries + 1] = { Colored(m.me and (m.name .. " (you)") or m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+        end
+    elseif withDefaults then
         entries[#entries + 1] = { "Default", "" }
         entries[#entries + 1] = { "Me (" .. me .. ")", "me" }
     else
         entries[#entries + 1] = { "Me (" .. me .. ")", me }
     end
-    for _, m in ipairs(GroupSnapshot()) do
-        if not m.me then entries[#entries + 1] = { Colored(m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+    if not only then
+        for _, m in ipairs(GroupSnapshot()) do
+            if not m.me then entries[#entries + 1] = { Colored(m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+        end
     end
     local W = 300
     for i, e in ipairs(entries) do
@@ -2543,14 +2565,25 @@ local function ShowPicker(box, withDefaults, title, key)
         b:SetSize(W - 20, 22)
         b:ClearAllPoints() b:SetPoint("TOPLEFT", 10, -top - (i - 1) * 24)
         b:SetText(e[1])
-        b:SetScript("OnClick", function() box:SetText(e[2]) picker:Hide() end)
+        b:SetScript("OnClick", function()
+            if only then
+                local cur = box:GetText() or ""
+                local have = false
+                for nm in cur:gmatch("[^,]+") do if nm:gsub("^%s+", ""):gsub("%s+$", ""):lower() == e[2]:lower() then have = true end end
+                if not have then box:SetText(cur:find("%S") and (cur:gsub("%s+$", "") .. ", " .. e[2]) or e[2]) end
+            else
+                box:SetText(e[2])
+            end
+            picker:Hide()
+        end)
         b:Show()
     end
     for i = #entries + 1, #picker.buttons do picker.buttons[i]:Hide() end
     local h = top + #entries * 24
     picker.note:ClearAllPoints() picker.note:SetPoint("TOPLEFT", 10, -h - 2)
     local alone = #GroupSnapshot() <= 1
-    picker.note:SetText(alone and "Party and raid members show up here." or "Or type any name in the box.")
+    if only and #entries == 0 then picker.note:SetText("Nobody of that class in your group right now.")
+    else picker.note:SetText(alone and "Party and raid members show up here." or (only and "Each pick is added to the list." or "Or type any name in the box.")) end
     picker:SetSize(W, h + 24)
     picker:ClearAllPoints() picker:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -2)
     picker:Show()
@@ -2771,6 +2804,14 @@ local function BuildSetupUI()
     Header(L, -256, "Summons go to")
     w.locks = Label(L, -282, "", "GameFontHighlight", 410)
     Label(L, -330, "Each warlock summons to wherever they're standing. If the game can't tell where a warlock is, nobody is invited for their summons.", "GameFontHighlightSmall", 410)
+    -- "Ours": only these count (the owner, 13 Nov 2026: "yeah our warlock and we can auto fill from the raid")
+    local function Ours(cls, word, y)
+        Header(L, y, "Our " .. word)
+        Label(L, y - 26, "Only these sell. Blank = any " .. word:gsub("s$", "") .. " in the group who isn't a customer.", "GameFontHighlightSmall", 410)
+        local b = Box("prov_" .. cls, L + 4, y - 46, 330, 200)
+        PickButton(page, b, false, "Our " .. word .. " (from your group)", "class:" .. cls)
+    end
+    Ours("WARLOCK", "warlocks", -380)
     Header(R, -50, "When the warlock starts summoning")
     Check("raidalert", R, -74, "Say in raid ({name} {dest} {payee} {price}):")
     Box("alertmsg", R + 4, -102, 396)
@@ -2793,11 +2834,13 @@ local function BuildSetupUI()
         Check("portal_" .. city, L, -236 - (i - 1) * 26, city .. "  (level " .. pl[2] .. ")")
         w.portalChecks[#w.portalChecks + 1] = city
     end
+    Ours("MAGE", "mages", -330)
     Service("water", R, -50)
 
     -- Rogue ----------------------------------------------------------------
     page = pages[4]
     Service("lockpick", L, -50)
+    Ours("ROGUE", "rogues", -210)
 
     -- Buffs ----------------------------------------------------------------
     page = pages[5]
@@ -2913,6 +2956,8 @@ local function BuildSetupUI()
             boxes[k .. "payee"]:SetText(st.payee or "")
         end
         boxes.blessing_spell:SetText(Core.Setting(db, "blessing").spell or "")
+        local prov = type(db.providers) == "table" and db.providers or {}
+        for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do boxes["prov_" .. cls]:SetText(prov[cls] or "") end
         local untick = Core.Setting(db, "portals").untick
         for _, city in ipairs(w.portalChecks) do checks["portal_" .. city]:SetChecked(not untick[city]) end
         SyncTradeBox()
@@ -2962,6 +3007,11 @@ local function BuildSetupUI()
         db.services.portals.untick = untick
         local bs = boxes.blessing_spell:GetText():gsub("^%s+", ""):gsub("%s+$", "")
         db.services.blessing.spell = (bs ~= "") and bs or nil
+        db.providers = {}
+        for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do
+            local t = boxes["prov_" .. cls]:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
+            db.providers[cls] = (t ~= "") and t or nil
+        end
         RefreshJobs()
     end
 

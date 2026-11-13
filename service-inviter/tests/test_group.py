@@ -552,3 +552,56 @@ def test_only_the_first_place_they_want_to_go_counts():
     g = world(tb)
     say_trade(g, "Either", "wtb summon to tb or org")              # one "to": still TB
     assert invited(g) == ["Either"]
+
+
+# -- Who counts as a provider (the owner, 13 Nov 2026: "so if a random lock were to join my party
+#    sitting in UC would it assume they can summon there?" -> "yeah our warlock and we can auto
+#    fill from the raid") ------------------------------------------------------------------------
+
+STRAY = {"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Thunder Bluff"),
+         "party2": ("Random", "WARLOCK", 60, "Undercity")}
+
+
+def test_with_our_warlocks_named_a_stray_warlock_sells_nothing():
+    g = world(STRAY)
+    g.run('ServiceInviterDB.providers = { WARLOCK = "Yeet Lock" }')
+    say_trade(g, "Kaldrok", "WTB summon to UC")
+    say_trade(g, "Mirasha", "WTB summon to TB")
+    assert invited(g) == ["Mirasha"]
+
+
+def test_blank_means_any_warlock_in_the_group():
+    g = world(STRAY)
+    say_trade(g, "Kaldrok", "WTB summon to UC")
+    assert invited(g) == ["Kaldrok"]
+
+
+def test_a_warlock_customer_is_never_a_summoner():
+    """A level 30 warlock buying a summon to TB, standing in Orgrimmar, must not start the addon
+    selling summons to Orgrimmar."""
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Thunder Bluff")})
+    say_trade(g, "Lowlock", "WTB summon to TB")
+    g.run('UNITS.party2 = { "Lowlock", "WARLOCK", 30, "Orgrimmar" } GROUP["Lowlock"] = true')
+    g.event("CHAT_MSG_SYSTEM", "Lowlock joins the party.")
+    say_trade(g, "Kaldrok", "WTB summon to Org")
+    assert "Kaldrok" not in invited(g)
+
+
+def test_our_warlock_joining_later_still_counts():
+    g = world({"player": ME_ORG_SHAMAN})
+    g.run('UNITS.party1 = { "Yeet Lock", "WARLOCK", 60, "Thunder Bluff" } GROUP["Yeet Lock"] = true')
+    g.event("CHAT_MSG_SYSTEM", "Yeet Lock joins the party.")       # a row is made for anyone joining
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    assert invited(g) == ["Kaldrok"]
+
+
+def test_the_pick_list_fills_our_warlocks_from_the_group():
+    g = world(STRAY)
+    g.run('''local w = ServiceInviter_Test.BuildSetup() w:Show() w.ShowTab(2)
+        ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().prov_WARLOCK, false, "Our warlocks", "class:WARLOCK")''')
+    labels = [g.eval(f"ServiceInviterPicker.buttons[{i}]:GetText()") for i in (1, 2)]
+    assert any("Yeet Lock" in l for l in labels) and any("Random" in l for l in labels)
+    g.run("ServiceInviterPicker.buttons[1]._scripts.OnClick()")
+    g.run('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().prov_WARLOCK, false, "Our warlocks", "class:WARLOCK")')
+    g.run("ServiceInviterPicker.buttons[2]._scripts.OnClick()")
+    assert g.eval("ServiceInviter_Test.SetupBoxes().prov_WARLOCK:GetText()") == "Yeet Lock, Random"
