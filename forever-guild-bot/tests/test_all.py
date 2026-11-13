@@ -2044,3 +2044,14 @@ def test_a_weekly_raid_whose_next_post_failed_is_posted_by_the_minute_job(tmp_pa
     assert calls == [rid]
     db.stop_series(sid)
     assert db.series_awaiting_next() == []
+
+
+def test_the_sample_config_lists_every_setting_the_bot_reads():
+    """Codex on #489: a fresh install copies .env.example. A setting missing from it is silently off
+    (the achievements channel was), so every key config.load reads must be in the sample."""
+    import re
+    from pathlib import Path
+    here = Path(__file__).resolve().parents[1]
+    read = set(re.findall(r'env(?:\.get\(|\[)"([A-Z_]+)"', (here / "src/guildbot/config.py").read_text(encoding="utf-8")))
+    sample = {l.split("=", 1)[0] for l in (here / ".env.example").read_text(encoding="utf-8").splitlines() if "=" in l and not l.startswith("#")}
+    assert "ACHIEVEMENTS_CHANNEL_ID" in read and read <= sample, read - sample
