@@ -145,3 +145,17 @@ def test_the_regulars_line_goes_after_your_own_welcome():
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
     assert sent[0] == "THE COST IS 35 silver AND WE WILL SUMMON YOU SOON!"
     assert sent[-1] == "THE COST IS 35 silver AND WE WILL SUMMON YOU SOON! HEY FREQUENT FLYER! This is your 4th time with us!"
+
+
+def test_the_regulars_button_prints_the_top_ten():
+    """The owner, 13 Nov 2026: "how can i see the list of people in game we have collected - or like
+    top 10 at least"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    for i in range(12):
+        for _ in range(i + 1):
+            summon(g, f"Buyer{i:02d}", clock_step=1)
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    before = len(g.printed())
+    g.run("ServiceInviterJobs.regularsBtn._scripts.OnClick(ServiceInviterJobs.regularsBtn)")
+    out = [p for p in g.printed()[before:] if ". Buyer" in p]
+    assert len(out) == 10 and "Buyer11" in out[0] and "Buyer02" in out[-1]

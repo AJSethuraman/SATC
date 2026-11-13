@@ -605,3 +605,24 @@ def test_the_pick_list_fills_our_warlocks_from_the_group():
     g.run('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().prov_WARLOCK, false, "Our warlocks", "class:WARLOCK")')
     g.run("ServiceInviterPicker.buttons[2]._scripts.OnClick()")
     assert g.eval("ServiceInviter_Test.SetupBoxes().prov_WARLOCK:GetText()") == "Yeet Lock, Random"
+
+
+def test_a_summon_request_for_several_people_is_not_invited():
+    """The owner, 13 Nov 2026, on "WTB port for 2 to UC" invited for a summon: "we would not want
+    to accept multiple people for our summon"."""
+    uc = {"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Undercity")}
+    for text, invite in [("WTB port for 2 to UC", False), ("wtb summon uc x2", False), ("wtb 2x summon uc", False),
+                         ("wtb summon to uc 2 ppl", False), ("lf summ uc for 3 of us", False),
+                         ("wtb summon 2 uc", True), ("wtb summon to uc", True), ("wtb summon uc lvl 25", True)]:
+        g = world(uc)
+        say_trade(g, "Asker", text)
+        assert (invited(g) == ["Asker"]) is invite, text
+    g = world(uc)
+    say_trade(g, "Asker", "WTB port for 2 to UC")
+    assert any("2 people" in p for p in g.printed())
+
+
+def test_a_group_can_still_buy_a_portal():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Velenne", "MAGE", 60, "Orgrimmar")}, "portals = { on = true, price = 20 }")
+    say_trade(g, "Asker", "WTB port for 2 to UC")
+    assert invited(g) == ["Asker"]

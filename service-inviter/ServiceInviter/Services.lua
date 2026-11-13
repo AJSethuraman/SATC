@@ -134,6 +134,20 @@ function C.OfferedPrice(text)
     return found and total or nil
 end
 
+-- How many people a request is for ("for 2", "x2", "2x", "2 ppl", "3 of us"), or nil for
+-- one. "summon 2 uc" (2 = to) and "for 2 gold" (a price) are not a head count.
+local HEADS = { ppl = true, people = true, players = true, peeps = true, guys = true, of = true, chars = true }
+function C.PartySize(text)
+    local t = " " .. tostring(text or ""):lower():gsub("[^%w]", " ") .. " "
+    local n
+    for num, after in t:gmatch(" for (%d+) (%a*)") do if not UNIT[after] then n = tonumber(num) end end
+    n = n or tonumber(t:match(" x(%d+) ") or t:match(" (%d+)x "))
+    if not n then
+        for num, word in t:gmatch(" (%d+) (%a+)") do if HEADS[word] then n = tonumber(num) end end
+    end
+    return (n and n >= 2 and n <= 40) and n or nil
+end
+
 -- Who in the group can do a service: members of the class at or above its level. For you,
 -- a spell list read from your spellbook wins over the level rule where it applies.
 -- A member whose level the game didn't give us is not ruled out by level.

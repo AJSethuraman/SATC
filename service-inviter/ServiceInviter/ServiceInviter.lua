@@ -1,4 +1,4 @@
--- Service Inviter v2.3.4
+-- Service Inviter v2.3.5
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -694,6 +694,34 @@ function Jobs.When(t)
     return (fmt and t) and fmt("%b %d %H:%M", t) or "?"
 end
 
+-- Your regulars in chat: the top 10 by visits, or one person's history (/si customers NAME,
+-- the first letters are enough). The owner, 13 Nov 2026: "how can i see the list of people in
+-- game we have collected - or like top 10 at least".
+function Jobs.PrintRegulars(want)
+    local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+    local function line(name, c)
+        local by = {}
+        for k, v in pairs(c.by or {}) do by[#by + 1] = v .. " " .. ((Core.BY_KEY[k] and Core.BY_KEY[k].label) or k) end
+        table.sort(by)
+        return name .. ": " .. c.n .. (c.n == 1 and " time" or " times") .. " (" .. table.concat(by, ", ") .. "), worth " ..
+            Money(c.worth or 0) .. ", first " .. Jobs.When(c.first) .. ", last " .. Jobs.When(c.last)
+    end
+    want = (want or ""):lower()
+    if want ~= "" then
+        for name, c in pairs(book) do
+            if name:lower() == want or name:lower():find(want, 1, true) == 1 then P(line(name, c)) return end
+        end
+        P("no customer named " .. want .. " in the book")
+        return
+    end
+    local list = {}
+    for name, c in pairs(book) do list[#list + 1] = { name, c } end
+    table.sort(list, function(a, b) if a[2].n ~= b[2].n then return a[2].n > b[2].n end return (a[2].last or 0) > (b[2].last or 0) end)
+    if #list == 0 then P("the customer book is empty so far") return end
+    P("Top " .. math.min(10, #list) .. " of " .. #list .. " customers:")
+    for i = 1, math.min(10, #list) do P(i .. ". " .. line(list[i][1], list[i][2])) end
+end
+
 function Jobs.Joined(name)
     local j = jobByName[name]
     if j and j.status == "invited" then Jobs.Set(name, "joined") return true end
@@ -915,6 +943,12 @@ local function Handle(text, sender, guid)
         if price and offer and offer < price then
             ok, why = false, "offers " .. Money(offer) .. ", under your " .. Money(price)
         end
+    end
+    -- a summon is one person at a time (the owner, 13 Nov 2026, on "WTB port for 2 to UC": "we
+    -- would not want to accept multiple people for our summon"); a portal takes a group
+    if ok and svc == "summons" then
+        local heads = Core.PartySize(text)
+        if heads then ok, why = false, "asks for " .. heads .. " people; a summon is one at a time" end
     end
 
     -- Near miss: sounds like a buyer (buy word + summon/port word, not a seller) but we said no.
@@ -2333,8 +2367,12 @@ local function BuildJobsUI()
     local setupBtn = FlatButton(w, 72, 36, "plain")
     setupBtn:SetPoint("TOPRIGHT", -56, -14) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
-    local adBtn = FlatButton(w, 170, 36, "plain")
+    local adBtn = FlatButton(w, 150, 36, "plain")
     adBtn:SetPoint("TOPRIGHT", -136, -14) adBtn:SetText("Post ad")
+    local regBtn = FlatButton(w, 90, 36, "plain")
+    regBtn:SetPoint("TOPRIGHT", -294, -14) regBtn:SetText("Regulars")
+    regBtn:SetScript("OnClick", function() Jobs.PrintRegulars("") end)
+    w.regularsBtn = regBtn
     adBtn:SetScript("OnClick", function() PostAd() end)
     w.adBtn = adBtn
     Line(-64)
@@ -3269,28 +3307,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             end
         end
     elseif cmd == "customers" or cmd == "regulars" then
-        local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
-        local function line(name, c)
-            local by = {}
-            for k, v in pairs(c.by or {}) do by[#by + 1] = v .. " " .. ((Core.BY_KEY[k] and Core.BY_KEY[k].label) or k) end
-            table.sort(by)
-            return name .. ": " .. c.n .. (c.n == 1 and " time" or " times") .. " (" .. table.concat(by, ", ") .. "), worth " ..
-                Money(c.worth or 0) .. ", first " .. Jobs.When(c.first) .. ", last " .. Jobs.When(c.last)
-        end
-        if rest ~= "" then
-            local want = rest:lower()
-            for name, c in pairs(book) do
-                if name:lower() == want or name:lower():find(want, 1, true) == 1 then P(line(name, c)) return end
-            end
-            P("no customer named " .. rest .. " in the book")
-            return
-        end
-        local list = {}
-        for name, c in pairs(book) do list[#list + 1] = { name, c } end
-        table.sort(list, function(a, b) if a[2].n ~= b[2].n then return a[2].n > b[2].n end return (a[2].last or 0) > (b[2].last or 0) end)
-        if #list == 0 then P("the customer book is empty so far") return end
-        P(#list .. " customers in the book. Most visits first:")
-        for i = 1, math.min(15, #list) do P(line(list[i][1], list[i][2])) end
+        Jobs.PrintRegulars(rest)
     elseif cmd == "session" then
         if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started")
         else P("session: " .. SessionText() .. "   (/si session new to start over)") end
