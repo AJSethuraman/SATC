@@ -269,3 +269,36 @@ def test_the_regulars_line_takes_name():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
     assert len(said) == 1 and "WELCOME BACK Kaldrok!! This is your 2nd time" in said[0]
+
+
+def test_a_named_regulars_line_replaces_the_hello_so_the_name_shows_once():
+    """The owner, 13 Nov 2026: "i dont want them to see hi your name welcome back your name later"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "Hi {name}! Your {service} is {price}. We will summon you soon!"
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK {name}!! This is your {visits} time"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["WELCOME BACK Kaldrok!! This is your 2nd time. Your summons is 35 silver. We will summon you soon!"]
+    # someone new still gets the hello
+    before = len(g.sent())
+    say_trade(g, "Mirasha", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["Hi Mirasha! Your summons is 35 silver. We will summon you soon!"]
+
+
+def test_a_named_regulars_line_with_the_automatic_welcome():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.loyaltymsg = "Welcome back {name}, {visits} time with us!"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said[0].startswith("Welcome back Kaldrok, 2nd time with us! Grimtotem will summon you")
+    assert said[0].count("Kaldrok") == 1

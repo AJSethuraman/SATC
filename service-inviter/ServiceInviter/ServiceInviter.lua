@@ -1,4 +1,4 @@
--- Service Inviter v2.9.0
+-- Service Inviter v2.9.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1134,6 +1134,15 @@ local function WelcomeText(name, job)
     job = job or Jobs.Get(name)
     local g, fac = GroupSnapshot(), Faction()
     local loyal = job and Jobs.LoyaltyLine(job)
+    -- A regulars line with {name} in it greets them itself, so it takes the place of the hello at
+    -- the start of the welcome rather than repeating the name (the owner, 13 Nov 2026: "i dont
+    -- want them to see hi your name welcome back your name later").
+    local named = loyal and (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
+    local function Lead(rest)
+        rest = (rest or ""):gsub("^%s+", "")
+        local sep = loyal:find("[%.!?]%s*$") and " " or ". "
+        return rest ~= "" and (loyal:gsub("%s+$", "") .. sep .. rest) or loyal
+    end
     local custom = ServiceInviterDB.welcomemsg
     if custom and custom ~= "" and custom ~= MSG.WELCOME then
         local key = (job and job.service) or "summons"
@@ -1141,6 +1150,9 @@ local function WelcomeText(name, job)
         local price = PriceText(JobPrice(job))
         local label = Core.BY_KEY[key].label
         local hasVisits = custom:find("{visits}", 1, true)
+        -- the hello: the first sentence, when it carries {name} ("Hi {name}!")
+        local greet = named and not hasVisits and custom:match("^%s*[^%.!?]-{name}[^%.!?]*[%.!?]+%s*")
+        if greet then custom = custom:sub(#greet + 1) end
         custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
         custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
         custom = custom:gsub("{visits}", function()
@@ -1150,17 +1162,20 @@ local function WelcomeText(name, job)
         -- your own welcome without {visits}: a regular gets the "Regulars hear" line after it
         -- (the owner's: "THE COST IS {price} AND WE WILL SUMMON YOU SOON!" + "HEY FREQUENT FLYER!
         -- This is your {visits} time with us!")
+        if greet then return Lead(custom) end
         if loyal and not hasVisits then custom = custom:gsub("%s+$", "") .. " " .. loyal end
         return custom
     end
     if job and job.service then
         local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest)
-        if text and loyal then text = text:gsub("^(Hi .-!) ", function(hi) return hi .. " " .. loyal .. " " end, 1) end
+        if text and loyal and named then text = Lead((text:gsub("^Hi .-! ", "", 1)))
+        elseif text and loyal then text = text:gsub("^(Hi .-!) ", function(hi) return hi .. " " .. loyal .. " " end, 1) end
         if text then return text end
     end
     local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
+    if list and named then return Lead("We have " .. list .. ". What can we do for you?") end
     if list then return "Hi " .. name .. "! " .. (loyal and (loyal .. " ") or "") .. "We have " .. list .. ". What can we do for you?" end
-    if loyal then return "Hi " .. name .. "! " .. loyal end
+    if loyal then return named and loyal or ("Hi " .. name .. "! " .. loyal) end
     return nil
 end
 
