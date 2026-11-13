@@ -92,12 +92,14 @@ function C.SplitWords(s)
     return list
 end
 
--- Money in chat: 25s, 1g, 1g50s. nil = nil (free).
+-- Money in chat. nil = nil (free).
+-- Spelled out (the owner, 13 Nov 2026: "spells out silver and gold instead of s and g"):
+-- "25 silver", "1 gold", "1 gold 50 silver".
 function C.Money(silver)
     if not silver then return nil end
     local g, s = math.floor(silver / 100), silver % 100
-    if g > 0 and s > 0 then return g .. "g" .. s .. "s" elseif g > 0 then return g .. "g" end
-    return s .. "s"
+    if g > 0 and s > 0 then return g .. " gold " .. s .. " silver" elseif g > 0 then return g .. " gold" end
+    return s .. " silver"
 end
 
 -- Who in the group can do a service: members of the class at or above its level. For you,

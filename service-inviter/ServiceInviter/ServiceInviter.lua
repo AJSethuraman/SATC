@@ -1,4 +1,4 @@
--- Service Inviter v2.1.1
+-- Service Inviter v2.1.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -571,11 +571,7 @@ local function Collects()   -- 1.5 setting, still read by /si collect's first to
     if c == nil then return Role() == "lock" end
     return c and true or false
 end
-local function Money(silver)
-    local g, s = math.floor(silver / 100), silver % 100
-    if g > 0 then return g .. "g " .. s .. "s" end
-    return s .. "s"
-end
+local function Money(silver) return Core.Money(silver) or "0 silver" end
 
 local function SessionText()
     local st = Stats()

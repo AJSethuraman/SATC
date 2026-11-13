@@ -31,8 +31,8 @@ def nothing_happened(g):
 def test_warlock_tab_shows_the_welcome_and_the_raid_alert_for_the_real_warlock():
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     lines = preview(g, "Warlock")
-    assert has(lines, "When they join, party chat: Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land.")
-    assert has(lines, "When the summon starts, party chat: SUMMONING Kaldrok! PAY Grimtotem 25s IN THE TRADE WINDOW ON ARRIVAL!")
+    assert has(lines, "When they join, party chat: Hi Kaldrok! Grimtotem will summon you to TB. 25 silver. Pay Grimtotem when you land.")
+    assert has(lines, "When the summon starts, party chat: SUMMONING Kaldrok! PAY Grimtotem 25 silver IN THE TRADE WINDOW ON ARRIVAL!")
     assert has(lines, "When you invite, your chat only: invited Kaldrok")
     nothing_happened(g)
 
@@ -41,7 +41,7 @@ def test_with_no_warlock_it_says_so_and_shows_an_example():
     g = world({"player": ME_ORG})
     lines = preview(g, "Warlock")
     assert has(lines, "Nobody in your group can do summons right now")
-    assert has(lines, "Hi Kaldrok! Warlock will summon you to Org. 25s. Pay Warlock when you land.")
+    assert has(lines, "Hi Kaldrok! Warlock will summon you to Org. 25 silver. Pay Warlock when you land.")
     nothing_happened(g)
     # the example warlock is gone afterwards: still nothing on sale
     assert len(g.eval('ServiceInviterCore.OnSale(ServiceInviterDB, ServiceInviter_Test.Group(), "Horde")')) == 0
@@ -66,7 +66,7 @@ def test_invite_off_is_explained():
 def test_mage_tab_shows_each_portal():
     g = world({"player": ME_ORG, "party1": ("Velenne", "MAGE", 60, "Orgrimmar")}, "portals = { on = true, price = 20 }")
     lines = preview(g, "Mage")
-    assert has(lines, "Velenne will do a portal to UC, come to Velenne in Org. 20s. Pay Velenne there.")
+    assert has(lines, "Velenne will do a portal to UC, come to Velenne in Org. 20 silver. Pay Velenne there.")
     assert has(lines, "Velenne will do a portal to TB")
 
 
@@ -98,8 +98,8 @@ def test_general_tab_with_nothing_on_sale():
 def test_advertise_tab_shows_the_ad_its_length_and_when_it_can_go():
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     lines = preview(g, "Advertise")
-    assert has(lines, "Trade, when you press the key: WTS summons to TB 25s | whisper inv")
-    assert has(lines, "35 of 255 letters")
+    assert has(lines, "Trade, when you press the key: WTS summons to TB 25 silver | whisper inv")
+    assert has(lines, "41 of 255 letters")
     assert has(lines, "Ready to post in Trade")
     nothing_happened(g)
 
@@ -108,7 +108,7 @@ def test_advertise_with_nothing_to_sell_shows_an_example():
     g = world({"player": ME_ORG})
     lines = preview(g, "Advertise")
     assert has(lines, "No ad right now: nothing to sell")
-    assert has(lines, "WTS summons to Org 25s | whisper inv")
+    assert has(lines, "WTS summons to Org 25 silver | whisper inv")
 
 
 def test_paladin_preview_lists_the_words():
@@ -146,10 +146,10 @@ def test_price_reads_the_same_in_the_welcome_and_the_summon_alert():
     g = world({"player": ME_ORG, "party1": LOCK_TB}, "summons = { price = 30 }")
     g.run('ServiceInviterDB.welcomemsg = "THE COST IS {price}." ServiceInviterDB.alertmsg = "PAY {payee} {price}!"')
     lines = preview(g, "Warlock")
-    assert has(lines, "THE COST IS 30s.") and has(lines, "PAY Grimtotem 30s!")
+    assert has(lines, "THE COST IS 30 silver.") and has(lines, "PAY Grimtotem 30 silver!")
     g.run("ServiceInviterDB.services.summons.price = 150")
     lines = preview(g, "Warlock")
-    assert has(lines, "THE COST IS 1g50s.") and has(lines, "PAY Grimtotem 1g50s!")
+    assert has(lines, "THE COST IS 1 gold 50 silver.") and has(lines, "PAY Grimtotem 1 gold 50 silver!")
     g.run("ServiceInviterDB.services.summons.price = false")
     lines = preview(g, "Warlock")
     assert has(lines, "THE COST IS free.") and has(lines, "PAY Grimtotem free!")

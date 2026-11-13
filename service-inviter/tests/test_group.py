@@ -103,20 +103,20 @@ def test_each_customer_is_told_their_own_warlock():
     say_trade(g, "Mirasha", "WTB summon to UC")
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert sent == ["Hi Mirasha! {rt3}Ashfel will summon you to UC. 25s. Pay {rt3}Ashfel when you land."]
+    assert sent == ["Hi Mirasha! {rt3}Ashfel will summon you to UC. 25 silver. Pay {rt3}Ashfel when you land."]
 
 
 def test_the_ad_lists_both_places():
     g = world(TWO_LOCKS)
     g.run("ServiceInviter_Test.PostAd()")
-    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB/UC 25s | whisper inv"]
+    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB/UC 25 silver | whisper inv"]
 
 
 def test_two_warlocks_in_one_place_are_one_offer():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
                "party2": ("Ashfel", "WARLOCK", 60, "Thunder Bluff")})
     g.run("ServiceInviter_Test.PostAd()")
-    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB 25s | whisper inv"]
+    assert [m for ch, _, m in g.sent() if ch == "CHANNEL"] == ["WTS summons to TB 25 silver | whisper inv"]
 
 
 def test_no_warlock_no_summon_invites():
@@ -142,7 +142,7 @@ def test_the_welcome_says_what_who_where_price_and_payee():
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert sent == ["Hi Kaldrok! {rt1}Grimtotem will summon you to TB. 25s. Pay {rt1}Grimtotem when you land."]
+    assert sent == ["Hi Kaldrok! {rt1}Grimtotem will summon you to TB. 25 silver. Pay {rt1}Grimtotem when you land."]
 
 
 def test_arrival_offers_what_is_there():
@@ -173,7 +173,7 @@ def test_posting_the_ad_and_an_inv_whisper_answering_it():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
     g.run("ServiceInviter_Test.PostAd()")
     chan = [(ch, to, m) for ch, to, m in g.sent() if ch == "CHANNEL"]
-    assert chan == [("CHANNEL", 2, "WTS summons to TB 25s | whisper inv")]
+    assert chan == [("CHANNEL", 2, "WTS summons to TB 25 silver | whisper inv")]
     whisper(g, "Mirasha", "inv")
     assert invited(g) == ["Mirasha"]
     assert "answered your ad" in job(g, "Mirasha", "why")
@@ -243,7 +243,7 @@ def test_a_warlocks_ritual_is_for_their_own_customer():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25s IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
     assert g.status("Mirasha") in ("summoned", "arrived")
     assert g.status("Kaldrok") == "joined"
 
@@ -304,8 +304,8 @@ def test_each_warlock_gets_an_icon_in_the_welcome():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert sent == ["Hi Kaldrok! {rt1}Grimtotem will summon you to TB. 25s. Pay {rt1}Grimtotem when you land.",
-                    "Hi Mirasha! {rt3}Ashfel will summon you to UC. 25s. Pay {rt3}Ashfel when you land."]
+    assert sent == ["Hi Kaldrok! {rt1}Grimtotem will summon you to TB. 25 silver. Pay {rt1}Grimtotem when you land.",
+                    "Hi Mirasha! {rt3}Ashfel will summon you to UC. 25 silver. Pay {rt3}Ashfel when you land."]
 
 
 def test_the_summon_alert_carries_the_icon():
@@ -314,7 +314,7 @@ def test_the_summon_alert_carries_the_icon():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25s IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
 
 
 def test_icons_are_never_put_over_heads():

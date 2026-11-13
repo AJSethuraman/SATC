@@ -56,18 +56,18 @@ ON = db(summons={"price": 25}, portals={"on": True, "price": 20}, water={"on": T
 
 def test_ad_tonight(core):
     text, _ = call(core, "BuildAd", ON, group(ME_ORG, LOCK_TB), '"Horde"')
-    assert text == "WTS summons to TB 25s | whisper inv"
+    assert text == "WTS summons to TB 25 silver | whisper inv"
 
 
 def test_ad_grows_when_a_mage_joins_and_skips_the_city_he_is_in(core):
     text, _ = call(core, "BuildAd", ON, group(ME_ORG, LOCK_TB, MAGE_47), '"Horde"')
-    assert text == "WTS summons to TB 25s, portals to UC 20s (at Org), free mage food & water (at Org) | whisper inv"
+    assert text == "WTS summons to TB 25 silver, portals to UC 20 silver (at Org), free mage food & water (at Org) | whisper inv"
 
 
 def test_ad_follows_the_warlock(core):
     lock_uc = member("Grimtotem", "WARLOCK", zone="Undercity")
     text, _ = call(core, "BuildAd", ON, group(ME_ORG, lock_uc), '"Horde"')
-    assert text == "WTS summons to UC 25s | whisper inv"
+    assert text == "WTS summons to UC 25 silver | whisper inv"
 
 
 def test_all_free_ad_drops_wts(core):
@@ -154,34 +154,34 @@ def welcome(core, grp, key="summons", dest="nil", d=ON):
 
 
 def test_welcome_summon_pay_the_warlock(core):
-    assert welcome(core, group(ME_ORG, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land."
+    assert welcome(core, group(ME_ORG, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25 silver. Pay Grimtotem when you land."
 
 
 def test_welcome_summon_pay_the_warlock_even_when_im_there(core):
     me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
-    assert welcome(core, group(me_tb, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay Grimtotem when you land."
+    assert welcome(core, group(me_tb, LOCK_TB)) == "Hi Kaldrok! Grimtotem will summon you to TB. 25 silver. Pay Grimtotem when you land."
 
 
 def test_welcome_summon_pay_me_when_i_picked_me(core):
     me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
     d = '{ payee = { mode = "me" } }'
-    assert welcome(core, group(me_tb, LOCK_TB), d=d) == "Hi Kaldrok! Grimtotem will summon you to TB. 25s. Pay me when you land."
+    assert welcome(core, group(me_tb, LOCK_TB), d=d) == "Hi Kaldrok! Grimtotem will summon you to TB. 25 silver. Pay me when you land."
 
 
 def test_welcome_im_the_warlock(core):
     me = member("Me", "WARLOCK", zone="Thunder Bluff", me=True)
-    assert welcome(core, group(me)) == "Hi Kaldrok! I'll summon you to TB. 25s. Pay me when you land."
+    assert welcome(core, group(me)) == "Hi Kaldrok! I'll summon you to TB. 25 silver. Pay me when you land."
 
 
 def test_welcome_portal_pay_the_mage_when_im_elsewhere(core):
     me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
     assert welcome(core, group(me_tb, LOCK_TB, MAGE_47), "portals", '"Undercity"') == \
-        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20s. Pay Velenne there."
+        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20 silver. Pay Velenne there."
 
 
 def test_welcome_portal_pay_the_mage_even_when_im_with_the_mage(core):
     assert welcome(core, group(ME_ORG, LOCK_TB, MAGE_47), "portals", '"Undercity"') == \
-        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20s. Pay Velenne there."
+        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20 silver. Pay Velenne there."
 
 
 def test_welcome_free_lockpicking(core):
@@ -212,7 +212,7 @@ def test_arrival_with_the_mage_there_too(core):
     g = group(member("Me", "ROGUE", zone="Thunder Bluff", me=True), LOCK_TB,
               member("Velenne", "MAGE", 47, zone="Thunder Bluff"))
     assert arrival(core, g, EVERYTHING) == \
-        "Welcome to TB, Kaldrok! Also here: free healthstones, portals to Org/UC 20s, free mage food & water, free lockpicking. Just ask!"
+        "Welcome to TB, Kaldrok! Also here: free healthstones, portals to Org/UC 20 silver, free mage food & water, free lockpicking. Just ask!"
 
 
 def test_arrival_says_nothing_when_nothing_else_is_there(core):
@@ -252,7 +252,7 @@ def test_every_mage_counts_for_portals(core):
     high = member("Aldris", "MAGE", 60, zone="Undercity")
     d = db(portals={"on": True, "price": 20})
     text, _ = call(core, "BuildAd", d, group(ME_ORG, low, high), '"Horde"')
-    assert text == "WTS portals to UC 20s (at Org), portals to Org/TB 20s (at UC) | whisper inv"
+    assert text == "WTS portals to UC 20 silver (at Org), portals to Org/TB 20 silver (at UC) | whisper inv"
     # each city goes to a mage who can do it
     assert core.eval(f'ServiceInviterCore.Provider({group(ME_ORG, low, high)}, "portals", "Thunder Bluff").name') == "Aldris"
     assert core.eval(f'ServiceInviterCore.Provider({group(ME_ORG, low, high)}, "portals", "Undercity").name') == "Velenne"
@@ -263,4 +263,10 @@ def test_the_welcome_names_the_mage_who_can_do_that_city(core):
     high = member("Aldris", "MAGE", 60, zone="Undercity")
     d = db(portals={"on": True, "price": 20})
     assert welcome(core, group(ME_ORG, low, high), "portals", '"Thunder Bluff"', d=d) == \
-        "Hi Kaldrok! Aldris will do a portal to TB, come to Aldris in UC. 20s. Pay Aldris there."
+        "Hi Kaldrok! Aldris will do a portal to TB, come to Aldris in UC. 20 silver. Pay Aldris there."
+
+
+def test_money_is_spelled_out(core):
+    """The owner, 13 Nov 2026: "spells out silver and gold instead of s and g"."""
+    m = lambda v: core.eval(f"ServiceInviterCore.Money({v})")
+    assert (m(25), m(100), m(150), m(200)) == ("25 silver", "1 gold", "1 gold 50 silver", "2 gold")
