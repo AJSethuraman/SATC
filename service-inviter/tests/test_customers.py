@@ -127,3 +127,21 @@ def test_one_box_empty_is_off():
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     assert "Welcome back" not in [m for ch, _, m in g.sent() if ch == "PARTY"][-1]
+
+
+def test_the_regulars_line_goes_after_your_own_welcome():
+    """The owner's own two lines, 13 Nov 2026: welcome "THE COST IS {price} AND WE WILL SUMMON YOU
+    SOON!" and regulars "HEY FREQUENT FLYER! This is your {visits} time with us!"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "THE COST IS {price} AND WE WILL SUMMON YOU SOON!"
+        ServiceInviterDB.loyaltymsg = "HEY FREQUENT FLYER! This is your {visits} time with us!"''')
+    say_trade(g, "Newbie", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Newbie joins the party.")
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
+    assert sent[0] == "THE COST IS 35 silver AND WE WILL SUMMON YOU SOON!"
+    assert sent[-1] == "THE COST IS 35 silver AND WE WILL SUMMON YOU SOON! HEY FREQUENT FLYER! This is your 4th time with us!"
