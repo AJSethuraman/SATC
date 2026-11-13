@@ -1984,3 +1984,41 @@ def test_skillup_bring_list_does_not_ask_for_parts_the_plan_itself_just_made(tmp
     bring = next(f.value for f in card.fields if f.name == "Bring")
     assert "Handful of Copper Bolts" not in bring, bring
     assert "79 x Copper Bar" in bring, bring
+
+
+def test_releasing_a_character_takes_it_off_open_raids(tmp_path):
+    """/release frees a wrongly claimed character. A signup made with it under the wrong account goes too,
+    so the raid post stops showing it and the rightful owner is not signed up twice. Other signups stay."""
+    db = make_db(tmp_path)
+    slug = _char(db, "Realmain", "Tank", 60, "Warrior")
+    other = _char(db, "Honest", "Healer", 60, "Priest")
+    rid = db.create_raid("Onyxia", _FUTURE, 40, 9, {"tank": 1})
+    db.claim(666, [slug])
+    db.claim(7, [other])
+    db.upsert_signup(rid, 666, slug, "tank", utcnow())
+    db.upsert_signup(rid, 7, other, "healer", utcnow())
+    bot = _bot(db)
+    ix, sent = _cmd_ix(9, officer=True)
+    asyncio.run(bot.tree.get_command("release").callback(ix, slug))
+    assert [s["slug"] for s in db.signups(rid)] == [other]
+    assert "1 open raid" in sent[-1]["content"] and sent[-1]["ephemeral"] is True
+
+
+def test_gaps_accepts_a_typed_profession_and_reports_the_real_list(tmp_path):
+    """/gaps with a typed profession ("skin", "skinning") reports the same gaps as the picked name, not an
+    empty list; a fragment that matches several professions is refused."""
+    from guildbot.sync import sync_item_catalog, sync_recipe_catalog
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, FakeClient(ROSTER), "g"))
+    client = ItemClient(ROSTER)
+    asyncio.run(sync_recipe_catalog(db, client))
+    asyncio.run(sync_item_catalog(db, client))
+    bot = _bot(db)
+    ix, sent = _cmd_ix(42)
+    asyncio.run(bot.tree.get_command("gaps").callback(ix, "Skinning"))
+    want = sent[-1]["embed"].description
+    for typed in ("skin", "skinning"):
+        asyncio.run(bot.tree.get_command("gaps").callback(ix, typed))
+        assert sent[-1]["embed"].description == want
+    asyncio.run(bot.tree.get_command("gaps").callback(ix, "in"))       # Mining and Skinning
+    assert sent[-1]["content"] == "Pick a profession from the list."

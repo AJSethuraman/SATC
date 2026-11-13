@@ -1723,10 +1723,13 @@ def register_commands(bot: GuildBot) -> None:
                 "I'm still loading the recipe list (the first run takes a few minutes). Try again shortly.", ephemeral=True)
             return
         if profession:
-            if not db.catalog_professions(profession):
+            found = [r["name"] for r in db.catalog_professions(profession)]
+            exact = [n for n in found if n.lower() == profession.strip().lower()]
+            if len(exact) != 1 and len(found) != 1:        # typed, not picked: only an unambiguous match counts
                 await interaction.response.send_message("Pick a profession from the list.", ephemeral=True)
                 return
-            await interaction.response.send_message(embed=gaps_for(db, profession), ephemeral=True)
+            name = exact[0] if exact else found[0]
+            await interaction.response.send_message(embed=gaps_for(db, name), ephemeral=True)
             return
         await interaction.response.send_message(embed=gaps_overview(db), view=GapsView(bot), ephemeral=True)
 
@@ -2181,4 +2184,14 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message("No such character.", ephemeral=True)
             return
         db.release(row["slug"])
-        await interaction.response.send_message(f"**{R.full_name(row)}** is free to claim again.", ephemeral=True)
+        stale = [(r["id"], s["discord_id"]) for r in db.open_raids()
+                 for s in db.signups(r["id"]) if s["slug"] == row["slug"]]
+        for rid, uid in stale:                             # it was not theirs: its open-raid signups go too
+            db.remove_signup(rid, uid)
+            db.expire_member_offers(rid, uid)
+        await interaction.response.send_message(
+            f"**{R.full_name(row)}** is free to claim again."
+            + (f" Also took it off {len(stale)} open raid(s)." if stale else ""), ephemeral=True)
+        for rid in sorted({rid for rid, _ in stale}):
+            await bot.refresh_raid_post(rid)
+            await bot.fill_open_slots(rid)                 # a freed slot goes to the bench
