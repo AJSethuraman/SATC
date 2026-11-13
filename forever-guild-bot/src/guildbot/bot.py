@@ -1139,9 +1139,15 @@ class GuildBot(discord.Client):
             return
         slug_of = {s["discord_id"]: s["slug"] for s in rows}
         now = utcnow()
-        for uid, role in picks:
-            self.db.upsert_signup(raid_id, uid, slug_of.get(uid), role, now, None)
-            offer_id = self.db.create_offer(raid_id, uid, role, now, raid["starts_at"], raid["starts_at"])
+        offers = []
+        for uid, role in picks:                            # all of them first: a DM below waits on Discord,
+            self.db.upsert_signup(raid_id, uid, slug_of.get(uid), role, now, None)   # and anyone may change
+            offers.append((uid, role, self.db.create_offer(raid_id, uid, role, now, raid["starts_at"],
+                                                           raid["starts_at"])))      # their signup meanwhile
+        for uid, role, offer_id in offers:
+            o = self.db.get_offer(offer_id)
+            if not o or o["state"] != "pending":
+                continue                                   # they changed their signup while an earlier DM went out
             try:
                 user = self.get_user(uid) or await self.fetch_user(uid)
                 msg = await user.send(R.promotion_text(raid, role), view=OfferView(self, offer_id))
@@ -1425,7 +1431,14 @@ class GuildBot(discord.Client):
         if promo and landed not in R.COUNTED:       # moved up without asking, now leaving: not a late drop
             self.db.undo_promotion(raid["id"], discord_id, promo["sent_at"])
         # Back on the bench from the bench (a re-tap, or a new character): keep their place in the queue.
-        when = prior["updated_at"] if prior and prior["role"] == "bench" and landed == "bench" else utcnow()
+        if prior and prior["role"] == "bench" and landed == "bench":
+            when = prior["updated_at"]
+        else:   # the bench is first come, first served: a join is always after the last one, even in one clock tick
+            t = datetime.now(timezone.utc)
+            last = max((datetime.fromisoformat(s["updated_at"]) for s in rows if s["role"] == "bench"), default=None)
+            if landed == "bench" and last and t <= last:
+                t = last + timedelta(microseconds=1)
+            when = t.isoformat(timespec="microseconds")
         self.db.upsert_signup(raid["id"], discord_id, slug, landed, when, wanted)
         self.db.expire_member_offers(raid["id"], discord_id)   # any change settles a promotion
         return landed
