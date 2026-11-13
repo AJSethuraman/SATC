@@ -1,0 +1,68 @@
+"""Workers and stasis. The owner, 13 Nov 2026: "there needs to be a command that stops it from
+running altogether so it's just in stasis and there needs to be a way to mark workers so that it
+doesnt get confused when a worker joins after the raid forms" -- "if someone is just there
+clicking they won't be a warlock summoning they are just there and click"."""
+from test_group import world, say_trade
+
+LOCK = {"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}
+
+
+def party(g):
+    return [m for ch, _, m in g.sent() if ch in ("PARTY", "RAID")]
+
+
+def test_a_worker_who_joins_gets_no_row_and_no_welcome():
+    g = world(LOCK)
+    g.run('SlashCmdList.SERVICEINVITER("worker Clicky Bob")')
+    g.event("CHAT_MSG_SYSTEM", "Clicky Bob joins the party.")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Clicky Bob")') is None
+    assert party(g) == []
+
+
+def test_a_worker_asking_for_a_summon_in_chat_is_not_invited():
+    g = world(LOCK)
+    g.run('SlashCmdList.SERVICEINVITER("worker Clicky")')
+    say_trade(g, "Clicky", "WTB summon to TB")
+    assert list(g.g.INVITED.values()) == []
+
+
+def test_someone_else_who_joins_still_gets_a_row():
+    g = world(LOCK)
+    g.run('SlashCmdList.SERVICEINVITER("worker Clicky")')
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok")') is not None
+
+
+def test_workers_group_marks_everyone_but_customers():
+    g = world(LOCK)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.run('UNITS.party2 = { "Kaldrok", "MAGE", 44, "Orgrimmar" } GROUP["Kaldrok"] = true')
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.run('UNITS.party3 = { "Clicky", "PRIEST", 60, "Thunder Bluff" } GROUP["Clicky"] = true')
+    g.run('SlashCmdList.SERVICEINVITER("workers group")')
+    assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Clicky")') is True
+    assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Grimtotem")') is True
+    assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Kaldrok")') is False
+
+
+def test_marking_a_worker_removes_their_joined_row_and_toggles_off():
+    g = world(LOCK)
+    g.event("CHAT_MSG_SYSTEM", "Clicky joins the party.")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Clicky")') is not None
+    g.run('SlashCmdList.SERVICEINVITER("worker clicky")')
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Clicky")') is None
+    g.run('SlashCmdList.SERVICEINVITER("worker Clicky")')
+    assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Clicky")') is False
+
+
+def test_stop_hears_nothing_and_start_wakes_it():
+    g = world(LOCK)
+    g.run('SlashCmdList.SERVICEINVITER("stop")')
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
+    assert list(g.g.INVITED.values()) == [] and g.sent() == []
+    assert g.eval('ServiceInviter_Test.Jobs.All()[1]') is None
+    g.run('SlashCmdList.SERVICEINVITER("start")')
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    assert list(g.g.INVITED.values()) == ["Kaldrok"]

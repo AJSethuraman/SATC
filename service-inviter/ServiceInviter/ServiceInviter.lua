@@ -1,4 +1,4 @@
--- Service Inviter v2.6.1
+-- Service Inviter v2.7.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -384,6 +384,7 @@ local function GroupSnapshot()
         -- for something) never does; with names given for a class, only those do (and you).
         local j = Jobs.Get and Jobs.Get(name)
         if j and j.service and j.status ~= "paid" and j.status ~= "done" and j.status ~= "left" then m.customer = true end
+        if Jobs.IsWorker and Jobs.IsWorker(name) then m.customer, m.worker = nil, true end
         local only = type(ServiceInviterDB.providers) == "table" and ServiceInviterDB.providers[cls]
         if type(only) == "string" and only:find("%S") then
             local listed = false
@@ -670,7 +671,7 @@ end
 -- times they use us and when"): kept in the saved settings, so it lasts across sessions.
 -- { n = times, by = { summons = 3, ... }, worth = silver at your price then, first, last }
 function Jobs.Record(j)
-    if not j or j.recorded then return end
+    if not j or j.recorded or Jobs.IsWorker(j.name) then return end
     j.recorded = true
     local db = ServiceInviterDB
     db.customers = type(db.customers) == "table" and db.customers or {}
@@ -732,6 +733,31 @@ function Jobs.Shards()
     local own = okc and cls == "WARLOCK" and GetItemCount and (tonumber(GetItemCount(6265)) or 0) or nil
     if not typed and not own then return nil end
     return (own or 0) + (typed or 0), own, typed
+end
+-- Workers: your own people, there to click (the owner, 13 Nov 2026: "a way to mark workers so
+-- that it doesnt get confused when a worker joins after the raid forms" -- "if someone is just
+-- there clicking they won't be a warlock summoning they are just there and click"). A worker
+-- never gets a customer row, a welcome or the regulars line, and is never invited from chat.
+-- /si worker NAME (or your target), /si workers group marks everyone in the group now.
+function Jobs.IsWorker(name)
+    local w = ServiceInviterDB.workers
+    if type(w) ~= "table" or not name then return false end
+    name = name:lower()
+    for k in pairs(w) do if k:lower() == name then return true end end
+    return false
+end
+function Jobs.SetWorker(name, on)
+    ServiceInviterDB.workers = type(ServiceInviterDB.workers) == "table" and ServiceInviterDB.workers or {}
+    for k in pairs(ServiceInviterDB.workers) do if k:lower() == name:lower() then ServiceInviterDB.workers[k] = nil end end
+    if on then
+        -- the name as the game spells it, when they're in the group or on the list
+        for _, m in ipairs(GroupSnapshot()) do if m.name:lower() == name:lower() then name = m.name end end
+        for _, j in ipairs(jobs) do if j.name:lower() == name:lower() then name = j.name end end
+        ServiceInviterDB.workers[name] = true
+        local j = Jobs.Get(name)
+        if j and not j.service then Jobs.Remove(name) end   -- the "joined your group" row goes
+    end
+    return name
 end
 -- summons still to do: buyers invited or waiting who haven't been summoned yet
 function Jobs.Queued()
@@ -968,6 +994,7 @@ local function Handle(text, sender, guid)
     if not (Opt("enabled") or Opt("kwon") or (adOpen and curChannel == "whisper")) or not sender or sender == "" then D("skip: addon off or no sender") return end
     if Opt("skipafk") and UnitIsAFK and UnitIsAFK("player") then D("skip: you are AFK (see 'Skip while I'm AFK')") return end
     local short = Ambiguate and Ambiguate(sender, "none") or sender
+    if Jobs.IsWorker(short) then D("skip: " .. short .. " is one of your workers") return end
     if short == FullName("player") then return end
     if UnitInParty(short) or UnitInRaid(short) then D(short .. ": already in your group") return end
     if IsBlocked(short, guid) then D(short .. ": blocked/ignored") return end
@@ -1181,6 +1208,7 @@ local function OnSystem(text)
     end
     if not who then return end
     local short = nm(who)
+    if Jobs.IsWorker(short) then pending[short] = nil return end   -- one of yours: nothing to do
     -- Someone joined who nobody here invited (a friend invited them): give them a row too.
     if not Jobs.Get(short) and short ~= FullName("player") then
         Jobs.New(short, "(joined your group)", "invited by someone else", "-")
@@ -1236,6 +1264,12 @@ f:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 f:RegisterEvent("CHAT_MSG_RAID")
 f:RegisterEvent("CHAT_MSG_RAID_LEADER")
 f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
+    -- stasis (/si stop): hears nothing, does nothing, until /si start (the owner, 13 Nov 2026:
+    -- "a command that stops it from running altogether so it's just in stasis")
+    if ServiceInviterDB and ServiceInviterDB.stasis then
+        if event == "PLAYER_LOGIN" then P("|cffff8040stopped|r: hearing nothing and doing nothing. /si start to wake it.") end
+        return
+    end
     if event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
         pcall(BuffAsk, text, sender)
         return
@@ -2096,6 +2130,7 @@ local function RitualCast(unit, spellID, nm, event)
 end
 
 OnCast = function(event, unit, spellID, spellName)
+    if ServiceInviterDB.stasis then return end
     if type(unit) ~= "string" then return end
     if not spellID and not spellName then return end
     local mine = (unit == "player")
@@ -2242,7 +2277,7 @@ local ticker = CreateFrame("Frame")
 local tacc = 0
 ticker:SetScript("OnUpdate", function(_, el)
     tacc = tacc + (el or 0)
-    if tacc >= 1 then tacc = 0 Report("arrivals", pcall(CheckArrivals)) end
+    if tacc >= 1 then tacc = 0 if not ServiceInviterDB.stasis then Report("arrivals", pcall(CheckArrivals)) end end
 end)
 
 -- Take a customer out of the group: a click only (Paid, Done or x), and only as leader (or an
@@ -3438,6 +3473,36 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
                 P("cast " .. math.floor(GetTime() - c.t) .. "s ago: " .. tostring(UnitName and UnitName(c.unit) or c.unit) .. " (" .. c.unit .. ") " .. c.name .. " id " .. tostring(c.id) .. " " .. c.event:gsub("UNIT_SPELLCAST_", ""))
             end
         end
+    elseif cmd == "stop" or cmd == "stasis" then
+        ServiceInviterDB.stasis = true
+        if jobsWin then jobsWin:Hide() end
+        P("|cffff8040stopped|r: hearing nothing and doing nothing, even after a reload. /si start to wake it.")
+    elseif cmd == "start" or cmd == "wake" then
+        ServiceInviterDB.stasis = nil
+        P("started again")
+    elseif cmd == "worker" or cmd == "workers" then
+        local r = rest:gsub("^%s+", ""):gsub("%s+$", "")
+        if r:lower() == "group" then
+            local n = 0
+            for _, m in ipairs(GroupSnapshot()) do
+                if not m.me and not m.customer then Jobs.SetWorker(m.name, true) n = n + 1 end
+            end
+            P(n .. " in your group marked as workers (customers left alone)")
+        elseif r:lower() == "clear" then
+            ServiceInviterDB.workers = nil P("worker list cleared")
+        elseif r ~= "" or (cmd == "worker" and UnitExists and UnitExists("target")) then
+            local name = r ~= "" and r or FullName("target")
+            if name then
+                local on = not Jobs.IsWorker(name)
+                name = Jobs.SetWorker(name, on)
+                P(name .. (on and " is a worker now (no row, no welcome, never invited)" or " is not a worker any more"))
+            end
+        end
+        local list = {}
+        for k in pairs(type(ServiceInviterDB.workers) == "table" and ServiceInviterDB.workers or {}) do list[#list + 1] = k end
+        table.sort(list)
+        P("workers: " .. (#list > 0 and table.concat(list, ", ") or "none") .. "   (/si worker NAME or your target, /si workers group, /si workers clear)")
+        RefreshJobs()
     elseif cmd == "shards" then
         local r = rest:lower()
         if r == "off" then ServiceInviterDB.shards = nil
@@ -3518,7 +3583,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
