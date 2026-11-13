@@ -3,6 +3,12 @@ they use us and when"). Kept with the addon's saved settings. A summon counts wh
 anything else when you press Paid or Done."""
 from test_group import world, say_trade
 
+
+def copied(g):
+    """The copy window's text, one line each (where the lists and stats go now)."""
+    assert g.eval("ServiceInviterCopy:IsShown()")
+    return (g.eval("ServiceInviterCopy.box:GetText()") or "").split("\n")
+
 LOCK = {"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}
 
 
@@ -34,10 +40,10 @@ def test_si_customers_lists_regulars_and_one_persons_history():
     g = world(LOCK, "summons = { price = 35 }")
     summon(g, "Kaldrok") ; summon(g, "Kaldrok") ; summon(g, "Mirasha")
     g.run('SlashCmdList.SERVICEINVITER("customers")')
-    out = " ".join(g.printed())
+    out = " ".join(copied(g))
     assert out.index("Kaldrok") < out.index("Mirasha") and "2 times" in out
     g.run('SlashCmdList.SERVICEINVITER("customers mirasha")')
-    assert "Mirasha: 1 time" in " ".join(g.printed())
+    assert "Mirasha: 1 time" in " ".join(copied(g))
 
 
 def test_a_paid_lockpick_counts_when_paid():
@@ -155,9 +161,8 @@ def test_the_regulars_button_prints_the_top_ten():
         for _ in range(i + 1):
             summon(g, f"Buyer{i:02d}", clock_step=1)
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
-    before = len(g.printed())
     g.run("ServiceInviterJobs.regularsBtn._scripts.OnClick(ServiceInviterJobs.regularsBtn)")
-    out = [p for p in g.printed()[before:] if ". Buyer" in p]
+    out = [p for p in copied(g) if ". Buyer" in p]
     assert len(out) == 10 and "Buyer11" in out[0] and "Buyer02" in out[-1]
 
 
@@ -177,7 +182,7 @@ def test_analytics_record_where_they_went_and_when():
     assert sum(a.hour[h] or 0 for h in range(0, 24)) == 3
     assert g.eval('ServiceInviterDB.customers["Kaldrok"].to["Thunder Bluff"]') == 2
     g.run('SlashCmdList.SERVICEINVITER("stats")')
-    out = " ".join(g.printed())
+    out = " ".join(copied(g))
     assert "3 uses by 2 customers (1 came back)" in out and "Thunder Bluff 2" in out and "Undercity 1" in out
     assert "Busiest hours" in out and "summons 3" in out
 
@@ -214,11 +219,21 @@ def test_si_customers_all_lists_everyone():
     g = world(LOCK, "summons = { price = 35 }")
     for i in range(12):
         summon(g, f"Buyer{i:02d}", clock_step=1)
+    g.run('SlashCmdList.SERVICEINVITER("customers")')
+    assert any("(/si customers all for everyone)" in p for p in copied(g))
+    g.run('SlashCmdList.SERVICEINVITER("customers all")')
+    out = copied(g)
+    assert "All 12 customers:" in out[0] and len([p for p in out if ". Buyer" in p]) == 12
+
+
+def test_the_lists_open_selected_in_a_copy_window_not_in_chat():
+    """The owner, 13 Nov 2026: "can it not print the customer lists and stuff into a window that
+    i can copy and paste from easily"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    summon(g, "Kaldrok")
     before = len(g.printed())
     g.run('SlashCmdList.SERVICEINVITER("customers")')
-    top = g.printed()[before:]
-    assert any("(/si customers all for everyone)" in p for p in top)
-    before = len(g.printed())
-    g.run('SlashCmdList.SERVICEINVITER("customers all")')
-    out = g.printed()[before:]
-    assert "All 12 customers:" in out[0] and len([p for p in out if ". Buyer" in p]) == 12
+    assert not any("Kaldrok" in p for p in g.printed()[before:])        # not in chat
+    lines = copied(g)
+    assert lines[0].startswith("Top 1 of 1 customers") and "|c" not in "".join(lines)
+    assert g.eval("ServiceInviterCopy.title:GetText()") == "Customers"

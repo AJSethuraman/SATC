@@ -57,6 +57,7 @@ function CreateFrame(kind, name, parent, template)
   if name then _G[name] = f end
   return f
 end
+ChatFontNormal = "ChatFontNormal"
 UIParent = New("UIParent") UIParent.GetWidth = function() return 1920 end UIParent.GetHeight = function() return 1080 end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) PRINTED[#PRINTED + 1] = m end }
 function print(m) PRINTED[#PRINTED + 1] = m end

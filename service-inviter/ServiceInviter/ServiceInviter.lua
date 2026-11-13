@@ -1,4 +1,4 @@
--- Service Inviter v2.7.1
+-- Service Inviter v2.8.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -145,6 +145,7 @@ local function OutFrame()
     return DEFAULT_CHAT_FRAME
 end
 local function P(msg)
+    if Jobs.capture then Jobs.capture[#Jobs.capture + 1] = msg return end   -- going to the copy window
     local f = OutFrame()
     local line = "|cff80ff80Service Inviter|r: " .. msg
     if f and f.AddMessage then f:AddMessage(line) else print(line) end
@@ -1771,6 +1772,52 @@ local function FlatButton(parent, w, h, style, size, secure, name)
     b._siStyle, b._siSize = style, size or 14
     return b
 end
+-- A window to copy from (the owner, 13 Nov 2026: "can it not print the customer lists and stuff
+-- into a window that i can copy and paste from easily"). The text comes up selected: Ctrl+C.
+function Jobs.Copy(title, fill)
+    Jobs.capture = {}
+    local ok, err = pcall(fill)
+    local lines = Jobs.capture
+    Jobs.capture = nil
+    if not ok then P("|cffff4040error|r " .. tostring(err)) return end
+    for i, l in ipairs(lines) do lines[i] = l:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") end
+    local text = table.concat(lines, "\n")
+    local w = Jobs.copyWin
+    if not w then
+        w = CreateFrame("Frame", "ServiceInviterCopy", UIParent)
+        w:SetSize(680, 460)
+        w:SetPoint("CENTER")
+        w:SetFrameStrata("DIALOG")
+        w:EnableMouse(true) w:SetMovable(true) w:RegisterForDrag("LeftButton")
+        w:SetScript("OnDragStart", w.StartMoving) w:SetScript("OnDragStop", w.StopMovingOrSizing)
+        local edge = Fill(w, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        w.title = Text(w, 16, INK.gold, "GameFontNormalLarge")
+        w.title:SetPoint("TOPLEFT", 16, -14)
+        local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall")
+        hint:SetPoint("TOPLEFT", 16, -36) hint:SetText("Selected: press Ctrl+C to copy. Esc closes.")
+        local x = FlatButton(w, 28, 28, "plain") x:SetPoint("TOPRIGHT", -10, -10) x:SetText("X")
+        x:SetScript("OnClick", function() w:Hide() end)
+        local sf = CreateFrame("ScrollFrame", "ServiceInviterCopyScroll", w, "UIPanelScrollFrameTemplate")
+        sf:SetPoint("TOPLEFT", 16, -60) sf:SetPoint("BOTTOMRIGHT", -34, 16)
+        local box = CreateFrame("EditBox", nil, sf)
+        box:SetMultiLine(true) box:SetAutoFocus(false) box:SetFontObject(ChatFontNormal)
+        box:SetPoint("TOPLEFT") box:SetSize(620, 380)
+        box:SetScript("OnEscapePressed", function() w:Hide() end)
+        -- read-only: anything typed is put back
+        box:SetScript("OnTextChanged", function(self, user) if user then self:SetText(w.text or "") self:HighlightText() end end)
+        sf:SetScrollChild(box)
+        w.box = box
+        if UISpecialFrames then table.insert(UISpecialFrames, "ServiceInviterCopy") end
+        Jobs.copyWin = w
+    end
+    w.title:SetText(title)
+    w.text = text
+    w.box:SetText(text)
+    w:Show()
+    w.box:SetFocus()
+    w.box:HighlightText()
+end
 -- The banner: a small label naming the event, the instruction as the loudest line, who is
 -- being summoned, to where and who gets paid, and a bar for the 14 seconds it stays up.
 -- Pulses for the first two seconds only (the design review of 12 Nov 2026).
@@ -2537,7 +2584,7 @@ local function BuildJobsUI()
     adBtn:SetPoint("TOPRIGHT", -136, -14) adBtn:SetText("Post ad")
     local regBtn = FlatButton(w, 90, 36, "plain")
     regBtn:SetPoint("TOPRIGHT", -294, -14) regBtn:SetText("Regulars")
-    regBtn:SetScript("OnClick", function() Jobs.PrintRegulars("") end)
+    regBtn:SetScript("OnClick", function() Jobs.Copy("Regulars", function() Jobs.PrintRegulars("") end) end)
     w.regularsBtn = regBtn
     adBtn:SetScript("OnClick", function() PostAd() end)
     w.adBtn = adBtn
@@ -3530,9 +3577,9 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             ", " .. Jobs.Queued() .. " summons queued, " .. math.max(0, Jobs.ShardsLeft()) .. " left")
         RefreshJobs()
     elseif cmd == "stats" or cmd == "analytics" then
-        Jobs.PrintStats()
+        Jobs.Copy("Stats", Jobs.PrintStats)
     elseif cmd == "customers" or cmd == "regulars" then
-        Jobs.PrintRegulars(rest)
+        Jobs.Copy(rest ~= "" and rest:lower() ~= "all" and "Customer" or "Customers", function() Jobs.PrintRegulars(rest) end)
     elseif cmd == "session" then
         if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started")
         else P("session: " .. SessionText() .. "   (/si session new to start over)") end

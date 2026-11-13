@@ -133,6 +133,11 @@ scenes["setup_our_workers"] = export(L, L.globals().S, L.globals().S.pages[1])
 L.execute('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().workers, false, "Our workers (from your group)", "workers")')
 scenes["picker_our_workers"] = export(L, L.globals().ServiceInviterPicker)
 
+# the copy window: the regulars, ready to Ctrl+C
+L = load(GROUP + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.customers = { Kaldrok = { n = 4, by = { summons = 4 }, worth = 140, first = 1763000000, last = 1763050000, to = { ['Thunder Bluff'] = 3, Undercity = 1 } }, ['Yourmomma Lovesme'] = { n = 2, by = { summons = 2 }, worth = 70, first = 1763000000, last = 1763040000, to = { Undercity = 2 } } }")
+L.execute('SlashCmdList.SERVICEINVITER("customers")')
+scenes["copy_window"] = export(L, L.globals().ServiceInviterCopy, L.globals().ServiceInviterCopyScroll)
+
 # the click-the-portal banner, half way through its 14 seconds
 L = load(GROUP)
 L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')
