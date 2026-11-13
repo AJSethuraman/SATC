@@ -1,4 +1,4 @@
--- Service Inviter v2.7.0
+-- Service Inviter v2.7.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2748,6 +2748,7 @@ local function DefaultPayeeText(key)
 end
 local function ShowPicker(box, withDefaults, title, key)
     local only = type(key) == "string" and key:match("^class:(%u+)$")   -- "Our warlocks": that class, added to the list
+    if key == "workers" then only = "ANY" end                            -- "Our workers": anyone but customers
     if not picker then
         picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent)
         picker:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -2772,7 +2773,7 @@ local function ShowPicker(box, withDefaults, title, key)
     if only then
         -- that class only, from the group or raid; a pick is added to the list
         for _, m in ipairs(GroupSnapshot()) do
-            if m.class == only then entries[#entries + 1] = { Colored(m.me and (m.name .. " (you)") or m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+            if (m.class == only or (only == "ANY" and not m.me and not m.customer)) then entries[#entries + 1] = { Colored(m.me and (m.name .. " (you)") or m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
         end
     elseif withDefaults then
         entries[#entries + 1] = { "Default", "" }
@@ -2813,7 +2814,7 @@ local function ShowPicker(box, withDefaults, title, key)
     local h = top + #entries * 24
     picker.note:ClearAllPoints() picker.note:SetPoint("TOPLEFT", 10, -h - 2)
     local alone = #GroupSnapshot() <= 1
-    if only and #entries == 0 then picker.note:SetText("Nobody of that class in your group right now.")
+    if only and #entries == 0 then picker.note:SetText(only == "ANY" and "Nobody but customers in your group right now." or "Nobody of that class in your group right now.")
     else picker.note:SetText(alone and "Party and raid members show up here." or (only and "Each pick is added to the list." or "Or type any name in the box.")) end
     picker:SetSize(W, h + 24)
     picker:ClearAllPoints() picker:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -2)
@@ -2992,6 +2993,12 @@ local function BuildSetupUI()
     Check("debug", L + 270, -322, "Debug")
     Header(L, -362, "On sale right now")
     w.onsale = Label(L, -388, "", "GameFontHighlight", 410)
+    -- our workers, like "Our warlocks" (the owner, 13 Nov 2026: "i want it more like it is in the
+    -- lock tab where i can say these are our locks")
+    Header(L, -490, "Our workers")
+    Label(L, -516, "Here to click. Never a customer: no row, no welcome, never invited.", "GameFontHighlightSmall", 410)
+    local wb = Box("workers", L + 4, -536, 330, 400)
+    PickButton(page, wb, false, "Our workers (from your group)", "workers")
 
     Header(R, -50, "Who gets paid (default)")
     local function SyncTradeBox()
@@ -3190,6 +3197,10 @@ local function BuildSetupUI()
         boxes.blessing_spell:SetText(Core.Setting(db, "blessing").spell or "")
         local prov = type(db.providers) == "table" and db.providers or {}
         for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do boxes["prov_" .. cls]:SetText(prov[cls] or "") end
+        local wl = {}
+        for k in pairs(type(db.workers) == "table" and db.workers or {}) do wl[#wl + 1] = k end
+        table.sort(wl)
+        boxes.workers:SetText(table.concat(wl, ", "))
         local untick = Core.Setting(db, "portals").untick
         for _, city in ipairs(w.portalChecks) do checks["portal_" .. city]:SetChecked(not untick[city]) end
         SyncTradeBox()
@@ -3244,6 +3255,11 @@ local function BuildSetupUI()
         for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do
             local t = boxes["prov_" .. cls]:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
             db.providers[cls] = (t ~= "") and t or nil
+        end
+        db.workers = nil
+        for nm in boxes.workers:GetText():gmatch("[^,]+") do
+            nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
+            if nm ~= "" then Jobs.SetWorker(nm, true) end
         end
         RefreshJobs()
     end

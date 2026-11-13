@@ -66,3 +66,22 @@ def test_stop_hears_nothing_and_start_wakes_it():
     g.run('SlashCmdList.SERVICEINVITER("start")')
     say_trade(g, "Kaldrok", "WTB summon to TB")
     assert list(g.g.INVITED.values()) == ["Kaldrok"]
+
+
+def test_our_workers_box_picks_from_the_group_and_saves():
+    """The owner, 13 Nov 2026: "i want it more like it is in the lock tab where i can say these are
+    our locks"."""
+    g = world({**LOCK, "party2": ("Clicky", "PRIEST", 60, "Thunder Bluff")})
+    g.run('''S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(1)
+        ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().workers, false, "Our workers", "workers")''')
+    labels = [g.eval(f"ServiceInviterPicker.buttons[{i}]:GetText()") for i in (1, 2)]
+    assert any("Grimtotem" in l for l in labels) and any("Clicky" in l for l in labels)
+    assert not any("(you)" in (l or "") for l in labels)
+    g.run("ServiceInviterPicker.buttons[2]._scripts.OnClick()")
+    g.run("S.Save()")
+    assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Clicky")') is True
+    g.run('SlashCmdList.SERVICEINVITER("worker Bob")')
+    g.run("S.Load()")
+    assert g.eval("ServiceInviter_Test.SetupBoxes().workers:GetText()") == "Bob, Clicky"
+    g.run('ServiceInviter_Test.SetupBoxes().workers:SetText("Bob") S.Save()')
+    assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Clicky")') is False

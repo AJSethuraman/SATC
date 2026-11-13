@@ -126,6 +126,13 @@ scenes["setup_our_warlocks"] = export(L, L.globals().S, L.globals().S.pages[2])
 L.execute('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().prov_WARLOCK, false, "Our warlocks (from your group)", "class:WARLOCK")')
 scenes["picker_our_warlocks"] = export(L, L.globals().ServiceInviterPicker)
 
+# "Our workers": the General tab with workers listed, and the pick list (anyone but customers)
+L = load(STRAY + '\nServiceInviterDB = { workers = { ["Yeet Lock"] = true, Random = true } }')
+L.execute("S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(1) S.Refresh()")
+scenes["setup_our_workers"] = export(L, L.globals().S, L.globals().S.pages[1])
+L.execute('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().workers, false, "Our workers (from your group)", "workers")')
+scenes["picker_our_workers"] = export(L, L.globals().ServiceInviterPicker)
+
 # the click-the-portal banner, half way through its 14 seconds
 L = load(GROUP)
 L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')
