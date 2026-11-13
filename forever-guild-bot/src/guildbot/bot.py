@@ -1413,9 +1413,12 @@ class GuildBot(discord.Client):
         await self.fill_open_slots(raid["id"])         # they may have just left a slot someone is waiting for
 
     def apply_signup(self, raid, discord_id: int, role: str, slug) -> str:
-        """Record the signup; returns the role they actually landed in (bench when full)."""
-        landed = R.resolve_role(role, R.group_signups(self.db.signups(raid["id"])), raid["size"],
-                                discord_id, R.caps_of(raid))
+        """Record the signup; returns the role they actually landed in (bench when full). A slot that is open
+        while people wait on the bench is theirs (the next bench pass gives it out), not a newcomer's."""
+        rows = self.db.signups(raid["id"])
+        owed = dict(R.next_promotions(raid, rows))
+        as_if = [dict(s, role=owed[s["discord_id"]]) if s["discord_id"] in owed else s for s in rows]
+        landed = R.resolve_role(role, R.group_signups(as_if), raid["size"], discord_id, R.caps_of(raid))
         wanted = role if landed == "bench" and role in R.COUNTED else None     # bounced to the bench: remember why
         prior = next((s for s in self.db.signups(raid["id"]) if s["discord_id"] == discord_id), None)
         promo = self.db.pending_offer(raid["id"], discord_id)
