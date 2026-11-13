@@ -2115,3 +2115,31 @@ def test_a_raid_that_has_started_cannot_be_cancelled(tmp_path):
     asyncio.run(bot.tree.get_command("raid-cancel").callback(ix, rid))
     assert db.get_raid(rid)["status"] == "open"
     assert "/raid-end" in sent[-1]["content"] and sent[-1]["ephemeral"] is True
+
+
+def test_two_bench_passes_at_once_promote_and_tell_each_person_once(tmp_path):
+    """Codex on #489: the minute job and a command can run a bench pass at the same time. While one waits on
+    Discord to send a DM, the other must not promote the same people again."""
+    from types import SimpleNamespace
+    db, rid, bot, dms, _edits = _bench(tmp_path, start=_soon())
+
+    class Slow:
+        def __init__(self, uid):
+            self.uid = uid
+
+        async def send(self, text, view=None):
+            await asyncio.sleep(0)                                         # Discord takes a moment
+            dms.append((self.uid, text, view))
+            return SimpleNamespace(id=2000 + len(dms))
+
+    async def run():
+        raid = db.get_raid(rid)
+        for uid in (1, 2, 3, 4):
+            bot.apply_signup(raid, uid, "dps", None)                       # 1, 2 in; 3, 4 on the bench
+        bot.apply_signup(raid, 1, "absent", None)
+        bot.apply_signup(raid, 2, "absent", None)                          # two slots open
+        bot.get_user = lambda uid: Slow(uid)
+        await asyncio.gather(bot.fill_open_slots(rid), bot.fill_open_slots(rid))
+    asyncio.run(run())
+    assert sorted(u for u, _, _ in dms) == [3, 4]
+    assert sorted(o["discord_id"] for o in db.pending_offers()) == [3, 4]

@@ -49,7 +49,9 @@ def new_completions(completions, seen: set, known_before: set, holders: dict, no
     stored before this sync (a new member, or the first sync, announces nothing). holders: slug -> dict
     with slug, level, class_name, skills {profession: skill}.
     player_of: slug -> who plays it (a claim or a likely-alts group); a slug not in it is its own player.
-    A solo point (class, tradeskill) showing on several characters at one time is one account's point.
+    A solo point (class, tradeskill) showing on several characters at one time is one account's point,
+    unless they belong to two or more known players (Blizzard's times are cut to the second, so two players
+    can finish the same one together): then each known player gets a post, like a group point.
     A group point (dungeon, raid, PvP) lands on the whole group in the same second, so it is posted once
     per player: only characters known to be one player share a post. Each player's character logs out at
     its own time, so a group point is never marked handled as a whole: posted holds (challenge_id,
@@ -67,34 +69,39 @@ def new_completions(completions, seen: set, known_before: set, holders: dict, no
         rows = groups[key]
         first = rows[0]
         group = first["category"] not in SOLO_CATEGORIES
-        if group:
-            rows = [r for r in rows if (*key, r["slug"]) not in posted]     # players already posted for this one
-            if not rows:
-                continue
+        rows = [r for r in rows if (*key, r["slug"]) not in posted]         # players already posted for this one
+        if not rows:
+            continue
         if not any(r["slug"] in known_before for r in rows) or datetime.fromisoformat(key[1]) < cutoff:
             handled += [(*key, r["slug"]) for r in rows] if group else [key]   # old news or new members: never announce
             continue
+        known = {(player_of or {})[r["slug"]] for r in rows if r["slug"] in (player_of or {})}
         parts: dict = {}
         for r in rows:
-            who = (player_of or {}).get(r["slug"], ("slug", r["slug"])) if group else None
+            if group:
+                who = (player_of or {}).get(r["slug"], ("slug", r["slug"]))
+            else:                                     # one account, unless two known players share the second
+                who = (player_of or {}).get(r["slug"]) if len(known) > 1 else None
             parts.setdefault(who, []).append(r)
-        earners = []
+        split = group or len(parts) > 1
+        earners, waiting = [], False
         for who, part in parts.items():
-            if group and not any(r["slug"] in known_before for r in part):
+            if split and not any(r["slug"] in known_before for r in part):
                 handled += [(*key, r["slug"]) for r in part]   # a new member's old point: never announce
                 continue
             e = pick_earner(first["category"], first["subcategory"], first["name"],
                             [holders[r["slug"]] for r in part if r["slug"] in holders])
             if e is None:
+                waiting = True
                 continue                              # the right character may log out later
             earners.append(e)
-            if group:                                 # this player is done, whichever of their characters shows it next
-                mates = {r["slug"] for r in part} | {s for s, k in (player_of or {}).items() if k == who}
+            if split:                                 # this player is done, whichever of their characters shows it next
+                mates = {r["slug"] for r in part} | ({s for s, k in (player_of or {}).items() if k == who} if who is not None else set())
                 handled += [(*key, s) for s in sorted(mates)]
         if not earners:
             continue
-        if not group:
-            handled.append(key)
+        if not group and not waiting:
+            handled.append(key)                       # a solo point: done with it as a whole
         found += [("legacy", e["slug"], first["name"], first["challenge_id"]) for e in sorted(earners, key=lambda e: e["slug"])]
     return found, handled
 

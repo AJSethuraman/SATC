@@ -283,3 +283,33 @@ def test_a_character_whose_achievements_loaded_empty_is_not_a_new_member(tmp_pat
     asyncio.run(sync_guild(db, LegacyClient(ROSTER), "g"))
     roster = {r["slug"] for r in db.roster()}
     assert roster and roster <= db.achievement_slugs()
+
+
+def test_two_players_who_finish_the_same_class_point_in_the_same_second_both_get_a_post():
+    """Codex on #489: Blizzard's times are cut to the second here, so two known players can share one. Each
+    gets their line; one player's two characters (or an unknown alt with one known player) still share one."""
+    when = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(timespec="seconds")
+    row = lambda slug: {"slug": slug, "challenge_id": 61502, "name": "Novice Druid", "category": "Classes",
+                        "subcategory": "Druid", "completed_at": when}
+    druid = lambda slug: {"slug": slug, "level": 30, "class_name": "Druid", "skills": {}}
+    slugs = ("ann-oak", "ann-alt", "bob-leaf", "who-knows")
+    holders = {s: druid(s) for s in slugs} | {"ann-oak": dict(druid("ann-oak"), level=40)}   # her main
+    now = datetime.now(timezone.utc)
+    found, handled = L.new_completions([row(s) for s in slugs], set(), set(slugs), holders, now,
+                                       {"ann-oak": 0, "ann-alt": 0, "bob-leaf": 2})
+    assert sorted(slug for _k, slug, _n, _c in found) == ["ann-oak", "bob-leaf", "who-knows"]
+    again, _ = L.new_completions([row(s) for s in slugs], set(), set(slugs), holders, now,
+                                 {"ann-oak": 0, "ann-alt": 0, "bob-leaf": 2},
+                                 {k for k in handled if len(k) == 3})
+    assert again == []                                                  # never twice
+    one, handled = L.new_completions([row("ann-oak"), row("who-knows")], set(), {"ann-oak", "who-knows"},
+                                     holders, now, {"ann-oak": 0})
+    assert len(one) == 1 and handled == [(61502, when)]                  # one known player: one account, one post
+    young = dict(holders, **{"bob-leaf": dict(druid("bob-leaf"), level=20)})          # Bob's druid not 25 yet
+    found, handled = L.new_completions([row(s) for s in slugs], set(), set(slugs), young, now,
+                                       {"ann-oak": 0, "ann-alt": 0, "bob-leaf": 2})
+    assert sorted(slug for _k, slug, _n, _c in found) == ["ann-oak", "who-knows"]
+    assert (61502, when) not in handled                                 # Bob's share stays open
+    later, _ = L.new_completions([row(s) for s in slugs], set(handled), set(slugs), holders, now,
+                                 {"ann-oak": 0, "ann-alt": 0, "bob-leaf": 2}, {k for k in handled if len(k) == 3})
+    assert [slug for _k, slug, _n, _c in later] == ["bob-leaf"]

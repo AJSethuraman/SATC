@@ -744,6 +744,7 @@ class GuildBot(discord.Client):
         self.cfg, self.db, self.blizzard = cfg, db, blizzard
         self.tree = GuildTree(self)
         self._sync_lock = asyncio.Lock()
+        self._promoting = asyncio.Lock()   # one bench pass at a time: two would promote and DM the same people
         self._busy: set[int] = set()      # raids the bot itself is changing right now (ignore our own deletions)
         register_commands(self)
 
@@ -1106,6 +1107,10 @@ class GuildBot(discord.Client):
         """Slots free and people waiting on the bench: move the next in line up and tell them by DM.
         They are in at once; the DM has a "Can't make it" button that passes the slot to the next person."""
         await self.sweep_offer_messages()                   # close the buttons on promotions that are settled
+        async with self._promoting:
+            await self._promote(raid_id)
+
+    async def _promote(self, raid_id: int) -> None:
         raid = self.db.get_raid(raid_id)
         if not raid or raid["status"] != "open" or \
                 datetime.fromisoformat(raid["starts_at"]) <= datetime.now(timezone.utc):
