@@ -1,4 +1,4 @@
--- Service Inviter v2.8.0
+-- Service Inviter v2.8.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2067,12 +2067,24 @@ local function Preview(tab)
     end
 
     local ok, err = pcall(function()
+        if db.stasis then Note("Stopped (/si stop): nothing real goes out until /si start. This is what it would say.") end
         if tab == "General" then
             Head("On sale")
             local items = Core.OnSale(db, GroupSnapshot(), fac)
             local text = OnSaleText(items)
             if not text then
-                Note("Nothing on sale, so nobody is invited. Tick a service on a class tab, and have someone in the group who can do it.")
+                Note("Nothing on sale right now, so nobody is invited. Tick a service on a class tab, and have someone in the group who can do it.")
+                -- still show your welcome and the regulars line (the owner's screenshot, 13 Nov
+                -- 2026: Preview on General, alone, showed only "Nothing on sale" again and again)
+                local g, added, here = WithStandIns(GroupSnapshot(), { "summons" })
+                do
+                    Head("Welcome when they join")
+                    if added[1] then Note("This example pretends a level 60 warlock is with you in " .. Core.Short(here) .. ".") end
+                    previewGroup = g
+                    ShowJob({ name = PV.BUYER, service = "summons", dest = here }, false)
+                    previewGroup = nil
+                    if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
+                end
             else
                 Say("On sale now", text)
                 if not Opt("enabled") then Note("Inviting is off (Invite buyers of what we sell).") end

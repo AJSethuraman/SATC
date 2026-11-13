@@ -92,7 +92,7 @@ def test_general_tab_lists_whats_on_sale_and_each_welcome():
 
 def test_general_tab_with_nothing_on_sale():
     g = world({"player": ME_ORG})
-    assert has(preview(g, "General"), "Nothing on sale, so nobody is invited.")
+    assert has(preview(g, "General"), "Nothing on sale right now, so nobody is invited.")
 
 
 def test_advertise_tab_shows_the_ad_its_length_and_when_it_can_go():
@@ -165,3 +165,24 @@ def test_preview_shows_how_a_regular_is_welcomed():
     assert has(lines, "When they join, party chat: THE COST IS 35 silver AND WE WILL SUMMON YOU SOON!")
     assert has(lines, "When a regular joins (4th visit), party chat: THE COST IS 35 silver AND WE WILL SUMMON YOU SOON! HEY FREQUENT FLYER! This is your 4th time with us!")
     assert g.eval("ServiceInviterDB.customers") is None          # nothing was recorded
+
+
+def test_general_alone_still_shows_your_welcome_and_the_regulars_line():
+    """The owner's screenshot, 13 Nov 2026: alone, Preview on General printed only "Nothing on
+    sale" every click, never their own welcome."""
+    g = world({"player": ME_ORG}, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "Hi {name}! Your {service} is {price}. We will summon you soon!"
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK YOU FREQUENT FLYER!! This is your {visits} time"''')
+    lines = preview(g, "General")
+    assert has(lines, "Nothing on sale right now")
+    assert has(lines, "pretends a level 60 warlock is with you in Org")
+    assert has(lines, "When they join, party chat: Hi Kaldrok! Your summons is 35 silver. We will summon you soon!")
+    assert has(lines, "WELCOME BACK YOU FREQUENT FLYER!! This is your 4th time")
+    nothing_happened(g)
+
+
+def test_preview_says_when_it_is_stopped():
+    g = world({"player": ME_ORG})
+    g.run('SlashCmdList.SERVICEINVITER("stop")')
+    assert has(preview(g, "General"), "Stopped (/si stop)")
