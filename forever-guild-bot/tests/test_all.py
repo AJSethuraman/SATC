@@ -2022,3 +2022,25 @@ def test_gaps_accepts_a_typed_profession_and_reports_the_real_list(tmp_path):
         assert sent[-1]["embed"].description == want
     asyncio.run(bot.tree.get_command("gaps").callback(ix, "in"))       # Mining and Skinning
     assert sent[-1]["content"] == "Pick a profession from the list."
+
+
+def test_a_weekly_raid_whose_next_post_failed_is_posted_by_the_minute_job(tmp_path):
+    """Codex on #489: if Discord refuses next week's post when a weekly raid ends, the series must not stop
+    for good. The minute job finds the series with nothing to come and posts it; a stopped series stays stopped."""
+    db = make_db(tmp_path)
+    rid = db.create_raid("Molten Core", _soon(), 40, 9, {})
+    sid = db.create_series(db.get_raid(rid), 555)
+    db.set_raid_series(rid, sid)
+    assert db.series_awaiting_next() == []             # still to come: nothing to post
+    db.mark_ended(rid)
+    assert [r["id"] for r in db.series_awaiting_next()] == [rid]
+    bot = _bot(db)
+    calls = []
+
+    async def spawn(raid_id):
+        calls.append(raid_id)
+    bot.spawn_next = spawn
+    asyncio.run(bot._end_old_raids())
+    assert calls == [rid]
+    db.stop_series(sid)
+    assert db.series_awaiting_next() == []

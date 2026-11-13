@@ -1313,6 +1313,11 @@ class GuildBot(discord.Client):
                     self.db.set_event_pending(raid["id"], False)
             except Exception:
                 log.exception("could not retry the event for raid %s", raid["id"])
+        for raid in self.db.series_awaiting_next():       # next week's post failed earlier: try again
+            try:
+                await self.spawn_next(raid["id"])
+            except Exception:
+                log.exception("could not retry the next raid after %s", raid["id"])
 
     async def _handled_by_hand(self, raid, what: str) -> None:
         """Someone removed a raid's post or event in Discord itself: close the raid and tell its organizer."""

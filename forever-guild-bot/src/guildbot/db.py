@@ -331,7 +331,11 @@ class Database:
             raise
 
     def achievement_slugs(self) -> set[str]:
-        return {r["slug"] for r in self.conn.execute("SELECT DISTINCT slug FROM achievements")}
+        """Characters whose achievements have loaded at least once, an empty list included (the latest "ok"
+        snapshot is never pruned), so a character's first Legacy point is not mistaken for a new member's."""
+        return {r["slug"] for r in self.conn.execute(
+            """SELECT slug FROM achievements UNION
+               SELECT slug FROM snapshots WHERE kind='achievements' AND status='ok' AND slug IS NOT NULL""")}
 
     def replace_legacy_catalog(self, rows, now) -> None:
         """rows: (achievement_id, name, category, subcategory, description, display_order). Two ids with the
@@ -1077,6 +1081,14 @@ class Database:
     def set_raid_series(self, raid_id, series_id) -> None:
         self.conn.execute("UPDATE raids SET series_id=? WHERE id=?", (series_id, raid_id))
         self.conn.commit()
+
+    def series_awaiting_next(self):
+        """The last raid of each active series, where that raid is over (ended or cancelled): its next week's
+        raid was never posted (Discord refused it), so the minute job tries again."""
+        return self.conn.execute(
+            """SELECT r.* FROM raids r JOIN series s ON s.id=r.series_id
+               WHERE s.active=1 AND r.status IN ('ended','cancelled')
+                 AND r.starts_at=(SELECT MAX(starts_at) FROM raids WHERE series_id=s.id)""").fetchall()
 
     def series_has_later(self, series_id, starts_at_iso: str) -> bool:
         """True if the series already has a raid after this one that was not cancelled (so none is made twice)."""

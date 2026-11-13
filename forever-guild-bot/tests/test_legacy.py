@@ -273,3 +273,13 @@ def test_people_without_a_claim_see_what_claiming_gets_them_in_private_replies(t
     db.claim(42, ["anduin-wrynn"])
     asyncio.run(raids(ix))
     assert CLAIM_HINT not in sent[-1][0]                                          # claimed: no more hint
+
+
+def test_a_character_whose_achievements_loaded_empty_is_not_a_new_member(tmp_path):
+    """Codex on #489: a character with no achievements yet still loaded fine. Its first Legacy point later on
+    is news, not an old point of a new member, so it must count as known."""
+    from test_all import ROSTER, make_db
+    db = make_db(tmp_path)
+    asyncio.run(sync_guild(db, LegacyClient(ROSTER), "g"))
+    roster = {r["slug"] for r in db.roster()}
+    assert roster and roster <= db.achievement_slugs()
