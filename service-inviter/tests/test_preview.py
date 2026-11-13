@@ -32,7 +32,7 @@ def test_warlock_tab_shows_the_welcome_and_the_raid_alert_for_the_real_warlock()
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     lines = preview(g, "Warlock")
     assert has(lines, "When they join, party chat: Hi Kaldrok! Grimtotem will summon you to TB. 25 silver. Pay Grimtotem when you land.")
-    assert has(lines, "When the summon starts, party chat: SUMMONING Kaldrok! PAY Grimtotem 25 silver IN THE TRADE WINDOW ON ARRIVAL!")
+    assert has(lines, "When the summon starts, party chat: SUMMONING Kaldrok TO THUNDER BLUFF! PAY Grimtotem 25 silver IN THE TRADE WINDOW ON ARRIVAL!")
     assert has(lines, "When you invite, your chat only: invited Kaldrok")
     nothing_happened(g)
 

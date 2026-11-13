@@ -28,7 +28,15 @@ def row(g, field):
 
 
 def click(g, button):
-    g.run(f"ServiceInviterJobs.rows[1].{button}._scripts.OnClick(ServiceInviterJobs.rows[1].{button})")
+    """A click on a row button. Secure ones: PreClick, then the macro the game would run
+    (/uninvite does the removal), then PostClick."""
+    g.run(f'''local b = ServiceInviterJobs.rows[1].{button}
+        if rawget(b._scripts, "PreClick") then b._scripts.PreClick(b) end
+        local m = b:GetAttribute("macrotext") or ""
+        local who = m:match("^/uninvite (.+)$")
+        if who then KICKED = KICKED or {{}} KICKED[#KICKED + 1] = who end
+        if rawget(b._scripts, "PostClick") then b._scripts.PostClick(b) end
+        if rawget(b._scripts, "OnClick") then b._scripts.OnClick(b) end''')
 
 
 def whispers(g):
@@ -181,3 +189,20 @@ def test_not_leader_names_the_leader():
     click(g, "paid")
     assert list(g.g.KICKED.values()) == []
     assert any("ask Sly to remove them" in p for p in g.printed())
+
+
+def test_paid_removes_through_the_games_own_uninvite_not_a_blockable_call():
+    """The owner's screenshot, 13 Nov 2026: "UninviteUnit() was blocked just then", followed by a
+    false "removed Jefferis Rotloaf". Paid and x now run /uninvite on your click, like typing it."""
+    g = lockpick_customer(price="20", extra=" CALLED = {} function UninviteUnit(n) CALLED[#CALLED + 1] = n end")
+    assert g.eval("ServiceInviterJobs.rows[1].paid:GetAttribute(\"macrotext\")") == "/uninvite Kaldrok"
+    assert g.eval("ServiceInviterJobs.rows[1].remove:GetAttribute(\"macrotext\")") == "/uninvite Kaldrok"
+    click(g, "paid")
+    assert len(g.g.CALLED) == 0                                   # never the blockable call
+    assert any("removing Kaldrok from the group" in p for p in g.printed())
+    assert whispers(g) == [("Kaldrok", "Thanks Kaldrok! Enjoy.")]
+
+
+def test_not_leader_the_buttons_carry_no_uninvite():
+    g = lockpick_customer(price="20", lead=False)
+    assert g.eval("ServiceInviterJobs.rows[1].paid:GetAttribute(\"macrotext\")") == ""

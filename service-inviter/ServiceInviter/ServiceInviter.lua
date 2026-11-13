@@ -1,4 +1,4 @@
--- Service Inviter v2.1.7
+-- Service Inviter v2.1.8
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -572,7 +572,7 @@ local function ParsePrice(text)
 end
 local function Role() return ServiceInviterDB.role == "lock" and "lock" or "helper" end
 MSG.WHISPERMSG = "Summoning {name}. Next: {next}"   -- {name} = who we summon, {next} = who has waited longest after
-MSG.ALERTMSG = "SUMMONING {name}! PAY {payee} {price} IN THE TRADE WINDOW ON ARRIVAL!"
+MSG.ALERTMSG = "SUMMONING {name} TO {dest}! PAY {payee} {price} IN THE TRADE WINDOW ON ARRIVAL!"
 local OnCast            -- set below: reacts to a group member starting Ritual of Summoning
 local ShowAlert         -- set below: big on-screen "click the portal" banner
 local ToggleSetup       -- set below: opens the Setup window
@@ -1594,6 +1594,16 @@ local function AlertMsg(name, job)
     job = job or Jobs.Get(name)
     local payee, mine = PayeeFor(job or { service = "summons" })
     local price = JobPrice(job or { service = "summons" })
+    -- where they're being summoned to (the owner, 13 Nov 2026: "can the 'summoning name' part
+    -- say where we are summoning to? so they know"). A text of your own without {dest} gets
+    -- it after the name, in capitals when the rest is.
+    local dest = job and job.dest
+    if dest and not m:find("{dest}", 1, true) then
+        local caps = m:gsub("{%a+}", "") == m:gsub("{%a+}", ""):upper()
+        m = m:gsub("{name}", "{name}" .. (caps and " TO " or " to ") .. "{dest}", 1)
+    end
+    if dest and m:gsub("{%a+}", "") == m:gsub("{%a+}", ""):upper() then dest = dest:upper() end
+    m = m:gsub("{dest}", function() return dest or "us" end)
     m = m:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
     return (m:gsub("{price}", function() return PriceText(price) end))
 end
@@ -1978,14 +1988,19 @@ end)
 
 -- Take a customer out of the group: a click only (Paid, Done or x), and only as leader (or an
 -- assistant in a raid); otherwise the leader has to.
-local function RemoveFromGroup(name)
-    if not InGroupByName(name) then return end
+-- Can you take people out of the group? The leader, or an assistant in a raid.
+function Jobs.CanRemove()
     local lead = UnitIsGroupLeader and UnitIsGroupLeader("player")
     local assist = IsInRaid and IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player")
-    if lead or assist then
-        -- a click, so always try (the game says if it refuses)
-        local ok = pcall(UninviteUnit, name)
-        P(ok and ("removed " .. name .. " from the group") or ("couldn't remove " .. name .. "; remove them by hand"))
+    return (lead or assist) and true or false
+end
+-- The removal itself is the game's own /uninvite, run by the secure Paid and x buttons on your
+-- click: an addon calling UninviteUnit gets blocked (the owner's screenshot, 13 Nov 2026:
+-- "UninviteUnit() was blocked", then a false "removed ..."). This only says what happens.
+local function RemoveFromGroup(name)
+    if not InGroupByName(name) then return end
+    if Jobs.CanRemove() then
+        P("removing " .. name .. " from the group")
         return
     end
     -- who is leader, so the message can name them
@@ -1996,13 +2011,19 @@ local function RemoveFromGroup(name)
     P(name .. " is done. You're not the leader" .. (IsInRaid and IsInRaid() and " or an assistant" or "") ..
         ", so ask " .. (leader or "the leader") .. " to remove them.")
 end
--- Paid (or Done, for a free service): thank them, then take them out of the group.
+-- Paid (or Done, for a free service): thank them (before the button's /uninvite runs), then
+-- mark them and say what happens to their spot in the group.
 local function FinishJob(name)
     local j = Jobs.Get(name)
-    if not j then return end
-    Jobs.Set(name, JobPrice(j) and "paid" or "done")
+    if not j or j.status == "paid" or j.status == "done" then return end
     Thank(j)
+    Jobs.Set(name, JobPrice(j) and "paid" or "done")
     RemoveFromGroup(name)
+end
+-- The /uninvite a row's Paid and x buttons run: only when you may, and only for someone in the group.
+local function KickMacro(job)
+    if not (job and Jobs.CanRemove() and InGroupByName(job.name)) then return "" end
+    return "/uninvite " .. job.name
 end
 
 local function Since(t)
@@ -2062,6 +2083,8 @@ local function ApplyRow(row, job)
     local n = UnitFor(job.name) or CleanName(job.name)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     row.trade:SetAttribute("macrotext", "/target " .. n .. "\n/run InitiateTrade(\"target\")")
+    row.paid:SetAttribute("macrotext", KickMacro(job))
+    row.remove:SetAttribute("macrotext", KickMacro(job))
     local step = NextStep(job)
     local lock = Role() == "lock"
     if job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
@@ -2299,17 +2322,25 @@ local function BuildJobsUI()
             RefreshJobs()
         end)
 
-        row.paid = FlatButton(w, 56, 36, "plain")
+        -- Paid and x run the game's /uninvite (set in ApplyRow), so the removal is yours, not
+        -- the addon's, and the game doesn't block it
+        row.paid = FlatButton(w, 56, 36, "plain", 14, true)
         row.paid:SetPoint("TOPLEFT", AX + 88, AY) row.paid:SetText("Paid")
-        row.paid:SetScript("OnClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
+        row.paid:RegisterForClicks("AnyUp", "AnyDown")
+        row.paid:SetAttribute("type", "macro")
+        row.paid:HookScript("PreClick", function() if row.job then Thank(row.job) end end)
+        row.paid:HookScript("PostClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
 
-        row.remove = FlatButton(w, 28, 36, "bare", 14)
+        row.remove = FlatButton(w, 28, 36, "bare", 14, true)
         row.remove:SetPoint("TOPLEFT", AX + 148, AY) row.remove:SetText("x")
-        row.remove:SetScript("OnClick", function()
+        row.remove:RegisterForClicks("AnyUp", "AnyDown")
+        row.remove:SetAttribute("type", "macro")
+        row.remove:HookScript("PostClick", function()
             if not row.job then return end
-            -- x = done with this customer: take them out of the group too, if allowed
+            -- x = done with this customer: out of the group too, if you may
             RemoveFromGroup(row.job.name)
             Jobs.Remove(row.job.name)
+            RefreshJobs()
         end)
         w.rows[i] = row
     end
@@ -2667,7 +2698,7 @@ local function BuildSetupUI()
     w.locks = Label(L, -282, "", "GameFontHighlight", 410)
     Label(L, -330, "Each warlock summons to wherever they're standing. If the game can't tell where a warlock is, nobody is invited for their summons.", "GameFontHighlightSmall", 410)
     Header(R, -50, "When the warlock starts summoning")
-    Check("raidalert", R, -74, "Say in raid:")
+    Check("raidalert", R, -74, "Say in raid ({name} {dest} {payee} {price}):")
     Box("alertmsg", R + 4, -102, 396)
     Label(R, -134, "Whisper to (blank = nobody):")
     Box("whisperto", R + 210, -130, 150, 40)

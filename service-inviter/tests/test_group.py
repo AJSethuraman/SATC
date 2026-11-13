@@ -243,7 +243,7 @@ def test_a_warlocks_ritual_is_for_their_own_customer():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING {rt5}Mirasha{rt5}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING {rt5}Mirasha{rt5} TO UNDERCITY! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
     assert g.status("Mirasha") in ("summoned", "arrived")
     assert g.status("Kaldrok") == "joined"
 
@@ -318,7 +318,7 @@ def test_the_summon_alert_carries_the_icon():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING {rt4}Mirasha{rt4}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING {rt4}Mirasha{rt4} TO UNDERCITY! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
 
 
 def test_icons_are_never_put_over_heads():
@@ -427,7 +427,7 @@ def test_icons_surround_the_name_and_customers_get_their_own():
     assert sent[1].startswith("Hi {rt5}Mirasha{rt5}! {rt3}Ashfel{rt3} will summon")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     assert [m for _, _, m in g.sent() if m.startswith("SUMMONING")] == \
-        ["SUMMONING {rt5}Mirasha{rt5}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
+        ["SUMMONING {rt5}Mirasha{rt5} TO UNDERCITY! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
 
 
 # -- Values the game hides (secret values) and errors that would stop the windows -------------------
@@ -467,3 +467,15 @@ def test_an_error_in_the_update_is_reported_once_in_chat():
         g.run("ServiceInviterSetup._scripts.OnUpdate(ServiceInviterSetup, 1)")
     hits = [p for p in g.printed() if "boom" in p]
     assert len(hits) == 1 and "send" in hits[0].lower()
+
+
+def test_the_summon_alert_says_where_even_with_your_own_text():
+    """The owner, 13 Nov 2026: "can the 'summoning name' part say where we are summoning to? so
+    they know". Their own text had no {dest}: it goes in after the name."""
+    g = world(TWO_LOCKS)
+    g.run('ServiceInviterDB.alertmsg = "SUMMONING {name}! PLEASE PAY {payee} {price} UPON ARRIVAL!" ServiceInviterDB.opts = { marks = false }')
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
+    assert [m for _, _, m in g.sent() if m.startswith("SUMMONING")] == \
+        ["SUMMONING Mirasha TO UNDERCITY! PLEASE PAY Ashfel 25 silver UPON ARRIVAL!"]
