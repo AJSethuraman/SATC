@@ -161,3 +161,23 @@ def test_the_customer_window_shows_how_many_were_summoned_and_what_that_is_worth
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterJobs.statSummoned:GetText()") == "2"
     assert g.eval("ServiceInviterJobs.statEV:GetText()") == "70 silver"
+
+
+# The owner, 13 Nov 2026, clicking Paid on two customers: "removed Morne Paleblood from the group",
+# then "Cydney Ironside is done. You're not the leader, so ask the leader to remove them." --
+# "i dont see why im getting this". That line also covered "the game blocked a removal earlier",
+# after which the addon stopped trying for the whole session.
+
+def test_paid_still_removes_after_the_game_blocked_one_removal():
+    g = lockpick_customer(price="20")
+    g.event("ADDON_ACTION_BLOCKED", "ServiceInviter", "UninviteUnit()")
+    click(g, "paid")
+    assert list(g.g.KICKED.values()) == ["Kaldrok"]
+    assert not any("not the leader" in p for p in g.printed())
+
+
+def test_not_leader_names_the_leader():
+    g = lockpick_customer(price="20", extra=' function UnitIsGroupLeader(u) return u == "party1" end')
+    click(g, "paid")
+    assert list(g.g.KICKED.values()) == []
+    assert any("ask Sly to remove them" in p for p in g.printed())

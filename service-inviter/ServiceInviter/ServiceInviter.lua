@@ -1,4 +1,4 @@
--- Service Inviter v2.1.5
+-- Service Inviter v2.1.6
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1065,14 +1065,17 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         diag.echo = { t = GetTime(), kind = event == "CHAT_MSG_BN_WHISPER_INFORM" and "Battle.net" or "normal" }
         return
     end
-    -- The game stopped one of our calls (its "blocked from an action only available to the
-    -- Blizzard UI" popup). Say which, and never make that call again this session.
+    -- The game stopped one of our calls. FORBIDDEN (its "blocked from an action only available
+    -- to the Blizzard UI" popup) is for good: never make that call again this session. BLOCKED
+    -- is for that moment (in combat, say): said once, and tried again next time.
     if event == "ADDON_ACTION_FORBIDDEN" or event == "ADDON_ACTION_BLOCKED" then
         if text == ADDON_NAME and type(sender) == "string" then
             local fn = sender:gsub("%(%)$", "")
-            if not blockedCalls[fn] then
+            if event == "ADDON_ACTION_FORBIDDEN" and not blockedCalls[fn] then
                 blockedCalls[fn] = true
                 P("the game blocked " .. fn .. "(), which only Blizzard's own code may call. Service Inviter won't try it again this session. Please report it.")
+            elseif event == "ADDON_ACTION_BLOCKED" then
+                Report("game blocked " .. fn, false, fn .. "() was blocked just then (in combat?). It will try again next time.")
             end
         end
         return
@@ -1977,12 +1980,19 @@ local function RemoveFromGroup(name)
     if not InGroupByName(name) then return end
     local lead = UnitIsGroupLeader and UnitIsGroupLeader("player")
     local assist = IsInRaid and IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player")
-    if (lead or assist) and not blockedCalls.UninviteUnit then
-        pcall(UninviteUnit, name)
-        P("removed " .. name .. " from the group")
-    else
-        P(name .. " is done. You're not the leader, so ask the leader to remove them.")
+    if lead or assist then
+        -- a click, so always try (the game says if it refuses)
+        local ok = pcall(UninviteUnit, name)
+        P(ok and ("removed " .. name .. " from the group") or ("couldn't remove " .. name .. "; remove them by hand"))
+        return
     end
+    -- who is leader, so the message can name them
+    local leader
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.unit and UnitIsGroupLeader and UnitIsGroupLeader(m.unit) then leader = m.name end
+    end
+    P(name .. " is done. You're not the leader" .. (IsInRaid and IsInRaid() and " or an assistant" or "") ..
+        ", so ask " .. (leader or "the leader") .. " to remove them.")
 end
 -- Paid (or Done, for a free service): thank them, then take them out of the group.
 local function FinishJob(name)
