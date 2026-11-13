@@ -197,7 +197,21 @@ def test_a_regular_invited_by_someone_else_still_hears_the_regulars_line():
     before = len(g.sent())
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")      # the leader invited him, not us
     said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
-    assert len(said) == 1 and "Welcome back, 4th time with us!" in said[0] and said[0].startswith("Hi Kaldrok!")
+    assert said == ["Hi Kaldrok! Welcome back, 4th time with us!"]
+
+
+def test_a_regular_invited_by_someone_else_hears_no_service_or_price_even_with_your_own_welcome():
+    """The owner, 13 Nov 2026: "if we dont know what we invited them for why would we show the
+    price and service"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "Hi {name}! Your {service} is {price}. We will summon you soon!"
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK YOU FREQUENT FLYER!! This is your {visits} time"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["Hi Kaldrok! WELCOME BACK YOU FREQUENT FLYER!! This is your 2nd time"]
 
 
 def test_someone_new_invited_by_someone_else_gets_nothing():

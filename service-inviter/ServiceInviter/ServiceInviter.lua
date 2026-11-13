@@ -1,4 +1,4 @@
--- Service Inviter v2.8.1
+-- Service Inviter v2.8.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1223,7 +1223,10 @@ local function OnSystem(text)
     local loyal = Jobs.LoyaltyLine(Jobs.Get(short) or { name = short })
     if not fresh and not loyal then return end
     local channel = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
-    if not Opt("welcome") then
+    -- Someone else invited them, or the welcome is off: we don't know what they came for, so no
+    -- service and no price, just hello and the regulars line (the owner, 13 Nov 2026: "if we dont
+    -- know what we invited them for why would we show the price and service").
+    if not fresh or not Opt("welcome") then
         if loyal then SendChatMessage("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal, channel) end
         return
     end
