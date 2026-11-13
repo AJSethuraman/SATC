@@ -230,11 +230,13 @@ end
 
 local function priceText(silver) return C.Money(silver) end
 
--- A name as said in party/raid chat: with its raid icon ({rt1} = star ...) when the member
--- has one, so everyone can match the message to the person (the icon is over their head too).
+-- A name as said in party/raid chat: between its raid icons ({rt1}Yeet{rt1}) when the member
+-- has one, so everyone can match the message to the person. The owner, 13 Nov 2026: "i want
+-- them surrounding".
+function C.Mark(mark, name) return mark and ("{rt" .. mark .. "}" .. name .. "{rt" .. mark .. "}") or name end
 function C.Label(group, name)
     for _, m in ipairs(group or {}) do
-        if m.name == name and m.mark then return "{rt" .. m.mark .. "}" .. name end
+        if m.name == name and m.mark then return C.Mark(m.mark, name) end
     end
     return name
 end

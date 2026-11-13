@@ -122,7 +122,7 @@ def test_paladin_preview_lists_the_words():
 def test_the_button_prints_to_your_chat_only():
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     g.run("ServiceInviter_Test.PrintPreview('Warlock')")
-    printed = " ".join(g.printed())
+    printed = re.sub(r"\|T[^|]*\|t", "", " ".join(g.printed()))   # icons draw as pictures here
     assert "Preview of the Warlock tab" in printed and "Grimtotem will summon you to TB" in printed
     nothing_happened(g)
 
@@ -130,7 +130,7 @@ def test_the_button_prints_to_your_chat_only():
 def test_slash_preview():
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     g.run('SlashCmdList.SERVICEINVITER("preview warlock")')
-    assert "Grimtotem will summon you to TB" in " ".join(g.printed())
+    assert "Grimtotem will summon you to TB" in re.sub(r"\|T[^|]*\|t", "", " ".join(g.printed()))
 
 
 def test_every_tab_has_a_preview_button():

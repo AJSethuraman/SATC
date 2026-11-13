@@ -103,7 +103,7 @@ def test_each_customer_is_told_their_own_warlock():
     say_trade(g, "Mirasha", "WTB summon to UC")
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert sent == ["Hi Mirasha! {rt3}Ashfel will summon you to UC. 25 silver. Pay {rt3}Ashfel when you land."]
+    assert sent == ["Hi {rt4}Mirasha{rt4}! {rt3}Ashfel{rt3} will summon you to UC. 25 silver. Pay {rt3}Ashfel{rt3} when you land."]
 
 
 def test_the_ad_lists_both_places():
@@ -142,7 +142,7 @@ def test_the_welcome_says_what_who_where_price_and_payee():
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert sent == ["Hi Kaldrok! {rt1}Grimtotem will summon you to TB. 25 silver. Pay {rt1}Grimtotem when you land."]
+    assert sent == ["Hi {rt3}Kaldrok{rt3}! {rt1}Grimtotem{rt1} will summon you to TB. 25 silver. Pay {rt1}Grimtotem{rt1} when you land."]
 
 
 def test_arrival_offers_what_is_there():
@@ -152,7 +152,7 @@ def test_arrival_offers_what_is_there():
     g.run('''local J = ServiceInviter_Test.Jobs J.Joined("Kaldrok") J.Set("Kaldrok", "summoned")
              CLOCK = CLOCK + 41 ServiceInviter_Test.CheckArrivals()''')  # no unit to see: 40s fallback
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert "Welcome to TB, Kaldrok! Also here: free lockpicking. Just ask!" in sent
+    assert "Welcome to TB, {rt4}Kaldrok{rt4}! Also here: free lockpicking. Just ask!" in sent
 
 
 def test_a_free_service_marks_a_tip_as_paid():
@@ -243,7 +243,7 @@ def test_a_warlocks_ritual_is_for_their_own_customer():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING {rt5}Mirasha{rt5}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
     assert g.status("Mirasha") in ("summoned", "arrived")
     assert g.status("Kaldrok") == "joined"
 
@@ -304,8 +304,8 @@ def test_each_warlock_gets_an_icon_in_the_welcome():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert sent == ["Hi Kaldrok! {rt1}Grimtotem will summon you to TB. 25 silver. Pay {rt1}Grimtotem when you land.",
-                    "Hi Mirasha! {rt3}Ashfel will summon you to UC. 25 silver. Pay {rt3}Ashfel when you land."]
+    assert sent == ["Hi {rt4}Kaldrok{rt4}! {rt1}Grimtotem{rt1} will summon you to TB. 25 silver. Pay {rt1}Grimtotem{rt1} when you land.",
+                    "Hi {rt5}Mirasha{rt5}! {rt3}Ashfel{rt3} will summon you to UC. 25 silver. Pay {rt3}Ashfel{rt3} when you land."]
 
 
 def test_the_summon_alert_carries_the_icon():
@@ -314,7 +314,7 @@ def test_the_summon_alert_carries_the_icon():
     g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     alerts = [m for ch, _, m in g.sent() if m.startswith("SUMMONING")]
-    assert alerts == ["SUMMONING Mirasha! PAY {rt3}Ashfel 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
+    assert alerts == ["SUMMONING {rt4}Mirasha{rt4}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
 
 
 def test_icons_are_never_put_over_heads():
@@ -331,7 +331,7 @@ def test_an_icon_someone_already_put_on_the_warlock_is_kept_and_used():
     g = world(TWO_LOCKS, extra=MARKS + 'CURRENT["party1"] = 6')
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
-    assert "Pay {rt6}Grimtotem" in [m for ch, _, m in g.sent() if ch == "PARTY"][0]
+    assert "Pay {rt6}Grimtotem{rt6}" in [m for ch, _, m in g.sent() if ch == "PARTY"][0]
 
 
 def test_icons_can_be_turned_off():
@@ -407,3 +407,20 @@ def test_port_me_is_a_request_too():
 def test_a_seller_offering_to_summon_you_is_not_a_request():
     g = ask_in_summons({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Orgrimmar")}, "can summon you to org, 5g, whisper me")
     assert invited(g) == []
+
+
+def test_icons_surround_the_name_and_customers_get_their_own():
+    """The owner, 13 Nov 2026, on "SUMMONING Neato Smoothbrain! PLEASE PAY {star}Yeet": "the raid
+    icons dont have anything for neato and i want them surrounding"."""
+    g = world(TWO_LOCKS, extra=MARKS)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
+    # warlocks: star and diamond; customers: the next free icons, kept per customer
+    assert sent[0].startswith("Hi {rt4}Kaldrok{rt4}! {rt1}Grimtotem{rt1} will summon")
+    assert sent[1].startswith("Hi {rt5}Mirasha{rt5}! {rt3}Ashfel{rt3} will summon")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
+    assert [m for _, _, m in g.sent() if m.startswith("SUMMONING")] == \
+        ["SUMMONING {rt5}Mirasha{rt5}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]

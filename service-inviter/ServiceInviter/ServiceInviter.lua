@@ -1,4 +1,4 @@
--- Service Inviter v2.1.2
+-- Service Inviter v2.1.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -660,6 +660,22 @@ function Jobs.Remove(name)
 end
 function Jobs.Clear() wipe(jobs) wipe(jobByName) jobsChanged(true) end
 
+-- A customer's name in party/raid chat, between a raid icon of its own: one the helpers
+-- aren't using, kept while they're a customer (the owner, 13 Nov 2026: "the raid icons
+-- dont have anything for neato"). Chat only: the game won't let an addon mark heads.
+function Jobs.Label(job, name)
+    name = name or (job and job.name) or ""
+    if not (job and Opt("marks")) then return name end
+    if not job.mark then
+        local used = {}
+        for _, m in ipairs(GroupSnapshot()) do if m.mark then used[m.mark] = true end end
+        for _, j in ipairs(jobs) do if j ~= job and j.mark and not j.tdone then used[j.mark] = true end end
+        for _, idx in ipairs(MARK_ORDER) do if not used[idx] then job.mark = idx break end end
+        if not job.mark then return name end   -- all eight in use: just the name
+    end
+    return Core.Mark(job.mark, name)
+end
+
 -- Thanks when they're done (the owner, 12 Nov 2026: "Paid should also remove from party and
 -- maybe send a thank you"). A whisper, so it still reaches them after they leave the group.
 MSG.THANKS = "Thanks {name}! Enjoy."
@@ -868,12 +884,12 @@ local function WelcomeText(name, job)
         local payee, mine = PayeeFor(job, g)
         local price = PriceText(JobPrice(job))
         local label = Core.BY_KEY[key].label
-        custom = custom:gsub("{name}", function() return name end):gsub("{price}", function() return price end)
-        custom = custom:gsub("{payee}", function() return mine and "me" or payee end):gsub("{service}", function() return label end)
+        custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
+        custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
         return custom
     end
     if job and job.service then
-        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, name, job.dest)
+        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest)
         if text then return text end
     end
     local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
@@ -1323,7 +1339,7 @@ local function ArrivalText(job)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
     if custom == MSG.OFFERMSG then custom = nil end
-    return (Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, job.name, custom))
+    return (Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom))
 end
 
 -- The one thing to do next for a customer:
@@ -1557,7 +1573,7 @@ local function AlertMsg(name, job)
     job = job or Jobs.Get(name)
     local payee, mine = PayeeFor(job or { service = "summons" })
     local price = JobPrice(job or { service = "summons" })
-    m = m:gsub("{name}", function() return name end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
+    m = m:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
     return (m:gsub("{price}", function() return PriceText(price) end))
 end
 
