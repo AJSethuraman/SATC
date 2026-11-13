@@ -1,4 +1,4 @@
--- Service Inviter v2.3.1
+-- Service Inviter v2.3.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -87,7 +87,7 @@ local DEFAULTS = {
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
-    loyalty   = true,    -- a regular is welcomed back in party/raid chat ("4th time with us")
+    loyalty   = true,    -- (until 2.3.2 the on/off for the loyalty line; now an empty line is off)
     marks     = true,    -- a raid icon on whoever does a service, in party/raid chat (text only: the game no longer lets addons put icons over heads)
     welcome   = true,    -- send a message to the group when an invited player joins
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
@@ -987,11 +987,13 @@ local function WelcomeText(name, job)
         -- a regular is welcomed back (the owner, 13 Nov 2026: "can we even announce loyalty in
         -- the chat? that would be dope")
         local before = Jobs.Before(job)
-        if text and before > 0 and Opt("loyalty") then
+        -- one box (the owner, 13 Nov 2026: "can you make this simpler?"): what's in it is the
+        -- line, empty is off; an old unticked box still means off
+        local line = ServiceInviterDB.loyaltymsg
+        if line == nil then line = (Opt("loyalty") ~= false) and MSG.LOYALTY or "" end
+        if text and before > 0 and line ~= "" then
             -- your own words for it (the owner, 13 Nov 2026: "HOW CAN I SAY SOMETHING LIKE THIS IS
             -- YOUR 4TH TIME!!"); the count in capitals when the rest is
-            local line = ServiceInviterDB.loyaltymsg
-            if not line or line == "" then line = MSG.LOYALTY end
             local caps = line:gsub("{%a+}", "") == line:gsub("{%a+}", ""):upper() and line:find("%a")
             local nth = Jobs.Ordinal(before + 1)
             line = line:gsub("{visits}", function() return caps and nth:upper() or nth end)
@@ -2798,7 +2800,7 @@ local function BuildSetupUI()
     Check("thanks", R, -410, "When they're done, whisper ({name}):")
     Box("thanksmsg", R + 4, -438, 396)
     Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
-    Check("loyalty", R, -496, "Welcome regulars back ({visits} = 4th):", true)
+    Label(R, -500, "Regulars hear ({visits} = 4th, empty = off):")
     Box("loyaltymsg", R + 4, -522, 396)
     Header(R, -556, "This session")
     local sessText = Label(R, -582, "", "GameFontHighlight", 270)
@@ -2980,7 +2982,8 @@ local function BuildSetupUI()
         local db = ServiceInviterDB
         for key, def in pairs(DEFAULTS_BY_KEY) do
             local v = boxes[key]:GetText()
-            if v == "" or v == def then db[key] = nil else db[key] = v end
+            if key == "loyaltymsg" and v == "" then db[key] = ""            -- empty = off
+            elseif v == "" or v == def then db[key] = nil else db[key] = v end
         end
         local who = (boxes.whisperto:GetText():gsub("%s+", ""))
         db.whisperto = (who == "") and false or who

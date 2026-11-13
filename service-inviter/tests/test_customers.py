@@ -112,3 +112,18 @@ def test_your_own_loyalty_line_in_capitals():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == \
         "Hi Kaldrok! THIS IS YOUR 4TH TIME!! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."
+
+
+def test_one_box_empty_is_off():
+    """The owner, 13 Nov 2026: "can you make this simpler?" -- the loyalty setting: one box,
+    what's in it is the line, empty is off."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    g.run('''local w = ServiceInviter_Test.BuildSetup() w:Show()
+        ServiceInviter_Test.SetupBoxes().loyaltymsg:SetText("") w:Hide() w:Show() w:Hide()''')
+    assert g.eval("ServiceInviterDB.loyaltymsg") == ""
+    assert g.eval("ServiceInviter_Test.SetupBoxes().loyaltymsg:GetText()") == ""
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert "Welcome back" not in [m for ch, _, m in g.sent() if ch == "PARTY"][-1]
