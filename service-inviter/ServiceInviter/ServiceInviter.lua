@@ -1,4 +1,4 @@
--- Service Inviter v2.3.3
+-- Service Inviter v2.3.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -679,6 +679,7 @@ function Jobs.Record(j)
 end
 -- Times they used you before this visit (0 for someone new).
 function Jobs.Before(j)
+    if j and j.previewBefore then return j.previewBefore end   -- Preview's pretend regular
     local c = j and type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers[j.name]
     if not c then return 0 end
     return c.n - (j.recorded and 1 or 0)
@@ -1778,6 +1779,13 @@ local function Preview(tab)
             -- nobody joins for it, so nothing to welcome
         elseif Opt("welcome") then
             Say("When they join, " .. chat, WelcomeText(PV.BUYER, job) or "(nothing to say)")
+            -- and as a regular hears it (the owner, 13 Nov 2026: "HOW CAN I TEST IT")
+            local regular = {}
+            for k, v in pairs(job) do regular[k] = v end
+            regular.previewBefore = 3
+            if Jobs.LoyaltyLine(regular) then
+                Say("When a regular joins (4th visit), " .. chat, WelcomeText(PV.BUYER, regular) or "(nothing to say)")
+            end
         elseif full then Note("No welcome (Welcome them when they join is off, General tab).") end
         if not full then return end
         if def.kind == "summon" then

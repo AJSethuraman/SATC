@@ -153,3 +153,15 @@ def test_price_reads_the_same_in_the_welcome_and_the_summon_alert():
     g.run("ServiceInviterDB.services.summons.price = false")
     lines = preview(g, "Warlock")
     assert has(lines, "THE COST IS free.") and has(lines, "PAY Grimtotem free!")
+
+
+def test_preview_shows_how_a_regular_is_welcomed():
+    """The owner, 13 Nov 2026, on the regulars line: "HOW CAN I TEST IT"."""
+    g = world({"player": ME_ORG, "party1": LOCK_TB}, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "THE COST IS {price} AND WE WILL SUMMON YOU SOON!"
+        ServiceInviterDB.loyaltymsg = "HEY FREQUENT FLYER! This is your {visits} time with us!"''')
+    lines = preview(g, "Warlock")
+    assert has(lines, "When they join, party chat: THE COST IS 35 silver AND WE WILL SUMMON YOU SOON!")
+    assert has(lines, "When a regular joins (4th visit), party chat: THE COST IS 35 silver AND WE WILL SUMMON YOU SOON! HEY FREQUENT FLYER! This is your 4th time with us!")
+    assert g.eval("ServiceInviterDB.customers") is None          # nothing was recorded
