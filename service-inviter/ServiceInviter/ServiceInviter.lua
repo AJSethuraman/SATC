@@ -1,4 +1,4 @@
--- Service Inviter v2.5.5
+-- Service Inviter v2.6.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -723,6 +723,28 @@ function Jobs.PrintStats()
     P("Busiest hours: " .. top(a.hour, function(h) return ("%02d:00"):format(h) end, 3))
     P("Busiest days: " .. top(a.day, function(d) return DAYS[d] or d end, 3))
 end
+-- Soul shards (the owner, 13 Nov 2026: "i want a running counter of summons - like our inv and
+-- expected amount left so it knows to stop"). Yours are read from your bags when you're the
+-- warlock ("built in for the lock"); other warlocks' you type: /si shards 20. Nil: not counting.
+function Jobs.Shards()
+    local typed = tonumber(ServiceInviterDB.shards)
+    local okc, _, cls = pcall(UnitClass, "player")
+    local own = okc and cls == "WARLOCK" and GetItemCount and (tonumber(GetItemCount(6265)) or 0) or nil
+    if not typed and not own then return nil end
+    return (own or 0) + (typed or 0), own, typed
+end
+-- summons still to do: buyers invited or waiting who haven't been summoned yet
+function Jobs.Queued()
+    local n = 0
+    for _, j in ipairs(jobs) do
+        if j.service == "summons" and (j.status == "invited" or j.status == "asked" or j.status == "joined") then n = n + 1 end
+    end
+    return n
+end
+function Jobs.ShardsLeft()
+    local have = Jobs.Shards()
+    return have and (have - Jobs.Queued()) or nil
+end
 -- Times they used you before this visit (0 for someone new).
 function Jobs.Before(j)
     if j and j.previewBefore then return j.previewBefore end   -- Preview's pretend regular
@@ -999,6 +1021,13 @@ local function Handle(text, sender, guid)
     if ok and svc == "summons" then
         local heads = Core.PartySize(text)
         if heads then ok, why = false, "asks for " .. heads .. " people; a summon is one at a time" end
+    end
+    -- no shards left for them once the queue is summoned: stop inviting summon buyers
+    if ok and svc == "summons" then
+        local left = Jobs.ShardsLeft()
+        if left and left <= 0 then
+            ok, why = false, "out of soul shards (" .. Jobs.Shards() .. " left, " .. Jobs.Queued() .. " already queued; /si shards N to top up)"
+        end
     end
 
     -- Near miss: sounds like a buyer (buy word + summon/port word, not a seller) but we said no.
@@ -2149,6 +2178,9 @@ OnCast = function(event, unit, spellID, spellName)
     if first and job and job.status == "joined" then
         local ok, err = pcall(Jobs.Set, job.name, "summoned")
         trace.marked = ok and "yes" or ("error: " .. tostring(err))
+        -- another warlock's shard: off the count you typed (yours come off your bags)
+        local typed = tonumber(ServiceInviterDB.shards)
+        if ok and typed then ServiceInviterDB.shards = math.max(0, typed - 1) end
     end
 end
 
@@ -2419,6 +2451,8 @@ RefreshJobs = function()
     -- the Setup's General page.
     jobsWin.statSummoned:SetText(tostring(st.summoned or 0))
     jobsWin.statEV:SetText(Money(st.ev or 0))
+    local left = Jobs.ShardsLeft()
+    jobsWin.statShards:SetText(left and tostring(math.max(0, left)) or "-")
     jobsWin.statWait:SetText(tostring(wait) .. (going > 0 and ("  (" .. going .. " coming)") or ""))
     RefreshBuff()   -- the buff button shows whoever is next, even if they asked before the list was open
     jobsWin.Fit(#list, jobsWin.buffBtn:IsShown())
@@ -2613,9 +2647,10 @@ local function BuildJobsUI()
         return v
     end
     w.statSummoned = Stat(24, "Summoned")
-    w.statEV = Stat(124, "Expected")
-    w.statWait = Stat(310, "Waiting")
-    local newBtn = FlatButton(w, 130, 36, "plain")
+    w.statEV = Stat(104, "Expected")
+    w.statWait = Stat(262, "Waiting")
+    w.statShards = Stat(378, "Shards left")
+    local newBtn = FlatButton(w, 100, 36, "plain")
     newBtn:SetText("New session")
     function w.Fit(shown, withBuff)
         local body = TOP + math.max(1, shown) * (ROW_H + GAP) + 4
@@ -3399,6 +3434,16 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
                 P("cast " .. math.floor(GetTime() - c.t) .. "s ago: " .. tostring(UnitName and UnitName(c.unit) or c.unit) .. " (" .. c.unit .. ") " .. c.name .. " id " .. tostring(c.id) .. " " .. c.event:gsub("UNIT_SPELLCAST_", ""))
             end
         end
+    elseif cmd == "shards" then
+        local r = rest:lower()
+        if r == "off" then ServiceInviterDB.shards = nil
+        elseif tonumber(r) then ServiceInviterDB.shards = math.max(0, math.floor(tonumber(r)))
+        elseif r ~= "" then P("/si shards 20 (other warlocks' shards), /si shards off") return end
+        local have, own, typed = Jobs.Shards()
+        if not have then P("not counting shards. /si shards 20 to count other warlocks' shards") return end
+        P("shards: " .. have .. (own and typed and (" (" .. own .. " yours, " .. typed .. " typed)") or "") ..
+            ", " .. Jobs.Queued() .. " summons queued, " .. math.max(0, Jobs.ShardsLeft()) .. " left")
+        RefreshJobs()
     elseif cmd == "stats" or cmd == "analytics" then
         Jobs.PrintStats()
     elseif cmd == "customers" or cmd == "regulars" then
@@ -3469,7 +3514,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers NAME) | /si stats = where, what, when | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
