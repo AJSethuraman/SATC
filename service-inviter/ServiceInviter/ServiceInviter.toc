@@ -2,7 +2,7 @@
 ## Title: Service Inviter
 ## Notes: Finds buyers of what your group sells (summons, portals, lockpicking, water, stones, buffs), invites them, says who and what, and tracks each customer to paid.
 ## Author: AJ
-## Version: 2.1.4
+## Version: 2.1.5
 ## SavedVariables: ServiceInviterDB
 
 Services.lua

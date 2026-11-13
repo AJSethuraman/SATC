@@ -148,3 +148,16 @@ def test_trade_opens_by_itself_for_a_paid_lockpick_when_you_collect():
     assert list(g.g.TRADES.values()) == ["party2"]
     g.run("CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()")
     assert len(g.g.TRADES) == 1                       # once, not every second
+
+
+def test_the_customer_window_shows_how_many_were_summoned_and_what_that_is_worth():
+    """The owner, 13 Nov 2026: "it should still record EV - how many we summon. the paid will be
+    inaccurate no matter waht because sometimes they leave and im not clicking it"."""
+    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 35 }", extra=KICK)
+    for n in ("Kaldrok", "Mirasha"):
+        say_trade(g, n, "WTB summon to TB")
+        g.event("CHAT_MSG_SYSTEM", f"{n} joins the party.")
+        g.run(f'ServiceInviter_Test.Jobs.Set("{n}", "summoned")')
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    assert g.eval("ServiceInviterJobs.statSummoned:GetText()") == "2"
+    assert g.eval("ServiceInviterJobs.statEV:GetText()") == "70 silver"

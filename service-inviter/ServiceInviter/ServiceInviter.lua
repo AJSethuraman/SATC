@@ -1,4 +1,4 @@
--- Service Inviter v2.1.4
+-- Service Inviter v2.1.5
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2139,9 +2139,12 @@ RefreshJobs = function()
     end
     jobsWin.count:SetText(active > 0 and (active .. " active") or "")
     local st = Stats()
-    jobsWin.statSession:SetText(Money(st.silver or 0) .. "  (" .. (st.paid or 0) .. " paid)")
-    jobsWin.statWait:SetText(tostring(wait))
-    jobsWin.statTransit:SetText(tostring(going))
+    -- what we summoned and what that's worth (the owner, 13 Nov 2026: "it should still record
+    -- EV - how many we summon. the paid will be inaccurate no matter what"). Collected is on
+    -- the Setup's General page.
+    jobsWin.statSummoned:SetText(tostring(st.summoned or 0))
+    jobsWin.statEV:SetText(Money(st.ev or 0))
+    jobsWin.statWait:SetText(tostring(wait) .. (going > 0 and ("  (" .. going .. " coming)") or ""))
     RefreshBuff()   -- the buff button shows whoever is next, even if they asked before the list was open
     jobsWin.Fit(#list, jobsWin.buffBtn:IsShown())
     if jobsWin.adBtn then
@@ -2318,13 +2321,13 @@ local function BuildJobsUI()
     local stats = {}
     local function Stat(x, label)
         local l = Text(w, 12, INK.muted) l:SetText(label)
-        local v = Text(w, 16, label == "Session" and INK.gold or INK.text, "GameFontHighlightLarge")
+        local v = Text(w, 16, label == "Expected" and INK.gold or INK.text, "GameFontHighlightLarge")
         stats[#stats + 1] = { l, v, x }
         return v
     end
-    w.statSession = Stat(24, "Session")
-    w.statWait = Stat(230, "Waiting")
-    w.statTransit = Stat(330, "In transit")
+    w.statSummoned = Stat(24, "Summoned")
+    w.statEV = Stat(124, "Expected")
+    w.statWait = Stat(310, "Waiting")
     local newBtn = FlatButton(w, 130, 36, "plain")
     newBtn:SetText("New session")
     function w.Fit(shown, withBuff)
