@@ -2143,3 +2143,22 @@ def test_two_bench_passes_at_once_promote_and_tell_each_person_once(tmp_path):
     asyncio.run(run())
     assert sorted(u for u, _, _ in dms) == [3, 4]
     assert sorted(o["discord_id"] for o in db.pending_offers()) == [3, 4]
+
+
+def test_an_officer_taking_over_a_character_clears_the_old_owners_raid_signups(tmp_path):
+    """Codex on #489: an officer's /link of a claimed character is a takeover, like /release. The old owner's
+    open-raid signup with it goes, so the character is not on the post twice; other signups stay."""
+    db = make_db(tmp_path)
+    slug = _char(db, "Realmain", "Tank", 60, "Warrior")
+    other = _char(db, "Honest", "Healer", 60, "Priest")
+    rid = db.create_raid("Onyxia", _FUTURE, 40, 9, {"tank": 1})
+    db.claim(666, [slug])
+    db.claim(7, [other])
+    db.upsert_signup(rid, 666, slug, "tank", utcnow())
+    db.upsert_signup(rid, 7, other, "healer", utcnow())
+    bot = _bot(db)
+    ix, sent = _cmd_ix(9, officer=True)
+    asyncio.run(bot.tree.get_command("link").callback(ix, slug))
+    assert db.owner_of(slug) == 9
+    assert [s["slug"] for s in db.signups(rid)] == [other]
+    assert "1 open raid" in sent[-1]["content"]

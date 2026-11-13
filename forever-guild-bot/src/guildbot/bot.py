@@ -1103,6 +1103,21 @@ class GuildBot(discord.Client):
         except discord.HTTPException:
             log.exception("could not refresh the post for raid %s", raid_id)
 
+    def drop_signups_with(self, slug: str) -> list[int]:
+        """A character changed hands (/release, an officer's /link): open-raid signups made with it
+        were not the signer's to make, so they go. Returns the raids changed; call settle_raids on them."""
+        stale = [(r["id"], s["discord_id"]) for r in self.db.open_raids()
+                 for s in self.db.signups(r["id"]) if s["slug"] == slug]
+        for rid, uid in stale:
+            self.db.remove_signup(rid, uid)
+            self.db.expire_member_offers(rid, uid)
+        return sorted({rid for rid, _ in stale})
+
+    async def settle_raids(self, raid_ids) -> None:
+        for rid in raid_ids:
+            await self.refresh_raid_post(rid)
+            await self.fill_open_slots(rid)                # a freed slot goes to the bench
+
     async def fill_open_slots(self, raid_id: int) -> None:
         """Slots free and people waiting on the bench: move the next in line up and tell them by DM.
         They are in at once; the DM has a "Can't make it" button that passes the slot to the next person."""
@@ -1504,12 +1519,16 @@ def register_commands(bot: GuildBot) -> None:
                 msg = f"**{R.full_name(row)}** is already yours."
             await interaction.response.send_message(msg, ephemeral=True)
             return
+        changed = []
         if owner and owner != interaction.user.id:
             db.release(row["slug"])                          # officers may take over a claimed character
+            changed = bot.drop_signups_with(row["slug"])   # and the old owner's signups
         became_main = db.link(interaction.user.id, row["slug"])
         await interaction.response.send_message(
-            f"Linked **{R.full_name(row)}**" + (" as your main." if became_main else ". Use `/main` to make it your main."),
+            f"Linked **{R.full_name(row)}**" + (" as your main." if became_main else ". Use `/main` to make it your main.")
+            + (f" Took it off {len(changed)} open raid(s) the previous owner signed up for." if changed else ""),
             ephemeral=True)
+        await bot.settle_raids(changed)
 
     @tree.command(name="unlink", description="Remove a character link from your Discord account")
     @app_commands.autocomplete(character=mine_ac)
@@ -2207,14 +2226,8 @@ def register_commands(bot: GuildBot) -> None:
             await interaction.response.send_message("No such character.", ephemeral=True)
             return
         db.release(row["slug"])
-        stale = [(r["id"], s["discord_id"]) for r in db.open_raids()
-                 for s in db.signups(r["id"]) if s["slug"] == row["slug"]]
-        for rid, uid in stale:                             # it was not theirs: its open-raid signups go too
-            db.remove_signup(rid, uid)
-            db.expire_member_offers(rid, uid)
+        changed = bot.drop_signups_with(row["slug"])       # it was not theirs: its open-raid signups go too
         await interaction.response.send_message(
             f"**{R.full_name(row)}** is free to claim again."
-            + (f" Also took it off {len(stale)} open raid(s)." if stale else ""), ephemeral=True)
-        for rid in sorted({rid for rid, _ in stale}):
-            await bot.refresh_raid_post(rid)
-            await bot.fill_open_slots(rid)                 # a freed slot goes to the bench
+            + (f" Also took it off {len(changed)} open raid(s)." if changed else ""), ephemeral=True)
+        await bot.settle_raids(changed)
