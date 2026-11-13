@@ -1,4 +1,4 @@
--- Service Inviter v2.1.11
+-- Service Inviter v2.2.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -629,6 +629,8 @@ function Jobs.Set(name, status)
     local j = jobByName[name]
     if not j or j.status == status then return j end
     if status == "summoned" then Stats().summoned = Stats().summoned + 1 Stats().ev = Stats().ev + (JobPrice(j) or 0) j.tsummon = GetTime() end
+    -- the customer book: a summon counts when it goes out, anything else at Paid / Done
+    if status == "summoned" or ((status == "paid" or status == "done") and j.service ~= "summons") then Jobs.Record(j) end
     if status == "arrived" then j.tarrive = GetTime() end
     if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or JobPrice(j) or 0) end
     if status == "paid" or status == "done" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
@@ -636,6 +638,34 @@ function Jobs.Set(name, status)
     j.ts = GetTime()   -- when it got to this status, for "waiting 1m 20s"
     jobsChanged()
     return j
+end
+
+-- The customer book (the owner, 13 Nov 2026: "can it store our customer base and how many
+-- times they use us and when"): kept in the saved settings, so it lasts across sessions.
+-- { n = times, by = { summons = 3, ... }, worth = silver at your price then, first, last }
+function Jobs.Record(j)
+    if not j or j.recorded then return end
+    j.recorded = true
+    local db = ServiceInviterDB
+    db.customers = type(db.customers) == "table" and db.customers or {}
+    local now = Now()
+    local c = db.customers[j.name] or { n = 0, by = {}, worth = 0, first = now }
+    local key = j.service or "other"
+    c.n = c.n + 1
+    c.by[key] = (c.by[key] or 0) + 1
+    c.worth = (c.worth or 0) + (JobPrice(j) or 0)
+    c.last = now
+    db.customers[j.name] = c
+end
+-- Times they used you before this visit (0 for someone new).
+function Jobs.Before(j)
+    local c = j and type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers[j.name]
+    if not c then return 0 end
+    return c.n - (j.recorded and 1 or 0)
+end
+function Jobs.When(t)
+    local fmt = date or (os and os.date)
+    return (fmt and t) and fmt("%b %d %H:%M", t) or "?"
 end
 
 function Jobs.Joined(name)
@@ -2093,7 +2123,8 @@ local function ApplyRow(row, job)
         if u then local ok, _, cls = pcall(UnitClass, u) if ok then job.class = cls end end
     end
     local g = GroupSnapshot()
-    row.name:SetText(Colored(job.name, job.class))
+    local before = Jobs.Before(job)
+    row.name:SetText(Colored(job.name, job.class) .. (before > 0 and ("  |cff" .. INK.muted .. "· " .. before .. " before|r") or ""))
     row.bar:SetColorTexture(RGB(ClassHex(job.class) or INK.muted))
     row.service:SetText(ServiceLine(job))
     row.where:SetText(WhoLine(job, g))
@@ -3140,6 +3171,29 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
                 P("cast " .. math.floor(GetTime() - c.t) .. "s ago: " .. tostring(UnitName and UnitName(c.unit) or c.unit) .. " (" .. c.unit .. ") " .. c.name .. " id " .. tostring(c.id) .. " " .. c.event:gsub("UNIT_SPELLCAST_", ""))
             end
         end
+    elseif cmd == "customers" or cmd == "regulars" then
+        local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+        local function line(name, c)
+            local by = {}
+            for k, v in pairs(c.by or {}) do by[#by + 1] = v .. " " .. ((Core.BY_KEY[k] and Core.BY_KEY[k].label) or k) end
+            table.sort(by)
+            return name .. ": " .. c.n .. (c.n == 1 and " time" or " times") .. " (" .. table.concat(by, ", ") .. "), worth " ..
+                Money(c.worth or 0) .. ", first " .. Jobs.When(c.first) .. ", last " .. Jobs.When(c.last)
+        end
+        if rest ~= "" then
+            local want = rest:lower()
+            for name, c in pairs(book) do
+                if name:lower() == want or name:lower():find(want, 1, true) == 1 then P(line(name, c)) return end
+            end
+            P("no customer named " .. rest .. " in the book")
+            return
+        end
+        local list = {}
+        for name, c in pairs(book) do list[#list + 1] = { name, c } end
+        table.sort(list, function(a, b) if a[2].n ~= b[2].n then return a[2].n > b[2].n end return (a[2].last or 0) > (b[2].last or 0) end)
+        if #list == 0 then P("the customer book is empty so far") return end
+        P(#list .. " customers in the book. Most visits first:")
+        for i = 1, math.min(15, #list) do P(line(list[i][1], list[i][2])) end
     elseif cmd == "session" then
         if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started")
         else P("session: " .. SessionText() .. "   (/si session new to start over)") end
@@ -3206,7 +3260,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers NAME) | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
