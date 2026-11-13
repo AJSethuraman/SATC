@@ -100,3 +100,15 @@ def test_the_book_keeps_whole_forever_names_apart():
     g.event("CHAT_MSG_SYSTEM", "Buster Smith joins the party.")
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
     assert g.eval('ServiceInviterDB.customers["Buster Smith"].n') == 2
+
+
+def test_your_own_loyalty_line_in_capitals():
+    """The owner, 13 Nov 2026: "HOW CAN I SAY SOMETHING LIKE THIS IS YOUR 4TH TIME!!"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false } ServiceInviterDB.loyaltymsg = "THIS IS YOUR {visits} TIME!!"')
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == \
+        "Hi Kaldrok! THIS IS YOUR 4TH TIME!! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."

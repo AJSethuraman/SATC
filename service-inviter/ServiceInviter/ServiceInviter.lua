@@ -1,4 +1,4 @@
--- Service Inviter v2.3.0
+-- Service Inviter v2.3.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -755,6 +755,7 @@ end
 -- Thanks when they're done (the owner, 12 Nov 2026: "Paid should also remove from party and
 -- maybe send a thank you"). A whisper, so it still reaches them after they leave the group.
 MSG.THANKS = "Thanks {name}! Enjoy."
+MSG.LOYALTY = "Welcome back, {visits} time with us!"
 local function ThanksText(name)
     if ServiceInviterDB.thanks == false then return nil end
     local m = ServiceInviterDB.thanksmsg
@@ -975,7 +976,10 @@ local function WelcomeText(name, job)
         local label = Core.BY_KEY[key].label
         custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
         custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
-        custom = custom:gsub("{visits}", function() return Jobs.Ordinal(Jobs.Before(job) + 1) end)
+        custom = custom:gsub("{visits}", function()
+            local nth = Jobs.Ordinal(Jobs.Before(job) + 1)
+            return (custom:gsub("{%a+}", "") == custom:gsub("{%a+}", ""):upper()) and nth:upper() or nth
+        end)
         return custom
     end
     if job and job.service then
@@ -984,7 +988,14 @@ local function WelcomeText(name, job)
         -- the chat? that would be dope")
         local before = Jobs.Before(job)
         if text and before > 0 and Opt("loyalty") then
-            text = text:gsub("^(Hi .-!) ", "%1 Welcome back, " .. Jobs.Ordinal(before + 1) .. " time with us! ", 1)
+            -- your own words for it (the owner, 13 Nov 2026: "HOW CAN I SAY SOMETHING LIKE THIS IS
+            -- YOUR 4TH TIME!!"); the count in capitals when the rest is
+            local line = ServiceInviterDB.loyaltymsg
+            if not line or line == "" then line = MSG.LOYALTY end
+            local caps = line:gsub("{%a+}", "") == line:gsub("{%a+}", ""):upper() and line:find("%a")
+            local nth = Jobs.Ordinal(before + 1)
+            line = line:gsub("{visits}", function() return caps and nth:upper() or nth end)
+            text = text:gsub("^(Hi .-!) ", function(hi) return hi .. " " .. line .. " " end, 1)
         end
         if text then return text end
     end
@@ -2787,11 +2798,12 @@ local function BuildSetupUI()
     Check("thanks", R, -410, "When they're done, whisper ({name}):")
     Box("thanksmsg", R + 4, -438, 396)
     Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
-    Check("loyalty", R, -496, "Welcome regulars back (\"4th time with us!\")", true)
-    Header(R, -532, "This session")
-    local sessText = Label(R, -558, "", "GameFontHighlight", 270)
+    Check("loyalty", R, -496, "Welcome regulars back ({visits} = 4th):", true)
+    Box("loyaltymsg", R + 4, -522, 396)
+    Header(R, -556, "This session")
+    local sessText = Label(R, -582, "", "GameFontHighlight", 270)
     local sessBtn = FlatButton(page, 120, 30, "plain")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -552) sessBtn:SetText("New session")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -576) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
@@ -2876,7 +2888,7 @@ local function BuildSetupUI()
     Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
 
     local DEFAULTS_BY_KEY = {
-        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
+        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
     }
 
     local function Refresh()
