@@ -159,3 +159,24 @@ def test_the_regulars_button_prints_the_top_ten():
     g.run("ServiceInviterJobs.regularsBtn._scripts.OnClick(ServiceInviterJobs.regularsBtn)")
     out = [p for p in g.printed()[before:] if ". Buyer" in p]
     assert len(out) == 10 and "Buyer11" in out[0] and "Buyer02" in out[-1]
+
+
+def test_analytics_record_where_they_went_and_when():
+    """The owner, 13 Nov 2026: "it should also track analytics like where they went and stuff for
+    us to know"."""
+    g = world({"player": ("Me", "SHAMAN", 60, "Orgrimmar"),
+               "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+               "party2": ("Ashfel", "WARLOCK", 60, "Undercity")}, "summons = { price = 35 }")
+    summon(g, "Kaldrok")
+    summon(g, "Kaldrok")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    g.run('ServiceInviter_Test.Jobs.Set("Mirasha", "summoned")')
+    a = g.eval("ServiceInviterDB.analytics")
+    assert a.n == 3 and a.to["Thunder Bluff"] == 2 and a.to["Undercity"] == 1 and a.by.summons == 3 and a.worth == 105
+    assert sum(a.hour[h] or 0 for h in range(0, 24)) == 3
+    assert g.eval('ServiceInviterDB.customers["Kaldrok"].to["Thunder Bluff"]') == 2
+    g.run('SlashCmdList.SERVICEINVITER("stats")')
+    out = " ".join(g.printed())
+    assert "3 uses by 2 customers (1 came back)" in out and "Thunder Bluff 2" in out and "Undercity 1" in out
+    assert "Busiest hours" in out and "summons 3" in out

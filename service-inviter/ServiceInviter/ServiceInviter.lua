@@ -1,4 +1,4 @@
--- Service Inviter v2.3.5
+-- Service Inviter v2.4.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -675,7 +675,47 @@ function Jobs.Record(j)
     c.by[key] = (c.by[key] or 0) + 1
     c.worth = (c.worth or 0) + (JobPrice(j) or 0)
     c.last = now
+    -- where they went, and the totals for /si stats (the owner, 13 Nov 2026: "it should also
+    -- track analytics like where they went and stuff for us to know")
+    local where = j.dest or "?"
+    c.to = c.to or {}
+    c.to[where] = (c.to[where] or 0) + 1
     db.customers[j.name] = c
+    local a = type(db.analytics) == "table" and db.analytics or { n = 0, worth = 0, to = {}, by = {}, hour = {}, day = {}, since = now }
+    local fmt = date or (os and os.date)
+    local t = fmt and fmt("*t", now)
+    a.n = a.n + 1
+    a.worth = a.worth + (JobPrice(j) or 0)
+    a.to[where] = (a.to[where] or 0) + 1
+    a.by[key] = (a.by[key] or 0) + 1
+    if type(t) == "table" then
+        a.hour[t.hour] = (a.hour[t.hour] or 0) + 1
+        a.day[t.wday] = (a.day[t.wday] or 0) + 1
+    end
+    db.analytics = a
+end
+-- /si stats: who, where, what, when, since the book started
+function Jobs.PrintStats()
+    local db = ServiceInviterDB
+    local a, book = db.analytics, type(db.customers) == "table" and db.customers or {}
+    if type(a) ~= "table" or a.n == 0 then P("no stats yet: they start with the first summon or Paid") return end
+    local people, back = 0, 0
+    for _, c in pairs(book) do people = people + 1 if c.n > 1 then back = back + 1 end end
+    local function top(t, name, limit)
+        local list = {}
+        for k, v in pairs(t or {}) do list[#list + 1] = { k, v } end
+        table.sort(list, function(x, y) return x[2] > y[2] end)
+        local out = {}
+        for i = 1, math.min(limit or 99, #list) do out[#out + 1] = name(list[i][1]) .. " " .. list[i][2] end
+        return #out > 0 and table.concat(out, ", ") or "none yet"
+    end
+    local DAYS = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
+    P("Since " .. Jobs.When(a.since):gsub(" %d+:%d+$", "") .. ": " .. a.n .. " uses by " .. people .. " customers (" .. back ..
+        " came back), worth " .. Money(a.worth))
+    P("Where they went: " .. top(a.to, function(k) return k end))
+    P("Services: " .. top(a.by, function(k) return (Core.BY_KEY[k] and Core.BY_KEY[k].label) or k end))
+    P("Busiest hours: " .. top(a.hour, function(h) return ("%02d:00"):format(h) end, 3))
+    P("Busiest days: " .. top(a.day, function(d) return DAYS[d] or d end, 3))
 end
 -- Times they used you before this visit (0 for someone new).
 function Jobs.Before(j)
@@ -703,7 +743,11 @@ function Jobs.PrintRegulars(want)
         local by = {}
         for k, v in pairs(c.by or {}) do by[#by + 1] = v .. " " .. ((Core.BY_KEY[k] and Core.BY_KEY[k].label) or k) end
         table.sort(by)
-        return name .. ": " .. c.n .. (c.n == 1 and " time" or " times") .. " (" .. table.concat(by, ", ") .. "), worth " ..
+        local to = {}
+        for k, v in pairs(c.to or {}) do to[#to + 1] = v .. "x " .. k end
+        table.sort(to)
+        return name .. ": " .. c.n .. (c.n == 1 and " time" or " times") .. " (" .. table.concat(by, ", ") .. ")" ..
+            (#to > 0 and (", to " .. table.concat(to, ", ")) or "") .. ", worth " ..
             Money(c.worth or 0) .. ", first " .. Jobs.When(c.first) .. ", last " .. Jobs.When(c.last)
     end
     want = (want or ""):lower()
@@ -3306,6 +3350,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
                 P("cast " .. math.floor(GetTime() - c.t) .. "s ago: " .. tostring(UnitName and UnitName(c.unit) or c.unit) .. " (" .. c.unit .. ") " .. c.name .. " id " .. tostring(c.id) .. " " .. c.event:gsub("UNIT_SPELLCAST_", ""))
             end
         end
+    elseif cmd == "stats" or cmd == "analytics" then
+        Jobs.PrintStats()
     elseif cmd == "customers" or cmd == "regulars" then
         Jobs.PrintRegulars(rest)
     elseif cmd == "session" then
@@ -3374,7 +3420,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers NAME) | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers NAME) | /si stats = where, what, when | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
