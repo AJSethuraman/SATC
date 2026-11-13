@@ -536,3 +536,19 @@ def test_an_offer_under_our_price_is_not_invited():
     g = world(lock, "summons = { price = 35 }")
     say_trade(g, "Low", "wtb tb sum 25s")
     assert any("25 silver" in p and "35 silver" in p for p in g.printed())
+
+
+def test_only_the_first_place_they_want_to_go_counts():
+    """The owner, 13 Nov 2026, on "LF Port to UC then to TB" being invited for a summon to TB:
+    "this is so specific but it shouldn't invite". They want UC first; TB comes after."""
+    tb = {"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}
+    uc = {"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Undercity")}
+    g = world(tb)
+    say_trade(g, "Chain", "LF Port to UC then to TB")
+    assert invited(g) == []
+    g = world(uc)
+    say_trade(g, "Chain", "LF Port to UC then to TB")
+    assert invited(g) == ["Chain"] and job(g, "Chain", "dest") == "Undercity"
+    g = world(tb)
+    say_trade(g, "Either", "wtb summon to tb or org")              # one "to": still TB
+    assert invited(g) == ["Either"]

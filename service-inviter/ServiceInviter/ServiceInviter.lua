@@ -1,4 +1,4 @@
--- Service Inviter v2.2.1
+-- Service Inviter v2.2.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -277,10 +277,15 @@ local function Evaluate(norm, dedicated, T)
 
     -- "port to TB in UC": an explicit "to <place>" is the destination; any other place
     -- named (in/at UC) is where they are standing, so it does not count.
-    local toKeys, anyTo = {}, false
+    -- Only the FIRST "to <place>" counts: "port to UC then to TB" wants UC next, and a summon
+    -- to TB doesn't do that (the owner, 13 Nov 2026: "it shouldn't invite").
+    local toKeys, anyTo, firstAt = {}, false, nil
     for _, d in ipairs(dests) do
         for _, w in ipairs(d.words) do
-            if norm:find(" to " .. w .. " ", 1, true) or norm:find(" 2 " .. w .. " ", 1, true) then toKeys[d.key] = true anyTo = true end
+            for _, pre in ipairs({ " to ", " 2 " }) do
+                local at = norm:find(pre .. w .. " ", 1, true)
+                if at and (not firstAt or at < firstAt) then firstAt, toKeys = at, { [d.key] = true } anyTo = true end
+            end
         end
     end
 
