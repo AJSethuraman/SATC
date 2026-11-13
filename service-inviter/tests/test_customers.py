@@ -81,3 +81,22 @@ def test_ordinals():
     o = lambda n: g.eval(f"ServiceInviter_Test.Ordinal({n})")
     assert [o(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 101)] == \
         ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"]
+
+
+def test_the_book_keeps_whole_forever_names_apart():
+    """The owner, 13 Nov 2026: "has to count both first and last name too". Two Busters stay two
+    customers, and the ritual's target (read from the unit, first + surname) lands on the same
+    entry as the name from chat."""
+    from test_group import FOREVER_NAMES
+    g = world(LOCK, "summons = { price = 35 }", extra=FOREVER_NAMES)
+    summon(g, "Buster Wang")
+    summon(g, "Buster Smith")
+    summon(g, "Buster Wang")
+    book = g.eval("ServiceInviterDB.customers")
+    assert book["Buster Wang"].n == 2 and book["Buster Smith"].n == 1 and book["Buster"] is None
+    # summoned by the ritual on its target: the target's name is read whole from the unit
+    say_trade(g, "Buster Smith", "WTB summon to TB")
+    g.run('UNITS.party2 = { "Buster Smith", "ROGUE", 30, "Orgrimmar" } GROUP["Buster Smith"] = true UNITS.party1target = UNITS.party2')
+    g.event("CHAT_MSG_SYSTEM", "Buster Smith joins the party.")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
+    assert g.eval('ServiceInviterDB.customers["Buster Smith"].n') == 2
