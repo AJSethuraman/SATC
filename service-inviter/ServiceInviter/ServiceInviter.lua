@@ -1,4 +1,4 @@
--- Service Inviter v2.4.0
+-- Service Inviter v2.4.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -493,7 +493,9 @@ end
 local function IsInviter()
     if not IsInGroup() then return true end
     if UnitIsGroupLeader("player") then return true end
-    if IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player") then return true end
+    -- an assistant can invite in some rulesets; once the game has turned one of yours into a
+    -- suggestion, it can't here (Jobs.suggestOnly, set in OnSystem)
+    if IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player") and not Jobs.suggestOnly then return true end
     return false
 end
 
@@ -1107,6 +1109,23 @@ local function OnSystem(text)
         pending[short] = nil
         lastInvite[short] = nil   -- let them re-ask / be re-invited right away
         Jobs.Busy(short)
+        return
+    end
+    -- "You have suggested that X join your group.": the game didn't invite them, it asked the
+    -- leader, and those come straight back declined (the owner, 13 Nov 2026: "instant decline
+    -- literally" / "happening every single time", as raid assistant with Yeet Lock leading)
+    local sug = text:match(PatternFrom(_G and _G.ERR_INVITE_PLAYER_SUGGESTED_S, "You have suggested that %s join your group."))
+    if sug then
+        if not Jobs.suggestOnly then
+            Jobs.suggestOnly = true
+            local leader
+            for _, m in ipairs(GroupSnapshot()) do
+                if m.unit and UnitIsGroupLeader and UnitIsGroupLeader(m.unit) then leader = m.name end
+            end
+            P("|cffff4040Your invites are only suggestions:|r you're not the raid leader, so the game asks " ..
+                (leader or "the leader") .. " instead of inviting, and those come back declined. Ask " ..
+                (leader or "the leader") .. " to give you lead, and invites work again.")
+        end
         return
     end
     local d = text:match(DECLINE_PATTERN)

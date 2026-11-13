@@ -626,3 +626,23 @@ def test_a_group_can_still_buy_a_portal():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Velenne", "MAGE", 60, "Orgrimmar")}, "portals = { on = true, price = 20 }")
     say_trade(g, "Asker", "WTB port for 2 to UC")
     assert invited(g) == ["Asker"]
+
+
+def test_suggested_invites_are_explained_once():
+    """The owner's screenshot, 13 Nov 2026: "You have suggested that Yourmomma Lovesme join your
+    group." then "... declines your group invitation." -- "instant decline literally", "happening
+    every single time". Raid assistant, someone else leading: the game only suggests."""
+    g = world({"player": ME_ORG_SHAMAN, "raid1": ("Yeet Lock", "WARLOCK", 60, "Undercity"),
+               "raid2": ("Me", "SHAMAN", 60, "Orgrimmar")}, extra="""
+function IsInRaid() return true end
+function UnitIsGroupLeader(u) return u == "raid1" end
+function UnitIsGroupAssistant(u) return u == "player" end
+function UnitIsUnit(a, b) local x, y = UNITS[a], UNITS[b] return x ~= nil and y ~= nil and x[1] == y[1] end""")
+    say_trade(g, "Momma", "WTB UC SUMMON")
+    g.event("CHAT_MSG_SYSTEM", "You have suggested that Momma join your group.")
+    g.event("CHAT_MSG_SYSTEM", "Momma declines your group invitation.")
+    say_trade(g, "Other", "WTB UC SUMMON")
+    g.event("CHAT_MSG_SYSTEM", "You have suggested that Other join your group.")
+    warn = [p for p in g.printed() if "only suggestions" in p]
+    assert len(warn) == 1 and "Yeet Lock" in warn[0]
+    assert any("suggested invite" in p and "Other" in p for p in g.printed())   # the next invite line says so
