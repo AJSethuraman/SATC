@@ -1,4 +1,4 @@
--- Service Inviter v2.2.0
+-- Service Inviter v2.2.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -86,6 +86,7 @@ local DEFAULTS = {
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
+    loyalty   = true,    -- a regular is welcomed back in party/raid chat ("4th time with us")
     marks     = true,    -- a raid icon on whoever does a service, in party/raid chat (text only: the game no longer lets addons put icons over heads)
     welcome   = true,    -- send a message to the group when an invited player joins
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
@@ -663,6 +664,11 @@ function Jobs.Before(j)
     if not c then return 0 end
     return c.n - (j.recorded and 1 or 0)
 end
+function Jobs.Ordinal(n)
+    local tail = n % 100
+    local suf = (tail >= 11 and tail <= 13) and "th" or ({ "st", "nd", "rd" })[n % 10] or "th"
+    return n .. suf
+end
 function Jobs.When(t)
     local fmt = date or (os and os.date)
     return (fmt and t) and fmt("%b %d %H:%M", t) or "?"
@@ -950,10 +956,17 @@ local function WelcomeText(name, job)
         local label = Core.BY_KEY[key].label
         custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
         custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
+        custom = custom:gsub("{visits}", function() return Jobs.Ordinal(Jobs.Before(job) + 1) end)
         return custom
     end
     if job and job.service then
         local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest)
+        -- a regular is welcomed back (the owner, 13 Nov 2026: "can we even announce loyalty in
+        -- the chat? that would be dope")
+        local before = Jobs.Before(job)
+        if text and before > 0 and Opt("loyalty") then
+            text = text:gsub("^(Hi .-!) ", "%1 Welcome back, " .. Jobs.Ordinal(before + 1) .. " time with us! ", 1)
+        end
         if text then return text end
     end
     local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
@@ -2728,7 +2741,7 @@ local function BuildSetupUI()
     Header(R, -232, "Messages")
     Check("welcome", R, -256, "Welcome them when they join")
     Label(R, -286, "Welcome text, blank = automatic (what, who, where, price, who to pay).", "GameFontHighlightSmall", 400)
-    Label(R, -300, "Yours can use {name} {service} {price} {payee}.", "GameFontHighlightSmall", 400)
+    Label(R, -300, "Yours can use {name} {service} {price} {payee} {visits}.", "GameFontHighlightSmall", 400)
     Box("welcomemsg", R + 4, -316, 396)
     Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
     Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
@@ -2736,10 +2749,11 @@ local function BuildSetupUI()
     Check("thanks", R, -410, "When they're done, whisper ({name}):")
     Box("thanksmsg", R + 4, -438, 396)
     Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
-    Header(R, -506, "This session")
-    local sessText = Label(R, -532, "", "GameFontHighlight", 270)
+    Check("loyalty", R, -496, "Welcome regulars back (\"4th time with us!\")", true)
+    Header(R, -532, "This session")
+    local sessText = Label(R, -558, "", "GameFontHighlight", 270)
     local sessBtn = FlatButton(page, 120, 30, "plain")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -526) sessBtn:SetText("New session")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -552) sessBtn:SetText("New session")
     sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
     w.sessText = sessText
 
@@ -3265,5 +3279,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { Preview = function(t) return Preview(t) end, PrintPreview = function(t) return PrintPreview(t) end, BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { Ordinal = function(n) return Jobs.Ordinal(n) end, Preview = function(t) return Preview(t) end, PrintPreview = function(t) return PrintPreview(t) end, BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

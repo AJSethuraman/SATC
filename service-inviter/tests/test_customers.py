@@ -46,3 +46,38 @@ def test_a_paid_lockpick_counts_when_paid():
     click(g, "paid")
     c = g.eval('ServiceInviterDB.customers["Kaldrok"]')
     assert c.n == 1 and c.by.lockpick == 1 and c.worth == 20
+
+
+def test_a_regular_is_welcomed_back_in_chat():
+    """The owner, 13 Nov 2026: "can we even announce loyalty in the chat? that would be dope"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    welcomes = [m for ch, _, m in g.sent() if ch == "PARTY" and "Kaldrok" in m]
+    assert welcomes[-1] == "Hi Kaldrok! Welcome back, 4th time with us! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."
+    assert "Welcome back" not in welcomes[0]                     # the first time is a normal welcome
+
+
+def test_loyalty_can_be_turned_off_and_custom_text_gets_visits():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false, loyalty = false }')
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert "Welcome back" not in [m for ch, _, m in g.sent() if ch == "PARTY"][-1]
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false } ServiceInviterDB.welcomemsg = "YO {name}, VISIT {visits}!"')
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "YO Kaldrok, VISIT 2nd!"
+
+
+def test_ordinals():
+    g = world(LOCK)
+    o = lambda n: g.eval(f"ServiceInviter_Test.Ordinal({n})")
+    assert [o(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 101)] == \
+        ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"]
