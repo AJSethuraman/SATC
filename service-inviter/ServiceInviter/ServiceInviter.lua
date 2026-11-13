@@ -1,4 +1,4 @@
--- Service Inviter v2.8.2
+-- Service Inviter v2.8.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1125,7 +1125,9 @@ function Jobs.LoyaltyLine(job)
     if before <= 0 or line == "" then return nil end
     local caps = line:gsub("{%a+}", "") == line:gsub("{%a+}", ""):upper() and line:find("%a")
     local nth = Jobs.Ordinal(before + 1)
-    return (line:gsub("{visits}", function() return caps and nth:upper() or nth end))
+    line = line:gsub("{visits}", function() return caps and nth:upper() or nth end)
+    -- {name} too (the owner, 13 Nov 2026: "can i use {name} in regular hear")
+    return (line:gsub("{name}", function() return Jobs.Label(job, job.name) end))
 end
 
 local function WelcomeText(name, job)
@@ -1227,7 +1229,9 @@ local function OnSystem(text)
     -- service and no price, just hello and the regulars line (the owner, 13 Nov 2026: "if we dont
     -- know what we invited them for why would we show the price and service").
     if not fresh or not Opt("welcome") then
-        if loyal then SendChatMessage("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal, channel) end
+        -- with {name} in it, your line already greets them: no "Hi Kaldrok!" in front
+        local named = (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
+        if loyal then SendChatMessage(named and loyal or ("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal), channel) end
         return
     end
     local welcome = WelcomeText(short)
@@ -3087,7 +3091,7 @@ local function BuildSetupUI()
     Check("thanks", R, -410, "When they're done, whisper ({name}):")
     Box("thanksmsg", R + 4, -438, 396)
     Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
-    Label(R, -500, "Regulars hear ({visits} = 4th, empty = off):")
+    Label(R, -500, "Regulars hear ({name} {visits} = 4th, empty = off):")
     Box("loyaltymsg", R + 4, -522, 396)
     Header(R, -556, "This session")
     local sessText = Label(R, -582, "", "GameFontHighlight", 270)

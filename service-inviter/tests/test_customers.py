@@ -251,3 +251,21 @@ def test_the_lists_open_selected_in_a_copy_window_not_in_chat():
     lines = copied(g)
     assert lines[0].startswith("Top 1 of 1 customers") and "|c" not in "".join(lines)
     assert g.eval("ServiceInviterCopy.title:GetText()") == "Customers"
+
+
+def test_the_regulars_line_takes_name():
+    """The owner, 13 Nov 2026: "can i use {name} in regular hear"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK {name}!! This is your {visits} time"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")            # someone else invited him
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["WELCOME BACK Kaldrok!! This is your 2nd time"]
+    # and invited by us: after your welcome
+    before = len(g.sent())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert len(said) == 1 and "WELCOME BACK Kaldrok!! This is your 2nd time" in said[0]
