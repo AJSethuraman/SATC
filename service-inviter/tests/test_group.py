@@ -272,12 +272,16 @@ def test_each_customer_row_says_where_and_who_in_class_color():
                     ("Summons to Undercity", "|cff8788eeAshfel|r in Undercity")]
 
 
-def test_the_invite_line_is_short():
+def test_the_invite_line_says_who_and_exactly_why():
+    """The owner, 13 Nov 2026: "why is it no longer telling me exactly why people are invited? i
+    want that". 2.0.8 had moved the reason to debug only."""
     g = world(TWO_LOCKS)
     say_trade(g, "Kaldrok", "WTB summon to TB, will tip, pst")
-    lines = [l for l in g.printed() if "invited" in l]
-    assert lines and lines[0].endswith("invited Kaldrok  -> TB  ·  |cff8788eeGrimtotem|r")
-    assert "because" not in lines[0]
+    p = g.printed()
+    i = next(i for i, l in enumerate(p) if "invited" in l)
+    assert p[i].endswith("invited Kaldrok  -> TB  ·  |cff8788eeGrimtotem|r")
+    assert 'because [Trade] "WTB summon to TB, will tip, pst"' in p[i + 1]
+    assert "summon to Thunder Bluff" in p[i + 1]
 
 
 def test_chat_lines_are_not_recolored():
