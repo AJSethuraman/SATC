@@ -628,21 +628,50 @@ def test_a_group_can_still_buy_a_portal():
     assert invited(g) == ["Asker"]
 
 
-def test_suggested_invites_are_explained_once():
-    """The owner's screenshot, 13 Nov 2026: "You have suggested that Yourmomma Lovesme join your
-    group." then "... declines your group invitation." -- "instant decline literally", "happening
-    every single time". Raid assistant, someone else leading: the game only suggests."""
-    g = world({"player": ME_ORG_SHAMAN, "raid1": ("Yeet Lock", "WARLOCK", 60, "Undercity"),
-               "raid2": ("Me", "SHAMAN", 60, "Orgrimmar")}, extra="""
+ASSIST_RAID = """
 function IsInRaid() return true end
 function UnitIsGroupLeader(u) return u == "raid1" end
 function UnitIsGroupAssistant(u) return u == "player" end
-function UnitIsUnit(a, b) local x, y = UNITS[a], UNITS[b] return x ~= nil and y ~= nil and x[1] == y[1] end""")
+function UnitIsUnit(a, b) local x, y = UNITS[a], UNITS[b] return x ~= nil and y ~= nil and x[1] == y[1] end"""
+ASSIST_UNITS = {"player": ME_ORG_SHAMAN, "raid1": ("Yeet Lock", "WARLOCK", 60, "Undercity"), "raid2": ("Me", "SHAMAN", 60, "Orgrimmar")}
+
+
+def press_big_button(g):
+    """The click: the macro the game runs (/invite does the inviting), then PostClick."""
+    g.run('''local b = ServiceInviterNext
+        local who = (b:GetAttribute("macrotext") or ""):match("^/invite (.+)$")
+        if who then INVITED[#INVITED + 1] = who end
+        b._scripts.PostClick(b)''')
+
+
+def test_not_the_leader_buyers_wait_for_your_click_to_invite():
+    """The owner, 13 Nov 2026: "You have suggested that Yourmomma Lovesme join your group." then an
+    instant decline, every time, as raid assistant -- "i can invite people it worked when i tried
+    manually". The addon's own invite became a suggestion; a typed /invite works. So they wait
+    for the big button, which runs /invite on your click."""
+    g = world(ASSIST_UNITS, extra=ASSIST_RAID)
+    say_trade(g, "Momma Lovesme", "WTB UC SUMMON")
+    assert invited(g) == []                                    # nothing sent on its own
+    assert g.status("Momma Lovesme") == "asked"
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    assert g.eval("ServiceInviterNext:GetText()") == "Invite Momma Lovesme"
+    assert g.eval('ServiceInviterNext:GetAttribute("macrotext")') == "/invite Momma Lovesme"
+    press_big_button(g)
+    assert invited(g) == ["Momma Lovesme"] and g.status("Momma Lovesme") == "invited"
+    g.event("CHAT_MSG_SYSTEM", "Momma Lovesme has joined the raid group.")
+    assert any("Momma Lovesme" in m for ch, _, m in g.sent() if ch == "RAID")   # the welcome
+    assert not any("only suggestions" in p for p in g.printed())             # no warning line
+
+
+def test_the_leader_still_invites_by_itself():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Undercity")})
+    say_trade(g, "Momma", "WTB UC SUMMON")
+    assert invited(g) == ["Momma"]
+
+
+def test_a_bounced_suggestion_goes_back_in_line_not_declined():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Undercity")})
     say_trade(g, "Momma", "WTB UC SUMMON")
     g.event("CHAT_MSG_SYSTEM", "You have suggested that Momma join your group.")
     g.event("CHAT_MSG_SYSTEM", "Momma declines your group invitation.")
-    say_trade(g, "Other", "WTB UC SUMMON")
-    g.event("CHAT_MSG_SYSTEM", "You have suggested that Other join your group.")
-    warn = [p for p in g.printed() if "only suggestions" in p]
-    assert len(warn) == 1 and "Yeet Lock" in warn[0]
-    assert any("suggested invite" in p and "Other" in p for p in g.printed())   # the next invite line says so
+    assert g.status("Momma") == "asked"

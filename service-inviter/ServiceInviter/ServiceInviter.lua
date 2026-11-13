@@ -1,4 +1,4 @@
--- Service Inviter v2.4.1
+-- Service Inviter v2.5.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -493,9 +493,9 @@ end
 local function IsInviter()
     if not IsInGroup() then return true end
     if UnitIsGroupLeader("player") then return true end
-    -- an assistant can invite in some rulesets; once the game has turned one of yours into a
-    -- suggestion, it can't here (Jobs.suggestOnly, set in OnSystem)
-    if IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player") and not Jobs.suggestOnly then return true end
+    -- Not the leader: an invite the addon sends on its own (no key press) becomes a suggestion
+    -- and bounces back as a decline, while a typed /invite works (the owner, 13 Nov 2026: "i can
+    -- invite people it worked when i tried manually"). Then they wait for your click instead.
     return false
 end
 
@@ -538,6 +538,7 @@ end
 -- Jobs: one row per customer we invited, from invite to paid.
 ----------------------------------------------------------------------
 local JOB_STATUS = {
+    asked     = { "Asked",     "|cfff0d470" },   -- waiting for your click to invite (you're not the leader)
     invited   = { "Invited",   "|cfff0d470" },
     joined    = { "In group",  "|cff8fe3a0" },
     summoned  = { "Summoning", "|cff8fbff0" },
@@ -798,7 +799,7 @@ function Jobs.Busy(name)
 end
 function Jobs.Expire(now)
     for _, j in ipairs(jobs) do
-        if j.status == "invited" and now - j.t > INVITE_TIMEOUT then Jobs.Set(j.name, "noanswer") end
+        if (j.status == "invited" or j.status == "asked") and now - j.t > INVITE_TIMEOUT * 1.5 then Jobs.Set(j.name, "noanswer") end
         if j.status == "busy" and now - j.t > 300 then Jobs.Set(j.name, "noanswer") end
     end
 end
@@ -1020,15 +1021,22 @@ local function Handle(text, sender, guid)
     lastInvite[short] = now
     fragments[short] = nil
     inviteTimes[#inviteTimes + 1] = now
-    DoInvite(short)
-    pending[short] = now
-    local job = Jobs.New(short, text, why, curChannel)
+    local job
+    if direct then
+        DoInvite(short)
+        pending[short] = now
+        job = Jobs.New(short, text, why, curChannel)
+    else
+        -- not the leader: they wait for your click on "Invite <name>" (the big button / its key)
+        job = Jobs.New(short, text, why, curChannel)
+        Jobs.Set(short, "asked")
+    end
     job.service, job.dest = svc, dest
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     if Opt("announce") then
         local what = JobWhere(job)
         if what == "" then what = answered and "(answered your ad)" or why end
-        P((direct and "invited " or "suggested invite (you're not the leader): ") .. short .. "  " .. what)
+        P((direct and "invited " or "|cffffd100press Invite for|r ") .. short .. "  " .. what)
         -- exactly why, always (the owner, 13 Nov 2026: "why is it no longer telling me exactly why
         -- people are invited? i want that")
         P("|cff999999   because [" .. tostring(curChannel) .. "] \"" .. tostring(text) .. "\" = " .. tostring(why) .. "|r")
@@ -1111,25 +1119,21 @@ local function OnSystem(text)
         Jobs.Busy(short)
         return
     end
-    -- "You have suggested that X join your group.": the game didn't invite them, it asked the
-    -- leader, and those come straight back declined (the owner, 13 Nov 2026: "instant decline
-    -- literally" / "happening every single time", as raid assistant with Yeet Lock leading)
+    -- "You have suggested that X join your group.": the game didn't invite them (an invite
+    -- that wasn't a click, sent while not the leader). Put them back in line for your click.
     local sug = text:match(PatternFrom(_G and _G.ERR_INVITE_PLAYER_SUGGESTED_S, "You have suggested that %s join your group."))
     if sug then
-        if not Jobs.suggestOnly then
-            Jobs.suggestOnly = true
-            local leader
-            for _, m in ipairs(GroupSnapshot()) do
-                if m.unit and UnitIsGroupLeader and UnitIsGroupLeader(m.unit) then leader = m.name end
-            end
-            P("|cffff4040Your invites are only suggestions:|r you're not the raid leader, so the game asks " ..
-                (leader or "the leader") .. " instead of inviting, and those come back declined. Ask " ..
-                (leader or "the leader") .. " to give you lead, and invites work again.")
-        end
+        local j = Jobs.Get(nm(sug))
+        if j and j.status == "invited" then j.suggested = true Jobs.Set(j.name, "asked") end
         return
     end
     local d = text:match(DECLINE_PATTERN)
-    if d then Jobs.Declined(nm(d)) return end
+    if d then
+        local j = Jobs.Get(nm(d))
+        if j and j.status == "asked" and j.suggested then j.suggested = nil return end   -- the bounced suggestion
+        Jobs.Declined(nm(d))
+        return
+    end
     for _, pat in ipairs(LEAVE_PATTERNS) do
         local w = text:match(pat)
         if w then Jobs.Left(nm(w)) return end
@@ -1562,6 +1566,7 @@ end
 -- wait (not in group yet) | summon | arriving | offer | finish | none
 local function NextStep(job)
     if not job then return "none" end
+    if job.status == "asked" then return "invite" end
     if job.status == "invited" then return "wait" end
     local def = Core.BY_KEY[job.service or "summons"]
     if def and def.kind ~= "summon" then
@@ -1594,7 +1599,7 @@ end
 
 local function CleanName(n) return (tostring(n):gsub("[%s%c%p]", function(c) return c == "-" and c or "" end)) end
 
-local ACTIVE = { invited = true, joined = true, summoned = true, arrived = true, busy = true }
+local ACTIVE = { asked = true, invited = true, joined = true, summoned = true, arrived = true, busy = true }
 
 -- Which customers to show: everyone still in progress (oldest first, so the queue is
 -- fair), then recently finished ones for a moment.
@@ -1623,6 +1628,7 @@ end
 -- The first customer who needs something from YOU (the big button never offers a job
 -- someone else does: a lockpick buyer is not yours to summon).
 local function NextJob()
+    for _, j in ipairs(jobs) do if NextStep(j) == "invite" then return j, "invite" end end
     for _, j in ipairs(jobs) do
         local st = NextStep(j)
         if st == "summon" and YouSummon(j) then return j, st end
@@ -1648,7 +1654,7 @@ local INK = {
     text = "ece4d2", muted = "a39a86", gold = "f0c05a", goldInk = "1a1408", plain = "221d15",
 }
 INK.PILL = {   -- status -> fill, text
-    invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
+    asked = { "3d3414", "f5df8a" }, invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
     arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
     busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
     left = { "2e2a22", "c9c0a8" },
@@ -2297,7 +2303,9 @@ local function ApplyRow(row, job)
     row.remove:SetAttribute("macrotext", KickMacro(job))
     local step = NextStep(job)
     local lock = Role() == "lock"
-    if job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
+    row.reinvite:SetAttribute("macrotext", "/invite " .. job.name)
+    if job.status == "asked" or job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
+        row.reinvite:SetText(job.status == "asked" and "Invite" or "Re-invite")
         row.reinvite:Show()
     elseif step == "summon" then
         if YouSummon(job) then row.summon:Show()
@@ -2322,9 +2330,20 @@ local function ApplyRow(row, job)
     row.remove:Show()
 end
 
+-- After your click sends the game's /invite (the big button or a row's Invite): they're invited.
+function Jobs.InviteClicked(job)
+    if not job then return end
+    local now = GetTime()
+    job.t, job.tries, job.suggested = now, nil, nil
+    lastInvite[job.name], pending[job.name] = now, now
+    Jobs.Set(job.name, "invited")
+end
+
 local function ApplyNext()
     local w = jobsWin
-    if Role() == "helper" then
+    local asking = false
+    for _, j in ipairs(jobs) do if j.status == "asked" then asking = true break end end
+    if Role() == "helper" and not asking then
         w.nextBtn:Hide()
         w.nextText:Show()
         local nxt, waiting = nil, 0
@@ -2355,7 +2374,10 @@ local function ApplyNext()
     end
     local n = UnitFor(job.name) or CleanName(job.name)
     w.nextSub:SetText(ServiceLine(job) .. ", waiting " .. Since(job.ts or job.t))
-    if step == "summon" then
+    if step == "invite" then
+        w.nextBtn:SetText("Invite " .. job.name)
+        w.nextBtn:SetAttribute("macrotext", "/invite " .. job.name)
+    elseif step == "summon" then
         w.nextBtn:SetText("Summon " .. job.name)
         w.nextBtn:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     elseif step == "offer" then
@@ -2454,7 +2476,8 @@ local function BuildJobsUI()
     nb:HookScript("PostClick", function(self)
         local job, step = self.job, self.step
         if not job then return end
-        if step == "summon" then Jobs.Set(job.name, "summoned")
+        if step == "invite" then Jobs.InviteClicked(job)
+        elseif step == "summon" then Jobs.Set(job.name, "summoned")
         elseif step == "offer" then job.offered = true
         elseif step == "finish" then pendingTrade = job.name end
         RefreshJobs()
@@ -2525,15 +2548,14 @@ local function BuildJobsUI()
             if row.job then pendingTrade = row.job.name D("Trade clicked for " .. row.job.name .. " (macro: " .. tostring(row.trade:GetAttribute("macrotext")) .. ")") end
         end)
 
-        row.reinvite = FlatButton(w, 84, 36, "ghost", 14)
+        -- Invite / Re-invite: the game's /invite on your click (an addon's own invite becomes a
+        -- mere suggestion when you're not the leader)
+        row.reinvite = FlatButton(w, 84, 36, "ghost", 14, true)
         row.reinvite:SetPoint("TOPLEFT", AX, AY) row.reinvite:SetText("Re-invite")
-        row.reinvite:SetScript("OnClick", function()
-            if not row.job then return end
-            local name = row.job.name
-            Jobs.New(name, row.job.text, "re-invited", row.job.channel or "-")
-            lastInvite[name] = GetTime() pending[name] = GetTime()
-            DoInvite(name)
-            RefreshJobs()
+        row.reinvite:RegisterForClicks("AnyUp", "AnyDown")
+        row.reinvite:SetAttribute("type", "macro")
+        row.reinvite:HookScript("PostClick", function()
+            if row.job then Jobs.InviteClicked(row.job) RefreshJobs() end
         end)
 
         -- Paid and x run the game's /uninvite (set in ApplyRow), so the removal is yours, not
