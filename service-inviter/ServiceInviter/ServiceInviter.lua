@@ -1,4 +1,4 @@
--- Service Inviter v2.1.9
+-- Service Inviter v2.1.10
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -57,10 +57,7 @@ end
 local IsSecret, SpellNameOf, jobsWin
 local BuffAsk, BuffCastDone, BuffTooLow, RefreshBuff, QueueAllMyBuffs, buffDirty
 
-local FRAGMENT_WINDOW = 25
-local MAX_FRAGMENTS   = 3
-local MAX_PER_MINUTE  = 6
-local MAX_PARTY       = 5
+local LIMIT = { FRAGMENT_WINDOW = 25, MAX_FRAGMENTS = 3, MAX_PER_MINUTE = 6, MAX_PARTY = 5 }
 
 -- Destinations shown as checkboxes: key, label, keywords.
 local DESTS = {
@@ -344,6 +341,16 @@ local function MyKnownPortals(cls)
     end
     return any and knows or nil
 end
+-- A unit's whole name. Forever names are first + surname, and UnitName gives them as two
+-- pieces ("Yeet", "Lock"); GetUnitName(unit, true) gives "Yeet Lock" (the owner's /dump, 13
+-- Nov 2026, after "why does it not capture yeet's full name"). Chat already sends the whole name.
+local function FullName(unit)
+    local ok, n = pcall(function() return GetUnitName and GetUnitName(unit, true) end)
+    if ok and type(n) == "string" and not IsSecret(n) and n ~= "" then return Ambiguate and Ambiguate(n, "none") or n end
+    local ok2, a = pcall(function() return UnitName and UnitName(unit) end)
+    if ok2 and type(a) == "string" and not IsSecret(a) and a ~= "" then return a end
+    return nil
+end
 local MARK_ORDER = { 1, 3, 4, 5, 6, 2, 7, 8 }   -- star, diamond, triangle, moon, square, circle, cross, skull
 local assignedMarks = {}                         -- name -> icon we gave them, kept steady while they stay
 local previewGroup                               -- set only while a Preview runs: a pretend group
@@ -354,9 +361,8 @@ local function GroupSnapshot()
         if not isMe and not (UnitExists and UnitExists(unit)) then return end
         -- anything the game hides (a secret value) is unknown: comparing one is an error
         local function plain(v) if v == nil or IsSecret(v) then return nil end return v end
-        local name = plain(UnitName and UnitName(unit))
+        local name = FullName(unit)
         if type(name) ~= "string" then return end
-        name = Ambiguate and Ambiguate(name, "none") or name
         local okc, _, cls = pcall(UnitClass, unit)
         local okl, lvl = pcall(function() return UnitLevel and UnitLevel(unit) end)
         cls, lvl = okc and plain(cls) or nil, okl and plain(lvl) or nil
@@ -472,7 +478,7 @@ end
 
 local function CanInvite()
     local direct = IsInviter()
-    if direct and IsInGroup() and not IsInRaid() and GetNumGroupMembers() >= MAX_PARTY then
+    if direct and IsInGroup() and not IsInRaid() and GetNumGroupMembers() >= LIMIT.MAX_PARTY then
         if C_PartyInfo and C_PartyInfo.ConvertToRaid then
             C_PartyInfo.ConvertToRaid()
         elseif ConvertToRaid then
@@ -554,7 +560,7 @@ local function PayeeFor(j, g)
     local p = Core.Provider(g, key, j and j.dest or nil)
     local here = (j and j.dest) or (p and p.zone)
     local payee = Core.Payee(ServiceInviterDB, g, key, p, here)
-    local me = UnitName and UnitName("player")
+    local me = FullName("player")
     return payee, (payee == me), p
 end
 local function CollectsFor(j) local _, mine = PayeeFor(j) return mine end
@@ -758,7 +764,7 @@ local function UnderRateLimit(now)
         if now - t < 60 then kept[#kept + 1] = t end
     end
     inviteTimes = kept
-    return #inviteTimes < MAX_PER_MINUTE
+    return #inviteTimes < LIMIT.MAX_PER_MINUTE
 end
 
 local function IsBlocked(short, guid)
@@ -801,7 +807,7 @@ local function Handle(text, sender, guid)
     if not (Opt("enabled") or Opt("kwon") or (adOpen and curChannel == "whisper")) or not sender or sender == "" then D("skip: addon off or no sender") return end
     if Opt("skipafk") and UnitIsAFK and UnitIsAFK("player") then D("skip: you are AFK (see 'Skip while I'm AFK')") return end
     local short = Ambiguate and Ambiguate(sender, "none") or sender
-    if short == UnitName("player") then return end
+    if short == FullName("player") then return end
     if UnitInParty(short) or UnitInRaid(short) then D(short .. ": already in your group") return end
     if IsBlocked(short, guid) then D(short .. ": blocked/ignored") return end
 
@@ -829,10 +835,10 @@ local function Handle(text, sender, guid)
         local frags = fragments[short] or {}
         local fresh = {}
         for _, f in ipairs(frags) do
-            if now - f.t < FRAGMENT_WINDOW then fresh[#fresh + 1] = f end
+            if now - f.t < LIMIT.FRAGMENT_WINDOW then fresh[#fresh + 1] = f end
         end
         fresh[#fresh + 1] = { t = now, n = norm }
-        while #fresh > MAX_FRAGMENTS do table.remove(fresh, 1) end
+        while #fresh > LIMIT.MAX_FRAGMENTS do table.remove(fresh, 1) end
         fragments[short] = fresh
 
         if not ok and #fresh > 1 then
@@ -948,7 +954,7 @@ local function OnSystem(text)
     if not who then return end
     local short = nm(who)
     -- Someone joined who nobody here invited (a friend invited them): give them a row too.
-    if not Jobs.Get(short) and short ~= (UnitName and UnitName("player")) then
+    if not Jobs.Get(short) and short ~= FullName("player") then
         Jobs.New(short, "(joined your group)", "invited by someone else", "-")
     end
     Jobs.Joined(short)
@@ -1023,7 +1029,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         if text == 1 and sender == 1 then
             -- who is on the other side: the trade window's partner, else the one we clicked Trade for
             local who
-            local npc = UnitName and UnitName("NPC")
+            local npc = FullName("NPC")
             if npc then
                 npc = Ambiguate and Ambiguate(npc, "none") or npc
                 if Jobs.Get(npc) then who = npc end
@@ -1292,7 +1298,7 @@ QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(na
 BuffAsk = function(text, sender)
     if type(text) ~= "string" or IsSecret(text) or not sender then return end
     local name = Ambiguate and Ambiguate(sender, "none") or sender
-    if name == (UnitName and UnitName("player")) or not InGroupByName(name) then return end
+    if name == FullName("player") or not InGroupByName(name) then return end
     local norm = Norm(text)
     -- asks are short ("wisdom pls", "can i get fort"); "i might be afk for a bit" is not one
     local count = 0
@@ -1864,7 +1870,7 @@ OnCast = function(event, unit, spellID, spellName)
     -- who is it for: the caster's target if that is one of our customers, else the next one waiting
     local trace = { t = GetTime(), event = event, unit = unit, role = Role() }
     diag.last = trace
-    local tname = UnitName and UnitName(unit .. "target")
+    local tname = FullName(unit .. "target")
     if tname and Ambiguate then tname = Ambiguate(tname, "none") end
     local job = tname and Jobs.Get(tname)
     -- With more than one warlock, a ritual is for a customer going to where THIS warlock stands.
@@ -1878,8 +1884,11 @@ OnCast = function(event, unit, spellID, spellName)
         for _, j in ipairs(jobs) do if forThisLock(j) then waiting = j break end end
         job = waiting or job
     end
+    -- someone the addon didn't invite, now being summoned: a summon customer, to where the
+    -- warlock stands (their row, the alert, Expected and the arrival all follow from this)
+    if job and not job.service then job.service, job.dest = "summons", castZone end
     local who = job and job.name or tname or "someone"
-    local caster = (UnitName and UnitName(unit)) or unit
+    local caster = FullName(unit) or unit
     trace.who, trace.target = who, tname
     D(caster .. " started Ritual of Summoning for " .. who .. " (" .. event .. ")")
 
@@ -1895,7 +1904,7 @@ OnCast = function(event, unit, spellID, spellName)
     if first then
         lastCastAt = now
         local to = WhisperTo()
-        if to and ((UnitName and UnitName("player")) ~= to) then
+        if to and FullName("player") ~= to then
             local nxt
             for _, j in ipairs(jobs) do if forThisLock(j) and j ~= job then nxt = j.name break end end
             local ok, err = pcall(SendWhisperTo, to, WhisperText(who, nxt))
@@ -2038,7 +2047,7 @@ end
 -- "Summons to Thunder Bluff", "Portal to Undercity", "Lockpicking"
 local function ServiceLine(job)
     local def = job.service and Core.BY_KEY[job.service]
-    if not def then return job.why and ("Joined: " .. job.why) or "Joined your group" end
+    if not def then return "Joined the group" end
     if def.kind == "summon" then return "Summons to " .. (job.dest or "?") end
     if def.kind == "portal" then return "Portal to " .. (job.dest or "?") end
     local l = def.label:gsub("^a ", "")
@@ -2450,7 +2459,7 @@ local function ShowPicker(box, withDefaults, title, key)
     if picker:IsShown() and picker.box == box then picker:Hide() return end
     picker.box = box
     picker.title:SetText(title or "Who gets paid?")
-    local me = UnitName and UnitName("player") or "me"
+    local me = FullName("player") or "me"
     local entries = {}
     picker.sub:SetText(withDefaults and ("Default: " .. DefaultPayeeText(key)) or "")
     local top = withDefaults and 44 or 30

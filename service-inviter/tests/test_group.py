@@ -492,3 +492,33 @@ def test_a_customer_with_no_place_on_record_is_summoned_to_where_the_warlock_is(
     alerts = [m for _, _, m in g.sent() if m.startswith("SUMMONING")]
     assert alerts and alerts[0].startswith("SUMMONING Buster TO THUNDER BLUFF!")
     assert "us" not in alerts[0].split("!")[0].lower().split()
+
+
+# -- Forever names: first + surname --------------------------------------------------------------
+# The owner's /dump on Yeet Lock, 13 Nov 2026: UnitName = "Yeet", "Lock"; GetUnitName(.., true) =
+# "Yeet Lock"; UnitFullName = "Yeet", "Lock". Chat sends the whole name.
+
+FOREVER_NAMES = """
+function UnitName(u) local x = UNITS[u] if not x then return nil end
+  local f, l = x[1]:match("^(%S+) (.+)$") if f then return f, l end return x[1] end
+function GetUnitName(u, full) local x = UNITS[u] return x and x[1] end
+"""
+
+
+def test_a_forever_name_is_read_whole():
+    g = world({"player": ("Mooveover Onyourleft", "SHAMAN", 30, "Thunder Bluff"),
+               "party1": ("Yeet Lock", "WARLOCK", 22, "Thunder Bluff")}, extra=FOREVER_NAMES)
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    say_trade(g, "Buster Wang", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Buster Wang joins the party.")
+    sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
+    assert sent == ["Hi Buster Wang! Yeet Lock will summon you to TB. 25 silver. Pay Yeet Lock when you land."]
+
+
+def test_someone_you_didnt_invite_becomes_a_summon_customer_when_summoned():
+    g = world(TWO_LOCKS)
+    g.run('UNITS.party3 = { "Buster", "ROGUE", 30, "Orgrimmar" } GROUP["Buster"] = true')
+    g.event("CHAT_MSG_SYSTEM", "Buster joins the party.")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
+    assert job(g, "Buster", "service") == "summons"
+    assert job(g, "Buster", "dest") == "Thunder Bluff"
