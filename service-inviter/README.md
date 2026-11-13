@@ -27,3 +27,5 @@ pytest -q
 The tests run the real addon file in Lua 5.1 (the game's Lua) against stubbed game
 functions in `tests/stubs.lua`, so they are offline. They prove the logic, not the
 game: how this client fires trade and spell events has to be watched in game.
+
+<!-- CI selection check, not for merging -->
