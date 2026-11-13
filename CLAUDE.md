@@ -224,6 +224,11 @@ every one of them was unreadable.
   `git fetch origin main && git merge-base --is-ancestor origin/main HEAD`.
   If it does not, merge `main` into the branch, push, and wait for green again.
   Found by Codex on #396, the PR that added this rule.
+- **CI runs only what a PR touches.** `test.yml` asks `.github/ci/select_jobs.py`
+  which jobs a diff needs: each project's folder plus what its tests read from
+  outside it. **A new project, or a new cross-folder read, goes in that file's
+  table, not in the workflow** -- a dependency missing from it means a PR that
+  breaks the reader goes green. A change under `.github/` runs everything.
 - **Still hold a merge** when the firm has said to, when CI is red, or when the
   PR carries a decision they have not answered yet. "Green" means green on the
   head you are merging, not on an earlier one.

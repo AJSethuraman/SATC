@@ -13,6 +13,7 @@ ever there. These assertions are the memory.
 
 from __future__ import annotations
 
+import importlib.util
 import re
 from pathlib import Path
 
@@ -76,10 +77,20 @@ def test_the_workflow_it_waits_for_is_the_one_that_runs_the_tests() -> None:
         "happened for no reason."
     )
 
-    projects = [
-        job["project"]
-        for job in tests["jobs"]["pytest"]["strategy"]["matrix"]["include"]
-    ]
+    # The matrix is built per change since 12 Nov 2026: the project list lives
+    # in .github/ci/select_jobs.py and test.yml feeds it to the pytest job. On
+    # a push to main -- the run this deploy waits on -- every project is
+    # selected, so what matters is that invoice-generator is in that list and
+    # that the pytest job takes its matrix from the selector.
+    assert "needs.changes.outputs.pytest_matrix" in str(
+        tests["jobs"]["pytest"]["strategy"]["matrix"]
+    ), "the pytest job no longer takes its matrix from the selector"
+    spec = importlib.util.spec_from_file_location(
+        "select_jobs", REPO / ".github" / "ci" / "select_jobs.py"
+    )
+    select_jobs = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(select_jobs)
+    projects = [job["project"] for job in select_jobs.PYTEST]
     assert "invoice-generator" in projects, (
         "the Tests workflow no longer runs invoice-generator's suite, so gating "
         "the deploy on it proves nothing about the app being deployed."
