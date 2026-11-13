@@ -1,4 +1,4 @@
--- Service Inviter v2.8.3
+-- Service Inviter v2.9.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1779,6 +1779,52 @@ local function FlatButton(parent, w, h, style, size, secure, name)
     b._siStyle, b._siSize = style, size or 14
     return b
 end
+-- New session asks for the shards (the owner, 13 Nov 2026: "when you click new session it can
+-- ask for the number of shards if you are summoning"). Only when summons are on sale. The
+-- number is the other warlocks'; yours come from your bags. Blank = don't count; Skip = leave it.
+function Jobs.AskShards()
+    if not Core.Setting(ServiceInviterDB, "summons").on then return end
+    local w = Jobs.shardWin
+    if not w then
+        w = CreateFrame("Frame", "ServiceInviterShards", UIParent)
+        w:SetSize(420, 170)
+        w:SetPoint("CENTER", 0, 120)
+        w:SetFrameStrata("DIALOG")
+        w:EnableMouse(true)
+        local edge = Fill(w, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        local t = Text(w, 16, INK.gold, "GameFontNormalLarge") t:SetPoint("TOPLEFT", 16, -14) t:SetText("New session: soul shards")
+        w.sub = Text(w, 12, INK.text, "GameFontHighlight") w.sub:SetPoint("TOPLEFT", 16, -42) w.sub:SetWidth(388) w.sub:SetJustifyH("LEFT")
+        local box = CreateFrame("EditBox", "ServiceInviterShardsBox", w, "InputBoxTemplate")
+        box:SetPoint("TOPLEFT", 22, -88) box:SetSize(80, 24) box:SetAutoFocus(false) box:SetMaxLetters(4)
+        if box.SetNumeric then box:SetNumeric(true) end
+        local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall") hint:SetPoint("LEFT", box, "RIGHT", 12, 0)
+        hint:SetText("blank = don't count shards")
+        local ok = FlatButton(w, 100, 30, "gold") ok:SetPoint("BOTTOMLEFT", 16, 14) ok:SetText("OK")
+        local skip = FlatButton(w, 100, 30, "plain") skip:SetPoint("LEFT", ok, "RIGHT", 10, 0) skip:SetText("Skip")
+        local function Done()
+            local n = tonumber(box:GetText() or "")
+            ServiceInviterDB.shards = n and math.max(0, math.floor(n)) or nil
+            w:Hide()
+            local have = Jobs.Shards()
+            P(have and ("counting shards: " .. have .. " (" .. Jobs.ShardsLeft() .. " left after the queue)") or "not counting shards")
+            RefreshJobs()
+        end
+        ok:SetScript("OnClick", Done)
+        box:SetScript("OnEnterPressed", Done)
+        box:SetScript("OnEscapePressed", function() w:Hide() end)
+        skip:SetScript("OnClick", function() w:Hide() end)
+        w.box, w.ok, w.skip = box, ok, skip
+        Jobs.shardWin = w
+    end
+    local _, own = Jobs.Shards()
+    w.sub:SetText("How many shards do the other warlocks have?" ..
+        (own and (" Yours are counted from your bags (" .. own .. ").") or ""))
+    w.box:SetText(ServiceInviterDB.shards and tostring(ServiceInviterDB.shards) or "")
+    w:Show()
+    w.box:SetFocus()
+    if w.box.HighlightText then w.box:HighlightText() end
+end
 -- A window to copy from (the owner, 13 Nov 2026: "can it not print the customer lists and stuff
 -- into a window that i can copy and paste from easily"). The text comes up selected: Ctrl+C.
 function Jobs.Copy(title, fill)
@@ -2770,7 +2816,7 @@ local function BuildJobsUI()
         newBtn:ClearAllPoints() newBtn:SetPoint("TOPRIGHT", -24, -body - 20)
     end
     w.Fit(1, false)
-    newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") end)
+    newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") Jobs.AskShards() end)
 
     local acc = 0
     w:SetScript("OnUpdate", function(_, elapsed)
@@ -3097,7 +3143,7 @@ local function BuildSetupUI()
     local sessText = Label(R, -582, "", "GameFontHighlight", 270)
     local sessBtn = FlatButton(page, 120, 30, "plain")
     sessBtn:SetPoint("TOPLEFT", R + 286, -576) sessBtn:SetText("New session")
-    sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
+    sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() Jobs.AskShards() end)
     w.sessText = sessText
 
     -- Warlock --------------------------------------------------------------
@@ -3600,7 +3646,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
     elseif cmd == "customers" or cmd == "regulars" then
         Jobs.Copy(rest ~= "" and rest:lower() ~= "all" and "Customer" or "Customers", function() Jobs.PrintRegulars(rest) end)
     elseif cmd == "session" then
-        if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started")
+        if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started") Jobs.AskShards()
         else P("session: " .. SessionText() .. "   (/si session new to start over)") end
     elseif cmd == "role" then
         local r = rest:lower()

@@ -138,6 +138,11 @@ L = load(GROUP + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.c
 L.execute('SlashCmdList.SERVICEINVITER("customers")')
 scenes["copy_window"] = export(L, L.globals().ServiceInviterCopy, L.globals().ServiceInviterCopyScroll)
 
+# New session asks for the shards
+L = load(GROUP + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.shards = 12")
+L.execute('SlashCmdList.SERVICEINVITER("session new")')
+scenes["new_session_shards"] = export(L, L.globals().ServiceInviterShards)
+
 # the click-the-portal banner, half way through its 14 seconds
 L = load(GROUP)
 L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')

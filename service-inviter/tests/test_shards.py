@@ -73,3 +73,41 @@ def test_portals_and_lockpicks_dont_care_about_shards():
     g.run('SlashCmdList.SERVICEINVITER("shards 0")')
     say_trade(g, "Aa", "WTB lockbox opened")
     assert invited(g) == ["Aa"]
+
+
+# The owner, 13 Nov 2026: "i want it as a new session item - when you click new session it can ask
+# for the number of shards if you are summoning".
+
+def test_new_session_asks_for_the_shards():
+    g = world(HELPER)
+    g.run('SlashCmdList.SERVICEINVITER("session new")')
+    assert g.eval("ServiceInviterShards:IsShown()")
+    g.run('ServiceInviterShardsBox:SetText("15") ServiceInviterShards.ok._scripts.OnClick()')
+    assert g.eval("ServiceInviterDB.shards") == 15 and not g.eval("ServiceInviterShards:IsShown()")
+
+
+def test_enter_works_and_blank_stops_counting():
+    g = world(HELPER)
+    g.run('ServiceInviterDB.shards = 9 SlashCmdList.SERVICEINVITER("session new")')
+    assert g.eval("ServiceInviterShardsBox:GetText()") == "9"          # last number filled in
+    g.run('ServiceInviterShardsBox:SetText("") ServiceInviterShardsBox._scripts.OnEnterPressed()')
+    assert g.eval("ServiceInviterDB.shards") is None
+
+
+def test_skip_leaves_the_count_alone():
+    g = world(HELPER)
+    g.run('ServiceInviterDB.shards = 9 SlashCmdList.SERVICEINVITER("session new")')
+    g.run('ServiceInviterShardsBox:SetText("3") ServiceInviterShards.skip._scripts.OnClick()')
+    assert g.eval("ServiceInviterDB.shards") == 9
+
+
+def test_not_asked_when_summons_are_not_sold():
+    g = world(HELPER, "summons = { on = false }")
+    g.run('SlashCmdList.SERVICEINVITER("session new")')
+    assert g.eval("ServiceInviterShards") is None
+
+
+def test_the_warlock_is_told_their_own_are_counted():
+    g = world(ME_LOCK, extra=BAG)
+    g.run('SHARDS = 7 SlashCmdList.SERVICEINVITER("session new")')
+    assert "Yours are counted from your bags (7)" in g.eval("ServiceInviterShards.sub:GetText()")
