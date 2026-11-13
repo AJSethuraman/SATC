@@ -1,4 +1,4 @@
--- Service Inviter v2.9.1
+-- Service Inviter v2.9.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -3215,9 +3215,12 @@ local function BuildSetupUI()
     Service("motw", R, -76)
     Service("ai", L, -236)
     local bh = Service("blessing", R, -236)
-    Label(R + 4, -236 - bh - 4, "Blessing to cast:")
+    -- the word they use picks the blessing; this box is only for a plain "blessing" (the owner,
+    -- 13 Nov 2026: "can it not detect what they want? i have to have only blessing of might?")
+    Label(R + 4, -236 - bh - 4, "Just 'blessing':")
     Box("blessing_spell", R + 130, -236 - bh, 200, 60)
-    Label(L, -420, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
+    Label(R + 4, -236 - bh - 30, "\"kings\", \"wisdom\", \"might\", \"salv\"... get that blessing.", "GameFontHighlightSmall", 400)
+    Label(L, -446, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
 
     -- Advertise --------------------------------------------------------------
     page = pages[6]
