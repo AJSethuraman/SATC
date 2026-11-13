@@ -1,4 +1,4 @@
--- Service Inviter v2.5.3
+-- Service Inviter v2.5.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1096,7 +1096,8 @@ local function WelcomeText(name, job)
         if text then return text end
     end
     local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
-    if list then return "Hi " .. name .. "! We have " .. list .. ". What can we do for you?" end
+    if list then return "Hi " .. name .. "! " .. (loyal and (loyal .. " ") or "") .. "We have " .. list .. ". What can we do for you?" end
+    if loyal then return "Hi " .. name .. "! " .. loyal end
     return nil
 end
 
@@ -1152,12 +1153,18 @@ local function OnSystem(text)
         Jobs.New(short, "(joined your group)", "invited by someone else", "-")
     end
     Jobs.Joined(short)
-    if not Opt("welcome") then return end
     local t = pending[short]
-    if not t then return end
     pending[short] = nil
-    if GetTime() - t > 180 then return end   -- stale invite, ignore
+    local fresh = t and GetTime() - t <= 180          -- we invited them just now
+    -- A regular always hears it, however they got in (the owner, 13 Nov 2026: "i want the regular
+    -- coming back messages to always play if it detects someone joined again").
+    local loyal = Jobs.LoyaltyLine(Jobs.Get(short) or { name = short })
+    if not fresh and not loyal then return end
     local channel = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+    if not Opt("welcome") then
+        if loyal then SendChatMessage("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal, channel) end
+        return
+    end
     local welcome = WelcomeText(short)
     if not welcome then D(short .. " joined; nothing on sale to welcome them with") return end
     D(short .. " joined, sending welcome to " .. channel)

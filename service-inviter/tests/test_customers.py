@@ -180,3 +180,30 @@ def test_analytics_record_where_they_went_and_when():
     out = " ".join(g.printed())
     assert "3 uses by 2 customers (1 came back)" in out and "Thunder Bluff 2" in out and "Undercity 1" in out
     assert "Busiest hours" in out and "summons 3" in out
+
+
+def test_a_regular_invited_by_someone_else_still_hears_the_regulars_line():
+    """The owner, 13 Nov 2026: "i want the regular coming back messages to always play if it
+    detects someone joined again" -- "even if someone else invited them"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    before = len(g.sent())
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")      # the leader invited him, not us
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert len(said) == 1 and "Welcome back, 4th time with us!" in said[0] and said[0].startswith("Hi Kaldrok!")
+
+
+def test_someone_new_invited_by_someone_else_gets_nothing():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch in ("PARTY", "RAID")] == []
+
+
+def test_a_regular_hears_it_even_with_the_welcome_turned_off():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false, welcome = false }')
+    summon(g, "Kaldrok")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "Hi Kaldrok! Welcome back, 2nd time with us!"
