@@ -2103,8 +2103,9 @@ def register_commands(bot: GuildBot) -> None:
             if raid["discord_event_id"]:
                 ev = await interaction.guild.fetch_scheduled_event(raid["discord_event_id"])
                 await ev.delete()
+                db.forget_event(raid_id)          # Discord tells us about it later: that is not a removal by hand
         except discord.NotFound:
-            pass                                  # already gone
+            db.forget_event(raid_id)              # already gone
         except discord.HTTPException:
             log.exception("could not delete the event for raid %s", raid_id)
             await interaction.followup.send(

@@ -1037,6 +1037,11 @@ class Database:
     def raid_by_message(self, message_id: int):
         return self.conn.execute("SELECT * FROM raids WHERE message_id=?", (message_id,)).fetchone()
 
+    def forget_event(self, raid_id) -> None:
+        """The bot removed this raid's Discord event itself: Discord's later "deleted" notice is not news."""
+        self.conn.execute("UPDATE raids SET discord_event_id=NULL WHERE id=?", (raid_id,))
+        self.conn.commit()
+
     def raid_by_event(self, event_id: int):
         return self.conn.execute("SELECT * FROM raids WHERE discord_event_id=?", (event_id,)).fetchone()
 

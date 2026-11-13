@@ -2162,3 +2162,51 @@ def test_an_officer_taking_over_a_character_clears_the_old_owners_raid_signups(t
     assert db.owner_of(slug) == 9
     assert [s["slug"] for s in db.signups(rid)] == [other]
     assert "1 open raid" in sent[-1]["content"]
+
+
+def test_a_cancel_that_stops_halfway_is_not_taken_for_a_removal_by_hand(tmp_path):
+    """Codex on #489: /raid-cancel removes the event, then Discord refuses to delete the post, so the raid is
+    still open for another try. Discord's late "event deleted" notice must not end the raid (which would skip
+    telling the players); the retry then cancels it properly."""
+    import discord
+    from types import SimpleNamespace
+    db = make_db(tmp_path)
+    rid = db.create_raid("Onyxia", _FUTURE, 40, 9, {})
+    db.set_raid_posted(rid, 10, 20, 30)
+    down = [1]
+
+    class Ev:
+        async def delete(self):
+            pass
+
+    class Msg:
+        async def delete(self):
+            if down[0]:
+                down[0] -= 1
+                raise discord.HTTPException(SimpleNamespace(status=503, reason="down"), "down")
+
+    class Chan:
+        async def fetch_message(self, _id):
+            return Msg()
+
+    async def fetch_scheduled_event(_eid):
+        return Ev()
+    said = []
+
+    async def say(text=None, **kw):
+        said.append(text)
+
+    async def defer(**kw):
+        pass
+    ix = SimpleNamespace(user=SimpleNamespace(id=9), guild=SimpleNamespace(fetch_scheduled_event=fetch_scheduled_event),
+                         permissions=SimpleNamespace(manage_events=True),
+                         response=SimpleNamespace(defer=defer, send_message=say), followup=SimpleNamespace(send=say))
+    bot = _bot(db)
+    bot.get_channel = lambda _id: Chan()
+    bot.get_user = lambda uid: SimpleNamespace(send=_async_none, bot=False)
+    asyncio.run(bot.tree.get_command("raid-cancel").callback(ix, rid))
+    assert "not cancelled yet" in said[-1] and db.get_raid(rid)["status"] == "open"
+    asyncio.run(bot.on_scheduled_event_delete(SimpleNamespace(id=30)))   # Discord's notice, late
+    assert db.get_raid(rid)["status"] == "open"
+    asyncio.run(bot.tree.get_command("raid-cancel").callback(ix, rid))   # try again
+    assert db.get_raid(rid)["status"] == "cancelled"
