@@ -167,7 +167,8 @@ function Log.clear()
   if msgframe then msgframe:Clear() end
 end
 
-function Log.copy()
+-- Put some text in a box to select and copy: the whole log by default, or `text`.
+function Log.copy(text)
   if not box then
     box = CreateFrame("Frame", "DreadLogCopy", UIParent, "BackdropTemplate")
     box:SetSize(520, 300); box:SetPoint("CENTER"); box:SetFrameStrata("DIALOG")
@@ -181,7 +182,7 @@ function Log.copy()
     box.edit:SetAutoFocus(true)
     box.edit:SetScript("OnEscapePressed", function() box:Hide() end)
   end
-  box.edit:SetText(Log.plain())
+  box.edit:SetText(text or Log.plain())
   box:Show()
   box.edit:SetFocus(); box.edit:HighlightText()
 end

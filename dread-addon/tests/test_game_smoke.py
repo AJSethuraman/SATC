@@ -52,6 +52,7 @@ local function obj(parent)
       elseif x == nil then x, y = 0, 0 end
       self.pts = { point = point, rel = rel, rp = rp, x = x or 0, y = y or 0 } end end
     if k == "SetAlpha" then return function(self, v) self.alpha = v end end
+    if k == "SetColorTexture" then return function(self, r, g, b, a) self.flat = { r, g, b, a } end end
     if k == "CreateTexture" or k == "CreateFontString" or k == "CreateMaskTexture" then return function(self) return obj(self) end end
     if k == "CreateLine" then return function() if NO_LINES then error("no lines here") end return obj() end end
     return function(self, ...) return self end
@@ -77,8 +78,10 @@ def boot(prelude="", with_slash=False):
     lua.execute(prelude + "\n" + MOCK)
     ns = lua.table()
     ld = lua.eval("function(p, ns) return loadfile(p)('Dread', ns) end")
-    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
+    for f in ("Sim", "Skills", "Tree", "Items", "Combat", "Zone", "Map", "Fx", "Capture", "Finder", "Gear", "Game") + (("Visuals", "Dread") if with_slash else ()):
         ld(str(DREAD / f"{f}.lua"), ns)
+    ns.Game.autofind = False                                                # the creature search is tested on its own
+    ns.Game.rethrow = True                                                  # an error in a frame must fail the test, not be swallowed
     return lua, ns
 
 
@@ -728,10 +731,11 @@ def test_every_active_skill_can_be_cast_from_the_window_and_drawn(sid):
     teleport_next_to(ns, lua, w, m, -180, 0)
     click_world(lua, ns, "RightButton", m.x, m.y)
     mana_after = w.player.mana
-    tick(lua, 90)                                                           # three seconds of drawing whatever it made
-    assert ns.Combat.SHAPES[sid] is not None
-    if sid in BUFFS:
+    tick(lua, 2)
+    if sid in BUFFS:                                                        # look at once: a barrier can be used up by the fight that follows
         assert any(b.startswith(sid + ":") for b in ns.Game.buffs_shown().values()), f"{sid} shows no buff icon"
+    tick(lua, 88)                                                           # three seconds of drawing whatever it made
+    assert ns.Combat.SHAPES[sid] is not None
     click_world(lua, ns, "RightButton", m.x + 40, m.y)
     tick(lua, 60)
 
@@ -1119,9 +1123,10 @@ def stand_off(env_lua, ns, count=3):
     open_game(lua, ns)
     w = ns.Game.world()
     ms = [w.monsters[i] for i in range(1, count + 1)]
+    for m in w.monsters.values():
+        m.speed = 0                                                         # none of the others (a pack's fourth ghoul) comes to bite
     for m in ms:
         m.life = m.maxlife = 400
-        m.speed = 0
     w.player.x, w.player.y = ms[0].x - 150, ms[0].y
     tick(lua, 2)
     return w, ms
@@ -1723,3 +1728,441 @@ def test_a_monster_keeps_its_frame_while_the_order_around_it_changes():
         tick(lua, 1)
     assert lua.eval("rawequal")(f0.owner, ms[0]) and f0.shown
     assert f0.model_calls == before                                            # never told to load its model again
+
+
+# ---------------------------------------------------------------- the edge of the map is unmistakable
+def edge_pieces(lua, which):
+    """The void (near black) or wall (lit) strips, that are showing, as (x, y, w, h) from the arena's bottom-left."""
+    want = (0.01, 0.01, 0.02, 1) if which == "void" else (0.42, 0.34, 0.22, 1)
+    out = []
+    for o in lua.eval("ALL").values():
+        if o.flat is not None and tuple(round(v, 2) for v in o.flat.values()) == want and o.shown:
+            out.append((o.pts.x, o.pts.y, o.size[1], o.size[2]))
+    return out
+
+
+def test_nothing_is_drawn_outside_the_map_while_you_are_well_inside_it():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 1200, 750
+    tick(lua, 2)
+    assert edge_pieces(lua, "void") == [] and edge_pieces(lua, "wall") == []
+
+
+def test_in_the_corner_the_part_past_the_map_is_a_dark_void_with_a_lit_wall_at_the_boundary():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 100, 80
+    tick(lua, 2)
+    vw, vh = ns.Game.view()
+    cam = ns.Game.camera()
+    assert cam.x == pytest.approx(100 - vw / 2) and cam.y == pytest.approx(80 - vh / 2)
+    void = edge_pieces(lua, "void")
+    left = [v for v in void if v[2] == pytest.approx(vw / 2 - 100)]            # everything left of x = 0
+    below = [v for v in void if v[3] == pytest.approx(vh / 2 - 80)]            # everything below y = 0
+    assert len(void) == 2 and len(left) == 1 and len(below) == 1
+    assert left[0][0] == 0 and left[0][1] == 0 and left[0][2] == pytest.approx(-cam.x) and left[0][3] == pytest.approx(vh)   # from the view's left edge up to x = 0
+    assert below[0][1] == 0 and below[0][3] == pytest.approx(-cam.y) and below[0][2] == pytest.approx(vw)
+    walls = edge_pieces(lua, "wall")
+    assert len(walls) == 2                                                         # a lit band at each visible boundary, not just a colour change
+    assert any(wl[2] == 10 and wl[0] == pytest.approx(-cam.x - 10) for wl in walls)
+    assert any(wl[3] == 10 and wl[1] == pytest.approx(-cam.y - 10) for wl in walls)
+
+
+def test_the_far_corner_shows_the_right_and_top_edges():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 2390, 1490
+    tick(lua, 2)
+    vw, vh = ns.Game.view()
+    cam = ns.Game.camera()
+    void = edge_pieces(lua, "void")
+    right = [v for v in void if v[0] == pytest.approx(2400 - cam.x)]
+    above = [v for v in void if v[1] == pytest.approx(1500 - cam.y)]
+    assert len(void) == 2 and len(right) == 1 and len(above) == 1
+    assert right[0][2] == pytest.approx(vw - (2400 - cam.x)) and above[0][3] == pytest.approx(vh - (1500 - cam.y))
+    assert len(edge_pieces(lua, "wall")) == 2
+
+
+def test_the_void_goes_away_again_when_you_walk_back_in():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.player.x, w.player.y = 100, 80
+    tick(lua, 2)
+    assert edge_pieces(lua, "void")
+    w.player.x, w.player.y = 1200, 750
+    tick(lua, 2)
+    assert edge_pieces(lua, "void") == [] and edge_pieces(lua, "wall") == []
+
+
+# ---------------------------------------------------------------- the longer road: moor -> fields -> burial ground
+def boss_dies(lua, ns, w, name):
+    lua.eval("function(w, n) w.events[#w.events + 1] = { k = 'boss_dead', name = n } end")(w, name)
+    tick(lua, 1)
+
+
+def test_you_can_walk_from_the_moor_to_the_fields_to_the_burial_ground_and_all_the_way_back_without_bouncing():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    route = [(2, "fields"), (2, "burial"), (1, "fields"), (1, "moor")]          # which exit of the current area, and where it leads
+    for idx, to in route:
+        ex = ns.Game.area().exits[idx]
+        teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+        assert ns.Game.area().name == to
+        tick(lua, 30)
+        assert ns.Game.area().name == to                                         # arriving did not bounce you straight back
+    assert ns.Game.area().tier == 1
+
+
+def test_each_boss_pays_its_own_point_once_and_the_title_shows_the_quest_state():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    q0 = w.player.st.quest_points
+    boss_dies(lua, ns, w, "The Marrowmother")
+    boss_dies(lua, ns, w, "The Marrowmother")
+    assert w.player.st.quest_points == q0 + 1 and w.flags.burial is True and w.flags.den is None
+    boss_dies(lua, ns, w, "Rottenmaw the Unwelcome")
+    assert w.player.st.quest_points == q0 + 2 and w.flags.den is True            # the second boss is a second point, not the same one
+    assert lua.eval("DreadDB.char.flags.burial") is True and lua.eval("DreadDB.char.quest_points") == q0 + 2
+    boss_dies(lua, ns, w, "Moor Wolf")                                           # something that is not a quest boss pays nothing
+    assert w.player.st.quest_points == q0 + 2
+
+
+def test_the_zone_title_says_quest_done_only_in_the_area_whose_boss_is_dead():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    b = ns.Game.area().exits[2]
+    teleport(ns, lua, w, b.x, b.y, ticks=3)
+    assert ns.Game.area().name == "burial"
+    title = lambda: [str(o.text) for o in lua.eval("ALL").values() if o.text and "Forsaken Burial Ground" in str(o.text)][0]
+    assert "Lay the Marrowmother to rest" in title()
+    boss_dies(lua, ns, w, "The Marrowmother")
+    assert "Quest done" in title()
+
+
+def test_the_new_areas_draw_their_own_ground_and_the_burial_boss_is_drawn_big():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    allo = list(lua.eval("ALL").values())
+    assert [o for o in allo if o.texture == 189053]                              # the snow
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    boss = [m for m in w.monsters.values() if m.boss][0]
+    teleport(ns, lua, w, boss.x - 200, boss.y, ticks=6)
+    frames = [o for o in lua.eval("ALL").values() if o.owner is not None and o.model == boss.model and o.size is not None and o.size[1] > 90]
+    assert frames and frames[0].size[1] == pytest.approx(64 * 1.6) and frames[0].size[2] == pytest.approx(80 * 1.6)
+
+
+def test_a_no_aim_key_casts_it_but_right_click_stays_on_the_skill_you_had_selected():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ns.Combat.set_level(w, 30, 0)
+    w.player.st.points["scorch"] = 1
+    w.player.st.points["frostbolt"] = 1
+    w.player.st.points["frost_nova"] = 1
+    w.player.mana = w.player.maxmana = 500
+    bar, _ = ns.Game.bar()
+    for i in range(1, 9):
+        bar[i] = None
+    bar[1], bar[2], bar[3] = "scorch", "frost_nova", "frostbolt"
+    key(lua, "1")
+    tick(lua, 2)
+    mana = w.player.mana
+    key(lua, "2")                                                              # nova: cast at once
+    assert w.player.mana < mana
+    assert ns.Game.bar()[1] == 1                                               # and the selection did not move to it
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -180, 0)
+    before = len(list(w.projectiles.values()))
+    mana = w.player.mana
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    assert len(list(w.projectiles.values())) == before + 1                     # right click threw the scorch bolt, not another nova
+    assert mana - w.player.mana == pytest.approx(ns.Tree.mana_cost(w.player.st, "scorch"))
+    key(lua, "3")                                                              # an aimed skill still just selects, as before
+    assert ns.Game.bar()[1] == 3
+
+
+def test_an_exit_mark_from_the_last_area_does_not_stay_on_screen_in_one_with_fewer_exits():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)                          # the fields: two exits, both marked
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x - 60, ex.y, ticks=3)                      # beside the burial-ground exit, so its mark (the second one) is on screen
+    marks = lambda: [o for o in lua.eval("ALL").values() if o.texture == "Interface\\Icons\\INV_Misc_QuestionMark" and o.shown]
+    assert len(marks()) == 1 and [str(o.text) for o in lua.eval("ALL").values() if o.text and o.shown and str(o.text) == "The burial ground"]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)                          # into the burial ground: one exit
+    assert ns.Game.area().name == "burial"
+    tick(lua, 5)
+    assert len(marks()) == 1                                           # only "Back to the fields"; nothing follows you around
+    labels = [str(o.text) for o in lua.eval("ALL").values() if o.text and o.shown and str(o.text) in ("The burial ground", "Back to the fields", "Back to the moor")]
+    assert labels == ["Back to the fields"]
+
+
+# ---------------------------------------------------------------- dying: you get up where you fell
+def test_after_dying_in_a_far_area_you_start_again_in_that_area_not_back_in_the_moor():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    assert ns.Game.area().name == "fields"
+    w.player.level = 5
+    w.over = True
+    tick(lua, 2)
+    click_world(lua, ns, "LeftButton", w.player.x + 50, w.player.y)               # "Click to start again"
+    w2 = ns.Game.world()
+    assert not w2.over and ns.Game.area().name == "fields"
+    assert w2.player.x == ns.Game.area().spawn.x and w2.player.y == ns.Game.area().spawn.y
+    assert w2.player.life == w2.player.maxlife
+
+
+def test_new_game_still_goes_back_to_the_moor():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    ns.Game.reset()
+    assert ns.Game.area().name == "moor" and ns.Game.world().player.level == 1
+
+
+# ---------------------------------------------------------------- the throw is drawn
+def mp_textures(lua):
+    return [o for o in lua.eval("ALL").values() if o.texture == "Interface\\Icons\\Spell_Shadow_ShadowBolt" and o.shown]
+
+
+def test_a_thrown_bolt_is_drawn_where_it_is_and_bigger_and_purple_for_a_boss():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    w.mproj[1] = lua.table_from({"x": w.player.x + 150, "y": w.player.y, "vx": 0, "vy": 0, "dmg": 1, "left": 999, "boss": False})
+    w.mproj[2] = lua.table_from({"x": w.player.x - 100, "y": w.player.y + 60, "vx": 0, "vy": 0, "dmg": 1, "left": 999, "boss": True})
+    tick(lua, 1)
+    shown = mp_textures(lua)
+    assert len(shown) == 2
+    cam = ns.Game.camera()
+    by_size = sorted(shown, key=lambda o: o.size[1])
+    small, big = by_size
+    assert small.size[1] == 22 and big.size[1] == 40
+    assert small.pts.x == pytest.approx(w.player.x + 150 - cam.x) and small.pts.y == pytest.approx(w.player.y - cam.y)
+    assert tuple(round(v, 2) for v in big.color.values()) == (0.75, 0.35, 1)                  # the boss's is purple
+    w.mproj = lua.table()
+    tick(lua, 1)
+    assert mp_textures(lua) == []                                                           # gone when it lands
+
+
+def test_a_monster_winding_up_plays_its_attack_animation():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -150, 0)
+    m.speed = 0
+    m.awake = True
+    m.windup = 0.5
+    tick(lua, 2)
+    f = [o for o in lua.eval("ALL").values() if o.owner is not None and lua.eval("rawequal")(o.owner, m)][0]
+    assert f.last_anim == ns.Game.ANIM.ATTACK
+
+
+# ---------------------------------------------------------------- capture: what happens is recorded without anyone writing it down
+SHOTS = "SHOTCOUNT = 0\nfunction Screenshot() SHOTCOUNT = SHOTCOUNT + 1 end"
+
+
+def run_timers(lua):
+    lua.execute("local t = TIMERS; TIMERS = {}; for _, f in ipairs(t) do f() end")
+
+
+def shots(lua):
+    run_timers(lua)
+    return lua.eval("SHOTCOUNT")
+
+
+def test_playing_records_time_casts_kills_damage_and_fps_without_being_asked():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    s = ns.Game.session()
+    assert s.areas.moor.entered == 1
+    m = first_monster(w)
+    m.life = 1
+    teleport_next_to(ns, lua, w, m, -100, 0)
+    w.player.st.points["scorch"] = 1
+    w.player.mana = w.player.maxmana
+    bar, _ = ns.Game.bar()
+    bar[1] = "scorch"
+    click_world(lua, ns, "RightButton", m.x, m.y)
+    tick(lua, 120)
+    assert s.casts.scorch == 1 and s.areas.moor.kills >= 1 and s.areas.moor.dealt > 0
+    assert s.areas.moor.time > 3 and s.fps_n >= 1 and s.fps_min == 60                     # the stand-in's frame rate is 60
+
+
+def test_time_does_not_count_while_the_skill_tree_has_the_game_paused():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    s = ns.Game.session()
+    tick(lua, 30)
+    t = s.play
+    key(lua, "K")
+    tick(lua, 60)
+    assert s.play == t
+
+
+def test_the_first_look_at_each_new_area_takes_a_picture_and_going_back_does_not():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    assert shots(lua) == 1                                                                 # the moor, on arrival
+    tick(lua, 600)                                                                         # past the gap between pictures
+    ex = ns.Game.area().exits[2]
+    teleport(ns, lua, w, ex.x, ex.y, ticks=3)
+    assert ns.Game.area().name == "fields" and shots(lua) == 2
+    tick(lua, 600)
+    back = ns.Game.area().exits[1]
+    teleport(ns, lua, w, back.x, back.y, ticks=3)
+    assert ns.Game.area().name == "moor"
+    tick(lua, 600)
+    assert shots(lua) == 2                                                                 # the moor was already seen this session
+    assert [r.reason for r in ns.Game.session().shot_reasons.values()] == ["arrived moor", "arrived fields"]
+
+
+def test_dying_records_what_killed_you_and_takes_a_picture():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 600)
+    shots(lua)
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -20, 0)
+    m.awake = True
+    w.player.life = 1
+    for _ in range(200):
+        tick(lua, 1)
+        if w.over:
+            break
+    assert w.over
+    tick(lua, 2)
+    s = ns.Game.session()
+    assert len(list(s.deaths.values())) == 1 and s.deaths[1].area == "moor"
+    assert s.deaths[1].hits[1]["from"] == m.name
+    assert shots(lua) == 2                                                                 # arrival and death
+    tick(lua, 30)
+    assert len(list(s.deaths.values())) == 1                                               # one death is one record, however long you stay dead
+
+
+def test_screenshots_can_be_turned_off_and_the_rest_is_still_recorded():
+    lua, ns = boot(SHOTS)
+    assert ns.Game.set_shots("off") is False and lua.eval("DreadDB.shots") is False
+    open_game(lua, ns)
+    tick(lua, 30)
+    assert shots(lua) == 0 and ns.Game.session().areas.moor.entered == 1
+    assert ns.Game.set_shots("on") is True
+
+
+def test_a_rare_find_and_a_level_up_each_take_a_picture():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    w = ns.Game.world()
+    tick(lua, 600)
+    shots(lua)
+    it = lua.table_from({"slot": "ring", "rarity": "rare", "ilvl": 5, "base": "Ring", "stats": lua.table_from({"life": 12})})
+    w.drops[1] = lua.table_from({"kind": "item", "item": it, "x": w.player.x, "y": w.player.y, "t": 30})
+    tick(lua, 2)
+    assert shots(lua) == 2
+    tick(lua, 600)
+    lua.eval("function(w) w.events[#w.events + 1] = { k = 'level', level = 9 } end")(w)
+    tick(lua, 2)
+    assert shots(lua) == 3
+
+
+def test_an_error_in_a_frame_is_recorded_once_and_shown_once_and_the_game_goes_on():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    ns.Game.rethrow = False
+    lua.execute("local w = ...")
+    w = ns.Game.world()
+    w.monsters = None                                                                     # something breaks every frame from now on
+    tick(lua, 50)
+    s = ns.Game.session()
+    assert len(list(s.errors.values())) == 1 and s.errors[1].n == 50
+    said_it = [l for l in said(lua) if "error" in l and "/dread report" in l]
+    assert len(said_it) == 1
+
+
+def test_the_report_command_gives_the_report_to_copy_and_screenshots_show_in_it():
+    lua, ns = boot(SHOTS, with_slash=True)                      # no Log window in this stand-in, so the report is printed
+    slash(lua, "play")
+    tick(lua, 30)
+    slash(lua, "report")
+    texts = [t for t in said(lua) if t.startswith("DREAD REPORT")]
+    assert texts and "AREAS" in texts[0] and "DEATHS: 0" in texts[0] and "screenshots on" in texts[0]
+    assert "Character: level 1   60 life, 33 mana, 0% spell, 0% wand; wearing 0 of 9, bag 0" in texts[0]
+    slash(lua, "shots off")
+    slash(lua, "report")
+    assert any("screenshots off" in t for t in said(lua) if t.startswith("DREAD REPORT"))
+
+
+def test_with_rethrow_on_a_bug_in_a_frame_fails_loudly_so_the_tests_cannot_hide_one():
+    lua, ns = boot(SHOTS)
+    open_game(lua, ns)
+    ns.Game.world().monsters = None
+    with pytest.raises(Exception):
+        tick(lua, 2)
+
+
+# ---------------------------------------------------------------- monsters get their skins
+def monster_frames(lua):
+    return [o for o in lua.eval("ALL").values() if o.owner is not None and o.owner.name is not None]
+
+
+def test_a_monster_is_drawn_from_a_creature_id_once_one_has_been_found_and_from_the_bare_model_before():
+    lua, ns = boot()
+    open_game(lua, ns)
+    w = ns.Game.world()
+    m = first_monster(w)
+    teleport_next_to(ns, lua, w, m, -150, 0)
+    mine = [f for f in monster_frames(lua) if lua.eval("rawequal")(f.owner, m)][0]
+    assert mine.model == m.model and mine.creature is None                         # nothing found yet: the bare model
+    lua.execute("DreadDB.found = { [124160] = { 4242 } }")                         # a ghoul's model has a creature id now
+    w2 = ns.Game.world()
+    for f in monster_frames(lua):
+        f.owner = None                                                              # as if the frames were handed out afresh
+    tick(lua, 2)
+    mine = [f for f in monster_frames(lua) if lua.eval("rawequal")(f.owner, m)][0]
+    assert mine.creature == 4242
+
+
+def test_the_creature_search_starts_by_itself_the_first_time_the_game_opens_and_not_again_once_done():
+    lua, ns = boot()
+    ns.Game.autofind = True
+    open_game(lua, ns)
+    assert ns.Finder.running() is True
+    ns.Finder.stop()
+    lua.execute("run_timers()")
+    lua.execute("run_timers()")
+    assert ns.Finder.running() is False
+    lua.execute("DreadDB.found_scan = { first = 1, last = 25000, at = 99, done = true }")
+    ns.Game.toggle(); ns.Game.toggle()                                               # close and reopen
+    assert ns.Finder.running() is False                                              # it had finished: no second search
+
+
+def test_autofind_can_be_switched_off():
+    lua, ns = boot()
+    ns.Game.autofind = False
+    open_game(lua, ns)
+    assert ns.Finder.running() is False

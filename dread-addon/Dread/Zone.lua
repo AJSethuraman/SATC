@@ -1,7 +1,8 @@
 -- The places you explore. Pure data and layout, no WoW calls. Every number is a tuning knob.
 --
--- Two areas for the beta: a moor with a starting camp, scattered monster packs and a cave mouth in the far corner,
--- and the cave beneath it with a boss. Killing the boss finishes the quest and pays one skill point.
+-- Four areas in a line, each a step harder (area.tier): the Gloam Moor (start) -> the Hollow Den (a cave with a boss) back off the
+-- moor, and from the moor east along a frozen road to the Frostbitten Fields -> the Forsaken Burial Ground (a second boss).
+-- Each boss finishes a quest and pays one skill point (Zone.QUESTS).
 --
 -- Art is WoW's own, by file ID from the community listfile (fileDataIDs), e.g. 188954 is the Tirisfall grass texture.
 -- Whether every ID exists in the Forever client is unproven until it has been drawn there.
@@ -20,7 +21,7 @@ Zone.BESTIARY = {
   -- model: a fileDataID (community listfile) drawn with SetModel. Undead and vermin, in the spirit of a first-act moor.
   zombie  = { name = "Rotting Dead",  model = 126570, life = 54, speed = 36, dmg = { 4, 9 }, xp = 14, resist = { cold = 25 } },     -- slow and tough
   ghoul   = { name = "Hungry Ghoul",  model = 124160, life = 18, speed = 82, dmg = { 2, 4 }, xp = 8 },                             -- quick, comes in numbers
-  quillrat = { name = "Quill Rat",    model = 125576, life = 14, speed = 62, dmg = { 2, 4 }, xp = 9, ranged = { range = 210, cd = 1.7 } },   -- throws spines from a distance
+  quillrat = { name = "Quill Rat",    model = 125576, life = 14, speed = 62, dmg = { 2, 4 }, xp = 9, ranged = { range = 210, cd = 1.9, wind = 0.45, speed = 250 } },   -- throws spines from a distance: wind-up, then a spine you can sidestep
   bonewalker = { name = "Bone Walker", model = 125942, life = 32, speed = 58, dmg = { 3, 7 }, xp = 13, resist = { cold = 60, fire = -25 } }, -- cold shrugs off, fire does not
   carrion = { name = "Carrion Bird",  model = 123137, life = 15, speed = 96, dmg = { 2, 4 }, xp = 10 },                            -- fast flyer
 }
@@ -36,6 +37,12 @@ Zone.GROUND = {
            overlay = 187140, overlay_tint = { 0.6, 0.55, 0.5 }, overlay_alpha = 0.22, overlay_tile = 1000,
            patch = 187113, patch_tint = { 0.45, 0.4, 0.38 }, patch_alpha = 0.3, patch_tile = 1500 },
 }
+Zone.GROUND.fields = { base = 189053, tint = { 0.85, 0.9, 1 }, tile = 512,                                   -- winterspring snow
+                       overlay = 189051, overlay_tint = { 0.8, 0.88, 1 }, overlay_alpha = 0.25, overlay_tile = 1100,
+                       patch = 189029, patch_tint = { 0.6, 0.6, 0.65 }, patch_alpha = 0.3, patch_tile = 1700 }
+Zone.GROUND.burial = { base = 188954, tint = { 0.45, 0.5, 0.45 }, tile = 512,                                -- dark tirisfall grass and rubble
+                       overlay = 342681, overlay_tint = { 0.6, 0.6, 0.55 }, overlay_alpha = 0.22, overlay_tile = 1000,
+                       patch = 188950, patch_tint = { 0.4, 0.38, 0.36 }, patch_alpha = 0.3, patch_tile = 1500 }
 Zone.SCENERY = {
   -- w, h: how big it should LOOK, in world units. r: the solid part you cannot walk through (always inside w).
   -- frame: the model's frame is this many times w, so nothing is cut off; cam: the camera distance that shrinks it back
@@ -44,8 +51,19 @@ Zone.SCENERY = {
   fallen = { ids = { 204125, 204126, 204127, 204128 },   w = 110, h = 60,  r = 18, frame = 2.0, cam = 2.0 },   -- tirisfallfallentree01-04
   bush   = { ids = { 204097, 204098, 204099 },           w = 44,  h = 36,  r = 0,  frame = 2.0, cam = 2.0 },
   grave  = { ids = { 204105, 204106, 204107, 204108 },   w = 40,  h = 44,  r = 0,  frame = 2.0, cam = 2.0 },   -- brillgraves01-04
-  rock   = { ids = { 189499, 189500, 189501 },           w = 70,  h = 56,  r = 22, frame = 2.0, cam = 2.0 },   -- duskwoodboulder01-03
+  rock   = { ids = { 204135, 204112, 204113 },           w = 56,  h = 48,  r = 16, frame = 2.0, cam = 2.0 },   -- a stump and two dirt mounds (tirisfall): the boulder models came out as grey squares
+  pine   = { ids = { 202855, 202856 },                   w = 70,  h = 100, r = 16, frame = 2.2, cam = 2.2 },   -- winterspring trees
+  icerock = { ids = { 202845, 202846 },                  w = 70,  h = 56,  r = 22, frame = 2.0, cam = 2.0 },   -- winterspringrock01-02
 }
+
+-- The quests: finishing one means killing its boss. `flag` is what is saved when it is done.
+Zone.QUESTS = {
+  den    = { id = "den",    title = "Clear the cave",         boss = "Rottenmaw the Unwelcome", reward_points = 1 },
+  burial = { id = "burial", title = "Lay the Marrowmother to rest", boss = "The Marrowmother",   reward_points = 1 },
+}
+function Zone.quest_by_boss(name)
+  for _, q in pairs(Zone.QUESTS) do if q.boss == name then return q end end
+end
 
 local function pick(rand, list) return list[1 + math.floor(rand() * #list)] end
 
@@ -84,7 +102,7 @@ local function add_pack(rand, area, pack_id, cx, cy, kinds, aggro, extra)
     local t = Zone.BESTIARY[key]
     local a = (i / #kinds) * 2 * math.pi + rand()
     local m = {
-      x = cx + math.cos(a) * 36, y = cy + math.sin(a) * 36, name = t.name, cid = t.cid, model = t.model, ranged = t.ranged and { range = t.ranged.range, cd = t.ranged.cd } or nil, life = t.life, speed = t.speed,
+      x = cx + math.cos(a) * 36, y = cy + math.sin(a) * 36, name = t.name, cid = t.cid, model = t.model, ranged = t.ranged and { range = t.ranged.range, cd = t.ranged.cd, wind = t.ranged.wind, speed = t.ranged.speed } or nil, life = t.life, speed = t.speed,
       dmg = { t.dmg[1], t.dmg[2] }, xp = t.xp, radius = 14, pack = pack_id, aggro = aggro or 190,
       resist = { fire = (t.resist and t.resist.fire) or 0, cold = (t.resist and t.resist.cold) or 0,
                  lightning = (t.resist and t.resist.lightning) or 0, physical = (t.resist and t.resist.physical) or 0 },
@@ -100,7 +118,9 @@ local function build_moor()
   local rand = Sim.rng(4242)
   local area = { name = "moor", title = "The Gloam Moor", w = 2400, h = 1500, ground = Zone.GROUND.moor.base,
                  floor = Zone.GROUND.moor, spawn = { x = 170, y = 150 }, monsters = {} }
-  area.exits = { { x = 2270, y = 1340, r = 50, to = "cave", label = "Cave mouth", arrive = nil } }
+  area.tier = 1
+  area.exits = { { x = 2270, y = 1340, r = 50, to = "cave", label = "Cave mouth", arrive = nil },
+                 { x = 2330, y = 150, r = 50, to = "fields", label = "The frozen road", arrive = nil } }
   -- packs of rising danger, from the camp out to the cave
   local packs = {
     { 700, 330, { "ghoul", "ghoul", "ghoul", "ghoul" } },
@@ -113,7 +133,7 @@ local function build_moor()
     { 1850, 1000, { "zombie", "bonewalker", "bonewalker", "quillrat" } },
     { 2000, 1230, { "zombie", "zombie", "bonewalker", "bonewalker" } },
   }
-  local clear = { { x = area.spawn.x, y = area.spawn.y, r = 190 }, { x = 2270, y = 1340, r = 140 } }
+  local clear = { { x = area.spawn.x, y = area.spawn.y, r = 190 }, { x = 2270, y = 1340, r = 140 }, { x = 2330, y = 150, r = 140 } }
   for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end   -- keep trees out of the packs
   scatter(rand, area, { tree = 34, fallen = 12, bush = 26, grave = 10, rock = 16 }, clear)
   for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
@@ -125,6 +145,7 @@ local function build_cave()
   local rand = Sim.rng(9001)
   local area = { name = "cave", title = "The Hollow Den", w = 1600, h = 1000, ground = Zone.GROUND.cave.base,
                  floor = Zone.GROUND.cave, spawn = { x = 150, y = 500 }, monsters = {} }
+  area.tier = 1.5
   area.exits = { { x = 50, y = 500, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2200, y = 1290 } } }
   local packs = {
     { 520, 300, { "ghoul", "ghoul", "quillrat", "quillrat" } },
@@ -135,7 +156,7 @@ local function build_cave()
   }
   local clear = { { x = area.spawn.x, y = area.spawn.y, r = 150 }, { x = 1450, y = 500, r = 170 } }
   for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end
-  scatter(rand, area, { rock = 30, fallen = 4 }, clear)
+  scatter(rand, area, { rock = 36 }, clear)
   for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
   -- the boss and two guards, one pack
   add_pack(rand, area, 6, 1450, 500, { "zombie", "zombie" }, 260)
@@ -144,7 +165,58 @@ local function build_cave()
     radius = 24, scale = 1.8, pack = 6, aggro = 260, boss = true,
     resist = { fire = 0, cold = 0, lightning = 0, physical = 0 },
   }
-  area.quest = { id = "den", title = "Clear the cave", boss = "Rottenmaw the Unwelcome", reward_points = 1 }
+  area.quest = Zone.QUESTS.den
+  return area
+end
+
+local function build_fields()
+  local rand = Sim.rng(5150)
+  local area = { name = "fields", title = "The Frostbitten Fields", w = 2800, h = 1500, ground = Zone.GROUND.fields.base,
+                 floor = Zone.GROUND.fields, spawn = { x = 120, y = 300 }, monsters = {}, tier = 1.9 }
+  area.exits = { { x = 50, y = 300, r = 45, to = "moor", label = "Back to the moor", arrive = { x = 2250, y = 220 } },
+                 { x = 2740, y = 1220, r = 50, to = "burial", label = "The burial ground", arrive = nil } }
+  local packs = {
+    { 600, 420, { "ghoul", "ghoul", "ghoul", "ghoul", "carrion", "carrion" } },
+    { 950, 900, { "quillrat", "quillrat", "quillrat", "quillrat" } },
+    { 1250, 300, { "bonewalker", "bonewalker", "quillrat", "quillrat", "carrion" } },
+    { 1500, 1050, { "zombie", "zombie", "quillrat", "quillrat", "quillrat" } },
+    { 1700, 560, { "bonewalker", "bonewalker", "bonewalker", "ghoul", "ghoul" } },
+    { 2000, 1250, { "zombie", "bonewalker", "bonewalker", "carrion", "carrion", "carrion" } },
+    { 2100, 420, { "zombie", "zombie", "zombie", "quillrat", "quillrat" } },
+    { 2400, 800, { "bonewalker", "bonewalker", "quillrat", "quillrat", "quillrat", "zombie" } },
+    { 2600, 1150, { "zombie", "zombie", "bonewalker", "bonewalker", "carrion", "carrion" } },
+  }
+  local clear = { { x = area.spawn.x, y = area.spawn.y, r = 190 }, { x = 2740, y = 1220, r = 150 } }
+  for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end
+  scatter(rand, area, { pine = 36, icerock = 18, fallen = 8, grave = 6 }, clear)
+  for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
+  return area
+end
+
+local function build_burial()
+  local rand = Sim.rng(6660)
+  local area = { name = "burial", title = "The Forsaken Burial Ground", w = 2200, h = 1400, ground = Zone.GROUND.burial.base,
+                 floor = Zone.GROUND.burial, spawn = { x = 120, y = 700 }, monsters = {}, tier = 2.3 }
+  area.exits = { { x = 50, y = 700, r = 45, to = "fields", label = "Back to the fields", arrive = { x = 2680, y = 1150 } } }
+  local packs = {
+    { 520, 420, { "ghoul", "ghoul", "ghoul", "ghoul", "quillrat" } },
+    { 560, 1000, { "bonewalker", "bonewalker", "bonewalker" } },
+    { 900, 700, { "zombie", "zombie", "quillrat", "quillrat" } },
+    { 1250, 350, { "bonewalker", "bonewalker", "quillrat", "quillrat" } },
+    { 1250, 1050, { "zombie", "zombie", "bonewalker" } },
+  }
+  local clear = { { x = area.spawn.x, y = area.spawn.y, r = 170 }, { x = 1780, y = 700, r = 220 } }
+  for _, p in ipairs(packs) do clear[#clear + 1] = { x = p[1], y = p[2], r = 90 } end
+  scatter(rand, area, { grave = 60, rock = 14, fallen = 8, tree = 8 }, clear)
+  for i, p in ipairs(packs) do add_pack(rand, area, i, p[1], p[2], p[3]) end
+  -- the boss, with her guard: she throws from a distance, so she has to be closed on
+  add_pack(rand, area, 6, 1780, 700, { "bonewalker", "bonewalker", "bonewalker" }, 300)
+  area.monsters[#area.monsters + 1] = {
+    x = 1800, y = 700, name = "The Marrowmother", model = 125947, life = 150, speed = 50, dmg = { 4, 7 }, xp = 260,
+    radius = 20, scale = 1.6, pack = 6, aggro = 300, boss = true, ranged = { range = 300, cd = 1.8, wind = 0.8, speed = 220 },
+    resist = { fire = 0, cold = 75, lightning = 0, physical = 0 },
+  }
+  area.quest = Zone.QUESTS.burial
   return area
 end
 
@@ -152,6 +224,8 @@ function Zone.get(name)
   if not built[name] then
     if name == "moor" then built[name] = build_moor()
     elseif name == "cave" then built[name] = build_cave()
+    elseif name == "fields" then built[name] = build_fields()
+    elseif name == "burial" then built[name] = build_burial()
     else return nil end
   end
   return built[name]

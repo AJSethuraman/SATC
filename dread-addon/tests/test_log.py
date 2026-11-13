@@ -284,3 +284,14 @@ def test_close_before_the_window_exists_does_nothing():
     lua, ns = boot()
     ns.Log.close()
     assert window(lua) is None
+
+
+def test_copy_can_show_any_text_not_just_the_log():
+    lua, ns = boot()
+    ns.log("one line")
+    ns.Log.copy("REPORT TEXT")
+    box = [o for o in lua.eval("ALL").values() if o.name == "DreadLogCopy"][0]
+    edit = [o for o in lua.eval("ALL").values() if o.kind == "EditBox"][0]
+    assert box.shown and edit.text == "REPORT TEXT"
+    ns.Log.copy()
+    assert "one line" in str(edit.text)                                       # no argument: the whole log, as before
