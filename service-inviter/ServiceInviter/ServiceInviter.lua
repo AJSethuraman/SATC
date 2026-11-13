@@ -1,4 +1,4 @@
--- Service Inviter v2.1.10
+-- Service Inviter v2.1.11
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -846,6 +846,17 @@ local function Handle(text, sender, guid)
             for _, f in ipairs(fresh) do parts[#parts + 1] = f.n end
             ok, why, svc, dest = Evaluate(" " .. table.concat(parts, " ") .. " ", ded, T)
             if ok then why = "fragments: " .. why end
+        end
+    end
+
+    -- A buyer naming less than your price is not invited (the owner, 13 Nov 2026, on "wtb tb sum
+    -- 25s" at 35 silver: "this is below our price ... this should be filtered out"). Said as a
+    -- near miss, so you can still invite them yourself.
+    if ok and svc then
+        local price = Core.Setting(ServiceInviterDB, svc).price
+        local offer = Core.OfferedPrice(text)
+        if price and offer and offer < price then
+            ok, why = false, "offers " .. Money(offer) .. ", under your " .. Money(price)
         end
     end
 

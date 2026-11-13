@@ -270,3 +270,18 @@ def test_money_is_spelled_out(core):
     """The owner, 13 Nov 2026: "spells out silver and gold instead of s and g"."""
     m = lambda v: core.eval(f"ServiceInviterCore.Money({v})")
     assert (m(25), m(100), m(150), m(200)) == ("25 silver", "1 gold", "1 gold 50 silver", "2 gold")
+    assert (m(25.5), m(0.5)) == ("25 silver 50 copper", "50 copper")
+
+
+# -- Lowball offers (the owner, 13 Nov 2026, on "wtb tb sum 25s" with summons at 35 silver: "this
+#    is below our price im good bliind inviting but this should be filtered out") -----------------
+
+@pytest.mark.parametrize("text, silver", [
+    ("wtb tb sum 25s", 25), ("wtb summon tb 25 silver", 25), ("wtb summon 1g", 100),
+    ("wtb summon 1g50s", 150), ("wtb summon 1g 50s", 150), ("wtb summ tb 2 gold", 200),
+    ("wtb summon to tb", None), ("wtb summon to tb lvl 25", None), ("wtb 5 summons tb", None),
+    ("wtb summon 50c", 0.5), ("wtb summon 25s50c", 25.5), ("wtb summon 1g50s25c", 150.25),
+    ("wtb summon 30 silver 50 copper", 30.5),
+])
+def test_the_price_a_buyer_offers_is_read(core, text, silver):
+    assert core.eval(f'ServiceInviterCore.OfferedPrice("{text}")') == silver

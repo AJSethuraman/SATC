@@ -97,9 +97,41 @@ end
 -- "25 silver", "1 gold", "1 gold 50 silver".
 function C.Money(silver)
     if not silver then return nil end
-    local g, s = math.floor(silver / 100), silver % 100
-    if g > 0 and s > 0 then return g .. " gold " .. s .. " silver" elseif g > 0 then return g .. " gold" end
-    return s .. " silver"
+    local copper = math.floor(silver * 100 + 0.5)
+    local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    local parts = {}
+    if g > 0 then parts[#parts + 1] = g .. " gold" end
+    if s > 0 then parts[#parts + 1] = s .. " silver" end
+    if c > 0 then parts[#parts + 1] = c .. " copper" end
+    if #parts == 0 then return "0 silver" end
+    return table.concat(parts, " ")
+end
+
+-- The price a buyer names, in silver ("25s", "25 silver", "1g", "1g50s", "1g 50s", "2 gold",
+-- "50c", "25s50c" -- copper too, the owner: "need to know c too"), or nil when they name
+-- none. A bare number is not a price ("lvl 25", "5 summons").
+local UNIT = { g = 100, gold = 100, s = 1, silver = 1, sil = 1, c = 0.01, copper = 0.01, cop = 0.01 }
+local function TokenPrice(t)            -- "1g50s25c" -> 150.25; nil unless the whole token is money
+    local sum, any = 0, false
+    local rest = t:gsub("(%d+)(%a+)", function(n, u)
+        if UNIT[u] then sum, any = sum + tonumber(n) * UNIT[u], true return "" end
+    end)
+    if any and rest == "" then return sum end
+    return nil
+end
+function C.OfferedPrice(text)
+    local toks = {}
+    for t in tostring(text or ""):lower():gsub("[^%w]", " "):gmatch("%S+") do toks[#toks + 1] = t end
+    local i, total, found = 1, 0, false
+    while i <= #toks do
+        local t, used = toks[i], 1
+        local amount = TokenPrice(t)
+        if not amount and t:match("^%d+$") and UNIT[toks[i + 1] or ""] then amount, used = tonumber(t) * UNIT[toks[i + 1]], 2 end
+        if amount then total, found = total + amount, true
+        elseif found then break end            -- "1g 50s" adds up; stop at the next word
+        i = i + used
+    end
+    return found and total or nil
 end
 
 -- Who in the group can do a service: members of the class at or above its level. For you,

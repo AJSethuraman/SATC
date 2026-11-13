@@ -522,3 +522,17 @@ def test_someone_you_didnt_invite_becomes_a_summon_customer_when_summoned():
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
     assert job(g, "Buster", "service") == "summons"
     assert job(g, "Buster", "dest") == "Thunder Bluff"
+
+
+def test_an_offer_under_our_price_is_not_invited():
+    """The owner, 13 Nov 2026: "wtb tb sum 25s" with summons at 35 silver -- "this is below our
+    price im good bliind inviting but this should be filtered out"."""
+    lock = {"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}
+    for text, who, invite in [("wtb tb sum 25s", "Low", False), ("wtb tb sum 35s", "Fair", True),
+                              ("wtb tb sum 1g", "Rich", True), ("wtb tb sum", "Blind", True)]:
+        g = world(lock, "summons = { price = 35 }")
+        say_trade(g, who, text)
+        assert (invited(g) == [who]) is invite, text
+    g = world(lock, "summons = { price = 35 }")
+    say_trade(g, "Low", "wtb tb sum 25s")
+    assert any("25 silver" in p and "35 silver" in p for p in g.printed())
