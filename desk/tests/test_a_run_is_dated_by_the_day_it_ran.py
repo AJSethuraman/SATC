@@ -26,6 +26,7 @@ the convention its sibling already followed.
 """
 from __future__ import annotations
 
+import importlib
 import pathlib
 import re
 import sys
@@ -44,9 +45,15 @@ _TYPED_RUN = re.compile(r'"runs"\s*/\s*"[^"]*\d{4}-\d{2}-\d{2}[^"]*"'
 
 
 def test_the_brief_directory_names_the_day_it_is_written():
-    assert ask_the_desks.BRIEFS.name == f"asked-{date.today().isoformat()}", (
+    # Re-read the module and the clock together. The module fixes its date when
+    # it is imported, at collection; compared with today's date minutes later,
+    # a suite that ran across midnight UTC failed here although the tool was
+    # right (CI on #490, collected 23:59 on 12 Nov, asserted 00:02 on 13 Nov).
+    importlib.reload(ask_the_desks)
+    today = date.today().isoformat()
+    assert ask_the_desks.BRIEFS.name == f"asked-{today}", (
         f"briefs would be written to {ask_the_desks.BRIEFS.name!r} on "
-        f"{date.today().isoformat()}. A run that lands in another day's folder "
+        f"{today}. A run that lands in another day's folder "
         f"overwrites that day's evidence and inherits its date.")
     assert ask_the_desks.BRIEFS.parent.name == "runs"
 
