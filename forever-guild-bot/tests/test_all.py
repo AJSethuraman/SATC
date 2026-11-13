@@ -2055,3 +2055,24 @@ def test_the_sample_config_lists_every_setting_the_bot_reads():
     read = set(re.findall(r'env(?:\.get\(|\[)"([A-Z_]+)"', (here / "src/guildbot/config.py").read_text(encoding="utf-8")))
     sample = {l.split("=", 1)[0] for l in (here / ".env.example").read_text(encoding="utf-8").splitlines() if "=" in l and not l.startswith("#")}
     assert "ACHIEVEMENTS_CHANNEL_ID" in read and read <= sample, read - sample
+
+
+def test_stopping_a_repeating_raid_updates_its_post(tmp_path):
+    """Codex on #489: after /raid-repeat-stop the post must stop saying "Repeats every week", and it is
+    refreshed straight away."""
+    from guildbot.bot import raid_embed
+    db = make_db(tmp_path)
+    rid = db.create_raid("Molten Core", _FUTURE, 40, 9, {})
+    sid = db.create_series(db.get_raid(rid), 555)
+    db.set_raid_series(rid, sid)
+    assert "Repeats every week" in raid_embed(db, db.get_raid(rid)).description
+    bot = _bot(db)
+    refreshed = []
+
+    async def refresh(raid_id):
+        refreshed.append(raid_id)
+    bot.refresh_raid_post = refresh
+    ix, _sent = _cmd_ix(9, officer=True)
+    asyncio.run(bot.tree.get_command("raid-repeat-stop").callback(ix, rid))
+    assert "Repeats every week" not in raid_embed(db, db.get_raid(rid)).description
+    assert refreshed == [rid]

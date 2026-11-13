@@ -309,3 +309,17 @@ def test_saying_no_and_then_claiming_the_character_does_not_hide_the_rest_of_the
     groups = L.likely_alts(done, items, owners, rejected={(42, "alt-two")})
     assert [g["slugs"] for g in groups] == [["alt-three", "alt-two", "main-one"]]
     assert L.likely_alts(done, items, {"main-one": 42}, rejected={(42, "alt-two")}) == []   # a live "no" still holds
+
+
+def test_a_claimed_character_that_left_the_guild_is_not_on_the_legacy_board(tmp_path):
+    """Codex on #489: /legacy-board is the current guild. A claim kept after its character left must not
+    put that character (or its points) on the board."""
+    from guildbot import sync as SY
+    db = make_db(tmp_path)
+    for slug in ("stays-here", "gone-away"):
+        name, surname = slug.split("-")
+        db.upsert_member(slug, name.title(), surname.title(), 60, 3, utcnow())
+    db.claim(101, ["stays-here", "gone-away"])
+    db.mark_absent({"stays-here"})
+    slugs = {s for p in SY.board_players(db) for s in p["slugs"]}
+    assert "stays-here" in slugs and "gone-away" not in slugs

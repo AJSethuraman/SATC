@@ -140,7 +140,9 @@ def likely_alts(db: Database) -> list[dict]:
 def board_players(db: Database) -> list[dict]:
     """legacy.players over what is stored: claims, the likely-alts guess, and every guild character with Legacy data."""
     in_guild = {r["slug"] for r in db.roster()}
-    return L.players(db.claimed_by_member(), likely_alts(db), db.achievement_slugs() & in_guild)
+    claims = {d: kept for d, slugs in db.claimed_by_member().items()          # a claim that left the guild is not
+              if (kept := [s for s in slugs if s in in_guild])}              # on the board, nor its points
+    return L.players(claims, likely_alts(db), db.achievement_slugs() & in_guild)
 
 
 ASK_AGAIN_DAYS = 7

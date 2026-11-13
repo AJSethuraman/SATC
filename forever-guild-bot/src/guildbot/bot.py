@@ -79,6 +79,13 @@ def clip(lines: list[str], limit: int) -> str:
     return "\n".join(out)
 
 
+def repeats(db: Database, raid) -> bool:
+    """The raid belongs to a series that is still going (/raid-repeat-stop turns it off)."""
+    sid = raid["series_id"] if "series_id" in raid.keys() else None
+    series = db.get_series(sid) if sid else None
+    return bool(series and series["active"])
+
+
 def raid_embed(db: Database, raid) -> discord.Embed:
     g = R.group_signups(db.signups(raid["id"]))
     ts = int(datetime.fromisoformat(raid["starts_at"]).timestamp())
@@ -89,7 +96,7 @@ def raid_embed(db: Database, raid) -> discord.Embed:
         title=f"{'CANCELLED: ' if cancelled else 'STARTED: ' if started else 'COMPLETED: ' if ended else ''}"
               f"{raid['title']}  (#{raid['id']})",
         description=f"<t:{ts}:F> · <t:{ts}:R>\nSlots filled: **{R.filled(g)}/{raid['size']}**"
-                    + ("\nRepeats every week" if "series_id" in raid.keys() and raid["series_id"] else ""),
+                    + ("\nRepeats every week" if repeats(db, raid) else ""),
         color=discord.Color.dark_grey() if cancelled or started or ended else discord.Color.blurple(),
     )
     for role in R.ROLES:
@@ -1902,6 +1909,7 @@ def register_commands(bot: GuildBot) -> None:
         db.stop_series(raid["series_id"])
         await interaction.response.send_message(
             f"**{raid['title']}** won't repeat any more. This one still runs as planned.", ephemeral=True)
+        await bot.refresh_raid_post(raid_id)               # the post stops saying "Repeats every week"
 
     @tree.command(name="raid-attendance", description="Correct who showed up to a raid (officers)")
     @app_commands.describe(raid_id="The raid number", member="The person", showed="True if they were there, False if not")
