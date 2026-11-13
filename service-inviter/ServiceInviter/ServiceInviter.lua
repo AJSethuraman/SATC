@@ -1,4 +1,4 @@
--- Service Inviter v2.5.1
+-- Service Inviter v2.5.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -244,10 +244,12 @@ local function Evaluate(norm, dedicated, T)
         end
     end
     if not buy then return false, "no buy word" end
+    -- With "LF", a contact word is fine: no seller writes "LF UC summon/port pst" (the owner's
+    -- screenshot, 13 Nov 2026, a near miss: "this should be a hit"). "LFM" is a seller word above.
     if not HasAny(norm, STRICTBUY) then
         local soft = HasAny(norm, SOFTSELLER)
         if soft then return false, "seller/ad word '" .. soft .. "' without a WTB/buying word" end
-        local c = HasAny(norm, CONTACT)
+        local c = not HasAny(norm, { "lf", "lfs", "lfp" }) and HasAny(norm, CONTACT)
         if c then return false, "contact word '" .. c .. "' without a WTB/buying word" end
     end
 
@@ -769,7 +771,7 @@ end
 
 function Jobs.Joined(name)
     local j = jobByName[name]
-    if j and j.status == "invited" then Jobs.Set(name, "joined") return true end
+    if j and (j.status == "invited" or j.status == "asked") then Jobs.Set(name, "joined") return true end
     return false
 end
 function Jobs.Left(name)
@@ -1119,13 +1121,14 @@ local function OnSystem(text)
     local sug = text:match(PatternFrom(_G and _G.ERR_INVITE_PLAYER_SUGGESTED_S, "You have suggested that %s join your group."))
     if sug then
         local j = Jobs.Get(nm(sug))
-        if j and j.status == "invited" then j.suggested = true Jobs.Set(j.name, "asked") end
+        -- The suggestion reaches the leader, who lets them in (the owner, 13 Nov 2026: "it is
+        -- working when i am not assist and suggested invite"). They stay invited.
+        if j then j.suggested = true end
         return
     end
     local d = text:match(DECLINE_PATTERN)
     if d then
         local j = Jobs.Get(nm(d))
-        if j and j.status == "asked" and j.suggested then j.suggested = nil return end   -- the bounced suggestion
         Jobs.Declined(nm(d))
         return
     end

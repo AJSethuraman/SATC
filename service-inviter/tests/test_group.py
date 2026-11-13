@@ -663,9 +663,23 @@ def test_the_leader_still_invites_by_itself():
     assert invited(g) == ["Momma"]
 
 
-def test_a_bounced_suggestion_goes_back_in_line_not_declined():
+def test_a_suggested_invite_stays_an_invite_and_counts_when_they_join():
+    """The owner, 13 Nov 2026: "it is working when i am not assist and suggested invite". The
+    leader lets them in; nothing to click, and the row follows them in."""
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Undercity")})
     say_trade(g, "Momma", "WTB UC SUMMON")
     g.event("CHAT_MSG_SYSTEM", "You have suggested that Momma join your group.")
-    g.event("CHAT_MSG_SYSTEM", "Momma declines your group invitation.")
-    assert g.status("Momma") == "asked"
+    assert g.status("Momma") == "invited"
+    g.event("CHAT_MSG_SYSTEM", "Momma has joined the raid group.")
+    assert g.status("Momma") == "joined"
+
+
+def test_lf_with_pst_is_a_buyer():
+    """The owner's screenshot, 13 Nov 2026: NEAR MISS "LF UC SUmmon/port PST" -> contact word
+    'pst' without a WTB/buying word. "this should be a hit"."""
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Undercity")})
+    say_trade(g, "Itchy Mon", "LF UC SUmmon/port PST")
+    assert invited(g) == ["Itchy Mon"]
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Undercity")})
+    say_trade(g, "Seller", "LFM summons to UC pst")
+    assert invited(g) == []
