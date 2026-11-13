@@ -1,4 +1,4 @@
--- Service Inviter v2.1.8
+-- Service Inviter v2.1.9
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1588,7 +1588,7 @@ local function WhisperTo()
     return w
 end
 
-local function AlertMsg(name, job)
+local function AlertMsg(name, job, here)
     local m = ServiceInviterDB.alertmsg
     if not m or m == "" then m = MSG.ALERTMSG end
     job = job or Jobs.Get(name)
@@ -1597,13 +1597,17 @@ local function AlertMsg(name, job)
     -- where they're being summoned to (the owner, 13 Nov 2026: "can the 'summoning name' part
     -- say where we are summoning to? so they know"). A text of your own without {dest} gets
     -- it after the name, in capitals when the rest is.
-    local dest = job and job.dest
+    -- a customer the addon didn't invite has no place on record: then where the warlock
+    -- casting the ritual is standing, which is where they land (the owner, 13 Nov 2026: "why is
+    -- dest us and not where we are??"). Not known at all: no place, never a made-up one.
+    local dest = (job and job.dest) or here
     if dest and not m:find("{dest}", 1, true) then
         local caps = m:gsub("{%a+}", "") == m:gsub("{%a+}", ""):upper()
         m = m:gsub("{name}", "{name}" .. (caps and " TO " or " to ") .. "{dest}", 1)
     end
     if dest and m:gsub("{%a+}", "") == m:gsub("{%a+}", ""):upper() then dest = dest:upper() end
-    m = m:gsub("{dest}", function() return dest or "us" end)
+    if not dest then m = m:gsub(" ?[Tt][Oo] {dest}", "") end
+    m = m:gsub("{dest}", function() return dest or "" end)
     m = m:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
     return (m:gsub("{price}", function() return PriceText(price) end))
 end
@@ -1902,7 +1906,7 @@ OnCast = function(event, unit, spellID, spellName)
         if ServiceInviterDB.raidalert ~= false then
             local ch = (IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY" or nil)
             if ch then
-                local ok, err = pcall(function() SendChatMessage(AlertMsg(who), ch) end)
+                local ok, err = pcall(function() SendChatMessage(AlertMsg(who, job, castZone), ch) end)
                 trace.raid = ok and ("sent to " .. ch) or ("failed: " .. tostring(err))
             else
                 trace.raid = "not in a group"

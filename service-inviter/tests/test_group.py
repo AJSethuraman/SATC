@@ -479,3 +479,16 @@ def test_the_summon_alert_says_where_even_with_your_own_text():
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     assert [m for _, _, m in g.sent() if m.startswith("SUMMONING")] == \
         ["SUMMONING Mirasha TO UNDERCITY! PLEASE PAY Ashfel 25 silver UPON ARRIVAL!"]
+
+
+def test_a_customer_with_no_place_on_record_is_summoned_to_where_the_warlock_is():
+    """The owner's screenshot, 13 Nov 2026: "SUMMONING Buster Wang TO us!" -- "why is dest us and
+    not where we are??". Buster joined without being invited for a place."""
+    g = world(TWO_LOCKS)
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    g.run('UNITS.party3 = { "Buster", "ROGUE", 30, "Orgrimmar" } GROUP["Buster"] = true')
+    g.event("CHAT_MSG_SYSTEM", "Buster joins the party.")          # nobody invited him for anything
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
+    alerts = [m for _, _, m in g.sent() if m.startswith("SUMMONING")]
+    assert alerts and alerts[0].startswith("SUMMONING Buster TO THUNDER BLUFF!")
+    assert "us" not in alerts[0].split("!")[0].lower().split()
