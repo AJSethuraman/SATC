@@ -644,23 +644,17 @@ def press_big_button(g):
         b._scripts.PostClick(b)''')
 
 
-def test_not_the_leader_buyers_wait_for_your_click_to_invite():
-    """The owner, 13 Nov 2026: "You have suggested that Yourmomma Lovesme join your group." then an
-    instant decline, every time, as raid assistant -- "i can invite people it worked when i tried
-    manually". The addon's own invite became a suggestion; a typed /invite works. So they wait
-    for the big button, which runs /invite on your click."""
+def test_not_the_leader_the_invite_still_goes_out_by_itself():
+    """2.5.0 held a non-leader's buyers for a click. The owner, 13 Nov 2026: "it is so dumb to
+    have to press invite - it worked yesterday", and then "it is happening even if i manually
+    invite" -- the declines were never the addon's invite. Back to inviting on its own."""
     g = world(ASSIST_UNITS, extra=ASSIST_RAID)
     say_trade(g, "Momma Lovesme", "WTB UC SUMMON")
-    assert invited(g) == []                                    # nothing sent on its own
-    assert g.status("Momma Lovesme") == "asked"
-    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
-    assert g.eval("ServiceInviterNext:GetText()") == "Invite Momma Lovesme"
-    assert g.eval('ServiceInviterNext:GetAttribute("macrotext")') == "/invite Momma Lovesme"
-    press_big_button(g)
-    assert invited(g) == ["Momma Lovesme"] and g.status("Momma Lovesme") == "invited"
+    assert invited(g) == ["Momma Lovesme"]
+    assert g.status("Momma Lovesme") == "invited"
+    assert not any("press Invite" in p for p in g.printed())
     g.event("CHAT_MSG_SYSTEM", "Momma Lovesme has joined the raid group.")
     assert any("Momma Lovesme" in m for ch, _, m in g.sent() if ch == "RAID")   # the welcome
-    assert not any("only suggestions" in p for p in g.printed())             # no warning line
 
 
 def test_the_leader_still_invites_by_itself():

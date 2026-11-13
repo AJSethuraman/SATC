@@ -1,4 +1,4 @@
--- Service Inviter v2.5.0
+-- Service Inviter v2.5.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -493,9 +493,7 @@ end
 local function IsInviter()
     if not IsInGroup() then return true end
     if UnitIsGroupLeader("player") then return true end
-    -- Not the leader: an invite the addon sends on its own (no key press) becomes a suggestion
-    -- and bounces back as a decline, while a typed /invite works (the owner, 13 Nov 2026: "i can
-    -- invite people it worked when i tried manually"). Then they wait for your click instead.
+    if IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player") then return true end
     return false
 end
 
@@ -1016,27 +1014,24 @@ local function Handle(text, sender, guid)
     end
 
     if not UnderRateLimit(now) then P("|cffff8040matched " .. short .. " but hit the 6 invites/min limit|r") return end
-    local _, direct = CanInvite()
+    CanInvite()   -- turns a full party into a raid when you can
 
     lastInvite[short] = now
     fragments[short] = nil
     inviteTimes[#inviteTimes + 1] = now
     local job
-    if direct then
-        DoInvite(short)
-        pending[short] = now
-        job = Jobs.New(short, text, why, curChannel)
-    else
-        -- not the leader: they wait for your click on "Invite <name>" (the big button / its key)
-        job = Jobs.New(short, text, why, curChannel)
-        Jobs.Set(short, "asked")
-    end
+    -- Always invite, leader or not, as it did through 2.4.1 (the owner, 13 Nov 2026: "it is so dumb
+    -- to have to press invite - it worked yesterday"). 2.5.0 held them for a click; the declines
+    -- turned out to happen to hand-typed invites too, so the click fixed nothing.
+    DoInvite(short)
+    pending[short] = now
+    job = Jobs.New(short, text, why, curChannel)
     job.service, job.dest = svc, dest
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     if Opt("announce") then
         local what = JobWhere(job)
         if what == "" then what = answered and "(answered your ad)" or why end
-        P((direct and "invited " or "|cffffd100press Invite for|r ") .. short .. "  " .. what)
+        P("invited " .. short .. "  " .. what)
         -- exactly why, always (the owner, 13 Nov 2026: "why is it no longer telling me exactly why
         -- people are invited? i want that")
         P("|cff999999   because [" .. tostring(curChannel) .. "] \"" .. tostring(text) .. "\" = " .. tostring(why) .. "|r")
