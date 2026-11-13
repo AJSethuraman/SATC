@@ -58,3 +58,14 @@ def test_the_addon_has_room_for_more_top_level_names():
     from conftest import ADDON
     src = ADDON.read_text() + "\n" + "\n".join(f"local _spare{i} = {i}" for i in range(10)) + "\n"
     lua51.LuaRuntime().compile(src)   # raises if the limit is crossed
+
+
+def test_the_toc_is_whole():
+    """2.5.2 to 2.5.4 shipped an empty .toc (a script truncated it), and the game listed the
+    addon as Incompatible. The owner's screenshot, 13 Nov 2026."""
+    toc = (ROOT / "ServiceInviter" / "ServiceInviter.toc").read_text()
+    assert "## Interface:" in toc and "## Version:" in toc
+    assert "Services.lua" in toc and "ServiceInviter.lua" in toc
+    version = re.search(r"## Version: (\S+)", toc).group(1)
+    first = (ROOT / "ServiceInviter" / "ServiceInviter.lua").read_text().splitlines()[0]
+    assert first.endswith("v" + version)
