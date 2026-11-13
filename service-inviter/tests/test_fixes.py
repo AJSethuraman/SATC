@@ -42,6 +42,8 @@ def test_a_completed_trade_is_still_marked_paid(party):
     "wtb summon tb, tips",
     "WTB summon to TB for guild group",
     "buying summ to tb, tip on arrival",
+    "LF summon to TB will tip",              # LF means looking for (the owner, 13 Nov 2026)
+    "looking for summon to tb, tips",
 ])
 def test_buyers_who_mention_a_tip_or_their_guild_are_invited(game, message):
     ok, why = game.evaluate(message)

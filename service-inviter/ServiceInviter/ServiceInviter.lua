@@ -1,4 +1,4 @@
--- Service Inviter v2.5.2
+-- Service Inviter v2.5.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -244,12 +244,15 @@ local function Evaluate(norm, dedicated, T)
         end
     end
     if not buy then return false, "no buy word" end
-    -- With "LF", a contact word is fine: no seller writes "LF UC summon/port pst" (the owner's
-    -- screenshot, 13 Nov 2026, a near miss: "this should be a hit"). "LFM" is a seller word above.
-    if not HasAny(norm, STRICTBUY) then
+    -- LF is a buying word as clear as WTB (the owner, 13 Nov 2026: "LF means looking for", on
+    -- the near miss "LF UC SUmmon/port PST"). "LF guild" is looking for a guild, and "LFM" is
+    -- a seller word above.
+    local clear = HasAny(norm, STRICTBUY) or
+        ((HasAny(norm, { "lf", "lfs", "lfp" }) or Has(norm, "looking for")) and not Has(norm, "lf guild"))
+    if not clear then
         local soft = HasAny(norm, SOFTSELLER)
         if soft then return false, "seller/ad word '" .. soft .. "' without a WTB/buying word" end
-        local c = not HasAny(norm, { "lf", "lfs", "lfp" }) and HasAny(norm, CONTACT)
+        local c = HasAny(norm, CONTACT)
         if c then return false, "contact word '" .. c .. "' without a WTB/buying word" end
     end
 
