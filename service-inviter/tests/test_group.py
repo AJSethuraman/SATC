@@ -424,3 +424,42 @@ def test_icons_surround_the_name_and_customers_get_their_own():
     g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party2", 698, "Ritual of Summoning")')
     assert [m for _, _, m in g.sent() if m.startswith("SUMMONING")] == \
         ["SUMMONING {rt5}Mirasha{rt5}! PAY {rt3}Ashfel{rt3} 25 silver IN THE TRADE WINDOW ON ARRIVAL!"]
+
+
+# -- Values the game hides (secret values) and errors that would stop the windows -------------------
+# The owner, 13 Nov 2026, in a raid in Thunder Bluff with a level 22 warlock: the Warlock tab's
+# "Summons go to" was blank (not even "no warlock") and the window "kinda froze" earlier: the
+# once-a-second update was failing. The game hides Lua errors unless told to show them.
+
+RAID_TB = {"player": ("Mooveover", "SHAMAN", 30, "Thunder Bluff"),
+           "raid1": ("Yeet Lock", "WARLOCK", 22, "Thunder Bluff"),
+           "raid2": ("Mooveover", "SHAMAN", 30, "Thunder Bluff")}
+IN_RAID = """function IsInRaid() return true end
+function UnitIsUnit(a, b) local x, y = UNITS[a], UNITS[b] return x ~= nil and y ~= nil and x[1] == y[1] end"""
+
+
+def test_a_value_the_game_hides_counts_as_unknown_not_a_crash():
+    """issecretvalue says the warlock's level, zone and raid icon are hidden: the group still reads,
+    with those as unknown."""
+    g = world(RAID_TB, extra=IN_RAID + """
+function issecretvalue(v) return v == 22 or v == 8 end
+function GetRaidTargetIndex(u) if u == "raid1" then return 8 end end""")
+    g.run('UNITS.raid1[4] = 8')  # the zone comes back hidden too
+    grp = g.eval("ServiceInviter_Test.Group()")
+    lock = [grp[i] for i in range(1, len(grp) + 1) if grp[i].name == "Yeet Lock"][0]
+    assert lock.level is None and lock.zone is None and lock.mark != 8
+
+
+def test_the_warlock_tab_shows_the_warlock_in_a_raid():
+    g = world(RAID_TB, extra=IN_RAID)
+    g.run("local w = ServiceInviter_Test.BuildSetup() w:Show() w.ShowTab(2) w.Refresh()")
+    assert g.eval("ServiceInviterSetup.locks:GetText()") == "|cff8788eeYeet Lock|r: Thunder Bluff"
+
+
+def test_an_error_in_the_update_is_reported_once_in_chat():
+    g = world(RAID_TB, extra=IN_RAID)
+    g.run("local w = ServiceInviter_Test.BuildSetup() w:Show() ServiceInviterCore.OnSale = function() error('boom') end")
+    for _ in range(3):
+        g.run("ServiceInviterSetup._scripts.OnUpdate(ServiceInviterSetup, 1)")
+    hits = [p for p in g.printed() if "boom" in p]
+    assert len(hits) == 1 and "send" in hits[0].lower()

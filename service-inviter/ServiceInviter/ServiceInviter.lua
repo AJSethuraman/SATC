@@ -1,4 +1,4 @@
--- Service Inviter v2.1.3
+-- Service Inviter v2.1.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -151,6 +151,18 @@ local function P(msg)
     if f and f.AddMessage then f:AddMessage(line) else print(line) end
 end
 local function D(msg) if debugOn then P("|cff999999" .. msg .. "|r") end end
+-- An error in a background update, said once in your chat. The game hides Lua errors unless
+-- told to show them, so without this a failing update just looks like a frozen window (the
+-- owner, 13 Nov 2026: "it just kinda froze").
+local Report
+do
+  local reported = {}
+  Report = function(where, ok, err)
+    if ok or reported[where] then return end
+    reported[where] = true
+    P("|cffff4040error in " .. where .. ": " .. tostring(err) .. "|r  Please screenshot this line and send it.")
+  end
+end
 
 local function Opt(key)
     local o = ServiceInviterDB.opts
@@ -305,7 +317,7 @@ end
 local function ZoneOf(unit)
     if unit == "player" then
         local ok, z = pcall(function() return GetRealZoneText and GetRealZoneText() end)
-        if ok and type(z) == "string" and z ~= "" then return z end
+        if ok and type(z) == "string" and not IsSecret(z) and z ~= "" then return z end
         return nil
     end
     local ok, z = pcall(function()
@@ -313,7 +325,7 @@ local function ZoneOf(unit)
         local info = id and C_Map.GetMapInfo and C_Map.GetMapInfo(id)
         return info and info.name
     end)
-    if ok and type(z) == "string" and z ~= "" then return z end
+    if ok and type(z) == "string" and not IsSecret(z) and z ~= "" then return z end
     return nil
 end
 -- Your own portals, from your spellbook (Forever spell ids; Portal: Undercity 11418 is
@@ -340,12 +352,15 @@ local function GroupSnapshot()
     local g = {}
     local function add(unit, isMe)
         if not isMe and not (UnitExists and UnitExists(unit)) then return end
-        local name = UnitName and UnitName(unit)
+        -- anything the game hides (a secret value) is unknown: comparing one is an error
+        local function plain(v) if v == nil or IsSecret(v) then return nil end return v end
+        local name = plain(UnitName and UnitName(unit))
         if type(name) ~= "string" then return end
         name = Ambiguate and Ambiguate(name, "none") or name
         local okc, _, cls = pcall(UnitClass, unit)
         local okl, lvl = pcall(function() return UnitLevel and UnitLevel(unit) end)
-        local m = { name = name, unit = unit, class = okc and cls or nil, level = (okl and type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
+        cls, lvl = okc and plain(cls) or nil, okl and plain(lvl) or nil
+        local m = { name = name, unit = unit, class = cls, level = (type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
         if isMe then
             m.me = true
             m.knows = MyKnownPortals(m.class)
@@ -369,7 +384,7 @@ local function GroupSnapshot()
         local used = {}
         for _, m in ipairs(g) do
             local ok, idx = pcall(function() return GetRaidTargetIndex and GetRaidTargetIndex(m.unit) end)
-            if ok and type(idx) == "number" and idx >= 1 and idx <= 8 then m.mark = idx used[idx] = true end
+            if ok and type(idx) == "number" and not IsSecret(idx) and idx >= 1 and idx <= 8 then m.mark = idx used[idx] = true end
         end
         for _, m in ipairs(g) do
             if not m.mark then
@@ -978,7 +993,7 @@ f:RegisterEvent("CHAT_MSG_PARTY")
 f:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 f:RegisterEvent("CHAT_MSG_RAID")
 f:RegisterEvent("CHAT_MSG_RAID_LEADER")
-f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
+f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
     if event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
         pcall(BuffAsk, text, sender)
         return
@@ -1118,7 +1133,8 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
     RememberSaid(sender, text, curChannel)
     Handle(text, sender, guid)
-end)
+end
+f:SetScript("OnEvent", function(self, event, ...) Report(event, pcall(f.Handle, self, event, ...)) end)
 
 -- (The old settings window is gone: everything is in the Setup window, /si setup.)
 local function ToggleUI() if ToggleSetup then ToggleSetup() end end
@@ -1952,7 +1968,7 @@ local ticker = CreateFrame("Frame")
 local tacc = 0
 ticker:SetScript("OnUpdate", function(_, el)
     tacc = tacc + (el or 0)
-    if tacc >= 1 then tacc = 0 pcall(CheckArrivals) end
+    if tacc >= 1 then tacc = 0 Report("arrivals", pcall(CheckArrivals)) end
 end)
 
 -- Take a customer out of the group: a click only (Paid, Done or x), and only as leader (or an
@@ -2329,7 +2345,7 @@ local function BuildJobsUI()
     local acc = 0
     w:SetScript("OnUpdate", function(_, elapsed)
         acc = acc + (elapsed or 0)
-        if acc >= 1 then acc = 0 RefreshJobs() end
+        if acc >= 1 then acc = 0 Report("customer list", pcall(RefreshJobs)) end
     end)
     w:SetScript("OnShow", RefreshJobs)
     return w
@@ -2851,7 +2867,7 @@ local function BuildSetupUI()
         w:SetScale(sc)
     end
     local acc = 0
-    w:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0) if acc >= 1 then acc = 0 Refresh() end end)
+    w:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0) if acc >= 1 then acc = 0 Report("setup", pcall(Refresh)) end end)
     w:SetScript("OnShow", function() Fit() w.Load() ShowTab(w.tab or 1) end)
     w:SetScript("OnHide", function() w.Save() if picker then picker:Hide() end end)
     w.checks, w.boxes = checks, boxes
