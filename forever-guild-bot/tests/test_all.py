@@ -2210,3 +2210,18 @@ def test_a_cancel_that_stops_halfway_is_not_taken_for_a_removal_by_hand(tmp_path
     assert db.get_raid(rid)["status"] == "open"
     asyncio.run(bot.tree.get_command("raid-cancel").callback(ix, rid))   # try again
     assert db.get_raid(rid)["status"] == "cancelled"
+
+
+def test_role_limits_cannot_make_a_raid_bigger_than_40(tmp_path):
+    """Codex on #489: each limit may be up to 40, but all three set make the size their total. 2 + 10 + 40
+    would be a 52-person raid; create and edit both refuse it, and a total of 40 is fine."""
+    db = make_db(tmp_path)
+    bot = _bot(db)
+    ix, sent = _cmd_ix(9, officer=True)
+    future = (datetime.now(timezone.utc) + timedelta(days=3)).strftime("%Y-%m-%d")
+    asyncio.run(bot.tree.get_command("raid-create").callback(ix, "Big", future, "20:00", 40, 2, 10, 40))
+    assert "more than 40" in sent[-1]["content"] and db.open_raids() == []
+    rid = db.create_raid("Onyxia", _FUTURE, 40, 9, {"tank": 2, "healer": 8, "dps": 30})
+    asyncio.run(bot.tree.get_command("raid-edit").callback(ix, rid, dps=31))
+    assert "more than 40" in sent[-1]["content"] and db.get_raid(rid)["size"] == 40
+    assert not R.too_big(2, 8, 30) and R.too_big(2, 8, 31) and not R.too_big(None, 10, 40)

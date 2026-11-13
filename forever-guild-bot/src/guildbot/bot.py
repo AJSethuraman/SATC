@@ -785,6 +785,9 @@ class GuildBot(discord.Client):
         if start <= datetime.now(timezone.utc):
             await interaction.response.send_message("That time is in the past.", ephemeral=True)
             return False
+        if R.too_big(caps.get("tank"), caps.get("healer"), caps.get("dps")):
+            await interaction.response.send_message(R.TOO_BIG, ephemeral=True)
+            return False
         raid_id = db.create_raid(title, start.isoformat(timespec="seconds"), size, interaction.user.id, caps)
         raid = db.get_raid(raid_id)
         try:
@@ -1887,6 +1890,10 @@ def register_commands(bot: GuildBot) -> None:
         caps = {r: n for r, n in (("tank", tanks), ("healer", healers), ("dps", dps)) if n is not None}
         if not (title or start or size or caps):
             await interaction.response.send_message("Nothing to change.", ephemeral=True)
+            return
+        after = {r: raid[f"cap_{r}"] for r in ("tank", "healer", "dps")} | {r: n or None for r, n in caps.items()}
+        if R.too_big(after["tank"], after["healer"], after["dps"]):
+            await interaction.response.send_message(R.TOO_BIG, ephemeral=True)
             return
         if size and not caps and R.size_from_limits(raid["cap_tank"], raid["cap_healer"], raid["cap_dps"]):
             await interaction.response.send_message(

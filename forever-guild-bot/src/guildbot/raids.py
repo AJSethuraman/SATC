@@ -115,6 +115,15 @@ def cancel_notice(raid, cancelled_by: int) -> str:
     return f"**{raid['title']}** (<t:{ts}:F>) was cancelled by <@{cancelled_by}>."
 
 
+MAX_SIZE = 40
+TOO_BIG = f"Tanks, healers and DPS add up to more than {MAX_SIZE}. Lower one of them."
+
+
+def too_big(tanks, healers, dps) -> bool:
+    """All three limits set and their total, which becomes the size, is over the maximum."""
+    return (size_from_limits(tanks, healers, dps) or 0) > MAX_SIZE
+
+
 def size_from_limits(tanks, healers, dps) -> int | None:
     """When all three role limits are set, the raid has exactly that many slots; otherwise None
     (the typed size applies). Keeps the size from disagreeing with the limits."""
