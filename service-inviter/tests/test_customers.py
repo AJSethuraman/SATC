@@ -207,3 +207,18 @@ def test_a_regular_hears_it_even_with_the_welcome_turned_off():
     summon(g, "Kaldrok")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "Hi Kaldrok! Welcome back, 2nd time with us!"
+
+
+def test_si_customers_all_lists_everyone():
+    """The owner, 13 Nov 2026: "how can i see the full list of regulars"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    for i in range(12):
+        summon(g, f"Buyer{i:02d}", clock_step=1)
+    before = len(g.printed())
+    g.run('SlashCmdList.SERVICEINVITER("customers")')
+    top = g.printed()[before:]
+    assert any("(/si customers all for everyone)" in p for p in top)
+    before = len(g.printed())
+    g.run('SlashCmdList.SERVICEINVITER("customers all")')
+    out = g.printed()[before:]
+    assert "All 12 customers:" in out[0] and len([p for p in out if ". Buyer" in p]) == 12

@@ -1,4 +1,4 @@
--- Service Inviter v2.6.0
+-- Service Inviter v2.6.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -779,6 +779,8 @@ function Jobs.PrintRegulars(want)
             Money(c.worth or 0) .. ", first " .. Jobs.When(c.first) .. ", last " .. Jobs.When(c.last)
     end
     want = (want or ""):lower()
+    local all = want == "all"   -- /si customers all: everyone, not just the top 10
+    if all then want = "" end
     if want ~= "" then
         for name, c in pairs(book) do
             if name:lower() == want or name:lower():find(want, 1, true) == 1 then P(line(name, c)) return end
@@ -790,8 +792,10 @@ function Jobs.PrintRegulars(want)
     for name, c in pairs(book) do list[#list + 1] = { name, c } end
     table.sort(list, function(a, b) if a[2].n ~= b[2].n then return a[2].n > b[2].n end return (a[2].last or 0) > (b[2].last or 0) end)
     if #list == 0 then P("the customer book is empty so far") return end
-    P("Top " .. math.min(10, #list) .. " of " .. #list .. " customers:")
-    for i = 1, math.min(10, #list) do P(i .. ". " .. line(list[i][1], list[i][2])) end
+    local shown = all and #list or math.min(10, #list)
+    P((all and "All " .. #list or ("Top " .. shown .. " of " .. #list)) .. " customers:" ..
+        ((not all and #list > 10) and "  (/si customers all for everyone)" or ""))
+    for i = 1, shown do P(i .. ". " .. line(list[i][1], list[i][2])) end
 end
 
 function Jobs.Joined(name)
@@ -3514,7 +3518,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
