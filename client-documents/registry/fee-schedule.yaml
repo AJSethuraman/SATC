@@ -1357,3 +1357,4 @@ assumed:
 #    the nearest 25, that is a decision and it belongs here once made.
 # 4. No bookkeeping pricing. Recurring work is a different engagement with a
 #    different cadence, and the bookkeeping interview does not exist yet.
+# CI selection check, not for merging
