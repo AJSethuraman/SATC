@@ -344,3 +344,13 @@ def test_near_misses_count_with_the_chat_lines_turned_off():
     say_trade(g, "Bb", "WTB summon to Org")
     assert g.eval("ServiceInviterDB.analytics.near.n") == 1
     assert not any("NEAR MISS" in p for p in g.printed())
+
+
+def test_stats_count_uses_from_the_book_which_started_before_the_stats():
+    """The owner's /si stats, 14 Nov 2026: "198 uses by 203 customers" -- the book began two
+    versions before the stats, so its early customers weren't in the stats' count."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run("ServiceInviterDB.customers = { Early = { n = 1, by = { summons = 1 }, worth = 35, first = 1000, last = 1000 } }")
+    summon(g, "Kaldrok")
+    g.run('SlashCmdList.SERVICEINVITER("stats")')
+    assert "2 uses by 2 customers (0 came back), worth 70 silver" in " ".join(copied(g))

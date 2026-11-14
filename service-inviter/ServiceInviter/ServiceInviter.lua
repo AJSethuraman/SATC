@@ -1,4 +1,4 @@
--- Service Inviter v2.16.0
+-- Service Inviter v2.16.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -798,8 +798,15 @@ function Jobs.PrintStats()
         if next(nm.to) then P("Where they wanted to go: " .. list(nm.to)) end
     end
     if type(a) ~= "table" or a.n == 0 then P("no customers yet: they start with the first summon or Paid") NearLines() return end
-    local people, back = 0, 0
-    for _, c in pairs(book) do people = people + 1 if c.n > 1 then back = back + 1 end end
+    -- uses and worth from the book, which began before these stats did ("198 uses by 203
+    -- customers", the owner's /si stats, 14 Nov 2026)
+    local people, back, uses, worth, first = 0, 0, 0, 0, a.since
+    for _, c in pairs(book) do
+        people = people + 1
+        if c.n > 1 then back = back + 1 end
+        uses, worth = uses + (c.n or 0), worth + (c.worth or 0)
+        if c.first and (not first or c.first < first) then first = c.first end
+    end
     local function top(t, name, limit)
         local list = {}
         for k, v in pairs(t or {}) do list[#list + 1] = { k, v } end
@@ -809,8 +816,8 @@ function Jobs.PrintStats()
         return #out > 0 and table.concat(out, ", ") or "none yet"
     end
     local DAYS = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
-    P("Since " .. Jobs.When(a.since):gsub(" %d+:%d+$", "") .. ": " .. a.n .. " uses by " .. people .. " customers (" .. back ..
-        " came back), worth " .. Money(a.worth))
+    P("Since " .. Jobs.When(first):gsub(" %d+:%d+$", "") .. ": " .. uses .. " uses by " .. people .. " customers (" .. back ..
+        " came back), worth " .. Money(worth))
     P("Where they went: " .. top(a.to, function(k) return k end))
     P("Services: " .. top(a.by, function(k) return (Core.BY_KEY[k] and Core.BY_KEY[k].label) or k end))
     P("Busiest hours: " .. top(a.hour, function(h) return ("%02d:00"):format(h) end, 3))
