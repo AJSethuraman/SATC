@@ -1,4 +1,4 @@
--- Service Inviter v2.13.0
+-- Service Inviter v2.13.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -906,7 +906,12 @@ function Jobs.Joined(name)
 end
 function Jobs.Left(name)
     local j = jobByName[name]
-    if j and (j.status == "joined" or j.status == "invited" or j.status == "summoned" or j.status == "arrived") then Jobs.Set(name, "left") end
+    if j and (j.status == "joined" or j.status == "invited" or j.status == "summoned" or j.status == "arrived") then
+        -- left after the summon, unpaid: the row stays with Paid and Scam until you pick one (the
+        -- owner, 14 Nov 2026: "when someone leaves it takes away the option to pick scam?")
+        if (j.status == "summoned" or j.status == "arrived") and JobPrice(j) then j.owes = true end
+        Jobs.Set(name, "left")
+    end
 end
 function Jobs.Declined(name)
     local j = jobByName[name]
@@ -1811,7 +1816,7 @@ local function VisibleJobs()
     local now = GetTime()
     local list, done = {}, {}
     for _, j in ipairs(jobs) do
-        if ACTIVE[j.status] then list[#list + 1] = j
+        if ACTIVE[j.status] or (j.status == "left" and j.owes) then list[#list + 1] = j
         elseif j.tdone and now - j.tdone < CLEAN_AFTER then done[#done + 1] = j end
     end
     for _, j in ipairs(done) do list[#list + 1] = j end
@@ -2696,6 +2701,7 @@ local function ApplyRow(row, job)
         row.paid:Show()
     end
     row.paid:SetText(JobPrice(job) and "Paid" or "Done")
+    if job.status == "left" and job.owes then row.paid:Show() end
     if (row.paid:IsShown() and JobPrice(job)) or job.status == "paid" then row.scam:Show() end
     row.remove:Show()
 end

@@ -47,7 +47,7 @@ rules above do not. Merged 10 Nov 2026 from PR #482; **never run live yet**, so 
 `docs/PROJECT.md` "Phase 0". Tests: `cd forever-guild-bot && pytest -q` (28, offline, in CI).
 `service-inviter/` is the owner's WoW addon for selling summons and ports on the same server:
 the Lua is the source and `Install-ServiceInviter.bat` is **built** from it by `build.py`, never
-hand-edited. Tests: `cd service-inviter && pytest -q` (278, offline, in CI).
+hand-edited. Tests: `cd service-inviter && pytest -q` (280, offline, in CI).
 
 > **Before starting anything substantial, read `docs/REPO-INVENTORY.md`.** It
 > maps what works, what is stranded on the 76 branches, what is blocked on a

@@ -79,3 +79,28 @@ def test_scam_by_name_for_someone_already_gone_from_the_list():
     g = world(LOCK)
     g.run('SlashCmdList.SERVICEINVITER("scam Momma Lovesme")')
     assert g.eval('ServiceInviterDB.scammers["Momma Lovesme"].n') == 1
+
+
+def test_someone_who_leaves_after_the_summon_keeps_paid_and_scam():
+    """The owner, 14 Nov 2026: "when someone leaves it takes away the option to pick scam?"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.run('ServiceInviter_Test.Jobs.Set("Kaldrok", "summoned")')
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok leaves the party.")
+    g.run("CLOCK = CLOCK + 600 ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    assert g.status("Kaldrok") == "left"
+    assert g.eval("ServiceInviterJobs.rows[1].job.name") == "Kaldrok"     # still listed ten minutes on
+    assert g.eval("ServiceInviterJobs.rows[1].scam._shown") is True
+    assert g.eval("ServiceInviterJobs.rows[1].paid._shown") is True
+    g.run('local b = ServiceInviterJobs.rows[1].scam b._scripts.PostClick(b)')
+    assert g.status("Kaldrok") == "scammed"
+
+
+def test_someone_who_leaves_before_the_summon_owes_nothing():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok leaves the party.")
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    assert g.eval("ServiceInviterJobs.rows[1].scam._shown") is False
