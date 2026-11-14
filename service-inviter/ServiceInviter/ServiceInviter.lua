@@ -1,4 +1,4 @@
--- Service Inviter v3.7.3
+-- Service Inviter v3.7.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -3598,7 +3598,16 @@ local function PrintPreview(tab)
         local ask = ServiceInviterDB.askmsg
         if not ask or ask == "" then ask = MSG.ASK end
         P("|cffffd100Not sure what they want|r")
-        P("|cff999999" .. Jobs.RouteOf("welcome") .. ":|r " .. (list and ask:gsub("{name}", PV.BUYER):gsub("{services}", list) or "(nothing on sale right now)"))
+        if not list then
+            -- nobody here can sell: pretend someone who can is with you (the owner, 14 Nov 2026:
+            -- "how can i test services for sale if i am not in a party that can feasibly sell")
+            local keys = {}
+            for _, def in ipairs(Core.SERVICES) do if Core.Setting(ServiceInviterDB, def.key).on then keys[#keys + 1] = def.key end end
+            local g2, added, here = WithStandIns(g, keys)
+            list = Core.BuildAd(ServiceInviterDB, g2, Faction(), "{services}")
+            if list and added[1] then P("|cffbbbbbbThis example pretends a level 60 " .. (added[1].name or "warlock"):lower() .. " is with you in " .. Core.Short(here) .. ".|r") end
+        end
+        P("|cff999999" .. Jobs.RouteOf("welcome") .. ":|r " .. (list and ask:gsub("{name}", PV.BUYER):gsub("{services}", list) or "(nothing is ticked to sell on the Warlock or Paladin tab)"))
         local loyal = Jobs.LoyaltyLine({ name = PV.BUYER, previewBefore = 3 })
         P("|cffffd100A regular joins|r")
         P(loyal and ("|cff999999" .. Jobs.RouteOf("loyal") .. ":|r " .. loyal) or "|cffbbbbbbnothing (the box is empty)|r")

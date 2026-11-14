@@ -188,3 +188,13 @@ def test_the_welcome_can_say_where():
     g.run('ServiceInviterDB.welcomemsg = "Hi {name}! {service} to {dest} for {price}"')
     say_trade(g, "Kaldrok", "wtb summon to TB")
     assert g.eval('ServiceInviter_Test.WelcomeText("Kaldrok")') == "Hi {rt3}Kaldrok{rt3}! summons to TB for 35 silver"   # {rt3}: their raid icon
+
+
+def test_messages_preview_shows_the_not_sure_line_even_alone():
+    """The owner, 14 Nov 2026: "how can i test services for sale if i am not in a party that can
+    feasibly sell"."""
+    g = world({"player": ME_ORG}, "summons = { price = 35 }")
+    g.run('ServiceInviter_Test.PrintPreview("Messages")')
+    lines = " ".join(g.printed())
+    assert "We have summons to" in lines and "35 silver" in lines
+    assert "pretends a level 60 warlock" in lines
