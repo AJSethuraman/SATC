@@ -139,7 +139,7 @@ L.execute('SlashCmdList.SERVICEINVITER("customers")')
 scenes["copy_window"] = export(L, L.globals().ServiceInviterCopy, L.globals().ServiceInviterCopyScroll)
 
 # New session asks for the shards
-L = load(GROUP + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.shards = 12")
+L = load(GROUP + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.shards = 12 ServiceInviterDB.opts = { countshards = true }")
 L.execute('SlashCmdList.SERVICEINVITER("session new")')
 scenes["new_session_shards"] = export(L, L.globals().ServiceInviterShards)
 

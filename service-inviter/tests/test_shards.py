@@ -40,6 +40,7 @@ def test_another_warlocks_summon_takes_one_off_the_typed_count():
 
 def test_the_warlock_counts_their_own_bags():
     g = world(ME_LOCK, extra=BAG)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('ServiceInviterDB.role = "lock" SHARDS = 1')
     say_trade(g, "Aa", "WTB summon to TB")
     say_trade(g, "Bb", "WTB summon to TB")
@@ -51,6 +52,7 @@ def test_the_warlock_counts_their_own_bags():
 
 def test_bags_and_typed_add_up():
     g = world(ME_LOCK, extra=BAG)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('SHARDS = 4 ServiceInviterDB.shards = 6')
     assert g.eval("(ServiceInviter_Test.Jobs.Shards())") == 10
     g.run('SlashCmdList.SERVICEINVITER("shards")')
@@ -59,6 +61,7 @@ def test_bags_and_typed_add_up():
 
 def test_the_window_shows_shards_left():
     g = world(HELPER)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('SlashCmdList.SERVICEINVITER("shards 5")')
     say_trade(g, "Aa", "WTB summon to TB")
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
@@ -80,6 +83,7 @@ def test_portals_and_lockpicks_dont_care_about_shards():
 
 def test_new_session_asks_for_the_shards():
     g = world(HELPER)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('SlashCmdList.SERVICEINVITER("session new")')
     assert g.eval("ServiceInviterShards:IsShown()")
     g.run('ServiceInviterShardsBox:SetText("15") ServiceInviterShards.ok._scripts.OnClick()')
@@ -88,6 +92,7 @@ def test_new_session_asks_for_the_shards():
 
 def test_enter_works_and_blank_stops_counting():
     g = world(HELPER)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('ServiceInviterDB.shards = 9 SlashCmdList.SERVICEINVITER("session new")')
     assert g.eval("ServiceInviterShardsBox:GetText()") == "9"          # last number filled in
     g.run('ServiceInviterShardsBox:SetText("") ServiceInviterShardsBox._scripts.OnEnterPressed()')
@@ -96,6 +101,7 @@ def test_enter_works_and_blank_stops_counting():
 
 def test_skip_leaves_the_count_alone():
     g = world(HELPER)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('ServiceInviterDB.shards = 9 SlashCmdList.SERVICEINVITER("session new")')
     g.run('ServiceInviterShardsBox:SetText("3") ServiceInviterShards.skip._scripts.OnClick()')
     assert g.eval("ServiceInviterDB.shards") == 9
@@ -109,5 +115,28 @@ def test_not_asked_when_summons_are_not_sold():
 
 def test_the_warlock_is_told_their_own_are_counted():
     g = world(ME_LOCK, extra=BAG)
+    g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('SHARDS = 7 SlashCmdList.SERVICEINVITER("session new")')
     assert "Yours are counted from your bags (7)" in g.eval("ServiceInviterShards.sub:GetText()")
+
+
+
+# The owner, 14 Nov 2026: "having 0 soul shards should not stop me from inviting if i skip inputting
+# it" -- "maybe a toggle".
+
+def test_with_the_box_unticked_nothing_is_counted_or_blocked_or_asked():
+    g = world(ME_LOCK, extra=BAG)
+    g.run('ServiceInviterDB.role = "lock" SHARDS = 0 ServiceInviterDB.shards = 0')
+    for n in ("Aa", "Bb"):
+        say_trade(g, n, "WTB summon to TB")
+    assert invited(g) == ["Aa", "Bb"]
+    g.run('SlashCmdList.SERVICEINVITER("session new")')
+    assert g.eval("ServiceInviterShards") is None
+
+
+def test_si_shards_number_turns_the_box_on_and_off_turns_it_off():
+    g = world(HELPER)
+    g.run('SlashCmdList.SERVICEINVITER("shards 1")')
+    assert g.eval('ServiceInviter_Test.Opt("countshards")') is True
+    g.run('SlashCmdList.SERVICEINVITER("shards off")')
+    assert g.eval('ServiceInviter_Test.Opt("countshards")') is False

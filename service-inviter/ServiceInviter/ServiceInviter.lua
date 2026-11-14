@@ -1,4 +1,4 @@
--- Service Inviter v2.16.3
+-- Service Inviter v2.17.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -92,6 +92,7 @@ local DEFAULTS = {
     welcome   = true,    -- send a message to the group when an invited player joins
     buffarrivals = true, -- queue your buffs on a customer who lands where you are, unasked
     buffpop   = true,    -- the buff button pops up at your mouse when someone is waiting
+    countshards = false, -- count soul shards and stop inviting summon buyers when they'd run out
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
     sum_org = false, port_org = false,
@@ -828,6 +829,9 @@ end
 -- expected amount left so it knows to stop"). Yours are read from your bags when you're the
 -- warlock ("built in for the lock"); other warlocks' you type: /si shards 20. Nil: not counting.
 function Jobs.Shards()
+    -- only when "Count soul shards" is ticked (the owner, 14 Nov 2026: "having 0 soul shards
+    -- should not stop me from inviting if i skip inputting it" -- "maybe a toggle")
+    if not Opt("countshards") then return nil end
     local typed = tonumber(ServiceInviterDB.shards)
     local okc, _, cls = pcall(UnitClass, "player")
     local own = okc and cls == "WARLOCK" and GetItemCount and (tonumber(GetItemCount(6265)) or 0) or nil
@@ -2077,7 +2081,7 @@ end
 -- ask for the number of shards if you are summoning"). Only when summons are on sale. The
 -- number is the other warlocks'; yours come from your bags. Blank = don't count; Skip = leave it.
 function Jobs.AskShards()
-    if not Core.Setting(ServiceInviterDB, "summons").on then return end
+    if not Opt("countshards") or not Core.Setting(ServiceInviterDB, "summons").on then return end
     local w = Jobs.shardWin
     if not w then
         w = CreateFrame("Frame", "ServiceInviterShards", UIParent)
@@ -2093,7 +2097,7 @@ function Jobs.AskShards()
         box:SetPoint("TOPLEFT", 22, -88) box:SetSize(80, 24) box:SetAutoFocus(false) box:SetMaxLetters(4)
         if box.SetNumeric then box:SetNumeric(true) end
         local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall") hint:SetPoint("LEFT", box, "RIGHT", 12, 0)
-        hint:SetText("blank = don't count shards")
+        hint:SetText("blank = only yours, or none")
         local ok = FlatButton(w, 100, 30, "gold") ok:SetPoint("BOTTOMLEFT", 16, 14) ok:SetText("OK")
         local skip = FlatButton(w, 100, 30, "plain") skip:SetPoint("LEFT", ok, "RIGHT", 10, 0) skip:SetText("Skip")
         local function Done()
@@ -3512,6 +3516,7 @@ local function BuildSetupUI()
         PickButton(page, b, false, "Our " .. word .. " (from your group)", "class:" .. cls)
     end
     Ours("WARLOCK", "warlocks", -380)
+    Check("countshards", L, -466, "Count shards: stop inviting when they run out", true)
     Header(R, -50, "When the warlock starts summoning")
     Check("raidalert", R, -74, "Say in raid ({name} {dest} {payee} {price}):")
     Box("alertmsg", R + 4, -102, 396)
@@ -4015,8 +4020,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         if key then ServiceInviterDB.scammers[key] = nil P(key .. " is off the didn't-pay list") else P("nobody called " .. rest .. " on the list") end
     elseif cmd == "shards" then
         local r = rest:lower()
-        if r == "off" then ServiceInviterDB.shards = nil
-        elseif tonumber(r) then ServiceInviterDB.shards = math.max(0, math.floor(tonumber(r)))
+        if r == "off" then ServiceInviterDB.shards = nil SetOpt("countshards", false)
+        elseif tonumber(r) then ServiceInviterDB.shards = math.max(0, math.floor(tonumber(r))) SetOpt("countshards", true)
         elseif r ~= "" then P("/si shards 20 (other warlocks' shards), /si shards off") return end
         local have, own, typed = Jobs.Shards()
         if not have then P("not counting shards. /si shards 20 to count other warlocks' shards") return end
