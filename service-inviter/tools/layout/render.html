@@ -1,6 +1,7 @@
 <!doctype html><meta charset="utf-8">
 <style>
   body { margin: 0; background: #1b1d22; font-family: "DejaVu Sans", sans-serif; }
+  #win { box-shadow: inset 0 0 0 1px #3a424d !important; }
   #win { position: relative; background: rgba(0,0,0,.92); box-shadow: inset 0 0 0 3px #6f6550, inset 0 0 0 5px #2a2620; }
   .it { position: absolute; box-sizing: border-box; }
   .fs { white-space: nowrap; line-height: 1.2; text-shadow: 1px 1px 0 #000; }
@@ -9,12 +10,14 @@
   .btn { background: linear-gradient(#8b1a12, #5a0e09); border: 1px solid #c9a24a; border-radius: 3px; color: #ffd100;
          font-size: 12px; display: flex; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; white-space: nowrap; overflow: hidden; }
   .flat { display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; font-size: 14px; border-radius: 4px; }
-  .flat.gold { background: #f0c05a; color: #1a1408; border: 1px solid #f0c05a; font-weight: 600; }
-  .flat.ghost { background: #1b1710; color: #f0c05a; border: 1px solid #f0c05a; font-weight: 600; }
-  .flat.plain { background: #221d15; color: #ece4d2; border: 1px solid #3a3226; }
-  .flat.bare { background: transparent; color: #8a8171; border: 0; }
-  .flat.rail { background: transparent; color: #ece4d2; border: 0; justify-content: flex-start; padding-left: 20px; }
-  .flat.railOn { background: #1b1710; color: #f0c05a; border: 0; justify-content: flex-start; padding-left: 20px; font-weight: 600; }
+  .flat.gold { background: #e9b949; color: #1a1405; border: 1px solid #e9b949; font-weight: 600; }
+  .flat.ghost { background: #1b1f25; color: #e9b949; border: 1px solid #e9b949; font-weight: 600; }
+  .flat.plain { background: #232830; color: #ece9e2; border: 1px solid #2b313a; }
+  .flat.bare { background: transparent; color: #9ba3ae; border: 0; }
+  .flat.hero { background: transparent; color: transparent; border: 0; }
+  .flat.rail { background: transparent; color: #ece9e2; border: 0; justify-content: flex-start; padding-left: 20px; }
+  .flat.railOn { background: #1b1f25; color: #e9b949; border: 0; justify-content: flex-start; padding-left: 20px; font-weight: 600; }
+  .icon { background: repeating-linear-gradient(45deg, #5b4a7a, #5b4a7a 4px, #3d3152 4px, #3d3152 8px); outline: 1px solid #0d0f12; }
   .flat.off { opacity: .45; }
   .close { background: #5a0e09; border: 1px solid #c9a24a; border-radius: 50%; color: #ffd100; display: flex; align-items: center; justify-content: center; font-weight: bold; }
   .chk { border: 2px solid #a8a8a8; background: #111; border-radius: 3px; margin: 3px; width: 20px !important; height: 20px !important; }
@@ -47,7 +50,7 @@ function render(scene, highlights) {
   win.style.width = scene.w + "px"; win.style.height = scene.h + "px";
   const els = {}, rects = { 0: { l: 0, t: 0, w: scene.w, h: scene.h } };
   for (const it of scene.items) {
-    if (it.hidden || it.kind === "Texture" && !it.color) continue;
+    if (it.hidden || it.kind === "Texture" && !it.color && !it.tex) continue;
     const d = document.createElement("div"); d.className = "it";
     if (it.kind === "FontString") {
       const [size, color] = FONTS[it.font] || [12, "#fff"];
@@ -57,7 +60,8 @@ function render(scene, highlights) {
         d.style.textAlign = (it.justify || "CENTER").toLowerCase(); }
       d.innerHTML = wowText(it.text);
     } else if (it.kind === "Texture") {
-      const [r, g, b, a] = it.color; d.style.background = `rgba(${r*255},${g*255},${b*255},${a})`;
+      if (it.tex) { d.classList.add("icon"); d.title = it.tex; if (it.alpha != null) d.style.opacity = it.alpha; }
+      else { const [r, g, b, a] = it.color; d.style.background = `rgba(${r*255},${g*255},${b*255},${a})`; }
       if (it.points.length === 2) { win.style.background = d.style.background; continue; }   // the window background
     } else if (it.kind === "CheckButton") { d.classList.add("chk"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
     else if (it.kind === "EditBox") { d.classList.add("eb"); d.textContent = it.text; }
@@ -97,7 +101,7 @@ function render(scene, highlights) {
   }
   // overlap report: any two visible text-bearing items whose boxes intersect
   // an empty label draws nothing, so it can't cover anything
-  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" && els[id].it.kind !== "Page" &&
+  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" && els[id].it.kind !== "Page" && els[id].it.style !== "hero" &&
     !(els[id].it.kind === "FontString" && !els[id].it.text));
   const overlaps = [];
   for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
@@ -111,7 +115,7 @@ function render(scene, highlights) {
   }
   // button text wider than the button
   for (const [id, r] of Object.entries(rects)) {
-    const e = els[id]; if (!e || e.it.kind !== "Button" || !e.it.text) continue;
+    const e = els[id]; if (!e || e.it.kind !== "Button" || !e.it.text || e.it.style === "hero") continue;
     if (e.d.scrollWidth > e.d.clientWidth + 1) overlaps.push(["Button:" + e.it.text.slice(0, 40), "(text wider than the button)"]);
   }
   return { overlaps, rects };

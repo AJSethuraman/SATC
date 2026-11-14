@@ -10,7 +10,7 @@ local function New(kind, parent, template, font)
   nextId = nextId + 1
   local o = { _id = nextId, _kind = kind, _parent = parent or false, _color = false, _justify = false, _fontsize = false, _name = "", _disabled = false, _nowrap = false, _template = template or "", _font = font or "",
               _points = {}, _scripts = {}, _attr = {}, _text = "", _checked = false, _hidden = false,
-              _shown = false, _w = false, _h = false, _tc = false, _siStyle = false, _siSize = false, _fs = false }
+              _shown = false, _w = false, _h = false, _tc = false, _siStyle = false, _siSize = false, _fs = false, _tex = false, _alpha = false }
   ALL[#ALL + 1] = o
   local m = {}
   function m.SetPoint(self, p, a, b, c, d)
@@ -30,6 +30,8 @@ local function New(kind, parent, template, font)
   function m.SetChecked(self, v) self._checked = v and true or false end
   function m.GetChecked(self) return self._checked end
   function m.SetColorTexture(self, r, g, b, a) self._color = { r, g, b, a or 1 } end
+  function m.SetTexture(self, t) self._tex = t end
+  function m.SetAlpha(self, a) self._alpha = a end
   function m.SetJustifyH(self, j) self._justify = j end
   function m.Disable(self) self._disabled = true end
   function m.Enable(self) self._disabled = false end

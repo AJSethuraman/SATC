@@ -1881,9 +1881,9 @@ local function AdState()
 end
 local function AdLabel()
     local state, a = AdState()
-    if state == "ready" then return "Post ad in " .. a:sub(1, 1):upper() .. a:sub(2), true end
-    if state == "wait" then return ("Next ad in %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
-    return (a and a:find("nothing to sell", 1, true)) and "Nothing to sell" or "No ad", false
+    if state == "ready" then return "Post in " .. a:sub(1, 1):upper() .. a:sub(2), true end
+    if state == "wait" then return ("Next ad %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
+    return "Ad off", false
 end
 local function PostAd()
     local state, key, id, name, text = AdState()
@@ -2210,8 +2210,9 @@ local function VisibleJobs()
     end
     for _, j in ipairs(done) do list[#list + 1] = j end
     -- too many to show: the newest wait off-screen, never the one who has waited longest
-    while #list > ROWS do table.remove(list) end
-    return list
+    local hidden = 0
+    while #list > ROWS do table.remove(list) hidden = hidden + 1 end
+    return list, hidden
 end
 
 -- The first customer who needs something from you.
@@ -2242,20 +2243,26 @@ end
 local alertWin
 local lastCastAt = 0
 local RITUAL_ID = 698
+Jobs.RITUAL_ID = RITUAL_ID
 
 ----------------------------------------------------------------------
 -- Customer list look (the design review of 12 Nov 2026): dark and gold, flat, one filled
 -- button. Colors are the review's tokens; status pills always carry the word, never color alone.
 ----------------------------------------------------------------------
+-- The 2026 look (DESIGN-SPEC.md in the design handoff): dark, flat, one gold accent.
 local INK = {
-    ground = "14110d", deep = "100e0a", panel = "1b1710", line = "3a3226", soft = "2a241b",
-    text = "ece4d2", muted = "a39a86", gold = "f0c05a", goldInk = "1a1408", plain = "221d15",
+    frame = "3a424d", deep = "0d0f12", ground = "14171b", panel = "1b1f25", plain = "232830",
+    soft = "2b313a", line = "3a424d", text = "ece9e2", muted = "9ba3ae", faint = "7b8490",
+    gold = "e9b949", goldInk = "1a1405", wash = "3a2f12", danger = "e5484d", bannerBg = "2a0e11",
+    silver = "c0c7d0", warn = "ff9a5b",
 }
-INK.PILL = {   -- status -> fill, text
-    asked = { "3d3414", "f5df8a" }, invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
-    arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
-    busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
-    left = { "2e2a22", "c9c0a8" }, scammed = { "4a1a1a", "ffa5a5" },
+INK.PILL = {   -- status -> fill, text, bar (twelve statuses; lightness differs, not only hue)
+    asked = { "2e2711", "f0c45c", "e9b949" }, invited = { "2e2711", "f0c45c", "e9b949" },
+    joined = { "12291e", "6fd29a", "3fb97a" }, summoned = { "13253b", "7db8ff", "4c9bff" },
+    arrived = { "0e2b2c", "5fd6d0", "2dbdb6" }, paid = { "1d2420", "a9c7b4", "5f8a72" }, done = { "1d2420", "a9c7b4", "5f8a72" },
+    busy = { "33200f", "ff9a5b", "f07a2e" }, declined = { "351416", "ff8b8b", "e5484d" },
+    noanswer = { "22262d", "9ba3ae", "4a525e" }, left = { "22262d", "9ba3ae", "4a525e" },
+    scammed = { "3d1114", "ff6b6b", "e5484d" },
 }
 local function RGB(hex)
     hex = tostring(hex):gsub("^ff", "", 1)
@@ -2276,7 +2283,8 @@ end
 -- Flat buttons: gold (the one main action), ghost (a row's action), plain, bare (the x).
 INK.LOOK = {
     gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
-    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" }, rail = { nil, nil, INK.text },
+    plain = { INK.plain, INK.soft, INK.text }, bare = { nil, nil, INK.muted }, rail = { nil, nil, INK.text },
+    hero = { nil, nil, INK.text },   -- a secure button drawn by the window behind it; its text stays hidden
 }
 local function FlatButton(parent, w, h, style, size, secure, name)
     local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
@@ -2291,8 +2299,46 @@ local function FlatButton(parent, w, h, style, size, secure, name)
     local fs = Text(b, size or 14, look[3])
     fs:SetPoint("CENTER")
     b:SetFontString(fs)
+    if style == "hero" then fs:Hide() end
     b._siStyle, b._siSize = style, size or 14
     return b
+end
+-- Spell icons from the game (nothing shipped): by id or name, else the fallback path.
+Jobs.RITUAL_ICON = "Interface\\Icons\\Spell_Shadow_Twilight"
+Jobs.BLESS_ICONS = { Might = "Interface\\Icons\\Spell_Holy_FistOfJustice", Wisdom = "Interface\\Icons\\Spell_Holy_SealOfWisdom",
+    Kings = "Interface\\Icons\\Spell_Magic_MageArmor", Salvation = "Interface\\Icons\\Spell_Holy_SealOfSalvation" }
+function Jobs.SpellIcon(spell, fallback)
+    local ok, tex = pcall(function()
+        return (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spell)) or (GetSpellTexture and GetSpellTexture(spell))
+    end)
+    if ok and tex and not IsSecret(tex) then return tex end
+    return fallback
+end
+function Jobs.BlessIcon(spell)
+    local short = tostring(spell or "Might"):gsub("^Blessing of ", ""):gsub("^Greater ", "")
+    return Jobs.SpellIcon(spell or "Blessing of Might", Jobs.BLESS_ICONS[short] or Jobs.BLESS_ICONS.Might)
+end
+-- A tooltip on hover, for buttons that are a word or an icon.
+function Jobs.Tip(b, text)
+    b:HookScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM") GameTooltip:SetText(text) GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+end
+-- 1:25, the time since a status started
+function Jobs.Clock(t)
+    local s = math.max(0, math.floor(GetTime() - (t or GetTime())))
+    return math.floor(s / 60) .. ":" .. ("%02d"):format(s % 60)
+end
+-- 18g 60s, with the letters in gold and silver
+function Jobs.MoneyShort(silver)
+    silver = math.floor(tonumber(silver) or 0)
+    local g, s = math.floor(silver / 100), silver % 100
+    local G, S = "|cff" .. INK.gold .. "g|r", "|cff" .. INK.silver .. "s|r"
+    if g > 0 and s > 0 then return g .. G .. " " .. s .. S end
+    if g > 0 then return g .. G end
+    return s .. S
 end
 -- The buff pops up at your mouse (the owner, 14 Nov 2026: "can the blessing thing be more
 -- obvious what if i miss it? can it just appear at my mouse"). A gold button by the cursor, with
@@ -3604,6 +3650,17 @@ local function ServiceLine(job)
     local l = def.label:gsub("^a ", "")
     return l:sub(1, 1):upper() .. l:sub(2)
 end
+-- The row's one meta line: » city · who does it (class colored), or the service when it isn't a
+-- summon. What went wrong with an invite is the status pill's job now.
+function Jobs.RowMeta(job, g)
+    local def = job.service and Core.BY_KEY[job.service]
+    if not def then return "|cff" .. INK.faint .. "joined the group|r" end
+    local where = def.kind == "summon" and ("» " .. (job.dest or "?")) or ServiceLine(job)
+    local p = Core.Provider(g, job.service, job.dest)
+    if job.caster then p = { name = job.caster } for _, m in ipairs(g) do if m.name == job.caster then p = m end end end
+    local who = p and (p.me and "you" or Colored(p.name, p.class)) or ("|cff" .. INK.faint .. "nobody here can|r")
+    return where .. "  |cff" .. INK.faint .. "·|r  " .. who
+end
 -- Who does it and where, or what went wrong with the invite.
 local function WhoLine(job, g)
     if job.status == "busy" then return "Invite failed, already in a group" end
@@ -3621,9 +3678,10 @@ end
 local function ApplyRow(row, job)
     row.job = job
     row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide() row.scam:Hide()
+    row.upBox:Hide() row.upIn:Hide()
     if not job then
         for _, t in ipairs(row.paint) do t:Hide() end
-        row.name:SetText("") row.status:SetText("") row.where:SetText("") row.service:SetText("") row.age:SetText("") row.note:SetText("")
+        row.name:SetText("") row.status:SetText("") row.where:SetText("") row.age:SetText("") row.note:SetText("")
         return
     end
     for _, t in ipairs(row.paint) do t:Show() end
@@ -3634,16 +3692,18 @@ local function ApplyRow(row, job)
     end
     local g = GroupSnapshot()
     local before = Jobs.Before(job)
+    -- the name in its class color, and a regular's count (the redesign dropped it; kept)
     row.name:SetText(Colored(job.name, job.class) .. (before > 0 and ("  |cff" .. INK.muted .. "· " .. before .. " before|r") or ""))
-    row.bar:SetColorTexture(RGB(ClassHex(job.class) or INK.muted))
-    row.service:SetText(ServiceLine(job))
-    row.where:SetText(WhoLine(job, g))
+    row.where:SetText(Jobs.RowMeta(job, g))
     row.status:SetText(st[1])
     local pill = INK.PILL[job.status] or INK.PILL.left
     row.pill:SetColorTexture(RGB(pill[1]))
     row.status:SetTextColor(RGB(pill[2]))
-    local waiting = job.status == "invited" or job.status == "joined"
-    row.age:SetText(waiting and ("waiting " .. Since(job.ts or job.t)) or (Since(job.ts or job.t) .. " ago"))
+    -- whoever the cast strip is for: a gold bar and edge
+    local nextUp = jobsWin and jobsWin.heroJob == job
+    row.bar:SetColorTexture(RGB(nextUp and INK.gold or pill[3]))
+    row.edge:SetColorTexture(RGB(nextUp and INK.gold or INK.panel))
+    row.age:SetText(Jobs.Clock(job.ts or job.t))
     row.note:SetText("")
     local n = UnitFor(job.name) or CleanName(job.name)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
@@ -3660,8 +3720,9 @@ local function ApplyRow(row, job)
     elseif step == "summon" then
         if YouSummon(job) then row.summon:Show()
         else
+            -- their warlock is on the meta line; UP says it's theirs to do now
             local p = Core.Provider(g, "summons", job.dest)
-            row.note:SetText(p and (p.me and "Your summon" or (p.name .. " is up")) or "")
+            if p and not p.me then row.note:SetText("UP") row.upBox:Show() row.upIn:Show() end
         end
     elseif step == "arriving" then
         row.paid:Show()
@@ -3694,24 +3755,42 @@ function Jobs.InviteClicked(job)
     Jobs.Set(job.name, "invited")
 end
 
+-- The cast strip's look: gold when it's a click for you, quiet otherwise.
+function Jobs.Hero(w, verb, name, plus, active)
+    w.heroBg:SetColorTexture(RGB(active and INK.gold or INK.panel))
+    w.heroVerb:SetText(verb or "")
+    w.heroVerb:SetTextColor(RGB(active and INK.goldInk or INK.muted))
+    w.heroName:SetText(name or "")
+    -- no step word: the line sits in the middle
+    w.heroName:ClearAllPoints() w.heroName:SetPoint("TOPLEFT", 76, (verb or "") ~= "" and -94 or -84)
+    w.heroName:SetTextColor(RGB(active and INK.goldInk or (verb ~= "" and INK.text or INK.faint)))
+    if w.heroIcon.SetAlpha then w.heroIcon:SetAlpha(active and 1 or 0.4) end
+    if plus and plus > 0 then
+        w.heroPlus:SetText("+" .. plus) w.heroPlus:Show() w.heroPlusBg:Show()
+        w.heroPlusBg:SetColorTexture(RGB(active and INK.goldInk or INK.plain))
+    else
+        w.heroPlus:SetText("") w.heroPlus:Hide() w.heroPlusBg:Hide()
+    end
+end
+Jobs.STEP_VERB = { invite = "INVITE", summon = "SUMMON", offer = "OFFER", finish = "TRADE", serve = "TRADE" }
 local function ApplyNext()
     local w = jobsWin
     local asking = false
     for _, j in ipairs(jobs) do if j.status == "asked" then asking = true break end end
     if Role() == "helper" and not asking then
+        -- the warlock summons; you click the portal: who's next, not a button
         w.nextBtn:Hide()
-        w.nextText:Show()
         local nxt, waiting = nil, 0
         for _, j in ipairs(jobs) do if NextStep(j) == "summon" then nxt = nxt or j waiting = waiting + 1 end end
-        w.nextText:SetText(nxt and ("Next up: |cff" .. INK.gold .. nxt.name .. "|r" .. (waiting > 1 and ("  (+" .. (waiting - 1) .. " waiting)") or "")) or "Nobody waiting")
-        w.nextMore:SetText("")
-        w.nextSub:SetText(nxt and ("The warlock summons; you click the portal.") or "")
+        w.heroJob = nxt
+        if nxt then Jobs.Hero(w, "NEXT UP", Colored(nxt.name, nxt.class), waiting - 1, false)
+        else Jobs.Hero(w, "", "Nothing to do", 0, false) end
         return
     end
     w.nextBtn:Show()
-    w.nextText:Hide()
     local job, step = NextJob()
     w.nextBtn.step, w.nextBtn.job = step, job
+    w.heroJob = job
     -- how many more of yours are waiting after this one
     local more = 0
     for _, j in ipairs(jobs) do
@@ -3720,15 +3799,13 @@ local function ApplyNext()
             if (st == "summon" and YouSummon(j)) or st == "offer" or ((st == "finish" or (st == "serve" and JobPrice(j))) and CollectsFor(j)) then more = more + 1 end
         end
     end
-    w.nextMore:SetText(more > 0 and (more .. " more of yours waiting") or "")
     if not job then
         w.nextBtn:SetText("Nothing to do")
         w.nextBtn:SetAttribute("macrotext", "")
-        w.nextSub:SetText("")
+        Jobs.Hero(w, "", "Nothing to do", 0, false)
         return
     end
     local n = UnitFor(job.name) or CleanName(job.name)
-    w.nextSub:SetText(ServiceLine(job) .. ", waiting " .. Since(job.ts or job.t))
     if step == "invite" then
         w.nextBtn:SetText("Invite " .. job.name)
         w.nextBtn:SetAttribute("macrotext", "/invite " .. job.name)
@@ -3742,6 +3819,32 @@ local function ApplyNext()
         w.nextBtn:SetText("Trade " .. job.name)
         w.nextBtn:SetAttribute("macrotext", "/target " .. n .. "\n/run InitiateTrade(\"target\")")
     end
+    Jobs.Hero(w, Jobs.STEP_VERB[step] or "TRADE", job.name, more, true)
+end
+-- The blessing button's look: the spell, who for, and how many more.
+function Jobs.ApplyBless(w)
+    local e = buffQueue[1]
+    if not e then
+        w.blessSpell:SetText("BLESSINGS") w.blessWho:SetText("Nobody waiting") w.blessWho:SetTextColor(RGB(INK.faint))
+        w.blessEdge:SetColorTexture(RGB(INK.soft))
+        if w.blessIcon.SetAlpha then w.blessIcon:SetAlpha(0.4) end
+        return
+    end
+    local spell = e.spell or "Blessing of Might"
+    w.blessIcon:SetTexture(Jobs.BlessIcon(spell))
+    w.blessSpell:SetText(spell:gsub("^Blessing of ", ""):gsub("^Greater ", ""):upper())
+    local inRange = Jobs.BuffInRange(e)
+    local cls
+    local u = UnitFor(e.name)
+    if u then local ok, _, c = pcall(UnitClass, u) if ok and not IsSecret(c) then cls = c end end
+    if inRange then
+        w.blessWho:SetText(Colored(e.name, cls) .. (#buffQueue > 1 and ("  |cff" .. INK.muted .. "+" .. (#buffQueue - 1) .. "|r") or ""))
+        w.blessWho:SetTextColor(RGB(INK.text))
+    else
+        w.blessWho:SetText("Out of range") w.blessWho:SetTextColor(RGB(INK.warn))
+    end
+    w.blessEdge:SetColorTexture(RGB(inRange and INK.gold or INK.soft))
+    if w.blessIcon.SetAlpha then w.blessIcon:SetAlpha(inRange and 1 or 0.5) end
 end
 
 RefreshJobs = function()
@@ -3750,42 +3853,44 @@ RefreshJobs = function()
     jobsDirty = false
     CheckArrivals()
 
-    local list = VisibleJobs()
+    local list, hidden = VisibleJobs()
+    ApplyNext()   -- first: the rows mark whoever the strip is for
     for i = 1, ROWS do ApplyRow(jobsWin.rows[i], list[i]) end
-    if #list == 0 then jobsWin.empty:Show() else jobsWin.empty:Hide() end
-    ApplyNext()
+    if #list == 0 then jobsWin.empty:Show() jobsWin.emptyIcon:Show() else jobsWin.empty:Hide() jobsWin.emptyIcon:Hide() end
     local wait, going, active = 0, 0, 0
     for _, j in ipairs(jobs) do
         if j.status == "joined" then wait = wait + 1 elseif j.status == "summoned" then going = going + 1 end
         if ACTIVE[j.status] then active = active + 1 end
     end
-    jobsWin.count:SetText(active > 0 and (active .. " active") or "")
+    jobsWin.count:SetText(active .. " active" .. ((hidden or 0) > 0 and ("  |cff" .. INK.faint .. "· " .. hidden .. " more not shown|r") or ""))
     local st = Stats()
     -- what we summoned and what that's worth (the owner, 13 Nov 2026: "it should still record
     -- EV - how many we summon. the paid will be inaccurate no matter what"). Collected is on
     -- the Setup's General page.
     jobsWin.statSummoned:SetText(tostring(st.summoned or 0))
-    jobsWin.statEV:SetText(Money(st.ev or 0))
+    jobsWin.statEV:SetText(Jobs.MoneyShort(st.ev or 0))
     local left = Jobs.ShardsLeft()
     jobsWin.statShards:SetText(left and tostring(math.max(0, left)) or "-")
-    jobsWin.statWait:SetText(tostring(wait) .. (going > 0 and ("  (" .. going .. " coming)") or ""))
+    jobsWin.statWait:SetText(tostring(wait) .. (going > 0 and ("  |cff" .. INK.faint .. "+" .. going .. "|r") or ""))
     RefreshBuff()   -- the buff button shows whoever is next, even if they asked before the list was open
     jobsWin.Fit(#list, jobsWin.buffBtn:IsShown())
+    Jobs.ApplyBless(jobsWin)
     if jobsWin.adBtn then
         local label, ready = AdLabel()
         jobsWin.adBtn:SetText(label)
         if ready then jobsWin.adBtn:Enable() else jobsWin.adBtn:Disable() end
+        if jobsWin.adBtn.SetAlpha then jobsWin.adBtn:SetAlpha(ready and 1 or 0.55) end
     end
 end
 
 local function BuildJobsUI()
-    local W, ROW_H, GAP = 600, 80, 8
-    -- The buff button sits under the big button, in a place that never moves, and the window
-    -- is pinned by its top so only the bottom edge moves as customers come and go (the owner,
-    -- 14 Nov 2026: "the buff should like stay on top so the screen doesnt shrink while i use it")
-    local TOP = 214                                   -- where the first row starts
-    local FOOT, FOOT_BUFF = 76, 76
-    local H = TOP + ROWS * (ROW_H + GAP) + 4 + FOOT
+    -- The 2026 redesign (design handoff, reviewed 14 Nov 2026): fixed 600 x 614, so nothing moves
+    -- or resizes when customers come and go, in combat or not. Six fixed rows: each row's buttons
+    -- are secure macros bound to that customer and can't be rebound in combat, so the list never
+    -- scrolls. Everything is drawn on the window itself (flat fills, 1px lines, game fonts and
+    -- spell icons); only the buttons that cast are real secure buttons.
+    local W, H = 600, 614
+    local ROW_H, GAP, LIST_TOP, FOOT_TOP = 56, 6, 176, 550
     local w = CreateFrame("Frame", "ServiceInviterJobs", UIParent)
     w:SetSize(W, H)
     w:SetPoint("TOP", UIParent, "TOP", 0, -80)
@@ -3809,46 +3914,59 @@ local function BuildJobsUI()
         local l, t = self:GetLeft(), self:GetTop()
         if l and t then self:ClearAllPoints() self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
     end)
-    local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    local edge = Fill(w, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
     local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
     w:Hide()
-    local function Line(y) local t = Fill(w, INK.soft, "BORDER") t:SetPoint("TOPLEFT", 0, y) t:SetSize(W, 1) return t end
+    local function Rect(x, y, cw, ch, hex, layer, sub)
+        local t = Fill(w, hex, layer or "BACKGROUND", sub or -6) t:SetPoint("TOPLEFT", x, y) t:SetSize(cw, ch) return t
+    end
+    local function Icon(x, y, size, path)
+        local t = w:CreateTexture(nil, "ARTWORK") t:SetPoint("TOPLEFT", x, y) t:SetSize(size, size)
+        t:SetTexture(path)
+        return t
+    end
+    local function Caps(x, y, text, hex)
+        local fs = Text(w, 11, hex or INK.muted) fs:SetPoint("TOPLEFT", x, y) fs:SetText(text) return fs
+    end
 
-    -- header: title, how many active, Post ad, Setup, close
-    local title = Text(w, 20, INK.gold, "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 24, -21) title:SetText("Customers")
-    w.count = Text(w, 13, INK.muted)
-    w.count:SetPoint("TOPLEFT", 146, -26)
-    local close = FlatButton(w, 36, 36, "bare", 16)
-    close:SetPoint("TOPRIGHT", -12, -14) close:SetText("X")
+    -- header: the summoning icon, Customers, then Regulars, the ad, Setup and close
+    Rect(0, 0, W, 52, INK.deep)
+    Rect(0, -52, W, 1, INK.soft, "BORDER")
+    Icon(16, -16, 20, Jobs.SpellIcon(Jobs.RITUAL_ID, Jobs.RITUAL_ICON))
+    local title = Text(w, 15, INK.text, "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 44, -19) title:SetText("Customers")
+    local close = FlatButton(w, 28, 28, "bare", 15)
+    close:SetPoint("TOPRIGHT", -12, -12) close:SetText("x")
     close:SetScript("OnClick", function() Jobs.CloseJobs() end)
-    local setupBtn = FlatButton(w, 72, 36, "plain")
-    setupBtn:SetPoint("TOPRIGHT", -56, -14) setupBtn:SetText("Setup")
+    Jobs.Tip(close, "Close")
+    local setupBtn = FlatButton(w, 64, 32, "plain", 13)
+    setupBtn:SetPoint("TOPRIGHT", -48, -10) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
-    local adBtn = FlatButton(w, 150, 36, "plain")
-    adBtn:SetPoint("TOPRIGHT", -136, -14) adBtn:SetText("Post ad")
-    local regBtn = FlatButton(w, 90, 36, "plain")
-    regBtn:SetPoint("TOPRIGHT", -294, -14) regBtn:SetText("Regulars")
+    local adBtn = FlatButton(w, 150, 32, "ghost", 13)
+    adBtn:SetPoint("TOPRIGHT", -120, -10) adBtn:SetText("Post ad")
+    adBtn:SetScript("OnClick", function() PostAd() end)
+    Jobs.Tip(adBtn, "Post the ad (bind a key: /si bind ad F7)")
+    w.adBtn = adBtn
+    local regBtn = FlatButton(w, 92, 32, "plain", 13)
+    regBtn:SetPoint("TOPRIGHT", -278, -10) regBtn:SetText("Regulars")
     regBtn:SetScript("OnClick", function() Jobs.Copy("Regulars", function() Jobs.PrintRegulars("") end) end)
     w.regularsBtn = regBtn
-    -- Clear left: everyone who has left the group, off the list in one click (the owner, 14 Nov
-    -- 2026: "maybe a clear the people who have left the group")
-    local clearBtn = FlatButton(w, 96, 26, "plain", 13)
-    clearBtn:SetPoint("TOPRIGHT", -24, -78) clearBtn:SetText("Clear left")
-    clearBtn:SetScript("OnClick", function() Jobs.ClearLeft() RefreshJobs() end)
-    w.clearBtn = clearBtn
-    adBtn:SetScript("OnClick", function() PostAd() end)
-    w.adBtn = adBtn
-    Line(-64)
 
-    -- your next job: the one big button. Secure buttons must listen for press AND release:
-    -- newer clients fire them on press.
-    local lbl = Text(w, 12, INK.muted)
-    lbl:SetPoint("TOPLEFT", 24, -86) lbl:SetText("YOUR NEXT JOB")
-    w.nextMore = Text(w, 13, INK.muted)
-    w.nextMore:SetPoint("TOPRIGHT", -132, -86) w.nextMore:SetJustifyH("RIGHT")
-    local nb = FlatButton(w, W - 48, 56, "gold", 20, true, "ServiceInviterNext")
-    nb:SetPoint("TOPLEFT", 24, -106)
+    -- the cast strip: your next step (Invite / Summon / Offer / Trade + who) and, for a paladin,
+    -- the blessing button. Secure buttons must listen for press AND release: newer clients fire
+    -- them on press. The words are drawn on the window over the button; its own text is the
+    -- label the tests read, kept hidden.
+    local SX, SY, SH, BLESS_W = 12, -64, 64, 196
+    w.heroBg = Rect(SX, SY, W - 24, SH, INK.panel, "BACKGROUND", -5)
+    w.heroIcon = Icon(SX + 12, SY - 12, 40, Jobs.SpellIcon(Jobs.RITUAL_ID, Jobs.RITUAL_ICON))
+    w.heroVerb = Caps(SX + 64, SY - 13, "")
+    w.heroName = Text(w, 19, INK.text, "GameFontNormalLarge")
+    w.heroName:SetPoint("TOPLEFT", SX + 64, SY - 30) w.heroName:SetWidth(260) w.heroName:SetJustifyH("LEFT")
+    if w.heroName.SetWordWrap then w.heroName:SetWordWrap(false) end
+    w.heroPlusBg = Rect(0, 0, 36, 24, INK.goldInk, "BORDER")
+    w.heroPlus = Text(w, 13, INK.gold)
+    local nb = FlatButton(w, W - 24, SH, "hero", 13, true, "ServiceInviterNext")
+    nb:SetPoint("TOPLEFT", SX, SY)
     nb:RegisterForClicks("AnyUp", "AnyDown")
     nb:SetAttribute("type", "macro")
     nb:SetText("Nothing to do")
@@ -3862,101 +3980,95 @@ local function BuildJobsUI()
         RefreshJobs()
     end)
     w.nextBtn = nb
-    w.nextText = Text(w, 18, INK.text)
-    w.nextText:SetPoint("TOPLEFT", 24, -122)
-    w.nextText:SetText("Nobody waiting")
-    w.nextSub = Text(w, 13, INK.muted)
-    w.nextSub:SetPoint("TOPLEFT", 24, -172) w.nextSub:SetWidth(W - 48) w.nextSub:SetJustifyH("LEFT")
-    if w.nextSub.SetWordWrap then w.nextSub:SetWordWrap(false) end
+    -- the blessing button: only for a paladin selling blessings (decided out of combat)
+    local BX = W - 12 - BLESS_W
+    w.blessBg = Rect(BX, SY, BLESS_W, SH, INK.panel, "BACKGROUND", -5)
+    w.blessEdge = Rect(BX - 1, SY + 1, BLESS_W + 2, SH + 2, INK.soft, "BACKGROUND", -6)
+    w.blessIcon = Icon(BX + 12, SY - 12, 40, Jobs.BlessIcon())
+    w.blessSpell = Caps(BX + 64, SY - 13, "")
+    w.blessWho = Text(w, 14, INK.text)
+    w.blessWho:SetPoint("TOPLEFT", BX + 64, SY - 31) w.blessWho:SetWidth(BLESS_W - 72) w.blessWho:SetJustifyH("LEFT")
+    if w.blessWho.SetWordWrap then w.blessWho:SetWordWrap(false) end
+    local bb = FlatButton(w, BLESS_W, SH, "hero", 13, true)
+    bb:SetPoint("TOPLEFT", BX, SY)
+    bb:RegisterForClicks("AnyUp", "AnyDown")
+    bb:SetAttribute("type", "macro")
+    bb:SetText("No buffs waiting")
+    bb:Hide()
+    w.buffBtn = bb
 
-    -- the rows
+    -- above the list: how many, and Clear left (the owner, 14 Nov 2026: "maybe a clear the
+    -- people who have left the group")
+    w.count = Text(w, 12, INK.muted)
+    w.count:SetPoint("TOPLEFT", 14, -152)
+    local clearBtn = FlatButton(w, 96, 26, "plain", 12)
+    clearBtn:SetPoint("TOPRIGHT", -12, -144) clearBtn:SetText("Clear left")
+    clearBtn:SetScript("OnClick", function() Jobs.ClearLeft() RefreshJobs() end)
+    w.clearBtn = clearBtn
+
+    -- the rows: bar | name and where | status | time | Scam | action | x
+    local NX, PX, TX, BX2, AX, RX = 28, 214, 318, 380, 458, 556
     w.rows = {}
     for i = 1, ROWS do
-        local y = -TOP - (i - 1) * (ROW_H + GAP)
-        local row = { paint = {} }
-        local rEdge = Fill(w, INK.soft, "BACKGROUND", -6) rEdge:SetPoint("TOPLEFT", 24, y) rEdge:SetSize(W - 48, ROW_H)
-        local rBg = Fill(w, INK.panel, "BACKGROUND", -5) rBg:SetPoint("TOPLEFT", 25, y - 1) rBg:SetSize(W - 50, ROW_H - 2)
-        row.bar = Fill(w, INK.muted, "BORDER") row.bar:SetPoint("TOPLEFT", 25, y - 1) row.bar:SetSize(4, ROW_H - 2)
-        row.pill = Fill(w, INK.PILL.joined[1], "BORDER") row.pill:SetPoint("TOPLEFT", 292, y - 16) row.pill:SetSize(96, 22)
+        local y = -LIST_TOP - (i - 1) * (ROW_H + GAP)
+        local row = {}
+        local rEdge = Rect(12, y, W - 24, ROW_H, INK.panel, "BACKGROUND", -6)
+        local rBg = Rect(13, y - 1, W - 26, ROW_H - 2, INK.panel, "BACKGROUND", -5)
+        row.edge = rEdge
+        row.bar = Rect(12, y, 4, ROW_H, INK.muted, "BORDER")
+        row.pill = Rect(PX, y - 17, 98, 22, INK.PILL.joined[1], "BORDER")
+        row.upBox = Rect(AX + 46, y - 16, 40, 24, INK.gold, "BORDER", 0)
+        row.upIn = Rect(AX + 47, y - 17, 38, 22, INK.panel, "BORDER", 1)
         row.paint = { rEdge, rBg, row.bar, row.pill }
 
-        row.name = Text(w, 16, INK.text, "GameFontHighlightLarge")
-        row.name:SetPoint("TOPLEFT", 42, y - 12)
-        row.name:SetWidth(236) row.name:SetJustifyH("LEFT")
+        row.name = Text(w, 14, INK.text, "GameFontHighlightLarge")
+        row.name:SetPoint("TOPLEFT", NX, y - 10)
+        row.name:SetWidth(180) row.name:SetJustifyH("LEFT")
         if row.name.SetWordWrap then row.name:SetWordWrap(false) end
-        row.service = Text(w, 13, INK.text)
-        row.service:SetPoint("TOPLEFT", 42, y - 36)
-        row.service:SetWidth(236) row.service:SetJustifyH("LEFT")
-        if row.service.SetWordWrap then row.service:SetWordWrap(false) end
-        row.where = Text(w, 13, INK.muted)
-        row.where:SetPoint("TOPLEFT", 42, y - 56)
-        row.where:SetWidth(236) row.where:SetJustifyH("LEFT")
+        row.where = Text(w, 12, INK.muted)
+        row.where:SetPoint("TOPLEFT", NX, y - 32)
+        row.where:SetWidth(180) row.where:SetJustifyH("LEFT")
         if row.where.SetWordWrap then row.where:SetWordWrap(false) end
+        row.service = row.where   -- one meta line now: -> city · who (the old two lines said it twice)
         row.status = Text(w, 12, INK.text)
-        row.status:SetPoint("TOPLEFT", 292, y - 20)
-        row.status:SetWidth(96)
+        row.status:SetPoint("TOPLEFT", PX, y - 22) row.status:SetWidth(98)
         row.age = Text(w, 12, INK.muted)
-        row.age:SetPoint("TOPLEFT", 294, y - 48)
-        row.age:SetWidth(96) row.age:SetJustifyH("LEFT")
-        row.note = Text(w, 13, INK.muted)
-        row.note:SetPoint("TOPLEFT", 396, y - 32)
-        row.note:SetWidth(140) row.note:SetJustifyH("RIGHT")
-        if row.note.SetWordWrap then row.note:SetWordWrap(false) end
+        row.age:SetPoint("TOPLEFT", TX, y - 22)
+        row.age:SetWidth(52) row.age:SetJustifyH("LEFT")
+        row.note = Text(w, 11, INK.gold)
+        row.note:SetPoint("TOPLEFT", AX + 46, y - 22) row.note:SetWidth(40)
 
-        local AX, AY = 396, y - 22          -- the action slot; Paid sits right of it
-        row.summon = FlatButton(w, 84, 36, "ghost", 14, true)
-        row.summon:SetPoint("TOPLEFT", AX, AY) row.summon:SetText("Summon")
-        row.summon:RegisterForClicks("AnyUp", "AnyDown")
-        row.summon:SetAttribute("type", "macro")
+        local AY = y - 12
+        local function Slot(x, width, text, style)
+            local b = FlatButton(w, width, 32, style or "ghost", 13, true)
+            b:SetPoint("TOPLEFT", x, AY) b:SetText(text)
+            b:RegisterForClicks("AnyUp", "AnyDown")
+            b:SetAttribute("type", "macro")
+            return b
+        end
+        row.summon = Slot(AX, 92, "Summon")
         row.summon:HookScript("PostClick", function() if row.job then Jobs.Set(row.job.name, "summoned") RefreshJobs() end end)
-
-        row.offer = FlatButton(w, 84, 36, "ghost", 14, true)
-        row.offer:SetPoint("TOPLEFT", AX, AY) row.offer:SetText("Offer")
-        row.offer:RegisterForClicks("AnyUp", "AnyDown")
-        row.offer:SetAttribute("type", "macro")
+        row.offer = Slot(AX, 92, "Offer")
         row.offer:HookScript("PreClick", function()
             if row.job then row.offer:SetAttribute("macrotext", ((IsInRaid and IsInRaid()) and "/raid " or "/p ") .. OfferText(row.job.name)) end
         end)
         row.offer:HookScript("PostClick", function() if row.job then row.job.offered = true RefreshJobs() end end)
-
-        row.trade = FlatButton(w, 84, 36, "ghost", 14, true)
-        row.trade:SetPoint("TOPLEFT", AX, AY) row.trade:SetText("Trade")
-        row.trade:RegisterForClicks("AnyUp", "AnyDown")
-        row.trade:SetAttribute("type", "macro")
+        row.trade = Slot(AX, 92, "Trade")
         row.trade:HookScript("PostClick", function()
             if row.job then pendingTrade = row.job.name D("Trade clicked for " .. row.job.name .. " (macro: " .. tostring(row.trade:GetAttribute("macrotext")) .. ")") end
         end)
-
         -- Invite / Re-invite: the game's /invite on your click (an addon's own invite becomes a
         -- mere suggestion when you're not the leader)
-        row.reinvite = FlatButton(w, 84, 36, "ghost", 14, true)
-        row.reinvite:SetPoint("TOPLEFT", AX, AY) row.reinvite:SetText("Re-invite")
-        row.reinvite:RegisterForClicks("AnyUp", "AnyDown")
-        row.reinvite:SetAttribute("type", "macro")
-        row.reinvite:HookScript("PostClick", function()
-            if row.job then Jobs.InviteClicked(row.job) RefreshJobs() end
-        end)
-
-        -- Paid and x run the game's /uninvite (set in ApplyRow), so the removal is yours, not
-        -- the addon's, and the game doesn't block it
-        row.paid = FlatButton(w, 56, 30, "plain", 14, true)
-        row.paid:SetPoint("TOPLEFT", AX + 88, y - 8) row.paid:SetText("Paid")
-        row.paid:RegisterForClicks("AnyUp", "AnyDown")
-        row.paid:SetAttribute("type", "macro")
+        row.reinvite = Slot(AX, 92, "Re-invite")
+        row.reinvite:HookScript("PostClick", function() if row.job then Jobs.InviteClicked(row.job) RefreshJobs() end end)
+        -- Paid (hidden since 3.0.1, kept for a trade that pays) and Scam run the game's
+        -- /uninvite (set in ApplyRow), so the removal is yours and the game doesn't block it
+        row.paid = Slot(BX2, 72, "Paid", "plain")
         row.paid:HookScript("PreClick", function() if row.job then Thank(row.job) end end)
         row.paid:HookScript("PostClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
-
-        -- Scam, under Paid: they didn't pay (on the list, out of the group, no thanks)
-        row.scam = FlatButton(w, 56, 30, "plain", 13, true)
-        row.scam:SetPoint("TOPLEFT", AX + 88, y - 25) row.scam:SetText("Scam")
-        row.scam:RegisterForClicks("AnyUp", "AnyDown")
-        row.scam:SetAttribute("type", "macro")
+        row.scam = Slot(BX2, 72, "Scam", "plain")
         row.scam:HookScript("PostClick", function() if row.job then Jobs.Scam(row.job.name) RefreshJobs() end end)
-
-        row.remove = FlatButton(w, 28, 36, "bare", 14, true)
-        row.remove:SetPoint("TOPLEFT", AX + 148, AY) row.remove:SetText("x")
-        row.remove:RegisterForClicks("AnyUp", "AnyDown")
-        row.remove:SetAttribute("type", "macro")
+        row.remove = Slot(RX, 28, "x", "bare")
         row.remove:HookScript("PostClick", function()
             if not row.job then return end
             -- x = done with this customer: out of the group too, if you may
@@ -3967,49 +4079,45 @@ local function BuildJobsUI()
         w.rows[i] = row
     end
 
+    -- empty: the summoning icon, dim, and two words
+    w.emptyIcon = Icon(W / 2 - 24, -300, 48, Jobs.SpellIcon(Jobs.RITUAL_ID, Jobs.RITUAL_ICON))
+    if w.emptyIcon.SetDesaturated then w.emptyIcon:SetDesaturated(true) end
+    if w.emptyIcon.SetAlpha then w.emptyIcon:SetAlpha(0.35) end
     w.empty = Text(w, 14, INK.muted)
-    w.empty:SetPoint("TOPLEFT", 24, -TOP - 30) w.empty:SetWidth(W - 48)
-    w.empty:SetText("Nobody yet. Post an ad, or wait for someone to ask in chat.")
+    w.empty:SetPoint("TOPLEFT", 0, -362) w.empty:SetWidth(W)
+    w.empty:SetText("No customers")
 
-    -- footer: the session and New session, then the buff button when you have buffs to cast.
-    -- The window is as tall as the customers it shows. Fit runs out of combat only
-    -- (RefreshJobs never runs in combat, when the window can't be resized).
-    local deep = Fill(w, INK.deep, "BACKGROUND", -6)
-    local footLine = Fill(w, INK.soft, "BORDER")
-    local bb = FlatButton(w, W - 48, 36, "plain", 14, true)
-    bb:SetPoint("TOPLEFT", 24, -170)
-    bb:RegisterForClicks("AnyUp", "AnyDown")
-    bb:SetAttribute("type", "macro")
-    bb:SetText("No buffs waiting")
-    bb:Hide()
-    w.buffBtn = bb
-    local stats = {}
+    -- footer: the session, and New
+    Rect(0, -FOOT_TOP, W, H - FOOT_TOP, INK.deep)
+    Rect(0, -FOOT_TOP, W, 1, INK.soft, "BORDER")
     local function Stat(x, label)
-        local l = Text(w, 12, INK.muted) l:SetText(label)
-        local v = Text(w, 16, label == "Expected" and INK.gold or INK.text, "GameFontHighlightLarge")
-        stats[#stats + 1] = { l, v, x }
+        Caps(x, -FOOT_TOP - 12, label)
+        local v = Text(w, 18, INK.text, "GameFontHighlightLarge")
+        v:SetPoint("TOPLEFT", x, -FOOT_TOP - 30)
         return v
     end
-    w.statSummoned = Stat(24, "Summoned")
-    w.statEV = Stat(104, "Expected")
-    w.statWait = Stat(262, "Waiting")
-    w.statShards = Stat(378, "Shards left")
-    local newBtn = FlatButton(w, 100, 36, "plain")
-    newBtn:SetText("New session")
-    function w.Fit(shown, withBuff)
-        local body = TOP + math.max(1, shown) * (ROW_H + GAP) + 4
-        local f = withBuff and FOOT_BUFF or FOOT
-        w:SetHeight(body + f)
-        deep:ClearAllPoints() deep:SetPoint("TOPLEFT", 0, -body) deep:SetSize(W, f)
-        footLine:ClearAllPoints() footLine:SetPoint("TOPLEFT", 0, -body) footLine:SetSize(W, 1)
-        for _, st in ipairs(stats) do
-            st[1]:ClearAllPoints() st[1]:SetPoint("TOPLEFT", st[3], -body - 14)
-            st[2]:ClearAllPoints() st[2]:SetPoint("TOPLEFT", st[3], -body - 32)
+    w.statSummoned = Stat(16, "SUMMONED")
+    w.statEV = Stat(116, "EXPECTED")
+    w.statWait = Stat(270, "WAITING")
+    w.statShards = Stat(380, "SHARDS")
+    local newBtn = FlatButton(w, 72, 32, "plain", 13)
+    newBtn:SetPoint("TOPRIGHT", -12, -FOOT_TOP - 16) newBtn:SetText("New")
+    newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") Jobs.AskShards() end)
+    Jobs.Tip(newBtn, "New session")
+
+    -- the next-step button is full width unless there's a blessing button beside it. Out of
+    -- combat only, like everything RefreshJobs does.
+    function w.Fit(_, withBless)
+        local nw = withBless and (W - 24 - BLESS_W - 8) or (W - 24)
+        nb:SetWidth(nw)
+        w.heroBg:SetWidth(nw)
+        for _, t in ipairs({ w.blessBg, w.blessEdge, w.blessIcon, w.blessSpell, w.blessWho }) do
+            if withBless then t:Show() else t:Hide() end
         end
-        newBtn:ClearAllPoints() newBtn:SetPoint("TOPRIGHT", -24, -body - 20)
+        w.heroPlusBg:ClearAllPoints() w.heroPlusBg:SetPoint("TOPLEFT", SX + nw - 48, SY - 20)
+        w.heroPlus:ClearAllPoints() w.heroPlus:SetPoint("TOPLEFT", SX + nw - 48, SY - 25) w.heroPlus:SetWidth(36)
     end
     w.Fit(1, false)
-    newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") Jobs.AskShards() end)
 
     local acc = 0
     w:SetScript("OnUpdate", function(_, elapsed)

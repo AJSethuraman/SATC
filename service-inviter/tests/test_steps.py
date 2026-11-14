@@ -161,7 +161,7 @@ def test_the_customer_window_shows_how_many_were_summoned_and_what_that_is_worth
         g.run(f'ServiceInviter_Test.Jobs.Set("{n}", "summoned")')
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterJobs.statSummoned:GetText()") == "2"
-    assert g.eval("ServiceInviterJobs.statEV:GetText()") == "70 silver"
+    assert g.eval("ServiceInviterJobs.statEV:GetText()") == "70|cffc0c7d0s|r"   # 70s, the s in silver
 
 
 # The owner, 13 Nov 2026, clicking Paid on two customers: "removed Morne Paleblood from the group",

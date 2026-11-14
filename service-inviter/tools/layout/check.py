@@ -63,7 +63,8 @@ def export(L, win, page=None):
                           hidden=bool(o._hidden), disabled=bool(o._disabled), nowrap=bool(o._nowrap),
                           color=list(o._color.values()) if o._color else None,
                           justify=o._justify or None, fontsize=o._fontsize or o._siSize or None,
-                          tc=list(o._tc.values()) if o._tc else None, style=o._siStyle or None))
+                          tc=list(o._tc.values()) if o._tc else None, style=o._siStyle or None,
+                          tex=o._tex or None, alpha=o._alpha if o._alpha is not False else None))
     return {"w": win._w, "h": win._h, "items": items}
 
 
