@@ -1,4 +1,4 @@
--- Service Inviter v3.6.0
+-- Service Inviter v3.7.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -304,11 +304,11 @@ local function Evaluate(norm, dedicated, T)
     local sell = HasAny(norm, SELLER)
     if sell then return false, "seller/ad word: " .. sell end
 
-    local buy = HasAny(norm, Opt("strictbuy") and STRICTBUY or BUY)
+    local buy = HasAny(norm, BUY)   -- LF / need / looking count too (WTB-only was dropped, 14 Nov 2026)
     -- "summon me" / "port me" asks for one, and no seller says it ("can summon you" is a
     -- seller). The owner's screenshot, 12 Nov 2026: "hey anyone able to summon me to barrens
     -- or org?" had no WTB/LF word and was missed.
-    if not buy and not Opt("strictbuy") then
+    if not buy then
         for _, list in ipairs({ SUMMON_WORDS, PORT_WORDS }) do
             for _, w in ipairs(list) do if not buy and Has(norm, w .. " me") then buy = w .. " me" end end
         end
@@ -1404,7 +1404,7 @@ local function Handle(text, sender, guid)
     else ok, why = false, "invites are off (only keywords are on)" end
     diag.eval = { who = short, ok = ok, why = why, t = GetTime() }
 
-    if Opt("fragments") then
+    do   -- split messages are always put together (the owner, 14 Nov 2026: "just assume split messages, no toggle")
         local frags = fragments[short] or {}
         local fresh = {}
         for _, f in ipairs(frags) do
@@ -2201,20 +2201,21 @@ local function ArrivalText(job)
     local p = Core.Provider(g, key, job.dest)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
-    if not custom or custom == "" or custom == MSG.OFFERMSG then custom = MSG.OFFER_T end
+    if custom == "" then custom = nil       -- empty: say nothing about what else is here
+    elseif not custom or custom == MSG.OFFERMSG then custom = MSG.OFFER_T end
     -- landed and not yet paid: who to pay and how much, again (the owner's flow, 14 Nov 2026:
     -- "upon arrival they are whispered to pay the price again to payee and that they can request
     -- a blessing")
     local price = JobPrice(job)
     local pay
-    if price and price > 0 and job.status ~= "paid" and job.status ~= "done" and Opt("payremind") then
+    if price and price > 0 and job.status ~= "paid" and job.status ~= "done" and Opt("payremind") and ServiceInviterDB.paymsg ~= "" then
         local payee, mine = PayeeFor(job, g)
         local m = ServiceInviterDB.paymsg
-        if m == nil or m == "" then m = MSG.PAY end
+        if m == nil then m = MSG.PAY end
         pay = m:gsub("{name}", function() return Jobs.Label(job) end):gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end)
             :gsub("{price}", function() return PriceText(price) end):gsub("{here}", function() return here and Core.Short(here) or "" end)
     end
-    local offer = Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom)
+    local offer = custom and Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom)
     if pay and offer then return pay .. " " .. offer end
     return pay or offer
 end
@@ -3358,7 +3359,7 @@ end
 -- stand-in of the right class standing with you.
 ----------------------------------------------------------------------
 local PV = {}
-PV.TABS = { "General", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
+PV.TABS = { "General", "Messages", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
 PV.KEYS = { Warlock = { "summons" }, Paladin = { "blessing" } }
 PV.BUYER = "Kaldrok"
 PV.CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
@@ -3585,6 +3586,24 @@ local function Preview(tab)
 end
 local function PrintPreview(tab)
     P("|cffffd100Preview of the " .. tab .. " tab.|r Nothing is sent; only you see this. Pretend buyer: " .. PV.BUYER .. ".")
+    if tab == "Messages" then
+        -- every message, in order: a buyer through a summon, then the lines for someone we can't
+        -- read, a regular, and a non-payer
+        for _, line in ipairs(Preview("Warlock")) do P(line) end
+        local g = GroupSnapshot()
+        local list = Core.BuildAd(ServiceInviterDB, g, Faction(), "{services}")
+        local ask = ServiceInviterDB.askmsg
+        if not ask or ask == "" then ask = MSG.ASK end
+        P("|cffffd100Not sure what they want|r")
+        P("|cff999999" .. Jobs.RouteOf("welcome") .. ":|r " .. (list and ask:gsub("{name}", PV.BUYER):gsub("{services}", list) or "(nothing on sale right now)"))
+        local loyal = Jobs.LoyaltyLine({ name = PV.BUYER, previewBefore = 3 })
+        P("|cffffd100A regular joins|r")
+        P(loyal and ("|cff999999" .. Jobs.RouteOf("loyal") .. ":|r " .. loyal) or "|cffbbbbbbnothing (the box is empty)|r")
+        local scam = Jobs.ScamLine(PV.BUYER)
+        P("|cffffd100Someone who didn't pay joins|r")
+        P(scam and ("|cff999999" .. Jobs.RouteOf("scam") .. ":|r " .. Jobs.Icons(scam)) or "|cffbbbbbbnothing (the box is empty)|r")
+        return
+    end
     for _, line in ipairs(Preview(tab)) do P(line) end
 end
 
@@ -4504,7 +4523,7 @@ local function BuildSetupUI()
     -- pick-one, flat inputs whose placeholder says what blank means, and chips that insert a
     -- {token} into the message box. The keys under checks/boxes are unchanged, so Load and Save
     -- (and /si) read and write exactly what they did.
-    local RAIL, W, H, HEAD, FOOT = 168, 960, 780, 56, 64
+    local RAIL, W, H, HEAD, FOOT = 168, 960, 820, 56, 64
     local PW = W - RAIL
     local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent)
     w:SetSize(W, H)
@@ -4717,7 +4736,7 @@ local function BuildSetupUI()
     -- tabs ----------------------------------------------------------------
     -- summons and blessings only (the owner, 14 Nov 2026: "we are only summoning and sometimes
     -- doing a blessing but not much else")
-    local TABS = { "General", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
+    local TABS = { "General", "Messages", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
     local pages, tabBtns = {}, {}
     -- the side menu: the page you're on is gold, with a bar beside it
     local railBar
@@ -4751,7 +4770,7 @@ local function BuildSetupUI()
     w.pages, w.tabBtns, w.ShowTab, w.tab = pages, tabBtns, ShowTab, 1
     local TOP = -84            -- the first section on every page
 
-    -- General: who gets invited, who gets paid, the messages ---------------
+    -- General: who gets invited, who gets paid, where my lines go -----------
     page = pages[1]
     local y = TOP
     Header(C1, y, "Invite") y = y - 28
@@ -4764,36 +4783,14 @@ local function BuildSetupUI()
     for _, k in ipairs({ "trade", "general", "say", "yell" }) do optKeys[#optKeys + 1] = k end
     y = y - ROW
     Label(C1, y - 6, "Also") Box("chanextra", C1 + 112, y, CW - 112, 100, "Other channels") y = y - ROW
-    Toggle("strictbuy", C1, y, "WTB only", true) y = y - ROW
-    Toggle("fragments", C1, y, "Merge split messages", true) y = y - ROW
     Toggle("skipafk", C1, y, "Skip when AFK", true) y = y - ROW
-    -- how soon the same buyer can be invited again (the owner, 14 Nov 2026: "let's make re-invite
-    -- setting adjustable in UI as well"); in minutes here, /si cooldown takes seconds
+    -- how soon the same buyer can be invited again, in seconds (the owner, 14 Nov 2026)
     Label(C1, y - 6, "Re-invite after") Box("cooldown", C1 + CW - 92, y, 56, 4, "180") Label(C1 + CW - 30, y - 7, "sec", "GameFontHighlightSmall") y = y - ROW
-    Toggle("announce", C1, y, "Chat line on invite", true) y = y - ROW
     Toggle("autoshow", C1, y, "Open list on invite", true) y = y - ROW
     Label(C1, y - 6, "Auto-invite") Box("kwwords", C1 + 112, y, CW - 112 - 46, 60, "inv, invite")
     Check("kwon", C1 + CW - 34, y - 6, nil, true) y = y - ROW - 12
     Header(C1, y, "On sale") y = y - 28
-    w.onsale = Label(C1, y - 4, "", nil, CW) y = y - 36
-    -- the addon's own lines in a chat tab of their own (the owner, 14 Nov 2026: "i still want to be
-    -- able to put the SI stuff in a separate chat window i can customize"): a tab named SI is
-    -- used by itself; this makes one. Size, font and place are the game's own tab settings.
-    Header(C1, y, "My lines go to") y = y - 28
-    w.outWhere = Label(C1, y - 6, "", nil, CW - 140)
-    local mk = FlatButton(page, 132, 30, "plain", 13)
-    mk:SetPoint("TOPLEFT", C1 + CW - 132, y) mk:SetText("Make SI tab")
-    mk:SetScript("OnClick", function() Jobs.MakeTab() w.Refresh() end)
-    w.makeTab = mk
-    y = y - ROW - 4
-    -- when we don't know what they want (invited by hand, or by someone else, or they said
-    -- nothing we could read): what's on sale, with prices
-    Header(C1, y, "Not sure what they want") y = y - 28
-    Label(C1, y - 4, "They hear")
-    local askY = y
-    y = y - 26
-    local ask = Box("askmsg", C1, y, CW, 255)
-    Chips(ask, C1 + CW, askY, { "{name}", "{services}" })
+    w.onsale = Label(C1, y - 4, "", nil, CW)
 
     y = TOP
     Header(C2, y, "Pay") y = y - 28
@@ -4811,42 +4808,59 @@ local function BuildSetupUI()
     y = y - ROW
     Toggle("autotrade", C2, y, "Auto-open trade") y = y - ROW
     Toggle("marks", C2, y, "Raid icon on whoever does it", true) y = y - ROW - 12
-    Header(C2, y, "Messages") y = y - 28
-    local function Msg(key, text, tokens, toggleKey, placeholder, tokensBelow)
-        Label(C2, y - 4, text)
-        if toggleKey then Check(toggleKey, C2 + CW - 34, y - 3) end
-        if tokens and not tokensBelow then Chips(nil, C2 + CW - (toggleKey and 42 or 0), y, tokens) end
-        y = y - 26
-        local b = Box(key, C2, y, CW, 255, placeholder)
-        y = y - 34
-        if tokens and tokensBelow then Chips(b, C2 + CW, y, tokens) y = y - 26 end
-        return b
+    -- the addon's own lines in a chat tab of their own (the owner, 14 Nov 2026: "i still want to be
+    -- able to put the SI stuff in a separate chat window i can customize"): a tab named SI is
+    -- used by itself; this makes one. Size, font and place are the game's own tab settings.
+    Header(C2, y, "My lines go to") y = y - 28
+    w.outWhere = Label(C2, y - 6, "", nil, CW - 140)
+    local mk = FlatButton(page, 132, 30, "plain", 13)
+    mk:SetPoint("TOPLEFT", C2 + CW - 132, y) mk:SetText("Make SI tab")
+    mk:SetScript("OnClick", function() Jobs.MakeTab() w.Refresh() end)
+    w.makeTab = mk
+    y = y - ROW
+    Toggle("announce", C2, y, "Who I invited, and why", true)
+
+    -- Messages: every message, in the order a customer meets them, each with where it goes ----
+    -- (the owner, 14 Nov 2026: "make a tab that can be used for the chats only so it's all in one
+    -- spot and it's obvious like Send on invite, Send on entry, Send on arrival etc", and "it's
+    -- annoying to have short text boxes"). Full-width boxes; Whisper / Party / Off beside each
+    -- one is its on/off too.
+    page = pages[2]
+    local FW = PW - 56
+    local SEGX = C1 + FW - 204
+    y = TOP
+    local function Where(kind)
+        Seg("route_" .. kind, "route_" .. kind .. "_whisper", SEGX, y + 2, 72, "Whisper")
+        Seg("route_" .. kind, "route_" .. kind .. "_group", SEGX + 72, y + 2, 66, "Party")
+        Seg("route_" .. kind, "route_" .. kind .. "_off", SEGX + 138, y + 2, 66, "Off")
     end
-    -- chips before the box exists insert into it, so wire them after
-    -- each message: its name and {token} chips on one line, then the box with its on/off right
-    -- beside it (the owner, 14 Nov 2026: "seems very confusing to have a toggle for welcome and
-    -- pay but it isn't next to the actual message we send")
-    local function MsgChips(key, text, tokens, toggleKey, placeholder, isOpt, below)
-        Label(C2, y - 4, text)
+    local function Msg(key, text, tokens, kind, placeholder)
+        Label(C1, y - 4, text)
+        if kind then Where(kind) end
         local y0 = y
         y = y - 26
-        local b = Box(key, C2, y, toggleKey and (CW - 44) or CW, 255, placeholder)
-        if toggleKey then Check(toggleKey, C2 + CW - 34, y - 6, nil, isOpt) end
-        y = y - 40
-        -- a long list of chips goes under the box
-        if tokens and below then Chips(b, C2 + CW, y + 6, tokens) y = y - 24
-        elseif tokens then Chips(b, C2 + CW, y0, tokens) end
+        local b = Box(key, C1, y, FW, 255, placeholder)
+        if tokens then Chips(b, kind and (SEGX - 12) or (C1 + FW), y0, tokens) end
+        y = y - 36
         return b
     end
-    MsgChips("welcomemsg", "Welcome", { "{name}", "{who}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome", nil, nil, true)
-    MsgChips("offermsg", "Arrival", { "{name}", "{here}", "{offers}" }, nil, nil)
-    MsgChips("paymsg", "Pay reminder", { "{here}", "{payee}", "{price}" }, "payremind", nil, true)
-    MsgChips("thanksmsg", "Done", { "{name}" }, "thanks", "Off")
-    MsgChips("loyaltymsg", "Regular", { "{name}", "{visits}" }, nil, "Off")
-    MsgChips("scammsg", "Didn't pay", { "{name}", "{skull}" }, nil, "Off")
+    local function Section(text) if y < TOP then y = y - 8 end Header(C1, y, text, FW) y = y - 26 end
+    Section("Send on invite")
+    Msg("welcomemsg", "Welcome", { "{name}", "{who}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome")
+    Msg("askmsg", "Not sure what they want", { "{name}", "{services}" }, nil)
+    Section("Send on entry")
+    Msg("loyaltymsg", "A regular", { "{name}", "{visits}" }, "loyal", "Empty: say nothing")
+    Msg("scammsg", "Didn't pay last time", { "{name}", "{skull}" }, "scam", "Empty: say nothing")
+    Section("Send when summoning")
+    Msg("alertmsg", "Summon starting", { "{name}", "{dest}", "{payee}", "{price}" }, "alert")
+    Section("Send on arrival")
+    Msg("paymsg", "Pay reminder", { "{name}", "{here}", "{payee}", "{price}" }, "arrival", "Empty: no reminder")
+    Msg("offermsg", "What else is here", { "{name}", "{here}", "{offers}" }, nil, "Empty: say nothing")
+    Section("Send when done")
+    Msg("thanksmsg", "Thanks", { "{name}" }, "thanks")
 
     -- Warlock --------------------------------------------------------------
-    page = pages[2]
+    page = pages[3]
     y = TOP
     Header(C1, y, "Sell") y = y - 28
     y = Service("summons", C1, y) - 12
@@ -4886,11 +4900,9 @@ local function BuildSetupUI()
     Pick(pb, false, "Our warlocks (from your group)", "class:WARLOCK")
     y = y - ROW
     Toggle("countshards", C2, y, "Count shards", true) y = y - ROW - 12
-    Header(C2, y, "When a summon starts") y = y - 28
-    Label(C2, y - 4, "Raid line") Check("raidalert", C2 + CW - 34, y - 3)
-    y = y - 26
-    local am = Box("alertmsg", C2, y, CW, 255) y = y - 34
-    Chips(am, C2 + CW, y, { "{name}", "{dest}", "{payee}", "{price}" }) y = y - 34
+    -- tell a helper (say, whoever clicks) who's being summoned and who's next; the summon line to
+    -- the customer is on the Messages tab
+    Header(C2, y, "Whisper a helper when summoning") y = y - 28
     Label(C2, y - 6, "Whisper to") Box("whisperto", C2 + 112, y, CW - 112, 40, "Nobody") y = y - ROW
     Label(C2, y - 4, "Whisper")
     local wm
@@ -4899,7 +4911,7 @@ local function BuildSetupUI()
     Chips(wm, C2 + CW, y, { "{name}", "{next}" })
 
     -- Paladin --------------------------------------------------------------
-    page = pages[3]
+    page = pages[4]
     y = TOP
     Header(C1, y, "Sell") y = y - 28
     y = Service("blessing", C1, y) - 12
@@ -4922,7 +4934,7 @@ local function BuildSetupUI()
     w.showBuffKey = showBuffKey
 
     -- Advertise --------------------------------------------------------------
-    page = pages[4]
+    page = pages[5]
     local FW = PW - 56
     y = TOP
     Header(C1, y, "Ad", FW) y = y - 28
@@ -4953,7 +4965,7 @@ local function BuildSetupUI()
     w.showAdKey = showAdKey
 
     -- Team -------------------------------------------------------------------
-    page = pages[5]
+    page = pages[6]
     y = TOP
     Header(C1, y, "Team", FW) y = y - 28
     Label(C1, y - 6, "Guild is the team") Check("guildteam", C1 + FW - 34, y - 6, nil, true) y = y - ROW
@@ -4969,24 +4981,11 @@ local function BuildSetupUI()
     Pick(pb2, false, "Point of contact (from your group)", "workers") y = y - ROW
     w.teamStatus = Label(C1, y - 4, "", nil, FW) y = y - 22
     w.teamBooks = Label(C1, y - 4, "", "GameFontHighlightSmall", FW) y = y - 34
-    Header(C1, y, "Where each message goes", FW) y = y - 28
-    local cols = { { "whisper", "Whisper" }, { "group", "Party" }, { "off", "Off" } }
-    for i, c in ipairs(cols) do
-        local h = Text(page, 11, INK.muted) h:SetPoint("TOPLEFT", C1 + 300 + (i - 1) * 146, y) h:SetWidth(140) h:SetText(c[2]:upper())
-    end
-    y = y - 22
-    for _, kind in ipairs(Jobs.ROUTE_KINDS) do
-        Label(C1, y - 7, Jobs.ROUTE_LABEL[kind])
-        for i, c in ipairs(cols) do
-            Seg("route_" .. kind, "route_" .. kind .. "_" .. c[1], C1 + 300 + (i - 1) * 146, y, 140, c[2])
-        end
-        y = y - 34
-    end
 
     -- Tools: every command (the owner, 14 Nov 2026: "i want the addon to have a debug
     -- panel/command panel or something - there are too many to remember"). Each runs the same
     -- /si command you could type.
-    page = pages[6]
+    page = pages[7]
     local function Run(cmd) w.Save() SlashCmdList.SERVICEINVITER(cmd) w.Load() end
     w.tools = {}
     local function Tool(x, y0, width, text, cmd, style)
@@ -5117,10 +5116,7 @@ local function BuildSetupUI()
         local adch = type(db.adchans) == "table" and db.adchans or { trade = true }
         checks.adch_trade:SetChecked(adch.trade and true or false)
         checks.adch_general:SetChecked(adch.general and true or false)
-        checks.raidalert:SetChecked(db.raidalert ~= false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
-        checks.welcome:SetChecked(Opt("welcome") and true or false)
-        checks.thanks:SetChecked(db.thanks ~= false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")
         checks.rolelock:SetChecked(Role() == "lock")
@@ -5171,8 +5167,10 @@ local function BuildSetupUI()
         table.sort(wl)
         boxes.team:SetText(table.concat(wl, ", "))
         boxes.poc:SetText((type(db.team) == "table" and db.team.poc) or "")
+        -- each message's Off is also its old on/off (welcome, thanks, the raid line)
+        local off = { welcome = not Opt("welcome"), thanks = db.thanks == false, alert = db.raidalert == false }
         for _, kind in ipairs(Jobs.ROUTE_KINDS) do
-            local r = Jobs.RouteOf(kind)
+            local r = off[kind] and "off" or Jobs.RouteOf(kind)
             for _, opt in ipairs({ "whisper", "group", "off" }) do checks["route_" .. kind .. "_" .. opt]:SetChecked(r == opt) end
         end
         local poc = Jobs.POC()
@@ -5190,15 +5188,12 @@ local function BuildSetupUI()
         local db = ServiceInviterDB
         for key, def in pairs(DEFAULTS_BY_KEY) do
             local v = boxes[key]:GetText()
-            if (key == "loyaltymsg" or key == "scammsg") and v == "" then db[key] = ""   -- empty = off
+            if (key == "loyaltymsg" or key == "scammsg" or key == "paymsg" or key == "offermsg") and v == "" then db[key] = ""   -- empty = off
             elseif v == "" or v == def then db[key] = nil else db[key] = v end
         end
         local who = (boxes.whisperto:GetText():gsub("%s+", ""))
         db.whisperto = (who == "") and false or who
-        db.raidalert = checks.raidalert:GetChecked() and true or false
         db.autotrade = checks.autotrade:GetChecked() and true or false
-        SetOpt("welcome", checks.welcome:GetChecked() and true or false)
-        db.thanks = checks.thanks:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
         do local n = tonumber(boxes.cooldown:GetText()) if n and n >= 0 then db.cooldown = math.floor(n + 0.5) end end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == MSG.KEYWORDS) and nil or kws end
@@ -5247,6 +5242,9 @@ local function BuildSetupUI()
             local pick = (checks["route_" .. kind .. "_whisper"]:GetChecked() and "whisper") or
                 (checks["route_" .. kind .. "_off"]:GetChecked() and "off") or "group"
             if pick ~= Jobs.RouteOf(kind) then route[kind] = pick end
+            if kind == "welcome" then SetOpt("welcome", pick ~= "off") end
+            if kind == "thanks" then db.thanks = pick ~= "off" end
+            if kind == "alert" then db.raidalert = pick ~= "off" end
         end
         if next(route) then db.route = route end
         -- the team and point of contact

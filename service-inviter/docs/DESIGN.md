@@ -375,3 +375,17 @@ group gets comes from a box in setup, and each box shows the text it sends (no "
 
 `tests/test_no_fixed_text.py` sets every box to a marker, runs a customer through every step, and
 fails on anything sent that didn't come from a box.
+
+## 3.7: a Messages tab (14 Nov 2026)
+
+The owner: *"getting too cramped - it's annoying to have short text boxes"*, *"make a tab that can
+be used for the chats only so it's all in one spot and it's obvious like Send on invite, Send on
+entry, Send on arrival etc"*, *"build the team part to be... teams"*.
+
+- **Messages** (second tab): every message in the order a customer meets them (Send on invite,
+  on entry, when summoning, on arrival, when done), each a full-width box with Whisper / Party /
+  Off beside it. Off is the message's on/off (it also sets the old welcome / thanks / raid-line
+  flags). An empty Pay reminder or "What else is here" says nothing.
+- **Team** is only the team: the guild, ours outside it, the point of contact, who's online.
+- **General** keeps inviting, paying and where the addon's own lines go ("Who I invited, and why").
+- Dropped: "WTB only" (LF / need / looking always count) and "Merge split messages" (always on).

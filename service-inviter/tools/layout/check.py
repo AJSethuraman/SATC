@@ -73,13 +73,13 @@ L = load(GROUP)
 L.execute('ServiceInviterDB.services = { blessing = { on = true } }')
 L.execute("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show()")
 win = L.globals().SETUP
-for i, name in enumerate(["General", "Warlock", "Paladin", "Advertise", "Team", "Tools"], 1):
+for i, name in enumerate(["General", "Messages", "Warlock", "Paladin", "Advertise", "Team", "Tools"], 1):
     L.execute(f"SETUP.ShowTab({i}) SETUP.Refresh()")
     scenes[f"setup_{name}"] = export(L, win, win.pages[i])
 
 for name, before in [("picker_alone", ""), ("picker_in_a_group", GROUP)]:
     L = load(before)
-    L.execute("""S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(2)
+    L.execute("""S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(3)
         ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().svc_summons_payee, true, "Who gets paid for summons?", "summons")""")
     scenes[name] = export(L, L.globals().ServiceInviterPicker)
 
@@ -117,15 +117,15 @@ STRAY = GROUP.replace('party1 = {"Grimtotem","WARLOCK",60,"Thunder Bluff"}', 'pa
     'party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Random","WARLOCK",60,"Undercity"}').replace(
     'GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { ["Yeet Lock"] = true, Random = true }')
 L = load(STRAY + '\nServiceInviterDB = { providers = { WARLOCK = "Yeet Lock" } }')
-L.execute("S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(2) S.Refresh()")
-scenes["setup_our_warlocks"] = export(L, L.globals().S, L.globals().S.pages[2])
+L.execute("S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(3) S.Refresh()")
+scenes["setup_our_warlocks"] = export(L, L.globals().S, L.globals().S.pages[3])
 L.execute('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().prov_WARLOCK, false, "Our warlocks (from your group)", "class:WARLOCK")')
 scenes["picker_our_warlocks"] = export(L, L.globals().ServiceInviterPicker)
 
 # "Our workers": the General tab with workers listed, and the pick list (anyone but customers)
 L = load(STRAY + '\nServiceInviterDB = { workers = { ["Yeet Lock"] = true, Random = true } }')
-L.execute("S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(1) S.Refresh()")
-scenes["setup_our_workers"] = export(L, L.globals().S, L.globals().S.pages[1])
+L.execute("S = ServiceInviter_Test.BuildSetup() S:Show() S.ShowTab(6) S.Refresh()")
+scenes["setup_our_workers"] = export(L, L.globals().S, L.globals().S.pages[6])
 L.execute('ServiceInviter_Test.ShowPicker(ServiceInviter_Test.SetupBoxes().workers, false, "Our workers (from your group)", "workers")')
 scenes["picker_our_workers"] = export(L, L.globals().ServiceInviterPicker)
 
