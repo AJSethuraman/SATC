@@ -59,7 +59,9 @@ def test_unscam_clears_them_and_the_list_opens_to_copy():
     g.run('SlashCmdList.SERVICEINVITER("scammers")')
     assert "Momma Lovesme: 2 times, owed 70 silver" in g.eval("ServiceInviterCopy.box:GetText()")
     g.run('SlashCmdList.SERVICEINVITER("unscam momma lovesme")')
-    assert g.eval('ServiceInviterDB.scammers["Momma Lovesme"]') is None
+    assert g.eval('ServiceInviter_Test.Jobs.Scammer("Momma Lovesme")') is None   # kept as cleared, for the team
+    g.run('SlashCmdList.SERVICEINVITER("scammers")')
+    assert "Momma Lovesme" not in g.eval("ServiceInviterCopy.box:GetText()")
 
 
 def test_paid_by_mistake_can_be_turned_into_scam_and_the_money_comes_off():

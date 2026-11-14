@@ -290,3 +290,28 @@ customers · 3.4 shared prices and shards.
 - **Test mode across copies.** A copy in test mode hands its buyers to the point of contact marked
   as a test; the point of contact's copy invites nobody and whispers the exact customer messages to
   the test target (or to the teammate who found the buyer).
+
+## 3.3: the guild is the team, and the books are shared (14 Nov 2026)
+
+The owner: *"i want as much to work through guild as possible - like the idea of this being a
+'community' addon. so auto detect and stuff should work from guild and understand if guild is in
+party it is not a customer"*.
+
+- **"My guild is the team"** (Team tab, on by default). Anyone in your guild is never a customer,
+  addon or not (read from the guild roster). Guildmates running the addon are on the team on any
+  character, with nothing typed; the team box is now only for people outside the guild.
+- **Team messages go over the guild's hidden addon line** as well as the raid's, so a teammate in
+  another city gets hand-offs too. The same message arriving twice is heard once.
+- **Each copy owns its own book** (customers, didn't pay, stats) and only the owner changes it.
+  Every change counts up `bookrev`. Each hello carries that number; a teammate holding less sends
+  `WANT`, and the owner answers with what changed since, a line every 0.25s (the game drops faster
+  bursts), then `END`. The receiver only marks itself caught up at `END`, so a cut-off answer is
+  simply asked for again. Teammates' books are kept in `teambooks`, so their customers count while
+  they are offline.
+- **Lists and stats add the books up** (`Jobs.Book`, `Jobs.Analytics`). To keep one summon from
+  being counted twice, only the point of contact records a visit when one is online; with none, a
+  "joined your group" row isn't recorded when a teammate is in the group.
+- **Didn't pay is shared both ways.** "Paid after all" no longer deletes: it marks the entry
+  cleared, and a name is on the list when its latest "didn't pay", in anyone's book, is newer than
+  its latest clear. So any copy can clear anyone's entry.
+- Not tested in game: the guild addon line and the roster on Forever.

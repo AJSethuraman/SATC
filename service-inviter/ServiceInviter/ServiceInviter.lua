@@ -1,4 +1,4 @@
--- Service Inviter v3.2.2
+-- Service Inviter v3.3.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -92,6 +92,7 @@ local DEFAULTS = {
     buffarrivals = true, -- queue your buffs on a customer who lands where you are, unasked
     buffpop   = true,    -- the buff button pops up at your mouse when someone is waiting
     countshards = false, -- count soul shards and stop inviting summon buyers when they'd run out
+    guildteam = true,    -- everyone in your guild running Service Inviter is on the team
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
     sum_org = false, port_org = false,
@@ -506,11 +507,43 @@ end
 -- spells it. The owner, 14 Nov 2026: "all things must keep 2 part names in mind".
 -- Non-payers (the owner, 14 Nov 2026: "add a scam button rather than paid to record them as
 -- prior scammers and publicly say it when they join"). Kept with the saved settings.
+-- Shared with the team: a name is on the list when its latest "didn't pay", in anyone's book, is
+-- newer than its latest "paid after all". Returns the team's total and the name as written.
 function Jobs.Scammer(name)
-    local t = ServiceInviterDB.scammers
-    if type(t) ~= "table" or type(name) ~= "string" then return nil end
-    for k, v in pairs(t) do if k:lower() == name:lower() then return v, k end end
-    return nil
+    if type(name) ~= "string" then return nil end
+    local db = ServiceInviterDB
+    local books = { type(db.scammers) == "table" and db.scammers or {} }
+    for _, b in pairs(type(db.teambooks) == "table" and db.teambooks or {}) do books[#books + 1] = b.scammers or {} end
+    local found, total, last, cleared = nil, { n = 0, owed = 0 }, -1, -1
+    for _, t in ipairs(books) do
+        for k, v in pairs(t) do
+            if k:lower() == name:lower() then
+                found = found or k
+                total.n, total.owed = total.n + (v.n or 0), total.owed + (v.owed or 0)
+                last = math.max(last, v.last or 0)
+                cleared = math.max(cleared, v.cleared or -1)
+                if (v.last or 0) > (total.last or 0) then total.last = v.last end
+            end
+        end
+    end
+    if not found or last <= cleared then return nil end
+    return total, found
+end
+-- Everyone on the team's didn't-pay list now: { name = total }.
+function Jobs.Scammers()
+    local db, out, seen = ServiceInviterDB, {}, {}
+    local books = { type(db.scammers) == "table" and db.scammers or {} }
+    for _, b in pairs(type(db.teambooks) == "table" and db.teambooks or {}) do books[#books + 1] = b.scammers or {} end
+    for _, t in ipairs(books) do
+        for k in pairs(t) do
+            if not seen[k:lower()] then
+                seen[k:lower()] = true
+                local v, nm = Jobs.Scammer(k)
+                if v then out[nm] = v end
+            end
+        end
+    end
+    return out
 end
 function Jobs.ScamLine(name)
     local m = ServiceInviterDB.scammsg
@@ -523,7 +556,7 @@ end
 function Jobs.Recent(name)
     if type(name) ~= "string" or name == "" then return nil end
     for _, j in ipairs(Jobs.All and Jobs.All() or {}) do if j.name:lower() == name:lower() then return j.name end end
-    local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+    local book = Jobs.Book()
     for k, c in pairs(book) do
         local now = (time and time()) or (os and os.time and os.time()) or 0
         if k:lower() == name:lower() and c.last and now - c.last < 3600 then return k end
@@ -848,6 +881,13 @@ end
 function Jobs.Record(j)
     if not j or j.recorded or Jobs.IsWorker(j.name) then return end
     j.recorded = true
+    -- on a team, one copy records each visit, so the shared books don't count it twice: the point
+    -- of contact's when one is online; otherwise the copy that invited them
+    local poc = Jobs.POC()
+    if poc and poc ~= Jobs.Me() then return end
+    if not poc and j.why == "invited by someone else" then
+        for _, nm in ipairs(Jobs.TeamPeople()) do if Jobs.Online(nm) and Jobs.InGroup(nm) then return end end
+    end
     local db = ServiceInviterDB
     db.customers = type(db.customers) == "table" and db.customers or {}
     local now = Now()
@@ -862,6 +902,7 @@ function Jobs.Record(j)
     local where = j.dest or "?"
     c.to = c.to or {}
     c.to[where] = (c.to[where] or 0) + 1
+    c.rev = Jobs.Bump()
     db.customers[j.name] = c
     local a = type(db.analytics) == "table" and db.analytics or { n = 0, worth = 0, to = {}, by = {}, hour = {}, day = {}, since = now }
     local fmt = date or (os and os.date)
@@ -874,6 +915,7 @@ function Jobs.Record(j)
         a.hour[t.hour] = (a.hour[t.hour] or 0) + 1
         a.day[t.wday] = (a.day[t.wday] or 0) + 1
     end
+    a.rev = Jobs.Bump()
     db.analytics = a
 end
 -- Near misses: business we could have had (the owner, 14 Nov 2026: "when we record a near miss
@@ -902,12 +944,13 @@ function Jobs.NearMiss(name, why, key, dest)
     a.near.worth = a.near.worth + price
     a.near.why[reason] = (a.near.why[reason] or 0) + 1
     if dest then a.near.to[dest] = (a.near.to[dest] or 0) + 1 end
+    a.rev = Jobs.Bump()
     db.analytics = a
 end
 -- /si stats: who, where, what, when, since the book started
 function Jobs.PrintStats()
     local db = ServiceInviterDB
-    local a, book = db.analytics, type(db.customers) == "table" and db.customers or {}
+    local a, book = Jobs.Analytics(), Jobs.Book()
     local function NearLines()
         local nm = type(a) == "table" and a.near
         if not nm or nm.n == 0 then return end
@@ -970,6 +1013,9 @@ end
 -- /si worker NAME (or your target), /si workers group marks everyone in the group now.
 function Jobs.IsWorker(name)
     if Jobs.IsTeam and Jobs.IsTeam(name) then return true end   -- teammates are never customers
+    -- nor is anyone in your guild, addon or not (the owner, 14 Nov 2026: "understand if guild is
+    -- in party it is not a customer")
+    if Jobs.InMyGuild and Jobs.InMyGuild(name) then return true end
     local w = ServiceInviterDB.workers
     if type(w) ~= "table" or not name then return false end
     name = name:lower()
@@ -1004,7 +1050,8 @@ end
 -- Times they used you before this visit (0 for someone new).
 function Jobs.Before(j)
     if j and j.previewBefore then return j.previewBefore end   -- Preview's pretend regular
-    local c = j and type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers[j.name]
+    local c
+    if j then for k, v in pairs(Jobs.Book()) do if k:lower() == j.name:lower() then c = v end end end
     if not c then return 0 end
     return c.n - (j.recorded and 1 or 0)
 end
@@ -1022,7 +1069,7 @@ end
 -- the first letters are enough). The owner, 13 Nov 2026: "how can i see the list of people in
 -- game we have collected - or like top 10 at least".
 function Jobs.PrintRegulars(want)
-    local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+    local book = Jobs.Book()
     local function line(name, c)
         local by = {}
         for k, v in pairs(c.by or {}) do by[#by + 1] = v .. " " .. ((Core.BY_KEY[k] and Core.BY_KEY[k].label) or k) end
@@ -1551,6 +1598,7 @@ f:RegisterEvent("CHAT_MSG_SYSTEM")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("CHAT_MSG_ADDON")
 f:RegisterEvent("GROUP_ROSTER_UPDATE")
+f:RegisterEvent("GUILD_ROSTER_UPDATE")
 f:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 f:RegisterEvent("PLAYER_REGEN_ENABLED")
 f:RegisterEvent("UI_ERROR_MESSAGE")
@@ -1580,6 +1628,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         Report("team", pcall(Jobs.TeamReceive, text, sender, arg3, channelName))
         return
     end
+    if event == "GUILD_ROSTER_UPDATE" then Report("guild", pcall(Jobs.ReadGuild)) return end
     if event == "GROUP_ROSTER_UPDATE" or event == "ZONE_CHANGED_NEW_AREA" then
         if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 5 then Report("team", pcall(Jobs.SayHi, event == "GROUP_ROSTER_UPDATE")) end
         return
@@ -1703,6 +1752,10 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         end
         debugOn = ServiceInviterDB.debug and true or false
         if debugOn then P("debug is ON") end
+        if IsInGuild and IsInGuild() then
+            local ask = (C_GuildInfo and C_GuildInfo.GuildRoster) or GuildRoster
+            if ask then pcall(ask) end
+        end
         if Jobs.TeamOn() then Report("team", pcall(Jobs.SayHi, true)) end
         return
     end
@@ -2526,13 +2579,14 @@ function Jobs.TeamMembers()
 end
 function Jobs.IsTeam(name)
     if type(name) ~= "string" or IsSecret(name) then return false end
+    if Jobs.Guildmate(name) then return true end
     local t = ServiceInviterDB.team
     if type(t) ~= "table" or type(t.members) ~= "table" then return false end
     name = name:lower()
     for k in pairs(t.members) do if k:lower() == name then return true end end
     return false
 end
-function Jobs.TeamOn() return #Jobs.TeamMembers() > 0 end
+function Jobs.TeamOn() return #Jobs.TeamMembers() > 0 or Jobs.GuildTeam() end
 function Jobs.SetTeam(name, on)
     ServiceInviterDB.team = type(ServiceInviterDB.team) == "table" and ServiceInviterDB.team or {}
     local t = ServiceInviterDB.team
@@ -2566,7 +2620,9 @@ function Jobs.POC()
 end
 -- Send to the team: over the group channel, and by addon whisper to teammates seen online who
 -- aren't in the group (never to someone offline: the game answers that with an error line).
-function Jobs.TeamSay(...)
+function Jobs.TeamSay(...) return Jobs.TeamSend(false, ...) end
+-- quiet = the guild line and whispers only, not the raid (book sharing: the guild reaches them all)
+function Jobs.TeamSend(quiet, ...)
     if not Jobs.TeamOn() then return end
     local parts = { ... }
     for i, v in ipairs(parts) do parts[i] = tostring(v or ""):gsub("\t", " ") end
@@ -2574,15 +2630,20 @@ function Jobs.TeamSay(...)
     if #msg > 250 then msg = msg:sub(1, 250) end
     local send = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
     if not send then return end
-    local went = {}
-    if IsInGroup and IsInGroup() then
+    local went, ok = {}, true
+    if Jobs.GuildTeam() then
+        local okc, res = pcall(send, Jobs.Team.PREFIX, msg, "GUILD")
+        if not okc or res == false or (type(res) == "number" and res ~= 0) then ok = false end
+        went[#went + 1] = "guild"
+    end
+    if IsInGroup and IsInGroup() and not (quiet and Jobs.GuildTeam()) then
         local dist = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
         pcall(send, Jobs.Team.PREFIX, msg, dist)
         went[#went + 1] = dist:lower()
     end
     local skipped = {}
     for _, nm in ipairs(Jobs.TeamMembers()) do
-        if nm:lower() ~= (FullName("player") or ""):lower() and not Jobs.InGroup(nm) then
+        if nm:lower() ~= (FullName("player") or ""):lower() and not Jobs.InGroup(nm) and not Jobs.Guildmate(nm) then
             if Jobs.Online(nm) then
                 pcall(send, Jobs.Team.PREFIX, msg, "WHISPER", nm)
                 went[#went + 1] = nm
@@ -2592,6 +2653,7 @@ function Jobs.TeamSay(...)
     Jobs.TeamLog("sent", #went > 0 and table.concat(went, ", ") or "nobody", msg,
         (#went == 0 and "not grouped and no teammate seen online" or nil) or
         (#skipped > 0 and ("not sent to " .. table.concat(skipped, ", ") .. ": not seen online") or nil))
+    return ok
 end
 -- The team's hidden messages, kept for /si teamlog (the last 200) and shown live with /si debug.
 -- The owner, 14 Nov 2026, on the copies talking without a chat window: "for debugging though".
@@ -2611,6 +2673,16 @@ function Jobs.TeamWords(msg)
             ((f[12] or "") ~= "" and (' ("' .. f[12] .. '")') or "")
     elseif f[1] == "GOT" then
         return (f[3] or "?") .. " invited " .. (f[2] or "?")
+    elseif f[1] == "WANT" then
+        return "asking " .. (f[2] or "?") .. " for their book since change " .. (f[3] or "?")
+    elseif f[1] == "C" then
+        return "book, customer " .. (f[3] or "?") .. ": " .. (f[4] or "?") .. " times"
+    elseif f[1] == "S" then
+        return "book, didn't pay: " .. (f[3] or "?") .. (((f[7] or "") ~= "") and " (paid after all)" or "")
+    elseif f[1] == "A" then
+        return "book, stats (" .. (f[3] or "?") .. ")"
+    elseif f[1] == "END" then
+        return "book sent, up to change " .. (f[2] or "?")
     end
     return "unknown: " .. tostring(msg)
 end
@@ -2633,7 +2705,8 @@ end
 function Jobs.SayHi(ask)
     local okv, ver = pcall(function() return ((C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata)(ADDON_NAME, "Version") end)
     Jobs.Team.lastHi = GetTime()
-    Jobs.TeamSay("HI", okv and ver or "?", Role() == "lock" and "1" or "0", ZoneOf("player") or "", ask and "?" or "")
+    Jobs.bookTold = Jobs.BookRev()
+    Jobs.TeamSay("HI", okv and ver or "?", Role() == "lock" and "1" or "0", ZoneOf("player") or "", ask and "?" or "", Jobs.BookRev())
 end
 -- Hand a buyer and their quote to the point of contact (marked as a test when you're testing).
 function Jobs.HandOff(poc, buyer, svc, dest, quote, channel, market, said, why)
@@ -2649,6 +2722,12 @@ function Jobs.TeamReceive(prefix, msg, dist, sender)
     local who = Ambiguate and Ambiguate(sender, "none") or sender
     local me = FullName("player") or ""
     if who:lower() == me:lower() then return end
+    -- the same message by the guild line and the raid: heard once
+    Jobs.Team.heard = Jobs.Team.heard or {}
+    local key = who .. "\n" .. msg
+    if Jobs.Team.heard[key] and GetTime() - Jobs.Team.heard[key] < 5 then return end
+    Jobs.Team.heard[key] = GetTime()
+    if dist == "GUILD" then Jobs.Team.guild[who] = true end
     local note = Jobs.TeamHear(msg, who, me)
     Jobs.TeamLog("from", who .. (dist and (" (" .. tostring(dist):lower() .. ")") or ""), msg, note)
 end
@@ -2666,8 +2745,9 @@ function Jobs.TeamHear(msg, who, me)
             end
             return "not on your team, so only noted"
         end
-        if f[5] == "?" and GetTime() - Jobs.Team.lastHi > 3 then Jobs.SayHi(false) return "answered" end
-        return nil
+        local want = Jobs.CheckBook(who, tonumber(f[6]))
+        if f[5] == "?" and GetTime() - Jobs.Team.lastHi > 3 then Jobs.SayHi(false) return "answered" .. (want and ("; " .. want) or "") end
+        return want
     end
     if not Jobs.IsTeam(who) then return "ignored: not on your team" end   -- only teammates are listened to
     Jobs.Team.seen[who] = Jobs.Team.seen[who] or { t = GetTime() }
@@ -2689,7 +2769,274 @@ function Jobs.TeamHear(msg, who, me)
         return "inviting" .. (test and " (test)" or "")
     end
     if kind == "GOT" then return nil end
+    if Jobs.BookHear(kind, f, who, me) then return Jobs.bookNote end
     return "ignored: unknown message"
+end
+
+----------------------------------------------------------------------
+-- The guild is the team, and the copies share their books (the owner, 14 Nov 2026: "how will it
+-- save and share out customers?" -- "i think guild is good i like that").
+-- Everyone in your guild running Service Inviter is on the team, on any character, with nothing to
+-- add; the team list still adds people outside the guild. Each copy keeps its own book (customers,
+-- didn't pay, stats) and sends it to the team; each copy keeps the others' books too, so you see
+-- the whole team's customers even when the one who served them is offline. Only the owner of a
+-- book ever changes it, so there is nothing to argue over: theirs replaces what you held.
+-- Each change to a book counts up its number (bookrev). A copy says its number with every hello;
+-- a teammate who holds less asks (WANT) for what changed since, and gets it a line at a time.
+----------------------------------------------------------------------
+Jobs.Team.guild = {}
+function Jobs.GuildTeam() return (Opt("guildteam") and IsInGuild and IsInGuild()) and true or false end
+function Jobs.Guildmate(name)
+    if not Jobs.GuildTeam() or type(name) ~= "string" then return false end
+    for k in pairs(Jobs.Team.guild) do if k:lower() == name:lower() then return true end end
+    return false
+end
+-- Your guild's names, read from the roster (the game sends it on login and when it changes).
+Jobs.guildNames = {}
+function Jobs.ReadGuild()
+    local names = {}
+    local n = GetNumGuildMembers and GetNumGuildMembers() or 0
+    for i = 1, (tonumber(n) or 0) do
+        local nm = GetGuildRosterInfo(i)
+        if type(nm) == "string" and not IsSecret(nm) then
+            names[(Ambiguate and Ambiguate(nm, "none") or nm):lower()] = true
+        end
+    end
+    Jobs.guildNames = names
+end
+function Jobs.InMyGuild(name)
+    if not Opt("guildteam") or type(name) ~= "string" or IsSecret(name) or not (IsInGuild and IsInGuild()) then return false end
+    if Jobs.guildNames[name:lower()] then return true end
+    -- not on the roster yet: ask the game about them if they're in the group
+    if UnitIsInMyGuild then
+        local units = {}
+        for i = 1, 4 do units[#units + 1] = "party" .. i end
+        for i = 1, 40 do units[#units + 1] = "raid" .. i end
+        for _, u in ipairs(units) do
+            local nm = GetUnitName and GetUnitName(u, true)
+            if type(nm) == "string" and not IsSecret(nm) and nm:lower() == name:lower() then
+                local ok, yes = pcall(UnitIsInMyGuild, u)
+                if ok and yes == true then return true end
+            end
+        end
+    end
+    return false
+end
+-- Whose customers you hold, for the Team tab and /si team.
+function Jobs.BooksLine()
+    local parts = {}
+    for who, b in pairs(type(ServiceInviterDB.teambooks) == "table" and ServiceInviterDB.teambooks or {}) do
+        local n = 0
+        for _ in pairs(b.customers or {}) do n = n + 1 end
+        parts[#parts + 1] = who .. " " .. n
+    end
+    table.sort(parts)
+    local mine = 0
+    for _ in pairs(type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}) do mine = mine + 1 end
+    return "Customers: yours " .. mine .. (#parts > 0 and (", " .. table.concat(parts, ", ")) or ", nobody else's yet") ..
+        ". Lists and stats count everyone's."
+end
+-- Everyone on the team: the list, and guildmates heard from.
+function Jobs.TeamPeople()
+    local seen, out = {}, {}
+    for _, nm in ipairs(Jobs.TeamMembers()) do seen[nm:lower()] = true out[#out + 1] = nm end
+    if Jobs.GuildTeam() then
+        for nm in pairs(Jobs.Team.guild) do if not seen[nm:lower()] then seen[nm:lower()] = true out[#out + 1] = nm end end
+    end
+    table.sort(out)
+    return out
+end
+-- Your book's number. The first time, every record already there gets one.
+function Jobs.BookRev()
+    local db = ServiceInviterDB
+    if tonumber(db.bookrev) then return db.bookrev end
+    local r, list = 0, {}
+    for name, c in pairs(type(db.customers) == "table" and db.customers or {}) do list[#list + 1] = { name, c } end
+    table.sort(list, function(a, b) return (a[2].last or 0) < (b[2].last or 0) end)
+    for _, e in ipairs(list) do r = r + 1 e[2].rev = r end
+    for _, e in pairs(type(db.scammers) == "table" and db.scammers or {}) do r = r + 1 e.rev = r end
+    if type(db.analytics) == "table" then r = r + 1 db.analytics.rev = r end
+    db.bookrev = r
+    return r
+end
+function Jobs.Bump()
+    ServiceInviterDB.bookrev = Jobs.BookRev() + 1
+    return ServiceInviterDB.bookrev
+end
+-- A teammate's book, as you hold it.
+function Jobs.TeamBook(who)
+    local db = ServiceInviterDB
+    db.teambooks = type(db.teambooks) == "table" and db.teambooks or {}
+    for k, b in pairs(db.teambooks) do if k:lower() == who:lower() then return b end end
+    local b = { rev = 0, customers = {}, scammers = {}, an = {} }
+    db.teambooks[who] = b
+    return b
+end
+-- Their hello says how far their book has got; ask for the rest.
+function Jobs.CheckBook(who, rev)
+    if not rev then return nil end
+    local b = Jobs.TeamBook(who)
+    if rev < (b.rev or 0) then   -- they started a fresh book: take it again from the start
+        b.rev, b.customers, b.scammers, b.an = 0, {}, {}, {}
+    end
+    if rev <= (b.rev or 0) then return nil end
+    Jobs.Team.asked = Jobs.Team.asked or {}
+    local was = Jobs.Team.asked[who]
+    if was and was.rev >= rev and GetTime() - was.t < 20 then return "their book: already asked" end
+    Jobs.Team.asked[who] = { t = GetTime(), rev = rev }
+    Jobs.TeamSend(true, "WANT", who, b.rev or 0)
+    return "asked for their book since change " .. (b.rev or 0) .. " (they're at " .. rev .. ")"
+end
+local function Pairs(t)
+    local out = {}
+    for k, v in pairs(type(t) == "table" and t or {}) do out[#out + 1] = tostring(k):gsub("[,=]", " ") .. "=" .. tostring(v) end
+    table.sort(out)
+    return table.concat(out, ",")
+end
+local function Unpairs(s, numkeys)
+    local t = {}
+    for k, v in tostring(s or ""):gmatch("([^,=]+)=([^,]*)") do
+        if numkeys and tonumber(k) then k = tonumber(k) end
+        t[k] = tonumber(v) or 0
+    end
+    return t
+end
+-- What changed in your book since `since`, a line each, oldest first, then END.
+function Jobs.BookLines(since)
+    local db, out = ServiceInviterDB, {}
+    local rev = Jobs.BookRev()
+    for name, c in pairs(type(db.customers) == "table" and db.customers or {}) do
+        if (c.rev or 0) > since then
+            out[#out + 1] = { c.rev, { "C", c.rev, name, c.n or 0, c.worth or 0, c.first or 0, c.last or 0, Pairs(c.by), Pairs(c.to) } }
+        end
+    end
+    for name, e in pairs(type(db.scammers) == "table" and db.scammers or {}) do
+        if (e.rev or 0) > since then
+            out[#out + 1] = { e.rev, { "S", e.rev, name, e.n or 0, e.owed or 0, e.last or 0, e.cleared or "" } }
+        end
+    end
+    local a = db.analytics
+    if type(a) == "table" and (a.rev or 0) > since then
+        local nm = type(a.near) == "table" and a.near or { n = 0, worth = 0 }
+        local r = a.rev
+        out[#out + 1] = { r, { "A", r, "base", (a.n or 0) .. "|" .. (a.worth or 0) .. "|" .. (a.since or 0) .. "|" .. (nm.n or 0) .. "|" .. (nm.worth or 0) } }
+        for _, part in ipairs({ "to", "by", "hour", "day" }) do out[#out + 1] = { r, { "A", r, part, Pairs(a[part]) } } end
+        out[#out + 1] = { r, { "A", r, "nwhy", Pairs(nm.why) } }
+        out[#out + 1] = { r, { "A", r, "nto", Pairs(nm.to) } }
+    end
+    table.sort(out, function(x, y) return x[1] < y[1] end)
+    local lines = {}
+    for _, e in ipairs(out) do lines[#lines + 1] = e[2] end
+    lines[#lines + 1] = { "END", rev }
+    return lines
+end
+-- Lines go out a few a second: the game drops addon messages sent faster than that.
+Jobs.outbox = {}
+Jobs.OUT_EVERY = 0.25
+function Jobs.Drain()
+    local item = Jobs.outbox[1]
+    if not item then return end
+    if Jobs.TeamSend(true, unpack(item)) == false then
+        Jobs.outWait = GetTime() + 2   -- the game said slow down
+        return
+    end
+    table.remove(Jobs.outbox, 1)
+end
+-- A teammate's book line, or their WANT. True when it was one of these.
+function Jobs.BookHear(kind, f, who, me)
+    Jobs.bookNote = nil
+    if kind == "WANT" then
+        if not f[2] or f[2]:lower() ~= me:lower() then Jobs.bookNote = "ignored: meant for " .. tostring(f[2]) return true end
+        local since = tonumber(f[3]) or 0
+        if Jobs.wantSince == nil or since < Jobs.wantSince then Jobs.wantSince = since end
+        Jobs.wantAt = Jobs.wantAt or GetTime()   -- answered in 2s, once for everyone who asked
+        Jobs.bookNote = "sending my book since change " .. since
+        return true
+    end
+    if kind ~= "C" and kind ~= "S" and kind ~= "A" and kind ~= "END" then return false end
+    local b = Jobs.TeamBook(who)
+    if kind == "END" then
+        local r = tonumber(f[2]) or 0
+        if r > (b.rev or 0) then b.rev = r end
+        Jobs.bookNote = "their book is up to date (change " .. r .. ")"
+        if Jobs.team_refresh then Jobs.team_refresh() end
+        return true
+    end
+    if tonumber(f[2]) and tonumber(f[2]) <= (b.rev or 0) then Jobs.bookNote = "already have it" return true end
+    if kind == "C" then
+        b.customers[f[3]] = { n = tonumber(f[4]) or 0, worth = tonumber(f[5]) or 0, first = tonumber(f[6]), last = tonumber(f[7]),
+            by = Unpairs(f[8]), to = Unpairs(f[9]) }
+        Jobs.bookNote = "saved their customer " .. f[3]
+    elseif kind == "S" then
+        b.scammers[f[3]] = { n = tonumber(f[4]) or 0, owed = tonumber(f[5]) or 0, last = tonumber(f[6]), cleared = tonumber(f[7]) }
+        Jobs.bookNote = "saved their didn't-pay entry " .. f[3]
+    else
+        local part = f[3]
+        if part == "base" then
+            local n, worth, since, nn, nw = tostring(f[4] or ""):match("^(%-?[%d.]*)|(%-?[%d.]*)|(%-?[%d.]*)|(%-?[%d.]*)|(%-?[%d.]*)$")
+            b.an.n, b.an.worth, b.an.since = tonumber(n) or 0, tonumber(worth) or 0, tonumber(since)
+            b.an.near = b.an.near or {}
+            b.an.near.n, b.an.near.worth = tonumber(nn) or 0, tonumber(nw) or 0
+        elseif part == "nwhy" or part == "nto" then
+            b.an.near = b.an.near or {}
+            b.an.near[part == "nwhy" and "why" or "to"] = Unpairs(f[4])
+        elseif part == "to" or part == "by" or part == "hour" or part == "day" then
+            b.an[part] = Unpairs(f[4], part == "hour" or part == "day")
+        end
+        Jobs.bookNote = "saved their stats (" .. tostring(part) .. ")"
+    end
+    return true
+end
+-- Every 1s: answer WANTs, and say when your book moved so teammates come and get it.
+function Jobs.BookTick()
+    if Jobs.wantAt and GetTime() - Jobs.wantAt >= 2 then
+        for _, l in ipairs(Jobs.BookLines(Jobs.wantSince or 0)) do Jobs.outbox[#Jobs.outbox + 1] = l end
+        Jobs.wantAt, Jobs.wantSince = nil, nil
+    end
+    if Jobs.TeamOn() and Jobs.bookTold and Jobs.BookRev() > Jobs.bookTold and GetTime() - Jobs.Team.lastHi > 10 then
+        Jobs.SayHi(false)
+    end
+end
+-- The whole team's customers: yours plus every teammate's book, added up per person.
+function Jobs.Book()
+    local db, out, keyOf = ServiceInviterDB, {}, {}
+    local function add(name, c)
+        local k = name:lower()
+        local m = keyOf[k]
+        if not m then m = { n = 0, worth = 0, by = {}, to = {} } keyOf[k] = m out[name] = m end
+        m.n = m.n + (c.n or 0)
+        m.worth = m.worth + (c.worth or 0)
+        if c.first and c.first > 0 and (not m.first or c.first < m.first) then m.first = c.first end
+        if c.last and (not m.last or c.last > m.last) then m.last = c.last end
+        for x, v in pairs(c.by or {}) do m.by[x] = (m.by[x] or 0) + v end
+        for x, v in pairs(c.to or {}) do m.to[x] = (m.to[x] or 0) + v end
+    end
+    for name, c in pairs(type(db.customers) == "table" and db.customers or {}) do add(name, c) end
+    for _, b in pairs(type(db.teambooks) == "table" and db.teambooks or {}) do
+        for name, c in pairs(b.customers or {}) do add(name, c) end
+    end
+    return out
+end
+-- The whole team's stats.
+function Jobs.Analytics()
+    local db = ServiceInviterDB
+    local mine = type(db.analytics) == "table" and db.analytics or nil
+    local books = {}
+    if mine then books[#books + 1] = mine end
+    for _, b in pairs(type(db.teambooks) == "table" and db.teambooks or {}) do if b.an and b.an.n then books[#books + 1] = b.an end end
+    if #books == 0 then return nil end
+    local a = { n = 0, worth = 0, to = {}, by = {}, hour = {}, day = {}, near = { n = 0, worth = 0, why = {}, to = {} } }
+    local function sum(dst, src) for k, v in pairs(src or {}) do dst[k] = (dst[k] or 0) + v end end
+    for _, x in ipairs(books) do
+        a.n, a.worth = a.n + (x.n or 0), a.worth + (x.worth or 0)
+        if x.since and x.since > 0 and (not a.since or x.since < a.since) then a.since = x.since end
+        for _, part in ipairs({ "to", "by", "hour", "day" }) do sum(a[part], x[part]) end
+        if type(x.near) == "table" then
+            a.near.n, a.near.worth = a.near.n + (x.near.n or 0), a.near.worth + (x.near.worth or 0)
+            sum(a.near.why, x.near.why) sum(a.near.to, x.near.to)
+        end
+    end
+    return a
 end
 
 ----------------------------------------------------------------------
@@ -3117,12 +3464,18 @@ local ticker = CreateFrame("Frame")
 local tacc = 0
 ticker:SetScript("OnUpdate", function(_, el)
     tacc = tacc + (el or 0)
+    Jobs.outAcc = (Jobs.outAcc or 0) + (el or 0)
+    if Jobs.outAcc >= Jobs.OUT_EVERY and #Jobs.outbox > 0 and not (Jobs.outWait and GetTime() < Jobs.outWait) then
+        Jobs.outAcc = 0
+        Report("team books", pcall(Jobs.Drain))
+    end
     if tacc >= 1 then
         tacc = 0
         if not ServiceInviterDB.stasis then
             Report("arrivals", pcall(CheckArrivals))
             if #buffQueue > 0 then Report("buffs", pcall(RefreshBuff)) end   -- range, and anyone who left
             if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 60 then Report("team", pcall(Jobs.SayHi, false)) end
+            Report("team books", pcall(Jobs.BookTick))
         end
     end
 end)
@@ -3165,12 +3518,13 @@ end
 function Jobs.Scam(name)
     local j = Jobs.Get(name)
     ServiceInviterDB.scammers = type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}
-    local _, key = Jobs.Scammer(name)
-    key = key or name
+    local key = name
+    for k in pairs(ServiceInviterDB.scammers) do if k:lower() == name:lower() then key = k end end
     local e = ServiceInviterDB.scammers[key] or { n = 0, owed = 0 }
     e.n = e.n + 1
     e.owed = (e.owed or 0) + ((j and JobPrice(j)) or 0)
-    e.last = Now()
+    e.last = math.max(Now(), (e.cleared or 0) + 1)
+    e.rev = Jobs.Bump()
     ServiceInviterDB.scammers[key] = e
     -- marked Paid by mistake (the owner, 14 Nov 2026: "i accidentally added paid to someone but
     -- meant to add scam"): the money comes back off the session
@@ -4043,22 +4397,24 @@ local function BuildSetupUI()
     -- Team -------------------------------------------------------------------
     page = pages[5]
     Header(L, -50, "Team")
-    Label(L, -76, "Copies on the team share with each other and are never customers. Copies in your raid who aren't on it get a line in your chat.", "GameFontHighlightSmall", 840)
-    local tb = Box("team", L + 4, -100, 600, 400)
+    Check("guildteam", L, -72, "My guild is the team (guildmates are never customers)", true)
+    Label(L, -110, "Also on the team, outside the guild:", "GameFontHighlightSmall", 840)
+    local tb = Box("team", L + 4, -128, 600, 400)
     PickButton(page, tb, false, "Team (from your group)", "workers")
-    Label(L, -136, "Point of contact (the first one online invites and whispers every customer; blank = each of you, solo):", "GameFontHighlightSmall", 840)
-    local pb2 = Box("poc", L + 4, -156, 600, 200)
+    Label(L, -162, "Point of contact (the first one online invites and whispers every customer; blank = each of you, solo):", "GameFontHighlightSmall", 840)
+    local pb2 = Box("poc", L + 4, -180, 600, 200)
     PickButton(page, pb2, false, "Point of contact (from your group)", "workers")
-    w.teamStatus = Label(L, -190, "", "GameFontHighlight", 840)
-    Header(L, -232, "Where each message goes")
+    w.teamStatus = Label(L, -212, "", "GameFontHighlight", 840)
+    w.teamBooks = Label(L, -234, "", "GameFontHighlightSmall", 840)
+    Header(L, -262, "Where each message goes")
     for i, kind in ipairs(Jobs.ROUTE_KINDS) do
-        local y = -260 - (i - 1) * 30
+        local y = -288 - (i - 1) * 30
         Label(L, y - 4, Jobs.ROUTE_LABEL[kind] .. ":")
         Radio("route_" .. kind, "route_" .. kind .. "_whisper", L + 190, y, "Whisper them")
         Radio("route_" .. kind, "route_" .. kind .. "_group", L + 340, y, "Party / raid")
         Radio("route_" .. kind, "route_" .. kind .. "_off", L + 490, y, "Off")
     end
-    Label(L, -450, "With a team, customer messages start as whispers; solo, as before. The regulars line and the call-out are public.", "GameFontHighlightSmall", 840)
+    Label(L, -470, "With a team, customer messages start as whispers; solo, as before. The regulars line and the call-out are public.", "GameFontHighlightSmall", 840)
 
     -- Tools: every command as a button (the owner, 14 Nov 2026: "i want the addon to have a debug
     -- panel/command panel or something - there are too many to remember"). Each runs the same
@@ -4209,9 +4565,10 @@ local function BuildSetupUI()
         end
         local poc = Jobs.POC()
         local online = {}
-        for _, nm in ipairs(Jobs.TeamMembers()) do if Jobs.Online(nm) then online[#online + 1] = nm end end
-        w.teamStatus:SetText(#Jobs.TeamMembers() == 0 and "No team: working solo." or
+        for _, nm in ipairs(Jobs.TeamPeople()) do if Jobs.Online(nm) then online[#online + 1] = nm end end
+        w.teamStatus:SetText(not Jobs.TeamOn() and "No team: working solo." or
             ("Online: " .. (#online > 0 and table.concat(online, ", ") or "nobody yet") .. ".  Point of contact now: " .. (poc or "nobody (each works solo)") .. "."))
+        w.teamBooks:SetText(Jobs.BooksLine())
         SyncTradeBox()
         Refresh()
     end
@@ -4568,14 +4925,16 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             ServiceInviterDB.team.poc = (arg ~= "" and arg) or nil
         elseif sub == "clear" then ServiceInviterDB.team = nil
         elseif sub ~= "" then P("/si team add NAME, NAME · /si team remove NAME · /si team poc NAME, BACKUP · /si team clear") return end
-        local list = Jobs.TeamMembers()
-        if #list == 0 then P("no team: working solo. /si team add NAME, NAME to share with them") return end
+        local list = Jobs.TeamPeople()
+        if not Jobs.TeamOn() then P("no team: working solo. Join a guild, or /si team add NAME, NAME to share with them") return end
+        if Jobs.GuildTeam() then P("your guild is the team" .. (#list == 0 and ": no guildmate's copy heard from yet" or "")) end
         local parts = {}
         for _, nm in ipairs(list) do
             local s2 = Jobs.Team.seen[nm]
             parts[#parts + 1] = nm .. (Jobs.Online(nm) and (" (online" .. (s2 and s2.lock and ", warlock" or "") .. (s2 and s2.zone and s2.zone ~= "" and (", " .. s2.zone) or "") .. ")") or " (not seen)")
         end
-        P("team: " .. table.concat(parts, ", "))
+        if #parts > 0 then P("team: " .. table.concat(parts, ", ")) end
+        P(Jobs.BooksLine())
         local poc = Jobs.POC()
         local set = type(ServiceInviterDB.team) == "table" and ServiceInviterDB.team.poc
         P("point of contact: " .. (poc and (poc .. (poc == FullName("player") and " (you)" or "")) or "none online") ..
@@ -4618,7 +4977,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         -- looks up names i just want a list i can copy and paste")
         Jobs.Copy("Didn't pay: names", function()
             local list = {}
-            for k in pairs(type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}) do list[#list + 1] = k end
+            for k in pairs(Jobs.Scammers()) do list[#list + 1] = k end
             table.sort(list)
             if #list == 0 then P("nobody on the list") end
             for _, n in ipairs(list) do P(n) end
@@ -4626,7 +4985,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
     elseif cmd == "scammers" or cmd == "scams" then
         Jobs.Copy("Didn't pay", function()
             local list = {}
-            for k, v in pairs(type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}) do list[#list + 1] = { k, v } end
+            for k, v in pairs(Jobs.Scammers()) do list[#list + 1] = { k, v } end
             table.sort(list, function(a, b) return (a[2].last or 0) > (b[2].last or 0) end)
             if #list == 0 then P("nobody on the list") return end
             for _, e in ipairs(list) do
@@ -4640,8 +4999,18 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         Jobs.Scam(j and j.name or rest)
         RefreshJobs()
     elseif cmd == "unscam" then
-        local _, key = Jobs.Scammer(rest)
-        if key then ServiceInviterDB.scammers[key] = nil P(key .. " is off the didn't-pay list") else P("nobody called " .. rest .. " on the list") end
+        -- kept as "cleared", so the team's copies clear it too
+        local tot, key = Jobs.Scammer(rest)
+        if key then
+            ServiceInviterDB.scammers = type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}
+            local mine
+            for k in pairs(ServiceInviterDB.scammers) do if k:lower() == key:lower() then mine = k end end
+            local e = ServiceInviterDB.scammers[mine or key] or { n = 0, owed = 0 }
+            e.cleared = math.max(Now(), tot.last or 0)
+            e.rev = Jobs.Bump()
+            ServiceInviterDB.scammers[mine or key] = e
+            P(key .. " is off the didn't-pay list")
+        else P("nobody called " .. rest .. " on the list") end
     elseif cmd == "shards" then
         local r = rest:lower()
         if r == "off" then ServiceInviterDB.shards = nil SetOpt("countshards", false)
