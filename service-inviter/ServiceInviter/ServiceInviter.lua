@@ -1,4 +1,4 @@
--- Service Inviter v3.8.1
+-- Service Inviter v3.8.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -600,8 +600,25 @@ local function DestFor(zone)
     return nil
 end
 -- What can be bought right now, from who is in the group (see docs/DESIGN.md).
+-- Test mode with no warlock in the group: pretend one is standing where you are, so a buyer
+-- for your city is caught and run through (the owner, 14 Nov 2026: "trying to test it without
+-- warlock making sure addon communicates").
+function Jobs.TestGroup(g, force)
+    if not (force or ServiceInviterDB.dryrun) then return g end
+    if not Core.Setting(ServiceInviterDB, "summons").on or Core.Provider(g, "summons") then return g end
+    local here = ZoneOf("player")
+    if not here then return g end
+    local out = {}
+    for _, m in ipairs(g) do out[#out + 1] = m end
+    out[#out + 1] = { name = "Test Warlock", class = "WARLOCK", level = 60, zone = here, standIn = true }
+    if not Jobs.toldTestLock then
+        Jobs.toldTestLock = true
+        P("|cffffd100TEST|r no warlock with you, so test mode pretends one is in " .. here .. ".")
+    end
+    return out
+end
 local function LiveTargets(g)
-    g = g or GroupSnapshot()
+    g = Jobs.TestGroup(g or GroupSnapshot())
     local T = { sum = {}, port = {}, items = {}, dests = DESTS }
     for _, it in ipairs(Core.OnSale(ServiceInviterDB, g, Faction())) do
         if it.setting.invite then
@@ -1371,7 +1388,8 @@ local function Handle(text, sender, guid)
     if paused then return end
     local now0 = GetTime()
     local adOpen = lastAdAt and (now0 - lastAdAt) < AD_ANSWER_WINDOW
-    if not (Opt("enabled") or Opt("kwon") or (adOpen and curChannel == "whisper")) or not sender or sender == "" then D("skip: addon off or no sender") return end
+    -- test mode listens even with Selling off: it never invites anyone anyway
+    if not (Opt("enabled") or Opt("kwon") or ServiceInviterDB.dryrun or (adOpen and curChannel == "whisper")) or not sender or sender == "" then D("skip: addon off or no sender") return end
     if Opt("skipafk") and UnitIsAFK and UnitIsAFK("player") then D("skip: you are AFK (see 'Skip while I'm AFK')") return end
     local short = Ambiguate and Ambiguate(sender, "none") or sender
     if Jobs.IsWorker(short) then D("skip: " .. short .. " is one of your workers") return end
@@ -1400,7 +1418,7 @@ local function Handle(text, sender, guid)
     local ok, why, svc, dest
     if answered then ok, why = true, "answered your ad " .. answered .. "s ago"
     elseif kw then ok, why = true, "keyword '" .. kw .. "'"
-    elseif Opt("enabled") then ok, why, svc, dest = Evaluate(norm, ded, T)
+    elseif Opt("enabled") or ServiceInviterDB.dryrun then ok, why, svc, dest = Evaluate(norm, ded, T)
     else ok, why = false, "invites are off (only keywords are on)" end
     diag.eval = { who = short, ok = ok, why = why, t = GetTime() }
 
@@ -1856,7 +1874,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
     elseif event == "CHAT_MSG_WHISPER" then
         curChannel = "whisper"
         Report("buffs", pcall(BuffAsk, text, sender))
-        if not KeywordHit(text, true) and not Opt("enabled") then return end
+        if not KeywordHit(text, true) and not Opt("enabled") and not ServiceInviterDB.dryrun then return end
     end
     Report("prices", pcall(Jobs.WatchRival, text, sender, Jobs.market))
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
@@ -2739,6 +2757,14 @@ end
 -- would get, start to finish, with their real name, city and quoted price, goes to you instead:
 -- in your chat, or whispered to the character set with /si test NAME.
 function Jobs.Rehearse(name, said, why, svc, dest, channel, quote, target, market)
+    -- the messages need someone to do the service: a pretend warlock when there's none
+    local was = previewGroup
+    previewGroup = Jobs.TestGroup(GroupSnapshot(), true)
+    local ok, err = pcall(Jobs.RehearseNow, name, said, why, svc, dest, channel, quote, target, market)
+    previewGroup = was
+    if not ok then P("|cffff4040test error|r " .. tostring(err)) end
+end
+function Jobs.RehearseNow(name, said, why, svc, dest, channel, quote, target, market)
     local db = ServiceInviterDB
     local job = { name = name, service = svc or "summons", dest = dest, t = GetTime() }
     job.price = quote or Core.Setting(db, job.service, dest).price

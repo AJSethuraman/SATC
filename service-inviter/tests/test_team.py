@@ -239,3 +239,18 @@ def test_only_the_point_of_contact_sets_prices():
     me.run("ServiceInviter_Test.Jobs.SendPrices()")   # I'm not the point of contact: nothing sent
     pump(me, bone, "Me")
     assert bone.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == 35
+
+
+def test_team_test_mode_with_no_warlock_reaches_the_point_of_contact():
+    me = world({"player": ME, "raid1": BONE}, "summons = { price = 35 }", extra=COMMS)
+    bone = world({"player": BONE, "raid1": ME}, "summons = { price = 35 }", extra=COMMS)
+    for g in (me, bone):
+        g.run('ServiceInviterDB.opts = { marks = false, enabled = false } SlashCmdList.SERVICEINVITER("team add Me, Bone Charms") SlashCmdList.SERVICEINVITER("team poc Bone Charms")')
+    pump(me, bone, "Me")
+    pump(bone, me, "Bone Charms")
+    me.run('SlashCmdList.SERVICEINVITER("test Me")')
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    pump(me, bone, "Me")
+    sent = bone.sent()
+    assert sent and all(to == "Me" for _, to, _ in sent)          # whispered to the tester, not Kaldrok
+    assert any("Test Warlock will summon you to TB" in m for _, _, m in sent)

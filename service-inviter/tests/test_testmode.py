@@ -56,3 +56,17 @@ def test_test_off_invites_for_real_again():
     g.run('SlashCmdList.SERVICEINVITER("test") SlashCmdList.SERVICEINVITER("test off")')
     say_trade(g, "Kaldrok", "wtb summon to TB")
     assert list(g.g.INVITED.values()) == ["Kaldrok"]
+
+
+def test_test_mode_works_with_no_warlock_and_selling_off():
+    """The owner, 14 Nov 2026: "i am using test mode - doesn't seem to be catching anything? ...
+    trying to test it without warlock making sure addon communicates"."""
+    from test_group import world, say_trade
+    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff")}, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { enabled = false, marks = false } SlashCmdList.SERVICEINVITER("test")')
+    say_trade(g, "Kaldrok", "wtb summon to TB")
+    lines = " ".join(g.printed())
+    assert list(g.g.INVITED.values()) == []                      # still invites nobody
+    assert "pretends one is in Thunder Bluff" in lines
+    assert "TEST" in lines and "would invite Kaldrok" in lines
+    assert "Test Warlock will summon you to TB" in lines         # the welcome they'd get
