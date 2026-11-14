@@ -254,3 +254,21 @@ def test_team_test_mode_with_no_warlock_reaches_the_point_of_contact():
     sent = bone.sent()
     assert sent and all(to == "Me" for _, to, _ in sent)          # whispered to the tester, not Kaldrok
     assert any("Test Warlock will summon you to TB" in m for _, _, m in sent)
+
+
+def test_a_book_sync_is_two_lines_in_the_team_log():
+    """The owner, 14 Nov 2026: "how can i see the addons communicate so i can tell when they do /
+    don't". A 300-customer sync must not push the hand-offs out of the 200-line log."""
+    me, bone = pair()
+    me.run('ServiceInviterDB.customers = {} for i = 1, 300 do ServiceInviterDB.customers["B" .. i] = '
+           '{ n = 1, by = {}, worth = 0, first = i, last = i, to = {} } end ServiceInviterDB.bookrev = nil')
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    me.run("ServiceInviter_Test.Jobs.SayHi(false)")
+    pump(me, bone, "Me")
+    pump(bone, me, "Bone Charms")
+    me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick() while #ServiceInviter_Test.Jobs.outbox > 0 do ServiceInviter_Test.Jobs.Drain() end")
+    pump(me, bone, "Me")
+    log = teamlog(bone)
+    assert "customer book: sending started" in log and "lines in all" in log
+    assert "buyer Kaldrok for Bone Charms" in log                 # still there
+    assert log.count("\n") < 20

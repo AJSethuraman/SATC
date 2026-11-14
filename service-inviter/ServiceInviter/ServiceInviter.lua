@@ -1,4 +1,4 @@
--- Service Inviter v3.8.3
+-- Service Inviter v3.8.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2917,6 +2917,10 @@ function Jobs.TeamWords(msg)
         return (f[3] or "?") .. " invited " .. (f[2] or "?")
     elseif f[1] == "WANT" then
         return "asking " .. (f[2] or "?") .. " for their book since change " .. (f[3] or "?")
+    elseif (f[1] == "C" or f[1] == "S" or f[1] == "A") and f[2] == "starting" then
+        return "customer book: sending started"
+    elseif f[1] == "SET" and f[2] == "starting" then
+        return "setup: sending started"
     elseif f[1] == "C" then
         return "book, customer " .. (f[3] or "?") .. ": " .. (f[4] or "?") .. " times"
     elseif f[1] == "S" then
@@ -2940,6 +2944,22 @@ function Jobs.TeamWords(msg)
     return "unknown: " .. tostring(msg)
 end
 function Jobs.TeamLog(dir, who, msg, note)
+    -- a book sync is hundreds of lines (C, S, A): one line when it starts, one when it ends, so
+    -- the log keeps the hand-offs and invites you look for (the owner, 14 Nov 2026: "how can i see
+    -- the addons communicate so i can tell when they do / don't")
+    local kind = tostring(msg):match("^(%u+)")
+    if kind == "C" or kind == "S" or kind == "A" or kind == "SET" then
+        Jobs.syncCount = Jobs.syncCount or {}
+        local key = dir .. who .. kind
+        Jobs.syncCount[key] = (Jobs.syncCount[key] or 0) + 1
+        if Jobs.syncCount[key] > 1 then return end
+        msg = (kind == "SET") and "SET\tstarting" or (kind .. "\tstarting")
+        note = nil
+    elseif kind == "END" or kind == "SETEND" then
+        local n = 0
+        for k, v in pairs(Jobs.syncCount or {}) do if k:find("^" .. dir .. who:gsub("%p", "%%%0")) then n = n + v Jobs.syncCount[k] = nil end end
+        note = (note and (note .. "; ") or "") .. n .. " lines in all"
+    end
     local okc, clock = pcall(function() return (date or os.date)("%H:%M:%S") end)
     local line = (okc and clock or "") .. "  " .. (dir == "sent" and ("sent to " .. who) or ("from " .. who)) .. ": " ..
         Jobs.TeamWords(msg) .. (note and (" -- " .. note) or "")
