@@ -302,3 +302,45 @@ def test_a_named_regulars_line_with_the_automatic_welcome():
     said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
     assert said[0].startswith("Welcome back Kaldrok, 2nd time with us! Grimtotem will summon you")
     assert said[0].count("Kaldrok") == 1
+
+
+# The owner, 14 Nov 2026: "when we record a near miss can we have some data about how much
+# business we could have had".
+
+def test_near_misses_add_up_what_we_could_have_had():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Aa", "WTB summon to TB 20s")                 # under your price
+    say_trade(g, "Bb", "WTB summon to Org")                    # a place you don't serve
+    say_trade(g, "Cc", "WTB summon to Org pst")
+    say_trade(g, "Dd", "WTB summon for 3 to TB")               # a group
+    nm = g.eval("ServiceInviterDB.analytics.near")
+    assert nm.n == 4 and nm.worth == 140
+    assert nm.why["offered under your price"] == 1 and nm.why["a place you don't serve"] == 2 and nm.why["asked for a group"] == 1
+    assert nm.to["Orgrimmar"] == 2
+
+
+def test_the_same_person_asking_twice_is_one_near_miss():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Bb", "WTB summon to Org")
+    g.run("CLOCK = CLOCK + 30")
+    say_trade(g, "Bb", "WTB summon to Org pls")
+    assert g.eval("ServiceInviterDB.analytics.near.n") == 1
+
+
+def test_stats_show_the_near_misses_even_before_the_first_customer():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Bb", "WTB summon to Org")
+    say_trade(g, "Cc", "WTB summon to Org")
+    g.run('SlashCmdList.SERVICEINVITER("stats")')
+    out = " ".join(copied(g))
+    assert "Near misses: 2, worth 70 silver at your prices" in out
+    assert "Why we missed them: a place you don't serve 2" in out
+    assert "Where they wanted to go: Orgrimmar 2" in out
+
+
+def test_near_misses_count_with_the_chat_lines_turned_off():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run("ServiceInviterDB.near = false")
+    say_trade(g, "Bb", "WTB summon to Org")
+    assert g.eval("ServiceInviterDB.analytics.near.n") == 1
+    assert not any("NEAR MISS" in p for p in g.printed())

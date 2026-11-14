@@ -1,4 +1,4 @@
--- Service Inviter v2.11.1
+-- Service Inviter v2.12.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -301,7 +301,7 @@ local function Evaluate(norm, dedicated, T)
     local sawDest = false
     for _, d in ipairs(dests) do
         if (not anyTo or toKeys[d.key]) and HasAny(norm, d.words) then
-            sawDest = true
+            sawDest = sawDest or d.label
             -- a summon fetches them from anywhere, so it answers a port request too;
             -- a port (a mage) needs them to come to you, so it does not answer a summon request
             if T.sum[d.key] then
@@ -315,7 +315,8 @@ local function Evaluate(norm, dedicated, T)
     if (wantsSum or wantsPort) and T.sumAny then return true, "summon (any destination), buy=" .. buy, "summons" end
     if wantsPort and T.portAny then return true, "port (any destination), buy=" .. buy, "portals" end
     -- No place named ("WTB summon"): never assume where they want to go.
-    return false, sawDest and "that destination/service is not checked" or "no place named"
+    return false, sawDest and "that destination/service is not checked" or "no place named",
+        (wantsSum and "summons") or (wantsPort and "portals") or nil, sawDest or nil
 end
 
 ----------------------------------------------------------------------
@@ -730,11 +731,54 @@ function Jobs.Record(j)
     end
     db.analytics = a
 end
+-- Near misses: business we could have had (the owner, 14 Nov 2026: "when we record a near miss
+-- can we have some data about how much business we could have had"). Counted once per person
+-- per 10 minutes (split messages and repeats are one ask), valued at your price for the service.
+function Jobs.NearMiss(name, why, key, dest)
+    Jobs.nearSeen = Jobs.nearSeen or {}
+    local now = GetTime()
+    if Jobs.nearSeen[name] and now - Jobs.nearSeen[name] < 600 then return end
+    Jobs.nearSeen[name] = now
+    local db = ServiceInviterDB
+    local a = type(db.analytics) == "table" and db.analytics or { n = 0, worth = 0, to = {}, by = {}, hour = {}, day = {}, since = Now() }
+    a.near = type(a.near) == "table" and a.near or { n = 0, worth = 0, why = {}, to = {} }
+    local w = tostring(why or "")
+    local reason = (w:find("under your", 1, true) and "offered under your price")
+        or (w:find("people; a summon", 1, true) and "asked for a group")
+        or (w:find("soul shards", 1, true) and "out of shards")
+        or (w:find("not checked", 1, true) and "a place you don't serve")
+        or (w:find("no place named", 1, true) and "didn't say where")
+        or ((w:find("seller", 1, true) or w:find("contact word", 1, true)) and "read as an ad")
+        or (w:find("didn't pay", 1, true) and "didn't pay before")
+        or w:gsub("%b''", ""):gsub("%d+", ""):sub(1, 40)
+    local st = key and Core.BY_KEY[key] and Core.Setting(db, key)
+    local price = st and st.price or 0
+    a.near.n = a.near.n + 1
+    a.near.worth = a.near.worth + price
+    a.near.why[reason] = (a.near.why[reason] or 0) + 1
+    if dest then a.near.to[dest] = (a.near.to[dest] or 0) + 1 end
+    db.analytics = a
+end
 -- /si stats: who, where, what, when, since the book started
 function Jobs.PrintStats()
     local db = ServiceInviterDB
     local a, book = db.analytics, type(db.customers) == "table" and db.customers or {}
-    if type(a) ~= "table" or a.n == 0 then P("no stats yet: they start with the first summon or Paid") return end
+    local function NearLines()
+        local nm = type(a) == "table" and a.near
+        if not nm or nm.n == 0 then return end
+        local function list(t)
+            local l = {}
+            for k, v in pairs(t) do l[#l + 1] = { k, v } end
+            table.sort(l, function(x, y) return x[2] > y[2] end)
+            local out = {}
+            for _, e in ipairs(l) do out[#out + 1] = e[1] .. " " .. e[2] end
+            return table.concat(out, ", ")
+        end
+        P("Near misses: " .. nm.n .. ", worth " .. Money(nm.worth) .. " at your prices")
+        P("Why we missed them: " .. list(nm.why))
+        if next(nm.to) then P("Where they wanted to go: " .. list(nm.to)) end
+    end
+    if type(a) ~= "table" or a.n == 0 then P("no customers yet: they start with the first summon or Paid") NearLines() return end
     local people, back = 0, 0
     for _, c in pairs(book) do people = people + 1 if c.n > 1 then back = back + 1 end end
     local function top(t, name, limit)
@@ -752,6 +796,7 @@ function Jobs.PrintStats()
     P("Services: " .. top(a.by, function(k) return (Core.BY_KEY[k] and Core.BY_KEY[k].label) or k end))
     P("Busiest hours: " .. top(a.hour, function(h) return ("%02d:00"):format(h) end, 3))
     P("Busiest days: " .. top(a.day, function(d) return DAYS[d] or d end, 3))
+    NearLines()
 end
 -- Soul shards (the owner, 13 Nov 2026: "i want a running counter of summons - like our inv and
 -- expected amount left so it knows to stop"). Yours are read from your bags when you're the
@@ -1095,9 +1140,12 @@ local function Handle(text, sender, guid)
     end
 
     -- Near miss: sounds like a buyer (buy word + summon/port word, not a seller) but we said no.
-    if not ok and ServiceInviterDB.near ~= false and not HasAny(norm, SELLER)
+    if not ok and not HasAny(norm, SELLER)
         and HasAny(norm, BUY) and (HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS)) then
-        P("|cffffa040NEAR MISS|r " .. short .. " [" .. curChannel .. "] \"" .. text .. "\" -> " .. why)
+        Jobs.NearMiss(short, why, svc or (HasAny(norm, SUMMON_WORDS) and "summons") or "portals", dest)
+        if ServiceInviterDB.near ~= false then
+            P("|cffffa040NEAR MISS|r " .. short .. " [" .. curChannel .. "] \"" .. text .. "\" -> " .. why)
+        end
     end
 
     -- Only talk about messages that look like summon/port talk, so debug stays readable.
