@@ -1,4 +1,4 @@
--- Service Inviter v2.17.0
+-- Service Inviter v2.18.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -628,8 +628,52 @@ end
 -- The summons price (silver; 100 silver = 1 gold). Each service has its own: see JobPrice.
 local function Price() return Core.Setting(ServiceInviterDB, "summons").price or 0 end
 -- What one customer pays: their service's price, nil when it's free.
+-- Following the market (the owner, 14 Nov 2026: "dynamic pricing where we start at a certain
+-- amount and will not go below a certain amount but otherwise we compete with by undercutting
+-- another service by some amount"). A rival's summon ad for a city counts for 5 minutes; your
+-- price there is theirs minus your undercut, never above your own price nor below your floor.
+-- No floor set = it never moves (it won't guess how low you'd go).
+Jobs.rivals = {}
+Jobs.RIVAL_LASTS = 300
+function Jobs.Rival(where)
+    local r = where and Jobs.rivals[where]
+    if r and GetTime() - r.t <= Jobs.RIVAL_LASTS then return r end
+    return nil
+end
+Core.LivePrice = function(key, base, saved, where)
+    if key ~= "summons" or not saved.match or not where then return base end
+    local floor = tonumber(saved.floor)
+    if not floor then return base end
+    local r = Jobs.Rival(where)
+    if not r then return base end
+    local p = r.price - (tonumber(saved.undercut) or 5)
+    return math.max(floor, math.min(base, p))
+end
+-- A rival's ad: a seller word, a summon word, a price, and the cities it names. Not you, not
+-- anyone in your group, not your workers.
+function Jobs.WatchRival(text, sender)
+    if type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" then return end
+    local who = Ambiguate and Ambiguate(sender, "none") or sender
+    if who == FullName("player") or Jobs.IsWorker(who) or Jobs.InGroup(who) then return end
+    local norm = Norm(text)
+    if not HasAny(norm, SELLER) or not HasAny(norm, SUMMON_WORDS) then return end
+    local price = Core.OfferedPrice(text)
+    if not price or price <= 0 then return end
+    for _, d in ipairs(DESTS) do
+        if HasAny(norm, d.words) then
+            local before = Core.Setting(ServiceInviterDB, "summons", d.label).price
+            Jobs.rivals[d.label] = { price = price, t = GetTime(), who = who }
+            local now = Core.Setting(ServiceInviterDB, "summons", d.label).price
+            if before ~= now then
+                P("|cffffd100" .. Core.Short(d.label) .. " price now " .. (Core.Money(now) or "free") .. "|r (" .. who .. " is selling at " .. (Core.Money(price) or "?") .. ")")
+            end
+        end
+    end
+end
 local function JobPrice(j)
-    return Core.Setting(ServiceInviterDB, (j and j.service) or "summons").price
+    -- the price they were told when invited stays theirs; otherwise today's for where they go
+    if j and j.price then return j.price end
+    return Core.Setting(ServiceInviterDB, (j and j.service) or "summons", j and j.dest).price
 end
 -- Who gets paid for this customer, and whether that's you.
 local function PayeeFor(j, g)
@@ -771,7 +815,7 @@ function Jobs.NearMiss(name, why, key, dest)
         or ((w:find("seller", 1, true) or w:find("contact word", 1, true)) and "read as an ad")
         or (w:find("didn't pay", 1, true) and "didn't pay before")
         or w:gsub("%b''", ""):gsub("%d+", ""):sub(1, 40)
-    local st = key and Core.BY_KEY[key] and Core.Setting(db, key)
+    local st = key and Core.BY_KEY[key] and Core.Setting(db, key, dest)
     local price = st and st.price or 0
     a.near.n = a.near.n + 1
     a.near.worth = a.near.worth + price
@@ -1155,7 +1199,7 @@ local function Handle(text, sender, guid)
     -- 25s" at 35 silver: "this is below our price ... this should be filtered out"). Said as a
     -- near miss, so you can still invite them yourself.
     if ok and svc then
-        local price = Core.Setting(ServiceInviterDB, svc).price
+        local price = Core.Setting(ServiceInviterDB, svc, dest).price
         local offer = Core.OfferedPrice(text)
         if price and offer and offer < price then
             ok, why = false, "offers " .. Money(offer) .. ", under your " .. Money(price)
@@ -1211,6 +1255,7 @@ local function Handle(text, sender, guid)
     Jobs.invitedNow = true
     job = Jobs.New(short, text, why, curChannel)
     job.service, job.dest = svc, dest
+    job.price = Core.Setting(ServiceInviterDB, svc or "summons", dest).price   -- what they pay, even if the market moves
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     if Opt("announce") then
         local what = JobWhere(job)
@@ -1285,7 +1330,7 @@ local function WelcomeText(name, job)
         return custom
     end
     if job and job.service then
-        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest)
+        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest, job.price)
         if text and loyal and named then text = Lead((text:gsub("^Hi .-! ", "", 1)))
         elseif text and loyal then text = text:gsub("^(Hi .-!) ", function(hi) return hi .. " " .. loyal .. " " end, 1) end
         if text then return text end
@@ -1564,6 +1609,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         Report("buffs", pcall(BuffAsk, text, sender))
         if not KeywordHit(text, true) and not Opt("enabled") then return end
     end
+    Report("prices", pcall(Jobs.WatchRival, text, sender))
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
     RememberSaid(sender, text, curChannel)
     -- what was decided about each person, for /si why NAME (the owner, 14 Nov 2026: "this didnt
@@ -3517,6 +3563,13 @@ local function BuildSetupUI()
     end
     Ours("WARLOCK", "warlocks", -380)
     Check("countshards", L, -466, "Count shards: stop inviting when they run out", true)
+    -- following the market: undercut a rival's summon ad for the same city, never below a floor
+    Check("matchprice", L, -500, "Undercut other sellers' summon ads (same city, 5 min)")
+    Label(L + 30, -534, "by")
+    Box("undercut", L + 56, -530, 44, 4)
+    Label(L + 106, -534, "silver, never below")
+    Box("floor", L + 240, -530, 44, 4)
+    Label(L + 290, -534, "silver")
     Header(R, -50, "When the warlock starts summoning")
     Check("raidalert", R, -74, "Say in raid ({name} {dest} {payee} {price}):")
     Box("alertmsg", R + 4, -102, 396)
@@ -3666,6 +3719,10 @@ local function BuildSetupUI()
             boxes[k .. "payee"]:SetText(st.payee or "")
         end
         boxes.blessing_spell:SetText(Core.Setting(db, "blessing").spell or "")
+        local sm = (type(db.services) == "table" and db.services.summons) or {}
+        checks.matchprice:SetChecked(sm.match and true or false)
+        boxes.undercut:SetText(tostring(sm.undercut or 5))
+        boxes.floor:SetText(sm.floor and tostring(sm.floor) or "")
         local prov = type(db.providers) == "table" and db.providers or {}
         for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do boxes["prov_" .. cls]:SetText(prov[cls] or "") end
         local wl = {}
@@ -3717,6 +3774,10 @@ local function BuildSetupUI()
             saved.payee = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
             db.services[def.key] = saved
         end
+        local sm = db.services.summons
+        sm.match = checks.matchprice:GetChecked() and true or false
+        sm.undercut = tonumber(boxes.undercut:GetText()) or 5
+        sm.floor = tonumber(boxes.floor:GetText())   -- blank = no floor = it never moves
         local untick = {}
         for _, city in ipairs(w.portalChecks) do if not checks["portal_" .. city]:GetChecked() then untick[city] = true end end
         db.services.portals.untick = untick
@@ -3990,6 +4051,19 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         table.sort(list)
         P("workers: " .. (#list > 0 and table.concat(list, ", ") or "none") .. "   (/si worker NAME or your target, /si workers group, /si workers clear)")
         RefreshJobs()
+    elseif cmd == "prices" or cmd == "rivals" then
+        local sm = (type(ServiceInviterDB.services) == "table" and ServiceInviterDB.services.summons) or {}
+        P("Following other sellers: " .. (sm.match and ("on, undercut by " .. (sm.undercut or 5) .. " silver, never below " ..
+            (sm.floor and (sm.floor .. " silver") or "(no floor set: prices don't move)")) or "off (Warlock tab)"))
+        local any
+        for where, r in pairs(Jobs.rivals) do
+            if GetTime() - r.t <= Jobs.RIVAL_LASTS then
+                any = true
+                P(Core.Short(where) .. ": " .. r.who .. " at " .. (Core.Money(r.price) or "?") .. ", " .. math.floor(GetTime() - r.t) ..
+                    "s ago; yours " .. (Core.Money(Core.Setting(ServiceInviterDB, "summons", where).price) or "free"))
+            end
+        end
+        if not any then P("no other seller's summon ad in the last 5 minutes") end
     elseif cmd == "why" then
         local h = rest ~= "" and Jobs.heard and Jobs.heard[rest:lower()]
         if not h then
@@ -4098,7 +4172,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si scam NAME = didn't pay, /si scammers, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si prices = other sellers and your live price | /si scam NAME = didn't pay, /si scammers, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 

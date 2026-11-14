@@ -84,13 +84,15 @@ for _, s in ipairs(C.SERVICES) do C.BY_KEY[s.key] = s end
 
 -- Settings for one service: the catalog default, then what was saved.
 -- Saved price: a number in silver, or false for "free" (blank box).
-function C.Setting(db, key)
+-- where: the city, for a price that follows the market there (C.LivePrice, set by the addon)
+function C.Setting(db, key, where)
     local def = C.BY_KEY[key]
     local saved = (type(db) == "table" and type(db.services) == "table" and db.services[key]) or {}
     local price = def.price
     if key == "summons" and saved.price == nil and type(db) == "table" and type(db.price) == "number" then price = db.price end
     if saved.price ~= nil then price = saved.price or nil end
     if type(price) == "number" and price <= 0 then price = nil end   -- 0 is free (Lua counts 0 as true)
+    if price and C.LivePrice then price = C.LivePrice(key, price, saved, where) or price end
     local function pick(field) if saved[field] ~= nil then return saved[field] end return def[field] end
     return {
         on = pick("on") and true or false,
@@ -312,11 +314,17 @@ end
 function C.BuildAd(db, group, faction, template)
     local parts, anyPaid = {}, false
     local places, summonSt = {}, nil
+    local low
     for _, it in ipairs(C.OnSale(db, group, faction)) do
-        if it.def.kind == "summon" and it.where then places[#places + 1] = C.Short(it.where) summonSt = it.setting end
+        if it.def.kind == "summon" and it.where then
+            places[#places + 1] = C.Short(it.where) summonSt = it.setting
+            -- one price in the ad: the lowest of the cities (each may be following a rival)
+            local p = C.Setting(db, "summons", it.where).price
+            if p and (not low or p < low) then low = p end
+        end
     end
     if #places > 0 then
-        local m = priceText(summonSt.price)
+        local m = priceText(low or summonSt.price)
         if m then anyPaid = true end
         parts[#parts + 1] = "summons to " .. table.concat(places, "/") .. (m and (" " .. m) or "")
         if not m then parts[#parts] = "free " .. parts[#parts] end
@@ -351,7 +359,8 @@ end
 
 -- The welcome when an invited customer joins: what they get, who does it, where, the price,
 -- and who to pay. Returns text or nil, why.
-function C.JoinWelcome(db, group, faction, key, name, dest)
+-- price: what this customer was quoted (fixed when invited); nil = today's price there
+function C.JoinWelcome(db, group, faction, key, name, dest, quoted)
     local def = C.BY_KEY[key]
     if not def then return nil, "unknown service" end
     local p = C.Provider(group, key, (def.kind == "summon" or def.kind == "portal") and dest or nil)
@@ -363,7 +372,7 @@ function C.JoinWelcome(db, group, faction, key, name, dest)
     local payee = C.Payee(db, group, key, p, here)
     local payWord = (me and payee == me.name) and "me" or C.Label(group, payee)
     local mine = me and p.name == me.name
-    local price = priceText(st.price)
+    local price = priceText(quoted or C.Setting(db, key, here).price)
     if def.kind == "summon" then
         local doer = mine and "I'll" or (C.Label(group, p.name) .. " will")
         return ("Hi %s! %s summon you to %s. %s. Pay %s when you land."):format(name, doer, C.Short(here or "us"), price or "Free", payWord)
