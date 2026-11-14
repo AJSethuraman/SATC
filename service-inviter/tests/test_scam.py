@@ -92,7 +92,6 @@ def test_someone_who_leaves_after_the_summon_keeps_paid_and_scam():
     assert g.status("Kaldrok") == "left"
     assert g.eval("ServiceInviterJobs.rows[1].job.name") == "Kaldrok"     # still listed ten minutes on
     assert g.eval("ServiceInviterJobs.rows[1].scam._shown") is True
-    assert g.eval("ServiceInviterJobs.rows[1].paid._shown") is True
     g.run('local b = ServiceInviterJobs.rows[1].scam b._scripts.PostClick(b)')
     assert g.status("Kaldrok") == "scammed"
 
@@ -128,3 +127,16 @@ def test_the_names_export_for_the_guild_bot():
     g.run('ServiceInviterDB.scammers = { ["Momma Lovesme"] = { n = 2, owed = 70 }, Kaldrok = { n = 1, owed = 35 } }')
     g.run('SlashCmdList.SERVICEINVITER("scammers names")')
     assert g.eval("ServiceInviterCopy.box:GetText()") == "Kaldrok\nMomma Lovesme"
+
+
+
+def test_clear_left_takes_everyone_who_left_off_the_list():
+    """The owner, 14 Nov 2026: "maybe a clear the people who have left the group"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    for n in ("Aa", "Bb", "Cc"):
+        say_trade(g, n, "WTB summon to TB")
+        g.event("CHAT_MSG_SYSTEM", f"{n} joins the party.")
+    g.event("CHAT_MSG_SYSTEM", "Aa leaves the party.")
+    g.event("CHAT_MSG_SYSTEM", "Bb leaves the party.")
+    g.run("ServiceInviterJobs:Show() ServiceInviterJobs.clearBtn._scripts.OnClick()")
+    assert [j.name for j in g.eval("ServiceInviter_Test.Jobs.All()").values()] == ["Cc"]

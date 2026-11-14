@@ -1,4 +1,4 @@
--- Service Inviter v3.0.0
+-- Service Inviter v3.0.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -969,6 +969,12 @@ function Jobs.PrintRegulars(want)
     for i = 1, shown do P(i .. ". " .. line(list[i][1], list[i][2])) end
 end
 
+function Jobs.ClearLeft()
+    local gone = {}
+    for _, j in ipairs(jobs) do if j.status == "left" then gone[#gone + 1] = j.name end end
+    for _, n in ipairs(gone) do Jobs.Remove(n) end
+    P(#gone == 0 and "nobody on the list has left" or ("cleared " .. #gone .. " who left"))
+end
 function Jobs.Joined(name)
     local j = jobByName[name]
     if j and (j.status == "invited" or j.status == "asked") then Jobs.Set(name, "joined") return true end
@@ -2899,6 +2905,9 @@ local function ApplyRow(row, job)
     row.paid:SetText(JobPrice(job) and "Paid" or "Done")
     if job.status == "left" and job.owes then row.paid:Show() end
     if (row.paid:IsShown() and JobPrice(job)) or job.status == "paid" then row.scam:Show() end
+    -- no Paid button: Scam, x and Clear left are what gets used (the owner, 14 Nov 2026: "having a
+    -- paid button is kind of redundant, i hardly ever use it"). A trade that pays still marks Paid.
+    row.paid:Hide()
     row.remove:Show()
 end
 
@@ -3040,6 +3049,12 @@ local function BuildJobsUI()
     regBtn:SetPoint("TOPRIGHT", -294, -14) regBtn:SetText("Regulars")
     regBtn:SetScript("OnClick", function() Jobs.Copy("Regulars", function() Jobs.PrintRegulars("") end) end)
     w.regularsBtn = regBtn
+    -- Clear left: everyone who has left the group, off the list in one click (the owner, 14 Nov
+    -- 2026: "maybe a clear the people who have left the group")
+    local clearBtn = FlatButton(w, 96, 26, "plain", 13)
+    clearBtn:SetPoint("TOPRIGHT", -24, -78) clearBtn:SetText("Clear left")
+    clearBtn:SetScript("OnClick", function() Jobs.ClearLeft() RefreshJobs() end)
+    w.clearBtn = clearBtn
     adBtn:SetScript("OnClick", function() PostAd() end)
     w.adBtn = adBtn
     Line(-64)
@@ -3049,7 +3064,7 @@ local function BuildJobsUI()
     local lbl = Text(w, 12, INK.muted)
     lbl:SetPoint("TOPLEFT", 24, -86) lbl:SetText("YOUR NEXT JOB")
     w.nextMore = Text(w, 13, INK.muted)
-    w.nextMore:SetPoint("TOPRIGHT", -24, -86) w.nextMore:SetJustifyH("RIGHT")
+    w.nextMore:SetPoint("TOPRIGHT", -132, -86) w.nextMore:SetJustifyH("RIGHT")
     local nb = FlatButton(w, W - 48, 56, "gold", 20, true, "ServiceInviterNext")
     nb:SetPoint("TOPLEFT", 24, -106)
     nb:RegisterForClicks("AnyUp", "AnyDown")
@@ -3151,7 +3166,7 @@ local function BuildJobsUI()
 
         -- Scam, under Paid: they didn't pay (on the list, out of the group, no thanks)
         row.scam = FlatButton(w, 56, 30, "plain", 13, true)
-        row.scam:SetPoint("TOPLEFT", AX + 88, y - 42) row.scam:SetText("Scam")
+        row.scam:SetPoint("TOPLEFT", AX + 88, y - 25) row.scam:SetText("Scam")
         row.scam:RegisterForClicks("AnyUp", "AnyDown")
         row.scam:SetAttribute("type", "macro")
         row.scam:HookScript("PostClick", function() if row.job then Jobs.Scam(row.job.name) RefreshJobs() end end)

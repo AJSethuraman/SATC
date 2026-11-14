@@ -28,7 +28,7 @@ def test_trade_follows_who_collects_and_paid_is_always_there(party, collect):
     party.run(f'ServiceInviterDB.role = "helper" ServiceInviterDB.collect = {str(collect).lower()}')
     party.run(ARRIVE + ' ServiceInviter_Test.Refresh()')
     row = party.eval('ServiceInviterJobs.rows[1]')
-    assert row.paid._shown is True
+    assert row.paid._shown is False                 # no Paid button since 14 Nov 2026
     assert row.trade._shown is collect
 
 

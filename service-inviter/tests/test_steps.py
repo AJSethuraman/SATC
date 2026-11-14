@@ -46,16 +46,13 @@ def whispers(g):
     return [(to, m) for ch, to, m in g.sent() if ch == "WHISPER"]
 
 
-def test_a_free_service_finishes_with_done():
-    g = lockpick_customer()
-    assert row(g, "paid")._shown is True
-    assert g.eval("ServiceInviterJobs.rows[1].paid:GetText()") == "Done"
-
-
-def test_a_paid_service_finishes_with_paid_even_when_someone_else_collects():
+def test_no_paid_button_scam_instead_and_none_on_a_free_summon():
+    """The owner, 14 Nov 2026: "having a paid button is kind of redundant, i hardly ever use it. i
+    use scam, i use the X". A trade that pays still marks Paid on its own."""
     g = lockpick_customer(price="20")
-    assert g.eval("ServiceInviterJobs.rows[1].paid:GetText()") == "Paid"
-    assert row(g, "paid")._shown is True
+    assert row(g, "paid")._shown is False and row(g, "scam")._shown is True
+    g = lockpick_customer()                                   # free: nothing to scam
+    assert row(g, "paid")._shown is False and row(g, "scam")._shown is False
 
 
 def test_paid_thanks_them_then_removes_them():
@@ -113,9 +110,9 @@ def test_a_summon_customer_can_be_marked_paid_once_summoned_whoever_collects():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").service') == "summons"
-    assert row(g, "paid")._shown is False            # not summoned yet
+    assert row(g, "scam")._shown is False            # not summoned yet
     g.run('ServiceInviter_Test.Jobs.Set("Kaldrok", "summoned") ServiceInviter_Test.Refresh()')
-    assert row(g, "paid")._shown is True
+    assert row(g, "scam")._shown is True
     assert row(g, "trade")._shown is False           # Grimtotem collects, not you
 
 
