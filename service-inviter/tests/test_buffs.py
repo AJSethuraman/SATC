@@ -298,3 +298,40 @@ def test_ordinary_words_are_not_blessings():
     for said in ("wish me luck", "kind of lagging", "ok", "brb"):
         g.event("CHAT_MSG_RAID", said, "Grimtotem")
     assert label(g) == "No buffs waiting"
+
+
+# The owner, 14 Nov 2026: "this guy asked for kings before loading in fully can it be set to cast
+# when they are in range and i guess i can cancel somehow if they leave".
+
+RANGE = " NEAR = {} function UnitInRange(u) local x = UNITS[u] return x ~= nil and NEAR[x[1]] == true, true end"
+PALLY = {"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+         "party2": ("Kaldrok", "MAGE", 44, "Thunder Bluff")}
+
+
+def test_the_pop_waits_until_they_are_in_range():
+    g = world(PALLY, "blessing = { on = true }", extra=RANGE)
+    g.event("CHAT_MSG_RAID", "kings", "Grimtotem")
+    assert not g.eval("ServiceInviterBuffPop and ServiceInviterBuffPop:IsShown()")
+    assert label(g).endswith("(not in range yet)")
+    g.run("NEAR.Grimtotem = true CLOCK = CLOCK + 1 ServiceInviter_Test.Tick(1)")
+    assert g.eval("ServiceInviterBuffPop:IsShown()")
+    assert g.eval("ServiceInviterBuffPop.label:GetText()") == "Kings -> Grimtotem"
+
+
+def test_someone_in_range_goes_first():
+    g = world(PALLY, "blessing = { on = true }", extra=RANGE)
+    g.run("NEAR.Kaldrok = true")
+    g.event("CHAT_MSG_RAID", "kings", "Grimtotem")
+    g.event("CHAT_MSG_RAID", "wis", "Kaldrok")
+    assert raw_macro(g) == "/cast [@party2] Blessing of Wisdom"
+
+
+def test_right_click_skips_and_a_leaver_is_dropped():
+    g = world(PALLY, "blessing = { on = true }", extra=RANGE)
+    g.run("NEAR.Grimtotem = true NEAR.Kaldrok = true")
+    g.event("CHAT_MSG_RAID", "kings", "Grimtotem")
+    g.event("CHAT_MSG_RAID", "wis", "Kaldrok")
+    g.run('local b = ServiceInviterBuffPop b._scripts.PostClick(b, "RightButton")')
+    assert raw_macro(g) == "/cast [@party2] Blessing of Wisdom"
+    g.run('UNITS.party2 = nil GROUP.Kaldrok = nil CLOCK = CLOCK + 1 ServiceInviter_Test.Tick(1)')
+    assert label(g) == "No buffs waiting"

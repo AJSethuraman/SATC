@@ -1,4 +1,4 @@
--- Service Inviter v2.15.2
+-- Service Inviter v2.16.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1682,12 +1682,40 @@ local function BuffMacro(e)
     if not at then return "/target " .. e.name .. "\n/cast " .. spell .. r .. "\n/targetlasttarget" end
     return "/cast [@" .. at .. "] " .. spell .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
 end
+-- In range to cast on? The pop waits for it (the owner, 14 Nov 2026: "this guy asked for kings
+-- before loading in fully can it be set to cast when they are in range"). If the game can't say,
+-- yes.
+function Jobs.BuffInRange(e)
+    if not e then return false end
+    local unit
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.unit and not m.me and m.name:lower() == e.name:lower() then unit = m.unit break end
+    end
+    if not unit then return true end   -- outside the group: the cast targets them by name
+    if UnitIsConnected and UnitIsConnected(unit) == false then return false end
+    if UnitInRange then
+        local ok, r, checked = pcall(UnitInRange, unit)
+        if ok and checked and not IsSecret(r) then return r and true or false end
+    end
+    if UnitIsVisible then
+        local ok, v = pcall(UnitIsVisible, unit)
+        if ok and not IsSecret(v) then return v and true or false end
+    end
+    return true
+end
+-- Right-click on the pop: skip this one
+function Jobs.SkipBuff()
+    local e = table.remove(buffQueue, 1)
+    if e then P("skipped " .. (e.spell or Core.BY_KEY[e.key].label) .. " for " .. e.name) end
+    RefreshBuff()
+end
 local function BuffLabel()
     local e = buffQueue[1]
     if not e then return "No buffs waiting" end
     local def = Core.BY_KEY[e.key]
     local what = e.spell and e.spell:gsub("^Blessing of ", "") or def.label:gsub("^a ", "")
-    return what .. " -> " .. e.name .. (#buffQueue > 1 and (" (+" .. (#buffQueue - 1) .. ")") or "")
+    return what .. " -> " .. e.name .. (#buffQueue > 1 and (" (+" .. (#buffQueue - 1) .. ")") or "") ..
+        (Jobs.BuffInRange(e) and "" or "  (not in range yet)")
 end
 RefreshBuff = function()
     -- drop anyone who left the group
@@ -1697,6 +1725,12 @@ RefreshBuff = function()
     end
     if InCombatLockdown and InCombatLockdown() then buffDirty = true return end
     buffDirty = false
+    -- whoever is in range goes first; the rest wait their turn
+    if buffQueue[1] and not Jobs.BuffInRange(buffQueue[1]) then
+        for i = 2, #buffQueue do
+            if Jobs.BuffInRange(buffQueue[i]) then table.insert(buffQueue, 1, table.remove(buffQueue, i)) break end
+        end
+    end
     local m = BuffMacro(buffQueue[1])
     buffKey:SetAttribute("macrotext", m)
     if jobsWin and jobsWin.buffBtn then
@@ -1705,6 +1739,7 @@ RefreshBuff = function()
         if #MyBuffs() > 0 then jobsWin.buffBtn:Show() else jobsWin.buffBtn:Hide() end
     end
     local e = buffQueue[1]
+    if e and not Jobs.BuffInRange(e) then e = nil end   -- the pop waits until they're in range
     if Jobs.BuffPop then Jobs.BuffPop(e and BuffLabel() or nil, m, e and (e.spell or Core.Setting(ServiceInviterDB, e.key).spell)) end
 end
 -- Do you have this spell? (Kings is a talent.) If the game can't say, assume yes.
@@ -1968,6 +2003,9 @@ function Jobs.BuffPop(label, macro, spell)
         b:SetFrameStrata("DIALOG")
         b:RegisterForClicks("AnyUp", "AnyDown")
         b:SetAttribute("type", "macro")
+        -- right-click: skip this one (no cast)
+        b:SetAttribute("type2", "macro") b:SetAttribute("macrotext2", "")
+        b:HookScript("PostClick", function(_, button) if button == "RightButton" then Jobs.SkipBuff() end end)
         local edge = Fill(b, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -3, 3) edge:SetPoint("BOTTOMRIGHT", 3, -3)
         b.icon = b:CreateTexture(nil, "ARTWORK")
         b.icon:SetAllPoints()
@@ -2616,7 +2654,13 @@ local ticker = CreateFrame("Frame")
 local tacc = 0
 ticker:SetScript("OnUpdate", function(_, el)
     tacc = tacc + (el or 0)
-    if tacc >= 1 then tacc = 0 if not ServiceInviterDB.stasis then Report("arrivals", pcall(CheckArrivals)) end end
+    if tacc >= 1 then
+        tacc = 0
+        if not ServiceInviterDB.stasis then
+            Report("arrivals", pcall(CheckArrivals))
+            if #buffQueue > 0 then Report("buffs", pcall(RefreshBuff)) end   -- range, and anyone who left
+        end
+    end
 end)
 
 -- Take a customer out of the group: a click only (Paid, Done or x), and only as leader (or an
@@ -4018,5 +4062,5 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { Ordinal = function(n) return Jobs.Ordinal(n) end, Preview = function(t) return Preview(t) end, PrintPreview = function(t) return PrintPreview(t) end, BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { Tick = function(el) ticker:GetScript("OnUpdate")(ticker, el) end, Ordinal = function(n) return Jobs.Ordinal(n) end, Preview = function(t) return Preview(t) end, PrintPreview = function(t) return PrintPreview(t) end, BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }
