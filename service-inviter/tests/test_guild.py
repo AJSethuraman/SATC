@@ -154,3 +154,32 @@ def test_a_visit_is_recorded_once_on_a_team():
         g.run('ServiceInviter_Test.Jobs.Set("Kaldrok", "summoned")')
     assert me.eval('ServiceInviterDB.customers["Kaldrok"].n') == 1
     assert bone.eval('ServiceInviterDB.customers') is None or bone.eval('ServiceInviterDB.customers["Kaldrok"]') is None
+
+
+def test_a_big_book_is_sent_once_even_when_asked_again_mid_way():
+    """The owner's 310 customers, 14 Nov 2026: "this would indicate he did not get my customer
+    list". Asked again while it was still going out, the whole book used to be queued again."""
+    me = guild_world({"player": ME})
+    me.run('ServiceInviterDB.customers = {} for i = 1, 300 do ServiceInviterDB.customers["Buyer" .. i] = '
+           '{ n = 1, by = { summons = 1 }, worth = 35, first = i, last = i, to = { ["Thunder Bluff"] = 1 } } end')
+    bone = guild_world({"player": BONE})
+    for g in (me, bone):
+        g.run("ServiceInviter_Test.Jobs.SayHi(true)")
+    pump(me, bone, "Me")
+    pump(bone, me, "Bone Charms")                     # his WANT
+    me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick()")
+    queued = me.eval("#ServiceInviter_Test.Jobs.outbox")
+    for _ in range(3):                               # he asks again, twice, while it's going out
+        me.run("for i = 1, 40 do ServiceInviter_Test.Jobs.Drain() end")
+        pump(me, bone, "Me")
+        for g in (me, bone):
+            g.run("CLOCK = CLOCK + 30")
+        me.run("ServiceInviter_Test.Jobs.SayHi(false)")       # my hello: my book's number
+        pump(me, bone, "Me")
+        pump(bone, me, "Bone Charms")                        # he hasn't got it all yet: he asks again
+        me.run("CLOCK = CLOCK + 3 ServiceInviter_Test.Jobs.BookTick()")
+    assert me.eval("#ServiceInviter_Test.Jobs.outbox") < queued      # not piled up again
+    drain(me, bone, "Me", rounds=20)
+    n = bone.eval('(function() local n = 0 for _ in pairs(ServiceInviterDB.teambooks["Me"].customers) do n = n + 1 end return n end)()')
+    assert n == 300
+    assert any("got Me's customer book: 300 customers" in p for p in bone.printed())

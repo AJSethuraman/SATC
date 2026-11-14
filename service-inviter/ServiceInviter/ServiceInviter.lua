@@ -1,4 +1,4 @@
--- Service Inviter v3.8.2
+-- Service Inviter v3.8.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -3422,7 +3422,7 @@ function Jobs.BookLines(since)
 end
 -- Lines go out a few a second: the game drops addon messages sent faster than that.
 Jobs.outbox = {}
-Jobs.OUT_EVERY = 0.25
+Jobs.OUT_EVERY = 0.5
 function Jobs.Drain()
     local item = Jobs.outbox[1]
     if not item then return end
@@ -3431,6 +3431,7 @@ function Jobs.Drain()
         return
     end
     table.remove(Jobs.outbox, 1)
+    if item[1] == "END" then Jobs.bookSending = nil end
 end
 -- A teammate's book line, or their WANT. True when it was one of these.
 function Jobs.BookHear(kind, f, who, me)
@@ -3449,11 +3450,15 @@ function Jobs.BookHear(kind, f, who, me)
         local r = tonumber(f[2]) or 0
         if r > (b.rev or 0) then b.rev = r end
         Jobs.bookNote = "their book is up to date (change " .. r .. ")"
+        local n = 0
+        for _ in pairs(b.customers or {}) do n = n + 1 end
+        if not b.toldDone then b.toldDone = true P("got " .. who .. "'s customer book: " .. n .. " customers") end
         if Jobs.team_refresh then Jobs.team_refresh() end
         return true
     end
     if tonumber(f[2]) and tonumber(f[2]) <= (b.rev or 0) then Jobs.bookNote = "already have it" return true end
     if kind == "C" then
+        if not b.toldStart then b.toldStart = true P("receiving " .. who .. "'s customer book (this can take a few minutes)") end
         b.customers[f[3]] = { n = tonumber(f[4]) or 0, worth = tonumber(f[5]) or 0, first = tonumber(f[6]), last = tonumber(f[7]),
             by = Unpairs(f[8]), to = Unpairs(f[9]) }
         Jobs.bookNote = "saved their customer " .. f[3]
@@ -3486,8 +3491,15 @@ function Jobs.BookHear(kind, f, who, me)
 end
 -- Every 1s: answer WANTs, and say when your book moved so teammates come and get it.
 function Jobs.BookTick()
-    if Jobs.wantAt and GetTime() - Jobs.wantAt >= 2 then
-        for _, l in ipairs(Jobs.BookLines(Jobs.wantSince or 0)) do Jobs.outbox[#Jobs.outbox + 1] = l end
+    -- one book send at a time: a teammate who asks again while yours is still going out waits for
+    -- it (before 3.8.3 each ask queued the whole book again, and a big book never caught up --
+    -- the owner's 310 customers, 14 Nov 2026)
+    if Jobs.wantAt and GetTime() - Jobs.wantAt >= 2 and not Jobs.bookSending then
+        local lines = Jobs.BookLines(Jobs.wantSince or 0)
+        for _, l in ipairs(lines) do Jobs.outbox[#Jobs.outbox + 1] = l end
+        Jobs.bookSending = true
+        local n = #lines - 1
+        if n > 20 then P("sending your customer book to the team: " .. n .. " lines, about " .. math.ceil(n * Jobs.OUT_EVERY / 60 + 0.5) .. " min") end
         Jobs.wantAt, Jobs.wantSince = nil, nil
     end
     if Jobs.TeamOn() and Jobs.bookTold and Jobs.BookRev() > Jobs.bookTold and GetTime() - Jobs.Team.lastHi > 10 then
