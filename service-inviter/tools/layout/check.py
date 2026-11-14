@@ -143,6 +143,11 @@ L = load(GROUP + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.s
 L.execute('SlashCmdList.SERVICEINVITER("session new")')
 scenes["new_session_shards"] = export(L, L.globals().ServiceInviterShards)
 
+# the buff pop-up at the mouse
+L = load(GROUP.replace('"Grimtotem","WARLOCK"', '"Yeet Lock","WARLOCK"').replace('Grimtotem = true', '["Yeet Lock"] = true') + "\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.services = { blessing = { on = true } } function UnitClass(u) if u == 'player' then return 'Paladin', 'PALADIN' end return 'Warlock', 'WARLOCK' end function UnitInParty() return true end")
+L.execute('ServiceInviter_Test.Jobs.BuffPop("Blessing of Wisdom -> Yeet Lock", "/cast [@party1] Blessing of Wisdom")')
+scenes["buff_pop"] = export(L, L.globals().ServiceInviterBuffPop)
+
 # the click-the-portal banner, half way through its 14 seconds
 L = load(GROUP)
 L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')

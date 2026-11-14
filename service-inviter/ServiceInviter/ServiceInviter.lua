@@ -1,4 +1,4 @@
--- Service Inviter v2.12.2
+-- Service Inviter v2.13.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -91,6 +91,7 @@ local DEFAULTS = {
     marks     = true,    -- a raid icon on whoever does a service, in party/raid chat (text only: the game no longer lets addons put icons over heads)
     welcome   = true,    -- send a message to the group when an invited player joins
     buffarrivals = true, -- queue your buffs on a customer who lands where you are, unasked
+    buffpop   = true,    -- the buff button pops up at your mouse when someone is waiting
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
     sum_org = false, port_org = false,
@@ -1652,6 +1653,7 @@ RefreshBuff = function()
         jobsWin.buffBtn:SetText(BuffLabel())
         if #MyBuffs() > 0 then jobsWin.buffBtn:Show() else jobsWin.buffBtn:Hide() end
     end
+    if Jobs.BuffPop then Jobs.BuffPop(buffQueue[1] and BuffLabel() or nil, m) end
 end
 -- Do you have this spell? (Kings is a talent.) If the game can't say, assume yes.
 local function KnowSpell(spell)
@@ -1897,6 +1899,33 @@ local function FlatButton(parent, w, h, style, size, secure, name)
     b:SetFontString(fs)
     b._siStyle, b._siSize = style, size or 14
     return b
+end
+-- The buff pops up at your mouse (the owner, 14 Nov 2026: "can the blessing thing be more
+-- obvious what if i miss it? can it just appear at my mouse"). A gold button by the cursor, with
+-- a sound, when someone is waiting; click it to cast; gone when nobody is. Out of combat only
+-- (RefreshBuff never runs in combat, when the game won't move a button that casts).
+function Jobs.BuffPop(label, macro)
+    local b = Jobs.pop
+    if not label or Opt("buffpop") == false then if b then b:Hide() end return end
+    if not b then
+        b = FlatButton(UIParent, 360, 40, "gold", 15, true, "ServiceInviterBuffPop")
+        b:SetFrameStrata("DIALOG")
+        b:RegisterForClicks("AnyUp", "AnyDown")
+        b:SetAttribute("type", "macro")
+        b:Hide()
+        Jobs.pop = b
+    end
+    b:SetAttribute("macrotext", macro)
+    b:SetText(label)
+    if not b:IsShown() then
+        local x, y = GetCursorPosition and GetCursorPosition()
+        local scale = (UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
+        b:ClearAllPoints()
+        if x and y then b:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 24, y / scale + 24)
+        else b:SetPoint("CENTER", UIParent, "CENTER", 0, -120) end
+        b:Show()
+        if PlaySound then pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959) end
+    end
 end
 -- New session asks for the shards (the owner, 13 Nov 2026: "when you click new session it can
 -- ask for the number of shards if you are summoning"). Only when summons are on sale. The
@@ -3373,6 +3402,7 @@ local function BuildSetupUI()
     Box("blessing_spell", R + 130, -236 - bh, 200, 60)
     Label(R + 4, -236 - bh - 30, "\"kings\", \"wisdom\", \"might\", \"salv\"... get that blessing.", "GameFontHighlightSmall", 400)
     Check("buffarrivals", L, -480, "Buff customers when they land, without being asked (off = only people who ask)", true)
+    Check("buffpop", L, -508, "Pop the buff button up at my mouse, with a sound, when someone is waiting", true)
     Label(L, -446, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
 
     -- Advertise --------------------------------------------------------------

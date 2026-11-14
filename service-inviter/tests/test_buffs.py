@@ -207,3 +207,32 @@ def test_untick_and_a_customer_who_lands_is_not_buffed_unless_they_ask():
     assert label(g) == "No buffs waiting"
     g.event("CHAT_MSG_PARTY", "fort pls", "Kaldrok", "", "", "", "", "", "", "")
     assert label(g) == "Fortitude -> Kaldrok"
+
+
+# The owner, 14 Nov 2026: "can the blessing thing be more obvious what if i miss it? can it just
+# appear at my mouse".
+
+def test_the_buff_pops_up_at_the_mouse_with_a_sound_and_casts_on_click():
+    g = world(PRIEST_TB, "fort = { on = true }",
+              extra=SPELLS + " SOUNDS = {} function PlaySound(s) SOUNDS[#SOUNDS + 1] = s end function GetCursorPosition() return 500, 300 end")
+    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    assert g.eval("ServiceInviterBuffPop:IsShown()")
+    assert g.eval("ServiceInviterBuffPop:GetText()") == "Fortitude -> Grimtotem"
+    assert g.eval('ServiceInviterBuffPop:GetAttribute("macrotext")') == raw_macro(g)
+    assert len(g.g.SOUNDS) == 1
+    g.event("CHAT_MSG_PARTY", "fort?", "Kaldrok", "", "", "", "", "", "", "")
+    assert len(g.g.SOUNDS) == 1                                       # already up: no second sound
+
+
+def test_the_pop_goes_away_when_nobody_is_waiting():
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Power Word: Fortitude")
+    assert not g.eval("ServiceInviterBuffPop:IsShown()")
+
+
+def test_the_pop_can_be_turned_off():
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g.run("ServiceInviterDB.opts = { buffpop = false }")
+    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    assert not g.eval("ServiceInviterBuffPop and ServiceInviterBuffPop:IsShown()")
