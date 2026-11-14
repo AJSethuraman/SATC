@@ -350,3 +350,12 @@ nothing shipped.
   Selling and Test mode on Tools run their /si commands. The arrival pay reminder has a box.
 - **Pop-ups:** the banner reads SUMMONING / CLICK PORTAL / who » where · pay whom, with a TEST chip;
   the blessing pop-up is a 224 x 68 card; Lists opens one copy window with the eight lists as tabs.
+
+## 3.5.1: one price list for the team (14 Nov 2026)
+
+The owner: *"they will have the min/max price and then the individual workers would price
+dynamically price based on their chats right"*. The point of contact's max, min, and how to meet a
+cheaper rival (ignore / match / undercut by N) go out with each hello (`PRICE`). While they're
+online, every copy prices with those rules (`Core.PriceOverride` in `C.Setting`), from the rivals
+it sees in its own channels, and hands the buyer over with that quote. When the point of contact
+goes offline, each copy's own prices come back. Only the point of contact's `PRICE` is heard.

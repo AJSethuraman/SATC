@@ -685,3 +685,11 @@ def test_no_cap_on_invites_a_minute():
     for i in range(7):
         say_trade(g, f"Buyer{i}", "WTB summon to TB")
     assert len(invited(g)) == 7                                  # the old cap stopped at 6
+
+
+def test_tp_with_a_city_is_a_buyer():
+    """The owner's screenshot, 14 Nov 2026: "[2. Trade - English 50] [Kina Lighthunter]: wtb tb tp"
+    -- "would we catch this". A port asked for where we summon is answered by a summon."""
+    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = 35 }")
+    g.event("CHAT_MSG_CHANNEL", "wtb tb tp", "Kina Lighthunter", "", "2. Trade - English 50", "", "", "", "", "Trade - English 50")
+    assert list(g.g.INVITED.values()) == ["Kina Lighthunter"]

@@ -202,3 +202,40 @@ def test_the_team_log_shows_a_stranger_being_ignored_and_says_when_empty():
     lone = world({"player": ME}, extra=COMMS)
     lone.run('ServiceInviter_Test.Jobs.PrintTeamLog()')
     assert any("No team messages since you logged in." in p for p in clean(lone.printed()))
+
+
+def test_the_point_of_contacts_prices_are_the_teams_and_each_copy_prices_from_its_own_chat():
+    """The owner, 14 Nov 2026: "they will have the min/max price and then the individual workers
+    would price dynamically price based on their chats right"."""
+    me, bone = pair()
+    bone.run('ServiceInviterDB.services.summons = { price = 50, floor = 30, mode = "undercut", undercut = 5 }')
+    bone.run("ServiceInviter_Test.Jobs.SendPrices()")
+    pump(bone, me, "Bone Charms")
+    # no rival in my chat: the team's max, not my own 35
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    pump(me, bone, "Me")
+    assert bone.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").price') == 50
+    # a rival in MY channel at 45: I quote 40 by the team's rule (undercut 5, never below 30)
+    say_trade(me, "Rival", "WTS summons to TB 45s")
+    say_trade(me, "Mirasha", "wtb summon to TB")
+    pump(me, bone, "Me")
+    assert bone.eval('ServiceInviter_Test.Jobs.Get("Mirasha").price') == 40
+    assert "prices for summons: max 50, min 30, undercut 5" in teamlog(me)
+
+
+def test_my_own_prices_come_back_when_the_point_of_contact_is_offline():
+    me, bone = pair()
+    bone.run('ServiceInviterDB.services.summons = { price = 50 }')
+    bone.run("ServiceInviter_Test.Jobs.SendPrices()")
+    pump(bone, me, "Bone Charms")
+    assert me.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == 50
+    me.run("CLOCK = CLOCK + 200")   # no hello from Bone for longer than 150s
+    assert me.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == 35
+
+
+def test_only_the_point_of_contact_sets_prices():
+    me, bone = pair()
+    me.run('ServiceInviterDB.services.summons = { price = 90 }')
+    me.run("ServiceInviter_Test.Jobs.SendPrices()")   # I'm not the point of contact: nothing sent
+    pump(me, bone, "Me")
+    assert bone.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == 35

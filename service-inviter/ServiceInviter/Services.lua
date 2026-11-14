@@ -74,6 +74,14 @@ function C.Setting(db, key, where)
     local def = C.BY_KEY[key]
     if not def then return { on = false, invite = false, payee = "", words = "" } end   -- no longer sold
     local saved = (type(db) == "table" and type(db.services) == "table" and db.services[key]) or {}
+    -- on a team, the point of contact's prices (max, min, how to meet a rival) replace yours;
+    -- the rest of the setting stays your own (see Jobs.TeamPrices)
+    local o = C.PriceOverride and C.PriceOverride(db, key)
+    if o then
+        local base = saved
+        saved = setmetatable({ price = o.price, floor = o.floor, mode = o.mode, undercut = o.undercut, match = false },
+            { __index = base })
+    end
     local price = def.price
     if key == "summons" and saved.price == nil and type(db) == "table" and type(db.price) == "number" then price = db.price end
     if saved.price ~= nil then price = saved.price or nil end

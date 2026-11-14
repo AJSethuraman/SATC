@@ -1,4 +1,4 @@
--- Service Inviter v3.5.0
+-- Service Inviter v3.5.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2835,6 +2835,9 @@ function Jobs.TeamWords(msg)
         return "book, didn't pay: " .. (f[3] or "?") .. (((f[7] or "") ~= "") and " (paid after all)" or "")
     elseif f[1] == "A" then
         return "book, stats (" .. (f[3] or "?") .. ")"
+    elseif f[1] == "PRICE" then
+        return "prices for " .. (f[2] or "?") .. ": max " .. ((f[3] or "") ~= "" and f[3] or "default") .. ", min " .. ((f[4] or "") ~= "" and f[4] or "none") ..
+            ", " .. ((f[5] or "") ~= "" and f[5] or "ignore") .. ((f[6] or "") ~= "" and (" " .. f[6]) or "")
     elseif f[1] == "END" then
         return "book sent, up to change " .. (f[2] or "?")
     end
@@ -2861,6 +2864,7 @@ function Jobs.SayHi(ask)
     Jobs.Team.lastHi = GetTime()
     Jobs.bookTold = Jobs.BookRev()
     Jobs.TeamSay("HI", okv and ver or "?", Role() == "lock" and "1" or "0", ZoneOf("player") or "", ask and "?" or "", Jobs.BookRev())
+    Jobs.SendPrices()
 end
 -- Hand a buyer and their quote to the point of contact (marked as a test when you're testing).
 function Jobs.HandOff(poc, buyer, svc, dest, quote, channel, market, said, why)
@@ -2924,6 +2928,7 @@ function Jobs.TeamHear(msg, who, me)
         return "inviting" .. (test and " (test)" or "")
     end
     if kind == "GOT" then return nil end
+    if kind == "PRICE" then return Jobs.HearPrices(f, who) end
     if Jobs.BookHear(kind, f, who, me) then return Jobs.bookNote end
     return "ignored: unknown message"
 end
@@ -2990,6 +2995,43 @@ function Jobs.BooksLine()
     for _ in pairs(type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}) do mine = mine + 1 end
     return "Customers: yours " .. mine .. (#parts > 0 and (", " .. table.concat(parts, ", ")) or ", nobody else's yet") ..
         ". Lists and stats count everyone's."
+end
+-- One price list for the team (the owner, 14 Nov 2026: "sure makes sense, they will have the
+-- min/max price and then the individual workers would price dynamically price based on their
+-- chats right"). The point of contact's max, min and how to meet a cheaper rival are the team's;
+-- each copy still prices a buyer from the rivals it sees in its own channels, by those rules.
+-- Sent with the point of contact's hello; used while they're online; yours again when they're not.
+Jobs.PRICE_FIELDS = { "price", "floor", "mode", "undercut" }
+function Jobs.SendPrices()
+    if Jobs.POC() ~= Jobs.Me() then return end
+    local db = ServiceInviterDB
+    for _, def in ipairs(Core.SERVICES) do
+        local saved = (type(db.services) == "table" and db.services[def.key]) or {}
+        local function enc(v) if v == false then return "free" end return v == nil and "" or tostring(v) end
+        Jobs.TeamSay("PRICE", def.key, enc(saved.price), enc(saved.floor), enc(saved.mode or (saved.match and "undercut") or nil), enc(saved.undercut))
+    end
+end
+function Jobs.HearPrices(f, who)
+    if (Jobs.POC() or ""):lower() ~= who:lower() then return "ignored: prices only come from the point of contact" end
+    local key = f[2]
+    if not key or not Core.BY_KEY[key] then return "ignored: unknown service" end
+    local function dec(v) if v == "free" then return false end if v == nil or v == "" then return nil end return tonumber(v) or v end
+    Jobs.Team.prices = Jobs.Team.prices or {}
+    if (Jobs.Team.prices.from or ""):lower() ~= who:lower() then Jobs.Team.prices = { from = who } end
+    Jobs.Team.prices[key] = { price = dec(f[3]), floor = dec(f[4]), mode = dec(f[5]), undercut = dec(f[6]) }
+    return "using their prices for " .. key
+end
+-- The point of contact's prices for a service, while they're the point of contact and it isn't you.
+function Jobs.TeamPrices(key)
+    local t = Jobs.Team and Jobs.Team.prices
+    if not t or not t[key] then return nil end
+    local poc = Jobs.POC()
+    if not poc or poc == Jobs.Me() or poc:lower() ~= (t.from or ""):lower() then return nil end
+    return t[key], t.from
+end
+Core.PriceOverride = function(db, key)
+    if db ~= ServiceInviterDB then return nil end
+    return (Jobs.TeamPrices(key))
 end
 -- Everyone on the team: the list, and guildmates heard from.
 function Jobs.TeamPeople()
@@ -4691,6 +4733,7 @@ local function BuildSetupUI()
     y = y - ROW
     Label(C1, y - 6, "Undercut by") Box("undercut", C1 + CW - 78, y, 52, 4, "5") Label(C1 + CW - 20, y - 7, "|cff" .. INK.silver .. "s|r") y = y - ROW
     Label(C1, y - 6, "Never below") Box("floor", C1 + CW - 152, y, 126, 4, "Never moves") Label(C1 + CW - 20, y - 7, "|cff" .. INK.silver .. "s|r")
+    w.priceFrom = Label(C1, y - 46, "", "GameFontHighlightSmall", CW)
 
     y = TOP
     Header(C2, y, "Warlocks") y = y - 28
@@ -4913,6 +4956,8 @@ local function BuildSetupUI()
         w.sessTiles[2]:SetText(Jobs.MoneyShort(st.ev or 0))
         w.sessTiles[3]:SetText(((st.ev or 0) > 0 and math.floor((st.silver or 0) * 100 / st.ev + 0.5) or 0) .. "%")
         w.showAdKey() w.showBuffKey()
+        local _, from = Jobs.TeamPrices("summons")
+        w.priceFrom:SetText(from and ("|cff" .. INK.gold .. "Prices now: " .. from .. "'s|r (point of contact). Yours are used when they're offline.") or "")
     end
     w.Refresh = Refresh
 
@@ -5074,7 +5119,8 @@ local function BuildSetupUI()
         local pc = boxes.poc:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
         db.team.poc = (pc ~= "") and pc or nil
         if #keep == 0 and not db.team.poc then db.team = nil end
-        if Jobs.TeamOn() and not before then Jobs.SayHi(true) end
+        if Jobs.TeamOn() and not before then Jobs.SayHi(true)
+        elseif Jobs.TeamOn() and Jobs.POC() == Jobs.Me() then Jobs.SendPrices() end
         db.workers = nil
         for nm in boxes.workers:GetText():gmatch("[^,]+") do
             nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
