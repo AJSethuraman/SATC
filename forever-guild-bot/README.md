@@ -22,6 +22,7 @@ Slash commands only work in the channels listed in `BOT_CHANNEL_IDS` (the bot an
 | `/link` `/unlink` `/main` | anyone | claim your characters (type a few letters; first claim wins, max 5). If two characters share the name you typed, the bot lists them and asks for the full name instead of guessing. `/unlink` also lets go of a claimed character that has left the guild. You must claim one before you can sign up for a raid. If another guild character looks like it's on the same account, the bot privately asks "Is it yours too?" after your next command |
 | `/claim-panel` `/claims` `/unlink-member` `/release` | officer | post the claim button, see who claimed what, purge a troll (this also takes them off every open raid), free one character (any open-raid signup made with it goes too) |
 | `/who` `/roster` `/professions` `/whohas` | anyone | who is who, who has what (item names link to Wowhead's Forever database) |
+| `/lookup` | officers | any player's guild, its guild master and rank-1 members with their last login (for reporting a scammer to their leaders); answers privately |
 | `/weapons` | anyone | which weapon skills a class can train: Classic's list, marked unconfirmed for Forever, with a ✓ where a guild member of that class wields one (proof it works here) |
 | `/recipes` `/whocan` | anyone | what a profession can make and which guildies know each recipe; who can craft a recipe. A recipe nobody knows shows as a gap |
 | `/craftable` | anyone | guided search: pick kind, type, slot and level, see who in the guild can make it (private) |

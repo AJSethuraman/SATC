@@ -34,6 +34,27 @@ class Member:
     surname: str | None
     level: int | None
     rank: int | None
+    class_name: str | None = None
+
+
+# Roster entries give the class as an id only. From /data/wow/playable-class/index (static-forever-us),
+# verified 2026-11-13.
+CLASS_BY_ID = {1: "Warrior", 2: "Paladin", 3: "Hunter", 4: "Rogue", 5: "Priest", 7: "Shaman", 8: "Mage",
+               9: "Warlock", 11: "Druid"}
+
+
+def character_slug(full_name: str) -> str:
+    """'Ms Tique' -> 'ms-tique': first name and surname, lowercased, joined by a dash (matches every
+    guild member's slug, checked 2026-11-13)."""
+    return "-".join(full_name.split()).lower()
+
+
+def parse_guild_ref(profile: dict) -> tuple[str, str] | None:
+    """(guild name, guild slug) from a character profile, or None when the character has no guild."""
+    g = profile.get("guild")
+    if not isinstance(g, dict) or not g.get("slug"):
+        return None
+    return (_name(g.get("name")) or g["slug"], g["slug"])
 
 
 @dataclass(frozen=True)
@@ -132,8 +153,8 @@ def parse_roster(payload: dict) -> list[Member]:
             continue
         surname = c.get("surname")
         slug = c.get("slug") or "-".join(p for p in (name, surname) if p).lower()
-        out.append(Member(slug=slug.lower(), name=name, surname=surname,
-                          level=c.get("level"), rank=m.get("rank")))
+        out.append(Member(slug=slug.lower(), name=name, surname=surname, level=c.get("level"), rank=m.get("rank"),
+                          class_name=CLASS_BY_ID.get((c.get("playable_class") or {}).get("id"))))
     return out
 
 

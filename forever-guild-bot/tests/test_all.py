@@ -156,7 +156,7 @@ def test_bot_module_imports_and_registers_commands(tmp_path):
                      "raid-create", "raid-edit", "raid-cancel", "raids", "guild-sync",
                      "claim-panel", "claims", "unlink-member", "release",
                      "recipes", "whocan", "craftable", "gaps", "wanted", "raid-end", "help", "commands", "raid-attendance",
-                     "history", "attendance", "raid-repeat-stop", "skillup", "legacy", "legacy-board", "inactive", "weapons"}
+                     "history", "attendance", "raid-repeat-stop", "skillup", "legacy", "legacy-board", "inactive", "weapons", "lookup"}
 
 
 def test_update_raid_changes_only_given_fields_and_rearms_reminder(tmp_path):
@@ -2364,3 +2364,92 @@ def test_gear_stored_before_weapon_types_upgrades_in_place(tmp_path):
     db = Database(path)
     db.replace_equipment("a-b", [bz.Item("Main Hand", 2, "Stick", "Common", "Staff", "Two-Hand")], utcnow())
     assert [tuple(r)[6:] for r in db.equipment_for("a-b")] == [("Staff", "Two-Hand")]
+
+
+class _LookupClient:
+    """Blizzard for /lookup: profiles by slug (missing = 404), one guild roster, and a call log."""
+    def __init__(self, profiles, roster=None):
+        self.profiles, self.roster, self.calls = profiles, roster, []
+
+    async def character_profile(self, slug):
+        self.calls.append(slug)
+        if slug not in self.profiles:
+            raise bz.NotFound(slug)
+        return self.profiles[slug]
+
+    async def guild_roster(self, slug):
+        self.calls.append("roster:" + slug)
+        return self.roster
+
+
+def _lookup_bot(db, client):
+    bot = _bot(db)
+    bot.blizzard = client
+    return bot
+
+
+def test_lookup_finds_a_players_guild_and_its_leaders(tmp_path):
+    """An officer types a scammer's full name: the bot shows their guild, its guild master (rank 0) and rank-1
+    members with class and last login, from Blizzard, privately. Raw answers are kept as snapshots."""
+    db = make_db(tmp_path)
+    guild = {"name": "Bad Apples", "slug": "bad-apples", "id": 1}
+    ms = 1_763_000_000_000
+    profiles = {
+        "shady-dealer": {"level": 34, "character_class": {"name": "Rogue"}, "race": {"name": "Gnome"},
+                         "faction": {"name": "Alliance"}, "guild": guild, "last_login_timestamp": ms},
+        "big-boss": {"level": 60, "character_class": {"name": "Warrior"}, "last_login_timestamp": ms},
+        "right-hand": {"level": 58, "character_class": {"name": "Priest"}},
+    }
+    roster = {"guild": guild, "members": [
+        {"character": {"name": "Shady", "surname": "Dealer", "slug": "shady-dealer", "level": 34,
+                       "playable_class": {"id": 4}}, "rank": 5},
+        {"character": {"name": "Big", "surname": "Boss", "slug": "big-boss", "level": 60,
+                       "playable_class": {"id": 1}}, "rank": 0},
+        {"character": {"name": "Right", "surname": "Hand", "slug": "right-hand", "level": 58,
+                       "playable_class": {"id": 5}}, "rank": 1},
+        {"character": {"name": "Nobody", "surname": "Special", "slug": "nobody-special", "level": 20,
+                       "playable_class": {"id": 8}}, "rank": 4},
+    ]}
+    client = _LookupClient(profiles, roster)
+    text, e = asyncio.run(_lookup_bot(db, client).lookup_player("  Shady   Dealer "))
+    assert text is None
+    d = e.description
+    assert "L34 Gnome Rogue, Alliance" in d and "**Bad Apples** (4 members), their rank 5" in d
+    gm, r1 = d.split("**Guild master (rank 0)**")[1].split("**Rank 1 (usually officers)**")
+    assert "**Big Boss** L60 Warrior, last on <t:1763000000:R>" in gm and "Right Hand" not in gm
+    assert "**Right Hand** L58 Priest" in r1 and "last on" not in r1          # no login time from Blizzard
+    assert "Nobody Special" not in d                                         # rank 4 is not a leader
+    assert "nobody-special" not in client.calls                              # and costs no call
+    assert "Rank names aren't in Blizzard's data" in e.footer.text
+    kinds = [r[0] for r in db.conn.execute("SELECT kind FROM snapshots ORDER BY id")]
+    assert kinds == ["lookup-profile", "lookup-roster"]
+
+
+def test_lookup_says_plainly_when_a_name_is_wrong_or_guildless(tmp_path):
+    db = make_db(tmp_path)
+    client = _LookupClient({"lone-wolf": {"level": 20, "character_class": {"name": "Hunter"}}})
+    bot = _lookup_bot(db, client)
+    text, e = asyncio.run(bot.lookup_player("Typo Name"))
+    assert e is None and "no character called **Typo Name**" in text
+    text, e = asyncio.run(bot.lookup_player("Lone Wolf"))
+    assert "Not in a guild." in e.description and not any(c.startswith("roster:") for c in client.calls)
+
+
+def test_lookup_asks_blizzard_for_at_most_eight_leader_logins(tmp_path):
+    """A big guild can have many rank-1 members: last-login lookups stop at 8, the rest are still listed."""
+    db = make_db(tmp_path)
+    guild = {"name": "Zerg", "slug": "zerg"}
+    members = [{"character": {"name": f"Off{i}", "surname": "Icer", "slug": f"off{i}-icer", "level": 60}, "rank": 1}
+               for i in range(12)]
+    members.append({"character": {"name": "Me", "surname": "Here", "slug": "me-here", "level": 60}, "rank": 3})
+    client = _LookupClient({"me-here": {"level": 60, "guild": guild}}, {"guild": guild, "members": members})
+    _, e = asyncio.run(_lookup_bot(db, client).lookup_player("Me Here"))
+    assert sum(c.endswith("-icer") for c in client.calls) == 8
+    assert all(f"Off{i} Icer" in e.description for i in range(12))
+
+
+def test_lookup_is_for_officers_only(tmp_path):
+    from guildbot.bot import GuildBot
+    bot = _bot(make_db(tmp_path))
+    checks = bot.tree.get_command("lookup").checks
+    assert checks, "the /lookup command must carry the Manage Events check"

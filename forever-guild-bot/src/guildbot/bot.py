@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -15,7 +16,8 @@ from . import milestones as M
 from . import skillup as S
 from .links import item_link
 from .config import Config
-from .db import Database, utcnow
+from .db import Database, ms_to_iso, utcnow
+from . import blizzard as bz
 from . import legacy as L
 from . import weapons as W
 from .sync import (alt_question, board_players, likely_alt_news, sync_guild, sync_item_catalog, sync_legacy_catalog,
@@ -493,6 +495,7 @@ HELP_OFFICER = ("Officers", [
     ("/wanted", "what people searched for that nobody can make"),
     ("/legacy-board", "everyone's Legacy points, and who still needs each raid"),
     ("/inactive", "who hasn't logged in lately"),
+    ("/lookup", "any player's guild and its leaders"),
 ])
 
 
@@ -1107,6 +1110,65 @@ class GuildBot(discord.Client):
             await msg.edit(embed=raid_embed(self.db, raid))
         except discord.HTTPException:
             log.exception("could not refresh the post for raid %s", raid_id)
+
+    LOOKUP_LEADERS = 8                                        # profile calls for last-login times, at most
+
+    async def lookup_player(self, name: str):
+        """(text, embed) for /lookup: the character, its guild, and that guild's rank 0 and 1 members with their
+        last login. Raw responses are kept in `snapshots` (kind lookup-*) so what was shown can be traced."""
+        if not self.blizzard:
+            return "Blizzard isn't connected right now.", None
+        slug, now = bz.character_slug(name), utcnow()
+        if not slug:
+            return "Type their full name: first name and surname.", None
+        try:
+            raw = await self.blizzard.character_profile(slug)
+        except bz.NotFound:
+            return (f"Blizzard has no character called **{name.strip()}**. Check the full name (first name and "
+                    "surname). Characters under level 10, or that haven't logged out since being made, often "
+                    "can't be found."), None
+        except bz.BlizzardError:
+            return "Blizzard didn't answer. Try again in a minute.", None
+        self.db.save_snapshot(slug, "lookup-profile", "ok", json.dumps(raw), now)
+        who, p = name.strip(), bz.parse_profile(raw)
+        e = discord.Embed(title=f"{who}")
+        about = f"L{p.level or '?'} {p.race_name or ''} {p.class_name or ''}, {p.faction or '?'}. Last on {rel(ms_to_iso(p.last_login_ms))}."
+        ref = bz.parse_guild_ref(raw)
+        if not ref:
+            e.description = about + "\n\nNot in a guild."
+            e.set_footer(text=f"From Blizzard, {now} UTC. Report scams in game too: right-click their name > Report.")
+            return None, e
+        gname, gslug = ref
+        try:
+            roster_raw = await self.blizzard.guild_roster(gslug)
+        except bz.BlizzardError:
+            e.description = about + f"\n\nGuild: **{gname}**. Its member list didn't load; try again in a minute."
+            return None, e
+        self.db.save_snapshot(gslug, "lookup-roster", "ok", json.dumps(roster_raw), now)
+        members = bz.parse_roster(roster_raw)
+        own = next((m for m in members if m.slug == slug), None)
+        leaders = sorted((m for m in members if m.rank in (0, 1)), key=lambda m: (m.rank, m.name))
+
+        async def last_on(m):
+            try:
+                return bz.parse_profile(await self.blizzard.character_profile(m.slug)).last_login_ms
+            except bz.BlizzardError:
+                return None
+        logins = await asyncio.gather(*(last_on(m) for m in leaders[:self.LOOKUP_LEADERS]))
+
+        def line(m, ms):
+            full = f"{m.name} {m.surname}" if m.surname else m.name
+            return f"**{full}** L{m.level or '?'} {m.class_name or ''}" + (f", last on {rel(ms_to_iso(ms))}" if ms else "")
+        rows = [line(m, ms) for m, ms in zip(leaders, logins)] + [line(m, None) for m in leaders[self.LOOKUP_LEADERS:]]
+        gm = [r for m, r in zip(leaders, rows) if m.rank == 0]
+        r1 = [r for m, r in zip(leaders, rows) if m.rank == 1]
+        e.description = (about + f"\n\nGuild: **{gname}** ({len(members)} members)"
+                         + (f", their rank {own.rank}" if own and own.rank is not None else "")
+                         + "\n\n**Guild master (rank 0)**\n" + ("\n".join(gm) or "Not shown by Blizzard.")
+                         + "\n\n**Rank 1 (usually officers)**\n" + ("\n".join(r1[:15]) or "Nobody."))
+        e.set_footer(text=f"From Blizzard, {now} UTC. Rank names aren't in Blizzard's data, so 'officers' is a guess. "
+                          "Report scams in game too: right-click their name > Report.")
+        return None, e
 
     def drop_signups_with(self, slug: str) -> list[int]:
         """A character changed hands (/release, an officer's /link): open-raid signups made with it
@@ -2197,6 +2259,15 @@ def register_commands(bot: GuildBot) -> None:
         if blocked:
             msg += " Couldn't message (their DMs are closed): " + " ".join(f"<@{u}>" for u in blocked)
         await interaction.followup.send(msg, ephemeral=True, allowed_mentions=discord.AllowedMentions.none())
+
+    @tree.command(name="lookup", description="Any player's guild and its leaders, e.g. to report a scammer (officers)")
+    @app_commands.guild_only()
+    @officer
+    @app_commands.describe(name="Their full in-game name: first name and surname")
+    async def lookup(interaction: discord.Interaction, name: str):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        text, embed = await bot.lookup_player(name)
+        await interaction.followup.send(text, embed=embed, ephemeral=True)
 
     @tree.command(name="raids", description="List upcoming raids")
     @app_commands.guild_only()
