@@ -1,4 +1,4 @@
--- Service Inviter v3.7.2
+-- Service Inviter v3.7.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -4854,7 +4854,7 @@ local function BuildSetupUI()
     end
     local function Section(text) if y < TOP then y = y - 8 end Header(C1, y, text, FW) y = y - 26 end
     Section("Send on invite")
-    Msg("welcomemsg", "Welcome", { "{name}", "{who}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome")
+    Msg("welcomemsg", "Welcome", { "{name}", "{service}", "{who}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome")
     Msg("askmsg", "Not sure what they want", { "{name}", "{services}" }, nil)
     Section("Send on entry")
     Msg("loyaltymsg", "A regular", { "{name}", "{visits}" }, "loyal", "Empty: say nothing")

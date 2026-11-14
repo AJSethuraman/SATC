@@ -46,3 +46,15 @@ def test_looking_for_still_counts_and_split_messages_are_always_joined():
     say_trade(g, "Mirasha", "wtb summon")
     say_trade(g, "Mirasha", "to TB")
     assert "Mirasha" in list(g.g.INVITED.values())
+
+
+def test_every_code_the_welcome_fills_in_has_a_button():
+    """The owner, 14 Nov 2026, on {service}: "this works but why is it missing as a button?"."""
+    import re
+    from conftest import ADDON
+    src = ADDON.read_text()
+    body = src[src.index("local function WelcomeText("):src.index("Jobs.WelcomeText = WelcomeText")]
+    filled = set(re.findall(r'gsub\("(\{\w+\})"', body)) - {"{services}"}
+    chips = re.search(r'Msg\("welcomemsg", "Welcome", \{([^}]*\}[^)]*)\}, "welcome"\)', src).group(1)
+    have = set(re.findall(r'"(\{\w+\})"', chips))
+    assert filled <= have, sorted(filled - have)
