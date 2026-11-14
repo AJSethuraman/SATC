@@ -149,6 +149,11 @@ L = load(GROUP)
 L.execute('SlashCmdList.SERVICEINVITER("alert") ServiceInviterAlert._scripts.OnUpdate(ServiceInviterAlert, 7)')
 scenes["banner"] = export(L, L.globals().ServiceInviterAlert)
 
+# a teammate's setup arriving: Use it or No
+L = load(GROUP)
+L.execute('ServiceInviter_Test.Jobs.AskSetup({}, "Bone Charms")')
+scenes["setup_from_a_teammate"] = export(L, L.globals().ServiceInviterSetupAsk)
+
 OUT.mkdir(parents=True, exist_ok=True)
 (OUT / "scenes.json").write_text(json.dumps(scenes))
 r = subprocess.run(["node", str(HERE / "shoot.js"), str(HERE / "render.html"), str(OUT)], capture_output=True, text=True)
