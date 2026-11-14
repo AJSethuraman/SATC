@@ -1,4 +1,4 @@
--- Service Inviter v3.0.1
+-- Service Inviter v3.0.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -155,6 +155,24 @@ local function P(msg)
     local f = OutFrame()
     local line = "|cff80ff80Service Inviter|r: " .. msg
     if f and f.AddMessage then f:AddMessage(line) else print(line) end
+end
+-- Every message to a customer, the group or a whisper goes through here: in test mode it goes
+-- to you instead (your chat, or a whisper to /si test NAME), never to them.
+-- {rt1}..{rt8} drawn as the icon, for test lines printed in your own chat (sent chat converts them itself)
+function Jobs.Icons(text)
+    local names = { star = 1, circle = 2, diamond = 3, triangle = 4, moon = 5, square = 6, cross = 7, x = 7, skull = 8 }
+    text = tostring(text):gsub("{(%a+)}", function(w) local n = names[w:lower()] return n and ("{rt" .. n .. "}") or nil end)
+    return (text:gsub("{rt(%d)}", "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%1:0|t"))
+end
+function Jobs.Send(text, ch, to)
+    if ServiceInviterDB and ServiceInviterDB.dryrun then
+        local tt = ServiceInviterDB.testto
+        local where = (ch == "WHISPER" and ("whisper to " .. tostring(to))) or (ch == "RAID_WARNING" and "raid warning") or (tostring(ch):lower() .. " chat")
+        if tt and tt ~= "" then SendChatMessage("[TEST " .. where .. "] " .. text, "WHISPER", nil, tt)
+        else P("|cffffd100TEST|r |cff999999(" .. where .. "):|r " .. Jobs.Icons(text)) end
+        return
+    end
+    SendChatMessage(text, ch, nil, to)
 end
 local function D(msg)
     if Jobs.whyNow then Jobs.whyNow.why = msg end   -- for /si why NAME
@@ -1238,7 +1256,9 @@ local function Handle(text, sender, guid)
     if not ok then return end
 
     if ServiceInviterDB.dryrun then
-        P("|cffffd100DRY RUN|r would invite " .. short .. " because [" .. curChannel .. "] \"" .. text .. "\" = " .. why)
+        D("test mode: not invited")
+        Jobs.Rehearse(short, text, why, svc, dest, curChannel)
+        lastInvite[short] = now   -- once per buyer, not every line they type
         return
     end
 
@@ -1400,7 +1420,7 @@ local function OnSystem(text)
         -- (the owner, 14 Nov 2026: "can the scam message be flashier to be more public")
         local ch = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
         if ch == "RAID" and Jobs.CanRemove() then ch = "RAID_WARNING" end
-        if line then SendChatMessage(line, ch) end
+        if line then Jobs.Send(line, ch) end
         P("|cffff8080" .. short .. " didn't pay last time.|r")
         return
     end
@@ -1423,13 +1443,13 @@ local function OnSystem(text)
     if not fresh or not Opt("welcome") then
         -- with {name} in it, your line already greets them: no "Hi Kaldrok!" in front
         local named = (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
-        if loyal then SendChatMessage(named and loyal or ("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal), channel) end
+        if loyal then Jobs.Send(named and loyal or ("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal), channel) end
         return
     end
     local welcome = WelcomeText(short)
     if not welcome then D(short .. " joined; nothing on sale to welcome them with") return end
     D(short .. " joined, sending welcome to " .. channel)
-    SendChatMessage(welcome, channel)
+    Jobs.Send(welcome, channel)
 end
 
 local function ChannelAllowed(ch)
@@ -2306,7 +2326,7 @@ local function SendWhisperTo(to, text)
         BNSendWhisper(id, text)
         return "Battle.net friend " .. to
     end
-    SendChatMessage(text, "WHISPER", nil, to)
+    Jobs.Send(text, "WHISPER", to)
     return "character " .. to
 end
 
@@ -2338,6 +2358,33 @@ local function AlertMsg(name, job, here)
     m = m:gsub("{dest}", function() return dest or "" end)
     m = m:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
     return (m:gsub("{price}", function() return PriceText(price) end))
+end
+
+-- Test mode (the owner, 14 Nov 2026: "before using this tomorrow i want a dry test to ensure it
+-- would work - i want to see the output of their whisper to me or something as if it would go to
+-- the customer just to me instead"). A buyer it would invite gets no invite; every message they
+-- would get, start to finish, with their real name, city and quoted price, goes to you instead:
+-- in your chat, or whispered to the character set with /si test NAME.
+function Jobs.Rehearse(name, said, why, svc, dest, channel)
+    local db = ServiceInviterDB
+    local job = { name = name, service = svc or "summons", dest = dest, t = GetTime() }
+    job.price = Core.Setting(db, job.service, dest).price
+    local to = db.testto
+    local function out(step, where, text)
+        if not text or text == "" then return end
+        if to and to ~= "" then
+            SendChatMessage("[TEST " .. step .. " -> " .. name .. ", " .. where .. "] " .. text, "WHISPER", nil, to)
+        else
+            P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "):|r " .. Jobs.Icons(text))
+        end
+    end
+    local chat = (IsInRaid and IsInRaid()) and "raid chat" or "party chat"
+    P("|cffffd100TEST|r would invite " .. name .. " because [" .. tostring(channel) .. "] \"" .. tostring(said) .. "\" = " .. tostring(why) ..
+        " · quoted " .. (Core.Money(job.price) or "free") .. (to and to ~= "" and (" · messages whispered to " .. to) or ""))
+    if Opt("welcome") then out("1 welcome", chat, WelcomeText(name, job)) end
+    if job.service == "summons" and db.raidalert ~= false then out("2 summon starts", chat, AlertMsg(name, job, dest)) end
+    out("3 lands", chat, ArrivalText(job))
+    out("4 thanks", "whisper", ThanksText(name))
 end
 
 ----------------------------------------------------------------------
@@ -2654,7 +2701,7 @@ OnCast = function(event, unit, spellID, spellName)
         if ServiceInviterDB.raidalert ~= false then
             local ch = (IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY" or nil)
             if ch then
-                local ok, err = pcall(function() SendChatMessage(AlertMsg(who, job, castZone), ch) end)
+                local ok, err = pcall(function() Jobs.Send(AlertMsg(who, job, castZone), ch) end)
                 trace.raid = ok and ("sent to " .. ch) or ("failed: " .. tostring(err))
             else
                 trace.raid = "not in a group"
@@ -3513,7 +3560,7 @@ local function BuildSetupUI()
     Check("autoshow", L, -266, "Open the customer list when I invite someone", true)
     Check("kwon", L, -292, "Auto-invite anyone who says:", true)
     Box("kwwords", L + 236, -294, 170, 60)
-    Check("dryrun", L, -322, "Dry run")
+    Check("dryrun", L, -322, "Test mode")
     Check("near", L + 110, -322, "Near-miss lines")
     Check("debug", L + 270, -322, "Debug")
     Header(L, -362, "On sale right now")
@@ -3922,9 +3969,17 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             P("usage: /si out <chat window number 1-10>   or /si out off")
         end
     elseif cmd == "selftest" then SelfTest()
-    elseif cmd == "dryrun" then
-        ServiceInviterDB.dryrun = not ServiceInviterDB.dryrun
-        P("dry run " .. (ServiceInviterDB.dryrun and "ON: it will only SAY who it would invite" or "OFF: it will really invite"))
+    elseif cmd == "dryrun" or cmd == "test" then
+        local r = rest:gsub("^%s+", ""):gsub("%s+$", "")
+        if r:lower() == "off" then ServiceInviterDB.dryrun = false
+        elseif r:lower() == "on" or r == "" then ServiceInviterDB.dryrun = (cmd == "test") or not ServiceInviterDB.dryrun ServiceInviterDB.testto = nil
+        else ServiceInviterDB.dryrun = true ServiceInviterDB.testto = r end
+        if ServiceInviterDB.dryrun then
+            P("|cffffd100TEST MODE ON|r: nobody is invited. Each buyer's messages go to " ..
+                ((ServiceInviterDB.testto and ("a whisper to " .. ServiceInviterDB.testto)) or "your chat") .. " instead. /si test off to stop.")
+        else
+            P("test mode OFF: it will really invite")
+        end
     elseif cmd == "test" then
         local ok, why = Evaluate(Norm(rest))
         P((ok and "WOULD invite" or "would NOT invite") .. " (" .. why .. ")")
