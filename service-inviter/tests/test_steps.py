@@ -206,3 +206,17 @@ def test_paid_removes_through_the_games_own_uninvite_not_a_blockable_call():
 def test_not_leader_the_buttons_carry_no_uninvite():
     g = lockpick_customer(price="20", lead=False)
     assert g.eval("ServiceInviterJobs.rows[1].paid:GetAttribute(\"macrotext\")") == ""
+
+
+def test_a_summon_they_never_take_is_not_an_arrival():
+    """The owner, 14 Nov 2026: "so they register as arrived after simply receiving the summon".
+    It used to mark them Arrived 40 seconds after the ritual started, taken or not."""
+    seen = " function UnitIsVisible(u) local x = UNITS[u] return x ~= nil and x[4] == 'Thunder Bluff' end"
+    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}, extra=KICK + seen)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.run('UNITS.party2 = { "Kaldrok", "MAGE", 44, "Orgrimmar" } GROUP["Kaldrok"] = true')
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.run('ServiceInviter_Test.Jobs.Set("Kaldrok", "summoned") CLOCK = CLOCK + 300 ServiceInviter_Test.CheckArrivals()')
+    assert g.status("Kaldrok") == "summoned"                  # still in Orgrimmar: not arrived
+    g.run('UNITS.party2[4] = "Thunder Bluff" CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()')
+    assert g.status("Kaldrok") == "arrived"                   # took it: now in Thunder Bluff

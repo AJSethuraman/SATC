@@ -1,4 +1,4 @@
--- Service Inviter v2.12.1
+-- Service Inviter v2.12.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1747,7 +1747,6 @@ end
 -- Customer list window (/si jobs)
 ----------------------------------------------------------------------
 local ROWS = 6
-local ARRIVE_FALLBACK = 40   -- seconds after Summon before we assume they have arrived
 local CLEAN_AFTER = 30       -- finished rows disappear after this many seconds
 
 -- (The 1.x extras list is now the services in Services.lua: see MigrateServices.)
@@ -2479,7 +2478,12 @@ local function CheckArrivals()
         if j.status == "summoned" then
             local u = UnitFor(j.name)
             local visible = u and UnitIsVisible and UnitIsVisible(u)
-            if visible or (j.tsummon and now - j.tsummon > ARRIVE_FALLBACK) then
+            -- Arrived = the game shows them there: near enough to see, or in the summon's city.
+            -- No timer: a summon they never took isn't an arrival (the owner, 14 Nov 2026: "so
+            -- they register as arrived after simply receiving the summon").
+            local z = u and ZoneOf(u)
+            local there = visible or (j.dest and z and z == j.dest)
+            if there then
                 Jobs.Set(j.name, "arrived")
                 -- unasked, only if you want that (the owner, 14 Nov 2026: "can i set it to not auto
                 -- queue a blessing if they dont ask for one?")

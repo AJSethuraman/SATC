@@ -150,7 +150,8 @@ def test_arrival_offers_what_is_there():
               "lockpick = { on = true, invite = false }")
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.run('''local J = ServiceInviter_Test.Jobs J.Joined("Kaldrok") J.Set("Kaldrok", "summoned")
-             CLOCK = CLOCK + 41 ServiceInviter_Test.CheckArrivals()''')  # no unit to see: 40s fallback
+             UNITS.party2 = { "Kaldrok", "MAGE", 44, "Thunder Bluff" } GROUP["Kaldrok"] = true
+             CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()''')  # in the summon's city: arrived
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
     assert "Welcome to TB, {rt4}Kaldrok{rt4}! Also here: free lockpicking. Just ask!" in sent
 
