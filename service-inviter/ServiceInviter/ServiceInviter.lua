@@ -1,4 +1,4 @@
--- Service Inviter v2.12.0
+-- Service Inviter v2.12.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2559,6 +2559,13 @@ function Jobs.Scam(name)
     e.owed = (e.owed or 0) + ((j and JobPrice(j)) or 0)
     e.last = Now()
     ServiceInviterDB.scammers[key] = e
+    -- marked Paid by mistake (the owner, 14 Nov 2026: "i accidentally added paid to someone but
+    -- meant to add scam"): the money comes back off the session
+    if j and j.status == "paid" then
+        local st = Stats()
+        st.paid = math.max(0, (st.paid or 0) - 1)
+        st.silver = math.max(0, (st.silver or 0) - (j.amount or JobPrice(j) or 0))
+    end
     if j then Jobs.Set(name, "scammed") end
     P("|cffff8080" .. name .. " recorded as not paying|r (" .. e.n .. (e.n == 1 and " time" or " times") .. "). Called out if they join again; never invited.")
     RemoveFromGroup(name)
@@ -2656,7 +2663,7 @@ local function ApplyRow(row, job)
         row.paid:Show()
     end
     row.paid:SetText(JobPrice(job) and "Paid" or "Done")
-    if row.paid:IsShown() and JobPrice(job) then row.scam:Show() end
+    if (row.paid:IsShown() and JobPrice(job)) or job.status == "paid" then row.scam:Show() end
     row.remove:Show()
 end
 
@@ -3801,6 +3808,12 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
                 P(e[1] .. ": " .. e[2].n .. (e[2].n == 1 and " time" or " times") .. ", owed " .. Money(e[2].owed or 0) .. ", last " .. Jobs.When(e[2].last))
             end
         end)
+    elseif cmd == "scam" then
+        if rest == "" then P("/si scam NAME: they didn't pay (also undoes a Paid by mistake)") return end
+        local j = Jobs.Get(rest)
+        if not j then for _, x in ipairs(jobs) do if x.name:lower() == rest:lower() then j = x end end end
+        Jobs.Scam(j and j.name or rest)
+        RefreshJobs()
     elseif cmd == "unscam" then
         local _, key = Jobs.Scammer(rest)
         if key then ServiceInviterDB.scammers[key] = nil P(key .. " is off the didn't-pay list") else P("nobody called " .. rest .. " on the list") end
@@ -3884,7 +3897,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si scammers = didn't pay, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si scam NAME = didn't pay, /si scammers, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 

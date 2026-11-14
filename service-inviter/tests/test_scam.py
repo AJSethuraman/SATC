@@ -60,3 +60,22 @@ def test_unscam_clears_them_and_the_list_opens_to_copy():
     assert "Momma Lovesme: 2 times, owed 70 silver" in g.eval("ServiceInviterCopy.box:GetText()")
     g.run('SlashCmdList.SERVICEINVITER("unscam momma lovesme")')
     assert g.eval('ServiceInviterDB.scammers["Momma Lovesme"]') is None
+
+
+def test_paid_by_mistake_can_be_turned_into_scam_and_the_money_comes_off():
+    """The owner, 14 Nov 2026: "i accidentally added paid to someone but meant to add scam"."""
+    g = lockpick_customer(price="20")
+    click(g, "paid")
+    assert g.eval("ServiceInviter_Test.Stats().silver") == 20
+    g.run("ServiceInviter_Test.Refresh()")
+    assert g.eval("ServiceInviterJobs.rows[1].scam._shown") is True        # still there on a Paid row
+    g.run('SlashCmdList.SERVICEINVITER("scam kaldrok")')
+    assert g.status("Kaldrok") == "scammed"
+    assert g.eval("ServiceInviter_Test.Stats().silver") == 0 and g.eval("ServiceInviter_Test.Stats().paid") == 0
+    assert g.eval('ServiceInviterDB.scammers["Kaldrok"].n') == 1
+
+
+def test_scam_by_name_for_someone_already_gone_from_the_list():
+    g = world(LOCK)
+    g.run('SlashCmdList.SERVICEINVITER("scam Momma Lovesme")')
+    assert g.eval('ServiceInviterDB.scammers["Momma Lovesme"].n') == 1
