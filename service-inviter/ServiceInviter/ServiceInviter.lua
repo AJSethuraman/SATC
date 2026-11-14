@@ -1,4 +1,4 @@
--- Service Inviter v2.14.0
+-- Service Inviter v2.14.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1316,7 +1316,11 @@ local function OnSystem(text)
     if Jobs.Scammer(short) then
         pending[short] = nil
         local line = Jobs.ScamLine(short)
-        if line then SendChatMessage(line, (IsInRaid and IsInRaid()) and "RAID" or "PARTY") end
+        -- as a raid warning when you may (big, mid-screen, for everyone), else raid/party chat
+        -- (the owner, 14 Nov 2026: "can the scam message be flashier to be more public")
+        local ch = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+        if ch == "RAID" and Jobs.CanRemove() then ch = "RAID_WARNING" end
+        if line then SendChatMessage(line, ch) end
         P("|cffff8080" .. short .. " didn't pay last time.|r")
         return
     end
@@ -3331,7 +3335,7 @@ local function BuildSetupUI()
     Label(L, -476, "Here to click. Never a customer: no row, no welcome, never invited.", "GameFontHighlightSmall", 410)
     local wb = Box("workers", L + 4, -496, 330, 400)
     PickButton(page, wb, false, "Our workers (from your group)", "workers")
-    Label(L, -534, "When someone who didn't pay joins, say ({name}, empty = off):")
+    Label(L, -534, "When someone who didn't pay joins, say ({name} {skull}, empty = off):")
     Box("scammsg", L + 4, -556, 396)
 
     Header(R, -50, "Who gets paid (default)")

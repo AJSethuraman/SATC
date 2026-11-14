@@ -104,3 +104,19 @@ def test_someone_who_leaves_before_the_summon_owes_nothing():
     g.event("CHAT_MSG_SYSTEM", "Kaldrok leaves the party.")
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterJobs.rows[1].scam._shown") is False
+
+
+def test_in_a_raid_as_leader_or_assistant_it_goes_out_as_a_raid_warning():
+    """The owner, 14 Nov 2026: "can the scam message be flashier to be more public". {skull} is the
+    game's own: party, raid and raid warning chat draw it as the icon."""
+    g = world(LOCK, extra=" function IsInRaid() return true end")
+    g.run('ServiceInviterDB.scammers = { Kaldrok = { n = 1 } } ServiceInviterDB.scammsg = "{skull} HEY {name} ! YOU ARE A SCAMMER! {skull}"')
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok has joined the raid group.")
+    assert [(ch, m) for ch, _, m in g.sent()] == [("RAID_WARNING", "{skull} HEY Kaldrok ! YOU ARE A SCAMMER! {skull}")]
+
+
+def test_in_a_raid_without_lead_or_assist_it_goes_to_raid_chat():
+    g = world(LOCK, extra=" function IsInRaid() return true end function UnitIsGroupLeader() return false end function UnitIsGroupAssistant() return false end")
+    g.run('ServiceInviterDB.scammers = { Kaldrok = { n = 1 } }')
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok has joined the raid group.")
+    assert [ch for ch, _, m in g.sent()] == ["RAID"]
