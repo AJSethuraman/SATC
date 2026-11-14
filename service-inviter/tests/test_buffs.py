@@ -237,3 +237,37 @@ def test_the_pop_can_be_turned_off():
     g.run("ServiceInviterDB.opts = { buffpop = false }")
     g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
     assert not g.eval("ServiceInviterBuffPop and ServiceInviterBuffPop:IsShown()")
+
+
+# The owner, 14 Nov 2026: "this guy left then asked for a buff" -- "it ignored him" -- "i want to
+# offer a recent customer a buff if they have left".
+
+def test_a_customer_who_left_can_still_ask_and_is_targeted_by_name():
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    say_trade(g, "Momma Lovesme", "WTB summon to TB")                 # a customer on the list
+    g.event("CHAT_MSG_WHISPER", "fort pls", "Momma Lovesme", "", "", "", "", "", "", "")
+    assert label(g) == "Fortitude -> Momma Lovesme"
+    assert raw_macro(g) == "/target Momma Lovesme\n/cast Power Word: Fortitude\n/targetlasttarget"
+
+
+def test_saying_it_nearby_works_too():
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SAY", "fort?", "Kaldrok", "", "", "", "", "", "", "")
+    assert label(g) == "Fortitude -> Kaldrok"
+
+
+def test_a_stranger_outside_the_group_is_still_ignored():
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_WHISPER", "fort pls", "Randomguy", "", "", "", "", "", "", "")
+    g.event("CHAT_MSG_SAY", "fort pls", "Randomguy", "", "", "", "", "", "", "")
+    assert label(g) == "No buffs waiting"
+
+
+def test_a_customer_from_the_book_within_the_hour_counts_an_older_one_does_not():
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g.run("ServiceInviterDB.customers = { Kaldrok = { n = 1, last = time() - 600 }, Oldie = { n = 1, last = time() - 7200 } }")
+    g.event("CHAT_MSG_WHISPER", "fort pls", "Oldie", "", "", "", "", "", "", "")
+    assert label(g) == "No buffs waiting"
+    g.event("CHAT_MSG_WHISPER", "fort pls", "Kaldrok", "", "", "", "", "", "", "")
+    assert label(g) == "Fortitude -> Kaldrok"

@@ -1,4 +1,4 @@
--- Service Inviter v2.14.1
+-- Service Inviter v2.15.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -459,6 +459,18 @@ function Jobs.ScamLine(name)
     if m == nil then m = MSG.SCAM end
     if m == "" then return nil end
     return (m:gsub("{name}", function() return name end))
+end
+-- A recent customer: on the list now, or in the book within the hour (the owner, 14 Nov 2026: "i
+-- want to offer a recent customer a buff if they have left"). Returns the name as recorded.
+function Jobs.Recent(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    for _, j in ipairs(Jobs.All and Jobs.All() or {}) do if j.name:lower() == name:lower() then return j.name end end
+    local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+    for k, c in pairs(book) do
+        local now = (time and time()) or (os and os.time and os.time()) or 0
+        if k:lower() == name:lower() and c.last and now - c.last < 3600 then return k end
+    end
+    return nil
 end
 function Jobs.InGroup(name)
     if type(name) ~= "string" or name == "" then return false end
@@ -1521,6 +1533,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         local ch = (channelBaseName and channelBaseName ~= "") and channelBaseName or channelName
         if not ChannelAllowed(ch) then return end
     elseif event == "CHAT_MSG_SAY" then
+        Report("buffs", pcall(BuffAsk, text, sender))   -- a customer who left, standing nearby
         if not Opt("say") then return end
     elseif event == "CHAT_MSG_YELL" then
         if not Opt("yell") then return end
@@ -1637,10 +1650,14 @@ local function BuffMacro(e)
     local spell = e.spell or Core.Setting(ServiceInviterDB, e.key).spell or ""
     -- cast on their group slot (raid3), not their name: a two-part name ("Yeet Lock") is safest
     -- left out of the macro
-    local at = e.name
+    local at
     for _, m in ipairs(GroupSnapshot()) do
         if m.unit and not m.me and m.name:lower() == e.name:lower() then at = m.unit break end
     end
+    local r = (e.rank and ("(Rank " .. e.rank .. ")") or "")
+    -- not in the group (a customer who left): [@name] only reaches group members, so target them,
+    -- cast, and go back to whoever you had targeted
+    if not at then return "/target " .. e.name .. "\n/cast " .. spell .. r .. "\n/targetlasttarget" end
     return "/cast [@" .. at .. "] " .. spell .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
 end
 local function BuffLabel()
@@ -1652,7 +1669,10 @@ local function BuffLabel()
 end
 RefreshBuff = function()
     -- drop anyone who left the group
-    for i = #buffQueue, 1, -1 do if not InGroupByName(buffQueue[i].name) then table.remove(buffQueue, i) end end
+    for i = #buffQueue, 1, -1 do
+        local e = buffQueue[i]
+        if not InGroupByName(e.name) and not (e.outside or Jobs.Recent(e.name)) then table.remove(buffQueue, i) end
+    end
     if InCombatLockdown and InCombatLockdown() then buffDirty = true return end
     buffDirty = false
     local m = BuffMacro(buffQueue[1])
@@ -1694,7 +1714,12 @@ BuffAsk = function(text, sender)
     local name = Ambiguate and Ambiguate(sender, "none") or sender
     if name == FullName("player") then return end
     local inGroup = InGroupByName(name)
-    if not inGroup then return end
+    local outside = false
+    if not inGroup then
+        local recent = Jobs.Recent(name)
+        if not recent then return end
+        name, outside = recent, true
+    end
     if type(inGroup) == "string" then name = inGroup end
     local norm = Norm(text)
     -- asks are short ("wisdom pls", "can i get fort"); "i might be afk for a bit" is not one
