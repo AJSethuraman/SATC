@@ -1,4 +1,4 @@
--- Service Inviter v3.0.2
+-- Service Inviter v3.0.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -168,7 +168,10 @@ function Jobs.Send(text, ch, to)
     if ServiceInviterDB and ServiceInviterDB.dryrun then
         local tt = ServiceInviterDB.testto
         local where = (ch == "WHISPER" and ("whisper to " .. tostring(to))) or (ch == "RAID_WARNING" and "raid warning") or (tostring(ch):lower() .. " chat")
-        if tt and tt ~= "" then SendChatMessage("[TEST " .. where .. "] " .. text, "WHISPER", nil, tt)
+        -- the target gets the message exactly as it would go out; your chat says what it was
+        if tt and tt ~= "" then
+            SendChatMessage(text, "WHISPER", nil, tt)
+            P("|cffffd100TEST|r |cff999999(" .. where .. ") whispered to " .. tt .. " instead|r")
         else P("|cffffd100TEST|r |cff999999(" .. where .. "):|r " .. Jobs.Icons(text)) end
         return
     end
@@ -2373,7 +2376,9 @@ function Jobs.Rehearse(name, said, why, svc, dest, channel)
     local function out(step, where, text)
         if not text or text == "" then return end
         if to and to ~= "" then
-            SendChatMessage("[TEST " .. step .. " -> " .. name .. ", " .. where .. "] " .. text, "WHISPER", nil, to)
+            -- exactly what the customer would get, nothing added; your chat says what it was
+            SendChatMessage(text, "WHISPER", nil, to)
+            P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "): whispered to " .. to .. " instead|r")
         else
             P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "):|r " .. Jobs.Icons(text))
         end

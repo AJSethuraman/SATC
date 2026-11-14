@@ -29,7 +29,9 @@ def test_with_a_name_every_message_is_whispered_to_that_character_instead():
     say_trade(g, "Kaldrok Stonehoof", "wtb summon to TB")
     sent = g.sent()
     assert sent and all(ch == "WHISPER" and to == "Main Character" for ch, to, _ in sent)
-    assert sent[0][2].startswith("[TEST 1 welcome -> Kaldrok Stonehoof, party chat] Hi Kaldrok Stonehoof!")
+    # the target sees exactly what the customer would, with nothing added
+    assert sent[0][2] == "Hi Kaldrok Stonehoof! Yeet Lock will summon you to TB. 35 silver. Pay Yeet Lock when you land."
+    assert any("1 welcome -> Kaldrok Stonehoof (party chat): whispered to Main Character instead" in p for p in clean(g.printed()))
     assert list(g.g.INVITED.values()) == []
 
 
