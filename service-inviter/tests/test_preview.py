@@ -55,9 +55,11 @@ def test_invite_off_is_explained():
 
 def test_arrival_message_or_why_there_is_none():
     g = world({"player": ME_ORG, "party1": LOCK_TB})
-    assert has(preview(g, "Warlock"), "When they land: no message (nothing else on offer in TB)")
+    assert has(preview(g, "Warlock"), "When they land, party chat: Welcome to TB, Kaldrok! Please pay Grimtotem 25 silver.")
     g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": LOCK_TB}, "blessing = { on = true }")
-    assert has(preview(g, "Warlock"), "When they land, party chat: Welcome to TB, Kaldrok! Also here: free blessings. Just ask!")
+    assert has(preview(g, "Warlock"), "When they land, party chat: Welcome to TB, Kaldrok! Please pay Grimtotem 25 silver. Also here: free blessings. Just ask!")
+    g = world({"player": ME_ORG, "party1": LOCK_TB}, "summons = { price = false }")
+    assert has(preview(g, "Warlock"), "When they land: no message (nothing else on offer in TB)")
 
 
 def test_whisper_line_when_someone_is_set():

@@ -1,4 +1,4 @@
--- Service Inviter v3.3.1
+-- Service Inviter v3.4.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1307,6 +1307,14 @@ function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, a
     job.service, job.dest, job.market = svc, dest, market
     job.price = quote   -- what they pay, even if the market moves
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
+    -- A whispered welcome goes with the invite, so they know the service and price before they
+    -- accept (the owner's flow, 14 Nov 2026: "he whispers them including their price and the
+    -- service so they know upfront what it is and they will be summoned soon"). When they join,
+    -- only a regular hears anything more. In party/raid chat it waits for them to join, as before.
+    if Opt("welcome") and Jobs.RouteOf("welcome") == "whisper" and Jobs.WelcomeText then
+        local text = Jobs.WelcomeText(short, job, true)
+        if text then Jobs.Route("welcome", text, short) job.welcomed = true end
+    end
     if Opt("announce") then
         local what = JobWhere(job)
         if what == "" then what = answered and "(answered your ad)" or why end
@@ -1452,10 +1460,10 @@ function Jobs.LoyaltyLine(job)
     return (line:gsub("{name}", function() return Jobs.Label(job, job.name) end))
 end
 
-local function WelcomeText(name, job)
+local function WelcomeText(name, job, noLoyal)
     job = job or Jobs.Get(name)
     local g, fac = GroupSnapshot(), Faction()
-    local loyal = job and Jobs.LoyaltyLine(job)
+    local loyal = job and not noLoyal and Jobs.LoyaltyLine(job)
     -- A regulars line with {name} in it greets them itself, so it takes the place of the hello at
     -- the start of the welcome rather than repeating the name (the owner, 13 Nov 2026: "i dont
     -- want them to see hi your name welcome back your name later").
@@ -1500,6 +1508,7 @@ local function WelcomeText(name, job)
     if loyal then return named and loyal or ("Hi " .. name .. "! " .. loyal) end
     return nil
 end
+Jobs.WelcomeText = WelcomeText
 
 local LEAVE_PATTERNS = {
     PatternFrom(ERR_RAID_MEMBER_REMOVED_S, "%s has left the raid group."),
@@ -1576,7 +1585,7 @@ local function OnSystem(text)
     -- Someone else invited them, or the welcome is off: we don't know what they came for, so no
     -- service and no price, just hello and the regulars line (the owner, 13 Nov 2026: "if we dont
     -- know what we invited them for why would we show the price and service").
-    if not fresh or not Opt("welcome") then
+    if not fresh or not Opt("welcome") or (Jobs.Get(short) and Jobs.Get(short).welcomed) then
         -- with {name} in it, your line already greets them: no "Hi Kaldrok!" in front
         local named = (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
         if loyal then Jobs.Route("loyal", named and loyal or ("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal), short, channel) end
@@ -2125,6 +2134,7 @@ local CLEAN_AFTER = 30       -- finished rows disappear after this many seconds
 MSG.OFFERMSG = "Welcome {name}! Also on offer today: {offers}. Just ask!"
 
 -- What else is on offer where this customer landed (nil = nothing, say nothing).
+MSG.PAY = "Welcome to {here}, {name}! Please pay {payee} {price}."
 local function ArrivalText(job)
     if not job then return nil end
     local g = GroupSnapshot()
@@ -2133,7 +2143,21 @@ local function ArrivalText(job)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
     if custom == MSG.OFFERMSG then custom = nil end
-    return (Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom))
+    -- landed and not yet paid: who to pay and how much, again (the owner's flow, 14 Nov 2026:
+    -- "upon arrival they are whispered to pay the price again to payee and that they can request
+    -- a blessing")
+    local price = JobPrice(job)
+    local pay
+    if price and price > 0 and job.status ~= "paid" and job.status ~= "done" then
+        local payee, mine = PayeeFor(job, g)
+        local m = ServiceInviterDB.paymsg
+        if m == nil or m == "" then m = MSG.PAY end
+        pay = m:gsub("{name}", function() return Jobs.Label(job) end):gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end)
+            :gsub("{price}", function() return PriceText(price) end):gsub("{here}", function() return here and Core.Short(here) or "" end)
+    end
+    local offer = Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom or (pay and "Also here: {offers}. Just ask!"))
+    if pay and offer then return pay .. " " .. offer end
+    return pay or offer
 end
 
 -- The one thing to do next for a customer:
@@ -2555,7 +2579,11 @@ function Jobs.Rehearse(name, said, why, svc, dest, channel, quote, target, marke
     out = function(step, w, text) if w then plainOut(step, w, text) end end
     P("|cffffd100TEST|r would invite " .. name .. " because [" .. tostring(market or channel) .. "] \"" .. tostring(said) .. "\" = " .. tostring(why) ..
         " · quoted " .. (Core.Money(job.price) or "free") .. (to and to ~= "" and (" · messages whispered to " .. to) or ""))
-    if Opt("welcome") then out("1 welcome", where("welcome"), WelcomeText(name, job)) end
+    if Opt("welcome") and Jobs.RouteOf("welcome") == "whisper" then
+        out("1 invited", "whisper", WelcomeText(name, job, true))
+        local loyal = Jobs.LoyaltyLine(job)
+        if loyal then out("1b joins (a regular)", where("loyal"), loyal) end
+    elseif Opt("welcome") then out("1 welcome", where("welcome"), WelcomeText(name, job)) end
     if job.service == "summons" and db.raidalert ~= false then out("2 summon starts", where("alert"), AlertMsg(name, job, dest)) end
     out("3 lands", where("arrival"), ArrivalText(job))
     out("4 thanks", where("thanks"), ThanksText(name))
@@ -2977,6 +3005,13 @@ function Jobs.BookHear(kind, f, who, me)
     elseif kind == "S" then
         b.scammers[f[3]] = { n = tonumber(f[4]) or 0, owed = tonumber(f[5]) or 0, last = tonumber(f[6]), cleared = tonumber(f[7]) }
         Jobs.bookNote = "saved their didn't-pay entry " .. f[3]
+        -- marked by a teammate while on your list too: the row says so (the owner, 14 Nov 2026:
+        -- "either of us can mark someone as a scammer - like the queue knows")
+        local j = Jobs.Get(f[3])
+        if j and j.status ~= "scammed" and Jobs.Scammer(f[3]) then
+            Jobs.Set(j.name, "scammed")
+            P("|cffff8080" .. who .. " marked " .. j.name .. " as not paying.|r")
+        end
     else
         local part = f[3]
         if part == "base" then
@@ -3544,6 +3579,7 @@ function Jobs.Scam(name)
         st.silver = math.max(0, (st.silver or 0) - (j.amount or JobPrice(j) or 0))
     end
     if j then Jobs.Set(name, "scammed") end
+    if Jobs.TeamOn() then Jobs.SayHi(false) end   -- the team's copies come and get it now
     P("|cffff8080" .. name .. " recorded as not paying|r (" .. e.n .. (e.n == 1 and " time" or " times") .. "). Called out if they join again; never invited.")
     RemoveFromGroup(name)
 end
@@ -5019,6 +5055,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             e.cleared = math.max(Now(), tot.last or 0)
             e.rev = Jobs.Bump()
             ServiceInviterDB.scammers[mine or key] = e
+            if Jobs.TeamOn() then Jobs.SayHi(false) end
             P(key .. " is off the didn't-pay list")
         else P("nobody called " .. rest .. " on the list") end
     elseif cmd == "shards" then

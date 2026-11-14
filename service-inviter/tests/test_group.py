@@ -136,7 +136,8 @@ def test_arrival_offers_what_is_there():
              UNITS.party2 = { "Kaldrok", "MAGE", 44, "Thunder Bluff" } GROUP["Kaldrok"] = true
              CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()''')  # in the summon's city: arrived
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert "Welcome to TB, {rt4}Kaldrok{rt4}! Also here: free blessings. Just ask!" in sent
+    # who to pay, again, then what else is here (the owner's flow, 14 Nov 2026)
+    assert "Welcome to TB, {rt4}Kaldrok{rt4}! Please pay {rt3}Grimtotem{rt3} 25 silver. Also here: free blessings. Just ask!" in sent
 
 
 def test_a_free_service_marks_a_tip_as_paid():

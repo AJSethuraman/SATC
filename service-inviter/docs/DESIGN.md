@@ -315,3 +315,18 @@ party it is not a customer"*.
   cleared, and a name is on the list when its latest "didn't pay", in anyone's book, is newer than
   its latest clear. So any copy can clear anyone's entry.
 - Not tested in game: the guild addon line and the roster on Forever.
+
+## 3.4: the owner's flow (14 Nov 2026)
+
+*"1 and 2 monitor trade, general, summons. 2 is POC, he whispers them including their price and
+the service so they know upfront what it is and they will be summoned soon. they come in party,
+they are welcomed if a regular. we start to summon and they are told a summon is on the way. upon
+arrival they are whispered to pay the price again to payee and that they can request a blessing.
+either of us can mark someone as a scammer - like the queue knows."* `tests/test_flow.py` walks it.
+
+- When the welcome goes by whisper, it goes **with the invite**, not on joining. On joining, only
+  a regular hears the regulars line. In party/raid chat the welcome still waits for them to join.
+- **Arrival** names who to pay and how much (`MSG.PAY`, `paymsg`), then what else is on offer
+  there. Nothing is said about paying once they've paid or when it's free.
+- **Didn't pay** reaches the team at once (the mark says hello, teammates ask for the change), and
+  a teammate's copy flips that customer's row to Didn't pay.
