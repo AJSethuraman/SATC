@@ -1,4 +1,4 @@
--- Service Inviter v3.3.0
+-- Service Inviter v3.3.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -794,6 +794,13 @@ local function PayeeFor(j, g)
     g = g or GroupSnapshot()
     local key = (j and j.service) or "summons"
     local p = Core.Provider(g, key, j and j.dest or nil)
+    -- once a summon starts, the warlock casting it is the one paid (the owner, 14 Nov 2026, on two
+    -- warlocks in one city: "it can be the lock summoning - let's just make that how it works")
+    if j and j.caster then
+        p = nil
+        for _, m in ipairs(g) do if m.name:lower() == j.caster:lower() then p = m end end
+        p = p or { name = j.caster }
+    end
     local here = (j and j.dest) or (p and p.zone)
     local payee = Core.Payee(ServiceInviterDB, g, key, p, here)
     local me = FullName("player")
@@ -3347,6 +3354,9 @@ OnCast = function(event, unit, spellID, spellName)
     if job and not job.service then job.service, job.dest = "summons", castZone end
     local who = job and job.name or tname or "someone"
     local caster = FullName(unit) or unit
+    if job and (job.status == "joined" or job.status == "summoned") and not job.caster then
+        job.caster = Ambiguate and Ambiguate(caster, "none") or caster
+    end
     trace.who, trace.target = who, tname
     D(caster .. " started Ritual of Summoning for " .. who .. " (" .. event .. ")")
 
