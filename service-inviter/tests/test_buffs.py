@@ -352,3 +352,19 @@ def test_hidden_range_answers_dont_break_the_buffs():
     assert not any("error in" in p for p in g.printed())
     assert g.eval("ServiceInviterBuffPop:IsShown()")
     assert raw_macro(g) == "/cast [@party1] Blessing of Kings"
+
+
+def test_si_why_explains_a_buff_ask():
+    """The owner, 14 Nov 2026: "buff thing isnt firing when they ask for it"."""
+    g = world(PALLY, "blessing = { on = true }")
+    g.event("CHAT_MSG_RAID", "kings pls", "Grimtotem")
+    g.run('SlashCmdList.SERVICEINVITER("why grimtotem")')
+    assert "queued Blessing of Kings" in g.printed()[-1]
+    g = world(PALLY)                                                   # blessing not ticked
+    g.event("CHAT_MSG_RAID", "kings pls", "Grimtotem")
+    g.run('SlashCmdList.SERVICEINVITER("why grimtotem")')
+    assert "'We offer a blessing' is off" in g.printed()[-1]
+    g = world(PALLY, "blessing = { on = true }")
+    g.event("CHAT_MSG_RAID", "kings pls", "Stranger")
+    g.run('SlashCmdList.SERVICEINVITER("why stranger")')
+    assert "not in your group" in g.printed()[-1]

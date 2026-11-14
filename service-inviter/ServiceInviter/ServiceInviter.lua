@@ -1,4 +1,4 @@
--- Service Inviter v2.16.2
+-- Service Inviter v2.16.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1419,7 +1419,9 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         return
     end
     if event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
-        Report("buffs", pcall(BuffAsk, text, sender))
+        local okb, errb = pcall(BuffAsk, text, sender)
+        if not okb then Jobs.BuffNote(sender, text, "error: " .. tostring(errb)) end
+        Report("buffs", okb, errb)
         return
     end
     if event == "UNIT_SPELLCAST_SUCCEEDED" and text == "player" then
@@ -1779,15 +1781,27 @@ local function QueueBuff(name, key, spell)
 end
 QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(name, def.key) end end
 -- "fort pls" from someone in the group
+-- every buff ask leaves a note for /si why NAME (the owner, 14 Nov 2026: "buff thing isnt firing
+-- when they ask for it")
+function Jobs.BuffNote(sender, text, why)
+    local who = (Ambiguate and type(sender) == "string" and not IsSecret(sender) and Ambiguate(sender, "none")) or sender
+    if type(who) ~= "string" or IsSecret(who) then return end
+    Jobs.heard = Jobs.heard or {}
+    Jobs.heard[who:lower()] = { text = (type(text) == "string" and not IsSecret(text)) and text or "(hidden by the game)",
+        ch = "buff ask", t = GetTime(), why = why }
+end
 BuffAsk = function(text, sender)
-    if type(text) ~= "string" or IsSecret(text) or not sender then return end
+    if not sender then return end
+    if type(text) ~= "string" or IsSecret(text) then Jobs.BuffNote(sender, nil, "the game hid what they said, so it can't be read") return end
+    local noted
+    local function note(why) noted = true Jobs.BuffNote(sender, text, why) end
     local name = Ambiguate and Ambiguate(sender, "none") or sender
     if name == FullName("player") then return end
     local inGroup = InGroupByName(name)
     local outside = false
     if not inGroup then
         local recent = Jobs.Recent(name)
-        if not recent then return end
+        if not recent then note("not in your group, and not a recent customer") return end
         name, outside = recent, true
     end
     if type(inGroup) == "string" then name = inGroup end
@@ -1795,32 +1809,41 @@ BuffAsk = function(text, sender)
     -- asks are short ("wisdom pls", "can i get fort"); "i might be afk for a bit" is not one
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
-    if count > 6 then return end
+    if count > 6 then note("more than 6 words, so not read as an ask") return end
     -- a paladin whose blessing is switched off: say so, once a session, instead of nothing
     local okc, _, cls = pcall(UnitClass, "player")
-    if okc and cls == "PALADIN" and not Core.Setting(ServiceInviterDB, "blessing").on and not Jobs.toldBlessingOff then
-        for _, b in ipairs(Core.BLESSINGS) do
-            if norm:find(" " .. b.word .. " ", 1, true) then
+    if okc and cls == "PALADIN" and not Core.Setting(ServiceInviterDB, "blessing").on then
+        if Core.BlessingFor(norm) then note("asked for a blessing, but 'We offer a blessing' is off (Buffs tab)") end
+        if not Jobs.toldBlessingOff then
+            local spell = Core.BlessingFor(norm)
+            if spell then
                 Jobs.toldBlessingOff = true
-                P(name .. " asked for " .. b.spell .. ", but 'We offer a blessing' is off (Setup, Buffs tab).")
-                break
+                P(name .. " asked for " .. spell .. ", but 'We offer a blessing' is off (Setup, Buffs tab).")
             end
         end
     end
-    for _, def in ipairs(MyBuffs()) do
+    local mine = MyBuffs()
+    if #mine == 0 then
+        if not (cls == "PALADIN") then note("no buff of yours is ticked on the Buffs tab") end
+        return
+    end
+    local queued
+    for _, def in ipairs(mine) do
         local words = Core.SplitWords(Core.Setting(ServiceInviterDB, def.key).words)
         local named = def.key == "blessing" and Core.BlessingFor(norm)   -- "wis", "bok", "kings"
         if named or HasAny(norm, words) then
             if def.key == "blessing" then
                 -- the word picks the blessing; the last one named wins ("wisdom... actually might")
                 local spell = named or Core.Setting(ServiceInviterDB, "blessing").spell
-                if KnowSpell(spell) then QueueBuff(name, def.key, spell)
-                else P(name .. " asked for " .. spell .. ", which you don't have. Not queued.") end
+                if KnowSpell(spell) then QueueBuff(name, def.key, spell) queued = spell
+                else note("asked for " .. tostring(spell) .. ", which you don't have") P(name .. " asked for " .. spell .. ", which you don't have. Not queued.") end
             else
-                QueueBuff(name, def.key)
+                QueueBuff(name, def.key) queued = def.label
             end
         end
     end
+    if queued then note("queued " .. queued .. (outside and " (outside the group: targeted by name)" or ""))
+    elseif not noted then note("no buff word of yours in it") end
 end
 BuffCastDone = function(spellName)
     local e = buffQueue[1]
