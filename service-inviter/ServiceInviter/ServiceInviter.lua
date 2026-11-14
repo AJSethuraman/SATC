@@ -1,4 +1,4 @@
--- Service Inviter v3.1.1
+-- Service Inviter v3.2.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2643,7 +2643,7 @@ end
 -- stand-in of the right class standing with you.
 ----------------------------------------------------------------------
 local PV = {}
-PV.TABS = { "General", "Warlock", "Paladin", "Advertise", "Team" }
+PV.TABS = { "General", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
 PV.KEYS = { Warlock = { "summons" }, Paladin = { "blessing" } }
 PV.BUYER = "Kaldrok"
 PV.CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
@@ -2794,6 +2794,9 @@ local function Preview(tab)
                 end
                 if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
             end
+        elseif tab == "Tools" then
+            Head("Tools")
+            Note("Buttons for every command: start and stop, test mode, look someone up, the lists, and the checks.")
         elseif tab == "Team" then
             Head("Team")
             local list = Jobs.TeamMembers()
@@ -3775,7 +3778,7 @@ local function BuildSetupUI()
     -- tabs ----------------------------------------------------------------
     -- summons and blessings only (the owner, 14 Nov 2026: "we are only summoning and sometimes
     -- doing a blessing but not much else")
-    local TABS = { "General", "Warlock", "Paladin", "Advertise", "Team" }
+    local TABS = { "General", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
     local pages, tabBtns = {}, {}
     -- the side menu: the page you're on is gold, with a bar beside it
     local railBar
@@ -3969,6 +3972,54 @@ local function BuildSetupUI()
         Radio("route_" .. kind, "route_" .. kind .. "_off", L + 490, y, "Off")
     end
     Label(L, -450, "With a team, customer messages start as whispers; solo, as before. The regulars line and the call-out are public.", "GameFontHighlightSmall", 840)
+
+    -- Tools: every command as a button (the owner, 14 Nov 2026: "i want the addon to have a debug
+    -- panel/command panel or something - there are too many to remember"). Each runs the same
+    -- /si command you could type.
+    page = pages[6]
+    local function Run(cmd) w.Save() SlashCmdList.SERVICEINVITER(cmd) w.Load() end
+    w.tools = {}
+    local function Tool(x, y, text, cmd, width)
+        local b = FlatButton(page, width or 150, 30, "plain", 13)
+        b:SetPoint("TOPLEFT", x, y) b:SetText(text)
+        b:SetScript("OnClick", function() Run(type(cmd) == "function" and cmd() or cmd) end)
+        w.tools[text] = b
+        return b
+    end
+    local function Named(cmd) return function() return cmd .. " " .. (boxes.toolname:GetText():gsub("^%s+", ""):gsub("%s+$", "")) end end
+    Header(L, -50, "On and off")
+    Tool(L, -76, "Stop everything", "stop")
+    Tool(L + 160, -76, "Start again", "start")
+    Tool(L + 320, -76, "Selling on", "on")
+    Tool(L + 480, -76, "Selling off", "off")
+    Tool(L, -112, "Test mode on", function() local t = boxes.testtarget:GetText():gsub("^%s+", ""):gsub("%s+$", "") return t ~= "" and ("test " .. t) or "test" end)
+    Tool(L + 160, -112, "Test mode off", "test off")
+    Label(L + 324, -120, "Whispers go to:")
+    Box("testtarget", L + 440, -114, 190, 40)
+    Label(L + 640, -120, "(blank = you)", "GameFontHighlightSmall")
+    Header(L, -158, "Someone by name")
+    Label(L, -186, "Name:")
+    Box("toolname", L + 56, -182, 220, 40)
+    Tool(L, -214, "Why (what it decided)", Named("why"), 190)
+    Tool(L + 200, -214, "Their history", Named("customers"))
+    Tool(L + 360, -214, "Didn't pay", Named("scam"))
+    Tool(L + 520, -214, "Paid after all", Named("unscam"))
+    Tool(L, -250, "Add to team", Named("team add"), 190)
+    Tool(L + 200, -250, "Remove from team", Named("team remove"))
+    Header(L, -296, "Lists (open to copy)")
+    Tool(L, -322, "Stats", "stats")
+    Tool(L + 160, -322, "Top 10 regulars", "customers")
+    Tool(L + 320, -322, "All customers", "customers all")
+    Tool(L + 480, -322, "Didn't pay list", "scammers")
+    Tool(L, -358, "Didn't pay: names", "scammers names")
+    Tool(L + 160, -358, "Prices by channel", "prices")
+    Tool(L + 320, -358, "Team", "team")
+    Tool(L + 480, -358, "What it hears", "status")
+    Header(L, -404, "Checks")
+    Tool(L, -430, "Self-test", "selftest")
+    Tool(L + 160, -430, "Debug on/off", "debug")
+    Tool(L + 320, -430, "New session", "session new")
+    Label(L, -510, "Each button does the same as typing /si and the word, e.g. /si why Kaldrok.", "GameFontHighlightSmall", 840)
 
     local DEFAULTS_BY_KEY = {
         welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,

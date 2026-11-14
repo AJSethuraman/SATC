@@ -98,3 +98,21 @@ def test_stopped_your_own_invites_never_open_the_window():
     g.run('SlashCmdList.SERVICEINVITER("")')                         # /si on its own
     assert not g.eval("ServiceInviterJobs and ServiceInviterJobs:IsShown()")
     assert any("/si start to wake it" in p for p in g.printed())
+
+
+def test_the_tools_tab_runs_the_commands():
+    """The owner, 14 Nov 2026: "i want the addon to have a debug panel/command panel or something -
+    there are too many to remember"."""
+    g = world(LOCK)
+    g.run('''S = ServiceInviter_Test.BuildSetup() S:Show() S.Load()
+        ServiceInviter_Test.SetupBoxes().testtarget:SetText("Main Character")
+        S.tools["Test mode on"]._scripts.OnClick()''')
+    assert g.eval("ServiceInviterDB.dryrun") is True and g.eval("ServiceInviterDB.testto") == "Main Character"
+    g.run('S.tools["Test mode off"]._scripts.OnClick()')
+    assert not g.eval("ServiceInviterDB.dryrun")
+    g.run('ServiceInviter_Test.SetupBoxes().toolname:SetText("Momma Lovesme") S.tools["Didn\'t pay"]._scripts.OnClick()')
+    assert g.eval('ServiceInviterDB.scammers["Momma Lovesme"].n') == 1
+    g.run('S.tools["Stop everything"]._scripts.OnClick()')
+    assert g.eval("ServiceInviterDB.stasis") is True
+    g.run('S.tools["Start again"]._scripts.OnClick()')
+    assert not g.eval("ServiceInviterDB.stasis")
