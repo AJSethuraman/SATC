@@ -69,3 +69,17 @@ def test_either_of_us_marks_a_non_payer_and_the_other_list_shows_it():
     drain(me, bone, "Me")
     assert bone.status("Kaldrok") == "scammed"
     assert any("Me marked Kaldrok as not paying" in p for p in bone.printed())
+
+
+def test_the_pay_reminder_can_be_turned_off():
+    me, bone = team()
+    bone.run('ServiceInviterDB.opts.payremind = false')
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    pump(me, bone, "Me")
+    for g in (me, bone):
+        join(g, "Kaldrok")
+    for g in (me, bone):
+        g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "raid2", 698, "Ritual of Summoning")')
+    bone.run('UNITS.raid3[4] = "Thunder Bluff" CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()')
+    landed = bone.sent()[-1]
+    assert landed == ("WHISPER", "Kaldrok", "Welcome to TB, Kaldrok! Also here: blessings 10 silver. Just ask!")

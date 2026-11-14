@@ -171,3 +171,20 @@ def test_preview_says_when_it_is_stopped():
     g = world({"player": ME_ORG})
     g.run('SlashCmdList.SERVICEINVITER("stop")')
     assert has(preview(g, "General"), "Stopped (/si stop)")
+
+
+def test_general_preview_shows_the_didnt_pay_call_out():
+    """The owner, 14 Nov 2026: "why does the preview not show the scammer message"."""
+    g = world({"player": ME_ORG, "party1": LOCK_TB})
+    g.run('ServiceInviterDB.scammsg = "{skull} HEY {name} ! YOU DIDNT PAY {skull}"')
+    lines = preview(g, "General")
+    assert has(lines, "HEY Kaldrok ! YOU DIDNT PAY")
+
+
+def test_the_welcome_can_say_where():
+    """The owner, 14 Nov 2026: "what happened to destination in the welc?"."""
+    from test_group import say_trade
+    g = world({"player": ME_ORG, "party1": LOCK_TB}, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.welcomemsg = "Hi {name}! {service} to {dest} for {price}"')
+    say_trade(g, "Kaldrok", "wtb summon to TB")
+    assert g.eval('ServiceInviter_Test.WelcomeText("Kaldrok")') == "Hi {rt3}Kaldrok{rt3}! summons to Thunder Bluff for 35 silver"   # {rt3}: their raid icon

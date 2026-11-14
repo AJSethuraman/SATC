@@ -1,4 +1,4 @@
--- Service Inviter v3.5.1
+-- Service Inviter v3.5.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -93,6 +93,7 @@ local DEFAULTS = {
     buffpop   = true,    -- the buff button pops up at your mouse when someone is waiting
     countshards = false, -- count soul shards and stop inviting summon buyers when they'd run out
     guildteam = true,    -- everyone in your guild running Service Inviter is on the team
+    payremind = true,    -- on landing, tell them who to pay and how much
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
     sum_org = false, port_org = false,
@@ -1485,6 +1486,7 @@ local function WelcomeText(name, job, noLoyal)
         if greet then custom = custom:sub(#greet + 1) end
         custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
         custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
+            :gsub("{dest}", function() return (job and job.dest) or "" end)
         custom = custom:gsub("{visits}", function()
             local nth = Jobs.Ordinal(Jobs.Before(job) + 1)
             return (custom:gsub("{%a+}", "") == custom:gsub("{%a+}", ""):upper()) and nth:upper() or nth
@@ -2153,7 +2155,7 @@ local function ArrivalText(job)
     -- a blessing")
     local price = JobPrice(job)
     local pay
-    if price and price > 0 and job.status ~= "paid" and job.status ~= "done" then
+    if price and price > 0 and job.status ~= "paid" and job.status ~= "done" and Opt("payremind") then
         local payee, mine = PayeeFor(job, g)
         local m = ServiceInviterDB.paymsg
         if m == nil or m == "" then m = MSG.PAY end
@@ -3033,6 +3035,29 @@ Core.PriceOverride = function(db, key)
     if db ~= ServiceInviterDB then return nil end
     return (Jobs.TeamPrices(key))
 end
+-- A chat tab of its own for the addon's lines (the owner, 14 Nov 2026: "i still want to be able
+-- to put the SI stuff in a separate chat window i can customize"). A tab named SI is used by
+-- itself (OutFrame); this makes one with nothing else in it.
+function Jobs.MakeTab()
+    if InCombatLockdown and InCombatLockdown() then P("can't make a chat tab in combat") return end
+    if GetChatWindowInfo then
+        for i = 1, (NUM_CHAT_WINDOWS or 10) do
+            local name = GetChatWindowInfo(i)
+            if type(name) == "string" and name:lower() == "si" then
+                ServiceInviterDB.outframe = nil
+                P("your SI chat tab is already there (window " .. i .. ")")
+                return
+            end
+        end
+    end
+    if not FCF_OpenNewWindow then P("this client can't make chat tabs; make one named SI yourself and my lines go there") return end
+    local ok, f = pcall(FCF_OpenNewWindow, "SI")
+    if not ok or not f then P("couldn't make the tab: " .. tostring(f)) return end
+    if ChatFrame_RemoveAllMessageGroups then pcall(ChatFrame_RemoveAllMessageGroups, f) end
+    if ChatFrame_RemoveAllChannels then pcall(ChatFrame_RemoveAllChannels, f) end
+    ServiceInviterDB.outframe = nil
+    P("made an SI chat tab: my lines go there now. Right-click the tab to move it, or change its font and colors.")
+end
 -- Everyone on the team: the list, and guildmates heard from.
 function Jobs.TeamPeople()
     local seen, out = {}, {}
@@ -3403,6 +3428,13 @@ local function Preview(tab)
                 end
                 if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
             end
+            -- the call-out too (the owner, 14 Nov 2026: "why does the preview not show the scammer message")
+            Head("Someone who didn't pay joins")
+            local line = Jobs.ScamLine(PV.BUYER)
+            local r = Jobs.RouteOf("scam")
+            if not line then Note("Nothing is said (the Didn't pay box is empty).")
+            elseif r == "off" then Note("Nothing is said (the call-out is Off on the Team tab).")
+            else Say(r == "whisper" and "Whispered to them" or "Raid warning if you're leader or assist, else raid / party chat", Jobs.Icons(line)) end
         elseif tab == "Tools" then
             Head("Tools")
             Note("Buttons for every command: start and stop, test mode, look someone up, the lists, and the checks.")
@@ -4540,7 +4572,7 @@ local function BuildSetupUI()
         local x = right
         for i = #tokens, 1, -1 do
             local t = tokens[i]
-            local cw = 14 + #t * 7
+            local cw = 10 + #t * 6.5
             x = x - cw
             local b = FlatButton(page, cw, 22, "chip", 11)
             b:SetPoint("TOPLEFT", x, y) b:SetText(t)
@@ -4656,18 +4688,22 @@ local function BuildSetupUI()
     Toggle("skipafk", C1, y, "Skip when AFK", true) y = y - ROW
     -- how soon the same buyer can be invited again (the owner, 14 Nov 2026: "let's make re-invite
     -- setting adjustable in UI as well"); in minutes here, /si cooldown takes seconds
-    Label(C1, y - 6, "Re-invite after") Box("cooldown", C1 + CW - 92, y, 56, 3, "3") Label(C1 + CW - 30, y - 7, "min", "GameFontHighlightSmall") y = y - ROW
+    Label(C1, y - 6, "Re-invite after") Box("cooldown", C1 + CW - 92, y, 56, 4, "180") Label(C1 + CW - 30, y - 7, "sec", "GameFontHighlightSmall") y = y - ROW
     Toggle("announce", C1, y, "Chat line on invite", true) y = y - ROW
     Toggle("autoshow", C1, y, "Open list on invite", true) y = y - ROW
     Label(C1, y - 6, "Auto-invite") Box("kwwords", C1 + 112, y, CW - 112 - 46, 60, "inv, invite")
     Check("kwon", C1 + CW - 34, y - 6, nil, true) y = y - ROW - 12
     Header(C1, y, "On sale") y = y - 28
     w.onsale = Label(C1, y - 4, "", nil, CW) y = y - 48
-    -- our workers (the owner, 13 Nov 2026: "i want it more like it is in the lock tab where i can
-    -- say these are our locks")
-    Header(C1, y, "Workers") y = y - 28
-    local wb = Box("workers", C1, y, CW - 34, 400, "Never customers")
-    Pick(wb, false, "Our workers (from your group)", "workers")
+    -- the addon's own lines in a chat tab of their own (the owner, 14 Nov 2026: "i still want to be
+    -- able to put the SI stuff in a separate chat window i can customize"): a tab named SI is
+    -- used by itself; this makes one. Size, font and place are the game's own tab settings.
+    Header(C1, y, "My lines go to") y = y - 28
+    w.outWhere = Label(C1, y - 6, "", nil, CW - 140)
+    local mk = FlatButton(page, 132, 30, "plain", 13)
+    mk:SetPoint("TOPLEFT", C1 + CW - 132, y) mk:SetText("Make SI tab")
+    mk:SetScript("OnClick", function() Jobs.MakeTab() w.Refresh() end)
+    w.makeTab = mk
 
     y = TOP
     Header(C2, y, "Pay") y = y - 28
@@ -4697,18 +4733,24 @@ local function BuildSetupUI()
         return b
     end
     -- chips before the box exists insert into it, so wire them after
-    local function MsgChips(key, text, tokens, toggleKey, placeholder, below)
+    -- each message: its name and {token} chips on one line, then the box with its on/off right
+    -- beside it (the owner, 14 Nov 2026: "seems very confusing to have a toggle for welcome and
+    -- pay but it isn't next to the actual message we send")
+    local function MsgChips(key, text, tokens, toggleKey, placeholder, isOpt, below)
+        Label(C2, y - 4, text)
         local y0 = y
-        local b = Msg(key, text, nil, toggleKey, placeholder)
-        if tokens then
-            if below then Chips(b, C2 + CW, y, tokens) y = y - 26
-            else Chips(b, C2 + CW - (toggleKey and 42 or 0), y0, tokens) end
-        end
+        y = y - 26
+        local b = Box(key, C2, y, toggleKey and (CW - 44) or CW, 255, placeholder)
+        if toggleKey then Check(toggleKey, C2 + CW - 34, y - 6, nil, isOpt) end
+        y = y - 40
+        -- a long list of chips goes under the box
+        if tokens and below then Chips(b, C2 + CW, y + 6, tokens) y = y - 24
+        elseif tokens then Chips(b, C2 + CW, y0, tokens) end
         return b
     end
-    MsgChips("welcomemsg", "Welcome", { "{name}", "{service}", "{price}", "{payee}", "{visits}" }, "welcome", "Auto", true)
+    MsgChips("welcomemsg", "Welcome", { "{name}", "{service}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome", "Auto", nil, true)
     MsgChips("offermsg", "Arrival", { "{name}", "{here}", "{offers}" }, nil, "Auto")
-    MsgChips("paymsg", "Pay reminder", { "{here}", "{payee}", "{price}" }, nil, "Auto")
+    MsgChips("paymsg", "Pay reminder", { "{here}", "{payee}", "{price}" }, "payremind", "Auto", true)
     MsgChips("thanksmsg", "Done", { "{name}" }, "thanks", "Off")
     MsgChips("loyaltymsg", "Regular", { "{name}", "{visits}" }, nil, "Off")
     MsgChips("scammsg", "Didn't pay", { "{name}", "{skull}" }, nil, "Off")
@@ -4825,9 +4867,13 @@ local function BuildSetupUI()
     y = TOP
     Header(C1, y, "Team", FW) y = y - 28
     Label(C1, y - 6, "Guild is the team") Check("guildteam", C1 + FW - 34, y - 6, nil, true) y = y - ROW
-    Label(C1, y - 6, "Also on the team")
-    local tb = Box("team", C1 + 300, y, FW - 334, 400, "Names outside the guild")
-    Pick(tb, false, "Team (from your group)", "workers") y = y - ROW
+    -- one list for everyone who's ours outside the guild, addon or not: never a customer, and any
+    -- of them running the addon shares with us (the owner, 14 Nov 2026: "workers is in multiple
+    -- places, like in the Team and General screen")
+    Label(C1, y - 6, "Ours, outside the guild")
+    local tb = Box("team", C1 + 300, y, FW - 334, 400, "Names: never customers")
+    boxes.workers = tb
+    Pick(tb, false, "Ours (from your group)", "workers") y = y - ROW
     Label(C1, y - 6, "Point of contact")
     local pb2 = Box("poc", C1 + 300, y, FW - 334, 200, "Each works solo")
     Pick(pb2, false, "Point of contact (from your group)", "workers") y = y - ROW
@@ -4956,6 +5002,9 @@ local function BuildSetupUI()
         w.sessTiles[2]:SetText(Jobs.MoneyShort(st.ev or 0))
         w.sessTiles[3]:SetText(((st.ev or 0) > 0 and math.floor((st.silver or 0) * 100 / st.ev + 0.5) or 0) .. "%")
         w.showAdKey() w.showBuffKey()
+        local of = OutFrame()
+        local tabName = of and of ~= DEFAULT_CHAT_FRAME and GetChatWindowInfo and of.GetID and GetChatWindowInfo(of:GetID())
+        w.outWhere:SetText(tabName and ("The " .. tabName .. " chat tab") or "Your main chat")
         local _, from = Jobs.TeamPrices("summons")
         w.priceFrom:SetText(from and ("|cff" .. INK.gold .. "Prices now: " .. from .. "'s|r (point of contact). Yours are used when they're offline.") or "")
     end
@@ -4971,7 +5020,7 @@ local function BuildSetupUI()
         end
         boxes.whisperto:SetText(WhisperTo() or "")
         boxes.kwwords:SetText(db.kwwords or MSG.KEYWORDS) boxes.kwwords:SetCursorPosition(0)
-        do local m = (tonumber(db.cooldown) or 180) / 60 boxes.cooldown:SetText(m == math.floor(m) and tostring(m) or ("%.1f"):format(m)) end
+        boxes.cooldown:SetText(tostring(tonumber(db.cooldown) or 180))
         boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or MSG.CHANNELS) boxes.chanextra:SetCursorPosition(0)
         boxes.adextra:SetText(db.adextra or "")
         boxes.adwait:SetText(tostring(tonumber(db.adwait) or 5))
@@ -5025,11 +5074,12 @@ local function BuildSetupUI()
         boxes.floor:SetText(sm.floor and tostring(sm.floor) or "")
         local prov = type(db.providers) == "table" and db.providers or {}
         boxes.prov_WARLOCK:SetText(prov.WARLOCK or "")
-        local wl = {}
-        for k in pairs(type(db.workers) == "table" and db.workers or {}) do wl[#wl + 1] = k end
+        -- the team list and the old workers list, as one
+        local wl, seen = {}, {}
+        for _, nm in ipairs(Jobs.TeamMembers()) do if not seen[nm:lower()] then seen[nm:lower()] = true wl[#wl + 1] = nm end end
+        for k in pairs(type(db.workers) == "table" and db.workers or {}) do if not seen[k:lower()] then seen[k:lower()] = true wl[#wl + 1] = k end end
         table.sort(wl)
-        boxes.workers:SetText(table.concat(wl, ", "))
-        boxes.team:SetText(table.concat(Jobs.TeamMembers(), ", "))
+        boxes.team:SetText(table.concat(wl, ", "))
         boxes.poc:SetText((type(db.team) == "table" and db.team.poc) or "")
         for _, kind in ipairs(Jobs.ROUTE_KINDS) do
             local r = Jobs.RouteOf(kind)
@@ -5060,7 +5110,7 @@ local function BuildSetupUI()
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
         db.thanks = checks.thanks:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
-        do local m = tonumber(boxes.cooldown:GetText()) if m and m >= 0 then db.cooldown = math.floor(m * 60 + 0.5) end end
+        do local n = tonumber(boxes.cooldown:GetText()) if n and n >= 0 then db.cooldown = math.floor(n + 0.5) end end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == MSG.KEYWORDS) and nil or kws end
         db.chanextra = boxes.chanextra:GetText()
         db.adextra = boxes.adextra:GetText()
@@ -5121,11 +5171,7 @@ local function BuildSetupUI()
         if #keep == 0 and not db.team.poc then db.team = nil end
         if Jobs.TeamOn() and not before then Jobs.SayHi(true)
         elseif Jobs.TeamOn() and Jobs.POC() == Jobs.Me() then Jobs.SendPrices() end
-        db.workers = nil
-        for nm in boxes.workers:GetText():gmatch("[^,]+") do
-            nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
-            if nm ~= "" then Jobs.SetWorker(nm, true) end
-        end
+        db.workers = nil   -- now kept as the team list (above)
         RefreshJobs()
     end
 
@@ -5259,14 +5305,15 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         P("near-miss lines " .. (ServiceInviterDB.near ~= false and "ON" or "off"))
     elseif cmd == "out" then
         local n = tonumber(rest)
-        if rest == "" or rest == "off" then
+        if rest == "tab" or rest == "new" then Jobs.MakeTab()
+        elseif rest == "" or rest == "off" then
             ServiceInviterDB.outframe = nil
-            P("output: auto (window named TI, else main window)")
+            P("output: a chat tab named SI if you have one, else the main window. /si out tab makes one")
         elseif n and _G["ChatFrame" .. n] then
             ServiceInviterDB.outframe = n
             P("output now goes to chat window " .. n)
         else
-            P("usage: /si out <chat window number 1-10>   or /si out off")
+            P("/si out tab = make an SI chat tab, /si out 3 = chat window 3, /si out off = automatic")
         end
     elseif cmd == "selftest" then SelfTest()
     elseif cmd == "dryrun" or cmd == "test" then
