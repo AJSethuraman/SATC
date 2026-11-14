@@ -40,6 +40,11 @@ def pump(src, dst, sender):
     return len(msgs)
 
 
+def teamlog(g):
+    n = g.eval("#ServiceInviter_Test.Jobs.teamLog")
+    return "\n".join(g.eval(f"ServiceInviter_Test.Jobs.teamLog[{i}]") for i in range(1, n + 1))
+
+
 def clean(lines):
     return [re.sub(r"\|c[0-9a-fA-F]{8}|\|r", "", p) for p in lines]
 
@@ -170,3 +175,30 @@ def test_match_charges_the_rivals_price():
 def test_solo_keeps_todays_message_routes():
     g = world({"player": ME, "raid1": YEET}, "summons = { price = 35 }")
     assert g.eval('ServiceInviter_Test.Jobs.RouteOf("welcome")') == "group"
+
+
+def test_the_team_log_shows_what_was_sent_and_what_came_of_it():
+    """The owner, 14 Nov 2026, on the copies talking without a chat window: "for debugging though"."""
+    me, bone = pair()
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    pump(me, bone, "Me")
+    me.run('SlashCmdList.SERVICEINVITER("teamlog")')
+    bone.run('SlashCmdList.SERVICEINVITER("teamlog")')
+    mine = teamlog(me)
+    his = teamlog(bone)
+    assert "sent to raid: buyer Kaldrok for Bone Charms: summons to Thunder Bluff, quoted 35 silver, heard in Trade - City" in mine
+    assert "from Me (raid): buyer Kaldrok for Bone Charms" in his and "-- inviting" in his
+    bone.event("CHAT_MSG_ADDON", "SvcInv1", "BUY\tBone Charms\tKaldrok\tsummons\tTB\t35\t\t\t0\t\t\t", "RAID", "Me")
+    his = teamlog(bone)
+    assert "-- ignored: already on your list" in his
+
+
+def test_the_team_log_shows_a_stranger_being_ignored_and_says_when_empty():
+    me = world({"player": ME, "raid1": BONE}, extra=COMMS)
+    me.run('SlashCmdList.SERVICEINVITER("team add Me, Yeet Lock")')
+    me.event("CHAT_MSG_ADDON", "SvcInv1", "BUY\tMe\tKaldrok\tsummons\tTB\t35\t\t\t0\t\t\t", "RAID", "Bone Charms")
+    log = teamlog(me)
+    assert "from Bone Charms (raid): buyer Kaldrok" in log and "-- ignored: not on your team" in log
+    lone = world({"player": ME}, extra=COMMS)
+    lone.run('ServiceInviter_Test.Jobs.PrintTeamLog()')
+    assert any("No team messages since you logged in." in p for p in clean(lone.printed()))

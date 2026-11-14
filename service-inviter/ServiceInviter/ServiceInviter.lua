@@ -1,4 +1,4 @@
--- Service Inviter v3.2.0
+-- Service Inviter v3.2.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2573,12 +2573,61 @@ function Jobs.TeamSay(...)
     if #msg > 250 then msg = msg:sub(1, 250) end
     local send = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
     if not send then return end
-    if IsInGroup and IsInGroup() then pcall(send, Jobs.Team.PREFIX, msg, (IsInRaid and IsInRaid()) and "RAID" or "PARTY") end
+    local went = {}
+    if IsInGroup and IsInGroup() then
+        local dist = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+        pcall(send, Jobs.Team.PREFIX, msg, dist)
+        went[#went + 1] = dist:lower()
+    end
+    local skipped = {}
     for _, nm in ipairs(Jobs.TeamMembers()) do
-        if nm:lower() ~= (FullName("player") or ""):lower() and not Jobs.InGroup(nm) and Jobs.Online(nm) then
-            pcall(send, Jobs.Team.PREFIX, msg, "WHISPER", nm)
+        if nm:lower() ~= (FullName("player") or ""):lower() and not Jobs.InGroup(nm) then
+            if Jobs.Online(nm) then
+                pcall(send, Jobs.Team.PREFIX, msg, "WHISPER", nm)
+                went[#went + 1] = nm
+            else skipped[#skipped + 1] = nm end
         end
     end
+    Jobs.TeamLog("sent", #went > 0 and table.concat(went, ", ") or "nobody", msg,
+        (#went == 0 and "not grouped and no teammate seen online" or nil) or
+        (#skipped > 0 and ("not sent to " .. table.concat(skipped, ", ") .. ": not seen online") or nil))
+end
+-- The team's hidden messages, kept for /si teamlog (the last 200) and shown live with /si debug.
+-- The owner, 14 Nov 2026, on the copies talking without a chat window: "for debugging though".
+Jobs.teamLog = {}
+function Jobs.TeamWords(msg)
+    local f = {}
+    for part in (tostring(msg) .. "\t"):gmatch("(.-)\t") do f[#f + 1] = part end
+    local function M(q) return Core.Money(tonumber(q)) or "free" end
+    if f[1] == "HI" then
+        return (f[5] == "?" and "here, who else is? " or "here: ") .. "version " .. (f[2] or "?") .. ", " ..
+            (f[3] == "1" and "warlock" or "not a warlock") .. ((f[4] or "") ~= "" and (", in " .. f[4]) or "")
+    elseif f[1] == "BUY" then
+        return (f[9] == "1" and "TEST " or "") .. "buyer " .. (f[3] or "?") .. " for " .. (f[2] or "?") .. ": " .. (f[4] or "?") ..
+            ((f[5] or "") ~= "" and (" to " .. f[5]) or "") .. ", quoted " .. M(f[6]) .. ", heard in " ..
+            (((f[8] or "") ~= "" and f[8]) or ((f[7] or "") ~= "" and f[7]) or "?") ..
+            ((f[9] == "1" and (f[10] or "") ~= "") and (", test whispers to " .. f[10]) or "") ..
+            ((f[12] or "") ~= "" and (' ("' .. f[12] .. '")') or "")
+    elseif f[1] == "GOT" then
+        return (f[3] or "?") .. " invited " .. (f[2] or "?")
+    end
+    return "unknown: " .. tostring(msg)
+end
+function Jobs.TeamLog(dir, who, msg, note)
+    local okc, clock = pcall(function() return (date or os.date)("%H:%M:%S") end)
+    local line = (okc and clock or "") .. "  " .. (dir == "sent" and ("sent to " .. who) or ("from " .. who)) .. ": " ..
+        Jobs.TeamWords(msg) .. (note and (" -- " .. note) or "")
+    local log = Jobs.teamLog
+    log[#log + 1] = line
+    if #log > 200 then table.remove(log, 1) end
+    if debugOn then P("|cff999999team " .. line .. "|r") end
+end
+function Jobs.PrintTeamLog()
+    if #Jobs.teamLog == 0 then
+        P("No team messages since you logged in." .. (Jobs.TeamOn() and "" or " The team list is empty, so nothing is sent: /si team add NAME."))
+        return
+    end
+    for _, l in ipairs(Jobs.teamLog) do P(l) end
 end
 function Jobs.SayHi(ask)
     local okv, ver = pcall(function() return ((C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata)(ADDON_NAME, "Version") end)
@@ -2599,6 +2648,11 @@ function Jobs.TeamReceive(prefix, msg, dist, sender)
     local who = Ambiguate and Ambiguate(sender, "none") or sender
     local me = FullName("player") or ""
     if who:lower() == me:lower() then return end
+    local note = Jobs.TeamHear(msg, who, me)
+    Jobs.TeamLog("from", who .. (dist and (" (" .. tostring(dist):lower() .. ")") or ""), msg, note)
+end
+-- Act on a teammate's message. Returns why it was ignored, or what it did, for the team log.
+function Jobs.TeamHear(msg, who, me)
     local f = {}
     for part in (msg .. "\t"):gmatch("(.-)\t") do f[#f + 1] = part end
     local kind = f[1]
@@ -2609,29 +2663,32 @@ function Jobs.TeamReceive(prefix, msg, dist, sender)
                 Jobs.Team.told[who] = true
                 P("|cffffd100" .. who .. " runs Service Inviter too.|r /si team add " .. who .. " to share with them.")
             end
-            return
+            return "not on your team, so only noted"
         end
-        if f[5] == "?" and GetTime() - Jobs.Team.lastHi > 3 then Jobs.SayHi(false) end
-        return
+        if f[5] == "?" and GetTime() - Jobs.Team.lastHi > 3 then Jobs.SayHi(false) return "answered" end
+        return nil
     end
-    if not Jobs.IsTeam(who) then return end   -- only teammates are listened to
+    if not Jobs.IsTeam(who) then return "ignored: not on your team" end   -- only teammates are listened to
     Jobs.Team.seen[who] = Jobs.Team.seen[who] or { t = GetTime() }
     Jobs.Team.seen[who].t = GetTime()
     if kind == "BUY" then
         local to, buyer, svc, dest, quote, channel, market = f[2], f[3], f[4], f[5], tonumber(f[6]), f[7], f[8]
-        if not to or to:lower() ~= me:lower() or not buyer or buyer == "" then return end
+        if not to or to:lower() ~= me:lower() then return "ignored: meant for " .. tostring(to) end
+        if not buyer or buyer == "" then return "ignored: no buyer name" end
         local now = GetTime()
         -- two teammates heard the same buyer: one invite
-        if Jobs.Get(buyer) or (Jobs.Team.took[buyer] and now - Jobs.Team.took[buyer] < 180) then return end
+        if Jobs.Get(buyer) then return "ignored: already on your list" end
+        if Jobs.Team.took[buyer] and now - Jobs.Team.took[buyer] < 180 then return "ignored: already handed to you in the last 3 minutes" end
         Jobs.Team.took[buyer] = now
         local test = (f[9] == "1" or ServiceInviterDB.dryrun) and { to = (f[9] == "1" and f[10] ~= "" and f[10]) or ServiceInviterDB.testto } or nil
         P((test and "|cffffd100TEST|r " or "") .. who .. " handed you " .. buyer .. " (" .. tostring(market ~= "" and market or channel) ..
             ", quoted " .. (Core.Money(quote) or "free") .. ")")
         Jobs.InviteBuyer(buyer, f[12] or "", f[11] or "", svc ~= "" and svc or "summons", dest ~= "" and dest or nil, quote,
             channel, market ~= "" and market or nil, nil, test)
-        return
+        return "inviting" .. (test and " (test)" or "")
     end
-    if kind == "GOT" then D(tostring(f[3]) .. " invited " .. tostring(f[2])) return end
+    if kind == "GOT" then return nil end
+    return "ignored: unknown message"
 end
 
 ----------------------------------------------------------------------
@@ -4019,6 +4076,7 @@ local function BuildSetupUI()
     Tool(L, -430, "Self-test", "selftest")
     Tool(L + 160, -430, "Debug on/off", "debug")
     Tool(L + 320, -430, "New session", "session new")
+    Tool(L + 480, -430, "Team messages", "teamlog")
     Label(L, -510, "Each button does the same as typing /si and the word, e.g. /si why Kaldrok.", "GameFontHighlightSmall", 840)
 
     local DEFAULTS_BY_KEY = {
@@ -4564,6 +4622,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         P("shards: " .. have .. (own and typed and (" (" .. own .. " yours, " .. typed .. " typed)") or "") ..
             ", " .. Jobs.Queued() .. " summons queued, " .. math.max(0, Jobs.ShardsLeft()) .. " left")
         RefreshJobs()
+    elseif cmd == "teamlog" or cmd == "log" then
+        Jobs.Copy("Team messages", Jobs.PrintTeamLog)
     elseif cmd == "stats" or cmd == "analytics" then
         Jobs.Copy("Stats", Jobs.PrintStats)
     elseif cmd == "customers" or cmd == "regulars" then
@@ -4634,7 +4694,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si team = your team and point of contact | /si prices = other sellers and your live price | /si scam NAME = didn't pay, /si scammers (names), /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si team = your team and point of contact | /si teamlog = what the copies told each other | /si prices = other sellers and your live price | /si scam NAME = didn't pay, /si scammers (names), /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
