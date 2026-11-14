@@ -1,0 +1,39 @@
+{
+ "_links": {
+  "self": {
+   "href": "https://us.api.blizzard.com/data/wow/profession/393/skill-tier/2947?namespace=static-1.60.1_70399-forever-us"
+  }
+ },
+ "id": 2947,
+ "name": "Skinning",
+ "minimum_skill_level": 1,
+ "maximum_skill_level": 75,
+ "categories": [
+  {
+   "name": "Camping",
+   "recipes": [
+    {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/recipe/52644?namespace=static-1.60.1_70399-forever-us"
+     },
+     "name": "Camp Chair",
+     "id": 52644
+    },
+    {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/recipe/57017?namespace=static-1.60.1_70399-forever-us"
+     },
+     "name": "Field Guide",
+     "id": 57017
+    },
+    {
+     "key": {
+      "href": "https://us.api.blizzard.com/data/wow/recipe/57029?namespace=static-1.60.1_70399-forever-us"
+     },
+     "name": "Trapper's Workbench",
+     "id": 57029
+    }
+   ]
+  }
+ ]
+}
