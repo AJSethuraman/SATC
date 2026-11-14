@@ -271,3 +271,30 @@ def test_a_customer_from_the_book_within_the_hour_counts_an_older_one_does_not()
     assert label(g) == "No buffs waiting"
     g.event("CHAT_MSG_WHISPER", "fort pls", "Kaldrok", "", "", "", "", "", "", "")
     assert label(g) == "Fortitude -> Kaldrok"
+
+
+# The owner, 14 Nov 2026: "can you make it so that blessing are recognized by fragments and stuff -
+# this guy asked for wis".
+
+import pytest
+
+
+@pytest.mark.parametrize("ask, spell", [
+    ("wis", "Blessing of Wisdom"), ("wis pls", "Blessing of Wisdom"), ("wisd?", "Blessing of Wisdom"),
+    ("bow pls", "Blessing of Wisdom"), ("bok", "Blessing of Kings"), ("kin pls", "Blessing of Kings"),
+    ("bom", "Blessing of Might"), ("mig", "Blessing of Might"), ("salv", "Blessing of Salvation"),
+    ("sanc pls", "Blessing of Sanctuary"),
+])
+def test_short_forms_and_abbreviations_pick_the_blessing(ask, spell):
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")},
+              "blessing = { on = true, words = \"blessing\" }")       # not in the Buyers say box
+    g.event("CHAT_MSG_RAID", ask, "Grimtotem")
+    assert raw_macro(g) == "/cast [@party1] " + spell
+
+
+def test_ordinary_words_are_not_blessings():
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")},
+              "blessing = { on = true, words = \"blessing\" }")
+    for said in ("wish me luck", "kind of lagging", "ok", "brb"):
+        g.event("CHAT_MSG_RAID", said, "Grimtotem")
+    assert label(g) == "No buffs waiting"

@@ -59,6 +59,26 @@ C.BLESSINGS = {
     { word = "salv", spell = "Blessing of Salvation" }, { word = "light", spell = "Blessing of Light" },
     { word = "sanctuary", spell = "Blessing of Sanctuary" }, { word = "sanc", spell = "Blessing of Sanctuary" },
 }
+-- What a buyer calls each blessing beyond its word (the owner, 14 Nov 2026: "can you make it so
+-- that blessing are recognized by fragments and stuff - this guy asked for wis"): the usual
+-- abbreviations, and any first 3+ letters of the word ("wis", "wisd", "kin", "mig", "sanc").
+C.BLESSING_SHORT = { bok = "Blessing of Kings", bow = "Blessing of Wisdom", bom = "Blessing of Might",
+    bos = "Blessing of Salvation", bol = "Blessing of Light", bosanc = "Blessing of Sanctuary" }
+function C.BlessingFor(norm)
+    local found, at = nil, 0
+    local pos = 0
+    for tok in (norm or ""):gmatch("%S+") do
+        pos = pos + 1
+        local spell = C.BLESSING_SHORT[tok]
+        if not spell and #tok >= 3 then
+            for _, b in ipairs(C.BLESSINGS) do
+                if b.word:sub(1, #tok) == tok then spell = b.spell break end
+            end
+        end
+        if spell then found, at = spell, pos end   -- the last one named wins
+    end
+    return found
+end
 C.BY_KEY = {}
 for _, s in ipairs(C.SERVICES) do C.BY_KEY[s.key] = s end
 

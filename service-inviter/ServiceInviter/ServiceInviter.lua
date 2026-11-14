@@ -1,4 +1,4 @@
--- Service Inviter v2.15.1
+-- Service Inviter v2.15.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1761,15 +1761,11 @@ BuffAsk = function(text, sender)
     end
     for _, def in ipairs(MyBuffs()) do
         local words = Core.SplitWords(Core.Setting(ServiceInviterDB, def.key).words)
-        if HasAny(norm, words) then
+        local named = def.key == "blessing" and Core.BlessingFor(norm)   -- "wis", "bok", "kings"
+        if named or HasAny(norm, words) then
             if def.key == "blessing" then
                 -- the word picks the blessing; the last one named wins ("wisdom... actually might")
-                local spell, at = nil, 0
-                for _, b in ipairs(Core.BLESSINGS) do
-                    local i = norm:find(" " .. b.word .. " ", 1, true)
-                    if i and i > at then spell, at = b.spell, i end
-                end
-                spell = spell or Core.Setting(ServiceInviterDB, "blessing").spell
+                local spell = named or Core.Setting(ServiceInviterDB, "blessing").spell
                 if KnowSpell(spell) then QueueBuff(name, def.key, spell)
                 else P(name .. " asked for " .. spell .. ", which you don't have. Not queued.") end
             else
@@ -3477,7 +3473,7 @@ local function BuildSetupUI()
     -- 13 Nov 2026: "can it not detect what they want? i have to have only blessing of might?")
     Label(R + 4, -236 - bh - 4, "Just 'blessing':")
     Box("blessing_spell", R + 130, -236 - bh, 200, 60)
-    Label(R + 4, -236 - bh - 30, "\"kings\", \"wisdom\", \"might\", \"salv\"... get that blessing.", "GameFontHighlightSmall", 400)
+    Label(R + 4, -236 - bh - 30, "\"kings\", \"wis\", \"bok\", \"salv\"... (any first 3 letters) get that blessing.", "GameFontHighlightSmall", 400)
     Check("buffarrivals", L, -480, "Buff customers when they land, without being asked (off = only people who ask)", true)
     Check("buffpop", L, -508, "Pop the buff button up at my mouse, with a sound, when someone is waiting", true)
     Label(L, -446, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
