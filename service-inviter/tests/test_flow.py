@@ -4,7 +4,7 @@ invites them; on joining, only a regular hears more; the summon-starting line an
 (pay who, how much, and that a blessing can be asked for) go by whisper; and either of us can mark
 a non-payer, which the other's list shows."""
 from test_guild import guild_world, drain
-from test_team import pump
+from test_team import pump, teamlog
 from test_group import say_trade
 
 ME = ("Me", "PALADIN", 60, "Thunder Bluff")
@@ -83,3 +83,16 @@ def test_the_pay_reminder_can_be_turned_off():
     bone.run('UNITS.raid3[4] = "Thunder Bluff" CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()')
     landed = bone.sent()[-1]
     assert landed == ("WHISPER", "Kaldrok", "Welcome to TB, Kaldrok! Also here: blessings 10 silver. Just ask!")
+
+
+def test_a_buyer_i_invite_by_hand_is_welcomed_by_the_point_of_contact():
+    me, bone = team()
+    me.run('ServiceInviterDB.opts.enabled = false')       # my copy invites nobody by itself
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    me.run('C_PartyInfo.InviteUnit("Kaldrok")')          # I invite him by hand
+    pump(me, bone, "Me")
+    assert "invited Kaldrok by hand: summons to Thunder Bluff, 35s" in teamlog(bone)
+    for g in (me, bone):
+        join(g, "Kaldrok")
+    assert me.sent() == []
+    assert bone.sent()[-1][:2] == ("WHISPER", "Kaldrok") and "35 silver" in bone.sent()[-1][2]

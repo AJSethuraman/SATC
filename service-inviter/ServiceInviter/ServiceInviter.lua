@@ -1,4 +1,4 @@
--- Service Inviter v3.5.2
+-- Service Inviter v3.5.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -128,6 +128,7 @@ local lastInvite = {}
 local diag = { casts = {} }   -- what we last heard / saw, for /si status
 local paused = false   -- true while the old Trade Inviter is also loaded (avoids double invites)
 local pending = {}   -- invited players we are waiting to see join
+function Jobs.Pending(name) pending[name] = GetTime() end
 local MSG = {}
 MSG.SCAM = "Heads up: {name} didn't pay last time."   -- the default text of every message you can change
 MSG.WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
@@ -1222,10 +1223,31 @@ local function OnInviteCall(name)
         local existing = jobByName[short]
         if existing and existing.status == "invited" and now - existing.t < 3 then return end
         local said = lastSaid[short]
+        local job
         if said and now - said.t < 120 then
-            Jobs.New(short, said.text, "invite sent by you or another addon", said.channel)
+            job = Jobs.New(short, said.text, "invite sent by you or another addon", said.channel)
         else
-            Jobs.New(short, "(manual invite)", "manual", "-")
+            job = Jobs.New(short, "(manual invite)", "manual", "-")
+        end
+        -- Invited by hand: they get the welcome and price like anyone we invite (the owner, 14 Nov
+        -- 2026: "if i manual invite somebody how do we inform them in the welcome / price
+        -- message"). What they said in the last 2 minutes says what and where, priced for that
+        -- channel; said nothing we sell, the welcome lists what's on sale.
+        if job and said and now - said.t < 120 then
+            local ok, _, svc, dest = Evaluate(Norm(said.text), InExtraChannel(said.channel), LiveTargets())
+            if ok and svc then
+                job.service, job.dest = svc, dest
+                Jobs.priceMarket = Jobs.MarketOf(said.channel)
+                job.price = Core.Setting(ServiceInviterDB, svc, dest).price
+                Jobs.priceMarket = nil
+            end
+        end
+        if job then
+            pending[short] = now
+            -- the point of contact's copy does the talking: tell it what they came for
+            if Jobs.TeamOn() and Jobs.POC() and Jobs.POC() ~= Jobs.Me() then
+                Jobs.TeamSay("MAN", short, job.service or "", job.dest or "", job.price or "")
+            end
         end
     end)
     if not ok and not warned then
@@ -2837,6 +2859,8 @@ function Jobs.TeamWords(msg)
         return "book, didn't pay: " .. (f[3] or "?") .. (((f[7] or "") ~= "") and " (paid after all)" or "")
     elseif f[1] == "A" then
         return "book, stats (" .. (f[3] or "?") .. ")"
+    elseif f[1] == "MAN" then
+        return "invited " .. (f[2] or "?") .. " by hand" .. (((f[3] or "") ~= "") and (": " .. f[3] .. (((f[4] or "") ~= "") and (" to " .. f[4]) or "") .. (((f[5] or "") ~= "") and (", " .. f[5] .. "s") or "")) or "")
     elseif f[1] == "PRICE" then
         return "prices for " .. (f[2] or "?") .. ": max " .. ((f[3] or "") ~= "" and f[3] or "default") .. ", min " .. ((f[4] or "") ~= "" and f[4] or "none") ..
             ", " .. ((f[5] or "") ~= "" and f[5] or "ignore") .. ((f[6] or "") ~= "" and (" " .. f[6]) or "")
@@ -2931,6 +2955,7 @@ function Jobs.TeamHear(msg, who, me)
     end
     if kind == "GOT" then return nil end
     if kind == "PRICE" then return Jobs.HearPrices(f, who) end
+    if kind == "MAN" then return Jobs.HearManual(f, who) end
     if Jobs.BookHear(kind, f, who, me) then return Jobs.bookNote end
     return "ignored: unknown message"
 end
@@ -2997,6 +3022,20 @@ function Jobs.BooksLine()
     for _ in pairs(type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}) do mine = mine + 1 end
     return "Customers: yours " .. mine .. (#parts > 0 and (", " .. table.concat(parts, ", ")) or ", nobody else's yet") ..
         ". Lists and stats count everyone's."
+end
+-- A teammate invited someone by hand: the point of contact's copy welcomes them when they join,
+-- with what they came for and the price the teammate's copy worked out.
+function Jobs.HearManual(f, who)
+    local buyer = f[2]
+    if not buyer or buyer == "" then return "ignored: no name" end
+    if Jobs.POC() ~= Jobs.Me() then return "ignored: you're not the point of contact" end
+    local j = Jobs.Get(buyer)
+    if not j then j = Jobs.New(buyer, "(invited by " .. who .. ")", "invited by " .. who, "-") end
+    if f[3] and f[3] ~= "" then j.service = f[3] end
+    if f[4] and f[4] ~= "" then j.dest = f[4] end
+    if tonumber(f[5]) then j.price = tonumber(f[5]) end
+    Jobs.Pending(buyer)
+    return "will welcome " .. buyer .. (j.service and (" (" .. j.service .. (j.dest and (" to " .. j.dest) or "") .. ")") or "")
 end
 -- One price list for the team (the owner, 14 Nov 2026: "sure makes sense, they will have the
 -- min/max price and then the individual workers would price dynamically price based on their
