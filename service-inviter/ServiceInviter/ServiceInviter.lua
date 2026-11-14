@@ -1,4 +1,4 @@
--- Service Inviter v3.7.5
+-- Service Inviter v3.8.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1642,7 +1642,11 @@ local function OnSystem(text)
     if not fresh or not Opt("welcome") or (Jobs.Get(short) and Jobs.Get(short).welcomed) then
         -- with {name} in it, your line already greets them: no "Hi Kaldrok!" in front
         local named = (ServiceInviterDB.loyaltymsg or MSG.LOYALTY):find("{name}", 1, true)
-        if loyal then Jobs.Route("loyal", loyal, short, channel) end   -- your Regular line, as written
+        -- as a raid warning when you may, like the call-out (the owner, 14 Nov 2026: "a regular
+        -- and a scammer should be raid warned or whatever by POC")
+        local ch = channel
+        if ch == "RAID" and Jobs.CanRemove() then ch = "RAID_WARNING" end
+        if loyal then Jobs.Route("loyal", loyal, short, ch) end   -- your Regular line, as written
         return
     end
     local welcome = WelcomeText(short)
@@ -2893,6 +2897,10 @@ function Jobs.TeamWords(msg)
         return "book, didn't pay: " .. (f[3] or "?") .. (((f[7] or "") ~= "") and " (paid after all)" or "")
     elseif f[1] == "A" then
         return "book, stats (" .. (f[3] or "?") .. ")"
+    elseif f[1] == "SET" then
+        return "setup: " .. (f[2] or "?") .. (((f[4] or "1") ~= "1") and (" (part " .. (f[3] or "?") .. " of " .. f[4] .. ")") or "")
+    elseif f[1] == "SETEND" then
+        return "setup sent: " .. (f[2] or "?") .. " settings"
     elseif f[1] == "MAN" then
         return "invited " .. (f[2] or "?") .. " by hand" .. (((f[3] or "") ~= "") and (": " .. f[3] .. (((f[4] or "") ~= "") and (" to " .. f[4]) or "") .. (((f[5] or "") ~= "") and (", " .. f[5] .. "s") or "")) or "")
     elseif f[1] == "PRICE" then
@@ -2990,6 +2998,7 @@ function Jobs.TeamHear(msg, who, me)
     if kind == "GOT" then return nil end
     if kind == "PRICE" then return Jobs.HearPrices(f, who) end
     if kind == "MAN" then return Jobs.HearManual(f, who) end
+    if kind == "SET" or kind == "SETEND" then return Jobs.HearSetup(kind, f, who) end
     if Jobs.BookHear(kind, f, who, me) then return Jobs.bookNote end
     return "ignored: unknown message"
 end
@@ -3067,6 +3076,138 @@ function Jobs.QuoteNow(job)
     Jobs.Route("welcome", text, job.name)
     job.welcomed = true
     return true
+end
+-- Send my setup. Everything the team shares, as path = value lines; long texts in parts. Not sent:
+-- what's about one person (warlock or not, test mode, selling, running, keys, debug, the helper
+-- you whisper).
+Jobs.SETUP_TEXTS = { "welcomemsg", "askmsg", "loyaltymsg", "scammsg", "alertmsg", "paymsg", "offermsg", "thanksmsg",
+    "admsg", "adextra", "adwait", "chanextra", "cooldown", "kwwords" }
+Jobs.SETUP_OPTS = { "trade", "general", "say", "yell", "kwon", "welcome", "marks", "guildteam", "buffarrivals", "buffpop", "countshards", "skipafk" }
+Jobs.SETUP_SVC = { summons = { "on", "invite", "price", "floor", "mode", "undercut", "payee" }, blessing = { "on", "invite", "words", "spell" } }
+function Jobs.SetupEntries()
+    local db, out = ServiceInviterDB, {}
+    local function enc(v)
+        if v == nil then return "x" elseif v == true then return "b1" elseif v == false then return "b0"
+        elseif type(v) == "number" then return "n" .. v else return "s" .. tostring(v) end
+    end
+    for _, k in ipairs(Jobs.SETUP_TEXTS) do out[#out + 1] = { "s:" .. k, enc(db[k]) } end
+    -- (not "x and v or nil": that turns a false into nil, and an Off would arrive as unset)
+    local opts = type(db.opts) == "table" and db.opts or {}
+    local route = type(db.route) == "table" and db.route or {}
+    for _, k in ipairs(Jobs.SETUP_OPTS) do out[#out + 1] = { "o:" .. k, enc(opts[k]) } end
+    for _, kind in ipairs(Jobs.ROUTE_KINDS) do out[#out + 1] = { "r:" .. kind, enc(route[kind]) } end
+    out[#out + 1] = { "s:thanks", enc(db.thanks) } out[#out + 1] = { "s:raidalert", enc(db.raidalert) }
+    for svc, fields in pairs(Jobs.SETUP_SVC) do
+        local saved = type(db.services) == "table" and db.services[svc] or {}
+        for _, fld in ipairs(fields) do out[#out + 1] = { "v:" .. svc .. "." .. fld, enc(saved[fld]) } end
+    end
+    local pay = type(db.payee) == "table" and db.payee or {}
+    out[#out + 1] = { "p:mode", enc(pay.mode) } out[#out + 1] = { "p:name", enc(pay.name) }
+    out[#out + 1] = { "t:members", enc(table.concat(Jobs.TeamMembers(), ", ")) }
+    out[#out + 1] = { "t:poc", enc((type(db.team) == "table" and db.team or {}).poc) }
+    out[#out + 1] = { "w:prov", enc((type(db.providers) == "table" and db.providers or {}).WARLOCK) }
+    return out
+end
+function Jobs.ShareSetup()
+    if not Jobs.TeamOn() then P("no team to send to: join a guild, or add names on the Team tab") return end
+    local n = 0
+    for _, e in ipairs(Jobs.SetupEntries()) do
+        local v, size = e[2], 200
+        local parts = math.max(1, math.ceil(#v / size))
+        for i = 1, parts do
+            Jobs.outbox[#Jobs.outbox + 1] = { "SET", e[1], i, parts, v:sub((i - 1) * size + 1, i * size) }
+        end
+        n = n + 1
+    end
+    Jobs.outbox[#Jobs.outbox + 1] = { "SETEND", n }
+    P("sending your setup to the team (" .. n .. " settings, a few seconds)")
+end
+function Jobs.HearSetup(kind, f, who)
+    Jobs.setupIn = Jobs.setupIn or {}
+    local got = Jobs.setupIn[who] or { parts = {}, n = 0 }
+    Jobs.setupIn[who] = got
+    if kind == "SET" then
+        local path, i, n = f[2], tonumber(f[3]) or 1, tonumber(f[4]) or 1
+        got.parts[path] = got.parts[path] or {}
+        got.parts[path][i] = f[5] or ""
+        got.parts[path].n = n
+        return "setup from " .. who .. ": " .. tostring(path)
+    end
+    -- SETEND: all there?
+    local values, count = {}, 0
+    for path, ps in pairs(got.parts) do
+        local t = {}
+        for i = 1, ps.n do if ps[i] == nil then t = nil break end t[i] = ps[i] end
+        if t then values[path] = table.concat(t) count = count + 1 end
+    end
+    Jobs.setupIn[who] = nil
+    if count < (tonumber(f[2]) or 0) then return "setup from " .. who .. " arrived incomplete (" .. count .. " of " .. tostring(f[2]) .. "); ask them to send it again" end
+    if ServiceInviterDB.takesetup then Jobs.ApplySetup(values, who) return "used " .. who .. "'s setup" end
+    Jobs.AskSetup(values, who)
+    return "asked you whether to use " .. who .. "'s setup"
+end
+function Jobs.ApplySetup(values, who)
+    local db = ServiceInviterDB
+    local function dec(v)
+        if v == nil or v == "x" then return nil end
+        local t, rest = v:sub(1, 1), v:sub(2)
+        if t == "b" then return rest == "1" elseif t == "n" then return tonumber(rest) else return rest end
+    end
+    db.opts = type(db.opts) == "table" and db.opts or {}
+    db.services = type(db.services) == "table" and db.services or {}
+    for path, raw in pairs(values) do
+        local v = dec(raw)
+        local kind, key = path:match("^(%a):(.+)$")
+        if kind == "s" then db[key] = v
+        elseif kind == "o" then db.opts[key] = v
+        elseif kind == "r" then
+            db.route = type(db.route) == "table" and db.route or {}
+            db.route[key] = v
+        elseif kind == "v" then
+            local svc, fld = key:match("^(%w+)%.(%w+)$")
+            if svc and Core.BY_KEY[svc] then db.services[svc] = db.services[svc] or {} db.services[svc][fld] = v end
+        elseif kind == "p" then
+            db.payee = type(db.payee) == "table" and db.payee or {}
+            db.payee[key] = v
+        elseif kind == "t" then
+            db.team = type(db.team) == "table" and db.team or {}
+            if key == "members" then
+                db.team.members = {}
+                for nm in tostring(v or ""):gmatch("[^,]+") do nm = nm:gsub("^%s+", ""):gsub("%s+$", "") if nm ~= "" then db.team.members[nm] = true end end
+            else db.team[key] = v end
+        elseif kind == "w" then
+            db.providers = type(db.providers) == "table" and db.providers or {}
+            db.providers.WARLOCK = v
+        end
+    end
+    -- whoever sent it is on your team, guild or not
+    if who and not Jobs.IsTeam(who) then Jobs.SetTeam(who, true) end
+    if db.route and not next(db.route) then db.route = nil end
+    P("|cff80ff80using " .. tostring(who) .. "'s setup|r (messages, channels, the ad, prices and the team). Your own: warlock or not, test mode, selling, keys.")
+    if Jobs.setupWinRef and Jobs.setupWinRef:IsShown() then Jobs.setupWinRef.Load() end
+    RefreshJobs()
+end
+-- "Bone sent their setup. Use it?"
+function Jobs.AskSetup(values, who)
+    local w = Jobs.setupAsk
+    if not w then
+        w = CreateFrame("Frame", "ServiceInviterSetupAsk", UIParent)
+        w:SetSize(420, 132) w:SetPoint("CENTER", 0, 160) w:SetFrameStrata("DIALOG") w:EnableMouse(true)
+        local edge = Fill(w, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        w.title = Text(w, 15, INK.text, "GameFontNormalLarge") w.title:SetPoint("TOPLEFT", 18, -18) w.title:SetWidth(384) w.title:SetJustifyH("LEFT")
+        w.sub = Text(w, 12, INK.muted) w.sub:SetPoint("TOPLEFT", 18, -44) w.sub:SetWidth(384) w.sub:SetJustifyH("LEFT")
+        w.sub:SetText("Their messages, channels, ad, prices and team replace yours.")
+        local use = FlatButton(w, 110, 32, "gold", 13) use:SetPoint("BOTTOMLEFT", 18, 16) use:SetText("Use it")
+        local no = FlatButton(w, 90, 32, "plain", 13) no:SetPoint("LEFT", use, "RIGHT", 8, 0) no:SetText("No")
+        use:SetScript("OnClick", function() w:Hide() Jobs.ApplySetup(w.values, w.who) end)
+        no:SetScript("OnClick", function() w:Hide() P("kept your own setup") end)
+        w.use, w.no = use, no
+        Jobs.setupAsk = w
+    end
+    w.values, w.who = values, who
+    w.title:SetText(who .. " sent their setup. Use it?")
+    w:Show()
 end
 -- A teammate invited someone by hand: the point of contact's copy welcomes them when they join,
 -- with what they came for and the price the teammate's copy worked out.
@@ -5016,6 +5157,18 @@ local function BuildSetupUI()
     Pick(pb2, false, "Point of contact (from your group)", "workers") y = y - ROW
     w.teamStatus = Label(C1, y - 4, "", nil, FW) y = y - 22
     w.teamBooks = Label(C1, y - 4, "", "GameFontHighlightSmall", FW) y = y - 34
+    -- share the setup (the owner, 14 Nov 2026: "how do i 'share my setup' or whatever?"): your
+    -- messages, channels, ad, prices and team go to everyone on the team; each says Use it or No
+    Header(C1, y, "Setup", FW) y = y - 28
+    local send = FlatButton(page, 160, 32, "ghost", 13)
+    send:SetPoint("TOPLEFT", C1, y) send:SetText("Send my setup")
+    send:SetScript("OnClick", function() w.Save() Jobs.ShareSetup() end)
+    Jobs.Tip(send, "Messages, channels, the ad, prices and the team. Not: warlock or not, test mode, selling, keys.")
+    w.sendSetup = send
+    Label(C1 + 300, y - 6, "When someone sends theirs")
+    Seg("takesetup", "setup_ask", C1 + FW - 180, y, 90, "Ask me")
+    Seg("takesetup", "setup_use", C1 + FW - 90, y, 90, "Use it")
+    y = y - ROW
 
     -- Tools: every command (the owner, 14 Nov 2026: "i want the addon to have a debug
     -- panel/command panel or something - there are too many to remember"). Each runs the same
@@ -5157,6 +5310,7 @@ local function BuildSetupUI()
         checks.rolelock:SetChecked(Role() == "lock")
         checks.dryrun:SetChecked(db.dryrun and true or false)
         checks.running:SetChecked(not db.stasis)
+        checks.setup_ask:SetChecked(not db.takesetup) checks.setup_use:SetChecked(db.takesetup and true or false)
         checks.selling:SetChecked(Opt("enabled") and true or false)
         checks.near:SetChecked(db.near ~= false)
         checks.debug:SetChecked(db.debug and true or false)
@@ -5241,6 +5395,7 @@ local function BuildSetupUI()
         db.adchans = { trade = checks.adch_trade:GetChecked() and true or false, general = checks.adch_general:GetChecked() and true or false }
         db.role = checks.rolelock:GetChecked() and "lock" or "helper"
         db.dryrun = checks.dryrun:GetChecked() and true or false
+        db.takesetup = checks.setup_use:GetChecked() and true or nil
         db.near = checks.near:GetChecked() and true or false
         db.debug = checks.debug:GetChecked() and true or false
         debugOn = db.debug
@@ -5328,6 +5483,7 @@ local function BuildSetupUI()
     w:SetScript("OnShow", function() Fit() w.Load() ShowTab(w.tab or 1) end)
     w:SetScript("OnHide", function() w.Save() if picker then picker:Hide() end end)
     w.checks, w.boxes = checks, boxes
+    Jobs.setupWinRef = w
     return w
 end
 

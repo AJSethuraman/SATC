@@ -117,3 +117,20 @@ def test_only_the_point_of_contact_whispers_the_helper_even_by_battle_net():
     assert mine == 0
     his = bone.eval("#BN_SENT") + len([1 for ch, to, m in bone.sent() if to == "Yeet Lock"])
     assert his == 1
+
+
+def test_the_point_of_contact_raid_warns_a_regular_and_a_non_payer():
+    """The owner, 14 Nov 2026: "a regular and a scammer should be raid warned or whatever by POC"."""
+    me, bone = team()
+    for g in (me, bone):
+        g.run('function UnitIsGroupLeader(u) return u == "player" end '
+              'ServiceInviterDB.route = { loyal = "group", scam = "group" } '
+              'ServiceInviterDB.customers = { Kaldrok = { n = 3, by = { summons = 3 }, worth = 105, first = 1, last = 2, to = {} } } '
+              'ServiceInviterDB.scammers = { Sneaky = { n = 1, last = 5 } }')
+    for g in (me, bone):
+        join(g, "Kaldrok")
+        g.run('UNITS.raid4 = { "Sneaky", "ROGUE", 40, "Thunder Bluff" } GROUP["Sneaky"] = true')
+        g.event("CHAT_MSG_SYSTEM", "Sneaky has joined the raid group.")
+    assert me.sent() == []                                   # only the point of contact
+    warned = [m for ch, _, m in bone.sent() if ch == "RAID_WARNING"]
+    assert any("Welcome back Kaldrok" in m for m in warned) and any("Sneaky" in m for m in warned)

@@ -389,3 +389,15 @@ entry, Send on arrival etc"*, *"build the team part to be... teams"*.
 - **Team** is only the team: the guild, ours outside it, the point of contact, who's online.
 - **General** keeps inviting, paying and where the addon's own lines go ("Who I invited, and why").
 - Dropped: "WTB only" (LF / need / looking always count) and "Merge split messages" (always on).
+
+## 3.8: Send my setup; the regulars line as a raid warning (14 Nov 2026)
+
+- **Send my setup** (Team tab): messages and where each goes, channels, the ad, re-invite wait,
+  auto-invite words, prices, blessing words and spell, who gets paid, the team list and the point
+  of contact, as `SET path n/N value` lines through the outbox, then `SETEND count`. The receiver
+  asks "X sent their setup. Use it?" (or uses it without asking, if set); a setup that arrives
+  with a piece missing is not used. Not sent: warlock or not, test mode, selling, running, keys,
+  debug, the helper you whisper. The sender joins the receiver's team.
+- The owner: *"a regular and a scammer should be raid warned or whatever by POC"*. The regulars
+  line, when it goes to the group, goes as a raid warning when the point of contact is leader or
+  assist, like the didn't-pay call-out.
