@@ -86,6 +86,7 @@ function C.Setting(db, key, where)
     if key == "summons" and saved.price == nil and type(db) == "table" and type(db.price) == "number" then price = db.price end
     if saved.price ~= nil then price = saved.price or nil end
     if type(price) == "number" and price <= 0 then price = nil end   -- 0 is free (Lua counts 0 as true)
+    if def.kind == "buff" then price = nil end   -- blessings are always free (the owner, 14 Nov 2026: "we will never charge for blessings")
     if price and C.LivePrice then price = C.LivePrice(key, price, saved, where) or price end
     local function pick(field) if saved[field] ~= nil then return saved[field] end return def[field] end
     return {

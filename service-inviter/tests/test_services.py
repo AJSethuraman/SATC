@@ -235,3 +235,13 @@ def test_money_is_spelled_out(core):
 ])
 def test_the_price_a_buyer_offers_is_read(core, text, silver):
     assert core.eval(f'ServiceInviterCore.OfferedPrice("{text}")') == silver
+
+
+def test_blessings_are_always_free():
+    """The owner, 14 Nov 2026: "we will never charge for blessings". Even an old saved price."""
+    from test_group import world
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff")}, "blessing = { on = true, price = 10 }")
+    assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "blessing").price') is None
+    g.run("S = ServiceInviter_Test.BuildSetup() S:Show() S.Load()")
+    assert g.eval("ServiceInviter_Test.SetupBoxes().svc_blessing_g") is None        # no price box
+    assert g.eval("ServiceInviter_Test.SetupBoxes().svc_blessing_payee") is None    # nobody to pay

@@ -1,4 +1,4 @@
--- Service Inviter v3.7.1
+-- Service Inviter v3.7.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -4726,6 +4726,11 @@ local function BuildSetupUI()
         local k = "svc_" .. key .. "_"
         Toggle(k .. "on", col, y, (def.kind == "buff" and "We offer " or "We sell ") .. def.label)
         y = y - ROW
+        if def.kind == "buff" then
+            -- always free: no price, nobody to pay (the owner, 14 Nov 2026)
+            Toggle(k .. "invite", col, y, "Invite people who ask")
+            return y - ROW
+        end
         Label(col, y - 6, "Price")
         Box(k .. "g", col + CW - 152, y, 52, 5, "0") Label(col + CW - 96, y - 7, "|cff" .. INK.gold .. "g|r")
         Box(k .. "s", col + CW - 78, y, 52, 2, "free") Label(col + CW - 20, y - 7, "|cff" .. INK.silver .. "s|r")
@@ -4916,7 +4921,7 @@ local function BuildSetupUI()
     -- Paladin --------------------------------------------------------------
     page = pages[4]
     y = TOP
-    Header(C1, y, "Sell") y = y - 28
+    Header(C1, y, "Offer") y = y - 28
     y = Service("blessing", C1, y) - 12
     Header(C1, y, "Words") y = y - 28
     Box("svc_blessing_words", C1, y, CW, 200, "bless, blessing, buff") y = y - ROW - 4
@@ -5140,7 +5145,8 @@ local function BuildSetupUI()
             local st, k = Core.Setting(db, def.key), "svc_" .. def.key .. "_"
             checks[k .. "on"]:SetChecked(st.on)
             checks[k .. "invite"]:SetChecked(st.invite)
-            if st.price then
+            if not boxes[k .. "g"] then   -- a free service: no price, nobody to pay
+            elseif st.price then
                 local g, sv = math.floor(st.price / 100), st.price % 100
                 boxes[k .. "g"]:SetText(g > 0 and tostring(g) or "")
                 boxes[k .. "s"]:SetText((sv > 0 or g == 0) and tostring(sv) or "")
@@ -5150,9 +5156,11 @@ local function BuildSetupUI()
             if boxes[k .. "words"] then boxes[k .. "words"]:SetText(st.words or "") boxes[k .. "words"]:SetCursorPosition(0) end
             -- Default (blank) / Doer / Me, or a name in the box
             local pv = st.payee or ""
+            if boxes[k .. "payee"] then
             local seg = (pv == "" and "default") or ((pv == "provider" or pv == "place" or pv == "notme") and "doer") or (pv == "me" and "me") or nil
             boxes[k .. "payee"]:SetText(seg and "" or pv)
             for _, s2 in ipairs({ "default", "doer", "me" }) do checks[k .. "pd_" .. s2]:SetChecked(seg == s2) end
+            end
         end
         local spell = Core.Setting(db, "blessing").spell or "Blessing of Might"
         for _, c in ipairs(radios.bspell) do c:SetChecked(spell:lower():find(c:GetText():lower(), 1, true) ~= nil) end
@@ -5215,15 +5223,18 @@ local function BuildSetupUI()
         db.services = db.services or {}
         for _, def in ipairs(Core.SERVICES) do
             local k = "svc_" .. def.key .. "_"
-            local g, sv = tonumber(boxes[k .. "g"]:GetText()), tonumber(boxes[k .. "s"]:GetText())
+            local free = not boxes[k .. "g"]
+            local g, sv = (not free) and tonumber(boxes[k .. "g"]:GetText()), (not free) and tonumber(boxes[k .. "s"]:GetText())
             local saved = db.services[def.key] or {}
             saved.on = checks[k .. "on"]:GetChecked() and true or false
             saved.invite = checks[k .. "invite"]:GetChecked() and true or false
             saved.price = (g or sv) and ((g or 0) * 100 + (sv or 0)) or false
             if boxes[k .. "words"] then saved.words = boxes[k .. "words"]:GetText() end
-            local typed = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
-            saved.payee = (typed ~= "" and typed) or (checks[k .. "pd_doer"]:GetChecked() and "provider") or
-                (checks[k .. "pd_me"]:GetChecked() and "me") or ""
+            if not free then
+                local typed = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
+                saved.payee = (typed ~= "" and typed) or (checks[k .. "pd_doer"]:GetChecked() and "provider") or
+                    (checks[k .. "pd_me"]:GetChecked() and "me") or ""
+            end
             db.services[def.key] = saved
         end
         local sm = db.services.summons
