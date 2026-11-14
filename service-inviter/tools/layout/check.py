@@ -72,7 +72,7 @@ L = load(GROUP)
 L.execute('ServiceInviterDB.services = { blessing = { on = true } }')
 L.execute("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show()")
 win = L.globals().SETUP
-for i, name in enumerate(["General", "Warlock", "Paladin", "Advertise"], 1):
+for i, name in enumerate(["General", "Warlock", "Paladin", "Advertise", "Team"], 1):
     L.execute(f"SETUP.ShowTab({i}) SETUP.Refresh()")
     scenes[f"setup_{name}"] = export(L, win, win.pages[i])
 

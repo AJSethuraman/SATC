@@ -268,3 +268,25 @@ Decided with the owner:
 
 Stages: 3.0 focus · 3.1 team link + claims · 3.2 shared records + catch-up · 3.3 whispers to
 customers · 3.4 shared prices and shards.
+
+### 3.1 as built (14 Nov 2026)
+
+- **Point of contact.** `/si team poc NAME, BACKUP` (or the Team tab). Every other copy hands a
+  matched buyer and their quote to the first one online (`BUY` over the group's addon channel, or
+  an addon whisper to a teammate online but not grouped). The point of contact invites, and is the
+  only copy that sends customer or group messages. Nobody online on the list = each copy solo.
+  Two teammates handing the same buyer = one invite.
+- **Presence.** Copies say `HI` (version, warlock or not, zone) on login, roster and zone changes,
+  and every minute. A teammate's own zone wins over the game's guess. A copy that isn't on the team
+  gets one chat line ("/si team add NAME"); nothing it sends is acted on.
+- **Each channel is its own market.** A seller counts in the exact channel they posted in ("Trade -
+  English 50" never sees "Trade - English 4"), for the city they named, for 5 minutes, cheapest
+  first. The service price is the max; the min (floor) is never crossed; Undercut by N, Match, or
+  Ignore. A buyer is quoted their channel's price at that moment, and keeps it; the ad in each
+  channel carries that channel's price.
+- **Where each message goes.** Whisper / party-raid / off per message (welcome, summon notice,
+  arrival, thanks, regulars line, call-out). Team default: whispers, except the regulars line and
+  the call-out; solo default: as before. Only choices that differ from the default are stored.
+- **Test mode across copies.** A copy in test mode hands its buyers to the point of contact marked
+  as a test; the point of contact's copy invites nobody and whispers the exact customer messages to
+  the test target (or to the teammate who found the buyer).

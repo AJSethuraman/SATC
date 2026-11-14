@@ -8,15 +8,16 @@ LOCK = {"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem",
 MATCH = "summons = { price = 35, match = true, floor = 20, undercut = 5 }"
 
 
-def price(g, where="Thunder Bluff"):
-    return g.eval(f'ServiceInviterCore.Setting(ServiceInviterDB, "summons", "{where}").price')
+def price(g, where="Thunder Bluff", market="Trade - City"):
+    """Our price for a city in a channel (say_trade posts in "2. Trade - City")."""
+    return g.eval(f'(function() ServiceInviter_Test.Jobs.priceMarket = "{market}" local p = ServiceInviterCore.Setting(ServiceInviterDB, "summons", "{where}").price ServiceInviter_Test.Jobs.priceMarket = nil return p end)()')
 
 
 def test_a_rival_ad_moves_our_price_under_theirs():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s pst")
     assert price(g) == 25
-    assert any("TB price now 25 silver" in p for p in g.printed())
+    assert any("TB price in Trade - City now 25 silver" in p for p in g.printed())
 
 
 def test_never_below_the_floor_and_never_above_our_own_price():
@@ -82,11 +83,11 @@ def test_a_buyer_offering_the_live_price_is_not_under_it():
     assert list(g.g.INVITED.values()) == ["Kaldrok"]
 
 
-def test_the_ad_shows_the_live_price():
+def test_the_ad_in_a_channel_shows_that_channels_price():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s")
-    assert "summons to TB 25 silver" in g.eval("ServiceInviter_Test.AdState()") or \
-        "25 silver" in (g.eval('ServiceInviterCore.BuildAd(ServiceInviterDB, ServiceInviter_Test.Group(), "Horde", "{services}")') or "")
+    state = g.eval("{ ServiceInviter_Test.AdState() }")
+    assert state[1] == "ready" and state[5] == "WTS summons to TB 25 silver | whisper inv"
 
 
 def test_si_prices_lists_rivals():
@@ -94,4 +95,5 @@ def test_si_prices_lists_rivals():
     say_trade(g, "Rival", "WTS summons to TB 30s")
     g.run('SlashCmdList.SERVICEINVITER("prices")')
     out = " ".join(g.printed())
-    assert "undercut by 5 silver, never below 20 silver" in out and "TB: Rival at 30 silver" in out and "yours 25 silver" in out
+    assert "Summons 20 silver to 35 silver; other sellers: undercut by 5 silver" in out
+    assert "Trade - City, TB: Rival at 30 silver" in out and "ours 25 silver" in out

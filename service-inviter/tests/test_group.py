@@ -254,7 +254,8 @@ def test_the_invite_line_says_who_and_exactly_why():
     say_trade(g, "Kaldrok", "WTB summon to TB, will tip, pst")
     p = g.printed()
     i = next(i for i, l in enumerate(p) if "invited" in l)
-    assert p[i].endswith("invited Kaldrok  -> TB  ·  |cff8788eeGrimtotem|r")
+    assert "invited Kaldrok  -> TB  ·  |cff8788eeGrimtotem|r" in p[i]
+    assert p[i].endswith("· Trade - City, 25 silver")                  # the channel and its price
     assert 'because [Trade] "WTB summon to TB, will tip, pst"' in p[i + 1]
     assert "summon to Thunder Bluff" in p[i + 1]
 

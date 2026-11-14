@@ -120,7 +120,7 @@ def test_every_tab_has_a_preview_button():
     g = world({"player": ME_ORG})
     w = g.eval("ServiceInviter_Test.BuildSetup()")
     assert w.preview is not None
-    for tab in ("General", "Warlock", "Paladin", "Advertise"):
+    for tab in ("General", "Warlock", "Paladin", "Advertise", "Team"):
         assert preview(g, tab)
 
 
