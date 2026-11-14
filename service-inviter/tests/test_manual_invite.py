@@ -34,3 +34,13 @@ def test_someone_who_said_nothing_hears_what_we_sell():
     join(g, "Friendo")
     said = [m for _, _, m in g.sent()]
     assert said and "We have summons to TB 35 silver" in said[-1]
+
+
+def test_with_the_welcome_set_to_whisper_the_quote_goes_as_you_invite():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { enabled = false, marks = false } ServiceInviterDB.route = { welcome = "whisper" }')
+    say_trade(g, "Kaldrok", "wtb summon to TB")
+    by_hand(g, "Kaldrok")
+    assert g.sent() == [("WHISPER", "Kaldrok", "Hi Kaldrok! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land.")]
+    join(g, "Kaldrok")
+    assert len(g.sent()) == 1                     # said once, not again on joining

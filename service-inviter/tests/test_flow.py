@@ -92,7 +92,8 @@ def test_a_buyer_i_invite_by_hand_is_welcomed_by_the_point_of_contact():
     me.run('C_PartyInfo.InviteUnit("Kaldrok")')          # I invite him by hand
     pump(me, bone, "Me")
     assert "invited Kaldrok by hand: summons to Thunder Bluff, 35s" in teamlog(bone)
+    # quoted as he's invited, the same welcome the addon's own invites get
+    assert bone.sent() == [("WHISPER", "Kaldrok", "Hi Kaldrok! Yeet Lock will summon you to TB. 35 silver. Pay Yeet Lock when you land.")]
     for g in (me, bone):
         join(g, "Kaldrok")
-    assert me.sent() == []
-    assert bone.sent()[-1][:2] == ("WHISPER", "Kaldrok") and "35 silver" in bone.sent()[-1][2]
+    assert me.sent() == [] and len(bone.sent()) == 1           # not a regular: nothing more on joining

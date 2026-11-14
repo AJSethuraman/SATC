@@ -1,4 +1,4 @@
--- Service Inviter v3.5.3
+-- Service Inviter v3.5.4
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1247,6 +1247,8 @@ local function OnInviteCall(name)
             -- the point of contact's copy does the talking: tell it what they came for
             if Jobs.TeamOn() and Jobs.POC() and Jobs.POC() ~= Jobs.Me() then
                 Jobs.TeamSay("MAN", short, job.service or "", job.dest or "", job.price or "")
+            else
+                Jobs.QuoteNow(job)
             end
         end
     end)
@@ -3023,6 +3025,17 @@ function Jobs.BooksLine()
     return "Customers: yours " .. mine .. (#parts > 0 and (", " .. table.concat(parts, ", ")) or ", nobody else's yet") ..
         ". Lists and stats count everyone's."
 end
+-- The welcome with the quote, whispered as they're invited, like the addon's own invites (the
+-- owner, 14 Nov 2026: "so the welcome message is different than the message we send with the
+-- quote?" -- it's one message). In party/raid chat it waits for them to join.
+function Jobs.QuoteNow(job)
+    if not (Opt("welcome") and Jobs.RouteOf("welcome") == "whisper" and Jobs.WelcomeText) then return false end
+    local text = Jobs.WelcomeText(job.name, job, true)
+    if not text then return false end
+    Jobs.Route("welcome", text, job.name)
+    job.welcomed = true
+    return true
+end
 -- A teammate invited someone by hand: the point of contact's copy welcomes them when they join,
 -- with what they came for and the price the teammate's copy worked out.
 function Jobs.HearManual(f, who)
@@ -3035,6 +3048,7 @@ function Jobs.HearManual(f, who)
     if f[4] and f[4] ~= "" then j.dest = f[4] end
     if tonumber(f[5]) then j.price = tonumber(f[5]) end
     Jobs.Pending(buyer)
+    if Jobs.QuoteNow(j) then return "whispered " .. buyer .. " the welcome and price" end
     return "will welcome " .. buyer .. (j.service and (" (" .. j.service .. (j.dest and (" to " .. j.dest) or "") .. ")") or "")
 end
 -- One price list for the team (the owner, 14 Nov 2026: "sure makes sense, they will have the
