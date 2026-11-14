@@ -1,0 +1,348 @@
+"""The customer book (the owner, 13 Nov 2026: "can it store our customer base and how many times
+they use us and when"). Kept with the addon's saved settings. A summon counts when it goes out,
+anything else when you press Paid or Done."""
+from test_group import world, say_trade
+
+
+def copied(g):
+    """The copy window's text, one line each (where the lists and stats go now)."""
+    assert g.eval("ServiceInviterCopy:IsShown()")
+    return (g.eval("ServiceInviterCopy.box:GetText()") or "").split("\n")
+
+LOCK = {"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}
+
+
+def summon(g, name, clock_step=3600):
+    say_trade(g, name, "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", f"{name} joins the party.")
+    g.run(f'ServiceInviter_Test.Jobs.Set("{name}", "summoned") CLOCK = CLOCK + {clock_step}')
+    g.run(f'ServiceInviter_Test.Jobs.Remove("{name}")')
+
+
+def test_each_summon_is_recorded_with_when_and_what():
+    g = world(LOCK, "summons = { price = 35 }")
+    summon(g, "Kaldrok")
+    summon(g, "Kaldrok")
+    c = g.eval('ServiceInviterDB.customers["Kaldrok"]')
+    assert c.n == 2 and c.by.summons == 2 and c.worth == 70
+    assert c.first < c.last
+
+
+def test_a_returning_customer_is_marked_on_their_row():
+    g = world(LOCK, "summons = { price = 35 }")
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    assert "1 before" in g.eval("ServiceInviterJobs.rows[1].name:GetText()")
+
+
+def test_si_customers_lists_regulars_and_one_persons_history():
+    g = world(LOCK, "summons = { price = 35 }")
+    summon(g, "Kaldrok") ; summon(g, "Kaldrok") ; summon(g, "Mirasha")
+    g.run('SlashCmdList.SERVICEINVITER("customers")')
+    out = " ".join(copied(g))
+    assert out.index("Kaldrok") < out.index("Mirasha") and "2 times" in out
+    g.run('SlashCmdList.SERVICEINVITER("customers mirasha")')
+    assert "Mirasha: 1 time" in " ".join(copied(g))
+
+
+def test_a_regular_is_welcomed_back_in_chat():
+    """The owner, 13 Nov 2026: "can we even announce loyalty in the chat? that would be dope"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    welcomes = [m for ch, _, m in g.sent() if ch == "PARTY" and "Kaldrok" in m]
+    assert welcomes[-1] == "Hi Kaldrok! Welcome back, 4th time with us! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."
+    assert "Welcome back" not in welcomes[0]                     # the first time is a normal welcome
+
+
+def test_loyalty_can_be_turned_off_and_custom_text_gets_visits():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false, loyalty = false }')
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert "Welcome back" not in [m for ch, _, m in g.sent() if ch == "PARTY"][-1]
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false } ServiceInviterDB.welcomemsg = "YO {name}, VISIT {visits}!"')
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "YO Kaldrok, VISIT 2nd!"
+
+
+def test_ordinals():
+    g = world(LOCK)
+    o = lambda n: g.eval(f"ServiceInviter_Test.Ordinal({n})")
+    assert [o(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 101)] == \
+        ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st"]
+
+
+def test_the_book_keeps_whole_forever_names_apart():
+    """The owner, 13 Nov 2026: "has to count both first and last name too". Two Busters stay two
+    customers, and the ritual's target (read from the unit, first + surname) lands on the same
+    entry as the name from chat."""
+    from test_group import FOREVER_NAMES
+    g = world(LOCK, "summons = { price = 35 }", extra=FOREVER_NAMES)
+    summon(g, "Buster Wang")
+    summon(g, "Buster Smith")
+    summon(g, "Buster Wang")
+    book = g.eval("ServiceInviterDB.customers")
+    assert book["Buster Wang"].n == 2 and book["Buster Smith"].n == 1 and book["Buster"] is None
+    # summoned by the ritual on its target: the target's name is read whole from the unit
+    say_trade(g, "Buster Smith", "WTB summon to TB")
+    g.run('UNITS.party2 = { "Buster Smith", "ROGUE", 30, "Orgrimmar" } GROUP["Buster Smith"] = true UNITS.party1target = UNITS.party2')
+    g.event("CHAT_MSG_SYSTEM", "Buster Smith joins the party.")
+    g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "party1", 698, "Ritual of Summoning")')
+    assert g.eval('ServiceInviterDB.customers["Buster Smith"].n') == 2
+
+
+def test_your_own_loyalty_line_in_capitals():
+    """The owner, 13 Nov 2026: "HOW CAN I SAY SOMETHING LIKE THIS IS YOUR 4TH TIME!!"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false } ServiceInviterDB.loyaltymsg = "THIS IS YOUR {visits} TIME!!"')
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == \
+        "Hi Kaldrok! THIS IS YOUR 4TH TIME!! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."
+
+
+def test_one_box_empty_is_off():
+    """The owner, 13 Nov 2026: "can you make this simpler?" -- the loyalty setting: one box,
+    what's in it is the line, empty is off."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    g.run('''local w = ServiceInviter_Test.BuildSetup() w:Show()
+        ServiceInviter_Test.SetupBoxes().loyaltymsg:SetText("") w:Hide() w:Show() w:Hide()''')
+    assert g.eval("ServiceInviterDB.loyaltymsg") == ""
+    assert g.eval("ServiceInviter_Test.SetupBoxes().loyaltymsg:GetText()") == ""
+    summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert "Welcome back" not in [m for ch, _, m in g.sent() if ch == "PARTY"][-1]
+
+
+def test_the_regulars_line_goes_after_your_own_welcome():
+    """The owner's own two lines, 13 Nov 2026: welcome "THE COST IS {price} AND WE WILL SUMMON YOU
+    SOON!" and regulars "HEY FREQUENT FLYER! This is your {visits} time with us!"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "THE COST IS {price} AND WE WILL SUMMON YOU SOON!"
+        ServiceInviterDB.loyaltymsg = "HEY FREQUENT FLYER! This is your {visits} time with us!"''')
+    say_trade(g, "Newbie", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Newbie joins the party.")
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
+    assert sent[0] == "THE COST IS 35 silver AND WE WILL SUMMON YOU SOON!"
+    assert sent[-1] == "THE COST IS 35 silver AND WE WILL SUMMON YOU SOON! HEY FREQUENT FLYER! This is your 4th time with us!"
+
+
+def test_the_regulars_button_prints_the_top_ten():
+    """The owner, 13 Nov 2026: "how can i see the list of people in game we have collected - or like
+    top 10 at least"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    for i in range(12):
+        for _ in range(i + 1):
+            summon(g, f"Buyer{i:02d}", clock_step=1)
+    g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
+    g.run("ServiceInviterJobs.regularsBtn._scripts.OnClick(ServiceInviterJobs.regularsBtn)")
+    out = [p for p in copied(g) if ". Buyer" in p]
+    assert len(out) == 10 and "Buyer11" in out[0] and "Buyer02" in out[-1]
+
+
+def test_analytics_record_where_they_went_and_when():
+    """The owner, 13 Nov 2026: "it should also track analytics like where they went and stuff for
+    us to know"."""
+    g = world({"player": ("Me", "SHAMAN", 60, "Orgrimmar"),
+               "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+               "party2": ("Ashfel", "WARLOCK", 60, "Undercity")}, "summons = { price = 35 }")
+    summon(g, "Kaldrok")
+    summon(g, "Kaldrok")
+    say_trade(g, "Mirasha", "WTB summon to UC")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    g.run('ServiceInviter_Test.Jobs.Set("Mirasha", "summoned")')
+    a = g.eval("ServiceInviterDB.analytics")
+    assert a.n == 3 and a.to["Thunder Bluff"] == 2 and a.to["Undercity"] == 1 and a.by.summons == 3 and a.worth == 105
+    assert sum(a.hour[h] or 0 for h in range(0, 24)) == 3
+    assert g.eval('ServiceInviterDB.customers["Kaldrok"].to["Thunder Bluff"]') == 2
+    g.run('SlashCmdList.SERVICEINVITER("stats")')
+    out = " ".join(copied(g))
+    assert "3 uses by 2 customers (1 came back)" in out and "Thunder Bluff 2" in out and "Undercity 1" in out
+    assert "Busiest hours" in out and "summons 3" in out
+
+
+def test_a_regular_invited_by_someone_else_still_hears_the_regulars_line():
+    """The owner, 13 Nov 2026: "i want the regular coming back messages to always play if it
+    detects someone joined again" -- "even if someone else invited them"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    for _ in range(3):
+        summon(g, "Kaldrok")
+    before = len(g.sent())
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")      # the leader invited him, not us
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["Hi Kaldrok! Welcome back, 4th time with us!"]
+
+
+def test_a_regular_invited_by_someone_else_hears_no_service_or_price_even_with_your_own_welcome():
+    """The owner, 13 Nov 2026: "if we dont know what we invited them for why would we show the
+    price and service"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "Hi {name}! Your {service} is {price}. We will summon you soon!"
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK YOU FREQUENT FLYER!! This is your {visits} time"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["Hi Kaldrok! WELCOME BACK YOU FREQUENT FLYER!! This is your 2nd time"]
+
+
+def test_someone_new_invited_by_someone_else_gets_nothing():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch in ("PARTY", "RAID")] == []
+
+
+def test_a_regular_hears_it_even_with_the_welcome_turned_off():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false, welcome = false }')
+    summon(g, "Kaldrok")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "Hi Kaldrok! Welcome back, 2nd time with us!"
+
+
+def test_si_customers_all_lists_everyone():
+    """The owner, 13 Nov 2026: "how can i see the full list of regulars"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    for i in range(12):
+        summon(g, f"Buyer{i:02d}", clock_step=1)
+    g.run('SlashCmdList.SERVICEINVITER("customers")')
+    assert any("(/si customers all for everyone)" in p for p in copied(g))
+    g.run('SlashCmdList.SERVICEINVITER("customers all")')
+    out = copied(g)
+    assert "All 12 customers:" in out[0] and len([p for p in out if ". Buyer" in p]) == 12
+
+
+def test_the_lists_open_selected_in_a_copy_window_not_in_chat():
+    """The owner, 13 Nov 2026: "can it not print the customer lists and stuff into a window that
+    i can copy and paste from easily"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    summon(g, "Kaldrok")
+    before = len(g.printed())
+    g.run('SlashCmdList.SERVICEINVITER("customers")')
+    assert not any("Kaldrok" in p for p in g.printed()[before:])        # not in chat
+    lines = copied(g)
+    assert lines[0].startswith("Top 1 of 1 customers") and "|c" not in "".join(lines)
+    assert g.eval("ServiceInviterCopy.title:GetText()") == "Customers"
+
+
+def test_the_regulars_line_takes_name():
+    """The owner, 13 Nov 2026: "can i use {name} in regular hear"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK {name}!! This is your {visits} time"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")            # someone else invited him
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["WELCOME BACK Kaldrok!! This is your 2nd time"]
+    # and invited by us: after your welcome
+    before = len(g.sent())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert len(said) == 1 and "WELCOME BACK Kaldrok!! This is your 2nd time" in said[0]
+
+
+def test_a_named_regulars_line_replaces_the_hello_so_the_name_shows_once():
+    """The owner, 13 Nov 2026: "i dont want them to see hi your name welcome back your name later"."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.welcomemsg = "Hi {name}! Your {service} is {price}. We will summon you soon!"
+        ServiceInviterDB.loyaltymsg = "WELCOME BACK {name}!! This is your {visits} time"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["WELCOME BACK Kaldrok!! This is your 2nd time. Your summons is 35 silver. We will summon you soon!"]
+    # someone new still gets the hello
+    before = len(g.sent())
+    say_trade(g, "Mirasha", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Mirasha joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said == ["Hi Mirasha! Your summons is 35 silver. We will summon you soon!"]
+
+
+def test_a_named_regulars_line_with_the_automatic_welcome():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('''ServiceInviterDB.opts = { marks = false }
+        ServiceInviterDB.loyaltymsg = "Welcome back {name}, {visits} time with us!"''')
+    summon(g, "Kaldrok")
+    before = len(g.sent())
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
+    assert said[0].startswith("Welcome back Kaldrok, 2nd time with us! Grimtotem will summon you")
+    assert said[0].count("Kaldrok") == 1
+
+
+# The owner, 14 Nov 2026: "when we record a near miss can we have some data about how much
+# business we could have had".
+
+def test_near_misses_add_up_what_we_could_have_had():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Aa", "WTB summon to TB 20s")                 # under your price
+    say_trade(g, "Bb", "WTB summon to Org")                    # a place you don't serve
+    say_trade(g, "Cc", "WTB summon to Org pst")
+    say_trade(g, "Dd", "WTB summon for 3 to TB")               # a group
+    nm = g.eval("ServiceInviterDB.analytics.near")
+    assert nm.n == 4 and nm.worth == 140
+    assert nm.why["offered under your price"] == 1 and nm.why["a place you don't serve"] == 2 and nm.why["asked for a group"] == 1
+    assert nm.to["Orgrimmar"] == 2
+
+
+def test_the_same_person_asking_twice_is_one_near_miss():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Bb", "WTB summon to Org")
+    g.run("CLOCK = CLOCK + 30")
+    say_trade(g, "Bb", "WTB summon to Org pls")
+    assert g.eval("ServiceInviterDB.analytics.near.n") == 1
+
+
+def test_stats_show_the_near_misses_even_before_the_first_customer():
+    g = world(LOCK, "summons = { price = 35 }")
+    say_trade(g, "Bb", "WTB summon to Org")
+    say_trade(g, "Cc", "WTB summon to Org")
+    g.run('SlashCmdList.SERVICEINVITER("stats")')
+    out = " ".join(copied(g))
+    assert "Near misses: 2, worth 70 silver at your prices" in out
+    assert "Why we missed them: a place you don't serve 2" in out
+    assert "Where they wanted to go: Orgrimmar 2" in out
+
+
+def test_near_misses_count_with_the_chat_lines_turned_off():
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run("ServiceInviterDB.near = false")
+    say_trade(g, "Bb", "WTB summon to Org")
+    assert g.eval("ServiceInviterDB.analytics.near.n") == 1
+    assert not any("NEAR MISS" in p for p in g.printed())
+
+
+def test_stats_count_uses_from_the_book_which_started_before_the_stats():
+    """The owner's /si stats, 14 Nov 2026: "198 uses by 203 customers" -- the book began two
+    versions before the stats, so its early customers weren't in the stats' count."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run("ServiceInviterDB.customers = { Early = { n = 1, by = { summons = 1 }, worth = 35, first = 1000, last = 1000 } }")
+    summon(g, "Kaldrok")
+    g.run('SlashCmdList.SERVICEINVITER("stats")')
+    assert "2 uses by 2 customers (0 came back), worth 70 silver" in " ".join(copied(g))

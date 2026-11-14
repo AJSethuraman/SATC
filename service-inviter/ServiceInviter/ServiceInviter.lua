@@ -1,6 +1,7 @@
--- Service Inviter v1.5.0
--- Watches chat for people asking to BUY a summon or port to a destination you
--- choose, and sends them a group invite. It also talks in your group and may
+-- Service Inviter v3.2.1
+-- Watches chat for people asking to BUY what your group sells right now (summons to
+-- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
+-- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
 -- whisper (welcome, summon alert, extras on offer, the ritual whisper): turn
 -- each off in /si setup if you are silenced.
 --
@@ -12,6 +13,8 @@
 -- lines (fragments), and ALWAYS rejects anything that looks like a seller or ad.
 
 ServiceInviterDB = ServiceInviterDB or {}
+local ADDON_NAME = "ServiceInviter"
+local blockedCalls = {}   -- calls the game refused this session (ADDON_ACTION_FORBIDDEN): never retried
 
 -- One-time copy of settings from the old Trade Inviter addon.
 local function MigrateLegacy()
@@ -24,10 +27,37 @@ local function MigrateLegacy()
     end
 end
 
-local FRAGMENT_WINDOW = 25
-local MAX_FRAGMENTS   = 3
-local MAX_PER_MINUTE  = 6
-local MAX_PARTY       = 5
+-- One-time carry-over from 1.x: the old "extras offered on arrival" become those services,
+-- offered but not invited for (they were never invite triggers), and the old price becomes the
+-- summons price.
+local function MigrateServices()
+    local db = ServiceInviterDB
+    if db.servicesMigrated then return end
+    db.servicesMigrated = true
+    db.services = db.services or {}
+    local map = { paladin = "blessing" }   -- the only 1.x extra still sold (summons and blessings only, 14 Nov 2026)
+    if type(db.offers) == "table" then
+        for old, new in pairs(map) do
+            if db.offers[old] then
+                db.services[new] = db.services[new] or {}
+                if db.services[new].on == nil then db.services[new].on = true end
+                if db.services[new].invite == nil then db.services[new].invite = false end
+            end
+        end
+    end
+    if type(db.price) == "number" then
+        db.services.summons = db.services.summons or {}
+        if db.services.summons.price == nil then db.services.summons.price = db.price end
+    end
+end
+
+-- Declared here, defined further down: the event handler and the buff queue use them
+-- before the file reaches their definitions.
+local IsSecret, SpellNameOf, jobsWin
+local Jobs = {}   -- the customers (filled in further down; the group reading needs it)
+local BuffAsk, BuffCastDone, BuffTooLow, RefreshBuff, QueueAllMyBuffs, buffDirty
+
+local LIMIT = { FRAGMENT_WINDOW = 25, MAX_FRAGMENTS = 3, MAX_PER_MINUTE = 6, MAX_PARTY = 5 }
 
 -- Destinations shown as checkboxes: key, label, keywords.
 local DESTS = {
@@ -39,6 +69,9 @@ local DESTS = {
     { key = "everlook", label = "Everlook", words = { "everlook" } },
     { key = "ratchet", label = "Ratchet",   words = { "ratchet" } },
     { key = "xroads", label = "Crossroads", words = { "crossroads", "xroads", "cross roads" } },
+    { key = "sw", label = "Stormwind City", words = { "sw", "stormwind", "stormwind city" } },
+    { key = "ironforge", label = "Ironforge", words = { "ironforge" } },
+    { key = "darn", label = "Darnassus", words = { "darnassus", "darn" } },
 }
 
 local DEFAULTS = {
@@ -50,11 +83,15 @@ local DEFAULTS = {
     kwon = false,        -- keyword auto-invite ("inv", "invite") on/off
     strictbuy = false,   -- only WTB/buying count (ignore LF / need / looking)
     fragments = true,
-    nodest    = true,    -- "WTB summon" with no place named counts as Thunder Bluff
     announce  = true,    -- print a line in your chat window when it invites
     skipafk   = true,
     autoshow  = true,    -- open the customer list when someone is invited
+    loyalty   = true,    -- (until 2.3.2 the on/off for the loyalty line; now an empty line is off)
+    marks     = true,    -- a raid icon on whoever does a service, in party/raid chat (text only: the game no longer lets addons put icons over heads)
     welcome   = true,    -- send a message to the group when an invited player joins
+    buffarrivals = true, -- queue your buffs on a customer who lands where you are, unasked
+    buffpop   = true,    -- the buff button pops up at your mouse when someone is waiting
+    countshards = false, -- count soul shards and stop inviting summon buyers when they'd run out
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
     sum_org = false, port_org = false,
@@ -73,6 +110,9 @@ local PORT_WORDS   = { "port", "ports", "portal", "portals", "tp", "teleport" }
 local SELLER = {
     "wts", "selling", "sell", "sale", "offering", "wtt", "lfm", "recruiting",
     "service", "services", "porting",
+    -- another seller's ad (the owner's screenshot, 14 Nov 2026: "dont buy cheap TB summons PST we
+    -- have them for 40s+tip" was taken for a buyer)
+    "dont buy", "don t buy", "do not buy", "we have", "have them", "we got", "we sell", "we summon",
 }
 -- Ad words that buyers use too ("wtb summ tb, will tip", "for guild group"):
 -- they only reject the message when there is no clear WTB/buying word.
@@ -86,7 +126,9 @@ local lastInvite = {}
 local diag = { casts = {} }   -- what we last heard / saw, for /si status
 local paused = false   -- true while the old Trade Inviter is also loaded (avoids double invites)
 local pending = {}   -- invited players we are waiting to see join
-local DEFAULT_WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
+local MSG = {}
+MSG.SCAM = "Heads up: {name} didn't pay last time."   -- the default text of every message you can change
+MSG.WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
 local fragments = {}
 local inviteTimes = {}
 
@@ -109,11 +151,79 @@ local function OutFrame()
     return DEFAULT_CHAT_FRAME
 end
 local function P(msg)
+    if Jobs.capture then Jobs.capture[#Jobs.capture + 1] = msg return end   -- going to the copy window
     local f = OutFrame()
     local line = "|cff80ff80Service Inviter|r: " .. msg
     if f and f.AddMessage then f:AddMessage(line) else print(line) end
 end
-local function D(msg) if debugOn then P("|cff999999" .. msg .. "|r") end end
+-- Every message to a customer, the group or a whisper goes through here: in test mode it goes
+-- to you instead (your chat, or a whisper to /si test NAME), never to them.
+-- {rt1}..{rt8} drawn as the icon, for test lines printed in your own chat (sent chat converts them itself)
+function Jobs.Icons(text)
+    local names = { star = 1, circle = 2, diamond = 3, triangle = 4, moon = 5, square = 6, cross = 7, x = 7, skull = 8 }
+    text = tostring(text):gsub("{(%a+)}", function(w) local n = names[w:lower()] return n and ("{rt" .. n .. "}") or nil end)
+    return (text:gsub("{rt(%d)}", "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%1:0|t"))
+end
+-- Where each message goes: whisper the customer, the group (party/raid), or nowhere (the owner,
+-- 14 Nov 2026: "i'd want to be able to adjust whether a chat goes to whisper or to raid/party like
+-- it does now"). With a team, customer messages default to whispers and only the regulars line and
+-- the didn't-pay call-out are public; solo keeps today's choices.
+Jobs.ROUTE_KINDS = { "welcome", "alert", "arrival", "thanks", "loyal", "scam" }
+Jobs.ROUTE_LABEL = { welcome = "Welcome + price", alert = "Summon starting", arrival = "When they land",
+    thanks = "Thanks", loyal = "Regulars line", scam = "Didn't-pay call-out" }
+function Jobs.RouteOf(kind)
+    local r = type(ServiceInviterDB.route) == "table" and ServiceInviterDB.route[kind]
+    if r then return r end
+    if kind == "thanks" then return "whisper" end
+    if kind == "loyal" or kind == "scam" then return "group" end
+    return (Jobs.TeamOn and Jobs.TeamOn()) and "whisper" or "group"
+end
+-- groupCh: the party/raid (or raid warning) channel to use when it goes to the group
+function Jobs.Route(kind, text, name, groupCh)
+    if not text or text == "" then return end
+    local r = Jobs.RouteOf(kind)
+    if r == "off" then return end
+    if r == "whisper" and name then Jobs.Send(text, "WHISPER", name)
+    else
+        local ch = groupCh or ((IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY" or nil))
+        if ch then Jobs.Send(text, ch) end
+    end
+end
+function Jobs.Send(text, ch, to)
+    -- on a team, only the point of contact talks to customers and the group (the owner, 14 Nov 2026:
+    -- "i want there to be a point of contact")
+    if ch ~= "CHANNEL" and Jobs.POC then
+        local poc = Jobs.POC()
+        if poc and Jobs.Me and poc ~= Jobs.Me() then return end
+    end
+    if ServiceInviterDB and ServiceInviterDB.dryrun then
+        local tt = ServiceInviterDB.testto
+        local where = (ch == "WHISPER" and ("whisper to " .. tostring(to))) or (ch == "RAID_WARNING" and "raid warning") or (tostring(ch):lower() .. " chat")
+        -- the target gets the message exactly as it would go out; your chat says what it was
+        if tt and tt ~= "" then
+            SendChatMessage(text, "WHISPER", nil, tt)
+            P("|cffffd100TEST|r |cff999999(" .. where .. ") whispered to " .. tt .. " instead|r")
+        else P("|cffffd100TEST|r |cff999999(" .. where .. "):|r " .. Jobs.Icons(text)) end
+        return
+    end
+    SendChatMessage(text, ch, nil, to)
+end
+local function D(msg)
+    if Jobs.whyNow then Jobs.whyNow.why = msg end   -- for /si why NAME
+    if debugOn then P("|cff999999" .. msg .. "|r") end
+end
+-- An error in a background update, said once in your chat. The game hides Lua errors unless
+-- told to show them, so without this a failing update just looks like a frozen window (the
+-- owner, 13 Nov 2026: "it just kinda froze").
+local Report
+do
+  local reported = {}
+  Report = function(where, ok, err)
+    if ok or reported[where] then return end
+    reported[where] = true
+    P("|cffff4040error in " .. where .. ": " .. tostring(err) .. "|r  Please screenshot this line and send it.")
+  end
+end
 
 local function Opt(key)
     local o = ServiceInviterDB.opts
@@ -151,11 +261,11 @@ local function HasAny(norm, list)
 end
 
 -- Your own channels from Setup ("+ other channels"): usually dedicated summon channels.
-local DEFAULT_CHANNELS = "summons"
+MSG.CHANNELS = "summons"
 local function InExtraChannel(ch)
     ch = (ch or ""):lower()
     local list = ServiceInviterDB.chanextra
-    if type(list) ~= "string" then list = DEFAULT_CHANNELS end
+    if type(list) ~= "string" then list = MSG.CHANNELS end
     for name in list:lower():gmatch("[^,]+") do
         name = name:gsub("^%s+", ""):gsub("%s+$", "")
         if name ~= "" and ch:find(name, 1, true) then return true end
@@ -166,17 +276,52 @@ end
 -- Returns true, reason or false, reason.
 -- dedicated = the message came from one of your own channels, where everybody is asking for
 -- summons/ports anyway: "wtb uc" is enough, no summon/port word needed.
-local function Evaluate(norm, dedicated)
+-- What can be bought right now. From the old checkboxes when nothing else is given
+-- (and in the self-test), or from the group via LiveTargets (see below).
+local function OptTargets()
+    local T = { sum = {}, port = {}, items = {}, dests = DESTS }
+    for _, d in ipairs(DESTS) do
+        T.sum[d.key] = Opt("sum_" .. d.key) and true or false
+        T.port[d.key] = Opt("port_" .. d.key) and true or false
+    end
+    T.sumAny = Opt("sum_any") and true or false
+    T.portAny = Opt("port_any") and true or false
+    return T
+end
+
+-- Returns ok, why, service key, place (a destination label) .
+local function Evaluate(norm, dedicated, T)
+    T = T or OptTargets()
+    local dests = T.dests or DESTS
     local sell = HasAny(norm, SELLER)
     if sell then return false, "seller/ad word: " .. sell end
 
     local buy = HasAny(norm, Opt("strictbuy") and STRICTBUY or BUY)
+    -- "summon me" / "port me" asks for one, and no seller says it ("can summon you" is a
+    -- seller). The owner's screenshot, 12 Nov 2026: "hey anyone able to summon me to barrens
+    -- or org?" had no WTB/LF word and was missed.
+    if not buy and not Opt("strictbuy") then
+        for _, list in ipairs({ SUMMON_WORDS, PORT_WORDS }) do
+            for _, w in ipairs(list) do if not buy and Has(norm, w .. " me") then buy = w .. " me" end end
+        end
+    end
     if not buy then return false, "no buy word" end
-    if not HasAny(norm, STRICTBUY) then
+    -- LF is a buying word as clear as WTB (the owner, 13 Nov 2026: "LF means looking for", on
+    -- the near miss "LF UC SUmmon/port PST"). "LF guild" is looking for a guild, and "LFM" is
+    -- a seller word above.
+    local clear = HasAny(norm, STRICTBUY) or
+        ((HasAny(norm, { "lf", "lfs", "lfp" }) or Has(norm, "looking for")) and not Has(norm, "lf guild"))
+    if not clear then
         local soft = HasAny(norm, SOFTSELLER)
         if soft then return false, "seller/ad word '" .. soft .. "' without a WTB/buying word" end
         local c = HasAny(norm, CONTACT)
         if c then return false, "contact word '" .. c .. "' without a WTB/buying word" end
+    end
+
+    -- Lockpicking, water, stones, buffs: their own words, if someone here can do them.
+    for _, it in ipairs(T.items or {}) do
+        local w = HasAny(norm, it.words)
+        if w then return true, it.label .. " ('" .. w .. "'), buy=" .. buy, it.key end
     end
 
     local wantsSum  = HasAny(norm, SUMMON_WORDS) ~= nil
@@ -189,42 +334,263 @@ local function Evaluate(norm, dedicated)
 
     -- A place after "from" / "in" / "at" is where they ARE, not where they want to go:
     -- "port to UC from TB" is a UC request. Drop "from <place>" before matching.
-    local strippedFrom = false
-    for _, d in ipairs(DESTS) do
+    for _, d in ipairs(dests) do
         for _, w in ipairs(d.words) do
             for _, pre in ipairs({ " from ", " in ", " at " }) do
                 local n, count = norm:gsub(pre .. w .. " ", " ")
-                if count > 0 then norm = n strippedFrom = true end
+                if count > 0 then norm = n end
             end
         end
     end
 
     -- "port to TB in UC": an explicit "to <place>" is the destination; any other place
     -- named (in/at UC) is where they are standing, so it does not count.
-    local toKeys, anyTo = {}, false
-    for _, d in ipairs(DESTS) do
+    -- Only the FIRST "to <place>" counts: "port to UC then to TB" wants UC next, and a summon
+    -- to TB doesn't do that (the owner, 13 Nov 2026: "it shouldn't invite").
+    local toKeys, anyTo, firstAt = {}, false, nil
+    for _, d in ipairs(dests) do
         for _, w in ipairs(d.words) do
-            if norm:find(" to " .. w .. " ", 1, true) or norm:find(" 2 " .. w .. " ", 1, true) then toKeys[d.key] = true anyTo = true end
+            for _, pre in ipairs({ " to ", " 2 " }) do
+                local at = norm:find(pre .. w .. " ", 1, true)
+                if at and (not firstAt or at < firstAt) then firstAt, toKeys = at, { [d.key] = true } anyTo = true end
+            end
         end
     end
 
     local sawDest = false
-    for _, d in ipairs(DESTS) do
+    for _, d in ipairs(dests) do
         if (not anyTo or toKeys[d.key]) and HasAny(norm, d.words) then
-            sawDest = true
-            if wantsSum and Opt("sum_" .. d.key) then return true, "summon to " .. d.label .. ", buy=" .. buy end
-            if wantsPort and Opt("port_" .. d.key) then return true, "port to " .. d.label .. ", buy=" .. buy end
+            sawDest = sawDest or d.label
+            -- a summon fetches them from anywhere, so it answers a port request too;
+            -- a port (a mage) needs them to come to you, so it does not answer a summon request
+            if T.sum[d.key] then
+                if wantsSum then return true, "summon to " .. d.label .. ", buy=" .. buy, "summons", d.label end
+                if wantsPort then return true, "port request to " .. d.label .. ", you summon there, buy=" .. buy, "summons", d.label end
+            end
         end
     end
     if waived and not sawDest then return false, "no place named (needs one when there is no summon/port word)" end
-    if wantsSum and Opt("sum_any") then return true, "summon (any destination), buy=" .. buy end
-    if wantsPort and Opt("port_any") then return true, "port (any destination), buy=" .. buy end
-    if strippedFrom and not sawDest then sawDest = true end
-    if not sawDest and Opt("nodest") then
-        if wantsSum and Opt("sum_tb") then return true, "summon, no place named: assuming Thunder Bluff, buy=" .. buy end
-        if wantsPort and Opt("port_tb") then return true, "port, no place named: assuming Thunder Bluff, buy=" .. buy end
+    if (wantsSum or wantsPort) and T.sumAny then return true, "summon (any destination), buy=" .. buy, "summons" end
+    -- No place named ("WTB summon"): never assume where they want to go.
+    return false, sawDest and "that destination/service is not checked" or "no place named",
+        (wantsSum or wantsPort) and "summons" or nil, sawDest or nil
+end
+
+----------------------------------------------------------------------
+-- The group: who is here, what class and level, and where they are standing.
+----------------------------------------------------------------------
+local Core = ServiceInviterCore
+local function Faction()
+    local ok, f = pcall(function() return UnitFactionGroup and UnitFactionGroup("player") end)
+    return (ok and (f == "Horde" or f == "Alliance")) and f or "Horde"
+end
+local function ZoneOf(unit)
+    if unit == "player" then
+        local ok, z = pcall(function() return GetRealZoneText and GetRealZoneText() end)
+        if ok and type(z) == "string" and not IsSecret(z) and z ~= "" then return z end
+        return nil
     end
-    return false, sawDest and "that destination/service is not checked" or "no checked destination"
+    local ok, z = pcall(function()
+        local id = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit(unit)
+        local info = id and C_Map.GetMapInfo and C_Map.GetMapInfo(id)
+        return info and info.name
+    end)
+    if ok and type(z) == "string" and not IsSecret(z) and z ~= "" then return z end
+    return nil
+end
+-- Your own portals, from your spellbook (Forever spell ids; Portal: Undercity 11418 is
+-- confirmed for Forever, the rest are Classic's). If none are found the ids may differ on
+-- this client, so the level rule is used instead.
+local PORTAL_IDS = { ["Portal: Orgrimmar"] = 11417, ["Portal: Undercity"] = 11418, ["Portal: Thunder Bluff"] = 11420,
+    ["Portal: Stormwind"] = 10059, ["Portal: Ironforge"] = 11416, ["Portal: Darnassus"] = 11419 }
+local function MyKnownPortals(cls)
+    if cls ~= "MAGE" then return nil end
+    local knows, any = {}, false
+    for name, id in pairs(PORTAL_IDS) do
+        local k = false
+        if IsPlayerSpell then local ok, r = pcall(IsPlayerSpell, id) k = ok and r and true or false end
+        if not k and IsSpellKnown then local ok, r = pcall(IsSpellKnown, id) k = ok and r and true or false end
+        if k then knows[name] = true any = true end
+    end
+    return any and knows or nil
+end
+-- A unit's whole name. Forever names are first + surname, and UnitName gives them as two
+-- pieces ("Yeet", "Lock"); GetUnitName(unit, true) gives "Yeet Lock" (the owner's /dump, 13
+-- Nov 2026, after "why does it not capture yeet's full name"). Chat already sends the whole name.
+local function FullName(unit)
+    local ok, n = pcall(function() return GetUnitName and GetUnitName(unit, true) end)
+    if ok and type(n) == "string" and not IsSecret(n) and n ~= "" then return Ambiguate and Ambiguate(n, "none") or n end
+    local ok2, a = pcall(function() return UnitName and UnitName(unit) end)
+    if ok2 and type(a) == "string" and not IsSecret(a) and a ~= "" then return a end
+    return nil
+end
+local MARK_ORDER = { 1, 3, 4, 5, 6, 2, 7, 8 }   -- star, diamond, triangle, moon, square, circle, cross, skull
+local assignedMarks = {}                         -- name -> icon we gave them, kept steady while they stay
+local previewGroup                               -- set only while a Preview runs: a pretend group
+local function GroupSnapshot()
+    if previewGroup then return previewGroup end
+    local g = {}
+    local function add(unit, isMe)
+        if not isMe and not (UnitExists and UnitExists(unit)) then return end
+        -- anything the game hides (a secret value) is unknown: comparing one is an error
+        local function plain(v) if v == nil or IsSecret(v) then return nil end return v end
+        local name = FullName(unit)
+        if type(name) ~= "string" then return end
+        local okc, _, cls = pcall(UnitClass, unit)
+        local okl, lvl = pcall(function() return UnitLevel and UnitLevel(unit) end)
+        cls, lvl = okc and plain(cls) or nil, okl and plain(lvl) or nil
+        local m = { name = name, unit = unit, class = cls, level = (type(lvl) == "number" and lvl > 0) and lvl or nil, zone = ZoneOf(unit) }
+        local told = not isMe and Jobs.Team and Jobs.Team.seen[name]
+        if told and told.zone and told.zone ~= "" and GetTime() - told.t < 150 then m.zone = told.zone end
+        -- Who may provide (the owner, 13 Nov 2026: "so if a random lock were to join my party
+        -- sitting in UC would it assume they can summon there?"). A customer (someone who asked
+        -- for something) never does; with names given for a class, only those do (and you).
+        local j = Jobs.Get and Jobs.Get(name)
+        if j and j.service and j.status ~= "paid" and j.status ~= "done" and j.status ~= "left" then m.customer = true end
+        if Jobs.IsWorker and Jobs.IsWorker(name) then m.customer, m.worker = nil, true end
+        local only = type(ServiceInviterDB.providers) == "table" and ServiceInviterDB.providers[cls]
+        if type(only) == "string" and only:find("%S") then
+            local listed = false
+            for nm in only:gmatch("[^,]+") do
+                nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
+                if nm:lower() == name:lower() then listed = true end
+            end
+            if listed then m.customer = nil elseif not isMe then m.notProvider = true end
+        end
+        if isMe then
+            m.me = true
+            m.knows = MyKnownPortals(m.class)
+            if ServiceInviterDB.role == "lock" then m.summoner = true else m.notSummoner = true end
+        end
+        g[#g + 1] = m
+    end
+    add("player", true)
+    if IsInRaid and IsInRaid() then
+        for i = 1, 40 do
+            local u = "raid" .. i
+            if not (UnitIsUnit and UnitIsUnit(u, "player")) then add(u) end
+        end
+    else
+        for i = 1, 4 do add("party" .. i) end
+    end
+    -- Raid icons for whoever does a service (the owner: "I think that works fine"). An icon
+    -- someone already put on them is kept and used; otherwise star, diamond, triangle, moon,
+    -- square, circle, then cross and skull (groups use those two for kill targets).
+    if Opt("marks") then
+        local used = {}
+        for _, m in ipairs(g) do
+            local ok, idx = pcall(function() return GetRaidTargetIndex and GetRaidTargetIndex(m.unit) end)
+            if ok and type(idx) == "number" and not IsSecret(idx) and idx >= 1 and idx <= 8 then m.mark = idx used[idx] = true end
+        end
+        for _, m in ipairs(g) do
+            if not m.mark then
+                local provides = false
+                for _, def in ipairs(Core.SERVICES) do
+                    if Core.Setting(ServiceInviterDB, def.key).on and Core.CanDo(m, def) then provides = true break end
+                end
+                if provides then
+                    local want = assignedMarks[m.name]
+                    if not want or used[want] then
+                        want = nil
+                        for _, idx in ipairs(MARK_ORDER) do if not used[idx] then want = idx break end end
+                    end
+                    if want then m.mark, m.markOurs = want, true used[want] = true assignedMarks[m.name] = want end
+                end
+            end
+        end
+    end
+    return g
+end
+-- Is this name in the group? Two-part Forever names ("Yeet Lock") may not resolve through
+-- UnitInParty/UnitInRaid, so the group itself is checked too; returns the name as the group
+-- spells it. The owner, 14 Nov 2026: "all things must keep 2 part names in mind".
+-- Non-payers (the owner, 14 Nov 2026: "add a scam button rather than paid to record them as
+-- prior scammers and publicly say it when they join"). Kept with the saved settings.
+function Jobs.Scammer(name)
+    local t = ServiceInviterDB.scammers
+    if type(t) ~= "table" or type(name) ~= "string" then return nil end
+    for k, v in pairs(t) do if k:lower() == name:lower() then return v, k end end
+    return nil
+end
+function Jobs.ScamLine(name)
+    local m = ServiceInviterDB.scammsg
+    if m == nil then m = MSG.SCAM end
+    if m == "" then return nil end
+    return (m:gsub("{name}", function() return name end))
+end
+-- A recent customer: on the list now, or in the book within the hour (the owner, 14 Nov 2026: "i
+-- want to offer a recent customer a buff if they have left"). Returns the name as recorded.
+function Jobs.Recent(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    for _, j in ipairs(Jobs.All and Jobs.All() or {}) do if j.name:lower() == name:lower() then return j.name end end
+    local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+    for k, c in pairs(book) do
+        local now = (time and time()) or (os and os.time and os.time()) or 0
+        if k:lower() == name:lower() and c.last and now - c.last < 3600 then return k end
+    end
+    return nil
+end
+function Jobs.InGroup(name)
+    if type(name) ~= "string" or name == "" then return false end
+    for _, m in ipairs(GroupSnapshot()) do
+        if not m.me and m.name:lower() == name:lower() then return m.name end
+    end
+    if (UnitInParty and UnitInParty(name)) or (UnitInRaid and UnitInRaid(name)) then return name end
+    return false
+end
+-- Class colors, so a busy list reads at a glance (the owner: "can this use class colors and
+-- stuff to avoid a mass of confusing text"). The game's own colors when it has them.
+local CLASS_HEX = { WARLOCK = "ff8788ee", MAGE = "ff3fc7eb", ROGUE = "fffff569", PRIEST = "ffffffff",
+    DRUID = "ffff7c0a", PALADIN = "fff58cba", HUNTER = "ffaad372", SHAMAN = "ff0070dd", WARRIOR = "ffc69b6d" }
+local function ClassHex(cls)
+    local c = cls and RAID_CLASS_COLORS and RAID_CLASS_COLORS[cls]
+    if type(c) == "table" and type(c.colorStr) == "string" then return c.colorStr end
+    return cls and CLASS_HEX[cls] or nil
+end
+local function Colored(name, cls)
+    local h = ClassHex(cls)
+    return h and ("|c" .. h .. name .. "|r") or name
+end
+local function MemberName(m) return Colored(m.me and "you" or m.name, m.class) end
+
+local function DestFor(zone)
+    if not zone then return nil end
+    local z = zone:lower()
+    for _, d in ipairs(DESTS) do if d.label:lower() == z then return d end end
+    return nil
+end
+-- What can be bought right now, from who is in the group (see docs/DESIGN.md).
+local function LiveTargets(g)
+    g = g or GroupSnapshot()
+    local T = { sum = {}, port = {}, items = {}, dests = DESTS }
+    for _, it in ipairs(Core.OnSale(ServiceInviterDB, g, Faction())) do
+        if it.setting.invite then
+            if it.def.kind == "summon" then
+                -- each warlock summons to where they stand; unknown = no summon invites (never assume)
+                local d = DestFor(it.where)
+                if d then T.sum[d.key] = true
+                elseif it.where then
+                    -- a zone that isn't on the list: match its own name
+                    local key = "zone:" .. it.where:lower()
+                    if T.dests == DESTS then
+                        T.dests = {}
+                        for _, x in ipairs(DESTS) do T.dests[#T.dests + 1] = x end
+                    end
+                    -- "The Barrens" is just "barrens" in chat
+                    local name = it.where:lower()
+                    local words = { name }
+                    if name:find("^the ") then words[2] = name:gsub("^the ", "") end
+                    T.dests[#T.dests + 1] = { key = key, label = it.where, words = words }
+                    T.sum[key] = true
+                end
+            elseif it.def.kind == "portal" then
+                for _, city in ipairs(it.cities) do local d = DestFor(city) if d then T.port[d.key] = true end end
+            elseif it.setting.words then
+                T.items[#T.items + 1] = { key = it.key, label = it.def.label, words = Core.SplitWords(it.setting.words) }
+            end
+        end
+    end
+    return T
 end
 
 -- Returns true if we are the one who can invite directly (leader, or raid assistant).
@@ -239,7 +605,7 @@ end
 
 local function CanInvite()
     local direct = IsInviter()
-    if direct and IsInGroup() and not IsInRaid() and GetNumGroupMembers() >= MAX_PARTY then
+    if direct and IsInGroup() and not IsInRaid() and GetNumGroupMembers() >= LIMIT.MAX_PARTY then
         if C_PartyInfo and C_PartyInfo.ConvertToRaid then
             C_PartyInfo.ConvertToRaid()
         elseif ConvertToRaid then
@@ -247,6 +613,19 @@ local function CanInvite()
         end
     end
     return true, direct
+end
+
+local function JobWhere(job, g)
+    if not (job and job.service) then return "" end
+    g = g or GroupSnapshot()
+    local def = Core.BY_KEY[job.service]
+    if not def then return "" end
+    local p = Core.Provider(g, job.service, job.dest)
+    local what
+    if def.kind == "summon" then what = "-> " .. Core.Short(job.dest or (p and p.zone) or "?")
+    elseif def.kind == "portal" then what = "portal -> " .. Core.Short(job.dest or "?")
+    else what = def.label end
+    return p and (what .. "  ·  " .. MemberName(p)) or what
 end
 
 local function DoInvite(name)
@@ -263,15 +642,18 @@ end
 -- Jobs: one row per customer we invited, from invite to paid.
 ----------------------------------------------------------------------
 local JOB_STATUS = {
+    asked     = { "Asked",     "|cfff0d470" },   -- waiting for your click to invite (you're not the leader)
     invited   = { "Invited",   "|cfff0d470" },
     joined    = { "In group",  "|cff8fe3a0" },
     summoned  = { "Summoning", "|cff8fbff0" },
     arrived   = { "Arrived",   "|cff8fe3f0" },
     paid      = { "Paid",      "|cffb6d98a" },
+    done      = { "Done",      "|cffb6d98a" },   -- a free service, finished
     busy      = { "Has a group", "|cffffa040" },   -- invite failed: they are already in another group
     declined  = { "Declined",  "|cffff8080" },
     noanswer  = { "No answer", "|cffa89c78" },
     left      = { "Left",      "|cffa89c78" },
+    scammed   = { "Didn't pay", "|cffff8080" },
 }
 local MAX_JOBS = 30
 local INVITE_TIMEOUT = 120
@@ -294,28 +676,101 @@ local function Stats()
     st.ev = st.ev or 0   -- expected silver: price of everyone summoned
     return st
 end
-local function Price() return ServiceInviterDB.price or 25 end   -- stored in silver (100 silver = 1 gold)
-local function PriceParts(total)
-    total = math.floor(tonumber(total) or Price())
-    return math.floor(total / 100), total % 100
+-- The summons price (silver; 100 silver = 1 gold). Each service has its own: see JobPrice.
+local function Price() return Core.Setting(ServiceInviterDB, "summons").price or 0 end
+-- What one customer pays: their service's price, nil when it's free.
+-- Following the market (the owner, 14 Nov 2026: "dynamic pricing where we start at a certain
+-- amount and will not go below a certain amount but otherwise we compete with by undercutting
+-- another service by some amount"). A rival's summon ad for a city counts for 5 minutes; your
+-- price there is theirs minus your undercut, never above your own price nor below your floor.
+-- No floor set = it never moves (it won't guess how low you'd go).
+-- Each channel is its own market (the owner, 14 Nov 2026: "so 4 and 50 are kept apart, good, but
+-- how does that work for 42 8 1 etc" -- "it has to detect the different channels it is seeing
+-- and recognize sale posts in them to the same exact service and be dynamic to that chat").
+-- "Trade - English 50" and "Trade - English 4" never see each other's sellers, so a rival counts
+-- only in the channel they posted in, for the city they named. The price for a summon there: the
+-- max (your price) when nobody is cheaper; otherwise undercut the cheapest rival by N silver, or
+-- match them, never below the min (floor) nor above the max. No min set: it never moves.
+Jobs.rivals = {}          -- [market][city][seller] = { price, t }
+Jobs.RIVAL_LASTS = 300
+function Jobs.MarketOf(channelName)
+    if type(channelName) ~= "string" or IsSecret(channelName) or channelName == "" then return nil end
+    return (channelName:gsub("^%d+%.%s*", ""))
 end
--- {price} in messages: "25S" / "1G 25S" / "2G"   and   "25 SILVER" / "1 GOLD 25 SILVER" / "2 GOLD"
-local function PriceShort(total)
-    local g, sv = PriceParts(total)
-    if g == 0 and sv == 0 then return "FREE" end
-    local t = {}
-    if g > 0 then t[#t + 1] = g .. "G" end
-    if sv > 0 then t[#t + 1] = sv .. "S" end
-    return table.concat(t, " ")
+-- the cheapest rival for a city in a market, seen in the last 5 minutes
+function Jobs.Rival(where, market)
+    market = market or Jobs.priceMarket
+    local m = market and where and Jobs.rivals[market] and Jobs.rivals[market][where]
+    if not m then return nil end
+    local best
+    for who, r in pairs(m) do
+        if GetTime() - r.t <= Jobs.RIVAL_LASTS and (not best or r.price < best.price) then best = { price = r.price, t = r.t, who = who } end
+    end
+    return best
 end
-local function PriceLong(total)
-    local g, sv = PriceParts(total)
-    if g == 0 and sv == 0 then return "FREE" end
-    local t = {}
-    if g > 0 then t[#t + 1] = g .. " GOLD" end
-    if sv > 0 then t[#t + 1] = sv .. " SILVER" end
-    return table.concat(t, " ")
+function Jobs.PriceMode(saved)
+    local mode = saved.mode
+    if mode == nil then mode = saved.match and "undercut" or "ignore" end   -- before 3.1: one tick box
+    return mode
 end
+Core.LivePrice = function(key, base, saved, where)
+    if key ~= "summons" or not where then return base end
+    local mode = Jobs.PriceMode(saved)
+    if mode == "ignore" then return base end
+    local floor = tonumber(saved.floor)
+    if not floor then return base end
+    local r = Jobs.Rival(where)
+    if not r then return base end
+    local p = (mode == "match") and r.price or (r.price - (tonumber(saved.undercut) or 5))
+    return math.max(floor, math.min(base, p))
+end
+-- A rival's ad: a seller word, a summon word, a price, and the cities it names. Not you, not
+-- anyone in your group, not your workers.
+function Jobs.WatchRival(text, sender, market)
+    if type(text) ~= "string" or IsSecret(text) or type(sender) ~= "string" then return end
+    if not market then return end
+    local who = Ambiguate and Ambiguate(sender, "none") or sender
+    if who == FullName("player") or Jobs.IsWorker(who) or Jobs.InGroup(who) or (Jobs.IsTeam and Jobs.IsTeam(who)) then return end
+    local norm = Norm(text)
+    if not HasAny(norm, SELLER) or not HasAny(norm, SUMMON_WORDS) then return end
+    local price = Core.OfferedPrice(text)
+    if not price or price <= 0 then return end
+    local was = Jobs.priceMarket
+    Jobs.priceMarket = market
+    for _, d in ipairs(DESTS) do
+        if HasAny(norm, d.words) then
+            local before = Core.Setting(ServiceInviterDB, "summons", d.label).price
+            Jobs.rivals[market] = Jobs.rivals[market] or {}
+            Jobs.rivals[market][d.label] = Jobs.rivals[market][d.label] or {}
+            Jobs.rivals[market][d.label][who] = { price = price, t = GetTime() }
+            local now = Core.Setting(ServiceInviterDB, "summons", d.label).price
+            if before ~= now then
+                P("|cffffd100" .. Core.Short(d.label) .. " price in " .. market .. " now " .. (Core.Money(now) or "free") .. "|r (" .. who .. " is selling at " .. (Core.Money(price) or "?") .. ")")
+            end
+        end
+    end
+    Jobs.priceMarket = was
+end
+local function JobPrice(j)
+    -- the price they were told when invited stays theirs; otherwise today's for where they go
+    if j and j.price then return j.price end
+    return Core.Setting(ServiceInviterDB, (j and j.service) or "summons", j and j.dest).price
+end
+-- Who gets paid for this customer, and whether that's you.
+local function PayeeFor(j, g)
+    g = g or GroupSnapshot()
+    local key = (j and j.service) or "summons"
+    local p = Core.Provider(g, key, j and j.dest or nil)
+    local here = (j and j.dest) or (p and p.zone)
+    local payee = Core.Payee(ServiceInviterDB, g, key, p, here)
+    local me = FullName("player")
+    return payee, (payee == me), p
+end
+local function CollectsFor(j) local _, mine = PayeeFor(j) return mine end
+-- {price} in every message you write: the same everywhere, the way the ad says it ("30s",
+-- "1g50s", "free"). The owner, 12 Nov 2026, seeing "30s" in the welcome and "30 SILVER" in the
+-- summon alert: "why does price say 30s on one and 30 silver on the other".
+local function PriceText(silver) return Core.Money(silver) or "free" end
 -- "1g 25s", "2g", "150s", "25" (a bare number = silver)  ->  silver, or nil
 local function ParsePrice(text)
     text = (text or ""):lower()
@@ -325,8 +780,8 @@ local function ParsePrice(text)
     return n
 end
 local function Role() return ServiceInviterDB.role == "lock" and "lock" or "helper" end
-local DEFAULT_WHISPERMSG = "Summoning {name}. Next: {next}"   -- {name} = who we summon, {next} = who has waited longest after
-local DEFAULT_ALERTMSG = "SUMMONING {name}! PAY ME {price} IN THE TRADE WINDOW ON ARRIVAL!"
+MSG.WHISPERMSG = "Summoning {name}. Next: {next}"   -- {name} = who we summon, {next} = who has waited longest after
+MSG.ALERTMSG = "SUMMONING {name} TO {dest}! PAY {payee} {price} IN THE TRADE WINDOW ON ARRIVAL!"
 local OnCast            -- set below: reacts to a group member starting Ritual of Summoning
 local ShowAlert         -- set below: big on-screen "click the portal" banner
 local ToggleSetup       -- set below: opens the Setup window
@@ -335,16 +790,12 @@ local function AutoTradeOn()
 end
 -- Who takes the money is a setting, not the role: some nights the lock collects,
 -- some nights you do. Until it is set, the lock collects.
-local function Collects()
+local function Collects()   -- 1.5 setting, still read by /si collect's first toggle
     local c = ServiceInviterDB.collect
     if c == nil then return Role() == "lock" end
     return c and true or false
 end
-local function Money(silver)
-    local g, s = math.floor(silver / 100), silver % 100
-    if g > 0 then return g .. "g " .. s .. "s" end
-    return s .. "s"
-end
+local function Money(silver) return Core.Money(silver) or "0 silver" end
 
 local function SessionText()
     local st = Stats()
@@ -352,11 +803,11 @@ local function SessionText()
     if st.ev > 0 then text = text .. "   " .. math.floor(st.silver * 100 / st.ev + 0.5) .. "% collected" end
     local hours = (Now() - st.start) / 3600
     if hours >= 0.083 and st.silver > 0 then text = text .. "  (" .. Money(math.floor(st.silver / hours)) .. "/hr)" end
+    if (st.ads or 0) > 0 then text = text .. "   ads " .. st.ads .. ", answered " .. (st.answers or 0) end
     return text
 end
 local function NewSession() ServiceInviterDB.stats = nil return Stats() end
 
-local Jobs = {}
 function Jobs.All() return jobs end
 function Jobs.Get(name) return jobByName[name] end
 
@@ -365,7 +816,7 @@ function Jobs.New(name, text, why, channel)
     if old then
         for i, j in ipairs(jobs) do if j == old then table.remove(jobs, i) break end end
     end
-    local job = { name = name, text = text, why = why, channel = channel, status = "invited", t = GetTime() }
+    local job = { name = name, text = text, why = why, channel = channel, status = "invited", t = GetTime(), ts = GetTime() }
     jobs[#jobs + 1] = job
     jobByName[name] = job
     while #jobs > MAX_JOBS do
@@ -379,23 +830,249 @@ end
 function Jobs.Set(name, status)
     local j = jobByName[name]
     if not j or j.status == status then return j end
-    if status == "summoned" then Stats().summoned = Stats().summoned + 1 Stats().ev = Stats().ev + Price() j.tsummon = GetTime() end
+    if status == "summoned" then Stats().summoned = Stats().summoned + 1 Stats().ev = Stats().ev + (JobPrice(j) or 0) j.tsummon = GetTime() end
+    -- the customer book: a summon counts when it goes out, anything else at Paid / Done
+    if status == "summoned" or ((status == "paid" or status == "done") and j.service ~= "summons") then Jobs.Record(j) end
     if status == "arrived" then j.tarrive = GetTime() end
-    if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or Price()) end
-    if status == "paid" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
+    if status == "paid" then Stats().paid = Stats().paid + 1 Stats().silver = Stats().silver + (j.amount or JobPrice(j) or 0) end
+    if status == "paid" or status == "done" or status == "left" or status == "declined" or status == "noanswer" then j.tdone = GetTime() end
     j.status = status
+    j.ts = GetTime()   -- when it got to this status, for "waiting 1m 20s"
     jobsChanged()
     return j
 end
 
+-- The customer book (the owner, 13 Nov 2026: "can it store our customer base and how many
+-- times they use us and when"): kept in the saved settings, so it lasts across sessions.
+-- { n = times, by = { summons = 3, ... }, worth = silver at your price then, first, last }
+function Jobs.Record(j)
+    if not j or j.recorded or Jobs.IsWorker(j.name) then return end
+    j.recorded = true
+    local db = ServiceInviterDB
+    db.customers = type(db.customers) == "table" and db.customers or {}
+    local now = Now()
+    local c = db.customers[j.name] or { n = 0, by = {}, worth = 0, first = now }
+    local key = j.service or "other"
+    c.n = c.n + 1
+    c.by[key] = (c.by[key] or 0) + 1
+    c.worth = (c.worth or 0) + (JobPrice(j) or 0)
+    c.last = now
+    -- where they went, and the totals for /si stats (the owner, 13 Nov 2026: "it should also
+    -- track analytics like where they went and stuff for us to know")
+    local where = j.dest or "?"
+    c.to = c.to or {}
+    c.to[where] = (c.to[where] or 0) + 1
+    db.customers[j.name] = c
+    local a = type(db.analytics) == "table" and db.analytics or { n = 0, worth = 0, to = {}, by = {}, hour = {}, day = {}, since = now }
+    local fmt = date or (os and os.date)
+    local t = fmt and fmt("*t", now)
+    a.n = a.n + 1
+    a.worth = a.worth + (JobPrice(j) or 0)
+    a.to[where] = (a.to[where] or 0) + 1
+    a.by[key] = (a.by[key] or 0) + 1
+    if type(t) == "table" then
+        a.hour[t.hour] = (a.hour[t.hour] or 0) + 1
+        a.day[t.wday] = (a.day[t.wday] or 0) + 1
+    end
+    db.analytics = a
+end
+-- Near misses: business we could have had (the owner, 14 Nov 2026: "when we record a near miss
+-- can we have some data about how much business we could have had"). Counted once per person
+-- per 10 minutes (split messages and repeats are one ask), valued at your price for the service.
+function Jobs.NearMiss(name, why, key, dest)
+    Jobs.nearSeen = Jobs.nearSeen or {}
+    local now = GetTime()
+    if Jobs.nearSeen[name] and now - Jobs.nearSeen[name] < 600 then return end
+    Jobs.nearSeen[name] = now
+    local db = ServiceInviterDB
+    local a = type(db.analytics) == "table" and db.analytics or { n = 0, worth = 0, to = {}, by = {}, hour = {}, day = {}, since = Now() }
+    a.near = type(a.near) == "table" and a.near or { n = 0, worth = 0, why = {}, to = {} }
+    local w = tostring(why or "")
+    local reason = (w:find("under your", 1, true) and "offered under your price")
+        or (w:find("people; a summon", 1, true) and "asked for a group")
+        or (w:find("soul shards", 1, true) and "out of shards")
+        or (w:find("not checked", 1, true) and "a place you don't serve")
+        or (w:find("no place named", 1, true) and "didn't say where")
+        or ((w:find("seller", 1, true) or w:find("contact word", 1, true)) and "read as an ad")
+        or (w:find("didn't pay", 1, true) and "didn't pay before")
+        or w:gsub("%b''", ""):gsub("%d+", ""):sub(1, 40)
+    local st = key and Core.BY_KEY[key] and Core.Setting(db, key, dest)
+    local price = st and st.price or 0
+    a.near.n = a.near.n + 1
+    a.near.worth = a.near.worth + price
+    a.near.why[reason] = (a.near.why[reason] or 0) + 1
+    if dest then a.near.to[dest] = (a.near.to[dest] or 0) + 1 end
+    db.analytics = a
+end
+-- /si stats: who, where, what, when, since the book started
+function Jobs.PrintStats()
+    local db = ServiceInviterDB
+    local a, book = db.analytics, type(db.customers) == "table" and db.customers or {}
+    local function NearLines()
+        local nm = type(a) == "table" and a.near
+        if not nm or nm.n == 0 then return end
+        local function list(t)
+            local l = {}
+            for k, v in pairs(t) do l[#l + 1] = { k, v } end
+            table.sort(l, function(x, y) return x[2] > y[2] end)
+            local out = {}
+            for _, e in ipairs(l) do out[#out + 1] = e[1] .. " " .. e[2] end
+            return table.concat(out, ", ")
+        end
+        P("Near misses: " .. nm.n .. ", worth " .. Money(nm.worth) .. " at your prices")
+        P("Why we missed them: " .. list(nm.why))
+        if next(nm.to) then P("Where they wanted to go: " .. list(nm.to)) end
+    end
+    if type(a) ~= "table" or a.n == 0 then P("no customers yet: they start with the first summon or Paid") NearLines() return end
+    -- uses and worth from the book, which began before these stats did ("198 uses by 203
+    -- customers", the owner's /si stats, 14 Nov 2026)
+    local people, back, uses, worth, first = 0, 0, 0, 0, a.since
+    for _, c in pairs(book) do
+        people = people + 1
+        if c.n > 1 then back = back + 1 end
+        uses, worth = uses + (c.n or 0), worth + (c.worth or 0)
+        if c.first and (not first or c.first < first) then first = c.first end
+    end
+    local function top(t, name, limit)
+        local list = {}
+        for k, v in pairs(t or {}) do list[#list + 1] = { k, v } end
+        table.sort(list, function(x, y) return x[2] > y[2] end)
+        local out = {}
+        for i = 1, math.min(limit or 99, #list) do out[#out + 1] = name(list[i][1]) .. " " .. list[i][2] end
+        return #out > 0 and table.concat(out, ", ") or "none yet"
+    end
+    local DAYS = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
+    P("Since " .. Jobs.When(first):gsub(" %d+:%d+$", "") .. ": " .. uses .. " uses by " .. people .. " customers (" .. back ..
+        " came back), worth " .. Money(worth))
+    P("Where they went: " .. top(a.to, function(k) return k end))
+    P("Services: " .. top(a.by, function(k) return (Core.BY_KEY[k] and Core.BY_KEY[k].label) or k end))
+    P("Busiest hours: " .. top(a.hour, function(h) return ("%02d:00"):format(h) end, 3))
+    P("Busiest days: " .. top(a.day, function(d) return DAYS[d] or d end, 3))
+    NearLines()
+end
+-- Soul shards (the owner, 13 Nov 2026: "i want a running counter of summons - like our inv and
+-- expected amount left so it knows to stop"). Yours are read from your bags when you're the
+-- warlock ("built in for the lock"); other warlocks' you type: /si shards 20. Nil: not counting.
+function Jobs.Shards()
+    -- only when "Count soul shards" is ticked (the owner, 14 Nov 2026: "having 0 soul shards
+    -- should not stop me from inviting if i skip inputting it" -- "maybe a toggle")
+    if not Opt("countshards") then return nil end
+    local typed = tonumber(ServiceInviterDB.shards)
+    local okc, _, cls = pcall(UnitClass, "player")
+    local own = okc and cls == "WARLOCK" and GetItemCount and (tonumber(GetItemCount(6265)) or 0) or nil
+    if not typed and not own then return nil end
+    return (own or 0) + (typed or 0), own, typed
+end
+-- Workers: your own people, there to click (the owner, 13 Nov 2026: "a way to mark workers so
+-- that it doesnt get confused when a worker joins after the raid forms" -- "if someone is just
+-- there clicking they won't be a warlock summoning they are just there and click"). A worker
+-- never gets a customer row, a welcome or the regulars line, and is never invited from chat.
+-- /si worker NAME (or your target), /si workers group marks everyone in the group now.
+function Jobs.IsWorker(name)
+    if Jobs.IsTeam and Jobs.IsTeam(name) then return true end   -- teammates are never customers
+    local w = ServiceInviterDB.workers
+    if type(w) ~= "table" or not name then return false end
+    name = name:lower()
+    for k in pairs(w) do if k:lower() == name then return true end end
+    return false
+end
+function Jobs.SetWorker(name, on)
+    ServiceInviterDB.workers = type(ServiceInviterDB.workers) == "table" and ServiceInviterDB.workers or {}
+    for k in pairs(ServiceInviterDB.workers) do if k:lower() == name:lower() then ServiceInviterDB.workers[k] = nil end end
+    if on then
+        -- the name as the game spells it, when they're in the group or on the list
+        for _, m in ipairs(GroupSnapshot()) do if m.name:lower() == name:lower() then name = m.name end end
+        for _, j in ipairs(jobs) do if j.name:lower() == name:lower() then name = j.name end end
+        ServiceInviterDB.workers[name] = true
+        local j = Jobs.Get(name)
+        if j and not j.service then Jobs.Remove(name) end   -- the "joined your group" row goes
+    end
+    return name
+end
+-- summons still to do: buyers invited or waiting who haven't been summoned yet
+function Jobs.Queued()
+    local n = 0
+    for _, j in ipairs(jobs) do
+        if j.service == "summons" and (j.status == "invited" or j.status == "asked" or j.status == "joined") then n = n + 1 end
+    end
+    return n
+end
+function Jobs.ShardsLeft()
+    local have = Jobs.Shards()
+    return have and (have - Jobs.Queued()) or nil
+end
+-- Times they used you before this visit (0 for someone new).
+function Jobs.Before(j)
+    if j and j.previewBefore then return j.previewBefore end   -- Preview's pretend regular
+    local c = j and type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers[j.name]
+    if not c then return 0 end
+    return c.n - (j.recorded and 1 or 0)
+end
+function Jobs.Ordinal(n)
+    local tail = n % 100
+    local suf = (tail >= 11 and tail <= 13) and "th" or ({ "st", "nd", "rd" })[n % 10] or "th"
+    return n .. suf
+end
+function Jobs.When(t)
+    local fmt = date or (os and os.date)
+    return (fmt and t) and fmt("%b %d %H:%M", t) or "?"
+end
+
+-- Your regulars in chat: the top 10 by visits, or one person's history (/si customers NAME,
+-- the first letters are enough). The owner, 13 Nov 2026: "how can i see the list of people in
+-- game we have collected - or like top 10 at least".
+function Jobs.PrintRegulars(want)
+    local book = type(ServiceInviterDB.customers) == "table" and ServiceInviterDB.customers or {}
+    local function line(name, c)
+        local by = {}
+        for k, v in pairs(c.by or {}) do by[#by + 1] = v .. " " .. ((Core.BY_KEY[k] and Core.BY_KEY[k].label) or k) end
+        table.sort(by)
+        local to = {}
+        for k, v in pairs(c.to or {}) do to[#to + 1] = v .. "x " .. k end
+        table.sort(to)
+        return name .. ": " .. c.n .. (c.n == 1 and " time" or " times") .. " (" .. table.concat(by, ", ") .. ")" ..
+            (#to > 0 and (", to " .. table.concat(to, ", ")) or "") .. ", worth " ..
+            Money(c.worth or 0) .. ", first " .. Jobs.When(c.first) .. ", last " .. Jobs.When(c.last)
+    end
+    want = (want or ""):lower()
+    local all = want == "all"   -- /si customers all: everyone, not just the top 10
+    if all then want = "" end
+    if want ~= "" then
+        for name, c in pairs(book) do
+            if name:lower() == want or name:lower():find(want, 1, true) == 1 then P(line(name, c)) return end
+        end
+        P("no customer named " .. want .. " in the book")
+        return
+    end
+    local list = {}
+    for name, c in pairs(book) do list[#list + 1] = { name, c } end
+    table.sort(list, function(a, b) if a[2].n ~= b[2].n then return a[2].n > b[2].n end return (a[2].last or 0) > (b[2].last or 0) end)
+    if #list == 0 then P("the customer book is empty so far") return end
+    local shown = all and #list or math.min(10, #list)
+    P((all and "All " .. #list or ("Top " .. shown .. " of " .. #list)) .. " customers:" ..
+        ((not all and #list > 10) and "  (/si customers all for everyone)" or ""))
+    for i = 1, shown do P(i .. ". " .. line(list[i][1], list[i][2])) end
+end
+
+function Jobs.ClearLeft()
+    local gone = {}
+    for _, j in ipairs(jobs) do if j.status == "left" then gone[#gone + 1] = j.name end end
+    for _, n in ipairs(gone) do Jobs.Remove(n) end
+    P(#gone == 0 and "nobody on the list has left" or ("cleared " .. #gone .. " who left"))
+end
 function Jobs.Joined(name)
     local j = jobByName[name]
-    if j and j.status == "invited" then Jobs.Set(name, "joined") return true end
+    if j and (j.status == "invited" or j.status == "asked") then Jobs.Set(name, "joined") return true end
     return false
 end
 function Jobs.Left(name)
     local j = jobByName[name]
-    if j and (j.status == "joined" or j.status == "invited" or j.status == "summoned" or j.status == "arrived") then Jobs.Set(name, "left") end
+    if j and (j.status == "joined" or j.status == "invited" or j.status == "summoned" or j.status == "arrived") then
+        -- left after the summon, unpaid: the row stays with Paid and Scam until you pick one (the
+        -- owner, 14 Nov 2026: "when someone leaves it takes away the option to pick scam?")
+        if (j.status == "summoned" or j.status == "arrived") and JobPrice(j) then j.owes = true end
+        Jobs.Set(name, "left")
+    end
 end
 function Jobs.Declined(name)
     local j = jobByName[name]
@@ -418,7 +1095,7 @@ function Jobs.Busy(name)
 end
 function Jobs.Expire(now)
     for _, j in ipairs(jobs) do
-        if j.status == "invited" and now - j.t > INVITE_TIMEOUT then Jobs.Set(j.name, "noanswer") end
+        if (j.status == "invited" or j.status == "asked") and now - j.t > INVITE_TIMEOUT * 1.5 then Jobs.Set(j.name, "noanswer") end
         if j.status == "busy" and now - j.t > 300 then Jobs.Set(j.name, "noanswer") end
     end
 end
@@ -430,6 +1107,40 @@ function Jobs.Remove(name)
     jobsChanged(true)
 end
 function Jobs.Clear() wipe(jobs) wipe(jobByName) jobsChanged(true) end
+
+-- A customer's name in party/raid chat, between a raid icon of its own: one the helpers
+-- aren't using, kept while they're a customer (the owner, 13 Nov 2026: "the raid icons
+-- dont have anything for neato"). Chat only: the game won't let an addon mark heads.
+function Jobs.Label(job, name)
+    name = name or (job and job.name) or ""
+    if not (job and Opt("marks")) then return name end
+    if not job.mark then
+        local used = {}
+        for _, m in ipairs(GroupSnapshot()) do if m.mark then used[m.mark] = true end end
+        for _, j in ipairs(jobs) do if j ~= job and j.mark and not j.tdone then used[j.mark] = true end end
+        for _, idx in ipairs(MARK_ORDER) do if not used[idx] then job.mark = idx break end end
+        if not job.mark then return name end   -- all eight in use: just the name
+    end
+    return Core.Mark(job.mark, name)
+end
+
+-- Thanks when they're done (the owner, 12 Nov 2026: "Paid should also remove from party and
+-- maybe send a thank you"). A whisper, so it still reaches them after they leave the group.
+MSG.THANKS = "Thanks {name}! Enjoy."
+MSG.LOYALTY = "Welcome back, {visits} time with us!"
+local function ThanksText(name)
+    if ServiceInviterDB.thanks == false then return nil end
+    local m = ServiceInviterDB.thanksmsg
+    if m == nil then m = MSG.THANKS end
+    if m == "" then return nil end
+    return (m:gsub("{name}", function() return name end))
+end
+local function Thank(j)
+    if not j or j.thanked then return end
+    j.thanked = true
+    local t = ThanksText(j.name)
+    if t then pcall(Jobs.Route, "thanks", t, j.name) end
+end
 
 -- Companion mode: remember what each person last said, and when ANY invite goes
 -- out (Trade Inviter, another addon, or you by hand) add that person to the list.
@@ -450,6 +1161,7 @@ local warned = false
 local function OnInviteCall(name)
     local ok, err = pcall(function()
         if SI_SELF_INVITING or type(name) ~= "string" or name == "" then return end
+        if ServiceInviterDB.stasis then return end   -- stopped: your own invites are yours alone
         local short = Ambiguate and Ambiguate(name, "none") or name
         local now = GetTime()
         local existing = jobByName[short]
@@ -481,7 +1193,7 @@ local function UnderRateLimit(now)
         if now - t < 60 then kept[#kept + 1] = t end
     end
     inviteTimes = kept
-    return #inviteTimes < MAX_PER_MINUTE
+    return #inviteTimes < LIMIT.MAX_PER_MINUTE
 end
 
 local function IsBlocked(short, guid)
@@ -495,18 +1207,20 @@ local function IsBlocked(short, guid)
 end
 
 local curChannel = ""
-local DEFAULT_KEYWORDS = "inv, invite"
+MSG.KEYWORDS = "inv, invite"
 -- Keywords are for short, plain "inv" requests. Anything that reads like an ad or a
 -- summon/port line (seller words, port/summon words, long text) goes to the normal matcher.
-local function KeywordHit(text, whisper)
-    if not Opt("kwon") or type(text) ~= "string" or #text > 30 then return nil end
+local lastAdAt                 -- when you last posted an ad (see Advertise)
+local AD_ANSWER_WINDOW = 600   -- a whispered "inv" within 10 minutes of your ad answers it
+local function KeywordHit(text, whisper, force)
+    if not (Opt("kwon") or force) or type(text) ~= "string" or #text > 30 then return nil end
     local norm = Norm(text)
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
     if count > (whisper and 3 or 2) then return nil end
     if HasAny(norm, SELLER) or HasAny(norm, SOFTSELLER) or HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS) then return nil end
     local list = ServiceInviterDB.kwwords
-    if type(list) ~= "string" or list:gsub("[%s,]", "") == "" then list = DEFAULT_KEYWORDS end
+    if type(list) ~= "string" or list:gsub("[%s,]", "") == "" then list = MSG.KEYWORDS end
     local words = {}
     for w in (text:lower():gsub("[^%w%s]", " ")):gmatch("%S+") do words[w] = true end
     for k in list:lower():gmatch("[^,]+") do
@@ -515,13 +1229,55 @@ local function KeywordHit(text, whisper)
     end
 end
 
+-- Invite a buyer (or, in test mode, run them through without inviting): used for your own buyers
+-- and for buyers a teammate hands you as the point of contact. quote: the price they were told.
+function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, answered, test)
+    local now = GetTime()
+    lastInvite[short] = now
+    fragments[short] = nil
+    if test then
+        D("test mode: not invited")
+        Jobs.Rehearse(short, text, why, svc, dest, channel, quote, test.to, market)
+        return
+    end
+    -- no invites-a-minute cap (the owner, 14 Nov 2026: "do not limit the invites to 6 did we
+    -- confirm that was needed"): it was ours, not the game's
+    CanInvite()   -- turns a full party into a raid when you can
+    inviteTimes[#inviteTimes + 1] = now
+    -- Always invite, leader or not, as it did through 2.4.1 (the owner, 13 Nov 2026: "it is so dumb
+    -- to have to press invite - it worked yesterday").
+    DoInvite(short)
+    pending[short] = now
+    Jobs.invitedNow = true
+    local job = Jobs.New(short, text, why, channel)
+    job.service, job.dest, job.market = svc, dest, market
+    job.price = quote   -- what they pay, even if the market moves
+    if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
+    if Opt("announce") then
+        local what = JobWhere(job)
+        if what == "" then what = answered and "(answered your ad)" or why end
+        P("invited " .. short .. "  " .. what .. (market and ("  · " .. market .. ", " .. (Core.Money(quote) or "free")) or ""))
+        -- exactly why, always (the owner, 13 Nov 2026: "why is it no longer telling me exactly why
+        -- people are invited? i want that")
+        P("|cff999999   because [" .. tostring(channel) .. "] \"" .. tostring(text) .. "\" = " .. tostring(why) .. "|r")
+    end
+    if Jobs.TeamSay then Jobs.TeamSay("GOT", short, FullName("player") or "") end
+end
 local function Handle(text, sender, guid)
     if paused then return end
-    if not (Opt("enabled") or Opt("kwon")) or not sender or sender == "" then D("skip: addon off or no sender") return end
+    local now0 = GetTime()
+    local adOpen = lastAdAt and (now0 - lastAdAt) < AD_ANSWER_WINDOW
+    if not (Opt("enabled") or Opt("kwon") or (adOpen and curChannel == "whisper")) or not sender or sender == "" then D("skip: addon off or no sender") return end
     if Opt("skipafk") and UnitIsAFK and UnitIsAFK("player") then D("skip: you are AFK (see 'Skip while I'm AFK')") return end
     local short = Ambiguate and Ambiguate(sender, "none") or sender
-    if short == UnitName("player") then return end
-    if UnitInParty(short) or UnitInRaid(short) then D(short .. ": already in your group") return end
+    if Jobs.IsWorker(short) then D("skip: " .. short .. " is one of your workers") return end
+    if Jobs.Scammer(short) then
+        D("didn't pay last time")
+        if not Jobs.Get(short) then P("|cffff8080skipped|r " .. short .. ": didn't pay last time (/si unscam " .. short .. " to clear)") end
+        return
+    end
+    if short == FullName("player") then return end
+    if Jobs.InGroup(short) then D(short .. ": already in your group") return end
     if IsBlocked(short, guid) then D(short .. ": blocked/ignored") return end
 
     local now = GetTime()
@@ -530,10 +1286,17 @@ local function Handle(text, sender, guid)
 
     local norm = Norm(text)
     local kw = KeywordHit(text, curChannel == "whisper")
+    local answered
+    if not kw and adOpen and curChannel == "whisper" then
+        kw = KeywordHit(text, true, true)
+        answered = kw and math.floor(now - lastAdAt) or nil
+    end
     local ded = InExtraChannel(curChannel)
-    local ok, why
-    if kw then ok, why = true, "keyword '" .. kw .. "'"
-    elseif Opt("enabled") then ok, why = Evaluate(norm, ded)
+    local T = LiveTargets()
+    local ok, why, svc, dest
+    if answered then ok, why = true, "answered your ad " .. answered .. "s ago"
+    elseif kw then ok, why = true, "keyword '" .. kw .. "'"
+    elseif Opt("enabled") then ok, why, svc, dest = Evaluate(norm, ded, T)
     else ok, why = false, "invites are off (only keywords are on)" end
     diag.eval = { who = short, ok = ok, why = why, t = GetTime() }
 
@@ -541,24 +1304,51 @@ local function Handle(text, sender, guid)
         local frags = fragments[short] or {}
         local fresh = {}
         for _, f in ipairs(frags) do
-            if now - f.t < FRAGMENT_WINDOW then fresh[#fresh + 1] = f end
+            if now - f.t < LIMIT.FRAGMENT_WINDOW then fresh[#fresh + 1] = f end
         end
         fresh[#fresh + 1] = { t = now, n = norm }
-        while #fresh > MAX_FRAGMENTS do table.remove(fresh, 1) end
+        while #fresh > LIMIT.MAX_FRAGMENTS do table.remove(fresh, 1) end
         fragments[short] = fresh
 
         if not ok and #fresh > 1 then
             local parts = {}
             for _, f in ipairs(fresh) do parts[#parts + 1] = f.n end
-            ok, why = Evaluate(" " .. table.concat(parts, " ") .. " ", ded)
+            ok, why, svc, dest = Evaluate(" " .. table.concat(parts, " ") .. " ", ded, T)
             if ok then why = "fragments: " .. why end
         end
     end
 
+    -- A buyer naming less than your price is not invited (the owner, 13 Nov 2026, on "wtb tb sum
+    -- 25s" at 35 silver: "this is below our price ... this should be filtered out"). Said as a
+    -- near miss, so you can still invite them yourself.
+    if ok and svc then
+        local price = Core.Setting(ServiceInviterDB, svc, dest).price
+        local offer = Core.OfferedPrice(text)
+        if price and offer and offer < price then
+            ok, why = false, "offers " .. Money(offer) .. ", under your " .. Money(price)
+        end
+    end
+    -- a summon is one person at a time (the owner, 13 Nov 2026, on "WTB port for 2 to UC": "we
+    -- would not want to accept multiple people for our summon"); a portal takes a group
+    if ok and svc == "summons" then
+        local heads = Core.PartySize(text)
+        if heads then ok, why = false, "asks for " .. heads .. " people; a summon is one at a time" end
+    end
+    -- no shards left for them once the queue is summoned: stop inviting summon buyers
+    if ok and svc == "summons" then
+        local left = Jobs.ShardsLeft()
+        if left and left <= 0 then
+            ok, why = false, "out of soul shards (" .. Jobs.Shards() .. " left, " .. Jobs.Queued() .. " already queued; /si shards N to top up)"
+        end
+    end
+
     -- Near miss: sounds like a buyer (buy word + summon/port word, not a seller) but we said no.
-    if not ok and ServiceInviterDB.near ~= false and not HasAny(norm, SELLER)
+    if not ok and not HasAny(norm, SELLER)
         and HasAny(norm, BUY) and (HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS)) then
-        P("|cffffa040NEAR MISS|r " .. short .. " [" .. curChannel .. "] \"" .. text .. "\" -> " .. why)
+        Jobs.NearMiss(short, why, svc or "summons", dest)
+        if ServiceInviterDB.near ~= false then
+            P("|cffffa040NEAR MISS|r " .. short .. " [" .. curChannel .. "] \"" .. text .. "\" -> " .. why)
+        end
     end
 
     -- Only talk about messages that look like summon/port talk, so debug stays readable.
@@ -567,26 +1357,21 @@ local function Handle(text, sender, guid)
     end
     if not ok then return end
 
-    if ServiceInviterDB.dryrun then
-        P("|cffffd100DRY RUN|r would invite " .. short .. " because [" .. curChannel .. "] \"" .. text .. "\" = " .. why)
+    local quote = Core.Setting(ServiceInviterDB, svc or "summons", dest).price   -- this channel's price, now
+    -- a team with a point of contact who isn't you: hand them the buyer and the quote (the owner,
+    -- 14 Nov 2026: "i told you i want a point of contact, so that. it just gives them that point in
+    -- time price"). They invite and do the talking; you never reach the stranger.
+    local poc = Jobs.POC and Jobs.POC()
+    if poc and poc ~= FullName("player") then
+        lastInvite[short] = now
+        fragments[short] = nil
+        Jobs.HandOff(poc, short, svc, dest, quote, curChannel, Jobs.market, text, why)
+        Jobs.invitedNow = true
         return
     end
-
-    if not UnderRateLimit(now) then P("|cffff8040matched " .. short .. " but hit the 6 invites/min limit|r") return end
-    local _, direct = CanInvite()
-
-    lastInvite[short] = now
-    fragments[short] = nil
-    inviteTimes[#inviteTimes + 1] = now
-    DoInvite(short)
-    pending[short] = now
-    Jobs.New(short, text, why, curChannel)
-    if Opt("announce") then
-        local what = " because [" .. curChannel .. "] \"" .. text .. "\" = " .. why
-        P(direct and ("invited " .. short .. what) or ("suggested invite for " .. short .. " (you are not the leader)" .. what))
-    end
+    Jobs.InviteBuyer(short, text, why, svc, dest, quote, curChannel, Jobs.market, answered,
+        ServiceInviterDB.dryrun and { to = ServiceInviterDB.testto } or nil)
 end
-
 -- Join detection: the game prints "<name> joins the party." / "has joined the raid group."
 local function PatternFrom(globalStr, fallback)
     local g = (type(globalStr) == "string" and globalStr ~= "") and globalStr or fallback
@@ -598,11 +1383,68 @@ local JOIN_PATTERNS = {
     PatternFrom(ERR_RAID_MEMBER_ADDED_S, "%s has joined the raid group."),
 }
 
-local function WelcomeText(name)
-    local msg = ServiceInviterDB.welcomemsg
-    if not msg or msg == "" then msg = DEFAULT_WELCOME end
-    msg = msg:gsub("{name}", name)
-    return (msg:gsub("{price}", PriceShort()))
+-- The line a regular hears ("Regulars hear" box), filled in; nil for a first-timer or when
+-- the box is empty. The owner, 13 Nov 2026: "can we even announce loyalty in the chat?",
+-- "HOW CAN I SAY SOMETHING LIKE THIS IS YOUR 4TH TIME!!", "can you make this simpler?".
+function Jobs.LoyaltyLine(job)
+    local before = Jobs.Before(job)
+    local line = ServiceInviterDB.loyaltymsg
+    if line == nil then line = (Opt("loyalty") ~= false) and MSG.LOYALTY or "" end   -- an old unticked box: off
+    if before <= 0 or line == "" then return nil end
+    local caps = line:gsub("{%a+}", "") == line:gsub("{%a+}", ""):upper() and line:find("%a")
+    local nth = Jobs.Ordinal(before + 1)
+    line = line:gsub("{visits}", function() return caps and nth:upper() or nth end)
+    -- {name} too (the owner, 13 Nov 2026: "can i use {name} in regular hear")
+    return (line:gsub("{name}", function() return Jobs.Label(job, job.name) end))
+end
+
+local function WelcomeText(name, job)
+    job = job or Jobs.Get(name)
+    local g, fac = GroupSnapshot(), Faction()
+    local loyal = job and Jobs.LoyaltyLine(job)
+    -- A regulars line with {name} in it greets them itself, so it takes the place of the hello at
+    -- the start of the welcome rather than repeating the name (the owner, 13 Nov 2026: "i dont
+    -- want them to see hi your name welcome back your name later").
+    local named = loyal and (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
+    local function Lead(rest)
+        rest = (rest or ""):gsub("^%s+", "")
+        local sep = loyal:find("[%.!?]%s*$") and " " or ". "
+        return rest ~= "" and (loyal:gsub("%s+$", "") .. sep .. rest) or loyal
+    end
+    local custom = ServiceInviterDB.welcomemsg
+    if custom and custom ~= "" and custom ~= MSG.WELCOME then
+        local key = (job and job.service) or "summons"
+        local payee, mine = PayeeFor(job, g)
+        local price = PriceText(JobPrice(job))
+        local label = Core.BY_KEY[key].label
+        local hasVisits = custom:find("{visits}", 1, true)
+        -- the hello: the first sentence, when it carries {name} ("Hi {name}!")
+        local greet = named and not hasVisits and custom:match("^%s*[^%.!?]-{name}[^%.!?]*[%.!?]+%s*")
+        if greet then custom = custom:sub(#greet + 1) end
+        custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
+        custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
+        custom = custom:gsub("{visits}", function()
+            local nth = Jobs.Ordinal(Jobs.Before(job) + 1)
+            return (custom:gsub("{%a+}", "") == custom:gsub("{%a+}", ""):upper()) and nth:upper() or nth
+        end)
+        -- your own welcome without {visits}: a regular gets the "Regulars hear" line after it
+        -- (the owner's: "THE COST IS {price} AND WE WILL SUMMON YOU SOON!" + "HEY FREQUENT FLYER!
+        -- This is your {visits} time with us!")
+        if greet then return Lead(custom) end
+        if loyal and not hasVisits then custom = custom:gsub("%s+$", "") .. " " .. loyal end
+        return custom
+    end
+    if job and job.service then
+        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest, job.price)
+        if text and loyal and named then text = Lead((text:gsub("^Hi .-! ", "", 1)))
+        elseif text and loyal then text = text:gsub("^(Hi .-!) ", function(hi) return hi .. " " .. loyal .. " " end, 1) end
+        if text then return text end
+    end
+    local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
+    if list and named then return Lead("We have " .. list .. ". What can we do for you?") end
+    if list then return "Hi " .. name .. "! " .. (loyal and (loyal .. " ") or "") .. "We have " .. list .. ". What can we do for you?" end
+    if loyal then return named and loyal or ("Hi " .. name .. "! " .. loyal) end
+    return nil
 end
 
 local LEAVE_PATTERNS = {
@@ -624,8 +1466,22 @@ local function OnSystem(text)
         Jobs.Busy(short)
         return
     end
+    -- "You have suggested that X join your group.": the game didn't invite them (an invite
+    -- that wasn't a click, sent while not the leader). Put them back in line for your click.
+    local sug = text:match(PatternFrom(_G and _G.ERR_INVITE_PLAYER_SUGGESTED_S, "You have suggested that %s join your group."))
+    if sug then
+        local j = Jobs.Get(nm(sug))
+        -- The suggestion reaches the leader, who lets them in (the owner, 13 Nov 2026: "it is
+        -- working when i am not assist and suggested invite"). They stay invited.
+        if j then j.suggested = true end
+        return
+    end
     local d = text:match(DECLINE_PATTERN)
-    if d then Jobs.Declined(nm(d)) return end
+    if d then
+        local j = Jobs.Get(nm(d))
+        Jobs.Declined(nm(d))
+        return
+    end
     for _, pat in ipairs(LEAVE_PATTERNS) do
         local w = text:match(pat)
         if w then Jobs.Left(nm(w)) return end
@@ -638,19 +1494,44 @@ local function OnSystem(text)
     end
     if not who then return end
     local short = nm(who)
+    if Jobs.IsWorker(short) then pending[short] = nil return end   -- one of yours: nothing to do
+    if Jobs.Scammer(short) then
+        pending[short] = nil
+        local line = Jobs.ScamLine(short)
+        -- as a raid warning when you may (big, mid-screen, for everyone), else raid/party chat
+        -- (the owner, 14 Nov 2026: "can the scam message be flashier to be more public")
+        local ch = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+        if ch == "RAID" and Jobs.CanRemove() then ch = "RAID_WARNING" end
+        if line then Jobs.Route("scam", line, short, ch) end
+        P("|cffff8080" .. short .. " didn't pay last time.|r")
+        return
+    end
     -- Someone joined who nobody here invited (a friend invited them): give them a row too.
-    if not Jobs.Get(short) and short ~= (UnitName and UnitName("player")) then
+    if not Jobs.Get(short) and short ~= FullName("player") then
         Jobs.New(short, "(joined your group)", "invited by someone else", "-")
     end
     Jobs.Joined(short)
-    if not Opt("welcome") then return end
     local t = pending[short]
-    if not t then return end
     pending[short] = nil
-    if GetTime() - t > 180 then return end   -- stale invite, ignore
+    local fresh = t and GetTime() - t <= 180          -- we invited them just now
+    -- A regular always hears it, however they got in (the owner, 13 Nov 2026: "i want the regular
+    -- coming back messages to always play if it detects someone joined again").
+    local loyal = Jobs.LoyaltyLine(Jobs.Get(short) or { name = short })
+    if not fresh and not loyal then return end
     local channel = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+    -- Someone else invited them, or the welcome is off: we don't know what they came for, so no
+    -- service and no price, just hello and the regulars line (the owner, 13 Nov 2026: "if we dont
+    -- know what we invited them for why would we show the price and service").
+    if not fresh or not Opt("welcome") then
+        -- with {name} in it, your line already greets them: no "Hi Kaldrok!" in front
+        local named = (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
+        if loyal then Jobs.Route("loyal", named and loyal or ("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal), short, channel) end
+        return
+    end
+    local welcome = WelcomeText(short)
+    if not welcome then D(short .. " joined; nothing on sale to welcome them with") return end
     D(short .. " joined, sending welcome to " .. channel)
-    SendChatMessage(WelcomeText(short), channel)
+    Jobs.Route("welcome", welcome, short, channel)
 end
 
 local function ChannelAllowed(ch)
@@ -668,8 +1549,13 @@ f:RegisterEvent("CHAT_MSG_WHISPER")
 f:RegisterEvent("CHAT_MSG_YELL")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 f:RegisterEvent("PLAYER_LOGIN")
+f:RegisterEvent("CHAT_MSG_ADDON")
+f:RegisterEvent("GROUP_ROSTER_UPDATE")
+f:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 f:RegisterEvent("PLAYER_REGEN_ENABLED")
 f:RegisterEvent("UI_ERROR_MESSAGE")
+f:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+f:RegisterEvent("ADDON_ACTION_BLOCKED")
 f:RegisterEvent("CHAT_MSG_BN_WHISPER_INFORM")
 f:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
 f:RegisterEvent("TRADE_SHOW")
@@ -678,7 +1564,35 @@ f:RegisterEvent("TRADE_CLOSED")
 f:RegisterEvent("UNIT_SPELLCAST_START")
 f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
+f:RegisterEvent("CHAT_MSG_PARTY")
+f:RegisterEvent("CHAT_MSG_PARTY_LEADER")
+f:RegisterEvent("CHAT_MSG_RAID")
+f:RegisterEvent("CHAT_MSG_RAID_LEADER")
+f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
+    -- stasis (/si stop): hears nothing, does nothing, until /si start (the owner, 13 Nov 2026:
+    -- "a command that stops it from running altogether so it's just in stasis")
+    if ServiceInviterDB and ServiceInviterDB.stasis then
+        if event == "PLAYER_LOGIN" then P("|cffff8040stopped|r: hearing nothing and doing nothing. /si start to wake it.") end
+        return
+    end
+    if event == "CHAT_MSG_ADDON" then
+        -- prefix, message, how it came, who sent it
+        Report("team", pcall(Jobs.TeamReceive, text, sender, arg3, channelName))
+        return
+    end
+    if event == "GROUP_ROSTER_UPDATE" or event == "ZONE_CHANGED_NEW_AREA" then
+        if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 5 then Report("team", pcall(Jobs.SayHi, event == "GROUP_ROSTER_UPDATE")) end
+        return
+    end
+    if event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
+        local okb, errb = pcall(BuffAsk, text, sender)
+        if not okb then Jobs.BuffNote(sender, text, "error: " .. tostring(errb)) end
+        Report("buffs", okb, errb)
+        return
+    end
+    if event == "UNIT_SPELLCAST_SUCCEEDED" and text == "player" then
+        pcall(BuffCastDone, (type(channelName) == "string" and channelName) or SpellNameOf(arg3))
+    end
     if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_SUCCEEDED" then
         if OnCast then
             local ok, err = pcall(OnCast, event, text, arg3)
@@ -699,7 +1613,7 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         if text == 1 and sender == 1 then
             -- who is on the other side: the trade window's partner, else the one we clicked Trade for
             local who
-            local npc = UnitName and UnitName("NPC")
+            local npc = FullName("NPC")
             if npc then
                 npc = Ambiguate and Ambiguate(npc, "none") or npc
                 if Jobs.Get(npc) then who = npc end
@@ -727,12 +1641,14 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         dealName, dealMoney = nil, 0
         if who and Jobs.Get(who) then
             local silver = math.floor(money / 100)
-            if silver >= Price() then
+            local need = JobPrice(Jobs.Get(who))
+            if silver > 0 and silver >= (need or 0) then
                 Jobs.Get(who).amount = silver
                 Jobs.Set(who, "paid")
-                P(who .. " paid " .. Money(silver) .. ". Marked Paid.")
+                Thank(Jobs.Get(who))
+                P(Colored(who, Jobs.Get(who).class) .. (need and " paid " or " tipped ") .. Money(silver) .. ". Marked Paid. Press x on their row to remove them.")
             elseif silver > 0 then
-                P(who .. " traded " .. Money(silver) .. ", less than your " .. Money(Price()) .. " price. Not marked Paid.")
+                P(who .. " traded " .. Money(silver) .. ", less than the " .. Money(need) .. " price. Not marked Paid.")
             end
         end
         return
@@ -741,17 +1657,37 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         diag.echo = { t = GetTime(), kind = event == "CHAT_MSG_BN_WHISPER_INFORM" and "Battle.net" or "normal" }
         return
     end
+    -- The game stopped one of our calls. FORBIDDEN (its "blocked from an action only available
+    -- to the Blizzard UI" popup) is for good: never make that call again this session. BLOCKED
+    -- is for that moment (in combat, say): said once, and tried again next time.
+    if event == "ADDON_ACTION_FORBIDDEN" or event == "ADDON_ACTION_BLOCKED" then
+        if text == ADDON_NAME and type(sender) == "string" then
+            local fn = sender:gsub("%(%)$", "")
+            if event == "ADDON_ACTION_FORBIDDEN" and not blockedCalls[fn] then
+                blockedCalls[fn] = true
+                P("the game blocked " .. fn .. "(), which only Blizzard's own code may call. Service Inviter won't try it again this session. Please report it.")
+            elseif event == "ADDON_ACTION_BLOCKED" then
+                Report("game blocked " .. fn, false, fn .. "() was blocked just then (in combat?). It will try again next time.")
+            end
+        end
+        return
+    end
     if event == "UI_ERROR_MESSAGE" then
+        local emsg = type(sender) == "string" and sender or (type(text) == "string" and text or "")
+        local low = (type(SPELL_FAILED_LOWLEVEL) == "string" and SPELL_FAILED_LOWLEVEL ~= "") and SPELL_FAILED_LOWLEVEL or "too low level"
+        if not IsSecret(emsg) and emsg:lower():find(low:lower(), 1, true) then pcall(BuffTooLow) end
         diag.uierr = { t = GetTime(), msg = tostring(sender or text) }
         if debugOn then D("game error: " .. tostring(text) .. (sender and (" / " .. tostring(sender)) or "")) end
         return
     end
     if event == "PLAYER_REGEN_ENABLED" then
         if jobsDirty then RefreshJobs() end
+        if buffDirty then RefreshBuff() end
         return
     end
     if event == "PLAYER_LOGIN" then
         MigrateLegacy()
+        MigrateServices()
         local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
         if isLoaded and isLoaded("TradeInviter") then
             paused = true
@@ -766,6 +1702,7 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         end
         debugOn = ServiceInviterDB.debug and true or false
         if debugOn then P("debug is ON") end
+        if Jobs.TeamOn() then Report("team", pcall(Jobs.SayHi, true)) end
         return
     end
     if event == "CHAT_MSG_SYSTEM" then
@@ -777,76 +1714,389 @@ f:SetScript("OnEvent", function(_, event, text, sender, arg3, channelName, _, _,
         return
     end
     curChannel = tostring(channelBaseName ~= "" and channelBaseName or channelName)
+    -- the market: the full channel name ("Trade - English 50"), or Say/Yell/whisper as one each
+    Jobs.market = (event == "CHAT_MSG_CHANNEL" and Jobs.MarketOf(channelName)) or (event == "CHAT_MSG_SAY" and "Say") or
+        (event == "CHAT_MSG_YELL" and "Yell") or nil
     if event == "CHAT_MSG_CHANNEL" then
         local ch = (channelBaseName and channelBaseName ~= "") and channelBaseName or channelName
         if not ChannelAllowed(ch) then return end
     elseif event == "CHAT_MSG_SAY" then
+        Report("buffs", pcall(BuffAsk, text, sender))   -- a customer who left, standing nearby
         if not Opt("say") then return end
     elseif event == "CHAT_MSG_YELL" then
         if not Opt("yell") then return end
     elseif event == "CHAT_MSG_WHISPER" then
         curChannel = "whisper"
+        Report("buffs", pcall(BuffAsk, text, sender))
         if not KeywordHit(text, true) and not Opt("enabled") then return end
     end
+    Report("prices", pcall(Jobs.WatchRival, text, sender, Jobs.market))
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
     RememberSaid(sender, text, curChannel)
-    Handle(text, sender, guid)
-end)
+    -- what was decided about each person, for /si why NAME (the owner, 14 Nov 2026: "this didnt
+    -- seem to register?")
+    local who = (Ambiguate and type(sender) == "string" and Ambiguate(sender, "none")) or sender
+    if type(who) == "string" then
+        Jobs.heard = Jobs.heard or {}
+        Jobs.heardN = (Jobs.heardN or 0) + 1
+        if Jobs.heardN > 400 then Jobs.heard, Jobs.heardN = {}, 1 end
+        Jobs.whyNow = { text = text, ch = curChannel, t = GetTime(), why = "not a buyer's message" }
+        Jobs.heard[who:lower()] = Jobs.whyNow
+    end
+    Jobs.priceMarket = Jobs.market          -- every price worked out while handling this line is this channel's
+    local ok, err = pcall(Handle, text, sender, guid)
+    Jobs.priceMarket = nil
+    if Jobs.whyNow and Jobs.invitedNow then Jobs.whyNow.why = "invited" end
+    Jobs.whyNow, Jobs.invitedNow = nil, nil
+    if not ok then error(err, 0) end
+end
+f:SetScript("OnEvent", function(self, event, ...) Report(event, pcall(f.Handle, self, event, ...)) end)
 
 -- (The old settings window is gone: everything is in the Setup window, /si setup.)
 local function ToggleUI() if ToggleSetup then ToggleSetup() end end
 
 ----------------------------------------------------------------------
+-- Advertise: the game lets an ad go out only from a key press or click, so each ad is
+-- one press. The text is built from what is on sale; the button tells you when you can
+-- post again in each channel (so you don't get reported for spam).
+----------------------------------------------------------------------
+MSG.AD = "{wts}{services} | whisper inv"
+local lastAdIn = {}   -- channel key -> when you last posted there
+local function AdWait() return math.max(1, tonumber(ServiceInviterDB.adwait) or 5) * 60 end
+local function AdChannels()
+    local db, out = ServiceInviterDB, {}
+    local ch = type(db.adchans) == "table" and db.adchans or { trade = true }
+    if ch.trade then out[#out + 1] = "trade" end
+    if ch.general then out[#out + 1] = "general" end
+    for name in tostring(db.adextra or ""):lower():gmatch("[^,]+") do
+        name = name:gsub("^%s+", ""):gsub("%s+$", "")
+        if name ~= "" then out[#out + 1] = name end
+    end
+    return out
+end
+local function ChannelId(key)
+    if not GetChannelList then return nil end
+    local list = { GetChannelList() }
+    for i = 1, #list, 3 do
+        local id, name = list[i], list[i + 1]
+        if type(name) == "string" and name:lower():find(key, 1, true) then return id, name end
+    end
+    return nil
+end
+-- "ready", key, id, name, text  |  "wait", seconds  |  "off", why
+local function AdState()
+    local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
+    if not text then return "off", why end
+    if UnitIsAFK and UnitIsAFK("player") then return "off", "you're AFK" end
+    local now, soonest, any = GetTime(), nil, false
+    for _, key in ipairs(AdChannels()) do
+        local id, name = ChannelId(key)
+        if id then
+            any = true
+            local last = lastAdIn[key]
+            local left = last and (AdWait() - (now - last)) or 0
+            if left <= 0 then
+                -- that channel's own price in the ad
+                local was = Jobs.priceMarket
+                Jobs.priceMarket = Jobs.MarketOf(name)
+                local own = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
+                Jobs.priceMarket = was
+                return "ready", key, id, name, own or text
+            end
+            if not soonest or left < soonest then soonest = left end
+        end
+    end
+    if not any then return "off", "you're not in any of the ad channels" end
+    return "wait", soonest
+end
+local function AdLabel()
+    local state, a = AdState()
+    if state == "ready" then return "Post ad in " .. a:sub(1, 1):upper() .. a:sub(2), true end
+    if state == "wait" then return ("Next ad in %d:%02d"):format(math.floor(a / 60), math.floor(a % 60)), false end
+    return (a and a:find("nothing to sell", 1, true)) and "Nothing to sell" or "No ad", false
+end
+local function PostAd()
+    local state, key, id, name, text = AdState()
+    if state ~= "ready" then
+        P(state == "wait" and ("next ad in " .. math.ceil(key) .. "s") or ("no ad: " .. tostring(key)))
+        return
+    end
+    SendChatMessage(text, "CHANNEL", nil, id)
+    local now = GetTime()
+    lastAdIn[key] = now
+    lastAdAt = now
+    Stats().ads = (Stats().ads or 0) + 1
+    D("ad posted in " .. tostring(name))
+    if RefreshJobs then RefreshJobs() end
+end
+-- A named button so a key can press it: /si bind ad F7
+local adKey = CreateFrame("Button", "ServiceInviterAdButton", UIParent)
+adKey:SetScript("OnClick", function() PostAd() end)
+adKey:Hide()
+
+----------------------------------------------------------------------
+-- The buff button: one key (/si bind buff F8) that casts the right buff on the next person
+-- who needs it. The game only casts from a key press, so it's one press per buff; the addon
+-- aims the button. Who is queued: customers landing where you are, and anyone in the group
+-- who asks ("fort pls"). Out of combat only (the game won't let an addon re-aim it in combat).
+----------------------------------------------------------------------
+local buffQueue = {}   -- { name, key, spell, rank }
+local function MyBuffs()
+    local okc, _, cls = pcall(UnitClass, "player")
+    local out = {}
+    if not okc then return out end
+    for _, def in ipairs(Core.SERVICES) do
+        if def.kind == "buff" and def.class == cls and Core.Setting(ServiceInviterDB, def.key).on then out[#out + 1] = def end
+    end
+    return out
+end
+local InGroupByName = function(name) return Jobs.InGroup(name) end
+local buffKey = CreateFrame("Button", "ServiceInviterBuffButton", UIParent, "SecureActionButtonTemplate")
+buffKey:SetAttribute("type", "macro")
+buffKey:RegisterForClicks("AnyUp", "AnyDown")
+buffKey:Hide()
+buffDirty = false
+local function BuffMacro(e)
+    if not e then return "" end
+    local spell = e.spell or Core.Setting(ServiceInviterDB, e.key).spell or ""
+    -- cast on their group slot (raid3), not their name: a two-part name ("Yeet Lock") is safest
+    -- left out of the macro
+    local at
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.unit and not m.me and m.name:lower() == e.name:lower() then at = m.unit break end
+    end
+    local r = (e.rank and ("(Rank " .. e.rank .. ")") or "")
+    -- not in the group (a customer who left): [@name] only reaches group members, so target them,
+    -- cast, and go back to whoever you had targeted
+    if not at then return "/target " .. e.name .. "\n/cast " .. spell .. r .. "\n/targetlasttarget" end
+    return "/cast [@" .. at .. "] " .. spell .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
+end
+-- In range to cast on? The pop waits for it (the owner, 14 Nov 2026: "this guy asked for kings
+-- before loading in fully can it be set to cast when they are in range"). If the game can't say,
+-- yes.
+function Jobs.BuffInRange(e)
+    if not e then return false end
+    local unit
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.unit and not m.me and m.name:lower() == e.name:lower() then unit = m.unit break end
+    end
+    if not unit then return true end   -- outside the group: the cast targets them by name
+    -- every answer can be a hidden ("secret") value; test nothing until it's known not to be one
+    -- (the owner's screenshot, 14 Nov 2026: "attempt to perform boolean test on local 'checked'
+    -- (a secret boolean value)")
+    local function plain(ok, v) if not ok or IsSecret(v) then return nil end return v end
+    local conn = UnitIsConnected and plain(pcall(UnitIsConnected, unit))
+    if conn == false then return false end
+    if UnitInRange then
+        local ok, r, checked = pcall(UnitInRange, unit)
+        r, checked = plain(ok, r), plain(ok, checked)
+        if checked and r ~= nil then return r and true or false end
+    end
+    if UnitIsVisible then
+        local v = plain(pcall(UnitIsVisible, unit))
+        if v ~= nil then return v and true or false end
+    end
+    return true                        -- the game won't say: show it, and a miss is just a miss
+end
+-- Right-click on the pop: skip this one
+function Jobs.SkipBuff()
+    local e = table.remove(buffQueue, 1)
+    if e then P("skipped " .. (e.spell or Core.BY_KEY[e.key].label) .. " for " .. e.name) end
+    RefreshBuff()
+end
+local function BuffLabel()
+    local e = buffQueue[1]
+    if not e then return "No buffs waiting" end
+    local def = Core.BY_KEY[e.key]
+    local what = e.spell and e.spell:gsub("^Blessing of ", "") or def.label:gsub("^a ", "")
+    return what .. " -> " .. e.name .. (#buffQueue > 1 and (" (+" .. (#buffQueue - 1) .. ")") or "") ..
+        (Jobs.BuffInRange(e) and "" or "  (not in range yet)")
+end
+RefreshBuff = function()
+    -- drop anyone who left the group
+    for i = #buffQueue, 1, -1 do
+        local e = buffQueue[i]
+        if not InGroupByName(e.name) and not (e.outside or Jobs.Recent(e.name)) then table.remove(buffQueue, i) end
+    end
+    if InCombatLockdown and InCombatLockdown() then buffDirty = true return end
+    buffDirty = false
+    -- whoever is in range goes first; the rest wait their turn
+    if buffQueue[1] and not Jobs.BuffInRange(buffQueue[1]) then
+        for i = 2, #buffQueue do
+            if Jobs.BuffInRange(buffQueue[i]) then table.insert(buffQueue, 1, table.remove(buffQueue, i)) break end
+        end
+    end
+    local m = BuffMacro(buffQueue[1])
+    buffKey:SetAttribute("macrotext", m)
+    if jobsWin and jobsWin.buffBtn then
+        jobsWin.buffBtn:SetAttribute("macrotext", m)
+        jobsWin.buffBtn:SetText(BuffLabel())
+        if #MyBuffs() > 0 then jobsWin.buffBtn:Show() else jobsWin.buffBtn:Hide() end
+    end
+    local e = buffQueue[1]
+    if e and not Jobs.BuffInRange(e) then e = nil end   -- the pop waits until they're in range
+    if Jobs.BuffPop then Jobs.BuffPop(e and BuffLabel() or nil, m, e and (e.spell or Core.Setting(ServiceInviterDB, e.key).spell)) end
+end
+-- Do you have this spell? (Kings is a talent.) If the game can't say, assume yes.
+local function KnowSpell(spell)
+    if not spell then return false end
+    local get = (C_Spell and C_Spell.GetSpellInfo) or GetSpellInfo
+    if not get then return true end
+    local ok, info = pcall(get, spell)
+    if not ok then return true end
+    return info ~= nil
+end
+local function QueueBuff(name, key, spell)
+    if not name or name == "" then return end
+    for _, e in ipairs(buffQueue) do
+        if e.name == name and e.key == key then
+            -- a paladin's blessing replaces their last one on that person: switch, don't add
+            if spell and e.spell ~= spell then e.spell, e.rank = spell, nil RefreshBuff() end
+            return
+        end
+    end
+    buffQueue[#buffQueue + 1] = { name = name, key = key, spell = spell }
+    P("buff queued: " .. (spell or Core.BY_KEY[key].label) .. " for " .. name .. " (press the buff button)")
+    RefreshBuff()
+end
+QueueAllMyBuffs = function(name)
+    for _, def in ipairs(MyBuffs()) do
+        -- a blessing names which one ("Might -> Kaldrok", not "blessing -> Kaldrok")
+        QueueBuff(name, def.key, def.key == "blessing" and Core.Setting(ServiceInviterDB, "blessing").spell or nil)
+    end
+end
+-- "fort pls" from someone in the group
+-- every buff ask leaves a note for /si why NAME (the owner, 14 Nov 2026: "buff thing isnt firing
+-- when they ask for it")
+function Jobs.BuffNote(sender, text, why)
+    local who = (Ambiguate and type(sender) == "string" and not IsSecret(sender) and Ambiguate(sender, "none")) or sender
+    if type(who) ~= "string" or IsSecret(who) then return end
+    Jobs.heard = Jobs.heard or {}
+    Jobs.heard[who:lower()] = { text = (type(text) == "string" and not IsSecret(text)) and text or "(hidden by the game)",
+        ch = "buff ask", t = GetTime(), why = why }
+end
+BuffAsk = function(text, sender)
+    if not sender then return end
+    if type(text) ~= "string" or IsSecret(text) then Jobs.BuffNote(sender, nil, "the game hid what they said, so it can't be read") return end
+    local noted
+    local function note(why) noted = true Jobs.BuffNote(sender, text, why) end
+    local name = Ambiguate and Ambiguate(sender, "none") or sender
+    if name == FullName("player") then return end
+    local inGroup = InGroupByName(name)
+    local outside = false
+    if not inGroup then
+        local recent = Jobs.Recent(name)
+        if not recent then note("not in your group, and not a recent customer") return end
+        name, outside = recent, true
+    end
+    if type(inGroup) == "string" then name = inGroup end
+    local norm = Norm(text)
+    -- asks are short ("wisdom pls", "can i get fort"); "i might be afk for a bit" is not one
+    local count = 0
+    for _ in norm:gmatch("%S+") do count = count + 1 end
+    if count > 6 then note("more than 6 words, so not read as an ask") return end
+    -- a paladin whose blessing is switched off: say so, once a session, instead of nothing
+    local okc, _, cls = pcall(UnitClass, "player")
+    if okc and cls == "PALADIN" and not Core.Setting(ServiceInviterDB, "blessing").on then
+        if Core.BlessingFor(norm) then note("asked for a blessing, but 'We offer a blessing' is off (Buffs tab)") end
+        if not Jobs.toldBlessingOff then
+            local spell = Core.BlessingFor(norm)
+            if spell then
+                Jobs.toldBlessingOff = true
+                P(name .. " asked for " .. spell .. ", but 'We offer a blessing' is off (Setup, Buffs tab).")
+            end
+        end
+    end
+    local mine = MyBuffs()
+    if #mine == 0 then
+        if not (cls == "PALADIN") then note("no buff of yours is ticked on the Buffs tab") end
+        return
+    end
+    local queued
+    for _, def in ipairs(mine) do
+        local words = Core.SplitWords(Core.Setting(ServiceInviterDB, def.key).words)
+        local named = def.key == "blessing" and Core.BlessingFor(norm)   -- "wis", "bok", "kings"
+        if named or HasAny(norm, words) then
+            if def.key == "blessing" then
+                -- the word picks the blessing; the last one named wins ("wisdom... actually might")
+                local spell = named or Core.Setting(ServiceInviterDB, "blessing").spell
+                if KnowSpell(spell) then QueueBuff(name, def.key, spell) queued = spell
+                else note("asked for " .. tostring(spell) .. ", which you don't have") P(name .. " asked for " .. spell .. ", which you don't have. Not queued.") end
+            else
+                QueueBuff(name, def.key) queued = def.label
+            end
+        end
+    end
+    if queued then note("queued " .. queued .. (outside and " (outside the group: targeted by name)" or ""))
+    elseif not noted then note("no buff word of yours in it") end
+end
+BuffCastDone = function(spellName)
+    local e = buffQueue[1]
+    if not e or type(spellName) ~= "string" then return end
+    if spellName == (e.spell or Core.Setting(ServiceInviterDB, e.key).spell) then table.remove(buffQueue, 1) RefreshBuff() end
+end
+-- "Target is too low level": step down a rank and let the next press try again
+BuffTooLow = function()
+    local e = buffQueue[1]
+    if not e then return end
+    if not e.rank then
+        local spell = e.spell or Core.Setting(ServiceInviterDB, e.key).spell
+        local ok, sub = pcall(function() return (GetSpellSubtext and GetSpellSubtext(spell)) or (C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(spell)) end)
+        local top = ok and type(sub) == "string" and tonumber(sub:match("(%d+)")) or nil
+        e.rank = top and (top - 1) or 1
+    else
+        e.rank = e.rank - 1
+    end
+    if e.rank < 1 then
+        P(e.name .. " is too low level for " .. Core.BY_KEY[e.key].label .. ". Skipped.")
+        table.remove(buffQueue, 1)
+    end
+    RefreshBuff()
+end
+
+----------------------------------------------------------------------
 -- Customer list window (/si jobs)
 ----------------------------------------------------------------------
-local jobsWin
 local ROWS = 6
-local ARRIVE_FALLBACK = 40   -- seconds after Summon before we assume they have arrived
 local CLEAN_AFTER = 30       -- finished rows disappear after this many seconds
 
--- Extras you can offer. Tick the ones you can do right now (on by happenstance).
-local OFFERS = {
-    { key = "healthstone", label = "Healthstone" },
-    { key = "lockpick",    label = "Lockpicking" },
-    { key = "food",        label = "Mage food & water" },
-    { key = "paladin",     label = "Paladin blessing" },
-    { key = "stam",        label = "Stamina buff" },
-    { key = "motw",        label = "Mark of the Wild" },
-    { key = "int",         label = "Intellect buff" },
-    { key = "soulstone",   label = "Soulstone" },
-    { key = "portal",      label = "Mage portal" },
-}
-local DEFAULT_OFFERMSG = "Welcome {name}! Also on offer today: {offers}. Just ask!"
+-- (The 1.x extras list is now the services in Services.lua: see MigrateServices.)
+MSG.OFFERMSG = "Welcome {name}! Also on offer today: {offers}. Just ask!"
 
-local function OffersOn()
-    local on = {}
-    local o = ServiceInviterDB.offers or {}
-    for _, x in ipairs(OFFERS) do if o[x.key] then on[#on + 1] = x.label end end
-    local other = ServiceInviterDB.offerother
-    if type(other) == "string" and other:gsub("%s+", "") ~= "" then on[#on + 1] = other end
-    return on
+-- What else is on offer where this customer landed (nil = nothing, say nothing).
+local function ArrivalText(job)
+    if not job then return nil end
+    local g = GroupSnapshot()
+    local key = job.service or "summons"
+    local p = Core.Provider(g, key, job.dest)
+    local here = job.dest or (p and p.zone)
+    local custom = ServiceInviterDB.offermsg
+    if custom == MSG.OFFERMSG then custom = nil end
+    return (Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom))
 end
 
 -- The one thing to do next for a customer:
 -- wait (not in group yet) | summon | arriving | offer | finish | none
 local function NextStep(job)
     if not job then return "none" end
+    if job.status == "asked" then return "invite" end
     if job.status == "invited" then return "wait" end
+    local def = Core.BY_KEY[job.service or "summons"]
+    if def and def.kind ~= "summon" then
+        -- portals, lockpicking, water, stones, buffs: the provider does it where they stand
+        if job.status == "joined" or job.status == "arrived" then return "serve" end
+        return "none"
+    end
     if job.status == "joined" then return "summon" end
     if job.status == "summoned" then return "arriving" end
     if job.status == "arrived" then
-        if #OffersOn() > 0 and not job.offered then return "offer" end
+        if not job.offered and ArrivalText(job) then return "offer" end
         return "finish"
     end
     return "none"
 end
 
-local function OfferText(name)
-    local msg = ServiceInviterDB.offermsg or DEFAULT_OFFERMSG
-    msg = msg:gsub("{name}", name)
-    msg = msg:gsub("{offers}", table.concat(OffersOn(), ", "))
-    return msg
-end
+local function OfferText(name) return ArrivalText(Jobs.Get(name)) or "" end
 
 local function UnitFor(name)
     local function same(u)
@@ -862,7 +2112,7 @@ end
 
 local function CleanName(n) return (tostring(n):gsub("[%s%c%p]", function(c) return c == "-" and c or "" end)) end
 
-local ACTIVE = { invited = true, joined = true, summoned = true, arrived = true, busy = true }
+local ACTIVE = { asked = true, invited = true, joined = true, summoned = true, arrived = true, busy = true }
 
 -- Which customers to show: everyone still in progress (oldest first, so the queue is
 -- fair), then recently finished ones for a moment.
@@ -870,7 +2120,7 @@ local function VisibleJobs()
     local now = GetTime()
     local list, done = {}, {}
     for _, j in ipairs(jobs) do
-        if ACTIVE[j.status] then list[#list + 1] = j
+        if ACTIVE[j.status] or (j.status == "left" and j.owes) then list[#list + 1] = j
         elseif j.tdone and now - j.tdone < CLEAN_AFTER then done[#done + 1] = j end
     end
     for _, j in ipairs(done) do list[#list + 1] = j end
@@ -880,10 +2130,23 @@ local function VisibleJobs()
 end
 
 -- The first customer who needs something from you.
+-- Can you summon this customer? Only as the warlock, and only one coming to where you stand.
+local function YouSummon(j)
+    if Role() ~= "lock" then return false end
+    local def = Core.BY_KEY[(j and j.service) or "summons"]
+    if not def or def.kind ~= "summon" then return false end
+    local p = Core.Provider(GroupSnapshot(), "summons", j.dest)
+    return p == nil or p.me == true
+end
+-- The first customer who needs something from YOU (the big button never offers a job
+-- someone else does: a lockpick buyer is not yours to summon).
 local function NextJob()
+    for _, j in ipairs(jobs) do if NextStep(j) == "invite" then return j, "invite" end end
     for _, j in ipairs(jobs) do
         local st = NextStep(j)
-        if st == "summon" or st == "offer" or st == "finish" then return j, st end
+        if st == "summon" and YouSummon(j) then return j, st end
+        if st == "offer" then return j, st end
+        if (st == "finish" or (st == "serve" and JobPrice(j))) and CollectsFor(j) then return j, "finish" end
     end
     return nil, "none"
 end
@@ -895,44 +2158,254 @@ local alertWin
 local lastCastAt = 0
 local RITUAL_ID = 698
 
-ShowAlert = function(title, sub)
+----------------------------------------------------------------------
+-- Customer list look (the design review of 12 Nov 2026): dark and gold, flat, one filled
+-- button. Colors are the review's tokens; status pills always carry the word, never color alone.
+----------------------------------------------------------------------
+local INK = {
+    ground = "14110d", deep = "100e0a", panel = "1b1710", line = "3a3226", soft = "2a241b",
+    text = "ece4d2", muted = "a39a86", gold = "f0c05a", goldInk = "1a1408", plain = "221d15",
+}
+INK.PILL = {   -- status -> fill, text
+    asked = { "3d3414", "f5df8a" }, invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
+    arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
+    busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
+    left = { "2e2a22", "c9c0a8" }, scammed = { "4a1a1a", "ffa5a5" },
+}
+local function RGB(hex)
+    hex = tostring(hex):gsub("^ff", "", 1)
+    if #hex ~= 6 then return 1, 1, 1 end
+    return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
+end
+local function Fill(parent, hex, layer, sub)
+    local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub)
+    t:SetColorTexture(RGB(hex))
+    return t
+end
+local function Text(parent, size, hex, font)
+    local fs = parent:CreateFontString(nil, "OVERLAY", font or "GameFontHighlight")
+    pcall(function() local f, _, fl = fs:GetFont() if f then fs:SetFont(f, size, fl) end end)
+    fs:SetTextColor(RGB(hex or INK.text))
+    return fs
+end
+-- Flat buttons: gold (the one main action), ghost (a row's action), plain, bare (the x).
+INK.LOOK = {
+    gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
+    plain = { INK.plain, INK.line, INK.text }, bare = { nil, nil, "8a8171" }, rail = { nil, nil, INK.text },
+}
+local function FlatButton(parent, w, h, style, size, secure, name)
+    local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
+    b:SetSize(w, h)
+    local look = INK.LOOK[style]
+    if look[2] then local edge = Fill(b, look[2], "BACKGROUND", -1) edge:SetAllPoints() end
+    if look[1] then
+        local bg = Fill(b, look[1], "BACKGROUND", 0)
+        bg:SetPoint("TOPLEFT", 1, -1) bg:SetPoint("BOTTOMRIGHT", -1, 1)
+    end
+    local hl = b:CreateTexture(nil, "HIGHLIGHT") hl:SetAllPoints() hl:SetColorTexture(1, 1, 1, 0.08)
+    local fs = Text(b, size or 14, look[3])
+    fs:SetPoint("CENTER")
+    b:SetFontString(fs)
+    b._siStyle, b._siSize = style, size or 14
+    return b
+end
+-- The buff pops up at your mouse (the owner, 14 Nov 2026: "can the blessing thing be more
+-- obvious what if i miss it? can it just appear at my mouse"). A gold button by the cursor, with
+-- a sound, when someone is waiting; click it to cast; gone when nobody is. Out of combat only
+-- (RefreshBuff never runs in combat, when the game won't move a button that casts).
+function Jobs.BuffPop(label, macro, spell)
+    local b = Jobs.pop
+    if not label or Opt("buffpop") == false then if b then b:Hide() end return end
+    if not b then
+        -- a big icon of the buff itself, its name and who it's for underneath (the owner, 14 Nov
+        -- 2026: "can it kind of just pop up with a large icon of that blessing")
+        b = CreateFrame("Button", "ServiceInviterBuffPop", UIParent, "SecureActionButtonTemplate")
+        b:SetSize(72, 72)
+        b:SetFrameStrata("DIALOG")
+        b:RegisterForClicks("AnyUp", "AnyDown")
+        b:SetAttribute("type", "macro")
+        -- right-click: skip this one (no cast)
+        b:SetAttribute("type2", "macro") b:SetAttribute("macrotext2", "")
+        b:HookScript("PostClick", function(_, button) if button == "RightButton" then Jobs.SkipBuff() end end)
+        local edge = Fill(b, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -3, 3) edge:SetPoint("BOTTOMRIGHT", 3, -3)
+        b.icon = b:CreateTexture(nil, "ARTWORK")
+        b.icon:SetAllPoints()
+        if b.SetHighlightTexture then b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD") end
+        local back = Fill(b, INK.deep, "BACKGROUND", -6)
+        b.label = Text(b, 14, INK.gold, "GameFontNormal")
+        b.label:SetPoint("TOP", b, "BOTTOM", 0, -8)
+        back:SetPoint("TOPLEFT", b.label, "TOPLEFT", -8, 4) back:SetPoint("BOTTOMRIGHT", b.label, "BOTTOMRIGHT", 8, -4)
+        b:Hide()
+        Jobs.pop = b
+    end
+    b:SetAttribute("macrotext", macro)
+    b.label:SetText(label)
+    local tex
+    if spell then
+        local ok, t = pcall(function()
+            return (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spell)) or (GetSpellTexture and GetSpellTexture(spell))
+        end)
+        if ok then tex = t end
+    end
+    b.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
+    if not b:IsShown() then
+        local x, y = GetCursorPosition and GetCursorPosition()
+        local scale = (UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
+        b:ClearAllPoints()
+        if x and y then b:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", x / scale + 24, y / scale + 24)
+        else b:SetPoint("CENTER", UIParent, "CENTER", 0, -120) end
+        b:Show()
+        if PlaySound then pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959) end
+    end
+end
+-- New session asks for the shards (the owner, 13 Nov 2026: "when you click new session it can
+-- ask for the number of shards if you are summoning"). Only when summons are on sale. The
+-- number is the other warlocks'; yours come from your bags. Blank = don't count; Skip = leave it.
+function Jobs.AskShards()
+    if not Opt("countshards") or not Core.Setting(ServiceInviterDB, "summons").on then return end
+    local w = Jobs.shardWin
+    if not w then
+        w = CreateFrame("Frame", "ServiceInviterShards", UIParent)
+        w:SetSize(420, 170)
+        w:SetPoint("CENTER", 0, 120)
+        w:SetFrameStrata("DIALOG")
+        w:EnableMouse(true)
+        local edge = Fill(w, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        local t = Text(w, 16, INK.gold, "GameFontNormalLarge") t:SetPoint("TOPLEFT", 16, -14) t:SetText("New session: soul shards")
+        w.sub = Text(w, 12, INK.text, "GameFontHighlight") w.sub:SetPoint("TOPLEFT", 16, -42) w.sub:SetWidth(388) w.sub:SetJustifyH("LEFT")
+        local box = CreateFrame("EditBox", "ServiceInviterShardsBox", w, "InputBoxTemplate")
+        box:SetPoint("TOPLEFT", 22, -88) box:SetSize(80, 24) box:SetAutoFocus(false) box:SetMaxLetters(4)
+        if box.SetNumeric then box:SetNumeric(true) end
+        local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall") hint:SetPoint("LEFT", box, "RIGHT", 12, 0)
+        hint:SetText("blank = only yours, or none")
+        local ok = FlatButton(w, 100, 30, "gold") ok:SetPoint("BOTTOMLEFT", 16, 14) ok:SetText("OK")
+        local skip = FlatButton(w, 100, 30, "plain") skip:SetPoint("LEFT", ok, "RIGHT", 10, 0) skip:SetText("Skip")
+        local function Done()
+            local n = tonumber(box:GetText() or "")
+            ServiceInviterDB.shards = n and math.max(0, math.floor(n)) or nil
+            w:Hide()
+            local have = Jobs.Shards()
+            P(have and ("counting shards: " .. have .. " (" .. Jobs.ShardsLeft() .. " left after the queue)") or "not counting shards")
+            RefreshJobs()
+        end
+        ok:SetScript("OnClick", Done)
+        box:SetScript("OnEnterPressed", Done)
+        box:SetScript("OnEscapePressed", function() w:Hide() end)
+        skip:SetScript("OnClick", function() w:Hide() end)
+        w.box, w.ok, w.skip = box, ok, skip
+        Jobs.shardWin = w
+    end
+    local _, own = Jobs.Shards()
+    w.sub:SetText("How many shards do the other warlocks have?" ..
+        (own and (" Yours are counted from your bags (" .. own .. ").") or ""))
+    w.box:SetText(ServiceInviterDB.shards and tostring(ServiceInviterDB.shards) or "")
+    w:Show()
+    w.box:SetFocus()
+    if w.box.HighlightText then w.box:HighlightText() end
+end
+-- A window to copy from (the owner, 13 Nov 2026: "can it not print the customer lists and stuff
+-- into a window that i can copy and paste from easily"). The text comes up selected: Ctrl+C.
+function Jobs.Copy(title, fill)
+    Jobs.capture = {}
+    local ok, err = pcall(fill)
+    local lines = Jobs.capture
+    Jobs.capture = nil
+    if not ok then P("|cffff4040error|r " .. tostring(err)) return end
+    for i, l in ipairs(lines) do lines[i] = l:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") end
+    local text = table.concat(lines, "\n")
+    local w = Jobs.copyWin
+    if not w then
+        w = CreateFrame("Frame", "ServiceInviterCopy", UIParent)
+        w:SetSize(680, 460)
+        w:SetPoint("CENTER")
+        w:SetFrameStrata("DIALOG")
+        w:EnableMouse(true) w:SetMovable(true) w:RegisterForDrag("LeftButton")
+        w:SetScript("OnDragStart", w.StartMoving) w:SetScript("OnDragStop", w.StopMovingOrSizing)
+        local edge = Fill(w, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        w.title = Text(w, 16, INK.gold, "GameFontNormalLarge")
+        w.title:SetPoint("TOPLEFT", 16, -14)
+        local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall")
+        hint:SetPoint("TOPLEFT", 16, -36) hint:SetText("Selected: press Ctrl+C to copy. Esc closes.")
+        local x = FlatButton(w, 28, 28, "plain") x:SetPoint("TOPRIGHT", -10, -10) x:SetText("X")
+        x:SetScript("OnClick", function() w:Hide() end)
+        local sf = CreateFrame("ScrollFrame", "ServiceInviterCopyScroll", w, "UIPanelScrollFrameTemplate")
+        sf:SetPoint("TOPLEFT", 16, -60) sf:SetPoint("BOTTOMRIGHT", -34, 16)
+        local box = CreateFrame("EditBox", nil, sf)
+        box:SetMultiLine(true) box:SetAutoFocus(false) box:SetFontObject(ChatFontNormal)
+        box:SetPoint("TOPLEFT") box:SetSize(620, 380)
+        box:SetScript("OnEscapePressed", function() w:Hide() end)
+        -- read-only: anything typed is put back
+        box:SetScript("OnTextChanged", function(self, user) if user then self:SetText(w.text or "") self:HighlightText() end end)
+        sf:SetScrollChild(box)
+        w.box = box
+        if UISpecialFrames then table.insert(UISpecialFrames, "ServiceInviterCopy") end
+        Jobs.copyWin = w
+    end
+    w.title:SetText(title)
+    w.text = text
+    w.box:SetText(text)
+    w:Show()
+    w.box:SetFocus()
+    w.box:HighlightText()
+end
+-- The banner: a small label naming the event, the instruction as the loudest line, who is
+-- being summoned, to where and who gets paid, and a bar for the 14 seconds it stays up.
+-- Pulses for the first two seconds only (the design review of 12 Nov 2026).
+local BANNER = { W = 560, SECS = 14 }
+ShowAlert = function(title, sub, label)
     if not alertWin then
-        local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-        local a = CreateFrame("Frame", "ServiceInviterAlert", UIParent, template)
-        a:SetSize(560, 96)
+        local a = CreateFrame("Frame", "ServiceInviterAlert", UIParent)
+        a:SetSize(BANNER.W, 104)
         a:SetPoint("TOP", 0, -150)
         a:SetFrameStrata("FULLSCREEN_DIALOG")
-        local bg = a:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(0.55, 0.05, 0.05, 0.92)
-        a.title = a:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        pcall(function() local f, _, fl = a.title:GetFont() if f then a.title:SetFont(f, 34, "OUTLINE") end end)
-        a.title:SetPoint("TOP", 0, -14)
-        a.sub = a:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-        a.sub:SetPoint("TOP", a.title, "BOTTOM", 0, -8)
+        local edge = Fill(a, "d9504a", "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(a, "8a1414", "BACKGROUND", -7) bg:SetAllPoints()
+        a.label = Text(a, 12, "ffd9d4")
+        a.label:SetPoint("TOP", 0, -14)
+        a.title = Text(a, 34, "ffffff", "GameFontNormalLarge")
+        pcall(function() local f = a.title:GetFont() if f then a.title:SetFont(f, 34, "OUTLINE") end end)
+        a.title:SetPoint("TOP", 0, -32)
+        a.sub = Text(a, 14, "ffe9e5", "GameFontHighlight")
+        a.sub:SetPoint("TOP", 0, -74)
+        local track = Fill(a, "5a0c0c", "BORDER") track:SetPoint("BOTTOMLEFT", 0, 0) track:SetSize(BANNER.W, 4)
+        a.bar = Fill(a, "ffd9d4", "ARTWORK") a.bar:SetPoint("BOTTOMLEFT", 0, 0) a.bar:SetSize(BANNER.W, 4)
         a.t = 0
         a:SetScript("OnUpdate", function(self, el)
             self.t = self.t + (el or 0)
-            if self.t > 14 then self:Hide() return end
-            self:SetAlpha(0.7 + 0.3 * math.abs(math.sin(self.t * 5)))
+            if self.t > BANNER.SECS then self:Hide() return end
+            self.barWidth = math.max(1, BANNER.W * (1 - self.t / BANNER.SECS))
+            self.bar:SetWidth(self.barWidth)
+            self.alpha = (self.t < 2) and (0.7 + 0.3 * math.abs(math.sin(self.t * 5))) or 1
+            self:SetAlpha(self.alpha)
         end)
         a:EnableMouse(true)
         a:SetScript("OnMouseDown", function(self) self:Hide() end)
         a:Hide()
         alertWin = a
     end
+    alertWin.label:SetText(label or "")
     alertWin.title:SetText(title)
     alertWin.sub:SetText(sub or "")
     alertWin.t = 0
+    alertWin.bar:SetWidth(BANNER.W)
     alertWin:Show()
     if PlaySound then
         pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959)
     end
 end
+-- "Summoning Kaldrok to Thunder Bluff. Pay Grimtotem."
+local function BannerSub(who, job)
+    local dest = job and job.dest
+    local payee, mine = PayeeFor(job or { service = "summons" })
+    local pay = (not JobPrice(job or { service = "summons" })) and " Free." or (mine and " Pay: you." or (" Pay " .. tostring(payee) .. "."))
+    return "Summoning " .. who .. (dest and (" to " .. dest) or "") .. "." .. pay
+end
 
 local function WhisperText(who, nxt)
     local m = ServiceInviterDB.whispermsg
-    if not m or m == "" then m = DEFAULT_WHISPERMSG end
+    if not m or m == "" then m = MSG.WHISPERMSG end
     m = m:gsub("{name}", function() return who end)
     return (m:gsub("{next}", function() return nxt or "nobody" end))
 end
@@ -960,7 +2433,7 @@ local function SendWhisperTo(to, text)
         BNSendWhisper(id, text)
         return "Battle.net friend " .. to
     end
-    SendChatMessage(text, "WHISPER", nil, to)
+    Jobs.Send(text, "WHISPER", to)
     return "character " .. to
 end
 
@@ -970,21 +2443,494 @@ local function WhisperTo()
     return w
 end
 
-local function AlertMsg(name)
+local function AlertMsg(name, job, here)
     local m = ServiceInviterDB.alertmsg
-    if not m or m == "" then m = DEFAULT_ALERTMSG end
-    m = m:gsub("{name}", name)
-    return (m:gsub("{price}", PriceLong()))
+    if not m or m == "" then m = MSG.ALERTMSG end
+    job = job or Jobs.Get(name)
+    local payee, mine = PayeeFor(job or { service = "summons" })
+    local price = JobPrice(job or { service = "summons" })
+    -- where they're being summoned to (the owner, 13 Nov 2026: "can the 'summoning name' part
+    -- say where we are summoning to? so they know"). A text of your own without {dest} gets
+    -- it after the name, in capitals when the rest is.
+    -- a customer the addon didn't invite has no place on record: then where the warlock
+    -- casting the ritual is standing, which is where they land (the owner, 13 Nov 2026: "why is
+    -- dest us and not where we are??"). Not known at all: no place, never a made-up one.
+    local dest = (job and job.dest) or here
+    if dest and not m:find("{dest}", 1, true) then
+        local caps = m:gsub("{%a+}", "") == m:gsub("{%a+}", ""):upper()
+        m = m:gsub("{name}", "{name}" .. (caps and " TO " or " to ") .. "{dest}", 1)
+    end
+    if dest and m:gsub("{%a+}", "") == m:gsub("{%a+}", ""):upper() then dest = dest:upper() end
+    if not dest then m = m:gsub(" ?[Tt][Oo] {dest}", "") end
+    m = m:gsub("{dest}", function() return dest or "" end)
+    m = m:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{payee}", function() return mine and "ME" or Core.Label(GroupSnapshot(), payee) end)
+    return (m:gsub("{price}", function() return PriceText(price) end))
 end
 
-local function IsSecret(v)
+-- Test mode (the owner, 14 Nov 2026: "before using this tomorrow i want a dry test to ensure it
+-- would work - i want to see the output of their whisper to me or something as if it would go to
+-- the customer just to me instead"). A buyer it would invite gets no invite; every message they
+-- would get, start to finish, with their real name, city and quoted price, goes to you instead:
+-- in your chat, or whispered to the character set with /si test NAME.
+function Jobs.Rehearse(name, said, why, svc, dest, channel, quote, target, market)
+    local db = ServiceInviterDB
+    local job = { name = name, service = svc or "summons", dest = dest, t = GetTime() }
+    job.price = quote or Core.Setting(db, job.service, dest).price
+    local to = target
+    if to == nil then to = db.testto end
+    local function out(step, where, text)
+        if not text or text == "" then return end
+        if to and to ~= "" then
+            -- exactly what the customer would get, nothing added; your chat says what it was
+            SendChatMessage(text, "WHISPER", nil, to)
+            P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "): whispered to " .. to .. " instead|r")
+        else
+            P("|cffffd100TEST|r |cff999999" .. step .. " -> " .. name .. " (" .. where .. "):|r " .. Jobs.Icons(text))
+        end
+    end
+    local chat = (IsInRaid and IsInRaid()) and "raid chat" or "party chat"
+    local function where(kind) local r = Jobs.RouteOf(kind) return (r == "whisper" and "whisper") or (r == "off" and nil) or chat end
+    local plainOut = out
+    out = function(step, w, text) if w then plainOut(step, w, text) end end
+    P("|cffffd100TEST|r would invite " .. name .. " because [" .. tostring(market or channel) .. "] \"" .. tostring(said) .. "\" = " .. tostring(why) ..
+        " · quoted " .. (Core.Money(job.price) or "free") .. (to and to ~= "" and (" · messages whispered to " .. to) or ""))
+    if Opt("welcome") then out("1 welcome", where("welcome"), WelcomeText(name, job)) end
+    if job.service == "summons" and db.raidalert ~= false then out("2 summon starts", where("alert"), AlertMsg(name, job, dest)) end
+    out("3 lands", where("arrival"), ArrivalText(job))
+    out("4 thanks", where("thanks"), ThanksText(name))
+end
+
+
+----------------------------------------------------------------------
+-- The team (3.1). The owner, 14 Nov 2026: "i want to give it to 3-4 of us, maybe 5 ... we share
+-- our info and the addons talk", with one point of contact who invites and whispers every
+-- customer ("i told you i want a point of contact"). Copies talk over the group's addon channel,
+-- and by addon whisper to teammates who are online but not grouped. No team = solo, as before.
+--
+-- Messages (fields split by tabs):
+--   HI   version, warlock (1/0), zone, ask       "I'm here"; ask = "?" wants a HI back
+--   BUY  to, buyer, service, city, quote, channel, market, test, testto, why, said
+--   GOT  buyer, by                                the point of contact invited them
+----------------------------------------------------------------------
+Jobs.Team = { PREFIX = "SvcInv1", seen = {}, told = {}, took = {}, lastHi = 0 }
+function Jobs.Me() return FullName("player") end
+if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then pcall(C_ChatInfo.RegisterAddonMessagePrefix, Jobs.Team.PREFIX) end
+
+function Jobs.TeamMembers()
+    local t = ServiceInviterDB.team
+    local out = {}
+    if type(t) == "table" and type(t.members) == "table" then for k in pairs(t.members) do out[#out + 1] = k end end
+    table.sort(out)
+    return out
+end
+function Jobs.IsTeam(name)
+    if type(name) ~= "string" or IsSecret(name) then return false end
+    local t = ServiceInviterDB.team
+    if type(t) ~= "table" or type(t.members) ~= "table" then return false end
+    name = name:lower()
+    for k in pairs(t.members) do if k:lower() == name then return true end end
+    return false
+end
+function Jobs.TeamOn() return #Jobs.TeamMembers() > 0 end
+function Jobs.SetTeam(name, on)
+    ServiceInviterDB.team = type(ServiceInviterDB.team) == "table" and ServiceInviterDB.team or {}
+    local t = ServiceInviterDB.team
+    t.members = type(t.members) == "table" and t.members or {}
+    for k in pairs(t.members) do if k:lower() == name:lower() then t.members[k] = nil end end
+    if on then t.members[name] = true end
+end
+-- A teammate's copy has said hello recently (they're online and running it).
+function Jobs.Online(name)
+    if not name then return false end
+    if name:lower() == (FullName("player") or ""):lower() then return true end
+    for k, v in pairs(Jobs.Team.seen) do
+        if k:lower() == name:lower() and GetTime() - v.t < 150 then return true end
+    end
+    return false
+end
+-- The point of contact now: the first on the list who is online (you count). Nil = nobody set,
+-- or none online: then each copy works solo.
+function Jobs.POC()
+    if not Jobs.TeamOn() then return nil end
+    local list = type(ServiceInviterDB.team) == "table" and ServiceInviterDB.team.poc or nil
+    if type(list) ~= "string" then return nil end
+    for nm in list:gmatch("[^,]+") do
+        nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
+        if nm ~= "" and Jobs.Online(nm) then
+            if nm:lower() == (FullName("player") or ""):lower() then return FullName("player") end
+            return nm
+        end
+    end
+    return nil
+end
+-- Send to the team: over the group channel, and by addon whisper to teammates seen online who
+-- aren't in the group (never to someone offline: the game answers that with an error line).
+function Jobs.TeamSay(...)
+    if not Jobs.TeamOn() then return end
+    local parts = { ... }
+    for i, v in ipairs(parts) do parts[i] = tostring(v or ""):gsub("\t", " ") end
+    local msg = table.concat(parts, "\t")
+    if #msg > 250 then msg = msg:sub(1, 250) end
+    local send = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
+    if not send then return end
+    local went = {}
+    if IsInGroup and IsInGroup() then
+        local dist = (IsInRaid and IsInRaid()) and "RAID" or "PARTY"
+        pcall(send, Jobs.Team.PREFIX, msg, dist)
+        went[#went + 1] = dist:lower()
+    end
+    local skipped = {}
+    for _, nm in ipairs(Jobs.TeamMembers()) do
+        if nm:lower() ~= (FullName("player") or ""):lower() and not Jobs.InGroup(nm) then
+            if Jobs.Online(nm) then
+                pcall(send, Jobs.Team.PREFIX, msg, "WHISPER", nm)
+                went[#went + 1] = nm
+            else skipped[#skipped + 1] = nm end
+        end
+    end
+    Jobs.TeamLog("sent", #went > 0 and table.concat(went, ", ") or "nobody", msg,
+        (#went == 0 and "not grouped and no teammate seen online" or nil) or
+        (#skipped > 0 and ("not sent to " .. table.concat(skipped, ", ") .. ": not seen online") or nil))
+end
+-- The team's hidden messages, kept for /si teamlog (the last 200) and shown live with /si debug.
+-- The owner, 14 Nov 2026, on the copies talking without a chat window: "for debugging though".
+Jobs.teamLog = {}
+function Jobs.TeamWords(msg)
+    local f = {}
+    for part in (tostring(msg) .. "\t"):gmatch("(.-)\t") do f[#f + 1] = part end
+    local function M(q) return Core.Money(tonumber(q)) or "free" end
+    if f[1] == "HI" then
+        return (f[5] == "?" and "here, who else is? " or "here: ") .. "version " .. (f[2] or "?") .. ", " ..
+            (f[3] == "1" and "warlock" or "not a warlock") .. ((f[4] or "") ~= "" and (", in " .. f[4]) or "")
+    elseif f[1] == "BUY" then
+        return (f[9] == "1" and "TEST " or "") .. "buyer " .. (f[3] or "?") .. " for " .. (f[2] or "?") .. ": " .. (f[4] or "?") ..
+            ((f[5] or "") ~= "" and (" to " .. f[5]) or "") .. ", quoted " .. M(f[6]) .. ", heard in " ..
+            (((f[8] or "") ~= "" and f[8]) or ((f[7] or "") ~= "" and f[7]) or "?") ..
+            ((f[9] == "1" and (f[10] or "") ~= "") and (", test whispers to " .. f[10]) or "") ..
+            ((f[12] or "") ~= "" and (' ("' .. f[12] .. '")') or "")
+    elseif f[1] == "GOT" then
+        return (f[3] or "?") .. " invited " .. (f[2] or "?")
+    end
+    return "unknown: " .. tostring(msg)
+end
+function Jobs.TeamLog(dir, who, msg, note)
+    local okc, clock = pcall(function() return (date or os.date)("%H:%M:%S") end)
+    local line = (okc and clock or "") .. "  " .. (dir == "sent" and ("sent to " .. who) or ("from " .. who)) .. ": " ..
+        Jobs.TeamWords(msg) .. (note and (" -- " .. note) or "")
+    local log = Jobs.teamLog
+    log[#log + 1] = line
+    if #log > 200 then table.remove(log, 1) end
+    if debugOn then P("|cff999999team " .. line .. "|r") end
+end
+function Jobs.PrintTeamLog()
+    if #Jobs.teamLog == 0 then
+        P("No team messages since you logged in." .. (Jobs.TeamOn() and "" or " The team list is empty, so nothing is sent: /si team add NAME."))
+        return
+    end
+    for _, l in ipairs(Jobs.teamLog) do P(l) end
+end
+function Jobs.SayHi(ask)
+    local okv, ver = pcall(function() return ((C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata)(ADDON_NAME, "Version") end)
+    Jobs.Team.lastHi = GetTime()
+    Jobs.TeamSay("HI", okv and ver or "?", Role() == "lock" and "1" or "0", ZoneOf("player") or "", ask and "?" or "")
+end
+-- Hand a buyer and their quote to the point of contact (marked as a test when you're testing).
+function Jobs.HandOff(poc, buyer, svc, dest, quote, channel, market, said, why)
+    local db = ServiceInviterDB
+    local test = db.dryrun and "1" or "0"
+    Jobs.TeamSay("BUY", poc, buyer, svc or "summons", dest or "", quote or "", channel or "", market or "", test,
+        db.dryrun and (db.testto or FullName("player") or "") or "", why or "", tostring(said or ""):sub(1, 60))
+    P((db.dryrun and "|cffffd100TEST|r " or "") .. "handed " .. buyer .. " (" .. tostring(market or channel) .. ", quoted " ..
+        (Core.Money(quote) or "free") .. ") to " .. poc)
+end
+function Jobs.TeamReceive(prefix, msg, dist, sender)
+    if prefix ~= Jobs.Team.PREFIX or type(msg) ~= "string" or IsSecret(msg) or type(sender) ~= "string" then return end
+    local who = Ambiguate and Ambiguate(sender, "none") or sender
+    local me = FullName("player") or ""
+    if who:lower() == me:lower() then return end
+    local note = Jobs.TeamHear(msg, who, me)
+    Jobs.TeamLog("from", who .. (dist and (" (" .. tostring(dist):lower() .. ")") or ""), msg, note)
+end
+-- Act on a teammate's message. Returns why it was ignored, or what it did, for the team log.
+function Jobs.TeamHear(msg, who, me)
+    local f = {}
+    for part in (msg .. "\t"):gmatch("(.-)\t") do f[#f + 1] = part end
+    local kind = f[1]
+    if kind == "HI" then
+        Jobs.Team.seen[who] = { t = GetTime(), ver = f[2], lock = f[3] == "1", zone = f[4] }
+        if not Jobs.IsTeam(who) then
+            if not Jobs.Team.told[who] then
+                Jobs.Team.told[who] = true
+                P("|cffffd100" .. who .. " runs Service Inviter too.|r /si team add " .. who .. " to share with them.")
+            end
+            return "not on your team, so only noted"
+        end
+        if f[5] == "?" and GetTime() - Jobs.Team.lastHi > 3 then Jobs.SayHi(false) return "answered" end
+        return nil
+    end
+    if not Jobs.IsTeam(who) then return "ignored: not on your team" end   -- only teammates are listened to
+    Jobs.Team.seen[who] = Jobs.Team.seen[who] or { t = GetTime() }
+    Jobs.Team.seen[who].t = GetTime()
+    if kind == "BUY" then
+        local to, buyer, svc, dest, quote, channel, market = f[2], f[3], f[4], f[5], tonumber(f[6]), f[7], f[8]
+        if not to or to:lower() ~= me:lower() then return "ignored: meant for " .. tostring(to) end
+        if not buyer or buyer == "" then return "ignored: no buyer name" end
+        local now = GetTime()
+        -- two teammates heard the same buyer: one invite
+        if Jobs.Get(buyer) then return "ignored: already on your list" end
+        if Jobs.Team.took[buyer] and now - Jobs.Team.took[buyer] < 180 then return "ignored: already handed to you in the last 3 minutes" end
+        Jobs.Team.took[buyer] = now
+        local test = (f[9] == "1" or ServiceInviterDB.dryrun) and { to = (f[9] == "1" and f[10] ~= "" and f[10]) or ServiceInviterDB.testto } or nil
+        P((test and "|cffffd100TEST|r " or "") .. who .. " handed you " .. buyer .. " (" .. tostring(market ~= "" and market or channel) ..
+            ", quoted " .. (Core.Money(quote) or "free") .. ")")
+        Jobs.InviteBuyer(buyer, f[12] or "", f[11] or "", svc ~= "" and svc or "summons", dest ~= "" and dest or nil, quote,
+            channel, market ~= "" and market or nil, nil, test)
+        return "inviting" .. (test and " (test)" or "")
+    end
+    if kind == "GOT" then return nil end
+    return "ignored: unknown message"
+end
+
+----------------------------------------------------------------------
+-- Preview: what each tab's messages will look like, printed in your own chat window only.
+-- The owner, 12 Nov 2026: "i should be able to press debug buttons in each panel for things
+-- like seeing what the message should look like". It runs the same code that sends the real
+-- messages, for a pretend buyer (Kaldrok); it sends nothing, invites nobody, queues nothing.
+-- When nobody in the group can do a service, it says so and shows an example with a
+-- stand-in of the right class standing with you.
+----------------------------------------------------------------------
+local PV = {}
+PV.TABS = { "General", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
+PV.KEYS = { Warlock = { "summons" }, Paladin = { "blessing" } }
+PV.BUYER = "Kaldrok"
+PV.CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
+
+-- What's on sale, as the setup's General tab shows it.
+local function OnSaleText(items)
+    local parts = {}
+    for _, it in ipairs(items) do
+        local what = it.def.label
+        if it.def.kind == "summon" then what = it.where and ("summons to " .. Core.Short(it.where)) or "summons (where? not invited)" end
+        if it.def.kind == "portal" then
+            local c = {}
+            for _, city in ipairs(it.cities) do c[#c + 1] = Core.Short(city) end
+            what = "portals to " .. table.concat(c, "/")
+        end
+        parts[#parts + 1] = what .. " (" .. MemberName(it.provider) .. ")"
+    end
+    return #parts > 0 and table.concat(parts, ", ") or nil
+end
+
+-- The group plus a level 60 stand-in, in your zone, for each service nobody can do.
+local function WithStandIns(g, keys)
+    local out, added = {}, {}
+    for _, m in ipairs(g) do out[#out + 1] = m end
+    local here
+    for _, m in ipairs(g) do if m.me then here = m.zone end end
+    here = here or ((Faction() == "Alliance") and "Stormwind City" or "Orgrimmar")
+    for _, key in ipairs(keys) do
+        local def = Core.BY_KEY[key]
+        if not Core.Provider(out, key) then
+            local m = { name = PV.CLASS_WORD[def.class] or def.class, class = def.class, level = 60, zone = here, standIn = true }
+            out[#out + 1] = m
+            added[#added + 1] = m
+        end
+    end
+    return out, added, here
+end
+
+local function Preview(tab)
+    local out = {}
+    local function Head(t) out[#out + 1] = "|cffffd100" .. t .. "|r" end
+    local function Say(where, text) out[#out + 1] = "|cff999999" .. where .. ":|r " .. tostring(text) end
+    local function Note(t) out[#out + 1] = "|cffbbbbbb" .. t .. "|r" end
+    local db, fac = ServiceInviterDB, Faction()
+    local chat = (IsInRaid and IsInRaid()) and "raid chat" or "party chat"
+
+    local function ShowJob(job, full)
+        local st, def = Core.Setting(db, job.service), Core.BY_KEY[job.service]
+        if full then
+            if not st.invite then Note(def.label .. ": buyers aren't invited (Invite buyers is off), so there's no invite or welcome; it's only offered when someone lands.")
+            elseif Opt("announce") then Say("When you invite, your chat only", "invited " .. PV.BUYER .. "  " .. JobWhere(job)) end
+        end
+        if not st.invite then
+            -- nobody joins for it, so nothing to welcome
+        elseif Opt("welcome") then
+            Say("When they join, " .. chat, WelcomeText(PV.BUYER, job) or "(nothing to say)")
+            -- and as a regular hears it (the owner, 13 Nov 2026: "HOW CAN I TEST IT")
+            local regular = {}
+            for k, v in pairs(job) do regular[k] = v end
+            regular.previewBefore = 3
+            if Jobs.LoyaltyLine(regular) then
+                Say("When a regular joins (4th visit), " .. chat, WelcomeText(PV.BUYER, regular) or "(nothing to say)")
+            end
+        elseif full then Note("No welcome (Welcome them when they join is off, General tab).") end
+        if not full then return end
+        if def.kind == "summon" then
+            if db.raidalert ~= false then Say("When the summon starts, " .. chat, AlertMsg(PV.BUYER, job)) end
+            local to = WhisperTo()
+            if to then Say("When the summon starts, whisper to " .. to, WhisperText(PV.BUYER, nil)) end
+        end
+        local a = ArrivalText(job)
+        local p = Core.Provider(GroupSnapshot(), job.service, job.dest)
+        local here = (def.kind == "summon" and job.dest) or (p and p.zone)
+        if a then Say("When they land, " .. chat, a)
+        else Note("When they land: no message (nothing else on offer in " .. Core.Short(here or "?") .. ")") end
+        local payee, mine = PayeeFor(job)
+        if not st.price then Note("Free, so nobody collects.") return end
+        Note("Paid to: " .. (mine and "you" or tostring(payee)) ..
+            ((mine and AutoTradeOn()) and ". Trade opens by itself when they're in range." or ". Trade won't open by itself."))
+    end
+
+    local function ServicePreview(key)
+        local def, st = Core.BY_KEY[key], Core.Setting(db, key)
+        Head(def.label)
+        if not st.on then
+            Note(def.label .. ": not offered. Tick '" .. (def.kind == "buff" and "We offer " or "We sell ") .. def.label .. "' to " .. (def.kind == "buff" and "offer" or "sell") .. " it.")
+            return
+        end
+        local g = GroupSnapshot()
+        if #Core.Providers(g, key) == 0 then
+            local _, added, here = WithStandIns(g, { key })
+            local why = "it takes a level " .. def.level .. "+ " .. (PV.CLASS_WORD[def.class] or def.class):lower()
+            for _, m in ipairs(g) do
+                if m.me and def.kind == "summon" and m.class == def.class and m.notSummoner then why = why .. "; you're set as the helper, not the warlock" end
+            end
+            Note("Nobody in your group can do " .. def.label .. " right now (" .. why .. "). This example pretends a level 60 " ..
+                added[1].name:lower() .. " is with you in " .. Core.Short(here) .. ".")
+            g = WithStandIns(g, { key })
+        end
+        previewGroup = g
+        local items = {}
+        for _, it in ipairs(Core.OnSale(db, g, fac)) do if it.key == key then items[#items + 1] = it end end
+        if #items == 0 then
+            if def.kind == "portal" then Note("No portal to offer: every city is unticked, or the mage is standing in the only city they can port to.")
+            else Note("Can't sell it: the game doesn't say where they are.") end
+        end
+        for _, it in ipairs(items) do
+            if def.kind == "summon" and not it.where then
+                Note("Nobody is invited for " .. it.provider.name .. "'s summons: the game doesn't say where they are.")
+            elseif def.kind == "portal" then
+                for i, city in ipairs(it.cities) do ShowJob({ name = PV.BUYER, service = key, dest = city }, i == 1) end
+            else
+                ShowJob({ name = PV.BUYER, service = key, dest = def.kind == "summon" and it.where or nil }, true)
+            end
+        end
+        previewGroup = nil
+    end
+
+    local ok, err = pcall(function()
+        if db.stasis then Note("Stopped (/si stop): nothing real goes out until /si start. This is what it would say.") end
+        if tab == "General" then
+            Head("On sale")
+            local items = Core.OnSale(db, GroupSnapshot(), fac)
+            local text = OnSaleText(items)
+            if not text then
+                Note("Nothing on sale right now, so nobody is invited. Tick a service on a class tab, and have someone in the group who can do it.")
+                -- still show your welcome and the regulars line (the owner's screenshot, 13 Nov
+                -- 2026: Preview on General, alone, showed only "Nothing on sale" again and again)
+                local g, added, here = WithStandIns(GroupSnapshot(), { "summons" })
+                do
+                    Head("Welcome when they join")
+                    if added[1] then Note("This example pretends a level 60 warlock is with you in " .. Core.Short(here) .. ".") end
+                    previewGroup = g
+                    ShowJob({ name = PV.BUYER, service = "summons", dest = here }, false)
+                    previewGroup = nil
+                    if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
+                end
+            else
+                Say("On sale now", text)
+                if not Opt("enabled") then Note("Inviting is off (Invite buyers of what we sell).") end
+                Head("Welcome when they join, for each")
+                for _, it in ipairs(items) do
+                    if it.def.kind == "portal" then
+                        for _, city in ipairs(it.cities) do ShowJob({ name = PV.BUYER, service = it.key, dest = city }, false) end
+                    elseif it.where or it.def.kind ~= "summon" then
+                        ShowJob({ name = PV.BUYER, service = it.key, dest = it.def.kind == "summon" and it.where or nil }, false)
+                    end
+                end
+                if not Opt("welcome") then Note("No welcome (Welcome them when they join is off).") end
+            end
+        elseif tab == "Tools" then
+            Head("Tools")
+            Note("Buttons for every command: start and stop, test mode, look someone up, the lists, and the checks.")
+        elseif tab == "Team" then
+            Head("Team")
+            local list = Jobs.TeamMembers()
+            if #list == 0 then Note("No team: you work solo, as before.") else
+                local parts = {}
+                for _, nm in ipairs(list) do parts[#parts + 1] = nm .. (Jobs.Online(nm) and " (online)" or " (not seen)") end
+                Say("Team", table.concat(parts, ", "))
+                local poc = Jobs.POC()
+                if not poc then Note("No point of contact online: each copy invites and talks for itself.")
+                elseif poc == Jobs.Me() then Note("You're the point of contact: you invite and whisper every customer the team finds.")
+                else Note("Your buyers go to " .. poc .. ", who invites and whispers them. You never message a stranger.") end
+            end
+            Head("Where each message goes")
+            for _, kind in ipairs(Jobs.ROUTE_KINDS) do
+                local r = Jobs.RouteOf(kind)
+                Say(Jobs.ROUTE_LABEL[kind], (r == "whisper" and "whisper to the customer") or (r == "off" and "off") or "party / raid chat")
+            end
+        elseif tab == "Advertise" then
+            Head("The ad")
+            local g = GroupSnapshot()
+            local text = Core.BuildAd(db, g, fac, db.admsg)
+            local state, a = AdState()
+            local chans = AdChannels()
+            local first = chans[1] and (chans[1]:sub(1, 1):upper() .. chans[1]:sub(2)) or "No channel ticked"
+            if text then
+                Say(first .. ", when you press the key", text)
+                Note(#text .. " of 255 letters")
+            end
+            if state == "ready" then Note("Ready to post in " .. a:sub(1, 1):upper() .. a:sub(2) .. ".")
+            elseif state == "wait" then Note(("Can post again in %d:%02d."):format(math.floor(a / 60), math.floor(a % 60)))
+            else Note("No ad right now: " .. tostring(a)) end
+            if not text then
+                local keys = {}
+                for _, def in ipairs(Core.SERVICES) do if Core.Setting(db, def.key).on then keys[#keys + 1] = def.key end end
+                local ex = #keys > 0 and Core.BuildAd(db, (WithStandIns(g, keys)), fac, db.admsg)
+                if ex then Say("Example, with someone who can do each ticked service standing with you", ex) end
+            end
+        elseif tab == "Paladin" or tab == "Buffs" then
+            for _, key in ipairs(PV.KEYS.Paladin) do ServicePreview(key) end
+            Head("Buff button")
+            Say("Buff button", BuffLabel())
+            local mine = {}
+            for _, def in ipairs(MyBuffs()) do mine[#mine + 1] = def.label end
+            Note(#mine > 0 and ("You cast: " .. table.concat(mine, ", ") .. ". Asking in party, raid or a whisper queues them.")
+                or "None of the ticked buffs are yours to cast, so nothing gets queued for you.")
+            if Core.Setting(db, "blessing").on then
+                local parts = {}
+                for _, b in ipairs(Core.BLESSINGS) do
+                    parts[#parts + 1] = "\"" .. b.word .. "\" queues " .. b.spell .. (KnowSpell(b.spell) and "" or " (you don't have it)")
+                end
+                Note(table.concat(parts, "; ") .. "; plain \"blessing\" queues " .. tostring(Core.Setting(db, "blessing").spell) .. ".")
+            end
+        else
+            for _, key in ipairs(PV.KEYS[tab] or {}) do ServicePreview(key) end
+        end
+    end)
+    previewGroup = nil
+    if not ok then out[#out + 1] = "|cffff4040Preview failed: " .. tostring(err) .. "|r" end
+    -- raid icons show as icons here; in party/raid chat the game draws {rt1} itself
+    for i, s in ipairs(out) do
+        out[i] = s:gsub("{rt(%d)}", "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%1:0|t")
+    end
+    return out
+end
+local function PrintPreview(tab)
+    P("|cffffd100Preview of the " .. tab .. " tab.|r Nothing is sent; only you see this. Pretend buyer: " .. PV.BUYER .. ".")
+    for _, line in ipairs(Preview(tab)) do P(line) end
+end
+
+IsSecret = function(v)
     if issecretvalue then
         local ok, r = pcall(issecretvalue, v)
         if ok and r then return true end
     end
     return false
 end
-local function SpellNameOf(spellID)
+SpellNameOf = function(spellID)
     if spellID == nil or IsSecret(spellID) then return nil end
     local ok, r = pcall(function()
         if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(spellID) end
@@ -1016,6 +2962,7 @@ local function RitualCast(unit, spellID, nm, event)
 end
 
 OnCast = function(event, unit, spellID, spellName)
+    if ServiceInviterDB.stasis then return end
     if type(unit) ~= "string" then return end
     if not spellID and not spellName then return end
     local mine = (unit == "player")
@@ -1033,17 +2980,25 @@ OnCast = function(event, unit, spellID, spellName)
     -- who is it for: the caster's target if that is one of our customers, else the next one waiting
     local trace = { t = GetTime(), event = event, unit = unit, role = Role() }
     diag.last = trace
-    local tname = UnitName and UnitName(unit .. "target")
+    local tname = FullName(unit .. "target")
     if tname and Ambiguate then tname = Ambiguate(tname, "none") end
     local job = tname and Jobs.Get(tname)
-    if not (job and job.status == "joined") and not event:find("SUCCE", 1, true) then
-        -- target is not someone waiting (stale/other target): use whoever has waited longest
+    -- With more than one warlock, a ritual is for a customer going to where THIS warlock stands.
+    local castZone = ZoneOf(unit)
+    local function forThisLock(j)
+        return j.status == "joined" and (not castZone or not j.dest or j.dest == castZone)
+    end
+    if not (job and forThisLock(job)) and not event:find("SUCCE", 1, true) then
+        -- target is not someone waiting for this warlock: use whoever has waited longest for them
         local waiting
-        for _, j in ipairs(jobs) do if j.status == "joined" then waiting = j break end end
+        for _, j in ipairs(jobs) do if forThisLock(j) then waiting = j break end end
         job = waiting or job
     end
+    -- someone the addon didn't invite, now being summoned: a summon customer, to where the
+    -- warlock stands (their row, the alert, Expected and the arrival all follow from this)
+    if job and not job.service then job.service, job.dest = "summons", castZone end
     local who = job and job.name or tname or "someone"
-    local caster = (UnitName and UnitName(unit)) or unit
+    local caster = FullName(unit) or unit
     trace.who, trace.target = who, tname
     D(caster .. " started Ritual of Summoning for " .. who .. " (" .. event .. ")")
 
@@ -1059,9 +3014,9 @@ OnCast = function(event, unit, spellID, spellName)
     if first then
         lastCastAt = now
         local to = WhisperTo()
-        if to and ((UnitName and UnitName("player")) ~= to) then
+        if to and FullName("player") ~= to then
             local nxt
-            for _, j in ipairs(jobs) do if j.status == "joined" and j ~= job then nxt = j.name break end end
+            for _, j in ipairs(jobs) do if forThisLock(j) and j ~= job then nxt = j.name break end end
             local ok, err = pcall(SendWhisperTo, to, WhisperText(who, nxt))
             trace.whisper = ok and ("sent to " .. tostring(err)) or ("failed: " .. tostring(err))
         else
@@ -1070,7 +3025,7 @@ OnCast = function(event, unit, spellID, spellName)
         if ServiceInviterDB.raidalert ~= false then
             local ch = (IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY" or nil)
             if ch then
-                local ok, err = pcall(function() SendChatMessage(AlertMsg(who), ch) end)
+                local ok, err = pcall(function() Jobs.Route("alert", AlertMsg(who, job, castZone), who, ch) end)
                 trace.raid = ok and ("sent to " .. ch) or ("failed: " .. tostring(err))
             else
                 trace.raid = "not in a group"
@@ -1082,9 +3037,10 @@ OnCast = function(event, unit, spellID, spellName)
 
     -- 2) the banner
     if portalUp then
-        trace.banner = select(2, pcall(ShowAlert, "PORTAL IS UP - CLICK IT!", "Summoning " .. who .. "  (" .. caster .. ")")) and "error" or "shown"
+        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL", BannerSub(who, job), "PORTAL IS UP")
+        trace.banner = ok and "shown" or ("error: " .. tostring(err))
     elseif first then
-        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL!", "Summoning " .. who .. "  (" .. caster .. ")")
+        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL", BannerSub(who, job), "RITUAL OF SUMMONING STARTED")
         trace.banner = ok and "shown" or ("error: " .. tostring(err))
     end
 
@@ -1093,6 +3049,9 @@ OnCast = function(event, unit, spellID, spellName)
     if first and job and job.status == "joined" then
         local ok, err = pcall(Jobs.Set, job.name, "summoned")
         trace.marked = ok and "yes" or ("error: " .. tostring(err))
+        -- another warlock's shard: off the count you typed (yours come off your bags)
+        local typed = tonumber(ServiceInviterDB.shards)
+        if ok and typed then ServiceInviterDB.shards = math.max(0, typed - 1) end
     end
 end
 
@@ -1105,7 +3064,7 @@ local function CheckArrivals()
         if j.status == "busy" and j.retryAt and now >= j.retryAt then
             j.retryAt = nil
             local nm = j.name
-            if UnitInParty(nm) or UnitInRaid(nm) then
+            if Jobs.InGroup(nm) then
                 Jobs.Set(nm, "joined")
             elseif Opt("enabled") or Opt("kwon") then
                 lastInvite[nm] = now pending[nm] = now
@@ -1120,16 +3079,29 @@ local function CheckArrivals()
         if j.status == "summoned" then
             local u = UnitFor(j.name)
             local visible = u and UnitIsVisible and UnitIsVisible(u)
-            if visible or (j.tsummon and now - j.tsummon > ARRIVE_FALLBACK) then
+            -- Arrived = the game shows them there: near enough to see, or in the summon's city.
+            -- No timer: a summon they never took isn't an arrival (the owner, 14 Nov 2026: "so
+            -- they register as arrived after simply receiving the summon").
+            local z = u and ZoneOf(u)
+            local there = visible or (j.dest and z and z == j.dest)
+            if there then
                 Jobs.Set(j.name, "arrived")
-                -- tell them what else is on offer; nothing ticked = no message
-                if #OffersOn() > 0 and not j.offered then
+                -- unasked, only if you want that (the owner, 14 Nov 2026: "can i set it to not auto
+                -- queue a blessing if they dont ask for one?")
+                if visible and Opt("buffarrivals") then QueueAllMyBuffs(j.name) end
+                -- tell them what else is on offer where they landed; nothing there = no message
+                if not j.offered then
                     j.offered = true
+                    local text = ArrivalText(j)
                     local ch = (IsInRaid and IsInRaid()) and "RAID" or ((IsInGroup and IsInGroup()) and "PARTY" or nil)
-                    if ch then pcall(SendChatMessage, OfferText(j.name), ch) end
+                    if text then pcall(Jobs.Route, "arrival", text, j.name, ch) end
                 end
             end
-        elseif j.status == "arrived" and Collects() and AutoTradeOn() and not j.tradeTried and j.tarrive and now - j.tarrive < 60 then
+        elseif not blockedCalls.InitiateTrade and not j.tradeTried and AutoTradeOn() and CollectsFor(j)
+            -- summons: just landed; anything else paid (portals, lockpicking...): in the group a
+            -- while, and they come to you (the Codex review, 12 Nov 2026)
+            and ((j.status == "arrived" and j.tarrive and now - j.tarrive < 60)
+              or (NextStep(j) == "serve" and JobPrice(j) and j.ts and now - j.ts < 600)) then
             local u = UnitFor(j.name)
             if u and CheckInteractDistance and CheckInteractDistance(u, 2) then
                 j.tradeTried = true
@@ -1144,58 +3116,221 @@ local ticker = CreateFrame("Frame")
 local tacc = 0
 ticker:SetScript("OnUpdate", function(_, el)
     tacc = tacc + (el or 0)
-    if tacc >= 1 then tacc = 0 pcall(CheckArrivals) end
+    if tacc >= 1 then
+        tacc = 0
+        if not ServiceInviterDB.stasis then
+            Report("arrivals", pcall(CheckArrivals))
+            if #buffQueue > 0 then Report("buffs", pcall(RefreshBuff)) end   -- range, and anyone who left
+            if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 60 then Report("team", pcall(Jobs.SayHi, false)) end
+        end
+    end
 end)
+
+-- Take a customer out of the group: a click only (Paid, Done or x), and only as leader (or an
+-- assistant in a raid); otherwise the leader has to.
+-- Can you take people out of the group? The leader, or an assistant in a raid.
+function Jobs.CanRemove()
+    local lead = UnitIsGroupLeader and UnitIsGroupLeader("player")
+    local assist = IsInRaid and IsInRaid() and UnitIsGroupAssistant and UnitIsGroupAssistant("player")
+    return (lead or assist) and true or false
+end
+-- The removal itself is the game's own /uninvite, run by the secure Paid and x buttons on your
+-- click: an addon calling UninviteUnit gets blocked (the owner's screenshot, 13 Nov 2026:
+-- "UninviteUnit() was blocked", then a false "removed ..."). This only says what happens.
+local function RemoveFromGroup(name)
+    if not InGroupByName(name) then return end
+    if Jobs.CanRemove() then
+        P("removing " .. name .. " from the group")
+        return
+    end
+    -- who is leader, so the message can name them
+    local leader
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.unit and UnitIsGroupLeader and UnitIsGroupLeader(m.unit) then leader = m.name end
+    end
+    P(name .. " is done. You're not the leader" .. (IsInRaid and IsInRaid() and " or an assistant" or "") ..
+        ", so ask " .. (leader or "the leader") .. " to remove them.")
+end
+-- Paid (or Done, for a free service): thank them (before the button's /uninvite runs), then
+-- mark them and say what happens to their spot in the group.
+local function FinishJob(name)
+    local j = Jobs.Get(name)
+    if not j or j.status == "paid" or j.status == "done" then return end
+    Thank(j)
+    Jobs.Set(name, JobPrice(j) and "paid" or "done")
+    RemoveFromGroup(name)
+end
+-- Scam: they didn't pay. On the list, out of the group (the button's /uninvite), no thanks.
+function Jobs.Scam(name)
+    local j = Jobs.Get(name)
+    ServiceInviterDB.scammers = type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}
+    local _, key = Jobs.Scammer(name)
+    key = key or name
+    local e = ServiceInviterDB.scammers[key] or { n = 0, owed = 0 }
+    e.n = e.n + 1
+    e.owed = (e.owed or 0) + ((j and JobPrice(j)) or 0)
+    e.last = Now()
+    ServiceInviterDB.scammers[key] = e
+    -- marked Paid by mistake (the owner, 14 Nov 2026: "i accidentally added paid to someone but
+    -- meant to add scam"): the money comes back off the session
+    if j and j.status == "paid" then
+        local st = Stats()
+        st.paid = math.max(0, (st.paid or 0) - 1)
+        st.silver = math.max(0, (st.silver or 0) - (j.amount or JobPrice(j) or 0))
+    end
+    if j then Jobs.Set(name, "scammed") end
+    P("|cffff8080" .. name .. " recorded as not paying|r (" .. e.n .. (e.n == 1 and " time" or " times") .. "). Called out if they join again; never invited.")
+    RemoveFromGroup(name)
+end
+-- The /uninvite a row's Paid and x buttons run: only when you may, and only for someone in the group.
+local function KickMacro(job)
+    if not (job and Jobs.CanRemove() and InGroupByName(job.name)) then return "" end
+    return "/uninvite " .. job.name
+end
+
+local function Since(t)
+    local s = math.max(0, math.floor(GetTime() - (t or GetTime())))
+    if s < 60 then return s .. "s" end
+    return math.floor(s / 60) .. "m " .. (s % 60) .. "s"
+end
+-- "Summons to Thunder Bluff", "Portal to Undercity", "Lockpicking"
+local function ServiceLine(job)
+    local def = job.service and Core.BY_KEY[job.service]
+    if not def then return "Joined the group" end
+    if def.kind == "summon" then return "Summons to " .. (job.dest or "?") end
+    if def.kind == "portal" then return "Portal to " .. (job.dest or "?") end
+    local l = def.label:gsub("^a ", "")
+    return l:sub(1, 1):upper() .. l:sub(2)
+end
+-- Who does it and where, or what went wrong with the invite.
+local function WhoLine(job, g)
+    if job.status == "busy" then return "Invite failed, already in a group" end
+    if job.status == "declined" then return "Declined the invite" end
+    if job.status == "noanswer" then return "Didn't answer the invite" end
+    if job.status == "left" then return "Left the group" end
+    local def = job.service and Core.BY_KEY[job.service]
+    if not def then return "" end
+    local p = Core.Provider(g, job.service, job.dest)
+    if not p then return "Nobody in the group can do this now" end
+    local who = p.me and "You" or Colored(p.name, p.class)
+    return who .. (p.zone and (" in " .. p.zone) or "")
+end
 
 local function ApplyRow(row, job)
     row.job = job
-    row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide()
+    row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide() row.scam:Hide()
     if not job then
-        row.name:SetText("") row.status:SetText("")
+        for _, t in ipairs(row.paint) do t:Hide() end
+        row.name:SetText("") row.status:SetText("") row.where:SetText("") row.service:SetText("") row.age:SetText("") row.note:SetText("")
         return
     end
+    for _, t in ipairs(row.paint) do t:Show() end
     local st = JOB_STATUS[job.status] or { job.status, "" }
-    row.name:SetText(job.name)
-    row.status:SetText(st[2] .. st[1] .. "|r")
+    if not job.class then
+        local u = UnitFor(job.name)
+        if u then local ok, _, cls = pcall(UnitClass, u) if ok then job.class = cls end end
+    end
+    local g = GroupSnapshot()
+    local before = Jobs.Before(job)
+    row.name:SetText(Colored(job.name, job.class) .. (before > 0 and ("  |cff" .. INK.muted .. "· " .. before .. " before|r") or ""))
+    row.bar:SetColorTexture(RGB(ClassHex(job.class) or INK.muted))
+    row.service:SetText(ServiceLine(job))
+    row.where:SetText(WhoLine(job, g))
+    row.status:SetText(st[1])
+    local pill = INK.PILL[job.status] or INK.PILL.left
+    row.pill:SetColorTexture(RGB(pill[1]))
+    row.status:SetTextColor(RGB(pill[2]))
+    local waiting = job.status == "invited" or job.status == "joined"
+    row.age:SetText(waiting and ("waiting " .. Since(job.ts or job.t)) or (Since(job.ts or job.t) .. " ago"))
+    row.note:SetText("")
     local n = UnitFor(job.name) or CleanName(job.name)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     row.trade:SetAttribute("macrotext", "/target " .. n .. "\n/run InitiateTrade(\"target\")")
+    row.paid:SetAttribute("macrotext", KickMacro(job))
+    row.scam:SetAttribute("macrotext", KickMacro(job))
+    row.remove:SetAttribute("macrotext", KickMacro(job))
     local step = NextStep(job)
     local lock = Role() == "lock"
-    if job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
+    row.reinvite:SetAttribute("macrotext", "/invite " .. job.name)
+    if job.status == "asked" or job.status == "busy" or job.status == "noanswer" or job.status == "declined" then
+        row.reinvite:SetText(job.status == "asked" and "Invite" or "Re-invite")
         row.reinvite:Show()
     elseif step == "summon" then
-        if lock then row.summon:Show() end
+        if YouSummon(job) then row.summon:Show()
+        else
+            local p = Core.Provider(g, "summons", job.dest)
+            row.note:SetText(p and (p.me and "Your summon" or (p.name .. " is up")) or "")
+        end
+    elseif step == "arriving" then
+        row.paid:Show()
     elseif step == "offer" then
-        if lock then row.offer:Show() elseif Collects() then row.trade:Show() end
-        if Collects() then row.paid:Show() end
+        local mine = CollectsFor(job)
+        if lock then row.offer:Show() elseif mine then row.trade:Show() end
+        row.paid:Show()
     elseif step == "finish" then
-        if Collects() then row.trade:Show() row.paid:Show() end
+        if CollectsFor(job) then row.trade:Show() end
+        row.paid:Show()
+    elseif step == "serve" then
+        if JobPrice(job) and CollectsFor(job) then row.trade:Show() end
+        row.paid:Show()
     end
+    row.paid:SetText(JobPrice(job) and "Paid" or "Done")
+    if job.status == "left" and job.owes then row.paid:Show() end
+    if (row.paid:IsShown() and JobPrice(job)) or job.status == "paid" then row.scam:Show() end
+    -- no Paid button: Scam, x and Clear left are what gets used (the owner, 14 Nov 2026: "having a
+    -- paid button is kind of redundant, i hardly ever use it"). A trade that pays still marks Paid.
+    row.paid:Hide()
     row.remove:Show()
+end
+
+-- After your click sends the game's /invite (the big button or a row's Invite): they're invited.
+function Jobs.InviteClicked(job)
+    if not job then return end
+    local now = GetTime()
+    job.t, job.tries, job.suggested = now, nil, nil
+    lastInvite[job.name], pending[job.name] = now, now
+    Jobs.Set(job.name, "invited")
 end
 
 local function ApplyNext()
     local w = jobsWin
-    if Role() == "helper" then
+    local asking = false
+    for _, j in ipairs(jobs) do if j.status == "asked" then asking = true break end end
+    if Role() == "helper" and not asking then
         w.nextBtn:Hide()
         w.nextText:Show()
         local nxt, waiting = nil, 0
-        for _, j in ipairs(jobs) do if j.status == "joined" then nxt = nxt or j waiting = waiting + 1 end end
-        w.nextText:SetText(nxt and ("Next up: |cffffd100" .. nxt.name .. "|r" .. (waiting > 1 and ("  (+" .. (waiting - 1) .. " waiting)") or "")) or "Nobody waiting")
+        for _, j in ipairs(jobs) do if NextStep(j) == "summon" then nxt = nxt or j waiting = waiting + 1 end end
+        w.nextText:SetText(nxt and ("Next up: |cff" .. INK.gold .. nxt.name .. "|r" .. (waiting > 1 and ("  (+" .. (waiting - 1) .. " waiting)") or "")) or "Nobody waiting")
+        w.nextMore:SetText("")
+        w.nextSub:SetText(nxt and ("The warlock summons; you click the portal.") or "")
         return
     end
     w.nextBtn:Show()
     w.nextText:Hide()
     local job, step = NextJob()
     w.nextBtn.step, w.nextBtn.job = step, job
+    -- how many more of yours are waiting after this one
+    local more = 0
+    for _, j in ipairs(jobs) do
+        if j ~= job then
+            local st = NextStep(j)
+            if (st == "summon" and YouSummon(j)) or st == "offer" or ((st == "finish" or (st == "serve" and JobPrice(j))) and CollectsFor(j)) then more = more + 1 end
+        end
+    end
+    w.nextMore:SetText(more > 0 and (more .. " more of yours waiting") or "")
     if not job then
         w.nextBtn:SetText("Nothing to do")
         w.nextBtn:SetAttribute("macrotext", "")
+        w.nextSub:SetText("")
         return
     end
     local n = UnitFor(job.name) or CleanName(job.name)
-    if step == "summon" then
+    w.nextSub:SetText(ServiceLine(job) .. ", waiting " .. Since(job.ts or job.t))
+    if step == "invite" then
+        w.nextBtn:SetText("Invite " .. job.name)
+        w.nextBtn:SetAttribute("macrotext", "/invite " .. job.name)
+    elseif step == "summon" then
         w.nextBtn:SetText("Summon " .. job.name)
         w.nextBtn:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     elseif step == "offer" then
@@ -1213,95 +3348,160 @@ RefreshJobs = function()
     jobsDirty = false
     CheckArrivals()
 
-    local lock = Role() == "lock"
     local list = VisibleJobs()
     for i = 1, ROWS do ApplyRow(jobsWin.rows[i], list[i]) end
+    if #list == 0 then jobsWin.empty:Show() else jobsWin.empty:Hide() end
     ApplyNext()
-    local wait, going = 0, 0
+    local wait, going, active = 0, 0, 0
     for _, j in ipairs(jobs) do
         if j.status == "joined" then wait = wait + 1 elseif j.status == "summoned" then going = going + 1 end
+        if ACTIVE[j.status] then active = active + 1 end
     end
-    jobsWin.footer:SetText("Session: " .. SessionText() .. "\nWaiting: " .. wait .. "    Being summoned: " .. going)
+    jobsWin.count:SetText(active > 0 and (active .. " active") or "")
+    local st = Stats()
+    -- what we summoned and what that's worth (the owner, 13 Nov 2026: "it should still record
+    -- EV - how many we summon. the paid will be inaccurate no matter what"). Collected is on
+    -- the Setup's General page.
+    jobsWin.statSummoned:SetText(tostring(st.summoned or 0))
+    jobsWin.statEV:SetText(Money(st.ev or 0))
+    local left = Jobs.ShardsLeft()
+    jobsWin.statShards:SetText(left and tostring(math.max(0, left)) or "-")
+    jobsWin.statWait:SetText(tostring(wait) .. (going > 0 and ("  (" .. going .. " coming)") or ""))
+    RefreshBuff()   -- the buff button shows whoever is next, even if they asked before the list was open
+    jobsWin.Fit(#list, jobsWin.buffBtn:IsShown())
+    if jobsWin.adBtn then
+        local label, ready = AdLabel()
+        jobsWin.adBtn:SetText(label)
+        if ready then jobsWin.adBtn:Enable() else jobsWin.adBtn:Disable() end
+    end
 end
 
 local function BuildJobsUI()
-    local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-    local w = CreateFrame("Frame", "ServiceInviterJobs", UIParent, template)
-    w:SetSize(480, 210 + ROWS * 38)
-    w:SetPoint("CENTER", 0, 120)
+    local W, ROW_H, GAP = 600, 80, 8
+    -- The buff button sits under the big button, in a place that never moves, and the window
+    -- is pinned by its top so only the bottom edge moves as customers come and go (the owner,
+    -- 14 Nov 2026: "the buff should like stay on top so the screen doesnt shrink while i use it")
+    local TOP = 214                                   -- where the first row starts
+    local FOOT, FOOT_BUFF = 76, 76
+    local H = TOP + ROWS * (ROW_H + GAP) + 4 + FOOT
+    local w = CreateFrame("Frame", "ServiceInviterJobs", UIParent)
+    w:SetSize(W, H)
+    w:SetPoint("TOP", UIParent, "TOP", 0, -80)
     w:SetFrameStrata("DIALOG")
     w:SetClampedToScreen(true)
     w:SetMovable(true)
     w:EnableMouse(true)
     w:RegisterForDrag("LeftButton")
     w:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-    if w.SetBackdrop then
-        w:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true, tileSize = 32, edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 },
-        })
-    end
-    local bg = w:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetPoint("TOPLEFT", 6, -6)
-    bg:SetPoint("BOTTOMRIGHT", -6, 6)
-    bg:SetColorTexture(0, 0, 0, 0.92)
+    w:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        -- keep it pinned by the top-left wherever you drop it
+        local l, t = self:GetLeft(), self:GetTop()
+        if l and t then self:ClearAllPoints() self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
+    end)
+    local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
     w:Hide()
+    local function Line(y) local t = Fill(w, INK.soft, "BORDER") t:SetPoint("TOPLEFT", 0, y) t:SetSize(W, 1) return t end
 
-    local title = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -18)
-    title:SetText("Customers")
-    local close = CreateFrame("Button", nil, w, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-    local setupBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    setupBtn:SetPoint("TOPLEFT", 16, -14)
-    setupBtn:SetSize(80, 24) setupBtn:SetText("Setup")
+    -- header: title, how many active, Post ad, Setup, close
+    local title = Text(w, 20, INK.gold, "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 24, -21) title:SetText("Customers")
+    w.count = Text(w, 13, INK.muted)
+    w.count:SetPoint("TOPLEFT", 146, -26)
+    local close = FlatButton(w, 36, 36, "bare", 16)
+    close:SetPoint("TOPRIGHT", -12, -14) close:SetText("X")
+    close:SetScript("OnClick", function() w:Hide() end)
+    local setupBtn = FlatButton(w, 72, 36, "plain")
+    setupBtn:SetPoint("TOPRIGHT", -56, -14) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
+    local adBtn = FlatButton(w, 150, 36, "plain")
+    adBtn:SetPoint("TOPRIGHT", -136, -14) adBtn:SetText("Post ad")
+    local regBtn = FlatButton(w, 90, 36, "plain")
+    regBtn:SetPoint("TOPRIGHT", -294, -14) regBtn:SetText("Regulars")
+    regBtn:SetScript("OnClick", function() Jobs.Copy("Regulars", function() Jobs.PrintRegulars("") end) end)
+    w.regularsBtn = regBtn
+    -- Clear left: everyone who has left the group, off the list in one click (the owner, 14 Nov
+    -- 2026: "maybe a clear the people who have left the group")
+    local clearBtn = FlatButton(w, 96, 26, "plain", 13)
+    clearBtn:SetPoint("TOPRIGHT", -24, -78) clearBtn:SetText("Clear left")
+    clearBtn:SetScript("OnClick", function() Jobs.ClearLeft() RefreshJobs() end)
+    w.clearBtn = clearBtn
+    adBtn:SetScript("OnClick", function() PostAd() end)
+    w.adBtn = adBtn
+    Line(-64)
 
-    -- The big button: always does the next thing for whoever has waited longest.
-    -- Secure buttons must listen for press AND release: newer clients fire them on press.
-    local nb = CreateFrame("Button", "ServiceInviterNext", w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-    nb:SetPoint("TOP", 0, -50)
-    nb:SetSize(300, 40)
+    -- your next job: the one big button. Secure buttons must listen for press AND release:
+    -- newer clients fire them on press.
+    local lbl = Text(w, 12, INK.muted)
+    lbl:SetPoint("TOPLEFT", 24, -86) lbl:SetText("YOUR NEXT JOB")
+    w.nextMore = Text(w, 13, INK.muted)
+    w.nextMore:SetPoint("TOPRIGHT", -132, -86) w.nextMore:SetJustifyH("RIGHT")
+    local nb = FlatButton(w, W - 48, 56, "gold", 20, true, "ServiceInviterNext")
+    nb:SetPoint("TOPLEFT", 24, -106)
     nb:RegisterForClicks("AnyUp", "AnyDown")
     nb:SetAttribute("type", "macro")
     nb:SetText("Nothing to do")
     nb:HookScript("PostClick", function(self)
         local job, step = self.job, self.step
         if not job then return end
-        if step == "summon" then Jobs.Set(job.name, "summoned")
+        if step == "invite" then Jobs.InviteClicked(job)
+        elseif step == "summon" then Jobs.Set(job.name, "summoned")
         elseif step == "offer" then job.offered = true
         elseif step == "finish" then pendingTrade = job.name end
         RefreshJobs()
     end)
     w.nextBtn = nb
-    w.nextText = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-    w.nextText:SetPoint("TOP", 0, -58)
+    w.nextText = Text(w, 18, INK.text)
+    w.nextText:SetPoint("TOPLEFT", 24, -122)
     w.nextText:SetText("Nobody waiting")
+    w.nextSub = Text(w, 13, INK.muted)
+    w.nextSub:SetPoint("TOPLEFT", 24, -172) w.nextSub:SetWidth(W - 48) w.nextSub:SetJustifyH("LEFT")
+    if w.nextSub.SetWordWrap then w.nextSub:SetWordWrap(false) end
 
+    -- the rows
     w.rows = {}
     for i = 1, ROWS do
-        local y = -104 - (i - 1) * 38
-        local row = {}
-        row.name = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-        row.name:SetPoint("TOPLEFT", 24, y - 6)
-        row.name:SetWidth(120) row.name:SetJustifyH("LEFT")
-        row.status = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.status:SetPoint("TOPLEFT", 150, y - 7)
-        row.status:SetWidth(96) row.status:SetJustifyH("LEFT")
+        local y = -TOP - (i - 1) * (ROW_H + GAP)
+        local row = { paint = {} }
+        local rEdge = Fill(w, INK.soft, "BACKGROUND", -6) rEdge:SetPoint("TOPLEFT", 24, y) rEdge:SetSize(W - 48, ROW_H)
+        local rBg = Fill(w, INK.panel, "BACKGROUND", -5) rBg:SetPoint("TOPLEFT", 25, y - 1) rBg:SetSize(W - 50, ROW_H - 2)
+        row.bar = Fill(w, INK.muted, "BORDER") row.bar:SetPoint("TOPLEFT", 25, y - 1) row.bar:SetSize(4, ROW_H - 2)
+        row.pill = Fill(w, INK.PILL.joined[1], "BORDER") row.pill:SetPoint("TOPLEFT", 292, y - 16) row.pill:SetSize(96, 22)
+        row.paint = { rEdge, rBg, row.bar, row.pill }
 
-        row.summon = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        row.summon:SetPoint("TOPLEFT", 252, y)
-        row.summon:SetSize(100, 28) row.summon:SetText("Summon")
+        row.name = Text(w, 16, INK.text, "GameFontHighlightLarge")
+        row.name:SetPoint("TOPLEFT", 42, y - 12)
+        row.name:SetWidth(236) row.name:SetJustifyH("LEFT")
+        if row.name.SetWordWrap then row.name:SetWordWrap(false) end
+        row.service = Text(w, 13, INK.text)
+        row.service:SetPoint("TOPLEFT", 42, y - 36)
+        row.service:SetWidth(236) row.service:SetJustifyH("LEFT")
+        if row.service.SetWordWrap then row.service:SetWordWrap(false) end
+        row.where = Text(w, 13, INK.muted)
+        row.where:SetPoint("TOPLEFT", 42, y - 56)
+        row.where:SetWidth(236) row.where:SetJustifyH("LEFT")
+        if row.where.SetWordWrap then row.where:SetWordWrap(false) end
+        row.status = Text(w, 12, INK.text)
+        row.status:SetPoint("TOPLEFT", 292, y - 20)
+        row.status:SetWidth(96)
+        row.age = Text(w, 12, INK.muted)
+        row.age:SetPoint("TOPLEFT", 294, y - 48)
+        row.age:SetWidth(96) row.age:SetJustifyH("LEFT")
+        row.note = Text(w, 13, INK.muted)
+        row.note:SetPoint("TOPLEFT", 396, y - 32)
+        row.note:SetWidth(140) row.note:SetJustifyH("RIGHT")
+        if row.note.SetWordWrap then row.note:SetWordWrap(false) end
+
+        local AX, AY = 396, y - 22          -- the action slot; Paid sits right of it
+        row.summon = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.summon:SetPoint("TOPLEFT", AX, AY) row.summon:SetText("Summon")
         row.summon:RegisterForClicks("AnyUp", "AnyDown")
         row.summon:SetAttribute("type", "macro")
         row.summon:HookScript("PostClick", function() if row.job then Jobs.Set(row.job.name, "summoned") RefreshJobs() end end)
 
-        row.offer = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        row.offer:SetPoint("TOPLEFT", 252, y)
-        row.offer:SetSize(100, 28) row.offer:SetText("Offer")
+        row.offer = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.offer:SetPoint("TOPLEFT", AX, AY) row.offer:SetText("Offer")
         row.offer:RegisterForClicks("AnyUp", "AnyDown")
         row.offer:SetAttribute("type", "macro")
         row.offer:HookScript("PreClick", function()
@@ -1309,78 +3509,117 @@ local function BuildJobsUI()
         end)
         row.offer:HookScript("PostClick", function() if row.job then row.job.offered = true RefreshJobs() end end)
 
-        row.trade = CreateFrame("Button", nil, w, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        row.trade:SetPoint("TOPLEFT", 252, y)
-        row.trade:SetSize(100, 28) row.trade:SetText("Trade")
+        row.trade = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.trade:SetPoint("TOPLEFT", AX, AY) row.trade:SetText("Trade")
         row.trade:RegisterForClicks("AnyUp", "AnyDown")
         row.trade:SetAttribute("type", "macro")
         row.trade:HookScript("PostClick", function()
             if row.job then pendingTrade = row.job.name D("Trade clicked for " .. row.job.name .. " (macro: " .. tostring(row.trade:GetAttribute("macrotext")) .. ")") end
         end)
 
-        row.paid = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        row.paid:SetPoint("TOPLEFT", 358, y)
-        row.paid:SetSize(70, 28) row.paid:SetText("Paid")
-        row.paid:SetScript("OnClick", function() if row.job then Jobs.Set(row.job.name, "paid") end end)
-
-        row.reinvite = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        row.reinvite:SetPoint("TOPLEFT", 252, y)
-        row.reinvite:SetSize(100, 28) row.reinvite:SetText("Re-invite")
-        row.reinvite:SetScript("OnClick", function()
-            if not row.job then return end
-            local name = row.job.name
-            local j = Jobs.New(name, row.job.text, "re-invited", row.job.channel or "-")
-            lastInvite[name] = GetTime() pending[name] = GetTime()
-            DoInvite(name)
-            RefreshJobs()
+        -- Invite / Re-invite: the game's /invite on your click (an addon's own invite becomes a
+        -- mere suggestion when you're not the leader)
+        row.reinvite = FlatButton(w, 84, 36, "ghost", 14, true)
+        row.reinvite:SetPoint("TOPLEFT", AX, AY) row.reinvite:SetText("Re-invite")
+        row.reinvite:RegisterForClicks("AnyUp", "AnyDown")
+        row.reinvite:SetAttribute("type", "macro")
+        row.reinvite:HookScript("PostClick", function()
+            if row.job then Jobs.InviteClicked(row.job) RefreshJobs() end
         end)
 
-        row.remove = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-        row.remove:SetPoint("TOPLEFT", 436, y)
-        row.remove:SetSize(28, 28) row.remove:SetText("x")
-        row.remove:SetScript("OnClick", function()
+        -- Paid and x run the game's /uninvite (set in ApplyRow), so the removal is yours, not
+        -- the addon's, and the game doesn't block it
+        row.paid = FlatButton(w, 56, 30, "plain", 14, true)
+        row.paid:SetPoint("TOPLEFT", AX + 88, y - 8) row.paid:SetText("Paid")
+        row.paid:RegisterForClicks("AnyUp", "AnyDown")
+        row.paid:SetAttribute("type", "macro")
+        row.paid:HookScript("PreClick", function() if row.job then Thank(row.job) end end)
+        row.paid:HookScript("PostClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
+
+        -- Scam, under Paid: they didn't pay (on the list, out of the group, no thanks)
+        row.scam = FlatButton(w, 56, 30, "plain", 13, true)
+        row.scam:SetPoint("TOPLEFT", AX + 88, y - 25) row.scam:SetText("Scam")
+        row.scam:RegisterForClicks("AnyUp", "AnyDown")
+        row.scam:SetAttribute("type", "macro")
+        row.scam:HookScript("PostClick", function() if row.job then Jobs.Scam(row.job.name) RefreshJobs() end end)
+
+        row.remove = FlatButton(w, 28, 36, "bare", 14, true)
+        row.remove:SetPoint("TOPLEFT", AX + 148, AY) row.remove:SetText("x")
+        row.remove:RegisterForClicks("AnyUp", "AnyDown")
+        row.remove:SetAttribute("type", "macro")
+        row.remove:HookScript("PostClick", function()
             if not row.job then return end
-            local name = row.job.name
-            -- x = done with this customer: take them out of the group too, if allowed
-            local u = UnitFor(name)
-            if u and (UnitInParty and UnitInParty(u) or UnitInRaid and UnitInRaid(u)) then
-                local lead = UnitIsGroupLeader and UnitIsGroupLeader("player")
-                local assist = UnitIsGroupAssistant and UnitIsGroupAssistant("player")
-                if lead or assist then
-                    pcall(UninviteUnit, name)
-                    P("removed " .. name .. " from the group")
-                else
-                    P("removed " .. name .. " from the list (you are not leader/assist, so they stay in the group)")
-                end
-            end
-            Jobs.Remove(name)
+            -- x = done with this customer: out of the group too, if you may
+            RemoveFromGroup(row.job.name)
+            Jobs.Remove(row.job.name)
+            RefreshJobs()
         end)
         w.rows[i] = row
     end
 
-    w.footer = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    w.footer:SetPoint("BOTTOMLEFT", 24, 18)
-    w.footer:SetJustifyH("LEFT") w.footer:SetWidth(330)
-    local newBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    newBtn:SetPoint("BOTTOMRIGHT", -20, 22) newBtn:SetSize(110, 26) newBtn:SetText("New session")
-    newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") end)
+    w.empty = Text(w, 14, INK.muted)
+    w.empty:SetPoint("TOPLEFT", 24, -TOP - 30) w.empty:SetWidth(W - 48)
+    w.empty:SetText("Nobody yet. Post an ad, or wait for someone to ask in chat.")
+
+    -- footer: the session and New session, then the buff button when you have buffs to cast.
+    -- The window is as tall as the customers it shows. Fit runs out of combat only
+    -- (RefreshJobs never runs in combat, when the window can't be resized).
+    local deep = Fill(w, INK.deep, "BACKGROUND", -6)
+    local footLine = Fill(w, INK.soft, "BORDER")
+    local bb = FlatButton(w, W - 48, 36, "plain", 14, true)
+    bb:SetPoint("TOPLEFT", 24, -170)
+    bb:RegisterForClicks("AnyUp", "AnyDown")
+    bb:SetAttribute("type", "macro")
+    bb:SetText("No buffs waiting")
+    bb:Hide()
+    w.buffBtn = bb
+    local stats = {}
+    local function Stat(x, label)
+        local l = Text(w, 12, INK.muted) l:SetText(label)
+        local v = Text(w, 16, label == "Expected" and INK.gold or INK.text, "GameFontHighlightLarge")
+        stats[#stats + 1] = { l, v, x }
+        return v
+    end
+    w.statSummoned = Stat(24, "Summoned")
+    w.statEV = Stat(104, "Expected")
+    w.statWait = Stat(262, "Waiting")
+    w.statShards = Stat(378, "Shards left")
+    local newBtn = FlatButton(w, 100, 36, "plain")
+    newBtn:SetText("New session")
+    function w.Fit(shown, withBuff)
+        local body = TOP + math.max(1, shown) * (ROW_H + GAP) + 4
+        local f = withBuff and FOOT_BUFF or FOOT
+        w:SetHeight(body + f)
+        deep:ClearAllPoints() deep:SetPoint("TOPLEFT", 0, -body) deep:SetSize(W, f)
+        footLine:ClearAllPoints() footLine:SetPoint("TOPLEFT", 0, -body) footLine:SetSize(W, 1)
+        for _, st in ipairs(stats) do
+            st[1]:ClearAllPoints() st[1]:SetPoint("TOPLEFT", st[3], -body - 14)
+            st[2]:ClearAllPoints() st[2]:SetPoint("TOPLEFT", st[3], -body - 32)
+        end
+        newBtn:ClearAllPoints() newBtn:SetPoint("TOPRIGHT", -24, -body - 20)
+    end
+    w.Fit(1, false)
+    newBtn:SetScript("OnClick", function() NewSession() RefreshJobs() P("new session started") Jobs.AskShards() end)
 
     local acc = 0
     w:SetScript("OnUpdate", function(_, elapsed)
         acc = acc + (elapsed or 0)
-        if acc >= 1 then acc = 0 RefreshJobs() end
+        if acc >= 1 then acc = 0 Report("customer list", pcall(RefreshJobs)) end
     end)
     w:SetScript("OnShow", RefreshJobs)
     return w
 end
 
 local function ToggleJobs()
+    if ServiceInviterDB.stasis then P("|cffff8040stopped|r. /si start to wake it.") return end
     jobsWin = jobsWin or BuildJobsUI()
     if jobsWin:IsShown() then jobsWin:Hide() else jobsWin:Show() end
 end
 
 jobsChanged = function(openIt)
-    if openIt and Opt("autoshow") then
+    -- stopped: the window never opens by itself (the owner, 14 Nov 2026: "if i /si stop it should
+    -- stop opening /si customers altogether, i am not currently using si")
+    if openIt and Opt("autoshow") and not ServiceInviterDB.stasis then
         jobsWin = jobsWin or BuildJobsUI()
         if not (InCombatLockdown and InCombatLockdown()) and not jobsWin:IsShown() then jobsWin:Show() end
     end
@@ -1392,69 +3631,154 @@ end
 ----------------------------------------------------------------------
 local setupWin
 
-local function Fill(msg, name, nxt, price)
-    msg = msg:gsub("{name}", function() return name end)
-    msg = msg:gsub("{price}", function() return price end)
-    msg = msg:gsub("{next}", function() return nxt or "nobody" end)
-    return msg
+-- Pick list for "who gets paid": a titled menu with plain choices, the group listed below.
+-- One shared frame; the box keeps working for a typed name.
+local picker
+-- The default payee in plain words, naming who that is for this service.
+local DOER = { WARLOCK = "the warlock", MAGE = "the mage", ROGUE = "the rogue",
+               PRIEST = "the priest", DRUID = "the druid", PALADIN = "the paladin" }
+local function DefaultPayeeText(key)
+    local d = type(ServiceInviterDB.payee) == "table" and ServiceInviterDB.payee or {}
+    if d.mode == "me" then return "you" end
+    if d.mode == "name" and d.name and d.name ~= "" then return d.name end
+    local def = key and Core.BY_KEY[key]
+    return def and DOER[def.class] or "whoever does it"
+end
+local function ShowPicker(box, withDefaults, title, key)
+    local only = type(key) == "string" and key:match("^class:(%u+)$")   -- "Our warlocks": that class, added to the list
+    if key == "workers" then only = "ANY" end                            -- "Our workers": anyone but customers
+    if not picker then
+        picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent)
+        picker:SetFrameStrata("FULLSCREEN_DIALOG")
+        picker:EnableMouse(true)
+        local edge = Fill(picker, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(picker, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        picker.title = Text(picker, 14, INK.gold, "GameFontNormal")
+        picker.title:SetPoint("TOPLEFT", 10, -9)
+        picker.sub = Text(picker, 11, INK.muted, "GameFontHighlightSmall")
+        picker.sub:SetPoint("TOPLEFT", 10, -26)
+        picker.note = picker:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        picker.buttons = {}
+        picker:Hide()
+    end
+    if picker:IsShown() and picker.box == box then picker:Hide() return end
+    picker.box = box
+    picker.title:SetText(title or "Who gets paid?")
+    local me = FullName("player") or "me"
+    local entries = {}
+    picker.sub:SetText(withDefaults and ("Default: " .. DefaultPayeeText(key)) or "")
+    local top = withDefaults and 44 or 30
+    if only then
+        -- that class only, from the group or raid; a pick is added to the list
+        for _, m in ipairs(GroupSnapshot()) do
+            if (m.class == only or (only == "ANY" and not m.me and not m.customer)) then entries[#entries + 1] = { Colored(m.me and (m.name .. " (you)") or m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+        end
+    elseif withDefaults then
+        entries[#entries + 1] = { "Default", "" }
+        entries[#entries + 1] = { "Me (" .. me .. ")", "me" }
+    else
+        entries[#entries + 1] = { "Me (" .. me .. ")", me }
+    end
+    if not only then
+        for _, m in ipairs(GroupSnapshot()) do
+            if not m.me then entries[#entries + 1] = { Colored(m.name, m.class) .. (m.zone and ("  (" .. m.zone .. ")") or ""), m.name } end
+        end
+    end
+    local W = 300
+    for i, e in ipairs(entries) do
+        local b = picker.buttons[i]
+        if not b then
+            b = FlatButton(picker, W - 20, 22, "plain", 13)
+            b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("LEFT", 10, 0)
+            picker.buttons[i] = b
+        end
+        b:SetSize(W - 20, 22)
+        b:ClearAllPoints() b:SetPoint("TOPLEFT", 10, -top - (i - 1) * 24)
+        b:SetText(e[1])
+        b:SetScript("OnClick", function()
+            if only then
+                local cur = box:GetText() or ""
+                local have = false
+                for nm in cur:gmatch("[^,]+") do if nm:gsub("^%s+", ""):gsub("%s+$", ""):lower() == e[2]:lower() then have = true end end
+                if not have then box:SetText(cur:find("%S") and (cur:gsub("%s+$", "") .. ", " .. e[2]) or e[2]) end
+            else
+                box:SetText(e[2])
+            end
+            picker:Hide()
+        end)
+        b:Show()
+    end
+    for i = #entries + 1, #picker.buttons do picker.buttons[i]:Hide() end
+    local h = top + #entries * 24
+    picker.note:ClearAllPoints() picker.note:SetPoint("TOPLEFT", 10, -h - 2)
+    local alone = #GroupSnapshot() <= 1
+    if only and #entries == 0 then picker.note:SetText(only == "ANY" and "Nobody but customers in your group right now." or "Nobody of that class in your group right now.")
+    else picker.note:SetText(alone and "Party and raid members show up here." or (only and "Each pick is added to the list." or "Or type any name in the box.")) end
+    picker:SetSize(W, h + 24)
+    picker:ClearAllPoints() picker:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -2)
+    picker:Show()
+end
+local function PickButton(parent, box, withDefaults, title, key)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(24, 24)
+    b:SetPoint("LEFT", box, "RIGHT", 2, 0)
+    if b.SetNormalTexture then
+        b:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+        b:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Down")
+        b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    end
+    b:SetScript("OnClick", function() ShowPicker(box, withDefaults, title, key) end)
+    return b
 end
 
 local function BuildSetupUI()
-    local template = (BackdropTemplateMixin and "BackdropTemplate") or nil
-    local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent, template)
-    w:SetSize(1010, 910)
-    w:SetPoint("CENTER", 0, 0)
+    local RAIL, PW, H = 168, 900, 690          -- the side menu, then the 900-wide page
+    local W = RAIL + PW
+    local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent)
+    w:SetSize(W, H)
+    w:SetPoint("CENTER", 0, 20)
     w:SetFrameStrata("DIALOG")
     w:SetClampedToScreen(true)
     w:SetMovable(true) w:EnableMouse(true)
     w:RegisterForDrag("LeftButton")
     w:SetScript("OnDragStart", function(self) self:StartMoving() end)
     w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-    if w.SetBackdrop then
-        w:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true, tileSize = 32, edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 },
-        })
-    end
-    local bg = w:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetPoint("TOPLEFT", 6, -6) bg:SetPoint("BOTTOMRIGHT", -6, 6)
-    bg:SetColorTexture(0, 0, 0, 0.92)
+    -- solid and near black, so the setup is easy to read over anything behind it (the owner,
+    -- 12 Nov 2026), in the customer list's dark and gold
+    local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+    w.bg = bg
+    local rail = Fill(w, INK.deep, "BACKGROUND", -6) rail:SetPoint("TOPLEFT", 0, 0) rail:SetSize(RAIL, H)
+    local railLine = Fill(w, INK.soft, "BORDER") railLine:SetPoint("TOPLEFT", RAIL, 0) railLine:SetSize(1, H)
     w:Hide()
 
-    local title = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -16) title:SetText("Service Inviter setup")
-    local close = CreateFrame("Button", nil, w, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-    local hint = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    hint:SetPoint("TOPLEFT", 30, -44) hint:SetWidth(950) hint:SetJustifyH("LEFT")
-    hint:SetText("Everything in one place. Left: what happens, in order, and what is said. Right: who gets invited. In messages {name} = the customer, {price} = your price. Press Save when done.")
+    local brand = Text(w, 16, INK.gold, "GameFontNormalLarge")
+    brand:SetPoint("TOPLEFT", 20, -22) brand:SetText("Service Inviter")
+    local title = Text(w, 20, INK.text, "GameFontHighlightLarge")
+    title:SetPoint("TOPLEFT", RAIL + 28, -18) title:SetText("General")
+    local close = FlatButton(w, 36, 36, "bare", 16)
+    close:SetPoint("TOPRIGHT", -12, -10) close:SetText("X")
+    close:SetScript("OnClick", function() w:Hide() end)
 
-    -- the flow line down the left side, and a divider between the columns
-    local line = w:CreateTexture(nil, "ARTWORK")
-    line:SetColorTexture(0.9, 0.7, 0.1, 0.6)
-    line:SetPoint("TOPLEFT", 18, -86) line:SetSize(2, 700)
-    local divider = w:CreateTexture(nil, "ARTWORK")
-    divider:SetColorTexture(0.5, 0.5, 0.5, 0.5)
-    divider:SetPoint("TOPLEFT", 505, -86) divider:SetSize(1, 720)
-
-    local boxes, checks, previews = {}, {}, {}
+    local boxes, checks, radios = {}, {}, {}
     local optKeys = {}     -- checkboxes that simply map to an option
+    local page             -- the tab being built
 
-    local function Header(x, y, num, text)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        fs:SetPoint("TOPLEFT", x, y)
-        fs:SetText(num and ("|cffffd100" .. num .. "|r  " .. text) or ("|cffffd100" .. text .. "|r"))
-    end
-    local function Label(x, y, text)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local function Header(x, y, text)
+        local fs = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         fs:SetPoint("TOPLEFT", x, y) fs:SetText(text)
+        return fs
     end
-    local function Box(key, y, width, maxLetters, x)
-        local eb = CreateFrame("EditBox", nil, w, "InputBoxTemplate")
-        eb:SetPoint("TOPLEFT", x or 46, y)
-        eb:SetSize(width or 440, 22)
+    local function Label(x, y, text, font, width)
+        local fs = page:CreateFontString(nil, "OVERLAY", font or "GameFontNormal")
+        fs:SetPoint("TOPLEFT", x, y) fs:SetText(text)
+        if width then fs:SetWidth(width) fs:SetJustifyH("LEFT") end
+        return fs
+    end
+    local function Box(key, x, y, width, maxLetters)
+        local eb = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
+        eb:SetPoint("TOPLEFT", x, y)
+        eb:SetSize(width or 400, 22)
         eb:SetAutoFocus(false)
         eb:SetMaxLetters(maxLetters or 255)
         eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
@@ -1462,232 +3786,510 @@ local function BuildSetupUI()
         boxes[key] = eb
         return eb
     end
-    local function Preview(key, y)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-        fs:SetPoint("TOPLEFT", 50, y) fs:SetWidth(440) fs:SetJustifyH("LEFT")
-        previews[key] = fs
-    end
-    -- a checkbox; text is optional (the places grid has none)
     local function Check(key, x, y, text, isOpt)
-        local cb = CreateFrame("CheckButton", nil, w, "UICheckButtonTemplate")
+        local cb = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
         cb:SetSize(26, 26) cb:SetPoint("TOPLEFT", x, y)
         if text then
-            local fs = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            local fs = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
             fs:SetPoint("LEFT", cb, "RIGHT", 2, 0) fs:SetText(text)
+            cb.label = fs
         end
         checks[key] = cb
         if isOpt then optKeys[#optKeys + 1] = key end
+        return cb
     end
-
-    -- LEFT: the flow ------------------------------------------------
-    Header(30, -78, "1", "Customer joins your group")
-    Check("welcome", 40, -100, "Say this in raid / party when an invited person joins")
-    Box("welcomemsg", -128)
-    Preview("welcomemsg", -154)
-
-    Header(30, -190, "2", "The lock starts summoning (banner: click the portal)")
-    Check("raidalert", 40, -212, "Also say this in raid")
-    Box("alertmsg", -242)
-    Preview("alertmsg", -268)
-
-    Header(30, -298, "3", "Whisper who is being summoned")
-    Label(40, -322, "Whisper to (blank = no whisper):")
-    Box("whisperto", -342, 200, 40)
-    Label(40, -370, "Whisper text ({name} = who, {next} = who waits longest):")
-    Box("whispermsg", -390)
-    Preview("whispermsg", -416)
-
-    Header(30, -446, "4", "Customer arrives")
-    Check("collect", 40, -470, "I collect the payment")
-    Check("autotrade", 220, -470, "Open trade by itself in range")
-    Label(40, -504, "Price per customer (gold and/or silver):")
-    Box("pricegold", -524, 60, 5)
-    Label(112, -521, "gold")
-    Box("pricesilver", -524, 50, 2, 170)
-    Label(228, -521, "silver")
-
-    Header(30, -558, "5", "Extras you can offer on arrival")
-    Label(40, -582, "Tick what you offer. Sent on arrival; none ticked = no message.")
-    for i, x in ipairs(OFFERS) do
-        local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
-        Check("offer_" .. x.key, 40 + col * 150, -604 - row * 24, x.label)
+    -- radio: checkboxes in a group where ticking one unticks the others
+    local function Radio(group, key, x, y, text, onPick)
+        local cb = Check(key, x, y, text)
+        radios[group] = radios[group] or {}
+        radios[group][#radios[group] + 1] = cb
+        cb:SetScript("OnClick", function()
+            for _, other in ipairs(radios[group]) do other:SetChecked(other == cb) end
+            if onPick then onPick() end
+        end)
+        return cb
     end
-    Label(40, -682, "Other (your own, e.g. Lockbox opening):")
-    Box("offerother", -702, 440, 60)
-    Label(40, -734, "Offer message ({offers} = everything above):")
-    Box("offermsg", -754)
-
-    -- RIGHT: role, who gets invited, advanced ----------------------
-    local X = 525
-    Header(X, -78, nil, "Your role")
-    Check("rolehelper", X, -102, "Helper: I click the portal (banner, raid line, whisper)")
-    Check("rolelock", X, -128, "Warlock: I summon (Summon and Offer buttons)")
-    checks.rolehelper:SetScript("OnClick", function() checks.rolehelper:SetChecked(true) checks.rolelock:SetChecked(false) end)
-    checks.rolelock:SetScript("OnClick", function() checks.rolelock:SetChecked(true) checks.rolehelper:SetChecked(false) end)
-
-    Header(X, -166, nil, "Who gets invited")
-    Check("enabled", X, -190, "Invite people who ask for a summon/port", true)
-
-    Label(X, -222, "Listen in:")
-    Label(X + 120, -222, "+ other channels:")
-    Box("chanextra", -224, 190, 100, X + 270)
-    Check("trade", X + 10, -244, "Trade", true)
-    Check("general", X + 100, -244, "General", true)
-    Check("say", X + 210, -244, "Say", true)
-    Check("yell", X + 290, -244, "Yell", true)
-
-    Label(X, -280, "Which requests do you want?")
-    local function Col(text, x)
-        local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        fs:SetPoint("TOPLEFT", x, -302) fs:SetText(text)
-    end
-    local places = {}
-    for _, d in ipairs(DESTS) do places[#places + 1] = { d.label, d.key } end
-    places[#places + 1] = { "Any other", "any" }
-    local perBlock = math.ceil(#places / 2)
-    for blk = 0, 1 do
-        local bx = X + blk * 235
-        Col("Summon", bx + 98) Col("Port", bx + 150)
-        for r = 1, perBlock do
-            local pl = places[blk * perBlock + r]
-            if pl then
-                local y = -318 - (r - 1) * 24
-                local fs = w:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                fs:SetPoint("TOPLEFT", bx + 6, y - 5) fs:SetText(pl[1])
-                Check("sum_" .. pl[2], bx + 104, y, nil, true)
-                Check("port_" .. pl[2], bx + 152, y, nil, true)
-            end
+    -- one service: offer it, price (blank = free), invite, words, who gets paid
+    local function Service(key, x, y)
+        local def = Core.BY_KEY[key]
+        local k = "svc_" .. key .. "_"
+        Check(k .. "on", x, y, (def.kind == "buff" and "We offer " or "We sell ") .. def.label)
+        Label(x + 4, y - 32, "Price:")
+        Box(k .. "g", x + 52, y - 28, 44, 5) Label(x + 100, y - 32, "g")
+        Box(k .. "s", x + 116, y - 28, 30, 2) Label(x + 150, y - 32, "s", nil)
+        Label(x + 166, y - 33, "blank = free", "GameFontHighlightSmall")
+        Check(k .. "invite", x, y - 54, "Invite buyers who ask for it")
+        local dy = 86
+        if def.words then
+            Label(x + 4, y - dy, "Buyers say:")
+            Box(k .. "words", x + 92, y - dy + 4, 300, 200)
+            dy = dy + 28
         end
+        Label(x + 4, y - dy, "Who gets paid:")
+        local pb = Box(k .. "payee", x + 112, y - dy + 4, 130, 40)
+        PickButton(page, pb, true, "Who gets paid for " .. def.label .. "?", key)
+        Label(x + 276, y - dy - 1, "blank = General tab", "GameFontHighlightSmall")
+        return dy + 28
     end
 
-    Header(X, -448, nil, "Matching")
-    Check("strictbuy", X, -472, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
-    Check("fragments", X, -498, "Combine a person's split messages", true)
-    Check("nodest", X, -524, "No place named (\"WTB summ\") = assume Thunder Bluff", true)
+    -- tabs ----------------------------------------------------------------
+    -- summons and blessings only (the owner, 14 Nov 2026: "we are only summoning and sometimes
+    -- doing a blessing but not much else")
+    local TABS = { "General", "Warlock", "Paladin", "Advertise", "Team", "Tools" }
+    local pages, tabBtns = {}, {}
+    -- the side menu: the page you're on is gold, with a bar beside it
+    local railBar
+    local function ShowTab(i)
+        for j, pg in ipairs(pages) do
+            local on = j == i
+            if on then pg:Show() else pg:Hide() end
+            local b = tabBtns[j]
+            b._siStyle = on and "railOn" or "rail"
+            b:GetFontString():SetTextColor(RGB(on and INK.gold or INK.text))
+            if on then b.sel:Show() else b.sel:Hide() end
+        end
+        railBar:ClearAllPoints() railBar:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44)
+        title:SetText(TABS[i])
+        w.tab = i
+    end
+    for i, name in ipairs(TABS) do
+        local pg = CreateFrame("Frame", nil, w)
+        pg:SetPoint("TOPLEFT", RAIL, -14) pg:SetSize(PW, H - 14)   -- below the page title
+        pages[i] = pg
+        local sel = Fill(w, INK.panel, "BACKGROUND", -5) sel:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44) sel:SetSize(RAIL, 40)
+        local b = FlatButton(w, RAIL, 40, "rail", 15)
+        b:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44)
+        b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("LEFT", 20, 0)
+        b:SetText(name)
+        b:SetScript("OnClick", function() ShowTab(i) end)
+        b.sel = sel
+        tabBtns[i] = b
+    end
+    railBar = Fill(w, INK.gold, "ARTWORK") railBar:SetSize(3, 40)
+    w.pages, w.tabBtns, w.ShowTab, w.tab = pages, tabBtns, ShowTab, 1
 
-    Header(X, -562, nil, "Other")
-    Check("skipafk", X, -586, "Skip while I'm AFK", true)
-    Check("announce", X, -612, "Show a line in chat when I invite", true)
-    Check("autoshow", X, -638, "Open the customer list when I invite someone", true)
+    local L, R = 28, 470
 
-    Check("kwon", X, -664, "Auto-invite anyone who says:", true)
-    Box("kwwords", -666, 170, 60, X + 262)
+    -- General: who gets invited, who gets paid, the messages ---------------
+    page = pages[1]
+    Header(L, -50, "Who gets invited")
+    Check("enabled", L, -74, "Invite buyers of what we sell", true)
+    Label(L, -108, "Listen in:")
+    Check("trade", L + 76, -102, "Trade", true)
+    Check("general", L + 156, -102, "General", true)
+    Check("say", L + 246, -102, "Say", true)
+    Check("yell", L + 316, -102, "Yell", true)
+    Label(L, -138, "+ other channels:")
+    Box("chanextra", L + 140, -134, 250, 100)
+    Check("strictbuy", L, -162, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
+    Check("fragments", L, -188, "Combine a person's split messages", true)
+    Check("skipafk", L, -214, "Skip while I'm AFK", true)
+    Check("announce", L, -240, "Show a line in chat when I invite", true)
+    Check("autoshow", L, -266, "Open the customer list when I invite someone", true)
+    Check("kwon", L, -292, "Auto-invite anyone who says:", true)
+    Box("kwwords", L + 236, -294, 170, 60)
+    Check("dryrun", L, -322, "Test mode")
+    Check("near", L + 110, -322, "Near-miss lines")
+    Check("debug", L + 270, -322, "Debug")
+    Header(L, -362, "On sale right now")
+    w.onsale = Label(L, -388, "", "GameFontHighlight", 410)
+    -- our workers, like "Our warlocks" (the owner, 13 Nov 2026: "i want it more like it is in the
+    -- lock tab where i can say these are our locks")
+    Header(L, -450, "Our workers")
+    Label(L, -476, "Here to click. Never a customer: no row, no welcome, never invited.", "GameFontHighlightSmall", 410)
+    local wb = Box("workers", L + 4, -496, 330, 400)
+    PickButton(page, wb, false, "Our workers (from your group)", "workers")
+    Label(L, -534, "When someone who didn't pay joins, say ({name} {skull}, empty = off):")
+    Box("scammsg", L + 4, -556, 396)
 
-    Header(X, -706, nil, "Troubleshooting")
-    Check("dryrun", X, -730, "Dry run (only say who it would invite)")
-    Check("near", X, -756, "Near-miss lines")
-    Check("debug", X + 215, -756, "Debug")
-
-    local note = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    note:SetPoint("TOPLEFT", X, -792) note:SetWidth(450) note:SetJustifyH("LEFT")
-    note:SetText("Sellers/ads (WTS, selling, service, tips...) are always skipped. pst/inv is fine if they say WTB.")
-
-    Header(X, -826, nil, "This session")
-    local sessText = w:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    sessText:SetPoint("TOPLEFT", X, -852) sessText:SetWidth(300) sessText:SetJustifyH("LEFT")
-    local sessBtn = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    sessBtn:SetPoint("TOPLEFT", X + 320, -846) sessBtn:SetSize(120, 26) sessBtn:SetText("New session")
-    sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() end)
+    Header(R, -50, "Who gets paid (default)")
+    local function SyncTradeBox()
+        local named = checks.pay_name and checks.pay_name:GetChecked()
+        if named then checks.autotrade:Disable() else checks.autotrade:Enable() end
+        if checks.autotrade.label then checks.autotrade.label:SetFontObject(named and "GameFontDisable" or "GameFontHighlight") end
+    end
+    Radio("pay", "pay_place", R, -74, "Whoever does it (the warlock, mage, rogue...)", SyncTradeBox)
+    Label(R + 30, -100, "You get paid only if you pick 'Always me' (or 'Me' on a service).", "GameFontHighlightSmall")
+    Radio("pay", "pay_me", R, -116, "Always me", SyncTradeBox)
+    Radio("pay", "pay_name", R, -142, "Always:", SyncTradeBox)
+    local pn = Box("payname", R + 100, -144, 160, 40)
+    PickButton(page, pn, false, "Who always gets paid?")
+    Check("autotrade", R, -172, "Open trade by itself when it's me and they're in range")
+    Label(R, -202, "Each service can name its own payee on its tab.", "GameFontHighlightSmall")
+    Header(R, -232, "Messages")
+    Check("welcome", R, -256, "Welcome them when they join")
+    Label(R, -286, "Welcome text, blank = automatic (what, who, where, price, who to pay).", "GameFontHighlightSmall", 400)
+    Label(R, -300, "Yours can use {name} {service} {price} {payee} {visits}.", "GameFontHighlightSmall", 400)
+    Box("welcomemsg", R + 4, -316, 396)
+    Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
+    Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
+    Box("offermsg", R + 4, -378, 396)
+    Check("thanks", R, -410, "When they're done, whisper ({name}):")
+    Box("thanksmsg", R + 4, -438, 396)
+    Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
+    Label(R, -500, "Regulars hear ({name} {visits} = 4th, empty = off):")
+    Box("loyaltymsg", R + 4, -522, 396)
+    Header(R, -556, "This session")
+    local sessText = Label(R, -582, "", "GameFontHighlight", 270)
+    local sessBtn = FlatButton(page, 120, 30, "plain")
+    sessBtn:SetPoint("TOPLEFT", R + 286, -576) sessBtn:SetText("New session")
+    sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() Jobs.AskShards() end)
     w.sessText = sessText
 
+    -- Warlock --------------------------------------------------------------
+    page = pages[2]
+    Service("summons", L, -50)
+    Header(L, -168, "Who summons")
+    Radio("role", "rolelock", L, -192, "I do (I'm the warlock)")
+    Radio("role", "rolehelper", L, -218, "A friend in the group does; I click the portal")
+    Header(L, -256, "Summons go to")
+    w.locks = Label(L, -282, "", "GameFontHighlight", 410)
+    Label(L, -330, "Each warlock summons to wherever they're standing. If the game can't tell where a warlock is, nobody is invited for their summons.", "GameFontHighlightSmall", 410)
+    -- "Ours": only these count (the owner, 13 Nov 2026: "yeah our warlock and we can auto fill from the raid")
+    local function Ours(cls, word, y)
+        Header(L, y, "Our " .. word)
+        Label(L, y - 26, "Only these sell. Blank = any " .. word:gsub("s$", "") .. " in the group who isn't a customer.", "GameFontHighlightSmall", 410)
+        local b = Box("prov_" .. cls, L + 4, y - 46, 330, 200)
+        PickButton(page, b, false, "Our " .. word .. " (from your group)", "class:" .. cls)
+    end
+    Ours("WARLOCK", "warlocks", -380)
+    Check("countshards", L, -466, "Count shards: stop inviting when they run out", true)
+    -- following the market, channel by channel: the price above is the max; never below the min
+    -- (the owner, 14 Nov 2026: "each service will work with default min and max ... we dont want to
+    -- offer below the min and we want to offer the max when possible" -- "also we want to toggle
+    -- the option to match maybe we dont want to under cut")
+    Label(L, -496, "When another seller in a channel is cheaper (price above = the max):")
+    Radio("pricemode", "pm_undercut", L, -518, "Undercut by")
+    Box("undercut", L + 126, -514, 40, 4)
+    Label(L + 172, -522, "silver")
+    Radio("pricemode", "pm_match", L + 236, -518, "Match")
+    Radio("pricemode", "pm_ignore", L + 322, -518, "Ignore")
+    Label(L, -556, "Never below (min):")
+    Box("floor", L + 150, -552, 44, 4)
+    Label(L + 200, -556, "silver. Blank = the price never moves.")
+    Header(R, -50, "When the warlock starts summoning")
+    Check("raidalert", R, -74, "Say in raid ({name} {dest} {payee} {price}):")
+    Box("alertmsg", R + 4, -102, 396)
+    Label(R, -134, "Whisper to (blank = nobody):")
+    Box("whisperto", R + 210, -130, 150, 40)
+    Label(R, -162, "Whisper text ({name}, {next} = who waits longest):", "GameFontHighlightSmall")
+    Box("whispermsg", R + 4, -178, 396)
+
+    -- Paladin --------------------------------------------------------------
+    page = pages[3]
+    Label(L, -50, "Free unless you set a price. Anyone in the group who asks gets queued on the buff button.", "GameFontHighlightSmall", 840)
+    local bh = Service("blessing", L, -76)
+    -- the word they use picks the blessing; this box is only for a plain "blessing" (the owner,
+    -- 13 Nov 2026: "can it not detect what they want? i have to have only blessing of might?")
+    Label(L + 4, -76 - bh - 4, "Just 'blessing':")
+    Box("blessing_spell", L + 130, -76 - bh, 200, 60)
+    Label(L + 4, -76 - bh - 30, "\"kings\", \"wis\", \"bok\", \"salv\"... (any first 3 letters) get that blessing.", "GameFontHighlightSmall", 400)
+    Check("buffarrivals", L, -330, "Buff customers when they land, without being asked (off = only people who ask)", true)
+    Check("buffpop", L, -358, "Pop the buff button up at my mouse, with a sound, when someone is waiting", true)
+    Label(L, -396, "The buff button casts on whoever is next. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
+
+    -- Advertise --------------------------------------------------------------
+    page = pages[4]
+    Header(L, -50, "Advertise")
+    Label(L, -78, "The game only lets an ad go out when you press a key or click, so it's one press per ad. The text comes from what is on sale; a whispered 'inv' within 10 minutes counts as an answer to your ad.", "GameFontHighlightSmall", 840)
+    Label(L, -118, "Ad ({wts} = 'WTS ' when anything is paid, {services} = what's on sale):")
+    Box("admsg", L + 4, -136, 600)
+    Label(L, -172, "Post in:")
+    Check("adch_trade", L + 70, -166, "Trade")
+    Check("adch_general", L + 160, -166, "General")
+    Label(L + 270, -172, "+ other channels:")
+    Box("adextra", L + 410, -168, 180, 100)
+    Label(L, -206, "Wait between ads in a channel:")
+    Box("adwait", L + 230, -202, 40, 3)
+    Label(L + 280, -206, "minutes")
+    Label(L, -240, "Preview:")
+    w.adpreview = Label(L + 72, -240, "", "GameFontHighlight", 760)
+    local post = FlatButton(page, 220, 34, "gold", 15)
+    post:SetPoint("TOPLEFT", L, -282) post:SetText("Post ad")
+    post:SetScript("OnClick", function() w.Save() PostAd() w.Load() end)
+    w.adpost = post
+    Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
+
+    -- Team -------------------------------------------------------------------
+    page = pages[5]
+    Header(L, -50, "Team")
+    Label(L, -76, "Copies on the team share with each other and are never customers. Copies in your raid who aren't on it get a line in your chat.", "GameFontHighlightSmall", 840)
+    local tb = Box("team", L + 4, -100, 600, 400)
+    PickButton(page, tb, false, "Team (from your group)", "workers")
+    Label(L, -136, "Point of contact (the first one online invites and whispers every customer; blank = each of you, solo):", "GameFontHighlightSmall", 840)
+    local pb2 = Box("poc", L + 4, -156, 600, 200)
+    PickButton(page, pb2, false, "Point of contact (from your group)", "workers")
+    w.teamStatus = Label(L, -190, "", "GameFontHighlight", 840)
+    Header(L, -232, "Where each message goes")
+    for i, kind in ipairs(Jobs.ROUTE_KINDS) do
+        local y = -260 - (i - 1) * 30
+        Label(L, y - 4, Jobs.ROUTE_LABEL[kind] .. ":")
+        Radio("route_" .. kind, "route_" .. kind .. "_whisper", L + 190, y, "Whisper them")
+        Radio("route_" .. kind, "route_" .. kind .. "_group", L + 340, y, "Party / raid")
+        Radio("route_" .. kind, "route_" .. kind .. "_off", L + 490, y, "Off")
+    end
+    Label(L, -450, "With a team, customer messages start as whispers; solo, as before. The regulars line and the call-out are public.", "GameFontHighlightSmall", 840)
+
+    -- Tools: every command as a button (the owner, 14 Nov 2026: "i want the addon to have a debug
+    -- panel/command panel or something - there are too many to remember"). Each runs the same
+    -- /si command you could type.
+    page = pages[6]
+    local function Run(cmd) w.Save() SlashCmdList.SERVICEINVITER(cmd) w.Load() end
+    w.tools = {}
+    local function Tool(x, y, text, cmd, width)
+        local b = FlatButton(page, width or 150, 30, "plain", 13)
+        b:SetPoint("TOPLEFT", x, y) b:SetText(text)
+        b:SetScript("OnClick", function() Run(type(cmd) == "function" and cmd() or cmd) end)
+        w.tools[text] = b
+        return b
+    end
+    local function Named(cmd) return function() return cmd .. " " .. (boxes.toolname:GetText():gsub("^%s+", ""):gsub("%s+$", "")) end end
+    Header(L, -50, "On and off")
+    Tool(L, -76, "Stop everything", "stop")
+    Tool(L + 160, -76, "Start again", "start")
+    Tool(L + 320, -76, "Selling on", "on")
+    Tool(L + 480, -76, "Selling off", "off")
+    Tool(L, -112, "Test mode on", function() local t = boxes.testtarget:GetText():gsub("^%s+", ""):gsub("%s+$", "") return t ~= "" and ("test " .. t) or "test" end)
+    Tool(L + 160, -112, "Test mode off", "test off")
+    Label(L + 324, -120, "Whispers go to:")
+    Box("testtarget", L + 440, -114, 190, 40)
+    Label(L + 640, -120, "(blank = you)", "GameFontHighlightSmall")
+    Header(L, -158, "Someone by name")
+    Label(L, -186, "Name:")
+    Box("toolname", L + 56, -182, 220, 40)
+    Tool(L, -214, "Why (what it decided)", Named("why"), 190)
+    Tool(L + 200, -214, "Their history", Named("customers"))
+    Tool(L + 360, -214, "Didn't pay", Named("scam"))
+    Tool(L + 520, -214, "Paid after all", Named("unscam"))
+    Tool(L, -250, "Add to team", Named("team add"), 190)
+    Tool(L + 200, -250, "Remove from team", Named("team remove"))
+    Header(L, -296, "Lists (open to copy)")
+    Tool(L, -322, "Stats", "stats")
+    Tool(L + 160, -322, "Top 10 regulars", "customers")
+    Tool(L + 320, -322, "All customers", "customers all")
+    Tool(L + 480, -322, "Didn't pay list", "scammers")
+    Tool(L, -358, "Didn't pay: names", "scammers names")
+    Tool(L + 160, -358, "Prices by channel", "prices")
+    Tool(L + 320, -358, "Team", "team")
+    Tool(L + 480, -358, "What it hears", "status")
+    Header(L, -404, "Checks")
+    Tool(L, -430, "Self-test", "selftest")
+    Tool(L + 160, -430, "Debug on/off", "debug")
+    Tool(L + 320, -430, "New session", "session new")
+    Tool(L + 480, -430, "Team messages", "teamlog")
+    Label(L, -510, "Each button does the same as typing /si and the word, e.g. /si why Kaldrok.", "GameFontHighlightSmall", 840)
+
     local DEFAULTS_BY_KEY = {
-        welcomemsg = DEFAULT_WELCOME, alertmsg = DEFAULT_ALERTMSG,
-        whispermsg = DEFAULT_WHISPERMSG, offermsg = DEFAULT_OFFERMSG,
+        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
     }
 
-    local function UpdatePreviews()
-        local n = (tonumber(boxes.pricegold:GetText()) or 0) * 100 + (tonumber(boxes.pricesilver:GetText()) or 0)
-        local pr = PriceLong(n)
-        previews.welcomemsg:SetText("Preview: " .. Fill(boxes.welcomemsg:GetText(), "Bob", nil, PriceShort(n)))
-        previews.alertmsg:SetText("Preview: " .. Fill(boxes.alertmsg:GetText(), "Bob", nil, pr))
-        previews.whispermsg:SetText("Preview: " .. Fill(boxes.whispermsg:GetText(), "Bob", "Cat", pr))
+    local function Refresh()
+        local items = Core.OnSale(ServiceInviterDB, GroupSnapshot(), Faction())
+        local parts = {}
+        for _, it in ipairs(items) do
+            local what = it.def.label
+            if it.def.kind == "summon" then what = it.where and ("summons to " .. Core.Short(it.where)) or "summons (where? not invited)" end
+            if it.def.kind == "portal" then
+                local c = {}
+                for _, city in ipairs(it.cities) do c[#c + 1] = Core.Short(city) end
+                what = "portals to " .. table.concat(c, "/")
+            end
+            parts[#parts + 1] = what .. " (" .. MemberName(it.provider) .. ")"
+        end
+        w.onsale:SetText(#parts > 0 and table.concat(parts, ", ") or "Nothing. Nobody in the group can do what's ticked on the class tabs.")
+        local locks = {}
+        for _, m in ipairs(Core.Providers(GroupSnapshot(), "summons")) do
+            locks[#locks + 1] = Colored(m.me and "You" or m.name, m.class) .. ": " .. (m.zone or "where? (the game didn't say)")
+        end
+        w.locks:SetText(#locks > 0 and table.concat(locks, "\n") or "No warlock in the group who can summon.")
+        local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
+        w.adpreview:SetText(text or ("(no ad: " .. tostring(why) .. ")"))
+        local label, ready = AdLabel()
+        w.adpost:SetText(label)
+        if ready then w.adpost:Enable() else w.adpost:Disable() end
+        sessText:SetText(SessionText())
     end
-    for _, k in ipairs({ "welcomemsg", "alertmsg", "whispermsg", "pricegold", "pricesilver" }) do
-        boxes[k]:SetScript("OnTextChanged", UpdatePreviews)
-    end
+    w.Refresh = Refresh
 
     function w.Load()
         local db = ServiceInviterDB
-        for key, def in pairs(DEFAULTS_BY_KEY) do boxes[key]:SetText(db[key] or def) boxes[key]:SetCursorPosition(0) end
+        for key, def in pairs(DEFAULTS_BY_KEY) do
+            local v = db[key]
+            if key == "welcomemsg" and v == MSG.WELCOME then v = nil end
+            if key == "offermsg" and v == MSG.OFFERMSG then v = nil end
+            boxes[key]:SetText(v or def) boxes[key]:SetCursorPosition(0)
+        end
         boxes.whisperto:SetText(WhisperTo() or "")
-        local pg, ps = PriceParts(Price())
-        boxes.pricegold:SetText(tostring(pg))
-        boxes.pricesilver:SetText(tostring(ps))
-        boxes.offerother:SetText(db.offerother or "")
-        boxes.kwwords:SetText(db.kwwords or DEFAULT_KEYWORDS) boxes.kwwords:SetCursorPosition(0)
-        boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or DEFAULT_CHANNELS) boxes.chanextra:SetCursorPosition(0)
+        boxes.kwwords:SetText(db.kwwords or MSG.KEYWORDS) boxes.kwwords:SetCursorPosition(0)
+        boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or MSG.CHANNELS) boxes.chanextra:SetCursorPosition(0)
+        boxes.adextra:SetText(db.adextra or "")
+        boxes.adwait:SetText(tostring(tonumber(db.adwait) or 5))
+        local adch = type(db.adchans) == "table" and db.adchans or { trade = true }
+        checks.adch_trade:SetChecked(adch.trade and true or false)
+        checks.adch_general:SetChecked(adch.general and true or false)
         checks.raidalert:SetChecked(db.raidalert ~= false)
         checks.autotrade:SetChecked(db.autotrade ~= false)
-        checks.collect:SetChecked(Collects())
         checks.welcome:SetChecked(Opt("welcome") and true or false)
+        checks.thanks:SetChecked(db.thanks ~= false)
         for _, k in ipairs(optKeys) do checks[k]:SetChecked(Opt(k) and true or false) end
         checks.rolehelper:SetChecked(Role() == "helper")
         checks.rolelock:SetChecked(Role() == "lock")
-        local offers = db.offers or {}
-        for _, x in ipairs(OFFERS) do checks["offer_" .. x.key]:SetChecked(offers[x.key] and true or false) end
         checks.dryrun:SetChecked(db.dryrun and true or false)
         checks.near:SetChecked(db.near ~= false)
         checks.debug:SetChecked(db.debug and true or false)
-        UpdatePreviews()
-        sessText:SetText(SessionText())
+        -- who gets paid by default
+        local d = type(db.payee) == "table" and db.payee or {}
+        local mode = d.mode or (db.collect == true and "me") or (db.collect == false and "notme") or "provider"
+        checks.pay_place:SetChecked(mode == "place" or mode == "notme" or mode == "provider")
+        checks.pay_me:SetChecked(mode == "me")
+        checks.pay_name:SetChecked(mode == "name")
+        boxes.payname:SetText(d.name or "")
+        -- every service
+        for _, def in ipairs(Core.SERVICES) do
+            local st, k = Core.Setting(db, def.key), "svc_" .. def.key .. "_"
+            checks[k .. "on"]:SetChecked(st.on)
+            checks[k .. "invite"]:SetChecked(st.invite)
+            if st.price then
+                local g, sv = math.floor(st.price / 100), st.price % 100
+                boxes[k .. "g"]:SetText(g > 0 and tostring(g) or "")
+                boxes[k .. "s"]:SetText((sv > 0 or g == 0) and tostring(sv) or "")
+            else
+                boxes[k .. "g"]:SetText("") boxes[k .. "s"]:SetText("")
+            end
+            if boxes[k .. "words"] then boxes[k .. "words"]:SetText(st.words or "") boxes[k .. "words"]:SetCursorPosition(0) end
+            boxes[k .. "payee"]:SetText(st.payee or "")
+        end
+        boxes.blessing_spell:SetText(Core.Setting(db, "blessing").spell or "")
+        local sm = (type(db.services) == "table" and db.services.summons) or {}
+        local mode = Jobs.PriceMode(sm)
+        checks.pm_undercut:SetChecked(mode == "undercut") checks.pm_match:SetChecked(mode == "match") checks.pm_ignore:SetChecked(mode == "ignore")
+        boxes.undercut:SetText(tostring(sm.undercut or 5))
+        boxes.floor:SetText(sm.floor and tostring(sm.floor) or "")
+        local prov = type(db.providers) == "table" and db.providers or {}
+        boxes.prov_WARLOCK:SetText(prov.WARLOCK or "")
+        local wl = {}
+        for k in pairs(type(db.workers) == "table" and db.workers or {}) do wl[#wl + 1] = k end
+        table.sort(wl)
+        boxes.workers:SetText(table.concat(wl, ", "))
+        boxes.team:SetText(table.concat(Jobs.TeamMembers(), ", "))
+        boxes.poc:SetText((type(db.team) == "table" and db.team.poc) or "")
+        for _, kind in ipairs(Jobs.ROUTE_KINDS) do
+            local r = Jobs.RouteOf(kind)
+            for _, opt in ipairs({ "whisper", "group", "off" }) do checks["route_" .. kind .. "_" .. opt]:SetChecked(r == opt) end
+        end
+        local poc = Jobs.POC()
+        local online = {}
+        for _, nm in ipairs(Jobs.TeamMembers()) do if Jobs.Online(nm) then online[#online + 1] = nm end end
+        w.teamStatus:SetText(#Jobs.TeamMembers() == 0 and "No team: working solo." or
+            ("Online: " .. (#online > 0 and table.concat(online, ", ") or "nobody yet") .. ".  Point of contact now: " .. (poc or "nobody (each works solo)") .. "."))
+        SyncTradeBox()
+        Refresh()
     end
 
     function w.Save()
         local db = ServiceInviterDB
         for key, def in pairs(DEFAULTS_BY_KEY) do
             local v = boxes[key]:GetText()
-            if v == "" or v == def then db[key] = nil else db[key] = v end
+            if (key == "loyaltymsg" or key == "scammsg") and v == "" then db[key] = ""   -- empty = off
+            elseif v == "" or v == def then db[key] = nil else db[key] = v end
         end
         local who = (boxes.whisperto:GetText():gsub("%s+", ""))
         db.whisperto = (who == "") and false or who
-        local pg, ps = tonumber(boxes.pricegold:GetText()), tonumber(boxes.pricesilver:GetText())
-        if pg or ps then db.price = (pg or 0) * 100 + (ps or 0) end
         db.raidalert = checks.raidalert:GetChecked() and true or false
         db.autotrade = checks.autotrade:GetChecked() and true or false
-        db.collect = checks.collect:GetChecked() and true or false
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
+        db.thanks = checks.thanks:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
-        do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == DEFAULT_KEYWORDS) and nil or kws end
-        db.chanextra = boxes.chanextra:GetText()   -- empty = none (kept as ""), so the default only applies before first save
-        local oth = boxes.offerother:GetText()
-        db.offerother = (oth:gsub("%s+", "") == "") and nil or oth
+        do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == MSG.KEYWORDS) and nil or kws end
+        db.chanextra = boxes.chanextra:GetText()
+        db.adextra = boxes.adextra:GetText()
+        db.adwait = tonumber(boxes.adwait:GetText()) or 5
+        db.adchans = { trade = checks.adch_trade:GetChecked() and true or false, general = checks.adch_general:GetChecked() and true or false }
         db.role = checks.rolelock:GetChecked() and "lock" or "helper"
-        db.offers = db.offers or {}
-        for _, x in ipairs(OFFERS) do db.offers[x.key] = checks["offer_" .. x.key]:GetChecked() and true or false end
         db.dryrun = checks.dryrun:GetChecked() and true or false
         db.near = checks.near:GetChecked() and true or false
         db.debug = checks.debug:GetChecked() and true or false
         debugOn = db.debug
+        local mode = checks.pay_me:GetChecked() and "me" or (checks.pay_name:GetChecked() and "name" or "provider")
+        db.payee = { mode = mode, name = (boxes.payname:GetText():gsub("^%s+", ""):gsub("%s+$", "")) }
+        db.collect = nil   -- replaced by "who gets paid"
+        db.services = db.services or {}
+        for _, def in ipairs(Core.SERVICES) do
+            local k = "svc_" .. def.key .. "_"
+            local g, sv = tonumber(boxes[k .. "g"]:GetText()), tonumber(boxes[k .. "s"]:GetText())
+            local saved = db.services[def.key] or {}
+            saved.on = checks[k .. "on"]:GetChecked() and true or false
+            saved.invite = checks[k .. "invite"]:GetChecked() and true or false
+            saved.price = (g or sv) and ((g or 0) * 100 + (sv or 0)) or false
+            if boxes[k .. "words"] then saved.words = boxes[k .. "words"]:GetText() end
+            saved.payee = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
+            db.services[def.key] = saved
+        end
+        local sm = db.services.summons
+        sm.mode = (checks.pm_match:GetChecked() and "match") or (checks.pm_undercut:GetChecked() and "undercut") or "ignore"
+        sm.match = nil
+        sm.undercut = tonumber(boxes.undercut:GetText()) or 5
+        sm.floor = tonumber(boxes.floor:GetText())   -- blank = no floor = it never moves
+        local bs = boxes.blessing_spell:GetText():gsub("^%s+", ""):gsub("%s+$", "")
+        db.services.blessing.spell = (bs ~= "") and bs or nil
+        db.providers = {}
+        local t = boxes.prov_WARLOCK:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
+        db.providers.WARLOCK = (t ~= "") and t or nil
+        -- where each message goes: only what differs from the default the form showed is kept, so
+        -- the defaults can follow the team (whispers) when you're on one
+        db.route = nil
+        local route = {}
+        for _, kind in ipairs(Jobs.ROUTE_KINDS) do
+            local pick = (checks["route_" .. kind .. "_whisper"]:GetChecked() and "whisper") or
+                (checks["route_" .. kind .. "_off"]:GetChecked() and "off") or "group"
+            if pick ~= Jobs.RouteOf(kind) then route[kind] = pick end
+        end
+        if next(route) then db.route = route end
+        -- the team and point of contact
+        local keep = {}
+        for nm in boxes.team:GetText():gmatch("[^,]+") do nm = nm:gsub("^%s+", ""):gsub("%s+$", "") if nm ~= "" then keep[#keep + 1] = nm end end
+        local before = Jobs.TeamOn()
+        db.team = type(db.team) == "table" and db.team or {}
+        db.team.members = {}
+        for _, nm in ipairs(keep) do db.team.members[nm] = true end
+        local pc = boxes.poc:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
+        db.team.poc = (pc ~= "") and pc or nil
+        if #keep == 0 and not db.team.poc then db.team = nil end
+        if Jobs.TeamOn() and not before then Jobs.SayHi(true) end
+        db.workers = nil
+        for nm in boxes.workers:GetText():gmatch("[^,]+") do
+            nm = nm:gsub("^%s+", ""):gsub("%s+$", "")
+            if nm ~= "" then Jobs.SetWorker(nm, true) end
+        end
         RefreshJobs()
     end
 
-    local save = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    save:SetPoint("BOTTOMLEFT", 30, 24) save:SetSize(110, 28) save:SetText("Save")
+    local save = FlatButton(w, 120, 34, "gold", 15)
+    save:SetPoint("BOTTOMLEFT", RAIL + 28, 20) save:SetText("Save")
     save:SetScript("OnClick", function() w.Save() w.Load() P("setup saved") end)
-    local test = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    test:SetPoint("LEFT", save, "RIGHT", 10, 0) test:SetSize(130, 28) test:SetText("Test banner")
-    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)") end)
-    local reset = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
-    reset:SetPoint("LEFT", test, "RIGHT", 10, 0) reset:SetSize(150, 28) reset:SetText("Reset messages")
-    reset:SetScript("OnClick", function()
-        local db = ServiceInviterDB
-        db.welcomemsg, db.alertmsg, db.whispermsg, db.offermsg = nil, nil, nil, nil
-        db.whisperto, db.raidalert, db.autotrade, db.price = nil, nil, nil, nil
-        w.Load() P("messages back to defaults")
-    end)
+    -- Preview: what this tab's messages look like, in your chat only (sends nothing)
+    local prev = FlatButton(w, 180, 34, "plain", 14)
+    prev:SetPoint("BOTTOMLEFT", RAIL + 160, 20) prev:SetText("Preview this tab")
+    prev:SetScript("OnClick", function() w.Save() w.Load() PrintPreview(TABS[w.tab or 1]) end)
+    w.preview = prev
+    local test = FlatButton(w, 140, 34, "plain", 14)
+    test:SetPoint("BOTTOMLEFT", RAIL + 352, 20) test:SetText("Test banner")
+    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL", "Summoning Testy to Thunder Bluff. Pay: you.", "TEST: RITUAL OF SUMMONING STARTED") end)
 
     -- shrink to fit small screens so nothing runs off
     local function Fit()
         local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
         local sc = 1
         if type(sw) == "number" and type(sh) == "number" and sw > 0 and sh > 0 then
-            sc = math.min(1, sw / (1010 + 40), sh / (910 + 40))
+            sc = math.min(1, sw / (W + 40), sh / (H + 80))
         end
         w:SetScale(sc)
     end
-    w.checks = checks
-    w:SetScript("OnShow", function() Fit() w.Load() end)
-    w:SetScript("OnHide", function() w.Save() end)
+    local acc = 0
+    w:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0) if acc >= 1 then acc = 0 Report("setup", pcall(Refresh)) end end)
+    w:SetScript("OnShow", function() Fit() w.Load() ShowTab(w.tab or 1) end)
+    w:SetScript("OnHide", function() w.Save() if picker then picker:Hide() end end)
+    w.checks, w.boxes = checks, boxes
     return w
 end
 
@@ -1804,14 +4406,22 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             P("usage: /si out <chat window number 1-10>   or /si out off")
         end
     elseif cmd == "selftest" then SelfTest()
-    elseif cmd == "dryrun" then
-        ServiceInviterDB.dryrun = not ServiceInviterDB.dryrun
-        P("dry run " .. (ServiceInviterDB.dryrun and "ON: it will only SAY who it would invite" or "OFF: it will really invite"))
+    elseif cmd == "dryrun" or cmd == "test" then
+        local r = rest:gsub("^%s+", ""):gsub("%s+$", "")
+        if r:lower() == "off" then ServiceInviterDB.dryrun = false
+        elseif r:lower() == "on" or r == "" then ServiceInviterDB.dryrun = (cmd == "test") or not ServiceInviterDB.dryrun ServiceInviterDB.testto = nil
+        else ServiceInviterDB.dryrun = true ServiceInviterDB.testto = r end
+        if ServiceInviterDB.dryrun then
+            P("|cffffd100TEST MODE ON|r: nobody is invited. Each buyer's messages go to " ..
+                ((ServiceInviterDB.testto and ("a whisper to " .. ServiceInviterDB.testto)) or "your chat") .. " instead. /si test off to stop.")
+        else
+            P("test mode OFF: it will really invite")
+        end
     elseif cmd == "test" then
         local ok, why = Evaluate(Norm(rest))
         P((ok and "WOULD invite" or "would NOT invite") .. " (" .. why .. ")")
     elseif cmd == "msg" then
-        if rest == "" then P("welcome message: " .. (ServiceInviterDB.welcomemsg or DEFAULT_WELCOME))
+        if rest == "" then P("welcome message: " .. (ServiceInviterDB.welcomemsg or MSG.WELCOME))
         else ServiceInviterDB.welcomemsg = rest P("welcome message set") end
     elseif cmd == "cooldown" then
         local n = tonumber(rest)
@@ -1826,19 +4436,34 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         if ServiceInviterDB.blocked then ServiceInviterDB.blocked[rest:lower()] = nil end
         P("unblocked " .. rest)
     elseif cmd == "bind" then
-        local key = rest:upper():gsub("%s+", "")
-        if key == "" then P("usage: /si bind <key>   e.g. /si bind F   or /si bind CTRL-F") 
+        -- /si bind F  (the big button)   or   /si bind ad F7  (post the ad)
+        local forAd = rest:lower():match("^ad%s+") ~= nil
+        local forBuff = rest:lower():match("^buff%s+") ~= nil
+        local key = ((forAd or forBuff) and rest:gsub("^%S+%s+", "") or rest):upper():gsub("%s+", "")
+        if key == "" then P("usage: /si bind <key>  (big button)   or   /si bind ad <key>  (post the ad)")
         elseif InCombatLockdown and InCombatLockdown() then P("can't change keys in combat")
         else
             jobsWin = jobsWin or BuildJobsUI()
-            if SetBindingClick and SetBindingClick(key, "ServiceInviterNext") then
+            local target = forBuff and "ServiceInviterBuffButton" or (forAd and "ServiceInviterAdButton" or "ServiceInviterNext")
+            if SetBindingClick and SetBindingClick(key, target) then
                 if SaveBindings and GetCurrentBindingSet then SaveBindings(GetCurrentBindingSet()) end
-                P(key .. " now presses the big button (does the next thing for your next customer)")
+                P(key .. (forBuff and " now casts the next buff in line" or (forAd and " now posts the ad (when it's ready)" or " now presses the big button (does the next thing for your next customer)")))
             else
                 P("couldn't bind " .. key .. " (try another key)")
             end
         end
+    elseif cmd == "ad" then PostAd()
+    elseif cmd == "preview" then
+        local want = rest:lower()
+        local tab = (setupWin and setupWin.tab and PV.TABS[setupWin.tab]) or "General"
+        for _, t in ipairs(PV.TABS) do if want ~= "" and t:lower():find(want, 1, true) == 1 then tab = t end end
+        PrintPreview(tab)
     elseif cmd == "status" then
+        do
+            local items, parts = Core.OnSale(ServiceInviterDB, GroupSnapshot(), Faction()), {}
+            for _, it in ipairs(items) do parts[#parts + 1] = it.def.label .. " (" .. (it.provider.me and "you" or it.provider.name) .. ", " .. tostring(it.where or "where?") .. ")" end
+            P("on sale: " .. (#parts > 0 and table.concat(parts, ", ") or "nothing (nobody in the group can do what's ticked)"))
+        end
         local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
         local ti = isLoaded and isLoaded("TradeInviter")
         P("invites: " .. (paused and "|cffff8040PAUSED (Trade Inviter is loaded)|r" or (Opt("enabled") and "|cff00ff00ON|r" or "|cffff4040OFF|r (tick it in /si setup or /si on)")) ..
@@ -1872,8 +4497,139 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
                 P("cast " .. math.floor(GetTime() - c.t) .. "s ago: " .. tostring(UnitName and UnitName(c.unit) or c.unit) .. " (" .. c.unit .. ") " .. c.name .. " id " .. tostring(c.id) .. " " .. c.event:gsub("UNIT_SPELLCAST_", ""))
             end
         end
+    elseif cmd == "stop" or cmd == "stasis" then
+        ServiceInviterDB.stasis = true
+        if jobsWin then jobsWin:Hide() end
+        P("|cffff8040stopped|r: hearing nothing and doing nothing, even after a reload. /si start to wake it.")
+    elseif cmd == "start" or cmd == "wake" then
+        ServiceInviterDB.stasis = nil
+        P("started again")
+    elseif cmd == "worker" or cmd == "workers" then
+        local r = rest:gsub("^%s+", ""):gsub("%s+$", "")
+        if r:lower() == "group" then
+            local n = 0
+            for _, m in ipairs(GroupSnapshot()) do
+                if not m.me and not m.customer then Jobs.SetWorker(m.name, true) n = n + 1 end
+            end
+            P(n .. " in your group marked as workers (customers left alone)")
+        elseif r:lower() == "clear" then
+            ServiceInviterDB.workers = nil P("worker list cleared")
+        elseif r ~= "" or (cmd == "worker" and UnitExists and UnitExists("target")) then
+            local name = r ~= "" and r or FullName("target")
+            if name then
+                local on = not Jobs.IsWorker(name)
+                name = Jobs.SetWorker(name, on)
+                P(name .. (on and " is a worker now (no row, no welcome, never invited)" or " is not a worker any more"))
+            end
+        end
+        local list = {}
+        for k in pairs(type(ServiceInviterDB.workers) == "table" and ServiceInviterDB.workers or {}) do list[#list + 1] = k end
+        table.sort(list)
+        P("workers: " .. (#list > 0 and table.concat(list, ", ") or "none") .. "   (/si worker NAME or your target, /si workers group, /si workers clear)")
+        RefreshJobs()
+    elseif cmd == "team" then
+        local sub, arg = rest:match("^(%S*)%s*(.*)$")
+        sub = (sub or ""):lower()
+        local function each(f) for nm in (arg or ""):gmatch("[^,]+") do nm = nm:gsub("^%s+", ""):gsub("%s+$", "") if nm ~= "" then f(nm) end end end
+        if sub == "add" then each(function(nm) Jobs.SetTeam(nm, true) end) Jobs.SayHi(true)
+        elseif sub == "remove" then each(function(nm) Jobs.SetTeam(nm, false) end)
+        elseif sub == "poc" or sub == "contact" then
+            ServiceInviterDB.team = type(ServiceInviterDB.team) == "table" and ServiceInviterDB.team or {}
+            ServiceInviterDB.team.poc = (arg ~= "" and arg) or nil
+        elseif sub == "clear" then ServiceInviterDB.team = nil
+        elseif sub ~= "" then P("/si team add NAME, NAME · /si team remove NAME · /si team poc NAME, BACKUP · /si team clear") return end
+        local list = Jobs.TeamMembers()
+        if #list == 0 then P("no team: working solo. /si team add NAME, NAME to share with them") return end
+        local parts = {}
+        for _, nm in ipairs(list) do
+            local s2 = Jobs.Team.seen[nm]
+            parts[#parts + 1] = nm .. (Jobs.Online(nm) and (" (online" .. (s2 and s2.lock and ", warlock" or "") .. (s2 and s2.zone and s2.zone ~= "" and (", " .. s2.zone) or "") .. ")") or " (not seen)")
+        end
+        P("team: " .. table.concat(parts, ", "))
+        local poc = Jobs.POC()
+        local set = type(ServiceInviterDB.team) == "table" and ServiceInviterDB.team.poc
+        P("point of contact: " .. (poc and (poc .. (poc == FullName("player") and " (you)" or "")) or "none online") ..
+            (set and ("   (list: " .. set .. ")") or "   (/si team poc NAME, BACKUP to set one)"))
+        RefreshJobs()
+    elseif cmd == "prices" or cmd == "rivals" then
+        local sm = (type(ServiceInviterDB.services) == "table" and ServiceInviterDB.services.summons) or {}
+        local mode = Jobs.PriceMode(sm)
+        local max = Core.Setting(ServiceInviterDB, "summons").price
+        P("Summons " .. (sm.floor and (Core.Money(sm.floor) .. " to ") or "") .. (Core.Money(max) or "free") .. "; other sellers: " ..
+            ((mode == "ignore" and "ignored (always the max)") or (mode == "match" and "matched") or ("undercut by " .. (sm.undercut or 5) .. " silver")) ..
+            ((mode ~= "ignore" and not sm.floor) and " (no min set: prices don't move)" or ""))
+        local any
+        for market, cities in pairs(Jobs.rivals) do
+            for where in pairs(cities) do
+                local r = Jobs.Rival(where, market)
+                if r then
+                    any = true
+                    local was = Jobs.priceMarket
+                    Jobs.priceMarket = market
+                    local ours = Core.Setting(ServiceInviterDB, "summons", where).price
+                    Jobs.priceMarket = was
+                    P(market .. ", " .. Core.Short(where) .. ": " .. r.who .. " at " .. (Core.Money(r.price) or "?") .. ", " ..
+                        math.floor(GetTime() - r.t) .. "s ago; ours " .. (Core.Money(ours) or "free"))
+                end
+            end
+        end
+        if not any then P("no other seller's summon ad in the last 5 minutes, in any channel you're in") end
+    elseif cmd == "why" then
+        local h = rest ~= "" and Jobs.heard and Jobs.heard[rest:lower()]
+        if not h then
+            for k, v in pairs(Jobs.heard or {}) do if rest ~= "" and k:find(rest:lower(), 1, true) == 1 then h = v end end
+        end
+        if not h then P("haven't heard " .. (rest ~= "" and rest or "them") .. " say anything since the last reload (or not in a channel you listen to)") return end
+        local j = Jobs.Get(rest)
+        P(rest .. ", " .. math.floor(GetTime() - h.t) .. "s ago in [" .. tostring(h.ch) .. "]: \"" .. tostring(h.text) .. "\"")
+        P("  -> " .. tostring(h.why):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. (j and ("  (on the list: " .. j.status .. ")") or ""))
+    elseif (cmd == "scammers" or cmd == "scams") and rest:lower() == "names" then
+        -- just the names, one a line, for the guild bot's lookup (the owner, 14 Nov 2026: "it just
+        -- looks up names i just want a list i can copy and paste")
+        Jobs.Copy("Didn't pay: names", function()
+            local list = {}
+            for k in pairs(type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}) do list[#list + 1] = k end
+            table.sort(list)
+            if #list == 0 then P("nobody on the list") end
+            for _, n in ipairs(list) do P(n) end
+        end)
+    elseif cmd == "scammers" or cmd == "scams" then
+        Jobs.Copy("Didn't pay", function()
+            local list = {}
+            for k, v in pairs(type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}) do list[#list + 1] = { k, v } end
+            table.sort(list, function(a, b) return (a[2].last or 0) > (b[2].last or 0) end)
+            if #list == 0 then P("nobody on the list") return end
+            for _, e in ipairs(list) do
+                P(e[1] .. ": " .. e[2].n .. (e[2].n == 1 and " time" or " times") .. ", owed " .. Money(e[2].owed or 0) .. ", last " .. Jobs.When(e[2].last))
+            end
+        end)
+    elseif cmd == "scam" then
+        if rest == "" then P("/si scam NAME: they didn't pay (also undoes a Paid by mistake)") return end
+        local j = Jobs.Get(rest)
+        if not j then for _, x in ipairs(jobs) do if x.name:lower() == rest:lower() then j = x end end end
+        Jobs.Scam(j and j.name or rest)
+        RefreshJobs()
+    elseif cmd == "unscam" then
+        local _, key = Jobs.Scammer(rest)
+        if key then ServiceInviterDB.scammers[key] = nil P(key .. " is off the didn't-pay list") else P("nobody called " .. rest .. " on the list") end
+    elseif cmd == "shards" then
+        local r = rest:lower()
+        if r == "off" then ServiceInviterDB.shards = nil SetOpt("countshards", false)
+        elseif tonumber(r) then ServiceInviterDB.shards = math.max(0, math.floor(tonumber(r))) SetOpt("countshards", true)
+        elseif r ~= "" then P("/si shards 20 (other warlocks' shards), /si shards off") return end
+        local have, own, typed = Jobs.Shards()
+        if not have then P("not counting shards. /si shards 20 to count other warlocks' shards") return end
+        P("shards: " .. have .. (own and typed and (" (" .. own .. " yours, " .. typed .. " typed)") or "") ..
+            ", " .. Jobs.Queued() .. " summons queued, " .. math.max(0, Jobs.ShardsLeft()) .. " left")
+        RefreshJobs()
+    elseif cmd == "teamlog" or cmd == "log" then
+        Jobs.Copy("Team messages", Jobs.PrintTeamLog)
+    elseif cmd == "stats" or cmd == "analytics" then
+        Jobs.Copy("Stats", Jobs.PrintStats)
+    elseif cmd == "customers" or cmd == "regulars" then
+        Jobs.Copy(rest ~= "" and rest:lower() ~= "all" and "Customer" or "Customers", function() Jobs.PrintRegulars(rest) end)
     elseif cmd == "session" then
-        if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started")
+        if rest:lower() == "new" or rest:lower() == "reset" then NewSession() P("new session started") Jobs.AskShards()
         else P("session: " .. SessionText() .. "   (/si session new to start over)") end
     elseif cmd == "role" then
         local r = rest:lower()
@@ -1882,7 +4638,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         else P("role is " .. Role() .. ". Use /si role helper  or  /si role lock") end
         RefreshJobs()
     elseif cmd == "alert" then
-        ShowAlert("CLICK THE PORTAL!", "Summoning Testy  (test)")
+        ShowAlert("CLICK THE PORTAL", "Summoning Testy to Thunder Bluff. Pay: you.", "TEST: RITUAL OF SUMMONING STARTED")
     elseif cmd == "whispertest" then
         local to = WhisperTo()
         if not to then P("no whisper recipient set (/si whisper <name>)") return end
@@ -1899,7 +4655,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             P("simcast as " .. u .. ": " .. (ok and "ran (see /si status)" or ("|cffff4040error:|r " .. tostring(err))))
         end
     elseif cmd == "alertmsg" then
-        if rest == "" then P("raid alert: " .. (ServiceInviterDB.alertmsg or DEFAULT_ALERTMSG) .. "   ({name} and {price} are filled in)")
+        if rest == "" then P("raid alert: " .. (ServiceInviterDB.alertmsg or MSG.ALERTMSG) .. "   ({name} and {price} are filled in)")
         else ServiceInviterDB.alertmsg = rest P("raid alert message set") end
     elseif cmd == "raidalert" then
         ServiceInviterDB.raidalert = not (ServiceInviterDB.raidalert ~= false)
@@ -1910,28 +4666,38 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         elseif r:lower() == "off" then ServiceInviterDB.whisperto = false P("ritual whisper off")
         else ServiceInviterDB.whisperto = r P("ritual whisper goes to " .. r) end
     elseif cmd == "collect" then
-        ServiceInviterDB.collect = not Collects()
-        P("payment: " .. (Collects() and "YOU collect (Trade and Paid buttons; trade opens by itself unless /si autotrade is off)" or "someone else collects (no trade window, no Trade/Paid buttons)"))
+        -- toggles "who gets paid" between always you and whoever is where the customer lands
+        local d = type(ServiceInviterDB.payee) == "table" and ServiceInviterDB.payee or {}
+        local mode = d.mode or (ServiceInviterDB.collect == true and "me") or "provider"
+        ServiceInviterDB.payee = { mode = (mode == "me") and "provider" or "me", name = d.name }
+        ServiceInviterDB.collect = nil
+        P("who gets paid: " .. (ServiceInviterDB.payee.mode == "me" and "always YOU (trade opens by itself when they're in range)" or "whoever does it (the warlock, mage, rogue...)"))
         RefreshJobs()
     elseif cmd == "autotrade" then
         ServiceInviterDB.autotrade = not AutoTradeOn()
         P("auto-open trade (and auto Paid) " .. (AutoTradeOn() and "ON: opens when a customer arrives in range; you click Accept" or "off"))
     elseif cmd == "offermsg" then
-        if rest == "" then P("offer message: " .. (ServiceInviterDB.offermsg or DEFAULT_OFFERMSG) .. "   ({name} and {offers} are filled in)")
+        if rest == "" then P("offer message: " .. (ServiceInviterDB.offermsg or MSG.OFFERMSG) .. "   ({name} and {offers} are filled in)")
         else ServiceInviterDB.offermsg = rest P("offer message set") end
     elseif cmd == "clear" then Jobs.Clear() P("customer list cleared")
     elseif cmd == "price" then
         local n = ParsePrice(rest)
-        if n and n >= 0 then ServiceInviterDB.price = n P("price " .. Money(n) .. " per customer") else P("usage: /si price 25   or   /si price 1g 25s   or   /si price 2g") end
+        if n and n >= 0 then
+            ServiceInviterDB.services = ServiceInviterDB.services or {}
+            ServiceInviterDB.services.summons = ServiceInviterDB.services.summons or {}
+            ServiceInviterDB.services.summons.price = (n > 0) and n or false
+            ServiceInviterDB.price = nil
+            P("summons price " .. (n > 0 and Money(n) or "free") .. " (other services: their tab in /si setup)")
+        else P("usage: /si price 25   or   /si price 1g 25s   or   /si price 2g") end
     elseif cmd == "reset" then
         wipe(lastInvite) wipe(pending) wipe(fragments) inviteTimes = {}
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si team = your team and point of contact | /si teamlog = what the copies told each other | /si prices = other sellers and your live price | /si scam NAME = didn't pay, /si scammers (names), /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
 -- Exposed for offline testing only.
-ServiceInviter_Test = { SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
+ServiceInviter_Test = { Tick = function(el) ticker:GetScript("OnUpdate")(ticker, el) end, Ordinal = function(n) return Jobs.Ordinal(n) end, Preview = function(t) return Preview(t) end, PrintPreview = function(t) return PrintPreview(t) end, BuffLabel = function() return BuffLabel() end, RefreshBuff = function() return RefreshBuff() end, ShowPicker = function(box, d, t, k) return ShowPicker(box, d, t, k) end, SetupChecks = function() setupWin = setupWin or BuildSetupUI() return setupWin.checks end, SetupBoxes = function() setupWin = setupWin or BuildSetupUI() return setupWin.boxes end, PostAd = function() return PostAd() end, AdState = function() return AdState() end, Group = function() return GroupSnapshot() end, LiveTargets = function() return LiveTargets() end, WelcomeText = function(n) return WelcomeText(n) end, ArrivalText = function(j) return ArrivalText(j) end, Norm = Norm, Evaluate = Evaluate, ToggleUI = ToggleUI, Opt = Opt, Jobs = Jobs, BuildSetup = function() setupWin = setupWin or BuildSetupUI() return setupWin end, WhisperText = WhisperText, Stats = Stats, NextStep = NextStep, OfferText = OfferText, NextJob = NextJob, OnCast = OnCast, CheckArrivals = CheckArrivals, Role = Role,
     Refresh = function() jobsWin = jobsWin or BuildJobsUI() RefreshJobs() end }

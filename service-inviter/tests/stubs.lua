@@ -16,12 +16,19 @@ local function Stub()
       Hide = function(self) local was = self._shown self._shown = false if was and self._scripts.OnHide then self._scripts.OnHide(self) end end,
       IsShown = function(self) return self._shown end,
       SetText = function(self, s) self._text = s end,
+      SetTexture = function(self, t) rawset(self, "_tex", t) end,
       GetText = function(self) return self._text end,
       SetChecked = function(self, v) self._checked = v and true or false end,
       GetChecked = function(self) return self._checked end,
       SetAttribute = function(self, k2, v) self._attr[k2] = v end,
       GetAttribute = function(self, k2) return self._attr[k2] end,
       GetFont = function() return "font", 12, "" end,
+      Disable = function(self) self._disabled = true end,
+      Enable = function(self) self._disabled = false end,
+      IsEnabled = function(self) return not self._disabled end,
+      SetFontObject = function(self, f) self._font = f end,
+      SetFontString = function(self, fs) rawset(self, "_fs", fs) end,
+      GetFontString = function(self) local fs = rawget(self, "_fs") if not fs then fs = Stub() rawset(self, "_fs", fs) end return fs end,
     }
     return m[k] or function() end
   end })

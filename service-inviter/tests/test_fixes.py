@@ -42,6 +42,8 @@ def test_a_completed_trade_is_still_marked_paid(party):
     "wtb summon tb, tips",
     "WTB summon to TB for guild group",
     "buying summ to tb, tip on arrival",
+    "LF summon to TB will tip",              # LF means looking for (the owner, 13 Nov 2026)
+    "looking for summon to tb, tips",
 ])
 def test_buyers_who_mention_a_tip_or_their_guild_are_invited(game, message):
     ok, why = game.evaluate(message)
@@ -103,7 +105,7 @@ def test_summon_button_keeps_accented_letters_in_the_name(game):
 @pytest.mark.parametrize("typed, silver", [("1.5g", 150), ("1g 25s", 125), ("25", 25), ("2g", 200), ("0.25g", 25)])
 def test_price_command(game, typed, silver):
     game.eval(f'SlashCmdList.SERVICEINVITER("price {typed}")')
-    assert game.eval("ServiceInviterDB.price") == silver
+    assert game.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == silver
 
 
 def test_selftest_points_at_this_addons_command(game):
@@ -143,3 +145,19 @@ def test_finished_rows_give_way_to_waiting_customers(game):
         ServiceInviter_Test.Refresh()''')
     shown = [game.eval(f"ServiceInviterJobs.rows[{i}].name:GetText()") for i in range(1, 7)]
     assert "Done" not in shown and shown[0] == "Cust1"
+
+
+def test_setup_background_is_solid_black(game):
+    """The owner, 12 Nov 2026: "i want the background to be basically completely dark so it is
+    always easy to see on the setup"."""
+    color = game.eval("ServiceInviter_Test.BuildSetup().bg")
+    assert color is not None
+    from conftest import ADDON
+    src = ADDON.read_text()
+    start = src.index("local function BuildSetupUI()")
+    block = src[start:src.index("w:Hide()", start)]
+    assert 'local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()' in block   # solid, full size
+    assert "UI-DialogBox-Background" not in block   # the lighter tiled texture is gone
+    ground = src[src.index("local INK = {"):].split('ground = "', 1)[1][:6]
+    r, g, b = (int(ground[i:i + 2], 16) for i in (0, 2, 4))
+    assert max(r, g, b) <= 0x20                      # basically completely dark (#14110d)

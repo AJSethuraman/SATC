@@ -1,0 +1,119 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  body { margin: 0; background: #1b1d22; font-family: "DejaVu Sans", sans-serif; }
+  #win { position: relative; background: rgba(0,0,0,.92); box-shadow: inset 0 0 0 3px #6f6550, inset 0 0 0 5px #2a2620; }
+  .it { position: absolute; box-sizing: border-box; }
+  .fs { white-space: nowrap; line-height: 1.2; text-shadow: 1px 1px 0 #000; }
+  .fs.wrap { white-space: normal; }
+  .fs.cut { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn { background: linear-gradient(#8b1a12, #5a0e09); border: 1px solid #c9a24a; border-radius: 3px; color: #ffd100;
+         font-size: 12px; display: flex; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; white-space: nowrap; overflow: hidden; }
+  .flat { display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; font-size: 14px; border-radius: 4px; }
+  .flat.gold { background: #f0c05a; color: #1a1408; border: 1px solid #f0c05a; font-weight: 600; }
+  .flat.ghost { background: #1b1710; color: #f0c05a; border: 1px solid #f0c05a; font-weight: 600; }
+  .flat.plain { background: #221d15; color: #ece4d2; border: 1px solid #3a3226; }
+  .flat.bare { background: transparent; color: #8a8171; border: 0; }
+  .flat.rail { background: transparent; color: #ece4d2; border: 0; justify-content: flex-start; padding-left: 20px; }
+  .flat.railOn { background: #1b1710; color: #f0c05a; border: 0; justify-content: flex-start; padding-left: 20px; font-weight: 600; }
+  .flat.off { opacity: .45; }
+  .close { background: #5a0e09; border: 1px solid #c9a24a; border-radius: 50%; color: #ffd100; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  .chk { border: 2px solid #a8a8a8; background: #111; border-radius: 3px; margin: 3px; width: 20px !important; height: 20px !important; }
+  .chk.off { opacity: .4; }
+  .chk.on::after { content: "✓"; color: #ffd100; font-size: 18px; font-weight: bold; position: absolute; left: 2px; top: -3px; }
+  .eb { background: #0d0d0d; border: 1px solid #6b6b6b; border-radius: 3px; color: #fff; font-size: 12px; padding: 3px 6px; overflow: hidden; white-space: nowrap; }
+  .hl { position: absolute; border: 3px solid #3ee08f; border-radius: 6px; box-shadow: 0 0 0 4px rgba(62,224,143,.25); pointer-events: none; }
+  .hlnote { position: absolute; background: #3ee08f; color: #062; font: bold 12px "DejaVu Sans", sans-serif; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+</style>
+<div id="win"></div>
+<script>
+const FONTS = {
+  GameFontNormal: [12, "#ffd100"], GameFontHighlight: [12, "#ffffff"], GameFontNormalLarge: [16, "#ffd100"],
+  GameFontHighlightLarge: [16, "#ffffff"], GameFontDisable: [12, "#808080"], GameFontNormalSmall: [10, "#ffd100"],
+  GameFontHighlightSmall: [10, "#ffffff"],
+};
+function wowText(s) {
+  const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  let out = "", open = 0;
+  for (const part of s.split(/(\|c[0-9a-fA-F]{8}|\|r|\n)/)) {
+    if (/^\|c/.test(part)) { out += `<span style="color:#${part.slice(4)}">`; open++; }
+    else if (part === "|r") { if (open) { out += "</span>"; open--; } }
+    else if (part === "\n") out += "<br>";
+    else out += esc(part);
+  }
+  return out + "</span>".repeat(open);
+}
+function render(scene, highlights) {
+  const win = document.getElementById("win");
+  win.style.width = scene.w + "px"; win.style.height = scene.h + "px";
+  const els = {}, rects = { 0: { l: 0, t: 0, w: scene.w, h: scene.h } };
+  for (const it of scene.items) {
+    if (it.hidden || it.kind === "Texture" && !it.color) continue;
+    const d = document.createElement("div"); d.className = "it";
+    if (it.kind === "FontString") {
+      const [size, color] = FONTS[it.font] || [12, "#fff"];
+      d.classList.add("fs"); d.style.fontSize = (it.fontsize || size) + "px";
+      d.style.color = it.tc ? `rgb(${it.tc[0]*255},${it.tc[1]*255},${it.tc[2]*255})` : color;
+      if (it.w) { d.classList.add(it.nowrap ? "cut" : "wrap"); d.style.width = it.w + "px";
+        d.style.textAlign = (it.justify || "CENTER").toLowerCase(); }
+      d.innerHTML = wowText(it.text);
+    } else if (it.kind === "Texture") {
+      const [r, g, b, a] = it.color; d.style.background = `rgba(${r*255},${g*255},${b*255},${a})`;
+      if (it.points.length === 2) { win.style.background = d.style.background; continue; }   // the window background
+    } else if (it.kind === "CheckButton") { d.classList.add("chk"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
+    else if (it.kind === "EditBox") { d.classList.add("eb"); d.textContent = it.text; }
+    else if (it.template.includes("UIPanelCloseButton")) { d.classList.add("close"); d.textContent = "×"; it.w = it.w || 26; it.h = it.h || 26; }
+    else if (it.kind === "Page") { /* a box for its children, nothing to draw */ }
+    else if (it.kind === "Button" && it.style) { d.classList.add("flat", it.style); if (it.disabled) d.classList.add("off");
+      if (it.fontsize) d.style.fontSize = it.fontsize + "px"; d.innerHTML = wowText(it.text); }
+    else if (it.kind === "Button") { d.classList.add("btn"); d.innerHTML = wowText(it.text); }
+    if (it.w) d.style.width = it.w + "px";
+    if (it.h) d.style.height = it.h + "px";
+    d.dataset.text = it.text; win.appendChild(d); els[it.id] = { it, d };
+  }
+  const ox = (p, w) => p.includes("LEFT") ? 0 : p.includes("RIGHT") ? w : w / 2;
+  const oy = (p, h) => p.startsWith("TOP") ? 0 : p.startsWith("BOTTOM") ? h : h / 2;
+  let pending = Object.keys(els), guard = 0;
+  while (pending.length && guard++ < 20) {
+    pending = pending.filter(id => {
+      const { it, d } = els[id], pt = it.points[0];
+      if (!pt) return false;
+      const rel = rects[pt.rel]; if (!rel) return true;
+      const w = it.w || d.offsetWidth, h = it.h || d.offsetHeight;
+      const tx = rel.l + ox(pt.rp, rel.w) + pt.x, ty = rel.t + oy(pt.rp, rel.h) - pt.y;
+      const l = tx - ox(pt.p, w), t = ty - oy(pt.p, h);
+      d.style.left = l + "px"; d.style.top = t + "px";
+      rects[id] = { l, t, w, h }; return false;
+    });
+  }
+  // highlight: a label's text plus the checkbox just left of it
+  for (const [text, note] of highlights || []) {
+    const hit = Object.values(els).find(e => e.it.text === text); if (!hit) continue;
+    const r = rects[hit.it.id], pad = 6;
+    const box = document.createElement("div"); box.className = "hl";
+    Object.assign(box.style, { left: (r.l - 34) + "px", top: (r.t - pad - 4) + "px", width: (r.w + 34 + pad) + "px", height: (r.h + 2 * pad + 8) + "px" });
+    win.appendChild(box);
+    if (note) { const n = document.createElement("div"); n.className = "hlnote"; n.textContent = note;
+      Object.assign(n.style, { left: (r.l - 34) + "px", top: (r.t + r.h + pad + 8) + "px" }); win.appendChild(n); }
+  }
+  // overlap report: any two visible text-bearing items whose boxes intersect
+  // an empty label draws nothing, so it can't cover anything
+  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" && els[id].it.kind !== "Page" &&
+    !(els[id].it.kind === "FontString" && !els[id].it.text));
+  const overlaps = [];
+  for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
+    const [ia, a] = vis[i], [ib, b] = vis[j];
+    if (a.l < b.l + b.w - 1 && b.l < a.l + a.w - 1 && a.t < b.t + b.h - 1 && b.t < a.t + a.h - 1)
+      overlaps.push([els[ia].it.kind + ":" + els[ia].it.text.slice(0, 40), els[ib].it.kind + ":" + els[ib].it.text.slice(0, 40)]);
+  }
+  for (const [id, r] of Object.entries(rects)) {
+    const e = els[id]; if (!e || e.it.kind !== "FontString" || !e.it.w || e.it.nowrap) continue;
+    if (e.d.scrollWidth > e.d.clientWidth + 1) overlaps.push(["FontString:" + e.it.text.slice(0, 40), "(runs past its own box)"]);
+  }
+  // button text wider than the button
+  for (const [id, r] of Object.entries(rects)) {
+    const e = els[id]; if (!e || e.it.kind !== "Button" || !e.it.text) continue;
+    if (e.d.scrollWidth > e.d.clientWidth + 1) overlaps.push(["Button:" + e.it.text.slice(0, 40), "(text wider than the button)"]);
+  }
+  return { overlaps, rects };
+}
+</script>

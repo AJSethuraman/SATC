@@ -22,25 +22,27 @@ def test_auto_trade_follows_who_collects(party, role, collect, opens_trade):
 
 
 @pytest.mark.parametrize("collect", [True, False])
-def test_trade_and_paid_buttons_follow_who_collects(party, collect):
+def test_trade_follows_who_collects_and_paid_is_always_there(party, collect):
+    """Trade only when you collect. Paid shows either way: whoever collects, the inviter marks
+    it (design review, 12 Nov 2026), and Paid then thanks and removes them."""
     party.run(f'ServiceInviterDB.role = "helper" ServiceInviterDB.collect = {str(collect).lower()}')
     party.run(ARRIVE + ' ServiceInviter_Test.Refresh()')
     row = party.eval('ServiceInviterJobs.rows[1]')
-    assert row.paid._shown is collect
+    assert row.paid._shown is False                 # no Paid button since 14 Nov 2026
     assert row.trade._shown is collect
 
 
-def test_the_setup_window_saves_it(party):
+def test_the_setup_window_saves_who_gets_paid(party):
     party.run('''local w = ServiceInviter_Test.BuildSetup() w:Show()
-        ServiceInviter_Test.SetupChecks().collect:SetChecked(true) w:Hide()''')
-    assert party.eval("ServiceInviterDB.collect") is True
+        local c = ServiceInviter_Test.SetupChecks() c.pay_me._scripts.OnClick(c.pay_me) w:Hide()''')
+    assert party.eval("ServiceInviterDB.payee.mode") == "me"
 
 
-def test_si_collect_toggles_it(game):
+def test_si_collect_toggles_always_me(game):
     game.eval('SlashCmdList.SERVICEINVITER("collect")')
-    assert game.eval("ServiceInviterDB.collect") is True   # helper default was off
+    assert game.eval("ServiceInviterDB.payee.mode") == "me"
     game.eval('SlashCmdList.SERVICEINVITER("collect")')
-    assert game.eval("ServiceInviterDB.collect") is False
+    assert game.eval("ServiceInviterDB.payee.mode") == "provider"
 
 
 def test_no_whisper_until_someone_is_named(party):
