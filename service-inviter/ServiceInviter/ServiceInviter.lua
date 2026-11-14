@@ -1,4 +1,4 @@
--- Service Inviter v3.4.0
+-- Service Inviter v3.4.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2794,7 +2794,8 @@ function Jobs.TeamHear(msg, who, me)
         local now = GetTime()
         -- two teammates heard the same buyer: one invite
         if Jobs.Get(buyer) then return "ignored: already on your list" end
-        if Jobs.Team.took[buyer] and now - Jobs.Team.took[buyer] < 180 then return "ignored: already handed to you in the last 3 minutes" end
+        local wait = tonumber(ServiceInviterDB.cooldown) or 180
+        if Jobs.Team.took[buyer] and now - Jobs.Team.took[buyer] < wait then return "ignored: already handed to you in the last " .. math.ceil(wait / 60) .. " min" end
         Jobs.Team.took[buyer] = now
         local test = (f[9] == "1" or ServiceInviterDB.dryrun) and { to = (f[9] == "1" and f[10] ~= "" and f[10]) or ServiceInviterDB.testto } or nil
         P((test and "|cffffd100TEST|r " or "") .. who .. " handed you " .. buyer .. " (" .. tostring(market ~= "" and market or channel) ..
@@ -4314,6 +4315,11 @@ local function BuildSetupUI()
     Check("strictbuy", L, -162, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
     Check("fragments", L, -188, "Combine a person's split messages", true)
     Check("skipafk", L, -214, "Skip while I'm AFK", true)
+    -- how soon the same buyer can be invited again (the owner, 14 Nov 2026: "let's make re-invite
+    -- setting adjustable in UI as well"); in minutes here, /si cooldown takes seconds
+    Label(L + 210, -220, "Invite again after")
+    Box("cooldown", L + 340, -214, 44, 3)
+    Label(L + 390, -220, "min")
     Check("announce", L, -240, "Show a line in chat when I invite", true)
     Check("autoshow", L, -266, "Open the customer list when I invite someone", true)
     Check("kwon", L, -292, "Auto-invite anyone who says:", true)
@@ -4553,6 +4559,7 @@ local function BuildSetupUI()
         end
         boxes.whisperto:SetText(WhisperTo() or "")
         boxes.kwwords:SetText(db.kwwords or MSG.KEYWORDS) boxes.kwwords:SetCursorPosition(0)
+        do local m = (tonumber(db.cooldown) or 180) / 60 boxes.cooldown:SetText(m == math.floor(m) and tostring(m) or ("%.1f"):format(m)) end
         boxes.chanextra:SetText(type(db.chanextra) == "string" and db.chanextra or MSG.CHANNELS) boxes.chanextra:SetCursorPosition(0)
         boxes.adextra:SetText(db.adextra or "")
         boxes.adwait:SetText(tostring(tonumber(db.adwait) or 5))
@@ -4633,6 +4640,7 @@ local function BuildSetupUI()
         SetOpt("welcome", checks.welcome:GetChecked() and true or false)
         db.thanks = checks.thanks:GetChecked() and true or false
         for _, k in ipairs(optKeys) do SetOpt(k, checks[k]:GetChecked() and true or false) end
+        do local m = tonumber(boxes.cooldown:GetText()) if m and m >= 0 then db.cooldown = math.floor(m * 60 + 0.5) end end
         do local kws = boxes.kwwords:GetText() db.kwwords = (kws:gsub("[%s,]", "") == "" or kws == MSG.KEYWORDS) and nil or kws end
         db.chanextra = boxes.chanextra:GetText()
         db.adextra = boxes.adextra:GetText()
