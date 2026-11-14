@@ -684,3 +684,30 @@ def test_lf_with_pst_is_a_buyer():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Yeet Lock", "WARLOCK", 60, "Undercity")})
     say_trade(g, "Seller", "LFM summons to UC pst")
     assert invited(g) == []
+
+# The owner's screenshots, 14 Nov 2026: a seller's ad matched as a buyer, a buyer that "didnt seem
+# to register", and "do not limit the invites to 6".
+
+def test_another_sellers_ad_is_not_a_buyer():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
+    say_trade(g, "Rival", "dont buy cheap TB summons PST we have them for 40s+tip")
+    say_trade(g, "Rival2", "don't buy summons to TB elsewhere, we got them")
+    assert invited(g) == []
+
+
+def test_si_why_says_what_was_decided():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
+    say_trade(g, "Thor Oathbreaker", "wtb summon to TB")
+    g.run('SlashCmdList.SERVICEINVITER("why thor oathbreaker")')
+    out = " ".join(g.printed())
+    assert 'wtb summon to TB' in out and "-> invited" in out
+    say_trade(g, "Rival", "dont buy cheap TB summons PST we have them for 40s+tip")
+    g.run('SlashCmdList.SERVICEINVITER("why rival")')
+    assert "seller" in g.printed()[-1]
+
+
+def test_no_cap_on_invites_a_minute():
+    g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
+    for i in range(7):
+        say_trade(g, f"Buyer{i}", "WTB summon to TB")
+    assert len(invited(g)) == 7                                  # the old cap stopped at 6

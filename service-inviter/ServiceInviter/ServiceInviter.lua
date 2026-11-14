@@ -1,4 +1,4 @@
--- Service Inviter v2.15.0
+-- Service Inviter v2.15.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -110,6 +110,9 @@ local PORT_WORDS   = { "port", "ports", "portal", "portals", "tp", "teleport" }
 local SELLER = {
     "wts", "selling", "sell", "sale", "offering", "wtt", "lfm", "recruiting",
     "service", "services", "porting",
+    -- another seller's ad (the owner's screenshot, 14 Nov 2026: "dont buy cheap TB summons PST we
+    -- have them for 40s+tip" was taken for a buyer)
+    "dont buy", "don t buy", "do not buy", "we have", "have them", "we got", "we sell", "we summon",
 }
 -- Ad words that buyers use too ("wtb summ tb, will tip", "for guild group"):
 -- they only reject the message when there is no clear WTB/buying word.
@@ -153,7 +156,10 @@ local function P(msg)
     local line = "|cff80ff80Service Inviter|r: " .. msg
     if f and f.AddMessage then f:AddMessage(line) else print(line) end
 end
-local function D(msg) if debugOn then P("|cff999999" .. msg .. "|r") end end
+local function D(msg)
+    if Jobs.whyNow then Jobs.whyNow.why = msg end   -- for /si why NAME
+    if debugOn then P("|cff999999" .. msg .. "|r") end
+end
 -- An error in a background update, said once in your chat. The game hides Lua errors unless
 -- told to show them, so without this a failing update just looks like a frozen window (the
 -- owner, 13 Nov 2026: "it just kinda froze").
@@ -1088,6 +1094,7 @@ local function Handle(text, sender, guid)
     local short = Ambiguate and Ambiguate(sender, "none") or sender
     if Jobs.IsWorker(short) then D("skip: " .. short .. " is one of your workers") return end
     if Jobs.Scammer(short) then
+        D("didn't pay last time")
         if not Jobs.Get(short) then P("|cffff8080skipped|r " .. short .. ": didn't pay last time (/si unscam " .. short .. " to clear)") end
         return
     end
@@ -1177,7 +1184,8 @@ local function Handle(text, sender, guid)
         return
     end
 
-    if not UnderRateLimit(now) then P("|cffff8040matched " .. short .. " but hit the 6 invites/min limit|r") return end
+    -- no invites-a-minute cap (the owner, 14 Nov 2026: "do not limit the invites to 6 did we
+    -- confirm that was needed"): it was ours, not the game's
     CanInvite()   -- turns a full party into a raid when you can
 
     lastInvite[short] = now
@@ -1189,6 +1197,7 @@ local function Handle(text, sender, guid)
     -- turned out to happen to hand-typed invites too, so the click fixed nothing.
     DoInvite(short)
     pending[short] = now
+    Jobs.invitedNow = true
     job = Jobs.New(short, text, why, curChannel)
     job.service, job.dest = svc, dest
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
@@ -1544,7 +1553,20 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
     end
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
     RememberSaid(sender, text, curChannel)
-    Handle(text, sender, guid)
+    -- what was decided about each person, for /si why NAME (the owner, 14 Nov 2026: "this didnt
+    -- seem to register?")
+    local who = (Ambiguate and type(sender) == "string" and Ambiguate(sender, "none")) or sender
+    if type(who) == "string" then
+        Jobs.heard = Jobs.heard or {}
+        Jobs.heardN = (Jobs.heardN or 0) + 1
+        if Jobs.heardN > 400 then Jobs.heard, Jobs.heardN = {}, 1 end
+        Jobs.whyNow = { text = text, ch = curChannel, t = GetTime(), why = "not a buyer's message" }
+        Jobs.heard[who:lower()] = Jobs.whyNow
+    end
+    local ok, err = pcall(Handle, text, sender, guid)
+    if Jobs.whyNow and Jobs.invitedNow then Jobs.whyNow.why = "invited" end
+    Jobs.whyNow, Jobs.invitedNow = nil, nil
+    if not ok then error(err, 0) end
 end
 f:SetScript("OnEvent", function(self, event, ...) Report(event, pcall(f.Handle, self, event, ...)) end)
 
@@ -3887,6 +3909,15 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         table.sort(list)
         P("workers: " .. (#list > 0 and table.concat(list, ", ") or "none") .. "   (/si worker NAME or your target, /si workers group, /si workers clear)")
         RefreshJobs()
+    elseif cmd == "why" then
+        local h = rest ~= "" and Jobs.heard and Jobs.heard[rest:lower()]
+        if not h then
+            for k, v in pairs(Jobs.heard or {}) do if rest ~= "" and k:find(rest:lower(), 1, true) == 1 then h = v end end
+        end
+        if not h then P("haven't heard " .. (rest ~= "" and rest or "them") .. " say anything since the last reload (or not in a channel you listen to)") return end
+        local j = Jobs.Get(rest)
+        P(rest .. ", " .. math.floor(GetTime() - h.t) .. "s ago in [" .. tostring(h.ch) .. "]: \"" .. tostring(h.text) .. "\"")
+        P("  -> " .. tostring(h.why):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. (j and ("  (on the list: " .. j.status .. ")") or ""))
     elseif cmd == "scammers" or cmd == "scams" then
         Jobs.Copy("Didn't pay", function()
             local list = {}
@@ -3986,7 +4017,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si scam NAME = didn't pay, /si scammers, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si scam NAME = didn't pay, /si scammers, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
