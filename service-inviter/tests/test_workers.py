@@ -85,3 +85,16 @@ def test_our_workers_box_picks_from_the_group_and_saves():
     assert g.eval("ServiceInviter_Test.SetupBoxes().workers:GetText()") == "Bob, Clicky"
     g.run('ServiceInviter_Test.SetupBoxes().workers:SetText("Bob") S.Save()')
     assert g.eval('ServiceInviter_Test.Jobs.IsWorker("Clicky")') is False
+
+
+def test_stopped_your_own_invites_never_open_the_window():
+    """The owner, 14 Nov 2026: "if i /si stop it should stop opening /si customers altogether, i
+    am not currently using si"."""
+    g = world(LOCK)
+    g.run('SlashCmdList.SERVICEINVITER("stop")')
+    g.run('C_PartyInfo.InviteUnit("Friendo")')                       # an invite you typed yourself
+    assert g.eval("ServiceInviter_Test.Jobs.All()[1]") is None
+    assert not g.eval("ServiceInviterJobs and ServiceInviterJobs:IsShown()")
+    g.run('SlashCmdList.SERVICEINVITER("")')                         # /si on its own
+    assert not g.eval("ServiceInviterJobs and ServiceInviterJobs:IsShown()")
+    assert any("/si start to wake it" in p for p in g.printed())

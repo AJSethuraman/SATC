@@ -1,4 +1,4 @@
--- Service Inviter v3.1.0
+-- Service Inviter v3.1.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1161,6 +1161,7 @@ local warned = false
 local function OnInviteCall(name)
     local ok, err = pcall(function()
         if SI_SELF_INVITING or type(name) ~= "string" or name == "" then return end
+        if ServiceInviterDB.stasis then return end   -- stopped: your own invites are yours alone
         local short = Ambiguate and Ambiguate(name, "none") or name
         local now = GetTime()
         local existing = jobByName[short]
@@ -3550,12 +3551,15 @@ local function BuildJobsUI()
 end
 
 local function ToggleJobs()
+    if ServiceInviterDB.stasis then P("|cffff8040stopped|r. /si start to wake it.") return end
     jobsWin = jobsWin or BuildJobsUI()
     if jobsWin:IsShown() then jobsWin:Hide() else jobsWin:Show() end
 end
 
 jobsChanged = function(openIt)
-    if openIt and Opt("autoshow") then
+    -- stopped: the window never opens by itself (the owner, 14 Nov 2026: "if i /si stop it should
+    -- stop opening /si customers altogether, i am not currently using si")
+    if openIt and Opt("autoshow") and not ServiceInviterDB.stasis then
         jobsWin = jobsWin or BuildJobsUI()
         if not (InCombatLockdown and InCombatLockdown()) and not jobsWin:IsShown() then jobsWin:Show() end
     end
