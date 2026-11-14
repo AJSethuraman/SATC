@@ -1,4 +1,4 @@
--- Service Inviter v2.9.2
+-- Service Inviter v2.9.3
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -438,6 +438,17 @@ local function GroupSnapshot()
         end
     end
     return g
+end
+-- Is this name in the group? Two-part Forever names ("Yeet Lock") may not resolve through
+-- UnitInParty/UnitInRaid, so the group itself is checked too; returns the name as the group
+-- spells it. The owner, 14 Nov 2026: "all things must keep 2 part names in mind".
+function Jobs.InGroup(name)
+    if type(name) ~= "string" or name == "" then return false end
+    for _, m in ipairs(GroupSnapshot()) do
+        if not m.me and m.name:lower() == name:lower() then return m.name end
+    end
+    if (UnitInParty and UnitInParty(name)) or (UnitInRaid and UnitInRaid(name)) then return name end
+    return false
 end
 -- Class colors, so a busy list reads at a glance (the owner: "can this use class colors and
 -- stuff to avoid a mass of confusing text"). The game's own colors when it has them.
@@ -997,7 +1008,7 @@ local function Handle(text, sender, guid)
     local short = Ambiguate and Ambiguate(sender, "none") or sender
     if Jobs.IsWorker(short) then D("skip: " .. short .. " is one of your workers") return end
     if short == FullName("player") then return end
-    if UnitInParty(short) or UnitInRaid(short) then D(short .. ": already in your group") return end
+    if Jobs.InGroup(short) then D(short .. ": already in your group") return end
     if IsBlocked(short, guid) then D(short .. ": blocked/ignored") return end
 
     local now = GetTime()
@@ -1294,7 +1305,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         return
     end
     if event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" or event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
-        pcall(BuffAsk, text, sender)
+        Report("buffs", pcall(BuffAsk, text, sender))
         return
     end
     if event == "UNIT_SPELLCAST_SUCCEEDED" and text == "player" then
@@ -1429,7 +1440,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         if not Opt("yell") then return end
     elseif event == "CHAT_MSG_WHISPER" then
         curChannel = "whisper"
-        pcall(BuffAsk, text, sender)
+        Report("buffs", pcall(BuffAsk, text, sender))
         if not KeywordHit(text, true) and not Opt("enabled") then return end
     end
     diag.heard = { ch = curChannel, who = sender, text = text, t = GetTime(), event = event }
@@ -1529,9 +1540,7 @@ local function MyBuffs()
     end
     return out
 end
-local function InGroupByName(name)
-    return (UnitInParty and UnitInParty(name)) or (UnitInRaid and UnitInRaid(name)) or false
-end
+local InGroupByName = function(name) return Jobs.InGroup(name) end
 local buffKey = CreateFrame("Button", "ServiceInviterBuffButton", UIParent, "SecureActionButtonTemplate")
 buffKey:SetAttribute("type", "macro")
 buffKey:RegisterForClicks("AnyUp", "AnyDown")
@@ -1540,7 +1549,13 @@ buffDirty = false
 local function BuffMacro(e)
     if not e then return "" end
     local spell = e.spell or Core.Setting(ServiceInviterDB, e.key).spell or ""
-    return "/cast [@" .. e.name .. "] " .. spell .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
+    -- cast on their group slot (raid3), not their name: a two-part name ("Yeet Lock") is safest
+    -- left out of the macro
+    local at = e.name
+    for _, m in ipairs(GroupSnapshot()) do
+        if m.unit and not m.me and m.name:lower() == e.name:lower() then at = m.unit break end
+    end
+    return "/cast [@" .. at .. "] " .. spell .. (e.rank and ("(Rank " .. e.rank .. ")") or "")
 end
 local function BuffLabel()
     local e = buffQueue[1]
@@ -1581,7 +1596,7 @@ local function QueueBuff(name, key, spell)
         end
     end
     buffQueue[#buffQueue + 1] = { name = name, key = key, spell = spell }
-    D("buff queued: " .. (spell or key) .. " for " .. name)
+    P("buff queued: " .. (spell or Core.BY_KEY[key].label) .. " for " .. name .. " (press the buff button)")
     RefreshBuff()
 end
 QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(name, def.key) end end
@@ -1589,12 +1604,26 @@ QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(na
 BuffAsk = function(text, sender)
     if type(text) ~= "string" or IsSecret(text) or not sender then return end
     local name = Ambiguate and Ambiguate(sender, "none") or sender
-    if name == FullName("player") or not InGroupByName(name) then return end
+    if name == FullName("player") then return end
+    local inGroup = InGroupByName(name)
+    if not inGroup then return end
+    if type(inGroup) == "string" then name = inGroup end
     local norm = Norm(text)
     -- asks are short ("wisdom pls", "can i get fort"); "i might be afk for a bit" is not one
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
     if count > 6 then return end
+    -- a paladin whose blessing is switched off: say so, once a session, instead of nothing
+    local okc, _, cls = pcall(UnitClass, "player")
+    if okc and cls == "PALADIN" and not Core.Setting(ServiceInviterDB, "blessing").on and not Jobs.toldBlessingOff then
+        for _, b in ipairs(Core.BLESSINGS) do
+            if norm:find(" " .. b.word .. " ", 1, true) then
+                Jobs.toldBlessingOff = true
+                P(name .. " asked for " .. b.spell .. ", but 'We offer a blessing' is off (Setup, Buffs tab).")
+                break
+            end
+        end
+    end
     for _, def in ipairs(MyBuffs()) do
         local words = Core.SplitWords(Core.Setting(ServiceInviterDB, def.key).words)
         if HasAny(norm, words) then
@@ -2359,7 +2388,7 @@ local function CheckArrivals()
         if j.status == "busy" and j.retryAt and now >= j.retryAt then
             j.retryAt = nil
             local nm = j.name
-            if UnitInParty(nm) or UnitInRaid(nm) then
+            if Jobs.InGroup(nm) then
                 Jobs.Set(nm, "joined")
             elseif Opt("enabled") or Opt("kwon") then
                 lastInvite[nm] = now pending[nm] = now

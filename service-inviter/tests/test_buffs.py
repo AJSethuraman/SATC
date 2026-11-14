@@ -12,6 +12,16 @@ function GetSpellSubtext(s) if s == "Power Word: Fortitude" then return "Rank 6"
 
 
 def macro(g):
+    """The buff macro, with the group slot it casts on read back as the person's name."""
+    import re
+    m = g.eval('ServiceInviterBuffButton:GetAttribute("macrotext")') or ""
+    def name(u):
+        unit = g.g.UNITS[u.group(1)]
+        return "[@" + (unit[1] if unit else u.group(1)) + "]"
+    return re.sub(r"\[@((?:party|raid)\d+)\]", name, m)
+
+
+def raw_macro(g):
     return g.eval('ServiceInviterBuffButton:GetAttribute("macrotext")')
 
 
@@ -157,3 +167,32 @@ def test_everyday_sentences_with_might_or_light_are_not_requests():
     assert label(g) == "No buffs waiting"
     party(g, "Kaldrok", "might pls")          # control: a short ask still counts
     assert label(g) == "Might -> Kaldrok"
+
+
+
+def test_a_two_part_name_asking_in_raid_is_queued_and_cast_on_their_slot():
+    """The owner, 14 Nov 2026: "my friend in chat said wisdom in raid and it didnt seem to do
+    anything" -- "all things must keep 2 part names in mind". UnitInRaid by name doesn't find a
+    two-part name, so the group itself is checked, and the macro names the slot, not the name."""
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Yeet Lock", "WARLOCK", 60, "Thunder Bluff")},
+              "blessing = { on = true }",
+              extra=" function UnitInParty(n) return false end function UnitInRaid(n) return nil end")
+    g.event("CHAT_MSG_RAID", "wisdom", "Yeet Lock-Forever")
+    assert raw_macro(g) == "/cast [@party1] Blessing of Wisdom"
+    assert any("buff queued: Blessing of Wisdom for Yeet Lock" in p for p in g.printed())
+
+
+def test_blessing_switched_off_says_so_once():
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")})
+    g.event("CHAT_MSG_RAID", "wisdom", "Grimtotem")
+    g.event("CHAT_MSG_RAID", "kings", "Grimtotem")
+    told = [p for p in g.printed() if "'We offer a blessing' is off" in p]
+    assert len(told) == 1 and "Grimtotem asked for Blessing of Wisdom" in told[0]
+
+
+def test_someone_with_a_two_part_name_already_in_the_group_is_not_invited_again():
+    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
+               "party2": ("Momma Lovesme", "MAGE", 40, "Thunder Bluff")},
+              extra=" function UnitInParty(n) return false end function UnitInRaid(n) return nil end")
+    say_trade(g, "Momma Lovesme", "WTB summon to TB")
+    assert list(g.g.INVITED.values()) == []
