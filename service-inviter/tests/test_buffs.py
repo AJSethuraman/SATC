@@ -335,3 +335,20 @@ def test_right_click_skips_and_a_leaver_is_dropped():
     assert raw_macro(g) == "/cast [@party2] Blessing of Wisdom"
     g.run('UNITS.party2 = nil GROUP.Kaldrok = nil CLOCK = CLOCK + 1 ServiceInviter_Test.Tick(1)')
     assert label(g) == "No buffs waiting"
+
+
+def test_hidden_range_answers_dont_break_the_buffs():
+    """The owner's screenshot, 14 Nov 2026: "error in buffs: ... attempt to perform boolean test on
+    local 'checked' (a secret boolean value)". Hidden answers count as unknown: the pop shows."""
+    secret = """
+        SECRET = setmetatable({}, { __tostring = function() return "secret" end })
+        function issecretvalue(v) return v == SECRET end
+        function UnitInRange(u) return SECRET, SECRET end
+        function UnitIsConnected(u) return SECRET end
+        function UnitIsVisible(u) return SECRET end"""
+    g = world(PALLY, "blessing = { on = true }", extra=secret)
+    g.event("CHAT_MSG_RAID", "kings", "Grimtotem")
+    g.run("CLOCK = CLOCK + 1 ServiceInviter_Test.Tick(1)")
+    assert not any("error in" in p for p in g.printed())
+    assert g.eval("ServiceInviterBuffPop:IsShown()")
+    assert raw_macro(g) == "/cast [@party1] Blessing of Kings"

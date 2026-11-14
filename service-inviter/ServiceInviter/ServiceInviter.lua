@@ -1,4 +1,4 @@
--- Service Inviter v2.16.1
+-- Service Inviter v2.16.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1699,16 +1699,22 @@ function Jobs.BuffInRange(e)
         if m.unit and not m.me and m.name:lower() == e.name:lower() then unit = m.unit break end
     end
     if not unit then return true end   -- outside the group: the cast targets them by name
-    if UnitIsConnected and UnitIsConnected(unit) == false then return false end
+    -- every answer can be a hidden ("secret") value; test nothing until it's known not to be one
+    -- (the owner's screenshot, 14 Nov 2026: "attempt to perform boolean test on local 'checked'
+    -- (a secret boolean value)")
+    local function plain(ok, v) if not ok or IsSecret(v) then return nil end return v end
+    local conn = UnitIsConnected and plain(pcall(UnitIsConnected, unit))
+    if conn == false then return false end
     if UnitInRange then
         local ok, r, checked = pcall(UnitInRange, unit)
-        if ok and checked and not IsSecret(r) then return r and true or false end
+        r, checked = plain(ok, r), plain(ok, checked)
+        if checked and r ~= nil then return r and true or false end
     end
     if UnitIsVisible then
-        local ok, v = pcall(UnitIsVisible, unit)
-        if ok and not IsSecret(v) then return v and true or false end
+        local v = plain(pcall(UnitIsVisible, unit))
+        if v ~= nil then return v and true or false end
     end
-    return true
+    return true                        -- the game won't say: show it, and a miss is just a miss
 end
 -- Right-click on the pop: skip this one
 function Jobs.SkipBuff()
