@@ -1,4 +1,4 @@
--- Service Inviter v3.5.4
+-- Service Inviter v3.5.5
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1234,8 +1234,20 @@ local function OnInviteCall(name)
         -- message"). What they said in the last 2 minutes says what and where, priced for that
         -- channel; said nothing we sell, the welcome lists what's on sale.
         if job and said and now - said.t < 120 then
-            local ok, _, svc, dest = Evaluate(Norm(said.text), InExtraChannel(said.channel), LiveTargets())
-            if ok and svc then
+            -- you've already decided they're buying (the owner, 14 Nov 2026: "hand invites are
+            -- generally a result of them saying something we did not quite recognize ... so
+            -- what's the point of trying to decipher it with the addon again"): skip the buyer
+            -- test and only look for a city we summon to in what they said
+            local svc, dest
+            local norm, T = Norm(said.text), LiveTargets()
+            local ok, _, s2, d2 = Evaluate(norm, InExtraChannel(said.channel), T)
+            if ok and s2 then svc, dest = s2, d2
+            else
+                for _, d in ipairs(T.dests or {}) do
+                    if T.sum[d.key] and HasAny(norm, d.words) then svc, dest = "summons", d.label break end
+                end
+            end
+            if svc then
                 job.service, job.dest = svc, dest
                 Jobs.priceMarket = Jobs.MarketOf(said.channel)
                 job.price = Core.Setting(ServiceInviterDB, svc, dest).price

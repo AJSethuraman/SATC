@@ -44,3 +44,15 @@ def test_with_the_welcome_set_to_whisper_the_quote_goes_as_you_invite():
     assert g.sent() == [("WHISPER", "Kaldrok", "Hi Kaldrok! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land.")]
     join(g, "Kaldrok")
     assert len(g.sent()) == 1                     # said once, not again on joining
+
+
+def test_a_message_the_addon_turned_down_still_gives_the_city():
+    """A seller-sounding or odd line the addon said no to: you invited them anyway, so it only
+    looks for the city."""
+    g = world(LOCK, "summons = { price = 35 }")
+    g.run('ServiceInviterDB.opts = { marks = false }')
+    say_trade(g, "Kaldrok", "LF someone TB pls")          # no buy word, no summon word: not invited
+    assert list(g.g.INVITED.values()) == []
+    by_hand(g, "Kaldrok")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").dest') == "Thunder Bluff"
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").price') == 35
