@@ -196,3 +196,14 @@ def test_someone_with_a_two_part_name_already_in_the_group_is_not_invited_again(
               extra=" function UnitInParty(n) return false end function UnitInRaid(n) return nil end")
     say_trade(g, "Momma Lovesme", "WTB summon to TB")
     assert list(g.g.INVITED.values()) == []
+
+
+def test_untick_and_a_customer_who_lands_is_not_buffed_unless_they_ask():
+    """The owner, 14 Nov 2026: "can i set it to not auto queue a blessing if they dont ask for one?"."""
+    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g.run("ServiceInviterDB.opts = { buffarrivals = false }")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
+    arrive(g, "Kaldrok")
+    assert label(g) == "No buffs waiting"
+    g.event("CHAT_MSG_PARTY", "fort pls", "Kaldrok", "", "", "", "", "", "", "")
+    assert label(g) == "Fortitude -> Kaldrok"

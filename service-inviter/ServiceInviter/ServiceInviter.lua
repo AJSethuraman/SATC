@@ -1,4 +1,4 @@
--- Service Inviter v2.11.0
+-- Service Inviter v2.11.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -90,6 +90,7 @@ local DEFAULTS = {
     loyalty   = true,    -- (until 2.3.2 the on/off for the loyalty line; now an empty line is off)
     marks     = true,    -- a raid icon on whoever does a service, in party/raid chat (text only: the game no longer lets addons put icons over heads)
     welcome   = true,    -- send a message to the group when an invited player joins
+    buffarrivals = true, -- queue your buffs on a customer who lands where you are, unasked
     -- Destination grid: do you SUMMON to it, and/or PORT to it?
     sum_tb  = true,  port_tb  = false,
     sum_org = false, port_org = false,
@@ -2432,7 +2433,9 @@ local function CheckArrivals()
             local visible = u and UnitIsVisible and UnitIsVisible(u)
             if visible or (j.tsummon and now - j.tsummon > ARRIVE_FALLBACK) then
                 Jobs.Set(j.name, "arrived")
-                if visible then QueueAllMyBuffs(j.name) end
+                -- unasked, only if you want that (the owner, 14 Nov 2026: "can i set it to not auto
+                -- queue a blessing if they dont ask for one?")
+                if visible and Opt("buffarrivals") then QueueAllMyBuffs(j.name) end
                 -- tell them what else is on offer where they landed; nothing there = no message
                 if not j.offered then
                     j.offered = true
@@ -3310,6 +3313,7 @@ local function BuildSetupUI()
     Label(R + 4, -236 - bh - 4, "Just 'blessing':")
     Box("blessing_spell", R + 130, -236 - bh, 200, 60)
     Label(R + 4, -236 - bh - 30, "\"kings\", \"wisdom\", \"might\", \"salv\"... get that blessing.", "GameFontHighlightSmall", 400)
+    Check("buffarrivals", L, -480, "Buff customers when they land, without being asked (off = only people who ask)", true)
     Label(L, -446, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
 
     -- Advertise --------------------------------------------------------------
