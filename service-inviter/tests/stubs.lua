@@ -17,6 +17,7 @@ local function Stub()
       IsShown = function(self) return self._shown end,
       SetText = function(self, s) self._text = s end,
       SetTexture = function(self, t) rawset(self, "_tex", t) end,
+      SetAlpha = function(self, a) rawset(self, "_alpha", a) end,
       GetText = function(self) return self._text end,
       SetChecked = function(self, v) self._checked = v and true or false end,
       GetChecked = function(self) return self._checked end,

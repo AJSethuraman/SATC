@@ -1,4 +1,4 @@
--- Service Inviter v3.2.1
+-- Service Inviter v3.2.2
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1681,6 +1681,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
         return
     end
     if event == "PLAYER_REGEN_ENABLED" then
+        Jobs.AfterCombat()
         if jobsDirty then RefreshJobs() end
         if buffDirty then RefreshBuff() end
         return
@@ -3392,8 +3393,16 @@ local function BuildJobsUI()
     w:SetMovable(true)
     w:EnableMouse(true)
     w:RegisterForDrag("LeftButton")
-    w:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    -- The window holds buttons that cast, so in combat the game won't let it move or close (the
+    -- owner, 14 Nov 2026, mid-fight: "whoa what i cant even close it"). Dragging waits for the
+    -- fight to end, and closing fades it out now and closes it after (Jobs.CloseJobs).
+    w:SetScript("OnDragStart", function(self)
+        if InCombatLockdown and InCombatLockdown() then return end
+        self.dragging = true self:StartMoving()
+    end)
     w:SetScript("OnDragStop", function(self)
+        if not self.dragging then return end
+        self.dragging = nil
         self:StopMovingOrSizing()
         -- keep it pinned by the top-left wherever you drop it
         local l, t = self:GetLeft(), self:GetTop()
@@ -3411,7 +3420,7 @@ local function BuildJobsUI()
     w.count:SetPoint("TOPLEFT", 146, -26)
     local close = FlatButton(w, 36, 36, "bare", 16)
     close:SetPoint("TOPRIGHT", -12, -14) close:SetText("X")
-    close:SetScript("OnClick", function() w:Hide() end)
+    close:SetScript("OnClick", function() Jobs.CloseJobs() end)
     local setupBtn = FlatButton(w, 72, 36, "plain")
     setupBtn:SetPoint("TOPRIGHT", -56, -14) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
@@ -3610,10 +3619,31 @@ local function BuildJobsUI()
     return w
 end
 
+-- Close the customer window. In combat the game won't hide it, so it goes see-through now and
+-- closes when the fight ends.
+function Jobs.CloseJobs()
+    local w = jobsWin
+    if not w or not w:IsShown() then return end
+    if InCombatLockdown and InCombatLockdown() then
+        if not Jobs.closeLater then P("the customer list closes when combat ends") end
+        Jobs.closeLater = true
+        w:SetAlpha(0)
+        return
+    end
+    Jobs.closeLater = nil
+    w:Hide()
+    w:SetAlpha(1)
+end
+function Jobs.AfterCombat()
+    if Jobs.closeLater and jobsWin then Jobs.closeLater = nil jobsWin:Hide() jobsWin:SetAlpha(1) end
+end
 local function ToggleJobs()
     if ServiceInviterDB.stasis then P("|cffff8040stopped|r. /si start to wake it.") return end
     jobsWin = jobsWin or BuildJobsUI()
-    if jobsWin:IsShown() then jobsWin:Hide() else jobsWin:Show() end
+    if jobsWin:IsShown() and not Jobs.closeLater then Jobs.CloseJobs()
+    elseif jobsWin:IsShown() then Jobs.closeLater = nil jobsWin:SetAlpha(1)   -- asked for back mid-fight
+    elseif InCombatLockdown and InCombatLockdown() then P("the customer list can't open in combat. Try again after.")
+    else jobsWin:SetAlpha(1) jobsWin:Show() end
 end
 
 jobsChanged = function(openIt)
@@ -4499,7 +4529,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         end
     elseif cmd == "stop" or cmd == "stasis" then
         ServiceInviterDB.stasis = true
-        if jobsWin then jobsWin:Hide() end
+        Jobs.CloseJobs()
         P("|cffff8040stopped|r: hearing nothing and doing nothing, even after a reload. /si start to wake it.")
     elseif cmd == "start" or cmd == "wake" then
         ServiceInviterDB.stasis = nil
