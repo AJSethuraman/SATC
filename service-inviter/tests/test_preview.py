@@ -198,3 +198,14 @@ def test_messages_preview_shows_the_not_sure_line_even_alone():
     lines = " ".join(g.printed())
     assert "We have summons to" in lines and "35 silver" in lines
     assert "pretends a level 60 warlock" in lines
+
+
+def test_messages_preview_shows_what_else_is_here():
+    """The owner, 14 Nov 2026: "how does what else is here work i dont see it in the preview"."""
+    g = world({"player": ME_ORG}, "summons = { price = 35 }, blessing = { on = true }")
+    g.run('ServiceInviter_Test.PrintPreview("Messages")')
+    lines = " ".join(g.printed())
+    assert "Also here: free blessings. Just ask!" in lines and "pretends a level 60 paladin" in lines
+    g = world({"player": ME_ORG}, "summons = { price = 35 }")
+    g.run('ServiceInviter_Test.PrintPreview("Messages")')
+    assert "blessings are off on the Paladin tab" in " ".join(g.printed())

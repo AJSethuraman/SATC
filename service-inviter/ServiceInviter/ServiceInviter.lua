@@ -1,4 +1,4 @@
--- Service Inviter v3.7.4
+-- Service Inviter v3.7.5
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -3608,6 +3608,24 @@ local function PrintPreview(tab)
             if list and added[1] then P("|cffbbbbbbThis example pretends a level 60 " .. (added[1].name or "warlock"):lower() .. " is with you in " .. Core.Short(here) .. ".|r") end
         end
         P("|cff999999" .. Jobs.RouteOf("welcome") .. ":|r " .. (list and ask:gsub("{name}", PV.BUYER):gsub("{services}", list) or "(nothing is ticked to sell on the Warlock or Paladin tab)"))
+        -- what else is here: only sent when someone in the group offers something else in the
+        -- city they land in (a paladin there, with blessings on), so show it with one if needed
+        -- (the owner, 14 Nov 2026: "how does what else is here work i dont see it in the preview")
+        P("|cffffd100What else is here (sent with the pay reminder when they land)|r")
+        local om = ServiceInviterDB.offermsg
+        if om == "" then P("|cffbbbbbbnothing: the box is empty|r")
+        elseif not Core.Setting(ServiceInviterDB, "blessing").on then
+            P("|cffbbbbbbnothing: blessings are off on the Paladin tab, and that's the only other thing we offer|r")
+        else
+            if not om or om == MSG.OFFERMSG then om = MSG.OFFER_T end
+            local g3, added3, here3 = WithStandIns(g, { "summons", "blessing" })
+            local offer = Core.ArrivalOffer(ServiceInviterDB, g3, Faction(), here3, "summons", PV.BUYER, om)
+            for _, m in ipairs(added3) do
+                P("|cffbbbbbbThis example pretends a level 60 " .. m.name:lower() .. " is with you in " .. Core.Short(here3) .. ".|r")
+            end
+            P(offer and ("|cff999999" .. Jobs.RouteOf("arrival") .. ":|r " .. offer) or "|cffbbbbbbnothing else on offer there|r")
+            P("|cffbbbbbbOnly when a paladin is standing in the city they land in.|r")
+        end
         local loyal = Jobs.LoyaltyLine({ name = PV.BUYER, previewBefore = 3 })
         P("|cffffd100A regular joins|r")
         P(loyal and ("|cff999999" .. Jobs.RouteOf("loyal") .. ":|r " .. loyal) or "|cffbbbbbbnothing (the box is empty)|r")
