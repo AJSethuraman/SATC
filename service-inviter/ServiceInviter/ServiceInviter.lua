@@ -1,4 +1,4 @@
--- Service Inviter v3.7.0
+-- Service Inviter v3.7.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2687,6 +2687,9 @@ local function FindBNetFriend(name)
     end
 end
 local function SendWhisperTo(to, text)
+    -- on a team only the point of contact talks, Battle.net whispers included
+    local poc = Jobs.POC and Jobs.POC()
+    if poc and poc ~= Jobs.Me() then return "not sent: " .. poc .. " is the point of contact" end
     local id = FindBNetFriend(to)
     if id and BNSendWhisper then
         BNSendWhisper(id, text)

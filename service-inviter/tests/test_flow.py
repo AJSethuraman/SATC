@@ -97,3 +97,23 @@ def test_a_buyer_i_invite_by_hand_is_welcomed_by_the_point_of_contact():
     for g in (me, bone):
         join(g, "Kaldrok")
     assert me.sent() == [] and len(bone.sent()) == 1           # not a regular: nothing more on joining
+
+
+def test_only_the_point_of_contact_whispers_the_helper_even_by_battle_net():
+    """The owner, 14 Nov 2026: "only the POC will whisper the lock who is next?"."""
+    me, bone = team()
+    for g in (me, bone):
+        g.run('''ServiceInviterDB.role = "helper" ServiceInviterDB.whisperto = "Yeet Lock"
+            BN_SENT = {} function BNSendWhisper(id, t) BN_SENT[#BN_SENT + 1] = t end
+            function BNGetNumFriends() return 1 end
+            C_BattleNet = { GetFriendAccountInfo = function() return { accountName = "Yeet Lock", battleTag = "Yeet#1",
+                gameAccountInfo = { characterName = "Yeet Lock", isOnline = true } , bnetAccountID = 7 } end }''')
+    say_trade(me, "Kaldrok", "wtb summon to TB")
+    pump(me, bone, "Me")
+    for g in (me, bone):
+        join(g, "Kaldrok")
+        g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "raid2", 698, "Ritual of Summoning")')
+    mine = me.eval("#BN_SENT") + len([1 for ch, to, m in me.sent() if to == "Yeet Lock"])
+    assert mine == 0
+    his = bone.eval("#BN_SENT") + len([1 for ch, to, m in bone.sent() if to == "Yeet Lock"])
+    assert his == 1
