@@ -82,7 +82,7 @@ def test_the_pay_reminder_can_be_turned_off():
         g.run('ServiceInviter_Test.OnCast("UNIT_SPELLCAST_START", "raid2", 698, "Ritual of Summoning")')
     bone.run('UNITS.raid3[4] = "Thunder Bluff" CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()')
     landed = bone.sent()[-1]
-    assert landed == ("WHISPER", "Kaldrok", "Welcome to TB, Kaldrok! Also here: blessings 10 silver. Just ask!")
+    assert landed == ("WHISPER", "Kaldrok", "Also here: blessings 10 silver. Just ask!")   # the Arrival box, as written
 
 
 def test_a_buyer_i_invite_by_hand_is_welcomed_by_the_point_of_contact():

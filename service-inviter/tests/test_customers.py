@@ -55,7 +55,7 @@ def test_a_regular_is_welcomed_back_in_chat():
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     welcomes = [m for ch, _, m in g.sent() if ch == "PARTY" and "Kaldrok" in m]
-    assert welcomes[-1] == "Hi Kaldrok! Welcome back, 4th time with us! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."
+    assert welcomes[-1] == "Welcome back Kaldrok, 4th time with us! Grimtotem will summon you to TB. 35 silver. Pay Grimtotem when you land."
     assert "Welcome back" not in welcomes[0]                     # the first time is a normal welcome
 
 
@@ -189,7 +189,7 @@ def test_a_regular_invited_by_someone_else_still_hears_the_regulars_line():
     before = len(g.sent())
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")      # the leader invited him, not us
     said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
-    assert said == ["Hi Kaldrok! Welcome back, 4th time with us!"]
+    assert said == ["Welcome back Kaldrok, 4th time with us!"]
 
 
 def test_a_regular_invited_by_someone_else_hears_no_service_or_price_even_with_your_own_welcome():
@@ -203,7 +203,7 @@ def test_a_regular_invited_by_someone_else_hears_no_service_or_price_even_with_y
     before = len(g.sent())
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
     said = [m for ch, _, m in g.sent()[before:] if ch in ("PARTY", "RAID")]
-    assert said == ["Hi Kaldrok! WELCOME BACK YOU FREQUENT FLYER!! This is your 2nd time"]
+    assert said == ["WELCOME BACK YOU FREQUENT FLYER!! This is your 2nd time"]
 
 
 def test_someone_new_invited_by_someone_else_gets_nothing():
@@ -217,7 +217,7 @@ def test_a_regular_hears_it_even_with_the_welcome_turned_off():
     g.run('ServiceInviterDB.opts = { marks = false, welcome = false }')
     summon(g, "Kaldrok")
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
-    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "Hi Kaldrok! Welcome back, 2nd time with us!"
+    assert [m for ch, _, m in g.sent() if ch == "PARTY"][-1] == "Welcome back Kaldrok, 2nd time with us!"
 
 
 def test_si_customers_all_lists_everyone():

@@ -1,4 +1,4 @@
--- Service Inviter v3.5.5
+-- Service Inviter v3.6.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -131,7 +131,12 @@ local pending = {}   -- invited players we are waiting to see join
 function Jobs.Pending(name) pending[name] = GetTime() end
 local MSG = {}
 MSG.SCAM = "Heads up: {name} didn't pay last time."   -- the default text of every message you can change
-MSG.WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
+MSG.WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"   -- 1.x default, read as unset
+-- Every message the addon sends is a text you can see and change in setup (the owner, 14 Nov
+-- 2026: "i dont want to communicate fixed text - not okay"). These are the starting texts.
+MSG.WELCOME_T = "Hi {name}! {who} will summon you to {dest}. {price}. Pay {payee} when you land."
+MSG.ASK = "Hi {name}! We have {services}. What can we do for you?"
+MSG.OFFER_T = "Also here: {offers}. Just ask!"
 local fragments = {}
 local inviteTimes = {}
 
@@ -1183,7 +1188,7 @@ end
 -- Thanks when they're done (the owner, 12 Nov 2026: "Paid should also remove from party and
 -- maybe send a thank you"). A whisper, so it still reaches them after they leave the group.
 MSG.THANKS = "Thanks {name}! Enjoy."
-MSG.LOYALTY = "Welcome back, {visits} time with us!"
+MSG.LOYALTY = "Welcome back {name}, {visits} time with us!"
 local function ThanksText(name)
     if ServiceInviterDB.thanks == false then return nil end
     local m = ServiceInviterDB.thanksmsg
@@ -1504,25 +1509,33 @@ local function WelcomeText(name, job, noLoyal)
     -- A regulars line with {name} in it greets them itself, so it takes the place of the hello at
     -- the start of the welcome rather than repeating the name (the owner, 13 Nov 2026: "i dont
     -- want them to see hi your name welcome back your name later").
-    local named = loyal and (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
+    local named = loyal and (ServiceInviterDB.loyaltymsg or MSG.LOYALTY):find("{name}", 1, true)
     local function Lead(rest)
         rest = (rest or ""):gsub("^%s+", "")
         local sep = loyal:find("[%.!?]%s*$") and " " or ". "
         return rest ~= "" and (loyal:gsub("%s+$", "") .. sep .. rest) or loyal
     end
     local custom = ServiceInviterDB.welcomemsg
-    if custom and custom ~= "" and custom ~= MSG.WELCOME then
+    if not custom or custom == "" or custom == MSG.WELCOME then custom = MSG.WELCOME_T end
+    -- the welcome is for a buyer we know the service of; someone else gets the "what can we do
+    -- for you" line (the Not sure box) below
+    if job and job.service and Core.BY_KEY[job.service] then
         local key = (job and job.service) or "summons"
         local payee, mine = PayeeFor(job, g)
         local price = PriceText(JobPrice(job))
         local label = Core.BY_KEY[key].label
         local hasVisits = custom:find("{visits}", 1, true)
         -- the hello: the first sentence, when it carries {name} ("Hi {name}!")
-        local greet = named and not hasVisits and custom:match("^%s*[^%.!?]-{name}[^%.!?]*[%.!?]+%s*")
+        local greet = loyal and not hasVisits and custom:match("^%s*[^%.!?]-{name}[^%.!?]*[%.!?]+%s*")
         if greet then custom = custom:sub(#greet + 1) end
+        local hello = greet and greet:gsub("{name}", function() return Jobs.Label(job, name) end)
+        local p = Core.Provider(g, key, job.dest)
+        if not p then return nil end   -- nobody in the group can do it any more
+        local who = p.me and "I" or Core.Label(g, p.name)
         custom = custom:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{price}", function() return price end)
+            :gsub("{who}", function() return who end)
         custom = custom:gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end):gsub("{service}", function() return label end)
-            :gsub("{dest}", function() return (job and job.dest) or "" end)
+            :gsub("{dest}", function() return Core.Short((job and job.dest) or p.zone or "us") end)
         custom = custom:gsub("{visits}", function()
             local nth = Jobs.Ordinal(Jobs.Before(job) + 1)
             return (custom:gsub("{%a+}", "") == custom:gsub("{%a+}", ""):upper()) and nth:upper() or nth
@@ -1530,20 +1543,23 @@ local function WelcomeText(name, job, noLoyal)
         -- your own welcome without {visits}: a regular gets the "Regulars hear" line after it
         -- (the owner's: "THE COST IS {price} AND WE WILL SUMMON YOU SOON!" + "HEY FREQUENT FLYER!
         -- This is your {visits} time with us!")
-        if greet then return Lead(custom) end
+        -- a regular: their line replaces the hello when it greets them by name, else follows it
+        if greet and named then return Lead(custom) end
+        if greet then return hello:gsub("%s+$", "") .. " " .. loyal .. " " .. custom end
         if loyal and not hasVisits then custom = custom:gsub("%s+$", "") .. " " .. loyal end
         return custom
     end
-    if job and job.service then
-        local text = Core.JoinWelcome(ServiceInviterDB, g, fac, job.service, Jobs.Label(job, name), job.dest, job.price)
-        if text and loyal and named then text = Lead((text:gsub("^Hi .-! ", "", 1)))
-        elseif text and loyal then text = text:gsub("^(Hi .-!) ", function(hi) return hi .. " " .. loyal .. " " end, 1) end
-        if text then return text end
-    end
+    -- we don't know what they want: what's on sale, with prices (the owner, 14 Nov 2026: "is this
+    -- editable?" -- the Not sure box on General)
     local list = Core.BuildAd(ServiceInviterDB, g, fac, "{services}")
-    if list and named then return Lead("We have " .. list .. ". What can we do for you?") end
-    if list then return "Hi " .. name .. "! " .. (loyal and (loyal .. " ") or "") .. "We have " .. list .. ". What can we do for you?" end
-    if loyal then return named and loyal or ("Hi " .. name .. "! " .. loyal) end
+    local ask = ServiceInviterDB.askmsg
+    if not ask or ask == "" then ask = MSG.ASK end
+    if list then
+        local t = ask:gsub("{name}", function() return Jobs.Label(job, name) end):gsub("{services}", function() return list end)
+        if loyal and named then return Lead((t:gsub("^%s*[^%.!?]-" .. name:gsub("%p", "%%%0") .. "[^%.!?]*[%.!?]+%s*", "", 1))) end
+        return loyal and (t:gsub("%s+$", "") .. " " .. loyal) or t
+    end
+    if loyal then return loyal end
     return nil
 end
 Jobs.WelcomeText = WelcomeText
@@ -1625,8 +1641,8 @@ local function OnSystem(text)
     -- know what we invited them for why would we show the price and service").
     if not fresh or not Opt("welcome") or (Jobs.Get(short) and Jobs.Get(short).welcomed) then
         -- with {name} in it, your line already greets them: no "Hi Kaldrok!" in front
-        local named = (ServiceInviterDB.loyaltymsg or ""):find("{name}", 1, true)
-        if loyal then Jobs.Route("loyal", named and loyal or ("Hi " .. Jobs.Label(Jobs.Get(short), short) .. "! " .. loyal), short, channel) end
+        local named = (ServiceInviterDB.loyaltymsg or MSG.LOYALTY):find("{name}", 1, true)
+        if loyal then Jobs.Route("loyal", loyal, short, channel) end   -- your Regular line, as written
         return
     end
     local welcome = WelcomeText(short)
@@ -2185,7 +2201,7 @@ local function ArrivalText(job)
     local p = Core.Provider(g, key, job.dest)
     local here = job.dest or (p and p.zone)
     local custom = ServiceInviterDB.offermsg
-    if custom == MSG.OFFERMSG then custom = nil end
+    if not custom or custom == "" or custom == MSG.OFFERMSG then custom = MSG.OFFER_T end
     -- landed and not yet paid: who to pay and how much, again (the owner's flow, 14 Nov 2026:
     -- "upon arrival they are whispered to pay the price again to payee and that they can request
     -- a blessing")
@@ -2198,7 +2214,7 @@ local function ArrivalText(job)
         pay = m:gsub("{name}", function() return Jobs.Label(job) end):gsub("{payee}", function() return mine and "me" or Core.Label(g, payee) end)
             :gsub("{price}", function() return PriceText(price) end):gsub("{here}", function() return here and Core.Short(here) or "" end)
     end
-    local offer = Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom or (pay and "Also here: {offers}. Just ask!"))
+    local offer = Core.ArrivalOffer(ServiceInviterDB, g, Faction(), here, key, Jobs.Label(job), custom)
     if pay and offer then return pay .. " " .. offer end
     return pay or offer
 end
@@ -4759,7 +4775,7 @@ local function BuildSetupUI()
     Label(C1, y - 6, "Auto-invite") Box("kwwords", C1 + 112, y, CW - 112 - 46, 60, "inv, invite")
     Check("kwon", C1 + CW - 34, y - 6, nil, true) y = y - ROW - 12
     Header(C1, y, "On sale") y = y - 28
-    w.onsale = Label(C1, y - 4, "", nil, CW) y = y - 48
+    w.onsale = Label(C1, y - 4, "", nil, CW) y = y - 36
     -- the addon's own lines in a chat tab of their own (the owner, 14 Nov 2026: "i still want to be
     -- able to put the SI stuff in a separate chat window i can customize"): a tab named SI is
     -- used by itself; this makes one. Size, font and place are the game's own tab settings.
@@ -4769,6 +4785,15 @@ local function BuildSetupUI()
     mk:SetPoint("TOPLEFT", C1 + CW - 132, y) mk:SetText("Make SI tab")
     mk:SetScript("OnClick", function() Jobs.MakeTab() w.Refresh() end)
     w.makeTab = mk
+    y = y - ROW - 4
+    -- when we don't know what they want (invited by hand, or by someone else, or they said
+    -- nothing we could read): what's on sale, with prices
+    Header(C1, y, "Not sure what they want") y = y - 28
+    Label(C1, y - 4, "They hear")
+    local askY = y
+    y = y - 26
+    local ask = Box("askmsg", C1, y, CW, 255)
+    Chips(ask, C1 + CW, askY, { "{name}", "{services}" })
 
     y = TOP
     Header(C2, y, "Pay") y = y - 28
@@ -4813,9 +4838,9 @@ local function BuildSetupUI()
         elseif tokens then Chips(b, C2 + CW, y0, tokens) end
         return b
     end
-    MsgChips("welcomemsg", "Welcome", { "{name}", "{service}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome", "Auto", nil, true)
-    MsgChips("offermsg", "Arrival", { "{name}", "{here}", "{offers}" }, nil, "Auto")
-    MsgChips("paymsg", "Pay reminder", { "{here}", "{payee}", "{price}" }, "payremind", "Auto", true)
+    MsgChips("welcomemsg", "Welcome", { "{name}", "{who}", "{dest}", "{price}", "{payee}", "{visits}" }, "welcome", nil, nil, true)
+    MsgChips("offermsg", "Arrival", { "{name}", "{here}", "{offers}" }, nil, nil)
+    MsgChips("paymsg", "Pay reminder", { "{here}", "{payee}", "{price}" }, "payremind", nil, true)
     MsgChips("thanksmsg", "Done", { "{name}" }, "thanks", "Off")
     MsgChips("loyaltymsg", "Regular", { "{name}", "{visits}" }, nil, "Off")
     MsgChips("scammsg", "Didn't pay", { "{name}", "{skull}" }, nil, "Off")
@@ -5025,7 +5050,7 @@ local function BuildSetupUI()
     Label(C2, y, "Every button is also /si and the word.", "GameFontHighlightSmall", CW)
 
     local DEFAULTS_BY_KEY = {
-        welcomemsg = "", offermsg = "", paymsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
+        welcomemsg = MSG.WELCOME_T, offermsg = MSG.OFFER_T, paymsg = MSG.PAY, askmsg = MSG.ASK, thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
     }
 
     local function Refresh()

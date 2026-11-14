@@ -187,4 +187,4 @@ def test_the_welcome_can_say_where():
     g = world({"player": ME_ORG, "party1": LOCK_TB}, "summons = { price = 35 }")
     g.run('ServiceInviterDB.welcomemsg = "Hi {name}! {service} to {dest} for {price}"')
     say_trade(g, "Kaldrok", "wtb summon to TB")
-    assert g.eval('ServiceInviter_Test.WelcomeText("Kaldrok")') == "Hi {rt3}Kaldrok{rt3}! summons to Thunder Bluff for 35 silver"   # {rt3}: their raid icon
+    assert g.eval('ServiceInviter_Test.WelcomeText("Kaldrok")') == "Hi {rt3}Kaldrok{rt3}! summons to TB for 35 silver"   # {rt3}: their raid icon

@@ -359,3 +359,19 @@ cheaper rival (ignore / match / undercut by N) go out with each hello (`PRICE`).
 online, every copy prices with those rules (`Core.PriceOverride` in `C.Setting`), from the rivals
 it sees in its own channels, and hands the buyer over with that quote. When the point of contact
 goes offline, each copy's own prices come back. Only the point of contact's `PRICE` is heard.
+
+## 3.6: no fixed text (14 Nov 2026)
+
+The owner: *"i dont want to communicate fixed text - not okay"*. Every message a customer or the
+group gets comes from a box in setup, and each box shows the text it sends (no "Auto"):
+
+- **Welcome** `Hi {name}! {who} will summon you to {dest}. {price}. Pay {payee} when you land.`
+  ({who} is the warlock, or "I"; {dest} the short city name). Used when we know what they came for.
+- **Not sure what they want** `Hi {name}! We have {services}. What can we do for you?` Invited by
+  hand, by someone else, or said nothing we could read.
+- **Arrival** `Also here: {offers}. Just ask!`, after the **Pay reminder**.
+- **Regular** `Welcome back {name}, {visits} time with us!` The addon no longer puts "Hi X!" in
+  front of it: a line with {name} replaces the welcome's hello; one without goes after the hello.
+
+`tests/test_no_fixed_text.py` sets every box to a marker, runs a customer through every step, and
+fails on anything sent that didn't come from a box.
