@@ -1,4 +1,4 @@
--- Service Inviter v2.9.3
+-- Service Inviter v2.10.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2660,19 +2660,27 @@ end
 
 local function BuildJobsUI()
     local W, ROW_H, GAP = 600, 80, 8
-    local TOP = 204                                   -- where the first row starts
-    local FOOT, FOOT_BUFF = 76, 126              -- the footer grows when you have a buff button
+    -- The buff button sits under the big button, in a place that never moves, and the window
+    -- is pinned by its top so only the bottom edge moves as customers come and go (the owner,
+    -- 14 Nov 2026: "the buff should like stay on top so the screen doesnt shrink while i use it")
+    local TOP = 214                                   -- where the first row starts
+    local FOOT, FOOT_BUFF = 76, 76
     local H = TOP + ROWS * (ROW_H + GAP) + 4 + FOOT
     local w = CreateFrame("Frame", "ServiceInviterJobs", UIParent)
     w:SetSize(W, H)
-    w:SetPoint("CENTER", 0, 60)
+    w:SetPoint("TOP", UIParent, "TOP", 0, -80)
     w:SetFrameStrata("DIALOG")
     w:SetClampedToScreen(true)
     w:SetMovable(true)
     w:EnableMouse(true)
     w:RegisterForDrag("LeftButton")
     w:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    w:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        -- keep it pinned by the top-left wherever you drop it
+        local l, t = self:GetLeft(), self:GetTop()
+        if l and t then self:ClearAllPoints() self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
+    end)
     local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
     local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
     w:Hide()
@@ -2828,7 +2836,7 @@ local function BuildJobsUI()
     local deep = Fill(w, INK.deep, "BACKGROUND", -6)
     local footLine = Fill(w, INK.soft, "BORDER")
     local bb = FlatButton(w, W - 48, 36, "plain", 14, true)
-    bb:SetPoint("BOTTOMLEFT", 24, 16)
+    bb:SetPoint("TOPLEFT", 24, -170)
     bb:RegisterForClicks("AnyUp", "AnyDown")
     bb:SetAttribute("type", "macro")
     bb:SetText("No buffs waiting")
