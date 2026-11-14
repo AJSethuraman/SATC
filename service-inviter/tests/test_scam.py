@@ -120,3 +120,11 @@ def test_in_a_raid_without_lead_or_assist_it_goes_to_raid_chat():
     g.run('ServiceInviterDB.scammers = { Kaldrok = { n = 1 } }')
     g.event("CHAT_MSG_SYSTEM", "Kaldrok has joined the raid group.")
     assert [ch for ch, _, m in g.sent()] == ["RAID"]
+
+
+def test_the_names_export_for_the_guild_bot():
+    """The owner, 14 Nov 2026: "it just looks up names i just want a list i can copy and paste"."""
+    g = world(LOCK)
+    g.run('ServiceInviterDB.scammers = { ["Momma Lovesme"] = { n = 2, owed = 70 }, Kaldrok = { n = 1, owed = 35 } }')
+    g.run('SlashCmdList.SERVICEINVITER("scammers names")')
+    assert g.eval("ServiceInviterCopy.box:GetText()") == "Kaldrok\nMomma Lovesme"

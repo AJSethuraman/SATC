@@ -1,4 +1,4 @@
--- Service Inviter v2.18.0
+-- Service Inviter v2.18.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -4073,6 +4073,16 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         local j = Jobs.Get(rest)
         P(rest .. ", " .. math.floor(GetTime() - h.t) .. "s ago in [" .. tostring(h.ch) .. "]: \"" .. tostring(h.text) .. "\"")
         P("  -> " .. tostring(h.why):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. (j and ("  (on the list: " .. j.status .. ")") or ""))
+    elseif (cmd == "scammers" or cmd == "scams") and rest:lower() == "names" then
+        -- just the names, one a line, for the guild bot's lookup (the owner, 14 Nov 2026: "it just
+        -- looks up names i just want a list i can copy and paste")
+        Jobs.Copy("Didn't pay: names", function()
+            local list = {}
+            for k in pairs(type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}) do list[#list + 1] = k end
+            table.sort(list)
+            if #list == 0 then P("nobody on the list") end
+            for _, n in ipairs(list) do P(n) end
+        end)
     elseif cmd == "scammers" or cmd == "scams" then
         Jobs.Copy("Didn't pay", function()
             local list = {}
@@ -4172,7 +4182,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si prices = other sellers and your live price | /si scam NAME = didn't pay, /si scammers, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si why NAME = what it decided about them | /si prices = other sellers and your live price | /si scam NAME = didn't pay, /si scammers (names), /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
