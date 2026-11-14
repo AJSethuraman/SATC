@@ -46,14 +46,6 @@ def test_si_customers_lists_regulars_and_one_persons_history():
     assert "Mirasha: 1 time" in " ".join(copied(g))
 
 
-def test_a_paid_lockpick_counts_when_paid():
-    from test_steps import lockpick_customer, click
-    g = lockpick_customer(price="20")
-    click(g, "paid")
-    c = g.eval('ServiceInviterDB.customers["Kaldrok"]')
-    assert c.n == 1 and c.by.lockpick == 1 and c.worth == 20
-
-
 def test_a_regular_is_welcomed_back_in_chat():
     """The owner, 13 Nov 2026: "can we even announce loyalty in the chat? that would be dope"."""
     g = world(LOCK, "summons = { price = 35 }")

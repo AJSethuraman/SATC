@@ -47,34 +47,17 @@ def test_with_no_warlock_it_says_so_and_shows_an_example():
     assert len(g.eval('ServiceInviterCore.OnSale(ServiceInviterDB, ServiceInviter_Test.Group(), "Horde")')) == 0
 
 
-def test_a_service_not_offered_says_how_to_turn_it_on():
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff")})
-    assert has(preview(g, "Rogue"), "lockpicking: not offered. Tick 'We sell lockpicking' to sell it.")
-
-
-def test_rogue_tab_free_lockpicking():
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff")}, "lockpick = { on = true }")
-    assert has(preview(g, "Rogue"), "When they join, party chat: Hi Kaldrok! I'll do lockpicking, come to me in TB. Free, tips welcome.")
-
-
 def test_invite_off_is_explained():
-    g = world({"player": ("Me", "PRIEST", 60, "Thunder Bluff")}, "fort = { on = true }")
-    lines = preview(g, "Buffs")
-    assert has(lines, "Fortitude: buyers aren't invited (Invite buyers is off)")
-
-
-def test_mage_tab_shows_each_portal():
-    g = world({"player": ME_ORG, "party1": ("Velenne", "MAGE", 60, "Orgrimmar")}, "portals = { on = true, price = 20 }")
-    lines = preview(g, "Mage")
-    assert has(lines, "Velenne will do a portal to UC, come to Velenne in Org. 20 silver. Pay Velenne there.")
-    assert has(lines, "Velenne will do a portal to TB")
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff")}, "blessing = { on = true }")
+    lines = preview(g, "Paladin")
+    assert has(lines, "blessings: buyers aren't invited (Invite buyers is off)")
 
 
 def test_arrival_message_or_why_there_is_none():
     g = world({"player": ME_ORG, "party1": LOCK_TB})
     assert has(preview(g, "Warlock"), "When they land: no message (nothing else on offer in TB)")
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff"), "party1": LOCK_TB}, "lockpick = { on = true }")
-    assert has(preview(g, "Warlock"), "When they land, party chat: Welcome to TB, Kaldrok! Also here: free lockpicking. Just ask!")
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": LOCK_TB}, "blessing = { on = true }")
+    assert has(preview(g, "Warlock"), "When they land, party chat: Welcome to TB, Kaldrok! Also here: free blessings. Just ask!")
 
 
 def test_whisper_line_when_someone_is_set():
@@ -137,7 +120,7 @@ def test_every_tab_has_a_preview_button():
     g = world({"player": ME_ORG})
     w = g.eval("ServiceInviter_Test.BuildSetup()")
     assert w.preview is not None
-    for tab in ("General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise"):
+    for tab in ("General", "Warlock", "Paladin", "Advertise"):
         assert preview(g, tab)
 
 

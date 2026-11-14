@@ -56,13 +56,6 @@ ME_ORG_SHAMAN = ("Me", "SHAMAN", 60, "Orgrimmar")
 
 # -- Who gets invited, from who is in the group ---------------------------------------------------
 
-def test_lockpicking_buyer_is_invited_when_you_are_a_rogue_selling_it():
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff")}, "lockpick = { on = true }")
-    say_trade(g, "Kaldrok", "WTB someone to open my lockbox")
-    assert invited(g) == ["Kaldrok"]
-    assert job(g, "Kaldrok", "service") == "lockpick"
-
-
 def test_lockpicking_buyer_is_not_invited_with_no_rogue():
     g = world({"player": ME_ORG_SHAMAN}, "lockpick = { on = true }")
     say_trade(g, "Kaldrok", "WTB someone to open my lockbox")
@@ -125,16 +118,6 @@ def test_no_warlock_no_summon_invites():
     assert invited(g) == []
 
 
-def test_a_level_47_mage_takes_uc_ports_but_not_tb_or_his_own_city():
-    g = world({"player": ME_ORG_SHAMAN, "party1": ("Velenne", "MAGE", 47, "Orgrimmar")},
-              "summons = { on = false }, portals = { on = true, price = 20 }")
-    say_trade(g, "Kaldrok", "wtb port to UC")
-    say_trade(g, "Mirasha", "wtb port to TB")
-    say_trade(g, "Thrall", "wtb port to Org")
-    assert invited(g) == ["Kaldrok"]
-    assert job(g, "Kaldrok", "service") == "portals"
-
-
 # -- Join, arrive, pay ------------------------------------------------------------------------------
 
 def test_the_welcome_says_what_who_where_price_and_payee():
@@ -146,19 +129,20 @@ def test_the_welcome_says_what_who_where_price_and_payee():
 
 
 def test_arrival_offers_what_is_there():
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")},
-              "lockpick = { on = true, invite = false }")
+    g = world({"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")},
+              "blessing = { on = true }")
     say_trade(g, "Kaldrok", "WTB summon to TB")
     g.run('''local J = ServiceInviter_Test.Jobs J.Joined("Kaldrok") J.Set("Kaldrok", "summoned")
              UNITS.party2 = { "Kaldrok", "MAGE", 44, "Thunder Bluff" } GROUP["Kaldrok"] = true
              CLOCK = CLOCK + 2 ServiceInviter_Test.CheckArrivals()''')  # in the summon's city: arrived
     sent = [m for ch, _, m in g.sent() if ch == "PARTY"]
-    assert "Welcome to TB, {rt4}Kaldrok{rt4}! Also here: free lockpicking. Just ask!" in sent
+    assert "Welcome to TB, {rt4}Kaldrok{rt4}! Also here: free blessings. Just ask!" in sent
 
 
 def test_a_free_service_marks_a_tip_as_paid():
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff")}, "lockpick = { on = true }")
-    say_trade(g, "Kaldrok", "WTB lockbox opened")
+    g = world({"player": ("Me", "WARLOCK", 60, "Thunder Bluff")}, "summons = { price = false }")
+    g.run('ServiceInviterDB.role = "lock"')
+    say_trade(g, "Kaldrok", "WTB summon to TB")
     g.run('''local J = ServiceInviter_Test.Jobs J.Joined("Kaldrok") J.Set("Kaldrok", "summoned") J.Set("Kaldrok", "arrived")
              UNITS.npc = { "Kaldrok" } function UnitName(u) if u == "NPC" then return "Kaldrok" end local x = UNITS[u] return x and x[1] end''')
     g.event("TRADE_SHOW")
@@ -201,16 +185,6 @@ def test_nothing_to_sell_posts_nothing():
 
 
 # -- Carrying 1.x settings over --------------------------------------------------------------------
-
-def test_old_extras_become_offered_services_that_dont_invite():
-    g = world({"player": ME_ORG_SHAMAN})
-    g.run('ServiceInviterDB.offers = { lockpick = true, food = true } ServiceInviterDB.price = 150')
-    g.event("PLAYER_LOGIN")
-    assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "lockpick").on') is True
-    assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "lockpick").invite') is False
-    assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "water").on') is True
-    assert g.eval('ServiceInviterCore.Setting(ServiceInviterDB, "summons").price') == 150
-
 
 # -- Setup: who gets paid is picked from the group; who summons is shown ------------------------
 
@@ -621,12 +595,6 @@ def test_a_summon_request_for_several_people_is_not_invited():
     g = world(uc)
     say_trade(g, "Asker", "WTB port for 2 to UC")
     assert any("2 people" in p for p in g.printed())
-
-
-def test_a_group_can_still_buy_a_portal():
-    g = world({"player": ME_ORG_SHAMAN, "party1": ("Velenne", "MAGE", 60, "Orgrimmar")}, "portals = { on = true, price = 20 }")
-    say_trade(g, "Asker", "WTB port for 2 to UC")
-    assert invited(g) == ["Asker"]
 
 
 ASSIST_RAID = """

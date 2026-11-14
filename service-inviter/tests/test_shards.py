@@ -71,13 +71,6 @@ def test_the_window_shows_shards_left():
     assert g.eval("ServiceInviterJobs.statShards:GetText()") == "-"
 
 
-def test_portals_and_lockpicks_dont_care_about_shards():
-    g = world({"player": ("Me", "ROGUE", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}, "lockpick = { on = true }")
-    g.run('SlashCmdList.SERVICEINVITER("shards 0")')
-    say_trade(g, "Aa", "WTB lockbox opened")
-    assert invited(g) == ["Aa"]
-
-
 # The owner, 13 Nov 2026: "i want it as a new session item - when you click new session it can ask
 # for the number of shards if you are summoning".
 

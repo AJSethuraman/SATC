@@ -240,3 +240,31 @@ own fonts at set sizes and plain colour textures.
 
 Lua 5.1 allows 200 local names at the top of a file, and over that the addon does not load at
 all. This round hit it; a test now keeps 10 spare.
+
+## 3.x: a small team, summons and blessings only (14 Nov 2026)
+
+The owner: *"i want to give it to 3-4 of us, maybe 5. we are only summoning and sometimes doing
+a blessing but not much else. i want to have all of the bells and whistles and analytics but we
+share our info and the addons talk"*, and *"i think we should keep most of stuff to whispers aside
+from like frequent flyer announcements. but this allows us to do our dynamic pricing"*.
+
+Decided with the owner:
+
+- **Summons and blessings only.** Portals, lockpicking, water, healthstones, soulstones and the
+  other classes' buffs are removed, not hidden (3.0.0).
+- **First to hear claims it.** Every copy hears a buyer in Trade; the first to claim invites, the
+  others stand down, so nobody gets two invites.
+- **A team name plus a member list.** Addons can't open a private channel on their own, so the
+  copies message each other directly (addon whispers) and over party/raid when grouped. Copies with
+  the same team name share whenever they're online, grouped or not.
+- **One shared book.** Customers, regulars, Paid/Scam, the didn't-pay list, near misses, other
+  sellers' prices and shard counts are the team's. Each record carries who logged it and when, so a
+  record synced twice counts once; a copy that logs in catches up from the others.
+- **Anyone on the team** can put someone on the didn't-pay list or take them off.
+- **Customers hear from us by whisper** (the welcome, the summon notice, the price), so each
+  customer sees their own price; only the regulars line ("frequent flyer") and the didn't-pay
+  call-out go to party/raid chat. A silenced character can't whisper strangers, so the whisper
+  goes from whoever claimed the customer.
+
+Stages: 3.0 focus · 3.1 team link + claims · 3.2 shared records + catch-up · 3.3 whispers to
+customers · 3.4 shared prices and shards.

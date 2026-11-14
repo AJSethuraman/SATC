@@ -19,12 +19,6 @@ def test_summoning_to_a_place_still_takes_summon_requests(game):
     assert ok, why
 
 
-def test_port_only_takes_port_requests(game):
-    opts(game, sum_tb=False, port_org=True)
-    ok, why = game.evaluate("wtb port to org")
-    assert ok, why
-
-
 def test_port_only_does_not_take_summon_requests(game):
     """A mage cannot fetch someone from wherever they are."""
     opts(game, sum_tb=False, port_org=True)

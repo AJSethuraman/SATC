@@ -12,13 +12,16 @@ KICK = "KICKED = {} function UninviteUnit(n) KICKED[#KICKED + 1] = n end"
 
 
 def lockpick_customer(price="", lead=True, extra=""):
+    """A customer who has been summoned (was a lockpick buyer until 14 Nov 2026, when the addon
+    became summons and blessings only). price "" = a free summon (Done, not Paid)."""
     units = {"player": LOCK_ME, "party1": ROGUE}
-    g = world(units, f"lockpick = {{ on = true{', price = ' + price if price else ''} }}",
+    g = world(units, f"summons = {{ price = {price or 'false'} }}",
               extra=KICK + extra + ("" if lead else " function UnitIsGroupLeader() return false end"))
     g.run('ServiceInviterDB.role = "lock"')
-    say_trade(g, "Kaldrok", "WTB someone to open my lockbox")
+    say_trade(g, "Kaldrok", "WTB summon to TB")
     g.run('UNITS.party2 = { "Kaldrok", "MAGE", 44, "Thunder Bluff" } GROUP["Kaldrok"] = true')
     g.event("CHAT_MSG_SYSTEM", "Kaldrok joins the party.")
+    g.run('ServiceInviter_Test.Jobs.Set("Kaldrok", "summoned")')
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     return g
 
@@ -41,13 +44,6 @@ def click(g, button):
 
 def whispers(g):
     return [(to, m) for ch, to, m in g.sent() if ch == "WHISPER"]
-
-
-def test_a_lockpick_customer_is_never_offered_a_summon():
-    g = lockpick_customer()
-    assert g.eval("ServiceInviterNext:GetText()") != "Summon Kaldrok"
-    assert "Ritual of Summoning" not in (g.eval('ServiceInviterNext:GetAttribute("macrotext")') or "")
-    assert row(g, "summon")._shown is False
 
 
 def test_a_free_service_finishes_with_done():

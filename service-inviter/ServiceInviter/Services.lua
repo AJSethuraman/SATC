@@ -33,22 +33,7 @@ C.PORTAL_SPELL = {
 -- (travel services use the summon/port words in the matcher instead).
 C.SERVICES = {
     { key = "summons",     class = "WARLOCK", level = 20, tab = "Warlock", kind = "summon", label = "summons",           on = true,  invite = true,  price = 25 },
-    { key = "healthstone", class = "WARLOCK", level = 10, tab = "Warlock", kind = "item",   label = "healthstones",      on = false, invite = false,
-      words = "healthstone, healthstones" },
-    { key = "soulstone",   class = "WARLOCK", level = 18, tab = "Warlock", kind = "item",   label = "a soulstone",       on = false, invite = false,
-      words = "soulstone, soul stone" },
-    { key = "portals",     class = "MAGE",    level = 40, tab = "Mage",    kind = "portal", label = "portals",           on = false, invite = true },
-    { key = "water",       class = "MAGE",    level = 4,  tab = "Mage",    kind = "item",   label = "mage food & water", on = false, invite = true,
-      words = "mage water, mage food, conjured water, conjured food, water" },
-    { key = "lockpick",    class = "ROGUE",   level = 16, tab = "Rogue",   kind = "item",   label = "lockpicking",       on = false, invite = true,
-      words = "lockpick, lockpicking, lockbox, lockboxes, lock box, junkbox, open box, open my box, pick lock" },
-    { key = "fort",        class = "PRIEST",  level = 1,  tab = "Buffs",   kind = "buff",   label = "Fortitude",         on = false, invite = false, spell = "Power Word: Fortitude",
-      words = "fort, fortitude, stam buff" },
-    { key = "motw",        class = "DRUID",   level = 1,  tab = "Buffs",   kind = "buff",   label = "Mark of the Wild",  on = false, invite = false, spell = "Mark of the Wild",
-      words = "motw, mark of the wild" },
-    { key = "ai",          class = "MAGE",    level = 1,  tab = "Buffs",   kind = "buff",   label = "Arcane Intellect",  on = false, invite = false, spell = "Arcane Intellect",
-      words = "arcane intellect, int buff" },
-    { key = "blessing",    class = "PALADIN", level = 1,  tab = "Buffs",   kind = "buff",   label = "a blessing",        on = false, invite = false, spell = "Blessing of Might",
+    { key = "blessing",    class = "PALADIN", level = 1,  tab = "Paladin",   kind = "buff",   label = "blessings",         on = false, invite = false, spell = "Blessing of Might",
       words = "blessing, bless, kings, might, wisdom, salvation, salv, light, sanctuary, sanc" },
 }
 -- Paladin blessings by the word a buyer uses ("wisdom pls" = Blessing of Wisdom). Plain
@@ -87,6 +72,7 @@ for _, s in ipairs(C.SERVICES) do C.BY_KEY[s.key] = s end
 -- where: the city, for a price that follows the market there (C.LivePrice, set by the addon)
 function C.Setting(db, key, where)
     local def = C.BY_KEY[key]
+    if not def then return { on = false, invite = false, payee = "", words = "" } end   -- no longer sold
     local saved = (type(db) == "table" and type(db.services) == "table" and db.services[key]) or {}
     local price = def.price
     if key == "summons" and saved.price == nil and type(db) == "table" and type(db.price) == "number" then price = db.price end
@@ -176,7 +162,7 @@ end
 -- Summons follow your role: as the helper you are not the summoner even if you are a
 -- warlock (notSummoner); as the lock you are the first choice (summoner).
 function C.CanDo(member, def)
-    if not member or member.class ~= def.class then return false end
+    if not member or not def or member.class ~= def.class then return false end
     if member.customer or member.notProvider then return false end   -- a customer, or not one of "ours"
     if member.level and member.level < def.level then return false end
     if def.kind == "summon" and member.notSummoner then return false end
@@ -184,6 +170,7 @@ function C.CanDo(member, def)
 end
 function C.Providers(group, key)
     local def, out = C.BY_KEY[key], {}
+    if not def then return out end   -- a service no longer sold (summons and blessings only)
     for _, m in ipairs(group or {}) do if C.CanDo(m, def) then out[#out + 1] = m end end
     if def.kind == "summon" then
         table.sort(out, function(a, b) return (a.summoner and 1 or 0) > (b.summoner and 1 or 0) end)
@@ -195,7 +182,7 @@ end
 -- For portals, `where` is the city they want: the first mage who can portal there.
 function C.Provider(group, key, where)
     local list = C.Providers(group, key)
-    if where and C.BY_KEY[key].kind == "portal" then
+    if where and C.BY_KEY[key] and C.BY_KEY[key].kind == "portal" then
         for _, m in ipairs(list) do
             for _, city in ipairs(C.PortalCities(m)) do if city == where then return m end end
         end

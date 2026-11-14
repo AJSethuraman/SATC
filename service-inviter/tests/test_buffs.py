@@ -4,10 +4,10 @@ the last person or someone who asks for it" ... "it would not need to be in comb
 really - this is really just for buffs"."""
 from test_group import world, say_trade
 
-PRIEST_TB = {"player": ("Me", "PRIEST", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}
+PRIEST_TB = {"player": ("Me", "PALADIN", 60, "Thunder Bluff"), "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff")}   # (a paladin since 14 Nov 2026: summons and blessings only)
 SPELLS = """
 CASTS = {}
-function GetSpellSubtext(s) if s == "Power Word: Fortitude" then return "Rank 6" end end
+function GetSpellSubtext(s) if s == "Blessing of Might" then return "Rank 6" end end
 """
 
 
@@ -36,50 +36,50 @@ def arrive(g, name):
 
 
 def test_a_customer_landing_where_you_are_is_queued_for_your_buff():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
     say_trade(g, "Kaldrok", "WTB summon to TB")
     arrive(g, "Kaldrok")
-    assert macro(g) == "/cast [@Kaldrok] Power Word: Fortitude"
-    assert label(g) == "Fortitude -> Kaldrok"
+    assert macro(g) == "/cast [@Kaldrok] Blessing of Might"
+    assert label(g) == "Might -> Kaldrok"
 
 
 def test_someone_asking_in_party_is_queued():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "can i get fort pls", "Grimtotem", "", "", "", "", "", "", "")
-    assert macro(g) == "/cast [@Grimtotem] Power Word: Fortitude"
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "can i get might pls", "Grimtotem", "", "", "", "", "", "", "")
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Might"
 
 
 def test_a_successful_cast_moves_to_the_next_person():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "fort?", "Grimtotem", "", "", "", "", "", "", "")
-    g.event("CHAT_MSG_WHISPER", "stam buff pls", "Grimtotem", "", "", "", "", "", "", "")   # already queued: no double
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "might?", "Grimtotem", "", "", "", "", "", "", "")
+    g.event("CHAT_MSG_WHISPER", "might please", "Grimtotem", "", "", "", "", "", "", "")   # already queued: no double
     say_trade(g, "Kaldrok", "WTB summon to TB")
     arrive(g, "Kaldrok")
-    assert label(g) == "Fortitude -> Grimtotem (+1)"
-    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Power Word: Fortitude")
-    assert macro(g) == "/cast [@Kaldrok] Power Word: Fortitude"
-    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Power Word: Fortitude")
+    assert label(g) == "Might -> Grimtotem (+1)"
+    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Blessing of Might")
+    assert macro(g) == "/cast [@Kaldrok] Blessing of Might"
+    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Blessing of Might")
     assert label(g) == "No buffs waiting"
 
 
 def test_too_low_level_steps_down_a_rank():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     g.event("UI_ERROR_MESSAGE", 50, "Target is too low level")
-    assert macro(g) == "/cast [@Grimtotem] Power Word: Fortitude(Rank 5)"
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Might(Rank 5)"
     g.event("UI_ERROR_MESSAGE", 50, "Target is too low level")
-    assert macro(g) == "/cast [@Grimtotem] Power Word: Fortitude(Rank 4)"
+    assert macro(g) == "/cast [@Grimtotem] Blessing of Might(Rank 4)"
 
 
 def test_nothing_queued_for_buffs_you_cant_cast():
-    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff")}, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g = world({"player": ("Me", "SHAMAN", 60, "Thunder Bluff")}, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     assert label(g) == "No buffs waiting"
 
 
 def test_someone_who_leaves_drops_out_of_the_queue():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     g.run('GROUP["Grimtotem"] = nil UNITS.party1 = nil ServiceInviter_Test.RefreshBuff()')
     assert label(g) == "No buffs waiting"
 
@@ -100,11 +100,11 @@ def test_si_bind_buff():
 def test_opening_the_list_later_still_shows_the_buff_button():
     """Found by looking at the drawn window: people asked before the list was open, and the
     button stayed hidden."""
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     g.run("ServiceInviter_Test.Refresh() ServiceInviterJobs:Show() ServiceInviter_Test.Refresh()")
     assert g.eval("ServiceInviterJobs.buffBtn:IsShown()") is True
-    assert g.eval("ServiceInviterJobs.buffBtn:GetText()") == "Fortitude -> Grimtotem"
+    assert g.eval("ServiceInviterJobs.buffBtn:GetText()") == "Might -> Grimtotem"
 
 
 # -- Paladins: the word picks the blessing --------------------------------------------------
@@ -200,42 +200,42 @@ def test_someone_with_a_two_part_name_already_in_the_group_is_not_invited_again(
 
 def test_untick_and_a_customer_who_lands_is_not_buffed_unless_they_ask():
     """The owner, 14 Nov 2026: "can i set it to not auto queue a blessing if they dont ask for one?"."""
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
     g.run("ServiceInviterDB.opts = { buffarrivals = false }")
     say_trade(g, "Kaldrok", "WTB summon to TB")
     arrive(g, "Kaldrok")
     assert label(g) == "No buffs waiting"
-    g.event("CHAT_MSG_PARTY", "fort pls", "Kaldrok", "", "", "", "", "", "", "")
-    assert label(g) == "Fortitude -> Kaldrok"
+    g.event("CHAT_MSG_PARTY", "might pls", "Kaldrok", "", "", "", "", "", "", "")
+    assert label(g) == "Might -> Kaldrok"
 
 
 # The owner, 14 Nov 2026: "can the blessing thing be more obvious what if i miss it? can it just
 # appear at my mouse".
 
 def test_the_buff_pops_up_at_the_mouse_with_a_sound_and_casts_on_click():
-    g = world(PRIEST_TB, "fort = { on = true }",
-              extra=SPELLS + " function GetSpellTexture(s) if s == 'Power Word: Fortitude' then return 'Interface/Fort' end end SOUNDS = {} function PlaySound(s) SOUNDS[#SOUNDS + 1] = s end function GetCursorPosition() return 500, 300 end")
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g = world(PRIEST_TB, "blessing = { on = true }",
+              extra=SPELLS + " function GetSpellTexture(s) if s == 'Blessing of Might' then return 'Interface/Might' end end SOUNDS = {} function PlaySound(s) SOUNDS[#SOUNDS + 1] = s end function GetCursorPosition() return 500, 300 end")
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     assert g.eval("ServiceInviterBuffPop:IsShown()")
-    assert g.eval("ServiceInviterBuffPop.label:GetText()") == "Fortitude -> Grimtotem"
+    assert g.eval("ServiceInviterBuffPop.label:GetText()") == "Might -> Grimtotem"
     assert g.eval('ServiceInviterBuffPop:GetAttribute("macrotext")') == raw_macro(g)
     assert len(g.g.SOUNDS) == 1
-    assert g.eval("ServiceInviterBuffPop.icon._tex") == "Interface/Fort"     # the buff's own icon
-    g.event("CHAT_MSG_PARTY", "fort?", "Kaldrok", "", "", "", "", "", "", "")
+    assert g.eval("ServiceInviterBuffPop.icon._tex") == "Interface/Might"     # the buff's own icon
+    g.event("CHAT_MSG_PARTY", "might?", "Kaldrok", "", "", "", "", "", "", "")
     assert len(g.g.SOUNDS) == 1                                       # already up: no second sound
 
 
 def test_the_pop_goes_away_when_nobody_is_waiting():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
-    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Power Word: Fortitude")
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
+    g.event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 0, "Blessing of Might")
     assert not g.eval("ServiceInviterBuffPop:IsShown()")
 
 
 def test_the_pop_can_be_turned_off():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
     g.run("ServiceInviterDB.opts = { buffpop = false }")
-    g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
+    g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     assert not g.eval("ServiceInviterBuffPop and ServiceInviterBuffPop:IsShown()")
 
 
@@ -243,34 +243,34 @@ def test_the_pop_can_be_turned_off():
 # offer a recent customer a buff if they have left".
 
 def test_a_customer_who_left_can_still_ask_and_is_targeted_by_name():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
     say_trade(g, "Momma Lovesme", "WTB summon to TB")                 # a customer on the list
-    g.event("CHAT_MSG_WHISPER", "fort pls", "Momma Lovesme", "", "", "", "", "", "", "")
-    assert label(g) == "Fortitude -> Momma Lovesme"
-    assert raw_macro(g) == "/target Momma Lovesme\n/cast Power Word: Fortitude\n/targetlasttarget"
+    g.event("CHAT_MSG_WHISPER", "might pls", "Momma Lovesme", "", "", "", "", "", "", "")
+    assert label(g) == "Might -> Momma Lovesme"
+    assert raw_macro(g) == "/target Momma Lovesme\n/cast Blessing of Might\n/targetlasttarget"
 
 
 def test_saying_it_nearby_works_too():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
     say_trade(g, "Kaldrok", "WTB summon to TB")
-    g.event("CHAT_MSG_SAY", "fort?", "Kaldrok", "", "", "", "", "", "", "")
-    assert label(g) == "Fortitude -> Kaldrok"
+    g.event("CHAT_MSG_SAY", "might?", "Kaldrok", "", "", "", "", "", "", "")
+    assert label(g) == "Might -> Kaldrok"
 
 
 def test_a_stranger_outside_the_group_is_still_ignored():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
-    g.event("CHAT_MSG_WHISPER", "fort pls", "Randomguy", "", "", "", "", "", "", "")
-    g.event("CHAT_MSG_SAY", "fort pls", "Randomguy", "", "", "", "", "", "", "")
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
+    g.event("CHAT_MSG_WHISPER", "might pls", "Randomguy", "", "", "", "", "", "", "")
+    g.event("CHAT_MSG_SAY", "might pls", "Randomguy", "", "", "", "", "", "", "")
     assert label(g) == "No buffs waiting"
 
 
 def test_a_customer_from_the_book_within_the_hour_counts_an_older_one_does_not():
-    g = world(PRIEST_TB, "fort = { on = true }", extra=SPELLS)
+    g = world(PRIEST_TB, "blessing = { on = true }", extra=SPELLS)
     g.run("ServiceInviterDB.customers = { Kaldrok = { n = 1, last = time() - 600 }, Oldie = { n = 1, last = time() - 7200 } }")
-    g.event("CHAT_MSG_WHISPER", "fort pls", "Oldie", "", "", "", "", "", "", "")
+    g.event("CHAT_MSG_WHISPER", "might pls", "Oldie", "", "", "", "", "", "", "")
     assert label(g) == "No buffs waiting"
-    g.event("CHAT_MSG_WHISPER", "fort pls", "Kaldrok", "", "", "", "", "", "", "")
-    assert label(g) == "Fortitude -> Kaldrok"
+    g.event("CHAT_MSG_WHISPER", "might pls", "Kaldrok", "", "", "", "", "", "", "")
+    assert label(g) == "Might -> Kaldrok"
 
 
 # The owner, 14 Nov 2026: "can you make it so that blessing are recognized by fragments and stuff -

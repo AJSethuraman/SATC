@@ -1,4 +1,4 @@
--- Service Inviter v2.18.1
+-- Service Inviter v3.0.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -35,8 +35,7 @@ local function MigrateServices()
     if db.servicesMigrated then return end
     db.servicesMigrated = true
     db.services = db.services or {}
-    local map = { healthstone = "healthstone", soulstone = "soulstone", food = "water", lockpick = "lockpick",
-                  stam = "fort", motw = "motw", int = "ai", paladin = "blessing", portal = "portals" }
+    local map = { paladin = "blessing" }   -- the only 1.x extra still sold (summons and blessings only, 14 Nov 2026)
     if type(db.offers) == "table" then
         for old, new in pairs(map) do
             if db.offers[old] then
@@ -316,15 +315,13 @@ local function Evaluate(norm, dedicated, T)
                 if wantsSum then return true, "summon to " .. d.label .. ", buy=" .. buy, "summons", d.label end
                 if wantsPort then return true, "port request to " .. d.label .. ", you summon there, buy=" .. buy, "summons", d.label end
             end
-            if wantsPort and T.port[d.key] then return true, "port to " .. d.label .. ", buy=" .. buy, "portals", d.label end
         end
     end
     if waived and not sawDest then return false, "no place named (needs one when there is no summon/port word)" end
     if (wantsSum or wantsPort) and T.sumAny then return true, "summon (any destination), buy=" .. buy, "summons" end
-    if wantsPort and T.portAny then return true, "port (any destination), buy=" .. buy, "portals" end
     -- No place named ("WTB summon"): never assume where they want to go.
     return false, sawDest and "that destination/service is not checked" or "no place named",
-        (wantsSum and "summons") or (wantsPort and "portals") or nil, sawDest or nil
+        (wantsSum or wantsPort) and "summons" or nil, sawDest or nil
 end
 
 ----------------------------------------------------------------------
@@ -1222,7 +1219,7 @@ local function Handle(text, sender, guid)
     -- Near miss: sounds like a buyer (buy word + summon/port word, not a seller) but we said no.
     if not ok and not HasAny(norm, SELLER)
         and HasAny(norm, BUY) and (HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS)) then
-        Jobs.NearMiss(short, why, svc or (HasAny(norm, SUMMON_WORDS) and "summons") or "portals", dest)
+        Jobs.NearMiss(short, why, svc or "summons", dest)
         if ServiceInviterDB.near ~= false then
             P("|cffffa040NEAR MISS|r " .. short .. " [" .. curChannel .. "] \"" .. text .. "\" -> " .. why)
         end
@@ -1829,7 +1826,12 @@ local function QueueBuff(name, key, spell)
     P("buff queued: " .. (spell or Core.BY_KEY[key].label) .. " for " .. name .. " (press the buff button)")
     RefreshBuff()
 end
-QueueAllMyBuffs = function(name) for _, def in ipairs(MyBuffs()) do QueueBuff(name, def.key) end end
+QueueAllMyBuffs = function(name)
+    for _, def in ipairs(MyBuffs()) do
+        -- a blessing names which one ("Might -> Kaldrok", not "blessing -> Kaldrok")
+        QueueBuff(name, def.key, def.key == "blessing" and Core.Setting(ServiceInviterDB, "blessing").spell or nil)
+    end
+end
 -- "fort pls" from someone in the group
 -- every buff ask leaves a note for /si why NAME (the owner, 14 Nov 2026: "buff thing isnt firing
 -- when they ask for it")
@@ -2341,11 +2343,8 @@ end
 -- stand-in of the right class standing with you.
 ----------------------------------------------------------------------
 local PV = {}
-PV.TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
-PV.KEYS = {
-    Warlock = { "summons", "healthstone", "soulstone" }, Mage = { "portals", "water" },
-    Rogue = { "lockpick" }, Buffs = { "fort", "motw", "ai", "blessing" },
-}
+PV.TABS = { "General", "Warlock", "Paladin", "Advertise" }
+PV.KEYS = { Warlock = { "summons" }, Paladin = { "blessing" } }
 PV.BUYER = "Kaldrok"
 PV.CLASS_WORD = { WARLOCK = "Warlock", MAGE = "Mage", ROGUE = "Rogue", PRIEST = "Priest", DRUID = "Druid", PALADIN = "Paladin" }
 
@@ -2515,8 +2514,8 @@ local function Preview(tab)
                 local ex = #keys > 0 and Core.BuildAd(db, (WithStandIns(g, keys)), fac, db.admsg)
                 if ex then Say("Example, with someone who can do each ticked service standing with you", ex) end
             end
-        elseif tab == "Buffs" then
-            for _, key in ipairs(PV.KEYS.Buffs) do ServicePreview(key) end
+        elseif tab == "Paladin" or tab == "Buffs" then
+            for _, key in ipairs(PV.KEYS.Paladin) do ServicePreview(key) end
             Head("Buff button")
             Say("Buff button", BuffLabel())
             local mine = {}
@@ -3444,7 +3443,9 @@ local function BuildSetupUI()
     end
 
     -- tabs ----------------------------------------------------------------
-    local TABS = { "General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise" }
+    -- summons and blessings only (the owner, 14 Nov 2026: "we are only summoning and sometimes
+    -- doing a blessing but not much else")
+    local TABS = { "General", "Warlock", "Paladin", "Advertise" }
     local pages, tabBtns = {}, {}
     -- the side menu: the page you're on is gold, with a bar beside it
     local railBar
@@ -3577,47 +3578,22 @@ local function BuildSetupUI()
     Box("whisperto", R + 210, -130, 150, 40)
     Label(R, -162, "Whisper text ({name}, {next} = who waits longest):", "GameFontHighlightSmall")
     Box("whispermsg", R + 4, -178, 396)
-    local y = -216
-    y = y - Service("healthstone", R, y) - 8
-    Service("soulstone", R, y)
 
-    -- Mage -----------------------------------------------------------------
+    -- Paladin --------------------------------------------------------------
     page = pages[3]
-    Service("portals", L, -50)
-    Header(L, -168, "Portals")
-    Label(L, -194, "Read from your spellbook if you're the mage, otherwise from the mage's level. A mage never offers the city he's standing in. Untick any they haven't trained:", "GameFontHighlightSmall", 410)
-    w.portalChecks = {}
-    for i, pl in ipairs(Core.PORTALS[Faction()] or {}) do
-        local city = pl[1]
-        Check("portal_" .. city, L, -236 - (i - 1) * 26, city .. "  (level " .. pl[2] .. ")")
-        w.portalChecks[#w.portalChecks + 1] = city
-    end
-    Ours("MAGE", "mages", -330)
-    Service("water", R, -50)
-
-    -- Rogue ----------------------------------------------------------------
-    page = pages[4]
-    Service("lockpick", L, -50)
-    Ours("ROGUE", "rogues", -210)
-
-    -- Buffs ----------------------------------------------------------------
-    page = pages[5]
-    Label(L, -50, "Buffs are free unless you set a price. Offered once when a customer arrives where you are.", "GameFontHighlightSmall", 840)
-    Service("fort", L, -76)
-    Service("motw", R, -76)
-    Service("ai", L, -236)
-    local bh = Service("blessing", R, -236)
+    Label(L, -50, "Free unless you set a price. Anyone in the group who asks gets queued on the buff button.", "GameFontHighlightSmall", 840)
+    local bh = Service("blessing", L, -76)
     -- the word they use picks the blessing; this box is only for a plain "blessing" (the owner,
     -- 13 Nov 2026: "can it not detect what they want? i have to have only blessing of might?")
-    Label(R + 4, -236 - bh - 4, "Just 'blessing':")
-    Box("blessing_spell", R + 130, -236 - bh, 200, 60)
-    Label(R + 4, -236 - bh - 30, "\"kings\", \"wis\", \"bok\", \"salv\"... (any first 3 letters) get that blessing.", "GameFontHighlightSmall", 400)
-    Check("buffarrivals", L, -480, "Buff customers when they land, without being asked (off = only people who ask)", true)
-    Check("buffpop", L, -508, "Pop the buff button up at my mouse, with a sound, when someone is waiting", true)
-    Label(L, -446, "The buff button casts these on whoever is next: customers landing where you are, and anyone in the group who asks. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
+    Label(L + 4, -76 - bh - 4, "Just 'blessing':")
+    Box("blessing_spell", L + 130, -76 - bh, 200, 60)
+    Label(L + 4, -76 - bh - 30, "\"kings\", \"wis\", \"bok\", \"salv\"... (any first 3 letters) get that blessing.", "GameFontHighlightSmall", 400)
+    Check("buffarrivals", L, -330, "Buff customers when they land, without being asked (off = only people who ask)", true)
+    Check("buffpop", L, -358, "Pop the buff button up at my mouse, with a sound, when someone is waiting", true)
+    Label(L, -396, "The buff button casts on whoever is next. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
 
     -- Advertise --------------------------------------------------------------
-    page = pages[6]
+    page = pages[4]
     Header(L, -50, "Advertise")
     Label(L, -78, "The game only lets an ad go out when you press a key or click, so it's one press per ad. The text comes from what is on sale; a whispered 'inv' within 10 minutes counts as an answer to your ad.", "GameFontHighlightSmall", 840)
     Label(L, -118, "Ad ({wts} = 'WTS ' when anything is paid, {services} = what's on sale):")
@@ -3724,13 +3700,11 @@ local function BuildSetupUI()
         boxes.undercut:SetText(tostring(sm.undercut or 5))
         boxes.floor:SetText(sm.floor and tostring(sm.floor) or "")
         local prov = type(db.providers) == "table" and db.providers or {}
-        for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do boxes["prov_" .. cls]:SetText(prov[cls] or "") end
+        boxes.prov_WARLOCK:SetText(prov.WARLOCK or "")
         local wl = {}
         for k in pairs(type(db.workers) == "table" and db.workers or {}) do wl[#wl + 1] = k end
         table.sort(wl)
         boxes.workers:SetText(table.concat(wl, ", "))
-        local untick = Core.Setting(db, "portals").untick
-        for _, city in ipairs(w.portalChecks) do checks["portal_" .. city]:SetChecked(not untick[city]) end
         SyncTradeBox()
         Refresh()
     end
@@ -3778,16 +3752,11 @@ local function BuildSetupUI()
         sm.match = checks.matchprice:GetChecked() and true or false
         sm.undercut = tonumber(boxes.undercut:GetText()) or 5
         sm.floor = tonumber(boxes.floor:GetText())   -- blank = no floor = it never moves
-        local untick = {}
-        for _, city in ipairs(w.portalChecks) do if not checks["portal_" .. city]:GetChecked() then untick[city] = true end end
-        db.services.portals.untick = untick
         local bs = boxes.blessing_spell:GetText():gsub("^%s+", ""):gsub("%s+$", "")
         db.services.blessing.spell = (bs ~= "") and bs or nil
         db.providers = {}
-        for _, cls in ipairs({ "WARLOCK", "MAGE", "ROGUE" }) do
-            local t = boxes["prov_" .. cls]:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
-            db.providers[cls] = (t ~= "") and t or nil
-        end
+        local t = boxes.prov_WARLOCK:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
+        db.providers.WARLOCK = (t ~= "") and t or nil
         db.workers = nil
         for nm in boxes.workers:GetText():gmatch("[^,]+") do
             nm = nm:gsub("^%s+", ""):gsub("%s+$", "")

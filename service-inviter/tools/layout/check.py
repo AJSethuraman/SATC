@@ -69,10 +69,10 @@ def export(L, win, page=None):
 
 scenes = {}
 L = load(GROUP)
-L.execute('ServiceInviterDB.services = { portals = { on = true, price = 20 }, water = { on = true }, healthstone = { on = true } }')
+L.execute('ServiceInviterDB.services = { blessing = { on = true } }')
 L.execute("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show()")
 win = L.globals().SETUP
-for i, name in enumerate(["General", "Warlock", "Mage", "Rogue", "Buffs", "Advertise"], 1):
+for i, name in enumerate(["General", "Warlock", "Paladin", "Advertise"], 1):
     L.execute(f"SETUP.ShowTab({i}) SETUP.Refresh()")
     scenes[f"setup_{name}"] = export(L, win, win.pages[i])
 
@@ -100,16 +100,11 @@ for name, before, after in [
         ch("Kaldrok", "WTB summon to TB") ch("Mirasha", "WTB summon to UC") ch("Thrandor", "wtb summ uc")
         UNITS.party3 = {"Kaldrok","ROGUE",44,"Orgrimmar"} UNITS.party4 = {"Mirasha","PRIEST",52,"Orgrimmar"}
         ServiceInviter_Test.Jobs.Joined("Kaldrok") ServiceInviter_Test.Jobs.Joined("Mirasha")'''),
-    ("customers_priest_with_buffs_waiting", GROUP.replace('"Me","SHAMAN",60,"Orgrimmar"', '"Me","PRIEST",60,"Thunder Bluff"').replace('party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Kaldrok","ROGUE",44,"Thunder Bluff"}').replace('GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { Grimtotem = true, Kaldrok = true }') + '\nServiceInviterDB = { services = { fort = { on = true } } }',
+    ("customers_paladin_with_buffs_waiting", GROUP.replace('"Me","SHAMAN",60,"Orgrimmar"', '"Me","PALADIN",60,"Thunder Bluff"').replace('party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Kaldrok","ROGUE",44,"Thunder Bluff"}').replace('GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { Grimtotem = true, Kaldrok = true }') + '\nServiceInviterDB = { services = { blessing = { on = true } } }',
      '''local f for _, o in ipairs(ALL) do if o._kind == "Frame" and rawget(o._scripts, "OnEvent") then f = o break end end
-        f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
-        f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "can i get stam buff", "Kaldrok", "", "", "", "", "", "", "")'''),
+        f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "kings pls", "Grimtotem", "", "", "", "", "", "", "")
+        f._scripts.OnEvent(nil, "CHAT_MSG_PARTY", "can i get wis", "Kaldrok", "", "", "", "", "", "", "")'''),
     ("customers_busy_as_the_lock", GROUP.replace('"Me","SHAMAN"', '"Me","WARLOCK"') + '\nServiceInviterDB = { role = "lock" }', BUSY),
-    # the lock, with a rogue friend's lockpick customers: Paid/Done, never Summon
-    ("customers_lock_with_lockpick_buyers", GROUP.replace('"Me","SHAMAN",60,"Orgrimmar"', '"Me","WARLOCK",60,"Thunder Bluff"').replace('party2 = {"Velenne","MAGE",47,"Orgrimmar"}', 'party2 = {"Sly","ROGUE",60,"Thunder Bluff"}').replace('GROUP = { Grimtotem = true, Velenne = true }', 'GROUP = { Grimtotem = true, Sly = true }') + '\nServiceInviterDB = { role = "lock", services = { lockpick = { on = true, price = 20 }, water = { on = false } } }',
-     '''local J = ServiceInviter_Test.Jobs
-        J.New("Kaldrok","x","t","Trade") J.Get("Kaldrok").service = "lockpick" J.Joined("Kaldrok")
-        J.New("Mirasha","x","t","Trade") J.Get("Mirasha").service = "summons" J.Get("Mirasha").dest = "Thunder Bluff" J.Joined("Mirasha")'''),
 ]:
     L = load(before)
     L.execute(after)

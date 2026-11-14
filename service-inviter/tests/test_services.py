@@ -59,11 +59,6 @@ def test_ad_tonight(core):
     assert text == "WTS summons to TB 25 silver | whisper inv"
 
 
-def test_ad_grows_when_a_mage_joins_and_skips_the_city_he_is_in(core):
-    text, _ = call(core, "BuildAd", ON, group(ME_ORG, LOCK_TB, MAGE_47), '"Horde"')
-    assert text == "WTS summons to TB 25 silver, portals to UC 20 silver (at Org), free mage food & water (at Org) | whisper inv"
-
-
 def test_ad_follows_the_warlock(core):
     lock_uc = member("Grimtotem", "WARLOCK", zone="Undercity")
     text, _ = call(core, "BuildAd", ON, group(ME_ORG, lock_uc), '"Horde"')
@@ -71,9 +66,8 @@ def test_ad_follows_the_warlock(core):
 
 
 def test_all_free_ad_drops_wts(core):
-    rogue = member("Me", "ROGUE", zone="Thunder Bluff", me=True)
-    text, _ = call(core, "BuildAd", db(lockpick={"on": True}), group(rogue), '"Horde"')
-    assert text == "Free lockpicking (at TB) | whisper inv"
+    text, _ = call(core, "BuildAd", db(summons={"price": False}), group(member("Me", "SHAMAN", zone="Thunder Bluff", me=True), LOCK_TB), '"Horde"')
+    assert text == "Free summons to TB | whisper inv"
 
 
 def test_nothing_to_sell_turns_the_ad_off(core):
@@ -173,23 +167,6 @@ def test_welcome_im_the_warlock(core):
     assert welcome(core, group(me)) == "Hi Kaldrok! I'll summon you to TB. 25 silver. Pay me when you land."
 
 
-def test_welcome_portal_pay_the_mage_when_im_elsewhere(core):
-    me_tb = member("Me", "SHAMAN", zone="Thunder Bluff", me=True)
-    assert welcome(core, group(me_tb, LOCK_TB, MAGE_47), "portals", '"Undercity"') == \
-        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20 silver. Pay Velenne there."
-
-
-def test_welcome_portal_pay_the_mage_even_when_im_with_the_mage(core):
-    assert welcome(core, group(ME_ORG, LOCK_TB, MAGE_47), "portals", '"Undercity"') == \
-        "Hi Kaldrok! Velenne will do a portal to UC, come to Velenne in Org. 20 silver. Pay Velenne there."
-
-
-def test_welcome_free_lockpicking(core):
-    rogue = member("Me", "ROGUE", zone="Thunder Bluff", me=True)
-    assert welcome(core, group(rogue), "lockpick", d=db(lockpick={"on": True})) == \
-        "Hi Kaldrok! I'll do lockpicking, come to me in TB. Free, tips welcome."
-
-
 # -- On arrival ------------------------------------------------------------------------------------
 
 def arrival(core, grp, d, here="Thunder Bluff", bought="summons"):
@@ -202,17 +179,10 @@ EVERYTHING = db(summons={"price": 25}, portals={"on": True, "price": 20}, water=
 
 
 def test_arrival_lists_only_whats_in_that_zone(core):
-    g = group(member("Me", "ROGUE", zone="Thunder Bluff", me=True), LOCK_TB,
-              member("Sela", "PRIEST", zone="Thunder Bluff"), MAGE_47)
-    assert arrival(core, g, EVERYTHING) == \
-        "Welcome to TB, Kaldrok! Also here: free healthstones, free lockpicking, free Fortitude. Just ask!"
-
-
-def test_arrival_with_the_mage_there_too(core):
-    g = group(member("Me", "ROGUE", zone="Thunder Bluff", me=True), LOCK_TB,
-              member("Velenne", "MAGE", 47, zone="Thunder Bluff"))
-    assert arrival(core, g, EVERYTHING) == \
-        "Welcome to TB, Kaldrok! Also here: free healthstones, portals to Org/UC 20 silver, free mage food & water, free lockpicking. Just ask!"
+    g = group(member("Me", "PALADIN", zone="Thunder Bluff", me=True), LOCK_TB,
+              member("Faraway", "PALADIN", zone="Orgrimmar"))
+    assert arrival(core, g, db(summons={"price": 25}, blessing={"on": True})) == \
+        "Welcome to TB, Kaldrok! Also here: free blessings. Just ask!"
 
 
 def test_arrival_says_nothing_when_nothing_else_is_there(core):
@@ -240,30 +210,10 @@ def test_nobody_to_do_it_means_not_on_sale(core):
 def test_a_zero_price_is_free(core):
     """1.x's `/si price 0` was free; Lua treats 0 as true, so it read as "0s" and "WTS"."""
     assert core.eval('ServiceInviterCore.Setting({ price = 0 }, "summons").price') is None
-    assert core.eval('ServiceInviterCore.Setting({ services = { lockpick = { price = 0 } } }, "lockpick").price') is None
-    rogue = member("Me", "ROGUE", zone="Thunder Bluff", me=True)
-    text, _ = call(core, "BuildAd", "{ services = { lockpick = { on = true, price = 0 } } }", group(rogue), '"Horde"')
-    assert text == "Free lockpicking (at TB) | whisper inv"
-
-
-def test_every_mage_counts_for_portals(core):
-    """A level 40 mage listed first must not hide a level 60 mage's Thunder Bluff portal."""
-    low = member("Velenne", "MAGE", 40, zone="Orgrimmar")
-    high = member("Aldris", "MAGE", 60, zone="Undercity")
-    d = db(portals={"on": True, "price": 20})
-    text, _ = call(core, "BuildAd", d, group(ME_ORG, low, high), '"Horde"')
-    assert text == "WTS portals to UC 20 silver (at Org), portals to Org/TB 20 silver (at UC) | whisper inv"
-    # each city goes to a mage who can do it
-    assert core.eval(f'ServiceInviterCore.Provider({group(ME_ORG, low, high)}, "portals", "Thunder Bluff").name') == "Aldris"
-    assert core.eval(f'ServiceInviterCore.Provider({group(ME_ORG, low, high)}, "portals", "Undercity").name') == "Velenne"
-
-
-def test_the_welcome_names_the_mage_who_can_do_that_city(core):
-    low = member("Velenne", "MAGE", 40, zone="Orgrimmar")
-    high = member("Aldris", "MAGE", 60, zone="Undercity")
-    d = db(portals={"on": True, "price": 20})
-    assert welcome(core, group(ME_ORG, low, high), "portals", '"Thunder Bluff"', d=d) == \
-        "Hi Kaldrok! Aldris will do a portal to TB, come to Aldris in UC. 20 silver. Pay Aldris there."
+    assert core.eval('ServiceInviterCore.Setting({ services = { blessing = { price = 0 } } }, "blessing").price') is None
+    text, _ = call(core, "BuildAd", "{ services = { summons = { price = 0 } } }",
+                   group(member("Me", "SHAMAN", zone="Thunder Bluff", me=True), LOCK_TB), '"Horde"')
+    assert text == "Free summons to TB | whisper inv"
 
 
 def test_money_is_spelled_out(core):
