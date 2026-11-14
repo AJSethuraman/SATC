@@ -1,4 +1,4 @@
--- Service Inviter v2.13.1
+-- Service Inviter v2.14.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1658,7 +1658,8 @@ RefreshBuff = function()
         jobsWin.buffBtn:SetText(BuffLabel())
         if #MyBuffs() > 0 then jobsWin.buffBtn:Show() else jobsWin.buffBtn:Hide() end
     end
-    if Jobs.BuffPop then Jobs.BuffPop(buffQueue[1] and BuffLabel() or nil, m) end
+    local e = buffQueue[1]
+    if Jobs.BuffPop then Jobs.BuffPop(e and BuffLabel() or nil, m, e and (e.spell or Core.Setting(ServiceInviterDB, e.key).spell)) end
 end
 -- Do you have this spell? (Kings is a talent.) If the game can't say, assume yes.
 local function KnowSpell(spell)
@@ -1909,19 +1910,38 @@ end
 -- obvious what if i miss it? can it just appear at my mouse"). A gold button by the cursor, with
 -- a sound, when someone is waiting; click it to cast; gone when nobody is. Out of combat only
 -- (RefreshBuff never runs in combat, when the game won't move a button that casts).
-function Jobs.BuffPop(label, macro)
+function Jobs.BuffPop(label, macro, spell)
     local b = Jobs.pop
     if not label or Opt("buffpop") == false then if b then b:Hide() end return end
     if not b then
-        b = FlatButton(UIParent, 360, 40, "gold", 15, true, "ServiceInviterBuffPop")
+        -- a big icon of the buff itself, its name and who it's for underneath (the owner, 14 Nov
+        -- 2026: "can it kind of just pop up with a large icon of that blessing")
+        b = CreateFrame("Button", "ServiceInviterBuffPop", UIParent, "SecureActionButtonTemplate")
+        b:SetSize(72, 72)
         b:SetFrameStrata("DIALOG")
         b:RegisterForClicks("AnyUp", "AnyDown")
         b:SetAttribute("type", "macro")
+        local edge = Fill(b, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -3, 3) edge:SetPoint("BOTTOMRIGHT", 3, -3)
+        b.icon = b:CreateTexture(nil, "ARTWORK")
+        b.icon:SetAllPoints()
+        if b.SetHighlightTexture then b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD") end
+        local back = Fill(b, INK.deep, "BACKGROUND", -6)
+        b.label = Text(b, 14, INK.gold, "GameFontNormal")
+        b.label:SetPoint("TOP", b, "BOTTOM", 0, -8)
+        back:SetPoint("TOPLEFT", b.label, "TOPLEFT", -8, 4) back:SetPoint("BOTTOMRIGHT", b.label, "BOTTOMRIGHT", 8, -4)
         b:Hide()
         Jobs.pop = b
     end
     b:SetAttribute("macrotext", macro)
-    b:SetText(label)
+    b.label:SetText(label)
+    local tex
+    if spell then
+        local ok, t = pcall(function()
+            return (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spell)) or (GetSpellTexture and GetSpellTexture(spell))
+        end)
+        if ok then tex = t end
+    end
+    b.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
     if not b:IsShown() then
         local x, y = GetCursorPosition and GetCursorPosition()
         local scale = (UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1

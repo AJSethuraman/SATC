@@ -214,12 +214,13 @@ def test_untick_and_a_customer_who_lands_is_not_buffed_unless_they_ask():
 
 def test_the_buff_pops_up_at_the_mouse_with_a_sound_and_casts_on_click():
     g = world(PRIEST_TB, "fort = { on = true }",
-              extra=SPELLS + " SOUNDS = {} function PlaySound(s) SOUNDS[#SOUNDS + 1] = s end function GetCursorPosition() return 500, 300 end")
+              extra=SPELLS + " function GetSpellTexture(s) if s == 'Power Word: Fortitude' then return 'Interface/Fort' end end SOUNDS = {} function PlaySound(s) SOUNDS[#SOUNDS + 1] = s end function GetCursorPosition() return 500, 300 end")
     g.event("CHAT_MSG_PARTY", "fort pls", "Grimtotem", "", "", "", "", "", "", "")
     assert g.eval("ServiceInviterBuffPop:IsShown()")
-    assert g.eval("ServiceInviterBuffPop:GetText()") == "Fortitude -> Grimtotem"
+    assert g.eval("ServiceInviterBuffPop.label:GetText()") == "Fortitude -> Grimtotem"
     assert g.eval('ServiceInviterBuffPop:GetAttribute("macrotext")') == raw_macro(g)
     assert len(g.g.SOUNDS) == 1
+    assert g.eval("ServiceInviterBuffPop.icon._tex") == "Interface/Fort"     # the buff's own icon
     g.event("CHAT_MSG_PARTY", "fort?", "Kaldrok", "", "", "", "", "", "", "")
     assert len(g.g.SOUNDS) == 1                                       # already up: no second sound
 
