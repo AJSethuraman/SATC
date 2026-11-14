@@ -1,4 +1,4 @@
--- Service Inviter v3.8.0
+-- Service Inviter v3.8.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2899,6 +2899,8 @@ function Jobs.TeamWords(msg)
         return "book, stats (" .. (f[3] or "?") .. ")"
     elseif f[1] == "SET" then
         return "setup: " .. (f[2] or "?") .. (((f[4] or "1") ~= "1") and (" (part " .. (f[3] or "?") .. " of " .. f[4] .. ")") or "")
+    elseif f[1] == "SETACK" then
+        return "setup answer to " .. (f[2] or "?") .. ": " .. (f[3] or "?")
     elseif f[1] == "SETEND" then
         return "setup sent: " .. (f[2] or "?") .. " settings"
     elseif f[1] == "MAN" then
@@ -2999,6 +3001,15 @@ function Jobs.TeamHear(msg, who, me)
     if kind == "PRICE" then return Jobs.HearPrices(f, who) end
     if kind == "MAN" then return Jobs.HearManual(f, who) end
     if kind == "SET" or kind == "SETEND" then return Jobs.HearSetup(kind, f, who) end
+    if kind == "SETACK" then
+        -- what happened to the setup you sent (the owner, 14 Nov 2026: "i see it saying it sent
+        -- them but nothing on his end is happening")
+        if (f[2] or ""):lower() ~= me:lower() then return "ignored: meant for " .. tostring(f[2]) end
+        local said = { asked = "got your setup and is being asked whether to use it", used = "is using your setup",
+            no = "kept their own setup", incomplete = "got your setup with pieces missing: send it again" }
+        P(who .. " " .. (said[f[3]] or tostring(f[3])))
+        return "their answer: " .. tostring(f[3])
+    end
     if Jobs.BookHear(kind, f, who, me) then return Jobs.bookNote end
     return "ignored: unknown message"
 end
@@ -3120,7 +3131,7 @@ function Jobs.ShareSetup()
         n = n + 1
     end
     Jobs.outbox[#Jobs.outbox + 1] = { "SETEND", n }
-    P("sending your setup to the team (" .. n .. " settings, a few seconds)")
+    P("sending your setup to the team (" .. n .. " settings, a few seconds). Each copy that gets it answers here.")
 end
 function Jobs.HearSetup(kind, f, who)
     Jobs.setupIn = Jobs.setupIn or {}
@@ -3141,8 +3152,13 @@ function Jobs.HearSetup(kind, f, who)
         if t then values[path] = table.concat(t) count = count + 1 end
     end
     Jobs.setupIn[who] = nil
-    if count < (tonumber(f[2]) or 0) then return "setup from " .. who .. " arrived incomplete (" .. count .. " of " .. tostring(f[2]) .. "); ask them to send it again" end
-    if ServiceInviterDB.takesetup then Jobs.ApplySetup(values, who) return "used " .. who .. "'s setup" end
+    if count < (tonumber(f[2]) or 0) then
+        Jobs.TeamSay("SETACK", who, "incomplete")
+        P("|cffff8040" .. who .. "'s setup arrived with pieces missing|r (" .. count .. " of " .. tostring(f[2]) .. "). Ask them to send it again.")
+        return "setup from " .. who .. " arrived incomplete (" .. count .. " of " .. tostring(f[2]) .. "); ask them to send it again"
+    end
+    if ServiceInviterDB.takesetup then Jobs.ApplySetup(values, who) Jobs.TeamSay("SETACK", who, "used") return "used " .. who .. "'s setup" end
+    Jobs.TeamSay("SETACK", who, "asked")
     Jobs.AskSetup(values, who)
     return "asked you whether to use " .. who .. "'s setup"
 end
@@ -3200,8 +3216,8 @@ function Jobs.AskSetup(values, who)
         w.sub:SetText("Their messages, channels, ad, prices and team replace yours.")
         local use = FlatButton(w, 110, 32, "gold", 13) use:SetPoint("BOTTOMLEFT", 18, 16) use:SetText("Use it")
         local no = FlatButton(w, 90, 32, "plain", 13) no:SetPoint("LEFT", use, "RIGHT", 8, 0) no:SetText("No")
-        use:SetScript("OnClick", function() w:Hide() Jobs.ApplySetup(w.values, w.who) end)
-        no:SetScript("OnClick", function() w:Hide() P("kept your own setup") end)
+        use:SetScript("OnClick", function() w:Hide() Jobs.ApplySetup(w.values, w.who) Jobs.TeamSay("SETACK", w.who, "used") end)
+        no:SetScript("OnClick", function() w:Hide() P("kept your own setup") Jobs.TeamSay("SETACK", w.who, "no") end)
         w.use, w.no = use, no
         Jobs.setupAsk = w
     end
@@ -5739,7 +5755,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         local parts = {}
         for _, nm in ipairs(list) do
             local s2 = Jobs.Team.seen[nm]
-            parts[#parts + 1] = nm .. (Jobs.Online(nm) and (" (online" .. (s2 and s2.lock and ", warlock" or "") .. (s2 and s2.zone and s2.zone ~= "" and (", " .. s2.zone) or "") .. ")") or " (not seen)")
+            parts[#parts + 1] = nm .. (Jobs.Online(nm) and (" (online" .. (s2 and s2.ver and (", v" .. s2.ver) or "") .. (s2 and s2.lock and ", warlock" or "") .. (s2 and s2.zone and s2.zone ~= "" and (", " .. s2.zone) or "") .. ")") or " (not seen)")
         end
         if #parts > 0 then P("team: " .. table.concat(parts, ", ")) end
         P(Jobs.BooksLine())

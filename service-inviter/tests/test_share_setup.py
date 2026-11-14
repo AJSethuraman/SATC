@@ -66,3 +66,16 @@ def test_a_setup_with_a_piece_missing_is_not_used():
     me.run("ServiceInviter_Test.Jobs.ShareSetup() table.remove(ServiceInviter_Test.Jobs.outbox, 1)")   # one line lost
     send(me, bone, "Me")
     assert bone.eval("ServiceInviterDB.welcomemsg") != LONG
+
+
+def test_the_sender_hears_what_happened():
+    """The owner, 14 Nov 2026: "i see it saying it sent them but nothing on his end is happening"."""
+    me, bone = pair()
+    mine(me)
+    me.run("ServiceInviter_Test.Jobs.ShareSetup()")
+    send(me, bone, "Me")
+    pump(bone, me, "Bone Charms")
+    assert any("Bone Charms got your setup and is being asked whether to use it" in p for p in me.printed())
+    bone.run("ServiceInviterSetupAsk.use._scripts.OnClick()")
+    pump(bone, me, "Bone Charms")
+    assert any("Bone Charms is using your setup" in p for p in me.printed())
