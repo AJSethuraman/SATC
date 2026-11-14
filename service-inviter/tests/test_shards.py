@@ -110,7 +110,7 @@ def test_the_warlock_is_told_their_own_are_counted():
     g = world(ME_LOCK, extra=BAG)
     g.run("ServiceInviterDB.opts = ServiceInviterDB.opts or {} ServiceInviterDB.opts.countshards = true")
     g.run('SHARDS = 7 SlashCmdList.SERVICEINVITER("session new")')
-    assert "Yours are counted from your bags (7)" in g.eval("ServiceInviterShards.sub:GetText()")
+    assert "Yours: 7, from your bags" in g.eval("ServiceInviterShards.sub:GetText()")
 
 
 

@@ -24,14 +24,14 @@ def banner(g, field):
 
 def test_the_banner_says_what_to_do_who_where_and_who_gets_paid():
     g = summoning()
-    assert banner(g, "label") == "RITUAL OF SUMMONING STARTED"
-    assert banner(g, "title") == "CLICK THE PORTAL"
-    assert banner(g, "sub") == "Summoning Kaldrok to Thunder Bluff. Pay Grimtotem."
+    assert banner(g, "label") == "SUMMONING"
+    assert banner(g, "title") == "CLICK PORTAL"   # our screen, shortened in the 2026 redesign
+    assert banner(g, "sub") == "Kaldrok  »  Thunder Bluff  ·  Pay Grimtotem"
 
 
 def test_when_you_collect_it_says_pay_you():
     g = summoning(payee="me")
-    assert banner(g, "sub") == "Summoning Kaldrok to Thunder Bluff. Pay: you."
+    assert banner(g, "sub") == "Kaldrok  »  Thunder Bluff  ·  Pay you"
 
 
 def test_the_bar_counts_down_and_the_pulse_stops_after_two_seconds():

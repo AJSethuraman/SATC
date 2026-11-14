@@ -17,6 +17,14 @@
   .flat.hero { background: transparent; color: transparent; border: 0; }
   .flat.rail { background: transparent; color: #ece9e2; border: 0; justify-content: flex-start; padding-left: 20px; }
   .flat.railOn { background: #1b1f25; color: #e9b949; border: 0; justify-content: flex-start; padding-left: 20px; font-weight: 600; }
+  .tog { background: #232830; } .tog::after { content: ""; position: absolute; left: 3px; top: 3px; width: 12px; height: 12px; background: #7b8490; }
+  .tog.on { background: #e9b949; } .tog.on::after { left: auto; right: 3px; background: #1a1405; }
+  .seg { background: #232830; border: 1px solid #2b313a; color: #9ba3ae; font-size: 13px; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
+  .seg.on { background: #3a2f12; border-color: #3a2f12; color: #e9b949; font-weight: 600; } .seg.chipcheck.on { border-color: #e9b949; }
+  .flatin { background: #0d0f12 !important; border: 1px solid #2b313a !important; border-radius: 0 !important; color: #ece9e2 !important; font-size: 13px !important; padding: 7px 9px !important; }
+  .flat.chip { background: #1b1f25; color: #9ba3ae; border: 1px solid #2b313a; font: 11px monospace; border-radius: 0; }
+  .flat.danger { background: #2a1214; color: #ff8b8b; border: 1px solid #6b2328; }
+  .flat { border-radius: 0 !important; }
   .icon { background: repeating-linear-gradient(45deg, #5b4a7a, #5b4a7a 4px, #3d3152 4px, #3d3152 8px); outline: 1px solid #0d0f12; }
   .flat.off { opacity: .45; }
   .close { background: #5a0e09; border: 1px solid #c9a24a; border-radius: 50%; color: #ffd100; display: flex; align-items: center; justify-content: center; font-weight: bold; }
@@ -63,8 +71,10 @@ function render(scene, highlights) {
       if (it.tex) { d.classList.add("icon"); d.title = it.tex; if (it.alpha != null) d.style.opacity = it.alpha; }
       else { const [r, g, b, a] = it.color; d.style.background = `rgba(${r*255},${g*255},${b*255},${a})`; }
       if (it.points.length === 2) { win.style.background = d.style.background; continue; }   // the window background
-    } else if (it.kind === "CheckButton") { d.classList.add("chk"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
-    else if (it.kind === "EditBox") { d.classList.add("eb"); d.textContent = it.text; }
+    } else if (it.kind === "CheckButton" && it.style === "toggle") { d.classList.add("tog"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
+    else if (it.kind === "CheckButton" && (it.style === "seg" || it.style === "chipcheck")) { d.classList.add("seg", it.style); if (it.checked) d.classList.add("on"); d.innerHTML = wowText(it.text); }
+    else if (it.kind === "CheckButton") { d.classList.add("chk"); if (it.checked) d.classList.add("on"); if (it.disabled) d.classList.add("off"); }
+    else if (it.kind === "EditBox") { d.classList.add("eb"); if (it.style === "input") d.classList.add("flatin"); d.textContent = it.text; }
     else if (it.template.includes("UIPanelCloseButton")) { d.classList.add("close"); d.textContent = "×"; it.w = it.w || 26; it.h = it.h || 26; }
     else if (it.kind === "Page") { /* a box for its children, nothing to draw */ }
     else if (it.kind === "Button" && it.style) { d.classList.add("flat", it.style); if (it.disabled) d.classList.add("off");
@@ -101,7 +111,7 @@ function render(scene, highlights) {
   }
   // overlap report: any two visible text-bearing items whose boxes intersect
   // an empty label draws nothing, so it can't cover anything
-  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" && els[id].it.kind !== "Page" && els[id].it.style !== "hero" &&
+  const vis = Object.entries(rects).filter(([id]) => id !== "0" && els[id] && els[id].it.kind !== "Texture" && els[id].it.kind !== "Page" && els[id].it.style !== "hero" && els[id].it.style !== "ph" &&
     !(els[id].it.kind === "FontString" && !els[id].it.text));
   const overlaps = [];
   for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {

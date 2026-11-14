@@ -206,7 +206,9 @@ def test_warlock_tab_says_where_each_warlock_summons_to():
     g = world({"player": ME_ORG_SHAMAN, "party1": ("Grimtotem", "WARLOCK", 60, "Thunder Bluff"),
                "party2": ("Ashfel", "WARLOCK", 60, None)})
     g.run("SETUP = ServiceInviter_Test.BuildSetup() SETUP:Show() SETUP.Refresh()")
-    assert g.eval("SETUP.locks:GetText()") == "|cff8788eeGrimtotem|r: Thunder Bluff\n|cff8788eeAshfel|r: where? (the game didn't say)"
+    # one card per warlock since the 2026 redesign; one the game can't place says it sells nothing
+    cards = [(g.eval(f"SETUP.lockCards[{i}][2]:GetText()"), g.eval(f"SETUP.lockCards[{i}][3]:GetText()")) for i in (1, 2)]
+    assert cards == [("|cff8788eeGrimtotem|r", "» Thunder Bluff"), ("|cff8788eeAshfel|r", "|cffff9a5bcity unknown, not inviting|r")]
 
 
 def test_a_warlocks_ritual_is_for_their_own_customer():
@@ -435,7 +437,8 @@ function GetRaidTargetIndex(u) if u == "raid1" then return 8 end end""")
 def test_the_warlock_tab_shows_the_warlock_in_a_raid():
     g = world(RAID_TB, extra=IN_RAID)
     g.run("local w = ServiceInviter_Test.BuildSetup() w:Show() w.ShowTab(2) w.Refresh()")
-    assert g.eval("ServiceInviterSetup.locks:GetText()") == "|cff8788eeYeet Lock|r: Thunder Bluff"
+    assert g.eval("ServiceInviterSetup.lockCards[1][2]:GetText()") == "|cff8788eeYeet Lock|r"
+    assert g.eval("ServiceInviterSetup.lockCards[1][3]:GetText()") == "» Thunder Bluff"
 
 
 def test_an_error_in_the_update_is_reported_once_in_chat():

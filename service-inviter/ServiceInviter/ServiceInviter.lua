@@ -1,4 +1,4 @@
--- Service Inviter v3.4.1
+-- Service Inviter v3.5.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1899,6 +1899,11 @@ local function PostAd()
     D("ad posted in " .. tostring(name))
     if RefreshJobs then RefreshJobs() end
 end
+-- the channel the next ad goes to, as the game names it (for the setup's preview line)
+function Jobs.AdChannelName()
+    local _, _, _, name = AdState()
+    return type(name) == "string" and name:gsub("^%d+%.%s*", ""):gsub(" %- .*$", "") or "Trade"
+end
 -- A named button so a key can press it: /si bind ad F7
 local adKey = CreateFrame("Button", "ServiceInviterAdButton", UIParent)
 adKey:SetScript("OnClick", function() PostAd() end)
@@ -2284,7 +2289,8 @@ end
 INK.LOOK = {
     gold = { INK.gold, INK.gold, INK.goldInk }, ghost = { INK.panel, INK.gold, INK.gold },
     plain = { INK.plain, INK.soft, INK.text }, bare = { nil, nil, INK.muted }, rail = { nil, nil, INK.text },
-    hero = { nil, nil, INK.text },   -- a secure button drawn by the window behind it; its text stays hidden
+    hero = { nil, nil, INK.text },
+    chip = { INK.panel, INK.soft, INK.muted }, danger = { "2a1214", "6b2328", "ff8b8b" },   -- a secure button drawn by the window behind it; its text stays hidden
 }
 local function FlatButton(parent, w, h, style, size, secure, name)
     local b = CreateFrame("Button", name, parent, secure and "SecureActionButtonTemplate" or nil)
@@ -2351,26 +2357,32 @@ function Jobs.BuffPop(label, macro, spell)
         -- a big icon of the buff itself, its name and who it's for underneath (the owner, 14 Nov
         -- 2026: "can it kind of just pop up with a large icon of that blessing")
         b = CreateFrame("Button", "ServiceInviterBuffPop", UIParent, "SecureActionButtonTemplate")
-        b:SetSize(72, 72)
+        b:SetSize(224, 68)
         b:SetFrameStrata("DIALOG")
         b:RegisterForClicks("AnyUp", "AnyDown")
         b:SetAttribute("type", "macro")
         -- right-click: skip this one (no cast)
         b:SetAttribute("type2", "macro") b:SetAttribute("macrotext2", "")
         b:HookScript("PostClick", function(_, button) if button == "RightButton" then Jobs.SkipBuff() end end)
-        local edge = Fill(b, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -3, 3) edge:SetPoint("BOTTOMRIGHT", 3, -3)
+        -- the 2026 look: a 224 x 68 card with a gold edge, the spell's icon, its name, and who
+        local edge = Fill(b, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -2, 2) edge:SetPoint("BOTTOMRIGHT", 2, -2)
+        local back = Fill(b, INK.deep, "BACKGROUND", -7) back:SetAllPoints()
         b.icon = b:CreateTexture(nil, "ARTWORK")
-        b.icon:SetAllPoints()
-        if b.SetHighlightTexture then b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD") end
-        local back = Fill(b, INK.deep, "BACKGROUND", -6)
-        b.label = Text(b, 14, INK.gold, "GameFontNormal")
-        b.label:SetPoint("TOP", b, "BOTTOM", 0, -8)
-        back:SetPoint("TOPLEFT", b.label, "TOPLEFT", -8, 4) back:SetPoint("BOTTOMRIGHT", b.label, "BOTTOMRIGHT", 8, -4)
+        b.icon:SetPoint("TOPLEFT", 12, -12) b.icon:SetSize(44, 44)
+        local hl = b:CreateTexture(nil, "HIGHLIGHT") hl:SetAllPoints() hl:SetColorTexture(1, 1, 1, 0.06)
+        b.spell = Text(b, 15, INK.text, "GameFontNormalLarge")
+        b.spell:SetPoint("TOPLEFT", 68, -14) b.spell:SetWidth(146) b.spell:SetJustifyH("LEFT")
+        b.label = Text(b, 12, INK.muted)
+        b.label:SetPoint("TOPLEFT", 68, -38) b.label:SetWidth(146) b.label:SetJustifyH("LEFT")
+        if b.label.SetWordWrap then b.label:SetWordWrap(false) b.spell:SetWordWrap(false) end
         b:Hide()
         Jobs.pop = b
     end
     b:SetAttribute("macrotext", macro)
-    b.label:SetText(label)
+    -- "Blessing of Wisdom -> Yeet Lock (+1)": the spell big, who for under it
+    local what, who = tostring(label):match("^(.-)%s*%->%s*(.*)$")
+    b.spell:SetText(((what or label):gsub("^Blessing of ", "")))
+    b.label:SetText(who or "")
     local tex
     if spell then
         local ok, t = pcall(function()
@@ -2397,21 +2409,29 @@ function Jobs.AskShards()
     local w = Jobs.shardWin
     if not w then
         w = CreateFrame("Frame", "ServiceInviterShards", UIParent)
-        w:SetSize(420, 170)
+        -- the 2026 look: one line, one box, OK and Skip
+        w:SetSize(420, 168)
         w:SetPoint("CENTER", 0, 120)
         w:SetFrameStrata("DIALOG")
         w:EnableMouse(true)
-        local edge = Fill(w, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local edge = Fill(w, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
         local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
-        local t = Text(w, 16, INK.gold, "GameFontNormalLarge") t:SetPoint("TOPLEFT", 16, -14) t:SetText("New session: soul shards")
-        w.sub = Text(w, 12, INK.text, "GameFontHighlight") w.sub:SetPoint("TOPLEFT", 16, -42) w.sub:SetWidth(388) w.sub:SetJustifyH("LEFT")
-        local box = CreateFrame("EditBox", "ServiceInviterShardsBox", w, "InputBoxTemplate")
-        box:SetPoint("TOPLEFT", 22, -88) box:SetSize(80, 24) box:SetAutoFocus(false) box:SetMaxLetters(4)
+        local head = Fill(w, INK.deep, "BACKGROUND", -6) head:SetPoint("TOPLEFT", 0, 0) head:SetSize(420, 48)
+        local t = Text(w, 15, INK.text, "GameFontNormalLarge") t:SetPoint("TOPLEFT", 18, -16) t:SetText("New session")
+        local icon = w:CreateTexture(nil, "ARTWORK") icon:SetPoint("TOPLEFT", 18, -66) icon:SetSize(20, 20)
+        icon:SetTexture(Jobs.SpellIcon(Jobs.RITUAL_ID, Jobs.RITUAL_ICON))
+        local q = Text(w, 13, INK.text) q:SetPoint("TOPLEFT", 46, -69) q:SetText("Other warlocks' shards")
+        w.sub = Text(w, 12, INK.muted) w.sub:SetPoint("TOPLEFT", 46, -88) w.sub:SetWidth(250) w.sub:SetJustifyH("LEFT")
+        local box = CreateFrame("EditBox", "ServiceInviterShardsBox", w)
+        box:SetPoint("TOPLEFT", 330, -62) box:SetSize(72, 30) box:SetAutoFocus(false) box:SetMaxLetters(4)
+        box:SetFontObject(ChatFontNormal)
+        if box.SetTextInsets then box:SetTextInsets(8, 8, 0, 0) end
+        local e1 = box:CreateTexture(nil, "BACKGROUND", nil, -2) e1:SetAllPoints() e1:SetColorTexture(RGB(INK.soft))
+        local e2 = box:CreateTexture(nil, "BACKGROUND", nil, -1) e2:SetPoint("TOPLEFT", 1, -1) e2:SetPoint("BOTTOMRIGHT", -1, 1) e2:SetColorTexture(RGB(INK.deep))
+        box._siStyle = "input"
         if box.SetNumeric then box:SetNumeric(true) end
-        local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall") hint:SetPoint("LEFT", box, "RIGHT", 12, 0)
-        hint:SetText("blank = only yours, or none")
-        local ok = FlatButton(w, 100, 30, "gold") ok:SetPoint("BOTTOMLEFT", 16, 14) ok:SetText("OK")
-        local skip = FlatButton(w, 100, 30, "plain") skip:SetPoint("LEFT", ok, "RIGHT", 10, 0) skip:SetText("Skip")
+        local ok = FlatButton(w, 100, 32, "gold", 13) ok:SetPoint("BOTTOMLEFT", 18, 16) ok:SetText("OK")
+        local skip = FlatButton(w, 100, 32, "plain", 13) skip:SetPoint("LEFT", ok, "RIGHT", 8, 0) skip:SetText("Skip")
         local function Done()
             local n = tonumber(box:GetText() or "")
             ServiceInviterDB.shards = n and math.max(0, math.floor(n)) or nil
@@ -2428,8 +2448,7 @@ function Jobs.AskShards()
         Jobs.shardWin = w
     end
     local _, own = Jobs.Shards()
-    w.sub:SetText("How many shards do the other warlocks have?" ..
-        (own and (" Yours are counted from your bags (" .. own .. ").") or ""))
+    w.sub:SetText(own and ("Yours: " .. own .. ", from your bags") or "Blank: only yours")
     w.box:SetText(ServiceInviterDB.shards and tostring(ServiceInviterDB.shards) or "")
     w:Show()
     w.box:SetFocus()
@@ -2437,7 +2456,20 @@ function Jobs.AskShards()
 end
 -- A window to copy from (the owner, 13 Nov 2026: "can it not print the customer lists and stuff
 -- into a window that i can copy and paste from easily"). The text comes up selected: Ctrl+C.
-function Jobs.Copy(title, fill)
+-- The lists, as tabs across the top of the copy window (the design review, 14 Nov 2026: eight
+-- list buttons became one "Open lists"). Each fills the window with the same lines /si prints.
+Jobs.LISTS = {
+    { "Stats", "stats" }, { "Regulars", "customers" }, { "All", "customers all" }, { "Didn't pay", "scammers" },
+    { "Names", "scammers names" }, { "Prices", "prices" }, { "Team", "team" }, { "Heard", "status" },
+}
+function Jobs.Lists(which)
+    local pick = Jobs.LISTS[1]
+    for _, l in ipairs(Jobs.LISTS) do if which and (l[1]:lower() == which:lower() or l[2] == which) then pick = l end end
+    Jobs.Copy(pick[1], function() SlashCmdList.SERVICEINVITER(pick[2]) end, true)
+end
+function Jobs.Copy(title, fill, tabs)
+    -- a list asked for from inside another list's fill: its lines join that one
+    if Jobs.capture then fill() return end
     Jobs.capture = {}
     local ok, err = pcall(fill)
     local lines = Jobs.capture
@@ -2448,33 +2480,62 @@ function Jobs.Copy(title, fill)
     local w = Jobs.copyWin
     if not w then
         w = CreateFrame("Frame", "ServiceInviterCopy", UIParent)
-        w:SetSize(680, 460)
+        w:SetSize(720, 480)
         w:SetPoint("CENTER")
         w:SetFrameStrata("DIALOG")
         w:EnableMouse(true) w:SetMovable(true) w:RegisterForDrag("LeftButton")
         w:SetScript("OnDragStart", w.StartMoving) w:SetScript("OnDragStop", w.StopMovingOrSizing)
-        local edge = Fill(w, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local edge = Fill(w, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
         local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
-        w.title = Text(w, 16, INK.gold, "GameFontNormalLarge")
-        w.title:SetPoint("TOPLEFT", 16, -14)
-        local hint = Text(w, 12, INK.muted, "GameFontHighlightSmall")
-        hint:SetPoint("TOPLEFT", 16, -36) hint:SetText("Selected: press Ctrl+C to copy. Esc closes.")
-        local x = FlatButton(w, 28, 28, "plain") x:SetPoint("TOPRIGHT", -10, -10) x:SetText("X")
+        local head = Fill(w, INK.deep, "BACKGROUND", -6) head:SetPoint("TOPLEFT", 0, 0) head:SetSize(720, 48)
+        local headLine = Fill(w, INK.soft, "BORDER") headLine:SetPoint("TOPLEFT", 0, -48) headLine:SetSize(720, 1)
+        w.title = Text(w, 15, INK.text, "GameFontNormalLarge")
+        w.title:SetPoint("TOPLEFT", 16, -16)
+        local x = FlatButton(w, 28, 28, "bare", 15) x:SetPoint("TOPRIGHT", -10, -10) x:SetText("x")
         x:SetScript("OnClick", function() w:Hide() end)
+        -- the list tabs: shown when opened as Lists
+        w.tabs = {}
+        local tx = 12
+        for i, l in ipairs(Jobs.LISTS) do
+            local tw = 18 + #l[1] * 7
+            local b = FlatButton(w, tw, 30, "rail", 12)
+            b:SetPoint("TOPLEFT", tx, -54) b:SetText(l[1])
+            b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("CENTER")
+            b:SetScript("OnClick", function() Jobs.Lists(l[1]) end)
+            local bar = Fill(w, INK.gold, "ARTWORK") bar:SetPoint("TOPLEFT", tx, -82) bar:SetSize(tw, 2)
+            w.tabs[i] = { b, bar, l[1] }
+            tx = tx + tw + 4
+        end
+        local well = Fill(w, INK.deep, "BACKGROUND", -5) well:SetPoint("TOPLEFT", 12, -90) well:SetSize(696, 336)
+        w.well = well
         local sf = CreateFrame("ScrollFrame", "ServiceInviterCopyScroll", w, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 16, -60) sf:SetPoint("BOTTOMRIGHT", -34, 16)
+        sf:SetPoint("TOPLEFT", 20, -98) sf:SetPoint("BOTTOMRIGHT", -34, 58)
+        w.sf = sf
         local box = CreateFrame("EditBox", nil, sf)
         box:SetMultiLine(true) box:SetAutoFocus(false) box:SetFontObject(ChatFontNormal)
-        box:SetPoint("TOPLEFT") box:SetSize(620, 380)
+        box:SetPoint("TOPLEFT") box:SetSize(650, 320)
         box:SetScript("OnEscapePressed", function() w:Hide() end)
         -- read-only: anything typed is put back
         box:SetScript("OnTextChanged", function(self, user) if user then self:SetText(w.text or "") self:HighlightText() end end)
         sf:SetScrollChild(box)
         w.box = box
+        local hint = Text(w, 12, INK.muted)
+        hint:SetPoint("TOPLEFT", 16, -446) hint:SetText("Selected: Ctrl+C copies, Esc closes")
+        local all = FlatButton(w, 100, 30, "plain", 13) all:SetPoint("TOPRIGHT", -12, -438) all:SetText("Select all")
+        all:SetScript("OnClick", function() w.box:SetFocus() w.box:HighlightText() end)
         if UISpecialFrames then table.insert(UISpecialFrames, "ServiceInviterCopy") end
         Jobs.copyWin = w
     end
-    w.title:SetText(title)
+    -- with tabs, the text sits under them; without, it starts under the title
+    for _, t in ipairs(w.tabs) do
+        local on = t[3] == title
+        if tabs then t[1]:Show() else t[1]:Hide() end
+        if tabs and on then t[2]:Show() else t[2]:Hide() end
+        t[1]:GetFontString():SetTextColor(RGB(on and INK.gold or INK.muted))
+    end
+    w.title:SetText(tabs and "Lists" or title)
+    w.well:ClearAllPoints() w.well:SetPoint("TOPLEFT", 12, tabs and -90 or -60) w.well:SetSize(696, tabs and 336 or 366)
+    w.sf:ClearAllPoints() w.sf:SetPoint("TOPLEFT", 20, tabs and -98 or -68) w.sf:SetPoint("BOTTOMRIGHT", -34, 58)
     w.text = text
     w.box:SetText(text)
     w:Show()
@@ -2488,20 +2549,25 @@ local BANNER = { W = 560, SECS = 14 }
 ShowAlert = function(title, sub, label)
     if not alertWin then
         local a = CreateFrame("Frame", "ServiceInviterAlert", UIParent)
-        a:SetSize(BANNER.W, 104)
+        a:SetSize(BANNER.W, 100)
         a:SetPoint("TOP", 0, -150)
         a:SetFrameStrata("FULLSCREEN_DIALOG")
-        local edge = Fill(a, "d9504a", "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
-        local bg = Fill(a, "8a1414", "BACKGROUND", -7) bg:SetAllPoints()
-        a.label = Text(a, 12, "ffd9d4")
-        a.label:SetPoint("TOP", 0, -14)
-        a.title = Text(a, 34, "ffffff", "GameFontNormalLarge")
-        pcall(function() local f = a.title:GetFont() if f then a.title:SetFont(f, 34, "OUTLINE") end end)
-        a.title:SetPoint("TOP", 0, -32)
-        a.sub = Text(a, 14, "ffe9e5", "GameFontHighlight")
-        a.sub:SetPoint("TOP", 0, -74)
-        local track = Fill(a, "5a0c0c", "BORDER") track:SetPoint("BOTTOMLEFT", 0, 0) track:SetSize(BANNER.W, 4)
-        a.bar = Fill(a, "ffd9d4", "ARTWORK") a.bar:SetPoint("BOTTOMLEFT", 0, 0) a.bar:SetSize(BANNER.W, 4)
+        local edge = Fill(a, INK.danger, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -2, 2) edge:SetPoint("BOTTOMRIGHT", 2, -2)
+        local bg = Fill(a, INK.bannerBg, "BACKGROUND", -7) bg:SetAllPoints()
+        local iconBg = Fill(a, INK.danger, "BORDER") iconBg:SetPoint("TOPLEFT", 20, -18) iconBg:SetSize(56, 56)
+        local icon = a:CreateTexture(nil, "ARTWORK") icon:SetPoint("TOPLEFT", 24, -22) icon:SetSize(48, 48)
+        icon:SetTexture(Jobs.SpellIcon(Jobs.RITUAL_ID, Jobs.RITUAL_ICON))
+        a.label = Text(a, 11, "ffb3b5")
+        a.label:SetPoint("TOPLEFT", 96, -16)
+        a.testBg = Fill(a, "5a1a1f", "BORDER") a.testBg:SetSize(44, 16)
+        a.test = Text(a, 10, "ffe0e0") a.test:SetText("TEST") a.test:SetWidth(44)
+        a.title = Text(a, 32, "ffffff", "GameFontNormalLarge")
+        pcall(function() local f = a.title:GetFont() if f then a.title:SetFont(f, 32, "OUTLINE") end end)
+        a.title:SetPoint("TOPLEFT", 96, -32)
+        a.sub = Text(a, 14, "f2d4d6", "GameFontHighlight")
+        a.sub:SetPoint("TOPLEFT", 96, -72) a.sub:SetWidth(BANNER.W - 112) a.sub:SetJustifyH("LEFT")
+        local track = Fill(a, "4a1a1f", "BORDER") track:SetPoint("BOTTOMLEFT", 0, 0) track:SetSize(BANNER.W, 5)
+        a.bar = Fill(a, "ffffff", "ARTWORK") a.bar:SetPoint("BOTTOMLEFT", 0, 0) a.bar:SetSize(BANNER.W, 5)
         a.t = 0
         a:SetScript("OnUpdate", function(self, el)
             self.t = self.t + (el or 0)
@@ -2516,7 +2582,14 @@ ShowAlert = function(title, sub, label)
         a:Hide()
         alertWin = a
     end
-    alertWin.label:SetText(label or "")
+    -- in test mode (or a test from the setup) the label carries a TEST chip
+    local test = ServiceInviterDB.dryrun or (label or ""):find("TEST", 1, true)
+    label = (label or ""):gsub("^TEST%s*·%s*", ""):gsub("^TEST:%s*", "")
+    alertWin.label:SetText(label)
+    local lx = 96 + 14 + math.floor(#label * 7.5)
+    alertWin.testBg:ClearAllPoints() alertWin.testBg:SetPoint("TOPLEFT", lx, -14)
+    alertWin.test:ClearAllPoints() alertWin.test:SetPoint("TOPLEFT", lx, -17)
+    if test then alertWin.testBg:Show() alertWin.test:Show() else alertWin.testBg:Hide() alertWin.test:Hide() end
     alertWin.title:SetText(title)
     alertWin.sub:SetText(sub or "")
     alertWin.t = 0
@@ -2526,12 +2599,12 @@ ShowAlert = function(title, sub, label)
         pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959)
     end
 end
--- "Summoning Kaldrok to Thunder Bluff. Pay Grimtotem."
+-- "Kaldrok  »  Thunder Bluff  ·  Pay Grimtotem"
 local function BannerSub(who, job)
     local dest = job and job.dest
     local payee, mine = PayeeFor(job or { service = "summons" })
-    local pay = (not JobPrice(job or { service = "summons" })) and " Free." or (mine and " Pay: you." or (" Pay " .. tostring(payee) .. "."))
-    return "Summoning " .. who .. (dest and (" to " .. dest) or "") .. "." .. pay
+    local pay = (not JobPrice(job or { service = "summons" })) and "Free" or ("Pay " .. (mine and "you" or tostring(payee)))
+    return who .. (dest and ("  »  " .. dest) or "") .. "  ·  " .. pay
 end
 
 local function WhisperText(who, nxt)
@@ -3477,10 +3550,10 @@ OnCast = function(event, unit, spellID, spellName)
 
     -- 2) the banner
     if portalUp then
-        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL", BannerSub(who, job), "PORTAL IS UP")
+        local ok, err = pcall(ShowAlert, "CLICK PORTAL", BannerSub(who, job), "PORTAL IS UP")
         trace.banner = ok and "shown" or ("error: " .. tostring(err))
     elseif first then
-        local ok, err = pcall(ShowAlert, "CLICK THE PORTAL", BannerSub(who, job), "RITUAL OF SUMMONING STARTED")
+        local ok, err = pcall(ShowAlert, "CLICK PORTAL", BannerSub(who, job), "SUMMONING")
         trace.banner = ok and "shown" or ("error: " .. tostring(err))
     end
 
@@ -4190,9 +4263,9 @@ local function ShowPicker(box, withDefaults, title, key)
         picker = CreateFrame("Frame", "ServiceInviterPicker", UIParent)
         picker:SetFrameStrata("FULLSCREEN_DIALOG")
         picker:EnableMouse(true)
-        local edge = Fill(picker, INK.gold, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local edge = Fill(picker, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
         local bg = Fill(picker, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
-        picker.title = Text(picker, 14, INK.gold, "GameFontNormal")
+        picker.title = Text(picker, 14, INK.text, "GameFontNormal")
         picker.title:SetPoint("TOPLEFT", 10, -9)
         picker.sub = Text(picker, 11, INK.muted, "GameFontHighlightSmall")
         picker.sub:SetPoint("TOPLEFT", 10, -26)
@@ -4271,8 +4344,13 @@ local function PickButton(parent, box, withDefaults, title, key)
 end
 
 local function BuildSetupUI()
-    local RAIL, PW, H = 168, 900, 690          -- the side menu, then the 900-wide page
-    local W = RAIL + PW
+    -- The 2026 redesign (design handoff, reviewed 14 Nov 2026): a 960 x 780 window, a rail of six
+    -- tabs, two columns of rows (label left, control right), toggles for on/off, segments for a
+    -- pick-one, flat inputs whose placeholder says what blank means, and chips that insert a
+    -- {token} into the message box. The keys under checks/boxes are unchanged, so Load and Save
+    -- (and /si) read and write exactly what they did.
+    local RAIL, W, H, HEAD, FOOT = 168, 960, 780, 56, 64
+    local PW = W - RAIL
     local w = CreateFrame("Frame", "ServiceInviterSetup", UIParent)
     w:SetSize(W, H)
     w:SetPoint("CENTER", 0, 20)
@@ -4282,93 +4360,203 @@ local function BuildSetupUI()
     w:RegisterForDrag("LeftButton")
     w:SetScript("OnDragStart", function(self) self:StartMoving() end)
     w:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-    -- solid and near black, so the setup is easy to read over anything behind it (the owner,
-    -- 12 Nov 2026), in the customer list's dark and gold
-    local edge = Fill(w, INK.line, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    local edge = Fill(w, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
     local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
     w.bg = bg
     local rail = Fill(w, INK.deep, "BACKGROUND", -6) rail:SetPoint("TOPLEFT", 0, 0) rail:SetSize(RAIL, H)
     local railLine = Fill(w, INK.soft, "BORDER") railLine:SetPoint("TOPLEFT", RAIL, 0) railLine:SetSize(1, H)
+    local headLine = Fill(w, INK.soft, "BORDER") headLine:SetPoint("TOPLEFT", RAIL + 1, -HEAD) headLine:SetSize(PW - 1, 1)
+    local foot = Fill(w, INK.deep, "BACKGROUND", -6) foot:SetPoint("TOPLEFT", RAIL + 1, -(H - FOOT)) foot:SetSize(PW - 1, FOOT)
+    local footLine = Fill(w, INK.soft, "BORDER") footLine:SetPoint("TOPLEFT", RAIL + 1, -(H - FOOT)) footLine:SetSize(PW - 1, 1)
     w:Hide()
 
-    local brand = Text(w, 16, INK.gold, "GameFontNormalLarge")
-    brand:SetPoint("TOPLEFT", 20, -22) brand:SetText("Service Inviter")
-    local title = Text(w, 20, INK.text, "GameFontHighlightLarge")
-    title:SetPoint("TOPLEFT", RAIL + 28, -18) title:SetText("General")
-    local close = FlatButton(w, 36, 36, "bare", 16)
-    close:SetPoint("TOPRIGHT", -12, -10) close:SetText("X")
+    local logo = w:CreateTexture(nil, "ARTWORK") logo:SetPoint("TOPLEFT", 18, -20) logo:SetSize(18, 18)
+    logo:SetTexture(Jobs.SpellIcon(Jobs.RITUAL_ID, Jobs.RITUAL_ICON))
+    local brand = Text(w, 14, INK.gold, "GameFontNormalLarge")
+    brand:SetPoint("TOPLEFT", 44, -22) brand:SetText("Service Inviter")
+    local title = Text(w, 18, INK.text, "GameFontHighlightLarge")
+    title:SetPoint("TOPLEFT", RAIL + 28, -19) title:SetText("General")
+    local close = FlatButton(w, 32, 32, "bare", 15)
+    close:SetPoint("TOPRIGHT", -12, -12) close:SetText("x")
     close:SetScript("OnClick", function() w:Hide() end)
 
     local boxes, checks, radios = {}, {}, {}
-    local optKeys = {}     -- checkboxes that simply map to an option
+    local optKeys = {}     -- toggles that simply map to an option
     local page             -- the tab being built
+    local C1, C2, CW = 28, 416, 348     -- the two columns on a page, and their width
+    local ROW = 36
 
-    local function Header(x, y, text)
-        local fs = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        fs:SetPoint("TOPLEFT", x, y) fs:SetText(text)
+    -- a section: small caps and a hairline under it
+    local function Header(x, y, text, width)
+        local fs = Text(page, 11, INK.muted) fs:SetPoint("TOPLEFT", x, y) fs:SetText(text:upper())
+        local ln = Fill(page, INK.soft, "BORDER") ln:SetPoint("TOPLEFT", x, y - 18) ln:SetSize(width or CW, 1)
         return fs
     end
+    -- a row's label (or, with the small font, a quiet note)
     local function Label(x, y, text, font, width)
-        local fs = page:CreateFontString(nil, "OVERLAY", font or "GameFontNormal")
+        local small = font == "GameFontHighlightSmall"
+        local fs = Text(page, small and 12 or 13, small and INK.muted or INK.text)
         fs:SetPoint("TOPLEFT", x, y) fs:SetText(text)
         if width then fs:SetWidth(width) fs:SetJustifyH("LEFT") end
         return fs
     end
-    local function Box(key, x, y, width, maxLetters)
-        local eb = CreateFrame("EditBox", nil, page, "InputBoxTemplate")
+    -- a flat input; the placeholder shows while it's empty and says what blank means
+    local function Box(key, x, y, width, maxLetters, placeholder)
+        local eb = CreateFrame("EditBox", nil, page)
         eb:SetPoint("TOPLEFT", x, y)
-        eb:SetSize(width or 400, 22)
+        eb:SetSize(width or 300, 30)
         eb:SetAutoFocus(false)
         eb:SetMaxLetters(maxLetters or 255)
+        eb:SetFontObject(ChatFontNormal)
+        if eb.SetTextInsets then eb:SetTextInsets(8, 8, 0, 0) end
+        local e1 = eb:CreateTexture(nil, "BACKGROUND", nil, -2) e1:SetAllPoints() e1:SetColorTexture(RGB(INK.soft))
+        local e2 = eb:CreateTexture(nil, "BACKGROUND", nil, -1) e2:SetPoint("TOPLEFT", 1, -1) e2:SetPoint("BOTTOMRIGHT", -1, 1) e2:SetColorTexture(RGB(INK.deep))
+        eb._siStyle = "input"
+        if placeholder then
+            local ph = Text(page, 13, INK.faint) ph:SetPoint("TOPLEFT", x + 9, y - 8) ph:SetText(placeholder)
+            ph._siStyle = "ph"
+            local function Sync() if eb:GetText() == "" and not (eb.HasFocus and eb:HasFocus()) then ph:Show() else ph:Hide() end end
+            eb:HookScript("OnTextChanged", Sync) eb:HookScript("OnEditFocusGained", Sync) eb:HookScript("OnEditFocusLost", Sync)
+            eb.placeholder, eb.SyncPlaceholder = ph, Sync
+        end
         eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
         eb:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
         boxes[key] = eb
         return eb
     end
+    -- the picker from the group, beside a box
+    local function Pick(box, withDefaults, title, key)
+        local b = FlatButton(page, 30, 30, "plain", 13)
+        b:SetPoint("LEFT", box, "RIGHT", 4, 0) b:SetText("+")
+        b:SetScript("OnClick", function() ShowPicker(box, withDefaults, title, key) end)
+        Jobs.Tip(b, "Pick from your group")
+        return b
+    end
+    -- a toggle: a 34 x 18 track with a knob; checked = gold, knob right
     local function Check(key, x, y, text, isOpt)
-        local cb = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
-        cb:SetSize(26, 26) cb:SetPoint("TOPLEFT", x, y)
-        if text then
-            local fs = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-            fs:SetPoint("LEFT", cb, "RIGHT", 2, 0) fs:SetText(text)
-            cb.label = fs
+        local cb = CreateFrame("CheckButton", nil, page)
+        cb:SetSize(34, 18) cb:SetPoint("TOPLEFT", x, y)
+        local track = cb:CreateTexture(nil, "BACKGROUND") track:SetAllPoints()
+        local knob = cb:CreateTexture(nil, "ARTWORK") knob:SetSize(12, 12)
+        cb._siStyle = "toggle"
+        local set = cb.SetChecked
+        local function Paint(on)
+            track:SetColorTexture(RGB(on and INK.gold or INK.plain))
+            knob:SetColorTexture(RGB(on and INK.goldInk or INK.faint))
+            knob:ClearAllPoints() knob:SetPoint(on and "RIGHT" or "LEFT", on and -3 or 3, 0)
         end
+        cb.SetChecked = function(self, v) set(self, v) Paint(v and true or false) end
+        cb:HookScript("OnClick", function(self) Paint(self:GetChecked() and true or false) end)
+        Paint(false)
+        if text then cb.label = Label(x + 42, y - 1, text) end
         checks[key] = cb
         if isOpt then optKeys[#optKeys + 1] = key end
         return cb
     end
-    -- radio: checkboxes in a group where ticking one unticks the others
-    local function Radio(group, key, x, y, text, onPick)
-        local cb = Check(key, x, y, text)
-        radios[group] = radios[group] or {}
-        radios[group][#radios[group] + 1] = cb
-        cb:SetScript("OnClick", function()
-            for _, other in ipairs(radios[group]) do other:SetChecked(other == cb) end
-            if onPick then onPick() end
-        end)
+    -- a row with a label on the left and a toggle at the right edge of the column
+    local function Toggle(key, col, y, text, isOpt)
+        local cb = Check(key, col + CW - 34, y - 6, nil, isOpt)
+        cb.label = Label(col, y - 6, text)
         return cb
     end
-    -- one service: offer it, price (blank = free), invite, words, who gets paid
-    local function Service(key, x, y)
+    -- a segment of a pick-one (radio) or an on/off chip (chip = true): text inside, gold when on
+    local function Seg(group, key, x, y, width, text, onPick, chip)
+        local cb = CreateFrame("CheckButton", nil, page)
+        cb:SetSize(width, 30) cb:SetPoint("TOPLEFT", x, y)
+        local e = cb:CreateTexture(nil, "BACKGROUND", nil, -2) e:SetAllPoints()
+        local f = cb:CreateTexture(nil, "BACKGROUND", nil, -1) f:SetPoint("TOPLEFT", 1, -1) f:SetPoint("BOTTOMRIGHT", -1, 1)
+        local fs = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlight") fs:SetPoint("CENTER")
+        cb:SetFontString(fs) cb:SetText(text)
+        cb._siStyle = chip and "chipcheck" or "seg"
+        local set = cb.SetChecked
+        local function Paint(on)
+            e:SetColorTexture(RGB(on and (chip and INK.gold or INK.wash) or INK.soft))
+            f:SetColorTexture(RGB(on and INK.wash or INK.plain))
+            fs:SetTextColor(RGB(on and INK.gold or INK.muted))
+        end
+        cb.SetChecked = function(self, v) set(self, v) Paint(v and true or false) end
+        Paint(false)
+        checks[key] = cb
+        if group then
+            radios[group] = radios[group] or {}
+            radios[group][#radios[group] + 1] = cb
+            cb:SetScript("OnClick", function()
+                for _, other in ipairs(radios[group]) do other:SetChecked(other == cb) end
+                if onPick then onPick() end
+            end)
+        else
+            cb:HookScript("OnClick", function(self) Paint(self:GetChecked() and true or false) end)
+        end
+        return cb
+    end
+    -- the old radio call, as a segment sized to its words
+    local function Radio(group, key, x, y, text, onPick)
+        return Seg(group, key, x, y, 20 + #text * 7, text, onPick)
+    end
+    -- {tokens} that insert into a box, right-aligned to end at `right`
+    local function Chips(box, right, y, tokens)
+        local x = right
+        for i = #tokens, 1, -1 do
+            local t = tokens[i]
+            local cw = 14 + #t * 7
+            x = x - cw
+            local b = FlatButton(page, cw, 22, "chip", 11)
+            b:SetPoint("TOPLEFT", x, y) b:SetText(t)
+            b:SetScript("OnClick", function() if box.Insert then box:SetFocus() box:Insert(t) end end)
+            x = x - 4
+        end
+    end
+    -- a key cap and a Bind button that waits for the next key you press
+    local function KeyBind(x, y, what)
+        local cap = FlatButton(page, 44, 30, "plain", 12)
+        cap:SetPoint("TOPLEFT", x, y)
+        local bind = FlatButton(page, 64, 30, "plain", 13)
+        bind:SetPoint("TOPLEFT", x + 50, y) bind:SetText("Bind")
+        local button = what == "ad" and "ServiceInviterAdButton" or "ServiceInviterBuffButton"
+        local function Show()
+            local key = GetBindingKey and GetBindingKey("CLICK " .. button .. ":LeftButton")
+            cap:SetText(key or "-")
+        end
+        bind:SetScript("OnClick", function(self)
+            if InCombatLockdown and InCombatLockdown() then P("can't change keys in combat") return end
+            self:SetText("Press") self:EnableKeyboard(true)
+            self:SetScript("OnKeyDown", function(me, key)
+                me:EnableKeyboard(false) me:SetScript("OnKeyDown", nil) me:SetText("Bind")
+                if key ~= "ESCAPE" then SlashCmdList.SERVICEINVITER("bind " .. what .. " " .. key) end
+                Show()
+            end)
+        end)
+        Show()
+        return cap, Show
+    end
+    -- the payee for a service: Default (the General tab) / Doer / Me, or a name typed in the box
+    local function PaidRow(k, col, y)
+        Label(col, y - 6, "Paid")
+        local x = col + 44
+        Seg("payee_" .. k, k .. "pd_default", x, y, 64, "Default") x = x + 64
+        Seg("payee_" .. k, k .. "pd_doer", x, y, 52, "Doer") x = x + 52
+        Seg("payee_" .. k, k .. "pd_me", x, y, 40, "Me") x = x + 46
+        local pb = Box(k .. "payee", x, y, col + CW - 34 - x, 40, "Name")
+        Pick(pb, true, "Who gets paid?", k:match("^svc_(.-)_$"))
+        -- a typed name wins over the segments
+        pb:HookScript("OnTextChanged", function(self)
+            if self:GetText():gsub("%s", "") ~= "" then for _, c in ipairs(radios["payee_" .. k]) do c:SetChecked(false) end end
+        end)
+    end
+    -- one service: on, price (blank = free), invite, words, who gets paid
+    local function Service(key, col, y)
         local def = Core.BY_KEY[key]
         local k = "svc_" .. key .. "_"
-        Check(k .. "on", x, y, (def.kind == "buff" and "We offer " or "We sell ") .. def.label)
-        Label(x + 4, y - 32, "Price:")
-        Box(k .. "g", x + 52, y - 28, 44, 5) Label(x + 100, y - 32, "g")
-        Box(k .. "s", x + 116, y - 28, 30, 2) Label(x + 150, y - 32, "s", nil)
-        Label(x + 166, y - 33, "blank = free", "GameFontHighlightSmall")
-        Check(k .. "invite", x, y - 54, "Invite buyers who ask for it")
-        local dy = 86
-        if def.words then
-            Label(x + 4, y - dy, "Buyers say:")
-            Box(k .. "words", x + 92, y - dy + 4, 300, 200)
-            dy = dy + 28
-        end
-        Label(x + 4, y - dy, "Who gets paid:")
-        local pb = Box(k .. "payee", x + 112, y - dy + 4, 130, 40)
-        PickButton(page, pb, true, "Who gets paid for " .. def.label .. "?", key)
-        Label(x + 276, y - dy - 1, "blank = General tab", "GameFontHighlightSmall")
-        return dy + 28
+        Toggle(k .. "on", col, y, (def.kind == "buff" and "We offer " or "We sell ") .. def.label)
+        y = y - ROW
+        Label(col, y - 6, "Price")
+        Box(k .. "g", col + CW - 152, y, 52, 5, "0") Label(col + CW - 96, y - 7, "|cff" .. INK.gold .. "g|r")
+        Box(k .. "s", col + CW - 78, y, 52, 2, "free") Label(col + CW - 20, y - 7, "|cff" .. INK.silver .. "s|r")
+        y = y - ROW
+        Toggle(k .. "invite", col, y, "Invite buyers")
+        y = y - ROW
+        PaidRow(k, col, y)
+        return y - ROW
     end
 
     -- tabs ----------------------------------------------------------------
@@ -4387,18 +4575,18 @@ local function BuildSetupUI()
             b:GetFontString():SetTextColor(RGB(on and INK.gold or INK.text))
             if on then b.sel:Show() else b.sel:Hide() end
         end
-        railBar:ClearAllPoints() railBar:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44)
+        railBar:ClearAllPoints() railBar:SetPoint("TOPLEFT", 0, -72 - (i - 1) * 44)
         title:SetText(TABS[i])
         w.tab = i
     end
     for i, name in ipairs(TABS) do
         local pg = CreateFrame("Frame", nil, w)
-        pg:SetPoint("TOPLEFT", RAIL, -14) pg:SetSize(PW, H - 14)   -- below the page title
+        pg:SetPoint("TOPLEFT", RAIL, 0) pg:SetSize(PW, H - FOOT)
         pages[i] = pg
-        local sel = Fill(w, INK.panel, "BACKGROUND", -5) sel:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44) sel:SetSize(RAIL, 40)
-        local b = FlatButton(w, RAIL, 40, "rail", 15)
-        b:SetPoint("TOPLEFT", 0, -64 - (i - 1) * 44)
-        b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("LEFT", 20, 0)
+        local sel = Fill(w, INK.panel, "BACKGROUND", -5) sel:SetPoint("TOPLEFT", 0, -72 - (i - 1) * 44) sel:SetSize(RAIL, 40)
+        local b = FlatButton(w, RAIL, 40, "rail", 14)
+        b:SetPoint("TOPLEFT", 0, -72 - (i - 1) * 44)
+        b:GetFontString():ClearAllPoints() b:GetFontString():SetPoint("LEFT", 24, 0)
         b:SetText(name)
         b:SetScript("OnClick", function() ShowTab(i) end)
         b.sel = sel
@@ -4406,227 +4594,284 @@ local function BuildSetupUI()
     end
     railBar = Fill(w, INK.gold, "ARTWORK") railBar:SetSize(3, 40)
     w.pages, w.tabBtns, w.ShowTab, w.tab = pages, tabBtns, ShowTab, 1
-
-    local L, R = 28, 470
+    local TOP = -84            -- the first section on every page
 
     -- General: who gets invited, who gets paid, the messages ---------------
     page = pages[1]
-    Header(L, -50, "Who gets invited")
-    Check("enabled", L, -74, "Invite buyers of what we sell", true)
-    Label(L, -108, "Listen in:")
-    Check("trade", L + 76, -102, "Trade", true)
-    Check("general", L + 156, -102, "General", true)
-    Check("say", L + 246, -102, "Say", true)
-    Check("yell", L + 316, -102, "Yell", true)
-    Label(L, -138, "+ other channels:")
-    Box("chanextra", L + 140, -134, 250, 100)
-    Check("strictbuy", L, -162, "Only 'WTB' / 'buying' (skip LF, need, looking)", true)
-    Check("fragments", L, -188, "Combine a person's split messages", true)
-    Check("skipafk", L, -214, "Skip while I'm AFK", true)
+    local y = TOP
+    Header(C1, y, "Invite") y = y - 28
+    Toggle("enabled", C1, y, "Invite buyers", true) y = y - ROW
+    Label(C1, y - 6, "Listen")
+    Seg(nil, "yell", C1 + CW - 54, y, 54, "Yell", nil, true)
+    Seg(nil, "say", C1 + CW - 106, y, 48, "Say", nil, true)
+    Seg(nil, "general", C1 + CW - 184, y, 74, "General", nil, true)
+    Seg(nil, "trade", C1 + CW - 248, y, 60, "Trade", nil, true)
+    for _, k in ipairs({ "trade", "general", "say", "yell" }) do optKeys[#optKeys + 1] = k end
+    y = y - ROW
+    Label(C1, y - 6, "Also") Box("chanextra", C1 + 112, y, CW - 112, 100, "Other channels") y = y - ROW
+    Toggle("strictbuy", C1, y, "WTB only", true) y = y - ROW
+    Toggle("fragments", C1, y, "Merge split messages", true) y = y - ROW
+    Toggle("skipafk", C1, y, "Skip when AFK", true) y = y - ROW
     -- how soon the same buyer can be invited again (the owner, 14 Nov 2026: "let's make re-invite
     -- setting adjustable in UI as well"); in minutes here, /si cooldown takes seconds
-    Label(L + 210, -220, "Invite again after")
-    Box("cooldown", L + 340, -214, 44, 3)
-    Label(L + 390, -220, "min")
-    Check("announce", L, -240, "Show a line in chat when I invite", true)
-    Check("autoshow", L, -266, "Open the customer list when I invite someone", true)
-    Check("kwon", L, -292, "Auto-invite anyone who says:", true)
-    Box("kwwords", L + 236, -294, 170, 60)
-    Check("dryrun", L, -322, "Test mode")
-    Check("near", L + 110, -322, "Near-miss lines")
-    Check("debug", L + 270, -322, "Debug")
-    Header(L, -362, "On sale right now")
-    w.onsale = Label(L, -388, "", "GameFontHighlight", 410)
-    -- our workers, like "Our warlocks" (the owner, 13 Nov 2026: "i want it more like it is in the
-    -- lock tab where i can say these are our locks")
-    Header(L, -450, "Our workers")
-    Label(L, -476, "Here to click. Never a customer: no row, no welcome, never invited.", "GameFontHighlightSmall", 410)
-    local wb = Box("workers", L + 4, -496, 330, 400)
-    PickButton(page, wb, false, "Our workers (from your group)", "workers")
-    Label(L, -534, "When someone who didn't pay joins, say ({name} {skull}, empty = off):")
-    Box("scammsg", L + 4, -556, 396)
+    Label(C1, y - 6, "Re-invite after") Box("cooldown", C1 + CW - 92, y, 56, 3, "3") Label(C1 + CW - 30, y - 7, "min", "GameFontHighlightSmall") y = y - ROW
+    Toggle("announce", C1, y, "Chat line on invite", true) y = y - ROW
+    Toggle("autoshow", C1, y, "Open list on invite", true) y = y - ROW
+    Label(C1, y - 6, "Auto-invite") Box("kwwords", C1 + 112, y, CW - 112 - 46, 60, "inv, invite")
+    Check("kwon", C1 + CW - 34, y - 6, nil, true) y = y - ROW - 12
+    Header(C1, y, "On sale") y = y - 28
+    w.onsale = Label(C1, y - 4, "", nil, CW) y = y - 48
+    -- our workers (the owner, 13 Nov 2026: "i want it more like it is in the lock tab where i can
+    -- say these are our locks")
+    Header(C1, y, "Workers") y = y - 28
+    local wb = Box("workers", C1, y, CW - 34, 400, "Never customers")
+    Pick(wb, false, "Our workers (from your group)", "workers")
 
-    Header(R, -50, "Who gets paid (default)")
+    y = TOP
+    Header(C2, y, "Pay") y = y - 28
     local function SyncTradeBox()
         local named = checks.pay_name and checks.pay_name:GetChecked()
         if named then checks.autotrade:Disable() else checks.autotrade:Enable() end
-        if checks.autotrade.label then checks.autotrade.label:SetFontObject(named and "GameFontDisable" or "GameFontHighlight") end
+        if checks.autotrade.label then checks.autotrade.label:SetTextColor(RGB(named and INK.faint or INK.text)) end
     end
-    Radio("pay", "pay_place", R, -74, "Whoever does it (the warlock, mage, rogue...)", SyncTradeBox)
-    Label(R + 30, -100, "You get paid only if you pick 'Always me' (or 'Me' on a service).", "GameFontHighlightSmall")
-    Radio("pay", "pay_me", R, -116, "Always me", SyncTradeBox)
-    Radio("pay", "pay_name", R, -142, "Always:", SyncTradeBox)
-    local pn = Box("payname", R + 100, -144, 160, 40)
-    PickButton(page, pn, false, "Who always gets paid?")
-    Check("autotrade", R, -172, "Open trade by itself when it's me and they're in range")
-    Label(R, -202, "Each service can name its own payee on its tab.", "GameFontHighlightSmall")
-    Header(R, -232, "Messages")
-    Check("welcome", R, -256, "Welcome them when they join")
-    Label(R, -286, "Welcome text, blank = automatic (what, who, where, price, who to pay).", "GameFontHighlightSmall", 400)
-    Label(R, -300, "Yours can use {name} {service} {price} {payee} {visits}.", "GameFontHighlightSmall", 400)
-    Box("welcomemsg", R + 4, -316, 396)
-    Label(R, -348, "On arrival, blank = automatic (what else is on offer where they landed).", "GameFontHighlightSmall", 400)
-    Label(R, -362, "Yours can use {name} {here} {offers}.", "GameFontHighlightSmall", 400)
-    Box("offermsg", R + 4, -378, 396)
-    Check("thanks", R, -410, "When they're done, whisper ({name}):")
-    Box("thanksmsg", R + 4, -438, 396)
-    Check("marks", R, -470, "Raid icon on whoever does it, in party and raid chat", true)
-    Label(R, -500, "Regulars hear ({name} {visits} = 4th, empty = off):")
-    Box("loyaltymsg", R + 4, -522, 396)
-    Header(R, -556, "This session")
-    local sessText = Label(R, -582, "", "GameFontHighlight", 270)
-    local sessBtn = FlatButton(page, 120, 30, "plain")
-    sessBtn:SetPoint("TOPLEFT", R + 286, -576) sessBtn:SetText("New session")
-    sessBtn:SetScript("OnClick", function() NewSession() sessText:SetText(SessionText()) RefreshJobs() Jobs.AskShards() end)
-    w.sessText = sessText
+    Label(C2, y - 6, "Paid")
+    Seg("pay", "pay_place", C2 + 44, y, 56, "Doer", SyncTradeBox)
+    Seg("pay", "pay_me", C2 + 100, y, 44, "Me", SyncTradeBox)
+    Seg("pay", "pay_name", C2 + 144, y, 58, "Name", SyncTradeBox)
+    local pn = Box("payname", C2 + 208, y, CW - 208 - 34, 40, "Name")
+    Pick(pn, false, "Who always gets paid?")
+    y = y - ROW
+    Toggle("autotrade", C2, y, "Auto-open trade") y = y - ROW
+    Toggle("marks", C2, y, "Raid icon on whoever does it", true) y = y - ROW - 12
+    Header(C2, y, "Messages") y = y - 28
+    local function Msg(key, text, tokens, toggleKey, placeholder, tokensBelow)
+        Label(C2, y - 4, text)
+        if toggleKey then Check(toggleKey, C2 + CW - 34, y - 3) end
+        if tokens and not tokensBelow then Chips(nil, C2 + CW - (toggleKey and 42 or 0), y, tokens) end
+        y = y - 26
+        local b = Box(key, C2, y, CW, 255, placeholder)
+        y = y - 34
+        if tokens and tokensBelow then Chips(b, C2 + CW, y, tokens) y = y - 26 end
+        return b
+    end
+    -- chips before the box exists insert into it, so wire them after
+    local function MsgChips(key, text, tokens, toggleKey, placeholder, below)
+        local y0 = y
+        local b = Msg(key, text, nil, toggleKey, placeholder)
+        if tokens then
+            if below then Chips(b, C2 + CW, y, tokens) y = y - 26
+            else Chips(b, C2 + CW - (toggleKey and 42 or 0), y0, tokens) end
+        end
+        return b
+    end
+    MsgChips("welcomemsg", "Welcome", { "{name}", "{service}", "{price}", "{payee}", "{visits}" }, "welcome", "Auto", true)
+    MsgChips("offermsg", "Arrival", { "{name}", "{here}", "{offers}" }, nil, "Auto")
+    MsgChips("paymsg", "Pay reminder", { "{here}", "{payee}", "{price}" }, nil, "Auto")
+    MsgChips("thanksmsg", "Done", { "{name}" }, "thanks", "Off")
+    MsgChips("loyaltymsg", "Regular", { "{name}", "{visits}" }, nil, "Off")
+    MsgChips("scammsg", "Didn't pay", { "{name}", "{skull}" }, nil, "Off")
 
     -- Warlock --------------------------------------------------------------
     page = pages[2]
-    Service("summons", L, -50)
-    Header(L, -168, "Who summons")
-    Radio("role", "rolelock", L, -192, "I do (I'm the warlock)")
-    Radio("role", "rolehelper", L, -218, "A friend in the group does; I click the portal")
-    Header(L, -256, "Summons go to")
-    w.locks = Label(L, -282, "", "GameFontHighlight", 410)
-    Label(L, -330, "Each warlock summons to wherever they're standing. If the game can't tell where a warlock is, nobody is invited for their summons.", "GameFontHighlightSmall", 410)
-    -- "Ours": only these count (the owner, 13 Nov 2026: "yeah our warlock and we can auto fill from the raid")
-    local function Ours(cls, word, y)
-        Header(L, y, "Our " .. word)
-        Label(L, y - 26, "Only these sell. Blank = any " .. word:gsub("s$", "") .. " in the group who isn't a customer.", "GameFontHighlightSmall", 410)
-        local b = Box("prov_" .. cls, L + 4, y - 46, 330, 200)
-        PickButton(page, b, false, "Our " .. word .. " (from your group)", "class:" .. cls)
-    end
-    Ours("WARLOCK", "warlocks", -380)
-    Check("countshards", L, -466, "Count shards: stop inviting when they run out", true)
+    y = TOP
+    Header(C1, y, "Sell") y = y - 28
+    y = Service("summons", C1, y) - 12
+    Header(C1, y, "Who summons") y = y - 28
+    Seg("role", "rolelock", C1, y, 120, "I summon")
+    Seg("role", "rolehelper", C1 + 120, y, 150, "Friend summons")
+    y = y - ROW - 12
     -- following the market, channel by channel: the price above is the max; never below the min
-    -- (the owner, 14 Nov 2026: "each service will work with default min and max ... we dont want to
-    -- offer below the min and we want to offer the max when possible" -- "also we want to toggle
-    -- the option to match maybe we dont want to under cut")
-    Label(L, -496, "When another seller in a channel is cheaper (price above = the max):")
-    Radio("pricemode", "pm_undercut", L, -518, "Undercut by")
-    Box("undercut", L + 126, -514, 40, 4)
-    Label(L + 172, -522, "silver")
-    Radio("pricemode", "pm_match", L + 236, -518, "Match")
-    Radio("pricemode", "pm_ignore", L + 322, -518, "Ignore")
-    Label(L, -556, "Never below (min):")
-    Box("floor", L + 150, -552, 44, 4)
-    Label(L + 200, -556, "silver. Blank = the price never moves.")
-    Header(R, -50, "When the warlock starts summoning")
-    Check("raidalert", R, -74, "Say in raid ({name} {dest} {payee} {price}):")
-    Box("alertmsg", R + 4, -102, 396)
-    Label(R, -134, "Whisper to (blank = nobody):")
-    Box("whisperto", R + 210, -130, 150, 40)
-    Label(R, -162, "Whisper text ({name}, {next} = who waits longest):", "GameFontHighlightSmall")
-    Box("whispermsg", R + 4, -178, 396)
+    -- (the owner, 14 Nov 2026: "each service will work with default min and max ... we dont want
+    -- to offer below the min and we want to offer the max when possible")
+    Header(C1, y, "Other sellers") y = y - 28
+    Label(C1, y - 6, "Cheaper rival")
+    Seg("pricemode", "pm_ignore", C1 + 112, y, 64, "Ignore")
+    Seg("pricemode", "pm_match", C1 + 176, y, 60, "Match")
+    Seg("pricemode", "pm_undercut", C1 + 236, y, 72, "Undercut")
+    y = y - ROW
+    Label(C1, y - 6, "Undercut by") Box("undercut", C1 + CW - 78, y, 52, 4, "5") Label(C1 + CW - 20, y - 7, "|cff" .. INK.silver .. "s|r") y = y - ROW
+    Label(C1, y - 6, "Never below") Box("floor", C1 + CW - 152, y, 126, 4, "Never moves") Label(C1 + CW - 20, y - 7, "|cff" .. INK.silver .. "s|r")
+
+    y = TOP
+    Header(C2, y, "Warlocks") y = y - 28
+    -- one card per warlock in the group: who, and where they summon to (cities are read from the
+    -- game; one it can't place sells nothing, so the card says so)
+    w.lockCards = {}
+    for i = 1, 4 do
+        local cy = y - (i - 1) * 40
+        local card = Fill(page, INK.panel, "BACKGROUND", -4) card:SetPoint("TOPLEFT", C2, cy) card:SetSize(CW, 34)
+        local nm = Text(page, 13, INK.text) nm:SetPoint("TOPLEFT", C2 + 12, cy - 10) nm:SetWidth(130) nm:SetJustifyH("LEFT")
+        local where = Text(page, 13, INK.muted) where:SetPoint("TOPLEFT", C2 + 148, cy - 10) where:SetWidth(CW - 160) where:SetJustifyH("LEFT")
+        w.lockCards[i] = { card, nm, where }
+    end
+    w.locks = Label(C2, y - 162, "", "GameFontHighlightSmall", CW)
+    Label(C2, y - 186, "Only these sell", "GameFontHighlightSmall")
+    y = y - 206
+    local pb = Box("prov_WARLOCK", C2, y, CW - 34, 200, "Any warlock in the group")
+    Pick(pb, false, "Our warlocks (from your group)", "class:WARLOCK")
+    y = y - ROW
+    Toggle("countshards", C2, y, "Count shards", true) y = y - ROW - 12
+    Header(C2, y, "When a summon starts") y = y - 28
+    Label(C2, y - 4, "Raid line") Check("raidalert", C2 + CW - 34, y - 3)
+    y = y - 26
+    local am = Box("alertmsg", C2, y, CW, 255) y = y - 34
+    Chips(am, C2 + CW, y, { "{name}", "{dest}", "{payee}", "{price}" }) y = y - 34
+    Label(C2, y - 6, "Whisper to") Box("whisperto", C2 + 112, y, CW - 112, 40, "Nobody") y = y - ROW
+    Label(C2, y - 4, "Whisper")
+    local wm
+    y = y - 26
+    wm = Box("whispermsg", C2, y, CW, 255) y = y - 34
+    Chips(wm, C2 + CW, y, { "{name}", "{next}" })
 
     -- Paladin --------------------------------------------------------------
     page = pages[3]
-    Label(L, -50, "Free unless you set a price. Anyone in the group who asks gets queued on the buff button.", "GameFontHighlightSmall", 840)
-    local bh = Service("blessing", L, -76)
-    -- the word they use picks the blessing; this box is only for a plain "blessing" (the owner,
+    y = TOP
+    Header(C1, y, "Sell") y = y - 28
+    y = Service("blessing", C1, y) - 12
+    Header(C1, y, "Words") y = y - 28
+    Box("svc_blessing_words", C1, y, CW, 200, "bless, blessing, buff") y = y - ROW - 4
+    -- the word they use picks the blessing; this is only for a plain "blessing" (the owner,
     -- 13 Nov 2026: "can it not detect what they want? i have to have only blessing of might?")
-    Label(L + 4, -76 - bh - 4, "Just 'blessing':")
-    Box("blessing_spell", L + 130, -76 - bh, 200, 60)
-    Label(L + 4, -76 - bh - 30, "\"kings\", \"wis\", \"bok\", \"salv\"... (any first 3 letters) get that blessing.", "GameFontHighlightSmall", 400)
-    Check("buffarrivals", L, -330, "Buff customers when they land, without being asked (off = only people who ask)", true)
-    Check("buffpop", L, -358, "Pop the buff button up at my mouse, with a sound, when someone is waiting", true)
-    Label(L, -396, "The buff button casts on whoever is next. Bind it with /si bind buff F8.", "GameFontHighlightSmall", 840)
+    Label(C1, y - 6, "Just \"blessing\"") y = y - 30
+    local BLESSINGS = { "Might", "Wisdom", "Kings", "Salvation", "Light", "Sanctuary" }
+    for i, b in ipairs(BLESSINGS) do
+        local col, line = (i - 1) % 3, math.floor((i - 1) / 3)
+        Seg("bspell", "bs_" .. b:lower(), C1 + col * 116, y - line * 34, 116, b)
+    end
+    y = TOP
+    Header(C2, y, "Casting") y = y - 28
+    Toggle("buffarrivals", C2, y, "Buff them on landing, unasked", true) y = y - ROW
+    Toggle("buffpop", C2, y, "Pop the button at my mouse", true) y = y - ROW
+    Label(C2, y - 6, "Buff key")
+    local _, showBuffKey = KeyBind(C2 + CW - 114, y, "buff")
+    w.showBuffKey = showBuffKey
 
     -- Advertise --------------------------------------------------------------
     page = pages[4]
-    Header(L, -50, "Advertise")
-    Label(L, -78, "The game only lets an ad go out when you press a key or click, so it's one press per ad. The text comes from what is on sale; a whispered 'inv' within 10 minutes counts as an answer to your ad.", "GameFontHighlightSmall", 840)
-    Label(L, -118, "Ad ({wts} = 'WTS ' when anything is paid, {services} = what's on sale):")
-    Box("admsg", L + 4, -136, 600)
-    Label(L, -172, "Post in:")
-    Check("adch_trade", L + 70, -166, "Trade")
-    Check("adch_general", L + 160, -166, "General")
-    Label(L + 270, -172, "+ other channels:")
-    Box("adextra", L + 410, -168, 180, 100)
-    Label(L, -206, "Wait between ads in a channel:")
-    Box("adwait", L + 230, -202, 40, 3)
-    Label(L + 280, -206, "minutes")
-    Label(L, -240, "Preview:")
-    w.adpreview = Label(L + 72, -240, "", "GameFontHighlight", 760)
-    local post = FlatButton(page, 220, 34, "gold", 15)
-    post:SetPoint("TOPLEFT", L, -282) post:SetText("Post ad")
+    local FW = PW - 56
+    y = TOP
+    Header(C1, y, "Ad", FW) y = y - 28
+    Label(C1, y - 4, "Text") y = y - 26
+    local ad = Box("admsg", C1, y, FW, 255) y = y - 34
+    Chips(ad, C1 + FW, y + 60, { "{wts}", "{services}" })
+    Label(C1, y - 8, "Preview", "GameFontHighlightSmall")
+    local pvBg = Fill(page, INK.deep, "BACKGROUND", -4) pvBg:SetPoint("TOPLEFT", C1 + 80, y) pvBg:SetSize(FW - 80, 30)
+    w.adpreview = Text(page, 13, "ffc0c0")
+    w.adpreview:SetPoint("TOPLEFT", C1 + 90, y - 8) w.adpreview:SetWidth(FW - 100) w.adpreview:SetJustifyH("LEFT")
+    if w.adpreview.SetWordWrap then w.adpreview:SetWordWrap(false) end
+    y = y - ROW - 12
+    Header(C1, y, "Channels", FW) y = y - 28
+    Label(C1, y - 6, "Post in")
+    Seg(nil, "adch_trade", C1 + FW - 340, y, 64, "Trade", nil, true)
+    Seg(nil, "adch_general", C1 + FW - 270, y, 80, "General", nil, true)
+    Box("adextra", C1 + FW - 184, y, 184, 100, "Other channels")
+    y = y - ROW
+    Label(C1, y - 6, "Wait") Box("adwait", C1 + FW - 150, y, 56, 3, "5") Label(C1 + FW - 88, y - 7, "min / channel", "GameFontHighlightSmall")
+    y = y - ROW - 12
+    Header(C1, y, "Post", FW) y = y - 30
+    local post = FlatButton(page, 220, 44, "gold", 15)
+    post:SetPoint("TOPLEFT", C1, y) post:SetText("Post ad")
     post:SetScript("OnClick", function() w.Save() PostAd() w.Load() end)
+    Jobs.Tip(post, "The game sends an ad only on a key press or click: one press, one ad")
     w.adpost = post
-    Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
+    local _, showAdKey = KeyBind(C1 + 236, y - 7, "ad")
+    w.showAdKey = showAdKey
 
     -- Team -------------------------------------------------------------------
     page = pages[5]
-    Header(L, -50, "Team")
-    Check("guildteam", L, -72, "My guild is the team (guildmates are never customers)", true)
-    Label(L, -110, "Also on the team, outside the guild:", "GameFontHighlightSmall", 840)
-    local tb = Box("team", L + 4, -128, 600, 400)
-    PickButton(page, tb, false, "Team (from your group)", "workers")
-    Label(L, -162, "Point of contact (the first one online invites and whispers every customer; blank = each of you, solo):", "GameFontHighlightSmall", 840)
-    local pb2 = Box("poc", L + 4, -180, 600, 200)
-    PickButton(page, pb2, false, "Point of contact (from your group)", "workers")
-    w.teamStatus = Label(L, -212, "", "GameFontHighlight", 840)
-    w.teamBooks = Label(L, -234, "", "GameFontHighlightSmall", 840)
-    Header(L, -262, "Where each message goes")
-    for i, kind in ipairs(Jobs.ROUTE_KINDS) do
-        local y = -288 - (i - 1) * 30
-        Label(L, y - 4, Jobs.ROUTE_LABEL[kind] .. ":")
-        Radio("route_" .. kind, "route_" .. kind .. "_whisper", L + 190, y, "Whisper them")
-        Radio("route_" .. kind, "route_" .. kind .. "_group", L + 340, y, "Party / raid")
-        Radio("route_" .. kind, "route_" .. kind .. "_off", L + 490, y, "Off")
+    y = TOP
+    Header(C1, y, "Team", FW) y = y - 28
+    Label(C1, y - 6, "Guild is the team") Check("guildteam", C1 + FW - 34, y - 6, nil, true) y = y - ROW
+    Label(C1, y - 6, "Also on the team")
+    local tb = Box("team", C1 + 300, y, FW - 334, 400, "Names outside the guild")
+    Pick(tb, false, "Team (from your group)", "workers") y = y - ROW
+    Label(C1, y - 6, "Point of contact")
+    local pb2 = Box("poc", C1 + 300, y, FW - 334, 200, "Each works solo")
+    Pick(pb2, false, "Point of contact (from your group)", "workers") y = y - ROW
+    w.teamStatus = Label(C1, y - 4, "", nil, FW) y = y - 22
+    w.teamBooks = Label(C1, y - 4, "", "GameFontHighlightSmall", FW) y = y - 34
+    Header(C1, y, "Where each message goes", FW) y = y - 28
+    local cols = { { "whisper", "Whisper" }, { "group", "Party" }, { "off", "Off" } }
+    for i, c in ipairs(cols) do
+        local h = Text(page, 11, INK.muted) h:SetPoint("TOPLEFT", C1 + 300 + (i - 1) * 146, y) h:SetWidth(140) h:SetText(c[2]:upper())
     end
-    Label(L, -470, "With a team, customer messages start as whispers; solo, as before. The regulars line and the call-out are public.", "GameFontHighlightSmall", 840)
+    y = y - 22
+    for _, kind in ipairs(Jobs.ROUTE_KINDS) do
+        Label(C1, y - 7, Jobs.ROUTE_LABEL[kind])
+        for i, c in ipairs(cols) do
+            Seg("route_" .. kind, "route_" .. kind .. "_" .. c[1], C1 + 300 + (i - 1) * 146, y, 140, c[2])
+        end
+        y = y - 34
+    end
 
-    -- Tools: every command as a button (the owner, 14 Nov 2026: "i want the addon to have a debug
+    -- Tools: every command (the owner, 14 Nov 2026: "i want the addon to have a debug
     -- panel/command panel or something - there are too many to remember"). Each runs the same
     -- /si command you could type.
     page = pages[6]
     local function Run(cmd) w.Save() SlashCmdList.SERVICEINVITER(cmd) w.Load() end
     w.tools = {}
-    local function Tool(x, y, text, cmd, width)
-        local b = FlatButton(page, width or 150, 30, "plain", 13)
-        b:SetPoint("TOPLEFT", x, y) b:SetText(text)
+    local function Tool(x, y0, width, text, cmd, style)
+        local b = FlatButton(page, width, 32, style or "plain", 13)
+        b:SetPoint("TOPLEFT", x, y0) b:SetText(text)
         b:SetScript("OnClick", function() Run(type(cmd) == "function" and cmd() or cmd) end)
         w.tools[text] = b
         return b
     end
     local function Named(cmd) return function() return cmd .. " " .. (boxes.toolname:GetText():gsub("^%s+", ""):gsub("%s+$", "")) end end
-    Header(L, -50, "On and off")
-    Tool(L, -76, "Stop everything", "stop")
-    Tool(L + 160, -76, "Start again", "start")
-    Tool(L + 320, -76, "Selling on", "on")
-    Tool(L + 480, -76, "Selling off", "off")
-    Tool(L, -112, "Test mode on", function() local t = boxes.testtarget:GetText():gsub("^%s+", ""):gsub("%s+$", "") return t ~= "" and ("test " .. t) or "test" end)
-    Tool(L + 160, -112, "Test mode off", "test off")
-    Label(L + 324, -120, "Whispers go to:")
-    Box("testtarget", L + 440, -114, 190, 40)
-    Label(L + 640, -120, "(blank = you)", "GameFontHighlightSmall")
-    Header(L, -158, "Someone by name")
-    Label(L, -186, "Name:")
-    Box("toolname", L + 56, -182, 220, 40)
-    Tool(L, -214, "Why (what it decided)", Named("why"), 190)
-    Tool(L + 200, -214, "Their history", Named("customers"))
-    Tool(L + 360, -214, "Didn't pay", Named("scam"))
-    Tool(L + 520, -214, "Paid after all", Named("unscam"))
-    Tool(L, -250, "Add to team", Named("team add"), 190)
-    Tool(L + 200, -250, "Remove from team", Named("team remove"))
-    Header(L, -296, "Lists (open to copy)")
-    Tool(L, -322, "Stats", "stats")
-    Tool(L + 160, -322, "Top 10 regulars", "customers")
-    Tool(L + 320, -322, "All customers", "customers all")
-    Tool(L + 480, -322, "Didn't pay list", "scammers")
-    Tool(L, -358, "Didn't pay: names", "scammers names")
-    Tool(L + 160, -358, "Prices by channel", "prices")
-    Tool(L + 320, -358, "Team", "team")
-    Tool(L + 480, -358, "What it hears", "status")
-    Header(L, -404, "Checks")
-    Tool(L, -430, "Self-test", "selftest")
-    Tool(L + 160, -430, "Debug on/off", "debug")
-    Tool(L + 320, -430, "New session", "session new")
-    Tool(L + 480, -430, "Team messages", "teamlog")
-    Label(L, -510, "Each button does the same as typing /si and the word, e.g. /si why Kaldrok.", "GameFontHighlightSmall", 840)
+    local function Target() local t = boxes.testtarget:GetText():gsub("^%s+", ""):gsub("%s+$", "") return t end
+    y = TOP
+    Header(C1, y, "Run") y = y - 28
+    -- each toggle runs the command, which does more than flip a value (stop also closes the list;
+    -- selling also brings back the auto-invite words; test mode takes whoever is in the box)
+    local function RunToggle(key, text, on, off)
+        local cb = Toggle(key, C1, y, text)
+        cb:HookScript("OnClick", function(self) Run(self:GetChecked() and on() or off()) end)
+        w.tools[text] = cb
+        y = y - ROW
+        return cb
+    end
+    RunToggle("running", "Running", function() return "start" end, function() return "stop" end)
+    RunToggle("selling", "Selling", function() return "on" end, function() return "off" end)
+    RunToggle("dryrun", "Test mode", function() local t = Target() return t ~= "" and ("test " .. t) or "test" end, function() return "test off" end)
+    Toggle("near", C1, y, "Near-miss lines") y = y - ROW
+    Toggle("debug", C1, y, "Debug") y = y - ROW
+    Label(C1, y - 6, "Test whispers to")
+    local tt = Box("testtarget", C1 + 140, y, CW - 174, 40, "You")
+    Pick(tt, false, "Test whispers go to")
+    y = y - ROW - 12
+    Header(C1, y, "Session") y = y - 28
+    w.sessTiles = {}
+    for i, lbl in ipairs({ "Collected", "Expected", "Collected %" }) do
+        local tx = C1 + (i - 1) * 118
+        local tile = Fill(page, INK.panel, "BACKGROUND", -4) tile:SetPoint("TOPLEFT", tx, y) tile:SetSize(110, 56)
+        local l = Text(page, 11, INK.muted) l:SetPoint("TOPLEFT", tx + 12, y - 10) l:SetText(lbl:upper())
+        local v = Text(page, 17, INK.text) v:SetPoint("TOPLEFT", tx + 12, y - 28)
+        w.sessTiles[i] = v
+    end
+    w.sessText = w.sessTiles[1]
+    y = y - 66
+    Tool(C1, y, 124, "New session", "session new")
+    Tool(C1 + 130, y, 90, "Self-test", "selftest")
+    Tool(C1 + 226, y, 122, "Team messages", "teamlog")
+
+    y = TOP
+    Header(C2, y, "Someone by name") y = y - 28
+    local tn = Box("toolname", C2, y, CW - 34, 40, "Name")
+    Pick(tn, false, "Someone by name")
+    y = y - ROW - 4
+    Tool(C2, y, 171, "Why", Named("why")) Tool(C2 + 177, y, 171, "History", Named("customers")) y = y - 38
+    Tool(C2, y, 171, "Didn't pay", Named("scam"), "danger") Tool(C2 + 177, y, 171, "Paid after all", Named("unscam")) y = y - 38
+    Tool(C2, y, 171, "Add to team", Named("team add")) Tool(C2 + 177, y, 171, "Remove from team", Named("team remove")) y = y - 38 - 12
+    Header(C2, y, "Lists") y = y - 28
+    Tool(C2, y, 171, "Open lists", "lists")
+    local test = FlatButton(page, 171, 32, "plain", 13)
+    test:SetPoint("TOPLEFT", C2 + 177, y) test:SetText("Test banner")
+    test:SetScript("OnClick", function() ShowAlert("CLICK PORTAL", "Testy  »  Thunder Bluff  ·  Pay you", "TEST · SUMMONING") end)
+    y = y - 44
+    Label(C2, y, "Every button is also /si and the word.", "GameFontHighlightSmall", CW)
 
     local DEFAULTS_BY_KEY = {
-        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
+        welcomemsg = "", offermsg = "", paymsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
     }
 
     local function Refresh()
@@ -4642,18 +4887,32 @@ local function BuildSetupUI()
             end
             parts[#parts + 1] = what .. " (" .. MemberName(it.provider) .. ")"
         end
-        w.onsale:SetText(#parts > 0 and table.concat(parts, ", ") or "Nothing. Nobody in the group can do what's ticked on the class tabs.")
-        local locks = {}
-        for _, m in ipairs(Core.Providers(GroupSnapshot(), "summons")) do
-            locks[#locks + 1] = Colored(m.me and "You" or m.name, m.class) .. ": " .. (m.zone or "where? (the game didn't say)")
+        w.onsale:SetText(#parts > 0 and table.concat(parts, ", ") or ("|cff" .. INK.faint .. "Nothing: nobody in the group can do what's on|r"))
+        -- the warlock cards
+        local locks = Core.Providers(GroupSnapshot(), "summons")
+        for i, c in ipairs(w.lockCards) do
+            local m = locks[i]
+            for _, part in ipairs(c) do if m then part:Show() else part:Hide() end end
+            if m then
+                c[2]:SetText(Colored(m.me and "You" or m.name, m.class))
+                c[3]:SetText(m.zone and ("» " .. m.zone) or ("|cff" .. INK.warn .. "city unknown, not inviting|r"))
+            end
         end
-        w.locks:SetText(#locks > 0 and table.concat(locks, "\n") or "No warlock in the group who can summon.")
+        w.locks:SetText(#locks == 0 and "No warlock in the group who can summon." or (#locks > #w.lockCards and ("+" .. (#locks - #w.lockCards) .. " more") or ""))
         local text, why = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
-        w.adpreview:SetText(text or ("(no ad: " .. tostring(why) .. ")"))
+        local chName = Jobs.AdChannelName and Jobs.AdChannelName() or "Trade"
+        w.adpreview:SetText(text and ("[" .. chName .. "] " .. FullName("player") .. ": " .. text) or ("|cff" .. INK.faint .. "no ad: " .. tostring(why) .. "|r"))
+        local ci = ChatTypeInfo and ChatTypeInfo.CHANNEL
+        if ci and ci.r then w.adpreview:SetTextColor(ci.r, ci.g, ci.b) end
         local label, ready = AdLabel()
         w.adpost:SetText(label)
         if ready then w.adpost:Enable() else w.adpost:Disable() end
-        sessText:SetText(SessionText())
+        if w.adpost.SetAlpha then w.adpost:SetAlpha(ready and 1 or 0.55) end
+        local st = Stats()
+        w.sessTiles[1]:SetText(Jobs.MoneyShort(st.silver or 0))
+        w.sessTiles[2]:SetText(Jobs.MoneyShort(st.ev or 0))
+        w.sessTiles[3]:SetText(((st.ev or 0) > 0 and math.floor((st.silver or 0) * 100 / st.ev + 0.5) or 0) .. "%")
+        w.showAdKey() w.showBuffKey()
     end
     w.Refresh = Refresh
 
@@ -4682,6 +4941,8 @@ local function BuildSetupUI()
         checks.rolehelper:SetChecked(Role() == "helper")
         checks.rolelock:SetChecked(Role() == "lock")
         checks.dryrun:SetChecked(db.dryrun and true or false)
+        checks.running:SetChecked(not db.stasis)
+        checks.selling:SetChecked(Opt("enabled") and true or false)
         checks.near:SetChecked(db.near ~= false)
         checks.debug:SetChecked(db.debug and true or false)
         -- who gets paid by default
@@ -4704,9 +4965,14 @@ local function BuildSetupUI()
                 boxes[k .. "g"]:SetText("") boxes[k .. "s"]:SetText("")
             end
             if boxes[k .. "words"] then boxes[k .. "words"]:SetText(st.words or "") boxes[k .. "words"]:SetCursorPosition(0) end
-            boxes[k .. "payee"]:SetText(st.payee or "")
+            -- Default (blank) / Doer / Me, or a name in the box
+            local pv = st.payee or ""
+            local seg = (pv == "" and "default") or ((pv == "provider" or pv == "place" or pv == "notme") and "doer") or (pv == "me" and "me") or nil
+            boxes[k .. "payee"]:SetText(seg and "" or pv)
+            for _, s2 in ipairs({ "default", "doer", "me" }) do checks[k .. "pd_" .. s2]:SetChecked(seg == s2) end
         end
-        boxes.blessing_spell:SetText(Core.Setting(db, "blessing").spell or "")
+        local spell = Core.Setting(db, "blessing").spell or "Blessing of Might"
+        for _, c in ipairs(radios.bspell) do c:SetChecked(spell:lower():find(c:GetText():lower(), 1, true) ~= nil) end
         local sm = (type(db.services) == "table" and db.services.summons) or {}
         local mode = Jobs.PriceMode(sm)
         checks.pm_undercut:SetChecked(mode == "undercut") checks.pm_match:SetChecked(mode == "match") checks.pm_ignore:SetChecked(mode == "ignore")
@@ -4731,6 +4997,7 @@ local function BuildSetupUI()
             ("Online: " .. (#online > 0 and table.concat(online, ", ") or "nobody yet") .. ".  Point of contact now: " .. (poc or "nobody (each works solo)") .. "."))
         w.teamBooks:SetText(Jobs.BooksLine())
         SyncTradeBox()
+        for _, b in pairs(boxes) do if b.SyncPlaceholder then b.SyncPlaceholder() end end
         Refresh()
     end
 
@@ -4771,7 +5038,9 @@ local function BuildSetupUI()
             saved.invite = checks[k .. "invite"]:GetChecked() and true or false
             saved.price = (g or sv) and ((g or 0) * 100 + (sv or 0)) or false
             if boxes[k .. "words"] then saved.words = boxes[k .. "words"]:GetText() end
-            saved.payee = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
+            local typed = (boxes[k .. "payee"]:GetText():gsub("^%s+", ""):gsub("%s+$", ""))
+            saved.payee = (typed ~= "" and typed) or (checks[k .. "pd_doer"]:GetChecked() and "provider") or
+                (checks[k .. "pd_me"]:GetChecked() and "me") or ""
             db.services[def.key] = saved
         end
         local sm = db.services.summons
@@ -4779,8 +5048,9 @@ local function BuildSetupUI()
         sm.match = nil
         sm.undercut = tonumber(boxes.undercut:GetText()) or 5
         sm.floor = tonumber(boxes.floor:GetText())   -- blank = no floor = it never moves
-        local bs = boxes.blessing_spell:GetText():gsub("^%s+", ""):gsub("%s+$", "")
-        db.services.blessing.spell = (bs ~= "") and bs or nil
+        local bs
+        for _, c in ipairs(radios.bspell) do if c:GetChecked() then bs = "Blessing of " .. c:GetText() end end
+        db.services.blessing.spell = bs
         db.providers = {}
         local t = boxes.prov_WARLOCK:GetText():gsub("^[%s,]+", ""):gsub("[%s,]+$", "")
         db.providers.WARLOCK = (t ~= "") and t or nil
@@ -4813,17 +5083,15 @@ local function BuildSetupUI()
         RefreshJobs()
     end
 
-    local save = FlatButton(w, 120, 34, "gold", 15)
-    save:SetPoint("BOTTOMLEFT", RAIL + 28, 20) save:SetText("Save")
+    -- the footer: Preview (what this tab's messages look like, in your chat only) and Save
+    local save = FlatButton(w, 120, 34, "gold", 14)
+    save:SetPoint("BOTTOMRIGHT", -28, 15) save:SetText("Save")
     save:SetScript("OnClick", function() w.Save() w.Load() P("setup saved") end)
-    -- Preview: what this tab's messages look like, in your chat only (sends nothing)
-    local prev = FlatButton(w, 180, 34, "plain", 14)
-    prev:SetPoint("BOTTOMLEFT", RAIL + 160, 20) prev:SetText("Preview this tab")
+    local prev = FlatButton(w, 104, 34, "plain", 13)
+    prev:SetPoint("BOTTOMLEFT", RAIL + 28, 15) prev:SetText("Preview")
     prev:SetScript("OnClick", function() w.Save() w.Load() PrintPreview(TABS[w.tab or 1]) end)
+    Jobs.Tip(prev, "What this tab's messages look like, in your chat only")
     w.preview = prev
-    local test = FlatButton(w, 140, 34, "plain", 14)
-    test:SetPoint("BOTTOMLEFT", RAIL + 352, 20) test:SetText("Test banner")
-    test:SetScript("OnClick", function() ShowAlert("CLICK THE PORTAL", "Summoning Testy to Thunder Bluff. Pay: you.", "TEST: RITUAL OF SUMMONING STARTED") end)
 
     -- shrink to fit small screens so nothing runs off
     local function Fit()
@@ -5184,6 +5452,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         P("shards: " .. have .. (own and typed and (" (" .. own .. " yours, " .. typed .. " typed)") or "") ..
             ", " .. Jobs.Queued() .. " summons queued, " .. math.max(0, Jobs.ShardsLeft()) .. " left")
         RefreshJobs()
+    elseif cmd == "lists" then
+        Jobs.Lists(rest ~= "" and rest or nil)
     elseif cmd == "teamlog" or cmd == "log" then
         Jobs.Copy("Team messages", Jobs.PrintTeamLog)
     elseif cmd == "stats" or cmd == "analytics" then
@@ -5200,7 +5470,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         else P("role is " .. Role() .. ". Use /si role helper  or  /si role lock") end
         RefreshJobs()
     elseif cmd == "alert" then
-        ShowAlert("CLICK THE PORTAL", "Summoning Testy to Thunder Bluff. Pay: you.", "TEST: RITUAL OF SUMMONING STARTED")
+        ShowAlert("CLICK PORTAL", "Testy  »  Thunder Bluff  ·  Pay you", "TEST · SUMMONING")
     elseif cmd == "whispertest" then
         local to = WhisperTo()
         if not to then P("no whisper recipient set (/si whisper <name>)") return end

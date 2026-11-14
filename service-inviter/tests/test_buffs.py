@@ -217,7 +217,8 @@ def test_the_buff_pops_up_at_the_mouse_with_a_sound_and_casts_on_click():
               extra=SPELLS + " function GetSpellTexture(s) if s == 'Blessing of Might' then return 'Interface/Might' end end SOUNDS = {} function PlaySound(s) SOUNDS[#SOUNDS + 1] = s end function GetCursorPosition() return 500, 300 end")
     g.event("CHAT_MSG_PARTY", "might pls", "Grimtotem", "", "", "", "", "", "", "")
     assert g.eval("ServiceInviterBuffPop:IsShown()")
-    assert g.eval("ServiceInviterBuffPop.label:GetText()") == "Might -> Grimtotem"
+    # the spell big, who for under it (the 2026 pop-up)
+    assert (g.eval("ServiceInviterBuffPop.spell:GetText()"), g.eval("ServiceInviterBuffPop.label:GetText()")) == ("Might", "Grimtotem")
     assert g.eval('ServiceInviterBuffPop:GetAttribute("macrotext")') == raw_macro(g)
     assert len(g.g.SOUNDS) == 1
     assert g.eval("ServiceInviterBuffPop.icon._tex") == "Interface/Might"     # the buff's own icon
@@ -315,7 +316,7 @@ def test_the_pop_waits_until_they_are_in_range():
     assert label(g).endswith("(not in range yet)")
     g.run("NEAR.Grimtotem = true CLOCK = CLOCK + 1 ServiceInviter_Test.Tick(1)")
     assert g.eval("ServiceInviterBuffPop:IsShown()")
-    assert g.eval("ServiceInviterBuffPop.label:GetText()") == "Kings -> Grimtotem"
+    assert (g.eval("ServiceInviterBuffPop.spell:GetText()"), g.eval("ServiceInviterBuffPop.label:GetText()")) == ("Kings", "Grimtotem")
 
 
 def test_someone_in_range_goes_first():

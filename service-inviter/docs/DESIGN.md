@@ -330,3 +330,23 @@ either of us can mark someone as a scammer - like the queue knows."* `tests/test
   there. Nothing is said about paying once they've paid or when it's free.
 - **Didn't pay** reaches the team at once (the mark says hello, teammates ask for the change), and
   a teammate's copy flips that customer's row to Didn't pay.
+
+## 3.5: the 2026 redesign (14 Nov 2026)
+
+From a designer's handoff, reviewed against the code first (the review is kept with the handoff;
+its verdicts are what was built). Dark, flat, one gold accent; the game's fonts and spell icons,
+nothing shipped.
+
+- **Customer window:** fixed 600 x 614, never resized, so nothing moves in a fight. A cast strip
+  with the next step as a verb (INVITE / SUMMON / OFFER / TRADE + who; a helper sees NEXT UP, not
+  a button) and, for a paladin, the blessing button. Six fixed rows (no scrolling: each row's
+  buttons are secure macros that can't be rebound in combat), each with a status bar and pill for
+  all twelve statuses, one meta line (» city · who), the regular's count, two action slots and x.
+  "+N more not shown" when there are more.
+- **Setup:** 960 x 780, a rail, two columns of rows. Toggles for on/off, segments for a pick-one
+  (Paid: Doer / Me / Name; on a service Default / Doer / Me or a typed name; I summon / Friend
+  summons; Ignore / Match / Undercut; the team's Whisper / Party / Off matrix), chips that insert a
+  {token}, placeholders that say what blank means. Count shards stays one setting. Running,
+  Selling and Test mode on Tools run their /si commands. The arrival pay reminder has a box.
+- **Pop-ups:** the banner reads SUMMONING / CLICK PORTAL / who » where · pay whom, with a TEST chip;
+  the blessing pop-up is a 224 x 68 card; Lists opens one copy window with the eight lists as tabs.

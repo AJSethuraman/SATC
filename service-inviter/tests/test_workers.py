@@ -104,15 +104,18 @@ def test_the_tools_tab_runs_the_commands():
     """The owner, 14 Nov 2026: "i want the addon to have a debug panel/command panel or something -
     there are too many to remember"."""
     g = world(LOCK)
+    # the on/off pairs became toggles in the 2026 redesign; each still runs the command
+    def flip(name, on):
+        g.run(f'local t = S.tools["{name}"] t:SetChecked({"true" if on else "false"}) t._scripts.OnClick(t)')
     g.run('''S = ServiceInviter_Test.BuildSetup() S:Show() S.Load()
-        ServiceInviter_Test.SetupBoxes().testtarget:SetText("Main Character")
-        S.tools["Test mode on"]._scripts.OnClick()''')
+        ServiceInviter_Test.SetupBoxes().testtarget:SetText("Main Character")''')
+    flip("Test mode", True)
     assert g.eval("ServiceInviterDB.dryrun") is True and g.eval("ServiceInviterDB.testto") == "Main Character"
-    g.run('S.tools["Test mode off"]._scripts.OnClick()')
+    flip("Test mode", False)
     assert not g.eval("ServiceInviterDB.dryrun")
     g.run('ServiceInviter_Test.SetupBoxes().toolname:SetText("Momma Lovesme") S.tools["Didn\'t pay"]._scripts.OnClick()')
     assert g.eval('ServiceInviterDB.scammers["Momma Lovesme"].n') == 1
-    g.run('S.tools["Stop everything"]._scripts.OnClick()')
+    flip("Running", False)
     assert g.eval("ServiceInviterDB.stasis") is True
-    g.run('S.tools["Start again"]._scripts.OnClick()')
+    flip("Running", True)
     assert not g.eval("ServiceInviterDB.stasis")
