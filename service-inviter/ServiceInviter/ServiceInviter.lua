@@ -1,4 +1,4 @@
--- Service Inviter v2.10.0
+-- Service Inviter v2.11.0
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -121,7 +121,8 @@ local lastInvite = {}
 local diag = { casts = {} }   -- what we last heard / saw, for /si status
 local paused = false   -- true while the old Trade Inviter is also loaded (avoids double invites)
 local pending = {}   -- invited players we are waiting to see join
-local MSG = {}   -- the default text of every message you can change
+local MSG = {}
+MSG.SCAM = "Heads up: {name} didn't pay last time."   -- the default text of every message you can change
 MSG.WELCOME = "WELCOME {name}! THE COST IS {price}. SUMMONING YOU SOON, I WILL TRADE YOU ON ARRIVAL!"
 local fragments = {}
 local inviteTimes = {}
@@ -442,6 +443,20 @@ end
 -- Is this name in the group? Two-part Forever names ("Yeet Lock") may not resolve through
 -- UnitInParty/UnitInRaid, so the group itself is checked too; returns the name as the group
 -- spells it. The owner, 14 Nov 2026: "all things must keep 2 part names in mind".
+-- Non-payers (the owner, 14 Nov 2026: "add a scam button rather than paid to record them as
+-- prior scammers and publicly say it when they join"). Kept with the saved settings.
+function Jobs.Scammer(name)
+    local t = ServiceInviterDB.scammers
+    if type(t) ~= "table" or type(name) ~= "string" then return nil end
+    for k, v in pairs(t) do if k:lower() == name:lower() then return v, k end end
+    return nil
+end
+function Jobs.ScamLine(name)
+    local m = ServiceInviterDB.scammsg
+    if m == nil then m = MSG.SCAM end
+    if m == "" then return nil end
+    return (m:gsub("{name}", function() return name end))
+end
 function Jobs.InGroup(name)
     if type(name) ~= "string" or name == "" then return false end
     for _, m in ipairs(GroupSnapshot()) do
@@ -565,6 +580,7 @@ local JOB_STATUS = {
     declined  = { "Declined",  "|cffff8080" },
     noanswer  = { "No answer", "|cffa89c78" },
     left      = { "Left",      "|cffa89c78" },
+    scammed   = { "Didn't pay", "|cffff8080" },
 }
 local MAX_JOBS = 30
 local INVITE_TIMEOUT = 120
@@ -1007,6 +1023,10 @@ local function Handle(text, sender, guid)
     if Opt("skipafk") and UnitIsAFK and UnitIsAFK("player") then D("skip: you are AFK (see 'Skip while I'm AFK')") return end
     local short = Ambiguate and Ambiguate(sender, "none") or sender
     if Jobs.IsWorker(short) then D("skip: " .. short .. " is one of your workers") return end
+    if Jobs.Scammer(short) then
+        if not Jobs.Get(short) then P("|cffff8080skipped|r " .. short .. ": didn't pay last time (/si unscam " .. short .. " to clear)") end
+        return
+    end
     if short == FullName("player") then return end
     if Jobs.InGroup(short) then D(short .. ": already in your group") return end
     if IsBlocked(short, guid) then D(short .. ": blocked/ignored") return end
@@ -1238,6 +1258,13 @@ local function OnSystem(text)
     if not who then return end
     local short = nm(who)
     if Jobs.IsWorker(short) then pending[short] = nil return end   -- one of yours: nothing to do
+    if Jobs.Scammer(short) then
+        pending[short] = nil
+        local line = Jobs.ScamLine(short)
+        if line then SendChatMessage(line, (IsInRaid and IsInRaid()) and "RAID" or "PARTY") end
+        P("|cffff8080" .. short .. " didn't pay last time.|r")
+        return
+    end
     -- Someone joined who nobody here invited (a friend invited them): give them a row too.
     if not Jobs.Get(short) and short ~= FullName("player") then
         Jobs.New(short, "(joined your group)", "invited by someone else", "-")
@@ -1784,7 +1811,7 @@ INK.PILL = {   -- status -> fill, text
     asked = { "3d3414", "f5df8a" }, invited = { "3d3414", "f5df8a" }, joined = { "1f3a26", "9be3ad" }, summoned = { "1d3144", "9fd0ff" },
     arrived = { "143a3f", "8fe3ea" }, paid = { "2b3216", "cfe59a" }, done = { "2b3216", "cfe59a" },
     busy = { "4a2c12", "ffc58a" }, declined = { "4a1a1a", "ffa5a5" }, noanswer = { "2e2a22", "c9c0a8" },
-    left = { "2e2a22", "c9c0a8" },
+    left = { "2e2a22", "c9c0a8" }, scammed = { "4a1a1a", "ffa5a5" },
 }
 local function RGB(hex)
     hex = tostring(hex):gsub("^ff", "", 1)
@@ -2470,6 +2497,21 @@ local function FinishJob(name)
     Jobs.Set(name, JobPrice(j) and "paid" or "done")
     RemoveFromGroup(name)
 end
+-- Scam: they didn't pay. On the list, out of the group (the button's /uninvite), no thanks.
+function Jobs.Scam(name)
+    local j = Jobs.Get(name)
+    ServiceInviterDB.scammers = type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}
+    local _, key = Jobs.Scammer(name)
+    key = key or name
+    local e = ServiceInviterDB.scammers[key] or { n = 0, owed = 0 }
+    e.n = e.n + 1
+    e.owed = (e.owed or 0) + ((j and JobPrice(j)) or 0)
+    e.last = Now()
+    ServiceInviterDB.scammers[key] = e
+    if j then Jobs.Set(name, "scammed") end
+    P("|cffff8080" .. name .. " recorded as not paying|r (" .. e.n .. (e.n == 1 and " time" or " times") .. "). Called out if they join again; never invited.")
+    RemoveFromGroup(name)
+end
 -- The /uninvite a row's Paid and x buttons run: only when you may, and only for someone in the group.
 local function KickMacro(job)
     if not (job and Jobs.CanRemove() and InGroupByName(job.name)) then return "" end
@@ -2506,7 +2548,7 @@ end
 
 local function ApplyRow(row, job)
     row.job = job
-    row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide()
+    row.summon:Hide() row.offer:Hide() row.trade:Hide() row.paid:Hide() row.remove:Hide() row.reinvite:Hide() row.scam:Hide()
     if not job then
         for _, t in ipairs(row.paint) do t:Hide() end
         row.name:SetText("") row.status:SetText("") row.where:SetText("") row.service:SetText("") row.age:SetText("") row.note:SetText("")
@@ -2535,6 +2577,7 @@ local function ApplyRow(row, job)
     row.summon:SetAttribute("macrotext", "/target " .. n .. "\n/cast Ritual of Summoning")
     row.trade:SetAttribute("macrotext", "/target " .. n .. "\n/run InitiateTrade(\"target\")")
     row.paid:SetAttribute("macrotext", KickMacro(job))
+    row.scam:SetAttribute("macrotext", KickMacro(job))
     row.remove:SetAttribute("macrotext", KickMacro(job))
     local step = NextStep(job)
     local lock = Role() == "lock"
@@ -2562,6 +2605,7 @@ local function ApplyRow(row, job)
         row.paid:Show()
     end
     row.paid:SetText(JobPrice(job) and "Paid" or "Done")
+    if row.paid:IsShown() and JobPrice(job) then row.scam:Show() end
     row.remove:Show()
 end
 
@@ -2805,12 +2849,19 @@ local function BuildJobsUI()
 
         -- Paid and x run the game's /uninvite (set in ApplyRow), so the removal is yours, not
         -- the addon's, and the game doesn't block it
-        row.paid = FlatButton(w, 56, 36, "plain", 14, true)
-        row.paid:SetPoint("TOPLEFT", AX + 88, AY) row.paid:SetText("Paid")
+        row.paid = FlatButton(w, 56, 30, "plain", 14, true)
+        row.paid:SetPoint("TOPLEFT", AX + 88, y - 8) row.paid:SetText("Paid")
         row.paid:RegisterForClicks("AnyUp", "AnyDown")
         row.paid:SetAttribute("type", "macro")
         row.paid:HookScript("PreClick", function() if row.job then Thank(row.job) end end)
         row.paid:HookScript("PostClick", function() if row.job then FinishJob(row.job.name) RefreshJobs() end end)
+
+        -- Scam, under Paid: they didn't pay (on the list, out of the group, no thanks)
+        row.scam = FlatButton(w, 56, 30, "plain", 13, true)
+        row.scam:SetPoint("TOPLEFT", AX + 88, y - 42) row.scam:SetText("Scam")
+        row.scam:RegisterForClicks("AnyUp", "AnyDown")
+        row.scam:SetAttribute("type", "macro")
+        row.scam:HookScript("PostClick", function() if row.job then Jobs.Scam(row.job.name) RefreshJobs() end end)
 
         row.remove = FlatButton(w, 28, 36, "bare", 14, true)
         row.remove:SetPoint("TOPLEFT", AX + 148, AY) row.remove:SetText("x")
@@ -3159,10 +3210,12 @@ local function BuildSetupUI()
     w.onsale = Label(L, -388, "", "GameFontHighlight", 410)
     -- our workers, like "Our warlocks" (the owner, 13 Nov 2026: "i want it more like it is in the
     -- lock tab where i can say these are our locks")
-    Header(L, -490, "Our workers")
-    Label(L, -516, "Here to click. Never a customer: no row, no welcome, never invited.", "GameFontHighlightSmall", 410)
-    local wb = Box("workers", L + 4, -536, 330, 400)
+    Header(L, -450, "Our workers")
+    Label(L, -476, "Here to click. Never a customer: no row, no welcome, never invited.", "GameFontHighlightSmall", 410)
+    local wb = Box("workers", L + 4, -496, 330, 400)
     PickButton(page, wb, false, "Our workers (from your group)", "workers")
+    Label(L, -534, "When someone who didn't pay joins, say ({name}, empty = off):")
+    Box("scammsg", L + 4, -556, 396)
 
     Header(R, -50, "Who gets paid (default)")
     local function SyncTradeBox()
@@ -3282,7 +3335,7 @@ local function BuildSetupUI()
     Label(L + 236, -290, "Bind a key so you don't need this window: /si bind ad F7", "GameFontHighlightSmall")
 
     local DEFAULTS_BY_KEY = {
-        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
+        welcomemsg = "", offermsg = "", thanksmsg = MSG.THANKS, loyaltymsg = MSG.LOYALTY, scammsg = MSG.SCAM, alertmsg = MSG.ALERTMSG, whispermsg = MSG.WHISPERMSG, admsg = MSG.AD,
     }
 
     local function Refresh()
@@ -3378,7 +3431,7 @@ local function BuildSetupUI()
         local db = ServiceInviterDB
         for key, def in pairs(DEFAULTS_BY_KEY) do
             local v = boxes[key]:GetText()
-            if key == "loyaltymsg" and v == "" then db[key] = ""            -- empty = off
+            if (key == "loyaltymsg" or key == "scammsg") and v == "" then db[key] = ""   -- empty = off
             elseif v == "" or v == def then db[key] = nil else db[key] = v end
         end
         local who = (boxes.whisperto:GetText():gsub("%s+", ""))
@@ -3686,6 +3739,19 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         table.sort(list)
         P("workers: " .. (#list > 0 and table.concat(list, ", ") or "none") .. "   (/si worker NAME or your target, /si workers group, /si workers clear)")
         RefreshJobs()
+    elseif cmd == "scammers" or cmd == "scams" then
+        Jobs.Copy("Didn't pay", function()
+            local list = {}
+            for k, v in pairs(type(ServiceInviterDB.scammers) == "table" and ServiceInviterDB.scammers or {}) do list[#list + 1] = { k, v } end
+            table.sort(list, function(a, b) return (a[2].last or 0) > (b[2].last or 0) end)
+            if #list == 0 then P("nobody on the list") return end
+            for _, e in ipairs(list) do
+                P(e[1] .. ": " .. e[2].n .. (e[2].n == 1 and " time" or " times") .. ", owed " .. Money(e[2].owed or 0) .. ", last " .. Jobs.When(e[2].last))
+            end
+        end)
+    elseif cmd == "unscam" then
+        local _, key = Jobs.Scammer(rest)
+        if key then ServiceInviterDB.scammers[key] = nil P(key .. " is off the didn't-pay list") else P("nobody called " .. rest .. " on the list") end
     elseif cmd == "shards" then
         local r = rest:lower()
         if r == "off" then ServiceInviterDB.shards = nil
@@ -3766,7 +3832,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         ServiceInviterDB = {}
         P("settings reset")
     else
-        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
+        P("/si = customers | /si setup = every message and option | /si session = earnings | /si customers = your regulars (/si customers all, /si customers NAME) | /si stats = where, what, when | /si shards 20 = other warlocks' shards | /si worker NAME = one of yours, not a customer | /si workers group | /si scammers = didn't pay, /si unscam NAME | /si stop = stasis, /si start | /si preview | /si status = what it hears | /si simcast = test the alert | /si session new | /si collect = who takes the money | /si on | /si off | /si selftest")
     end
 end
 
