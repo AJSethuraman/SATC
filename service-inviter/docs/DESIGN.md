@@ -497,3 +497,11 @@ from quickly"*. Every channel name is a colored tag, `[Trade - English 40]`, its
 the order channels are first seen, so the first eight are all different. The price is colored by
 what set it: green moved for a rival, white your max, orange held at your min, red channel unknown.
 Teammates' names are light blue. No channel gets red or green, which mean wrong and working.
+
+## 3.9.16: invite words are for whispers only (15 Nov 2026)
+
+The owner, of "invited Necrotic Paladin keyword 'inv' [Trade (Services) - English 50]": *"ok no
+auto invite is meant to be via whispers only"*. The word list (General, now "Whisper words")
+invites only from a whisper; in a public channel "inv" never does, whatever the old Auto-invite
+switch said. That switch is gone. A buyer's message in a channel ("wtb summon tb") still invites as
+before.

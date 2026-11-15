@@ -121,11 +121,21 @@ def test_the_header_does_not_claim_it_never_chats():
 def test_keyword_invites_still_skip_guild_and_tip_lines(game):
     """'guild' left the hard seller list; the short 'inv' keyword path must not start inviting 'guild inv'."""
     game.run('SetOpt = nil ServiceInviterDB.opts = { kwon = true }')
-    game.event("CHAT_MSG_CHANNEL", "guild inv", "Randy", "", "2. Trade - City", "", "", "", "", "Trade")
-    game.event("CHAT_MSG_CHANNEL", "inv pls", "Wanda", "", "2. Trade - City", "", "", "", "", "Trade")
+    game.event("CHAT_MSG_WHISPER", "guild inv", "Randy", "", "", "", "", "", "", "")
+    game.event("CHAT_MSG_WHISPER", "inv pls", "Wanda", "", "", "", "", "", "", "")
     invited = list(game.g.INVITED.values())
     assert "Randy" not in invited
     assert "Wanda" in invited   # control: the keyword path still works
+
+
+def test_inv_in_a_public_channel_never_invites(game):
+    """The owner, 15 Nov 2026: "ok no auto invite is meant to be via whispers only", of
+    "invited Necrotic Paladin keyword 'inv' [Trade (Services) - English 50]"."""
+    game.run('SetOpt = nil ServiceInviterDB.opts = { kwon = true }')
+    game.event("CHAT_MSG_CHANNEL", "inv", "Necrotic Paladin", "", "2. Trade (Services) - English 50", "", "", "", "",
+               "Trade (Services) - English 50")
+    game.event("CHAT_MSG_CHANNEL", "inv pls", "Wanda", "", "2. Trade - City", "", "", "", "", "Trade")
+    assert list(game.g.INVITED.values()) == []
 
 
 def test_the_list_keeps_the_longest_waiting_customers_on_screen(game):

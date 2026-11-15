@@ -1,4 +1,4 @@
--- Service Inviter v3.9.15
+-- Service Inviter v3.9.16
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1375,10 +1375,10 @@ MSG.KEYWORDS = "inv, invite"
 local lastAdAt                 -- when you last posted an ad (see Advertise)
 local AD_ANSWER_WINDOW = 600   -- a whispered "inv" within 10 minutes of your ad answers it
 local function KeywordHit(text, whisper, force)
-    -- a whisper to you saying just "inv" always counts (the owner, 15 Nov 2026: "when someone
-    -- whispers inv can it just auto invite no ask for confirmation"); in public channels only with
-    -- Auto-invite on
-    if not (Opt("kwon") or force or whisper) or type(text) ~= "string" or #text > 30 then return nil end
+    -- whispers only (the owner, 15 Nov 2026: "ok no auto invite is meant to be via whispers only",
+    -- after "inv" in Trade invited someone); a whisper saying just "inv" always counts ("when
+    -- someone whispers inv can it just auto invite no ask for confirmation")
+    if not whisper or type(text) ~= "string" or #text > 30 then return nil end
     local norm = Norm(text)
     local count = 0
     for _ in norm:gmatch("%S+") do count = count + 1 end
@@ -5482,8 +5482,8 @@ local function BuildSetupUI()
     -- how soon the same buyer can be invited again, in seconds (the owner, 14 Nov 2026)
     Label(C1, y - 6, "Re-invite after") Box("cooldown", C1 + CW - 92, y, 56, 4, "180") Label(C1 + CW - 30, y - 7, "sec", "GameFontHighlightSmall") y = y - ROW
     Toggle("autoshow", C1, y, "Open list on invite", true) y = y - ROW
-    Label(C1, y - 6, "Auto-invite") Box("kwwords", C1 + 112, y, CW - 112 - 46, 60, "inv, invite")
-    Check("kwon", C1 + CW - 34, y - 6, nil, true) y = y - ROW - 12
+    -- these words in a whisper invite; in a public channel they never do
+    Label(C1, y - 6, "Whisper words") Box("kwwords", C1 + 112, y, CW - 112, 60, "inv, invite") y = y - ROW - 12
     Header(C1, y, "On sale") y = y - 28
     w.onsale = Label(C1, y - 4, "", nil, CW)
 
