@@ -489,3 +489,11 @@ The owner: *"when people leave put them at the bottom of the queue so the top is
 queue"*. The main window lists everyone in progress first (oldest first), then the finished ones,
 then whoever left (still there while they owe, so Scam stays a click away). With more than six,
 the ones that don't fit come off the bottom, so a leaver is hidden before anyone waiting.
+
+## 3.9.15: colors in the SI lines (15 Nov 2026)
+
+The owner: *"can you color code the SI log tab ... much easier to tell if i know which chat it came
+from quickly"*. Every channel name is a colored tag, `[Trade - English 40]`, its color handed out in
+the order channels are first seen, so the first eight are all different. The price is colored by
+what set it: green moved for a rival, white your max, orange held at your min, red channel unknown.
+Teammates' names are light blue. No channel gets red or green, which mean wrong and working.

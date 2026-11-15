@@ -52,6 +52,11 @@ class Game:
         p = self.g.PRINTED
         return [p[i] for i in range(1, len(p) + 1)]
 
+    def plain(self):
+        """What was printed, without the color codes."""
+        import re
+        return [re.sub(r"\|c[0-9a-fA-F]{8}|\|r", "", l) for l in self.printed()]
+
     def status(self, name):
         return self.eval(f'ServiceInviter_Test.Jobs.Get("{name}").status')
 

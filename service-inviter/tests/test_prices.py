@@ -17,7 +17,7 @@ def test_a_rival_ad_moves_our_price_under_theirs():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s pst")
     assert price(g) == 25
-    assert any("TB price in Trade - City now 25 silver" in p for p in g.printed())
+    assert any("TB price in [Trade - City] now 25 silver" in p for p in g.plain())
 
 
 def test_never_below_the_floor_and_never_above_our_own_price():
@@ -110,33 +110,51 @@ def test_the_invite_says_which_channel_and_why_that_price():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s pst")
     say_trade(g, "Kaldrok", "WTB summon to TB")
-    said = [p for p in g.printed() if "quoted" in p]
-    assert said and "25 silver in Trade - City: Rival sells at 30 silver" in said[-1] and "undercut by 5 silver" in said[-1]
+    said = [p for p in g.plain() if "quoted" in p]
+    assert said and "25 silver in [Trade - City]: Rival sells at 30 silver" in said[-1] and "undercut by 5 silver" in said[-1]
     g.run('SlashCmdList.SERVICEINVITER("why Kaldrok")')
-    assert any("quoted 25 silver in Trade - City" in p for p in g.printed())
+    assert any("quoted 25 silver in [Trade - City]" in p for p in g.plain())
 
 
 def test_the_same_city_in_another_trade_channel_is_your_max_and_says_so():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s pst")          # Trade - City
     g.event("CHAT_MSG_CHANNEL", "WTB summon to TB", "Kaldrok", "", "4. Trade - English 40", "", "", "", "", "Trade - English 40")
-    p = g.printed()
+    p = g.plain()
     assert any('because [Trade - English 40]' in l for l in p)
     q = [l for l in p if "quoted" in l][-1]
-    assert "35 silver in Trade - English 40: your max (no other seller for TB in this channel" in q
+    assert "35 silver in [Trade - English 40]: your max (no other seller for TB in this channel" in q
 
 
 def test_a_near_miss_says_the_channel_and_the_price_there():
     g = world(LOCK, MATCH)
     g.event("CHAT_MSG_CHANNEL", "WTB summon to TB 10s", "Cheapo", "", "4. Trade - English 40", "", "", "", "", "Trade - English 40")
-    p = g.printed()
+    p = g.plain()
     near = [l for l in p if "NEAR MISS" in l]
     assert near and "[Trade - English 40]" in near[-1]
-    assert any("price there: 35 silver in Trade - English 40: your max" in l for l in p)
+    assert any("price there: 35 silver in [Trade - English 40]: your max" in l for l in p)
 
 
 def test_held_at_the_min_says_so():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 15s")
     out = g.eval('ServiceInviter_Test.Jobs.PriceWhy("summons", "Thunder Bluff", "Trade - City")')
-    assert out.startswith("20 silver in Trade - City") and "held at your min 20 silver" in out
+    out = __import__("re").sub(r"\|c[0-9a-fA-F]{8}|\|r", "", out)
+    assert out.startswith("20 silver in [Trade - City]") and "held at your min 20 silver" in out
+
+
+def test_each_channel_has_its_own_color_and_the_price_color_says_what_set_it():
+    """The owner, 15 Nov 2026: "can you color code the SI log tab ... much easier to tell if i know
+    which chat it came from quickly"."""
+    g = world(LOCK, MATCH)
+    a = g.eval('ServiceInviter_Test.Jobs.ChanTag("Trade - English 2")')
+    b = g.eval('ServiceInviter_Test.Jobs.ChanTag("Trade - English 40")')
+    assert a[:10] != b[:10]                                             # different colors
+    assert a == g.eval('ServiceInviter_Test.Jobs.ChanTag("Trade - English 2")')   # the same every time
+    W = 'ServiceInviter_Test.Jobs.PriceWhy("summons", "Thunder Bluff", "Trade - City")'
+    assert g.eval(W).startswith("|cffffffff35 silver")                  # white: your max
+    say_trade(g, "Rival", "WTS summons to TB 30s pst")
+    assert g.eval(W).startswith("|cff40ff4025 silver")                  # green: moved for a rival
+    say_trade(g, "Rival", "WTS summons to TB 15s pst")
+    assert g.eval(W).startswith("|cffffa04020 silver")                  # orange: held at your min
+    assert g.eval('ServiceInviter_Test.Jobs.PriceWhy("summons", "Thunder Bluff", nil)').startswith("|cffff6060")   # red: no channel

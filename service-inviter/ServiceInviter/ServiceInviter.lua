@@ -1,4 +1,4 @@
--- Service Inviter v3.9.14
+-- Service Inviter v3.9.15
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -750,6 +750,26 @@ local function Price() return Core.Setting(ServiceInviterDB, "summons").price or
 -- match them, never below the min (floor) nor above the max. No min set: it never moves.
 Jobs.rivals = {}          -- [market][city][seller] = { price, t }
 Jobs.RIVAL_LASTS = 300
+-- A channel's name in its own color, the same every time, so "Trade - English 2" and "Trade -
+-- English 40" can be told apart at a glance (the owner, 15 Nov 2026: "much easier to tell if i know
+-- which chat it came from quickly"). No red or green: those mean wrong and working.
+-- Colors go out in the order channels are first seen this session, so the first eight are all
+-- different (the next ones go round again), ordered so neighbors don't look alike.
+Jobs.CHAN_COLORS = { "4fc3f7", "f48fb1", "ffd54f", "b39ddb", "aed581", "ffab91", "4db6ac", "e0e0e0" }
+Jobs.chanColor, Jobs.chanColors = {}, 0
+function Jobs.ChanTag(name)
+    name = tostring(name or "?")
+    local c = Jobs.chanColor[name]
+    if not c then
+        Jobs.chanColors = Jobs.chanColors + 1
+        c = Jobs.CHAN_COLORS[(Jobs.chanColors - 1) % #Jobs.CHAN_COLORS + 1]
+        Jobs.chanColor[name] = c
+    end
+    return "|cff" .. c .. "[" .. name .. "]|r"
+end
+-- the price, colored by what set it: green moved for a rival (dynamic pricing at work), white your
+-- max, orange held at your min, red something's off (channel unknown)
+Jobs.PRICE_COLORS = { rival = "40ff40", max = "ffffff", min = "ffa040", unknown = "ff6060", team = "8fbff0" }
 function Jobs.MarketOf(channelName)
     if type(channelName) ~= "string" or IsSecret(channelName) or channelName == "" then return nil end
     return (channelName:gsub("^%d+%.%s*", ""))
@@ -774,18 +794,19 @@ end
 -- from (Jobs.PriceWhy).
 Core.LivePrice = function(key, base, saved, where)
     local M = function(v) return Core.Money(v) or "free" end
-    Jobs.priceWhy = "your price"
+    Jobs.priceWhy, Jobs.priceKind = "your price", "max"
     if key ~= "summons" or not where then return base end
     local mode = Jobs.PriceMode(saved)
     if mode == "ignore" then Jobs.priceWhy = "your max (rival rule is Ignore)" return base end
     local floor = tonumber(saved.floor)
     if not floor then Jobs.priceWhy = "your max (no min set, so it never moves)" return base end
-    if not Jobs.priceMarket then Jobs.priceWhy = "your max (channel unknown, so no rival counted)" return base end
+    if not Jobs.priceMarket then Jobs.priceWhy, Jobs.priceKind = "your max (channel unknown, so no rival counted)", "unknown" return base end
     local r = Jobs.Rival(where)
     if not r then Jobs.priceWhy = "your max (no other seller for " .. Core.Short(where) .. " in this channel in the last 5 min)" return base end
     local cut = tonumber(saved.undercut) or 5
     local p = (mode == "match") and r.price or (r.price - cut)
     local out = math.max(floor, math.min(base, p))
+    Jobs.priceKind = (out == floor and p < floor) and "min" or ((out == base and p > base) and "max" or "rival")
     Jobs.priceWhy = r.who .. " sells at " .. M(r.price) .. ", " .. math.floor(GetTime() - r.t) .. "s ago; " ..
         ((mode == "match") and "match" or ("undercut by " .. M(cut))) ..
         ((out == floor and p < floor) and (", held at your min " .. M(floor)) or "") ..
@@ -802,8 +823,10 @@ function Jobs.PriceWhy(key, dest, market)
     local p = Core.Setting(ServiceInviterDB, key, dest).price
     Jobs.priceMarket = was
     local _, from = Jobs.TeamPrices(key)
-    return (Core.Money(p) or "free") .. " in " .. tostring(market or "?") .. ": " .. (Jobs.priceWhy or "your price") ..
-        (from and (" (max and min are " .. from .. "'s)") or "")
+    local kind = Jobs.priceWhy and (Jobs.priceKind or "max") or "max"
+    if not market then kind = "unknown" end
+    return "|cff" .. Jobs.PRICE_COLORS[kind] .. (Core.Money(p) or "free") .. "|r in " .. Jobs.ChanTag(market) ..
+        "|cffaaaaaa: " .. (Jobs.priceWhy or "your price") .. (from and (" (max and min are " .. from .. "'s)") or "") .. "|r"
 end
 -- A rival's ad: a seller word, a summon word, a price, and the cities it names. Not you, not
 -- anyone in your group, not your workers.
@@ -826,7 +849,8 @@ function Jobs.WatchRival(text, sender, market)
             Jobs.rivals[market][d.label][who] = { price = price, t = GetTime() }
             local now = Core.Setting(ServiceInviterDB, "summons", d.label).price
             if before ~= now then
-                P("|cffffd100" .. Core.Short(d.label) .. " price in " .. market .. " now " .. (Core.Money(now) or "free") .. "|r (" .. who .. " is selling at " .. (Core.Money(price) or "?") .. ")")
+                P("|cffffd100" .. Core.Short(d.label) .. " price in|r " .. Jobs.ChanTag(market) .. " |cffffd100now|r |cff" ..
+                    Jobs.PRICE_COLORS[Jobs.priceKind or "max"] .. (Core.Money(now) or "free") .. "|r (" .. who .. " is selling at " .. (Core.Money(price) or "?") .. ")")
             end
         end
     end
@@ -1397,7 +1421,8 @@ function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, a
     -- dynamic pricing put us at 35 but it still seemed to say 45 to people but it's hard to tell
     -- where they are coming from - could be like trade 2 or 40")
     if Jobs.handFrom then
-        job.priceWhy = (Core.Money(quote) or "free") .. " in " .. tostring(market or channel or "?") .. ": priced by " .. Jobs.handFrom .. "'s copy, which heard them"
+        job.priceWhy = "|cff" .. Jobs.PRICE_COLORS.team .. (Core.Money(quote) or "free") .. "|r in " .. Jobs.ChanTag(market or channel) ..
+            "|cffaaaaaa: priced by|r |cff" .. Jobs.PRICE_COLORS.team .. Jobs.handFrom .. "|r|cffaaaaaa's copy, which heard them|r"
     elseif svc then job.priceWhy = Jobs.PriceWhy(svc, dest, market) end
     if answered then job.fromAd = true Stats().answers = (Stats().answers or 0) + 1 end
     -- A whispered welcome goes with the invite, so they know the service and price before they
@@ -1410,13 +1435,13 @@ function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, a
     if Opt("announce") then
         local what = JobWhere(job)
         if what == "" then what = answered and "(answered your ad)" or why end
-        P("invited " .. short .. "  " .. what .. (market and ("  · " .. market .. ", " .. (Core.Money(quote) or "free")) or ""))
+        P("invited " .. short .. "  " .. what .. (market and ("  · " .. Jobs.ChanTag(market) .. " " .. (Core.Money(quote) or "free")) or ""))
         -- exactly why, always (the owner, 13 Nov 2026: "why is it no longer telling me exactly why
         -- people are invited? i want that")
-        P("|cff999999   because [" .. tostring(market or channel) .. "] \"" .. tostring(text) .. "\" = " .. tostring(why) .. "|r")
+        P("|cff999999   because|r " .. Jobs.ChanTag(market or channel) .. " |cff999999\"" .. tostring(text) .. "\" = " .. tostring(why) .. "|r")
     end
     if job.priceWhy then
-        P("|cff999999   quoted " .. job.priceWhy .. "|r")
+        P("|cff999999   quoted|r " .. job.priceWhy)
         if Jobs.whyNow then Jobs.whyNow.price = job.priceWhy end
     end
     if Jobs.TeamSay then Jobs.TeamSay("GOT", short, FullName("player") or "") end
@@ -1507,8 +1532,8 @@ local function Handle(text, sender, guid)
         and HasAny(norm, BUY) and (HasAny(norm, SUMMON_WORDS) or HasAny(norm, PORT_WORDS)) then
         Jobs.NearMiss(short, why, svc or "summons", dest)
         if ServiceInviterDB.near ~= false then
-            P("|cffffa040NEAR MISS|r " .. short .. " [" .. tostring(Jobs.market or curChannel) .. "] \"" .. text .. "\" -> " .. why)
-            if svc then P("|cff999999   price there: " .. Jobs.PriceWhy(svc, dest, Jobs.market) .. "|r") end
+            P("|cffffa040NEAR MISS|r " .. short .. " " .. Jobs.ChanTag(Jobs.market or curChannel) .. " \"" .. text .. "\" -> " .. why)
+            if svc then P("|cff999999   price there:|r " .. Jobs.PriceWhy(svc, dest, Jobs.market)) end
         end
     end
 
@@ -3285,9 +3310,9 @@ function Jobs.HandOff(poc, buyer, svc, dest, quote, channel, market, said, why)
     local test = db.dryrun and "1" or "0"
     Jobs.TeamSay("BUY", poc, buyer, svc or "summons", dest or "", quote or "", channel or "", market or "", test,
         db.dryrun and (db.testto or FullName("player") or "") or "", why or "", tostring(said or ""):sub(1, 60))
-    P((db.dryrun and "|cffffd100TEST|r " or "") .. "handed " .. buyer .. " (" .. tostring(market or channel) .. ", quoted " ..
-        (Core.Money(quote) or "free") .. ") to " .. poc)
-    if svc then P("|cff999999   quoted " .. Jobs.PriceWhy(svc, dest, market) .. "|r") end
+    P((db.dryrun and "|cffffd100TEST|r " or "") .. "handed " .. buyer .. " " .. Jobs.ChanTag(market or channel) .. " quoted " ..
+        (Core.Money(quote) or "free") .. " to |cff" .. Jobs.PRICE_COLORS.team .. poc .. "|r")
+    if svc then P("|cff999999   quoted|r " .. Jobs.PriceWhy(svc, dest, market)) end
 end
 function Jobs.TeamReceive(prefix, msg, dist, sender)
     if prefix ~= Jobs.Team.PREFIX or type(msg) ~= "string" or IsSecret(msg) or type(sender) ~= "string" then return end
@@ -3335,8 +3360,8 @@ function Jobs.TeamHear(msg, who, me)
         if Jobs.Team.took[buyer] and now - Jobs.Team.took[buyer] < wait then return "ignored: already handed to you in the last " .. math.ceil(wait / 60) .. " min" end
         Jobs.Team.took[buyer] = now
         local test = (f[9] == "1" or ServiceInviterDB.dryrun) and { to = (f[9] == "1" and f[10] ~= "" and f[10]) or ServiceInviterDB.testto } or nil
-        P((test and "|cffffd100TEST|r " or "") .. who .. " handed you " .. buyer .. " (" .. tostring(market ~= "" and market or channel) ..
-            ", quoted " .. (Core.Money(quote) or "free") .. ")")
+        P((test and "|cffffd100TEST|r " or "") .. "|cff" .. Jobs.PRICE_COLORS.team .. who .. "|r handed you " .. buyer .. " " ..
+            Jobs.ChanTag(market ~= "" and market or channel) .. " quoted " .. (Core.Money(quote) or "free"))
         Jobs.handFrom = who
         local okInv, err = pcall(Jobs.InviteBuyer, buyer, f[12] or "", f[11] or "", svc ~= "" and svc or "summons", dest ~= "" and dest or nil, quote,
             channel, market ~= "" and market or nil, nil, test)
@@ -6298,7 +6323,7 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
         end
         if not h then P("haven't heard " .. (rest ~= "" and rest or "them") .. " say anything since the last reload (or not in a channel you listen to)") return end
         local j = Jobs.Get(rest)
-        P(rest .. ", " .. math.floor(GetTime() - h.t) .. "s ago in [" .. tostring(h.ch) .. "]: \"" .. tostring(h.text) .. "\"")
+        P(rest .. ", " .. math.floor(GetTime() - h.t) .. "s ago in " .. Jobs.ChanTag(h.ch) .. ": \"" .. tostring(h.text) .. "\"")
         P("  -> " .. tostring(h.why):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. (j and ("  (on the list: " .. j.status .. ")") or ""))
         local pw = (j and j.priceWhy) or h.price
         if pw then P("  quoted " .. pw) end

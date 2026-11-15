@@ -59,7 +59,7 @@ def test_your_buyer_is_handed_to_the_point_of_contact_who_invites():
     me, bone = pair()
     say_trade(me, "Kaldrok", "wtb summon to TB")
     assert list(me.g.INVITED.values()) == []                       # you never reach the stranger
-    assert any("handed Kaldrok (Trade - City, quoted 35 silver) to Bone Charms" in p for p in clean(me.printed()))
+    assert any("handed Kaldrok [Trade - City] quoted 35 silver to Bone Charms" in p for p in clean(me.printed()))
     pump(me, bone, "Me")
     assert list(bone.g.INVITED.values()) == ["Kaldrok"]
     assert bone.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").price') == 35
@@ -100,13 +100,13 @@ def test_your_test_run_goes_through_the_point_of_contact_to_your_target():
     me.run('SlashCmdList.SERVICEINVITER("test Main Character")')
     say_trade(me, "Rival", "WTS summons to TB 40s")
     say_trade(me, "Kaldrok", "wtb summon to TB")
-    assert any("TEST handed Kaldrok (Trade - City, quoted 35 silver) to Bone Charms" in p for p in clean(me.printed()))
+    assert any("TEST handed Kaldrok [Trade - City] quoted 35 silver to Bone Charms" in p for p in clean(me.printed()))
     pump(me, bone, "Me")
     assert list(bone.g.INVITED.values()) == [] and list(me.g.INVITED.values()) == []
     sent = bone.sent()
     assert sent and all(ch == "WHISPER" and to == "Main Character" for ch, to, _ in sent)
     assert sent[0][2] == "Hi Kaldrok! Yeet Lock will summon you to TB. 35 silver. Pay Yeet Lock when you land."
-    assert any("TEST Me handed you Kaldrok (Trade - City, quoted 35 silver)" in p for p in clean(bone.printed()))
+    assert any("TEST Me handed you Kaldrok [Trade - City] quoted 35 silver" in p for p in clean(bone.printed()))
 
 
 def test_a_test_with_no_target_whispers_the_teammate_who_found_them():
