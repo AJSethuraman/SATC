@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: Gauntlet (first-person feasibility tests)
+## Notes: Test 1 speed of a raycaster, Test 2 wall textures, 3D-model enemies and sounds, then a walkable test level. Not a game yet.
+## SavedVariables: GauntletDB
+# 16001 is what /dump select(4, GetBuildInfo()) returned on Forever.
+Build.lua
+Ray.lua
+Level.lua
+Bench.lua
+Render.lua
+Gauntlet.lua
