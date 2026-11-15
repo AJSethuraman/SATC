@@ -482,3 +482,10 @@ names the full channel ("Trade - English 40", not "Trade") and says why the pric
 the rival, how long ago, the rule, or that it's your max and why (no seller seen there, no min, rule
 off), or held at your min. A buyer handed over by a teammate says it was priced by their copy.
 `/si why NAME` repeats the quote.
+
+## 3.9.14: whoever left goes to the bottom (15 Nov 2026)
+
+The owner: *"when people leave put them at the bottom of the queue so the top is a working
+queue"*. The main window lists everyone in progress first (oldest first), then the finished ones,
+then whoever left (still there while they owe, so Scam stays a click away). With more than six,
+the ones that don't fit come off the bottom, so a leaver is hidden before anyone waiting.

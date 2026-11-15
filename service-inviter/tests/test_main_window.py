@@ -61,3 +61,23 @@ def test_a_regular_keeps_their_count_on_the_row():
     say_trade(g, "Kaldrok", "wtb summon to TB")
     g.run("ServiceInviter_Test.Refresh()")
     assert "3 before" in g.eval("ServiceInviterJobs.rows[1].name:GetText()")
+
+
+def test_someone_who_left_goes_to_the_bottom():
+    """The owner, 15 Nov 2026: "when people leave put them at the bottom of the queue so the top is
+    a working queue"."""
+    g = opened()
+    for n in ("Aa", "Bb", "Cc"):
+        say_trade(g, n, "wtb summon to TB")
+        g.event("CHAT_MSG_SYSTEM", n + " joins the party.")
+    g.run('ServiceInviter_Test.Jobs.Set("Aa", "summoned")')
+    g.event("CHAT_MSG_SYSTEM", "Aa leaves the party.")
+    g.run("ServiceInviter_Test.Refresh()")
+    names = [g.eval(f"ServiceInviterJobs.rows[{i}].job and ServiceInviterJobs.rows[{i}].job.name") for i in (1, 2, 3)]
+    assert names == ["Bb", "Cc", "Aa"]
+    # more than six: whoever left is the one not shown, never someone waiting
+    for n in ("Dd", "Ee", "Ff", "Gg"):
+        say_trade(g, n, "wtb summon to TB")
+    g.run("ServiceInviter_Test.Refresh()")
+    shown = [g.eval(f"ServiceInviterJobs.rows[{i}].job.name") for i in range(1, 7)]
+    assert "Aa" not in shown and shown[:2] == ["Bb", "Cc"]

@@ -1,4 +1,4 @@
--- Service Inviter v3.9.13
+-- Service Inviter v3.9.14
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2570,12 +2570,18 @@ local ACTIVE = { asked = true, invited = true, joined = true, summoned = true, a
 -- fair), then recently finished ones for a moment.
 local function VisibleJobs()
     local now = GetTime()
-    local list, done = {}, {}
+    -- the top is the working queue: whoever left goes to the bottom, under the finished ones
+    -- (the owner, 15 Nov 2026: "when people leave put them at the bottom of the queue so the top
+    -- is a working queue")
+    local list, done, gone = {}, {}, {}
     for _, j in ipairs(jobs) do
-        if ACTIVE[j.status] or (j.status == "left" and j.owes) then list[#list + 1] = j
+        if j.status == "left" then
+            if j.owes or (j.tdone and now - j.tdone < CLEAN_AFTER) then gone[#gone + 1] = j end
+        elseif ACTIVE[j.status] then list[#list + 1] = j
         elseif j.tdone and now - j.tdone < CLEAN_AFTER then done[#done + 1] = j end
     end
     for _, j in ipairs(done) do list[#list + 1] = j end
+    for _, j in ipairs(gone) do list[#list + 1] = j end
     -- too many to show: the newest wait off-screen, never the one who has waited longest
     local hidden = 0
     while #list > ROWS do table.remove(list) hidden = hidden + 1 end
