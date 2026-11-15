@@ -1,4 +1,4 @@
--- Service Inviter v3.9.0
+-- Service Inviter v3.9.1
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1938,6 +1938,35 @@ local function AdChannels()
     local out = {}
     for _, c in ipairs(Jobs.WatchedChannels()) do if not Jobs.AdSkipped(c.name) then out[#out + 1] = c end end
     return out
+end
+-- The ad queue, in the order presses will post: ready channels first (in channel order), then
+-- the rest by time left (the owner, 15 Nov 2026: "i prefer it is more of a queue system ... it
+-- lists below it what is ready for posting, then you press it or the binding and it post to the
+-- next in queue"). { name, left } with left = 0 when ready.
+function Jobs.AdQueue()
+    local now, out = GetTime(), {}
+    for i, c in ipairs(AdChannels()) do
+        local last = lastAdIn[c.name]
+        local left = last and math.max(0, AdWait() - (now - last)) or 0
+        out[#out + 1] = { name = c.name, left = left, i = i }
+    end
+    table.sort(out, function(a, b)
+        if (a.left == 0) ~= (b.left == 0) then return a.left == 0 end
+        if a.left ~= b.left then return a.left < b.left end
+        return a.i < b.i
+    end)
+    return out
+end
+function Jobs.AdQueueText()
+    local q = Jobs.AdQueue()
+    if #q == 0 then return "No channel to post in." end
+    local lines = {}
+    for n, e in ipairs(q) do
+        -- (colors by hand: INK is defined further down the file)
+        lines[#lines + 1] = (n == 1 and e.left == 0 and "|cffe9b949next|r  " or "") .. Jobs.ShortChannel(e.name) .. "  " ..
+            (e.left == 0 and "|cffe9b949ready|r" or ("|cff9ba3ae" .. ("%d:%02d"):format(math.floor(e.left / 60), math.floor(e.left % 60)) .. "|r"))
+    end
+    return table.concat(lines, "\n")
 end
 -- "Trade - English 50" -> "Trade 50", for the ad button
 function Jobs.ShortChannel(name)
@@ -4455,7 +4484,13 @@ local function BuildJobsUI()
     local adBtn = FlatButton(w, 150, 32, "ghost", 13)
     adBtn:SetPoint("TOPRIGHT", -120, -10) adBtn:SetText("Post ad")
     adBtn:SetScript("OnClick", function() PostAd() end)
-    Jobs.Tip(adBtn, "Post the ad (bind a key: /si bind ad F7)")
+    adBtn:HookScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM") GameTooltip:SetText("Ad queue")
+        for l in Jobs.AdQueueText():gmatch("[^\n]+") do GameTooltip:AddLine(l, 1, 1, 1) end
+        GameTooltip:Show()
+    end)
+    adBtn:HookScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     w.adBtn = adBtn
     local regBtn = FlatButton(w, 92, 32, "plain", 13)
     regBtn:SetPoint("TOPRIGHT", -278, -10) regBtn:SetText("Regulars")
@@ -5236,6 +5271,9 @@ local function BuildSetupUI()
     w.adpost = post
     local _, showAdKey = KeyBind(C1 + 236, y - 7, "ad")
     w.showAdKey = showAdKey
+    y = y - 60
+    Label(C1, y, "Queue", "GameFontHighlightSmall")
+    w.adQueue = Label(C1, y - 20, "", nil, 300)
 
     -- Team -------------------------------------------------------------------
     page = pages[6]
@@ -5376,6 +5414,7 @@ local function BuildSetupUI()
         w.sessTiles[2]:SetText(Jobs.MoneyShort(st.ev or 0))
         w.sessTiles[3]:SetText(((st.ev or 0) > 0 and math.floor((st.silver or 0) * 100 / st.ev + 0.5) or 0) .. "%")
         w.showAdKey() w.showBuffKey()
+        w.adQueue:SetText(Jobs.AdQueueText())
         local of = OutFrame()
         local tabName = of and of ~= DEFAULT_CHAT_FRAME and GetChatWindowInfo and of.GetID and GetChatWindowInfo(of:GetID())
         w.outWhere:SetText(tabName and ("The " .. tabName .. " chat tab") or "Your main chat")

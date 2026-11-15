@@ -32,3 +32,21 @@ def test_a_channel_switched_off_gets_no_ad():
         g.run("ServiceInviter_Test.PostAd()")
     assert sorted(posted(g)) == [2, 4, 5]
     assert g.eval('ServiceInviterDB.adskip["General - Thunder Bluff"]') is True
+
+
+def test_the_queue_lists_what_is_ready_and_how_long_the_rest_wait():
+    """The owner, 15 Nov 2026: "it lists below it what is ready for posting, then you press it or
+    the binding and it post to the next in queue, you can spam it"."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    q = g.eval("ServiceInviter_Test.Jobs.AdQueueText()")
+    assert q.count("ready") == 4 and "next" in q
+    g.run("ServiceInviter_Test.PostAd() CLOCK = CLOCK + 60")
+    q = g.eval("ServiceInviter_Test.Jobs.AdQueueText()")
+    lines = q.split("\n")
+    assert "ready" in lines[0] and "4:00" in lines[-1]          # the one just posted waits, last
+    for _ in range(10):                                          # spam: only the ready ones go
+        g.run("ServiceInviter_Test.PostAd()")
+    assert len(posted(g)) == 4
+    g.run("CLOCK = CLOCK + 241 ServiceInviter_Test.PostAd()")    # its wait is over: the next press posts there
+    assert len(posted(g)) == 5
