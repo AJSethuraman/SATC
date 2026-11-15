@@ -59,7 +59,13 @@ function UnitInRaid() return nil end
 function UnitIsAFK() return false end
 function UnitExists() return false end
 function InCombatLockdown() return false end
-C_PartyInfo = { InviteUnit = function(n) INVITED[#INVITED + 1] = n end }
+-- the game says so when an invite goes out (NO_INVITE_ECHO = true: it didn't)
+C_PartyInfo = { InviteUnit = function(n)
+  INVITED[#INVITED + 1] = n
+  if not NO_INVITE_ECHO and FRAMES[1] and FRAMES[1]._scripts.OnEvent then
+    FRAMES[1]._scripts.OnEvent(nil, "CHAT_MSG_SYSTEM", "You have invited " .. n .. " to join your group.")
+  end
+end }
 function hooksecurefunc(t, k, fn) if type(t) == "string" then return end local orig = t[k] t[k] = function(...) orig(...) fn(...) end end
 function SendChatMessage(m, ch, _, to) SENT[#SENT + 1] = { m = m, ch = ch, to = to } end
 function GetTargetTradeMoney() return TRADEMONEY or 0 end

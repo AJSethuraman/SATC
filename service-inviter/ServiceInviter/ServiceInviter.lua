@@ -1,4 +1,4 @@
--- Service Inviter v3.9.5
+-- Service Inviter v3.9.6
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -1282,7 +1282,8 @@ local function OnInviteCall(name)
             if Jobs.TeamOn() and Jobs.POC() and Jobs.POC() ~= Jobs.Me() then
                 Jobs.TeamSay("MAN", short, job.service or "", job.dest or "", job.price or "")
             else
-                Jobs.QuoteNow(job)
+                job.quoteLater = true
+                Jobs.Sent(job)
             end
         end
     end)
@@ -1370,10 +1371,9 @@ function Jobs.InviteBuyer(short, text, why, svc, dest, quote, channel, market, a
     -- accept (the owner's flow, 14 Nov 2026: "he whispers them including their price and the
     -- service so they know upfront what it is and they will be summoned soon"). When they join,
     -- only a regular hears anything more. In party/raid chat it waits for them to join, as before.
-    if Opt("welcome") and Jobs.RouteOf("welcome") == "whisper" and Jobs.WelcomeText then
-        local text = Jobs.WelcomeText(short, job, true)
-        if text then Jobs.Route("welcome", text, short) job.welcomed = true end
-    end
+    -- (sent once the game says the invite went out: Jobs.ConfirmInvite)
+    job.quoteLater = true
+    Jobs.Sent(job)
     if Opt("announce") then
         local what = JobWhere(job)
         if what == "" then what = answered and "(answered your ad)" or why end
@@ -1589,6 +1589,36 @@ local LEAVE_PATTERNS = {
 local ALREADY_PATTERN = PatternFrom(ERR_ALREADY_IN_GROUP_S, "%s is already in a group.")
 local DECLINE_PATTERN = PatternFrom(ERR_DECLINE_GROUP_S, "%s declines your group invitation.")
 
+-- An invite counts once the game says "You have invited X to join your group." (the owner, 15 Nov
+-- 2026: "it sends them the message saying we have it but it is not actually inviting them but
+-- the addon says it is in the queue"). The welcome whisper waits for it. No word in 4 seconds: the
+-- row goes back to Invite (a click always invites) and your chat says why, if the game said.
+Jobs.inviteOK = {}
+function Jobs.Sent(job)
+    job.inviteSent = GetTime()
+    local ok = Jobs.inviteOK[job.name]
+    if ok and GetTime() - ok < 5 then Jobs.ConfirmInvite(job.name) end
+end
+function Jobs.ConfirmInvite(name)
+    local job = Jobs.Get(name)
+    if not job or job.confirmed or not job.inviteSent then Jobs.inviteOK[name] = GetTime() return end
+    job.confirmed = true
+    Jobs.inviteOK[name] = nil
+    if job.quoteLater then job.quoteLater = nil Jobs.QuoteNow(job) end
+end
+function Jobs.InviteCheck()
+    for _, j in ipairs(Jobs.All()) do
+        if j.inviteSent and not j.confirmed and not j.suggested and j.status == "invited" and GetTime() - j.inviteSent > 4 then
+            local sent = j.inviteSent
+            j.inviteSent, j.quoteLater = nil, nil
+            local e = diag.uierr
+            local why = (e and e.t and e.t >= sent - 0.5 and e.msg) or nil
+            Jobs.Set(j.name, "asked")
+            P("|cffff8040" .. j.name .. " wasn't invited|r" .. (why and (": " .. why) or ": the game never said the invite went out") ..
+                ". Press Invite on their row.")
+        end
+    end
+end
 local function OnSystem(text)
     if not text then return end
     local function nm(w) return Ambiguate and Ambiguate(w, "none") or w end
@@ -1609,8 +1639,11 @@ local function OnSystem(text)
         -- The suggestion reaches the leader, who lets them in (the owner, 13 Nov 2026: "it is
         -- working when i am not assist and suggested invite"). They stay invited.
         if j then j.suggested = true end
+        P("|cffffd100" .. nm(sug) .. ": suggested to the raid leader, not invited.|r The leader has to accept it.")
         return
     end
+    local ok = text:match(PatternFrom(_G and _G.ERR_INVITE_PLAYER_S, "You have invited %s to join your group."))
+    if ok then Jobs.ConfirmInvite(nm(ok)) return end
     local d = text:match(DECLINE_PATTERN)
     if d then
         local j = Jobs.Get(nm(d))
@@ -3391,7 +3424,12 @@ function Jobs.HearManual(f, who)
     -- the teammate's own invite may not go through (a muted character can't invite strangers), so
     -- the point of contact invites too; if theirs did, the game just says they're already invited
     -- (the owner, 15 Nov 2026: "it is not actually inviting them but the addon says it is in the queue")
-    if not Jobs.InGroup(buyer) and not (ServiceInviterDB.dryrun) then DoInvite(buyer) end
+    if not Jobs.InGroup(buyer) and not (ServiceInviterDB.dryrun) then
+        DoInvite(buyer)
+        j.quoteLater = true
+        Jobs.Sent(j)
+        return "inviting " .. buyer .. "; the welcome goes once the game says the invite went out"
+    end
     if Jobs.QuoteNow(j) then return "whispered " .. buyer .. " the welcome and price" end
     return "will welcome " .. buyer .. (j.service and (" (" .. j.service .. (j.dest and (" to " .. j.dest) or "") .. ")") or "")
 end
@@ -4236,6 +4274,7 @@ ticker:SetScript("OnUpdate", function(_, el)
         if not ServiceInviterDB.stasis then
             Report("arrivals", pcall(CheckArrivals))
             Report("ad", pcall(Jobs.AdCheck))
+            Report("invites", pcall(Jobs.InviteCheck))
             if #buffQueue > 0 then Report("buffs", pcall(RefreshBuff)) end   -- range, and anyone who left
             if Jobs.TeamOn() and GetTime() - Jobs.Team.lastHi > 60 then Report("team", pcall(Jobs.SayHi, false)) end
             Report("team books", pcall(Jobs.BookTick))
