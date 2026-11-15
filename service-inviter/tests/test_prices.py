@@ -94,9 +94,11 @@ def test_si_prices_lists_rivals():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s")
     g.run('SlashCmdList.SERVICEINVITER("prices")')
-    out = " ".join(g.printed())
+    out = " ".join(g.plain())
     assert "Summons 20 silver to 35 silver; other sellers: undercut by 5 silver" in out
-    assert "Trade - City, TB: Rival at 30 silver" in out and "ours 25 silver" in out
+    assert "TB  25 silver in [Trade - City]: Rival sells at 30 silver" in out
+    assert 'Next ad: [Trade - City] "WTS summons to TB 25 silver' in out
+    assert '[Trade - City] Rival: "WTS summons to TB 30s" -> counted: 30 silver' in out
 
 
 # -- where a quote came from (the owner, 15 Nov 2026: "we had dynamic pricing put us at 35 but it
@@ -158,3 +160,33 @@ def test_each_channel_has_its_own_color_and_the_price_color_says_what_set_it():
     say_trade(g, "Rival", "WTS summons to TB 15s pst")
     assert g.eval(W).startswith("|cffffa04020 silver")                  # orange: held at your min
     assert g.eval('ServiceInviter_Test.Jobs.PriceWhy("summons", "Thunder Bluff", nil)').startswith("|cffff6060")   # red: no channel
+
+
+
+def test_the_ad_prices_from_the_name_chat_lines_give_its_channel():
+    """The owner, 15 Nov 2026: "the macro says 45, my friend says it's quoting people 35". The
+    channel list can name a channel differently from its chat lines; rivals are kept under the
+    chat line's name, so the ad goes by its channel number."""
+    g = world(LOCK, MATCH, extra='function GetChannelList() return 2, "Trade (Services)", false end')
+    g.event("CHAT_MSG_CHANNEL", "WTS summons to TB 30s", "Rival", "", "2. Trade (Services) - English 50", "", "", "", 2,
+            "Trade (Services)")
+    st = g.eval("{ ServiceInviter_Test.AdState() }")
+    assert st[1] == "ready" and "25 silver" in st[5]
+    g.event("CHAT_MSG_CHANNEL", "WTB summon to TB", "Kaldrok", "", "2. Trade (Services) - English 50", "", "", "", 2,
+            "Trade (Services)")
+    assert g.eval('ServiceInviter_Test.Jobs.Get("Kaldrok").price') == 25        # the ad and the quote agree
+
+
+def test_a_summon_ad_naming_no_city_counts_for_every_city():
+    g = world(LOCK, MATCH)
+    say_trade(g, "Rival", "WTS summons anywhere 30s pst")
+    assert price(g) == 25
+    g.run('SlashCmdList.SERVICEINVITER("prices")')
+    assert any("counted: 30 silver, no city named so every city" in l for l in g.plain())
+
+
+def test_a_summon_ad_with_no_price_is_shown_as_not_counted():
+    g = world(LOCK, MATCH)
+    say_trade(g, "Rival", "WTS summons to TB cheap pst")
+    g.run('SlashCmdList.SERVICEINVITER("prices")')
+    assert any("not counted: no price in it" in l for l in g.plain())

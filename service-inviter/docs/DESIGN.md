@@ -573,3 +573,21 @@ instead of making an updating macro"*. The default ad has carried the bar since 
 very likely yes. The ad buttons no longer use the SI Ad macro (3.9.20 undone): each press runs its
 own `/<channel> <ad>` with the bar doubled. The SI Ad macro still works if you keep it; nothing
 needs it.
+
+## 3.9.24: see what the price is and why (15 Nov 2026)
+
+The owner: *"the macro says 45, my friend says it's quoting people 35. we need a way to just see
+what the addon thinks it should be and why"*, and *"my friend is seeing a dude post in /2 and /4
+that he will sell summons but the macro does not seem to be updating"*.
+
+- **The ad and the quote now price from the same channel name.** Rivals are kept under the name a
+  chat line gives its channel ("Trade (Services) - English 50"); the ad looked them up by the
+  channel list's name, which can differ, found none, and stayed at the max while whispers
+  undercut. The ad now uses the name its channel number last came with on a chat line.
+- **A summon ad naming no city counts for every city** ("WTS summons anywhere 30s").
+- **`/si prices`** (and the Prices list): your max, min and rule; for each channel and city, the
+  price and why, colored; the next ad exactly as it will go out; and the last 15 summon ads heard,
+  each with what came of it ("counted: 30 silver", "not counted: no price in it").
+
+On the owner's first theory: a customer invited at 45 keeps 45, but only on their own row; no
+quote ever changes the price for anyone else or any channel.

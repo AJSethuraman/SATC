@@ -1,4 +1,4 @@
--- Service Inviter v3.9.23
+-- Service Inviter v3.9.24
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -785,6 +785,14 @@ end
 -- the price, colored by what set it: green moved for a rival (dynamic pricing at work), white your
 -- max, orange held at your min, red something's off (channel unknown)
 Jobs.PRICE_COLORS = { rival = "40ff40", max = "ffffff", min = "ffa040", unknown = "ff6060", team = "8fbff0" }
+-- The ad finds a channel by its number; rivals are kept under the name chat lines give it, which
+-- can differ from the channel list's ("Trade (Services) - English 50" against "Trade (Services)").
+-- So the ad uses the name its channel number last came with on a chat line (the owner, 15 Nov 2026:
+-- "the macro says 45, my friend says it's quoting people 35").
+Jobs.marketById = {}
+function Jobs.MarketForAd(id, name)
+    return Jobs.marketById[tonumber(id) or -1] or Jobs.MarketOf(name)
+end
 function Jobs.MarketOf(channelName)
     if type(channelName) ~= "string" or IsSecret(channelName) or channelName == "" then return nil end
     return (channelName:gsub("^%d+%.%s*", ""))
@@ -851,13 +859,24 @@ function Jobs.WatchRival(text, sender, market)
     local who = Ambiguate and Ambiguate(sender, "none") or sender
     if who == FullName("player") or Jobs.IsWorker(who) or Jobs.InGroup(who) or (Jobs.IsTeam and Jobs.IsTeam(who)) then return end
     local norm = Norm(text)
-    if not HasAny(norm, SELLER) or not HasAny(norm, SUMMON_WORDS) then return end
+    if not HasAny(norm, SUMMON_WORDS) then return end
+    -- every summon line heard is kept with what came of it, for /si prices (the owner, 15 Nov
+    -- 2026: "we need a way to just see what the addon thinks it should be and why")
+    local function note(result)
+        Jobs.rivalLog = Jobs.rivalLog or {}
+        table.insert(Jobs.rivalLog, 1, { t = GetTime(), market = market, who = who, text = text, result = result })
+        while #Jobs.rivalLog > 15 do table.remove(Jobs.rivalLog) end
+    end
+    if not HasAny(norm, SELLER) then return end
     local price = Core.OfferedPrice(text)
-    if not price or price <= 0 then return end
+    if not price or price <= 0 then note("not counted: no price in it") return end
+    local named = false
+    for _, d in ipairs(DESTS) do if HasAny(norm, d.words) then named = true end end
+    note("counted: " .. (Core.Money(price) or "?") .. (named and "" or ", no city named so every city"))
     local was = Jobs.priceMarket
     Jobs.priceMarket = market
     for _, d in ipairs(DESTS) do
-        if HasAny(norm, d.words) then
+        if not named or HasAny(norm, d.words) then
             local before = Core.Setting(ServiceInviterDB, "summons", d.label).price
             Jobs.rivals[market] = Jobs.rivals[market] or {}
             Jobs.rivals[market][d.label] = Jobs.rivals[market][d.label] or {}
@@ -1835,7 +1854,7 @@ f:RegisterEvent("CHAT_MSG_PARTY")
 f:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 f:RegisterEvent("CHAT_MSG_RAID")
 f:RegisterEvent("CHAT_MSG_RAID_LEADER")
-f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, channelBaseName, _, _, guid)
+f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, chanIndex, channelBaseName, _, _, guid)
     -- stasis (/si stop): hears nothing, does nothing, until /si start (the owner, 13 Nov 2026:
     -- "a command that stops it from running altogether so it's just in stasis")
     if ServiceInviterDB and ServiceInviterDB.stasis then
@@ -1994,6 +2013,7 @@ f.Handle = function(_, event, text, sender, arg3, channelName, _, _, _, _, chann
     -- the market: the full channel name ("Trade - English 50"), or Say/Yell/whisper as one each
     Jobs.market = (event == "CHAT_MSG_CHANNEL" and Jobs.MarketOf(channelName)) or (event == "CHAT_MSG_SAY" and "Say") or
         (event == "CHAT_MSG_YELL" and "Yell") or nil
+    if event == "CHAT_MSG_CHANNEL" and Jobs.market and tonumber(chanIndex) then Jobs.marketById[tonumber(chanIndex)] = Jobs.market end
     if event == "CHAT_MSG_CHANNEL" then
         Report("ad", pcall(Jobs.AdSeen, text, sender))
         local ch = (channelBaseName and channelBaseName ~= "") and channelBaseName or channelName
@@ -2133,7 +2153,7 @@ local function AdState()
             if left <= 0 then
                 -- that channel's own price in the ad
                 local was = Jobs.priceMarket
-                Jobs.priceMarket = Jobs.MarketOf(name)
+                Jobs.priceMarket = Jobs.MarketForAd(id, name)
                 local own = Core.BuildAd(ServiceInviterDB, GroupSnapshot(), Faction(), ServiceInviterDB.admsg)
                 Jobs.priceMarket = was
                 return "ready", key, id, name, own or text
@@ -6374,28 +6394,43 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             (set and ("   (list: " .. set .. ")") or "   (/si team poc NAME, BACKUP to set one)"))
         RefreshJobs()
     elseif cmd == "prices" or cmd == "rivals" then
+        -- what the addon thinks each price is, channel by channel, and why (the owner, 15 Nov 2026:
+        -- "we need a way to just see what the addon thinks it should be and why")
         local sm = (type(ServiceInviterDB.services) == "table" and ServiceInviterDB.services.summons) or {}
         local mode = Jobs.PriceMode(sm)
         local max = Core.Setting(ServiceInviterDB, "summons").price
+        local _, from = Jobs.TeamPrices("summons")
         P("Summons " .. (sm.floor and (Core.Money(sm.floor) .. " to ") or "") .. (Core.Money(max) or "free") .. "; other sellers: " ..
             ((mode == "ignore" and "ignored (always the max)") or (mode == "match" and "matched") or ("undercut by " .. (sm.undercut or 5) .. " silver")) ..
-            ((mode ~= "ignore" and not sm.floor) and " (no min set: prices don't move)" or ""))
-        local any
-        for market, cities in pairs(Jobs.rivals) do
-            for where in pairs(cities) do
-                local r = Jobs.Rival(where, market)
-                if r then
-                    any = true
-                    local was = Jobs.priceMarket
-                    Jobs.priceMarket = market
-                    local ours = Core.Setting(ServiceInviterDB, "summons", where).price
-                    Jobs.priceMarket = was
-                    P(market .. ", " .. Core.Short(where) .. ": " .. r.who .. " at " .. (Core.Money(r.price) or "?") .. ", " ..
-                        math.floor(GetTime() - r.t) .. "s ago; ours " .. (Core.Money(ours) or "free"))
-                end
+            ((mode ~= "ignore" and not sm.floor) and " (no min set: prices don't move)" or "") ..
+            (from and (" (max and min are " .. from .. "'s)") or ""))
+        local T = LiveTargets()
+        local cities = {}
+        for _, d in ipairs(T.dests or {}) do if T.sum[d.key] then cities[#cities + 1] = d.label end end
+        if #cities == 0 then P("You're not selling summons anywhere right now (no warlock in the group where you'd summon to).") end
+        local shown = {}
+        P("|cffffd100Now, by channel|r (what an invite or the ad from there would say):")
+        for _, c in ipairs(Jobs.WatchedChannels()) do
+            local m = Jobs.MarketForAd(c.id, c.name)
+            shown[m] = true
+            for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m)) end
+        end
+        for m in pairs(Jobs.rivals) do
+            if not shown[m] then
+                for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m) .. " |cff999999(not in your channel list)|r") end
             end
         end
-        if not any then P("no other seller's summon ad in the last 5 minutes, in any channel you're in") end
+        local q = Jobs.AdQueue()
+        if q[1] then
+            local _, key, id, name, text = AdState()
+            P("|cffffd100Next ad|r: " .. (key and (Jobs.ChanTag(Jobs.MarketForAd(id, name)) .. " \"" .. tostring(text) .. "\"") or
+                ("in " .. math.ceil(q[1].left) .. "s, " .. Jobs.ChanTag(q[1].name))))
+        end
+        P("|cffffd100Summon ads heard|r (newest first):")
+        if not Jobs.rivalLog or #Jobs.rivalLog == 0 then P("  none since you logged in, in any channel you listen to") end
+        for _, e in ipairs(Jobs.rivalLog or {}) do
+            P("  " .. math.floor(GetTime() - e.t) .. "s ago " .. Jobs.ChanTag(e.market) .. " " .. e.who .. ": \"" .. e.text .. "\" |cff999999-> " .. e.result .. "|r")
+        end
     elseif cmd == "why" then
         local h = rest ~= "" and Jobs.heard and Jobs.heard[rest:lower()]
         if not h then
