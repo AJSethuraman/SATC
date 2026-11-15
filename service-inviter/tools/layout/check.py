@@ -154,6 +154,21 @@ L = load(GROUP)
 L.execute('ServiceInviter_Test.Jobs.AskSetup({}, "Bone Charms")')
 scenes["setup_from_a_teammate"] = export(L, L.globals().ServiceInviterSetupAsk)
 
+# the prices grid: two Trade channels, a rival in one, a priceless ad in the other, two cities
+L = load(GROUP.replace('"Velenne","MAGE",47,"Orgrimmar"', '"Yeet Lock","WARLOCK",60,"Undercity"').replace('Velenne = true', '["Yeet Lock"] = true') +
+         '\nfunction GetChannelList() return 2, "Trade (Services)", false, 4, "Trade", false end'
+         '\nServiceInviterDB = ServiceInviterDB or {} ServiceInviterDB.services = { summons = { price = 45, floor = 30, match = true, undercut = 1 } }')
+L.execute('''
+local E = ServiceInviter_Test.Jobs
+f = f or nil
+local H = function(text, who, ch, idx, base) ServiceInviter_Test.Jobs.WatchRival(text, who, ServiceInviter_Test.Jobs.MarketOf(ch)) ServiceInviter_Test.Jobs.marketById[idx] = ServiceInviter_Test.Jobs.MarketOf(ch) end
+H("WTS summons to TB 36s pst", "Grimbolt", "2. Trade (Services) - English 50", 2)
+H("WTS summons UC 29s", "Cheapo", "2. Trade (Services) - English 50", 2)
+H("WTS summons anywhere cheap", "Dude", "4. Trade - English 4", 4)
+SlashCmdList.SERVICEINVITER("prices")
+''')
+scenes["prices"] = export(L, L.globals().ServiceInviterPrices)
+
 OUT.mkdir(parents=True, exist_ok=True)
 (OUT / "scenes.json").write_text(json.dumps(scenes))
 r = subprocess.run(["node", str(HERE / "shoot.js"), str(HERE / "render.html"), str(OUT)], capture_output=True, text=True)

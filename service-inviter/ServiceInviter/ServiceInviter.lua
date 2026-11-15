@@ -1,4 +1,4 @@
--- Service Inviter v3.9.24
+-- Service Inviter v3.9.25
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -3707,6 +3707,196 @@ function Jobs.AskSetup(values, who)
     w.title:SetText(who .. " sent their setup. Use it?")
     w:Show()
 end
+function Jobs.PrintPrices()
+    -- what the addon thinks each price is, channel by channel, and why (the owner, 15 Nov 2026:
+    -- "we need a way to just see what the addon thinks it should be and why")
+    local sm = (type(ServiceInviterDB.services) == "table" and ServiceInviterDB.services.summons) or {}
+    local mode = Jobs.PriceMode(sm)
+    local max = Core.Setting(ServiceInviterDB, "summons").price
+    local _, from = Jobs.TeamPrices("summons")
+    P("Summons " .. (sm.floor and (Core.Money(sm.floor) .. " to ") or "") .. (Core.Money(max) or "free") .. "; other sellers: " ..
+        ((mode == "ignore" and "ignored (always the max)") or (mode == "match" and "matched") or ("undercut by " .. (sm.undercut or 5) .. " silver")) ..
+        ((mode ~= "ignore" and not sm.floor) and " (no min set: prices don't move)" or "") ..
+        (from and (" (max and min are " .. from .. "'s)") or ""))
+    local T = LiveTargets()
+    local cities = {}
+    for _, d in ipairs(T.dests or {}) do if T.sum[d.key] then cities[#cities + 1] = d.label end end
+    if #cities == 0 then P("You're not selling summons anywhere right now (no warlock in the group where you'd summon to).") end
+    local shown = {}
+    P("|cffffd100Now, by channel|r (what an invite or the ad from there would say):")
+    for _, c in ipairs(Jobs.WatchedChannels()) do
+        local m = Jobs.MarketForAd(c.id, c.name)
+        shown[m] = true
+        for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m)) end
+    end
+    for m in pairs(Jobs.rivals) do
+        if not shown[m] then
+            for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m) .. " |cff999999(not in your channel list)|r") end
+        end
+    end
+    local q = Jobs.AdQueue()
+    if q[1] then
+        local _, key, id, name, text = AdState()
+        P("|cffffd100Next ad|r: " .. (key and (Jobs.ChanTag(Jobs.MarketForAd(id, name)) .. " \"" .. tostring(text) .. "\"") or
+            ("in " .. math.ceil(q[1].left) .. "s, " .. Jobs.ChanTag(q[1].name))))
+    end
+    P("|cffffd100Summon ads heard|r (newest first):")
+    if not Jobs.rivalLog or #Jobs.rivalLog == 0 then P("  none since you logged in, in any channel you listen to") end
+    for _, e in ipairs(Jobs.rivalLog or {}) do
+        P("  " .. math.floor(GetTime() - e.t) .. "s ago " .. Jobs.ChanTag(e.market) .. " " .. e.who .. ": \"" .. e.text .. "\" |cff999999-> " .. e.result .. "|r")
+    end
+end
+-- One cell: the price for a city in a channel, what set it, and why
+function Jobs.PriceCell(where, market)
+    local was = Jobs.priceMarket
+    Jobs.priceMarket = market
+    Jobs.priceWhy, Jobs.priceKind = nil, nil
+    local p = Core.Setting(ServiceInviterDB, "summons", where).price
+    Jobs.priceMarket = was
+    local kind = market and (Jobs.priceKind or "max") or "unknown"
+    return p, kind, Jobs.priceWhy or "your price"
+end
+-- The prices as a grid (the owner, 15 Nov 2026: "this is hard to like see because reading it is
+-- annoying - i want an easier to read maybe matrix or something"): a row per channel, a column per
+-- city, each price in the color of what set it, and why on hover; under it, the summon ads heard.
+Jobs.PRICE_ROWS, Jobs.PRICE_COLS, Jobs.PRICE_HEARD = 6, 5, 6
+function Jobs.ShowPrices()
+    local w = Jobs.pricesWin
+    if not w then
+        local W, LW, CWd = 600, 200, 72
+        w = CreateFrame("Frame", "ServiceInviterPrices", UIParent)
+        w:SetSize(W, 470) w:SetPoint("CENTER", 0, 60) w:SetFrameStrata("DIALOG") w:EnableMouse(true)
+        w:SetMovable(true) w:RegisterForDrag("LeftButton")
+        w:SetScript("OnDragStart", w.StartMoving) w:SetScript("OnDragStop", w.StopMovingOrSizing)
+        local edge = Fill(w, INK.frame, "BACKGROUND", -8) edge:SetPoint("TOPLEFT", -1, 1) edge:SetPoint("BOTTOMRIGHT", 1, -1)
+        local bg = Fill(w, INK.ground, "BACKGROUND", -7) bg:SetAllPoints()
+        local title = Text(w, 16, INK.text, "GameFontNormalLarge") title:SetPoint("TOPLEFT", 18, -16) title:SetText("Prices")
+        local close = FlatButton(w, 28, 28, "bare", 15) close:SetPoint("TOPRIGHT", -10, -10) close:SetText("x")
+        close:SetScript("OnClick", function() w:Hide() end)
+        w.rule = Text(w, 12, INK.muted) w.rule:SetPoint("TOPLEFT", 18, -42) w.rule:SetWidth(W - 36) w.rule:SetJustifyH("LEFT")
+        local top = -72
+        w.colHead = {}
+        for c = 1, Jobs.PRICE_COLS do
+            local h = Text(w, 12, INK.muted) h:SetPoint("TOPLEFT", 18 + LW + (c - 1) * CWd, top) h:SetWidth(CWd) h:SetJustifyH("CENTER")
+            w.colHead[c] = h
+        end
+        w.rows = {}
+        for r = 1, Jobs.PRICE_ROWS do
+            local y = top - 22 - (r - 1) * 30
+            local band = Fill(w, r % 2 == 1 and INK.panel or INK.ground, "BACKGROUND", -6)
+            band:SetPoint("TOPLEFT", 12, y + 6) band:SetSize(W - 24, 28)
+            local lab = Text(w, 13, INK.text) lab:SetPoint("TOPLEFT", 18, y) lab:SetWidth(LW - 8) lab:SetJustifyH("LEFT")
+            if lab.SetWordWrap then lab:SetWordWrap(false) end
+            local nxt = Text(w, 11, INK.gold) nxt:SetPoint("TOPLEFT", 18 + LW + Jobs.PRICE_COLS * CWd + 4, y - 1) nxt:SetText("NEXT AD")
+            local row = { band = band, label = lab, nxt = nxt, cells = {} }
+            for c = 1, Jobs.PRICE_COLS do
+                local b = FlatButton(w, CWd - 6, 24, "plain", 14)
+                b:SetPoint("TOPLEFT", 18 + LW + (c - 1) * CWd + 3, y + 4)
+                b:SetScript("OnEnter", function(self)
+                    if not GameTooltip or not self.why then return end
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT") GameTooltip:SetText(self.head or "")
+                    GameTooltip:AddLine(self.why, 1, 1, 1, true) GameTooltip:Show()
+                end)
+                b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+                row.cells[c] = b
+            end
+            w.rows[r] = row
+        end
+        w.none = Text(w, 13, INK.muted) w.none:SetPoint("TOPLEFT", 18, top - 22) w.none:SetWidth(W - 36) w.none:SetJustifyH("LEFT")
+        w.top, w.LW, w.CWd = top, LW, CWd
+        -- the legend and the ads heard sit right under the rows in use (placed in FillPrices)
+        w.legend = Text(w, 11, INK.faint) w.legend:SetWidth(W - 36) w.legend:SetJustifyH("LEFT")
+        w.legend:SetText("|cff40ff40green|r undercut a rival   |cffffffffwhite|r your max   |cffffa040orange|r your min   |cffff6060red|r channel unknown   ·   hover for why")
+        w.heardHead = Text(w, 12, INK.muted) w.heardHead:SetText("SUMMON ADS HEARD")
+        w.heard = {}
+        for i = 1, Jobs.PRICE_HEARD do
+            local l = Text(w, 12, INK.text) l:SetWidth(W - 36) l:SetJustifyH("LEFT")
+            if l.SetWordWrap then l:SetWordWrap(false) end
+            w.heard[i] = l
+        end
+        local acc = 0
+        w:SetScript("OnUpdate", function(_, el) acc = acc + (el or 0) if acc >= 1 then acc = 0 Jobs.FillPrices() end end)
+        Jobs.pricesWin = w
+    end
+    w:Show()
+    Jobs.FillPrices()
+end
+function Jobs.FillPrices()
+    local w = Jobs.pricesWin
+    if not w then return end
+    local sm = (type(ServiceInviterDB.services) == "table" and ServiceInviterDB.services.summons) or {}
+    local mode = Jobs.PriceMode(sm)
+    local max = Core.Setting(ServiceInviterDB, "summons").price
+    local _, from = Jobs.TeamPrices("summons")
+    w.rule:SetText("Max " .. (Core.Money(max) or "free") .. "   ·   Min " .. (sm.floor and Core.Money(sm.floor) or "none (prices don't move)") ..
+        "   ·   " .. ((mode == "ignore" and "rivals ignored") or (mode == "match" and "match rivals") or ("undercut rivals by " .. (Core.Money(tonumber(sm.undercut) or 5) or "?"))) ..
+        (from and ("   ·   max and min are " .. from .. "'s") or ""))
+    local T = LiveTargets()
+    local cities = {}
+    for _, d in ipairs(T.dests or {}) do if T.sum[d.key] and #cities < Jobs.PRICE_COLS then cities[#cities + 1] = d.label end end
+    for c = 1, Jobs.PRICE_COLS do w.colHead[c]:SetText(cities[c] and Core.Short(cities[c]) or "") end
+    -- channels: the ones you post and listen in, then any other one a rival was heard in
+    local markets, seen = {}, {}
+    for _, c in ipairs(Jobs.WatchedChannels()) do
+        local m = Jobs.MarketForAd(c.id, c.name)
+        if m and not seen[m] then seen[m] = true markets[#markets + 1] = m end
+    end
+    for m in pairs(Jobs.rivals) do if not seen[m] then seen[m] = true markets[#markets + 1] = m end end
+    local _, _, nid, nname = AdState()
+    local nextM = nid and Jobs.MarketForAd(nid, nname)
+    local used = 0
+    for r = 1, Jobs.PRICE_ROWS do
+        local row, m = w.rows[r], markets[r]
+        local show = m ~= nil and #cities > 0
+        if show then used = r row.band:Show() row.label:Show() else row.band:Hide() row.label:Hide() end
+        if show and m == nextM then
+            row.nxt:ClearAllPoints()
+            row.nxt:SetPoint("TOPLEFT", 18 + w.LW + #cities * w.CWd + 8, w.top - 22 - (r - 1) * 30 - 2)
+            row.nxt:Show()
+        else row.nxt:Hide() end
+        if m then row.label:SetText(Jobs.ChanLabel(m)) end
+        for c = 1, Jobs.PRICE_COLS do
+            local b = row.cells[c]
+            if show and cities[c] then
+                local p, kind, why = Jobs.PriceCell(cities[c], m)
+                b:SetText("|cff" .. Jobs.PRICE_COLORS[kind] .. (Core.Money(p) or "free"):gsub(" silver", "s"):gsub(" gold", "g") .. "|r")
+                b.head, b.why = Core.Short(cities[c]) .. " in " .. m, why
+                b:Show()
+            else b:Hide() end
+        end
+    end
+    -- the legend and the ads heard follow the last row in use, and the window fits them
+    local y = w.top - 22 - math.max(used, 1) * 30 - 8
+    w.legend:ClearAllPoints() w.legend:SetPoint("TOPLEFT", 18, y)
+    w.heardHead:ClearAllPoints() w.heardHead:SetPoint("TOPLEFT", 18, y - 28)
+    for i = 1, Jobs.PRICE_HEARD do w.heard[i]:ClearAllPoints() w.heard[i]:SetPoint("TOPLEFT", 18, y - 34 - i * 18) end
+    local lines = 0
+    for i = 1, Jobs.PRICE_HEARD do if (Jobs.rivalLog or {})[i] or i == 1 then lines = i end end
+    w:SetHeight(-(y - 34 - lines * 18) + 26)
+    w.none:SetText((#cities == 0 and "You're not selling summons anywhere right now (no warlock in the group where you'd summon to).")
+        or (#markets == 0 and "No channel to price for: you're not listening in any channel you're in.") or "")
+    local log = Jobs.rivalLog or {}
+    for i = 1, Jobs.PRICE_HEARD do
+        local e = log[i]
+        if i == 1 and not e then
+            w.heard[i]:SetText("|cff7b8490none since you logged in, in any channel you listen to|r")
+        elseif e then
+            local ok = e.result:find("^counted")
+            w.heard[i]:SetText("|cff7b8490" .. Jobs.Ago(GetTime() - e.t) .. "|r  " .. Jobs.ChanLabel(e.market) ..
+                "  " .. e.who .. "  |cff" .. (ok and "40ff40" or "9ba3ae") .. e.result .. "|r  |cff7b8490\"" .. e.text .. "\"|r")
+        else w.heard[i]:SetText("") end
+    end
+end
+-- "Trade (Services) - English 50" -> "Trade (Services) 50", in its channel color
+function Jobs.ChanLabel(m)
+    local short = tostring(m):gsub(" %- English ", " "):gsub(" %- ", " ")
+    return (Jobs.ChanTag(m):gsub("%[.*%]", function() return short end))
+end
+function Jobs.Ago(sec)
+    sec = math.floor(sec or 0)
+    if sec < 60 then return sec .. "s" end
+    return math.floor(sec / 60) .. "m"
+end
 -- A teammate invited someone by hand: the point of contact's copy welcomes them when they join,
 -- with what they came for and the price the teammate's copy worked out.
 function Jobs.HearManual(f, who)
@@ -5769,6 +5959,10 @@ local function BuildSetupUI()
     mk:SetPoint("TOPLEFT", C1 + 380, y + 1) mk:SetText("Make SI Ad macro")
     mk:SetScript("OnClick", function() w.Save() Jobs.WriteAdMacro(true) end)
     Jobs.Tip(mk, "A macro of your own that holds the ad: put it on a bar or bind it")
+    local pr = FlatButton(page, 110, 30, "plain", 13)
+    pr:SetPoint("TOPLEFT", C1 + 576, y + 1) pr:SetText("Prices")
+    pr:SetScript("OnClick", function() Jobs.ShowPrices() end)
+    Jobs.Tip(pr, "What each channel's price is now, and why")
     y = y - 34
     Label(C1, y, "Queue", "GameFontHighlightSmall")
     w.adQueue = Label(C1, y - 20, "", nil, 300)
@@ -6394,43 +6588,8 @@ SlashCmdList["SERVICEINVITER"] = function(arg)
             (set and ("   (list: " .. set .. ")") or "   (/si team poc NAME, BACKUP to set one)"))
         RefreshJobs()
     elseif cmd == "prices" or cmd == "rivals" then
-        -- what the addon thinks each price is, channel by channel, and why (the owner, 15 Nov 2026:
-        -- "we need a way to just see what the addon thinks it should be and why")
-        local sm = (type(ServiceInviterDB.services) == "table" and ServiceInviterDB.services.summons) or {}
-        local mode = Jobs.PriceMode(sm)
-        local max = Core.Setting(ServiceInviterDB, "summons").price
-        local _, from = Jobs.TeamPrices("summons")
-        P("Summons " .. (sm.floor and (Core.Money(sm.floor) .. " to ") or "") .. (Core.Money(max) or "free") .. "; other sellers: " ..
-            ((mode == "ignore" and "ignored (always the max)") or (mode == "match" and "matched") or ("undercut by " .. (sm.undercut or 5) .. " silver")) ..
-            ((mode ~= "ignore" and not sm.floor) and " (no min set: prices don't move)" or "") ..
-            (from and (" (max and min are " .. from .. "'s)") or ""))
-        local T = LiveTargets()
-        local cities = {}
-        for _, d in ipairs(T.dests or {}) do if T.sum[d.key] then cities[#cities + 1] = d.label end end
-        if #cities == 0 then P("You're not selling summons anywhere right now (no warlock in the group where you'd summon to).") end
-        local shown = {}
-        P("|cffffd100Now, by channel|r (what an invite or the ad from there would say):")
-        for _, c in ipairs(Jobs.WatchedChannels()) do
-            local m = Jobs.MarketForAd(c.id, c.name)
-            shown[m] = true
-            for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m)) end
-        end
-        for m in pairs(Jobs.rivals) do
-            if not shown[m] then
-                for _, where in ipairs(cities) do P("  " .. Core.Short(where) .. "  " .. Jobs.PriceWhy("summons", where, m) .. " |cff999999(not in your channel list)|r") end
-            end
-        end
-        local q = Jobs.AdQueue()
-        if q[1] then
-            local _, key, id, name, text = AdState()
-            P("|cffffd100Next ad|r: " .. (key and (Jobs.ChanTag(Jobs.MarketForAd(id, name)) .. " \"" .. tostring(text) .. "\"") or
-                ("in " .. math.ceil(q[1].left) .. "s, " .. Jobs.ChanTag(q[1].name))))
-        end
-        P("|cffffd100Summon ads heard|r (newest first):")
-        if not Jobs.rivalLog or #Jobs.rivalLog == 0 then P("  none since you logged in, in any channel you listen to") end
-        for _, e in ipairs(Jobs.rivalLog or {}) do
-            P("  " .. math.floor(GetTime() - e.t) .. "s ago " .. Jobs.ChanTag(e.market) .. " " .. e.who .. ": \"" .. e.text .. "\" |cff999999-> " .. e.result .. "|r")
-        end
+        -- the window; as text inside a list (Tools -> Lists -> Prices) or with "/si prices text"
+        if Jobs.capture or rest:lower() == "text" then Jobs.PrintPrices() else Jobs.ShowPrices() end
     elseif cmd == "why" then
         local h = rest ~= "" and Jobs.heard and Jobs.heard[rest:lower()]
         if not h then

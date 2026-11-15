@@ -93,7 +93,7 @@ def test_the_ad_in_a_channel_shows_that_channels_price():
 def test_si_prices_lists_rivals():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB 30s")
-    g.run('SlashCmdList.SERVICEINVITER("prices")')
+    g.run('SlashCmdList.SERVICEINVITER("prices text")')
     out = " ".join(g.plain())
     assert "Summons 20 silver to 35 silver; other sellers: undercut by 5 silver" in out
     assert "TB  25 silver in [Trade - City]: Rival sells at 30 silver" in out
@@ -181,12 +181,36 @@ def test_a_summon_ad_naming_no_city_counts_for_every_city():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons anywhere 30s pst")
     assert price(g) == 25
-    g.run('SlashCmdList.SERVICEINVITER("prices")')
+    g.run('SlashCmdList.SERVICEINVITER("prices text")')
     assert any("counted: 30 silver, no city named so every city" in l for l in g.plain())
 
 
 def test_a_summon_ad_with_no_price_is_shown_as_not_counted():
     g = world(LOCK, MATCH)
     say_trade(g, "Rival", "WTS summons to TB cheap pst")
-    g.run('SlashCmdList.SERVICEINVITER("prices")')
+    g.run('SlashCmdList.SERVICEINVITER("prices text")')
     assert any("not counted: no price in it" in l for l in g.plain())
+
+
+def test_the_prices_window_is_a_grid_of_channels_by_cities():
+    """The owner, 15 Nov 2026: "this is hard to like see because reading it is annoying - i want an
+    easier to read maybe matrix or something"."""
+    g = world(LOCK, MATCH, extra='function GetChannelList() return 2, "Trade (Services)", false, 4, "Trade", false end')
+    g.event("CHAT_MSG_CHANNEL", "WTS summons to TB 30s", "Rival", "", "2. Trade (Services) - English 50", "", "", "", 2, "Trade (Services)")
+    g.event("CHAT_MSG_CHANNEL", "anyone", "Someone", "", "4. Trade - English 4", "", "", "", 4, "Trade")
+    g.run('SlashCmdList.SERVICEINVITER("prices")')
+    W = "ServiceInviterPrices"
+    assert g.eval(f"{W}:IsShown()")
+    assert g.eval(f"{W}.colHead[1]:GetText()") == "TB"
+    r1 = g.eval(f"{W}.rows[1].label:GetText()")
+    assert "Trade (Services) 50" in r1 and g.eval(f"{W}.rows[1].nxt:IsShown()")
+    c11 = g.eval(f"{W}.rows[1].cells[1]:GetText()")
+    assert c11 == "|cff40ff4025s|r"                                   # green: moved for a rival
+    assert "Rival sells at 30 silver" in g.eval(f"{W}.rows[1].cells[1].why")
+    c21 = g.eval(f"{W}.rows[2].cells[1]:GetText()")
+    assert "Trade 4" in g.eval(f"{W}.rows[2].label:GetText()") and not g.eval(f"{W}.rows[2].nxt:IsShown()") and c21 == "|cffffffff35s|r"   # white: the max
+    assert "no other seller" in g.eval(f"{W}.rows[2].cells[1].why")
+    heard = g.eval(f"{W}.heard[1]:GetText()")
+    assert "Rival" in heard and "counted: 30 silver" in heard
+    assert not g.eval(f"{W}.rows[3].band:IsShown()")
+    assert "Max 35 silver" in g.eval(f"{W}.rule:GetText()") and "Min 20 silver" in g.eval(f"{W}.rule:GetText()")

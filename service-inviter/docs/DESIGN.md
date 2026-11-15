@@ -591,3 +591,12 @@ that he will sell summons but the macro does not seem to be updating"*.
 
 On the owner's first theory: a customer invited at 45 keeps 45, but only on their own row; no
 quote ever changes the price for anyone else or any channel.
+
+## 3.9.25: the prices as a grid (15 Nov 2026)
+
+The owner: *"this is hard to like see because reading it is annoying - i want an easier to read
+maybe matrix or something"*. `/si prices` (and a Prices button on Advertise) opens a window: a row
+per channel (the ones you listen in, then any other a rival was heard in), a column per city you
+sell, each price in the color of what set it, and why on hover; NEXT AD marks the channel the next
+press posts in. Under it, the last six summon ads heard and what came of each. It refreshes every
+second while open. `/si prices text` and Tools -> Lists -> Prices keep the text version.
