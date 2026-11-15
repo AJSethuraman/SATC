@@ -440,3 +440,12 @@ rate limited not muted"*.
   already dropping lines.
 - **Background lines stay under 40 a minute**, and `/si stop` drops what was queued. `/si teamlog`
   says how many team messages your copy sent in the last minute.
+
+## 3.9.9: the ad is a macro (15 Nov 2026)
+
+The owner: *"the trade thing is still happening - what gets me is a regular macro can do this"*.
+The ad buttons (main window, Setup, the bound key) are now macro buttons: a press runs
+`/<channel> <ad>`, the same thing a macro typed by hand does, instead of the addon's own
+`SendChatMessage`, which the game kept dropping. Just before the press goes through, the addon
+fills in the next channel that's ready. In combat the macro can't change, so it posts what was
+ready when the fight started. `/si ad` typed in chat still uses the old call.

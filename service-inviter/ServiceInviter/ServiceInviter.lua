@@ -1,4 +1,4 @@
--- Service Inviter v3.9.8
+-- Service Inviter v3.9.9
 -- Watches chat for people asking to BUY what your group sells right now (summons to
 -- where the warlock is, the mage's portals, lockpicking, water, stones, buffs) and sends
 -- them a group invite. The rules live in Services.lua; docs/DESIGN.md says why. It also talks in your group and may
@@ -2069,6 +2069,10 @@ local function PostAd()
         return
     end
     SendChatMessage(text, "CHANNEL", nil, id)
+    Jobs.AdPosted(key, name, text)
+end
+-- After an ad goes out, by a typed /si ad or a button press.
+function Jobs.AdPosted(key, name, text)
     local now = GetTime()
     lastAdIn[key] = now
     lastAdAt = now
@@ -2137,9 +2141,43 @@ function Jobs.AdChannelName()
     local _, _, _, name = AdState()
     return type(name) == "string" and name:gsub("^%d+%.%s*", ""):gsub(" %- .*$", "") or "Trade"
 end
+-- The ad buttons are macros: the press runs "/2 <ad>", exactly what your own macro does (the owner,
+-- 15 Nov 2026: "the trade thing is still happening - what gets me is a regular macro can do this").
+-- An addon's own SendChatMessage to a channel is what the game kept dropping. Just before the
+-- press goes through, the addon fills in the next channel that's ready and its ad; nothing ready,
+-- and the press does nothing but say why. In combat the macro can't be changed, so it posts what
+-- was ready when combat started.
+function Jobs.AdMacro()
+    local state, key, id, name, text = AdState()
+    if state ~= "ready" then return nil, state, key end
+    return "/" .. id .. " " .. text, key, id, name, text
+end
+function Jobs.AdPress(btn)
+    local fight = InCombatLockdown and InCombatLockdown()
+    local macro, a, b, name, text = Jobs.AdMacro()
+    if not fight then btn:SetAttribute("macrotext", macro or "") end
+    if not macro then   -- a is the state, b the wait or the reason
+        P(a == "wait" and ("next ad in " .. math.ceil(b or 0) .. "s") or ("no ad: " .. tostring(b)))
+        return
+    end
+    local key = a
+    if fight and btn:GetAttribute("macrotext") ~= macro then return end
+    Jobs.AdPosted(key, name, text)
+end
+-- out of combat, keep each ad button holding the ad that's ready now
+function Jobs.ArmAd(btn)
+    if not btn or (InCombatLockdown and InCombatLockdown()) then return end
+    btn:SetAttribute("macrotext", (Jobs.AdMacro()) or "")
+end
+function Jobs.AdButton(btn)
+    btn:SetAttribute("type", "macro")
+    btn:SetAttribute("macrotext", "")
+    btn:RegisterForClicks("AnyDown")   -- once per press: on the way up too would post a second ad
+    btn:SetScript("PreClick", function(self) Jobs.AdPress(self) end)
+    return btn
+end
 -- A named button so a key can press it: /si bind ad F7
-local adKey = CreateFrame("Button", "ServiceInviterAdButton", UIParent)
-adKey:SetScript("OnClick", function() PostAd() end)
+local adKey = Jobs.AdButton(CreateFrame("Button", "ServiceInviterAdButton", UIParent, "SecureActionButtonTemplate"))
 adKey:Hide()
 
 ----------------------------------------------------------------------
@@ -4645,8 +4683,9 @@ RefreshJobs = function()
     if jobsWin.adBtn then
         local label, ready = AdLabel()
         jobsWin.adBtn:SetText(label)
-        if ready then jobsWin.adBtn:Enable() else jobsWin.adBtn:Disable() end
         if jobsWin.adBtn.SetAlpha then jobsWin.adBtn:SetAlpha(ready and 1 or 0.55) end
+        Jobs.ArmAd(jobsWin.adBtn)
+        Jobs.ArmAd(_G.ServiceInviterAdButton)
     end
 end
 
@@ -4709,9 +4748,8 @@ local function BuildJobsUI()
     local setupBtn = FlatButton(w, 64, 32, "plain", 13)
     setupBtn:SetPoint("TOPRIGHT", -48, -10) setupBtn:SetText("Setup")
     setupBtn:SetScript("OnClick", function() ToggleSetup() end)
-    local adBtn = FlatButton(w, 150, 32, "ghost", 13)
+    local adBtn = Jobs.AdButton(FlatButton(w, 150, 32, "ghost", 13, true, "ServiceInviterAdPost"))
     adBtn:SetPoint("TOPRIGHT", -120, -10) adBtn:SetText("Post ad")
-    adBtn:SetScript("OnClick", function() PostAd() end)
     adBtn:HookScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM") GameTooltip:SetText("Ad queue")
@@ -5492,9 +5530,9 @@ local function BuildSetupUI()
     Label(C1, y - 6, "Wait") Box("adwait", C1 + FW - 150, y, 56, 3, "5") Label(C1 + FW - 88, y - 7, "min / channel", "GameFontHighlightSmall")
     y = y - ROW - 12
     Header(C1, y, "Post", FW) y = y - 30
-    local post = FlatButton(page, 220, 44, "gold", 15)
+    local post = Jobs.AdButton(FlatButton(page, 220, 44, "gold", 15, true, "ServiceInviterSetupAdPost"))
     post:SetPoint("TOPLEFT", C1, y) post:SetText("Post ad")
-    post:SetScript("OnClick", function() w.Save() PostAd() w.Load() end)
+    post:SetScript("PreClick", function(self) w.Save() Jobs.AdPress(self) w.Load() end)
     Jobs.Tip(post, "The game sends an ad only on a key press or click: one press, one ad")
     w.adpost = post
     local _, showAdKey = KeyBind(C1 + 236, y - 7, "ad")

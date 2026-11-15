@@ -125,3 +125,42 @@ def test_unmuted_is_not_muted():
     g.event("CHAT_MSG_SYSTEM", "You have been unmuted.")
     g.run("ServiceInviter_Test.PostAd()")
     assert len(posted(g)) == 1
+
+
+def press(g, button="ServiceInviterAdButton"):
+    """A key press or click: PreClick runs, then the game runs the button's macro."""
+    g.run(f'{button}:GetScript("PreClick")({button}) MACROS_RUN = MACROS_RUN or {{}} '
+          f'MACROS_RUN[#MACROS_RUN + 1] = {button}:GetAttribute("macrotext")')
+    return g.eval("MACROS_RUN[#MACROS_RUN]")
+
+
+def test_the_ad_button_is_a_macro_like_your_own():
+    """The owner, 15 Nov 2026: "the trade thing is still happening - what gets me is a regular
+    macro can do this". The press runs /<channel> <ad>, not the addon's own chat call."""
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    assert g.eval('ServiceInviterAdButton:GetAttribute("type")') == "macro"
+    first = press(g)
+    assert first.startswith("/1 ") and "35" in first
+    assert posted(g) == []                                   # no SendChatMessage
+    second = press(g)
+    assert second.startswith("/2 ")                          # next channel in the queue
+    for _ in range(3):
+        press(g)
+    assert press(g) == ""                                    # all four posted: nothing until the wait is over
+    assert any("next ad in" in p for p in g.printed())
+
+
+def test_the_main_window_and_setup_buttons_are_macros_too():
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.run("ServiceInviter_Test.Refresh() S = ServiceInviter_Test.BuildSetup() S:Show() S.Load() W = ServiceInviterJobs.adBtn P2 = S.adpost")
+    assert press(g, "W").startswith("/1 ")
+    assert press(g, "P2").startswith("/2 ")
+
+
+def test_muted_means_the_button_runs_nothing():
+    g = world(LOCK, "summons = { price = 35 }", extra=CHANNELS)
+    g.run('ServiceInviterDB.role = "lock" ServiceInviterDB.opts = { general = true }')
+    g.event("CHAT_MSG_SYSTEM", "You are muted.")
+    assert press(g) == ""
